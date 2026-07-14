@@ -44,5 +44,3 @@ Turborepo, pnpm workspaces, Vitest.
 
 Każdy PR i push na `main` uruchamia workflow `ci` (typecheck, lint, test,
 `pnpm audit`, audyt publicznych zmiennych środowiskowych).
-
-<!-- test bezpośredniego push na main: weryfikacja ochrony gałęzi -->
