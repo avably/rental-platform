@@ -1,12 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { setPostAuthNext } from "@/lib/post-auth-next";
 import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { registerSchema } from "@/lib/validation";
+import { registerSchema, safeNextPath } from "@/lib/validation";
 
 export interface RegisterState {
   error?: string;
@@ -24,6 +25,8 @@ export async function registerAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
   }
+
+  const next = safeNextPath(formData.get("next"));
 
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
   const rateLimit = await checkAuthRateLimit(`register:${ip}`, { limit: 5, windowSeconds: 60 });
@@ -43,6 +46,12 @@ export async function registerAction(
   });
   if (error) {
     return { error: error.message };
+  }
+
+  // `next` (np. /zaproszenie/<token>) musi przetrwać rundę e-mail — chowamy
+  // go w krótkotrwałym cookie konsumowanym w /auth/confirm.
+  if (next) {
+    setPostAuthNext(await cookies(), next);
   }
 
   redirect("/register/sprawdz-skrzynke");

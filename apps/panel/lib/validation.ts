@@ -4,6 +4,22 @@
  */
 import { z } from "zod";
 
+/**
+ * Sanityzacja parametru `next` (docelowa ścieżka po zalogowaniu, np. z linku
+ * zaproszenia dla niezalogowanego). Chroni przed open-redirect: przyjmuje
+ * WYŁĄCZNIE ścieżki wewnętrzne zaczynające się od pojedynczego "/". Odrzuca
+ * absolutne URL-e (`https://…`), protocol-relative (`//host`) i ścieżki z
+ * backslashem (część przeglądarek normalizuje `\` do `/`, dając ucieczkę na
+ * inny host). Zwraca bezpieczną ścieżkę albo `null`.
+ */
+export function safeNextPath(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length === 0) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  if (raw.includes("\\")) return null;
+  return raw;
+}
+
 export const emailSchema = z
   .string()
   .trim()

@@ -15,6 +15,8 @@ import { cookies } from "next/headers";
 import { createServerClient, type CookieMethodsServer } from "@rental/db";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
+import { clearPostAuthNextOnResponse, readPostAuthNext } from "@/lib/post-auth-next";
+
 type CookiesToSet = Parameters<NonNullable<CookieMethodsServer["setAll"]>>[0];
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -36,15 +38,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
 
+  // `next` z rejestracji (np. /zaproszenie/<token>) — odczytujemy zawsze, żeby
+  // móc je skasować (poniżej, na zwracanej odpowiedzi), ale kierujemy tam
+  // tylko przy udanym potwierdzeniu e-maila (nie recovery — tam user musi
+  // najpierw ustawić hasło).
+  const { next: postAuthNext, hadCookie } = readPostAuthNext(cookieStore);
+
   const destination = error
     ? "/login?error=link_expired"
     : type === "recovery"
       ? "/reset/confirm"
-      : "/organizacja/nowa";
+      : (postAuthNext ?? "/organizacja/nowa");
 
   const response = NextResponse.redirect(new URL(destination, request.url));
   for (const { name, value, options } of pendingCookies) {
     response.cookies.set(name, value, options);
+  }
+  // Budujemy własną odpowiedź redirect, więc kasowanie cookie musi trafić na
+  // NIĄ (mutacja cookieStore z next/headers nie dotyczy tej odpowiedzi).
+  if (hadCookie) {
+    clearPostAuthNextOnResponse(response);
   }
   return response;
 }

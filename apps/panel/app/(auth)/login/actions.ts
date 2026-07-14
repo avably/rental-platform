@@ -7,7 +7,7 @@ import { getAuthContext } from "@/lib/auth";
 import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { loginSchema } from "@/lib/validation";
+import { loginSchema, safeNextPath } from "@/lib/validation";
 
 export interface LoginState {
   error?: string;
@@ -22,6 +22,10 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
   }
+
+  // Docelowa ścieżka po zalogowaniu (np. /zaproszenie/<token> dla zaproszonego
+  // bez konta). Sanityzowana przeciw open-redirect (patrz safeNextPath).
+  const next = safeNextPath(formData.get("next"));
 
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
   const rateLimitIp = await checkAuthRateLimit(`login:ip:${ip}`, { limit: 20, windowSeconds: 60 });
@@ -45,6 +49,10 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   });
   if (error) {
     return { error: "Nieprawidłowy e-mail lub hasło." };
+  }
+
+  if (next) {
+    redirect(next);
   }
 
   const ctx = await getAuthContext(supabase);
