@@ -47,3 +47,4 @@ jobs:
             echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
       - run: pnpm --filter @rental/db test
+      - run: pnpm --filter panel test
