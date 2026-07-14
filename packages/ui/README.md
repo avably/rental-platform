@@ -5,7 +5,7 @@
 `@rental/ui` jest jednym źródłem prawdy o warstwie wizualnej platformy.
 Pakiet portuje dojrzały system z repozytorium referencyjnego, bez tworzenia
 nowego języka wizualnego. Zakres pierwszego portu obejmuje tokeny Tailwind CSS
-4, tryb jasny i ciemny, narzędzie `cn` oraz 16 prymitywów interfejsu.
+4, tryb jasny i ciemny, narzędzie `cn` oraz 15 rodzin prymitywów interfejsu.
 
 Poza zakresem pozostają komponenty domenowe, treściowe, blogowe i produktowe.
 
@@ -80,5 +80,5 @@ a interaktywne nakładki można obsłużyć klawiaturą.
 - testy komponentów sprawdzają warianty i krytyczne atrybuty dostępności;
 - galeria jest weryfikowana przez produkcyjny build panelu oraz kontrolę obu
   motywów w przeglądarce;
-- wszystkie kombinacje tekstu i tła używane przez prymitywy spełniają WCAG AA;
+- semantyczne pary tekstu i tła używane przez prymitywy spełniają WCAG AA;
 - zamknięcie zadania wymaga `pnpm typecheck`, `pnpm lint` i `pnpm test`.
