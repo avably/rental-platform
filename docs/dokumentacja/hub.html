@@ -1,0 +1,184 @@
+<title>rental-platform — centrum projektu</title>
+<style>
+:root{
+  --paper:#F6F8F7;--ink:#182220;--muted:#5C6B66;--line:#D9E0DD;
+  --accent:#0E6B54;--accent-soft:#E3EFEA;--warn:#B4700F;--warn-soft:#F6ECDC;--card:#FFFFFF;
+  --claude:#0E6B54;--claude-soft:#E3EFEA;--gpt:#5B4BC4;--gpt-soft:#EAE7F8;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#101614;--ink:#E4EAE7;--muted:#93A29C;--line:#26312D;--card:#161E1B;
+  --accent:#3FBF97;--accent-soft:#15251F;--warn:#D99A3D;--warn-soft:#2A2114;
+  --claude:#3FBF97;--claude-soft:#15251F;--gpt:#A99CF0;--gpt-soft:#1C1830;
+}}
+:root[data-theme="dark"]{--paper:#101614;--ink:#E4EAE7;--muted:#93A29C;--line:#26312D;--card:#161E1B;--accent:#3FBF97;--accent-soft:#15251F;--warn:#D99A3D;--warn-soft:#2A2114;--claude:#3FBF97;--claude-soft:#15251F;--gpt:#A99CF0;--gpt-soft:#1C1830;}
+:root[data-theme="light"]{--paper:#F6F8F7;--ink:#182220;--muted:#5C6B66;--line:#D9E0DD;--card:#FFFFFF;--accent:#0E6B54;--accent-soft:#E3EFEA;--warn:#B4700F;--warn-soft:#F6ECDC;--claude:#0E6B54;--claude-soft:#E3EFEA;--gpt:#5B4BC4;--gpt-soft:#EAE7F8;}
+html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--paper);color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;line-height:1.6;margin:0}
+.wrap{max-width:940px;margin:0 auto;padding:40px 24px 96px}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:8px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.14;margin:0 0 12px;font-weight:600;text-wrap:balance}
+.lede{font-size:16px;color:var(--muted);max-width:66ch;margin:0}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 36px}
+nav.toc a{font-family:var(--mono);font-size:12.5px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 13px;background:var(--card)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+section{margin:48px 0}
+h2{font-size:22px;font-weight:600;margin:0 0 6px;text-wrap:balance}
+h2 .num{font-family:var(--mono);color:var(--accent);font-size:14px;vertical-align:.18em;margin-right:10px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:68ch}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px}
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.linkcard{display:block;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:16px 18px;text-decoration:none;color:var(--ink)}
+.linkcard:hover{border-color:var(--accent)}
+.linkcard .t{font-weight:600;font-size:15px;margin:0 0 4px}
+.linkcard .d{font-size:13px;color:var(--muted);margin:0}
+.linkcard .s{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:8px;display:inline-block}
+.linkcard.soon{opacity:.6}
+.linkcard.soon .s{color:var(--warn)}
+pre{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.copyhint{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:0 0 8px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:12px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:600px}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;color:var(--muted);font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line)}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
+ul{padding-left:20px}li{margin:4px 0;font-size:14.5px}
+.owner{display:inline-block;font-family:var(--mono);font-size:11px;border-radius:4px;padding:1px 7px}
+.owner.claude{background:var(--claude-soft);color:var(--claude)}
+.owner.gpt{background:var(--gpt-soft);color:var(--gpt)}
+.callout{border-left:3px solid var(--accent);background:var(--card);border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;font-size:14px}
+footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+</style>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Centrum projektu · pojedynczy punkt wejścia</p>
+  <h1>rental-platform — start tutaj</h1>
+  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem. Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
+</header>
+<nav class="toc">
+  <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
+</nav>
+
+<section id="prompt">
+  <h2><span class="num">01</span>Prompt startowy dla nowej sesji</h2>
+  <p class="sub">Wklej to jako pierwszą wiadomość w nowej sesji dowolnego LLM (Claude, GPT/Codex, inny), żeby dać mu pełny kontekst. Nakazuje przeczytać dokumenty źródłowe zanim ruszy.</p>
+  <p class="copyhint">— zaznacz i skopiuj całość —</p>
+  <pre>Pracujesz nad rental-platform: wielotenantowy SaaS do zarządzania wynajmem
+(model subskrypcyjny, strona www + domena dla każdego najemcy, rynek PL).
+
+REPOZYTORIA:
+- Kod: ~/rental-platform  (GitHub: starkit-rental/rental-platform) — monorepo
+  pnpm + Turborepo, Next.js 16, Supabase, TypeScript strict.
+- Referencja (tylko odczyt): ~/starkit-system — działający system starkit,
+  z którego portujemy sprawdzone moduły; migruje jako tenant #1 na końcu.
+
+ZANIM COKOLWIEK ZROBISZ, przeczytaj w repo rental-platform:
+1. docs/DOKUMENTACJA.md         — standard współpracy i zasady (WIĄŻĄCE)
+2. docs/dokumentacja/index.html — architektura, moduły, model danych, RLS,
+                                   decyzje (ADR), dziennik budowy
+3. docs/dokumentacja/hub.html   — ta strona (linki do planu, spec, narzędzi)
+Plan wdrożenia i spec: ~/starkit-system/docs/superpowers/ (plany + specs).
+
+ZASADY TWARDE:
+- Autor commitów: Maciej Godek. ZERO stopek Co-Authored-By / wzmianek o AI.
+  ZERO nazw konkurencyjnych produktów w kodzie/komentarzach/docs.
+- Podział pracy po pasach własności (patrz DOKUMENTACJA.md): Claude = db,
+  core, auth/superadmin, CI, migracje; GPT = ui, emails, pdf, storefront +
+  UI panelu. Nie edytuj pakietu spoza swojego pasa. Migracje i CI = tylko Claude.
+- Gałąź per zadanie, PR do main, nigdy push na main. Rebase przed startem i PR.
+- Dokumentacja HTML to warunek zamknięcia zadania: każdy PR aktualizuje sekcję
+  swojego modułu w docs/dokumentacja/index.html + dziennik budowy. Bez wpisu
+  zadanie nieukończone.
+- Język: polski. Waluta PLN (grosze jako int). Strefa Europe/Warsaw.
+
+STAN: faza 0 (fundament) w toku. Zrobione: monorepo, CI, schemat rdzenia +
+RLS, bramka izolacji RLS. Sprawdź dziennik budowy w index.html po najnowszy stan.
+
+Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod.</pre>
+</section>
+
+<section id="dokumenty">
+  <h2><span class="num">02</span>Dokumenty</h2>
+  <p class="sub">Klikalne wersje HTML (artefakty) i pliki źródłowe w repozytoriach.</p>
+  <div class="links">
+    <a class="linkcard" href="https://claude.ai/code/artifact/134ec9b2-5a13-4a60-9736-1aa77c10de46"><p class="t">Dokumentacja architektury</p><p class="d">Moduły, model danych, RLS, decyzje, dziennik budowy. Źródło prawdy o systemie.</p><span class="s">artefakt HTML · repo: docs/dokumentacja/index.html</span></a>
+    <a class="linkcard" href="https://claude.ai/code/artifact/71d2a3c5-a51f-44ba-b791-03cb1b09952c"><p class="t">Plan wdrożenia (5 faz)</p><p class="d">Fazy, kroki, milestone'y, rejestr ryzyk, bezpieczeństwo, budżet.</p><span class="s">artefakt HTML · repo starkit: docs/superpowers/plans/</span></a>
+    <a class="linkcard" href="https://github.com/starkit-rental/rental-platform/blob/main/docs/DOKUMENTACJA.md"><p class="t">Standard współpracy</p><p class="d">Pasy własności, zasady zero-kolizji, dokumentacja jako DoD.</p><span class="s">repo: docs/DOKUMENTACJA.md</span></a>
+    <span class="linkcard soon"><p class="t">Galeria design systemu</p><p class="d">@rental/ui — tokeny i komponenty (port z redesignu starkit). W budowie przez GPT.</p><span class="s">wkrótce · packages/ui</span></span>
+  </div>
+  <div class="callout">Pliki planistyczne (spec, plan programowy, plan zadaniowy fazy 0, audyt bazowy starkit) żyją w repo starkit: <code>~/starkit-system/docs/superpowers/</code> — <code>specs/</code>, <code>plans/</code>, <code>research/</code>.</div>
+</section>
+
+<section id="kod">
+  <h2><span class="num">03</span>Mapa kodu</h2>
+  <p class="sub">Repo <a href="https://github.com/starkit-rental/rental-platform">starkit-rental/rental-platform</a> · monorepo. Najważniejsze ścieżki:</p>
+  <div class="tablewrap"><table>
+    <tr><th>Ścieżka</th><th>Właściciel</th><th>Co tam jest</th></tr>
+    <tr><td class="mono">packages/db/supabase/migrations/</td><td><span class="owner claude">Claude</span></td><td>0001_core (schemat+RLS), 0002_hardening (search_path)</td></tr>
+    <tr><td class="mono">packages/db/src/</td><td><span class="owner claude">Claude</span></td><td>client.ts, service.ts (@rental/db/service), env.ts, types.ts</td></tr>
+    <tr><td class="mono">packages/db/test/rls-isolation.test.ts</td><td><span class="owner claude">Claude</span></td><td>macierz izolacji RLS — bramka bezpieczeństwa</td></tr>
+    <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>silnik wynajmu (port w fazie 1)</td></tr>
+    <tr><td class="mono">packages/ui/</td><td><span class="owner gpt">GPT</span></td><td>design system (port z starkit components/ui + tokeny oklch)</td></tr>
+    <tr><td class="mono">packages/emails/ · packages/pdf/</td><td><span class="owner gpt">GPT</span></td><td>szablony e-mail · generator umów</td></tr>
+    <tr><td class="mono">apps/panel/</td><td><span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</td><td>backoffice, auth, superadmin, waitlista (port 3000)</td></tr>
+    <tr><td class="mono">apps/storefront/</td><td><span class="owner gpt">GPT</span></td><td>publiczne strony najemców (port 3001)</td></tr>
+    <tr><td class="mono">.github/workflows/ci.yml</td><td><span class="owner claude">Claude</span></td><td>joby ci + rls</td></tr>
+  </table></div>
+</section>
+
+<section id="narzedzia">
+  <h2><span class="num">04</span>Superpowers i stack</h2>
+  <h3 style="font-size:15px;margin:18px 0 6px">Skille Superpowers (metodyka pracy)</h3>
+  <ul>
+    <li><code>brainstorming</code> — pomysł → spec (użyte do specu platformy)</li>
+    <li><code>writing-plans</code> — spec → plan zadaniowy TDD (plan programowy + plan fazy 0)</li>
+    <li><code>subagent-driven-development</code> — wykonanie planu: świeży subagent per zadanie + recenzja spec + jakość, szeroka recenzja na końcu</li>
+    <li><code>grill-me</code> — przegląd krytyczny planu (bramka sprzedażowa, cena, architektura)</li>
+    <li><code>test-driven-development</code>, <code>systematic-debugging</code>, <code>verification-before-completion</code> — dyscyplina wykonania</li>
+    <li><code>using-git-worktrees</code>, <code>finishing-a-development-branch</code> — obsługa gałęzi</li>
+  </ul>
+  <h3 style="font-size:15px;margin:18px 0 6px">Stack i usługi</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Warstwa</th><th>Wybór</th><th>Rola</th></tr>
+    <tr><td>Monorepo</td><td>pnpm + Turborepo</td><td>2 apki + 5 pakietów</td></tr>
+    <tr><td>Framework</td><td>Next.js 16 + React 19 + Tailwind 4</td><td>panel + storefront</td></tr>
+    <tr><td>Baza / auth</td><td>Supabase (Postgres + RLS + Auth + Storage + Vault)</td><td>eu-central-1; izolacja przez RLS</td></tr>
+    <tr><td>Hosting</td><td>Vercel</td><td>2 projekty, preview deployments</td></tr>
+    <tr><td>Cache / rate-limit</td><td>Upstash Redis</td><td>mapa domen, limity</td></tr>
+    <tr><td>E-mail</td><td>Resend + react-email</td><td>transakcyjne</td></tr>
+    <tr><td>Płatności</td><td>Stripe (Billing + Connect)</td><td>fazy 3+</td></tr>
+    <tr><td>CI / repo</td><td>GitHub Actions</td><td>joby ci + rls; branch protection od fazy 4</td></tr>
+    <tr><td>Monitoring</td><td>Sentry · PostHog (EU)</td><td>błędy · telemetria produktu</td></tr>
+  </table></div>
+</section>
+
+<section id="materialy">
+  <h2><span class="num">05</span>Materiały dodatkowe</h2>
+  <p class="sub">Rosnąca lista nietymczasowych zasobów, z których korzystamy. Każdy nowy materiał (dashboard, dokument, ticket, referencja) dopisujemy tutaj.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Materiał</th><th>Typ</th><th>Gdzie</th></tr>
+    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform</td></tr>
+    <tr><td>Repo referencyjne starkit</td><td>repozytorium (odczyt)</td><td class="mono">~/starkit-system</td></tr>
+    <tr><td>Spec, plany, audyt bazowy</td><td>dokumentacja</td><td class="mono">~/starkit-system/docs/superpowers/</td></tr>
+    <tr><td>Design system starkit (źródło portu)</td><td>referencja UI</td><td class="mono">~/starkit-system/components/ui + app/globals.css</td></tr>
+  </table></div>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">Do dopisania w miarę potrzeb: konto Supabase (prod/dev), projekty Vercel, Upstash, Resend, Stripe, domena produktu, dashboard analityki, board waitlisty.</p>
+</section>
+
+<section id="jak">
+  <h2><span class="num">06</span>Jak ta strona rośnie</h2>
+  <ul>
+    <li>Ta strona (<code>docs/dokumentacja/hub.html</code>) jest master-indeksem — każdy nowy, nietymczasowy materiał dopisujemy do sekcji „Materiały" albo „Dokumenty".</li>
+    <li>Gdy powstaje nowy artefakt HTML (np. galeria design systemu), dodajemy do niego klikalny link i zmieniamy status z „wkrótce" na aktywny.</li>
+    <li>Prompt startowy aktualizujemy, gdy zmienia się stan projektu lub zasady — to on jest „cold boot" dla nowej sesji LLM.</li>
+    <li>Aktualizacja tej strony podlega tym samym zasadom co reszta docs (PR, autor Maciej Godek, zero AI/konkurencji).</li>
+  </ul>
+</section>
+
+<footer>
+  Master-indeks projektu · rośnie z każdym nietymczasowym materiałem · standard: docs/DOKUMENTACJA.md
+</footer>
+</div>
