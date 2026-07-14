@@ -5,6 +5,18 @@ import {
   EmailConfirmation,
   type EmailConfirmationProps,
 } from "./templates/email-confirmation";
+import {
+  PasswordReset,
+  type PasswordResetProps,
+} from "./templates/password-reset";
+import {
+  OrganizationInvitation,
+  type OrganizationInvitationProps,
+} from "./templates/organization-invitation";
+import {
+  NewOrderNotification,
+  type NewOrderNotificationProps,
+} from "./templates/new-order-notification";
 
 export interface RenderedEmail {
   html: string;
@@ -24,4 +36,22 @@ export function renderEmailConfirmation(
   props: EmailConfirmationProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(EmailConfirmation, props));
+}
+
+export function renderPasswordReset(
+  props: PasswordResetProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(PasswordReset, props));
+}
+
+export function renderOrganizationInvitation(
+  props: OrganizationInvitationProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(OrganizationInvitation, props));
+}
+
+export function renderNewOrderNotification(
+  props: NewOrderNotificationProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(NewOrderNotification, props));
 }
