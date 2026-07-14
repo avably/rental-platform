@@ -18,6 +18,7 @@
     "paths": {
       "@rental/db": ["../../packages/db/src/index.ts"],
       "@rental/core": ["../../packages/core/src/index.ts"],
+      "@rental/security": ["../../packages/security/src/index.ts"],
       "@rental/ui": ["../../packages/ui/src/index.ts"]
     }
   }
