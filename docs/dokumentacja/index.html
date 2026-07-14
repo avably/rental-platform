@@ -136,7 +136,9 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-fa
 
   <div class="card">
     <h4>@rental/ui <span class="owner gpt">GPT</span></h4>
-    <p><b>Cel:</b> design system — tokeny (kolory, spacing, typografia), komponenty bazowe, galeria komponentów jako kontrakt wizualny. <b>Stan:</b> pusty szkielet; pierwsze zadanie GPT.</p>
+    <p><b>Cel:</b> design system — tokeny (kolory oklch, spacing, typografia, radiusy, cienie), komponenty bazowe, galeria komponentów jako kontrakt wizualny. <b>Stan:</b> pusty szkielet; pierwsze zadanie GPT = PORT z systemu starkit, nie greenfield (ADR-006).</p>
+    <p><b>Źródło:</b> istniejący, wyiterowany design system starkit (redesign 2026-07): biblioteka <code>components/ui</code> (shadcn/Radix, ~30 komponentów), tokeny Tailwind 4 <code>@theme</code> + oklch w <code>app/globals.css</code>, wzorce backoffice (order-timeline, availability-calendar, quick-filter tiles, planner). Repo starkit tylko do odczytu jako referencja.</p>
+    <p><b>Zadanie:</b> port tokenów + prymitywów do <code>@rental/ui</code> z KONSOLIDACJĄ driftu (tokeny mogły się rozjechać między commitami redesignu) → jedno źródło prawdy + galeria. Komponenty domenowe (planner, timeline) dochodzą w fazie 1 przy porcie ekranów panelu.</p>
     <p><b>Kontrakt:</b> apps konsumują komponenty z <code>@rental/ui</code>. Zmiana publicznego API komponentu = wpis tutaj + uzgodnienie w PR.</p>
   </div>
 
@@ -202,6 +204,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-fa
   <div class="log"><p class="h"><b>ADR-003</b> · Lokalny Supabase = standard dev; CI efemeryczny; prod/staging w chmurze</p><p>Docker/colima lokalnie (analityka wyłączona pod colimę), <code>supabase start</code> w Actions dla joba rls, chmura dla prod. Migracje płyną repo → db push.</p></div>
   <div class="log"><p class="h"><b>ADR-004</b> · Bramka izolacji testuje gołą mutację przez SQL, nie PostgREST</p><p>PostgREST czyta kolumny w WHERE → polityka SELECT maskuje zepsutą politykę UPDATE/DELETE. Test łączy się bezpośrednio jako authenticated i mutuje bez WHERE (sonda w transakcji z rollback).</p></div>
   <div class="log"><p class="h"><b>ADR-005</b> · Dokumentacja HTML jako warunek zamknięcia zadania</p><p>Żywa dokumentacja w <code>docs/dokumentacja/index.html</code>; każdy PR ją aktualizuje. Bez wpisu zadanie nieukończone. Cel: handoff do dowolnego człowieka/LLM.</p></div>
+  <div class="log"><p class="h"><b>ADR-006</b> · @rental/ui to PORT design systemu starkit, nie greenfield</p><p>starkit ma dojrzały, wyiterowany design system (redesign 2026-07: components/ui shadcn/Radix, tokeny oklch Tailwind 4, wzorce backoffice). @rental/ui portuje i konsoliduje ten system (usunięcie driftu tokenów między commitami), zamiast wymyślać nowy język wizualny. Zachowuje spójność wizualną i oszczędza pracę; starkit migruje jako tenant #1, więc wspólny język ma wartość.</p></div>
 </section>
 
 <section id="dziennik">
