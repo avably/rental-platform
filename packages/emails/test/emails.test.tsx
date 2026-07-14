@@ -21,6 +21,7 @@ describe("EmailConfirmation", () => {
     expect(result.html).toContain(confirmationUrl);
     expect(result.html).toContain("Anna");
     expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).not.toContain('lang="en"');
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
     expect(result.text).toContain(confirmationUrl);

@@ -37,7 +37,7 @@ export function EmailLayout({
     <Html lang="pl">
       <Head />
       <Preview>{previewText}</Preview>
-      <Body style={EMAIL_STYLES.body}>
+      <Body lang="pl" style={EMAIL_STYLES.body}>
         <Container style={EMAIL_STYLES.container}>
           <Section style={EMAIL_STYLES.card}>
             <Text style={EMAIL_STYLES.brand}>{PRODUCT_NAME}</Text>
