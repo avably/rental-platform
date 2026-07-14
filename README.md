@@ -43,4 +43,8 @@ Turborepo, pnpm workspaces, Vitest.
 ## CI
 
 Każdy PR i push na `main` uruchamia workflow `ci` (typecheck, lint, test,
-`pnpm audit`, audyt publicznych zmiennych środowiskowych).
+`pnpm audit`, audyt publicznych zmiennych środowiskowych) oraz osobny,
+równoległy job `rls` — macierz testów izolacji RLS na lokalnym Supabase
+uruchomionym w kontenerach (`packages/db/test/rls-isolation.test.ts`,
+patrz `docs/konwencje-migracji.md`). Oba joby muszą być zielone przed
+mergem.
