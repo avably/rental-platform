@@ -1,8 +1,13 @@
 /**
- * Odświeża sesję Supabase (refresh token) przy każdym żądaniu — wzorzec
- * @supabase/ssr dla Next.js App Router. Bez tego access token wygasałby w
- * trakcie sesji przeglądarki mimo ważnego refresh tokenu (cookies nie są
- * odświeżane automatycznie poza requestem HTTP).
+ * Middleware panelu (Next 16: `proxy.ts`, dawne `middleware.ts`). Dwa zadania:
+ *
+ * 1. Odświeżenie sesji Supabase (refresh token) przy każdym żądaniu — wzorzec
+ *    @supabase/ssr dla App Routera. Bez tego access token wygasałby w trakcie
+ *    sesji przeglądarki mimo ważnego refresh tokenu (cookies nie są
+ *    odświeżane automatycznie poza requestem HTTP).
+ * 2. Nagłówki bezpieczeństwa (Zadanie 7): CSP z nonce (bez 'unsafe-inline'),
+ *    HSTS, nosniff, Referrer-Policy, Permissions-Policy — polityka wspólna z
+ *    storefrontem, patrz @rental/security.
  *
  * Nie egzekwuje tu autoryzacji per-trasa — guardy (`requireMember`,
  * `requireSuperadmin`, patrz lib/supabase-server.ts) działają w Server
@@ -11,9 +16,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { createServerClient } from "@rental/db";
+import {
+  applySecurityHeaders,
+  generateNonce,
+  requestWithNonce,
+  type CspOptions,
+} from "@rental/security";
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const nonce = generateNonce();
+  const csp: CspOptions = {
+    dev: process.env.NODE_ENV !== "production",
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  };
+
+  let response = NextResponse.next({ request: requestWithNonce(request, nonce, csp) });
 
   const supabase = createServerClient({
     getAll: () => request.cookies.getAll(),
@@ -21,7 +38,10 @@ export async function proxy(request: NextRequest) {
       for (const { name, value } of cookiesToSet) {
         request.cookies.set(name, value);
       }
-      response = NextResponse.next({ request });
+      // Odpowiedź budowana od nowa na ZAKTUALIZOWANYM żądaniu (świeże cookies
+      // sesji + ten sam nonce — inny nonce w żądaniu i w odpowiedzi
+      // zablokowałby bootstrap Next.js).
+      response = NextResponse.next({ request: requestWithNonce(request, nonce, csp) });
       for (const { name, value, options } of cookiesToSet) {
         response.cookies.set(name, value, options);
       }
@@ -32,7 +52,7 @@ export async function proxy(request: NextRequest) {
   // wygaśnięciem i zapisać nowe cookies przez setAll powyżej.
   await supabase.auth.getClaims();
 
-  return response;
+  return applySecurityHeaders(response, nonce, csp);
 }
 
 export const config = {
