@@ -52,6 +52,15 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+    rules: {
+      // Konwencja repo: parametr prefiksowany `_` to celowo nieużywany
+      // (np. sygnatury zgodne z React useActionState/server actions, gdzie
+      // kolejny parametr jest wymagany przez typy, ale ciało go nie czyta).
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
   },
   restrictDbServiceImport,
   allowDbServiceImport,
