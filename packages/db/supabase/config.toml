@@ -10,7 +10,9 @@ enabled = true
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
-schemas = ["public", "graphql_public"]
+# `app` dodany w Zadaniu 6, wyłącznie po to, by wystawić RPC app.create_tenant
+# i app.accept_invitation przez PostgREST (klient: supabase.schema('app').rpc(...)).
+schemas = ["public", "graphql_public", "app"]
 # Extra schemas to add to the search_path of every request.
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
@@ -160,7 +162,7 @@ site_url = "http://127.0.0.1:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = ["http://127.0.0.1:3000/**", "https://127.0.0.1:3000/**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -223,7 +225,9 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# Włączone w Zadaniu 6 — weryfikacja e-mail jest warunkiem wejściowym do
+# app.create_tenant (patrz 0003_auth.sql) i musi też blokować logowanie.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -242,6 +246,18 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# Szablony niestandardowe (Zadanie 6) — linkują do własnych route handlerów
+# panelu (app/auth/confirm, app/auth/callback) z token_hash zamiast domyślnego
+# {{ .ConfirmationURL }} (link bezpośrednio na GoTrue), żeby przepływ
+# weryfikacji/resetu przechodził przez naszą aplikację.
+[auth.email.template.confirmation]
+subject = "Potwierdź adres e-mail"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset hasła"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -281,9 +297,11 @@ max_frequency = "5s"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
-# [auth.hook.custom_access_token]
-# enabled = true
-# uri = "pg-functions://<database>/<schema>/<hook_name>"
+# Zadanie 6 — dopisuje app_metadata.tenant_id/role/superadmin do JWT
+# (patrz app.custom_access_token w supabase/migrations/0003_auth.sql).
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/app/custom_access_token"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
@@ -299,9 +317,11 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+# Włączone w Zadaniu 6 — wymuszone dla superadmina (requireSuperadmin
+# wymaga aal2), opcjonalne dla zwykłych userów.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
