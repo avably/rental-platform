@@ -36,6 +36,12 @@ export interface TenantCtx {
 
 const TEST_PASSWORD = "RlsTest!12345678";
 
+// Rejestr obiektów utworzonych przez harness — sprzątane w cleanupSeeded()
+// (afterAll testów), żeby lokalne reruny bez `supabase db reset` nie
+// akumulowały userów/tenantów testowych.
+const createdUserIds: string[] = [];
+const createdTenantIds: string[] = [];
+
 function env(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -68,6 +74,7 @@ async function createTenantWithOwner(admin: SupabaseClient, label: string): Prom
     throw new Error(`Nie udało się utworzyć tenanta testowego "${label}": ${tenantError?.message}`);
   }
   const tenantId = tenant.id as string;
+  createdTenantIds.push(tenantId);
 
   const email = `owner-${label}-${unique}@test.local`;
   const { data: userData, error: userError } = await admin.auth.admin.createUser({
@@ -80,6 +87,7 @@ async function createTenantWithOwner(admin: SupabaseClient, label: string): Prom
     throw new Error(`Nie udało się utworzyć usera testowego "${label}": ${userError?.message}`);
   }
   const ownerUserId = userData.user.id;
+  createdUserIds.push(ownerUserId);
 
   const { error: memberError } = await admin
     .from("members")
@@ -188,6 +196,7 @@ async function createAuxMemberUser(ctx: SeedCtx, tenantId: string): Promise<stri
   if (error || !data.user) {
     throw new Error(`Nie udało się utworzyć dodatkowego usera-membera: ${error?.message}`);
   }
+  createdUserIds.push(data.user.id);
   return data.user.id;
 }
 
@@ -218,9 +227,12 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     plan_id: await ensureTestPlanId(),
     status: "active",
   }),
+  // Unikalny metric per wywołanie: payload INSERT-u cross-tenant w macierzy
+  // NIE może kolidować kluczem głównym z wcześniej zasianym wierszem — kolizja
+  // dawałaby błąd 23505 (duplicate key) zamiast 42501 (RLS) i fałszywą zieleń.
   usage_counters: async (_ctx, tenantId) => ({
     tenant_id: tenantId,
-    metric: "test_metric",
+    metric: `test_metric_${randomUUID().slice(0, 8)}`,
     period: new Date().toISOString().slice(0, 10),
     value: 1,
   }),
@@ -269,4 +281,71 @@ export async function seedSampleRow(
     throw new Error(`Nie udało się zasiać przykładowego wiersza w "${table}": ${error.message}`);
   }
   return row;
+}
+
+// -----------------------------------------------------------------------
+// Patche mutacji — wartości do prób UPDATE cross-tenant w macierzy
+// -----------------------------------------------------------------------
+
+/**
+ * Per-tabela patch UPDATE, którego skuteczne zastosowanie na wierszu
+ * tenanta B byłoby WIDOCZNĄ zmianą stanu (weryfikowaną potem odczytem
+ * service-role). Celowo NIE `{ tenant_id: ... }` — to byłby no-op wartości.
+ * Brak wpisu = głośny błąd (jak w SAMPLE_ROW_FACTORIES).
+ */
+const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
+  members: { role: "owner" },
+  invitations: { email: "hacked@test.local" },
+  subscriptions: { status: "rls-test-hacked" },
+  usage_counters: { value: 999_999 },
+  audit_log: { action: "rls-test-hacked" },
+};
+
+export function mutationPatch(table: string): Record<string, unknown> {
+  const patch = MUTATION_PATCHES[table];
+  if (!patch) {
+    throw new Error(
+      `Brak zarejestrowanego patcha mutacji dla tabeli "${table}" ` +
+        `w packages/db/test/helpers/seed-tenants.ts (MUTATION_PATCHES). ` +
+        `Nowa tabela per-tenant musi dostać tu wpis, aby wejść do macierzy izolacji RLS.`,
+    );
+  }
+  return patch;
+}
+
+// -----------------------------------------------------------------------
+// Teardown — sprzątanie danych testowych (stabilność lokalnych rerunów)
+// -----------------------------------------------------------------------
+
+/**
+ * Usuwa wszystkie obiekty utworzone przez harness w tej sesji testowej:
+ * userów auth (auth.admin.deleteUser) i tenantów (kaskada czyści members/
+ * invitations/subscriptions/usage_counters; audit_log dostaje tenant_id
+ * null przez on delete set null). Testowy plan usuwany bezpośrednim
+ * połączeniem Postgres (public.plans nie ma GRANT delete przez API).
+ */
+export async function cleanupSeeded(admin: SupabaseClient): Promise<void> {
+  for (const userId of createdUserIds) {
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) {
+      throw new Error(`Teardown: nie udało się usunąć usera ${userId}: ${error.message}`);
+    }
+  }
+  createdUserIds.length = 0;
+
+  if (createdTenantIds.length > 0) {
+    const { error } = await admin.from("tenants").delete().in("id", createdTenantIds);
+    if (error) {
+      throw new Error(`Teardown: nie udało się usunąć tenantów testowych: ${error.message}`);
+    }
+    createdTenantIds.length = 0;
+  }
+
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    await sql`delete from public.plans where id = 'rls-test-plan'`;
+    await sql`delete from public.audit_log where subject = 'rls-isolation-test'`;
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
 }
