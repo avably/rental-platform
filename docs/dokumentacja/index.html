@@ -1,0 +1,220 @@
+<title>rental-platform — dokumentacja architektury</title>
+<style>
+:root{
+  --paper:#F6F8F7; --ink:#182220; --muted:#5C6B66; --line:#D9E0DD;
+  --accent:#0E6B54; --accent-soft:#E3EFEA; --warn:#B4700F; --warn-soft:#F6ECDC;
+  --danger:#A33434; --danger-soft:#F4E3E3; --card:#FFFFFF;
+  --claude:#0E6B54; --claude-soft:#E3EFEA; --gpt:#5B4BC4; --gpt-soft:#EAE7F8;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#101614; --ink:#E4EAE7; --muted:#93A29C; --line:#26312D; --card:#161E1B;
+  --accent:#3FBF97; --accent-soft:#15251F; --warn:#D99A3D; --warn-soft:#2A2114;
+  --danger:#D97070; --danger-soft:#2A1717; --claude:#3FBF97; --claude-soft:#15251F;
+  --gpt:#A99CF0; --gpt-soft:#1C1830;
+}}
+:root[data-theme="dark"]{--paper:#101614;--ink:#E4EAE7;--muted:#93A29C;--line:#26312D;--card:#161E1B;--accent:#3FBF97;--accent-soft:#15251F;--warn:#D99A3D;--warn-soft:#2A2114;--danger:#D97070;--danger-soft:#2A1717;--claude:#3FBF97;--claude-soft:#15251F;--gpt:#A99CF0;--gpt-soft:#1C1830;}
+:root[data-theme="light"]{--paper:#F6F8F7;--ink:#182220;--muted:#5C6B66;--line:#D9E0DD;--card:#FFFFFF;--accent:#0E6B54;--accent-soft:#E3EFEA;--warn:#B4700F;--warn-soft:#F6ECDC;--danger:#A33434;--danger-soft:#F4E3E3;--claude:#0E6B54;--claude-soft:#E3EFEA;--gpt:#5B4BC4;--gpt-soft:#EAE7F8;}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--paper);color:var(--ink);font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;line-height:1.6;margin:0}
+.wrap{max-width:940px;margin:0 auto;padding:40px 24px 96px}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:8px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.14;margin:0 0 12px;font-weight:600;text-wrap:balance}
+.lede{font-size:16px;color:var(--muted);max-width:64ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:18px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 36px}
+nav.toc a{font-family:var(--mono);font-size:12.5px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 13px;background:var(--card)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+section{margin:52px 0}
+h2{font-size:23px;font-weight:600;margin:0 0 6px;text-wrap:balance}
+h2 .num{font-family:var(--mono);color:var(--accent);font-size:14px;vertical-align:.18em;margin-right:10px}
+h3{font-size:16px;font-weight:600;margin:26px 0 8px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:68ch}
+p{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:18px 20px;margin:14px 0}
+.card h4{margin:0 0 8px;font-size:15px;font-weight:600;font-family:var(--mono)}
+.card p,.card ul{margin:6px 0;font-size:14px;color:var(--muted)}
+.card ul{padding-left:18px}
+.card ul li{margin:3px 0}
+.owner{display:inline-block;font-family:var(--mono);font-size:11px;border-radius:4px;padding:2px 8px;margin-left:8px}
+.owner.claude{background:var(--claude-soft);color:var(--claude)}
+.owner.gpt{background:var(--gpt-soft);color:var(--gpt)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;color:var(--muted);font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line)}
+td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.mono,th.mono{font-family:var(--mono);white-space:nowrap}
+.status{display:inline-block;font-family:var(--mono);font-size:11px;border-radius:4px;padding:2px 7px}
+.status.done{background:var(--accent-soft);color:var(--accent)}
+.status.wait{background:var(--warn-soft);color:var(--warn)}
+.status.next{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.log{border-left:3px solid var(--accent);background:var(--card);border-radius:0 10px 10px 0;padding:12px 18px;margin:12px 0}
+.log .h{font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.log .h b{color:var(--ink)}
+.log p{margin:0;font-size:14px}
+.callout{border-left:3px solid var(--warn);background:var(--card);border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;font-size:14px}
+.rls{font-family:var(--mono);font-size:12.5px}
+footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+</style>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Dokumentacja żywa · aktualizowana z każdym PR</p>
+  <h1>rental-platform — architektura i moduły</h1>
+  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem. Ten dokument jest źródłem prawdy o systemie — ma wystarczyć, by dowolny człowiek lub LLM wszedł, zrozumiał i kontynuował pracę bez dostępu do historii rozmów.</p>
+  <div class="meta">
+    <span>Repo: <b>starkit-rental/rental-platform</b></span>
+    <span>Faza: <b>0 — fundament</b></span>
+    <span>Standard: <b>docs/DOKUMENTACJA.md</b></span>
+  </div>
+</header>
+<nav class="toc">
+  <a href="#architektura">Architektura</a><a href="#pasy">Podział pracy</a><a href="#moduly">Moduły</a><a href="#dane">Model danych</a><a href="#rls">Izolacja / RLS</a><a href="#bezpieczenstwo">Bezpieczeństwo / CI</a><a href="#decyzje">Decyzje</a><a href="#dziennik">Dziennik budowy</a>
+</nav>
+
+<section id="architektura">
+  <h2><span class="num">01</span>Architektura</h2>
+  <p class="sub">Monorepo pnpm + Turborepo. Dwie aplikacje Next.js 16 i pięć pakietów współdzielonych. Wszystko na usługach zarządzanych — zero własnych serwerów. Izolacja tenantów wymuszana wyłącznie przez RLS w Postgresie + custom claims w JWT.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Warstwa</th><th>Element</th><th>Rola</th></tr>
+    <tr><td>Aplikacje</td><td class="mono">apps/panel</td><td>Backoffice najemców, onboarding, superadmin, LP/waitlista. Domena docelowa: app.&lt;nazwa&gt;.pl</td></tr>
+    <tr><td></td><td class="mono">apps/storefront</td><td>Publiczne strony najemców; routing po nagłówku Host → tenant</td></tr>
+    <tr><td>Pakiety</td><td class="mono">@rental/db</td><td>Schemat, migracje, polityki RLS, klienci Supabase, typy</td></tr>
+    <tr><td></td><td class="mono">@rental/core</td><td>Silnik wynajmu: dostępność, wyceny, numeracja (do portu z fazy 1)</td></tr>
+    <tr><td></td><td class="mono">@rental/ui</td><td>Design system: tokeny, komponenty, galeria</td></tr>
+    <tr><td></td><td class="mono">@rental/emails</td><td>Szablony e-mail (do budowy)</td></tr>
+    <tr><td></td><td class="mono">@rental/pdf</td><td>Generator umów PDF (do budowy)</td></tr>
+    <tr><td>Usługi</td><td>Supabase</td><td>Postgres + RLS + Auth + Storage + Vault (region eu-central-1)</td></tr>
+    <tr><td></td><td>Vercel / Upstash / Resend / Stripe</td><td>hosting / cache+rate-limit / e-mail / płatności (fazy 3+)</td></tr>
+  </table></div>
+  <div class="callout"><b>Decyzja nieodwracalna:</b> model danych + polityki RLS. Reszta (compute, hosting) jest przenośna. Skalowanie 0→1000 tenantów potwierdzone; przy 1000+ storefront może zejść z Vercela na self-hosted bez zmiany architektury.</div>
+</section>
+
+<section id="pasy">
+  <h2><span class="num">02</span>Podział pracy — pasy własności</h2>
+  <p class="sub">Dwóch wykonawców (Claude i GPT/Codex) pracuje równolegle na rozłącznych katalogach. Pełne zasady: <code>docs/DOKUMENTACJA.md</code>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Obszar</th><th>Właściciel</th><th>Uwaga</th></tr>
+    <tr><td class="mono">packages/db</td><td><span class="owner claude">Claude</span></td><td>migracje i RLS — wyłącznie Claude</td></tr>
+    <tr><td class="mono">packages/core</td><td><span class="owner claude">Claude</span></td><td>logika domenowa</td></tr>
+    <tr><td class="mono">apps/panel — backend/auth/superadmin</td><td><span class="owner claude">Claude</span></td><td>route handlers, API</td></tr>
+    <tr><td class="mono">.github/workflows (CI)</td><td><span class="owner claude">Claude</span></td><td>jedno źródło prawdy</td></tr>
+    <tr><td class="mono">packages/ui</td><td><span class="owner gpt">GPT</span></td><td>design system, galeria</td></tr>
+    <tr><td class="mono">packages/emails</td><td><span class="owner gpt">GPT</span></td><td>szablony</td></tr>
+    <tr><td class="mono">packages/pdf</td><td><span class="owner gpt">GPT</span></td><td>umowy</td></tr>
+    <tr><td class="mono">apps/storefront + panel UI</td><td><span class="owner gpt">GPT</span></td><td>warstwa widoku konsumująca @rental/ui</td></tr>
+  </table></div>
+  <p>Zasady twarde: nie edytuj pakietu spoza pasa · migracje/CI tylko Claude · gałąź per zadanie, PR do main, nigdy push na main · rebase przed startem i przed PR · zależności do package.json swojego pakietu · osobne pliki postępu (<code>.superpowers/sdd/</code> vs <code>.superpowers/gpt/</code>).</p>
+</section>
+
+<section id="moduly">
+  <h2><span class="num">03</span>Moduły — stan i interfejsy</h2>
+
+  <div class="card">
+    <h4>@rental/db <span class="owner claude">Claude</span></h4>
+    <p><b>Cel:</b> jedyne źródło dostępu do bazy — schemat, migracje, polityki RLS, klienci Supabase, typy.</p>
+    <p><b>Publiczny interfejs:</b></p>
+    <ul>
+      <li><code>createBrowserClient()</code>, <code>createServerClient(cookies)</code> — klienci anon+sesja (import z <code>@rental/db</code>)</li>
+      <li><code>createServiceClient()</code> — klient service-role, OSOBNY entrypoint <code>@rental/db/service</code>; import zablokowany regułą lint poza <code>app/api/webhooks/**</code> i <code>src/jobs/**</code></li>
+      <li>Typy: <code>Tenant</code>, <code>Member</code>, <code>Role='owner'|'staff'</code>, <code>Invitation</code>, <code>Plan</code>, <code>Subscription</code>, <code>UsageCounter</code>, <code>AuditLogEntry</code>, <code>TenantStatus</code></li>
+      <li>Funkcje SQL: <code>app.tenant_id()</code>, <code>app.is_superadmin()</code> (search_path przypięty do pg_catalog)</li>
+    </ul>
+    <p><b>Kluczowe pliki:</b> <code>supabase/migrations/0001_core.sql</code>, <code>0002_hardening.sql</code>, <code>src/{client,service,env,types}.ts</code>, <code>test/rls-isolation.test.ts</code>, <code>test/helpers/seed-tenants.ts</code>.</p>
+    <p><b>Zależności:</b> @supabase/supabase-js, @supabase/ssr, postgres (dev).</p>
+  </div>
+
+  <div class="card">
+    <h4>@rental/core <span class="owner claude">Claude</span></h4>
+    <p><b>Cel:</b> silnik domenowy wynajmu — dostępność (bufory, blokady), wyceny (progi cenowe, kaucja), numeracja zamówień per tenant. <b>Stan:</b> pusty szkielet; port ze starkit w fazie 1.</p>
+  </div>
+
+  <div class="card">
+    <h4>@rental/ui <span class="owner gpt">GPT</span></h4>
+    <p><b>Cel:</b> design system — tokeny (kolory, spacing, typografia), komponenty bazowe, galeria komponentów jako kontrakt wizualny. <b>Stan:</b> pusty szkielet; pierwsze zadanie GPT.</p>
+    <p><b>Kontrakt:</b> apps konsumują komponenty z <code>@rental/ui</code>. Zmiana publicznego API komponentu = wpis tutaj + uzgodnienie w PR.</p>
+  </div>
+
+  <div class="card">
+    <h4>apps/panel <span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</h4>
+    <p><b>Cel:</b> backoffice najemców + superadmin + onboarding + LP/waitlista. <b>Stan:</b> szkielet Next 16 (port 3000).</p>
+  </div>
+
+  <div class="card">
+    <h4>apps/storefront <span class="owner gpt">GPT</span></h4>
+    <p><b>Cel:</b> publiczne strony najemców, routing Host→tenant, ISR. <b>Stan:</b> szkielet Next 16 (port 3001).</p>
+  </div>
+</section>
+
+<section id="dane">
+  <h2><span class="num">04</span>Model danych — rdzeń (migracja 0001)</h2>
+  <p class="sub">Każda tabela per-tenant ma <code>tenant_id uuid not null</code> + włączone RLS + indeksy prefiksowane tenant_id. Grosze jako int, znaczniki czasu jako timestamptz.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Tabela</th><th>Klucz / izolacja</th><th>Kluczowe kolumny</th></tr>
+    <tr><td class="mono">tenants</td><td>id (izolacja po id)</td><td>slug (unikat), name, status (trialing/active/past_due/suspended/cancelled/superadmin_locked)</td></tr>
+    <tr><td class="mono">members</td><td>(tenant_id, user_id)</td><td>role (owner/staff) — łączy usera Auth z tenantem</td></tr>
+    <tr><td class="mono">invitations</td><td>tenant_id</td><td>email, role, token_hash, expires_at, accepted_at</td></tr>
+    <tr><td class="mono">plans</td><td>katalog globalny</td><td>id, name, price_grosze, limits (jsonb), features (jsonb)</td></tr>
+    <tr><td class="mono">subscriptions</td><td>tenant_id (PK)</td><td>plan_id, stripe_*_id, status, current_period_end</td></tr>
+    <tr><td class="mono">usage_counters</td><td>(tenant_id, metric, period)</td><td>value — liczniki limitów planu</td></tr>
+    <tr><td class="mono">audit_log</td><td>tenant_id</td><td>actor_user_id, action, subject, details (jsonb) — append-only</td></tr>
+  </table></div>
+  <p>Superadmin: osobny claim JWT (<code>app_metadata.superadmin</code>), nie wiersz w members. Pełen schemat: <code>packages/db/supabase/migrations/</code> (repo jest źródłem prawdy — brak lokalnej bazy nie blokuje czytania migracji).</p>
+</section>
+
+<section id="rls">
+  <h2><span class="num">05</span>Izolacja tenantów — polityki RLS i bramka</h2>
+  <p class="sub">To najważniejszy artefakt bezpieczeństwa projektu. Izolacja opiera się o funkcję <code>app.tenant_id()</code> czytającą <code>app_metadata.tenant_id</code> z JWT. Każda polityka porównuje <code>tenant_id = app.tenant_id()</code> (lub superadmin).</p>
+  <h3>Wzorzec polityk</h3>
+  <ul class="rls">
+    <li>SELECT: <code>tenant_id = app.tenant_id() OR app.is_superadmin()</code></li>
+    <li>INSERT: WITH CHECK <code>tenant_id = app.tenant_id()</code> (mutacje members/invitations dodatkowo wymagają roli owner)</li>
+    <li>UPDATE/DELETE: USING <code>tenant_id = app.tenant_id() [AND owner]</code></li>
+    <li>tenants: SELECT tylko własnego wiersza (<code>id = app.tenant_id()</code>); zapis superadmin</li>
+    <li>plans: SELECT dla zalogowanych; zapis poza API (service-role)</li>
+    <li>audit_log: SELECT per tenant + superadmin; INSERT przez service-role</li>
+  </ul>
+  <h3>Bramka CI — macierz izolacji</h3>
+  <p><code>packages/db/test/rls-isolation.test.ts</code> automatycznie wykrywa każdą tabelę z kolumną tenant_id (introspekcja) i weryfikuje cross-tenant SELECT/INSERT/UPDATE/DELETE. Uruchamiana w osobnym jobie CI <code>rls</code> na efemerycznym Supabase.</p>
+  <div class="callout"><b>Kluczowa właściwość:</b> skuteczność blokady UPDATE/DELETE mierzona jest gołą mutacją (bez WHERE) jako rola <code>authenticated</code> przez bezpośrednie połączenie SQL — ścieżka PostgREST maskowałaby zepsutą politykę polityką SELECT. Bramka jest zweryfikowana testem negatywnym: złamanie polityki UPDATE/DELETE/INSERT na <code>using(true)</code> robi macierz czerwoną. Nowa tabela bez RLS albo bez wpisu w rejestrze danych testowych = czerwony build (fail-closed).</div>
+</section>
+
+<section id="bezpieczenstwo">
+  <h2><span class="num">06</span>Bezpieczeństwo i CI</h2>
+  <ul>
+    <li><b>CI (GitHub Actions):</b> job <code>ci</code> — typecheck, lint (ESLint 9 flat), test (Vitest), <code>pnpm audit</code>, audyt zmiennych <code>NEXT_PUBLIC_</code> (whitelista); job <code>rls</code> — macierz izolacji na Supabase. Oba muszą być zielone przed merge.</li>
+    <li><b>Service-role:</b> osobny entrypoint <code>@rental/db/service</code> + reguła lint blokująca import poza webhookami/jobami.</li>
+    <li><b>Sekrety:</b> tylko 4 zmienne <code>NEXT_PUBLIC_</code> dozwolone; reszta server-side.</li>
+    <li><b>Branch protection:</b> włączana w fazie 4 (GitHub Pro); do tego czasu dyscyplina PR + zielone CI.</li>
+    <li><b>Dependabot:</b> npm + github-actions, weekly.</li>
+  </ul>
+</section>
+
+<section id="decyzje">
+  <h2><span class="num">07</span>Dziennik decyzji</h2>
+  <div class="log"><p class="h"><b>ADR-001</b> · Nowe repo, nie fork starkit</p><p>Czysta historia git (wymóg braku śladów), fundament multi-tenant przed portem kodu domenowego. starkit migruje jako tenant #1 w fazie 4.</p></div>
+  <div class="log"><p class="h"><b>ADR-002</b> · Izolacja przez RLS + JWT claims, nie w warstwie aplikacji</p><p>tenant_id w app_metadata (nieedytowalne przez usera), egzekwowane w Postgresie. Aplikacja nie może obejść izolacji nawet przy błędzie w kodzie.</p></div>
+  <div class="log"><p class="h"><b>ADR-003</b> · Lokalny Supabase = standard dev; CI efemeryczny; prod/staging w chmurze</p><p>Docker/colima lokalnie (analityka wyłączona pod colimę), <code>supabase start</code> w Actions dla joba rls, chmura dla prod. Migracje płyną repo → db push.</p></div>
+  <div class="log"><p class="h"><b>ADR-004</b> · Bramka izolacji testuje gołą mutację przez SQL, nie PostgREST</p><p>PostgREST czyta kolumny w WHERE → polityka SELECT maskuje zepsutą politykę UPDATE/DELETE. Test łączy się bezpośrednio jako authenticated i mutuje bez WHERE (sonda w transakcji z rollback).</p></div>
+  <div class="log"><p class="h"><b>ADR-005</b> · Dokumentacja HTML jako warunek zamknięcia zadania</p><p>Żywa dokumentacja w <code>docs/dokumentacja/index.html</code>; każdy PR ją aktualizuje. Bez wpisu zadanie nieukończone. Cel: handoff do dowolnego człowieka/LLM.</p></div>
+</section>
+
+<section id="dziennik">
+  <h2><span class="num">08</span>Dziennik budowy</h2>
+  <p class="sub">Najnowsze na górze. Każdy PR dokłada wpis: data · zadanie · PR · co powstało.</p>
+  <div class="log"><p class="h">2026-07-14 · Zadanie 5 (fix) · <b>PR #11</b></p><p>Rzetelna bramka izolacji UPDATE/DELETE/INSERT (goła mutacja przez SQL), asercja kodu 42501, jawny test tabeli tenants, teardown. Zweryfikowana testem negatywnym. Oba joby CI zielone.</p></div>
+  <div class="log"><p class="h">2026-07-14 · Zadanie 5 · <b>PR #10</b></p><p>Macierz testów izolacji RLS jako bramka CI (job <code>rls</code>) + migracja 0002 przypinająca search_path funkcji bramkujących.</p></div>
+  <div class="log"><p class="h">2026-07-14 · Zadanie 4 · <b>PR #9</b></p><p>Schemat rdzenia multi-tenant (7 tabel) + funkcje app.tenant_id()/is_superadmin() + 22 polityki RLS + klienci Supabase (browser/server/service) + typy. Zweryfikowany empirycznie na żywej bazie.</p></div>
+  <div class="log"><p class="h">2026-07-14 · Zadanie 2 · <b>PR #8</b></p><p>CI/CD: workflow ci (typecheck/lint/test/audit), ESLint 9, Dependabot, audyt NEXT_PUBLIC_. Branch protection odłożona do fazy 4.</p></div>
+  <div class="log"><p class="h">2026-07-14 · Zadanie 1</p><p>Scaffold monorepo: pnpm + Turborepo, apps/panel + apps/storefront (Next 16), packages/{db,core,ui} scope @rental/*, TS strict, Vitest.</p></div>
+</section>
+
+<footer>
+  Standard i zasady współpracy: docs/DOKUMENTACJA.md · Źródło prawdy o architekturze — aktualizowane z każdym PR · Faza 0 (fundament) w toku.
+</footer>
+</div>
