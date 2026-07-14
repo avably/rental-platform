@@ -64,3 +64,32 @@ status`) i weryfikuje, że każda tabela z tego dokumentu istnieje, ma
 zwykłym `pnpm test` z roota bez uruchomionego lokalnego Supabase) —
 uruchomienie z lokalnym stackiem jest wymagane przed każdym mergem zmiany
 schematu.
+
+## Macierz testów izolacji RLS (bramka CI)
+
+`packages/db/test/rls-isolation.test.ts` + harness
+`packages/db/test/helpers/seed-tenants.ts` to najważniejszy test
+bezpieczeństwa w repo: dla KAŻDEJ tabeli z kolumną `tenant_id`
+(wykrywanej automatycznie przez `information_schema.columns` +
+`pg_tables.rowsecurity` — nie trzeba edytować testu przy nowej tabeli)
+sprawdza, że tenant A nie widzi ani nie modyfikuje (SELECT/INSERT/UPDATE/
+DELETE) danych tenanta B, oraz że każda taka tabela ma włączone RLS
+(z testem-przynętą dowodzącym, że regres — nowa tabela bez RLS — zostanie
+wykryty).
+
+Wymaga, poza `SUPABASE_LOCAL_URL`, trzech dodatkowych zmiennych (wartości
+z `supabase status -o env`, uruchomione z katalogu `packages/db`):
+
+- `SUPABASE_LOCAL_API_URL` — bazowy URL API (`API_URL`),
+- `SUPABASE_LOCAL_ANON_KEY` — klucz anon (`ANON_KEY`),
+- `SUPABASE_LOCAL_SERVICE_ROLE_KEY` — klucz service-role (`SERVICE_ROLE_KEY`).
+
+Bez kompletu tych zmiennych cały plik testu jest pomijany
+(`describe.skipIf`). Nowa tabela per-tenant, poza RLS, musi też dostać
+wpis w `SAMPLE_ROW_FACTORIES` (`seed-tenants.ts`) — brak fabryki to
+świadomy, głośny błąd testu, a nie ciche pominięcie tabeli.
+
+W CI ten harness uruchamia osobny job `rls` w `.github/workflows/ci.yml`
+(równolegle do joba `ci`): `supabase/setup-cli` + `supabase start` w
+kontenerach, zmienne z `supabase status -o env`, `pnpm --filter
+@rental/db test`.
