@@ -22,11 +22,16 @@ export type TenantStatus =
   | "cancelled"
   | "superadmin_locked";
 
+/** Status, do którego wraca tenant po odblokowaniu przez superadmina. */
+export type TenantStatusBeforeLock = Exclude<TenantStatus, "superadmin_locked">;
+
 export interface Tenant {
   id: string;
   slug: string;
   name: string;
   status: TenantStatus;
+  /** Zapamiętany status sprzed blokady superadmina (0004_superadmin.sql). */
+  status_before_lock: TenantStatusBeforeLock | null;
   created_at: string;
 }
 

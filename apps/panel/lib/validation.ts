@@ -71,6 +71,37 @@ export const acceptInvitationSchema = z.object({
   token: z.string().min(16, "Nieprawidłowy token zaproszenia."),
 });
 
+// --- Panel superadmina (Zadanie 7) ---
+
+export const tenantIdSchema = z.string().uuid("Nieprawidłowy identyfikator organizacji.");
+
+export const lockTenantSchema = z.object({
+  tenantId: tenantIdSchema,
+  reason: z.string().trim().max(500, "Powód jest za długi (max 500 znaków).").optional(),
+});
+
+export const unlockTenantSchema = z.object({
+  tenantId: tenantIdSchema,
+});
+
+// plan_id to tekstowy klucz z katalogu public.plans — istnienie planu
+// weryfikuje klucz obcy subscriptions.plan_id, tu tylko kształt.
+export const setPlanSchema = z.object({
+  tenantId: tenantIdSchema,
+  planId: z.string().trim().min(1, "Wybierz plan.").max(40),
+});
+
+export const tenantViewSchema = z.object({
+  tenantId: tenantIdSchema,
+});
+
+/** Filtry przeglądarki audit_log (/admin/audit) — wszystkie opcjonalne. */
+export const auditFilterSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  action: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+});
+
 export const totpEnrollSchema = z.object({
   friendlyName: z.string().trim().min(1).max(80).optional(),
 });
@@ -80,5 +111,11 @@ export const totpEnrollSchema = z.object({
 // app/bezpieczenstwo/actions.ts), klient dostarcza tylko factorId + kod.
 export const totpVerifySchema = z.object({
   factorId: z.string().uuid("Nieprawidłowy identyfikator czynnika MFA."),
+  code: z.string().regex(/^\d{6}$/, "Kod musi mieć dokładnie 6 cyfr."),
+});
+
+// Step-up istniejącego czynnika (/bezpieczenstwo/wyzwanie): factorId bierze
+// akcja serwerowa z listy czynników zalogowanego usera, klient podaje sam kod.
+export const totpChallengeSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Kod musi mieć dokładnie 6 cyfr."),
 });

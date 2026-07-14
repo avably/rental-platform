@@ -14,6 +14,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      # Smoke-test nagłówków bezpieczeństwa (Zadanie 7): CSP z nonce (bez
+      # 'unsafe-inline' w script-src) i HSTS na odpowiedzi middleware'u obu
+      # aplikacji. Krok jest zawarty w `pnpm test` powyżej — wywołany jeszcze
+      # raz jawnie, żeby regresja nagłówków była widoczna w logu CI pod własną
+      # nazwą, a nie utonęła w zbiorczym wyniku.
+      - name: Smoke-test nagłówków (CSP/HSTS)
+        run: pnpm --filter @rental/security --filter storefront test
       - run: pnpm audit --audit-level high
       - run: bash scripts/audit-public-env.sh
 
