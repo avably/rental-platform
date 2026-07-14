@@ -11,6 +11,13 @@ przeglądalny plik HTML. Jest źródłem prawdy o architekturze i musi wystarczy
 by dowolny człowiek lub LLM wszedł, zrozumiał system i kontynuował pracę bez
 dostępu do historii rozmów.
 
+Master-indeks to `docs/dokumentacja/hub.html` — pojedynczy punkt wejścia:
+linki do dokumentacji, planu, galerii design systemu, mapa kodu, opis
+Superpowers/stacku, prompt startowy dla nowej sesji LLM oraz rosnąca lista
+materiałów. **Każdy nowy, nietymczasowy materiał** (nowy artefakt HTML,
+dashboard, konto usługi, dokument, board) dopisujemy do sekcji „Materiały"
+lub „Dokumenty" w hub.html — inaczej zniknie z pola widzenia.
+
 **Każdy PR MUSI zaktualizować dokumentację w tym samym PR co kod:**
 
 1. **Sekcja modułu** którego dotyczy zmiana — cel, publiczny interfejs
