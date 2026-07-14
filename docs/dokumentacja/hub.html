@@ -117,7 +117,8 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
   <p class="sub">Repo <a href="https://github.com/starkit-rental/rental-platform">starkit-rental/rental-platform</a> · monorepo. Najważniejsze ścieżki:</p>
   <div class="tablewrap"><table>
     <tr><th>Ścieżka</th><th>Właściciel</th><th>Co tam jest</th></tr>
-    <tr><td class="mono">packages/db/supabase/migrations/</td><td><span class="owner claude">Claude</span></td><td>0001_core (schemat+RLS), 0002_hardening (search_path)</td></tr>
+    <tr><td class="mono">packages/db/supabase/migrations/</td><td><span class="owner claude">Claude</span></td><td>0001_core (schemat+RLS), 0002_hardening (search_path), 0003_auth (hook+RPC), 0004_superadmin (RPC superadmina, audyt)</td></tr>
+    <tr><td class="mono">packages/security/</td><td><span class="owner claude">Claude</span></td><td>nagłówki bezpieczeństwa (CSP z nonce, HSTS) — wspólne dla panelu i storefrontu</td></tr>
     <tr><td class="mono">packages/db/src/</td><td><span class="owner claude">Claude</span></td><td>client.ts, service.ts (@rental/db/service), env.ts, types.ts</td></tr>
     <tr><td class="mono">packages/db/test/rls-isolation.test.ts</td><td><span class="owner claude">Claude</span></td><td>macierz izolacji RLS — bramka bezpieczeństwa</td></tr>
     <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>silnik wynajmu (port w fazie 1)</td></tr>

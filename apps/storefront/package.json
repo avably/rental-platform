@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start -p 3001",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@rental/core": "workspace:*",
     "@rental/db": "workspace:*",
+    "@rental/security": "workspace:*",
     "@rental/ui": "workspace:*",
     "next": "16.2.10",
     "react": "19.2.4",
@@ -24,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

@@ -13,6 +13,7 @@
   "dependencies": {
     "@rental/core": "workspace:*",
     "@rental/db": "workspace:*",
+    "@rental/security": "workspace:*",
     "@rental/ui": "workspace:*",
     "@upstash/ratelimit": "^2.0.5",
     "@upstash/redis": "^1.34.3",
