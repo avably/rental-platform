@@ -88,7 +88,7 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-fa
     <tr><td></td><td class="mono">@rental/core</td><td>Silnik wynajmu: dostępność, wyceny, numeracja (do portu z fazy 1)</td></tr>
     <tr><td></td><td class="mono">@rental/security</td><td>Nagłówki bezpieczeństwa (CSP z nonce, HSTS…) — wspólne dla obu apek</td></tr>
     <tr><td></td><td class="mono">@rental/ui</td><td>Design system: tokeny, komponenty, galeria</td></tr>
-    <tr><td></td><td class="mono">@rental/emails</td><td>Szablony e-mail (do budowy)</td></tr>
+    <tr><td></td><td class="mono">@rental/emails</td><td>Transakcyjne e-maile React renderowane do HTML i plain text</td></tr>
     <tr><td></td><td class="mono">@rental/pdf</td><td>Generator umów PDF (do budowy)</td></tr>
     <tr><td>Usługi</td><td>Supabase</td><td>Postgres + RLS + Auth + Storage + Vault (region eu-central-1)</td></tr>
     <tr><td></td><td>Vercel / Upstash / Resend / Stripe</td><td>hosting / cache+rate-limit / e-mail / płatności (fazy 3+)</td></tr>
@@ -143,6 +143,21 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding-top:16px;font-fa
     <p><b>Tokeny:</b> obowiązuje płaski, achromatyczny motyw jasny z najnowszej warstwy backoffice oraz odpowiadający mu motyw ciemny. Kolory semantyczne są zapisane w oklch, krój podstawowy to Inter, a stałopozycyjny Geist Mono. Powierzchnie nie mają cienia; cienie <code>md</code>/<code>lg</code> są zarezerwowane dla nakładek. Promienie wywodzą się z bazowego <code>0.625rem</code>. Pary tekst–tło są testowane na kontrast WCAG AA (ADR-007).</p>
     <p><b>Zależności:</b> React 19, Tailwind CSS 4, Radix UI, Lucide, React DayPicker, Class Variance Authority, clsx, tailwind-merge i tailwindcss-animate. Wszystkie zależności należą do <code>packages/ui/package.json</code>.</p>
     <p><b>Kluczowe pliki:</b> <code>packages/ui/src/styles.css</code> (tokeny i fundament), <code>packages/ui/src/components/</code> (prymitywy), <code>packages/ui/src/index.ts</code> (publiczny interfejs), <code>packages/ui/README.md</code> (kontrakt portu), <code>apps/panel/app/design-system/</code> (galeria). Komponenty domenowe pozostają poza pakietem bazowym i powstaną wraz z ekranami panelu.</p>
+  </div>
+
+  <div class="card">
+    <h4>@rental/emails <span class="owner gpt">GPT</span></h4>
+    <p><b>Cel:</b> samodzielny pakiet polskich e-maili transakcyjnych. Dostarcza typowane komponenty React Email oraz funkcje renderujące każdy szablon jednocześnie do HTML i plain text; nie wysyła wiadomości, nie korzysta z bazy i nie zależy od aplikacji. <b>Stan:</b> wspólny branding i cztery szablony gotowe; wiring do panelu pozostaje osobnym zadaniem.</p>
+    <p><b>Publiczny interfejs:</b></p>
+    <ul>
+      <li>Komponenty i propsy: <code>EmailConfirmation</code>/<code>EmailConfirmationProps</code>, <code>PasswordReset</code>/<code>PasswordResetProps</code>, <code>OrganizationInvitation</code>/<code>OrganizationInvitationProps</code>, <code>NewOrderNotification</code>/<code>NewOrderNotificationProps</code></li>
+      <li>Typy: <code>InvitationRole = 'owner' | 'staff'</code> (lokalny, tłumaczony w treści) oraz <code>RenderedEmail = { html: string; text: string }</code></li>
+      <li><code>renderEmailConfirmation(props)</code>, <code>renderPasswordReset(props)</code>, <code>renderOrganizationInvitation(props)</code>, <code>renderNewOrderNotification(props)</code> — każda funkcja zwraca <code>Promise&lt;RenderedEmail&gt;</code></li>
+    </ul>
+    <p><b>Branding:</b> jasny, achromatyczny motyw odwzorowuje semantykę kanonicznych tokenów ADR-007 za pomocą bezpiecznych wartości hex i stylów inline. Pakiet celowo nie importuje komponentów ani CSS z <code>@rental/ui</code>, nie używa <code>oklch</code>, Tailwinda ani zewnętrznych fontów. Nagłówek i stopka używają tymczasowej nazwy <code>&lt;NAZWA&gt;</code>. Kwota i daty nowego zamówienia są gotowymi stringami — to placeholder kontraktu fazy 1.</p>
+    <p><b>Podgląd:</b> niezależna galeria React Email Preview startuje poleceniem <code>pnpm --filter @rental/emails preview</code> pod <code>http://localhost:3002</code>; pokazuje wszystkie cztery szablony bez uruchamiania panelu.</p>
+    <p><b>Zależności:</b> React Email 6.8.1 (komponenty i renderowanie), React 19; <code>@react-email/ui</code> 6.8.1, Vitest, TypeScript i typy React jako zależności deweloperskie. Wszystkie deklaracje należą do <code>packages/emails/package.json</code>.</p>
+    <p><b>Kluczowe pliki:</b> <code>packages/emails/src/components/email-layout.tsx</code> (layout, CTA, nagłówek i stopka), <code>src/styles.ts</code> (paleta hex), <code>src/templates/</code> (szablony), <code>src/render.ts</code> (HTML + plain text), <code>src/index.ts</code> (publiczne eksporty), <code>preview/</code> (galeria), <code>test/</code> (testy renderowania i preview), <code>README.md</code> (użycie).</p>
   </div>
 
   <div class="card">
