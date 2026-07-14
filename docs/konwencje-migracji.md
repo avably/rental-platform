@@ -93,3 +93,15 @@ W CI ten harness uruchamia osobny job `rls` w `.github/workflows/ci.yml`
 (równolegle do joba `ci`): `supabase/setup-cli` + `supabase start` w
 kontenerach, zmienne z `supabase status -o env`, `pnpm --filter
 @rental/db test`.
+
+## Zakres macierzy izolacji: tylko tabele bazowe
+
+Macierz testów izolacji (`listTenantTables`) obejmuje wyłącznie TABELE
+BAZOWE schematu `public` z kolumną `tenant_id` (introspekcja przez
+`pg_tables`). Widoki są poza automatyczną macierzą: ewentualny przyszły
+widok per-tenant MUSI być tworzony z `security_invoker = true` (inaczej
+omija RLS tabel bazowych) i dostać jawny test izolacji w
+`rls-isolation.test.ts`. Tabele izolowane inaczej niż po kolumnie
+`tenant_id` (dziś: `tenants`, izolowana po `id`) również mają jawne
+testy poza macierzą. Nowa tabela per-tenant, poza wpisem w
+`SAMPLE_ROW_FACTORIES`, musi też dostać wpis w `MUTATION_PATCHES`.
