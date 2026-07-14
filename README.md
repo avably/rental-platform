@@ -1,0 +1,41 @@
+# rental-platform
+
+Monorepo platformy SaaS do zarządzania wynajmem (multi-tenant).
+
+## Struktura
+
+```
+apps/
+  panel/        # Next.js 16 — panel administracyjny (port 3000)
+  storefront/   # Next.js 16 — front sklepowy dla klientów (port 3001)
+packages/
+  db/           # migracje Supabase + wygenerowane typy
+  core/         # logika domenowa, wspólna dla apps
+  ui/           # współdzielone komponenty UI
+```
+
+## Wymagania
+
+- Node 20 (patrz `.nvmrc`)
+- pnpm 8.15.8 (patrz `packageManager` w `package.json`)
+
+## Instalacja
+
+```bash
+pnpm install
+```
+
+## Komendy
+
+```bash
+pnpm dev         # uruchamia wszystkie apps w trybie deweloperskim
+pnpm build       # buduje wszystkie apps i packages
+pnpm typecheck   # sprawdza typy w całym monorepo
+pnpm lint        # lintuje całe monorepo
+pnpm test        # uruchamia testy (Vitest) we wszystkich packages
+```
+
+## Stack
+
+Next.js 16, React 19, TypeScript (strict), Tailwind 4, Supabase (Postgres + Auth),
+Turborepo, pnpm workspaces, Vitest.
