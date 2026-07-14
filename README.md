@@ -39,3 +39,8 @@ pnpm test        # uruchamia testy (Vitest) we wszystkich packages
 
 Next.js 16, React 19, TypeScript (strict), Tailwind 4, Supabase (Postgres + Auth),
 Turborepo, pnpm workspaces, Vitest.
+
+## CI
+
+Każdy PR i push na `main` uruchamia workflow `ci` (typecheck, lint, test,
+`pnpm audit`, audyt publicznych zmiennych środowiskowych).
