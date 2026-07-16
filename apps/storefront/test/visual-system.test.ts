@@ -16,6 +16,7 @@ describe("landing visual system", () => {
     ].join("\n");
 
     expect(fonts).toContain("Lora");
+    expect(fonts).toContain('variable: "--font-inter"');
     expect(fonts).toContain('variable: "--font-serif-source"');
     expect(fonts).toContain('subsets: ["latin-ext"]');
     expect(layout).toContain("fontVariables");

@@ -2,7 +2,7 @@
 @import "@avably/ui/styles.css";
 
 @theme inline {
-  --font-sans: var(--font-sans-source), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-source), ui-monospace, "SFMono-Regular", Consolas, monospace;
   --font-serif: var(--font-serif-source), Georgia, "Times New Roman", serif;
   --color-landing-paper: var(--landing-paper);

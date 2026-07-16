@@ -8,6 +8,7 @@ import { routing } from "@/i18n/routing";
 
 import "../globals.css";
 
+// @avably/ui contract: Inter lives in app/fonts.ts with variable: "--font-inter".
 /** Prerender obu locale zamiast renderu na żądanie. */
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));

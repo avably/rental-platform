@@ -1,7 +1,7 @@
 import { Geist_Mono, Inter, Lora } from "next/font/google";
 
 const sans = Inter({
-  variable: "--font-sans-source",
+  variable: "--font-inter",
   subsets: ["latin-ext"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
