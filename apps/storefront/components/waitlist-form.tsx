@@ -412,13 +412,15 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
               name="consent"
               onCheckedChange={(checked) => update("consent", checked === true)}
             />
-            <Label className="block leading-6 font-normal" htmlFor="waitlist-consent">
-              {copy.consentBefore}{" "}
+            <div className="text-sm leading-6">
+              <Label className="inline leading-6 font-normal" htmlFor="waitlist-consent">
+                {copy.consentBefore}
+              </Label>{" "}
               <Link className="font-medium underline underline-offset-4" href="/privacy">
                 {copy.privacyLabel}
               </Link>
               {copy.consentAfter}
-            </Label>
+            </div>
           </div>
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />
         </div>
