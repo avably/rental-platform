@@ -362,4 +362,120 @@ describe.skipIf(!hasEnv)("bramki kaucji — 0011_deposit_settlement.sql", () => 
       expect(events, "część wierszy bulka weszła mimo odmowy").toHaveLength(0);
     });
   });
+
+  // -------------------------------------------------------------------
+  // 3. Wyścig dwóch równoległych rozliczeń — dwie realne sesje operatorów
+  // -------------------------------------------------------------------
+  //
+  // Bezpośredni INSERT do deposit_events, celowo BEZ dotykania orders ani
+  // order_items: lekcja z ADR-024 (akapit „Dowód") — ścieżka przez
+  // app.create_order serializuje się najpierw na advisory locku NUMERACJI
+  // z 0007, więc dowodziłaby locka sąsiada, nie bramki kaucji. Tu jedyną
+  // serializacją w ścieżce jest lock z app.deposit_events_gate: bez niego
+  // obie transakcje widzą saldo 1000 zł i obie przechodzą (dowód mutacyjny).
+
+  describe("wyścig dwóch równoległych rozliczeń tego samego zamówienia", () => {
+    const TEST_PASSWORD = "DepositGates!12345678";
+    let memberA: SupabaseClient;
+    let memberB: SupabaseClient;
+    let tenantId: string;
+    let orderId: string;
+
+    function createAnonClient(): SupabaseClient {
+      const env = (name: string): string => {
+        const value = process.env[name];
+        if (!value) throw new Error(`Brak zmiennej środowiskowej ${name}`);
+        return value;
+      };
+      return createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_ANON_KEY"), {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+      });
+    }
+
+    async function createUser(label: string): Promise<{ id: string; email: string }> {
+      const email = `dep-race-${label}-${randomUUID()}@test.local`;
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      if (error || !data.user) throw new Error(`createUser(${label}): ${error?.message}`);
+      createdUserIds.push(data.user.id);
+      return { id: data.user.id, email };
+    }
+
+    async function signIn(email: string): Promise<SupabaseClient> {
+      const client = createAnonClient();
+      const { error } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
+      if (error) throw new Error(`signIn(${email}): ${error.message}`);
+      return client;
+    }
+
+    beforeAll(async () => {
+      // Operator A zakłada organizację (realna ścieżka onboardingu)…
+      const userA = await createUser("op-a");
+      const bootstrap = await signIn(userA.email);
+      const { data: newTenantId, error: tenantError } = await bootstrap
+        .schema("app")
+        .rpc("create_tenant", {
+          p_slug: `dep-race-${randomUUID()}`.slice(0, 39),
+          p_name: "Wypożyczalnia rozliczeniowa",
+        });
+      if (tenantError) throw new Error(`create_tenant: ${tenantError.message}`);
+      tenantId = newTenantId as string;
+      createdTenantIds.push(tenantId);
+      memberA = await signIn(userA.email); // świeża sesja z claimem tenant_id
+
+      // …operator B zostaje jej członkiem (staff — rejestracja zdarzeń
+      // kaucji to praca lady).
+      const userB = await createUser("op-b");
+      const { error: memberError } = await admin
+        .from("members")
+        .insert({ tenant_id: tenantId, user_id: userB.id, role: "staff" });
+      if (memberError) throw new Error(`insert members: ${memberError.message}`);
+      memberB = await signIn(userB.email);
+
+      orderId = await createOrder(tenantId);
+      const { errorMessage } = await insertEvent(admin, tenantId, orderId, {
+        kind: "collected",
+        amount_grosze: 1_000_00,
+      });
+      if (errorMessage) throw new Error(`seed collected: ${errorMessage}`);
+    }, 60_000);
+
+    it("równoległe zwroty: dokładnie jeden sukces, przegrany 23514, suma rozliczeń <= pobrań", async () => {
+      // Każdy zwrot Z OSOBNA jest legalny (800 <= 1000); razem przekraczają
+      // pobrania (1600 > 1000) — dokładnie okno TOCTOU, które domyka lock.
+      const refundVia = (client: SupabaseClient) =>
+        client
+          .from("deposit_events")
+          .insert({ tenant_id: tenantId, order_id: orderId, kind: "refunded", amount_grosze: 800_00 })
+          .select("id");
+
+      const [resultA, resultB] = await Promise.all([refundVia(memberA), refundVia(memberB)]);
+
+      const succeeded = [resultA, resultB].filter((r) => !r.error);
+      const failed = [resultA, resultB].filter((r) => r.error);
+      expect(succeeded, "wyścig rozliczeń: liczba sukcesów inna niż 1").toHaveLength(1);
+      expect(failed, "wyścig rozliczeń: liczba odmów inna niż 1").toHaveLength(1);
+      expect(failed[0]!.error!.code, "przegrany dostał inny kod niż 23514").toBe(PG_CHECK_VIOLATION);
+
+      // Stan rejestru po wyścigu: dokładnie jeden zwrot, niezmiennik trzyma.
+      const { data: events } = await admin
+        .from("deposit_events")
+        .select("kind, amount_grosze")
+        .eq("tenant_id", tenantId)
+        .eq("order_id", orderId);
+      const refunds = (events ?? []).filter((event) => event.kind === "refunded");
+      expect(refunds, "w rejestrze inna liczba zwrotów niż 1").toHaveLength(1);
+      const collected = (events ?? [])
+        .filter((event) => event.kind === "collected")
+        .reduce((sum, event) => sum + (event.amount_grosze as number), 0);
+      const settled = (events ?? [])
+        .filter((event) => event.kind !== "collected")
+        .reduce((sum, event) => sum + (event.amount_grosze as number), 0);
+      expect(settled, "rozliczenia przekroczyły pobrania").toBeLessThanOrEqual(collected);
+    });
+  });
 });
