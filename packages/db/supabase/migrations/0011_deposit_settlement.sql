@@ -73,3 +73,85 @@ alter table public.deposit_events
       else reason_code is null
     end
   );
+
+-- ---------------------------------------------------------------------
+-- 2. Niezmiennik salda: zwroty + potrącenia <= pobrania
+-- ---------------------------------------------------------------------
+--
+-- MECHANIZM WYŚCIGU: advisory lock na (tenant, zamówienie) + re-check sumy
+-- w tej samej transakcji (wzorzec app.generate_order_number z 0007 i
+-- app.assert_unit_available z 0010; pełne uzasadnienie poprawności — 0010).
+-- Dwa równoległe rozliczenia tego samego zamówienia serializują się na locku,
+-- a snapshot drugiej transakcji (READ COMMITTED: nowe zapytanie = nowy
+-- snapshot) widzi już zatwierdzone zdarzenie pierwszej.
+--
+-- Pobranie ('collected') locka NIE bierze: może saldo wyłącznie zwiększyć,
+-- a serializowanie pobrań kosztowałoby czekanie bez żadnej gwarancji w zamian.
+-- Równoległe pobranie może co najwyżej sprawić, że rozliczenie zobaczy saldo
+-- sprzed pobrania i odmówi ZA OSTROŻNIE — nigdy odwrotnie.
+--
+-- BULK: PostgREST przyjmuje tablicę wierszy jako jedno polecenie INSERT.
+-- Reguły widoczności triggerów Postgresa (rozdz. „Visibility of Data
+-- Changes"): wiersze wstawione wcześniej TYM SAMYM poleceniem są widoczne
+-- w zapytaniach BEFORE-triggera kolejnych wierszy — dwa zwroty w jednym
+-- poleceniu nie ominą więc re-checku (przypięte testem deposit-gates).
+--
+-- UPDATE/DELETE celowo bez bramki: rejestr jest append-only na poziomie
+-- UPRAWNIEŃ (0007: brak grantów UPDATE/DELETE dla authenticated i
+-- service_role) i POLITYK (tylko select/insert), a trigger na DELETE
+-- zabiłby kaskadę z orders/tenants, którą 0007 jawnie zostawił jako
+-- jedyną drogę zniknięcia wiersza.
+--
+-- SECURITY INVOKER (jak bramki 0010): re-check czyta deposit_events przez
+-- RLS wywołującego — członek widzi komplet zdarzeń WŁASNEGO tenanta, a FK
+-- złożony (tenant_id, order_id) nie dopuszcza zdarzeń międzytenantowych,
+-- więc to jedyny zbiór, w którym suma ma sens. Definer byłby nadmiarem.
+
+create or replace function app.deposit_events_gate() returns trigger
+language plpgsql
+set search_path = pg_catalog, public, app
+as $$
+declare
+  v_collected bigint;
+  v_settled bigint;
+begin
+  -- Pobranie może saldo wyłącznie zwiększyć — bez locka i re-checku.
+  if new.kind = 'collected' then
+    return new;
+  end if;
+
+  -- Serializacja rozliczeń per (tenant, zamówienie). Lock zwalnia koniec
+  -- transakcji; kolizja hasha kosztuje wyłącznie chwilę oczekiwania.
+  perform pg_advisory_xact_lock(
+    hashtextextended(new.tenant_id::text || ':deposit:' || new.order_id::text, 0)
+  );
+
+  select
+    coalesce(sum(amount_grosze) filter (where kind = 'collected'), 0),
+    coalesce(sum(amount_grosze) filter (where kind in ('refunded','deducted')), 0)
+    into v_collected, v_settled
+  from public.deposit_events
+  where tenant_id = new.tenant_id and order_id = new.order_id;
+
+  if v_settled + new.amount_grosze > v_collected then
+    raise exception
+      'Rozliczenie kaucji przekracza pobraną kwotę (pobrano % gr, rozliczono % gr, żądanie % gr).',
+      v_collected, v_settled, new.amount_grosze
+      using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+comment on function app.deposit_events_gate() is
+  'Bramka rejestru kaucji (ADR-026): advisory lock per (tenant, zamówienie) + re-check sumy w transakcji. Zwroty + potrącenia nie przekroczą pobrań dla żadnej roli. Rzuca 23514.';
+
+create trigger deposit_events_gate
+  before insert on public.deposit_events
+  for each row execute function app.deposit_events_gate();
+
+-- 0007 zapowiadał niezmiennik w komentarzu tabeli — komentarz dogania stan.
+comment on table public.deposit_events is
+  'REJESTR zdarzeń kaucji (append-only): pobranie, zwrot, potrącenie. Stan kaucji to suma zdarzeń, a nie kolumna statusowa — historia rozliczenia jest tu dowodem w sporze z klientem, więc nie może być nadpisywana. Niezmiennik sumy (zwroty + potrącenia <= pobrania) egzekwuje trigger deposit_events_gate (0011, ADR-026) dla każdej roli; strukturalny powód potrącenia pilnowany CHECK-iem deposit_events_structured_reason.';
+

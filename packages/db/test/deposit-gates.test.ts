@@ -234,4 +234,132 @@ describe.skipIf(!hasEnv)("bramki kaucji — 0011_deposit_settlement.sql", () => 
       expect(errorMessage, `pobranie z notatką odrzucone: ${errorMessage}`).toBeUndefined();
     });
   });
+
+  // -------------------------------------------------------------------
+  // 2. Niezmiennik salda: zwroty + potrącenia <= pobrania
+  // -------------------------------------------------------------------
+  //
+  // Wszystkie zapisy idą kluczem service_role (BYPASSRLS): jeśli bramka
+  // trzyma rolę, która omija polityki, trzyma każdą — dokładnie ten sam
+  // dowód, co przy bramkach 0010.
+
+  describe("niezmiennik salda kaucji", () => {
+    it("rozliczenie do zera przechodzi, a każdy grosz ponad pobrania płonie 23514", async () => {
+      const tenantId = await createTenant("balance");
+      const orderId = await createOrder(tenantId);
+
+      const collected = await insertEvent(admin, tenantId, orderId, {
+        kind: "collected",
+        amount_grosze: 100_00,
+      });
+      expect(collected.errorMessage, `pobranie odrzucone: ${collected.errorMessage}`).toBeUndefined();
+
+      const refund = await insertEvent(admin, tenantId, orderId, {
+        kind: "refunded",
+        amount_grosze: 60_00,
+      });
+      expect(refund.errorMessage, `zwrot częściowy odrzucony: ${refund.errorMessage}`).toBeUndefined();
+
+      const deduction = await insertEvent(admin, tenantId, orderId, {
+        kind: "deducted",
+        amount_grosze: 40_00,
+        reason_code: "damage",
+      });
+      expect(deduction.errorMessage, `potrącenie do zera odrzucone: ${deduction.errorMessage}`).toBeUndefined();
+
+      // Saldo wynosi dokładnie 0 — kolejny grosz w dowolnym kierunku
+      // rozliczenia musi płonąć.
+      const overRefund = await insertEvent(admin, tenantId, orderId, {
+        kind: "refunded",
+        amount_grosze: 1,
+      });
+      expect(overRefund.errorCode, `nadmiarowy zwrot przeszedł: ${overRefund.errorMessage}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+
+      const overDeduction = await insertEvent(admin, tenantId, orderId, {
+        kind: "deducted",
+        amount_grosze: 1,
+        reason_code: "cleaning",
+      });
+      expect(overDeduction.errorCode, `nadmiarowe potrącenie przeszło: ${overDeduction.errorMessage}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+
+      // Kolejne pobranie otwiera saldo na nowo — niezmiennik ogranicza
+      // rozliczenia, nie pobrania.
+      const reopened = await insertEvent(admin, tenantId, orderId, {
+        kind: "collected",
+        amount_grosze: 10_00,
+      });
+      expect(reopened.errorMessage, `ponowne pobranie odrzucone: ${reopened.errorMessage}`).toBeUndefined();
+
+      const afterReopen = await insertEvent(admin, tenantId, orderId, {
+        kind: "refunded",
+        amount_grosze: 10_00,
+      });
+      expect(afterReopen.errorMessage, `zwrot po ponownym pobraniu odrzucony: ${afterReopen.errorMessage}`).toBeUndefined();
+    });
+
+    it("zwrot bez żadnego pobrania płonie 23514", async () => {
+      const tenantId = await createTenant("no-collect");
+      const orderId = await createOrder(tenantId);
+
+      const { errorCode, errorMessage } = await insertEvent(admin, tenantId, orderId, {
+        kind: "refunded",
+        amount_grosze: 1_00,
+      });
+      expect(errorCode, `zwrot z pustego rejestru przeszedł: ${errorMessage}`).toBe(PG_CHECK_VIOLATION);
+    });
+
+    it("rejestry dwóch zamówień są niezależne — saldo sąsiada nie pokrywa rozliczenia", async () => {
+      const tenantId = await createTenant("two-orders");
+      const orderA = await createOrder(tenantId);
+      const orderB = await createOrder(tenantId);
+
+      const collected = await insertEvent(admin, tenantId, orderA, {
+        kind: "collected",
+        amount_grosze: 100_00,
+      });
+      expect(collected.errorMessage).toBeUndefined();
+
+      // Zamówienie B nie ma pobrań — pobrania A nie mogą go kredytować.
+      const { errorCode, errorMessage } = await insertEvent(admin, tenantId, orderB, {
+        kind: "refunded",
+        amount_grosze: 1_00,
+      });
+      expect(errorCode, `zwrot na cudzym saldzie przeszedł: ${errorMessage}`).toBe(PG_CHECK_VIOLATION);
+    });
+
+    it("bulk INSERT jednym poleceniem nie omija bramki (widoczność wierszy tego samego polecenia)", async () => {
+      // PostgREST przyjmuje tablicę wierszy jako JEDNO polecenie INSERT.
+      // Gdyby trigger BEFORE nie widział wierszy wstawionych wcześniej tym
+      // samym poleceniem, dwa zwroty po 80 zł przy 100 zł pobrań przeszłyby
+      // razem. Reguły widoczności Postgresa gwarantują, że widzi — a ten
+      // test przypina tę gwarancję do naszej bramki.
+      const tenantId = await createTenant("bulk");
+      const orderId = await createOrder(tenantId);
+
+      const collected = await insertEvent(admin, tenantId, orderId, {
+        kind: "collected",
+        amount_grosze: 100_00,
+      });
+      expect(collected.errorMessage).toBeUndefined();
+
+      const { error } = await admin.from("deposit_events").insert([
+        { tenant_id: tenantId, order_id: orderId, kind: "refunded", amount_grosze: 80_00 },
+        { tenant_id: tenantId, order_id: orderId, kind: "refunded", amount_grosze: 80_00 },
+      ]);
+      expect(error?.code, `bulk z nadmiarem przeszedł: ${error?.message}`).toBe(PG_CHECK_VIOLATION);
+
+      // Odmowa jest atomowa: nie wszedł ŻADEN wiersz z pary.
+      const { data: events } = await admin
+        .from("deposit_events")
+        .select("id, kind")
+        .eq("tenant_id", tenantId)
+        .eq("order_id", orderId)
+        .eq("kind", "refunded");
+      expect(events, "część wierszy bulka weszła mimo odmowy").toHaveLength(0);
+    });
+  });
 });
