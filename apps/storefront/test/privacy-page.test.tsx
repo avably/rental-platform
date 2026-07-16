@@ -31,6 +31,36 @@ describe("privacy page", () => {
     expect(JSON.stringify(en.privacy)).toContain("We do not save your IP address with your submission.");
   });
 
+  it("renders the complete IP-handling invariant in both locales", () => {
+    const cases = [
+      {
+        locale: "pl" as const,
+        messages: pl,
+        statements: [
+          "Twojego adresu IP nie zapisujemy w zgłoszeniu.",
+          "Używamy go wyłącznie przejściowo, żeby ograniczyć liczbę zgłoszeń z jednego adresu i chronić formularz przed nadużyciami.",
+          "Klucz wygasa automatycznie.",
+        ],
+      },
+      {
+        locale: "en" as const,
+        messages: en,
+        statements: [
+          "We do not save your IP address with your submission.",
+          "We use it only temporarily to limit the number of submissions from one address and protect the form against abuse.",
+          "The key expires automatically.",
+        ],
+      },
+    ];
+
+    for (const { locale, messages, statements } of cases) {
+      const html = renderPrivacy(locale, messages);
+      for (const statement of statements) {
+        expect(html).toContain(statement);
+      }
+    }
+  });
+
   it("keeps the same section shape in both locales", () => {
     expect(en.privacy.sections).toHaveLength(pl.privacy.sections.length);
     expect(en.privacy.sections.map((section) => Object.keys(section).sort())).toEqual(
