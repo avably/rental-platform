@@ -29,10 +29,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import type { SupabaseClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
+import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
+import WebSocket from "ws";
+
 import {
   buildSampleRow,
   cleanupSeeded,
   createAdminClient,
+  listPlatformTablesWithoutRls,
   listTenantTables,
   mutationPatch,
   seedSampleRow,
@@ -193,6 +198,35 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
     });
   });
 
+  it("każda tabela platformowa (bez tenant_id) ma włączone RLS", async () => {
+    const missing = await listPlatformTablesWithoutRls();
+    expect(missing, "tabele public bez tenant_id i bez włączonego RLS").toEqual([]);
+  });
+
+  describe("test-przynęta: nowa tabela PLATFORMOWA bez RLS musi zostać wykryta", () => {
+    // Odpowiednik przynęty per-tenant powyżej, dla drugiej bramki. Bez tego
+    // testu `listPlatformTablesWithoutRls` mogłaby zwracać pustą listę z
+    // powodu błędu w zapytaniu, a nie dlatego, że schemat jest czysty —
+    // i bramka byłaby dekoracją.
+    const baitTable = `_rls_platform_bait_${Date.now()}`;
+    let baitSql: ReturnType<typeof postgres>;
+
+    beforeEach(async () => {
+      baitSql = postgres(process.env.SUPABASE_LOCAL_URL as string, { max: 1 });
+      await baitSql.unsafe(`create table public.${baitTable} (id uuid primary key, value text)`);
+    });
+
+    afterEach(async () => {
+      await baitSql.unsafe(`drop table if exists public.${baitTable}`);
+      await baitSql.end({ timeout: 5 });
+    });
+
+    it("listPlatformTablesWithoutRls() wykrywa tabelę-przynętę bez tenant_id", async () => {
+      const missing = await listPlatformTablesWithoutRls();
+      expect(missing, "harness nie wykrył platformowej tabeli bez RLS").toContain(baitTable);
+    });
+  });
+
   it("tenants: owner tenanta A nie widzi wiersza tenanta B", async () => {
     // tenants izolowane po `id` (polityka own_select: id = app.tenant_id()),
     // nie po kolumnie tenant_id — stąd poza automatyczną macierzą
@@ -291,4 +325,247 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
     },
     120_000,
   );
+
+  // ---------------------------------------------------------------------
+  // waitlist_signups (0006) — tabela PLATFORMOWA, poza automatyczną macierzą
+  // ---------------------------------------------------------------------
+  //
+  // Macierz per-tenant powyżej wybiera tabele po kolumnie tenant_id, której
+  // ta tabela świadomie nie ma. Oś izolacji jest tu inna: publiczność (anon)
+  // vs platforma (superadmin) — stąd jawny blok zamiast wpisu w introspekcji.
+  //
+  // Testy DOWODZĄ zachowania (anon nie czyta / nie zmienia / nie kasuje), a
+  // nie samego istnienia polityk: brak polityki i polityka `using (true)`
+  // dają różne wyniki, a tylko drugi z nich jest dziurą.
+  describe("waitlist_signups — publiczność vs platforma", () => {
+    const TEST_PASSWORD = "WaitlistRls!12345678";
+    let anonClient: SupabaseClient;
+    let superadminClient: SupabaseClient;
+    let superadminUserId: string;
+    let seededEmail: string;
+
+    beforeAll(async () => {
+      anonClient = createClient(
+        process.env.SUPABASE_LOCAL_API_URL as string,
+        process.env.SUPABASE_LOCAL_ANON_KEY as string,
+        {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+        },
+      );
+
+      const email = `waitlist-superadmin-${randomUUID()}@test.local`;
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      if (error || !data.user) throw new Error(`createUser(superadmin) nie powiódł się: ${error?.message}`);
+      superadminUserId = data.user.id;
+      await sql`insert into app.superadmins (user_id) values (${superadminUserId})`;
+
+      // Logowanie PO wpisie do app.superadmins — claim `superadmin` wchodzi
+      // do JWT przez hook custom_access_token przy wydaniu tokenu (0003).
+      superadminClient = createClient(
+        process.env.SUPABASE_LOCAL_API_URL as string,
+        process.env.SUPABASE_LOCAL_ANON_KEY as string,
+        {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+        },
+      );
+      const { error: signInError } = await superadminClient.auth.signInWithPassword({
+        email,
+        password: TEST_PASSWORD,
+      });
+      if (signInError) throw new Error(`Logowanie superadmina nie powiodło się: ${signInError.message}`);
+    }, 60_000);
+
+    beforeEach(async () => {
+      // Zasiew service-rolem (jedyna rola z grantem INSERT na tabeli obok
+      // SECURITY DEFINER RPC) — dane DO testu, nie obiekt testu.
+      seededEmail = `seeded-${randomUUID()}@test.local`;
+      await sql`
+        insert into public.waitlist_signups
+          (email, rental_type, inventory_range, current_process, consent_at)
+        values (${seededEmail}, 'event', 'r1_20', 'none', now())
+      `;
+    });
+
+    afterEach(async () => {
+      await sql`delete from public.waitlist_signups where email = ${seededEmail}`;
+    });
+
+    afterAll(async () => {
+      await sql`delete from app.superadmins where user_id = ${superadminUserId}`;
+      await admin.auth.admin.deleteUser(superadminUserId);
+    }, 60_000);
+
+    it("anon nie odczyta waitlisty", async () => {
+      const { data, error } = await anonClient.from("waitlist_signups").select("*");
+      // Odmowa pada na GRANCIE (42501), zanim RLS dojdzie do głosu — tabela
+      // nie ma i nie ma mieć grantu dla anona. Pusta lista bez błędu też
+      // byłaby poprawna funkcjonalnie, ale oznaczałaby, że anon MA grant
+      // i chroni go wyłącznie polityka — czyli jedną bramkę mniej.
+      expect(data ?? [], "anon zobaczył wiersze waitlisty").toEqual([]);
+      expect(error?.code, `anon dostał odpowiedź inną niż odmowa uprawnień: ${error?.message}`).toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+    });
+
+    it("anon nie wstawi wiersza wprost do tabeli (tylko przez RPC)", async () => {
+      const { error } = await anonClient.from("waitlist_signups").insert({
+        email: `direct-${randomUUID()}@test.local`,
+        rental_type: "event",
+        inventory_range: "r1_20",
+        current_process: "none",
+        consent_at: new Date().toISOString(),
+      });
+      expect(error?.code, `anon wstawił wiersz wprost do tabeli: ${error?.message}`).toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+    });
+
+    it.each(["anon", "authenticated"])(
+      "%s nie może wyczyścić waitlisty TRUNCATE-em (uprawnienie spoza zasięgu RLS)",
+      async (role) => {
+        // TRUNCATE NIE podlega politykom RLS. Supabase nadaje domyślnie
+        // `all` na nowych tabelach w public obu rolom publicznym, więc bez
+        // jawnego REVOKE w migracji ta ścieżka kasuje całą tabelę, a cała
+        // reszta tego bloku świeci się na zielono. Zweryfikowane: przed
+        // REVOKE w 0006 ten test przechodził na czerwono.
+        let truncated = false;
+        try {
+          await sql.begin(async (tx) => {
+            await tx.unsafe(`set local role ${role}`);
+            try {
+              await tx`truncate public.waitlist_signups`;
+              truncated = true;
+            } catch {
+              truncated = false;
+            }
+            throw new Rollback();
+          });
+        } catch (error) {
+          if (!(error instanceof Rollback)) throw error;
+        }
+        expect(truncated, `${role} wyczyścił waitlistę TRUNCATE-em — RLS tego nie broni`).toBe(false);
+      },
+    );
+
+    it("authenticated bez claimu superadmin nie widzi wierszy waitlisty", async () => {
+      // Tu grant SELECT istnieje (potrzebny superadminowi), więc bramką jest
+      // wyłącznie polityka superadmin_select — PostgREST zwraca pustą listę.
+      const { data, error } = await a.ownerClient.from("waitlist_signups").select("*");
+      expect(error, `SELECT waitlist_signups jako owner: nieoczekiwany błąd`).toBeNull();
+      expect(data ?? [], "zwykły authenticated zobaczył wiersze waitlisty").toHaveLength(0);
+    });
+
+    it("superadmin odczytuje waitlistę", async () => {
+      const { data, error } = await superadminClient
+        .from("waitlist_signups")
+        .select("email")
+        .eq("email", seededEmail);
+      expect(error, `SELECT waitlist_signups jako superadmin: ${error?.message}`).toBeNull();
+      expect(
+        (data ?? []).map((row) => row.email as string),
+        "superadmin nie zobaczył zasianego wiersza — odczyt platformowy zepsuty",
+      ).toContain(seededEmail);
+    });
+
+    it.each([
+      { role: "anon", claims: null },
+      { role: "authenticated", claims: "owner" },
+    ])(
+      "$role nie zmieni ani nie skasuje wierszy waitlisty (gołe mutacje bez WHERE)",
+      async ({ role, claims }) => {
+        // Gołe mutacje bez WHERE: bez filtra czytającego kolumny polityka
+        // SELECT nie ma zastosowania, więc o zasięgu decyduje wyłącznie
+        // klauzula USING polityk UPDATE/DELETE — a tych nie ma, więc zasięg
+        // musi być pusty. To ta sama metoda, co w macierzy per-tenant.
+        const jwt =
+          claims === null
+            ? null
+            : JSON.stringify({
+                sub: a.ownerUserId,
+                role: "authenticated",
+                app_metadata: { tenant_id: a.tenantId, role: "owner" },
+              });
+
+        const baseline = await sql<{ email: string }[]>`
+          select email from public.waitlist_signups where email = ${seededEmail}
+        `;
+        expect(baseline, "brak zasianego wiersza — test nie ma czego bronić").toHaveLength(1);
+
+        /**
+         * Zasięg mutacji MUSI być zmierzony WEWNĄTRZ transakcji, po `reset
+         * role` a przed ROLLBACK-iem. Pomiar po rollbacku pokazywałby stan
+         * sprzed sondy niezależnie od tego, czy mutacja przeszła — czyli
+         * zawsze zielono, także przy polityce `using (true)`. (Ten test
+         * dokładnie tak był najpierw napisany i przepuścił mutację nadającą
+         * anonowi DELETE — stąd ten komentarz.)
+         */
+        async function mutationReaches(statement: string): Promise<boolean> {
+          let reached = false;
+          try {
+            await sql.begin(async (tx) => {
+              if (jwt) await tx`select set_config('request.jwt.claims', ${jwt}, true)`;
+              await tx.unsafe(`set local role ${role}`);
+              try {
+                await tx.unsafe(statement);
+              } catch {
+                // Odmowa (brak GRANT-u albo polityka nie dopuściła żadnego
+                // wiersza) — z definicji brak wycieku.
+                throw new Rollback();
+              }
+              await tx`reset role`;
+              const rows = await tx<{ email: string }[]>`
+                select email from public.waitlist_signups where email = ${seededEmail}
+              `;
+              reached = JSON.stringify(rows) !== JSON.stringify(baseline);
+              throw new Rollback();
+            });
+          } catch (error) {
+            if (!(error instanceof Rollback)) throw error;
+          }
+          return reached;
+        }
+
+        expect(
+          await mutationReaches("update public.waitlist_signups set email = 'attacker@test.local'"),
+          `${role}: goła mutacja UPDATE dosięgła wierszy waitlisty — wyciek`,
+        ).toBe(false);
+        expect(
+          await mutationReaches("delete from public.waitlist_signups"),
+          `${role}: goła mutacja DELETE usunęła wiersze waitlisty — wyciek`,
+        ).toBe(false);
+      },
+    );
+
+    it("anon zapisuje się WYŁĄCZNIE przez RPC, a deduplikacja jest case-insensitive", async () => {
+      const email = `rpc-${randomUUID()}@test.local`;
+      const args = {
+        p_email: email.toUpperCase(),
+        p_rental_type: "event",
+        p_inventory_range: "r1_20",
+        p_current_process: "none",
+        p_consent: true,
+      };
+
+      const first = await anonClient.schema("app").rpc("join_waitlist", args);
+      expect(first.error, `RPC join_waitlist jako anon: ${first.error?.message}`).toBeNull();
+      expect(first.data, "anon nie zapisał się przez RPC — ścieżka publiczna zepsuta").toBe("success");
+
+      const second = await anonClient.schema("app").rpc("join_waitlist", { ...args, p_email: email });
+      expect(second.data, "ten sam e-mail innym casingiem nie został zdeduplikowany").toBe("duplicate");
+
+      const rows = await sql<{ email: string }[]>`
+        select email from public.waitlist_signups where lower(email) = ${email.toLowerCase()}
+      `;
+      expect(rows, "deduplikacja przepuściła drugi wiersz").toHaveLength(1);
+      expect(rows[0]?.email, "e-mail nie został znormalizowany do lower-case").toBe(email.toLowerCase());
+
+      await sql`delete from public.waitlist_signups where lower(email) = ${email.toLowerCase()}`;
+    });
+  });
 });
