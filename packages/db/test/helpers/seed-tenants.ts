@@ -235,6 +235,64 @@ async function createAuxMemberUser(ctx: SeedCtx, tenantId: string): Promise<stri
   return data.user.id;
 }
 
+// -----------------------------------------------------------------------
+// Rodzice FK dla tabel rdzenia wynajmu (0007)
+// -----------------------------------------------------------------------
+//
+// Tabele rdzenia wiążą się kluczami ZŁOŻONYMI (tenant_id, id) — pozycja
+// zamówienia nie może wskazać zamówienia innego tenanta (patrz 0007). Fabryki
+// muszą więc tworzyć rodziców W TYM SAMYM tenancie, dla którego budują wiersz.
+// Każde wywołanie tworzy ŚWIEŻEGO rodzica: payload INSERT-u cross-tenant w
+// macierzy nie może kolidować kluczem z wcześniej zasianym wierszem, bo błąd
+// 23505 (duplicate key) zamaskowałby brak odmowy RLS fałszywą zielenią.
+
+/** Wstawia wiersz service-rolem i zwraca jego id (rodzic FK dla fabryk). */
+async function insertReturningId(
+  ctx: SeedCtx,
+  table: string,
+  row: Record<string, unknown>,
+): Promise<string> {
+  const { data, error } = await ctx.admin.from(table).insert(row).select("id").single();
+  if (error || !data) {
+    throw new Error(`Nie udało się utworzyć rodzica FK w "${table}": ${error?.message}`);
+  }
+  return data.id as string;
+}
+
+async function createProduct(ctx: SeedCtx, tenantId: string): Promise<string> {
+  return insertReturningId(ctx, "products", {
+    tenant_id: tenantId,
+    name: `RLS test product ${randomUUID().slice(0, 8)}`,
+    base_price_day_grosze: 10_000,
+  });
+}
+
+async function createCustomer(ctx: SeedCtx, tenantId: string): Promise<string> {
+  return insertReturningId(ctx, "customers", {
+    tenant_id: tenantId,
+    email: `customer-${randomUUID()}@test.local`,
+    full_name: "RLS test customer",
+  });
+}
+
+/**
+ * Zamówienie z metodą 'courier' — świadomie NIE 'pickup', bo ta wymaga
+ * pickup_location_id (CHECK orders_pickup_requires_location w 0007), a
+ * macierz izolacji potrzebuje najprostszego poprawnego wiersza. Sam CHECK
+ * jest dowodzony osobno, testem negatywnym w rental-core.test.ts.
+ *
+ * order_number celowo pominięty — nadaje go trigger orders_generate_order_number.
+ */
+async function createOrder(ctx: SeedCtx, tenantId: string): Promise<string> {
+  return insertReturningId(ctx, "orders", {
+    tenant_id: tenantId,
+    customer_id: await createCustomer(ctx, tenantId),
+    start_date: "2026-08-01",
+    end_date: "2026-08-03",
+    delivery_method: "courier",
+  });
+}
+
 type SampleRowFactory = (ctx: SeedCtx, tenantId: string) => Promise<Record<string, unknown>>;
 
 /**
@@ -275,6 +333,62 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     tenant_id: tenantId,
     action: "test.action",
     subject: "rls-isolation-test",
+  }),
+
+  // --- rdzeń wynajmu (0007_rental_core.sql) ---
+  products: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    name: `RLS test product ${randomUUID().slice(0, 8)}`,
+    base_price_day_grosze: 10_000,
+  }),
+  product_units: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    product_id: await createProduct(ctx, tenantId),
+    serial_number: `SN-${randomUUID().slice(0, 8)}`,
+  }),
+  pricing_tiers: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    product_id: await createProduct(ctx, tenantId),
+    tier_days: 7,
+    multiplier: 6.5,
+    label: "RLS test tier",
+  }),
+  pickup_locations: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    name: `RLS test location ${randomUUID().slice(0, 8)}`,
+    address_city: "Warszawa",
+  }),
+  customers: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    email: `customer-${randomUUID()}@test.local`,
+    full_name: "RLS test customer",
+  }),
+  orders: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    customer_id: await createCustomer(ctx, tenantId),
+    start_date: "2026-08-01",
+    end_date: "2026-08-03",
+    delivery_method: "courier",
+  }),
+  order_items: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    product_id: await createProduct(ctx, tenantId),
+    rental_grosze: 30_000,
+    deposit_grosze: 10_000,
+  }),
+  deposit_events: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    kind: "collected",
+    amount_grosze: 10_000,
+  }),
+  // Unikalny klucz per wywołanie — PK to (tenant_id, key), a kolizja dałaby
+  // 23505 zamiast 42501 w teście INSERT-u cross-tenant (patrz usage_counters).
+  tenant_settings: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    key: `test_setting_${randomUUID().replace(/-/g, "").slice(0, 12)}`,
+    value: { enabled: true },
   }),
 };
 
@@ -334,6 +448,24 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   subscriptions: { status: "rls-test-hacked" },
   usage_counters: { value: 999_999 },
   audit_log: { action: "rls-test-hacked" },
+
+  // --- rdzeń wynajmu (0007_rental_core.sql) ---
+  //
+  // Patche celowo omijają kolumny objęte indeksem unikalnym (products.name jest
+  // wolna, ale np. product_units.serial_number, customers.email i
+  // orders.order_number już nie). Goła mutacja `update <tabela> set <patch>`
+  // dotyka WSZYSTKICH widocznych wierszy naraz, więc patch na kolumnie
+  // unikalnej wywoływałby 23505 — sonda potraktowałaby wyjątek jak odmowę
+  // i dała fałszywą zieleń niezależnie od stanu polityk.
+  products: { name: "rls-test-hacked" },
+  product_units: { unavailable_reason: "rls-test-hacked" },
+  pricing_tiers: { label: "rls-test-hacked" },
+  pickup_locations: { name: "rls-test-hacked" },
+  customers: { full_name: "rls-test-hacked" },
+  orders: { notes: "rls-test-hacked" },
+  order_items: { rental_grosze: 999_999 },
+  deposit_events: { reason: "rls-test-hacked" },
+  tenant_settings: { updated_at: "2000-01-01T00:00:00.000Z" },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {
