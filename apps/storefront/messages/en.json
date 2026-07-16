@@ -3,6 +3,76 @@
     "storefrontTitle": "Avably",
     "storefrontDescription": "A planned system for running an equipment rental business online."
   },
+  "privacy": {
+    "title": "Privacy Policy",
+    "updatedLabel": "Last updated:",
+    "updatedValue": "[[EFFECTIVE_DATE]]",
+    "backToHome": "Back to the home page",
+    "sections": [
+      {
+        "heading": "1. Who is the controller of your data",
+        "body": [
+          "The controller of your personal data within the meaning of the GDPR is:\nZakład Graficzny Maciej Godek\nul. Cumownicza 1a/2\n60-480 Poznań, Poland\nVAT ID (NIP): 7831780263",
+          "Avably is a project run by this controller.",
+          "Contact for all data-related matters: admin@avably.io",
+          "The controller has not appointed a Data Protection Officer."
+        ]
+      },
+      {
+        "heading": "2. What this policy covers",
+        "body": ["This policy covers only the avably.io website and waitlist sign-ups. Avably has not yet launched as a service — when it does, we will publish a separate policy for the product."]
+      },
+      {
+        "heading": "3. What data we collect",
+        "body": [
+          "When you join the waitlist, we collect:\n- your email address (required),\n- the type of equipment you rent, the size of your inventory, and how you currently manage bookings — that is, your answers in the form,\n- details about the equipment — only if you choose “other”,\n- whether you want to take part in the pilot,\n- your phone number — only if you apply for the pilot. Without that application, the form will not accept a phone number at all,\n- the time when you give consent,\n- the language in which you view the website,\n- campaign identifiers (the utm_source and utm_campaign parameters in the address), if you reached us through a campaign link.",
+          "We do not save your IP address with your submission. We use it only temporarily to limit the number of submissions from one address and protect the form against abuse. The key expires automatically."
+        ]
+      },
+      {
+        "heading": "4. Why we use the data and on what legal basis",
+        "body": [
+          "- Adding you to the waitlist and sending information about the development and launch of Avably — based on your consent (Article 6(1)(a) GDPR).\n- Contacting you about the pilot — based on your consent, if you express such an interest.\n- Protecting the form against abuse — based on our legitimate interest (Article 6(1)(f) GDPR).",
+          "We use answers about equipment type and inventory only to understand who we are building the product for. We do not make any automated decisions based on them and we do not profile you."
+        ]
+      },
+      {
+        "heading": "5. Who processes data on our behalf",
+        "body": [
+          "We use providers that process data on our behalf:\n- Supabase — submission database — European Union (Frankfurt)\n- Vercel — website hosting — European Union (Frankfurt)\n- Upstash — protection of the form against abuse — European Union (Frankfurt)\n- Cloudflare — DNS and website protection — global network\n- Resend — sending messages to you — European Union",
+          "We store data in the European Union. Some of these companies are based in the United States, so technical support may involve transferring data outside the European Economic Area. This takes place on the basis of standard contractual clauses approved by the European Commission.",
+          "We do not sell your data or share it with anyone for marketing purposes."
+        ]
+      },
+      {
+        "heading": "6. How long we keep the data",
+        "body": ["Until you withdraw your consent, but no longer than 24 months after you join. After you withdraw consent, we delete your submission."]
+      },
+      {
+        "heading": "7. Your rights",
+        "body": [
+          "You have the right to access your data, correct it, delete it, restrict its processing, transfer it, object to processing based on our legitimate interest, and withdraw your consent at any time. Withdrawing consent does not affect the lawfulness of processing carried out before the withdrawal.",
+          "To exercise these rights, write to admin@avably.io. We will respond within one month at the latest.",
+          "You also have the right to lodge a complaint with the President of the Personal Data Protection Office (Prezes Urzędu Ochrony Danych Osobowych), ul. Stawki 2, 00-193 Warsaw, Poland."
+        ]
+      },
+      {
+        "heading": "8. Cookies",
+        "body": [
+          "The website uses one functional cookie that remembers the language you selected. It is necessary for the language switcher to work and is not used for tracking.",
+          "We do not use analytics or marketing cookies and we do not track you on other websites. If this changes, we will update this policy and ask for your consent before enabling any tracking."
+        ]
+      },
+      {
+        "heading": "9. Is providing data mandatory",
+        "body": ["No. Joining the waitlist is entirely voluntary. However, without an email address we cannot add you to the list."]
+      },
+      {
+        "heading": "10. Changes to this policy",
+        "body": ["If we change this policy, we will publish a new version on this page and change the date at the top. We will notify you by email about material changes."]
+      }
+    ]
+  },
   "landing": {
     "metadata": {
       "title": "Avably — launch your rental business online",
