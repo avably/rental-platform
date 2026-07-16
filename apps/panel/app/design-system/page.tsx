@@ -56,7 +56,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@rental/ui";
+} from "@avably/ui";
 import { useState, type ReactNode } from "react";
 
 const colorTokens = [
@@ -115,7 +115,7 @@ export default function DesignSystemGallery() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-14 px-4 py-8 text-foreground sm:px-6 sm:py-12 lg:px-8">
         <header className="flex flex-col gap-6 border-b pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl space-y-3">
-            <Badge variant="outline">@rental/ui</Badge>
+            <Badge variant="outline">@avably/ui</Badge>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Galeria design systemu
             </h1>

@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import globals from "globals";
 
-// Klient service-role (@rental/db/service) omija RLS — dozwolony wyłącznie
+// Klient service-role (@avably/db/service) omija RLS — dozwolony wyłącznie
 // w webhookach i jobach uruchamianych server-side (patrz
 // docs/konwencje-migracji.md). Zduplikowane tu (poza apps/*/eslint.config.mjs)
 // tak, by reguła obejmowała też packages/* — import poza dozwolonymi
@@ -15,7 +15,7 @@ const restrictDbServiceImport = {
       {
         paths: [
           {
-            name: "@rental/db/service",
+            name: "@avably/db/service",
             message:
               "Klient service-role omija RLS — dozwolony tylko w app/api/webhooks/** i src/jobs/**.",
           },

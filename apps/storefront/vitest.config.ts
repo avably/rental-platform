@@ -9,7 +9,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@rental/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
+      "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
     },
   },
 });

@@ -7,7 +7,7 @@
  *    odświeżane automatycznie poza requestem HTTP).
  * 2. Nagłówki bezpieczeństwa (Zadanie 7): CSP z nonce (bez 'unsafe-inline'),
  *    HSTS, nosniff, Referrer-Policy, Permissions-Policy — polityka wspólna z
- *    storefrontem, patrz @rental/security.
+ *    storefrontem, patrz @avably/security.
  *
  * Nie egzekwuje tu autoryzacji per-trasa — guardy (`requireMember`,
  * `requireSuperadmin`, patrz lib/supabase-server.ts) działają w Server
@@ -15,13 +15,13 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { createServerClient } from "@rental/db";
+import { createServerClient } from "@avably/db";
 import {
   applySecurityHeaders,
   generateNonce,
   requestWithNonce,
   type CspOptions,
-} from "@rental/security";
+} from "@avably/security";
 
 export async function proxy(request: NextRequest) {
   const nonce = generateNonce();

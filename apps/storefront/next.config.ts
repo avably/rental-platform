@@ -2,7 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@rental/core", "@rental/db", "@rental/security", "@rental/ui"],
+  transpilePackages: ["@avably/core", "@avably/db", "@avably/security", "@avably/ui"],
   turbopack: {
     root: path.join(__dirname, "../.."),
   },

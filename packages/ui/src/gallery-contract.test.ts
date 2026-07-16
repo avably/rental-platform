@@ -14,7 +14,7 @@ describe("integracja design systemu", () => {
 
     if (!existsSync(panelGallery)) return;
     const source = readFileSync(panelGallery, "utf8");
-    expect(source).toContain('from "@rental/ui"');
+    expect(source).toContain('from "@avably/ui"');
     expect(source).toContain("aria-pressed={darkMode}");
     expect(source).toMatch(/darkMode\s*\?\s*"dark/);
     expect(source).toContain('id="buttons-badges"');
@@ -35,7 +35,7 @@ describe("integracja design systemu", () => {
         "utf8",
       );
 
-      expect(globals).toContain('@import "@rental/ui/styles.css"');
+      expect(globals).toContain('@import "@avably/ui/styles.css"');
       expect(layout).toContain("Inter");
       expect(layout).toContain('variable: "--font-inter"');
     },

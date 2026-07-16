@@ -29,7 +29,7 @@ export function OrganizationInvitation({
     <EmailLayout
       cta={{ href: acceptanceUrl, label: "Dołącz do organizacji" }}
       heading="Zaproszenie do organizacji"
-      previewText={`Dołącz do organizacji ${organizationName} w <NAZWA>.`}
+      previewText={`Dołącz do organizacji ${organizationName} w Avably.`}
     >
       <Text style={EMAIL_STYLES.text}>{greeting}</Text>
       <Text style={EMAIL_STYLES.text}>

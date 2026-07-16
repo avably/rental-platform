@@ -1,11 +1,11 @@
-# Projekt `@rental/emails`
+# Projekt `@avably/emails`
 
 Data: 2026-07-14  
 Zakres: samodzielny pakiet transakcyjnych e-maili, bez integracji z aplikacjami
 
 ## Cel
 
-`@rental/emails` dostarcza cztery polskie szablony transakcyjne jako komponenty
+`@avably/emails` dostarcza cztery polskie szablony transakcyjne jako komponenty
 React oraz funkcje renderujące każdy szablon jednocześnie do HTML i tekstu
 zwykłego. Pakiet nie wysyła wiadomości, nie korzysta z bazy i nie zna logiki
 domenowej aplikacji. Wiring do panelu zostaje wykonany osobno.
@@ -27,7 +27,7 @@ Pakiet eksportuje:
 
 Kwota i daty nowego zamówienia są przekazywane jako gotowe teksty. Ten
 kontrakt jest świadomym placeholderem fazy 1: pakiet prezentacyjny nie
-formatuje jeszcze wartości domenowych ani nie zależy od `@rental/core`.
+formatuje jeszcze wartości domenowych ani nie zależy od `@avably/core`.
 
 ## Architektura plików
 
@@ -60,8 +60,8 @@ miejscem, które zamienia element React na gotowe warianty HTML i plain text.
 
 ## Branding i kompatybilność
 
-Źródłem znaczenia kolorów jest jasny motyw `@rental/ui` opisany w ADR-007,
-ale pakiet nie importuje `@rental/ui`. W `src/styles.ts` żyją jawne odpowiedniki
+Źródłem znaczenia kolorów jest jasny motyw `@avably/ui` opisany w ADR-007,
+ale pakiet nie importuje `@avably/ui`. W `src/styles.ts` żyją jawne odpowiedniki
 hex używane w stylach inline:
 
 - tło i karta: `#ffffff`;
@@ -73,10 +73,10 @@ hex używane w stylach inline:
 - obramowanie: `#e8e8e8`.
 
 Nie używamy `oklch`, Tailwinda, zewnętrznych fontów ani komponentów React z
-`@rental/ui`. Stos fontów to bezpieczne systemowe fallbacki:
+`@avably/ui`. Stos fontów to bezpieczne systemowe fallbacki:
 `-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`.
 
-Nagłówek i stopka używają tymczasowej nazwy produktu `<NAZWA>`. Szablony mają
+Nagłówek i stopka używają tymczasowej nazwy produktu `Avably`. Szablony mają
 tylko jasny motyw, ponieważ wymuszanie motywu ciemnego w klientach pocztowych
 nie jest wystarczająco spójne. CTA ma również widoczny link tekstowy, dzięki
 czemu wiadomość pozostaje użyteczna, gdy klient nie wyświetli przycisku.
@@ -99,7 +99,7 @@ polski bez tonu korporacyjnego.
 React Email Preview jest uruchamiany niezależnie od panelu poleceniem:
 
 ```bash
-pnpm --filter @rental/emails preview
+pnpm --filter @avably/emails preview
 ```
 
 Pliki w `preview/` są cienkimi wrapperami z przykładowymi `PreviewProps`.
@@ -123,7 +123,7 @@ Vitest uruchamia render każdego szablonu i sprawdza:
 - obecność CTA, docelowego URL i danych z propsów w HTML;
 - niepustą wersję tekstową zawierającą kluczowe dane i URL;
 - brak `oklch` w wygenerowanym HTML;
-- wspólny branding `<NAZWA>`.
+- wspólny branding `Avably`.
 
 Końcowa weryfikacja obejmuje `pnpm typecheck`, `pnpm lint`, `pnpm test` oraz
 oba joby CI. Dokumentacja modułu i wpis w dzienniku budowy trafiają do

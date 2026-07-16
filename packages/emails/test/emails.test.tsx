@@ -20,7 +20,7 @@ describe("EmailConfirmation", () => {
     expect(result.html).toContain("Potwierdź adres e-mail");
     expect(result.html).toContain(confirmationUrl);
     expect(result.html).toContain("Anna");
-    expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).toContain("Avably");
     expect(result.html).not.toContain('lang="en"');
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
@@ -41,7 +41,7 @@ describe("PasswordReset", () => {
     expect(result.html).toContain("Piotr");
     expect(result.html).toContain(resetUrl);
     expect(result.html).toContain("Jeśli to nie Ty");
-    expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).toContain("Avably");
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
     expect(result.text).toContain(resetUrl);
@@ -65,7 +65,7 @@ describe("OrganizationInvitation", () => {
     expect(result.html).toContain("pracownik");
     expect(result.html).toContain("Jan");
     expect(result.html).toContain(acceptanceUrl);
-    expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).toContain("Avably");
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
     expect(result.text).toContain("Wypożyczalnia Północ");
@@ -94,7 +94,7 @@ describe("NewOrderNotification", () => {
     expect(result.html).toContain("20.07.2026");
     expect(result.html).toContain("23.07.2026");
     expect(result.html).toContain(orderUrl);
-    expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).toContain("Avably");
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
     expect(result.text).toContain("ZAM-2026-001");

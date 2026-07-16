@@ -15,7 +15,7 @@ export function PasswordReset({ resetUrl, recipientName }: PasswordResetProps) {
     <EmailLayout
       cta={{ href: resetUrl, label: "Ustaw nowe hasło" }}
       heading="Ustaw nowe hasło"
-      previewText="Ustaw nowe hasło do konta w <NAZWA>."
+      previewText="Ustaw nowe hasło do konta w Avably."
     >
       <Text style={EMAIL_STYLES.text}>{greeting}</Text>
       <Text style={EMAIL_STYLES.text}>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { AuditLogEntry } from "@rental/db";
+import type { AuditLogEntry } from "@avably/db";
 
 import { listTenants, requireSuperadminPage } from "@/lib/superadmin";
 import { auditFilterSchema } from "@/lib/validation";

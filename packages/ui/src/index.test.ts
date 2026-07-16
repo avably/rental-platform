@@ -20,7 +20,7 @@ const requiredExports = [
   "Calendar",
 ] as const;
 
-describe("publiczny kontrakt @rental/ui", () => {
+describe("publiczny kontrakt @avably/ui", () => {
   it.each(requiredExports)("eksportuje %s", (name) => {
     expect(ui).toHaveProperty(name);
   });

@@ -1,5 +1,5 @@
 {
-  "name": "rental-platform",
+  "name": "avably",
   "private": true,
   "packageManager": "pnpm@8.15.8",
   "engines": {

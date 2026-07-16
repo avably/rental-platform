@@ -13,7 +13,7 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import type { Plan, Subscription, Tenant, TenantStatus } from "@rental/db";
+import type { Plan, Subscription, Tenant, TenantStatus } from "@avably/db";
 
 import { AuthError, type AuthContext } from "./auth";
 import { requireSuperadmin } from "./supabase-server";

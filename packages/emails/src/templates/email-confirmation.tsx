@@ -18,7 +18,7 @@ export function EmailConfirmation({
     <EmailLayout
       cta={{ href: confirmationUrl, label: "Potwierdź adres e-mail" }}
       heading="Potwierdź adres e-mail"
-      previewText="Potwierdź adres e-mail w <NAZWA>."
+      previewText="Potwierdź adres e-mail w Avably."
     >
       <Text style={EMAIL_STYLES.text}>{greeting}</Text>
       <Text style={EMAIL_STYLES.text}>

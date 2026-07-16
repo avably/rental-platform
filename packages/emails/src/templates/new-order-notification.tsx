@@ -35,7 +35,7 @@ export function NewOrderNotification({
     <EmailLayout
       cta={{ href: orderUrl, label: "Zobacz zamówienie" }}
       heading="Nowe zamówienie"
-      previewText={`Nowe zamówienie ${orderNumber} w <NAZWA>.`}
+      previewText={`Nowe zamówienie ${orderNumber} w Avably.`}
     >
       <Text style={EMAIL_STYLES.text}>
         Wpadło nowe zamówienie. Najważniejsze dane znajdziesz poniżej.

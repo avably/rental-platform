@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import type { Invitation, Member } from "@rental/db";
+import type { Invitation, Member } from "@avably/db";
 
 import { getTenant, getTenantViewCookie, requireSuperadminPage } from "@/lib/superadmin";
 import { tenantIdSchema } from "@/lib/validation";

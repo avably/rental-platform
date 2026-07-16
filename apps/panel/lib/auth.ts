@@ -15,7 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Role } from "@rental/db";
+import type { Role } from "@avably/db";
 
 /**
  * Powód odmowy — rozstrzyga, co ma zrobić wywołujący (patrz

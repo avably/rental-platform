@@ -12,7 +12,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { createServerClient, type CookieMethodsServer } from "@rental/db";
+import { createServerClient, type CookieMethodsServer } from "@avably/db";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { clearPostAuthNextOnResponse, readPostAuthNext } from "@/lib/post-auth-next";

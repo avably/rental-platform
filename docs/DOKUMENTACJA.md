@@ -1,4 +1,4 @@
-# Standard dokumentacji i współpracy — rental-platform
+# Standard dokumentacji i współpracy — Avably
 
 Ten dokument jest wiążący dla KAŻDEGO, kto pracuje w tym repo (człowiek, Claude,
 GPT/Codex, dowolny agent LLM). Bez spełnienia jego wymagań zadanie nie jest
@@ -45,7 +45,7 @@ Każdy katalog ma JEDNEGO właściciela. Nie edytuj plików spoza swojego pasa.
 | `packages/emails` (szablony e-mail) | **GPT** | |
 | `packages/pdf` (generator umów) | **GPT** | |
 | `apps/storefront` — powłoka, marketing/LP, UI publiczne | **GPT** | |
-| `apps/panel` — ekrany UI konsumujące `@rental/ui` | **GPT** | tylko warstwa widoku |
+| `apps/panel` — ekrany UI konsumujące `@avably/ui` | **GPT** | tylko warstwa widoku |
 
 Sekcje dokumentacji dziedziczą własność pasa: każdy edytuje tylko sekcje modułów
 ze swojego pasa (minimalizacja konfliktów w jednym pliku HTML).
@@ -65,8 +65,8 @@ ze swojego pasa (minimalizacja konfliktów w jednym pliku HTML).
    Konflikt `pnpm-lock.yaml` po merge rozwiązujesz przez `pnpm install`.
 6. **Osobne pliki postępu** (zero kolizji): Claude → `.superpowers/sdd/progress.md`,
    GPT → `.superpowers/gpt/progress.md`. Katalog `.superpowers/` jest gitignore.
-7. **Kontrakt między pasami** = typy eksportowane z `@rental/db` (Claude) i
-   komponenty z `@rental/ui` (GPT). Zmiana kontraktu = wpis w dokumentacji +
+7. **Kontrakt między pasami** = typy eksportowane z `@avably/db` (Claude) i
+   komponenty z `@avably/ui` (GPT). Zmiana kontraktu = wpis w dokumentacji +
    uzgodnienie w PR, zanim druga strona na nim polega.
 
 ## 4. Zasady jakości i stylu (całe repo)

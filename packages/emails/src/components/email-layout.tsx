@@ -15,7 +15,7 @@ import {
 
 import { EMAIL_STYLES } from "../styles";
 
-const PRODUCT_NAME = "<NAZWA>";
+const PRODUCT_NAME = "Avably";
 
 export interface EmailLayoutProps {
   children: ReactNode;

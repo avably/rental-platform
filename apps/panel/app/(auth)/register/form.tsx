@@ -5,7 +5,7 @@ import { useActionState } from "react";
 
 import { registerAction, type RegisterState } from "./actions";
 
-// Warstwa wizualna (stylowanie @rental/ui) — pas GPT (docs/DOKUMENTACJA.md
+// Warstwa wizualna (stylowanie @avably/ui) — pas GPT (docs/DOKUMENTACJA.md
 // §2). Tu wyłącznie funkcjonalny szkielet: formularz + akcja serwerowa.
 const initialState: RegisterState = {};
 

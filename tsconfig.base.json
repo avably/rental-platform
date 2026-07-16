@@ -16,10 +16,10 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@rental/db": ["../../packages/db/src/index.ts"],
-      "@rental/core": ["../../packages/core/src/index.ts"],
-      "@rental/security": ["../../packages/security/src/index.ts"],
-      "@rental/ui": ["../../packages/ui/src/index.ts"]
+      "@avably/db": ["../../packages/db/src/index.ts"],
+      "@avably/core": ["../../packages/core/src/index.ts"],
+      "@avably/security": ["../../packages/security/src/index.ts"],
+      "@avably/ui": ["../../packages/ui/src/index.ts"]
     }
   }
 }

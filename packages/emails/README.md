@@ -1,8 +1,8 @@
-# `@rental/emails`
+# `@avably/emails`
 
 Pakiet polskich e-maili transakcyjnych dla platformy wynajmu. Zawiera
 komponenty React Email oraz wspólne funkcje renderujące HTML i wersję tekstową.
-Nie wysyła wiadomości i nie zależy od aplikacji, bazy ani `@rental/ui`.
+Nie wysyła wiadomości i nie zależy od aplikacji, bazy ani `@avably/ui`.
 
 ## Publiczne API
 
@@ -16,10 +16,10 @@ Każda funkcja renderująca zwraca `Promise<{ html: string; text: string }>`. Na
 przykład:
 
 ```ts
-import { renderEmailConfirmation } from "@rental/emails";
+import { renderEmailConfirmation } from "@avably/emails";
 
 const email = await renderEmailConfirmation({
-  confirmationUrl: "https://app.<nazwa>.pl/auth/confirm?token=...",
+  confirmationUrl: "https://app.avably.io/auth/confirm?token=...",
   recipientName: "Anna",
 });
 
@@ -36,7 +36,7 @@ Wiring do dostawcy e-mail i aplikacji pozostaje poza tym pakietem.
 W katalogu głównym repozytorium uruchom:
 
 ```bash
-pnpm --filter @rental/emails preview
+pnpm --filter @avably/emails preview
 ```
 
 Galeria React Email będzie dostępna pod `http://localhost:3002`. Pokazuje
@@ -46,9 +46,9 @@ widok po zmianie plików.
 ## Testy i kontrola jakości
 
 ```bash
-pnpm --filter @rental/emails typecheck
-pnpm --filter @rental/emails lint
-pnpm --filter @rental/emails test
+pnpm --filter @avably/emails typecheck
+pnpm --filter @avably/emails lint
+pnpm --filter @avably/emails test
 ```
 
 Testy renderują wszystkie szablony do HTML i plain text, sprawdzają CTA, linki,
@@ -59,4 +59,4 @@ dane wejściowe, branding i zakaz używania `oklch`.
 `NewOrderNotificationProps` przyjmuje numer, klienta, kwotę oraz daty jako
 gotowe teksty. To świadomy placeholder fazy 1: pakiet prezentacyjny nie
 formatuje wartości domenowych. Kontrakt może zostać doprecyzowany podczas
-integracji z `@rental/core`.
+integracji z `@avably/core`.

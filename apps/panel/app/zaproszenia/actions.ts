@@ -2,6 +2,8 @@
 
 import { randomBytes, createHash } from "node:crypto";
 
+import { siteUrl } from "@avably/core";
+
 import { AuthError } from "@/lib/auth";
 import { sendInvitationEmail } from "@/lib/email";
 import { checkAuthRateLimit } from "@/lib/rate-limit";
@@ -63,10 +65,9 @@ export async function inviteMemberAction(
     return { error: error.message };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000";
   await sendInvitationEmail({
     to: parsed.data.email,
-    acceptUrl: `${siteUrl}/zaproszenie/${rawToken}`,
+    acceptUrl: `${siteUrl()}/zaproszenie/${rawToken}`,
   });
 
   return { success: `Zaproszenie wysłane na ${parsed.data.email}.` };

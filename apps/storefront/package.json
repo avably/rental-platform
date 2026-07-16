@@ -11,10 +11,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@rental/core": "workspace:*",
-    "@rental/db": "workspace:*",
-    "@rental/security": "workspace:*",
-    "@rental/ui": "workspace:*",
+    "@avably/core": "workspace:*",
+    "@avably/db": "workspace:*",
+    "@avably/security": "workspace:*",
+    "@avably/ui": "workspace:*",
     "next": "16.2.10",
     "react": "19.2.4",
     "react-dom": "19.2.4"
