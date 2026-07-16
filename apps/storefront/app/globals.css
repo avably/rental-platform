@@ -1,6 +1,62 @@
 @import "tailwindcss";
 @import "@avably/ui/styles.css";
 
+@theme inline {
+  --font-sans: var(--font-sans-source), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-source), ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-serif: var(--font-serif-source), Georgia, "Times New Roman", serif;
+  --color-landing-paper: var(--landing-paper);
+  --color-landing-warm: var(--landing-warm);
+  --color-landing-ink: var(--landing-ink);
+  --color-landing-ink-muted: var(--landing-ink-muted);
+}
+
+:root {
+  --landing-paper: var(--background);
+  --landing-warm: oklch(0.972 0.004 80);
+  --landing-ink: oklch(0.238 0.008 75);
+  --landing-ink-muted: oklch(0.82 0.008 80);
+}
+
+.dark {
+  --landing-paper: var(--background);
+  --landing-warm: oklch(0.18 0.018 75);
+  --landing-ink: oklch(0.16 0.014 75);
+  --landing-ink-muted: oklch(0.78 0.012 80);
+}
+
+.landing-display {
+  font-family: var(--font-serif);
+  font-size: clamp(3.25rem, 7vw, 5.25rem);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.landing-heading {
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.landing-statement {
+  font-family: var(--font-serif);
+  font-size: clamp(2.35rem, 5.2vw, 4.75rem);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
