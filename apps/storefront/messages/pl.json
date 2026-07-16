@@ -3,6 +3,76 @@
     "storefrontTitle": "Avably",
     "storefrontDescription": "Planowany system do prowadzenia wypożyczalni sprzętu online."
   },
+  "privacy": {
+    "title": "Polityka prywatności",
+    "updatedLabel": "Ostatnia aktualizacja:",
+    "updatedValue": "[[EFFECTIVE_DATE]]",
+    "backToHome": "Wróć na stronę główną",
+    "sections": [
+      {
+        "heading": "1. Kto jest administratorem Twoich danych",
+        "body": [
+          "Administratorem Twoich danych osobowych w rozumieniu RODO jest:\nZakład Graficzny Maciej Godek\nul. Cumownicza 1a/2\n60-480 Poznań\nNIP: 7831780263",
+          "Avably jest projektem prowadzonym przez tego administratora.",
+          "Kontakt we wszystkich sprawach dotyczących danych: admin@avably.io",
+          "Administrator nie powołał Inspektora Ochrony Danych."
+        ]
+      },
+      {
+        "heading": "2. Czego dotyczy ta polityka",
+        "body": ["Ta polityka opisuje wyłącznie stronę avably.io i zapisy na listę oczekujących. Avably nie jest jeszcze uruchomione jako usługa — gdy to nastąpi, opublikujemy osobną politykę dla produktu."]
+      },
+      {
+        "heading": "3. Jakie dane zbieramy",
+        "body": [
+          "Gdy zapisujesz się na listę oczekujących, zbieramy:\n- adres e-mail (wymagany),\n- typ wynajmowanego sprzętu, wielkość inwentarza i sposób, w jaki dziś obsługujesz rezerwacje — czyli Twoje odpowiedzi z formularza,\n- doprecyzowanie sprzętu — tylko jeśli wybierzesz „inny”,\n- informację, czy chcesz wziąć udział w pilotażu,\n- numer telefonu — wyłącznie jeśli zgłosisz się do pilotażu. Bez tego zgłoszenia formularz w ogóle nie przyjmie numeru,\n- moment wyrażenia zgody,\n- język, w którym oglądasz stronę,\n- oznaczenie kampanii (parametry utm_source i utm_campaign z adresu), jeśli trafiłeś do nas z linku kampanijnego.",
+          "Twojego adresu IP nie zapisujemy w zgłoszeniu. Używamy go wyłącznie przejściowo, żeby ograniczyć liczbę zgłoszeń z jednego adresu i chronić formularz przed nadużyciami. Klucz wygasa automatycznie."
+        ]
+      },
+      {
+        "heading": "4. Po co i na jakiej podstawie",
+        "body": [
+          "- Zapis na listę oczekujących i wysyłanie informacji o budowie i uruchomieniu Avably — na podstawie Twojej zgody (art. 6 ust. 1 lit. a RODO).\n- Kontakt w sprawie pilotażu — na podstawie Twojej zgody, jeśli zgłosisz taką chęć.\n- Ochrona formularza przed nadużyciami — na podstawie naszego prawnie uzasadnionego interesu (art. 6 ust. 1 lit. f RODO).",
+          "Odpowiedzi o typie sprzętu i inwentarzu służą nam wyłącznie do zrozumienia, dla kogo budujemy produkt. Nie podejmujemy na ich podstawie żadnych zautomatyzowanych decyzji i nie profilujemy Cię."
+        ]
+      },
+      {
+        "heading": "5. Komu powierzamy dane",
+        "body": [
+          "Korzystamy z dostawców, którzy przetwarzają dane w naszym imieniu:\n- Supabase — baza danych zgłoszeń — Unia Europejska (Frankfurt)\n- Vercel — hosting strony — Unia Europejska (Frankfurt)\n- Upstash — ochrona formularza przed nadużyciami — Unia Europejska (Frankfurt)\n- Cloudflare — DNS i ochrona strony — sieć globalna\n- Resend — wysyłka wiadomości do Ciebie — Unia Europejska",
+          "Dane przechowujemy w Unii Europejskiej. Część z tych firm ma siedzibę w Stanach Zjednoczonych, więc przy obsłudze technicznej może dojść do przekazania danych poza Europejski Obszar Gospodarczy. Odbywa się to na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską.",
+          "Nie sprzedajemy Twoich danych i nie udostępniamy ich nikomu w celach marketingowych."
+        ]
+      },
+      {
+        "heading": "6. Jak długo przechowujemy",
+        "body": ["Do czasu wycofania zgody, nie dłużej niż 24 miesiące od zapisu. Po wycofaniu zgody usuwamy zgłoszenie."]
+      },
+      {
+        "heading": "7. Twoje prawa",
+        "body": [
+          "Masz prawo do dostępu do swoich danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia, sprzeciwu wobec przetwarzania opartego na naszym prawnie uzasadnionym interesie oraz do wycofania zgody w każdej chwili. Wycofanie zgody nie wpływa na zgodność z prawem przetwarzania, którego dokonaliśmy przed wycofaniem.",
+          "Aby skorzystać z tych praw, napisz na admin@avably.io. Odpowiadamy najpóźniej w ciągu miesiąca.",
+          "Masz też prawo wnieść skargę do Prezesa Urzędu Ochrony Danych Osobowych, ul. Stawki 2, 00-193 Warszawa."
+        ]
+      },
+      {
+        "heading": "8. Ciasteczka",
+        "body": [
+          "Strona używa jednego ciasteczka funkcjonalnego, które zapamiętuje wybrany przez Ciebie język. Jest niezbędne do działania przełącznika języka i nie służy śledzeniu.",
+          "Nie używamy ciasteczek analitycznych ani marketingowych i nie śledzimy Cię na innych stronach. Jeśli to się zmieni, zaktualizujemy tę politykę i poprosimy Cię o zgodę, zanim uruchomimy jakiekolwiek śledzenie."
+        ]
+      },
+      {
+        "heading": "9. Czy podanie danych jest obowiązkowe",
+        "body": ["Nie. Zapis na listę oczekujących jest w pełni dobrowolny. Bez adresu e-mail nie możemy Cię jednak dopisać do listy."]
+      },
+      {
+        "heading": "10. Zmiany polityki",
+        "body": ["Jeśli zmienimy tę politykę, opublikujemy nową wersję na tej stronie i zmienimy datę u góry. O istotnych zmianach poinformujemy Cię e-mailem."]
+      }
+    ]
+  },
   "landing": {
     "metadata": {
       "title": "Avably — uruchom wypożyczalnię online",
