@@ -155,3 +155,115 @@ create trigger deposit_events_gate
 comment on table public.deposit_events is
   'REJESTR zdarzeń kaucji (append-only): pobranie, zwrot, potrącenie. Stan kaucji to suma zdarzeń, a nie kolumna statusowa — historia rozliczenia jest tu dowodem w sporze z klientem, więc nie może być nadpisywana. Niezmiennik sumy (zwroty + potrącenia <= pobrania) egzekwuje trigger deposit_events_gate (0011, ADR-026) dla każdej roli; strukturalny powód potrącenia pilnowany CHECK-iem deposit_events_structured_reason.';
 
+
+-- ---------------------------------------------------------------------
+-- 3. Spłata długu 0006: join_waitlist na standardowych SQLSTATE
+-- ---------------------------------------------------------------------
+--
+-- P0012 (brak zgody) i P0013 (walidacje) były dekoracją: PostgREST zjada
+-- kody P0xxx do gołego 500 „Something went wrong" bez kodu w odpowiedzi
+-- (odkryte w Zadaniu 4, nagłówek 0010) — wywołujący nie miał po czym
+-- rozpoznać odmowy. Wszystkie odmowy walidacyjne to niepoprawne parametry
+-- wywołania, więc dostają jednolicie 22023 (invalid_parameter_value,
+-- klasa 22xxx → 400). Rozróżnienia P0012/P0013 nikt nie konsumował
+-- (storefront mapuje każdy błąd RPC na server_error, walidację robi Zod
+-- przed RPC — grep po obu kodach czysty poza 0006).
+--
+-- Definicja skopiowana z 0006 W CAŁOŚCI (security definer + przypięty
+-- search_path bez zmian) — `create or replace` nadpisuje też atrybuty,
+-- więc okrojona kopia po cichu zdjęłaby zabezpieczenia. Zmienione są
+-- WYŁĄCZNIE wartości errcode (9 miejsc).
+create or replace function app.join_waitlist(
+  p_email text,
+  p_rental_type text,
+  p_inventory_range text,
+  p_current_process text,
+  p_consent boolean,
+  p_other_equipment text default null,
+  p_pilot_interest boolean default false,
+  p_phone text default null,
+  p_locale text default 'pl',
+  p_source text default null,
+  p_campaign text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = pg_catalog, public, app
+as $$
+declare
+  v_email text := lower(btrim(p_email));
+  v_other text := nullif(btrim(coalesce(p_other_equipment, '')), '');
+  v_phone text := nullif(btrim(coalesce(p_phone, '')), '');
+  v_pilot boolean := coalesce(p_pilot_interest, false);
+  v_inserted uuid;
+begin
+  -- Zgoda jest warunkiem zapisu — sprawdzana PRZED czymkolwiek innym.
+  if coalesce(p_consent, false) is not true then
+    raise exception 'Zapis na waitlistę wymaga zgody.' using errcode = '22023';
+  end if;
+
+  if v_email is null or v_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then
+    raise exception 'Nieprawidłowy adres e-mail.' using errcode = '22023';
+  end if;
+
+  if p_rental_type is null
+     or p_rental_type not in ('tools_construction','event','sports_outdoor','machinery','other') then
+    raise exception 'Nieprawidłowy typ wynajmu.' using errcode = '22023';
+  end if;
+
+  if p_inventory_range is null
+     or p_inventory_range not in ('r1_20','r21_100','r101_500','r500_plus','launching') then
+    raise exception 'Nieprawidłowy zakres inwentarza.' using errcode = '22023';
+  end if;
+
+  if p_current_process is null
+     or p_current_process not in ('calendar_spreadsheet','messages_phone','internal_tool','none') then
+    raise exception 'Nieprawidłowy obecny proces.' using errcode = '22023';
+  end if;
+
+  -- Zależności warunkowe egzekwowane też tutaj (nie tylko CHECK-iem), żeby
+  -- RPC wywołane wprost dawało czytelny błąd zamiast naruszenia constraintu.
+  if p_rental_type = 'other' and v_other is null then
+    raise exception 'Typ „other" wymaga doprecyzowania sprzętu.' using errcode = '22023';
+  end if;
+
+  -- Nadmiarowe other_equipment przy innym typie jest ODRZUCANE, nie
+  -- po cichu zerowane: cisza ukryłaby błąd po stronie wywołującego.
+  if p_rental_type <> 'other' and v_other is not null then
+    raise exception 'Doprecyzowanie sprzętu jest dozwolone wyłącznie dla typu „other".' using errcode = '22023';
+  end if;
+
+  if v_phone is not null and not v_pilot then
+    raise exception 'Telefon jest dozwolony wyłącznie przy zgłoszeniu do pilotażu.' using errcode = '22023';
+  end if;
+
+  if p_locale is null or p_locale not in ('en','pl') then
+    raise exception 'Nieobsługiwany język.' using errcode = '22023';
+  end if;
+
+  -- UTM bez walidacji treści (świadomie — to dane marketingowe, nie sterujące),
+  -- ale z przycięciem długości: pole ma CHECK <= 200, a wejście jest publiczne.
+  insert into public.waitlist_signups (
+    email, rental_type, other_equipment, inventory_range, current_process,
+    pilot_interest, phone, consent_at, locale, source, campaign
+  )
+  values (
+    v_email, p_rental_type, v_other, p_inventory_range, p_current_process,
+    v_pilot, v_phone, now(), p_locale,
+    left(nullif(btrim(coalesce(p_source, '')), ''), 200),
+    left(nullif(btrim(coalesce(p_campaign, '')), ''), 200)
+  )
+  on conflict (lower(email)) do nothing
+  returning id into v_inserted;
+
+  -- Brak zwróconego id = konflikt na unikalnym indeksie po lower(email).
+  -- Deduplikacja rozstrzyga się WYŁĄCZNIE tutaj, atomowo — bez wyścigu,
+  -- który miałby miejsce przy sprawdzaniu SELECT-em przed zapisem.
+  if v_inserted is null then
+    return 'duplicate';
+  end if;
+
+  return 'success';
+end;
+$$;
