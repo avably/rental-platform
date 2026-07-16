@@ -62,6 +62,11 @@ describe("waitlist landing page", () => {
       const privacyHref = `/${locale}/privacy`;
       expect(html.match(new RegExp(`href="${privacyHref}"`, "g"))).toHaveLength(3);
       expect(html).not.toContain("#privacy-policy-pending");
+      const consentLabel = html.match(
+        /<label[^>]*for="waitlist-consent"[^>]*>(.*?)<\/label>/,
+      )?.[1];
+      expect(consentLabel).toBeDefined();
+      expect(consentLabel).not.toContain("<a ");
     });
   }
 });
