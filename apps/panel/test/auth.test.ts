@@ -19,6 +19,8 @@ import WebSocket from "ws";
 
 import { AuthError, getAuthContext, requireMemberWithClient, requireSuperadminWithClient } from "@/lib/auth";
 
+import { integrationEnv } from "./helpers/integration-env";
+
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
 
 const REQUIRED_ENV = [
@@ -26,7 +28,7 @@ const REQUIRED_ENV = [
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
 ] as const;
-const hasEnv = REQUIRED_ENV.every((name) => Boolean(process.env[name]));
+const hasEnv = integrationEnv(REQUIRED_ENV);
 
 const TEST_PASSWORD = "PanelAuthTest!12345678";
 const createdUserIds: string[] = [];

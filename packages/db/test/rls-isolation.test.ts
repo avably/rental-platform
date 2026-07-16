@@ -33,6 +33,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 
+import { integrationEnv } from "./helpers/integration-env";
 import {
   buildSampleRow,
   cleanupSeeded,
@@ -51,7 +52,7 @@ const REQUIRED_ENV = [
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
 ] as const;
-const hasEnv = REQUIRED_ENV.every((name) => Boolean(process.env[name]));
+const hasEnv = integrationEnv(REQUIRED_ENV);
 
 // Kod Postgres 42501 = insufficient_privilege — naruszenie polityki RLS
 // (with check) albo brak GRANT-u tabelarycznego. Asercja na konkretny kod

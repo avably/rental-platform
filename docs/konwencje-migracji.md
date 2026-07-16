@@ -59,11 +59,13 @@ Migracja bez RLS na nowej tabeli nie przechodzi review.
 `postgresql://postgres:postgres@127.0.0.1:54322/postgres` z `supabase
 status`) i weryfikuje, że każda tabela z tego dokumentu istnieje, ma
 `rowsecurity = true` oraz że funkcje `app.tenant_id()` i
-`app.is_superadmin()` są zdefiniowane. Test jest pomijany
-(`describe.skipIf`), gdy `SUPABASE_LOCAL_URL` nie jest ustawione (np. w
-zwykłym `pnpm test` z roota bez uruchomionego lokalnego Supabase) —
-uruchomienie z lokalnym stackiem jest wymagane przed każdym mergem zmiany
-schematu.
+`app.is_superadmin()` są zdefiniowane. Gdy `SUPABASE_LOCAL_URL` nie jest
+ustawione, test NIE pomija się po cichu: strażnik
+(`test/helpers/integration-env.ts`) failuje suitę z listą brakujących
+zmiennych, chyba że pominięcia zażądano jawnie flagą
+`ALLOW_INTEGRATION_SKIP=1` (tak robi job `ci`, którego testy integracyjne
+pokrywa równoległy job `rls`). Uruchomienie z lokalnym stackiem jest
+wymagane przed każdym mergem zmiany schematu.
 
 ## Macierz testów izolacji RLS (bramka CI)
 
@@ -84,8 +86,15 @@ z `supabase status -o env`, uruchomione z katalogu `packages/db`):
 - `SUPABASE_LOCAL_ANON_KEY` — klucz anon (`ANON_KEY`),
 - `SUPABASE_LOCAL_SERVICE_ROLE_KEY` — klucz service-role (`SERVICE_ROLE_KEY`).
 
-Bez kompletu tych zmiennych cały plik testu jest pomijany
-(`describe.skipIf`). Nowa tabela per-tenant, poza RLS, musi też dostać
+Bez kompletu tych zmiennych suita failuje z listą braków — pominięcie
+wymaga jawnej flagi `ALLOW_INTEGRATION_SKIP=1` (strażnik
+`test/helpers/integration-env.ts`; ta sama kopia w `apps/panel` i
+`apps/storefront`). Zadanie `test` w `turbo.json` deklaruje
+`SUPABASE_LOCAL_*` w `env`, więc zmienne z powłoki docierają do vitest
+także pod `turbo run test`, a ich wartości wchodzą do hasha cache —
+zielony wynik przebiegu z pominięciami nie zostanie odtworzony z cache
+w przebiegu z kompletem zmiennych. Nowa tabela per-tenant, poza RLS,
+musi też dostać
 wpis w `SAMPLE_ROW_FACTORIES` (`seed-tenants.ts`) — brak fabryki to
 świadomy, głośny błąd testu, a nie ciche pominięcie tabeli.
 

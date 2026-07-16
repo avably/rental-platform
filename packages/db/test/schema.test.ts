@@ -11,6 +11,9 @@
 import { afterAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 
+import { integrationEnv } from "./helpers/integration-env";
+
+const hasEnv = integrationEnv(["SUPABASE_LOCAL_URL"]);
 const LOCAL_DB_URL = process.env.SUPABASE_LOCAL_URL;
 
 // Tabele wprowadzone przez 0001_core.sql — każda nowa tabela per-tenant
@@ -29,7 +32,7 @@ const APP_FUNCTIONS = ["tenant_id", "is_superadmin"] as const;
 
 const sql = LOCAL_DB_URL ? postgres(LOCAL_DB_URL, { max: 1 }) : null;
 
-describe.skipIf(!LOCAL_DB_URL)("schemat rdzenia — 0001_core.sql", () => {
+describe.skipIf(!hasEnv)("schemat rdzenia — 0001_core.sql", () => {
   afterAll(async () => {
     await sql?.end({ timeout: 5 });
   });
