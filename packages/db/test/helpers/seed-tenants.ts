@@ -274,6 +274,95 @@ export async function listRlsBypassingGrants(): Promise<RlsBypassingGrant[]> {
 }
 
 // -----------------------------------------------------------------------
+// Sekwencje — uprawnienia poza zasięgiem RLS (0009)
+// -----------------------------------------------------------------------
+
+/**
+ * Zwraca nazwy WSZYSTKICH sekwencji w schemacie `public`.
+ *
+ * Osobna funkcja obok `listPublicTables`, bo `relkind` jest inny ('S' vs 'r')
+ * — i to jest dokładnie ten szczegół, przez który 0008 przeoczyło sekwencje.
+ * Bramka uprawnień patrzyła wyłącznie na `relkind='r'`, więc świeciła na
+ * zielono przy sekwencji, na której `anon` miał UPDATE.
+ *
+ * Sekwencje w `public` nie powstają z jawnego `create sequence` — rodzą się
+ * niejawnie przy każdej kolumnie `generated as identity`. Introspekcja jest
+ * tu więc jedyną uczciwą metodą: autor migracji, który dodaje kolumnę
+ * identity, nie pisze ani jednego słowa o sekwencji i nie ma powodu pamiętać
+ * o dopisaniu jej do jakiejkolwiek listy.
+ */
+export async function listPublicSequences(): Promise<string[]> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    const rows = await sql<{ seqname: string }[]>`
+      select c.relname as seqname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind = 'S'
+      order by c.relname
+    `;
+    return rows.map((r) => r.seqname);
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
+export interface SequenceGrant {
+  sequence: string;
+  role: string;
+  privilege: string;
+}
+
+/**
+ * Komplet uprawnień, jakie w ogóle można mieć na sekwencji. Rola publiczna
+ * nie potrzebuje żadnego z nich:
+ *   UPDATE — `setval`/`nextval`; setval COFA licznik (patrz 0009),
+ *   USAGE  — `nextval`/`currval`,
+ *   SELECT — odczyt bieżącej wartości.
+ *
+ * `nextval` na kolumnie identity NIE wymaga żadnego z nich — sekwencja jest
+ * wewnętrzną własnością kolumny, a nie obiektem, do którego rola sięga po
+ * prawa (zweryfikowane empirycznie, patrz 0009). Dlatego pusta lista dla ról
+ * publicznych nie psuje zapisu do audit_log.
+ */
+export const SEQUENCE_PRIVILEGES = ["USAGE", "SELECT", "UPDATE"] as const;
+
+/**
+ * Zwraca (sekwencja, rola, uprawnienie) dla każdego uprawnienia, jakie role
+ * publiczne mają na sekwencjach `public` — lista, która w zielonym buildzie
+ * zawsze musi być pusta.
+ *
+ * Odpowiednik `listRlsBypassingGrants` dla drugiego rodzaju obiektu.
+ * `has_sequence_privilege` (nie information_schema) z tego samego powodu, co
+ * tam: pyta silnik wprost i uwzględnia dziedziczenie przez członkostwo w
+ * rolach, czyli to, co rola realnie MOŻE, a nie to, co jej nadano wprost.
+ */
+export async function listPublicRoleSequenceGrants(): Promise<SequenceGrant[]> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    // Literały zamiast parametrów — jak w listRlsBypassingGrants: to stałe
+    // modułowe (zero powierzchni na wstrzyknięcie), a parametr tablicowy
+    // postgres.js dojeżdża nieotypowany i `unnest` odrzuca go jako `text`.
+    const values = (items: readonly string[]) => items.map((item) => `('${item}')`).join(", ");
+    const rows = await sql.unsafe<SequenceGrant[]>(`
+      select c.relname as sequence, r.role, p.privilege
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join (values ${values(PUBLIC_ROLES)}) as r(role)
+      cross join (values ${values(SEQUENCE_PRIVILEGES)}) as p(privilege)
+      where n.nspname = 'public'
+        and c.relkind = 'S'
+        and has_sequence_privilege(r.role, c.oid, p.privilege)
+      order by c.relname, r.role, p.privilege
+    `);
+    return rows.map((row) => ({ sequence: row.sequence, role: row.role, privilege: row.privilege }));
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
+// -----------------------------------------------------------------------
 // Fabryki przykładowych wierszy — dane DO testu macierzy izolacji
 // -----------------------------------------------------------------------
 
