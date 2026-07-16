@@ -60,6 +60,8 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 const TENANT_ID = "00000000-0000-4000-8000-000000000001";
+const PRODUCT_ID = "00000000-0000-4000-8000-000000000002";
+const LOCATION_ID = "00000000-0000-4000-8000-000000000003";
 
 /**
  * Chronione trasy panelu. `run` woła moduł strony dokładnie tak, jak zrobiłby
@@ -90,6 +92,52 @@ const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
     run: async () =>
       (await import("@/app/[locale]/zaproszenie/[token]/page")).default({
         params: Promise.resolve({ token: "token-testowy" }),
+      }),
+  },
+  // Katalog (Zadanie 3): guard requireMemberPage w każdej stronie — bramka
+  // z PR #21 łapie nową trasę wyłącznie przez wpis na tej liście.
+  {
+    name: "/katalog",
+    run: async () => (await import("@/app/[locale]/katalog/page")).default(),
+  },
+  {
+    name: "/katalog/nowy",
+    run: async () => (await import("@/app/[locale]/katalog/nowy/page")).default(),
+  },
+  {
+    name: "/katalog/[id]",
+    run: async () =>
+      (await import("@/app/[locale]/katalog/[id]/page")).default({
+        params: Promise.resolve({ id: PRODUCT_ID }),
+      }),
+  },
+  {
+    name: "/katalog/[id]/egzemplarze",
+    run: async () =>
+      (await import("@/app/[locale]/katalog/[id]/egzemplarze/page")).default({
+        params: Promise.resolve({ id: PRODUCT_ID }),
+      }),
+  },
+  {
+    name: "/katalog/[id]/progi",
+    run: async () =>
+      (await import("@/app/[locale]/katalog/[id]/progi/page")).default({
+        params: Promise.resolve({ id: PRODUCT_ID }),
+      }),
+  },
+  {
+    name: "/katalog/punkty-odbioru",
+    run: async () => (await import("@/app/[locale]/katalog/punkty-odbioru/page")).default(),
+  },
+  {
+    name: "/katalog/punkty-odbioru/nowy",
+    run: async () => (await import("@/app/[locale]/katalog/punkty-odbioru/nowy/page")).default(),
+  },
+  {
+    name: "/katalog/punkty-odbioru/[locationId]",
+    run: async () =>
+      (await import("@/app/[locale]/katalog/punkty-odbioru/[locationId]/page")).default({
+        params: Promise.resolve({ locationId: LOCATION_ID }),
       }),
   },
   {
