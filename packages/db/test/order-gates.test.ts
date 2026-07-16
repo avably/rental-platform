@@ -719,6 +719,69 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       expect(order!.order_number as string).toMatch(/^AV-\d{4}-\d{3,}$/);
     });
 
+    it("wyścig na BEZPOŚREDNIM INSERT do order_items — to ta ścieżka przypina advisory lock z 0010", async () => {
+      // Test wyżej (create_order) NIE dowodzi blokady z 0010: RPC zaczyna od
+      // INSERT-u do orders, a trigger numeracji z 0007 bierze advisory lock
+      // na (tenant, rok) — obie transakcje serializują się na NIM, zanim
+      // dojdą do bramki egzemplarza, więc usunięcie locka z
+      // app.assert_unit_available zostawiało tamten test zielony
+      // (zweryfikowane mutacyjnie w review PR #44). Ta ścieżka — bezpośredni
+      // INSERT pozycji do ISTNIEJĄCYCH zamówień — nie dotyka orders, więc
+      // jedyną serializacją jest lock bramki: bez niego obie transakcje
+      // przechodzą re-check równolegle i egzemplarz jest wynajęty dwa razy.
+      //
+      // Bufory 0/0: test mierzy wyłącznie kolizję terminów — arytmetykę
+      // buforów pokrywa macierz zgodności wyżej.
+      const raceProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const raceUnitId = await createUnit(tenantId, raceProductId);
+
+      // Dwa zamówienia pending na ten sam termin powstają PRZED wyścigiem —
+      // numeracja się na nich serializuje i to nie szkodzi dowodowi.
+      async function createOrderAs(client: SupabaseClient): Promise<string> {
+        const { data, error } = await client
+          .from("orders")
+          .insert({
+            tenant_id: tenantId,
+            customer_id: customerId,
+            start_date: "2026-12-20",
+            end_date: "2026-12-22",
+            delivery_method: "courier",
+          })
+          .select("id")
+          .single();
+        if (error || !data) throw new Error(`insert orders: ${error?.message}`);
+        return data.id as string;
+      }
+      const orderA = await createOrderAs(memberA);
+      const orderB = await createOrderAs(memberB);
+
+      const insertItemAs = (client: SupabaseClient, orderId: string) =>
+        client.from("order_items").insert({
+          tenant_id: tenantId,
+          order_id: orderId,
+          product_id: raceProductId,
+          unit_id: raceUnitId,
+          rental_grosze: 30_000,
+        });
+
+      const [resultA, resultB] = await Promise.all([
+        insertItemAs(memberA, orderA),
+        insertItemAs(memberB, orderB),
+      ]);
+
+      const succeeded = [resultA, resultB].filter((r) => !r.error);
+      const failed = [resultA, resultB].filter((r) => r.error);
+      expect(succeeded, "wyścig na INSERT pozycji: liczba sukcesów inna niż 1").toHaveLength(1);
+      expect(failed, "wyścig na INSERT pozycji: liczba odmów inna niż 1").toHaveLength(1);
+      expect(failed[0]!.error!.code, "przegrany dostał inny kod niż 23P01").toBe(PG_UNIT_CONFLICT);
+
+      const { data: items } = await admin
+        .from("order_items")
+        .select("id")
+        .eq("unit_id", raceUnitId);
+      expect(items, "egzemplarz wynajęty dwa razy — blokada bramki nie działa").toHaveLength(1);
+    });
+
     it("create_order odrzuca puste pozycje (22023) — zamówienie bez koszyka nie powstaje", async () => {
       const { error } = await memberA.schema("app").rpc("create_order", {
         p_customer_id: customerId,
