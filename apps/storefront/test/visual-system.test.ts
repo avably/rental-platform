@@ -41,6 +41,8 @@ describe("landing visual system", () => {
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
     expect(css).not.toMatch(/(?:linear|radial|conic)-gradient/);
     expect(form.match(/landing-pill/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(form).toContain("resultFocusArmedRef.current = true");
+    expect(form).toContain("if (!resultFocusArmedRef.current");
     expect(themeToggle).toContain("landing-ghost-pill");
     expect(languageSwitcher).toContain("landing-ghost-pill");
   });

@@ -85,10 +85,13 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [submittedPilot, setSubmittedPilot] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const resultFocusArmedRef = useRef(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (view.kind !== "idle" && view.kind !== "submitting") resultRef.current?.focus();
+    if (!resultFocusArmedRef.current || !isWaitlistResultVisible(view.kind)) return;
+    resultFocusArmedRef.current = false;
+    resultRef.current?.focus();
   }, [view]);
 
   const fields: WaitlistFieldErrors = view.kind === "validation" ? view.fields : {};
@@ -106,6 +109,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    resultFocusArmedRef.current = true;
     if (!enabled) {
       setView({ kind: "disabled" });
       return;
