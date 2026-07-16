@@ -158,6 +158,41 @@ export async function listTenantTables(
   }
 }
 
+/**
+ * Zwraca nazwy tabel PLATFORMOWYCH `public` (bez kolumny tenant_id) bez
+ * włączonego RLS — lista, która w zielonym buildzie zawsze musi być pusta.
+ *
+ * Powód istnienia obok `listTenantTables({ withoutRls: true })`: tamta bramka
+ * wybiera tabele PO KOLUMNIE tenant_id, więc tabela platformowa (waitlista
+ * produktu, katalog planów) nie wchodziła do niej w ogóle — nowa tabela bez
+ * tenant_id i bez RLS przechodziła build na zielono. Ta funkcja zamyka tę
+ * lukę: „każda tabela w public ma RLS" jest niezmiennikiem bez wyjątków, a
+ * tabele bez tenant_id izolują się politykami opartymi o app.is_superadmin()
+ * albo nie mają polityk wcale (fail-closed).
+ */
+export async function listPlatformTablesWithoutRls(): Promise<string[]> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    const rows = await sql<{ tablename: string }[]>`
+      select t.tablename
+      from pg_tables t
+      where t.schemaname = 'public'
+        and t.rowsecurity = false
+        and not exists (
+          select 1
+          from information_schema.columns c
+          where c.table_schema = 'public'
+            and c.table_name = t.tablename
+            and c.column_name = 'tenant_id'
+        )
+      order by t.tablename
+    `;
+    return rows.map((r) => r.tablename);
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
 // -----------------------------------------------------------------------
 // Fabryki przykładowych wierszy — dane DO testu macierzy izolacji
 // -----------------------------------------------------------------------
