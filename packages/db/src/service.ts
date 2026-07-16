@@ -1,5 +1,5 @@
 /**
- * OSOBNY entrypoint: `@rental/db/service`.
+ * OSOBNY entrypoint: `@avably/db/service`.
  *
  * Klient service-role OMIJA RLS — wolno go importować wyłącznie w
  * `apps/*\/app/api/webhooks/**` i `apps/*\/src/jobs/**` (wymuszane regułą

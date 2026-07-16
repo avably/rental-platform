@@ -6,7 +6,7 @@
  */
 import { cookies } from "next/headers";
 
-import { createServerClient, type Role } from "@rental/db";
+import { createServerClient, type Role } from "@avably/db";
 
 import { requireMemberWithClient, requireSuperadminWithClient, type AuthContext } from "./auth";
 

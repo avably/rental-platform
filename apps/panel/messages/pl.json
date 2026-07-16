@@ -1,0 +1,72 @@
+{
+  "app": {
+    "panelTitle": "Panel",
+    "panelDescription": "Panel administracyjny"
+  },
+  "common": {
+    "email": "E-mail",
+    "password": "Hasło",
+    "logout": "Wyloguj"
+  },
+  "home": {
+    "title": "Panel"
+  },
+  "login": {
+    "title": "Zaloguj się",
+    "submit": "Zaloguj się",
+    "submitPending": "Loguję…",
+    "register": "Załóż konto",
+    "forgotPassword": "Nie pamiętam hasła"
+  },
+  "register": {
+    "title": "Załóż konto",
+    "submit": "Zarejestruj się",
+    "submitPending": "Rejestruję…",
+    "haveAccount": "Masz już konto?",
+    "login": "Zaloguj się"
+  },
+  "checkInbox": {
+    "title": "Sprawdź skrzynkę",
+    "body": "Wysłaliśmy e-mail z linkiem potwierdzającym adres. Kliknij go, aby dokończyć rejestrację i móc założyć organizację."
+  },
+  "resetRequest": {
+    "title": "Reset hasła",
+    "submit": "Wyślij link do resetu",
+    "submitPending": "Wysyłam…"
+  },
+  "resetConfirm": {
+    "title": "Ustaw nowe hasło",
+    "newPassword": "Nowe hasło",
+    "submit": "Ustaw hasło",
+    "submitPending": "Zapisuję…"
+  },
+  "newOrganization": {
+    "name": "Nazwa organizacji",
+    "slug": "Slug (adres, np. moja-firma)",
+    "submit": "Utwórz organizację",
+    "submitPending": "Tworzę…"
+  },
+  "invitations": {
+    "title": "Zaproszenia członków",
+    "sentHeading": "Wysłane zaproszenia",
+    "statusAccepted": "zaakceptowane",
+    "statusPending": "oczekuje"
+  },
+  "security": {
+    "title": "Bezpieczeństwo",
+    "enrollSubmit": "Włącz uwierzytelnianie dwuskładnikowe",
+    "enrollPending": "Przygotowuję…",
+    "scanHint": "Zeskanuj kod QR aplikacją uwierzytelniającą (np. Google Authenticator) albo wpisz sekret ręcznie:",
+    "qrAlt": "Kod QR TOTP",
+    "codeLabel": "Kod z aplikacji (6 cyfr)",
+    "verifySubmit": "Potwierdź kod",
+    "verifyPending": "Weryfikuję…"
+  },
+  "mfaChallenge": {
+    "title": "Potwierdź tożsamość",
+    "body": "Ta sekcja wymaga uwierzytelnienia dwuskładnikowego. Podaj kod z aplikacji uwierzytelniającej.",
+    "codeLabel": "Kod z aplikacji uwierzytelniającej (6 cyfr)",
+    "submit": "Potwierdź",
+    "submitPending": "Weryfikuję…"
+  }
+}

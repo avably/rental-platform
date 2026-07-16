@@ -20,7 +20,7 @@ jobs:
       # raz jawnie, żeby regresja nagłówków była widoczna w logu CI pod własną
       # nazwą, a nie utonęła w zbiorczym wyniku.
       - name: Smoke-test nagłówków (CSP/HSTS)
-        run: pnpm --filter @rental/security --filter storefront test
+        run: pnpm --filter @avably/security --filter storefront test
       - run: pnpm audit --audit-level high
       - run: bash scripts/audit-public-env.sh
 
@@ -53,5 +53,5 @@ jobs:
             echo "SUPABASE_LOCAL_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
-      - run: pnpm --filter @rental/db test
+      - run: pnpm --filter @avably/db test
       - run: pnpm --filter panel test

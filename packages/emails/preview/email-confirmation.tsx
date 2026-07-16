@@ -8,6 +8,7 @@ function EmailConfirmationPreview(props: EmailConfirmationProps) {
 }
 
 EmailConfirmationPreview.PreviewProps = {
+  locale: "pl",
   confirmationUrl:
     "https://app.example.test/auth/confirm?token=confirmation-preview",
   recipientName: "Anna",

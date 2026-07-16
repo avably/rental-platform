@@ -1,21 +1,38 @@
 /**
- * Nagłówki bezpieczeństwa storefrontu (Zadanie 7). Storefront nie ma sesji
- * użytkownika do odświeżania — całe zadanie middleware'u to CSP z nonce
- * (nonce trafia też w nagłówki żądania, skąd czyta go Next.js dla własnych
- * tagów <script>), HSTS, nosniff, Referrer-Policy i Permissions-Policy.
+ * Middleware storefrontu (Zadanie 7 + i18n). Storefront nie ma sesji
+ * użytkownika do odświeżania, więc zostają dwa zadania:
  *
- * Polityka mieszka w @rental/security — wspólna z panelem, żeby CSP obu
+ * 1. Routing locale (next-intl): `/` -> `/en` lub `/pl` + nagłówek `Link`
+ *    z hreflang.
+ * 2. CSP z nonce (nonce trafia też w nagłówki żądania, skąd czyta go Next.js
+ *    dla własnych tagów <script>), HSTS, nosniff, Referrer-Policy
+ *    i Permissions-Policy.
+ *
+ * Nonce ustawiany na ŻĄDANIU przed routingiem locale — next-intl przenosi
+ * nagłówki żądania do rewrite'u, więc kolejność jest warunkiem działania CSP.
+ *
+ * Polityka mieszka w @avably/security — wspólna z panelem, żeby CSP obu
  * aplikacji nie rozjechało się po cichu.
  */
+import { applySecurityHeaders, buildCsp, generateNonce, type CspOptions } from "@avably/security";
+import createIntlMiddleware from "next-intl/middleware";
 import { type NextRequest, type NextResponse } from "next/server";
 
-import { securityHeadersResponse } from "@rental/security";
+import { routing } from "@/i18n/routing";
+
+const handleI18n = createIntlMiddleware(routing);
 
 export function proxy(request: NextRequest): NextResponse {
-  return securityHeadersResponse(request, {
+  const nonce = generateNonce();
+  const csp: CspOptions = {
     dev: process.env.NODE_ENV !== "production",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  });
+  };
+
+  request.headers.set("x-nonce", nonce);
+  request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
+
+  return applySecurityHeaders(handleI18n(request), nonce, csp);
 }
 
 export const config = {

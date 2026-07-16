@@ -13,7 +13,7 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
-import type { Plan, Subscription, Tenant, TenantStatus } from "@rental/db";
+import type { Plan, Subscription, Tenant, TenantStatus } from "@avably/db";
 
 import { AuthError, type AuthContext } from "./auth";
 import { requireSuperadmin } from "./supabase-server";
@@ -66,7 +66,7 @@ function flattenTenant(row: TenantRow): TenantListItem {
 export async function listTenants(ctx: AuthContext): Promise<TenantListItem[]> {
   const { data, error } = await ctx.supabase
     .from("tenants")
-    .select("id, slug, name, status, status_before_lock, created_at, subscriptions(plan_id, status)")
+    .select("id, slug, name, status, status_before_lock, locale, created_at, subscriptions(plan_id, status)")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(`Nie udało się pobrać listy organizacji: ${error.message}`);
@@ -76,7 +76,7 @@ export async function listTenants(ctx: AuthContext): Promise<TenantListItem[]> {
 export async function getTenant(ctx: AuthContext, tenantId: string): Promise<TenantListItem | null> {
   const { data, error } = await ctx.supabase
     .from("tenants")
-    .select("id, slug, name, status, status_before_lock, created_at, subscriptions(plan_id, status)")
+    .select("id, slug, name, status, status_before_lock, locale, created_at, subscriptions(plan_id, status)")
     .eq("id", tenantId)
     .maybeSingle();
 

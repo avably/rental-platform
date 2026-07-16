@@ -1,40 +1,41 @@
+import type { Locale } from "@avably/core";
 import { Text } from "react-email";
 
 import { EmailLayout } from "../components/email-layout";
+import { emailMessages } from "../messages";
 import { EMAIL_COLORS, EMAIL_STYLES } from "../styles";
 
 export type InvitationRole = "owner" | "staff";
 
 export interface OrganizationInvitationProps {
   acceptanceUrl: string;
+  /** Język odbiorcy. Wymagany — e-mail nie ma skąd go wywnioskować. */
+  locale: Locale;
   organizationName: string;
   recipientName?: string;
   role: InvitationRole;
 }
 
-const ROLE_LABELS: Record<InvitationRole, string> = {
-  owner: "właściciel",
-  staff: "pracownik",
-};
-
 export function OrganizationInvitation({
   acceptanceUrl,
+  locale,
   organizationName,
   recipientName,
   role,
 }: OrganizationInvitationProps) {
-  const greeting = recipientName ? `Cześć, ${recipientName}!` : "Cześć!";
+  const m = emailMessages(locale);
+  const t = m.organizationInvitation;
 
   return (
     <EmailLayout
-      cta={{ href: acceptanceUrl, label: "Dołącz do organizacji" }}
-      heading="Zaproszenie do organizacji"
-      previewText={`Dołącz do organizacji ${organizationName} w <NAZWA>.`}
+      cta={{ href: acceptanceUrl, label: t.cta }}
+      heading={t.heading}
+      locale={locale}
+      previewText={t.preview(organizationName)}
     >
-      <Text style={EMAIL_STYLES.text}>{greeting}</Text>
+      <Text style={EMAIL_STYLES.text}>{m.greeting(recipientName)}</Text>
       <Text style={EMAIL_STYLES.text}>
-        Organizacja <strong>{organizationName}</strong> zaprasza Cię do swojego
-        konta.
+        <strong>{organizationName}</strong> {t.invitedBy}
       </Text>
       <Text
         style={{
@@ -44,7 +45,7 @@ export function OrganizationInvitation({
           padding: "12px 16px",
         }}
       >
-        Twoja rola: <strong>{ROLE_LABELS[role]}</strong>
+        {t.roleLabel}: <strong>{t.roles[role]}</strong>
       </Text>
     </EmailLayout>
   );

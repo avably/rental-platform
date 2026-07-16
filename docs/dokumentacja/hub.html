@@ -1,4 +1,5 @@
-<title>rental-platform — centrum projektu</title>
+<meta charset="utf-8">
+<title>Avably — centrum projektu</title>
 <style>
 :root{
   --paper:#F6F8F7;--ink:#182220;--muted:#5C6B66;--line:#D9E0DD;
@@ -55,8 +56,9 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
 <div class="wrap">
 <header class="top">
   <p class="eyebrow">Centrum projektu · pojedynczy punkt wejścia</p>
-  <h1>rental-platform — start tutaj</h1>
-  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem. Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
+  <h1>Avably — start tutaj</h1>
+  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem, międzynarodowy od startu (EN+PL). Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
+  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-16, PR #20):</b> rebrand na <b>Avably</b> — scope pakietów <code>@avably/*</code>, kanon <code>www.avably.io</code>, rusztowanie i18n (<code>/en</code>, <code>/pl</code>), migracja 0005 (<code>tenants.locale</code>, <code>plans.currency</code>). Decyzje: ADR-013 (architektura międzynarodowa), ADR-014 (stack dostawców) — pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: <b>nazwa repo i folderu (<code>rental-platform</code>) celowo została stara</b> — transfer repo to osobny krok właściciela, kod i produkt to już Avably.</p>
 </header>
 <nav class="toc">
   <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
@@ -66,16 +68,18 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
   <h2><span class="num">01</span>Prompt startowy dla nowej sesji</h2>
   <p class="sub">Wklej to jako pierwszą wiadomość w nowej sesji dowolnego LLM (Claude, GPT/Codex, inny), żeby dać mu pełny kontekst. Nakazuje przeczytać dokumenty źródłowe zanim ruszy.</p>
   <p class="copyhint">— zaznacz i skopiuj całość —</p>
-  <pre>Pracujesz nad rental-platform: wielotenantowy SaaS do zarządzania wynajmem
-(model subskrypcyjny, strona www + domena dla każdego najemcy, rynek PL).
+  <pre>Pracujesz nad Avably: wielotenantowy SaaS do zarządzania wynajmem
+(model subskrypcyjny, strona www + domena dla każdego najemcy).
+Produkt międzynarodowy: EN+PL od startu, kanon www.avably.io, GTM najpierw PL.
 
 REPOZYTORIA:
 - Kod: ~/rental-platform  (GitHub: starkit-rental/rental-platform) — monorepo
   pnpm + Turborepo, Next.js 16, Supabase, TypeScript strict.
+  Uwaga: folder i repo zachowują starą nazwę do czasu transferu — produkt to Avably.
 - Referencja (tylko odczyt): ~/starkit-system — działający system starkit,
   z którego portujemy sprawdzone moduły; migruje jako tenant #1 na końcu.
 
-ZANIM COKOLWIEK ZROBISZ, przeczytaj w repo rental-platform:
+ZANIM COKOLWIEK ZROBISZ, przeczytaj w repo:
 1. docs/DOKUMENTACJA.md         — standard współpracy i zasady (WIĄŻĄCE)
 2. docs/dokumentacja/index.html — architektura, moduły, model danych, RLS,
                                    decyzje (ADR), dziennik budowy
@@ -107,7 +111,7 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
     <a class="linkcard" href="https://claude.ai/code/artifact/134ec9b2-5a13-4a60-9736-1aa77c10de46"><p class="t">Dokumentacja architektury</p><p class="d">Moduły, model danych, RLS, decyzje, dziennik budowy. Źródło prawdy o systemie.</p><span class="s">artefakt HTML · repo: docs/dokumentacja/index.html</span></a>
     <a class="linkcard" href="https://claude.ai/code/artifact/71d2a3c5-a51f-44ba-b791-03cb1b09952c"><p class="t">Plan wdrożenia (5 faz)</p><p class="d">Fazy, kroki, milestone'y, rejestr ryzyk, bezpieczeństwo, budżet.</p><span class="s">artefakt HTML · repo starkit: docs/superpowers/plans/</span></a>
     <a class="linkcard" href="https://github.com/starkit-rental/rental-platform/blob/main/docs/DOKUMENTACJA.md"><p class="t">Standard współpracy</p><p class="d">Pasy własności, zasady zero-kolizji, dokumentacja jako DoD.</p><span class="s">repo: docs/DOKUMENTACJA.md</span></a>
-    <a class="linkcard" href="https://claude.ai/code/artifact/c583c7d5-4ee4-4478-acf0-9fafa26bf995"><p class="t">Galeria design systemu</p><p class="d">@rental/ui — tokeny oklch, prymitywy i oba motywy (przeglądalny artefakt). Żywa, interaktywna wersja: uruchom panel → /design-system.</p><span class="s">artefakt HTML · repo: packages/ui + /design-system</span></a>
+    <a class="linkcard" href="https://claude.ai/code/artifact/c583c7d5-4ee4-4478-acf0-9fafa26bf995"><p class="t">Galeria design systemu</p><p class="d">@avably/ui — tokeny oklch, prymitywy i oba motywy (przeglądalny artefakt). Żywa, interaktywna wersja: uruchom panel → /design-system.</p><span class="s">artefakt HTML · repo: packages/ui + /design-system</span></a>
   </div>
   <div class="callout">Pliki planistyczne (spec, plan programowy, plan zadaniowy fazy 0, audyt bazowy starkit) żyją w repo starkit: <code>~/starkit-system/docs/superpowers/</code> — <code>specs/</code>, <code>plans/</code>, <code>research/</code>.</div>
 </section>
@@ -119,13 +123,14 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
     <tr><th>Ścieżka</th><th>Właściciel</th><th>Co tam jest</th></tr>
     <tr><td class="mono">packages/db/supabase/migrations/</td><td><span class="owner claude">Claude</span></td><td>0001_core (schemat+RLS), 0002_hardening (search_path), 0003_auth (hook+RPC), 0004_superadmin (RPC superadmina, audyt)</td></tr>
     <tr><td class="mono">packages/security/</td><td><span class="owner claude">Claude</span></td><td>nagłówki bezpieczeństwa (CSP z nonce, HSTS) — wspólne dla panelu i storefrontu</td></tr>
-    <tr><td class="mono">packages/db/src/</td><td><span class="owner claude">Claude</span></td><td>client.ts, service.ts (@rental/db/service), env.ts, types.ts</td></tr>
+    <tr><td class="mono">packages/db/src/</td><td><span class="owner claude">Claude</span></td><td>client.ts, service.ts (@avably/db/service), env.ts, types.ts</td></tr>
     <tr><td class="mono">packages/db/test/rls-isolation.test.ts</td><td><span class="owner claude">Claude</span></td><td>macierz izolacji RLS — bramka bezpieczeństwa</td></tr>
-    <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>silnik wynajmu (port w fazie 1)</td></tr>
+    <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>marka i kanon domeny (brand.ts), locale (locale.ts), kwoty wielowalutowe (money.ts); silnik wynajmu (port w fazie 1)</td></tr>
     <tr><td class="mono">packages/ui/</td><td><span class="owner gpt">GPT</span></td><td>design system (port z starkit components/ui + tokeny oklch)</td></tr>
     <tr><td class="mono">packages/emails/ · packages/pdf/</td><td><span class="owner gpt">GPT</span></td><td>szablony e-mail · generator umów</td></tr>
-    <tr><td class="mono">apps/panel/</td><td><span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</td><td>backoffice, auth, superadmin, waitlista (port 3000)</td></tr>
-    <tr><td class="mono">apps/storefront/</td><td><span class="owner gpt">GPT</span></td><td>publiczne strony najemców (port 3001)</td></tr>
+    <tr><td class="mono">apps/panel/</td><td><span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</td><td>backoffice, auth, superadmin, waitlista (port 3000); trasy pod <code>app/[locale]/</code></td></tr>
+    <tr><td class="mono">apps/storefront/</td><td><span class="owner gpt">GPT</span></td><td>publiczne strony najemców (port 3001); trasy pod <code>app/[locale]/</code></td></tr>
+    <tr><td class="mono">apps/*/i18n/ · apps/*/messages/</td><td><span class="owner claude">Claude</span> rusztowanie · <span class="owner gpt">GPT</span> treść</td><td>konfiguracja next-intl (routing, request, navigation) i katalogi <code>en.json</code>/<code>pl.json</code></td></tr>
     <tr><td class="mono">.github/workflows/ci.yml</td><td><span class="owner claude">Claude</span></td><td>joby ci + rls</td></tr>
   </table></div>
 </section>
@@ -161,13 +166,15 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
   <p class="sub">Rosnąca lista nietymczasowych zasobów, z których korzystamy. Każdy nowy materiał (dashboard, dokument, ticket, referencja) dopisujemy tutaj.</p>
   <div class="tablewrap"><table>
     <tr><th>Materiał</th><th>Typ</th><th>Gdzie</th></tr>
-    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform</td></tr>
+    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform <i>(nazwa sprzed rebrandu — transfer osobnym krokiem)</i></td></tr>
+    <tr><td>Domena kanoniczna</td><td>domena</td><td class="mono">www.avably.io · panel app.avably.io · storefronty *.avably.io</td></tr>
+    <tr><td>Portfel domen</td><td>domeny</td><td class="mono">avably.io (kanon) · avably.pl, avably.app (redirect/marketing) · .com odłożony</td></tr>
     <tr><td>Repo referencyjne starkit</td><td>repozytorium (odczyt)</td><td class="mono">~/starkit-system</td></tr>
     <tr><td>Spec, plany, audyt bazowy</td><td>dokumentacja</td><td class="mono">~/starkit-system/docs/superpowers/</td></tr>
     <tr><td>Design system starkit (źródło portu)</td><td>referencja UI</td><td class="mono">~/starkit-system/components/ui + app/globals.css</td></tr>
-    <tr><td>Kontrakt @rental/ui</td><td>dokumentacja modułu</td><td class="mono">packages/ui/README.md</td></tr>
+    <tr><td>Kontrakt @avably/ui</td><td>dokumentacja modułu</td><td class="mono">packages/ui/README.md</td></tr>
   </table></div>
-  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">Do dopisania w miarę potrzeb: konto Supabase (prod/dev), projekty Vercel, Upstash, Resend, Stripe, domena produktu, dashboard analityki, board waitlisty.</p>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">Do dopisania w miarę potrzeb: konto Supabase (prod/dev), projekty Vercel, Upstash, Resend, Stripe, Fakturownia, Cloudflare, OVH (stack wg ADR-014 — konta zakłada właściciel), dashboard analityki, board waitlisty.</p>
 </section>
 
 <section id="jak">
