@@ -3,9 +3,10 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
-import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { loginSchema, safeNextPath } from "@/lib/validation";
@@ -29,10 +30,15 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const next = safeNextPath(formData.get("next"));
 
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimitIp = await checkAuthRateLimit(`login:ip:${ip}`, { limit: 20, windowSeconds: 60 });
-  const rateLimitEmail = await checkAuthRateLimit(`login:email:${parsed.data.email}`, {
+  const rateLimitIp = await checkRateLimit(`login:ip:${ip}`, {
+    limit: 20,
+    windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
+  });
+  const rateLimitEmail = await checkRateLimit(`login:email:${parsed.data.email}`, {
     limit: 10,
     windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
   });
   if (!rateLimitIp.success || !rateLimitEmail.success) {
     return { error: "Zbyt wiele prób logowania. Spróbuj ponownie za chwilę." };

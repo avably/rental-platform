@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 
-import { checkAuthRateLimit } from "@/lib/rate-limit";
+import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { resetRequestSchema } from "@/lib/validation";
@@ -25,7 +26,11 @@ export async function resetRequestAction(
   }
 
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimit = await checkAuthRateLimit(`reset:${ip}`, { limit: 5, windowSeconds: 60 });
+  const rateLimit = await checkRateLimit(`reset:${ip}`, {
+    limit: 5,
+    windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
+  });
   if (!rateLimit.success) {
     return { error: "Zbyt wiele prób. Spróbuj ponownie za chwilę." };
   }

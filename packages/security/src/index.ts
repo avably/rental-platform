@@ -2,7 +2,9 @@
  * Nagłówki bezpieczeństwa dla obu aplikacji Next.js (panel + storefront) —
  * JEDNO źródło prawdy (Zadanie 7). Polityka CSP jest security-krytyczna i
  * rozjechanie się jej między apkami byłoby cichą regresją, dlatego mieszka
- * w pakiecie, a nie w `lib/` każdej apki z osobna.
+ * w pakiecie, a nie w `lib/` każdej apki z osobna. Z tego samego powodu mieszka
+ * tu rate-limit — osobny entrypoint `@avably/security/rate-limit`, bo nie
+ * potrzebuje Next.js (patrz src/rate-limit.ts).
  *
  * Użycie: w `proxy.ts` (dawne `middleware.ts`) aplikacji —
  *
