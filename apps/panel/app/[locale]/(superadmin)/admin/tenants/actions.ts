@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { localePath } from "@/lib/navigation";
 import {
   clearTenantViewCookie,
   requireSuperadminPage,
@@ -28,10 +29,9 @@ import {
  * bezpieczeństwo.
  */
 
-function backToTenant(tenantId: string, error?: string): never {
-  const suffix = error ? `?blad=${encodeURIComponent(error)}` : "";
+async function backToTenant(tenantId: string, error?: string): Promise<never> {
   revalidatePath(`/admin/tenants/${tenantId}`);
-  redirect(`/admin/tenants/${tenantId}${suffix}`);
+  redirect(await localePath(`/admin/tenants/${tenantId}`, error ? { blad: error } : undefined));
 }
 
 export async function lockTenantAction(formData: FormData): Promise<void> {
@@ -39,7 +39,7 @@ export async function lockTenantAction(formData: FormData): Promise<void> {
     tenantId: formData.get("tenantId"),
     reason: formData.get("reason") || undefined,
   });
-  if (!parsed.success) redirect("/admin/tenants");
+  if (!parsed.success) redirect(await localePath("/admin/tenants"));
 
   const ctx = await requireSuperadminPage();
   const { error } = await ctx.supabase.schema("app").rpc("superadmin_lock_tenant", {
@@ -47,19 +47,19 @@ export async function lockTenantAction(formData: FormData): Promise<void> {
     p_reason: parsed.data.reason ?? null,
   });
 
-  backToTenant(parsed.data.tenantId, error?.message);
+  await backToTenant(parsed.data.tenantId, error?.message);
 }
 
 export async function unlockTenantAction(formData: FormData): Promise<void> {
   const parsed = unlockTenantSchema.safeParse({ tenantId: formData.get("tenantId") });
-  if (!parsed.success) redirect("/admin/tenants");
+  if (!parsed.success) redirect(await localePath("/admin/tenants"));
 
   const ctx = await requireSuperadminPage();
   const { error } = await ctx.supabase.schema("app").rpc("superadmin_unlock_tenant", {
     p_tenant_id: parsed.data.tenantId,
   });
 
-  backToTenant(parsed.data.tenantId, error?.message);
+  await backToTenant(parsed.data.tenantId, error?.message);
 }
 
 export async function setPlanAction(formData: FormData): Promise<void> {
@@ -67,7 +67,7 @@ export async function setPlanAction(formData: FormData): Promise<void> {
     tenantId: formData.get("tenantId"),
     planId: formData.get("planId"),
   });
-  if (!parsed.success) redirect("/admin/tenants");
+  if (!parsed.success) redirect(await localePath("/admin/tenants"));
 
   const ctx = await requireSuperadminPage();
   const { error } = await ctx.supabase.schema("app").rpc("superadmin_set_plan", {
@@ -75,7 +75,7 @@ export async function setPlanAction(formData: FormData): Promise<void> {
     p_plan_id: parsed.data.planId,
   });
 
-  backToTenant(parsed.data.tenantId, error?.message);
+  await backToTenant(parsed.data.tenantId, error?.message);
 }
 
 /**
@@ -85,7 +85,7 @@ export async function setPlanAction(formData: FormData): Promise<void> {
  */
 export async function startTenantViewAction(formData: FormData): Promise<void> {
   const parsed = tenantViewSchema.safeParse({ tenantId: formData.get("tenantId") });
-  if (!parsed.success) redirect("/admin/tenants");
+  if (!parsed.success) redirect(await localePath("/admin/tenants"));
 
   const ctx = await requireSuperadminPage();
   const { error } = await ctx.supabase.schema("app").rpc("superadmin_log", {
@@ -93,15 +93,15 @@ export async function startTenantViewAction(formData: FormData): Promise<void> {
     p_action: "superadmin.tenant.view.start",
     p_details: {},
   });
-  if (error) backToTenant(parsed.data.tenantId, error.message);
+  if (error) await backToTenant(parsed.data.tenantId, error.message);
 
   await setTenantViewCookie(parsed.data.tenantId);
-  redirect(`/admin/tenants/${parsed.data.tenantId}/podglad`);
+  redirect(await localePath(`/admin/tenants/${parsed.data.tenantId}/podglad`));
 }
 
 export async function endTenantViewAction(formData: FormData): Promise<void> {
   const parsed = tenantViewSchema.safeParse({ tenantId: formData.get("tenantId") });
-  if (!parsed.success) redirect("/admin/tenants");
+  if (!parsed.success) redirect(await localePath("/admin/tenants"));
 
   const ctx = await requireSuperadminPage();
   await ctx.supabase.schema("app").rpc("superadmin_log", {

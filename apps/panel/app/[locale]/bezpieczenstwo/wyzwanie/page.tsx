@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { safeNextPath } from "@/lib/validation";
 
@@ -21,14 +22,14 @@ export default async function MfaChallengePage({
 
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect(await localePath("/login"));
 
   // Sesja już jest aal2 — nie ma czego podbijać.
-  if (ctx.aal === "aal2") redirect(safeNextPath(next) ?? "/");
+  if (ctx.aal === "aal2") redirect(await localePath(safeNextPath(next) ?? "/"));
 
   const { data: factors } = await supabase.auth.mfa.listFactors();
   if (!factors?.totp.some((factor) => factor.status === "verified")) {
-    redirect("/bezpieczenstwo");
+    redirect(await localePath("/bezpieczenstwo"));
   }
 
   const t = await getTranslations("mfaChallenge");

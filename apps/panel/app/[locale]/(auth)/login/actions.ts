@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
@@ -52,9 +53,9 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   }
 
   if (next) {
-    redirect(next);
+    redirect(await localePath(next));
   }
 
   const ctx = await getAuthContext(supabase);
-  redirect(ctx?.tenantId ? "/" : "/organizacja/nowa");
+  redirect(await localePath(ctx?.tenantId ? "/" : "/organizacja/nowa"));
 }

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Invitation, Member } from "@avably/db";
 
 import { getTenant, getTenantViewCookie, requireSuperadminPage } from "@/lib/superadmin";
+import { localePath } from "@/lib/navigation";
 import { tenantIdSchema } from "@/lib/validation";
 
 import { endTenantViewAction } from "../../actions";
@@ -29,7 +30,7 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
   const ctx = await requireSuperadminPage(`/admin/tenants/${tenantId}/podglad`);
 
   if ((await getTenantViewCookie()) !== tenantId) {
-    redirect(`/admin/tenants/${tenantId}`);
+    redirect(await localePath(`/admin/tenants/${tenantId}`));
   }
 
   const tenant = await getTenant(ctx, tenantId);
