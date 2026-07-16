@@ -14,6 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 
+import { integrationEnv } from "./helpers/integration-env";
+
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
 
 const REQUIRED_ENV = [
@@ -21,7 +23,7 @@ const REQUIRED_ENV = [
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
 ] as const;
-const hasEnv = REQUIRED_ENV.every((name) => Boolean(process.env[name]));
+const hasEnv = integrationEnv(REQUIRED_ENV);
 
 const TEST_PASSWORD = "AuthHookTest!12345678";
 const createdUserIds: string[] = [];
