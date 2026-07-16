@@ -1,14 +1,21 @@
+import type { Locale } from "@avably/core";
 import { Section, Text } from "react-email";
 
 import { EmailLayout } from "../components/email-layout";
+import { emailMessages } from "../messages";
 import { EMAIL_COLORS, EMAIL_STYLES } from "../styles";
 
 /**
  * Tymczasowy kontrakt fazy 1. Kwota i daty przychodzą jako gotowe,
  * sformatowane teksty; pakiet e-maili nie wykonuje formatowania domenowego.
+ * Wołający formatuje je w locale odbiorcy i walucie planu (patrz
+ * `formatMoney` z @avably/core) — dlatego `totalAmount` jest stringiem, a nie
+ * liczbą: pakiet nie zgaduje waluty.
  */
 export interface NewOrderNotificationProps {
   customerName: string;
+  /** Język odbiorcy. Wymagany — e-mail nie ma skąd go wywnioskować. */
+  locale: Locale;
   orderNumber: string;
   orderUrl: string;
   rentalEndDate: string;
@@ -18,28 +25,30 @@ export interface NewOrderNotificationProps {
 
 export function NewOrderNotification({
   customerName,
+  locale,
   orderNumber,
   orderUrl,
   rentalEndDate,
   rentalStartDate,
   totalAmount,
 }: NewOrderNotificationProps) {
+  const t = emailMessages(locale).newOrderNotification;
+
   const details = [
-    ["Numer", orderNumber],
-    ["Klient", customerName],
-    ["Kwota", totalAmount],
-    ["Okres wynajmu", `${rentalStartDate}–${rentalEndDate}`],
+    [t.fields.number, orderNumber],
+    [t.fields.customer, customerName],
+    [t.fields.amount, totalAmount],
+    [t.fields.rentalPeriod, `${rentalStartDate}–${rentalEndDate}`],
   ] as const;
 
   return (
     <EmailLayout
-      cta={{ href: orderUrl, label: "Zobacz zamówienie" }}
-      heading="Nowe zamówienie"
-      previewText={`Nowe zamówienie ${orderNumber} w Avably.`}
+      cta={{ href: orderUrl, label: t.cta }}
+      heading={t.heading}
+      locale={locale}
+      previewText={t.preview(orderNumber)}
     >
-      <Text style={EMAIL_STYLES.text}>
-        Wpadło nowe zamówienie. Najważniejsze dane znajdziesz poniżej.
-      </Text>
+      <Text style={EMAIL_STYLES.text}>{t.intro}</Text>
       <Section
         style={{
           backgroundColor: EMAIL_COLORS.muted,

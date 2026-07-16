@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Avably — centrum projektu</title>
 <style>
 :root{
@@ -56,7 +57,8 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
 <header class="top">
   <p class="eyebrow">Centrum projektu · pojedynczy punkt wejścia</p>
   <h1>Avably — start tutaj</h1>
-  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem. Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
+  <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem, międzynarodowy od startu (EN+PL). Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
+  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-16, PR #20):</b> rebrand na <b>Avably</b> — scope pakietów <code>@avably/*</code>, kanon <code>www.avably.io</code>, rusztowanie i18n (<code>/en</code>, <code>/pl</code>), migracja 0005 (<code>tenants.locale</code>, <code>plans.currency</code>). Decyzje: ADR-013 (architektura międzynarodowa), ADR-014 (stack dostawców) — pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: <b>nazwa repo i folderu (<code>rental-platform</code>) celowo została stara</b> — transfer repo to osobny krok właściciela, kod i produkt to już Avably.</p>
 </header>
 <nav class="toc">
   <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
@@ -123,11 +125,12 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
     <tr><td class="mono">packages/security/</td><td><span class="owner claude">Claude</span></td><td>nagłówki bezpieczeństwa (CSP z nonce, HSTS) — wspólne dla panelu i storefrontu</td></tr>
     <tr><td class="mono">packages/db/src/</td><td><span class="owner claude">Claude</span></td><td>client.ts, service.ts (@avably/db/service), env.ts, types.ts</td></tr>
     <tr><td class="mono">packages/db/test/rls-isolation.test.ts</td><td><span class="owner claude">Claude</span></td><td>macierz izolacji RLS — bramka bezpieczeństwa</td></tr>
-    <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>silnik wynajmu (port w fazie 1)</td></tr>
+    <tr><td class="mono">packages/core/</td><td><span class="owner claude">Claude</span></td><td>marka i kanon domeny (brand.ts), locale (locale.ts), kwoty wielowalutowe (money.ts); silnik wynajmu (port w fazie 1)</td></tr>
     <tr><td class="mono">packages/ui/</td><td><span class="owner gpt">GPT</span></td><td>design system (port z starkit components/ui + tokeny oklch)</td></tr>
     <tr><td class="mono">packages/emails/ · packages/pdf/</td><td><span class="owner gpt">GPT</span></td><td>szablony e-mail · generator umów</td></tr>
-    <tr><td class="mono">apps/panel/</td><td><span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</td><td>backoffice, auth, superadmin, waitlista (port 3000)</td></tr>
-    <tr><td class="mono">apps/storefront/</td><td><span class="owner gpt">GPT</span></td><td>publiczne strony najemców (port 3001)</td></tr>
+    <tr><td class="mono">apps/panel/</td><td><span class="owner claude">Claude</span> backend · <span class="owner gpt">GPT</span> UI</td><td>backoffice, auth, superadmin, waitlista (port 3000); trasy pod <code>app/[locale]/</code></td></tr>
+    <tr><td class="mono">apps/storefront/</td><td><span class="owner gpt">GPT</span></td><td>publiczne strony najemców (port 3001); trasy pod <code>app/[locale]/</code></td></tr>
+    <tr><td class="mono">apps/*/i18n/ · apps/*/messages/</td><td><span class="owner claude">Claude</span> rusztowanie · <span class="owner gpt">GPT</span> treść</td><td>konfiguracja next-intl (routing, request, navigation) i katalogi <code>en.json</code>/<code>pl.json</code></td></tr>
     <tr><td class="mono">.github/workflows/ci.yml</td><td><span class="owner claude">Claude</span></td><td>joby ci + rls</td></tr>
   </table></div>
 </section>
@@ -163,13 +166,15 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
   <p class="sub">Rosnąca lista nietymczasowych zasobów, z których korzystamy. Każdy nowy materiał (dashboard, dokument, ticket, referencja) dopisujemy tutaj.</p>
   <div class="tablewrap"><table>
     <tr><th>Materiał</th><th>Typ</th><th>Gdzie</th></tr>
-    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform</td></tr>
+    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform <i>(nazwa sprzed rebrandu — transfer osobnym krokiem)</i></td></tr>
+    <tr><td>Domena kanoniczna</td><td>domena</td><td class="mono">www.avably.io · panel app.avably.io · storefronty *.avably.io</td></tr>
+    <tr><td>Portfel domen</td><td>domeny</td><td class="mono">avably.io (kanon) · avably.pl, avably.app (redirect/marketing) · .com odłożony</td></tr>
     <tr><td>Repo referencyjne starkit</td><td>repozytorium (odczyt)</td><td class="mono">~/starkit-system</td></tr>
     <tr><td>Spec, plany, audyt bazowy</td><td>dokumentacja</td><td class="mono">~/starkit-system/docs/superpowers/</td></tr>
     <tr><td>Design system starkit (źródło portu)</td><td>referencja UI</td><td class="mono">~/starkit-system/components/ui + app/globals.css</td></tr>
     <tr><td>Kontrakt @avably/ui</td><td>dokumentacja modułu</td><td class="mono">packages/ui/README.md</td></tr>
   </table></div>
-  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">Do dopisania w miarę potrzeb: konto Supabase (prod/dev), projekty Vercel, Upstash, Resend, Stripe, domena produktu, dashboard analityki, board waitlisty.</p>
+  <p style="font-size:13.5px;color:var(--muted);margin-top:10px">Do dopisania w miarę potrzeb: konto Supabase (prod/dev), projekty Vercel, Upstash, Resend, Stripe, Fakturownia, Cloudflare, OVH (stack wg ADR-014 — konta zakłada właściciel), dashboard analityki, board waitlisty.</p>
 </section>
 
 <section id="jak">

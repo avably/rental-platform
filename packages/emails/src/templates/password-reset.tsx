@@ -1,29 +1,31 @@
+import type { Locale } from "@avably/core";
 import { Text } from "react-email";
 
 import { EmailLayout } from "../components/email-layout";
+import { emailMessages } from "../messages";
 import { EMAIL_STYLES } from "../styles";
 
 export interface PasswordResetProps {
+  /** Język odbiorcy. Wymagany — e-mail nie ma skąd go wywnioskować. */
+  locale: Locale;
   resetUrl: string;
   recipientName?: string;
 }
 
-export function PasswordReset({ resetUrl, recipientName }: PasswordResetProps) {
-  const greeting = recipientName ? `Cześć, ${recipientName}!` : "Cześć!";
+export function PasswordReset({ locale, resetUrl, recipientName }: PasswordResetProps) {
+  const m = emailMessages(locale);
+  const t = m.passwordReset;
 
   return (
     <EmailLayout
-      cta={{ href: resetUrl, label: "Ustaw nowe hasło" }}
-      heading="Ustaw nowe hasło"
-      previewText="Ustaw nowe hasło do konta w Avably."
+      cta={{ href: resetUrl, label: t.cta }}
+      heading={t.heading}
+      locale={locale}
+      previewText={t.preview}
     >
-      <Text style={EMAIL_STYLES.text}>{greeting}</Text>
-      <Text style={EMAIL_STYLES.text}>
-        Otrzymaliśmy prośbę o ustawienie nowego hasła do Twojego konta.
-      </Text>
-      <Text style={EMAIL_STYLES.text}>
-        Jeśli to nie Ty, zignoruj tę wiadomość. Twoje hasło się nie zmieni.
-      </Text>
+      <Text style={EMAIL_STYLES.text}>{m.greeting(recipientName)}</Text>
+      <Text style={EMAIL_STYLES.text}>{t.requested}</Text>
+      <Text style={EMAIL_STYLES.text}>{t.ignore}</Text>
     </EmailLayout>
   );
 }

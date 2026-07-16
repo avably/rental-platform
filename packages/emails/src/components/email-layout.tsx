@@ -1,3 +1,4 @@
+import { PRODUCT_NAME, bcp47, type Locale } from "@avably/core";
 import type { ReactNode } from "react";
 import {
   Body,
@@ -13,9 +14,8 @@ import {
   Text,
 } from "react-email";
 
+import { emailMessages } from "../messages";
 import { EMAIL_STYLES } from "../styles";
-
-const PRODUCT_NAME = "Avably";
 
 export interface EmailLayoutProps {
   children: ReactNode;
@@ -24,6 +24,8 @@ export interface EmailLayoutProps {
     label: string;
   };
   heading: string;
+  /** Język odbiorcy — steruje treścią ramki i atrybutem `lang`. */
+  locale: Locale;
   previewText: string;
 }
 
@@ -31,13 +33,17 @@ export function EmailLayout({
   children,
   cta,
   heading,
+  locale,
   previewText,
 }: EmailLayoutProps) {
+  const t = emailMessages(locale).layout;
+  const lang = bcp47(locale);
+
   return (
-    <Html lang="pl">
+    <Html lang={lang}>
       <Head />
       <Preview>{previewText}</Preview>
-      <Body lang="pl" style={EMAIL_STYLES.body}>
+      <Body lang={lang} style={EMAIL_STYLES.body}>
         <Container style={EMAIL_STYLES.container}>
           <Section style={EMAIL_STYLES.card}>
             <Text style={EMAIL_STYLES.brand}>{PRODUCT_NAME}</Text>
@@ -51,7 +57,7 @@ export function EmailLayout({
               </Button>
             </Section>
             <Text style={EMAIL_STYLES.fallbackText}>
-              Jeśli przycisk nie działa, skopiuj ten link do przeglądarki:
+              {t.fallbackHint}
               <br />
               <Link href={cta.href} style={EMAIL_STYLES.fallbackLink}>
                 {cta.href}
@@ -59,9 +65,9 @@ export function EmailLayout({
             </Text>
             <Hr style={EMAIL_STYLES.divider} />
             <Text style={EMAIL_STYLES.footer}>
-              {PRODUCT_NAME} · platforma do zarządzania wynajmem
+              {PRODUCT_NAME} · {t.footerTagline}
               <br />
-              To wiadomość automatyczna dotycząca Twojego konta.
+              {t.footerAutomated}
             </Text>
           </Section>
         </Container>

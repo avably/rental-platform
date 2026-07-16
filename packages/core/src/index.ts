@@ -18,3 +18,12 @@ export {
   formatMoney,
   type CurrencyCode,
 } from "./money";
+
+export {
+  LOCALES,
+  DEFAULT_LOCALE,
+  DEFAULT_TENANT_LOCALE,
+  isLocale,
+  bcp47,
+  type Locale,
+} from "./locale";

@@ -1,0 +1,9 @@
+{
+  "app": {
+    "storefrontTitle": "Storefront",
+    "storefrontDescription": "Customer-facing storefront"
+  },
+  "home": {
+    "title": "Storefront"
+  }
+}

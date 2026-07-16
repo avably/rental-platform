@@ -3,6 +3,7 @@
  * Utrzymywane ręcznie do czasu podpięcia generatora typów (supabase gen types)
  * na projekcie dev — patrz docs/konwencje-migracji.md.
  */
+import type { CurrencyCode, Locale } from "@avably/core";
 
 export type Json =
   | string
@@ -32,6 +33,11 @@ export interface Tenant {
   status: TenantStatus;
   /** Zapamiętany status sprzed blokady superadmina (0004_superadmin.sql). */
   status_before_lock: TenantStatusBeforeLock | null;
+  /**
+   * Język storefrontu najemcy (0005_i18n.sql). Oś NIEZALEŻNA od języka panelu
+   * — ten wybiera prefiks ścieżki per użytkownik.
+   */
+  locale: Locale;
   created_at: string;
 }
 
@@ -56,7 +62,10 @@ export interface Invitation {
 export interface Plan {
   id: string;
   name: string;
+  /** Cena w jednostkach podrzędnych waluty `currency` (0005_i18n.sql). */
   price_grosze: number;
+  /** Waluta ceny (0005_i18n.sql). Nie zakładaj PLN — czytaj kolumnę. */
+  currency: CurrencyCode;
   limits: Json;
   features: Json;
   active: boolean;
