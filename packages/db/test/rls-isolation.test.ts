@@ -39,6 +39,8 @@ import {
   cleanupSeeded,
   createAdminClient,
   listPlatformTablesWithoutRls,
+  listPublicTables,
+  listRlsBypassingGrants,
   listTenantTables,
   mutationPatch,
   seedSampleRow,
@@ -328,6 +330,140 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
   );
 
   // ---------------------------------------------------------------------
+  // Uprawnienia spoza zasięgu RLS — bramka na KAŻDĄ tabelę w `public`
+  // ---------------------------------------------------------------------
+  //
+  // TRUNCATE nie podlega politykom RLS: rola z tym uprawnieniem czyści
+  // tabelę niezależnie od tego, jak szczelne są polityki. Cała macierz
+  // powyżej może świecić na zielono przy tabeli, którą anon kasuje jednym
+  // zdaniem. To samo dotyczy REFERENCES/TRIGGER/MAINTAIN — innego kalibru,
+  // ale tej samej kategorii: uprawnień, których RLS nie widzi.
+  //
+  // Bramka jest INTROSPEKCYJNA, nie wypisana z nazwy. Wersja z 0006
+  // sprawdzała jedną tabelę (waitlist_signups) i dlatego przez cały PR #22
+  // nie zauważyła, że 7 tabel z 0001 nosi te uprawnienia — dowód, że lista
+  // pisana ręcznie chroni wyłącznie to, co ktoś pamiętał na nią wpisać.
+  // Nowa tabela w `public` wchodzi tu automatycznie, kimkolwiek utworzona.
+  describe("uprawnienia spoza zasięgu RLS (TRUNCATE i pokrewne)", () => {
+    it("żadna rola publiczna nie ma TRUNCATE/REFERENCES/TRIGGER/MAINTAIN na żadnej tabeli public", async () => {
+      // Introspekcja przez has_table_privilege, NIE przez
+      // information_schema.role_table_grants — tamten widok zna tylko
+      // przywileje z SQL/92 i milczy o MAINTAIN (PostgreSQL 17+), przez co
+      // pokazywał 3 z 4 faktycznych uprawnień roli anon na tabelach z 0001.
+      const grants = await listRlsBypassingGrants();
+      expect(
+        grants,
+        `role publiczne mają uprawnienia spoza zasięgu RLS:\n` +
+          grants.map((g) => `  ${g.table}: ${g.role} → ${g.privilege}`).join("\n"),
+      ).toEqual([]);
+    });
+
+    it("introspekcja widzi wszystkie tabele public (bramka nie może być pusta)", async () => {
+      // Bez tego asercja `toEqual([])` wyżej przechodzi także wtedy, gdy
+      // zapytanie introspekcyjne nic nie zwraca z powodu literówki czy
+      // zmiany schematu — pusty wynik znaczyłby wtedy „nie ma czego
+      // sprawdzać", a nie „jest czysto". Test sprawdza sam czujnik.
+      const tables = await listPublicTables();
+      expect(tables, "introspekcja nie zwróciła żadnej tabeli w public").not.toHaveLength(0);
+      expect(tables, "introspekcja zgubiła tabele z 0001/0006").toEqual(
+        expect.arrayContaining([
+          "tenants",
+          "members",
+          "invitations",
+          "plans",
+          "subscriptions",
+          "usage_counters",
+          "audit_log",
+          "waitlist_signups",
+        ]),
+      );
+    });
+
+    it("TRUNCATE jest odmawiany realnym zdaniem SQL na każdej tabeli, dla obu ról publicznych", async () => {
+      // Dowód ZACHOWANIA, nie samego katalogu uprawnień: powyższy test czyta
+      // ACL, ten wykonuje `truncate` i sprawdza, że silnik odmawia.
+      //
+      // Asercja na KOD 42501 (insufficient_privilege), nie na „cokolwiek
+      // rzuciło": `truncate` na tabeli, do której prowadzi klucz obcy (np.
+      // tenants ← members) i tak by się wywalił — ale kodem 0A000, z powodu
+      // FK, nie uprawnień. Zliczanie każdego wyjątku jako sukcesu dałoby
+      // fałszywą zieleń dokładnie na tabelach z największą liczbą powiązań.
+      const tables = await listPublicTables();
+      const roles = ["anon", "authenticated"] as const;
+
+      const failures: string[] = [];
+      for (const table of tables) {
+        for (const role of roles) {
+          let code: string | undefined;
+          let truncated = false;
+          try {
+            await sql.begin(async (tx) => {
+              await tx.unsafe(`set local role ${role}`);
+              try {
+                await tx.unsafe(`truncate public.${table}`);
+                truncated = true;
+              } catch (error) {
+                code = (error as { code?: string }).code;
+              }
+              throw new Rollback();
+            });
+          } catch (error) {
+            if (!(error instanceof Rollback)) throw error;
+          }
+
+          if (truncated) {
+            failures.push(`${table}: ${role} WYCZYŚCIŁ tabelę TRUNCATE-em`);
+          } else if (code !== PG_INSUFFICIENT_PRIVILEGE) {
+            failures.push(
+              `${table}: ${role} — TRUNCATE odrzucony kodem ${code}, oczekiwano ` +
+                `${PG_INSUFFICIENT_PRIVILEGE} (odmowa z innego powodu niż brak uprawnienia)`,
+            );
+          }
+        }
+      }
+
+      expect(failures, `TRUNCATE nie jest odmawiany przez uprawnienia:\n${failures.join("\n")}`).toEqual(
+        [],
+      );
+    });
+
+    // Bramki wyżej patrzą wyłącznie na tabele, które JUŻ istnieją — żadna z
+    // nich nie zauważyłaby usunięcia `alter default privileges` z 0008, bo
+    // skutek tamtej zmiany widać dopiero na tabeli utworzonej PÓŹNIEJ. Bez
+    // tego bloku pierwsza sekcja migracji byłaby nieobjęta testem i mogłaby
+    // zniknąć przy dowolnym refaktorze, nie psując buildu — a wtedy ochrona
+    // wracałaby do „autor pamiętał o revoke", czyli do stanu sprzed 0008.
+    describe("test-przynęta: NOWA tabela nie może rodzić się z uprawnieniami spoza zasięgu RLS", () => {
+      const baitTable = `_privs_bait_${Date.now()}`;
+      let baitSql: ReturnType<typeof postgres>;
+
+      beforeEach(async () => {
+        baitSql = postgres(process.env.SUPABASE_LOCAL_URL as string, { max: 1 });
+        // Celowo goły `create table`, bez `revoke` z konwencji ADR-016 —
+        // przynęta odtwarza dokładnie to, co zrobi autor następnej migracji,
+        // gdy o konwencji zapomni. Zielono ma być dlatego, że default
+        // privileges są naprawione, a nie dlatego, że ktoś pamiętał.
+        await baitSql.unsafe(`create table public.${baitTable} (id uuid primary key, value text)`);
+      });
+
+      afterEach(async () => {
+        await baitSql.unsafe(`drop table if exists public.${baitTable}`);
+        await baitSql.end({ timeout: 5 });
+      });
+
+      it("świeżo utworzona tabela nie daje rolom publicznym TRUNCATE ani pokrewnych", async () => {
+        const grants = (await listRlsBypassingGrants()).filter((g) => g.table === baitTable);
+        expect(
+          grants,
+          `nowa tabela urodziła się z uprawnieniami spoza zasięgu RLS ` +
+            `(default privileges roli postgres nie są naprawione — patrz 0008):\n` +
+            grants.map((g) => `  ${g.role} → ${g.privilege}`).join("\n"),
+        ).toEqual([]);
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------
   // waitlist_signups (0006) — tabela PLATFORMOWA, poza automatyczną macierzą
   // ---------------------------------------------------------------------
   //
@@ -427,32 +563,12 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
       );
     });
 
-    it.each(["anon", "authenticated"])(
-      "%s nie może wyczyścić waitlisty TRUNCATE-em (uprawnienie spoza zasięgu RLS)",
-      async (role) => {
-        // TRUNCATE NIE podlega politykom RLS. Supabase nadaje domyślnie
-        // `all` na nowych tabelach w public obu rolom publicznym, więc bez
-        // jawnego REVOKE w migracji ta ścieżka kasuje całą tabelę, a cała
-        // reszta tego bloku świeci się na zielono. Zweryfikowane: przed
-        // REVOKE w 0006 ten test przechodził na czerwono.
-        let truncated = false;
-        try {
-          await sql.begin(async (tx) => {
-            await tx.unsafe(`set local role ${role}`);
-            try {
-              await tx`truncate public.waitlist_signups`;
-              truncated = true;
-            } catch {
-              truncated = false;
-            }
-            throw new Rollback();
-          });
-        } catch (error) {
-          if (!(error instanceof Rollback)) throw error;
-        }
-        expect(truncated, `${role} wyczyścił waitlistę TRUNCATE-em — RLS tego nie broni`).toBe(false);
-      },
-    );
+    // Bramka TRUNCATE dla tej tabeli NIE jest już tutaj: 0008 domknęło dług
+    // z ADR-016 i bramka obejmuje dzisiaj KAŻDĄ tabelę w `public` przez
+    // introspekcję (blok „uprawnienia spoza zasięgu RLS" niżej), a nie samą
+    // waitlistę. Test wpisany z nazwy pod jedną tabelę siłą rzeczy nie
+    // zauważa tabeli, której nikt do niego nie dopisał — a to jest właśnie
+    // ten błąd, przez który tabele z 0001 nosiły TRUNCATE aż do 0008.
 
     it("authenticated bez claimu superadmin nie widzi wierszy waitlisty", async () => {
       // Tu grant SELECT istnieje (potrzebny superadminowi), więc bramką jest
