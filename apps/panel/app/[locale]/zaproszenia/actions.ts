@@ -3,10 +3,10 @@
 import { randomBytes, createHash } from "node:crypto";
 
 import { siteUrl } from "@avably/core";
+import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 
 import { AuthError } from "@/lib/auth";
 import { sendInvitationEmail } from "@/lib/email";
-import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { requireMember } from "@/lib/supabase-server";
 import { inviteSchema } from "@/lib/validation";
 
@@ -43,9 +43,10 @@ export async function inviteMemberAction(
   // Limit per tenant — żeby owner nie spamował Resend ani nie enumerował
   // adresów przez masowe zaproszenia. Klucz po tenant_id (nie IP), bo to
   // akcja uwierzytelniona i to organizacja jest jednostką nadużycia.
-  const rateLimit = await checkAuthRateLimit(`invite:${ctx.tenantId}`, {
+  const rateLimit = await checkRateLimit(`invite:${ctx.tenantId}`, {
     limit: 10,
     windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
   });
   if (!rateLimit.success) {
     return { error: "Zbyt wiele zaproszeń w krótkim czasie. Spróbuj ponownie za chwilę." };

@@ -13,7 +13,11 @@
  */
 import { headers } from "next/headers";
 
-import { checkPublicRateLimit } from "@/lib/rate-limit";
+import {
+  STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX,
+  checkRateLimit,
+} from "@avably/security/rate-limit";
+
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
   isWaitlistEnabled,
@@ -29,7 +33,10 @@ export async function joinWaitlist(input: WaitlistInput): Promise<WaitlistResult
   return joinWaitlistCore(input, {
     enabled: isWaitlistEnabled(),
     ip,
-    checkRateLimit: checkPublicRateLimit,
+    // Prefiks domykany tutaj, a nie w rdzeniu: rdzeń zna limit waitlisty, ale
+    // przestrzeń kluczy jest własnością warstwy security.
+    checkRateLimit: (key, opts) =>
+      checkRateLimit(key, { ...opts, prefix: STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX }),
     callRpc: async (args: WaitlistRpcArgs): Promise<WaitlistRpcOutcome> => {
       const supabase = await createSupabaseServerClient();
       // Schemat `app` jest wystawiony przez PostgREST wyłącznie po to, by dać
