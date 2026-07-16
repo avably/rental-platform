@@ -68,7 +68,7 @@ const TENANT_ID = "00000000-0000-4000-8000-000000000001";
 const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
   {
     name: "/bezpieczenstwo",
-    run: async () => (await import("@/app/[locale]/bezpieczenstwo/page")).default({}),
+    run: async () => (await import("@/app/[locale]/bezpieczenstwo/page")).default(),
   },
   {
     name: "/bezpieczenstwo/wyzwanie",
@@ -79,11 +79,11 @@ const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
   },
   {
     name: "/organizacja/nowa",
-    run: async () => (await import("@/app/[locale]/organizacja/nowa/page")).default({}),
+    run: async () => (await import("@/app/[locale]/organizacja/nowa/page")).default(),
   },
   {
     name: "/zaproszenia",
-    run: async () => (await import("@/app/[locale]/zaproszenia/page")).default({}),
+    run: async () => (await import("@/app/[locale]/zaproszenia/page")).default(),
   },
   {
     name: "/zaproszenie/[token]",
@@ -94,7 +94,7 @@ const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
   },
   {
     name: "/admin/tenants",
-    run: async () => (await import("@/app/[locale]/(superadmin)/admin/tenants/page")).default({}),
+    run: async () => (await import("@/app/[locale]/(superadmin)/admin/tenants/page")).default(),
   },
   {
     name: "/admin/audit",
