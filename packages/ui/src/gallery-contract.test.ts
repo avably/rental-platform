@@ -3,9 +3,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(process.cwd(), "../..");
+
+// Trasy obu apek mieszkają pod segmentem [locale] (routing next-intl, ADR-013),
+// więc layout i galeria nie leżą bezpośrednio w app/.
 const panelGallery = resolve(
   repositoryRoot,
-  "apps/panel/app/design-system/page.tsx",
+  "apps/panel/app/[locale]/design-system/page.tsx",
 );
 
 describe("integracja design systemu", () => {
@@ -14,7 +17,7 @@ describe("integracja design systemu", () => {
 
     if (!existsSync(panelGallery)) return;
     const source = readFileSync(panelGallery, "utf8");
-    expect(source).toContain('from "@rental/ui"');
+    expect(source).toContain('from "@avably/ui"');
     expect(source).toContain("aria-pressed={darkMode}");
     expect(source).toMatch(/darkMode\s*\?\s*"dark/);
     expect(source).toContain('id="buttons-badges"');
@@ -31,11 +34,11 @@ describe("integracja design systemu", () => {
         "utf8",
       );
       const layout = readFileSync(
-        resolve(repositoryRoot, `apps/${application}/app/layout.tsx`),
+        resolve(repositoryRoot, `apps/${application}/app/[locale]/layout.tsx`),
         "utf8",
       );
 
-      expect(globals).toContain('@import "@rental/ui/styles.css"');
+      expect(globals).toContain('@import "@avably/ui/styles.css"');
       expect(layout).toContain("Inter");
       expect(layout).toContain('variable: "--font-inter"');
     },

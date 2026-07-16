@@ -1,5 +1,5 @@
 {
-  "name": "@rental/db",
+  "name": "@avably/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,6 +21,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@avably/core": "workspace:*",
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.5"
   },

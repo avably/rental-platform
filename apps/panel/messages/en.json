@@ -1,0 +1,72 @@
+{
+  "app": {
+    "panelTitle": "Panel",
+    "panelDescription": "Admin panel"
+  },
+  "common": {
+    "email": "Email",
+    "password": "Password",
+    "logout": "Sign out"
+  },
+  "home": {
+    "title": "Panel"
+  },
+  "login": {
+    "title": "Sign in",
+    "submit": "Sign in",
+    "submitPending": "Signing in…",
+    "register": "Create an account",
+    "forgotPassword": "Forgot your password?"
+  },
+  "register": {
+    "title": "Create an account",
+    "submit": "Sign up",
+    "submitPending": "Signing up…",
+    "haveAccount": "Already have an account?",
+    "login": "Sign in"
+  },
+  "checkInbox": {
+    "title": "Check your inbox",
+    "body": "We sent you an email with a confirmation link. Click it to finish signing up and create your organization."
+  },
+  "resetRequest": {
+    "title": "Reset password",
+    "submit": "Send reset link",
+    "submitPending": "Sending…"
+  },
+  "resetConfirm": {
+    "title": "Set a new password",
+    "newPassword": "New password",
+    "submit": "Set password",
+    "submitPending": "Saving…"
+  },
+  "newOrganization": {
+    "name": "Organization name",
+    "slug": "Slug (address, e.g. my-company)",
+    "submit": "Create organization",
+    "submitPending": "Creating…"
+  },
+  "invitations": {
+    "title": "Member invitations",
+    "sentHeading": "Sent invitations",
+    "statusAccepted": "accepted",
+    "statusPending": "pending"
+  },
+  "security": {
+    "title": "Security",
+    "enrollSubmit": "Enable two-factor authentication",
+    "enrollPending": "Preparing…",
+    "scanHint": "Scan the QR code with an authenticator app (e.g. Google Authenticator) or enter the secret manually:",
+    "qrAlt": "TOTP QR code",
+    "codeLabel": "Code from your app (6 digits)",
+    "verifySubmit": "Confirm code",
+    "verifyPending": "Verifying…"
+  },
+  "mfaChallenge": {
+    "title": "Confirm your identity",
+    "body": "This section requires two-factor authentication. Enter the code from your authenticator app.",
+    "codeLabel": "Code from your authenticator app (6 digits)",
+    "submit": "Confirm",
+    "submitPending": "Verifying…"
+  }
+}

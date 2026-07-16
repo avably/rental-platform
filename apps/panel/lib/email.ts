@@ -5,9 +5,12 @@
  * dev-fallback: log do konsoli serwera (link zaproszenia widoczny do
  * ręcznego testu lokalnego, bez zewnętrznej usługi).
  *
- * TODO(Task 3 infra): dodać RESEND_API_KEY + zweryfikowaną domenę nadawcy
- * (RESEND_FROM_EMAIL) po stronie hostingu.
+ * TODO(Task 3 infra): dodać RESEND_API_KEY + zweryfikować domenę nadawcy
+ * `avably.io` w Resend po stronie hostingu; do tego czasu `RESEND_FROM_EMAIL`
+ * musi wskazywać nadawcę z domeny już zweryfikowanej.
  */
+import { DEFAULT_FROM_EMAIL } from "@avably/core";
+
 let warnedDevSkip = false;
 
 export async function sendInvitationEmail(opts: { to: string; acceptUrl: string }): Promise<void> {
@@ -28,7 +31,7 @@ export async function sendInvitationEmail(opts: { to: string; acceptUrl: string 
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev",
+      from: process.env.RESEND_FROM_EMAIL ?? DEFAULT_FROM_EMAIL,
       to: opts.to,
       subject: "Zaproszenie do organizacji",
       html: `<p>Zostałeś(-aś) zaproszony(-a) do organizacji.</p><p><a href="${opts.acceptUrl}">Dołącz do organizacji</a></p>`,

@@ -1,0 +1,9 @@
+{
+  "app": {
+    "storefrontTitle": "Sklep",
+    "storefrontDescription": "Sklep dla klientów"
+  },
+  "home": {
+    "title": "Sklep"
+  }
+}

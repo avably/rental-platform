@@ -1,5 +1,5 @@
 {
-  "name": "@rental/core",
+  "name": "@avably/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,6 +11,7 @@
     "lint": "eslint ."
   },
   "devDependencies": {
+    "@types/node": "^20",
     "typescript": "^5.6.0",
     "vitest": "^4.1.10"
   }
