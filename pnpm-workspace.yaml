@@ -1,3 +1,15 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm nie uruchamia skryptów instalacyjnych zależności, dopóki nie zostaną
+# jawnie dopuszczone. Poniższa lista to pakiety kompilujące natywne binaria
+# potrzebne do builda (Turbopack/SWC, bundler, przetwarzanie obrazów). Lista
+# jest celowo minimalna — każdy wpis to zgoda na wykonanie kodu w trakcie
+# instalacji, więc nowe pozycje dodajemy tylko po sprawdzeniu, po co są.
+allowBuilds:
+  "@parcel/watcher": true
+  "@swc/core": true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
