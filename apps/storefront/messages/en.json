@@ -1,9 +1,256 @@
 {
   "app": {
-    "storefrontTitle": "Storefront",
-    "storefrontDescription": "Customer-facing storefront"
+    "storefrontTitle": "Avably",
+    "storefrontDescription": "A planned system for running an equipment rental business online."
   },
-  "home": {
-    "title": "Storefront"
+  "landing": {
+    "metadata": {
+      "title": "Avably — launch your rental business online",
+      "description": "Your own website and one planned system for bookings, availability, delivery, deposits and returns. Join the Avably waitlist.",
+      "ogTitle": "Take your rental business online in one day — Avably",
+      "ogDescription": "We are building Avably for equipment rental businesses. Join the waitlist and help set the priorities for the first release."
+    },
+    "header": {
+      "brand": "Avably",
+      "languageLabel": "Change language",
+      "polish": "PL",
+      "english": "EN",
+      "lightTheme": "Light theme",
+      "darkTheme": "Dark theme"
+    },
+    "hero": {
+      "eyebrow": "Avably is being built",
+      "title": "Launch your rental business online",
+      "body": "Your own website and one planned workspace for bookings, availability, delivery, deposits and returns. Our goal is to help you start taking rentals online in one day.",
+      "cta": "Join the waitlist",
+      "microcopy": "No payment. No commitment. We will get in touch when we are ready to invite the first businesses.",
+      "wireframe": {
+        "label": "Planned interface concept · Sample data",
+        "ariaLabel": "Planned availability calendar with a booking, return and deposit status",
+        "items": [
+          "Availability calendar",
+          "Rotary hammer 01",
+          "12–14 Sep · Reserved",
+          "15 Sep · Return and inspection",
+          "16 Sep · Available",
+          "Booking",
+          "Customer pickup",
+          "Deposit to settle"
+        ]
+      }
+    },
+    "problem": {
+      "title": "Manage what comes back",
+      "intro": "A sold item leaves the business. A rented item still has to come back — on time, in the right condition and ready for the next booking.",
+      "flow": "Booking → handover → in transit → return → inspection → available again",
+      "items": [
+        {
+          "title": "Prevent two bookings, one item",
+          "body": "The same unit is promised to two customers for the same weekend because the return and inspection window did not block the next booking."
+        },
+        {
+          "title": "Settle deposits without guesswork",
+          "body": "At return, someone has to decide what to refund, what to retain and how to explain the amount."
+        },
+        {
+          "title": "Find the current equipment status",
+          "body": "It may be with the customer, with a courier, at a pickup point or waiting for inspection — but there is no single view of where it stands."
+        }
+      ],
+      "closing": "Avably is being designed around the full rental cycle, not only the booking.",
+      "warehouseAlt": "Rows of equipment prepared for upcoming rentals",
+      "useAlt": "Work equipment in use away from the warehouse"
+    },
+    "capabilities": [
+      {
+        "eyebrow": "Planned capability",
+        "title": "Check availability before booking",
+        "body": "See whether a specific unit can go out and return without colliding with the next rental.",
+        "items": [
+          "Availability calendars for products and individual units",
+          "Reserved time for the rental, transport and return inspection",
+          "A clear view of rental extensions",
+          "Multiple pickup locations",
+          "Statuses for available, reserved, checked out and under inspection"
+        ],
+        "wireframeLabel": "Planned interface concept · Sample data",
+        "wireframeAriaLabel": "Planned availability view for an individual unit",
+        "wireframeItems": [
+          "Availability",
+          "Rotary hammer 01",
+          "Pickup location: Central",
+          "Booking · 12–14 Sep",
+          "Return inspection · 15 Sep",
+          "Next available · 16 Sep"
+        ]
+      },
+      {
+        "eyebrow": "Planned capability",
+        "title": "Handle pickup and delivery",
+        "body": "Keep the handover method with the booking instead of carrying arrangements across separate messages.",
+        "items": [
+          "Customer pickup at a selected location",
+          "Courier shipping",
+          "Parcel locker delivery",
+          "Delivery with your own vehicle",
+          "Planned handover and return dates",
+          "Delivery details needed by the team"
+        ],
+        "wireframeLabel": "Planned interface concept · Sample data",
+        "wireframeAriaLabel": "Planned delivery method and date selection",
+        "wireframeItems": [
+          "Delivery method",
+          "Customer pickup",
+          "Courier",
+          "Parcel locker",
+          "Own delivery",
+          "Planned handover · 12 Sep",
+          "Planned return · 14 Sep"
+        ]
+      },
+      {
+        "eyebrow": "Planned capability",
+        "title": "Settle deposits on return",
+        "body": "Close the rental with a clear record of timing, equipment condition and the amount returned to the customer.",
+        "items": [
+          "A record of the deposit collected",
+          "Refund and deduction amounts with a reason",
+          "Equipment condition at check-in",
+          "Rental extensions with a revised return date",
+          "Return shipping with a label",
+          "An activity history for the booking"
+        ],
+        "wireframeLabel": "Planned interface concept · Sample data",
+        "wireframeAriaLabel": "Planned return check-in and deposit settlement view",
+        "wireframeItems": [
+          "Check in return",
+          "Equipment · Rotary hammer 01",
+          "Condition · Needs inspection",
+          "Deposit collected · sample amount",
+          "Deposit refund · to be confirmed",
+          "Deduction reason · optional",
+          "Close rental"
+        ]
+      },
+      {
+        "eyebrow": "Planned capability",
+        "title": "Launch your own website",
+        "body": "Present your catalogue, available dates and pickup options on your rental business’s own domain.",
+        "items": [
+          "A rental website on your own domain",
+          "An equipment catalogue with variants and individual units",
+          "Availability shown alongside the offer",
+          "Booking with delivery or pickup selection",
+          "Multiple pickup locations",
+          "The information customers need before renting"
+        ],
+        "wireframeLabel": "Planned interface concept · Sample data",
+        "wireframeAriaLabel": "Planned website view for a rental business",
+        "wireframeItems": [
+          "Your rental business",
+          "Equipment",
+          "Available dates",
+          "Choose a pickup location",
+          "Check availability"
+        ]
+      }
+    ],
+    "founder": {
+      "title": "Build with someone who rents",
+      "paragraphs": [
+        "I run an equipment rental business. I know the weekend with two bookings against the same unit, the hunt for the deposit record and the question of whether an item is still with the customer, already in transit or waiting to be checked.",
+        "Avably comes from that day-to-day operational need. It is still at an early stage, so I do not want to guess how every rental business works. The first companies will help decide which workflows have to work first."
+      ],
+      "signature": "Maciej — founder of Avably and rental business owner"
+    },
+    "founders": {
+      "eyebrow": "An offer for the first 20 businesses",
+      "title": "Keep 50% off while subscribed",
+      "bodyBeforePrice": "Avably’s planned launch price is",
+      "price": "PLN 199 per month",
+      "bodyBetween": ". The first 20 businesses that move from the waitlist to a paid Founding plan will receive",
+      "discount": "50% off the current plan price for as long as their subscription remains active",
+      "bodyAfter": ".",
+      "listIntro": "Founding businesses will receive:",
+      "items": [
+        "an earlier invitation to testing and the pilot,",
+        "a say in the priorities for the first release,",
+        "help setting up their online rental operation,",
+        "email support with a response within 24 hours,",
+        "50% off the current plan price for as long as the subscription remains active."
+      ],
+      "cta": "Join the waitlist",
+      "microcopy": "Joining does not require payment or start a subscription. We will confirm Founding plan places before the paid service launches."
+    },
+    "form": {
+      "eyebrow": "4 short fields · about one minute",
+      "title": "Join the Avably waitlist",
+      "intro": "Tell us briefly what you rent and how you manage bookings today. Your answers will help keep the first release grounded in real rental operations.",
+      "emailLabel": "Work email*",
+      "emailPlaceholder": "you@company.com",
+      "emailHelp": "We will use this address for pilot and launch updates.",
+      "rentalTypeLabel": "What do you rent?*",
+      "selectPlaceholder": "Choose one option",
+      "rentalTypes": {
+        "tools_construction": "Tools and construction equipment",
+        "event": "Event equipment",
+        "sports_outdoor": "Sports and outdoor equipment",
+        "machinery": "Machinery and specialist equipment",
+        "other": "Other equipment"
+      },
+      "otherEquipmentLabel": "What kind of equipment?*",
+      "otherEquipmentPlaceholder": "Add a short description",
+      "inventoryLabel": "How many products or individual units do you manage?*",
+      "inventoryRanges": {
+        "r1_20": "1–20",
+        "r21_100": "21–100",
+        "r101_500": "101–500",
+        "r500_plus": "More than 500",
+        "launching": "I am preparing to launch a rental business"
+      },
+      "processLabel": "How do you manage bookings today?*",
+      "currentProcesses": {
+        "calendar_spreadsheet": "Calendar or spreadsheet",
+        "messages_phone": "Messages, phone calls and notes",
+        "internal_tool": "An internal process or tool",
+        "none": "I do not have a defined process yet"
+      },
+      "pilotHeading": "Pilot — optional",
+      "pilotLabel": "I would like to discuss joining the pilot and test Avably with a real workflow from my rental business.",
+      "phoneLabel": "Phone — optional",
+      "phonePlaceholder": "+00 000 000 000",
+      "phoneHelp": "Leave a number if you are happy for us to call. Otherwise, we will contact you by email.",
+      "consentBefore": "I would like to receive updates about the development and launch of Avably. I know I can unsubscribe at any time. Details are available in the",
+      "privacyLabel": "Privacy Policy",
+      "consentAfter": ".",
+      "cta": "Join the waitlist",
+      "submitting": "Joining…",
+      "microcopy": "No payment and no commitment. We will use your answers only to qualify the waitlist and discuss Avably with you.",
+      "errors": {
+        "required": "Complete this field.",
+        "invalidEmail": "Enter a valid email address.",
+        "selection": "Choose one option.",
+        "consent": "Confirm your consent to join the waitlist.",
+        "duplicate": "This email is already on the waitlist. You do not need to join again.",
+        "connection": "We could not send the form. Check your connection and try again.",
+        "server": "We could not save your submission. Try again in a moment. Your answers were not saved."
+      },
+      "success": {
+        "title": "You’re on the waitlist",
+        "bodyBeforeEmail": "Thank you. We have saved your email and answers. We will write to",
+        "bodyAfterEmail": ", when we are ready to invite the first businesses.",
+        "pilot": "We have also recorded your interest in the pilot. We will contact you by email to learn about your rental workflow.",
+        "edit": "Update my answers"
+      },
+      "disabled": {
+        "title": "The waitlist isn’t open yet",
+        "body": "The form is ready, but we’ll only start accepting submissions after the Privacy Policy is published. Please check back soon."
+      }
+    },
+    "footer": {
+      "description": "Avably — a planned system for running an equipment rental business online.",
+      "privacy": "Privacy Policy",
+      "copyright": "© Avably"
+    }
   }
 }

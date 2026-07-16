@@ -1,11 +1,53 @@
-import { useTranslations } from "next-intl";
+import { CANONICAL_SITE_URL, type Locale } from "@avably/core";
+import type { Metadata } from "next";
+import { hasLocale } from "next-intl";
+import { getMessages } from "next-intl/server";
+import { notFound } from "next/navigation";
 
-export default function Home() {
-  const t = useTranslations("home");
+import { LandingPage, type LandingCopy } from "@/components/landing-page";
+import { routing } from "@/i18n/routing";
+import enMessages from "@/messages/en.json";
+
+type AppMessages = typeof enMessages;
+
+// CSP wymaga nonce per żądanie; statyczny HTML nie może go nadać skryptom Next.js.
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
+  const messages = (await getMessages({ locale })) as AppMessages;
+  const metadata = messages.landing.metadata;
+  const canonical = `${CANONICAL_SITE_URL}/${locale}`;
+
+  return {
+    title: metadata.title,
+    description: metadata.description,
+    alternates: { canonical },
+    openGraph: {
+      title: metadata.ogTitle,
+      description: metadata.ogDescription,
+      locale,
+      type: "website",
+      url: canonical,
+    },
+  };
+}
+
+export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
+  const messages = (await getMessages({ locale })) as AppMessages;
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
-    </div>
+    <LandingPage
+      copy={messages.landing as LandingCopy}
+      locale={locale as Locale}
+      waitlistEnabled={process.env.WAITLIST_ENABLED === "true"}
+    />
   );
 }
