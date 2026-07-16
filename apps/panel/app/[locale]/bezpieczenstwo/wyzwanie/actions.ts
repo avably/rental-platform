@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { safeNextPath, totpChallengeSchema } from "@/lib/validation";
 
@@ -30,7 +31,7 @@ export async function challengeTotpAction(
 
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect(await localePath("/login"));
 
   const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
   if (factorsError) return { error: factorsError.message };
@@ -39,7 +40,7 @@ export async function challengeTotpAction(
   if (!factor) {
     // Brak zweryfikowanego czynnika — użytkownik trafił tu na skróty; jedyne
     // sensowne miejsce to ekran włączenia 2FA.
-    redirect("/bezpieczenstwo");
+    redirect(await localePath("/bezpieczenstwo"));
   }
 
   const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
@@ -56,5 +57,5 @@ export async function challengeTotpAction(
 
   // Sesja jest już aal2 (verify wymienia tokeny). `next` sanityzowany —
   // wyłącznie ścieżki wewnętrzne (ochrona przed open-redirect).
-  redirect(safeNextPath(formData.get("next")) ?? "/");
+  redirect(await localePath(safeNextPath(formData.get("next")) ?? "/"));
 }

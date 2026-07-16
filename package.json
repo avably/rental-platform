@@ -1,9 +1,9 @@
 {
   "name": "avably",
   "private": true,
-  "packageManager": "pnpm@8.15.8",
+  "packageManager": "pnpm@11.13.1",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "turbo run dev",

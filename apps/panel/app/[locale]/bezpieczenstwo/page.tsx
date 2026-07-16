@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { TotpEnrollForm } from "./form";
@@ -9,7 +10,7 @@ import { TotpEnrollForm } from "./form";
 export default async function SecurityPage() {
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect(await localePath("/login"));
 
   const t = await getTranslations("security");
 

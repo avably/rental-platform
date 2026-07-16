@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { acceptInvitationSchema } from "@/lib/validation";
 
@@ -22,7 +23,7 @@ export async function acceptInvitationAction(
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
   if (!ctx) {
-    redirect(`/login?next=/zaproszenie/${parsed.data.token}`);
+    redirect(await localePath("/login", { next: `/zaproszenie/${parsed.data.token}` }));
   }
 
   const { error } = await supabase.schema("app").rpc("accept_invitation", {
@@ -36,5 +37,5 @@ export async function acceptInvitationAction(
   // claimu tenant_id/role, więc wymuszamy nowy token przed przekierowaniem.
   await supabase.auth.refreshSession();
 
-  redirect("/");
+  redirect(await localePath("/"));
 }

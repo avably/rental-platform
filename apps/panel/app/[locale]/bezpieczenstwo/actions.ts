@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { totpVerifySchema } from "@/lib/validation";
 
@@ -20,7 +21,7 @@ export async function enrollTotpAction(
 ): Promise<EnrollState> {
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect(await localePath("/login"));
 
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
   if (error) return { error: error.message };
@@ -48,7 +49,7 @@ export async function verifyTotpAction(
 
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect(await localePath("/login"));
 
   const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
     factorId: parsed.data.factorId,

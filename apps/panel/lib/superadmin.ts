@@ -16,6 +16,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Plan, Subscription, Tenant, TenantStatus } from "@avably/db";
 
 import { AuthError, type AuthContext } from "./auth";
+import { localePath, type Query } from "./navigation";
 import { requireSuperadmin } from "./supabase-server";
 
 export const SUPERADMIN_HOME = "/admin/tenants";
@@ -32,10 +33,13 @@ export async function requireSuperadminPage(nextPath: string = SUPERADMIN_HOME):
   } catch (error) {
     if (!(error instanceof AuthError)) throw error;
 
-    const next = encodeURIComponent(nextPath);
-    if (error.code === "unauthenticated") redirect(`/login?next=${next}`);
-    if (error.code === "mfa_required") redirect(`/bezpieczenstwo/wyzwanie?next=${next}`);
-    if (error.code === "mfa_enrollment_required") redirect(`/bezpieczenstwo?next=${next}`);
+    // Cel przekierowania musi nieść locale, na którym user stał. Bez tego
+    // routing (localePrefix: "always") nada prefiks z wykrywania i wyrzuci
+    // np. Polaka z /pl/admin/tenants na /en/login.
+    const next: Query = { next: nextPath };
+    if (error.code === "unauthenticated") redirect(await localePath("/login", next));
+    if (error.code === "mfa_required") redirect(await localePath("/bezpieczenstwo/wyzwanie", next));
+    if (error.code === "mfa_enrollment_required") redirect(await localePath("/bezpieczenstwo", next));
     notFound();
   }
 }
