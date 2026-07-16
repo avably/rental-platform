@@ -53,6 +53,9 @@ export async function saveTiersAction(
   }
 
   const keptDays = parsed.data.map((tier) => tier.tierDays);
+  // Bez `.select("id")` po delete — ŚWIADOMY wyjątek od konwencji mutacji:
+  // zero skasowanych wierszy jest tu poprawnym wynikiem (nowy cennik bywa
+  // nadzbiorem starego), więc pusty wynik niczego by nie sygnalizował.
   let deleteQuery = ctx.supabase
     .from("pricing_tiers")
     .delete()
