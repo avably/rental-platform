@@ -23,6 +23,15 @@ describe("waitlist landing page", () => {
       );
 
       expect(html.match(/<h1(?:\s|>)/g)).toHaveLength(1);
+      expect(html).toContain('data-landing-section="statement"');
+      expect(html).toContain('data-wireframe-variant="hero"');
+      expect(html).toContain("landing-display");
+      expect(html).toContain("landing-statement");
+      expect(html).toContain("landing-dark-section");
+      expect(html.match(/data-hero-cta=/g)).toHaveLength(1);
+      expect(html.split(messages.landing.problem.intro)).toHaveLength(2);
+      expect(html).toContain(messages.landing.hero.wireframe.label);
+      expect(html).toContain(messages.landing.capabilities[0].wireframeLabel);
       expect(html).toContain(messages.landing.hero.title);
       expect(html).toContain(messages.landing.problem.title);
       expect(html).toContain(messages.landing.founder.title);

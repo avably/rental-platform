@@ -49,6 +49,36 @@
   letter-spacing: -0.04em;
 }
 
+.landing-hero > [data-wireframe-variant="hero"] {
+  position: absolute;
+  inset: 2rem;
+  z-index: -2;
+  min-height: calc(100% - 4rem);
+  opacity: 0.82;
+  transform: scale(1.08);
+}
+
+.landing-hero::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: color-mix(in oklch, var(--landing-ink) 84%, transparent);
+  content: "";
+}
+
+.landing-dark-section {
+  background: var(--landing-ink);
+  color: oklch(0.985 0.002 80);
+}
+
+.landing-dark-section .landing-secondary {
+  color: var(--landing-ink-muted);
+}
+
+.landing-pill {
+  border-radius: 9999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-reveal {
     animation: none;

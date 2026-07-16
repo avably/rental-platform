@@ -28,6 +28,10 @@ describe("landing visual system", () => {
     expect(css).toContain(".landing-display");
     expect(css).toContain(".landing-heading");
     expect(css).toContain(".landing-statement");
+    expect(css).toContain(".landing-hero");
+    expect(css).toContain(".landing-dark-section");
+    expect(css).toContain(".landing-pill");
     expect(css).toContain("prefers-reduced-motion: reduce");
+    expect(css).not.toMatch(/(?:linear|radial|conic)-gradient/);
   });
 });
