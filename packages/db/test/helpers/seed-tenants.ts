@@ -193,6 +193,86 @@ export async function listPlatformTablesWithoutRls(): Promise<string[]> {
   }
 }
 
+/**
+ * Zwraca nazwy WSZYSTKICH tabel w schemacie `public` — baza bramki
+ * uprawnień spoza zasięgu RLS (patrz packages/db/test/rls-isolation.test.ts).
+ *
+ * Osobna funkcja obok `listTenantTables` / `listPlatformTablesWithoutRls`,
+ * bo pyta o inny niezmiennik. Tamte dwie dzielą tabele wg tego, JAK się
+ * izolują (kolumna tenant_id vs polityki platformowe). TRUNCATE nie podlega
+ * politykom RLS w ogóle, więc ten podział jest tu bez znaczenia: bramka musi
+ * objąć każdą tabelę w `public`, per-tenant czy platformową, i nie może mieć
+ * furtki „tabela nie pasuje do żadnej kategorii".
+ *
+ * Wyłącznie relkind='r' (tabele zwykłe) — TRUNCATE dotyczy tabel, nie widoków.
+ */
+export async function listPublicTables(): Promise<string[]> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    const rows = await sql<{ tablename: string }[]>`
+      select c.relname as tablename
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind = 'r'
+      order by c.relname
+    `;
+    return rows.map((r) => r.tablename);
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
+/**
+ * Zwraca (tabela, rola, uprawnienie) dla każdego uprawnienia spoza zasięgu
+ * RLS, jakie role publiczne mają na tabelach `public` — lista, która w
+ * zielonym buildzie zawsze musi być pusta.
+ *
+ * DLACZEGO NIE information_schema.role_table_grants: ten widok zna wyłącznie
+ * przywileje z SQL/92 i NIE raportuje MAINTAIN (PostgreSQL 17+). Zapytanie
+ * diagnostyczne po nim pokazywało 3 uprawnienia i milczało o czwartym, choć
+ * `anon` miał je na wszystkich tabelach z 0001. `has_table_privilege` pyta
+ * silnik wprost i tego ślepego pola nie ma.
+ *
+ * Uwaga: `has_table_privilege` uwzględnia dziedziczenie przez członkostwo w
+ * rolach — czyli dokładnie to, co realnie może rola, a nie to, co jej nadano
+ * bezpośrednio. Dla bramki bezpieczeństwa to jedyna sensowna semantyka.
+ */
+export interface RlsBypassingGrant {
+  table: string;
+  role: string;
+  privilege: string;
+}
+
+/** Uprawnienia, których RLS nie widzi, a aplikacja ich dla ról publicznych nie potrzebuje. */
+export const RLS_BYPASSING_PRIVILEGES = ["TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"] as const;
+export const PUBLIC_ROLES = ["anon", "authenticated"] as const;
+
+export async function listRlsBypassingGrants(): Promise<RlsBypassingGrant[]> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    // Listy ról i uprawnień wstawiane jako literały, nie parametry: to
+    // stałe modułowe (żadna nie pochodzi z zewnątrz, więc nie ma tu
+    // powierzchni na wstrzyknięcie), a parametr tablicowy postgres.js
+    // dojeżdża do serwera nieotypowany i `unnest` odrzuca go jako `text`.
+    const values = (items: readonly string[]) => items.map((item) => `('${item}')`).join(", ");
+    const rows = await sql.unsafe<RlsBypassingGrant[]>(`
+      select c.relname as table, r.role, p.privilege
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      cross join (values ${values(PUBLIC_ROLES)}) as r(role)
+      cross join (values ${values(RLS_BYPASSING_PRIVILEGES)}) as p(privilege)
+      where n.nspname = 'public'
+        and c.relkind = 'r'
+        and has_table_privilege(r.role, c.oid, p.privilege)
+      order by c.relname, r.role, p.privilege
+    `);
+    return rows.map((row) => ({ table: row.table, role: row.role, privilege: row.privilege }));
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
 // -----------------------------------------------------------------------
 // Fabryki przykładowych wierszy — dane DO testu macierzy izolacji
 // -----------------------------------------------------------------------

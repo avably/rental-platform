@@ -1,0 +1,101 @@
+-- 0008_privileges_hardening.sql
+-- Domknięcie długu z ADR-016: uprawnienia spoza zasięgu RLS na tabelach z 0001.
+--
+-- KONTEKST. 0006 zamknęło TRUNCATE dla `waitlist_signups` jawnym
+-- `revoke all ... from anon, authenticated`, ale tabele z 0001 (tenants,
+-- members, invitations, plans, subscriptions, usage_counters, audit_log)
+-- powstały bez tego revoke i nadal niosą domyślne uprawnienia Supabase.
+-- Zweryfikowane na żywej bazie przed tą migracją — dla każdej z 7 tabel obie
+-- role publiczne miały TRUNCATE, REFERENCES, TRIGGER i MAINTAIN.
+--
+-- ŹRÓDŁO. Nie jest nim `alter default privileges ... grant all` roli
+-- `supabase_admin` (ta dotyczy tabel tworzonych przez supabase_admin), tylko
+-- DRUGI wpis w pg_default_acl — dla roli `postgres`, właściciela wszystkich
+-- naszych tabel i roli, na której wykonują się migracje:
+--
+--   postgres | public | r | {... anon=Dxtm/postgres, authenticated=Dxtm/postgres ...}
+--
+-- Dxtm = TRUNCATE, REFERENCES, TRIGGER, MAINTAIN. Dokładnie ten zestaw widać
+-- na tabelach z 0001 — i to on, nie wpis supabase_admin, jest przyczyną.
+--
+-- MAINTAIN (PostgreSQL 17+) NIE jest raportowany przez
+-- information_schema.role_table_grants — tamten widok zna tylko przywileje
+-- z SQL/92. Zapytanie diagnostyczne po role_table_grants pokazuje więc 3
+-- uprawnienia i milczy o czwartym; `has_table_privilege(..., 'MAINTAIN')`
+-- pokazuje je wprost. Stąd ta migracja odbiera CZTERY, nie trzy.
+--
+-- DLACZEGO TO GROŹNE. TRUNCATE nie podlega politykom RLS: rola z tym
+-- uprawnieniem czyści tabelę niezależnie od tego, jak szczelne są polityki.
+-- Pozostałe trzy to mniejszy kaliber, ale ta sama kategoria — uprawnienia,
+-- których RLS nie widzi i których aplikacja nie potrzebuje:
+--   REFERENCES — klucz obcy do naszej tabeli blokuje kasowanie wierszy
+--                (DELETE zaczyna zależeć od cudzego obiektu),
+--   TRIGGER    — własny trigger na naszej tabeli wykonuje kod przy zapisie
+--                ścieżką aplikacji,
+--   MAINTAIN   — VACUUM/ANALYZE/REINDEX/CLUSTER/REFRESH na naszej tabeli.
+--
+-- Dziś nieosiągalne przez PostgREST (wykonuje wyłącznie SELECT/INSERT/
+-- UPDATE/DELETE/RPC) — to defense-in-depth, nie łatanie aktywnie otwartej
+-- dziury. Ale uprawnienie istnieje, a przy pierwszej funkcji SECURITY
+-- INVOKER albo iniekcji SQL staje się realne. Utrzymywanie go bez powodu to
+-- zakład o to, że żadna przyszła ścieżka nie da roli publicznej wykonać
+-- dowolnego SQL-a.
+--
+-- Zawartość:
+--   1. źródło — default privileges roli postgres (żeby NOWA tabela nie
+--      rodziła się z tymi uprawnieniami, nawet gdy autor zapomni revoke),
+--   2. skutek — tabele, które już istnieją.
+
+-- ---------------------------------------------------------------------
+-- 1. Źródło: default privileges
+-- ---------------------------------------------------------------------
+--
+-- Bez tego kroku każda następna tabela w `public` powtarza ten sam błąd i
+-- jedyną obroną jest pamięć autora migracji o `revoke all` z ADR-016.
+-- To zdejmuje problem u źródła: konwencja z ADR-016 zostaje jako jawność
+-- intencji, ale przestaje być JEDYNĄ bramką.
+--
+-- Zakres celowo ograniczony do roli `postgres`: to właściciel wszystkich
+-- tabel w `public` i rola, na której wykonują się migracje (zweryfikowane:
+-- pg_tables.tableowner = postgres dla 8/8 tabel). Wpisu dla `supabase_admin`
+-- ta migracja NIE rusza — `pg_has_role('postgres','supabase_admin','member')`
+-- = false, więc postgres nie ma do tego prawa, a próba wywaliłaby migrację.
+-- Tabela stworzona przez supabase_admin (np. ręcznie przez Studio) nadal
+-- dostanie komplet domyślnych grantów — łapie to bramka testowa w
+-- packages/db/test/rls-isolation.test.ts, która sprawdza KAŻDĄ tabelę w
+-- `public` niezależnie od tego, kto ją utworzył i jaką migracją.
+alter default privileges for role postgres in schema public
+  revoke truncate, references, trigger, maintain on tables from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- 2. Skutek: tabele, które już istnieją
+-- ---------------------------------------------------------------------
+--
+-- DECYZJA: punktowy `revoke` czterech uprawnień zamiast `revoke all` +
+-- odtworzenie grantów.
+--
+-- `revoke all` + regrant ma tę zaletę, że zapisuje docelowy stan w jednym
+-- miejscu, ale wymaga odtworzenia grantów z 0001 i 0004 CO DO LITERY —
+-- a te są niejednorodne (plans: sam SELECT; audit_log: SELECT z 0001 +
+-- INSERT dokleiony w 0004; reszta: pełne CRUD). Każda pomyłka w tym
+-- przepisywaniu to albo cicha utrata dostępu aplikacji, albo cichy nadmiar
+-- uprawnień — czyli dokładnie ta klasa błędu, którą ta migracja zamyka.
+--
+-- Punktowy revoke nie zna listy grantów, więc nie może jej przekłamać:
+-- zdejmuje wyłącznie te cztery uprawnienia, a SELECT/INSERT/UPDATE/DELETE
+-- zostawia nietknięte, czymkolwiek zostały nadane. `on all tables in schema`
+-- obejmuje przy tym każdą tabelę bez wyliczania nazw — również
+-- `waitlist_signups` (tam no-op, 0006 już to zdjęło) i każdą tabelę, która
+-- powstałaby między 0006 a tą migracją.
+--
+-- Granty aplikacji zweryfikowane przed i po (patrz dziennik w
+-- docs/dokumentacja/index.html): macierz SELECT/INSERT/UPDATE/DELETE dla
+-- authenticated i service_role jest bit w bit identyczna, znika wyłącznie
+-- TRUNCATE/REFERENCES/TRIGGER/MAINTAIN dla ról publicznych.
+--
+-- `service_role` celowo POZA zakresem: to rola zaufana, omijająca RLS z
+-- definicji (klucz nigdy nie opuszcza serwera), a seeding testów izolacji
+-- realnie z niej korzysta. Odebranie jej TRUNCATE nic nie utwardza —
+-- rola, która i tak może `delete from`, nie zyskuje niczego przez TRUNCATE.
+revoke truncate, references, trigger, maintain on all tables in schema public
+  from anon, authenticated;
