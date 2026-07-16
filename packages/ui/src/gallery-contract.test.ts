@@ -3,9 +3,12 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(process.cwd(), "../..");
+
+// Trasy obu apek mieszkają pod segmentem [locale] (routing next-intl, ADR-013),
+// więc layout i galeria nie leżą bezpośrednio w app/.
 const panelGallery = resolve(
   repositoryRoot,
-  "apps/panel/app/design-system/page.tsx",
+  "apps/panel/app/[locale]/design-system/page.tsx",
 );
 
 describe("integracja design systemu", () => {
@@ -31,7 +34,7 @@ describe("integracja design systemu", () => {
         "utf8",
       );
       const layout = readFileSync(
-        resolve(repositoryRoot, `apps/${application}/app/layout.tsx`),
+        resolve(repositoryRoot, `apps/${application}/app/[locale]/layout.tsx`),
         "utf8",
       );
 
