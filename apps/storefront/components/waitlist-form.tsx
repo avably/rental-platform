@@ -85,10 +85,13 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [submittedPilot, setSubmittedPilot] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
+  const resultFocusArmedRef = useRef(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (view.kind !== "idle" && view.kind !== "submitting") resultRef.current?.focus();
+    if (!resultFocusArmedRef.current || !isWaitlistResultVisible(view.kind)) return;
+    resultFocusArmedRef.current = false;
+    resultRef.current?.focus();
   }, [view]);
 
   const fields: WaitlistFieldErrors = view.kind === "validation" ? view.fields : {};
@@ -106,6 +109,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    resultFocusArmedRef.current = true;
     if (!enabled) {
       setView({ kind: "disabled" });
       return;
@@ -190,7 +194,12 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
           {copy.success.bodyAfterEmail}
         </p>
         {submittedPilot ? <p className="mt-3 leading-7 text-muted-foreground">{copy.success.pilot}</p> : null}
-        <Button className="mt-6" onClick={() => setView({ kind: "idle" })} type="button" variant="outline">
+        <Button
+          className="landing-pill landing-ghost-pill mt-6 px-6"
+          onClick={() => setView({ kind: "idle" })}
+          type="button"
+          variant="outline"
+        >
           {copy.success.edit}
         </Button>
       </div>
@@ -418,7 +427,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />
         </div>
 
-        <Button className="min-h-11 w-full" disabled={unavailable} size="lg" type="submit">
+        <Button className="landing-pill min-h-12 w-full" disabled={unavailable} size="lg" type="submit">
           {view.kind === "submitting" ? copy.submitting : copy.cta}
         </Button>
       </fieldset>

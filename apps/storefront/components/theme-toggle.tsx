@@ -21,7 +21,7 @@ export function ThemeToggle({ darkLabel, lightLabel }: ThemeToggleProps) {
     <button
       aria-label={dark ? lightLabel : darkLabel}
       aria-pressed={dark}
-      className="min-h-9 rounded-md border border-border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="landing-ghost-pill min-h-10 px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
       onClick={toggleTheme}
       type="button"
     >
