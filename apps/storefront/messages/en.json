@@ -247,6 +247,32 @@
         "body": "The form is ready, but we’ll only start accepting submissions after the Privacy Policy is published. Please check back soon."
       }
     },
+    "faq": {
+      "eyebrow": "Common questions",
+      "title": "Before you join the list",
+      "items": [
+        {
+          "question": "Do I need to have a website already?",
+          "answer": "No. A rental website on your own domain is one planned part of Avably. If you already have a website, we will only decide how to connect or replace it after understanding your current setup."
+        },
+        {
+          "question": "How long will setup take?",
+          "answer": "Our goal is to reduce the time needed to start taking rentals online to one day, but this is not yet a guaranteed setup time. The actual timeline will depend on factors such as catalogue size, available data and the rental business’s configuration. The product is still being built, and we will validate this goal with the first businesses."
+        },
+        {
+          "question": "What can I use today?",
+          "answer": "Avably is at an early stage of development. The screens on this page are planned interface concepts and use sample data. Joining the waitlist or expressing interest in the pilot does not provide immediate access to a finished service."
+        },
+        {
+          "question": "What exactly does the 50% Founding discount mean, and how long does it last?",
+          "answer": "The first 20 businesses that move from the waitlist to a paid Founding plan will receive 50% off the current plan price for as long as their subscription remains active. Joining the waitlist does not start a payment or confirm a place; we will confirm places before the paid service launches."
+        },
+        {
+          "question": "What happens to my data, and when will sign-ups open?",
+          "answer": "The form will not accept any real submission until a working Privacy Policy has been published. Until then, its fields remain visible but disabled. Once sign-ups open, the policy will explain what data we collect, why we use it and how consent can be withdrawn."
+        }
+      ]
+    },
     "footer": {
       "description": "Avably — a planned system for running an equipment rental business online.",
       "privacy": "Privacy Policy",

@@ -2,6 +2,7 @@ import Image from "next/image";
 
 import enMessages from "@/messages/en.json";
 
+import { FaqAccordion } from "./faq-accordion";
 import { LandingAnalytics } from "./landing-analytics";
 import { LandingWireframe } from "./landing-wireframes";
 import { LanguageSwitcher } from "./language-switcher";
@@ -217,6 +218,24 @@ export function LandingPage({ copy, locale, waitlistEnabled }: LandingPageProps)
             </h2>
             <p className="mt-5 text-lg leading-8 text-muted-foreground">{copy.form.intro}</p>
             <WaitlistForm copy={copy.form} enabled={waitlistEnabled} locale={locale} />
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="faq-title"
+          className={`${sectionClass} border-t border-border bg-landing-warm`}
+          data-analytics-section="faq"
+        >
+          <div className="mx-auto max-w-4xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              {copy.faq.eyebrow}
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl" id="faq-title">
+              {copy.faq.title}
+            </h2>
+            <div className="mt-10">
+              <FaqAccordion items={copy.faq.items} />
+            </div>
           </div>
         </section>
       </main>

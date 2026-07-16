@@ -28,6 +28,14 @@ describe("waitlist landing page", () => {
       expect(html).toContain(messages.landing.founder.title);
       expect(html).toContain(messages.landing.founders.title);
       expect(html).toContain(messages.landing.form.title);
+      expect(messages.landing.faq.items).toHaveLength(5);
+      expect(html).toContain(messages.landing.faq.title);
+      for (const item of messages.landing.faq.items) {
+        expect(html).toContain(item.question);
+        expect(html).toContain(item.answer);
+      }
+      expect(html.match(/aria-expanded="false"/g)).toHaveLength(5);
+      expect(html).toContain('data-analytics-section="faq"');
       expect(html).toContain(messages.landing.form.disabled.title);
       expect(html).toContain('<form');
       expect(html).toContain('for="waitlist-email"');
