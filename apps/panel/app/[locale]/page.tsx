@@ -9,6 +9,9 @@ export default function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-6">
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <nav className="flex flex-col items-center gap-2 text-sm">
+        <Link className="underline" href="/zamowienia">
+          {t("ordersLink")}
+        </Link>
         <Link className="underline" href="/katalog">
           {t("catalogLink")}
         </Link>
