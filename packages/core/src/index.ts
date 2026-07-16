@@ -27,3 +27,20 @@ export {
   bcp47,
   type Locale,
 } from "./locale";
+
+export {
+  addDays,
+  assertIsoDate,
+  rangesOverlapInclusive,
+  rentalDaysInclusive,
+  checkAvailability,
+  calculatePrice,
+  type IsoDate,
+  type AvailabilityParams,
+  type AvailabilityResult,
+  type BookedRange,
+  type UnitServiceWindow,
+  type PriceParams,
+  type PriceResult,
+  type PricingTier,
+} from "./rental";
