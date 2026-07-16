@@ -19,3 +19,13 @@ export {
   type PriceResult,
   type PricingTier,
 } from "./pricing";
+
+export {
+  AVAILABILITY_BLOCKING_ORDER_STATUSES,
+  BLOCKING_PAYMENT_STATUSES,
+  canTransition,
+  ORDER_STATUSES,
+  PAYMENT_STATUSES,
+  type OrderStatus,
+  type PaymentStatus,
+} from "./order-status";
