@@ -1,0 +1,115 @@
+-- 0009_sequence_privileges_hardening.sql
+-- Domknięcie długu z ADR-020: ten sam mechanizm, co w 0008, ale dla SEKWENCJI.
+--
+-- KONTEKST. 0008 naprawiło domyślne uprawnienia roli `postgres` w schemacie
+-- `public` dla TABEL (objtype `r` w pg_default_acl) i przeoczyło drugi wpis
+-- tej samej roli — dla SEKWENCJI (objtype `S`). Zweryfikowane na żywej bazie
+-- po 0008:
+--
+--   postgres | public | S | {postgres=rwU/postgres, anon=w/postgres,
+--                            authenticated=w/postgres, service_role=w/postgres}
+--
+-- `w` = UPDATE. Skutek widać na jedynej dziś sekwencji w `public`:
+--
+--   audit_log_id_seq | {postgres=rwU/postgres, anon=w/postgres,
+--                       authenticated=w/postgres, service_role=w/postgres}
+--
+-- Czyli obie role publiczne mają UPDATE. USAGE i SELECT — nie (sprawdzone
+-- przez has_sequence_privilege: USAGE=f, SELECT=f, UPDATE=t dla anon).
+--
+-- DLACZEGO TO GROŹNE. UPDATE na sekwencji to dokładnie jedno uprawnienie:
+-- prawo do `setval` (i `nextval`). `setval` COFA licznik. audit_log to
+-- dziennik audytu superadmina — tabela z założenia append-only, w której
+-- `id` jest kluczem głównym. Cofnięty licznik oznacza, że kolejne wpisy
+-- audytu dostają identyfikatory już zajęte, czyli:
+--   - kolizję klucza głównego (23505) na append-only dzienniku, czyli
+--     odmowę zapisu audytu — DoS na ścieżce, która ma być niezawodna,
+--   - a przy luce w numeracji: przemieszanie porządku wpisów, czyli utratę
+--     wiarygodności samego dziennika jako dowodu.
+--
+-- Sekwencje nie podlegają RLS w ogóle — nie ma na nich polityk. Tu nie
+-- chodzi więc o „uprawnienie spoza zasięgu RLS" w tym sensie, co TRUNCATE
+-- na tabeli; sekwencja po prostu nie ma innej ochrony niż uprawnienia.
+-- Tym bardziej nie ma powodu, by rola publiczna miała do niej cokolwiek.
+--
+-- DOWÓD, ŻE UPRAWNIENIE JEST REALNE (żywa baza, przed tą migracją):
+--   begin; set local role anon;
+--   select setval('public.audit_log_id_seq', 1);  -->  zwraca 1 (SUKCES)
+--
+-- Dziś nieosiągalne przez PostgREST — nie wykonuje `setval`, a `nextval`
+-- idzie ścieżką identity (patrz niżej). To defense-in-depth, nie łatanie
+-- aktywnie otwartej dziury. Ale uprawnienie istnieje, a przy pierwszej
+-- funkcji SECURITY INVOKER albo iniekcji SQL staje się realne — dokładnie
+-- ta sama kategoria zakładu, co w 0008.
+--
+-- DLACZEGO REVOKE NIE PSUJE ZAPISU DO audit_log. To jest jedyne miejsce,
+-- gdzie ta migracja mogłaby cicho uszkodzić aplikację, więc zostało
+-- sprawdzone wprost, a nie założone. `nextval` wymaga USAGE **albo** UPDATE
+-- na sekwencji — gdyby `audit_log.id` był typem `serial`, odebranie UPDATE
+-- zabiłoby INSERT dla `authenticated` (grant z 0004). Ale kolumna jest
+-- zadeklarowana jako:
+--
+--   id bigint generated always as identity primary key   (0001_core.sql)
+--
+-- a dla kolumn IDENTITY Postgres NIE sprawdza uprawnień do sekwencji —
+-- jest ona wewnętrzną własnością kolumny (pg_depend.deptype = 'i'), nie
+-- samodzielnym obiektem, do którego rola sięga po prawa. Zweryfikowane
+-- empirycznie na żywej bazie: po komplecie revoke z tej migracji INSERT do
+-- `public.audit_log` nadal przechodzi i zwraca nowe `id`.
+--
+-- KOSZT, ŚWIADOMIE PRZYJĘTY: gdyby przyszła tabela użyła `serial`/`bigserial`
+-- zamiast `generated as identity`, INSERT ścieżką aplikacji wymagałby jawnego
+-- `grant usage on sequence ... to authenticated`. Konwencją repo jest identity
+-- (0001), a wyłom byłby głośny — INSERT wywala się od razu, w testach, a nie
+-- po cichu. To lepsza strona kompromisu niż trzymanie UPDATE dla anona.
+--
+-- Zawartość — struktura jak w 0008:
+--   1. źródło — default privileges roli postgres (żeby NOWA sekwencja nie
+--      rodziła się z tym uprawnieniem, nawet gdy autor zapomni revoke),
+--   2. skutek — sekwencje, które już istnieją.
+
+-- ---------------------------------------------------------------------
+-- 1. Źródło: default privileges dla sekwencji
+-- ---------------------------------------------------------------------
+--
+-- Bez tego kroku każda następna sekwencja w `public` — a rodzi się ona
+-- niejawnie, przy KAŻDEJ kolumnie identity, bez ani jednej linijki o
+-- sekwencjach w migracji — powtarza ten sam błąd.
+--
+-- Zakres celowo ograniczony do roli `postgres`, dokładnie jak w 0008: to
+-- właściciel obiektów w `public` i rola, na której wykonują się migracje.
+-- Wpisu dla `supabase_admin` (który dla objtype `S` daje rolom publicznym
+-- komplet `rwU`) ta migracja NIE rusza — `pg_has_role('postgres',
+-- 'supabase_admin','member')` = false, więc próba wywaliłaby migrację.
+-- Sekwencję stworzoną przez supabase_admin łapie bramka testowa w
+-- packages/db/test/rls-isolation.test.ts, która sprawdza KAŻDĄ sekwencję w
+-- `public` niezależnie od tego, kto ją utworzył i jaką migracją.
+--
+-- Odbierane są WSZYSTKIE TRZY uprawnienia sekwencyjne, choć dziś realnie
+-- nadane jest tylko UPDATE. USAGE i SELECT to w tym zdaniu no-op — ale
+-- domyślne ACL roli supabase_admin nadaje komplet `rwU`, więc pełna lista
+-- opisuje INTENCJĘ (rola publiczna nie ma do sekwencji nic), zamiast
+-- kodować przygodny stan dzisiejszego katalogu.
+alter default privileges for role postgres in schema public
+  revoke usage, select, update on sequences from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- 2. Skutek: sekwencje, które już istnieją
+-- ---------------------------------------------------------------------
+--
+-- `on all sequences in schema` obejmuje każdą sekwencję bez wyliczania nazw
+-- — dziś jest to wyłącznie `audit_log_id_seq`, ale migracja nie zna tej
+-- listy i nie może jej przekłamać ani przeterminować.
+--
+-- Punktowy revoke trzech uprawnień zamiast `revoke all` — z tego samego
+-- powodu, co w 0008: `revoke all` + regrant wymagałby odtworzenia grantów
+-- co do litery, a każda pomyłka to cicha utrata dostępu albo cichy nadmiar
+-- uprawnień. Tutaj różnica jest zresztą pozorna (trzy uprawnienia to komplet
+-- praw do sekwencji), ale zdanie zostaje symetryczne do 0008 i czytelne
+-- co do intencji.
+--
+-- `service_role` celowo POZA zakresem — spójnie z 0008: to rola zaufana,
+-- omijająca RLS z definicji (klucz nigdy nie opuszcza serwera). Odebranie
+-- jej UPDATE na sekwencji nic nie utwardza.
+revoke usage, select, update on all sequences in schema public
+  from anon, authenticated;

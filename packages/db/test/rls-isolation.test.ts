@@ -39,6 +39,8 @@ import {
   cleanupSeeded,
   createAdminClient,
   listPlatformTablesWithoutRls,
+  listPublicRoleSequenceGrants,
+  listPublicSequences,
   listPublicTables,
   listRlsBypassingGrants,
   listTenantTables,
@@ -457,6 +459,181 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
           grants,
           `nowa tabela urodziła się z uprawnieniami spoza zasięgu RLS ` +
             `(default privileges roli postgres nie są naprawione — patrz 0008):\n` +
+            grants.map((g) => `  ${g.role} → ${g.privilege}`).join("\n"),
+        ).toEqual([]);
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Uprawnienia do SEKWENCJI — druga połowa tego samego problemu (0009)
+  // ---------------------------------------------------------------------
+  //
+  // Bramka wyżej pyta o `relkind='r'` i przez to nie widziała sekwencji ani
+  // przez moment: `pg_default_acl` ma dla roli `postgres` w schemacie `public`
+  // DWA wpisy — objtype 'r' (tabele, naprawione w 0008) i objtype 'S'
+  // (sekwencje, przeoczone). Skutek: `anon` i `authenticated` miały UPDATE na
+  // `audit_log_id_seq`, a cała macierz wyżej świeciła zielono.
+  //
+  // UPDATE na sekwencji to prawo do `setval`, czyli do COFNIĘCIA licznika.
+  // audit_log jest append-only dziennikiem audytu superadmina z `id` jako
+  // kluczem głównym — cofnięty licznik to kolizje PK, czyli odmowa zapisu
+  // audytu i utrata wiarygodności dziennika (patrz 0009).
+  //
+  // Sekwencje nie mają polityk RLS w ogóle — uprawnienia są ich JEDYNĄ
+  // ochroną. Ta bramka jest introspekcyjna z tego samego powodu, co
+  // tabelaryczna: sekwencja rodzi się NIEJAWNIE przy każdej kolumnie
+  // `generated as identity`, więc lista pisana ręcznie chroniłaby wyłącznie
+  // to, co ktoś pamiętał na nią wpisać — a o sekwencji nikt nie pamięta,
+  // bo nie pisze o niej ani słowa w migracji.
+  describe("uprawnienia do sekwencji (setval i pokrewne)", () => {
+    it("żadna rola publiczna nie ma USAGE/SELECT/UPDATE na żadnej sekwencji public", async () => {
+      const grants = await listPublicRoleSequenceGrants();
+      expect(
+        grants,
+        `role publiczne mają uprawnienia do sekwencji:\n` +
+          grants.map((g) => `  ${g.sequence}: ${g.role} → ${g.privilege}`).join("\n"),
+      ).toEqual([]);
+    });
+
+    it("introspekcja widzi wszystkie sekwencje public (bramka nie może być pusta)", async () => {
+      // Bez tego asercja `toEqual([])` wyżej przechodzi także wtedy, gdy
+      // zapytanie nic nie zwraca z powodu literówki czy zmiany schematu —
+      // pusty wynik znaczyłby wtedy „nie ma czego sprawdzać", a nie „jest
+      // czysto". Test sprawdza sam czujnik, nie schemat.
+      const sequences = await listPublicSequences();
+      expect(sequences, "introspekcja nie zwróciła żadnej sekwencji w public").not.toHaveLength(0);
+      expect(sequences, "introspekcja zgubiła sekwencję audit_log_id_seq (0001)").toContain(
+        "audit_log_id_seq",
+      );
+    });
+
+    it("setval jest odmawiany realnym zdaniem SQL na każdej sekwencji, dla obu ról publicznych", async () => {
+      // Dowód ZACHOWANIA, nie samego katalogu uprawnień: test wyżej czyta ACL,
+      // ten wykonuje `setval` i sprawdza, że silnik odmawia.
+      //
+      // Asercja na KOD 42501 (insufficient_privilege), nie na „cokolwiek
+      // rzuciło" — ta sama pułapka, co przy TRUNCATE/0A000 w 0008. Zweryfikowane
+      // na żywej bazie: odmowa pada z `do_setval` (sequence.c) właśnie kodem
+      // 42501. Zliczanie każdego wyjątku jako sukcesu maskowałoby np. literówkę
+      // w nazwie sekwencji (42P01) jako „bezpiecznie".
+      //
+      // Sonda w ROLLBACK-u: `setval` NIE jest transakcyjny w tym sensie, że
+      // zwykle nie da się go cofnąć — ale tu i tak nie wolno mu przejść, a
+      // gdyby przeszedł (regresja), rollback ogranicza szkodę na lokalnej bazie.
+      const sequences = await listPublicSequences();
+      const roles = ["anon", "authenticated"] as const;
+
+      const failures: string[] = [];
+      for (const sequence of sequences) {
+        for (const role of roles) {
+          let code: string | undefined;
+          let succeeded = false;
+          try {
+            await sql.begin(async (tx) => {
+              await tx.unsafe(`set local role ${role}`);
+              try {
+                await tx.unsafe(`select setval('public.${sequence}', 1)`);
+                succeeded = true;
+              } catch (error) {
+                code = (error as { code?: string }).code;
+              }
+              throw new Rollback();
+            });
+          } catch (error) {
+            if (!(error instanceof Rollback)) throw error;
+          }
+
+          if (succeeded) {
+            failures.push(`${sequence}: ${role} COFNĄŁ licznik przez setval`);
+          } else if (code !== PG_INSUFFICIENT_PRIVILEGE) {
+            failures.push(
+              `${sequence}: ${role} — setval odrzucony kodem ${code}, oczekiwano ` +
+                `${PG_INSUFFICIENT_PRIVILEGE} (odmowa z innego powodu niż brak uprawnienia)`,
+            );
+          }
+        }
+      }
+
+      expect(failures, `setval nie jest odmawiany przez uprawnienia:\n${failures.join("\n")}`).toEqual(
+        [],
+      );
+    });
+
+    it("zapis do audit_log nadal działa mimo odebrania uprawnień do sekwencji", async () => {
+      // Bramka REGRESJI, nie bezpieczeństwa — pilnuje drugiej strony 0009.
+      //
+      // `nextval` wymaga USAGE **albo** UPDATE. Gdyby `audit_log.id` był
+      // typem `serial`, revoke z 0009 zabiłby INSERT dla ról aplikacyjnych.
+      // Nie jest — jest `generated always as identity`, a dla kolumn identity
+      // Postgres nie sprawdza uprawnień do sekwencji (jest ona wewnętrzną
+      // własnością kolumny). Ten test przypina TĘ zależność: gdyby ktoś
+      // przepisał kolumnę na `serial` albo poszerzył revoke o role
+      // aplikacyjne, zapis audytu przestałby działać i dowiemy się tutaj,
+      // a nie z produkcyjnego dziennika, który przestał przyjmować wpisy.
+      const subject = `seq-privs-regression-${randomUUID()}`;
+      const { data, error } = await admin
+        .from("audit_log")
+        .insert({ action: "test.sequence-privileges", subject })
+        .select("id")
+        .single();
+
+      expect(
+        error,
+        `INSERT do audit_log odrzucony po revoke uprawnień do sekwencji — ` +
+          `czy kolumna id nadal jest 'generated as identity'? (patrz 0009): ${error?.message}`,
+      ).toBeNull();
+      expect(data?.id, "INSERT do audit_log nie nadał id z sekwencji").toBeTypeOf("number");
+
+      await sql`delete from public.audit_log where subject = ${subject}`;
+    });
+
+    // Odpowiednik przynęty tabelarycznej dla `alter default privileges ... on
+    // sequences` z 0009. Bez tego bloku pierwsza sekcja tamtej migracji byłaby
+    // nieobjęta testem: bramki wyżej patrzą wyłącznie na sekwencje, które JUŻ
+    // istnieją, a skutek default privileges widać dopiero na obiekcie
+    // utworzonym PÓŹNIEJ.
+    describe("test-przynęta: NOWA sekwencja nie może rodzić się z uprawnieniami", () => {
+      const baitTable = `_seq_bait_${Date.now()}`;
+      const baitSequence = `${baitTable}_id_seq`;
+      let baitSql: ReturnType<typeof postgres>;
+
+      beforeEach(async () => {
+        baitSql = postgres(process.env.SUPABASE_LOCAL_URL as string, { max: 1 });
+        // Przynętą jest tabela z kolumną IDENTITY, nie gołe `create sequence`.
+        // To jest realna ścieżka, którą sekwencje powstają w tym repo (tak
+        // powstał audit_log_id_seq) — autor następnej migracji napisze
+        // dokładnie to i o sekwencji nie pomyśli. Przynęta ma odtwarzać jego
+        // zachowanie, nie wyidealizowane.
+        await baitSql.unsafe(`
+          create table public.${baitTable} (
+            id bigint generated always as identity primary key,
+            value text
+          )
+        `);
+      });
+
+      afterEach(async () => {
+        await baitSql.unsafe(`drop table if exists public.${baitTable}`);
+        await baitSql.end({ timeout: 5 });
+      });
+
+      it("introspekcja widzi sekwencję przynęty (przynęta faktycznie ją tworzy)", async () => {
+        // Przynęta bez tego testu mogłaby nie tworzyć żadnej sekwencji (np.
+        // gdyby zmieniła się nazwa albo składnia), a test niżej i tak byłby
+        // zielony — bo filtr nie znalazłby nic do zgłoszenia.
+        expect(
+          await listPublicSequences(),
+          "przynęta nie utworzyła sekwencji — test niżej nie ma czego sprawdzać",
+        ).toContain(baitSequence);
+      });
+
+      it("sekwencja świeżo utworzonej tabeli nie daje rolom publicznym żadnych uprawnień", async () => {
+        const grants = (await listPublicRoleSequenceGrants()).filter((g) => g.sequence === baitSequence);
+        expect(
+          grants,
+          `nowa sekwencja urodziła się z uprawnieniami dla ról publicznych ` +
+            `(default privileges roli postgres dla sekwencji nie są naprawione — patrz 0009):\n` +
             grants.map((g) => `  ${g.role} → ${g.privilege}`).join("\n"),
         ).toEqual([]);
       });
