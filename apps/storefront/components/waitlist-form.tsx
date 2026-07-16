@@ -3,6 +3,7 @@
 import { Button, Checkbox, Input, Label } from "@avably/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { Link } from "@/i18n/navigation";
 import { joinWaitlist } from "@/lib/actions/waitlist";
 import { captureLandingEvent } from "@/lib/analytics";
 import {
@@ -413,14 +414,9 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
             />
             <Label className="block leading-6 font-normal" htmlFor="waitlist-consent">
               {copy.consentBefore}{" "}
-              <a
-                aria-disabled="true"
-                className="font-medium underline underline-offset-4"
-                href="#privacy-policy-pending"
-                onClick={(event) => event.preventDefault()}
-              >
+              <Link className="font-medium underline underline-offset-4" href="/privacy">
                 {copy.privacyLabel}
-              </a>
+              </Link>
               {copy.consentAfter}
             </Label>
           </div>

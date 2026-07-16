@@ -314,7 +314,7 @@
       },
       "disabled": {
         "title": "Zapisy jeszcze nie ruszyły",
-        "body": "Formularz jest gotowy, ale przyjmowanie zgłoszeń uruchomimy dopiero po publikacji Polityki prywatności. Wróć tu wkrótce."
+        "body": "Formularz jest gotowy, ale zapisy nie są jeszcze uruchomione. Wróć tu wkrótce."
       }
     },
     "faq": {
@@ -338,8 +338,9 @@
           "answer": "Pierwsze 20 firm, które przejdą z waitlisty na płatny plan Founders, otrzyma 50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji. Sam zapis na waitlistę nie uruchamia płatności ani nie potwierdza miejsca — potwierdzimy je przed startem płatnej usługi."
         },
         {
-          "question": "Co z moimi danymi i kiedy startują zapisy?",
-          "answer": "Formularz nie przyjmie żadnego realnego zgłoszenia, dopóki nie opublikujemy działającej Polityki prywatności. Do tego czasu pola pozostają widoczne, ale wyłączone. Po uruchomieniu zapisów polityka wyjaśni, jakie dane zbieramy, po co ich używamy i jak można wycofać zgodę."
+          "question": "Jakie dane zbieracie?",
+          "answer": "Przy zapisie zbieramy adres e-mail i odpowiedzi z formularza, a numer telefonu tylko od osób zgłaszających się do pilotażu. Informacje o celu, czasie przechowywania i Twoich prawach znajdziesz w",
+          "linkLabel": "Polityce prywatności."
         }
       ]
     },
