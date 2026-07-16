@@ -22,12 +22,14 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { joinWaitlistCore, type WaitlistDeps, type WaitlistRpcOutcome } from "@/lib/waitlist/core";
 
+import { integrationEnv } from "./helpers/integration-env";
+
 const REQUIRED_ENV = [
   "SUPABASE_LOCAL_API_URL",
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
 ] as const;
-const hasEnv = REQUIRED_ENV.every((name) => Boolean(process.env[name]));
+const hasEnv = integrationEnv(REQUIRED_ENV);
 
 function client(key: string): SupabaseClient {
   return createClient(process.env.SUPABASE_LOCAL_API_URL as string, key, {

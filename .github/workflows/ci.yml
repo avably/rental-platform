@@ -13,7 +13,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      # Ten job nie ma lokalnego Supabase — testy integracyjne pokrywa
+      # równoległy job `rls`. Pominięcie musi być jawne: bez tej flagi
+      # strażnik (test/helpers/integration-env.ts) zamienia ciche pominięcie
+      # w czerwony wynik. Job `rls` biegnie BEZ flagi — tam zniknięcie
+      # zmiennych ma być błędem, nie pominięciem.
       - run: pnpm test
+        env: { ALLOW_INTEGRATION_SKIP: "1" }
       # Smoke-test nagłówków bezpieczeństwa (Zadanie 7): CSP z nonce (bez
       # 'unsafe-inline' w script-src) i HSTS na odpowiedzi middleware'u obu
       # aplikacji. Krok jest zawarty w `pnpm test` powyżej — wywołany jeszcze
@@ -21,6 +27,7 @@ jobs:
       # nazwą, a nie utonęła w zbiorczym wyniku.
       - name: Smoke-test nagłówków (CSP/HSTS)
         run: pnpm --filter @avably/security --filter storefront test
+        env: { ALLOW_INTEGRATION_SKIP: "1" }
       - run: pnpm audit --audit-level high
       - run: bash scripts/audit-public-env.sh
 

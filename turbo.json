@@ -3,7 +3,13 @@
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".next/**", "dist/**"] },
     "dev": { "cache": false, "persistent": true },
-    "test": { "dependsOn": ["^build"] },
+    // Tryb strict env (domyślny): zmienne spoza listy nie docierają do zadań.
+    // Bez tej listy `turbo run test` odcinał SUPABASE_LOCAL_* i testy
+    // integracyjne pomijały się po cichu mimo kompletu zmiennych w powłoce.
+    // Celowo `env`, nie `passThroughEnv`: wartości wchodzą do hasha cache,
+    // więc zielony wynik przebiegu „pominięte" nie zostanie odtworzony
+    // z cache w przebiegu, który zmienne ma (i odwrotnie).
+    "test": { "dependsOn": ["^build"], "env": ["SUPABASE_LOCAL_*", "ALLOW_INTEGRATION_SKIP"] },
     "lint": {},
     "typecheck": { "dependsOn": ["^build"] }
   }
