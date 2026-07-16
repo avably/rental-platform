@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { resetConfirmSchema } from "@/lib/validation";
 
@@ -30,5 +31,5 @@ export async function resetConfirmAction(
     return { error: error.message };
   }
 
-  redirect("/login?reset=ok");
+  redirect(await localePath("/login", { reset: "ok" }));
 }

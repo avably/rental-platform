@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { localePath } from "@/lib/navigation";
 import { setPostAuthNext } from "@/lib/post-auth-next";
 import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -54,5 +55,5 @@ export async function registerAction(
     setPostAuthNext(await cookies(), next);
   }
 
-  redirect("/register/sprawdz-skrzynke");
+  redirect(await localePath("/register/sprawdz-skrzynke"));
 }

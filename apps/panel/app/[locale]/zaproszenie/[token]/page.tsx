@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { AcceptInvitationForm } from "./form";
@@ -13,7 +14,7 @@ export default async function AcceptInvitationPage({
   const { token } = await params;
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  if (!ctx) redirect(`/login?next=/zaproszenie/${token}`);
+  if (!ctx) redirect(await localePath("/login", { next: `/zaproszenie/${token}` }));
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
+import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createTenantSchema } from "@/lib/validation";
 
@@ -25,7 +26,7 @@ export async function createTenantAction(
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
   if (!ctx) {
-    redirect("/login");
+    redirect(await localePath("/login"));
   }
 
   const { error } = await supabase.schema("app").rpc("create_tenant", {
@@ -42,5 +43,5 @@ export async function createTenantAction(
   // wstrzykuje go dopiero przy WYSTAWIENIU tokenu) — wymuszamy nowy token.
   await supabase.auth.refreshSession();
 
-  redirect("/");
+  redirect(await localePath("/"));
 }

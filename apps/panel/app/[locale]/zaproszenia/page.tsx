@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/logout";
+import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
 
 import { InviteMemberForm } from "./form";
@@ -12,7 +13,7 @@ export default async function InvitationsPage() {
   try {
     ctx = await requireMember("owner");
   } catch (err) {
-    if (err instanceof AuthError) redirect(err.status === 401 ? "/login" : "/");
+    if (err instanceof AuthError) redirect(await localePath(err.status === 401 ? "/login" : "/"));
     throw err;
   }
 
