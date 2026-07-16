@@ -282,6 +282,42 @@
       "changeTo": "Change to: {status}",
       "cancelBlockedHint": "Cancellation blocked — the payment must be settled (refunded) before cancelling.",
       "createdAt": "Created"
+    },
+    "deposit": {
+      "title": "Deposit",
+      "empty": "No deposit events yet — record a collection to open the settlement.",
+      "colDate": "Date",
+      "colKind": "Event",
+      "colAmount": "Amount",
+      "colReason": "Reason",
+      "colBalance": "Balance",
+      "collected": "Collected",
+      "settled": "Settled",
+      "balance": "Balance",
+      "settledBadge": "Deposit settled",
+      "kinds": {
+        "collected": "Collection",
+        "refunded": "Refund",
+        "deducted": "Deduction"
+      },
+      "reasonCodes": {
+        "damage": "Damage",
+        "late_return": "Late return",
+        "missing_part": "Missing part",
+        "cleaning": "Cleaning",
+        "other": "Other reason"
+      },
+      "collectTitle": "Collect deposit",
+      "refundTitle": "Refund deposit",
+      "deductTitle": "Deduct from deposit",
+      "amountLabel": "Amount",
+      "collectCta": "Record collection",
+      "refundFullCta": "Refund all ({amount})",
+      "refundPartialCta": "Partial refund",
+      "deductCta": "Record deduction",
+      "reasonCodeLabel": "Deduction reason",
+      "reasonLabel": "Details",
+      "reasonPlaceholder": "required for “Other reason”"
     }
   }
 }
