@@ -19,6 +19,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // PRZED aliasem korzenia: dopasowanie jest prefiksowe i w kolejności
+      // wpisów, więc "@avably/security" złapałby też subpath i przepisał go
+      // na `index.ts/rate-limit`.
+      "@avably/security/rate-limit": path.resolve(
+        __dirname,
+        "../../packages/security/src/rate-limit.ts",
+      ),
       "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
       "@avably/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
       // Odwzorowanie `paths` z tsconfig.json — vitest nie czyta go sam.

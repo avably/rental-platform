@@ -3,9 +3,10 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+
 import { localePath } from "@/lib/navigation";
 import { setPostAuthNext } from "@/lib/post-auth-next";
-import { checkAuthRateLimit } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { registerSchema, safeNextPath } from "@/lib/validation";
@@ -30,7 +31,11 @@ export async function registerAction(
   const next = safeNextPath(formData.get("next"));
 
   const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimit = await checkAuthRateLimit(`register:${ip}`, { limit: 5, windowSeconds: 60 });
+  const rateLimit = await checkRateLimit(`register:${ip}`, {
+    limit: 5,
+    windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
+  });
   if (!rateLimit.success) {
     return { error: "Zbyt wiele prób rejestracji. Spróbuj ponownie za chwilę." };
   }
