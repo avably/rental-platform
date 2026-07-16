@@ -10,6 +10,8 @@
 import { assertIsoDate, ORDER_STATUSES, type IsoDate } from "@avably/core";
 import { z } from "zod";
 
+import { parseMajorToGrosze } from "./money-input";
+
 export const uuidSchema = z.string().uuid("Nieprawidłowy identyfikator.");
 
 /** Lustro CHECK-a orders.delivery_method (0007). */
@@ -153,3 +155,58 @@ export const ordersFilterSchema = z.object({
 });
 
 export type OrdersFilter = z.infer<typeof ordersFilterSchema>;
+
+/**
+ * Rozliczenia kaucji (Zadanie 5). Lustro CHECK-a
+ * deposit_events_structured_reason z 0011 — bramką jest baza (trigger
+ * deposit_events_gate + CHECK, ADR-026), schematy dają czytelny komunikat
+ * zanim żądanie do niej dotrze.
+ */
+export const DEDUCTION_REASON_CODES = [
+  "damage",
+  "late_return",
+  "missing_part",
+  "cleaning",
+  "other",
+] as const;
+export type DeductionReasonCode = (typeof DEDUCTION_REASON_CODES)[number];
+
+/** Kwota z pola formularza → grosze; zero i śmieci odrzucone, nie zgadywane. */
+const depositAmountSchema = z.string().transform((raw, ctx) => {
+  const grosze = parseMajorToGrosze(raw);
+  if (grosze === null || grosze <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Podaj dodatnią kwotę (np. 100 lub 100,50)." });
+    return z.NEVER;
+  }
+  return grosze;
+});
+
+export const depositCollectSchema = z
+  .object({ orderId: uuidSchema, amount: depositAmountSchema })
+  .transform((form) => ({ orderId: form.orderId, amountGrosze: form.amount }));
+
+export const depositRefundSchema = depositCollectSchema;
+
+export const depositDeductSchema = z
+  .object({
+    orderId: uuidSchema,
+    amount: depositAmountSchema,
+    reasonCode: z.enum(DEDUCTION_REASON_CODES, {
+      errorMap: () => ({ message: "Wybierz powód potrącenia." }),
+    }),
+    reason: optionalTextSchema(500),
+  })
+  // Lustro zależności warunkowej z 0011: kod 'other' bez doprecyzowania
+  // jest pusty informacyjnie — dokładnie anty-wzorzec notatki tekstowej.
+  .refine((form) => form.reasonCode !== "other" || form.reason !== null, {
+    message: "Powód „inny” wymaga doprecyzowania.",
+    path: ["reason"],
+  })
+  .transform((form) => ({
+    orderId: form.orderId,
+    amountGrosze: form.amount,
+    reasonCode: form.reasonCode,
+    reason: form.reason,
+  }));
+
+export type DepositDeductInput = z.infer<typeof depositDeductSchema>;
