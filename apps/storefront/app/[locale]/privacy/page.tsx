@@ -6,6 +6,9 @@ import { Link } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import enMessages from "@/messages/en.json";
 
+// CSP requires a nonce per request; static HTML cannot attach it to Next.js scripts.
+export const dynamic = "force-dynamic";
+
 export type PrivacyCopy = typeof enMessages.privacy;
 
 export function PrivacyDocument({ copy }: { copy: PrivacyCopy }) {

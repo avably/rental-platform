@@ -405,21 +405,24 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
         <div>
           <div className="flex items-start gap-3">
             <Checkbox
-              aria-describedby="waitlist-consent-error"
+              aria-describedby="waitlist-consent-help waitlist-consent-error"
               aria-invalid={Boolean(fields.consent)}
               checked={values.consent}
               id="waitlist-consent"
               name="consent"
               onCheckedChange={(checked) => update("consent", checked === true)}
             />
-            <div className="text-sm leading-6">
-              <Label className="inline leading-6 font-normal" htmlFor="waitlist-consent">
-                {copy.consentBefore}
-              </Label>{" "}
-              <Link className="font-medium underline underline-offset-4" href="/privacy">
-                {copy.privacyLabel}
-              </Link>
-              {copy.consentAfter}
+            <div>
+              <Label className="leading-6 font-normal" htmlFor="waitlist-consent">
+                {copy.consentLabel}
+              </Label>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground" id="waitlist-consent-help">
+                {copy.privacyLeadIn}{" "}
+                <Link className="font-medium underline underline-offset-4" href="/privacy">
+                  {copy.privacyLabel}
+                </Link>
+                {copy.privacyAfter}
+              </p>
             </div>
           </div>
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />

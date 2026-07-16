@@ -10,11 +10,13 @@ import { describe, expect, it } from "vitest";
 import { proxy } from "../proxy";
 
 describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
-  it("renderuje stronę dynamicznie, żeby Next nadał nonce własnym skryptom", () => {
-    const page = readFileSync(new URL("../app/[locale]/page.tsx", import.meta.url), "utf8");
+  for (const route of ["page.tsx", "privacy/page.tsx"]) {
+    it(`renderuje ${route} dynamicznie, żeby Next nadał nonce własnym skryptom`, () => {
+      const page = readFileSync(new URL(`../app/[locale]/${route}`, import.meta.url), "utf8");
 
-    expect(page).toContain('export const dynamic = "force-dynamic"');
-  });
+      expect(page).toContain('export const dynamic = "force-dynamic"');
+    });
+  }
 
   it("odpowiedź ma CSP z nonce i HSTS", () => {
     const response = proxy(new NextRequest("https://najemca.example/"));

@@ -6,6 +6,19 @@ import { LandingPage } from "@/components/landing-page";
 import en from "@/messages/en.json";
 import pl from "@/messages/pl.json";
 
+const expectedConsentCopy = {
+  en: {
+    help: "Details are available in the Privacy Policy.",
+    label:
+      "I would like to receive updates about the development and launch of Avably. I know I can unsubscribe at any time.",
+  },
+  pl: {
+    help: "Szczegóły opisuje Polityka prywatności.",
+    label:
+      "Chcę otrzymywać informacje o budowie i uruchomieniu Avably. Wiem, że mogę zrezygnować w każdej chwili.",
+  },
+} as const;
+
 describe("waitlist landing page", () => {
   it("keeps the English success sentence continuous around the email", () => {
     expect(en.landing.form.success.bodyAfterEmail).toMatch(/^,/);
@@ -62,11 +75,19 @@ describe("waitlist landing page", () => {
       const privacyHref = `/${locale}/privacy`;
       expect(html.match(new RegExp(`href="${privacyHref}"`, "g"))).toHaveLength(3);
       expect(html).not.toContain("#privacy-policy-pending");
+      expect.soft(html).toContain(
+        'aria-describedby="waitlist-consent-help waitlist-consent-error"',
+      );
       const consentLabel = html.match(
         /<label[^>]*for="waitlist-consent"[^>]*>(.*?)<\/label>/,
       )?.[1];
-      expect(consentLabel).toBeDefined();
-      expect(consentLabel).not.toContain("<a ");
+      expect.soft(consentLabel).toBe(expectedConsentCopy[locale].label);
+      expect.soft(consentLabel).not.toContain("<a ");
+      const consentHelp = html.match(
+        /<p[^>]*id="waitlist-consent-help"[^>]*>(.*?)<\/p>/,
+      )?.[1];
+      expect.soft(consentHelp?.replace(/<[^>]+>/g, "")).toBe(expectedConsentCopy[locale].help);
+      expect.soft(consentHelp).toContain(`href="${privacyHref}"`);
     });
   }
 });
