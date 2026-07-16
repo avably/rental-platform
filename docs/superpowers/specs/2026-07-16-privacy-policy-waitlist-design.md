@@ -53,7 +53,7 @@ keys: `heading` and `body`; `body` is an ordered string array. The
 
 The ten Polish sections are copied exactly from the brief. The ten English sections are faithful translations, with the legal entity name and address preserved as required and the Polish supervisory authority retained.
 
-The disabled form copy continues to explain that sign-ups are not open, but no longer claims the missing privacy policy is the reason. The final FAQ item becomes a data-collection answer that summarizes the collected fields and points readers to the policy. Because the current FAQ renderer accepts plain strings, the policy reference is textual; the actual navigable policy links remain in the consent and footer positions required by the brief.
+The disabled form copy continues to explain that sign-ups are not open, but no longer claims the missing privacy policy is the reason. The final FAQ item becomes a data-collection answer that summarizes the collected fields and points readers to the policy. Its catalog object gains a localized `linkLabel`. `FaqAccordion` accepts this optional field and renders a locale-aware `Link` to `/privacy`, so the brief's requirement for a real FAQ link is testable without embedding localized copy in the component.
 
 ## Test design
 
@@ -65,7 +65,7 @@ The disabled form copy continues to explain that sign-ups are not open, but no l
 4. the presence of `[[EFFECTIVE_DATE]]` in both locales, with a comment explaining that the publication PR must invert this guard to require an ISO date;
 5. the literal `Zakład Graficzny Maciej Godek` and `NIP: 7831780263` in both locales.
 
-`apps/storefront/test/landing-page.test.tsx` renders each locale under `NextIntlClientProvider` and asserts the `href` belonging to the localized policy link. It checks `/pl/privacy` and `/en/privacy`, so restoring `#privacy-policy-pending` makes the test fail.
+`apps/storefront/test/landing-page.test.tsx` renders each locale under `NextIntlClientProvider` and asserts the `href` belonging to every localized policy link, including the FAQ. It checks `/pl/privacy` and `/en/privacy`, so restoring `#privacy-policy-pending` or a non-localized path makes the test fail. `apps/storefront/test/faq-accordion.test.tsx` separately pins the optional-link rendering contract.
 
 The TDD sequence is split into two red-green cycles: first the missing policy route/catalog contract, then locale-aware landing-page links and revised disabled copy. Documentation follows after behavior is green.
 
