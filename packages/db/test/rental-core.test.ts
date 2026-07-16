@@ -391,7 +391,11 @@ describe.skipIf(!hasEnv)("rdzeń wynajmu — 0007_rental_core.sql", () => {
       expect(error?.message, `poprawne zamówienie 'pickup' zostało odrzucone: ${error?.message}`).toBeUndefined();
     });
 
-    it("potrącenie z kaucji bez powodu jest odrzucane", async () => {
+    it("potrącenie z kaucji bez strukturalnego powodu jest odrzucane (0011)", async () => {
+      // 0007 wymagał przy 'deducted' niepustego reason; 0011 zastępuje ten
+      // wymóg kodem powodu (reason_code). Pełną macierz kształtu i niezmiennik
+      // salda dowodzi deposit-gates.test.ts — tu zostaje dowód zależności
+      // warunkowej CHECK-a, spójny z resztą tej sekcji.
       const tenantId = await createTenant("deduct");
       const customerId = await createCustomer(tenantId);
       const { data: order } = await admin
@@ -406,30 +410,43 @@ describe.skipIf(!hasEnv)("rdzeń wynajmu — 0007_rental_core.sql", () => {
         .select("id")
         .single();
 
+      // Saldo na zapas: potrącenie/zwrot niżej mają dowodzić CHECK-a powodu,
+      // nie potykać się o niezmiennik sumy z triggera 0011.
+      const { error: collectError } = await admin.from("deposit_events").insert({
+        tenant_id: tenantId,
+        order_id: order!.id,
+        kind: "collected",
+        amount_grosze: 20_000,
+      });
+      expect(collectError?.message, `pobranie kaucji odrzucone: ${collectError?.message}`).toBeUndefined();
+
+      // Sam tekst już nie wystarcza — powód musi być daną (kodem z listy).
       const { error } = await admin.from("deposit_events").insert({
         tenant_id: tenantId,
         order_id: order!.id,
         kind: "deducted",
         amount_grosze: 5_000,
+        reason: "uszkodzona obudowa",
       });
-      expect(error?.code, `potrącenie bez powodu przeszło: ${error?.message}`).toBe(
+      expect(error?.code, `potrącenie bez kodu powodu przeszło: ${error?.message}`).toBe(
         PG_CHECK_VIOLATION,
       );
 
-      // Pusty/biały powód to to samo co brak powodu — inaczej CHECK dałoby się
-      // obejść spacją i pole przestałoby cokolwiek znaczyć.
+      // 'other' wymaga doprecyzowania, a pusty/biały tekst to to samo co brak
+      // — inaczej wymóg obchodzi się spacją i pole przestaje cokolwiek znaczyć.
       const { error: blankError } = await admin.from("deposit_events").insert({
         tenant_id: tenantId,
         order_id: order!.id,
         kind: "deducted",
         amount_grosze: 5_000,
+        reason_code: "other",
         reason: "   ",
       });
-      expect(blankError?.code, `potrącenie z pustym powodem przeszło: ${blankError?.message}`).toBe(
+      expect(blankError?.code, `potrącenie 'other' z pustym doprecyzowaniem przeszło: ${blankError?.message}`).toBe(
         PG_CHECK_VIOLATION,
       );
 
-      // Zwrot powodu nie wymaga — dowód, że CHECK celuje w 'deducted'.
+      // Zwrot kodu nie wymaga — dowód, że CHECK celuje w 'deducted'.
       const { error: refundError } = await admin.from("deposit_events").insert({
         tenant_id: tenantId,
         order_id: order!.id,
