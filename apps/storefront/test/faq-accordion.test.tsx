@@ -1,3 +1,4 @@
+import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -21,5 +22,15 @@ describe("FAQ accordion", () => {
     expect(toggleFaqItem(null, 1)).toBe(1);
     expect(toggleFaqItem(1, 1)).toBeNull();
     expect(toggleFaqItem(1, 0)).toBe(0);
+  });
+
+  it("renders an optional locale-aware policy link", () => {
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="pl" messages={{}}>
+        <FaqAccordion items={[{ question: "Dane", answer: "Opis", linkLabel: "Polityka" }]} />
+      </NextIntlClientProvider>,
+    );
+    expect(html).toContain('href="/pl/privacy"');
+    expect(html).toContain("Polityka");
   });
 });

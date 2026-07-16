@@ -314,7 +314,7 @@
       },
       "disabled": {
         "title": "The waitlist isn’t open yet",
-        "body": "The form is ready, but we’ll only start accepting submissions after the Privacy Policy is published. Please check back soon."
+        "body": "The form is ready, but sign-ups are not open yet. Please check back soon."
       }
     },
     "faq": {
@@ -338,8 +338,9 @@
           "answer": "The first 20 businesses that move from the waitlist to a paid Founding plan will receive 50% off the current plan price for as long as their subscription remains active. Joining the waitlist does not start a payment or confirm a place; we will confirm places before the paid service launches."
         },
         {
-          "question": "What happens to my data, and when will sign-ups open?",
-          "answer": "The form will not accept any real submission until a working Privacy Policy has been published. Until then, its fields remain visible but disabled. Once sign-ups open, the policy will explain what data we collect, why we use it and how consent can be withdrawn."
+          "question": "What data do you collect?",
+          "answer": "When you join, we collect your email address and answers from the form, and a phone number only from people who apply for the pilot. Details about the purpose, retention period, and your rights are available in the",
+          "linkLabel": "Privacy Policy."
         }
       ]
     },

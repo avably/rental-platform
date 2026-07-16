@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 
+import { Link } from "@/i18n/navigation";
+
 interface FaqItem {
   answer: string;
+  linkLabel?: string;
   question: string;
 }
 
@@ -45,7 +48,17 @@ export function FaqAccordion({ items }: { items: readonly FaqItem[] }) {
               id={panel}
               role="region"
             >
-              <p>{item.answer}</p>
+              <p>
+                {item.answer}
+                {item.linkLabel ? (
+                  <>
+                    {" "}
+                    <Link className="font-medium underline underline-offset-4" href="/privacy">
+                      {item.linkLabel}
+                    </Link>
+                  </>
+                ) : null}
+              </p>
             </div>
           </article>
         );

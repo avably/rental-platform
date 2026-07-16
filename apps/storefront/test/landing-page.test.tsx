@@ -59,6 +59,9 @@ describe("waitlist landing page", () => {
       expect(html).toContain("equipment-workshop.webp");
       expect(html).toContain(messages.landing.problem.warehouseAlt);
       expect(html).toContain(messages.landing.problem.useAlt);
+      const privacyHref = `/${locale}/privacy`;
+      expect(html.match(new RegExp(`href="${privacyHref}"`, "g"))).toHaveLength(3);
+      expect(html).not.toContain("#privacy-policy-pending");
     });
   }
 });

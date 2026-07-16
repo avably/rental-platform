@@ -1,5 +1,6 @@
 import Image from "next/image";
 
+import { Link } from "@/i18n/navigation";
 import enMessages from "@/messages/en.json";
 
 import { FaqAccordion } from "./faq-accordion";
@@ -266,9 +267,9 @@ export function LandingPage({ copy, locale, waitlistEnabled }: LandingPageProps)
             <p>{copy.footer.description}</p>
             <p className="mt-2">{copy.footer.copyright}</p>
           </div>
-          <a aria-disabled="true" className="underline underline-offset-4" href="#privacy-policy-pending">
+          <Link className="underline underline-offset-4" href="/privacy">
             {copy.footer.privacy}
-          </a>
+          </Link>
         </div>
       </footer>
     </div>
