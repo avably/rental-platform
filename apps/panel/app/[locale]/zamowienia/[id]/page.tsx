@@ -163,11 +163,12 @@ export default async function OrderDetailPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">{t("statusSection")}</h2>
-        <p>
+        {/* div, nie p: Badge renderuje <div>, a <div> w <p> to błąd hydratacji */}
+        <div>
           <Badge variant={row.order_status === "cancelled" ? "outline" : "default"}>
             {tStatus(row.order_status)}
           </Badge>
-        </p>
+        </div>
         <StatusButtons
           action={changeOrderStatusAction}
           orderId={row.id}
