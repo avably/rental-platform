@@ -4,6 +4,32 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+    # Grupujemy WYŁĄCZNIE pakiety, które muszą się ruszać razem — nie dla
+    # wygody. Grupowanie dla wygody robi wielkie PR-y, w których nie widać, co
+    # właściwie się zmieniło. Grupowanie dla poprawności jest konieczne, bo
+    # osobne PR-y są tu zepsute z definicji i nie da się ich zmergować.
+    groups:
+      # react i react-dom MUSZĄ mieć dokładnie tę samą wersję — React sprawdza
+      # to w runtimie i rzuca „Incompatible React versions". Osobny PR na sam
+      # react-dom jest nie do zmergowania: wywala testy storefrontu
+      # (zweryfikowane — Dependabot #31: react-dom 19.2.7 przy react 19.2.4).
+      # Typy trzymamy w tej samej grupie, bo idą za wersją API.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+
+      # tailwindcss i @tailwindcss/* są wydawane w jednym rytmie i dzielą numer
+      # wersji (4.3.2 -> 4.3.3 w obu naraz). Bez grupy dostajemy dwa PR-y na tę
+      # samą zmianę (#33 i #34), każdy z połową zmiany w lockfile.
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
