@@ -195,5 +195,8 @@ describe.each(["pl", "en"])("chronione trasy — anonim, locale %s", (locale) =>
       expect(target, "trasa nie przekierowała anonima — brak guarda?").not.toBeNull();
       expect(target).toMatch(new RegExp(`^/${locale}/login(\\?|$)`));
     },
+    // Pierwszy import strony ciągnie za sobą cały łańcuch modułów
+    // (@avably/ui itd.) — na runnerze CI potrafi przekroczyć domyślne 5 s.
+    15_000,
   );
 });
