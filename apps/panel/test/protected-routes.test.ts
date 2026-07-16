@@ -62,6 +62,7 @@ vi.mock("@/lib/supabase-server", () => ({
 const TENANT_ID = "00000000-0000-4000-8000-000000000001";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000002";
 const LOCATION_ID = "00000000-0000-4000-8000-000000000003";
+const ORDER_ID = "00000000-0000-4000-8000-000000000004";
 
 /**
  * Chronione trasy panelu. `run` woła moduł strony dokładnie tak, jak zrobiłby
@@ -138,6 +139,25 @@ const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
     run: async () =>
       (await import("@/app/[locale]/katalog/punkty-odbioru/[locationId]/page")).default({
         params: Promise.resolve({ locationId: LOCATION_ID }),
+      }),
+  },
+  // Zamówienia (Zadanie 4): guard requireMemberPage w każdej stronie.
+  {
+    name: "/zamowienia",
+    run: async () =>
+      (await import("@/app/[locale]/zamowienia/page")).default({
+        searchParams: Promise.resolve({}),
+      }),
+  },
+  {
+    name: "/zamowienia/nowe",
+    run: async () => (await import("@/app/[locale]/zamowienia/nowe/page")).default(),
+  },
+  {
+    name: "/zamowienia/[id]",
+    run: async () =>
+      (await import("@/app/[locale]/zamowienia/[id]/page")).default({
+        params: Promise.resolve({ id: ORDER_ID }),
       }),
   },
   {
