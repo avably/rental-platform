@@ -40,6 +40,9 @@ describe("landing visual system", () => {
     expect(css).toContain("prefers-reduced-motion: no-preference");
     expect(css).toContain("prefers-reduced-motion: reduce");
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce[\s\S]*scroll-behavior: auto/,
+    );
     expect(css).not.toMatch(/(?:linear|radial|conic)-gradient/);
     expect(form.match(/landing-pill/g)?.length).toBeGreaterThanOrEqual(2);
     expect(form).toContain("resultFocusArmedRef.current = true");

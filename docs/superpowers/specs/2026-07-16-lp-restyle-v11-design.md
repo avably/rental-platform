@@ -1,7 +1,9 @@
 # Avably LP waitlisty v1.1 — projekt restylingu i FAQ
 
-Data: 2026-07-16  
-Gałąź: `feat/lp-restyle-v11`  
+Data: 2026-07-16
+
+Gałąź: `feat/lp-restyle-v11`
+
 Zakres: `apps/storefront/**` oraz `docs/**`
 
 ## Cel
@@ -88,36 +90,46 @@ FAQ znajdzie się po formularzu, przed stopką. Komponent `apps/storefront/compo
 
 ### Copy PL
 
-1. **Czy muszę już mieć stronę internetową?**  
+1. **Czy muszę już mieć stronę internetową?**
+
    Nie. Jedną z planowanych części Avably jest strona wypożyczalni pod własną domeną. Jeśli masz już stronę, sposób przejścia lub połączenia ustalimy dopiero po poznaniu Twojej obecnej konfiguracji.
 
-2. **Ile trwa uruchomienie?**  
+2. **Ile trwa uruchomienie?**
+
    Naszym celem jest skrócenie uruchomienia wynajmu online do jednego dnia, ale nie jest to jeszcze gwarantowany czas wdrożenia. Rzeczywisty czas będzie zależał między innymi od wielkości katalogu, dostępnych danych i konfiguracji wypożyczalni. Produkt jest nadal w budowie i zweryfikujemy ten cel z pierwszymi firmami.
 
-3. **Co jest dostępne dzisiaj?**  
+3. **Co jest dostępne dzisiaj?**
+
    Avably jest na wczesnym etapie budowy. Widoki na tej stronie są koncepcjami planowanego interfejsu i używają danych poglądowych. Zapis na waitlistę lub deklaracja pilotażu nie daje natychmiastowego dostępu do gotowej usługi.
 
-4. **Co dokładnie oznacza 50% zniżki dla Founders i jak długo obowiązuje?**  
+4. **Co dokładnie oznacza 50% zniżki dla Founders i jak długo obowiązuje?**
+
    Pierwsze 20 firm, które przejdą z waitlisty na płatny plan Founders, otrzyma 50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji. Sam zapis na waitlistę nie uruchamia płatności ani nie potwierdza miejsca — potwierdzimy je przed startem płatnej usługi.
 
-5. **Co z moimi danymi i kiedy startują zapisy?**  
+5. **Co z moimi danymi i kiedy startują zapisy?**
+
    Formularz nie przyjmie żadnego realnego zgłoszenia, dopóki nie opublikujemy działającej Polityki prywatności. Do tego czasu pola pozostają widoczne, ale wyłączone. Po uruchomieniu zapisów polityka wyjaśni, jakie dane zbieramy, po co ich używamy i jak można wycofać zgodę.
 
 ### Copy EN
 
-1. **Do I need to have a website already?**  
+1. **Do I need to have a website already?**
+
    No. A rental website on your own domain is one planned part of Avably. If you already have a website, we will only decide how to connect or replace it after understanding your current setup.
 
-2. **How long will setup take?**  
+2. **How long will setup take?**
+
    Our goal is to reduce the time needed to start taking rentals online to one day, but this is not yet a guaranteed setup time. The actual timeline will depend on factors such as catalogue size, available data and the rental business’s configuration. The product is still being built, and we will validate this goal with the first businesses.
 
-3. **What can I use today?**  
+3. **What can I use today?**
+
    Avably is at an early stage of development. The screens on this page are planned interface concepts and use sample data. Joining the waitlist or expressing interest in the pilot does not provide immediate access to a finished service.
 
-4. **What exactly does the 50% Founding discount mean, and how long does it last?**  
+4. **What exactly does the 50% Founding discount mean, and how long does it last?**
+
    The first 20 businesses that move from the waitlist to a paid Founding plan will receive 50% off the current plan price for as long as their subscription remains active. Joining the waitlist does not start a payment or confirm a place; we will confirm places before the paid service launches.
 
-5. **What happens to my data, and when will sign-ups open?**  
+5. **What happens to my data, and when will sign-ups open?**
+
    The form will not accept any real submission until a working Privacy Policy has been published. Until then, its fields remain visible but disabled. Once sign-ups open, the policy will explain what data we collect, why we use it and how consent can be withdrawn.
 
 ## Ruch
