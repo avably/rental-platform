@@ -3,12 +3,19 @@
  * bez 'unsafe-inline') i HSTS. Bramka CI dla nagłówków bezpieczeństwa —
  * usunięcie proxy.ts albo rozjazd polityki robi tu czerwony build.
  */
+import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 
 import { proxy } from "../proxy";
 
 describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
+  it("renderuje stronę dynamicznie, żeby Next nadał nonce własnym skryptom", () => {
+    const page = readFileSync(new URL("../app/[locale]/page.tsx", import.meta.url), "utf8");
+
+    expect(page).toContain('export const dynamic = "force-dynamic"');
+  });
+
   it("odpowiedź ma CSP z nonce i HSTS", () => {
     const response = proxy(new NextRequest("https://najemca.example/"));
 
