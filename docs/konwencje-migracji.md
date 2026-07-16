@@ -92,7 +92,7 @@ wpis w `SAMPLE_ROW_FACTORIES` (`seed-tenants.ts`) — brak fabryki to
 W CI ten harness uruchamia osobny job `rls` w `.github/workflows/ci.yml`
 (równolegle do joba `ci`): `supabase/setup-cli` + `supabase start` w
 kontenerach, zmienne z `supabase status -o env`, `pnpm --filter
-@rental/db test`.
+@avably/db test`.
 
 ## Zakres macierzy izolacji: tylko tabele bazowe
 

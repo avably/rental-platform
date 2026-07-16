@@ -1,6 +1,9 @@
-# rental-platform
+# Avably
 
 Monorepo platformy SaaS do zarządzania wynajmem (multi-tenant).
+
+Produkt międzynarodowy: interfejs EN+PL od startu, kanoniczna domena
+`https://www.avably.io`, storefronty tenantów na `*.avably.io`.
 
 ## Struktura
 

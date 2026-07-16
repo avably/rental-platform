@@ -8,6 +8,7 @@ function NewOrderNotificationPreview(props: NewOrderNotificationProps) {
 }
 
 NewOrderNotificationPreview.PreviewProps = {
+  locale: "pl",
   customerName: "Alicja Nowak",
   orderNumber: "ZAM-2026-001",
   orderUrl: "https://app.example.test/orders/order-preview",

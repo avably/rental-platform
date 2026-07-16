@@ -8,6 +8,7 @@ function OrganizationInvitationPreview(props: OrganizationInvitationProps) {
 }
 
 OrganizationInvitationPreview.PreviewProps = {
+  locale: "pl",
   acceptanceUrl:
     "https://app.example.test/invitations/accept?token=invitation-preview",
   organizationName: "Wypożyczalnia Północ",

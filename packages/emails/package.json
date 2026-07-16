@@ -1,5 +1,5 @@
 {
-  "name": "@rental/emails",
+  "name": "@avably/emails",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,10 +15,12 @@
     "preview": "email dev --dir preview --port 3002"
   },
   "dependencies": {
+    "@avably/core": "workspace:*",
     "react-email": "^6.8.1"
   },
   "devDependencies": {
     "@react-email/ui": "^6.8.1",
+    "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "19.2.4",

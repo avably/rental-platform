@@ -15,6 +15,7 @@ export {
   NewOrderNotification,
   type NewOrderNotificationProps,
 } from "./templates/new-order-notification";
+export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
   renderEmailConfirmation,
   renderNewOrderNotification,

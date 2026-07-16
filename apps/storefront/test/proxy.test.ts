@@ -24,3 +24,35 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
   });
 });
+
+describe("proxy storefrontu — routing locale", () => {
+  it("goły / przekierowuje na prefiks locale", () => {
+    const response = proxy(new NextRequest("https://najemca.example/"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/en");
+  });
+
+  it("Accept-Language wybiera locale", () => {
+    const response = proxy(
+      new NextRequest("https://najemca.example/", {
+        headers: { "Accept-Language": "pl" },
+      }),
+    );
+
+    expect(response.headers.get("location")).toContain("/pl");
+  });
+
+  it("strona pod prefiksem wychodzi z hreflang i zachowuje CSP", () => {
+    const response = proxy(new NextRequest("https://najemca.example/en"));
+
+    // Nagłówek Link z alternatywnymi wersjami — bez niego wyszukiwarki nie
+    // wiedzą, że /en i /pl to ta sama strona w dwóch językach.
+    const link = response.headers.get("Link") ?? "";
+    expect(link).toContain('hreflang="en"');
+    expect(link).toContain('hreflang="pl"');
+
+    // Nagłówki bezpieczeństwa muszą przeżyć złożenie z routingiem locale.
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+});

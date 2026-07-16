@@ -1,8 +1,8 @@
-# @rental/ui — projekt design systemu
+# @avably/ui — projekt design systemu
 
 ## Cel i zakres
 
-`@rental/ui` jest jednym źródłem prawdy o warstwie wizualnej platformy.
+`@avably/ui` jest jednym źródłem prawdy o warstwie wizualnej platformy.
 Pakiet portuje dojrzały system z repozytorium referencyjnego, bez tworzenia
 nowego języka wizualnego. Zakres pierwszego portu obejmuje tokeny Tailwind CSS
 4, tryb jasny i ciemny, narzędzie `cn` oraz 15 rodzin prymitywów interfejsu.
@@ -12,9 +12,9 @@ Poza zakresem pozostają komponenty domenowe, treściowe, blogowe i produktowe.
 ## Architektura
 
 - `src/styles.css` zawiera tokeny, animacje i bazowe style. Aplikacje importują
-  je przez `@rental/ui/styles.css` i nie utrzymują własnych kopii tokenów.
+  je przez `@avably/ui/styles.css` i nie utrzymują własnych kopii tokenów.
 - `src/components/*.tsx` zawiera prymitywy. Wszystkie publiczne komponenty,
-  warianty i typy są eksportowane z głównego wejścia `@rental/ui`.
+  warianty i typy są eksportowane z głównego wejścia `@avably/ui`.
 - `src/lib/cn.ts` scala klasy warunkowe i rozwiązuje konflikty klas Tailwind.
 - `apps/panel/app/design-system/page.tsx` jest galerią konsumencką. Korzysta
   wyłącznie z publicznego interfejsu pakietu i prezentuje oba motywy.

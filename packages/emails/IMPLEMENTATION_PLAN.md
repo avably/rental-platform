@@ -1,4 +1,4 @@
-# `@rental/emails` — plan wdrożenia
+# `@avably/emails` — plan wdrożenia
 
 > **Dla wykonawcy:** wymagany workflow wykonawczy: `executing-plans`. Kroki są
 > śledzone checkboxami i realizowane kolejno, z testem czerwonym przed kodem.
@@ -22,8 +22,8 @@ React Email Preview, Vitest 4, pnpm 8, Turborepo.
 - Zależności trafiają wyłącznie do `packages/emails/package.json`.
 - `pnpm-lock.yaml` jest generowany przez `pnpm install`; nie wolno edytować go
   ręcznie, również podczas rebase.
-- Brak importów z `@rental/ui`, brak CSS `oklch`, Tailwinda i zewnętrznych fontów.
-- Jasny motyw, style inline, nazwa produktu `<NAZWA>`, język polski.
+- Brak importów z `@avably/ui`, brak CSS `oklch`, Tailwinda i zewnętrznych fontów.
+- Jasny motyw, style inline, nazwa produktu `Avably`, język polski.
 - Kwoty i daty są gotowymi stringami; propsy zamówienia są placeholderem fazy 1.
 - Brak wysyłki, bazy, integracji z aplikacjami i zmian workflow CI.
 - Autor commitów: Maciej Godek; bez stopek i wzmianek o AI.
@@ -89,7 +89,7 @@ describe("EmailConfirmation", () => {
     expect(result.html).toContain("Potwierdź adres e-mail");
     expect(result.html).toContain(confirmationUrl.replaceAll("&", "&amp;"));
     expect(result.html).toContain("Anna");
-    expect(result.html).toContain("&lt;NAZWA&gt;");
+    expect(result.html).toContain("Avably");
     expect(result.html).not.toContain("oklch");
     expect(result.text.trim()).not.toBe("");
     expect(result.text).toContain(confirmationUrl);
@@ -100,7 +100,7 @@ describe("EmailConfirmation", () => {
 - [ ] **Krok 3: uruchom test i potwierdź czerwień**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx
 ```
 
 Oczekiwane: FAIL, ponieważ `../src/index` lub eksportowana funkcja jeszcze nie
@@ -128,7 +128,7 @@ export const EMAIL_FONT_FAMILY =
 `EmailLayout` ma używać komponentów React Email `Html`, `Head`, `Preview`,
 `Body`, `Container`, `Section`, `Heading`, `Text`, `Button`, `Link` i `Hr`.
 Przycisk i tekstowy fallback wskazują ten sam `cta.href`. Nagłówek i stopka
-zawierają `<NAZWA>`.
+zawierają `Avably`.
 
 `render.ts` ma użyć `render(element)` oraz `render(element, { plainText: true })`:
 
@@ -152,9 +152,9 @@ async function renderVariants(element: ReactElement): Promise<RenderedEmail> {
 - [ ] **Krok 5: uruchom test, typecheck i lint**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx
-pnpm --filter @rental/emails typecheck
-pnpm --filter @rental/emails lint
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx
+pnpm --filter @avably/emails typecheck
+pnpm --filter @avably/emails lint
 ```
 
 Oczekiwane: wszystkie trzy polecenia kończą się kodem 0.
@@ -193,13 +193,13 @@ git commit -m "feat(emails): dodać layout i potwierdzenie adresu"
 - [ ] **Krok 1: dodaj czerwony test resetu hasła**
 
 Test używa `resetUrl = "https://app.example.test/reset?token=reset-123"` i
-sprawdza w HTML tekst `Ustaw nowe hasło`, imię, URL, `<NAZWA>` i brak `oklch`,
+sprawdza w HTML tekst `Ustaw nowe hasło`, imię, URL, `Avably` i brak `oklch`,
 a w plain text niepustą treść oraz dokładny URL.
 
 - [ ] **Krok 2: uruchom pojedynczy test i potwierdź czerwień**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx -t "PasswordReset"
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx -t "PasswordReset"
 ```
 
 Oczekiwane: FAIL z powodu brakującego eksportu.
@@ -213,7 +213,7 @@ wiadomość można zignorować, jeśli odbiorca nie prosił o reset. CTA:
 - [ ] **Krok 4: uruchom test resetu i potwierdź zieleń**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx -t "PasswordReset"
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx -t "PasswordReset"
 ```
 
 Oczekiwane: PASS.
@@ -228,7 +228,7 @@ i CTA `Dołącz do organizacji`.
 - [ ] **Krok 6: uruchom test zaproszenia i potwierdź czerwień**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx -t "OrganizationInvitation"
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx -t "OrganizationInvitation"
 ```
 
 Oczekiwane: FAIL z powodu brakującego eksportu.
@@ -242,12 +242,12 @@ const ROLE_LABELS: Record<InvitationRole, string> = {
 };
 ```
 
-CTA: `Dołącz do organizacji`. Nie importuj typu z `@rental/db`.
+CTA: `Dołącz do organizacji`. Nie importuj typu z `@avably/db`.
 
 - [ ] **Krok 8: uruchom test zaproszenia i potwierdź zieleń**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx -t "OrganizationInvitation"
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx -t "OrganizationInvitation"
 ```
 
 Oczekiwane: PASS.
@@ -261,7 +261,7 @@ plain text mają zawierać wszystkie wartości; CTA brzmi `Zobacz zamówienie`.
 - [ ] **Krok 10: uruchom test zamówienia i potwierdź czerwień**
 
 ```bash
-pnpm --filter @rental/emails test -- --run test/emails.test.tsx -t "NewOrderNotification"
+pnpm --filter @avably/emails test -- --run test/emails.test.tsx -t "NewOrderNotification"
 ```
 
 Oczekiwane: FAIL z powodu brakującego eksportu.
@@ -275,9 +275,9 @@ fazy 1 i wartości są już sformatowane.
 - [ ] **Krok 12: uruchom pełne testy pakietu, typecheck i lint**
 
 ```bash
-pnpm --filter @rental/emails test
-pnpm --filter @rental/emails typecheck
-pnpm --filter @rental/emails lint
+pnpm --filter @avably/emails test
+pnpm --filter @avably/emails typecheck
+pnpm --filter @avably/emails lint
 ```
 
 Oczekiwane: wszystkie polecenia kończą się kodem 0.
@@ -305,7 +305,7 @@ git commit -m "feat(emails): dodać szablony transakcyjne"
 **Interfejsy:**
 
 - Konsumuje: cztery publiczne komponenty i ich propsy.
-- Produkuje: `pnpm --filter @rental/emails preview` uruchamiające galerię na
+- Produkuje: `pnpm --filter @avably/emails preview` uruchamiające galerię na
   porcie 3002.
 
 - [ ] **Krok 1: dodaj skrypt preview i cztery wrappery**
@@ -328,7 +328,7 @@ renderEmailConfirmation(props)`, polecenie preview, port 3002, testy oraz fakt,
 - [ ] **Krok 3: uruchom preview i sprawdź galerię**
 
 ```bash
-pnpm --filter @rental/emails preview
+pnpm --filter @avably/emails preview
 ```
 
 Oczekiwane: serwer działa na `http://localhost:3002` i pokazuje cztery pozycje.
@@ -338,9 +338,9 @@ podsumowanie zamówienia oraz brak przepełnienia.
 - [ ] **Krok 4: ponownie uruchom kontrolę pakietu**
 
 ```bash
-pnpm --filter @rental/emails typecheck
-pnpm --filter @rental/emails lint
-pnpm --filter @rental/emails test
+pnpm --filter @avably/emails typecheck
+pnpm --filter @avably/emails lint
+pnpm --filter @avably/emails test
 ```
 
 Oczekiwane: wszystkie polecenia kończą się kodem 0.
@@ -365,16 +365,16 @@ git commit -m "feat(emails): dodać podgląd szablonów"
 **Interfejsy:**
 
 - Dokumentuje: cel, publiczne komponenty, funkcje renderujące, preview,
-  zależności i kluczowe pliki `@rental/emails`.
+  zależności i kluczowe pliki `@avably/emails`.
 - Produkuje: PR `feat/emails` → `main` z zielonymi jobami `ci` i `rls`.
 
 - [ ] **Krok 1: dodaj wyłącznie własną sekcję modułu**
 
-W sekcji `#moduly`, obok `@rental/ui`, dodaj kartę `@rental/emails` z celem,
+W sekcji `#moduly`, obok `@avably/ui`, dodaj kartę `@avably/emails` z celem,
 stanem, eksportami i ich sygnaturami, paletą inline, zależnościami, preview oraz
 kluczowymi plikami. Zmień tylko istniejący wiersz architektury
-`@rental/emails` z „do budowy” na opis gotowego pakietu. Nie modyfikuj sekcji
-auth, superadmina ani `@rental/ui`.
+`@avably/emails` z „do budowy” na opis gotowego pakietu. Nie modyfikuj sekcji
+auth, superadmina ani `@avably/ui`.
 
 - [ ] **Krok 2: uruchom pełną lokalną weryfikację**
 
@@ -396,7 +396,7 @@ git rebase origin/main
 Jeśli `pnpm-lock.yaml` jest w konflikcie, wybierz dowolną stronę konfliktu i
 uruchom `pnpm install`; nie scalaj lockfile ręcznie. Jeśli konflikt dotyczy
 `docs/dokumentacja/index.html`, zachowaj wszystkie cudze sekcje i dodaj ponownie
-wyłącznie kartę oraz log `@rental/emails`.
+wyłącznie kartę oraz log `@avably/emails`.
 
 - [ ] **Krok 4: powtórz pełną weryfikację po rebase**
 
