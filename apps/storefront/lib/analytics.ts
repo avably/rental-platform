@@ -86,6 +86,6 @@ export function captureLandingEvent<Name extends EventName>(
   name: Name,
   properties: EventProperties[Name],
 ): void {
-  if (typeof window === "undefined" || !process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+  if (typeof window === "undefined") return;
   window.posthog?.capture(name, properties);
 }
