@@ -1,9 +1,256 @@
 {
   "app": {
-    "storefrontTitle": "Sklep",
-    "storefrontDescription": "Sklep dla klientów"
+    "storefrontTitle": "Avably",
+    "storefrontDescription": "Planowany system do prowadzenia wypożyczalni sprzętu online."
   },
-  "home": {
-    "title": "Sklep"
+  "landing": {
+    "metadata": {
+      "title": "Avably — uruchom wypożyczalnię online",
+      "description": "Własna strona, rezerwacje, dostępność, dostawy, kaucje i zwroty w jednym planowanym systemie dla wypożyczalni sprzętu. Dołącz do waitlisty Avably.",
+      "ogTitle": "Wypożyczalnia online w 1 dzień — Avably",
+      "ogDescription": "Budujemy Avably dla firm, które wynajmują sprzęt. Zapisz się na waitlistę i pomóż ustalić priorytety pierwszej wersji."
+    },
+    "header": {
+      "brand": "Avably",
+      "languageLabel": "Zmień język",
+      "polish": "PL",
+      "english": "EN",
+      "lightTheme": "Jasny motyw",
+      "darkTheme": "Ciemny motyw"
+    },
+    "hero": {
+      "eyebrow": "Avably jest w budowie",
+      "title": "Uruchom wypożyczalnię online",
+      "body": "Własna strona i jeden planowany panel do rezerwacji, dostępności, dostaw, kaucji i zwrotów. Nasz cel: pomóc Ci uruchomić wynajem online w 1 dzień.",
+      "cta": "Dołącz do waitlisty",
+      "microcopy": "Bez płatności. Bez zobowiązań. Napiszemy, gdy będziemy gotowi zaprosić pierwsze firmy.",
+      "wireframe": {
+        "label": "Koncepcja planowanego interfejsu · Dane poglądowe",
+        "ariaLabel": "Planowany kalendarz dostępności z rezerwacją, zwrotem i statusem kaucji",
+        "items": [
+          "Kalendarz dostępności",
+          "Młotowiertarka 01",
+          "12–14 wrz · Zarezerwowane",
+          "15 wrz · Zwrot i kontrola",
+          "16 wrz · Dostępne",
+          "Rezerwacja",
+          "Odbiór osobisty",
+          "Kaucja do rozliczenia"
+        ]
+      }
+    },
+    "problem": {
+      "title": "Obsłuż to, co wraca",
+      "intro": "W sprzedaży rzecz wychodzi. W wynajmie musi jeszcze wrócić — w terminie, we właściwym stanie i gotowa na następną rezerwację.",
+      "flow": "Rezerwacja → wydanie → w trasie → zwrot → kontrola → dostępne ponownie",
+      "items": [
+        {
+          "title": "Unikaj dwóch rezerwacji naraz",
+          "body": "Ten sam sprzęt trafia do dwóch klientów na ten sam weekend, bo termin zwrotu i czas na kontrolę nie zablokowały kolejnej rezerwacji."
+        },
+        {
+          "title": "Rozlicz kaucję bez zgadywania",
+          "body": "Przy zwrocie trzeba ustalić, ile oddać, co potrącić i z czego wynika kwota."
+        },
+        {
+          "title": "Znajdź aktualny status sprzętu",
+          "body": "Jest u klienta, u kuriera, w punkcie odbioru albo wrócił i czeka na sprawdzenie — ale nikt nie ma jednego obrazu sytuacji."
+        }
+      ],
+      "closing": "Avably powstaje wokół pełnego cyklu najmu, nie tylko momentu rezerwacji.",
+      "warehouseAlt": "Rzędy sprzętu przygotowanego do kolejnych wynajmów",
+      "useAlt": "Sprzęt roboczy używany poza magazynem"
+    },
+    "capabilities": [
+      {
+        "eyebrow": "Planowana funkcja",
+        "title": "Sprawdź dostępność przed rezerwacją",
+        "body": "Zobacz, czy konkretny egzemplarz może wyjechać i wrócić bez kolizji z kolejnym najmem.",
+        "items": [
+          "Kalendarz dostępności dla sprzętu i egzemplarzy",
+          "Blokada terminów rezerwacji, transportu i kontroli po zwrocie",
+          "Podgląd przedłużeń najmu",
+          "Obsługa wielu punktów odbioru",
+          "Statusy: dostępne, zarezerwowane, wydane, w kontroli"
+        ],
+        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
+        "wireframeAriaLabel": "Planowany widok dostępności konkretnego egzemplarza",
+        "wireframeItems": [
+          "Dostępność",
+          "Młotowiertarka 01",
+          "Punkt odbioru: Centrum",
+          "Rezerwacja · 12–14 wrz",
+          "Kontrola po zwrocie · 15 wrz",
+          "Następny wolny termin · 16 wrz"
+        ]
+      },
+      {
+        "eyebrow": "Planowana funkcja",
+        "title": "Obsłuż wydanie i dostawę",
+        "body": "Ustal sposób przekazania sprzętu w tej samej rezerwacji, bez przepisywania ustaleń między wiadomościami.",
+        "items": [
+          "Odbiór osobisty w wybranym punkcie",
+          "Wysyłka kurierem",
+          "Nadanie do paczkomatu",
+          "Dostawa własnym transportem",
+          "Terminy wydania i planowanego zwrotu",
+          "Dane potrzebne do realizacji dostawy"
+        ],
+        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
+        "wireframeAriaLabel": "Planowany wybór sposobu dostawy i terminów",
+        "wireframeItems": [
+          "Sposób dostawy",
+          "Odbiór osobisty",
+          "Kurier",
+          "Paczkomat",
+          "Dostawa własna",
+          "Planowane wydanie · 12 wrz",
+          "Planowany zwrot · 14 wrz"
+        ]
+      },
+      {
+        "eyebrow": "Planowana funkcja",
+        "title": "Rozlicz kaucję przy zwrocie",
+        "body": "Zamknij najem z informacją o terminie, stanie sprzętu i kwocie zwracanej klientowi.",
+        "items": [
+          "Rejestr pobranej kaucji",
+          "Kwota zwrotu i potrącenia z opisem powodu",
+          "Stan sprzętu przy przyjęciu",
+          "Przedłużenie najmu z nowym terminem",
+          "Zwrot wysyłkowy z etykietą",
+          "Historia działań przy rezerwacji"
+        ],
+        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
+        "wireframeAriaLabel": "Planowany widok przyjęcia zwrotu i rozliczenia kaucji",
+        "wireframeItems": [
+          "Przyjmij zwrot",
+          "Sprzęt · Młotowiertarka 01",
+          "Stan · Do sprawdzenia",
+          "Kaucja pobrana · kwota poglądowa",
+          "Zwrot kaucji · do ustalenia",
+          "Powód potrącenia · opcjonalnie",
+          "Zakończ najem"
+        ]
+      },
+      {
+        "eyebrow": "Planowana funkcja",
+        "title": "Uruchom własną stronę",
+        "body": "Pokaż ofertę, dostępne terminy i sposoby odbioru pod własną domeną wypożyczalni.",
+        "items": [
+          "Strona wypożyczalni pod własną domeną",
+          "Katalog sprzętu z wariantami i egzemplarzami",
+          "Terminy dostępności przy ofercie",
+          "Rezerwacja z wyborem dostawy lub odbioru",
+          "Wiele punktów odbioru",
+          "Informacje potrzebne klientowi przed najmem"
+        ],
+        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
+        "wireframeAriaLabel": "Planowany widok strony własnej wypożyczalni",
+        "wireframeItems": [
+          "Twoja wypożyczalnia",
+          "Sprzęt",
+          "Dostępne terminy",
+          "Wybierz punkt odbioru",
+          "Sprawdź dostępność"
+        ]
+      }
+    ],
+    "founder": {
+      "title": "Twórz z kimś, kto wynajmuje",
+      "paragraphs": [
+        "Prowadzę wypożyczalnię sprzętu. Znam weekend z dwiema rezerwacjami na ten sam egzemplarz, szukanie informacji o kaucji i pytanie, czy sprzęt jest jeszcze u klienta, już w drodze, czy czeka na sprawdzenie.",
+        "Avably buduję z własnej potrzeby operacyjnej. Produkt jest na wczesnym etapie, dlatego nie chcę zgadywać za innych właścicieli. Pierwsze firmy pomogą zdecydować, które przepływy muszą działać najpierw."
+      ],
+      "signature": "Maciej — twórca Avably i właściciel wypożyczalni"
+    },
+    "founders": {
+      "eyebrow": "Oferta dla pierwszych 20 firm",
+      "title": "Płać połowę przy aktywnej subskrypcji",
+      "bodyBeforePrice": "Planowana cena Avably po uruchomieniu to",
+      "price": "199 zł miesięcznie",
+      "bodyBetween": ". Pierwsze 20 firm, które przejdą z waitlisty na płatny plan Founders, otrzyma",
+      "discount": "50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji",
+      "bodyAfter": ".",
+      "listIntro": "Firmy Founders otrzymają:",
+      "items": [
+        "wcześniejsze zaproszenie do testów i pilotażu,",
+        "wpływ na priorytety pierwszej wersji,",
+        "pomoc przy uruchomieniu własnej wypożyczalni online,",
+        "wsparcie e-mail z odpowiedzią do 24 godzin,",
+        "50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji."
+      ],
+      "cta": "Dołącz do waitlisty",
+      "microcopy": "Zapis nie wymaga płatności i nie uruchamia subskrypcji. Miejsce w planie Founders potwierdzimy przed startem płatnej usługi."
+    },
+    "form": {
+      "eyebrow": "4 krótkie pola · około minuty",
+      "title": "Zapisz firmę na listę",
+      "intro": "Powiedz nam krótko, co wynajmujesz i jak dziś pilnujesz rezerwacji. Dzięki temu pierwsza wersja będzie odpowiadać na prawdziwe sytuacje z wypożyczalni.",
+      "emailLabel": "E-mail służbowy*",
+      "emailPlaceholder": "ty@firma.pl",
+      "emailHelp": "Na ten adres wyślemy informacje o pilotażu i starcie produktu.",
+      "rentalTypeLabel": "Co wynajmujesz?*",
+      "selectPlaceholder": "Wybierz jedną odpowiedź",
+      "rentalTypes": {
+        "tools_construction": "Narzędzia i sprzęt budowlany",
+        "event": "Sprzęt eventowy",
+        "sports_outdoor": "Sprzęt sportowy i rekreacyjny",
+        "machinery": "Maszyny i urządzenia",
+        "other": "Inny sprzęt"
+      },
+      "otherEquipmentLabel": "Jaki sprzęt?*",
+      "otherEquipmentPlaceholder": "Napisz krótko",
+      "inventoryLabel": "Ile pozycji lub egzemplarzy obsługujesz?*",
+      "inventoryRanges": {
+        "r1_20": "1–20",
+        "r21_100": "21–100",
+        "r101_500": "101–500",
+        "r500_plus": "Ponad 500",
+        "launching": "Dopiero uruchamiam wypożyczalnię"
+      },
+      "processLabel": "Jak dziś pilnujesz rezerwacji?*",
+      "currentProcesses": {
+        "calendar_spreadsheet": "Kalendarz lub arkusz",
+        "messages_phone": "Wiadomości, telefon i notatki",
+        "internal_tool": "Własny proces lub wewnętrzne narzędzie",
+        "none": "Nie mam jeszcze ustalonego procesu"
+      },
+      "pilotHeading": "Pilotaż — opcjonalnie",
+      "pilotLabel": "Chcę porozmawiać o udziale w pilotażu i przetestować Avably na rzeczywistym procesie mojej wypożyczalni.",
+      "phoneLabel": "Telefon — opcjonalnie",
+      "phonePlaceholder": "+48 000 000 000",
+      "phoneHelp": "Jeśli zostawisz numer, możemy zadzwonić. Bez numeru skontaktujemy się e-mailem.",
+      "consentBefore": "Chcę otrzymywać informacje o budowie i uruchomieniu Avably. Wiem, że mogę zrezygnować w każdej chwili. Szczegóły opisuje",
+      "privacyLabel": "Polityka prywatności",
+      "consentAfter": ".",
+      "cta": "Dołącz do waitlisty",
+      "submitting": "Zapisuję…",
+      "microcopy": "Bez płatności i bez zobowiązań. Użyjemy odpowiedzi tylko do kwalifikacji waitlisty i rozmów o Avably.",
+      "errors": {
+        "required": "Uzupełnij to pole.",
+        "invalidEmail": "Wpisz poprawny adres e-mail.",
+        "selection": "Wybierz jedną odpowiedź.",
+        "consent": "Zaznacz zgodę, aby dołączyć do waitlisty.",
+        "duplicate": "Ten adres jest już na waitliście. Nie musisz zapisywać się ponownie.",
+        "connection": "Nie udało się wysłać formularza. Sprawdź połączenie i spróbuj ponownie.",
+        "server": "Nie udało się przyjąć zapisu. Spróbuj ponownie za chwilę. Twoje odpowiedzi nie zostały zapisane."
+      },
+      "success": {
+        "title": "Masz miejsce na liście",
+        "bodyBeforeEmail": "Dziękujemy. Zapisaliśmy Twój adres i odpowiedzi. Napiszemy na",
+        "bodyAfterEmail": ", gdy będziemy gotowi zaprosić pierwsze firmy.",
+        "pilot": "Zapisaliśmy też Twoją deklarację pilotażu. Skontaktujemy się e-mailem, żeby poznać proces Twojej wypożyczalni.",
+        "edit": "Popraw odpowiedzi"
+      },
+      "disabled": {
+        "title": "Zapisy jeszcze nie ruszyły",
+        "body": "Formularz jest gotowy, ale przyjmowanie zgłoszeń uruchomimy dopiero po publikacji Polityki prywatności. Wróć tu wkrótce."
+      }
+    },
+    "footer": {
+      "description": "Avably — planowany system do prowadzenia wypożyczalni sprzętu online.",
+      "privacy": "Polityka prywatności",
+      "copyright": "© Avably"
+    }
   }
 }
