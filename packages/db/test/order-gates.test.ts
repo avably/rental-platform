@@ -1,0 +1,737 @@
+/**
+ * Bramki zamówień w bazie (packages/db/supabase/migrations/0010_order_gates.sql)
+ * — dowody dla ADR-024 (wyścig przy przypisaniu egzemplarza) i ADR-025
+ * (maszyna stanów egzekwowana w bazie, nie w JS).
+ *
+ * Obie bramki DUPLIKUJĄ semantykę zdefiniowaną w @avably/core (mapę przejść
+ * i dostępność z buforami), więc rdzeniem tego pliku są testy ZGODNOŚCI:
+ *
+ *   1. lustro CHECK↔TS: wartości statusów w bazie == stałe w @avably/core
+ *      (introspekcja pg_constraint, nie przepisana lista),
+ *   2. maszyna stanów: WSZYSTKIE 36 par from→to — werdykt bazy musi być
+ *      równy canTransition() co do pary,
+ *   3. dostępność: macierz scenariuszy (bufory, styki, okna serwisowe) —
+ *      werdykt bazy musi być równy checkAvailability() scenariusz po
+ *      scenariuszu, a wartości oczekiwane są DODATKOWO przypięte ręcznie
+ *      (gdyby silnik i baza rozjechały się zgodnie, płonie pin),
+ *   4. wyścig: dwóch operatorów (dwie realne sesje), ten sam egzemplarz
+ *      i termin, równolegle — dokładnie jeden sukces, przegrany dostaje
+ *      23P01, a jego zamówienie NIE istnieje (atomowość app.create_order).
+ *
+ * Sekcje 2-3 idą klientem service-role (wzorzec rental-core.test.ts): bramki
+ * są zachowaniem SCHEMATU i obowiązują KAŻDĄ rolę — to jest częścią decyzji
+ * ADR-025 (import danych też nie ma prawa tworzyć stanów niemożliwych).
+ * Wyścig idzie realnymi sesjami członków tenanta, bo to jest ścieżka panelu.
+ *
+ * Wymaga lokalnego Supabase i zmiennych SUPABASE_LOCAL_* (docs/konwencje-
+ * migracji.md). Bez nich strażnik integration-env failuje suitę.
+ */
+import { randomUUID } from "node:crypto";
+
+import {
+  AVAILABILITY_BLOCKING_ORDER_STATUSES,
+  BLOCKING_PAYMENT_STATUSES,
+  canTransition,
+  checkAvailability,
+  ORDER_STATUSES,
+  PAYMENT_STATUSES,
+  type OrderStatus,
+  type PaymentStatus,
+} from "@avably/core";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import WebSocket from "ws";
+
+import { integrationEnv } from "./helpers/integration-env";
+
+const hasEnv = integrationEnv([
+  "SUPABASE_LOCAL_URL",
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+  "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+]);
+
+/** Kody błędów bramek 0010 — patrz nagłówek migracji. */
+const PG_UNIT_CONFLICT = "23P01"; // exclusion_violation: egzemplarz zajęty
+const PG_BAD_TRANSITION = "23514"; // check_violation: niedozwolone przejście maszyny stanów
+const PG_CANCEL_BLOCKED = "23001"; // restrict_violation: anulowanie przy blokującym payment_status
+
+const realtimeTransport = {
+  realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+};
+
+const TEST_PASSWORD = "OrderGates!12345678";
+
+function env(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Brak zmiennej środowiskowej ${name}`);
+  return value;
+}
+
+function createAdminClient(): SupabaseClient {
+  return createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...realtimeTransport,
+  });
+}
+
+function createAnonClient(): SupabaseClient {
+  return createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_ANON_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...realtimeTransport,
+  });
+}
+
+describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
+  let admin: SupabaseClient;
+  let sql: ReturnType<typeof postgres>;
+  const createdTenantIds: string[] = [];
+  const createdUserIds: string[] = [];
+
+  async function createTenant(label: string): Promise<string> {
+    const { data, error } = await admin
+      .from("tenants")
+      .insert({
+        slug: `gate-${label}-${randomUUID()}`.slice(0, 39),
+        name: `Order gates test tenant ${label}`,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createTenant(${label}): ${error?.message}`);
+    createdTenantIds.push(data.id as string);
+    return data.id as string;
+  }
+
+  async function createCustomer(tenantId: string): Promise<string> {
+    const { data, error } = await admin
+      .from("customers")
+      .insert({ tenant_id: tenantId, email: `gate-${randomUUID()}@test.local` })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createCustomer: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function createProduct(
+    tenantId: string,
+    buffers: { before: number; after: number },
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("products")
+      .insert({
+        tenant_id: tenantId,
+        name: `Agregat ${randomUUID().slice(0, 8)}`,
+        base_price_day_grosze: 10_000,
+        buffer_before_days: buffers.before,
+        buffer_after_days: buffers.after,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createProduct: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function createUnit(
+    tenantId: string,
+    productId: string,
+    service?: { from: string | null; to: string | null },
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("product_units")
+      .insert({
+        tenant_id: tenantId,
+        product_id: productId,
+        unavailable_from: service?.from ?? null,
+        unavailable_to: service?.to ?? null,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createUnit: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function createOrder(
+    tenantId: string,
+    customerId: string,
+    start: string,
+    end: string,
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("orders")
+      .insert({
+        tenant_id: tenantId,
+        customer_id: customerId,
+        start_date: start,
+        end_date: end,
+        delivery_method: "courier",
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createOrder: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function insertItem(
+    tenantId: string,
+    orderId: string,
+    productId: string,
+    unitId: string | null,
+  ): Promise<{ errorCode?: string; errorMessage?: string }> {
+    const { error } = await admin.from("order_items").insert({
+      tenant_id: tenantId,
+      order_id: orderId,
+      product_id: productId,
+      unit_id: unitId,
+      rental_grosze: 10_000,
+    });
+    return error ? { errorCode: error.code, errorMessage: error.message } : {};
+  }
+
+  async function setStatus(
+    orderId: string,
+    to: OrderStatus,
+  ): Promise<{ errorCode?: string; errorMessage?: string }> {
+    const { data, error } = await admin
+      .from("orders")
+      .update({ order_status: to })
+      .eq("id", orderId)
+      .select("id");
+    if (error) return { errorCode: error.code, errorMessage: error.message };
+    if (!data || data.length === 0) return { errorMessage: "UPDATE dosięgnął zero wierszy" };
+    return {};
+  }
+
+  /**
+   * Doprowadza świeże zamówienie do stanu `target` WYŁĄCZNIE dozwolonymi
+   * przejściami. To nie jest wygoda testowa, tylko część dowodu: bramka
+   * obowiązuje też service-role, więc nie istnieje ścieżka „ustaw stan
+   * bezpośrednio" — każdy stan osiąga się spacerem po mapie.
+   */
+  const WALKS: Record<OrderStatus, readonly OrderStatus[]> = {
+    pending: [],
+    reserved: ["reserved"],
+    ready_for_pickup: ["reserved", "ready_for_pickup"],
+    picked_up: ["reserved", "ready_for_pickup", "picked_up"],
+    returned: ["reserved", "ready_for_pickup", "picked_up", "returned"],
+    cancelled: ["cancelled"],
+  };
+
+  async function walkTo(orderId: string, target: OrderStatus): Promise<void> {
+    for (const step of WALKS[target]) {
+      const { errorMessage } = await setStatus(orderId, step);
+      if (errorMessage) throw new Error(`walkTo(${target}) na kroku ${step}: ${errorMessage}`);
+    }
+  }
+
+  beforeAll(async () => {
+    admin = createAdminClient();
+    sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 5 });
+  }, 60_000);
+
+  afterAll(async () => {
+    if (createdTenantIds.length > 0) {
+      await admin.from("tenants").delete().in("id", createdTenantIds);
+    }
+    for (const id of createdUserIds) {
+      await admin.auth.admin.deleteUser(id);
+    }
+    await sql.end({ timeout: 5 });
+  }, 60_000);
+
+  // -------------------------------------------------------------------
+  // 1. Lustro CHECK↔TS — introspekcja, nie przepisana lista
+  // -------------------------------------------------------------------
+
+  describe("zbiory statusów w bazie == stałe w @avably/core", () => {
+    async function constraintValues(conname: string): Promise<string[]> {
+      const rows = await sql<{ def: string }[]>`
+        select pg_get_constraintdef(oid) as def
+        from pg_constraint
+        where conrelid = 'public.orders'::regclass and conname = ${conname}
+      `;
+      if (rows.length !== 1) throw new Error(`Brak constraintu ${conname} na public.orders`);
+      const matches = [...rows[0]!.def.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]!);
+      if (matches.length === 0) throw new Error(`Nie sparsowano wartości z: ${rows[0]!.def}`);
+      return matches;
+    }
+
+    it("orders_order_status_check == ORDER_STATUSES", async () => {
+      expect((await constraintValues("orders_order_status_check")).sort()).toEqual(
+        [...ORDER_STATUSES].sort(),
+      );
+    });
+
+    it("orders_payment_status_check == PAYMENT_STATUSES", async () => {
+      expect((await constraintValues("orders_payment_status_check")).sort()).toEqual(
+        [...PAYMENT_STATUSES].sort(),
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 2. Maszyna stanów (ADR-025)
+  // -------------------------------------------------------------------
+
+  describe("maszyna stanów — trigger jest lustrem canTransition (36 par)", () => {
+    let tenantId: string;
+    let customerId: string;
+
+    beforeAll(async () => {
+      tenantId = await createTenant("machine");
+      customerId = await createCustomer(tenantId);
+    }, 30_000);
+
+    it("INSERT z order_status innym niż 'pending' jest odrzucany (P0022)", async () => {
+      const { error } = await admin.from("orders").insert({
+        tenant_id: tenantId,
+        customer_id: customerId,
+        start_date: "2026-08-01",
+        end_date: "2026-08-03",
+        delivery_method: "courier",
+        order_status: "picked_up",
+      });
+      expect(error?.code, `zamówienie urodziło się jako picked_up: ${error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it.each(
+      ORDER_STATUSES.flatMap((from) =>
+        ORDER_STATUSES.filter((to) => to !== from).map((to) => ({ from, to })),
+      ),
+    )(
+      "$from → $to: baza zgodna z canTransition",
+      async ({ from, to }) => {
+        const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
+        await walkTo(orderId, from);
+
+        const { errorCode, errorMessage } = await setStatus(orderId, to);
+        if (canTransition(from, to)) {
+          expect(errorMessage, `dozwolone ${from}→${to} odrzucone: ${errorMessage}`).toBeUndefined();
+        } else {
+          expect(errorCode, `zabronione ${from}→${to} przeszło`).toBe(PG_BAD_TRANSITION);
+        }
+      },
+      15_000,
+    );
+
+    it("UPDATE niezmieniający statusu nie pyta maszyny stanów", async () => {
+      const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
+      await walkTo(orderId, "returned"); // stan terminalny — każde PRZEJŚCIE jest zabronione
+      const { data, error } = await admin
+        .from("orders")
+        .update({ notes: "notatka po zwrocie" })
+        .eq("id", orderId)
+        .select("id");
+      expect(error?.message, `UPDATE notatki na terminalnym statusie: ${error?.message}`).toBeUndefined();
+      expect(data).toHaveLength(1);
+    });
+
+    it("każdy UPDATE podbija updated_at", async () => {
+      const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
+      const { data: before } = await admin
+        .from("orders")
+        .select("updated_at")
+        .eq("id", orderId)
+        .single();
+      const { data: after } = await admin
+        .from("orders")
+        .update({ notes: "zmiana" })
+        .eq("id", orderId)
+        .select("updated_at")
+        .single();
+      expect(new Date(after!.updated_at as string).getTime()).toBeGreaterThan(
+        new Date(before!.updated_at as string).getTime(),
+      );
+    });
+
+    describe("anulowanie a payment_status — lustro BLOCKING_PAYMENT_STATUSES", () => {
+      it.each(PAYMENT_STATUSES.map((payment) => ({ payment })))(
+        "payment_status=$payment: anulowanie zgodne ze stałą z @avably/core",
+        async ({ payment }) => {
+          const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
+          // Oś płatności NIE jest bramkowana w 0010 (rozliczenia to Zadanie 5)
+          // — ustawienie statusu płatności wprost musi przejść.
+          const { error: paymentError } = await admin
+            .from("orders")
+            .update({ payment_status: payment })
+            .eq("id", orderId)
+            .select("id");
+          expect(paymentError?.message, `ustawienie payment_status=${payment}: ${paymentError?.message}`).toBeUndefined();
+
+          const { errorCode, errorMessage } = await setStatus(orderId, "cancelled");
+          if (BLOCKING_PAYMENT_STATUSES.includes(payment as PaymentStatus)) {
+            expect(errorCode, `anulowanie przy payment_status=${payment} przeszło`).toBe(
+              PG_CANCEL_BLOCKED,
+            );
+          } else {
+            expect(
+              errorMessage,
+              `anulowanie przy payment_status=${payment} odrzucone: ${errorMessage}`,
+            ).toBeUndefined();
+          }
+        },
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 3. Dostępność egzemplarza (ADR-024) — zgodność SQL↔silnik
+  // -------------------------------------------------------------------
+
+  describe("bramka dostępności — werdykt bazy == checkAvailability, scenariusz po scenariuszu", () => {
+    let tenantId: string;
+    let customerId: string;
+
+    beforeAll(async () => {
+      tenantId = await createTenant("avail");
+      customerId = await createCustomer(tenantId);
+    }, 30_000);
+
+    interface Scenario {
+      label: string;
+      buffers: { before: number; after: number };
+      existing?: { start: string; end: string };
+      service?: { from: string | null; to: string | null };
+      requested: { start: string; end: string };
+      /** Werdykt przypięty RĘCZNIE — gdyby silnik i baza rozjechały się zgodnie. */
+      expectedAvailable: boolean;
+    }
+
+    const SCENARIOS: Scenario[] = [
+      {
+        label: "przerwa większa niż bufor: wolny",
+        buffers: { before: 1, after: 1 },
+        existing: { start: "2026-09-10", end: "2026-09-12" },
+        requested: { start: "2026-09-14", end: "2026-09-15" },
+        expectedAvailable: true,
+      },
+      {
+        label: "przerwa równa buforowi (dzień po najmie w buforze): zajęty",
+        buffers: { before: 1, after: 1 },
+        existing: { start: "2026-09-10", end: "2026-09-12" },
+        requested: { start: "2026-09-13", end: "2026-09-14" },
+        expectedAvailable: false,
+      },
+      {
+        label: "bez buforów, dzień po najmie: wolny",
+        buffers: { before: 0, after: 0 },
+        existing: { start: "2026-09-10", end: "2026-09-12" },
+        requested: { start: "2026-09-13", end: "2026-09-14" },
+        expectedAvailable: true,
+      },
+      {
+        label: "bez buforów, styk w dzień końca: zajęty",
+        buffers: { before: 0, after: 0 },
+        existing: { start: "2026-09-10", end: "2026-09-12" },
+        requested: { start: "2026-09-12", end: "2026-09-14" },
+        expectedAvailable: false,
+      },
+      {
+        label: "bufor PRZED najmem sięga istniejącego najmu: zajęty",
+        buffers: { before: 2, after: 0 },
+        existing: { start: "2026-09-10", end: "2026-09-12" },
+        requested: { start: "2026-09-13", end: "2026-09-14" },
+        expectedAvailable: false,
+      },
+      // Dwa scenariusze lustrzane: istniejący najem leży PO żądanym terminie.
+      // Bez nich granica `o.start_date <= koniec+bufor` nie miała pokrycia —
+      // mutacja `<=` → `<` przechodziła na zielono (wykryta dowodem
+      // mutacyjnym przy 0010, stąd te przypadki).
+      {
+        label: "bez buforów, styk w dzień startu PÓŹNIEJSZEGO najmu: zajęty",
+        buffers: { before: 0, after: 0 },
+        existing: { start: "2026-09-13", end: "2026-09-15" },
+        requested: { start: "2026-09-11", end: "2026-09-13" },
+        expectedAvailable: false,
+      },
+      {
+        label: "bufor PO najmie sięga dokładnie startu PÓŹNIEJSZEGO najmu: zajęty",
+        buffers: { before: 0, after: 1 },
+        existing: { start: "2026-09-16", end: "2026-09-18" },
+        requested: { start: "2026-09-14", end: "2026-09-15" },
+        expectedAvailable: false,
+      },
+      {
+        label: "okno serwisowe nachodzi na termin: zajęty",
+        buffers: { before: 1, after: 1 },
+        service: { from: "2026-09-20", to: "2026-09-22" },
+        requested: { start: "2026-09-21", end: "2026-09-23" },
+        expectedAvailable: false,
+      },
+      {
+        label: "okno serwisowe dotyka TYLKO bufora, nie najmu: wolny (bufor nie omija serwisu)",
+        buffers: { before: 1, after: 1 },
+        service: { from: "2026-09-20", to: "2026-09-22" },
+        requested: { start: "2026-09-23", end: "2026-09-24" },
+        expectedAvailable: true,
+      },
+      {
+        label: "termin w całości wewnątrz istniejącego najmu: zajęty",
+        buffers: { before: 0, after: 0 },
+        existing: { start: "2026-09-10", end: "2026-09-15" },
+        requested: { start: "2026-09-11", end: "2026-09-12" },
+        expectedAvailable: false,
+      },
+    ];
+
+    it.each(SCENARIOS)("$label", async (scenario) => {
+      const productId = await createProduct(tenantId, scenario.buffers);
+      const unitId = await createUnit(tenantId, productId, scenario.service);
+
+      if (scenario.existing) {
+        const existingOrder = await createOrder(
+          tenantId,
+          customerId,
+          scenario.existing.start,
+          scenario.existing.end,
+        );
+        const seeded = await insertItem(tenantId, existingOrder, productId, unitId);
+        expect(seeded.errorMessage, `zasiew istniejącego najmu: ${seeded.errorMessage}`).toBeUndefined();
+      }
+
+      // Werdykt silnika na DOKŁADNIE tych samych danych.
+      const engine = checkAvailability(
+        [
+          {
+            unitId,
+            unavailableFrom: scenario.service?.from ?? null,
+            unavailableTo: scenario.service?.to ?? null,
+          },
+        ],
+        scenario.existing
+          ? [{ unitId, startDate: scenario.existing.start, endDate: scenario.existing.end }]
+          : [],
+        scenario.requested,
+        {
+          bufferBeforeDays: scenario.buffers.before,
+          bufferAfterDays: scenario.buffers.after,
+        },
+      );
+      expect(engine.available, "pin ręczny rozjechał się z silnikiem").toBe(
+        scenario.expectedAvailable,
+      );
+
+      // Werdykt bazy: INSERT pozycji z przypisanym egzemplarzem.
+      const newOrder = await createOrder(
+        tenantId,
+        customerId,
+        scenario.requested.start,
+        scenario.requested.end,
+      );
+      const { errorCode, errorMessage } = await insertItem(tenantId, newOrder, productId, unitId);
+      if (scenario.expectedAvailable) {
+        expect(errorMessage, `baza odrzuciła wolny termin: ${errorMessage}`).toBeUndefined();
+      } else {
+        expect(errorCode, "baza przyjęła zajęty termin").toBe(PG_UNIT_CONFLICT);
+      }
+    });
+
+    it.each(ORDER_STATUSES.map((status) => ({ status })))(
+      "istniejący najem w statusie $status blokuje zgodnie z AVAILABILITY_BLOCKING_ORDER_STATUSES",
+      async ({ status }) => {
+        const productId = await createProduct(tenantId, { before: 0, after: 0 });
+        const unitId = await createUnit(tenantId, productId);
+        const existingOrder = await createOrder(tenantId, customerId, "2026-09-10", "2026-09-12");
+        const seeded = await insertItem(tenantId, existingOrder, productId, unitId);
+        expect(seeded.errorMessage).toBeUndefined();
+        await walkTo(existingOrder, status);
+
+        const newOrder = await createOrder(tenantId, customerId, "2026-09-11", "2026-09-13");
+        const { errorCode, errorMessage } = await insertItem(tenantId, newOrder, productId, unitId);
+        if (AVAILABILITY_BLOCKING_ORDER_STATUSES.includes(status)) {
+          expect(errorCode, `status ${status} nie zablokował egzemplarza`).toBe(PG_UNIT_CONFLICT);
+        } else {
+          expect(
+            errorMessage,
+            `status ${status} blokuje egzemplarz, choć nie powinien: ${errorMessage}`,
+          ).toBeUndefined();
+        }
+      },
+      15_000,
+    );
+
+    it("zmiana TERMINU zamówienia z przypisanym egzemplarzem przechodzi przez tę samą bramkę", async () => {
+      const productId = await createProduct(tenantId, { before: 1, after: 1 });
+      const unitId = await createUnit(tenantId, productId);
+
+      const orderA = await createOrder(tenantId, customerId, "2026-10-10", "2026-10-12");
+      expect((await insertItem(tenantId, orderA, productId, unitId)).errorMessage).toBeUndefined();
+
+      // B mieści się z zapasem większym niż bufor…
+      const orderB = await createOrder(tenantId, customerId, "2026-10-15", "2026-10-16");
+      expect((await insertItem(tenantId, orderB, productId, unitId)).errorMessage).toBeUndefined();
+
+      // …ale przesunięcie B tak, by bufor sięgnął A, musi zostać odrzucone.
+      const { error: conflictError } = await admin
+        .from("orders")
+        .update({ start_date: "2026-10-13", end_date: "2026-10-14" })
+        .eq("id", orderB)
+        .select("id");
+      expect(conflictError?.code, "zmiana terminu ominęła bramkę dostępności").toBe(
+        PG_UNIT_CONFLICT,
+      );
+
+      // Przesunięcie w wolne miejsce przechodzi — bramka celuje w kolizję,
+      // nie w edycję terminu w ogóle.
+      const { data, error: okError } = await admin
+        .from("orders")
+        .update({ start_date: "2026-10-16", end_date: "2026-10-17" })
+        .eq("id", orderB)
+        .select("id");
+      expect(okError?.message, `przesunięcie w wolny termin odrzucone: ${okError?.message}`).toBeUndefined();
+      expect(data).toHaveLength(1);
+    });
+
+    it("ten sam egzemplarz dwa razy w JEDNYM zamówieniu jest odrzucany", async () => {
+      const productId = await createProduct(tenantId, { before: 0, after: 0 });
+      const unitId = await createUnit(tenantId, productId);
+      const orderId = await createOrder(tenantId, customerId, "2026-11-01", "2026-11-03");
+
+      expect((await insertItem(tenantId, orderId, productId, unitId)).errorMessage).toBeUndefined();
+      const { errorCode } = await insertItem(tenantId, orderId, productId, unitId);
+      expect(errorCode, "jeden egzemplarz wszedł dwa razy do zamówienia").toBe(PG_UNIT_CONFLICT);
+    });
+
+    it("pozycja BEZ egzemplarza (unit_id null) nie przechodzi przez bramkę", async () => {
+      const productId = await createProduct(tenantId, { before: 0, after: 0 });
+      const orderId = await createOrder(tenantId, customerId, "2026-11-01", "2026-11-03");
+      const { errorMessage } = await insertItem(tenantId, orderId, productId, null);
+      expect(errorMessage, `pozycja bez egzemplarza odrzucona: ${errorMessage}`).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 4. Wyścig dwóch operatorów + atomowość app.create_order
+  // -------------------------------------------------------------------
+
+  describe("wyścig o egzemplarz — dwie realne sesje, jeden egzemplarz, jeden termin", () => {
+    let memberA: SupabaseClient;
+    let memberB: SupabaseClient;
+    let tenantId: string;
+    let customerId: string;
+    let productId: string;
+    let unitId: string;
+
+    async function createUser(label: string): Promise<{ id: string; email: string }> {
+      const email = `gate-${label}-${randomUUID()}@test.local`;
+      const { data, error } = await admin.auth.admin.createUser({
+        email,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      });
+      if (error || !data.user) throw new Error(`createUser(${label}): ${error?.message}`);
+      createdUserIds.push(data.user.id);
+      return { id: data.user.id, email };
+    }
+
+    async function signIn(email: string): Promise<SupabaseClient> {
+      const client = createAnonClient();
+      const { error } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
+      if (error) throw new Error(`signIn(${email}): ${error.message}`);
+      return client;
+    }
+
+    beforeAll(async () => {
+      // Operator A zakłada organizację (realna ścieżka onboardingu)…
+      const userA = await createUser("op-a");
+      const bootstrap = await signIn(userA.email);
+      const { data: newTenantId, error: tenantError } = await bootstrap
+        .schema("app")
+        .rpc("create_tenant", {
+          p_slug: `gate-race-${randomUUID()}`.slice(0, 39),
+          p_name: "Wypożyczalnia wyścigowa",
+        });
+      if (tenantError) throw new Error(`create_tenant: ${tenantError.message}`);
+      tenantId = newTenantId as string;
+      createdTenantIds.push(tenantId);
+      memberA = await signIn(userA.email); // świeża sesja z claimem tenant_id
+
+      // …operator B zostaje jej członkiem (staff — praca lady wystarcza).
+      const userB = await createUser("op-b");
+      const { error: memberError } = await admin
+        .from("members")
+        .insert({ tenant_id: tenantId, user_id: userB.id, role: "staff" });
+      if (memberError) throw new Error(`insert members: ${memberError.message}`);
+      memberB = await signIn(userB.email);
+
+      customerId = await createCustomer(tenantId);
+      productId = await createProduct(tenantId, { before: 1, after: 1 });
+      unitId = await createUnit(tenantId, productId);
+    }, 60_000);
+
+    it("równoległe create_order: dokładnie jeden sukces, przegrany 23P01, zero sierot", async () => {
+      const createOrderVia = (client: SupabaseClient) =>
+        client.schema("app").rpc("create_order", {
+          p_customer_id: customerId,
+          p_start_date: "2026-12-01",
+          p_end_date: "2026-12-05",
+          p_delivery_method: "courier",
+          p_pickup_location_id: null,
+          p_notes: null,
+          p_total_rental_grosze: 50_000,
+          p_total_deposit_grosze: 0,
+          p_items: [
+            { product_id: productId, unit_id: unitId, rental_grosze: 50_000, deposit_grosze: 0 },
+          ],
+        });
+
+      const [resultA, resultB] = await Promise.all([
+        createOrderVia(memberA),
+        createOrderVia(memberB),
+      ]);
+
+      const succeeded = [resultA, resultB].filter((r) => !r.error);
+      const failed = [resultA, resultB].filter((r) => r.error);
+      expect(succeeded, "wyścig: liczba sukcesów inna niż 1").toHaveLength(1);
+      expect(failed, "wyścig: liczba odmów inna niż 1").toHaveLength(1);
+      expect(failed[0]!.error!.code, "przegrany dostał inny kod niż 23P01").toBe(PG_UNIT_CONFLICT);
+
+      // Egzemplarz jest na dokładnie JEDNEJ pozycji…
+      const { data: items } = await admin
+        .from("order_items")
+        .select("id, order_id")
+        .eq("unit_id", unitId);
+      expect(items, "egzemplarz wynajęty dwa razy").toHaveLength(1);
+
+      // …a przegrane zamówienie NIE istnieje (atomowość RPC — bez sieroty
+      // z pustym koszykiem i zużytym numerem).
+      const { data: orders } = await admin
+        .from("orders")
+        .select("id")
+        .eq("tenant_id", tenantId);
+      expect(orders, "przegrany zostawił zamówienie-sierotę").toHaveLength(1);
+      expect(orders![0]!.id).toBe(succeeded[0]!.data as string);
+    });
+
+    it("zwycięskie zamówienie ma pozycje i sumy podane przy utworzeniu", async () => {
+      const { data: order } = await admin
+        .from("orders")
+        .select("order_status, total_rental_grosze, total_deposit_grosze, order_number")
+        .eq("tenant_id", tenantId)
+        .single();
+      expect(order).toMatchObject({
+        order_status: "pending",
+        total_rental_grosze: 50_000,
+        total_deposit_grosze: 0,
+      });
+      expect(order!.order_number as string).toMatch(/^AV-\d{4}-\d{3,}$/);
+    });
+
+    it("create_order odrzuca puste pozycje (22023) — zamówienie bez koszyka nie powstaje", async () => {
+      const { error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2026-12-10",
+        p_end_date: "2026-12-11",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: null,
+        p_total_rental_grosze: 0,
+        p_total_deposit_grosze: 0,
+        p_items: [],
+      });
+      expect(error?.code, "create_order przyjął pusty koszyk").toBe("22023");
+    });
+  });
+});
