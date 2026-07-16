@@ -20,11 +20,11 @@ function currentSection(): string {
 
 export function LanguageSwitcher({ copy, locale }: LanguageSwitcherProps) {
   return (
-    <nav aria-label={copy.languageLabel} className="flex items-center rounded-md border border-border p-1 text-sm">
+    <nav aria-label={copy.languageLabel} className="landing-ghost-pill flex items-center p-1 text-sm">
       {(["en", "pl"] as const).map((target) => (
         <Link
           aria-current={target === locale ? "page" : undefined}
-          className="rounded px-2.5 py-1.5 font-medium aria-[current=page]:bg-foreground aria-[current=page]:text-background"
+          className="landing-pill px-3 py-1.5 font-medium aria-[current=page]:bg-foreground aria-[current=page]:text-background"
           href="/"
           hrefLang={target}
           key={target}

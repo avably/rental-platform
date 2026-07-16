@@ -190,7 +190,12 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
           {copy.success.bodyAfterEmail}
         </p>
         {submittedPilot ? <p className="mt-3 leading-7 text-muted-foreground">{copy.success.pilot}</p> : null}
-        <Button className="mt-6" onClick={() => setView({ kind: "idle" })} type="button" variant="outline">
+        <Button
+          className="landing-pill landing-ghost-pill mt-6 px-6"
+          onClick={() => setView({ kind: "idle" })}
+          type="button"
+          variant="outline"
+        >
           {copy.success.edit}
         </Button>
       </div>
@@ -418,7 +423,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />
         </div>
 
-        <Button className="min-h-11 w-full" disabled={unavailable} size="lg" type="submit">
+        <Button className="landing-pill min-h-12 w-full" disabled={unavailable} size="lg" type="submit">
           {view.kind === "submitting" ? copy.submitting : copy.cta}
         </Button>
       </fieldset>

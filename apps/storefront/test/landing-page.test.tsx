@@ -54,6 +54,7 @@ describe("waitlist landing page", () => {
       expect(html).toContain('name="currentProcess"');
       expect(html).toContain('aria-describedby="waitlist-email-help waitlist-email-error"');
       expect(html).toMatch(/<button[^>]*disabled/);
+      expect(html).toMatch(/<button[^>]*landing-pill[^>]*disabled/);
       expect(html).toContain("equipment-workbench.webp");
       expect(html).toContain("equipment-workshop.webp");
       expect(html).toContain(messages.landing.problem.warehouseAlt);

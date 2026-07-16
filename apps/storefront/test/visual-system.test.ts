@@ -24,6 +24,9 @@ describe("landing visual system", () => {
 
   it("defines centralized landing typography and reduced-motion rules", () => {
     const css = read("app/globals.css");
+    const form = read("components/waitlist-form.tsx");
+    const themeToggle = read("components/theme-toggle.tsx");
+    const languageSwitcher = read("components/language-switcher.tsx");
     expect(css).toContain("--font-serif: var(--font-serif-source)");
     expect(css).toContain(".landing-display");
     expect(css).toContain(".landing-heading");
@@ -31,7 +34,14 @@ describe("landing visual system", () => {
     expect(css).toContain(".landing-hero");
     expect(css).toContain(".landing-dark-section");
     expect(css).toContain(".landing-pill");
+    expect(css).toContain(".landing-ghost-pill");
+    expect(css).toContain("animation-timeline: view()");
+    expect(css).toContain("prefers-reduced-motion: no-preference");
     expect(css).toContain("prefers-reduced-motion: reduce");
+    expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*animation: none/);
     expect(css).not.toMatch(/(?:linear|radial|conic)-gradient/);
+    expect(form.match(/landing-pill/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(themeToggle).toContain("landing-ghost-pill");
+    expect(languageSwitcher).toContain("landing-ghost-pill");
   });
 });

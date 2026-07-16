@@ -79,6 +79,34 @@
   border-radius: 9999px;
 }
 
+.landing-ghost-pill {
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: transparent;
+}
+
+@keyframes landing-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .landing-reveal {
+      animation: landing-enter linear both;
+      animation-range: entry 8% cover 26%;
+      animation-timeline: view();
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-reveal {
     animation: none;
