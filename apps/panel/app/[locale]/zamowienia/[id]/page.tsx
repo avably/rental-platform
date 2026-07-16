@@ -22,6 +22,18 @@ import { uuidSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction } from "../actions";
+import {
+  depositTotals,
+  isDepositSettled,
+  runningBalances,
+  type DepositEventRow,
+} from "./deposit";
+import {
+  collectDepositAction,
+  deductDepositAction,
+  refundDepositAction,
+} from "./deposit-actions";
+import { DepositForms } from "./deposit-forms";
 import { StatusButtons } from "./status-buttons";
 
 interface OrderDetailRow {
@@ -68,12 +80,32 @@ export default async function OrderDetailPage({
   if (!order) notFound();
 
   const row = order as unknown as OrderDetailRow;
+
+  // Rejestr kaucji: chronologia zdarzeń (indeks 0007 zaczyna się od
+  // tenant_id, order_id, created_at — sortowanie jest po jego myśli).
+  const { data: depositRows } = await ctx.supabase
+    .from("deposit_events")
+    .select("id, kind, amount_grosze, reason_code, reason, created_at")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", row.id)
+    .order("created_at", { ascending: true });
+  const depositEvents = (depositRows ?? []) as unknown as DepositEventRow[];
+  const totals = depositTotals(depositEvents);
+  const balances = runningBalances(depositEvents);
+
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.detail");
   const tStatus = await getTranslations("orders.status");
   const tPayment = await getTranslations("orders.paymentStatus");
   const tDelivery = await getTranslations("orders.delivery");
+  const tDeposit = await getTranslations("orders.deposit");
+
+  const depositTimestamp = new Intl.DateTimeFormat(locale, {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Warsaw",
+  });
 
   // Długość najmu liczy silnik — jedyne źródło arytmetyki dat.
   const days = rentalDaysInclusive(row.start_date, row.end_date);
@@ -159,6 +191,68 @@ export default async function OrderDetailPage({
             ? ` · ${t("totalDeposit")}: ${formatMoney(row.total_deposit_grosze, currency, locale)}`
             : null}
         </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold">{tDeposit("title")}</h2>
+        {depositEvents.length === 0 ? (
+          <p className="text-sm text-gray-500">{tDeposit("empty")}</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{tDeposit("colDate")}</TableHead>
+                <TableHead>{tDeposit("colKind")}</TableHead>
+                <TableHead>{tDeposit("colAmount")}</TableHead>
+                <TableHead>{tDeposit("colReason")}</TableHead>
+                <TableHead>{tDeposit("colBalance")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {depositEvents.map((event, index) => (
+                <TableRow key={event.id}>
+                  <TableCell>{depositTimestamp.format(new Date(event.created_at))}</TableCell>
+                  <TableCell>{tDeposit(`kinds.${event.kind}`)}</TableCell>
+                  <TableCell>
+                    {event.kind === "collected" ? "+" : "−"}
+                    {formatMoney(event.amount_grosze, currency, locale)}
+                  </TableCell>
+                  <TableCell>
+                    {event.reason_code ? tDeposit(`reasonCodes.${event.reason_code}`) : null}
+                    {event.reason_code && event.reason ? " — " : null}
+                    {event.reason ?? (event.reason_code ? null : "—")}
+                  </TableCell>
+                  <TableCell>{formatMoney(balances[index]!, currency, locale)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {/* div, nie p: Badge renderuje <div>, a <div> w <p> to błąd hydratacji */}
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span>
+            {tDeposit("collected")}: {formatMoney(totals.collectedGrosze, currency, locale)}
+          </span>
+          <span>
+            {tDeposit("settled")}: {formatMoney(totals.settledGrosze, currency, locale)}
+          </span>
+          <span className="font-semibold">
+            {tDeposit("balance")}: {formatMoney(totals.balanceGrosze, currency, locale)}
+          </span>
+          {isDepositSettled(totals) ? <Badge variant="outline">{tDeposit("settledBadge")}</Badge> : null}
+        </div>
+        <DepositForms
+          orderId={row.id}
+          balanceGrosze={totals.balanceGrosze}
+          suggestedCollectGrosze={Math.max(row.total_deposit_grosze - totals.collectedGrosze, 0)}
+          currency={currency}
+          locale={locale}
+          actions={{
+            collect: collectDepositAction,
+            refund: refundDepositAction,
+            deduct: deductDepositAction,
+          }}
+        />
       </section>
 
       <section className="flex flex-col gap-3">

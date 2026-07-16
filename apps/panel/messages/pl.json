@@ -282,6 +282,42 @@
       "changeTo": "Zmień na: {status}",
       "cancelBlockedHint": "Anulowanie zablokowane — płatność wymaga rozliczenia (zwrotu) przed anulowaniem.",
       "createdAt": "Utworzono"
+    },
+    "deposit": {
+      "title": "Kaucja",
+      "empty": "Brak zdarzeń kaucji — zarejestruj pobranie, aby otworzyć rozliczenie.",
+      "colDate": "Data",
+      "colKind": "Zdarzenie",
+      "colAmount": "Kwota",
+      "colReason": "Powód",
+      "colBalance": "Saldo",
+      "collected": "Pobrano",
+      "settled": "Rozliczono",
+      "balance": "Saldo",
+      "settledBadge": "Kaucja rozliczona",
+      "kinds": {
+        "collected": "Pobranie",
+        "refunded": "Zwrot",
+        "deducted": "Potrącenie"
+      },
+      "reasonCodes": {
+        "damage": "Uszkodzenie",
+        "late_return": "Spóźniony zwrot",
+        "missing_part": "Brakująca część",
+        "cleaning": "Czyszczenie",
+        "other": "Inny powód"
+      },
+      "collectTitle": "Pobranie kaucji",
+      "refundTitle": "Zwrot kaucji",
+      "deductTitle": "Potrącenie z kaucji",
+      "amountLabel": "Kwota",
+      "collectCta": "Zarejestruj pobranie",
+      "refundFullCta": "Zwróć całość ({amount})",
+      "refundPartialCta": "Zwrot częściowy",
+      "deductCta": "Zarejestruj potrącenie",
+      "reasonCodeLabel": "Powód potrącenia",
+      "reasonLabel": "Doprecyzowanie",
+      "reasonPlaceholder": "wymagane przy powodzie „inny”"
     }
   }
 }
