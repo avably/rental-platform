@@ -7,6 +7,7 @@ import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/r
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
+import { SUPERADMIN_HOME } from "@/lib/superadmin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { loginSchema, safeNextPath } from "@/lib/validation";
@@ -63,5 +64,23 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   }
 
   const ctx = await getAuthContext(supabase);
-  redirect(await localePath(ctx?.tenantId ? "/" : "/organizacja/nowa"));
+
+  // Kolejność NIE jest przypadkowa.
+  //
+  // 1. Członek organizacji ląduje w panelu — także wtedy, gdy jest
+  //    superadminem: pracuje wtedy jako członek, a do /admin ma link na
+  //    stronie głównej.
+  // 2. Superadmin BEZ organizacji idzie prosto do /admin/tenants. Bez tego
+  //    trafiał na „Załóż organizację" (bo warunek patrzył wyłącznie na
+  //    tenant_id) — czyli founder po zalogowaniu dostawał ekran zakładania
+  //    firmy zamiast panelu, który jest jedynym powodem, dla którego się
+  //    loguje. Na aal1 guard /admin przechwyci go i przeprowadzi przez
+  //    wyzwanie MFA: logowanie → MFA → /admin/tenants.
+  // 3. Reszta (user bez organizacji) — zakładanie organizacji, jak dotąd.
+  //
+  // Przekierowanie widzi WYŁĄCZNIE sesja z claimem superadmin, więc
+  // maskowanie /admin (404 dla reszty, lib/superadmin.ts) zostaje nietknięte.
+  if (ctx?.tenantId) redirect(await localePath("/"));
+  if (ctx?.superadmin) redirect(await localePath(SUPERADMIN_HOME));
+  redirect(await localePath("/organizacja/nowa"));
 }

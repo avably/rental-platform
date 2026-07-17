@@ -15,6 +15,12 @@
     "locationsLink": "Punkty odbioru",
     "invitationsLink": "Zaproszenia członków"
   },
+  "nav": {
+    "superadmin": "Superadmin",
+    "superadminLink": "Panel superadmina",
+    "tenants": "Organizacje",
+    "auditLog": "Dziennik zdarzeń"
+  },
   "login": {
     "title": "Zaloguj się",
     "submit": "Zaloguj się",
