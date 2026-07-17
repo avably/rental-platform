@@ -58,7 +58,7 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
   <p class="eyebrow">Centrum projektu · pojedynczy punkt wejścia</p>
   <h1>Avably — start tutaj</h1>
   <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem, międzynarodowy od startu (EN+PL). Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
-  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-16, PR #20):</b> rebrand na <b>Avably</b> — scope pakietów <code>@avably/*</code>, kanon <code>www.avably.io</code>, rusztowanie i18n (<code>/en</code>, <code>/pl</code>), migracja 0005 (<code>tenants.locale</code>, <code>plans.currency</code>). Decyzje: ADR-013 (architektura międzynarodowa), ADR-014 (stack dostawców) — pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: <b>nazwa repo i folderu (<code>rental-platform</code>) celowo została stara</b> — transfer repo to osobny krok właściciela, kod i produkt to już Avably.</p>
+  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-17, PR #53):</b> <b>faza 1 („rdzeń wynajmu") domknięta</b> — Zadanie 9: bramka maszyny stanów <code>payment_status</code> u źródła (migracja 0015, ADR-035) zamyka ostatni dług osi płatności, przegląd adwersaryjny całej fazy bez luk (wszystko ZATRZYMANE), skonsolidowana <a href="index.html#dlugi-fazy-2">lista długów fazy 2</a>. Wcześniej: zamówienia + bramki (0010), kaucje (0011), przedłużenia, dostawy (0013), Turnstile, e-maile cyklu najmu (0014). Pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: <b>nazwa repo i folderu (<code>rental-platform</code>) celowo została stara</b> — transfer repo to osobny krok właściciela, kod i produkt to już Avably.</p>
 </header>
 <nav class="toc">
   <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
@@ -154,7 +154,7 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
     <tr><td>Baza / auth</td><td>Supabase (Postgres + RLS + Auth + Storage + Vault)</td><td>eu-central-1; izolacja przez RLS</td></tr>
     <tr><td>Hosting</td><td>Vercel</td><td>2 projekty, preview deployments</td></tr>
     <tr><td>Cache / rate-limit</td><td>Upstash Redis</td><td>mapa domen, limity</td></tr>
-    <tr><td>E-mail</td><td>Resend + react-email</td><td>transakcyjne</td></tr>
+    <tr><td>E-mail</td><td>Resend + react-email</td><td>transakcyjne — <b>skonfigurowane</b>: domena <code>send.avably.io</code> Verified, klucz w env Vercela (realna wysyłka rusza po ustawieniu nadawcy per tenant)</td></tr>
     <tr><td>Płatności</td><td>Stripe (Billing + Connect)</td><td>fazy 3+</td></tr>
     <tr><td>CI / repo</td><td>GitHub Actions</td><td>joby ci + rls; branch protection od fazy 4</td></tr>
     <tr><td>Monitoring</td><td>Sentry · PostHog (EU)</td><td>błędy · telemetria produktu</td></tr>
