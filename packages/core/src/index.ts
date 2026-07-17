@@ -55,6 +55,22 @@ export {
 } from "./rental";
 
 export {
+  EMAIL_SENDER_KEY,
+  EmailConfigError,
+  EmailTransportError,
+  RESEND_SEND_URL,
+  emailAvailability,
+  emailSenderFromSettings,
+  platformFromAddress,
+  resendTransport,
+  type EmailAvailability,
+  type EmailSender,
+  type EmailTransport,
+  type EmailTransportOptions,
+  type OutgoingEmail,
+} from "./email";
+
+export {
   COUNTRY_IDS,
   COURIER_CONFIG_KEYS,
   COURIER_PARCEL_KEY,
