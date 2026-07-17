@@ -1,0 +1,285 @@
+/**
+ * Kształty i spójność modułu dostaw (0013_courier_shipments.sql) — dowody
+ * dla ADR-030 (koszt dostawy + cennik w tenant_settings) i ADR-031 (cykl
+ * życia przesyłki).
+ *
+ * Zakres:
+ *   1. CHECK-i courier_shipments: typ przesyłki, status wewnętrzny, dostawca,
+ *      gabaryty — wartości spoza list/zakresów odrzucane 23514,
+ *   2. FK ZŁOŻONY (tenant_id, order_id): przesyłka wskazująca zamówienie
+ *      CUDZEGO tenanta jest niereprezentowalna (23503) nawet dla
+ *      service_role, który omija RLS — bramka spójności z 0007,
+ *   3. orders.delivery_grosze: ujemny koszt odrzucany 23514,
+ *   4. CHECK-i wartości nowych kluczy tenant_settings (wzorzec
+ *      order_number_prefix z 0007): wadliwe kształty odrzucane 23514
+ *      U ŹRÓDŁA, poprawne przechodzą.
+ *
+ * Wszystkie asercje na KONKRETNYCH kodach SQLSTATE — „cokolwiek rzuciło"
+ * maskowałoby np. literówkę w nazwie kolumny (42703) jako zieleń.
+ * Testy idą kluczem service_role: jeśli CHECK trzyma jego, trzyma każdego.
+ *
+ * Wymaga uruchomionego lokalnego Supabase i zmiennych SUPABASE_LOCAL_*
+ * (patrz docs/konwencje-migracji.md). Bez nich cały plik jest pomijany.
+ */
+import { randomUUID } from "node:crypto";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { integrationEnv } from "./helpers/integration-env";
+import { createAdminClient } from "./helpers/seed-tenants";
+
+const hasEnv = integrationEnv([
+  "SUPABASE_LOCAL_URL",
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+  "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+]);
+
+/** 23514 = check_violation, 23503 = foreign_key_violation. */
+const PG_CHECK_VIOLATION = "23514";
+const PG_FK_VIOLATION = "23503";
+
+/** Poprawne wartości bazowe — dane FIKCYJNE (zero realnych adresów w repo). */
+const VALID_CREDENTIALS = {
+  email: "kurier@example.com",
+  password: "haslo-testowe",
+  environment: "test",
+};
+const VALID_SENDER = {
+  name: "Wypożyczalnia Testowa",
+  street: "Przykładowa",
+  house_number: "1",
+  post_code: "00-001",
+  city: "Miastko",
+  phone: "+48600000000",
+  email: "nadawca@example.com",
+};
+const VALID_PARCEL = { length_cm: 60, width_cm: 40, height_cm: 30, weight_kg: 10.5 };
+const VALID_PRICING = {
+  courier: { price_grosze: 2500, free_above_grosze: 50_000 },
+  own_delivery: { price_grosze: 9900 },
+};
+
+describe.skipIf(!hasEnv)("moduł dostaw — 0013_courier_shipments.sql", () => {
+  let admin: SupabaseClient;
+  const createdTenantIds: string[] = [];
+
+  beforeAll(() => {
+    admin = createAdminClient();
+  });
+
+  afterAll(async () => {
+    for (const tenantId of createdTenantIds) {
+      await admin.from("tenants").delete().eq("id", tenantId);
+    }
+  });
+
+  async function createTenant(label: string): Promise<string> {
+    const { data, error } = await admin
+      .from("tenants")
+      .insert({
+        slug: `ship-${label}-${randomUUID()}`.slice(0, 39),
+        name: `Courier shipments test tenant ${label}`,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`createTenant(${label}): ${error?.message}`);
+    createdTenantIds.push(data.id as string);
+    return data.id as string;
+  }
+
+  /** Zamówienie-nośnik przesyłki: klient + orders w jednym kroku. */
+  async function createOrder(tenantId: string): Promise<string> {
+    const { data: customer, error: customerError } = await admin
+      .from("customers")
+      .insert({ tenant_id: tenantId, email: `ship-${randomUUID()}@test.local` })
+      .select("id")
+      .single();
+    if (customerError || !customer) {
+      throw new Error(`createOrder/customer: ${customerError?.message}`);
+    }
+
+    const { data: order, error: orderError } = await admin
+      .from("orders")
+      .insert({
+        tenant_id: tenantId,
+        customer_id: customer.id,
+        start_date: "2026-08-01",
+        end_date: "2026-08-03",
+        delivery_method: "courier",
+      })
+      .select("id")
+      .single();
+    if (orderError || !order) throw new Error(`createOrder/order: ${orderError?.message}`);
+    return order.id as string;
+  }
+
+  function validShipment(tenantId: string, orderId: string): Record<string, unknown> {
+    return {
+      tenant_id: tenantId,
+      order_id: orderId,
+      shipment_type: "outbound",
+      provider_order_number: `GK-TEST-${randomUUID().slice(0, 8)}`,
+      length_cm: 60,
+      width_cm: 40,
+      height_cm: 30,
+      weight_kg: 10,
+    };
+  }
+
+  describe("CHECK-i courier_shipments", () => {
+    let tenantId: string;
+    let orderId: string;
+
+    beforeAll(async () => {
+      tenantId = await createTenant("chk");
+      orderId = await createOrder(tenantId);
+    });
+
+    it("poprawna przesyłka przechodzi (baseline — CHECK-i nie nadgorliwe)", async () => {
+      const { error } = await admin
+        .from("courier_shipments")
+        .insert(validShipment(tenantId, orderId));
+      expect(error, `INSERT poprawnej przesyłki: ${error?.message}`).toBeNull();
+    });
+
+    it.each([
+      ["shipment_type spoza listy", { shipment_type: "sideways" }],
+      ["status spoza listy", { status: "lost" }],
+      ["dostawca spoza listy", { provider: "inny" }],
+      ["pusty provider_order_number", { provider_order_number: "   " }],
+      ["zerowa waga", { weight_kg: 0 }],
+      ["ujemna długość", { length_cm: -1 }],
+      ["ujemny koszt nadania", { price_grosze: -1 }],
+    ])("%s → 23514", async (_label, patch) => {
+      const { error } = await admin
+        .from("courier_shipments")
+        .insert({ ...validShipment(tenantId, orderId), ...patch });
+      expect(error?.code, `oczekiwano 23514: ${error?.message}`).toBe(PG_CHECK_VIOLATION);
+    });
+  });
+
+  it("FK złożony: przesyłka z tenant_id A wskazująca zamówienie tenanta B → 23503 nawet dla service_role", async () => {
+    const tenantA = await createTenant("fka");
+    const tenantB = await createTenant("fkb");
+    const orderOfB = await createOrder(tenantB);
+
+    // service_role omija RLS — jeśli wiersz międzytenantowy zatrzymuje się
+    // tutaj, zatrzymuje go SCHEMAT (FK złożony z 0013), nie polityka.
+    const { error } = await admin
+      .from("courier_shipments")
+      .insert(validShipment(tenantA, orderOfB));
+    expect(error?.code, `oczekiwano 23503: ${error?.message}`).toBe(PG_FK_VIOLATION);
+  });
+
+  it("orders.delivery_grosze: ujemny koszt dostawy → 23514, poprawny zapisany", async () => {
+    const tenantId = await createTenant("cost");
+    const orderId = await createOrder(tenantId);
+
+    const { error: negativeError } = await admin
+      .from("orders")
+      .update({ delivery_grosze: -1 })
+      .eq("id", orderId);
+    expect(negativeError?.code, `oczekiwano 23514: ${negativeError?.message}`).toBe(
+      PG_CHECK_VIOLATION,
+    );
+
+    const { data, error } = await admin
+      .from("orders")
+      .update({ delivery_grosze: 2500 })
+      .eq("id", orderId)
+      .select("delivery_grosze")
+      .single();
+    expect(error, `UPDATE delivery_grosze: ${error?.message}`).toBeNull();
+    expect(data?.delivery_grosze).toBe(2500);
+  });
+
+  describe("CHECK-i wartości kluczy konfiguracji dostaw (tenant_settings)", () => {
+    let tenantId: string;
+
+    beforeAll(async () => {
+      tenantId = await createTenant("cfg");
+    });
+
+    async function insertSetting(key: string, value: unknown) {
+      return admin.from("tenant_settings").insert({ tenant_id: tenantId, key, value });
+    }
+
+    it("poprawny komplet ustawień przechodzi (baseline)", async () => {
+      for (const [key, value] of [
+        ["globkurier_credentials", VALID_CREDENTIALS],
+        ["courier_sender", VALID_SENDER],
+        ["courier_parcel", VALID_PARCEL],
+        ["delivery_pricing", VALID_PRICING],
+      ] as const) {
+        const { error } = await insertSetting(key, value);
+        expect(error, `INSERT ${key}: ${error?.message}`).toBeNull();
+      }
+    });
+
+    it.each([
+      [
+        "credentiale bez hasła",
+        "globkurier_credentials",
+        { email: "kurier@example.com", environment: "test" },
+      ],
+      [
+        "credentiale ze środowiskiem spoza listy",
+        "globkurier_credentials",
+        { ...VALID_CREDENTIALS, environment: "prod" },
+      ],
+      ["credentiale jako string", "globkurier_credentials", "kurier@example.com"],
+      ["nadawca bez telefonu", "courier_sender", { ...VALID_SENDER, phone: undefined }],
+      ["nadawca z pustym miastem", "courier_sender", { ...VALID_SENDER, city: "  " }],
+      ["paczka z zerową wagą", "courier_parcel", { ...VALID_PARCEL, weight_kg: 0 }],
+      [
+        "paczka z wymiarem jako string",
+        "courier_parcel",
+        { ...VALID_PARCEL, length_cm: "60" },
+      ],
+      [
+        "cennik z nieznaną metodą",
+        "delivery_pricing",
+        { teleport: { price_grosze: 100 } },
+      ],
+      [
+        "cennik z ujemną ceną",
+        "delivery_pricing",
+        { courier: { price_grosze: -1 } },
+      ],
+      // Brakujący klucz w jsonb to SQL NULL w jsonb_typeof — bez `is distinct
+      // from`/coalesce w 0013 taki wpis przechodziłby CHECK (logika
+      // trójwartościowa; ta para testów przypina poprawkę).
+      ["cennik bez ceny", "delivery_pricing", { courier: { free_above_grosze: 100 } }],
+      ["nadawca bez nazwy", "courier_sender", { ...VALID_SENDER, name: undefined }],
+      [
+        "cennik z ułamkową ceną (złote zamiast groszy)",
+        "delivery_pricing",
+        { courier: { price_grosze: 25.5 } },
+      ],
+      [
+        "cennik z wadliwym progiem",
+        "delivery_pricing",
+        { courier: { price_grosze: 2500, free_above_grosze: "50000" } },
+      ],
+    ])("%s → 23514", async (_label, key, value) => {
+      const { error } = await insertSetting(key, value);
+      expect(error?.code, `oczekiwano 23514 dla ${key}: ${error?.message}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+    });
+
+    it("cennik bez progu darmowej dostawy jest legalny (pole opcjonalne)", async () => {
+      const { error } = await admin.from("tenant_settings").upsert(
+        {
+          tenant_id: tenantId,
+          key: "delivery_pricing",
+          value: { parcel_locker: { price_grosze: 1500 } },
+        },
+        { onConflict: "tenant_id,key" },
+      );
+      expect(error, `upsert cennika bez progu: ${error?.message}`).toBeNull();
+    });
+  });
+});
