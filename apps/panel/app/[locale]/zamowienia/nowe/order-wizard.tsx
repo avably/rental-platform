@@ -1,7 +1,13 @@
 "use client";
 
 import { Button, Input, Label, Textarea } from "@avably/ui";
-import { formatMoney, type CurrencyCode } from "@avably/core";
+import {
+  calculateDeliveryCost,
+  formatMoney,
+  type CurrencyCode,
+  type DeliveryMethod,
+  type DeliveryPricing,
+} from "@avably/core";
 import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
@@ -123,6 +129,7 @@ export function OrderWizard({
   locations,
   currency,
   locale,
+  deliveryPricing,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   customers: WizardCustomer[];
@@ -130,6 +137,10 @@ export function OrderWizard({
   locations: WizardLocation[];
   currency: CurrencyCode;
   locale: string;
+  // Cennik dostaw tenanta (tenant_settings.delivery_pricing, ADR-030) do
+  // PODGLĄDU na żywo. null = brak konfiguracji; autorytatywny koszt liczy i
+  // tak akcja serwerowa (silnik, ten sam calculateDeliveryCost).
+  deliveryPricing: DeliveryPricing | null;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.form");
@@ -189,6 +200,27 @@ export function OrderWizard({
       return null;
     }
   }, [hasValidRange, itemProductIds, pricingById, productById, startDate, endDate]);
+
+  /**
+   * Koszt dostawy NA ŻYWO — ta sama czysta funkcja silnika (calculateDeliveryCost),
+   * która policzy autorytatywny koszt po stronie serwera. Metoda płatna bez
+   * cennika rzuca (ADR-030: zero cichych zer) — łapiemy to jako `configMissing`
+   * i pokazujemy podpowiedź zamiast wywracać podgląd. Sam koszt jest
+   * informacyjny; do zamówienia trafia wartość policzona w akcji.
+   */
+  const deliveryPreview = useMemo(() => {
+    if (!preview) return null;
+    try {
+      const grosze = calculateDeliveryCost({
+        method: deliveryMethod as DeliveryMethod,
+        pricing: deliveryPricing,
+        rentalTotalGrosze: preview.pricing.totalRentalGrosze,
+      });
+      return { grosze, configMissing: false as const };
+    } catch {
+      return { grosze: null, configMissing: true as const };
+    }
+  }, [preview, deliveryMethod, deliveryPricing]);
 
   const errorId = (field: string) => (state.fieldErrors?.[field] ? `order-${field}-error` : undefined);
 
@@ -456,6 +488,28 @@ export function OrderWizard({
               <span>{t("totalDeposit")}</span>
               <span>{formatMoney(preview.pricing.totalDepositGrosze, currency, locale)}</span>
             </p>
+          ) : null}
+          {deliveryPreview?.configMissing ? (
+            <p role="alert" className="text-sm text-red-600">
+              {t("deliveryPricingMissing")}
+            </p>
+          ) : deliveryPreview && deliveryPreview.grosze !== null ? (
+            <>
+              <p className="flex justify-between gap-4 text-sm">
+                <span>{t("deliveryCost")}</span>
+                <span>{formatMoney(deliveryPreview.grosze, currency, locale)}</span>
+              </p>
+              <p className="flex justify-between gap-4 border-t border-input pt-2 text-sm font-semibold">
+                <span>{t("totalWithDelivery")}</span>
+                <span>
+                  {formatMoney(
+                    preview.pricing.totalRentalGrosze + deliveryPreview.grosze,
+                    currency,
+                    locale,
+                  )}
+                </span>
+              </p>
+            </>
           ) : null}
           {preview.shortages.map((shortage) => (
             <p key={shortage.productId} role="alert" className="text-sm text-red-600">
