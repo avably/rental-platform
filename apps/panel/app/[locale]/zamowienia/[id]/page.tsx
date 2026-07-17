@@ -33,6 +33,7 @@ import {
   deductDepositAction,
   refundDepositAction,
 } from "./deposit-actions";
+import { DeliverySection } from "./delivery-section";
 import { DepositForms } from "./deposit-forms";
 import { ExtensionSection } from "./extension-section";
 import { StatusButtons } from "./status-buttons";
@@ -257,6 +258,8 @@ export default async function OrderDetailPage({
       </section>
 
       <ExtensionSection order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }} />
+
+      <DeliverySection orderId={row.id} deliveryMethod={row.delivery_method} totalRentalGrosze={row.total_rental_grosze} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">{t("statusSection")}</h2>
