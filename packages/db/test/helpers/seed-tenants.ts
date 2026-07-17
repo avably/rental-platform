@@ -552,6 +552,17 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     kind: "collected",
     amount_grosze: 10_000,
   }),
+  // Unikalny provider_order_number per wywołanie — dane fikcyjne (0013).
+  courier_shipments: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    shipment_type: "outbound",
+    provider_order_number: `GK-TEST-${randomUUID().slice(0, 8)}`,
+    length_cm: 60,
+    width_cm: 40,
+    height_cm: 30,
+    weight_kg: 10,
+  }),
   // Unikalny klucz per wywołanie — PK to (tenant_id, key), a kolizja dałaby
   // 23505 zamiast 42501 w teście INSERT-u cross-tenant (patrz usage_counters).
   tenant_settings: async (_ctx, tenantId) => ({
@@ -635,6 +646,9 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   order_items: { rental_grosze: 999_999 },
   deposit_events: { reason: "rls-test-hacked" },
   tenant_settings: { updated_at: "2000-01-01T00:00:00.000Z" },
+  // tracking_number nie jest objęty żadnym indeksem unikalnym (pułapka 23505
+  // opisana wyżej nie dotyczy).
+  courier_shipments: { tracking_number: "rls-test-hacked" },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {
