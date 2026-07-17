@@ -26,6 +26,7 @@ function deps(overrides: Partial<WaitlistDeps> = {}): WaitlistDeps {
     ip: "203.0.113.7",
     checkRateLimit: vi.fn(async () => ({ success: true })),
     callRpc: vi.fn(async () => "success" as const),
+    verifyCaptcha: vi.fn(async () => ({ ok: true })),
     ...overrides,
   };
 }
@@ -177,6 +178,45 @@ describe("walidacja — mapa pole→błąd", () => {
       consent: false,
     });
     expect(Object.keys(fields).sort()).toEqual(["consent", "email", "rentalType"]);
+  });
+});
+
+describe("bramka captcha (Turnstile)", () => {
+  it("odmowa weryfikatora → captcha_failed i dane NIE schodzą do bazy", async () => {
+    const d = deps({ verifyCaptcha: vi.fn(async () => ({ ok: false })) });
+    const result = await joinWaitlistCore({ ...VALID_INPUT, captchaToken: "zly" }, d);
+
+    expect(result).toEqual({ status: "captcha_failed" });
+    expect(d.callRpc, "odrzucona captcha dotarła do bazy").not.toHaveBeenCalled();
+  });
+
+  it("weryfikator dostaje token z wejścia", async () => {
+    const verifyCaptcha = vi.fn(async () => ({ ok: true }));
+    await joinWaitlistCore({ ...VALID_INPUT, captchaToken: "tok-42" }, deps({ verifyCaptcha }));
+
+    expect(verifyCaptcha).toHaveBeenCalledWith("tok-42");
+  });
+
+  it("captcha stoi ZA walidacją — błędne wejście nie woła weryfikatora", async () => {
+    // Kolejność z punktu wpięcia w core.ts: walidacja → captcha → zapis.
+    // Odwrotnie siteverify byłby wołany dla śmieciowego wejścia (koszt +
+    // sygnał do Cloudflare), a mapa błędów walidacji byłaby maskowana
+    // odmową captchy.
+    const verifyCaptcha = vi.fn(async () => ({ ok: true }));
+    await joinWaitlistCore({ email: "nie-email" }, deps({ verifyCaptcha }));
+
+    expect(verifyCaptcha).not.toHaveBeenCalled();
+  });
+
+  it("captcha_failed nie niesie danych osobowych", async () => {
+    const result = await joinWaitlistCore(
+      { ...VALID_INPUT, pilotInterest: true, phone: "600100200" },
+      deps({ verifyCaptcha: vi.fn(async () => ({ ok: false })) }),
+    );
+
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("ktos@example.com");
+    expect(serialized).not.toContain("600100200");
   });
 });
 

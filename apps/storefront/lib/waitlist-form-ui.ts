@@ -14,6 +14,7 @@ export type WaitlistViewState =
   | { kind: "duplicate" }
   | { kind: "validation"; fields: WaitlistFieldErrors }
   | { kind: "disabled" }
+  | { kind: "captcha_error" }
   | { kind: "connection_error" }
   | { kind: "server_error" };
 
@@ -26,6 +27,7 @@ export type WaitlistMessageKey =
   | "duplicate"
   | "validation"
   | "disabled"
+  | "captcha"
   | "connection"
   | "server";
 
@@ -38,6 +40,8 @@ export function getWaitlistMessageKey(view: WaitlistViewState): WaitlistMessageK
       return view.kind;
     case "server_error":
       return "server";
+    case "captcha_error":
+      return "captcha";
     case "connection_error":
       return "connection";
     case "idle":
@@ -96,6 +100,8 @@ export function mapWaitlistResult(result: WaitlistResult): WaitlistViewState {
       return { kind: "validation", fields: result.fields };
     case "disabled":
       return { kind: "disabled" };
+    case "captcha_failed":
+      return { kind: "captcha_error" };
     case "rate_limited":
     case "server_error":
       return { kind: "server_error" };

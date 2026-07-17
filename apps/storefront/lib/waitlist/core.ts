@@ -37,6 +37,12 @@ export interface WaitlistDeps {
   ) => Promise<{ success: boolean }>;
   /** Wywołanie app.join_waitlist. Rzuca przy błędzie — mapujemy na server_error. */
   callRpc: (args: WaitlistRpcArgs) => Promise<WaitlistRpcOutcome>;
+  /**
+   * Weryfikacja Turnstile (ADR-032). Rdzeń zna tylko wynik — semantyka
+   * konfiguracji (fail-closed z sekretem vs dev-skip bez) mieszka
+   * w @avably/security/turnstile, a dostarcza ją akcja.
+   */
+  verifyCaptcha: (token: string | undefined) => Promise<{ ok: boolean }>;
 }
 
 /**
@@ -93,11 +99,11 @@ export async function joinWaitlistCore(
 
   const data = parsed.data;
 
-  // PUNKT WPIĘCIA Turnstile: tutaj, po walidacji a przed zapisem, trafi
-  // weryfikacja tokenu (data.captchaToken) — odpowiednik
-  // apps/panel/lib/turnstile.ts. Świadomie niepodpięte: wymaga konta
-  // Cloudflare, którego infra jeszcze nie ma. Warunek przed publicznym
-  // launchem — patrz dokumentacja modułu.
+  // Captcha po walidacji, przed zapisem — dokładnie w punkcie wpięcia
+  // zaplanowanym przy budowie waitlisty (ADR-032). Fail-closed: odmowa
+  // weryfikatora znaczy, że dane nie schodzą głębiej (RPC nie jest wołane).
+  const captcha = await deps.verifyCaptcha(data.captchaToken);
+  if (!captcha.ok) return { status: "captcha_failed" };
 
   try {
     const outcome = await deps.callRpc({

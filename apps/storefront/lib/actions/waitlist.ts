@@ -17,6 +17,7 @@ import {
   STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX,
   checkRateLimit,
 } from "@avably/security/rate-limit";
+import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import {
@@ -37,6 +38,9 @@ export async function joinWaitlist(input: WaitlistInput): Promise<WaitlistResult
     // przestrzeń kluczy jest własnością warstwy security.
     checkRateLimit: (key, opts) =>
       checkRateLimit(key, { ...opts, prefix: STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX }),
+    // Sekret i transport zostają domyślne (env Vercela / globalny fetch) —
+    // semantyka fail-closed vs dev-skip: @avably/security/turnstile.
+    verifyCaptcha: (token) => verifyTurnstile(token),
     callRpc: async (args: WaitlistRpcArgs): Promise<WaitlistRpcOutcome> => {
       const supabase = await createSupabaseServerClient();
       // Schemat `app` jest wystawiony przez PostgREST wyłącznie po to, by dać
