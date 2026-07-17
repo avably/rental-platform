@@ -41,6 +41,9 @@ export default async function Home() {
         <Link className="underline" href="/zaproszenia">
           {t("invitationsLink")}
         </Link>
+        <Link className="underline" href="/ustawienia-emaili">
+          {t("emailSettingsLink")}
+        </Link>
         {ctx?.superadmin ? (
           <Link className="font-medium underline" href={SUPERADMIN_HOME}>
             {tNav("superadminLink")}

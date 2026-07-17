@@ -13,7 +13,24 @@
     "ordersLink": "Zamówienia",
     "catalogLink": "Katalog produktów",
     "locationsLink": "Punkty odbioru",
-    "invitationsLink": "Zaproszenia członków"
+    "invitationsLink": "Zaproszenia członków",
+    "emailSettingsLink": "Ustawienia e-maili"
+  },
+  "emailSettings": {
+    "title": "Ustawienia e-maili",
+    "intro": "Nadawca wiadomości wysyłanych do klientów i zaproszonych oraz stan wysyłki. Adres wysyłki jest wspólny dla platformy — Ty personalizujesz nazwę i adres odpowiedzi.",
+    "statusHeading": "Stan wysyłki",
+    "transportAvailable": "Transport e-maili: dostępny.",
+    "transportUnavailable": "Transport e-maili: niedostępny.",
+    "senderConfigured": "Nadawca: ustawiony.",
+    "senderMissing": "Nadawca: nieustawiony — do czasu ustawienia nazwy wiadomości cyklu najmu nie wyjdą.",
+    "formTitle": "Nadawca",
+    "nameLabel": "Nazwa nadawcy (widoczna w polu Od)",
+    "replyToLabel": "Adres odpowiedzi (opcjonalny)",
+    "replyToHint": "Na ten adres trafią odpowiedzi klientów. Bez niego odpowiedź wróci na adres platformy.",
+    "saveCta": "Zapisz",
+    "savedOk": "Zapisano.",
+    "backLink": "Panel"
   },
   "nav": {
     "superadmin": "Superadmin",
