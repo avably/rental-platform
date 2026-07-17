@@ -86,9 +86,9 @@ export async function joinWaitlistCore(
   if (!deps.enabled) return { status: "disabled" };
 
   // Rate-limit PRZED walidacją (panel robi odwrotnie przy auth): tam wejściem
-  // są dwa pola, tu — jedenaście, w tym pola tekstowe do 500 znaków od
-  // anonima bez CAPTCHA. Limit jest tańszą bramką niż parser i chroni
-  // wszystko za sobą, łącznie z nim.
+  // są dwa pola, tu — jedenaście, w tym pola tekstowe do 500 znaków od anonima.
+  // Limit jest tańszą bramką niż parser i chroni wszystko za sobą, łącznie
+  // z nim i z weryfikacją captchy (ta stoi dopiero za walidacją — patrz niżej).
   const limit = await deps.checkRateLimit(`waitlist:ip:${deps.ip}`, WAITLIST_RATE_LIMIT);
   if (!limit.success) return { status: "rate_limited" };
 
