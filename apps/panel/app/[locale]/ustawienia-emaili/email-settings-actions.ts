@@ -22,18 +22,9 @@ import { AuthError } from "@/lib/auth";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
-import { emailSenderSchema } from "./email-settings-validation";
+import { emailSenderInputFromFormData, emailSenderSchema } from "./email-settings-validation";
 
 const PG_CHECK_VIOLATION = "23514";
-
-const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
-
-export function emailSenderInputFromFormData(formData: FormData): {
-  name: string;
-  replyTo: string;
-} {
-  return { name: str(formData.get("name")), replyTo: str(formData.get("replyTo")) };
-}
 
 export async function saveEmailSenderAction(
   _prevState: FormState,

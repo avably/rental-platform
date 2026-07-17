@@ -10,6 +10,21 @@
  */
 import { z } from "zod";
 
+const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
+
+/**
+ * Sklejka FormData → wejście schematu. Funkcja CZYSTA, świadomie POZA plikiem
+ * akcji ("use server" wolno eksportować tylko async) i wzorem
+ * statusChangeFromFormData z 8b. Dowód mutacyjny (usunięcie odczytu replyTo)
+ * czerwieni test, gdy pole nie jest realnie odczytane.
+ */
+export function emailSenderInputFromFormData(formData: FormData): {
+  name: string;
+  replyTo: string;
+} {
+  return { name: str(formData.get("name")), replyTo: str(formData.get("replyTo")) };
+}
+
 export const emailSenderSchema = z
   .object({
     name: z
