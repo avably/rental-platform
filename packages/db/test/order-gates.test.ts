@@ -31,6 +31,7 @@ import { randomUUID } from "node:crypto";
 import {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   BLOCKING_PAYMENT_STATUSES,
+  canPaymentTransition,
   canTransition,
   checkAvailability,
   ORDER_STATUSES,
@@ -351,8 +352,20 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
         "payment_status=$payment: anulowanie zgodne ze stałą z @avably/core",
         async ({ payment }) => {
           const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
-          // Oś płatności NIE jest bramkowana w 0010 (rozliczenia to Zadanie 5)
-          // — ustawienie statusu płatności wprost musi przejść.
+          // Od 0015 (ADR-035) oś płatności MA bramkę: z 'unpaid' każdy status
+          // jest osiągalny jednym legalnym przejściem, ale wejście w
+          // deposit_refunded wymaga DODATKOWO pokrycia w rejestrze kaucji
+          // (saldo 0 przy pobraniach > 0 — reguła B). Seedujemy je, żeby ten
+          // test badał WYŁĄCZNIE blokadę anulowania (BLOCKING_PAYMENT_STATUSES),
+          // nie bramkę spójności rejestru (ta ma własne testy w sekcji 5).
+          if (payment === "deposit_refunded") {
+            await admin
+              .from("deposit_events")
+              .insert({ tenant_id: tenantId, order_id: orderId, kind: "collected", amount_grosze: 100_00 });
+            await admin
+              .from("deposit_events")
+              .insert({ tenant_id: tenantId, order_id: orderId, kind: "refunded", amount_grosze: 100_00 });
+          }
           const { error: paymentError } = await admin
             .from("orders")
             .update({ payment_status: payment })
@@ -795,6 +808,108 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
         p_items: [],
       });
       expect(error?.code, "create_order przyjął pusty koszyk").toBe("22023");
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 5. Maszyna stanów payment_status (0015, ADR-035)
+  // -------------------------------------------------------------------
+  //
+  // Dwie ortogonalne reguły bramki: (A) mapa przejść — lustro
+  // canPaymentTransition z @avably/core, dowodzona zgodnością wszystkich 64
+  // par plus zachowaniem (regres, terminal, INSERT); (B) spójność wejścia w
+  // deposit_refunded z rejestrem kaucji (saldo 0 przy pobraniach > 0). Sekcja
+  // idzie klientem service-role (bramka jest zachowaniem SCHEMATU i obowiązuje
+  // KAŻDĄ rolę — jak sekcje 2-3 i ADR-025/ADR-035).
+  describe("maszyna stanów payment_status (0015, ADR-035)", () => {
+    async function setPayment(orderId: string, to: string) {
+      return admin.from("orders").update({ payment_status: to }).eq("id", orderId).select("id");
+    }
+    async function collect(tenantId: string, orderId: string, amount: number) {
+      const { error } = await admin
+        .from("deposit_events")
+        .insert({ tenant_id: tenantId, order_id: orderId, kind: "collected", amount_grosze: amount });
+      if (error) throw new Error(`collect: ${error.message}`);
+    }
+    async function refund(tenantId: string, orderId: string, amount: number) {
+      const { error } = await admin
+        .from("deposit_events")
+        .insert({ tenant_id: tenantId, order_id: orderId, kind: "refunded", amount_grosze: amount });
+      if (error) throw new Error(`refund: ${error.message}`);
+    }
+    async function freshOrder(label: string): Promise<{ tenantId: string; orderId: string }> {
+      const tenantId = await createTenant(label);
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-01-05", "2027-01-07");
+      return { tenantId, orderId };
+    }
+
+    it("zgodność 64 par: SQL app.payment_transition_allowed == canPaymentTransition", async () => {
+      for (const from of PAYMENT_STATUSES) {
+        for (const to of PAYMENT_STATUSES) {
+          const [{ allowed }] = await sql<{ allowed: boolean }[]>`
+            select app.payment_transition_allowed(${from}, ${to}) as allowed`;
+          expect(allowed, `SQL ${from}->${to}`).toBe(canPaymentTransition(from, to));
+        }
+      }
+    });
+
+    it("regres deposit_refunded -> paid odrzucony 23514 (nic innego tego nie blokuje)", async () => {
+      const { tenantId, orderId } = await freshOrder("pay-regres");
+      await collect(tenantId, orderId, 100_00);
+      await refund(tenantId, orderId, 100_00); // saldo 0, pobrania > 0
+      const flip = await setPayment(orderId, "deposit_refunded");
+      expect(flip.error?.message, `flip do deposit_refunded padł: ${flip.error?.message}`).toBeUndefined();
+      const regres = await setPayment(orderId, "paid");
+      expect(regres.error?.code, `regres przeszedł: ${regres.error?.message}`).toBe(PG_BAD_TRANSITION);
+    });
+
+    it("refunded jest terminalny (refunded -> paid odrzucony 23514)", async () => {
+      const { orderId } = await freshOrder("pay-term");
+      expect((await setPayment(orderId, "refunded")).error?.message).toBeUndefined();
+      const back = await setPayment(orderId, "paid");
+      expect(back.error?.code, `wyjście z refunded przeszło: ${back.error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("INSERT w stanie rozliczeniowym odrzucony 23514", async () => {
+      const tenantId = await createTenant("pay-insert");
+      const customerId = await createCustomer(tenantId);
+      const { error } = await admin.from("orders").insert({
+        tenant_id: tenantId,
+        customer_id: customerId,
+        start_date: "2027-02-01",
+        end_date: "2027-02-02",
+        delivery_method: "courier",
+        payment_status: "deposit_refunded",
+      });
+      expect(error?.code, `INSERT deposit_refunded przeszedł: ${error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("deposit_refunded bez pokrycia w rejestrze odrzucony 23514 (collected=0)", async () => {
+      const { orderId } = await freshOrder("pay-ledger-0");
+      const r = await setPayment(orderId, "deposit_refunded");
+      expect(r.error?.code, `deposit_refunded bez pobrań przeszedł: ${r.error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("deposit_refunded przy saldzie != 0 odrzucony 23514", async () => {
+      const { tenantId, orderId } = await freshOrder("pay-ledger-bal");
+      await collect(tenantId, orderId, 100_00); // saldo 100, nie 0
+      const r = await setPayment(orderId, "deposit_refunded");
+      expect(r.error?.code, `deposit_refunded przy saldzie 100 przeszedł: ${r.error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("legalne przejścia otwarte przechodzą (unpaid -> paid -> manual)", async () => {
+      const { orderId } = await freshOrder("pay-open");
+      expect((await setPayment(orderId, "paid")).error?.message).toBeUndefined();
+      expect((await setPayment(orderId, "manual")).error?.message).toBeUndefined();
     });
   });
 });
