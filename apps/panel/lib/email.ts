@@ -1,43 +1,132 @@
 /**
- * Wysyłka e-maili transakcyjnych spoza Supabase Auth (zaproszenia członków —
- * Supabase nie ma dla nich wbudowanego szablonu jak dla confirmation/recovery).
- * Resend, jeśli skonfigurowany `RESEND_API_KEY`; w przeciwnym razie
- * dev-fallback: log do konsoli serwera (link zaproszenia widoczny do
- * ręcznego testu lokalnego, bez zewnętrznej usługi).
+ * Złożenie i wysyłka e-maila zaproszenia na WSPÓLNYM transporcie (ADR-033/036).
  *
- * TODO(Task 3 infra): dodać RESEND_API_KEY + zweryfikować domenę nadawcy
- * `avably.io` w Resend po stronie hostingu; do tego czasu `RESEND_FROM_EMAIL`
- * musi wskazywać nadawcę z domeny już zweryfikowanej.
+ * Wymiana reliktu sprzed Zadania 8b (surowy fetch + inline HTML + cichy
+ * dev-skip). Trzy warstwy 8b reużyte: szablon 8a (renderOrganizationInvitation),
+ * port transportu (resendTransport, wstrzykiwany) i nadawca platformy
+ * (platformFromAddress). Semantyka niedostępności = lustro ADR-033: brak klucza
+ * to JAWNY powód niewysłania, nigdy udawany sukces (ADR-036 D1).
+ *
+ * Nadawca (ADR-036 D2): pole From = nazwa tenanta (tenants.name) + adres
+ * platformy, dokładnie jak w e-mailach cyklu najmu. email_sender wnosi tylko
+ * reply_to; jego BRAK jest legalny (fallback: bez reply_to) — nazwa najemcy to
+ * nie obca marka, więc podstawienie nie łamie zakazu z ADR-033.
+ *
+ * NIE RZUCA (jak sendRentalEmailForTransition): zwraca powód niewysłania albo
+ * undefined. Rekord zaproszenia powstaje przed wysyłką i poczta go nie cofa.
  */
-import { DEFAULT_FROM_EMAIL } from "@avably/core";
+import {
+  DEFAULT_TENANT_LOCALE,
+  EMAIL_SENDER_KEY,
+  EmailConfigError,
+  emailSenderFromSettings,
+  isLocale,
+  platformFromAddress,
+  type EmailAvailability,
+  type EmailTransport,
+  type Locale,
+  type OutgoingEmail,
+  type TenantSettingRow,
+} from "@avably/core";
+import {
+  emailMessages,
+  renderOrganizationInvitation,
+  type InvitationRole,
+} from "@avably/emails";
 
-let warnedDevSkip = false;
+export interface InvitationEmailInput {
+  to: string;
+  acceptUrl: string;
+  locale: Locale;
+  /** tenants.name — nazwa w polu From i w treści (ADR-036 D2). */
+  organizationName: string;
+  role: InvitationRole;
+  replyTo?: string;
+  /** Nadpisanie adresu platformy (test); domyślnie env/stała z @avably/core. */
+  fromEmail?: string;
+}
 
-export async function sendInvitationEmail(opts: { to: string; acceptUrl: string }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    if (!warnedDevSkip) {
-      console.warn(
-        "[email] RESEND_API_KEY nie ustawiony — tryb dev-skip, e-mail zaproszenia NIE jest wysyłany " +
-          "(patrz TODO w lib/email.ts). Link zaproszenia poniżej, do ręcznego testu:",
-      );
-      warnedDevSkip = true;
+export async function buildInvitationEmail(
+  input: InvitationEmailInput,
+): Promise<OutgoingEmail> {
+  const { html, text } = await renderOrganizationInvitation({
+    acceptanceUrl: input.acceptUrl,
+    locale: input.locale,
+    organizationName: input.organizationName,
+    role: input.role,
+  });
+
+  return {
+    from: platformFromAddress(
+      input.organizationName,
+      input.fromEmail ? { fromEmail: input.fromEmail } : {},
+    ),
+    to: input.to,
+    subject: emailMessages(input.locale).organizationInvitation.heading,
+    html,
+    text,
+    ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+  };
+}
+
+export interface SendInvitationEmailInput {
+  to: string;
+  acceptUrl: string;
+  locale: Locale;
+  organizationName: string;
+  role: InvitationRole;
+  /** Wiersze tenant_settings dla klucza email_sender (może być pusto). */
+  settings: TenantSettingRow[];
+  availability: EmailAvailability;
+  transport: EmailTransport;
+  fromEmail?: string;
+}
+
+/** Bezpieczne locale tenanta — nieznana wartość spada na domyślne (jak 8b). */
+export function invitationLocale(raw: string | null | undefined): Locale {
+  return isLocale(raw ?? "") ? (raw as Locale) : DEFAULT_TENANT_LOCALE;
+}
+
+/**
+ * Wysyłka zaproszenia. Zwraca POWÓD niewysłania albo undefined (wysłano).
+ * NIGDY nie rzuca — rekord zaproszenia jest już utrwalony, poczta go nie cofa.
+ */
+export async function sendInvitationEmail(
+  input: SendInvitationEmailInput,
+): Promise<string | undefined> {
+  if (!input.availability.available) return input.availability.reason;
+
+  // reply_to z email_sender: BRAK klucza jest legalny (fallback D2), OBECNY
+  // ale wadliwy → uczciwy powód. Rozróżnienie po obecności wiersza — bez tego
+  // emailSenderFromSettings([]) rzuciłoby EmailConfigError „brak nazwy" i
+  // zablokowało wysyłkę tak jak w 8b, czego dla zaproszeń świadomie nie chcemy.
+  let replyTo: string | undefined;
+  if (input.settings.some((row) => row.key === EMAIL_SENDER_KEY)) {
+    try {
+      replyTo = emailSenderFromSettings(input.settings).replyTo;
+    } catch (err) {
+      if (err instanceof EmailConfigError) {
+        return `${err.message} Zaproszenie nie zostało wysłane e-mailem.`;
+      }
+      throw err;
     }
-    console.info(`[email:dev] Zaproszenie dla ${opts.to}: ${opts.acceptUrl}`);
-    return;
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL ?? DEFAULT_FROM_EMAIL,
-      to: opts.to,
-      subject: "Zaproszenie do organizacji",
-      html: `<p>Zostałeś(-aś) zaproszony(-a) do organizacji.</p><p><a href="${opts.acceptUrl}">Dołącz do organizacji</a></p>`,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Wysyłka e-maila zaproszenia nie powiodła się (Resend HTTP ${response.status}).`);
+  try {
+    const email = await buildInvitationEmail({
+      to: input.to,
+      acceptUrl: input.acceptUrl,
+      locale: input.locale,
+      organizationName: input.organizationName,
+      role: input.role,
+      ...(replyTo ? { replyTo } : {}),
+      ...(input.fromEmail ? { fromEmail: input.fromEmail } : {}),
+    });
+    await input.transport.send(email);
+    return undefined;
+  } catch (err) {
+    return `Zaproszenie utworzone, ale e-mail nie wyszedł: ${
+      err instanceof Error ? err.message : "nieznany błąd"
+    }`;
   }
 }
