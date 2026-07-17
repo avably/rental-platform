@@ -2,6 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 
@@ -42,7 +43,8 @@ export async function registerAction(
 
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken);
   if (!turnstile.ok) {
-    return { error: "Weryfikacja CAPTCHA nie powiodła się." };
+    const t = await getTranslations("register");
+    return { error: t("captchaFailed") };
   }
 
   const supabase = await createSupabaseServerClient();

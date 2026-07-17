@@ -43,14 +43,16 @@
     "submit": "Zaloguj się",
     "submitPending": "Loguję…",
     "register": "Załóż konto",
-    "forgotPassword": "Nie pamiętam hasła"
+    "forgotPassword": "Nie pamiętam hasła",
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
   },
   "register": {
     "title": "Załóż konto",
     "submit": "Zarejestruj się",
     "submitPending": "Rejestruję…",
     "haveAccount": "Masz już konto?",
-    "login": "Zaloguj się"
+    "login": "Zaloguj się",
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
   },
   "checkInbox": {
     "title": "Sprawdź skrzynkę",
