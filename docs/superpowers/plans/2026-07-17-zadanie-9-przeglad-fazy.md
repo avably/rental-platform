@@ -11,8 +11,8 @@
 ## Global Constraints
 
 - Gałąź: `feat/zadanie-9-przeglad-fazy` (już utworzona z `origin/main`, worktree `.claude/worktrees/przeglad-fazy`). PR do `main`, **nigdy push na main**.
-- Autor commitów: `Avably <admin@avably.io>`. ZERO `Co-Authored-By`, ZERO wzmianek o AI/Claude, ZERO nazw konkurencji. Język: polski.
-- Migracje tworzy WYŁĄCZNIE Claude. Numer: **0015** (0012 świadomie wolne). ADR: **035+** (034 zajęty).
+- Autor commitów: `Avably <admin@avably.io>`. ZERO `Co-Authored-By`, ZERO nazw konkurencji. Język: polski.
+- Migracje tworzy WYŁĄCZNIE pas backendowy. Numer: **0015** (0012 świadomie wolne). ADR: **035+** (034 zajęty).
 - Wyłącznie standardowe SQLSTATE mapowane przez PostgREST: `23514` (check_violation), `23P01`, `23001`, `22023`. Kody `P0xxx` PostgREST zjada do gołego 500.
 - Bramka obowiązuje KAŻDĄ rolę, także `service_role`.
 - Ataki na ŻYWEJ lokalnej bazie. **NIE `supabase db reset` bez potrzeby** (wspólny stack). Sprawdź `schema_migrations` (0001–0011,0013,0014) zanim czemukolwiek zaufasz.
@@ -636,7 +636,7 @@ Zasada: ataki na ŻYWEJ bazie, jak przy PR #20. Drobne naprawy (≤ kilka linii,
   pnpm -w typecheck && pnpm -w lint
   ```
   Expected: zielono. Powtórz przy jednorazowej czerwieni integracyjnej (wspólna baza).
-- [ ] **Step 3:** Push gałęzi, otwórz PR do `main` z opisem (kontekst, 0015/ADR-035, tabela ataków skrótowo, lista długów, dowody mutacyjne). Autor `Avably <admin@avably.io>`, zero AI/Co-Authored-By.
+- [ ] **Step 3:** Push gałęzi, otwórz PR do `main` z opisem (kontekst, 0015/ADR-035, tabela ataków skrótowo, lista długów, dowody mutacyjne). Autor `Avably <admin@avably.io>`, zero Co-Authored-By.
 - [ ] **Step 4:** Poczekaj na oba joby CI (`ci`, `rls`) zielone. Jeśli czerwone — diagnoza, poprawka, ponów.
 - [ ] **Step 5:** Raport końcowy wg Kontraktu raportu: 1. STATUS 2. PR+commity 3. Dowody mutacyjne (co paliło który test + pytanie kontrolne o maskowanie) 4. Tabela ataków 5. Decyzje (ADR-035) + długi fazy 2 z severity 6. Env/setup. **Werdykt MERGE/NIE dla fazy.**
 
