@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@avably/ui";
 import {
+  emailAvailability,
   formatMoney,
   rentalDaysInclusive,
   type OrderStatus,
@@ -274,6 +275,9 @@ export default async function OrderDetailPage({
           orderId={row.id}
           currentStatus={row.order_status}
           paymentStatus={row.payment_status}
+          // Liczone na serwerze: RESEND_API_KEY nie może trafić do klienta,
+          // a komponent potrzebuje wyłącznie odpowiedzi „czy i dlaczego nie".
+          emailAvailability={emailAvailability()}
         />
       </section>
     </main>

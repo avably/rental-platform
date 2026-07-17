@@ -13,6 +13,8 @@ import { useActionState } from "react";
 
 import type { FormState } from "@/lib/form-state";
 
+import { TEMPLATE_FOR_STATUS } from "./rental-email";
+
 const initialState: FormState = {};
 
 /**
@@ -21,17 +23,25 @@ const initialState: FormState = {};
  * anulowanie dodatkowo gasimy przy blokującym payment_status. To jest UI —
  * autorytatywnie odmawia trigger 0010; akcja niesie expectedFrom, więc
  * równoległa zmiana statusu kończy się czytelnym błędem, nie ślepym nadpisem.
+ *
+ * Przy przejściach, które mają wiadomość do klienta (TEMPLATE_FOR_STATUS),
+ * operator decyduje JAWNIE, czy ją wysłać: checkbox jest domyślnie
+ * zaznaczony, gdy konfiguracja jest kompletna, i wyłączony Z PODANYM POWODEM,
+ * gdy nie (ADR-033). Wyłączony przełącznik bez wyjaśnienia wyglądałby jak
+ * usterka — brak konfiguracji ma być widoczny, nie domyślny.
  */
 export function StatusButtons({
   action,
   orderId,
   currentStatus,
   paymentStatus,
+  emailAvailability,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   orderId: string;
   currentStatus: OrderStatus;
   paymentStatus: PaymentStatus;
+  emailAvailability: { available: boolean; reason?: string | undefined };
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.detail");
@@ -47,8 +57,10 @@ export function StatusButtons({
       <div className="flex flex-wrap gap-2">
         {targets.map((target) => {
           const blocked = target === "cancelled" && cancelBlocked;
+          // Nie każde przejście ma wiadomość do klienta (np. → pending).
+          const hasTemplate = TEMPLATE_FOR_STATUS[target] !== undefined;
           return (
-            <form key={target} action={formAction}>
+            <form key={target} action={formAction} className="flex flex-col gap-1">
               <input type="hidden" name="orderId" value={orderId} />
               <input type="hidden" name="to" value={target} />
               <input type="hidden" name="expectedFrom" value={currentStatus} />
@@ -60,12 +72,28 @@ export function StatusButtons({
               >
                 {t("changeTo", { status: tStatus(target) })}
               </Button>
+              {hasTemplate ? (
+                <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    name="sendEmail"
+                    defaultChecked={emailAvailability.available}
+                    disabled={!emailAvailability.available || pending || blocked}
+                  />
+                  {t("sendEmail")}
+                </label>
+              ) : null}
             </form>
           );
         })}
       </div>
       {cancelBlocked && targets.includes("cancelled") ? (
         <p className="text-xs text-gray-500">{t("cancelBlockedHint")}</p>
+      ) : null}
+      {!emailAvailability.available && targets.some((s) => TEMPLATE_FOR_STATUS[s]) ? (
+        <p className="text-xs text-amber-700">
+          {emailAvailability.reason ?? t("sendEmailUnavailable")}
+        </p>
       ) : null}
       {state.formError ? (
         <p role="alert" className="text-sm text-red-600">
