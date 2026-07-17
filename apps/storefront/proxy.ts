@@ -27,6 +27,9 @@ export function proxy(request: NextRequest): NextResponse {
   const csp: CspOptions = {
     dev: process.env.NODE_ENV !== "production",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    // Dyrektywy dla challenges.cloudflare.com tylko gdy widget faktycznie
+    // ma się renderować (ten sam warunek co w components/waitlist-form).
+    turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
   };
 
   request.headers.set("x-nonce", nonce);
