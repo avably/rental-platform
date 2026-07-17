@@ -121,6 +121,7 @@
       "backToList": "← Katalog produktów",
       "unitsLink": "Egzemplarze",
       "tiersLink": "Progi cenowe",
+      "imagesLink": "Zdjęcia",
       "name": "Nazwa",
       "description": "Opis",
       "basePriceDay": "Cena bazowa za dobę ({currency})",
@@ -154,6 +155,25 @@
       "saved": "Zapisano zmiany.",
       "delete": "Usuń",
       "deletedInfo": "Egzemplarz usunięty."
+    },
+    "images": {
+      "title": "Zdjęcia: {name}",
+      "backToProduct": "← Produkt: {name}",
+      "addTitle": "Dodaj zdjęcie",
+      "file": "Plik zdjęcia",
+      "fileHint": "Formaty: JPEG, PNG, WebP, AVIF. Maksymalnie 5 MB.",
+      "add": "Wgraj zdjęcie",
+      "adding": "Wgrywam…",
+      "added": "Zdjęcie dodane.",
+      "listHeading": "Zdjęcia ({count})",
+      "empty": "Brak zdjęć — dodaj pierwsze, aby pokazać produkt w sklepie.",
+      "sortOrder": "Kolejność",
+      "save": "Zapisz",
+      "saving": "Zapisuję…",
+      "saved": "Zapisano zmiany.",
+      "delete": "Usuń",
+      "deletedInfo": "Zdjęcie usunięte.",
+      "thumbnailAlt": "Miniatura zdjęcia produktu"
     },
     "tiers": {
       "title": "Progi cenowe: {name}",

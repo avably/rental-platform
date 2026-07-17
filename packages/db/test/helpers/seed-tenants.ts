@@ -570,6 +570,19 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     key: `test_setting_${randomUUID().replace(/-/g, "").slice(0, 12)}`,
     value: { enabled: true },
   }),
+  // Zdjęcie produktu (0018). Ścieżka w konwencji {tenant_id}/{product_id}/{uuid}
+  // — sama tabela nie wymusza jej kształtu (izolację zapisu PLIKÓW pilnują
+  // polityki storage.objects), ale wiersz odzwierciedla realny zapis aplikacji.
+  // product_id z createProduct: FK złożony (tenant_id, product_id) wymaga
+  // produktu TEGO SAMEGO tenanta.
+  product_images: async (ctx, tenantId) => {
+    const productId = await createProduct(ctx, tenantId);
+    return {
+      tenant_id: tenantId,
+      product_id: productId,
+      storage_path: `${tenantId}/${productId}/${randomUUID()}`,
+    };
+  },
 };
 
 /**
@@ -649,6 +662,9 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // tracking_number nie jest objęty żadnym indeksem unikalnym (pułapka 23505
   // opisana wyżej nie dotyczy).
   courier_shipments: { tracking_number: "rls-test-hacked" },
+  // alt_text jest nullable i bez indeksu unikalnego — goła mutacja na wszystkich
+  // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
+  product_images: { alt_text: "rls-test-hacked" },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {
