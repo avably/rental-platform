@@ -55,6 +55,28 @@ export interface NewOrderNotificationMessages {
   };
 }
 
+export interface RentalLifecycleStatusMessages {
+  body: string;
+  heading: string;
+  preview: (orderNumber: string) => string;
+}
+
+export interface RentalLifecycleMessages {
+  cancelled: RentalLifecycleStatusMessages;
+  confirmed: RentalLifecycleStatusMessages;
+  footerAutomated: string;
+  greeting: (customerName: string) => string;
+  fields: {
+    orderNumber: string;
+    pickupLocation: string;
+    rentalPeriod: string;
+    totalRental: string;
+  };
+  pickedUp: RentalLifecycleStatusMessages;
+  readyForPickup: RentalLifecycleStatusMessages;
+  returned: RentalLifecycleStatusMessages;
+}
+
 export interface EmailMessages {
   greeting: (recipientName?: string) => string;
   layout: EmailLayoutMessages;
@@ -62,6 +84,7 @@ export interface EmailMessages {
   passwordReset: PasswordResetMessages;
   organizationInvitation: OrganizationInvitationMessages;
   newOrderNotification: NewOrderNotificationMessages;
+  rentalLifecycle: RentalLifecycleMessages;
 }
 
 const pl: EmailMessages = {
@@ -104,6 +127,41 @@ const pl: EmailMessages = {
       rentalPeriod: "Okres wynajmu",
     },
   },
+  rentalLifecycle: {
+    greeting: (customerName) => `Dzień dobry, ${customerName}!`,
+    footerAutomated: "Wiadomość automatyczna dotycząca Twojego wynajmu.",
+    fields: {
+      orderNumber: "Numer zamówienia",
+      pickupLocation: "Miejsce odbioru",
+      rentalPeriod: "Okres wynajmu",
+      totalRental: "Wartość wynajmu",
+    },
+    confirmed: {
+      heading: "Rezerwacja potwierdzona",
+      preview: (orderNumber) => `Rezerwacja ${orderNumber} została potwierdzona.`,
+      body: "Potwierdziliśmy Twoją rezerwację. Szczegóły znajdziesz poniżej.",
+    },
+    readyForPickup: {
+      heading: "Sprzęt jest gotowy do odbioru",
+      preview: (orderNumber) => `Zamówienie ${orderNumber} jest gotowe do odbioru.`,
+      body: "Sprzęt jest przygotowany i czeka na odbiór.",
+    },
+    pickedUp: {
+      heading: "Sprzęt został wydany",
+      preview: (orderNumber) => `Potwierdzenie wydania sprzętu — ${orderNumber}.`,
+      body: "Potwierdzamy wydanie sprzętu.",
+    },
+    returned: {
+      heading: "Sprzęt został zwrócony",
+      preview: (orderNumber) => `Potwierdzenie zwrotu sprzętu — ${orderNumber}.`,
+      body: "Potwierdzamy zwrot sprzętu. Dziękujemy.",
+    },
+    cancelled: {
+      heading: "Zamówienie anulowane",
+      preview: (orderNumber) => `Zamówienie ${orderNumber} zostało anulowane.`,
+      body: "Potwierdzamy anulowanie zamówienia.",
+    },
+  },
 };
 
 const en: EmailMessages = {
@@ -144,6 +202,41 @@ const en: EmailMessages = {
       customer: "Customer",
       amount: "Amount",
       rentalPeriod: "Rental period",
+    },
+  },
+  rentalLifecycle: {
+    greeting: (customerName) => `Hello ${customerName},`,
+    footerAutomated: "This is an automated message about your rental.",
+    fields: {
+      orderNumber: "Order number",
+      pickupLocation: "Pickup location",
+      rentalPeriod: "Rental period",
+      totalRental: "Rental total",
+    },
+    confirmed: {
+      heading: "Reservation confirmed",
+      preview: (orderNumber) => `Reservation ${orderNumber} has been confirmed.`,
+      body: "Your reservation is confirmed. The details are below.",
+    },
+    readyForPickup: {
+      heading: "Equipment ready for pickup",
+      preview: (orderNumber) => `Order ${orderNumber} is ready for pickup.`,
+      body: "Your equipment is ready for pickup.",
+    },
+    pickedUp: {
+      heading: "Equipment picked up",
+      preview: (orderNumber) => `Equipment pickup confirmed — ${orderNumber}.`,
+      body: "We've recorded the equipment pickup.",
+    },
+    returned: {
+      heading: "Equipment returned",
+      preview: (orderNumber) => `Equipment return confirmed — ${orderNumber}.`,
+      body: "We've recorded the equipment return. Thank you.",
+    },
+    cancelled: {
+      heading: "Order cancelled",
+      preview: (orderNumber) => `Order ${orderNumber} has been cancelled.`,
+      body: "Your order has been cancelled.",
     },
   },
 };

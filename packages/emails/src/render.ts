@@ -17,6 +17,12 @@ import {
   NewOrderNotification,
   type NewOrderNotificationProps,
 } from "./templates/new-order-notification";
+import { RentalCancelled } from "./templates/rental-cancelled";
+import { RentalConfirmed } from "./templates/rental-confirmed";
+import type { RentalLifecycleEmailProps } from "./templates/rental-lifecycle-email";
+import { RentalPickedUp } from "./templates/rental-picked-up";
+import { RentalReadyForPickup } from "./templates/rental-ready-for-pickup";
+import { RentalReturned } from "./templates/rental-returned";
 
 export interface RenderedEmail {
   html: string;
@@ -54,4 +60,34 @@ export function renderNewOrderNotification(
   props: NewOrderNotificationProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(NewOrderNotification, props));
+}
+
+export function renderRentalConfirmed(
+  props: RentalLifecycleEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalConfirmed, props));
+}
+
+export function renderRentalReadyForPickup(
+  props: RentalLifecycleEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalReadyForPickup, props));
+}
+
+export function renderRentalPickedUp(
+  props: RentalLifecycleEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalPickedUp, props));
+}
+
+export function renderRentalReturned(
+  props: RentalLifecycleEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalReturned, props));
+}
+
+export function renderRentalCancelled(
+  props: RentalLifecycleEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalCancelled, props));
 }
