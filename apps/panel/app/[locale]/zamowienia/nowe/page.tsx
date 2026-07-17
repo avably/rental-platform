@@ -87,7 +87,7 @@ export default async function NewOrderPage() {
   // Wadliwy cennik (nie powinien wystąpić — CHECK 0013 pilnuje kształtu) nie
   // może wywrócić strony tworzenia zamówienia: spada na brak podglądu kosztu,
   // a realny błąd i tak wyjdzie przy tworzeniu (akcja liczy autorytatywnie).
-  let deliveryPricing: DeliveryPricing | null = null;
+  let deliveryPricing: DeliveryPricing | null;
   try {
     deliveryPricing = deliveryPricingFromSettings((settingsRows ?? []) as TenantSettingRow[]);
   } catch {
