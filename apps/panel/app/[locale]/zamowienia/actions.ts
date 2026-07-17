@@ -301,7 +301,7 @@ async function sendEmailAfterTransition(
     ctx.supabase
       .from("orders")
       .select(
-        "order_number, start_date, end_date, total_rental_grosze, customers(full_name, email), pickup_locations(name)",
+        "order_number, start_date, end_date, total_rental_grosze, customers(full_name, email, locale), pickup_locations(name)",
       )
       .eq("tenant_id", ctx.tenantId)
       .eq("id", orderId)
