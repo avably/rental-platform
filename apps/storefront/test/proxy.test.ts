@@ -2,12 +2,22 @@
  * Smoke-test middleware'u storefrontu: każde żądanie wychodzi z CSP (nonce,
  * bez 'unsafe-inline') i HSTS. Bramka CI dla nagłówków bezpieczeństwa —
  * usunięcie proxy.ts albo rozjazd polityki robi tu czerwony build.
+ *
+ * Rozszerzone o rozgałęzienie host→tenant (Zadanie 2.1, ADR-039): routing
+ * subdomeny na trasę tenancką, neutralne 404 i bramkę anty-spoofingu.
  */
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { proxy } from "../proxy";
+import { proxy, runProxy, type ProxyDeps } from "../proxy";
+
+const ACME_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+/** Rozwiązywacz-atrapa: 'acme' aktywny, wszystko inne nieznane. Zero sieci. */
+const fakeDeps: ProxyDeps = {
+  resolveTenant: async (_host, slug) => (slug === "acme" ? { tenantId: ACME_ID } : null),
+};
 
 describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
   for (const route of ["page.tsx", "privacy/page.tsx"]) {
@@ -18,8 +28,8 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     });
   }
 
-  it("odpowiedź ma CSP z nonce i HSTS", () => {
-    const response = proxy(new NextRequest("https://najemca.example/"));
+  it("odpowiedź ma CSP z nonce i HSTS", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/"));
 
     const csp = response.headers.get("Content-Security-Policy") ?? "";
     expect(csp, "brak nagłówka CSP").not.toBe("");
@@ -47,10 +57,10 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
       vi.unstubAllEnvs();
     });
 
-    it("z NEXT_PUBLIC_TURNSTILE_SITE_KEY CSP dopuszcza challenges.cloudflare.com", () => {
+    it("z NEXT_PUBLIC_TURNSTILE_SITE_KEY CSP dopuszcza challenges.cloudflare.com", async () => {
       vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "1x00000000000000000000AA");
       const csp =
-        proxy(new NextRequest("https://najemca.example/")).headers.get(
+        (await proxy(new NextRequest("https://www.avably.io/"))).headers.get(
           "Content-Security-Policy",
         ) ?? "";
 
@@ -59,10 +69,10 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
       expect(csp).toContain("frame-src https://challenges.cloudflare.com");
     });
 
-    it("bez klucza CSP nie zna Cloudflare (dyrektywy nie otwierają się na zawsze)", () => {
+    it("bez klucza CSP nie zna Cloudflare (dyrektywy nie otwierają się na zawsze)", async () => {
       vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "");
       const csp =
-        proxy(new NextRequest("https://najemca.example/")).headers.get(
+        (await proxy(new NextRequest("https://www.avably.io/"))).headers.get(
           "Content-Security-Policy",
         ) ?? "";
 
@@ -71,17 +81,17 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
   });
 });
 
-describe("proxy storefrontu — routing locale", () => {
-  it("goły / przekierowuje na prefiks locale", () => {
-    const response = proxy(new NextRequest("https://najemca.example/"));
+describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
+  it("goły / przekierowuje na prefiks locale", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/en");
   });
 
-  it("Accept-Language wybiera locale", () => {
-    const response = proxy(
-      new NextRequest("https://najemca.example/", {
+  it("Accept-Language wybiera locale", async () => {
+    const response = await proxy(
+      new NextRequest("https://www.avably.io/", {
         headers: { "Accept-Language": "pl" },
       }),
     );
@@ -89,8 +99,8 @@ describe("proxy storefrontu — routing locale", () => {
     expect(response.headers.get("location")).toContain("/pl");
   });
 
-  it("strona pod prefiksem wychodzi z hreflang i zachowuje CSP", () => {
-    const response = proxy(new NextRequest("https://najemca.example/en"));
+  it("strona pod prefiksem wychodzi z hreflang i zachowuje CSP", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/en"));
 
     // Nagłówek Link z alternatywnymi wersjami — bez niego wyszukiwarki nie
     // wiedzą, że /en i /pl to ta sama strona w dwóch językach.
@@ -100,5 +110,68 @@ describe("proxy storefrontu — routing locale", () => {
 
     // Nagłówki bezpieczeństwa muszą przeżyć złożenie z routingiem locale.
     expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+});
+
+describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
+  it("aktywna subdomena → rewrite na /store z rozwiązanym tenant_id", async () => {
+    const request = new NextRequest("https://acme.avably.io/");
+    const response = await runProxy(request, fakeDeps);
+
+    // Rewrite na trasę tenancką (Next koduje cel w x-middleware-rewrite).
+    const rewrite = response.headers.get("x-middleware-rewrite") ?? "";
+    expect(rewrite, "brak rewrite na trasę tenancką").toContain("/store");
+
+    // Rozwiązany tenant wstrzyknięty w nagłówki żądania (czyta je strona echo).
+    expect(request.headers.get("x-tenant-id")).toBe(ACME_ID);
+    expect(request.headers.get("x-tenant-slug")).toBe("acme");
+
+    // Nagłówki bezpieczeństwa i na tej gałęzi.
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+
+  it("nieznana/nieaktywna subdomena → neutralne 404", async () => {
+    const response = await runProxy(new NextRequest("https://ghost.avably.io/"), fakeDeps);
+
+    expect(response.status).toBe(404);
+    // Nagłówki bezpieczeństwa również na 404.
+    expect(response.headers.get("Strict-Transport-Security")).toContain("max-age=31536000");
+  });
+
+  it("subdomena o niepoprawnym slugu → 404 BEZ odpytania bazy", async () => {
+    const lookupSpy = vi.fn(async () => null);
+    const response = await runProxy(new NextRequest("https://bad_slug.avably.io/"), { resolveTenant: lookupSpy });
+
+    expect(response.status).toBe(404);
+    expect(lookupSpy, "malformed slug nie może dotknąć bazy").not.toHaveBeenCalled();
+  });
+});
+
+describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => {
+  // DOWÓD MUTACYJNY: usunięcie stripInboundTenantHeaders w proxy sprawia, że
+  // podany przez klienta x-tenant-id przetrwa na gałęzi marketingowej (która
+  // nie ustawia własnego) — ten test wtedy się pali.
+  it("usuwa przychodzący x-tenant-id na gałęzi marketingowej", async () => {
+    const request = new NextRequest("https://www.avably.io/en", {
+      headers: {
+        "x-tenant-id": "11111111-1111-4111-8111-111111111111",
+        "x-tenant-slug": "attacker",
+      },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id"), "podrobiony x-tenant-id przeżył middleware").toBeNull();
+    expect(request.headers.get("x-tenant-slug")).toBeNull();
+  });
+
+  it("na subdomenie tenanta nadpisuje podany przez klienta id rozwiązaniem server-side", async () => {
+    const request = new NextRequest("https://acme.avably.io/", {
+      headers: { "x-tenant-id": "deadbeef-dead-4bee-8bee-deadbeefdead" },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id"), "klient narzucił własny tenant_id").toBe(ACME_ID);
   });
 });
