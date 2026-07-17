@@ -133,7 +133,10 @@ export interface RentalEmailOrderRow {
   start_date: string;
   end_date: string;
   total_rental_grosze: number;
-  customers: { full_name: string | null; email: string } | null;
+  // locale KLIENTA (customers.locale, 0016/ADR-037): opcjonalne, bo NULL/brak
+  // = brak preferencji → spada na locale tenanta. CHECK 0016 gwarantuje, że
+  // wartość niepusta jest w LOCALES.
+  customers: { full_name: string | null; email: string; locale?: Locale | null } | null;
   pickup_locations: { name: string } | null;
 }
 
@@ -183,10 +186,15 @@ export async function sendRentalEmailForTransition(
     throw err;
   }
 
+  // Źródło locale wysyłki (ADR-037): preferencja KLIENTA, a gdy jej brak —
+  // język tenanta (input.locale, już zsanityzowany przez wołającego).
+  // Kontrakt buildRentalEmail bez zmian: nadal dostaje jedno gotowe locale.
+  const locale = input.order.customers?.locale ?? input.locale;
+
   try {
     const message = await buildRentalEmail({
       status: input.status,
-      locale: input.locale,
+      locale,
       currency: input.currency,
       sender,
       tenantName: input.tenantName,

@@ -200,6 +200,38 @@ describe("sendRentalEmailForTransition", () => {
     expect(result).toBeUndefined();
   });
 
+  // ADR-037: preferencja językowa KLIENTA wygrywa nad językiem TENANTA.
+  // Kontrakt buildRentalEmail bez zmian — wzbogaca się źródło locale.
+  it("locale klienta wygrywa nad locale tenanta (customers.locale ?? tenants.locale)", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      locale: "pl", // język tenanta
+      order: {
+        ...order,
+        customers: { full_name: "Jan Kowalski", email: "klient@example.com", locale: "en" },
+      },
+      transport: { send },
+    });
+    expect(send.mock.calls[0]![0].subject).toBe("Reservation confirmed");
+  });
+
+  it("brak preferencji klienta (locale null) → język tenanta", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      locale: "pl",
+      order: {
+        ...order,
+        customers: { full_name: "Jan Kowalski", email: "klient@example.com", locale: null },
+      },
+      transport: { send },
+    });
+    expect(send.mock.calls[0]![0].subject).toBe("Rezerwacja potwierdzona");
+  });
+
   it("klient bez nazwiska → adres zamiast pustego powitania", async () => {
     const send = vi.fn().mockResolvedValue(undefined);
     await sendRentalEmailForTransition({
