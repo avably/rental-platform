@@ -809,6 +809,67 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       });
       expect(error?.code, "create_order przyjął pusty koszyk").toBe("22023");
     });
+
+    // 0016 (ADR-030, wpięcie): koszt dostawy wchodzi do zamówienia TĄ SAMĄ
+    // atomową transakcją co pozycje. Nie jest bramką — to transport — więc
+    // dowodem jest utrwalenie wartości, nie odmowa.
+    it("create_order utrwala p_delivery_grosze (koszt dostawy w transporcie, 0016)", async () => {
+      const deliveryProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const deliveryUnitId = await createUnit(tenantId, deliveryProductId);
+
+      const { data: orderId, error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2027-03-01",
+        p_end_date: "2027-03-05",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: null,
+        p_total_rental_grosze: 40_000,
+        p_total_deposit_grosze: 0,
+        p_delivery_grosze: 1_500,
+        p_items: [
+          { product_id: deliveryProductId, unit_id: deliveryUnitId, rental_grosze: 40_000, deposit_grosze: 0 },
+        ],
+      });
+      expect(error, `create_order z kosztem dostawy: ${error?.message}`).toBeNull();
+
+      const { data: order } = await admin
+        .from("orders")
+        .select("delivery_grosze")
+        .eq("id", orderId as string)
+        .single();
+      expect(order!.delivery_grosze, "koszt dostawy nie trafił do zamówienia").toBe(1_500);
+    });
+
+    // Zgodność wstecz: wołający sprzed 0016 (bez p_delivery_grosze) dostaje
+    // default 0 — parametr z DEFAULT na końcu listy nie wywraca istniejącej
+    // ścieżki.
+    it("create_order bez p_delivery_grosze → delivery_grosze 0 (default zgodny z kolumną)", async () => {
+      const legacyProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const legacyUnitId = await createUnit(tenantId, legacyProductId);
+
+      const { data: orderId, error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2027-04-01",
+        p_end_date: "2027-04-05",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: null,
+        p_total_rental_grosze: 40_000,
+        p_total_deposit_grosze: 0,
+        p_items: [
+          { product_id: legacyProductId, unit_id: legacyUnitId, rental_grosze: 40_000, deposit_grosze: 0 },
+        ],
+      });
+      expect(error, `create_order bez kosztu dostawy: ${error?.message}`).toBeNull();
+
+      const { data: order } = await admin
+        .from("orders")
+        .select("delivery_grosze")
+        .eq("id", orderId as string)
+        .single();
+      expect(order!.delivery_grosze).toBe(0);
+    });
   });
 
   // -------------------------------------------------------------------
