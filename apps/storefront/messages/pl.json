@@ -304,6 +304,7 @@
         "consent": "Zaznacz zgodę, aby dołączyć do waitlisty.",
         "duplicate": "Ten adres jest już na waitliście. Nie musisz zapisywać się ponownie.",
         "connection": "Nie udało się wysłać formularza. Sprawdź połączenie i spróbuj ponownie.",
+        "captcha": "Nie udało się potwierdzić, że nie jesteś robotem. Ukończ weryfikację poniżej i spróbuj ponownie.",
         "server": "Nie udało się przyjąć zapisu. Spróbuj ponownie za chwilę. Twoje odpowiedzi nie zostały zapisane."
       },
       "success": {

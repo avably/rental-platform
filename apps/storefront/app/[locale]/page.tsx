@@ -48,6 +48,9 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
       copy={messages.landing as LandingCopy}
       locale={locale as Locale}
       waitlistEnabled={process.env.WAITLIST_ENABLED === "true"}
+      // Odczyt w komponencie serwerowym (strona jest force-dynamic): wartość
+      // idzie z runtime env, ten sam warunek co dyrektywy Turnstile w proxy.
+      turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     />
   );
 }

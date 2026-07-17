@@ -64,7 +64,7 @@ interface EventProperties {
     rental_type: RentalType;
   };
   waitlist_submit_attempt: { language: Locale; pilot_selected: boolean };
-  waitlist_submit_error: { error_type: "connection" | "server"; language: Locale };
+  waitlist_submit_error: { error_type: "captcha" | "connection" | "server"; language: Locale };
   waitlist_validation_error: {
     error_type: WaitlistFieldError;
     field: WaitlistField;
