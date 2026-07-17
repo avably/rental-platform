@@ -361,6 +361,8 @@
       "paymentLabel": "Payment status",
       "changeTo": "Change to: {status}",
       "cancelBlockedHint": "Cancellation blocked — the payment must be settled (refunded) before cancelling.",
+      "sendEmail": "Send email to customer",
+      "sendEmailUnavailable": "Email sending is not configured — the customer will not be notified.",
       "createdAt": "Created"
     },
     "deposit": {

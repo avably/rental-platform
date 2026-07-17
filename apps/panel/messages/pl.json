@@ -361,6 +361,8 @@
       "paymentLabel": "Status płatności",
       "changeTo": "Zmień na: {status}",
       "cancelBlockedHint": "Anulowanie zablokowane — płatność wymaga rozliczenia (zwrotu) przed anulowaniem.",
+      "sendEmail": "Wyślij e-mail do klienta",
+      "sendEmailUnavailable": "Wysyłka e-maili nie jest skonfigurowana — klient nie dostanie powiadomienia.",
       "createdAt": "Utworzono"
     },
     "deposit": {
