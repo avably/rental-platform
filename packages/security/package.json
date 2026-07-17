@@ -13,6 +13,10 @@
     "./rate-limit": {
       "types": "./src/rate-limit.ts",
       "default": "./src/rate-limit.ts"
+    },
+    "./turnstile": {
+      "types": "./src/turnstile.ts",
+      "default": "./src/turnstile.ts"
     }
   },
   "scripts": {
