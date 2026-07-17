@@ -1,3 +1,4 @@
+import { emailAvailability } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
@@ -37,7 +38,7 @@ export default async function InvitationsPage() {
         </form>
       </header>
       <h1 className="text-xl font-semibold">{t("title")}</h1>
-      <InviteMemberForm />
+      <InviteMemberForm emailUnavailableReason={emailAvailability().reason} />
       <section>
         <h2 className="mb-2 text-sm font-semibold">{t("sentHeading")}</h2>
         <ul className="flex flex-col gap-1 text-sm">

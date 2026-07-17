@@ -2,11 +2,17 @@
 
 import { randomBytes, createHash } from "node:crypto";
 
-import { siteUrl } from "@avably/core";
+import {
+  EMAIL_SENDER_KEY,
+  emailAvailability,
+  resendTransport,
+  siteUrl,
+  type TenantSettingRow,
+} from "@avably/core";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 
 import { AuthError } from "@/lib/auth";
-import { sendInvitationEmail } from "@/lib/email";
+import { invitationLocale, sendInvitationEmail } from "@/lib/email";
 import { requireMember } from "@/lib/supabase-server";
 import { inviteSchema } from "@/lib/validation";
 
@@ -66,10 +72,40 @@ export async function inviteMemberAction(
     return { error: error.message };
   }
 
-  await sendInvitationEmail({
-    to: parsed.data.email,
-    acceptUrl: `${siteUrl()}/zaproszenie/${rawToken}`,
-  });
+  const acceptUrl = `${siteUrl()}/zaproszenie/${rawToken}`;
 
+  // Dane do wiadomości: nazwa+locale tenanta (From i treść) oraz nadawca
+  // (reply_to). Jedna runda zapytań, bo są niezależne.
+  const [tenantResult, settingsResult] = await Promise.all([
+    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+    ctx.supabase
+      .from("tenant_settings")
+      .select("key, value")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("key", EMAIL_SENDER_KEY),
+  ]);
+  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+
+  // Zaproszenie JEST już utrwalone — poczta go nie cofa (ADR-036 D1). Brak
+  // danych tenanta albo niedostępny transport to nie porażka operacji, tylko
+  // powód, przy którym podajemy link do ręcznego przekazania.
+  const emailProblem = !tenant
+    ? "nie udało się odczytać danych organizacji"
+    : await sendInvitationEmail({
+        to: parsed.data.email,
+        acceptUrl,
+        locale: invitationLocale(tenant.locale),
+        organizationName: tenant.name,
+        role: parsed.data.role,
+        settings: (settingsResult.data ?? []) as TenantSettingRow[],
+        availability: emailAvailability(),
+        transport: resendTransport(),
+      });
+
+  if (emailProblem) {
+    return {
+      success: `Zaproszenie utworzone, ale e-mail nie wyszedł (${emailProblem}). Przekaż link ręcznie: ${acceptUrl}`,
+    };
+  }
   return { success: `Zaproszenie wysłane na ${parsed.data.email}.` };
 }
