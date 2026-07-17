@@ -20,7 +20,7 @@ export type DeliveryMethod = (typeof DELIVERY_METHODS)[number];
 
 const ISO_DATE_MESSAGE = "Podaj datę w formacie RRRR-MM-DD.";
 
-const isoDateSchema = z.string().transform((raw, ctx): IsoDate => {
+export const isoDateSchema = z.string().transform((raw, ctx): IsoDate => {
   try {
     return assertIsoDate(raw.trim());
   } catch {
