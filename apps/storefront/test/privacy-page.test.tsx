@@ -68,11 +68,13 @@ describe("privacy page", () => {
     );
   });
 
-  it("keeps the effective-date placeholder until the publication PR", () => {
-    // In the publication PR, invert this guard: require an ISO date and reject the placeholder,
-    // together with WAITLIST_ENABLED=true.
-    expect(en.privacy.updatedValue).toBe("[[EFFECTIVE_DATE]]");
-    expect(pl.privacy.updatedValue).toBe("[[EFFECTIVE_DATE]]");
+  it("carries a published ISO effective date, never the placeholder", () => {
+    // Publikacja waitlisty: data wejścia polityki podmieniona z placeholdera na
+    // realną datę ISO. Ta bramka pilnuje, że nikt nie cofnie się do placeholdera.
+    for (const messages of [en, pl]) {
+      expect(messages.privacy.updatedValue).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(messages.privacy.updatedValue).not.toContain("[[");
+    }
   });
 
   it("pins the legal entity name and tax identifier in both locales", () => {
