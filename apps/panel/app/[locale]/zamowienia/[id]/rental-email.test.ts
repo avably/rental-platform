@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { TEMPLATE_FOR_STATUS, buildRentalEmail } from "./rental-email";
+import {
+  TEMPLATE_FOR_STATUS,
+  buildRentalEmail,
+  sendRentalEmailForTransition,
+} from "./rental-email";
 
 const base = {
   locale: "pl" as const,
@@ -17,7 +21,7 @@ const base = {
 };
 
 /** Intl wstawia NBSP — porównania robimy na znormalizowanej spacji. */
-const nbsp = (value: string) => value.replace(/ /g, " ");
+const nbsp = (value: string) => value.replace(/[\u00A0\u202F]/g, " ");
 
 describe("TEMPLATE_FOR_STATUS", () => {
   it("mapuje pięć statusów cyklu najmu", () => {
@@ -33,7 +37,7 @@ describe("TEMPLATE_FOR_STATUS", () => {
 
 describe("buildRentalEmail", () => {
   it("status bez szablonu → null (stan legalny, nie błąd)", async () => {
-    expect(await buildRentalEmail({ ...base, status: "draft" })).toBeNull();
+    expect(await buildRentalEmail({ ...base, status: "pending" })).toBeNull();
   });
 
   it("formatuje kwotę wg locale i waluty tenanta", async () => {
@@ -97,5 +101,113 @@ describe("buildRentalEmail", () => {
     const email = await buildRentalEmail({ ...base, status: "reserved" });
     expect(email!.text.length).toBeGreaterThan(0);
     expect(email!.text).toContain("AV-2026-001");
+  });
+});
+
+describe("sendRentalEmailForTransition", () => {
+  const order = {
+    order_number: "AV-2026-001",
+    start_date: "2026-08-01",
+    end_date: "2026-08-05",
+    total_rental_grosze: 55_000,
+    customers: { full_name: "Jan Kowalski", email: "klient@example.com" },
+    pickup_locations: null,
+  };
+
+  const ctx = {
+    order,
+    tenantName: "Wypożyczalnia Demo",
+    locale: "pl" as const,
+    currency: "PLN" as const,
+    settings: [{ key: "email_sender", value: { name: "Wypożyczalnia Demo" } }],
+    availability: { available: true },
+  };
+
+  it("brak klucza Resend → czytelny powód, zero prób wysyłki", async () => {
+    const send = vi.fn();
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      availability: {
+        available: false,
+        reason: "Wysyłka e-maili nie jest skonfigurowana (brak RESEND_API_KEY).",
+      },
+      transport: { send },
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(result).toContain("RESEND_API_KEY");
+  });
+
+  // TWARDY DoD PLANU FAZY: klucz JEST, nadawcy NIE MA → czytelny błąd
+  // konfiguracji, nie cichy sukces.
+  it("brak nadawcy tenanta → czytelny błąd konfiguracji", async () => {
+    const send = vi.fn();
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      settings: [],
+      transport: { send },
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(result).toContain("nazwy nadawcy");
+  });
+
+  it("klient bez adresu → czytelny powód, zero prób", async () => {
+    const send = vi.fn();
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      order: { ...order, customers: null },
+      transport: { send },
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(result).toContain("adresu e-mail");
+  });
+
+  // Tranzycja jest już utrwalona — awaria poczty nie może z niej zrobić
+  // błędu ani uciec wyjątkiem (wzorzec uczciwej częściowej porażki ADR-027).
+  it("odmowa dostawcy → powód zwrócony, wyjątek nie ucieka", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("HTTP 422 domain not verified"));
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+    });
+    expect(result).toContain("Status zmieniony");
+    expect(result).toContain("422");
+  });
+
+  it("sukces → brak powodu, wiadomość poszła do klienta", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+    });
+    expect(result).toBeUndefined();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({ to: "klient@example.com" });
+  });
+
+  it("status bez szablonu → brak powodu i zero prób", async () => {
+    const send = vi.fn();
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "pending",
+      transport: { send },
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(result).toBeUndefined();
+  });
+
+  it("klient bez nazwiska → adres zamiast pustego powitania", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      order: { ...order, customers: { full_name: null, email: "klient@example.com" } },
+      transport: { send },
+    });
+    expect(send.mock.calls[0]![0].html).toContain("klient@example.com");
   });
 });

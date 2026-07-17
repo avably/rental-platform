@@ -9,8 +9,15 @@
  */
 import {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
+  DEFAULT_TENANT_LOCALE,
+  EMAIL_SENDER_KEY,
   canTransition,
+  emailAvailability,
+  isLocale,
+  resendTransport,
+  type Locale,
   type OrderStatus,
+  type TenantSettingRow,
 } from "@avably/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -20,7 +27,12 @@ import { orderFormSchema, statusChangeSchema } from "@/lib/order-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
+import { getTenantCurrency } from "@/lib/tenant-currency";
 
+import {
+  sendRentalEmailForTransition,
+  type RentalEmailOrderRow,
+} from "./[id]/rental-email";
 import {
   availabilityForRange,
   pickUnits,
@@ -256,6 +268,70 @@ export async function changeOrderStatusAction(
     };
   }
 
+  // Wysyłka jest krokiem PO utrwalonej tranzycji i NIGDY jej nie blokuje
+  // (ADR-033). Od tego miejsca w dół status jest już zmieniony w bazie —
+  // cokolwiek pójdzie nie tak z pocztą, akcja musi to zgłosić jako powód
+  // przy sukcesie, nie jako porażkę całej operacji.
+  const emailProblem =
+    parsed.data.sendEmail === "on"
+      ? await sendEmailAfterTransition(ctx, orderId, to as OrderStatus)
+      : undefined;
+
   revalidatePath("/", "layout");
-  return { success: "changed" };
+  // Sukces NIESIE powód niewysłania: status JEST zmieniony, ale operator
+  // musi wiedzieć, że klient nic nie dostał.
+  return emailProblem ? { success: "changed", formError: emailProblem } : { success: "changed" };
+}
+
+/**
+ * Dociąga dane potrzebne do wiadomości i zleca wysyłkę. Zwraca powód
+ * niewysłania albo undefined.
+ *
+ * Wydzielone z akcji, bo to wyłącznie I/O: logika (bramki konfiguracji,
+ * uczciwa częściowa porażka) siedzi w sendRentalEmailForTransition i jest
+ * testowana bez Supabase.
+ */
+async function sendEmailAfterTransition(
+  ctx: Awaited<ReturnType<typeof requireMember>>,
+  orderId: string,
+  to: OrderStatus,
+): Promise<string | undefined> {
+  // Zapytania są niezależne — jedna runda, nie cztery po kolei.
+  const [orderResult, settingsResult, tenantResult, currency] = await Promise.all([
+    ctx.supabase
+      .from("orders")
+      .select(
+        "order_number, start_date, end_date, total_rental_grosze, customers(full_name, email), pickup_locations(name)",
+      )
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", orderId)
+      .maybeSingle(),
+    ctx.supabase
+      .from("tenant_settings")
+      .select("key, value")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("key", EMAIL_SENDER_KEY),
+    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+    // `!` jak w całym panelu: requireMember rzuca, gdy tenanta brak (auth.ts).
+    getTenantCurrency(ctx.supabase, ctx.tenantId!),
+  ]);
+
+  const order = orderResult.data as RentalEmailOrderRow | null;
+  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+  if (!order || !tenant) {
+    return "Status zmieniony, ale nie udało się odczytać danych do wiadomości — klient nie dostał powiadomienia.";
+  }
+
+  return sendRentalEmailForTransition({
+    status: to,
+    order,
+    tenantName: tenant.name,
+    // tenants.locale jest not null (0005), ale nieznana wartość nie może
+    // wywrócić wysyłki — spada na domyślne locale tenanta.
+    locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,
+    currency,
+    settings: (settingsResult.data ?? []) as TenantSettingRow[],
+    availability: emailAvailability(),
+    transport: resendTransport(),
+  });
 }
