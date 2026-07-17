@@ -23,6 +23,10 @@ import type { Role } from "@avably/db";
  * - `unauthenticated` → 401, przekierowanie na /login,
  * - `forbidden` → 403, brak uprawnień (dla tras /admin: 404, nie ujawniamy
  *   istnienia panelu superadmina),
+ * - `superadmin_without_org` → 403: superadmin BEZ organizacji na trasie
+ *   tenanckiej. Nie ma czego pokazać (RLS bez claimu tenant_id zwraca pusto),
+ *   więc guard strony kieruje go do panelu superadmina zamiast na pusty ekran
+ *   (dług #52). Kod widzi wyłącznie sesja z claimem superadmin.
  * - `mfa_required` → 403, ale user MA czynnik TOTP i jest tylko na aal1:
  *   trzeba go przeprowadzić przez wyzwanie MFA (/bezpieczenstwo/wyzwanie),
  *   a nie odmawiać na głucho,
@@ -32,6 +36,7 @@ import type { Role } from "@avably/db";
 export type AuthErrorCode =
   | "unauthenticated"
   | "forbidden"
+  | "superadmin_without_org"
   | "mfa_required"
   | "mfa_enrollment_required";
 
@@ -81,7 +86,9 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
 /**
  * Guard dla API panelu (rdzeń, testowalny). Rzuca `AuthError`:
  * - 401, jeśli brak zalogowanego usera,
- * - 403, jeśli user nie ma przypisanej organizacji (tenant_id null z JWT),
+ * - 403 `superadmin_without_org`, jeśli sesja jest superadminem bez organizacji
+ *   (kierowanie do panelu superadmina należy do wołającego — patrz member-page),
+ * - 403 `forbidden`, jeśli zwykły user nie ma przypisanej organizacji,
  * - 403, jeśli podano `role` i nie zgadza się z rolą usera w tenancie.
  */
 export async function requireMemberWithClient(
@@ -90,7 +97,21 @@ export async function requireMemberWithClient(
 ): Promise<AuthContext> {
   const ctx = await getAuthContext(supabase);
   if (!ctx) throw new AuthError(401, "Wymagane zalogowanie.");
-  if (!ctx.tenantId) throw new AuthError(403, "Brak przypisanej organizacji.");
+  if (!ctx.tenantId) {
+    // Superadmin organizacji nie ma i mieć nie musi (poza macierzą tenantów —
+    // app.superadmins, ADR-002/007). Rozróżniamy go od zwykłego usera bez
+    // organizacji, żeby guard strony wysłał go do panelu superadmina zamiast
+    // na pusty ekran tenancki (dług #52); dla zwykłego usera zostaje ścieżka
+    // zakładania organizacji.
+    if (ctx.superadmin) {
+      throw new AuthError(
+        403,
+        "Superadmin bez organizacji — przekierowanie do panelu superadmina.",
+        "superadmin_without_org",
+      );
+    }
+    throw new AuthError(403, "Brak przypisanej organizacji.");
+  }
   if (role && ctx.role !== role) {
     throw new AuthError(403, `Wymagana rola „${role}".`);
   }

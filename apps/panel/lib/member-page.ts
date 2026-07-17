@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 
 import { AuthError, type AuthContext } from "./auth";
 import { localePath } from "./navigation";
+import { SUPERADMIN_HOME } from "./superadmin";
 import { requireMember } from "./supabase-server";
 
 export async function requireMemberPage(nextPath: string): Promise<AuthContext> {
@@ -24,8 +25,17 @@ export async function requireMemberPage(nextPath: string): Promise<AuthContext> 
     if (error.code === "unauthenticated") {
       redirect(await localePath("/login", { next: nextPath }));
     }
-    // Zalogowany bez organizacji (albo inna odmowa) → strona główna panelu,
-    // która pokieruje dalej (założenie organizacji).
+    // Superadmin bez organizacji nie ma na trasie tenanckiej czego zobaczyć
+    // (RLS bez claimu tenant_id → zero wierszy) — kierujemy go do panelu
+    // superadmina zamiast na pusty ekran (dług #52). Na aal1
+    // requireSuperadminPage przechwyci go i poprowadzi przez wyzwanie MFA.
+    // Ten kod niesie WYŁĄCZNIE sesja z claimem superadmin, więc maskowanie
+    // /admin (404 dla reszty) zostaje nietknięte.
+    if (error.code === "superadmin_without_org") {
+      redirect(await localePath(SUPERADMIN_HOME));
+    }
+    // Zwykły zalogowany bez organizacji (albo inna odmowa) → strona główna
+    // panelu, która pokieruje dalej (założenie organizacji).
     redirect(await localePath("/"));
   }
 }
