@@ -239,6 +239,9 @@
       "deposit": "deposit",
       "totalRental": "Rental total",
       "totalDeposit": "Deposit total",
+      "deliveryCost": "Delivery cost",
+      "totalWithDelivery": "Total (rental + delivery)",
+      "deliveryPricingMissing": "Configure delivery pricing for this method in delivery settings before creating the order.",
       "shortage": "{product}: needed {needed}, available units: {free}.",
       "saving": "Saving…",
       "save": "Create order"

@@ -239,6 +239,9 @@
       "deposit": "kaucja",
       "totalRental": "Razem najem",
       "totalDeposit": "Razem kaucja",
+      "deliveryCost": "Koszt dostawy",
+      "totalWithDelivery": "Razem (najem + dostawa)",
+      "deliveryPricingMissing": "Skonfiguruj cennik dostawy dla tej metody w ustawieniach dostaw, zanim utworzysz zamówienie.",
       "shortage": "{product}: potrzeba {needed}, wolnych egzemplarzy: {free}.",
       "saving": "Zapisywanie…",
       "save": "Utwórz zamówienie"

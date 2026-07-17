@@ -10,8 +10,12 @@
 import {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   DEFAULT_TENANT_LOCALE,
+  DELIVERY_PRICING_KEY,
+  DeliveryPricingError,
   EMAIL_SENDER_KEY,
+  calculateDeliveryCost,
   canTransition,
+  deliveryPricingFromSettings,
   emailAvailability,
   isLocale,
   resendTransport,
@@ -21,6 +25,7 @@ import {
 } from "@avably/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { AuthError } from "@/lib/auth";
 import {
@@ -181,8 +186,35 @@ export async function createOrderAction(
     return { formError: err instanceof Error ? err.message : "Nie udało się wycenić zamówienia." };
   }
 
-  // Atomowo: zamówienie + pozycje w jednej transakcji (app.create_order,
-  // SECURITY INVOKER — RLS i bramki 0010 obowiązują wewnątrz).
+  // Koszt dostawy WYŁĄCZNIE silnikiem (ADR-030) na autorytatywnym cenniku
+  // tenanta — jak wycena najmu, nie na danych z przeglądarki. Metoda płatna
+  // bez cennika rzuca (zero cichych zer): odmawiamy tworzenia zamówienia z
+  // czytelnym, zlokalizowanym powodem, zamiast rozdawać darmową dostawę.
+  const { data: deliveryRows, error: deliveryError } = await ctx.supabase
+    .from("tenant_settings")
+    .select("key, value")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("key", DELIVERY_PRICING_KEY);
+  if (deliveryError) return { formError: deliveryError.message };
+
+  let deliveryGrosze: number;
+  try {
+    deliveryGrosze = calculateDeliveryCost({
+      method: input.deliveryMethod,
+      pricing: deliveryPricingFromSettings((deliveryRows ?? []) as TenantSettingRow[]),
+      rentalTotalGrosze: pricing.totalRentalGrosze,
+    });
+  } catch (err) {
+    if (err instanceof DeliveryPricingError) {
+      const t = await getTranslations("orders.form");
+      return { formError: t("deliveryPricingMissing") };
+    }
+    throw err;
+  }
+
+  // Atomowo: zamówienie + pozycje + koszt dostawy w jednej transakcji
+  // (app.create_order, SECURITY INVOKER — RLS i bramki 0010 obowiązują
+  // wewnątrz; p_delivery_grosze od 0016).
   const { data: orderId, error: createError } = await ctx.supabase
     .schema("app")
     .rpc("create_order", {
@@ -194,6 +226,7 @@ export async function createOrderAction(
       p_notes: input.notes,
       p_total_rental_grosze: pricing.totalRentalGrosze,
       p_total_deposit_grosze: pricing.totalDepositGrosze,
+      p_delivery_grosze: deliveryGrosze,
       p_items: productIds.map((productId, index) => ({
         product_id: productId,
         unit_id: unitIds[index],

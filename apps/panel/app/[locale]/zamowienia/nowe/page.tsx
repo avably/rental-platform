@@ -1,4 +1,11 @@
-import { AVAILABILITY_BLOCKING_ORDER_STATUSES, type IsoDate } from "@avably/core";
+import {
+  AVAILABILITY_BLOCKING_ORDER_STATUSES,
+  DELIVERY_PRICING_KEY,
+  deliveryPricingFromSettings,
+  type DeliveryPricing,
+  type IsoDate,
+  type TenantSettingRow,
+} from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -31,8 +38,13 @@ interface BookedRow {
 export default async function NewOrderPage() {
   const ctx = await requireMemberPage("/zamowienia/nowe");
 
-  const [{ data: customers }, { data: products }, { data: locations }, { data: bookedRows }] =
-    await Promise.all([
+  const [
+    { data: customers },
+    { data: products },
+    { data: locations },
+    { data: bookedRows },
+    { data: settingsRows },
+  ] = await Promise.all([
       ctx.supabase
         .from("customers")
         .select("id, email, full_name")
@@ -63,7 +75,24 @@ export default async function NewOrderPage() {
         .eq("tenant_id", ctx.tenantId)
         .not("unit_id", "is", null)
         .in("orders.order_status", [...AVAILABILITY_BLOCKING_ORDER_STATUSES]),
+      // Cennik dostaw do PODGLĄDU kosztu w kreatorze (ADR-030). Autorytatywny
+      // koszt liczy akcja serwerowa — tu chodzi o informację na żywo.
+      ctx.supabase
+        .from("tenant_settings")
+        .select("key, value")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("key", DELIVERY_PRICING_KEY),
     ]);
+
+  // Wadliwy cennik (nie powinien wystąpić — CHECK 0013 pilnuje kształtu) nie
+  // może wywrócić strony tworzenia zamówienia: spada na brak podglądu kosztu,
+  // a realny błąd i tak wyjdzie przy tworzeniu (akcja liczy autorytatywnie).
+  let deliveryPricing: DeliveryPricing | null = null;
+  try {
+    deliveryPricing = deliveryPricingFromSettings((settingsRows ?? []) as TenantSettingRow[]);
+  } catch {
+    deliveryPricing = null;
+  }
 
   // „Dziś" w UTC — spójnie z IsoDate silnika (doby bez strefy). To odczyt
   // zegara, nie arytmetyka dat: całą arytmetykę robi buildDayMap silnikiem.
@@ -133,6 +162,7 @@ export default async function NewOrderPage() {
           locations={locations ?? []}
           currency={currency}
           locale={locale}
+          deliveryPricing={deliveryPricing}
         />
       )}
     </main>
