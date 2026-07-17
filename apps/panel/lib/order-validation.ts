@@ -138,6 +138,9 @@ export const statusChangeSchema = z.object({
   orderId: uuidSchema,
   to: orderStatusSchema,
   expectedFrom: orderStatusSchema,
+  // Checkbox HTML nie wysyła NIC, gdy odznaczony (a "on", gdy zaznaczony) —
+  // stąd optional, a nie boolean. Brak pola = operator nie chce wysyłki.
+  sendEmail: z.literal("on").optional(),
 });
 
 export type StatusChangeInput = z.infer<typeof statusChangeSchema>;

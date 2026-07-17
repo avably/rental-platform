@@ -24,13 +24,18 @@ import {
   type RenderedEmail,
 } from "@avably/emails";
 import {
+  EmailConfigError,
+  emailSenderFromSettings,
   formatMoney,
   platformFromAddress,
   type CurrencyCode,
+  type EmailAvailability,
   type EmailSender,
+  type EmailTransport,
   type Locale,
   type OrderStatus,
   type OutgoingEmail,
+  type TenantSettingRow,
 } from "@avably/core";
 
 /**
@@ -120,4 +125,90 @@ export async function buildRentalEmail(input: RentalEmailInput): Promise<Outgoin
     text,
     ...(input.sender.replyTo ? { replyTo: input.sender.replyTo } : {}),
   };
+}
+
+/** Wiersz zamówienia w zakresie potrzebnym do złożenia wiadomości. */
+export interface RentalEmailOrderRow {
+  order_number: string;
+  start_date: string;
+  end_date: string;
+  total_rental_grosze: number;
+  customers: { full_name: string | null; email: string } | null;
+  pickup_locations: { name: string } | null;
+}
+
+export interface SendRentalEmailInput {
+  status: OrderStatus;
+  order: RentalEmailOrderRow;
+  tenantName: string;
+  locale: Locale;
+  currency: CurrencyCode;
+  settings: TenantSettingRow[];
+  availability: EmailAvailability;
+  transport: EmailTransport;
+  fromEmail?: string;
+}
+
+/**
+ * Wysyłka wiadomości po UDANEJ tranzycji. Zwraca POWÓD NIEWYSŁANIA albo
+ * undefined, gdy wysłano (lub gdy dla tego statusu nie ma czego wysyłać).
+ *
+ * NIGDY NIE RZUCA — i to jest cały sens tej funkcji. Tranzycja jest w tym
+ * momencie już utrwalona w bazie; żaden problem z pocztą nie może jej cofnąć
+ * ani przebrać w błąd, bo operator zobaczyłby „nie udało się" przy statusie,
+ * który JEST zmieniony. Zamiast tego mówimy dokładnie, co się nie udało
+ * (wzorzec uczciwej częściowej porażki z akcji kaucji, ADR-027).
+ *
+ * Dane dostaje w argumencie, transport wstrzyknięty — dzięki temu testuje
+ * się bez Supabase i bez sieci.
+ */
+export async function sendRentalEmailForTransition(
+  input: SendRentalEmailInput,
+): Promise<string | undefined> {
+  // Kolejność bramek jest celowa: najpierw powody, o których wiemy BEZ
+  // renderowania czegokolwiek — żeby nie robić pracy, którą i tak
+  // wyrzucimy, i żeby operator dostał najbardziej konkretny powód.
+  if (!input.availability.available) return input.availability.reason;
+
+  const email = input.order.customers?.email;
+  if (!email) {
+    return "Zamówienie nie ma adresu e-mail klienta — wiadomość nie została wysłana.";
+  }
+
+  let sender: EmailSender;
+  try {
+    sender = emailSenderFromSettings(input.settings);
+  } catch (err) {
+    if (err instanceof EmailConfigError) return `${err.message} Wiadomość nie została wysłana.`;
+    throw err;
+  }
+
+  try {
+    const message = await buildRentalEmail({
+      status: input.status,
+      locale: input.locale,
+      currency: input.currency,
+      sender,
+      tenantName: input.tenantName,
+      customerEmail: email,
+      // Brak nazwiska nie może dać powitania „Dzień dobry, !" — adres jest
+      // brzydszy, ale prawdziwy.
+      customerName: input.order.customers?.full_name ?? email,
+      orderNumber: input.order.order_number,
+      startDate: input.order.start_date,
+      endDate: input.order.end_date,
+      totalRentalGrosze: input.order.total_rental_grosze,
+      ...(input.order.pickup_locations?.name
+        ? { pickupLocationName: input.order.pickup_locations.name }
+        : {}),
+      ...(input.fromEmail ? { fromEmail: input.fromEmail } : {}),
+    });
+    if (!message) return undefined; // status bez szablonu — nie ma czego wysyłać
+    await input.transport.send(message);
+    return undefined;
+  } catch (err) {
+    return `Status zmieniony, ale nie udało się wysłać wiadomości: ${
+      err instanceof Error ? err.message : "nieznany błąd"
+    }`;
+  }
 }
