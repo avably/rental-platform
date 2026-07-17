@@ -25,9 +25,11 @@ export { quoteExtension, type ExtensionQuote } from "./extension";
 export {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   BLOCKING_PAYMENT_STATUSES,
+  canPaymentTransition,
   canTransition,
   ORDER_STATUSES,
   PAYMENT_STATUSES,
+  PAYMENT_TRANSITIONS,
   type OrderStatus,
   type PaymentStatus,
 } from "./order-status";

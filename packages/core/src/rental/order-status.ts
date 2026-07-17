@@ -73,6 +73,48 @@ export const AVAILABILITY_BLOCKING_ORDER_STATUSES: readonly OrderStatus[] = [
 ];
 
 /**
+ * Mapa dozwolonych przejść payment_status (ADR-035). Oś jest w fazie 1
+ * sterowana RĘCZNIE przez operatora (ADR-027 decyzja nr 7), a realne
+ * płatności to faza 3 — mapa NIE modeluje drobnoziarnistego cyklu Stripe,
+ * tylko chroni granicę rozliczenia:
+ *   - zbiór OTWARTY {unpaid, pending, paid, manual, completed} przechodzi
+ *     swobodnie w obrębie siebie ORAZ w rozliczenie (korekta operatorska —
+ *     faza 1 nie ma podstawy, by policować kolejność stanów offline),
+ *   - `deposit_refunded` wychodzi WYŁĄCZNIE w `refunded`/`cancelled` — nie
+ *     wraca do otwartych, bo regres „rozliczona → opłacona" gubiłby fakt
+ *     rozliczenia (dokładnie ta luka, którą Zadanie 9 zamyka),
+ *   - `refunded` i `cancelled` są terminalne: rozliczona płatność się nie
+ *     „od-rozlicza".
+ * Lustro w triggerze `app.payment_transition_allowed` (0015); tożsamość obu
+ * map przypina test zgodności 64 par w order-gates.test.ts. Wejście w
+ * `deposit_refunded` ma DODATKOWĄ bramkę spójności z rejestrem kaucji (0015):
+ * saldo 0 przy pobraniach > 0 (lustro isDepositSettled — ADR-027).
+ */
+const OPEN_PAYMENT_STATUSES = ["unpaid", "pending", "paid", "manual", "completed"] as const;
+
+const PAYMENT_SETTLEMENT_TARGETS = ["deposit_refunded", "refunded", "cancelled"] as const;
+
+export const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
+  unpaid: [...OPEN_PAYMENT_STATUSES.filter((s) => s !== "unpaid"), ...PAYMENT_SETTLEMENT_TARGETS],
+  pending: [...OPEN_PAYMENT_STATUSES.filter((s) => s !== "pending"), ...PAYMENT_SETTLEMENT_TARGETS],
+  paid: [...OPEN_PAYMENT_STATUSES.filter((s) => s !== "paid"), ...PAYMENT_SETTLEMENT_TARGETS],
+  manual: [...OPEN_PAYMENT_STATUSES.filter((s) => s !== "manual"), ...PAYMENT_SETTLEMENT_TARGETS],
+  completed: [...OPEN_PAYMENT_STATUSES.filter((s) => s !== "completed"), ...PAYMENT_SETTLEMENT_TARGETS],
+  deposit_refunded: ["refunded", "cancelled"],
+  refunded: [],
+  cancelled: [],
+};
+
+/**
+ * Czy przejście payment_status `from` → `to` jest dozwolone. Przejście
+ * tożsamościowe (from === to) NIE jest przejściem — zwraca false; UPDATE
+ * niezmieniający statusu w ogóle nie pyta maszyny (tak samo trigger 0015).
+ */
+export function canPaymentTransition(from: PaymentStatus, to: PaymentStatus): boolean {
+  return PAYMENT_TRANSITIONS[from].includes(to);
+}
+
+/**
  * Mapa dozwolonych przejść (ADR-025):
  *   - ścieżka w przód: pending → reserved → ready_for_pickup → picked_up → returned,
  *   - korekta pomyłki operatora: cofnięcie o JEDEN krok (reserved → pending,
