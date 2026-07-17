@@ -23,7 +23,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
-import { orderFormSchema, statusChangeSchema } from "@/lib/order-validation";
+import {
+  orderFormSchema,
+  statusChangeFromFormData,
+  statusChangeSchema,
+} from "@/lib/order-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
@@ -215,11 +219,7 @@ export async function changeOrderStatusAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = statusChangeSchema.safeParse({
-    orderId: str(formData.get("orderId")),
-    to: str(formData.get("to")),
-    expectedFrom: str(formData.get("expectedFrom")),
-  });
+  const parsed = statusChangeSchema.safeParse(statusChangeFromFormData(formData));
   if (!parsed.success) return zodErrorToState(parsed.error);
   const { orderId, to, expectedFrom } = parsed.data;
 

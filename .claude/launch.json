@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "avably-panel",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "panel", "dev", "--port", "3101"],
+      "port": 3101
+    }
+  ]
+}

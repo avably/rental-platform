@@ -23,7 +23,7 @@ export const EMAIL_SENDER_KEY = "email_sender";
 
 export class EmailConfigError extends Error {
   constructor(public readonly problems: string[]) {
-    super(`Konfiguracja nadawcy e-maili jest niekompletna: ${problems.join("; ")}`);
+    super(`Konfiguracja nadawcy e-maili jest niekompletna: ${problems.join("; ")}.`);
     this.name = "EmailConfigError";
   }
 }

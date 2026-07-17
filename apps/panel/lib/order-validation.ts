@@ -146,6 +146,30 @@ export const statusChangeSchema = z.object({
 export type StatusChangeInput = z.infer<typeof statusChangeSchema>;
 
 /**
+ * FormData → wejście statusChangeSchema.
+ *
+ * Wydzielone z akcji, bo to sklejka, w której łatwo o cichy błąd: pole
+ * dodane do schematu, ale nieodczytane z formularza, nie wywala się —
+ * po prostu zawsze jest undefined, a funkcja, która od niego zależy,
+ * nigdy się nie wykonuje (tak przepadła pierwsza wersja wysyłki e-maili).
+ * Jako funkcja czysta jest testowalna bez Next.js.
+ */
+export function statusChangeFromFormData(formData: FormData): unknown {
+  const text = (name: string) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : "";
+  };
+  return {
+    orderId: text("orderId"),
+    to: text("to"),
+    expectedFrom: text("expectedFrom"),
+    // Odznaczony checkbox NIE WYSTĘPUJE w FormData — undefined, nie "",
+    // bo "" nie przeszłoby literału i wywróciłoby całą tranzycję.
+    sendEmail: formData.get("sendEmail") ?? undefined,
+  };
+}
+
+/**
  * Filtry listy zamówień z searchParams. Błędna wartość jest IGNOROWANA
  * (`catch(undefined)`), nie błędem — zepsuty link nie ma wywracać listy,
  * a filtry i tak zawężają wyłącznie odczyt w obrębie RLS tenanta.
