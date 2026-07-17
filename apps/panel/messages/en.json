@@ -15,6 +15,12 @@
     "locationsLink": "Pickup locations",
     "invitationsLink": "Member invitations"
   },
+  "nav": {
+    "superadmin": "Superadmin",
+    "superadminLink": "Superadmin panel",
+    "tenants": "Organizations",
+    "auditLog": "Event log"
+  },
   "login": {
     "title": "Sign in",
     "submit": "Sign in",
