@@ -13,7 +13,24 @@
     "ordersLink": "Orders",
     "catalogLink": "Product catalog",
     "locationsLink": "Pickup locations",
-    "invitationsLink": "Member invitations"
+    "invitationsLink": "Member invitations",
+    "emailSettingsLink": "Email settings"
+  },
+  "emailSettings": {
+    "title": "Email settings",
+    "intro": "The sender of messages to customers and invitees, plus delivery status. The sending address is shared across the platform — you personalize the display name and reply-to address.",
+    "statusHeading": "Delivery status",
+    "transportAvailable": "Email transport: available.",
+    "transportUnavailable": "Email transport: unavailable.",
+    "senderConfigured": "Sender: configured.",
+    "senderMissing": "Sender: not set — rental lifecycle messages will not go out until a name is set.",
+    "formTitle": "Sender",
+    "nameLabel": "Sender name (shown in the From field)",
+    "replyToLabel": "Reply-to address (optional)",
+    "replyToHint": "Customer replies go to this address. Without it, replies return to the platform address.",
+    "saveCta": "Save",
+    "savedOk": "Saved.",
+    "backLink": "Panel"
   },
   "nav": {
     "superadmin": "Superadmin",
