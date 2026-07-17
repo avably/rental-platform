@@ -35,6 +35,7 @@ export {
   rentalDaysInclusive,
   checkAvailability,
   calculatePrice,
+  quoteExtension,
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   BLOCKING_PAYMENT_STATUSES,
   canTransition,
@@ -50,4 +51,5 @@ export {
   type PriceParams,
   type PriceResult,
   type PricingTier,
+  type ExtensionQuote,
 } from "./rental";
