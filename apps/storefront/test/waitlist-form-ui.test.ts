@@ -73,6 +73,7 @@ describe("waitlist form controller", () => {
     [{ status: "disabled" }, { kind: "disabled" }],
     [{ status: "rate_limited" }, { kind: "server_error" }],
     [{ status: "server_error" }, { kind: "server_error" }],
+    [{ status: "captcha_failed" }, { kind: "captcha_error" }],
     [
       { status: "validation_error", fields: { email: "invalid" } },
       { kind: "validation", fields: { email: "invalid" } },
@@ -87,6 +88,7 @@ describe("waitlist form controller", () => {
     [{ status: "disabled" } as WaitlistResult, "disabled"],
     [{ status: "rate_limited" } as WaitlistResult, "server"],
     [{ status: "server_error" } as WaitlistResult, "server"],
+    [{ status: "captcha_failed" } as WaitlistResult, "captcha"],
     [
       { status: "validation_error", fields: { email: "invalid" } } as WaitlistResult,
       "validation",
@@ -95,7 +97,14 @@ describe("waitlist form controller", () => {
     expect(getWaitlistMessageKey(mapWaitlistResult(result))).toBe(expected);
   });
 
-  it.each(["success", "duplicate", "validation", "disabled", "server_error"] as const)(
+  it.each([
+    "success",
+    "duplicate",
+    "validation",
+    "disabled",
+    "server_error",
+    "captcha_error",
+  ] as const)(
     "keeps the %s result visible",
     (kind) => {
       expect(isWaitlistResultVisible(kind)).toBe(true);

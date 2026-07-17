@@ -51,6 +51,9 @@ function liveDeps(overrides: Partial<WaitlistDeps> = {}): WaitlistDeps {
       if (error) throw new Error(error.message);
       return data === "duplicate" ? "duplicate" : "success";
     },
+    // Ścieżka integracyjna dowodzi zapisu do bazy; bramka captcha ma własne
+    // dowody jednostkowe (waitlist-core) i testy weryfikatora (security).
+    verifyCaptcha: async () => ({ ok: true }),
     ...overrides,
   };
 }

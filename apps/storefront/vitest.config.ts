@@ -25,6 +25,10 @@ export default defineConfig({
         __dirname,
         "../../packages/security/src/rate-limit.ts",
       ),
+      "@avably/security/turnstile": path.resolve(
+        __dirname,
+        "../../packages/security/src/turnstile.ts",
+      ),
       "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
       "@avably/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
       // Odwzorowanie `paths` z tsconfig.json — vitest nie czyta go sam.

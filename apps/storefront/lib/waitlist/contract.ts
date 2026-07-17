@@ -47,6 +47,8 @@ export type WaitlistFieldErrors = Partial<Record<WaitlistField, WaitlistFieldErr
  *   validation_error→ komunikaty per pole z mapy `fields`
  *   rate_limited    → LP traktuje jak błąd serwera
  *   disabled        → formularz wyłączony serwerowo (kill-switch)
+ *   captcha_failed  → weryfikacja Turnstile odmówiła (ADR-032); LP pokazuje
+ *                     komunikat i resetuje widget (token jest jednorazowy)
  *   server_error    → „Nie udało się przyjąć zapisu…"
  */
 export type WaitlistResult =
@@ -55,6 +57,7 @@ export type WaitlistResult =
   | { status: "validation_error"; fields: WaitlistFieldErrors }
   | { status: "rate_limited" }
   | { status: "disabled" }
+  | { status: "captcha_failed" }
   | { status: "server_error" };
 
 export type WaitlistStatus = WaitlistResult["status"];
@@ -101,9 +104,10 @@ export interface WaitlistInput {
   source?: string | undefined;
   campaign?: string | undefined;
   /**
-   * PUNKT WPIĘCIA Turnstile — pole istnieje w kontrakcie, ale NIE jest
-   * weryfikowane (brak konta Cloudflare, infra jeszcze nie istnieje).
-   * LP może je już wysyłać; włączenie weryfikacji nie zmieni kontraktu.
+   * Token Cloudflare Turnstile (ADR-032). Weryfikowany serwerowo po
+   * walidacji, przed zapisem. Z ustawionym TURNSTILE_SECRET_KEY brak/zły
+   * token = `captcha_failed` (fail-closed); bez sekretu weryfikacja jest
+   * JAWNIE wyłączona (dev bez kluczy) — patrz @avably/security/turnstile.
    */
   captchaToken?: string | undefined;
 }
