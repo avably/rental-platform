@@ -41,13 +41,26 @@ vi.mock("next/navigation", () => ({
 }));
 
 const requireSuperadmin = vi.fn();
+const signOut = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({
   requireSuperadmin: () => requireSuperadmin(),
-  createSupabaseServerClient: async () => ({}),
+  createSupabaseServerClient: async () => ({ auth: { signOut } }),
+}));
+
+/** Ciasteczka: `logoutAction` czyści podgląd tenanta (lib/superadmin.ts). */
+const deleteCookie = vi.fn();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    delete: (name: string) => deleteCookie(name),
+    get: () => undefined,
+    set: () => {},
+    getAll: () => [],
+  }),
 }));
 
 const { requireSuperadminPage, SUPERADMIN_HOME } = await import("@/lib/superadmin");
 const { localePath } = await import("@/lib/navigation");
+const { logoutAction } = await import("@/lib/actions/logout");
 
 /** Uruchamia guarda i zwraca cel przekierowania (albo rzuca dalej). */
 async function redirectTargetOf(fn: () => Promise<unknown>): Promise<string> {
@@ -63,6 +76,8 @@ async function redirectTargetOf(fn: () => Promise<unknown>): Promise<string> {
 beforeEach(() => {
   currentLocale = "pl";
   requireSuperadmin.mockReset();
+  signOut.mockReset();
+  deleteCookie.mockReset();
 });
 
 describe("localePath", () => {
@@ -129,5 +144,42 @@ describe("requireSuperadminPage — przekierowanie zachowuje locale", () => {
     requireSuperadmin.mockResolvedValue(ctx);
 
     await expect(requireSuperadminPage()).resolves.toBe(ctx);
+  });
+});
+
+/**
+ * Wylogowanie podlega tej samej regule co guardy: cel przekierowania musi
+ * nieść locale, na którym user stał. Gołe `redirect("/login")` przechodziło
+ * builda i typy, a wyrzucało Polaka na /en/login — to jest ta bramka.
+ */
+describe("logoutAction", () => {
+  it.each(["pl", "en"])("wylogowanie z %s wraca na logowanie w TYM języku", async (locale) => {
+    currentLocale = locale;
+
+    const target = await redirectTargetOf(() => logoutAction());
+
+    expect(target).toBe(`/${locale}/login`);
+  });
+
+  it("kasuje sesję po stronie serwera, a nie tylko przekierowuje", async () => {
+    await redirectTargetOf(() => logoutAction());
+
+    expect(signOut).toHaveBeenCalledOnce();
+  });
+
+  it("czyści ciasteczko podglądu tenanta (ADR-010)", async () => {
+    await redirectTargetOf(() => logoutAction());
+
+    expect(deleteCookie).toHaveBeenCalledWith("sa_podglad_tenant");
+  });
+
+  it("kasuje sesję ZANIM przekieruje (redirect rzuca — kolejność ma znaczenie)", async () => {
+    await redirectTargetOf(() => logoutAction());
+
+    // redirect() w Next działa przez wyjątek: gdyby signOut stał za nim,
+    // wylogowanie nigdy by się nie wykonało, a user wróciłby na /login
+    // z ŻYWĄ sesją.
+    expect(signOut).toHaveBeenCalledOnce();
+    expect(deleteCookie).toHaveBeenCalledOnce();
   });
 });
