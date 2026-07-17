@@ -20,6 +20,8 @@ export {
   type PricingTier,
 } from "./pricing";
 
+export { quoteExtension, type ExtensionQuote } from "./extension";
+
 export {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   BLOCKING_PAYMENT_STATUSES,
