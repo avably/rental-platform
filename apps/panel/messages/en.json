@@ -266,7 +266,8 @@
         "contentDefault": "Rental equipment",
         "createCta": "Create shipment",
         "createdOk": "Shipment created.",
-        "refreshedOk": "Status refreshed."
+        "refreshedOk": "Status refreshed.",
+        "providerStatus": "Carrier: {status}"
       },
       "settings": {
         "title": "Delivery settings",

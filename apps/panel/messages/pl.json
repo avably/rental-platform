@@ -266,7 +266,8 @@
         "contentDefault": "Sprzęt z wypożyczalni",
         "createCta": "Nadaj przesyłkę",
         "createdOk": "Przesyłka nadana.",
-        "refreshedOk": "Status odświeżony."
+        "refreshedOk": "Status odświeżony.",
+        "providerStatus": "Dostawca: {status}"
       },
       "settings": {
         "title": "Ustawienia dostaw",
