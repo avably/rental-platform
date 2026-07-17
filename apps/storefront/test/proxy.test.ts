@@ -33,6 +33,15 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
   });
 
+  /**
+   * UWAGA na czytanie tych testów: `NEXT_PUBLIC_*` jest w produkcji stałą
+   * WBUDOWANĄ W BUILD (Next.js podmienia odwołanie w bundlu middleware'u),
+   * więc realnie o dyrektywach decyduje env w chwili `next build`, a nie
+   * restart z inną zmienną. Te testy pilnują samego okablowania — że proxy
+   * podaje `turnstile: Boolean(klucz)` do buildCsp — bo vitest nie inline'uje
+   * env. Zachowanie buildu zweryfikowane osobno, przez przebudowę bez klucza
+   * (CSP bez Cloudflare, widget się nie renderuje) — patrz ADR-032.
+   */
   describe("Turnstile w CSP", () => {
     afterEach(() => {
       vi.unstubAllEnvs();
