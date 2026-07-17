@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { emailSenderInputFromFormData } from "@/app/[locale]/ustawienia-emaili/email-settings-actions";
 import { emailSenderSchema } from "@/app/[locale]/ustawienia-emaili/email-settings-validation";
 
 describe("emailSenderSchema (lustro CHECK 0014)", () => {
@@ -33,5 +34,18 @@ describe("emailSenderSchema (lustro CHECK 0014)", () => {
     expect(emailSenderSchema.safeParse({ name: "Demo", replyTo: "a".repeat(321) }).success).toBe(
       false,
     );
+  });
+});
+
+describe("emailSenderInputFromFormData", () => {
+  it("czyta OBA pola (lekcja 8b: pole w schemacie ≠ pole odczytane z FormData)", () => {
+    const fd = new FormData();
+    fd.set("name", "Demo");
+    fd.set("replyTo", "biuro@demo.pl");
+    expect(emailSenderInputFromFormData(fd)).toEqual({ name: "Demo", replyTo: "biuro@demo.pl" });
+  });
+
+  it("brakujące pola dają puste stringi (nie undefined)", () => {
+    expect(emailSenderInputFromFormData(new FormData())).toEqual({ name: "", replyTo: "" });
   });
 });
