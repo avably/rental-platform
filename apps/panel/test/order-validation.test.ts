@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   orderFormSchema,
   ordersFilterSchema,
+  statusChangeFromFormData,
   statusChangeSchema,
 } from "@/lib/order-validation";
 
@@ -155,6 +156,43 @@ describe("statusChangeSchema", () => {
       statusChangeSchema.safeParse({ orderId: ORDER_ID, to: "wysłane", expectedFrom: "pending" })
         .success,
     ).toBe(false);
+  });
+});
+
+/**
+ * Sklejka FormData → schemat. Testowana OSOBNO, bo pole dodane do schematu,
+ * ale nieodczytane z formularza, niczego nie wywala — jest po prostu zawsze
+ * undefined, a zależna od niego gałąź nigdy się nie wykonuje. Tak przepadła
+ * pierwsza wersja wysyłki e-maili, złapana dopiero w przeglądarce.
+ */
+describe("statusChangeFromFormData", () => {
+  function formData(entries: Record<string, string>): FormData {
+    const fd = new FormData();
+    for (const [key, value] of Object.entries(entries)) fd.set(key, value);
+    return fd;
+  }
+
+  const base = { orderId: ORDER_ID, to: "reserved", expectedFrom: "pending" };
+
+  it("przenosi zaznaczony checkbox wysyłki do wejścia schematu", () => {
+    const parsed = statusChangeSchema.safeParse(
+      statusChangeFromFormData(formData({ ...base, sendEmail: "on" })),
+    );
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.sendEmail).toBe("on");
+  });
+
+  it("odznaczony checkbox (brak pola) daje undefined, a tranzycja nadal przechodzi", () => {
+    const parsed = statusChangeSchema.safeParse(statusChangeFromFormData(formData(base)));
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.sendEmail).toBeUndefined();
+  });
+
+  it("przenosi pozostałe pola tranzycji", () => {
+    const parsed = statusChangeSchema.safeParse(
+      statusChangeFromFormData(formData({ ...base, sendEmail: "on" })),
+    );
+    expect(parsed.success && parsed.data).toMatchObject(base);
   });
 });
 
