@@ -318,6 +318,14 @@
       "reasonCodeLabel": "Powód potrącenia",
       "reasonLabel": "Doprecyzowanie",
       "reasonPlaceholder": "wymagane przy powodzie „inny”"
+    },
+    "extension": {
+      "title": "Przedłużenie najmu",
+      "newEndLabel": "Nowa data końca",
+      "quoteDays": "Dodatkowe dni: {days}",
+      "quoteSurcharge": "Dopłata: {amount}",
+      "pickDateHint": "Wybierz datę po obecnym końcu najmu, aby zobaczyć dopłatę.",
+      "cta": "Przedłuż najem"
     }
   }
 }

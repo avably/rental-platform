@@ -318,6 +318,14 @@
       "reasonCodeLabel": "Deduction reason",
       "reasonLabel": "Details",
       "reasonPlaceholder": "required for “Other reason”"
+    },
+    "extension": {
+      "title": "Rental extension",
+      "newEndLabel": "New end date",
+      "quoteDays": "Additional days: {days}",
+      "quoteSurcharge": "Surcharge: {amount}",
+      "pickDateHint": "Pick a date after the current rental end to see the surcharge.",
+      "cta": "Extend rental"
     }
   }
 }
