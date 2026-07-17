@@ -1,0 +1,261 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RentalCancelled > renderuje snapshot EN 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Order AV-2026-001 has been cancelled.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Order AV-2026-001 has been cancelled.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Order cancelled</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Your order has been cancelled.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental period<!-- -->:</strong> <!-- -->20 July 2026–23 July 2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental total<!-- -->:</strong> <!-- -->PLN 550.00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+ORDER CANCELLED
+
+Hello Anna Kowalska,
+
+Your order has been cancelled.
+
+Order number: AV-2026-001
+
+Rental period: 20 July 2026–23 July 2026
+
+Rental total: PLN 550.00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`RentalCancelled > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Zamówienie AV-2026-001 zostało anulowane.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Zamówienie AV-2026-001 zostało anulowane.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Zamówienie anulowane</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Potwierdzamy anulowanie zamówienia.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Okres wynajmu<!-- -->:</strong> <!-- -->20.07.2026–23.07.2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Wartość wynajmu<!-- -->:</strong> <!-- -->550,00 zł</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Miejsce odbioru<!-- -->:</strong> <!-- -->Magazyn Główny</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+ZAMÓWIENIE ANULOWANE
+
+Dzień dobry, Anna Kowalska!
+
+Potwierdzamy anulowanie zamówienia.
+
+Numer zamówienia: AV-2026-001
+
+Okres wynajmu: 20.07.2026–23.07.2026
+
+Wartość wynajmu: 550,00 zł
+
+Miejsce odbioru: Magazyn Główny
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
+
+exports[`RentalConfirmed > renderuje snapshot EN 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Reservation AV-2026-001 has been confirmed.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Reservation AV-2026-001 has been confirmed.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Reservation confirmed</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Your reservation is confirmed. The details are below.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental period<!-- -->:</strong> <!-- -->20 July 2026–23 July 2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental total<!-- -->:</strong> <!-- -->PLN 550.00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+RESERVATION CONFIRMED
+
+Hello Anna Kowalska,
+
+Your reservation is confirmed. The details are below.
+
+Order number: AV-2026-001
+
+Rental period: 20 July 2026–23 July 2026
+
+Rental total: PLN 550.00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`RentalConfirmed > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Rezerwacja AV-2026-001 została potwierdzona.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Rezerwacja AV-2026-001 została potwierdzona.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Rezerwacja potwierdzona</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Potwierdziliśmy Twoją rezerwację. Szczegóły znajdziesz poniżej.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Okres wynajmu<!-- -->:</strong> <!-- -->20.07.2026–23.07.2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Wartość wynajmu<!-- -->:</strong> <!-- -->550,00 zł</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Miejsce odbioru<!-- -->:</strong> <!-- -->Magazyn Główny</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+REZERWACJA POTWIERDZONA
+
+Dzień dobry, Anna Kowalska!
+
+Potwierdziliśmy Twoją rezerwację. Szczegóły znajdziesz poniżej.
+
+Numer zamówienia: AV-2026-001
+
+Okres wynajmu: 20.07.2026–23.07.2026
+
+Wartość wynajmu: 550,00 zł
+
+Miejsce odbioru: Magazyn Główny
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
+
+exports[`RentalPickedUp > renderuje snapshot EN 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Equipment pickup confirmed — AV-2026-001.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Equipment pickup confirmed — AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Equipment picked up</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">We&#x27;ve recorded the equipment pickup.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental period<!-- -->:</strong> <!-- -->20 July 2026–23 July 2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental total<!-- -->:</strong> <!-- -->PLN 550.00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+EQUIPMENT PICKED UP
+
+Hello Anna Kowalska,
+
+We've recorded the equipment pickup.
+
+Order number: AV-2026-001
+
+Rental period: 20 July 2026–23 July 2026
+
+Rental total: PLN 550.00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`RentalPickedUp > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Potwierdzenie wydania sprzętu — AV-2026-001.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Potwierdzenie wydania sprzętu — AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Sprzęt został wydany</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Potwierdzamy wydanie sprzętu.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Okres wynajmu<!-- -->:</strong> <!-- -->20.07.2026–23.07.2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Wartość wynajmu<!-- -->:</strong> <!-- -->550,00 zł</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Miejsce odbioru<!-- -->:</strong> <!-- -->Magazyn Główny</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+SPRZĘT ZOSTAŁ WYDANY
+
+Dzień dobry, Anna Kowalska!
+
+Potwierdzamy wydanie sprzętu.
+
+Numer zamówienia: AV-2026-001
+
+Okres wynajmu: 20.07.2026–23.07.2026
+
+Wartość wynajmu: 550,00 zł
+
+Miejsce odbioru: Magazyn Główny
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
+
+exports[`RentalReadyForPickup > renderuje snapshot EN 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Order AV-2026-001 is ready for pickup.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Order AV-2026-001 is ready for pickup.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Equipment ready for pickup</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Your equipment is ready for pickup.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental period<!-- -->:</strong> <!-- -->20 July 2026–23 July 2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental total<!-- -->:</strong> <!-- -->PLN 550.00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+EQUIPMENT READY FOR PICKUP
+
+Hello Anna Kowalska,
+
+Your equipment is ready for pickup.
+
+Order number: AV-2026-001
+
+Rental period: 20 July 2026–23 July 2026
+
+Rental total: PLN 550.00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`RentalReadyForPickup > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Zamówienie AV-2026-001 jest gotowe do odbioru.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Zamówienie AV-2026-001 jest gotowe do odbioru.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Sprzęt jest gotowy do odbioru</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Sprzęt jest przygotowany i czeka na odbiór.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Okres wynajmu<!-- -->:</strong> <!-- -->20.07.2026–23.07.2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Wartość wynajmu<!-- -->:</strong> <!-- -->550,00 zł</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Miejsce odbioru<!-- -->:</strong> <!-- -->Magazyn Główny</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+SPRZĘT JEST GOTOWY DO ODBIORU
+
+Dzień dobry, Anna Kowalska!
+
+Sprzęt jest przygotowany i czeka na odbiór.
+
+Numer zamówienia: AV-2026-001
+
+Okres wynajmu: 20.07.2026–23.07.2026
+
+Wartość wynajmu: 550,00 zł
+
+Miejsce odbioru: Magazyn Główny
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
+
+exports[`RentalReturned > renderuje snapshot EN 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Equipment return confirmed — AV-2026-001.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Equipment return confirmed — AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Equipment returned</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">We&#x27;ve recorded the equipment return. Thank you.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental period<!-- -->:</strong> <!-- -->20 July 2026–23 July 2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Rental total<!-- -->:</strong> <!-- -->PLN 550.00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+EQUIPMENT RETURNED
+
+Hello Anna Kowalska,
+
+We've recorded the equipment return. Thank you.
+
+Order number: AV-2026-001
+
+Rental period: 20 July 2026–23 July 2026
+
+Rental total: PLN 550.00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`RentalReturned > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Potwierdzenie zwrotu sprzętu — AV-2026-001.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Potwierdzenie zwrotu sprzętu — AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Sprzęt został zwrócony</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Potwierdzamy zwrot sprzętu. Dziękujemy.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Okres wynajmu<!-- -->:</strong> <!-- -->20.07.2026–23.07.2026</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Wartość wynajmu<!-- -->:</strong> <!-- -->550,00 zł</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Miejsce odbioru<!-- -->:</strong> <!-- -->Magazyn Główny</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+SPRZĘT ZOSTAŁ ZWRÓCONY
+
+Dzień dobry, Anna Kowalska!
+
+Potwierdzamy zwrot sprzętu. Dziękujemy.
+
+Numer zamówienia: AV-2026-001
+
+Okres wynajmu: 20.07.2026–23.07.2026
+
+Wartość wynajmu: 550,00 zł
+
+Miejsce odbioru: Magazyn Główny
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
