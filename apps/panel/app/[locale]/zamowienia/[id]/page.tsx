@@ -34,6 +34,7 @@ import {
   refundDepositAction,
 } from "./deposit-actions";
 import { DepositForms } from "./deposit-forms";
+import { ExtensionSection } from "./extension-section";
 import { StatusButtons } from "./status-buttons";
 
 interface OrderDetailRow {
@@ -254,6 +255,8 @@ export default async function OrderDetailPage({
           }}
         />
       </section>
+
+      <ExtensionSection order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">{t("statusSection")}</h2>
