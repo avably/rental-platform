@@ -26,6 +26,7 @@ import {
   courierConfigFromSettings,
   deliveryPricingFromSettings,
   formatMoney,
+  mapProviderStatus,
   type DeliveryMethod,
 } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -161,6 +162,16 @@ export async function DeliverySection({
                   <Badge variant={shipment.status === "cancelled" ? "outline" : "default"}>
                     {t(`statuses.${shipment.status}`)}
                   </Badge>
+                  {/* Surowy status dostawcy pokazywany, gdy NIE odpowiada
+                      naszemu (nieznany albo rozjechany po dryfie API) — bez
+                      tego badge twierdziłby coś, czego dostawca nie potwierdza,
+                      a właśnie po to provider_status jest zapisywany (ADR-031). */}
+                  {shipment.provider_status &&
+                  mapProviderStatus(shipment.provider_status) !== shipment.status ? (
+                    <span className="mt-1 block text-xs text-gray-500">
+                      {t("providerStatus", { status: shipment.provider_status })}
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell>{shipment.provider_order_number}</TableCell>
                 <TableCell>
