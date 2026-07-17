@@ -121,6 +121,7 @@
       "backToList": "← Product catalog",
       "unitsLink": "Units",
       "tiersLink": "Pricing tiers",
+      "imagesLink": "Photos",
       "name": "Name",
       "description": "Description",
       "basePriceDay": "Base price per day ({currency})",
@@ -154,6 +155,25 @@
       "saved": "Changes saved.",
       "delete": "Delete",
       "deletedInfo": "Unit deleted."
+    },
+    "images": {
+      "title": "Photos: {name}",
+      "backToProduct": "← Product: {name}",
+      "addTitle": "Add a photo",
+      "file": "Image file",
+      "fileHint": "Formats: JPEG, PNG, WebP, AVIF. Up to 5 MB.",
+      "add": "Upload photo",
+      "adding": "Uploading…",
+      "added": "Photo added.",
+      "listHeading": "Photos ({count})",
+      "empty": "No photos yet — add the first one to show this product in the store.",
+      "sortOrder": "Order",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Changes saved.",
+      "delete": "Delete",
+      "deletedInfo": "Photo deleted.",
+      "thumbnailAlt": "Product photo thumbnail"
     },
     "tiers": {
       "title": "Pricing tiers: {name}",

@@ -45,6 +45,9 @@ export default async function EditProductPage({
           <Link className="underline" href={`/katalog/${product.id}/progi`}>
             {t("tiersLink")}
           </Link>
+          <Link className="underline" href={`/katalog/${product.id}/zdjecia`}>
+            {t("imagesLink")}
+          </Link>
         </nav>
       </header>
       <ProductForm
