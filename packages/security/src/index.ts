@@ -30,7 +30,17 @@ export interface CspOptions {
   dev?: boolean;
   /** Origin API Supabase (connect-src). Brak = tylko 'self'. */
   supabaseUrl?: string | undefined;
+  /**
+   * Cloudflare Turnstile skonfigurowany (NEXT_PUBLIC_TURNSTILE_SITE_KEY).
+   * Dyrektywy dla challenges.cloudflare.com wchodzą TYLKO wtedy — brak
+   * konfiguracji nie otwiera CSP. Host w script-src to fallback CSP2:
+   * przy 'strict-dynamic' przeglądarki CSP3 ignorują hosty, a api.js
+   * wstrzykiwany przez zaufany chunk jest zaufany przechodnio.
+   */
+  turnstile?: boolean;
 }
+
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 /**
  * Buduje wartość nagłówka Content-Security-Policy.
@@ -47,7 +57,7 @@ export interface CspOptions {
  * nie wykonanie kodu — akceptowane, odnotowane w dokumentacji.
  */
 export function buildCsp(nonce: string, options: CspOptions = {}): string {
-  const { dev = false, supabaseUrl } = options;
+  const { dev = false, supabaseUrl, turnstile = false } = options;
 
   const scriptSrc = [
     "'self'",
@@ -55,10 +65,12 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     "'strict-dynamic'",
     // React Refresh / HMR w dev; w produkcji eval jest zabroniony.
     ...(dev ? ["'unsafe-eval'"] : []),
+    ...(turnstile ? [TURNSTILE_ORIGIN] : []),
   ];
 
   const connectSrc = ["'self'", ...(supabaseUrl ? [supabaseUrl] : [])];
   if (dev) connectSrc.push("ws:");
+  if (turnstile) connectSrc.push(TURNSTILE_ORIGIN);
 
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -67,6 +79,9 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'", "data:"],
     "connect-src": connectSrc,
+    // frame-src istnieje TYLKO dla Turnstile (widget żyje w ramce Cloudflare);
+    // bez niego ramki tnie default-src 'self' — jak przed tą opcją.
+    ...(turnstile ? { "frame-src": [TURNSTILE_ORIGIN] } : {}),
     "frame-ancestors": ["'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],

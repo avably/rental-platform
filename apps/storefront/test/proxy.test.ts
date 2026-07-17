@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { proxy } from "../proxy";
 
@@ -31,6 +31,34 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
+  });
+
+  describe("Turnstile w CSP", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("z NEXT_PUBLIC_TURNSTILE_SITE_KEY CSP dopuszcza challenges.cloudflare.com", () => {
+      vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "1x00000000000000000000AA");
+      const csp =
+        proxy(new NextRequest("https://najemca.example/")).headers.get(
+          "Content-Security-Policy",
+        ) ?? "";
+
+      expect(csp).toMatch(/script-src [^;]*https:\/\/challenges\.cloudflare\.com/);
+      expect(csp).toMatch(/connect-src [^;]*https:\/\/challenges\.cloudflare\.com/);
+      expect(csp).toContain("frame-src https://challenges.cloudflare.com");
+    });
+
+    it("bez klucza CSP nie zna Cloudflare (dyrektywy nie otwierają się na zawsze)", () => {
+      vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "");
+      const csp =
+        proxy(new NextRequest("https://najemca.example/")).headers.get(
+          "Content-Security-Policy",
+        ) ?? "";
+
+      expect(csp).not.toContain("challenges.cloudflare.com");
+    });
   });
 });
 

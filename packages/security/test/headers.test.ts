@@ -52,6 +52,20 @@ describe("buildCsp", () => {
     expect(directive(csp, "connect-src")).toContain("https://xyz.supabase.co");
   });
 
+  it("turnstile: true dodaje challenges.cloudflare.com do script/connect/frame-src", () => {
+    const csp = buildCsp("n", { turnstile: true });
+    expect(directive(csp, "script-src")).toContain("https://challenges.cloudflare.com");
+    expect(directive(csp, "connect-src")).toContain("https://challenges.cloudflare.com");
+    expect(directive(csp, "frame-src")).toBe("frame-src https://challenges.cloudflare.com");
+  });
+
+  it("bez turnstile CSP nie zna Cloudflare — dyrektywy nie otwierają się na zawsze", () => {
+    const csp = buildCsp("n");
+    expect(csp).not.toContain("challenges.cloudflare.com");
+    // Brak frame-src = ramki tnie default-src 'self' (stan sprzed Turnstile).
+    expect(csp).not.toContain("frame-src");
+  });
+
   it("upgrade-insecure-requests tylko poza devem", () => {
     expect(buildCsp("n", { dev: false })).toContain("upgrade-insecure-requests");
     expect(buildCsp("n", { dev: true })).not.toContain("upgrade-insecure-requests");
