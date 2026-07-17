@@ -304,6 +304,7 @@
         "consent": "Confirm your consent to join the waitlist.",
         "duplicate": "This email is already on the waitlist. You do not need to join again.",
         "connection": "We could not send the form. Check your connection and try again.",
+        "captcha": "We could not confirm you are human. Complete the verification below and try again.",
         "server": "We could not save your submission. Try again in a moment. Your answers were not saved."
       },
       "success": {

@@ -17,6 +17,8 @@ interface LandingPageProps {
   copy: LandingCopy;
   locale: "en" | "pl";
   waitlistEnabled: boolean;
+  /** Site key Turnstile; brak = widget wyłączony (patrz waitlist-form). */
+  turnstileSiteKey?: string | undefined;
 }
 
 const sectionClass = "mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 sm:py-28 lg:px-10 lg:py-32";
@@ -24,7 +26,7 @@ const eyebrowClass = "text-sm font-semibold uppercase tracking-[0.16em] text-mut
 const primaryCtaClass =
   "landing-pill inline-flex min-h-12 items-center justify-center bg-landing-ink px-7 py-3 text-sm font-semibold text-white ring-1 ring-white/30 focus-visible:outline-2 focus-visible:outline-offset-4";
 
-export function LandingPage({ copy, locale, waitlistEnabled }: LandingPageProps) {
+export function LandingPage({ copy, locale, waitlistEnabled, turnstileSiteKey }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-landing-paper text-foreground">
       <LandingAnalytics locale={locale} />
@@ -236,7 +238,12 @@ export function LandingPage({ copy, locale, waitlistEnabled }: LandingPageProps)
                 {copy.form.title}
               </h2>
               <p className="mt-6 text-lg leading-8 text-muted-foreground">{copy.form.intro}</p>
-              <WaitlistForm copy={copy.form} enabled={waitlistEnabled} locale={locale} />
+              <WaitlistForm
+                copy={copy.form}
+                enabled={waitlistEnabled}
+                locale={locale}
+                turnstileSiteKey={turnstileSiteKey}
+              />
             </div>
           </div>
         </section>

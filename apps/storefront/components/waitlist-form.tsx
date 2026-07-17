@@ -24,11 +24,14 @@ import type {
 } from "@/lib/waitlist/contract";
 
 import type { LandingCopy } from "./landing-page";
+import { TurnstileWidget } from "./turnstile-widget";
 
 interface WaitlistFormProps {
   copy: LandingCopy["form"];
   enabled: boolean;
   locale: "en" | "pl";
+  /** Site key Turnstile; brak = widget i weryfikacja jawnie wyłączone (dev). */
+  turnstileSiteKey?: string | undefined;
 }
 
 interface FormValues {
@@ -78,11 +81,15 @@ function FieldError({ id, message }: { id: string; message: string | undefined }
   );
 }
 
-export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
+export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: WaitlistFormProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [view, setView] = useState<WaitlistViewState>(
     enabled ? { kind: "idle" } : { kind: "disabled" },
   );
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Remount widgetu (key) po nieudanym submicie: token siteverify jest
+  // jednorazowy, więc kolejna próba wymaga świeżego wyzwania.
+  const [captchaEpoch, setCaptchaEpoch] = useState(0);
   const [submittedEmail, setSubmittedEmail] = useState("");
   const [submittedPilot, setSubmittedPilot] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -129,6 +136,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
       locale,
       source: search.get("utm_source") ?? undefined,
       campaign: search.get("utm_campaign") ?? undefined,
+      captchaToken: captchaToken ?? undefined,
     };
 
     captureLandingEvent("waitlist_submit_attempt", {
@@ -140,6 +148,12 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
       const result = await submitWaitlistInput(input, joinWaitlist);
       const mapped = mapWaitlistResult(result);
       setView(mapped);
+      // Token siteverify jest jednorazowy: każdy submit, który nie skończył
+      // się sukcesem, zostawia zużyty token — wymuś świeże wyzwanie.
+      if (turnstileSiteKey && mapped.kind !== "success" && mapped.kind !== "validation") {
+        setCaptchaToken(null);
+        setCaptchaEpoch((epoch) => epoch + 1);
+      }
       if (mapped.kind === "validation") {
         for (const [field, errorType] of Object.entries(mapped.fields)) {
           if (!errorType) continue;
@@ -174,6 +188,9 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
       }
       if (mapped.kind === "server_error") {
         captureLandingEvent("waitlist_submit_error", { language: locale, error_type: "server" });
+      }
+      if (mapped.kind === "captcha_error") {
+        captureLandingEvent("waitlist_submit_error", { language: locale, error_type: "captcha" });
       }
     } catch {
       setView({ kind: "connection_error" });
@@ -228,6 +245,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
         role={
           view.kind === "server_error" ||
           view.kind === "connection_error" ||
+          view.kind === "captcha_error" ||
           view.kind === "duplicate" ||
           view.kind === "validation"
             ? "alert"
@@ -243,6 +261,7 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
         ) : null}
         {messageKey === "duplicate" ? copy.errors.duplicate : null}
         {messageKey === "connection" ? copy.errors.connection : null}
+        {messageKey === "captcha" ? copy.errors.captcha : null}
         {messageKey === "server" ? copy.errors.server : null}
         {messageKey === "validation" ? copy.errors.required : null}
       </div>
@@ -427,6 +446,15 @@ export function WaitlistForm({ copy, enabled, locale }: WaitlistFormProps) {
           </div>
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />
         </div>
+
+        {turnstileSiteKey ? (
+          <TurnstileWidget
+            key={captchaEpoch}
+            locale={locale}
+            onToken={setCaptchaToken}
+            siteKey={turnstileSiteKey}
+          />
+        ) : null}
 
         <Button className="landing-pill min-h-12 w-full" disabled={unavailable} size="lg" type="submit">
           {view.kind === "submitting" ? copy.submitting : copy.cta}
