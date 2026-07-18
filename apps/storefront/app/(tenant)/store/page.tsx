@@ -1,45 +1,46 @@
 /**
- * Trasa echo storefrontu tenanta (Zadanie 2.1, ADR-039) — DOWÓD, że routing
- * host→tenant i izolacja działają. Middleware przepisuje `<slug>.avably.io` na
- * `/store` i wstrzykuje rozwiązany `x-tenant-id` / `x-tenant-slug`. Strona je
- * odczytuje i pokazuje.
+ * Storefront tenanta — RENDER sekcyjny (Zadanie 2.3b, model sekcyjny 2.3, ADR-041).
+ * Zastępuje trasę echo z 2.1: czyta OPUBLIKOWANY stan strony tenanta
+ * (`getPublishedSite`, warstwa danych 2.3a) i renderuje jego sekcje w wybranym
+ * szablonie (classic/bold) tymi samymi komponentami `@avably/ui`, co podgląd w
+ * panelu.
  *
- * Pełna treść storefrontu (katalog) to Zadanie 2.4; ISR / revalidateTag per
- * tenant zostają jako seam — świadomie NIE budowane teraz. Strona pokazuje
- * SLUG (z hosta) i tenant_id (z rozwiązania) — nazwy tenanta NIE, bo anon nie
- * ma prawa do danych tenanta (0017 zwraca sam uuid; nazwa to Zadanie 2.4+ z
- * własną, autoryzowaną ścieżką odczytu).
+ * BRAMKA (bez zmian względem 2.1): trasa osiągalna WYŁĄCZNIE przez rewrite z
+ * middleware, który wstrzykuje `x-tenant-id` z rozwiązania server-side. Wejście
+ * wprost (bez nagłówka) → 404. Odczyt `headers()` czyni render dynamicznym per
+ * żądanie (konieczne pod CSP z nonce). `getPublishedSite` zwraca WYŁĄCZNIE stan
+ * opublikowany (draft niewidoczny dla anona — bramka w RPC 0019), fail-closed:
+ * błąd/brak strony → `null` → neutralna strona „sklep w budowie" (nie 500/404).
  *
- * BRAMKA: trasa jest osiągalna WYŁĄCZNIE przez rewrite z middleware, który
- * wstrzykuje nagłówek. Wejście wprost (np. `www.avably.io/store`) trafia tu bez
- * `x-tenant-id` → 404. To druga warstwa obrony obok strip'owania w middleware:
- * gdyby kiedyś nagłówek przeciekł, brak wartości i tak kończy się 404, nie echem.
+ * PRODUKTY: publiczny (anonimowy) odczyt katalogu tenanta to seam 2.4 — do tego
+ * czasu sekcja produktów renderuje sam nagłówek + stan pusty. Podgląd w panelu
+ * pokazuje realny katalog (odczyt uwierzytelniony RLS).
  */
+import { SiteRenderer } from "@avably/ui";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { TENANT_ID_HEADER, TENANT_SLUG_HEADER } from "@/lib/tenant/headers";
+import { getPublishedSite } from "@/lib/site/published";
+import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
 
-// CSP wymaga nonce per żądanie; statyczny HTML nie może go nadać skryptom Next.
-export const dynamic = "force-dynamic";
-
-export default async function TenantEchoPage() {
+export default async function TenantStorePage() {
   const requestHeaders = await headers();
   const tenantId = requestHeaders.get(TENANT_ID_HEADER);
-  const tenantSlug = requestHeaders.get(TENANT_SLUG_HEADER);
-
   if (!tenantId) notFound();
 
-  return (
-    <main>
-      <h1>Avably — storefront tenanta</h1>
-      <p>Routing host→tenant działa. To jest trasa echo (Zadanie 2.1).</p>
-      <dl>
-        <dt>tenant_id</dt>
-        <dd data-testid="tenant-id">{tenantId}</dd>
-        <dt>slug</dt>
-        <dd data-testid="tenant-slug">{tenantSlug}</dd>
-      </dl>
-    </main>
-  );
+  const site = await getPublishedSite(tenantId);
+
+  if (!site || site.sections.length === 0) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-3 px-6 text-center">
+        <h1 className="text-2xl font-semibold">Sklep jest w budowie</h1>
+        <p className="text-muted-foreground">
+          Ta wypożyczalnia przygotowuje swoją stronę. Zajrzyj wkrótce.
+        </p>
+      </main>
+    );
+  }
+
+  // Publiczny odczyt katalogu (sekcja products) to seam 2.4 — dziś bez produktów.
+  return <SiteRenderer sections={site.sections} template={site.template} products={[]} />;
 }
