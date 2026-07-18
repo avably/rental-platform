@@ -97,3 +97,45 @@ export interface AuditLogEntry {
   details: Json | null;
   created_at: string;
 }
+
+// --- Model sekcyjny storefrontu (0019_site_model.sql, ADR-041) ---
+//
+// Kształt TREŚCI sekcji (content_draft/content_published) i unie template/type
+// definiuje wyłącznie @avably/core/site (jedno źródło, konsumowane też przez
+// edytor i render 2.3b) — tu jest Json, bo baza treści nie interpretuje.
+
+export type SiteTemplate = import("@avably/core/site").SiteTemplate;
+
+export type SiteSectionType = import("@avably/core/site").SectionType;
+
+export interface Site {
+  id: string;
+  tenant_id: string;
+  template: SiteTemplate;
+  /** NULL = strona nigdy nie opublikowana; stawia ją wyłącznie app.publish_site. */
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface SiteSection {
+  id: string;
+  tenant_id: string;
+  site_id: string;
+  type: SiteSectionType;
+  position: number;
+  enabled: boolean;
+  /** Stan roboczy edytora — nigdy nie serwowany publicznie. */
+  content_draft: Json;
+  /** Stan opublikowany; NULL = sekcja nigdy nie opublikowana. */
+  content_published: Json | null;
+  updated_at: string;
+}
+
+export interface Domain {
+  id: string;
+  tenant_id: string;
+  domain: string;
+  /** false = domena nie routuje (wiring DNS/Vercel to Zadanie 2.6). */
+  verified: boolean;
+  created_at: string;
+}
