@@ -44,8 +44,21 @@ export interface OutgoingEmail {
   attachments?: EmailAttachment[];
 }
 
+/**
+ * Wynik UDANEJ wysyłki.
+ *
+ * `id` to identyfikator wiadomości u dostawcy — jedyny uchwyt do korelacji
+ * wpisu historii (public.email_logs, ADR-045) z panelem dostawcy przy sporze
+ * „wysłaliśmy, a nie doszło". NULLABLE Z ROZMYSŁEM: dostawca nie ma obowiązku
+ * go zwrócić, a wysyłka, która się UDAŁA, nie może zostać przebrana w porażkę
+ * tylko dlatego, że odpowiedź nie niosła identyfikatora.
+ */
+export interface EmailSendResult {
+  id: string | null;
+}
+
 export interface EmailTransport {
-  send(email: OutgoingEmail): Promise<void>;
+  send(email: OutgoingEmail): Promise<EmailSendResult>;
 }
 
 /**

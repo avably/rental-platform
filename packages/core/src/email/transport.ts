@@ -21,6 +21,7 @@ import { DEFAULT_FROM_EMAIL } from "../brand";
 import type {
   EmailAttachment,
   EmailAvailability,
+  EmailSendResult,
   EmailTransport,
   OutgoingEmail,
 } from "./types";
@@ -98,7 +99,7 @@ export function resendTransport(options: EmailTransportOptions = {}): EmailTrans
   const fetchFn = options.fetchFn ?? fetch;
 
   return {
-    async send(email: OutgoingEmail): Promise<void> {
+    async send(email: OutgoingEmail): Promise<EmailSendResult> {
       if (!apiKey) throw new EmailTransportError(NOT_CONFIGURED);
 
       const response = await fetchFn(RESEND_SEND_URL, {
@@ -128,6 +129,19 @@ export function resendTransport(options: EmailTransportOptions = {}): EmailTrans
           `Dostawca poczty odrzucił wysyłkę (HTTP ${response.status}). ${body}`.trim(),
         );
       }
+
+      // Identyfikator wiadomości wraca do wołającego, żeby trafił do
+      // historii wysyłek (ADR-045). ODCZYT JEST NAJLEPSZYM STARANIEM:
+      // wysyłka JUŻ SIĘ UDAŁA (HTTP 2xx), więc niesparsowalne albo
+      // nieoczekiwane ciało odpowiedzi nie może jej przebrać w błąd —
+      // dałoby to operatorowi „nie wysłano" przy wiadomości, która
+      // wyszła, czyli dokładnie to kłamstwo, którego zabrania ADR-033.
+      const payload: unknown = await response.json().catch(() => null);
+      const id =
+        typeof payload === "object" && payload !== null && "id" in payload
+          ? (payload as { id?: unknown }).id
+          : undefined;
+      return { id: typeof id === "string" && id.length > 0 ? id : null };
     },
   };
 }

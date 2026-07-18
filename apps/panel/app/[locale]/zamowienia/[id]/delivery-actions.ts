@@ -28,6 +28,7 @@ import {
 } from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
+import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
@@ -436,6 +437,8 @@ export async function sendReturnLabelEmailAction(
     endDate: context.order.end_date,
     shipmentNumber: shipment.provider_order_number as string,
     labelPdf,
+    orderId: parsed.data.orderId,
+    recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
   });
 
   return reason ? { formError: reason } : { success: "labelEmailSent" };
@@ -502,6 +505,8 @@ export async function sendPickupReturnReminderAction(
     endDate: context.order.end_date,
     locationName: location.name,
     locationAddress: address,
+    orderId: parsed.data.orderId,
+    recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
   });
 
   return reason ? { formError: reason } : { success: "pickupReminderSent" };

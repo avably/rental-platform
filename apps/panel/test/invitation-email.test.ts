@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { EmailTransport, OutgoingEmail, TenantSettingRow } from "@avably/core";
+import type {
+  EmailLogEntry,
+  EmailLogRecorder,
+  EmailTransport,
+  OutgoingEmail,
+  TenantSettingRow,
+} from "@avably/core";
 
 import { buildInvitationEmail, sendInvitationEmail } from "@/lib/email";
 
@@ -13,7 +19,21 @@ const base = {
 
 function captureTransport(): { transport: EmailTransport; sent: OutgoingEmail[] } {
   const sent: OutgoingEmail[] = [];
-  return { transport: { send: async (e) => void sent.push(e) }, sent };
+  return {
+    transport: {
+      send: async (e) => {
+        sent.push(e);
+        return { id: `resend-${sent.length}` };
+      },
+    },
+    sent,
+  };
+}
+
+/** Rejestrator historii, który zapamiętuje wpisy zamiast pisać do bazy. */
+function captureRecorder(): { recorder: EmailLogRecorder; entries: EmailLogEntry[] } {
+  const entries: EmailLogEntry[] = [];
+  return { recorder: { record: async (entry) => void entries.push(entry) }, entries };
 }
 
 describe("buildInvitationEmail", () => {
@@ -106,5 +126,53 @@ describe("sendInvitationEmail", () => {
       },
     });
     expect(reason).toMatch(/422/);
+  });
+
+  /**
+   * Historia wysyłek (Zadanie 2.8, ADR-045). Zaproszenie to jedyna ścieżka
+   * BEZ zamówienia — i to jest powód, dla którego email_logs.order_id jest
+   * nullable (0021).
+   */
+  it("zaproszenie zapisuje wpis 'invitation' BEZ zamówienia", async () => {
+    const { transport } = captureTransport();
+    const { recorder, entries } = captureRecorder();
+
+    const reason = await sendInvitationEmail({
+      ...base,
+      transport,
+      recorder,
+      settings: noSettings,
+      availability: { available: true },
+    });
+
+    expect(reason).toBeUndefined();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: "invitation",
+      orderId: null,
+      recipient: "nowy@example.com",
+      status: "sent",
+      providerMessageId: "resend-1",
+    });
+  });
+
+  it("awaria dziennika NIE wywraca wysyłki zaproszenia", async () => {
+    const { transport, sent } = captureTransport();
+
+    const reason = await sendInvitationEmail({
+      ...base,
+      transport,
+      recorder: {
+        record: async () => {
+          throw new Error("brak połączenia z bazą");
+        },
+      },
+      settings: noSettings,
+      availability: { available: true },
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(reason).toContain("historii wiadomości");
+    expect(reason).not.toContain("e-mail nie wyszedł");
   });
 });

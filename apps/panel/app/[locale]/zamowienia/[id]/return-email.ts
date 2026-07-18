@@ -26,7 +26,10 @@ import {
   EmailConfigError,
   emailSenderFromSettings,
   platformFromAddress,
+  sendAndLog,
   type EmailAvailability,
+  type EmailLogKind,
+  type EmailLogRecorder,
   type EmailSender,
   type EmailTransport,
   type Locale,
@@ -93,9 +96,47 @@ function fromAndReplyTo(
   };
 }
 
-export interface SendReturnLabelInput {
-  availability: EmailAvailability;
+/**
+ * Wspólne pola wysyłki dla obu wiadomości zwrotu: dokąd wysłać i gdzie
+ * zapisać ślad (0021/ADR-045).
+ */
+interface DispatchDeps {
   transport: EmailTransport;
+  /** Historia wysyłek; brak = wysyłka bez logu (testy jednostkowe). */
+  recorder?: EmailLogRecorder;
+  /** Zamówienie, do którego przypina się wpis historii. */
+  orderId?: string;
+}
+
+/**
+ * Wysyłka + wpis w historii, wspólna dla obu wiadomości zwrotu.
+ *
+ * Rozdziela DWA różne niepowodzenia, które wcześniej nie miały jak się
+ * różnić: „wiadomość nie wyszła" (powód wysyłki) i „wyszła, ale nie mamy
+ * na to śladu" (awaria dziennika). Sklejenie ich kazałoby operatorowi
+ * ponawiać wysyłkę, która się udała.
+ */
+async function dispatch(
+  deps: DispatchDeps,
+  message: OutgoingEmail,
+  kind: EmailLogKind,
+  failurePrefix: string,
+): Promise<string | undefined> {
+  const { sendError, logIssue } = await sendAndLog({
+    transport: deps.transport,
+    recorder: deps.recorder,
+    email: message,
+    kind,
+    orderId: deps.orderId ?? null,
+  });
+  if (sendError) {
+    return `${failurePrefix}: ${sendError instanceof Error ? sendError.message : "nieznany błąd"}`;
+  }
+  return logIssue;
+}
+
+export interface SendReturnLabelInput extends DispatchDeps {
+  availability: EmailAvailability;
   customer: ReturnEmailCustomer | null;
   settings: TenantSettingRow[];
   tenantName: string;
@@ -122,6 +163,7 @@ export async function sendReturnLabelEmail(
 
   const locale = input.customer?.locale ?? input.tenantLocale;
 
+  let message: OutgoingEmail;
   try {
     const { html, text } = await renderReturnLabel({
       locale,
@@ -133,7 +175,7 @@ export async function sendReturnLabelEmail(
       ...(input.carrierName ? { carrierName: input.carrierName } : {}),
     });
 
-    const message: OutgoingEmail = {
+    message = {
       ...fromAndReplyTo(recipient.sender, input.tenantName, input.fromEmail),
       to: recipient.email,
       // Temat = nagłówek szablonu w locale odbiorcy (spójność z treścią bez
@@ -145,18 +187,17 @@ export async function sendReturnLabelEmail(
         { filename: `etykieta-zwrotna-${input.shipmentNumber}.pdf`, content: input.labelPdf },
       ],
     };
-    await input.transport.send(message);
-    return undefined;
   } catch (err) {
     return `Nie udało się wysłać etykiety zwrotnej: ${
       err instanceof Error ? err.message : "nieznany błąd"
     }`;
   }
+
+  return dispatch(input, message, "return_label", "Nie udało się wysłać etykiety zwrotnej");
 }
 
-export interface SendPickupReturnReminderInput {
+export interface SendPickupReturnReminderInput extends DispatchDeps {
   availability: EmailAvailability;
-  transport: EmailTransport;
   customer: ReturnEmailCustomer | null;
   settings: TenantSettingRow[];
   tenantName: string;
@@ -183,6 +224,7 @@ export async function sendPickupReturnReminderEmail(
 
   const locale = input.customer?.locale ?? input.tenantLocale;
 
+  let message: OutgoingEmail;
   try {
     const { html, text } = await renderPickupReturnReminder({
       locale,
@@ -196,18 +238,23 @@ export async function sendPickupReturnReminderEmail(
       ...(input.openingHours ? { openingHours: input.openingHours } : {}),
     });
 
-    const message: OutgoingEmail = {
+    message = {
       ...fromAndReplyTo(recipient.sender, input.tenantName, input.fromEmail),
       to: recipient.email,
       subject: emailMessages(locale).pickupReturnReminder.heading,
       html,
       text,
     };
-    await input.transport.send(message);
-    return undefined;
   } catch (err) {
     return `Nie udało się wysłać przypomnienia o zwrocie: ${
       err instanceof Error ? err.message : "nieznany błąd"
     }`;
   }
+
+  return dispatch(
+    input,
+    message,
+    "pickup_return_reminder",
+    "Nie udało się wysłać przypomnienia o zwrocie",
+  );
 }

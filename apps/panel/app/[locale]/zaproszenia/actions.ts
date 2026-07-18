@@ -13,6 +13,7 @@ import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/r
 
 import { AuthError } from "@/lib/auth";
 import { invitationLocale, sendInvitationEmail } from "@/lib/email";
+import { panelEmailLogRecorder } from "@/lib/email-log";
 import { requireMember } from "@/lib/supabase-server";
 import { inviteSchema } from "@/lib/validation";
 
@@ -100,6 +101,7 @@ export async function inviteMemberAction(
         settings: (settingsResult.data ?? []) as TenantSettingRow[],
         availability: emailAvailability(),
         transport: resendTransport(),
+        recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
       });
 
   if (emailProblem) {

@@ -22,7 +22,9 @@ import {
   emailSenderFromSettings,
   isLocale,
   platformFromAddress,
+  sendAndLog,
   type EmailAvailability,
+  type EmailLogRecorder,
   type EmailTransport,
   type Locale,
   type OutgoingEmail,
@@ -79,6 +81,8 @@ export interface SendInvitationEmailInput {
   settings: TenantSettingRow[];
   availability: EmailAvailability;
   transport: EmailTransport;
+  /** Historia wysyłek (0021/ADR-045); brak = wysyłka bez logu. */
+  recorder?: EmailLogRecorder;
   fromEmail?: string;
 }
 
@@ -112,8 +116,9 @@ export async function sendInvitationEmail(
     }
   }
 
+  let email: OutgoingEmail;
   try {
-    const email = await buildInvitationEmail({
+    email = await buildInvitationEmail({
       to: input.to,
       acceptUrl: input.acceptUrl,
       locale: input.locale,
@@ -122,11 +127,26 @@ export async function sendInvitationEmail(
       ...(replyTo ? { replyTo } : {}),
       ...(input.fromEmail ? { fromEmail: input.fromEmail } : {}),
     });
-    await input.transport.send(email);
-    return undefined;
   } catch (err) {
     return `Zaproszenie utworzone, ale e-mail nie wyszedł: ${
       err instanceof Error ? err.message : "nieznany błąd"
     }`;
   }
+
+  // orderId celowo BEZ wartości: zaproszenie nie dotyczy żadnego zamówienia
+  // i kolumna email_logs.order_id jest dla niego nullable z tego właśnie
+  // powodu (0021).
+  const { sendError, logIssue } = await sendAndLog({
+    transport: input.transport,
+    recorder: input.recorder,
+    email,
+    kind: "invitation",
+  });
+
+  if (sendError) {
+    return `Zaproszenie utworzone, ale e-mail nie wyszedł: ${
+      sendError instanceof Error ? sendError.message : "nieznany błąd"
+    }`;
+  }
+  return logIssue;
 }
