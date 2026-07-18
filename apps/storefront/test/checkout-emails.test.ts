@@ -36,6 +36,7 @@ function rpcResult(overrides: Partial<CheckoutRpcResult> = {}): CheckoutRpcResul
     tenant: { name: "Wypożyczalnia", locale: "pl" },
     email_sender: { name: "Wypożyczalnia", reply_to: "biuro@najemca.example" },
     notify_email: "biuro@najemca.example",
+    log_token: "9e1d4c7a-0000-4000-8000-abcdefabcdef",
     ...overrides,
   };
 }

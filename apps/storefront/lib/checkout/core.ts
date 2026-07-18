@@ -59,6 +59,13 @@ export interface CheckoutRpcResult {
   tenant: { name: string; locale: string };
   email_sender: { name: string; reply_to: string | null } | null;
   notify_email: string | null;
+  /**
+   * Token jednorazowy wiążący PÓŹNIEJSZY zapis dziennika wysyłek z TYM
+   * checkoutem (0021/ADR-045). Obowiązuje go ta sama dyscyplina co
+   * `notify_email` (ADR-042): dane SERWEROWE, konsumowane przez `sendEmails`
+   * — kontrakt `CheckoutResult` ich nie zawiera i nie trafiają do przeglądarki.
+   */
+  log_token: string;
 }
 
 /** Błąd RPC nosi standardowy SQLSTATE z PostgREST (patrz mapowanie niżej). */

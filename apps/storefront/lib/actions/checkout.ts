@@ -77,6 +77,10 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
           await createSupabaseServerClient(),
           tenantId,
           ctx.order_number,
+          // Token z odpowiedzi RPC — dowód, że to MY przeprowadziliśmy ten
+          // checkout. Nie opuszcza serwera: `ctx` jest server-only, a kontrakt
+          // CheckoutResult go nie niesie (ADR-045).
+          ctx.log_token,
         ),
       }),
   });

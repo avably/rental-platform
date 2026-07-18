@@ -458,6 +458,69 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     expect(JSON.stringify(data)).not.toContain(ownerEmail);
   });
 
+  /**
+   * log_token (0021/ADR-045, znalezisko recenzji 2.8): checkout WYDAJE token
+   * jednorazowy i zwraca go w odpowiedzi. Bez niego zapis do dziennika wysyłek
+   * dałoby się wykonać samymi danymi publicznymi (tenant_id jest jawny,
+   * order_number sekwencyjny), więc historia byłaby fałszowalna.
+   *
+   * To także REGRESJA redefinicji funkcji w 0021: gdyby odtworzone ciało
+   * zgubiło zapis tokenu, kolumna zostałaby NULL-em i bramka dziennika
+   * odcięłaby całą ścieżkę checkoutu.
+   */
+  it("checkout wydaje log_token i utrwala go w orders (ADR-045)", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId));
+    expect(error, `checkout zawiódł: ${error?.message}`).toBeNull();
+
+    const result = data as { order_number: string; log_token: string };
+    expect(result.log_token, "odpowiedź RPC musi nieść log_token").toEqual(expect.any(String));
+
+    // Zwrócona wartość MUSI zgadzać się z utrwaloną kolumną — inaczej token
+    // byłby ozdobnym uuid, którym nie da się otworzyć bramki dziennika.
+    const { data: order } = await admin
+      .from("orders")
+      .select("checkout_log_token")
+      .eq("tenant_id", tenantId)
+      .eq("order_number", result.order_number)
+      .single();
+    expect(order!.checkout_log_token).toBe(result.log_token);
+  });
+
+  it("każdy checkout dostaje INNY log_token", async () => {
+    // Token stały albo wyprowadzony z danych zamówienia byłby odgadywalny —
+    // a wtedy bramka dziennika chroniłaby dokładnie tyle, co jej brak.
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 2);
+
+    const first = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_start_date: "2026-10-01",
+        p_end_date: "2026-10-01",
+      }),
+    );
+    const second = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_start_date: "2026-11-05",
+        p_end_date: "2026-11-05",
+      }),
+    );
+
+    expect(first.error, `pierwszy checkout zawiódł: ${first.error?.message}`).toBeNull();
+    expect(second.error, `drugi checkout zawiódł: ${second.error?.message}`).toBeNull();
+    expect((first.data as { log_token: string }).log_token).not.toBe(
+      (second.data as { log_token: string }).log_token,
+    );
+  });
+
   // -------------------------------------------------------------------
   // 6. THROTTLE w bazie (znalezisko recenzji 2.4a — DoS przez pending)
   // -------------------------------------------------------------------
