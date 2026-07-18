@@ -15,7 +15,8 @@
     "locationsLink": "Punkty odbioru",
     "invitationsLink": "Zaproszenia członków",
     "emailSettingsLink": "Ustawienia e-maili",
-    "siteLink": "Strona sklepu"
+    "siteLink": "Strona sklepu",
+    "emailLogLink": "Historia wiadomości"
   },
   "emailSettings": {
     "title": "Ustawienia e-maili",
@@ -32,6 +33,40 @@
     "saveCta": "Zapisz",
     "savedOk": "Zapisano.",
     "backLink": "Panel"
+  },
+  "emailLog": {
+    "orderSectionTitle": "Wysłane wiadomości",
+    "title": "Historia wiadomości",
+    "intro": "Ślad każdej próby wysyłki: co wyszło do klienta, a co nie i dlaczego.",
+    "emptyForOrder": "Dla tego zamówienia nie wysłano jeszcze żadnej wiadomości.",
+    "empty": "Brak wiadomości spełniających kryteria.",
+    "filterStatus": "Status",
+    "filterAll": "Wszystkie",
+    "filterApply": "Filtruj",
+    "columnDate": "Data",
+    "columnKind": "Rodzaj",
+    "columnRecipient": "Odbiorca",
+    "columnSubject": "Temat",
+    "columnStatus": "Status",
+    "previousPage": "← Poprzednia",
+    "nextPage": "Następna →",
+    "pageOf": "Strona {page} — wpisów: {total}",
+    "status": {
+      "sent": "Wysłana",
+      "failed": "Nieudana"
+    },
+    "kind": {
+      "rental_confirmed": "Potwierdzenie rezerwacji",
+      "rental_ready_for_pickup": "Gotowe do odbioru",
+      "rental_picked_up": "Wydanie sprzętu",
+      "rental_returned": "Potwierdzenie zwrotu",
+      "rental_cancelled": "Anulowanie rezerwacji",
+      "invitation": "Zaproszenie do organizacji",
+      "return_label": "Etykieta zwrotna",
+      "pickup_return_reminder": "Przypomnienie o zwrocie",
+      "checkout_confirmation": "Potwierdzenie zamówienia ze sklepu",
+      "new_order_notification": "Powiadomienie o nowym zamówieniu"
+    }
   },
   "nav": {
     "superadmin": "Superadmin",

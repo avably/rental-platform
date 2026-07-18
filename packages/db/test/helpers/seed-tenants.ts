@@ -788,7 +788,20 @@ export async function cleanupSeeded(admin: SupabaseClient): Promise<void> {
 
   const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
   try {
-    await sql`delete from public.plans where id = 'rls-test-plan'`;
+    // Plan testowy jest WSPÓLNY dla wszystkich suit (ensureTestPlanId robi
+    // upsert jednego wiersza), a pliki testowe biegną RÓWNOLEGLE w jednej
+    // bazie. Goły DELETE wywracał więc teardown suity, która skończyła
+    // pierwsza, o subskrypcje suity wciąż pracującej (23503 na
+    // subscriptions_plan_id_fkey) — czerwony wynik bez ani jednego
+    // czerwonego testu. Kasuje ten, kto wychodzi jako ostatni; jeśli nikt,
+    // wiersz zostaje i następny przebieg go po prostu reużyje (upsert).
+    await sql`
+      delete from public.plans
+      where id = 'rls-test-plan'
+        and not exists (
+          select 1 from public.subscriptions where plan_id = 'rls-test-plan'
+        )
+    `;
     await sql`delete from public.audit_log where subject = 'rls-isolation-test'`;
   } finally {
     await sql.end({ timeout: 5 });
