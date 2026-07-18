@@ -14,7 +14,8 @@
     "catalogLink": "Katalog produktów",
     "locationsLink": "Punkty odbioru",
     "invitationsLink": "Zaproszenia członków",
-    "emailSettingsLink": "Ustawienia e-maili"
+    "emailSettingsLink": "Ustawienia e-maili",
+    "siteLink": "Strona sklepu"
   },
   "emailSettings": {
     "title": "Ustawienia e-maili",
@@ -456,6 +457,69 @@
       "quoteSurcharge": "Dopłata: {amount}",
       "pickDateHint": "Wybierz datę po obecnym końcu najmu, aby zobaczyć dopłatę.",
       "cta": "Przedłuż najem"
+    }
+  },
+  "site": {
+    "title": "Strona sklepu",
+    "subtitle": "Ułóż sekcje, wybierz szablon i opublikuj stronę widoczną dla klientów.",
+    "backHome": "← Panel",
+    "loadError": "Nie udało się wczytać strony sklepu. Odśwież stronę.",
+    "template": {
+      "heading": "Szablon",
+      "template_classic": "Classic (stonowany)",
+      "template_bold": "Bold (kontrastowy)"
+    },
+    "sections": {
+      "heading": "Sekcje strony",
+      "addType": "Typ sekcji do dodania",
+      "addHint": "wybierz typ, aby dodać sekcję",
+      "empty": "Brak sekcji. Dodaj pierwszą, aby zbudować stronę.",
+      "disabled": "wyłączona",
+      "moveUp": "W górę",
+      "moveDown": "W dół",
+      "enable": "Włącz",
+      "disable": "Wyłącz",
+      "remove": "Usuń"
+    },
+    "sectionTypes": {
+      "hero": "Baner (hero)",
+      "products": "Produkty",
+      "pricing": "Cennik",
+      "faq": "FAQ",
+      "contact": "Kontakt",
+      "freeform": "Tekst dowolny"
+    },
+    "fields": {
+      "heading": "Nagłówek",
+      "heroHeading": "Nagłówek główny",
+      "subheading": "Podtytuł",
+      "note": "Uwaga",
+      "body": "Treść",
+      "ctaText": "Etykieta przycisku",
+      "ctaHref": "Adres przycisku",
+      "email": "E-mail",
+      "phone": "Telefon",
+      "address": "Adres",
+      "mapQuery": "Zapytanie do mapy",
+      "faqItems": "Pytania i odpowiedzi",
+      "faqQuestion": "Pytanie",
+      "faqAnswer": "Odpowiedź",
+      "faqAdd": "Dodaj pytanie",
+      "faqRemove": "Usuń",
+      "saveSection": "Zapisz sekcję",
+      "saving": "Zapisywanie…",
+      "saved": "Zapisano."
+    },
+    "preview": {
+      "heading": "Podgląd",
+      "intro": "Tak wygląda wersja robocza. Klienci zobaczą ją po publikacji.",
+      "empty": "Brak włączonych sekcji do pokazania.",
+      "priceFrom": "od {price} / doba"
+    },
+    "publish": {
+      "publish": "Publikuj",
+      "publishing": "Publikowanie…",
+      "published": "Opublikowano."
     }
   }
 }

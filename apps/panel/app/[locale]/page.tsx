@@ -35,6 +35,9 @@ export default async function Home() {
         <Link className="underline" href="/katalog">
           {t("catalogLink")}
         </Link>
+        <Link className="underline" href="/strona">
+          {t("siteLink")}
+        </Link>
         <Link className="underline" href="/katalog/punkty-odbioru">
           {t("locationsLink")}
         </Link>
