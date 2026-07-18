@@ -1,0 +1,107 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PickupReturnReminderEmail > renderuje snapshot EN (z telefonem i godzinami) 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Equipment return reminder — order AV-2026-001.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Equipment return reminder — order AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Equipment return reminder</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Your rental ends on 23 July 2026. Please return the equipment at:</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Location<!-- -->:</strong> <!-- -->Main Depot</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Address<!-- -->:</strong> <!-- -->12 Depot Street, London</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Phone<!-- -->:</strong> <!-- -->+44 20 1234 5678</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Opening hours<!-- -->:</strong> <!-- -->Mon–Fri 8:00–16:00</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+EQUIPMENT RETURN REMINDER
+
+Hello Anna Kowalska,
+
+Your rental ends on 23 July 2026. Please return the equipment at:
+
+Order number: AV-2026-001
+
+Location: Main Depot
+
+Address: 12 Depot Street, London
+
+Phone: +44 20 1234 5678
+
+Opening hours: Mon–Fri 8:00–16:00
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`PickupReturnReminderEmail > renderuje snapshot PL (bez telefonu i godzin — dzisiejsza kartoteka punktu) 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Przypomnienie o zwrocie sprzętu — zamówienie AV-2026-001.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Przypomnienie o zwrocie sprzętu — zamówienie AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Przypomnienie o zwrocie sprzętu</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Twój najem kończy się 23.07.2026. Zwróć sprzęt w punkcie:</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Punkt<!-- -->:</strong> <!-- -->Magazyn Główny</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Adres<!-- -->:</strong> <!-- -->ul. Składowa 5, 00-001 Warszawa</p></td></tr></tbody></table><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+PRZYPOMNIENIE O ZWROCIE SPRZĘTU
+
+Dzień dobry, Anna Kowalska!
+
+Twój najem kończy się 23.07.2026. Zwróć sprzęt w punkcie:
+
+Numer zamówienia: AV-2026-001
+
+Punkt: Magazyn Główny
+
+Adres: ul. Składowa 5, 00-001 Warszawa
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;
+
+exports[`ReturnLabelEmail > renderuje snapshot EN (z nazwą przewoźnika) 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="en"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Return label for order AV-2026-001.</title></head><body lang="en" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Return label for order AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="en" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">North Rental</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Return label for your rental</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Hello Anna Kowalska,</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Your rental ends on 23 July 2026. The return label is attached — print it, stick it on the parcel and ship it back.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Order number<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Shipment number<!-- -->:</strong> <!-- -->GK240610123456</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Carrier<!-- -->:</strong> <!-- -->Przewoźnik X</p></td></tr></tbody></table><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">The return label (PDF) is attached to this message.</p><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">North Rental<br/>This is an automated message about your rental.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "North Rental
+
+
+RETURN LABEL FOR YOUR RENTAL
+
+Hello Anna Kowalska,
+
+Your rental ends on 23 July 2026. The return label is attached — print it, stick it on the parcel and ship it back.
+
+Order number: AV-2026-001
+
+Shipment number: GK240610123456
+
+Carrier: Przewoźnik X
+
+The return label (PDF) is attached to this message.
+
+----------------------------------------
+
+North Rental
+This is an automated message about your rental.",
+}
+`;
+
+exports[`ReturnLabelEmail > renderuje snapshot PL 1`] = `
+{
+  "html": "<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" lang="pl"><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><meta name="x-apple-disable-message-reformatting"/><title>Etykieta zwrotna do zamówienia AV-2026-001.</title></head><body lang="pl" dir="ltr" style="background-color:#f7f7f7;margin:0;padding:0"><!--$--><!--html--><!--head--><div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0" data-skip-in-text="true">Etykieta zwrotna do zamówienia AV-2026-001.<div> ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿</div></div><!--body--><table border="0" width="100%" cellPadding="0" cellSpacing="0" role="presentation" align="center"><tbody><tr><td dir="ltr" lang="pl" style="background-color:#f7f7f7;color:#0a0a0a;font-family:-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;margin:0;padding:0"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="max-width:600px;margin:0 auto;width:100%"><tbody><tr style="width:100%"><td style="padding:40px 20px 24px"><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#ffffff;border:1px solid #e8e8e8;border-radius:10px"><tbody><tr><td style="padding:32px"><p style="font-size:18px;line-height:24px;color:#0a0a0a;font-weight:700;letter-spacing:-0.01em;margin:0 0 28px;margin-top:0;margin-right:0;margin-bottom:28px;margin-left:0">Wypożyczalnia Północ</p><h1 style="color:#0a0a0a;font-size:24px;font-weight:700;letter-spacing:-0.02em;line-height:1.3;margin:0 0 20px">Etykieta zwrotna do Twojego wynajmu</h1><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Dzień dobry, Anna Kowalska!</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Twój najem kończy się 23.07.2026. W załączniku znajdziesz etykietę zwrotną — wydrukuj ją, naklej na paczkę i nadaj przesyłkę.</p><table align="center" width="100%" border="0" cellPadding="0" cellSpacing="0" role="presentation" style="background-color:#f7f7f7;border-radius:8px"><tbody><tr><td style="padding:8px 16px"><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer zamówienia<!-- -->:</strong> <!-- -->AV-2026-001</p><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0;border-bottom:1px solid #e8e8e8;padding:10px 0;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0"><strong>Numer przesyłki<!-- -->:</strong> <!-- -->GK240610123456</p></td></tr></tbody></table><p style="font-size:15px;line-height:1.65;color:#0a0a0a;margin:0 0 16px;margin-top:0;margin-right:0;margin-bottom:16px;margin-left:0">Etykieta zwrotna (PDF) jest załączona do tej wiadomości.</p><hr style="width:100%;border:none;border-color:#e8e8e8;border-top:1px solid #eaeaea;margin:28px 0 20px"/><p style="font-size:12px;line-height:1.6;color:#555555;margin:0;text-align:center;margin-top:0;margin-bottom:0;margin-left:0;margin-right:0">Wypożyczalnia Północ<br/>Wiadomość automatyczna dotycząca Twojego wynajmu.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table><!--/$--></body></html>",
+  "text": "Wypożyczalnia Północ
+
+
+ETYKIETA ZWROTNA DO TWOJEGO WYNAJMU
+
+Dzień dobry, Anna Kowalska!
+
+Twój najem kończy się 23.07.2026. W załączniku znajdziesz etykietę zwrotną — wydrukuj ją, naklej na paczkę i nadaj przesyłkę.
+
+Numer zamówienia: AV-2026-001
+
+Numer przesyłki: GK240610123456
+
+Etykieta zwrotna (PDF) jest załączona do tej wiadomości.
+
+----------------------------------------
+
+Wypożyczalnia Północ
+Wiadomość automatyczna dotycząca Twojego wynajmu.",
+}
+`;

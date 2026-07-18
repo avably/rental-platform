@@ -13,11 +13,18 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  DEFAULT_TENANT_LOCALE,
+  EMAIL_SENDER_KEY,
   GlobKurierAPIError,
   buildBestPriceRequest,
+  emailAvailability,
+  isLocale,
   mapProviderStatus,
+  resendTransport,
+  type Locale,
   type ShipmentParty,
   type ShipmentType,
+  type TenantSettingRow,
 } from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
@@ -25,7 +32,17 @@ import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
 import { loadCourierApi } from "./delivery";
-import { shipmentCreateSchema, shipmentRefreshSchema } from "./delivery-validation";
+import {
+  pickupReturnReminderSchema,
+  returnLabelEmailSchema,
+  shipmentCreateSchema,
+  shipmentRefreshSchema,
+} from "./delivery-validation";
+import {
+  sendPickupReturnReminderEmail,
+  sendReturnLabelEmail,
+  type ReturnEmailCustomer,
+} from "./return-email";
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
@@ -261,4 +278,231 @@ export async function refreshShipmentStatusAction(
 
   revalidatePath("/", "layout");
   return { success: "refreshed" };
+}
+
+// ---------------------------------------------------------------------------
+// Zadanie 2.5 (ADR-043): e-maile zwrotów wysyłane RĘCZNIE przez operatora.
+//
+// FAKT WYSŁANIA NIE JEST UTRWALANY — wynik wraca w FormState do operatora
+// (sukces albo uczciwy powód niewysłania). Wybór prostszego wariantu z briefu:
+// zapis do orders.notes wymagałby read-modify-write cudzego, wolnego pola
+// operatora (ryzyko nadpisania) i nic nie wnosi dla MVP, w którym to operator
+// inicjuje wysyłkę i od razu widzi wynik. Bez migracji, bez nowej kolumny —
+// dokładnie jak 8b pokazuje powód niewysłania zamiast go zapisywać.
+//
+// Wysyłka NIGDY nie wywraca akcji: logika (bramki, uczciwa częściowa porażka)
+// siedzi w send*Email z return-email.ts i jest testowana bez Supabase.
+// ---------------------------------------------------------------------------
+
+/** Locale tenanta zsanityzowane: nieznana wartość spada na domyślną, nie wywala wysyłki. */
+function tenantLocaleOrDefault(raw: string | null): Locale {
+  return isLocale(raw ?? "") ? (raw as Locale) : DEFAULT_TENANT_LOCALE;
+}
+
+interface ReturnEmailOrderRow {
+  order_number: string;
+  end_date: string;
+  delivery_method: string;
+  customers: ReturnEmailCustomer | null;
+  pickup_locations: {
+    name: string;
+    address_street: string | null;
+    address_zip: string | null;
+    address_city: string | null;
+  } | null;
+}
+
+/**
+ * Wspólny odczyt danych do wiadomości zwrotu: zamówienie (klient + punkt),
+ * nadawca tenanta i nazwa/locale tenanta. Zwraca komplet albo POWÓD, dla
+ * którego wiadomości nie da się złożyć.
+ */
+async function loadReturnEmailContext(
+  ctx: Awaited<ReturnType<typeof requireMember>>,
+  orderId: string,
+): Promise<
+  | {
+      order: ReturnEmailOrderRow;
+      settings: TenantSettingRow[];
+      tenantName: string;
+      tenantLocale: Locale;
+    }
+  | { error: string }
+> {
+  const [orderResult, settingsResult, tenantResult] = await Promise.all([
+    ctx.supabase
+      .from("orders")
+      .select(
+        "order_number, end_date, delivery_method, customers(full_name, email, locale), pickup_locations(name, address_street, address_zip, address_city)",
+      )
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", orderId)
+      .maybeSingle(),
+    ctx.supabase
+      .from("tenant_settings")
+      .select("key, value")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("key", EMAIL_SENDER_KEY),
+    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+  ]);
+
+  const order = orderResult.data as unknown as ReturnEmailOrderRow | null;
+  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+  if (!order || !tenant) {
+    return { error: "Nie udało się odczytać danych zamówienia — wiadomość nie została wysłana." };
+  }
+
+  return {
+    order,
+    settings: (settingsResult.data ?? []) as TenantSettingRow[],
+    tenantName: tenant.name,
+    tenantLocale: tenantLocaleOrDefault(tenant.locale),
+  };
+}
+
+/**
+ * „Wyślij klientowi etykietę zwrotną e-mailem" — dla ISTNIEJĄCEJ przesyłki
+ * zwrotnej. Etykieta pobierana TĄ SAMĄ ścieżką serwerową co route handler
+ * PDF (loadCourierApi → getLabelsByHashes po provider_order_hash — hash nie
+ * wychodzi do przeglądarki) i dołączana jako załącznik.
+ */
+export async function sendReturnLabelEmailAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = returnLabelEmailSchema.safeParse({
+    orderId: str(formData.get("orderId")),
+    shipmentId: str(formData.get("shipmentId")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  // Brak klucza Resend = JAWNA niedostępność (ADR-033) i zero pracy dostawcy:
+  // nie ściągamy etykiety, której i tak nie wyślemy.
+  const availability = emailAvailability();
+  if (!availability.available) {
+    return { formError: availability.reason ?? "Wysyłka e-maili jest niedostępna." };
+  }
+
+  const { data: shipment } = await ctx.supabase
+    .from("courier_shipments")
+    .select("id, shipment_type, provider_order_number, provider_order_hash")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", parsed.data.orderId)
+    .eq("id", parsed.data.shipmentId)
+    .maybeSingle();
+  if (!shipment) return { formError: "Przesyłka nie istnieje albo została usunięta." };
+  if (shipment.shipment_type !== "return") {
+    return { formError: "Etykietę zwrotną można wysłać tylko dla przesyłki zwrotnej." };
+  }
+  if (!shipment.provider_order_hash) {
+    return { formError: "Dostawca nie udostępnił jeszcze etykiety tej przesyłki." };
+  }
+
+  const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
+  if (courier.configError !== undefined) return { formError: courier.configError };
+
+  let labelPdf: Uint8Array;
+  try {
+    labelPdf = await courier.api.getLabelsByHashes(
+      [shipment.provider_order_hash as string],
+      "A4",
+    );
+  } catch (err) {
+    if (err instanceof GlobKurierAPIError) {
+      return { formError: `Nie udało się pobrać etykiety zwrotnej: ${err.message}` };
+    }
+    throw err;
+  }
+
+  const context = await loadReturnEmailContext(ctx, parsed.data.orderId);
+  if ("error" in context) return { formError: context.error };
+
+  const reason = await sendReturnLabelEmail({
+    availability,
+    transport: resendTransport(),
+    customer: context.order.customers,
+    settings: context.settings,
+    tenantName: context.tenantName,
+    tenantLocale: context.tenantLocale,
+    orderNumber: context.order.order_number,
+    endDate: context.order.end_date,
+    shipmentNumber: shipment.provider_order_number as string,
+    labelPdf,
+  });
+
+  return reason ? { formError: reason } : { success: "labelEmailSent" };
+}
+
+/**
+ * „Wyślij przypomnienie o zwrocie" — dla zamówienia z odbiorem osobistym
+ * (delivery_method='pickup'). Dane punktu z kartoteki zamówienia; telefon
+ * i godziny otwarcia NIE istnieją dziś w pickup_locations (dług ADR-043),
+ * więc przypomnienie podaje adres bez nich, zamiast fabrykować wartości.
+ */
+export async function sendPickupReturnReminderAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = pickupReturnReminderSchema.safeParse({
+    orderId: str(formData.get("orderId")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const availability = emailAvailability();
+  if (!availability.available) {
+    return { formError: availability.reason ?? "Wysyłka e-maili jest niedostępna." };
+  }
+
+  const context = await loadReturnEmailContext(ctx, parsed.data.orderId);
+  if ("error" in context) return { formError: context.error };
+
+  if (context.order.delivery_method !== "pickup") {
+    return {
+      formError: "Przypomnienie o zwrocie dotyczy zamówień z odbiorem osobistym.",
+    };
+  }
+  const location = context.order.pickup_locations;
+  if (!location) {
+    return { formError: "Zamówienie nie ma przypisanego punktu odbioru." };
+  }
+
+  // Adres z osobnych kolumn kartoteki punktu; puste pomijamy (kartoteka
+  // dopuszcza braki — 0007). Zero fabrykowania: pokazujemy to, co jest.
+  const address = [
+    location.address_street,
+    [location.address_zip, location.address_city].filter((p) => p?.trim()).join(" "),
+  ]
+    .filter((p) => p?.trim())
+    .join(", ");
+
+  const reason = await sendPickupReturnReminderEmail({
+    availability,
+    transport: resendTransport(),
+    customer: context.order.customers,
+    settings: context.settings,
+    tenantName: context.tenantName,
+    tenantLocale: context.tenantLocale,
+    orderNumber: context.order.order_number,
+    endDate: context.order.end_date,
+    locationName: location.name,
+    locationAddress: address,
+  });
+
+  return reason ? { formError: reason } : { success: "pickupReminderSent" };
 }

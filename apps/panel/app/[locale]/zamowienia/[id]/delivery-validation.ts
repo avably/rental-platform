@@ -47,3 +47,14 @@ export type ShipmentCreateInput = z.infer<typeof shipmentCreateSchema>;
 export const shipmentRefreshSchema = z.object({
   shipmentId: uuidSchema,
 });
+
+/** Wyślij klientowi etykietę zwrotną e-mailem (istniejąca przesyłka zwrotna). */
+export const returnLabelEmailSchema = z.object({
+  orderId: uuidSchema,
+  shipmentId: uuidSchema,
+});
+
+/** Wyślij klientowi przypomnienie o zwrocie (zamówienie z odbiorem osobistym). */
+export const pickupReturnReminderSchema = z.object({
+  orderId: uuidSchema,
+});

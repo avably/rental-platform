@@ -65,6 +65,7 @@ export {
   emailSenderFromSettings,
   platformFromAddress,
   resendTransport,
+  type EmailAttachment,
   type EmailAvailability,
   type EmailSender,
   type EmailTransport,

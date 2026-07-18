@@ -7,4 +7,10 @@ export {
   resendTransport,
   type EmailTransportOptions,
 } from "./transport";
-export type { EmailAvailability, EmailSender, EmailTransport, OutgoingEmail } from "./types";
+export type {
+  EmailAttachment,
+  EmailAvailability,
+  EmailSender,
+  EmailTransport,
+  OutgoingEmail,
+} from "./types";

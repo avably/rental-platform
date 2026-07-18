@@ -140,3 +140,77 @@ export function RefreshStatusButton({
     </form>
   );
 }
+
+/** Stan dostępności wysyłki e-maili — przekazywany z serwera (ADR-033). */
+type EmailAvailabilityProp = { available: boolean; reason?: string };
+
+/**
+ * „Wyślij klientowi etykietę zwrotną e-mailem" — dla istniejącej przesyłki
+ * zwrotnej. Przy braku konfiguracji poczty przycisk jest zablokowany, a powód
+ * pokazany Z GÓRY (wzorzec 8b: powód przy kontrolce), zamiast pozwalać kliknąć
+ * i zwrócić błąd.
+ */
+export function SendReturnLabelButton({
+  orderId,
+  shipmentId,
+  emailAvailability,
+  action,
+}: {
+  orderId: string;
+  shipmentId: string;
+  emailAvailability: EmailAvailabilityProp;
+  action: DeliveryAction;
+}) {
+  const t = useTranslations("orders.delivery.section");
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-1">
+      <input type="hidden" name="orderId" value={orderId} />
+      <input type="hidden" name="shipmentId" value={shipmentId} />
+      <Button type="submit" variant="outline" disabled={pending || !emailAvailability.available}>
+        {t("sendReturnLabelCta")}
+      </Button>
+      {!emailAvailability.available ? (
+        <p className="text-xs text-gray-500">
+          {emailAvailability.reason ?? t("emailUnavailable")}
+        </p>
+      ) : null}
+      <FormMessages state={state} successText={t("returnLabelSentOk")} />
+    </form>
+  );
+}
+
+/**
+ * „Wyślij przypomnienie o zwrocie" — dla zamówienia z odbiorem osobistym.
+ * Ta sama semantyka niedostępności co przycisk etykiety.
+ */
+export function SendPickupReminderButton({
+  orderId,
+  emailAvailability,
+  action,
+}: {
+  orderId: string;
+  emailAvailability: EmailAvailabilityProp;
+  action: DeliveryAction;
+}) {
+  const t = useTranslations("orders.delivery.section");
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-2 rounded border p-3 text-sm">
+      <p className="font-medium">{t("pickupReminderTitle")}</p>
+      <p className="text-gray-600">{t("pickupReminderHint")}</p>
+      <input type="hidden" name="orderId" value={orderId} />
+      <Button type="submit" disabled={pending || !emailAvailability.available}>
+        {t("sendPickupReminderCta")}
+      </Button>
+      {!emailAvailability.available ? (
+        <p className="text-xs text-gray-500">
+          {emailAvailability.reason ?? t("emailUnavailable")}
+        </p>
+      ) : null}
+      <FormMessages state={state} successText={t("pickupReminderSentOk")} />
+    </form>
+  );
+}

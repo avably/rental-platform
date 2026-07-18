@@ -18,7 +18,12 @@
  * wstrzykiwany, żeby testy nie biły w sieć.
  */
 import { DEFAULT_FROM_EMAIL } from "../brand";
-import type { EmailAvailability, EmailTransport, OutgoingEmail } from "./types";
+import type {
+  EmailAttachment,
+  EmailAvailability,
+  EmailTransport,
+  OutgoingEmail,
+} from "./types";
 
 export const RESEND_SEND_URL = "https://api.resend.com/emails";
 
@@ -48,6 +53,20 @@ function resolveApiKey(options: EmailTransportOptions): string | undefined {
 }
 
 const NOT_CONFIGURED = "Wysyłka e-maili nie jest skonfigurowana (brak RESEND_API_KEY).";
+
+/** Załącznik w kształcie API Resend: content zawsze jako base64. */
+function attachmentToPayload(attachment: EmailAttachment): {
+  filename: string;
+  content: string;
+} {
+  return {
+    filename: attachment.filename,
+    content:
+      typeof attachment.content === "string"
+        ? attachment.content
+        : Buffer.from(attachment.content).toString("base64"),
+  };
+}
 
 export function emailAvailability(options: EmailTransportOptions = {}): EmailAvailability {
   if (!resolveApiKey(options)) return { available: false, reason: NOT_CONFIGURED };
@@ -95,6 +114,11 @@ export function resendTransport(options: EmailTransportOptions = {}): EmailTrans
           html: email.html,
           text: email.text,
           ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+          // Brak załączników = payload identyczny jak przed ich wprowadzeniem
+          // (pusta tablica też nie wysyła pola — wzorzec reply_to wyżej).
+          ...(email.attachments && email.attachments.length > 0
+            ? { attachments: email.attachments.map(attachmentToPayload) }
+            : {}),
         }),
       });
 
