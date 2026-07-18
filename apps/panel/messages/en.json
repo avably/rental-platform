@@ -14,7 +14,8 @@
     "catalogLink": "Product catalog",
     "locationsLink": "Pickup locations",
     "invitationsLink": "Member invitations",
-    "emailSettingsLink": "Email settings"
+    "emailSettingsLink": "Email settings",
+    "siteLink": "Storefront page"
   },
   "emailSettings": {
     "title": "Email settings",
@@ -456,6 +457,69 @@
       "quoteSurcharge": "Surcharge: {amount}",
       "pickDateHint": "Pick a date after the current rental end to see the surcharge.",
       "cta": "Extend rental"
+    }
+  },
+  "site": {
+    "title": "Storefront page",
+    "subtitle": "Arrange sections, pick a template and publish the page your customers see.",
+    "backHome": "← Panel",
+    "loadError": "Could not load the storefront page. Refresh to try again.",
+    "template": {
+      "heading": "Template",
+      "template_classic": "Classic (restrained)",
+      "template_bold": "Bold (high-contrast)"
+    },
+    "sections": {
+      "heading": "Page sections",
+      "addType": "Section type to add",
+      "addHint": "pick a type to add a section",
+      "empty": "No sections yet. Add the first one to build your page.",
+      "disabled": "disabled",
+      "moveUp": "Up",
+      "moveDown": "Down",
+      "enable": "Enable",
+      "disable": "Disable",
+      "remove": "Remove"
+    },
+    "sectionTypes": {
+      "hero": "Hero banner",
+      "products": "Products",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "contact": "Contact",
+      "freeform": "Free text"
+    },
+    "fields": {
+      "heading": "Heading",
+      "heroHeading": "Main heading",
+      "subheading": "Subheading",
+      "note": "Note",
+      "body": "Body",
+      "ctaText": "Button label",
+      "ctaHref": "Button link",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "mapQuery": "Map query",
+      "faqItems": "Questions and answers",
+      "faqQuestion": "Question",
+      "faqAnswer": "Answer",
+      "faqAdd": "Add question",
+      "faqRemove": "Remove",
+      "saveSection": "Save section",
+      "saving": "Saving…",
+      "saved": "Saved."
+    },
+    "preview": {
+      "heading": "Preview",
+      "intro": "This is the draft. Customers see it after you publish.",
+      "empty": "No enabled sections to show.",
+      "priceFrom": "from {price} / day"
+    },
+    "publish": {
+      "publish": "Publish",
+      "publishing": "Publishing…",
+      "published": "Published."
     }
   }
 }
