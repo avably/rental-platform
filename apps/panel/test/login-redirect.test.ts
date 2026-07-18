@@ -47,7 +47,7 @@ vi.mock("@avably/security/rate-limit", () => ({
   PANEL_AUTH_RATE_LIMIT_PREFIX: "test",
   checkRateLimit: async () => ({ success: true }),
 }));
-vi.mock("@/lib/turnstile", () => ({
+vi.mock("@avably/security/turnstile", () => ({
   verifyTurnstile: async () => ({ ok: true }),
 }));
 

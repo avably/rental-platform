@@ -43,7 +43,7 @@ export function RegisterForm({ next }: { next?: string }) {
             className="rounded border px-3 py-2"
           />
         </label>
-        {/* TODO(Task 3 infra): widżet Turnstile, gdy NEXT_PUBLIC_TURNSTILE_SITE_KEY ustawiony (patrz lib/turnstile.ts). */}
+        {/* TODO(Task 3 infra): widżet Turnstile, gdy NEXT_PUBLIC_TURNSTILE_SITE_KEY ustawiony (patrz @avably/security/turnstile). */}
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
         <button
           type="submit"

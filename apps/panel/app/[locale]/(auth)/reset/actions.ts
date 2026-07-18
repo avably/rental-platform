@@ -3,9 +3,9 @@
 import { headers } from "next/headers";
 
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { resetRequestSchema } from "@/lib/validation";
 
 export interface ResetRequestState {

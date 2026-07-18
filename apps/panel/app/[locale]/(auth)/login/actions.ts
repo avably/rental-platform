@@ -5,12 +5,12 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { SUPERADMIN_HOME } from "@/lib/superadmin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { loginSchema, safeNextPath } from "@/lib/validation";
 
 export interface LoginState {

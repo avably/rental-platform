@@ -26,6 +26,10 @@ export default defineConfig({
         __dirname,
         "../../packages/security/src/rate-limit.ts",
       ),
+      "@avably/security/turnstile": path.resolve(
+        __dirname,
+        "../../packages/security/src/turnstile.ts",
+      ),
       "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
       "@avably/core/site": path.resolve(__dirname, "../../packages/core/src/site/index.ts"),
       "@avably/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
