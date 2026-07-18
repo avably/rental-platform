@@ -12,6 +12,12 @@
  * Nadawca (From) = nazwa tenanta + adres platformy (platformFromAddress, ADR-033).
  * Reply-To e-maila klienta = email_sender.reply_to (adres najemcy); Reply-To
  * powiadomienia najemcy = e-mail klienta (najemca odpowiada wprost kupującemu).
+ *
+ * ADRES POWIADOMIEŃ NAJEMCY (ctx.notify_email) pochodzi WYŁĄCZNIE z
+ * email_sender.reply_to (ADR-042, znalezisko recenzji 2.4a): RPC nie zwraca
+ * e-maila ownera z auth.users, bo odpowiedź RPC czyta każdy bezpośredni
+ * wołający anon keyem — fallback byłby wyciekiem PII. Brak reply_to = brak
+ * powiadomienia, z uczciwym powodem wskazującym konfigurację (wzorzec 8b).
  */
 import {
   DEFAULT_CURRENCY,
@@ -101,9 +107,14 @@ export async function sendCheckoutEmails(
   }
 
   // --- 2. Powiadomienie najemcy (new-order-notification) ---
+  //
+  // notify_email = null znaczy: operator nie skonfigurował adresu odpowiedzi
+  // (email_sender.reply_to). Bez fallbacku na e-mail ownera (ADR-042 —
+  // odpowiedź RPC nie niesie PII z auth.users); powód wskazuje wprost, co
+  // skonfigurować (wzorzec uczciwej częściowej porażki 8b).
   if (!ctx.notify_email) {
     issues.push(
-      "Brak adresu powiadomień najemcy (email_sender.reply_to / e-mail ownera) — powiadomienie nie zostało wysłane.",
+      "Powiadomienie najemcy nie zostało wysłane — skonfiguruj nadawcę (adres odpowiedzi) w /ustawienia-emaili.",
     );
   } else {
     try {
