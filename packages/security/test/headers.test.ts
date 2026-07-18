@@ -52,6 +52,14 @@ describe("buildCsp", () => {
     expect(directive(csp, "connect-src")).toContain("https://xyz.supabase.co");
   });
 
+  it("img-src dopuszcza Storage Supabase, gdy podany (zdjęcia produktów storefrontu)", () => {
+    const csp = buildCsp("n", { supabaseUrl: "https://xyz.supabase.co" });
+    expect(directive(csp, "img-src")).toContain("https://xyz.supabase.co");
+    // bez supabaseUrl img-src zostaje przy self/data/blob (żadnego obcego origin)
+    const bare = buildCsp("n");
+    expect(directive(bare, "img-src")).not.toContain("supabase");
+  });
+
   it("turnstile: true dodaje challenges.cloudflare.com do script/connect/frame-src", () => {
     const csp = buildCsp("n", { turnstile: true });
     expect(directive(csp, "script-src")).toContain("https://challenges.cloudflare.com");

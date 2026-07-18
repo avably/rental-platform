@@ -78,31 +78,46 @@ export function ProductsSection({
         <p className="mt-8 text-muted-foreground">{labels.productsEmpty}</p>
       ) : (
         <ul className={cn(styles.productGrid, "list-none p-0")}>
-          {products.map((product) => (
-            <li key={product.id} className={styles.card}>
-              {product.imageUrl ? (
-                // Pakiet UI nie zależy od next/image; storefront serwuje zdjęcia
-                // z publicznego Storage, więc zwykły <img> z lazy-loadingiem.
-                <img
-                  src={product.imageUrl}
-                  alt={product.imageAlt}
-                  className="aspect-[4/3] w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
-              )}
-              <div className="flex flex-col gap-1 p-4">
-                <h3 className={styles.cardTitle}>{product.name}</h3>
-                <p className={styles.cardPrice}>{product.priceLabel}</p>
-                {product.description ? (
-                  <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                    {product.description}
-                  </p>
-                ) : null}
-              </div>
-            </li>
-          ))}
+          {products.map((product) => {
+            const body = (
+              <>
+                {product.imageUrl ? (
+                  // Pakiet UI nie zależy od next/image; storefront serwuje zdjęcia
+                  // z publicznego Storage, więc zwykły <img> z lazy-loadingiem.
+                  <img
+                    src={product.imageUrl}
+                    alt={product.imageAlt}
+                    className="aspect-[4/3] w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
+                )}
+                <div className="flex flex-col gap-1 p-4">
+                  <h3 className={styles.cardTitle}>{product.name}</h3>
+                  <p className={styles.cardPrice}>{product.priceLabel}</p>
+                  {product.description ? (
+                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                      {product.description}
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            );
+            return (
+              <li key={product.id} className={styles.card}>
+                {/* Link do podstrony produktu tylko na storefroncie publicznym
+                    (href obecny); podgląd panelu renderuje kartę statycznie. */}
+                {product.href ? (
+                  <a href={product.href} className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {body}
+                  </a>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </SectionShell>
