@@ -100,6 +100,59 @@ describe("resendTransport", () => {
     });
   });
 
+  it("załącznik bajtowy trafia do payloadu jako base64 z nazwą pliku", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    // Nagłówek PDF (%PDF) — realny kształt bajtów etykiety z API kurierskiego.
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+    await transport.send({
+      ...MESSAGE,
+      attachments: [{ filename: "etykieta-GK1.pdf", content: bytes }],
+    });
+
+    const [, init] = fetchFn.mock.calls[0]!;
+    expect(JSON.parse(init.body).attachments).toEqual([
+      { filename: "etykieta-GK1.pdf", content: Buffer.from(bytes).toString("base64") },
+    ]);
+  });
+
+  it("załącznik podany jako base64 przechodzi bez ponownego kodowania", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    await transport.send({
+      ...MESSAGE,
+      attachments: [{ filename: "umowa.pdf", content: "JVBERg==" }],
+    });
+
+    const [, init] = fetchFn.mock.calls[0]!;
+    expect(JSON.parse(init.body).attachments).toEqual([
+      { filename: "umowa.pdf", content: "JVBERg==" },
+    ]);
+  });
+
+  // REGRESJA dotychczasowych wołających: wiadomość bez załączników musi dawać
+  // payload identyczny jak przed wprowadzeniem pola (Resend nie może dostać
+  // attachments: undefined/[]).
+  it("bez załączników payload nie ma pola attachments", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    await transport.send(MESSAGE);
+    await transport.send({ ...MESSAGE, attachments: [] });
+
+    for (const call of fetchFn.mock.calls) {
+      expect(JSON.parse(call[1].body)).not.toHaveProperty("attachments");
+    }
+  });
+
   it("bez reply_to nie wysyła pola reply_to", async () => {
     const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
     const transport = resendTransport({

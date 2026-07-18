@@ -61,6 +61,33 @@ export interface RentalLifecycleStatusMessages {
   preview: (orderNumber: string) => string;
 }
 
+export interface ReturnLabelMessages {
+  heading: string;
+  preview: (orderNumber: string) => string;
+  /** Data końca najmu przychodzi SFORMATOWANA (kontrakt 8a). */
+  body: (endDate: string) => string;
+  attachmentHint: string;
+  fields: {
+    orderNumber: string;
+    shipmentNumber: string;
+    carrier: string;
+  };
+}
+
+export interface PickupReturnReminderMessages {
+  heading: string;
+  preview: (orderNumber: string) => string;
+  /** Data końca najmu przychodzi SFORMATOWANA (kontrakt 8a). */
+  body: (endDate: string) => string;
+  fields: {
+    orderNumber: string;
+    location: string;
+    address: string;
+    phone: string;
+    openingHours: string;
+  };
+}
+
 export interface RentalLifecycleMessages {
   cancelled: RentalLifecycleStatusMessages;
   confirmed: RentalLifecycleStatusMessages;
@@ -85,6 +112,8 @@ export interface EmailMessages {
   organizationInvitation: OrganizationInvitationMessages;
   newOrderNotification: NewOrderNotificationMessages;
   rentalLifecycle: RentalLifecycleMessages;
+  returnLabel: ReturnLabelMessages;
+  pickupReturnReminder: PickupReturnReminderMessages;
 }
 
 const pl: EmailMessages = {
@@ -162,6 +191,30 @@ const pl: EmailMessages = {
       body: "Potwierdzamy anulowanie zamówienia.",
     },
   },
+  returnLabel: {
+    heading: "Etykieta zwrotna do Twojego wynajmu",
+    preview: (orderNumber) => `Etykieta zwrotna do zamówienia ${orderNumber}.`,
+    body: (endDate) =>
+      `Twój najem kończy się ${endDate}. W załączniku znajdziesz etykietę zwrotną — wydrukuj ją, naklej na paczkę i nadaj przesyłkę.`,
+    attachmentHint: "Etykieta zwrotna (PDF) jest załączona do tej wiadomości.",
+    fields: {
+      orderNumber: "Numer zamówienia",
+      shipmentNumber: "Numer przesyłki",
+      carrier: "Przewoźnik",
+    },
+  },
+  pickupReturnReminder: {
+    heading: "Przypomnienie o zwrocie sprzętu",
+    preview: (orderNumber) => `Przypomnienie o zwrocie sprzętu — zamówienie ${orderNumber}.`,
+    body: (endDate) => `Twój najem kończy się ${endDate}. Zwróć sprzęt w punkcie:`,
+    fields: {
+      orderNumber: "Numer zamówienia",
+      location: "Punkt",
+      address: "Adres",
+      phone: "Telefon",
+      openingHours: "Godziny otwarcia",
+    },
+  },
 };
 
 const en: EmailMessages = {
@@ -237,6 +290,30 @@ const en: EmailMessages = {
       heading: "Order cancelled",
       preview: (orderNumber) => `Order ${orderNumber} has been cancelled.`,
       body: "Your order has been cancelled.",
+    },
+  },
+  returnLabel: {
+    heading: "Return label for your rental",
+    preview: (orderNumber) => `Return label for order ${orderNumber}.`,
+    body: (endDate) =>
+      `Your rental ends on ${endDate}. The return label is attached — print it, stick it on the parcel and ship it back.`,
+    attachmentHint: "The return label (PDF) is attached to this message.",
+    fields: {
+      orderNumber: "Order number",
+      shipmentNumber: "Shipment number",
+      carrier: "Carrier",
+    },
+  },
+  pickupReturnReminder: {
+    heading: "Equipment return reminder",
+    preview: (orderNumber) => `Equipment return reminder — order ${orderNumber}.`,
+    body: (endDate) => `Your rental ends on ${endDate}. Please return the equipment at:`,
+    fields: {
+      orderNumber: "Order number",
+      location: "Location",
+      address: "Address",
+      phone: "Phone",
+      openingHours: "Opening hours",
     },
   },
 };

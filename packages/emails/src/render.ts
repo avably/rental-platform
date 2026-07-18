@@ -20,9 +20,17 @@ import {
 import { RentalCancelled } from "./templates/rental-cancelled";
 import { RentalConfirmed } from "./templates/rental-confirmed";
 import type { RentalLifecycleEmailProps } from "./templates/rental-lifecycle-email";
+import {
+  PickupReturnReminderEmail,
+  type PickupReturnReminderEmailProps,
+} from "./templates/pickup-return-reminder";
 import { RentalPickedUp } from "./templates/rental-picked-up";
 import { RentalReadyForPickup } from "./templates/rental-ready-for-pickup";
 import { RentalReturned } from "./templates/rental-returned";
+import {
+  ReturnLabelEmail,
+  type ReturnLabelEmailProps,
+} from "./templates/return-label";
 
 export interface RenderedEmail {
   html: string;
@@ -90,4 +98,16 @@ export function renderRentalCancelled(
   props: RentalLifecycleEmailProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(RentalCancelled, props));
+}
+
+export function renderReturnLabel(
+  props: ReturnLabelEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(ReturnLabelEmail, props));
+}
+
+export function renderPickupReturnReminder(
+  props: PickupReturnReminderEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(PickupReturnReminderEmail, props));
 }

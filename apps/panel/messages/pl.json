@@ -316,7 +316,14 @@
         "createCta": "Nadaj przesyłkę",
         "createdOk": "Przesyłka nadana.",
         "refreshedOk": "Status odświeżony.",
-        "providerStatus": "Dostawca: {status}"
+        "providerStatus": "Dostawca: {status}",
+        "sendReturnLabelCta": "Wyślij etykietę zwrotną e-mailem",
+        "returnLabelSentOk": "Etykieta zwrotna wysłana do klienta.",
+        "pickupReminderTitle": "Zwrot w punkcie odbioru",
+        "pickupReminderHint": "Wyślij klientowi przypomnienie o zwrocie sprzętu w punkcie odbioru.",
+        "sendPickupReminderCta": "Wyślij przypomnienie o zwrocie",
+        "pickupReminderSentOk": "Przypomnienie o zwrocie wysłane do klienta.",
+        "emailUnavailable": "Wysyłka e-maili jest niedostępna — skonfiguruj ją, aby wysyłać wiadomości."
       },
       "settings": {
         "title": "Ustawienia dostaw",

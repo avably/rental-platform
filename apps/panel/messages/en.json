@@ -316,7 +316,14 @@
         "createCta": "Create shipment",
         "createdOk": "Shipment created.",
         "refreshedOk": "Status refreshed.",
-        "providerStatus": "Carrier: {status}"
+        "providerStatus": "Carrier: {status}",
+        "sendReturnLabelCta": "Email the return label to the customer",
+        "returnLabelSentOk": "Return label sent to the customer.",
+        "pickupReminderTitle": "Return at pickup location",
+        "pickupReminderHint": "Send the customer a reminder to return the equipment at the pickup location.",
+        "sendPickupReminderCta": "Send return reminder",
+        "pickupReminderSentOk": "Return reminder sent to the customer.",
+        "emailUnavailable": "Email sending is unavailable — configure it to send messages."
       },
       "settings": {
         "title": "Delivery settings",

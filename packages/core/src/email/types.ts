@@ -18,6 +18,16 @@ export interface EmailSender {
 }
 
 /**
+ * Załącznik wiadomości. `content` przyjmuje surowe bajty (np. PDF etykiety
+ * z API kurierskiego jako Uint8Array) albo gotowe base64 — port koduje
+ * bajty do base64 dopiero na granicy z dostawcą.
+ */
+export interface EmailAttachment {
+  filename: string;
+  content: Uint8Array | string;
+}
+
+/**
  * Wiadomość gotowa do wysyłki.
  *
  * Wszystkie wartości są już SFORMATOWANE — kwoty, daty i temat składa
@@ -31,6 +41,7 @@ export interface OutgoingEmail {
   subject: string;
   html: string;
   text: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailTransport {

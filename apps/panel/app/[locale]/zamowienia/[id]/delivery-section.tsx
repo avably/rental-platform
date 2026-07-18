@@ -25,6 +25,7 @@ import {
   calculateDeliveryCost,
   courierConfigFromSettings,
   deliveryPricingFromSettings,
+  emailAvailability,
   formatMoney,
   mapProviderStatus,
   type DeliveryMethod,
@@ -35,9 +36,19 @@ import { Link } from "@/i18n/navigation";
 import { requireMember } from "@/lib/supabase-server";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
-import { createShipmentAction, refreshShipmentStatusAction } from "./delivery-actions";
+import {
+  createShipmentAction,
+  refreshShipmentStatusAction,
+  sendPickupReturnReminderAction,
+  sendReturnLabelEmailAction,
+} from "./delivery-actions";
 import { SHIPMENT_ROW_COLUMNS, canCreateShipments, type ShipmentRow } from "./delivery";
-import { CreateShipmentForm, RefreshStatusButton } from "./delivery-forms";
+import {
+  CreateShipmentForm,
+  RefreshStatusButton,
+  SendPickupReminderButton,
+  SendReturnLabelButton,
+} from "./delivery-forms";
 
 export async function DeliverySection({
   orderId,
@@ -113,6 +124,9 @@ export async function DeliverySection({
   });
 
   const eligible = canCreateShipments(deliveryMethod);
+  // Dostępność wysyłki e-maili rozstrzyga się JAWNIE (ADR-033): przy braku
+  // klucza przyciski zwrotów są zablokowane z widocznym powodem.
+  const emailStatus = emailAvailability();
 
   return (
     <section className="flex flex-col gap-3">
@@ -207,10 +221,23 @@ export async function DeliverySection({
                   </a>
                 </TableCell>
                 <TableCell>
-                  <RefreshStatusButton
-                    shipmentId={shipment.id}
-                    action={refreshShipmentStatusAction}
-                  />
+                  <div className="flex flex-col gap-2">
+                    <RefreshStatusButton
+                      shipmentId={shipment.id}
+                      action={refreshShipmentStatusAction}
+                    />
+                    {/* Etykietę zwrotną e-mailem można wysłać tylko dla
+                        przesyłki ZWROTNEJ i tylko gdy dostawca wydał już
+                        etykietę (jest hash) — inaczej akcja i tak odmówi. */}
+                    {shipment.shipment_type === "return" ? (
+                      <SendReturnLabelButton
+                        orderId={orderId}
+                        shipmentId={shipment.id}
+                        emailAvailability={emailStatus}
+                        action={sendReturnLabelEmailAction}
+                      />
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -218,8 +245,18 @@ export async function DeliverySection({
         </Table>
       )}
 
+      {deliveryMethod === "pickup" ? (
+        <SendPickupReminderButton
+          orderId={orderId}
+          emailAvailability={emailStatus}
+          action={sendPickupReturnReminderAction}
+        />
+      ) : null}
+
       {!eligible ? (
-        <p className="text-sm text-gray-500">{t("notCourier")}</p>
+        deliveryMethod === "pickup" ? null : (
+          <p className="text-sm text-gray-500">{t("notCourier")}</p>
+        )
       ) : configProblems ? (
         <div className="rounded border border-red-200 p-3 text-sm">
           <p className="text-red-600">{t("configMissing")}</p>

@@ -21,6 +21,14 @@ export type { RentalLifecycleEmailProps } from "./templates/rental-lifecycle-ema
 export { RentalPickedUp } from "./templates/rental-picked-up";
 export { RentalReadyForPickup } from "./templates/rental-ready-for-pickup";
 export { RentalReturned } from "./templates/rental-returned";
+export {
+  ReturnLabelEmail,
+  type ReturnLabelEmailProps,
+} from "./templates/return-label";
+export {
+  PickupReturnReminderEmail,
+  type PickupReturnReminderEmailProps,
+} from "./templates/pickup-return-reminder";
 export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
   renderEmailConfirmation,
@@ -32,5 +40,7 @@ export {
   renderRentalPickedUp,
   renderRentalReadyForPickup,
   renderRentalReturned,
+  renderReturnLabel,
+  renderPickupReturnReminder,
   type RenderedEmail,
 } from "./render";
