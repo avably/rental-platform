@@ -462,6 +462,22 @@ async function createOrder(ctx: SeedCtx, tenantId: string): Promise<string> {
   });
 }
 
+/**
+ * Strona storefrontu tenanta (0019) — GET-OR-CREATE, nie świeży rodzic jak
+ * createProduct/createOrder: sites ma UNIQUE(tenant_id) (jedna strona per
+ * tenant), więc „świeży rodzic per wywołanie" kolidowałby 23505 przy drugim
+ * użyciu. Fabryka site_sections reużywa istniejącą stronę tenanta.
+ */
+async function ensureSite(ctx: SeedCtx, tenantId: string): Promise<string> {
+  const { data } = await ctx.admin.from("sites").select("id").eq("tenant_id", tenantId).maybeSingle();
+  if (data) return data.id as string;
+  return insertReturningId(ctx, "sites", { tenant_id: tenantId, template: "classic" });
+}
+
+// Tenanty, dla których fabryka `sites` zrobiła już jednorazowe sprzątnięcie
+// (patrz komentarz przy fabryce) — kolejne wywołania zostawiają wiersz w spokoju.
+const sitesFactoryCleanedTenants = new Set<string>();
+
 type SampleRowFactory = (ctx: SeedCtx, tenantId: string) => Promise<Record<string, unknown>>;
 
 /**
@@ -583,6 +599,39 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
       storage_path: `${tenantId}/${productId}/${randomUUID()}`,
     };
   },
+
+  // --- model sekcyjny storefrontu (0019_site_model.sql, ADR-041) ---
+  //
+  // sites ma UNIQUE(tenant_id): jedna strona per tenant. Fabryka jest wołana
+  // dwa razy dla tego samego tenanta (zasiew + payload sondy INSERT), a stronę
+  // tenanta mogła już wcześniej utworzyć fabryka site_sections (ensureSite).
+  // Jednorazowe sprzątnięcie usuwa TAMTĄ stronę, żeby zasiew nie kolidował
+  // 23505 na etapie service-role; drugie wywołanie zwraca świeży wiersz BEZ
+  // sprzątania — kolizja z zasianym wierszem jest wtedy nieszkodliwa, bo
+  // WITH CHECK jest egzekwowane przed unikalnością i sonda i tak dostaje
+  // 42501 (wzorzec subscriptions, PK = tenant_id).
+  sites: async (ctx, tenantId) => {
+    if (!sitesFactoryCleanedTenants.has(tenantId)) {
+      sitesFactoryCleanedTenants.add(tenantId);
+      const { error } = await ctx.admin.from("sites").delete().eq("tenant_id", tenantId);
+      if (error) {
+        throw new Error(`Nie udało się sprzątnąć strony tenanta przed zasiewem sites: ${error.message}`);
+      }
+    }
+    return { tenant_id: tenantId, template: "classic" };
+  },
+  site_sections: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    site_id: await ensureSite(ctx, tenantId),
+    type: "hero",
+    content_draft: { heading: "RLS test heading" },
+  }),
+  // Unikalna domena per wywołanie — kolumna domain ma UNIQUE globalny, a
+  // kolizja dawałaby 23505 zamiast 42501 (pułapka opisana przy usage_counters).
+  domains: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    domain: `rls-${randomUUID().slice(0, 12)}.example.com`,
+  }),
 };
 
 /**
@@ -665,6 +714,15 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // alt_text jest nullable i bez indeksu unikalnego — goła mutacja na wszystkich
   // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
   product_images: { alt_text: "rls-test-hacked" },
+
+  // --- model sekcyjny storefrontu (0019) ---
+  //
+  // Patche na kolumnach BEZ indeksów unikalnych (template/position/verified —
+  // pułapka 23505 nie dotyczy). Zasiane wartości to odpowiednio 'classic',
+  // default 0 i default false, więc każdy patch byłby widoczną zmianą stanu.
+  sites: { template: "bold" },
+  site_sections: { position: 999_999 },
+  domains: { verified: true },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {
