@@ -187,4 +187,36 @@ describe("resendTransport", () => {
     });
     await expect(transport.send(MESSAGE)).rejects.toThrow(/ECONNREFUSED/);
   });
+
+  // Zadanie 2.8 / ADR-045: identyfikator wiadomości wraca do wołającego,
+  // żeby trafił do historii wysyłek — to jedyny uchwyt do korelacji wpisu
+  // z panelem dostawcy przy sporze „wysłaliśmy, a nie doszło".
+  it("zwraca identyfikator wiadomości od dostawcy", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "b1c2d3e4" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+    await expect(transport.send(MESSAGE)).resolves.toEqual({ id: "b1c2d3e4" });
+  });
+
+  // Odczyt identyfikatora jest NAJLEPSZYM STARANIEM: wysyłka JUŻ się udała
+  // (HTTP 2xx), więc niesparsowalne albo nieoczekiwane ciało odpowiedzi nie
+  // może jej przebrać w błąd — dałoby to operatorowi „nie wysłano" przy
+  // wiadomości, która wyszła (ADR-033 zabrania kłamstwa w obie strony).
+  it("odpowiedź bez id albo niesparsowalna → sukces z id null, nie wyjątek", async () => {
+    const bodies = [
+      async () => ({}),
+      async () => {
+        throw new Error("Unexpected token < in JSON");
+      },
+    ];
+    for (const json of bodies) {
+      const transport = resendTransport({
+        apiKey: "re_test",
+        fetchFn: vi.fn().mockResolvedValue({ ok: true, json }) as unknown as typeof fetch,
+      });
+      await expect(transport.send(MESSAGE)).resolves.toEqual({ id: null });
+    }
+  });
 });

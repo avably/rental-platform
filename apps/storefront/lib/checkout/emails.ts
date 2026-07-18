@@ -26,8 +26,10 @@ import {
   isCurrencyCode,
   isLocale,
   platformFromAddress,
+  sendAndLog,
   type CurrencyCode,
   type EmailAvailability,
+  type EmailLogRecorder,
   type EmailTransport,
   type Locale,
 } from "@avably/core";
@@ -40,6 +42,12 @@ export interface CheckoutEmailDeps {
   availability: EmailAvailability;
   /** Bazowy URL panelu — link do zamówienia w powiadomieniu najemcy. */
   panelBaseUrl: string;
+  /**
+   * Historia wysyłek (0021/ADR-045). Storefront NIE MA klucza service-role,
+   * więc implementacja idzie funkcją SECURITY DEFINER — nie insertem w tabelę.
+   * Brak = wysyłka bez logu (testy jednostkowe).
+   */
+  recorder?: EmailLogRecorder;
   /** Nadpisanie adresu platformy (test); domyślnie env/stała z @avably/core. */
   fromEmail?: string;
 }
@@ -84,6 +92,11 @@ export async function sendCheckoutEmails(
   const fromOptions = deps.fromEmail ? { fromEmail: deps.fromEmail } : {};
 
   // --- 1. Potwierdzenie dla klienta (rental-confirmed) ---
+  //
+  // Rodzaj wpisu to `checkout_confirmation`, NIE `rental_confirmed`: szablon
+  // jest wspólny, ale ścieżka (publiczna, anonowa) i diagnoza przy awarii —
+  // inne. Sklejenie ich kosztowałoby dokładnie tę informację, po którą
+  // operator otwiera historię (0021).
   try {
     const { html, text } = await renderRentalConfirmed({
       locale: customerLocale,
@@ -94,14 +107,25 @@ export async function sendCheckoutEmails(
       endDate: formatDate(ctx.end_date, customerLocale),
       totalRentalFormatted: formatMoney(ctx.total_rental_grosze, currency, customerLocale),
     });
-    await deps.transport.send({
-      from: platformFromAddress(ctx.tenant.name, fromOptions),
-      to: ctx.customer.email,
-      subject: emailMessages(customerLocale).rentalLifecycle.confirmed.heading,
-      html,
-      text,
-      ...(replyTo ? { replyTo } : {}),
+    const { sendError, logIssue } = await sendAndLog({
+      transport: deps.transport,
+      recorder: deps.recorder,
+      kind: "checkout_confirmation",
+      email: {
+        from: platformFromAddress(ctx.tenant.name, fromOptions),
+        to: ctx.customer.email,
+        subject: emailMessages(customerLocale).rentalLifecycle.confirmed.heading,
+        html,
+        text,
+        ...(replyTo ? { replyTo } : {}),
+      },
     });
+    if (sendError) {
+      issues.push(
+        `Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(sendError)}`,
+      );
+    }
+    if (logIssue) issues.push(logIssue);
   } catch (err) {
     issues.push(`Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(err)}`);
   }
@@ -127,15 +151,24 @@ export async function sendCheckoutEmails(
         rentalEndDate: formatDate(ctx.end_date, tenantLocale),
         totalAmount: formatMoney(ctx.total_rental_grosze, currency, tenantLocale),
       });
-      await deps.transport.send({
-        from: platformFromAddress(ctx.tenant.name, fromOptions),
-        to: ctx.notify_email,
-        subject: emailMessages(tenantLocale).newOrderNotification.heading,
-        html,
-        text,
-        // Najemca odpowiada wprost kupującemu.
-        replyTo: ctx.customer.email,
+      const { sendError, logIssue } = await sendAndLog({
+        transport: deps.transport,
+        recorder: deps.recorder,
+        kind: "new_order_notification",
+        email: {
+          from: platformFromAddress(ctx.tenant.name, fromOptions),
+          to: ctx.notify_email,
+          subject: emailMessages(tenantLocale).newOrderNotification.heading,
+          html,
+          text,
+          // Najemca odpowiada wprost kupującemu.
+          replyTo: ctx.customer.email,
+        },
       });
+      if (sendError) {
+        issues.push(`Zamówienie złożone, ale powiadomienie najemcy nie wyszło: ${reason(sendError)}`);
+      }
+      if (logIssue) issues.push(logIssue);
     } catch (err) {
       issues.push(`Zamówienie złożone, ale powiadomienie najemcy nie wyszło: ${reason(err)}`);
     }

@@ -57,20 +57,31 @@ export {
 } from "./rental";
 
 export {
+  EMAIL_LOG_KINDS,
+  EMAIL_LOG_STATUSES,
   EMAIL_SENDER_KEY,
   EmailConfigError,
   EmailTransportError,
   RESEND_SEND_URL,
   emailAvailability,
   emailSenderFromSettings,
+  isEmailLogKind,
   platformFromAddress,
   resendTransport,
+  sendAndLog,
   type EmailAttachment,
   type EmailAvailability,
+  type EmailLogEntry,
+  type EmailLogKind,
+  type EmailLogRecorder,
+  type EmailLogStatus,
+  type EmailSendResult,
   type EmailSender,
   type EmailTransport,
   type EmailTransportOptions,
   type OutgoingEmail,
+  type SendAndLogInput,
+  type SendAndLogResult,
 } from "./email";
 
 export {

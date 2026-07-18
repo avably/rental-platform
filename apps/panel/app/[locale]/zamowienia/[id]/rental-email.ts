@@ -28,8 +28,11 @@ import {
   emailSenderFromSettings,
   formatMoney,
   platformFromAddress,
+  sendAndLog,
   type CurrencyCode,
   type EmailAvailability,
+  type EmailLogKind,
+  type EmailLogRecorder,
   type EmailSender,
   type EmailTransport,
   type Locale,
@@ -56,6 +59,19 @@ export const TEMPLATE_FOR_STATUS: Partial<Record<OrderStatus, RentalLifecycleTem
   picked_up: "pickedUp",
   returned: "returned",
   cancelled: "cancelled",
+};
+
+/**
+ * Szablon → rodzaj wpisu w historii wysyłek (0021/ADR-045). Osobna mapa, nie
+ * przekształcenie nazwy stringiem: rodzaje są kontraktem z CHECK-iem w bazie,
+ * więc rozjazd ma się nie kompilować, a nie wychodzić na 23514 przy zapisie.
+ */
+const LOG_KIND_FOR_TEMPLATE: Record<RentalLifecycleTemplate, EmailLogKind> = {
+  confirmed: "rental_confirmed",
+  readyForPickup: "rental_ready_for_pickup",
+  pickedUp: "rental_picked_up",
+  returned: "rental_returned",
+  cancelled: "rental_cancelled",
 };
 
 const RENDERERS: Record<
@@ -143,12 +159,16 @@ export interface RentalEmailOrderRow {
 export interface SendRentalEmailInput {
   status: OrderStatus;
   order: RentalEmailOrderRow;
+  /** Zamówienie, do którego przypina się wpis historii (0021/ADR-045). */
+  orderId?: string;
   tenantName: string;
   locale: Locale;
   currency: CurrencyCode;
   settings: TenantSettingRow[];
   availability: EmailAvailability;
   transport: EmailTransport;
+  /** Historia wysyłek; brak = wysyłka bez logu (testy jednostkowe). */
+  recorder?: EmailLogRecorder;
   fromEmail?: string;
 }
 
@@ -191,8 +211,9 @@ export async function sendRentalEmailForTransition(
   // Kontrakt buildRentalEmail bez zmian: nadal dostaje jedno gotowe locale.
   const locale = input.order.customers?.locale ?? input.locale;
 
+  let message: OutgoingEmail | null;
   try {
-    const message = await buildRentalEmail({
+    message = await buildRentalEmail({
       status: input.status,
       locale,
       currency: input.currency,
@@ -211,12 +232,32 @@ export async function sendRentalEmailForTransition(
         : {}),
       ...(input.fromEmail ? { fromEmail: input.fromEmail } : {}),
     });
-    if (!message) return undefined; // status bez szablonu — nie ma czego wysyłać
-    await input.transport.send(message);
-    return undefined;
   } catch (err) {
     return `Status zmieniony, ale nie udało się wysłać wiadomości: ${
       err instanceof Error ? err.message : "nieznany błąd"
     }`;
   }
+
+  if (!message) return undefined; // status bez szablonu — nie ma czego wysyłać
+
+  // Od tego miejsca w dół wysyłka i log idą jednym krokiem (sendAndLog):
+  // wpis powstaje TAK SAMO przy sukcesie, jak przy porażce, a błąd samego
+  // zapisu nie może przebrać udanej wysyłki w nieudaną (ADR-045).
+  const { sendError, logIssue } = await sendAndLog({
+    transport: input.transport,
+    recorder: input.recorder,
+    email: message,
+    // `!` bezpieczne: buildRentalEmail zwróciło wiadomość WYŁĄCZNIE dla
+    // statusu obecnego w TEMPLATE_FOR_STATUS, a obie mapy mają ten sam klucz.
+    kind: LOG_KIND_FOR_TEMPLATE[TEMPLATE_FOR_STATUS[input.status]!],
+    orderId: input.orderId ?? null,
+  });
+
+  if (sendError) {
+    return `Status zmieniony, ale nie udało się wysłać wiadomości: ${
+      sendError instanceof Error ? sendError.message : "nieznany błąd"
+    }`;
+  }
+  // Wysłano; jedyne, co może tu jeszcze wrócić, to awaria samego dziennika.
+  return logIssue;
 }

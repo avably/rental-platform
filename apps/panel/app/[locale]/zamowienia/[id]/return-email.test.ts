@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { EmailTransport, TenantSettingRow } from "@avably/core";
+import type {
+  EmailLogEntry,
+  EmailLogRecorder,
+  EmailSendResult,
+  EmailTransport,
+  TenantSettingRow,
+} from "@avably/core";
 
 import {
   sendPickupReturnReminderEmail,
@@ -19,8 +25,23 @@ const customer = { full_name: "Jan Kowalski", email: "klient@example.com", local
 const available = { available: true } as const;
 const unavailable = { available: false, reason: "Brak RESEND_API_KEY." } as const;
 
-function transportSpy(impl?: () => Promise<void>): EmailTransport & { send: ReturnType<typeof vi.fn> } {
-  return { send: vi.fn(impl ?? (async () => undefined)) };
+function transportSpy(
+  impl?: () => Promise<EmailSendResult>,
+): EmailTransport & { send: ReturnType<typeof vi.fn> } {
+  return { send: vi.fn(impl ?? (async () => ({ id: "resend-1" }))) };
+}
+
+/** Rejestrator historii, który zapamiętuje wpisy zamiast pisać do bazy. */
+function recorderSpy(): { entries: EmailLogEntry[]; recorder: EmailLogRecorder } {
+  const entries: EmailLogEntry[] = [];
+  return {
+    entries,
+    recorder: {
+      record: vi.fn(async (entry: EmailLogEntry) => {
+        entries.push(entry);
+      }),
+    },
+  };
 }
 
 const labelPdf = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
@@ -182,5 +203,80 @@ describe("sendPickupReturnReminderEmail", () => {
     });
 
     expect(reason).toContain("ECONNREFUSED");
+  });
+});
+
+/**
+ * Historia wysyłek (Zadanie 2.8, ADR-045) — ścieżka zwrotów.
+ *
+ * Wysyłka zwrotów jest AKCJĄ operatora, nie skutkiem tranzycji, ale reguła
+ * jest ta sama: etykieta u kuriera została już nadana, więc awaria dziennika
+ * nie może przebrać wysłanej wiadomości w niewysłaną.
+ */
+describe("e-maile zwrotów — historia wysyłek (ADR-045)", () => {
+  const orderId = "22222222-2222-4222-8222-222222222222";
+
+  it("etykieta zwrotna: sukces → wpis 'sent' rodzaju return_label", async () => {
+    const transport = transportSpy();
+    const { recorder, entries } = recorderSpy();
+
+    const reason = await sendReturnLabelEmail({
+      availability: available,
+      transport,
+      recorder,
+      orderId,
+      ...labelBase,
+    });
+
+    expect(reason).toBeUndefined();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: "return_label",
+      orderId,
+      recipient: "klient@example.com",
+      status: "sent",
+      providerMessageId: "resend-1",
+    });
+  });
+
+  it("przypomnienie: odmowa dostawcy → wpis 'failed' z powodem", async () => {
+    const transport = transportSpy(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    const { recorder, entries } = recorderSpy();
+
+    const reason = await sendPickupReturnReminderEmail({
+      availability: available,
+      transport,
+      recorder,
+      orderId,
+      ...reminderBase,
+    });
+
+    expect(reason).toContain("ECONNREFUSED");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ kind: "pickup_return_reminder", status: "failed", orderId });
+    expect(entries[0]!.error).toContain("ECONNREFUSED");
+  });
+
+  it("awaria dziennika NIE wywraca wysyłki etykiety — wiadomość poszła", async () => {
+    const transport = transportSpy();
+    const recorder: EmailLogRecorder = {
+      record: vi.fn(async () => {
+        throw new Error("brak połączenia z bazą");
+      }),
+    };
+
+    const reason = await sendReturnLabelEmail({
+      availability: available,
+      transport,
+      recorder,
+      orderId,
+      ...labelBase,
+    });
+
+    expect(transport.send).toHaveBeenCalledOnce();
+    expect(reason).toContain("historii wiadomości");
+    expect(reason).not.toContain("Nie udało się wysłać etykiety");
   });
 });

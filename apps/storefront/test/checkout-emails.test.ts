@@ -9,7 +9,12 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import type { EmailTransport, OutgoingEmail } from "@avably/core";
+import type {
+  EmailLogEntry,
+  EmailLogRecorder,
+  EmailTransport,
+  OutgoingEmail,
+} from "@avably/core";
 
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import type { CheckoutRpcResult } from "@/lib/checkout/core";
@@ -42,6 +47,20 @@ function capturingTransport(): { transport: EmailTransport; sent: OutgoingEmail[
     transport: {
       send: vi.fn(async (email: OutgoingEmail) => {
         sent.push(email);
+        return { id: `resend-${sent.length}` };
+      }),
+    },
+  };
+}
+
+/** Rejestrator historii, który zapamiętuje wpisy zamiast pisać do bazy. */
+function capturingRecorder(): { recorder: EmailLogRecorder; entries: EmailLogEntry[] } {
+  const entries: EmailLogEntry[] = [];
+  return {
+    entries,
+    recorder: {
+      record: vi.fn(async (entry: EmailLogEntry) => {
+        entries.push(entry);
       }),
     },
   };
@@ -112,6 +131,7 @@ describe("sendCheckoutEmails", () => {
           throw new Error("Resend 422");
         }
         sent.push(email);
+        return { id: "resend-2" };
       }),
     };
 
@@ -132,5 +152,98 @@ describe("sendCheckoutEmails", () => {
     });
     // Nie rzuca i wysyła — locale null nie wywraca renderu (fallback na tenanta).
     expect(sent).toHaveLength(2);
+  });
+});
+
+/**
+ * Historia wysyłek (Zadanie 2.8, ADR-045) — ścieżka checkoutu.
+ *
+ * Kontrola pozytywna (udana wysyłka → wpis 'sent' z identyfikatorem dostawcy;
+ * nieudana → 'failed' z powodem) plus dowód najważniejszy: awaria SAMEGO
+ * dziennika nie może zabrać wysyłki ani zamówienia.
+ */
+describe("sendCheckoutEmails — historia wysyłek (ADR-045)", () => {
+  it("udana wysyłka zapisuje DWA wpisy 'sent' z identyfikatorem dostawcy", async () => {
+    const { transport } = capturingTransport();
+    const { recorder, entries } = capturingRecorder();
+
+    const issues = await sendCheckoutEmails(rpcResult(), {
+      transport,
+      availability: AVAILABLE,
+      recorder,
+      ...DEPS_BASE,
+    });
+
+    expect(issues).toEqual([]);
+    expect(entries).toHaveLength(2);
+
+    // Rodzaje rozróżniają ścieżkę checkoutu od cyklu najmu (0021): wspólny
+    // szablon rental-confirmed NIE oznacza wspólnego rodzaju wpisu.
+    expect(entries.map((e) => e.kind)).toEqual([
+      "checkout_confirmation",
+      "new_order_notification",
+    ]);
+    expect(entries.map((e) => e.recipient)).toEqual([
+      "klient@example.com",
+      "biuro@najemca.example",
+    ]);
+    for (const entry of entries) {
+      expect(entry.status).toBe("sent");
+      expect(entry.providerMessageId).toMatch(/^resend-/);
+      expect(entry.error ?? null).toBeNull();
+    }
+  });
+
+  it("nieudana wysyłka zapisuje wpis 'failed' z powodem", async () => {
+    const transport: EmailTransport = {
+      send: vi.fn(async () => {
+        throw new Error("Resend 422");
+      }),
+    };
+    const { recorder, entries } = capturingRecorder();
+
+    const issues = await sendCheckoutEmails(rpcResult(), {
+      transport,
+      availability: AVAILABLE,
+      recorder,
+      ...DEPS_BASE,
+    });
+
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) {
+      expect(entry.status).toBe("failed");
+      // Powód w rejestrze jest TEN SAM, który dostaje wołający — inaczej
+      // operator musiałby zgadywać, czy to ten sam problem.
+      expect(entry.error).toContain("Resend 422");
+      expect(entry.providerMessageId ?? null).toBeNull();
+    }
+    expect(issues.every((i) => i.includes("Resend 422"))).toBe(true);
+  });
+
+  it("awaria dziennika NIE unieważnia wysyłki — obie wiadomości wychodzą, wraca sam powód", async () => {
+    const { transport, sent } = capturingTransport();
+    const recorder: EmailLogRecorder = {
+      record: vi.fn(async () => {
+        throw new Error("brak połączenia z bazą");
+      }),
+    };
+
+    const issues = await sendCheckoutEmails(rpcResult(), {
+      transport,
+      availability: AVAILABLE,
+      recorder,
+      ...DEPS_BASE,
+    });
+
+    // Wiadomości wyszły mimo martwego dziennika.
+    expect(sent).toHaveLength(2);
+    // Powód jest o HISTORII, nie o wysyłce — sklejenie obu kazałoby operatorowi
+    // ponawiać wysyłkę, która się udała.
+    expect(issues).toHaveLength(2);
+    for (const issue of issues) {
+      expect(issue).toContain("historii wiadomości");
+      expect(issue).toContain("brak połączenia z bazą");
+      expect(issue).not.toContain("nie wyszło");
+    }
   });
 });

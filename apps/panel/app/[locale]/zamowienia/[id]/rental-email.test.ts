@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { EmailLogEntry, EmailLogRecorder } from "@avably/core";
+
 import {
   TEMPLATE_FOR_STATUS,
   buildRentalEmail,
@@ -178,7 +180,7 @@ describe("sendRentalEmailForTransition", () => {
   });
 
   it("sukces → brak powodu, wiadomość poszła do klienta", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue({ id: "resend-1" });
     const result = await sendRentalEmailForTransition({
       ...ctx,
       status: "reserved",
@@ -203,7 +205,7 @@ describe("sendRentalEmailForTransition", () => {
   // ADR-037: preferencja językowa KLIENTA wygrywa nad językiem TENANTA.
   // Kontrakt buildRentalEmail bez zmian — wzbogaca się źródło locale.
   it("locale klienta wygrywa nad locale tenanta (customers.locale ?? tenants.locale)", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue({ id: "resend-1" });
     await sendRentalEmailForTransition({
       ...ctx,
       status: "reserved",
@@ -218,7 +220,7 @@ describe("sendRentalEmailForTransition", () => {
   });
 
   it("brak preferencji klienta (locale null) → język tenanta", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue({ id: "resend-1" });
     await sendRentalEmailForTransition({
       ...ctx,
       status: "reserved",
@@ -233,7 +235,7 @@ describe("sendRentalEmailForTransition", () => {
   });
 
   it("klient bez nazwiska → adres zamiast pustego powitania", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue({ id: "resend-1" });
     await sendRentalEmailForTransition({
       ...ctx,
       status: "reserved",
@@ -241,5 +243,140 @@ describe("sendRentalEmailForTransition", () => {
       transport: { send },
     });
     expect(send.mock.calls[0]![0].html).toContain("klient@example.com");
+  });
+});
+
+/**
+ * Historia wysyłek (Zadanie 2.8, ADR-045) — ścieżka panelu (cykl najmu).
+ *
+ * Najważniejszy test tego zadania jest przedostatni: TRANZYCJA JEST JUŻ
+ * UTRWALONA, więc awaria dziennika nie może jej przebrać w porażkę. Rejestr,
+ * który potrafi wywrócić to, co rejestruje, jest gorszy niż jego brak.
+ */
+describe("sendRentalEmailForTransition — historia wysyłek (ADR-045)", () => {
+  const order = {
+    order_number: "AV-2026-001",
+    start_date: "2026-08-01",
+    end_date: "2026-08-05",
+    total_rental_grosze: 55_000,
+    customers: { full_name: "Jan Kowalski", email: "klient@example.com" },
+    pickup_locations: null,
+  };
+
+  const ctx = {
+    order,
+    orderId: "11111111-1111-4111-8111-111111111111",
+    tenantName: "Wypożyczalnia Demo",
+    locale: "pl" as const,
+    currency: "PLN" as const,
+    settings: [{ key: "email_sender", value: { name: "Wypożyczalnia Demo" } }],
+    availability: { available: true },
+  };
+
+  function recorderSpy(): { entries: EmailLogEntry[]; recorder: EmailLogRecorder } {
+    const entries: EmailLogEntry[] = [];
+    return {
+      entries,
+      recorder: {
+        record: vi.fn(async (entry: EmailLogEntry) => {
+          entries.push(entry);
+        }),
+      },
+    };
+  }
+
+  it("udana wysyłka → wpis 'sent' z identyfikatorem dostawcy i rodzajem tranzycji", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-abc" });
+    const { recorder, entries } = recorderSpy();
+
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "picked_up",
+      transport: { send },
+      recorder,
+    });
+
+    expect(result).toBeUndefined();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: "rental_picked_up",
+      orderId: ctx.orderId,
+      recipient: "klient@example.com",
+      status: "sent",
+      providerMessageId: "resend-abc",
+    });
+  });
+
+  it("nieudana wysyłka → wpis 'failed' z powodem, bez identyfikatora", async () => {
+    const send = vi.fn().mockRejectedValue(new Error("HTTP 422 domain not verified"));
+    const { recorder, entries } = recorderSpy();
+
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+      recorder,
+    });
+
+    expect(result).toContain("422");
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: "rental_confirmed",
+      status: "failed",
+      orderId: ctx.orderId,
+    });
+    expect(entries[0]!.error).toContain("422");
+    expect(entries[0]!.providerMessageId ?? null).toBeNull();
+  });
+
+  it("dostawca bez identyfikatora → wpis 'sent' z null (udana wysyłka NIE staje się porażką)", async () => {
+    const send = vi.fn().mockResolvedValue({ id: null });
+    const { recorder, entries } = recorderSpy();
+
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+      recorder,
+    });
+
+    expect(result).toBeUndefined();
+    expect(entries[0]).toMatchObject({ status: "sent", providerMessageId: null });
+  });
+
+  // DOWÓD KLUCZOWY DLA 2.8 (patrz nagłówek describe).
+  it("awaria zapisu logu NIE wywraca wysyłki — wiadomość poszła, wraca sam powód o historii", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-abc" });
+    const recorder: EmailLogRecorder = {
+      record: vi.fn(async () => {
+        throw new Error("brak połączenia z bazą");
+      }),
+    };
+
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+      recorder,
+    });
+
+    // Wiadomość WYSZŁA mimo martwego dziennika.
+    expect(send).toHaveBeenCalledOnce();
+    // Powód mówi o HISTORII, a nie „nie udało się wysłać wiadomości" — ten
+    // drugi komunikat kazałby operatorowi ponowić udaną wysyłkę.
+    expect(result).toContain("historii wiadomości");
+    expect(result).toContain("brak połączenia z bazą");
+    expect(result).not.toContain("nie udało się wysłać wiadomości");
+  });
+
+  it("bez rejestratora wysyłka działa jak dotąd (log jest opcjonalny)", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-abc" });
+    const result = await sendRentalEmailForTransition({
+      ...ctx,
+      status: "reserved",
+      transport: { send },
+    });
+    expect(result).toBeUndefined();
+    expect(send).toHaveBeenCalledOnce();
   });
 });

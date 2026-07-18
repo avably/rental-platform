@@ -33,6 +33,7 @@ import {
   statusChangeFromFormData,
   statusChangeSchema,
 } from "@/lib/order-validation";
+import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
@@ -358,6 +359,7 @@ async function sendEmailAfterTransition(
   return sendRentalEmailForTransition({
     status: to,
     order,
+    orderId,
     tenantName: tenant.name,
     // tenants.locale jest not null (0005), ale nieznana wartość nie może
     // wywrócić wysyłki — spada na domyślne locale tenanta.
@@ -366,5 +368,8 @@ async function sendEmailAfterTransition(
     settings: (settingsResult.data ?? []) as TenantSettingRow[],
     availability: emailAvailability(),
     transport: resendTransport(),
+    // Log idzie sesją członka (RLS tenant_insert, 0021) — ta sama bramka co
+    // przy tranzycji. `!` jak wyżej: requireMember rzuca bez tenanta.
+    recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
   });
 }

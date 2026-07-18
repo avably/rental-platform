@@ -600,6 +600,22 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     };
   },
 
+  // Historia wysyłek (0021, ADR-045). order_id z createOrder: FK ZŁOŻONY
+  // (tenant_id, order_id) wymaga zamówienia TEGO SAMEGO tenanta — log
+  // wskazujący cudze zamówienie jest niereprezentowalny (23503; osobny
+  // dowód w email-logs.test.ts). Wiersz zasiewany jako UDANA wysyłka, bo
+  // CHECK email_logs_result_shape wiąże status z parą
+  // (provider_message_id, error) i wariant 'failed' bez powodu nie przejdzie.
+  email_logs: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    kind: "rental_confirmed",
+    recipient: `log-${randomUUID()}@test.local`,
+    subject: "RLS test subject",
+    status: "sent",
+    provider_message_id: `resend-${randomUUID().slice(0, 8)}`,
+  }),
+
   // --- model sekcyjny storefrontu (0019_site_model.sql, ADR-041) ---
   //
   // sites ma UNIQUE(tenant_id): jedna strona per tenant. Fabryka jest wołana
@@ -714,6 +730,11 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // alt_text jest nullable i bez indeksu unikalnego — goła mutacja na wszystkich
   // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
   product_images: { alt_text: "rls-test-hacked" },
+  // subject: bez indeksu unikalnego i poza CHECK-iem email_logs_result_shape
+  // (ten wiąże wyłącznie status z provider_message_id/error), więc goła
+  // mutacja na wszystkich widocznych wierszach nie wywoła ani 23505, ani
+  // 23514 — sonda odróżni odmowę RLS od błędu integralności (0021).
+  email_logs: { subject: "rls-test-hacked" },
 
   // --- model sekcyjny storefrontu (0019) ---
   //

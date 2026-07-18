@@ -23,6 +23,7 @@ import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
+import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import {
   submitCheckoutCore,
@@ -63,11 +64,20 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
     },
     // Transport i dostępność z env (Vercel) — semantyka fail-closed: @avably/core.
     // Panel URL dla linku w powiadomieniu najemcy.
-    sendEmails: (ctx) =>
+    // Rejestrator historii wysyłek (ADR-045) powstaje DOPIERO tutaj: dopiero
+    // teraz znamy numer zamówienia, a bez niego funkcja z 0021 nie ma czego
+    // rozwiązać na order_id. Klient anonowy, zapis przez RPC SECURITY DEFINER
+    // — storefront nie ma service-role, a anon nie ma grantu na tabelę.
+    sendEmails: async (ctx) =>
       sendCheckoutEmails(ctx, {
         transport: resendTransport(),
         availability: emailAvailability(),
         panelBaseUrl: PANEL_URL,
+        recorder: checkoutEmailLogRecorder(
+          await createSupabaseServerClient(),
+          tenantId,
+          ctx.order_number,
+        ),
       }),
   });
 }
