@@ -484,6 +484,10 @@
       "emailSent": "We've sent a confirmation to your email address.",
       "emailIssue": "Your order was received, but the email confirmation may arrive with a delay.",
       "backToStore": "Back to the store"
+    },
+    "seo": {
+      "catalogDescription": "{store} rentals — browse the offer, check availability and book online.",
+      "productDescription": "{product} — rent from {store}. Check the daily rate and availability for your dates."
     }
   }
 }

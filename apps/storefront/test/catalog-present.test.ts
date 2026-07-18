@@ -9,6 +9,7 @@ import {
   productPriceLabel,
   storagePublicUrl,
   toPriceParams,
+  toProductDetail,
   toStorefrontProducts,
 } from "@/lib/catalog/present";
 import { previewDeliveryGrosze, previewTotals } from "@/lib/catalog/preview";
@@ -81,6 +82,34 @@ describe("toStorefrontProducts", () => {
     });
     expect(card!.imageUrl).toBeNull();
     expect(card!.imageAlt).toBe("Wiertarka");
+  });
+
+  // Zadanie 2.7 (a11y): alt_text jest opcjonalne w product_images (0018).
+  // Zdjęcie BEZ opisu nie może zostawić pustego alt — czytnik ekranu
+  // przeczytałby wtedy nazwę pliku albo nic.
+  it("zdjęcie z alt_text = null: imageAlt spada na nazwę produktu", () => {
+    const [card] = toStorefrontProducts(
+      [product({ images: [{ storage_path: "tenant/prod/a.jpg", alt_text: null, sort_order: 0 }] })],
+      { supabaseUrl: "http://h", currency: "PLN", locale: "pl", words: WORDS, hrefBase: "/product/" },
+    );
+    expect(card!.imageUrl).toContain("/product-images/tenant/prod/a.jpg");
+    expect(card!.imageAlt).toBe("Wiertarka");
+  });
+});
+
+describe("toProductDetail — alt galerii na podstronie produktu (Zadanie 2.7)", () => {
+  it("używa alt_text, a przy jego braku nazwy produktu — per zdjęcie", () => {
+    const detail = toProductDetail(
+      product({
+        images: [
+          { storage_path: "t/p/a.jpg", alt_text: "Widok z przodu", sort_order: 0 },
+          { storage_path: "t/p/b.jpg", alt_text: null, sort_order: 1 },
+        ],
+      }),
+      { supabaseUrl: "http://h", currency: "PLN", locale: "pl", words: WORDS },
+    );
+
+    expect(detail.images.map((image) => image.alt)).toEqual(["Widok z przodu", "Wiertarka"]);
   });
 });
 
