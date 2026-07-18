@@ -81,3 +81,7 @@ export {
   TooltipTrigger,
 } from "./components/tooltip";
 export { cn } from "./lib/cn";
+
+// Sekcyjny storefront (Zadanie 2.3): typy kontraktu, komponenty sekcji,
+// szablony i renderer współdzielone przez sklep publiczny i podgląd panelu.
+export * from "./site";
