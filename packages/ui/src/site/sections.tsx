@@ -78,17 +78,24 @@ export function ProductsSection({
         <p className="mt-8 text-muted-foreground">{labels.productsEmpty}</p>
       ) : (
         <ul className={cn(styles.productGrid, "list-none p-0")}>
-          {products.map((product) => {
+          {products.map((product, index) => {
+            // PIERWSZA karta ładuje się ŁAPCZYWIE (Zadanie 2.7). W szablonie
+            // `bold` sekcja produktów wchodzi wysoko, więc to jej zdjęcie bywa
+            // elementem LCP — a `loading="lazy"` odkłada je za pierwsze
+            // malowanie i psuje pomiar. Pozostałe karty zostają leniwe: leżą
+            // pod zgięciem i ich wczesne pobranie tylko zabierałoby pasmo.
+            const eager = index === 0;
             const body = (
               <>
                 {product.imageUrl ? (
                   // Pakiet UI nie zależy od next/image; storefront serwuje zdjęcia
-                  // z publicznego Storage, więc zwykły <img> z lazy-loadingiem.
+                  // z publicznego Storage, więc zwykły <img>.
                   <img
                     src={product.imageUrl}
                     alt={product.imageAlt}
                     className="aspect-[4/3] w-full object-cover"
-                    loading="lazy"
+                    loading={eager ? "eager" : "lazy"}
+                    fetchPriority={eager ? "high" : undefined}
                   />
                 ) : (
                   <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />

@@ -8,14 +8,35 @@
  * widget i weryfikacja jawnie wyłączone — dev). Ten sam warunek co proxy CSP i
  * waitlist-form.
  */
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { PageShell } from "@/components/storefront/page-shell";
 import { StoreHeader } from "@/components/storefront/store-header";
+import { tenantOrigin } from "@/lib/seo/request-origin";
+import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
+
+/** Strona transakcyjna — `transactional` wymusza noindex (patrz tenantMetadata). */
+export async function generateMetadata(): Promise<Metadata> {
+  const ctx = await loadStorefrontContext();
+  if (!ctx) return {};
+
+  const storeName = ctx.catalog.tenant.name;
+  return tenantMetadata({
+    title: pageTitle(storeName, ctx.copy.checkout.title),
+    description: ctx.copy.checkout.title,
+    storeName,
+    published: ctx.site !== null,
+    transactional: true,
+    origin: await tenantOrigin(),
+    pathname: "/checkout",
+    locale: ctx.locale,
+  });
+}
 
 export default async function TenantCheckoutPage() {
   const ctx = await loadStorefrontContext();

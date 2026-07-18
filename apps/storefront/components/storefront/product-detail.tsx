@@ -126,7 +126,9 @@ export function ProductDetail({
                     <button
                       type="button"
                       onClick={() => setActiveImage(index)}
-                      aria-current={index === activeImage}
+                      // Przełącznik zdjęcia w galerii, nie wskazanie pozycji
+                      // nawigacji — stąd aria-pressed zamiast aria-current.
+                      aria-pressed={index === activeImage}
                       className={`overflow-hidden rounded-md border ${index === activeImage ? "border-primary" : "border-border"}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

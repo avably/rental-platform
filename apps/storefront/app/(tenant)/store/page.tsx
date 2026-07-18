@@ -12,19 +12,51 @@
  * lib/storefront/context.ts.
  */
 import { SiteRenderer, type SiteRenderLabels } from "@avably/ui";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { toStorefrontProducts } from "@/lib/catalog/present";
+import { JsonLd } from "@/components/storefront/json-ld";
 import { StoreHeader } from "@/components/storefront/store-header";
+import { localBusinessJsonLd } from "@/lib/seo/jsonld";
+import { tenantOrigin } from "@/lib/seo/request-origin";
+import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { format } from "@/lib/storefront/copy";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Tytuł = nazwa sklepu, opis = to, co najemca OPUBLIKOWAŁ w hero (podtytuł →
+ * nagłówek), a dopiero w ostateczności neutralne zdanie w locale tenanta.
+ * Kontekst jest `cache`'owany per żądanie, więc metadane i render dzielą jedno
+ * odpytanie katalogu/site'u.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const ctx = await loadStorefrontContext();
+  if (!ctx) return {};
+
+  const storeName = ctx.catalog.tenant.name;
+  const hero = heroText(ctx.site);
+
+  return tenantMetadata({
+    title: pageTitle(storeName),
+    description:
+      hero.subheading ?? hero.heading ?? format(ctx.copy.seo.catalogDescription, { store: storeName }),
+    storeName,
+    published: ctx.site !== null,
+    origin: await tenantOrigin(),
+    pathname: "/store",
+    locale: ctx.locale,
+  });
+}
 
 export default async function TenantStorePage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
   const { catalog, copy, locale, currency, template, site, supabaseUrl } = ctx;
+  const origin = await tenantOrigin();
 
   const labels: SiteRenderLabels = {
     productsEmpty: copy.siteLabels.productsEmpty,
@@ -42,16 +74,38 @@ export default async function TenantStorePage() {
     hrefBase: "/product/",
   });
 
+  // LocalBusiness: nazwa sklepu + opis z hero + adres PIERWSZEGO punktu odbioru,
+  // jeśli tenant go ma. Wszystko z publicznego katalogu / opublikowanej strony.
+  const pickup = catalog.pickup_locations[0];
+  const hero = heroText(site);
+  const businessJsonLd = localBusinessJsonLd({
+    name: catalog.tenant.name,
+    url: `${origin ?? ""}/store`,
+    description: hero.subheading ?? hero.heading ?? null,
+    address: pickup
+      ? { street: pickup.address_street, zip: pickup.address_zip, city: pickup.address_city }
+      : null,
+  });
+
+  // Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). Sekcja hero go
+  // niesie; układ bez hero zostawiłby stronę bez nagłówka pierwszego poziomu,
+  // więc dokładamy go dla czytników ekranu (wizualnie bez zmian).
+  const hasHero = site?.sections.some((section) => section.type === "hero") ?? false;
+
   return (
     <>
       <StoreHeader copy={copy} storeName={catalog.tenant.name} />
+      {origin ? <JsonLd data={businessJsonLd} /> : null}
       {!site || site.sections.length === 0 ? (
         <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-3 px-6 text-center">
           <h1 className="text-2xl font-semibold">{catalog.tenant.name}</h1>
           <p className="text-muted-foreground">{copy.siteLabels.productsEmpty}</p>
         </main>
       ) : (
-        <SiteRenderer sections={site.sections} template={template} products={products} labels={labels} />
+        <main>
+          {hasHero ? null : <h1 className="sr-only">{catalog.tenant.name}</h1>}
+          <SiteRenderer sections={site.sections} template={template} products={products} labels={labels} />
+        </main>
       )}
     </>
   );

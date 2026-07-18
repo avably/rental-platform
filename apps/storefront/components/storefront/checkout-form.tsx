@@ -159,14 +159,27 @@ export function CheckoutForm({
     }
   }
 
+  /**
+   * `aria-describedby` WYŁĄCZNIE gdy pole faktycznie ma komunikat (WCAG 3.3.1).
+   * Kontener błędu istnieje zawsze (rezerwuje wysokość, żeby układ nie skakał),
+   * więc stałe wiązanie kazałoby czytnikowi ogłaszać pusty węzeł przy każdym
+   * wejściu w pole.
+   */
+  function describedBy(field: CheckoutField, errorId: string): string | undefined {
+    return fields[field] ? errorId : undefined;
+  }
+
   // --- Ekran potwierdzenia (sukces) -------------------------------------
   if (view.kind === "success") {
     const order = view.order;
     const totals = orderSummaryTotals(order);
     const methodLabel = deliveryLabel(copy, order.deliveryMethod);
     return (
+      // h2, nie h1: strona checkoutu ma już własny h1, a ekran potwierdzenia
+      // renderuje się W NIEJ. Dwa h1 na jednej stronie łamią hierarchię
+      // nagłówków (WCAG 1.3.1) i psują nawigację czytnika po nagłówkach.
       <div className="rounded-lg border border-border bg-card p-6" role="status">
-        <h1 className="text-2xl font-semibold tracking-tight">{copy.confirmation.title}</h1>
+        <h2 className="text-2xl font-semibold tracking-tight">{copy.confirmation.title}</h2>
         <p className="mt-2 text-lg">
           {copy.confirmation.orderNumber}:{" "}
           <strong className="font-mono">{order.orderNumber}</strong>
@@ -306,6 +319,7 @@ export function CheckoutForm({
               id="co-fullname"
               autoComplete="name"
               aria-invalid={Boolean(fields.fullName)}
+              aria-describedby={describedBy("fullName", "co-fullname-error")}
               value={values.fullName}
               onChange={(event) => set("fullName", event.target.value)}
               maxLength={200}
@@ -321,6 +335,7 @@ export function CheckoutForm({
               type="email"
               autoComplete="email"
               aria-invalid={Boolean(fields.email)}
+              aria-describedby={describedBy("email", "co-email-error")}
               value={values.email}
               onChange={(event) => set("email", event.target.value)}
               maxLength={320}
@@ -336,6 +351,7 @@ export function CheckoutForm({
               type="tel"
               autoComplete="tel"
               aria-invalid={Boolean(fields.phone)}
+              aria-describedby={describedBy("phone", "co-phone-error")}
               value={values.phone}
               onChange={(event) => set("phone", event.target.value)}
               maxLength={32}
@@ -426,6 +442,7 @@ export function CheckoutForm({
                       type="radio"
                       name="deliveryMethod"
                       value={method.method}
+                      aria-describedby={describedBy("deliveryMethod", "co-delivery-error")}
                       checked={values.deliveryMethod === method.method}
                       onChange={() => set("deliveryMethod", method.method)}
                     />
@@ -447,6 +464,7 @@ export function CheckoutForm({
                 id="co-pickup"
                 className="border-input h-10 w-full rounded-md border bg-transparent px-3 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
                 aria-invalid={Boolean(fields.pickupLocationId)}
+                aria-describedby={describedBy("pickupLocationId", "co-pickup-error")}
                 value={values.pickupLocationId}
                 onChange={(event) => set("pickupLocationId", event.target.value)}
               >
@@ -521,6 +539,7 @@ export function CheckoutForm({
           <Checkbox
             id="co-terms"
             aria-invalid={Boolean(fields.terms)}
+            aria-describedby={describedBy("terms", "co-terms-error")}
             checked={values.terms}
             onCheckedChange={(checked) => set("terms", checked === true)}
             disabled={submitting}
