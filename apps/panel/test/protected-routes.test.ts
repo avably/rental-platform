@@ -160,6 +160,11 @@ const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
         params: Promise.resolve({ id: ORDER_ID }),
       }),
   },
+  // Domeny sklepu (Zadanie 2.6): guard requireMemberPage w stronie.
+  {
+    name: "/ustawienia-domen",
+    run: async () => (await import("@/app/[locale]/ustawienia-domen/page")).default(),
+  },
   {
     name: "/admin/tenants",
     run: async () => (await import("@/app/[locale]/(superadmin)/admin/tenants/page")).default(),

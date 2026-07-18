@@ -15,12 +15,24 @@ describe("classifyHost — rozgałęzienie po hoście", () => {
     "127.0.0.1",
     "127.0.0.1:3025",
     "avably-preview.vercel.app",
-    // Obcy host → marketing (decyzja: neutralne 404 chroni subdomeny tenanta,
-    // nie obce hosty — patrz docblock host.ts).
-    "najemca.example",
     "",
   ])("host marketingowy '%s' → marketing", (host) => {
     expect(classifyHost(host)).toEqual({ kind: "marketing" });
+  });
+
+  // ZMIANA 2.6 (ADR-046). Do 2.1 obcy host wpadał WPROST w `marketing`; teraz
+  // dostaje własny wynik, bo może być WŁASNĄ domeną najemcy — rozstrzyga baza
+  // (app.resolve_tenant_by_domain), a przy braku trafienia wołający wraca na
+  // gałąź marketingową. Lista wyżej jest drugą połową tej samej bramki: kanon,
+  // dev i preview NIE MOGĄ wpaść do rozwiązywania po domenie, bo wtedy każde
+  // żądanie na deployment podglądowy generowałoby zapytanie do bazy.
+  it.each([
+    ["najemca.example", "najemca.example"],
+    ["wypozyczalnia.pl", "wypozyczalnia.pl"],
+    ["sklep.NAJEMCA.example", "sklep.najemca.example"], // host case-insensitive
+    ["sklep.najemca.example:3035", "sklep.najemca.example"], // port odcięty
+  ])("obcy host '%s' → foreign {host: %s} (kandydat na własną domenę)", (host, expected) => {
+    expect(classifyHost(host)).toEqual({ kind: "foreign", host: expected });
   });
 
   it.each([

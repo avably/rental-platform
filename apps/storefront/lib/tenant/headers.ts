@@ -26,8 +26,18 @@ export function stripInboundTenantHeaders(headers: Headers): void {
   headers.delete(TENANT_SLUG_HEADER);
 }
 
-/** Ustawia rozwiązane server-side nagłówki tenanta (nadpisuje, nie dokłada). */
-export function setResolvedTenant(headers: Headers, tenant: { id: string; slug: string }): void {
+/**
+ * Ustawia rozwiązane server-side nagłówki tenanta (nadpisuje, nie dokłada).
+ *
+ * `slug` jest OPCJONALNY od 2.6 (ADR-046): własna domena najemcy rozwiązuje się
+ * przez `app.resolve_tenant_by_domain`, które zwraca SAM uuid — slugu po prostu
+ * nie znamy, a dopisanie zgadywanej wartości byłoby gorsze niż jej brak.
+ * Bramka anty-spoofingu zostaje nienaruszona: `stripInboundTenantHeaders`
+ * zdejmuje OBA nagłówki bezwarunkowo, więc pominięty tu slug znaczy
+ * „nieustawiony", nigdy „przepuszczony od klienta". Tożsamością tenanta, której
+ * ufają trasy, jest `x-tenant-id`.
+ */
+export function setResolvedTenant(headers: Headers, tenant: { id: string; slug?: string }): void {
   headers.set(TENANT_ID_HEADER, tenant.id);
-  headers.set(TENANT_SLUG_HEADER, tenant.slug);
+  if (tenant.slug) headers.set(TENANT_SLUG_HEADER, tenant.slug);
 }

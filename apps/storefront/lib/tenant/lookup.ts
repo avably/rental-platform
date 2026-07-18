@@ -16,7 +16,7 @@
  * braku wiersza — dla 2.1 to akceptowalne (cache negatywny ma krótki TTL, więc
  * przejściowa awaria bazy nie zamraża sklepu na długo).
  */
-export async function lookupTenantIdBySlug(slug: string): Promise<string | null> {
+async function callResolveRpc(fn: string, body: Record<string, string>): Promise<string | null> {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!baseUrl || !anonKey) {
@@ -25,7 +25,7 @@ export async function lookupTenantIdBySlug(slug: string): Promise<string | null>
   }
 
   try {
-    const res = await fetch(`${baseUrl}/rest/v1/rpc/resolve_tenant_by_slug`, {
+    const res = await fetch(`${baseUrl}/rest/v1/rpc/${fn}`, {
       method: "POST",
       headers: {
         apikey: anonKey,
@@ -34,14 +34,14 @@ export async function lookupTenantIdBySlug(slug: string): Promise<string | null>
         Accept: "application/json",
         "Content-Profile": "app",
       },
-      body: JSON.stringify({ p_slug: slug }),
+      body: JSON.stringify(body),
       // Rozwiązanie jest cache'owane u nas (lib/tenant/cache.ts); nie chcemy
       // dodatkowej warstwy cache'u fetcha Next.js na wywołaniu RPC.
       cache: "no-store",
     });
 
     if (!res.ok) {
-      console.error(`[tenant] resolve_tenant_by_slug zwróciło ${res.status}`);
+      console.error(`[tenant] ${fn} zwróciło ${res.status}`);
       return null;
     }
 
@@ -49,7 +49,23 @@ export async function lookupTenantIdBySlug(slug: string): Promise<string | null>
     const data: unknown = await res.json();
     return typeof data === "string" && data.length > 0 ? data : null;
   } catch (error) {
-    console.error("[tenant] odczyt resolve_tenant_by_slug nie powiódł się", error);
+    console.error(`[tenant] odczyt ${fn} nie powiódł się`, error);
     return null;
   }
+}
+
+export async function lookupTenantIdBySlug(slug: string): Promise<string | null> {
+  return callResolveRpc("resolve_tenant_by_slug", { p_slug: slug });
+}
+
+/**
+ * Odczyt host→tenant_id dla WŁASNEJ domeny najemcy (Zadanie 2.6, migracja 0022,
+ * ADR-046). Ta sama ścieżka i te same własności co wyżej: funkcja 0022 jest
+ * LUSTREM 0017 (SECURITY DEFINER, grant dla anona, zwraca sam uuid), a bramki
+ * `verified = true` i statusu tenanta siedzą PO STRONIE BAZY — middleware nie ma
+ * ich jak obejść ani osłabić. Fail-closed identycznie: każdy błąd → null, czyli
+ * host wraca na gałąź marketingową, nigdy „serwujemy przypadkowego tenanta".
+ */
+export async function lookupTenantIdByDomain(host: string): Promise<string | null> {
+  return callResolveRpc("resolve_tenant_by_domain", { p_host: host });
 }

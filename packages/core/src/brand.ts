@@ -57,6 +57,18 @@ export function tenantStorefrontUrl(slug: string): string {
 }
 
 /**
+ * Sam HOST subdomeny tenanta (bez schematu) — postać, w jakiej trafia do
+ * `public.domains.domain` i do rejestracji u dostawcy hostingu (Zadanie 2.6).
+ * Lustro wyrażenia w app.create_tenant (0022): tam ta sama wartość powstaje
+ * w SQL-u, bo wiersz musi być w tej samej transakcji co tenant — hardcode
+ * roota po tamtej stronie jest ŚWIADOMY (parametr pozwoliłby zarejestrować
+ * dowolny host jako od razu zweryfikowany, patrz komentarz w 0022).
+ */
+export function tenantSubdomainHost(slug: string): string {
+  return `${slug.toLowerCase()}.${ROOT_DOMAIN}`;
+}
+
+/**
  * Sprowadza adres do kanonu: bez końcowego `/`, apex → `www`. Dzięki temu
  * `NEXT_PUBLIC_SITE_URL=https://avably.io` nie generuje linków poza kanonem
  * (dublet apex/www kosztowałby SEO i psuł cookies).

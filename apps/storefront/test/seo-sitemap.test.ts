@@ -60,6 +60,10 @@ describe("resolveHostBranch — ta sama granica co middleware, bez nagłówka te
   const deps = {
     resolveTenant: async (_host: string, slug: string) =>
       slug === "acme" ? { tenantId: "tenant-acme" } : null,
+    // Własne domeny najemców (2.6, ADR-046): rozwiązuje się wyłącznie
+    // `sklep.najemca.example`, reszta obcych hostów wraca na marketing.
+    resolveTenantByDomain: async (host: string) =>
+      host === "sklep.najemca.example" ? { tenantId: "tenant-custom" } : null,
   };
 
   it("kanon marketingowy → marketing", async () => {
@@ -81,9 +85,24 @@ describe("resolveHostBranch — ta sama granica co middleware, bez nagłówka te
     });
   });
 
+  // 2.6: sitemap/robots muszą rozgałęziać się także po WŁASNEJ domenie —
+  // inaczej sklep na własnym hoście serwowałby pod nim sitemapę i canonical
+  // OSI MARKETINGOWEJ, czyli wpuszczał do indeksu cudzy kanon.
+  it("własna domena najemcy → tenant z rozwiązanym id", async () => {
+    await expect(resolveHostBranch("sklep.najemca.example", deps)).resolves.toEqual({
+      kind: "tenant",
+      tenantId: "tenant-custom",
+    });
+  });
+
+  it("nierozwiązany obcy host → marketing (zachowanie z 2.1), nie 404", async () => {
+    await expect(resolveHostBranch("obcy.example", deps)).resolves.toEqual({ kind: "marketing" });
+  });
+
   it("slug niepoprawny → not-found BEZ odpytania bazy", async () => {
     let called = false;
     const spyDeps = {
+      ...deps,
       resolveTenant: async () => {
         called = true;
         return null;

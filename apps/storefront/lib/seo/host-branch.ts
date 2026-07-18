@@ -22,12 +22,17 @@
  */
 import { getCachedTenant, setCachedTenant } from "@/lib/tenant/cache";
 import { classifyHost } from "@/lib/tenant/host";
-import { lookupTenantIdBySlug } from "@/lib/tenant/lookup";
-import { resolveTenant } from "@/lib/tenant/resolve";
+import { lookupTenantIdByDomain, lookupTenantIdBySlug } from "@/lib/tenant/lookup";
+import { resolveTenant, resolveTenantByDomain } from "@/lib/tenant/resolve";
 
+/**
+ * `slug` jest OPCJONALNY od 2.6 (ADR-046): własna domena najemcy rozwiązuje się
+ * po hoście i zwraca sam `tenant_id`. Wołający (sitemap/robots) używają
+ * wyłącznie `tenantId` oraz hosta żądania — slug był tu poglądowy.
+ */
 export type HostBranch =
   | { kind: "marketing" }
-  | { kind: "tenant"; slug: string; tenantId: string }
+  | { kind: "tenant"; slug?: string; tenantId: string }
   | { kind: "not-found" };
 
 /**
@@ -36,6 +41,7 @@ export type HostBranch =
  */
 export interface HostBranchDeps {
   resolveTenant: (host: string, slug: string) => Promise<{ tenantId: string } | null>;
+  resolveTenantByDomain: (host: string) => Promise<{ tenantId: string } | null>;
 }
 
 export const defaultHostBranchDeps: HostBranchDeps = {
@@ -45,6 +51,12 @@ export const defaultHostBranchDeps: HostBranchDeps = {
       setCache: setCachedTenant,
       lookup: lookupTenantIdBySlug,
     }),
+  resolveTenantByDomain: (host) =>
+    resolveTenantByDomain(host, {
+      getCache: getCachedTenant,
+      setCache: setCachedTenant,
+      lookup: lookupTenantIdByDomain,
+    }),
 };
 
 export async function resolveHostBranch(
@@ -52,6 +64,16 @@ export async function resolveHostBranch(
   deps: HostBranchDeps = defaultHostBranchDeps,
 ): Promise<HostBranch> {
   const classification = classifyHost(host);
+
+  // WŁASNA DOMENA NAJEMCY (2.6, ADR-046). Bez tej gałęzi sklep na własnej
+  // domenie serwowałby pod nią sitemapę i robots.txt OSI MARKETINGOWEJ — czyli
+  // wpuszczał kanon `www.avably.io` do indeksu z cudzego hosta. Brak trafienia
+  // → marketing, dokładnie jak w middleware (zachowanie z 2.1 dla obcych hostów).
+  if (classification.kind === "foreign") {
+    const resolved = await deps.resolveTenantByDomain(classification.host);
+    return resolved ? { kind: "tenant", tenantId: resolved.tenantId } : { kind: "marketing" };
+  }
+
   if (classification.kind !== "tenant") return classification;
 
   const resolved = await deps.resolveTenant(host ?? "", classification.slug);

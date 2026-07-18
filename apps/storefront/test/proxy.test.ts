@@ -14,9 +14,19 @@ import { proxy, runProxy, type ProxyDeps } from "../proxy";
 
 const ACME_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-/** Rozwiązywacz-atrapa: 'acme' aktywny, wszystko inne nieznane. Zero sieci. */
+const CUSTOM_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+/**
+ * Rozwiązywacz-atrapa. Subdomena: 'acme' aktywny, reszta nieznana. Własna
+ * domena: rozwiązuje się WYŁĄCZNIE `sklep.najemca.example`. Atrapa udaje tu
+ * bramki bazy (verified=true + tenant trialing|active) — w produkcji siedzą one
+ * w app.resolve_tenant_by_domain (0022) i mają własne dowody mutacyjne
+ * w packages/db/test/domain-resolve.test.ts. Zero sieci.
+ */
 const fakeDeps: ProxyDeps = {
   resolveTenant: async (_host, slug) => (slug === "acme" ? { tenantId: ACME_ID } : null),
+  resolveTenantByDomain: async (host) =>
+    host === "sklep.najemca.example" ? { tenantId: CUSTOM_ID } : null,
 };
 
 describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
@@ -158,10 +168,76 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
 
   it("subdomena o niepoprawnym slugu → 404 BEZ odpytania bazy", async () => {
     const lookupSpy = vi.fn(async () => null);
-    const response = await runProxy(new NextRequest("https://bad_slug.avably.io/"), { resolveTenant: lookupSpy });
+    const response = await runProxy(new NextRequest("https://bad_slug.avably.io/"), {
+      ...fakeDeps,
+      resolveTenant: lookupSpy,
+    });
 
     expect(response.status).toBe(404);
     expect(lookupSpy, "malformed slug nie może dotknąć bazy").not.toHaveBeenCalled();
+  });
+});
+
+describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)", () => {
+  it("rozwiązana własna domena → rewrite na /store z tenant_id z bazy", async () => {
+    const request = new NextRequest("https://sklep.najemca.example/");
+    const response = await runProxy(request, fakeDeps);
+
+    expect(response.headers.get("x-middleware-rewrite") ?? "").toContain("/store");
+    expect(request.headers.get("x-tenant-id")).toBe(CUSTOM_ID);
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+
+  it("podstrony sklepu na własnej domenie zachowują ścieżkę", async () => {
+    for (const path of ["/product/abc", "/cart", "/checkout"]) {
+      const request = new NextRequest(`https://sklep.najemca.example${path}`);
+      const response = await runProxy(request, fakeDeps);
+
+      expect(response.headers.get("x-middleware-rewrite") ?? "").toContain(path);
+      expect(request.headers.get("x-tenant-id")).toBe(CUSTOM_ID);
+    }
+  });
+
+  // Rozwiązanie po domenie zwraca SAM uuid (0022) — slugu nie znamy i nie
+  // zgadujemy. Nagłówek ma po prostu nie powstać.
+  it("własna domena nie wstrzykuje x-tenant-slug (rozwiązanie zwraca sam uuid)", async () => {
+    const request = new NextRequest("https://sklep.najemca.example/");
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id")).toBe(CUSTOM_ID);
+    expect(request.headers.get("x-tenant-slug")).toBeNull();
+  });
+
+  // ZACHOWANIE Z 2.1 NIETKNIĘTE: nierozwiązany obcy host to nadal marketing,
+  // nie 404 (zmiana na 404 zepsułaby hosty operacyjne wskazane na deployment).
+  it("nierozwiązany obcy host → gałąź marketingowa, nie 404", async () => {
+    const response = await runProxy(new NextRequest("https://obcy.example/"), fakeDeps);
+
+    expect(response.status, "obcy host nierozwiązany nie może dawać 404").not.toBe(404);
+    expect(response.headers.get("x-middleware-rewrite") ?? "").not.toContain("/store");
+  });
+
+  // Bramka wydajności: kanon, dev i preview NIE MOGĄ trafiać do rozwiązywania
+  // po domenie — inaczej każde żądanie na LP i na deployment podglądowy
+  // generowałoby zapytanie do bazy o host, który nigdy nie będzie niczyją domeną.
+  it.each(["https://www.avably.io/en", "https://avably.io/en", "https://x-preview.vercel.app/en"])(
+    "host platformy (%s) NIE odpytuje bazy o domenę",
+    async (url) => {
+      const domainSpy = vi.fn(async () => null);
+      await runProxy(new NextRequest(url), { ...fakeDeps, resolveTenantByDomain: domainSpy });
+
+      expect(domainSpy, "host platformy poszedł do rozwiązywania po domenie").not.toHaveBeenCalled();
+    },
+  );
+
+  it("subdomena tenanta NIE idzie ścieżką własnej domeny (osie się nie mieszają)", async () => {
+    const domainSpy = vi.fn(async () => null);
+    await runProxy(new NextRequest("https://acme.avably.io/"), {
+      ...fakeDeps,
+      resolveTenantByDomain: domainSpy,
+    });
+
+    expect(domainSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -191,5 +267,30 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
     await runProxy(request, fakeDeps);
 
     expect(request.headers.get("x-tenant-id"), "klient narzucił własny tenant_id").toBe(ACME_ID);
+  });
+
+  // Gałąź 2.6: nowa oś hostów nie może być furtką obok bramki z 2.1.
+  it("na własnej domenie nadpisuje podany przez klienta id rozwiązaniem server-side", async () => {
+    const request = new NextRequest("https://sklep.najemca.example/", {
+      headers: {
+        "x-tenant-id": "deadbeef-dead-4bee-8bee-deadbeefdead",
+        "x-tenant-slug": "attacker",
+      },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id"), "klient narzucił własny tenant_id").toBe(CUSTOM_ID);
+    expect(request.headers.get("x-tenant-slug"), "podrobiony slug przeżył middleware").toBeNull();
+  });
+
+  it("na NIEROZWIĄZANYM obcym hoście podrobiony x-tenant-id też nie przeżywa", async () => {
+    const request = new NextRequest("https://obcy.example/", {
+      headers: { "x-tenant-id": "11111111-1111-4111-8111-111111111111" },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id")).toBeNull();
   });
 });
