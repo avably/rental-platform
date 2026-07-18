@@ -52,6 +52,7 @@ const RPC_RESULT: CheckoutRpcResult = {
   tenant: { name: "Wypożyczalnia", locale: "pl" },
   email_sender: { name: "Wypożyczalnia", reply_to: "biuro@najemca.example" },
   notify_email: "biuro@najemca.example",
+  log_token: "9e1d4c7a-0000-4000-8000-abcdefabcdef",
 };
 
 function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
@@ -247,5 +248,48 @@ describe("ścieżka sukcesu", () => {
     const serialized = JSON.stringify(result);
     // notify_email / email_sender.reply_to są server-only (kontrakt 2.4b ich nie ma).
     expect(serialized).not.toContain("biuro@najemca.example");
+  });
+
+  /**
+   * log_token (0021/ADR-045) to DOWÓD wykonania checkoutu — kto go ma, ten
+   * może dopisać wpis do dziennika tego zamówienia. Wyciek do przeglądarki
+   * oddawałby tę zdolność każdemu, kto otworzy narzędzia deweloperskie, czyli
+   * przywracał dokładnie tę powierzchnię, którą token zamyka. Ta sama
+   * dyscyplina co notify_email (ADR-042).
+   */
+  it("sukces NIE niesie log_tokenu — token nie opuszcza serwera", async () => {
+    const result = await submitCheckoutCore(VALID_INPUT, deps());
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).not.toContain(RPC_RESULT.log_token);
+    // Nie tylko wartość: samo POLE nie może się pojawić pod żadną nazwą —
+    // asercja na wartości przepuściłaby przemianowanie klucza przy zachowaniu
+    // treści (np. gdyby kontrakt zaczął zwracać całe `rpc`).
+    expect(serialized).not.toContain("log_token");
+    expect(serialized).not.toContain("logToken");
+  });
+
+  it("kontrakt 2.4b bez zmian — sukces niesie DOKŁADNIE podsumowanie zamówienia", async () => {
+    // Regresja na wypadek, gdyby ktoś kiedyś zbudował odpowiedź rozlewając
+    // `...rpc` zamiast wymieniać pola: wtedy KAŻDE nowe pole server-only
+    // (log_token, notify_email, email_sender) wyciekłoby przy okazji.
+    const result = await submitCheckoutCore(VALID_INPUT, deps());
+    expect(result.status).toBe("success");
+    const order = (result as unknown as { order: Record<string, unknown> }).order;
+    expect(Object.keys(order).sort()).toEqual(
+      [
+        "currency",
+        "deliveryGrosze",
+        "deliveryMethod",
+        "endDate",
+        "items",
+        "orderNumber",
+        "orderStatus",
+        "paymentStatus",
+        "startDate",
+        "totalDepositGrosze",
+        "totalRentalGrosze",
+      ].sort(),
+    );
   });
 });

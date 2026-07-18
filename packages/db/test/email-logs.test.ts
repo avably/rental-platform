@@ -60,9 +60,12 @@ let a: TenantCtx;
 let b: TenantCtx;
 let orderAId: string;
 let orderANumber: string;
+let orderAToken: string;
 let orderBId: string;
 
-async function createOrderFor(tenantId: string): Promise<{ id: string; number: string }> {
+async function createOrderFor(
+  tenantId: string,
+): Promise<{ id: string; number: string; token: string }> {
   const { data: customer, error: customerError } = await admin
     .from("customers")
     .insert({
@@ -90,7 +93,18 @@ async function createOrderFor(tenantId: string): Promise<{ id: string; number: s
     .select("id, order_number")
     .single();
   if (error || !data) throw new Error(`Nie udało się utworzyć zamówienia: ${error?.message}`);
-  return { id: data.id as string, number: data.order_number as string };
+
+  // Zamówienia panelowe NIE mają tokenu (0021): wydaje go wyłącznie
+  // app.public_checkout. Tu nadajemy go wprost klientem service-role, żeby
+  // testować bramkę dziennika bez przechodzenia całego checkoutu.
+  const token = randomUUID();
+  const { error: tokenError } = await admin
+    .from("orders")
+    .update({ checkout_log_token: token })
+    .eq("id", data.id);
+  if (tokenError) throw new Error(`Nie udało się nadać log_tokenu: ${tokenError.message}`);
+
+  return { id: data.id as string, number: data.order_number as string, token };
 }
 
 /** Minimalny poprawny wpis udanej wysyłki dla podanego tenanta/zamówienia. */
@@ -118,6 +132,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     const orderA = await createOrderFor(a.tenantId);
     orderAId = orderA.id;
     orderANumber = orderA.number;
+    orderAToken = orderA.token;
     orderBId = (await createOrderFor(b.tenantId)).id;
   }, 30_000);
 
@@ -263,6 +278,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     const { error } = await anon.schema("app").rpc("log_public_checkout_email", {
       p_tenant_id: a.tenantId,
       p_order_number: orderANumber,
+      p_log_token: orderAToken,
       p_kind: "checkout_confirmation",
       p_recipient: recipient,
       p_subject: "Rezerwacja potwierdzona",
@@ -289,6 +305,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     const { error } = await anon.schema("app").rpc("log_public_checkout_email", {
       p_tenant_id: a.tenantId,
       p_order_number: orderANumber,
+      p_log_token: orderAToken,
       p_kind: "invitation",
       p_recipient: "x@test.local",
       p_subject: "X",
@@ -306,6 +323,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
       // dopasowania, więc log nie powstaje pod cudzym zamówieniem.
       p_tenant_id: a.tenantId,
       p_order_number: orderB.number,
+      p_log_token: orderB.token,
       p_kind: "checkout_confirmation",
       p_recipient: "x@test.local",
       p_subject: "X",
@@ -322,6 +340,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
       anon.schema("app").rpc("log_public_checkout_email", {
         p_tenant_id: a.tenantId,
         p_order_number: order.number,
+        p_log_token: order.token,
         p_kind: "checkout_confirmation",
         p_recipient: `flood-${randomUUID().slice(0, 8)}@test.local`,
         p_subject: "X",
@@ -339,5 +358,122 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER} po przekroczeniu limitu`).toBe(
       PG_INVALID_PARAMETER,
     );
+  });
+
+  // -------------------------------------------------------------------
+  // (g) LOG_TOKEN — dowód, że wołający naprawdę przeprowadził checkout
+  //     (znalezisko recenzji adwersaryjnej 2.8)
+  // -------------------------------------------------------------------
+  //
+  // Bez tej bramki funkcja przyjmowała wyłącznie dane PUBLICZNE: tenant_id
+  // (jawny przez resolve_tenant_by_slug, 0017) i order_number (SEKWENCYJNY,
+  // trigger 0007). Posiadacz publicznego klucza strony dopisywał więc do
+  // historii REALNYCH zamówień zmyślone wpisy, a różnica odmów działała jak
+  // wyrocznia do enumeracji numerów zamówień.
+
+  /** Wywołanie funkcji z podmienialnym numerem i tokenem. */
+  const logCall = (orderNumber: string, token: string | null, recipient = "x@test.local") =>
+    anon.schema("app").rpc("log_public_checkout_email", {
+      p_tenant_id: a.tenantId,
+      p_order_number: orderNumber,
+      p_log_token: token,
+      p_kind: "checkout_confirmation",
+      p_recipient: recipient,
+      p_subject: "X",
+      p_status: "sent",
+      p_provider_message_id: null,
+      p_error: null,
+    });
+
+  it("anon BEZ tokenu nie dopisze wpisu do cudzego zamówienia (22023)", async () => {
+    const order = await createOrderFor(a.tenantId);
+    const { error } = await logCall(order.number, null);
+
+    expect(error, "zapis bez tokenu powinien zostać odrzucony").not.toBeNull();
+    expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
+
+    // Stan TRWAŁY (service-role, omija RLS): wpis NIE powstał. Sam błąd w
+    // odpowiedzi nie wystarcza — to ta sama klasa fałszywej zieleni, którą
+    // macierz izolacji tępi przy UPDATE/DELETE.
+    const { data } = await admin.from("email_logs").select("id").eq("order_id", order.id);
+    expect(data ?? []).toHaveLength(0);
+  });
+
+  it("anon z CUDZYM tokenem nie dopisze wpisu do zamówienia (22023)", async () => {
+    // Token istnieje i jest poprawnym uuid — ale należy do INNEGO zamówienia.
+    // Bez tego wariantu test przechodziłby także wtedy, gdyby funkcja
+    // sprawdzała jedynie „token jest niepusty".
+    const target = await createOrderFor(a.tenantId);
+    const other = await createOrderFor(a.tenantId);
+
+    const { error } = await logCall(target.number, other.token);
+    expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
+
+    const { data } = await admin.from("email_logs").select("id").eq("order_id", target.id);
+    expect(data ?? []).toHaveLength(0);
+  });
+
+  it("anon z WŁASNYM tokenem zapisuje wpis (kontrola pozytywna bramki)", async () => {
+    const order = await createOrderFor(a.tenantId);
+    const recipient = `token-ok-${randomUUID().slice(0, 8)}@test.local`;
+
+    const { error } = await logCall(order.number, order.token, recipient);
+    expect(error, `poprawny token nie powinien być odrzucony: ${error?.message}`).toBeNull();
+
+    const { data } = await admin.from("email_logs").select("order_id").eq("recipient", recipient);
+    expect(data).toHaveLength(1);
+    expect(data![0]!.order_id).toBe(order.id);
+  });
+
+  /**
+   * WYROCZNIA ENUMERACJI: gdyby odmowa „nie ma takiego zamówienia" różniła się
+   * od „zły token", wołający odpytywałby kolejne (sekwencyjne) numery byle
+   * jakim tokenem i czytał po treści odmowy, które numery ISTNIEJĄ — czyli
+   * wolumen zamówień najemcy.
+   */
+  it("odmowy są NIEROZRÓŻNIALNE: nieistniejące zamówienie i zły token dają ten sam błąd", async () => {
+    const existing = await createOrderFor(a.tenantId);
+
+    const denialForWrongToken = await logCall(existing.number, randomUUID());
+    // Numer spoza puli tenanta — zamówienie o takim numerze nie istnieje.
+    const denialForMissingOrder = await logCall("AV-2000-999", randomUUID());
+
+    for (const denial of [denialForWrongToken, denialForMissingOrder]) {
+      expect(denial.error?.code).toBe(PG_INVALID_PARAMETER);
+    }
+    // Porównujemy KOMUNIKAT, nie tylko kod: wspólny errcode przy różnych
+    // treściach nadal byłby wyrocznią, a asercja na samym kodzie by to
+    // przeoczyła.
+    expect(denialForWrongToken.error?.message).toBe(denialForMissingOrder.error?.message);
+    expect(denialForWrongToken.error?.details ?? null).toBe(
+      denialForMissingOrder.error?.details ?? null,
+    );
+  });
+
+  it("token zamówienia jednego tenanta nie działa u drugiego (22023)", async () => {
+    // Domknięcie osi tenanta: sam fakt posiadania WAŻNEGO tokenu nie może
+    // otwierać dziennika cudzego najemcy.
+    const orderB = await createOrderFor(b.tenantId);
+    const { error } = await logCall(orderB.number, orderB.token);
+    expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
+  });
+
+  it("zamówienia z PANELU nie mają tokenu — nie da się do nich dopisać wpisu checkoutu", async () => {
+    // create_order (0010) nie ustawia checkout_log_token, więc kolumna jest
+    // NULL. Gdyby porównanie użyło `is not distinct from`, wywołanie z
+    // p_log_token = NULL dopasowałoby KAŻDE takie zamówienie — dlatego
+    // funkcja porównuje zwykłym `=`, które przy NULL nie dopasowuje nic.
+    const order = await createOrderFor(a.tenantId);
+    const { error: clearError } = await admin
+      .from("orders")
+      .update({ checkout_log_token: null })
+      .eq("id", order.id);
+    expect(clearError).toBeNull();
+
+    const { error } = await logCall(order.number, null);
+    expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
+
+    const { data } = await admin.from("email_logs").select("id").eq("order_id", order.id);
+    expect(data ?? []).toHaveLength(0);
   });
 });
