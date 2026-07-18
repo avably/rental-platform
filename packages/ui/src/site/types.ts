@@ -67,6 +67,13 @@ export interface StorefrontProduct {
   priceLabel: string;
   imageUrl: string | null;
   imageAlt: string;
+  /**
+   * Link do podstrony produktu (storefront publiczny 2.4b). Gdy podany, karta
+   * jest klikalna. Podgląd w panelu go NIE podaje — karta zostaje statyczna
+   * (edytor nie nawiguje do publicznej podstrony). Seam bez zmiany reszty
+   * kontraktu: renderer i podgląd panelu działają tak samo.
+   */
+  href?: string;
 }
 
 /** Etykiety chrome renderu (locale tenanta). Treść sekcji jest autorska. */

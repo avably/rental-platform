@@ -76,7 +76,10 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     "default-src": ["'self'"],
     "script-src": scriptSrc,
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
+    // supabaseUrl: zdjęcia produktów storefrontu leżą w publicznym bucketcie
+    // Storage (inny origin niż strona tenanta), więc bez niego CSP tnie je jak
+    // każdy obcy obraz. Ta sama motywacja co supabaseUrl w connect-src.
+    "img-src": ["'self'", "data:", "blob:", ...(supabaseUrl ? [supabaseUrl] : [])],
     "font-src": ["'self'", "data:"],
     "connect-src": connectSrc,
     // frame-src istnieje TYLKO dla Turnstile (widget żyje w ramce Cloudflare);

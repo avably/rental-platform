@@ -9,19 +9,22 @@
  * fontów, bez których szablony sekcji nie miałyby tokenów. Powłoka jest wciąż
  * cienka — render treści robią komponenty sekcji.
  *
- * SZEW: `lang` jest tymczasowo stałe „pl" (domyślny język tenanta). Gdy oś
- * tenancka będzie nieść `tenants.locale` (nagłówek z middleware), podmienimy je
- * na język tenanta — bez wpływu na render sekcji (treść jest autorska).
+ * `lang` bierze język z osi tenanckiej (tenants.locale przez getPublicCatalog,
+ * 2.4b) — kupujący widzi sklep w języku najemcy. Kontekst jest `cache`'owany per
+ * żądanie, więc odczyt tu i na stronie to jedno odpytanie. Fallback „pl” gdy
+ * wejście spoza gałęzi tenanckiej (brak nagłówka) — strona i tak da notFound().
  */
 import type { ReactNode } from "react";
 
 import { fontVariables } from "@/app/fonts";
+import { loadStorefrontContext } from "@/lib/storefront/context";
 
 import "../globals.css";
 
-export default function TenantLayout({ children }: { children: ReactNode }) {
+export default async function TenantLayout({ children }: { children: ReactNode }) {
+  const ctx = await loadStorefrontContext();
   return (
-    <html lang="pl" className={`${fontVariables} h-full antialiased`}>
+    <html lang={ctx?.locale ?? "pl"} className={`${fontVariables} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

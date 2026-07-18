@@ -30,8 +30,15 @@ import { resolveTenant } from "@/lib/tenant/resolve";
 
 const handleI18n = createIntlMiddleware(routing);
 
-/** Trasa wewnętrzna storefrontu tenanta (echo 2.1). Pełny katalog to 2.4. */
-const TENANT_ROUTE_PATHNAME = "/store";
+/**
+ * Korzeń storefrontu tenanta = katalog (`/store`, grupa tras (tenant)). Goły `/`
+ * na subdomenie tenanta rewrite'uje się tu; podstrony sklepu (`/product/[id]`,
+ * `/cart`, `/checkout` — Zadanie 2.4b) ZACHOWUJĄ swoją ścieżkę i trafiają do
+ * własnych tras tej samej grupy. Statyczne segmenty grupy (tenant) wygrywają z
+ * dynamicznym `[locale]` osi marketingowej, więc obie osie współistnieją (jak
+ * `/store` od 2.1).
+ */
+const TENANT_STORE_PATHNAME = "/store";
 
 /**
  * Rozwiązywanie tenanta jest wstrzykiwane, żeby proxy dało się testować bez
@@ -105,8 +112,10 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
 
     setResolvedTenant(request.headers, { id: resolved.tenantId, slug: classification.slug });
 
+    // Korzeń → katalog; podstrony sklepu zachowują ścieżkę. Rewrite (nie next())
+    // niesie wstrzyknięte nagłówki tenanta na trasę docelową grupy (tenant).
     const url = request.nextUrl.clone();
-    url.pathname = TENANT_ROUTE_PATHNAME;
+    if (url.pathname === "/") url.pathname = TENANT_STORE_PATHNAME;
     const response = NextResponse.rewrite(url, { request: { headers: request.headers } });
     return applySecurityHeaders(response, nonce, csp);
   }

@@ -20,7 +20,9 @@
       },
       {
         "heading": "2. What this policy covers",
-        "body": ["This policy covers only the avably.io website and waitlist sign-ups. Avably has not yet launched as a service — when it does, we will publish a separate policy for the product."]
+        "body": [
+          "This policy covers only the avably.io website and waitlist sign-ups. Avably has not yet launched as a service — when it does, we will publish a separate policy for the product."
+        ]
       },
       {
         "heading": "3. What data we collect",
@@ -46,7 +48,9 @@
       },
       {
         "heading": "6. How long we keep the data",
-        "body": ["Until you withdraw your consent, but no longer than 24 months after you join. After you withdraw consent, we delete your submission."]
+        "body": [
+          "Until you withdraw your consent, but no longer than 24 months after you join. After you withdraw consent, we delete your submission."
+        ]
       },
       {
         "heading": "7. Your rights",
@@ -65,11 +69,15 @@
       },
       {
         "heading": "9. Is providing data mandatory",
-        "body": ["No. Joining the waitlist is entirely voluntary. However, without an email address we cannot add you to the list."]
+        "body": [
+          "No. Joining the waitlist is entirely voluntary. However, without an email address we cannot add you to the list."
+        ]
       },
       {
         "heading": "10. Changes to this policy",
-        "body": ["If we change this policy, we will publish a new version on this page and change the date at the top. We will notify you by email about material changes."]
+        "body": [
+          "If we change this policy, we will publish a new version on this page and change the date at the top. We will notify you by email about material changes."
+        ]
       }
     ]
   },
@@ -350,6 +358,132 @@
       "description": "Avably — a planned system for running an equipment rental business online.",
       "privacy": "Privacy Policy",
       "copyright": "© Avably"
+    }
+  },
+  "storefront": {
+    "nav": {
+      "catalog": "Catalog",
+      "cart": "Cart",
+      "cartCount": "{count} pcs"
+    },
+    "siteLabels": {
+      "productsEmpty": "The catalog is being prepared.",
+      "contactEmail": "Email:",
+      "contactPhone": "Phone:",
+      "contactAddress": "Address:",
+      "contactMap": "View on map"
+    },
+    "common": {
+      "from": "from",
+      "perDay": "day",
+      "backToCatalog": "Back to catalog",
+      "continueShopping": "Continue shopping",
+      "days": "days",
+      "estimateNote": "Estimated amount — the final total is confirmed when you place the order.",
+      "optional": "optional",
+      "required": "required"
+    },
+    "product": {
+      "galleryAlt": "Photo of {name}",
+      "descriptionHeading": "Description",
+      "depositLabel": "Deposit",
+      "perDayPrice": "{price} / day",
+      "chooseDates": "Choose rental dates",
+      "startDate": "From",
+      "endDate": "To",
+      "checkAvailability": "Check availability",
+      "availabilityChecking": "Checking…",
+      "available": "Available for these dates: {available} of {total} pcs",
+      "unavailable": "No units available for the selected dates — please pick another range.",
+      "availabilityError": "Could not check availability. Please try again.",
+      "dateRangeInvalid": "The end date cannot be earlier than the start date.",
+      "dateRequired": "Choose rental dates to add to cart.",
+      "quantity": "Quantity",
+      "addToCart": "Add to cart",
+      "added": "Added to cart",
+      "goToCart": "Go to cart",
+      "notFound": "Product not found."
+    },
+    "cart": {
+      "title": "Cart",
+      "empty": "Your cart is empty.",
+      "emptyCta": "Browse the catalog",
+      "rentalPeriod": "Rental period",
+      "noDates": "No dates selected",
+      "editInProduct": "Set dates and quantities on the product page.",
+      "quantity": "Quantity",
+      "remove": "Remove",
+      "lineRental": "Rental",
+      "lineDeposit": "Deposit",
+      "subtotalRental": "Rental subtotal",
+      "subtotalDeposit": "Deposit subtotal",
+      "goToCheckout": "Proceed to order",
+      "checkoutBlocked": "Choose rental dates (on the product page) to place your order."
+    },
+    "checkout": {
+      "title": "Order details",
+      "cartEmpty": "Your cart is empty — add products before placing an order.",
+      "contactHeading": "Contact details",
+      "fullName": "Full name",
+      "email": "Email address",
+      "phone": "Phone",
+      "companyName": "Company name",
+      "nip": "Tax ID",
+      "addressHeading": "Address",
+      "addressStreet": "Street and number",
+      "addressZip": "Postal code",
+      "addressCity": "City",
+      "notes": "Order notes",
+      "deliveryHeading": "Collection method",
+      "methodPickup": "Personal pickup",
+      "methodCourier": "Courier",
+      "methodParcelLocker": "Parcel locker",
+      "methodOwnDelivery": "Store delivery",
+      "deliveryFree": "free",
+      "pickupLocation": "Pickup point",
+      "choosePickup": "Choose a pickup point",
+      "termsHeading": "Terms",
+      "termsLabel": "I accept the rental terms and conditions.",
+      "summaryHeading": "Summary",
+      "summaryRental": "Rental",
+      "summaryDeposit": "Deposit (refundable)",
+      "summaryDelivery": "Delivery",
+      "summaryTotal": "Total due",
+      "depositNote": "The deposit is refunded after the equipment is returned.",
+      "submit": "Place order",
+      "submitting": "Placing order…",
+      "errors": {
+        "fullName": "Enter your full name.",
+        "email": "Enter a valid email address.",
+        "phone": "Enter a valid phone number.",
+        "startDate": "Choose a rental start date.",
+        "endDate": "The end date cannot be earlier than the start date.",
+        "deliveryMethod": "Choose a collection method.",
+        "pickupLocationId": "Choose a pickup point.",
+        "items": "The cart is empty or contains an unavailable product.",
+        "terms": "Accept the terms to continue.",
+        "generic": "Please check the highlighted fields.",
+        "unavailable": "Those dates are taken — pick another range or a smaller quantity.",
+        "rejected": "We couldn't place the order. Check your details and try again.",
+        "rateLimited": "Too many attempts — try again later or contact the rental store.",
+        "captcha": "Anti-spam verification failed. Please try again.",
+        "connection": "Connection problem. Please try again.",
+        "server": "Something went wrong. Please try again in a moment."
+      }
+    },
+    "confirmation": {
+      "title": "Thank you for your order!",
+      "orderNumber": "Order number",
+      "paymentNote": "You'll settle payment with the rental store on pickup or by bank transfer — we'll be in touch with the details.",
+      "rentalPeriod": "Rental period",
+      "deliveryMethod": "Collection method",
+      "summaryRental": "Rental",
+      "summaryDeposit": "Deposit (refundable)",
+      "summaryDelivery": "Delivery",
+      "summaryTotal": "Total",
+      "emailSent": "We've sent a confirmation to your email address.",
+      "emailIssue": "Your order was received, but the email confirmation may arrive with a delay.",
+      "backToStore": "Back to the store"
     }
   }
 }

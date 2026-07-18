@@ -130,6 +130,24 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
     expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
   });
 
+  it("podstrony sklepu zachowują ścieżkę (produkt/koszyk/checkout) z tenant_id", async () => {
+    for (const path of ["/product/abc", "/cart", "/checkout"]) {
+      const request = new NextRequest(`https://acme.avably.io${path}`);
+      const response = await runProxy(request, fakeDeps);
+
+      const rewrite = response.headers.get("x-middleware-rewrite") ?? "";
+      expect(rewrite, `podstrona ${path} nie zachowała ścieżki`).toContain(path);
+      // Podstrona też dostaje rozwiązany tenant (czyta go z nagłówka).
+      expect(request.headers.get("x-tenant-id")).toBe(ACME_ID);
+    }
+  });
+
+  it("goły / na subdomenie tenanta rewrite'uje na /store (nie na /)", async () => {
+    const request = new NextRequest("https://acme.avably.io/");
+    const response = await runProxy(request, fakeDeps);
+    expect(response.headers.get("x-middleware-rewrite") ?? "").toContain("/store");
+  });
+
   it("nieznana/nieaktywna subdomena → neutralne 404", async () => {
     const response = await runProxy(new NextRequest("https://ghost.avably.io/"), fakeDeps);
 

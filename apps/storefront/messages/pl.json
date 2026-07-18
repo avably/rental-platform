@@ -20,7 +20,9 @@
       },
       {
         "heading": "2. Czego dotyczy ta polityka",
-        "body": ["Ta polityka opisuje wyłącznie stronę avably.io i zapisy na listę oczekujących. Avably nie jest jeszcze uruchomione jako usługa — gdy to nastąpi, opublikujemy osobną politykę dla produktu."]
+        "body": [
+          "Ta polityka opisuje wyłącznie stronę avably.io i zapisy na listę oczekujących. Avably nie jest jeszcze uruchomione jako usługa — gdy to nastąpi, opublikujemy osobną politykę dla produktu."
+        ]
       },
       {
         "heading": "3. Jakie dane zbieramy",
@@ -46,7 +48,9 @@
       },
       {
         "heading": "6. Jak długo przechowujemy",
-        "body": ["Do czasu wycofania zgody, nie dłużej niż 24 miesiące od zapisu. Po wycofaniu zgody usuwamy zgłoszenie."]
+        "body": [
+          "Do czasu wycofania zgody, nie dłużej niż 24 miesiące od zapisu. Po wycofaniu zgody usuwamy zgłoszenie."
+        ]
       },
       {
         "heading": "7. Twoje prawa",
@@ -65,11 +69,15 @@
       },
       {
         "heading": "9. Czy podanie danych jest obowiązkowe",
-        "body": ["Nie. Zapis na listę oczekujących jest w pełni dobrowolny. Bez adresu e-mail nie możemy Cię jednak dopisać do listy."]
+        "body": [
+          "Nie. Zapis na listę oczekujących jest w pełni dobrowolny. Bez adresu e-mail nie możemy Cię jednak dopisać do listy."
+        ]
       },
       {
         "heading": "10. Zmiany polityki",
-        "body": ["Jeśli zmienimy tę politykę, opublikujemy nową wersję na tej stronie i zmienimy datę u góry. O istotnych zmianach poinformujemy Cię e-mailem."]
+        "body": [
+          "Jeśli zmienimy tę politykę, opublikujemy nową wersję na tej stronie i zmienimy datę u góry. O istotnych zmianach poinformujemy Cię e-mailem."
+        ]
       }
     ]
   },
@@ -350,6 +358,132 @@
       "description": "Avably — planowany system do prowadzenia wypożyczalni sprzętu online.",
       "privacy": "Polityka prywatności",
       "copyright": "© Avably"
+    }
+  },
+  "storefront": {
+    "nav": {
+      "catalog": "Katalog",
+      "cart": "Koszyk",
+      "cartCount": "{count} szt."
+    },
+    "siteLabels": {
+      "productsEmpty": "Katalog jest w przygotowaniu.",
+      "contactEmail": "E-mail:",
+      "contactPhone": "Telefon:",
+      "contactAddress": "Adres:",
+      "contactMap": "Zobacz na mapie"
+    },
+    "common": {
+      "from": "od",
+      "perDay": "doba",
+      "backToCatalog": "Wróć do katalogu",
+      "continueShopping": "Kontynuuj zakupy",
+      "days": "dni",
+      "estimateNote": "Kwota szacunkowa — ostateczną wartość potwierdzamy przy złożeniu zamówienia.",
+      "optional": "opcjonalnie",
+      "required": "wymagane"
+    },
+    "product": {
+      "galleryAlt": "Zdjęcie produktu {name}",
+      "descriptionHeading": "Opis",
+      "depositLabel": "Kaucja",
+      "perDayPrice": "{price} / doba",
+      "chooseDates": "Wybierz termin najmu",
+      "startDate": "Od",
+      "endDate": "Do",
+      "checkAvailability": "Sprawdź dostępność",
+      "availabilityChecking": "Sprawdzam…",
+      "available": "Dostępne w tym terminie: {available} z {total} szt.",
+      "unavailable": "Brak wolnych sztuk w wybranym terminie — wybierz inny.",
+      "availabilityError": "Nie udało się sprawdzić dostępności. Spróbuj ponownie.",
+      "dateRangeInvalid": "Data zakończenia nie może być wcześniejsza niż rozpoczęcia.",
+      "dateRequired": "Wybierz termin najmu, aby dodać do koszyka.",
+      "quantity": "Ilość",
+      "addToCart": "Dodaj do koszyka",
+      "added": "Dodano do koszyka",
+      "goToCart": "Przejdź do koszyka",
+      "notFound": "Nie znaleziono produktu."
+    },
+    "cart": {
+      "title": "Koszyk",
+      "empty": "Twój koszyk jest pusty.",
+      "emptyCta": "Przeglądaj katalog",
+      "rentalPeriod": "Termin najmu",
+      "noDates": "Termin nie wybrany",
+      "editInProduct": "Termin i sztuki ustawiasz na stronie produktu.",
+      "quantity": "Ilość",
+      "remove": "Usuń",
+      "lineRental": "Najem",
+      "lineDeposit": "Kaucja",
+      "subtotalRental": "Najem razem",
+      "subtotalDeposit": "Kaucja razem",
+      "goToCheckout": "Przejdź do zamówienia",
+      "checkoutBlocked": "Wybierz termin najmu (na stronie produktu), aby złożyć zamówienie."
+    },
+    "checkout": {
+      "title": "Dane zamówienia",
+      "cartEmpty": "Koszyk jest pusty — dodaj produkty, zanim złożysz zamówienie.",
+      "contactHeading": "Dane kontaktowe",
+      "fullName": "Imię i nazwisko",
+      "email": "Adres e-mail",
+      "phone": "Telefon",
+      "companyName": "Nazwa firmy",
+      "nip": "NIP",
+      "addressHeading": "Adres",
+      "addressStreet": "Ulica i numer",
+      "addressZip": "Kod pocztowy",
+      "addressCity": "Miejscowość",
+      "notes": "Uwagi do zamówienia",
+      "deliveryHeading": "Sposób odbioru",
+      "methodPickup": "Odbiór osobisty",
+      "methodCourier": "Kurier",
+      "methodParcelLocker": "Paczkomat",
+      "methodOwnDelivery": "Dostawa własna wypożyczalni",
+      "deliveryFree": "gratis",
+      "pickupLocation": "Punkt odbioru",
+      "choosePickup": "Wybierz punkt odbioru",
+      "termsHeading": "Regulamin",
+      "termsLabel": "Akceptuję regulamin wypożyczalni i zasady najmu.",
+      "summaryHeading": "Podsumowanie",
+      "summaryRental": "Najem",
+      "summaryDeposit": "Kaucja (zwrotna)",
+      "summaryDelivery": "Dostawa",
+      "summaryTotal": "Razem do zapłaty",
+      "depositNote": "Kaucja jest zwrotna po zwrocie sprzętu.",
+      "submit": "Złóż zamówienie",
+      "submitting": "Składam zamówienie…",
+      "errors": {
+        "fullName": "Podaj imię i nazwisko.",
+        "email": "Podaj poprawny adres e-mail.",
+        "phone": "Podaj poprawny numer telefonu.",
+        "startDate": "Wybierz datę rozpoczęcia najmu.",
+        "endDate": "Data zakończenia nie może być wcześniejsza niż rozpoczęcia.",
+        "deliveryMethod": "Wybierz sposób odbioru.",
+        "pickupLocationId": "Wybierz punkt odbioru.",
+        "items": "Koszyk jest pusty lub zawiera niedostępny produkt.",
+        "terms": "Zaakceptuj regulamin, aby kontynuować.",
+        "generic": "Sprawdź zaznaczone pola.",
+        "unavailable": "Termin zajęty — wybierz inny termin lub mniejszą ilość.",
+        "rejected": "Nie udało się złożyć zamówienia. Sprawdź dane i spróbuj ponownie.",
+        "rateLimited": "Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.",
+        "captcha": "Weryfikacja antyspamowa nie powiodła się. Spróbuj ponownie.",
+        "connection": "Problem z połączeniem. Spróbuj ponownie.",
+        "server": "Coś poszło nie tak. Spróbuj ponownie za chwilę."
+      }
+    },
+    "confirmation": {
+      "title": "Dziękujemy za zamówienie!",
+      "orderNumber": "Numer zamówienia",
+      "paymentNote": "Płatność rozliczysz z wypożyczalnią przy odbiorze lub przelewem — skontaktujemy się z Tobą w sprawie szczegółów.",
+      "rentalPeriod": "Termin najmu",
+      "deliveryMethod": "Sposób odbioru",
+      "summaryRental": "Najem",
+      "summaryDeposit": "Kaucja (zwrotna)",
+      "summaryDelivery": "Dostawa",
+      "summaryTotal": "Razem",
+      "emailSent": "Potwierdzenie wysłaliśmy na Twój adres e-mail.",
+      "emailIssue": "Zamówienie zostało przyjęte, ale potwierdzenie e-mail może dotrzeć z opóźnieniem.",
+      "backToStore": "Wróć do sklepu"
     }
   }
 }

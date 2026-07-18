@@ -32,6 +32,18 @@ describe("SiteRenderer — render per typ sekcji", () => {
     expect(screen.getByText("Betoniarka")).toBeInTheDocument();
   });
 
+  it("karta z href jest linkiem do podstrony; bez href zostaje statyczna", () => {
+    const section: RenderSection = { id: "s-prod", position: 1, type: "products", content: { heading: "Nasz sprzęt" } };
+    const linked: StorefrontProduct[] = [
+      { id: "p1", name: "Wiertarka", description: null, priceLabel: "od 40,00 zł / doba", imageUrl: null, imageAlt: "Wiertarka", href: "/product/p1" },
+    ];
+    const { rerender } = render(<SiteRenderer sections={[section]} template="classic" products={linked} />);
+    expect(screen.getByRole("link", { name: /Wiertarka/ })).toHaveAttribute("href", "/product/p1");
+    // Podgląd panelu (bez href) nie robi z karty linku.
+    rerender(<SiteRenderer sections={[section]} template="classic" products={products} />);
+    expect(screen.queryByRole("link", { name: /Wiertarka/ })).toBeNull();
+  });
+
   it("sekcja products bez katalogu pokazuje etykietę pustego stanu", () => {
     const section: RenderSection = { id: "s-prod", position: 1, type: "products", content: { heading: "Nasz sprzęt" } };
     render(
