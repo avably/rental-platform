@@ -25,8 +25,8 @@ import { routing } from "@/i18n/routing";
 import { getCachedTenant, setCachedTenant } from "@/lib/tenant/cache";
 import { classifyHost } from "@/lib/tenant/host";
 import { setResolvedTenant, stripInboundTenantHeaders } from "@/lib/tenant/headers";
-import { lookupTenantIdBySlug } from "@/lib/tenant/lookup";
-import { resolveTenant } from "@/lib/tenant/resolve";
+import { lookupTenantIdByDomain, lookupTenantIdBySlug } from "@/lib/tenant/lookup";
+import { resolveTenant, resolveTenantByDomain } from "@/lib/tenant/resolve";
 
 const handleI18n = createIntlMiddleware(routing);
 
@@ -47,6 +47,11 @@ const TENANT_STORE_PATHNAME = "/store";
  */
 export interface ProxyDeps {
   resolveTenant: (host: string, slug: string) => Promise<{ tenantId: string } | null>;
+  /**
+   * Rozwiązanie WŁASNEJ domeny najemcy (Zadanie 2.6, 0022, ADR-046) — osobna oś
+   * hostów, osobne RPC. Ten sam cache (klucz = host), te same TTL-e.
+   */
+  resolveTenantByDomain: (host: string) => Promise<{ tenantId: string } | null>;
 }
 
 const defaultDeps: ProxyDeps = {
@@ -55,6 +60,12 @@ const defaultDeps: ProxyDeps = {
       getCache: getCachedTenant,
       setCache: setCachedTenant,
       lookup: lookupTenantIdBySlug,
+    }),
+  resolveTenantByDomain: (host) =>
+    resolveTenantByDomain(host, {
+      getCache: getCachedTenant,
+      setCache: setCachedTenant,
+      lookup: lookupTenantIdByDomain,
     }),
 };
 
@@ -106,11 +117,14 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
 
-  if (classification.kind === "tenant") {
-    const resolved = await deps.resolveTenant(host, classification.slug);
-    if (!resolved) return neutralNotFound(nonce, csp);
-
-    setResolvedTenant(request.headers, { id: resolved.tenantId, slug: classification.slug });
+  /**
+   * Gałąź tenancka — JEDNO miejsce dla obu osi hostów (subdomena i własna
+   * domena), żeby wstrzyknięcie nagłówka i rewrite nie mogły się między nimi
+   * rozjechać. `slug` bywa nieznany (własna domena rozwiązuje się po hoście
+   * i zwraca sam uuid) — wtedy nagłówek slugu po prostu nie powstaje.
+   */
+  const tenantBranch = (tenantId: string, slug?: string): NextResponse => {
+    setResolvedTenant(request.headers, { id: tenantId, ...(slug ? { slug } : {}) });
 
     // Korzeń → katalog; podstrony sklepu zachowują ścieżkę. Rewrite (nie next())
     // niesie wstrzyknięte nagłówki tenanta na trasę docelową grupy (tenant).
@@ -118,13 +132,31 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
     if (url.pathname === "/") url.pathname = TENANT_STORE_PATHNAME;
     const response = NextResponse.rewrite(url, { request: { headers: request.headers } });
     return applySecurityHeaders(response, nonce, csp);
+  };
+
+  if (classification.kind === "tenant") {
+    const resolved = await deps.resolveTenant(host, classification.slug);
+    if (!resolved) return neutralNotFound(nonce, csp);
+
+    return tenantBranch(resolved.tenantId, classification.slug);
   }
 
   if (classification.kind === "not-found") {
     return neutralNotFound(nonce, csp);
   }
 
-  // Gałąź marketingowa (kanon + hosty spoza wzorca tenanta) — bez zmian.
+  // WŁASNA DOMENA NAJEMCY (Zadanie 2.6, ADR-046). Host spoza naszych domen
+  // próbuje rozwiązać się przez app.resolve_tenant_by_domain — bramki `verified`
+  // i statusu tenanta siedzą w bazie. Trafienie → gałąź tenancka; BRAK trafienia
+  // → DOKŁADNIE dotychczasowe zachowanie z 2.1 (marketing), nie 404: obcy host
+  // nierozwiązany nie ujawnia niczego o tenantach, a 404 zepsułoby hosty
+  // operacyjne wskazane na ten deployment.
+  if (classification.kind === "foreign") {
+    const resolved = await deps.resolveTenantByDomain(classification.host);
+    if (resolved) return tenantBranch(resolved.tenantId);
+  }
+
+  // Gałąź marketingowa (kanon, dev, preview + nierozwiązany host obcy) — bez zmian.
   return applySecurityHeaders(handleI18n(request), nonce, csp);
 }
 

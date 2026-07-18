@@ -16,7 +16,8 @@
     "invitationsLink": "Member invitations",
     "emailSettingsLink": "Email settings",
     "siteLink": "Storefront page",
-    "emailLogLink": "Message history"
+    "emailLogLink": "Message history",
+    "domainSettingsLink": "Store domains"
   },
   "emailSettings": {
     "title": "Email settings",
@@ -563,5 +564,33 @@
       "publishing": "Publishing…",
       "published": "Published."
     }
+  },
+  "domainSettings": {
+    "title": "Store domains",
+    "intro": "The addresses your store runs on. A subdomain on our domain is created automatically with your organisation. You can add your own domain below — it requires one DNS record at your registrar.",
+    "registrationUnavailable": "Domain registration is unavailable — domains you add will not start working until the configuration is completed.",
+    "listHeading": "Store addresses",
+    "emptyState": "No addresses yet. Get in touch — a subdomain should be created together with the organisation.",
+    "kindSubdomain": "Platform subdomain — works immediately, no DNS setup needed.",
+    "kindCustom": "Custom domain — works once the DNS record is confirmed.",
+    "statusLive": "Live",
+    "statusPending": "Awaiting verification",
+    "lastErrorLabel": "Last error:",
+    "dnsHeading": "Record to add at your registrar",
+    "dnsIntro": "Add this record in your domain's DNS panel. We cannot do this step for you — only you have access to your DNS.",
+    "dnsType": "Type",
+    "dnsName": "Name",
+    "dnsValue": "Value",
+    "dnsPropagation": "DNS changes usually appear within minutes, sometimes hours. Then click “Check verification”.",
+    "checkCta": "Check verification",
+    "removeCta": "Remove",
+    "verifiedOk": "Domain verified — your store is live at this address.",
+    "stillPending": "The domain is not verified yet.",
+    "addTitle": "Add your own domain",
+    "domainLabel": "Domain",
+    "domainHint": "The host name only, without http:// and without a path.",
+    "addCta": "Add domain",
+    "addedOk": "Domain added. Add the DNS record, then click “Check verification”.",
+    "backLink": "Dashboard"
   }
 }

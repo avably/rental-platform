@@ -7,9 +7,34 @@ export {
   DEFAULT_FROM_EMAIL,
   RESERVED_SUBDOMAINS,
   tenantStorefrontUrl,
+  tenantSubdomainHost,
   normalizeSiteUrl,
   siteUrl,
 } from "./brand";
+
+export {
+  CUSTOM_DOMAIN_CNAME_TARGET,
+  VERCEL_API_BASE,
+  VERCEL_PROJECT_ENV,
+  VERCEL_TEAM_ENV,
+  VERCEL_TOKEN_ENV,
+  VercelConfigError,
+  VercelDomainsClient,
+  VercelDomainsError,
+  checkDomainSafely,
+  redactToken,
+  registerDomainSafely,
+  resolveVercelConfig,
+  vercelDomainsAvailability,
+  type DomainDnsRecord,
+  type DomainRegistrationDeps,
+  type DomainRegistrationResult,
+  type DomainStatus,
+  type VercelConfigOptions,
+  type VercelDomainsAvailability,
+  type VercelDomainsClientOptions,
+  type VercelDomainsConfig,
+} from "./vercel";
 
 export {
   SUPPORTED_CURRENCIES,

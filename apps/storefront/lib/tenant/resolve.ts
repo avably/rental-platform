@@ -57,3 +57,23 @@ export async function resolveTenant(
   await deps.setCache(host, { tenantId: null }, NEGATIVE_TTL_SECONDS);
   return null;
 }
+
+/**
+ * Rozwiązanie WŁASNEJ domeny najemcy (Zadanie 2.6, ADR-046). Host jest zarazem
+ * kluczem cache'u i kluczem odczytu (`app.resolve_tenant_by_domain(p_host)`),
+ * więc obsługuje je ta sama reguła co subdomeny — z cache'em pozytywnym
+ * i NEGATYWNYM włącznie. Osobna funkcja zamiast wołania `resolveTenant(host, host)`
+ * u wołającego: nazwa mówi, KTÓRA oś hostów jest rozwiązywana, a `deps.lookup`
+ * ma tu być `lookupTenantIdByDomain` (0022), nigdy odczyt po slugu.
+ *
+ * Cache negatywny ma tu WIĘKSZE znaczenie niż przy subdomenach: od 2.6 każdy
+ * nierozpoznany host jest kandydatem na domenę najemcy, a nagłówek `Host` niesie
+ * klient i może być czymkolwiek. Bez zapamiętanej nieobecności skrypt walący
+ * losowymi hostami generowałby zapytanie do bazy na KAŻDE żądanie.
+ */
+export async function resolveTenantByDomain(
+  host: string,
+  deps: ResolveTenantDeps,
+): Promise<{ tenantId: string } | null> {
+  return resolveTenant(host, host, deps);
+}

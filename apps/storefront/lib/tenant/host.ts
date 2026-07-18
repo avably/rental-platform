@@ -4,31 +4,49 @@
  * bazy. Rozstrzygnięcie slug→tenant_id (z odpytaniem bazy) jest osobne
  * (lib/tenant/resolve.ts) — tu decydujemy tylko, KTÓRA ścieżka.
  *
- * Trzy wyniki:
+ * Cztery wyniki:
  *   - `marketing` — kanon (www/apex avably.io), dev (localhost, 127.0.0.1),
- *     preview (*.vercel.app) oraz każdy host spoza wzorca subdomeny tenanta.
- *     Ta gałąź to ISTNIEJĄCA ścieżka LP, bez zmian.
+ *     preview (*.vercel.app). Ta gałąź to ISTNIEJĄCA ścieżka LP, bez zmian.
  *   - `tenant { slug }` — `<slug>.avably.io` (prod) lub `<slug>.localhost` (dev)
  *     z poprawnym, niezarezerwowanym slugiem. Wymaga rozwiązania w bazie.
  *   - `not-found` — subdomena tenant-roota o SLUGU NIEPOPRAWNYM (nie przejdzie
  *     CHECK-u bazy) albo wielopoziomowa. 404 bez odpytania bazy — malformed
  *     slug nigdy nie jest tenantem, więc nie ma po co ruszać Postgresa.
+ *   - `foreign { host }` — host spoza naszych domen (WŁASNA domena najemcy albo
+ *     obcy host wskazany na nasz deployment). Wymaga rozwiązania w bazie PO
+ *     HOŚCIE (Zadanie 2.6, ADR-046).
  *
- * DECYZJA (foreign host → marketing, nie 404). Host spoza `*.avably.io`
- * (np. obcy `example.com` skierowany na nasz deployment) trafia do marketingu,
- * nie w 404. Powód: neutralne 404 z briefu chroni przed UJAWNIENIEM istnienia
- * tenanta — a to jest realizowane przez JEDNOLITE 404 na nierozwiązanych
- * subdomenach `*.avably.io` (nieistniejący i zawieszony slug dają identyczną
- * odpowiedź). Obcy host to problem DNS/operacyjny (w produkcji routing domen
- * na Vercelu i tak wpuszcza tylko skonfigurowane domeny), nie wektor
- * ujawnienia tenanta. Trzymanie foreign→marketing nie psuje też dev/preview.
+ * ZMIANA W 2.6 WZGLĘDEM ADR-039 (decyzja 3). Do 2.1 host spoza `*.avably.io`
+ * wpadał WPROST w `marketing`, bo własne domeny najemców nie istniały. Teraz
+ * dostaje własny wynik: wołający próbuje rozwiązać go przez
+ * `app.resolve_tenant_by_domain`, a przy BRAKU trafienia wraca do
+ * DOTYCHCZASOWEGO zachowania (marketing). Semantyka kanonu, dev i preview jest
+ * nietknięta — te hosty nadal klasyfikują się jako `marketing` i nigdy nie
+ * ruszają bazy.
+ *
+ * Neutralne 404 z ADR-039 zostaje bez zmian: chroni przed ujawnieniem istnienia
+ * tenanta na osi `*.avably.io`, gdzie nieistniejący i zawieszony slug dają
+ * identyczną odpowiedź. Obcy host nierozwiązany nadal nie jest 404 — pokazanie
+ * 404 zamiast LP niczego by nie ochroniło, a zepsułoby hosty operacyjne.
  */
 import { ROOT_DOMAIN, RESERVED_SUBDOMAINS } from "@avably/core";
 
 export type HostClassification =
   | { kind: "marketing" }
   | { kind: "tenant"; slug: string }
-  | { kind: "not-found" };
+  | { kind: "not-found" }
+  | { kind: "foreign"; host: string };
+
+/**
+ * Hosty PLATFORMY spoza wzorca subdomeny tenanta, które nigdy nie są własną
+ * domeną najemcy: pętla zwrotna i preview deploymentów. Wyliczone JAWNIE, bo
+ * od 2.6 „wszystko inne" idzie do rozwiązania po domenie — gdyby preview
+ * (`*.vercel.app`) wpadał tam razem z resztą, każde żądanie na deployment
+ * podglądowy generowałoby zapytanie do bazy o host, który nigdy nie będzie
+ * niczyją domeną.
+ */
+const LOOPBACK_HOSTS = ["127.0.0.1", "[::1]", "::1", "0.0.0.0"];
+const PREVIEW_SUFFIX = ".vercel.app";
 
 /**
  * Lustro CHECK-u `tenants.slug` z 0001_core.sql. Zgodność jest istotna: slug,
@@ -67,6 +85,12 @@ export function classifyHost(rawHost: string | null | undefined): HostClassifica
     return { kind: "not-found" };
   }
 
-  // 127.0.0.1 (dev), *.vercel.app (preview) i każdy inny host → marketing.
-  return { kind: "marketing" };
+  // 127.0.0.1 (dev) i *.vercel.app (preview) — hosty platformy, nie tenanta.
+  if (LOOPBACK_HOSTS.includes(host) || host.endsWith(PREVIEW_SUFFIX)) {
+    return { kind: "marketing" };
+  }
+
+  // Każdy inny host: kandydat na WŁASNĄ domenę najemcy (2.6). Rozstrzyga baza;
+  // brak trafienia → wołający wraca na gałąź marketingową (zachowanie z 2.1).
+  return { kind: "foreign", host };
 }
