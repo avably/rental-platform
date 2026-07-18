@@ -15,7 +15,8 @@
     "locationsLink": "Pickup locations",
     "invitationsLink": "Member invitations",
     "emailSettingsLink": "Email settings",
-    "siteLink": "Storefront page"
+    "siteLink": "Storefront page",
+    "emailLogLink": "Message history"
   },
   "emailSettings": {
     "title": "Email settings",
@@ -32,6 +33,40 @@
     "saveCta": "Save",
     "savedOk": "Saved.",
     "backLink": "Panel"
+  },
+  "emailLog": {
+    "orderSectionTitle": "Sent messages",
+    "title": "Message history",
+    "intro": "A record of every send attempt: what reached the customer, and what did not — with the reason.",
+    "emptyForOrder": "No messages have been sent for this order yet.",
+    "empty": "No messages match the filter.",
+    "filterStatus": "Status",
+    "filterAll": "All",
+    "filterApply": "Filter",
+    "columnDate": "Date",
+    "columnKind": "Type",
+    "columnRecipient": "Recipient",
+    "columnSubject": "Subject",
+    "columnStatus": "Status",
+    "previousPage": "← Previous",
+    "nextPage": "Next →",
+    "pageOf": "Page {page} — entries: {total}",
+    "status": {
+      "sent": "Sent",
+      "failed": "Failed"
+    },
+    "kind": {
+      "rental_confirmed": "Reservation confirmed",
+      "rental_ready_for_pickup": "Ready for pickup",
+      "rental_picked_up": "Equipment handed over",
+      "rental_returned": "Return confirmed",
+      "rental_cancelled": "Reservation cancelled",
+      "invitation": "Organization invitation",
+      "return_label": "Return label",
+      "pickup_return_reminder": "Return reminder",
+      "checkout_confirmation": "Storefront order confirmation",
+      "new_order_notification": "New order notification"
+    }
   },
   "nav": {
     "superadmin": "Superadmin",

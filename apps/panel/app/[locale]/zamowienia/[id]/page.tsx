@@ -36,6 +36,7 @@ import {
 } from "./deposit-actions";
 import { DeliverySection } from "./delivery-section";
 import { DepositForms } from "./deposit-forms";
+import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
 import { StatusButtons } from "./status-buttons";
 
@@ -280,6 +281,8 @@ export default async function OrderDetailPage({
           emailAvailability={emailAvailability()}
         />
       </section>
+
+      <EmailLogSection orderId={row.id} />
     </main>
   );
 }
