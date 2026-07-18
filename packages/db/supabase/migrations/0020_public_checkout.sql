@@ -325,9 +325,10 @@ grant execute on function app.get_public_availability(uuid, uuid, date, date) to
 -- Dlatego funkcja broni się SAMA na dwóch osiach:
 --   * THROTTLE W BAZIE (niżej): zamówienia pending blokują egzemplarze w
 --     dostępności, więc spam bezpośrednim RPC zdejmowałby cały inwentarz
---     tenanta z oferty (DoS magazynu). Limity: 3 pending+unpaid ze storefrontu
---     per (tenant, klient) / 24 h oraz 30 per tenant / 1 h → odmowa 22023
---     komunikatem neutralnym. Stałe w funkcji — tuning później.
+--     tenanta z oferty (DoS magazynu). Defaulty: 3 pending+unpaid ze
+--     storefrontu per (tenant, klient) / 24 h oraz 30 per tenant / 1 h →
+--     odmowa 22023 komunikatem neutralnym. Limity konfigurowalne per tenant
+--     (tenant_settings 'checkout_limits', coalesce-guard przy odczycie).
 --   * ZERO PII SPOZA INTENCJI OPERATORA w zwrocie: odpowiedź RPC trafia do
 --     KAŻDEGO wołającego, nie tylko do naszej server action — nie może nieść
 --     danych, których operator jawnie nie upublicznił (patrz notify_email).
@@ -400,6 +401,9 @@ declare
   v_order_number text;
   v_reply_to text;
   v_sender jsonb;
+  v_limits jsonb;
+  v_limit_customer int;
+  v_limit_tenant int;
   v_tenant_recent int;
   v_customer_recent int;
 begin
@@ -464,9 +468,44 @@ begin
   -- (tenant, rok), a celem jest throttling, nie dokładna bariera; drobne
   -- przekroczenie przy wyścigu dwóch transakcji jest dla tego celu
   -- nieszkodliwe, a lock, który niczego nie musi gwarantować, maskowałby
-  -- zamiast chronić (lekcja ADR-024/ADR-035). Stałe (3/24h, 30/1h) w funkcji
-  -- z komentarzem — tuning później, gdy będzie ruch produkcyjny.
+  -- zamiast chronić (lekcja ADR-024/ADR-035).
   --
+  -- LIMITY KONFIGUROWALNE PER TENANT (uwaga właściciela): defaulty 3/24h per
+  -- klient i 30/1h per tenant są bezpieczne na start, ale za ciasne dla dużej
+  -- wypożyczalni w sezonie (30/h = zamówienie co 2 minuty). Operator podnosi
+  -- WŁASNE limity kluczem tenant_settings 'checkout_limits'
+  -- ({"per_customer_24h": int, "per_tenant_1h": int}) — throttle chroni
+  -- TENANTA, więc podniesienie własnego limitu jest legalne i nie wymaga
+  -- nowej bramki uprawnień (RLS tenant_settings ogranicza zapis do członków).
+  --
+  -- COALESCE-GUARD przy ODCZYCIE (w kontrze do CHECK-u u źródła z 0013/0014 —
+  -- świadomie): wartość liczy się wyłącznie, gdy jest JSON-ową liczbą
+  -- CAŁKOWITĄ w przedziale 1..10000; śmieć (ujemna, ułamek, string, brak
+  -- klucza, brak wpisu) spada na DEFAULT zamiast wywracać checkout. Zepsuta
+  -- konfiguracja limitu nie ma prawa zablokować sklepu — bezpiecznym stanem
+  -- jest default, nie odmowa. Cap 10000: wartość powyżej to pomyłka
+  -- konfiguracji, nie intencja (żadna wypożyczalnia nie przyjmuje 10k
+  -- publicznych pending na godzinę).
+  select value into v_limits
+  from public.tenant_settings
+  where tenant_id = p_tenant_id and key = 'checkout_limits'
+    and jsonb_typeof(value) = 'object';
+
+  v_limit_customer := case
+    when jsonb_typeof(v_limits -> 'per_customer_24h') = 'number'
+         and (v_limits ->> 'per_customer_24h') ~ '^[0-9]{1,5}$'
+         and (v_limits ->> 'per_customer_24h')::int between 1 and 10000
+      then (v_limits ->> 'per_customer_24h')::int
+    else 3  -- default per klient / 24 h
+  end;
+  v_limit_tenant := case
+    when jsonb_typeof(v_limits -> 'per_tenant_1h') = 'number'
+         and (v_limits ->> 'per_tenant_1h') ~ '^[0-9]{1,5}$'
+         and (v_limits ->> 'per_tenant_1h')::int between 1 and 10000
+      then (v_limits ->> 'per_tenant_1h')::int
+    else 30  -- default per tenant / 1 h
+  end;
+
   -- Per tenant PRZED utworzeniem klienta (najtańsza odmowa — bez dotykania
   -- customers); komunikat NEUTRALNY, wspólny dla obu limitów (nie zdradza,
   -- który limit zadziałał ani jakie są progi).
@@ -477,8 +516,7 @@ begin
     and o.order_status = 'pending'
     and o.payment_status = 'unpaid'
     and o.created_at > now() - interval '1 hour';
-  -- Limit per tenant: 30 publicznych pending/unpaid na godzinę.
-  if v_tenant_recent >= 30 then
+  if v_tenant_recent >= v_limit_tenant then
     raise exception 'Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.'
       using errcode = '22023';
   end if;
@@ -529,8 +567,7 @@ begin
     and o.order_status = 'pending'
     and o.payment_status = 'unpaid'
     and o.created_at > now() - interval '24 hours';
-  -- Limit per klient: 3 publiczne pending/unpaid na dobę.
-  if v_customer_recent >= 3 then
+  if v_customer_recent >= v_limit_customer then
     raise exception 'Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.'
       using errcode = '22023';
   end if;
@@ -743,7 +780,7 @@ end;
 $$;
 
 comment on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) is
-  'Publiczny checkout storefrontu (ADR-042): jedyna anonowa ścieżka ZAPISU zamówienia. Kwoty i egzemplarze liczy/przypisuje SERWER (klient nie niesie kwot); INSERT orders+items przez bramki 0010/0015 (pending/unpaid, wyścig o egzemplarz zatrzymany advisory lockiem); throttle w bazie (3/24h per klient, 30/1h per tenant — bezpośrednie RPC omija bramki storefrontu). SECURITY DEFINER, tenant_id z parametru. Zwraca order_number + podsumowanie + kontekst wysyłki e-maili (server-only; notify_email wyłącznie z email_sender.reply_to — zero PII z auth.users). Odmowy: 22023 / 23P01.';
+  'Publiczny checkout storefrontu (ADR-042): jedyna anonowa ścieżka ZAPISU zamówienia. Kwoty i egzemplarze liczy/przypisuje SERWER (klient nie niesie kwot); INSERT orders+items przez bramki 0010/0015 (pending/unpaid, wyścig o egzemplarz zatrzymany advisory lockiem); throttle w bazie (defaulty 3/24h per klient, 30/1h per tenant; konfigurowalne kluczem tenant_settings checkout_limits z coalesce-guardem — bezpośrednie RPC omija bramki storefrontu). SECURITY DEFINER, tenant_id z parametru. Zwraca order_number + podsumowanie + kontekst wysyłki e-maili (server-only; notify_email wyłącznie z email_sender.reply_to — zero PII z auth.users). Odmowy: 22023 / 23P01.';
 
 revoke all on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) from public;
 grant execute on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) to anon, authenticated;

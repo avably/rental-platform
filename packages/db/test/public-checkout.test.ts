@@ -549,6 +549,89 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     expect(error?.code, "31. publiczne zamówienie tenanta w 1h nie zostało zatrzymane").toBe("22023");
   });
 
+  it("tenant z checkout_limits podniesionym (per_tenant_1h=50) przechodzi 31. zamówienie", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+    // Operator podniósł WŁASNY limit (duża wypożyczalnia w sezonie) — klucz
+    // tenant_settings, zapis ograniczony RLS do członków tenanta (tu seed
+    // service-rolem). Default 30/1h zatrzymałby 31. zamówienie (dowiedzione
+    // testem wyżej); z limitem 50 musi przejść.
+    const { error: limitError } = await admin.from("tenant_settings").insert({
+      tenant_id: tenantId,
+      key: "checkout_limits",
+      value: { per_tenant_1h: 50, per_customer_24h: 3 },
+    });
+    if (limitError) throw new Error(limitError.message);
+
+    const day = (i: number) => new Date(Date.UTC(2027, 5, 1 + i)).toISOString().slice(0, 10);
+    for (let i = 0; i < 31; i += 1) {
+      const { error } = await checkoutAsAnon(
+        anon,
+        checkoutArgs(tenantId, productId, pickupId, {
+          p_start_date: day(i),
+          p_end_date: day(i),
+        }),
+      );
+      expect(
+        error,
+        `checkout #${i + 1} przy podniesionym limicie (50/1h) zawiódł: ${error?.message}`,
+      ).toBeNull();
+    }
+  });
+
+  it("checkout_limits ze śmieciem (-1 / string) → działają defaulty, checkout nie pada", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+    // Śmieciowa konfiguracja: ujemna liczba i string. Coalesce-guard w funkcji
+    // MUSI zignorować obie wartości i spaść na defaulty (3/24h, 30/1h) —
+    // zepsuty wpis nie ma prawa ani zablokować sklepu, ani zdjąć throttle'u.
+    const { error: limitError } = await admin.from("tenant_settings").insert({
+      tenant_id: tenantId,
+      key: "checkout_limits",
+      value: { per_tenant_1h: -1, per_customer_24h: "abc" },
+    });
+    if (limitError) throw new Error(limitError.message);
+
+    const email = `garbage-${randomUUID().slice(0, 8)}@test.local`;
+
+    // DOWÓD MUTACYJNY (coalesce-guard): naiwny odczyt bez guardu
+    // (`coalesce((value->>'per_tenant_1h')::int, 30)`) daje limit -1 —
+    // count 0 >= -1 odrzuca JUŻ PIERWSZE zamówienie i te asserty się palą.
+    for (const d of ["2027-07-01", "2027-07-03", "2027-07-05"]) {
+      const { error } = await checkoutAsAnon(
+        anon,
+        checkoutArgs(tenantId, productId, pickupId, {
+          p_email: email,
+          p_start_date: d,
+          p_end_date: d,
+        }),
+      );
+      expect(error, `checkout ${d} przy śmieciowym checkout_limits zawiódł: ${error?.message}`).toBeNull();
+    }
+
+    // Defaulty realnie obowiązują: 4. zamówienie tego samego klienta w 24h
+    // odbija się na domyślnym limicie 3 — śmieć nie zdjął throttle'u.
+    const { error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_email: email,
+        p_start_date: "2027-07-07",
+        p_end_date: "2027-07-07",
+      }),
+    );
+    expect(error?.code, "śmieciowy checkout_limits zdjął domyślny throttle").toBe("22023");
+  });
+
   it("zamówienia z panelu (source='panel') NIE zjadają budżetu throttle'u klienta", async () => {
     const tenantId = await seedTenant(admin, "active");
     const productId = await seedProduct(admin, tenantId, {
