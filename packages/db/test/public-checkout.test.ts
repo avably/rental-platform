@@ -122,12 +122,59 @@ async function checkoutAsAnon(anon: SupabaseClient, args: Record<string, unknown
   return anon.schema("app").rpc("public_checkout", args);
 }
 
+const createdUserIds: string[] = [];
+
+/** Owner tenanta (auth user + wiersz members) — do testu PII notify_email. */
+async function seedOwner(admin: SupabaseClient, tenantId: string): Promise<string> {
+  const email = `owner-checkout-${randomUUID().slice(0, 8)}@test.local`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: "CheckoutTest!12345678",
+    email_confirm: true,
+    app_metadata: { tenant_id: tenantId, role: "owner" },
+  });
+  if (error || !data.user) throw new Error(`Nie udało się utworzyć ownera: ${error?.message}`);
+  createdUserIds.push(data.user.id);
+  const { error: memberError } = await admin
+    .from("members")
+    .insert({ tenant_id: tenantId, user_id: data.user.id, role: "owner" });
+  if (memberError) throw new Error(`Nie udało się dodać membera-ownera: ${memberError.message}`);
+  return email;
+}
+
+/** Standardowe wejście checkoutu (nadpisywalne per test). */
+function checkoutArgs(
+  tenantId: string,
+  productId: string,
+  pickupId: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    p_tenant_id: tenantId,
+    p_email: `co-${randomUUID().slice(0, 8)}@test.local`,
+    p_full_name: "Kupujący",
+    p_phone: null,
+    p_start_date: "2026-10-01",
+    p_end_date: "2026-10-03",
+    p_delivery_method: "pickup",
+    p_pickup_location_id: pickupId,
+    p_items: [{ product_id: productId, quantity: 1 }],
+    p_terms_version: "v1",
+    p_locale: "pl",
+    ...overrides,
+  };
+}
+
 describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_availability — 0020", () => {
   const admin = hasEnv ? adminClient() : (null as unknown as SupabaseClient);
   const anon = hasEnv ? anonClient() : (null as unknown as SupabaseClient);
 
   afterAll(async () => {
     if (!hasEnv) return;
+    for (const userId of createdUserIds) {
+      await admin.auth.admin.deleteUser(userId);
+    }
+    createdUserIds.length = 0;
     if (createdTenantIds.length > 0) {
       await admin.from("tenants").delete().in("id", createdTenantIds);
       createdTenantIds.length = 0;
@@ -385,5 +432,163 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
       })
     ).data;
     expect(reversed).toBeNull();
+  });
+
+  // -------------------------------------------------------------------
+  // 5. PII: notify_email NIGDY z auth.users (znalezisko recenzji 2.4a)
+  // -------------------------------------------------------------------
+  it("bez email_sender.reply_to notify_email = null — e-mail ownera z auth.users NIE wycieka", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+    // Tenant MA ownera z prywatnym e-mailem konta, ale NIE ma email_sender —
+    // dokładnie scenariusz wycieku: stara wersja funkcji zwracała tu adres
+    // ownera każdemu bezpośredniemu wołającemu z anon keyem.
+    const ownerEmail = await seedOwner(admin, tenantId);
+
+    const { data, error } = await checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId));
+    expect(error, `checkout zawiódł: ${error?.message}`).toBeNull();
+
+    // DOWÓD (fix znaleziska 1): odpowiedź RPC — czytana przez KAŻDEGO
+    // bezpośredniego wołającego — nie niesie prywatnego adresu konta ownera.
+    // Gdyby fallback coalesce(v_reply_to, v_owner_email) wrócił, oba asserty
+    // się palą: notify_email przestaje być null i JSON zawiera ownerEmail.
+    expect((data as { notify_email: string | null }).notify_email).toBeNull();
+    expect(JSON.stringify(data)).not.toContain(ownerEmail);
+  });
+
+  // -------------------------------------------------------------------
+  // 6. THROTTLE w bazie (znalezisko recenzji 2.4a — DoS przez pending)
+  // -------------------------------------------------------------------
+  //
+  // Bezpośrednie wywołanie RPC anon keyem omija honeypot/rate-limit/Turnstile
+  // warstwy storefrontu, a pending blokuje egzemplarze — limit MUSI stać w
+  // funkcji. Produkt z buforami 0 i najmy jednodniowe w różnych dniach: ta sama
+  // sztuka obsługuje kolejne zamówienia bez kolizji dostępności, więc jedyną
+  // bramką, która może odmówić, jest throttle (23P01 nie maskuje 22023).
+  it("per klient: 3 publiczne pending/24h przechodzą (kontrola pozytywna), 4. → 22023", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+    const email = `throttle-${randomUUID().slice(0, 8)}@test.local`;
+
+    // Kontrola pozytywna: legalny klient poniżej limitu przechodzi.
+    for (const day of ["2026-12-01", "2026-12-03", "2026-12-05"]) {
+      const { error } = await checkoutAsAnon(
+        anon,
+        checkoutArgs(tenantId, productId, pickupId, {
+          p_email: email,
+          p_start_date: day,
+          p_end_date: day,
+        }),
+      );
+      expect(error, `checkout ${day} poniżej limitu zawiódł: ${error?.message}`).toBeNull();
+    }
+
+    // DOWÓD MUTACYJNY (throttle per klient): zdjęcie limitu (`if false`) sprawia,
+    // że 4. zamówienie przechodzi i `error` jest null — assert 22023 się pali.
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_email: email,
+        p_start_date: "2026-12-07",
+        p_end_date: "2026-12-07",
+      }),
+    );
+    expect(data).toBeNull();
+    expect(error?.code, "4. publiczne zamówienie klienta w 24h nie zostało zatrzymane").toBe("22023");
+
+    // Odmowa nie zostawia śladu: dokładnie 3 zamówienia.
+    const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+    try {
+      const [{ count }] = await sql`select count(*)::int from public.orders where tenant_id = ${tenantId}`;
+      expect(count).toBe(3);
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+  });
+
+  it("per tenant: 30 publicznych pending/1h przechodzi, 31. → 22023 (różni klienci)", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    // 30 zamówień RÓŻNYCH klientów (limit per klient 3 nie wchodzi w drogę),
+    // każde na inny dzień (jedna sztuka, bufory 0 — zero kolizji dostępności).
+    const day = (i: number) => `2027-01-${String(i + 1).padStart(2, "0")}`;
+    for (let i = 0; i < 30; i += 1) {
+      const { error } = await checkoutAsAnon(
+        anon,
+        checkoutArgs(tenantId, productId, pickupId, {
+          p_start_date: day(i),
+          p_end_date: day(i),
+        }),
+      );
+      expect(error, `checkout #${i + 1} poniżej limitu tenanta zawiódł: ${error?.message}`).toBeNull();
+    }
+
+    // DOWÓD MUTACYJNY (throttle per tenant): zdjęcie limitu → 31. przechodzi,
+    // assert 22023 się pali.
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_start_date: "2027-02-10",
+        p_end_date: "2027-02-10",
+      }),
+    );
+    expect(data).toBeNull();
+    expect(error?.code, "31. publiczne zamówienie tenanta w 1h nie zostało zatrzymane").toBe("22023");
+  });
+
+  it("zamówienia z panelu (source='panel') NIE zjadają budżetu throttle'u klienta", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+    const email = `panelmix-${randomUUID().slice(0, 8)}@test.local`;
+
+    // Klient istnieje i ma JUŻ 3 zamówienia pending/unpaid założone przez ladę
+    // (source='panel' — default kolumny; INSERT service-rolem symuluje pracę
+    // panelu). Filtr source='storefront' w throttle'u musi je pominąć.
+    const { data: customer, error: custError } = await admin
+      .from("customers")
+      .insert({ tenant_id: tenantId, email, full_name: "Stały klient" })
+      .select("id")
+      .single();
+    if (custError || !customer) throw new Error(custError?.message);
+    for (const day of ["2026-12-10", "2026-12-12", "2026-12-14"]) {
+      const { error } = await admin.from("orders").insert({
+        tenant_id: tenantId,
+        customer_id: customer.id,
+        start_date: day,
+        end_date: day,
+        delivery_method: "courier",
+      });
+      if (error) throw new Error(error.message);
+    }
+
+    // Publiczny checkout tego samego klienta przechodzi — gdyby throttle liczył
+    // wszystkie zamówienia (bez filtra source), poległby tu na 22023.
+    const { error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_email: email,
+        p_start_date: "2026-12-20",
+        p_end_date: "2026-12-20",
+      }),
+    );
+    expect(error, `praca lady zablokowała publiczny checkout klienta: ${error?.message}`).toBeNull();
   });
 });

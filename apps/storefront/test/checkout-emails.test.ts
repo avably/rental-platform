@@ -82,7 +82,12 @@ describe("sendCheckoutEmails", () => {
     expect(sent, "próbowano wysłać mimo braku transportu").toHaveLength(0);
   });
 
-  it("brak adresu powiadomień najemcy → klient dostaje maila, powiadomienie pominięte z powodem", async () => {
+  it("brak adresu powiadomień (notify_email=null) → klient dostaje maila, powiadomienie pominięte z powodem wskazującym konfigurację", async () => {
+    // notify_email=null to jedyny stan przy braku email_sender.reply_to —
+    // RPC NIE robi fallbacku na e-mail ownera (ADR-042, znalezisko recenzji:
+    // odpowiedź RPC czyta każdy bezpośredni wołający anon keyem, PII z
+    // auth.users nie ma prawa w niej wystąpić). Warstwa e-maili nie zgaduje
+    // adresu — raportuje uczciwie, co skonfigurować.
     const { transport, sent } = capturingTransport();
     const issues = await sendCheckoutEmails(rpcResult({ notify_email: null }), {
       transport,
@@ -93,7 +98,8 @@ describe("sendCheckoutEmails", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe("klient@example.com");
     expect(issues).toHaveLength(1);
-    expect(issues[0]).toContain("Brak adresu powiadomień najemcy");
+    expect(issues[0]).toContain("skonfiguruj nadawcę");
+    expect(issues[0]).toContain("/ustawienia-emaili");
   });
 
   it("błąd wysyłki potwierdzenia NIE rzuca i NIE blokuje powiadomienia najemcy", async () => {

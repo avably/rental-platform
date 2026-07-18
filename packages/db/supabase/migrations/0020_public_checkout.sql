@@ -61,6 +61,26 @@ comment on column public.orders.terms_accepted_at is
 comment on column public.orders.terms_version is
   'Wersja zaakceptowanego regulaminu (dowód zgody utrwalony per zamówienie, nie per klient — regulamin bywa wersjonowany). Komplet z terms_accepted_at (ADR-042).';
 
+-- ŹRÓDŁO ZAMÓWIENIA — jawna kolumna, nie wnioskowanie (ADR-042).
+--
+-- Throttle publicznego checkoutu (sekcja 4) musi odróżnić zamówienia złożone
+-- publiczną ścieżką od pracy lady. Kandydatem było `terms_accepted_at IS NOT
+-- NULL` (dziś ustawia je tylko public_checkout), ale to znaczenie POBOCZNE
+-- innej kolumny: gdy panel zacznie kiedyś zbierać akceptację regulaminu (np.
+-- przy zamówieniu telefonicznym), throttle po cichu objąłby pracę lady — a
+-- bramka bezpieczeństwa nie może wisieć na cudzej semantyce. Jawna kolumna
+-- z CHECK-iem czyni intencję nieusuwalną z modelu.
+--
+-- Default 'panel': wszystkie istniejące zamówienia i każda ścieżka, która
+-- kolumny nie ustawia (create_order z panelu), są pracą lady. 'storefront'
+-- ustawia WYŁĄCZNIE app.public_checkout.
+alter table public.orders
+  add column source text not null default 'panel'
+    check (source in ('panel', 'storefront'));
+
+comment on column public.orders.source is
+  'Ścieżka powstania zamówienia: panel (praca lady, default) | storefront (app.public_checkout). Filtr throttle''u publicznego checkoutu (ADR-042) — jawna kolumna zamiast wnioskowania po terms_accepted_at.';
+
 -- ---------------------------------------------------------------------
 -- 2. app.get_public_catalog — publiczny katalog (SECURITY DEFINER STABLE)
 -- ---------------------------------------------------------------------
@@ -299,15 +319,31 @@ grant execute on function app.get_public_availability(uuid, uuid, date, date) to
 -- nie zostaje ani zamówienie-sierota, ani zużyty numer, ani na wpół przypisane
 -- pozycje.
 --
+-- BEZPOŚREDNIE WYWOŁANIE RPC (ADR-042, znaleziska recenzji 2.4a): grant dla
+-- anon znaczy, że wołający NIE MUSI przejść przez warstwę storefrontu — goły
+-- anon key przez PostgREST omija honeypot, rate-limit per IP i Turnstile.
+-- Dlatego funkcja broni się SAMA na dwóch osiach:
+--   * THROTTLE W BAZIE (niżej): zamówienia pending blokują egzemplarze w
+--     dostępności, więc spam bezpośrednim RPC zdejmowałby cały inwentarz
+--     tenanta z oferty (DoS magazynu). Limity: 3 pending+unpaid ze storefrontu
+--     per (tenant, klient) / 24 h oraz 30 per tenant / 1 h → odmowa 22023
+--     komunikatem neutralnym. Stałe w funkcji — tuning później.
+--   * ZERO PII SPOZA INTENCJI OPERATORA w zwrocie: odpowiedź RPC trafia do
+--     KAŻDEGO wołającego, nie tylko do naszej server action — nie może nieść
+--     danych, których operator jawnie nie upublicznił (patrz notify_email).
+--
 -- Zwraca jsonb: order_number + podsumowanie zamówienia + KONTEKST WYSYŁKI
--- e-maili (dane nadawcy, adres powiadomień najemcy) — konsumowany po stronie
--- serwera (server action storefrontu), bo storefront NIE ma klucza service-role
--- (twarda konwencja, patrz apps/storefront/lib/supabase-server.ts), więc RPC
--- jest jedyną uprzywilejowaną ścieżką do tych danych. notify_email preferuje
--- email_sender.reply_to (adres wskazany przez najemcę do korespondencji z
--- klientem, i tak jawny w Reply-To e-maili klienta), a przy jego braku spada na
--- e-mail ownera (gwarancja, że najemca dowie się o zamówieniu). Kontekst NIE
--- trafia do przeglądarki — kontrakt CheckoutResult 2.4b go nie zawiera.
+-- e-maili — konsumowany po stronie serwera (server action storefrontu), bo
+-- storefront NIE ma klucza service-role (twarda konwencja, patrz
+-- apps/storefront/lib/supabase-server.ts), więc RPC jest jedyną
+-- uprzywilejowaną ścieżką do tych danych. notify_email pochodzi WYŁĄCZNIE z
+-- email_sender.reply_to — adresu biznesowego wskazanego przez operatora do
+-- korespondencji z klientem (i tak jawnego w Reply-To e-maili klienta). BEZ
+-- fallbacku na e-mail ownera z auth.users: to prywatny adres konta, a
+-- odpowiedź RPC czyta każdy bezpośredni wołający — fallback byłby wyciekiem
+-- PII jednym żądaniem. Brak reply_to → notify_email = null, a warstwa e-maili
+-- raportuje uczciwie powód niewysłania (wzorzec 8b). Kontekst NIE trafia do
+-- przeglądarki — kontrakt CheckoutResult 2.4b go nie zawiera.
 create or replace function app.public_checkout(
   p_tenant_id uuid,
   p_email text,
@@ -363,8 +399,9 @@ declare
   v_order_id uuid;
   v_order_number text;
   v_reply_to text;
-  v_owner_email text;
   v_sender jsonb;
+  v_tenant_recent int;
+  v_customer_recent int;
 begin
   -- --- Tenant aktywny (izolacja: nieaktywny nieodróżnialny od nieistniejącego) ---
   select id, name, locale into v_tenant
@@ -415,6 +452,37 @@ begin
     v_pickup := null;
   end if;
 
+  -- --- THROTTLE W BAZIE (ADR-042, znalezisko recenzji) ---
+  --
+  -- Bezpośrednie wywołanie RPC anon keyem omija bramki warstwy storefrontu
+  -- (honeypot / rate-limit per IP / Turnstile), a zamówienia pending blokują
+  -- egzemplarze w dostępności — bez limitu W FUNKCJI spam zdejmowałby cały
+  -- inwentarz tenanta z oferty. Limity liczone WYŁĄCZNIE po zamówieniach
+  -- source='storefront' w stanie pending+unpaid (praca lady i zamówienia już
+  -- obsłużone nie zjadają budżetu klienta). Count-check bez własnego locka —
+  -- świadomie: INSERT i tak serializuje się na advisory locku numeracji per
+  -- (tenant, rok), a celem jest throttling, nie dokładna bariera; drobne
+  -- przekroczenie przy wyścigu dwóch transakcji jest dla tego celu
+  -- nieszkodliwe, a lock, który niczego nie musi gwarantować, maskowałby
+  -- zamiast chronić (lekcja ADR-024/ADR-035). Stałe (3/24h, 30/1h) w funkcji
+  -- z komentarzem — tuning później, gdy będzie ruch produkcyjny.
+  --
+  -- Per tenant PRZED utworzeniem klienta (najtańsza odmowa — bez dotykania
+  -- customers); komunikat NEUTRALNY, wspólny dla obu limitów (nie zdradza,
+  -- który limit zadziałał ani jakie są progi).
+  select count(*) into v_tenant_recent
+  from public.orders o
+  where o.tenant_id = p_tenant_id
+    and o.source = 'storefront'
+    and o.order_status = 'pending'
+    and o.payment_status = 'unpaid'
+    and o.created_at > now() - interval '1 hour';
+  -- Limit per tenant: 30 publicznych pending/unpaid na godzinę.
+  if v_tenant_recent >= 30 then
+    raise exception 'Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.'
+      using errcode = '22023';
+  end if;
+
   -- --- Klient: znajdź-lub-utwórz per (tenant, lower(email)), atomowo ---
   -- Bez wcześniejszego SELECT-a jako jedynej bramki (wyścig): przy dwóch
   -- równoległych checkoutach nowego klienta on conflict do nothing rozstrzyga
@@ -448,6 +516,23 @@ begin
       from public.customers
       where tenant_id = p_tenant_id and lower(email) = v_email;
     end if;
+  end if;
+
+  -- Per klient (druga oś throttle'u — patrz komentarz przy limicie per tenant).
+  -- Świeżo utworzony klient ma count 0 i przechodzi; odmowa wycofuje całą
+  -- transakcję, więc nie zostawia klienta-sieroty utworzonego wyżej.
+  select count(*) into v_customer_recent
+  from public.orders o
+  where o.tenant_id = p_tenant_id
+    and o.customer_id = v_customer_id
+    and o.source = 'storefront'
+    and o.order_status = 'pending'
+    and o.payment_status = 'unpaid'
+    and o.created_at > now() - interval '24 hours';
+  -- Limit per klient: 3 publiczne pending/unpaid na dobę.
+  if v_customer_recent >= 3 then
+    raise exception 'Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.'
+      using errcode = '22023';
   end if;
 
   -- --- Pozycje: wycena SERWEROWA + przypisanie wolnych egzemplarzy ---
@@ -586,12 +671,13 @@ begin
   insert into public.orders (
     tenant_id, customer_id, start_date, end_date, delivery_method,
     pickup_location_id, notes, total_rental_grosze, total_deposit_grosze,
-    delivery_grosze, terms_accepted_at, terms_version
+    delivery_grosze, terms_accepted_at, terms_version, source
   )
   values (
     p_tenant_id, v_customer_id, p_start_date, p_end_date, p_delivery_method,
     v_pickup, nullif(btrim(coalesce(p_notes, '')), ''),
-    v_total_rental, v_total_deposit, v_delivery, now(), btrim(p_terms_version)
+    v_total_rental, v_total_deposit, v_delivery, now(), btrim(p_terms_version),
+    'storefront'
   )
   returning id, order_number into v_order_id, v_order_number;
 
@@ -613,19 +699,17 @@ begin
   where tenant_id = p_tenant_id and key = 'email_sender'
     and jsonb_typeof(value) = 'object';
 
+  -- Adres powiadomień najemcy: WYŁĄCZNIE email_sender.reply_to — adres
+  -- biznesowy z jawnej intencji operatora. ŚWIADOMIE bez fallbacku na e-mail
+  -- ownera z auth.users (znalezisko recenzji 2.4a): odpowiedź RPC czyta każdy
+  -- bezpośredni wołający z anon keyem, więc fallback zwracałby prywatny adres
+  -- konta jednym żądaniem (wyciek PII). Brak reply_to → null; warstwa e-maili
+  -- raportuje uczciwie „powiadomienie niewysłane — skonfiguruj nadawcę".
   v_reply_to := case
     when v_sender is not null and jsonb_typeof(v_sender -> 'reply_to') = 'string'
       then nullif(btrim(v_sender ->> 'reply_to'), '')
     else null
   end;
-
-  -- Adres powiadomień najemcy: reply_to (jeśli wskazany) albo e-mail ownera.
-  select u.email into v_owner_email
-  from public.members m
-  join auth.users u on u.id = m.user_id
-  where m.tenant_id = p_tenant_id and m.role = 'owner'
-  order by m.user_id
-  limit 1;
 
   select coalesce(
     (select value #>> '{}' from public.tenant_settings
@@ -653,13 +737,13 @@ begin
         then jsonb_build_object('name', v_sender ->> 'name', 'reply_to', v_reply_to)
       else null
     end,
-    'notify_email', coalesce(v_reply_to, v_owner_email)
+    'notify_email', v_reply_to
   );
 end;
 $$;
 
 comment on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) is
-  'Publiczny checkout storefrontu (ADR-042): jedyna anonowa ścieżka ZAPISU zamówienia. Kwoty i egzemplarze liczy/przypisuje SERWER (klient nie niesie kwot); INSERT orders+items przez bramki 0010/0015 (pending/unpaid, wyścig o egzemplarz zatrzymany advisory lockiem). SECURITY DEFINER, tenant_id z parametru. Zwraca order_number + podsumowanie + kontekst wysyłki e-maili (server-only). Odmowy: 22023 / 23P01.';
+  'Publiczny checkout storefrontu (ADR-042): jedyna anonowa ścieżka ZAPISU zamówienia. Kwoty i egzemplarze liczy/przypisuje SERWER (klient nie niesie kwot); INSERT orders+items przez bramki 0010/0015 (pending/unpaid, wyścig o egzemplarz zatrzymany advisory lockiem); throttle w bazie (3/24h per klient, 30/1h per tenant — bezpośrednie RPC omija bramki storefrontu). SECURITY DEFINER, tenant_id z parametru. Zwraca order_number + podsumowanie + kontekst wysyłki e-maili (server-only; notify_email wyłącznie z email_sender.reply_to — zero PII z auth.users). Odmowy: 22023 / 23P01.';
 
 revoke all on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) from public;
 grant execute on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text) to anon, authenticated;
