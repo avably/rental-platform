@@ -102,6 +102,9 @@ importers:
       '@avably/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@avably/emails':
+        specifier: workspace:*
+        version: link:../../packages/emails
       '@avably/security':
         specifier: workspace:*
         version: link:../../packages/security
