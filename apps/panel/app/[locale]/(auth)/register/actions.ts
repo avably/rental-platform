@@ -5,11 +5,11 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
+import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { localePath } from "@/lib/navigation";
 import { setPostAuthNext } from "@/lib/post-auth-next";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { verifyTurnstile } from "@/lib/turnstile";
 import { registerSchema, safeNextPath } from "@/lib/validation";
 
 export interface RegisterState {
