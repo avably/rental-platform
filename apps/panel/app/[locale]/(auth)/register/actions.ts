@@ -7,6 +7,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 import { verifyTurnstile } from "@avably/security/turnstile";
 
+import { authErrorKey, logAuthProviderError } from "@/app/[locale]/(auth)/auth-error";
 import { localePath } from "@/lib/navigation";
 import { setPostAuthNext } from "@/lib/post-auth-next";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -60,7 +61,11 @@ export async function registerAction(
     options: { data: { locale: await getLocale() } },
   });
   if (error) {
-    return { error: error.message };
+    // Treść dostawcy idzie WYŁĄCZNIE do logu (ADR-051) — na ekran ma trafić
+    // nasz komunikat, w języku użytkownika.
+    logAuthProviderError("register", error);
+    const t = await getTranslations("authError");
+    return { error: t(authErrorKey(error)) };
   }
 
   // `next` (np. /zaproszenie/<token>) musi przetrwać rundę e-mail — chowamy

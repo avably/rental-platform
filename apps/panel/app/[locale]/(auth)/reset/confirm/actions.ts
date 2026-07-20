@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
+import { authErrorKey, logAuthProviderError } from "@/app/[locale]/(auth)/auth-error";
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -28,7 +30,12 @@ export async function resetConfirmAction(
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
-    return { error: error.message };
+    // Jak w rejestracji (ADR-051): surowa treść do logu, na ekran nasz tekst.
+    // Tu najczęściej `weak_password` (polityka hasła po stronie dostawcy jest
+    // ostrzejsza niż nasz schemat) i `same_password`.
+    logAuthProviderError("reset-confirm", error);
+    const t = await getTranslations("authError");
+    return { error: t(authErrorKey(error)) };
   }
 
   redirect(await localePath("/login", { reset: "ok" }));

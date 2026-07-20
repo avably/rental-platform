@@ -106,6 +106,16 @@
     "submit": "Set password",
     "submitPending": "Saving…"
   },
+  "authError": {
+    "emailRateLimit": "We have already sent the maximum number of messages to this address. Please try again in an hour.",
+    "tooManyRequests": "Too many attempts. Please try again in a moment.",
+    "emailTaken": "An account with this email address already exists. Sign in or reset your password.",
+    "weakPassword": "This password does not meet the security requirements. Use a longer one, with digits and special characters.",
+    "linkExpired": "This link has expired or has already been used. Request a new one.",
+    "samePassword": "The new password must be different from your current one.",
+    "providerUnavailable": "The sign-in service is temporarily unavailable. Please try again in a few minutes.",
+    "generic": "We could not complete this operation. Please try again in a moment."
+  },
   "newOrganization": {
     "name": "Organization name",
     "slug": "Slug (address, e.g. my-company)",

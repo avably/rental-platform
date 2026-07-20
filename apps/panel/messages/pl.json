@@ -106,6 +106,16 @@
     "submit": "Ustaw hasło",
     "submitPending": "Zapisuję…"
   },
+  "authError": {
+    "emailRateLimit": "Wysłaliśmy już maksymalną liczbę wiadomości na ten adres. Spróbuj ponownie za godzinę.",
+    "tooManyRequests": "Zbyt wiele prób. Spróbuj ponownie za chwilę.",
+    "emailTaken": "Konto z tym adresem e-mail już istnieje. Zaloguj się lub zresetuj hasło.",
+    "weakPassword": "To hasło nie spełnia wymagań bezpieczeństwa. Użyj dłuższego, z cyframi i znakami specjalnymi.",
+    "linkExpired": "Link wygasł lub został już użyty. Poproś o nowy.",
+    "samePassword": "Nowe hasło musi różnić się od dotychczasowego.",
+    "providerUnavailable": "Usługa logowania chwilowo nie odpowiada. Spróbuj ponownie za kilka minut.",
+    "generic": "Nie udało się dokończyć operacji. Spróbuj ponownie za chwilę."
+  },
   "newOrganization": {
     "name": "Nazwa organizacji",
     "slug": "Slug (adres, np. moja-firma)",
