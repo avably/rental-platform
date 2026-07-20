@@ -170,7 +170,11 @@ for (const keyframe of [
 
 assert.equal(count("data-motion-demo"), 12);
 assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-assert.match(html, /animation-play-state:\s*paused/);
+assert.match(
+  extractBalancedCssBody(".motion-loop:focus-within *"),
+  /\banimation-play-state:\s*paused\s*;/,
+  "Reguła .motion-loop:focus-within * nie zatrzymuje animacji",
+);
 assert.match(html, /animation:\s*none\s*!important/);
 assert.match(html, /transition:\s*none\s*!important/);
 
@@ -183,12 +187,21 @@ const socialMotionFigures = figureTags.filter((tag) => {
   const classes = classesOf(tag);
   return (
     classes.includes("motion-loop") &&
-    (classes.includes("social-square") || classes.includes("social-portrait")) &&
-    /\bdata-motion-demo="ad-(?:square|portrait)-(?:signal|paper|frame)"/.test(
-      tag,
-    )
+    (classes.includes("social-square") || classes.includes("social-portrait"))
   );
 });
+const expectedSocialMotionDemoIds = [
+  "ad-portrait-frame",
+  "ad-portrait-paper",
+  "ad-portrait-signal",
+  "ad-square-frame",
+  "ad-square-paper",
+  "ad-square-signal",
+];
+const socialMotionDemoIds = socialMotionFigures.map(
+  (tag) => tag.match(/\bdata-motion-demo="([^"]+)"/)?.[1] ?? "",
+);
+const uniqueSocialMotionDemoIds = [...new Set(socialMotionDemoIds)].sort();
 const animatedLogoCards = figureTags.filter((tag) => {
   const classes = classesOf(tag);
   return classes.includes("logo-card") && classes.includes("motion-loop");
@@ -200,7 +213,26 @@ if (socialMotionFigures.length !== 6) {
   keyboardPauseContractErrors.push(
     "Kontrakt klawiatury nie obejmuje dokładnie sześciu reklam social motion-demo",
   );
-} else if (!socialMotionFigures.every((tag) => /\btabindex="0"/.test(tag))) {
+}
+
+if (uniqueSocialMotionDemoIds.length !== socialMotionDemoIds.length) {
+  keyboardPauseContractErrors.push(
+    "Identyfikatory reklam social motion-demo nie są unikalne",
+  );
+}
+
+if (
+  uniqueSocialMotionDemoIds.length !== expectedSocialMotionDemoIds.length ||
+  uniqueSocialMotionDemoIds.some(
+    (id, index) => id !== expectedSocialMotionDemoIds[index],
+  )
+) {
+  keyboardPauseContractErrors.push(
+    "Zestaw identyfikatorów reklam social motion-demo nie jest kompletny",
+  );
+}
+
+if (!socialMotionFigures.every((tag) => /\btabindex="0"/.test(tag))) {
   keyboardPauseContractErrors.push(
     "Reklamy social motion-demo nie są osiągalne klawiaturą, więc focus-within nie zatrzyma animacji",
   );
