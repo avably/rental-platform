@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { totpVerifySchema } from "@/lib/validation";
+import { safeNextPath, totpVerifySchema } from "@/lib/validation";
 
 export interface EnrollState {
   error?: string;
@@ -31,10 +31,27 @@ export async function enrollTotpAction(
 
 export interface VerifyState {
   error?: string;
-  success?: string;
 }
 
-/** Krok 2+3 — challenge + verify: potwierdza czynnik kodem z aplikacji TOTP. */
+/**
+ * Krok 2+3 — challenge + verify: potwierdza czynnik kodem z aplikacji TOTP.
+ *
+ * Sukces kończy się PRZEKIEROWANIEM, nie komunikatem. Wcześniej akcja zwracała
+ * `{ success }`, formularz zamieniał się w zdanie „2FA włączone" i użytkownik
+ * zostawał w ślepym zaułku (potwierdzone na produkcji przy pierwszej
+ * konfiguracji 2FA) — mimo że `mfa.verify` wymienia tokeny i sesja JEST już
+ * aal2, czyli może iść dokładnie tam, dokąd szła.
+ *
+ * Konwencja ta sama co w wyzwaniu MFA (`wyzwanie/actions.ts`): opcjonalny
+ * `next` z ukrytego pola formularza, sanityzowany `safeNextPath` (wyłącznie
+ * ścieżki wewnętrzne — inaczej ekran 2FA byłby open-redirectem uzbrojonym
+ * w świeżo podbitą sesję), fallback na stronę główną panelu.
+ *
+ * Fallback NIE MOŻE być zaszytym `/admin`: cel po włączeniu 2FA nie zależy od
+ * tego, czy sesja ma claim superadmina, a stały skok do panelu superadmina
+ * ujawniłby jego istnienie każdemu, kto włączy 2FA (maskowanie 404 —
+ * ADR-010/011). Superadmin i tak trafia tam z `next`, które niesie guard.
+ */
 export async function verifyTotpAction(
   _prevState: VerifyState,
   formData: FormData,
@@ -63,5 +80,5 @@ export async function verifyTotpAction(
   });
   if (verifyError) return { error: verifyError.message };
 
-  return { success: "Uwierzytelnianie dwuskładnikowe włączone." };
+  redirect(await localePath(safeNextPath(formData.get("next")) ?? "/"));
 }
