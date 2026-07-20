@@ -25,6 +25,13 @@ export interface DomainStatus {
   host: string;
   /** Identyfikator hosta u dostawcy → domains.provider_domain_id. */
   providerDomainId: string | null;
+  /**
+   * Projekt, w którym host FAKTYCZNIE siedzi wg dostawcy (2.6c). Nie trafia do
+   * bazy — służy WYŁĄCZNIE porównaniu z konfiguracją, żeby „201 Created" nie
+   * uchodziło za dowód, że host wylądował tam, gdzie chcieliśmy.
+   * `null` = dostawca nie podał pola (patrz api.ts, tolerancja braku).
+   */
+  projectId: string | null;
   /** Werdykt WŁASNOŚCI wydany przez dostawcę → domains.verified. */
   verified: boolean;
   /** Rekordy do wpisania u rejestratora, żeby host zaczął działać. */

@@ -3,6 +3,12 @@
  * API dostawcy: kształty odpowiedzi wg jego dokumentacji, dane WYŁĄCZNIE
  * fikcyjne. CI nie dotyka sieci ani konta hostingowego, w repo nie ma
  * credentiali (wzorzec ADR-031, courier/api.test.ts).
+ *
+ * DOWÓD MUTACYJNY (b) tego pliku (2.6c): spraw, by
+ * `belongsToConfiguredProject` zwracało zawsze `true`, a zapłonie
+ * „201 z CUDZEGO projektu to porażka, nie sukces" tutaj i jego odpowiednik na
+ * akcji panelu (asercja na `last_error` i wierszu w bazie) w
+ * apps/panel/test/domains-retry.test.ts. Restore przywraca zieleń.
  */
 import { describe, expect, it, vi } from "vitest";
 
@@ -31,6 +37,23 @@ const FIX = {
     name: "acme.avably.io",
     apexName: "avably.io",
     projectId: "prj_abc",
+    verified: true,
+  },
+  /**
+   * Ten sam kształt, ale host siedzi w INNYM projekcie. To jest dowód rzeczowy
+   * długu z ADR-046: dla kodu ufającego statusowi 2xx ta odpowiedź jest
+   * nieodróżnialna od sukcesu.
+   */
+  inOtherProject: {
+    name: "acme.avably.io",
+    apexName: "avably.io",
+    projectId: "prj_PANELU",
+    verified: true,
+  },
+  /** Starszy kształt/dryf pola: `projectId` nie przyszedł wcale. */
+  withoutProjectId: {
+    name: "acme.avably.io",
+    apexName: "avably.io",
     verified: true,
   },
   conflict: {
@@ -81,7 +104,7 @@ function client(responses: Response[]) {
 
 describe("VercelDomainsClient — kontrakt na fixtures", () => {
   it("addDomain wysyła nazwę hosta do projektu z tokenem w nagłówku i teamId w query", async () => {
-    const { api, calls } = client([json(FIX.addedUnverified, 200)]);
+    const { api, calls } = client([json(FIX.addedUnverified, 200), json(FIX.addedUnverified, 200)]);
 
     const status = await api.addDomain("sklep.example.com");
 
@@ -96,7 +119,7 @@ describe("VercelDomainsClient — kontrakt na fixtures", () => {
   });
 
   it("wyzwania własności od dostawcy stają się rekordami DNS do pokazania najemcy", async () => {
-    const { api } = client([json(FIX.addedUnverified, 200)]);
+    const { api } = client([json(FIX.addedUnverified, 200), json(FIX.addedUnverified, 200)]);
 
     const status = await api.addDomain("sklep.example.com");
 
@@ -111,7 +134,7 @@ describe("VercelDomainsClient — kontrakt na fixtures", () => {
   });
 
   it("host zweryfikowany przez dostawcę wraca z verified=true", async () => {
-    const { api } = client([json(FIX.addedVerified, 200)]);
+    const { api } = client([json(FIX.addedVerified, 200), json(FIX.addedVerified, 200)]);
     await expect(api.addDomain("acme.avably.io")).resolves.toMatchObject({ verified: true });
   });
 
@@ -198,5 +221,70 @@ describe("VercelDomainsClient — kontrakt na fixtures", () => {
 
   it("cel CNAME dla własnych domen jest stałą portu (nie przychodzi z API)", () => {
     expect(CUSTOM_DOMAIN_CNAME_TARGET).toBe("cname.vercel-dns.com");
+  });
+});
+
+/**
+ * DŁUG Z ADR-046, DOMKNIĘTY W 2.6c: „201 Created" to DEKLARACJA dostawcy, że
+ * coś zrobił — nie dowód, że host trafił tam, gdzie chcieliśmy. Poprzednia
+ * wersja budowała `DomainStatus` wprost z odpowiedzi na POST, więc panel
+ * ogłaszał „Działa" na podstawie sygnału, który tego nie dowodził.
+ */
+describe("sukces rejestracji jest SPRAWDZANY, nie deklarowany", () => {
+  it("po 2xx klient DOPYTUJE o stan hosta, zamiast ufać odpowiedzi na POST", async () => {
+    const { api, calls } = client([json(FIX.addedVerified, 201), json(FIX.addedVerified, 200)]);
+
+    await api.addDomain("acme.avably.io");
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.method, "brak drugiego zapytania = sukces wzięty z deklaracji").toBe("GET");
+    expect(calls[1]?.url).toContain("/v9/projects/prj_abc/domains/acme.avably.io");
+  });
+
+  // SEDNO dowodu mutacyjnego (b).
+  it("201 z CUDZEGO projektu to porażka, nie sukces", async () => {
+    const { api } = client([json(FIX.addedVerified, 201), json(FIX.inOtherProject, 200)]);
+
+    const error = await api.addDomain("acme.avably.io").catch((e: unknown) => e);
+
+    expect(error, "host w cudzym projekcie przeszedł jako sukces").toBeInstanceOf(
+      VercelDomainsError,
+    );
+    expect((error as Error).message).toContain("INNEGO projektu");
+  });
+
+  it("201, po którym hosta NIE MA w projekcie, to też porażka", async () => {
+    const { api } = client([json(FIX.addedVerified, 201), json({}, 404)]);
+
+    const error = await api.addDomain("acme.avably.io").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(VercelDomainsError);
+    expect((error as Error).message).toContain("nie ma go w skonfigurowanym projekcie");
+  });
+
+  // Kontrola projektu jest DRUGĄ warstwą (pierwsza to zawężenie ścieżki
+  // zapytania). Twarde wymaganie pola zamieniłoby dryf API dostawcy w awarię
+  // rejestracji dla wszystkich najemców.
+  it("brak `projectId` w odpowiedzi nie jest niezgodnością", async () => {
+    const { api } = client([json(FIX.withoutProjectId, 201), json(FIX.withoutProjectId, 200)]);
+
+    await expect(api.addDomain("acme.avably.io")).resolves.toMatchObject({ projectId: null });
+  });
+
+  // Ta sama kontrola obowiązuje „sprawdź weryfikację" i rozstrzygnięcie 409 —
+  // dlatego siedzi w getDomainStatus, przez które przechodzą wszystkie ścieżki.
+  it("odczyt stanu hosta z CUDZEGO projektu też jest porażką", async () => {
+    const { api } = client([json(FIX.inOtherProject, 200)]);
+
+    await expect(api.getDomainStatus("acme.avably.io")).rejects.toBeInstanceOf(VercelDomainsError);
+  });
+
+  it("komunikat niezgodności nie zdradza id projektów", async () => {
+    const { api } = client([json(FIX.inOtherProject, 200)]);
+
+    const error = await api.getDomainStatus("acme.avably.io").catch((e: unknown) => e);
+
+    expect((error as Error).message).not.toContain("prj_abc");
+    expect((error as Error).message).not.toContain("prj_PANELU");
   });
 });

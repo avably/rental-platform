@@ -10,12 +10,16 @@
 import { describe, expect, it } from "vitest";
 
 import { VercelDomainsError } from "./api";
+import { STOREFRONT_TOKEN_ENV } from "./config";
 import { checkDomainSafely, registerDomainSafely } from "./registration";
 import type { DomainStatus } from "./types";
 
 const OK: DomainStatus = {
   host: "acme.avably.io",
   providerDomainId: "acme.avably.io",
+  // Zgodność projektu rozstrzyga port (api.ts) — tutaj klient jest już
+  // wstrzyknięty, więc pole niesie tylko kształt, nie decyzję.
+  projectId: "prj_storefront",
   verified: true,
   requiredRecords: [],
 };
@@ -77,7 +81,7 @@ describe("registerDomainSafely", () => {
     const result = await registerDomainSafely("acme.avably.io", { config: {} });
 
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("VERCEL_API_TOKEN");
+    expect(result.error).toContain(STOREFRONT_TOKEN_ENV);
   });
 
   it("bardzo długi komunikat dostawcy jest przycięty przed zapisem do bazy", async () => {
