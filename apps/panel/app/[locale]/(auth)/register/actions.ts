@@ -2,7 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 import { verifyTurnstile } from "@avably/security/turnstile";
@@ -48,9 +48,16 @@ export async function registerAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  // Język ekranu rejestracji ląduje w user_metadata, bo to JEDYNE źródło
+  // języka, jakie ma Send Email Hook (ADR-048): potwierdzenie adresu leci
+  // ZANIM użytkownik ma organizację, więc `tenants.locale` jeszcze nie
+  // istnieje, a `redirect_to` nie niesie prefiksu locale. Wartość jest
+  // walidowana po stronie hooka — user_metadata jest zapisywalne przez
+  // użytkownika, więc nie ufamy jej w ciemno.
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: { data: { locale: await getLocale() } },
   });
   if (error) {
     return { error: error.message };

@@ -129,6 +129,57 @@ function paramsOf(routePath: string): Record<string, string> {
   return params;
 }
 
+/**
+ * ROUTE HANDLERY (`route.ts`) NIE SĄ STRONAMI i glob wyżej ich nie widzi —
+ * a to znaczy, że do 1.5.8 bramka nie miała o nich POJĘCIA. Endpoint dopisany
+ * pod `app/api/**` byłby dla niej niewidzialny dokładnie tak, jak wcześniej
+ * niewidzialne były strony bez guarda: cicho publiczny, przy zielonym CI.
+ *
+ * Handlerów nie da się odpytać tak jak stron (nie przekierowują anonima —
+ * część z nich Z DEFINICJI obsługuje żądania bez sesji: webhook woła obcy
+ * system, callback e-maila woła użytkownik, który sesji jeszcze nie ma).
+ * Wymóg jest więc inny, ale równie twardy: każdy handler musi mieć w tej mapie
+ * JAWNY wpis nazywający, CO go chroni. Nowy endpoint bez wpisu pali test —
+ * i to jest ta linia, którą recenzent ma zobaczyć w diffie.
+ */
+const API_ROUTE_PROTECTION = new Map<string, string>([
+  [
+    "/api/webhooks/supabase-email",
+    "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
+      "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +
+      "(Standard Webhooks) w trybie fail-closed: brak albo zły podpis = odmowa " +
+      "bez wysyłki, brak skonfigurowanego sekretu = endpoint nie działa wcale.",
+  ],
+  [
+    "/auth/confirm",
+    "Callback linku z e-maila (potwierdzenie rejestracji i reset hasła) — " +
+      "użytkownik z definicji nie ma jeszcze sesji, uwierzytelnia go " +
+      "jednorazowy token_hash z wiadomości, weryfikowany przez verifyOtp.",
+  ],
+  [
+    "/zamowienia/[id]/delivery-label",
+    "Etykieta przewozowa PDF (ADR-031) — CHRONIONA SESJĄ: handler woła " +
+      "requireMember() i zwraca 401 anonimowi, a przesyłkę filtruje po " +
+      "zamówieniu, więc RLS domyka zasięg do własnego tenanta.",
+  ],
+]);
+
+const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");
+
+/**
+ * `../app/api/webhooks/supabase-email/route.ts` → `/api/webhooks/supabase-email`.
+ * Segment locale zdejmowany jak w `routePathOf`, żeby ścieżki handlerów i stron
+ * czytało się tak samo.
+ */
+function handlerPathOf(moduleKey: string): string {
+  return moduleKey
+    .replace("../app", "")
+    .replace("/[locale]", "")
+    .replace(/\/route\.ts$/, "");
+}
+
+const API_ROUTES = Object.keys(routeHandlerModules).map(handlerPathOf).sort();
+
 const ROUTES = Object.entries(pageModules)
   .map(([moduleKey, load]) => ({ path: routePathOf(moduleKey), load }))
   .sort((a, b) => a.path.localeCompare(b.path));
@@ -156,6 +207,39 @@ describe("introspekcja tras", () => {
     const known = new Set(ROUTES.map((route) => route.path));
     const stale = [...PUBLIC_ROUTES.keys()].filter((path) => !known.has(path));
     expect(stale, `wyjątki wskazujące na nieistniejące trasy: ${stale.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("route handlery — klasyfikacja ochrony", () => {
+  it("widzi handlery — pusty glob wygasiłby tę bramkę bez czerwonego testu", () => {
+    expect(API_ROUTES).toContain("/api/webhooks/supabase-email");
+    expect(API_ROUTES).toContain("/auth/confirm");
+  });
+
+  it("każdy handler ma jawny wpis mówiący, co go chroni", () => {
+    const unclassified = API_ROUTES.filter((path) => !API_ROUTE_PROTECTION.has(path));
+    expect(
+      unclassified,
+      `handlery bez świadomej klasyfikacji ochrony: ${unclassified.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("każdy wpis klasyfikacji wskazuje na istniejący handler", () => {
+    const known = new Set(API_ROUTES);
+    const stale = [...API_ROUTE_PROTECTION.keys()].filter((path) => !known.has(path));
+    expect(stale, `klasyfikacje wskazujące na nieistniejące handlery: ${stale.join(", ")}`).toEqual(
+      [],
+    );
+  });
+
+  it("wpis klasyfikacji niesie POWÓD, nie samą ścieżkę", () => {
+    // Wpis pusty albo jednosłowny byłby wpisem-atrapą: bramka świeciłaby na
+    // zielono, a decyzja o publiczności trasy nadal nie byłaby nigdzie
+    // uzasadniona — dokładnie ten sam brak, który pozwolił pięciu stronom
+    // wypaść spod ochrony przed 1.5.7.
+    for (const [path, reason] of API_ROUTE_PROTECTION) {
+      expect(reason.length, `wpis ${path} bez uzasadnienia`).toBeGreaterThan(40);
+    }
   });
 });
 
