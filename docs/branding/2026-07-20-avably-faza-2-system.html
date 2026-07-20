@@ -104,6 +104,16 @@
   --space-8: 40px;
   --space-9: 48px;
   --space-10: 64px;
+  --motion-fast: 160ms;
+  --motion-ui: 240ms;
+  --motion-confirm: 480ms;
+  --motion-reveal: 720ms;
+  --motion-delight: 1200ms;
+  --motion-logo: 6000ms;
+  --motion-ad: 8000ms;
+  --motion-ambient: 16000ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .dark {
@@ -388,6 +398,77 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .skeleton-row + .skeleton-row { border-top: 1px solid var(--border); }
 [data-skeleton-cell] { height: 14px; border-radius: 6px; background: var(--secondary); }
 
+/* ===== motion system ===== */
+@keyframes operational-rail {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes ad-sequence {
+  0% { opacity: 0; transform: translateY(8px); }
+  12%, 54% { opacity: 1; transform: translateY(0); }
+  72%, 92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes one-shot-delight {
+  0% { opacity: 0; transform: translateY(8px) scale(.96); }
+  65% { opacity: 1; transform: translateY(-2px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+[data-loop="rail"] { animation: operational-rail var(--motion-ambient) linear infinite; }
+[data-loop="ad"] { animation: ad-sequence var(--motion-ad) var(--ease-standard) infinite; }
+[data-motion-demo="logo"][data-loop="none"] { animation: one-shot-delight var(--motion-logo) var(--ease-out) 1 both; }
+[data-motion-demo="ui"][data-loop="none"] { animation: one-shot-delight var(--motion-confirm) var(--ease-out) 1 both; }
+[data-motion-demo="landing"][data-loop="none"] { animation: one-shot-delight var(--motion-reveal) var(--ease-out) 1 both; }
+[data-motion-demo="dashboard"][data-loop="none"],
+[data-motion-demo="empty"][data-loop="none"],
+[data-motion-demo="not-found"][data-loop="none"] { animation: one-shot-delight var(--motion-delight) var(--ease-out) 1 both; }
+.motion-loop:hover, .motion-loop:hover *,
+.motion-loop:focus-within, .motion-loop:focus-within * { animation-play-state: paused; }
+
+/* ===== motion section visuals ===== */
+[data-phase2-section="motion"] .wrap > h2, [data-phase2-section="motion"] .wrap > h3, [data-phase2-section="motion"] .eyebrow { color: var(--foreground); }
+.motion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 24px; }
+.motion-card { margin: 0; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
+.motion-card svg { width: 180px; height: auto; }
+.motion-card figcaption { margin-top: 12px; font: 500 12px/16px "Geist Sans", sans-serif; color: var(--muted-foreground); }
+.ui-demo-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-left: 2px solid var(--accent-foreground); border-radius: var(--radius-md); }
+.landing-demo { display: grid; overflow: hidden; padding: 0; border-radius: var(--radius-lg); border: 1px solid var(--border); margin: 0 0 24px; }
+.landing-hero { background: #FFFFFF; color: #0B1017; padding: 32px 24px; }
+.landing-eyebrow { margin: 0 0 8px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.16em; color: #55616D; }
+.landing-title { font-size: 40px; line-height: 44px; letter-spacing: -0.025em; margin: 0; }
+.landing-ops { background: #0B1017; color: #F4F6F5; padding: 24px; }
+.landing-ops-label { margin: 0 0 12px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #B8C0C5; }
+.rail-viewport { overflow: hidden; }
+.rail-track { display: flex; width: max-content; }
+.rail-half { display: flex; gap: 12px; padding-right: 12px; }
+.rail-cell { white-space: nowrap; padding: 8px 14px; border: 1px solid #2A3540; border-radius: var(--radius-md); font: 500 13px/18px "Geist Sans", sans-serif; color: #F4F6F5; }
+.landing-gate { background: #EAFFA4; color: #0B1017; padding: 20px 24px; font: 600 15px/22px "Geist Sans", sans-serif; }
+.ads-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.ad-card { margin: 0; display: flex; align-items: center; justify-content: center; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.ad-square { width: 300px; height: 300px; }
+.ad-portrait { width: 264px; height: 330px; }
+.ad-inner { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px; text-align: center; }
+.ad-inner svg { width: 160px; height: auto; }
+.ad-copy { margin: 0; color: #0B1017; font-size: 22px; line-height: 28px; }
+
+@media (max-width: 640px) {
+  .motion-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+    clip-path: none !important;
+  }
+  [data-motion-final] { opacity: 1 !important; transform: none !important; }
+  [data-loop="rail"] { transform: none !important; width: 100%; min-width: 0; overflow: visible; }
+  [data-rail-primary] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; white-space: normal; overflow: visible; }
+  [data-rail-cell] { min-width: 0; height: auto; overflow-wrap: anywhere; }
+  [data-rail-duplicate="true"] { display: none !important; }
+}
+
   </style>
 </head>
 <body>
@@ -540,6 +621,16 @@ color-scheme: light dark;
   --space-8: 40px;
   --space-9: 48px;
   --space-10: 64px;
+  --motion-fast: 160ms;
+  --motion-ui: 240ms;
+  --motion-confirm: 480ms;
+  --motion-reveal: 720ms;
+  --motion-delight: 1200ms;
+  --motion-logo: 6000ms;
+  --motion-ad: 8000ms;
+  --motion-ambient: 16000ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
 }</code></pre>
         <pre class="code-surface" data-token-code="dark"><code data-code-source="dark-theme">.dark {
 --background: oklch(0.17132 0.01671 256.840); /* #0B1017 */
@@ -641,7 +732,7 @@ color-scheme: light dark;
       <div class="wrap">
         <p class="eyebrow">03 / Dashboard</p>
         <h2>Uczciwy placeholder, nie udawana analityka.</h2>
-        <article class="panel-shell product-ui" data-screen="dashboard-placeholder" data-font-scope="product" data-no-backend="true" style="display:block">
+        <article class="panel-shell product-ui" data-screen="dashboard-placeholder" data-font-scope="product" data-no-backend="true" data-motion-demo="dashboard" data-loop="none" data-motion-final="true" style="display:block">
           <h3>Tu będzie centrum dowodzenia.</h3>
           <p>Dashboard czeka na dane. Do tego czasu najwięcej dzieje się w zamówieniach.</p>
           <div class="future-charts" aria-label="Podgląd przyszłych wykresów bez danych">
@@ -790,14 +881,14 @@ color-scheme: light dark;
           <span class="sr-only">Ładowanie zamówień…</span>
         </article>
 
-        <article class="panel-state product-ui" data-screen="empty" data-font-scope="product">
+        <article class="panel-state product-ui" data-screen="empty" data-font-scope="product" data-motion-demo="empty" data-loop="none" data-motion-final="true">
           <figure data-brand-sign data-delight="empty" aria-label="Animowany znak Avably"><svg aria-hidden="true" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg></figure>
           <h3>Podejrzanie spokojnie. Dodaj pierwsze zamówienie.</h3>
           <button class="button-primary">Dodaj zamówienie</button>
           <a href="#product-form">Przejdź do katalogu</a>
         </article>
 
-        <article class="panel-state product-ui" data-screen="not-found" data-font-scope="product">
+        <article class="panel-state product-ui" data-screen="not-found" data-font-scope="product" data-motion-demo="not-found" data-loop="none" data-motion-final="true">
           <figure data-brand-sign data-delight="not-found" aria-label="Animowany znak Avably"><svg aria-hidden="true" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg></figure>
           <p class="numeric-data" data-data-value>404</p>
           <h3>Ta strona wyjechała bez protokołu wydania.</h3>
@@ -883,7 +974,64 @@ color-scheme: light dark;
         </div>
       </div>
     </section>
-    <section id="motion" data-phase2-section="motion" data-surface-phase="dark"></section>
+    <section id="motion" data-phase2-section="motion" data-surface-phase="dark" class="dark">
+      <div class="wrap">
+        <p class="eyebrow">10 / Motion</p>
+        <h2>Delikatny, operacyjny ruch.</h2>
+        <div class="motion-grid">
+          <figure class="motion-card" data-brand-sign data-motion-demo="logo" data-loop="none" data-motion-final="true">
+            <svg viewBox="0 0 348 93" role="img" aria-label="Reveal znaku Avably"><use href="#avably-logo-approved"></use></svg>
+            <figcaption>logo · 6000 ms · one-shot</figcaption>
+          </figure>
+          <div class="motion-card" data-motion-demo="ui" data-loop="none" data-motion-final="true">
+            <div class="ui-demo-row"><span class="numeric-data" data-data-value>ZAM/2026/0719</span><span class="chip chip-positive" data-status-axis="order" data-status-value="returned" data-tone="positive">Zwrócone</span></div>
+            <figcaption>ui · 480 ms · potwierdzenie</figcaption>
+          </div>
+        </div>
+
+        <h3>Landing — biel, prawie czerń, limonkowa bramka</h3>
+        <article class="landing-demo" data-screen="landing-motion" data-font-scope="marketing" data-motion-demo="landing" data-loop="none" data-motion-final="true">
+          <div class="landing-hero">
+            <p class="landing-eyebrow">AVABLY</p>
+            <div class="brand-copy landing-title">Prowadź wynajem.</div>
+          </div>
+          <div class="landing-ops">
+            <p class="landing-ops-label">Sygnał operacyjny</p>
+            <div class="rail-viewport">
+              <div class="motion-loop rail-track" data-loop="rail" tabindex="0" aria-label="Ciągły rail danych operacyjnych">
+                <div class="rail-half" data-rail-primary>
+                  <span class="rail-cell" data-rail-cell>ZAM/2026/0714</span>
+                  <span class="rail-cell" data-rail-cell>Nagrzewnica 20 kW</span>
+                  <span class="rail-cell" data-rail-cell>Opłacone</span>
+                  <span class="rail-cell" data-rail-cell>ZAM/2026/0719</span>
+                  <span class="rail-cell" data-rail-cell>Zwrócone</span>
+                  <span class="rail-cell" data-rail-cell>640,00 zł</span>
+                </div>
+                <div class="rail-half" data-rail-duplicate="true" aria-hidden="true">
+                  <span class="rail-cell">ZAM/2026/0714</span>
+                  <span class="rail-cell">Nagrzewnica 20 kW</span>
+                  <span class="rail-cell">Opłacone</span>
+                  <span class="rail-cell">ZAM/2026/0719</span>
+                  <span class="rail-cell">Zwrócone</span>
+                  <span class="rail-cell">640,00 zł</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="landing-gate">Gotowe do późniejszego wdrożenia.</div>
+        </article>
+
+        <h3>Social — jedna pętla, dwa formaty</h3>
+        <div class="ads-grid">
+          <figure class="motion-loop ad-card ad-square" data-screen="social-ad-square" data-font-scope="marketing" data-motion-demo="ad-square" data-loop="ad" data-format="1:1" data-motion-final="true" tabindex="0" aria-label="Reklama social 1:1">
+            <div class="ad-inner"><svg viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#avably-logo-approved"></use></svg><p class="ad-copy brand-support">Rezerwacje pod kontrolą.</p></div>
+          </figure>
+          <figure class="motion-loop ad-card ad-portrait" data-screen="social-ad-portrait" data-font-scope="marketing" data-motion-demo="ad-portrait" data-loop="ad" data-format="4:5" data-motion-final="true" tabindex="0" aria-label="Reklama social 4:5">
+            <div class="ad-inner"><svg viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#avably-logo-approved"></use></svg><p class="ad-copy brand-support">Rezerwacje pod kontrolą.</p></div>
+          </figure>
+        </div>
+      </div>
+    </section>
     <section id="handoff" data-phase2-section="handoff" data-surface-phase="lime"></section>
   </main>
 </body>

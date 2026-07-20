@@ -986,6 +986,103 @@ for (const row of skeletonRows) {
   assert.deepEqual(cells.map((cell) => cell.attributes["data-cell"]), requiredCells);
 }
 
+// ===== Task 7: motion system, landing, social, reduced-motion =====
+for (const token of [
+  "--motion-fast: 160ms", "--motion-ui: 240ms", "--motion-confirm: 480ms",
+  "--motion-reveal: 720ms", "--motion-delight: 1200ms", "--motion-logo: 6000ms",
+  "--motion-ad: 8000ms", "--motion-ambient: 16000ms",
+]) assert.ok(css.includes(token), `Brak ${token} w aktywnym CSS`);
+
+const motionDemoContract = {
+  logo: { loop: "none" },
+  ui: { loop: "none" },
+  dashboard: { loop: "none" },
+  landing: { loop: "none" },
+  "ad-square": { loop: "ad", format: "1:1" },
+  "ad-portrait": { loop: "ad", format: "4:5" },
+  empty: { loop: "none" },
+  "not-found": { loop: "none" },
+};
+for (const [demo, contract] of Object.entries(motionDemoContract)) {
+  const nodes = findAll(tree, (node) => node.attributes["data-motion-demo"] === demo);
+  assert.equal(nodes.length, 1, `Demo ${demo} musi wystąpić raz`);
+  assert.equal(nodes[0].attributes["data-loop"], contract.loop);
+  assert.equal(nodes[0].attributes["data-motion-final"], "true");
+  if (contract.format) assert.equal(nodes[0].attributes["data-format"], contract.format);
+}
+
+const infiniteRules = [...css.matchAll(/([^{}]+)\{([^{}]*animation[^{}]*\binfinite\b[^{}]*)\}/g)]
+  .map(([, selector]) => selector.trim().replace(/\s+/g, " "));
+assert.deepEqual(infiniteRules.sort(), ['[data-loop="ad"]', '[data-loop="rail"]'].sort());
+assert.match(parseCssDeclarations(extractBalancedCssBody(css, '[data-loop="rail"]')).get("animation") ?? "", /var\(--motion-ambient\)[\s\S]*infinite/);
+assert.match(parseCssDeclarations(extractBalancedCssBody(css, '[data-loop="ad"]')).get("animation") ?? "", /var\(--motion-ad\)[\s\S]*infinite/);
+const motionLoops = findAll(tree, (node) => ["rail", "ad"].includes(node.attributes["data-loop"]));
+assert.equal(motionLoops.filter((node) => node.attributes["data-loop"] === "rail").length, 1);
+assert.equal(motionLoops.filter((node) => node.attributes["data-loop"] === "ad").length, 2);
+for (const loop of motionLoops) {
+  assert.match(loop.attributes.class ?? "", /\bmotion-loop\b/);
+  assert.equal(loop.attributes.tabindex, "0");
+}
+assert.match(css, /\.motion-loop:hover(?:,|[^}])*animation-play-state:\s*paused/);
+assert.match(css, /\.motion-loop:focus-within(?:,|[^}])*animation-play-state:\s*paused/);
+
+const oneShotDurations = {
+  logo: "var(--motion-logo)",
+  ui: "var(--motion-confirm)",
+  dashboard: "var(--motion-delight)",
+  landing: "var(--motion-reveal)",
+  empty: "var(--motion-delight)",
+  "not-found": "var(--motion-delight)",
+};
+for (const [demo, duration] of Object.entries(oneShotDurations)) {
+  const node = findOne((candidate) => candidate.attributes["data-motion-demo"] === demo, `Brak jednego demo ${demo}`);
+  assert.equal(node.attributes["data-loop"], "none");
+  assert.equal(node.attributes["data-motion-final"], "true");
+  const rule = parseCssDeclarations(extractBalancedCssBody(css, `[data-motion-demo="${demo}"][data-loop="none"]`));
+  assert.match(rule.get("animation") ?? "", new RegExp(`${duration.replace(/[()\-]/g, "\\$&")}[\\s\\S]*\\b1\\b`));
+}
+
+const parseKeyframes = (name) => {
+  const body = extractBalancedCssBody(css, `@keyframes ${name}`);
+  assert.ok(body, `Brak @keyframes ${name}`);
+  return [...body.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selectors, declarations]) =>
+    selectors.split(",").map((selector) => ({
+      percent: selector.trim() === "from" ? 0 : selector.trim() === "to" ? 100 : Number.parseFloat(selector),
+      declarations: Object.fromEntries(parseCssDeclarations(declarations)),
+    })),
+  ).sort((left, right) => left.percent - right.percent);
+};
+
+const allowedMotionProperties = new Set(["opacity", "transform", "clip-path"]);
+for (const name of ["operational-rail", "ad-sequence", "one-shot-delight"]) {
+  for (const frame of parseKeyframes(name)) {
+    for (const property of Object.keys(frame.declarations)) assert.ok(allowedMotionProperties.has(property), `${name}: ${property}`);
+  }
+}
+
+const assertStaticKeyframeInterval = (name, start, end) => {
+  const frames = parseKeyframes(name).filter((frame) => frame.percent >= start && frame.percent <= end);
+  assert.equal(frames[0].percent, start);
+  assert.equal(frames.at(-1).percent, end);
+  for (const frame of frames.slice(1)) assert.deepEqual(frame.declarations, frames[0].declarations);
+};
+assertStaticKeyframeInterval("ad-sequence", 72, 92);
+
+const railPrimary = findOne((node) => "data-rail-primary" in node.attributes, "Brak głównego zestawu raila");
+assert.equal(directChildren(railPrimary, (node) => "data-rail-cell" in node.attributes).length, 6);
+assert.equal(findAll(tree, (node) => node.attributes["data-rail-duplicate"] === "true").length, 1);
+
+const reduced = extractBalancedCssBody(css, "@media (prefers-reduced-motion: reduce)");
+assert.match(reduced, /animation:\s*none\s*!important/);
+assert.match(reduced, /transition:\s*none\s*!important/);
+assert.match(reduced, /clip-path:\s*none\s*!important/);
+assert.match(reduced, /\[data-motion-final\][^}]*opacity:\s*1\s*!important[^}]*transform:\s*none\s*!important/);
+assert.match(reduced, /\[data-loop="rail"\][^}]*transform:\s*none\s*!important[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*overflow:\s*visible/);
+assert.match(reduced, /\[data-rail-primary\][^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)[^}]*white-space:\s*normal/);
+assert.match(reduced, /\[data-rail-cell\][^}]*min-width:\s*0[^}]*overflow-wrap:\s*anywhere/);
+assert.match(reduced, /\[data-rail-duplicate="true"\][^}]*display:\s*none\s*!important/);
+assert.doesNotMatch(reduced, /shimmer|background-position/);
+
 // The single contrast-registry invocation (grown by later tasks).
 if (CONTRAST_REGISTRY_CALL) assertContrastRegistry(requiredContrasts);
 
