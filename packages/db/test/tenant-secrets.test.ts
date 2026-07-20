@@ -20,6 +20,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   GLOBKURIER_PASSWORD_SECRET_KEY,
+  decryptTenantSecret,
   encryptTenantSecret,
   resolveSecretsKeyring,
 } from "@avably/core";
@@ -260,9 +261,60 @@ describe.skipIf(!hasEnv)("sekrety tenanta i bramka właściciela (0024, ADR-052)
         where tenant_id = ${tenantId} and key = ${GLOBKURIER_PASSWORD_SECRET_KEY}
       `;
       expect(rows, "brak wiersza sekretu").toHaveLength(1);
-      expect(rows[0].ciphertext, "hasło leży w bazie JAWNIE").not.toContain(COURIER_PLAINTEXT);
-      expect(rows[0].ciphertext).toMatch(/^v1:1:/);
+      const stored = rows[0].ciphertext;
+
+      // Sama nieobecność napisu to ZA MAŁO: wykryte dowodem mutacyjnym (b) —
+      // mutant, który wkłada do koperty wartość jawną zamiast szyfrogramu,
+      // przechodził tę asercję, bo człon koperty jest zakodowany base64url
+      // i literalnego hasła w kolumnie nie widać. Sprawdzamy więc też
+      // trywialne kodowania ORAZ zdekodowaną zawartość członu danych.
+      const plain = Buffer.from(COURIER_PLAINTEXT, "utf8");
+      for (const [nazwa, forma] of [
+        ["surowa", COURIER_PLAINTEXT],
+        ["base64", plain.toString("base64")],
+        ["base64url", plain.toString("base64url")],
+        ["hex", plain.toString("hex")],
+      ] as const) {
+        expect(stored, `hasło leży w bazie w postaci ${nazwa}`).not.toContain(forma);
+      }
+      const dataMember = Buffer.from(stored.split(":")[4] ?? "", "base64url").toString("utf8");
+      expect(dataMember, "człon danych koperty NIESIE wartość jawną").not.toContain(
+        COURIER_PLAINTEXT,
+      );
+
+      expect(stored).toMatch(/^v1:1:/);
       expect(rows[0].key_version).toBe(1);
+    });
+
+    it("zawartość koperty zależy OD KLUCZA — obcym kluczem się nie odczyta", async () => {
+      // Najmocniejsza z asercji tej grupy i drugi wniosek z dowodu (b):
+      // mutant przepisujący wartość jawną „odszyfrowuje się" dowolnym kluczem,
+      // bo klucza w ogóle nie używa. Test wymaga, żeby PODMIANA klucza
+      // popsuła odczyt — czyli żeby szyfrowanie było prawdziwe, a nie pozorne.
+      const rows = await sql<{ ciphertext: string }[]>`
+        select ciphertext from public.tenant_secrets
+        where tenant_id = ${tenantId} and key = ${GLOBKURIER_PASSWORD_SECRET_KEY}
+      `;
+      const obcyKeyring = resolveSecretsKeyring({
+        AVABLY_SECRETS_KEY_CURRENT: "1",
+        AVABLY_SECRETS_KEY_V1: Buffer.alloc(32, 99).toString("base64"),
+      });
+      expect(() =>
+        decryptTenantSecret(
+          rows[0].ciphertext,
+          { tenantId, key: GLOBKURIER_PASSWORD_SECRET_KEY },
+          obcyKeyring,
+        ),
+      ).toThrow();
+
+      // Kontrola pozytywna tej samej asercji: WŁAŚCIWY klucz odczytuje.
+      expect(
+        decryptTenantSecret(
+          rows[0].ciphertext,
+          { tenantId, key: GLOBKURIER_PASSWORD_SECRET_KEY },
+          KEYRING,
+        ),
+      ).toBe(COURIER_PLAINTEXT);
     });
 
     it("wartości jawnej nie ma NIGDZIE w tabeli sekretów", async () => {
@@ -348,10 +400,26 @@ describe.skipIf(!hasEnv)("sekrety tenanta i bramka właściciela (0024, ADR-052)
 
   describe("sekret nie wycieka poza tabelę", () => {
     it("wartości jawnej nie ma w audit_log", async () => {
+      // Zasiew JEST częścią dowodu, nie przygotowaniem: bez niego pętla niżej
+      // nie wykonuje ani jednego obiegu i test jest zielony przez PUSTKĘ
+      // (dziś nic nie loguje zmian ustawień). Taka asercja przepuściłaby
+      // regres, który zacznie logować sekret — złapane przy dowodzie (d).
+      const { error: seedError } = await admin.from("audit_log").insert({
+        tenant_id: tenantId,
+        action: "tenant_settings.updated",
+        subject: GLOBKURIER_PASSWORD_SECRET_KEY,
+        details: { key: GLOBKURIER_PASSWORD_SECRET_KEY, changed: true },
+      });
+      expect(seedError, `zasiew audit_log: ${seedError?.message}`).toBeNull();
+
       const rows = await sql<{ row: string }[]>`
         select l::text as row from public.audit_log l
         where l.tenant_id = ${tenantId}
       `;
+      expect(
+        rows.length,
+        "skan audit_log nie objął ANI JEDNEGO wiersza — asercja byłaby pusta",
+      ).toBeGreaterThan(0);
       for (const { row } of rows) {
         expect(row, "wartość jawna trafiła do audit_log").not.toContain(COURIER_PLAINTEXT);
       }
