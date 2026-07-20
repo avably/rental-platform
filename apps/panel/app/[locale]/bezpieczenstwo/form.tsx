@@ -8,7 +8,12 @@ import { enrollTotpAction, verifyTotpAction, type EnrollState, type VerifyState 
 const enrollInitial: EnrollState = {};
 const verifyInitial: VerifyState = {};
 
-export function TotpEnrollForm() {
+/**
+ * `next` przenosimy ukrytym polem — dokładnie jak w wyzwaniu MFA
+ * (wyzwanie/form.tsx). Udana weryfikacja kończy się przekierowaniem po stronie
+ * serwera, więc formularz nie ma już stanu „sukces" do wyrenderowania.
+ */
+export function TotpEnrollForm({ next }: { next?: string }) {
   const [enrollState, enrollFormAction, enrollPending] = useActionState(
     enrollTotpAction,
     enrollInitial,
@@ -18,10 +23,6 @@ export function TotpEnrollForm() {
     verifyInitial,
   );
   const t = useTranslations("security");
-
-  if (verifyState.success) {
-    return <p className="text-sm text-green-700">{verifyState.success}</p>;
-  }
 
   if (!enrollState.factorId) {
     return (
@@ -49,6 +50,7 @@ export function TotpEnrollForm() {
       ) : null}
       <form action={verifyFormAction} className="flex flex-col gap-3">
         <input type="hidden" name="factorId" value={enrollState.factorId} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
         <label className="flex flex-col gap-1 text-sm">
           {t("codeLabel")}
           <input
