@@ -59,6 +59,8 @@ interface VercelErrorBody {
 /** Wycinek odpowiedzi domenowej, na którym nam zależy (reszta pól ignorowana). */
 interface VercelDomainBody {
   name?: string;
+  /** Projekt, do którego dostawca przypisał host — podstawa kontroli z 2.6c. */
+  projectId?: string;
   verified?: boolean;
   verification?: { type?: string; domain?: string; value?: string; reason?: string }[];
 }
@@ -77,6 +79,7 @@ function toDomainStatus(host: string, body: VercelDomainBody): DomainStatus {
     // ona jest identyfikatorem, który zapisujemy w provider_domain_id. Zapisujemy
     // go dopiero, gdy dostawca potwierdził istnienie hosta w projekcie.
     providerDomainId: body.name ?? host,
+    projectId: body.projectId ?? null,
     verified: body.verified === true,
     requiredRecords: records,
   };
@@ -151,6 +154,20 @@ export class VercelDomainsClient {
   }
 
   /**
+   * JEDYNE miejsce, w którym rozstrzygamy „host jest w NASZYM projekcie" (2.6c).
+   *
+   * Brak `projectId` w odpowiedzi NIE jest niezgodnością: starszy kształt
+   * odpowiedzi albo dryf pola zamieniłby twarde wymaganie w awarię rejestracji
+   * dla wszystkich najemców. Przy braku pola zostaje pierwsza warstwa kontroli
+   * — ścieżka zapytania jest zawężona do skonfigurowanego projektu, więc host
+   * spoza niego daje 404. Pole `projectId` jest warstwą drugą, nie jedyną.
+   */
+  private belongsToConfiguredProject(status: DomainStatus): boolean {
+    if (status.projectId === null) return true;
+    return status.projectId === this.config.projectId;
+  }
+
+  /**
    * Rejestruje host w projekcie storefrontu. IDEMPOTENTNE: host już wpięty w
    * NASZ projekt nie jest błędem — dostawca oddaje wtedy 409, a my sprawdzamy
    * stan i zwracamy go tak, jakby rejestracja właśnie się udała. Ponowne
@@ -160,6 +177,13 @@ export class VercelDomainsClient {
    * zwraca wtedy null — i wtedy błąd JEST realny (nie wolno udawać, że host
    * jest nasz). To rozróżnienie jest jedynym powodem, dla którego 409 wymaga
    * drugiego zapytania zamiast ślepego „uznaj za sukces".
+   *
+   * „201 CREATED" NIE JEST DOWODEM REJESTRACJI (2.6c, dług z ADR-046). Kod
+   * pierwotny budował sukces z odpowiedzi na POST — czyli z DEKLARACJI
+   * dostawcy, że coś zrobił. Dlatego po każdym 2xx dopytujemy o STAN i
+   * porównujemy projekt z konfiguracją. Kosztuje to jedno zapytanie na
+   * rejestrację i jest to cena za to, żeby „Działa" w panelu znaczyło
+   * „sprawdziliśmy", a nie „dostał się status 2xx".
    */
   async addDomain(host: string): Promise<DomainStatus> {
     const { status, body } = await this.request(
@@ -168,7 +192,14 @@ export class VercelDomainsClient {
     );
 
     if (status >= 200 && status < 300) {
-      return toDomainStatus(host, (body ?? {}) as VercelDomainBody);
+      const confirmed = await this.getDomainStatus(host);
+      if (confirmed) return confirmed;
+      // Dostawca powiedział „utworzone", a hosta nie ma tam, gdzie miał trafić.
+      // Cokolwiek to znaczy po jego stronie, dla najemcy znaczy jedno: sklep
+      // pod tym adresem nie odpowie. Więc PORAŻKA z powodem, nigdy „Działa".
+      throw new VercelDomainsError(
+        `Dostawca potwierdził utworzenie hosta ${host}, ale nie ma go w skonfigurowanym projekcie storefrontu.`,
+      );
     }
 
     if (status === 409) {
@@ -183,6 +214,11 @@ export class VercelDomainsClient {
    * Stan hosta u dostawcy. `null` = host NIE JEST w naszym projekcie (404) —
    * świadomie nie błąd: „nie ma go" to legalna odpowiedź dla ekranu domen i
    * warunek rozstrzygnięcia idempotencji w `addDomain`.
+   *
+   * Kontrola projektu siedzi TUTAJ, a nie u wołających: przez tę metodę
+   * przechodzi każda ścieżka, która zamienia odpowiedź dostawcy w „host jest
+   * nasz" (potwierdzenie rejestracji, rozstrzygnięcie 409, „sprawdź
+   * weryfikację"). Jedno miejsce zamiast trzech to jedno miejsce do pomylenia.
    */
   async getDomainStatus(host: string): Promise<DomainStatus | null> {
     const { status, body } = await this.request(
@@ -192,7 +228,15 @@ export class VercelDomainsClient {
 
     if (status === 404) return null;
     if (status >= 200 && status < 300) {
-      return toDomainStatus(host, (body ?? {}) as VercelDomainBody);
+      const domain = toDomainStatus(host, (body ?? {}) as VercelDomainBody);
+      if (!this.belongsToConfiguredProject(domain)) {
+        // Bez id projektów w treści: komunikat ląduje w `domains.last_error`
+        // i na ekranie najemcy (ta sama zasada co w config.ts).
+        throw new VercelDomainsError(
+          `Host ${host} jest u dostawcy przypisany do INNEGO projektu niż skonfigurowany storefront.`,
+        );
+      }
+      return domain;
     }
     throw this.fail(status, body);
   }

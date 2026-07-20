@@ -8,9 +8,10 @@ export {
 } from "./api";
 
 export {
-  VERCEL_PROJECT_ENV,
-  VERCEL_TEAM_ENV,
-  VERCEL_TOKEN_ENV,
+  RUNNING_PROJECT_ENV,
+  STOREFRONT_PROJECT_ENV,
+  STOREFRONT_TEAM_ENV,
+  STOREFRONT_TOKEN_ENV,
   VercelConfigError,
   resolveVercelConfig,
   vercelDomainsAvailability,

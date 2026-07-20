@@ -15,6 +15,11 @@
  * z podłożoną awarią transportu. Podmiana `registerDomainSafely` atrapą
  * uczyniłaby ten test bezwartościowym — sprawdzałby atrapę, nie zabezpieczenie.
  */
+import {
+  RUNNING_PROJECT_ENV,
+  STOREFRONT_PROJECT_ENV,
+  STOREFRONT_TOKEN_ENV,
+} from "@avably/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const TENANT_ID = "00000000-0000-4000-8000-0000000000aa";
@@ -84,6 +89,10 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
   beforeEach(() => {
     domainUpdates = [];
     rpcCalls = [];
+    // Zmienna SYSTEMOWA dostawcy gaszona JAWNIE — inaczej środowisko, które ją
+    // ma (CI na Vercelu), zapalałoby bramkę anty-samorejestrację z 2.6c
+    // w testach, które sprawdzają co innego.
+    vi.stubEnv(RUNNING_PROJECT_ENV, "");
   });
 
   afterEach(() => {
@@ -92,8 +101,8 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
   });
 
   it("organizacja powstaje mimo AWARII API domen, a powód trafia do last_error", async () => {
-    vi.stubEnv("VERCEL_API_TOKEN", "tok-testowy");
-    vi.stubEnv("VERCEL_PROJECT_ID", "prj-testowy");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "tok-testowy");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, "prj-testowy");
     // Awaria transportu u dostawcy — port rzuca, opakowanie ma to pochłonąć.
     vi.stubGlobal(
       "fetch",
@@ -114,18 +123,18 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
   });
 
   it("BRAK konfiguracji dostawcy też nie wywraca onboardingu (jawny powód, nie cichy sukces)", async () => {
-    vi.stubEnv("VERCEL_API_TOKEN", "");
-    vi.stubEnv("VERCEL_PROJECT_ID", "");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, "");
 
     const redirect = await runCreateTenant();
 
     expect(redirect.url).toBe("/pl/");
-    expect(String(domainUpdates[0]?.last_error)).toContain("VERCEL_API_TOKEN");
+    expect(String(domainUpdates[0]?.last_error)).toContain(STOREFRONT_TOKEN_ENV);
   });
 
   it("udana rejestracja zapisuje id u dostawcy i CZYŚCI last_error", async () => {
-    vi.stubEnv("VERCEL_API_TOKEN", "tok-testowy");
-    vi.stubEnv("VERCEL_PROJECT_ID", "prj-testowy");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "tok-testowy");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, "prj-testowy");
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -147,8 +156,8 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
   });
 
   it("rejestrowany host to subdomena zbudowana ze slugu organizacji", async () => {
-    vi.stubEnv("VERCEL_API_TOKEN", "tok-testowy");
-    vi.stubEnv("VERCEL_PROJECT_ID", "prj-testowy");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "tok-testowy");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, "prj-testowy");
     const fetchSpy = vi.fn(
       async (_input: unknown, _init?: RequestInit) =>
         new Response(JSON.stringify({ name: "acme-2-6.avably.io", verified: true }), {

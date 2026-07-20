@@ -17,12 +17,21 @@
  * `fetch` (fixtures, zero sieci). Podmiana opakowania atrapą sprawdzałaby
  * atrapę, nie zabezpieczenie.
  */
+import {
+  RUNNING_PROJECT_ENV,
+  STOREFRONT_PROJECT_ENV,
+  STOREFRONT_TOKEN_ENV,
+} from "@avably/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const TENANT_A = "00000000-0000-4000-8000-00000000000a";
 const TENANT_B = "00000000-0000-4000-8000-00000000000b";
 const HOST_A = "acme.avably.io";
 const HOST_B = "obcy.avably.io";
+
+/** Dwa RÓŻNE projekty u dostawcy — cel rejestracji i ten, w którym biegnie panel. */
+const PRJ_STOREFRONT = "prj_storefront";
+const PRJ_PANEL = "prj_panelu";
 
 interface DomainRecord extends Record<string, unknown> {
   id: string;
@@ -196,8 +205,12 @@ describe("ponowienie rejestracji subdomeny (2.6b)", () => {
     ];
     domains = [subdomainRow(TENANT_B, HOST_B), subdomainRow(TENANT_A, HOST_A)];
     sessionTenantId = TENANT_A;
-    vi.stubEnv("VERCEL_API_TOKEN", "tok-testowy");
-    vi.stubEnv("VERCEL_PROJECT_ID", "prj-testowy");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "tok-testowy");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, PRJ_STOREFRONT);
+    // Zmienna SYSTEMOWA dostawcy gaszona JAWNIE: gdyby wisiała w środowisku
+    // (maszyna dewelopera, CI na Vercelu), bramka anty-samorejestracja
+    // zapalałaby się w testach, które jej nie dotyczą.
+    vi.stubEnv(RUNNING_PROJECT_ENV, "");
   });
 
   afterEach(() => {
@@ -241,14 +254,14 @@ describe("ponowienie rejestracji subdomeny (2.6b)", () => {
   });
 
   it("BRAK konfiguracji dostawcy też nie wywraca akcji (jawny powód)", async () => {
-    vi.stubEnv("VERCEL_API_TOKEN", "");
-    vi.stubEnv("VERCEL_PROJECT_ID", "");
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "");
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, "");
 
     const state = await retry();
 
-    expect(String(state.formError)).toContain("VERCEL_API_TOKEN");
+    expect(String(state.formError)).toContain(STOREFRONT_TOKEN_ENV);
     expect(String(domains.find((row) => row.domain === HOST_A)?.last_error)).toContain(
-      "VERCEL_API_TOKEN",
+      STOREFRONT_TOKEN_ENV,
     );
   });
 
@@ -314,5 +327,123 @@ describe("ponowienie rejestracji subdomeny (2.6b)", () => {
 
     expect(state.formError).toBe("Wymagane zalogowanie.");
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * DOWODY MUTACYJNE ZADANIA 2.6c — obie bramki sprawdzane NA AKCJI, na wierszu
+ * w bazie, a nie na zwrocie funkcji portu. Powód: awaria produkcyjna nie
+ * polegała na tym, że port zwrócił zły obiekt, tylko na tym, że panel zapisał
+ * „zarejestrowane" i pokazał najemcy działający adres, którego nie było.
+ * Dlatego asercje idą na `last_error` i `provider_domain_id` — to one decydują,
+ * co zobaczy najemca (page.tsx: `registered = Boolean(provider_domain_id)`).
+ */
+describe("rejestracja hosta nie trafi w zły projekt (2.6c)", () => {
+  beforeEach(() => {
+    tenants = [{ id: TENANT_A, slug: "acme" }];
+    domains = [subdomainRow(TENANT_A, HOST_A)];
+    sessionTenantId = TENANT_A;
+    vi.stubEnv(STOREFRONT_TOKEN_ENV, "tok-testowy");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * DOWÓD (a): zdejmij bramkę anty-samorejestrację z `resolveVercelConfig`
+   * (packages/core/src/vercel/config.ts) i ten test pada — akcja wykona POST
+   * i zapisze `provider_domain_id`, czyli dokładnie to, co działo się na
+   * produkcji: hosty sklepów rejestrowane do projektu PANELU.
+   *
+   * OBIE zmienne mają tę samą wartość — to jest odtworzenie stanu, w którym
+   * zmienna systemowa dostawcy przykryła naszą.
+   */
+  it("nie zarejestruje hosta do projektu, w którym biegniemy", async () => {
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, PRJ_PANEL);
+    vi.stubEnv(RUNNING_PROJECT_ENV, PRJ_PANEL);
+    const fetchSpy = stubProvider(async () => okResponse(HOST_A));
+
+    const state = await retry();
+
+    expect(fetchSpy, "panel poszedł rejestrować host do samego siebie").not.toHaveBeenCalled();
+
+    const row = domains.find((entry) => entry.domain === HOST_A);
+    expect(row?.provider_domain_id, "wiersz udaje zarejestrowany").toBeNull();
+    expect(String(row?.last_error)).toContain(STOREFRONT_PROJECT_ENV);
+    expect(String(row?.last_error)).toContain(RUNNING_PROJECT_ENV);
+    expect(state.formError, "najemca nie zobaczył powodu").toBeTruthy();
+  });
+
+  it("różne projekty (panel ≠ storefront) rejestrują normalnie", async () => {
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, PRJ_STOREFRONT);
+    vi.stubEnv(RUNNING_PROJECT_ENV, PRJ_PANEL);
+    stubProvider(async () => okResponse(HOST_A));
+
+    const state = await retry();
+
+    expect(state.success).toBe(HOST_A);
+    expect(domains.find((entry) => entry.domain === HOST_A)?.provider_domain_id).toBe(HOST_A);
+  });
+
+  /**
+   * DOWÓD (b): spraw, by `belongsToConfiguredProject`
+   * (packages/core/src/vercel/api.ts) zwracało zawsze `true`, i ten test pada —
+   * wiersz dostanie `provider_domain_id`, `last_error` wyczyści się na NULL,
+   * a akcja zwróci sukces. Czyli panel ogłosi „Działa" dla hosta siedzącego
+   * w cudzym projekcie.
+   *
+   * Dostawca oddaje tu 201 (host UTWORZONY), a dopiero odczyt stanu pokazuje,
+   * że wylądował gdzie indziej. To jest sedno długu z ADR-046: sukces brany
+   * z sygnału, który sukcesu nie dowodzi.
+   */
+  it("201 z CUDZEGO projektu to porażka, nie sukces", async () => {
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, PRJ_STOREFRONT);
+    vi.stubEnv(RUNNING_PROJECT_ENV, PRJ_PANEL);
+    domains = [subdomainRow(TENANT_A, HOST_A, { last_error: "poprzednia awaria" })];
+
+    const fetchSpy = stubProvider(async (_url, init) =>
+      init?.method === "POST"
+        ? new Response(JSON.stringify({ name: HOST_A, projectId: PRJ_STOREFRONT }), { status: 201 })
+        : // Stan FAKTYCZNY: host siedzi w projekcie panelu, nie storefrontu.
+          new Response(JSON.stringify({ name: HOST_A, projectId: PRJ_PANEL, verified: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+    );
+
+    const state = await retry();
+
+    expect(fetchSpy, "brak dopytania o stan — sukces wzięty z 201").toHaveBeenCalledTimes(2);
+
+    const row = domains.find((entry) => entry.domain === HOST_A);
+    expect(row?.provider_domain_id, "wiersz ogłasza działający adres").toBeNull();
+    expect(String(row?.last_error), "powód porażki nie trafił do bazy").toContain(
+      "INNEGO projektu",
+    );
+    expect(state.success, "panel ogłosił sukces").toBeUndefined();
+  });
+
+  /**
+   * Druga twarz tego samego długu: dostawca potwierdza utworzenie, a hosta nie
+   * ma tam, gdzie miał trafić. Dla najemcy to ten sam skutek — sklep nie
+   * odpowie — więc i ten sam werdykt.
+   */
+  it("201 bez hosta w projekcie docelowym też jest porażką", async () => {
+    vi.stubEnv(STOREFRONT_PROJECT_ENV, PRJ_STOREFRONT);
+
+    stubProvider(async (_url, init) =>
+      init?.method === "POST"
+        ? new Response(JSON.stringify({ name: HOST_A }), { status: 201 })
+        : new Response("{}", { status: 404 }),
+    );
+
+    const state = await retry();
+
+    const row = domains.find((entry) => entry.domain === HOST_A);
+    expect(row?.provider_domain_id).toBeNull();
+    expect(String(row?.last_error)).toContain("nie ma go w skonfigurowanym projekcie");
+    expect(state.success).toBeUndefined();
   });
 });
