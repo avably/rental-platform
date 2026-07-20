@@ -43,8 +43,19 @@
  * przychodzi ZANIM użytkownik ma jakąkolwiek organizację — wiersz musiałby
  * stanąć poza modelem izolacji. Poza tym historia wysyłek to widok NAJEMCY
  * („czy mój klient dostał wiadomość"), a to jest korespondencja PLATFORMY
- * z użytkownikiem. Brak platformowego dziennika jest odnotowany jako dług.
+ * z użytkownikiem.
+ *
+ * ZAMIAST TEGO — OSOBNY, PLATFORMOWY DZIENNIK (ADR-054, migracja 0025). Każda
+ * próba wysyłki na granicy transportu zostawia wiersz w public.account_email_logs:
+ * typ akcji (signup/recovery), status (sent/failed), powód przy porażce, czas.
+ * BEZ pełnego adresu (recipient_hash: HMAC kluczowany sekretem hooka) i BEZ
+ * tokenów. Zapis idzie service_rolem z route.ts (sankcjonowane miejsce klienta
+ * service-role — apps/<app>/app/api/webhooks/**) i NIGDY nie wywraca wysyłki
+ * (ADR-033): sink jest wstrzykiwany jak transport, a błąd zapisu jest
+ * pochłaniany. Rdzeń pozostaje testowalny bez żywego Supabase.
  */
+import { createHmac } from "node:crypto";
+
 import {
   DEFAULT_LOCALE,
   PANEL_URL,
@@ -57,6 +68,7 @@ import {
   type OutgoingEmail,
 } from "@avably/core";
 import { emailMessages, renderEmailConfirmation, renderPasswordReset } from "@avably/emails";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { verifyStandardWebhook } from "@/lib/standard-webhook";
@@ -264,6 +276,105 @@ export async function buildAccountEmail(payload: HookPayload): Promise<OutgoingE
   };
 }
 
+// ---------------------------------------------------------------------
+// Platformowy dziennik wysyłek kont (ADR-054, migracja 0025)
+// ---------------------------------------------------------------------
+
+/** Wpis dziennika — kształt lustrzany wobec kolumn public.account_email_logs. */
+export interface AccountEmailLogEntry {
+  action: SupportedAction;
+  status: "sent" | "failed";
+  /** Pseudonim adresata (hashRecipient) — NIGDY pełny adres. */
+  recipientHash: string;
+  /** Sanityzowany powód porażki; NULL przy 'sent' (CHECK pary w 0025). */
+  reason: string | null;
+}
+
+/**
+ * Port zapisu platformowego dziennika. Implementacja produkcyjna
+ * (serviceRoleLogSink) pisze service_rolem z webhooka; testy wstrzykują atrapę.
+ *
+ * MOŻE RZUCAĆ: jedynym miejscem, które ten błąd pochłania, jest
+ * `recordAccountEmail` — i robi to zawsze (ADR-033/ADR-054 D4).
+ */
+export interface AccountEmailLogSink {
+  record(entry: AccountEmailLogEntry): Promise<void>;
+}
+
+/**
+ * Pseudonim adresata do dziennika (ADR-054 D2): HMAC-SHA256 z adresu
+ * znormalizowanego (lower+trim), kluczowany SEKRETEM HOOKA, w hex.
+ *
+ * DLACZEGO HMAC, A NIE GOŁY SHA-256: przestrzeń adresów e-mail jest
+ * przeliczalna, więc goły skrót dałoby się cofnąć słownikiem. Klucz zamyka to
+ * bez wprowadzania NOWEGO sekretu — hook i tak wymaga tego klucza i loguje
+ * dopiero PO jego weryfikacji, więc w chwili zapisu klucz zawsze jest.
+ *
+ * DLACZEGO W APLIKACJI, A NIE W BAZIE: plaintext adresu nie musi w ogóle
+ * docierać do Postgresa (żadnego ryzyka w logu zapytań) — do kolumny idzie
+ * już sam hash, a CHECK 64-hex w 0025 odrzuca wszystko inne.
+ */
+export function hashRecipient(email: string, secret: string): string {
+  const normalized = email.trim().toLowerCase();
+  return createHmac("sha256", secret).update(`account-email-log:v1:${normalized}`).digest("hex");
+}
+
+/**
+ * Sanityzacja powodu porażki przed zapisem (ADR-054 D2). Komunikaty transportu
+ * potrafią nieść adres odbiorcy, a payload — token/token_hash; usuwamy jedno
+ * i drugie, potem tniemy do limitu kolumny (2000, CHECK w 0025). Redakcja jest
+ * dosłownym podstawieniem znanych sekretów — nie zgadujemy „co wygląda na
+ * adres", tylko wycinamy DOKŁADNIE te wartości, które trzymamy w ręku.
+ */
+export function redactReason(message: string, secrets: readonly string[]): string {
+  let out = message.length > 0 ? message : "nieznany błąd";
+  for (const secret of secrets) {
+    if (secret) out = out.split(secret).join("[usunięte]");
+  }
+  return out.length > 2000 ? `${out.slice(0, 1997)}...` : out;
+}
+
+/**
+ * Sink produkcyjny: INSERT do public.account_email_logs. Przyjmuje gotowego
+ * klienta (service-role budowany w route.ts — jedyne sankcjonowane miejsce),
+ * więc ten plik NIE importuje @avably/db/service i nie łamie kwarantanny
+ * ESLint. RZUCA przy błędzie zapisu — pochłania go recordAccountEmail.
+ */
+export function serviceRoleLogSink(client: SupabaseClient): AccountEmailLogSink {
+  return {
+    async record(entry: AccountEmailLogEntry): Promise<void> {
+      const { error } = await client.from("account_email_logs").insert({
+        action: entry.action,
+        status: entry.status,
+        recipient_hash: entry.recipientHash,
+        reason: entry.reason,
+      });
+      if (error) throw new Error(error.message);
+    },
+  };
+}
+
+/**
+ * Jedyne miejsce pochłaniające błąd dziennika (ADR-033/ADR-054 D4): jeśli sink
+ * padnie, mail już poszedł (albo już nie poszedł) — awaria rejestru nie cofnie
+ * żadnego z tych faktów. Brak sinka = wysyłka bez logu (ścieżki dev/testy).
+ */
+async function recordAccountEmail(
+  sink: AccountEmailLogSink | undefined,
+  entry: AccountEmailLogEntry,
+): Promise<void> {
+  if (!sink) return;
+  try {
+    await sink.record(entry);
+  } catch (err) {
+    console.warn(
+      `[account-email-hook] nie udało się zapisać wpisu dziennika kont ` +
+        `(${entry.action}/${entry.status}): ${err instanceof Error ? err.message : "nieznany błąd"}. ` +
+        "Wysyłka nie jest tym unieważniona.",
+    );
+  }
+}
+
 export interface HookDependencies {
   /** Sekret hooka; domyślnie z env. Jawne `undefined` = brak konfiguracji. */
   secret?: string | undefined;
@@ -271,6 +382,11 @@ export interface HookDependencies {
   transport?: EmailTransport;
   /** Czas do kontroli znacznika (test). */
   now?: Date;
+  /**
+   * Sink platformowego dziennika kont (ADR-054). Brak = wysyłka bez logu
+   * (route.ts wstrzykuje service-role sink; testy jednostkowe zwykle atrapę).
+   */
+  logSink?: AccountEmailLogSink | undefined;
 }
 
 function errorResponse(status: number, message: string): Response {
@@ -303,6 +419,14 @@ export async function handleSendEmailHook(
     // (401). W obu przypadkach NIE DOCHODZI DO WYSYŁKI — to jest tu istotą.
     const status = verification.reason === "secret_not_configured" ? 500 : 401;
     return errorResponse(status, verification.message);
+  }
+
+  // secret jest tu na pewno stringiem: verifyStandardWebhook zwróciło ok tylko
+  // dlatego, że sekret był skonfigurowany, a podpis się zgadza. Guard zawęża typ
+  // dla hashRecipient (pepper dziennika, ADR-054 D2) — gałąź jest formalnie
+  // nieosiągalna, istnieje wyłącznie po to, by nie brać sekretu „na wiarę".
+  if (secret === undefined) {
+    return errorResponse(500, "Sekret hooka zniknął po weryfikacji — stan niereprezentowalny.");
   }
 
   let parsedJson: unknown;
@@ -342,17 +466,39 @@ export async function handleSendEmailHook(
   }
 
   const transport = deps.transport ?? resendTransport();
+  // Policzony RAZ przed próbą — ta sama wartość idzie do wiersza 'sent' i 'failed'.
+  const recipientHash = hashRecipient(email.to, secret);
   try {
     await transport.send(email);
   } catch (err) {
     // BRAK RESEND_API_KEY ALBO ODMOWA DOSTAWCY = BŁĄD, NIGDY 200 (ADR-033).
     // Gdyby tu poszła dwusetka, Supabase uznałby wiadomość za dostarczoną,
     // użytkownik nie dostałby nic i nikt by się o tym nie dowiedział.
-    return errorResponse(
-      500,
-      `Wysyłka nie powiodła się: ${err instanceof Error ? err.message : "nieznany błąd"}`,
-    );
+    const rawMessage = err instanceof Error ? err.message : "nieznany błąd";
+    // Wiersz 'failed' powstaje PRZED zwróceniem błędu (ADR-054). Powód do
+    // dziennika jest SANITYZOWANY (bez adresu i token_hash — komunikaty
+    // transportu potrafią nieść adres odbiorcy). Odpowiedź do GoTrue niesie
+    // surowy komunikat — trafia do logów Auth dostawcy, nie do naszej bazy.
+    await recordAccountEmail(deps.logSink, {
+      action,
+      status: "failed",
+      recipientHash,
+      reason: redactReason(rawMessage, [
+        email.to,
+        email.to.toLowerCase(),
+        parsed.data.email_data.token_hash,
+      ]),
+    });
+    return errorResponse(500, `Wysyłka nie powiodła się: ${rawMessage}`);
   }
+
+  // Wiersz 'sent' — bez powodu błędu (CHECK pary status↔reason w 0025).
+  await recordAccountEmail(deps.logSink, {
+    action,
+    status: "sent",
+    recipientHash,
+    reason: null,
+  });
 
   // Dokumentacja: puste ciało + 200 = sukces.
   return Response.json({}, { status: 200 });

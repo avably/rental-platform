@@ -10,10 +10,18 @@
  * odpowiedzi przepuściłby wariant najgorszy z możliwych: 401 zwrócone PO tym,
  * jak wiadomość już poszła.
  */
+import { createHmac } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EmailTransport, OutgoingEmail } from "@avably/core";
 
-import { handleSendEmailHook } from "@/lib/account-email-hook";
+import {
+  handleSendEmailHook,
+  hashRecipient,
+  redactReason,
+  type AccountEmailLogEntry,
+  type AccountEmailLogSink,
+} from "@/lib/account-email-hook";
 import { signStandardWebhook } from "@/lib/standard-webhook";
 
 const SECRET = "v1,whsec_c3VwZXItdGFqbnktc2VrcmV0LWhvb2th";
@@ -504,5 +512,229 @@ describe("handleSendEmailHook — fail-closed", () => {
 
     expect(response.status).toBe(400);
     expect(sent).toHaveLength(0);
+  });
+});
+
+/**
+ * Platformowy dziennik kont (ADR-054). Warstwa JEDNOSTKOWA: sink jest atrapą,
+ * asercje patrzą na WPIS przekazany do sinka. Dowód, że wiersz LĄDUJE W BAZIE
+ * (i z jakim statusem/powodem), niesie test integracyjny na żywym Supabase
+ * (account-email-log-integration.test.ts) — brief wymaga tam odczytu z bazy.
+ *
+ * Adres w postaci jawnej i token NIE MAJĄ prawa znaleźć się w żadnym polu
+ * wpisu: adresata pseudonimizuje recipient_hash (HMAC), a powód porażki jest
+ * sanityzowany. Testy niżej pilnują obu granic — z kontrolą na FAŁSZYWY ZIELONY
+ * (dekodujemy hash, nie ufamy samemu not.toContain — lekcja PR #75).
+ */
+function captureLogSink(): { sink: AccountEmailLogSink; entries: AccountEmailLogEntry[] } {
+  const entries: AccountEmailLogEntry[] = [];
+  return {
+    sink: {
+      record: async (entry) => {
+        entries.push(entry);
+      },
+    },
+    entries,
+  };
+}
+
+const DEFAULT_EMAIL = "nowy@example.com";
+const TOKEN_HASH = "7d5b7b1964cf5d388340a7f04f1dbb5eeb6c7b52ef8270e1737a58d0";
+
+/** Rozłożenie hasha na możliwe reprezentacje tekstowe — do skanu prywatności. */
+function decodedForms(hex: string): string[] {
+  const bytes = Buffer.from(hex, "hex");
+  return [hex, bytes.toString("latin1"), bytes.toString("utf8"), bytes.toString("base64")];
+}
+
+describe("dziennik kont — hashRecipient (pseudonim adresata, ADR-054 D2)", () => {
+  it("jest HMAC-SHA256 kluczowanym sekretem, 64-hex, deterministycznym", () => {
+    const hash = hashRecipient(DEFAULT_EMAIL, SECRET);
+    const expected = createHmac("sha256", SECRET)
+      .update(`account-email-log:v1:${DEFAULT_EMAIL}`)
+      .digest("hex");
+    expect(hash).toBe(expected);
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashRecipient(DEFAULT_EMAIL, SECRET)).toBe(hash); // deterministyczny
+  });
+
+  it("normalizuje adres (lower+trim) — ten sam wiersz mimo różnic zapisu", () => {
+    expect(hashRecipient("  NOWY@Example.com ", SECRET)).toBe(hashRecipient(DEFAULT_EMAIL, SECRET));
+  });
+
+  it("jest kluczowany — inny sekret daje inny hash (goły SHA-256 by nie zależał od klucza)", () => {
+    expect(hashRecipient(DEFAULT_EMAIL, "v1,whsec_aW5ueQ==")).not.toBe(
+      hashRecipient(DEFAULT_EMAIL, SECRET),
+    );
+  });
+
+  it("NIE jest odwracalny przez dekodowanie: żadna postać hasha nie zawiera adresu", () => {
+    const hash = hashRecipient(DEFAULT_EMAIL, SECRET);
+    for (const form of decodedForms(hash)) {
+      expect(form).not.toContain(DEFAULT_EMAIL);
+      expect(form).not.toContain("nowy"); // nawet część lokalna
+    }
+  });
+});
+
+describe("dziennik kont — redactReason (sanityzacja powodu, ADR-054 D2)", () => {
+  it("usuwa adres i token_hash, zostawia diagnozę", () => {
+    const raw = `Resend odrzucił adres ${DEFAULT_EMAIL} z linkiem token_hash=${TOKEN_HASH} (422)`;
+    const out = redactReason(raw, [DEFAULT_EMAIL, DEFAULT_EMAIL.toLowerCase(), TOKEN_HASH]);
+    expect(out).not.toContain(DEFAULT_EMAIL);
+    expect(out).not.toContain(TOKEN_HASH);
+    expect(out).toContain("Resend odrzucił"); // powód diagnostyczny przetrwał
+    expect(out).toContain("422");
+  });
+
+  it("tnie zbyt długi powód do limitu kolumny (2000)", () => {
+    const out = redactReason("x".repeat(5000), []);
+    expect(out.length).toBeLessThanOrEqual(2000);
+    expect(out.endsWith("...")).toBe(true);
+  });
+
+  it("pusty komunikat nie daje pustego powodu (CHECK failed→reason wymaga treści)", () => {
+    expect(redactReason("", []).length).toBeGreaterThan(0);
+  });
+});
+
+describe("handleSendEmailHook — zapis do dziennika kont (ADR-054)", () => {
+  it("KONTROLA POZYTYWNA (c): udana rejestracja → wpis sent, bez powodu, hash zamiast adresu", async () => {
+    const { transport } = captureTransport();
+    const { sink, entries } = captureLogSink();
+
+    const response = await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport,
+      logSink: sink,
+      now: NOW,
+    });
+
+    expect(response.status).toBe(200);
+    expect(entries).toHaveLength(1);
+    const entry = entries[0]!;
+    expect(entry.action).toBe("signup");
+    expect(entry.status).toBe("sent");
+    expect(entry.reason).toBeNull();
+    expect(entry.recipientHash).toBe(hashRecipient(DEFAULT_EMAIL, SECRET));
+    // Adres NIE występuje w żadnej postaci wpisu — także po zdekodowaniu hasha.
+    const serialized = JSON.stringify(entry);
+    expect(serialized).not.toContain(DEFAULT_EMAIL);
+    for (const form of decodedForms(entry.recipientHash)) expect(form).not.toContain(DEFAULT_EMAIL);
+  });
+
+  it("udany reset hasła → wpis recovery/sent", async () => {
+    const { transport } = captureTransport();
+    const { sink, entries } = captureLogSink();
+
+    await handleSendEmailHook(hookRequest(payloadFixture({ action: "recovery" })), {
+      secret: SECRET,
+      transport,
+      logSink: sink,
+      now: NOW,
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.action).toBe("recovery");
+    expect(entries[0]!.status).toBe("sent");
+  });
+
+  it("PORAŻKA (a, warstwa jednostkowa): nieudana wysyłka → wpis failed z powodem", async () => {
+    const { sink, entries } = captureLogSink();
+
+    const response = await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport: failingTransport,
+      logSink: sink,
+      now: NOW,
+    });
+
+    expect(response.status).toBe(500);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.status).toBe("failed");
+    expect((entries[0]!.reason ?? "").length).toBeGreaterThan(0);
+    expect(entries[0]!.reason).toContain("RESEND_API_KEY");
+  });
+
+  it("PRYWATNOŚĆ (b): powód porażki niosący adres jest SANITYZOWANY, token nigdzie", async () => {
+    // Transport, którego komunikat CELOWO niesie adres odbiorcy — realny wektor
+    // wycieku (dostawcy wplatają adres w treść błędu). Wpis nie może go nieść.
+    const leakyTransport: EmailTransport = {
+      send: async (email) => {
+        throw new Error(`Provider 422: odbiorca ${email.to} odrzucony przy token_hash=${TOKEN_HASH}`);
+      },
+    };
+    const { sink, entries } = captureLogSink();
+
+    await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport: leakyTransport,
+      logSink: sink,
+      now: NOW,
+    });
+
+    expect(entries).toHaveLength(1);
+    const serialized = JSON.stringify(entries[0]!);
+    // Ani adres, ani token/token_hash — także w zdekodowanym hashu.
+    expect(serialized).not.toContain(DEFAULT_EMAIL);
+    expect(serialized).not.toContain(TOKEN_HASH);
+    expect(serialized).not.toContain("305805"); // token OTP z fixture
+    for (const form of decodedForms(entries[0]!.recipientHash)) {
+      expect(form).not.toContain(DEFAULT_EMAIL);
+    }
+    // Diagnoza mimo redakcji przetrwała.
+    expect(entries[0]!.reason).toContain("Provider 422");
+  });
+
+  it("ADR-033/D4: awaria dziennika NIE wywraca wysyłki (sukces nadal 200)", async () => {
+    const { transport, sent } = captureTransport();
+    const throwingSink: AccountEmailLogSink = {
+      record: async () => {
+        throw new Error("baza dziennika niedostępna");
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const response = await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport,
+      logSink: throwingSink,
+      now: NOW,
+    });
+
+    // Mail poszedł, hook zwrócił sukces mimo padniętego dziennika.
+    expect(response.status).toBe(200);
+    expect(sent).toHaveLength(1);
+    warn.mockRestore();
+  });
+
+  it("ADR-033/D4: awaria dziennika przy PORAŻCE wysyłki nie zmienia kodu (nadal 500)", async () => {
+    const throwingSink: AccountEmailLogSink = {
+      record: async () => {
+        throw new Error("baza dziennika niedostępna");
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const response = await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport: failingTransport,
+      logSink: throwingSink,
+      now: NOW,
+    });
+
+    expect(response.status).toBe(500);
+    warn.mockRestore();
+  });
+
+  it("brak sinka = wysyłka bez logu (ścieżka dev), status niezmieniony", async () => {
+    const { transport, sent } = captureTransport();
+    const response = await handleSendEmailHook(hookRequest(payloadFixture()), {
+      secret: SECRET,
+      transport,
+      now: NOW,
+    });
+    expect(response.status).toBe(200);
+    expect(sent).toHaveLength(1);
   });
 });

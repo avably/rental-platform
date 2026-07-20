@@ -15,11 +15,48 @@
  *
  * `force-dynamic`: żądanie niesie podpis liczony z surowego ciała i nagłówków,
  * więc nie ma tu czego prerenderować ani cache'ować.
+ *
+ * DZIENNIK KONT (ADR-054): to JEDYNE miejsce, które buduje klienta service-role
+ * dla tej ścieżki. `@avably/db/service` wolno importować tylko w
+ * app/api/webhooks/** (reguła no-restricted-imports) — rdzeń hooka dostaje
+ * gotowy sink przez wstrzyknięcie i sam service-role nie dotyka.
  */
-import { handleSendEmailHook } from "@/lib/account-email-hook";
+import { createServiceClient } from "@avably/db/service";
+
+import {
+  handleSendEmailHook,
+  serviceRoleLogSink,
+  type AccountEmailLogSink,
+} from "@/lib/account-email-hook";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Sink dziennika budowany LENIWIE i BEZPIECZNIE. Brak SUPABASE_SERVICE_ROLE_KEY
+ * nie może wywrócić webhooka (mail leci mimo braku dziennika — ADR-054 D4):
+ * createServiceClient rzuca przy braku klucza, więc łapiemy to i zwracamy
+ * undefined (wysyłka bez logu), zostawiając ślad w logach serwera. Rozwiązanie
+ * RAZ na proces — env nie pojawia się w trakcie życia procesu.
+ */
+let sinkResolved = false;
+let cachedSink: AccountEmailLogSink | undefined;
+function accountEmailLogSink(): AccountEmailLogSink | undefined {
+  if (!sinkResolved) {
+    sinkResolved = true;
+    try {
+      cachedSink = serviceRoleLogSink(createServiceClient());
+    } catch (err) {
+      console.warn(
+        `[supabase-email] platformowy dziennik kont wyłączony — ` +
+          `${err instanceof Error ? err.message : "brak konfiguracji service-role"}. ` +
+          "Wysyłka działa; wpisy nie powstają (ADR-054).",
+      );
+      cachedSink = undefined;
+    }
+  }
+  return cachedSink;
+}
+
 export async function POST(request: Request): Promise<Response> {
-  return handleSendEmailHook(request);
+  return handleSendEmailHook(request, { logSink: accountEmailLogSink() });
 }
