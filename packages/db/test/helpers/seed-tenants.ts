@@ -586,6 +586,17 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     key: `test_setting_${randomUUID().replace(/-/g, "").slice(0, 12)}`,
     value: { enabled: true },
   }),
+  // Sekret tenanta (0024). Wartość musi przejść CHECK kształtu koperty
+  // ORAZ CHECK zgodności key_version z jej członem — to nie jest dowolny
+  // tekst. Sama koperta jest atrapą (macierz izolacji bada RLS, nie
+  // kryptografię), ale kształtem odpowiada temu, co produkuje
+  // @avably/core/secrets. Unikalny klucz per wywołanie jak w tenant_settings.
+  tenant_secrets: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    key: `test_secret_${randomUUID().replace(/-/g, "").slice(0, 12)}`,
+    ciphertext: "v1:1:AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBBBBBBBB:CCCCCCCCCCCC",
+    key_version: 1,
+  }),
   // Zdjęcie produktu (0018). Ścieżka w konwencji {tenant_id}/{product_id}/{uuid}
   // — sama tabela nie wymusza jej kształtu (izolację zapisu PLIKÓW pilnują
   // polityki storage.objects), ale wiersz odzwierciedla realny zapis aplikacji.
@@ -724,6 +735,11 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   order_items: { rental_grosze: 999_999 },
   deposit_events: { reason: "rls-test-hacked" },
   tenant_settings: { updated_at: "2000-01-01T00:00:00.000Z" },
+  // updated_at, a nie ciphertext: CHECK-i 0024 wiążą kształt koperty
+  // z key_version, więc goła mutacja na kolumnie ciphertext wywracałaby się
+  // na 23514 zamiast dojść do polityki — a błąd CHECK-a wyglądałby na
+  // „mutacja zatrzymana" i maskował zepsutą politykę UPDATE.
+  tenant_secrets: { updated_at: "2000-01-01T00:00:00.000Z" },
   // tracking_number nie jest objęty żadnym indeksem unikalnym (pułapka 23505
   // opisana wyżej nie dotyczy).
   courier_shipments: { tracking_number: "rls-test-hacked" },

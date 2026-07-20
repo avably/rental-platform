@@ -1,12 +1,17 @@
 /**
- * Ustawienia dostaw (Zadanie 7, ADR-030/031): credentiale GlobKurier,
- * nadawca przesyłek, domyślna paczka i cennik dostaw — cztery klucze
- * tenant_settings z CHECK-ami 0013.
+ * Ustawienia dostaw (Zadanie 7, ADR-030/031): credentiale dostawcy, nadawca
+ * przesyłek, domyślna paczka i cennik dostaw — klucze tenant_settings
+ * z CHECK-ami 0013/0024.
  *
- * Hasło credentiali NIE jest renderowane z powrotem (strona pokazuje tylko
- * znacznik „skonfigurowane") — wartość jsonb zostaje server-side. Dostęp
- * dla każdego członka, spójnie z RLS 0007; zawężenie do ownera = dług
- * (ADR-031). Dojście: link z sekcji dostawy zamówienia.
+ * HASŁO NIE JEST TU CZYTANE W OGÓLE (ADR-052). Strona pyta bazę wyłącznie
+ * o to, CZY sekret istnieje (app.tenant_secret_is_set → boolean) i pokazuje
+ * znacznik „skonfigurowane"; ani wartość jawna, ani nawet szyfrogram nie mają
+ * po co trafiać do warstwy widoku. Formularz działa w trybie NADPISZ, nie
+ * odczytaj — pole hasła zawsze startuje puste.
+ *
+ * Odczyt dla każdego członka, ZAPIS wyłącznie dla właściciela (RLS 0024) —
+ * odmowa przychodzi z bazy, a akcja tłumaczy ją na komunikat. Dojście: link
+ * z sekcji dostawy zamówienia.
  */
 import {
   COURIER_CONFIG_KEYS,
@@ -14,6 +19,7 @@ import {
   COURIER_SENDER_KEY,
   DELIVERY_PRICING_KEY,
   GLOBKURIER_CREDENTIALS_KEY,
+  GLOBKURIER_PASSWORD_SECRET_KEY,
   deliveryPricingFromSettings,
 } from "@avably/core";
 import { getTranslations } from "next-intl/server";
@@ -59,6 +65,14 @@ export default async function DeliverySettingsPage() {
   const byKey = new Map(settings.map((row) => [row.key as string, row.value as unknown]));
 
   const credentials = asRecord(byKey.get(GLOBKURIER_CREDENTIALS_KEY));
+
+  // Znacznik „skonfigurowane" mówi o HAŚLE, nie o istnieniu wiersza ustawień:
+  // po ADR-052 to dwie różne rzeczy i mylenie ich wprowadzałoby operatora
+  // w błąd — wiersz z samym e-mailem istnieje także wtedy, gdy hasła nie ma
+  // (np. po migracji 0024, która zdjęła hasła zapisane jawnie).
+  const { data: passwordSet } = await ctx.supabase
+    .schema("app")
+    .rpc("tenant_secret_is_set", { p_key: GLOBKURIER_PASSWORD_SECRET_KEY });
   const sender = asRecord(byKey.get(COURIER_SENDER_KEY));
   const parcel = asRecord(byKey.get(COURIER_PARCEL_KEY));
 
@@ -112,7 +126,7 @@ export default async function DeliverySettingsPage() {
 
       <CredentialsForm
         action={saveCourierCredentialsAction}
-        configured={credentials !== null}
+        configured={passwordSet === true}
         defaults={
           credentials
             ? { email: s(credentials.email), environment: s(credentials.environment) || "test" }

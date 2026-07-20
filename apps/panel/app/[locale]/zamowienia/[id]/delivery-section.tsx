@@ -23,7 +23,6 @@ import {
   DELIVERY_PRICING_KEY,
   DeliveryPricingError,
   calculateDeliveryCost,
-  courierConfigFromSettings,
   deliveryPricingFromSettings,
   emailAvailability,
   formatMoney,
@@ -42,7 +41,12 @@ import {
   sendPickupReturnReminderAction,
   sendReturnLabelEmailAction,
 } from "./delivery-actions";
-import { SHIPMENT_ROW_COLUMNS, canCreateShipments, type ShipmentRow } from "./delivery";
+import {
+  SHIPMENT_ROW_COLUMNS,
+  canCreateShipments,
+  loadCourierConfigStatus,
+  type ShipmentRow,
+} from "./delivery";
 import {
   CreateShipmentForm,
   RefreshStatusButton,
@@ -107,7 +111,7 @@ export async function DeliverySection({
     weightKg: number;
   } | null = null;
   try {
-    const config = courierConfigFromSettings(settings);
+    const config = await loadCourierConfigStatus(ctx.supabase, ctx.tenantId!, settings);
     parcelDefaults = config.parcel;
   } catch (err) {
     if (err instanceof CourierConfigError) {

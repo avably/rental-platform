@@ -41,9 +41,10 @@ const PG_CHECK_VIOLATION = "23514";
 const PG_FK_VIOLATION = "23503";
 
 /** Poprawne wartości bazowe — dane FIKCYJNE (zero realnych adresów w repo). */
+// Od 0024 (ADR-052) credentiale w tenant_settings to CZĘŚĆ JAWNA: hasło żyje
+// zaszyfrowane w public.tenant_secrets i jest pod tym kluczem ZAKAZANE.
 const VALID_CREDENTIALS = {
   email: "kurier@example.com",
-  password: "haslo-testowe",
   environment: "test",
 };
 const VALID_SENDER = {
@@ -220,9 +221,18 @@ describe.skipIf(!hasEnv)("moduł dostaw — 0013_courier_shipments.sql", () => {
 
     it.each([
       [
-        "credentiale bez hasła",
+        // Odwrócenie reguły z 0013: hasło pod tym kluczem jest teraz ZAKAZANE,
+        // nie wymagane (0024/ADR-052). CHECK jest zaporą przed regresem, który
+        // odłożyłby sekret z powrotem do jsonb — testy szyfrowania dotyczą
+        // innej tabeli i takiego cofnięcia by nie zauważyły.
+        "credentiale z hasłem odłożonym jawnie",
         "globkurier_credentials",
-        { email: "kurier@example.com", environment: "test" },
+        { ...VALID_CREDENTIALS, password: "haslo-testowe" },
+      ],
+      [
+        "credentiale bez e-maila",
+        "globkurier_credentials",
+        { environment: "test" },
       ],
       [
         "credentiale ze środowiskiem spoza listy",

@@ -16,7 +16,7 @@ import {
 const VALID_ROWS: TenantSettingRow[] = [
   {
     key: GLOBKURIER_CREDENTIALS_KEY,
-    value: { email: "kurier@example.com", password: "haslo-testowe", environment: "test" },
+    value: { email: "kurier@example.com", environment: "test" },
   },
   {
     key: COURIER_SENDER_KEY,
@@ -37,9 +37,14 @@ const VALID_ROWS: TenantSettingRow[] = [
   },
 ];
 
-function configError(rows: TenantSettingRow[]): CourierConfigError {
+const PASSWORD = "haslo-testowe";
+
+function configError(
+  rows: TenantSettingRow[],
+  password: string | null = PASSWORD,
+): CourierConfigError {
   try {
-    courierConfigFromSettings(rows);
+    courierConfigFromSettings(rows, password);
   } catch (err) {
     if (err instanceof CourierConfigError) return err;
     throw err;
@@ -49,7 +54,7 @@ function configError(rows: TenantSettingRow[]): CourierConfigError {
 
 describe("courierConfigFromSettings", () => {
   it("komplet ustawień mapowany na camelCase konfiguracji", () => {
-    const config = courierConfigFromSettings(VALID_ROWS);
+    const config = courierConfigFromSettings(VALID_ROWS, PASSWORD);
     expect(config.credentials).toEqual({
       email: "kurier@example.com",
       password: "haslo-testowe",
@@ -77,7 +82,7 @@ describe("courierConfigFromSettings", () => {
           }
         : row,
     );
-    const config = courierConfigFromSettings(rows);
+    const config = courierConfigFromSettings(rows, PASSWORD);
     expect(config.sender.apartmentNumber).toBeUndefined();
   });
 
@@ -95,6 +100,31 @@ describe("courierConfigFromSettings", () => {
     expect(err.problems).toHaveLength(1);
     expect(err.message).toContain(COURIER_PARCEL_KEY);
     expect(err.message).not.toContain(GLOBKURIER_CREDENTIALS_KEY);
+  });
+
+  it("brak zapisanego hasła: problem na tej samej liście co pozostałe braki (ADR-052)", () => {
+    // Hasło nie leży już w tenant_settings, ale jego brak ma być dla operatora
+    // TYM SAMYM rodzajem zdarzenia co brak nadawcy — jedna lista do uzupełnienia,
+    // nie osobna, tajemnicza awaria dopiero przy próbie nadania.
+    const err = configError(VALID_ROWS, null);
+    expect(err.problems).toHaveLength(1);
+    expect(err.problems.join(" ")).toContain("hasła");
+  });
+
+  it("hasło przemycone do części jawnej jest ignorowane — liczy się sekret", () => {
+    // Zapora przed regresem: gdyby ktoś odłożył hasło do jsonb (CHECK 0024
+    // tego zabrania, ale parser nie ma na tym polegać), konfiguracja bierze
+    // wartość z zaszyfrowanego magazynu, a nie z jawnego ustawienia.
+    const rows = VALID_ROWS.map((row) =>
+      row.key === GLOBKURIER_CREDENTIALS_KEY
+        ? {
+            key: row.key,
+            value: { ...(row.value as Record<string, unknown>), password: "przemycone" },
+          }
+        : row,
+    );
+    const config = courierConfigFromSettings(rows, PASSWORD);
+    expect(config.credentials.password).toBe(PASSWORD);
   });
 
   it("nadawca bez telefonu: problem wskazuje pole", () => {
@@ -125,7 +155,7 @@ describe("courierConfigFromSettings", () => {
       row.key === GLOBKURIER_CREDENTIALS_KEY
         ? {
             key: row.key,
-            value: { email: "kurier@example.com", password: "x", environment: "prod" },
+            value: { email: "kurier@example.com", environment: "prod" },
           }
         : row,
     );
