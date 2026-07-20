@@ -1,0 +1,2150 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avably — moodboard pełnego brandingu, faza 1</title>
+  <style>
+    @font-face {
+      font-family: "Safiro";
+      src: url(__SAFIRO_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Manrope";
+      src: url(__MANROPE_LATIN_EXT_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+        U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+        U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+        U+2C60-2C7F, U+A720-A7FF;
+    }
+
+    @font-face {
+      font-family: "Manrope";
+      src: url(__MANROPE_LATIN_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC,
+        U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
+    @font-face {
+      font-family: "Geist Sans";
+      src: url(__GEIST_SANS_LATIN_EXT_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 600;
+      font-display: swap;
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+        U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+        U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+        U+2C60-2C7F, U+A720-A7FF;
+    }
+
+    @font-face {
+      font-family: "Geist Sans";
+      src: url(__GEIST_SANS_LATIN_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 600;
+      font-display: swap;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC,
+        U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
+    @font-face {
+      font-family: "Geist Mono";
+      src: url(__GEIST_MONO_LATIN_EXT_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 500;
+      font-display: swap;
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+        U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+        U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+        U+2C60-2C7F, U+A720-A7FF;
+    }
+
+    @font-face {
+      font-family: "Geist Mono";
+      src: url(__GEIST_MONO_LATIN_WOFF2__) format("woff2");
+      font-style: normal;
+      font-weight: 400 500;
+      font-display: swap;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC,
+        U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+        U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+
+    :root {
+      --ink: #0B1017;
+      --ink-original: #122035;
+      --lime: #EAFFA4;
+      --dot: #A8C743;
+      --white: #FFFFFF;
+      --cool-canvas: #F4F6F5;
+      --warm-canvas: #FAF8F0;
+      --frame-canvas: #F4F5F2;
+      --shell-secondary: #171D25;
+      --signal-muted: #55616D;
+      --signal-border: #7E8994;
+      --paper-muted: #625E54;
+      --paper-border: #858078;
+      --shell-text: #F7F8F5;
+      --shell-muted: #B7C0C8;
+      --frame-border: #828C96;
+      --motion-fast: 160ms;
+      --motion-ui: 240ms;
+      --motion-reveal: 720ms;
+      --motion-logo: 6000ms;
+      --motion-ad: 8000ms;
+      --motion-ambient: 16000ms;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      color: var(--ink);
+      background: var(--white);
+      font-family: "Geist Sans", Arial, sans-serif;
+      font-synthesis: none;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      overflow-x: hidden;
+      background: var(--white);
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    svg {
+      display: block;
+      max-width: 100%;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    a:focus-visible,
+    [tabindex]:focus-visible {
+      border-color: var(--ink);
+      outline: 3px solid var(--lime);
+      outline-offset: 3px;
+    }
+
+    h1, h2, h3, h4, p, figure, ul, ol, dl, dd {
+      margin-top: 0;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: "Safiro", "Geist Sans", Arial, sans-serif;
+      font-weight: 500;
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+    }
+
+    h1 {
+      max-width: 1000px;
+      margin-bottom: 24px;
+      font-size: clamp(2.7rem, 7vw, 7.6rem);
+    }
+
+    h2 {
+      margin-bottom: 18px;
+      font-size: clamp(2.15rem, 4.8vw, 4.8rem);
+    }
+
+    h3 {
+      font-size: clamp(1.65rem, 3vw, 2.75rem);
+    }
+
+    h4 {
+      font-size: clamp(1.2rem, 2vw, 2rem);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border: 1px solid var(--signal-border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-weight: 600;
+    }
+
+    code,
+    .mono,
+    .hex,
+    .application-number,
+    .eyebrow,
+    .order-demo,
+    .lp-order-row {
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .svg-defs {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .page-shell {
+      width: min(100%, 1600px);
+      margin: 0 auto;
+      border-inline: 1px solid var(--ink);
+    }
+
+    .technical-header,
+    .board-section,
+    .choice-section {
+      padding: clamp(28px, 5vw, 80px) clamp(20px, 4vw, 64px);
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .technical-header {
+      min-height: min(780px, 92vh);
+      display: grid;
+      align-content: space-between;
+      gap: 72px;
+      background: var(--cool-canvas);
+    }
+
+    .technical-topline,
+    .section-heading,
+    .header-meta {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .phase-label,
+    .section-index,
+    .application-number,
+    .eyebrow {
+      margin-bottom: 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+
+    .technical-header .intro {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--signal-muted);
+      font-size: clamp(1rem, 1.7vw, 1.35rem);
+    }
+
+    .header-meta {
+      padding-top: 24px;
+      border-top: 1px solid var(--signal-border);
+      color: var(--signal-muted);
+      font-size: 0.875rem;
+    }
+
+    .header-meta p {
+      max-width: 580px;
+      margin-bottom: 0;
+    }
+
+    .header-mark {
+      width: min(348px, 48vw);
+      flex: 0 0 auto;
+    }
+
+    .section-heading {
+      margin-bottom: clamp(30px, 5vw, 64px);
+    }
+
+    .section-heading > div {
+      max-width: 900px;
+    }
+
+    .section-heading p:last-child {
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--signal-muted);
+    }
+
+    .logo-comparison {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .logo-card {
+      min-width: 0;
+      margin: 0;
+      padding: clamp(20px, 3vw, 42px);
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .logo-card svg {
+      width: 348px;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    .logo-card figcaption {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--signal-border);
+      font-size: 0.875rem;
+    }
+
+    .logo-rationale {
+      max-width: 1020px;
+      margin: 32px 0 0;
+      font-family: "Safiro", "Geist Sans", Arial, sans-serif;
+      font-size: clamp(1.35rem, 2.7vw, 2.5rem);
+      font-weight: 500;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+    }
+
+    .logo-dot--motion {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: logo-signal var(--motion-logo) var(--ease-standard) infinite;
+    }
+
+    .logo-letters--reveal {
+      animation: logo-reveal var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .directions-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+    }
+
+    .direction-card {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: clamp(22px, 3vw, 34px);
+      border: 1px solid var(--ink);
+    }
+
+    .direction-card.signal {
+      --card-canvas: var(--cool-canvas);
+      --card-muted: var(--signal-muted);
+      --card-border: var(--signal-border);
+      background: var(--cool-canvas);
+    }
+
+    .direction-card.paper {
+      --card-canvas: var(--warm-canvas);
+      --card-muted: var(--paper-muted);
+      --card-border: var(--paper-border);
+      background: var(--warm-canvas);
+    }
+
+    .direction-card.frame {
+      --card-canvas: var(--frame-canvas);
+      --card-muted: var(--shell-muted);
+      --card-border: var(--frame-border);
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--shell-text);
+    }
+
+    .direction-card h3 {
+      margin-bottom: 12px;
+    }
+
+    .direction-card .recommendation {
+      display: inline-block;
+      width: fit-content;
+      margin: 0 0 14px;
+      padding: 5px 8px;
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      color: var(--ink);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .direction-card .decision {
+      margin-bottom: 0;
+      color: var(--card-muted);
+    }
+
+    .decision-pair {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+    }
+
+    .decision-pair > div {
+      padding-top: 12px;
+      border-top: 1px solid var(--card-border);
+    }
+
+    .decision-pair dt {
+      font-weight: 600;
+    }
+
+    .decision-pair dd {
+      margin: 4px 0 0;
+      color: var(--card-muted);
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .swatch {
+      min-width: 0;
+    }
+
+    .swatch-color {
+      height: 62px;
+      border: 1px solid var(--card-border);
+      background: var(--swatch);
+    }
+
+    .swatch-label {
+      margin: 8px 0 0;
+      color: var(--card-muted);
+      font-size: 0.64rem;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .swatch-label .hex {
+      display: block;
+      color: currentColor;
+      font-size: 0.59rem;
+    }
+
+    .brand-type-sample {
+      padding: 20px;
+      border: 1px solid var(--card-border);
+      background: var(--white);
+      color: var(--ink);
+    }
+
+    .brand-type-sample p {
+      margin: 0;
+    }
+
+    .brand-type-sample .sample-label {
+      margin-bottom: 18px;
+      color: var(--signal-muted);
+      font-family: "Geist Sans", Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-type-sample .sample-line {
+      font-family: "Safiro", "Geist Sans", Arial, sans-serif;
+      font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+      font-weight: 500;
+      line-height: 1.03;
+      letter-spacing: -0.03em;
+    }
+
+    .ui-shell {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+      background: var(--white);
+      color: var(--ink);
+    }
+
+    .ui-shell-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 46px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .ui-shell-top .active-label {
+      padding: 5px 7px;
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      color: var(--ink);
+    }
+
+    .paper .ui-shell-top {
+      justify-content: flex-start;
+      background: var(--warm-canvas);
+    }
+
+    .paper .document-lines {
+      display: grid;
+      gap: 7px;
+      padding: 12px;
+      background: var(--warm-canvas);
+    }
+
+    .paper .document-lines span {
+      display: block;
+      width: 100%;
+      border-top: 1px solid var(--paper-border);
+      animation: paper-line var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .frame .ui-shell {
+      border-color: var(--frame-border);
+      background: var(--frame-canvas);
+    }
+
+    .frame .ui-shell-top {
+      position: relative;
+      border-color: var(--frame-border);
+      background: var(--shell-secondary);
+      color: var(--shell-text);
+    }
+
+    .frame .frame-nav-marker {
+      position: absolute;
+      left: 12px;
+      bottom: 0;
+      width: 62px;
+      height: 3px;
+      background: var(--lime);
+      animation: frame-marker var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .order-demo {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(100px, 1.15fr) minmax(104px, 1.2fr)
+        minmax(126px, 1.45fr) minmax(118px, 1.15fr) minmax(92px, 0.9fr)
+        minmax(88px, 0.85fr);
+      min-width: 748px;
+      background: var(--white);
+      color: var(--ink);
+      font-size: 0.68rem;
+      line-height: 1.3;
+    }
+
+    .order-demo::before {
+      content: "";
+      position: absolute;
+      inset: 7px auto 7px 0;
+      width: 4px;
+      background: var(--lime);
+      transform-origin: center;
+      animation: ui-state var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .order-demo span {
+      display: flex;
+      align-items: center;
+      min-height: 54px;
+      padding: 9px 10px;
+      border-right: 1px solid var(--card-border);
+      transition: color var(--motion-fast) var(--ease-standard),
+        background-color var(--motion-ui) var(--ease-standard),
+        transform var(--motion-fast) var(--ease-out);
+    }
+
+    .order-demo span:last-child {
+      border-right: 0;
+      font-family: "Geist Sans", Arial, sans-serif;
+      font-weight: 600;
+    }
+
+    .order-demo:hover span,
+    .order-demo:focus-visible span {
+      background: var(--card-canvas);
+      transform: translateX(2px);
+    }
+
+    .order-scroll {
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+    }
+
+    .applications-section {
+      background: var(--cool-canvas);
+    }
+
+    .brand-application {
+      min-width: 0;
+      margin-bottom: 28px;
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .brand-application:last-child {
+      margin-bottom: 0;
+    }
+
+    .application-heading {
+      padding: clamp(22px, 3vw, 38px);
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .application-heading h3 {
+      margin-bottom: 10px;
+    }
+
+    .application-heading p:last-child {
+      max-width: 660px;
+      margin-bottom: 0;
+      color: var(--signal-muted);
+    }
+
+    .brand-application[data-direction="paper"] .application-heading {
+      background: var(--warm-canvas);
+    }
+
+    .brand-application[data-direction="paper"] .application-heading p:last-child {
+      color: var(--paper-muted);
+    }
+
+    .brand-application[data-direction="frame"] .application-heading {
+      background: var(--ink);
+      color: var(--shell-text);
+    }
+
+    .brand-application[data-direction="frame"] .application-heading p:last-child {
+      color: var(--shell-muted);
+    }
+
+    .application-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .application-grid figure {
+      min-width: 0;
+      margin: 0;
+    }
+
+    .application-grid figcaption {
+      padding-top: 9px;
+      color: var(--signal-muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+    }
+
+    .lp-frame {
+      position: relative;
+      min-width: 0;
+      aspect-ratio: 16 / 10;
+      overflow: hidden;
+      border: 1px solid var(--signal-border);
+      background: var(--cool-canvas);
+      color: var(--ink);
+    }
+
+    [data-direction="paper"] .lp-frame {
+      border-color: var(--paper-border);
+      background: var(--warm-canvas);
+    }
+
+    [data-direction="frame"] .lp-frame {
+      border-color: var(--frame-border);
+      background: var(--frame-canvas);
+    }
+
+    .lp-frame nav {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(82px, 1fr) repeat(3, auto);
+      align-items: center;
+      gap: clamp(10px, 2vw, 28px);
+      min-height: 13%;
+      padding: clamp(8px, 1.4vw, 20px);
+      border-bottom: 1px solid var(--signal-border);
+      background: var(--white);
+      font-size: clamp(0.48rem, 0.75vw, 0.78rem);
+      font-weight: 600;
+    }
+
+    [data-direction="paper"] .lp-frame nav {
+      border-color: var(--paper-border);
+      background: var(--warm-canvas);
+    }
+
+    [data-direction="frame"] .lp-frame nav {
+      border-color: var(--frame-border);
+      background: var(--ink);
+      color: var(--shell-text);
+    }
+
+    [data-direction="frame"] .lp-frame nav::after {
+      content: "";
+      position: absolute;
+      right: clamp(8px, 1.4vw, 20px);
+      bottom: 0;
+      width: clamp(34px, 5vw, 70px);
+      height: 3px;
+      background: var(--lime);
+      animation: frame-marker var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .brand-logo {
+      width: clamp(70px, 10vw, 145px);
+      aspect-ratio: 348 / 93;
+      animation: logo-reveal var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .lp-copy {
+      position: relative;
+      z-index: 1;
+      width: min(72%, 690px);
+      padding: clamp(12px, 3.4vw, 52px);
+      animation: lp-reveal var(--motion-reveal) var(--ease-out) both;
+    }
+
+    .lp-copy > p:first-child {
+      margin-bottom: clamp(6px, 1vw, 14px);
+      font-size: clamp(0.48rem, 0.82vw, 0.83rem);
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .lp-copy h4 {
+      max-width: 600px;
+      margin-bottom: clamp(7px, 1.4vw, 20px);
+      font-size: clamp(0.86rem, 2.35vw, 2.65rem);
+    }
+
+    .lp-copy h4 + p {
+      max-width: 620px;
+      margin-bottom: clamp(7px, 1.4vw, 18px);
+      color: var(--signal-muted);
+      font-size: clamp(0.5rem, 0.88vw, 0.94rem);
+      line-height: 1.42;
+    }
+
+    [data-direction="paper"] .lp-copy h4 + p {
+      color: var(--paper-muted);
+    }
+
+    .lp-price {
+      margin-bottom: clamp(8px, 1.3vw, 18px);
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: clamp(0.55rem, 0.95vw, 1rem);
+    }
+
+    .lp-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(5px, 0.8vw, 10px);
+    }
+
+    .lp-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: clamp(26px, 3vw, 42px);
+      padding: clamp(5px, 0.8vw, 10px) clamp(8px, 1.2vw, 16px);
+      border: 1px solid var(--ink);
+      background: var(--white);
+      color: var(--ink);
+      font-size: clamp(0.48rem, 0.72vw, 0.76rem);
+      font-weight: 600;
+      line-height: 1.15;
+      text-decoration: none;
+      transition: background-color var(--motion-fast) var(--ease-standard),
+        color var(--motion-fast) var(--ease-standard),
+        transform var(--motion-fast) var(--ease-out);
+    }
+
+    .lp-actions a:first-child {
+      background: var(--lime);
+    }
+
+    .lp-actions a:hover,
+    .lp-actions a:focus-visible {
+      transform: translateY(-2px);
+    }
+
+    .lp-order-window {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      overflow: hidden;
+      border-top: 1px solid var(--signal-border);
+      background: var(--white);
+    }
+
+    [data-direction="paper"] .lp-order-window {
+      border-color: var(--paper-border);
+    }
+
+    [data-direction="frame"] .lp-order-window {
+      border-color: var(--frame-border);
+    }
+
+    .lp-order-row {
+      display: flex;
+      align-items: center;
+      width: max-content;
+      min-width: 200%;
+      height: clamp(30px, 5.3vw, 66px);
+      color: var(--ink);
+      font-size: clamp(0.43rem, 0.66vw, 0.71rem);
+      line-height: 1.2;
+      white-space: nowrap;
+      animation: operational-rail var(--motion-ambient) linear infinite;
+    }
+
+    .lp-order-row span {
+      display: inline-flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 clamp(9px, 1.4vw, 20px);
+      border-right: 1px solid var(--signal-border);
+    }
+
+    [data-direction="paper"] .lp-order-row span {
+      border-color: var(--paper-border);
+    }
+
+    [data-direction="frame"] .lp-order-row span {
+      border-color: var(--frame-border);
+    }
+
+    .lp-order-row::after {
+      content: "ZAM/2026/0714  ·  Anna Kowalska  ·  Nagrzewnica 20 kW  ·  20–22.07.2026  ·  1 199,00 zł  ·  Do wydania";
+      display: inline-flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 clamp(9px, 1.4vw, 20px);
+      border-right: 1px solid var(--signal-border);
+    }
+
+    .social-previews {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 20px;
+    }
+
+    .social-frame {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+      padding: clamp(16px, 2.5vw, 34px);
+      border: 1px solid var(--signal-border);
+      background: var(--cool-canvas);
+      color: var(--ink);
+      animation: ad-sequence var(--motion-ad) var(--ease-standard) infinite;
+    }
+
+    .social-square .social-frame {
+      aspect-ratio: 1 / 1;
+    }
+
+    .social-portrait .social-frame {
+      aspect-ratio: 4 / 5;
+    }
+
+    [data-direction="paper"] .social-frame {
+      border-color: var(--paper-border);
+      background: var(--warm-canvas);
+    }
+
+    [data-direction="frame"] .social-frame {
+      border-color: var(--frame-border);
+      background: var(--ink);
+      color: var(--shell-text);
+    }
+
+    .social-frame > .brand-logo {
+      margin-bottom: clamp(14px, 2vw, 26px);
+      animation: ad-logo var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    .social-overline {
+      margin-bottom: clamp(6px, 0.8vw, 10px);
+      font-size: clamp(0.52rem, 0.8vw, 0.8rem);
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      animation: ad-headline var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    .social-frame h4 {
+      max-width: 95%;
+      margin-bottom: clamp(8px, 1.2vw, 16px);
+      font-size: clamp(0.86rem, 1.65vw, 1.72rem);
+      animation: ad-headline var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    .social-copy {
+      margin-bottom: clamp(10px, 1.5vw, 20px);
+      color: var(--signal-muted);
+      font-size: clamp(0.52rem, 0.8vw, 0.8rem);
+      line-height: 1.42;
+      animation: ad-headline var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    [data-direction="paper"] .social-copy {
+      color: var(--paper-muted);
+    }
+
+    [data-direction="frame"] .social-copy {
+      color: var(--shell-muted);
+    }
+
+    .social-product {
+      position: relative;
+      min-height: clamp(42px, 7vw, 94px);
+      margin-top: auto;
+      margin-bottom: clamp(10px, 1.5vw, 20px);
+      overflow: hidden;
+      border: 1px solid var(--signal-border);
+      background: var(--white);
+      color: var(--ink);
+      animation: ad-product var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    [data-direction="paper"] .social-product {
+      border-color: var(--paper-border);
+    }
+
+    [data-direction="frame"] .social-product {
+      border-color: var(--frame-border);
+      background: var(--frame-canvas);
+    }
+
+    .availability-demo {
+      display: grid;
+      align-content: center;
+      gap: clamp(3px, 0.6vw, 8px);
+      height: 100%;
+      padding: clamp(7px, 1vw, 13px);
+    }
+
+    .availability-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding-bottom: clamp(3px, 0.5vw, 7px);
+      border-bottom: 1px solid var(--signal-border);
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: clamp(0.42rem, 0.62vw, 0.64rem);
+    }
+
+    .availability-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .availability-row.is-selected::before {
+      content: "";
+      position: absolute;
+      top: 1px;
+      right: clamp(42px, 4.5vw, 62px);
+      width: clamp(5px, 0.65vw, 8px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--dot);
+      animation: signal-stop var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    .store-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: clamp(5px, 0.8vw, 12px);
+      height: 100%;
+      padding: clamp(7px, 1vw, 13px);
+      font-size: clamp(0.43rem, 0.65vw, 0.66rem);
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .store-node {
+      padding: clamp(5px, 0.7vw, 9px);
+      border: 1px solid var(--signal-border);
+      background: var(--white);
+    }
+
+    .store-track {
+      position: relative;
+      width: clamp(28px, 4vw, 58px);
+      border-top: 1px solid var(--ink);
+    }
+
+    .store-track::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: clamp(6px, 0.7vw, 9px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--dot);
+      animation: order-transfer var(--motion-ad) var(--ease-standard) infinite;
+    }
+
+    .social-cta {
+      display: inline-flex;
+      width: fit-content;
+      min-height: clamp(24px, 3vw, 38px);
+      align-items: center;
+      padding: clamp(5px, 0.7vw, 9px) clamp(8px, 1vw, 14px);
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      color: var(--ink);
+      font-size: clamp(0.48rem, 0.7vw, 0.72rem);
+      font-weight: 600;
+      line-height: 1.2;
+      animation: ad-cta var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    [data-direction="paper"] .social-frame::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 18%;
+      left: 0;
+      border-top: 1px solid var(--paper-border);
+      animation: paper-line var(--motion-ad) var(--ease-out) infinite;
+    }
+
+    [data-direction="frame"] .social-frame::after {
+      content: "";
+      position: absolute;
+      top: clamp(16px, 2.5vw, 34px);
+      right: 0;
+      width: 4px;
+      height: 18%;
+      background: var(--lime);
+      animation: frame-ad-marker var(--motion-ad) var(--ease-standard) infinite;
+    }
+
+    .motion-section {
+      background: var(--ink);
+      color: var(--shell-text);
+    }
+
+    .motion-section .section-heading p:last-child {
+      color: var(--shell-muted);
+    }
+
+    .motion-principle {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .motion-principle > div,
+    .motion-token-table,
+    .motion-storyboard {
+      padding: clamp(22px, 3vw, 36px);
+      border: 1px solid var(--frame-border);
+      background: var(--shell-secondary);
+    }
+
+    .motion-principle h3,
+    .motion-storyboard h3 {
+      margin-bottom: 16px;
+    }
+
+    .motion-principle p:last-child {
+      margin-bottom: 0;
+      color: var(--shell-muted);
+    }
+
+    .motion-dot-diagram {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 210px;
+      border: 1px solid var(--frame-border);
+      background: var(--ink);
+    }
+
+    .motion-dot-diagram::before {
+      content: "";
+      width: 62%;
+      border-top: 1px solid var(--shell-muted);
+    }
+
+    .motion-dot-diagram::after {
+      content: "";
+      position: absolute;
+      width: 30px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--dot);
+      transform: translateX(12px) scale(1.08);
+    }
+
+    .motion-token-table th,
+    .motion-token-table td {
+      border-color: var(--frame-border);
+    }
+
+    .motion-token-table td:last-child {
+      color: var(--shell-muted);
+      font-family: "Geist Mono", ui-monospace, monospace;
+    }
+
+    .motion-storyboard {
+      margin-top: 20px;
+    }
+
+    .storyboard-steps {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      border-top: 1px solid var(--frame-border);
+      border-left: 1px solid var(--frame-border);
+    }
+
+    .storyboard-step {
+      min-width: 0;
+      padding: 18px 14px;
+      border-right: 1px solid var(--frame-border);
+      border-bottom: 1px solid var(--frame-border);
+    }
+
+    .storyboard-step strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--lime);
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: 0.76rem;
+    }
+
+    .storyboard-step span {
+      color: var(--shell-muted);
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+
+    .reduced-note {
+      margin: 20px 0 0;
+      padding: 18px;
+      border: 1px solid var(--lime);
+      color: var(--shell-text);
+    }
+
+    .typography-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 20px;
+    }
+
+    .weight-specimen,
+    .type-in-use {
+      border: 1px solid var(--ink);
+    }
+
+    .weight-line {
+      display: grid;
+      grid-template-columns: minmax(132px, 0.35fr) minmax(0, 1fr);
+      align-items: baseline;
+      gap: 20px;
+      min-height: 96px;
+      padding: 22px;
+      border-bottom: 1px solid var(--signal-border);
+    }
+
+    .weight-line:last-child {
+      border-bottom: 0;
+    }
+
+    .weight-label {
+      color: var(--signal-muted);
+      font-size: 0.75rem;
+    }
+
+    .weight-copy {
+      margin: 0;
+      font-size: clamp(1.45rem, 3vw, 3.15rem);
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+    }
+
+    .manrope-400 { font-family: "Manrope", Arial, sans-serif; font-weight: 400; }
+    .safiro-500 { font-family: "Safiro", Arial, sans-serif; font-weight: 500; }
+    .manrope-600 { font-family: "Manrope", Arial, sans-serif; font-weight: 600; }
+    .manrope-700 { font-family: "Manrope", Arial, sans-serif; font-weight: 700; }
+
+    .type-in-use {
+      padding: clamp(22px, 3vw, 36px);
+      background: var(--cool-canvas);
+    }
+
+    .type-in-use h3 {
+      max-width: 620px;
+      margin-bottom: 18px;
+    }
+
+    .type-in-use > p {
+      max-width: 690px;
+      color: var(--signal-muted);
+    }
+
+    .type-in-use table {
+      margin-top: 26px;
+      background: var(--white);
+      font-size: 0.8rem;
+    }
+
+    .type-in-use td:first-child,
+    .type-in-use td:nth-child(3),
+    .type-in-use td:nth-child(4) {
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .type-boundary {
+      margin: 20px 0 0;
+      padding: 18px;
+      border: 1px solid var(--signal-border);
+      background: var(--white);
+      color: var(--signal-muted);
+      font-size: 0.86rem;
+    }
+
+    .contrast-layout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .contrast-group {
+      min-width: 0;
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .contrast-group h3 {
+      margin: 0;
+      padding: 20px;
+      border-bottom: 1px solid var(--ink);
+      font-size: 1.4rem;
+    }
+
+    .contrast-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--signal-border);
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: 0.72rem;
+    }
+
+    .contrast-row:last-child {
+      border-bottom: 0;
+    }
+
+    .contrast-row strong {
+      font-weight: 500;
+    }
+
+    .focus-explanation {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 20px;
+      align-items: center;
+      margin-top: 20px;
+      padding: 24px;
+      border: 1px solid var(--ink);
+      background: var(--cool-canvas);
+    }
+
+    .focus-demo {
+      padding: 11px 14px;
+      border: 2px solid var(--ink);
+      outline: 3px solid var(--lime);
+      outline-offset: 3px;
+      background: var(--white);
+      font-weight: 600;
+    }
+
+    .focus-explanation p {
+      margin-bottom: 0;
+      color: var(--signal-muted);
+    }
+
+    .not-included-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+    }
+
+    .rejection {
+      min-height: 210px;
+      padding: 24px;
+      background: var(--white);
+    }
+
+    .rejection .mono {
+      display: block;
+      margin-bottom: 32px;
+      color: var(--signal-muted);
+      font-size: 0.72rem;
+    }
+
+    .rejection h3 {
+      margin-bottom: 12px;
+      font-family: "Geist Sans", Arial, sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .rejection p {
+      margin-bottom: 0;
+      color: var(--signal-muted);
+      font-size: 0.84rem;
+    }
+
+    .choice-section {
+      min-height: 520px;
+      display: grid;
+      align-content: center;
+      background: var(--lime);
+    }
+
+    .choice-section p {
+      max-width: 1360px;
+      margin-bottom: 0;
+      font-family: "Safiro", "Geist Sans", Arial, sans-serif;
+      font-size: clamp(2rem, 5vw, 5.8rem);
+      font-weight: 500;
+      line-height: 1.06;
+      letter-spacing: -0.04em;
+    }
+
+    @keyframes logo-signal {
+      0% { opacity: 0; transform: translateX(-12px) scale(0.84); }
+      5%, 94% { opacity: 1; transform: translateX(0) scale(1); }
+      97% { opacity: 1; transform: translateY(-0.5px) scale(1.08); }
+      100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes logo-reveal {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes ui-state {
+      from { opacity: 0.4; transform: scaleY(0.2); }
+      to { opacity: 1; transform: scaleY(1); }
+    }
+
+    @keyframes operational-rail {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @keyframes ad-sequence {
+      0%, 4% { opacity: 0; transform: translateY(8px); }
+      12%, 92% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+
+    @keyframes lp-reveal {
+      from { opacity: 0; transform: translateY(8px); clip-path: inset(0 0 100% 0); }
+      to { opacity: 1; transform: translateY(0); clip-path: inset(0); }
+    }
+
+    @keyframes paper-line {
+      0%, 12% { opacity: 0; transform: translateY(6px) scaleX(0.2); }
+      34%, 92% { opacity: 1; transform: translateY(0) scaleX(1); }
+      100% { opacity: 0; transform: translateY(-2px) scaleX(1); }
+    }
+
+    @keyframes frame-marker {
+      from { opacity: 0; transform: translateX(-4px) scaleX(0.3); }
+      to { opacity: 1; transform: translateX(0) scaleX(1); }
+    }
+
+    @keyframes frame-ad-marker {
+      0%, 34% { opacity: 0; transform: translateY(-4px) scaleY(0.25); }
+      54%, 92% { opacity: 1; transform: translateY(0) scaleY(1); }
+      100% { opacity: 0; transform: translateY(0) scaleY(1); }
+    }
+
+    @keyframes ad-logo {
+      0%, 2% { opacity: 0; transform: translateX(-8px); }
+      12%, 92% { opacity: 1; transform: translateX(0); }
+      100% { opacity: 0; transform: translateX(0); }
+    }
+
+    @keyframes ad-headline {
+      0%, 12% { opacity: 0; transform: translateY(8px); }
+      34%, 92% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+
+    @keyframes ad-product {
+      0%, 34% { opacity: 0; transform: translateY(8px); }
+      54%, 92% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+
+    @keyframes ad-cta {
+      0%, 54% { opacity: 0; transform: translateY(4px); }
+      72%, 92% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-2px); }
+    }
+
+    @keyframes signal-stop {
+      0%, 34% { opacity: 0; transform: translateX(-12px) scale(0.84); }
+      54%, 92% { opacity: 1; transform: translateX(0) scale(1); }
+      100% { opacity: 0; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes order-transfer {
+      0%, 34% { opacity: 0; transform: translate(-2px, -50%) scale(0.84); }
+      54% { opacity: 1; transform: translate(0, -50%) scale(1); }
+      72%, 92% { opacity: 1; transform: translate(clamp(20px, 3vw, 48px), -50%) scale(1); }
+      100% { opacity: 0; transform: translate(clamp(20px, 3vw, 48px), -50%) scale(1); }
+    }
+
+    .motion-loop:hover *,
+    .motion-loop:focus-within * {
+      animation-play-state: paused;
+    }
+
+    @media (min-width: 980px) {
+      .application-grid {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      }
+    }
+
+    @media (min-width: 1180px) {
+      .directions-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .direction-card {
+        padding: 30px;
+      }
+    }
+
+    @media (max-width: 1179px) {
+      .direction-card {
+        width: 100%;
+      }
+
+      .palette {
+        grid-template-columns: repeat(7, minmax(80px, 1fr));
+        overflow-x: auto;
+      }
+    }
+
+    @media (max-width: 979px) {
+      .motion-principle,
+      .typography-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .contrast-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .not-included-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .storyboard-steps {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-shell {
+        border-inline: 0;
+      }
+
+      .technical-topline,
+      .section-heading,
+      .header-meta,
+      .logo-card figcaption,
+      .focus-explanation {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .header-mark {
+        width: min(260px, 100%);
+      }
+
+      .logo-comparison,
+      .social-previews {
+        grid-template-columns: 1fr;
+      }
+
+      .palette {
+        grid-template-columns: repeat(4, minmax(70px, 1fr));
+      }
+
+      .lp-frame nav {
+        grid-template-columns: minmax(70px, 1fr) repeat(3, auto);
+        gap: 6px;
+      }
+
+      .lp-copy {
+        width: 82%;
+      }
+
+      .lp-copy h4 + p {
+        max-width: 88%;
+      }
+
+      .storyboard-steps,
+      .not-included-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .weight-line {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .choice-section {
+        min-height: 440px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+
+      .motion-loop,
+      .motion-loop * {
+        opacity: 1 !important;
+        transform: none !important;
+        clip-path: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="logo-before" viewBox="0 0 348 93">
+        <rect width="348" height="93" rx="44" fill="#EAFFA4"></rect>
+        <circle cx="59.5" cy="46.5" r="14.5" fill="#A8C743"></circle>
+        <path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z" fill="#122035"></path>
+        <path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z" fill="#122035"></path>
+        <path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z" fill="#122035"></path>
+        <path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z" fill="#122035"></path>
+        <path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z" fill="#122035"></path>
+        <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z" fill="#122035"></path>
+      </symbol>
+      <symbol id="logo-after" viewBox="0 0 348 93">
+        <rect class="logo-letters--reveal" width="348" height="93" rx="44" fill="#EAFFA4"></rect>
+        <circle class="logo-dot--motion" cx="57.5" cy="46" r="15" fill="#A8C743"></circle>
+        <g class="logo-letters--reveal" transform="translate(-2 0)" fill="#0B1017">
+          <path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z"></path>
+          <path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z"></path>
+          <path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z"></path>
+          <path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z"></path>
+          <path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z"></path>
+          <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="page-shell">
+    <header class="technical-header">
+      <div class="technical-topline">
+        <div>
+          <p class="phase-label">Avably · Faza 1 · 20.07.2026</p>
+          <p>Pełny branding do wyboru kierunku</p>
+        </div>
+        <svg class="header-mark" viewBox="0 0 348 93" role="img" aria-label="Źródłowy znak Avably">
+          <use href="#logo-before"></use>
+        </svg>
+      </div>
+      <div>
+        <h1>Jedna marka. Trzy role koloru.</h1>
+        <p class="intro">Porównanie tego samego systemu w interfejsie, na landing page i w social media. Zmieniamy konstrukcję powierzchni oraz sposób prowadzenia oka — nie dane, obietnice ani gęstość treści.</p>
+      </div>
+      <div class="header-meta">
+        <p><span class="mono">ZAKRES</span><br>Logo, kolor, typografia, UI, landing page, social media i motion. Bez tokenów produkcyjnych oraz ekranów fazy 2.</p>
+        <p><span class="mono">ZASADA</span><br>Limonka jest sygnałem operacyjnym, a niemal czarny kolor buduje czytelność i ramę.</p>
+      </div>
+    </header>
+
+    <section class="board-section" id="logo" aria-labelledby="logo-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">01 · Logo</p>
+          <h2 id="logo-title">Subtelna korekta, ta sama koncepcja.</h2>
+          <p>Krzywe liter, kerning, kapsuła i proporcje pozostają bez zmian. Korekta dotyczy wyłącznie balansu optycznego i koloru.</p>
+        </div>
+        <span class="mono">348 × 93 px</span>
+      </div>
+
+      <div class="logo-comparison">
+        <figure class="logo-card">
+          <svg width="348" height="93" viewBox="0 0 348 93" role="img" aria-labelledby="logo-before-title">
+            <title id="logo-before-title">Logo Avably przed korektą</title>
+            <rect width="348" height="93" rx="44" fill="#EAFFA4"></rect>
+            <circle cx="59.5" cy="46.5" r="14.5" fill="#A8C743"></circle>
+            <path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z" fill="#122035"></path>
+            <path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z" fill="#122035"></path>
+            <path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z" fill="#122035"></path>
+            <path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z" fill="#122035"></path>
+            <path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z" fill="#122035"></path>
+            <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z" fill="#122035"></path>
+          </svg>
+          <figcaption><strong>Przed</strong><span class="mono">#122035 · r 14.5</span></figcaption>
+        </figure>
+
+        <figure class="logo-card motion-loop">
+          <svg width="348" height="93" viewBox="0 0 348 93" role="img" aria-labelledby="logo-after-title">
+            <title id="logo-after-title">Logo Avably po korekcie</title>
+            <rect class="logo-letters--reveal" width="348" height="93" rx="44" fill="#EAFFA4"></rect>
+            <circle class="logo-dot--motion" cx="57.5" cy="46" r="15" fill="#A8C743"></circle>
+            <g class="logo-letters--reveal" transform="translate(-2 0)" fill="#0B1017">
+              <path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z"></path>
+              <path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z"></path>
+              <path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z"></path>
+              <path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z"></path>
+              <path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z"></path>
+              <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path>
+            </g>
+          </svg>
+          <figcaption><strong>Po</strong><span class="mono">#0B1017 · r 15 · −2 px</span></figcaption>
+        </figure>
+      </div>
+
+      <p class="logo-rationale">Nieco cięższa i wyżej ustawiona kropka oraz prawie czarny logotyp równoważą długi wyraz bez zmiany koncepcji znaku.</p>
+    </section>
+
+    <section class="board-section" id="directions" aria-labelledby="directions-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">02 · Kierunki UI</p>
+          <h2 id="directions-title">Ten sam wiersz. Trzy decyzje systemowe.</h2>
+          <p>Każda karta ma identyczne dane, próbkę Safiro Medium 500 i siedem podpisanych ról koloru. Różnicę buduje konstrukcja, nie atrakcyjniejsza treść.</p>
+        </div>
+        <span class="mono">≥1180 px · 3 kolumny</span>
+      </div>
+
+      <div class="directions-grid">
+        <article class="direction-card signal">
+          <header>
+            <p class="recommendation">Rekomendowany</p>
+            <h3>Sygnał operacyjny</h3>
+            <p class="decision">Jasna, chłodna baza. Limonka pojawia się tylko przy głównej akcji, focusie, aktywnym filtrze i wąskim znaczniku wybranego wiersza.</p>
+          </header>
+          <dl class="decision-pair">
+            <div><dt>Zysk</dt><dd>Najwyższa skanowalność gęstych tabel i najmniejsze zmęczenie przy wielogodzinnej pracy.</dd></div>
+            <div><dt>Koszt</dt><dd>Marka jest najbardziej dyskretna poza nagłówkami i nawigacją.</dd></div>
+          </dl>
+          <div class="palette" aria-label="Paleta kierunku Sygnał operacyjny">
+            <div class="swatch"><div class="swatch-color" style="--swatch:#F4F6F5"></div><p class="swatch-label">Canvas<span class="hex">#F4F6F5</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#FFFFFF"></div><p class="swatch-label">Surface<span class="hex">#FFFFFF</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#0B1017"></div><p class="swatch-label">Ink<span class="hex">#0B1017</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#55616D"></div><p class="swatch-label">Muted<span class="hex">#55616D</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#7E8994"></div><p class="swatch-label">Border<span class="hex">#7E8994</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#EAFFA4"></div><p class="swatch-label">Lime<span class="hex">#EAFFA4</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#A8C743"></div><p class="swatch-label">Dot<span class="hex">#A8C743</span></p></div>
+          </div>
+          <div class="brand-type-sample"><p class="sample-label">Safiro Medium 500</p><p class="sample-line">Dostępność pod kontrolą.</p></div>
+          <div class="ui-shell">
+            <div class="ui-shell-top"><span>Zamówienia / dziś</span><span class="active-label">Nowe zamówienie</span></div>
+            <div class="order-scroll">
+              <div class="order-demo motion-loop" data-motion-demo="ui-signal" tabindex="0" aria-label="Demonstracyjny wiersz zamówienia w kierunku Sygnał operacyjny">
+                <span>ZAM/2026/0714</span><span>Anna Kowalska</span><span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span><span>1 199,00 zł</span><span>Do wydania</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="direction-card paper">
+          <header>
+            <p class="phase-label">Kierunek 02</p>
+            <h3>Papier roboczy</h3>
+            <p class="decision">Ciepła, złamana biel tworzy tło dokumentowe. Ograniczone pole limonkowe należy wyłącznie do krótkiej etykiety, nigdy do akapitu ani całej strony.</p>
+          </header>
+          <dl class="decision-pair">
+            <div><dt>Zysk</dt><dd>Mniej techniczny, spokojniejszy pierwszy kontakt bez ozdobności.</dd></div>
+            <div><dt>Koszt</dt><dd>Mniejsza ostrość podziału powierzchni; granice tabel wymagają staranniejszej kontroli kontrastu.</dd></div>
+          </dl>
+          <div class="palette" aria-label="Paleta kierunku Papier roboczy">
+            <div class="swatch"><div class="swatch-color" style="--swatch:#FAF8F0"></div><p class="swatch-label">Canvas<span class="hex">#FAF8F0</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#FFFFFF"></div><p class="swatch-label">Surface<span class="hex">#FFFFFF</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#0B1017"></div><p class="swatch-label">Ink<span class="hex">#0B1017</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#625E54"></div><p class="swatch-label">Muted<span class="hex">#625E54</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#858078"></div><p class="swatch-label">Border<span class="hex">#858078</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#EAFFA4"></div><p class="swatch-label">Lime<span class="hex">#EAFFA4</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#A8C743"></div><p class="swatch-label">Dot<span class="hex">#A8C743</span></p></div>
+          </div>
+          <div class="brand-type-sample"><p class="sample-label">Safiro Medium 500</p><p class="sample-line">Dostępność pod kontrolą.</p></div>
+          <div class="ui-shell">
+            <div class="ui-shell-top"><span class="active-label">Do przygotowania</span><span>Zamówienia / dziś</span></div>
+            <div class="document-lines" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="order-scroll">
+              <div class="order-demo motion-loop" data-motion-demo="ui-paper" tabindex="0" aria-label="Demonstracyjny wiersz zamówienia w kierunku Papier roboczy">
+                <span>ZAM/2026/0714</span><span>Anna Kowalska</span><span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span><span>1 199,00 zł</span><span>Do wydania</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="direction-card frame">
+          <header>
+            <p class="phase-label">Kierunek 03</p>
+            <h3>Czarna rama</h3>
+            <p class="decision">Niemal czarna rama porządkuje nawigację, a obszar roboczy pozostaje jasny. Limonka wskazuje aktywną sekcję, focus i główną akcję.</p>
+          </header>
+          <dl class="decision-pair">
+            <div><dt>Zysk</dt><dd>Najsilniejsza rozpoznawalność oraz wyraźna orientacja w panelu.</dd></div>
+            <div><dt>Koszt</dt><dd>Największy ciężar wizualny; rama nie może wejść do gęstej części roboczej ani zmniejszyć powierzchni danych.</dd></div>
+          </dl>
+          <div class="palette" aria-label="Paleta kierunku Czarna rama">
+            <div class="swatch"><div class="swatch-color" style="--swatch:#0B1017"></div><p class="swatch-label">Shell<span class="hex">#0B1017</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#171D25"></div><p class="swatch-label">Shell 2<span class="hex">#171D25</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#F4F5F2"></div><p class="swatch-label">Canvas<span class="hex">#F4F5F2</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#FFFFFF"></div><p class="swatch-label">Surface<span class="hex">#FFFFFF</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#F7F8F5"></div><p class="swatch-label">Shell text<span class="hex">#F7F8F5</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#EAFFA4"></div><p class="swatch-label">Lime<span class="hex">#EAFFA4</span></p></div>
+            <div class="swatch"><div class="swatch-color" style="--swatch:#A8C743"></div><p class="swatch-label">Dot<span class="hex">#A8C743</span></p></div>
+          </div>
+          <div class="brand-type-sample"><p class="sample-label">Safiro Medium 500</p><p class="sample-line">Dostępność pod kontrolą.</p></div>
+          <div class="ui-shell">
+            <div class="ui-shell-top"><span>Zamówienia</span><span>Magazyn</span><span class="active-label">Nowe zamówienie</span><i class="frame-nav-marker" aria-hidden="true"></i></div>
+            <div class="order-scroll">
+              <div class="order-demo motion-loop" data-motion-demo="ui-frame" tabindex="0" aria-label="Demonstracyjny wiersz zamówienia w kierunku Czarna rama">
+                <span>ZAM/2026/0714</span><span>Anna Kowalska</span><span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span><span>1 199,00 zł</span><span>Do wydania</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="board-section applications-section" id="applications" aria-labelledby="applications-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">03 · Branding w użyciu</p>
+          <h2 id="applications-title">Pełne plansze, nie próbki koloru.</h2>
+          <p>Każdy kierunek otrzymuje tę samą makietę landing page i oba formaty social media. Układ, copy, proporcje i dane pozostają identyczne.</p>
+        </div>
+        <span class="mono">LP 60% · Social 40%</span>
+      </div>
+
+      <article class="brand-application" data-direction="signal">
+        <header class="application-heading">
+          <p class="application-number">Kierunek 01</p>
+          <h3>Sygnał operacyjny</h3>
+          <p>Limonka prowadzi do działania, a neutralna baza utrzymuje czytelność.</p>
+        </header>
+        <div class="application-grid">
+          <figure class="lp-preview motion-loop" data-motion-demo="lp-signal">
+            <div class="lp-frame">
+              <nav aria-label="Nawigacja makiety landing page">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <span>Produkt</span><span>Dla wypożyczalni</span><span>Kontakt</span>
+              </nav>
+              <div class="lp-copy">
+                <p>System dla wypożyczalni sprzętu</p>
+                <h4>Prowadź wynajem. Przyjmuj rezerwacje online.</h4>
+                <p>Rezerwacje, dostępność sprzętu, kaucje, kurier i e-maile w jednym panelu. Do tego własna strona sklepu z rezerwacją online — bez instalacji i bez informatyka.</p>
+                <p class="lp-price"><strong>199 zł miesięcznie</strong></p>
+                <div class="lp-actions">
+                  <a href="#choice">Zapisz się na listę oczekujących</a>
+                  <a href="#directions">Zobacz, jak działa</a>
+                </div>
+              </div>
+              <div class="lp-order-window">
+                <div class="lp-order-row" aria-label="Demonstracyjny wiersz zamówienia">
+                  <span>ZAM/2026/0714</span><span>Anna Kowalska</span>
+                  <span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span>
+                  <span>1 199,00 zł</span><span>Do wydania</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>Landing page · pole 1440 × 900 px</figcaption>
+          </figure>
+          <div class="social-previews">
+            <figure class="social-square motion-loop" data-motion-demo="ad-square-signal">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Dostępność sprzętu</p>
+                <h4>Jeden egzemplarz. Jeden termin. Jedna rezerwacja.</h4>
+                <p class="social-copy">Avably pilnuje dostępności sprzętu także wtedy, gdy dwóch pracowników lub dwóch klientów klika w tej samej chwili.</p>
+                <div class="social-product" aria-label="Demonstracja blokady podwójnej rezerwacji">
+                  <div class="availability-demo">
+                    <div class="availability-row"><span>Nagrzewnica · 01</span><span>20–22.07</span></div>
+                    <div class="availability-row is-selected"><span>Nagrzewnica · 02</span><span>zajęta</span></div>
+                  </div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 1:1 · 1080 × 1080 px</figcaption>
+            </figure>
+            <figure class="social-portrait motion-loop" data-motion-demo="ad-portrait-signal">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Własny sklep</p>
+                <h4>Klient rezerwuje online. Zamówienie od razu trafia do panelu.</h4>
+                <p class="social-copy">Każda wypożyczalnia dostaje własny adres sklepu i edytor strony. Klient wybiera sprzęt i termin, a obie strony dostają potwierdzenie e-mailem.</p>
+                <div class="social-product" aria-label="Demonstracja przejścia zamówienia ze sklepu do panelu">
+                  <div class="store-flow"><span class="store-node">Sklep</span><span class="store-track" aria-hidden="true"></span><span class="store-node">Panel</span></div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 4:5 · 1080 × 1350 px</figcaption>
+            </figure>
+          </div>
+        </div>
+      </article>
+
+      <article class="brand-application" data-direction="paper">
+        <header class="application-heading">
+          <p class="application-number">Kierunek 02</p>
+          <h3>Papier roboczy</h3>
+          <p>Limonka prowadzi do działania, a neutralna baza utrzymuje czytelność.</p>
+        </header>
+        <div class="application-grid">
+          <figure class="lp-preview motion-loop" data-motion-demo="lp-paper">
+            <div class="lp-frame">
+              <nav aria-label="Nawigacja makiety landing page">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <span>Produkt</span><span>Dla wypożyczalni</span><span>Kontakt</span>
+              </nav>
+              <div class="lp-copy">
+                <p>System dla wypożyczalni sprzętu</p>
+                <h4>Prowadź wynajem. Przyjmuj rezerwacje online.</h4>
+                <p>Rezerwacje, dostępność sprzętu, kaucje, kurier i e-maile w jednym panelu. Do tego własna strona sklepu z rezerwacją online — bez instalacji i bez informatyka.</p>
+                <p class="lp-price"><strong>199 zł miesięcznie</strong></p>
+                <div class="lp-actions">
+                  <a href="#choice">Zapisz się na listę oczekujących</a>
+                  <a href="#directions">Zobacz, jak działa</a>
+                </div>
+              </div>
+              <div class="lp-order-window">
+                <div class="lp-order-row" aria-label="Demonstracyjny wiersz zamówienia">
+                  <span>ZAM/2026/0714</span><span>Anna Kowalska</span>
+                  <span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span>
+                  <span>1 199,00 zł</span><span>Do wydania</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>Landing page · pole 1440 × 900 px</figcaption>
+          </figure>
+          <div class="social-previews">
+            <figure class="social-square motion-loop" data-motion-demo="ad-square-paper">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Dostępność sprzętu</p>
+                <h4>Jeden egzemplarz. Jeden termin. Jedna rezerwacja.</h4>
+                <p class="social-copy">Avably pilnuje dostępności sprzętu także wtedy, gdy dwóch pracowników lub dwóch klientów klika w tej samej chwili.</p>
+                <div class="social-product" aria-label="Demonstracja blokady podwójnej rezerwacji">
+                  <div class="availability-demo">
+                    <div class="availability-row"><span>Nagrzewnica · 01</span><span>20–22.07</span></div>
+                    <div class="availability-row is-selected"><span>Nagrzewnica · 02</span><span>zajęta</span></div>
+                  </div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 1:1 · 1080 × 1080 px</figcaption>
+            </figure>
+            <figure class="social-portrait motion-loop" data-motion-demo="ad-portrait-paper">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Własny sklep</p>
+                <h4>Klient rezerwuje online. Zamówienie od razu trafia do panelu.</h4>
+                <p class="social-copy">Każda wypożyczalnia dostaje własny adres sklepu i edytor strony. Klient wybiera sprzęt i termin, a obie strony dostają potwierdzenie e-mailem.</p>
+                <div class="social-product" aria-label="Demonstracja przejścia zamówienia ze sklepu do panelu">
+                  <div class="store-flow"><span class="store-node">Sklep</span><span class="store-track" aria-hidden="true"></span><span class="store-node">Panel</span></div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 4:5 · 1080 × 1350 px</figcaption>
+            </figure>
+          </div>
+        </div>
+      </article>
+
+      <article class="brand-application" data-direction="frame">
+        <header class="application-heading">
+          <p class="application-number">Kierunek 03</p>
+          <h3>Czarna rama</h3>
+          <p>Limonka prowadzi do działania, a neutralna baza utrzymuje czytelność.</p>
+        </header>
+        <div class="application-grid">
+          <figure class="lp-preview motion-loop" data-motion-demo="lp-frame">
+            <div class="lp-frame">
+              <nav aria-label="Nawigacja makiety landing page">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <span>Produkt</span><span>Dla wypożyczalni</span><span>Kontakt</span>
+              </nav>
+              <div class="lp-copy">
+                <p>System dla wypożyczalni sprzętu</p>
+                <h4>Prowadź wynajem. Przyjmuj rezerwacje online.</h4>
+                <p>Rezerwacje, dostępność sprzętu, kaucje, kurier i e-maile w jednym panelu. Do tego własna strona sklepu z rezerwacją online — bez instalacji i bez informatyka.</p>
+                <p class="lp-price"><strong>199 zł miesięcznie</strong></p>
+                <div class="lp-actions">
+                  <a href="#choice">Zapisz się na listę oczekujących</a>
+                  <a href="#directions">Zobacz, jak działa</a>
+                </div>
+              </div>
+              <div class="lp-order-window">
+                <div class="lp-order-row" aria-label="Demonstracyjny wiersz zamówienia">
+                  <span>ZAM/2026/0714</span><span>Anna Kowalska</span>
+                  <span>Nagrzewnica 20 kW</span><span>20–22.07.2026</span>
+                  <span>1 199,00 zł</span><span>Do wydania</span>
+                </div>
+              </div>
+            </div>
+            <figcaption>Landing page · pole 1440 × 900 px</figcaption>
+          </figure>
+          <div class="social-previews">
+            <figure class="social-square motion-loop" data-motion-demo="ad-square-frame">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Dostępność sprzętu</p>
+                <h4>Jeden egzemplarz. Jeden termin. Jedna rezerwacja.</h4>
+                <p class="social-copy">Avably pilnuje dostępności sprzętu także wtedy, gdy dwóch pracowników lub dwóch klientów klika w tej samej chwili.</p>
+                <div class="social-product" aria-label="Demonstracja blokady podwójnej rezerwacji">
+                  <div class="availability-demo">
+                    <div class="availability-row"><span>Nagrzewnica · 01</span><span>20–22.07</span></div>
+                    <div class="availability-row is-selected"><span>Nagrzewnica · 02</span><span>zajęta</span></div>
+                  </div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 1:1 · 1080 × 1080 px</figcaption>
+            </figure>
+            <figure class="social-portrait motion-loop" data-motion-demo="ad-portrait-frame">
+              <div class="social-frame">
+                <svg class="brand-logo" viewBox="0 0 348 93" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
+                <p class="social-overline">Własny sklep</p>
+                <h4>Klient rezerwuje online. Zamówienie od razu trafia do panelu.</h4>
+                <p class="social-copy">Każda wypożyczalnia dostaje własny adres sklepu i edytor strony. Klient wybiera sprzęt i termin, a obie strony dostają potwierdzenie e-mailem.</p>
+                <div class="social-product" aria-label="Demonstracja przejścia zamówienia ze sklepu do panelu">
+                  <div class="store-flow"><span class="store-node">Sklep</span><span class="store-track" aria-hidden="true"></span><span class="store-node">Panel</span></div>
+                </div>
+                <span class="social-cta">Zapisz się na listę oczekujących</span>
+              </div>
+              <figcaption>Post 4:5 · 1080 × 1350 px</figcaption>
+            </figure>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="board-section motion-section" id="motion" aria-labelledby="motion-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">04 · Motion system</p>
+          <h2 id="motion-title">Sygnał pojawia się, prowadzi i wraca do spoczynku.</h2>
+          <p>Kropka jest wspólną metaforą ruchu. Interfejs reaguje krótko, landing page ma jedną spokojną szynę, a reklama dostaje czytelną ośmiosekundową sekwencję.</p>
+        </div>
+        <span class="mono">CSS only</span>
+      </div>
+
+      <div class="motion-principle">
+        <div>
+          <p class="eyebrow">Zasada kropki</p>
+          <h3>12 px drogi. 88% czasu w spoczynku.</h3>
+          <p>Kropka wchodzi od lewej ze skali 0.84 do 1, po czym pozostaje nieruchoma. Pojedynczy oddech nie przekracza 1.08. Litery i kapsuła pojawiają się tylko raz przez opacity oraz przesunięcie do 8 px — bez morfowania, obrotu i sprężyny.</p>
+        </div>
+        <div class="motion-dot-diagram" aria-label="Statyczny diagram drogi kropki o długości 12 pikseli"></div>
+      </div>
+
+      <div class="motion-token-table">
+        <table aria-label="Czasy i easingi motion systemu">
+          <thead><tr><th>Rola</th><th>Wartość</th><th>Zastosowanie</th></tr></thead>
+          <tbody>
+            <tr><td>Fast interaction</td><td>160ms</td><td>Hover i focus</td></tr>
+            <tr><td>UI state</td><td>240ms</td><td>Zmiana aktywnego stanu</td></tr>
+            <tr><td>Reveal</td><td>720ms</td><td>Jednorazowe wejście treści</td></tr>
+            <tr><td>Logo signal</td><td>6000ms</td><td>Krótki sygnał i długi spoczynek</td></tr>
+            <tr><td>Ad sequence</td><td>8000ms</td><td>Pętla obu reklam</td></tr>
+            <tr><td>Ambient rail</td><td>16000ms</td><td>Jedyna ciągła warstwa LP</td></tr>
+            <tr><td>Ease out</td><td>cubic-bezier(0.22, 1, 0.36, 1)</td><td>Wejścia i zatrzymania</td></tr>
+            <tr><td>Ease standard</td><td>cubic-bezier(0.2, 0.7, 0.2, 1)</td><td>Stany i spokojne przejścia</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="motion-storyboard">
+        <p class="eyebrow">Storyboard reklam · 8000ms</p>
+        <h3>Długa chwila pełnej czytelności.</h3>
+        <div class="storyboard-steps">
+          <div class="storyboard-step"><strong>0–12%</strong><span>Logo i kropka wchodzą.</span></div>
+          <div class="storyboard-step"><strong>12–34%</strong><span>Odsłania się headline.</span></div>
+          <div class="storyboard-step"><strong>34–54%</strong><span>Pojawia się fragment produktu.</span></div>
+          <div class="storyboard-step"><strong>54–72%</strong><span>Status i CTA dostają limonkowy sygnał.</span></div>
+          <div class="storyboard-step"><strong>72–92%</strong><span>Kompozycja pozostaje statyczna.</span></div>
+          <div class="storyboard-step"><strong>92–100%</strong><span>Łagodne wygaszenie cyklu.</span></div>
+        </div>
+        <p class="reduced-note"><strong>Reduced motion:</strong> wszystkie animacje i przejścia są wyłączone, a pełny końcowy stan każdej demonstracji jest widoczny natychmiast. Hover i focus-within zatrzymują aktywne pętle.</p>
+      </div>
+    </section>
+
+    <section class="board-section" id="typography" aria-labelledby="typography-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">05 · Typografia</p>
+          <h2 id="typography-title">Głos marki i narzędzie mówią różnymi rodzinami.</h2>
+          <p>Safiro Medium 500 buduje nagłówki Avably. Geist Sans obsługuje treść i kontrolki, Geist Mono dane. Manrope pokazuje wyłącznie otwarte zamienniki brakujących wag.</p>
+        </div>
+        <span class="mono">font-synthesis: none</span>
+      </div>
+
+      <div class="typography-layout">
+        <div class="weight-specimen" aria-label="Porównanie wag marki">
+          <div class="weight-line"><span class="weight-label">Manrope 400 · zamiennik</span><p class="weight-copy manrope-400">Avably porządkuje wynajem.</p></div>
+          <div class="weight-line"><span class="weight-label">Safiro Medium 500 · marka</span><p class="weight-copy safiro-500">Avably porządkuje wynajem.</p></div>
+          <div class="weight-line"><span class="weight-label">Manrope 600 · zamiennik</span><p class="weight-copy manrope-600">Avably porządkuje wynajem.</p></div>
+          <div class="weight-line"><span class="weight-label">Manrope 700 · zamiennik</span><p class="weight-copy manrope-700">Avably porządkuje wynajem.</p></div>
+        </div>
+
+        <div class="type-in-use">
+          <p class="eyebrow">Safiro 500 / Geist Sans / Geist Mono</p>
+          <h3>Sprzęt gotowy, kiedy go potrzebujesz.</h3>
+          <p>Gęsty interfejs wymaga spokojnego akapitu i przewidywalnego rytmu. Dłuższy tekst pozostaje czytelny bez sztucznego pogrubiania: dostępność sprzętu, terminy, kaucje, wysyłka i komunikacja są opisane jednym językiem narzędzia.</p>
+          <table aria-label="Próbka typografii w tabeli zamówień">
+            <thead><tr><th>Zamówienie</th><th>Klient</th><th>Termin</th><th>Kwota</th></tr></thead>
+            <tbody>
+              <tr><td>ZAM/2026/0714</td><td>Anna Kowalska</td><td>20–22.07.2026</td><td>1 199,00 zł</td></tr>
+            </tbody>
+          </table>
+          <p class="type-boundary">Granica licencyjna: Safiro pozostaje wyłącznie w panelu Avably i marketingu. Storefront klienta korzysta z rodzin o otwartej licencji i nie przejmuje głosu platformy.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="board-section" id="contrast" aria-labelledby="contrast-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">06 · Kontrast</p>
+          <h2 id="contrast-title">Kontrast jest rolą, nie wrażeniem.</h2>
+          <p>Wszystkie pary użyte dla tekstu, obrysu i elementów UI są policzone według względnej luminancji sRGB w algorytmie WCAG 2.x.</p>
+        </div>
+        <span class="mono">18 par · WCAG 2.x</span>
+      </div>
+
+      <div class="contrast-layout">
+        <article class="contrast-group">
+          <h3>Sygnał operacyjny</h3>
+          <div class="contrast-row"><span>#0B1017 / #F4F6F5</span><strong>17.58:1</strong></div>
+          <div class="contrast-row"><span>#55616D / #FFFFFF</span><strong>6.33:1</strong></div>
+          <div class="contrast-row"><span>#55616D / #F4F6F5</span><strong>5.83:1</strong></div>
+          <div class="contrast-row"><span>#7E8994 / #FFFFFF</span><strong>3.56:1</strong></div>
+          <div class="contrast-row"><span>#7E8994 / #F4F6F5</span><strong>3.28:1</strong></div>
+        </article>
+
+        <article class="contrast-group">
+          <h3>Papier roboczy</h3>
+          <div class="contrast-row"><span>#0B1017 / #FAF8F0</span><strong>17.94:1</strong></div>
+          <div class="contrast-row"><span>#625E54 / #FFFFFF</span><strong>6.46:1</strong></div>
+          <div class="contrast-row"><span>#625E54 / #FAF8F0</span><strong>6.08:1</strong></div>
+          <div class="contrast-row"><span>#858078 / #FFFFFF</span><strong>3.92:1</strong></div>
+          <div class="contrast-row"><span>#858078 / #FAF8F0</span><strong>3.69:1</strong></div>
+        </article>
+
+        <article class="contrast-group">
+          <h3>Czarna rama i marka</h3>
+          <div class="contrast-row"><span>#F7F8F5 / #0B1017</span><strong>17.90:1</strong></div>
+          <div class="contrast-row"><span>#F7F8F5 / #171D25</span><strong>15.90:1</strong></div>
+          <div class="contrast-row"><span>#B7C0C8 / #0B1017</span><strong>10.35:1</strong></div>
+          <div class="contrast-row"><span>#B7C0C8 / #171D25</span><strong>9.19:1</strong></div>
+          <div class="contrast-row"><span>#828C96 / #FFFFFF</span><strong>3.42:1</strong></div>
+          <div class="contrast-row"><span>#828C96 / #F4F5F2</span><strong>3.12:1</strong></div>
+          <div class="contrast-row"><span>#0B1017 / #EAFFA4</span><strong>17.57:1</strong></div>
+          <div class="contrast-row"><span>#0B1017 / #A8C743</span><strong>9.92:1</strong></div>
+        </article>
+      </div>
+
+      <div class="focus-explanation">
+        <span class="focus-demo" tabindex="0">Podwójny focus</span>
+        <p><strong>Limonka na bieli ma tylko 1.09:1</strong>, dlatego nie jest jedyną granicą focusu. Ciągła linia <span class="mono">#0B1017</span> tworzy wymagany obrys, a <span class="mono">#EAFFA4</span> dodaje rozpoznawalny drugi sygnał. Niemal czarny tekst na bieli ma <strong>19.08:1</strong>.</p>
+      </div>
+    </section>
+
+    <section class="board-section" id="not-included" aria-labelledby="not-included-title">
+      <div class="section-heading">
+        <div>
+          <p class="section-index">07 · Czego tu nie ma</p>
+          <h2 id="not-included-title">Odrzucenia pilnują charakteru marki.</h2>
+          <p>Faza 1 rezygnuje z zabiegów, które osłabiają operacyjność, kontrast, granicę licencyjną albo ocenę samego systemu.</p>
+        </div>
+        <span class="mono">8 decyzji</span>
+      </div>
+
+      <div class="not-included-grid">
+        <article class="rejection"><span class="mono">01</span><h3>Gradienty i przezroczyste szkło</h3><p>Utrudniają utrzymanie jednej wartości kontrastu i osłabiają hierarchię danych.</p></article>
+        <article class="rejection"><span class="mono">02</span><h3>Cienie zwykłych kart</h3><p>Powierzchnie i wiersze rozdzielają widoczne obrysy oraz odstępy, nie dekoracyjna głębia.</p></article>
+        <article class="rejection"><span class="mono">03</span><h3>Ilustracje 3D i maskotki</h3><p>Nie pomagają wykonać operacji i przesuwają uwagę z realnego produktu na dekorację.</p></article>
+        <article class="rejection"><span class="mono">04</span><h3>Zdjęcia stockowe</h3><p>Wprowadzałyby niepotwierdzony kontekst klienta i utrudniały ocenę samego systemu marki.</p></article>
+        <article class="rejection"><span class="mono">05</span><h3>Przechwytywanie scrolla i ruch wielu warstw</h3><p>Parallax, sprężyny i bezustanne pętle obniżają kontrolę oraz czytelność narzędzia.</p></article>
+        <article class="rejection"><span class="mono">06</span><h3>Duże limonkowe tła</h3><p>Kolor ma sygnalizować działanie i stan, nie pokrywać ekranu ani długiego tekstu.</p></article>
+        <article class="rejection"><span class="mono">07</span><h3>Kapsuła na każdej kontrolce</h3><p>Kapsuła należy do logo. UI pozostaje prostokątne, zwarte i oparte na funkcji.</p></article>
+        <article class="rejection"><span class="mono">08</span><h3>Safiro w storefroncie klienta</h3><p>Granica licencyjna i odrębny głos wypożyczalni wykluczają rodzinę marki z tego kanału.</p></article>
+      </div>
+    </section>
+
+    <section class="choice-section" id="choice" aria-labelledby="choice-title">
+      <p class="section-index">08 · Bramka decyzji</p>
+      <h2 id="choice-title" class="svg-defs">Wybór kierunku</h2>
+      <p>Wybierz jeden kierunek: Sygnał operacyjny, Papier roboczy albo Czarna rama. Faza 2 nie została rozpoczęta.</p>
+    </section>
+  </main>
+</body>
+</html>
