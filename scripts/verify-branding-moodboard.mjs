@@ -170,6 +170,11 @@ assert.match(
   /@media\s*\(max-width:\s*640px\)[\s\S]*?\.type-in-use table\s*\{[^}]*overflow-x:\s*auto;[^}]*\}/,
   "Mobilna tabela typograficzna nie zatrzymuje przewijania wewnątrz panelu",
 );
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.motion-token-table table\s*\{[^}]*display:\s*block;[^}]*overflow-x:\s*auto;[^}]*\}/,
+  "Mobilna tabela tokenów ruchu nie zatrzymuje przewijania wewnątrz panelu",
+);
 
 assert.match(html, /Faza 2 nie została rozpoczęta/);
 
