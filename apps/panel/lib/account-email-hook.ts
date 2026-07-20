@@ -19,6 +19,14 @@
  *    `{ error: { http_code, message } }` z kodem 4xx/5xx.
  * Podpis: schemat Standard Webhooks — patrz lib/standard-webhook.ts.
  *
+ * NAZWY DWÓCH PÓL PAYLOADU MYLĄ — ZAOBSERWOWANE NA PRODUKCJI (ADR-050):
+ *   email_data.site_url    = "https://<ref>.supabase.co/auth/v1"  ← API GoTrue
+ *   email_data.redirect_to = "https://app.avably.io"              ← Site URL
+ * Czyli ODWROTNIE, niż sugerują nazwy: Site URL z dashboardu Supabase Auth
+ * siedzi w `redirect_to` (GoTrue wstawia go tam, gdy `signUp` nie przekazuje
+ * `emailRedirectTo` — a nasz nie przekazuje), a `site_url` to adres API
+ * dostawcy i o naszej konfiguracji nie mówi NIC. Nie zgaduj z nazwy.
+ *
  * LINK BUDUJEMY NA NASZ CALLBACK, NIE NA GOTRUE. Dokumentacja pokazuje wariant
  * `.../auth/v1/verify?token=<token_hash>&type=...`, ale panel ma własny
  * callback `/auth/confirm` (route.ts) i to on ustanawia sesję cookies oraz
@@ -70,9 +78,14 @@ const hookPayloadSchema = z.object({
   email_data: z.object({
     token_hash: z.string().min(1),
     email_action_type: z.string().min(1),
+    // TO POLE, nie `site_url`, niesie Site URL z dashboardu Supabase Auth.
+    // Czytane WYŁĄCZNIE do wykrycia złej konfiguracji; baza linku nie pochodzi
+    // z payloadu (ADR-050, `warnOnRedirectToMismatch`).
     redirect_to: z.string().optional(),
-    // Czytane WYŁĄCZNIE do wykrycia złej konfiguracji dashboardu; baza linku
-    // nie pochodzi z tego pola (ADR-050, `warnOnSiteUrlMismatch`).
+    // Nazwa MYLI: to adres API GoTrue (`https://<ref>.supabase.co/auth/v1`),
+    // nie nasz Site URL. Nic go dziś nie czyta — zostaje w schemacie, żeby
+    // docierał do warstwy porównania: bez tego test kształtu produkcyjnego
+    // przechodziłby także dla bramki błędnie wycelowanej w `site_url`.
     site_url: z.string().optional(),
   }),
 });
@@ -139,53 +152,10 @@ const LOCAL_CALLBACK_BASE = "http://127.0.0.1:3000";
  *
  * Host linku to nasza tożsamość produktu (brand.ts), nie parametr żądania.
  * Wartość z payloadu nadal CZYTAMY, ale wyłącznie po to, by wykryć rozjazd
- * konfiguracji — patrz `warnOnSiteUrlMismatch`.
+ * konfiguracji — patrz `warnOnRedirectToMismatch`.
  */
 export function callbackBaseUrl(): string {
   return process.env.NODE_ENV === "production" ? PANEL_URL : LOCAL_CALLBACK_BASE;
-}
-
-/** Czy ślad obserwacyjny poszedł już w tym procesie — patrz `logPayloadOriginsOnce`. */
-let loggedPayloadOrigins = false;
-
-/** Wyłącznie dla testów: zeruje licznik śladu jednorazowego. */
-export function resetPayloadOriginsLog(): void {
-  loggedPayloadOrigins = false;
-}
-
-/**
- * JEDNORAZOWY (per proces) ślad z faktyczną zawartością `site_url` i
- * `redirect_to`. Nie służy naprawie — ta stoi na `PANEL_URL` — tylko zamyka
- * pytanie, CZYM te pola naprawdę są.
- *
- * Pytanie było otwarte, bo poprzedni komentarz odpowiadał na nie błędnie
- * („dokładnie to, co GoTrue wstawiał pod `{{ .SiteURL }}`"), a produkcja go
- * zdementowała: Site URL w dashboardzie wskazywał `https://app.avably.io`,
- * a link wyszedł na host projektu Supabase. Skoro payload nie niesie tego,
- * co dashboard, następna osoba nie ma tego odkrywać po raz drugi — ma
- * przeczytać log i kartę modułu w dokumentacji.
- *
- * Raz na proces, nie na żądanie: to obserwacja, nie alarm (wzorzec
- * `warnedDevSkip` z packages/security/src/turnstile.ts). Na serverless każdy
- * zimny start daje świeży ślad, więc wartość nie ucieka.
- *
- * ŻADNYCH TOKENÓW ANI ADRESU UŻYTKOWNIKA — pytanie dotyczy hostów, a token
- * z logu pozwoliłby przejąć potwierdzaną sesję każdemu, kto ma wgląd w logi.
- */
-export function logPayloadOriginsOnce(emailData: {
-  site_url?: string | undefined;
-  redirect_to?: string | undefined;
-  email_action_type: string;
-}): void {
-  if (loggedPayloadOrigins) return;
-  loggedPayloadOrigins = true;
-
-  console.info(
-    "[account-email-hook] obserwacja payloadu (bez tokenów): " +
-      `email_action_type=${JSON.stringify(emailData.email_action_type)} ` +
-      `email_data.site_url=${JSON.stringify(emailData.site_url ?? null)} ` +
-      `email_data.redirect_to=${JSON.stringify(emailData.redirect_to ?? null)}`,
-  );
 }
 
 /** Znormalizowany origin albo `undefined`, gdy wartość nie jest adresem http(s). */
@@ -199,31 +169,44 @@ function httpOrigin(value: string): string | undefined {
 }
 
 /**
- * Rozjazd `site_url` z bazą, której faktycznie używamy = ZŁA KONFIGURACJA
+ * Rozjazd `redirect_to` z bazą, której faktycznie używamy = ZŁA KONFIGURACJA
  * Supabase Auth. Zostawiamy ślad server-side, ale NIE przerywamy wysyłki:
  * literówka w dashboardzie nie może wywracać rejestracji, skoro link i tak
  * składamy z poprawnego hosta. Cisza była tu gorsza od wszystkiego — to
  * właśnie brak jakiegokolwiek sygnału przedłużył blokadę onboardingu.
  *
+ * DLACZEGO `redirect_to`, A NIE `site_url` — NAZWY POLA MYLĄ. Produkcja
+ * pokazała, że `email_data.site_url` to adres API GoTrue
+ * (`https://<ref>.supabase.co/auth/v1`), a Site URL z dashboardu siedzi
+ * w `email_data.redirect_to` (GoTrue wstawia go tam, gdy `signUp` nie podaje
+ * `emailRedirectTo` — a nasz nie podaje). Bramka celowała więc w pole, które
+ * NIGDY nie będzie równe `PANEL_URL`: ostrzeżenie zapalało się przy każdym
+ * zimnym starcie i kazało poprawiać ustawienie, które było poprawne.
+ * OSTRZEŻENIE, KTÓRE ZAWSZE KŁAMIE, UCZY IGNOROWAĆ OSTRZEŻENIA — jest gorsze
+ * niż jego brak, bo psuje wiarygodność także tych prawdziwych.
+ *
  * ŚWIADOMIE NIE LOGUJEMY `token` ANI `token_hash`. Log wystarczy do naprawy
  * konfiguracji (nazwa pola + host oczekiwany i otrzymany), a token z takiego
  * wpisu pozwoliłby przejąć potwierdzaną sesję każdemu, kto ma dostęp do logów.
  *
- * Porównujemy ORIGINY, nie stringi: końcowy `/` w dashboardzie to nie rozjazd.
- * Wartość nieparsowalna idzie do logu przez `JSON.stringify` — inaczej znak
- * nowej linii w konfiguracji podrobiłby kolejny wpis w logu.
+ * Porównujemy ORIGINY, nie stringi: `redirect_to` bywa z końcowym ukośnikiem
+ * albo ze ścieżką i to nie jest rozjazd. Wartość nieparsowalna idzie do logu
+ * przez `JSON.stringify` — inaczej znak nowej linii w konfiguracji podrobiłby
+ * kolejny wpis w logu.
  */
-export function warnOnSiteUrlMismatch(siteUrl: string | undefined, baseUrl: string): void {
+export function warnOnRedirectToMismatch(redirectTo: string | undefined, baseUrl: string): void {
   // Brak pola nic nie mówi o dashboardzie — nie ma czego porównywać.
-  if (!siteUrl) return;
+  if (!redirectTo) return;
 
-  const received = httpOrigin(siteUrl);
+  const received = httpOrigin(redirectTo);
   if (received === baseUrl) return;
 
   console.warn(
-    `[account-email-hook] email_data.site_url z payloadu (${received ?? JSON.stringify(siteUrl)}) ` +
-      `nie zgadza się z bazą linku, której używamy (${baseUrl}). ` +
-      "Popraw Site URL w konfiguracji Supabase Auth — wiadomość poszła z poprawnym hostem.",
+    `[account-email-hook] email_data.redirect_to z payloadu ` +
+      `(${received ?? JSON.stringify(redirectTo)}) nie zgadza się z bazą linku, ` +
+      `której używamy (${baseUrl}). To pole niesie Site URL z konfiguracji ` +
+      "Supabase Auth (panel nie przekazuje emailRedirectTo), więc popraw Site URL " +
+      "tam — wiadomość poszła z poprawnym hostem.",
   );
 }
 
@@ -253,7 +236,7 @@ export async function buildAccountEmail(payload: HookPayload): Promise<OutgoingE
   // Jedna baza policzona RAZ: ta sama wartość idzie do porównania i do linku,
   // więc log nie może twierdzić czegoś innego, niż dostał użytkownik.
   const baseUrl = callbackBaseUrl();
-  warnOnSiteUrlMismatch(payload.email_data.site_url, baseUrl);
+  warnOnRedirectToMismatch(payload.email_data.redirect_to, baseUrl);
   const actionUrl = buildActionUrl({
     action,
     tokenHash: payload.email_data.token_hash,
@@ -333,10 +316,6 @@ export async function handleSendEmailHook(
   if (!parsed.success) {
     return errorResponse(400, "Ciało żądania nie pasuje do kontraktu Send Email Hook.");
   }
-
-  // Przed bramką typu akcji: pytanie „co naprawdę jest w tych polach" dotyczy
-  // KAŻDEGO payloadu, także takiego, którego nie obsłużymy.
-  logPayloadOriginsOnce(parsed.data.email_data);
 
   const action = parsed.data.email_data.email_action_type;
   if (!isSupportedAction(action)) {

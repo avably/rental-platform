@@ -13,7 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EmailTransport, OutgoingEmail } from "@avably/core";
 
-import { handleSendEmailHook, resetPayloadOriginsLog } from "@/lib/account-email-hook";
+import { handleSendEmailHook } from "@/lib/account-email-hook";
 import { signStandardWebhook } from "@/lib/standard-webhook";
 
 const SECRET = "v1,whsec_c3VwZXItdGFqbnktc2VrcmV0LWhvb2th";
@@ -28,6 +28,8 @@ function payloadFixture(overrides: {
   /** Payload BEZ pola `site_url` — schemat ma je jako opcjonalne. */
   omitSiteUrl?: boolean;
   redirectTo?: string;
+  /** Payload BEZ pola `redirect_to` — nie ma czego porównywać. */
+  omitRedirectTo?: boolean;
 } = {}) {
   return {
     user: {
@@ -50,7 +52,9 @@ function payloadFixture(overrides: {
     email_data: {
       token: "305805",
       token_hash: "7d5b7b1964cf5d388340a7f04f1dbb5eeb6c7b52ef8270e1737a58d0",
-      redirect_to: overrides.redirectTo ?? "http://127.0.0.1:3000/",
+      ...(overrides.omitRedirectTo
+        ? {}
+        : { redirect_to: overrides.redirectTo ?? "http://127.0.0.1:3000/" }),
       email_action_type: overrides.action ?? "signup",
       ...(overrides.omitSiteUrl
         ? {}
@@ -204,14 +208,17 @@ describe("handleSendEmailHook — ścieżka szczęśliwa", () => {
 describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", () => {
   /** Dokładny kształt, który wyszedł na produkcji. */
   const SUPABASE_HOST = "https://abcdefghijklmnopqrst.supabase.co";
+  /**
+   * Faktyczna zawartość `email_data.site_url` zaobserwowana na produkcji: adres
+   * API GoTrue, NIE nasz Site URL. Ta wartość nigdy nie będzie równa
+   * `PANEL_URL` — bramka wycelowana w to pole ostrzegałaby zawsze.
+   */
+  const GOTRUE_API = `${SUPABASE_HOST}/auth/v1`;
   const PANEL_HOST = "https://app.avably.io";
 
   let consoleCapture: ReturnType<typeof captureConsole>;
 
   beforeEach(() => {
-    // Ślad obserwacyjny jest jednorazowy PER PROCES, a wcześniejsze bloki już
-    // go zużyły — bez zerowania testy na nim byłyby zależne od kolejności.
-    resetPayloadOriginsLog();
     consoleCapture = captureConsole();
   });
 
@@ -269,45 +276,73 @@ describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", ()
     expect(sent[0]!.html).not.toContain("app.avably.io/auth/confirm");
   });
 
-  it("rozjazd site_url zostawia ślad server-side, ale NIE wywraca rejestracji", async () => {
+  /**
+   * NAJWAŻNIEJSZY TEST TEGO BLOKU. Odtwarza REALNY kształt produkcyjny: oba
+   * pola naraz, każde z faktyczną zawartością. Bramka wycelowana w `site_url`
+   * (stan sprzed poprawki) zapala tu ostrzeżenie o złej konfiguracji, mimo że
+   * Site URL jest ustawiony POPRAWNIE — a ostrzeżenie, które zawsze kłamie,
+   * uczy ignorować ostrzeżenia.
+   *
+   * Fixture MUSI nieść oba pola. Payload z samym `redirect_to` przechodziłby
+   * dla obu wersji bramki (brak `site_url` = milczenie), więc nie odróżniałby
+   * poprawki od stanu sprzed niej.
+   */
+  it("kształt produkcyjny (site_url = API GoTrue, redirect_to = nasz host) → CISZA", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { transport, sent } = captureTransport();
 
     const response = await handleSendEmailHook(
-      hookRequest(payloadFixture({ siteUrl: SUPABASE_HOST })),
+      hookRequest(payloadFixture({ siteUrl: GOTRUE_API, redirectTo: PANEL_HOST })),
       { secret: SECRET, transport, now: NOW },
     );
 
+    // Konfiguracja jest poprawna → zero ostrzeżeń. Zero, nie „mało".
+    expect(consoleCapture.warnings).toHaveLength(0);
+    expect(response.status).toBe(200);
+    expect(sent[0]!.html).toContain(`${PANEL_HOST}/auth/confirm`);
+  });
+
+  it("KONTROLA NEGATYWNA: redirect_to na obcym hoście → ostrzeżenie IDZIE", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { transport, sent } = captureTransport();
+    const OBCY = "https://panel.przykladowa-literowka.pl";
+
+    const response = await handleSendEmailHook(
+      hookRequest(payloadFixture({ siteUrl: GOTRUE_API, redirectTo: `${OBCY}/pl` })),
+      { secret: SECRET, transport, now: NOW },
+    );
+
+    // Bramka nadal łapie realną złą konfigurację — nie zamilkła na amen.
     expect(consoleCapture.warnings).toHaveLength(1);
     const warning = consoleCapture.warnings[0]!;
     // Nazwa pola — żeby nie zgadywać, KTÓRE ustawienie jest złe.
-    expect(warning).toContain("email_data.site_url");
+    expect(warning).toContain("email_data.redirect_to");
+    // Komunikat kieruje do Site URL, bo to ono siedzi w tym polu.
+    expect(warning).toContain("Site URL");
     // Host oczekiwany i host otrzymany.
     expect(warning).toContain(PANEL_HOST);
-    expect(warning).toContain(SUPABASE_HOST);
-    // Literówka w cudzym dashboardzie nie może kosztować rejestracji.
+    expect(warning).toContain(OBCY);
+    // Literówka w dashboardzie nie może kosztować rejestracji.
     expect(response.status).toBe(200);
     expect(sent).toHaveLength(1);
   });
 
-  it("kontrola pozytywna: site_url zgodny z PANEL_URL → zero logu rozjazdu, link identyczny", async () => {
+  it("kontrola pozytywna: redirect_to zgodny z PANEL_URL → zero logu, link identyczny", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const zgodny = captureTransport();
     const obcy = captureTransport();
 
-    await handleSendEmailHook(hookRequest(payloadFixture({ siteUrl: PANEL_HOST })), {
-      secret: SECRET,
-      transport: zgodny.transport,
-      now: NOW,
-    });
+    await handleSendEmailHook(
+      hookRequest(payloadFixture({ siteUrl: GOTRUE_API, redirectTo: PANEL_HOST })),
+      { secret: SECRET, transport: zgodny.transport, now: NOW },
+    );
 
     expect(consoleCapture.warnings).toHaveLength(0);
 
-    await handleSendEmailHook(hookRequest(payloadFixture({ siteUrl: SUPABASE_HOST })), {
-      secret: SECRET,
-      transport: obcy.transport,
-      now: NOW,
-    });
+    await handleSendEmailHook(
+      hookRequest(payloadFixture({ siteUrl: SUPABASE_HOST, redirectTo: SUPABASE_HOST })),
+      { secret: SECRET, transport: obcy.transport, now: NOW },
+    );
 
     // Ten sam link mimo skrajnie różnych payloadów — host nie jest funkcją
     // wejścia. Gdyby był, te dwie wiadomości różniłyby się treścią.
@@ -315,25 +350,28 @@ describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", ()
     expect(zgodny.sent[0]!.text).toBe(obcy.sent[0]!.text);
   });
 
-  it("końcowy ukośnik w dashboardzie to NIE rozjazd (porównujemy originy)", async () => {
+  it("ukośnik i ścieżka w redirect_to to NIE rozjazd (porównujemy originy)", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { transport } = captureTransport();
 
-    await handleSendEmailHook(hookRequest(payloadFixture({ siteUrl: `${PANEL_HOST}/` })), {
-      secret: SECRET,
-      transport,
-      now: NOW,
-    });
+    // GoTrue potrafi tu wstawić sam host, host z ukośnikiem albo ze ścieżką.
+    for (const redirectTo of [PANEL_HOST, `${PANEL_HOST}/`, `${PANEL_HOST}/pl/rejestracja?x=1`]) {
+      await handleSendEmailHook(hookRequest(payloadFixture({ redirectTo })), {
+        secret: SECRET,
+        transport,
+        now: NOW,
+      });
+    }
 
     expect(consoleCapture.warnings).toHaveLength(0);
   });
 
-  it("payload BEZ site_url: brak pola nic nie mówi o dashboardzie → zero logu, host poprawny", async () => {
+  it("payload BEZ redirect_to: nie ma czego porównywać → zero logu, host poprawny", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { transport, sent } = captureTransport();
 
     const response = await handleSendEmailHook(
-      hookRequest(payloadFixture({ omitSiteUrl: true })),
+      hookRequest(payloadFixture({ omitRedirectTo: true, siteUrl: GOTRUE_API })),
       { secret: SECRET, transport, now: NOW },
     );
 
@@ -342,12 +380,12 @@ describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", ()
     expect(sent[0]!.html).toContain(`${PANEL_HOST}/auth/confirm`);
   });
 
-  it("nieparsowalny site_url: ślad idzie, ale bez podrobienia kolejnego wpisu w logu", async () => {
+  it("nieparsowalny redirect_to: ślad idzie, ale bez podrobienia kolejnego wpisu w logu", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { transport, sent } = captureTransport();
 
     await handleSendEmailHook(
-      hookRequest(payloadFixture({ siteUrl: "nie-adres\nWARN podrobiony wpis" })),
+      hookRequest(payloadFixture({ redirectTo: "nie-adres\nWARN podrobiony wpis" })),
       { secret: SECRET, transport, now: NOW },
     );
 
@@ -358,24 +396,6 @@ describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", ()
     expect(sent[0]!.html).toContain(`${PANEL_HOST}/auth/confirm`);
   });
 
-  it("obserwacja payloadu: log niesie site_url i redirect_to, raz na proces", async () => {
-    const { transport } = captureTransport();
-    const request = () =>
-      hookRequest(
-        payloadFixture({ siteUrl: SUPABASE_HOST, redirectTo: `${SUPABASE_HOST}/` }),
-      );
-
-    await handleSendEmailHook(request(), { secret: SECRET, transport, now: NOW });
-    await handleSendEmailHook(request(), { secret: SECRET, transport, now: NOW });
-
-    const observations = consoleCapture.lines.filter((line) => line.includes("obserwacja payloadu"));
-    // Raz, mimo dwóch żądań — to obserwacja, nie alarm.
-    expect(observations).toHaveLength(1);
-    expect(observations[0]!).toContain("email_data.site_url");
-    expect(observations[0]!).toContain("email_data.redirect_to");
-    expect(observations[0]!).toContain(SUPABASE_HOST);
-  });
-
   it("NIC nie loguje tokena ani token_hash", async () => {
     vi.stubEnv("NODE_ENV", "production");
     const { transport } = captureTransport();
@@ -383,13 +403,12 @@ describe("handleSendEmailHook — host linku pochodzi z naszej konfiguracji", ()
     // Przez wszystkie ścieżki, które w ogóle logują: rozjazd, wartość
     // nieparsowalna, zgodność, brak pola, reset hasła.
     for (const overrides of [
-      { siteUrl: SUPABASE_HOST },
-      { siteUrl: "nie-adres" },
-      { siteUrl: PANEL_HOST },
-      { omitSiteUrl: true },
-      { action: "recovery", siteUrl: SUPABASE_HOST },
+      { siteUrl: GOTRUE_API, redirectTo: SUPABASE_HOST },
+      { redirectTo: "nie-adres" },
+      { siteUrl: GOTRUE_API, redirectTo: PANEL_HOST },
+      { omitRedirectTo: true },
+      { action: "recovery", redirectTo: SUPABASE_HOST },
     ]) {
-      resetPayloadOriginsLog();
       await handleSendEmailHook(hookRequest(payloadFixture(overrides)), {
         secret: SECRET,
         transport,
