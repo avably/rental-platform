@@ -8,6 +8,45 @@ const hubPath = `${root}/docs/dokumentacja/hub.html`;
 assert.ok(existsSync(artifactPath), `Brak moodboardu: ${artifactPath}`);
 const html = readFileSync(artifactPath, "utf8");
 const count = (needle) => html.split(needle).length - 1;
+const parseCssDeclarations = (body) =>
+  new Map(
+    body
+      .split(";")
+      .map((declaration) => declaration.trim())
+      .filter((declaration) => declaration.includes(":"))
+      .map((declaration) => {
+        const colonIndex = declaration.indexOf(":");
+        return [
+          declaration.slice(0, colonIndex).trim(),
+          declaration.slice(colonIndex + 1).trim().replace(/\s+/g, " "),
+        ];
+      }),
+  );
+const flatCssRules = (source) =>
+  [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+    ([, selector, body]) => ({ selector: selector.trim(), body }),
+  );
+const countDirectTagChildren = (fragment, expectedTag) => {
+  let depth = 0;
+  let directChildren = 0;
+
+  for (const match of fragment.matchAll(
+    /<\s*(\/?)\s*([a-z][\w:-]*)\b[^>]*>/gi,
+  )) {
+    const [, closing, rawTag] = match;
+    const tag = rawTag.toLowerCase();
+
+    if (closing) {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (depth === 0 && tag === expectedTag) directChildren += 1;
+    if (!/\/\s*>$/.test(match[0])) depth += 1;
+  }
+
+  return directChildren;
+};
 const extractBalancedCssBody = (anchor) => {
   const anchorIndex = html.indexOf(anchor);
   if (anchorIndex === -1) return "";
@@ -35,19 +74,7 @@ const hasStaticKeyframeInterval = (name, intervalStart, intervalEnd) => {
   const frames = [];
 
   for (const rule of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const declarations = new Map(
-      rule[2]
-        .split(";")
-        .map((declaration) => declaration.trim())
-        .filter(Boolean)
-        .map((declaration) => {
-          const colonIndex = declaration.indexOf(":");
-          return [
-            declaration.slice(0, colonIndex).trim(),
-            declaration.slice(colonIndex + 1).trim().replace(/\s+/g, " "),
-          ];
-        }),
-    );
+    const declarations = parseCssDeclarations(rule[2]);
     const opacity = declarations.get("opacity");
     const transform = declarations.get("transform");
     const state =
@@ -340,21 +367,50 @@ if (
 const lpOrderRows = [...html.matchAll(
   /<div\b[^>]*class="lp-order-row"[^>]*>([\s\S]*?)<\/div>/g,
 )];
+const baseLpOrderRowBody =
+  flatCssRules(html).find(({ selector }) => selector === ".lp-order-row")
+    ?.body ?? "";
 const reducedMotionBody = extractBalancedCssBody(
   "@media (prefers-reduced-motion: reduce)",
 );
 const reducedLpOrderRowBody =
   reducedMotionBody.match(/\.lp-order-row\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderSpanBody =
+  reducedMotionBody.match(/\.lp-order-row\s+span\s*\{([^}]*)\}/)?.[1] ?? "";
 const reducedLpOrderRowAfterBody =
   reducedMotionBody.match(/\.lp-order-row::after\s*\{([^}]*)\}/)?.[1] ?? "";
 const reducedLpOrderContractErrors = [];
 
 if (
   lpOrderRows.length !== 3 ||
-  !lpOrderRows.every(([, rowBody]) => (rowBody.match(/<span\b/g) ?? []).length === 6)
+  !lpOrderRows.every(
+    ([, rowBody]) => countDirectTagChildren(rowBody, "span") === 6,
+  )
 ) {
   reducedLpOrderContractErrors.push(
-    "Każda z trzech makiet LP musi zawierać dokładnie sześć pól zamówienia",
+    "Każda z trzech makiet LP musi zawierać dokładnie sześć bezpośrednich pól zamówienia",
+  );
+}
+
+if (
+  parseCssDeclarations(baseLpOrderRowBody).get("animation") !==
+  "operational-rail var(--motion-ambient) linear infinite"
+) {
+  reducedLpOrderContractErrors.push(
+    "Normalny LP nie zachowuje ciągłej szyny operational-rail jako ruchu ambientowego",
+  );
+}
+
+const reducedGlobalMotionRule = flatCssRules(reducedMotionBody).find(
+  ({ selector }) =>
+    selector.replace(/\s+/g, " ") === "*, *::before, *::after",
+);
+if (
+  parseCssDeclarations(reducedGlobalMotionRule?.body ?? "").get("animation") !==
+  "none !important"
+) {
+  reducedLpOrderContractErrors.push(
+    "Reduced motion nie zatrzymuje skutecznie animacji szyny LP",
   );
 }
 
@@ -376,6 +432,28 @@ const missingReducedLpOrderDeclarations = reducedLpOrderDeclarations
 if (missingReducedLpOrderDeclarations.length > 0) {
   reducedLpOrderContractErrors.push(
     `Statyczny wiersz LP w reduced motion nie mieści wszystkich pól: ${missingReducedLpOrderDeclarations.join(", ")}`,
+  );
+}
+
+const reducedLpOrderSpanDeclarations = parseCssDeclarations(
+  reducedLpOrderSpanBody,
+);
+const requiredReducedLpOrderSpanDeclarations = [
+  ["min-width", "0"],
+  ["height", "auto"],
+  ["overflow-wrap", "anywhere"],
+];
+const missingReducedLpOrderSpanDeclarations =
+  requiredReducedLpOrderSpanDeclarations
+    .filter(
+      ([property, value]) =>
+        reducedLpOrderSpanDeclarations.get(property) !== value,
+    )
+    .map(([property, value]) => `${property}: ${value}`);
+
+if (missingReducedLpOrderSpanDeclarations.length > 0) {
+  reducedLpOrderContractErrors.push(
+    `Komórki statycznego wiersza LP nie mają ochrony przed clippingiem: ${missingReducedLpOrderSpanDeclarations.join(", ")}`,
   );
 }
 
