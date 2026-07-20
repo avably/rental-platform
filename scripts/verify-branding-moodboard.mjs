@@ -66,6 +66,7 @@ for (const sectionId of [
   "applications",
   "typography",
   "contrast",
+  "motion",
   "not-included",
   "choice",
 ]) {
@@ -84,6 +85,34 @@ for (const value of [
 ]) {
   assert.ok(html.includes(value), `Brak wartości ${value}`);
 }
+
+for (const motionToken of [
+  "--motion-fast: 160ms",
+  "--motion-ui: 240ms",
+  "--motion-reveal: 720ms",
+  "--motion-logo: 6000ms",
+  "--motion-ad: 8000ms",
+  "--motion-ambient: 16000ms",
+  "cubic-bezier(0.22, 1, 0.36, 1)",
+  "cubic-bezier(0.2, 0.7, 0.2, 1)",
+]) {
+  assert.ok(html.includes(motionToken), `Brak wartości motion: ${motionToken}`);
+}
+
+for (const keyframe of [
+  "logo-signal",
+  "ui-state",
+  "operational-rail",
+  "ad-sequence",
+]) {
+  assert.ok(html.includes(`@keyframes ${keyframe}`), `Brak animacji ${keyframe}`);
+}
+
+assert.equal(count("data-motion-demo"), 12);
+assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(html, /animation-play-state:\s*paused/);
+assert.match(html, /animation:\s*none\s*!important/);
+assert.match(html, /transition:\s*none\s*!important/);
 
 assert.match(html, /Faza 2 nie została rozpoczęta/);
 
