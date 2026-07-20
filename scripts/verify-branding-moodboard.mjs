@@ -114,6 +114,52 @@ assert.match(html, /animation-play-state:\s*paused/);
 assert.match(html, /animation:\s*none\s*!important/);
 assert.match(html, /transition:\s*none\s*!important/);
 
+const interactionContractErrors = [];
+
+if (
+  count('class="logo-letters-offset" transform="translate(-2 0)"') !== 2 ||
+  count('class="logo-letters--reveal" transform="translate(-2 0)"') !== 0 ||
+  !/\.motion-loop\s+\.logo-letters-offset\s*\{[^}]*transform:\s*translateX\(-2px\)\s*!important;[^}]*\}/.test(
+    html,
+  )
+) {
+  interactionContractErrors.push(
+    "Korekta liter logo -2 px nie jest oddzielona od animowanego wrappera lub nie przetrwa reduced motion",
+  );
+}
+
+if (
+  !/\.paper\s+\.document-lines\s+span\s*\{[^}]*animation:\s*paper-ui-reveal\s+var\(--motion-reveal\)\s+var\(--ease-out\)\s+both;[^}]*\}/.test(
+    html,
+  ) ||
+  !/@keyframes\s+paper-ui-reveal\s*\{[\s\S]*?to\s*\{\s*opacity:\s*1;\s*transform:\s*translateY\(0\)\s+scaleX\(1\);\s*\}\s*\}/.test(
+    html,
+  ) ||
+  !/\[data-direction="paper"\]\s+\.social-frame::after\s*\{[^}]*animation:\s*paper-line\s+var\(--motion-ad\)\s+var\(--ease-out\)\s+infinite;[^}]*\}/.test(
+    html,
+  )
+) {
+  interactionContractErrors.push(
+    "Jednorazowy reveal Papieru nie kończy się w stanie widocznym lub zmienia sekwencję reklamy",
+  );
+}
+
+if (
+  !/\.social-frame\s*>\s*\.brand-logo\s*\{[^}]*--motion-logo:\s*var\(--motion-ad\);[^}]*\}/.test(
+    html,
+  )
+) {
+  interactionContractErrors.push(
+    "Kropka logo w reklamie nie jest zsynchronizowana z ośmiosekundową sekwencją",
+  );
+}
+
+assert.deepEqual(
+  interactionContractErrors,
+  [],
+  `Niespełniony kontrakt interakcji:\n- ${interactionContractErrors.join("\n- ")}`,
+);
+
 assert.match(
   html,
   /@media\s*\(max-width:\s*640px\)[\s\S]*?\.weight-specimen,\s*\.type-in-use,\s*\.weight-line\s*\{[^}]*min-width:\s*0;[^}]*\}/,
