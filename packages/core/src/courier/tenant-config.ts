@@ -68,24 +68,42 @@ function positiveNumber(value: unknown): value is number {
 
 const PAID_METHODS = ["courier", "parcel_locker", "own_delivery"] as const;
 
-function parseCredentials(value: unknown, problems: string[]): CourierCredentials | null {
+/**
+ * Część JAWNA credentiali (e-mail, środowisko) pochodzi z tenant_settings,
+ * HASŁO z osobnego, zaszyfrowanego magazynu (public.tenant_secrets, ADR-052) —
+ * dlatego wchodzi tu drugim argumentem, a nie z `value`.
+ *
+ * Brak hasła jest zwykłym brakiem konfiguracji i ląduje na tej samej liście
+ * problemów co reszta: operator ma zobaczyć „uzupełnij hasło" obok „uzupełnij
+ * nadawcę", a nie osobną, tajemniczą awarię.
+ */
+function parseCredentials(
+  value: unknown,
+  password: string | null,
+  problems: string[],
+): CourierCredentials | null {
   if (!isRecord(value)) {
     problems.push(`${GLOBKURIER_CREDENTIALS_KEY}: wartość nie jest obiektem`);
     return null;
   }
   const missing: string[] = [];
   if (!nonEmptyString(value.email)) missing.push("email");
-  if (!nonEmptyString(value.password)) missing.push("password");
   if (value.environment !== "test" && value.environment !== "production") {
     missing.push("environment (test|production)");
   }
   if (missing.length > 0) {
     problems.push(`${GLOBKURIER_CREDENTIALS_KEY}: brak/nieprawidłowe pola: ${missing.join(", ")}`);
-    return null;
   }
+  if (!nonEmptyString(password)) {
+    problems.push(
+      `${GLOBKURIER_CREDENTIALS_KEY}: brak zapisanego hasła (ustaw je w ustawieniach dostaw)`,
+    );
+  }
+  if (missing.length > 0 || !nonEmptyString(password)) return null;
+
   return {
     email: value.email as string,
-    password: value.password as string,
+    password,
     environment: value.environment as CourierCredentials["environment"],
   };
 }
@@ -138,10 +156,19 @@ function parseParcel(value: unknown, problems: string[]): ParcelDimensions | nul
 }
 
 /**
- * Wiersze tenant_settings → konfiguracja nadania przesyłki. Zbiera WSZYSTKIE
- * braki i wady naraz i rzuca CourierConfigError — nigdy nie podstawia defaultów.
+ * Wiersze tenant_settings + odszyfrowane hasło → konfiguracja nadania
+ * przesyłki. Zbiera WSZYSTKIE braki i wady naraz i rzuca CourierConfigError —
+ * nigdy nie podstawia defaultów.
+ *
+ * `password` jest osobnym argumentem, bo od ADR-052 nie leży w tenant_settings,
+ * tylko zaszyfrowane w public.tenant_secrets. Parametr jest WYMAGANY (nie
+ * opcjonalny z domyślnym null): wołający ma zostać zmuszony do świadomego
+ * podania sekretu, a nie po cichu dostać konfigurację bez hasła.
  */
-export function courierConfigFromSettings(rows: TenantSettingRow[]): CourierTenantConfig {
+export function courierConfigFromSettings(
+  rows: TenantSettingRow[],
+  password: string | null,
+): CourierTenantConfig {
   const byKey = new Map(rows.map((row) => [row.key, row.value]));
   const problems: string[] = [];
 
@@ -152,7 +179,7 @@ export function courierConfigFromSettings(rows: TenantSettingRow[]): CourierTena
   const credentials =
     rawCredentials === undefined
       ? (problems.push(`brak ustawienia ${GLOBKURIER_CREDENTIALS_KEY}`), null)
-      : parseCredentials(rawCredentials, problems);
+      : parseCredentials(rawCredentials, password, problems);
   const sender =
     rawSender === undefined
       ? (problems.push(`brak ustawienia ${COURIER_SENDER_KEY}`), null)

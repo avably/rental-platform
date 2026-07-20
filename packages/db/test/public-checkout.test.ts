@@ -342,13 +342,23 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     await seedProduct(admin, active, { name: "WIDOCZNY" });
     await seedProduct(admin, active, { name: "UKRYTY_NIEAKTYWNY", active: false });
     await seedProduct(admin, otherTenant, { name: "CUDZY" });
-    // Credentiale kurierskie — NIE MOGĄ wyciec do katalogu.
+    // Konfiguracja kurierska — NIE MOŻE wyciec do katalogu. Od 0024 (ADR-052)
+    // dzieli się na dwie tabele, więc katalog musi milczeć o OBU: część jawna
+    // w tenant_settings i koperta sekretu w tenant_secrets.
     const { error: credError } = await admin.from("tenant_settings").insert({
       tenant_id: active,
       key: "globkurier_credentials",
-      value: { email: "sekret@x", password: "TOPSECRET_PASSWORD", environment: "test" },
+      value: { email: "TOPSECRET_EMAIL@x", environment: "test" },
     });
     if (credError) throw new Error(credError.message);
+
+    const { error: secretError } = await admin.from("tenant_secrets").insert({
+      tenant_id: active,
+      key: "globkurier_password",
+      ciphertext: "v1:1:AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBBBBBBBB:TOPSECRETCIPHER",
+      key_version: 1,
+    });
+    if (secretError) throw new Error(secretError.message);
 
     const { data, error } = await anon.schema("app").rpc("get_public_catalog", { p_tenant_id: active });
     expect(error, `get_public_catalog jako anon zawiódł: ${error?.message}`).toBeNull();
@@ -364,9 +374,12 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     expect(names).not.toContain("CUDZY");
 
     // DOWÓD MUTACYJNY (brak credentiali): gdyby funkcja zwracała surowe wiersze
-    // tenant_settings zamiast tylko delivery_pricing, TOPSECRET_PASSWORD
-    // pojawiłby się w JSON-ie i ten assert by się spalił.
-    expect(JSON.stringify(catalog)).not.toContain("TOPSECRET_PASSWORD");
+    // tenant_settings zamiast tylko delivery_pricing, TOPSECRET_EMAIL
+    // pojawiłby się w JSON-ie i ten assert by się spalił. Druga asercja
+    // pilnuje, żeby przy rozszerzaniu katalogu nikt nie dociągnął do niego
+    // tabeli sekretów — nawet zaszyfrowanej.
+    expect(JSON.stringify(catalog)).not.toContain("TOPSECRET_EMAIL");
+    expect(JSON.stringify(catalog)).not.toContain("TOPSECRETCIPHER");
 
     // Tenant nieaktywny → NULL (bramka statusu).
     const suspended = await seedTenant(admin, "suspended");
