@@ -1,15 +1,16 @@
 # Avably — moodboard wdrożeniowy, faza 1
 
 **Data:** 2026-07-20
-**Status:** zatwierdzony kierunek do implementacji fazy 1, rozszerzony o LP i social media
-**Zakres:** jeden samodzielny plik HTML; przekrojowy branding bez tokenów i ekranów fazy 2
+**Status:** zatwierdzony kierunek do implementacji fazy 1, rozszerzony o LP, social media i motion
+**Zakres:** jeden samodzielny plik HTML; przekrojowy branding z ruchem, bez tokenów i ekranów fazy 2
 
 ## 1. Cel
 
 Przygotować jedną stronę porównawczą, która pozwoli wybrać systemową rolę
 limonki i ciemnego koloru w całym brandingu Avably. Strona ma porównywać trzy
 realne decyzje projektowe na identycznym materiale: w interfejsie, na landing
-page i w postach social media, a nie trzy odcienie tej samej palety.
+page i w postach social media, a nie trzy odcienie tej samej palety. Każdy
+kierunek pokazuje również spójny, delikatny język animacji.
 
 Po oddaniu strony praca zatrzymuje się. Tokeny produkcyjne, kompletny system
 znaku oraz ekrany produktu należą do fazy 2 i nie powstają przed wyborem
@@ -86,14 +87,16 @@ Plik ma zawierać, w tej kolejności:
    próbka nagłówka oraz ten sam wiersz zamówienia.
 5. Sekcję „Branding w użyciu” z osobną, pełnowymiarową planszą dla każdego
    kierunku. Każda plansza zawiera tę samą makietę hero LP, kwadratowy post
-   social `1:1` oraz pionowy post `4:5`.
-6. Wspólną próbkę typografii: nagłówek, akapit, małą tabelę oraz zestaw wag
+   social `1:1` oraz pionowy post `4:5`; zastosowania są animowane na żywo.
+6. Sekcję „Motion system” z zasadą ruchu logotypu, czasami, easingiem,
+   mikrointerakcjami UI, sekwencją LP i storyboardem animowanych reklam.
+7. Wspólną próbkę typografii: nagłówek, akapit, małą tabelę oraz zestaw wag
    Manrope 400 / Safiro Medium 500 / Manrope 600 / Manrope 700 z jawnym
    podpisem rodzin.
-7. Zestawienie kontrastów wszystkich par tekst–tło i obrys–tło faktycznie
+8. Zestawienie kontrastów wszystkich par tekst–tło i obrys–tło faktycznie
    użytych na stronie.
-8. Sekcję „Czego tu nie ma i dlaczego”.
-9. Jednozdaniową instrukcję wyboru wariantu i wyraźną informację, że faza 2
+9. Sekcję „Czego tu nie ma i dlaczego”.
+10. Jednozdaniową instrukcję wyboru wariantu i wyraźną informację, że faza 2
    nie została rozpoczęta.
 
 Każdy kierunek pokazuje identyczne dane demonstracyjne. Dzięki temu różnica
@@ -150,6 +153,95 @@ Social media nie korzystają ze zdjęć stockowych ani ilustracji 3D. Charakter
 budują logo, typografia, kontrolowana limonka, kropka jako sygnał oraz fragmenty
 realnego interfejsu. Dzięki temu plansza testuje właściwy system marki, a nie
 atrakcyjność przypadkowej fotografii.
+
+### 4.2. Motion system — „sygnał operacyjny”
+
+Ruch jest częścią brandingu, ale nie może spowalniać pracy ani stale domagać
+się uwagi. Jego wspólną metaforą jest kropka z logo: sygnał, który pojawia się,
+prowadzi wzrok do zmiany i wraca do spoczynku. Ruch nie kopiuje efektów innej
+marki; wykorzystuje podobną zasadę płynnej, warstwowej narracji, lecz opiera ją
+na danych wypożyczalni i geometrii Avably.
+
+Rozważono trzy poziomy intensywności. Same mikrointerakcje UI byłyby zbyt
+mało widoczne w brandingu marketingowym. Ciągłe orbity, duże wstęgi tekstu i
+parallax dałyby mocniejszy efekt, lecz byłyby zbyt ekspresyjne dla narzędzia
+operacyjnego. Wybrany wariant pośredni łączy krótkie mikrointerakcje, jeden
+spokojny ruch ambientowy na LP i czytelną pętlę demonstracyjną w reklamie.
+
+Globalne wartości demonstracyjne:
+
+| Rola | Wartość |
+|---|---|
+| Fast interaction | `160ms` |
+| UI state | `240ms` |
+| Reveal | `720ms` |
+| Logo signal | `6000ms` |
+| Ad sequence | `8000ms` |
+| Ambient rail | `16000ms` |
+| Ease out | `cubic-bezier(0.22, 1, 0.36, 1)` |
+| Ease standard | `cubic-bezier(0.2, 0.7, 0.2, 1)` |
+
+#### Logotyp
+
+- Przy pierwszym pojawieniu kapsuła i litery odsłaniają się przez `opacity`
+  oraz przesunięcie nie większe niż `8 px` w `720ms`.
+- Kropka pokonuje krótką drogę `12 px` do swojej pozycji i skaluje się z
+  `0.84` do `1`. Po wejściu pozostaje nieruchoma przez co najmniej `88%`
+  sześciosekundowego cyklu; pojedynczy oddech nie przekracza skali `1.08`.
+- Krzywe liter, kerning, kapsuła i proporcje znaku nie morfują, nie obracają
+  się i nie sprężynują.
+
+#### Interfejs
+
+- Hover, focus i active korzystają z `160–240ms`; zmieniają kolor, opacity
+  oraz pozycję znacznika maksymalnie o `4 px`.
+- Wiersz zamówienia nie pływa. Limonkowy znacznik skaluje się na osi pionowej,
+  a zmieniony status dostaje jedno wejście `720ms`, po czym pozostaje statyczny.
+- Focus zachowuje podwójny, dostępny obrys. Animacja nie jest jedynym nośnikiem
+  informacji o stanie.
+
+#### Landing page
+
+- Nagłówek oraz fragment panelu odsłaniają się maską i przesunięciem do `8 px`.
+- Jedynym ciągłym ruchem jest cienka „szyna operacyjna” z identyfikatorem,
+  terminem i statusem zamówienia. Przesuwa się liniowo w `16000ms`, bez efektu
+  parallax i zatrzymuje na hover lub focus-within.
+- Kropka logo może przejąć rolę wskaźnika na szynie, ale nie opuszcza kapsuły
+  w stałym nagłówku nawigacji.
+
+#### Animowane reklamy social
+
+Oba formaty są ośmiosekundową pętlą demonstracyjną z długim momentem spoczynku:
+
+1. `0–12%`: logo i kropka wchodzą;
+2. `12–34%`: odsłania się nagłówek;
+3. `34–54%`: pojawia się fragment produktu lub połączenie sklep → panel;
+4. `54–72%`: limonka podkreśla status oraz CTA;
+5. `72–92%`: pełna kompozycja pozostaje nieruchoma i czytelna;
+6. `92–100%`: szybkie, łagodne wygaszenie do kolejnego cyklu.
+
+Post `1:1` akcentuje blokadę podwójnej rezerwacji przez jeden znacznik, który
+zatrzymuje się przy właściwym egzemplarzu. Post `4:5` pokazuje przejście
+zamówienia ze sklepu do panelu poprzez ruch kropki po prostej linii. Animacje
+działają wyłącznie przez `transform`, `opacity` i zmianę płaskiego koloru;
+nie używają blur, deformacji ani gwałtownego skalowania.
+
+#### Różnica między kierunkami
+
+- Sygnał operacyjny prowadzi kropkę po prostych osiach i używa precyzyjnego
+  reveal znacznika.
+- Papier roboczy odsłania treść jak przesuwaną linię dokumentu i ogranicza ruch
+  do krótkiego uniesienia `6 px`.
+- Czarna rama przesuwa limonkowy wskaźnik po nawigacji, po czym otwiera jasne
+  pole pracy; ciemna rama sama pozostaje nieruchoma.
+
+#### Dostępność ruchu
+
+- `@media (prefers-reduced-motion: reduce)` usuwa wszystkie pętle i przejścia,
+  pokazując od razu końcową, kompletną kompozycję.
+- Hover oraz `focus-within` zatrzymują pętle reklam i szynę danych.
+- Ruch nie zmienia układu, nie przewija strony, nie przechwytuje scrolla i nie
+  ukrywa treści potrzebnej do wykonania działania.
 
 ## 5. Korekta logo w fazie 1
 
@@ -277,6 +369,8 @@ Sekcja odrzuca wprost:
 - ilustracje 3D i dekoracyjne maskotki — nie pomagają wykonać operacji;
 - zdjęcia stockowe — utrudniałyby ocenę samego systemu marki i wprowadzały
   niepotwierdzony kontekst klienta;
+- scroll hijacking, parallax, sprężynujące elementy i bezustanny ruch wielu
+  warstw — obniżają kontrolę oraz czytelność narzędzia operacyjnego;
 - duże limonkowe tła — kolor ma sygnalizować, nie pokrywać ekran;
 - nadmierne kapsuły w UI — kapsuła należy do logo, nie staje się domyślnym
   kształtem każdej kontrolki;
@@ -289,7 +383,8 @@ Sekcja odrzuca wprost:
 - Logo jako inline SVG; żadnych odwołań do plików SVG lub PNG.
 - Safiro, Manrope, Geist Sans i Geist Mono jako WOFF2 osadzone przez base64 w
   `@font-face`; zero żądań sieciowych po otwarciu pliku.
-- Brak bibliotek, frameworków, skryptów analitycznych i JavaScriptu.
+- Brak bibliotek, frameworków, skryptów analitycznych i JavaScriptu. Motion
+  powstaje wyłącznie w CSS przez `@keyframes`, transition i media query.
 - Semantyczne elementy HTML, `lang="pl"`, poprawna kolejność nagłówków,
   tekstowe etykiety próbek kolorów i tabele z nagłówkami.
 - Istniejący `docs/dokumentacja/hub.html` otrzymuje wyłącznie odnośnik do
@@ -316,9 +411,13 @@ Przed oddaniem artefaktu należy:
    tę samą makietę LP i oba formaty social media.
 7. Zweryfikować proporcje `16:10`, `1:1` i `4:5` oraz czytelność zastosowań przy
    szerokościach `1440 px`, `1024 px` i `390 px`.
-8. Sprawdzić, że copy marketingowe opisuje wyłącznie działające funkcje i nie
+8. Sprawdzić wszystkie trzy warstwy motion: mikrointerakcję UI, szynę LP oraz
+   pełną ośmiosekundową pętlę obu reklam.
+9. Włączyć `prefers-reduced-motion: reduce` i potwierdzić, że treść pozostaje
+   kompletna, a pętle, transition i automatyczny ruch są wyłączone.
+10. Sprawdzić, że copy marketingowe opisuje wyłącznie działające funkcje i nie
    zawiera fikcyjnych klientów, wyników, opinii, nagród ani płatności online.
-9. Sprawdzić, że w dokumencie nie ma gradientów, zewnętrznych URL-i zasobów,
+11. Sprawdzić, że w dokumencie nie ma gradientów, zewnętrznych URL-i zasobów,
    nazw innych produktów ani niepotwierdzonych twierdzeń o Avably.
 
 ## 11. Poza zakresem
@@ -326,6 +425,7 @@ Przed oddaniem artefaktu należy:
 Faza 1 nie zmienia `packages/ui`, aplikacji panelu, storefrontu, tokenów ani
 produkcyjnych plików logo. Makiety LP i social media są przekrojowym podglądem
 pełnego brandingu, a nie gotową kampanią, eksportami produkcyjnymi ani strategią
-publikacji. Faza 1 nie definiuje kompletnego dark mode, wykresów, stanów
-komponentów ani skali typograficznej. Te elementy wchodzą dopiero do fazy 2 po
-wskazaniu jednego z trzech kierunków.
+publikacji. Motion pokazuje zachowanie i timing, ale nie jest jeszcze biblioteką
+produkcyjnych komponentów. Faza 1 nie definiuje kompletnego dark mode, wykresów,
+stanów komponentów ani skali typograficznej. Te elementy wchodzą dopiero do
+fazy 2 po wskazaniu jednego z trzech kierunków.
