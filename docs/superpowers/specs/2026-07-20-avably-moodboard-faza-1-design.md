@@ -1,15 +1,15 @@
 # Avably — moodboard wdrożeniowy, faza 1
 
 **Data:** 2026-07-20
-**Status:** zatwierdzony kierunek do implementacji fazy 1
-**Zakres:** jeden samodzielny plik HTML; bez tokenów i ekranów fazy 2
+**Status:** zatwierdzony kierunek do implementacji fazy 1, rozszerzony o LP i social media
+**Zakres:** jeden samodzielny plik HTML; przekrojowy branding bez tokenów i ekranów fazy 2
 
 ## 1. Cel
 
 Przygotować jedną stronę porównawczą, która pozwoli wybrać systemową rolę
-limonki i ciemnego koloru w interfejsie Avably. Strona ma porównywać trzy
-realne decyzje projektowe na identycznym materiale, a nie trzy odcienie tej
-samej palety.
+limonki i ciemnego koloru w całym brandingu Avably. Strona ma porównywać trzy
+realne decyzje projektowe na identycznym materiale: w interfejsie, na landing
+page i w postach social media, a nie trzy odcienie tej samej palety.
 
 Po oddaniu strony praca zatrzymuje się. Tokeny produkcyjne, kompletny system
 znaku oraz ekrany produktu należą do fazy 2 i nie powstają przed wyborem
@@ -84,13 +84,16 @@ Plik ma zawierać, w tej kolejności:
    na wąskim ekranie.
 4. W każdym kierunku: nazwa, decyzja, zysk, koszt, pasek palety, wartości HEX,
    próbka nagłówka oraz ten sam wiersz zamówienia.
-5. Wspólną próbkę typografii: nagłówek, akapit, małą tabelę oraz zestaw wag
+5. Sekcję „Branding w użyciu” z osobną, pełnowymiarową planszą dla każdego
+   kierunku. Każda plansza zawiera tę samą makietę hero LP, kwadratowy post
+   social `1:1` oraz pionowy post `4:5`.
+6. Wspólną próbkę typografii: nagłówek, akapit, małą tabelę oraz zestaw wag
    Manrope 400 / Safiro Medium 500 / Manrope 600 / Manrope 700 z jawnym
    podpisem rodzin.
-6. Zestawienie kontrastów wszystkich par tekst–tło i obrys–tło faktycznie
+7. Zestawienie kontrastów wszystkich par tekst–tło i obrys–tło faktycznie
    użytych na stronie.
-7. Sekcję „Czego tu nie ma i dlaczego”.
-8. Jednozdaniową instrukcję wyboru wariantu i wyraźną informację, że faza 2
+8. Sekcję „Czego tu nie ma i dlaczego”.
+9. Jednozdaniową instrukcję wyboru wariantu i wyraźną informację, że faza 2
    nie została rozpoczęta.
 
 Każdy kierunek pokazuje identyczne dane demonstracyjne. Dzięki temu różnica
@@ -99,6 +102,54 @@ Dane są podpisane jako demonstracyjne i korzystają wyłącznie z pól już
 obecnych w produkcie: klient, sprzęt, termin, kwota i status. Wspólny wiersz
 ma wartości: `ZAM/2026/0714`, `Anna Kowalska`, `Nagrzewnica 20 kW`,
 `20–22.07.2026`, `1 199,00 zł`, `Do wydania`.
+
+### 4.1. Zastosowania brandingu na LP i w social media
+
+Porównanie kanałów nie zostaje ściśnięte do trzech małych kart. Po syntetycznym
+porównaniu kierunków pojawiają się trzy poziome plansze, po jednej dla każdego
+kierunku. Na szerokim ekranie makieta LP zajmuje około `60%` planszy, a dwa
+formaty social pozostałe `40%`. Poniżej `980 px` wszystkie trzy zastosowania
+układają się pionowo.
+
+Każda plansza pokazuje identyczną treść i hierarchię. Nie zmieniają się copy,
+liczba elementów, proporcje ani dane demonstracyjne. Zmieniają się wyłącznie
+role koloru, konstrukcja powierzchni, rytm typograficzny i sposób prowadzenia
+oka właściwy dla danego kierunku.
+
+Makieta landing page ma proporcję `16:10` i jest podpisana jako podgląd pola
+`1440 × 900 px`. Zawiera logo, prostą nawigację, CTA oraz fragment panelu z tym
+samym demonstracyjnym zamówieniem. Copy jest oparte wyłącznie na funkcjach
+oznaczonych jako działające w aktualnym materiale sprzedażowym:
+
+- nadtytuł: `System dla wypożyczalni sprzętu`;
+- nagłówek: `Prowadź wynajem. Przyjmuj rezerwacje online.`;
+- treść: `Rezerwacje, dostępność sprzętu, kaucje, kurier i e-maile w jednym
+  panelu. Do tego własna strona sklepu z rezerwacją online — bez instalacji i
+  bez informatyka.`;
+- informacja cenowa: `199 zł miesięcznie`;
+- główne CTA: `Zapisz się na listę oczekujących`;
+- drugie CTA: `Zobacz, jak działa`.
+
+Pierwszy post ma proporcję `1:1` i podpis `1080 × 1080 px`. Pokazuje produktową
+obietnicę kontroli dostępności:
+
+- nagłówek: `Jeden egzemplarz. Jeden termin. Jedna rezerwacja.`;
+- treść: `Avably pilnuje dostępności sprzętu także wtedy, gdy dwóch pracowników
+  lub dwóch klientów klika w tej samej chwili.`;
+- CTA: `Zapisz się na listę oczekujących`.
+
+Drugi post ma proporcję `4:5` i podpis `1080 × 1350 px`. Pokazuje połączenie
+sklepu i panelu:
+
+- nagłówek: `Klient rezerwuje online. Zamówienie od razu trafia do panelu.`;
+- treść: `Każda wypożyczalnia dostaje własny adres sklepu i edytor strony.
+  Klient wybiera sprzęt i termin, a obie strony dostają potwierdzenie e-mailem.`;
+- CTA: `Zapisz się na listę oczekujących`.
+
+Social media nie korzystają ze zdjęć stockowych ani ilustracji 3D. Charakter
+budują logo, typografia, kontrolowana limonka, kropka jako sygnał oraz fragmenty
+realnego interfejsu. Dzięki temu plansza testuje właściwy system marki, a nie
+atrakcyjność przypadkowej fotografii.
 
 ## 5. Korekta logo w fazie 1
 
@@ -121,8 +172,8 @@ znaku.” Oryginał i korekta muszą wystąpić w tym samym rozmiarze.
 
 ## 6. Typografia i egzekwowalna granica
 
-- `Safiro Medium 500`: wyłącznie nazwy stron i nagłówki głosu Avably w panelu
-  lub marketingu.
+- `Safiro Medium 500`: wyłącznie nazwy stron i nagłówki głosu Avably w panelu,
+  na LP lub w materiałach social media.
 - `Manrope 400/600/700`: podpisany zamiennik brakujących wag tylko w próbniku
   fazy 1.
 - `Geist Sans 400/500/600`: cała treść narzędzia, nawigacja, formularze,
@@ -224,6 +275,8 @@ Sekcja odrzuca wprost:
 - cienie na zwykłych kartach i wierszach — interfejs rozdzielają obrysy oraz
   odstępy; cień zostaje wyłącznie poza zakresem fazy 1 dla nakładek;
 - ilustracje 3D i dekoracyjne maskotki — nie pomagają wykonać operacji;
+- zdjęcia stockowe — utrudniałyby ocenę samego systemu marki i wprowadzały
+  niepotwierdzony kontekst klienta;
 - duże limonkowe tła — kolor ma sygnalizować, nie pokrywać ekran;
 - nadmierne kapsuły w UI — kapsuła należy do logo, nie staje się domyślnym
   kształtem każdej kontrolki;
@@ -244,6 +297,9 @@ Sekcja odrzuca wprost:
 - Układ trzech kolumn na ekranie co najmniej `1180 px`: trzy kolumny po
   `360 px`, dwie przerwy po `20 px` i boczne marginesy po `30 px`. Poniżej tej
   szerokości warianty układają się pionowo bez poziomego przewijania strony.
+- Plansze „Branding w użyciu” wykorzystują osobny breakpoint `980 px`, aby
+  makieta LP oraz oba posty zachowały czytelną hierarchię i prawidłowe
+  proporcje bez sztucznego pomniejszania tekstu.
 
 ## 10. Weryfikacja
 
@@ -256,13 +312,20 @@ Przed oddaniem artefaktu należy:
 4. Zweryfikować wizualnie szeroki ekran z trzema kolumnami oraz widok mobilny.
 5. Porównać logo przed i po w rozmiarze natywnym oraz pomniejszonym, bez
    oceniania jeszcze favikony 16 px, która należy do fazy 2.
-6. Sprawdzić, że każdy wariant zawiera tę samą treść i komplet wymaganych pól.
-7. Sprawdzić, że w dokumencie nie ma gradientów, zewnętrznych URL-i zasobów,
+6. Sprawdzić, że każdy wariant zawiera tę samą treść, komplet wymaganych pól,
+   tę samą makietę LP i oba formaty social media.
+7. Zweryfikować proporcje `16:10`, `1:1` i `4:5` oraz czytelność zastosowań przy
+   szerokościach `1440 px`, `1024 px` i `390 px`.
+8. Sprawdzić, że copy marketingowe opisuje wyłącznie działające funkcje i nie
+   zawiera fikcyjnych klientów, wyników, opinii, nagród ani płatności online.
+9. Sprawdzić, że w dokumencie nie ma gradientów, zewnętrznych URL-i zasobów,
    nazw innych produktów ani niepotwierdzonych twierdzeń o Avably.
 
 ## 11. Poza zakresem
 
 Faza 1 nie zmienia `packages/ui`, aplikacji panelu, storefrontu, tokenów ani
-produkcyjnych plików logo. Nie definiuje kompletnego dark mode, wykresów,
-stanów komponentów ani skali typograficznej. Te elementy wchodzą dopiero do
-fazy 2 po wskazaniu jednego z trzech kierunków.
+produkcyjnych plików logo. Makiety LP i social media są przekrojowym podglądem
+pełnego brandingu, a nie gotową kampanią, eksportami produkcyjnymi ani strategią
+publikacji. Faza 1 nie definiuje kompletnego dark mode, wykresów, stanów
+komponentów ani skali typograficznej. Te elementy wchodzą dopiero do fazy 2 po
+wskazaniu jednego z trzech kierunków.
