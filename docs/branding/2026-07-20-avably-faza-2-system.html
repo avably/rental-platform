@@ -469,6 +469,21 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
   [data-rail-duplicate="true"] { display: none !important; }
 }
 
+/* ===== handoff (lime gate) ===== */
+[data-surface-phase="lime"] { background: #EAFFA4; color: #0B1017; }
+#handoff .eyebrow { color: #0B1017; }
+.handoff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 32px; }
+.handoff-surface { min-width: 0; }
+.handoff-surface h3 { margin: 0 0 8px; }
+#handoff .code-surface { max-height: 320px; overflow: auto; background: #FFFFFF; border: 1px solid #0B1017; }
+#handoff .code-surface code { color: #0B1017; }
+.dont-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dont-grid li { padding: 14px 16px; border: 1px solid #0B1017; border-radius: var(--radius-md); background: #FFFFFF; color: #0B1017; font: 500 14px/20px "Geist Sans", sans-serif; }
+
+@media (max-width: 760px) {
+  .handoff-grid, .dont-grid { grid-template-columns: 1fr; }
+}
+
   </style>
 </head>
 <body>
@@ -1032,7 +1047,190 @@ color-scheme: light dark;
         </div>
       </div>
     </section>
-    <section id="handoff" data-phase2-section="handoff" data-surface-phase="lime"></section>
+    <section id="handoff" data-phase2-section="handoff" data-surface-phase="lime">
+      <div class="wrap">
+        <p class="eyebrow">11 / Handoff</p>
+        <h2>Kopiowalne źródła i twarde zakazy.</h2>
+        <div class="handoff-grid">
+          <div class="handoff-surface"><h3>Tokeny — jasny motyw</h3><pre class="code-surface" data-code-surface="tokens-light"><code>:root {
+color-scheme: light dark;
+  --background: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --card: oklch(1 0 0); /* #FFFFFF */
+  --card-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --popover: oklch(1 0 0); /* #FFFFFF */
+  --popover-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --primary: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --secondary: oklch(0.93617 0.00584 153.771); /* #E7EBE8 */
+  --secondary-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --muted: oklch(0.94023 0.00416 157.175); /* #E9ECEA */
+  --muted-foreground: oklch(0.48676 0.02437 248.327); /* #55616D */
+  --accent: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --accent-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --destructive: oklch(0.49541 0.15721 29.527); /* #A93226 */
+  --destructive-foreground: oklch(1 0 0); /* #FFFFFF */
+  --border: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --input: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --ring: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --chart-1: oklch(0.49722 0.12644 245.483); /* #0067A5 */
+  --chart-2: oklch(0.55225 0.13011 59.533); /* #A85C00 */
+  --chart-3: oklch(0.52483 0.09609 178.706); /* #007C6B */
+  --chart-4: oklch(0.50828 0.11314 310.716); /* #7A5195 */
+  --chart-5: oklch(0.52530 0.15499 17.608); /* #B23A48 */
+  --sidebar: oklch(1 0 0); /* #FFFFFF */
+  --sidebar-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --sidebar-primary: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --sidebar-primary-foreground: oklch(1 0 0); /* #FFFFFF */
+  --sidebar-accent: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --sidebar-accent-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --sidebar-border: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --sidebar-ring: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --radius: 1rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --signal-strong: oklch(0.52561 0.12715 121.752); /* #5F7500 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --motion-fast: 160ms;
+  --motion-ui: 240ms;
+  --motion-confirm: 480ms;
+  --motion-reveal: 720ms;
+  --motion-delight: 1200ms;
+  --motion-logo: 6000ms;
+  --motion-ad: 8000ms;
+  --motion-ambient: 16000ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+}</code></pre></div>
+          <div class="handoff-surface"><h3>Tokeny — ciemny motyw</h3><pre class="code-surface" data-code-surface="tokens-dark"><code>.dark {
+--background: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --foreground: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --card: oklch(0.20588 0.01920 252.105); /* #111820 */
+  --card-foreground: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --popover: oklch(0.20588 0.01920 252.105); /* #111820 */
+  --popover-foreground: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --primary: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --primary-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --secondary: oklch(0.25163 0.02144 248.691); /* #1A232C */
+  --secondary-foreground: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --muted: oklch(0.25163 0.02144 248.691); /* #1A232C */
+  --muted-foreground: oklch(0.80304 0.01135 234.859); /* #B8C0C5 */
+  --accent: oklch(0.29224 0.04567 126.303); /* #263016 */
+  --accent-foreground: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --destructive: oklch(0.75820 0.14479 29.021); /* #FF8A7A */
+  --destructive-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --border: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --input: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --ring: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --chart-1: oklch(0.74201 0.14414 243.710); /* #4DB4FF */
+  --chart-2: oklch(0.83199 0.13556 71.035); /* #FFB85C */
+  --chart-3: oklch(0.75645 0.12215 176.016); /* #43C9AD */
+  --chart-4: oklch(0.73708 0.12000 312.704); /* #C493E0 */
+  --chart-5: oklch(0.74567 0.15579 15.284); /* #FF7F8C */
+  --sidebar: oklch(0.20588 0.01920 252.105); /* #111820 */
+  --sidebar-foreground: oklch(0.97135 0.00250 165.076); /* #F4F6F5 */
+  --sidebar-primary: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --sidebar-primary-foreground: oklch(0.17132 0.01671 256.840); /* #0B1017 */
+  --sidebar-accent: oklch(0.29224 0.04567 126.303); /* #263016 */
+  --sidebar-accent-foreground: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --sidebar-border: oklch(0.62476 0.02101 248.164); /* #7E8994 */
+  --sidebar-ring: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+}</code></pre></div>
+          <div class="handoff-surface"><h3>Znaki SVG (12 wariantów)</h3><pre class="code-surface" data-code-surface="svg-set"><code>### full-lime
+&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### full-white
+&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### full-canvas
+&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### full-dark
+&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### symbol-color
+&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably&quot;&gt;&lt;rect width=&quot;96&quot; height=&quot;96&quot; rx=&quot;28&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### symbol-mono
+&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably — mono&quot;&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#0B1017&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### symbol-negative
+&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably — negatyw&quot;&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### favicon-16-light
+&lt;svg viewBox=&quot;0 0 32 32&quot; role=&quot;img&quot; aria-label=&quot;Favicon 16 — jasny&quot;&gt;&lt;rect width=&quot;32&quot; height=&quot;32&quot; rx=&quot;9&quot; fill=&quot;#0B1017&quot;&gt;&lt;/rect&gt;&lt;g transform=&quot;translate(6 4) scale(.31) translate(-100.8 -20.2656)&quot; fill=&quot;#FFFFFF&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### favicon-16-dark
+&lt;svg viewBox=&quot;0 0 32 32&quot; role=&quot;img&quot; aria-label=&quot;Favicon 16 — ciemny&quot;&gt;&lt;rect width=&quot;32&quot; height=&quot;32&quot; rx=&quot;9&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;/rect&gt;&lt;g transform=&quot;translate(6 4) scale(.31) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### favicon-24-light
+&lt;svg viewBox=&quot;0 0 48 48&quot; role=&quot;img&quot; aria-label=&quot;Favicon 24 — jasny&quot;&gt;&lt;rect width=&quot;48&quot; height=&quot;48&quot; rx=&quot;14&quot; fill=&quot;#0B1017&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;14&quot; cy=&quot;26&quot; r=&quot;5&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(24 10) scale(.4) translate(-100.8 -20.2656)&quot; fill=&quot;#FFFFFF&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### favicon-24-dark
+&lt;svg viewBox=&quot;0 0 48 48&quot; role=&quot;img&quot; aria-label=&quot;Favicon 24 — ciemny&quot;&gt;&lt;rect width=&quot;48&quot; height=&quot;48&quot; rx=&quot;14&quot; fill=&quot;#111820&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;14&quot; cy=&quot;26&quot; r=&quot;5&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(24 10) scale(.4) translate(-100.8 -20.2656)&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;
+
+### grayscale
+&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#E1E4E3&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#9AA0A6&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</code></pre></div>
+          <div class="handoff-surface"><h3>statusMap</h3><pre class="code-surface" data-code-surface="status-map"><code>{
+  &quot;order&quot;: {
+    &quot;pending&quot;: &quot;attention&quot;,
+    &quot;reserved&quot;: &quot;neutral&quot;,
+    &quot;ready_for_pickup&quot;: &quot;attention&quot;,
+    &quot;picked_up&quot;: &quot;neutral&quot;,
+    &quot;returned&quot;: &quot;positive&quot;,
+    &quot;cancelled&quot;: &quot;problem&quot;
+  },
+  &quot;payment&quot;: {
+    &quot;unpaid&quot;: &quot;attention&quot;,
+    &quot;pending&quot;: &quot;neutral&quot;,
+    &quot;paid&quot;: &quot;positive&quot;,
+    &quot;manual&quot;: &quot;attention&quot;,
+    &quot;completed&quot;: &quot;positive&quot;,
+    &quot;deposit_refunded&quot;: &quot;positive&quot;,
+    &quot;refunded&quot;: &quot;neutral&quot;,
+    &quot;cancelled&quot;: &quot;problem&quot;
+  },
+  &quot;shipment&quot;: {
+    &quot;created&quot;: &quot;neutral&quot;,
+    &quot;in_progress&quot;: &quot;neutral&quot;,
+    &quot;in_transit&quot;: &quot;neutral&quot;,
+    &quot;delivered&quot;: &quot;positive&quot;,
+    &quot;cancelled&quot;: &quot;problem&quot;,
+    &quot;returned_to_sender&quot;: &quot;problem&quot;
+  }
+}</code></pre></div>
+          <div class="handoff-surface"><h3>Tokeny motion</h3><pre class="code-surface" data-code-surface="motion-tokens"><code>--motion-fast: 160ms;
+--motion-ui: 240ms;
+--motion-confirm: 480ms;
+--motion-reveal: 720ms;
+--motion-delight: 1200ms;
+--motion-logo: 6000ms;
+--motion-ad: 8000ms;
+--motion-ambient: 16000ms;</code></pre></div>
+        </div>
+        <h3>Siedem twardych zakazów</h3>
+        <ol class="dont-grid">
+          <li data-hard-dont="lime-without-carrier">Limonka nie oznacza stanu na bieli lub canvas bez ink carrier albo signal-strong.</li>
+          <li data-hard-dont="dot-as-ui">Kropka #A8C743 nie występuje poza zatwierdzonym znakiem marki.</li>
+          <li data-hard-dont="wrong-product-font">Panel i sklep nie używają Geist Mono, Safiro ani Manrope — tylko Geist Sans.</li>
+          <li data-hard-dont="effects">Bez gradientów, szkła, blur, cieni unoszących karty i ilustracji 3D.</li>
+          <li data-hard-dont="color-only-status">Status zawsze zawiera tekst konkretnej wartości, nie sam kolor lub ikonę.</li>
+          <li data-hard-dont="fake-dashboard">Placeholder dashboardu nie pokazuje KPI, trendów ani procentów bez backendu.</li>
+          <li data-hard-dont="extra-loops">Poza rail LP i reklamą nie ma nieskończonych animacji.</li>
+        </ol>
+      </div>
+    </section>
   </main>
 </body>
 </html>

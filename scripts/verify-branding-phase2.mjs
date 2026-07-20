@@ -1083,6 +1083,102 @@ assert.match(reduced, /\[data-rail-cell\][^}]*min-width:\s*0[^}]*overflow-wrap:\
 assert.match(reduced, /\[data-rail-duplicate="true"\][^}]*display:\s*none\s*!important/);
 assert.doesNotMatch(reduced, /shimmer|background-position/);
 
+// ===== Task 8: handoff, hard rules, hub, structure =====
+assert.match(html, /data-phase2-section="handoff"/);
+
+const hardDontCopy = {
+  "lime-without-carrier": "Limonka nie oznacza stanu na bieli lub canvas bez ink carrier albo signal-strong.",
+  "dot-as-ui": "Kropka #A8C743 nie występuje poza zatwierdzonym znakiem marki.",
+  "wrong-product-font": "Panel i sklep nie używają Geist Mono, Safiro ani Manrope — tylko Geist Sans.",
+  effects: "Bez gradientów, szkła, blur, cieni unoszących karty i ilustracji 3D.",
+  "color-only-status": "Status zawsze zawiera tekst konkretnej wartości, nie sam kolor lub ikonę.",
+  "fake-dashboard": "Placeholder dashboardu nie pokazuje KPI, trendów ani procentów bez backendu.",
+  "extra-loops": "Poza rail LP i reklamą nie ma nieskończonych animacji.",
+};
+const hardDontNodes = findAll(tree, (node) => "data-hard-dont" in node.attributes);
+assert.deepEqual(hardDontNodes.map((node) => node.attributes["data-hard-dont"]), Object.keys(hardDontCopy));
+for (const node of hardDontNodes) {
+  assert.equal(textContent(node).replace(/\s+/g, " ").trim(), hardDontCopy[node.attributes["data-hard-dont"]]);
+}
+
+const codeSurfaceNames = ["tokens-light", "tokens-dark", "svg-set", "status-map", "motion-tokens"];
+const codeSurfaceNodes = findAll(tree, (node) => "data-code-surface" in node.attributes);
+assert.deepEqual(codeSurfaceNodes.map((node) => node.attributes["data-code-surface"]), codeSurfaceNames);
+const codeSurfaceText = (name) => {
+  const matches = codeSurfaceNodes.filter((node) => node.attributes["data-code-surface"] === name);
+  assert.equal(matches.length, 1, `Powierzchnia kodu ${name} musi wystąpić raz`);
+  const value = decodeHtmlEntities(textContent(matches[0])).trim();
+  assert.ok(value.length > 0, `Powierzchnia kodu ${name} nie może być pusta`);
+  return value;
+};
+const activeTokenCopy = (theme) => {
+  const matches = findAll(tree, (node) => node.attributes["data-token-code"] === theme);
+  assert.equal(matches.length, 1, `Brak jednej aktywnej kopii tokenów ${theme}`);
+  return decodeHtmlEntities(textContent(matches[0])).trim();
+};
+const activeThemeSource = (selector) => `${selector} {\n${extractBalancedCssBody(css, selector).trim()}\n}`;
+assert.equal(activeTokenCopy("light"), activeThemeSource(":root"));
+assert.equal(activeTokenCopy("dark"), activeThemeSource(".dark"));
+assert.equal(codeSurfaceText("tokens-light"), activeTokenCopy("light"));
+assert.equal(codeSurfaceText("tokens-dark"), activeTokenCopy("dark"));
+const expectedSvgSet = requiredMarks
+  .map((name) => `### ${name}\n${svgSources.get(name)}`)
+  .join("\n\n");
+assert.equal(codeSurfaceText("svg-set"), expectedSvgSet);
+assert.equal(codeSurfaceText("status-map"), JSON.stringify(statusMap, null, 2));
+const expectedMotionTokens = [
+  "--motion-fast: 160ms;", "--motion-ui: 240ms;", "--motion-confirm: 480ms;",
+  "--motion-reveal: 720ms;", "--motion-delight: 1200ms;", "--motion-logo: 6000ms;",
+  "--motion-ad: 8000ms;", "--motion-ambient: 16000ms;",
+].join("\n");
+const activeMotionDeclarations = parseCssDeclarations(extractBalancedCssBody(css, ":root"));
+for (const declaration of expectedMotionTokens.split("\n")) {
+  const [name, expectedValue] = declaration.replace(/;$/, "").split(/:\s*/, 2);
+  assert.equal(activeMotionDeclarations.get(name), expectedValue, `Aktywny ${name} różni się od handoffu`);
+}
+assert.equal(codeSurfaceText("motion-tokens"), expectedMotionTokens);
+
+const requiredScreens = [
+  "dashboard-placeholder", "orders-light", "order-detail", "product-form",
+  "system-states", "storefront", "loading", "empty", "not-found", "orders-dark",
+  "landing-motion", "social-ad-square", "social-ad-portrait",
+];
+for (const screen of requiredScreens) {
+  const nodes = findAll(tree, (node) => node.attributes["data-screen"] === screen);
+  assert.equal(nodes.length, 1, `Ekran ${screen} musi wystąpić dokładnie raz`);
+  const expectedScope = screen === "storefront"
+    ? "storefront"
+    : ["landing-motion", "social-ad-square", "social-ad-portrait"].includes(screen)
+      ? "marketing"
+      : "product";
+  assert.equal(nodes[0].attributes["data-font-scope"], expectedScope);
+}
+
+const headings = findAll(tree, (node) => /^h[1-6]$/.test(node.tag));
+assert.equal(headings.filter((node) => node.tag === "h1").length, 1);
+for (let index = 1; index < headings.length; index += 1) {
+  assert.ok(Number(headings[index].tag[1]) - Number(headings[index - 1].tag[1]) <= 1);
+}
+assert.equal(findAll(tree, (node) => node.tag === "main").length, 1);
+for (const svg of findAll(tree, (node) => node.tag === "svg")) {
+  assert.ok(svg.attributes["aria-label"] || svg.attributes["aria-hidden"] === "true");
+}
+for (const control of findAll(tree, (node) => ["button", "a", "input", "select", "textarea"].includes(node.tag))) {
+  const visibleName = ["button", "a"].includes(control.tag)
+    ? textContent(control).replace(/\s+/g, " ").trim()
+    : "";
+  const labelTarget = control.attributes.id
+    ? findAll(tree, (node) => node.tag === "label" && node.attributes.for === control.attributes.id)
+    : [];
+  assert.ok(visibleName || control.attributes["aria-label"] || control.attributes.title || labelTarget.length > 0);
+}
+
+if (!process.argv.includes("--artifact-only")) {
+  const hub = readFileSync(hubPath, "utf8");
+  assert.match(hub, /href="\.\.\/branding\/2026-07-20-avably-faza-2-system\.html"/);
+  assert.equal((hub.match(/2026-07-20-avably-faza-2-system\.html/g) ?? []).length, 1);
+}
+
 // The single contrast-registry invocation (grown by later tasks).
 if (CONTRAST_REGISTRY_CALL) assertContrastRegistry(requiredContrasts);
 
