@@ -5,8 +5,22 @@
  * Guard nie siedzi w layoucie (patrz app/[locale]/(superadmin)/layout.tsx):
  * każda strona woła go u siebie. To znaczy, że nowa strona bez guarda jest
  * cicho publiczna — nic jej nie łapie: ani typy, ani build. Ten plik jest
- * jedynym miejscem, które to wyłapie, dlatego lista niżej ma rosnąć razem
- * z panelem.
+ * jedynym miejscem, które to wyłapie.
+ *
+ * LISTA TRAS POWSTAJE Z INTROSPEKCJI, NIE Z RĘCZNEGO WYLICZENIA (1.5.7).
+ * Do tej pory trasy były wpisywane ręcznie i bramka po cichu przestała pilnować
+ * PIĘCIU z nich (`/strona`, `/ustawienia-emaili`, `/ustawienia-dostaw`,
+ * `/historia-emaili`, `/katalog/[id]/zdjecia`) — każda miała własny guard, ale
+ * nikt tego nie sprawdzał, więc następna trasa mogła wjechać bez ochrony przy
+ * zielonej bramce. Lista, którą trzeba PAMIĘTAĆ o uzupełnieniu, jest dokładnie
+ * tak dobra jak pamięć autora PR-a.
+ *
+ * Teraz `import.meta.glob` zbiera wszystkie strony spod `app/[locale]`, a
+ * domyślność jest odwrócona: trasa jest chroniona, chyba że stoi na jawnej
+ * liście PUBLIC_ROUTES niżej. Nowa strona bez guarda pali ten test sama z
+ * siebie. Zwolnienie jej z wymogu nadal jest możliwe, ale kosztuje ŚWIADOMĄ
+ * linię w teście bezpieczeństwa — a to jest dokładnie ta decyzja, którą
+ * recenzent ma zobaczyć w diffie.
  *
  * Testowane bez Supabase (klient zamockowany na „brak sesji"), więc bramka
  * działa w jobie `ci`.
@@ -14,6 +28,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthError } from "@/lib/auth";
+
+/**
+ * `import.meta.glob` dostarcza Vite (a więc i Vitest) w czasie transformacji.
+ * Typ deklarujemy tu punktowo, zamiast wciągać `vite/client` do `types`
+ * tsconfiga panelu: Vite nie jest zależnością aplikacji, tylko runnera testów,
+ * a globalne typy z jego pakietu (`ImportMetaEnv`, moduły `*.svg` itd.)
+ * rozlałyby się na cały build produkcyjny.
+ */
+declare global {
+  interface ImportMeta {
+    glob<T>(pattern: string): Record<string, () => Promise<T>>;
+  }
+}
 
 let currentLocale = "pl";
 
@@ -59,139 +86,54 @@ vi.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-const TENANT_ID = "00000000-0000-4000-8000-000000000001";
-const PRODUCT_ID = "00000000-0000-4000-8000-000000000002";
-const LOCATION_ID = "00000000-0000-4000-8000-000000000003";
-const ORDER_ID = "00000000-0000-4000-8000-000000000004";
+/**
+ * Trasy ŚWIADOMIE publiczne — jedyne miejsce, gdzie wolno zdjąć wymóg guarda.
+ * Każdy wpis niesie powód, więc wpis bez powodu jest sam w sobie sygnałem.
+ */
+const PUBLIC_ROUTES = new Map<string, string>([
+  ["/login", "ekran logowania — z definicji dla niezalogowanych"],
+  ["/register", "rejestracja konta — j.w."],
+  ["/register/sprawdz-skrzynke", "potwierdzenie wysyłki maila rejestracyjnego, zero danych"],
+  ["/reset", "prośba o reset hasła — użytkownik nie ma jak się zalogować"],
+  ["/reset/confirm", "ustawienie nowego hasła z linku e-mail (sesja recovery)"],
+  ["/design-system", "galeria komponentów @avably/ui — statyczna, zero danych tenanta"],
+]);
 
 /**
- * Chronione trasy panelu. `run` woła moduł strony dokładnie tak, jak zrobiłby
- * to Next.js dla anonimowego żądania.
+ * Wszystkie strony panelu. Wzorzec `../app/*` zamiast dosłownego `[locale]`:
+ * nawiasy kwadratowe w globie znaczyłyby klasę znaków, a jedynym katalogiem na
+ * tym poziomie jest właśnie segment locale.
  */
-const PROTECTED_ROUTES: { name: string; run: () => Promise<unknown> }[] = [
-  {
-    name: "/bezpieczenstwo",
-    run: async () => (await import("@/app/[locale]/bezpieczenstwo/page")).default(),
-  },
-  {
-    name: "/bezpieczenstwo/wyzwanie",
-    run: async () =>
-      (await import("@/app/[locale]/bezpieczenstwo/wyzwanie/page")).default({
-        searchParams: Promise.resolve({}),
-      }),
-  },
-  {
-    name: "/organizacja/nowa",
-    run: async () => (await import("@/app/[locale]/organizacja/nowa/page")).default(),
-  },
-  {
-    name: "/zaproszenia",
-    run: async () => (await import("@/app/[locale]/zaproszenia/page")).default(),
-  },
-  {
-    name: "/zaproszenie/[token]",
-    run: async () =>
-      (await import("@/app/[locale]/zaproszenie/[token]/page")).default({
-        params: Promise.resolve({ token: "token-testowy" }),
-      }),
-  },
-  // Katalog (Zadanie 3): guard requireMemberPage w każdej stronie — bramka
-  // z PR #21 łapie nową trasę wyłącznie przez wpis na tej liście.
-  {
-    name: "/katalog",
-    run: async () => (await import("@/app/[locale]/katalog/page")).default(),
-  },
-  {
-    name: "/katalog/nowy",
-    run: async () => (await import("@/app/[locale]/katalog/nowy/page")).default(),
-  },
-  {
-    name: "/katalog/[id]",
-    run: async () =>
-      (await import("@/app/[locale]/katalog/[id]/page")).default({
-        params: Promise.resolve({ id: PRODUCT_ID }),
-      }),
-  },
-  {
-    name: "/katalog/[id]/egzemplarze",
-    run: async () =>
-      (await import("@/app/[locale]/katalog/[id]/egzemplarze/page")).default({
-        params: Promise.resolve({ id: PRODUCT_ID }),
-      }),
-  },
-  {
-    name: "/katalog/[id]/progi",
-    run: async () =>
-      (await import("@/app/[locale]/katalog/[id]/progi/page")).default({
-        params: Promise.resolve({ id: PRODUCT_ID }),
-      }),
-  },
-  {
-    name: "/katalog/punkty-odbioru",
-    run: async () => (await import("@/app/[locale]/katalog/punkty-odbioru/page")).default(),
-  },
-  {
-    name: "/katalog/punkty-odbioru/nowy",
-    run: async () => (await import("@/app/[locale]/katalog/punkty-odbioru/nowy/page")).default(),
-  },
-  {
-    name: "/katalog/punkty-odbioru/[locationId]",
-    run: async () =>
-      (await import("@/app/[locale]/katalog/punkty-odbioru/[locationId]/page")).default({
-        params: Promise.resolve({ locationId: LOCATION_ID }),
-      }),
-  },
-  // Zamówienia (Zadanie 4): guard requireMemberPage w każdej stronie.
-  {
-    name: "/zamowienia",
-    run: async () =>
-      (await import("@/app/[locale]/zamowienia/page")).default({
-        searchParams: Promise.resolve({}),
-      }),
-  },
-  {
-    name: "/zamowienia/nowe",
-    run: async () => (await import("@/app/[locale]/zamowienia/nowe/page")).default(),
-  },
-  {
-    name: "/zamowienia/[id]",
-    run: async () =>
-      (await import("@/app/[locale]/zamowienia/[id]/page")).default({
-        params: Promise.resolve({ id: ORDER_ID }),
-      }),
-  },
-  // Domeny sklepu (Zadanie 2.6): guard requireMemberPage w stronie.
-  {
-    name: "/ustawienia-domen",
-    run: async () => (await import("@/app/[locale]/ustawienia-domen/page")).default(),
-  },
-  {
-    name: "/admin/tenants",
-    run: async () => (await import("@/app/[locale]/(superadmin)/admin/tenants/page")).default(),
-  },
-  {
-    name: "/admin/audit",
-    run: async () =>
-      (await import("@/app/[locale]/(superadmin)/admin/audit/page")).default({
-        searchParams: Promise.resolve({}),
-      }),
-  },
-  {
-    name: "/admin/tenants/[id]",
-    run: async () =>
-      (await import("@/app/[locale]/(superadmin)/admin/tenants/[id]/page")).default({
-        params: Promise.resolve({ id: TENANT_ID }),
-        searchParams: Promise.resolve({}),
-      }),
-  },
-  {
-    name: "/admin/tenants/[id]/podglad",
-    run: async () =>
-      (await import("@/app/[locale]/(superadmin)/admin/tenants/[id]/podglad/page")).default({
-        params: Promise.resolve({ id: TENANT_ID }),
-      }),
-  },
-];
+const pageModules = import.meta.glob<{ default: (props: never) => Promise<unknown> }>(
+  "../app/*/**/page.tsx",
+);
+
+/** `../app/[locale]/(superadmin)/admin/tenants/[id]/page.tsx` → `/admin/tenants/[id]`. */
+function routePathOf(moduleKey: string): string {
+  const trimmed = moduleKey.replace("../app/[locale]", "").replace(/\/page\.tsx$/, "");
+  // Grupy tras `(nazwa)` nie istnieją w URL-u.
+  const path = trimmed.replace(/\/\([^)]+\)/g, "");
+  return path === "" ? "/" : path;
+}
+
+/**
+ * Wartości segmentów dynamicznych. Guard biegnie PRZED jakimkolwiek użyciem
+ * tych wartości, więc wystarczy poprawny kształt (uuid tam, gdzie strona
+ * poda go dalej do zapytania).
+ */
+function paramsOf(routePath: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const [, name] of routePath.matchAll(/\[([^\]]+)\]/g)) {
+    params[name] = /id$/i.test(name) ? "00000000-0000-4000-8000-000000000001" : "wartosc-testowa";
+  }
+  return params;
+}
+
+const ROUTES = Object.entries(pageModules)
+  .map(([moduleKey, load]) => ({ path: routePathOf(moduleKey), load }))
+  .sort((a, b) => a.path.localeCompare(b.path));
+
+const PROTECTED_ROUTES = ROUTES.filter((route) => !PUBLIC_ROUTES.has(route.path));
 
 // Bez vi.resetModules(): reset dałby stronom ŚWIEŻY moduł @/lib/auth, a wtedy
 // `err instanceof AuthError` w stronach porównywałoby dwie różne klasy o tej
@@ -201,17 +143,39 @@ beforeEach(() => {
   currentLocale = "pl";
 });
 
+describe("introspekcja tras", () => {
+  it("widzi strony panelu — glob nie może cicho zwrócić pustki", () => {
+    // Pusty glob wygasiłby CAŁĄ bramkę bez jednego czerwonego testu: to jest
+    // dokładnie ten sposób, w jaki introspekcja mogłaby maskować brak guarda.
+    expect(ROUTES.length).toBeGreaterThan(20);
+    expect(ROUTES.map((route) => route.path)).toContain("/zamowienia");
+    expect(PROTECTED_ROUTES.length).toBeGreaterThan(15);
+  });
+
+  it("każdy wyjątek z PUBLIC_ROUTES wskazuje na istniejącą trasę", () => {
+    const known = new Set(ROUTES.map((route) => route.path));
+    const stale = [...PUBLIC_ROUTES.keys()].filter((path) => !known.has(path));
+    expect(stale, `wyjątki wskazujące na nieistniejące trasy: ${stale.join(", ")}`).toEqual([]);
+  });
+});
+
 describe.each(["pl", "en"])("chronione trasy — anonim, locale %s", (locale) => {
   beforeEach(() => {
     currentLocale = locale;
   });
 
-  it.each(PROTECTED_ROUTES.map((route) => [route.name, route] as const))(
+  it.each(PROTECTED_ROUTES.map((route) => [route.path, route] as const))(
     "%s odsyła anonima na logowanie w jego języku",
-    async (_name, route) => {
+    async (path, route) => {
+      const pageModule = await route.load();
+      const props = {
+        params: Promise.resolve(paramsOf(path)),
+        searchParams: Promise.resolve({}),
+      } as never;
+
       let target: string | null = null;
       try {
-        await route.run();
+        await pageModule.default(props);
       } catch (error) {
         if (error instanceof RedirectSignal) target = error.url;
         else throw error;
