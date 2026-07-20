@@ -23,6 +23,7 @@ import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { DomainsPanel, type DomainRow } from "./domains-panel";
+import { readableDomainError } from "./domains-validation";
 
 export default async function DomainSettingsPage() {
   const ctx = await requireMemberPage("/ustawienia-domen");
@@ -30,7 +31,7 @@ export default async function DomainSettingsPage() {
 
   const { data: rows } = await ctx.supabase
     .from("domains")
-    .select("id, domain, kind, verified, verified_at, last_error")
+    .select("id, domain, kind, verified, verified_at, last_error, provider_domain_id")
     .eq("tenant_id", ctx.tenantId)
     .order("kind", { ascending: true })
     .order("created_at", { ascending: true });
@@ -41,7 +42,13 @@ export default async function DomainSettingsPage() {
     kind: row.kind === "custom" ? "custom" : "subdomain",
     verified: row.verified === true,
     verifiedAt: (row.verified_at as string | null) ?? null,
-    lastError: (row.last_error as string | null) ?? null,
+    // Powód skracany na SERWERZE — do klienta nie ma po co schodzić dump
+    // strony serwisowej dostawcy (pełna treść zostaje w bazie dla operatora).
+    lastError: readableDomainError((row.last_error as string | null) ?? null),
+    // NULL = host nigdy nie doszedł do dostawcy (awaria albo wiersz z
+    // backfillu 0022). To jest jedyny sygnał, po którym ekran wie, że sklep
+    // pod tym adresem NIE odpowie — `verified` dla subdomeny jest zawsze true.
+    registered: Boolean(row.provider_domain_id),
   }));
 
   // Dostępność rejestracji liczona na SERWERZE (token nie schodzi do klienta).
@@ -63,7 +70,15 @@ export default async function DomainSettingsPage() {
         </p>
       )}
 
-      <DomainsPanel domains={domains} cnameTarget={CUSTOM_DOMAIN_CNAME_TARGET} />
+      {/* Powód braku konfiguracji schodzi do klienta ŚWIADOMIE: to komunikat
+          `VercelConfigError` (nazwy brakujących zmiennych), nigdy ich wartości
+          — bez niego przycisk ponowienia byłby wyszarzony bez wyjaśnienia. */}
+      <DomainsPanel
+        domains={domains}
+        cnameTarget={CUSTOM_DOMAIN_CNAME_TARGET}
+        registrationAvailable={availability.available}
+        registrationBlockedReason={availability.available ? null : (availability.reason ?? null)}
+      />
     </main>
   );
 }

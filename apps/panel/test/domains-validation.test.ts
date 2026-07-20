@@ -18,6 +18,7 @@ import {
   customDomainInputFromFormData,
   customDomainSchema,
   isPlatformHost,
+  readableDomainError,
 } from "@/app/[locale]/ustawienia-domen/domains-validation";
 
 function parse(value: string) {
@@ -84,5 +85,30 @@ describe("customDomainInputFromFormData", () => {
     const fd = new FormData();
     fd.set("domain", "sklep.twojafirma.pl");
     expect(customDomainInputFromFormData(fd)).toEqual({ domain: "sklep.twojafirma.pl" });
+  });
+});
+
+describe("readableDomainError (2.6b)", () => {
+  it("brak błędu zostaje brakiem błędu", () => {
+    expect(readableDomainError(null)).toBeNull();
+    expect(readableDomainError("   ")).toBeNull();
+  });
+
+  it("zwija wielolinijkowy dump dostawcy do jednej linii", () => {
+    expect(readableDomainError("Nie udało się.\n\n  Spróbuj\tponownie.")).toBe(
+      "Nie udało się. Spróbuj ponownie.",
+    );
+  });
+
+  it("wycina znaczniki ze strony serwisowej dostawcy", () => {
+    // Bez tego przy awarii najemca dostaje na ekran surowy HTML i nie czyta go
+    // wcale — a to jego jedyna wskazówka, czy ponowienie ma sens.
+    expect(readableDomainError("<html><body>502 Bad Gateway</body></html>")).toBe("502 Bad Gateway");
+  });
+
+  it("przycina bardzo długi powód (pełny zostaje w bazie)", () => {
+    const result = readableDomainError("x".repeat(500));
+    expect(result).toHaveLength(181);
+    expect(result?.endsWith("…")).toBe(true);
   });
 });

@@ -54,3 +54,28 @@ export const customDomainSchema = z.object({
 export function customDomainInputFromFormData(formData: FormData): { domain: unknown } {
   return { domain: formData.get("domain") };
 }
+
+/** Ile znaków powodu pokazujemy najemcy (reszta to i tak szum dostawcy). */
+const ERROR_DISPLAY_LIMIT = 180;
+
+/**
+ * `last_error` → jedna czytelna linia (Zadanie 2.6b).
+ *
+ * Kolumna trzyma DOSŁOWNY komunikat dostawcy ucięty do 500 znaków — a to bywa
+ * wielolinijkowy fragment strony serwisowej albo znaczniki HTML. Wrzucenie
+ * tego wprost na ekran zamienia komunikat w dump, którego najemca nie czyta,
+ * więc nie klika też ponowienia. Zwijamy białe znaki, wycinamy znaczniki i
+ * przycinamy do jednej linii; PEŁNY powód zostaje w bazie dla operatora.
+ *
+ * Funkcja czysta i osobna od widoku, bo to jedyny sposób, żeby pokryć ją
+ * testem bez renderowania panelu.
+ */
+export function readableDomainError(raw: string | null): string | null {
+  if (!raw) return null;
+  const flat = raw
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (flat.length === 0) return null;
+  return flat.length > ERROR_DISPLAY_LIMIT ? `${flat.slice(0, ERROR_DISPLAY_LIMIT)}…` : flat;
+}
