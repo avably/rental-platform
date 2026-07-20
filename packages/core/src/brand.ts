@@ -28,20 +28,53 @@ export const PANEL_URL = `https://app.${ROOT_DOMAIN}`;
 export const TENANT_WILDCARD_HOST = `*.${ROOT_DOMAIN}`;
 
 /**
- * Nadawca transakcyjny. Domena musi być zweryfikowana w Resend, inaczej
- * wysyłka jest odrzucana — dlatego wartość nadpisywalna przez
- * `RESEND_FROM_EMAIL` (np. `onboarding@resend.dev` zanim domena przejdzie
- * weryfikację).
+ * Subdomena, z której wychodzi poczta transakcyjna. To ONA jest zweryfikowana
+ * u dostawcy (DKIM/SPF/DMARC), a apex `avably.io` świadomie NIE JEST —
+ * uzasadnienie w ADR-047. Stała, bo host wysyłkowy należy do tożsamości
+ * produktu tak samo jak kanon strony czy adres panelu.
  */
-export const DEFAULT_FROM_EMAIL = `${PRODUCT_NAME} <noreply@${ROOT_DOMAIN}>`;
+export const SENDING_SUBDOMAIN = "send";
 
-/** Subdomeny zarezerwowane — nie mogą zostać slugiem tenanta. */
+/** Pełny host wysyłkowy: `send.avably.io`. */
+export const SENDING_DOMAIN = `${SENDING_SUBDOMAIN}.${ROOT_DOMAIN}`;
+
+/**
+ * Nadawca transakcyjny — domyślny adres platformy.
+ *
+ * CELUJE W DOMENĘ WYSYŁKOWĄ, NIE W APEX (ADR-047). Wcześniejsza wartość
+ * (`noreply@avably.io`) wskazywała domenę, której u dostawcy nikt nie
+ * weryfikował: pierwsza realna wiadomość na produkcji padła błędem 403
+ * („the avably.io domain is not verified"), a ratunkiem było ręczne ustawienie
+ * `RESEND_FROM_EMAIL`. Domyślna wartość gwarantująca odmowę dostawcy jest
+ * pułapką czekającą na każde świeże wdrożenie — a tu nie ma czego zgadywać,
+ * bo host wysyłkowy jest naszą stałą, nie sekretem (inaczej niż klucz API,
+ * którego brak MUSI dawać jawną niedostępność — ADR-033).
+ *
+ * Nadpisanie przez `RESEND_FROM_EMAIL` zostaje: pozwala przejść na inny adres
+ * (np. `onboarding@resend.dev` na świeżym koncie) bez wydawania wersji kodu.
+ */
+export const DEFAULT_FROM_EMAIL = `${PRODUCT_NAME} <noreply@${SENDING_DOMAIN}>`;
+
+/**
+ * Subdomeny zarezerwowane — nie mogą zostać slugiem tenanta.
+ *
+ * DWIE BRAMKI CZYTAJĄ TĘ LISTĘ i muszą pozostać zgodne:
+ *   1. routing storefrontu (`classifyHost`, ADR-039) — host zarezerwowany
+ *      trafia w gałąź marketingową, nigdy w sklep najemcy,
+ *   2. `app.reserved_subdomains()` w bazie (migracja 0023) — `app.create_tenant`
+ *      odrzuca taki slug już przy ZAKŁADANIU organizacji.
+ * Rozjazd obu zbiorów pali `packages/db/test/reserved-slugs.test.ts`. Dopisując
+ * wpis tutaj, dopisz go także w migracji (i odwrotnie).
+ */
 export const RESERVED_SUBDOMAINS: readonly string[] = [
   "www",
   "app",
   "admin",
   "api",
   "mail",
+  // Host poczty transakcyjnej (SENDING_SUBDOMAIN): slug `send` dałby najemcy
+  // storefront pod hostem trzymającym rekordy DKIM/SPF platformy.
+  SENDING_SUBDOMAIN,
   "status",
   "docs",
   "blog",

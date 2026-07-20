@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ROOT_DOMAIN, SENDING_DOMAIN } from "../brand";
 import {
   EmailTransportError,
   emailAvailability,
@@ -66,6 +67,29 @@ describe("platformFromAddress", () => {
     expect(platformFromAddress('Sprzęt "Pro"', { fromEmail: "noreply@avably.io" })).toBe(
       '"Sprzęt \\"Pro\\"" <noreply@avably.io>',
     );
+  });
+
+  // Kolejność źródeł adresu platformy (ADR-047). Bez jawnej konfiguracji ma
+  // wyjść adres na ZWERYFIKOWANEJ domenie wysyłkowej — domyślna wartość nie
+  // może gwarantować odmowy dostawcy. Jawny env nadal wygrywa, bo tylko on
+  // pozwala zmienić adres bez wydawania nowej wersji kodu.
+  describe("źródło adresu platformy", () => {
+    const originalFrom = process.env.RESEND_FROM_EMAIL;
+    afterEach(() => {
+      if (originalFrom === undefined) delete process.env.RESEND_FROM_EMAIL;
+      else process.env.RESEND_FROM_EMAIL = originalFrom;
+    });
+
+    it("bez RESEND_FROM_EMAIL bierze domyślną z domeny wysyłkowej", () => {
+      delete process.env.RESEND_FROM_EMAIL;
+      expect(platformFromAddress("Demo")).toBe(`Demo <noreply@${SENDING_DOMAIN}>`);
+      expect(platformFromAddress("Demo").endsWith(`@${ROOT_DOMAIN}>`)).toBe(false);
+    });
+
+    it("jawny RESEND_FROM_EMAIL wygrywa nad domyślną", () => {
+      process.env.RESEND_FROM_EMAIL = "Avably <onboarding@resend.dev>";
+      expect(platformFromAddress("Demo")).toBe("Demo <onboarding@resend.dev>");
+    });
   });
 });
 
