@@ -114,6 +114,17 @@ assert.match(html, /animation-play-state:\s*paused/);
 assert.match(html, /animation:\s*none\s*!important/);
 assert.match(html, /transition:\s*none\s*!important/);
 
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.weight-specimen,\s*\.type-in-use,\s*\.weight-line\s*\{[^}]*min-width:\s*0;[^}]*\}/,
+  "Mobilna sekcja typografii nie pozwala elementom siatki zwężać się do viewportu",
+);
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.type-in-use table\s*\{[^}]*overflow-x:\s*auto;[^}]*\}/,
+  "Mobilna tabela typograficzna nie zatrzymuje przewijania wewnątrz panelu",
+);
+
 assert.match(html, /Faza 2 nie została rozpoczęta/);
 
 if (!process.argv.includes("--artifact-only")) {

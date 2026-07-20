@@ -1549,9 +1549,20 @@
         grid-template-columns: 1fr;
       }
 
+      .weight-specimen,
+      .type-in-use,
+      .weight-line {
+        min-width: 0;
+      }
+
       .weight-line {
         grid-template-columns: 1fr;
         gap: 8px;
+      }
+
+      .type-in-use table {
+        display: block;
+        overflow-x: auto;
       }
 
       .choice-section {
