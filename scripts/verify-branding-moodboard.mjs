@@ -174,6 +174,54 @@ assert.match(html, /animation-play-state:\s*paused/);
 assert.match(html, /animation:\s*none\s*!important/);
 assert.match(html, /transition:\s*none\s*!important/);
 
+const figureTags = [...html.matchAll(/<figure\b[^>]*>/g)].map(
+  ([figureTag]) => figureTag,
+);
+const classesOf = (tag) =>
+  (tag.match(/\bclass="([^"]*)"/)?.[1] ?? "").split(/\s+/);
+const socialMotionFigures = figureTags.filter((tag) => {
+  const classes = classesOf(tag);
+  return (
+    classes.includes("motion-loop") &&
+    (classes.includes("social-square") || classes.includes("social-portrait")) &&
+    /\bdata-motion-demo="ad-(?:square|portrait)-(?:signal|paper|frame)"/.test(
+      tag,
+    )
+  );
+});
+const animatedLogoCards = figureTags.filter((tag) => {
+  const classes = classesOf(tag);
+  return classes.includes("logo-card") && classes.includes("motion-loop");
+});
+
+const keyboardPauseContractErrors = [];
+
+if (socialMotionFigures.length !== 6) {
+  keyboardPauseContractErrors.push(
+    "Kontrakt klawiatury nie obejmuje dokładnie sześciu reklam social motion-demo",
+  );
+} else if (!socialMotionFigures.every((tag) => /\btabindex="0"/.test(tag))) {
+  keyboardPauseContractErrors.push(
+    "Reklamy social motion-demo nie są osiągalne klawiaturą, więc focus-within nie zatrzyma animacji",
+  );
+}
+
+if (animatedLogoCards.length !== 1) {
+  keyboardPauseContractErrors.push(
+    "Kontrakt klawiatury nie wskazuje dokładnie jednej animowanej karty logo",
+  );
+} else if (!animatedLogoCards.every((tag) => /\btabindex="0"/.test(tag))) {
+  keyboardPauseContractErrors.push(
+    "Animowana karta logo nie jest osiągalna klawiaturą, więc focus-within nie zatrzyma animacji",
+  );
+}
+
+assert.deepEqual(
+  keyboardPauseContractErrors,
+  [],
+  `Niespełniony kontrakt pauzy klawiaturą:\n- ${keyboardPauseContractErrors.join("\n- ")}`,
+);
+
 const interactionContractErrors = [];
 
 if (
