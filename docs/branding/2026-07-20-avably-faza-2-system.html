@@ -247,7 +247,7 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 /* ===== sidebar nav ===== */
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 16px 12px; background: var(--sidebar); border-right: 1px solid var(--border); }
 .sidebar-nav a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 10px 12px; border-radius: var(--radius-md); border-left: 2px solid transparent; color: var(--sidebar-foreground); text-decoration: none; font: 500 14px/20px "Geist Sans", sans-serif; }
-.sidebar-nav a:hover { background: var(--secondary); }
+.sidebar-nav a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sidebar-nav .nav-group { margin: 16px 0 4px; padding: 0 12px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; color: var(--muted-foreground); }
 .sidebar-nav [data-nav-placeholder="dashboard"] { color: var(--muted-foreground); }
 .sidebar-nav [data-nav-placeholder="dashboard"] span { font-size: 11px; letter-spacing: 0.04em; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
@@ -277,7 +277,7 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .orders-table td[data-cell="customer"] { font-weight: 500; }
 .orders-table td[data-cell="amount"] { text-align: right; }
 .orders-table td[data-cell="id"] a { color: var(--foreground); font-weight: 500; text-decoration: none; }
-.orders-table tbody tr:hover { background: var(--secondary); }
+.orders-table tbody tr:hover td { border-bottom-color: var(--foreground); }
 .row-action { border: 1px solid transparent; background: transparent; border-radius: var(--radius-sm); padding: 4px 8px; cursor: pointer; color: var(--muted-foreground); letter-spacing: 0.06em; }
 
 /* ===== dashboard placeholder + chart system ===== */
@@ -308,6 +308,58 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
   .sidebar-nav .nav-group { width: 100%; margin: 8px 0 0; }
   .future-charts, .chart-systems { grid-template-columns: 1fr; }
 }
+/* ===== order detail ===== */
+.order-detail .detail-layout { display: grid; grid-template-columns: 1fr 320px; gap: 32px; }
+.order-detail header { margin: 0 0 24px; }
+[data-label-value] { display: grid; gap: 6px; margin: 0 0 16px; }
+[data-label-value] > span { font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+[data-label-value] > strong { font: 500 15px/22px "Geist Sans", sans-serif; }
+.detail-side { border-left: 1px solid var(--border); padding-left: 24px; }
+[data-detail-group="history"] { margin: 8px 0 0; padding-left: 18px; color: var(--muted-foreground); font: 400 14px/22px "Geist Sans", sans-serif; }
+[data-detail-group="actions"] { display: flex; gap: 10px; margin-top: 16px; }
+[data-detail-group="actions"] button { padding: 9px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); cursor: pointer; font: 600 14px/20px "Geist Sans", sans-serif; }
+
+/* ===== product form ===== */
+[data-product-form] { display: grid; gap: 4px; max-width: 460px; }
+[data-product-form] label { margin: 12px 0 0; font: 500 13px/18px "Geist Sans", sans-serif; }
+[data-product-form] input, [data-product-form] select { min-height: 44px; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); }
+[data-product-form] .button-primary { margin-top: 20px; }
+.field-error { margin: 4px 0 0; color: var(--destructive); font: 500 13px/18px "Geist Sans", sans-serif; }
+
+/* ===== component state galleries ===== */
+.gallery-block { margin: 0 0 18px; }
+.gallery-label { margin: 0 0 8px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }
+.state-gallery { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+[data-component] > [data-state] { color: var(--state-foreground); background: var(--state-background); border-color: var(--state-border, currentColor); }
+.gallery-btn { border-width: 0; border-style: solid; border-radius: var(--radius-md); padding: 10px 16px; font: 600 14px/20px "Geist Sans", sans-serif; cursor: pointer; }
+.gallery-filter { border-width: 1px; border-style: solid; border-radius: var(--radius-md); padding: 8px 14px; font: 600 13px/1 "Geist Sans", sans-serif; cursor: pointer; }
+.gallery-field { display: inline-flex; align-items: center; gap: 8px; min-width: 180px; border-width: 1px; border-style: solid; border-radius: var(--radius-md); padding: 9px 12px; font: 400 14px/20px "Geist Sans", sans-serif; }
+.gallery-field.is-error { flex-wrap: wrap; }
+.field-icon { font-weight: 700; }
+.field-alert { width: 100%; font: 500 12px/16px "Geist Sans", sans-serif; }
+.gallery-row { display: flex; align-items: center; gap: 12px; min-width: 260px; border-left: 2px solid transparent; border-radius: var(--radius-sm); padding: 12px 14px; font: 500 14px/20px "Geist Sans", sans-serif; }
+
+/* pseudo-states: geometry / cursor / decoration only — never color or background */
+.gallery-btn:hover, .gallery-filter:hover, .sidebar-nav a:hover, .row-action:hover, .store-preview a:hover, [data-detail-group="actions"] button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.gallery-btn:active, .gallery-filter:active, .button-primary:active { transform: translateY(1px); }
+:focus-visible { border: 2px solid var(--foreground); outline: 3px solid var(--accent); outline-offset: 2px; }
+:disabled, [aria-disabled="true"] { cursor: not-allowed; border-style: dashed; }
+[aria-busy="true"] { cursor: progress; }
+[data-state="focus"] { border-color: var(--foreground); outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ===== secondary / destructive buttons + theme pairs ===== */
+.button-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--secondary); color: var(--secondary-foreground); border: 1px solid var(--foreground); border-radius: var(--radius-md); padding: 10px 16px; font: 600 14px/20px "Geist Sans", sans-serif; cursor: pointer; text-decoration: none; }
+.button-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--destructive); color: var(--destructive-foreground); border: 1px solid var(--destructive); border-radius: var(--radius-md); padding: 10px 16px; font: 600 14px/20px "Geist Sans", sans-serif; cursor: pointer; }
+.dark .button-primary { background: var(--primary); color: var(--primary-foreground); }
+.dark .button-secondary { background: var(--secondary); color: var(--secondary-foreground); border: 1px solid var(--foreground); }
+.dark .button-destructive { background: var(--destructive); color: var(--destructive-foreground); }
+
+/* ===== form + selection state overrides (must follow the universal rule) ===== */
+[aria-invalid="true"] { background: var(--background); border: 1px solid var(--destructive); }
+[data-component="filter"] [data-state="active"] { background: var(--accent); color: var(--accent-foreground); border: 1px solid var(--foreground); }
+[data-component="row"] [data-state="active"] { border-left: 2px solid var(--signal-strong); }
+.dark [data-component="row"] [data-state="active"] { border-left: 2px solid var(--accent-foreground); }
+.dark-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 0; }
 
   </style>
 </head>
@@ -404,7 +456,12 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 <tr data-contrast-pair="chart-dark-2" data-foreground="#FFB85C" data-background="#111820" data-kind="ui" data-minimum="3" data-ratio="10.43"><td>chart-dark-2</td><td>10.43:1</td></tr>
 <tr data-contrast-pair="chart-dark-3" data-foreground="#43C9AD" data-background="#111820" data-kind="ui" data-minimum="3" data-ratio="8.68"><td>chart-dark-3</td><td>8.68:1</td></tr>
 <tr data-contrast-pair="chart-dark-4" data-foreground="#C493E0" data-background="#111820" data-kind="ui" data-minimum="3" data-ratio="7.31"><td>chart-dark-4</td><td>7.31:1</td></tr>
-<tr data-contrast-pair="chart-dark-5" data-foreground="#FF7F8C" data-background="#111820" data-kind="ui" data-minimum="3" data-ratio="7.37"><td>chart-dark-5</td><td>7.37:1</td></tr></tbody>
+<tr data-contrast-pair="chart-dark-5" data-foreground="#FF7F8C" data-background="#111820" data-kind="ui" data-minimum="3" data-ratio="7.37"><td>chart-dark-5</td><td>7.37:1</td></tr>
+<tr data-contrast-pair="ink-on-secondary" data-foreground="#0B1017" data-background="#E7EBE8" data-kind="text" data-minimum="4.5" data-ratio="15.85"><td>ink-on-secondary</td><td>15.85:1</td></tr>
+<tr data-contrast-pair="white-on-destructive" data-foreground="#FFFFFF" data-background="#A93226" data-kind="text" data-minimum="4.5" data-ratio="6.62"><td>white-on-destructive</td><td>6.62:1</td></tr>
+<tr data-contrast-pair="dark-foreground-on-secondary" data-foreground="#F4F6F5" data-background="#1A232C" data-kind="text" data-minimum="4.5" data-ratio="14.65"><td>dark-foreground-on-secondary</td><td>14.65:1</td></tr>
+<tr data-contrast-pair="ink-on-dark-destructive" data-foreground="#0B1017" data-background="#FF8A7A" data-kind="text" data-minimum="4.5" data-ratio="8.33"><td>ink-on-dark-destructive</td><td>8.33:1</td></tr>
+<tr data-contrast-pair="error-border-on-canvas" data-foreground="#A93226" data-background="#F4F6F5" data-kind="ui" data-minimum="3" data-ratio="6.10"><td>error-border-on-canvas</td><td>6.10:1</td></tr></tbody>
         </table>
         <pre class="code-surface" data-token-code="light"><code data-code-source="root-theme">:root {
 color-scheme: light dark;
@@ -629,9 +686,67 @@ color-scheme: light dark;
         </div>
       </div>
     </section>
-    <section id="order-detail" data-phase2-section="order-detail" data-surface-phase="white"></section>
-    <section id="product-form" data-phase2-section="product-form" data-surface-phase="white"></section>
-    <section id="states" data-phase2-section="states" data-surface-phase="white"></section>
+    <section id="order-detail" data-phase2-section="order-detail" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">05 / Szczegół zamówienia</p>
+        <h2>Przestronny detal.</h2>
+        <article class="panel-shell product-ui order-detail" data-screen="order-detail" data-font-scope="product" style="display:block;padding:24px">
+          <header data-detail-group="customer"><p class="numeric-data" data-data-value>ZAM/2026/0716</p><h3>Studio Plan B</h3></header>
+          <div class="detail-layout">
+            <div class="detail-main" data-detail-group="items">
+              <div data-label-value><span>SPRZĘT</span><strong>Podest sceniczny 2×1 m</strong></div>
+              <div data-label-value><span>TERMIN</span><strong class="numeric-data" data-data-value>24–26.07.2026</strong></div>
+              <div data-label-value><span>ILOŚĆ</span><strong class="numeric-data" data-data-value>6 szt.</strong></div>
+              <div data-label-value><span>WARTOŚĆ</span><strong class="numeric-data" data-data-value>3 240,00 zł</strong></div>
+              <ol data-detail-group="history"><li>Rezerwacja utworzona</li><li>Płatność oznaczona jako ręczna</li></ol>
+            </div>
+            <aside class="detail-side">
+              <div data-detail-group="payment" data-label-value><span>STATUS PŁATNOŚCI</span><strong>Płatność ręczna</strong></div>
+              <div data-detail-group="deposit" data-label-value><span>KAUCJA</span><strong class="numeric-data" data-data-value>1 200,00 zł</strong></div>
+              <div data-detail-group="delivery">
+                <div data-label-value><span>DOSTAWA</span><strong>Kurier</strong></div>
+                <div data-label-value><span>NUMER PRZESYŁKI</span><strong>Jeszcze nie nadano</strong></div>
+                <span class="chip chip-neutral" data-status-axis="shipment" data-status-value="created" data-tone="neutral">Utworzona</span>
+              </div>
+              <div data-detail-group="actions"><button type="button">Edytuj</button><button type="button">Anuluj zamówienie</button></div>
+            </aside>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="product-form" data-phase2-section="product-form" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">06 / Formularz produktu</p>
+        <h2>Etykieta nad polem, konkretny błąd.</h2>
+        <article class="panel-shell product-ui" data-screen="product-form" data-font-scope="product" style="display:block;padding:24px">
+          <form data-product-form novalidate>
+            <label for="product-name">Nazwa produktu</label>
+            <input id="product-name" name="name" value="Na" aria-invalid="true" aria-describedby="product-name-error">
+            <p id="product-name-error" class="field-error" role="alert">Nazwa musi mieć co najmniej 3 znaki.</p>
+            <label for="product-sku">SKU</label><input id="product-sku" name="sku" value="POD-2X1">
+            <label for="product-category">Kategoria</label><select id="product-category" name="category"><option>Sprzęt eventowy</option></select>
+            <label for="product-quantity">Liczba egzemplarzy</label><input id="product-quantity" name="quantity" value="6" inputmode="numeric">
+            <label for="product-price">Cena za dzień</label><input id="product-price" name="daily-price" value="540,00 zł" class="numeric-data" data-data-value data-state="focus">
+            <label for="product-deposit">Kaucja</label><input id="product-deposit" name="deposit" value="1 200,00 zł" class="numeric-data" data-data-value>
+            <button class="button-primary" type="button">Dodaj produkt</button>
+          </form>
+        </article>
+      </div>
+    </section>
+    <section id="states" data-phase2-section="states" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">07 / Stany komponentów</p>
+        <h2>Stany są semantyczne, nie tylko wizualne.</h2>
+        <div class="panel-shell product-ui" data-screen="system-states" data-font-scope="product" style="display:block;padding:24px">
+          <div class="gallery-block"><p class="gallery-label">Przycisk główny — default · hover · focus · active · disabled · loading</p><div class="state-gallery" data-component="button-primary"><button class="gallery-btn" data-state="default" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017">Zapisz</button><button class="gallery-btn" data-state="hover" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017">Zapisz</button><button class="gallery-btn" data-state="focus" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017">Zapisz</button><button class="gallery-btn" data-state="active" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017">Zapisz</button><button class="gallery-btn" data-state="disabled" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017" disabled>Zapisz</button><button class="gallery-btn" data-state="loading" data-contrast-ref="white-on-ink" style="--state-foreground:#FFFFFF;--state-background:#0B1017" aria-busy="true">Zapisz …</button></div></div>
+<div class="gallery-block"><p class="gallery-label">Przycisk drugorzędny — default · hover · focus · active · disabled · loading</p><div class="state-gallery" data-component="button-secondary"><button class="gallery-btn" data-state="default" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Anuluj</button><button class="gallery-btn" data-state="hover" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Anuluj</button><button class="gallery-btn" data-state="focus" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Anuluj</button><button class="gallery-btn" data-state="active" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Anuluj</button><button class="gallery-btn" data-state="disabled" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" disabled>Anuluj</button><button class="gallery-btn" data-state="loading" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" aria-busy="true">Anuluj …</button></div></div>
+<div class="gallery-block"><p class="gallery-label">Przycisk destrukcyjny — default · hover · focus · active · disabled · loading</p><div class="state-gallery" data-component="button-destructive"><button class="gallery-btn" data-state="default" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226">Usuń trwale</button><button class="gallery-btn" data-state="hover" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226">Usuń trwale</button><button class="gallery-btn" data-state="focus" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226">Usuń trwale</button><button class="gallery-btn" data-state="active" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226">Usuń trwale</button><button class="gallery-btn" data-state="disabled" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226" disabled>Usuń trwale</button><button class="gallery-btn" data-state="loading" data-contrast-ref="white-on-destructive" style="--state-foreground:#FFFFFF;--state-background:#A93226" aria-busy="true">Usuń trwale …</button></div></div>
+<div class="gallery-block"><p class="gallery-label">Pole — default · hover · focus · active · disabled · loading · error · valid</p><div class="state-gallery" data-component="input"><div class="gallery-field" data-state="default" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994"><span class="field-value">Nagrzewnica 20 kW</span></div><div class="gallery-field" data-state="hover" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994"><span class="field-value">Nagrzewnica 20 kW</span></div><div class="gallery-field" data-state="focus" data-contrast-ref="ink-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5"><span class="field-value">Nagrzewnica 20 kW</span></div><div class="gallery-field" data-state="active" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994"><span class="field-value">Nagrzewnica 20 kW</span></div><div class="gallery-field" data-state="disabled" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994" aria-disabled="true"><span class="field-value">Pole zablokowane</span></div><div class="gallery-field" data-state="loading" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994" aria-busy="true"><span class="field-value">Zapisywanie …</span></div><div class="gallery-field is-error" data-state="error" data-contrast-ref="ink-on-canvas error-border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#A93226"><span class="field-icon" data-error-icon aria-hidden="true">!</span><span class="field-value">Na</span><span class="field-alert" role="alert">Zbyt krótka nazwa.</span></div><div class="gallery-field" data-state="valid" data-contrast-ref="ink-on-canvas border-on-canvas" style="--state-foreground:#0B1017;--state-background:#F4F6F5;--state-border:#7E8994"><span class="field-icon" data-valid-icon aria-hidden="true">✓</span><span class="field-value">Nagrzewnica 20 kW</span></div></div></div>
+<div class="gallery-block"><p class="gallery-label">Filtr — default · hover · focus · active · disabled · loading</p><div class="state-gallery" data-component="filter"><button class="gallery-filter" data-state="default" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="hover" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="focus" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="active" data-contrast-ref="ink-on-lime" style="--state-foreground:#0B1017;--state-background:#EAFFA4" data-lime-use="active-filter" data-lime-carrier="ink-border">Filtr</button><button class="gallery-filter" data-state="disabled" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" disabled>Filtr</button><button class="gallery-filter" data-state="loading" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" aria-busy="true">Filtr</button></div></div>
+<div class="gallery-block"><p class="gallery-label">Wiersz — default · hover · focus · active</p><div class="state-gallery" data-component="row"><div class="gallery-row" data-state="default" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="hover" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="focus" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="active" data-contrast-ref="ink-on-white signal-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF;--state-border:#5F7500"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div></div></div>
+        </div>
+      </div>
+    </section>
     <section id="storefront" data-phase2-section="storefront" data-surface-phase="white"></section>
     <section id="orders-dark" data-phase2-section="orders-dark" data-surface-phase="dark" class="dark">
       <div class="wrap">
@@ -659,6 +774,10 @@ color-scheme: light dark;
               <span class="chip-tab-active" data-contrast-ref="dark-lime-on-accent">Aktywne</span>
               <span class="dark-lime-marker" data-contrast-ref="lime-on-dark-card" aria-label="Znacznik zaznaczenia"></span>
               <p class="table-meta" data-contrast-ref="dark-muted-on-secondary">Ta sama gęstość, kolejność danych i dwie osie statusu.</p>
+            </div>
+            <div class="dark-buttons">
+              <button class="button-secondary" data-contrast-ref="dark-foreground-on-secondary">Drugorzędny</button>
+              <button class="button-destructive" data-contrast-ref="ink-on-dark-destructive">Usuń trwale</button>
             </div>
             <div class="table-scroll" data-table-scroll>
               <table class="orders-table" data-orders-table="dark" data-contrast-ref="dark-foreground-on-card border-on-dark-card">

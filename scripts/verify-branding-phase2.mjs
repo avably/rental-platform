@@ -795,6 +795,171 @@ for (const [theme, colors] of Object.entries(chartContracts)) {
   assert.deepEqual(series.map((node) => node.attributes["data-contrast-ref"]), colors.map((_, index) => `chart-${theme}-${index + 1}`));
 }
 
+// ===== Task 5: order detail, form states, buttons, errors =====
+const detail = html.match(/<article\b[^>]*data-screen="order-detail"[^>]*>([\s\S]*?)<\/article>/)?.[1] ?? "";
+for (const copy of ["ZAM/2026/0716", "KAUCJA", "STATUS PŁATNOŚCI", "1 200,00 zł", "Płatność ręczna"]) {
+  assert.ok(detail.includes(copy), `Brak w detalu: ${copy}`);
+}
+assert.ok((detail.match(/data-label-value/g) ?? []).length >= 8);
+assert.match(detail, /data-status-axis="shipment" data-status-value="created"/);
+for (const group of ["customer", "items", "history", "payment", "deposit", "delivery", "actions"]) {
+  assert.match(detail, new RegExp(`data-detail-group="${group}"`));
+}
+
+const form = html.match(/<form\b[^>]*data-product-form[^>]*>([\s\S]*?)<\/form>/)?.[1] ?? "";
+for (const field of ["name", "sku", "category", "quantity", "daily-price", "deposit"]) {
+  assert.match(form, new RegExp(`name="${field}"`));
+}
+assert.match(form, /aria-invalid="true"/);
+assert.match(form, /aria-describedby="product-name-error"/);
+assert.match(form, /id="product-name-error"[^>]*role="alert"[^>]*>Nazwa musi mieć co najmniej 3 znaki\./);
+assert.match(form, /data-state="focus"/);
+
+Object.assign(requiredContrasts, {
+  "ink-on-secondary": { foreground: "#0B1017", background: "#E7EBE8", minimum: 4.5, kind: "text" },
+  "white-on-destructive": { foreground: "#FFFFFF", background: "#A93226", minimum: 4.5, kind: "text" },
+  "dark-foreground-on-secondary": { foreground: "#F4F6F5", background: "#1A232C", minimum: 4.5, kind: "text" },
+  "ink-on-dark-destructive": { foreground: "#0B1017", background: "#FF8A7A", minimum: 4.5, kind: "text" },
+  "error-border-on-canvas": { foreground: "#A93226", background: "#F4F6F5", minimum: 3, kind: "ui" },
+});
+
+const componentStates = {
+  "button-primary": ["default", "hover", "focus", "active", "disabled", "loading"],
+  "button-secondary": ["default", "hover", "focus", "active", "disabled", "loading"],
+  "button-destructive": ["default", "hover", "focus", "active", "disabled", "loading"],
+  input: ["default", "hover", "focus", "active", "disabled", "loading", "error", "valid"],
+  filter: ["default", "hover", "focus", "active", "disabled", "loading"],
+  row: ["default", "hover", "focus", "active"],
+};
+const refsFor = (states, value) => Object.fromEntries(states.map((state) => [state, value]));
+const componentStateContrastRefs = {
+  "button-primary": refsFor(componentStates["button-primary"], "white-on-ink"),
+  "button-secondary": refsFor(componentStates["button-secondary"], "ink-on-secondary"),
+  "button-destructive": refsFor(componentStates["button-destructive"], "white-on-destructive"),
+  input: {
+    default: "ink-on-canvas border-on-canvas", hover: "ink-on-canvas border-on-canvas",
+    focus: "ink-on-canvas", active: "ink-on-canvas border-on-canvas",
+    disabled: "ink-on-canvas border-on-canvas", loading: "ink-on-canvas border-on-canvas",
+    error: "ink-on-canvas error-border-on-canvas", valid: "ink-on-canvas border-on-canvas",
+  },
+  filter: {
+    default: "ink-on-secondary", hover: "ink-on-secondary", focus: "ink-on-secondary",
+    active: "ink-on-lime", disabled: "ink-on-secondary", loading: "ink-on-secondary",
+  },
+  row: {
+    default: "ink-on-white", hover: "ink-on-white", focus: "ink-on-white",
+    active: "ink-on-white signal-on-white",
+  },
+};
+for (const [component, states] of Object.entries(componentStates)) {
+  const gallery = findOne(
+    (node) => node.attributes["data-component"] === component,
+    `Brak jednej galerii ${component}`,
+  );
+  const stateNodes = directChildren(gallery, (node) => "data-state" in node.attributes);
+  assert.deepEqual(stateNodes.map((node) => node.attributes["data-state"]), states);
+  const disabledState = stateNodes.find((node) => node.attributes["data-state"] === "disabled");
+  if (disabledState) assert.ok("disabled" in disabledState.attributes || disabledState.attributes["aria-disabled"] === "true");
+  const loadingState = stateNodes.find((node) => node.attributes["data-state"] === "loading");
+  if (loadingState) assert.equal(loadingState.attributes["aria-busy"], "true");
+  for (const stateNode of stateNodes) {
+    const state = stateNode.attributes["data-state"];
+    const expectedRefs = componentStateContrastRefs[component][state];
+    assert.equal(stateNode.attributes["data-contrast-ref"].trim().replace(/\s+/g, " "), expectedRefs, `${component}/${state}: błędna para kontrastu`);
+    const pairs = expectedRefs.split(/\s+/).map((id) => requiredContrasts[id]);
+    const textPairs = pairs.filter((pair) => pair.kind === "text");
+    const uiPairs = pairs.filter((pair) => pair.kind === "ui");
+    assert.equal(textPairs.length, 1, `${component}/${state}: wymagaj jednej pary tekstowej`);
+    assert.ok(uiPairs.length <= 1, `${component}/${state}: najwyżej jedna para obrysu`);
+    const statePaint = parseCssDeclarations(stateNode.attributes.style ?? "");
+    assert.equal(statePaint.get("--state-foreground"), textPairs[0].foreground, `${component}/${state}: realny foreground`);
+    assert.equal(statePaint.get("--state-background"), textPairs[0].background, `${component}/${state}: realne background`);
+    if (uiPairs[0]) {
+      assert.equal(statePaint.get("--state-border"), uiPairs[0].foreground, `${component}/${state}: realny border`);
+      assert.equal(uiPairs[0].background, textPairs[0].background, `${component}/${state}: border/background mismatch`);
+    }
+  }
+}
+const statePaintRule = parseCssDeclarations(extractBalancedCssBody(css, '[data-component] > [data-state]'));
+assert.equal(statePaintRule.get("color"), "var(--state-foreground)");
+assert.equal(statePaintRule.get("background"), "var(--state-background)");
+assert.match(statePaintRule.get("border-color") ?? "", /var\(--state-border,\s*currentColor\)/);
+
+for (const { selector, declarations } of cssRuleBlocks) {
+  const paints = [...declarations.keys()].filter((property) => /^(?:color|background(?:-color)?)$/i.test(property));
+  if (!paints.length) continue;
+  const normalized = selector.trim().replace(/\s+/g, " ");
+  if (/:(?:hover|active|disabled)\b|\[aria-(?:disabled|busy)=/.test(normalized)) {
+    assert.fail(`Pseudo-stan nie może obchodzić --state paint: ${normalized}`);
+  }
+  if (/\[data-state=/.test(normalized)) {
+    assert.equal(normalized, '[data-component="filter"] [data-state="active"]', `Stan z własnym paintem poza kontraktem: ${normalized}`);
+  }
+}
+const validState = findOne((node) => node.attributes["data-state"] === "valid", "Brak jednego valid input");
+assert.doesNotMatch(html.slice(validState.start, validState.end), /green|zielon|success-dot|data-brand-dot/);
+const errorState = findOne((node) => node.attributes["data-state"] === "error", "Brak jednego error input");
+assert.equal(findAll(errorState, (node) => "data-error-icon" in node.attributes).length, 1);
+assert.equal(findAll(errorState, (node) => node.attributes.role === "alert").length, 1);
+
+const focusRule = parseCssDeclarations(extractBalancedCssBody(css, ":focus-visible"));
+assert.equal(focusRule.get("border"), "2px solid var(--foreground)");
+assert.equal(focusRule.get("outline"), "3px solid var(--accent)");
+assert.equal(focusRule.get("outline-offset"), "2px");
+const activeFilterRule = parseCssDeclarations(extractBalancedCssBody(css, '[data-component="filter"] [data-state="active"]'));
+assert.equal(activeFilterRule.get("background"), "var(--accent)");
+assert.equal(activeFilterRule.get("color"), "var(--accent-foreground)");
+assert.equal(activeFilterRule.get("border"), "1px solid var(--foreground)");
+const lightSelectedRule = parseCssDeclarations(extractBalancedCssBody(css, '[data-component="row"] [data-state="active"]'));
+assert.equal(lightSelectedRule.get("border-left"), "2px solid var(--signal-strong)");
+const darkSelectedRule = parseCssDeclarations(extractBalancedCssBody(css, '.dark [data-component="row"] [data-state="active"]'));
+assert.equal(darkSelectedRule.get("border-left"), "2px solid var(--accent-foreground)");
+const componentPairRules = {
+  ".button-primary": { background: "var(--primary)", color: "var(--primary-foreground)" },
+  ".button-secondary": { background: "var(--secondary)", color: "var(--secondary-foreground)", border: "1px solid var(--foreground)" },
+  ".button-destructive": { background: "var(--destructive)", color: "var(--destructive-foreground)" },
+  ".dark .button-primary": { background: "var(--primary)", color: "var(--primary-foreground)" },
+  ".dark .button-secondary": { background: "var(--secondary)", color: "var(--secondary-foreground)", border: "1px solid var(--foreground)" },
+  ".dark .button-destructive": { background: "var(--destructive)", color: "var(--destructive-foreground)" },
+  '[aria-invalid="true"]': { background: "var(--background)", border: "1px solid var(--destructive)" },
+};
+for (const [selector, declarations] of Object.entries(componentPairRules)) {
+  const actual = parseCssDeclarations(extractBalancedCssBody(css, selector));
+  for (const [property, value] of Object.entries(declarations)) assert.equal(actual.get(property), value, `${selector} ${property}`);
+}
+
+const resolveCssPaint = (declaration, themeTokens) => {
+  const variable = declaration?.match(/var\(--([\w-]+)\)/)?.[1];
+  if (variable) {
+    assert.ok(themeTokens[variable], `Brak HEX dla --${variable}`);
+    return themeTokens[variable];
+  }
+  const literal = declaration?.match(/#[0-9A-F]{6}/i)?.[0].toUpperCase();
+  assert.ok(literal, `Nie można rozwiązać paintu: ${declaration}`);
+  return literal;
+};
+const lightPaintTokens = { ...lightTokens, "signal-strong": "#5F7500" };
+const cssContrastContracts = [
+  { selector: ".button-primary", theme: lightPaintTokens, foreground: "color", background: "background", ref: "white-on-ink" },
+  { selector: ".button-secondary", theme: lightPaintTokens, foreground: "color", background: "background", ref: "ink-on-secondary" },
+  { selector: ".button-destructive", theme: lightPaintTokens, foreground: "color", background: "background", ref: "white-on-destructive" },
+  { selector: ".dark .button-primary", theme: darkTokens, foreground: "color", background: "background", ref: "ink-on-lime" },
+  { selector: ".dark .button-secondary", theme: darkTokens, foreground: "color", background: "background", ref: "dark-foreground-on-secondary" },
+  { selector: ".dark .button-destructive", theme: darkTokens, foreground: "color", background: "background", ref: "ink-on-dark-destructive" },
+  { selector: '[aria-invalid="true"]', theme: lightPaintTokens, foreground: "border", background: "background", ref: "error-border-on-canvas" },
+  { selector: '[data-component="filter"] [data-state="active"]', theme: lightPaintTokens, foreground: "color", background: "background", ref: "ink-on-lime" },
+  { selector: ':focus-visible', theme: lightPaintTokens, foreground: "border", backgroundHex: "#F4F6F5", ref: "ink-on-canvas" },
+  { selector: '[data-component="row"] [data-state="active"]', theme: lightPaintTokens, foreground: "border-left", backgroundHex: "#FFFFFF", ref: "signal-on-white" },
+  { selector: '.dark [data-component="row"] [data-state="active"]', theme: darkTokens, foreground: "border-left", backgroundHex: "#111820", ref: "lime-on-dark-card" },
+];
+for (const contract of cssContrastContracts) {
+  const declarations = parseCssDeclarations(extractBalancedCssBody(css, contract.selector));
+  const foreground = resolveCssPaint(declarations.get(contract.foreground), contract.theme);
+  const background = contract.backgroundHex ?? resolveCssPaint(declarations.get(contract.background), contract.theme);
+  assert.equal(foreground, requiredContrasts[contract.ref].foreground, `${contract.selector}: foreground/ref mismatch`);
+  assert.equal(background, requiredContrasts[contract.ref].background, `${contract.selector}: background/ref mismatch`);
+}
+
 // The single contrast-registry invocation (grown by later tasks).
 if (CONTRAST_REGISTRY_CALL) assertContrastRegistry(requiredContrasts);
 
