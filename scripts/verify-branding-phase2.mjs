@@ -593,6 +593,208 @@ for (const copy of [
   "Limonka zawsze działa z widocznym nośnikiem.",
 ]) assert.ok(openingText.includes(copy));
 
+// ===== Task 4: panel shell, dashboard, status matrix, order lists =====
+const statusMap = {
+  order: {
+    pending: "attention",
+    reserved: "neutral",
+    ready_for_pickup: "attention",
+    picked_up: "neutral",
+    returned: "positive",
+    cancelled: "problem",
+  },
+  payment: {
+    unpaid: "attention",
+    pending: "neutral",
+    paid: "positive",
+    manual: "attention",
+    completed: "positive",
+    deposit_refunded: "positive",
+    refunded: "neutral",
+    cancelled: "problem",
+  },
+  shipment: {
+    created: "neutral",
+    in_progress: "neutral",
+    in_transit: "neutral",
+    delivered: "positive",
+    cancelled: "problem",
+    returned_to_sender: "problem",
+  },
+};
+
+Object.assign(requiredContrasts, {
+  "dark-foreground-on-background": { foreground: "#F4F6F5", background: "#0B1017", minimum: 4.5, kind: "text" },
+  "dark-foreground-on-card": { foreground: "#F4F6F5", background: "#111820", minimum: 4.5, kind: "text" },
+  "dark-muted-on-secondary": { foreground: "#B8C0C5", background: "#1A232C", minimum: 4.5, kind: "text" },
+  "dark-lime-on-accent": { foreground: "#EAFFA4", background: "#263016", minimum: 4.5, kind: "text" },
+  "lime-on-dark-card": { foreground: "#EAFFA4", background: "#111820", minimum: 3, kind: "ui" },
+  "border-on-dark-card": { foreground: "#7E8994", background: "#111820", minimum: 3, kind: "ui" },
+  "status-light-neutral": { foreground: "#3F4A54", background: "#EDF0EE", minimum: 4.5, kind: "text" },
+  "status-light-attention": { foreground: "#8A5A00", background: "#FFF3D6", minimum: 4.5, kind: "text" },
+  "status-light-positive": { foreground: "#17643A", background: "#E6F6EC", minimum: 4.5, kind: "text" },
+  "status-light-problem": { foreground: "#A93226", background: "#FCE9E6", minimum: 4.5, kind: "text" },
+  "status-dark-neutral": { foreground: "#D5DADD", background: "#202A33", minimum: 4.5, kind: "text" },
+  "status-dark-attention": { foreground: "#FFD37A", background: "#3A2C10", minimum: 4.5, kind: "text" },
+  "status-dark-positive": { foreground: "#8DE0B0", background: "#133323", minimum: 4.5, kind: "text" },
+  "status-dark-problem": { foreground: "#FFAEA4", background: "#3A1E1B", minimum: 4.5, kind: "text" },
+  "status-dark-neutral-border": { foreground: "#7E8994", background: "#202A33", minimum: 3, kind: "ui" },
+  "status-dark-attention-border": { foreground: "#D79A2B", background: "#3A2C10", minimum: 3, kind: "ui" },
+  "status-dark-positive-border": { foreground: "#4FAE77", background: "#133323", minimum: 3, kind: "ui" },
+  "status-dark-problem-border": { foreground: "#E06A5E", background: "#3A1E1B", minimum: 3, kind: "ui" },
+  "chart-light-1": { foreground: "#0067A5", background: "#FFFFFF", minimum: 3, kind: "ui" },
+  "chart-light-2": { foreground: "#A85C00", background: "#FFFFFF", minimum: 3, kind: "ui" },
+  "chart-light-3": { foreground: "#007C6B", background: "#FFFFFF", minimum: 3, kind: "ui" },
+  "chart-light-4": { foreground: "#7A5195", background: "#FFFFFF", minimum: 3, kind: "ui" },
+  "chart-light-5": { foreground: "#B23A48", background: "#FFFFFF", minimum: 3, kind: "ui" },
+  "chart-dark-1": { foreground: "#4DB4FF", background: "#111820", minimum: 3, kind: "ui" },
+  "chart-dark-2": { foreground: "#FFB85C", background: "#111820", minimum: 3, kind: "ui" },
+  "chart-dark-3": { foreground: "#43C9AD", background: "#111820", minimum: 3, kind: "ui" },
+  "chart-dark-4": { foreground: "#C493E0", background: "#111820", minimum: 3, kind: "ui" },
+  "chart-dark-5": { foreground: "#FF7F8C", background: "#111820", minimum: 3, kind: "ui" },
+});
+
+const statusMatrices = findAll(tree, (node) => "data-status-matrix" in node.attributes);
+assert.equal(statusMatrices.length, 1, "Macierz statusów musi wystąpić dokładnie raz");
+const expectedStatusTriples = Object.entries(statusMap).flatMap(([axis, values]) =>
+  Object.entries(values).map(([value, tone]) => `${axis}/${value}/${tone}`),
+);
+const matrixChips = directChildren(
+  statusMatrices[0],
+  (node) => "data-status-axis" in node.attributes,
+);
+assert.equal(matrixChips.length, 20);
+assert.deepEqual(
+  matrixChips.map((chip) => [
+    chip.attributes["data-status-axis"],
+    chip.attributes["data-status-value"],
+    chip.attributes["data-tone"],
+  ].join("/")),
+  expectedStatusTriples,
+);
+for (const chip of matrixChips) {
+  assert.ok(textContent(chip).replace(/\s+/g, " ").trim(), "Chip statusu wymaga widocznego tekstu");
+}
+assert.deepEqual(
+  Object.fromEntries(Object.keys(statusMap).map((axis) => [
+    axis,
+    matrixChips.filter((chip) => chip.attributes["data-status-axis"] === axis).length,
+  ])),
+  { order: 6, payment: 8, shipment: 6 },
+);
+
+const findOne = (predicate, message) => {
+  const matches = findAll(tree, predicate);
+  assert.equal(matches.length, 1, message);
+  return matches[0];
+};
+const lightTable = findOne((node) => node.attributes["data-orders-table"] === "light", "Brak jednej jasnej tabeli");
+const lightRowsBody = findOne(
+  (node) => node.tag === "tbody" && node.attributes["data-orders-body"] === "light",
+  "Brak jasnego tbody",
+);
+const lightRows = directChildren(lightRowsBody, (node) => node.tag === "tr" && "data-order-row" in node.attributes);
+assert.equal(lightRows.length, 12, "Jasna lista musi mieć dokładnie 12 bezpośrednich wierszy demo");
+const requiredCells = ["id", "customer", "equipment", "date", "amount", "order-status", "payment-status", "actions"];
+for (const row of lightRows) {
+  assert.match(row.attributes["data-order-id"], /^ZAM\/2026\/\d{4}$/);
+  const cells = directChildren(row, (node) => node.tag === "td");
+  assert.deepEqual(cells.map((cell) => cell.attributes["data-cell"]), requiredCells);
+  for (const axis of ["order", "payment"]) {
+    const chips = findAll(row, (node) => node.attributes["data-status-axis"] === axis);
+    assert.equal(chips.length, 1, `${row.attributes["data-order-id"]}: oś ${axis}`);
+    const code = chips[0].attributes["data-status-value"];
+    assert.equal(chips[0].attributes["data-tone"], statusMap[axis][code]);
+  }
+  for (const cellName of ["id", "date", "amount"]) {
+    const cell = cells.find((candidate) => candidate.attributes["data-cell"] === cellName);
+    assert.ok(findAll(cell, (node) => "data-data-value" in node.attributes).length > 0);
+  }
+}
+
+const darkTable = findOne((node) => node.attributes["data-orders-table"] === "dark", "Brak jednej ciemnej tabeli");
+const darkRowsBody = findOne(
+  (node) => node.tag === "tbody" && node.attributes["data-orders-body"] === "dark",
+  "Brak ciemnego tbody",
+);
+const darkRows = directChildren(darkRowsBody, (node) => node.tag === "tr" && "data-order-row" in node.attributes);
+assert.equal(darkRows.length, 12);
+for (const row of darkRows) {
+  const cells = directChildren(row, (node) => node.tag === "td");
+  assert.deepEqual(cells.map((cell) => cell.attributes["data-cell"]), requiredCells);
+  for (const cellName of ["id", "date", "amount"]) {
+    const cell = cells.find((candidate) => candidate.attributes["data-cell"] === cellName);
+    assert.ok(findAll(cell, (node) => "data-data-value" in node.attributes).length > 0);
+  }
+}
+assert.deepEqual(
+  darkRows.map((row) => row.attributes["data-order-id"]),
+  lightRows.map((row) => row.attributes["data-order-id"]),
+);
+const rowSignature = (row) => ({
+  id: row.attributes["data-order-id"],
+  cells: directChildren(row, (node) => node.tag === "td").map((cell) => ({
+    name: cell.attributes["data-cell"],
+    text: textContent(cell).replace(/\s+/g, " ").trim(),
+    statuses: findAll(cell, (node) => "data-status-axis" in node.attributes).map((chip) => ({
+      axis: chip.attributes["data-status-axis"],
+      value: chip.attributes["data-status-value"],
+      tone: chip.attributes["data-tone"],
+    })),
+  })),
+});
+assert.deepEqual(darkRows.map(rowSignature), lightRows.map(rowSignature));
+const panelNavs = findAll(tree, (node) => node.tag === "nav" && node.attributes["data-panel-nav"] === "true");
+assert.ok(panelNavs.length >= 2, "Pokaż nawigację w jasnym i ciemnym shellu");
+for (const nav of panelNavs) {
+  const items = directChildren(nav, (node) => "data-nav-item" in node.attributes);
+  assert.deepEqual(items.map((node) => node.attributes["data-nav-item"]), [
+    "orders", "catalog", "store", "domains", "emails", "delivery", "team", "organization", "security",
+  ]);
+  assert.equal(directChildren(nav, (node) => node.attributes["data-nav-placeholder"] === "dashboard").length, 1);
+  assert.equal(items.filter((node) => node.attributes["aria-current"] === "page").length, 1);
+  assert.equal(items.find((node) => node.attributes["aria-current"] === "page").attributes["data-nav-item"], "orders");
+}
+assert.match(html, /\.sidebar-nav[^}]*\[aria-current="page"\][^}]*border-left:\s*2px solid var\(--signal-strong\)/);
+assert.match(html, /\.dark[^}]*\.sidebar-nav[^}]*\[aria-current="page"\][^}]*border-left:\s*2px solid var\(--accent-foreground\)/);
+
+const dashboard = findOne(
+  (node) => node.attributes["data-screen"] === "dashboard-placeholder",
+  "Brak jednego placeholdera dashboardu",
+);
+const dashboardSource = html.slice(dashboard.start, dashboard.end);
+const dashboardText = textContent(dashboard).replace(/\s+/g, " ").trim();
+assert.match(dashboardSource, /Tu będzie centrum dowodzenia\./);
+assert.match(dashboardSource, /Dashboard czeka na dane\. Do tego czasu najwięcej dzieje się w zamówieniach\./);
+assert.match(dashboardSource, />Przejdź do zamówień</);
+assert.equal(dashboard.attributes["data-no-backend"], "true");
+assert.doesNotMatch(dashboardText, /\d|\bzł\b|trend|przychód|konwersj|rezerwacj[ei] dziś|zamówień dziś|średnia|obrót|wzrost|spadek|KPI/i);
+assert.deepEqual(
+  findAll(dashboard, (node) => "data-chart-placeholder" in node.attributes)
+    .map((node) => [node.attributes["data-chart-placeholder"], node.attributes["data-example"]]),
+  [["line", "true"], ["bars", "true"]],
+);
+
+const chartContracts = {
+  light: ["#0067A5", "#A85C00", "#007C6B", "#7A5195", "#B23A48"],
+  dark: ["#4DB4FF", "#FFB85C", "#43C9AD", "#C493E0", "#FF7F8C"],
+};
+const chartDashes = ["solid", "8 4", "2 3", "12 3 2 3", "1 4"];
+const chartMarkers = ["circle", "square", "triangle", "diamond", "cross"];
+for (const [theme, colors] of Object.entries(chartContracts)) {
+  const chart = findOne(
+    (node) => node.attributes["data-chart-system"] === theme,
+    `Brak jednego przykładowego wykresu ${theme}`,
+  );
+  assert.equal(chart.attributes["data-example"], "true");
+  const series = directChildren(chart, (node) => "data-chart-series" in node.attributes);
+  assert.deepEqual(series.map((node) => node.attributes["data-chart-series"]), ["1", "2", "3", "4", "5"]);
+  assert.deepEqual(series.map((node) => node.attributes["data-color"]), colors);
+  assert.deepEqual(series.map((node) => node.attributes["data-dash"]), chartDashes);
+  assert.deepEqual(series.map((node) => node.attributes["data-marker"]), chartMarkers);
+  assert.deepEqual(series.map((node) => node.attributes["data-contrast-ref"]), colors.map((_, index) => `chart-${theme}-${index + 1}`));
+}
+
 // The single contrast-registry invocation (grown by later tasks).
 if (CONTRAST_REGISTRY_CALL) assertContrastRegistry(requiredContrasts);
 
