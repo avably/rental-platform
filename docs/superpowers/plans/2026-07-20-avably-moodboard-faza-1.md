@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Zbudować jeden samodzielny moodboard HTML porównujący trzy kierunki pełnego brandingu Avably w UI, hero landing page i dwóch formatach social media.
+**Goal:** Zbudować jeden samodzielny moodboard HTML porównujący trzy kierunki pełnego brandingu Avably w UI, hero landing page i dwóch animowanych formatach social media.
 
-**Architecture:** Artefakt jest pojedynczym semantycznym dokumentem HTML bez JavaScriptu i bez zależności sieciowych. CSS, siedem plików WOFF2 jako dane base64 oraz logo w dwóch wariantach SVG są osadzone inline; oddzielny skrypt Node sprawdza kontrakt dokumentu, a istniejący hub dokumentacji dostaje tylko odnośnik.
+**Architecture:** Artefakt jest pojedynczym semantycznym dokumentem HTML bez JavaScriptu i bez zależności sieciowych. CSS, siedem plików WOFF2 jako dane base64 oraz logo w dwóch wariantach SVG są osadzone inline; CSS odpowiada także za motion, zatrzymywanie pętli i `prefers-reduced-motion`. Oddzielny skrypt Node sprawdza kontrakt dokumentu, a istniejący hub dokumentacji dostaje tylko odnośnik.
 
 **Tech Stack:** HTML5, CSS, inline SVG, WOFF2/data URL, Node.js 22 `node:assert`, istniejący runner pnpm/Turborepo.
 
@@ -17,7 +17,12 @@
 - Zachować `font-synthesis: none`; każdy `@font-face` ma `font-style: normal` i zakres wag zgodny z rzeczywistym plikiem.
 - Wspólne kolory marki to `#EAFFA4`, `#A8C743` i niemal czarny `#0B1017`.
 - Pokazać trzy kierunki: „Sygnał operacyjny”, „Papier roboczy” i „Czarna rama”, zawsze z identycznym copy i danymi demonstracyjnymi.
-- W każdym kierunku pokazać panel, hero LP `16:10`, post `1:1` oraz post `4:5`; nie używać zdjęć stockowych, gradientów, glassmorphismu, ilustracji 3D ani cieni kart.
+- W każdym kierunku pokazać panel, hero LP `16:10`, animowaną reklamę `1:1` oraz animowaną reklamę `4:5`; nie używać zdjęć stockowych, gradientów, glassmorphismu, ilustracji 3D ani cieni kart.
+- Motion ma używać czasów `160ms`, `240ms`, `720ms`, `6000ms`, `8000ms` i `16000ms` oraz easingów `cubic-bezier(0.22, 1, 0.36, 1)` i `cubic-bezier(0.2, 0.7, 0.2, 1)`.
+- Kropka logo jest wspólnym sygnałem ruchu; nie wolno morfować, obracać ani sprężynować liter, kapsuły lub krzywych znaku.
+- UI korzysta tylko z mikrointerakcji `160–240ms`; LP ma jedną ciągłą szynę danych `16000ms`; każda reklama ma pętlę `8000ms` z nieruchomą kompozycją między `72%` i `92%`.
+- Pętle zatrzymują się na hover i `focus-within`; `@media (prefers-reduced-motion: reduce)` usuwa ruch i pokazuje kompletny stan końcowy.
+- Animować wyłącznie `transform`, `opacity` i płaski kolor; bez blur, parallaxu, scroll hijackingu oraz zmian układu.
 - Limonka jest sygnałem i CTA, nie dużym tłem; drobny tekst na limonce ma kolor `#0B1017`.
 - Spełnić WCAG AA dla każdej rzeczywiście użytej pary oraz wypisać policzone kontrasty z dokumentu projektowego.
 - Copy opisuje wyłącznie działające funkcje; nie dodawać płatności online, fikcyjnych klientów, wyników, opinii, nagród ani dowodu społecznego.
@@ -25,7 +30,7 @@
 
 ## File Map
 
-- Create: `scripts/verify-branding-moodboard.mjs` — deterministyczny kontrakt struktury, offline, fontów, copy i odnośnika w hubie.
+- Create and extend: `scripts/verify-branding-moodboard.mjs` — deterministyczny kontrakt struktury, offline, fontów, copy, motion i odnośnika w hubie.
 - Create: `docs/branding/2026-07-20-avably-faza-1-moodboard.html` — jedyny artefakt wizualny.
 - Modify: `docs/dokumentacja/hub.html` — jedna aktywna karta odsyłająca do moodboardu.
 - Reference: `docs/superpowers/specs/2026-07-20-avably-moodboard-faza-1-design.md` — wiążące decyzje wizualne, copy i kontrasty.
@@ -166,15 +171,79 @@ git commit -m "test: dodaj kontrakt moodboardu Avably"
 
 ---
 
-### Task 2: Samodzielny moodboard pełnego brandingu
+### Task 2: Rozszerzenie kontraktu o motion
+
+**Files:**
+- Modify: `scripts/verify-branding-moodboard.mjs`
+- Test: `scripts/verify-branding-moodboard.mjs`
+
+**Interfaces:**
+- Consumes: istniejący kontrakt offline z Task 1.
+- Produces: dodatkowe asercje dla sekcji `#motion`, czterech typów animacji, dwunastu demonstracji, pauzy oraz reduced motion.
+
+- [ ] **Step 1: Dodać wymagania motion przed artefaktem**
+
+Za asercją sekcji dodać `motion` do tablicy `sectionId`, a przed sprawdzeniem komunikatu o fazie 2 dodać:
+
+```js
+for (const motionToken of [
+  "--motion-fast: 160ms",
+  "--motion-ui: 240ms",
+  "--motion-reveal: 720ms",
+  "--motion-logo: 6000ms",
+  "--motion-ad: 8000ms",
+  "--motion-ambient: 16000ms",
+  "cubic-bezier(0.22, 1, 0.36, 1)",
+  "cubic-bezier(0.2, 0.7, 0.2, 1)",
+]) {
+  assert.ok(html.includes(motionToken), `Brak wartości motion: ${motionToken}`);
+}
+
+for (const keyframe of [
+  "logo-signal",
+  "ui-state",
+  "operational-rail",
+  "ad-sequence",
+]) {
+  assert.ok(html.includes(`@keyframes ${keyframe}`), `Brak animacji ${keyframe}`);
+}
+
+assert.equal(count("data-motion-demo"), 12);
+assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(html, /animation-play-state:\s*paused/);
+assert.match(html, /animation:\s*none\s*!important/);
+assert.match(html, /transition:\s*none\s*!important/);
+```
+
+- [ ] **Step 2: Potwierdzić składnię i nadal prawidłowy RED**
+
+Run:
+
+```bash
+PATH=/opt/homebrew/opt/node@22/bin:$PATH node --check scripts/verify-branding-moodboard.mjs
+PATH=/opt/homebrew/opt/node@22/bin:$PATH node scripts/verify-branding-moodboard.mjs --artifact-only
+```
+
+Expected: kontrola składni kończy się kodem `0`; kontrakt kończy się `AssertionError: Brak moodboardu`, ponieważ produkcyjny artefakt nadal nie istnieje.
+
+- [ ] **Step 3: Zapisać rozszerzony kontrakt**
+
+```bash
+git add scripts/verify-branding-moodboard.mjs
+git commit -m "test: rozszerz kontrakt moodboardu o motion"
+```
+
+---
+
+### Task 3: Samodzielny moodboard pełnego brandingu
 
 **Files:**
 - Create: `docs/branding/2026-07-20-avably-faza-1-moodboard.html`
 - Test: `scripts/verify-branding-moodboard.mjs`
 
 **Interfaces:**
-- Consumes: siedem plików WOFF2, krzywe źródłowego logo, copy i palety ze specyfikacji.
-- Produces: jeden offline HTML z sekcjami `#logo`, `#directions`, `#applications`, `#typography`, `#contrast`, `#not-included` i `#choice`.
+- Consumes: siedem plików WOFF2, krzywe źródłowego logo, copy, palety i motion ze specyfikacji.
+- Produces: jeden offline HTML z sekcjami `#logo`, `#directions`, `#applications`, `#motion`, `#typography`, `#contrast`, `#not-included` i `#choice`.
 
 - [ ] **Step 1: Pobrać tylko otwarte podzbiory Manrope potrzebne dla języka polskiego**
 
@@ -243,7 +312,7 @@ Pod porównaniem umieścić dokładne uzasadnienie: „Nieco cięższa i wyżej 
 
 - [ ] **Step 4: Zbudować trzy porównywalne kierunki UI**
 
-W `#directions` użyć CSS Grid z trzema kolumnami od `1180 px` i jednej kolumny poniżej. Każda karta ma zawierać nazwę, decyzję, zysk, koszt, siedem podpisanych próbek palety, próbkę Safiro 500 i identyczny wiersz zamówienia:
+W `#directions` użyć CSS Grid z trzema kolumnami od `1180 px` i jednej kolumny poniżej. Każda karta ma zawierać nazwę, decyzję, zysk, koszt, siedem podpisanych próbek palety, próbkę Safiro 500 i identyczny wiersz zamówienia oznaczony kolejno `data-motion-demo="ui-signal"`, `data-motion-demo="ui-paper"` i `data-motion-demo="ui-frame"`:
 
 ```text
 ZAM/2026/0714 | Anna Kowalska | Nagrzewnica 20 kW | 20–22.07.2026 | 1 199,00 zł | Do wydania
@@ -267,7 +336,7 @@ W `#applications` utworzyć trzy `article.brand-application`, każdy z identyczn
     <p>Limonka prowadzi do działania, a neutralna baza utrzymuje czytelność.</p>
   </header>
   <div class="application-grid">
-    <figure class="lp-preview">
+    <figure class="lp-preview motion-loop" data-motion-demo="lp-signal">
       <div class="lp-frame">
         <nav aria-label="Nawigacja makiety landing page">
           <svg class="brand-logo" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
@@ -290,7 +359,7 @@ W `#applications` utworzyć trzy `article.brand-application`, każdy z identyczn
       <figcaption>Landing page · pole 1440 × 900 px</figcaption>
     </figure>
     <div class="social-previews">
-      <figure class="social-square">
+      <figure class="social-square motion-loop" data-motion-demo="ad-square-signal">
         <div class="social-frame">
           <svg class="brand-logo" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
           <p>Dostępność sprzętu</p>
@@ -300,7 +369,7 @@ W `#applications` utworzyć trzy `article.brand-application`, każdy z identyczn
         </div>
         <figcaption>Post 1:1 · 1080 × 1080 px</figcaption>
       </figure>
-      <figure class="social-portrait">
+      <figure class="social-portrait motion-loop" data-motion-demo="ad-portrait-signal">
         <div class="social-frame">
           <svg class="brand-logo" role="img" aria-label="Avably"><use href="#logo-after"></use></svg>
           <p>Własny sklep</p>
@@ -315,13 +384,78 @@ W `#applications` utworzyć trzy `article.brand-application`, każdy z identyczn
 </article>
 ```
 
-Każdy hero zawiera logo, `Produkt`, `Dla wypożyczalni`, `Kontakt`, nadtytuł „System dla wypożyczalni sprzętu”, nagłówek „Prowadź wynajem. Przyjmuj rezerwacje online.”, treść i oba CTA ze specyfikacji, cenę `199 zł miesięcznie` oraz fragment tego samego zamówienia. Każdy post zawiera pełne copy, CTA i podpis wymiaru ze specyfikacji. Nie używać pełnego limonkowego tła w żadnym formacie.
+Każdy hero zawiera logo, `Produkt`, `Dla wypożyczalni`, `Kontakt`, nadtytuł „System dla wypożyczalni sprzętu”, nagłówek „Prowadź wynajem. Przyjmuj rezerwacje online.”, treść i oba CTA ze specyfikacji, cenę `199 zł miesięcznie` oraz fragment tego samego zamówienia. Każda reklama zawiera pełne copy, CTA i podpis wymiaru ze specyfikacji. Dla pozostałych kierunków użyć dokładnie `lp-paper`, `ad-square-paper`, `ad-portrait-paper`, `lp-frame`, `ad-square-frame` i `ad-portrait-frame`; z trzema wierszami UI oraz trzema wartościami wariantu signal daje to dokładnie dwanaście `data-motion-demo`. Nie używać pełnego limonkowego tła w żadnym formacie.
 
-- [ ] **Step 6: Dodać próbnik, kontrasty, odrzucenia i bramkę wyboru**
+- [ ] **Step 6: Zaimplementować motion w UI, LP, reklamach i logotypie**
+
+W `:root` zadeklarować dokładnie:
+
+```css
+--motion-fast: 160ms;
+--motion-ui: 240ms;
+--motion-reveal: 720ms;
+--motion-logo: 6000ms;
+--motion-ad: 8000ms;
+--motion-ambient: 16000ms;
+--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+--ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+```
+
+Zdefiniować co najmniej cztery nazwane animacje wymagane kontraktem:
+
+```css
+@keyframes logo-signal {
+  0% { opacity: 0; transform: translateX(-12px) scale(0.84); }
+  5%, 94% { opacity: 1; transform: translateX(0) scale(1); }
+  97% { opacity: 1; transform: translateY(-0.5px) scale(1.08); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes ui-state {
+  from { opacity: 0.4; transform: scaleY(0.2); }
+  to { opacity: 1; transform: scaleY(1); }
+}
+@keyframes operational-rail {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes ad-sequence {
+  0%, 4% { opacity: 0; transform: translateY(8px); }
+  12%, 92% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+```
+
+Uzupełnić je osobnymi revealami dzieci reklamy tak, aby logo wchodziło w `0–12%`, headline w `12–34%`, produkt w `34–54%`, CTA w `54–72%`, a całość pozostawała statyczna w `72–92%`. UI korzysta z `ui-state` tylko przy wejściu i z transition `160–240ms` na hover/focus. LP używa jednego liniowego `operational-rail` `16000ms infinite` oraz jednorazowego reveal `720ms`; nie dodawać drugiej ciągłej warstwy.
+
+Kropka we wszystkich logo może używać `logo-signal`, ale litery i kapsuła wyłącznie jednorazowego opacity/translate do `8 px`. Sygnał operacyjny porusza się po prostych osiach, Papier roboczy odsłania linię dokumentu z przesunięciem do `6 px`, a Czarna rama przesuwa tylko limonkowy wskaźnik nawigacji.
+
+Dodać pauzę i reduced motion:
+
+```css
+.motion-loop:hover *,
+.motion-loop:focus-within * {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  [data-motion-demo] * {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+}
+```
+
+W `#motion` wypisać czasy, oba easingi, zasadę kropki jako sygnału, storyboard `0–12 / 12–34 / 34–54 / 54–72 / 72–92 / 92–100%` i zachowanie reduced motion. Sekcja ma być statycznym objaśnieniem; dwanaście żywych demonstracji pozostaje w UI/LP/reklamach.
+
+- [ ] **Step 7: Dodać próbnik, kontrasty, odrzucenia i bramkę wyboru**
 
 W `#typography` pokazać `Manrope 400 / Safiro Medium 500 / Manrope 600 / Manrope 700` z nazwą rodziny przy każdej linii, a także nagłówek, akapit, małą tabelę oraz liczby w Geist Mono. W `#contrast` przepisać wszystkie 18 policzonych par ze specyfikacji i osobno wyjaśnić `1.09:1` limonki na bieli oraz podwójny focus. W `#not-included` pokazać osiem odrzuconych zabiegów. W `#choice` zakończyć zdaniem „Wybierz jeden kierunek: Sygnał operacyjny, Papier roboczy albo Czarna rama. Faza 2 nie została rozpoczęta.”
 
-- [ ] **Step 7: Uruchomić kontrakt tylko dla artefaktu**
+- [ ] **Step 8: Uruchomić kontrakt tylko dla artefaktu**
 
 Run:
 
@@ -331,7 +465,7 @@ PATH=/opt/homebrew/opt/node@22/bin:$PATH node scripts/verify-branding-moodboard.
 
 Expected: `moodboard_contract=passed`.
 
-- [ ] **Step 8: Zapisać artefakt**
+- [ ] **Step 9: Zapisać artefakt**
 
 ```bash
 git add docs/branding/2026-07-20-avably-faza-1-moodboard.html
@@ -340,7 +474,7 @@ git commit -m "feat: dodaj moodboard pełnego brandingu Avably"
 
 ---
 
-### Task 3: Odnośnik w centrum dokumentacji
+### Task 4: Odnośnik w centrum dokumentacji
 
 **Files:**
 - Modify: `docs/dokumentacja/hub.html`
@@ -363,7 +497,7 @@ Expected: `AssertionError` z komunikatem `Hub nie zawiera odnośnika do moodboar
 - [ ] **Step 2: Dodać dokładnie jedną kartę w `#dokumenty .links`**
 
 ```html
-<a class="linkcard" href="../branding/2026-07-20-avably-faza-1-moodboard.html"><p class="t">Avably — moodboard brandingu, faza 1</p><p class="d">Trzy kierunki porównane w panelu, landing page i postach social media.</p><span class="s">offline HTML · logo, kolor, typografia, UI, LP i social</span></a>
+<a class="linkcard" href="../branding/2026-07-20-avably-faza-1-moodboard.html"><p class="t">Avably — moodboard brandingu, faza 1</p><p class="d">Trzy kierunki porównane w panelu, landing page i animowanych reklamach social media.</p><span class="s">offline HTML · logo, kolor, typografia, motion, UI, LP i social</span></a>
 ```
 
 - [ ] **Step 3: Uruchomić pełny kontrakt**
@@ -385,7 +519,7 @@ git commit -m "docs: dodaj moodboard do centrum projektu"
 
 ---
 
-### Task 4: Weryfikacja techniczna i wizualna
+### Task 5: Weryfikacja techniczna i wizualna
 
 **Files:**
 - Modify if needed: `docs/branding/2026-07-20-avably-faza-1-moodboard.html`
@@ -420,10 +554,18 @@ const fontChecks = [
   ["Geist Sans", "500 16px Geist Sans"],
   ["Geist Mono", "500 16px Geist Mono"],
 ].map(([name, query]) => [name, document.fonts.check(query)]);
-({ fontChecks, resources: performance.getEntriesByType("resource") });
+const motionDurations = [...new Set(
+  document.getAnimations().map((animation) => animation.effect.getTiming().duration),
+)].sort((a, b) => a - b);
+({
+  fontChecks,
+  resources: performance.getEntriesByType("resource"),
+  motionDurations,
+  reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+});
 ```
 
-Expected: wszystkie wartości fontów to `true`, a `resources` nie zawiera wpisów sieciowych.
+Expected: wszystkie wartości fontów to `true`, `resources` nie zawiera wpisów sieciowych, a `motionDurations` obejmuje aktywne pętle `6000`, `8000` i `16000`; krótsze transition i reveal są potwierdzone przez kontrakt źródłowy oraz interakcję.
 
 - [ ] **Step 3: Wykonać wizualną kontrolę szerokości `1440`, `1024` i `390 px`**
 
@@ -434,9 +576,26 @@ Sprawdzić kolejno:
 - przy `390 px` wszystkie sekcje są jednokolumnowe, nie ma poziomego przewijania, treść CTA i tabeli pozostaje dostępna;
 - pola `16:10`, `1:1` i `4:5` zachowują proporcje;
 - logo „przed” i „po” ma identyczny rozmiar, a korekta nie zmienia krzywych liter;
-- żaden kierunek nie wygląda jak wariacja tylko koloru: różnią się konstrukcją powierzchni, rytmem i ramą.
+- żaden kierunek nie wygląda jak wariacja tylko koloru: różnią się konstrukcją powierzchni, rytmem i ramą;
+- kropka logo odpoczywa przez większość cyklu, szyna LP jest jedynym ruchem ciągłym, a reklamy pozostają nieruchome między `72%` i `92%`;
+- hover i focus-within zatrzymują pętle bez przesunięcia układu.
 
-- [ ] **Step 4: Uruchomić testy repo z dozwolonym pominięciem lokalnych integracji Supabase**
+- [ ] **Step 4: Zweryfikować statyczny stan reduced motion**
+
+Run:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless --disable-gpu --hide-scrollbars \
+  --force-prefers-reduced-motion \
+  --window-size=1440,1000 \
+  --screenshot=/tmp/avably-moodboard-reduced.png \
+  "file:///Users/godekmaciej/.codex/worktrees/rental-platform/avably-moodboard-phase-1/docs/branding/2026-07-20-avably-faza-1-moodboard.html"
+```
+
+Expected: screenshot istnieje; wszystkie headline'y, CTA, logo i fragmenty produktu są widoczne w stanie końcowym, a żaden element nie pozostaje z `opacity: 0`, przesunięciem startowym ani maską.
+
+- [ ] **Step 5: Uruchomić testy repo z dozwolonym pominięciem lokalnych integracji Supabase**
 
 Run:
 
@@ -446,7 +605,7 @@ PATH=/opt/homebrew/opt/node@22/bin:$PATH ALLOW_INTEGRATION_SKIP=1 pnpm test
 
 Expected: `Tasks: 7 successful, 7 total`; integracje wymagające lokalnego Supabase są jawnie oznaczone jako pominięte.
 
-- [ ] **Step 5: Poprawić wyłącznie wykryte problemy i ponowić pełną weryfikację**
+- [ ] **Step 6: Poprawić wyłącznie wykryte problemy i ponowić pełną weryfikację**
 
 Po każdej korekcie uruchomić kontrakt, `git diff --check` oraz ponownie obejrzeć zmieniony breakpoint. Jeżeli powstała korekta artefaktu, zapisać ją:
 
