@@ -361,6 +361,33 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .dark [data-component="row"] [data-state="active"] { border-left: 2px solid var(--accent-foreground); }
 .dark-buttons { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 0; }
 
+/* ===== storefront ===== */
+.store-preview { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--card); }
+.store-preview-body { padding: 0; }
+.store-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.store-header strong { font: 600 16px/22px "Geist Sans", sans-serif; }
+.store-header nav { display: flex; gap: 16px; }
+.store-header nav a { color: var(--muted-foreground); text-decoration: none; font: 500 14px/20px "Geist Sans", sans-serif; }
+.store-hero { padding: 40px 24px; }
+.store-eyebrow { margin: 0 0 8px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+.store-hero h3 { font-size: 32px; line-height: 38px; letter-spacing: -0.02em; margin: 0 0 12px; }
+.store-hero p { margin: 0 0 20px; color: var(--muted-foreground); max-width: 520px; }
+.store-products { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 0 24px 32px; }
+.store-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+.store-card h4 { margin: 0 0 6px; font: 600 15px/20px "Geist Sans", sans-serif; }
+.store-card p { margin: 0; color: var(--muted-foreground); font: 500 14px/20px "Geist Sans", sans-serif; }
+
+/* ===== panel states: loading / empty / 404 ===== */
+.panel-state { margin: 24px 0 0; padding: 32px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
+.panel-state[data-screen="empty"], .panel-state[data-screen="not-found"] { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+.panel-state[data-screen="empty"] figure, .panel-state[data-screen="not-found"] figure { margin: 0 0 4px; width: 190px; }
+.panel-state[data-screen="empty"] h3, .panel-state[data-screen="not-found"] h3 { margin: 0; }
+.panel-state[data-screen="not-found"] [data-data-value] { margin: 0; font-size: 44px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
+.panel-state[data-screen="empty"] a, .panel-state[data-screen="not-found"] a { color: var(--muted-foreground); font: 500 14px/20px "Geist Sans", sans-serif; }
+.skeleton-row { display: grid; grid-template-columns: 1.2fr 1.4fr 1.6fr 1.2fr 1fr 1.2fr 1.2fr 0.4fr; gap: 14px; align-items: center; height: 52px; }
+.skeleton-row + .skeleton-row { border-top: 1px solid var(--border); }
+[data-skeleton-cell] { height: 14px; border-radius: 6px; background: var(--secondary); }
+
   </style>
 </head>
 <body>
@@ -745,9 +772,61 @@ color-scheme: light dark;
 <div class="gallery-block"><p class="gallery-label">Filtr — default · hover · focus · active · disabled · loading</p><div class="state-gallery" data-component="filter"><button class="gallery-filter" data-state="default" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="hover" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="focus" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8">Filtr</button><button class="gallery-filter" data-state="active" data-contrast-ref="ink-on-lime" style="--state-foreground:#0B1017;--state-background:#EAFFA4" data-lime-use="active-filter" data-lime-carrier="ink-border">Filtr</button><button class="gallery-filter" data-state="disabled" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" disabled>Filtr</button><button class="gallery-filter" data-state="loading" data-contrast-ref="ink-on-secondary" style="--state-foreground:#0B1017;--state-background:#E7EBE8" aria-busy="true">Filtr</button></div></div>
 <div class="gallery-block"><p class="gallery-label">Wiersz — default · hover · focus · active</p><div class="state-gallery" data-component="row"><div class="gallery-row" data-state="default" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="hover" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="focus" data-contrast-ref="ink-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div><div class="gallery-row" data-state="active" data-contrast-ref="ink-on-white signal-on-white" style="--state-foreground:#0B1017;--state-background:#FFFFFF;--state-border:#5F7500"><span class="numeric-data" data-data-value>ZAM/2026/0714</span><span>Anna Kowalska</span></div></div></div>
         </div>
+
+        <h3>Loading, empty i 404</h3>
+        <article class="panel-state product-ui" data-screen="loading" data-font-scope="product" aria-label="Ładowanie listy zamówień" aria-busy="true">
+          <div class="skeleton-row" data-skeleton-row="1" aria-hidden="true">
+            <span data-skeleton-cell data-cell="id"></span><span data-skeleton-cell data-cell="customer"></span>
+            <span data-skeleton-cell data-cell="equipment"></span><span data-skeleton-cell data-cell="date"></span>
+            <span data-skeleton-cell data-cell="amount"></span><span data-skeleton-cell data-cell="order-status"></span>
+            <span data-skeleton-cell data-cell="payment-status"></span><span data-skeleton-cell data-cell="actions"></span>
+          </div>
+          <div class="skeleton-row" data-skeleton-row="2" aria-hidden="true">
+            <span data-skeleton-cell data-cell="id"></span><span data-skeleton-cell data-cell="customer"></span>
+            <span data-skeleton-cell data-cell="equipment"></span><span data-skeleton-cell data-cell="date"></span>
+            <span data-skeleton-cell data-cell="amount"></span><span data-skeleton-cell data-cell="order-status"></span>
+            <span data-skeleton-cell data-cell="payment-status"></span><span data-skeleton-cell data-cell="actions"></span>
+          </div>
+          <span class="sr-only">Ładowanie zamówień…</span>
+        </article>
+
+        <article class="panel-state product-ui" data-screen="empty" data-font-scope="product">
+          <figure data-brand-sign data-delight="empty" aria-label="Animowany znak Avably"><svg aria-hidden="true" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg></figure>
+          <h3>Podejrzanie spokojnie. Dodaj pierwsze zamówienie.</h3>
+          <button class="button-primary">Dodaj zamówienie</button>
+          <a href="#product-form">Przejdź do katalogu</a>
+        </article>
+
+        <article class="panel-state product-ui" data-screen="not-found" data-font-scope="product">
+          <figure data-brand-sign data-delight="not-found" aria-label="Animowany znak Avably"><svg aria-hidden="true" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg></figure>
+          <p class="numeric-data" data-data-value>404</p>
+          <h3>Ta strona wyjechała bez protokołu wydania.</h3>
+          <a class="button-primary" href="#orders-light">Wróć do zamówień</a>
+        </article>
       </div>
     </section>
-    <section id="storefront" data-phase2-section="storefront" data-surface-phase="white"></section>
+    <section id="storefront" data-phase2-section="storefront" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08 / Publiczny sklep</p>
+        <h2>Spokojniejszy charakter, wyłącznie Geist Sans.</h2>
+        <article class="store-preview product-ui" data-screen="storefront" data-font-scope="storefront">
+          <div class="store-preview-body">
+            <header class="store-header"><strong>Sklep demonstracyjny</strong><nav><a href="#">Oferta</a><a href="#">Jak to działa</a></nav></header>
+            <div class="store-hero">
+              <p class="store-eyebrow">REZERWACJA ONLINE</p>
+              <h3>Sprzęt na termin, którego potrzebujesz.</h3>
+              <p>Wybierz produkt i daty. Dostępność sprawdzisz przed wysłaniem rezerwacji.</p>
+              <button class="button-primary">Zobacz sprzęt</button>
+            </div>
+            <div class="store-products">
+              <div class="store-card"><h4>Nagrzewnica 20 kW</h4><p class="numeric-data" data-data-value>od 180,00 zł / dzień</p></div>
+              <div class="store-card"><h4>Agregat 8 kVA</h4><p class="numeric-data" data-data-value>od 240,00 zł / dzień</p></div>
+              <div class="store-card"><h4>Namiot eventowy 5×10 m</h4><p class="numeric-data" data-data-value>od 920,00 zł / dzień</p></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
     <section id="orders-dark" data-phase2-section="orders-dark" data-surface-phase="dark" class="dark">
       <div class="wrap">
         <p class="eyebrow">09 / Dark mode</p>

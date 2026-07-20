@@ -960,6 +960,32 @@ for (const contract of cssContrastContracts) {
   assert.equal(background, requiredContrasts[contract.ref].background, `${contract.selector}: background/ref mismatch`);
 }
 
+// ===== Task 6: storefront boundary, loading, empty, 404 =====
+const store = html.match(/<article\b[^>]*data-screen="storefront"[^>]*>([\s\S]*?)<\/article>/)?.[1] ?? "";
+assert.match(store, /class="[^"]*store-preview/);
+assert.doesNotMatch(store, /brand-copy|brand-support|Safiro|Manrope/);
+assert.doesNotMatch(store, /data-panel-nav|sidebar-nav/);
+assert.match(store, /Sprzęt na termin, którego potrzebujesz\./);
+
+const empty = html.match(/<article\b[^>]*data-screen="empty"[^>]*>([\s\S]*?)<\/article>/)?.[1] ?? "";
+assert.match(empty, /Podejrzanie spokojnie\. Dodaj pierwsze zamówienie\./);
+assert.match(empty, /data-delight="empty"/);
+assert.match(empty, />Dodaj zamówienie</);
+
+const notFound = html.match(/<article\b[^>]*data-screen="not-found"[^>]*>([\s\S]*?)<\/article>/)?.[1] ?? "";
+assert.match(notFound, /Ta strona wyjechała bez protokołu wydania\./);
+assert.match(notFound, /data-delight="not-found"/);
+assert.match(notFound, />Wróć do zamówień</);
+
+const loadingNode = findOne((node) => node.attributes["data-screen"] === "loading", "Brak loading screen");
+assert.equal(loadingNode.attributes["aria-busy"], "true");
+const skeletonRows = directChildren(loadingNode, (node) => "data-skeleton-row" in node.attributes);
+assert.equal(skeletonRows.length, 2);
+for (const row of skeletonRows) {
+  const cells = directChildren(row, (node) => "data-skeleton-cell" in node.attributes);
+  assert.deepEqual(cells.map((cell) => cell.attributes["data-cell"]), requiredCells);
+}
+
 // The single contrast-registry invocation (grown by later tasks).
 if (CONTRAST_REGISTRY_CALL) assertContrastRegistry(requiredContrasts);
 
