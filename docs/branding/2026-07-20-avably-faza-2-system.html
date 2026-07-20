@@ -94,6 +94,16 @@
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
   --signal-strong: oklch(0.52561 0.12715 121.752); /* #5F7500 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
 }
 
 .dark {
@@ -174,10 +184,87 @@ h3 { font: 600 20px/26px "Geist Sans", sans-serif; letter-spacing: -0.01em; marg
 .code-surface { display: block; overflow-x: auto; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin: 0 0 16px; }
 .code-surface code, textarea[data-svg-code] { font-family: "Geist Sans", sans-serif; font-size: 12px; line-height: 1.5; white-space: pre; }
 
+/* ===== typography boundaries ===== */
+[data-font-scope="product"], [data-font-scope="product"] *, [data-font-scope="storefront"], [data-font-scope="storefront"] * { font-family: "Geist Sans", sans-serif; }
+.brand-copy { font-family: "Safiro", sans-serif; font-weight: 500; margin: 0 0 12px; color: var(--foreground); }
+.brand-support { font-family: "Manrope", sans-serif; font-weight: 700; margin: 0 0 12px; color: var(--foreground); }
+[data-typography-step] { margin: 0 0 10px; }
+[data-ty="brand-display-xl"] { font-size: 64px; line-height: 68px; letter-spacing: -0.03em; }
+[data-ty="brand-display-l"] { font-size: 48px; line-height: 52px; letter-spacing: -0.025em; }
+[data-ty="marketing-title"] { font-size: 36px; line-height: 42px; letter-spacing: -0.02em; }
+[data-ty="product-page"] { font-size: 28px; line-height: 34px; letter-spacing: -0.02em; font-weight: 600; }
+[data-ty="product-section"] { font-size: 20px; line-height: 26px; letter-spacing: -0.01em; font-weight: 600; }
+[data-ty="body"] { font-size: 15px; line-height: 22px; }
+[data-ty="body-small"] { font-size: 14px; line-height: 20px; }
+[data-ty="table-emphasis"] { font-size: 14px; line-height: 20px; font-weight: 500; }
+[data-ty="data"] { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.01em; }
+[data-ty="label"] { font-size: 13px; line-height: 18px; font-weight: 500; }
+[data-ty="micro-label"] { font-size: 11px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--muted-foreground); }
+.numeric-data { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+[data-data-value] { font-variant-numeric: tabular-nums; }
+
+/* ===== marks ===== */
+.marks-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin: 0 0 24px; }
+[data-brand-sign][data-brand-mark] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin: 0; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
+[data-brand-sign][data-brand-mark] svg { width: 100%; height: auto; max-width: 150px; }
+[data-brand-sign][data-brand-mark^="favicon-16"] svg, [data-brand-sign][data-brand-mark^="favicon-24"] svg { max-width: 48px; }
+[data-brand-sign][data-brand-mark^="symbol"] svg { max-width: 80px; }
+[data-brand-sign][data-brand-mark="full-white"] { background: #FFFFFF; }
+[data-brand-sign][data-brand-mark="full-canvas"] { background: #F4F6F5; }
+[data-brand-sign][data-brand-mark="full-dark"] { background: #0B1017; }
+[data-brand-sign][data-brand-mark="full-lime"] { background: #EAFFA4; }
+[data-brand-sign][data-brand-mark="symbol-mono"] { background: #F4F6F5; }
+[data-brand-sign][data-brand-mark="symbol-negative"] { background: #0B1017; }
+[data-brand-sign][data-brand-mark="favicon-16-dark"], [data-brand-sign][data-brand-mark="favicon-24-dark"] { background: #0B1017; }
+.brand-caption { font: 500 12px/16px "Geist Sans", sans-serif; color: var(--muted-foreground); }
+[data-brand-sign][data-brand-mark="full-dark"] .brand-caption, [data-brand-sign][data-brand-mark="symbol-negative"] .brand-caption, [data-brand-sign][data-brand-mark="favicon-16-dark"] .brand-caption, [data-brand-sign][data-brand-mark="favicon-24-dark"] .brand-caption { color: #B8C0C5; }
+[data-opening-logo] { display: block; margin: 0 0 24px; }
+[data-opening-logo] svg { width: 210px; height: auto; }
+.mark-rules { margin: 0 0 16px; padding-left: 18px; font: 400 14px/22px "Geist Sans", sans-serif; color: var(--muted-foreground); }
+.svg-code-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+textarea[data-svg-code] { width: 100%; min-height: 96px; resize: vertical; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; background: var(--card); color: var(--foreground); }
+.svg-defs-owner { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ===== opening ===== */
+header[data-phase2-section="opening"] { padding: 72px 24px 40px; }
+header[data-phase2-section="opening"] .wrap > p:first-of-type { font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); margin: 0 0 12px; }
+header[data-phase2-section="opening"] h1 { font-size: 52px; line-height: 56px; letter-spacing: -0.025em; margin: 0 0 16px; }
+header[data-phase2-section="opening"] [data-opening-scope] { font: 400 18px/26px "Geist Sans", sans-serif; color: var(--foreground); margin: 0 0 8px; max-width: 640px; }
+header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15px/22px "Geist Sans", sans-serif; color: var(--muted-foreground); margin: 0; }
+
+@media (max-width: 560px) {
+  [data-ty="brand-display-xl"] { font-size: 38px; line-height: 42px; }
+  [data-ty="brand-display-l"] { font-size: 32px; line-height: 36px; }
+  [data-ty="marketing-title"] { font-size: 26px; line-height: 32px; }
+  header[data-phase2-section="opening"] h1 { font-size: 34px; line-height: 38px; }
+}
+
   </style>
 </head>
 <body>
-  <header data-phase2-section="opening"><h1>Avably — system wdrożeniowy</h1></header>
+  <svg class="svg-defs-owner" data-brand-sign aria-hidden="true"><defs><symbol id="avably-logo-approved" viewBox="0 0 348 93">
+        <rect class="logo-letters--reveal" width="348" height="93" rx="44" fill="#EAFFA4"></rect>
+        <circle class="logo-dot--motion" cx="57.5" cy="46" r="15" fill="#A8C743"></circle>
+        <g class="logo-letters-offset" transform="translate(-2 0)">
+          <g class="logo-letters--reveal" fill="#0B1017">
+          <path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z"></path>
+          <path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z"></path>
+          <path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z"></path>
+          <path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z"></path>
+          <path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z"></path>
+          <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path>
+          </g>
+        </g>
+      </symbol></defs></svg>
+  <header data-phase2-section="opening" data-surface-phase="white">
+    <div class="wrap">
+      <div data-opening-logo data-brand-sign aria-label="Avably"><svg aria-hidden="true" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg></div>
+      <p>FAZA 2 / SYSTEM WDROŻENIOWY</p>
+      <h1 class="brand-copy">Sygnał operacyjny w produkcie.</h1>
+      <p data-opening-scope>Tokeny, znaki, panel, sklep i motion — gotowe do późniejszego wdrożenia.</p>
+      <p data-opening-carrier-rule>Limonka zawsze działa z widocznym nośnikiem.</p>
+    </div>
+  </header>
   <main>
     <section id="foundations" data-phase2-section="foundations" data-surface-phase="white">
       <div class="wrap">
@@ -258,6 +345,16 @@ color-scheme: light dark;
   --radius-lg: 1rem;
   --radius-xl: 1.25rem;
   --signal-strong: oklch(0.52561 0.12715 121.752); /* #5F7500 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
 }</code></pre>
         <pre class="code-surface" data-token-code="dark"><code data-code-source="dark-theme">.dark {
 --background: oklch(0.17132 0.01671 256.840); /* #0B1017 */
@@ -295,7 +392,66 @@ color-scheme: light dark;
 }</code></pre>
       </div>
     </section>
-    <section id="marks" data-phase2-section="marks" data-surface-phase="white"></section>
+    <section id="marks" data-phase2-section="marks" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">02 / Znak i typografia</p>
+        <h2>Znak jest zamrożony. Typografia ma granice.</h2>
+        <div data-font-scope="marketing">
+          <div data-typography-step="brand-display-xl" data-ty="brand-display-xl" class="brand-copy">System dla wypożyczalni sprzętu</div>
+          <div data-typography-step="brand-display-l" data-ty="brand-display-l" class="brand-copy">Prowadź wynajem.</div>
+          <div data-typography-step="marketing-title" data-ty="marketing-title" class="brand-support">Rezerwacje pod kontrolą.</div>
+        </div>
+        <div data-font-scope="product" class="product-ui">
+          <div data-typography-step="product-page" data-ty="product-page" class="product-ui">Zamówienia</div>
+          <div data-typography-step="product-section" data-ty="product-section" class="product-ui">Płatność i kaucja</div>
+          <div data-typography-step="body" data-ty="body" class="product-ui">Dane zamówienia trafiają bezpośrednio do panelu.</div>
+          <div data-typography-step="body-small" data-ty="body-small" class="product-ui">Ostatnia aktualizacja: dzisiaj, 10:24</div>
+          <div data-typography-step="table-emphasis" data-ty="table-emphasis" class="product-ui">Anna Kowalska</div>
+          <div data-typography-step="data" data-ty="data" class="product-ui numeric-data" data-data-value>ZAM/2026/0714 · 1 199,00 zł</div>
+          <div data-typography-step="label" data-ty="label" class="product-ui">Nazwa produktu</div>
+          <div data-typography-step="micro-label" data-ty="micro-label" class="product-ui">STATUS PŁATNOŚCI</div>
+        </div>
+
+        <h3>System znaku</h3>
+        <div class="marks-grid">
+          <figure data-brand-sign data-brand-mark="full-lime"><svg role="img" aria-label="Avably na limonkowej bramce" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg><figcaption class="brand-caption">full-lime</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="full-white"><svg role="img" aria-label="Avably na bieli" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg><figcaption class="brand-caption">full-white</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="full-canvas"><svg role="img" aria-label="Avably na canvas" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg><figcaption class="brand-caption">full-canvas</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="full-dark"><svg role="img" aria-label="Avably na tle ink" viewBox="0 0 348 93"><use href="#avably-logo-approved"></use></svg><figcaption class="brand-caption">full-dark</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="symbol-color"><svg viewBox="0 0 96 96" role="img" aria-label="Sygnet Avably"><rect width="96" height="96" rx="28" fill="#EAFFA4"></rect><circle data-brand-dot cx="24" cy="48" r="10" fill="#A8C743"></circle><g transform="translate(40 24) scale(.96) translate(-100.8 -20.2656)" fill="#0B1017"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">symbol-color</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="symbol-mono"><svg viewBox="0 0 96 96" role="img" aria-label="Sygnet Avably — mono"><circle data-brand-dot cx="24" cy="48" r="10" fill="#0B1017"></circle><g transform="translate(40 24) scale(.96) translate(-100.8 -20.2656)" fill="#0B1017"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">symbol-mono</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="symbol-negative"><svg viewBox="0 0 96 96" role="img" aria-label="Sygnet Avably — negatyw"><circle data-brand-dot cx="24" cy="48" r="10" fill="#F4F6F5"></circle><g transform="translate(40 24) scale(.96) translate(-100.8 -20.2656)" fill="#F4F6F5"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">symbol-negative</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="favicon-16-light"><svg viewBox="0 0 32 32" role="img" aria-label="Favicon 16 — jasny"><rect width="32" height="32" rx="9" fill="#0B1017"></rect><g transform="translate(6 4) scale(.31) translate(-100.8 -20.2656)" fill="#FFFFFF"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">favicon-16-light</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="favicon-16-dark"><svg viewBox="0 0 32 32" role="img" aria-label="Favicon 16 — ciemny"><rect width="32" height="32" rx="9" fill="#F4F6F5"></rect><g transform="translate(6 4) scale(.31) translate(-100.8 -20.2656)" fill="#0B1017"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">favicon-16-dark</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="favicon-24-light"><svg viewBox="0 0 48 48" role="img" aria-label="Favicon 24 — jasny"><rect width="48" height="48" rx="14" fill="#0B1017"></rect><circle data-brand-dot cx="14" cy="26" r="5" fill="#A8C743"></circle><g transform="translate(24 10) scale(.4) translate(-100.8 -20.2656)" fill="#FFFFFF"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">favicon-24-light</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="favicon-24-dark"><svg viewBox="0 0 48 48" role="img" aria-label="Favicon 24 — ciemny"><rect width="48" height="48" rx="14" fill="#111820"></rect><circle data-brand-dot cx="14" cy="26" r="5" fill="#A8C743"></circle><g transform="translate(24 10) scale(.4) translate(-100.8 -20.2656)" fill="#F4F6F5"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></svg><figcaption class="brand-caption">favicon-24-dark</figcaption></figure>
+          <figure data-brand-sign data-brand-mark="grayscale"><svg viewBox="0 0 348 93" role="img" aria-label="Avably"><rect width="348" height="93" rx="44" fill="#E1E4E3"></rect><circle cx="57.5" cy="46" r="15" fill="#9AA0A6"></circle><g transform="translate(-2 0)"><g fill="#0B1017"><path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z"></path><path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z"></path><path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z"></path><path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z"></path><path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z"></path><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"></path></g></g></svg><figcaption class="brand-caption">grayscale</figcaption></figure>
+        </div>
+
+        <ul class="mark-rules">
+          <li data-clearspace="dot-diameter">Pole ochronne: co najmniej jedna średnica kropki z każdej strony kapsuły.</li>
+          <li data-min-width="120">Minimalna szerokość pełnego logo w interfejsie: 120 px.</li>
+          <li>Minimalny rozmiar sygnetu: 24 px; poniżej obowiązuje favicon fallback bez kropki.</li>
+          <li>Kropka #A8C743 pojawia się wyłącznie wewnątrz zatwierdzonego znaku, nigdy jako element UI.</li>
+        </ul>
+
+        <h3>Kopiowalne źródła SVG</h3>
+        <div class="svg-code-list">
+          <textarea readonly data-svg-code="full-lime" aria-label="Kod SVG: full-lime">&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="full-white" aria-label="Kod SVG: full-white">&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="full-canvas" aria-label="Kod SVG: full-canvas">&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="full-dark" aria-label="Kod SVG: full-dark">&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="symbol-color" aria-label="Kod SVG: symbol-color">&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably&quot;&gt;&lt;rect width=&quot;96&quot; height=&quot;96&quot; rx=&quot;28&quot; fill=&quot;#EAFFA4&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="symbol-mono" aria-label="Kod SVG: symbol-mono">&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably — mono&quot;&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#0B1017&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="symbol-negative" aria-label="Kod SVG: symbol-negative">&lt;svg viewBox=&quot;0 0 96 96&quot; role=&quot;img&quot; aria-label=&quot;Sygnet Avably — negatyw&quot;&gt;&lt;circle data-brand-dot cx=&quot;24&quot; cy=&quot;48&quot; r=&quot;10&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(40 24) scale(.96) translate(-100.8 -20.2656)&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="favicon-16-light" aria-label="Kod SVG: favicon-16-light">&lt;svg viewBox=&quot;0 0 32 32&quot; role=&quot;img&quot; aria-label=&quot;Favicon 16 — jasny&quot;&gt;&lt;rect width=&quot;32&quot; height=&quot;32&quot; rx=&quot;9&quot; fill=&quot;#0B1017&quot;&gt;&lt;/rect&gt;&lt;g transform=&quot;translate(6 4) scale(.31) translate(-100.8 -20.2656)&quot; fill=&quot;#FFFFFF&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="favicon-16-dark" aria-label="Kod SVG: favicon-16-dark">&lt;svg viewBox=&quot;0 0 32 32&quot; role=&quot;img&quot; aria-label=&quot;Favicon 16 — ciemny&quot;&gt;&lt;rect width=&quot;32&quot; height=&quot;32&quot; rx=&quot;9&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;/rect&gt;&lt;g transform=&quot;translate(6 4) scale(.31) translate(-100.8 -20.2656)&quot; fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="favicon-24-light" aria-label="Kod SVG: favicon-24-light">&lt;svg viewBox=&quot;0 0 48 48&quot; role=&quot;img&quot; aria-label=&quot;Favicon 24 — jasny&quot;&gt;&lt;rect width=&quot;48&quot; height=&quot;48&quot; rx=&quot;14&quot; fill=&quot;#0B1017&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;14&quot; cy=&quot;26&quot; r=&quot;5&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(24 10) scale(.4) translate(-100.8 -20.2656)&quot; fill=&quot;#FFFFFF&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="favicon-24-dark" aria-label="Kod SVG: favicon-24-dark">&lt;svg viewBox=&quot;0 0 48 48&quot; role=&quot;img&quot; aria-label=&quot;Favicon 24 — ciemny&quot;&gt;&lt;rect width=&quot;48&quot; height=&quot;48&quot; rx=&quot;14&quot; fill=&quot;#111820&quot;&gt;&lt;/rect&gt;&lt;circle data-brand-dot cx=&quot;14&quot; cy=&quot;26&quot; r=&quot;5&quot; fill=&quot;#A8C743&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(24 10) scale(.4) translate(-100.8 -20.2656)&quot; fill=&quot;#F4F6F5&quot;&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+          <textarea readonly data-svg-code="grayscale" aria-label="Kod SVG: grayscale">&lt;svg viewBox=&quot;0 0 348 93&quot; role=&quot;img&quot; aria-label=&quot;Avably&quot;&gt;&lt;rect width=&quot;348&quot; height=&quot;93&quot; rx=&quot;44&quot; fill=&quot;#E1E4E3&quot;&gt;&lt;/rect&gt;&lt;circle cx=&quot;57.5&quot; cy=&quot;46&quot; r=&quot;15&quot; fill=&quot;#9AA0A6&quot;&gt;&lt;/circle&gt;&lt;g transform=&quot;translate(-2 0)&quot;&gt;&lt;g fill=&quot;#0B1017&quot;&gt;&lt;path d=&quot;M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M258.992 69.8588V20.2656H266.077V69.8588H258.992Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z&quot;&gt;&lt;/path&gt;&lt;path d=&quot;M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z&quot;&gt;&lt;/path&gt;&lt;/g&gt;&lt;/g&gt;&lt;/svg&gt;</textarea>
+        </div>
+      </div>
+    </section>
     <section id="dashboard" data-phase2-section="dashboard" data-surface-phase="white"></section>
     <section id="orders-light" data-phase2-section="orders-light" data-surface-phase="white"></section>
     <section id="order-detail" data-phase2-section="order-detail" data-surface-phase="white"></section>
