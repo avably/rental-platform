@@ -334,7 +334,10 @@
     .logo-dot--motion {
       transform-box: fill-box;
       transform-origin: center;
-      animation: logo-signal var(--motion-logo) var(--ease-standard) infinite;
+      animation-name: var(--logo-dot-animation, logo-signal);
+      animation-duration: var(--motion-logo);
+      animation-timing-function: var(--ease-standard);
+      animation-iteration-count: infinite;
     }
 
     .logo-letters--reveal {
@@ -664,6 +667,10 @@
       color: var(--signal-muted);
       font-size: 0.72rem;
       letter-spacing: 0.02em;
+    }
+
+    .lp-preview {
+      --logo-dot-animation: none;
     }
 
     .lp-frame {
@@ -1597,6 +1604,26 @@
 
       .motion-loop .logo-letters-offset {
         transform: translateX(-2px) !important;
+      }
+
+      .lp-order-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        white-space: normal;
+      }
+
+      .lp-order-row span {
+        min-width: 0;
+        min-height: clamp(24px, 2.65vw, 33px);
+        height: auto;
+        overflow-wrap: anywhere;
+      }
+
+      .lp-order-row::after {
+        content: none;
       }
     }
   </style>

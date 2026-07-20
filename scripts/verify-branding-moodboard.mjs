@@ -305,6 +305,99 @@ assert.deepEqual(
   `Niespełniony kontrakt interakcji:\n- ${interactionContractErrors.join("\n- ")}`,
 );
 
+const logoDotMotionBody = extractBalancedCssBodyMatching(
+  /\.logo-dot--motion\s*/,
+);
+const lpPreviewBody = extractBalancedCssBodyMatching(/\.lp-preview\s*/);
+const lpLogoMotionContractErrors = [];
+
+if (
+  !/\banimation-name:\s*var\(--logo-dot-animation,\s*logo-signal\)\s*;/.test(
+    logoDotMotionBody,
+  )
+) {
+  lpLogoMotionContractErrors.push(
+    "Kropka logo nie ma dziedzicznego przełącznika animacji z domyślnym logo-signal",
+  );
+}
+
+if (!/--logo-dot-animation:\s*none\s*;/.test(lpPreviewBody)) {
+  lpLogoMotionContractErrors.push(
+    "Makiety LP nie wyłączają animacji kropki logo przez --logo-dot-animation: none",
+  );
+}
+
+if (
+  !/\banimation-duration:\s*var\(--motion-logo\)\s*;/.test(
+    logoDotMotionBody,
+  )
+) {
+  lpLogoMotionContractErrors.push(
+    "Kropka logo nie zachowuje czasu standalone 6000 ms i czasu reklam dziedziczonego z --motion-logo",
+  );
+}
+
+const lpOrderRows = [...html.matchAll(
+  /<div\b[^>]*class="lp-order-row"[^>]*>([\s\S]*?)<\/div>/g,
+)];
+const reducedMotionBody = extractBalancedCssBody(
+  "@media (prefers-reduced-motion: reduce)",
+);
+const reducedLpOrderRowBody =
+  reducedMotionBody.match(/\.lp-order-row\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderRowAfterBody =
+  reducedMotionBody.match(/\.lp-order-row::after\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderContractErrors = [];
+
+if (
+  lpOrderRows.length !== 3 ||
+  !lpOrderRows.every(([, rowBody]) => (rowBody.match(/<span\b/g) ?? []).length === 6)
+) {
+  reducedLpOrderContractErrors.push(
+    "Każda z trzech makiet LP musi zawierać dokładnie sześć pól zamówienia",
+  );
+}
+
+const reducedLpOrderDeclarations = [
+  ["display: grid", /\bdisplay:\s*grid\s*;/],
+  [
+    "grid-template-columns: repeat(3, minmax(0, 1fr))",
+    /\bgrid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)\s*;/,
+  ],
+  ["width: 100%", /\bwidth:\s*100%\s*;/],
+  ["min-width: 0", /\bmin-width:\s*0\s*;/],
+  ["height: auto", /\bheight:\s*auto\s*;/],
+  ["white-space: normal", /\bwhite-space:\s*normal\s*;/],
+];
+const missingReducedLpOrderDeclarations = reducedLpOrderDeclarations
+  .filter(([, pattern]) => !pattern.test(reducedLpOrderRowBody))
+  .map(([label]) => label);
+
+if (missingReducedLpOrderDeclarations.length > 0) {
+  reducedLpOrderContractErrors.push(
+    `Statyczny wiersz LP w reduced motion nie mieści wszystkich pól: ${missingReducedLpOrderDeclarations.join(", ")}`,
+  );
+}
+
+if (!/\bcontent:\s*none\s*;/.test(reducedLpOrderRowAfterBody)) {
+  reducedLpOrderContractErrors.push(
+    "Reduced motion nie usuwa technicznego duplikatu wiersza z .lp-order-row::after",
+  );
+}
+
+const finalReviewMotionContractErrors = [
+  ...lpLogoMotionContractErrors.map((error) => `Kropka logo w LP: ${error}`),
+  ...reducedLpOrderContractErrors.map(
+    (error) => `Statyczny wiersz LP: ${error}`,
+  ),
+];
+
+assert.deepEqual(
+  finalReviewMotionContractErrors,
+  [],
+  `Niespełniony kontrakt poprawek motion z final review:\n- ${finalReviewMotionContractErrors.join("\n- ")}`,
+);
+
 assert.match(
   html,
   /@media\s*\(max-width:\s*640px\)[\s\S]*?\.weight-specimen,\s*\.type-in-use,\s*\.weight-line\s*\{[^}]*min-width:\s*0;[^}]*\}/,
