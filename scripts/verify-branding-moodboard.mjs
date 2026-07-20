@@ -8,6 +8,66 @@ const hubPath = `${root}/docs/dokumentacja/hub.html`;
 assert.ok(existsSync(artifactPath), `Brak moodboardu: ${artifactPath}`);
 const html = readFileSync(artifactPath, "utf8");
 const count = (needle) => html.split(needle).length - 1;
+const extractBalancedCssBody = (anchor) => {
+  const anchorIndex = html.indexOf(anchor);
+  if (anchorIndex === -1) return "";
+
+  const openIndex = html.indexOf("{", anchorIndex + anchor.length);
+  if (openIndex === -1) return "";
+
+  let depth = 0;
+  for (let index = openIndex; index < html.length; index += 1) {
+    if (html[index] === "{") depth += 1;
+    if (html[index] !== "}") continue;
+
+    depth -= 1;
+    if (depth === 0) return html.slice(openIndex + 1, index);
+  }
+
+  return "";
+};
+const hasStaticKeyframeInterval = (name, intervalStart, intervalEnd) => {
+  const body = extractBalancedCssBody(`@keyframes ${name}`);
+  const frames = [];
+
+  for (const rule of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const declarations = new Map(
+      rule[2]
+        .split(";")
+        .map((declaration) => declaration.trim())
+        .filter(Boolean)
+        .map((declaration) => {
+          const colonIndex = declaration.indexOf(":");
+          return [
+            declaration.slice(0, colonIndex).trim(),
+            declaration.slice(colonIndex + 1).trim().replace(/\s+/g, " "),
+          ];
+        }),
+    );
+    const opacity = declarations.get("opacity");
+    const transform = declarations.get("transform");
+    const state =
+      opacity && transform ? `opacity:${opacity};transform:${transform}` : null;
+
+    for (const selector of rule[1].matchAll(/(\d+(?:\.\d+)?)%/g)) {
+      frames.push({ offset: Number(selector[1]), state });
+    }
+  }
+
+  frames.sort((left, right) => left.offset - right.offset);
+  const before = frames.filter(({ offset }) => offset <= intervalStart).at(-1);
+  const after = frames.find(({ offset }) => offset >= intervalEnd);
+
+  if (!before?.state || !after?.state || before.state !== after.state) {
+    return false;
+  }
+
+  return frames
+    .filter(
+      ({ offset }) => offset >= before.offset && offset <= after.offset,
+    )
+    .every(({ state }) => state === before.state);
+};
 
 assert.match(html, /^<!doctype html>/i);
 assert.match(html, /<html lang="pl">/);
@@ -147,10 +207,11 @@ if (
 if (
   !/\.social-frame\s*>\s*\.brand-logo\s*\{[^}]*--motion-logo:\s*var\(--motion-ad\);[^}]*\}/.test(
     html,
-  )
+  ) ||
+  !hasStaticKeyframeInterval("logo-signal", 72, 92)
 ) {
   interactionContractErrors.push(
-    "Kropka logo w reklamie nie jest zsynchronizowana z ośmiosekundową sekwencją",
+    "Kropka logo w reklamie nie jest zsynchronizowana z ośmiosekundową sekwencją lub porusza się między 72% a 92%",
   );
 }
 
