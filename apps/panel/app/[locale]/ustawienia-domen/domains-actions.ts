@@ -20,7 +20,12 @@
  */
 import { revalidatePath } from "next/cache";
 
-import { VercelDomainsClient, checkDomainSafely, registerDomainSafely } from "@avably/core";
+import {
+  VercelDomainsClient,
+  checkDomainSafely,
+  registerDomainSafely,
+  tenantSubdomainHost,
+} from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
@@ -101,6 +106,106 @@ export async function addCustomDomainAction(
 
   revalidatePath("/", "layout");
   return { success: host };
+}
+
+/**
+ * PONOWIENIE REJESTRACJI SUBDOMENY (Zadanie 2.6b, domknięcie ADR-046).
+ *
+ * PO CO. ADR-046 świadomie pozwala zakładaniu organizacji dojść do końca, gdy
+ * rejestracja hosta u dostawcy padnie — i to jest słuszne. Ale bez tej akcji
+ * druga połowa wzorca nie istniała: `last_error` był stanem trwałym, którego
+ * najemca nie miał jak ruszyć z panelu. Każda chwilowa awaria dostawcy (albo
+ * wiersz z backfillu 0022, nigdy nierejestrowany, `provider_domain_id IS NULL`)
+ * zamieniała się w zgłoszenie do supportu. „Uczciwa częściowa porażka" bez
+ * ponowienia to po prostu porażka opisana ładnymi słowami.
+ *
+ * HOST WYŁĄCZNIE Z `tenants.slug` — NIGDY Z FORMULARZA. To jest bramka
+ * bezpieczeństwa tej akcji, z dokładnie tego powodu, dla którego 0022
+ * hardcoduje root domeny: wiersz subdomeny powstaje z `verified = true` BEZ
+ * dowodu własności DNS (host jest nasz z definicji). Gdyby host przychodził
+ * z klienta, dowolny zalogowany członek wpisałby cudzy host — albo nasz kanon
+ * marketingowy — i dostałby go od razu jako routujący. Konwencja składania
+ * hosta jest lustrem 0022 (`tenantSubdomainHost` = `lower(slug) || root`).
+ *
+ * NIE RZUCA. `registerDomainSafely` zwraca powód zamiast wyjątku, a my go
+ * zapisujemy i pokazujemy — ten sam wzorzec co przy zakładaniu organizacji.
+ * Sukces CZYŚCI `last_error`, inaczej ekran pokazywałby zaległy powód przy
+ * działającym adresie.
+ *
+ * IDEMPOTENCJA. Ponowienie dla hosta już wpiętego w NASZ projekt jest
+ * SUKCESEM, nie błędem: dostawca oddaje 409, a `VercelDomainsClient.addDomain`
+ * dopytuje o stan i zwraca go jak świeżą rejestrację (patrz api.ts). Dzięki
+ * temu podwójne kliknięcie i ponowienie po zerwanym połączeniu nie zostawiają
+ * najemcy z czerwonym komunikatem przy adresie, który działa.
+ */
+export async function retrySubdomainAction(
+  _prevState: FormState,
+  _formData: FormData,
+): Promise<FormState> {
+  const ctx = await member();
+  if (isFormState(ctx)) return ctx;
+
+  // Slug czytany PO tenant_id z sesji (na wierzchu RLS, jak w checkDomainAction):
+  // to jedyne źródło hosta w tej akcji.
+  const { data: tenant, error: tenantError } = await ctx.supabase
+    .from("tenants")
+    .select("slug")
+    .eq("id", ctx.tenantId)
+    .maybeSingle();
+  if (tenantError) return { formError: tenantError.message };
+  if (!tenant?.slug) return { formError: "Nie znaleziono organizacji." };
+
+  const host = tenantSubdomainHost(tenant.slug as string);
+
+  // Wiersza może NIE BYĆ mimo 0022: `on conflict (domain) do nothing` przy
+  // slugu odtworzonym po skasowanym tenancie zostawia organizację bez adresu.
+  // Ponowienie ma ten stan naprawić, a nie tylko zaraportować.
+  const { data: existing, error: readError } = await ctx.supabase
+    .from("domains")
+    .select("id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("domain", host)
+    .maybeSingle();
+  if (readError) return { formError: readError.message };
+
+  if (!existing) {
+    const { error: insertError } = await ctx.supabase.from("domains").insert({
+      tenant_id: ctx.tenantId,
+      domain: host,
+      // verified = true bez dowodu DNS jest tu legalne WYŁĄCZNIE dlatego, że
+      // host powstał z naszego slugu i naszej stałej roota — nie z wejścia.
+      kind: "subdomain",
+      verified: true,
+      verified_at: new Date().toISOString(),
+    });
+    if (insertError) {
+      if (insertError.code === PG_UNIQUE_VIOLATION) {
+        // UNIQUE na `domain` jest globalny: host trzyma KTOŚ INNY (odtworzony
+        // slug). Sami tego nie rozstrzygniemy — zmiana cudzego wiersza byłaby
+        // przejęciem hosta. To jedyny przypadek, w którym kontakt z nami jest
+        // uczciwą odpowiedzią, a nie zbyciem najemcy.
+        return { formError: "Ten adres jest już zajęty w systemie — napisz do nas." };
+      }
+      if (insertError.code === PG_CHECK_VIOLATION) {
+        return { formError: "Baza odrzuciła adres zbudowany z nazwy organizacji." };
+      }
+      return { formError: insertError.message };
+    }
+  }
+
+  const result = await registerDomainSafely(host);
+
+  const { error: updateError } = await ctx.supabase
+    .from("domains")
+    .update({ provider_domain_id: result.providerDomainId, last_error: result.error })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("domain", host);
+  if (updateError) return { formError: updateError.message };
+
+  revalidatePath("/", "layout");
+  return result.ok
+    ? { success: host }
+    : { formError: result.error ?? "Rejestracja adresu nie powiodła się." };
 }
 
 /**

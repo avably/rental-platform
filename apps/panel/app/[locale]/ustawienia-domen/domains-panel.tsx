@@ -20,6 +20,7 @@ import {
   addCustomDomainAction,
   checkDomainAction,
   removeCustomDomainAction,
+  retrySubdomainAction,
 } from "./domains-actions";
 
 const initialState: FormState = {};
@@ -31,6 +32,48 @@ export interface DomainRow {
   verified: boolean;
   verifiedAt: string | null;
   lastError: string | null;
+  /** Host potwierdzony u dostawcy (provider_domain_id ≠ NULL). */
+  registered: boolean;
+}
+
+/**
+ * Przycisk ponowienia rejestracji subdomeny (Zadanie 2.6b).
+ *
+ * Dwa stany wyłączenia i OBA muszą mówić dlaczego. Brak konfiguracji dostawcy
+ * gasi przycisk z powodem — cicho nieklikalna kontrolka jest gorsza od jej
+ * braku, bo najemca próbuje w kółko i uznaje panel za zepsuty.
+ */
+function RetrySubdomainButton({
+  available,
+  blockedReason,
+}: {
+  available: boolean;
+  blockedReason: string | null;
+}) {
+  const t = useTranslations("domainSettings");
+  const [state, formAction, pending] = useActionState(retrySubdomainAction, initialState);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <form action={formAction}>
+        <Button type="submit" disabled={pending || !available}>
+          {t("retryCta")}
+        </Button>
+      </form>
+
+      {!available && (
+        <p role="status" className="text-amber-700">
+          {t("retryUnavailable")} {blockedReason}
+        </p>
+      )}
+      {state.success && <p className="text-green-700">{t("retryOk")}</p>}
+      {state.formError && (
+        <p role="alert" className="text-red-600">
+          {t("retryFailed")} {state.formError} {t("retryContactFallback")}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function AddDomainForm() {
@@ -123,21 +166,51 @@ function DomainActions({ domain }: { domain: DomainRow }) {
   );
 }
 
-function DomainCard({ domain, cnameTarget }: { domain: DomainRow; cnameTarget: string }) {
+function DomainCard({
+  domain,
+  cnameTarget,
+  registrationAvailable,
+  registrationBlockedReason,
+}: {
+  domain: DomainRow;
+  cnameTarget: string;
+  registrationAvailable: boolean;
+  registrationBlockedReason: string | null;
+}) {
   const t = useTranslations("domainSettings");
+
+  // Subdomena ma verified=true od 0022, więc „Działa" nic o niej nie mówi —
+  // rozstrzyga dopiero rejestracja u dostawcy. Bez tego rozróżnienia ekran
+  // pokazywał adres jako sprawny, gdy sklep pod nim oddawał 404.
+  const needsRetry = domain.kind === "subdomain" && (!domain.registered || domain.lastError !== null);
+
+  // `verified` NIE wystarczy na etykietę subdomeny: 0022 stawia je na true w tej
+  // samej transakcji co tenant, więc adres bez rejestracji u dostawcy pokazywał
+  // się jako „Działa", oddając w rzeczywistości 404. Etykieta ma opisywać sklep,
+  // nie stan kolumny.
+  const live = domain.verified && (domain.kind === "custom" || domain.registered);
+  const statusLabel = live
+    ? t("statusLive")
+    : domain.kind === "subdomain"
+      ? t("statusNotRegistered")
+      : t("statusPending");
 
   return (
     <li className="flex flex-col gap-2 rounded border p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="break-all font-mono">{domain.domain}</span>
-        <span className={domain.verified ? "text-green-700" : "text-amber-700"}>
-          {domain.verified ? t("statusLive") : t("statusPending")}
-        </span>
+        <span className={live ? "text-green-700" : "text-amber-700"}>{statusLabel}</span>
       </div>
 
       <p className="text-gray-500">
         {domain.kind === "subdomain" ? t("kindSubdomain") : t("kindCustom")}
       </p>
+
+      {domain.kind === "subdomain" && (
+        <p className={domain.registered ? "text-gray-500" : "text-amber-700"}>
+          {domain.registered ? t("subdomainRegistered") : t("subdomainNotRegistered")}
+        </p>
+      )}
 
       {/* Powód ostatniego niepowodzenia — bez niego porażka rejestracji byłaby
           ciszą: wiersz jest, sklep nie odpowiada, najemca nie wie dlaczego. */}
@@ -151,6 +224,13 @@ function DomainCard({ domain, cnameTarget }: { domain: DomainRow; cnameTarget: s
         <CnameInstruction host={domain.domain} target={cnameTarget} />
       )}
 
+      {needsRetry && (
+        <RetrySubdomainButton
+          available={registrationAvailable}
+          blockedReason={registrationBlockedReason}
+        />
+      )}
+
       <DomainActions domain={domain} />
     </li>
   );
@@ -159,9 +239,13 @@ function DomainCard({ domain, cnameTarget }: { domain: DomainRow; cnameTarget: s
 export function DomainsPanel({
   domains,
   cnameTarget,
+  registrationAvailable,
+  registrationBlockedReason,
 }: {
   domains: DomainRow[];
   cnameTarget: string;
+  registrationAvailable: boolean;
+  registrationBlockedReason: string | null;
 }) {
   const t = useTranslations("domainSettings");
 
@@ -170,11 +254,27 @@ export function DomainsPanel({
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">{t("listHeading")}</h2>
         {domains.length === 0 ? (
-          <p className="text-sm text-gray-500">{t("emptyState")}</p>
+          // Pustka NIE jest tu ślepym zaułkiem: wiersz subdomeny mógł nie
+          // powstać (kolizja `on conflict` w 0022), a ponowienie go utworzy
+          // i zarejestruje. Odsyłanie najemcy do kontaktu było opisem
+          // problemu zamiast wyjścia z niego.
+          <div className="flex flex-col gap-2 rounded border p-3 text-sm">
+            <p className="text-gray-500">{t("emptyState")}</p>
+            <RetrySubdomainButton
+              available={registrationAvailable}
+              blockedReason={registrationBlockedReason}
+            />
+          </div>
         ) : (
           <ul className="flex flex-col gap-2">
             {domains.map((domain) => (
-              <DomainCard key={domain.id} domain={domain} cnameTarget={cnameTarget} />
+              <DomainCard
+                key={domain.id}
+                domain={domain}
+                cnameTarget={cnameTarget}
+                registrationAvailable={registrationAvailable}
+                registrationBlockedReason={registrationBlockedReason}
+              />
             ))}
           </ul>
         )}
