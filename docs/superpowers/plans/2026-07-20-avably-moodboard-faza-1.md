@@ -48,12 +48,13 @@
 
 ```js
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const artifactPath = `${root}/docs/branding/2026-07-20-avably-faza-1-moodboard.html`;
 const hubPath = `${root}/docs/dokumentacja/hub.html`;
+assert.ok(existsSync(artifactPath), `Brak moodboardu: ${artifactPath}`);
 const html = readFileSync(artifactPath, "utf8");
 const count = (needle) => html.split(needle).length - 1;
 
@@ -154,7 +155,7 @@ Run:
 PATH=/opt/homebrew/opt/node@22/bin:$PATH node scripts/verify-branding-moodboard.mjs --artifact-only
 ```
 
-Expected: `ENOENT` dla `docs/branding/2026-07-20-avably-faza-1-moodboard.html`.
+Expected: `AssertionError` z komunikatem `Brak moodboardu`.
 
 - [ ] **Step 3: Zapisać kontrakt**
 
