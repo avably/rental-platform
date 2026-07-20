@@ -26,6 +26,10 @@ const extractBalancedCssBody = (anchor) => {
 
   return "";
 };
+const extractBalancedCssBodyMatching = (selectorPattern) => {
+  const selectorMatch = html.match(selectorPattern);
+  return selectorMatch ? extractBalancedCssBody(selectorMatch[0]) : "";
+};
 const hasStaticKeyframeInterval = (name, intervalStart, intervalEnd) => {
   const body = extractBalancedCssBody(`@keyframes ${name}`);
   const frames = [];
@@ -171,7 +175,7 @@ for (const keyframe of [
 assert.equal(count("data-motion-demo"), 12);
 assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 assert.match(
-  extractBalancedCssBody(".motion-loop:focus-within *"),
+  extractBalancedCssBodyMatching(/\.motion-loop:focus-within\s+\*/),
   /\banimation-play-state:\s*paused\s*;/,
   "Reguła .motion-loop:focus-within * nie zatrzymuje animacji",
 );
