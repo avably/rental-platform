@@ -14,20 +14,20 @@ type SettingsAction = (prevState: FormState, formData: FormData) => Promise<Form
 function FormMessages({ state, successText }: { state: FormState; successText: string }) {
   if (state.formError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-destructive">
         {state.formError}
       </p>
     );
   }
   if (state.fieldErrors) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-destructive">
         {Object.values(state.fieldErrors)[0]}
       </p>
     );
   }
   if (state.success) {
-    return <p className="text-sm text-green-700">{successText}</p>;
+    return <p className="text-sm text-status-positive-fg">{successText}</p>;
   }
   return null;
 }
@@ -209,7 +209,7 @@ export function PricingForm({
   return (
     <form action={formAction} className="flex flex-col gap-2 rounded border p-3 text-sm">
       <p className="font-medium">{t("pricingTitle")}</p>
-      <p className="text-gray-500">{t("pricingIntro")}</p>
+      <p className="text-muted-foreground">{t("pricingIntro")}</p>
       {methods.map(([method, methodLabel, priceName, freeAboveName]) => {
         const entry = defaults?.[method];
         return (

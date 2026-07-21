@@ -27,7 +27,7 @@ export function TotpEnrollForm({ next }: { next?: string }) {
   if (!enrollState.factorId) {
     return (
       <form action={enrollFormAction} className="flex flex-col gap-3">
-        {enrollState.error ? <p className="text-sm text-red-600">{enrollState.error}</p> : null}
+        {enrollState.error ? <p className="text-sm text-destructive">{enrollState.error}</p> : null}
         <button
           type="submit"
           disabled={enrollPending}
@@ -41,7 +41,7 @@ export function TotpEnrollForm({ next }: { next?: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         {t("scanHint")} <code className="break-all font-sans">{enrollState.secret}</code>
       </p>
       {enrollState.qrCode ? (
@@ -62,7 +62,7 @@ export function TotpEnrollForm({ next }: { next?: string }) {
             className="rounded border px-3 py-2"
           />
         </label>
-        {verifyState.error ? <p className="text-sm text-red-600">{verifyState.error}</p> : null}
+        {verifyState.error ? <p className="text-sm text-destructive">{verifyState.error}</p> : null}
         <button
           type="submit"
           disabled={verifyPending}

@@ -32,15 +32,15 @@ export default async function SitePage() {
 
   if (!ensured.ok || !data) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 p-6">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <Link className="text-sm underline" href="/">
           {t("backHome")}
         </Link>
         <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {ensured.ok ? t("loadError") : ensured.error}
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -66,7 +66,7 @@ export default async function SitePage() {
   }));
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <Link className="text-sm underline" href="/">
         {t("backHome")}
       </Link>
@@ -76,6 +76,6 @@ export default async function SitePage() {
         sections={toEditorSections(data.sections)}
         previewProducts={previewProducts}
       />
-    </main>
+    </div>
   );
 }

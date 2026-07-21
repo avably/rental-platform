@@ -80,13 +80,11 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
     labelKey: "groupOrganization",
     items: [
       { id: "team", href: "/zaproszenia", labelKey: "team" },
-      // ODSTĘPSTWO OD BRIEFU P3, świadome: brief mapował tę pozycję na
-      // `/organizacja`, ale takiego ekranu w produkcie NIE MA — segment
-      // `organizacja/` zawiera wyłącznie `nowa/`. Trzymamy jedyną istniejącą
-      // trasę pod tym nagłówkiem zamiast wystawiać w nawigacji 404 albo
-      // dorabiać ekran (P3 buduje shell, nie ekrany). Gdy P4–P6 dołożą
-      // ustawienia organizacji, zmiana to jedna linia.
-      { id: "organization", href: "/organizacja/nowa", labelKey: "organization" },
+      // Dług P3 ZAMKNIĘTY w P6 (ADR-059): ekran organizacji istnieje, więc
+      // pozycja celuje tam, gdzie zapowiadał brief. Identyfikator bez zmiany,
+      // więc kontrakt struktury z artefaktem zostaje zielony.
+      // `/organizacja/nowa` (onboarding) pozostaje osiągalna własnym adresem.
+      { id: "organization", href: "/organizacja", labelKey: "organization" },
       { id: "security", href: "/bezpieczenstwo", labelKey: "security" },
     ],
   },

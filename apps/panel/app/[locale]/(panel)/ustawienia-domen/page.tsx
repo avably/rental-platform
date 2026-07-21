@@ -55,17 +55,17 @@ export default async function DomainSettingsPage() {
   const availability = vercelDomainsAvailability();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link className="text-sm underline" href="/">
           {t("backLink")} ↩
         </Link>
       </header>
-      <p className="text-sm text-gray-500">{t("intro")}</p>
+      <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
       {!availability.available && (
-        <p role="status" className="rounded border p-3 text-sm text-amber-700">
+        <p role="status" className="rounded border p-3 text-sm text-status-attention-fg">
           {t("registrationUnavailable")} {availability.reason}
         </p>
       )}
@@ -79,6 +79,6 @@ export default async function DomainSettingsPage() {
         registrationAvailable={availability.available}
         registrationBlockedReason={availability.available ? null : (availability.reason ?? null)}
       />
-    </main>
+    </div>
   );
 }

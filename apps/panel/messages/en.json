@@ -88,7 +88,13 @@
     "delivery": "Deliveries",
     "team": "Team",
     "organization": "Organization",
-    "security": "Security"
+    "security": "Security",
+    "themeToggleToDark": "Switch to dark mode",
+    "themeToggleToLight": "Switch to light mode",
+    "localePolish": "Polish",
+    "localeEnglish": "English",
+    "superadminPanel": "Superadmin panel",
+    "skipToContent": "Skip to content"
   },
   "login": {
     "title": "Sign in",
@@ -651,5 +657,18 @@
     "addCta": "Add domain",
     "addedOk": "Domain added. Add the DNS record, then click “Check verification”.",
     "backLink": "Dashboard"
+  },
+  "organization": {
+    "title": "Organization",
+    "description": "Organization details shown on documents and in billing.",
+    "name": "Name",
+    "slug": "Identifier",
+    "plan": "Plan",
+    "status": "Status",
+    "createdAt": "Created on",
+    "locale": "Storefront language",
+    "planMissing": "No plan assigned.",
+    "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
+    "newOrganization": "Create organization"
   }
 }

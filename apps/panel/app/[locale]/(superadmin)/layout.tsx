@@ -1,48 +1,81 @@
 import { getTranslations } from "next-intl/server";
 
+import { BrandSymbol } from "@/components/shell/brand-mark";
+import { LocaleSwitcher } from "@/components/shell/locale-switcher";
+import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Link } from "@/i18n/navigation";
 import { logoutAction } from "@/lib/actions/logout";
 import { getAuthContext } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
- * Powłoka panelu superadmina. Guard nie siedzi tutaj (layouty w App Routerze
- * nie chronią route handlerów ani nie są przeliczane przy każdej nawigacji) —
- * każda strona i akcja woła `requireSuperadminPage()` u siebie, bliżej danych.
+ * Powłoka panelu superadmina (ADR-056 D2, restylowana w ADR-059).
  *
- * Kontekst czytamy tu WYŁĄCZNIE po to, żeby pokazać, kto jest zalogowany.
- * `getAuthContext` nie rzuca (brak sesji → `null`), więc layout nie zaczyna
- * dublować guarda ani zmieniać jego przekierowań — o dostępie nadal decyduje
- * strona.
+ * Guard nie siedzi tutaj (layouty w App Routerze nie chronią route handlerów
+ * ani nie są przeliczane przy każdej nawigacji) — każda strona i akcja woła
+ * `requireSuperadminPage()` u siebie, bliżej danych. Kontekst czytamy
+ * WYŁĄCZNIE po to, żeby pokazać, kto jest zalogowany; `getAuthContext` nie
+ * rzuca (brak sesji → `null`), więc layout nie dubluje guarda.
+ *
+ * BEZ SHELLA TENANTA — świadomie. Sidebar z ADR-056 jest kontraktem z
+ * artefaktem i prowadzi do ekranów NAJEMCY, których guardy i tak nie wpuszczą
+ * operatora platformy bez organizacji. Stąd własna, minimalna belka: sygnet,
+ * nazwa roli, dwa realne wejścia i wylogowanie. Grupa `(superadmin)` jest
+ * rodzeństwem `(panel)`, więc ten rozdział jest STRUKTURALNY, nie warunkiem
+ * w kodzie.
  */
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("nav");
   const tCommon = await getTranslations("common");
   const ctx = await getAuthContext(await createSupabaseServerClient());
 
+  const linkClass =
+    "text-muted-foreground hover:text-foreground rounded-sm no-underline outline-none transition-[color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring";
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <nav className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-4 text-sm">
+    <div className="bg-background flex min-h-screen flex-col">
+      <SkipLink label={t("skipToContent")} />
+      <header className="border-border bg-background border-b">
+        <nav
+          aria-label={t("superadmin")}
+          className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2 text-sm md:px-6"
+        >
+          <BrandSymbol className="size-7 shrink-0" />
           <span className="font-semibold">{t("superadmin")}</span>
-          <Link className="text-gray-600 hover:text-gray-900" href="/admin/tenants">
+          <Link className={linkClass} href="/admin/tenants">
             {t("tenants")}
           </Link>
-          <Link className="text-gray-600 hover:text-gray-900" href="/admin/audit">
+          <Link className={linkClass} href="/admin/audit">
             {t("auditLog")}
           </Link>
-          <div className="ml-auto flex items-center gap-4">
-            {ctx?.user.email ? <span className="text-gray-600">{ctx.user.email}</span> : null}
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            {ctx?.user.email ? (
+              <span className="text-muted-foreground hidden truncate lg:inline">
+                {ctx.user.email}
+              </span>
+            ) : null}
+            <LocaleSwitcher />
+            <ThemeToggle />
             {/* Wylogowanie zmienia stan — POST (server action), nie link GET. */}
             <form action={logoutAction}>
-              <button type="submit" className="text-gray-600 underline hover:text-gray-900">
+              <button
+                type="submit"
+                className="border-border text-foreground cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium outline-none transition-[outline-color,border-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+              >
                 {tCommon("logout")}
               </button>
             </form>
           </div>
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      <main
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+        className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:px-6 md:py-8"
+      >
+        {children}
+      </main>
     </div>
   );
 }

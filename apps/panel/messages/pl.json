@@ -88,7 +88,13 @@
     "delivery": "Dostawy",
     "team": "Zespół",
     "organization": "Organizacja",
-    "security": "Bezpieczeństwo"
+    "security": "Bezpieczeństwo",
+    "themeToggleToDark": "Włącz tryb ciemny",
+    "themeToggleToLight": "Włącz tryb jasny",
+    "localePolish": "Polski",
+    "localeEnglish": "Angielski",
+    "superadminPanel": "Panel superadmina",
+    "skipToContent": "Przejdź do treści"
   },
   "login": {
     "title": "Zaloguj się",
@@ -651,5 +657,18 @@
     "addCta": "Dodaj domenę",
     "addedOk": "Domena dodana. Wpisz rekord DNS, a potem kliknij „Sprawdź weryfikację”.",
     "backLink": "Panel"
+  },
+  "organization": {
+    "title": "Organizacja",
+    "description": "Dane organizacji widoczne na dokumentach i w rozliczeniach.",
+    "name": "Nazwa",
+    "slug": "Identyfikator",
+    "plan": "Plan",
+    "status": "Status",
+    "createdAt": "Data założenia",
+    "locale": "Język sklepu",
+    "planMissing": "Brak przypisanego planu.",
+    "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
+    "newOrganization": "Załóż organizację"
   }
 }

@@ -28,9 +28,9 @@ export default async function SecurityPage({
   const t = await getTranslations("security");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
+    <div className="mx-auto flex w-full max-w-sm flex-col justify-center gap-4">
       <h1 className="text-xl font-semibold">{t("title")}</h1>
       <TotpEnrollForm next={safeNextPath(next) ?? undefined} />
-    </main>
+    </div>
   );
 }

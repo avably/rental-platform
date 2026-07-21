@@ -40,49 +40,49 @@ export default async function TenantDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link className="text-sm text-blue-700 hover:underline" href="/admin/tenants">
+        <Link className="text-sm text-status-neutral-fg hover:underline" href="/admin/tenants">
           ← Organizacje
         </Link>
         <h1 className="mt-2 text-xl font-semibold">{tenant.name}</h1>
-        <p className="text-sm text-gray-600">{tenant.slug}</p>
+        <p className="text-sm text-muted-foreground">{tenant.slug}</p>
       </div>
 
       {blad && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p className="rounded-md border border-status-problem-border bg-status-problem-bg px-4 py-3 text-sm text-destructive">
           {blad}
         </p>
       )}
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-4 text-sm sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-border bg-card p-4 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-xs uppercase text-gray-500">Status</dt>
+          <dt className="text-xs uppercase text-muted-foreground">Status</dt>
           <dd>{tenant.status}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-gray-500">Plan</dt>
+          <dt className="text-xs uppercase text-muted-foreground">Plan</dt>
           <dd>{tenant.plan_id ?? "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-gray-500">Subskrypcja</dt>
+          <dt className="text-xs uppercase text-muted-foreground">Subskrypcja</dt>
           <dd>{tenant.subscription_status ?? "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase text-gray-500">Identyfikator</dt>
+          <dt className="text-xs uppercase text-muted-foreground">Identyfikator</dt>
           <dd className="tabular-nums text-xs break-all">{tenant.id}</dd>
         </div>
       </dl>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Dostęp organizacji</h2>
         {locked ? (
           <form action={unlockTenantAction} className="mt-3 flex flex-col gap-3">
             <input type="hidden" name="tenantId" value={tenant.id} />
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Organizacja jest zablokowana. Odblokowanie przywróci status sprzed blokady
               {tenant.status_before_lock ? ` („${tenant.status_before_lock}")` : ""}.
             </p>
             <button
-              className="w-fit rounded-md bg-gray-900 px-4 py-2 text-sm text-white"
+              className="w-fit rounded-md bg-primary px-4 py-2 text-sm text-white"
               type="submit"
             >
               Odblokuj organizację
@@ -94,14 +94,14 @@ export default async function TenantDetailPage({
             <label className="flex flex-col gap-1 text-sm">
               Powód blokady (trafia do dziennika zdarzeń)
               <input
-                className="rounded-md border border-gray-300 px-3 py-2"
+                className="rounded-md border border-border px-3 py-2"
                 maxLength={500}
                 name="reason"
                 type="text"
               />
             </label>
             <button
-              className="w-fit rounded-md bg-red-700 px-4 py-2 text-sm text-white"
+              className="w-fit rounded-md bg-destructive px-4 py-2 text-sm text-white"
               type="submit"
             >
               Zablokuj organizację
@@ -110,14 +110,14 @@ export default async function TenantDetailPage({
         )}
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Plan (zmiana ręczna)</h2>
         <form action={setPlanAction} className="mt-3 flex flex-wrap items-end gap-3">
           <input type="hidden" name="tenantId" value={tenant.id} />
           <label className="flex flex-col gap-1 text-sm">
             Plan
             <select
-              className="rounded-md border border-gray-300 px-3 py-2"
+              className="rounded-md border border-border px-3 py-2"
               defaultValue={tenant.plan_id ?? ""}
               name="planId"
             >
@@ -131,21 +131,21 @@ export default async function TenantDetailPage({
               ))}
             </select>
           </label>
-          <button className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white" type="submit">
+          <button className="rounded-md bg-primary px-4 py-2 text-sm text-white" type="submit">
             Zapisz plan
           </button>
         </form>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Podgląd danych organizacji</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-muted-foreground">
           Wsparcie: wejście w kontekst organizacji w trybie tylko do odczytu. Wejście i wyjście są
           zapisywane w dzienniku zdarzeń.
         </p>
         <form action={startTenantViewAction} className="mt-3">
           <input type="hidden" name="tenantId" value={tenant.id} />
-          <button className="rounded-md border border-gray-300 px-4 py-2 text-sm" type="submit">
+          <button className="rounded-md border border-border px-4 py-2 text-sm" type="submit">
             Wejdź w podgląd
           </button>
         </form>

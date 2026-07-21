@@ -28,7 +28,7 @@ export default async function InvitationsPage() {
   const tCommon = await getTranslations("common");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
       <header className="flex items-center justify-between text-sm">
         <span>{ctx.user.email}</span>
         <form action={logoutAction}>
@@ -50,6 +50,6 @@ export default async function InvitationsPage() {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }
