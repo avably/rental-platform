@@ -45,7 +45,7 @@ export function StatusButtons({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.detail");
-  const tStatus = useTranslations("orders.status");
+  const tStatus = useTranslations("orders.statusLabels.order");
 
   const targets = ORDER_STATUSES.filter((status) => canTransition(currentStatus, status));
   const cancelBlocked = BLOCKING_PAYMENT_STATUSES.includes(paymentStatus);
@@ -68,12 +68,13 @@ export function StatusButtons({
                 type="submit"
                 variant={target === "cancelled" ? "outline" : "default"}
                 disabled={pending || blocked}
+                loading={pending}
                 title={blocked ? t("cancelBlockedHint") : undefined}
               >
                 {t("changeTo", { status: tStatus(target) })}
               </Button>
               {hasTemplate ? (
-                <label className="flex items-center gap-1.5 text-xs text-gray-600">
+                <label className="text-muted-foreground flex items-center gap-1.5 text-xs">
                   <input
                     type="checkbox"
                     name="sendEmail"
@@ -88,15 +89,15 @@ export function StatusButtons({
         })}
       </div>
       {cancelBlocked && targets.includes("cancelled") ? (
-        <p className="text-xs text-gray-500">{t("cancelBlockedHint")}</p>
+        <p className="text-muted-foreground text-xs">{t("cancelBlockedHint")}</p>
       ) : null}
       {!emailAvailability.available && targets.some((s) => TEMPLATE_FOR_STATUS[s]) ? (
-        <p className="text-xs text-amber-700">
+        <p className="text-status-attention-fg text-xs">
           {emailAvailability.reason ?? t("sendEmailUnavailable")}
         </p>
       ) : null}
       {state.formError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-destructive text-sm">
           {state.formError}
         </p>
       ) : null}

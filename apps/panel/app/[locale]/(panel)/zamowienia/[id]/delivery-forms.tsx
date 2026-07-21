@@ -13,20 +13,20 @@ type DeliveryAction = (prevState: FormState, formData: FormData) => Promise<Form
 function FormMessages({ state, successText }: { state: FormState; successText?: string }) {
   if (state.formError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-destructive text-sm">
         {state.formError}
       </p>
     );
   }
   if (state.fieldErrors) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-destructive text-sm">
         {Object.values(state.fieldErrors)[0]}
       </p>
     );
   }
   if (state.success && successText) {
-    return <p className="text-sm text-green-700">{successText}</p>;
+    return <p className="text-status-positive-fg text-sm">{successText}</p>;
   }
   return null;
 }
@@ -172,7 +172,7 @@ export function SendReturnLabelButton({
         {t("sendReturnLabelCta")}
       </Button>
       {!emailAvailability.available ? (
-        <p className="text-xs text-gray-500">
+        <p className="text-muted-foreground text-xs">
           {emailAvailability.reason ?? t("emailUnavailable")}
         </p>
       ) : null}
@@ -200,13 +200,13 @@ export function SendPickupReminderButton({
   return (
     <form action={formAction} className="flex flex-col gap-2 rounded border p-3 text-sm">
       <p className="font-medium">{t("pickupReminderTitle")}</p>
-      <p className="text-gray-600">{t("pickupReminderHint")}</p>
+      <p className="text-muted-foreground">{t("pickupReminderHint")}</p>
       <input type="hidden" name="orderId" value={orderId} />
       <Button type="submit" disabled={pending || !emailAvailability.available}>
         {t("sendPickupReminderCta")}
       </Button>
       {!emailAvailability.available ? (
-        <p className="text-xs text-gray-500">
+        <p className="text-muted-foreground text-xs">
           {emailAvailability.reason ?? t("emailUnavailable")}
         </p>
       ) : null}

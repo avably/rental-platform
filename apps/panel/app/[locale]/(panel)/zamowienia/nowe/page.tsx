@@ -153,7 +153,7 @@ export default async function NewOrderPage() {
       </header>
 
       {wizardProducts.length === 0 ? (
-        <p className="text-sm text-gray-600">{t("noProducts")}</p>
+        <p className="text-muted-foreground text-sm">{t("noProducts")}</p>
       ) : (
         <OrderWizard
           action={createOrderAction}

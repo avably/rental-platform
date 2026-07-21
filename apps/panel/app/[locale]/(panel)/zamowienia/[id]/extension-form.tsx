@@ -76,18 +76,18 @@ export function ExtensionForm({
           </span>
         </p>
       ) : (
-        <p className="text-gray-500">{t("pickDateHint")}</p>
+        <p className="text-muted-foreground">{t("pickDateHint")}</p>
       )}
       <Button type="submit" disabled={pending || !quote}>
         {t("cta")}
       </Button>
       {state.formError ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {state.formError}
         </p>
       ) : null}
       {state.fieldErrors ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {Object.values(state.fieldErrors)[0]}
         </p>
       ) : null}

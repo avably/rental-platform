@@ -16,14 +16,14 @@ type DepositAction = (prevState: FormState, formData: FormData) => Promise<FormS
 function FormMessages({ state }: { state: FormState }) {
   if (state.formError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-destructive text-sm">
         {state.formError}
       </p>
     );
   }
   if (state.fieldErrors) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-destructive text-sm">
         {Object.values(state.fieldErrors)[0]}
       </p>
     );
