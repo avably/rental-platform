@@ -4,6 +4,7 @@ import { Badge, Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 import { groszeToInputValue } from "@/lib/money-input";
 
@@ -66,16 +67,17 @@ export function CredentialsForm({
       <Label htmlFor="cred-password">{t("passwordLabel")}</Label>
       <Input id="cred-password" name="password" type="password" disabled={pending} />
       <Label htmlFor="cred-environment">{t("environmentLabel")}</Label>
-      <select
+      <PanelSelect
         id="cred-environment"
         name="environment"
         defaultValue={defaults?.environment ?? "test"}
         disabled={pending}
         className="rounded border px-3 py-2"
-      >
-        <option value="test">{t("environmentTest")}</option>
-        <option value="production">{t("environmentProduction")}</option>
-      </select>
+        options={[
+          { value: "test", label: t("environmentTest") },
+          { value: "production", label: t("environmentProduction") },
+        ]}
+      />
       <Button type="submit" disabled={pending}>
         {t("saveCta")}
       </Button>

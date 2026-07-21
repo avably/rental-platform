@@ -4,6 +4,7 @@ import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
@@ -57,16 +58,17 @@ export function CreateShipmentForm({
       <input type="hidden" name="orderId" value={orderId} />
 
       <Label htmlFor="shipment-type">{t("typeLabel")}</Label>
-      <select
+      <PanelSelect
         id="shipment-type"
         name="shipmentType"
         defaultValue="outbound"
         disabled={pending}
         className="rounded border px-3 py-2"
-      >
-        <option value="outbound">{t("types.outbound")}</option>
-        <option value="return">{t("types.return")}</option>
-      </select>
+        options={[
+          { value: "outbound", label: t("types.outbound") },
+          { value: "return", label: t("types.return") },
+        ]}
+      />
 
       <div className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-1">

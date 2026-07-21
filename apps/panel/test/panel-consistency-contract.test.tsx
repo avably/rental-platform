@@ -107,6 +107,17 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     expect(offenders, `drugi h1 w treści: ${offenders.join(", ")}`).toEqual([]);
   });
 
+  it("żaden ekran tenanta nie używa natywnego selecta", () => {
+    const offenders = sources
+      .filter(({ code }) => /<select\b/.test(code))
+      .map(({ path }) => relative(path));
+
+    expect(
+      offenders,
+      `natywny <select> zamiast @avably/ui: ${offenders.join(", ")}`,
+    ).toEqual([]);
+  });
+
   it("resolver tytułu istnieje i obejmuje trasy spoza głównej nawigacji", () => {
     const resolver = (nav as unknown as Record<string, unknown>).panelTitleKey;
     expect(typeof resolver).toBe("function");

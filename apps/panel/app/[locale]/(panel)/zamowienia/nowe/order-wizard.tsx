@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 import { DateRangeField } from "@/lib/fields/date-fields";
 import {
@@ -24,8 +25,6 @@ const initialState: FormState = {};
 
 const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/* Natywny <select> zostaje natywny (formularz idzie POST-em bez JS), ale
-   wygląd i stany bierze z tego samego zestawu, co Input z P2. */
 const FIELD_CLASS =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:border-dashed aria-invalid:border-destructive";
 
@@ -268,20 +267,20 @@ export function OrderWizard({
         {customerMode === "existing" ? (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="order-customer">{t("customer")}</Label>
-            <select
+            <PanelSelect
               id="order-customer"
               name="customerId"
               defaultValue={customers[0]?.id ?? ""}
               className={FIELD_CLASS}
-              aria-invalid={state.fieldErrors?.customerId ? true : undefined}
-              aria-describedby={errorId("customerId")}
-            >
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.full_name ? `${customer.full_name} (${customer.email})` : customer.email}
-                </option>
-              ))}
-            </select>
+              invalid={Boolean(state.fieldErrors?.customerId)}
+              describedBy={errorId("customerId")}
+              options={customers.map((customer) => ({
+                value: customer.id,
+                label: customer.full_name
+                  ? `${customer.full_name} (${customer.email})`
+                  : customer.email,
+              }))}
+            />
             <FieldError id="order-customerId-error" message={state.fieldErrors?.customerId} />
           </div>
         ) : (
@@ -322,22 +321,20 @@ export function OrderWizard({
           <div key={`${index}-${productId}`} className="flex items-end gap-3">
             <div className="flex grow flex-col gap-1.5">
               <Label htmlFor={`order-item-${index}`}>{t("itemProduct", { index: index + 1 })}</Label>
-              <select
+              <PanelSelect
                 id={`order-item-${index}`}
                 value={productId}
-                onChange={(event) => {
+                onValueChange={(value) => {
                   const next = [...itemProductIds];
-                  next[index] = event.target.value;
+                  next[index] = value;
                   setItemProductIds(next);
                 }}
                 className={FIELD_CLASS}
-              >
-                {products.map((product) => (
-                  <option key={product.pricing.id} value={product.pricing.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
+                options={products.map((product) => ({
+                  value: product.pricing.id,
+                  label: product.name,
+                }))}
+              />
             </div>
             <Button
               type="button"
@@ -424,36 +421,35 @@ export function OrderWizard({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="order-delivery">{t("deliveryMethod")}</Label>
-            <select
+            <PanelSelect
               id="order-delivery"
               name="deliveryMethod"
               value={deliveryMethod}
-              onChange={(event) => setDeliveryMethod(event.target.value)}
+              onValueChange={setDeliveryMethod}
               className={FIELD_CLASS}
-            >
-              <option value="pickup">{tStatus("delivery.pickup")}</option>
-              <option value="courier">{tStatus("delivery.courier")}</option>
-              <option value="parcel_locker">{tStatus("delivery.parcel_locker")}</option>
-              <option value="own_delivery">{tStatus("delivery.own_delivery")}</option>
-            </select>
+              options={[
+                { value: "pickup", label: tStatus("delivery.pickup") },
+                { value: "courier", label: tStatus("delivery.courier") },
+                { value: "parcel_locker", label: tStatus("delivery.parcel_locker") },
+                { value: "own_delivery", label: tStatus("delivery.own_delivery") },
+              ]}
+            />
           </div>
           {deliveryMethod === "pickup" ? (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="order-location">{t("pickupLocation")}</Label>
-              <select
+              <PanelSelect
                 id="order-location"
                 name="pickupLocationId"
                 defaultValue={locations[0]?.id ?? ""}
                 className={FIELD_CLASS}
-                aria-invalid={state.fieldErrors?.pickupLocationId ? true : undefined}
-                aria-describedby={errorId("pickupLocationId")}
-              >
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
+                invalid={Boolean(state.fieldErrors?.pickupLocationId)}
+                describedBy={errorId("pickupLocationId")}
+                options={locations.map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                }))}
+              />
               <FieldError id="order-pickupLocationId-error" message={state.fieldErrors?.pickupLocationId} />
             </div>
           ) : (
