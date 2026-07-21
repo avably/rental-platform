@@ -175,7 +175,7 @@ function hostileFormData(): FormData {
 }
 
 async function retry(formData: FormData = new FormData()) {
-  const { retrySubdomainAction } = await import("@/app/[locale]/ustawienia-domen/domains-actions");
+  const { retrySubdomainAction } = await import("@/app/[locale]/(panel)/ustawienia-domen/domains-actions");
   return retrySubdomainAction({}, formData);
 }
 

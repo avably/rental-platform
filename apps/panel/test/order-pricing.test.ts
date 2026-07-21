@@ -14,7 +14,7 @@ import {
   pickUnits,
   priceOrderItems,
   type ProductPricingRow,
-} from "@/app/[locale]/zamowienia/pricing";
+} from "@/app/[locale]/(panel)/zamowienia/pricing";
 
 /** Cennik odniesienia jak w pricing.test.ts: baza 100 zł, progi 3×2.8 i 7×6.5. */
 const tieredProduct: ProductPricingRow = {

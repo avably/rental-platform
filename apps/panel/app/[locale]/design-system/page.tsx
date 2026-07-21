@@ -45,6 +45,12 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
   Skeleton,
   StatusBadge,
   statusSemantics,
@@ -479,6 +485,21 @@ export default function DesignSystemGallery() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline">Otwórz szufladę</Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <SheetHeader>
+                  <SheetTitle>Nawigacja</SheetTitle>
+                  <SheetDescription>
+                    Nakładka wysuwana z krawędzi — shell panelu chowa w niej
+                    sidebar na wąskim ekranie. Rozdziela obrys, nie cień.
+                  </SheetDescription>
+                </SheetHeader>
+              </SheetContent>
+            </Sheet>
 
             <Dialog>
               <DialogTrigger asChild>

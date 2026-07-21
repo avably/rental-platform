@@ -19,7 +19,7 @@ import {
   customDomainSchema,
   isPlatformHost,
   readableDomainError,
-} from "@/app/[locale]/ustawienia-domen/domains-validation";
+} from "@/app/[locale]/(panel)/ustawienia-domen/domains-validation";
 
 function parse(value: string) {
   return customDomainSchema.safeParse({ domain: value });

@@ -5,7 +5,7 @@ import {
   deliverySettingsParcelSchema,
   deliverySettingsPricingSchema,
   deliverySettingsSenderSchema,
-} from "../app/[locale]/ustawienia-dostaw/delivery-settings-validation";
+} from "../app/[locale]/(panel)/ustawienia-dostaw/delivery-settings-validation";
 
 describe("deliverySettingsCredentialsSchema", () => {
   it("akceptuje poprawne credentiale", () => {

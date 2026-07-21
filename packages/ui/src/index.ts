@@ -67,6 +67,19 @@ export {
   SelectValue,
 } from "./components/select";
 export { Separator } from "./components/separator";
+export {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetOverlay,
+  SheetPortal,
+  SheetTitle,
+  SheetTrigger,
+  type SheetSide,
+} from "./components/sheet";
 export { Skeleton } from "./components/skeleton";
 export {
   StatusBadge,

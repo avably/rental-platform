@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   shipmentCreateSchema,
   shipmentRefreshSchema,
-} from "../app/[locale]/zamowienia/[id]/delivery-validation";
+} from "../app/[locale]/(panel)/zamowienia/[id]/delivery-validation";
 
 const VALID = {
   orderId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",

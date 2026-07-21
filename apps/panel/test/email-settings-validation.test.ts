@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   emailSenderInputFromFormData,
   emailSenderSchema,
-} from "@/app/[locale]/ustawienia-emaili/email-settings-validation";
+} from "@/app/[locale]/(panel)/ustawienia-emaili/email-settings-validation";
 
 describe("emailSenderSchema (lustro CHECK 0014)", () => {
   it("przycina nazwę i produkuje snake_case bez reply_to", () => {

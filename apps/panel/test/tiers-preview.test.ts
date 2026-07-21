@@ -18,7 +18,7 @@ import {
   rowsToEngineTiers,
   tierPriceGrosze,
   type TierRowValues,
-} from "@/app/[locale]/katalog/[id]/progi/preview";
+} from "@/app/[locale]/(panel)/katalog/[id]/progi/preview";
 
 /** Cennik odniesienia jak w pricing.test.ts: baza 100 zł, progi 3 i 7 dni. */
 const pricing = {
