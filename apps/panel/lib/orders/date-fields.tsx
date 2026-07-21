@@ -198,10 +198,19 @@ export function DateRangeField({
             defaultMonth={isoToDate(from)}
             selected={selected}
             onSelect={(next) => {
-              onChange({ from: dateToIso(next?.from), to: dateToIso(next?.to) });
-              // Zamykamy dopiero po domknięciu zakresu — inaczej drugi klik
-              // musiałby otwierać kalendarz od nowa.
-              if (next?.from && next.to) setOpen(false);
+              const nextFrom = dateToIso(next?.from);
+              onChange({ from: nextFrom, to: dateToIso(next?.to) });
+
+              /*
+                Zakres jest domknięty, gdy użytkownik dobrał KONIEC do początku,
+                który już miał. Sama obecność `to` nie wystarcza: react-day-picker
+                po PIERWSZYM kliknięciu oddaje `{from: d, to: d}`, więc warunek
+                „from && to" zamykał kalendarz od razu i drugi klik wymagał
+                otwierania go od nowa. Gdy drugie kliknięcie przestawia POCZĄTEK
+                (dzień wcześniejszy), `from` się zmienia — kalendarz zostaje
+                otwarty i czeka na koniec.
+              */
+              if (next?.to && nextFrom === from) setOpen(false);
             }}
           />
         </PopoverContent>
