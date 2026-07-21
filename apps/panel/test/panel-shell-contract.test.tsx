@@ -110,6 +110,39 @@ describe("kontrakt shella — znak marki", () => {
     }
   });
 
+  it("znak nie schodzi poniżej podłóg rozmiaru z sekcji 02", () => {
+    /*
+      Reguły znaku: pełne logo co najmniej 120 px szerokości, sygnet co
+      najmniej 24 px. Podłogi trafiły do kontraktu po recenzji PR #89, gdzie
+      decyzja „zmniejsz znak o 1/3" wyszłaby na 88 px i 18,67 px — czyli pod
+      obiema. Rozmiar żyje w klasach shella, więc sprawdzamy JE, a nie sam
+      komponent (ten jest bezrozmiarowy z założenia).
+    */
+    const declared = artifact.match(/data-min-width="(\d+)"/);
+    expect(declared, "artefakt przestał deklarować podłogę logo").not.toBeNull();
+    const logoFloor = Number(declared![1]);
+    expect(logoFloor).toBe(120);
+
+    const panelLayout = readFileSync(
+      resolve(process.cwd(), "app/[locale]/(panel)/layout.tsx"),
+      "utf8",
+    );
+    const logoWidth = Number(panelLayout.match(/<BrandLogo className="h-auto w-\[(\d+)px\]"/)?.[1]);
+    expect(logoWidth, "nie znaleziono jawnej szerokości logo w shellu").not.toBeNaN();
+    expect(logoWidth).toBeGreaterThanOrEqual(logoFloor);
+
+    // Sygnet: `size-N` Tailwinda to N × 4 px. Podłoga 24 px = `size-6`.
+    for (const [file, label] of [
+      ["components/shell/panel-topbar.tsx", "belka panelu"],
+      ["app/[locale]/(superadmin)/layout.tsx", "belka superadmina"],
+    ] as const) {
+      const source = readFileSync(resolve(process.cwd(), file), "utf8");
+      const step = Number(source.match(/<BrandSymbol className="size-(\d+)/)?.[1]);
+      expect(step, `nie znaleziono rozmiaru sygnetu: ${label}`).not.toBeNaN();
+      expect(step * 4, `sygnet poniżej 24 px: ${label}`).toBeGreaterThanOrEqual(24);
+    }
+  });
+
   it("kropka marki niesie kolor handoffu i żyje WYŁĄCZNIE wewnątrz znaku", () => {
     // Twarda reguła sekcji 02: #A8C743 nigdy jako element interfejsu.
     expect(logo).toContain('fill="#A8C743"');

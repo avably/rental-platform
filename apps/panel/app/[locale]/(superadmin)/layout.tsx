@@ -41,7 +41,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
           aria-label={t("superadmin")}
           className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2 text-sm md:px-6"
         >
-          <BrandSymbol className="size-7 shrink-0" />
+          <BrandSymbol className="size-6 shrink-0" />
           <span className="font-semibold">{t("superadmin")}</span>
           <Link className={linkClass} href="/admin/tenants">
             {t("tenants")}

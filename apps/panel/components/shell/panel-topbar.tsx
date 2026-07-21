@@ -46,7 +46,7 @@ export function PanelTopbar({ userEmail }: { userEmail: string }) {
       <MobileNav />
       {/* Sygnet wg reguł sekcji 02: minimum 24 px. Na szerokim ekranie znak
           niesie już sidebar, więc powtarzanie go w belce byłoby szumem. */}
-      <BrandSymbol className="size-7 shrink-0 md:hidden" />
+      <BrandSymbol className="size-6 shrink-0 md:hidden" />
       <p className="truncate text-sm font-semibold">
         {sectionKey ? t(sectionKey) : t("panelNavigation")}
       </p>

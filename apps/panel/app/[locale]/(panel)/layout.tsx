@@ -38,15 +38,21 @@ export default async function PanelLayout({
       <SkipLink label={t("skipToContent")} />
       <aside className="border-border bg-sidebar hidden w-[236px] shrink-0 flex-col border-r md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto">
         {/* Pełne logo wg reguł sekcji 02: minimalna szerokość w interfejsie to
-            120 px — stąd jawne 132 px, a nie szerokość płynna, która przy
-            wąskim sidebarze zeszłaby poniżej progu. */}
+            120 px — stąd wartość JAWNA, a nie płynna, która przy wąskim
+            sidebarze zeszłaby poniżej progu.
+
+            Decyzja właściciela 2026-07-21 (recenzja PR #89): znak o jedną
+            trzecią mniejszy. 132 px × 2/3 = 88 px, czyli PONIŻEJ podłogi
+            artefaktu — więc redukcja zatrzymuje się na 120 px. Podłoga jest
+            twardą regułą znaku, nie sugestią, a niżej logo przestaje być
+            czytelne. Pilnuje jej kontrakt shella. */}
         <div className="p-4 pb-2">
           <Link
             href="/"
             aria-label="Avably"
             className="inline-flex rounded-md outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
           >
-            <BrandLogo className="h-auto w-[132px]" />
+            <BrandLogo className="h-auto w-[120px]" />
           </Link>
         </div>
         <SidebarNav />

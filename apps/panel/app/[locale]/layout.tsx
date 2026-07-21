@@ -71,7 +71,22 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+        {/*
+          DRUGIE `suppressHydrationWarning`, tym razem na samym <script>
+          (recenzja PR #89). Serwer renderuje `nonce="…"`, ale przeglądarki
+          CELOWO ukrywają ten atrybut przed DOM-em — czytany z drzewa jest
+          pusty. React 19 porównuje jedno z drugim i przy każdym wejściu
+          logował „A tree hydrated but some attributes…". Funkcjonalnie nic
+          się nie działo (produkcja nie loguje rozjazdów atrybutów, a sam
+          nonce działa — CSP przepuszcza skrypt), ale stały szum w konsoli
+          dev zjada wartość reguły „zero błędów konsoli" i myli każdą
+          kolejną sesję. Wyciszamy DOKŁADNIE ten element, nie całe drzewo.
+        */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
