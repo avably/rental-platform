@@ -11,16 +11,16 @@ import {
   TableRow,
 } from "./table";
 
-it("renderuje kartę z tokenem płaskiej powierzchni", () => {
+it("renderuje kartę jako płaską powierzchnię z obrysem, bez klasy cienia", () => {
   render(
     <Card>
       <CardTitle>Rezerwacja</CardTitle>
     </Card>,
   );
 
-  expect(screen.getByText("Rezerwacja").parentElement).toHaveClass(
-    "shadow-sm",
-  );
+  const card = screen.getByText("Rezerwacja").parentElement;
+  expect(card).toHaveClass("border", "bg-card");
+  expect(card?.className).not.toContain("shadow");
 });
 
 it("zachowuje semantykę i przewijanie tabeli", () => {

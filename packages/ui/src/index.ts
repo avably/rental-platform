@@ -39,6 +39,10 @@ export {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "./components/dropdown-menu";
+export {
+  FilterChip,
+  type FilterChipProps,
+} from "./components/filter-chip";
 export { Input } from "./components/input";
 export { Label } from "./components/label";
 export {
@@ -63,6 +67,11 @@ export {
   SelectValue,
 } from "./components/select";
 export { Separator } from "./components/separator";
+export { Skeleton } from "./components/skeleton";
+export {
+  StatusBadge,
+  type StatusBadgeProps,
+} from "./components/status-badge";
 export {
   Table,
   TableBody,
@@ -81,6 +90,12 @@ export {
   TooltipTrigger,
 } from "./components/tooltip";
 export { cn } from "./lib/cn";
+export {
+  statusSemantics,
+  statusTones,
+  type StatusAxis,
+  type StatusTone,
+} from "./lib/status-semantics";
 
 // Sekcyjny storefront (Zadanie 2.3): typy kontraktu, komponenty sekcji,
 // szablony i renderer współdzielone przez sklep publiczny i podgląd panelu.

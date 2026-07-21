@@ -57,7 +57,13 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+        // Stany wiersza z sekcji 07: hover zagęszcza obrys dolny (bez podmiany
+        // tła), wiersz aktywny dostaje znacznik signal-strong przy lewej
+        // krawędzi (w dark rolę sygnału pełni accent-foreground), focus =
+        // obrys na limonce jak w każdej kontrolce. Znacznik siedzi na
+        // PIERWSZEJ komórce, bo w border-collapse Chrome nie maluje lewych
+        // obrysów samego <tr> (computed 0px mimo klasy).
+        "border-b outline-none transition-[border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:border-b-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring [&>td:first-child]:border-l-2 [&>td:first-child]:border-l-transparent data-[state=selected]:[&>td:first-child]:border-l-signal-strong dark:data-[state=selected]:[&>td:first-child]:border-l-accent-foreground",
         className,
       )}
       {...props}
