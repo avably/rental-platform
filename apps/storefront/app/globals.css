@@ -2,9 +2,8 @@
 @import "@avably/ui/styles.css";
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-mono-source), ui-monospace, "SFMono-Regular", Consolas, monospace;
-  --font-serif: var(--font-serif-source), Georgia, "Times New Roman", serif;
+  /* Typografia dziedziczona ze wspólnego stacka @avably/ui (Geist Sans przez
+     --font-geist-sans) — delta P1a usunęła nadpisania sans/mono/serif. */
   --color-landing-paper: var(--landing-paper);
   --color-landing-warm: var(--landing-warm);
   --color-landing-ink: var(--landing-ink);
@@ -26,7 +25,6 @@
 }
 
 .landing-display {
-  font-family: var(--font-serif);
   font-size: clamp(3.25rem, 7vw, 5.25rem);
   font-weight: 400;
   line-height: 0.98;
@@ -34,7 +32,6 @@
 }
 
 .landing-heading {
-  font-family: var(--font-serif);
   font-size: clamp(2.25rem, 4vw, 3.25rem);
   font-weight: 400;
   line-height: 1.06;
@@ -42,7 +39,6 @@
 }
 
 .landing-statement {
-  font-family: var(--font-serif);
   font-size: clamp(2.35rem, 5.2vw, 4.75rem);
   font-weight: 400;
   line-height: 1.08;

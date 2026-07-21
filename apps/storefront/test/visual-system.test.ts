@@ -7,7 +7,9 @@ const root = path.resolve(__dirname, "..");
 const read = (relative: string) => readFileSync(path.join(root, relative), "utf8");
 
 describe("landing visual system", () => {
-  it("keeps the replaceable serif in one module", () => {
+  // ADR-053 (delta P1a): sklep w całości w Geist Sans — sekcja 08 artefaktu
+  // Fazy 2 zakazuje w produkcie innych rodzin (sans, mono, serif włącznie).
+  it("ładuje wyłącznie Geist Sans przez jeden moduł fontów", () => {
     const fonts = read("app/fonts.ts");
     const layout = read("app/[locale]/layout.tsx");
     const components = [
@@ -15,10 +17,9 @@ describe("landing visual system", () => {
       read("components/landing-wireframes.tsx"),
     ].join("\n");
 
-    expect(fonts).toContain("Lora");
-    expect(fonts).toContain('variable: "--font-inter"');
-    expect(fonts).toContain('variable: "--font-serif-source"');
-    expect(fonts).toContain('subsets: ["latin-ext"]');
+    expect(fonts).toContain('variable: "--font-geist-sans"');
+    expect(fonts).toContain('subsets: ["latin", "latin-ext"]');
+    expect(fonts).not.toMatch(/Geist_Mono|Lora|Safiro|\bInter\b/);
     expect(layout).toContain("fontVariables");
     expect(components).not.toMatch(/Lora|Source Serif|Fraunces/);
   });
@@ -28,7 +29,7 @@ describe("landing visual system", () => {
     const form = read("components/waitlist-form.tsx");
     const themeToggle = read("components/theme-toggle.tsx");
     const languageSwitcher = read("components/language-switcher.tsx");
-    expect(css).toContain("--font-serif: var(--font-serif-source)");
+    expect(css).not.toMatch(/--font-(?:sans|mono|serif):/);
     expect(css).toContain(".landing-display");
     expect(css).toContain(".landing-heading");
     expect(css).toContain(".landing-statement");

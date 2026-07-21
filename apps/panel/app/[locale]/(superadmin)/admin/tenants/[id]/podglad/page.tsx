@@ -69,7 +69,7 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
         <h2 className="text-sm font-semibold">Członkowie ({members?.length ?? 0})</h2>
         <ul className="mt-2 flex flex-col gap-1 text-sm text-gray-700">
           {((members ?? []) as Member[]).map((member) => (
-            <li key={member.user_id} className="font-mono text-xs">
+            <li key={member.user_id} className="tabular-nums text-xs">
               {member.user_id} — {member.role}
             </li>
           ))}

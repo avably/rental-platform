@@ -182,7 +182,7 @@ export function CheckoutForm({
         <h2 className="text-2xl font-semibold tracking-tight">{copy.confirmation.title}</h2>
         <p className="mt-2 text-lg">
           {copy.confirmation.orderNumber}:{" "}
-          <strong className="font-mono">{order.orderNumber}</strong>
+          <strong className="tabular-nums">{order.orderNumber}</strong>
         </p>
         <p className="mt-3 leading-7 text-muted-foreground">{copy.confirmation.paymentNote}</p>
 

@@ -42,7 +42,7 @@ export function TotpEnrollForm({ next }: { next?: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-gray-600">
-        {t("scanHint")} <code className="break-all">{enrollState.secret}</code>
+        {t("scanHint")} <code className="break-all font-sans">{enrollState.secret}</code>
       </p>
       {enrollState.qrCode ? (
         // eslint-disable-next-line @next/next/no-img-element -- Supabase zwraca gotowy data:image/svg+xml, bez optymalizacji next/image.
