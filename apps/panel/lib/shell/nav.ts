@@ -95,6 +95,12 @@ export const PANEL_NAV_ITEMS: readonly PanelNavItem[] = PANEL_NAV_GROUPS.flatMap
   (group) => group.items,
 );
 
+const PANEL_ROUTE_TITLE_OVERRIDES = [
+  { path: "/historia-emaili", labelKey: "emailHistory" },
+  { path: "/organizacja/nowa", labelKey: "newOrganization" },
+  { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
+] as const;
+
 /**
  * Pozycja, która ma dostać `aria-current="page"`.
  *
@@ -114,4 +120,14 @@ export function matchNavItem(pathname: string): PanelNavItem | undefined {
     if (!best || item.href.length > best.href.length) best = item;
   }
   return best;
+}
+
+/** Klucz jedynego H1 shella, także dla tras spoza głównej nawigacji. */
+export function panelTitleKey(pathname: string): string {
+  if (pathname === "/") return PANEL_NAV_PLACEHOLDER.labelKey;
+  const override = PANEL_ROUTE_TITLE_OVERRIDES.find(
+    ({ path }) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+  if (override) return override.labelKey;
+  return matchNavItem(pathname)?.labelKey ?? "panelNavigation";
 }

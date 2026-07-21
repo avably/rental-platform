@@ -40,10 +40,10 @@ export default async function Home() {
   const tNav = await getTranslations("nav");
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+    <div>
+      <h2 className="text-2xl font-semibold tracking-[-0.02em]">
         {t("placeholderTitle")}
-      </h1>
+      </h2>
       <p className="text-muted-foreground mt-3 text-sm">
         {t("placeholderBody")}
       </p>

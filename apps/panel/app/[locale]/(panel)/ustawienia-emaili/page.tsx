@@ -43,9 +43,9 @@ export default async function EmailSettingsPage() {
   const senderConfigured = defaults !== null && defaults.name.length > 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
+        <h2 className="text-xl font-semibold">{t("title")}</h2>
         <Link className="text-sm underline" href="/">
           {t("backLink")} ↩
         </Link>

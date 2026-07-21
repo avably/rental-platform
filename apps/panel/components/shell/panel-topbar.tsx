@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { usePathname } from "@/i18n/navigation";
 import { logoutAction } from "@/lib/actions/logout";
-import { PANEL_NAV_PLACEHOLDER, matchNavItem } from "@/lib/shell/nav";
+import { panelTitleKey } from "@/lib/shell/nav";
 
 import { BrandSymbol } from "./brand-mark";
 import { LocaleSwitcher } from "./locale-switcher";
@@ -31,25 +31,15 @@ export function PanelTopbar({ userEmail }: { userEmail: string }) {
   const tCommon = useTranslations("common");
   const pathname = usePathname();
 
-  const active = matchNavItem(pathname);
-  // `/` to ekran dashboardu (na razie placeholder) — stąd etykieta z pozycji
-  // zapowiadanej. Trasy spoza nawigacji (np. historia e-maili) niosą własny
-  // nagłówek w treści, więc belka zostaje przy nazwie produktu.
-  const sectionKey = active
-    ? active.labelKey
-    : pathname === "/"
-      ? PANEL_NAV_PLACEHOLDER.labelKey
-      : null;
-
   return (
     <header className="border-border bg-background flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
       <MobileNav />
       {/* Sygnet wg reguł sekcji 02: minimum 24 px. Na szerokim ekranie znak
           niesie już sidebar, więc powtarzanie go w belce byłoby szumem. */}
       <BrandSymbol className="size-6 shrink-0 md:hidden" />
-      <p className="truncate text-sm font-semibold">
-        {sectionKey ? t(sectionKey) : t("panelNavigation")}
-      </p>
+      <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
+        {t(panelTitleKey(pathname))}
+      </h1>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <span className="text-muted-foreground hidden truncate text-sm lg:inline">
           {userEmail}

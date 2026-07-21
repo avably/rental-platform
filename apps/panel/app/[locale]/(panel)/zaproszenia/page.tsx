@@ -28,7 +28,7 @@ export default async function InvitationsPage() {
   const tCommon = await getTranslations("common");
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between text-sm">
         <span>{ctx.user.email}</span>
         <form action={logoutAction}>
@@ -37,7 +37,7 @@ export default async function InvitationsPage() {
           </button>
         </form>
       </header>
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+      <h2 className="text-xl font-semibold">{t("title")}</h2>
       <InviteMemberForm emailUnavailableReason={emailAvailability().reason} />
       <section>
         <h2 className="mb-2 text-sm font-semibold">{t("sentHeading")}</h2>

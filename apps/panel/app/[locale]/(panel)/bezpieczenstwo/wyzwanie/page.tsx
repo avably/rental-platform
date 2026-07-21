@@ -35,8 +35,8 @@ export default async function MfaChallengePage({
   const t = await getTranslations("mfaChallenge");
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col justify-center gap-4">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <div className="flex flex-col justify-center gap-4">
+      <h2 className="text-xl font-semibold">{t("title")}</h2>
       <p className="text-sm text-muted-foreground">{t("body")}</p>
       <TotpChallengeForm next={safeNextPath(next) ?? undefined} />
     </div>

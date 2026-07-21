@@ -32,7 +32,7 @@ export function ScreenHeader({
         </Link>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{title}</h1>
+        <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{title}</h2>
         {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
       </div>
     </header>
