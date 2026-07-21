@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { addUnitAction, updateUnitAction } from "./actions";
@@ -34,20 +34,23 @@ export default async function ProductUnitsPage({
   const t = await getTranslations("catalog.units");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href={`/katalog/${product.id}`}>
-        {t("backToProduct", { name: product.name })}
-      </Link>
-      <h1 className="text-xl font-semibold">{t("title", { name: product.name })}</h1>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{
+          href: `/katalog/${product.id}`,
+          label: t("backToProduct", { name: product.name }),
+        }}
+        title={t("title", { name: product.name })}
+      />
 
       <AddUnitForm action={addUnitAction.bind(null, product.id)} />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">
+        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
           {t("listHeading", { count: (units ?? []).length })}
         </h2>
         {(units ?? []).length === 0 ? (
-          <p className="text-sm text-gray-600">{t("empty")}</p>
+          <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : (
           (units ?? []).map((unit) => (
             <UnitRowForm
@@ -64,6 +67,6 @@ export default async function ProductUnitsPage({
           ))
         )}
       </section>
-    </main>
+    </div>
   );
 }

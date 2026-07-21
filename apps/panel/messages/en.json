@@ -6,7 +6,11 @@
   "common": {
     "email": "Email",
     "password": "Password",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "dateField": {
+      "placeholder": "Pick a date",
+      "rangePlaceholder": "Pick a range"
+    }
   },
   "home": {
     "title": "Panel",
@@ -161,7 +165,6 @@
       "title": "Product catalog",
       "newProduct": "New product",
       "locationsLink": "Pickup locations",
-      "empty": "No products yet — add the first one.",
       "colName": "Name",
       "colPricePerDay": "Price / day",
       "colDeposit": "Deposit",
@@ -171,7 +174,10 @@
       "activeYes": "Active",
       "activeNo": "Inactive",
       "unitsLink": "Units",
-      "tiersLink": "Pricing tiers"
+      "tiersLink": "Pricing tiers",
+      "rowActions": "Actions for {name}",
+      "actionEdit": "Edit product",
+      "imagesLink": "Photos"
     },
     "productForm": {
       "createTitle": "New product",
@@ -191,7 +197,6 @@
       "bufferAfter": "Service buffer after rental (days)",
       "active": "Product active",
       "save": "Save",
-      "saving": "Saving…",
       "saved": "Changes saved."
     },
     "units": {
@@ -201,15 +206,12 @@
       "listHeading": "Units ({count})",
       "empty": "No units yet — the product cannot be handed out until it has at least one.",
       "serial": "Serial number",
-      "unavailableFrom": "Unavailable from",
-      "unavailableTo": "Unavailable to",
+      "unavailableWindow": "Service window (unavailable from–to)",
       "reason": "Reason",
       "windowHint": "Service window needs BOTH dates (from and to) or none. Same date on both = one-day service.",
       "add": "Add unit",
-      "adding": "Adding…",
       "added": "Unit added.",
       "save": "Save",
-      "saving": "Saving…",
       "saved": "Changes saved.",
       "delete": "Delete",
       "deletedInfo": "Unit deleted."
@@ -221,13 +223,11 @@
       "file": "Image file",
       "fileHint": "Formats: JPEG, PNG, WebP, AVIF. Up to 5 MB.",
       "add": "Upload photo",
-      "adding": "Uploading…",
       "added": "Photo added.",
       "listHeading": "Photos ({count})",
       "empty": "No photos yet — add the first one to show this product in the store.",
       "sortOrder": "Order",
       "save": "Save",
-      "saving": "Saving…",
       "saved": "Changes saved.",
       "delete": "Delete",
       "deletedInfo": "Photo deleted.",
@@ -249,7 +249,6 @@
       "addRow": "Add tier",
       "removeRow": "Remove",
       "save": "Save tiers",
-      "saving": "Saving…",
       "saved": "Tiers saved.",
       "previewTitle": "Price preview",
       "previewIntro": "Live calculation for each rental length, using the same pricing engine that will price orders.",
@@ -283,8 +282,10 @@
       "city": "City",
       "active": "Location active",
       "save": "Save",
-      "saving": "Saving…",
       "saved": "Changes saved."
+    },
+    "emptyState": {
+      "title": "Empty warehouse. Add your first product."
     }
   },
   "orders": {
@@ -350,10 +351,6 @@
       "code": "404",
       "title": "This page left without a handover protocol.",
       "backToOrders": "Back to orders"
-    },
-    "dateField": {
-      "placeholder": "Pick a date",
-      "rangePlaceholder": "Pick a range"
     },
     "form": {
       "title": "New order",

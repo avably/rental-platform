@@ -19,7 +19,7 @@ export interface LocationFormValues {
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-sm text-red-600">
+    <p id={id} role="alert" className="text-destructive text-[13px] leading-[18px] font-medium">
       {message}
     </p>
   );
@@ -39,7 +39,7 @@ export function LocationForm({
     state.fieldErrors?.[field] ? `location-${field}-error` : undefined;
 
   return (
-    <form action={formAction} className="flex max-w-xl flex-col gap-4">
+    <form action={formAction} className="flex max-w-2xl flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="location-name">{t("name")}</Label>
         <Input
@@ -101,19 +101,19 @@ export function LocationForm({
       </div>
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-destructive text-sm">
           {state.formError}
         </p>
       ) : null}
       {state.success ? (
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="text-status-positive-fg text-sm">
           {t("saved")}
         </p>
       ) : null}
 
       <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? t("saving") : t("save")}
+        <Button type="submit" loading={pending} disabled={pending}>
+          {t("save")}
         </Button>
       </div>
     </form>

@@ -1,20 +1,12 @@
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
+import { Button } from "@avably/ui";
 import { getTranslations } from "next-intl/server";
 
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { toggleLocationAction } from "./actions";
-import { ToggleLocationButton } from "./toggle-button";
+import { LocationsTable, type LocationsTableRow } from "./locations-table";
 
 export default async function PickupLocationsPage() {
   const ctx = await requireMemberPage("/katalog/punkty-odbioru");
@@ -27,61 +19,36 @@ export default async function PickupLocationsPage() {
 
   const t = await getTranslations("catalog.locations");
 
-  const rows = locations ?? [];
+  const rows = (locations ?? []).map(
+    (location): LocationsTableRow => ({
+      id: location.id,
+      name: location.name,
+      address:
+        [location.address_street, location.address_zip, location.address_city]
+          .filter(Boolean)
+          .join(", ") || "\u2014",
+      active: location.active,
+      toggleAction: toggleLocationAction.bind(null, location.id, !location.active),
+    }),
+  );
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href="/katalog">
-        {t("backToCatalog")}
-      </Link>
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <Button asChild>
-          <Link href="/katalog/punkty-odbioru/nowy">{t("newLocation")}</Link>
-        </Button>
-      </header>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{ href: "/katalog", label: t("backToCatalog") }}
+        title={t("title")}
+        actions={
+          <Button asChild>
+            <Link href="/katalog/punkty-odbioru/nowy">{t("newLocation")}</Link>
+          </Button>
+        }
+      />
 
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-600">{t("empty")}</p>
+        <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("colName")}</TableHead>
-              <TableHead>{t("colAddress")}</TableHead>
-              <TableHead>{t("colActive")}</TableHead>
-              <TableHead>{t("colActions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((location) => (
-              <TableRow key={location.id}>
-                <TableCell className="font-medium">
-                  <Link className="underline" href={`/katalog/punkty-odbioru/${location.id}`}>
-                    {location.name}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  {[location.address_street, location.address_zip, location.address_city]
-                    .filter(Boolean)
-                    .join(", ") || "—"}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={location.active ? "default" : "outline"}>
-                    {location.active ? t("activeYes") : t("activeNo")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <ToggleLocationButton
-                    action={toggleLocationAction.bind(null, location.id, !location.active)}
-                    nextActive={!location.active}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <LocationsTable rows={rows} />
       )}
-    </main>
+    </div>
   );
 }

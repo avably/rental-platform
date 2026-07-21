@@ -82,7 +82,9 @@ describe("kontrakt aktywnej pozycji nawigacji", () => {
     // Kontrola po pustym zbiorze: bez tej podłogi obie asercje niżej byłyby
     // zielone dlatego, że parser/render nic nie znalazł.
     expect(activeRules).toHaveLength(2);
-    expect(activeRules.some((rule) => /\.dark/.test(artifact))).toBe(true);
+    // Obie powierzchnie, nie tylko jasna: wariant `.dark` musi istnieć, inaczej
+    // kontrakt pilnowałby połowy artefaktu.
+    expect(artifact).toContain('.dark .sidebar-nav [aria-current="page"]');
     expect(activeClasses.length).toBeGreaterThan(5);
     // Zakreślenie MUSI zostać — inaczej „brak krawędzi" spełniałby też
     // wariant, w którym aktywna pozycja przestała się w ogóle wyróżniać.

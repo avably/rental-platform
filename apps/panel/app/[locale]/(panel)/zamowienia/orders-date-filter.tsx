@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { DateRangeField } from "@/lib/orders/date-fields";
+import { DateRangeField } from "@/lib/fields/date-fields";
 
 /**
  * Zakres terminu w filtrach listy — stan mieszka tu, bo formularz filtrów

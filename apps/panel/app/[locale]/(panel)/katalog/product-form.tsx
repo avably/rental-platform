@@ -21,11 +21,37 @@ export interface ProductFormValues {
   active: boolean;
 }
 
+/**
+ * Formularz produktu wg sekcji 06 artefaktu Fazy 2 (ADR-058).
+ *
+ * Wzorzec przeniesiony z kreatora zamówień (ADR-057): ETYKIETA NAD POLEM,
+ * KONKRETNY komunikat błędu POD polem (nie zbiorcze „popraw formularz"),
+ * pole w stanie error z P2 przez `aria-invalid`, submit w `aria-busy`
+ * (`Button loading`) zamiast podmiany napisu na „Zapisuję…".
+ *
+ * Pola spoza mockupu (bufory serwisowe, mnożnik doby) idą DOKŁADNIE tym
+ * samym wzorcem — sekcja 06 pokazuje formę, nie listę dozwolonych pól.
+ */
+
+/**
+ * Błąd POD polem, w kolorze destructive i z rolą alertu. Pole obok dostaje
+ * `aria-invalid`, więc obrys pola i komunikat mówią to samo — sam kolor
+ * nigdy nie niesie informacji.
+ */
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-sm text-red-600">
+    <p id={id} role="alert" className="text-destructive text-[13px] leading-[18px] font-medium">
       {message}
+    </p>
+  );
+}
+
+/** Podpowiedź pod polem — ton drugorzędny, nigdy kolor statusu. */
+function FieldHint({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <p id={id} className="text-muted-foreground text-[13px] leading-[18px]">
+      {children}
     </p>
   );
 }
@@ -34,19 +60,28 @@ export function ProductForm({
   action,
   defaults,
   currencyCode,
+  initialState: initial = initialState,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   defaults: ProductFormValues;
   currencyCode: string;
+  /**
+   * Stan startowy formularza. W produkcie ZAWSZE pusty — prop istnieje po to,
+   * by kontrakt renderu (`catalog-screen-contract`) mógł obejrzeć formularz
+   * w stanie błędu. `useActionState` oddaje przy renderze serwerowym wyłącznie
+   * stan początkowy, więc bez tego szwu jedynym sposobem na dowód „błąd jest
+   * POD polem" byłoby podmienienie Reacta w teście.
+   */
+  initialState?: FormState;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useActionState(action, initial);
   const t = useTranslations("catalog.productForm");
 
   const errorId = (field: string) =>
     state.fieldErrors?.[field] ? `product-${field}-error` : undefined;
 
   return (
-    <form action={formAction} className="flex max-w-xl flex-col gap-4">
+    <form action={formAction} className="flex max-w-2xl flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="product-name">{t("name")}</Label>
         <Input
@@ -74,7 +109,7 @@ export function ProductForm({
         <FieldError id="product-description-error" message={state.fieldErrors?.description} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="product-base-price">
             {t("basePriceDay", { currency: currencyCode })}
@@ -84,15 +119,12 @@ export function ProductForm({
             name="basePriceDayGrosze"
             required
             inputMode="decimal"
+            className="tabular-nums"
             defaultValue={defaults.basePriceDay}
             aria-invalid={state.fieldErrors?.basePriceDayGrosze ? true : undefined}
-            aria-describedby={
-              errorId("basePriceDayGrosze") ?? "product-base-price-hint"
-            }
+            aria-describedby={errorId("basePriceDayGrosze") ?? "product-base-price-hint"}
           />
-          <p id="product-base-price-hint" className="text-xs text-gray-500">
-            {t("moneyHint")}
-          </p>
+          <FieldHint id="product-base-price-hint">{t("moneyHint")}</FieldHint>
           <FieldError
             id="product-basePriceDayGrosze-error"
             message={state.fieldErrors?.basePriceDayGrosze}
@@ -105,6 +137,7 @@ export function ProductForm({
             id="product-deposit"
             name="depositGrosze"
             inputMode="decimal"
+            className="tabular-nums"
             defaultValue={defaults.deposit}
             aria-invalid={state.fieldErrors?.depositGrosze ? true : undefined}
             aria-describedby={errorId("depositGrosze")}
@@ -120,20 +153,19 @@ export function ProductForm({
           name="autoIncrementMultiplier"
           required
           inputMode="decimal"
+          className="tabular-nums"
           defaultValue={defaults.autoIncrementMultiplier}
           aria-invalid={state.fieldErrors?.autoIncrementMultiplier ? true : undefined}
           aria-describedby={errorId("autoIncrementMultiplier") ?? "product-auto-increment-hint"}
         />
-        <p id="product-auto-increment-hint" className="text-xs text-gray-500">
-          {t("autoIncrementHint")}
-        </p>
+        <FieldHint id="product-auto-increment-hint">{t("autoIncrementHint")}</FieldHint>
         <FieldError
           id="product-autoIncrementMultiplier-error"
           message={state.fieldErrors?.autoIncrementMultiplier}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="product-buffer-before">{t("bufferBefore")}</Label>
           <Input
@@ -143,6 +175,7 @@ export function ProductForm({
             type="number"
             min={0}
             step={1}
+            className="tabular-nums"
             defaultValue={defaults.bufferBeforeDays}
             aria-invalid={state.fieldErrors?.bufferBeforeDays ? true : undefined}
             aria-describedby={errorId("bufferBeforeDays")}
@@ -162,6 +195,7 @@ export function ProductForm({
             type="number"
             min={0}
             step={1}
+            className="tabular-nums"
             defaultValue={defaults.bufferAfterDays}
             aria-invalid={state.fieldErrors?.bufferAfterDays ? true : undefined}
             aria-describedby={errorId("bufferAfterDays")}
@@ -179,19 +213,22 @@ export function ProductForm({
       </div>
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-destructive text-sm">
           {state.formError}
         </p>
       ) : null}
       {state.success ? (
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="text-status-positive-fg text-sm">
           {t("saved")}
         </p>
       ) : null}
 
       <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? t("saving") : t("save")}
+        {/* Stan zapisu niesie `aria-busy` + wielokropek z P2, a nie inny
+            napis — przycisk, który zmienia treść, gubi szerokość i miejsce
+            w drzewie dostępności (ta sama decyzja co w kreatorze P4). */}
+        <Button type="submit" loading={pending} disabled={pending}>
+          {t("save")}
         </Button>
       </div>
     </form>
