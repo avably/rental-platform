@@ -15,6 +15,7 @@
     "lint": "eslint ."
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -22,6 +23,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "jsdom": "^29",
+    "postcss": "^8.4.31",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "tailwindcss": "^4",

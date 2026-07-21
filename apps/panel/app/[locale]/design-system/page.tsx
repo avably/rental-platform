@@ -146,7 +146,7 @@ export default function DesignSystemGallery() {
                   className={`h-16 rounded-sm border ${token.className}`}
                   aria-hidden="true"
                 />
-                <code className="mt-2 block text-xs text-muted-foreground">
+                <code className="mt-2 block font-sans text-xs text-muted-foreground">
                   {token.name}
                 </code>
               </div>
@@ -170,11 +170,11 @@ export default function DesignSystemGallery() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-md border bg-popover p-5 shadow-md">
               <p className="font-medium">Nakładka średnia</p>
-              <code className="text-xs text-muted-foreground">shadow-md</code>
+              <code className="font-sans text-xs text-muted-foreground">shadow-md</code>
             </div>
             <div className="rounded-md border bg-popover p-5 shadow-lg">
               <p className="font-medium">Nakładka wysoka</p>
-              <code className="text-xs text-muted-foreground">shadow-lg</code>
+              <code className="font-sans text-xs text-muted-foreground">shadow-lg</code>
             </div>
           </div>
         </GallerySection>
@@ -184,7 +184,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="typography"
           title="Typografia"
-          description="Inter dla interfejsu oraz Geist Mono dla danych technicznych."
+          description="Geist Sans w całym panelu — mono zakazane, identyfikatory przez tabular-nums."
         >
           <Card>
             <CardContent className="space-y-4 pt-6">
@@ -197,7 +197,7 @@ export default function DesignSystemGallery() {
               <p className="text-sm text-muted-foreground">
                 Tekst pomocniczy zachowuje kontrast WCAG AA w obu motywach.
               </p>
-              <code className="block tabular-nums text-sm">REZ/2026/0714</code>
+              <code className="block font-sans tabular-nums text-sm">REZ/2026/0714</code>
             </CardContent>
           </Card>
         </GallerySection>
