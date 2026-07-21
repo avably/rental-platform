@@ -6,12 +6,14 @@ import { CONTRACT_LABELS } from "./labels";
 import { formatMoney } from "./money";
 import type { ContractPdfProps } from "./types";
 
-// Paleta portowana z lib/pdf/ContractTemplate.tsx (starkit-system).
-const GOLD = "#D4A843";
-const DARK = "#1e293b";
-const GRAY = "#64748b";
-const LIGHT_BG = "#f8fafc";
-const BORDER = "#e2e8f0";
+// Finalna paleta Avably — wartości z sekcji 01 artefaktu Fazy 2.
+const INK = "#0B1017";
+const MUTED = "#55616D";
+const CANVAS = "#F4F6F5";
+const BORDER = "#7E8994";
+const LIME = "#EAFFA4";
+const SIGNAL_STRONG = "#5F7500";
+const PAPER_WHITE = "#FFFFFF";
 
 const styles = StyleSheet.create({
   page: {
@@ -21,65 +23,67 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontFamily: "Roboto",
     lineHeight: 1.5,
-    color: DARK,
+    color: INK,
   },
   headerBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-    paddingBottom: 10,
-    borderBottom: `2 solid ${GOLD}`,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: INK,
+    borderRadius: 4,
   },
-  title: { fontSize: 14, fontWeight: 700, color: DARK, letterSpacing: 0.5 },
-  headerMeta: { fontSize: 8, color: GRAY, marginTop: 2 },
+  title: { fontSize: 14, fontWeight: 700, color: PAPER_WHITE, letterSpacing: 0.5 },
+  headerMeta: { fontSize: 8, color: PAPER_WHITE, marginTop: 2 },
   headerRight: { alignItems: "flex-end" },
   orderBadge: {
-    backgroundColor: GOLD,
+    backgroundColor: LIME,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 3,
     marginBottom: 3,
   },
-  orderBadgeText: { fontSize: 9, fontWeight: 700, color: "#ffffff", letterSpacing: 0.3 },
+  orderBadgeText: { fontSize: 9, fontWeight: 700, color: INK, letterSpacing: 0.3 },
   section: { marginBottom: 12 },
   sectionTitle: {
     fontSize: 10,
     fontWeight: 700,
     marginBottom: 6,
-    color: DARK,
+    color: INK,
     paddingBottom: 3,
     borderBottom: `1 solid ${BORDER}`,
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   partiesRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
-  partyBox: { flex: 1, backgroundColor: LIGHT_BG, borderRadius: 4, padding: 8 },
+  partyBox: { flex: 1, backgroundColor: CANVAS, borderRadius: 4, padding: 8 },
   partyLabel: {
     fontSize: 7.5,
     fontWeight: 700,
-    color: GOLD,
+    color: SIGNAL_STRONG,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  tableContainer: { backgroundColor: LIGHT_BG, borderRadius: 4, padding: 8, marginBottom: 4 },
+  tableContainer: { backgroundColor: CANVAS, borderRadius: 4, padding: 8, marginBottom: 4 },
   row: { flexDirection: "row", marginBottom: 3 },
-  label: { width: "38%", color: GRAY, fontSize: 8.5 },
+  label: { width: "38%", color: MUTED, fontSize: 8.5 },
   value: { width: "62%", fontWeight: 700, fontSize: 9 },
   itemRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
   itemName: { width: "35%", fontSize: 8.5, fontWeight: 700 },
-  itemSerial: { width: "27%", fontSize: 8, color: GRAY },
+  itemSerial: { width: "27%", fontSize: 8, color: MUTED },
   itemRental: { width: "19%", fontSize: 8.5, fontWeight: 700, textAlign: "right" },
-  itemDeposit: { width: "19%", fontSize: 7.5, color: GRAY, textAlign: "right" },
+  itemDeposit: { width: "19%", fontSize: 7.5, color: MUTED, textAlign: "right" },
   chargeRow: { flexDirection: "row", marginBottom: 3 },
-  chargeLabel: { width: "60%", color: GRAY, fontSize: 9 },
+  chargeLabel: { width: "60%", color: MUTED, fontSize: 9 },
   chargeValue: { width: "40%", fontWeight: 700, fontSize: 9.5, textAlign: "right" },
   signaturesRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 24, paddingTop: 12 },
   signatureBox: { width: "40%", alignItems: "center" },
-  signatureLine: { borderBottom: `1 solid ${DARK}`, width: "100%", marginBottom: 4 },
-  signatureName: { fontSize: 9, color: DARK, textAlign: "center", marginTop: 2 },
-  signatureLabel: { fontSize: 7.5, color: GRAY, textAlign: "center" },
+  signatureLine: { borderBottom: `1 solid ${INK}`, width: "100%", marginBottom: 4 },
+  signatureName: { fontSize: 9, color: INK, textAlign: "center", marginTop: 2 },
+  signatureLabel: { fontSize: 7.5, color: MUTED, textAlign: "center" },
   legalPage: {
     paddingTop: 35,
     paddingBottom: 55,
@@ -87,7 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: "Roboto",
     lineHeight: 1.5,
-    color: DARK,
+    color: INK,
   },
   footer: {
     position: "absolute",
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  footerText: { fontSize: 7, color: GRAY },
+  footerText: { fontSize: 7, color: MUTED },
 });
 
 function LabeledRow({ label, value }: { label: string; value: string }): React.ReactElement {
@@ -189,7 +193,7 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
               ))}
             </View>
           ) : (
-            <Text style={{ fontSize: 8.5, color: GRAY }}>{t.noItems}</Text>
+            <Text style={{ fontSize: 8.5, color: MUTED }}>{t.noItems}</Text>
           )}
         </View>
 
