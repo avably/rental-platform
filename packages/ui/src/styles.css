@@ -16,9 +16,12 @@
 
 @theme inline {
   /* Panel definiuje --font-geist-sans, storefront --font-inter — jeden stack,
-     dwa produkty. Geist Mono jest zakazany w panelu, stąd brak mapowania mono. */
+     dwa produkty. Fallbacki MUSZĄ być zagnieżdżone w var(): niezdefiniowana
+     zmienna wymieniona po przecinku unieważnia całą deklarację font-family
+     (invalid at computed-value time) i font spada na systemowy. Geist Mono
+     jest zakazany w panelu, stąd brak mapowania mono. */
   --font-sans:
-    var(--font-geist-sans), var(--font-inter), "Inter", ui-sans-serif,
+    var(--font-geist-sans, var(--font-inter, "Inter")), ui-sans-serif,
     system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
