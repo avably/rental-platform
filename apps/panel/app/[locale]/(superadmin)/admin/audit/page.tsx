@@ -118,10 +118,10 @@ export default async function AuditPage({
                 <td className="px-4 py-3 whitespace-nowrap text-gray-600">
                   {formatDate(entry.created_at)}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">{entry.action}</td>
-                <td className="px-4 py-3 font-mono text-xs">{entry.tenant_id ?? "—"}</td>
-                <td className="px-4 py-3 font-mono text-xs">{entry.actor_user_id ?? "—"}</td>
-                <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                <td className="px-4 py-3 text-xs">{entry.action}</td>
+                <td className="px-4 py-3 tabular-nums text-xs">{entry.tenant_id ?? "—"}</td>
+                <td className="px-4 py-3 tabular-nums text-xs">{entry.actor_user_id ?? "—"}</td>
+                <td className="px-4 py-3 text-xs text-gray-600">
                   {entry.details ? JSON.stringify(entry.details) : "—"}
                 </td>
               </tr>

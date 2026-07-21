@@ -48,7 +48,7 @@ export default async function TenantsPage() {
           <tbody>
             {tenants.map((tenant) => (
               <tr key={tenant.id} className="border-b border-gray-100 last:border-b-0">
-                <td className="px-4 py-3 font-mono">
+                <td className="px-4 py-3">
                   <Link className="text-blue-700 hover:underline" href={`/admin/tenants/${tenant.id}`}>
                     {tenant.slug}
                   </Link>

@@ -44,7 +44,7 @@ export default async function TenantDetailPage({
           ← Organizacje
         </Link>
         <h1 className="mt-2 text-xl font-semibold">{tenant.name}</h1>
-        <p className="font-mono text-sm text-gray-600">{tenant.slug}</p>
+        <p className="text-sm text-gray-600">{tenant.slug}</p>
       </div>
 
       {blad && (
@@ -68,7 +68,7 @@ export default async function TenantDetailPage({
         </div>
         <div>
           <dt className="text-xs uppercase text-gray-500">Identyfikator</dt>
-          <dd className="font-mono text-xs break-all">{tenant.id}</dd>
+          <dd className="tabular-nums text-xs break-all">{tenant.id}</dd>
         </div>
       </dl>
 

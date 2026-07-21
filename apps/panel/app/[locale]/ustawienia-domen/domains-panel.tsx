@@ -114,9 +114,9 @@ function CnameInstruction({ host, target }: { host: string; target: string }) {
         <dt className="text-gray-500">{t("dnsType")}</dt>
         <dd>CNAME</dd>
         <dt className="text-gray-500">{t("dnsName")}</dt>
-        <dd className="break-all font-mono">{host}</dd>
+        <dd className="break-all">{host}</dd>
         <dt className="text-gray-500">{t("dnsValue")}</dt>
-        <dd className="break-all font-mono">{target}</dd>
+        <dd className="break-all">{target}</dd>
       </dl>
       <p className="text-gray-500">{t("dnsPropagation")}</p>
     </div>
@@ -198,7 +198,7 @@ function DomainCard({
   return (
     <li className="flex flex-col gap-2 rounded border p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="break-all font-mono">{domain.domain}</span>
+        <span className="break-all">{domain.domain}</span>
         <span className={live ? "text-green-700" : "text-amber-700"}>{statusLabel}</span>
       </div>
 

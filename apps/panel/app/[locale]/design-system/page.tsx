@@ -197,7 +197,7 @@ export default function DesignSystemGallery() {
               <p className="text-sm text-muted-foreground">
                 Tekst pomocniczy zachowuje kontrast WCAG AA w obu motywach.
               </p>
-              <code className="block font-mono text-sm">REZ/2026/0714</code>
+              <code className="block tabular-nums text-sm">REZ/2026/0714</code>
             </CardContent>
           </Card>
         </GallerySection>
@@ -315,7 +315,7 @@ export default function DesignSystemGallery() {
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-mono">REZ/0714/01</TableCell>
+                    <TableCell className="tabular-nums">REZ/0714/01</TableCell>
                     <TableCell>Anna Kowalska</TableCell>
                     <TableCell>
                       <Badge variant="secondary">Potwierdzona</Badge>
@@ -323,7 +323,7 @@ export default function DesignSystemGallery() {
                     <TableCell className="text-right">1 249,00 zł</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono">REZ/0714/02</TableCell>
+                    <TableCell className="tabular-nums">REZ/0714/02</TableCell>
                     <TableCell>Jan Nowak</TableCell>
                     <TableCell>
                       <Badge variant="outline">Oczekuje</Badge>

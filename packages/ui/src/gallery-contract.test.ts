@@ -26,9 +26,14 @@ describe("integracja design systemu", () => {
     expect(source).not.toContain('id={`section-${title}`}');
   });
 
-  it.each(["panel", "storefront"])(
-    "%s importuje wspólny arkusz i ładuje Inter",
-    (application) => {
+  // ADR-053: panel jedzie w całości na Geist Sans (zero Geist Mono),
+  // storefront zostaje na Interze — jeden stack --font-sans, dwie zmienne.
+  it.each([
+    ["panel", "Geist", 'variable: "--font-geist-sans"'],
+    ["storefront", "Inter", 'variable: "--font-inter"'],
+  ])(
+    "%s importuje wspólny arkusz i ładuje %s",
+    (application, family, variableDeclaration) => {
       const globals = readFileSync(
         resolve(repositoryRoot, `apps/${application}/app/globals.css`),
         "utf8",
@@ -39,8 +44,17 @@ describe("integracja design systemu", () => {
       );
 
       expect(globals).toContain('@import "@avably/ui/styles.css"');
-      expect(layout).toContain("Inter");
-      expect(layout).toContain('variable: "--font-inter"');
+      expect(layout).toContain(family);
+      expect(layout).toContain(variableDeclaration);
     },
   );
+
+  it("panel nie deklaruje Geist Mono ani Safiro", () => {
+    const layout = readFileSync(
+      resolve(repositoryRoot, "apps/panel/app/[locale]/layout.tsx"),
+      "utf8",
+    );
+    expect(layout).not.toContain("Geist_Mono");
+    expect(layout).not.toContain("Safiro");
+  });
 });

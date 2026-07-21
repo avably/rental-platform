@@ -72,21 +72,39 @@ it("zawiera kanoniczne motywy bez starszego wyjątku backoffice", () => {
   expect(css).toContain(":root {");
   expect(css).toContain(".dark {");
   expect(css).not.toContain("office-light");
-  expect(css).toContain("--background: oklch(1 0 0)");
-  expect(css).toContain("--background: oklch(0.13 0.028 261.692)");
+  expect(css).toContain("--background: oklch(0.97135 0.00250 165.076)");
+  expect(css).toContain("--background: oklch(0.17132 0.01671 256.840)");
 });
 
-it("utrzymuje zatwierdzony radius i typografię", () => {
-  expect(css).toContain("--radius: 0.625rem");
-  expect(css).toContain("--font-sans: var(--font-inter)");
-  expect(css).toMatch(/--font-mono:\s+var\(--font-geist-mono\)/);
+it("utrzymuje promienie Fazy 2 jawnymi wartościami, bez calc", () => {
+  expect(css).toContain("--radius: 1rem");
+  expect(css).toContain("--radius-sm: 0.625rem");
+  expect(css).toContain("--radius-md: 0.75rem");
+  expect(css).toContain("--radius-lg: 1rem");
+  expect(css).toContain("--radius-xl: 1.25rem");
+  expect(css).not.toContain("calc(var(--radius)");
 });
 
-it("rozdziela płaskie powierzchnie od nakładek", () => {
+it("panel dostaje Geist Sans, storefront zostaje na Interze, mono zakazane", () => {
+  expect(css).toMatch(
+    /--font-sans:\s+var\(--font-geist-sans\),\s+var\(--font-inter\),\s+"Inter"/,
+  );
+  expect(css).not.toContain("--font-mono");
+  expect(css).not.toContain("--font-geist-mono");
+});
+
+it("rozdziela płaskie powierzchnie od nakładek — zero cieni", () => {
   expect(css).toContain("--shadow-xs: none");
   expect(css).toContain("--shadow-sm: none");
-  expect(css).toMatch(/--shadow-md:\s+0/);
-  expect(css).toMatch(/--shadow-lg:\s+0/);
+  expect(css).toContain("--shadow-md: none");
+  expect(css).toContain("--shadow-lg: none");
+});
+
+it("wystawia signal-strong i tokeny motion dla P2+", () => {
+  expect(css).toContain("--color-signal-strong: var(--signal-strong)");
+  expect(css).toContain("--signal-strong: oklch(0.52561 0.12715 121.752)");
+  expect(css).toContain("--motion-fast: 160ms");
+  expect(css).toContain("--motion-ambient: 16000ms");
 });
 
 it("definiuje dostępny foreground dla akcji destrukcyjnych i redukcję ruchu", () => {
