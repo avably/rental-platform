@@ -103,4 +103,12 @@ describe("kontrakt pól daty — wszystkie ekrany tenanta", () => {
       "unit-forms.tsx",
     ]);
   });
+
+  it("zakres pokazuje jeden miesiąc na mobile i dwa od md", () => {
+    const fields = sources.find((file) => file.path.endsWith("lib/fields/date-fields.tsx"));
+    expect(fields).toBeDefined();
+    expect(fields!.code).toContain('matchMedia("(min-width: 768px)")');
+    expect(fields!.code).toMatch(/numberOfMonths=\{\w+\s*\?\s*2\s*:\s*1\}/);
+    expect(fields!.code).not.toContain("numberOfMonths={2}");
+  });
 });
