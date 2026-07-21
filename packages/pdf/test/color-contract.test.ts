@@ -67,6 +67,21 @@ describe("kontrakt kolorów umowy PDF (sekcja 01 artefaktu → src)", () => {
   });
 
   it("utrwala nośniki limonki i role akcentów dokumentu", () => {
+    const semanticColors = {
+      INK: "#0B1017",
+      MUTED: "#55616D",
+      CANVAS: "#F4F6F5",
+      BORDER: "#7E8994",
+      LIME: "#EAFFA4",
+      SIGNAL_STRONG: "#5F7500",
+      PAPER_WHITE: "#FFFFFF",
+    } as const;
+    for (const [name, hex] of Object.entries(semanticColors)) {
+      expect(templateSource, `${name} musi wskazywać dokładny kolor roli`).toContain(
+        `const ${name} = "${hex}";`,
+      );
+    }
+
     expect(templateSource).toMatch(/headerBar:\s*\{[\s\S]*?backgroundColor:\s*INK/);
     expect(templateSource).toMatch(/title:\s*\{[^}]*color:\s*PAPER_WHITE/);
     expect(templateSource).toMatch(/headerMeta:\s*\{[^}]*color:\s*PAPER_WHITE/);
