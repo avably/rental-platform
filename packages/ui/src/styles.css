@@ -56,6 +56,18 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-signal-strong: var(--signal-strong);
+  --color-status-neutral-bg: var(--status-neutral-bg);
+  --color-status-neutral-fg: var(--status-neutral-fg);
+  --color-status-neutral-border: var(--status-neutral-border);
+  --color-status-attention-bg: var(--status-attention-bg);
+  --color-status-attention-fg: var(--status-attention-fg);
+  --color-status-attention-border: var(--status-attention-border);
+  --color-status-positive-bg: var(--status-positive-bg);
+  --color-status-positive-fg: var(--status-positive-fg);
+  --color-status-positive-border: var(--status-positive-border);
+  --color-status-problem-bg: var(--status-problem-bg);
+  --color-status-problem-fg: var(--status-problem-fg);
+  --color-status-problem-border: var(--status-problem-border);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
@@ -122,6 +134,21 @@
   --motion-ambient: 16000ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Tokeny statusów (ADR-055): kopia klas .chip-* artefaktu Fazy 2, hex jak
+     w źródle. Rozszerzenie kontraktu spoza handoffu (legalne wg ADR-053 D2);
+     zgodności wartości pilnuje status-contract.test.ts. */
+  --status-neutral-bg: #EDF0EE;
+  --status-neutral-fg: #3F4A54;
+  --status-neutral-border: #3F4A54;
+  --status-attention-bg: #FFF3D6;
+  --status-attention-fg: #8A5A00;
+  --status-attention-border: #8A5A00;
+  --status-positive-bg: #E6F6EC;
+  --status-positive-fg: #17643A;
+  --status-positive-border: #17643A;
+  --status-problem-bg: #FCE9E6;
+  --status-problem-fg: #A93226;
+  --status-problem-border: #A93226;
 }
 
 .dark {
@@ -158,6 +185,18 @@
   --sidebar-accent-foreground: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
   --sidebar-border: oklch(0.62476 0.02101 248.164); /* #7E8994 */
   --sidebar-ring: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
+  --status-neutral-bg: #202A33;
+  --status-neutral-fg: #D5DADD;
+  --status-neutral-border: #7E8994;
+  --status-attention-bg: #3A2C10;
+  --status-attention-fg: #FFD37A;
+  --status-attention-border: #D79A2B;
+  --status-positive-bg: #133323;
+  --status-positive-fg: #8DE0B0;
+  --status-positive-border: #4FAE77;
+  --status-problem-bg: #3A1E1B;
+  --status-problem-fg: #FFAEA4;
+  --status-problem-border: #E06A5E;
 }
 
 @keyframes accordion-down {

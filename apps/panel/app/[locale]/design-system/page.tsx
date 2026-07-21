@@ -27,6 +27,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  FilterChip,
   Input,
   Label,
   Popover,
@@ -44,6 +45,9 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  Skeleton,
+  StatusBadge,
+  statusSemantics,
   Table,
   TableBody,
   TableCaption,
@@ -58,6 +62,17 @@ import {
   TooltipTrigger,
 } from "@avably/ui";
 import { useState, type ReactNode } from "react";
+
+// Etykiety PL statusów zamówienia jak w sekcji 04 artefaktu — sam rodzaj
+// semantyczny pochodzi WYŁĄCZNIE z mapy statusSemantics (jedno źródło prawdy).
+const orderStatusLabels: Record<keyof typeof statusSemantics.order, string> = {
+  pending: "Oczekuje",
+  reserved: "Zarezerwowane",
+  ready_for_pickup: "Do odbioru",
+  picked_up: "Wydane",
+  returned: "Zwrócone",
+  cancelled: "Anulowane",
+};
 
 const colorTokens = [
   { name: "background", className: "bg-background" },
@@ -168,13 +183,18 @@ export default function DesignSystemGallery() {
             ))}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-md border bg-popover p-5 shadow-md">
-              <p className="font-medium">Nakładka średnia</p>
-              <code className="font-sans text-xs text-muted-foreground">shadow-md</code>
+            <div className="rounded-md border bg-popover p-5">
+              <p className="font-medium">Nakładka</p>
+              <p className="text-xs text-muted-foreground">
+                Rozdział powierzchni robi obrys, nie cień — elewacji w systemie
+                nie ma.
+              </p>
             </div>
-            <div className="rounded-md border bg-popover p-5 shadow-lg">
-              <p className="font-medium">Nakładka wysoka</p>
-              <code className="font-sans text-xs text-muted-foreground">shadow-lg</code>
+            <div className="rounded-md border bg-card p-5">
+              <p className="font-medium">Karta</p>
+              <p className="text-xs text-muted-foreground">
+                Płaska powierzchnia na canvas, obrys w kolorze border.
+              </p>
             </div>
           </div>
         </GallerySection>
@@ -205,7 +225,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="buttons-badges"
           title="Button i Badge"
-          description="Wszystkie warianty, rozmiary oraz stany nieaktywne."
+          description="Warianty i rozmiary. Hover podkreśla, focus obrysowuje na limonce, active dociska o 1 px."
         >
           <div className="flex flex-wrap items-center gap-3">
             <Button>Podstawowy</Button>
@@ -229,6 +249,109 @@ export default function DesignSystemGallery() {
             <Badge variant="secondary">Szkic</Badge>
             <Badge variant="outline">Oczekuje</Badge>
             <Badge variant="destructive">Anulowana</Badge>
+          </div>
+        </GallerySection>
+
+        <GallerySection
+          id="states"
+          title="Stany komponentów"
+          description="Sekcja 07 artefaktu: disabled kreskuje obrys, loading dokłada wielokropek i cursor progress, filtr wciśnięty przechodzi na limonkę z nośnikiem ink, wiersz aktywny dostaje znacznik signal-strong. Hover, focus i active wypróbujesz interakcją."
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button>Zapisz</Button>
+            <Button disabled>Zapisz</Button>
+            <Button loading>Zapisz</Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary">Anuluj</Button>
+            <Button variant="secondary" disabled>
+              Anuluj
+            </Button>
+            <Button variant="secondary" loading>
+              Anuluj
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="destructive">Usuń trwale</Button>
+            <Button variant="destructive" disabled>
+              Usuń trwale
+            </Button>
+            <Button variant="destructive" loading>
+              Usuń trwale
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterChip pressed={false}>Filtr</FilterChip>
+            <FilterChip pressed>Filtr aktywny</FilterChip>
+            <FilterChip pressed={false} disabled>
+              Filtr zablokowany
+            </FilterChip>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="states-error">Nazwa produktu</Label>
+              <Input id="states-error" defaultValue="Na" aria-invalid />
+              <p className="text-xs text-destructive">Zbyt krótka nazwa.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="states-valid">Nazwa produktu</Label>
+              <Input id="states-valid" defaultValue="✓ Nagrzewnica 20 kW" />
+              <p className="text-xs text-muted-foreground">
+                Pole poprawne zostaje przy obrysie border — potwierdza znak, nie
+                kolor.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-md border bg-card p-5">
+            <p className="text-sm font-medium">Wzorzec loading — skeleton</p>
+            <div className="grid grid-cols-6 items-center gap-3">
+              <Skeleton />
+              <Skeleton />
+              <Skeleton className="col-span-2" />
+              <Skeleton />
+              <Skeleton />
+            </div>
+            <Separator />
+            <div className="grid grid-cols-6 items-center gap-3">
+              <Skeleton />
+              <Skeleton />
+              <Skeleton className="col-span-2" />
+              <Skeleton />
+              <Skeleton />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Statyczny z założenia — poza rail LP i reklamą nie ma
+              nieskończonych animacji.
+            </p>
+          </div>
+        </GallerySection>
+
+        <GallerySection
+          id="status-badges"
+          title="Statusy domenowe"
+          description="Cztery rodzaje semantyczne z artefaktu; status zawsze niesie tekst konkretnej wartości. Mapowanie osi domenowych na rodzaje pochodzi z eksportowanej stałej statusSemantics."
+        >
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge tone="neutral">Zarezerwowane</StatusBadge>
+            <StatusBadge tone="attention">Nieopłacone</StatusBadge>
+            <StatusBadge tone="positive">Opłacone</StatusBadge>
+            <StatusBadge tone="problem">Anulowane</StatusBadge>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">
+              Oś zamówienia przez statusSemantics
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                Object.keys(statusSemantics.order) as Array<
+                  keyof typeof statusSemantics.order
+                >
+              ).map((status) => (
+                <StatusBadge key={status} tone={statusSemantics.order[status]}>
+                  {orderStatusLabels[status]}
+                </StatusBadge>
+              ))}
+            </div>
           </div>
         </GallerySection>
 
@@ -274,7 +397,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="cards-tables"
           title="Card i Table"
-          description="Płaskie powierzchnie i responsywne dane tabelaryczne."
+          description="Płaskie powierzchnie z obrysem. Hover wiersza zagęszcza obrys dolny; wiersz aktywny niesie znacznik przy lewej krawędzi."
         >
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -322,11 +445,11 @@ export default function DesignSystemGallery() {
                     </TableCell>
                     <TableCell className="text-right">1 249,00 zł</TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow data-state="selected">
                     <TableCell className="tabular-nums">REZ/0714/02</TableCell>
                     <TableCell>Jan Nowak</TableCell>
                     <TableCell>
-                      <Badge variant="outline">Oczekuje</Badge>
+                      <StatusBadge tone="attention">Oczekuje</StatusBadge>
                     </TableCell>
                     <TableCell className="text-right">849,00 zł</TableCell>
                   </TableRow>
@@ -339,7 +462,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="overlays"
           title="Select, menu i nakładki"
-          description="Interakcje klawiaturowe, portale i warstwy o kontrolowanej elewacji."
+          description="Interakcje klawiaturowe i portale. Nakładki rozdziela obrys border — bez cieni."
         >
           <div className="flex flex-wrap items-center gap-3">
             <Select defaultValue="active">

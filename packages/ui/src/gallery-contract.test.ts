@@ -26,6 +26,19 @@ describe("integracja design systemu", () => {
     expect(source).toContain('id="overlays"');
     expect(source).toContain("defaultMonth={new Date(2026, 6, 1)}");
     expect(source).not.toContain('id={`section-${title}`}');
+
+    // P2 (ADR-055): galeria pokazuje stany sekcji 07 i statusy domenowe,
+    // nadal wyłącznie przez publiczne API pakietu.
+    expect(source).toContain('id="states"');
+    expect(source).toContain('id="status-badges"');
+    expect(source).toContain("<StatusBadge");
+    expect(source).toContain("<FilterChip");
+    expect(source).toContain("<Skeleton");
+    expect(source).toContain("statusSemantics");
+    // Lekcja P1 (opis „Inter dla interfejsu" wisiał po zmianie na Geist):
+    // opisy nie mogą obiecywać elewacji cieniem ani malować nakładek klasami
+    // shadow-* — elewacji w systemie nie ma.
+    expect(source).not.toMatch(/shadow-(xs|sm|md|lg)/);
   });
 
   // ADR-053 (delta P1a): OBA produkty jadą w całości na Geist Sans —
