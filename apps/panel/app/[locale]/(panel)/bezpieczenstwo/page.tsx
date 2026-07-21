@@ -1,4 +1,3 @@
-import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
@@ -25,11 +24,8 @@ export default async function SecurityPage({
   const ctx = await getAuthContext(supabase);
   if (!ctx) redirect(await localePath("/login"));
 
-  const t = await getTranslations("security");
-
   return (
     <div className="flex flex-col justify-center gap-4">
-      <h2 className="text-xl font-semibold">{t("title")}</h2>
       <TotpEnrollForm next={safeNextPath(next) ?? undefined} />
     </div>
   );

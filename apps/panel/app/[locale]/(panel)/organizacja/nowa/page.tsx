@@ -13,7 +13,6 @@ export default async function NewTenantPage() {
 
   return (
     <div className="flex flex-col justify-center gap-4">
-      <h2 className="text-xl font-semibold">Załóż organizację</h2>
       <p className="text-sm text-muted-foreground">
         Zostaniesz właścicielem (owner) nowej organizacji. Możesz mieć maks. 2 organizacje.
       </p>

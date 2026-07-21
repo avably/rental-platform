@@ -81,10 +81,6 @@ export default async function EmailLogPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{t("title")}</h2>
-      </header>
-
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
       {/* Filtr GET-em — stan listy w URL (wzorzec listy zamówień). */}

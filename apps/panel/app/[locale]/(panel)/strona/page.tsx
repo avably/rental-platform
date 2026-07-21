@@ -36,7 +36,6 @@ export default async function SitePage() {
         <Link className="text-sm underline" href="/">
           {t("backHome")}
         </Link>
-        <h2 className="text-xl font-semibold">{t("title")}</h2>
         <p role="alert" className="text-sm text-destructive">
           {ensured.ok ? t("loadError") : ensured.error}
         </p>

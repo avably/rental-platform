@@ -107,6 +107,7 @@ export const PANEL_BOTTOM_NAV_ITEMS = [
 ] as const;
 
 const PANEL_ROUTE_TITLE_OVERRIDES = [
+  { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
   { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },

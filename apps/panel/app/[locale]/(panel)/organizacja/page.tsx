@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { ScreenHeader, ScreenSection } from "@/components/screens/screen-header";
+import { ScreenSection } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 /**
@@ -65,7 +65,6 @@ export default async function OrganizationPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ScreenHeader title={t("title")} />
       <ScreenSection title={undefined} description={undefined}>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">

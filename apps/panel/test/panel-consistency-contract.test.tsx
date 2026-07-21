@@ -43,6 +43,23 @@ const allowedMaxWidth = new Map<string, readonly string[]>([
   ["zamowienia/nowe/order-wizard.tsx", ["max-w-2xl"]],
 ]);
 
+const topbarOwnedTitleFiles = [
+  "bezpieczenstwo/page.tsx",
+  "bezpieczenstwo/wyzwanie/page.tsx",
+  "historia-emaili/page.tsx",
+  "katalog/page.tsx",
+  "organizacja/page.tsx",
+  "organizacja/nowa/page.tsx",
+  "strona/page.tsx",
+  "strona/site-editor.tsx",
+  "ustawienia-domen/page.tsx",
+  "ustawienia-dostaw/page.tsx",
+  "ustawienia-emaili/page.tsx",
+  "zamowienia/page.tsx",
+  "zamowienia/nowe/page.tsx",
+  "zaproszenia/page.tsx",
+] as const;
+
 const pathname = vi.hoisted(() => ({ current: "/zamowienia" }));
 
 vi.mock("@/i18n/navigation", () => ({
@@ -107,6 +124,20 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     expect(offenders, `drugi h1 w treści: ${offenders.join(", ")}`).toEqual([]);
   });
 
+  it("belka jest jedynym widocznym tytułem ekranów objętych ADR-060", () => {
+    const offenders = topbarOwnedTitleFiles.filter((path) => {
+      const file = sources.find((candidate) => relative(candidate.path) === path);
+      expect(file, `brak ekranu w skanie: ${path}`).toBeDefined();
+      return (
+        /<h2\b[^>]*>\s*\{t\("title"\)\}\s*<\/h2>/.test(file!.code) ||
+        /<ScreenHeader\b[^>]*title=\{t\("title"\)\}/.test(file!.code) ||
+        (path === "organizacja/nowa/page.tsx" && file!.code.includes(">Załóż organizację</h2>"))
+      );
+    });
+
+    expect(offenders, `widoczny duplikat tytułu z belki: ${offenders.join(", ")}`).toEqual([]);
+  });
+
   it("żaden ekran tenanta nie używa natywnego selecta", () => {
     const offenders = sources
       .filter(({ code }) => /<select\b/.test(code))
@@ -125,6 +156,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     expect(resolver("/historia-emaili")).toBe("emailHistory");
     expect(resolver("/organizacja/nowa")).toBe("newOrganization");
     expect(resolver("/bezpieczenstwo/wyzwanie")).toBe("securityChallenge");
+    expect(resolver("/zamowienia/nowe")).toBe("newOrder");
   });
 
   it.each(nav.PANEL_NAV_ITEMS)("render trasy $href ma dokładnie jeden h1", (item) => {

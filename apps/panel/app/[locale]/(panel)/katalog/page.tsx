@@ -45,8 +45,7 @@ export default async function CatalogPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{t("title")}</h2>
+      <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <Button asChild variant="secondary">
             <Link href="/katalog/punkty-odbioru">{t("locationsLink")}</Link>
