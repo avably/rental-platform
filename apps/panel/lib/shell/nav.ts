@@ -95,6 +95,17 @@ export const PANEL_NAV_ITEMS: readonly PanelNavItem[] = PANEL_NAV_GROUPS.flatMap
   (group) => group.items,
 );
 
+export function resolvePanelNavItem(id: string): PanelNavItem {
+  const item = PANEL_NAV_ITEMS.find((candidate) => candidate.id === id);
+  if (!item) throw new Error(`Bottom bar id spoza PANEL_NAV_ITEMS: ${id}`);
+  return item;
+}
+
+export const PANEL_BOTTOM_NAV_ITEMS = [
+  resolvePanelNavItem("orders"),
+  resolvePanelNavItem("catalog"),
+] as const;
+
 const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/historia-emaili", labelKey: "emailHistory" },
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
