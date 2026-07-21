@@ -10,14 +10,9 @@
   },
   "home": {
     "title": "Panel",
-    "ordersLink": "Orders",
-    "catalogLink": "Product catalog",
-    "locationsLink": "Pickup locations",
-    "invitationsLink": "Member invitations",
-    "emailSettingsLink": "Email settings",
-    "siteLink": "Storefront page",
-    "emailLogLink": "Message history",
-    "domainSettingsLink": "Store domains"
+    "placeholderTitle": "This will be your command centre.",
+    "placeholderBody": "The dashboard is waiting for data. Until then, most of the action is in orders.",
+    "ordersCta": "Go to orders"
   },
   "emailSettings": {
     "title": "Email settings",
@@ -73,7 +68,23 @@
     "superadmin": "Superadmin",
     "superadminLink": "Superadmin panel",
     "tenants": "Organizations",
-    "auditLog": "Event log"
+    "auditLog": "Event log",
+    "panelNavigation": "Panel navigation",
+    "openNavigation": "Open navigation",
+    "dashboard": "Dashboard",
+    "comingSoon": "Coming soon",
+    "groupSales": "SALES",
+    "groupChannels": "CHANNELS",
+    "groupOrganization": "ORGANIZATION",
+    "orders": "Orders",
+    "catalog": "Catalog",
+    "store": "Store page",
+    "domains": "Domains",
+    "emails": "E-mails",
+    "delivery": "Deliveries",
+    "team": "Team",
+    "organization": "Organization",
+    "security": "Security"
   },
   "login": {
     "title": "Sign in",

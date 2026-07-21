@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   priceParamsFromRow,
   quoteOrderExtension,
-} from "@/app/[locale]/zamowienia/[id]/extension-pricing";
+} from "@/app/[locale]/(panel)/zamowienia/[id]/extension-pricing";
 
 const ORDER = { startDate: "2027-03-01", endDate: "2027-03-05" };
 

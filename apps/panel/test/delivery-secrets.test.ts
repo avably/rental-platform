@@ -23,7 +23,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
-import { loadCourierApi } from "../app/[locale]/zamowienia/[id]/delivery";
+import { loadCourierApi } from "../app/[locale]/(panel)/zamowienia/[id]/delivery";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {

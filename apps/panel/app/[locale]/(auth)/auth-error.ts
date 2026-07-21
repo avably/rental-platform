@@ -9,7 +9,7 @@
  * Rozróżnienie, na którym stoi cały ten moduł:
  *   - błąd z SUPABASE AUTH (angielski, do zmapowania) → przechodzi tędy,
  *   - błąd z NASZEJ bazy / naszego kodu (polski, pisany pod wyświetlenie —
- *     patrz komentarz w app/[locale]/organizacja/nowa/actions.ts) → NIE
+ *     patrz komentarz w app/[locale]/(panel)/organizacja/nowa/actions.ts) → NIE
  *     przechodzi tędy w ogóle, trafia na ekran taki, jaki jest.
  *
  * Mapujemy po `code`/`status`, nie po treści komunikatu: dostawca

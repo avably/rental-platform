@@ -175,6 +175,11 @@ function handlerPathOf(moduleKey: string): string {
   return moduleKey
     .replace("../app", "")
     .replace("/[locale]", "")
+    // Grupy tras `(nazwa)` nie istnieją w URL-u — tak samo jak w `routePathOf`.
+    // Bez tego handler przeniesiony do grupy `(panel)` (shell, ADR-056) miałby
+    // klucz `/(panel)/…` i wypadł z klasyfikacji ochrony, mimo że jego adres
+    // nie zmienił się o znak.
+    .replace(/\/\([^)]+\)/g, "")
     .replace(/\/route\.ts$/, "");
 }
 

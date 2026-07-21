@@ -33,7 +33,7 @@ import {
   depositTotals,
   isDepositSettled,
   type DepositEventRow,
-} from "@/app/[locale]/zamowienia/[id]/deposit";
+} from "@/app/[locale]/(panel)/zamowienia/[id]/deposit";
 
 import { integrationEnv } from "./helpers/integration-env";
 

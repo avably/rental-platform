@@ -59,7 +59,7 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 const { SUPERADMIN_HOME } = await import("@/lib/superadmin");
-const Home = (await import("@/app/[locale]/page")).default;
+const Home = (await import("@/app/[locale]/(panel)/page")).default;
 
 /** Sesja z podanymi claimami app_metadata (kształt hooka 0003_auth.sql). */
 function session(appMetadata: Record<string, unknown>): Record<string, unknown> {

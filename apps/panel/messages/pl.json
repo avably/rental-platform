@@ -10,14 +10,9 @@
   },
   "home": {
     "title": "Panel",
-    "ordersLink": "Zamówienia",
-    "catalogLink": "Katalog produktów",
-    "locationsLink": "Punkty odbioru",
-    "invitationsLink": "Zaproszenia członków",
-    "emailSettingsLink": "Ustawienia e-maili",
-    "siteLink": "Strona sklepu",
-    "emailLogLink": "Historia wiadomości",
-    "domainSettingsLink": "Domeny sklepu"
+    "placeholderTitle": "Tu będzie centrum dowodzenia.",
+    "placeholderBody": "Dashboard czeka na dane. Do tego czasu najwięcej dzieje się w zamówieniach.",
+    "ordersCta": "Przejdź do zamówień"
   },
   "emailSettings": {
     "title": "Ustawienia e-maili",
@@ -73,7 +68,23 @@
     "superadmin": "Superadmin",
     "superadminLink": "Panel superadmina",
     "tenants": "Organizacje",
-    "auditLog": "Dziennik zdarzeń"
+    "auditLog": "Dziennik zdarzeń",
+    "panelNavigation": "Nawigacja panelu",
+    "openNavigation": "Otwórz nawigację",
+    "dashboard": "Dashboard",
+    "comingSoon": "Wkrótce",
+    "groupSales": "SPRZEDAŻ",
+    "groupChannels": "KANAŁY",
+    "groupOrganization": "ORGANIZACJA",
+    "orders": "Zamówienia",
+    "catalog": "Katalog",
+    "store": "Strona sklepu",
+    "domains": "Domeny",
+    "emails": "E-maile",
+    "delivery": "Dostawy",
+    "team": "Zespół",
+    "organization": "Organizacja",
+    "security": "Bezpieczeństwo"
   },
   "login": {
     "title": "Zaloguj się",

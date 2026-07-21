@@ -75,7 +75,7 @@ vi.mock("@/lib/supabase-server", () => ({
   }),
 }));
 
-const { verifyTotpAction } = await import("@/app/[locale]/bezpieczenstwo/actions");
+const { verifyTotpAction } = await import("@/app/[locale]/(panel)/bezpieczenstwo/actions");
 
 function formData(fields: Record<string, string>): FormData {
   const data = new FormData();

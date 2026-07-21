@@ -23,6 +23,12 @@ import {
   PopoverTrigger,
 } from "./components/popover";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "./components/sheet";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -86,6 +92,24 @@ describe("nakładki bez cieni — computed style wyrenderowanych komponentów", 
     );
     expectFlatSurface(screen.getByRole("dialog"), "DialogContent");
   });
+
+  // ADR-056: szuflada nawigacji mobilnej jest nakładką jak każda inna, więc
+  // podlega temu samemu zakazowi. Wpis jest tu JAWNY, bo lista nakładek w tym
+  // kontrakcie jest enumerowana — nowy prymityw nie wchodzi pod bramkę sam.
+  it.each(["left", "right"] as const)(
+    "SheetContent (%s) maluje się bez cienia, z obrysem",
+    (side) => {
+      render(
+        <Sheet open>
+          <SheetContent side={side}>
+            <SheetTitle>Nawigacja</SheetTitle>
+            <SheetDescription>Sekcje panelu</SheetDescription>
+          </SheetContent>
+        </Sheet>,
+      );
+      expectFlatSurface(screen.getByRole("dialog"), `SheetContent[${side}]`);
+    },
+  );
 
   it("PopoverContent maluje się bez cienia, z obrysem", () => {
     render(

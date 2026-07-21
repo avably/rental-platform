@@ -12,7 +12,7 @@ import {
   depositTotals,
   isDepositSettled,
   runningBalances,
-} from "@/app/[locale]/zamowienia/[id]/deposit";
+} from "@/app/[locale]/(panel)/zamowienia/[id]/deposit";
 import {
   DEDUCTION_REASON_CODES,
   depositCollectSchema,

@@ -75,7 +75,7 @@ function formData(): FormData {
 }
 
 async function runCreateTenant(): Promise<RedirectSignal> {
-  const { createTenantAction } = await import("@/app/[locale]/organizacja/nowa/actions");
+  const { createTenantAction } = await import("@/app/[locale]/(panel)/organizacja/nowa/actions");
   try {
     await createTenantAction({}, formData());
   } catch (error) {
