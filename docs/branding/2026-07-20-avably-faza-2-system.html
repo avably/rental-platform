@@ -394,6 +394,8 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .panel-state[data-screen="empty"] h3, .panel-state[data-screen="not-found"] h3 { margin: 0; }
 .panel-state[data-screen="not-found"] [data-data-value] { margin: 0; font-size: 44px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
 .panel-state[data-screen="empty"] a, .panel-state[data-screen="not-found"] a { color: var(--muted-foreground); font: 500 14px/20px "Geist Sans", sans-serif; }
+/* Link drugorzedny stanu nie moze przejmowac primary CTA: (0,3,1) > (0,2,1). */
+.panel-state[data-screen="empty"] a.button-primary, .panel-state[data-screen="not-found"] a.button-primary { color: var(--primary-foreground); font: 600 14px/20px "Geist Sans", sans-serif; }
 .skeleton-row { display: grid; grid-template-columns: 1.2fr 1.4fr 1.6fr 1.2fr 1fr 1.2fr 1.2fr 0.4fr; gap: 14px; align-items: center; height: 52px; }
 .skeleton-row + .skeleton-row { border-top: 1px solid var(--border); }
 [data-skeleton-cell] { height: 14px; border-radius: 6px; background: var(--secondary); }
@@ -436,6 +438,9 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .landing-hero { background: #FFFFFF; color: #0B1017; padding: 32px 24px; }
 .landing-eyebrow { margin: 0 0 8px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.16em; color: #55616D; }
 .landing-title { font-size: 40px; line-height: 44px; letter-spacing: -0.025em; margin: 0; }
+/* Jasna wyspa w ciemnej sekcji: .brand-copy (0,1,0) bierze dark --foreground,
+   a dziedziczenie z .landing-hero nigdy tego nie pokona. Malujemy wprost (0,2,0). */
+.landing-hero .brand-copy { color: #0B1017; }
 .landing-ops { background: #0B1017; color: #F4F6F5; padding: 24px; }
 .landing-ops-label { margin: 0 0 12px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #B8C0C5; }
 .rail-viewport { overflow: hidden; }
