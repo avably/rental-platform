@@ -1,0 +1,505 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const artifactPath = `${root}/docs/branding/2026-07-20-avably-faza-1-moodboard.html`;
+const hubPath = `${root}/docs/dokumentacja/hub.html`;
+assert.ok(existsSync(artifactPath), `Brak moodboardu: ${artifactPath}`);
+const html = readFileSync(artifactPath, "utf8");
+const count = (needle) => html.split(needle).length - 1;
+const parseCssDeclarations = (body) =>
+  new Map(
+    body
+      .split(";")
+      .map((declaration) => declaration.trim())
+      .filter((declaration) => declaration.includes(":"))
+      .map((declaration) => {
+        const colonIndex = declaration.indexOf(":");
+        return [
+          declaration.slice(0, colonIndex).trim(),
+          declaration.slice(colonIndex + 1).trim().replace(/\s+/g, " "),
+        ];
+      }),
+  );
+const flatCssRules = (source) =>
+  [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+    ([, selector, body]) => ({ selector: selector.trim(), body }),
+  );
+const countDirectTagChildren = (fragment, expectedTag) => {
+  let depth = 0;
+  let directChildren = 0;
+
+  for (const match of fragment.matchAll(
+    /<\s*(\/?)\s*([a-z][\w:-]*)\b[^>]*>/gi,
+  )) {
+    const [, closing, rawTag] = match;
+    const tag = rawTag.toLowerCase();
+
+    if (closing) {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (depth === 0 && tag === expectedTag) directChildren += 1;
+    if (!/\/\s*>$/.test(match[0])) depth += 1;
+  }
+
+  return directChildren;
+};
+const extractBalancedCssBody = (anchor) => {
+  const anchorIndex = html.indexOf(anchor);
+  if (anchorIndex === -1) return "";
+
+  const openIndex = html.indexOf("{", anchorIndex + anchor.length);
+  if (openIndex === -1) return "";
+
+  let depth = 0;
+  for (let index = openIndex; index < html.length; index += 1) {
+    if (html[index] === "{") depth += 1;
+    if (html[index] !== "}") continue;
+
+    depth -= 1;
+    if (depth === 0) return html.slice(openIndex + 1, index);
+  }
+
+  return "";
+};
+const extractBalancedCssBodyMatching = (selectorPattern) => {
+  const selectorMatch = html.match(selectorPattern);
+  return selectorMatch ? extractBalancedCssBody(selectorMatch[0]) : "";
+};
+const hasStaticKeyframeInterval = (name, intervalStart, intervalEnd) => {
+  const body = extractBalancedCssBody(`@keyframes ${name}`);
+  const frames = [];
+
+  for (const rule of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const declarations = parseCssDeclarations(rule[2]);
+    const opacity = declarations.get("opacity");
+    const transform = declarations.get("transform");
+    const state =
+      opacity && transform ? `opacity:${opacity};transform:${transform}` : null;
+
+    for (const selector of rule[1].matchAll(/(\d+(?:\.\d+)?)%/g)) {
+      frames.push({ offset: Number(selector[1]), state });
+    }
+  }
+
+  frames.sort((left, right) => left.offset - right.offset);
+  const before = frames.filter(({ offset }) => offset <= intervalStart).at(-1);
+  const after = frames.find(({ offset }) => offset >= intervalEnd);
+
+  if (!before?.state || !after?.state || before.state !== after.state) {
+    return false;
+  }
+
+  return frames
+    .filter(
+      ({ offset }) => offset >= before.offset && offset <= after.offset,
+    )
+    .every(({ state }) => state === before.state);
+};
+
+assert.match(html, /^<!doctype html>/i);
+assert.match(html, /<html lang="pl">/);
+assert.equal(count("<style>"), 1);
+assert.equal(count("data:font/woff2;base64,"), 7);
+assert.doesNotMatch(html, /https?:\/\//i);
+assert.doesNotMatch(html, /<script\b|<link\b/i);
+assert.doesNotMatch(
+  html,
+  /linear-gradient|radial-gradient|backdrop-filter|box-shadow/i,
+);
+assert.match(html, /font-synthesis:\s*none/);
+
+for (const font of ["Safiro", "Manrope", "Geist Sans", "Geist Mono"]) {
+  assert.ok(html.includes(`font-family: "${font}"`), `Brak fontu ${font}`);
+}
+
+for (const direction of [
+  "Sygnał operacyjny",
+  "Papier roboczy",
+  "Czarna rama",
+]) {
+  assert.ok(html.includes(direction), `Brak kierunku ${direction}`);
+}
+
+for (const repeatedCopy of [
+  "Prowadź wynajem. Przyjmuj rezerwacje online.",
+  "Jeden egzemplarz. Jeden termin. Jedna rezerwacja.",
+  "Klient rezerwuje online. Zamówienie od razu trafia do panelu.",
+]) {
+  assert.equal(count(repeatedCopy), 3, `Copy nie występuje trzy razy: ${repeatedCopy}`);
+}
+
+for (const datum of [
+  "ZAM/2026/0714",
+  "Anna Kowalska",
+  "Nagrzewnica 20 kW",
+  "20–22.07.2026",
+  "1 199,00 zł",
+  "Do wydania",
+]) {
+  assert.ok(html.includes(datum), `Brak danych demonstracyjnych: ${datum}`);
+}
+
+for (const ratio of [
+  /aspect-ratio:\s*16\s*\/\s*10/,
+  /aspect-ratio:\s*1\s*\/\s*1/,
+  /aspect-ratio:\s*4\s*\/\s*5/,
+]) {
+  assert.match(html, ratio);
+}
+
+for (const sectionId of [
+  "logo",
+  "directions",
+  "applications",
+  "typography",
+  "contrast",
+  "motion",
+  "not-included",
+  "choice",
+]) {
+  assert.ok(html.includes(`id="${sectionId}"`), `Brak sekcji #${sectionId}`);
+}
+
+for (const value of [
+  "17.57:1",
+  "19.08:1",
+  "9.92:1",
+  "1.09:1",
+  "#EAFFA4",
+  "#A8C743",
+  "#0B1017",
+  "#122035",
+]) {
+  assert.ok(html.includes(value), `Brak wartości ${value}`);
+}
+
+for (const motionToken of [
+  "--motion-fast: 160ms",
+  "--motion-ui: 240ms",
+  "--motion-reveal: 720ms",
+  "--motion-logo: 6000ms",
+  "--motion-ad: 8000ms",
+  "--motion-ambient: 16000ms",
+  "cubic-bezier(0.22, 1, 0.36, 1)",
+  "cubic-bezier(0.2, 0.7, 0.2, 1)",
+]) {
+  assert.ok(html.includes(motionToken), `Brak wartości motion: ${motionToken}`);
+}
+
+for (const keyframe of [
+  "logo-signal",
+  "ui-state",
+  "operational-rail",
+  "ad-sequence",
+]) {
+  assert.ok(html.includes(`@keyframes ${keyframe}`), `Brak animacji ${keyframe}`);
+}
+
+assert.equal(count("data-motion-demo"), 12);
+assert.match(html, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+assert.match(
+  extractBalancedCssBodyMatching(/\.motion-loop:focus-within\s+\*/),
+  /\banimation-play-state:\s*paused\s*;/,
+  "Reguła .motion-loop:focus-within * nie zatrzymuje animacji",
+);
+assert.match(html, /animation:\s*none\s*!important/);
+assert.match(html, /transition:\s*none\s*!important/);
+
+const figureTags = [...html.matchAll(/<figure\b[^>]*>/g)].map(
+  ([figureTag]) => figureTag,
+);
+const classesOf = (tag) =>
+  (tag.match(/\bclass="([^"]*)"/)?.[1] ?? "").split(/\s+/);
+const socialMotionFigures = figureTags.filter((tag) => {
+  const classes = classesOf(tag);
+  return (
+    classes.includes("motion-loop") &&
+    (classes.includes("social-square") || classes.includes("social-portrait"))
+  );
+});
+const expectedSocialMotionDemoIds = [
+  "ad-portrait-frame",
+  "ad-portrait-paper",
+  "ad-portrait-signal",
+  "ad-square-frame",
+  "ad-square-paper",
+  "ad-square-signal",
+];
+const socialMotionDemoIds = socialMotionFigures.map(
+  (tag) => tag.match(/\bdata-motion-demo="([^"]+)"/)?.[1] ?? "",
+);
+const uniqueSocialMotionDemoIds = [...new Set(socialMotionDemoIds)].sort();
+const animatedLogoCards = figureTags.filter((tag) => {
+  const classes = classesOf(tag);
+  return classes.includes("logo-card") && classes.includes("motion-loop");
+});
+
+const keyboardPauseContractErrors = [];
+
+if (socialMotionFigures.length !== 6) {
+  keyboardPauseContractErrors.push(
+    "Kontrakt klawiatury nie obejmuje dokładnie sześciu reklam social motion-demo",
+  );
+}
+
+if (uniqueSocialMotionDemoIds.length !== socialMotionDemoIds.length) {
+  keyboardPauseContractErrors.push(
+    "Identyfikatory reklam social motion-demo nie są unikalne",
+  );
+}
+
+if (
+  uniqueSocialMotionDemoIds.length !== expectedSocialMotionDemoIds.length ||
+  uniqueSocialMotionDemoIds.some(
+    (id, index) => id !== expectedSocialMotionDemoIds[index],
+  )
+) {
+  keyboardPauseContractErrors.push(
+    "Zestaw identyfikatorów reklam social motion-demo nie jest kompletny",
+  );
+}
+
+if (!socialMotionFigures.every((tag) => /\btabindex="0"/.test(tag))) {
+  keyboardPauseContractErrors.push(
+    "Reklamy social motion-demo nie są osiągalne klawiaturą, więc focus-within nie zatrzyma animacji",
+  );
+}
+
+if (animatedLogoCards.length !== 1) {
+  keyboardPauseContractErrors.push(
+    "Kontrakt klawiatury nie wskazuje dokładnie jednej animowanej karty logo",
+  );
+} else if (!animatedLogoCards.every((tag) => /\btabindex="0"/.test(tag))) {
+  keyboardPauseContractErrors.push(
+    "Animowana karta logo nie jest osiągalna klawiaturą, więc focus-within nie zatrzyma animacji",
+  );
+}
+
+assert.deepEqual(
+  keyboardPauseContractErrors,
+  [],
+  `Niespełniony kontrakt pauzy klawiaturą:\n- ${keyboardPauseContractErrors.join("\n- ")}`,
+);
+
+const interactionContractErrors = [];
+
+if (
+  count('class="logo-letters-offset" transform="translate(-2 0)"') !== 2 ||
+  count('class="logo-letters--reveal" transform="translate(-2 0)"') !== 0 ||
+  !/\.motion-loop\s+\.logo-letters-offset\s*\{[^}]*transform:\s*translateX\(-2px\)\s*!important;[^}]*\}/.test(
+    html,
+  )
+) {
+  interactionContractErrors.push(
+    "Korekta liter logo -2 px nie jest oddzielona od animowanego wrappera lub nie przetrwa reduced motion",
+  );
+}
+
+if (
+  !/\.paper\s+\.document-lines\s+span\s*\{[^}]*animation:\s*paper-ui-reveal\s+var\(--motion-reveal\)\s+var\(--ease-out\)\s+both;[^}]*\}/.test(
+    html,
+  ) ||
+  !/@keyframes\s+paper-ui-reveal\s*\{[\s\S]*?to\s*\{\s*opacity:\s*1;\s*transform:\s*translateY\(0\)\s+scaleX\(1\);\s*\}\s*\}/.test(
+    html,
+  ) ||
+  !/\[data-direction="paper"\]\s+\.social-frame::after\s*\{[^}]*animation:\s*paper-line\s+var\(--motion-ad\)\s+var\(--ease-out\)\s+infinite;[^}]*\}/.test(
+    html,
+  )
+) {
+  interactionContractErrors.push(
+    "Jednorazowy reveal Papieru nie kończy się w stanie widocznym lub zmienia sekwencję reklamy",
+  );
+}
+
+if (
+  !/\.social-frame\s*>\s*\.brand-logo\s*\{[^}]*--motion-logo:\s*var\(--motion-ad\);[^}]*\}/.test(
+    html,
+  ) ||
+  !hasStaticKeyframeInterval("logo-signal", 72, 92)
+) {
+  interactionContractErrors.push(
+    "Kropka logo w reklamie nie jest zsynchronizowana z ośmiosekundową sekwencją lub porusza się między 72% a 92%",
+  );
+}
+
+assert.deepEqual(
+  interactionContractErrors,
+  [],
+  `Niespełniony kontrakt interakcji:\n- ${interactionContractErrors.join("\n- ")}`,
+);
+
+const logoDotMotionBody = extractBalancedCssBodyMatching(
+  /\.logo-dot--motion\s*/,
+);
+const lpPreviewBody = extractBalancedCssBodyMatching(/\.lp-preview\s*/);
+const lpLogoMotionContractErrors = [];
+
+if (
+  !/\banimation-name:\s*var\(--logo-dot-animation,\s*logo-signal\)\s*;/.test(
+    logoDotMotionBody,
+  )
+) {
+  lpLogoMotionContractErrors.push(
+    "Kropka logo nie ma dziedzicznego przełącznika animacji z domyślnym logo-signal",
+  );
+}
+
+if (!/--logo-dot-animation:\s*none\s*;/.test(lpPreviewBody)) {
+  lpLogoMotionContractErrors.push(
+    "Makiety LP nie wyłączają animacji kropki logo przez --logo-dot-animation: none",
+  );
+}
+
+if (
+  !/\banimation-duration:\s*var\(--motion-logo\)\s*;/.test(
+    logoDotMotionBody,
+  )
+) {
+  lpLogoMotionContractErrors.push(
+    "Kropka logo nie zachowuje czasu standalone 6000 ms i czasu reklam dziedziczonego z --motion-logo",
+  );
+}
+
+const lpOrderRows = [...html.matchAll(
+  /<div\b[^>]*class="lp-order-row"[^>]*>([\s\S]*?)<\/div>/g,
+)];
+const baseLpOrderRowBody =
+  flatCssRules(html).find(({ selector }) => selector === ".lp-order-row")
+    ?.body ?? "";
+const reducedMotionBody = extractBalancedCssBody(
+  "@media (prefers-reduced-motion: reduce)",
+);
+const reducedLpOrderRowBody =
+  reducedMotionBody.match(/\.lp-order-row\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderSpanBody =
+  reducedMotionBody.match(/\.lp-order-row\s+span\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderRowAfterBody =
+  reducedMotionBody.match(/\.lp-order-row::after\s*\{([^}]*)\}/)?.[1] ?? "";
+const reducedLpOrderContractErrors = [];
+
+if (
+  lpOrderRows.length !== 3 ||
+  !lpOrderRows.every(
+    ([, rowBody]) => countDirectTagChildren(rowBody, "span") === 6,
+  )
+) {
+  reducedLpOrderContractErrors.push(
+    "Każda z trzech makiet LP musi zawierać dokładnie sześć bezpośrednich pól zamówienia",
+  );
+}
+
+if (
+  parseCssDeclarations(baseLpOrderRowBody).get("animation") !==
+  "operational-rail var(--motion-ambient) linear infinite"
+) {
+  reducedLpOrderContractErrors.push(
+    "Normalny LP nie zachowuje ciągłej szyny operational-rail jako ruchu ambientowego",
+  );
+}
+
+const reducedGlobalMotionRule = flatCssRules(reducedMotionBody).find(
+  ({ selector }) =>
+    selector.replace(/\s+/g, " ") === "*, *::before, *::after",
+);
+if (
+  parseCssDeclarations(reducedGlobalMotionRule?.body ?? "").get("animation") !==
+  "none !important"
+) {
+  reducedLpOrderContractErrors.push(
+    "Reduced motion nie zatrzymuje skutecznie animacji szyny LP",
+  );
+}
+
+const reducedLpOrderDeclarations = [
+  ["display: grid", /\bdisplay:\s*grid\s*;/],
+  [
+    "grid-template-columns: repeat(3, minmax(0, 1fr))",
+    /\bgrid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)\s*;/,
+  ],
+  ["width: 100%", /\bwidth:\s*100%\s*;/],
+  ["min-width: 0", /\bmin-width:\s*0\s*;/],
+  ["height: auto", /\bheight:\s*auto\s*;/],
+  ["white-space: normal", /\bwhite-space:\s*normal\s*;/],
+];
+const missingReducedLpOrderDeclarations = reducedLpOrderDeclarations
+  .filter(([, pattern]) => !pattern.test(reducedLpOrderRowBody))
+  .map(([label]) => label);
+
+if (missingReducedLpOrderDeclarations.length > 0) {
+  reducedLpOrderContractErrors.push(
+    `Statyczny wiersz LP w reduced motion nie mieści wszystkich pól: ${missingReducedLpOrderDeclarations.join(", ")}`,
+  );
+}
+
+const reducedLpOrderSpanDeclarations = parseCssDeclarations(
+  reducedLpOrderSpanBody,
+);
+const requiredReducedLpOrderSpanDeclarations = [
+  ["min-width", "0"],
+  ["height", "auto"],
+  ["overflow-wrap", "anywhere"],
+];
+const missingReducedLpOrderSpanDeclarations =
+  requiredReducedLpOrderSpanDeclarations
+    .filter(
+      ([property, value]) =>
+        reducedLpOrderSpanDeclarations.get(property) !== value,
+    )
+    .map(([property, value]) => `${property}: ${value}`);
+
+if (missingReducedLpOrderSpanDeclarations.length > 0) {
+  reducedLpOrderContractErrors.push(
+    `Komórki statycznego wiersza LP nie mają ochrony przed clippingiem: ${missingReducedLpOrderSpanDeclarations.join(", ")}`,
+  );
+}
+
+if (!/\bcontent:\s*none\s*;/.test(reducedLpOrderRowAfterBody)) {
+  reducedLpOrderContractErrors.push(
+    "Reduced motion nie usuwa technicznego duplikatu wiersza z .lp-order-row::after",
+  );
+}
+
+const finalReviewMotionContractErrors = [
+  ...lpLogoMotionContractErrors.map((error) => `Kropka logo w LP: ${error}`),
+  ...reducedLpOrderContractErrors.map(
+    (error) => `Statyczny wiersz LP: ${error}`,
+  ),
+];
+
+assert.deepEqual(
+  finalReviewMotionContractErrors,
+  [],
+  `Niespełniony kontrakt poprawek motion z final review:\n- ${finalReviewMotionContractErrors.join("\n- ")}`,
+);
+
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.weight-specimen,\s*\.type-in-use,\s*\.weight-line\s*\{[^}]*min-width:\s*0;[^}]*\}/,
+  "Mobilna sekcja typografii nie pozwala elementom siatki zwężać się do viewportu",
+);
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.type-in-use table\s*\{[^}]*overflow-x:\s*auto;[^}]*\}/,
+  "Mobilna tabela typograficzna nie zatrzymuje przewijania wewnątrz panelu",
+);
+assert.match(
+  html,
+  /@media\s*\(max-width:\s*640px\)[\s\S]*?\.motion-token-table table\s*\{[^}]*display:\s*block;[^}]*overflow-x:\s*auto;[^}]*\}/,
+  "Mobilna tabela tokenów ruchu nie zatrzymuje przewijania wewnątrz panelu",
+);
+
+assert.match(html, /Faza 2 nie została rozpoczęta/);
+
+if (!process.argv.includes("--artifact-only")) {
+  const hub = readFileSync(hubPath, "utf8");
+  assert.ok(
+    hub.includes("../branding/2026-07-20-avably-faza-1-moodboard.html"),
+    "Hub nie zawiera odnośnika do moodboardu",
+  );
+}
+
+console.log("moodboard_contract=passed");
