@@ -20,7 +20,16 @@ import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
  *
  * Stany wg artefaktu: hover to WYŁĄCZNIE podkreślenie (żadnego koloru ani
  * tła — „pseudo-states: geometry / cursor / decoration only"), focus to obrys
- * limonki z nośnikiem, aktywna pozycja dostaje tło akcentu i lewą krawędź.
+ * limonki z nośnikiem, aktywna pozycja dostaje SAMO tło akcentu.
+ *
+ * Aktywna pozycja NIE NIESIE KRAWĘDZI (decyzja właściciela 2026-07-21):
+ * zakreślenie limonką samo w sobie mówi „tu stoisz", a dokładana do niego
+ * kreska dublowała ten komunikat drugim, mocniejszym sygnałem. W dark to
+ * samo wypełnienie `--accent` (#263016) bez limonkowej kreski. `border-l-2
+ * border-transparent` ZOSTAJE na wszystkich pozycjach — utrzymuje stałą
+ * geometrię, więc nic nie skacze przy zmianie trasy. Zakazu pilnuje
+ * `sidebar-active-contract.test.ts`, a CSS artefaktu poprawiono razem
+ * z kodem (źródło prawdy nie może kłamać).
  */
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations("nav");
@@ -79,9 +88,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
                   "hover:underline hover:underline-offset-[3px]",
                   "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-                  isActive
-                    ? "bg-accent text-foreground border-l-signal-strong dark:text-accent-foreground dark:border-l-accent-foreground"
-                    : "",
+                  isActive ? "bg-accent text-foreground dark:text-accent-foreground" : "",
                 ].join(" ")}
               >
                 <Icon
