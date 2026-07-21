@@ -62,13 +62,13 @@ function RetrySubdomainButton({
       </form>
 
       {!available && (
-        <p role="status" className="text-amber-700">
+        <p role="status" className="text-status-attention-fg">
           {t("retryUnavailable")} {blockedReason}
         </p>
       )}
-      {state.success && <p className="text-green-700">{t("retryOk")}</p>}
+      {state.success && <p className="text-status-positive-fg">{t("retryOk")}</p>}
       {state.formError && (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {t("retryFailed")} {state.formError} {t("retryContactFallback")}
         </p>
       )}
@@ -86,18 +86,18 @@ function AddDomainForm() {
 
       <Label htmlFor="custom-domain">{t("domainLabel")}</Label>
       <Input id="custom-domain" name="domain" placeholder="sklep.twojafirma.pl" disabled={pending} />
-      <p className="text-gray-500">{t("domainHint")}</p>
+      <p className="text-muted-foreground">{t("domainHint")}</p>
 
       <Button type="submit" disabled={pending}>
         {t("addCta")}
       </Button>
 
       {(state.formError ?? state.fieldErrors?.domain) && (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {state.formError ?? state.fieldErrors?.domain}
         </p>
       )}
-      {state.success && <p className="text-green-700">{t("addedOk")}</p>}
+      {state.success && <p className="text-status-positive-fg">{t("addedOk")}</p>}
     </form>
   );
 }
@@ -107,18 +107,18 @@ function CnameInstruction({ host, target }: { host: string; target: string }) {
   const t = useTranslations("domainSettings");
 
   return (
-    <div className="flex flex-col gap-1 rounded bg-gray-50 p-2">
+    <div className="flex flex-col gap-1 rounded bg-muted p-2">
       <p className="font-medium">{t("dnsHeading")}</p>
-      <p className="text-gray-600">{t("dnsIntro")}</p>
+      <p className="text-muted-foreground">{t("dnsIntro")}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3">
-        <dt className="text-gray-500">{t("dnsType")}</dt>
+        <dt className="text-muted-foreground">{t("dnsType")}</dt>
         <dd>CNAME</dd>
-        <dt className="text-gray-500">{t("dnsName")}</dt>
+        <dt className="text-muted-foreground">{t("dnsName")}</dt>
         <dd className="break-all">{host}</dd>
-        <dt className="text-gray-500">{t("dnsValue")}</dt>
+        <dt className="text-muted-foreground">{t("dnsValue")}</dt>
         <dd className="break-all">{target}</dd>
       </dl>
-      <p className="text-gray-500">{t("dnsPropagation")}</p>
+      <p className="text-muted-foreground">{t("dnsPropagation")}</p>
     </div>
   );
 }
@@ -151,14 +151,14 @@ function DomainActions({ domain }: { domain: DomainRow }) {
         )}
       </div>
 
-      {checkState.success && <p className="text-green-700">{t("verifiedOk")}</p>}
+      {checkState.success && <p className="text-status-positive-fg">{t("verifiedOk")}</p>}
       {checkState.formError && (
-        <p role="alert" className="text-amber-700">
+        <p role="alert" className="text-status-attention-fg">
           {t("stillPending")} {checkState.formError}
         </p>
       )}
       {removeState.formError && (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {removeState.formError}
         </p>
       )}
@@ -199,15 +199,15 @@ function DomainCard({
     <li className="flex flex-col gap-2 rounded border p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="break-all">{domain.domain}</span>
-        <span className={live ? "text-green-700" : "text-amber-700"}>{statusLabel}</span>
+        <span className={live ? "text-status-positive-fg" : "text-status-attention-fg"}>{statusLabel}</span>
       </div>
 
-      <p className="text-gray-500">
+      <p className="text-muted-foreground">
         {domain.kind === "subdomain" ? t("kindSubdomain") : t("kindCustom")}
       </p>
 
       {domain.kind === "subdomain" && (
-        <p className={domain.registered ? "text-gray-500" : "text-amber-700"}>
+        <p className={domain.registered ? "text-muted-foreground" : "text-status-attention-fg"}>
           {domain.registered ? t("subdomainRegistered") : t("subdomainNotRegistered")}
         </p>
       )}
@@ -215,7 +215,7 @@ function DomainCard({
       {/* Powód ostatniego niepowodzenia — bez niego porażka rejestracji byłaby
           ciszą: wiersz jest, sklep nie odpowiada, najemca nie wie dlaczego. */}
       {domain.lastError && (
-        <p role="alert" className="text-amber-700">
+        <p role="alert" className="text-status-attention-fg">
           {t("lastErrorLabel")} {domain.lastError}
         </p>
       )}
@@ -259,7 +259,7 @@ export function DomainsPanel({
           // i zarejestruje. Odsyłanie najemcy do kontaktu było opisem
           // problemu zamiast wyjścia z niego.
           <div className="flex flex-col gap-2 rounded border p-3 text-sm">
-            <p className="text-gray-500">{t("emptyState")}</p>
+            <p className="text-muted-foreground">{t("emptyState")}</p>
             <RetrySubdomainButton
               available={registrationAvailable}
               blockedReason={registrationBlockedReason}

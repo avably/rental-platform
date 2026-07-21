@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { createLocationAction } from "../actions";
@@ -11,15 +11,15 @@ export default async function NewPickupLocationPage() {
   const t = await getTranslations("catalog.locations");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href="/katalog/punkty-odbioru">
-        {t("backToList")}
-      </Link>
-      <h1 className="text-xl font-semibold">{t("createTitle")}</h1>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{ href: "/katalog/punkty-odbioru", label: t("backToList") }}
+        title={t("createTitle")}
+      />
       <LocationForm
         action={createLocationAction}
         defaults={{ name: "", addressStreet: "", addressZip: "", addressCity: "", active: true }}
       />
-    </main>
+    </div>
   );
 }

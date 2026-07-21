@@ -115,14 +115,14 @@ export default async function DeliverySettingsPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link className="text-sm underline" href="/zamowienia">
           {tSection("title")} ↩
         </Link>
       </header>
-      <p className="text-sm text-gray-500">{t("intro")}</p>
+      <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
       <CredentialsForm
         action={saveCourierCredentialsAction}
@@ -136,6 +136,6 @@ export default async function DeliverySettingsPage() {
       <SenderForm action={saveCourierSenderAction} defaults={senderDefaults} />
       <ParcelForm action={saveCourierParcelAction} defaults={parcelDefaults} />
       <PricingForm action={saveDeliveryPricingAction} defaults={pricingDefaults} />
-    </main>
+    </div>
   );
 }

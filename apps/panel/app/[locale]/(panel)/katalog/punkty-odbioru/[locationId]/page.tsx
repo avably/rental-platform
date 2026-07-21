@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { updateLocationAction } from "../actions";
@@ -27,11 +27,11 @@ export default async function EditPickupLocationPage({
   const t = await getTranslations("catalog.locations");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href="/katalog/punkty-odbioru">
-        {t("backToList")}
-      </Link>
-      <h1 className="text-xl font-semibold">{t("editTitle", { name: location.name })}</h1>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{ href: "/katalog/punkty-odbioru", label: t("backToList") }}
+        title={t("editTitle", { name: location.name })}
+      />
       <LocationForm
         action={updateLocationAction.bind(null, location.id)}
         defaults={{
@@ -42,6 +42,6 @@ export default async function EditPickupLocationPage({
           active: location.active,
         }}
       />
-    </main>
+    </div>
   );
 }

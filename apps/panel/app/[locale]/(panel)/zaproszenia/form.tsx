@@ -18,7 +18,7 @@ export function InviteMemberForm({
       {emailUnavailableReason ? (
         <p
           role="status"
-          className="rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800"
+          className="rounded border border-status-attention-border bg-status-attention-bg p-2 text-sm text-status-attention-fg"
         >
           Wysyłka e-maili jest niedostępna: {emailUnavailableReason} Zaproszenie utworzysz, ale link
           trzeba przekazać ręcznie.
@@ -35,8 +35,8 @@ export function InviteMemberForm({
           <option value="owner">owner</option>
         </select>
       </label>
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
-      {state.success ? <p className="text-sm text-green-700">{state.success}</p> : null}
+      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+      {state.success ? <p className="text-sm text-status-positive-fg">{state.success}</p> : null}
       <button
         type="submit"
         disabled={pending}

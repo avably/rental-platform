@@ -52,41 +52,41 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
-        <p className="text-sm text-amber-900">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-status-attention-border bg-status-attention-bg px-4 py-3">
+        <p className="text-sm text-status-attention-fg">
           Działasz jako <b>{tenant.name}</b> — podgląd tylko do odczytu. Wejście zostało zapisane w
           dzienniku zdarzeń.
         </p>
         <form action={endTenantViewAction}>
           <input type="hidden" name="tenantId" value={tenant.id} />
-          <button className="rounded-md bg-amber-900 px-4 py-2 text-sm text-white" type="submit">
+          <button className="rounded-md bg-status-attention-fg px-4 py-2 text-sm text-white" type="submit">
             Wróć do panelu superadmina
           </button>
         </form>
       </div>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Członkowie ({members?.length ?? 0})</h2>
-        <ul className="mt-2 flex flex-col gap-1 text-sm text-gray-700">
+        <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
           {((members ?? []) as Member[]).map((member) => (
             <li key={member.user_id} className="tabular-nums text-xs">
               {member.user_id} — {member.role}
             </li>
           ))}
-          {(members?.length ?? 0) === 0 && <li className="text-gray-500">Brak członków.</li>}
+          {(members?.length ?? 0) === 0 && <li className="text-muted-foreground">Brak członków.</li>}
         </ul>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold">Zaproszenia ({invitations?.length ?? 0})</h2>
-        <ul className="mt-2 flex flex-col gap-1 text-sm text-gray-700">
+        <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
           {((invitations ?? []) as Invitation[]).map((invitation) => (
             <li key={invitation.id}>
               {invitation.email} — {invitation.role} —{" "}
               {invitation.accepted_at ? "przyjęte" : "oczekuje"}
             </li>
           ))}
-          {(invitations?.length ?? 0) === 0 && <li className="text-gray-500">Brak zaproszeń.</li>}
+          {(invitations?.length ?? 0) === 0 && <li className="text-muted-foreground">Brak zaproszeń.</li>}
         </ul>
       </section>
     </div>

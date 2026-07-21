@@ -1,19 +1,12 @@
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
-import { formatMoney } from "@avably/core";
+import { Button } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
+
+import { CatalogEmptyState } from "./catalog-empty-state";
+import { ProductsTable, type ProductsTableRow } from "./products-table";
 
 interface ProductRow {
   id: string;
@@ -27,6 +20,8 @@ interface ProductRow {
 export default async function CatalogPage() {
   const ctx = await requireMemberPage("/katalog");
 
+  // Zapytanie NIETKNIĘTE co do znaku względem stanu sprzed restylingu:
+  // te same kolumny, ten sam filtr tenanta, to samo sortowanie.
   const { data: products } = await ctx.supabase
     .from("products")
     .select("id, name, base_price_day_grosze, deposit_grosze, active, product_units(count)")
@@ -37,67 +32,36 @@ export default async function CatalogPage() {
   const locale = await getLocale();
   const t = await getTranslations("catalog.list");
 
-  const rows = (products ?? []) as ProductRow[];
+  const rows = ((products ?? []) as ProductRow[]).map(
+    (product): ProductsTableRow => ({
+      id: product.id,
+      name: product.name,
+      basePriceDayGrosze: product.base_price_day_grosze,
+      depositGrosze: product.deposit_grosze,
+      active: product.active,
+      unitCount: product.product_units[0]?.count ?? 0,
+    }),
+  );
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <nav className="flex items-center gap-3">
-          <Link className="text-sm underline" href="/katalog/punkty-odbioru">
-            {t("locationsLink")}
-          </Link>
+    <div className="flex flex-col gap-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{t("title")}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button asChild variant="secondary">
+            <Link href="/katalog/punkty-odbioru">{t("locationsLink")}</Link>
+          </Button>
           <Button asChild>
             <Link href="/katalog/nowy">{t("newProduct")}</Link>
           </Button>
-        </nav>
+        </div>
       </header>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-600">{t("empty")}</p>
+        <CatalogEmptyState />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("colName")}</TableHead>
-              <TableHead>{t("colPricePerDay")}</TableHead>
-              <TableHead>{t("colDeposit")}</TableHead>
-              <TableHead>{t("colActive")}</TableHead>
-              <TableHead>{t("colUnits")}</TableHead>
-              <TableHead>{t("colActions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">
-                  <Link className="underline" href={`/katalog/${product.id}`}>
-                    {product.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{formatMoney(product.base_price_day_grosze, currency, locale)}</TableCell>
-                <TableCell>{formatMoney(product.deposit_grosze, currency, locale)}</TableCell>
-                <TableCell>
-                  <Badge variant={product.active ? "default" : "outline"}>
-                    {product.active ? t("activeYes") : t("activeNo")}
-                  </Badge>
-                </TableCell>
-                <TableCell>{product.product_units[0]?.count ?? 0}</TableCell>
-                <TableCell>
-                  <span className="flex gap-3 text-sm">
-                    <Link className="underline" href={`/katalog/${product.id}/egzemplarze`}>
-                      {t("unitsLink")}
-                    </Link>
-                    <Link className="underline" href={`/katalog/${product.id}/progi`}>
-                      {t("tiersLink")}
-                    </Link>
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ProductsTable rows={rows} currency={currency} locale={locale} />
       )}
-    </main>
+    </div>
   );
 }

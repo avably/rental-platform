@@ -43,28 +43,28 @@ export default async function EmailSettingsPage() {
   const senderConfigured = defaults !== null && defaults.name.length > 0;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
         <Link className="text-sm underline" href="/">
           {t("backLink")} ↩
         </Link>
       </header>
-      <p className="text-sm text-gray-500">{t("intro")}</p>
+      <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
       <section className="flex flex-col gap-1 rounded border p-3 text-sm">
         <p className="font-medium">{t("statusHeading")}</p>
-        <p className={availability.available ? "text-green-700" : "text-amber-700"}>
+        <p className={availability.available ? "text-status-positive-fg" : "text-status-attention-fg"}>
           {availability.available
             ? t("transportAvailable")
             : `${t("transportUnavailable")} ${availability.reason ?? ""}`}
         </p>
-        <p className={senderConfigured ? "text-green-700" : "text-amber-700"}>
+        <p className={senderConfigured ? "text-status-positive-fg" : "text-status-attention-fg"}>
           {senderConfigured ? t("senderConfigured") : t("senderMissing")}
         </p>
       </section>
 
       <EmailSenderForm defaults={defaults} />
-    </main>
+    </div>
   );
 }

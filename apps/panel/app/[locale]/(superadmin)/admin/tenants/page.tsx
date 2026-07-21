@@ -29,14 +29,14 @@ export default async function TenantsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold">Organizacje</h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           {tenants.length} {tenants.length === 1 ? "organizacja" : "organizacji"} w systemie.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-200 text-xs uppercase text-gray-500">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Nazwa</th>
@@ -47,21 +47,21 @@ export default async function TenantsPage() {
           </thead>
           <tbody>
             {tenants.map((tenant) => (
-              <tr key={tenant.id} className="border-b border-gray-100 last:border-b-0">
+              <tr key={tenant.id} className="border-b border-border last:border-b-0">
                 <td className="px-4 py-3">
-                  <Link className="text-blue-700 hover:underline" href={`/admin/tenants/${tenant.id}`}>
+                  <Link className="text-status-neutral-fg hover:underline" href={`/admin/tenants/${tenant.id}`}>
                     {tenant.slug}
                   </Link>
                 </td>
                 <td className="px-4 py-3">{tenant.name}</td>
                 <td className="px-4 py-3">{STATUS_LABELS[tenant.status] ?? tenant.status}</td>
                 <td className="px-4 py-3">{tenant.plan_id ?? "—"}</td>
-                <td className="px-4 py-3 text-gray-600">{formatDate(tenant.created_at)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDate(tenant.created_at)}</td>
               </tr>
             ))}
             {tenants.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-gray-500" colSpan={5}>
+                <td className="px-4 py-6 text-muted-foreground" colSpan={5}>
                   Brak organizacji.
                 </td>
               </tr>

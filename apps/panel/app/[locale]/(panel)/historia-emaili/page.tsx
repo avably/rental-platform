@@ -79,7 +79,7 @@ export default async function EmailLogPage({
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
       </header>
@@ -186,6 +186,6 @@ export default async function EmailLogPage({
           </nav>
         </>
       )}
-    </main>
+    </div>
   );
 }

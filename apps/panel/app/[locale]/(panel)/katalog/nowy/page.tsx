@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
@@ -13,11 +13,8 @@ export default async function NewProductPage() {
   const t = await getTranslations("catalog.productForm");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href="/katalog">
-        {t("backToList")}
-      </Link>
-      <h1 className="text-xl font-semibold">{t("createTitle")}</h1>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader back={{ href: "/katalog", label: t("backToList") }} title={t("createTitle")} />
       <ProductForm
         action={createProductAction}
         currencyCode={currency}
@@ -33,6 +30,6 @@ export default async function NewProductPage() {
           active: true,
         }}
       />
-    </main>
+    </div>
   );
 }

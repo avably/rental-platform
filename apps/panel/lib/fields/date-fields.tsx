@@ -11,11 +11,17 @@ import { useLocale, useTranslations } from "next-intl";
 import * as React from "react";
 
 /**
- * Pola dat ekranów zamówień (decyzja właściciela 2026-07-21): daty wybiera się
+ * Pola dat CAŁEGO panelu (decyzja właściciela 2026-07-21): daty wybiera się
  * WYŁĄCZNIE naszym `Calendar` w `Popover`, nigdy natywnym `input type="date"`.
+ *
+ * Moduł mieszkał w `lib/orders/` (P4 był pierwszym konsumentem). P5 rozszerza
+ * zakaz na wszystkie trasy `(panel)/**`, więc pola przeniosły się do
+ * neutralnego `lib/fields/`, a ich etykiety do przestrzeni `common.dateField`:
+ * ekran katalogu importujący coś z „orders" byłby zależnością, której nie
+ * da się wytłumaczyć niczym poza historią.
  * Natywny widżet maluje się chromem systemu — nie ma na nim ani tokenów Fazy 2,
  * ani stanów sekcji 07, a jego wygląd zmienia się między przeglądarkami.
- * Zakazu pilnuje `order-date-fields-contract.test.ts`.
+ * Zakazu pilnuje `panel-date-fields-contract.test.ts`.
  *
  * KONTRAKT WYSYŁKI JEST NIETKNIĘTY: wartość jedzie do server action ukrytym
  * polem jako string `YYYY-MM-DD`, dokładnie jak przy natywnym polu. Walidacja,
@@ -91,7 +97,7 @@ export function DateField({
   describedBy?: string;
   className?: string;
 }) {
-  const t = useTranslations("orders.dateField");
+  const t = useTranslations("common.dateField");
   const format = useDayFormat();
   const [open, setOpen] = React.useState(false);
   const selected = isoToDate(value);
@@ -160,7 +166,7 @@ export function DateRangeField({
   describedBy?: string;
   className?: string;
 }) {
-  const t = useTranslations("orders.dateField");
+  const t = useTranslations("common.dateField");
   const format = useDayFormat();
   const [open, setOpen] = React.useState(false);
 

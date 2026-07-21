@@ -2,7 +2,7 @@ import { formatMoney } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
@@ -38,19 +38,22 @@ export default async function ProductTiersPage({
   const t = await getTranslations("catalog.tiers");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href={`/katalog/${product.id}`}>
-        {t("backToProduct", { name: product.name })}
-      </Link>
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{t("title", { name: product.name })}</h1>
-        <p className="text-sm text-gray-600">
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{
+          href: `/katalog/${product.id}`,
+          label: t("backToProduct", { name: product.name }),
+        }}
+        title={t("title", { name: product.name })}
+      />
+      <div className="flex flex-col gap-1.5">
+        <p className="text-muted-foreground text-sm">
           {t("basePriceInfo", {
             price: formatMoney(product.base_price_day_grosze, currency, locale),
           })}
         </p>
-        <p className="text-sm text-gray-600">{t("billingModelInfo")}</p>
-      </header>
+        <p className="text-muted-foreground text-sm">{t("billingModelInfo")}</p>
+      </div>
 
       <TiersEditor
         action={saveTiersAction.bind(null, product.id)}
@@ -67,6 +70,6 @@ export default async function ProductTiersPage({
           sortOrder: String(tier.sort_order),
         }))}
       />
-    </main>
+    </div>
   );
 }

@@ -6,7 +6,11 @@
   "common": {
     "email": "E-mail",
     "password": "Hasło",
-    "logout": "Wyloguj"
+    "logout": "Wyloguj",
+    "dateField": {
+      "placeholder": "Wybierz datę",
+      "rangePlaceholder": "Wybierz zakres"
+    }
   },
   "home": {
     "title": "Panel",
@@ -84,7 +88,13 @@
     "delivery": "Dostawy",
     "team": "Zespół",
     "organization": "Organizacja",
-    "security": "Bezpieczeństwo"
+    "security": "Bezpieczeństwo",
+    "themeToggleToDark": "Włącz tryb ciemny",
+    "themeToggleToLight": "Włącz tryb jasny",
+    "localePolish": "Polski",
+    "localeEnglish": "Angielski",
+    "superadminPanel": "Panel superadmina",
+    "skipToContent": "Przejdź do treści"
   },
   "login": {
     "title": "Zaloguj się",
@@ -161,7 +171,6 @@
       "title": "Katalog produktów",
       "newProduct": "Nowy produkt",
       "locationsLink": "Punkty odbioru",
-      "empty": "Brak produktów — dodaj pierwszy.",
       "colName": "Nazwa",
       "colPricePerDay": "Cena / doba",
       "colDeposit": "Kaucja",
@@ -171,7 +180,10 @@
       "activeYes": "Aktywny",
       "activeNo": "Nieaktywny",
       "unitsLink": "Egzemplarze",
-      "tiersLink": "Progi cenowe"
+      "tiersLink": "Progi cenowe",
+      "rowActions": "Akcje produktu {name}",
+      "actionEdit": "Edycja produktu",
+      "imagesLink": "Zdjęcia"
     },
     "productForm": {
       "createTitle": "Nowy produkt",
@@ -191,7 +203,6 @@
       "bufferAfter": "Bufor serwisowy po najmie (dni)",
       "active": "Produkt aktywny",
       "save": "Zapisz",
-      "saving": "Zapisuję…",
       "saved": "Zapisano zmiany."
     },
     "units": {
@@ -201,15 +212,12 @@
       "listHeading": "Egzemplarze ({count})",
       "empty": "Brak egzemplarzy — produkt bez egzemplarza nie ma czego wydać.",
       "serial": "Numer seryjny",
-      "unavailableFrom": "Niedostępny od",
-      "unavailableTo": "Niedostępny do",
+      "unavailableWindow": "Okno serwisowe (niedostępny od–do)",
       "reason": "Powód",
       "windowHint": "Okno serwisowe wymaga OBU dat (od i do) albo żadnej. Ta sama data w obu polach = serwis jednodniowy.",
       "add": "Dodaj egzemplarz",
-      "adding": "Dodaję…",
       "added": "Egzemplarz dodany.",
       "save": "Zapisz",
-      "saving": "Zapisuję…",
       "saved": "Zapisano zmiany.",
       "delete": "Usuń",
       "deletedInfo": "Egzemplarz usunięty."
@@ -221,13 +229,11 @@
       "file": "Plik zdjęcia",
       "fileHint": "Formaty: JPEG, PNG, WebP, AVIF. Maksymalnie 5 MB.",
       "add": "Wgraj zdjęcie",
-      "adding": "Wgrywam…",
       "added": "Zdjęcie dodane.",
       "listHeading": "Zdjęcia ({count})",
       "empty": "Brak zdjęć — dodaj pierwsze, aby pokazać produkt w sklepie.",
       "sortOrder": "Kolejność",
       "save": "Zapisz",
-      "saving": "Zapisuję…",
       "saved": "Zapisano zmiany.",
       "delete": "Usuń",
       "deletedInfo": "Zdjęcie usunięte.",
@@ -249,7 +255,6 @@
       "addRow": "Dodaj próg",
       "removeRow": "Usuń",
       "save": "Zapisz progi",
-      "saving": "Zapisuję…",
       "saved": "Progi zapisane.",
       "previewTitle": "Podgląd wyceny",
       "previewIntro": "Wycena na żywo dla każdej długości najmu — tym samym silnikiem, który wyceni zamówienia.",
@@ -283,8 +288,10 @@
       "city": "Miejscowość",
       "active": "Punkt aktywny",
       "save": "Zapisz",
-      "saving": "Zapisuję…",
       "saved": "Zapisano zmiany."
+    },
+    "emptyState": {
+      "title": "Pusty magazyn. Dodaj pierwszy produkt."
     }
   },
   "orders": {
@@ -350,10 +357,6 @@
       "code": "404",
       "title": "Ta strona wyjechała bez protokołu wydania.",
       "backToOrders": "Wróć do zamówień"
-    },
-    "dateField": {
-      "placeholder": "Wybierz datę",
-      "rangePlaceholder": "Wybierz zakres"
     },
     "form": {
       "title": "Nowe zamówienie",
@@ -654,5 +657,18 @@
     "addCta": "Dodaj domenę",
     "addedOk": "Domena dodana. Wpisz rekord DNS, a potem kliknij „Sprawdź weryfikację”.",
     "backLink": "Panel"
+  },
+  "organization": {
+    "title": "Organizacja",
+    "description": "Dane organizacji widoczne na dokumentach i w rozliczeniach.",
+    "name": "Nazwa",
+    "slug": "Identyfikator",
+    "plan": "Plan",
+    "status": "Status",
+    "createdAt": "Data założenia",
+    "locale": "Język sklepu",
+    "planMissing": "Brak przypisanego planu.",
+    "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
+    "newOrganization": "Załóż organizację"
   }
 }

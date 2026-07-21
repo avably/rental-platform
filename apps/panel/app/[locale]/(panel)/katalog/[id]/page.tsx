@@ -1,6 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { Button } from "@avably/ui";
+
+import { ScreenHeader } from "@/components/screens/screen-header";
 import { Link } from "@/i18n/navigation";
 import { groszeToInputValue } from "@/lib/money-input";
 import { requireMemberPage } from "@/lib/member-page";
@@ -32,24 +35,24 @@ export default async function EditProductPage({
   const t = await getTranslations("catalog.productForm");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
-      <Link className="text-sm underline" href="/katalog">
-        {t("backToList")}
-      </Link>
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("editTitle", { name: product.name })}</h1>
-        <nav className="flex gap-3 text-sm">
-          <Link className="underline" href={`/katalog/${product.id}/egzemplarze`}>
-            {t("unitsLink")}
-          </Link>
-          <Link className="underline" href={`/katalog/${product.id}/progi`}>
-            {t("tiersLink")}
-          </Link>
-          <Link className="underline" href={`/katalog/${product.id}/zdjecia`}>
-            {t("imagesLink")}
-          </Link>
-        </nav>
-      </header>
+    <div className="flex flex-col gap-4">
+      <ScreenHeader
+        back={{ href: "/katalog", label: t("backToList") }}
+        title={t("editTitle", { name: product.name })}
+        actions={
+          <>
+            <Button asChild variant="secondary">
+              <Link href={`/katalog/${product.id}/egzemplarze`}>{t("unitsLink")}</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href={`/katalog/${product.id}/progi`}>{t("tiersLink")}</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href={`/katalog/${product.id}/zdjecia`}>{t("imagesLink")}</Link>
+            </Button>
+          </>
+        }
+      />
       <ProductForm
         action={updateProductAction.bind(null, product.id)}
         currencyCode={currency}
@@ -64,6 +67,6 @@ export default async function EditProductPage({
           active: product.active,
         }}
       />
-    </main>
+    </div>
   );
 }

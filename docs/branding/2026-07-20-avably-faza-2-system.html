@@ -261,8 +261,10 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .sidebar-nav .nav-group { margin: 16px 0 4px; padding: 0 12px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; color: var(--muted-foreground); }
 .sidebar-nav [data-nav-placeholder="dashboard"] { color: var(--muted-foreground); }
 .sidebar-nav [data-nav-placeholder="dashboard"] span { font-size: 11px; letter-spacing: 0.04em; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
-.sidebar-nav [aria-current="page"] { background: var(--accent); color: var(--foreground); border-left: 2px solid var(--signal-strong); }
-.dark .sidebar-nav [aria-current="page"] { background: var(--accent); color: var(--accent-foreground); border-left: 2px solid var(--accent-foreground); }
+/* Aktywna pozycja: SAMO zakreślenie, bez krawędzi (decyzja właściciela 2026-07-21).
+   `border-left: 2px solid transparent` z reguły bazowej zostaje — trzyma geometrię. */
+.sidebar-nav [aria-current="page"] { background: var(--accent); color: var(--foreground); }
+.dark .sidebar-nav [aria-current="page"] { background: var(--accent); color: var(--accent-foreground); }
 
 /* ===== status chips ===== */
 .status-matrix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 24px; }

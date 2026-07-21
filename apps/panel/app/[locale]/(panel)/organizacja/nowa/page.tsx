@@ -12,12 +12,12 @@ export default async function NewTenantPage() {
   if (!ctx) redirect(await localePath("/login"));
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
+    <div className="mx-auto flex w-full max-w-sm flex-col justify-center gap-4">
       <h1 className="text-xl font-semibold">Załóż organizację</h1>
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         Zostaniesz właścicielem (owner) nowej organizacji. Możesz mieć maks. 2 organizacje.
       </p>
       <CreateTenantForm />
-    </main>
+    </div>
   );
 }

@@ -18,20 +18,20 @@ export interface EmailSenderDefaults {
 function FormMessages({ state, successText }: { state: FormState; successText: string }) {
   if (state.formError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-destructive">
         {state.formError}
       </p>
     );
   }
   if (state.fieldErrors) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-destructive">
         {Object.values(state.fieldErrors)[0]}
       </p>
     );
   }
   if (state.success) {
-    return <p className="text-sm text-green-700">{successText}</p>;
+    return <p className="text-sm text-status-positive-fg">{successText}</p>;
   }
   return null;
 }
@@ -65,7 +65,7 @@ export function EmailSenderForm({ defaults }: { defaults: EmailSenderDefaults | 
         defaultValue={defaults?.replyTo ?? ""}
         disabled={pending}
       />
-      <p className="text-gray-500">{t("replyToHint")}</p>
+      <p className="text-muted-foreground">{t("replyToHint")}</p>
 
       <Button type="submit" disabled={pending}>
         {t("saveCta")}

@@ -81,7 +81,7 @@ export function SiteEditor({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-gray-600">{t("subtitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -93,7 +93,7 @@ export function SiteEditor({
             {pending ? t("publish.publishing") : t("publish.publish")}
           </button>
           {published ? (
-            <span role="status" className="text-sm text-green-700">
+            <span role="status" className="text-sm text-status-positive-fg">
               {t("publish.published")}
             </span>
           ) : null}
@@ -101,7 +101,7 @@ export function SiteEditor({
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
@@ -151,23 +151,23 @@ export function SiteEditor({
                     </option>
                   ))}
                 </select>
-                <span className="text-xs text-gray-500">{t("sections.addHint")}</span>
+                <span className="text-xs text-muted-foreground">{t("sections.addHint")}</span>
               </div>
             </div>
 
             {sections.length === 0 ? (
-              <p className="text-sm text-gray-600">{t("sections.empty")}</p>
+              <p className="text-sm text-muted-foreground">{t("sections.empty")}</p>
             ) : (
               <ol className="flex list-none flex-col gap-4 p-0">
                 {sections.map((section, index) => (
                   <li key={section.id} className="flex flex-col gap-3 rounded-lg border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium">
+                        <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
                           {t(`sectionTypes.${section.type}`)}
                         </span>
                         {!section.enabled ? (
-                          <span className="text-xs text-amber-700">{t("sections.disabled")}</span>
+                          <span className="text-xs text-status-attention-fg">{t("sections.disabled")}</span>
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1">
@@ -192,10 +192,10 @@ export function SiteEditor({
         {/* Kolumna podglądu */}
         <div className="flex flex-col gap-3">
           <h2 className="text-base font-semibold">{t("preview.heading")}</h2>
-          <p className="text-sm text-gray-600">{t("preview.intro")}</p>
+          <p className="text-sm text-muted-foreground">{t("preview.intro")}</p>
           <div className="overflow-hidden rounded-lg border">
             {previewSections(sections).length === 0 ? (
-              <p className="p-8 text-center text-sm text-gray-600">{t("preview.empty")}</p>
+              <p className="p-8 text-center text-sm text-muted-foreground">{t("preview.empty")}</p>
             ) : (
               <SiteRenderer sections={previewSections(sections)} template={template} products={previewProducts} />
             )}

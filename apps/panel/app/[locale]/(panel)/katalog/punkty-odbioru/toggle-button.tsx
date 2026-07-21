@@ -21,11 +21,11 @@ export function ToggleLocationButton({
 
   return (
     <form action={formAction} className="inline-flex flex-col gap-1">
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      <Button type="submit" variant="outline" size="sm" loading={pending} disabled={pending}>
         {nextActive ? t("activate") : t("deactivate")}
       </Button>
       {state.formError ? (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-destructive text-xs">
           {state.formError}
         </p>
       ) : null}

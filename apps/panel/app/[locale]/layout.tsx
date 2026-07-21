@@ -3,9 +3,11 @@ import type { Metadata } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Geist } from "next/font/google";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { routing } from "@/i18n/routing";
+import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 
 import "../globals.css";
 
@@ -51,11 +53,41 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
 
+  // Nonce żądania (ADR-012) — bez niego CSP `strict-dynamic` odmówi wykonania
+  // skryptu motywu i ciemny wracałby do jasnego przy każdym wejściu.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
+    /*
+      `suppressHydrationWarning` na <html>: skrypt startowy dokłada klasę
+      `dark` i `data-theme` PRZED hydracją, więc znacznik z serwera z
+      założenia różni się od tego, co React zastaje w drzewie. To jedyny
+      element, którego to dotyczy — ostrzeżenie byłoby tu szumem, a nie
+      sygnałem.
+    */
     <html
       lang={bcp47(locale as Locale)}
       className={`${geistSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+          DRUGIE `suppressHydrationWarning`, tym razem na samym <script>
+          (recenzja PR #89). Serwer renderuje `nonce="…"`, ale przeglądarki
+          CELOWO ukrywają ten atrybut przed DOM-em — czytany z drzewa jest
+          pusty. React 19 porównuje jedno z drugim i przy każdym wejściu
+          logował „A tree hydrated but some attributes…". Funkcjonalnie nic
+          się nie działo (produkcja nie loguje rozjazdów atrybutów, a sam
+          nonce działa — CSP przepuszcza skrypt), ale stały szum w konsoli
+          dev zjada wartość reguły „zero błędów konsoli" i myli każdą
+          kolejną sesję. Wyciszamy DOKŁADNIE ten element, nie całe drzewo.
+        */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>

@@ -112,15 +112,16 @@ export function TiersEditor({
       <form action={formAction} className="flex flex-col gap-4">
         <input type="hidden" name="tiers" value={serializedRows} />
 
-        <Table>
+        <div className="border-border bg-card overflow-x-auto rounded-lg border">
+        <Table className="border-collapse">
           <TableHeader>
-            <TableRow>
-              <TableHead>{t("colDays")}</TableHead>
-              <TableHead>{t("colMultiplier")}</TableHead>
-              <TableHead>{t("colTierPrice")}</TableHead>
-              <TableHead>{t("colLabel")}</TableHead>
-              <TableHead>{t("colSortOrder")}</TableHead>
-              <TableHead>
+            <TableRow className="hover:border-b-border">
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("colDays")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("colMultiplier")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("colTierPrice")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("colLabel")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("colSortOrder")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3">
                 <span className="sr-only">{t("colRowActions")}</span>
               </TableHead>
             </TableRow>
@@ -128,7 +129,7 @@ export function TiersEditor({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-gray-600">
+                <TableCell colSpan={6} className="text-muted-foreground">
                   {t("emptyEditor")}
                 </TableCell>
               </TableRow>
@@ -139,7 +140,7 @@ export function TiersEditor({
                     <Input
                       aria-label={t("colDays")}
                       inputMode="numeric"
-                      className="w-24"
+                      className="w-24 tabular-nums"
                       value={row.tierDays}
                       onChange={(event) => updateRow(row.key, "tierDays", event.target.value)}
                     />
@@ -148,13 +149,13 @@ export function TiersEditor({
                     <Input
                       aria-label={t("colMultiplier")}
                       inputMode="decimal"
-                      className="w-24"
+                      className="w-24 tabular-nums"
                       aria-describedby={`${idPrefix}-multiplier-hint`}
                       value={row.multiplier}
                       onChange={(event) => updateRow(row.key, "multiplier", event.target.value)}
                     />
                   </TableCell>
-                  <TableCell className="whitespace-nowrap font-medium">
+                  <TableCell className="whitespace-nowrap font-medium tabular-nums tracking-[0.01em]">
                     {tierPriceLabel(row)}
                   </TableCell>
                   <TableCell>
@@ -170,7 +171,7 @@ export function TiersEditor({
                     <Input
                       aria-label={t("colSortOrder")}
                       inputMode="numeric"
-                      className="w-20"
+                      className="w-20 tabular-nums"
                       value={row.sortOrder}
                       onChange={(event) => updateRow(row.key, "sortOrder", event.target.value)}
                     />
@@ -185,25 +186,26 @@ export function TiersEditor({
             )}
           </TableBody>
         </Table>
+        </div>
 
-        <p id={`${idPrefix}-multiplier-hint`} className="text-xs text-gray-500">
+        <p id={`${idPrefix}-multiplier-hint`} className="text-muted-foreground text-[13px] leading-[18px]">
           {t("multiplierHint")}
         </p>
 
         {state.formError ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-destructive text-sm">
             {state.formError}
           </p>
         ) : null}
         {state.fieldErrors
           ? Object.entries(state.fieldErrors).map(([field, message]) => (
-              <p key={field} role="alert" className="text-sm text-red-600">
+              <p key={field} role="alert" className="text-destructive text-sm">
                 {message}
               </p>
             ))
           : null}
         {state.success ? (
-          <p role="status" className="text-sm text-green-700">
+          <p role="status" className="text-status-positive-fg text-sm">
             {t("saved")}
           </p>
         ) : null}
@@ -212,37 +214,38 @@ export function TiersEditor({
           <Button type="button" variant="outline" onClick={addRow}>
             {t("addRow")}
           </Button>
-          <Button type="submit" disabled={pending}>
-            {pending ? t("saving") : t("save")}
+          <Button type="submit" loading={pending} disabled={pending}>
+            {t("save")}
           </Button>
         </div>
       </form>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-base font-semibold">{t("previewTitle")}</h2>
-        <p className="text-sm text-gray-600">{t("previewIntro")}</p>
+        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("previewTitle")}</h2>
+        <p className="text-muted-foreground text-sm">{t("previewIntro")}</p>
         {invalidRowCount > 0 ? (
-          <p role="status" className="text-sm text-amber-700">
+          <p role="status" className="text-status-attention-fg text-sm">
             {t("previewSkippedRows", { count: invalidRowCount })}
           </p>
         ) : null}
-        <Table>
+        <div className="border-border bg-card overflow-x-auto rounded-lg border">
+        <Table className="border-collapse">
           <TableHeader>
-            <TableRow>
-              <TableHead>{t("previewColDays")}</TableHead>
-              <TableHead>{t("previewColRental")}</TableHead>
-              <TableHead>{t("previewColPerDay")}</TableHead>
-              <TableHead>{t("previewColAppliedTier")}</TableHead>
+            <TableRow className="hover:border-b-border">
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("previewColDays")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("previewColRental")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("previewColPerDay")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">{t("previewColAppliedTier")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {previewRows.map(({ days, rentalGrosze, appliedTierDays }) => (
               <TableRow key={days}>
-                <TableCell>{days}</TableCell>
-                <TableCell className="font-medium">
+                <TableCell className="tabular-nums tracking-[0.01em]">{days}</TableCell>
+                <TableCell className="font-medium tabular-nums tracking-[0.01em]">
                   {formatMoney(rentalGrosze, currency, locale)}
                 </TableCell>
-                <TableCell>
+                <TableCell className="tabular-nums tracking-[0.01em]">
                   {formatMoney(Math.round(rentalGrosze / days), currency, locale)}
                 </TableCell>
                 <TableCell>
@@ -254,6 +257,7 @@ export function TiersEditor({
             ))}
           </TableBody>
         </Table>
+        </div>
       </section>
     </div>
   );

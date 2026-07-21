@@ -27,7 +27,7 @@ export function TotpChallengeForm({ next }: { next?: string }) {
           type="text"
         />
       </label>
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <button
         className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
         disabled={pending}
