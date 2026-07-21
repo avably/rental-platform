@@ -22,7 +22,7 @@
  * `script-src` z nonce tej ścieżki w ogóle nie dotyczy.
  *
  * TYPOGRAFIA: świadomie bez własnego fontu. `next/og` ma krój wbudowany;
- * dociąganie Inter-a z sieci przy każdym renderze dokładałoby zależność
+ * dociąganie kroju marki z sieci przy każdym renderze dokładałoby zależność
  * sieciową do ścieżki, która ma być tania i niezawodna. Miniatura ma nieść
  * NAZWĘ SKLEPU, nie odwzorowywać design system co do kroju.
  */

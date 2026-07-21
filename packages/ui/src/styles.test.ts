@@ -85,14 +85,15 @@ it("utrzymuje promienie Fazy 2 jawnymi wartościami, bez calc", () => {
   expect(css).not.toContain("calc(var(--radius)");
 });
 
-it("panel dostaje Geist Sans, storefront zostaje na Interze, mono zakazane", () => {
-  // Fallbacki zagnieżdżone w var() — lista z gołym var(--font-inter) po
-  // przecinku unieważniałaby całą deklarację, gdy panel nie definiuje Intera.
+it("oba produkty dostają Geist Sans, mono zakazane", () => {
+  // Fallback zagnieżdżony w var() — goły var() niezdefiniowanej zmiennej po
+  // przecinku unieważniałby całą deklarację font-family (ADR-053 D4).
   expect(css).toMatch(
-    /--font-sans:\s+var\(--font-geist-sans,\s+var\(--font-inter,\s+"Inter"\)\)/,
+    /--font-sans:\s+var\(--font-geist-sans,\s+"Geist"\),\s+ui-sans-serif/,
   );
   expect(css).not.toContain("--font-mono");
   expect(css).not.toContain("--font-geist-mono");
+  expect(css).not.toContain("--font-inter");
 });
 
 it("rozdziela płaskie powierzchnie od nakładek — zero cieni", () => {

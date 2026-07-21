@@ -64,20 +64,23 @@ function parseCustomProperties(body: string): Map<string, string> {
   return declarations;
 }
 
+// Podłoga liczności: bez niej usunięcie tokenu z ARTEFAKTU cicho kurczy
+// kontrakt (iteracja po mniejszym zbiorze dalej jest zielona). Wartości =
+// faktyczna liczność powierzchni handoffu w chwili zamrożenia Fazy 2.
 const surfaces = [
-  { surface: "tokens-light", selector: ":root" },
-  { surface: "tokens-dark", selector: ".dark" },
+  { surface: "tokens-light", selector: ":root", minimumTokens: 58 },
+  { surface: "tokens-dark", selector: ".dark", minimumTokens: 32 },
 ] as const;
 
 describe("kontrakt tokenów Fazy 2 (handoff → styles.css)", () => {
-  for (const { surface, selector } of surfaces) {
+  for (const { surface, selector, minimumTokens } of surfaces) {
     const handoffTokens = parseCustomProperties(
       extractBalancedBlock(extractHandoffSurface(surface), surface === "tokens-light" ? ":root {" : ".dark {"),
     );
     const styleTokens = parseCustomProperties(extractBalancedBlock(css, `${selector} {`));
 
-    it(`powierzchnia ${surface} nie jest pusta`, () => {
-      expect(handoffTokens.size).toBeGreaterThan(0);
+    it(`powierzchnia ${surface} ma komplet tokenów (≥ ${minimumTokens})`, () => {
+      expect(handoffTokens.size).toBeGreaterThanOrEqual(minimumTokens);
     });
 
     describe(`${surface} → ${selector}`, () => {

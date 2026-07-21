@@ -12,7 +12,7 @@ import "../globals.css";
 // Sygnał operacyjny (ADR-053): panel w całości w Geist Sans, bez Geist Mono.
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600"],
   display: "swap",
 });

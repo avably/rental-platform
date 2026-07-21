@@ -1,22 +1,13 @@
-import { Geist_Mono, Inter, Lora } from "next/font/google";
+import { Geist } from "next/font/google";
 
-const sans = Inter({
-  variable: "--font-inter",
-  subsets: ["latin-ext"],
-  weight: ["400", "500", "600", "700"],
+// Sygnał operacyjny (ADR-053, delta P1a): sklep — jak panel — w całości
+// w Geist Sans. Poprzednie trzy rodziny (sans, mono, serif nagłówków landing)
+// usunięte zgodnie z sekcją 08 artefaktu Fazy 2 („wyłącznie Geist Sans").
+const sans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
-const mono = Geist_Mono({
-  variable: "--font-mono-source",
-  subsets: ["latin"],
-});
-
-const serif = Lora({
-  variable: "--font-serif-source",
-  subsets: ["latin-ext"],
-  weight: ["400", "500"],
-  display: "swap",
-});
-
-export const fontVariables = `${sans.variable} ${mono.variable} ${serif.variable}`;
+export const fontVariables = sans.variable;

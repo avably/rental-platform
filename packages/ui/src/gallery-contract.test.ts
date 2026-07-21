@@ -26,14 +26,11 @@ describe("integracja design systemu", () => {
     expect(source).not.toContain('id={`section-${title}`}');
   });
 
-  // ADR-053: panel jedzie w całości na Geist Sans (zero Geist Mono),
-  // storefront zostaje na Interze — jeden stack --font-sans, dwie zmienne.
-  it.each([
-    ["panel", "Geist", 'variable: "--font-geist-sans"'],
-    ["storefront", "Inter", 'variable: "--font-inter"'],
-  ])(
-    "%s importuje wspólny arkusz i ładuje %s",
-    (application, family, variableDeclaration) => {
+  // ADR-053 (delta P1a): OBA produkty jadą w całości na Geist Sans —
+  // jeden stack --font-sans, jedna zmienna --font-geist-sans.
+  it.each(["panel", "storefront"])(
+    "%s importuje wspólny arkusz i ładuje Geist",
+    (application) => {
       const globals = readFileSync(
         resolve(repositoryRoot, `apps/${application}/app/globals.css`),
         "utf8",
@@ -44,17 +41,27 @@ describe("integracja design systemu", () => {
       );
 
       expect(globals).toContain('@import "@avably/ui/styles.css"');
-      expect(layout).toContain(family);
-      expect(layout).toContain(variableDeclaration);
+      expect(layout).toContain("Geist");
+      expect(layout).toContain('variable: "--font-geist-sans"');
     },
   );
 
-  it("panel nie deklaruje Geist Mono ani Safiro", () => {
-    const layout = readFileSync(
-      resolve(repositoryRoot, "apps/panel/app/[locale]/layout.tsx"),
-      "utf8",
-    );
-    expect(layout).not.toContain("Geist_Mono");
-    expect(layout).not.toContain("Safiro");
-  });
+  // Twardy zakaz artefaktu Fazy 2: żadnych innych rodzin w produkcie.
+  it.each([
+    ["panel", ["app/[locale]/layout.tsx"]],
+    ["storefront", ["app/[locale]/layout.tsx", "app/fonts.ts"]],
+  ] as const)(
+    "%s nie deklaruje zakazanych rodzin (Geist Mono, Safiro, Inter, Lora)",
+    (application, files) => {
+      for (const file of files) {
+        const source = readFileSync(
+          resolve(repositoryRoot, `apps/${application}/${file}`),
+          "utf8",
+        );
+        expect(source, `${application}/${file}`).not.toMatch(
+          /Geist_Mono|Safiro|Lora|\bInter\b/,
+        );
+      }
+    },
+  );
 });
