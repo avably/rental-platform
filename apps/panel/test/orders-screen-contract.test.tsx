@@ -1,4 +1,8 @@
-import { ORDER_STATUSES, PAYMENT_STATUSES } from "@avably/core";
+import {
+  ORDER_STATUSES,
+  PAYMENT_STATUSES,
+  type ShipmentStatus,
+} from "@avably/core";
 import { statusSemantics } from "@avably/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
@@ -27,6 +31,9 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { OrdersTable } = await import("@/app/[locale]/(panel)/zamowienia/orders-table");
+const { OrderStatusAxes } = await import(
+  "@/app/[locale]/(panel)/zamowienia/[id]/order-status-axes"
+);
 
 /**
  * Fixture pokrywa OBIE osie w całości: tyle wierszy, ile ma dłuższa oś, a
@@ -119,5 +126,73 @@ describe("kontrakt renderu listy zamówień", () => {
     const triggers = [...html.matchAll(/aria-label="Działania dla ([^"]+)"/g)];
     expect(triggers).toHaveLength(rows.length);
     expect(triggers.map((match) => match[1])).toEqual(rows.map((row) => row.orderNumber));
+  });
+});
+
+/**
+ * Trzecia oś statusu (wysyłka) żyje WYŁĄCZNIE na szczególe zamówienia, którego
+ * kontrakt renderu listy nie dotyka — bez tego bloku `shipment` byłoby jedyną
+ * osią bez strażnika wyniku (luka znaleziona przy recenzji PR #88).
+ *
+ * Szczegół jest asynchronicznym server componentem z odczytami z Supabase,
+ * więc renderujemy wydzielony z niego rząd chipów: to ten sam kod, który
+ * maluje osie na ekranie.
+ */
+const SHIPMENT_STATUSES: readonly ShipmentStatus[] = [
+  "created",
+  "in_progress",
+  "in_transit",
+  "delivered",
+  "cancelled",
+  "returned_to_sender",
+];
+
+function renderAxes(shipmentStatus: ShipmentStatus | null): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="pl" messages={messages}>
+      <OrderStatusAxes
+        orderStatus="picked_up"
+        paymentStatus="paid"
+        shipmentStatus={shipmentStatus}
+      />
+    </NextIntlClientProvider>,
+  );
+}
+
+describe("kontrakt renderu osi statusów na szczególe", () => {
+  it("fixture pokrywa wszystkie wartości osi wysyłki", () => {
+    // Podłoga po pustym zbiorze ORAZ pin na komplet: oś dopisana w
+    // statusSemantics bez dopisania tutaj zostawiłaby dziurę w dowodzie.
+    expect(SHIPMENT_STATUSES).toHaveLength(6);
+    expect([...SHIPMENT_STATUSES].sort()).toEqual(
+      Object.keys(statusSemantics.shipment).sort(),
+    );
+  });
+
+  it("każdy chip osi wysyłki niesie ton ze statusSemantics", () => {
+    for (const status of SHIPMENT_STATUSES) {
+      const html = renderAxes(status);
+      const tag = html.match(
+        new RegExp(`<span[^>]*data-status-axis="shipment"[^>]*data-status-value="${status}"[^>]*>`),
+      )?.[0];
+
+      expect(tag, `brak chipa shipment/${status}`).toBeDefined();
+      expect(tag, `shipment/${status}`).toContain(
+        `data-tone="${statusSemantics.shipment[status]}"`,
+      );
+      expect(html, `etykieta shipment/${status}`).toContain(
+        `>${messages.orders.statusLabels.shipment[status]}</span>`,
+      );
+    }
+  });
+
+  it("zamówienie bez przesyłki nie dostaje trzeciej osi", () => {
+    const html = renderAxes(null);
+
+    // Chip wysyłki bez przesyłki byłby zmyśleniem stanu, którego nie ma.
+    expect(html).not.toContain('data-status-axis="shipment"');
+    // …ale dwie pozostałe osie muszą zostać, inaczej test wyżej niczego nie pilnuje.
+    expect(html).toContain('data-status-axis="order"');
+    expect(html).toContain('data-status-axis="payment"');
   });
 });

@@ -333,8 +333,7 @@
       "actionDetails": "Details",
       "actionStatus": "Change status",
       "filterStatus": "Status",
-      "filterFrom": "Term from",
-      "filterTo": "Term to",
+      "filterTerm": "Term",
       "filterCustomer": "Customer",
       "filterAll": "All",
       "filterAnyCustomer": "— anyone —",
@@ -352,6 +351,10 @@
       "title": "This page left without a handover protocol.",
       "backToOrders": "Back to orders"
     },
+    "dateField": {
+      "placeholder": "Pick a date",
+      "rangePlaceholder": "Pick a range"
+    },
     "form": {
       "title": "New order",
       "backToList": "← Orders",
@@ -368,8 +371,7 @@
       "addItem": "Add item",
       "removeItem": "Remove",
       "termSection": "Term and availability",
-      "startDate": "Rental start",
-      "endDate": "Rental end",
+      "termLabel": "Rental term",
       "legendAvailable": "available",
       "legendBlocked": "occupied (rentals and buffers)",
       "legendSelected": "selected term",

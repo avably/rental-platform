@@ -1,9 +1,11 @@
-import { Button, FilterChip, Input } from "@avably/ui";
+import { Button, FilterChip } from "@avably/ui";
 import { ORDER_STATUSES, type OrderStatus } from "@avably/core";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
 import type { OrdersFilter } from "@/lib/order-validation";
+
+import { OrdersDateFilter } from "./orders-date-filter";
 
 /**
  * Zwarte filtry listy (sekcja 04 artefaktu: „Filtry zwarte", pigułka
@@ -33,10 +35,11 @@ export function OrdersFilters({
   return (
     <form method="get" className="mb-4 flex flex-col gap-3">
       {/*
-        Submit domyślny dla Entera w polu daty. HTML aktywuje PIERWSZY przycisk
-        submit formularza — bez tego Enter trafiłby w pigułkę „Wszystkie" i po
-        cichu zdejmował filtr statusu. Poza drzewem dostępności i poza tabem:
-        to nie jest kontrolka do klikania, tylko deklaracja domyślnej akcji.
+        Submit domyślny dla wysłania formularza Enterem (np. z listy klientów).
+        HTML aktywuje wtedy PIERWSZY przycisk submit — bez tego Enter trafiłby
+        w pigułkę „Wszystkie" i po cichu zdejmował filtr statusu. Poza drzewem
+        dostępności i poza tabem: to nie jest kontrolka do klikania, tylko
+        deklaracja domyślnej akcji.
       */}
       <button
         type="submit"
@@ -69,21 +72,18 @@ export function OrdersFilters({
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <div className="flex flex-col gap-1.5">
           <label
-            htmlFor="filter-od"
+            htmlFor="filter-termin"
             className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
           >
-            {t("filterFrom")}
+            {t("filterTerm")}
           </label>
-          <Input id="filter-od" type="date" name="od" defaultValue={filter.od ?? ""} className="w-auto" />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="filter-do"
-            className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
-          >
-            {t("filterTo")}
-          </label>
-          <Input id="filter-do" type="date" name="do" defaultValue={filter.do ?? ""} className="w-auto" />
+          {/* Jedna kontrolka zamiast dwóch pól, ale parametry zapytania nadal
+              dwa (`od`, `do`) — możliwości filtrowania bez zmian. */}
+          <OrdersDateFilter
+            id="filter-termin"
+            defaultFrom={filter.od ?? ""}
+            defaultTo={filter.do ?? ""}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label

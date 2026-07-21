@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
 import type { FormState } from "@/lib/form-state";
+import { DateRangeField } from "@/lib/orders/date-fields";
 import {
   availabilityForRange,
   priceOrderItems,
@@ -370,35 +371,29 @@ export function OrderWizard({
       {/* --- Termin --- */}
       <fieldset className="flex flex-col gap-3">
         <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("termSection")}</legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-start">{t("startDate")}</Label>
-            <Input
-              id="order-start"
-              name="startDate"
-              type="date"
-              required
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              aria-invalid={state.fieldErrors?.startDate ? true : undefined}
-              aria-describedby={errorId("startDate")}
-            />
-            <FieldError id="order-startDate-error" message={state.fieldErrors?.startDate} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-end">{t("endDate")}</Label>
-            <Input
-              id="order-end"
-              name="endDate"
-              type="date"
-              required
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              aria-invalid={state.fieldErrors?.endDate ? true : undefined}
-              aria-describedby={errorId("endDate")}
-            />
-            <FieldError id="order-endDate-error" message={state.fieldErrors?.endDate} />
-          </div>
+        {/* Termin to JEDEN zakres, ale do akcji jadą dwa pola o niezmienionych
+            nazwach (`startDate`, `endDate`) i w niezmienionym formacie ISO —
+            walidacja i wycena nie widzą różnicy. Sam początek bez końca jest
+            dopuszczalny w trakcie wyboru; brak końca zatrzyma schemat akcji
+            tak samo jak puste pole wcześniej. */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="order-term">{t("termLabel")}</Label>
+          <DateRangeField
+            id="order-term"
+            fromName="startDate"
+            toName="endDate"
+            from={startDate}
+            to={endDate}
+            onChange={(range) => {
+              setStartDate(range.from);
+              setEndDate(range.to);
+            }}
+            invalid={Boolean(state.fieldErrors?.startDate || state.fieldErrors?.endDate)}
+            describedBy={errorId("startDate") ?? errorId("endDate")}
+            className="sm:w-[320px]"
+          />
+          <FieldError id="order-startDate-error" message={state.fieldErrors?.startDate} />
+          <FieldError id="order-endDate-error" message={state.fieldErrors?.endDate} />
         </div>
 
         {/* Kalendarz dostępności każdego produktu z pozycji. */}

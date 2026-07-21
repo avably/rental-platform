@@ -20,7 +20,6 @@ import { notFound } from "next/navigation";
 
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
-import { StatusChip } from "@/lib/orders/status-chip";
 import { uuidSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
@@ -41,6 +40,7 @@ import { DepositForms } from "./deposit-forms";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
+import { OrderStatusAxes } from "./order-status-axes";
 import { StatusButtons } from "./status-buttons";
 
 interface OrderDetailRow {
@@ -229,11 +229,11 @@ export default async function OrderDetailPage({
         <aside className="border-border flex flex-col gap-4 lg:border-l lg:pl-6">
           {/* Wszystkie osie statusu obok siebie — trzecia tylko wtedy, gdy
               zamówienie naprawdę ma przesyłkę. */}
-          <div className="flex flex-wrap gap-2">
-            <StatusChip axis="order" value={row.order_status} />
-            <StatusChip axis="payment" value={row.payment_status} />
-            {latestShipment ? <StatusChip axis="shipment" value={latestShipment.status} /> : null}
-          </div>
+          <OrderStatusAxes
+            orderStatus={row.order_status}
+            paymentStatus={row.payment_status}
+            shipmentStatus={latestShipment?.status ?? null}
+          />
 
           <DetailField label={t("depositLabel")}>
             <span className="tabular-nums tracking-[0.01em]">

@@ -333,8 +333,7 @@
       "actionDetails": "Szczegóły",
       "actionStatus": "Zmień status",
       "filterStatus": "Status",
-      "filterFrom": "Termin od",
-      "filterTo": "Termin do",
+      "filterTerm": "Termin",
       "filterCustomer": "Klient",
       "filterAll": "Wszystkie",
       "filterAnyCustomer": "— wszyscy —",
@@ -352,6 +351,10 @@
       "title": "Ta strona wyjechała bez protokołu wydania.",
       "backToOrders": "Wróć do zamówień"
     },
+    "dateField": {
+      "placeholder": "Wybierz datę",
+      "rangePlaceholder": "Wybierz zakres"
+    },
     "form": {
       "title": "Nowe zamówienie",
       "backToList": "← Zamówienia",
@@ -368,8 +371,7 @@
       "addItem": "Dodaj pozycję",
       "removeItem": "Usuń",
       "termSection": "Termin i dostępność",
-      "startDate": "Początek najmu",
-      "endDate": "Koniec najmu",
+      "termLabel": "Termin najmu",
       "legendAvailable": "wolne",
       "legendBlocked": "zajęte (najmy i bufory)",
       "legendSelected": "wybrany termin",
