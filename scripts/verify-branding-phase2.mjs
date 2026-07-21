@@ -1186,4 +1186,457 @@ if (!process.argv.includes("--artifact-only")) {
   assert.ok(existsSync(hubPath), `Brak huba: ${hubPath}`);
 }
 
+// ===== Warstwa 2: wyczerpujący skan kontrastu z policzonej kaskady =====
+// Spec §15 wymaga „tabeli każdej realnie użytej pary". Rejestr
+// `data-contrast-ref` (warstwa 1) jest OPT-IN — para niezadeklarowana nie
+// istnieje dla kontraktu, więc wada w niezgłoszonej parze przechodzi.
+// Ta warstwa liczy kontrast dla KAŻDEJ realnie malowanej pary tekst/tło,
+// niezależnie od tego, co artefakt sam o sobie deklaruje.
+// Zasada: wartości, której skan nie umie rozwiązać, NIE wolno pominąć.
+
+const DEFAULT_BACKGROUND = "#FFFFFF";
+const DEFAULT_FONT_SIZE = 16;
+const DEFAULT_FONT_WEIGHT = 400;
+const STATE_PSEUDOS = new Set([
+  "hover", "active", "focus", "focus-visible", "focus-within", "disabled", "visited", "target",
+]);
+
+// Komentarze muszą zniknąć PRZED podziałem na reguły: prelude sięga od
+// poprzedniego `}`, więc komentarz przed selektorem wchodziłby do selektora
+// i cicho psuł dopasowanie (a przez to całą warstwę 2).
+const cssForScan = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+const cssRulesInOrder = [];
+const cssMediaRules = [];
+{
+  let cursor = 0;
+  while (cursor < cssForScan.length) {
+    const braceIndex = cssForScan.indexOf("{", cursor);
+    if (braceIndex === -1) break;
+    let depth = 0;
+    let end = -1;
+    for (let index = braceIndex; index < cssForScan.length; index += 1) {
+      if (cssForScan[index] === "{") depth += 1;
+      else if (cssForScan[index] === "}") {
+        depth -= 1;
+        if (depth === 0) { end = index; break; }
+      }
+    }
+    assert.notEqual(end, -1, "Niezbalansowany blok CSS w skanie kontrastu");
+    const prelude = cssForScan.slice(cursor, braceIndex).trim();
+    const body = cssForScan.slice(braceIndex + 1, end);
+    if (prelude.startsWith("@")) {
+      if (/^@media/i.test(prelude)) {
+        for (const [, selector, innerBody] of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+          cssMediaRules.push({ prelude, selector: selector.trim(), body: innerBody });
+        }
+      }
+    } else {
+      const declarations = parseCssDeclarations(body);
+      for (const branch of prelude.split(",").map((value) => value.trim()).filter(Boolean)) {
+        cssRulesInOrder.push({ selector: branch, declarations, order: cssRulesInOrder.length });
+      }
+    }
+    cursor = end + 1;
+  }
+}
+
+// Skan celowo pomija @media. Strażnik pilnuje, żeby to założenie nie zgniło.
+for (const { prelude, selector, body } of cssMediaRules) {
+  assert.doesNotMatch(
+    body,
+    /(?:^|[;\s])(?:color|background|background-color)\s*:/,
+    `${prelude} { ${selector} } maluje kolor, a wyczerpujący skan kontrastu @media nie obejmuje`,
+  );
+}
+
+const splitSelectorParts = (text) => {
+  const parts = [];
+  let current = "";
+  let combinator = null;
+  let index = 0;
+  while (index < text.length) {
+    const char = text[index];
+    if (char === "[") {
+      const close = text.indexOf("]", index);
+      assert.notEqual(close, -1, `Niedomknięty [ w selektorze: ${text}`);
+      current += text.slice(index, close + 1);
+      index = close + 1;
+      continue;
+    }
+    if (char === "(") {
+      const close = text.indexOf(")", index);
+      assert.notEqual(close, -1, `Niedomknięty ( w selektorze: ${text}`);
+      current += text.slice(index, close + 1);
+      index = close + 1;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      let lookahead = index;
+      while (lookahead < text.length && /\s/.test(text[lookahead])) lookahead += 1;
+      if (">+~".includes(text[lookahead] ?? "")) {
+        if (current) { parts.push({ compound: current, combinator }); current = ""; }
+        combinator = text[lookahead];
+        index = lookahead + 1;
+        continue;
+      }
+      if (current) { parts.push({ compound: current, combinator }); current = ""; combinator = " "; }
+      index = lookahead;
+      continue;
+    }
+    if (">+~".includes(char)) {
+      if (current) { parts.push({ compound: current, combinator }); current = ""; }
+      combinator = char;
+      index += 1;
+      continue;
+    }
+    current += char;
+    index += 1;
+  }
+  if (current) parts.push({ compound: current, combinator });
+  return parts;
+};
+
+const parseCompoundUnit = (compound) => {
+  const unit = { tag: null, id: null, classes: [], attributes: [], pseudos: [], pseudoElements: [] };
+  const pattern = /::([\w-]+)|:([\w-]+)(?:\(([^)]*)\))?|\.([\w-]+)|#([\w-]+)|\[([^\]]+)\]|(\*)|([A-Za-z][\w-]*)/g;
+  for (const match of compound.matchAll(pattern)) {
+    const [, pseudoElement, pseudo, , className, id, attribute, star, tag] = match;
+    if (pseudoElement) unit.pseudoElements.push(pseudoElement);
+    else if (pseudo) unit.pseudos.push(pseudo);
+    else if (className) unit.classes.push(className);
+    else if (id) unit.id = id;
+    else if (attribute) {
+      const parsed = attribute.match(/^([\w-]+)(?:\s*([~^|$*]?=)\s*["']?([^"'\]]*)["']?)?$/);
+      assert.ok(parsed, `Nieobsługiwany selektor atrybutu: [${attribute}]`);
+      unit.attributes.push({ name: parsed[1], operator: parsed[2] ?? null, value: parsed[3] ?? null });
+    } else if (star) unit.tag = "*";
+    else if (tag) unit.tag = tag.toLowerCase();
+  }
+  return unit;
+};
+
+const specificityOfParts = (parts) => {
+  const total = [0, 0, 0];
+  for (const { compound } of parts) {
+    const unit = parseCompoundUnit(compound);
+    if (unit.id) total[0] += 1;
+    total[1] += unit.classes.length + unit.attributes.length + unit.pseudos.length;
+    if (unit.tag && unit.tag !== "*") total[2] += 1;
+    total[2] += unit.pseudoElements.length;
+  }
+  return total;
+};
+
+const compareSpecificity = (left, right) => {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+};
+
+const elementChildren = (node) => (node.children ?? []).filter((child) => child.tag !== "#text");
+
+const compoundMatches = (node, unit, activeStates) => {
+  if (unit.pseudoElements.length > 0) return false;
+  if (unit.tag && unit.tag !== "*" && node.tag !== unit.tag) return false;
+  if (unit.id && node.attributes.id !== unit.id) return false;
+  const classList = (node.attributes.class ?? "").split(/\s+/).filter(Boolean);
+  for (const className of unit.classes) {
+    if (!classList.includes(className)) return false;
+  }
+  for (const { name, operator, value } of unit.attributes) {
+    const actual = node.attributes[name];
+    if (actual === undefined) return false;
+    if (operator === null) continue;
+    if (operator === "=" && actual !== value) return false;
+    if (operator === "~=" && !actual.split(/\s+/).includes(value)) return false;
+    if (operator === "^=" && !actual.startsWith(value)) return false;
+    if (operator === "$=" && !actual.endsWith(value)) return false;
+    if (operator === "*=" && !actual.includes(value)) return false;
+  }
+  for (const pseudo of unit.pseudos) {
+    if (pseudo === "root") {
+      if (node.tag !== "html") return false;
+      continue;
+    }
+    if (STATE_PSEUDOS.has(pseudo)) {
+      if (!activeStates.has(pseudo)) return false;
+      continue;
+    }
+    const siblings = node.parent ? elementChildren(node.parent) : [node];
+    if (pseudo === "first-child") { if (siblings[0] !== node) return false; continue; }
+    if (pseudo === "last-child") { if (siblings.at(-1) !== node) return false; continue; }
+    if (pseudo === "only-child") { if (siblings.length !== 1) return false; continue; }
+    if (pseudo === "first-of-type") {
+      if (siblings.find((sibling) => sibling.tag === node.tag) !== node) return false;
+      continue;
+    }
+    if (pseudo === "last-of-type") {
+      if (siblings.filter((sibling) => sibling.tag === node.tag).at(-1) !== node) return false;
+      continue;
+    }
+    assert.fail(`Nieobsługiwana pseudo-klasa w skanie kontrastu: :${pseudo}`);
+  }
+  return true;
+};
+
+const selectorMatches = (node, parts, activeStates) => {
+  let index = parts.length - 1;
+  if (!compoundMatches(node, parseCompoundUnit(parts[index].compound), activeStates)) return false;
+  let current = node;
+  index -= 1;
+  while (index >= 0) {
+    const { compound } = parts[index];
+    const combinator = parts[index + 1].combinator;
+    const unit = parseCompoundUnit(compound);
+    if (combinator === " ") {
+      let ancestor = current.parent;
+      let matched = false;
+      while (ancestor && ancestor.tag !== "#document") {
+        if (compoundMatches(ancestor, unit, activeStates)) { current = ancestor; matched = true; break; }
+        ancestor = ancestor.parent;
+      }
+      if (!matched) return false;
+    } else if (combinator === ">") {
+      const parent = current.parent;
+      if (!parent || parent.tag === "#document" || !compoundMatches(parent, unit, activeStates)) return false;
+      current = parent;
+    } else if (combinator === "+" || combinator === "~") {
+      const siblings = current.parent ? elementChildren(current.parent) : [];
+      const position = siblings.indexOf(current);
+      if (position <= 0) return false;
+      if (combinator === "+") {
+        if (!compoundMatches(siblings[position - 1], unit, activeStates)) return false;
+        current = siblings[position - 1];
+      } else {
+        const earlier = siblings.slice(0, position).reverse()
+          .find((sibling) => compoundMatches(sibling, unit, activeStates));
+        if (!earlier) return false;
+        current = earlier;
+      }
+    } else {
+      return false;
+    }
+    index -= 1;
+  }
+  return true;
+};
+
+for (const rule of cssRulesInOrder) {
+  rule.parts = splitSelectorParts(rule.selector);
+  rule.specificity = specificityOfParts(rule.parts);
+  rule.hasPseudoElement = rule.selector.includes("::");
+  rule.states = rule.parts
+    .flatMap(({ compound }) => parseCompoundUnit(compound).pseudos)
+    .filter((pseudo) => STATE_PSEUDOS.has(pseudo));
+}
+
+const inlineDeclarationsOf = (node) => parseCssDeclarations(node.attributes?.style ?? "");
+
+const declaredValue = (node, property, activeStates) => {
+  const inline = inlineDeclarationsOf(node).get(property);
+  if (inline !== undefined) return inline;
+  let best = null;
+  for (const rule of cssRulesInOrder) {
+    if (rule.hasPseudoElement) continue;
+    const value = rule.declarations.get(property);
+    if (value === undefined) continue;
+    if (!selectorMatches(node, rule.parts, activeStates)) continue;
+    if (best === null) { best = rule; continue; }
+    const bySpecificity = compareSpecificity(rule.specificity, best.specificity);
+    if (bySpecificity > 0 || (bySpecificity === 0 && rule.order > best.order)) best = rule;
+  }
+  return best?.declarations.get(property);
+};
+
+const resolveCustomProperty = (node, name, activeStates) => {
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) {
+    const value = declaredValue(current, name, activeStates);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+
+const splitTopLevelArguments = (text) => {
+  const parts = [];
+  let depth = 0;
+  let current = "";
+  for (const char of text) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "," && depth === 0) { parts.push(current); current = ""; continue; }
+    current += char;
+  }
+  parts.push(current);
+  return parts.map((part) => part.trim());
+};
+
+const resolveColorValue = (rawValue, node, activeStates, seen = new Set()) => {
+  const value = (rawValue ?? "").trim();
+  if (value === "" || value === "transparent" || value === "none") return null;
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toUpperCase();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    return `#${value.slice(1).split("").map((char) => char + char).join("")}`.toUpperCase();
+  }
+  const oklchMatch = value.match(/^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/i);
+  if (oklchMatch) {
+    return oklchToHex({ l: Number(oklchMatch[1]), c: Number(oklchMatch[2]), h: Number(oklchMatch[3]) });
+  }
+  const varMatch = value.match(/^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/);
+  if (varMatch) {
+    const [, name, fallback] = varMatch;
+    assert.ok(!seen.has(name), `Cykl var() przy ${name}`);
+    const resolved = resolveCustomProperty(node, name, activeStates);
+    if (resolved !== undefined) {
+      return resolveColorValue(resolved, node, activeStates, new Set([...seen, name]));
+    }
+    if (fallback !== undefined) {
+      return resolveColorValue(fallback, node, activeStates, new Set([...seen, name]));
+    }
+    return null;
+  }
+  assert.fail(`Skan kontrastu nie umie rozwiązać wartości koloru: „${value}"`);
+  return null;
+};
+
+const computedColor = (node, activeStates) => {
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) {
+    const declared = declaredValue(current, "color", activeStates);
+    if (declared === undefined) continue;
+    if (declared.trim() === "inherit") continue;
+    const resolved = resolveColorValue(declared, current, activeStates);
+    if (resolved) return resolved;
+  }
+  return "#000000";
+};
+
+const ownBackground = (node, activeStates) => {
+  const shorthand = declaredValue(node, "background", activeStates);
+  const explicit = declaredValue(node, "background-color", activeStates);
+  const candidate = explicit ?? shorthand;
+  if (candidate === undefined) return null;
+  return resolveColorValue(candidate, node, activeStates);
+};
+
+const effectiveBackground = (node, activeStates) => {
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) {
+    const background = ownBackground(current, activeStates);
+    if (background) return { color: background, source: current };
+  }
+  return { color: DEFAULT_BACKGROUND, source: null };
+};
+
+const lengthToPx = (value, inheritedSize) => {
+  const text = (value ?? "").trim();
+  const match = text.match(/^([\d.]+)(px|rem|em)$/);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (match[2] === "px") return amount;
+  if (match[2] === "rem") return amount * DEFAULT_FONT_SIZE;
+  return amount * inheritedSize;
+};
+
+const FONT_SHORTHAND = /^(?:(normal|bold|[1-9]00)\s+)?(?:(normal|italic)\s+)?([\d.]+(?:px|rem|em))(?:\s*\/\s*[^\s]+)?\s+/;
+
+const computedFont = (node, activeStates) => {
+  const chain = [];
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) chain.unshift(current);
+  let size = DEFAULT_FONT_SIZE;
+  let weight = DEFAULT_FONT_WEIGHT;
+  for (const current of chain) {
+    const shorthand = declaredValue(current, "font", activeStates);
+    if (shorthand !== undefined) {
+      const match = shorthand.trim().match(FONT_SHORTHAND);
+      if (match) {
+        const parsedSize = lengthToPx(match[3], size);
+        if (parsedSize !== null) size = parsedSize;
+        if (match[1]) weight = match[1] === "normal" ? 400 : match[1] === "bold" ? 700 : Number(match[1]);
+        else weight = DEFAULT_FONT_WEIGHT;
+      }
+    }
+    const declaredSize = declaredValue(current, "font-size", activeStates);
+    if (declaredSize !== undefined) {
+      const parsedSize = lengthToPx(declaredSize, size);
+      if (parsedSize !== null) size = parsedSize;
+    }
+    const declaredWeight = declaredValue(current, "font-weight", activeStates);
+    if (declaredWeight !== undefined) {
+      const text = declaredWeight.trim();
+      if (/^\d+$/.test(text)) weight = Number(text);
+      else if (text === "bold") weight = 700;
+      else if (text === "normal") weight = 400;
+    }
+  }
+  return { size, weight };
+};
+
+const describeNode = (node) => {
+  const chain = [];
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) {
+    const id = current.attributes.id ? `#${current.attributes.id}` : "";
+    const classes = (current.attributes.class ?? "").split(/\s+/).filter(Boolean).map((name) => `.${name}`).join("");
+    chain.unshift(`${current.tag}${id}${classes}`);
+  }
+  return chain.slice(-4).join(" > ");
+};
+
+const directText = (node) => (node.children ?? [])
+  .filter((child) => child.tag === "#text")
+  .map((child) => decodeHtmlEntities(child.value))
+  .join("")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const HIDDEN_TAGS = new Set(["script", "style", "title", "symbol", "defs", "head"]);
+
+const isRendered = (node) => {
+  for (let current = node; current && current.tag !== "#document"; current = current.parent) {
+    if (HIDDEN_TAGS.has(current.tag)) return false;
+    if (current.attributes["aria-hidden"] === "true") return false;
+    if ("hidden" in current.attributes) return false;
+    const display = declaredValue(current, "display", new Set());
+    if (display !== undefined && display.trim() === "none") return false;
+  }
+  return true;
+};
+
+const contrastFindings = [];
+const scanTextNodes = findAll(tree, (node) => directText(node).length > 0 && isRendered(node));
+
+for (const node of scanTextNodes) {
+  const activeStates = new Set();
+  const foreground = computedColor(node, activeStates);
+  const { color: background } = effectiveBackground(node, activeStates);
+  const { size, weight } = computedFont(node, activeStates);
+  const isLarge = size >= 24 || (size >= 18.66 && weight >= 700);
+  const minimum = isLarge ? 3 : 4.5;
+  const ratio = contrastRatio(foreground, background);
+  if (ratio + 1e-9 < minimum) {
+    contrastFindings.push({
+      path: describeNode(node),
+      text: directText(node).slice(0, 48),
+      foreground,
+      background,
+      size,
+      weight,
+      minimum,
+      ratio: Number(ratio.toFixed(2)),
+    });
+  }
+}
+
+assert.equal(
+  contrastFindings.length,
+  0,
+  `Wyczerpujący skan kontrastu — pary poniżej progu WCAG:\n${
+    contrastFindings.map((finding) =>
+      `  • ${finding.path}\n      tekst: „${finding.text}"\n      ${finding.foreground} na ${finding.background}` +
+      ` = ${finding.ratio}:1 (próg ${finding.minimum}, ${finding.size}px/${finding.weight})`,
+    ).join("\n")
+  }`,
+);
+
+console.log(`phase2_contrast_scan=${scanTextNodes.length} par tekst/tło policzonych`);
+
 console.log("phase2_contract=passed");
