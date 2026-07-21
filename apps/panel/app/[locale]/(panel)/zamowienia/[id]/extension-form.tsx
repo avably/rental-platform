@@ -1,11 +1,12 @@
 "use client";
 
-import { Button, Input, Label } from "@avably/ui";
+import { Button, Label } from "@avably/ui";
 import { addDays, formatMoney, type CurrencyCode } from "@avably/core";
 import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
 import type { FormState } from "@/lib/form-state";
+import { DateField } from "@/lib/orders/date-fields";
 
 import {
   quoteOrderExtension,
@@ -57,13 +58,15 @@ export function ExtensionForm({
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="expectedEndDate" value={endDate} />
       <Label htmlFor="extension-new-end">{t("newEndLabel")}</Label>
-      <Input
+      {/* Dni przed końcem najmu są w kalendarzu WYŁĄCZONE — odpowiednik
+          dawnego `min`, tyle że widoczny od razu, a nie dopiero po odrzuceniu
+          wyboru. Do akcji jedzie ten sam string ISO pod tą samą nazwą. */}
+      <DateField
         id="extension-new-end"
         name="newEndDate"
-        type="date"
         min={addDays(endDate, 1)}
         value={newEndDate}
-        onChange={(event) => setNewEndDate(event.target.value)}
+        onChange={setNewEndDate}
       />
       {quote ? (
         <p>
@@ -76,18 +79,18 @@ export function ExtensionForm({
           </span>
         </p>
       ) : (
-        <p className="text-gray-500">{t("pickDateHint")}</p>
+        <p className="text-muted-foreground">{t("pickDateHint")}</p>
       )}
       <Button type="submit" disabled={pending || !quote}>
         {t("cta")}
       </Button>
       {state.formError ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {state.formError}
         </p>
       ) : null}
       {state.fieldErrors ? (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className="text-destructive">
           {Object.values(state.fieldErrors)[0]}
         </p>
       ) : null}

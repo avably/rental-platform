@@ -9,7 +9,6 @@
  * ustawień, zamiast ukrywać funkcję bez wyjaśnienia.
  */
 import {
-  Badge,
   Table,
   TableBody,
   TableCell,
@@ -32,6 +31,7 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { StatusChip } from "@/lib/orders/status-chip";
 import { requireMember } from "@/lib/supabase-server";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
@@ -140,7 +140,7 @@ export async function DeliverySection({
         <p className="text-sm">
           {t("deliveryCost")}:{" "}
           {pricingProblem ? (
-            <span className="text-red-600">
+            <span className="text-destructive">
               {t("pricingMissing")}{" "}
               <Link className="underline" href="/ustawienia-dostaw">
                 {t("settingsLink")}
@@ -157,7 +157,7 @@ export async function DeliverySection({
       ) : null}
 
       {shipments.length === 0 ? (
-        <p className="text-sm text-gray-500">{t("empty")}</p>
+        <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
         <Table>
           <TableHeader>
@@ -177,16 +177,14 @@ export async function DeliverySection({
               <TableRow key={shipment.id}>
                 <TableCell>{t(`types.${shipment.shipment_type}`)}</TableCell>
                 <TableCell>
-                  <Badge variant={shipment.status === "cancelled" ? "outline" : "default"}>
-                    {t(`statuses.${shipment.status}`)}
-                  </Badge>
+                  <StatusChip axis="shipment" value={shipment.status} />
                   {/* Surowy status dostawcy pokazywany, gdy NIE odpowiada
                       naszemu (nieznany albo rozjechany po dryfie API) — bez
                       tego badge twierdziłby coś, czego dostawca nie potwierdza,
                       a właśnie po to provider_status jest zapisywany (ADR-031). */}
                   {shipment.provider_status &&
                   mapProviderStatus(shipment.provider_status) !== shipment.status ? (
-                    <span className="mt-1 block text-xs text-gray-500">
+                    <span className="text-muted-foreground mt-1 block text-xs">
                       {t("providerStatus", { status: shipment.provider_status })}
                     </span>
                   ) : null}
@@ -259,12 +257,12 @@ export async function DeliverySection({
 
       {!eligible ? (
         deliveryMethod === "pickup" ? null : (
-          <p className="text-sm text-gray-500">{t("notCourier")}</p>
+          <p className="text-muted-foreground text-sm">{t("notCourier")}</p>
         )
       ) : configProblems ? (
-        <div className="rounded border border-red-200 p-3 text-sm">
-          <p className="text-red-600">{t("configMissing")}</p>
-          <ul className="list-disc pl-5 text-red-600">
+        <div className="border-destructive rounded-md border p-3 text-sm">
+          <p className="text-destructive">{t("configMissing")}</p>
+          <ul className="text-destructive list-disc pl-5">
             {configProblems.map((problem) => (
               <li key={problem}>{problem}</li>
             ))}

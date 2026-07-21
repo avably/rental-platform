@@ -1,20 +1,15 @@
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
-import { formatMoney, type OrderStatus, type PaymentStatus, ORDER_STATUSES } from "@avably/core";
+import { Button } from "@avably/ui";
+import { type OrderStatus, type PaymentStatus } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { ordersFilterSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
+
+import { OrdersEmptyState } from "./orders-empty-state";
+import { OrdersFilters } from "./orders-filters";
+import { OrdersTable, type OrdersTableRow } from "./orders-table";
 
 interface OrderRow {
   id: string;
@@ -25,6 +20,7 @@ interface OrderRow {
   payment_status: PaymentStatus;
   total_rental_grosze: number;
   customers: { full_name: string | null; email: string } | null;
+  order_items: { products: { name: string } | null }[];
 }
 
 export default async function OrdersPage({
@@ -48,7 +44,10 @@ export default async function OrdersPage({
   let query = ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, customers(full_name, email)",
+      // `order_items(products(name))` doszło pod kolumnę „Sprzęt" z sekcji 04
+      // artefaktu — odczyt zostaje w obrębie RLS tenanta, a filtry, sortowanie
+      // i limit są niezmienione co do znaku.
+      "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, customers(full_name, email), order_items(products(name))",
     )
     .eq("tenant_id", ctx.tenantId)
     .order("created_at", { ascending: false })
@@ -73,130 +72,52 @@ export default async function OrdersPage({
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.list");
-  const tStatus = await getTranslations("orders.status");
-  const tPayment = await getTranslations("orders.paymentStatus");
 
-  const rows = (orders ?? []) as unknown as OrderRow[];
+  const rows = ((orders ?? []) as unknown as OrderRow[]).map(
+    (order): OrdersTableRow => ({
+      id: order.id,
+      orderNumber: order.order_number,
+      customerLabel: order.customers?.full_name ?? order.customers?.email ?? "—",
+      equipment: order.order_items
+        .map((item) => item.products?.name)
+        .filter((name): name is string => Boolean(name)),
+      startDate: order.start_date,
+      endDate: order.end_date,
+      orderStatus: order.order_status,
+      paymentStatus: order.payment_status,
+      totalRentalGrosze: order.total_rental_grosze,
+    }),
+  );
+
+  // Pusty stan z artefaktu należy się tenantowi BEZ zamówień. Pusty wynik
+  // filtrów to co innego — tam zaproszenie „dodaj pierwsze" byłoby kłamstwem,
+  // więc zostaje komunikat o filtrach.
+  const filtered = Boolean(filter.status || filter.od || filter.do || filter.klient);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <div className="flex flex-col gap-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{t("title")}</h1>
         <Button asChild>
           <Link href="/zamowienia/nowe">{t("newOrder")}</Link>
         </Button>
       </header>
 
-      {/* Filtry idą GET-em — stan listy mieszka w URL (można podesłać link). */}
-      <form method="get" className="flex flex-wrap items-end gap-3 text-sm">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="filter-status" className="text-xs font-medium">
-            {t("filterStatus")}
-          </label>
-          <select
-            id="filter-status"
-            name="status"
-            defaultValue={filter.status ?? ""}
-            className="h-9 rounded-md border border-input bg-transparent px-3"
-          >
-            <option value="">{t("filterAll")}</option>
-            {ORDER_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {tStatus(status)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="filter-od" className="text-xs font-medium">
-            {t("filterFrom")}
-          </label>
-          <input
-            id="filter-od"
-            type="date"
-            name="od"
-            defaultValue={filter.od ?? ""}
-            className="h-9 rounded-md border border-input bg-transparent px-3"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="filter-do" className="text-xs font-medium">
-            {t("filterTo")}
-          </label>
-          <input
-            id="filter-do"
-            type="date"
-            name="do"
-            defaultValue={filter.do ?? ""}
-            className="h-9 rounded-md border border-input bg-transparent px-3"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="filter-klient" className="text-xs font-medium">
-            {t("filterCustomer")}
-          </label>
-          <select
-            id="filter-klient"
-            name="klient"
-            defaultValue={filter.klient ?? ""}
-            className="h-9 rounded-md border border-input bg-transparent px-3"
-          >
-            <option value="">{t("filterAll")}</option>
-            {(customers ?? []).map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.full_name ? `${customer.full_name} (${customer.email})` : customer.email}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button type="submit" variant="outline">
-          {t("apply")}
-        </Button>
-        <Link className="underline" href="/zamowienia">
-          {t("clear")}
-        </Link>
-      </form>
+      {/* Tenant bez ANI JEDNEGO zamówienia nie dostaje filtrów: nie ma czego
+          filtrować, a pasek kontrolek nad pustym ekranem to sam szum. */}
+      {rows.length > 0 || filtered ? (
+        <OrdersFilters filter={filter} customers={customers ?? []} />
+      ) : null}
 
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-600">{t("empty")}</p>
+        filtered ? (
+          <p className="text-muted-foreground text-sm">{t("empty")}</p>
+        ) : (
+          <OrdersEmptyState />
+        )
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("colNumber")}</TableHead>
-              <TableHead>{t("colCustomer")}</TableHead>
-              <TableHead>{t("colTerm")}</TableHead>
-              <TableHead>{t("colStatus")}</TableHead>
-              <TableHead>{t("colPayment")}</TableHead>
-              <TableHead>{t("colTotal")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-medium">
-                  <Link className="underline" href={`/zamowienia/${order.id}`}>
-                    {order.order_number}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  {order.customers?.full_name ?? order.customers?.email ?? "—"}
-                </TableCell>
-                <TableCell>
-                  {order.start_date} — {order.end_date}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={order.order_status === "cancelled" ? "outline" : "default"}>
-                    {tStatus(order.order_status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{tPayment(order.payment_status)}</TableCell>
-                <TableCell>{formatMoney(order.total_rental_grosze, currency, locale)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <OrdersTable rows={rows} currency={currency} locale={locale} />
       )}
-    </main>
+    </div>
   );
 }

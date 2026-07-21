@@ -288,6 +288,73 @@
     }
   },
   "orders": {
+    "statusLabels": {
+      "order": {
+        "pending": "Pending",
+        "reserved": "Reserved",
+        "ready_for_pickup": "Ready for pickup",
+        "picked_up": "Picked up",
+        "returned": "Returned",
+        "cancelled": "Cancelled"
+      },
+      "payment": {
+        "unpaid": "Unpaid",
+        "pending": "Pending",
+        "paid": "Paid",
+        "manual": "Manual payment",
+        "completed": "Settled",
+        "deposit_refunded": "Deposit refunded",
+        "refunded": "Refund",
+        "cancelled": "Cancelled"
+      },
+      "shipment": {
+        "created": "Created",
+        "in_progress": "In preparation",
+        "in_transit": "In transit",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "returned_to_sender": "Return to sender"
+      }
+    },
+    "list": {
+      "title": "Orders",
+      "newOrder": "New order",
+      "empty": "No orders match the filters.",
+      "colId": "ID",
+      "colCustomer": "Customer",
+      "colEquipment": "Equipment",
+      "colTerm": "Term",
+      "colAmount": "Amount",
+      "colOrderStatus": "Order status",
+      "colPaymentStatus": "Payment status",
+      "colActions": "Actions",
+      "itemsMore": "+{count}",
+      "rowActions": "Actions for {number}",
+      "actionDetails": "Details",
+      "actionStatus": "Change status",
+      "filterStatus": "Status",
+      "filterTerm": "Term",
+      "filterCustomer": "Customer",
+      "filterAll": "All",
+      "filterAnyCustomer": "— anyone —",
+      "apply": "Filter",
+      "clear": "Clear",
+      "loading": "Loading orders…"
+    },
+    "emptyState": {
+      "title": "Suspiciously quiet. Add your first order.",
+      "addOrder": "Add order",
+      "goToCatalog": "Go to catalog"
+    },
+    "notFound": {
+      "code": "404",
+      "title": "This page left without a handover protocol.",
+      "backToOrders": "Back to orders"
+    },
+    "dateField": {
+      "placeholder": "Pick a date",
+      "rangePlaceholder": "Pick a range"
+    },
     "form": {
       "title": "New order",
       "backToList": "← Orders",
@@ -304,8 +371,7 @@
       "addItem": "Add item",
       "removeItem": "Remove",
       "termSection": "Term and availability",
-      "startDate": "Rental start",
-      "endDate": "Rental end",
+      "termLabel": "Rental term",
       "legendAvailable": "available",
       "legendBlocked": "occupied (rentals and buffers)",
       "legendSelected": "selected term",
@@ -321,7 +387,6 @@
       "totalWithDelivery": "Total (rental + delivery)",
       "deliveryPricingMissing": "Configure delivery pricing for this method in delivery settings before creating the order.",
       "shortage": "{product}: needed {needed}, available units: {free}.",
-      "saving": "Saving…",
       "save": "Create order"
     },
     "delivery": {
@@ -345,14 +410,6 @@
         "types": {
           "outbound": "Outbound to customer",
           "return": "Return from customer"
-        },
-        "statuses": {
-          "created": "Created",
-          "in_progress": "In preparation",
-          "in_transit": "In transit",
-          "delivered": "Delivered",
-          "cancelled": "Cancelled",
-          "returned_to_sender": "Returned to sender"
         },
         "deliveryCost": "Delivery cost per price list",
         "deliveryCostFree": "free (threshold reached)",
@@ -417,42 +474,6 @@
         "savedOk": "Saved."
       }
     },
-    "status": {
-      "pending": "Pending",
-      "reserved": "Reserved",
-      "ready_for_pickup": "Ready for pickup",
-      "picked_up": "Picked up",
-      "returned": "Returned",
-      "cancelled": "Cancelled"
-    },
-    "paymentStatus": {
-      "unpaid": "Unpaid",
-      "pending": "Payment pending",
-      "paid": "Paid",
-      "manual": "Paid manually",
-      "completed": "Settled",
-      "deposit_refunded": "Deposit refunded",
-      "refunded": "Refunded",
-      "cancelled": "Payment cancelled"
-    },
-    "list": {
-      "title": "Orders",
-      "newOrder": "New order",
-      "empty": "No orders match the filters.",
-      "colNumber": "Number",
-      "colCustomer": "Customer",
-      "colTerm": "Term",
-      "colStatus": "Status",
-      "colPayment": "Payment",
-      "colTotal": "Rental",
-      "filterStatus": "Status",
-      "filterFrom": "Term from",
-      "filterTo": "Term to",
-      "filterCustomer": "Customer",
-      "filterAll": "— all —",
-      "apply": "Filter",
-      "clear": "Clear"
-    },
     "detail": {
       "title": "Order {number}",
       "backToList": "← Orders",
@@ -476,7 +497,19 @@
       "cancelBlockedHint": "Cancellation blocked — the payment must be settled (refunded) before cancelling.",
       "sendEmail": "Send email to customer",
       "sendEmailUnavailable": "Email sending is not configured — the customer will not be notified.",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "equipment": "Equipment",
+      "quantity": "Quantity",
+      "quantityUnit": "{count} pcs",
+      "value": "Value",
+      "depositLabel": "Deposit",
+      "deliveryLabel": "Delivery",
+      "trackingNumber": "Tracking number",
+      "trackingMissing": "Not dispatched yet",
+      "history": "Event timeline",
+      "loading": "Loading order…",
+      "timelineCreated": "Order created",
+      "timelineShipment": "Shipment dispatched ({number})"
     },
     "deposit": {
       "title": "Deposit",

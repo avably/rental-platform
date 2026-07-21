@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
 import type { FormState } from "@/lib/form-state";
+import { DateRangeField } from "@/lib/orders/date-fields";
 import {
   availabilityForRange,
   priceOrderItems,
@@ -22,6 +23,12 @@ import {
 const initialState: FormState = {};
 
 const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/* Natywny <select> zostaje natywny (formularz idzie POST-em bez JS), ale
+   wygląd i stany bierze z tego samego zestawu, co Input z P2. */
+const FIELD_CLASS =
+  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:border-dashed aria-invalid:border-destructive";
+
 
 export interface WizardCustomer {
   id: string;
@@ -55,10 +62,15 @@ export interface WizardLocation {
   name: string;
 }
 
+/**
+ * Błąd POD polem, w kolorze destructive i z rolą alertu — wzorzec sekcji 06
+ * artefaktu. Pole obok dostaje `aria-invalid`, więc obrys pola (stan error
+ * z P2) i komunikat mówią to samo; sam kolor nigdy nie niesie informacji.
+ */
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-sm text-red-600">
+    <p id={id} role="alert" className="text-destructive text-[13px] leading-[18px] font-medium">
       {message}
     </p>
   );
@@ -96,23 +108,23 @@ function AvailabilityStrip({
               title={`${entry.day}${entry.available ? "" : ` — ${legendLabels.blocked}`}`}
               className={[
                 "h-5 w-2.5",
-                entry.available ? "bg-emerald-200" : "bg-red-300",
-                inRange ? "ring-2 ring-inset ring-blue-600" : "",
+                entry.available ? "bg-status-positive-bg" : "bg-status-problem-bg",
+                inRange ? "ring-signal-strong ring-2 ring-inset" : "",
                 showMonthEdge ? "ml-1.5" : "",
               ].join(" ")}
             />
           );
         })}
       </div>
-      <p className="flex gap-4 text-xs text-gray-500">
+      <p className="text-muted-foreground flex gap-4 text-xs">
         <span className="flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 bg-emerald-200" /> {legendLabels.available}
+          <span aria-hidden className="bg-status-positive-bg inline-block h-3 w-3" /> {legendLabels.available}
         </span>
         <span className="flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 bg-red-300" /> {legendLabels.blocked}
+          <span aria-hidden className="bg-status-problem-bg inline-block h-3 w-3" /> {legendLabels.blocked}
         </span>
         <span className="flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 ring-2 ring-inset ring-blue-600" /> {legendLabels.selected}
+          <span aria-hidden className="ring-signal-strong inline-block h-3 w-3 ring-2 ring-inset" /> {legendLabels.selected}
         </span>
         <span>
           {dayMap[0]?.day} — {dayMap.at(-1)?.day}
@@ -228,7 +240,7 @@ export function OrderWizard({
     <form action={formAction} className="flex max-w-2xl flex-col gap-6">
       {/* --- Klient --- */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-base font-semibold">{t("customerSection")}</legend>
+        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("customerSection")}</legend>
         <div className="flex gap-4" role="radiogroup" aria-label={t("customerSection")}>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -260,7 +272,7 @@ export function OrderWizard({
               id="order-customer"
               name="customerId"
               defaultValue={customers[0]?.id ?? ""}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+              className={FIELD_CLASS}
               aria-invalid={state.fieldErrors?.customerId ? true : undefined}
               aria-describedby={errorId("customerId")}
             >
@@ -303,7 +315,7 @@ export function OrderWizard({
 
       {/* --- Pozycje --- */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-base font-semibold">{t("itemsSection")}</legend>
+        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("itemsSection")}</legend>
         {itemProductIds.map((productId, index) => (
           // Indeks jako klucz jest tu poprawny: wiersze są reordering-free
           // (dodawanie na koniec, usuwanie po indeksie), a wartość żyje w stanie.
@@ -318,7 +330,7 @@ export function OrderWizard({
                   next[index] = event.target.value;
                   setItemProductIds(next);
                 }}
-                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                className={FIELD_CLASS}
               >
                 {products.map((product) => (
                   <option key={product.pricing.id} value={product.pricing.id}>
@@ -358,36 +370,30 @@ export function OrderWizard({
 
       {/* --- Termin --- */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-base font-semibold">{t("termSection")}</legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-start">{t("startDate")}</Label>
-            <Input
-              id="order-start"
-              name="startDate"
-              type="date"
-              required
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              aria-invalid={state.fieldErrors?.startDate ? true : undefined}
-              aria-describedby={errorId("startDate")}
-            />
-            <FieldError id="order-startDate-error" message={state.fieldErrors?.startDate} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-end">{t("endDate")}</Label>
-            <Input
-              id="order-end"
-              name="endDate"
-              type="date"
-              required
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              aria-invalid={state.fieldErrors?.endDate ? true : undefined}
-              aria-describedby={errorId("endDate")}
-            />
-            <FieldError id="order-endDate-error" message={state.fieldErrors?.endDate} />
-          </div>
+        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("termSection")}</legend>
+        {/* Termin to JEDEN zakres, ale do akcji jadą dwa pola o niezmienionych
+            nazwach (`startDate`, `endDate`) i w niezmienionym formacie ISO —
+            walidacja i wycena nie widzą różnicy. Sam początek bez końca jest
+            dopuszczalny w trakcie wyboru; brak końca zatrzyma schemat akcji
+            tak samo jak puste pole wcześniej. */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="order-term">{t("termLabel")}</Label>
+          <DateRangeField
+            id="order-term"
+            fromName="startDate"
+            toName="endDate"
+            from={startDate}
+            to={endDate}
+            onChange={(range) => {
+              setStartDate(range.from);
+              setEndDate(range.to);
+            }}
+            invalid={Boolean(state.fieldErrors?.startDate || state.fieldErrors?.endDate)}
+            describedBy={errorId("startDate") ?? errorId("endDate")}
+            className="sm:w-[320px]"
+          />
+          <FieldError id="order-startDate-error" message={state.fieldErrors?.startDate} />
+          <FieldError id="order-endDate-error" message={state.fieldErrors?.endDate} />
         </div>
 
         {/* Kalendarz dostępności każdego produktu z pozycji. */}
@@ -414,7 +420,7 @@ export function OrderWizard({
 
       {/* --- Dostawa --- */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-base font-semibold">{t("deliverySection")}</legend>
+        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("deliverySection")}</legend>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="order-delivery">{t("deliveryMethod")}</Label>
@@ -423,7 +429,7 @@ export function OrderWizard({
               name="deliveryMethod"
               value={deliveryMethod}
               onChange={(event) => setDeliveryMethod(event.target.value)}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+              className={FIELD_CLASS}
             >
               <option value="pickup">{tStatus("delivery.pickup")}</option>
               <option value="courier">{tStatus("delivery.courier")}</option>
@@ -438,7 +444,7 @@ export function OrderWizard({
                 id="order-location"
                 name="pickupLocationId"
                 defaultValue={locations[0]?.id ?? ""}
-                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                className={FIELD_CLASS}
                 aria-invalid={state.fieldErrors?.pickupLocationId ? true : undefined}
                 aria-describedby={errorId("pickupLocationId")}
               >
@@ -462,7 +468,7 @@ export function OrderWizard({
 
       {/* --- Podgląd wyceny (silnik, na żywo) --- */}
       {preview ? (
-        <div className="flex flex-col gap-2 rounded-md border border-input p-4" role="status">
+        <div className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4" role="status">
           <p className="text-sm font-semibold">
             {t("previewTitle", { days: preview.pricing.days })}
           </p>
@@ -479,7 +485,7 @@ export function OrderWizard({
               </li>
             ))}
           </ul>
-          <p className="flex justify-between gap-4 border-t border-input pt-2 text-sm font-semibold">
+          <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
             <span>{t("totalRental")}</span>
             <span>{formatMoney(preview.pricing.totalRentalGrosze, currency, locale)}</span>
           </p>
@@ -490,7 +496,7 @@ export function OrderWizard({
             </p>
           ) : null}
           {deliveryPreview?.configMissing ? (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-destructive text-sm">
               {t("deliveryPricingMissing")}
             </p>
           ) : deliveryPreview && deliveryPreview.grosze !== null ? (
@@ -499,7 +505,7 @@ export function OrderWizard({
                 <span>{t("deliveryCost")}</span>
                 <span>{formatMoney(deliveryPreview.grosze, currency, locale)}</span>
               </p>
-              <p className="flex justify-between gap-4 border-t border-input pt-2 text-sm font-semibold">
+              <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
                 <span>{t("totalWithDelivery")}</span>
                 <span>
                   {formatMoney(
@@ -512,7 +518,7 @@ export function OrderWizard({
             </>
           ) : null}
           {preview.shortages.map((shortage) => (
-            <p key={shortage.productId} role="alert" className="text-sm text-red-600">
+            <p key={shortage.productId} role="alert" className="text-destructive text-sm">
               {t("shortage", {
                 product: productById.get(shortage.productId)?.name ?? shortage.productId,
                 needed: shortage.needed,
@@ -524,7 +530,7 @@ export function OrderWizard({
       ) : null}
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-destructive text-sm">
           {state.formError}
         </p>
       ) : null}
@@ -532,9 +538,10 @@ export function OrderWizard({
       <div>
         <Button
           type="submit"
+          loading={pending}
           disabled={pending || (preview !== null && preview.shortages.length > 0)}
         >
-          {pending ? t("saving") : t("save")}
+          {t("save")}
         </Button>
       </div>
     </form>

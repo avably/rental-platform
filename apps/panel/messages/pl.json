@@ -288,6 +288,73 @@
     }
   },
   "orders": {
+    "statusLabels": {
+      "order": {
+        "pending": "Oczekuje",
+        "reserved": "Zarezerwowane",
+        "ready_for_pickup": "Do odbioru",
+        "picked_up": "Wydane",
+        "returned": "Zwrócone",
+        "cancelled": "Anulowane"
+      },
+      "payment": {
+        "unpaid": "Nieopłacone",
+        "pending": "Oczekuje",
+        "paid": "Opłacone",
+        "manual": "Płatność ręczna",
+        "completed": "Rozliczone",
+        "deposit_refunded": "Kaucja zwrócona",
+        "refunded": "Zwrot",
+        "cancelled": "Anulowane"
+      },
+      "shipment": {
+        "created": "Utworzona",
+        "in_progress": "W przygotowaniu",
+        "in_transit": "W transporcie",
+        "delivered": "Dostarczona",
+        "cancelled": "Anulowana",
+        "returned_to_sender": "Zwrot do nadawcy"
+      }
+    },
+    "list": {
+      "title": "Zamówienia",
+      "newOrder": "Nowe zamówienie",
+      "empty": "Brak zamówień spełniających filtry.",
+      "colId": "ID",
+      "colCustomer": "Klient",
+      "colEquipment": "Sprzęt",
+      "colTerm": "Termin",
+      "colAmount": "Kwota",
+      "colOrderStatus": "Status zamówienia",
+      "colPaymentStatus": "Status płatności",
+      "colActions": "Akcje",
+      "itemsMore": "+{count}",
+      "rowActions": "Działania dla {number}",
+      "actionDetails": "Szczegóły",
+      "actionStatus": "Zmień status",
+      "filterStatus": "Status",
+      "filterTerm": "Termin",
+      "filterCustomer": "Klient",
+      "filterAll": "Wszystkie",
+      "filterAnyCustomer": "— wszyscy —",
+      "apply": "Filtruj",
+      "clear": "Wyczyść",
+      "loading": "Ładowanie zamówień…"
+    },
+    "emptyState": {
+      "title": "Podejrzanie spokojnie. Dodaj pierwsze zamówienie.",
+      "addOrder": "Dodaj zamówienie",
+      "goToCatalog": "Przejdź do katalogu"
+    },
+    "notFound": {
+      "code": "404",
+      "title": "Ta strona wyjechała bez protokołu wydania.",
+      "backToOrders": "Wróć do zamówień"
+    },
+    "dateField": {
+      "placeholder": "Wybierz datę",
+      "rangePlaceholder": "Wybierz zakres"
+    },
     "form": {
       "title": "Nowe zamówienie",
       "backToList": "← Zamówienia",
@@ -304,8 +371,7 @@
       "addItem": "Dodaj pozycję",
       "removeItem": "Usuń",
       "termSection": "Termin i dostępność",
-      "startDate": "Początek najmu",
-      "endDate": "Koniec najmu",
+      "termLabel": "Termin najmu",
       "legendAvailable": "wolne",
       "legendBlocked": "zajęte (najmy i bufory)",
       "legendSelected": "wybrany termin",
@@ -321,7 +387,6 @@
       "totalWithDelivery": "Razem (najem + dostawa)",
       "deliveryPricingMissing": "Skonfiguruj cennik dostawy dla tej metody w ustawieniach dostaw, zanim utworzysz zamówienie.",
       "shortage": "{product}: potrzeba {needed}, wolnych egzemplarzy: {free}.",
-      "saving": "Zapisywanie…",
       "save": "Utwórz zamówienie"
     },
     "delivery": {
@@ -345,14 +410,6 @@
         "types": {
           "outbound": "Wysyłka do klienta",
           "return": "Zwrot od klienta"
-        },
-        "statuses": {
-          "created": "Utworzona",
-          "in_progress": "W przygotowaniu",
-          "in_transit": "W drodze",
-          "delivered": "Doręczona",
-          "cancelled": "Anulowana",
-          "returned_to_sender": "Zwrócona do nadawcy"
         },
         "deliveryCost": "Koszt dostawy wg cennika",
         "deliveryCostFree": "darmowa (próg osiągnięty)",
@@ -417,42 +474,6 @@
         "savedOk": "Zapisano."
       }
     },
-    "status": {
-      "pending": "Oczekujące",
-      "reserved": "Zarezerwowane",
-      "ready_for_pickup": "Gotowe do wydania",
-      "picked_up": "Wydane",
-      "returned": "Zwrócone",
-      "cancelled": "Anulowane"
-    },
-    "paymentStatus": {
-      "unpaid": "Nieopłacone",
-      "pending": "Płatność w toku",
-      "paid": "Opłacone",
-      "manual": "Opłacone ręcznie",
-      "completed": "Rozliczone",
-      "deposit_refunded": "Kaucja zwrócona",
-      "refunded": "Zwrócono płatność",
-      "cancelled": "Płatność anulowana"
-    },
-    "list": {
-      "title": "Zamówienia",
-      "newOrder": "Nowe zamówienie",
-      "empty": "Brak zamówień spełniających filtry.",
-      "colNumber": "Numer",
-      "colCustomer": "Klient",
-      "colTerm": "Termin",
-      "colStatus": "Status",
-      "colPayment": "Płatność",
-      "colTotal": "Najem",
-      "filterStatus": "Status",
-      "filterFrom": "Termin od",
-      "filterTo": "Termin do",
-      "filterCustomer": "Klient",
-      "filterAll": "— wszystkie —",
-      "apply": "Filtruj",
-      "clear": "Wyczyść"
-    },
     "detail": {
       "title": "Zamówienie {number}",
       "backToList": "← Zamówienia",
@@ -476,7 +497,19 @@
       "cancelBlockedHint": "Anulowanie zablokowane — płatność wymaga rozliczenia (zwrotu) przed anulowaniem.",
       "sendEmail": "Wyślij e-mail do klienta",
       "sendEmailUnavailable": "Wysyłka e-maili nie jest skonfigurowana — klient nie dostanie powiadomienia.",
-      "createdAt": "Utworzono"
+      "createdAt": "Utworzono",
+      "equipment": "Sprzęt",
+      "quantity": "Ilość",
+      "quantityUnit": "{count} szt.",
+      "value": "Wartość",
+      "depositLabel": "Kaucja",
+      "deliveryLabel": "Dostawa",
+      "trackingNumber": "Numer przesyłki",
+      "trackingMissing": "Jeszcze nie nadano",
+      "history": "Oś zdarzeń",
+      "loading": "Ładowanie zamówienia…",
+      "timelineCreated": "Zamówienie utworzone",
+      "timelineShipment": "Przesyłka nadana ({number})"
     },
     "deposit": {
       "title": "Kaucja",
