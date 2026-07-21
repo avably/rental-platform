@@ -103,7 +103,11 @@ export default async function OrdersPage({
         </Button>
       </header>
 
-      <OrdersFilters filter={filter} customers={customers ?? []} />
+      {/* Tenant bez ANI JEDNEGO zamówienia nie dostaje filtrów: nie ma czego
+          filtrować, a pasek kontrolek nad pustym ekranem to sam szum. */}
+      {rows.length > 0 || filtered ? (
+        <OrdersFilters filter={filter} customers={customers ?? []} />
+      ) : null}
 
       {rows.length === 0 ? (
         filtered ? (

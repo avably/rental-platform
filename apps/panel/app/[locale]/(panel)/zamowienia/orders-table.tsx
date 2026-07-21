@@ -104,7 +104,11 @@ export function OrdersTable({
             <TableRow key={row.id} data-order-row data-order-id={row.orderNumber}>
               <TableCell data-cell="id" className="h-[52px] px-3.5 py-2.5">
                 <Link
-                  className="text-foreground font-medium tabular-nums tracking-[0.01em] no-underline hover:underline hover:underline-offset-[3px]"
+                  // Obrys focusu MUSI siedzieć na elemencie, który naprawdę
+                  // dostaje fokus. `TableRow` ma stan focus z P2, ale <tr> nie
+                  // jest tabowalny — bez tego Tab po liście pokazywał domyślny
+                  // cienki obrys przeglądarki zamiast 3px na limonce.
+                  className="text-foreground rounded-sm font-medium tabular-nums tracking-[0.01em] no-underline outline-none hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
                   href={`/zamowienia/${row.id}`}
                 >
                   {row.orderNumber}
