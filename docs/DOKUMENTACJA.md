@@ -71,8 +71,9 @@ ze swojego pasa (minimalizacja konfliktów w jednym pliku HTML).
 
 ## 4. Zasady jakości i stylu (całe repo)
 
-- Autor commitów: **Maciej Godek**. ZERO stopek `Co-Authored-By` / „Generated
-  with" / wzmianek o AI w commitach, kodzie, dokumentacji.
+- Autor commitów: **`Avably <admin@avably.io>`** (polityka od 2026-07-16; nie
+  nazwisko). ZERO stopek `Co-Authored-By` / „Generated with" / wzmianek o AI
+  w commitach, kodzie, dokumentacji.
 - ZERO nazw konkurencyjnych produktów w kodzie/komentarzach/docs.
 - Język produktu i dokumentacji: **polski**. Waluta PLN (grosze jako int).
   Strefa Europe/Warsaw.
