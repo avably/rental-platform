@@ -30,6 +30,14 @@ jobs:
         env: { ALLOW_INTEGRATION_SKIP: "1" }
       - run: pnpm audit --audit-level high
       - run: bash scripts/audit-public-env.sh
+      # Klient service-role omija RLS. Reguła ESLinta pilnuje IMPORTU
+      # `@avably/db/service`, ta bramka pilnuje NAZWY SEKRETU — czyli drugiej
+      # drogi do tej samej władzy (dwie linijki z `createClient` i
+      # `SUPABASE_SERVICE_ROLE_KEY` przechodzą lint na zielono). Skanuje całe
+      # drzewo, więc obejmuje też aplikacje, które nie mają jeszcze własnej
+      # konfiguracji ESLinta (ADR-067).
+      - name: Bramka service-role (wyłącznie webhooki i joby)
+        run: bash scripts/audit-service-role.sh
 
   rls:
     # Macierz testów izolacji RLS (packages/db/test/rls-isolation.test.ts) —
