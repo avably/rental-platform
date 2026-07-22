@@ -115,7 +115,11 @@ describe("użycie wspólnej miary przez ekrany", () => {
     const source = readFileSync(resolve(panelRoot, path), "utf8");
     // Dwa legalne zapisy: opakowanie `<FormMeasure>` albo atrybut wprost na
     // formularzu, który sam jest całym blokiem miary (tak jak w artefakcie).
-    expect(/FormMeasure|data-form-line-measure/.test(source)).toBe(true);
+    //
+    // Szukamy UŻYCIA, nie nazwy: sam import `FormMeasure` przechodził tę
+    // bramkę także wtedy, gdy ekran wracał do własnego `max-w-*` i komponentu
+    // już nie renderował (sprawdzone mutacją).
+    expect(/<FormMeasure\b|data-form-line-measure/.test(source)).toBe(true);
   });
 
   it("komponent miary nie zna żadnej liczby — czyta wyłącznie token", () => {
