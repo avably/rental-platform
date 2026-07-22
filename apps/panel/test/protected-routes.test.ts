@@ -162,6 +162,12 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "requireMember() i zwraca 401 anonimowi, a przesyłkę filtruje po " +
       "zamówieniu, więc RLS domyka zasięg do własnego tenanta.",
   ],
+  [
+    "/zamowienia/[id]/contract/[documentId]",
+    "Prywatny PDF umowy (ADR-061) — handler wymaga sesji członka, filtruje " +
+      "metadane po tenant_id, order_id i document_id, a RLS tabeli i Storage " +
+      "niezależnie blokują cudzy dokument. Przed odpowiedzią weryfikuje SHA-256.",
+  ],
 ]);
 
 const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");
