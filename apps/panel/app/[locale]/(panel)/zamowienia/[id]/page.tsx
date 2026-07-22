@@ -24,6 +24,7 @@ import { uuidSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction } from "../actions";
+import { ContractSection } from "./contract-section";
 import {
   depositTotals,
   isDepositSettled,
@@ -426,6 +427,8 @@ export default async function OrderDetailPage({
       <ExtensionSection order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }} />
 
       <DeliverySection orderId={row.id} deliveryMethod={row.delivery_method} totalRentalGrosze={row.total_rental_grosze} />
+
+      <ContractSection orderId={row.id} />
 
       <EmailLogSection orderId={row.id} />
     </div>

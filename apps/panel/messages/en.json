@@ -317,6 +317,26 @@
     }
   },
   "orders": {
+    "contract": {
+      "title": "Rental agreement",
+      "missingSettings": "Complete the company details and agreement terms first.",
+      "settingsLink": "Open agreement settings",
+      "generate": "Generate a new agreement",
+      "generating": "Generating…",
+      "empty": "No agreement has been generated yet.",
+      "created": "Created",
+      "details": "Document",
+      "delivery": "Delivery",
+      "actions": "Actions",
+      "version": "Terms version",
+      "download": "Download PDF",
+      "send": "Send to customer",
+      "retry": "Retry sending",
+      "sending": "Sending…",
+      "sent": "Sent",
+      "failed": "Failed",
+      "notSent": "Not sent"
+    },
     "statusLabels": {
       "order": {
         "pending": "Pending",
