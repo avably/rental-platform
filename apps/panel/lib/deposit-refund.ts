@@ -56,6 +56,12 @@ import { bookDepositEvent, settleDepositIfComplete } from "./deposit-booking";
 /** Statusy `deposit_refunds` oznaczające żądanie NIEDOMKNIĘTE (0031). */
 export const IN_FLIGHT_REFUND_STATUSES = ["requested", "pending"] as const;
 
+/**
+ * 23505 — częściowy unikat `deposit_refunds_one_in_flight_per_order` (0032,
+ * ADR-070): równoległy dwuklik trafił w drugie żądanie zwrotu w locie.
+ */
+const PG_UNIQUE_VIOLATION = "23505";
+
 export interface DepositRefundDeps {
   db: SupabaseClient;
   /** `POST /v1/refunds` — oddaje SAM identyfikator (patrz `@avably/core`). */
@@ -210,6 +216,20 @@ export async function requestDepositRefund(
     .select("id");
 
   if (created.error) {
+    // 23505 = częściowy unikat `deposit_refunds_one_in_flight_per_order`
+    // (0032, ADR-070): równoległy dwuklik. Bramka SELECT wyżej łapie przypadek
+    // SEKWENCYJNY; ten unikat domyka WYŚCIG, w którym oba żądania minęły SELECT,
+    // zanim którekolwiek zdążyło wstawić wiersz. Przegrana ścieżka NIE jest
+    // porażką do ponowienia — zwrot jest w toku pod drugim żądaniem, więc
+    // oddajemy dokładnie ten sam `pending` co bramka SELECT (żaden refund tą
+    // ścieżką nie wyszedł: 23505 pada PRZED `createRefund`).
+    if (created.error.code === PG_UNIQUE_VIOLATION) {
+      return {
+        status: "pending",
+        reason:
+          "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy — poczekaj na potwierdzenie zamiast zlecać drugi.",
+      };
+    }
     return { status: "failed", reason: `Nie udało się zarejestrować żądania zwrotu: ${created.error.message}` };
   }
   const requestRows = (created.data ?? []) as { id: string }[];

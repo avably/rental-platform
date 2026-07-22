@@ -26,7 +26,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
 import { integrationEnv } from "./helpers/integration-env";
@@ -300,6 +300,13 @@ describe.skipIf(!hasEnv)("kaucja online — 0031_deposit_provider_link.sql", () 
 
     beforeAll(async () => {
       tenantId = await createTenant("refunds");
+    });
+
+    // Świeże zamówienie PER TEST: od 0032 obowiązuje częściowy unikat „jeden
+    // zwrot w locie (requested|pending) na (tenant, zamówienie)", więc wiersze
+    // requested z jednego testu nie mogą przeciekać do kolejnego na tym samym
+    // zamówieniu — inaczej drugi INSERT rozbija się o ten unikat.
+    beforeEach(async () => {
       orderId = await createOrder(tenantId);
     });
 
@@ -357,17 +364,21 @@ describe.skipIf(!hasEnv)("kaucja online — 0031_deposit_provider_link.sql", () 
         .select("id");
       expect(first.error).toBeNull();
 
+      // Drugi wiersz na INNYM zamówieniu — inaczej złapałby go najpierw unikat
+      // „jeden zwrot w locie na zamówienie" (0032), a ten test pilnuje
+      // GLOBALNEGO unikatu odnośnika (provider, provider_reference), po którym
+      // webhook odnajduje tenanta i zamówienie: dwa trafienia znaczyłyby, że
+      // nie wiadomo, czyj to zwrot.
+      const otherOrderId = await createOrder(tenantId);
       const second = await admin
         .from("deposit_refunds")
         .insert({
           tenant_id: tenantId,
-          order_id: orderId,
+          order_id: otherOrderId,
           amount_grosze: 10_00,
           provider_reference: reference,
         })
         .select("id");
-      // Po tym odnośniku webhook odnajduje tenanta i zamówienie — dwa
-      // trafienia znaczyłyby, że nie wiadomo, czyj to zwrot.
       expect(second.error?.code).toBe(PG_UNIQUE_VIOLATION);
     });
 
@@ -395,6 +406,36 @@ describe.skipIf(!hasEnv)("kaucja online — 0031_deposit_provider_link.sql", () 
         .insert({ tenant_id: tenantId, order_id: orderId, amount_grosze: 10_00 })
         .select("id");
       expect(write.error?.code).toBe(PG_INSUFFICIENT_PRIVILEGE);
+    });
+
+    it("jeden zwrot w locie na zamówienie: drugie żądanie pada, sekwencyjne po domknięciu przechodzi (0032)", async () => {
+      // To jest schema-level dowód niezmiennika z ADR-070: bramka dwukliku
+      // stoi na BAZIE, nie na SELECT-cie w kodzie panelu.
+      const first = await admin
+        .from("deposit_refunds")
+        .insert({ tenant_id: tenantId, order_id: orderId, amount_grosze: 250_00 })
+        .select("id")
+        .single();
+      expect(first.error).toBeNull();
+
+      // Drugie żądanie w locie na to samo zamówienie → 23505 (a nie drugi refund).
+      const second = await admin
+        .from("deposit_refunds")
+        .insert({ tenant_id: tenantId, order_id: orderId, amount_grosze: 100_00 })
+        .select("id");
+      expect(second.error?.code).toBe(PG_UNIQUE_VIOLATION);
+
+      // Po domknięciu pierwszego (succeeded) kolejna rata w locie jest legalna —
+      // zdolność do wielu zwrotów częściowych w czasie (0031) zostaje nietknięta.
+      await admin
+        .from("deposit_refunds")
+        .update({ status: "succeeded" })
+        .eq("id", (first.data as { id: string }).id);
+      const third = await admin
+        .from("deposit_refunds")
+        .insert({ tenant_id: tenantId, order_id: orderId, amount_grosze: 100_00 })
+        .select("id");
+      expect(third.error).toBeNull();
     });
 
     it("updated_at rusza przy zmianie stanu", async () => {
