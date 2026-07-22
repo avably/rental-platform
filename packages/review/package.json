@@ -1,0 +1,39 @@
+{
+  "name": "@avably/review",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./overlay": {
+      "types": "./src/overlay/index.ts",
+      "default": "./src/overlay/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "zod": "^4.4.3",
+    "@supabase/supabase-js": "^2.110.5"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10"
+  }
+}
