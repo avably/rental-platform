@@ -57,6 +57,7 @@ describe.skipIf(!hasEnv)("trwały obieg umowy — panel + prawdziwy Storage", ()
   let b: TenantCtx;
   let orderA: string;
   let orderB: string;
+  const documentIds: string[] = [];
   const storagePaths: string[] = [];
 
   async function createOrder(tenant: TenantCtx): Promise<string> {
@@ -88,7 +89,22 @@ describe.skipIf(!hasEnv)("trwały obieg umowy — panel + prawdziwy Storage", ()
   }, 60_000);
 
   afterAll(async () => {
-    if (storagePaths.length) await admin.storage.from("rental-contracts").remove(storagePaths);
+    if (storagePaths.length) {
+      // Produkcyjny trigger celowo blokuje usunięcie zarejestrowanego pliku.
+      // Teardown service-role usuwa zależne logi, metadane, a na końcu osierocone bajty.
+      const { error: logsError } = await admin
+        .from("email_logs")
+        .delete()
+        .in("contract_document_id", documentIds);
+      if (logsError) throw new Error(`Teardown logów umów: ${logsError.message}`);
+      const { error: metadataError } = await admin
+        .from("contract_documents")
+        .delete()
+        .in("storage_path", storagePaths);
+      if (metadataError) throw new Error(`Teardown metadanych umów: ${metadataError.message}`);
+      const { error: storageError } = await admin.storage.from("rental-contracts").remove(storagePaths);
+      if (storageError) throw new Error(`Teardown plików umów: ${storageError.message}`);
+    }
     await cleanupSeeded(admin);
   }, 60_000);
 
@@ -103,6 +119,7 @@ describe.skipIf(!hasEnv)("trwały obieg umowy — panel + prawdziwy Storage", ()
       recipient: props.customer.email,
       props,
     });
+    documentIds.push(document.id);
     storagePaths.push(document.storage_path);
 
     const downloaded = await downloadContract(generationDeps, {
@@ -156,6 +173,7 @@ describe.skipIf(!hasEnv)("trwały obieg umowy — panel + prawdziwy Storage", ()
       recipient: props.customer.email,
       props: { ...props, order: { ...props.order, number: "ZAM-B" } },
     });
+    documentIds.push(document.id);
     storagePaths.push(document.storage_path);
     const metadata = await a.ownerClient.from("contract_documents").select("id").eq("id", document.id);
     expect(metadata.error).toBeNull();
