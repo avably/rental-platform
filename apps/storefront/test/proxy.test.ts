@@ -12,9 +12,81 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { proxy, runProxy, type ProxyDeps } from "../proxy";
 
+/**
+ * Hasło całego site'u (proxy.ts) jest sprawdzane PRZED czymkolwiek innym —
+ * te testy weryfikują routing/CSP/anty-spoofing, nie samą bramkę hasła (ma
+ * własny opisujący blok niżej), więc każde żądanie tutaj niesie poprawne
+ * hasło z góry. `req()` zastępuje bezpośrednie `new NextRequest(...)`
+ * wszędzie poza blokiem bramki hasła, gdzie musimy kontrolować nagłówek
+ * Authorization wprost.
+ */
+const SITE_PASSWORD_HEADER = `Basic ${btoa(":notavably")}`;
+
+function req(url: string, init: RequestInit = {}): NextRequest {
+  return new NextRequest(url, {
+    ...init,
+    headers: {
+      authorization: SITE_PASSWORD_HEADER,
+      ...(init.headers as Record<string, string> | undefined),
+    },
+  });
+}
+
 const ACME_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 const CUSTOM_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+/**
+ * Hasło całego site'u (TYMCZASOWE, do ściągnięcia — patrz nagłówek proxy.ts).
+ * Testy tutaj kontrolują nagłówek Authorization WPROST (bez `req()`), bo to
+ * jest dokładnie to, co sprawdzają.
+ *
+ * DOWÓD MUTACYJNY: usunięcie bloku `if (!siteAuthorized(...))` w proxy.ts
+ * sprawia, że żądanie bez hasła (pierwszy test niżej) przechodzi na 307
+ * zamiast 401 — ten test wtedy się pali.
+ */
+describe("proxy storefrontu — hasło całego site'u (tymczasowe)", () => {
+  it("bez nagłówka Authorization → 401 z WWW-Authenticate, ale wciąż z CSP/HSTS", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/"));
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toContain("Basic");
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+    expect(response.headers.get("Strict-Transport-Security")).toContain("max-age=31536000");
+  });
+
+  it("złe hasło → 401", async () => {
+    const response = await proxy(
+      new NextRequest("https://www.avably.io/", {
+        headers: { authorization: `Basic ${btoa(":zle-haslo")}` },
+      }),
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("dobre hasło (dowolny użytkownik) → przechodzi do routingu marketingowego", async () => {
+    const response = await proxy(
+      new NextRequest("https://www.avably.io/", {
+        headers: { authorization: `Basic ${btoa("ktokolwiek:notavably")}` },
+      }),
+    );
+
+    expect(response.status).not.toBe(401);
+  });
+
+  it("bramka obejmuje TAKŻE gałąź tenancką — subdomena bez hasła też 401, bez odpytania bazy", async () => {
+    const lookupSpy = vi.fn(async () => ({ tenantId: ACME_ID }));
+    const response = await runProxy(new NextRequest("https://acme.avably.io/"), {
+      ...fakeDeps,
+      resolveTenant: lookupSpy,
+    });
+
+    expect(response.status).toBe(401);
+    expect(lookupSpy, "bramka hasła musi zadziałać PRZED zapytaniem o tenanta").not.toHaveBeenCalled();
+  });
+
+});
 
 /**
  * Rozwiązywacz-atrapa. Subdomena: 'acme' aktywny, reszta nieznana. Własna
@@ -39,7 +111,7 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
   }
 
   it("odpowiedź ma CSP z nonce i HSTS", async () => {
-    const response = await proxy(new NextRequest("https://www.avably.io/"));
+    const response = await proxy(req("https://www.avably.io/"));
 
     const csp = response.headers.get("Content-Security-Policy") ?? "";
     expect(csp, "brak nagłówka CSP").not.toBe("");
@@ -70,7 +142,7 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     it("z NEXT_PUBLIC_TURNSTILE_SITE_KEY CSP dopuszcza challenges.cloudflare.com", async () => {
       vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "1x00000000000000000000AA");
       const csp =
-        (await proxy(new NextRequest("https://www.avably.io/"))).headers.get(
+        (await proxy(req("https://www.avably.io/"))).headers.get(
           "Content-Security-Policy",
         ) ?? "";
 
@@ -82,7 +154,7 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
     it("bez klucza CSP nie zna Cloudflare (dyrektywy nie otwierają się na zawsze)", async () => {
       vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "");
       const csp =
-        (await proxy(new NextRequest("https://www.avably.io/"))).headers.get(
+        (await proxy(req("https://www.avably.io/"))).headers.get(
           "Content-Security-Policy",
         ) ?? "";
 
@@ -93,7 +165,7 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
 
 describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
   it("goły / przekierowuje na prefiks locale", async () => {
-    const response = await proxy(new NextRequest("https://www.avably.io/"));
+    const response = await proxy(req("https://www.avably.io/"));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toContain("/en");
@@ -101,7 +173,7 @@ describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
 
   it("Accept-Language wybiera locale", async () => {
     const response = await proxy(
-      new NextRequest("https://www.avably.io/", {
+      req("https://www.avably.io/", {
         headers: { "Accept-Language": "pl" },
       }),
     );
@@ -110,7 +182,7 @@ describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
   });
 
   it("strona pod prefiksem wychodzi z hreflang i zachowuje CSP", async () => {
-    const response = await proxy(new NextRequest("https://www.avably.io/en"));
+    const response = await proxy(req("https://www.avably.io/en"));
 
     // Nagłówek Link z alternatywnymi wersjami — bez niego wyszukiwarki nie
     // wiedzą, że /en i /pl to ta sama strona w dwóch językach.
@@ -125,7 +197,7 @@ describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
 
 describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
   it("aktywna subdomena → rewrite na /store z rozwiązanym tenant_id", async () => {
-    const request = new NextRequest("https://acme.avably.io/");
+    const request = req("https://acme.avably.io/");
     const response = await runProxy(request, fakeDeps);
 
     // Rewrite na trasę tenancką (Next koduje cel w x-middleware-rewrite).
@@ -142,7 +214,7 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
 
   it("podstrony sklepu zachowują ścieżkę (produkt/koszyk/checkout) z tenant_id", async () => {
     for (const path of ["/product/abc", "/cart", "/checkout"]) {
-      const request = new NextRequest(`https://acme.avably.io${path}`);
+      const request = req(`https://acme.avably.io${path}`);
       const response = await runProxy(request, fakeDeps);
 
       const rewrite = response.headers.get("x-middleware-rewrite") ?? "";
@@ -153,13 +225,13 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
   });
 
   it("goły / na subdomenie tenanta rewrite'uje na /store (nie na /)", async () => {
-    const request = new NextRequest("https://acme.avably.io/");
+    const request = req("https://acme.avably.io/");
     const response = await runProxy(request, fakeDeps);
     expect(response.headers.get("x-middleware-rewrite") ?? "").toContain("/store");
   });
 
   it("nieznana/nieaktywna subdomena → neutralne 404", async () => {
-    const response = await runProxy(new NextRequest("https://ghost.avably.io/"), fakeDeps);
+    const response = await runProxy(req("https://ghost.avably.io/"), fakeDeps);
 
     expect(response.status).toBe(404);
     // Nagłówki bezpieczeństwa również na 404.
@@ -168,7 +240,7 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
 
   it("subdomena o niepoprawnym slugu → 404 BEZ odpytania bazy", async () => {
     const lookupSpy = vi.fn(async () => null);
-    const response = await runProxy(new NextRequest("https://bad_slug.avably.io/"), {
+    const response = await runProxy(req("https://bad_slug.avably.io/"), {
       ...fakeDeps,
       resolveTenant: lookupSpy,
     });
@@ -180,7 +252,7 @@ describe("proxy storefrontu — routing host→tenant (Zadanie 2.1)", () => {
 
 describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)", () => {
   it("rozwiązana własna domena → rewrite na /store z tenant_id z bazy", async () => {
-    const request = new NextRequest("https://sklep.najemca.example/");
+    const request = req("https://sklep.najemca.example/");
     const response = await runProxy(request, fakeDeps);
 
     expect(response.headers.get("x-middleware-rewrite") ?? "").toContain("/store");
@@ -190,7 +262,7 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
 
   it("podstrony sklepu na własnej domenie zachowują ścieżkę", async () => {
     for (const path of ["/product/abc", "/cart", "/checkout"]) {
-      const request = new NextRequest(`https://sklep.najemca.example${path}`);
+      const request = req(`https://sklep.najemca.example${path}`);
       const response = await runProxy(request, fakeDeps);
 
       expect(response.headers.get("x-middleware-rewrite") ?? "").toContain(path);
@@ -201,7 +273,7 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
   // Rozwiązanie po domenie zwraca SAM uuid (0022) — slugu nie znamy i nie
   // zgadujemy. Nagłówek ma po prostu nie powstać.
   it("własna domena nie wstrzykuje x-tenant-slug (rozwiązanie zwraca sam uuid)", async () => {
-    const request = new NextRequest("https://sklep.najemca.example/");
+    const request = req("https://sklep.najemca.example/");
     await runProxy(request, fakeDeps);
 
     expect(request.headers.get("x-tenant-id")).toBe(CUSTOM_ID);
@@ -211,7 +283,7 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
   // ZACHOWANIE Z 2.1 NIETKNIĘTE: nierozwiązany obcy host to nadal marketing,
   // nie 404 (zmiana na 404 zepsułaby hosty operacyjne wskazane na deployment).
   it("nierozwiązany obcy host → gałąź marketingowa, nie 404", async () => {
-    const response = await runProxy(new NextRequest("https://obcy.example/"), fakeDeps);
+    const response = await runProxy(req("https://obcy.example/"), fakeDeps);
 
     expect(response.status, "obcy host nierozwiązany nie może dawać 404").not.toBe(404);
     expect(response.headers.get("x-middleware-rewrite") ?? "").not.toContain("/store");
@@ -224,7 +296,7 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
     "host platformy (%s) NIE odpytuje bazy o domenę",
     async (url) => {
       const domainSpy = vi.fn(async () => null);
-      await runProxy(new NextRequest(url), { ...fakeDeps, resolveTenantByDomain: domainSpy });
+      await runProxy(req(url), { ...fakeDeps, resolveTenantByDomain: domainSpy });
 
       expect(domainSpy, "host platformy poszedł do rozwiązywania po domenie").not.toHaveBeenCalled();
     },
@@ -232,7 +304,7 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
 
   it("subdomena tenanta NIE idzie ścieżką własnej domeny (osie się nie mieszają)", async () => {
     const domainSpy = vi.fn(async () => null);
-    await runProxy(new NextRequest("https://acme.avably.io/"), {
+    await runProxy(req("https://acme.avably.io/"), {
       ...fakeDeps,
       resolveTenantByDomain: domainSpy,
     });
@@ -246,7 +318,7 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
   // podany przez klienta x-tenant-id przetrwa na gałęzi marketingowej (która
   // nie ustawia własnego) — ten test wtedy się pali.
   it("usuwa przychodzący x-tenant-id na gałęzi marketingowej", async () => {
-    const request = new NextRequest("https://www.avably.io/en", {
+    const request = req("https://www.avably.io/en", {
       headers: {
         "x-tenant-id": "11111111-1111-4111-8111-111111111111",
         "x-tenant-slug": "attacker",
@@ -260,7 +332,7 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
   });
 
   it("na subdomenie tenanta nadpisuje podany przez klienta id rozwiązaniem server-side", async () => {
-    const request = new NextRequest("https://acme.avably.io/", {
+    const request = req("https://acme.avably.io/", {
       headers: { "x-tenant-id": "deadbeef-dead-4bee-8bee-deadbeefdead" },
     });
 
@@ -271,7 +343,7 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
 
   // Gałąź 2.6: nowa oś hostów nie może być furtką obok bramki z 2.1.
   it("na własnej domenie nadpisuje podany przez klienta id rozwiązaniem server-side", async () => {
-    const request = new NextRequest("https://sklep.najemca.example/", {
+    const request = req("https://sklep.najemca.example/", {
       headers: {
         "x-tenant-id": "deadbeef-dead-4bee-8bee-deadbeefdead",
         "x-tenant-slug": "attacker",
@@ -285,7 +357,7 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
   });
 
   it("na NIEROZWIĄZANYM obcym hoście podrobiony x-tenant-id też nie przeżywa", async () => {
-    const request = new NextRequest("https://obcy.example/", {
+    const request = req("https://obcy.example/", {
       headers: { "x-tenant-id": "11111111-1111-4111-8111-111111111111" },
     });
 
