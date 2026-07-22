@@ -141,6 +141,58 @@ export interface IntentRead {
 }
 
 /**
+ * Parametry zwrotu kaucji (Z5, ADR-069).
+ *
+ * ZWROT JEST CZĘŚCIOWYM REFUNDEM TRANSAKCJI NAJMU, nie osobną operacją —
+ * decyzja właściciela D4. Kaucja pojechała w tym samym PaymentIntencie co
+ * najem i dostawa (0029), więc oddanie jej to zwrot CZĘŚCI tej jednej
+ * płatności. `amountGrosze` jest tu kwotą KAUCJI, a nie kwotą zamówienia —
+ * i nie wolno jej pominąć, bo refund bez kwoty jest u dostawcy refundem
+ * PEŁNYM: oddałby klientowi także najem i dostawę.
+ */
+export interface CreateRefundParams {
+  /** Płatność, z której zwracamy część (`pi_...` z `orders`). */
+  intentId: string;
+  /** int, grosze — kwota KAUCJI. Bez konwersji, bez arytmetyki. */
+  amountGrosze: number;
+  /** Konto najemcy — refund żyje tam, gdzie płatność (charge bezpośredni). */
+  connectedAccountId: string;
+  /**
+   * Klucz idempotencji = identyfikator wiersza `deposit_refunds`. Jedno
+   * żądanie operatora = jeden wiersz = jeden klucz. Klucz zbudowany
+   * z (zamówienie, kwota) zjadałby drugi LEGALNY zwrot częściowy tej samej
+   * kwoty jako duplikat — pełne uzasadnienie w migracji 0031.
+   */
+  idempotencyKey: string;
+  /** Ślad diagnostyczny w metadanych dostawcy — nigdy podstawa decyzji. */
+  orderId: string;
+  refundRequestId: string;
+}
+
+/**
+ * Odczyt zwrotu u dostawcy (ADR-049) — lustro `IntentRead`.
+ *
+ * TO JEST JEDYNA PODSTAWA ZDANIA „KAUCJA ZOSTAŁA ZWRÓCONA". Odpowiedź na
+ * `POST /v1/refunds` nią NIE JEST — i dlatego `createRefund` zwraca sam
+ * identyfikator, dokładnie jak `createAccount` z Z2 zwraca sam identyfikator
+ * konta, mimo że odpowiedź niesie komplet pól gotowości.
+ *
+ * `amountGrosze` pochodzi z ODCZYTU, nie z naszego żądania: przy rozjeździe
+ * prawdą jest to, co dostawca faktycznie oddał — i to ta liczba wchodzi do
+ * rejestru kaucji.
+ */
+export interface RefundRead {
+  refundId: string;
+  /** Prosto od dostawcy: pending | requires_action | succeeded | failed | canceled. */
+  status: string;
+  amountGrosze: number;
+  /** Płatność, której zwrot dotyczy (`pi_...`); NULL, gdy dostawca jej nie podał. */
+  intentId: string | null;
+  /** `failure_reason` dostawcy — powód, dla którego zwrot upadł. */
+  failureReason: string | null;
+}
+
+/**
  * Wynik synchronizacji stanu konta, zapisywalny wprost w kolumnach
  * `public.payment_accounts`. Wzorzec `DomainRegistrationResult` (ADR-046):
  * porażka jest WARTOŚCIĄ do zapisania i pokazania, nie wyjątkiem.

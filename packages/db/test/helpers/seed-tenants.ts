@@ -568,6 +568,14 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     kind: "collected",
     amount_grosze: 10_000,
   }),
+  // Rejestr ŻĄDAŃ zwrotu (0031). Bez `provider_reference`: wiersz w stanie
+  // `requested` z definicji go nie ma — odpowiedzi dostawcy jeszcze nie
+  // znamy, a partial unique index po tej kolumnie i tak pomija NULL-e.
+  deposit_refunds: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    amount_grosze: 10_000,
+  }),
   // Unikalny provider_order_number per wywołanie — dane fikcyjne (0013).
   courier_shipments: async (ctx, tenantId) => ({
     tenant_id: tenantId,
@@ -766,6 +774,12 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   orders: { notes: "rls-test-hacked" },
   order_items: { rental_grosze: 999_999 },
   deposit_events: { reason: "rls-test-hacked" },
+  // last_error jest nullable, bez indeksu unikalnego i poza jakimkolwiek
+  // CHECK-iem (0031) — goła mutacja na wszystkich widocznych wierszach nie
+  // wywoła ani 23505, ani 23514, więc sonda odróżni odmowę RLS od błędu
+  // integralności. `provider_reference` byłby tu pułapką: obejmuje go
+  // partial unique index.
+  deposit_refunds: { last_error: "rls-test-hacked" },
   tenant_settings: { updated_at: "2000-01-01T00:00:00.000Z" },
   // updated_at, a nie ciphertext: CHECK-i 0024 wiążą kształt koperty
   // z key_version, więc goła mutacja na kolumnie ciphertext wywracałaby się

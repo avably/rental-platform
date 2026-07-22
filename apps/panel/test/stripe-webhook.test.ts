@@ -229,7 +229,17 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
     return id;
   }
 
-  const deps = (readIntent: StripeReadIntent) => ({ db: adminClient(), readIntent, secret: SECRET });
+  // Odczyt zwrotu (Z5) RZUCA: ta suita dotyczy wyłącznie gałęzi płatności,
+  // a atrapa oddająca cokolwiek udawałaby, że gałąź zwrotów jest tu badana.
+  // Jej wywołanie ma być głośnym błędem, nie cichym zerem.
+  const deps = (readIntent: StripeReadIntent) => ({
+    db: adminClient(),
+    readIntent,
+    readRefund: async (): Promise<never> => {
+      throw new Error("Ta suita nie dotyka gałęzi zwrotów — patrz deposit-refund.test.ts");
+    },
+    secret: SECRET,
+  });
   type StripeReadIntent = (intentId: string, connectedAccountId: string) => Promise<IntentRead>;
 
   const alwaysRead = (read: IntentRead): StripeReadIntent => async () => read;

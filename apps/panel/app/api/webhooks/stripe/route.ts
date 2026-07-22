@@ -42,7 +42,7 @@
  * — dostawca ponowi, a my zobaczymy powód w logach zamiast cicho gubić
  * płatności.
  */
-import { readPaymentIntent, requireStripeWebhookSecret } from "@avably/core";
+import { readDepositRefund, readPaymentIntent, requireStripeWebhookSecret } from "@avably/core";
 import { createServiceClient } from "@avably/db/service";
 
 import { handleStripeWebhook } from "@/lib/stripe-webhook";
@@ -86,6 +86,10 @@ export async function POST(request: Request): Promise<Response> {
     // po odnalezieniu zamówienia, bo to nasza baza wie, czyja to płatność.
     readIntent: (intentId, connectedAccountId) =>
       readPaymentIntent(intentId, { connectedAccountId }),
+    // Zwrot kaucji (Z5) — ten sam wzorzec: zdarzenie niesie `re_...`,
+    // a o tym, czy pieniądze wróciły do klienta, mówi dopiero odczyt.
+    readRefund: (refundId, connectedAccountId) =>
+      readDepositRefund(refundId, { connectedAccountId }),
     secret,
   });
 }

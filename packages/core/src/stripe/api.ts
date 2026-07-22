@@ -26,10 +26,12 @@ import { resolveStripeConfig, type StripeConfigOptions } from "./config";
 import type {
   ConnectAccountState,
   CreateIntentParams,
+  CreateRefundParams,
   IntentHandle,
   IntentRead,
   OnboardingLink,
   OnboardingUrls,
+  RefundRead,
   StripeConfig,
 } from "./types";
 
@@ -91,6 +93,19 @@ interface StripeAccountBody {
 interface StripeAccountLinkBody {
   url?: string;
   expires_at?: number;
+}
+
+/**
+ * Wycinek odpowiedzi refundu (Z5). `status` i `amount` są tu odczytywane
+ * WYŁĄCZNIE na ścieżce `readRefund` — `createRefund` bierze z tego ciała
+ * sam `id` i nic więcej (uzasadnienie przy metodzie).
+ */
+interface StripeRefundBody {
+  id?: string;
+  status?: string;
+  amount?: number;
+  payment_intent?: string | null;
+  failure_reason?: string | null;
 }
 
 /**
@@ -409,6 +424,81 @@ export class StripeConnectClient {
       // domyślna gotowość konta w `toAccountState`.
       amountReceivedGrosze: typeof intent.amount_received === "number" ? intent.amount_received : 0,
       amountGrosze: typeof intent.amount === "number" ? intent.amount : 0,
+    };
+  }
+
+  /**
+   * Zleca CZĘŚCIOWY zwrot płatności i oddaje WYŁĄCZNIE identyfikator refundu.
+   *
+   * TO, ŻE METODA NIE ZWRACA STATUSU, JEST JEJ NAJWAŻNIEJSZĄ CECHĄ.
+   * Odpowiedź dostawcy na `POST /v1/refunds` niesie `status` — i ten status
+   * bardzo często brzmi `pending`, bo BLIK i Przelewy24 oddają pieniądze
+   * przez system rozliczeniowy, nie natychmiast. Gdyby metoda ten status
+   * zwracała, pierwszy wołający zapisałby go do rejestru kaucji „bo już go
+   * ma" — i panel twierdziłby „kaucja zwrócona", podczas gdy klient nie ma
+   * pieniędzy. O tym, czy zwrot się wydarzył, mówi wyłącznie `readRefund`.
+   *
+   * To ten sam ruch, co `createAccount` zwracające sam identyfikator konta
+   * (Z2) — bariera w KSZTAŁCIE TYPU, nie w komentarzu, którego można nie
+   * przeczytać.
+   *
+   * KWOTA IDZIE BEZ PRZELICZANIA i jest OBOWIĄZKOWA: refund bez `amount`
+   * jest u dostawcy refundem PEŁNYM, więc pominięcie kwoty oddałoby
+   * klientowi także najem i dostawę. Wartość nie przechodzi tu przez ŻADNĄ
+   * arytmetykę — test tabelaryczny pilnuje bajtów ciała żądania.
+   */
+  async createRefund(input: CreateRefundParams): Promise<string> {
+    const { status, body } = await this.request("/v1/refunds", {
+      method: "POST",
+      idempotencyKey: input.idempotencyKey,
+      stripeAccount: input.connectedAccountId,
+      body: encodeStripeForm({
+        payment_intent: input.intentId,
+        amount: input.amountGrosze,
+        // Metadane są ŚLADEM DIAGNOSTYCZNYM, nigdy podstawą decyzji —
+        // u dostawcy są edytowalne z jego panelu (ta sama uwaga co przy
+        // metadanych intentu w Z3). Wiązanie żyje w naszej bazie:
+        // deposit_refunds.provider_reference.
+        metadata: { order_id: input.orderId, refund_request_id: input.refundRequestId },
+      }),
+    });
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+
+    const id = (body as StripeRefundBody | null)?.id;
+    if (!id) {
+      // Dostawca powiedział „przyjęte", a nie podał czego. Bez identyfikatora
+      // nie mamy jak zapytać, co się z tymi pieniędzmi stało — a one już
+      // mogą być w drodze.
+      throw new StripeApiError("API płatności nie zwróciło identyfikatora zwrotu.");
+    }
+    return id;
+  }
+
+  /**
+   * JEDYNE źródło prawdy o zwrocie (ADR-049) — lustro `readPaymentIntent`.
+   *
+   * `amount` bierzemy Z ODCZYTU, nie z naszego żądania: jeśli dostawca oddał
+   * inną kwotę niż prosiliśmy, do rejestru kaucji ma wejść to, co oddał.
+   * Brak pola = 0, czyli „nie umiemy tego uznać za zwrot" — ta sama zasada,
+   * co `amount_received` przy płatności: domyślna kwota „taka, o jaką
+   * prosiliśmy" oznaczałaby zaksięgowanie zwrotu, którego nie widzieliśmy.
+   */
+  async readRefund(refundId: string, connectedAccountId: string): Promise<RefundRead> {
+    const { status, body } = await this.request(
+      `/v1/refunds/${encodeURIComponent(refundId)}`,
+      { method: "GET", stripeAccount: connectedAccountId },
+    );
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+
+    const refund = (body ?? {}) as StripeRefundBody;
+    return {
+      refundId: refund.id ?? refundId,
+      status: refund.status ?? "unknown",
+      amountGrosze: typeof refund.amount === "number" ? refund.amount : 0,
+      intentId: typeof refund.payment_intent === "string" ? refund.payment_intent : null,
+      failureReason: typeof refund.failure_reason === "string" ? refund.failure_reason : null,
     };
   }
 }

@@ -29,6 +29,16 @@ function FormMessages({ state }: { state: FormState }) {
       </p>
     );
   }
+  // Stan pośredni (zwrot przyjęty, jeszcze niepotwierdzony) — `status`,
+  // nie `alert`: czytnik ekranu ma przeczytać to jako informację, bo
+  // operator nie ma tu czego naprawiać (Z5, ADR-069).
+  if (state.notice) {
+    return (
+      <p role="status" className="text-muted-foreground text-sm">
+        {state.notice}
+      </p>
+    );
+  }
   return null;
 }
 
@@ -45,6 +55,8 @@ export function DepositForms({
   suggestedCollectGrosze,
   currency,
   locale,
+  online,
+  refundInFlight,
   actions,
 }: {
   orderId: string;
@@ -52,6 +64,10 @@ export function DepositForms({
   suggestedCollectGrosze: number;
   currency: CurrencyCode;
   locale: string;
+  /** Zamówienie w obiegu dostawcy — zwrot idzie realnym refundem (ADR-069). */
+  online: boolean;
+  /** Jest już zwrot zlecony i niepotwierdzony — drugi byłby drugą wypłatą. */
+  refundInFlight: boolean;
   actions: {
     collect: DepositAction;
     refund: DepositAction;
@@ -65,6 +81,10 @@ export function DepositForms({
 
   const pending = collectPending || refundPending || deductPending;
   const settleDisabled = pending || balanceGrosze <= 0;
+  // Blokada zwrotu przy zwrocie w toku jest tu WYGODĄ, nie bramką: przycisk
+  // wyłączony w przeglądarce nie broni przed drugą kartą ani powtórzonym
+  // żądaniem. Autorytatywnie odmawia `requestDepositRefund` (lib/deposit-refund.ts).
+  const refundDisabled = settleDisabled || (online && refundInFlight);
 
   return (
     <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
@@ -87,10 +107,15 @@ export function DepositForms({
 
       <div className="flex flex-col gap-2 rounded border p-3">
         <p className="font-medium">{t("refundTitle")}</p>
+        {/* Operator musi wiedzieć, czy klika „zapisz, że oddałem", czy
+            „przelej pieniądze klientowi" — to dwie różne odpowiedzialności. */}
+        <p className="text-muted-foreground text-xs">
+          {online ? t("refundOnlineHint") : t("refundManualHint")}
+        </p>
         <form action={refundAction} className="flex flex-col gap-2">
           <input type="hidden" name="orderId" value={orderId} />
           <input type="hidden" name="amount" value={groszeToInputValue(Math.max(balanceGrosze, 0))} />
-          <Button type="submit" variant="outline" disabled={settleDisabled}>
+          <Button type="submit" variant="outline" disabled={refundDisabled}>
             {t("refundFullCta", { amount: formatMoney(Math.max(balanceGrosze, 0), currency, locale) })}
           </Button>
         </form>
@@ -102,12 +127,17 @@ export function DepositForms({
             name="amount"
             inputMode="decimal"
             placeholder="0,00"
-            disabled={settleDisabled}
+            disabled={refundDisabled}
           />
-          <Button type="submit" disabled={settleDisabled}>
+          <Button type="submit" disabled={refundDisabled}>
             {t("refundPartialCta")}
           </Button>
         </form>
+        {online && refundInFlight ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {t("refundInFlightBlocked")}
+          </p>
+        ) : null}
         <FormMessages state={refundState} />
       </div>
 
