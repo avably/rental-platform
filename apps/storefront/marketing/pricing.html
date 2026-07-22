@@ -23,7 +23,7 @@
                 
                 
                 <div class="navigation-link-hover-wrap">
-                  <a href="{{link.pricing}}" class="nav-link w-inline-block">
+                  <a href="{{link.pricing}}" aria-current="page" class="nav-link w-inline-block w--current">
                     <div class="button-text-mask">
                       <div class="button-text _1">{{nav.pricing}}</div>
                       <div class="button-text _2">{{nav.pricing}}</div>
@@ -109,7 +109,7 @@
               
               
               <div class="navigation-link-hover-wrap">
-                <a href="{{link.pricing}}" class="nav-link w-inline-block">
+                <a href="{{link.pricing}}" aria-current="page" class="nav-link w-inline-block w--current">
                   <div class="button-text-mask">
                     <div class="button-text _1">{{nav.pricing}}</div>
                     <div class="button-text _2">{{nav.pricing}}</div>
@@ -181,16 +181,139 @@
     </div>
   </div>
   
-  <section class="section hero-legal">
+  <section class="section hero-pricing">
     <div class="w-layout-blockcontainer main-container w-container">
-      <div class="w-layout-grid legal-halves">
-        <div id="w-node-_34c0d27b-67b3-180b-0f31-0d5563129510-5e82f719" class="heading-legal">
-          <div class="label-master dark">
-            <div class="label-small">{{privacyPage.eyebrow}}</div>
-          </div>
-          <h1 class="no-margins">{{privacyPage.title}}</h1>
+      <div class="headline-pricing">
+        <div class="label-master dark">
+          <div class="label-small">{{nav.pricing}}</div>
         </div>
-        <div class="body-legal w-richtext"><!--avably-island--></div>
+        <h1>{{pricingPage.title}}</h1>
+      </div>
+      <div data-current="Tab 1" data-easing="ease" data-duration-in="300" data-duration-out="100" class="tabs-pricing w-tabs">
+        
+        <div class="tabs-content-pricing w-tab-content">
+          <div data-w-tab="Tab 1" class="tab-pane-pricing w-tab-pane w--tab-active">
+            <div class="w-layout-grid product-thirds">
+<div class="pricing-card">
+  <div class="label-master dark"><div class="label-small">{{pricingPage.planLabel}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.price}}</div>
+  <div class="text-dark-64">{{pricingPage.priceNote}}</div>
+  <div class="text-medium">{{pricingPage.includesTitle}}</div>
+  <div class="text-dark-64">{{pricingPage.include1}}</div>
+  <div class="text-dark-64">{{pricingPage.include2}}</div>
+  <div class="text-dark-64">{{pricingPage.include3}}</div>
+  <div class="text-dark-64">{{pricingPage.include4}}</div>
+  <div class="text-dark-64">{{pricingPage.include5}}</div>
+  <a href="{{link.register}}" class="cta-main accent w-inline-block">
+    <div class="button-text-mask"><div class="button-text _1">{{nav.cta}}</div><div class="button-text _2">{{nav.cta}}</div></div>
+    <div class="button-bg accent"></div>
+  </a>
+</div>
+<div class="pricing-card last-plan">
+  <div class="label-master"><div class="label-small">{{pricingPage.foundersLabel}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.foundersPrice}}</div>
+  <div>{{pricingPage.foundersNote}}</div>
+  <div class="text-medium">{{pricingPage.honestTitle}}</div>
+  <div>{{pricingPage.honest1}}</div>
+  <div>{{pricingPage.honest2}}</div>
+  <div>{{pricingPage.buildingTitle}}</div>
+  <div>{{pricingPage.building1}}</div>
+  <div>{{pricingPage.building2}}</div>
+  <a href="{{link.waitlist}}" class="cta-main dark-outlined w-inline-block">
+    <div class="button-text-mask"><div class="button-text _1">{{nav.waitlist}}</div><div class="button-text _2">{{nav.waitlist}}</div></div>
+    <div class="button-bg dark-outlined"></div>
+  </a>
+</div></div>
+          </div>
+          
+        </div>
+      </div>
+      
+    </div>
+  </section>
+  <section class="section pricing-faq-section">
+    <div class="w-layout-blockcontainer main-container w-container">
+      <div class="w-layout-grid faq-halves">
+        <div class="headline-faq">
+          <div class="label-master dark">
+            <div class="label-small">{{nav.faq}}</div>
+          </div>
+          <h2 data-w-id="391c4405-1a74-2909-ca8b-5dfac9a10d9e" style="opacity:0" class="no-margins">{{faq.eyebrowTop}} <br>{{faq.eyebrowBottom}}</h2>
+        </div>
+        <div class="faq-block">
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q1}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a1Lead}}</span> {{faq.a1}}</p>
+            </div>
+          </div>
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q2}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a2Lead}}</span> {{faq.a2}}</p>
+            </div>
+          </div>
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q3}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a3Lead}} </span>{{faq.a3}}</p>
+            </div>
+          </div>
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q4}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a4Lead}}</span> Every purchase comes with access to detailed documentation, a support contact, and updates. If you run into issues, you can reach out via email or check the included guide for quick answers.</p>
+            </div>
+          </div>
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q5}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a2Lead}}</span> {{faq.a5}}</p>
+            </div>
+          </div>
+          <div class="expandable-single">
+            <div class="expandable-top">
+              <div class="text-h7">{{faq.q6}}</div>
+              <div class="faq-animated-box">
+                <div class="faq-horizontal"></div>
+                <div class="faq-vertical"></div>
+              </div>
+            </div>
+            <div class="expandable-bottom">
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a6Lead}}</span> {{faq.a6}}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>

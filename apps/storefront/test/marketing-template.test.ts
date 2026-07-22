@@ -6,10 +6,12 @@
  * (żaden token nie może dojechać do przeglądarki) i braku fabrykowanego
  * dowodu społecznego, który szablon niesie w standardzie.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+import { PUBLIC_PAGES, TEMPLATE_ROUTES } from "@/lib/marketing/template";
 
 import en from "../messages/en.json";
 import pl from "../messages/pl.json";
@@ -92,7 +94,7 @@ describe("treść przeniesionych stron", () => {
     }
   });
 
-  it("wycina fabrykowany dowód społeczny", () => {
+  it("wycina fabrykowany dowód społeczny ze stron publicznych", () => {
     const home = read("marketing/home.html");
     // Pas logotypów klientów, slider opinii i karty z cytatami — szablon niesie
     // je jako wypełniacz; my nie mamy klientów, o których wolno tak mówić.
@@ -118,6 +120,10 @@ describe("treść przeniesionych stron", () => {
 
   it("trzyma cennik i obietnice zgodne z decyzją właściciela", () => {
     expect(pl.marketing.banner.text).toContain("199 zł/msc");
+    expect(pl.marketing.pricingPage.price).toContain("199 zł");
+    expect(pl.marketing.pricingPage.foundersPrice).toContain("99,50");
+    expect(pl.marketing.pricingPage.foundersNote).toContain("20");
+    expect(read("marketing/pricing.html")).toContain("{{pricingPage.price}}");
     expect(en.marketing.banner.text).toContain("PLN 199");
     for (const messages of [pl, en]) {
       expect(messages.marketing.faq.a4).toMatch(/20/);
@@ -131,6 +137,63 @@ describe("treść przeniesionych stron", () => {
       .map(([, value]) => value)
       .join(" ");
     expect(featuresPl).not.toMatch(/płatności online/i);
+  });
+});
+
+describe("spójność tras i zasobów", () => {
+  const routes = new Set<string>([
+    "",
+    ...PUBLIC_PAGES.filter((page) => page !== "home"),
+    ...TEMPLATE_ROUTES,
+    "przeglad",
+  ]);
+
+  it("żaden link w przeniesionych stronach nie prowadzi w pustkę", () => {
+    const offenders: string[] = [];
+    for (const file of marketingPages) {
+      const html = read(path.join("marketing", file));
+      for (const match of html.matchAll(/href="([^"]+)"/g)) {
+        const href = match[1];
+        if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) continue;
+        // Adresy panelu i języka są tokenami rozwijanymi w runtime.
+        if (/^\{\{link\.(register|login|langAlternate)\}\}$/.test(href)) continue;
+        const token = href.match(/^\{\{link\.([a-zA-Z]+)\}\}$/);
+        if (token) {
+          const page = token[1]
+            .replace(/^home$/, "")
+            .replace(/([a-z])([A-Z])/g, "$1-$2")
+            .toLowerCase();
+          if (!routes.has(page)) offenders.push(`${file}: ${href}`);
+          continue;
+        }
+        offenders.push(`${file}: ${href}`);
+      }
+    }
+    expect(offenders, offenders.slice(0, 10).join(" | ")).toEqual([]);
+  });
+
+  it("nie trzyma zasobów, których żadna strona nie używa", () => {
+    const html = marketingPages.map((file) => read(path.join("marketing", file))).join("\n");
+    const orphans: string[] = [];
+    for (const dir of ["images", "videos"]) {
+      const base = path.join(root, "public/forerunner", dir);
+      for (const file of readdirSync(base)) {
+        if (!html.includes(`/forerunner/${dir}/${file}`)) orphans.push(`${dir}/${file}`);
+      }
+    }
+    expect(orphans, orphans.slice(0, 10).join(" | ")).toEqual([]);
+  });
+
+  it("trzyma wagę pojedynczego zasobu w ryzach", () => {
+    const heavy: string[] = [];
+    for (const dir of ["images", "videos"]) {
+      const base = path.join(root, "public/forerunner", dir);
+      for (const file of readdirSync(base)) {
+        const { size } = statSync(path.join(base, file));
+        if (size > 5 * 1024 * 1024) heavy.push(`${dir}/${file} = ${Math.round(size / 1e6)} MB`);
+      }
+    }
+    expect(heavy, heavy.join(" | ")).toEqual([]);
   });
 });
 

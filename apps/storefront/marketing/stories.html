@@ -181,16 +181,86 @@
     </div>
   </div>
   
-  <section class="section hero-legal">
+  <section class="section hero-stories">
     <div class="w-layout-blockcontainer main-container w-container">
-      <div class="w-layout-grid legal-halves">
-        <div id="w-node-_34c0d27b-67b3-180b-0f31-0d5563129510-5e82f719" class="heading-legal">
-          <div class="label-master dark">
-            <div class="label-small">{{privacyPage.eyebrow}}</div>
-          </div>
-          <h1 class="no-margins">{{privacyPage.title}}</h1>
+      <div class="headline-blog">
+        <div class="label-master dark">
+          <div class="label-small">Recent posts</div>
         </div>
-        <div class="body-legal w-richtext"><!--avably-island--></div>
+        <h1>Tales from Our Journey</h1>
+      </div>
+      <div class="featured-article w-dyn-list">
+        <div role="list" class="w-dyn-items">
+          <div role="listitem" class="w-dyn-item">
+            <a data-w-id="701930ee-01d0-a3eb-0051-b092128f9281" href="#" class="article-featured w-inline-block">
+              <div class="article-featured-thumbnail"><img src="https://d3e54v103j8qbb.cloudfront.net/plugins/Basic/assets/placeholder.60f9b1840c.svg" loading="lazy" alt="" class="image-cover w-dyn-bind-empty">
+                <div class="article-featured-overlay">
+                  <div class="article-tag-master">
+                    <div class="label-master">
+                      <div class="label-small text-light w-dyn-bind-empty"></div>
+                    </div>
+                    <div class="label-master">
+                      <div class="label-small text-light w-dyn-bind-empty"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="article-featured-content">
+                <div class="article-card-text-top">
+                  <div class="text-h5 w-dyn-bind-empty"></div>
+                  <div class="text-small w-dyn-bind-empty"></div>
+                </div>
+                <div class="link-underline-animated">
+                  <div class="button-text-small">Read article</div>
+                  <div class="link-underline"></div>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+        <div class="w-dyn-empty">
+          <div>No items found.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="section blog-articles-section">
+    <div class="w-layout-blockcontainer main-container w-container">
+      <div class="headline-left-aligned">
+        <div class="label-master dark">
+          <div class="label-small">Recent posts</div>
+        </div>
+        <h2 class="no-margins">Latest from us</h2>
+      </div>
+      <div class="stories w-dyn-list">
+        <div role="list" class="blog-halves w-dyn-items">
+          <div role="listitem" class="w-dyn-item">
+            <a href="#" class="article-card w-inline-block">
+              <div class="article-tag-master">
+                <div class="label-master">
+                  <div class="label-small text-light w-dyn-bind-empty"></div>
+                </div>
+                <div class="label-master">
+                  <div class="label-small text-light w-dyn-bind-empty"></div>
+                </div>
+              </div>
+              <div class="article-bottom-info">
+                <div class="article-card-text-top">
+                  <div class="text-h7 w-dyn-bind-empty"></div>
+                  <div class="text-small w-dyn-bind-empty"></div>
+                </div>
+                <div class="link-underline-animated">
+                  <div class="button-text-small">Read article</div>
+                  <div class="link-underline"></div>
+                </div>
+              </div>
+              <div class="article-card-thumbnail"><img src="https://d3e54v103j8qbb.cloudfront.net/plugins/Basic/assets/placeholder.60f9b1840c.svg" loading="lazy" alt="" class="image-cover w-dyn-bind-empty"></div>
+            </a>
+          </div>
+        </div>
+        <div class="w-dyn-empty">
+          <div>No items found.</div>
+        </div>
       </div>
     </div>
   </section>
@@ -273,7 +343,7 @@
             <div class="footer-column">
               <div class="label">{{footer.columnCompany}}</div>
               <div class="footer-links-column">
-                <a href="{{link.privacy}}" class="footer-link">{{footer.privacy}}</a>
+                <a href="{{link.privacy}}" aria-current="page" class="footer-link w--current">{{footer.privacy}}</a>
                 <a href="{{link.waitlist}}" class="footer-link">{{nav.waitlist}}</a>
                 <a href="{{link.login}}" class="footer-link">{{nav.login}}</a>
                 

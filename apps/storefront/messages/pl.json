@@ -215,6 +215,27 @@
     "privacyPage": {
       "eyebrow": "Dokumenty",
       "title": "Polityka prywatności"
+    },
+    "pricingPage": {
+      "title": "Jeden plan, bez zobowiązania",
+      "planLabel": "Plan Avably",
+      "price": "199 zł/msc",
+      "priceNote": "Cena okresu testowego — sprawdzamy ją z pierwszymi wypożyczalniami.",
+      "includesTitle": "W cenie",
+      "include1": "Panel wynajmu: katalog, rezerwacje, kaucje, zwroty",
+      "include2": "Własna strona sklepu z rezerwacją online",
+      "include3": "Adres twojanazwa.avably.io i podpięcie własnej domeny",
+      "include4": "E-maile do klientów w nazwie Twojej firmy",
+      "include5": "Kurier: nadania, zwroty i etykiety",
+      "foundersLabel": "Founders −50%",
+      "foundersPrice": "99,50 zł/msc",
+      "foundersNote": "Pierwsze 20 wypożyczalni płaci połowę bieżącej ceny tak długo, jak abonament pozostaje aktywny.",
+      "honestTitle": "Uczciwie",
+      "honest1": "Bez umowy na rok i bez opłaty wdrożeniowej.",
+      "honest2": "Rezygnujesz, kiedy chcesz. Konto zakładasz e-mailem, bez podawania karty.",
+      "buildingTitle": "W budowie",
+      "building1": "Płatności online (BLIK, karty, Przelewy24) i kaucje online",
+      "building2": "Umowy PDF i faktury wystawiane automatycznie"
     }
   },
   "landing": {

@@ -2,8 +2,41 @@
   "home": {
     "wfPage": "6800e0d30d7466dc5e82f706"
   },
+  "pricing": {
+    "wfPage": "6800e0d30d7466dc5e82f71b"
+  },
+  "faq": {
+    "wfPage": "6800e0d30d7466dc5e82f71e"
+  },
+  "contact": {
+    "wfPage": "6800e0d30d7466dc5e82f720"
+  },
   "waitlist": {
     "wfPage": "6800e0d30d7466dc5e82f720"
+  },
+  "contact-b": {
+    "wfPage": "6800e0d30d7466dc5e82f721"
+  },
+  "contact-c": {
+    "wfPage": "6800e0d30d7466dc5e82f722"
+  },
+  "about": {
+    "wfPage": "6800e0d30d7466dc5e82f70b"
+  },
+  "about-b": {
+    "wfPage": "6800e0d30d7466dc5e82f70c"
+  },
+  "about-c": {
+    "wfPage": "6800e0d30d7466dc5e82f70d"
+  },
+  "stories": {
+    "wfPage": "6800e0d30d7466dc5e82f71d"
+  },
+  "home-b": {
+    "wfPage": "6800e0d30d7466dc5e82f709"
+  },
+  "home-c": {
+    "wfPage": "6800e0d30d7466dc5e82f70a"
   },
   "privacy": {
     "wfPage": "6800e0d30d7466dc5e82f719"

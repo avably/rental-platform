@@ -215,6 +215,27 @@
     "privacyPage": {
       "eyebrow": "Documents",
       "title": "Privacy Policy"
+    },
+    "pricingPage": {
+      "title": "One plan, no commitment",
+      "planLabel": "Avably plan",
+      "price": "PLN 199 / month",
+      "priceNote": "A trial-period price — we are testing it with the first rental businesses.",
+      "includesTitle": "Included",
+      "include1": "The rental back office: catalogue, bookings, deposits, returns",
+      "include2": "Your own store website with online booking",
+      "include3": "A yourname.avably.io address and your own domain",
+      "include4": "Customer emails sent under your business name",
+      "include5": "Courier shipments, returns and labels",
+      "foundersLabel": "Founding 50% off",
+      "foundersPrice": "PLN 99.50 / month",
+      "foundersNote": "The first 20 rental businesses pay half the current price for as long as the subscription stays active.",
+      "honestTitle": "Plainly",
+      "honest1": "No annual contract and no onboarding fee.",
+      "honest2": "You cancel whenever you want. You open the account by email, without entering a card.",
+      "buildingTitle": "Being built",
+      "building1": "Online payments (BLIK, cards, Przelewy24) and online deposits",
+      "building2": "PDF agreements and invoices issued automatically"
     }
   },
   "landing": {

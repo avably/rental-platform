@@ -30,19 +30,26 @@ const publicRoot = path.join(appRoot, "public/forerunner");
 const TEXTS = JSON.parse(fs.readFileSync(path.join(here, "marketing-text-map.json"), "utf8"));
 
 /** Adresy stron szablonu → nasze trasy (tokeny rozwijane per locale). */
-const LINKS = {
-  "index.html": "{{link.home}}",
-  "../index.html": "{{link.home}}",
-  "pricing.html": "{{link.pricing}}",
-  "../pricing.html": "{{link.pricing}}",
-  "faq.html": "{{link.faq}}",
-  "../faq.html": "{{link.faq}}",
-  "contact/contact-a.html": "{{link.contact}}",
-  "contact-a.html": "{{link.contact}}",
-  "../contact/contact-a.html": "{{link.contact}}",
-  "legal.html": "{{link.privacy}}",
-  "../legal.html": "{{link.privacy}}",
-};
+const LINKS = {};
+for (const [file, token] of [
+  ["index.html", "{{link.home}}"],
+  ["pricing.html", "{{link.pricing}}"],
+  ["faq.html", "{{link.faq}}"],
+  ["legal.html", "{{link.privacy}}"],
+  ["stories.html", "{{link.stories}}"],
+  ["contact/contact-a.html", "{{link.contact}}"],
+  ["contact/contact-b.html", "{{link.contactB}}"],
+  ["contact/contact-c.html", "{{link.contactC}}"],
+  ["about/about-a.html", "{{link.about}}"],
+  ["about/about-b.html", "{{link.aboutB}}"],
+  ["about/about-c.html", "{{link.aboutC}}"],
+  ["homepage/home-b.html", "{{link.homeB}}"],
+  ["homepage/home-c.html", "{{link.homeC}}"],
+]) {
+  const base = file.split("/").pop();
+  // Eksport linkuje te same strony różnie, zależnie od katalogu źródłowego.
+  for (const variant of [file, `../${file}`, base, `../${base}`, `./${base}`]) LINKS[variant] = token;
+}
 
 /** Węzły wycinane w całości: fabrykowany dowód społeczny i sprzedaż szablonu. */
 const REMOVE = [
@@ -60,6 +67,67 @@ const REMOVE = [
   ".nav-cart",
 ];
 
+
+/**
+ * Kopiuje do `public/forerunner/**` DOKŁADNIE te zasoby, których używają
+ * przenoszone strony — ani jednego więcej. Katalogi obrazów i wideo są
+ * czyszczone przed kopiowaniem, więc plik przestający być używany znika z repo
+ * zamiast zostawać sierotą (bramka `marketing-template.test.ts`).
+ */
+function assetTargetName(rel) {
+  const decoded = decodeURIComponent(rel);
+  const dir = path.dirname(decoded);
+  const base = path
+    .basename(decoded)
+    .normalize("NFKD")
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-(?=\.)/g, "");
+  return `${dir}/${base}`;
+}
+
+function copyAssets(sources) {
+  const referenced = new Set();
+  for (const source of sources) {
+    const html = fs.readFileSync(path.join(exportRoot, source), "utf8");
+    const values = [
+      ...html.matchAll(/(?:src|srcset|data-video-urls|poster)="([^"]+)"/g),
+      ...html.matchAll(/url\(["']?([^)"']+)["']?\)/g),
+    ].map((match) => match[1]);
+    for (const value of values) {
+      for (const part of value.split(",")) {
+        const url = part.trim().split(/\s+/)[0].replace(/^\.\.\//, "").split("?")[0];
+        if (/^(images|videos)\//.test(url)) referenced.add(url);
+      }
+    }
+  }
+
+  for (const dir of ["images", "videos"]) {
+    fs.rmSync(path.join(publicRoot, dir), { recursive: true, force: true });
+    fs.mkdirSync(path.join(publicRoot, dir), { recursive: true });
+  }
+
+  let copied = 0;
+  for (const rel of referenced) {
+    const from = path.join(exportRoot, decodeURIComponent(rel));
+    // Warianty srcset, których eksport nie zawiera (Webflow generuje je na CDN).
+    if (!fs.existsSync(from)) continue;
+    // Wideo cięższe niż 5 MB nie wchodzi do repo — każdy klip ma w eksporcie
+    // dwa warianty (mp4 i webm), a `rewriteAssets` usuwa źródła bez pliku,
+    // więc zostaje lżejszy. Bez tego repo puchnie o kilkadziesiąt megabajtów.
+    if (/\.(mp4|webm|mov)$/i.test(rel) && fs.statSync(from).size > 5 * 1024 * 1024) continue;
+    const to = path.join(publicRoot, assetTargetName(rel));
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(from, to);
+    copied += 1;
+  }
+  // Znak marki i favicon powstają poza eksportem — odtwarzamy je po czyszczeniu.
+  for (const [file, content] of Object.entries(BRAND_FILES)) {
+    fs.writeFileSync(path.join(publicRoot, "images", file), content, "utf8");
+  }
+  return copied;
+}
+
 function assetPath(url) {
   const clean = url.replace(/^\.\.\//, "").split("?")[0];
   if (!/^(images|videos|fonts|css|js)\//.test(clean)) return null;
@@ -74,6 +142,21 @@ function assetPath(url) {
   const target = `${dir}/${base}`;
   return fs.existsSync(path.join(publicRoot, target)) ? `/forerunner/${target}` : null;
 }
+
+
+const WORDMARK_PATHS =
+  '<path d="M280.703 69.8609L268.659 33.4453H276.31L287.434 68.7273L299.336 33.4453H307.2L289.063 84.7389H281.482L286.938 69.8609H280.703Z"/><path d="M258.992 69.8588V20.2656H266.077V69.8588H258.992Z"/><path d="M239.521 70.7799C231.302 70.7799 226.627 64.8287 225.422 56.7521V69.8588H218.337V20.2656H225.422V45.9833C226.627 37.6233 232.436 32.5222 239.521 32.5222C248.944 32.5222 255.461 40.528 255.461 51.7219C255.461 62.6324 248.802 70.7799 239.521 70.7799ZM225.139 51.7219C225.139 58.8066 229.815 64.3327 236.616 64.3327C243.205 64.3327 248.235 59.4443 248.235 51.7219C248.235 44.1412 243.205 38.9694 236.758 38.9694C230.381 38.9694 225.139 43.6453 225.139 51.7219Z"/><path d="M193.072 70.7811C185.775 70.7811 180.603 66.0343 180.603 59.2329C180.603 52.4316 185.633 48.4641 192.647 47.7556L205.045 46.4804C204.974 42.1587 201.857 38.758 196.402 38.758C191.372 38.758 188.963 41.9461 188.325 44.8509L182.02 43.0089C183.649 36.6326 188.892 32.5234 196.402 32.5234C207.029 32.5234 211.988 39.6082 211.988 46.9055V69.86H204.974V58.6662C204.974 66.3885 200.015 70.7811 193.072 70.7811ZM187.688 59.2329C187.688 62.7045 190.663 64.9007 194.56 64.9007C202.07 64.9007 205.045 59.4455 205.045 54.2736V52.2899L194.205 53.4234C189.884 53.9194 187.688 55.9031 187.688 59.2329Z"/><path d="M154.973 69.8609L143.071 33.4453H150.581L161.775 68.7982L172.543 33.4453H180.195L168.292 69.8609H154.973Z"/><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"/>';
+
+const wordmark = (ink) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 348 93" role="img" aria-label="Avably"><circle cx="57.5" cy="46" r="15" fill="#A8C743"/><g transform="translate(-2 0)" fill="${ink}">${WORDMARK_PATHS}</g></svg>\n`;
+
+/** Znak marki wg artefaktu Fazy 2 (sekcja 02) — jedyne pliki spoza eksportu. */
+const BRAND_FILES = {
+  "avably-logo-dark.svg": wordmark("#0B1017"),
+  "avably-logo-light.svg": wordmark("#F4F6F5"),
+  "avably-favicon.svg":
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Avably"><rect width="96" height="96" rx="28" fill="#EAFFA4"/><circle cx="24" cy="48" r="10" fill="#A8C743"/><g transform="translate(40 24) scale(.96) translate(-100.8 -20.2656)" fill="#0B1017"><path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z"/></g></svg>\n',
+};
 
 /** Znak marki: logotyp szablonu → wordmark Avably (artefakt Fazy 2, sekcja 02). */
 const BRAND_IMAGES = {
@@ -95,6 +178,11 @@ function rewriteBrand($) {
 }
 
 function rewriteAssets($) {
+  // Źródła wideo bez pliku w repo (wariant odrzucony przez limit rozmiaru).
+  $("video source[src]").each((_, el) => {
+    const src = $(el).attr("src");
+    if (src && !/^\/forerunner\//.test(src) && !assetPath(src)) $(el).remove();
+  });
   $("[src], [srcset], [data-video-urls], [poster]").each((_, el) => {
     const $el = $(el);
     for (const attr of ["src", "poster"]) {
@@ -143,6 +231,27 @@ function rewriteLinks($) {
   });
 }
 
+/**
+ * Neutralizacja nazw szablonu i jego autora w tekście wypełniacza. Strony
+ * przeglądowe zachowują angielską treść z eksportu, ale NIE wolno im nieść
+ * cudzej marki — bramka `marketing-template.test.ts` skanuje wszystkie pliki.
+ */
+const VENDOR_WORDS = [
+  [/Forerunner\u2122|Forerunner\u00ae|Forerunner/g, "the product"],
+  [/BYQ\u00ae Studio|BYQ Studio|BYQ\u2019s|BYQ/g, "the studio"],
+  [/Webflow\u2019s|Webflow/g, "the builder"],
+  [/for:human\u2122|For:Human\u2122/g, "the client"],
+  [/terra-tory\u2122/g, "the client"],
+  [/Ariel J\u0119drzejczak|Ariel/g, "the designer"],
+  [/FRANCO\u00ae|Monolith\u2122|Monolith/g, "the client"],
+];
+
+function neutralizeVendor(text) {
+  let out = text;
+  for (const [pattern, replacement] of VENDOR_WORDS) out = out.replace(pattern, replacement);
+  return out;
+}
+
 function replaceTexts($, stats) {
   const walk = (node) => {
     if (node.type === "text") {
@@ -151,7 +260,9 @@ function replaceTexts($, stats) {
       if (!trimmed) return;
       const token = TEXTS[trimmed];
       if (token === undefined) {
-        stats.untouched.add(trimmed);
+        const neutral = neutralizeVendor(trimmed);
+        if (neutral !== trimmed) node.data = raw.replace(raw.trim(), neutral);
+        else stats.untouched.add(trimmed);
         return;
       }
       stats.used.add(trimmed);
@@ -172,6 +283,12 @@ function buildPage(sourceFile, outFile, { removeExtra = [], transform } = {}) {
   for (const selector of [...REMOVE, ...removeExtra]) $(selector).remove();
 
   transform?.($);
+  for (const attr of ["alt", "title", "placeholder", "aria-label"]) {
+    $(`[${attr}]`).each((_, el) => {
+      const value = $(el).attr(attr);
+      if (value) $(el).attr(attr, neutralizeVendor(value));
+    });
+  }
   rewriteBrand($);
   rewriteAssets($);
   rewriteLinks($);
@@ -231,8 +348,8 @@ function transformShell($) {
 
   for (const [href, token] of [
     ["pricing.html", "{{nav.pricing}}"],
-    ["contact/contact-a.html", "{{nav.waitlist}}"],
-    ["contact-a.html", "{{nav.waitlist}}"],
+    ["contact/contact-a.html", "{{nav.contact}}"],
+    ["contact-a.html", "{{nav.contact}}"],
     ["faq.html", "{{nav.faq}}"],
   ]) {
     // Podstrony leżą o katalog głębiej — eksport linkuje je z prefiksem `../`.
@@ -342,6 +459,59 @@ function transformHome($) {
 /** Miejsce, w które strona wstawia komponent Reacta (formularz, treść prawna). */
 const ISLAND = "<!--avably-island-->";
 
+
+/** Karty planu: kolekcja cennika jest w eksporcie PUSTA (CMS), więc odtwarzamy
+ *  je z klas szablonu z treścią wg decyzji właściciela. */
+const PRICING_CARD = `
+<div class="pricing-card">
+  <div class="label-master dark"><div class="label-small">{{pricingPage.planLabel}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.price}}</div>
+  <div class="text-dark-64">{{pricingPage.priceNote}}</div>
+  <div class="text-medium">{{pricingPage.includesTitle}}</div>
+  <div class="text-dark-64">{{pricingPage.include1}}</div>
+  <div class="text-dark-64">{{pricingPage.include2}}</div>
+  <div class="text-dark-64">{{pricingPage.include3}}</div>
+  <div class="text-dark-64">{{pricingPage.include4}}</div>
+  <div class="text-dark-64">{{pricingPage.include5}}</div>
+  <a href="{{link.register}}" class="cta-main accent w-inline-block">
+    <div class="button-text-mask"><div class="button-text _1">{{nav.cta}}</div><div class="button-text _2">{{nav.cta}}</div></div>
+    <div class="button-bg accent"></div>
+  </a>
+</div>
+<div class="pricing-card last-plan">
+  <div class="label-master"><div class="label-small">{{pricingPage.foundersLabel}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.foundersPrice}}</div>
+  <div>{{pricingPage.foundersNote}}</div>
+  <div class="text-medium">{{pricingPage.honestTitle}}</div>
+  <div>{{pricingPage.honest1}}</div>
+  <div>{{pricingPage.honest2}}</div>
+  <div>{{pricingPage.buildingTitle}}</div>
+  <div>{{pricingPage.building1}}</div>
+  <div>{{pricingPage.building2}}</div>
+  <a href="{{link.waitlist}}" class="cta-main dark-outlined w-inline-block">
+    <div class="button-text-mask"><div class="button-text _1">{{nav.waitlist}}</div><div class="button-text _2">{{nav.waitlist}}</div></div>
+    <div class="button-bg dark-outlined"></div>
+  </a>
+</div>`;
+
+function transformPricing($) {
+  transformShell($);
+  $(".headline-pricing .label-small").text("{{nav.pricing}}");
+  $(".headline-pricing h1").text("{{pricingPage.title}}");
+  // Przełącznik miesiąc/rok nie ma czego przełączać przy jednym planie.
+  $(".tabs-menu-pricing").remove();
+  $(".tab-pane-pricing").each((index, el) => {
+    if (index > 0) {
+      $(el).remove();
+      return;
+    }
+    $(el).find(".product-thirds").html(PRICING_CARD);
+  });
+  // Pas logotypów klientów pod cennikiem: ten sam fejk, co na landingu.
+  $(".pricing-logo-master").remove();
+  $(".w-dyn-empty, .w-dyn-hide").remove();
+}
+
 function transformWaitlist($) {
   transformShell($);
   $(".heading-contact .label-small, .headline-contact .label-small").text("{{nav.waitlist}}");
@@ -365,9 +535,25 @@ function transformPrivacy($) {
 
 const pages = [
   { source: "index.html", out: "home.html", transform: transformHome },
+  { source: "pricing.html", out: "pricing.html", transform: transformPricing },
+  { source: "faq.html", out: "faq.html", transform: transformShell },
+  { source: "contact/contact-a.html", out: "contact.html", transform: transformShell },
   { source: "contact/contact-a.html", out: "waitlist.html", transform: transformWaitlist },
+  { source: "contact/contact-b.html", out: "contact-b.html", transform: transformShell },
+  { source: "contact/contact-c.html", out: "contact-c.html", transform: transformShell },
+  { source: "about/about-a.html", out: "about.html", transform: transformShell },
+  { source: "about/about-b.html", out: "about-b.html", transform: transformShell },
+  { source: "about/about-c.html", out: "about-c.html", transform: transformShell },
+  { source: "stories.html", out: "stories.html", transform: transformShell },
+  { source: "homepage/home-b.html", out: "home-b.html", transform: transformShell },
+  { source: "homepage/home-c.html", out: "home-c.html", transform: transformShell },
   { source: "legal.html", out: "privacy.html", transform: transformPrivacy },
 ];
+
+const sources = [...new Set(pages.map((page) => page.source))].filter((source) =>
+  fs.existsSync(path.join(exportRoot, source)),
+);
+console.log(`zasoby: skopiowano ${copyAssets(sources)} plików`);
 
 const summary = [];
 for (const page of pages) {
@@ -378,6 +564,28 @@ for (const page of pages) {
   console.log(`${page.out}: podmieniono ${result.stats.used.size}, bez mapy ${leftovers.length}`);
   for (const text of leftovers.slice(0, 40)) console.log(`   ? ${text}`);
 }
+
+/**
+ * Drugi przebieg: skoro wynikowy HTML jest źródłem prawdy o użyciu, usuwamy
+ * zasoby, do których nic nie prowadzi (odrzucone warianty srcset, wideo ponad
+ * limit, obrazy sekcji wyciętych jako fabrykowany dowód).
+ */
+const renderedHtml = fs
+  .readdirSync(outDir)
+  .filter((file) => file.endsWith(".html"))
+  .map((file) => fs.readFileSync(path.join(outDir, file), "utf8"))
+  .join("\n");
+
+let pruned = 0;
+for (const dir of ["images", "videos"]) {
+  const base = path.join(publicRoot, dir);
+  for (const file of fs.readdirSync(base)) {
+    if (renderedHtml.includes(`/forerunner/${dir}/${file}`)) continue;
+    fs.rmSync(path.join(base, file));
+    pruned += 1;
+  }
+}
+console.log(`zasoby: usunięto ${pruned} sierot`);
 
 fs.writeFileSync(
   path.join(outDir, "pages.json"),

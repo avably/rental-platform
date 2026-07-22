@@ -9,13 +9,14 @@
  *                                  publicznego, adresy na HOŚCIE TENANTA,
  *   tenant bez opublikowanej strony → 404 (nie ma czego indeksować; ta sama
  *                                  decyzja co `noindex` w metadanych),
- *   kanon marketingowy            → LP + /privacy w OBU locale,
+ *   kanon marketingowy            → strony PUBLICZNE (ADR-068) w OBU locale,
  *   nieznany/nieaktywny host      → neutralne 404 (nieodróżnialne od braku).
  *
  * Koszyk i checkout NIE wchodzą do sitemapy — to strony transakcyjne bez
  * treści (robots.txt wyklucza je jawnie).
  */
 import { routing } from "@/i18n/routing";
+import { PUBLIC_PAGES } from "@/lib/marketing/template";
 import { getPublicCatalog } from "@/lib/checkout/catalog";
 import { resolveHostBranch } from "@/lib/seo/host-branch";
 import { marketingOrigin, originFromHost } from "@/lib/seo/origin";
@@ -46,10 +47,13 @@ export async function GET(request: Request): Promise<Response> {
 
   if (branch.kind === "marketing") {
     const origin = marketingOrigin(host, proto);
-    const entries: SitemapEntry[] = routing.locales.flatMap((locale) => [
-      { loc: `${origin}/${locale}` },
-      { loc: `${origin}/${locale}/privacy` },
-    ]);
+    // Wyłącznie strony PUBLICZNE (ADR-068): warianty przeglądowe mają noindex
+    // i istnieją tylko po to, żeby właściciel wybrał układ.
+    const entries: SitemapEntry[] = routing.locales.flatMap((locale) =>
+      PUBLIC_PAGES.map((page) => ({
+        loc: page === "home" ? `${origin}/${locale}` : `${origin}/${locale}/${page}`,
+      })),
+    );
     return new Response(renderSitemap(entries), { headers: XML_HEADERS });
   }
 

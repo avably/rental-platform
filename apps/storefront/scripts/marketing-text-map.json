@@ -90,7 +90,7 @@
   "Address": "{{waitlistPage.addressLabel}}",
   "Templatkowa 108": "{{waitlistPage.addressLine1}}",
   "01-234 Warszawa": "{{waitlistPage.addressLine2}}",
-  "Contact": "{{nav.waitlist}}",
+  "Contact": "{{nav.contact}}",
   "Browse all": "{{nav.waitlist}}",
   "Pricing": "{{nav.pricing}}"
 }
