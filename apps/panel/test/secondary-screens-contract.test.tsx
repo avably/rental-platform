@@ -45,6 +45,11 @@ vi.mock("@/app/[locale]/(panel)/ustawienia-umow/actions", () => ({
 vi.mock("@/app/[locale]/(panel)/zaproszenia/actions", () => ({
   inviteMemberAction: noopAction,
 }));
+vi.mock("@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions", () => ({
+  startPaymentOnboardingAction: noopAction,
+  refreshPaymentAccountAction: noopAction,
+  disconnectPaymentAccountAction: noopAction,
+}));
 vi.mock("@/app/[locale]/(panel)/bezpieczenstwo/actions", () => ({
   enrollTotpAction: noopAction,
   verifyTotpAction: noopAction,
@@ -87,6 +92,9 @@ const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/f
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
 const { SiteEditor } = await import("@/app/[locale]/(panel)/strona/site-editor");
 const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-error");
+const { PaymentsPanel } = await import(
+  "@/app/[locale]/(panel)/ustawienia-platnosci/payments-panel"
+);
 
 function render(node: React.ReactNode): string {
   return renderToStaticMarkup(
@@ -709,5 +717,100 @@ describe("chipy stanu nigdy nie są samym kolorem", () => {
       expect(tag).toContain("data-tone=");
       expect(text!.trim().length, `chip bez tekstu: ${tag}`).toBeGreaterThan(0);
     }
+  });
+});
+
+// ===== 9. Płatności (oś payment-account, Z2/ADR-065) =====
+
+const restrictedAccount = {
+  providerAccountId: "acct_demo_fikcyjne",
+  chargesEnabled: true,
+  payoutsEnabled: false,
+  detailsSubmitted: true,
+  requirementsDue: ["external_account"],
+  lastError: null,
+  lastSyncedAt: "2026-07-22T09:14:00Z",
+};
+
+describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną", () => {
+  it("konto restricted ma własny stan, nie „gotowe” i nie „w toku”", () => {
+    const html = render(
+      <PaymentsPanel
+        account={restrictedAccount}
+        stage="payouts_blocked"
+        isOwner
+        configAvailable
+        configBlockedReason={null}
+      />,
+    );
+
+    expect(chips(html)).toContain("payment-account/payouts_blocked");
+    // Obie zdolności widoczne OSOBNO i z własną wartością — to jest jedyny
+    // sposób, w jaki najemca dowie się, że pieniądze utknęły.
+    expect(html).toContain('data-payment-capability="charges" data-enabled="true"');
+    expect(html).toContain('data-payment-capability="payouts" data-enabled="false"');
+  });
+
+  it("brakujące wymagania dostawcy są wypisane, nie streszczone", () => {
+    const html = render(
+      <PaymentsPanel
+        account={restrictedAccount}
+        stage="payouts_blocked"
+        isOwner
+        configAvailable
+        configBlockedReason={null}
+      />,
+    );
+
+    expect(html).toContain("data-payment-requirements");
+    expect(html).toContain('data-requirement="external_account"');
+  });
+
+  it("bez konfiguracji przycisk onboardingu jest wyłączony Z POWODEM", () => {
+    const html = render(
+      <PaymentsPanel
+        account={null}
+        stage="missing"
+        isOwner
+        configAvailable={false}
+        configBlockedReason="brak AVABLY_STRIPE_SECRET_KEY"
+      />,
+    );
+
+    expect(chips(html)).toContain("payment-account/missing");
+    expect(html).toContain('data-payment-blocked="config"');
+    expect(html).toContain("brak AVABLY_STRIPE_SECRET_KEY");
+    // Cicho nieklikalna kontrolka jest gorsza od jej braku.
+    expect(html).toMatch(/<button[^>]*disabled/);
+  });
+
+  it("pracownik widzi powód, dla którego nie może podpiąć konta", () => {
+    const html = render(
+      <PaymentsPanel
+        account={null}
+        stage="missing"
+        isOwner={false}
+        configAvailable
+        configBlockedReason={null}
+      />,
+    );
+
+    expect(html).toContain('data-payment-blocked="role"');
+    expect(html).toMatch(/<button[^>]*disabled/);
+  });
+
+  it("konto gotowe nie pokazuje już zaproszenia do weryfikacji", () => {
+    const html = render(
+      <PaymentsPanel
+        account={{ ...restrictedAccount, payoutsEnabled: true, requirementsDue: [] }}
+        stage="ready"
+        isOwner
+        configAvailable
+        configBlockedReason={null}
+      />,
+    );
+
+    expect(chips(html)).toContain("payment-account/ready");
+    expect(html).not.toContain("data-payment-onboarding");
   });
 });

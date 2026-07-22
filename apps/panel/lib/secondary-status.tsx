@@ -30,6 +30,22 @@ export const secondaryStatusSemantics = {
   security: { not_configured: "attention", configured: "positive" },
   "site-section": { enabled: "positive", disabled: "neutral" },
   "site-publish": { published: "positive" },
+  /**
+   * Konto najemcy u dostawcy płatności (Z2, ADR-065).
+   *
+   * CZTERY wartości, a nie dwie — i to jest cała treść tej osi.
+   * `payouts_blocked` (konto `restricted`: przyjmuje wpłaty, blokuje wypłaty)
+   * ma ton `problem`, bo jest jedynym stanem, który WYGLĄDA jak sukces
+   * i nim nie jest: klient płaci, błędu nie ma, a pieniądze najemcy stoją.
+   * Zwinięcie go do `pending` albo do `ready` kasowałoby dokładnie tę
+   * informację, dla której ta oś powstała.
+   */
+  "payment-account": {
+    missing: "attention",
+    pending: "attention",
+    payouts_blocked: "problem",
+    ready: "positive",
+  },
 } as const satisfies Record<string, Record<string, StatusTone>>;
 
 export type SecondaryStatusAxis = keyof typeof secondaryStatusSemantics;
@@ -43,7 +59,8 @@ export type SecondaryStatusValue<A extends SecondaryStatusAxis> =
  * sklepu szedł osobną paczką: mapa musiała je zawierać (zgodność 1:1 z
  * artefaktem), ale ekranu, który by je pokazał, jeszcze nie było. P8b ten ekran
  * dostarcza, więc obie osie wchodzą tu razem z resztą — lista rośnie wtedy i
- * tylko wtedy, gdy powstaje ekran czytający daną oś. Kontrakt kompletności
+ * tylko wtedy, gdy powstaje ekran czytający daną oś (tą samą drogą weszła
+ * `payment-account` razem z ekranem płatności Z2). Kontrakt kompletności
  * etykiet iteruje po tej liście, nie po całej mapie.
  */
 export const SECONDARY_LABELLED_AXES = [
@@ -58,6 +75,7 @@ export const SECONDARY_LABELLED_AXES = [
   "security",
   "site-section",
   "site-publish",
+  "payment-account",
 ] as const satisfies readonly SecondaryStatusAxis[];
 
 export function secondaryStatusProps<A extends SecondaryStatusAxis>(

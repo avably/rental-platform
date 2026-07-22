@@ -101,7 +101,8 @@
     "localePolish": "Polski",
     "localeEnglish": "Angielski",
     "superadminPanel": "Panel superadmina",
-    "skipToContent": "Przejdź do treści"
+    "skipToContent": "Przejdź do treści",
+    "payments": "Płatności"
   },
   "contractSettings": {
     "title": "Ustawienia umów",
@@ -795,6 +796,43 @@
     },
     "site-publish": {
       "published": "Opublikowana"
+    },
+    "payment-account": {
+      "missing": "Brak konta",
+      "pending": "Weryfikacja w toku",
+      "payouts_blocked": "Wypłaty wstrzymane",
+      "ready": "Gotowe"
     }
+  },
+  "paymentSettings": {
+    "backLink": "Wróć do panelu",
+    "title": "Płatności",
+    "intro": "Płatności online w sklepie obsługuje zewnętrzny dostawca. Zakładasz u niego konto, przechodzisz weryfikację, a pieniądze klientów wpływają bezpośrednio na Twoje konto — my tylko pośredniczymy.",
+    "accountTitle": "Konto płatności",
+    "stageHint": {
+      "missing": "Nie masz jeszcze konta płatności. Bez niego w sklepie zostają przelew i płatność przy odbiorze.",
+      "pending": "Konto istnieje, ale dostawca jeszcze nie dopuścił go do przyjmowania płatności.",
+      "payouts_blocked": "Konto przyjmuje płatności, ale wypłaty są wstrzymane — pieniądze zostaną u dostawcy, dopóki tego nie odblokujesz.",
+      "ready": "Konto przyjmuje płatności i wypłaca środki."
+    },
+    "startCta": "Załóż konto płatności",
+    "resumeCta": "Dokończ weryfikację",
+    "refreshCta": "Odśwież stan konta",
+    "refreshOk": "Stan konta odczytany u dostawcy.",
+    "refreshFailed": "Nie udało się odczytać stanu konta:",
+    "disconnectCta": "Odłącz konto",
+    "unavailable": "Płatności online są teraz niedostępne:",
+    "ownerOnly": "Konto płatności może podpiąć wyłącznie właściciel organizacji.",
+    "chargesLabel": "Przyjmowanie płatności",
+    "payoutsLabel": "Wypłaty na Twoje konto",
+    "detailsLabel": "Formularz weryfikacji wypełniony",
+    "accountIdLabel": "Identyfikator konta u dostawcy",
+    "syncedLabel": "Stan odczytany",
+    "neverSynced": "jeszcze nie odczytano",
+    "capabilityOn": "Tak",
+    "capabilityOff": "Nie",
+    "requirementsHeading": "Czego brakuje dostawcy",
+    "requirementsHint": "Nazwy pochodzą od dostawcy — uzupełnisz je w jego formularzu, klikając „Dokończ weryfikację”.",
+    "lastError": "Ostatnia próba odczytu nie powiodła się:"
   }
 }

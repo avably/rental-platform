@@ -73,6 +73,11 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
       { id: "emails", href: "/ustawienia-emaili", labelKey: "emails" },
       { id: "delivery", href: "/ustawienia-dostaw", labelKey: "delivery" },
       { id: "contracts", href: "/ustawienia-umow", labelKey: "contracts" },
+      // Płatności są KANAŁEM, nie sprzedażą: to konfiguracja drogi, którą
+      // pieniądze wchodzą do najemcy — obok domen, poczty, dostaw i umów.
+      // W grupie SPRZEDAŻ stałyby wśród ekranów, na których się PRACUJE
+      // (zamówienia, katalog), a tu się nie pracuje, tylko podłącza raz.
+      { id: "payments", href: "/ustawienia-platnosci", labelKey: "payments" },
     ],
   },
   {

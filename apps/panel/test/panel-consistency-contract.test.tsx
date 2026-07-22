@@ -60,6 +60,7 @@ const topbarOwnedTitleFiles = [
   "ustawienia-umow/page.tsx",
   "ustawienia-dostaw/page.tsx",
   "ustawienia-emaili/page.tsx",
+  "ustawienia-platnosci/page.tsx",
   "zamowienia/page.tsx",
   "zamowienia/nowe/page.tsx",
   "zaproszenia/page.tsx",

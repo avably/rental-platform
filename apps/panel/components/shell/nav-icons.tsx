@@ -1,5 +1,6 @@
 import {
   Building2,
+  CreditCard,
   Globe,
   LayoutDashboard,
   Mail,
@@ -38,6 +39,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   emails: Mail,
   delivery: Truck,
   contracts: ScrollText,
+  payments: CreditCard,
   team: Users,
   organization: Building2,
   security: ShieldCheck,
