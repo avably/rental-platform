@@ -84,7 +84,7 @@ export const orderFormSchema = z
     startDate: isoDateSchema,
     endDate: isoDateSchema,
     deliveryMethod: z.enum(DELIVERY_METHODS, {
-      errorMap: () => ({ message: "Wybierz metodę dostawy." }),
+      error: () => "Wybierz metodę dostawy.",
     }),
     pickupLocationId: z
       .string()
@@ -125,7 +125,7 @@ export type OrderFormInput = z.infer<typeof orderFormSchema>;
 
 const orderStatusSchema = z.enum(
   ORDER_STATUSES as unknown as [string, ...string[]],
-  { errorMap: () => ({ message: "Nieznany status zamówienia." }) },
+  { error: () => "Nieznany status zamówienia." },
 );
 
 /**
@@ -219,7 +219,7 @@ export const depositDeductSchema = z
     orderId: uuidSchema,
     amount: depositAmountSchema,
     reasonCode: z.enum(DEDUCTION_REASON_CODES, {
-      errorMap: () => ({ message: "Wybierz powód potrącenia." }),
+      error: () => "Wybierz powód potrącenia.",
     }),
     reason: optionalTextSchema(500),
   })

@@ -126,11 +126,12 @@ function toFieldError(zodIssue: z.ZodIssue): CheckoutFieldError {
   switch (zodIssue.code) {
     case "too_big":
       return "too_long";
-    // Brak akceptacji (literal(true) dostał false/undefined) czytamy jako required.
-    case "invalid_literal":
-      return "required";
+    // Zod 4 używa invalid_value zarówno dla literal(true), jak i enumów.
+    // Tylko brak akceptacji regulaminu ma dla użytkownika znaczenie „required”.
+    case "invalid_value":
+      return zodIssue.path[0] === "termsAccepted" ? "required" : "invalid";
     case "invalid_type":
-      return zodIssue.received === "undefined" ? "required" : "invalid";
+      return zodIssue.input === undefined ? "required" : "invalid";
     case "too_small":
       return "required";
     default:
