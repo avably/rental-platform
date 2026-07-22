@@ -202,6 +202,19 @@
       "waitlistNote": "Piszemy tylko przy większych zmianach. Adresu nie przekazujemy nikomu.",
       "privacy": "Polityka prywatności",
       "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
+    },
+    "waitlistPage": {
+      "title": "Zostaw adres, jeśli wolisz poczekać",
+      "intro": "Sklep możesz założyć od razu — rejestracja działa i nie wymaga rozmowy z nami. Jeśli wolisz najpierw obserwować, zostaw adres: napiszemy przy większych zmianach.",
+      "emailLabel": "E-mail",
+      "email": "admin@avably.io",
+      "addressLabel": "Adres",
+      "addressLine1": "ul. Cumownicza 1a/2",
+      "addressLine2": "60-480 Poznań"
+    },
+    "privacyPage": {
+      "eyebrow": "Dokumenty",
+      "title": "Polityka prywatności"
     }
   },
   "landing": {

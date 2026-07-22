@@ -2,14 +2,14 @@ import { NextIntlClientProvider } from "next-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { PrivacyDocument } from "@/app/[locale]/privacy/page";
+import { PrivacyContent } from "@/components/marketing/privacy-content";
 import en from "@/messages/en.json";
 import pl from "@/messages/pl.json";
 
 function renderPrivacy(locale: "en" | "pl", messages: typeof en) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <PrivacyDocument copy={messages.privacy} />
+      <PrivacyContent copy={messages.privacy} />
     </NextIntlClientProvider>,
   );
 }
@@ -18,7 +18,6 @@ describe("privacy page", () => {
   for (const [locale, messages] of [["en", en], ["pl", pl]] as const) {
     it(`renders the complete ${locale} policy`, () => {
       const html = renderPrivacy(locale, messages);
-      expect(html).toContain(messages.privacy.title);
       expect(messages.privacy.sections).toHaveLength(10);
       for (const section of messages.privacy.sections) {
         expect(html).toContain(section.heading);

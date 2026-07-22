@@ -1,9 +1,7 @@
 "use client";
 
-import { Button, Checkbox, Input, Label } from "@avably/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { Link } from "@/i18n/navigation";
 import { joinWaitlist } from "@/lib/actions/waitlist";
 import { captureLandingEvent } from "@/lib/analytics";
 import {
@@ -56,9 +54,6 @@ const initialValues: FormValues = {
   rentalType: "",
 };
 
-const selectClassName =
-  "border-input dark:bg-input/30 h-10 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive";
-
 function fieldErrorMessage(
   copy: MarketingCopy["form"],
   field: WaitlistField,
@@ -75,12 +70,18 @@ function fieldErrorMessage(
 
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   return (
-    <p className="min-h-5 text-sm text-destructive" id={id}>
+    <div className="text-small form-field-error" id={id}>
       {message}
-    </p>
+    </div>
   );
 }
 
+/**
+ * Formularz listy oczekujących w warstwie wizualnej przeniesionego szablonu
+ * (ADR-068): klasy `.text-field`, `.cta-main`, `.label` pochodzą z jego
+ * arkusza, logika i kontrakt danych zostają nasze. Identyfikatory pól oraz
+ * `aria-describedby` są częścią kontraktu testów dostępności.
+ */
 export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: WaitlistFormProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [view, setView] = useState<WaitlistViewState>(
@@ -200,33 +201,27 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
 
   if (view.kind === "success") {
     return (
-      <div
-        className="mt-8 rounded-lg border border-border bg-card p-6 shadow-sm"
-        ref={resultRef}
-        role="status"
-        tabIndex={-1}
-      >
-        <h3 className="text-xl font-semibold">{copy.success.title}</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">
-          {copy.success.bodyBeforeEmail} <strong className="text-foreground">{submittedEmail}</strong>
+      <div className="form-result" ref={resultRef} role="status" tabIndex={-1}>
+        <div className="text-h6">{copy.success.title}</div>
+        <p className="text-dark-64">
+          {copy.success.bodyBeforeEmail} <strong>{submittedEmail}</strong>
           {copy.success.bodyAfterEmail}
         </p>
-        {submittedPilot ? <p className="mt-3 leading-7 text-muted-foreground">{copy.success.pilot}</p> : null}
-        <Button
-          className="landing-pill landing-ghost-pill mt-6 px-6"
+        {submittedPilot ? <p className="text-dark-64">{copy.success.pilot}</p> : null}
+        <button
+          className="cta-main dark-outlined w-button"
           onClick={() => setView({ kind: "idle" })}
           type="button"
-          variant="outline"
         >
           {copy.success.edit}
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <form
-      className="mt-8 grid gap-6"
+      className="waitlist-form"
       noValidate
       onFocusCapture={() => {
         if (startedRef.current || !enabled) return;
@@ -236,11 +231,7 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
       onSubmit={handleSubmit}
     >
       <div
-        className={
-          isWaitlistResultVisible(view.kind)
-            ? "rounded-lg border border-border bg-muted p-5"
-            : "sr-only"
-        }
+        className={isWaitlistResultVisible(view.kind) ? "form-result" : "form-result-hidden"}
         ref={resultRef}
         role={
           view.kind === "server_error" ||
@@ -255,8 +246,8 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
       >
         {view.kind === "disabled" ? (
           <>
-            <h3 className="font-semibold">{copy.disabled.title}</h3>
-            <p className="mt-2 leading-7 text-muted-foreground">{copy.disabled.body}</p>
+            <div className="text-h6">{copy.disabled.title}</div>
+            <p className="text-dark-64">{copy.disabled.body}</p>
           </>
         ) : null}
         {messageKey === "duplicate" ? copy.errors.duplicate : null}
@@ -266,13 +257,16 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
         {messageKey === "validation" ? copy.errors.required : null}
       </div>
 
-      <fieldset className="grid gap-6" disabled={unavailable}>
-        <div className="grid gap-2">
-          <Label htmlFor="waitlist-email">{copy.emailLabel}</Label>
-          <Input
+      <fieldset className="waitlist-fieldset" disabled={unavailable}>
+        <div className="form-field">
+          <label className="label" htmlFor="waitlist-email">
+            {copy.emailLabel}
+          </label>
+          <input
             aria-describedby="waitlist-email-help waitlist-email-error"
             aria-invalid={Boolean(fields.email)}
             autoComplete="email"
+            className="text-field w-input"
             id="waitlist-email"
             maxLength={320}
             name="email"
@@ -281,18 +275,20 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
             type="email"
             value={values.email}
           />
-          <p className="text-sm text-muted-foreground" id="waitlist-email-help">
+          <div className="text-small text-dark-64" id="waitlist-email-help">
             {copy.emailHelp}
-          </p>
+          </div>
           <FieldError id="waitlist-email-error" message={fieldErrorMessage(copy, "email", fields.email)} />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="waitlist-rental-type">{copy.rentalTypeLabel}</Label>
+        <div className="form-field">
+          <label className="label" htmlFor="waitlist-rental-type">
+            {copy.rentalTypeLabel}
+          </label>
           <select
             aria-describedby="waitlist-rental-type-error"
             aria-invalid={Boolean(fields.rentalType)}
-            className={selectClassName}
+            className="text-field w-select"
             id="waitlist-rental-type"
             name="rentalType"
             onChange={(event) => update("rentalType", event.target.value as FormValues["rentalType"])}
@@ -312,11 +308,14 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
         </div>
 
         {values.rentalType === "other" ? (
-          <div className="grid gap-2">
-            <Label htmlFor="waitlist-other-equipment">{copy.otherEquipmentLabel}</Label>
-            <Input
+          <div className="form-field">
+            <label className="label" htmlFor="waitlist-other-equipment">
+              {copy.otherEquipmentLabel}
+            </label>
+            <input
               aria-describedby="waitlist-other-equipment-error"
               aria-invalid={Boolean(fields.otherEquipment)}
+              className="text-field w-input"
               id="waitlist-other-equipment"
               maxLength={500}
               name="otherEquipment"
@@ -331,12 +330,14 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           </div>
         ) : null}
 
-        <div className="grid gap-2">
-          <Label htmlFor="waitlist-inventory">{copy.inventoryLabel}</Label>
+        <div className="form-field">
+          <label className="label" htmlFor="waitlist-inventory">
+            {copy.inventoryLabel}
+          </label>
           <select
             aria-describedby="waitlist-inventory-error"
             aria-invalid={Boolean(fields.inventoryRange)}
-            className={selectClassName}
+            className="text-field w-select"
             id="waitlist-inventory"
             name="inventoryRange"
             onChange={(event) => update("inventoryRange", event.target.value as FormValues["inventoryRange"])}
@@ -355,12 +356,14 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="waitlist-process">{copy.processLabel}</Label>
+        <div className="form-field">
+          <label className="label" htmlFor="waitlist-process">
+            {copy.processLabel}
+          </label>
           <select
             aria-describedby="waitlist-process-error"
             aria-invalid={Boolean(fields.currentProcess)}
-            className={selectClassName}
+            className="text-field w-select"
             id="waitlist-process"
             name="currentProcess"
             onChange={(event) => update("currentProcess", event.target.value as FormValues["currentProcess"])}
@@ -379,32 +382,35 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           />
         </div>
 
-        <div className="border-y border-border py-5">
-          <p className="font-semibold">{copy.pilotHeading}</p>
-          <div className="mt-4 flex items-start gap-3">
-            <Checkbox
+        <div className="form-field form-field-block">
+          <div className="label">{copy.pilotHeading}</div>
+          <label className="w-checkbox checkbox-field" htmlFor="waitlist-pilot">
+            <input
               checked={values.pilotInterest}
+              className="w-checkbox-input"
               id="waitlist-pilot"
               name="pilotInterest"
-              onCheckedChange={(checked) => {
-                const selected = checked === true;
+              onChange={(event) => {
+                const selected = event.target.checked;
                 update("pilotInterest", selected);
                 captureLandingEvent(selected ? "pilot_interest_selected" : "pilot_interest_cleared", {
                   language: locale,
                 });
               }}
+              type="checkbox"
             />
-            <Label className="leading-6 font-normal" htmlFor="waitlist-pilot">
-              {copy.pilotLabel}
-            </Label>
-          </div>
+            <span className="text-small">{copy.pilotLabel}</span>
+          </label>
           {values.pilotInterest ? (
-            <div className="mt-5 grid gap-2">
-              <Label htmlFor="waitlist-phone">{copy.phoneLabel}</Label>
-              <Input
+            <div className="form-field">
+              <label className="label" htmlFor="waitlist-phone">
+                {copy.phoneLabel}
+              </label>
+              <input
                 aria-describedby="waitlist-phone-help waitlist-phone-error"
                 aria-invalid={Boolean(fields.phone)}
                 autoComplete="tel"
+                className="text-field w-input"
                 id="waitlist-phone"
                 maxLength={32}
                 name="phone"
@@ -413,37 +419,35 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
                 type="tel"
                 value={values.phone}
               />
-              <p className="text-sm text-muted-foreground" id="waitlist-phone-help">
+              <div className="text-small text-dark-64" id="waitlist-phone-help">
                 {copy.phoneHelp}
-              </p>
+              </div>
               <FieldError id="waitlist-phone-error" message={fieldErrorMessage(copy, "phone", fields.phone)} />
             </div>
           ) : null}
         </div>
 
-        <div>
-          <div className="flex items-start gap-3">
-            <Checkbox
+        <div className="form-field form-field-block">
+          <label className="w-checkbox checkbox-field" htmlFor="waitlist-consent">
+            <input
               aria-describedby="waitlist-consent-help waitlist-consent-error"
               aria-invalid={Boolean(fields.consent)}
               checked={values.consent}
+              className="w-checkbox-input"
               id="waitlist-consent"
               name="consent"
-              onCheckedChange={(checked) => update("consent", checked === true)}
+              onChange={(event) => update("consent", event.target.checked)}
+              type="checkbox"
             />
-            <div>
-              <Label className="leading-6 font-normal" htmlFor="waitlist-consent">
-                {copy.consentLabel}
-              </Label>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground" id="waitlist-consent-help">
-                {copy.privacyLeadIn}{" "}
-                <Link className="font-medium underline underline-offset-4" href="/privacy">
-                  {copy.privacyLabel}
-                </Link>
-                {copy.privacyAfter}
-              </p>
-            </div>
-          </div>
+            <span className="text-small">{copy.consentLabel}</span>
+          </label>
+          <p className="text-small text-dark-64" id="waitlist-consent-help">
+            {copy.privacyLeadIn}{" "}
+            <a className="text-underline" href={`/${locale}/privacy`}>
+              {copy.privacyLabel}
+            </a>
+            {copy.privacyAfter}
+          </p>
           <FieldError id="waitlist-consent-error" message={fieldErrorMessage(copy, "consent", fields.consent)} />
         </div>
 
@@ -456,11 +460,11 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           />
         ) : null}
 
-        <Button className="landing-pill min-h-12 w-full" disabled={unavailable} size="lg" type="submit">
+        <button className="cta-main accent w-button" disabled={unavailable} type="submit">
           {view.kind === "submitting" ? copy.submitting : copy.cta}
-        </Button>
+        </button>
       </fieldset>
-      <p className="text-sm leading-6 text-muted-foreground">{copy.microcopy}</p>
+      <p className="text-small text-dark-64">{copy.microcopy}</p>
     </form>
   );
 }

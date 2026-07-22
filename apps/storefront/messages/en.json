@@ -202,6 +202,19 @@
       "waitlistNote": "We only write when something substantial changes. We never pass your address on.",
       "privacy": "Privacy Policy",
       "copyright": "© Avably 2026. All rights reserved."
+    },
+    "waitlistPage": {
+      "title": "Leave your address if you would rather wait",
+      "intro": "You can open a store right away — sign-up works and needs no call with us. If you would rather watch first, leave your address: we write when something substantial changes.",
+      "emailLabel": "Email",
+      "email": "admin@avably.io",
+      "addressLabel": "Address",
+      "addressLine1": "ul. Cumownicza 1a/2",
+      "addressLine2": "60-480 Poznań, Poland"
+    },
+    "privacyPage": {
+      "eyebrow": "Documents",
+      "title": "Privacy Policy"
     }
   },
   "landing": {

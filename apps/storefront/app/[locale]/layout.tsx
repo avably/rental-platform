@@ -1,10 +1,11 @@
 import { bcp47, type Locale } from "@avably/core";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
+import { headers } from "next/headers";
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { routing } from "@/i18n/routing";
-import { WF_SITE } from "@/lib/marketing/template";
+import { wfBootstrapScript } from "@/lib/marketing/template";
 
 /**
  * Root layout OSI MARKETINGOWEJ (www.avably.io).
@@ -33,13 +34,20 @@ export default async function LocaleLayout({
     notFound();
   }
   setRequestLocale(locale);
+  // CSP ma 'strict-dynamic' i nonce per żądanie (proxy → @avably/security).
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html data-wf-site={WF_SITE} lang={bcp47(locale as Locale)}>
+    <html lang={bcp47(locale as Locale)}>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: wfBootstrapScript() }} nonce={nonce} />
+        {/* Arkusze szablonu są plikami eksportu, nie modułami CSS — import
+            przez bundler przepisałby ścieżki fontów i obrazów w `url()`.
+            eslint-disable-next-line @next/next/no-css-tags */}
         <link href="/forerunner/css/normalize.css" rel="stylesheet" />
         <link href="/forerunner/css/webflow.css" rel="stylesheet" />
         <link href="/forerunner/css/forerunner-template.webflow.css" rel="stylesheet" />
+        <link href="/forerunner/css/avably-marketing.css" rel="stylesheet" />
         <link href="/forerunner/images/avably-favicon.svg" rel="shortcut icon" type="image/x-icon" />
         <link href="/forerunner/images/avably-favicon.svg" rel="apple-touch-icon" />
         {/* Bez JS interakcje szablonu nie odsłonią elementów startujących od
@@ -52,6 +60,12 @@ export default async function LocaleLayout({
       </head>
       <body>
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        {/* Kolejność i moment wykonania jak w eksporcie: jQuery przed
+            webflow.js, oba przed DOMContentLoaded. Interakcje odsłaniające
+            sekcje startują „na wczytaniu strony” — biblioteka doładowana
+            później nie ma już czego złapać. */}
+        <script defer nonce={nonce} src="/forerunner/js/jquery.min.js" />
+        <script defer nonce={nonce} src="/forerunner/js/webflow.js" />
       </body>
     </html>
   );

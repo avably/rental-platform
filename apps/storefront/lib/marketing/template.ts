@@ -28,6 +28,20 @@ export function wfPageId(page: MarketingPage): string {
   return pages[page].wfPage;
 }
 
+/**
+ * Skrypt startowy dla `<head>`: ustawia `data-wf-page` PRZED wykonaniem
+ * webflow.js. IX2 czyta ten atrybut w momencie startu i przy niezgodności
+ * milcząco pomija interakcje odsłaniające sekcje (elementy eksportu mają
+ * inline `opacity:0`), a atrybutu nie da się wyrenderować statycznie — `<html>`
+ * należy do layoutu wspólnego dla wszystkich tras marketingowych.
+ */
+export function wfBootstrapScript(): string {
+  const map = Object.fromEntries(
+    Object.entries(pages).map(([page, meta]) => [page === "home" ? "" : page, meta.wfPage]),
+  );
+  return `(function(){var m=${JSON.stringify(map)};var p=location.pathname.replace(/\\/$/,"").split("/").pop()||"";var id=m[p]!==undefined?m[p]:m[""];var r=document.documentElement;r.setAttribute("data-wf-page",id);r.setAttribute("data-wf-site",${JSON.stringify(WF_SITE)});r.className+=" w-mod-js";})();`;
+}
+
 const ESCAPES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",

@@ -231,10 +231,14 @@ function transformShell($) {
 
   for (const [href, token] of [
     ["pricing.html", "{{nav.pricing}}"],
-    ["contact/contact-a.html", "{{nav.contact}}"],
+    ["contact/contact-a.html", "{{nav.waitlist}}"],
+    ["contact-a.html", "{{nav.waitlist}}"],
     ["faq.html", "{{nav.faq}}"],
   ]) {
-    $(`.nav-menu a[href="${href}"]`).each((_, el) => setButton($, el, token));
+    // Podstrony leżą o katalog głębiej — eksport linkuje je z prefiksem `../`.
+    $(`.nav-menu a[href="${href}"], .nav-menu a[href="../${href}"]`).each((_, el) =>
+      setButton($, el, token),
+    );
   }
 
   $(".nav-menu-inner").append(LANG_SWITCH);
@@ -335,12 +339,34 @@ function transformHome($) {
   );
 }
 
+/** Miejsce, w które strona wstawia komponent Reacta (formularz, treść prawna). */
+const ISLAND = "<!--avably-island-->";
+
+function transformWaitlist($) {
+  transformShell($);
+  $(".heading-contact .label-small, .headline-contact .label-small").text("{{nav.waitlist}}");
+  // Formularz Webflow celował w ich backend — zostaje sam układ sekcji.
+  $(".contact-form-block, .form-block-contact, .w-form")
+    .filter((_, el) => $(el).find("textarea").length > 0)
+    .replaceWith(ISLAND);
+  // Dane kontaktowe szablonu: telefon i profile społecznościowe, których nie mamy.
+  $(".contact-info-single").each((_, el) => {
+    const text = $(el).text();
+    if (/\+48 22|Instagram|Social/i.test(text)) $(el).remove();
+  });
+}
+
+function transformPrivacy($) {
+  transformShell($);
+  $(".heading-legal .label-small").text("{{privacyPage.eyebrow}}");
+  $(".heading-legal h1").text("{{privacyPage.title}}");
+  $(".body-legal").empty().append(ISLAND);
+}
+
 const pages = [
   { source: "index.html", out: "home.html", transform: transformHome },
-  { source: "pricing.html", out: "pricing.html", transform: transformShell },
-  { source: "faq.html", out: "faq.html", transform: transformShell },
-  { source: "contact/contact-a.html", out: "contact.html", transform: transformShell },
-  { source: "legal.html", out: "privacy.html", transform: transformShell },
+  { source: "contact/contact-a.html", out: "waitlist.html", transform: transformWaitlist },
+  { source: "legal.html", out: "privacy.html", transform: transformPrivacy },
 ];
 
 const summary = [];

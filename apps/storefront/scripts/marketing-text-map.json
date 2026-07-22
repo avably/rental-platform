@@ -1,10 +1,8 @@
 {
   "Start Growing with Forerunner Today!": "{{banner.text}}",
   "get started": "{{banner.cta}}",
-
   "Buy Template": "{{nav.cta}}",
   "Buy template": "{{closing.cta}}",
-
   "Webflow Template": "{{hero.eyebrow}}",
   "Your ally in efficient": "{{hero.titleTop}}",
   "& intelligent brand.": "{{hero.titleBottom}}",
@@ -12,12 +10,10 @@
   "Explore benefits": "{{hero.ctaSecondary}}",
   "AI-Driven Insights": "{{hero.feature1}}",
   "Fluid & Scalable": "{{hero.feature3}}",
-
   "From the author": "{{premise.eyebrow}}",
   "Everything here is a playground for your brand – from futuristic 3D visuals to bold headlines. Shape it, mold it, make it your own.": "{{premise.statement}}",
   "Easy Customization": "{{premise.feature1}}",
   "Responsive Ready": "{{premise.feature2}}",
-
   "intelligent template": "{{tabs.eyebrow}}",
   "A modular template designed to scale": "{{tabs.title}}",
   "Smart Analytics": "{{tabs.item1Title}}",
@@ -30,11 +26,9 @@
   "Design that speaks volumes. Bring your site to life with immersive visuals, fluid animations, and a distinct 3D edge.": "{{tabs.item4Body}}",
   "Seamless Onboarding": "{{tabs.item5Title}}",
   "Launch without the learning curve. With intuitive structure and clean documentation, you’ll be building confidently from day one.": "{{tabs.item5Body}}",
-
   "I’ve poured 15 years of web design experience into every detail to give you something flexible, fast, and built to scale.": "{{video.quote}}",
   "Ariel Jędrzejczak": "{{video.authorName}}",
   "Designer of Forerunner™": "{{video.authorRole}}",
-
   "Designed by expert": "{{features.eyebrow}}",
   "Drive innovation and elevate your online presence": "{{features.title}}",
   "Futuristic Vision": "{{features.card1Title}}",
@@ -47,10 +41,8 @@
   "Harness real-time analytics to refine strategies, sharpen messaging.": "{{features.card4Body}}",
   "Ever-Evolving Updates": "{{features.card5Title}}",
   "tay at the forefront of innovation as we continually refine features to match emerging trends.": "{{features.card5Body}}",
-
   "Make your brand impossible to ignore": "{{cta.title}}",
   "Level up your presence with Forerunner™ — a future-facing template built for clarity, edge, and digital excellence.": "{{cta.body}}",
-
   "Why for:human™": "{{momentum.eyebrow}}",
   "Build momentum with Forerunner™": "{{momentum.title}}",
   "Modular Design": "{{momentum.card1Title}}",
@@ -59,7 +51,6 @@
   "From startup MVPs to scaled brands—Forerunner™ is ready to go live when you are. No fluff, just structure.": "{{momentum.card2Body}}",
   "Next-Level Aesthetic": "{{momentum.card3Title}}",
   "Futuristic but timeless. Sleek 3D visuals and modern UI make your brand feel like it’s already one step ahead.": "{{momentum.card3Body}}",
-
   "Common": "{{faq.eyebrowTop}}",
   "questions": "{{faq.eyebrowBottom}}",
   "Is coding knowledge required to customize Forerunner™?": "{{faq.q1}}",
@@ -79,20 +70,27 @@
   "How do I optimize my website for better SEO?": "{{faq.q6}}",
   "Forerunner™ is SEO-ready out of the box.": "{{faq.a6Lead}}",
   "Clean semantic structure, optimized headings, editable meta tags, and fast-loading visuals make it easier for your site to rank. You can also add alt text, custom slugs, and integrate tools like Google Analytics or Search Console without hassle.": "{{faq.a6}}",
-
   "Launch faster": "{{closing.eyebrow}}",
   "Ready to build something remarkable?": "{{closing.title}}",
-
   "Browse more of BYQ’s best-selling templates": "{{footer.description}}",
   "Subscribe for our newsletter": "{{footer.waitlistLead}}",
   "Your information is never disclosed to third parties.": "{{footer.waitlistNote}}",
   "MAIN pages": "{{footer.columnProduct}}",
   "Company": "{{footer.columnCompany}}",
   "© Forerunner™ 2025, All Rights Reserved": "{{footer.copyright}}",
-
   "Perfect stage for your brand": "{{footer.waitlistLead}}",
   "FAQ": "{{nav.faq}}",
   "Contact & other": "{{footer.columnCompany}}",
   "·": null,
-  "0": null
+  "0": null,
+  "Get in touch": "{{waitlistPage.title}}",
+  "Have questions or need assistance? Reach out to us through our contact form below. We're here to help you connect and collaborate!": "{{waitlistPage.intro}}",
+  "Email": "{{waitlistPage.emailLabel}}",
+  "hello@forerunner.template": "{{waitlistPage.email}}",
+  "Address": "{{waitlistPage.addressLabel}}",
+  "Templatkowa 108": "{{waitlistPage.addressLine1}}",
+  "01-234 Warszawa": "{{waitlistPage.addressLine2}}",
+  "Contact": "{{nav.waitlist}}",
+  "Browse all": "{{nav.waitlist}}",
+  "Pricing": "{{nav.pricing}}"
 }

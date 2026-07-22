@@ -21,6 +21,9 @@ export default defineConfig({
       // PRZED aliasem korzenia: dopasowanie jest prefiksowe i w kolejności
       // wpisów, więc "@avably/security" złapałby też subpath i przepisał go
       // na `index.ts/rate-limit`.
+      // `server-only` rzuca przy imporcie poza serwerem Reacta; w testach
+      // rdzeń renderujący strony marketingowe uruchamiamy wprost w Node.
+      "server-only": path.resolve(__dirname, "test/helpers/server-only-stub.ts"),
       "@avably/security/rate-limit": path.resolve(
         __dirname,
         "../../packages/security/src/rate-limit.ts",

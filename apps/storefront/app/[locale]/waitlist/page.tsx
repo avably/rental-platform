@@ -5,7 +5,7 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { MarketingPageView } from "@/components/marketing/marketing-page-view";
-import { PrivacyContent } from "@/components/marketing/privacy-content";
+import { WaitlistForm } from "@/components/waitlist-form";
 import { routing } from "@/i18n/routing";
 import enMessages from "@/messages/en.json";
 
@@ -22,24 +22,35 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const messages = (await getMessages({ locale })) as AppMessages;
+  const copy = messages.landing.waitlistPage;
 
   return {
-    title: messages.privacy.title,
-    alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/privacy` },
+    title: copy.metadataTitle,
+    description: copy.metadataDescription,
+    alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/waitlist` },
   };
 }
 
-export default async function PrivacyPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function WaitlistPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const messages = (await getMessages({ locale })) as AppMessages;
 
   return (
     <MarketingPageView
-      copy={messages.marketing}
-      island={<PrivacyContent copy={messages.privacy} />}
+      copy={{ ...messages.marketing, form: messages.landing.form }}
+      island={
+        <WaitlistForm
+          copy={messages.landing.form}
+          enabled={process.env.WAITLIST_ENABLED === "true"}
+          locale={locale as Locale}
+          // Odczyt w komponencie serwerowym (strona jest force-dynamic):
+          // ten sam warunek co dyrektywy Turnstile w proxy.
+          turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        />
+      }
       locale={locale as Locale}
-      page="privacy"
+      page="waitlist"
     />
   );
 }
