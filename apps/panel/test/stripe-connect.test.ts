@@ -87,17 +87,20 @@ class Query {
     if (accounts.some((row) => row.tenant_id === inserted.tenant_id)) {
       return { data: null, error: { code: "23505", message: "duplicate key" } };
     }
+    // Wartości PODANE przez wołającego wygrywają, brakujące dostają default
+    // migracji 0028. Atrapa, która ignorowałaby payload i zawsze wstawiała
+    // `false`, MASKOWAŁABY mutację „zapisz gotowość z odpowiedzi na POST"
+    // — sprawdzone: bez tej linijki mutacja przechodziła na zielono.
     const row: PaymentAccountRecord = {
       tenant_id: String(inserted.tenant_id),
       provider: String(inserted.provider ?? "stripe"),
       provider_account_id: String(inserted.provider_account_id),
-      // Defaulty migracji 0028: świeże konto jest NIEGOTOWE.
-      charges_enabled: false,
-      payouts_enabled: false,
-      details_submitted: false,
-      requirements_due: [],
-      last_error: null,
-      last_synced_at: null,
+      charges_enabled: inserted.charges_enabled === true,
+      payouts_enabled: inserted.payouts_enabled === true,
+      details_submitted: inserted.details_submitted === true,
+      requirements_due: inserted.requirements_due ?? [],
+      last_error: inserted.last_error ?? null,
+      last_synced_at: inserted.last_synced_at ?? null,
     };
     accounts.push(row);
     return { data: [row], error: null };
