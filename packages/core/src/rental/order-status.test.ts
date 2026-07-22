@@ -25,10 +25,11 @@ describe("zbiory statusów — lustro CHECK-ów z migracji 0007", () => {
     ]);
   });
 
-  it("payment_status: dokładnie osiem wartości z 0007", () => {
+  it("payment_status: dokładnie dziewięć wartości z 0007 + 0027", () => {
     expect(PAYMENT_STATUSES).toEqual([
       "unpaid",
       "pending",
+      "payment_failed",
       "paid",
       "manual",
       "completed",

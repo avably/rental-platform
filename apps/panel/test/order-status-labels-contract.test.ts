@@ -47,14 +47,16 @@ function parseArtifactLabels(): Labels {
 const artifactLabels = parseArtifactLabels();
 
 describe("kontrakt etykiet statusów — artefakt Fazy 2 sekcja 04", () => {
-  it("podłoga liczności: 6 + 8 + 6 wartości w artefakcie", () => {
+  it("podłoga liczności: 6 + 9 + 6 wartości w artefakcie", () => {
     // Bez tego parser, który przestałby cokolwiek znajdować, dawałby zielone
     // porównania na pustych obiektach.
     expect({
       order: Object.keys(artifactLabels.order ?? {}).length,
       payment: Object.keys(artifactLabels.payment ?? {}).length,
       shipment: Object.keys(artifactLabels.shipment ?? {}).length,
-    }).toEqual({ order: 6, payment: 8, shipment: 6 });
+      // Oś płatności ma 9 wartości od 0027 (ADR-064): payment_failed to stan
+      // odrzuconej próby online.
+    }).toEqual({ order: 6, payment: 9, shipment: 6 });
   });
 
   it("klucze słownika PL pokrywają się 1:1 z kluczami statusSemantics", () => {

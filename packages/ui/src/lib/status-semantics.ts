@@ -25,6 +25,9 @@ export const statusSemantics = {
   payment: {
     unpaid: "attention",
     pending: "neutral",
+    // 0027 / ADR-064: odrzucona albo wygasła próba płatności online. Ton
+    // `problem` — wymaga reakcji (ponowienie), a nie samego oczekiwania.
+    payment_failed: "problem",
     paid: "positive",
     manual: "attention",
     completed: "positive",
