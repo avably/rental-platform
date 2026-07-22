@@ -5,6 +5,7 @@ import { formatMoney, type CurrencyCode } from "@avably/core";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 import { groszeToInputValue } from "@/lib/money-input";
 import { DEDUCTION_REASON_CODES } from "@/lib/order-validation";
@@ -122,19 +123,17 @@ export function DepositForms({
           disabled={settleDisabled}
         />
         <Label htmlFor="deposit-deduct-reason-code">{t("reasonCodeLabel")}</Label>
-        <select
+        <PanelSelect
           id="deposit-deduct-reason-code"
           name="reasonCode"
           defaultValue="damage"
           disabled={settleDisabled}
           className="rounded border px-3 py-2"
-        >
-          {DEDUCTION_REASON_CODES.map((code) => (
-            <option key={code} value={code}>
-              {t(`reasonCodes.${code}`)}
-            </option>
-          ))}
-        </select>
+          options={DEDUCTION_REASON_CODES.map((code) => ({
+            value: code,
+            label: t(`reasonCodes.${code}`),
+          }))}
+        />
         <Label htmlFor="deposit-deduct-reason">{t("reasonLabel")}</Label>
         <Input
           id="deposit-deduct-reason"

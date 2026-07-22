@@ -65,8 +65,16 @@ export default async function PanelLayout({
           skok „Przejdź do treści" przewija stronę, ale zostawia fokus przy
           linku, więc następny Tab wraca do nawigacji.
         */}
-        <main id={MAIN_CONTENT_ID} tabIndex={-1} className="min-w-0 flex-1 p-4 md:p-6">
-          {children}
+        <main id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+          className="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
+        >
+          <div
+            data-panel-container="true"
+            className="mx-auto w-full max-w-6xl px-4 py-4 md:px-6 md:py-6"
+          >
+            {children}
+          </div>
         </main>
       </div>
     </div>

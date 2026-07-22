@@ -131,16 +131,24 @@ describe("kontrakt shella — znak marki", () => {
     expect(logoWidth, "nie znaleziono jawnej szerokości logo w shellu").not.toBeNaN();
     expect(logoWidth).toBeGreaterThanOrEqual(logoFloor);
 
-    // Sygnet: `size-N` Tailwinda to N × 4 px. Podłoga 24 px = `size-6`.
-    for (const [file, label] of [
-      ["components/shell/panel-topbar.tsx", "belka panelu"],
-      ["app/[locale]/(superadmin)/layout.tsx", "belka superadmina"],
-    ] as const) {
-      const source = readFileSync(resolve(process.cwd(), file), "utf8");
-      const step = Number(source.match(/<BrandSymbol className="size-(\d+)/)?.[1]);
-      expect(step, `nie znaleziono rozmiaru sygnetu: ${label}`).not.toBeNaN();
-      expect(step * 4, `sygnet poniżej 24 px: ${label}`).toBeGreaterThanOrEqual(24);
-    }
+    // P7 (ADR-060): mobilna belka panelu zawiera wyłącznie hamburger, H1
+    // i motyw. Sygnet pozostaje w superadminie, gdzie nadal obowiązuje
+    // podłoga `size-6` = 24 px.
+    const panelTopbar = readFileSync(
+      resolve(process.cwd(), "components/shell/panel-topbar.tsx"),
+      "utf8",
+    );
+    expect(panelTopbar).not.toContain("BrandSymbol");
+
+    const superadminLayout = readFileSync(
+      resolve(process.cwd(), "app/[locale]/(superadmin)/layout.tsx"),
+      "utf8",
+    );
+    const symbolStep = Number(
+      superadminLayout.match(/<BrandSymbol className="size-(\d+)/)?.[1],
+    );
+    expect(symbolStep, "nie znaleziono rozmiaru sygnetu: belka superadmina").not.toBeNaN();
+    expect(symbolStep * 4, "sygnet poniżej 24 px: belka superadmina").toBeGreaterThanOrEqual(24);
   });
 
   it("kropka marki niesie kolor handoffu i żyje WYŁĄCZNIE wewnątrz znaku", () => {

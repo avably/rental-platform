@@ -115,9 +115,8 @@ export default async function DeliverySettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center justify-end gap-3">
         <Link className="text-sm underline" href="/zamowienia">
           {tSection("title")} ↩
         </Link>

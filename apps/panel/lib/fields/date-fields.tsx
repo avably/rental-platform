@@ -34,6 +34,28 @@ import * as React from "react";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+function subscribeDesktopCalendar(onChange: () => void): () => void {
+  const media = window.matchMedia("(min-width: 768px)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function readDesktopCalendar(): boolean {
+  return window.matchMedia("(min-width: 768px)").matches;
+}
+
+function readDesktopCalendarOnServer(): boolean {
+  return false;
+}
+
+function useDesktopCalendar(): boolean {
+  return React.useSyncExternalStore(
+    subscribeDesktopCalendar,
+    readDesktopCalendar,
+    readDesktopCalendarOnServer,
+  );
+}
+
 /**
  * Kształt zakresu przyjmowany przez `Calendar` w trybie `range`. Typ jest
  * odtworzony STRUKTURALNIE, a nie zaimportowany z `react-day-picker`: ten
@@ -169,6 +191,7 @@ export function DateRangeField({
   const t = useTranslations("common.dateField");
   const format = useDayFormat();
   const [open, setOpen] = React.useState(false);
+  const isDesktop = useDesktopCalendar();
 
   const selected: CalendarRange | undefined = isoToDate(from)
     ? { from: isoToDate(from), to: isoToDate(to) }
@@ -200,7 +223,7 @@ export function DateRangeField({
           <Calendar
             mode="range"
             autoFocus
-            numberOfMonths={2}
+            numberOfMonths={isDesktop ? 2 : 1}
             defaultMonth={isoToDate(from)}
             selected={selected}
             onSelect={(next) => {

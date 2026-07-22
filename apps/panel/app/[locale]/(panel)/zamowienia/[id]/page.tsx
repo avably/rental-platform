@@ -180,9 +180,9 @@ export default async function OrderDetailPage({
           <p className="text-muted-foreground text-sm tabular-nums tracking-[0.01em]">
             {row.order_number}
           </p>
-          <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">
+          <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">
             {row.customers?.full_name ?? row.customers?.email ?? t("customer")}
-          </h1>
+          </h2>
         </div>
         <Link className="text-sm underline underline-offset-[3px]" href="/zamowienia">
           {t("backToList")}

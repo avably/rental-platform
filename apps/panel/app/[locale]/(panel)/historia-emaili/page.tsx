@@ -25,6 +25,7 @@ import { Fragment } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { PanelSelect } from "@/components/fields/panel-select";
 import { requireMemberPage } from "@/lib/member-page";
 import {
   EMAIL_LOG_PAGE_SIZE,
@@ -79,11 +80,7 @@ export default async function EmailLogPage({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-      </header>
-
+    <div className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
 
       {/* Filtr GET-em — stan listy w URL (wzorzec listy zamówień). */}
@@ -92,19 +89,19 @@ export default async function EmailLogPage({
           <label htmlFor="filter-status" className="text-xs font-medium">
             {t("filterStatus")}
           </label>
-          <select
+          <PanelSelect
             id="filter-status"
             name="status"
             defaultValue={filter.status ?? ""}
             className="h-9 rounded-md border border-input bg-transparent px-3"
-          >
-            <option value="">{t("filterAll")}</option>
-            {EMAIL_LOG_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {t(`status.${status}`)}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: t("filterAll") },
+              ...EMAIL_LOG_STATUSES.map((status) => ({
+                value: status,
+                label: t(`status.${status}`),
+              })),
+            ]}
+          />
         </div>
         <Button type="submit" variant="outline">
           {t("filterApply")}

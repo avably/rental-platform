@@ -95,6 +95,42 @@ export const PANEL_NAV_ITEMS: readonly PanelNavItem[] = PANEL_NAV_GROUPS.flatMap
   (group) => group.items,
 );
 
+export function resolvePanelNavItem(id: string): PanelNavItem {
+  const item = PANEL_NAV_ITEMS.find((candidate) => candidate.id === id);
+  if (!item) throw new Error(`Bottom bar id spoza PANEL_NAV_ITEMS: ${id}`);
+  return item;
+}
+
+export const PANEL_BOTTOM_NAV_ITEMS = [
+  resolvePanelNavItem("orders"),
+  resolvePanelNavItem("catalog"),
+] as const;
+
+/**
+ * Skrót do strony głównej panelu na dolnym pasku (decyzja właściciela
+ * 2026-07-22).
+ *
+ * NIE przechodzi przez `resolvePanelNavItem`, bo dashboard nie jest pozycją
+ * nawigacji: artefakt trzyma go jako ZAPOWIEDŹ poza grupami, a sidebar dalej
+ * pokazuje go jako nieklikalny, z badge „Wkrótce". Na wąskim ekranie nie ma
+ * jednak znaku marki, który na desktopie prowadzi do `/`, więc pasek jest
+ * jedynym miejscem, z którego wraca się na stronę główną jednym kciukiem.
+ * Etykieta idzie z tej samej zapowiedzi, żeby oba miejsca nie rozjechały się
+ * w nazwie.
+ */
+export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
+  id: PANEL_NAV_PLACEHOLDER.id,
+  href: "/",
+  labelKey: PANEL_NAV_PLACEHOLDER.labelKey,
+};
+
+const PANEL_ROUTE_TITLE_OVERRIDES = [
+  { path: "/zamowienia/nowe", labelKey: "newOrder" },
+  { path: "/historia-emaili", labelKey: "emailHistory" },
+  { path: "/organizacja/nowa", labelKey: "newOrganization" },
+  { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
+] as const;
+
 /**
  * Pozycja, która ma dostać `aria-current="page"`.
  *
@@ -114,4 +150,14 @@ export function matchNavItem(pathname: string): PanelNavItem | undefined {
     if (!best || item.href.length > best.href.length) best = item;
   }
   return best;
+}
+
+/** Klucz jedynego H1 shella, także dla tras spoza głównej nawigacji. */
+export function panelTitleKey(pathname: string): string {
+  if (pathname === "/") return PANEL_NAV_PLACEHOLDER.labelKey;
+  const override = PANEL_ROUTE_TITLE_OVERRIDES.find(
+    ({ path }) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+  if (override) return override.labelKey;
+  return matchNavItem(pathname)?.labelKey ?? "panelNavigation";
 }

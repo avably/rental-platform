@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
 import {
   deleteSection,
   publishSite,
@@ -46,6 +47,7 @@ export function SiteEditor({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
+  const [sectionType, setSectionType] = useState<SectionType>("freeform");
 
   /** Woła akcję w tranzycji, pokazuje błąd i odświeża RSC po sukcesie. */
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
@@ -80,7 +82,6 @@ export function SiteEditor({
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -135,22 +136,20 @@ export function SiteEditor({
                 <label className="sr-only" htmlFor="add-section-type">
                   {t("sections.addType")}
                 </label>
-                <select
+                <PanelSelect
                   id="add-section-type"
                   className="rounded-md border px-2 py-1 text-sm"
-                  defaultValue="freeform"
+                  value={sectionType}
                   disabled={pending}
-                  onChange={(e) => {
-                    addSection(e.target.value as SectionType);
-                    e.target.value = "freeform";
+                  onValueChange={(value) => {
+                    addSection(value as SectionType);
+                    setSectionType("freeform");
                   }}
-                >
-                  {SECTION_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`sectionTypes.${type}`)}
-                    </option>
-                  ))}
-                </select>
+                  options={SECTION_TYPES.map((type) => ({
+                    value: type,
+                    label: t(`sectionTypes.${type}`),
+                  }))}
+                />
                 <span className="text-xs text-muted-foreground">{t("sections.addHint")}</span>
               </div>
             </div>

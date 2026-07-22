@@ -19,7 +19,7 @@ export default async function OrderNotFound() {
       className="border-border bg-card flex flex-col items-start gap-4 rounded-lg border p-8"
     >
       <p className="text-muted-foreground text-2xl font-semibold tabular-nums">{t("code")}</p>
-      <h1 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("title")}</h1>
+      <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("title")}</h2>
       <Button asChild>
         <Link href="/zamowienia">{t("backToOrders")}</Link>
       </Button>

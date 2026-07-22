@@ -96,8 +96,7 @@ export default async function OrdersPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">{t("title")}</h1>
+      <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
         <Button asChild>
           <Link href="/zamowienia/nowe">{t("newOrder")}</Link>
         </Button>

@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 
+import { PanelSelect } from "@/components/fields/panel-select";
+
 import { inviteMemberAction, type InviteMemberState } from "./actions";
 
 const initialState: InviteMemberState = {};
@@ -30,10 +32,15 @@ export function InviteMemberForm({
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Rola
-        <select name="role" defaultValue="staff" className="rounded border px-3 py-2">
-          <option value="staff">staff</option>
-          <option value="owner">owner</option>
-        </select>
+        <PanelSelect
+          name="role"
+          defaultValue="staff"
+          className="rounded border px-3 py-2"
+          options={[
+            { value: "staff", label: "staff" },
+            { value: "owner", label: "owner" },
+          ]}
+        />
       </label>
       {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       {state.success ? <p className="text-sm text-status-positive-fg">{state.success}</p> : null}

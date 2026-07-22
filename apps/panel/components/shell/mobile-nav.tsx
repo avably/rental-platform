@@ -1,11 +1,16 @@
 "use client";
 
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@avably/ui";
-import { MenuIcon } from "lucide-react";
+import { MenuIcon, PlusIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { NAV_ICON_STROKE_WIDTH } from "./nav-icons";
+import { Link, usePathname } from "@/i18n/navigation";
+import { logoutAction } from "@/lib/actions/logout";
+import { PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS, matchNavItem } from "@/lib/shell/nav";
+
+import { LocaleSwitcher } from "./locale-switcher";
+import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
 import { SidebarNav } from "./sidebar-nav";
 
 /**
@@ -15,9 +20,28 @@ import { SidebarNav } from "./sidebar-nav";
  * przejściu do innego ekranu nakładka zostałaby otwarta nad nową treścią,
  * bo nawigacja klientem nie odmontowuje shella.
  */
-export function MobileNav() {
+/**
+ * CTA paska jako zwykła pozycja (decyzja właściciela 2026-07-22: bez
+ * wyróżnienia). Nie jest pozycją nawigacji — stąd lokalna stała, nie wpis
+ * w `PANEL_NAV_ITEMS`; ikona plusa dobierana jest w renderze.
+ */
+const NEW_ORDER_BAR_ITEM = {
+  id: "new-order",
+  href: "/zamowienia/nowe",
+  labelKey: "newOrderShort",
+} as const;
+
+const BOTTOM_ITEM_CLASS =
+  "text-muted-foreground flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium outline-none transition-[color,background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent dark:focus-visible:outline-ring";
+
+export function MobileNav({ userEmail }: { userEmail: string }) {
   const t = useTranslations("nav");
+  const tCommon = useTranslations("common");
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const active = matchNavItem(pathname);
+  const newOrderActive =
+    pathname === "/zamowienia/nowe" || pathname.startsWith("/zamowienia/nowe/");
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -33,16 +57,84 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="bg-sidebar w-72 gap-0 p-0 pt-12"
+        className="bg-sidebar flex h-full w-72 flex-col gap-0 p-0 pt-12"
         aria-label={t("panelNavigation")}
       >
         {/* Radix wymaga tytułu dla nakładki dialogowej — trzymamy go dla
             czytników, bez dublowania nagłówka na ekranie. */}
         <SheetTitle className="sr-only">{t("panelNavigation")}</SheetTitle>
-        <div className="overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <SidebarNav onNavigate={() => setOpen(false)} />
         </div>
+        <div className="border-border flex flex-col gap-3 border-t p-4">
+          <span className="text-muted-foreground truncate text-xs">{userEmail}</span>
+          <LocaleSwitcher />
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="border-border text-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium outline-none hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+            >
+              {tCommon("logout")}
+            </button>
+          </form>
+        </div>
       </SheetContent>
+
+      <nav
+        data-mobile-bottom-nav="true"
+        aria-label={t("mobileNavigation")}
+        className="border-border bg-background fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        {/*
+          Kolejność: Dashboard · Zamówienia · Nowe · Katalog · Menu (decyzja
+          właściciela 2026-07-22) — „Nowe" stoi na środku, pod kciukiem,
+          i wygląda jak każda inna pozycja: bez obrysu i bez wyróżnienia.
+          Limonkowe wypełnienie niesie na pasku JEDNĄ informację — gdzie
+          jesteś — więc CTA dostaje je wyłącznie na własnej trasie.
+        */}
+        {[
+          PANEL_BOTTOM_NAV_HOME,
+          PANEL_BOTTOM_NAV_ITEMS[0],
+          NEW_ORDER_BAR_ITEM,
+          PANEL_BOTTOM_NAV_ITEMS[1],
+        ].map((item) => {
+          const Icon = NAV_ICONS[item.id] ?? PlusIcon;
+          // Dashboard i CTA nie przechodzą przez `matchNavItem` (nie są
+          // pozycjami nawigacji), więc bieżącość liczy się dla nich
+          // z DOKŁADNEJ ścieżki — prefiks „/" pasowałby do każdego ekranu.
+          const current =
+            item.id === PANEL_BOTTOM_NAV_HOME.id
+              ? pathname === "/"
+              : item.id === NEW_ORDER_BAR_ITEM.id
+                ? newOrderActive
+                : active?.id === item.id && !(item.id === "orders" && newOrderActive);
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              // Skrócona etykieta CTA mieści się w komórce 70 px („Nowe
+              // zamówienie" mierzy 93 px); pełna nazwa zostaje w aria-label.
+              aria-label={item.id === NEW_ORDER_BAR_ITEM.id ? t("newOrder") : undefined}
+              aria-current={current ? "page" : undefined}
+              className={`${BOTTOM_ITEM_CLASS} ${current ? "bg-accent text-accent-foreground" : ""}`}
+            >
+              <Icon aria-hidden="true" className="size-5" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+              <span className="w-full truncate text-center">{t(item.labelKey)}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          aria-label={t("mobileMenu")}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+          className={BOTTOM_ITEM_CLASS}
+        >
+          <MenuIcon aria-hidden="true" className="size-5" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+          <span className="truncate">{t("mobileMenu")}</span>
+        </button>
+      </nav>
     </Sheet>
   );
 }
