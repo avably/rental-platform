@@ -614,7 +614,17 @@
       "deductCta": "Zarejestruj potrącenie",
       "reasonCodeLabel": "Powód potrącenia",
       "reasonLabel": "Doprecyzowanie",
-      "reasonPlaceholder": "wymagane przy powodzie „inny”"
+      "reasonPlaceholder": "wymagane przy powodzie „inny”",
+      "refundOnlineHint": "Zwrot idzie realnym przelewem do klienta przez dostawcę płatności — kaucja została pobrana razem z płatnością za najem.",
+      "refundManualHint": "Zapis zwrotu wykonanego poza systemem (gotówka, przelew własny).",
+      "refundInFlightBlocked": "Zwrot dla tego zamówienia czeka na potwierdzenie u dostawcy — kolejny byłby drugą wypłatą tej samej kaucji.",
+      "providerOnline": "przez dostawcę płatności",
+      "refundStatus": {
+        "requested": "Zwrot zlecony — brak odpowiedzi dostawcy",
+        "pending": "Zwrot w toku",
+        "succeeded": "Zwrot potwierdzony",
+        "failed": "Zwrot odrzucony"
+      }
     },
     "extension": {
       "title": "Przedłużenie najmu",

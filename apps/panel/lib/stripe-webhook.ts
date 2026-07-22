@@ -50,13 +50,19 @@
 import {
   STRIPE_SIGNATURE_HEADER,
   isObservedIntentEvent,
+  isObservedRefundEvent,
   parseStripeEvent,
+  refundVerdict,
   settlementVerdict,
   verifyStripeSignature,
   type IntentRead,
   type PaymentStatus,
+  type RefundRead,
+  type StripeEventEnvelope,
 } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { bookDepositEvent, settleDepositIfComplete } from "./deposit-booking";
 
 /** Nazwa dostawcy w rejestrze zdarzeń — lustro CHECK-a z migracji 0030. */
 export const WEBHOOK_PROVIDER = "stripe";
@@ -75,6 +81,12 @@ export interface StripeWebhookDeps {
    * Podpis bierze konto najemcy, bo płatność żyje na koncie połączonym.
    */
   readIntent: (intentId: string, connectedAccountId: string) => Promise<IntentRead>;
+  /**
+   * Odczyt ZWROTU u dostawcy (Z5, ADR-068) — lustro `readIntent`. Zdarzenie
+   * `charge.refund.updated` niesie sam `re_...` i nic więcej; o tym, czy
+   * pieniądze wróciły do klienta, mówi wyłącznie ten odczyt.
+   */
+  readRefund: (refundId: string, connectedAccountId: string) => Promise<RefundRead>;
   /** Sekret podpisu. Wstrzykiwany, żeby test nie zależał od env procesu. */
   secret: string | undefined;
   /** Zegar do okna tolerancji podpisu. */
@@ -144,6 +156,196 @@ async function release(db: SupabaseClient, eventRowId: string): Promise<void> {
   }
 }
 
+/**
+ * Konto najemcy u dostawcy — bierzemy je z NASZEJ bazy, po tenancie, nie
+ * z pola `account` w ciele zdarzenia. Ciało mówi, na czyim koncie zdarzenie
+ * POWSTAŁO; baza mówi, na czyje konto MY skierowaliśmy tę płatność. Przy
+ * rozjeździe to drugie jest tym, o co nam chodzi.
+ *
+ * `null` w `accountId` przy `ok: true` nie występuje — brak konta jest
+ * osobnym wynikiem, żeby wołający musiał go obsłużyć jawnie.
+ */
+async function connectedAccountFor(
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<
+  | { ok: true; accountId: string }
+  | { ok: false; retryable: boolean; reason: string }
+> {
+  const query = await db
+    .from("payment_accounts")
+    .select("provider_account_id")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (query.error) {
+    return {
+      ok: false,
+      retryable: true,
+      reason: `Odczyt konta najemcy nie powiódł się: ${query.error.message}`,
+    };
+  }
+
+  const accountId = (query.data as { provider_account_id: string } | null)?.provider_account_id;
+  if (!accountId) {
+    return {
+      ok: false,
+      retryable: false,
+      reason: `Najemca ${tenantId} nie ma konta u dostawcy — nie ma na czym wykonać odczytu.`,
+    };
+  }
+  return { ok: true, accountId };
+}
+
+/** Wiersz żądania zwrotu (0031) — punkt zaczepienia zdarzeń refundu. */
+interface RefundRequestRow {
+  id: string;
+  tenant_id: string;
+  order_id: string;
+  amount_grosze: number;
+  status: string;
+}
+
+/** Zapis wyniku odczytu w rejestrze ŻĄDAŃ. Nigdy w rejestrze zdarzeń. */
+async function markRefundRequest(
+  db: SupabaseClient,
+  requestId: string,
+  status: "pending" | "succeeded" | "failed",
+  lastError: string | null,
+): Promise<void> {
+  const { error } = await db
+    .from("deposit_refunds")
+    .update({ status, last_error: lastError })
+    .eq("id", requestId);
+  if (error) {
+    console.error(
+      `[stripe-webhook] nie udało się zapisać stanu żądania zwrotu ${requestId}: ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Gałąź zdarzeń ZWROTU (Z5, ADR-068).
+ *
+ * Kształt jest lustrem gałęzi płatności i to nie jest przypadek — obie
+ * odpowiadają na to samo pytanie („co dostawca zrobił z pieniędzmi") w ten
+ * sam sposób: zdarzenie mówi TYLKO, o co zapytać.
+ *
+ * PUNKT ZACZEPIENIA: `deposit_refunds.provider_reference`, czyli NASZ ślad
+ * po żądaniu, które sami wysłaliśmy. Zwrot zlecony z panelu dostawcy —
+ * poza naszym obiegiem — nie ma tu wiersza i zostaje zarejestrowany jako
+ * niepowiązany. To jest świadome: nie wiemy, czy tamten zwrot dotyczył
+ * kaucji, czy najmu, a zgadywanie księgowałoby cudzą decyzję jako naszą.
+ *
+ * KOLEJNOŚĆ: rejestr zdarzeń → potem `payment_status`. Odwrotna daje 23514
+ * z bramki spójności (0030, reguła B), bo ta czyta saldo punktowo.
+ */
+async function handleRefundEvent(
+  event: StripeEventEnvelope,
+  eventRowId: string,
+  deps: StripeWebhookDeps,
+): Promise<Response> {
+  const requestQuery = await deps.db
+    .from("deposit_refunds")
+    .select("id, tenant_id, order_id, amount_grosze, status")
+    .eq("provider_reference", event.objectId)
+    .maybeSingle();
+
+  if (requestQuery.error) {
+    await release(deps.db, eventRowId);
+    return json(500, { error: `Odczyt żądania zwrotu nie powiódł się: ${requestQuery.error.message}` });
+  }
+
+  const request = requestQuery.data as RefundRequestRow | null;
+  if (!request) {
+    await finish(
+      deps.db,
+      eventRowId,
+      "processed",
+      `Żaden zwrot zlecony z panelu nie jest związany z ${event.objectId} — zarejestrowane bez zapisu stanu.`,
+    );
+    return json(200, { status: "unrelated", eventId: event.id });
+  }
+
+  const account = await connectedAccountFor(deps.db, request.tenant_id);
+  if (!account.ok) {
+    if (account.retryable) {
+      await release(deps.db, eventRowId);
+      return json(500, { error: account.reason });
+    }
+    await finish(deps.db, eventRowId, "failed", account.reason);
+    return json(200, { status: "failed", eventId: event.id });
+  }
+
+  // --- ODCZYT: jedyne źródło prawdy o zwrocie ---
+  let read: RefundRead;
+  try {
+    read = await deps.readRefund(event.objectId, account.accountId);
+  } catch (error) {
+    await release(deps.db, eventRowId);
+    return json(500, { error: `Odczyt zwrotu u dostawcy nie powiódł się: ${errorMessage(error)}` });
+  }
+
+  const verdict = refundVerdict(read);
+
+  if (verdict.outcome === "failed") {
+    // ZERO wiersza w rejestrze zdarzeń — kaucja NIE wróciła. Powód zostaje
+    // w rejestrze żądań, żeby operator wiedział, co powiedzieć klientowi.
+    await markRefundRequest(deps.db, request.id, "failed", verdict.reason);
+    await finish(deps.db, eventRowId, "processed", verdict.reason);
+    return json(200, { status: "refund_failed", eventId: event.id });
+  }
+
+  if (verdict.outcome === "pending") {
+    await markRefundRequest(deps.db, request.id, "pending", verdict.reason);
+    await finish(deps.db, eventRowId, "processed", verdict.reason);
+    return json(200, { status: "noop", eventId: event.id });
+  }
+
+  // --- ZWROT POTWIERDZONY: najpierw rejestr, dopiero potem status ---
+  const booked = await bookDepositEvent(deps.db, {
+    tenantId: request.tenant_id,
+    orderId: request.order_id,
+    kind: "refunded",
+    // Kwota Z ODCZYTU, nie z żądania: jeśli dostawca oddał inną, prawdą
+    // jest ta, którą oddał.
+    amountGrosze: verdict.amountGrosze,
+    providerReference: read.refundId,
+  });
+
+  if (!booked.ok) {
+    if (booked.retryable) {
+      await release(deps.db, eventRowId);
+      return json(500, { error: booked.reason });
+    }
+    await markRefundRequest(deps.db, request.id, "failed", booked.reason);
+    await finish(deps.db, eventRowId, "failed", booked.reason);
+    return json(200, { status: "rejected", eventId: event.id });
+  }
+
+  await markRefundRequest(deps.db, request.id, "succeeded", null);
+
+  const settlement = await settleDepositIfComplete(deps.db, request.tenant_id, request.order_id);
+  if (!settlement.ok) {
+    // Zwrot JEST zaksięgowany — mówimy dokładnie, co się nie udało, zamiast
+    // udawać pełny sukces albo pełną porażkę (ADR-046).
+    await finish(deps.db, eventRowId, "failed", settlement.reason);
+    return json(200, { status: "rejected", eventId: event.id });
+  }
+
+  await finish(
+    deps.db,
+    eventRowId,
+    "processed",
+    settlement.settled ? null : "Zwrot zaksięgowany; saldo kaucji nadal dodatnie.",
+  );
+  return json(200, {
+    status: "processed",
+    eventId: event.id,
+    depositSettled: settlement.settled,
+  });
+}
+
 export async function handleStripeWebhook(
   request: Request,
   deps: StripeWebhookDeps,
@@ -198,6 +400,16 @@ export async function handleStripeWebhook(
   }
   const eventRowId = rows[0]!.id;
 
+  // --- Zdarzenia ZWROTU idą własną gałęzią (Z5) ---
+  //
+  // Rozgałęzienie stoi PRZED odnalezieniem zamówienia, bo obiekt zdarzenia
+  // jest tu inny: `re_...`, nie `pi_...`. Szukanie zamówienia po
+  // `provider_payment_intent_id` z identyfikatorem refundu zawsze chybia —
+  // i chybiałoby CICHO, jako „zdarzenie niepowiązane".
+  if (isObservedRefundEvent(event.type)) {
+    return handleRefundEvent(event, eventRowId, deps);
+  }
+
   // --- Czy to zdarzenie w ogóle nas obchodzi ---
   if (!isObservedIntentEvent(event.type)) {
     await finish(
@@ -240,36 +452,19 @@ export async function handleStripeWebhook(
   }
 
   // --- Konto najemcy: potrzebne do odczytu na koncie połączonym ---
-  //
-  // Bierzemy je z NASZEJ bazy, po tenancie zamówienia — nie z pola `account`
-  // w ciele zdarzenia. Ciało mówi, na czyim koncie zdarzenie POWSTAŁO;
-  // baza mówi, na czyje konto MY skierowaliśmy tę płatność. Przy rozjeździe
-  // to drugie jest tym, o co nam chodzi.
-  const accountQuery = await deps.db
-    .from("payment_accounts")
-    .select("provider_account_id")
-    .eq("tenant_id", order.tenant_id)
-    .maybeSingle();
-
-  if (accountQuery.error) {
-    await release(deps.db, eventRowId);
-    return json(500, { error: `Odczyt konta najemcy nie powiódł się: ${accountQuery.error.message}` });
-  }
-
-  const connectedAccountId = (accountQuery.data as { provider_account_id: string } | null)
-    ?.provider_account_id;
-  if (!connectedAccountId) {
+  const account = await connectedAccountFor(deps.db, order.tenant_id);
+  if (!account.ok) {
+    if (account.retryable) {
+      await release(deps.db, eventRowId);
+      return json(500, { error: account.reason });
+    }
     // Zamówienie wskazuje płatność, ale najemca nie ma konta — stan
     // niespójny, którego ponowienie nie naprawi. Rejestrujemy jako ODMOWĘ
     // i kończymy 2xx.
-    await finish(
-      deps.db,
-      eventRowId,
-      "failed",
-      `Najemca ${order.tenant_id} nie ma konta u dostawcy — nie ma na czym wykonać odczytu płatności.`,
-    );
+    await finish(deps.db, eventRowId, "failed", account.reason);
     return json(200, { status: "failed", eventId: event.id });
   }
+  const connectedAccountId = account.accountId;
 
   // --- ODCZYT: jedyne źródło stanu ---
   let read: IntentRead;
@@ -292,6 +487,49 @@ export async function handleStripeWebhook(
   if (verdict.status === null) {
     await finish(deps.db, eventRowId, "processed", verdict.reason);
     return json(200, { status: "noop", eventId: event.id });
+  }
+
+  // --- KAUCJA POBRANA: z tego samego POTWIERDZONEGO odczytu co `paid` ---
+  //
+  // Kaucja jedzie w tym samym intencie co najem i dostawa (D1/D4, 0029),
+  // więc chwila, w której dostawca potwierdza opłacenie zamówienia, JEST
+  // chwilą, w której kaucja została pobrana. Nie ma tu osobnego zdarzenia
+  // do odczytania i nie ma na co czekać.
+  //
+  // KSIĘGOWANIE STOI PRZED ZMIANĄ STATUSU, i to nie z powodu bramki
+  // (`paid` żadnej spójności z rejestrem nie wymaga), tylko z powodu
+  // PONOWIEŃ. Gdyby szło po statusie i padło, kolejna dostawa zastałaby
+  // zamówienie już w `paid`, uznała to za `noop` i wyszła — a kaucja
+  // zostałaby pobrana od klienta i NIEOBECNA w rejestrze, czyli nie do
+  // zwrócenia. W tej kolejności każda ponowna dostawa naprawia brak:
+  // wstawienie jest idempotentne (unikat odnośnika, 0031), a zmiana
+  // statusu i tak jest warunkowa.
+  //
+  // Sprawdzenie stoi też PRZED „jesteśmy już w tym statusie" — właśnie po
+  // to, żeby dostawa naprawcza miała gdzie zadziałać.
+  if (verdict.status === "paid" && order.total_deposit_grosze > 0) {
+    const booked = await bookDepositEvent(deps.db, {
+      tenantId: order.tenant_id,
+      orderId: order.id,
+      kind: "collected",
+      // Kwota kaucji z UTRWALONYCH danych zamówienia — nie z ciała zdarzenia
+      // i nie z odczytu płatności, bo tamten niesie sumę całego zamówienia.
+      // Rozjazd sumy z oczekiwaną odciął już `settlementVerdict` wyżej.
+      amountGrosze: order.total_deposit_grosze,
+      providerReference: event.objectId,
+    });
+
+    if (!booked.ok) {
+      if (booked.retryable) {
+        await release(deps.db, eventRowId);
+        return json(500, { error: booked.reason });
+      }
+      // Rejestr odmówił deterministycznie — status `paid` NIE zostaje
+      // ustawiony, bo zamówienie z pobraną, a niezaksięgowaną kaucją jest
+      // gorsze niż zamówienie czekające na człowieka.
+      await finish(deps.db, eventRowId, "failed", booked.reason);
+      return json(200, { status: "rejected", eventId: event.id });
+    }
   }
 
   if (verdict.status === order.payment_status) {

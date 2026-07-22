@@ -614,7 +614,17 @@
       "deductCta": "Record deduction",
       "reasonCodeLabel": "Deduction reason",
       "reasonLabel": "Details",
-      "reasonPlaceholder": "required for “Other reason”"
+      "reasonPlaceholder": "required for “Other reason”",
+      "refundOnlineHint": "The refund is a real transfer back to the customer through the payment provider — the deposit was taken together with the rental payment.",
+      "refundManualHint": "Records a refund made outside the system (cash, your own transfer).",
+      "refundInFlightBlocked": "A refund for this order is awaiting confirmation from the provider — another one would pay the same deposit twice.",
+      "providerOnline": "via payment provider",
+      "refundStatus": {
+        "requested": "Refund requested — no provider response yet",
+        "pending": "Refund in progress",
+        "succeeded": "Refund confirmed",
+        "failed": "Refund rejected"
+      }
     },
     "extension": {
       "title": "Rental extension",

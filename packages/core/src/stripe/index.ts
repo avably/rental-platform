@@ -41,6 +41,16 @@ export {
 } from "./payment-intent";
 
 export {
+  OBSERVED_REFUND_EVENTS,
+  createDepositRefund,
+  isObservedRefundEvent,
+  readDepositRefund,
+  refundVerdict,
+  type RefundDeps,
+  type RefundVerdict,
+} from "./refund";
+
+export {
   OBSERVED_INTENT_EVENTS,
   STRIPE_SIGNATURE_HEADER,
   STRIPE_WEBHOOK_TOLERANCE_SECONDS,
@@ -61,10 +71,12 @@ export type {
   ConnectAccountState,
   ConnectAccountSync,
   CreateIntentParams,
+  CreateRefundParams,
   IntentHandle,
   IntentRead,
   OnboardingLink,
   OnboardingUrls,
+  RefundRead,
   StripeAvailability,
   StripeConfig,
 } from "./types";

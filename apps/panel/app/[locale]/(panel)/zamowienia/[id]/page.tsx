@@ -51,6 +51,8 @@ interface OrderDetailRow {
   end_date: string;
   order_status: OrderStatus;
   payment_status: PaymentStatus;
+  /** Obieg płatności (0027) — decyduje, czy zwrot kaucji idzie przez dostawcę. */
+  payment_provider: string;
   delivery_method: string;
   total_rental_grosze: number;
   total_deposit_grosze: number;
@@ -65,6 +67,16 @@ interface OrderDetailRow {
     products: { name: string } | null;
     product_units: { id: string; serial_number: string | null } | null;
   }[];
+}
+
+/** Żądanie zwrotu kaucji u dostawcy (0031) — zamiar, nie fakt. */
+interface DepositRefundRow {
+  id: string;
+  amount_grosze: number;
+  status: "requested" | "pending" | "succeeded" | "failed";
+  provider_reference: string | null;
+  last_error: string | null;
+  created_at: string;
 }
 
 /** Nagłówek sekcji funkcjonalnej — krok `product-section` artefaktu. */
@@ -89,7 +101,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone), pickup_locations(name), order_items(id, rental_grosze, deposit_grosze, products(name), product_units(id, serial_number))",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone), pickup_locations(name), order_items(id, rental_grosze, deposit_grosze, products(name), product_units(id, serial_number))",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -102,13 +114,30 @@ export default async function OrderDetailPage({
   // tenant_id, order_id, created_at — sortowanie jest po jego myśli).
   const { data: depositRows } = await ctx.supabase
     .from("deposit_events")
-    .select("id, kind, amount_grosze, reason_code, reason, created_at")
+    .select("id, kind, amount_grosze, reason_code, reason, provider, provider_reference, created_at")
     .eq("tenant_id", ctx.tenantId)
     .eq("order_id", row.id)
     .order("created_at", { ascending: true });
   const depositEvents = (depositRows ?? []) as unknown as DepositEventRow[];
   const totals = depositTotals(depositEvents);
   const balances = runningBalances(depositEvents);
+
+  // Rejestr ŻĄDAŃ zwrotu (0031) — osobny od rejestru ZDARZEŃ i celowo NIE
+  // wchodzący do salda. Trzyma to, czego rejestr zdarzeń nie ma prawa
+  // trzymać: zwrot, o który poprosiliśmy, a którego dostawca jeszcze nie
+  // potwierdził, oraz powód odmowy. Bez tego odczytu „zwrot w toku"
+  // znikałby przy odświeżeniu strony.
+  const { data: refundRows } = await ctx.supabase
+    .from("deposit_refunds")
+    .select("id, amount_grosze, status, provider_reference, last_error, created_at")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", row.id)
+    .order("created_at", { ascending: true });
+  const refundRequests = (refundRows ?? []) as unknown as DepositRefundRow[];
+  const refundInFlight = refundRequests.some(
+    (refund) => refund.status === "requested" || refund.status === "pending",
+  );
+  const isOnlineOrder = row.payment_provider === "stripe";
 
   // Trzecia oś statusu i numer przesyłki do podsumowania (sekcja 05
   // artefaktu). Czytamy WYŁĄCZNIE te trzy kolumny — pełną listę przesyłek
@@ -362,7 +391,19 @@ export default async function OrderDetailPage({
                     <TableCell className="px-3.5 py-3 tabular-nums">
                       {depositTimestamp.format(new Date(event.created_at))}
                     </TableCell>
-                    <TableCell className="px-3.5 py-3">{tDeposit(`kinds.${event.kind}`)}</TableCell>
+                    <TableCell className="px-3.5 py-3">
+                      {tDeposit(`kinds.${event.kind}`)}
+                      {/* Odnośnik u dostawcy jest DOWODEM tego wiersza —
+                          w sporze z klientem to po nim odnajduje się
+                          przelew. Pokazujemy go, zamiast trzymać wyłącznie
+                          w bazie. */}
+                      {event.provider === "stripe" ? (
+                        <span className="text-muted-foreground block text-xs">
+                          {tDeposit("providerOnline")}
+                          {event.provider_reference ? ` · ${event.provider_reference}` : null}
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="px-3.5 py-3 text-right tabular-nums tracking-[0.01em]">
                       {event.kind === "collected" ? "+" : "−"}
                       {formatMoney(event.amount_grosze, currency, locale)}
@@ -410,12 +451,46 @@ export default async function OrderDetailPage({
             <Badge variant="outline">{tDeposit("settledBadge")}</Badge>
           ) : null}
         </div>
+
+        {/* STAN POŚREDNI MA WŁASNĄ REPREZENTACJĘ (Z5, ADR-068).
+            „Zwrot w toku" nie jest ani sukcesem, ani porażką: pieniądze
+            wyszły z żądaniem, ale u klienta ich jeszcze nie ma. Gdyby ten
+            blok nie istniał, operator widziałby saldo dodatnie i rejestr bez
+            wiersza — czyli obraz nieodróżnialny od „nikt jeszcze nic nie
+            zrobił" — i zlecił drugi zwrot tej samej kaucji. */}
+        {isOnlineOrder && refundRequests.length > 0 ? (
+          <ul className="flex flex-col gap-2 text-sm">
+            {refundRequests
+              .filter((refund) => refund.status !== "succeeded")
+              .map((refund) => (
+                <li key={refund.id} className="rounded border px-3.5 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {tDeposit(`refundStatus.${refund.status}`)}
+                    </Badge>
+                    <span className="tabular-nums tracking-[0.01em]">
+                      {formatMoney(refund.amount_grosze, currency, locale)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {depositTimestamp.format(new Date(refund.created_at))}
+                    </span>
+                  </div>
+                  {refund.last_error ? (
+                    <p className="text-muted-foreground mt-1">{refund.last_error}</p>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+        ) : null}
+
         <DepositForms
           orderId={row.id}
           balanceGrosze={totals.balanceGrosze}
           suggestedCollectGrosze={Math.max(row.total_deposit_grosze - totals.collectedGrosze, 0)}
           currency={currency}
           locale={locale}
+          online={isOnlineOrder}
+          refundInFlight={refundInFlight}
           actions={{
             collect: collectDepositAction,
             refund: refundDepositAction,

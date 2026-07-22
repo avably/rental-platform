@@ -9,12 +9,21 @@
  *
  * ADR-027: rozliczenie, które sprowadza saldo do zera przy pobraniach > 0,
  * ustawia payment_status='deposit_refunded' („kaucja rozliczona" —
- * niezależnie od proporcji zwrotów i potrąceń). Oś payment_status nie ma
- * bramki w bazie (dług do Zadania 9), więc to zwykły UPDATE z akcji.
+ * niezależnie od proporcji zwrotów i potrąceń). Bramka spójności tego
+ * przejścia stoi w bazie od 0015/0030 (reguła B: saldo 0 przy pobraniach > 0).
+ *
+ * OBIEG RĘCZNY JEST TU BEZ ZMIAN OD FAZY 1 (ADR-035) i to jest decyzja,
+ * nie zaniechanie. Operator, który oddał gotówkę do ręki, REJESTRUJE fakt,
+ * przy którym był — nie ma tam żadnego dostawcy, którego można by zapytać
+ * o potwierdzenie, i wprowadzanie tam stanu „w toku" byłoby wymyślaniem
+ * niepewności, której nie ma. Kaucja online (Z5, ADR-068) dokłada DRUGĄ
+ * ścieżkę zwrotu obok tej, a nie zamiast niej.
  */
+import { createDepositRefund, readDepositRefund } from "@avably/core";
 import { revalidatePath } from "next/cache";
 
 import { AuthError } from "@/lib/auth";
+import { requestDepositRefund } from "@/lib/deposit-refund";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import {
   depositCollectSchema,
@@ -131,6 +140,20 @@ export async function collectDepositAction(
  * widzianego przez operatora (hidden input — optymistyczna współbieżność
  * jak expectedFrom w zmianie statusu). Jeśli saldo w międzyczasie zmalało,
  * nadmiar autorytatywnie odrzuca trigger 0011.
+ *
+ * ROZGAŁĘZIENIE NA OBIEG (Z5, ADR-068). Ta sama akcja obsługuje dwa
+ * ZUPEŁNIE różne zdarzenia świata:
+ *
+ *   manual — operator oddał gotówkę i to REJESTRUJE. Wiersz powstaje od
+ *            razu, bo pieniądze już zmieniły właściciela,
+ *   stripe — operator ZLECA zwrot dostawcy. Wiersz powstaje dopiero po
+ *            ODCZYCIE potwierdzającym, a do tego czasu zwrot ma stan
+ *            pośredni („zwrot w toku"), który nie udaje żadnego z dwóch
+ *            wyników.
+ *
+ * OBIEG CZYTAMY Z BAZY, NIE Z FORMULARZA. Pole ukryte w przeglądarce jest
+ * deklaracją klienta, a od tej jednej wartości zależy, czy w ogóle ruszamy
+ * cudze pieniądze — to nie jest rozstrzygnięcie do oddania przeglądarce.
  */
 export async function refundDepositAction(
   _prevState: FormState,
@@ -141,11 +164,65 @@ export async function refundDepositAction(
     amount: str(formData.get("amount")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
-  return insertDepositEvent({
-    orderId: parsed.data.orderId,
-    kind: "refunded",
-    amountGrosze: parsed.data.amountGrosze,
-  });
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const tenantId = ctx.tenantId;
+  if (!tenantId) {
+    // Sesja bez tenanta nie ma czyjej kaucji zwracać. Jawna odmowa zamiast
+    // `!` — na ścieżce ruszającej pieniądze zgadywanie typu jest zbyt tanie.
+    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+  }
+
+  const { data: order, error } = await ctx.supabase
+    .from("orders")
+    .select("payment_provider")
+    .eq("tenant_id", tenantId)
+    .eq("id", parsed.data.orderId)
+    .maybeSingle();
+
+  if (error || !order) {
+    return { formError: "Zamówienie nie istnieje albo zostało usunięte." };
+  }
+
+  if ((order as { payment_provider: string }).payment_provider !== "stripe") {
+    return insertDepositEvent({
+      orderId: parsed.data.orderId,
+      kind: "refunded",
+      amountGrosze: parsed.data.amountGrosze,
+    });
+  }
+
+  const outcome = await requestDepositRefund(
+    {
+      db: ctx.supabase,
+      createRefund: (params) => createDepositRefund(params),
+      readRefund: (refundId, connectedAccountId) =>
+        readDepositRefund(refundId, { connectedAccountId }),
+    },
+    {
+      tenantId,
+      orderId: parsed.data.orderId,
+      amountGrosze: parsed.data.amountGrosze,
+      actorId: ctx.user.id,
+    },
+  );
+
+  // Odświeżamy WE WSZYSTKICH trzech przypadkach: także zwrot odrzucony
+  // zostawia ślad w rejestrze żądań, który operator ma zobaczyć na ekranie.
+  revalidatePath("/", "layout");
+
+  if (outcome.status === "settled") return { success: "refunded" };
+  // `notice`, nie `formError`: zwrot w toku nie jest porażką i nie wolno
+  // zapraszać operatora do ponowienia (patrz FormState.notice).
+  if (outcome.status === "pending") return { notice: outcome.reason };
+  return { formError: outcome.reason };
 }
 
 export async function deductDepositAction(
