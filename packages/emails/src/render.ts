@@ -31,6 +31,10 @@ import {
   ReturnLabelEmail,
   type ReturnLabelEmailProps,
 } from "./templates/return-label";
+import {
+  RentalContractEmail,
+  type RentalContractEmailProps,
+} from "./templates/rental-contract";
 
 export interface RenderedEmail {
   html: string;
@@ -110,4 +114,10 @@ export function renderPickupReturnReminder(
   props: PickupReturnReminderEmailProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(PickupReturnReminderEmail, props));
+}
+
+export function renderRentalContractEmail(
+  props: RentalContractEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(RentalContractEmail, props));
 }

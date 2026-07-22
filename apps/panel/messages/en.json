@@ -93,6 +93,7 @@
     "domains": "Domains",
     "emails": "E-mails",
     "delivery": "Deliveries",
+    "contracts": "Agreements",
     "team": "Team",
     "organization": "Organization",
     "security": "Security",
@@ -102,6 +103,20 @@
     "localeEnglish": "English",
     "superadminPanel": "Superadmin panel",
     "skipToContent": "Skip to content"
+  },
+  "contractSettings": {
+    "title": "Agreement settings",
+    "intro": "Company details and versioned terms included in rental agreements.",
+    "address": "Company address",
+    "nip": "Tax ID (optional)",
+    "email": "Company email",
+    "termsVersion": "Terms version",
+    "termsBody": "Terms content",
+    "save": "Save",
+    "saved": "Agreement settings saved.",
+    "readOnly": "Only the organization owner can change these settings.",
+    "missing": "Agreement settings have not been configured yet.",
+    "backLink": "Panel"
   },
   "login": {
     "title": "Sign in",
@@ -302,6 +317,26 @@
     }
   },
   "orders": {
+    "contract": {
+      "title": "Rental agreement",
+      "missingSettings": "Complete the company details and agreement terms first.",
+      "settingsLink": "Open agreement settings",
+      "generate": "Generate a new agreement",
+      "generating": "Generating…",
+      "empty": "No agreement has been generated yet.",
+      "created": "Created",
+      "details": "Document",
+      "delivery": "Delivery",
+      "actions": "Actions",
+      "version": "Terms version",
+      "download": "Download PDF",
+      "send": "Send to customer",
+      "retry": "Retry sending",
+      "sending": "Sending…",
+      "sent": "Sent",
+      "failed": "Failed",
+      "notSent": "Not sent"
+    },
     "statusLabels": {
       "order": {
         "pending": "Pending",

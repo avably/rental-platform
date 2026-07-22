@@ -29,6 +29,10 @@ export {
   PickupReturnReminderEmail,
   type PickupReturnReminderEmailProps,
 } from "./templates/pickup-return-reminder";
+export {
+  RentalContractEmail,
+  type RentalContractEmailProps,
+} from "./templates/rental-contract";
 export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
   renderEmailConfirmation,
@@ -42,5 +46,6 @@ export {
   renderRentalReturned,
   renderReturnLabel,
   renderPickupReturnReminder,
+  renderRentalContractEmail,
   type RenderedEmail,
 } from "./render";

@@ -14,6 +14,7 @@
     "@avably/core": "workspace:*",
     "@avably/db": "workspace:*",
     "@avably/emails": "workspace:*",
+    "@avably/pdf": "workspace:*",
     "@avably/security": "workspace:*",
     "@avably/ui": "workspace:*",
     "lucide-react": "^1.24.0",

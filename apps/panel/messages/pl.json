@@ -93,6 +93,7 @@
     "domains": "Domeny",
     "emails": "E-maile",
     "delivery": "Dostawy",
+    "contracts": "Umowy",
     "team": "Zespół",
     "organization": "Organizacja",
     "security": "Bezpieczeństwo",
@@ -102,6 +103,20 @@
     "localeEnglish": "Angielski",
     "superadminPanel": "Panel superadmina",
     "skipToContent": "Przejdź do treści"
+  },
+  "contractSettings": {
+    "title": "Ustawienia umów",
+    "intro": "Dane firmy i wersjonowane warunki umieszczane w umowach najmu.",
+    "address": "Adres firmy",
+    "nip": "NIP (opcjonalny)",
+    "email": "E-mail firmy",
+    "termsVersion": "Wersja warunków",
+    "termsBody": "Treść warunków",
+    "save": "Zapisz",
+    "saved": "Zapisano ustawienia umów.",
+    "readOnly": "Tylko właściciel organizacji może zmieniać te ustawienia.",
+    "missing": "Ustawienia umów nie zostały jeszcze skonfigurowane.",
+    "backLink": "Panel"
   },
   "login": {
     "title": "Zaloguj się",
@@ -302,6 +317,26 @@
     }
   },
   "orders": {
+    "contract": {
+      "title": "Umowa najmu",
+      "missingSettings": "Najpierw uzupełnij dane firmy i warunki umowy.",
+      "settingsLink": "Przejdź do ustawień umów",
+      "generate": "Generuj nową umowę",
+      "generating": "Generowanie…",
+      "empty": "Nie wygenerowano jeszcze żadnej umowy.",
+      "created": "Utworzono",
+      "details": "Dokument",
+      "delivery": "Wysyłka",
+      "actions": "Akcje",
+      "version": "Wersja warunków",
+      "download": "Pobierz PDF",
+      "send": "Wyślij klientowi",
+      "retry": "Ponów wysyłkę",
+      "sending": "Wysyłanie…",
+      "sent": "Wysłano",
+      "failed": "Błąd",
+      "notSent": "Nie wysłano"
+    },
     "statusLabels": {
       "order": {
         "pending": "Oczekuje",
