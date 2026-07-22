@@ -398,7 +398,7 @@ git add docs apps packages pnpm-lock.yaml
 git commit -m "docs(z7): opisz trwały obieg umów"
 ```
 
-- [ ] **Step 6: Request independent code review, fix all Critical/Important findings, rerun affected gates**
+- [x] **Step 6: Request independent code review, fix all Critical/Important findings, rerun affected gates**
 
 - [ ] **Step 7: Push and create a draft PR**
 

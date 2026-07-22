@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { integrationEnv } from "./helpers/integration-env";
@@ -52,7 +52,15 @@ let a: TenantCtx;
 let b: TenantCtx;
 let orderAId: string;
 let orderBId: string;
+let staffAClient: SupabaseClient;
+let staffAUserId: string;
 const uploaded: string[] = [];
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Brak ${name}`);
+  return value;
+}
 
 async function createOrder(tenantId: string): Promise<string> {
   const { data: customer, error: customerError } = await admin
@@ -106,11 +114,38 @@ describe.skipIf(!hasEnv)("umowy per tenant — RLS tabeli i Storage", () => {
     ({ a, b } = await seedTwoTenants());
     orderAId = await createOrder(a.tenantId);
     orderBId = await createOrder(b.tenantId);
+
+    const staffEmail = `contract-staff-${randomUUID()}@test.local`;
+    const created = await admin.auth.admin.createUser({
+      email: staffEmail,
+      password: "RlsTest!12345678",
+      email_confirm: true,
+      app_metadata: { tenant_id: a.tenantId, role: "staff" },
+    });
+    if (created.error || !created.data.user) throw new Error(created.error?.message ?? "brak staff");
+    staffAUserId = created.data.user.id;
+    const member = await admin.from("members").insert({
+      tenant_id: a.tenantId,
+      user_id: staffAUserId,
+      role: "staff",
+    });
+    if (member.error) throw new Error(member.error.message);
+    staffAClient = createClient(
+      requiredEnv("SUPABASE_LOCAL_API_URL"),
+      requiredEnv("SUPABASE_LOCAL_ANON_KEY"),
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+    );
+    const signedIn = await staffAClient.auth.signInWithPassword({
+      email: staffEmail,
+      password: "RlsTest!12345678",
+    });
+    if (signedIn.error) throw new Error(signedIn.error.message);
   }, 30_000);
 
   afterAll(async () => {
     if (uploaded.length > 0) await admin.storage.from(BUCKET).remove(uploaded);
     await cleanupSeeded(admin);
+    if (staffAUserId) await admin.auth.admin.deleteUser(staffAUserId);
   });
 
   it("owner zapisuje i czyta własny dokument oraz prywatny obiekt", async () => {
@@ -197,7 +232,7 @@ describe.skipIf(!hasEnv)("umowy per tenant — RLS tabeli i Storage", () => {
     ).toBeNull();
     uploaded.push(own.storage_path);
 
-    const foreignDelete = await b.ownerClient.storage.from(BUCKET).remove([own.storage_path]);
+    const foreignDelete = await staffAClient.storage.from(BUCKET).remove([own.storage_path]);
     expect(foreignDelete.error).toBeNull();
     expect((await a.ownerClient.storage.from(BUCKET).download(own.storage_path)).error).toBeNull();
 
