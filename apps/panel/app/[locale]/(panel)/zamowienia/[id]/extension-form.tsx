@@ -54,7 +54,7 @@ export function ExtensionForm({
   }, [startDate, endDate, newEndDate, items]);
 
   return (
-    <form action={formAction} className="flex max-w-sm flex-col gap-2 rounded border p-3 text-sm">
+    <form action={formAction} data-form-line-measure className="flex flex-col gap-2 rounded border p-3 text-sm">
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="expectedEndDate" value={endDate} />
       <Label htmlFor="extension-new-end">{t("newEndLabel")}</Label>

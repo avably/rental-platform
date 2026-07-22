@@ -34,15 +34,17 @@ const layout = readFileSync(layoutPath, "utf8");
  * To nie są kontenery stron: ograniczają pojedynczy formularz albo kontrolkę.
  * Dokładna ścieżka + dokładna klasa sprawiają, że whitelisty nie da się użyć
  * do przemycenia nowej geometrii całego ekranu.
+ *
+ * P8 SKURCZYŁ tę listę z sześciu wpisów do jednego. Pięć poprzednich
+ * („świadomy wyjątek formularza" — katalog, punkty odbioru, kreator zamówienia,
+ * przedłużenie, ustawienia umów) nie było wyjątkami, tylko pięcioma kopiami tej
+ * samej reguły, każda z własną liczbą. Wchłonęła je wspólna miara
+ * `--form-line-measure` z artefaktu, która nie używa notacji `max-w-*` w ogóle
+ * (patrz `app/globals.css` i `form-measure-contract.test.ts`). Zostaje jedyny
+ * prawdziwy wyjątek: szerokość MINIATURY, czyli kontrolki, a nie treści.
  */
 const allowedMaxWidth = new Map<string, readonly string[]>([
   ["katalog/[id]/zdjecia/photo-forms.tsx", ["max-w-[10rem]"]],
-  ["katalog/product-form.tsx", ["max-w-2xl"]],
-  ["katalog/punkty-odbioru/location-form.tsx", ["max-w-2xl"]],
-  // Z7: ekran ustawień umowy to jeden formularz — miara jak kreator.
-  ["ustawienia-umow/page.tsx", ["max-w-2xl"]],
-  ["zamowienia/[id]/extension-form.tsx", ["max-w-sm"]],
-  ["zamowienia/nowe/order-wizard.tsx", ["max-w-2xl"]],
 ]);
 
 const topbarOwnedTitleFiles = [
@@ -96,7 +98,9 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   it("skan obejmuje realny zbiór ekranów i precyzyjną whitelistę", () => {
     expect(sources.length).toBeGreaterThanOrEqual(50);
     expect(sources.some((file) => relative(file.path) === "zamowienia/page.tsx")).toBe(true);
-    expect(allowedMaxWidth.size).toBe(6);
+    // Rozmiar przypięty liczbą: whitelistę wolno KURCZYĆ (P8: 6 → 1), a każdy
+    // nowy wpis musi przejść przez zmianę tej liczby, czyli przez recenzję.
+    expect(allowedMaxWidth.size).toBe(1);
   });
 
   it("pliki ekranów nie definiują własnego kontenera max-w", () => {

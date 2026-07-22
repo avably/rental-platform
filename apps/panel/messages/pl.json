@@ -22,9 +22,8 @@
     "title": "Ustawienia e-maili",
     "intro": "Nadawca wiadomości wysyłanych do klientów i zaproszonych oraz stan wysyłki. Adres wysyłki jest wspólny dla platformy — Ty personalizujesz nazwę i adres odpowiedzi.",
     "statusHeading": "Stan wysyłki",
-    "transportAvailable": "Transport e-maili: dostępny.",
+    "transportAvailable": "System może wysyłać wiadomości transakcyjne.",
     "transportUnavailable": "Transport e-maili: niedostępny.",
-    "senderConfigured": "Nadawca: ustawiony.",
     "senderMissing": "Nadawca: nieustawiony — do czasu ustawienia nazwy wiadomości cyklu najmu nie wyjdą.",
     "formTitle": "Nadawca",
     "nameLabel": "Nazwa nadawcy (widoczna w polu Od)",
@@ -52,8 +51,8 @@
     "nextPage": "Następna →",
     "pageOf": "Strona {page} — wpisów: {total}",
     "status": {
-      "sent": "Wysłana",
-      "failed": "Nieudana"
+      "sent": "Wysłane",
+      "failed": "Nieudane"
     },
     "kind": {
       "rental_confirmed": "Potwierdzenie rezerwacji",
@@ -168,24 +167,41 @@
   "invitations": {
     "title": "Zaproszenia członków",
     "sentHeading": "Wysłane zaproszenia",
-    "statusAccepted": "zaakceptowane",
-    "statusPending": "oczekuje"
+    "formTitle": "Zaproś do zespołu",
+    "emailLabel": "E-mail osoby",
+    "roleLabel": "Rola",
+    "roleStaff": "Pracownik",
+    "roleOwner": "Właściciel",
+    "submit": "Wyślij zaproszenie",
+    "submitPending": "Wysyłam…",
+    "emailUnavailable": "Wysyłka e-maili jest niedostępna:",
+    "emailUnavailableConsequence": "Zaproszenie utworzysz, ale link do niego trzeba będzie przekazać ręcznie.",
+    "columnEmail": "E-mail",
+    "columnRole": "Rola",
+    "columnCreatedAt": "Utworzono",
+    "columnExpiresAt": "Wygasa",
+    "columnStatus": "Status",
+    "empty": "Nie wysłano jeszcze żadnego zaproszenia."
   },
   "security": {
     "title": "Bezpieczeństwo",
-    "enrollSubmit": "Włącz uwierzytelnianie dwuskładnikowe",
+    "enrollSubmit": "Skonfiguruj 2FA",
     "enrollPending": "Przygotowuję…",
     "scanHint": "Zeskanuj kod QR aplikacją uwierzytelniającą (np. Google Authenticator) albo wpisz sekret ręcznie:",
     "qrAlt": "Kod QR TOTP",
-    "codeLabel": "Kod z aplikacji (6 cyfr)",
-    "verifySubmit": "Potwierdź kod",
-    "verifyPending": "Weryfikuję…"
+    "codeLabel": "Kod 6-cyfrowy",
+    "verifySubmit": "Potwierdź konfigurację",
+    "verifyPending": "Weryfikuję…",
+    "enrollTitle": "Weryfikacja dwuetapowa",
+    "enrollBody": "Dodaj aplikację uwierzytelniającą, aby wymagać drugiego kroku logowania.",
+    "enrollmentTitle": "Konfiguracja aplikacji uwierzytelniającej",
+    "secretOnceHint": "Sekret pokazujemy tylko podczas konfiguracji. Zapisz go w bezpiecznym miejscu."
   },
   "mfaChallenge": {
     "title": "Potwierdź tożsamość",
     "body": "Ta sekcja wymaga uwierzytelnienia dwuskładnikowego. Podaj kod z aplikacji uwierzytelniającej.",
-    "codeLabel": "Kod z aplikacji uwierzytelniającej (6 cyfr)",
-    "submit": "Potwierdź",
+    "codeLabel": "Kod 6-cyfrowy",
+    "submit": "Potwierdź kod",
     "submitPending": "Weryfikuję…"
   },
   "catalog": {
@@ -488,14 +504,13 @@
       "settings": {
         "title": "Ustawienia dostaw",
         "intro": "Konfiguracja kuriera i cennika dostaw tego konta.",
-        "credentialsTitle": "Konto GlobKurier",
-        "credentialsConfigured": "skonfigurowane",
+        "credentialsTitle": "Konto integracji",
         "emailLabel": "E-mail konta",
         "passwordLabel": "Hasło",
         "environmentLabel": "Środowisko",
         "environmentTest": "Testowe",
         "environmentProduction": "Produkcyjne",
-        "senderTitle": "Nadawca przesyłek",
+        "senderTitle": "Dane nadawcy przesyłki",
         "senderName": "Nazwa nadawcy",
         "senderStreet": "Ulica",
         "senderHouseNumber": "Nr domu",
@@ -509,7 +524,7 @@
         "parcelWidth": "Szerokość (cm)",
         "parcelHeight": "Wysokość (cm)",
         "parcelWeight": "Waga (kg)",
-        "pricingTitle": "Cennik dostaw",
+        "pricingTitle": "Cennik metod dostawy",
         "pricingIntro": "Kwoty w złotych. Pusta cena = metoda bez cennika (nadanie zgłosi błąd konfiguracji). Pusty próg = brak darmowej dostawy.",
         "priceLabel": "Cena (zł)",
         "freeAboveLabel": "Darmowa od (zł)",
@@ -517,7 +532,14 @@
         "methodParcelLocker": "Paczkomat",
         "methodOwnDelivery": "Dostawa własna",
         "saveCta": "Zapisz",
-        "savedOk": "Zapisano."
+        "savedOk": "Zapisano.",
+        "secretWriteOnly": "Sekret jest polem tylko do zapisu. Zapisanej wartości nie pokazujemy ponownie.",
+        "accessRuleOwner": "Każdy członek zespołu widzi dane operacyjne. Przyciski zapisu i pole nowego hasła są dostępne wyłącznie właścicielowi.",
+        "accessRuleMember": "Widzisz dane operacyjne w trybie odczytu. Zmiany ustawień dostaw wprowadza właściciel organizacji.",
+        "saveCredentialsCta": "Zapisz konto integracji",
+        "saveSenderCta": "Zapisz nadawcę",
+        "saveParcelCta": "Zapisz paczkę",
+        "savePricingCta": "Zapisz cennik"
       }
     },
     "detail": {
@@ -668,11 +690,9 @@
   "domainSettings": {
     "title": "Domeny sklepu",
     "intro": "Adresy, pod którymi działa Twój sklep. Subdomenę na naszej domenie dostajesz automatycznie przy zakładaniu organizacji. Własną domenę możesz dodać poniżej — wymaga wpisania jednego rekordu u Twojego rejestratora.",
-    "registrationUnavailable": "Rejestracja domen jest niedostępna — dodane domeny nie zaczną działać, dopóki konfiguracja nie zostanie uzupełniona.",
+    "registrationUnavailable": "Dodane adresy nie zaczną działać, dopóki konfiguracja nie zostanie uzupełniona.",
     "listHeading": "Adresy sklepu",
     "emptyState": "Nie masz jeszcze żadnego adresu sklepu. Subdomena powstaje razem z organizacją — jeśli jej nie ma, utwórz ją i zarejestruj poniżej.",
-    "subdomainRegistered": "Adres zarejestrowany — sklep pod nim odpowiada.",
-    "subdomainNotRegistered": "Adres nie został jeszcze zarejestrowany u dostawcy hostingu — sklep pod nim nie odpowie. Ponów rejestrację.",
     "retryCta": "Ponów rejestrację adresu",
     "retryOk": "Adres zarejestrowany — sklep działa pod tym adresem.",
     "retryFailed": "Ponowienie nie powiodło się:",
@@ -680,9 +700,6 @@
     "retryUnavailable": "Rejestracja adresów jest teraz niedostępna:",
     "kindSubdomain": "Subdomena platformy — działa od razu, nie wymaga konfiguracji DNS.",
     "kindCustom": "Domena własna — działa po potwierdzeniu rekordu DNS.",
-    "statusLive": "Działa",
-    "statusPending": "Czeka na weryfikację",
-    "statusNotRegistered": "Nie działa — brak rejestracji",
     "lastErrorLabel": "Ostatni błąd:",
     "dnsHeading": "Rekord do wpisania u Twojego rejestratora",
     "dnsIntro": "Dodaj ten rekord w panelu DNS swojej domeny. Tego kroku nie możemy wykonać za Ciebie — dostęp do Twojego DNS-u masz tylko Ty.",
@@ -699,7 +716,9 @@
     "domainHint": "Sam adres hosta, bez http:// i bez ścieżki.",
     "addCta": "Dodaj domenę",
     "addedOk": "Domena dodana. Wpisz rekord DNS, a potem kliknij „Sprawdź weryfikację”.",
-    "backLink": "Panel"
+    "backLink": "Panel",
+    "providerTitle": "Rejestracja hostów",
+    "providerAvailable": "Można rejestrować i ponawiać adresy sklepu."
   },
   "organization": {
     "title": "Organizacja",
@@ -712,6 +731,56 @@
     "locale": "Język sklepu",
     "planMissing": "Brak przypisanego planu.",
     "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
-    "newOrganization": "Załóż organizację"
+    "newOrganization": "Załóż organizację",
+    "statusValue": {
+      "trialing": "Okres próbny",
+      "active": "Aktywny",
+      "past_due": "Zaległa płatność",
+      "suspended": "Zawieszony",
+      "cancelled": "Anulowany",
+      "superadmin_locked": "Zablokowany przez wsparcie"
+    },
+    "localeValue": {
+      "pl": "Polski",
+      "en": "Angielski"
+    }
+  },
+  "secondaryStatus": {
+    "domain": {
+      "live": "Aktywna",
+      "pending": "Oczekuje na DNS",
+      "registration_failed": "Rejestracja nieudana"
+    },
+    "domain-provider": {
+      "available": "Dostępna",
+      "unavailable": "Niedostępna"
+    },
+    "email-transport": {
+      "available": "Dostępna",
+      "unavailable": "Niedostępna"
+    },
+    "email-sender": {
+      "configured": "Skonfigurowane",
+      "missing": "Brak konfiguracji"
+    },
+    "email-log": {
+      "sent": "Wysłano",
+      "failed": "Nie wysłano"
+    },
+    "delivery-secret": {
+      "configured": "Hasło zapisane",
+      "missing": "Brak hasła"
+    },
+    "invitation": {
+      "accepted": "Przyjęte",
+      "pending": "Oczekuje"
+    },
+    "organization": {
+      "active": "Aktywna"
+    },
+    "security": {
+      "not_configured": "Nieskonfigurowane",
+      "configured": "Skonfigurowane"
+    }
   }
 }

@@ -1,20 +1,30 @@
 "use client";
 
 /**
- * Widok domen sklepu (Zadanie 2.6, ADR-046). Warstwa interakcji nad akcjami
- * serwerowymi — cała logika stanu (rejestracja, werdykt weryfikacji) siedzi po
- * stronie serwera, tu jest wyłącznie prezentacja i wywołanie.
+ * Widok domen sklepu (Zadanie 2.6, ADR-046; układ P8 wg artefaktu Fazy 2,
+ * sekcja `secondary-domains`). Warstwa interakcji nad akcjami serwerowymi —
+ * cała logika stanu (rejestracja, werdykt weryfikacji) siedzi po stronie
+ * serwera, tu jest wyłącznie prezentacja i wywołanie.
  *
- * Instrukcja CNAME jest pokazana PRZY KAŻDEJ niezweryfikowanej domenie, a nie
- * raz na górze ekranu: to jedyny krok, który najemca musi wykonać u SIEBIE
- * (u swojego rejestratora), i najczęstszy powód, dla którego domena nie
- * przechodzi weryfikacji.
+ * Mockup zamienia listę zdań na SEKWENCJĘ STANÓW: każdy adres jest kartą,
+ * której stan niesie chip z mapy (oś `domain`), a nie kolorowy akapit.
+ * Dostępność rejestracji hostów stoi WYŻEJ niż adresy, bo przy braku
+ * konfiguracji cała sekwencja ponowień jest martwa i trzeba to powiedzieć raz,
+ * na górze — a nie przy każdym przycisku z osobna.
+ *
+ * Instrukcja CNAME zostaje PRZY KAŻDEJ niezweryfikowanej domenie, a nie raz na
+ * górze ekranu: to jedyny krok, który najemca musi wykonać u SIEBIE (u swojego
+ * rejestratora), i najczęstszy powód, dla którego domena nie przechodzi
+ * weryfikacji.
  */
 import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { ReadList } from "@/components/screens/read-list";
+import { ScreenSection } from "@/components/screens/screen-header";
 import type { FormState } from "@/lib/form-state";
+import { SecondaryStatusChip } from "@/lib/secondary-status";
 
 import {
   addCustomDomainAction,
@@ -37,6 +47,23 @@ export interface DomainRow {
 }
 
 /**
+ * Stan adresu na osi `domain` z artefaktu.
+ *
+ * `verified` NIE wystarczy na etykietę subdomeny: 0022 stawia je na true w tej
+ * samej transakcji co tenant, więc adres bez rejestracji u dostawcy pokazywał
+ * się jako „Działa", oddając w rzeczywistości 404. Stan ma opisywać sklep, nie
+ * zawartość kolumny — dlatego nieudana rejestracja jest OSOBNĄ wartością osi,
+ * z tonem `problem`, a nie tym samym „czeka", co świeżo dodana domena własna.
+ */
+export function domainState(domain: DomainRow): "live" | "pending" | "registration_failed" {
+  if (domain.verified && (domain.kind === "custom" || domain.registered)) return "live";
+  if (domain.kind === "subdomain" && (!domain.registered || domain.lastError !== null)) {
+    return "registration_failed";
+  }
+  return "pending";
+}
+
+/**
  * Przycisk ponowienia rejestracji subdomeny (Zadanie 2.6b).
  *
  * Dwa stany wyłączenia i OBA muszą mówić dlaczego. Brak konfiguracji dostawcy
@@ -54,7 +81,7 @@ function RetrySubdomainButton({
   const [state, formAction, pending] = useActionState(retrySubdomainAction, initialState);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2 text-sm">
       <form action={formAction}>
         <Button type="submit" disabled={pending || !available}>
           {t("retryCta")}
@@ -81,24 +108,31 @@ function AddDomainForm() {
   const [state, formAction, pending] = useActionState(addCustomDomainAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border p-3 text-sm">
-      <p className="font-medium">{t("addTitle")}</p>
+    <ScreenSection title={t("addTitle")} data-domain-add-form>
+      <form action={formAction} className="flex flex-col gap-2 text-sm">
+        <Label htmlFor="custom-domain">{t("domainLabel")}</Label>
+        <Input
+          id="custom-domain"
+          name="domain"
+          placeholder="sklep.twojafirma.pl"
+          disabled={pending}
+        />
+        <p className="text-muted-foreground">{t("domainHint")}</p>
 
-      <Label htmlFor="custom-domain">{t("domainLabel")}</Label>
-      <Input id="custom-domain" name="domain" placeholder="sklep.twojafirma.pl" disabled={pending} />
-      <p className="text-muted-foreground">{t("domainHint")}</p>
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <Button type="submit" disabled={pending}>
+            {t("addCta")}
+          </Button>
+          {state.success && <span className="text-status-positive-fg">{t("addedOk")}</span>}
+        </div>
 
-      <Button type="submit" disabled={pending}>
-        {t("addCta")}
-      </Button>
-
-      {(state.formError ?? state.fieldErrors?.domain) && (
-        <p role="alert" className="text-destructive">
-          {state.formError ?? state.fieldErrors?.domain}
-        </p>
-      )}
-      {state.success && <p className="text-status-positive-fg">{t("addedOk")}</p>}
-    </form>
+        {(state.formError ?? state.fieldErrors?.domain) && (
+          <p role="alert" className="text-destructive">
+            {state.formError ?? state.fieldErrors?.domain}
+          </p>
+        )}
+      </form>
+    </ScreenSection>
   );
 }
 
@@ -107,18 +141,17 @@ function CnameInstruction({ host, target }: { host: string; target: string }) {
   const t = useTranslations("domainSettings");
 
   return (
-    <div className="flex flex-col gap-1 rounded bg-muted p-2">
-      <p className="font-medium">{t("dnsHeading")}</p>
-      <p className="text-muted-foreground">{t("dnsIntro")}</p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3">
-        <dt className="text-muted-foreground">{t("dnsType")}</dt>
-        <dd>CNAME</dd>
-        <dt className="text-muted-foreground">{t("dnsName")}</dt>
-        <dd className="break-all">{host}</dd>
-        <dt className="text-muted-foreground">{t("dnsValue")}</dt>
-        <dd className="break-all">{target}</dd>
-      </dl>
-      <p className="text-muted-foreground">{t("dnsPropagation")}</p>
+    <div className="flex flex-col gap-2" data-dns-instructions>
+      <p className="text-sm font-medium">{t("dnsHeading")}</p>
+      <p className="text-muted-foreground text-[13px] leading-[18px]">{t("dnsIntro")}</p>
+      <ReadList
+        rows={[
+          { label: t("dnsType"), value: "CNAME" },
+          { label: t("dnsName"), value: host },
+          { label: t("dnsValue"), value: target },
+        ]}
+      />
+      <p className="text-muted-foreground text-[13px] leading-[18px]">{t("dnsPropagation")}</p>
     </div>
   );
 }
@@ -132,11 +165,11 @@ function DomainActions({ domain }: { domain: DomainRow }) {
   );
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
         <form action={checkAction}>
           <input type="hidden" name="domain" value={domain.domain} />
-          <Button type="submit" disabled={checking}>
+          <Button type="submit" variant="secondary" disabled={checking}>
             {t("checkCta")}
           </Button>
         </form>
@@ -144,7 +177,7 @@ function DomainActions({ domain }: { domain: DomainRow }) {
         {domain.kind === "custom" && (
           <form action={removeAction}>
             <input type="hidden" name="domain" value={domain.domain} />
-            <Button type="submit" variant="secondary" disabled={removing}>
+            <Button type="submit" variant="destructive" disabled={removing}>
               {t("removeCta")}
             </Button>
           </form>
@@ -178,44 +211,19 @@ function DomainCard({
   registrationBlockedReason: string | null;
 }) {
   const t = useTranslations("domainSettings");
-
-  // Subdomena ma verified=true od 0022, więc „Działa" nic o niej nie mówi —
-  // rozstrzyga dopiero rejestracja u dostawcy. Bez tego rozróżnienia ekran
-  // pokazywał adres jako sprawny, gdy sklep pod nim oddawał 404.
-  const needsRetry = domain.kind === "subdomain" && (!domain.registered || domain.lastError !== null);
-
-  // `verified` NIE wystarczy na etykietę subdomeny: 0022 stawia je na true w tej
-  // samej transakcji co tenant, więc adres bez rejestracji u dostawcy pokazywał
-  // się jako „Działa", oddając w rzeczywistości 404. Etykieta ma opisywać sklep,
-  // nie stan kolumny.
-  const live = domain.verified && (domain.kind === "custom" || domain.registered);
-  const statusLabel = live
-    ? t("statusLive")
-    : domain.kind === "subdomain"
-      ? t("statusNotRegistered")
-      : t("statusPending");
+  const state = domainState(domain);
 
   return (
-    <li className="flex flex-col gap-2 rounded border p-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="break-all">{domain.domain}</span>
-        <span className={live ? "text-status-positive-fg" : "text-status-attention-fg"}>{statusLabel}</span>
-      </div>
-
-      <p className="text-muted-foreground">
-        {domain.kind === "subdomain" ? t("kindSubdomain") : t("kindCustom")}
-      </p>
-
-      {domain.kind === "subdomain" && (
-        <p className={domain.registered ? "text-muted-foreground" : "text-status-attention-fg"}>
-          {domain.registered ? t("subdomainRegistered") : t("subdomainNotRegistered")}
-        </p>
-      )}
-
+    <ScreenSection
+      data-domain-kind={domain.kind}
+      title={domain.domain}
+      status={<SecondaryStatusChip axis="domain" value={state} />}
+      description={domain.kind === "subdomain" ? t("kindSubdomain") : t("kindCustom")}
+    >
       {/* Powód ostatniego niepowodzenia — bez niego porażka rejestracji byłaby
           ciszą: wiersz jest, sklep nie odpowiada, najemca nie wie dlaczego. */}
       {domain.lastError && (
-        <p role="alert" className="text-status-attention-fg">
+        <p role="alert" className="text-status-attention-fg text-sm">
           {t("lastErrorLabel")} {domain.lastError}
         </p>
       )}
@@ -224,7 +232,7 @@ function DomainCard({
         <CnameInstruction host={domain.domain} target={cnameTarget} />
       )}
 
-      {needsRetry && (
+      {state === "registration_failed" && (
         <RetrySubdomainButton
           available={registrationAvailable}
           blockedReason={registrationBlockedReason}
@@ -232,7 +240,7 @@ function DomainCard({
       )}
 
       <DomainActions domain={domain} />
-    </li>
+    </ScreenSection>
   );
 }
 
@@ -251,34 +259,46 @@ export function DomainsPanel({
 
   return (
     <>
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">{t("listHeading")}</h2>
-        {domains.length === 0 ? (
-          // Pustka NIE jest tu ślepym zaułkiem: wiersz subdomeny mógł nie
-          // powstać (kolizja `on conflict` w 0022), a ponowienie go utworzy
-          // i zarejestruje. Odsyłanie najemcy do kontaktu było opisem
-          // problemu zamiast wyjścia z niego.
-          <div className="flex flex-col gap-2 rounded border p-3 text-sm">
-            <p className="text-muted-foreground">{t("emptyState")}</p>
-            <RetrySubdomainButton
-              available={registrationAvailable}
-              blockedReason={registrationBlockedReason}
+      <ScreenSection
+        data-domain-provider-state
+        title={t("providerTitle")}
+        status={
+          <SecondaryStatusChip
+            axis="domain-provider"
+            value={registrationAvailable ? "available" : "unavailable"}
+          />
+        }
+        description={
+          registrationAvailable
+            ? t("providerAvailable")
+            : `${t("registrationUnavailable")} ${registrationBlockedReason ?? ""}`
+        }
+      />
+
+      {domains.length === 0 ? (
+        // Pustka NIE jest tu ślepym zaułkiem: wiersz subdomeny mógł nie
+        // powstać (kolizja `on conflict` w 0022), a ponowienie go utworzy
+        // i zarejestruje. Odsyłanie najemcy do kontaktu było opisem problemu
+        // zamiast wyjścia z niego.
+        <ScreenSection data-domain-list title={t("listHeading")} description={t("emptyState")}>
+          <RetrySubdomainButton
+            available={registrationAvailable}
+            blockedReason={registrationBlockedReason}
+          />
+        </ScreenSection>
+      ) : (
+        <div data-domain-list className="flex flex-col gap-4">
+          {domains.map((domain) => (
+            <DomainCard
+              key={domain.id}
+              domain={domain}
+              cnameTarget={cnameTarget}
+              registrationAvailable={registrationAvailable}
+              registrationBlockedReason={registrationBlockedReason}
             />
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {domains.map((domain) => (
-              <DomainCard
-                key={domain.id}
-                domain={domain}
-                cnameTarget={cnameTarget}
-                registrationAvailable={registrationAvailable}
-                registrationBlockedReason={registrationBlockedReason}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+          ))}
+        </div>
+      )}
 
       <AddDomainForm />
     </>

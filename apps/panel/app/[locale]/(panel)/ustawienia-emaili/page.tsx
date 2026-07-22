@@ -10,8 +10,10 @@
 import { EMAIL_SENDER_KEY, emailAvailability } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenBackLink, ScreenSection } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
+import { SecondaryStatusChip } from "@/lib/secondary-status";
 
 import { EmailSenderForm, type EmailSenderDefaults } from "./email-settings-form";
 
@@ -42,28 +44,32 @@ export default async function EmailSettingsPage() {
   const availability = emailAvailability();
   const senderConfigured = defaults !== null && defaults.name.length > 0;
 
+  // Układ P8 (artefakt, `secondary-email-settings`): stan transportu NAD
+  // formularzem nadawcy. Wysyłka niedostępna zmienia znaczenie tego, co
+  // operator za chwilę zapisze — więc musi być przeczytana wcześniej, ale nie
+  // ma prawa zasłonić danych. Stąd karta stanu, a nie baner nad ekranem.
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-end gap-3">
-        <Link className="text-sm underline" href="/">
-          {t("backLink")} ↩
-        </Link>
-      </header>
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
+    <FormMeasure className="flex flex-col gap-4">
+      <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
 
-      <section className="flex flex-col gap-1 rounded border p-3 text-sm">
-        <p className="font-medium">{t("statusHeading")}</p>
-        <p className={availability.available ? "text-status-positive-fg" : "text-status-attention-fg"}>
-          {availability.available
+      <ScreenSection
+        data-email-health
+        title={t("statusHeading")}
+        status={
+          <SecondaryStatusChip
+            axis="email-transport"
+            value={availability.available ? "available" : "unavailable"}
+          />
+        }
+        description={
+          availability.available
             ? t("transportAvailable")
-            : `${t("transportUnavailable")} ${availability.reason ?? ""}`}
-        </p>
-        <p className={senderConfigured ? "text-status-positive-fg" : "text-status-attention-fg"}>
-          {senderConfigured ? t("senderConfigured") : t("senderMissing")}
-        </p>
-      </section>
+            : `${t("transportUnavailable")} ${availability.reason ?? ""}`
+        }
+      />
 
-      <EmailSenderForm defaults={defaults} />
-    </div>
+      <EmailSenderForm defaults={defaults} configured={senderConfigured} />
+    </FormMeasure>
   );
 }

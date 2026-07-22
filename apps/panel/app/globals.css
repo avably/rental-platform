@@ -1,2 +1,28 @@
 @import "tailwindcss";
 @import "@avably/ui/styles.css";
+
+/*
+  Miara wiersza formularza (P8, artefakt Fazy 2 — `data-form-measure-contract`).
+
+  JEDNO miejsce w całym panelu, w którym mieszka szerokość formularza. Wersja
+  klasowa (`max-w-2xl` przy każdym ekranie z osobna) dawała dokładnie ten
+  objaw, przeciw któremu powstało ADR-060: każdy ekran miał własną geometrię,
+  a whitelista kontraktu spójności rosła o kolejny „świadomy wyjątek".
+
+  Zapis jest CELOWO atrybutem, nie klasą narzędziową: klasa `max-w-*` w pliku
+  ekranu przechodzi przez skan kontraktu spójności wyłącznie przez wpis na
+  whiteliście, więc mechanizm oparty na klasie musiałby tę whitelistę
+  powiększać. Atrybut nie dotyka przestrzeni `max-w-*` w ogóle — skan zostaje
+  bez ustępstw, a whitelista się KURCZY.
+
+  Wartość jest kopią artefaktu i pilnuje jej dwukierunkowo
+  `test/form-measure-contract.test.ts` (mutacja liczby w artefakcie pali suitę).
+*/
+:root {
+  --form-line-measure: 42rem;
+}
+
+[data-form-line-measure] {
+  width: 100%;
+  max-width: var(--form-line-measure);
+}

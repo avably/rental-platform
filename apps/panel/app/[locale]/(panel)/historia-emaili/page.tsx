@@ -10,30 +10,21 @@
  * kilkadziesiąt wpisów, nie po pełny eksport. Indeks (tenant_id, created_at
  * desc) z 0021 obsługuje dokładnie to zapytanie.
  */
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
+import { Button } from "@avably/ui";
 import { EMAIL_LOG_STATUSES } from "@avably/core";
-import { Fragment } from "react";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
 import { PanelSelect } from "@/components/fields/panel-select";
+import { ScreenSection } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 import {
   EMAIL_LOG_PAGE_SIZE,
   EMAIL_LOG_ROW_COLUMNS,
   emailLogFilterSchema,
-  formatLogTimestamp,
   type EmailLogRow,
 } from "@/lib/email-log-view";
+
+import { EmailLogTable } from "./email-log-table";
 
 export default async function EmailLogPage({
   searchParams,
@@ -79,13 +70,17 @@ export default async function EmailLogPage({
     return `/historia-emaili${query ? `?${query}` : ""}`;
   };
 
+  // Układ P8 (artefakt, `secondary-email-history`): filtr trzyma MIARĘ
+  // FORMULARZA, tabela zostaje na pełnej szerokości kontenera. To nie jest
+  // niekonsekwencja: pole wyboru czyta się jak formularz, a rejestr wysyłek to
+  // dane operacyjne, którym wąska miara odbiera kolumny.
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
 
       {/* Filtr GET-em — stan listy w URL (wzorzec listy zamówień). */}
-      <form method="get" className="flex flex-wrap items-end gap-3 text-sm">
-        <div className="flex flex-col gap-1">
+      <form method="get" data-form-line-measure className="flex flex-wrap items-end gap-3 text-sm">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <label htmlFor="filter-status" className="text-xs font-medium">
             {t("filterStatus")}
           </label>
@@ -93,7 +88,6 @@ export default async function EmailLogPage({
             id="filter-status"
             name="status"
             defaultValue={filter.status ?? ""}
-            className="h-9 rounded-md border border-input bg-transparent px-3"
             options={[
               { value: "", label: t("filterAll") },
               ...EMAIL_LOG_STATUSES.map((status) => ({
@@ -103,85 +97,24 @@ export default async function EmailLogPage({
             ]}
           />
         </div>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="secondary">
           {t("filterApply")}
         </Button>
       </form>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        // Wariant pusty zostaje KARTĄ, nie gołym zdaniem: filtr nad nim dalej
+        // działa, więc pustka jest wynikiem zapytania, a nie końcem ekranu.
+        <ScreenSection data-email-history-empty description={t("empty")} />
       ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("columnDate")}</TableHead>
-                <TableHead>{t("columnKind")}</TableHead>
-                <TableHead>{t("columnRecipient")}</TableHead>
-                <TableHead>{t("columnSubject")}</TableHead>
-                <TableHead>{t("columnStatus")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                // Fragment, bo powód porażki idzie WŁASNYM wierszem na całą
-                // szerokość: wciśnięty do wąskiej komórki statusu urywał się
-                // na krawędzi tabeli, a nieczytelny powód to z powrotem cisza,
-                // z którą to zadanie kończy.
-                <Fragment key={row.id}>
-                  <TableRow>
-                    <TableCell className="whitespace-nowrap">
-                      {formatLogTimestamp(row.created_at, locale)}
-                    </TableCell>
-                    <TableCell>{t(`kind.${row.kind}`)}</TableCell>
-                    <TableCell className="break-all">{row.recipient}</TableCell>
-                    <TableCell>
-                      {/* Link do zamówienia tylko, gdy log go dotyczy: zaproszenie
-                          nie ma zamówienia, a usunięte zamówienie zeruje order_id. */}
-                      {row.order_id ? (
-                        <Link className="underline" href={`/zamowienia/${row.order_id}`}>
-                          {row.subject}
-                        </Link>
-                      ) : (
-                        row.subject
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <Badge variant={row.status === "failed" ? "outline" : "default"}>
-                          {t(`status.${row.status}`)}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {row.error ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="pt-0 text-xs text-muted-foreground">
-                        {row.error}
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </Fragment>
-              ))}
-            </TableBody>
-          </Table>
-
-          <nav className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-muted-foreground">{t("pageOf", { page, total })}</span>
-            <span className="flex gap-2">
-              {page > 1 ? (
-                <Button asChild variant="outline">
-                  <Link href={pageHref(page - 1)}>{t("previousPage")}</Link>
-                </Button>
-              ) : null}
-              {hasNext ? (
-                <Button asChild variant="outline">
-                  <Link href={pageHref(page + 1)}>{t("nextPage")}</Link>
-                </Button>
-              ) : null}
-            </span>
-          </nav>
-        </>
+        <EmailLogTable
+          rows={rows}
+          locale={locale}
+          page={page}
+          total={total}
+          previousHref={page > 1 ? pageHref(page - 1) : null}
+          nextHref={hasNext ? pageHref(page + 1) : null}
+        />
       )}
     </div>
   );

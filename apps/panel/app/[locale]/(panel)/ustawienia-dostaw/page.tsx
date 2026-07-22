@@ -24,7 +24,8 @@ import {
 } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenBackLink, ScreenSection } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import {
@@ -114,27 +115,38 @@ export default async function DeliverySettingsPage() {
     pricingDefaults = null;
   }
 
+  // Zapis należy do właściciela (RLS 0024), odczyt do każdego członka. Ekran
+  // mówi to WPROST kartą reguły dostępu, zamiast zostawiać członkowi zespołu
+  // przyciski, po których dostanie odmowę z bazy.
+  const canWrite = ctx.role === "owner";
+
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-end gap-3">
-        <Link className="text-sm underline" href="/zamowienia">
-          {tSection("title")} ↩
-        </Link>
-      </header>
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
+    <FormMeasure className="flex flex-col gap-4">
+      <ScreenBackLink href="/zamowienia" label={`← ${tSection("title")}`} />
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
+
+      <ScreenSection
+        data-delivery-access-rule={canWrite ? "owner-writes" : "member-reads"}
+        description={canWrite ? t("accessRuleOwner") : t("accessRuleMember")}
+      />
 
       <CredentialsForm
         action={saveCourierCredentialsAction}
         configured={passwordSet === true}
+        canWrite={canWrite}
         defaults={
           credentials
             ? { email: s(credentials.email), environment: s(credentials.environment) || "test" }
             : null
         }
       />
-      <SenderForm action={saveCourierSenderAction} defaults={senderDefaults} />
-      <ParcelForm action={saveCourierParcelAction} defaults={parcelDefaults} />
-      <PricingForm action={saveDeliveryPricingAction} defaults={pricingDefaults} />
-    </div>
+      <SenderForm action={saveCourierSenderAction} canWrite={canWrite} defaults={senderDefaults} />
+      <ParcelForm action={saveCourierParcelAction} canWrite={canWrite} defaults={parcelDefaults} />
+      <PricingForm
+        action={saveDeliveryPricingAction}
+        canWrite={canWrite}
+        defaults={pricingDefaults}
+      />
+    </FormMeasure>
   );
 }

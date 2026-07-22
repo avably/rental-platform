@@ -22,9 +22,8 @@
     "title": "Email settings",
     "intro": "The sender of messages to customers and invitees, plus delivery status. The sending address is shared across the platform — you personalize the display name and reply-to address.",
     "statusHeading": "Delivery status",
-    "transportAvailable": "Email transport: available.",
+    "transportAvailable": "The system can send transactional messages.",
     "transportUnavailable": "Email transport: unavailable.",
-    "senderConfigured": "Sender: configured.",
     "senderMissing": "Sender: not set — rental lifecycle messages will not go out until a name is set.",
     "formTitle": "Sender",
     "nameLabel": "Sender name (shown in the From field)",
@@ -168,24 +167,41 @@
   "invitations": {
     "title": "Member invitations",
     "sentHeading": "Sent invitations",
-    "statusAccepted": "accepted",
-    "statusPending": "pending"
+    "formTitle": "Invite to the team",
+    "emailLabel": "Person’s email",
+    "roleLabel": "Role",
+    "roleStaff": "Staff",
+    "roleOwner": "Owner",
+    "submit": "Send invitation",
+    "submitPending": "Sending…",
+    "emailUnavailable": "Email delivery is unavailable:",
+    "emailUnavailableConsequence": "You can still create the invitation, but the link has to be passed on manually.",
+    "columnEmail": "Email",
+    "columnRole": "Role",
+    "columnCreatedAt": "Created",
+    "columnExpiresAt": "Expires",
+    "columnStatus": "Status",
+    "empty": "No invitation has been sent yet."
   },
   "security": {
     "title": "Security",
-    "enrollSubmit": "Enable two-factor authentication",
+    "enrollSubmit": "Set up 2FA",
     "enrollPending": "Preparing…",
     "scanHint": "Scan the QR code with an authenticator app (e.g. Google Authenticator) or enter the secret manually:",
     "qrAlt": "TOTP QR code",
-    "codeLabel": "Code from your app (6 digits)",
-    "verifySubmit": "Confirm code",
-    "verifyPending": "Verifying…"
+    "codeLabel": "6-digit code",
+    "verifySubmit": "Confirm setup",
+    "verifyPending": "Verifying…",
+    "enrollTitle": "Two-step verification",
+    "enrollBody": "Add an authenticator app to require a second step at sign-in.",
+    "enrollmentTitle": "Authenticator app setup",
+    "secretOnceHint": "We show the secret only during setup. Save it somewhere safe."
   },
   "mfaChallenge": {
     "title": "Confirm your identity",
     "body": "This section requires two-factor authentication. Enter the code from your authenticator app.",
-    "codeLabel": "Code from your authenticator app (6 digits)",
-    "submit": "Confirm",
+    "codeLabel": "6-digit code",
+    "submit": "Confirm code",
     "submitPending": "Verifying…"
   },
   "catalog": {
@@ -488,14 +504,13 @@
       "settings": {
         "title": "Delivery settings",
         "intro": "Courier and delivery pricing configuration for this account.",
-        "credentialsTitle": "GlobKurier account",
-        "credentialsConfigured": "configured",
+        "credentialsTitle": "Integration account",
         "emailLabel": "Account e-mail",
         "passwordLabel": "Password",
         "environmentLabel": "Environment",
         "environmentTest": "Test",
         "environmentProduction": "Production",
-        "senderTitle": "Shipment sender",
+        "senderTitle": "Shipment sender details",
         "senderName": "Sender name",
         "senderStreet": "Street",
         "senderHouseNumber": "House no.",
@@ -509,7 +524,7 @@
         "parcelWidth": "Width (cm)",
         "parcelHeight": "Height (cm)",
         "parcelWeight": "Weight (kg)",
-        "pricingTitle": "Delivery pricing",
+        "pricingTitle": "Delivery method pricing",
         "pricingIntro": "Amounts in PLN. Empty price = method without pricing (creating a shipment reports a configuration error). Empty threshold = no free delivery.",
         "priceLabel": "Price (PLN)",
         "freeAboveLabel": "Free above (PLN)",
@@ -517,7 +532,14 @@
         "methodParcelLocker": "Parcel locker",
         "methodOwnDelivery": "Own delivery",
         "saveCta": "Save",
-        "savedOk": "Saved."
+        "savedOk": "Saved.",
+        "secretWriteOnly": "The secret is a write-only field. We never show a saved value again.",
+        "accessRuleOwner": "Every team member sees the operational data. Save buttons and the new password field belong to the owner only.",
+        "accessRuleMember": "You see the operational data in read mode. Delivery settings are changed by the organization owner.",
+        "saveCredentialsCta": "Save integration account",
+        "saveSenderCta": "Save sender",
+        "saveParcelCta": "Save parcel",
+        "savePricingCta": "Save pricing"
       }
     },
     "detail": {
@@ -668,11 +690,9 @@
   "domainSettings": {
     "title": "Store domains",
     "intro": "The addresses your store runs on. A subdomain on our domain is created automatically with your organisation. You can add your own domain below — it requires one DNS record at your registrar.",
-    "registrationUnavailable": "Domain registration is unavailable — domains you add will not start working until the configuration is completed.",
+    "registrationUnavailable": "Added addresses will not start working until the configuration is completed.",
     "listHeading": "Store addresses",
     "emptyState": "You do not have a store address yet. A subdomain is created together with your organisation — if it is missing, create and register it below.",
-    "subdomainRegistered": "Address registered — your store responds at it.",
-    "subdomainNotRegistered": "This address is not registered with the hosting provider yet — your store will not respond at it. Retry the registration.",
     "retryCta": "Retry address registration",
     "retryOk": "Address registered — your store is live at it.",
     "retryFailed": "The retry failed:",
@@ -680,9 +700,6 @@
     "retryUnavailable": "Address registration is currently unavailable:",
     "kindSubdomain": "Platform subdomain — works immediately, no DNS setup needed.",
     "kindCustom": "Custom domain — works once the DNS record is confirmed.",
-    "statusLive": "Live",
-    "statusPending": "Awaiting verification",
-    "statusNotRegistered": "Not live — not registered",
     "lastErrorLabel": "Last error:",
     "dnsHeading": "Record to add at your registrar",
     "dnsIntro": "Add this record in your domain's DNS panel. We cannot do this step for you — only you have access to your DNS.",
@@ -699,7 +716,9 @@
     "domainHint": "The host name only, without http:// and without a path.",
     "addCta": "Add domain",
     "addedOk": "Domain added. Add the DNS record, then click “Check verification”.",
-    "backLink": "Dashboard"
+    "backLink": "Dashboard",
+    "providerTitle": "Host registration",
+    "providerAvailable": "Store addresses can be registered and retried."
   },
   "organization": {
     "title": "Organization",
@@ -712,6 +731,56 @@
     "locale": "Storefront language",
     "planMissing": "No plan assigned.",
     "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
-    "newOrganization": "Create organization"
+    "newOrganization": "Create organization",
+    "statusValue": {
+      "trialing": "Trial",
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled",
+      "superadmin_locked": "Locked by support"
+    },
+    "localeValue": {
+      "pl": "Polish",
+      "en": "English"
+    }
+  },
+  "secondaryStatus": {
+    "domain": {
+      "live": "Active",
+      "pending": "Awaiting DNS",
+      "registration_failed": "Registration failed"
+    },
+    "domain-provider": {
+      "available": "Available",
+      "unavailable": "Unavailable"
+    },
+    "email-transport": {
+      "available": "Available",
+      "unavailable": "Unavailable"
+    },
+    "email-sender": {
+      "configured": "Configured",
+      "missing": "Not configured"
+    },
+    "email-log": {
+      "sent": "Sent",
+      "failed": "Not sent"
+    },
+    "delivery-secret": {
+      "configured": "Password saved",
+      "missing": "No password"
+    },
+    "invitation": {
+      "accepted": "Accepted",
+      "pending": "Pending"
+    },
+    "organization": {
+      "active": "Active"
+    },
+    "security": {
+      "not_configured": "Not configured",
+      "configured": "Configured"
+    }
   }
 }
