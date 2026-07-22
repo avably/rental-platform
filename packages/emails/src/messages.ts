@@ -88,6 +88,14 @@ export interface PickupReturnReminderMessages {
   };
 }
 
+export interface RentalContractMessages {
+  heading: string;
+  preview: (orderNumber: string) => string;
+  body: string;
+  attachmentHint: string;
+  orderNumber: string;
+}
+
 export interface RentalLifecycleMessages {
   cancelled: RentalLifecycleStatusMessages;
   confirmed: RentalLifecycleStatusMessages;
@@ -114,6 +122,7 @@ export interface EmailMessages {
   rentalLifecycle: RentalLifecycleMessages;
   returnLabel: ReturnLabelMessages;
   pickupReturnReminder: PickupReturnReminderMessages;
+  rentalContract: RentalContractMessages;
 }
 
 const pl: EmailMessages = {
@@ -215,6 +224,13 @@ const pl: EmailMessages = {
       openingHours: "Godziny otwarcia",
     },
   },
+  rentalContract: {
+    heading: "Umowa najmu",
+    preview: (orderNumber) => `Umowa najmu do zamówienia ${orderNumber}.`,
+    body: "Przesyłamy umowę najmu dotyczącą Twojego zamówienia.",
+    attachmentHint: "Umowa najmu (PDF) znajduje się w załączniku.",
+    orderNumber: "Numer zamówienia",
+  },
 };
 
 const en: EmailMessages = {
@@ -315,6 +331,13 @@ const en: EmailMessages = {
       phone: "Phone",
       openingHours: "Opening hours",
     },
+  },
+  rentalContract: {
+    heading: "Rental agreement",
+    preview: (orderNumber) => `Rental agreement for order ${orderNumber}.`,
+    body: "Please find the rental agreement for your order attached.",
+    attachmentHint: "The rental agreement (PDF) is attached to this message.",
+    orderNumber: "Order number",
   },
 };
 
