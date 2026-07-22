@@ -1,40 +1,58 @@
 "use client";
 
+import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
+
+import { ScreenSection } from "@/components/screens/screen-header";
+import { SecondaryStatusChip } from "@/lib/secondary-status";
 
 import { challengeTotpAction, type ChallengeState } from "./actions";
 
 const initialState: ChallengeState = {};
 
+/**
+ * Stan 3 osi `security` z mockupu P8: sesja ma pierwszy poziom
+ * uwierzytelnienia, czynnik JEST skonfigurowany — stąd chip `configured` przy
+ * tytule. To jedyne miejsce tego przepływu, w którym stan „skonfigurowane"
+ * mówi coś użytecznego: potwierdza, że kod jest gdzie sprawdzić.
+ */
 export function TotpChallengeForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(challengeTotpAction, initialState);
   const t = useTranslations("mfaChallenge");
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
-      {next ? <input type="hidden" name="next" value={next} /> : null}
-      <label className="flex flex-col gap-1 text-sm">
-        {t("codeLabel")}
-        <input
+    <ScreenSection
+      data-security-state="challenge"
+      title={t("title")}
+      status={<SecondaryStatusChip axis="security" value="configured" />}
+      description={t("body")}
+    >
+      <form action={formAction} className="flex flex-col gap-2 text-sm">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        <Label htmlFor="totp-challenge">{t("codeLabel")}</Label>
+        <Input
+          id="totp-challenge"
           autoComplete="one-time-code"
           autoFocus
-          className="rounded border px-3 py-2"
+          className="tabular-nums"
           inputMode="numeric"
           name="code"
           pattern="\d{6}"
           required
           type="text"
         />
-      </label>
-      {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-      <button
-        className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-        disabled={pending}
-        type="submit"
-      >
-        {pending ? t("submitPending") : t("submit")}
-      </button>
-    </form>
+        {state.error ? (
+          <p role="alert" className="text-destructive">
+            {state.error}
+          </p>
+        ) : null}
+        <div className="pt-2">
+          <Button type="submit" disabled={pending}>
+            {pending ? t("submitPending") : t("submit")}
+          </Button>
+        </div>
+      </form>
+    </ScreenSection>
   );
 }

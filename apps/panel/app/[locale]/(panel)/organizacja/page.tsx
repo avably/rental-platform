@@ -1,8 +1,10 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { ScreenSection } from "@/components/screens/screen-header";
+import { FormMeasure } from "@/components/screens/form-measure";
 import { requireMemberPage } from "@/lib/member-page";
+
+import { OrganizationCard } from "./organization-card";
 
 /**
  * Ekran organizacji (ADR-059) — TYLKO DO ODCZYTU.
@@ -64,24 +66,8 @@ export default async function OrganizationPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-4">
-      <ScreenSection title={undefined} description={undefined}>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-          {rows.map((row) => (
-            <div key={row.label} className="flex flex-col gap-1" data-field={row.label}>
-              <dt className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.06em] uppercase">
-                {row.label}
-              </dt>
-              {/* Slug i status są z natury tekstem, nie liczbą — klasa cyfr
-                  tabelarycznych idzie WYŁĄCZNIE tam, gdzie są dane liczbowe
-                  (ADR-053 D3), czyli tu na datę. */}
-              <dd className={row.numeric ? "text-sm tabular-nums" : "text-sm"}>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="text-muted-foreground text-[13px] leading-[18px]">{t("readOnly")}</p>
-      </ScreenSection>
-    </div>
+    <FormMeasure className="flex flex-col gap-4">
+      <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
+    </FormMeasure>
   );
 }

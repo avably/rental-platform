@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { FormMeasure } from "@/components/screens/form-measure";
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -25,8 +26,8 @@ export default async function SecurityPage({
   if (!ctx) redirect(await localePath("/login"));
 
   return (
-    <div className="flex flex-col justify-center gap-4">
+    <FormMeasure className="flex flex-col gap-4">
       <TotpEnrollForm next={safeNextPath(next) ?? undefined} />
-    </div>
+    </FormMeasure>
   );
 }

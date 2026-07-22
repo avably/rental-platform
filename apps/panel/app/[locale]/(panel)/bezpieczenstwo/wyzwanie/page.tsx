@@ -1,6 +1,6 @@
-import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { FormMeasure } from "@/components/screens/form-measure";
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -32,12 +32,11 @@ export default async function MfaChallengePage({
     redirect(await localePath("/bezpieczenstwo"));
   }
 
-  const t = await getTranslations("mfaChallenge");
-
+  // Treść wprowadzająca należy teraz do KARTY stanu (mockup P8: opis stoi pod
+  // tytułem karty razem z chipem), a nie do osobnego akapitu nad formularzem.
   return (
-    <div className="flex flex-col justify-center gap-4">
-      <p className="text-sm text-muted-foreground">{t("body")}</p>
+    <FormMeasure className="flex flex-col gap-4">
       <TotpChallengeForm next={safeNextPath(next) ?? undefined} />
-    </div>
+    </FormMeasure>
   );
 }

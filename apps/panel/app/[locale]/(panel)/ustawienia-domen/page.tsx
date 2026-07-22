@@ -19,7 +19,8 @@
 import { CUSTOM_DOMAIN_CNAME_TARGET, vercelDomainsAvailability } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { DomainsPanel, type DomainRow } from "./domains-panel";
@@ -54,20 +55,13 @@ export default async function DomainSettingsPage() {
   // Dostępność rejestracji liczona na SERWERZE (token nie schodzi do klienta).
   const availability = vercelDomainsAvailability();
 
+  // Miara formularza (P8): karty adresów, instrukcja DNS i formularz dodania
+  // czytają się jak jeden wiersz treści, więc idą pod wspólną szerokość.
+  // Tabel na tym ekranie nie ma — nic nie zostaje poza miarą.
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-end gap-3">
-        <Link className="text-sm underline" href="/">
-          {t("backLink")} ↩
-        </Link>
-      </header>
-      <p className="text-sm text-muted-foreground">{t("intro")}</p>
-
-      {!availability.available && (
-        <p role="status" className="rounded border p-3 text-sm text-status-attention-fg">
-          {t("registrationUnavailable")} {availability.reason}
-        </p>
-      )}
+    <FormMeasure className="flex flex-col gap-4">
+      <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
 
       {/* Powód braku konfiguracji schodzi do klienta ŚWIADOMIE: to komunikat
           `VercelConfigError` (nazwy brakujących zmiennych), nigdy ich wartości
@@ -78,6 +72,6 @@ export default async function DomainSettingsPage() {
         registrationAvailable={availability.available}
         registrationBlockedReason={availability.available ? null : (availability.reason ?? null)}
       />
-    </div>
+    </FormMeasure>
   );
 }

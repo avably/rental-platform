@@ -236,7 +236,7 @@ export function OrderWizard({
   const errorId = (field: string) => (state.fieldErrors?.[field] ? `order-${field}-error` : undefined);
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-6">
+    <form action={formAction} data-form-line-measure className="flex flex-col gap-6">
       {/* --- Klient --- */}
       <fieldset className="flex flex-col gap-3">
         <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("customerSection")}</legend>

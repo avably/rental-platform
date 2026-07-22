@@ -81,7 +81,7 @@ export function ProductForm({
     state.fieldErrors?.[field] ? `product-${field}-error` : undefined;
 
   return (
-    <form action={formAction} className="flex max-w-2xl flex-col gap-5">
+    <form action={formAction} data-form-line-measure className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="product-name">{t("name")}</Label>
         <Input
