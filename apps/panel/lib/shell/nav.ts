@@ -106,6 +106,24 @@ export const PANEL_BOTTOM_NAV_ITEMS = [
   resolvePanelNavItem("catalog"),
 ] as const;
 
+/**
+ * Skrót do strony głównej panelu na dolnym pasku (decyzja właściciela
+ * 2026-07-22).
+ *
+ * NIE przechodzi przez `resolvePanelNavItem`, bo dashboard nie jest pozycją
+ * nawigacji: artefakt trzyma go jako ZAPOWIEDŹ poza grupami, a sidebar dalej
+ * pokazuje go jako nieklikalny, z badge „Wkrótce". Na wąskim ekranie nie ma
+ * jednak znaku marki, który na desktopie prowadzi do `/`, więc pasek jest
+ * jedynym miejscem, z którego wraca się na stronę główną jednym kciukiem.
+ * Etykieta idzie z tej samej zapowiedzi, żeby oba miejsca nie rozjechały się
+ * w nazwie.
+ */
+export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
+  id: PANEL_NAV_PLACEHOLDER.id,
+  href: "/",
+  labelKey: PANEL_NAV_PLACEHOLDER.labelKey,
+};
+
 const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
