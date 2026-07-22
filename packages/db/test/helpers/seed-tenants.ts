@@ -611,6 +611,26 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     };
   },
 
+  // Niezmienny dokument umowy (0026/ADR-061). ID powstaje przed storage_path,
+  // bo CHECK wymaga ścieżki {tenant}/{order}/{document}.pdf. Fabryka macierzy
+  // tworzy wyłącznie metadane; test Storage ma osobny plik i realny upload.
+  contract_documents: async (ctx, tenantId) => {
+    const id = randomUUID();
+    const orderId = await createOrder(ctx, tenantId);
+    const userId = await createAuxMemberUser(ctx, tenantId);
+    return {
+      id,
+      tenant_id: tenantId,
+      order_id: orderId,
+      storage_path: `${tenantId}/${orderId}/${id}.pdf`,
+      sha256: randomUUID().replace(/-/g, "").padEnd(64, "0"),
+      locale: "pl",
+      terms_version: "rls-test-v1",
+      recipient: `contract-${randomUUID()}@test.local`,
+      created_by: userId,
+    };
+  },
+
   // Historia wysyłek (0021, ADR-045). order_id z createOrder: FK ZŁOŻONY
   // (tenant_id, order_id) wymaga zamówienia TEGO SAMEGO tenanta — log
   // wskazujący cudze zamówienie jest niereprezentowalny (23503; osobny
@@ -746,6 +766,9 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // alt_text jest nullable i bez indeksu unikalnego — goła mutacja na wszystkich
   // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
   product_images: { alt_text: "rls-test-hacked" },
+  // Append-only tabela 0026 nie ma polityki UPDATE, ale macierz nadal wymaga
+  // poprawnego patcha, żeby brak polityki był testowany, a nie pomijany.
+  contract_documents: { terms_version: "rls-test-hacked" },
   // subject: bez indeksu unikalnego i poza CHECK-iem email_logs_result_shape
   // (ten wiąże wyłącznie status z provider_message_id/error), więc goła
   // mutacja na wszystkich widocznych wierszach nie wywoła ani 23505, ani
