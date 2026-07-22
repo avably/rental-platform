@@ -5,9 +5,7 @@ import { Link as PdfLink, Text, View } from "@react-pdf/renderer";
 //  Konwerter HTML → react-pdf dla treści warunków najmu (`terms.body`).
 //  Obsługuje: p, h2, h3, strong, b, em, i, u, a, ul, ol, li, br, hr.
 //  Funkcje czyste — bez I/O, bez dat, bez zależności od środowiska.
-//  Port z lib/pdf/html-to-pdf.tsx (starkit-system); usunięto heurystyki
-//  łamania na kolumny — nowy szablon prowadzi warunki jednym ciągiem, który
-//  @react-pdf stronicuje sam.
+//  Szablon prowadzi warunki jednym ciągiem, który @react-pdf stronicuje sam.
 // ══════════════════════════════════════════════════════════════════════════
 
 type PdfStyle = Record<string, string | number>;
@@ -133,6 +131,9 @@ function parseChildrenUntilClose(
 
 const BASE_FONT_SIZE = 8;
 const LINE_HEIGHT = 1.5;
+const MUTED = "#55616D";
+const BORDER = "#7E8994";
+const SIGNAL_STRONG = "#5F7500";
 
 const blockStyles: Record<string, PdfStyle> = {
   p: { marginBottom: 4, fontSize: BASE_FONT_SIZE, lineHeight: LINE_HEIGHT, textAlign: "justify" },
@@ -179,7 +180,7 @@ function renderAstNode(
     return (
       <View
         key={key}
-        style={{ borderBottomWidth: 0.5, borderBottomColor: "#cbd5e1", marginVertical: 4 }}
+        style={{ borderBottomWidth: 0.5, borderBottomColor: BORDER, marginVertical: 4 }}
       />
     );
   }
@@ -195,7 +196,7 @@ function renderAstNode(
   if (tag === "a") {
     const href = node.attrs?.href ?? "";
     return (
-      <PdfLink key={key} src={href} style={{ color: "#1e40af", textDecoration: "underline" }}>
+      <PdfLink key={key} src={href} style={{ color: SIGNAL_STRONG, textDecoration: "underline" }}>
         {children.length > 0 ? children : href}
       </PdfLink>
     );
@@ -222,7 +223,7 @@ function renderAstNode(
                 wrap={false}
                 style={{ flexDirection: "row", marginBottom: 2, paddingLeft: 4 }}
               >
-                <Text style={{ fontSize: BASE_FONT_SIZE, width: tag === "ol" ? 14 : 8, color: "#64748b" }}>
+                <Text style={{ fontSize: BASE_FONT_SIZE, width: tag === "ol" ? 14 : 8, color: MUTED }}>
                   {bullet}
                 </Text>
                 <Text style={{ fontSize: BASE_FONT_SIZE, lineHeight: LINE_HEIGHT, flex: 1 }}>
@@ -277,7 +278,7 @@ export function HtmlContent({
   if (!html || !html.trim()) {
     return (
       <View style={style}>
-        <Text style={{ fontSize: BASE_FONT_SIZE, color: "#94a3b8" }}>—</Text>
+        <Text style={{ fontSize: BASE_FONT_SIZE, color: MUTED }}>—</Text>
       </View>
     );
   }
