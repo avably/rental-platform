@@ -1,3 +1,4 @@
+import { ReviewOverlayGate } from "@avably/review/overlay";
 import { getTranslations } from "next-intl/server";
 
 import { BrandLogo } from "@/components/shell/brand-mark";
@@ -77,6 +78,13 @@ export default async function PanelLayout({
           </div>
         </main>
       </div>
+      {/* Nakładka przeglądu (ADR-071): renderowana WYŁĄCZNIE przy
+          REVIEW_MODE=1 w env deploymentu I sesji superadmina; trzeci warunek
+          (?review=1) domyka bramka kliencka — bez niego zero DOM/JS. Zapis
+          i tak pilnuje RLS 0033, więc warunek na ctx to higiena, nie guard. */}
+      {process.env.REVIEW_MODE === "1" && ctx?.superadmin ? (
+        <ReviewOverlayGate surface="panel" />
+      ) : null}
     </div>
   );
 }

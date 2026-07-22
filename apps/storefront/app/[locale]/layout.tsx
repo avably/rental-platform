@@ -1,4 +1,5 @@
 import { bcp47, type Locale } from "@avably/core";
+import { ReviewOverlayGate } from "@avably/review/overlay";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { headers } from "next/headers";
 import { setRequestLocale } from "next-intl/server";
@@ -66,6 +67,12 @@ export default async function LocaleLayout({
             później nie ma już czego złapać. */}
         <script defer nonce={nonce} src="/forerunner/js/jquery.min.js" />
         <script defer nonce={nonce} src="/forerunner/js/webflow.js" />
+        {/* Nakładka przeglądu (ADR-071): tylko przy REVIEW_MODE=1 — całość
+            storefrontu siedzi już za hasłem site'u (proxy.ts), więc bramka
+            sesji nie istnieje; trzeci warunek (?review=1) domyka klient.
+            Chrome nakładki jedzie na tokenach Fazy 2 niezależnie od arkuszy
+            szablonu (izolacja ADR-068 nietknięta). */}
+        {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="marketing" /> : null}
       </body>
     </html>
   );
