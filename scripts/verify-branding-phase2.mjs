@@ -609,6 +609,7 @@ const statusMap = {
   payment: {
     unpaid: "attention",
     pending: "neutral",
+    payment_failed: "problem",
     paid: "positive",
     manual: "attention",
     completed: "positive",
@@ -666,7 +667,7 @@ const matrixChips = directChildren(
   statusMatrices[0],
   (node) => "data-status-axis" in node.attributes,
 );
-assert.equal(matrixChips.length, 20);
+assert.equal(matrixChips.length, 21);
 assert.deepEqual(
   matrixChips.map((chip) => [
     chip.attributes["data-status-axis"],
@@ -683,7 +684,7 @@ assert.deepEqual(
     axis,
     matrixChips.filter((chip) => chip.attributes["data-status-axis"] === axis).length,
   ])),
-  { order: 6, payment: 8, shipment: 6 },
+  { order: 6, payment: 9, shipment: 6 },
 );
 
 const findOne = (predicate, message) => {
