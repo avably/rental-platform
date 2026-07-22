@@ -124,6 +124,35 @@ describe("resendTransport", () => {
     });
   });
 
+  it("przenosi idempotency key do nagłówka, nie do JSON-u", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+
+    await transport.send({
+      ...MESSAGE,
+      idempotencyKey: "rental-contract/doc-1/attempt-1",
+    });
+
+    const [, init] = fetchFn.mock.calls[0]!;
+    expect(init.headers["Idempotency-Key"]).toBe("rental-contract/doc-1/attempt-1");
+    expect(JSON.parse(init.body)).not.toHaveProperty("idempotencyKey");
+  });
+
+  it("dotychczasowa wiadomość nie dostaje nagłówka idempotencji", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
+    const transport = resendTransport({
+      apiKey: "re_test",
+      fetchFn: fetchFn as unknown as typeof fetch,
+    });
+
+    await transport.send(MESSAGE);
+    const [, init] = fetchFn.mock.calls[0]!;
+    expect(init.headers).not.toHaveProperty("Idempotency-Key");
+  });
+
   it("załącznik bajtowy trafia do payloadu jako base64 z nazwą pliku", async () => {
     const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: "1" }) });
     const transport = resendTransport({

@@ -173,8 +173,7 @@ alter table public.email_logs
   );
 
 create unique index email_logs_tenant_idempotency_key
-  on public.email_logs (tenant_id, idempotency_key)
-  where idempotency_key is not null;
+  on public.email_logs (tenant_id, idempotency_key);
 
 comment on column public.email_logs.contract_document_id is
   'Z7/ADR-061: dokładny dokument dołączony do próby rental_contract; FK złożony chroni granicę tenanta.';

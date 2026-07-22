@@ -37,6 +37,7 @@ export const EMAIL_LOG_KINDS = [
   "pickup_return_reminder",
   "checkout_confirmation",
   "new_order_notification",
+  "rental_contract",
 ] as const;
 
 export type EmailLogKind = (typeof EMAIL_LOG_KINDS)[number];
@@ -60,6 +61,10 @@ export interface EmailLogEntry {
   providerMessageId?: string | null;
   /** Tylko przy porażce — powód, dokładnie ten pokazywany operatorowi. */
   error?: string | null;
+  /** Dokładny PDF załączony do wiadomości rental_contract. */
+  contractDocumentId?: string | null;
+  /** Klucz próby wspólny dla bazy i nagłówka Resend. */
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -82,6 +87,7 @@ export interface SendAndLogInput {
   email: OutgoingEmail;
   kind: EmailLogKind;
   orderId?: string | null;
+  contractDocumentId?: string | null;
 }
 
 export interface SendAndLogResult {
@@ -108,6 +114,8 @@ export async function sendAndLog(input: SendAndLogInput): Promise<SendAndLogResu
     orderId: input.orderId ?? null,
     recipient: input.email.to,
     subject: input.email.subject,
+    contractDocumentId: input.contractDocumentId ?? null,
+    idempotencyKey: input.email.idempotencyKey ?? null,
   };
 
   let sendError: unknown;

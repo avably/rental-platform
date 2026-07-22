@@ -21,7 +21,7 @@ export function panelEmailLogRecorder(
 ): EmailLogRecorder {
   return {
     async record(entry: EmailLogEntry): Promise<void> {
-      const { error } = await supabase.from("email_logs").insert({
+      const { error } = await supabase.from("email_logs").upsert({
         tenant_id: tenantId,
         order_id: entry.orderId ?? null,
         kind: entry.kind,
@@ -30,6 +30,11 @@ export function panelEmailLogRecorder(
         status: entry.status,
         provider_message_id: entry.providerMessageId ?? null,
         error: entry.error ?? null,
+        contract_document_id: entry.contractDocumentId ?? null,
+        idempotency_key: entry.idempotencyKey ?? null,
+      }, {
+        onConflict: "tenant_id,idempotency_key",
+        ignoreDuplicates: true,
       });
       if (error) throw new Error(error.message);
     },

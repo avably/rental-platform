@@ -42,6 +42,8 @@ export interface OutgoingEmail {
   html: string;
   text: string;
   attachments?: EmailAttachment[];
+  /** Nagłówek dostawcy chroniący konkretną próbę przed podwójną wysyłką. */
+  idempotencyKey?: string;
 }
 
 /**
