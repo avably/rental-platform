@@ -85,8 +85,32 @@ export interface BookDepositEventInput {
  * IDEMPOTENCJA JEST OGRANICZENIEM BAZY, NIE WARUNKIEM W KODZIE (reguła 3
  * z Z4): sprawdzenie „czy już jest" przed wstawieniem przeszłoby oba
  * SELECT-y, gdyby webhook i akcja panelu potwierdziły ten sam refund
- * równolegle. Rozstrzyga unikat `(provider, provider_reference)` z 0031,
- * a 23505 czytamy jako „ktoś inny zdążył" — czyli SUKCES, nie awarię.
+ * równolegle. Rozstrzyga unikat `(provider, provider_reference)` z 0031.
+ *
+ * ================== O WYNIKU DECYDUJE ODCZYT, NIE KOD BŁĘDU ==================
+ *
+ * Ten kształt jest wynikiem WERYFIKACJI NA ŻYWO, nie estetyki. Pierwsza
+ * wersja klasyfikowała po `error.code`: 23505 = „ktoś zdążył" (sukces),
+ * 23514 = „bramka salda odmówiła" (porażka). Na żywym Stripie okazało się,
+ * że przy PEŁNYM zwrocie gałąź 23505 jest NIEOSIĄGALNA:
+ *
+ *   `app.deposit_events_gate` z 0011 jest triggerem BEFORE INSERT, a
+ *   ograniczenia unikalności sprawdzają się PO wykonaniu triggerów. Gdy
+ *   webhook `charge.refund.updated` zdążył zaksięgować zwrot przed naszym
+ *   własnym odczytem, drugi INSERT najpierw trafia w bramkę salda (zwroty
+ *   już pokrywają pobranie) i dostaje 23514 — a nie 23505, którego nikt
+ *   już nie zdąży zgłosić.
+ *
+ * Skutek na żywej bazie: zwrot był poprawnie zaksięgowany i zamówienie
+ * przeszło w `deposit_refunded`, a `deposit_refunds` zostawał `failed`
+ * z komunikatem „rejestr odrzucił zapis". Operator czytał „zwrot odrzucony"
+ * o zwrocie, który się UDAŁ — czyli dokładnie ten rodzaj kłamstwa, przed
+ * którym broni całe Z5, tyle że w drugą stronę.
+ *
+ * Dlatego kod błędu z INSERT-a jest tu WYŁĄCZNIE materiałem na uzasadnienie,
+ * a o wyniku rozstrzyga ODCZYT: jeśli po wszystkim wiersz z tym odnośnikiem
+ * istnieje, zdarzenie JEST zaksięgowane — obojętne, czy wstawiliśmy je my,
+ * czy druga ścieżka. Jeśli nie istnieje, dopiero wtedy pytamy dlaczego.
  */
 export async function bookDepositEvent(
   db: SupabaseClient,
@@ -102,32 +126,10 @@ export async function bookDepositEvent(
     created_by: input.createdBy ?? null,
   });
 
-  let alreadyBooked = false;
-  if (insert.error) {
-    if (insert.error.code === PG_UNIQUE_VIOLATION) {
-      alreadyBooked = true;
-    } else if (insert.error.code === PG_CHECK_VIOLATION) {
-      // Bramka 0011: zwrot + potrącenia przekroczyłyby pobranie. To NIE jest
-      // stan do obejścia ani do ponowienia — rejestr mówi, że nie ma czego
-      // zwracać, i ma pierwszeństwo przed tym, co przyjął dostawca.
-      return {
-        ok: false,
-        retryable: false,
-        reason: `Rejestr kaucji odrzucił zapis (${input.kind}, ${input.amountGrosze} gr): ${insert.error.message}`,
-      };
-    } else {
-      return {
-        ok: false,
-        retryable: true,
-        reason: `Zapis do rejestru kaucji nie powiódł się: ${insert.error.message}`,
-      };
-    }
-  }
-
-  // ODCZYT PO ZAPISIE. Odpowiedź na INSERT świadomie nie decyduje: brak
-  // błędu znaczy „żądanie przyjęto", a polityka RLS potrafi odfiltrować
-  // wiersz tak, że `.select()` po mutacji oddaje pustkę bez ani jednego
-  // błędu (pułapka opisana w nagłówku rls-isolation.test.ts).
+  // ODCZYT PO ZAPISIE — także PO BŁĘDZIE. Brak błędu znaczy tylko „żądanie
+  // przyjęto": polityka RLS potrafi odfiltrować wiersz tak, że `.select()`
+  // po mutacji oddaje pustkę bez ani jednego błędu (pułapka opisana
+  // w nagłówku rls-isolation.test.ts).
   const after = await db
     .from("deposit_events")
     .select("id, kind, amount_grosze")
@@ -144,15 +146,48 @@ export async function bookDepositEvent(
       reason: `Nie udało się potwierdzić zapisu odczytem: ${after.error.message}`,
     };
   }
-  if (!after.data) {
+
+  if (after.data) {
+    // Wiersz JEST. `alreadyBooked` mówi tylko tyle, że nie wstawiliśmy go MY
+    // — dla wołającego to informacja diagnostyczna, a nie zmiana wyniku.
+    return { ok: true, alreadyBooked: insert.error !== null };
+  }
+
+  // Wiersza NIE MA — dopiero teraz kod błędu ma coś do powiedzenia.
+  if (insert.error?.code === PG_CHECK_VIOLATION) {
+    // Bramka 0011: zwrot + potrącenia przekroczyłyby pobranie, a tego
+    // zdarzenia nikt inny nie zaksięgował. Rejestr mówi, że nie ma czego
+    // zwracać, i ma pierwszeństwo przed tym, co przyjął dostawca. Odmowa
+    // jest DETERMINISTYCZNA — ponowienie niczego nie zmieni.
+    return {
+      ok: false,
+      retryable: false,
+      reason: `Rejestr kaucji odrzucił zapis (${input.kind}, ${input.amountGrosze} gr): ${insert.error.message}`,
+    };
+  }
+  if (insert.error?.code === PG_UNIQUE_VIOLATION) {
+    // Odnośnik zajęty, a mimo to nie widzimy wiersza — zajął go ktoś SPOZA
+    // naszego zasięgu widzenia (inne zamówienie, inny tenant). Stan
+    // niespójny, którego ponowienie nie naprawi.
+    return {
+      ok: false,
+      retryable: false,
+      reason: `Odnośnik ${input.providerReference} jest już zajęty przez zdarzenie spoza tego zamówienia.`,
+    };
+  }
+  if (insert.error) {
     return {
       ok: false,
       retryable: true,
-      reason: `Zapis do rejestru kaucji nie zostawił wiersza dla odnośnika ${input.providerReference}.`,
+      reason: `Zapis do rejestru kaucji nie powiódł się: ${insert.error.message}`,
     };
   }
 
-  return { ok: true, alreadyBooked };
+  return {
+    ok: false,
+    retryable: true,
+    reason: `Zapis do rejestru kaucji nie zostawił wiersza dla odnośnika ${input.providerReference}.`,
+  };
 }
 
 export type DepositSettlementResult =

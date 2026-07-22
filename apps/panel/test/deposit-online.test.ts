@@ -806,6 +806,61 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(response.status).toBe(200);
     const events = await depositEventsOf(fixture.orderId);
     expect(events.filter((event) => event.kind === "refunded")).toHaveLength(1);
+
+    // I ŻADNA z dróg nie zostawia po sobie „zwrot odrzucony". Ta asercja
+    // jest tu z WERYFIKACJI NA ŻYWO: druga droga dostaje z bazy 23514
+    // (bramka salda 0011 jest triggerem BEFORE INSERT, więc zapala się
+    // ZANIM ograniczenie unikalności zdąży zgłosić 23505), a klasyfikacja
+    // po kodzie błędu czytała to jako odmowę. Operator widział „zwrot
+    // odrzucony" przy poprawnie zwróconej kaucji.
+    expect((await refundRequestsOf(fixture.orderId))[0]).toMatchObject({
+      status: "succeeded",
+      last_error: null,
+    });
+    expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
+  }, 30_000);
+
+  it("potwierdzenie webhookiem PRZED odczytem panelu też kończy się `succeeded`", async () => {
+    // Kolejność odwrotna niż wyżej — i to jest ta, która wyszła na żywym
+    // Stripie: `refund.updated` przychodzi w ułamku sekundy po POST-cie,
+    // więc webhook księguje PIERWSZY, a odczyt panelu trafia na gotowe.
+    const fixture = await paidOrderWithDeposit();
+    const refundId = `re_${randomUUID().slice(0, 12)}`;
+
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => refundId,
+        // Webhook wciska się DOKŁADNIE TAM, gdzie wcisnął się na żywo:
+        // po zapisaniu odnośnika (bez niego nie miałby czego odnaleźć),
+        // a przed naszym własnym księgowaniem.
+        readRefund: async () => {
+          const eventId = newEventId();
+          await handleStripeWebhook(
+            signedRequest(
+              eventBody({ eventId, type: "charge.refund.updated", objectId: refundId }),
+            ),
+            webhookDeps({ readRefund: async () => refundRead({ refundId, status: "succeeded" }) }),
+          );
+          return refundRead({ refundId, status: "succeeded" });
+        },
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: DEPOSIT_GROSZE,
+        actorId: member.userId,
+      },
+    );
+
+    expect(outcome).toMatchObject({ status: "settled" });
+    const events = await depositEventsOf(fixture.orderId);
+    expect(events.filter((event) => event.kind === "refunded")).toHaveLength(1);
+    expect((await refundRequestsOf(fixture.orderId))[0]).toMatchObject({
+      status: "succeeded",
+      last_error: null,
+    });
+    expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
   }, 30_000);
 
   it("zdarzenie zwrotu spoza naszego obiegu jest rejestrowane bez zapisu stanu", async () => {
