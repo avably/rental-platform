@@ -679,6 +679,18 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     tenant_id: tenantId,
     domain: `rls-${randomUUID().slice(0, 12)}.example.com`,
   }),
+
+  // Konto najemcy u dostawcy płatności (0028, ADR-065). PK = tenant_id, więc
+  // sonda INSERT cross-tenant koliduje kluczem tak samo jak przy
+  // subscriptions — i tak samo dostaje 42501, bo WITH CHECK jest egzekwowane
+  // przed unikalnością. `provider_account_id` unikalny per wywołanie: kolumna
+  // ma UNIQUE (provider, provider_account_id), a kolizja dawałaby 23505
+  // zamiast odmowy RLS (pułapka opisana przy usage_counters).
+  payment_accounts: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    provider: "stripe",
+    provider_account_id: `acct_rlstest_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+  }),
 };
 
 /**
@@ -783,6 +795,13 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   sites: { template: "bold" },
   site_sections: { position: 999_999 },
   domains: { verified: true },
+
+  // charges_enabled, a NIE provider_account_id: bramka zapisu 0028 czyni
+  // identyfikator konta niezmiennym (23514), więc goła mutacja na tamtej
+  // kolumnie wywracałaby się na triggerze zamiast dojść do polityki — a błąd
+  // wyglądałby na „mutacja zatrzymana" i maskował zepsutą politykę UPDATE.
+  // Wiersz zasiewany z domyślnym `false`, więc patch jest widoczną zmianą.
+  payment_accounts: { charges_enabled: true },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {

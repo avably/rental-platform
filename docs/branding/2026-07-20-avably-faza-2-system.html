@@ -855,6 +855,7 @@ color-scheme: light dark;
   <a data-nav-item="emails" href="#">E-maile</a>
   <a data-nav-item="delivery" href="#">Dostawy</a>
   <a data-nav-item="contracts" href="#">Umowy</a>
+  <a data-nav-item="payments" href="#">Płatności</a>
   <p class="nav-group">ORGANIZACJA</p>
   <a data-nav-item="team" href="#">Zespół</a>
   <a data-nav-item="organization" href="#">Organizacja</a>
@@ -1031,8 +1032,17 @@ color-scheme: light dark;
   &quot;organization&quot;: { &quot;active&quot;: &quot;positive&quot; },
   &quot;security&quot;: { &quot;not_configured&quot;: &quot;attention&quot;, &quot;configured&quot;: &quot;positive&quot; },
   &quot;site-section&quot;: { &quot;enabled&quot;: &quot;positive&quot;, &quot;disabled&quot;: &quot;neutral&quot; },
-  &quot;site-publish&quot;: { &quot;published&quot;: &quot;positive&quot; }
+  &quot;site-publish&quot;: { &quot;published&quot;: &quot;positive&quot; },
+  &quot;payment-account&quot;: { &quot;missing&quot;: &quot;attention&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;payouts_blocked&quot;: &quot;problem&quot;, &quot;ready&quot;: &quot;positive&quot; }
 }</code></pre>
+          <h3>Oś konta płatności</h3>
+          <p>Oś dopisana w fazie 3 razem z ekranem płatności — tu rejestrujemy samą semantykę, bo ten ekran nie powstawał w fazie 2. Cztery wartości, nie dwie: konto potrafi przyjmować wpłaty i jednocześnie wstrzymywać wypłaty, a ten stan wygląda jak sukces i nim nie jest. Dlatego dostaje ton problemu i własne słowo, zamiast zniknąć w „gotowe”.</p>
+          <div class="secondary-grid" data-payment-account-states>
+            <div class="secondary-card"><div class="secondary-card-title"><strong>Bez konta</strong><span class="chip chip-attention" data-secondary-status-axis="payment-account" data-secondary-status-value="missing" data-tone="attention">Brak konta</span></div><p>W sklepie zostają przelew i płatność przy odbiorze.</p></div>
+            <div class="secondary-card"><div class="secondary-card-title"><strong>Weryfikacja u dostawcy</strong><span class="chip chip-attention" data-secondary-status-axis="payment-account" data-secondary-status-value="pending" data-tone="attention">Weryfikacja w toku</span></div><p>Konto istnieje, ale nie zostało dopuszczone do przyjmowania płatności.</p></div>
+            <div class="secondary-card"><div class="secondary-card-title"><strong>Konto z ograniczeniem</strong><span class="chip chip-problem" data-secondary-status-axis="payment-account" data-secondary-status-value="payouts_blocked" data-tone="problem">Wypłaty wstrzymane</span></div><p>Płatności wchodzą, środki nie wychodzą — stanu widocznego jako sukces nie wolno zwijać do gotowości.</p></div>
+            <div class="secondary-card"><div class="secondary-card-title"><strong>Konto działające</strong><span class="chip chip-positive" data-secondary-status-axis="payment-account" data-secondary-status-value="ready" data-tone="positive">Gotowe</span></div><p>Obie osi zielone: wpłaty przyjmowane, wypłaty realizowane.</p></div>
+          </div>
         </article>
       </div>
     </section>
@@ -1334,6 +1344,7 @@ color-scheme: light dark;
   <a data-nav-item="emails" href="#">E-maile</a>
   <a data-nav-item="delivery" href="#">Dostawy</a>
   <a data-nav-item="contracts" href="#">Umowy</a>
+  <a data-nav-item="payments" href="#">Płatności</a>
   <p class="nav-group">ORGANIZACJA</p>
   <a data-nav-item="team" href="#">Zespół</a>
   <a data-nav-item="organization" href="#">Organizacja</a>

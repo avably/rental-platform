@@ -57,6 +57,7 @@ const SCREENS_UNDER_MEASURE = [
   "app/[locale]/(panel)/historia-emaili/page.tsx",
   "app/[locale]/(panel)/ustawienia-dostaw/page.tsx",
   "app/[locale]/(panel)/ustawienia-umow/page.tsx",
+  "app/[locale]/(panel)/ustawienia-platnosci/page.tsx",
   "app/[locale]/(panel)/zaproszenia/page.tsx",
   "app/[locale]/(panel)/organizacja/page.tsx",
   "app/[locale]/(panel)/bezpieczenstwo/page.tsx",
@@ -113,7 +114,7 @@ describe("kontrakt miary formularza — artefakt ↔ arkusz panelu", () => {
 
 describe("użycie wspólnej miary przez ekrany", () => {
   it("skan obejmuje realny zbiór ekranów", () => {
-    expect(SCREENS_UNDER_MEASURE.length).toBe(15);
+    expect(SCREENS_UNDER_MEASURE.length).toBe(16);
   });
 
   it.each(SCREENS_UNDER_MEASURE)("%s stoi pod wspólną miarą", (path) => {

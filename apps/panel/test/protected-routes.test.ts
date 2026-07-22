@@ -163,6 +163,14 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "zamówieniu, więc RLS domyka zasięg do własnego tenanta.",
   ],
   [
+    "/ustawienia-platnosci/powrot",
+    "Powrót z onboardingu KYC (ADR-065) — CHRONIONY SESJĄ: handler woła " +
+      "requireMember() i odsyła anonima na logowanie. Adres nie niesie ŻADNEGO " +
+      "stanu: handler nie czyta z niego parametrów, tylko wykonuje " +
+      "GET /v1/accounts/{id} po stronie serwera i zapisuje wynik odczytu, " +
+      "więc wklejenie go ręcznie nie ustawia gotowości konta.",
+  ],
+  [
     "/zamowienia/[id]/contract/[documentId]",
     "Prywatny PDF umowy (ADR-061) — handler wymaga sesji członka, filtruje " +
       "metadane po tenant_id, order_id i document_id, a RLS tabeli i Storage " +

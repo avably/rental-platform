@@ -101,7 +101,8 @@
     "localePolish": "Polish",
     "localeEnglish": "English",
     "superadminPanel": "Superadmin panel",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "payments": "Payments"
   },
   "contractSettings": {
     "title": "Agreement settings",
@@ -795,6 +796,43 @@
     },
     "site-publish": {
       "published": "Published"
+    },
+    "payment-account": {
+      "missing": "No account",
+      "pending": "Verification in progress",
+      "payouts_blocked": "Payouts on hold",
+      "ready": "Ready"
     }
+  },
+  "paymentSettings": {
+    "backLink": "Back to panel",
+    "title": "Payments",
+    "intro": "Online payments in your store are handled by an external provider. You open an account there, pass verification, and your customers' money goes straight to your account — we only act as an intermediary.",
+    "accountTitle": "Payment account",
+    "stageHint": {
+      "missing": "You do not have a payment account yet. Without one, the store offers bank transfer and payment on delivery only.",
+      "pending": "The account exists, but the provider has not cleared it to accept payments yet.",
+      "payouts_blocked": "The account accepts payments, but payouts are on hold — the money stays with the provider until you unblock it.",
+      "ready": "The account accepts payments and pays out funds."
+    },
+    "startCta": "Open a payment account",
+    "resumeCta": "Finish verification",
+    "refreshCta": "Refresh account state",
+    "refreshOk": "Account state read from the provider.",
+    "refreshFailed": "Could not read the account state:",
+    "disconnectCta": "Disconnect account",
+    "unavailable": "Online payments are unavailable right now:",
+    "ownerOnly": "Only the organisation owner can connect a payment account.",
+    "chargesLabel": "Accepting payments",
+    "payoutsLabel": "Payouts to your account",
+    "detailsLabel": "Verification form completed",
+    "accountIdLabel": "Provider account identifier",
+    "syncedLabel": "State read at",
+    "neverSynced": "not read yet",
+    "capabilityOn": "Yes",
+    "capabilityOff": "No",
+    "requirementsHeading": "What the provider still needs",
+    "requirementsHint": "The names come from the provider — you fill them in on their form via “Finish verification”.",
+    "lastError": "The last read attempt failed:"
   }
 }
