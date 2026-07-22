@@ -121,23 +121,39 @@ create table if not exists public.webhook_events (
 
   -- Powód przy 'failed' — wzorzec `domains.last_error` / ADR-046: porażka
   -- jest WARTOŚCIĄ do przeczytania, nie ciszą.
-  error text,
-
-  -- UNIKAT = CAŁA IDEMPOTENCJA. Nie `select`-potem-`insert` w handlerze:
-  -- dwie równoległe dostawy tego samego zdarzenia przeszłyby oba SELECT-y
-  -- zanim którakolwiek zdążyłaby wstawić wiersz (ADR-024 — dokładnie ten
-  -- kształt wyścigu co przy przypisaniu egzemplarza). Handler robi
-  -- `insert ... on conflict do nothing` i czyta LICZBĘ WSTAWIONYCH wierszy:
-  -- 1 = „ja to zdarzenie przejmuję", 0 = „ktoś inny je już ma".
-  --
-  -- Para (provider, event_id), nie samo `event_id`: kolumna `provider`
-  -- istnieje właśnie dlatego, że drugi dostawca jest przewidziany, a jego
-  -- przestrzeń identyfikatorów jest jego. Unikat globalny po samym
-  -- `event_id` kazałby nam MILCZĄCO pominąć zdarzenie PayU, które trafiło
-  -- w ten sam ciąg znaków co zdarzenie Stripe'a — czyli zgubić płatność
-  -- w imię ostrożności. Zakres unikatu jest ten sam, co zakres kolumny.
-  constraint webhook_events_provider_event_unique unique (provider, event_id)
+  error text
 );
+
+-- UNIKAT = CAŁA IDEMPOTENCJA SYSTEMU. Nie `select`-potem-`insert`
+-- w handlerze: dwie równoległe dostawy tego samego zdarzenia przeszłyby oba
+-- SELECT-y, zanim którakolwiek zdążyłaby wstawić wiersz (ADR-024 — dokładnie
+-- ten kształt wyścigu co przy przypisaniu egzemplarza). Handler robi
+-- `insert ... on conflict do nothing` i czyta LICZBĘ WSTAWIONYCH wierszy:
+-- 1 = „ja to zdarzenie przejmuję", 0 = „ktoś inny je już ma".
+--
+-- DLACZEGO POZA `create table`, w przeciwieństwie do CHECK-ów wyżej.
+-- `create table if not exists` na ISTNIEJĄCEJ tabeli nie robi NIC — więc
+-- ograniczenie zapisane w jej ciele powstaje raz i nigdy nie jest wznawiane.
+-- Zdjęte ręcznie (albo przez nieudany eksperyment) nie wróciłoby po ponownym
+-- wgraniu migracji, a objaw byłby NIEMY: `on conflict do nothing` bez unikatu
+-- przestaje cokolwiek rozstrzygać i każda ponowna dostawa zdarzenia zapisuje
+-- stan drugi raz. Para `drop ... if exists` + `add` sprawia, że KAŻDY przebieg
+-- migracji ODTWARZA ten unikat — to jedyne ograniczenie w tym pliku, na
+-- którym stoi poprawność całej ścieżki, więc jedyne warte tej ceremonii.
+-- (Ta różnica wyszła przy dowodzie mutacyjnym: po `drop constraint` ponowne
+-- wgranie 0030 nie przywracało unikatu.)
+--
+-- Para (provider, event_id), nie samo `event_id`: kolumna `provider` istnieje
+-- właśnie dlatego, że drugi dostawca jest przewidziany, a jego przestrzeń
+-- identyfikatorów jest jego. Unikat globalny po samym `event_id` kazałby nam
+-- MILCZĄCO pominąć zdarzenie drugiego dostawcy, które trafiło w ten sam ciąg
+-- znaków co zdarzenie Stripe'a — czyli zgubić płatność w imię ostrożności.
+-- Zakres unikatu jest ten sam, co zakres kolumny.
+alter table public.webhook_events
+  drop constraint if exists webhook_events_provider_event_unique;
+
+alter table public.webhook_events
+  add constraint webhook_events_provider_event_unique unique (provider, event_id);
 
 comment on table public.webhook_events is
   'Rejestr zdarzeń dostawcy płatności (Z4, ADR-067). PLATFORMOWA — bez tenant_id, bo idempotencja musi rozstrzygać się ZANIM rozpoznamy tenanta. Unikat (provider, event_id) jest jedynym mechanizmem idempotencji: handler robi insert ... on conflict do nothing i czyta liczbę wstawionych wierszy. RLS włączone, ZERO polityk dla anon/authenticated — dostęp wyłącznie service_role.';
