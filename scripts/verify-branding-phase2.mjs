@@ -753,7 +753,8 @@ assert.ok(panelNavs.length >= 2, "Pokaż nawigację w jasnym i ciemnym shellu");
 for (const nav of panelNavs) {
   const items = directChildren(nav, (node) => "data-nav-item" in node.attributes);
   assert.deepEqual(items.map((node) => node.attributes["data-nav-item"]), [
-    "orders", "catalog", "store", "domains", "emails", "delivery", "contracts", "team", "organization", "security",
+    "orders", "catalog", "store", "domains", "emails", "delivery", "contracts", "payments",
+    "team", "organization", "security",
   ]);
   assert.equal(directChildren(nav, (node) => node.attributes["data-nav-placeholder"] === "dashboard").length, 1);
   assert.equal(items.filter((node) => node.attributes["aria-current"] === "page").length, 1);
@@ -1142,6 +1143,14 @@ assert.deepEqual(secondaryStatusMap, {
   security: { not_configured: "attention", configured: "positive" },
   "site-section": { enabled: "positive", disabled: "neutral" },
   "site-publish": { published: "positive" },
+  // Oś fazy 3 (Z2, ADR-065). Cztery wartości: konto potrafi przyjmować wpłaty
+  // i jednocześnie wstrzymywać wypłaty, a ten stan wygląda jak sukces.
+  "payment-account": {
+    missing: "attention",
+    pending: "attention",
+    payouts_blocked: "problem",
+    ready: "positive",
+  },
 });
 const activeTokenCopy = (theme) => {
   const matches = findAll(tree, (node) => node.attributes["data-token-code"] === theme);
@@ -1282,7 +1291,7 @@ assert.deepEqual(
 );
 
 const secondaryChips = findAll(tree, (node) => "data-secondary-status-axis" in node.attributes);
-assert.ok(secondaryChips.length >= 20, "Pokaż pełną semantykę statusów ekranów drugorzędnych");
+assert.ok(secondaryChips.length >= 24, "Pokaż pełną semantykę statusów ekranów drugorzędnych");
 const usedSecondaryStatuses = new Set();
 for (const chip of secondaryChips) {
   const axis = chip.attributes["data-secondary-status-axis"];
