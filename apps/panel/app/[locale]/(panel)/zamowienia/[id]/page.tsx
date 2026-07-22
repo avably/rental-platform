@@ -452,7 +452,7 @@ export default async function OrderDetailPage({
           ) : null}
         </div>
 
-        {/* STAN POŚREDNI MA WŁASNĄ REPREZENTACJĘ (Z5, ADR-068).
+        {/* STAN POŚREDNI MA WŁASNĄ REPREZENTACJĘ (Z5, ADR-069).
             „Zwrot w toku" nie jest ani sukcesem, ani porażką: pieniądze
             wyszły z żądaniem, ale u klienta ich jeszcze nie ma. Gdyby ten
             blok nie istniał, operator widziałby saldo dodatnie i rejestr bez

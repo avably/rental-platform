@@ -1,5 +1,5 @@
 /**
- * Księgowanie kaucji w obiegu dostawcy (Z5, ADR-068) — JEDYNE miejsce
+ * Księgowanie kaucji w obiegu dostawcy (Z5, ADR-069) — JEDYNE miejsce
  * w repo, które wstawia do `deposit_events` wiersz z `provider = 'stripe'`.
  *
  * ================== DLACZEGO TO JEST OSOBNY MODUŁ ==================

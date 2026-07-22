@@ -31,7 +31,7 @@ function FormMessages({ state }: { state: FormState }) {
   }
   // Stan pośredni (zwrot przyjęty, jeszcze niepotwierdzony) — `status`,
   // nie `alert`: czytnik ekranu ma przeczytać to jako informację, bo
-  // operator nie ma tu czego naprawiać (Z5, ADR-068).
+  // operator nie ma tu czego naprawiać (Z5, ADR-069).
   if (state.notice) {
     return (
       <p role="status" className="text-muted-foreground text-sm">
@@ -64,7 +64,7 @@ export function DepositForms({
   suggestedCollectGrosze: number;
   currency: CurrencyCode;
   locale: string;
-  /** Zamówienie w obiegu dostawcy — zwrot idzie realnym refundem (ADR-068). */
+  /** Zamówienie w obiegu dostawcy — zwrot idzie realnym refundem (ADR-069). */
   online: boolean;
   /** Jest już zwrot zlecony i niepotwierdzony — drugi byłby drugą wypłatą. */
   refundInFlight: boolean;

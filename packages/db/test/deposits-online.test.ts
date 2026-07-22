@@ -1,6 +1,6 @@
 /**
  * Bramki kaucji online (packages/db/supabase/migrations/0031_deposit_provider_link.sql)
- * — dowody dla ADR-068.
+ * — dowody dla ADR-069.
  *
  * Zakres:
  *   1. OBIEG jest daną, nie domysłem: `provider` z zamkniętej listy,

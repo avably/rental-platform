@@ -141,7 +141,7 @@ export interface IntentRead {
 }
 
 /**
- * Parametry zwrotu kaucji (Z5, ADR-068).
+ * Parametry zwrotu kaucji (Z5, ADR-069).
  *
  * ZWROT JEST CZĘŚCIOWYM REFUNDEM TRANSAKCJI NAJMU, nie osobną operacją —
  * decyzja właściciela D4. Kaucja pojechała w tym samym PaymentIntencie co

@@ -82,7 +82,7 @@ export interface StripeWebhookDeps {
    */
   readIntent: (intentId: string, connectedAccountId: string) => Promise<IntentRead>;
   /**
-   * Odczyt ZWROTU u dostawcy (Z5, ADR-068) — lustro `readIntent`. Zdarzenie
+   * Odczyt ZWROTU u dostawcy (Z5, ADR-069) — lustro `readIntent`. Zdarzenie
    * `charge.refund.updated` niesie sam `re_...` i nic więcej; o tym, czy
    * pieniądze wróciły do klienta, mówi wyłącznie ten odczyt.
    */
@@ -225,7 +225,7 @@ async function markRefundRequest(
 }
 
 /**
- * Gałąź zdarzeń ZWROTU (Z5, ADR-068).
+ * Gałąź zdarzeń ZWROTU (Z5, ADR-069).
  *
  * Kształt jest lustrem gałęzi płatności i to nie jest przypadek — obie
  * odpowiadają na to samo pytanie („co dostawca zrobił z pieniędzmi") w ten

@@ -1,5 +1,5 @@
 /**
- * Zwrot kaucji u dostawcy (Z5, ADR-068) — warstwa domenowa nad klientem
+ * Zwrot kaucji u dostawcy (Z5, ADR-069) — warstwa domenowa nad klientem
  * Connect, lustro `payment-intent.ts`.
  *
  * ================== JEDNO ZDANIE, NA KTÓRYM STOI CAŁY PLIK ==================

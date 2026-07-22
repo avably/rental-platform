@@ -17,7 +17,7 @@ export interface DepositEventRow {
   reason_code: string | null;
   reason: string | null;
   /**
-   * Obieg, w którym pieniądze się poruszyły (0031, ADR-068). W chronologii
+   * Obieg, w którym pieniądze się poruszyły (0031, ADR-069). W chronologii
    * rejestru to nie ozdoba: w sporze z klientem różnica między „oddaliśmy
    * gotówką" a „oddaliśmy przelewem, oto identyfikator u dostawcy" jest
    * całą różnicą między słowem a dowodem.

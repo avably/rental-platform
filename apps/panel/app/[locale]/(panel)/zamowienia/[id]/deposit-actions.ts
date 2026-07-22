@@ -16,7 +16,7 @@
  * nie zaniechanie. Operator, który oddał gotówkę do ręki, REJESTRUJE fakt,
  * przy którym był — nie ma tam żadnego dostawcy, którego można by zapytać
  * o potwierdzenie, i wprowadzanie tam stanu „w toku" byłoby wymyślaniem
- * niepewności, której nie ma. Kaucja online (Z5, ADR-068) dokłada DRUGĄ
+ * niepewności, której nie ma. Kaucja online (Z5, ADR-069) dokłada DRUGĄ
  * ścieżkę zwrotu obok tej, a nie zamiast niej.
  */
 import { createDepositRefund, readDepositRefund } from "@avably/core";
@@ -141,7 +141,7 @@ export async function collectDepositAction(
  * jak expectedFrom w zmianie statusu). Jeśli saldo w międzyczasie zmalało,
  * nadmiar autorytatywnie odrzuca trigger 0011.
  *
- * ROZGAŁĘZIENIE NA OBIEG (Z5, ADR-068). Ta sama akcja obsługuje dwa
+ * ROZGAŁĘZIENIE NA OBIEG (Z5, ADR-069). Ta sama akcja obsługuje dwa
  * ZUPEŁNIE różne zdarzenia świata:
  *
  *   manual — operator oddał gotówkę i to REJESTRUJE. Wiersz powstaje od

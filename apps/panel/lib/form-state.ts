@@ -16,7 +16,7 @@ export interface FormState {
    *
    * Istnieje dla operacji, których wynik jest u kogoś innego i jeszcze nie
    * przyszedł: zwrot kaucji przyjęty przez dostawcę, ale niepotwierdzony
-   * odczytem (Z5, ADR-068). Bez tego pola taki stan musiałby udać jedno
+   * odczytem (Z5, ADR-069). Bez tego pola taki stan musiałby udać jedno
    * z dwóch — „sukces" kłamałby o pieniądzach klienta, a „błąd" kazałby
    * operatorowi zlecić DRUGI zwrot tej samej kaucji.
    */

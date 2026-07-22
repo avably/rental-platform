@@ -1,5 +1,5 @@
 /**
- * Kontrakt zwrotu kaucji (Z5, ADR-068) — na nagranych odpowiedziach, bez
+ * Kontrakt zwrotu kaucji (Z5, ADR-069) — na nagranych odpowiedziach, bez
  * sieci i bez konta dostawcy.
  *
  * Trzy testy niosą tu cały ciężar dowodowy:

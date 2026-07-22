@@ -1,5 +1,5 @@
 -- 0031_deposit_provider_link.sql
--- Z5 / ADR-068: kaucja online — pobranie razem z najmem (decyzja właściciela
+-- Z5 / ADR-069: kaucja online — pobranie razem z najmem (decyzja właściciela
 -- D1) i REALNY zwrot częściowym refundem tej samej transakcji (D4).
 --
 -- ---------------------------------------------------------------------
@@ -47,7 +47,7 @@
 -- metody, którymi płaci polski klient wynajmu — nie mają blokady środków
 -- w ogóle. Kaucja dostępna wyłącznie przy karcie byłaby kaucją dostępną
 -- dla mniejszości klientów, a najem z kaucją „tylko kartą" to najem
--- z ukrytym warunkiem. (ADR-068 rozwija: pre-autoryzacja wygasa po 7 dniach,
+-- z ukrytym warunkiem. (ADR-069 rozwija: pre-autoryzacja wygasa po 7 dniach,
 -- czyli w środku normalnego najmu, i wymagałaby odnawiania blokady, o
 -- którym klient nie wie.)
 --
@@ -83,7 +83,7 @@ alter table public.deposit_events
   add column if not exists provider_reference text;
 
 comment on column public.deposit_events.provider is
-  'Obieg, w którym pieniądze naprawdę się poruszyły: manual = kasa/przelew operatora (ADR-035), stripe = konto połączone najemcy (ADR-068). Default manual — obieg dostawcy wymaga JAWNEGO wpisania przez ścieżkę, która ma potwierdzenie ODCZYTEM.';
+  'Obieg, w którym pieniądze naprawdę się poruszyły: manual = kasa/przelew operatora (ADR-035), stripe = konto połączone najemcy (ADR-069). Default manual — obieg dostawcy wymaga JAWNEGO wpisania przez ścieżkę, która ma potwierdzenie ODCZYTEM.';
 comment on column public.deposit_events.provider_reference is
   'Odnośnik u dostawcy będący DOWODEM tego wiersza: pi_... przy pobraniu (kaucja jedzie w intencie najmu — D1/D4), re_... przy zwrocie. Wymagany dla provider=stripe, zabroniony dla manual.';
 
@@ -142,7 +142,7 @@ comment on index public.deposit_events_provider_reference_unique is
 -- 0011 zapowiadał niezmiennik w komentarzu tabeli; teraz komentarz dogania
 -- także rozdział obiegów.
 comment on table public.deposit_events is
-  'REJESTR zdarzeń kaucji (append-only): pobranie, zwrot, potrącenie. Stan kaucji to suma zdarzeń, a nie kolumna statusowa — historia rozliczenia jest tu dowodem w sporze z klientem, więc nie może być nadpisywana. Niezmiennik sumy (zwroty + potrącenia <= pobrania) egzekwuje trigger deposit_events_gate (0011, ADR-026) dla każdej roli; strukturalny powód potrącenia pilnuje CHECK deposit_events_structured_reason. Od 0031 (ADR-068) wiersz niesie OBIEG (provider) i DOWÓD u dostawcy (provider_reference): w obiegu stripe wiersz powstaje wyłącznie po ODCZYCIE potwierdzającym, nigdy z odpowiedzi na żądanie zapisu.';
+  'REJESTR zdarzeń kaucji (append-only): pobranie, zwrot, potrącenie. Stan kaucji to suma zdarzeń, a nie kolumna statusowa — historia rozliczenia jest tu dowodem w sporze z klientem, więc nie może być nadpisywana. Niezmiennik sumy (zwroty + potrącenia <= pobrania) egzekwuje trigger deposit_events_gate (0011, ADR-026) dla każdej roli; strukturalny powód potrącenia pilnuje CHECK deposit_events_structured_reason. Od 0031 (ADR-069) wiersz niesie OBIEG (provider) i DOWÓD u dostawcy (provider_reference): w obiegu stripe wiersz powstaje wyłącznie po ODCZYCIE potwierdzającym, nigdy z odpowiedzi na żądanie zapisu.';
 
 -- ---------------------------------------------------------------------
 -- 2. Rejestr ŻĄDAŃ zwrotu — public.deposit_refunds
@@ -251,7 +251,7 @@ create index if not exists deposit_refunds_tenant_order_idx
   on public.deposit_refunds (tenant_id, order_id, created_at desc);
 
 comment on table public.deposit_refunds is
-  'Rejestr ŻĄDAŃ zwrotu kaucji u dostawcy (Z5, ADR-068) — zamiar, nie fakt. Faktem jest dopiero wiersz refunded w deposit_events, powstały po ODCZYCIE. Ta tabela NIE wchodzi do salda kaucji. Istnieje po to, żeby: dwuklik nie wysłał dwóch refundów (id wiersza = klucz idempotencji dostawcy), stan pośredni („zwrot w toku") przeżył odświeżenie strony, a odmowa dostawcy miała trwały powód (last_error, ADR-046). Jest też punktem zaczepienia webhooka: zdarzenie charge.refund.updated niesie sam re_..., po którym odnajdujemy tu tenanta i zamówienie.';
+  'Rejestr ŻĄDAŃ zwrotu kaucji u dostawcy (Z5, ADR-069) — zamiar, nie fakt. Faktem jest dopiero wiersz refunded w deposit_events, powstały po ODCZYCIE. Ta tabela NIE wchodzi do salda kaucji. Istnieje po to, żeby: dwuklik nie wysłał dwóch refundów (id wiersza = klucz idempotencji dostawcy), stan pośredni („zwrot w toku") przeżył odświeżenie strony, a odmowa dostawcy miała trwały powód (last_error, ADR-046). Jest też punktem zaczepienia webhooka: zdarzenie charge.refund.updated niesie sam re_..., po którym odnajdujemy tu tenanta i zamówienie.';
 comment on column public.deposit_refunds.status is
   'requested = wysłaliśmy żądanie i NIE ZNAMY odpowiedzi (wymaga uzgodnienia z dostawcą); pending = dostawca przyjął, pieniędzy u klienta jeszcze NIE MA, rejestr zdarzeń PUSTY; succeeded = odczyt potwierdził, wiersz refunded istnieje; failed = odmowa/upadek, ZERO wiersza i powód w last_error.';
 comment on column public.deposit_refunds.amount_grosze is
