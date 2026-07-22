@@ -41,30 +41,46 @@ describe("integracja design systemu", () => {
     expect(source).not.toMatch(/shadow-(xs|sm|md|lg)/);
   });
 
-  // ADR-053 (delta P1a): OBA produkty jadą w całości na Geist Sans —
-  // jeden stack --font-sans, jedna zmienna --font-geist-sans.
-  it.each(["panel", "storefront"])(
+  // ADR-053 (delta P1a) + ADR-068: PRODUKT jedzie w całości na Geist Sans —
+  // jeden stack --font-sans, jedna zmienna --font-geist-sans. W storefroncie
+  // produktem jest oś tenancka (app/(tenant) + app/fonts.ts); oś marketingowa
+  // [locale] stoi na przeniesionym szablonie (decyzja właściciela, ADR-068)
+  // i jest POZA tym kontraktem — jej izolacji pilnuje
+  // apps/storefront/test/marketing-template.test.ts.
+  it.each([
+    ["panel", "app/[locale]/layout.tsx"],
+    ["storefront", "app/fonts.ts"],
+  ] as const)(
     "%s importuje wspólny arkusz i ładuje Geist",
-    (application) => {
+    (application, fontSourceFile) => {
       const globals = readFileSync(
         resolve(repositoryRoot, `apps/${application}/app/globals.css`),
         "utf8",
       );
-      const layout = readFileSync(
-        resolve(repositoryRoot, `apps/${application}/app/[locale]/layout.tsx`),
+      const fontSource = readFileSync(
+        resolve(repositoryRoot, `apps/${application}/${fontSourceFile}`),
         "utf8",
       );
 
       expect(globals).toContain('@import "@avably/ui/styles.css"');
-      expect(layout).toContain("Geist");
-      expect(layout).toContain('variable: "--font-geist-sans"');
+      expect(fontSource).toContain("Geist");
+      expect(fontSource).toContain('variable: "--font-geist-sans"');
     },
   );
+
+  it("oś tenancka storefrontu spina fonty produktu z arkuszem", () => {
+    const tenantLayout = readFileSync(
+      resolve(repositoryRoot, "apps/storefront/app/(tenant)/layout.tsx"),
+      "utf8",
+    );
+    expect(tenantLayout).toContain("globals.css");
+    expect(tenantLayout).toContain("fontVariables");
+  });
 
   // Twardy zakaz artefaktu Fazy 2: żadnych innych rodzin w produkcie.
   it.each([
     ["panel", ["app/[locale]/layout.tsx"]],
-    ["storefront", ["app/[locale]/layout.tsx", "app/fonts.ts"]],
+    ["storefront", ["app/(tenant)/layout.tsx", "app/fonts.ts"]],
   ] as const)(
     "%s nie deklaruje zakazanych rodzin (Geist Mono, Safiro, Inter, Lora)",
     (application, files) => {

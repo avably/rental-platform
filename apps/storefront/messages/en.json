@@ -81,189 +81,174 @@
       }
     ]
   },
-  "landing": {
-    "metadata": {
-      "title": "Avably — launch your rental business online",
-      "description": "Your own website and one planned system for bookings, availability, delivery, deposits and returns. Join the Avably waitlist.",
-      "ogTitle": "Take your rental business online in one day — Avably",
-      "ogDescription": "We are building Avably for equipment rental businesses. Join the waitlist and help set the priorities for the first release."
-    },
-    "header": {
-      "brand": "Avably",
+  "marketing": {
+    "nav": {
+      "pricing": "Pricing",
+      "faq": "Questions",
+      "contact": "Contact",
+      "waitlist": "Waitlist",
+      "login": "Sign in",
+      "cta": "Open your store",
+      "menuLabel": "Navigation",
       "languageLabel": "Change language",
       "polish": "PL",
       "english": "EN",
-      "lightTheme": "Light theme",
-      "darkTheme": "Dark theme"
+      "langAlternate": "PL"
+    },
+    "banner": {
+      "text": "PLN 199 per month during the trial period — the first 20 rental businesses pay half.",
+      "cta": "Open your store"
     },
     "hero": {
-      "eyebrow": "Avably is being built",
-      "title": "Launch your rental business online",
-      "body": "Your own website and one planned workspace for bookings, availability, delivery, deposits and returns. Our goal is to help you start taking rentals online in one day.",
-      "cta": "Join the waitlist",
-      "microcopy": "No payment. No commitment. We will get in touch when we are ready to invite the first businesses.",
-      "wireframe": {
-        "label": "Planned interface concept · Sample data",
-        "ariaLabel": "Planned availability calendar with a booking, return and deposit status",
-        "items": [
-          "Availability calendar",
-          "Rotary hammer 01",
-          "12–14 Sep · Reserved",
-          "15 Sep · Return and inspection",
-          "16 Sep · Available",
-          "Booking",
-          "Customer pickup",
-          "Deposit to settle"
-        ]
-      }
+      "eyebrow": "The system for equipment rental businesses",
+      "titleTop": "Replace the phone, the notebook",
+      "titleBottom": "and the transfers with one system.",
+      "body": "Bookings, unit availability, deposits, courier shipping and your own store website — in one place. You open the account yourself, by email, and start working the same day.",
+      "cta": "Open your store",
+      "ctaSecondary": "See what works today",
+      "feature1": "Bookings without collisions",
+      "feature2": "Deposits on the record",
+      "feature3": "A store at your own address"
     },
-    "problem": {
-      "title": "Manage what comes back",
-      "intro": "A sold item leaves the business. A rented item still has to come back — on time, in the right condition and ready for the next booking.",
-      "flow": "Booking → handover → in transit → return → inspection → available again",
-      "items": [
-        {
-          "title": "Prevent two bookings, one item",
-          "body": "The same unit is promised to two customers for the same weekend because the return and inspection window did not block the next booking."
-        },
-        {
-          "title": "Settle deposits without guesswork",
-          "body": "At return, someone has to decide what to refund, what to retain and how to explain the amount."
-        },
-        {
-          "title": "Find the current equipment status",
-          "body": "It may be with the customer, with a courier, at a pickup point or waiting for inspection — but there is no single view of where it stands."
-        }
-      ],
-      "closing": "Avably is being designed around the full rental cycle, not only the booking.",
-      "warehouseAlt": "Rows of equipment prepared for upcoming rentals",
-      "useAlt": "Work equipment in use away from the warehouse"
+    "premise": {
+      "eyebrow": "The starting point",
+      "statement": "A sold item leaves the business. A rented one has to come back — on time and ready for the next booking. Tools built for selling never close that cycle.",
+      "feature1": "The whole rental cycle",
+      "feature2": "One unit, one booking",
+      "feature3": "Your own store website"
     },
-    "capabilities": [
-      {
-        "eyebrow": "Planned capability",
-        "title": "Check availability before booking",
-        "body": "See whether a specific unit can go out and return without colliding with the next rental.",
-        "items": [
-          "Availability calendars for products and individual units",
-          "Reserved time for the rental, transport and return inspection",
-          "A clear view of rental extensions",
-          "Multiple pickup locations",
-          "Statuses for available, reserved, checked out and under inspection"
-        ],
-        "wireframeLabel": "Planned interface concept · Sample data",
-        "wireframeAriaLabel": "Planned availability view for an individual unit",
-        "wireframeItems": [
-          "Availability",
-          "Rotary hammer 01",
-          "Pickup location: Central",
-          "Booking · 12–14 Sep",
-          "Return inspection · 15 Sep",
-          "Next available · 16 Sep"
-        ]
-      },
-      {
-        "eyebrow": "Planned capability",
-        "title": "Handle pickup and delivery",
-        "body": "Keep the handover method with the booking instead of carrying arrangements across separate messages.",
-        "items": [
-          "Customer pickup at a selected location",
-          "Courier shipping",
-          "Parcel locker delivery",
-          "Delivery with your own vehicle",
-          "Planned handover and return dates",
-          "Delivery details needed by the team"
-        ],
-        "wireframeLabel": "Planned interface concept · Sample data",
-        "wireframeAriaLabel": "Planned delivery method and date selection",
-        "wireframeItems": [
-          "Delivery method",
-          "Customer pickup",
-          "Courier",
-          "Parcel locker",
-          "Own delivery",
-          "Planned handover · 12 Sep",
-          "Planned return · 14 Sep"
-        ]
-      },
-      {
-        "eyebrow": "Planned capability",
-        "title": "Settle deposits on return",
-        "body": "Close the rental with a clear record of timing, equipment condition and the amount returned to the customer.",
-        "items": [
-          "A record of the deposit collected",
-          "Refund and deduction amounts with a reason",
-          "Equipment condition at check-in",
-          "Rental extensions with a revised return date",
-          "Return shipping with a label",
-          "An activity history for the booking"
-        ],
-        "wireframeLabel": "Planned interface concept · Sample data",
-        "wireframeAriaLabel": "Planned return check-in and deposit settlement view",
-        "wireframeItems": [
-          "Check in return",
-          "Equipment · Rotary hammer 01",
-          "Condition · Needs inspection",
-          "Deposit collected · sample amount",
-          "Deposit refund · to be confirmed",
-          "Deduction reason · optional",
-          "Close rental"
-        ]
-      },
-      {
-        "eyebrow": "Planned capability",
-        "title": "Launch your own website",
-        "body": "Present your catalogue, available dates and pickup options on your rental business’s own domain.",
-        "items": [
-          "A rental website on your own domain",
-          "An equipment catalogue with variants and individual units",
-          "Availability shown alongside the offer",
-          "Booking with delivery or pickup selection",
-          "Multiple pickup locations",
-          "The information customers need before renting"
-        ],
-        "wireframeLabel": "Planned interface concept · Sample data",
-        "wireframeAriaLabel": "Planned website view for a rental business",
-        "wireframeItems": [
-          "Your rental business",
-          "Equipment",
-          "Available dates",
-          "Choose a pickup location",
-          "Check availability"
-        ]
-      }
-    ],
-    "founder": {
-      "title": "Build with someone who rents",
-      "paragraphs": [
-        "I run an equipment rental business. I know the weekend with two bookings against the same unit, the hunt for the deposit record and the question of whether an item is still with the customer, already in transit or waiting to be checked.",
-        "Avably comes from that day-to-day operational need. It is still at an early stage, so I do not want to guess how every rental business works. The first companies will help decide which workflows have to work first."
-      ],
-      "signature": "Maciej — founder of Avably and rental business owner"
+    "tabs": {
+      "eyebrow": "What works today",
+      "title": "Run the rental from booking to return",
+      "item1Title": "Track availability per unit",
+      "item1Body": "The availability calendar covers individual units together with their service windows. Even when two people click in the same second, only one booking goes through.",
+      "item2Title": "Settle deposits and returns",
+      "item2Body": "The register keeps every deduction together with its reason, and you record the equipment condition at check-in. The balance cannot drift.",
+      "item3Title": "Ship and receive by courier",
+      "item3Body": "Shipments and returns through a courier broker, PDF labels straight from the back office, and your own delivery pricing calculated into the order.",
+      "item4Title": "Launch your own store website",
+      "item4Body": "A yourname.avably.io address is ready right after sign-up. You arrange the sections in the editor, the draft stays private, and publishing takes one button.",
+      "item5Title": "Take bookings online",
+      "item5Body": "Customers pick equipment and dates while seeing live availability. The server calculates the price, the order lands in the back office, and both sides get an email."
     },
-    "founders": {
-      "eyebrow": "An offer for the first 20 businesses",
-      "title": "Keep 50% off while subscribed",
-      "bodyBeforePrice": "Avably’s planned launch price is",
-      "price": "PLN 199 per month",
-      "bodyBetween": ". The first 20 businesses that move from the waitlist to a paid Founding plan will receive",
-      "discount": "50% off the current plan price for as long as their subscription remains active",
-      "bodyAfter": ".",
-      "listIntro": "Founding businesses will receive:",
-      "items": [
-        "an earlier invitation to testing and the pilot,",
-        "a say in the priorities for the first release,",
-        "help setting up their online rental operation,",
-        "email support with a response within 24 hours,",
-        "50% off the current plan price for as long as the subscription remains active."
-      ],
-      "cta": "Join the waitlist",
-      "microcopy": "Joining does not require payment or start a subscription. We will confirm Founding plan places before the paid service launches."
+    "video": {
+      "quote": "I run an equipment rental business. I know the weekend with two bookings against one unit and the hunt for who is holding the deposit — Avably came out of that work, not out of a pitch deck.",
+      "authorName": "Maciej",
+      "authorRole": "founder of Avably, runs a rental business"
+    },
+    "features": {
+      "eyebrow": "Scope",
+      "title": "Close the whole cycle, not just the booking",
+      "cta": "Open your store",
+      "card1Title": "Availability and pricing",
+      "card1Body": "Calendars for products and units, service windows, tiered price lists with a live quote preview, and extensions with the surcharge added automatically.",
+      "card2Title": "Deposits without disputes",
+      "card2Body": "A register of deposits collected and returned, every deduction with its reason, condition recorded at check-in, and a full event history on the order.",
+      "card3Title": "Courier in the back office",
+      "card3Body": "Shipments and returns through a broker, PDF labels, your own delivery price list and the cost calculated into the order.",
+      "card4Title": "Lifecycle emails",
+      "card4Body": "Confirmed, ready for pickup, checked out, returned, cancelled — in Polish or English, under your business name, with a delivery history.",
+      "card5Title": "Data separated at the root",
+      "card5Body": "The separation between rental businesses runs at the database level rather than on screen, and an automated test verifies it on every change to the system."
+    },
+    "cta": {
+      "title": "Move bookings off the phone and into a system",
+      "body": "The customer books online, you see the order in the back office, and the equipment returns to stock with its inspection recorded. No spreadsheet only one person understands.",
+      "cta": "Open your store"
+    },
+    "momentum": {
+      "eyebrow": "Getting started",
+      "title": "Open your store in three steps",
+      "card1Title": "Open an account by email",
+      "card1Body": "You confirm the address and you are in the back office. No installation, no waiting on us, no sales call.",
+      "card2Title": "Add your equipment and prices",
+      "card2Body": "Products, units, tiered price lists and pickup locations — as much as you actually rent out.",
+      "card3Title": "Take the first booking",
+      "card3Body": "You turn on the store website, the order lands in the back office, the customer gets an email, and you run the rental through to the return."
+    },
+    "faq": {
+      "eyebrowTop": "Common",
+      "eyebrowBottom": "questions",
+      "q1": "Can I take online payments?",
+      "a1Lead": "Not yet.",
+      "a1": "Customers book online and pay on pickup or by bank transfer — the order reaches the back office either way. Online payments (BLIK, cards, Przelewy24) and online deposits are being built, and we are not giving dates for them.",
+      "q2": "Do I need a website already?",
+      "a2Lead": "No.",
+      "a2": "Your store gets a yourname.avably.io address when you sign up. If you have your own domain, the back office shows the single record to add at your domain provider and checks by itself whether it works.",
+      "q3": "How long does setup take?",
+      "a3Lead": "The account — minutes.",
+      "a3": "The store address works immediately after sign-up. Time to the first booking depends on how large a catalogue you enter — that part we will not promise in hours.",
+      "q4": "What exactly does the Founding 50% mean?",
+      "a4Lead": "Half price for as long as the subscription runs.",
+      "a4": "The first 20 rental businesses that move to a paid subscription pay half the current price for as long as that subscription stays active. No annual contract and no onboarding fee.",
+      "q5": "Is my data separated from other businesses?",
+      "a5Lead": "Yes.",
+      "a5": "Each rental business’s data is separated at the database level, and an automated test verifies that separation on every change to the system. Access to the platform admin panel is protected by a second factor.",
+      "q6": "What data do you collect on this site?",
+      "a6Lead": "Only what you leave yourself.",
+      "a6": "We collect an email address and form answers only when you sign up for the waitlist. The purpose, the retention period and your rights are described in the Privacy Policy."
+    },
+    "closing": {
+      "eyebrow": "Start today",
+      "title": "Open your store and take the first booking",
+      "cta": "Open your store"
+    },
+    "footer": {
+      "description": "Avably — the system for equipment rental businesses: a rental back office and your own store website with online booking.",
+      "columnProduct": "Product",
+      "columnCompany": "Company",
+      "waitlistLead": "Would rather watch first?",
+      "waitlistCta": "Join the waitlist",
+      "waitlistNote": "We only write when something substantial changes. We never pass your address on.",
+      "privacy": "Privacy Policy",
+      "copyright": "© Avably 2026. All rights reserved."
+    },
+    "waitlistPage": {
+      "title": "Leave your address if you would rather wait",
+      "intro": "You can open a store right away — sign-up works and needs no call with us. If you would rather watch first, leave your address: we write when something substantial changes.",
+      "emailLabel": "Email",
+      "email": "admin@avably.io",
+      "addressLabel": "Address",
+      "addressLine1": "ul. Cumownicza 1a/2",
+      "addressLine2": "60-480 Poznań, Poland"
+    },
+    "privacyPage": {
+      "eyebrow": "Documents",
+      "title": "Privacy Policy"
+    },
+    "pricingPage": {
+      "title": "One plan, no commitment",
+      "planLabel": "Avably plan",
+      "price": "PLN 199 / month",
+      "priceNote": "A trial-period price — we are testing it with the first rental businesses.",
+      "includesTitle": "Included",
+      "include1": "The rental back office: catalogue, bookings, deposits, returns",
+      "include2": "Your own store website with online booking",
+      "include3": "A yourname.avably.io address and your own domain",
+      "include4": "Customer emails sent under your business name",
+      "include5": "Courier shipments, returns and labels",
+      "foundersLabel": "Founding 50% off",
+      "foundersPrice": "PLN 99.50 / month",
+      "foundersNote": "The first 20 rental businesses pay half the current price for as long as the subscription stays active.",
+      "honestTitle": "Plainly",
+      "honest1": "No annual contract and no onboarding fee.",
+      "honest2": "You cancel whenever you want. You open the account by email, without entering a card.",
+      "buildingTitle": "Being built",
+      "building1": "Online payments (BLIK, cards, Przelewy24) and online deposits",
+      "building2": "PDF agreements and invoices issued automatically"
+    }
+  },
+  "landing": {
+    "metadata": {
+      "title": "Avably — the system for equipment rental businesses",
+      "description": "Bookings, unit availability, deposits, courier shipping and your own store website in one system. Open your store and take bookings online.",
+      "ogTitle": "Avably — run your rental business in one system",
+      "ogDescription": "A rental back office and your own store website with online booking. PLN 199 per month during the trial period, 50% off for the first 20 rental businesses."
     },
     "form": {
-      "eyebrow": "4 short fields · about one minute",
-      "title": "Join the Avably waitlist",
-      "intro": "Tell us briefly what you rent and how you manage bookings today. Your answers will help keep the first release grounded in real rental operations.",
+      "eyebrow": "4 short fields · about a minute",
+      "title": "Leave your address if you would rather wait",
+      "intro": "You can open a store right away — sign-up works. If you would rather watch first, tell us briefly what you rent: it helps us set the order of work.",
       "emailLabel": "Work email*",
       "emailPlaceholder": "you@company.com",
       "emailHelp": "We will use this address for pilot and launch updates.",
@@ -327,37 +312,12 @@
         "body": "The form is ready, but sign-ups are not open yet. Please check back soon."
       }
     },
-    "faq": {
-      "eyebrow": "Common questions",
-      "title": "Before you join the list",
-      "items": [
-        {
-          "question": "Do I need to have a website already?",
-          "answer": "No. A rental website on your own domain is one planned part of Avably. If you already have a website, we will only decide how to connect or replace it after understanding your current setup."
-        },
-        {
-          "question": "How long will setup take?",
-          "answer": "Our goal is to reduce the time needed to start taking rentals online to one day, but this is not yet a guaranteed setup time. The actual timeline will depend on factors such as catalogue size, available data and the rental business’s configuration. The product is still being built, and we will validate this goal with the first businesses."
-        },
-        {
-          "question": "What can I use today?",
-          "answer": "Avably is at an early stage of development. The screens on this page are planned interface concepts and use sample data. Joining the waitlist or expressing interest in the pilot does not provide immediate access to a finished service."
-        },
-        {
-          "question": "What exactly does the 50% Founding discount mean, and how long does it last?",
-          "answer": "The first 20 businesses that move from the waitlist to a paid Founding plan will receive 50% off the current plan price for as long as their subscription remains active. Joining the waitlist does not start a payment or confirm a place; we will confirm places before the paid service launches."
-        },
-        {
-          "question": "What data do you collect?",
-          "answer": "When you join, we collect your email address and answers from the form, and a phone number only from people who apply for the pilot. Details about the purpose, retention period, and your rights are available in the",
-          "linkLabel": "Privacy Policy."
-        }
-      ]
-    },
-    "footer": {
-      "description": "Avably — a planned system for running an equipment rental business online.",
-      "privacy": "Privacy Policy",
-      "copyright": "© Avably"
+    "waitlistPage": {
+      "metadataTitle": "Waitlist — Avably",
+      "metadataDescription": "Leave your address and we will write when something substantial changes in Avably.",
+      "back": "Back to the home page",
+      "altLead": "You do not have to wait.",
+      "altCta": "Open your store now"
     }
   },
   "storefront": {

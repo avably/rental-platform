@@ -37,7 +37,17 @@ const allowDbServiceImport = {
   },
 };
 
+/**
+ * Zasoby przeniesionego szablonu (ADR-068) są cudzym, wyeksportowanym kodem —
+ * nie podlegają naszym regułom stylu i nie mają być „poprawiane”. To samo
+ * dotyczy HTML-a stron marketingowych, który jest DANYMI, nie źródłem.
+ */
+const ignoreVendoredTemplate = {
+  ignores: ["public/forerunner/**", "marketing/**"],
+};
+
 const config = [
+  ignoreVendoredTemplate,
   ...baseConfig,
   ...nextCoreWebVitals,
   restrictDbServiceImport,

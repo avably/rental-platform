@@ -9,6 +9,8 @@ interface LanguageSwitcherProps {
     languageLabel: string;
     polish: string;
   };
+  /** Ścieżka, na której stoimy: przełącznik zmienia język, a nie stronę. */
+  href: "/" | "/waitlist";
   locale: "en" | "pl";
 }
 
@@ -18,14 +20,14 @@ function currentSection(): string {
   return current?.dataset.analyticsSection ?? "header";
 }
 
-export function LanguageSwitcher({ copy, locale }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ copy, href, locale }: LanguageSwitcherProps) {
   return (
     <nav aria-label={copy.languageLabel} className="landing-ghost-pill flex items-center p-1 text-sm">
       {(["en", "pl"] as const).map((target) => (
         <Link
           aria-current={target === locale ? "page" : undefined}
           className="landing-pill px-3 py-1.5 font-medium aria-[current=page]:bg-foreground aria-[current=page]:text-background"
-          href="/"
+          href={href}
           hrefLang={target}
           key={target}
           locale={target}
