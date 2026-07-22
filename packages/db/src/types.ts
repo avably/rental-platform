@@ -139,3 +139,34 @@ export interface Domain {
   verified: boolean;
   created_at: string;
 }
+
+// --- Konto najemcy u dostawcy płatności (0028_payment_accounts.sql, ADR-065) ---
+//
+// UWAGA NA POMYŁKĘ, KTÓREJ TEN TYP MA ZAPOBIEC: `Tenant.stripe_customer_id`
+// i `Tenant.stripe_subscription_id` (0001) opisują PRZECIWNY kierunek
+// pieniędzy — najemca płacący NAM za subskrypcję (faza 4). Tutaj chodzi
+// o konto, na które wpływają pieniądze KLIENTÓW najemcy.
+
+export interface PaymentAccount {
+  tenant_id: string;
+  provider: "stripe";
+  /** Identyfikator konta u dostawcy. Niezmienny po założeniu (trigger 0028). */
+  provider_account_id: string;
+  /**
+   * CACHE PREZENTACYJNY z ostatniego odczytu `GET /v1/accounts/{id}`
+   * (ADR-049) — nigdy podstawa decyzji o pobraniu pieniędzy. Ścieżka
+   * płatnicza odczytuje stan u dostawcy na nowo.
+   */
+  charges_enabled: boolean;
+  /** Osobno od charges_enabled: konto restricted przyjmuje wpłaty i blokuje wypłaty. */
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  /** Identyfikatory wymagań dostawcy blokujących konto TERAZ. */
+  requirements_due: string[];
+  /** Powód ostatniej nieudanej synchronizacji; NULL = ostatni odczyt się udał. */
+  last_error: string | null;
+  /** Kiedy powstała kopia stanu. NULL = jeszcze nigdy nie odczytana. */
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
