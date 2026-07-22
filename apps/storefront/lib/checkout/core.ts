@@ -200,17 +200,25 @@ export async function submitCheckoutCore(
   // ŚWIEŻY: między wyrenderowaniem formularza a wysłaniem go dostawca mógł
   // zablokować konto najemcy.
   //
+  // ODCZYT DZIEJE SIĘ WYŁĄCZNIE DLA WYBORU `online` i to nie jest oszczędność
+  // na żądaniu, tylko konsekwencja ADR-066: tor offline jest dostępny ZAWSZE,
+  // więc jego odpowiedź jest znana bez pytania kogokolwiek. Gdyby checkout
+  // przelewowy wołał dostawcę, uzależniłby sprzedaż najemcy od cudzej
+  // dostępności w miejscu, w którym nikt niczego nie płaci.
+  //
   // Porażka odczytu to „online niedostępne", nie „checkout niedostępny":
   // klient wybierający przelew nie ma prawa oberwać awarią integracji,
-  // z której nie korzysta (ADR-066).
-  let availability: OnlinePaymentAvailability;
-  try {
-    availability = await deps.readOnlineAvailability();
-  } catch {
-    availability = { stripeConfigured: false, chargesEnabled: false };
-  }
-  if (!isPaymentMethodAllowed(data.paymentMethod, availability)) {
-    return { status: "payment_unavailable" };
+  // z której nie korzysta.
+  if (data.paymentMethod === "online") {
+    let availability: OnlinePaymentAvailability;
+    try {
+      availability = await deps.readOnlineAvailability();
+    } catch {
+      availability = { stripeConfigured: false, chargesEnabled: false };
+    }
+    if (!isPaymentMethodAllowed(data.paymentMethod, availability)) {
+      return { status: "payment_unavailable" };
+    }
   }
 
   let rpc: CheckoutRpcResult;

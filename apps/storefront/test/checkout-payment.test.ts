@@ -180,6 +180,20 @@ describe("wybór online przy najemcy bez KYC", () => {
     expect(d.callRpc).toHaveBeenCalled();
   });
 
+  it("checkout PRZELEWOWY w ogóle nie pyta dostawcy o dostępność", async () => {
+    // Tor offline jest dostępny ZAWSZE (ADR-066), więc jego odpowiedź jest
+    // znana bez pytania kogokolwiek. Zapytanie w tym miejscu uzależniłoby
+    // sprzedaż najemcy od cudzej dostępności tam, gdzie nikt nic nie płaci.
+    const d = deps({
+      callRpc: vi.fn(async () => rpcResult({ payment_method: "transfer", payment_provider: "manual" })),
+    });
+
+    const result = await submitCheckoutCore({ ...VALID_INPUT, paymentMethod: "transfer" }, d);
+
+    expect(result.status).toBe("success");
+    expect(d.readOnlineAvailability).not.toHaveBeenCalled();
+  });
+
   it("awaria odczytu dostępności NIE wywraca checkoutu przelewowego", async () => {
     // Nasza awaria integracji nie ma prawa zabrać najemcy sprzedaży za
     // przelewem — klient wybierający przelew o istnieniu integracji nie wie.
