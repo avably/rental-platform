@@ -131,5 +131,6 @@ Obowiązkowe mutacje:
 3. usunięcie `Idempotency-Key` z transportu — czerwony test nagłówka i podwójnej próby;
 4. złożenie sumy z bieżącego cennika zamiast utrwalonych kwot — czerwony test propsów;
 5. zmiana bajtów załącznika względem zapisanego PDF-a — czerwony test tożsamości hash/załącznik.
+6. pobranie `document_id` należącego do innego tenanta — czerwony test dowodzi odmowy przez RLS na metadanych i Storage, niezależnie od guarda route handlera.
 
-Pełna weryfikacja obejmuje testy pakietów, typecheck, lint, build, lokalny reset Supabase, testy RLS oraz oba joby CI. Commit ma autora `Avably <admin@avably.io>`. PR Z7 jest zależny od PR #90; merge wykonuje PM.
+Pełna weryfikacja obejmuje testy pakietów, typecheck, lint, build, lokalny reset Supabase, testy RLS oraz oba joby CI. Commit ma autora `Avably <admin@avably.io>`. PR Z7 jest zależny kolejno od PR #90 (paleta PDF) i PR #91 (P7 w `apps/panel`). PM wykonuje rebase na oba poprzedniki i ponawia CI przy odbiorze; autor Z7 nie rebasuje gałęzi w locie. Ponieważ Z7 wnosi migrację 0026 oraz nowe polityki Storage i RLS, merge wymaga jawnej zgody właściciela po odbiorze PM.
