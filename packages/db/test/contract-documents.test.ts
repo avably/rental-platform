@@ -189,6 +189,33 @@ describe.skipIf(!hasEnv)("umowy per tenant — RLS tabeli i Storage", () => {
     expect(data?.terms_version).toBe("2026-07");
   });
 
+  it("Storage API sprząta wyłącznie własny orphan, nigdy zarejestrowany dokument", async () => {
+    const own = documentRow(a, orderAId, { sha256: "f".repeat(64) });
+    expect(
+      (await a.ownerClient.storage.from(BUCKET).upload(own.storage_path, PDF, { upsert: false }))
+        .error,
+    ).toBeNull();
+    uploaded.push(own.storage_path);
+
+    const foreignDelete = await b.ownerClient.storage.from(BUCKET).remove([own.storage_path]);
+    expect(foreignDelete.error).toBeNull();
+    expect((await a.ownerClient.storage.from(BUCKET).download(own.storage_path)).error).toBeNull();
+
+    const ownDelete = await a.ownerClient.storage.from(BUCKET).remove([own.storage_path]);
+    expect(ownDelete.error).toBeNull();
+    expect((await a.ownerClient.storage.from(BUCKET).download(own.storage_path)).error).not.toBeNull();
+
+    const registered = documentRow(a, orderAId, { sha256: "1".repeat(64) });
+    expect((await a.ownerClient.storage.from(BUCKET).upload(registered.storage_path, PDF)).error).toBeNull();
+    uploaded.push(registered.storage_path);
+    expect((await a.ownerClient.from("contract_documents").insert(registered)).error).toBeNull();
+    expect((await a.ownerClient.storage.from(BUCKET).remove([registered.storage_path])).error).toBeNull();
+    expect(
+      (await a.ownerClient.storage.from(BUCKET).download(registered.storage_path)).error,
+      "zarejestrowany dokument musi przeżyć próbę DELETE",
+    ).toBeNull();
+  });
+
   it("CHECK contract_document odrzuca niepełne i dopuszcza kompletne ustawienia", async () => {
     const incomplete = await a.ownerClient.from("tenant_settings").insert({
       tenant_id: a.tenantId,

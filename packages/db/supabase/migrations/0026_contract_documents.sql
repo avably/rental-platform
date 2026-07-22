@@ -113,19 +113,19 @@ create policy rental_contracts_tenant_insert on storage.objects for insert to au
     and (storage.foldername(name))[1]::uuid = app.tenant_id()
   );
 
--- Wąskie sprzątanie uploadu, który NIE STAŁ SIĘ dokumentem (np. przegrany
--- wyścig UNIQUE). Zarejestrowany storage_path jest nieusuwalny — to bramka,
--- nie konwencja aplikacji. Brak polityki UPDATE.
-drop policy if exists rental_contracts_orphan_delete on storage.objects;
-create policy rental_contracts_orphan_delete on storage.objects for delete to authenticated
+-- Storage zabrania bezpośredniego DELETE z SQL (protect_delete), więc
+-- sprzątanie idzie Storage API. Polityka dopuszcza wyłącznie WŁASNY upload
+-- bieżącego użytkownika, w jego tenancie, dopóki nie ma metadanych. Inny
+-- operator tego samego tenanta nie może wygrać wyścigu z INSERT-em dokumentu.
+drop policy if exists rental_contracts_own_orphan_delete on storage.objects;
+create policy rental_contracts_own_orphan_delete on storage.objects for delete to authenticated
   using (
     bucket_id = 'rental-contracts'
     and (storage.foldername(name))[1]::uuid = app.tenant_id()
+    and owner = auth.uid()
     and not exists (
-      select 1
-      from public.contract_documents d
-      where d.tenant_id = app.tenant_id()
-        and d.storage_path = storage.objects.name
+      select 1 from public.contract_documents d
+      where d.tenant_id = app.tenant_id() and d.storage_path = storage.objects.name
     )
   );
 

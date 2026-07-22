@@ -30,13 +30,13 @@
 
 **Interfaces:**
 - Produces table `public.contract_documents`, bucket `rental-contracts`, `email_logs.kind='rental_contract'`, columns `contract_document_id` and `idempotency_key`.
-- Produces RPC `app.discard_unregistered_contract_object(p_document_id uuid)` that can delete only the caller tenant's object when no metadata row exists.
+- Produces an owner-bound Storage DELETE policy that can remove only the caller's own object when no metadata row exists (Supabase blocks direct SQL deletion and requires the Storage API).
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Add tests that introspect migration 0026 and, on live Supabase, assert: valid own INSERT/SELECT and Storage upload/download; cross-tenant metadata SELECT is empty; cross-tenant INSERT is 42501/23503; cross-tenant object download fails; UPDATE/DELETE fail; foreign order FK fails; invalid settings JSON fails 23514; `rental_contract` requires same-tenant document and idempotency key; duplicate idempotency key cannot create a second log; old kinds accept null new columns. Include the PM vector: tenant A asks directly for tenant B's `document_id` through table and Storage APIs, without route-handler code, and gets no data.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -47,7 +47,7 @@ corepack pnpm --filter @avably/db vitest run test/contract-documents.test.ts
 
 Expected: FAIL because migration/table/bucket do not exist.
 
-- [ ] **Step 3: Implement migration 0026**
+- [x] **Step 3: Implement migration 0026**
 
 Create `contract_documents` with columns from the spec and checks equivalent to:
 
@@ -61,7 +61,7 @@ unique (tenant_id, order_id, sha256)
 
 Add SELECT/INSERT policies using `app.tenant_id()` and grants without UPDATE/DELETE. Add the private bucket and authenticated SELECT/INSERT policies constrained by `(storage.foldername(name))[1]::uuid = app.tenant_id()`. Extend `tenant_settings` CHECK only for key `contract_document` with exact JSON keys and limits from the spec. Extend `email_logs` and its result-shape check so `kind='rental_contract'` iff `contract_document_id` and `idempotency_key` are non-null; add same-tenant composite FK and a partial unique index on `(tenant_id, idempotency_key)`.
 
-- [ ] **Step 4: Reset DB and verify GREEN**
+- [x] **Step 4: Reset DB and verify GREEN**
 
 Run:
 
@@ -73,7 +73,7 @@ corepack pnpm --filter @avably/db vitest run test/email-logs.test.ts test/schema
 
 Expected: all selected tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/db
@@ -95,11 +95,11 @@ git commit -m "feat(db): dodaj prywatne dokumenty umów i RLS"
 - `EmailLogEntry.contractDocumentId?: string | null`, `idempotencyKey?: string | null`.
 - Existing callers without these fields produce byte-for-byte equivalent HTTP bodies and no `Idempotency-Key` header.
 
-- [ ] **Step 1: Write failing transport and recorder tests**
+- [x] **Step 1: Write failing transport and recorder tests**
 
 Assert a message with `idempotencyKey: "rental-contract/doc/attempt"` sends header `Idempotency-Key` and the same JSON body; a message without it has no header. Add a recorder test asserting the two new log fields map to snake_case while old entries still map null.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm --filter @avably/core vitest run src/email/transport.test.ts
@@ -108,7 +108,7 @@ corepack pnpm --filter panel vitest run test/email-log.test.ts
 
 Expected: type/runtime failures for missing fields/header.
 
-- [ ] **Step 3: Implement minimal optional fields**
+- [x] **Step 3: Implement minimal optional fields**
 
 In `resendTransport`, extend headers only when provided:
 
@@ -118,11 +118,11 @@ In `resendTransport`, extend headers only when provided:
 
 Pass new metadata through `sendAndLog` and `panelEmailLogRecorder`. For a keyed entry, use insert with duplicate-ignore semantics on `(tenant_id,idempotency_key)`; do not update an existing append-only row.
 
-- [ ] **Step 4: Verify GREEN and old-call regression**
+- [x] **Step 4: Verify GREEN and old-call regression**
 
 Run both focused suites and all core tests. Confirm the existing “bez załączników” and body snapshot tests remain green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/core apps/panel/lib/email-log.ts apps/panel/test/email-log.test.ts
@@ -141,11 +141,11 @@ git commit -m "feat(email): dodaj idempotencję wysyłki"
 - `renderRentalContractEmail(props: { locale; tenantName; customerName; orderNumber }): Promise<RenderedEmail>`.
 - `emailMessages(locale).rentalContract.heading` is the subject source.
 
-- [ ] **Step 1: Write failing EN/PL render tests**
+- [x] **Step 1: Write failing EN/PL render tests**
 
 Assert tenant name, customer name, order number, attachment wording, no platform branding inside rental layout, plain text, and snapshots for both locales.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm --filter @avably/emails vitest run test/rental-contract.test.tsx
@@ -153,15 +153,15 @@ corepack pnpm --filter @avably/emails vitest run test/rental-contract.test.tsx
 
 Expected: missing export/template.
 
-- [ ] **Step 3: Implement minimal 8a template**
+- [x] **Step 3: Implement minimal 8a template**
 
 Use `RentalEmailLayout`; accept already formatted strings; do not attach bytes in the template.
 
-- [ ] **Step 4: Verify GREEN and snapshots deliberately**
+- [x] **Step 4: Verify GREEN and snapshots deliberately**
 
 Run focused and full e-mail suites; inspect both snapshots.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/emails
@@ -190,29 +190,29 @@ git commit -m "feat(emails): dodaj wiadomość z umową najmu"
 - `contractDocumentSettingsSchema` and `contractDocumentSettingsFromRows(rows)` return the exact spec type or throw `ContractSettingsError`.
 - `saveContractSettingsAction(prev, formData)` upserts through the user session; RLS is the owner-only write gate.
 
-- [ ] **Step 1: Write failing parser/validation tests**
+- [x] **Step 1: Write failing parser/validation tests**
 
 Cover valid nullable NIP, trimming, every length boundary, bad JSON shapes, extra keys, invalid email, and FormData mapping.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm --filter panel vitest run test/contract-settings.test.ts
 ```
 
-- [ ] **Step 3: Implement parser and actions**
+- [x] **Step 3: Implement parser and actions**
 
 Use strict Zod object; map DB errors to localized form state. Staff sees read-only values; owner gets the form. Do not duplicate authorization in a client flag: database policy decides the write.
 
-- [ ] **Step 4: Add route, navigation, messages and route contracts**
+- [x] **Step 4: Add route, navigation, messages and route contracts**
 
 Add `/ustawienia-umow` to protected-route enumeration and message parity. Keep nav structure compatible with P7 by adding a single settings item and icon; document that PM resolves the #91 conflict.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run parser, navigation, protected routes, and message parity suites.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/panel
@@ -233,26 +233,26 @@ git commit -m "feat(panel): dodaj ustawienia dokumentów umów"
 - `verifySha256(bytes, expected): void` throws `ContractIntegrityError`.
 - `buildContractEmail(input): Promise<OutgoingEmail>` attaches the exact supplied bytes and sets the supplied idempotency key.
 
-- [ ] **Step 1: Add workspace dependency and write failing tests**
+- [x] **Step 1: Add workspace dependency and write failing tests**
 
 Tests use deliberately different current price tiers from persisted order amounts, assert persisted amounts win, customer locale fallback, inclusive days, formatted dates EN/PL, address composition, delivery amount, settings terms, exact SHA-256 vector, mismatch exception, exact attachment byte identity and key format.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm install --lockfile-only
 corepack pnpm --filter panel vitest run 'app/[locale]/(panel)/zamowienia/[id]/contract-document.test.ts'
 ```
 
-- [ ] **Step 3: Implement pure functions**
+- [x] **Step 3: Implement pure functions**
 
 Use `node:crypto`, `rentalDaysInclusive`, `renderRentalContractEmail`, and the frozen `ContractPdfProps`. Do not import Supabase or Next.js into this file.
 
-- [ ] **Step 4: Verify GREEN and PDF contract unchanged**
+- [x] **Step 4: Verify GREEN and PDF contract unchanged**
 
 Run focused panel tests plus `corepack pnpm --filter @avably/pdf vitest run`; verify `git diff -- packages/pdf/src/types.ts packages/pdf/src/render.ts` is empty.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/panel/package.json pnpm-lock.yaml apps/panel/app/[locale]/\(panel\)/zamowienia/[id]/contract-document.ts apps/panel/app/[locale]/\(panel\)/zamowienia/[id]/contract-document.test.ts
@@ -273,29 +273,29 @@ git commit -m "feat(panel): złóż dane trwałej umowy"
 - `downloadContract(deps, input): Promise<{ bytes; filename }>` verifies hash.
 - `sendContract(deps, input): Promise<{ success?: string; formError?: string }>` prechecks attempt key, verifies bytes, and calls `sendAndLog` with `kind: "rental_contract"`.
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 With injected repository/storage/transport, cover: render once; reuse same hash; upload `upsert:false`; clean own orphan on insert failure; reject missing config/customer/address/items; download identical bytes; reject mismatched bytes; reject metadata hidden by RLS; send exact stored bytes; failed transport logs failed; duplicate attempt returns prior result without second transport call; conscious retry with new attempt calls transport.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm --filter panel vitest run 'app/[locale]/(panel)/zamowienia/[id]/contract-service.test.ts'
 ```
 
-- [ ] **Step 3: Implement dependency-injected service**
+- [x] **Step 3: Implement dependency-injected service**
 
 Keep Next/Supabase adapters thin in actions/route. All authoritative order queries include tenant filters and persisted financial fields. Generate UUIDs server-side before render/upload. Route downloads through the session client and verifies SHA again.
 
-- [ ] **Step 4: Write and run live integration tests**
+- [x] **Step 4: Write and run live integration tests**
 
 Use two seeded tenants. Generate for A, then directly ask A's session for B's metadata and object path; both must fail by RLS. Verify route helper is not involved in this assertion. Parse generated PDF with `unpdf` and assert customer/order/terms text.
 
-- [ ] **Step 5: Verify GREEN**
+- [x] **Step 5: Verify GREEN**
 
 Run focused service tests and live `contracts.test.ts` after DB reset.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/panel/app/[locale]/\(panel\)/zamowienia/[id] apps/panel/test/contracts.test.ts
@@ -316,25 +316,25 @@ git commit -m "feat(panel): generuj i wysyłaj trwałe umowy"
 - `ContractSection({ orderId })` loads documents and linked `email_logs` through RLS.
 - Form actions carry server-generated `attemptId`; rerender creates a new intentional retry identifier.
 
-- [ ] **Step 1: Write failing UI contract tests**
+- [x] **Step 1: Write failing UI contract tests**
 
 Assert missing-config state/link, generation CTA, document metadata/hash/version, download target, send/retry labels, sent/failed history, accessible form labels, and EN/PL parity.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```bash
 corepack pnpm --filter panel vitest run test/contract-section.test.tsx test/messages-parity.test.ts
 ```
 
-- [ ] **Step 3: Implement section and integrate one line into detail page**
+- [x] **Step 3: Implement section and integrate one line into detail page**
 
 Place it near the financial/delivery workflow without changing existing section order otherwise. Use existing `Button`, `Badge`, tables and semantic status tones.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run focused UI, order detail, protected route, nav and message suites.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/panel
@@ -352,11 +352,11 @@ git commit -m "feat(panel): pokaż obieg umowy na zamówieniu"
 - ADR-061 records private immutable storage, hash verification, `email_logs` reuse, and two-layer idempotency.
 - Journal entry states dependency on #90/#91 and owner approval requirement.
 
-- [ ] **Step 1: Add docs and ADR-061**
+- [x] **Step 1: Add docs and ADR-061**
 
 Update module cards, data model, security/RLS notes, route inventory and build journal. Put the journal entry at the top. Do not claim PR number until created.
 
-- [ ] **Step 2: Execute and record six mutations with restore and non-empty diff stat**
+- [x] **Step 2: Execute and record six mutations with restore and non-empty diff stat**
 
 For each mutation: apply, run the exact focused test, record failing test/message, restore, verify non-empty `git diff --stat` before restore and clean intended diff afterward:
 
@@ -381,7 +381,7 @@ corepack pnpm audit --audit-level high
 
 Then run the real DB suites without skip, equivalent to the repository's `rls` job.
 
-- [ ] **Step 4: Verify scope and contract**
+- [x] **Step 4: Verify scope and contract**
 
 ```bash
 git diff --check
@@ -391,7 +391,7 @@ git status --short
 
 Expected: no PDF public-contract diff; only intended Z7 files; clean whitespace.
 
-- [ ] **Step 5: Commit docs and verification record**
+- [x] **Step 5: Commit docs and verification record**
 
 ```bash
 git add docs apps packages pnpm-lock.yaml

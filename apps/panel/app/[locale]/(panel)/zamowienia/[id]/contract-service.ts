@@ -26,6 +26,13 @@ export interface ContractRepository {
   findAttempt(tenantId: string, idempotencyKey: string): Promise<{ status: "sent" | "failed"; error: string | null } | null>;
 }
 
+export class ContractRepositoryError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+    this.name = "ContractRepositoryError";
+  }
+}
+
 export interface ContractStorage {
   upload(path: string, bytes: Uint8Array, options: { upsert: false }): Promise<void>;
   download(path: string): Promise<Uint8Array>;
@@ -79,6 +86,10 @@ export async function generateContract(
     return await deps.repository.insert(document);
   } catch (error) {
     await deps.storage.removeOrphan(storagePath);
+    if (error instanceof ContractRepositoryError && error.code === "23505") {
+      const winner = await deps.repository.findByHash(input.tenantId, input.orderId, sha256);
+      if (winner) return winner;
+    }
     throw error;
   }
 }

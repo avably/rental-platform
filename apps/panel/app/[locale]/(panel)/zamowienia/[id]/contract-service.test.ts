@@ -8,6 +8,7 @@ import {
   generateContract,
   sendContract,
   type ContractDocumentRow,
+  ContractRepositoryError,
   type ContractServiceDeps,
 } from "./contract-service";
 
@@ -78,6 +79,19 @@ describe("generateContract", () => {
     vi.mocked(d.repository.insert).mockRejectedValue(new Error("unique"));
     await expect(generateContract(d, input)).rejects.toThrow("unique");
     expect(d.storage.removeOrphan).toHaveBeenCalledWith(row.storage_path);
+  });
+
+  it("po przegranym wyścigu UNIQUE zwraca dokument zwycięzcy", async () => {
+    const d = deps();
+    vi.mocked(d.repository.insert).mockRejectedValue(
+      new ContractRepositoryError("duplicate", "23505"),
+    );
+    vi.mocked(d.repository.findByHash)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(row);
+    await expect(generateContract(d, input)).resolves.toEqual(row);
+    expect(d.storage.removeOrphan).toHaveBeenCalledWith(row.storage_path);
+    expect(d.repository.findByHash).toHaveBeenCalledTimes(2);
   });
 });
 
