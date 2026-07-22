@@ -690,7 +690,7 @@
   "domainSettings": {
     "title": "Domeny sklepu",
     "intro": "Adresy, pod którymi działa Twój sklep. Subdomenę na naszej domenie dostajesz automatycznie przy zakładaniu organizacji. Własną domenę możesz dodać poniżej — wymaga wpisania jednego rekordu u Twojego rejestratora.",
-    "registrationUnavailable": "Rejestracja domen jest niedostępna — dodane domeny nie zaczną działać, dopóki konfiguracja nie zostanie uzupełniona.",
+    "registrationUnavailable": "Dodane adresy nie zaczną działać, dopóki konfiguracja nie zostanie uzupełniona.",
     "listHeading": "Adresy sklepu",
     "emptyState": "Nie masz jeszcze żadnego adresu sklepu. Subdomena powstaje razem z organizacją — jeśli jej nie ma, utwórz ją i zarejestruj poniżej.",
     "retryCta": "Ponów rejestrację adresu",
@@ -731,7 +731,19 @@
     "locale": "Język sklepu",
     "planMissing": "Brak przypisanego planu.",
     "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
-    "newOrganization": "Załóż organizację"
+    "newOrganization": "Załóż organizację",
+    "statusValue": {
+      "trialing": "Okres próbny",
+      "active": "Aktywny",
+      "past_due": "Zaległa płatność",
+      "suspended": "Zawieszony",
+      "cancelled": "Anulowany",
+      "superadmin_locked": "Zablokowany przez wsparcie"
+    },
+    "localeValue": {
+      "pl": "Polski",
+      "en": "Angielski"
+    }
   },
   "secondaryStatus": {
     "domain": {

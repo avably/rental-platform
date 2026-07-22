@@ -56,13 +56,21 @@ export default async function OrganizationPage() {
     timeZone: "Europe/Warsaw",
   }).format(new Date(tenant.created_at));
 
+  // Status i język idą ze słownika, nie surową wartością kolumny: „trialing"
+  // i „pl" to nazwy z bazy, a ekran czyta operator. Nieznana wartość spada na
+  // surową — lepiej pokazać `past_due` niż pustkę po brakującym kluczu.
+  const label = (key: "statusValue" | "localeValue", value: string) => {
+    const path = `${key}.${value}` as Parameters<typeof t>[0];
+    return t.has(path) ? t(path) : value;
+  };
+
   const rows: { label: string; value: string; numeric?: boolean }[] = [
     { label: t("name"), value: tenant.name },
     { label: t("slug"), value: tenant.slug },
     { label: t("plan"), value: subscription?.plan_id ?? t("planMissing") },
-    { label: t("status"), value: tenant.status },
+    { label: t("status"), value: label("statusValue", tenant.status) },
     { label: t("createdAt"), value: createdAt, numeric: true },
-    { label: t("locale"), value: tenant.locale },
+    { label: t("locale"), value: label("localeValue", tenant.locale) },
   ];
 
   return (

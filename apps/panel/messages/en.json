@@ -690,7 +690,7 @@
   "domainSettings": {
     "title": "Store domains",
     "intro": "The addresses your store runs on. A subdomain on our domain is created automatically with your organisation. You can add your own domain below — it requires one DNS record at your registrar.",
-    "registrationUnavailable": "Domain registration is unavailable — domains you add will not start working until the configuration is completed.",
+    "registrationUnavailable": "Added addresses will not start working until the configuration is completed.",
     "listHeading": "Store addresses",
     "emptyState": "You do not have a store address yet. A subdomain is created together with your organisation — if it is missing, create and register it below.",
     "retryCta": "Retry address registration",
@@ -731,7 +731,19 @@
     "locale": "Storefront language",
     "planMissing": "No plan assigned.",
     "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
-    "newOrganization": "Create organization"
+    "newOrganization": "Create organization",
+    "statusValue": {
+      "trialing": "Trial",
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled",
+      "superadmin_locked": "Locked by support"
+    },
+    "localeValue": {
+      "pl": "Polish",
+      "en": "English"
+    }
   },
   "secondaryStatus": {
     "domain": {
