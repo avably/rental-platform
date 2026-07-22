@@ -39,10 +39,12 @@ export type SecondaryStatusValue<A extends SecondaryStatusAxis> =
 /**
  * Osie, które mają w panelu WŁASNY ekran, a więc i etykiety w słowniku.
  *
- * `site-section` i `site-publish` należą do edytora strony sklepu (osobna
- * paczka) — mapa musi je zawierać, żeby zgadzała się 1:1 z artefaktem, ale
- * etykiet za tamtą paczkę tu nie piszemy. Kontrakt kompletności etykiet
- * iteruje po tej liście, nie po całej mapie.
+ * P8a zostawił `site-section` i `site-publish` bez etykiet, bo edytor strony
+ * sklepu szedł osobną paczką: mapa musiała je zawierać (zgodność 1:1 z
+ * artefaktem), ale ekranu, który by je pokazał, jeszcze nie było. P8b ten ekran
+ * dostarcza, więc obie osie wchodzą tu razem z resztą — lista rośnie wtedy i
+ * tylko wtedy, gdy powstaje ekran czytający daną oś. Kontrakt kompletności
+ * etykiet iteruje po tej liście, nie po całej mapie.
  */
 export const SECONDARY_LABELLED_AXES = [
   "domain",
@@ -54,6 +56,8 @@ export const SECONDARY_LABELLED_AXES = [
   "invitation",
   "organization",
   "security",
+  "site-section",
+  "site-publish",
 ] as const satisfies readonly SecondaryStatusAxis[];
 
 export function secondaryStatusProps<A extends SecondaryStatusAxis>(

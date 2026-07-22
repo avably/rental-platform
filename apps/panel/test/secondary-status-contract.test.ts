@@ -103,8 +103,8 @@ describe("etykiety stanów = copy z mockupu", () => {
   const labels = messages.secondaryStatus as unknown as Record<string, Record<string, string>>;
 
   it("słownik pokrywa DOKŁADNIE osie z własnym ekranem", () => {
-    // `site-section` i `site-publish` należą do edytora strony sklepu (osobna
-    // paczka) — mapa musi je znać, etykiet za tamtą paczkę tu nie piszemy.
+    // Po P8b lista obejmuje komplet mapy: `site-section` i `site-publish`
+    // dostały ekran (edytor strony sklepu), więc dostały też etykiety.
     expect(Object.keys(labels).sort()).toEqual([...SECONDARY_LABELLED_AXES].sort());
   });
 
@@ -120,7 +120,8 @@ describe("etykiety stanów = copy z mockupu", () => {
     const covered = chips.filter((chip) =>
       (SECONDARY_LABELLED_AXES as readonly string[]).includes(chip.axis),
     );
-    expect(covered.length).toBeGreaterThanOrEqual(15);
+    // Podłoga podniesiona w P8b: doszły chipy sekcji i publikacji strony.
+    expect(covered.length).toBeGreaterThanOrEqual(22);
     for (const chip of covered) {
       expect(labels[chip.axis]?.[chip.value], `${chip.axis}/${chip.value}`).toBe(chip.label);
     }
@@ -138,6 +139,8 @@ describe("zakaz literałów tonu na ekranach drugorzędnych", () => {
     "zaproszenia",
     "organizacja",
     "bezpieczenstwo",
+    // P8b — edytor strony sklepu (osie `site-section` i `site-publish`).
+    "strona",
   ];
 
   function collect(dir: string): { path: string; source: string }[] {

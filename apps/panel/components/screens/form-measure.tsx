@@ -14,16 +14,22 @@
  *
  * Formularz, który sam w sobie jest całym blokiem miary, może nieść atrybut
  * bezpośrednio (`<form data-form-line-measure>`) — tak jak w artefakcie.
+ *
+ * Reszta propów idzie na element, żeby blok miary mógł nieść WŁASNĄ kotwicę
+ * ekranu (`data-site-editor-controls` w edytorze strony) bez drugiego, pustego
+ * `<div>` dokoła. Szerokości to nie dotyczy: `className` z `max-w-*` zapala skan
+ * spójności (ADR-060), a liczby w tym pliku pilnuje `form-measure-contract`.
  */
 export function FormMeasure({
   children,
   className,
+  ...rest
 }: {
   children: React.ReactNode;
   className?: string;
-}) {
+} & Omit<React.ComponentProps<"div">, "children" | "className">) {
   return (
-    <div data-form-line-measure className={className}>
+    <div data-form-line-measure className={className} {...rest}>
       {children}
     </div>
   );

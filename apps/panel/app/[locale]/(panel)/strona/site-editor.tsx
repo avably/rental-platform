@@ -1,22 +1,33 @@
 "use client";
 
 /**
- * Edytor storefrontu tenanta (Zadanie 2.3b) — cała interakcja + podgląd draftu.
+ * Edytor storefrontu tenanta (Zadanie 2.3b, skóra P8b) — cała interakcja.
  *
- * Woła akcje modelu sekcyjnego 2.3a (RPC-style, zwrot `SiteActionResult`) przez
- * `useTransition`; po sukcesie akcje robią `revalidatePath`, więc serwerowa
- * strona przeładowuje świeży draft i przekazuje go tu w propsach. PODGLĄD
- * renderuje TE SAME komponenty co storefront (`@avably/ui` SiteRenderer) na
- * włączonych sekcjach draftu — operator widzi zmianę zanim ją opublikuje, a anon
- * dopiero po „Publikuj" (storefront czyta content_published).
+ * Układ z mockupu `secondary-site-editor`: DWIE KOLUMNY — po lewej edytor pod
+ * wspólną miarą formularza (`data-form-line-measure`, P8a), po prawej PODGLĄD
+ * SZKICU. Na wąskim ekranie kolumny idą jedna pod drugą, bo miara zostaje ta
+ * sama, a podgląd nie ma z czym konkurować o szerokość.
+ *
+ * PUBLIKACJA JEST OSOBNA OD ZAPISU — i to jest treść ekranu, nie szczegół
+ * układu: zapis szablonu i zapis każdej sekcji piszą WYŁĄCZNIE do
+ * `content_draft`, a stan publiczny zmienia dopiero „Opublikuj stronę”. Stąd
+ * karta `data-publish-status` z osobnym chipem osi `site-publish` na samej
+ * górze: zanim operator cokolwiek zapisze, widzi, co dziś widzą klienci.
+ *
+ * Akcje modelu sekcyjnego 2.3a (RPC-style, zwrot `SiteActionResult`) wołane są
+ * przez `useTransition`; po sukcesie robią `revalidatePath`, więc serwerowa
+ * strona przeładowuje świeży szkic i przekazuje go tu w propsach.
  */
 import { SECTION_TYPES, SITE_TEMPLATES, type SectionType, type SiteTemplate } from "@avably/core/site";
-import { SiteRenderer, type StorefrontProduct } from "@avably/ui";
+import { Button, Label, type StorefrontProduct } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { PanelSelect } from "@/components/fields/panel-select";
+import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenSection } from "@/components/screens/screen-header";
+import { SecondaryStatusChip } from "@/lib/secondary-status";
 import {
   deleteSection,
   publishSite,
@@ -26,8 +37,9 @@ import {
   upsertSection,
 } from "@/lib/actions/site";
 
-import { defaultContentFor, previewSections, type EditorSection } from "./content";
+import { defaultContentFor, type EditorSection } from "./content";
 import { SectionContentForm } from "./section-content-form";
+import { SitePreview } from "./site-preview";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -36,18 +48,22 @@ export function SiteEditor({
   template,
   sections,
   previewProducts,
+  publishedAtLabel,
 }: {
   siteId: string;
   template: SiteTemplate;
   sections: EditorSection[];
   previewProducts: StorefrontProduct[];
+  /** Sformatowana data ostatniej publikacji albo null — strona nigdy nie publikowana. */
+  publishedAtLabel: string | null;
 }) {
   const t = useTranslations("site");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
-  const [sectionType, setSectionType] = useState<SectionType>("freeform");
+  const [sectionType, setSectionType] = useState<SectionType>("hero");
+  const [templateChoice, setTemplateChoice] = useState<SiteTemplate>(template);
 
   /** Woła akcję w tranzycji, pokazuje błąd i odświeża RSC po sukcesie. */
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
@@ -79,149 +95,183 @@ export function SiteEditor({
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
+    <div className="flex flex-col gap-6">
+      <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
+
+      <ScreenSection
+        data-publish-status
+        title={t("publish.heading")}
+        status={
+          // Oś `site-publish` zna WYŁĄCZNIE stan „opublikowana” (tak jest w
+          // artefakcie). Strona nigdy nieopublikowana nie dostaje więc chipa
+          // udającego stan, którego mapa nie opisuje — dostaje zdanie.
+          publishedAtLabel ? <SecondaryStatusChip axis="site-publish" value="published" /> : null
+        }
+        description={
+          publishedAtLabel
+            ? t("publish.publishedAt", { date: publishedAtLabel })
+            : t("publish.notPublished")
+        }
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
             type="button"
             onClick={() => run(() => publishSite(siteId), () => setPublished(true))}
             disabled={pending}
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
           >
             {pending ? t("publish.publishing") : t("publish.publish")}
-          </button>
+          </Button>
           {published ? (
-            <span role="status" className="text-sm text-status-positive-fg">
+            <span role="status" className="text-status-positive-fg text-sm">
               {t("publish.published")}
             </span>
           ) : null}
         </div>
-      </div>
+      </ScreenSection>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Kolumna edycji */}
-        <div className="flex flex-col gap-8">
-          <section className="flex flex-col gap-3 rounded-lg border p-4">
-            <h2 className="text-base font-semibold">{t("template.heading")}</h2>
-            <div className="flex gap-4">
+      <div data-site-editor-layout className="grid gap-6 lg:grid-cols-2">
+        <FormMeasure data-site-editor-controls className="flex min-w-0 flex-col gap-4">
+          <ScreenSection data-template-form title={t("template.heading")}>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="pb-2 text-sm font-medium">{t("template.legend")}</legend>
               {SITE_TEMPLATES.map((option) => (
                 <label key={option} className="flex items-center gap-2 text-sm">
                   <input
                     type="radio"
                     name="template"
                     value={option}
-                    checked={template === option}
+                    checked={templateChoice === option}
                     disabled={pending}
-                    onChange={() => run(() => updateTemplate(siteId, option))}
+                    onChange={() => setTemplateChoice(option)}
                   />
                   {t(`template.template_${option}`)}
                 </label>
               ))}
+            </fieldset>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => run(() => updateTemplate(siteId, templateChoice))}
+              >
+                {t("template.save")}
+              </Button>
             </div>
-          </section>
+          </ScreenSection>
 
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold">{t("sections.heading")}</h2>
-              <div className="flex items-center gap-2">
-                <label className="sr-only" htmlFor="add-section-type">
-                  {t("sections.addType")}
-                </label>
+          <ScreenSection
+            data-add-section-form
+            title={t("sections.heading")}
+            description={t("sections.addHint")}
+          >
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="add-section-type">{t("sections.addType")}</Label>
                 <PanelSelect
                   id="add-section-type"
-                  className="rounded-md border px-2 py-1 text-sm"
                   value={sectionType}
                   disabled={pending}
-                  onValueChange={(value) => {
-                    addSection(value as SectionType);
-                    setSectionType("freeform");
-                  }}
+                  onValueChange={(value) => setSectionType(value as SectionType)}
                   options={SECTION_TYPES.map((type) => ({
                     value: type,
                     label: t(`sectionTypes.${type}`),
                   }))}
                 />
-                <span className="text-xs text-muted-foreground">{t("sections.addHint")}</span>
               </div>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={pending}
+                onClick={() => addSection(sectionType)}
+              >
+                {t("sections.add")}
+              </Button>
             </div>
+          </ScreenSection>
 
-            {sections.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("sections.empty")}</p>
-            ) : (
-              <ol className="flex list-none flex-col gap-4 p-0">
-                {sections.map((section, index) => (
-                  <li key={section.id} className="flex flex-col gap-3 rounded-lg border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
-                          {t(`sectionTypes.${section.type}`)}
-                        </span>
-                        {!section.enabled ? (
-                          <span className="text-xs text-status-attention-fg">{t("sections.disabled")}</span>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ControlButton label={t("sections.moveUp")} disabled={pending || index === 0} onClick={() => move(index, -1)} />
-                        <ControlButton label={t("sections.moveDown")} disabled={pending || index === sections.length - 1} onClick={() => move(index, 1)} />
-                        <ControlButton
+          {sections.length === 0 ? (
+            <ScreenSection data-site-sections-empty description={t("sections.empty")} />
+          ) : (
+            <ol data-site-sections className="flex list-none flex-col gap-4 p-0">
+              {sections.map((section, index) => (
+                <li
+                  key={section.id}
+                  data-section-type={section.type}
+                  data-section-order={index + 1}
+                  className="border-border bg-card flex flex-col gap-4 rounded-lg border p-5"
+                >
+                  <header className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-base leading-[22px] font-semibold">
+                      {`${String(index + 1).padStart(2, "0")} · ${t(`sectionTypes.${section.type}`)}`}
+                    </h3>
+                    <SecondaryStatusChip
+                      axis="site-section"
+                      value={section.enabled ? "enabled" : "disabled"}
+                    />
+                  </header>
+                  <SectionContentForm
+                    siteId={siteId}
+                    section={section}
+                    actions={
+                      <>
+                        <RowButton
+                          label={t("sections.moveUp")}
+                          disabled={pending || index === 0}
+                          onClick={() => move(index, -1)}
+                        />
+                        <RowButton
+                          label={t("sections.moveDown")}
+                          disabled={pending || index === sections.length - 1}
+                          onClick={() => move(index, 1)}
+                        />
+                        <RowButton
                           label={section.enabled ? t("sections.disable") : t("sections.enable")}
                           disabled={pending}
                           onClick={() => run(() => toggleSection(section.id, !section.enabled))}
                         />
-                        <ControlButton label={t("sections.remove")} disabled={pending} onClick={() => run(() => deleteSection(section.id))} />
-                      </div>
-                    </div>
-                    <SectionContentForm siteId={siteId} section={section} />
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
+                        <RowButton
+                          label={t("sections.remove")}
+                          variant="destructive"
+                          disabled={pending}
+                          onClick={() => run(() => deleteSection(section.id))}
+                        />
+                      </>
+                    }
+                  />
+                </li>
+              ))}
+            </ol>
+          )}
+        </FormMeasure>
 
-        {/* Kolumna podglądu */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold">{t("preview.heading")}</h2>
-          <p className="text-sm text-muted-foreground">{t("preview.intro")}</p>
-          <div className="overflow-hidden rounded-lg border">
-            {previewSections(sections).length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted-foreground">{t("preview.empty")}</p>
-            ) : (
-              <SiteRenderer sections={previewSections(sections)} template={template} products={previewProducts} />
-            )}
-          </div>
-        </div>
+        <SitePreview sections={sections} template={template} products={previewProducts} />
       </div>
     </div>
   );
 }
 
-function ControlButton({
+/** Akcja wiersza sekcji (kolejność, włączenie, usunięcie) — jeden rozmiar dla całego rzędu. */
+function RowButton({
   label,
   onClick,
   disabled,
+  variant = "secondary",
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  variant?: "secondary" | "destructive";
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="rounded-md border px-2 py-1 text-xs disabled:opacity-40"
-    >
+    <Button type="button" size="sm" variant={variant} onClick={onClick} disabled={disabled}>
       {label}
-    </button>
+    </Button>
   );
 }

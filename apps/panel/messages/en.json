@@ -628,20 +628,23 @@
     "title": "Storefront page",
     "subtitle": "Arrange sections, pick a template and publish the page your customers see.",
     "backHome": "← Panel",
+    "loadErrorTitle": "Could not load the draft",
     "loadError": "Could not load the storefront page. Refresh to try again.",
     "template": {
       "heading": "Template",
+      "legend": "Page character",
+      "save": "Save template",
       "template_classic": "Classic (restrained)",
       "template_bold": "Bold (high-contrast)"
     },
     "sections": {
       "heading": "Page sections",
-      "addType": "Section type to add",
-      "addHint": "pick a type to add a section",
+      "addType": "Add section",
+      "add": "Add section",
+      "addHint": "A new section is appended at the end of the page.",
       "empty": "No sections yet. Add the first one to build your page.",
-      "disabled": "disabled",
-      "moveUp": "Up",
-      "moveDown": "Down",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
       "enable": "Enable",
       "disable": "Disable",
       "remove": "Remove"
@@ -677,12 +680,16 @@
     },
     "preview": {
       "heading": "Preview",
+      "eyebrow": "Draft preview",
       "intro": "This is the draft. Customers see it after you publish.",
-      "empty": "No enabled sections to show.",
+      "empty": "Every section is disabled — there is nothing to show.",
       "priceFrom": "from {price} / day"
     },
     "publish": {
-      "publish": "Publish",
+      "heading": "Public version",
+      "notPublished": "This page has never been published — customers see none of the sections.",
+      "publishedAt": "Published {date}.",
+      "publish": "Publish page",
       "publishing": "Publishing…",
       "published": "Published."
     }
@@ -781,6 +788,13 @@
     "security": {
       "not_configured": "Not configured",
       "configured": "Configured"
+    },
+    "site-section": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "site-publish": {
+      "published": "Published"
     }
   }
 }
