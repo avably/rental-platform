@@ -682,7 +682,7 @@
       "heading": "Podgląd",
       "eyebrow": "Podgląd szkicu",
       "intro": "Tak wygląda wersja robocza. Klienci zobaczą ją po publikacji.",
-      "empty": "Wszystkie sekcje są wyłączone — nie ma czego pokazać.",
+      "empty": "Podgląd jest pusty — żadna sekcja nie jest włączona.",
       "priceFrom": "od {price} / doba"
     },
     "publish": {

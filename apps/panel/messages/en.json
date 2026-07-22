@@ -682,7 +682,7 @@
       "heading": "Preview",
       "eyebrow": "Draft preview",
       "intro": "This is the draft. Customers see it after you publish.",
-      "empty": "Every section is disabled — there is nothing to show.",
+      "empty": "The preview is empty — no section is enabled.",
       "priceFrom": "from {price} / day"
     },
     "publish": {
