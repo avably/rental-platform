@@ -111,12 +111,12 @@ function toFieldError(zodIssue: z.ZodIssue): WaitlistFieldError {
   switch (zodIssue.code) {
     case "too_big":
       return "too_long";
-    // Brak zgody (literal(true) dostał false) czytamy jako „required" —
-    // dla użytkownika to nie jest „zła wartość", tylko niezaznaczone pole.
-    case "invalid_literal":
-      return "required";
+    // Zod 4 używa invalid_value zarówno dla literal(true), jak i enumów.
+    // Brak zgody czytamy jako „required", a wartość spoza enumu jako „invalid".
+    case "invalid_value":
+      return zodIssue.path[0] === "consent" ? "required" : "invalid";
     case "invalid_type":
-      return zodIssue.received === "undefined" ? "required" : "invalid";
+      return zodIssue.input === undefined ? "required" : "invalid";
     case "too_small":
       return "required";
     default:

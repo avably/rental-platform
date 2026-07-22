@@ -122,6 +122,19 @@ describe("walidacja — mapa pole→błąd", () => {
     expect(fields.email, "e-mail nie został odrzucony").toBeDefined();
   });
 
+  /*
+    Recenzja PM przy zod 4: mapowanie `invalid_type` rozróżnia brak pola
+    (required) od złego typu (invalid), ale żaden test nie przypinał WYNIKU
+    tego rozróżnienia — degradacja required→invalid przechodziła suitę na
+    zielono (test wyżej sprawdza tylko OBECNOŚĆ błędu). Dokładny klucz jest
+    komunikatem dla użytkownika, więc pilnujemy go wprost.
+  */
+  it("brak e-maila (undefined) → dokładnie required, nie invalid", async () => {
+    const { email: _omitted, ...withoutEmail } = VALID_INPUT;
+    const fields = await fieldsFor(withoutEmail);
+    expect(fields).toEqual({ email: "required" });
+  });
+
   it.each([
     ["rentalType", "traktory"],
     ["inventoryRange", "r9000"],

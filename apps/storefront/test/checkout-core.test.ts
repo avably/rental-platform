@@ -16,6 +16,10 @@ import {
   type CheckoutRpcError,
   type CheckoutRpcResult,
 } from "@/lib/checkout/core";
+import { checkoutSchema, toCheckoutFieldErrors } from "@/lib/checkout/validation";
+
+import en from "../messages/en.json";
+import pl from "../messages/pl.json";
 
 const VALID_INPUT = {
   email: "klient@example.com",
@@ -23,8 +27,8 @@ const VALID_INPUT = {
   startDate: "2026-10-01",
   endDate: "2026-10-07",
   deliveryMethod: "pickup",
-  pickupLocationId: "11111111-1111-1111-1111-111111111111",
-  items: [{ productId: "22222222-2222-2222-2222-222222222222", quantity: 1 }],
+  pickupLocationId: "11111111-1111-4111-8111-111111111111",
+  items: [{ productId: "22222222-2222-4222-8222-222222222222", quantity: 1 }],
   termsAccepted: true,
   termsVersion: "v1",
 } as const;
@@ -42,7 +46,7 @@ const RPC_RESULT: CheckoutRpcResult = {
   currency: "PLN",
   items: [
     {
-      product_id: "22222222-2222-2222-2222-222222222222",
+      product_id: "22222222-2222-4222-8222-222222222222",
       quantity: 1,
       unit_rental_grosze: 65_000,
       unit_deposit_grosze: 5_000,
@@ -112,8 +116,45 @@ describe("walidacja — mapa pole→błąd", () => {
     expect(d.callRpc, "zamówienie bez zgody dotarło do bazy").not.toHaveBeenCalled();
   });
 
+  it("issue invalid_value z Zod 4 za regulamin i własny issue punktu dają dokładnie nasze komunikaty PL/EN", async () => {
+    const terms = toCheckoutFieldErrors({
+      issues: [
+        {
+          code: "invalid_value",
+          input: false,
+          path: ["termsAccepted"],
+          message: "Invalid input: expected true",
+        },
+      ],
+    } as never);
+    const pickup = checkoutSchema.safeParse({
+      ...VALID_INPUT,
+      pickupLocationId: undefined,
+    });
+    const hostileTerms = await submitCheckoutCore(
+      { ...VALID_INPUT, termsAccepted: false },
+      deps(),
+    );
+
+    expect(terms).toEqual({ terms: "required" });
+    expect(hostileTerms).toEqual({ status: "validation_error", fields: { terms: "required" } });
+    expect(JSON.stringify(hostileTerms)).not.toContain("Invalid input");
+    if (pickup.success) throw new Error("Brak odmowy za brak punktu odbioru.");
+    expect(toCheckoutFieldErrors(pickup.error)).toEqual({
+      pickupLocationId: "required",
+    });
+    expect(pl.storefront.checkout.errors.terms).toBe("Zaakceptuj regulamin, aby kontynuować.");
+    expect(en.storefront.checkout.errors.terms).toBe("Accept the terms to continue.");
+    expect(pl.storefront.checkout.errors.pickupLocationId).toBe("Wybierz punkt odbioru.");
+    expect(en.storefront.checkout.errors.pickupLocationId).toBe("Choose a pickup point.");
+  });
+
   it("zły e-mail → email zdefiniowany", async () => {
     expect((await fieldsFor({ ...VALID_INPUT, email: "nie-email" })).email).toBeDefined();
+  });
+
+  it("puste imię i nazwisko → fullName required", async () => {
+    expect(await fieldsFor({ ...VALID_INPUT, fullName: "" })).toEqual({ fullName: "required" });
   });
 
   it("zakres dat odwrócony → endDate invalid", async () => {
@@ -176,7 +217,7 @@ describe("kwoty liczy SERWER — wejście ich nie niesie", () => {
         ...VALID_INPUT,
         items: [
           {
-            productId: "22222222-2222-2222-2222-222222222222",
+            productId: "22222222-2222-4222-8222-222222222222",
             quantity: 1,
             rentalGrosze: 1,
             priceGrosze: 1,
@@ -192,7 +233,7 @@ describe("kwoty liczy SERWER — wejście ich nie niesie", () => {
     expect(Object.keys(args).some((k) => /total|grosze|price|amount/i.test(k))).toBe(false);
     // Pozycje niosą wyłącznie product_id + quantity.
     expect(args.p_items).toEqual([
-      { product_id: "22222222-2222-2222-2222-222222222222", quantity: 1 },
+      { product_id: "22222222-2222-4222-8222-222222222222", quantity: 1 },
     ]);
   });
 });

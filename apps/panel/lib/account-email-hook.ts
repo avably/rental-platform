@@ -85,7 +85,7 @@ export const HOOK_SECRET_ENV = "SUPABASE_EMAIL_HOOK_SECRET";
 const hookPayloadSchema = z.object({
   user: z.object({
     email: z.string().min(3).max(320),
-    user_metadata: z.record(z.unknown()).optional(),
+    user_metadata: z.record(z.string(), z.unknown()).optional(),
   }),
   email_data: z.object({
     token_hash: z.string().min(1),
