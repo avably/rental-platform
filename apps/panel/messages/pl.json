@@ -628,20 +628,23 @@
     "title": "Strona sklepu",
     "subtitle": "Ułóż sekcje, wybierz szablon i opublikuj stronę widoczną dla klientów.",
     "backHome": "← Panel",
+    "loadErrorTitle": "Nie udało się wczytać szkicu",
     "loadError": "Nie udało się wczytać strony sklepu. Odśwież stronę.",
     "template": {
       "heading": "Szablon",
+      "legend": "Charakter strony",
+      "save": "Zapisz szablon",
       "template_classic": "Classic (stonowany)",
       "template_bold": "Bold (kontrastowy)"
     },
     "sections": {
       "heading": "Sekcje strony",
-      "addType": "Typ sekcji do dodania",
-      "addHint": "wybierz typ, aby dodać sekcję",
+      "addType": "Dodaj sekcję",
+      "add": "Dodaj sekcję",
+      "addHint": "Nowa sekcja dopisuje się na końcu strony.",
       "empty": "Brak sekcji. Dodaj pierwszą, aby zbudować stronę.",
-      "disabled": "wyłączona",
-      "moveUp": "W górę",
-      "moveDown": "W dół",
+      "moveUp": "Przenieś wyżej",
+      "moveDown": "Przenieś niżej",
       "enable": "Włącz",
       "disable": "Wyłącz",
       "remove": "Usuń"
@@ -677,12 +680,16 @@
     },
     "preview": {
       "heading": "Podgląd",
+      "eyebrow": "Podgląd szkicu",
       "intro": "Tak wygląda wersja robocza. Klienci zobaczą ją po publikacji.",
-      "empty": "Brak włączonych sekcji do pokazania.",
+      "empty": "Podgląd jest pusty — żadna sekcja nie jest włączona.",
       "priceFrom": "od {price} / doba"
     },
     "publish": {
-      "publish": "Publikuj",
+      "heading": "Wersja publiczna",
+      "notPublished": "Strona nie była jeszcze publikowana — klienci nie widzą żadnej sekcji.",
+      "publishedAt": "Opublikowano {date}.",
+      "publish": "Opublikuj stronę",
       "publishing": "Publikowanie…",
       "published": "Opublikowano."
     }
@@ -781,6 +788,13 @@
     "security": {
       "not_configured": "Nieskonfigurowane",
       "configured": "Skonfigurowane"
+    },
+    "site-section": {
+      "enabled": "Włączona",
+      "disabled": "Wyłączona"
+    },
+    "site-publish": {
+      "published": "Opublikowana"
     }
   }
 }

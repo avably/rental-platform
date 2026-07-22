@@ -1,18 +1,22 @@
 /**
- * Edytor storefrontu tenanta (Zadanie 2.3b — EDYTOR + PODGLĄD DRAFTU).
+ * Edytor storefrontu tenanta (Zadanie 2.3b — EDYTOR + PODGLĄD SZKICU, skóra P8b).
  *
  * Serwerowo: guard członka, utworzenie strony przy pierwszym wejściu
  * (`ensureSite`, idempotentne — tworzenie to mutacja, nie skutek uboczny
- * odczytu), odczyt draftu (`getSiteWithSections`, warstwa danych 2.3a) i katalog
+ * odczytu), odczyt szkicu (`getSiteWithSections`, warstwa danych 2.3a) i katalog
  * tenanta do podglądu. Interakcja i podgląd żyją w kliencie (`SiteEditor`),
  * który woła akcje modelu sekcyjnego 2.3a. Produkty w podglądzie to REALNY
  * katalog tenanta (odczyt uwierzytelniony RLS), nie dane demo.
+ *
+ * Nieudany odczyt szkicu kończy się WŁASNYM stanem (`SiteLoadError`), a nie
+ * pustym edytorem: mockup `secondary-site-editor` stawia tę granicę wprost, bo
+ * „nie ma sekcji” i „nie wiadomo, czy są sekcje” to dwa różne komunikaty.
  */
 import { formatMoney } from "@avably/core";
 import type { StorefrontProduct } from "@avably/ui";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenBackLink } from "@/components/screens/screen-header";
 import { ensureSite } from "@/lib/actions/site";
 import { requireMemberPage } from "@/lib/member-page";
 import { getSiteWithSections } from "@/lib/site-queries";
@@ -20,6 +24,7 @@ import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { toEditorSections } from "./content";
 import { SiteEditor } from "./site-editor";
+import { SiteLoadError } from "./site-load-error";
 
 export default async function SitePage() {
   const ctx = await requireMemberPage("/strona");
@@ -32,19 +37,17 @@ export default async function SitePage() {
 
   if (!ensured.ok || !data) {
     return (
-      <div className="flex flex-col gap-4">
-        <Link className="text-sm underline" href="/">
-          {t("backHome")}
-        </Link>
-        <p role="alert" className="text-sm text-destructive">
-          {ensured.ok ? t("loadError") : ensured.error}
-        </p>
-      </div>
+      <SiteLoadError
+        backLabel={t("backHome")}
+        title={t("loadErrorTitle")}
+        message={ensured.ok ? t("loadError") : ensured.error}
+      />
     );
   }
 
   const currency = await getTenantCurrency(ctx.supabase, tenantId);
   const locale = await getLocale();
+  const format = await getFormatter();
   const { data: products } = await ctx.supabase
     .from("products")
     .select("id, name, description, base_price_day_grosze")
@@ -64,16 +67,22 @@ export default async function SitePage() {
     imageAlt: product.name,
   }));
 
+  const publishedAtLabel = data.site.published_at
+    ? format.dateTime(new Date(data.site.published_at), {
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : null;
+
   return (
-    <div className="flex flex-col gap-6">
-      <Link className="text-sm underline" href="/">
-        {t("backHome")}
-      </Link>
+    <div className="flex flex-col gap-4">
+      <ScreenBackLink href="/" label={t("backHome")} />
       <SiteEditor
         siteId={data.site.id}
         template={data.site.template}
         sections={toEditorSections(data.sections)}
         previewProducts={previewProducts}
+        publishedAtLabel={publishedAtLabel}
       />
     </div>
   );

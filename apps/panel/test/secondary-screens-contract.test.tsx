@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -50,6 +52,20 @@ vi.mock("@/app/[locale]/(panel)/bezpieczenstwo/actions", () => ({
 vi.mock("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/actions", () => ({
   challengeTotpAction: noopAction,
 }));
+vi.mock("@/lib/actions/site", () => ({
+  deleteSection: noopAction,
+  publishSite: noopAction,
+  reorderSections: noopAction,
+  toggleSection: noopAction,
+  updateTemplate: noopAction,
+  upsertSection: noopAction,
+}));
+// Edytor strony odświeża RSC po udanej akcji — poza `<AppRouterContext>`
+// `useRouter` rzuca, a render kontraktu routera nie potrzebuje.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useRouter: () => ({ refresh: () => {} }),
+}));
 
 const { DomainsPanel } = await import("@/app/[locale]/(panel)/ustawienia-domen/domains-panel");
 const { EmailSenderForm } = await import(
@@ -69,6 +85,8 @@ const { InviteMemberForm } = await import("@/app/[locale]/(panel)/zaproszenia/fo
 const { OrganizationCard } = await import("@/app/[locale]/(panel)/organizacja/organization-card");
 const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/form");
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
+const { SiteEditor } = await import("@/app/[locale]/(panel)/strona/site-editor");
+const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-error");
 
 function render(node: React.ReactNode): string {
   return renderToStaticMarkup(
@@ -453,6 +471,222 @@ describe("ekran bezpieczeństwa — trzy stany 2FA", () => {
 
   it("wyzwanie przenosi bezpieczny adres powrotu ukrytym polem", () => {
     expect(challenge).toMatch(/type="hidden" name="next" value="\/zamowienia"/);
+  });
+});
+
+// ===== 9. Strona sklepu (secondary-site-editor) =====
+
+/**
+ * Kontrakt DWUKIERUNKOWY, tak jak miara formularza: kotwice stanów czytamy z
+ * ARTEFAKTU i dopiero potem sprawdzamy w renderze. Lista `toContain` na samym
+ * renderze broniłaby tylko kodu — mockup mógłby zgubić stan i nikt by się nie
+ * dowiedział, że kod pilnuje rzeczy, której projekt już nie zawiera.
+ */
+const artifact = readFileSync(
+  resolve(process.cwd(), "../..", "docs/branding/2026-07-20-avably-faza-2-system.html"),
+  "utf8",
+);
+const siteMockup =
+  artifact.match(/<article[^>]*data-screen="secondary-site-editor"[\s\S]*?<\/article>/)?.[0] ?? "";
+
+const SITE_MOCKUP_ANCHORS = [
+  "data-publish-status",
+  "data-site-load-error-state",
+  "data-site-editor-controls",
+  "data-form-line-measure",
+  "data-template-form",
+  "data-add-section-form",
+  "data-site-sections",
+  "data-site-sections-empty",
+  "data-section-type",
+  "data-section-order",
+  "data-faq-row",
+  "data-site-preview",
+  "data-preview-empty-state",
+] as const;
+
+type SiteEditorProps = Parameters<typeof SiteEditor>[0];
+
+const siteSections: SiteEditorProps["sections"] = [
+  { id: "s1", type: "hero", position: 0, enabled: true, content: { heading: "Sprzęt na już" } },
+  { id: "s2", type: "products", position: 1, enabled: true, content: { heading: "Popularny sprzęt" } },
+  { id: "s3", type: "pricing", position: 2, enabled: false, content: { heading: "Warunki cenowe" } },
+  { id: "s4", type: "faq", position: 3, enabled: true, content: { heading: "Pytania", items: [{ q: "Jak rezerwować?", a: "Fikcyjna odpowiedź." }] } },
+  { id: "s5", type: "contact", position: 4, enabled: true, content: { heading: "Kontakt" } },
+  { id: "s6", type: "freeform", position: 5, enabled: false, content: { heading: "O nas", body: "Fikcyjna treść własna." } },
+];
+
+const siteProducts: SiteEditorProps["previewProducts"] = [
+  {
+    id: "p1",
+    name: "Produkt demonstracyjny A",
+    description: null,
+    priceLabel: "od 120,00 zł / doba",
+    imageUrl: null,
+    imageAlt: "Produkt demonstracyjny A",
+  },
+];
+
+function renderSiteEditor(overrides: Partial<SiteEditorProps> = {}): string {
+  return render(
+    <SiteEditor
+      siteId="site-1"
+      template="classic"
+      sections={siteSections}
+      previewProducts={siteProducts}
+      publishedAtLabel="22.07.2026, 10:30"
+      {...overrides}
+    />,
+  );
+}
+
+describe("ekran strony sklepu — mockup niesie komplet kotwic stanów", () => {
+  it("sekcja artefaktu jest na miejscu i nazywa każdy stan ekranu", () => {
+    // Kontrola po pustym zbiorze: bez niej pętla niżej przelatywałaby po
+    // pustym stringu i świeciła na zielono z niczego.
+    expect(siteMockup.length, "brak sekcji secondary-site-editor w artefakcie").toBeGreaterThan(
+      2000,
+    );
+    for (const anchor of SITE_MOCKUP_ANCHORS) {
+      expect(siteMockup, `mockup zgubił kotwicę ${anchor}`).toContain(anchor);
+    }
+  });
+});
+
+describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
+  const html = renderSiteEditor();
+
+  it("układ ma dwie kolumny: kontrolki pod miarą i podgląd szkicu", () => {
+    expect(html).toContain("data-site-editor-layout");
+    expect(html).toMatch(/data-form-line-measure[^>]*data-site-editor-controls/);
+    expect(html).toContain('data-site-preview="draft"');
+    // Podgląd stoi POZA miarą — to widok sklepu, nie wiersz do czytania.
+    expect(html.indexOf("data-site-preview")).toBeGreaterThan(
+      html.indexOf("data-site-editor-controls"),
+    );
+  });
+
+  it("publikacja jest osobna od zapisu: własna karta, własny stan, własny przycisk", () => {
+    expect(html).toContain("data-publish-status");
+    expect(chips(html)).toContain("site-publish/published");
+    expect(html).toContain(messages.site.publish.publish);
+    // Zapis szablonu i zapis KAŻDEJ sekcji to osobne akcje, nie „Publikuj".
+    expect(html).toContain(messages.site.template.save);
+    expect([...html.matchAll(/data-section-actions/g)]).toHaveLength(siteSections.length);
+  });
+
+  it("strona nigdy nieopublikowana nie dostaje chipa udającego stan spoza mapy", () => {
+    const never = renderSiteEditor({ publishedAtLabel: null });
+    expect(chips(never)).not.toContain("site-publish/published");
+    expect(never).toContain(messages.site.publish.notPublished);
+    expect(never).toContain("data-publish-status");
+  });
+
+  it("każda sekcja jest wierszem z typem, numerem i chipem stanu", () => {
+    expect(html).toContain("data-site-sections");
+    expect([...html.matchAll(/data-section-type="/g)]).toHaveLength(siteSections.length);
+    expect([...html.matchAll(/data-section-order="/g)]).toHaveLength(siteSections.length);
+    // Fixture pokrywa OBA stany osi — bez tego asercje niżej oglądałyby jeden.
+    expect(chips(html)).toEqual(
+      expect.arrayContaining(["site-section/enabled", "site-section/disabled"]),
+    );
+  });
+
+  it("komplet możliwości edytora zostaje: kolejność, włączenie, usunięcie, FAQ", () => {
+    for (const label of [
+      messages.site.sections.moveUp,
+      messages.site.sections.moveDown,
+      messages.site.sections.disable,
+      messages.site.sections.enable,
+      messages.site.sections.remove,
+      messages.site.sections.add,
+      messages.site.fields.saveSection,
+      messages.site.fields.faqAdd,
+    ]) {
+      expect(html, `zgubiona możliwość: ${label}`).toContain(label);
+    }
+    expect(html).toContain("data-faq-row");
+    // Sześć typów sekcji do dodania — kompletu pilnuje sam artefakt.
+    for (const type of Object.values(messages.site.sectionTypes)) {
+      expect(html).toContain(type);
+    }
+  });
+
+  it("selekty idą przez PanelSelect — zero natywnych kontrolek", () => {
+    expect(html).toContain('data-slot="select-trigger"');
+    // Jedyny `<select>` w renderze to most Radix (aria-hidden, dla autofillu) —
+    // widoczna kontrolka nie ma prawa nim być (ADR-060).
+    for (const [tag] of html.matchAll(/<select[^>]*>/g)) {
+      expect(tag, `natywny select w edytorze: ${tag}`).toContain('aria-hidden="true"');
+    }
+    // Druga strona: w ŹRÓDLE ekranu natywnego selecta nie ma w ogóle.
+    for (const file of ["site-editor.tsx", "section-content-form.tsx", "site-preview.tsx"]) {
+      const source = readFileSync(
+        resolve(process.cwd(), "app/[locale]/(panel)/strona", file),
+        "utf8",
+      );
+      expect(source, `natywny <select> w ${file}`).not.toMatch(/<select\b/);
+    }
+  });
+
+  it("brak sekcji jest STANEM, a nie zniknięciem edytora", () => {
+    const empty = renderSiteEditor({ sections: [] });
+    expect(empty).toContain("data-site-sections-empty");
+    expect(empty).not.toContain("data-site-sections=");
+    expect(empty).toContain(messages.site.sections.empty);
+    // Selektor „Dodaj sekcję" pozostaje pierwszą dostępną akcją (mockup).
+    expect(empty).toContain("data-add-section-form");
+  });
+});
+
+describe("podgląd szkicu nie pokazuje treści, której klient nie zobaczy", () => {
+  it("wszystkie sekcje wyłączone → pusty podgląd BEZ fikcyjnej zawartości", () => {
+    const html = renderSiteEditor({
+      sections: siteSections.map((section) => ({ ...section, enabled: false })),
+    });
+    const preview = html.slice(html.indexOf('data-site-preview="draft"'));
+
+    expect(preview).toContain("data-preview-empty-state");
+    expect(preview).toContain(messages.site.preview.empty);
+    // Treść wyłączonych sekcji i kafle katalogu nie mają prawa tu być: podgląd
+    // kłamałby o jedynej rzeczy, dla której istnieje.
+    expect(preview, "podgląd pokazuje treść wyłączonej sekcji").not.toContain("Sprzęt na już");
+    expect(preview, "podgląd pokazuje kafle produktów").not.toContain(
+      "Produkt demonstracyjny A",
+    );
+  });
+
+  it("włączone sekcje wracają do podglądu razem z realnym katalogiem", () => {
+    const preview = renderSiteEditor().slice(
+      renderSiteEditor().indexOf('data-site-preview="draft"'),
+    );
+    expect(preview).not.toContain("data-preview-empty-state");
+    expect(preview).toContain("Sprzęt na już");
+    expect(preview).toContain("Produkt demonstracyjny A");
+    // Sekcja wyłączona zostaje w edytorze, ale nie w podglądzie.
+    expect(preview).not.toContain("Warunki cenowe");
+  });
+});
+
+describe("błąd ładowania szkicu nie udaje pustego edytora", () => {
+  const html = render(
+    <SiteLoadError
+      backLabel="← Panel"
+      title={messages.site.loadErrorTitle}
+      message={messages.site.loadError}
+    />,
+  );
+
+  it("stan błędu ma własną kotwicę i mówi, co się stało", () => {
+    expect(html).toContain("data-site-load-error-state");
+    expect(html).toContain(messages.site.loadError);
+    expect(html).toContain('role="alert"');
+  });
+
+  it("ekran błędu NIE renderuje edytora ani podglądu", () => {
+    for (const anchor of ["data-site-editor-layout", "data-site-sections", "data-site-preview"]) {
+      expect(html, `atrapa edytora w stanie błędu: ${anchor}`).not.toContain(anchor);
+    }
   });
 });
 

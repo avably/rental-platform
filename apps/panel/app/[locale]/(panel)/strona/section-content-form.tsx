@@ -1,11 +1,17 @@
 "use client";
 
 /**
- * Formularz treści JEDNEJ sekcji (Zadanie 2.3b), zależny od jej typu. Pola żyją
- * w stanie klienta i składają się w obiekt treści o kształcie z
+ * Formularz treści JEDNEJ sekcji (Zadanie 2.3b, skóra P8b), zależny od jej typu.
+ *
+ * Pola żyją w stanie klienta i składają się w obiekt treści o kształcie z
  * `@avably/core/site`; zapis woła akcję `upsertSection` (2.3a) — pola PUSTE
  * opcjonalne są POMIJANE (schematy core wymagają min. 1 znaku, więc „" nie jest
  * poprawną wartością opcjonalną, tylko jej brakiem).
+ *
+ * Akcje wiersza (kolejność, włączenie, usunięcie) przychodzą z edytora propem
+ * `actions` i stoją w JEDNYM rzędzie z „Zapisz sekcję” — tak jak w mockupie
+ * `secondary-site-editor`. Rozdzielenie ich na dwa piętra sugerowałoby, że
+ * „Zapisz” dotyczy też przeniesienia sekcji, a przeniesienie zapisuje się samo.
  */
 import { Button, Input, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
@@ -30,9 +36,11 @@ function put(target: Record<string, unknown>, key: string, value: string): void 
 export function SectionContentForm({
   siteId,
   section,
+  actions,
 }: {
   siteId: string;
   section: EditorSection;
+  actions?: ReactNode;
 }) {
   const t = useTranslations("site.fields");
   const idPrefix = useId();
@@ -122,7 +130,13 @@ export function SectionContentForm({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+    >
       <Field label={t(section.type === "hero" ? "heroHeading" : "heading")} htmlFor={`${idPrefix}-heading`}>
         <Input id={`${idPrefix}-heading`} value={fields.heading} onChange={(e) => set("heading", e.target.value)} />
       </Field>
@@ -132,12 +146,14 @@ export function SectionContentForm({
           <Field label={t("subheading")} htmlFor={`${idPrefix}-sub`}>
             <Textarea id={`${idPrefix}-sub`} value={fields.subheading} onChange={(e) => set("subheading", e.target.value)} />
           </Field>
-          <Field label={t("ctaText")} htmlFor={`${idPrefix}-ctat`}>
-            <Input id={`${idPrefix}-ctat`} value={fields.ctaText} onChange={(e) => set("ctaText", e.target.value)} />
-          </Field>
-          <Field label={t("ctaHref")} htmlFor={`${idPrefix}-ctah`}>
-            <Input id={`${idPrefix}-ctah`} value={fields.ctaHref} onChange={(e) => set("ctaHref", e.target.value)} placeholder="/cennik, #kontakt lub https://…" />
-          </Field>
+          <InlineFields>
+            <Field label={t("ctaText")} htmlFor={`${idPrefix}-ctat`}>
+              <Input id={`${idPrefix}-ctat`} value={fields.ctaText} onChange={(e) => set("ctaText", e.target.value)} />
+            </Field>
+            <Field label={t("ctaHref")} htmlFor={`${idPrefix}-ctah`}>
+              <Input id={`${idPrefix}-ctah`} value={fields.ctaHref} onChange={(e) => set("ctaHref", e.target.value)} placeholder="/cennik, #kontakt lub https://…" />
+            </Field>
+          </InlineFields>
         </>
       ) : null}
 
@@ -149,12 +165,14 @@ export function SectionContentForm({
 
       {section.type === "contact" ? (
         <>
-          <Field label={t("email")} htmlFor={`${idPrefix}-email`}>
-            <Input id={`${idPrefix}-email`} value={fields.email} onChange={(e) => set("email", e.target.value)} />
-          </Field>
-          <Field label={t("phone")} htmlFor={`${idPrefix}-phone`}>
-            <Input id={`${idPrefix}-phone`} value={fields.phone} onChange={(e) => set("phone", e.target.value)} />
-          </Field>
+          <InlineFields>
+            <Field label={t("email")} htmlFor={`${idPrefix}-email`}>
+              <Input id={`${idPrefix}-email`} type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
+            </Field>
+            <Field label={t("phone")} htmlFor={`${idPrefix}-phone`}>
+              <Input id={`${idPrefix}-phone`} value={fields.phone} onChange={(e) => set("phone", e.target.value)} />
+            </Field>
+          </InlineFields>
           <Field label={t("address")} htmlFor={`${idPrefix}-addr`}>
             <Textarea id={`${idPrefix}-addr`} value={fields.address} onChange={(e) => set("address", e.target.value)} />
           </Field>
@@ -172,9 +190,9 @@ export function SectionContentForm({
 
       {section.type === "faq" ? (
         <fieldset className="flex flex-col gap-3">
-          <legend className="text-sm font-medium">{t("faqItems")}</legend>
+          <legend className="pb-2 text-sm font-medium">{t("faqItems")}</legend>
           {faq.map((row) => (
-            <div key={row.key} className="flex flex-col gap-2 rounded-md border p-3">
+            <div key={row.key} data-faq-row className="border-border flex flex-col gap-2 rounded-md border p-3">
               <Input
                 aria-label={t("faqQuestion")}
                 placeholder={t("faqQuestion")}
@@ -189,7 +207,8 @@ export function SectionContentForm({
               />
               <Button
                 type="button"
-                variant="ghost"
+                size="sm"
+                variant="destructive"
                 className="self-end"
                 onClick={() => setFaq((rows) => rows.filter((r) => r.key !== row.key))}
               >
@@ -199,7 +218,8 @@ export function SectionContentForm({
           ))}
           <Button
             type="button"
-            variant="outline"
+            size="sm"
+            variant="secondary"
             className="self-start"
             onClick={() => {
               setFaq((rows) => [...rows, { key: faqKey, q: "", a: "" }]);
@@ -211,27 +231,35 @@ export function SectionContentForm({
         </fieldset>
       ) : null}
 
+      <div data-section-actions className="flex flex-wrap items-center gap-2 pt-1">
+        {actions}
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? t("saving") : t("saveSection")}
+        </Button>
+        {saved ? (
+          <span role="status" className="text-status-positive-fg text-sm">
+            {t("saved")}
+          </span>
+        ) : null}
+      </div>
+
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       ) : null}
-      {saved ? (
-        <p role="status" className="text-sm text-status-positive-fg">
-          {t("saved")}
-        </p>
-      ) : null}
-
-      <Button type="button" onClick={save} disabled={pending} className="self-start">
-        {pending ? t("saving") : t("saveSection")}
-      </Button>
-    </div>
+    </form>
   );
+}
+
+/** Dwa krótkie pola w jednym wierszu (mockup: `secondary-inline-fields`). */
+function InlineFields({ children }: { children: ReactNode }) {
+  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
 }
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>

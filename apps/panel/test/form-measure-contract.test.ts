@@ -67,6 +67,11 @@ const SCREENS_UNDER_MEASURE = [
   "app/[locale]/(panel)/katalog/punkty-odbioru/location-form.tsx",
   "app/[locale]/(panel)/zamowienia/nowe/order-wizard.tsx",
   "app/[locale]/(panel)/zamowienia/[id]/extension-form.tsx",
+  // P8b — edytor strony sklepu: miara obejmuje LEWĄ kolumnę (kontrolki) i stan
+  // błędu ładowania. Podgląd szkicu zostaje poza miarą świadomie: to widok
+  // sklepu, a nie wiersz do czytania i pole do wypełnienia.
+  "app/[locale]/(panel)/strona/site-editor.tsx",
+  "app/[locale]/(panel)/strona/site-load-error.tsx",
 ] as const;
 
 describe("kontrakt miary formularza — artefakt ↔ arkusz panelu", () => {
@@ -108,7 +113,7 @@ describe("kontrakt miary formularza — artefakt ↔ arkusz panelu", () => {
 
 describe("użycie wspólnej miary przez ekrany", () => {
   it("skan obejmuje realny zbiór ekranów", () => {
-    expect(SCREENS_UNDER_MEASURE.length).toBe(13);
+    expect(SCREENS_UNDER_MEASURE.length).toBe(15);
   });
 
   it.each(SCREENS_UNDER_MEASURE)("%s stoi pod wspólną miarą", (path) => {
