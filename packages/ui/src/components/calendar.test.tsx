@@ -14,3 +14,21 @@ it("renderuje polski kalendarz z dostępną nawigacją", () => {
     screen.getByRole("button", { name: "Następny miesiąc" }),
   ).toBeVisible();
 });
+
+it("maluje początek wybranego zakresu klasą nośnika akcentu", () => {
+  render(
+    <Calendar
+      mode="range"
+      month={new Date(2026, 6, 1)}
+      selected={{
+        from: new Date(2026, 6, 9),
+        to: new Date(2026, 6, 11),
+      }}
+    />,
+  );
+
+  const rangeStartButton = document.querySelector<HTMLElement>("button[data-range-start=true]");
+  const rangeStartCell = rangeStartButton?.closest("td");
+  expect(rangeStartButton).toBeInTheDocument();
+  expect(rangeStartCell).toHaveClass("bg-accent");
+});
