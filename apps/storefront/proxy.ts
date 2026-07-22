@@ -1,5 +1,23 @@
 /**
- * Middleware storefrontu. Trzy zadania, w kolejności:
+ * Middleware storefrontu. Cztery zadania, w kolejności:
+ *
+ * -1. HASŁO CAŁEGO SITE'U (decyzja właściciela, 2026-07-22, TYMCZASOWE —
+ *    do momentu ściągnięcia). Przed każdą inną gałęzią, przed jakimkolwiek
+ *    rozwiązaniem tenanta: storefront (marketing WWW i sklepy najemców pod
+ *    subdomeną/własną domeną) nie jest jeszcze ogłoszony publicznie, więc
+ *    CAŁY ruch przez tę appkę pyta o hasło zanim cokolwiek innego się wykona
+ *    — łącznie z zapytaniem do bazy o tenanta (oszczędność, mniejsza
+ *    powierzchnia dla przypadkowego ruchu). Panel (app.avably.io) NIE jest
+ *    objęty — ma własne logowanie, dodatkowe hasło byłoby podwójną bramką
+ *    bez treści.
+ *
+ *    ==================== JAK ZDJĄĆ HASŁO ====================
+ *    Usuń blok `if (!siteAuthorized(...))` niżej (i funkcję
+ *    `siteAuthorized` oraz `SITE_PASSWORD`, jeśli nieużywane gdzie indziej)
+ *    — middleware wraca do zachowania sprzed tej zmiany. Test
+ *    `apps/storefront/test/proxy.test.ts` ma przypadek pilnujący tej bramki;
+ *    usuń go razem z kodem albo test padnie na czerwono, tłumacząc dlaczego.
+ *    =========================================================
  *
  * 0. ROZGAŁĘZIENIE PO HOŚCIE (Zadanie 2.1, ADR-039): kanon marketingowy →
  *    istniejąca ścieżka LP; `<slug>.avably.io` → rozwiązanie tenanta i rewrite
@@ -29,6 +47,43 @@ import { lookupTenantIdByDomain, lookupTenantIdBySlug } from "@/lib/tenant/looku
 import { resolveTenant, resolveTenantByDomain } from "@/lib/tenant/resolve";
 
 const handleI18n = createIntlMiddleware(routing);
+
+/**
+ * Hasło całego site'u — stała w kodzie, nie sekret w env (patrz nagłówek
+ * pliku: bramka jest tymczasowa i jej zdjęcie to usunięcie kodu, nie obrót
+ * sekretu). Repo jest prywatne.
+ */
+const SITE_PASSWORD = "notavably";
+
+/**
+ * Basic Auth ręcznie, bez `node:crypto` — proxy działa na Edge Runtime
+ * (`generateNonce` wyżej używa Web Crypto z tego samego powodu), a
+ * `timingSafeEqual` nie jest tam dostępne. Porównanie znak-po-znaku bez
+ * wczesnego wyjścia z pętli jest odpornikiem na atak czasowy w praktycznie
+ * istotnym zakresie (długość hasła nie jest tu sekretem chronionym).
+ */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/** Liczy się wyłącznie hasło — nazwa użytkownika w Basic Auth jest dowolna. */
+function siteAuthorized(header: string | null): boolean {
+  if (!header || !header.startsWith("Basic ")) return false;
+  let decoded: string;
+  try {
+    decoded = atob(header.slice(6).trim());
+  } catch {
+    return false;
+  }
+  const separator = decoded.indexOf(":");
+  if (separator < 0) return false;
+  return timingSafeStringEqual(decoded.slice(separator + 1), SITE_PASSWORD);
+}
 
 /**
  * Korzeń storefrontu tenanta = katalog (`/store`, grupa tras (tenant)). Goły `/`
@@ -122,6 +177,18 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
   const csp = cspOptions();
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
+
+  // HASŁO CAŁEGO SITE'U — patrz nagłówek pliku. Przed jakimkolwiek
+  // rozwiązaniem tenanta (żadnego zapytania do bazy dla nieautoryzowanego
+  // ruchu). Ta sama odpowiedź dla marketingu, sklepów najemców i domen
+  // obcych — nieautoryzowany nie dowiaduje się, na którą gałąź trafił.
+  if (!siteAuthorized(request.headers.get("authorization"))) {
+    const response = new NextResponse("Wymagane hasło.", {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Basic realm="avably", charset="UTF-8"' },
+    });
+    return applySecurityHeaders(response, nonce, csp);
+  }
 
   /**
    * Gałąź tenancka — JEDNO miejsce dla obu osi hostów (subdomena i własna
