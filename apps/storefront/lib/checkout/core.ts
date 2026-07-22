@@ -10,7 +10,8 @@
  * jest jednorazowy, więc nie palimy go na wejściu, które i tak odrzuci parser.
  */
 import { checkoutSchema, toCheckoutFieldErrors } from "./validation";
-import type { CheckoutInput, CheckoutResult } from "./contract";
+import { isPaymentMethodAllowed, type OnlinePaymentAvailability } from "./payment-options";
+import type { CheckoutInput, CheckoutPaymentMethod, CheckoutResult } from "./contract";
 
 /** Argumenty RPC app.public_checkout (snake_case — kontrakt z bazą). */
 export interface CheckoutRpcArgs {
@@ -31,6 +32,8 @@ export interface CheckoutRpcArgs {
   p_address_zip: string | null;
   p_address_city: string | null;
   p_notes: string | null;
+  /** Wybór klienta (0029) — zapisywany na zamówieniu, nie trzymany w sesji. */
+  p_payment_method: CheckoutPaymentMethod;
 }
 
 /**
@@ -39,9 +42,17 @@ export interface CheckoutRpcArgs {
  * NIGDY nieprzepuszczany do przeglądarki (kontrakt CheckoutResult go nie ma).
  */
 export interface CheckoutRpcResult {
+  /**
+   * Identyfikator zamówienia — SERWEROWY, jak `log_token`: jest kluczem
+   * idempotencji płatności i uchwytem do kroku płatności, a kontrakt
+   * `CheckoutResult` go nie niesie.
+   */
+  order_id: string;
   order_number: string;
   order_status: "pending";
   payment_status: "unpaid";
+  payment_method: CheckoutPaymentMethod;
+  payment_provider: "manual" | "stripe";
   start_date: string;
   end_date: string;
   delivery_method: string;
@@ -92,6 +103,23 @@ export interface CheckoutDeps {
    * niezależnie od poczty (wzorzec 8b).
    */
   sendEmails: (ctx: CheckoutRpcResult) => Promise<string[]>;
+  /**
+   * Czy tor online jest dziś dostępny w tym sklepie — `chargesEnabled` musi
+   * pochodzić z ODCZYTU u dostawcy (ADR-049), nie z kolumny w bazie.
+   *
+   * Rzucenie z tej funkcji NIE jest awarią checkoutu: rdzeń traktuje je jak
+   * „online niedostępne" i przepuszcza tor offline. Odwrotna decyzja
+   * (wywalić się na całym checkoucie, bo dostawca nie odpowiada) odebrałaby
+   * najemcy również sprzedaż za przelewem — czyli nasza awaria zabierałaby
+   * mu pieniądze.
+   */
+  readOnlineAvailability: () => Promise<OnlinePaymentAvailability>;
+  /**
+   * Zapamiętuje uchwyt do TEGO checkoutu (ciasteczko `httpOnly`), żeby krok
+   * płatności i strona powrotu wiedziały, o które zamówienie chodzi, bez
+   * przenoszenia tokenu przez adres URL.
+   */
+  rememberCheckout: (handle: { orderId: string; token: string }) => Promise<void>;
 }
 
 /**
@@ -114,10 +142,16 @@ function summaryFrom(rpc: CheckoutRpcResult): CheckoutResult {
 
   return {
     status: "success",
+    // Krok płatności należy się WYŁĄCZNIE zamówieniu w reżimie online.
+    // Warunek patrzy na to, co utrwalił SERWER (`payment_provider` z wiersza),
+    // a nie na to, co przysłał klient — inaczej wejście z `paymentMethod:
+    // "online"` prowadziłoby na krok płatności zamówienie przelewowe.
+    nextStep: rpc.payment_provider === "stripe" ? "payment" : "confirmation",
     order: {
       orderNumber: rpc.order_number,
       orderStatus: "pending",
       paymentStatus: "unpaid",
+      paymentMethod: rpc.payment_method,
       startDate: rpc.start_date,
       endDate: rpc.end_date,
       deliveryMethod,
@@ -161,6 +195,24 @@ export async function submitCheckoutCore(
   const captcha = await deps.verifyCaptcha(data.captchaToken);
   if (!captcha.ok) return { status: "captcha_failed" };
 
+  // BRAMKA WYBORU METODY — przed zapisem, bo zamówienie założone w reżimie
+  // ścisłym bez możliwości zapłaty nie ma jak z niego wyjść. Odczyt jest
+  // ŚWIEŻY: między wyrenderowaniem formularza a wysłaniem go dostawca mógł
+  // zablokować konto najemcy.
+  //
+  // Porażka odczytu to „online niedostępne", nie „checkout niedostępny":
+  // klient wybierający przelew nie ma prawa oberwać awarią integracji,
+  // z której nie korzysta (ADR-066).
+  let availability: OnlinePaymentAvailability;
+  try {
+    availability = await deps.readOnlineAvailability();
+  } catch {
+    availability = { stripeConfigured: false, chargesEnabled: false };
+  }
+  if (!isPaymentMethodAllowed(data.paymentMethod, availability)) {
+    return { status: "payment_unavailable" };
+  }
+
   let rpc: CheckoutRpcResult;
   try {
     rpc = await deps.callRpc({
@@ -181,6 +233,7 @@ export async function submitCheckoutCore(
       p_address_zip: data.addressZip ?? null,
       p_address_city: data.addressCity ?? null,
       p_notes: data.notes ?? null,
+      p_payment_method: data.paymentMethod,
     });
   } catch (error) {
     const code = (error as CheckoutRpcError).code;
@@ -194,9 +247,25 @@ export async function submitCheckoutCore(
     return { status: "server_error" };
   }
 
-  // Zamówienie UTRWALONE. Poczta nie może go już cofnąć (wzorzec 8b): sendEmails
-  // nie rzuca, a jego powody niewysłania wchodzą do wyniku jako miękkie
-  // ostrzeżenie — sukces zamówienia jest niezależny od dostarczenia e-maili.
+  // Zamówienie UTRWALONE — od tego miejsca nic go już nie cofa. Uchwyt do
+  // niego zapamiętujemy PRZED pocztą i niezależnie od niej: bez uchwytu krok
+  // płatności nie miałby jak rozpoznać zamówienia, a klient utknąłby
+  // z rezerwacją, której nie da się opłacić.
+  //
+  // Uchwyt zapamiętujemy dla OBU torów, nie tylko online — strona statusu
+  // zamówienia przelewowego korzysta z tego samego mechanizmu.
+  try {
+    await deps.rememberCheckout({ orderId: rpc.order_id, token: rpc.log_token });
+  } catch (error) {
+    // Zapis ciasteczka bywa niemożliwy (nagłówki już wysłane). To pogarsza
+    // ścieżkę, ale nie unieważnia zamówienia — mówimy o tym w logu serwera,
+    // zamiast wywracać wynik utrwalonej operacji.
+    console.error("[checkout] nie udało się zapamiętać uchwytu checkoutu", error);
+  }
+
+  // Poczta nie może zamówienia cofnąć (wzorzec 8b): sendEmails nie rzuca,
+  // a jego powody niewysłania wchodzą do wyniku jako miękkie ostrzeżenie —
+  // sukces zamówienia jest niezależny od dostarczenia e-maili.
   const emailIssues = await deps.sendEmails(rpc);
   const result = summaryFrom(rpc) as Extract<CheckoutResult, { status: "success" }>;
   if (emailIssues.length > 0) result.emailIssues = emailIssues;

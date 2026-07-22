@@ -16,6 +16,7 @@ import { Button, Checkbox, Input, Label, Textarea } from "@avably/ui";
 import { useEffect, useState, type FormEvent } from "react";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { submitCheckout } from "@/lib/actions/checkout";
 import { isCheckoutReady, toCheckoutItems } from "@/lib/cart/model";
@@ -25,6 +26,7 @@ import type {
   CheckoutDeliveryMethod,
   CheckoutField,
   CheckoutInput,
+  CheckoutPaymentMethod,
   PublicCatalogProduct,
   PublicDeliveryMethod,
   PublicPickupLocation,
@@ -49,6 +51,16 @@ interface CheckoutFormProps {
   locale: StorefrontLocale;
   copy: StorefrontCopy;
   turnstileSiteKey?: string | undefined;
+  /**
+   * Metody płatności policzone NA SERWERZE (ADR-066) — z odczytu stanu konta
+   * najemcy u dostawcy, nie z kolumny w bazie. Tor offline jest w tej liście
+   * zawsze; brak `online` znaczy „ten sklep dziś nie przyjmuje płatności
+   * online", a nie „coś się zepsuło".
+   *
+   * Lista jest tu WSKAZÓWKĄ DLA UI, nie bramką: prawdziwa bramka stoi
+   * w rdzeniu akcji, po stronie serwera, i pyta o stan konta jeszcze raz.
+   */
+  paymentMethods: CheckoutPaymentMethod[];
 }
 
 function deliveryLabel(copy: StorefrontCopy, method: CheckoutDeliveryMethod): string {
@@ -64,6 +76,28 @@ function deliveryLabel(copy: StorefrontCopy, method: CheckoutDeliveryMethod): st
   }
 }
 
+function paymentLabel(copy: StorefrontCopy, method: CheckoutPaymentMethod): string {
+  switch (method) {
+    case "online":
+      return copy.checkout.paymentOnline;
+    case "transfer":
+      return copy.checkout.paymentTransfer;
+    case "cod":
+      return copy.checkout.paymentCod;
+  }
+}
+
+function paymentHint(copy: StorefrontCopy, method: CheckoutPaymentMethod): string {
+  switch (method) {
+    case "online":
+      return copy.checkout.paymentOnlineHint;
+    case "transfer":
+      return copy.checkout.paymentTransferHint;
+    case "cod":
+      return copy.checkout.paymentCodHint;
+  }
+}
+
 interface Values {
   fullName: string;
   email: string;
@@ -76,11 +110,12 @@ interface Values {
   notes: string;
   deliveryMethod: CheckoutDeliveryMethod;
   pickupLocationId: string;
+  paymentMethod: CheckoutPaymentMethod;
   terms: boolean;
   honeypot: string;
 }
 
-const EMPTY_VALUES: Values = {
+const EMPTY_VALUES: Omit<Values, "paymentMethod"> = {
   fullName: "",
   email: "",
   phone: "",
@@ -112,9 +147,17 @@ export function CheckoutForm({
   locale,
   copy,
   turnstileSiteKey,
+  paymentMethods,
 }: CheckoutFormProps) {
+  const router = useRouter();
   const { cart, hydrated, clear } = useCart();
-  const [values, setValues] = useState<Values>(EMPTY_VALUES);
+  // Pierwsza metoda z listy serwera jest zaznaczona: gdy online jest
+  // dostępne, klient chcący zapłacić od razu nie musi nic klikać, a reszta
+  // ma wybór o jedno kliknięcie dalej.
+  const [values, setValues] = useState<Values>({
+    ...EMPTY_VALUES,
+    paymentMethod: paymentMethods[0] ?? "transfer",
+  });
   const [view, setView] = useState<CheckoutViewState>({ kind: "idle" });
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaEpoch, setCaptchaEpoch] = useState(0);
@@ -124,6 +167,16 @@ export function CheckoutForm({
   useEffect(() => {
     if (view.kind === "success") clear();
   }, [view.kind, clear]);
+
+  // Zamówienie opłacane online idzie na krok płatności. Nawigacja siedzi
+  // w efekcie, nie w handlerze: koszyk musi zostać wyczyszczony niezależnie
+  // od tego, czy przejście się powiedzie, a router w handlerze potrafiłby
+  // odmontować komponent przed efektem czyszczącym.
+  useEffect(() => {
+    if (view.kind === "success" && view.nextStep === "payment") {
+      router.push("/checkout/platnosc");
+    }
+  }, [view, router]);
 
   const fields = view.kind === "validation" ? view.fields : {};
   const messageKey = getCheckoutMessageKey(view);
@@ -152,6 +205,8 @@ export function CheckoutForm({
         return errors.deliveryMethod;
       case "pickupLocationId":
         return errors.pickupLocationId;
+      case "paymentMethod":
+        return errors.paymentMethod;
       case "items":
         return errors.items;
       default:
@@ -167,6 +222,19 @@ export function CheckoutForm({
    */
   function describedBy(field: CheckoutField, errorId: string): string | undefined {
     return fields[field] ? errorId : undefined;
+  }
+
+  // --- Zamówienie online: przejście na krok płatności --------------------
+  //
+  // Świadomie NIE pokazujemy tu ekranu potwierdzenia: mówi on „płatność
+  // rozliczysz z wypożyczalnią", co dla klienta płacącego kartą byłoby
+  // nieprawdą, a mignąłby mu na ułamek sekundy przed przekierowaniem.
+  if (view.kind === "success" && view.nextStep === "payment") {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6" role="status">
+        <p className="text-muted-foreground">{copy.payment.loading}</p>
+      </div>
+    );
   }
 
   // --- Ekran potwierdzenia (sukces) -------------------------------------
@@ -257,6 +325,7 @@ export function CheckoutForm({
       startDate: cart.startDate!,
       endDate: cart.endDate!,
       deliveryMethod: values.deliveryMethod,
+      paymentMethod: values.paymentMethod,
       pickupLocationId:
         values.deliveryMethod === "pickup" ? values.pickupLocationId || undefined : undefined,
       items: toCheckoutItems(cart),
@@ -304,6 +373,7 @@ export function CheckoutForm({
             {messageKey === "rate_limited" ? copy.checkout.errors.rateLimited : null}
             {messageKey === "captcha" ? copy.checkout.errors.captcha : null}
             {messageKey === "connection" ? copy.checkout.errors.connection : null}
+            {messageKey === "payment_unavailable" ? copy.checkout.errors.paymentUnavailable : null}
             {messageKey === "server" ? copy.checkout.errors.server : null}
           </div>
         ) : null}
@@ -460,25 +530,91 @@ export function CheckoutForm({
           {showPickup ? (
             <div className="grid gap-1">
               <Label htmlFor="co-pickup">{copy.checkout.pickupLocation}</Label>
-              <select
-                id="co-pickup"
-                className="border-input h-10 w-full rounded-md border bg-transparent px-3 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
-                aria-invalid={Boolean(fields.pickupLocationId)}
-                aria-describedby={describedBy("pickupLocationId", "co-pickup-error")}
-                value={values.pickupLocationId}
-                onChange={(event) => set("pickupLocationId", event.target.value)}
-              >
-                <option value="">{copy.checkout.choosePickup}</option>
-                {pickupLocations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                    {location.address_city ? ` — ${location.address_city}` : ""}
-                  </option>
-                ))}
-              </select>
+              {/*
+                Natywny <select> zostaje (dostępność, klawiatura, natywna lista
+                na telefonie), ale systemowa strzałka znika: `appearance-none`
+                zdejmuje ją razem z systemowym tłem, a własna wraca jako
+                warstwa pod spodem. Bez tego pole było jedynym elementem
+                formularza rysowanym przez system operacyjny — obcym wśród
+                pozostałych i innym na każdej platformie.
+
+                Strzałka jest `pointer-events-none`, więc kliknięcie w nią
+                nadal otwiera listę; `pr-9` rezerwuje jej miejsce, żeby długa
+                nazwa punktu nie wjeżdżała pod ikonę.
+              */}
+              <div className="relative">
+                <select
+                  id="co-pickup"
+                  className="border-input h-10 w-full appearance-none rounded-md border bg-transparent px-3 pr-9 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                  aria-invalid={Boolean(fields.pickupLocationId)}
+                  aria-describedby={describedBy("pickupLocationId", "co-pickup-error")}
+                  value={values.pickupLocationId}
+                  onChange={(event) => set("pickupLocationId", event.target.value)}
+                >
+                  <option value="">{copy.checkout.choosePickup}</option>
+                  {pickupLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                      {location.address_city ? ` — ${location.address_city}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m4 6 4 4 4-4" />
+                </svg>
+              </div>
               <FieldError id="co-pickup-error" message={fieldMessage("pickupLocationId")} />
             </div>
           ) : null}
+        </fieldset>
+
+        {/* Sposób płatności */}
+        <fieldset className="grid gap-4" disabled={submitting}>
+          <legend className="text-lg font-semibold">{copy.checkout.paymentHeading}</legend>
+          <div className="grid gap-2">
+            {paymentMethods.map((method) => (
+              <label
+                key={method}
+                className="flex items-start gap-3 rounded-md border border-border p-3"
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  className="mt-1"
+                  value={method}
+                  aria-describedby={describedBy("paymentMethod", "co-payment-error")}
+                  checked={values.paymentMethod === method}
+                  onChange={() => set("paymentMethod", method)}
+                />
+                <span className="grid gap-0.5">
+                  <span>{paymentLabel(copy, method)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {paymentHint(copy, method)}
+                  </span>
+                </span>
+              </label>
+            ))}
+            <FieldError id="co-payment-error" message={fieldMessage("paymentMethod")} />
+          </div>
+
+          {/*
+            Sklep bez płatności online nie dostaje komunikatu o awarii ani
+            wyszarzonej opcji „niedostępne" — dostaje zdanie opisujące, jak
+            ta wypożyczalnia się rozlicza (ADR-066). Dla klienta to nie jest
+            brak funkcji, tylko informacja o sprzedawcy.
+          */}
+          {paymentMethods.includes("online") ? null : (
+            <p className="text-sm text-muted-foreground">{copy.checkout.paymentOfflineNote}</p>
+          )}
         </fieldset>
 
         {/* Uwagi */}

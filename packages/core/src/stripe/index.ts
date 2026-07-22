@@ -32,9 +32,20 @@ export {
   type ConnectAccountDeps,
 } from "./account";
 
+export {
+  PaymentAmountError,
+  createPaymentIntent,
+  isIntentSettled,
+  readPaymentIntent,
+  type PaymentIntentDeps,
+} from "./payment-intent";
+
 export type {
   ConnectAccountState,
   ConnectAccountSync,
+  CreateIntentParams,
+  IntentHandle,
+  IntentRead,
   OnboardingLink,
   OnboardingUrls,
   StripeAvailability,

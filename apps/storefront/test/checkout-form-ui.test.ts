@@ -21,6 +21,7 @@ const ORDER: CheckoutOrderSummary = {
   orderNumber: "AV-2026-000123",
   orderStatus: "pending",
   paymentStatus: "unpaid",
+  paymentMethod: "transfer",
   startDate: "2026-10-01",
   endDate: "2026-10-05",
   deliveryMethod: "courier",
@@ -36,12 +37,13 @@ const ORDER: CheckoutOrderSummary = {
 
 describe("mapCheckoutResult pokrywa KAŻDY status", () => {
   const cases: { result: CheckoutResult; expected: string }[] = [
-    { result: { status: "success", order: ORDER }, expected: "success" },
+    { result: { status: "success", order: ORDER, nextStep: "confirmation" }, expected: "success" },
     { result: { status: "validation_error", fields: { email: "invalid" } }, expected: "validation" },
     { result: { status: "unavailable" }, expected: "unavailable" },
     { result: { status: "rejected" }, expected: "rejected" },
     { result: { status: "rate_limited" }, expected: "rate_limited" },
     { result: { status: "captcha_failed" }, expected: "captcha_error" },
+    { result: { status: "payment_unavailable" }, expected: "payment_unavailable" },
     { result: { status: "server_error" }, expected: "server_error" },
   ];
 
@@ -78,12 +80,12 @@ describe("mapCheckoutResult pokrywa KAŻDY status", () => {
   });
 
   it("success niesie order i puste emailIssues, gdy serwer ich nie zwrócił", () => {
-    const view = mapCheckoutResult({ status: "success", order: ORDER });
-    expect(view).toMatchObject({ kind: "success", order: ORDER, emailIssues: [] });
+    const view = mapCheckoutResult({ status: "success", order: ORDER, nextStep: "confirmation" });
+    expect(view).toMatchObject({ kind: "success", order: ORDER, emailIssues: [], nextStep: "confirmation" });
   });
 
   it("success przenosi emailIssues z serwera", () => {
-    const view = mapCheckoutResult({ status: "success", order: ORDER, emailIssues: ["brak nadawcy"] });
+    const view = mapCheckoutResult({ status: "success", order: ORDER, nextStep: "confirmation", emailIssues: ["brak nadawcy"] });
     expect(view.kind === "success" && view.emailIssues).toEqual(["brak nadawcy"]);
   });
 });
@@ -93,7 +95,7 @@ describe("reset captchy", () => {
     expect(shouldResetCaptcha({ kind: "server_error" })).toBe(true);
     expect(shouldResetCaptcha({ kind: "captcha_error" })).toBe(true);
     expect(shouldResetCaptcha({ kind: "unavailable" })).toBe(true);
-    expect(shouldResetCaptcha({ kind: "success", order: ORDER, emailIssues: [] })).toBe(false);
+    expect(shouldResetCaptcha({ kind: "success", order: ORDER, emailIssues: [], nextStep: "confirmation" })).toBe(false);
     expect(shouldResetCaptcha({ kind: "validation", fields: {} })).toBe(false);
     expect(shouldResetCaptcha({ kind: "idle" })).toBe(false);
   });

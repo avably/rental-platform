@@ -14,6 +14,20 @@
 export const CHECKOUT_DELIVERY_METHODS = ["pickup", "courier", "parcel_locker", "own_delivery"] as const;
 export type CheckoutDeliveryMethod = (typeof CHECKOUT_DELIVERY_METHODS)[number];
 
+/**
+ * Metody płatności — lustro CHECK orders.payment_method (0029).
+ *
+ * TOR OFFLINE JEST TRWAŁY, NIE AWARYJNY (ADR-066): `transfer` i `cod` są
+ * w tym zbiorze na równych prawach z `online` i nie znikają z niego nigdy —
+ * ani gdy najemca ma pełne KYC, ani gdy dostawca ma awarię. Jedyną metodą,
+ * która bywa niedostępna, jest `online`.
+ */
+export const CHECKOUT_PAYMENT_METHODS = ["online", "transfer", "cod"] as const;
+export type CheckoutPaymentMethod = (typeof CHECKOUT_PAYMENT_METHODS)[number];
+
+/** Metody, które są dostępne ZAWSZE — niezależnie od stanu integracji. */
+export const CHECKOUT_OFFLINE_PAYMENT_METHODS = ["transfer", "cod"] as const;
+
 /** Pozycja koszyka. Egzemplarz przypisuje SERWER — klient podaje model + ilość. */
 export interface CheckoutItemInput {
   productId: string;
@@ -35,6 +49,12 @@ export interface CheckoutInput {
   startDate: string; // ISO YYYY-MM-DD, zakres INCLUSIVE
   endDate: string;
   deliveryMethod: CheckoutDeliveryMethod;
+  /**
+   * Wybór klienta: płacę teraz online czy rozliczam się z wypożyczalnią.
+   * To DANE ZAMÓWIENIA (kolumna `orders.payment_method`), nie stan sesji —
+   * operator musi znać tę deklarację także za tydzień, bez przeglądarki.
+   */
+  paymentMethod: CheckoutPaymentMethod;
   /** Wymagane WYŁĄCZNIE gdy deliveryMethod = 'pickup'. */
   pickupLocationId?: string | undefined;
   items: CheckoutItemInput[];
@@ -63,6 +83,7 @@ export type CheckoutField =
   | "endDate"
   | "deliveryMethod"
   | "pickupLocationId"
+  | "paymentMethod"
   | "items"
   | "terms"
   | "phone"
@@ -98,7 +119,17 @@ export interface CheckoutSummaryItem {
 export interface CheckoutOrderSummary {
   orderNumber: string;
   orderStatus: "pending";
+  /**
+   * ZAWSZE `unpaid` — i to nie jest uproszczenie kontraktu, tylko granica
+   * zaufania (ADR-049). Zamówienie wychodzi z tej akcji nieopłacone także
+   * wtedy, gdy klient za sekundę zapłaci kartą: o pobraniu środków wolno
+   * twierdzić dopiero po ODCZYCIE u dostawcy, a ten odczyt robi webhook (Z4).
+   * `paid` nie jest tu reprezentowalne, więc nie da się go przypadkiem
+   * przekazać do widoku.
+   */
   paymentStatus: "unpaid";
+  /** Wybór klienta, utrwalony na zamówieniu (0029). */
+  paymentMethod: CheckoutPaymentMethod;
   startDate: string;
   endDate: string;
   deliveryMethod: CheckoutDeliveryMethod;
@@ -113,7 +144,11 @@ export interface CheckoutOrderSummary {
  * Wynik akcji. Zamknięty zbiór — LP obsługuje każdy wariant jawnie:
  *
  *   success          → zamówienie złożone; `order` = podsumowanie do ekranu
- *                      potwierdzenia. `emailIssues` (opcjonalne) = powody
+ *                      potwierdzenia. `nextStep` mówi, DOKĄD idzie klient:
+ *                      `confirmation` (obieg offline — koniec ścieżki) albo
+ *                      `payment` (krok płatności online). To pole niesie
+ *                      wyłącznie NAWIGACJĘ, nigdy stanu płatności.
+ *                      `emailIssues` (opcjonalne) = powody
  *                      niewysłania e-maili — zamówienie ISTNIEJE mimo to
  *                      (wysyłka nigdy nie blokuje utworzenia). Stringi NIE
  *                      zawierają adresów odbiorców (budowane po naszej stronie).
@@ -124,15 +159,26 @@ export interface CheckoutOrderSummary {
  *                      anty-bot (honeypot); LP pokazuje ogólny błąd
  *   rate_limited     → za dużo prób z tego IP
  *   captcha_failed   → weryfikacja Turnstile odmówiła (ADR-032); LP resetuje widget
+ *   payment_unavailable → klient wybrał płatność online, a serwer ODCZYTAŁ
+ *                      u dostawcy, że konto najemcy nie przyjmuje płatności.
+ *                      Zamówienie NIE POWSTAŁO. To nie jest awaria: klient
+ *                      wraca do formularza z torem offline (ADR-066), który
+ *                      jest pełnoprawną drogą do tej samej rezerwacji.
  *   server_error     → błąd nieoczekiwany / brak kontekstu tenanta
  */
 export type CheckoutResult =
-  | { status: "success"; order: CheckoutOrderSummary; emailIssues?: string[] }
+  | {
+      status: "success";
+      order: CheckoutOrderSummary;
+      nextStep: "confirmation" | "payment";
+      emailIssues?: string[];
+    }
   | { status: "validation_error"; fields: CheckoutFieldErrors }
   | { status: "unavailable" }
   | { status: "rejected" }
   | { status: "rate_limited" }
   | { status: "captcha_failed" }
+  | { status: "payment_unavailable" }
   | { status: "server_error" };
 
 export type CheckoutStatus = CheckoutResult["status"];

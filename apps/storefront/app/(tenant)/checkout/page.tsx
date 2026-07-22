@@ -14,6 +14,8 @@ import { notFound } from "next/navigation";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { PageShell } from "@/components/storefront/page-shell";
 import { StoreHeader } from "@/components/storefront/store-header";
+import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
+import { availablePaymentMethods } from "@/lib/checkout/payment-options";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { loadStorefrontContext } from "@/lib/storefront/context";
@@ -42,7 +44,14 @@ export default async function TenantCheckoutPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, template } = ctx;
+  const { catalog, copy, locale, currency, template, tenantId } = ctx;
+
+  // Które metody pokazać — liczone TU, na serwerze, ze ŚWIEŻEGO odczytu stanu
+  // konta najemcy u dostawcy (ADR-049). Strona jest `force-dynamic`, więc
+  // odczyt jest jednorazowy na wejście w checkout, a nie cache'owany między
+  // klientami: konto zablokowane godzinę temu ma zniknąć z listy dzisiaj,
+  // a nie po następnym wdrożeniu.
+  const paymentMethods = availablePaymentMethods(await readOnlinePaymentAvailability(tenantId));
 
   return (
     <>
@@ -58,6 +67,7 @@ export default async function TenantCheckoutPage() {
             locale={locale}
             copy={copy}
             turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+            paymentMethods={paymentMethods}
           />
         </div>
       </PageShell>

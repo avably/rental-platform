@@ -23,7 +23,15 @@
  * ustawiona bez dowodu) na osi pieniędzy.
  */
 import { resolveStripeConfig, type StripeConfigOptions } from "./config";
-import type { ConnectAccountState, OnboardingLink, OnboardingUrls, StripeConfig } from "./types";
+import type {
+  ConnectAccountState,
+  CreateIntentParams,
+  IntentHandle,
+  IntentRead,
+  OnboardingLink,
+  OnboardingUrls,
+  StripeConfig,
+} from "./types";
 
 export const STRIPE_API_BASE = "https://api.stripe.com";
 
@@ -83,6 +91,22 @@ interface StripeAccountBody {
 interface StripeAccountLinkBody {
   url?: string;
   expires_at?: number;
+}
+
+/**
+ * Wycinek odpowiedzi PaymentIntentu (Z3). `amount_received` jest tu POLEM
+ * OSOBNYM od `amount` z rozmysłu: `amount` to nasza deklaracja o tym, ile
+ * chcieliśmy pobrać, a `amount_received` — jedyna liczba mówiąca, ile
+ * dostawca faktycznie zaksięgował. Porównanie ich z sumą policzoną przez
+ * NASZ serwer jest bramką Z4; tu udostępniamy obie, żeby było co porównać.
+ */
+interface StripePaymentIntentBody {
+  id?: string;
+  client_secret?: string;
+  status?: string;
+  amount?: number;
+  amount_received?: number;
+  currency?: string;
 }
 
 /**
@@ -174,9 +198,9 @@ export class StripeConnectClient {
 
   private async request(
     path: string,
-    init: RequestInit & { idempotencyKey?: string } = {},
+    init: RequestInit & { idempotencyKey?: string; stripeAccount?: string } = {},
   ): Promise<{ status: number; body: unknown }> {
-    const { idempotencyKey, ...rest } = init;
+    const { idempotencyKey, stripeAccount, ...rest } = init;
     let response: Response;
     try {
       response = await this.fetchFn(`${STRIPE_API_BASE}${path}`, {
@@ -186,6 +210,12 @@ export class StripeConnectClient {
           "Content-Type": "application/x-www-form-urlencoded",
           "Stripe-Version": STRIPE_API_VERSION,
           ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+          // Płatność powstaje NA KONCIE NAJEMCY (charge bezpośredni), nie na
+          // koncie platformy z późniejszym przelewem. Ten nagłówek jest całą
+          // różnicą: bez niego środki lądują u NAS, a najemca ma je dostać
+          // od swojego klienta. Nagłówek wchodzi wyłącznie tam, gdzie
+          // wołający podał konto — konto puste nie ma tu prawa być domyślne.
+          ...(stripeAccount ? { "Stripe-Account": stripeAccount } : {}),
           ...rest.headers,
         },
       });
@@ -296,5 +326,89 @@ export class StripeConnectClient {
     const link = (body ?? {}) as StripeAccountLinkBody;
     if (!link.url) throw new StripeApiError("API płatności nie zwróciło adresu onboardingu.");
     return { url: link.url, expiresAt: link.expires_at ?? 0 };
+  }
+
+  /**
+   * Tworzy PaymentIntent NA KONCIE NAJEMCY.
+   *
+   * KWOTA IDZIE BEZ PRZELICZANIA. `amountGrosze` to ta sama liczba, którą
+   * policzył nasz serwer, i ta sama, którą dostawca zaksięguje — najmniejsza
+   * jednostka waluty po obu stronach. Każde `/100` albo `* 100` w tym miejscu
+   * to pobranie stukrotnie złej kwoty; dlatego wartość nie przechodzi tu przez
+   * ŻADNĄ arytmetykę, a test tabelaryczny pilnuje bajtów ciała żądania.
+   *
+   * IDEMPOTENCJA JEST PARAMETREM WYMAGANYM, nie opcją: klucz budowany
+   * z `orders.id` sprawia, że dwuklik „Zapłać" i ponowne wejście na krok
+   * płatności odtwarzają TEN SAM intent zamiast obciążać klienta drugi raz.
+   */
+  async createPaymentIntent(input: CreateIntentParams): Promise<IntentHandle> {
+    const { status, body } = await this.request("/v1/payment_intents", {
+      method: "POST",
+      idempotencyKey: input.idempotencyKey,
+      stripeAccount: input.connectedAccountId,
+      body: encodeStripeForm({
+        amount: input.amountGrosze,
+        // Dostawca oczekuje kodu waluty małymi literami; nasza oś trzyma go
+        // wielkimi (plans.currency). Jedyna dopuszczalna „konwersja" kwoty
+        // w tym pliku dotyczy WIELKOŚCI LITER, nie liczby.
+        currency: input.currency.toLowerCase(),
+        application_fee_amount: input.applicationFeeGrosze,
+        // Metody płatności (BLIK/P24/karta) włącza najemca w panelu dostawcy —
+        // lista NIE jest zaszyta u nas. Dopisanie nowej metody w kraju najemcy
+        // ma być jego decyzją, nie naszym wdrożeniem.
+        automatic_payment_methods: { enabled: true },
+        // Po tym polu Z4 odnajduje zamówienie, gdy webhook przyniesie sam
+        // identyfikator intentu. Metadane są DODATKIEM do wiązania w bazie
+        // (orders.provider_payment_intent_id), nie jego zamiennikiem:
+        // metadane u dostawcy są edytowalne z jego panelu.
+        metadata: { order_id: input.orderId },
+      }),
+    });
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+
+    const intent = (body ?? {}) as StripePaymentIntentBody;
+    if (!intent.id || !intent.client_secret) {
+      throw new StripeApiError("API płatności nie zwróciło danych płatności.");
+    }
+    return {
+      intentId: intent.id,
+      clientSecret: intent.client_secret,
+      // Status prosto od dostawcy, BEZ tłumaczenia na naszą oś. Mapowanie
+      // „succeeded → paid" nie należy do portu i nie powstanie tutaj (Z4).
+      status: intent.status ?? "unknown",
+    };
+  }
+
+  /**
+   * JEDYNE źródło prawdy o płatności (ADR-049) — lustro `readAccount`.
+   *
+   * Zwraca `amountReceivedGrosze` ODDZIELNIE od statusu, bo to dwie różne
+   * informacje: status mówi, w jakiej fazie jest próba, a kwota — ile
+   * naprawdę wpłynęło. Zamówienie opłacone częściowo ma status `succeeded`
+   * przy kwocie mniejszej niż nasza suma i tylko porównanie liczb to wyłapie.
+   */
+  async readPaymentIntent(
+    intentId: string,
+    connectedAccountId: string,
+  ): Promise<IntentRead> {
+    const { status, body } = await this.request(
+      `/v1/payment_intents/${encodeURIComponent(intentId)}`,
+      { method: "GET", stripeAccount: connectedAccountId },
+    );
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+
+    const intent = (body ?? {}) as StripePaymentIntentBody;
+    return {
+      intentId: intent.id ?? intentId,
+      status: intent.status ?? "unknown",
+      // Brak pola = ZERO pobrane. Domyślna kwota „taka, o jaką prosiliśmy"
+      // przy nieznanym kształcie odpowiedzi oznaczałaby uznanie zamówienia
+      // za opłacone bez ani jednej złotówki — ten sam kształt błędu, co
+      // domyślna gotowość konta w `toAccountState`.
+      amountReceivedGrosze: typeof intent.amount_received === "number" ? intent.amount_received : 0,
+      amountGrosze: typeof intent.amount === "number" ? intent.amount : 0,
+    };
   }
 }

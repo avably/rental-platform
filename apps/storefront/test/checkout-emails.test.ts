@@ -21,9 +21,12 @@ import type { CheckoutRpcResult } from "@/lib/checkout/core";
 
 function rpcResult(overrides: Partial<CheckoutRpcResult> = {}): CheckoutRpcResult {
   return {
+    order_id: "44444444-4444-4444-8444-444444444007",
     order_number: "AV-2026-007",
     order_status: "pending",
     payment_status: "unpaid",
+    payment_method: "transfer",
+    payment_provider: "manual",
     start_date: "2026-10-01",
     end_date: "2026-10-07",
     delivery_method: "pickup",
