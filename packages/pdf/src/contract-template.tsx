@@ -13,7 +13,6 @@ const CANVAS = "#F4F6F5";
 const BORDER = "#7E8994";
 const LIME = "#EAFFA4";
 const SIGNAL_STRONG = "#5F7500";
-const PAPER_WHITE = "#FFFFFF";
 
 const styles = StyleSheet.create({
   page: {
@@ -30,13 +29,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: INK,
-    borderRadius: 4,
+    paddingBottom: 10,
+    borderBottom: `2 solid ${SIGNAL_STRONG}`,
   },
-  title: { fontSize: 14, fontWeight: 700, color: PAPER_WHITE, letterSpacing: 0.5 },
-  headerMeta: { fontSize: 8, color: PAPER_WHITE, marginTop: 2 },
+  title: { fontSize: 14, fontWeight: 700, color: INK, letterSpacing: 0.5 },
+  headerMeta: { fontSize: 8, color: MUTED, marginTop: 2 },
   headerRight: { alignItems: "flex-end" },
   orderBadge: {
     backgroundColor: LIME,

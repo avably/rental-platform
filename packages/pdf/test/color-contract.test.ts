@@ -84,7 +84,6 @@ describe("kontrakt kolorów umowy PDF (sekcja 01 artefaktu → src)", () => {
       BORDER: "#7E8994",
       LIME: "#EAFFA4",
       SIGNAL_STRONG: "#5F7500",
-      PAPER_WHITE: "#FFFFFF",
     } as const;
     for (const [name, hex] of Object.entries(semanticColors)) {
       expect(templateSource, `${name} musi wskazywać dokładny kolor roli`).toContain(
@@ -92,9 +91,20 @@ describe("kontrakt kolorów umowy PDF (sekcja 01 artefaktu → src)", () => {
       );
     }
 
-    expect(templateSource).toMatch(/headerBar:\s*\{[\s\S]*?backgroundColor:\s*INK/);
-    expect(templateSource).toMatch(/title:\s*\{[^}]*color:\s*PAPER_WHITE/);
-    expect(templateSource).toMatch(/headerMeta:\s*\{[^}]*color:\s*PAPER_WHITE/);
+    // Decyzja właściciela (2026-07-22): nagłówek bez ink-baru — tytuł ink na
+    // bieli papieru, pod nim kreska w signal-strong. Limonka zostaje wyłącznie
+    // na badge'u numeru i wyłącznie z tekstem ink (nośnik).
+    // Blok wycinamy do jego WŁASNEJ klamry zamykającej — leniwy `[\s\S]*?`
+    // przeszedłby przez nią do kolejnych stylów i „brak tła" byłby zielony
+    // przez cudze `backgroundColor`.
+    const headerBar = templateSource.match(/\n {2}headerBar:\s*\{([\s\S]*?)\n {2}\},/)?.[1];
+    expect(headerBar, "nie znaleziono bloku headerBar").toBeTruthy();
+    expect(headerBar, "nagłówek nie może mieć wypełnienia — decyzja właściciela").not.toMatch(
+      /backgroundColor:/,
+    );
+    expect(headerBar).toMatch(/borderBottom:\s*`2 solid \$\{SIGNAL_STRONG\}`/);
+    expect(templateSource).toMatch(/title:\s*\{[^}]*color:\s*INK/);
+    expect(templateSource).toMatch(/headerMeta:\s*\{[^}]*color:\s*MUTED/);
     expect(templateSource).toMatch(/orderBadge:\s*\{[\s\S]*?backgroundColor:\s*LIME/);
     expect(templateSource).toMatch(/orderBadgeText:\s*\{[^}]*color:\s*INK/);
     expect(templateSource).toMatch(/partyLabel:\s*\{[\s\S]*?color:\s*SIGNAL_STRONG/);
