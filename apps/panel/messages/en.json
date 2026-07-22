@@ -349,6 +349,7 @@
       "payment": {
         "unpaid": "Unpaid",
         "pending": "Pending",
+        "payment_failed": "Payment failed",
         "paid": "Paid",
         "manual": "Manual payment",
         "completed": "Settled",

@@ -28,8 +28,11 @@ export {
   canPaymentTransition,
   canTransition,
   ORDER_STATUSES,
+  PAYMENT_PROVIDERS,
   PAYMENT_STATUSES,
   PAYMENT_TRANSITIONS,
+  PAYMENT_TRANSITIONS_STRIPE,
   type OrderStatus,
+  type PaymentProvider,
   type PaymentStatus,
 } from "./order-status";

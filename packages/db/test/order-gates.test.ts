@@ -35,8 +35,10 @@ import {
   canTransition,
   checkAvailability,
   ORDER_STATUSES,
+  PAYMENT_PROVIDERS,
   PAYMENT_STATUSES,
   type OrderStatus,
+  type PaymentProvider,
   type PaymentStatus,
 } from "@avably/core";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -157,6 +159,7 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
     customerId: string,
     start: string,
     end: string,
+    provider?: PaymentProvider,
   ): Promise<string> {
     const { data, error } = await admin
       .from("orders")
@@ -166,6 +169,9 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
         start_date: start,
         end_date: end,
         delivery_method: "courier",
+        // Bez argumentu NIE podajemy kolumny — ścieżka „jak przed 0027",
+        // której default (manual) jest osobno dowodzony w sekcji 6.
+        ...(provider ? { payment_provider: provider } : {}),
       })
       .select("id")
       .single();
@@ -351,7 +357,26 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       it.each(PAYMENT_STATUSES.map((payment) => ({ payment })))(
         "payment_status=$payment: anulowanie zgodne ze stałą z @avably/core",
         async ({ payment }) => {
-          const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
+          // [0027] `payment_failed` istnieje WYŁĄCZNIE w obiegu online, więc
+          // zamówienie musi być stripe'owe, a stan osiąga się spacerem
+          // unpaid → pending → payment_failed (bramka obowiązuje też
+          // service_role — nie ma ścieżki „ustaw wprost").
+          const isFailed = payment === "payment_failed";
+          const orderId = await createOrder(
+            tenantId,
+            customerId,
+            "2026-08-01",
+            "2026-08-03",
+            isFailed ? "stripe" : undefined,
+          );
+          if (isFailed) {
+            const step = await admin
+              .from("orders")
+              .update({ payment_status: "pending" })
+              .eq("id", orderId)
+              .select("id");
+            expect(step.error?.message, `krok unpaid→pending: ${step.error?.message}`).toBeUndefined();
+          }
           // Od 0015 (ADR-035) oś płatności MA bramkę: z 'unpaid' każdy status
           // jest osiągalny jednym legalnym przejściem, ale wejście w
           // deposit_refunded wymaga DODATKOWO pokrycia w rejestrze kaucji
@@ -905,14 +930,35 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       return { tenantId, orderId };
     }
 
-    it("zgodność 64 par: SQL app.payment_transition_allowed == canPaymentTransition", async () => {
-      for (const from of PAYMENT_STATUSES) {
-        for (const to of PAYMENT_STATUSES) {
-          const [{ allowed }] = await sql<{ allowed: boolean }[]>`
-            select app.payment_transition_allowed(${from}, ${to}) as allowed`;
-          expect(allowed, `SQL ${from}->${to}`).toBe(canPaymentTransition(from, to));
+    // [0027] Macierz zgodności ma DRUGI wymiar: reżim. 2 × 9 × 9 = 162 pary,
+    // każda odpytana w bazie i porównana z werdyktem @avably/core.
+    it.each(PAYMENT_PROVIDERS.map((provider) => ({ provider })))(
+      "zgodność wszystkich 81 par w reżimie $provider: SQL == canPaymentTransition",
+      async ({ provider }) => {
+        let sprawdzone = 0;
+        for (const from of PAYMENT_STATUSES) {
+          for (const to of PAYMENT_STATUSES) {
+            const [{ allowed }] = await sql<{ allowed: boolean }[]>`
+              select app.payment_transition_allowed(${from}, ${to}, ${provider}) as allowed`;
+            expect(allowed, `SQL ${provider}: ${from}->${to}`).toBe(
+              canPaymentTransition(from, to, provider),
+            );
+            sprawdzone += 1;
+          }
         }
-      }
+        // Kontrola po pustym zbiorze: pętla po skurczonej stałej nie ma prawa
+        // przejść na zielono bez sprawdzenia ani jednej pary.
+        expect(sprawdzone, "macierz nie pokryła kompletu par").toBe(
+          PAYMENT_STATUSES.length * PAYMENT_STATUSES.length,
+        );
+      },
+      30_000,
+    );
+
+    it("mapa 2-argumentowa z 0015 już NIE istnieje (wywołanie bez reżimu nie ma jak zgadnąć)", async () => {
+      await expect(
+        sql`select app.payment_transition_allowed('paid', 'pending')`,
+      ).rejects.toMatchObject({ code: "42883" });
     });
 
     it("regres deposit_refunded -> paid odrzucony 23514 (nic innego tego nie blokuje)", async () => {
@@ -971,6 +1017,163 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       const { orderId } = await freshOrder("pay-open");
       expect((await setPayment(orderId, "paid")).error?.message).toBeUndefined();
       expect((await setPayment(orderId, "manual")).error?.message).toBeUndefined();
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 6. Reżim płatności per zamówienie (0027, ADR-064)
+  // -------------------------------------------------------------------
+  //
+  // Macierz zgodności wyżej dowodzi, że SQL i TS mówią to samo o MAPACH.
+  // Ta sekcja dowodzi, że mapa reżimu ścisłego faktycznie stoi na drodze
+  // UPDATE-owi — i że granica jest OBUSTRONNA: to samo przejście przechodzi
+  // na zamówieniu operatorskim. Klient service-role, bo bramka jest
+  // zachowaniem SCHEMATU (ADR-025/035/064).
+  describe("dwa reżimy jednej osi (0027, ADR-064)", () => {
+    async function setPayment(orderId: string, to: string) {
+      return admin.from("orders").update({ payment_status: to }).eq("id", orderId).select("id");
+    }
+    async function orderRow(orderId: string) {
+      const { data } = await admin
+        .from("orders")
+        .select("payment_provider, payment_status")
+        .eq("id", orderId)
+        .single();
+      return data as { payment_provider: string; payment_status: string };
+    }
+    /** Zamówienie doprowadzone do `paid` spacerem właściwym dla reżimu. */
+    async function paidOrder(label: string, provider: PaymentProvider): Promise<string> {
+      const tenantId = await createTenant(label);
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-06-01", "2027-06-03", provider);
+      if (provider === "stripe") {
+        const step = await setPayment(orderId, "pending");
+        expect(step.error?.message, `unpaid→pending (${provider}): ${step.error?.message}`).toBeUndefined();
+      }
+      const paid = await setPayment(orderId, "paid");
+      expect(paid.error?.message, `→paid (${provider}): ${paid.error?.message}`).toBeUndefined();
+      return orderId;
+    }
+
+    it("KRYTERIUM: stripe + paid → pending odrzucone 23514, stan zostaje paid", async () => {
+      const orderId = await paidOrder("prov-stripe", "stripe");
+      const regres = await setPayment(orderId, "pending");
+      expect(regres.error?.code, `regres na stripe przeszedł: ${regres.error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+      expect((await orderRow(orderId)).payment_status, "opłacone zamówienie zmieniło stan").toBe(
+        "paid",
+      );
+    });
+
+    it("KRYTERIUM (druga strona): manual + paid → pending PRZECHODZI", async () => {
+      // Bez tego przypadku „zero regresu" nie odróżnia bramki reżimowej od
+      // zaostrzenia całej osi — a swoboda operatorska ADR-035 ma zostać.
+      const orderId = await paidOrder("prov-manual", "manual");
+      const regres = await setPayment(orderId, "pending");
+      expect(regres.error?.message, `regres na manual odrzucony: ${regres.error?.message}`).toBeUndefined();
+      expect((await orderRow(orderId)).payment_status).toBe("pending");
+    });
+
+    it("istniejące zamówienia zachowują obieg operatorski (default kolumny = manual)", async () => {
+      // Migracja nie ma prawa po cichu zaostrzyć reżimu danym sprzed niej:
+      // INSERT bez wskazania obiegu daje 'manual', a regres z paid przechodzi.
+      const tenantId = await createTenant("prov-default");
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-06-10", "2027-06-12");
+      expect((await orderRow(orderId)).payment_provider, "default kolumny nie jest manual").toBe(
+        "manual",
+      );
+      expect((await setPayment(orderId, "paid")).error?.message).toBeUndefined();
+      const regres = await setPayment(orderId, "pending");
+      expect(regres.error?.message, `zamówienie bez obiegu straciło swobodę: ${regres.error?.message}`).toBeUndefined();
+    });
+
+    it("payment_provider nie wraca ze stripe na manual (23514) — reżimu nie da się zdjąć", async () => {
+      // Inaczej ścisła bramka miałaby obejście w jednym UPDATE.
+      const orderId = await paidOrder("prov-lock", "stripe");
+      const { error } = await admin
+        .from("orders")
+        .update({ payment_provider: "manual" })
+        .eq("id", orderId)
+        .select("id");
+      expect(error?.code, `zdjęcie reżimu przeszło: ${error?.message}`).toBe(PG_BAD_TRANSITION);
+      expect((await orderRow(orderId)).payment_provider).toBe("stripe");
+    });
+
+    it("manual → stripe jest otwarte (tak zamówienie wchodzi w płatność online)", async () => {
+      const tenantId = await createTenant("prov-enter");
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-06-20", "2027-06-22");
+      const { error } = await admin
+        .from("orders")
+        .update({ payment_provider: "stripe" })
+        .eq("id", orderId)
+        .select("id");
+      expect(error?.message, `wejście w obieg online odrzucone: ${error?.message}`).toBeUndefined();
+      expect((await orderRow(orderId)).payment_provider).toBe("stripe");
+    });
+
+    it("payment_failed osiągalny tylko online: stripe pending → payment_failed → pending", async () => {
+      const tenantId = await createTenant("prov-failed");
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-07-01", "2027-07-03", "stripe");
+      expect((await setPayment(orderId, "pending")).error?.message).toBeUndefined();
+      expect((await setPayment(orderId, "payment_failed")).error?.message).toBeUndefined();
+      // Klient ponawia — zamówienie żyje.
+      expect((await setPayment(orderId, "pending")).error?.message).toBeUndefined();
+      expect((await setPayment(orderId, "paid")).error?.message).toBeUndefined();
+    });
+
+    it("payment_failed nieosiągalny w obiegu ręcznym (23514)", async () => {
+      const tenantId = await createTenant("prov-failed-man");
+      const customerId = await createCustomer(tenantId);
+      const orderId = await createOrder(tenantId, customerId, "2027-07-05", "2027-07-07");
+      const r = await setPayment(orderId, "payment_failed");
+      expect(r.error?.code, `payment_failed offline przeszedł: ${r.error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("INSERT w payment_failed odrzucony 23514 (nieudana próba zakłada próbę)", async () => {
+      const tenantId = await createTenant("prov-failed-ins");
+      const customerId = await createCustomer(tenantId);
+      const { error } = await admin.from("orders").insert({
+        tenant_id: tenantId,
+        customer_id: customerId,
+        start_date: "2027-07-10",
+        end_date: "2027-07-11",
+        delivery_method: "courier",
+        payment_provider: "stripe",
+        payment_status: "payment_failed",
+      });
+      expect(error?.code, `INSERT payment_failed przeszedł: ${error?.message}`).toBe(
+        PG_BAD_TRANSITION,
+      );
+    });
+
+    it("CHECK kolumny przyjmuje wyłącznie wartości z PAYMENT_PROVIDERS", async () => {
+      const tenantId = await createTenant("prov-check");
+      const customerId = await createCustomer(tenantId);
+      const { error } = await admin.from("orders").insert({
+        tenant_id: tenantId,
+        customer_id: customerId,
+        start_date: "2027-07-15",
+        end_date: "2027-07-16",
+        delivery_method: "courier",
+        payment_provider: "paypal",
+      });
+      expect(error?.code, "obcy obieg płatności przeszedł").toBe(PG_BAD_TRANSITION);
+
+      const rows = await sql<{ def: string }[]>`
+        select pg_get_constraintdef(oid) as def
+        from pg_constraint
+        where conrelid = 'public.orders'::regclass
+          and conname = 'orders_payment_provider_check'
+      `;
+      expect(rows, "brak CHECK-u orders_payment_provider_check").toHaveLength(1);
+      const values = [...rows[0]!.def.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]!);
+      expect(values.sort()).toEqual([...PAYMENT_PROVIDERS].sort());
     });
   });
 });

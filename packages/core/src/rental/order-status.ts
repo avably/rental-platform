@@ -26,9 +26,18 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+/**
+ * `payment_failed` (0027, ADR-064): próba płatności online została odrzucona
+ * albo wygasła. Zamówienie ŻYJE — klient może ponowić. Bez tego statusu
+ * nieudany BLIK musiałby zostać zapisany jako `unpaid`, czyli „nikt nie
+ * próbował" — nieprawda, która gubi informację potrzebną operatorowi
+ * i klientowi. Status jest osiągalny WYŁĄCZNIE w reżimie `stripe`: obieg
+ * offline nie ma nieudanych prób do zapisania.
+ */
 export const PAYMENT_STATUSES = [
   "unpaid",
   "pending",
+  "payment_failed",
   "paid",
   "manual",
   "completed",
@@ -38,6 +47,15 @@ export const PAYMENT_STATUSES = [
 ] as const;
 
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/**
+ * Kto prowadzi płatność zamówienia (kolumna `orders.payment_provider`, 0027).
+ * To ONA — a nie rola wywołująca — wybiera reżim osi `payment_status`
+ * (ADR-064): rola nie przeżywa refaktoru, kolumna zamówienia tak.
+ */
+export const PAYMENT_PROVIDERS = ["manual", "stripe"] as const;
+
+export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 /**
  * Statusy płatności blokujące anulowanie zamówienia (jedno źródło prawdy;
@@ -85,8 +103,12 @@ export const AVAILABILITY_BLOCKING_ORDER_STATUSES: readonly OrderStatus[] = [
  *     rozliczenia (dokładnie ta luka, którą Zadanie 9 zamyka),
  *   - `refunded` i `cancelled` są terminalne: rozliczona płatność się nie
  *     „od-rozlicza".
- * Lustro w triggerze `app.payment_transition_allowed` (0015); tożsamość obu
- * map przypina test zgodności 64 par w order-gates.test.ts. Wejście w
+ * Od 0027 (ADR-064) ta mapa jest reżimem `manual` — obiegiem, w którym oś
+ * prowadzi CZŁOWIEK. Zamówienia płacone przez Stripe chodzą po
+ * PAYMENT_TRANSITIONS_STRIPE; wybiera kolumna `orders.payment_provider`.
+ *
+ * Lustro w triggerze `app.payment_transition_allowed` (0015/0027); tożsamość
+ * obu map przypina test zgodności par w order-gates.test.ts. Wejście w
  * `deposit_refunded` ma DODATKOWĄ bramkę spójności z rejestrem kaucji (0015):
  * saldo 0 przy pobraniach > 0 (lustro isDepositSettled — ADR-027).
  */
@@ -103,15 +125,67 @@ export const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]
   deposit_refunded: ["refunded", "cancelled"],
   refunded: [],
   cancelled: [],
+  // Reżim `manual` NIE zna nieudanej płatności — offline nie ma odrzuconej
+  // próby do zapisania. Status jest tu nieosiągalny w OBIE strony (nic w niego
+  // nie wchodzi, bo nie ma go na żadnej liście wyżej; i nic z niego nie
+  // wychodzi). To nie jest „stan terminalny obiegu ręcznego", tylko brak
+  // stanu — a `payment_provider` nie wraca ze `stripe` na `manual` (0027),
+  // więc zamówienie w tym stanie nie może wpaść pod reżim ręczny.
+  payment_failed: [],
 };
 
 /**
- * Czy przejście payment_status `from` → `to` jest dozwolone. Przejście
- * tożsamościowe (from === to) NIE jest przejściem — zwraca false; UPDATE
- * niezmieniający statusu w ogóle nie pyta maszyny (tak samo trigger 0015).
+ * Mapa dozwolonych przejść payment_status dla zamówień prowadzonych przez
+ * Stripe (ADR-064). Writerem jest automat BEZ gwarancji kolejności dostaw
+ * webhooków, więc swoboda operatorska z ADR-035 tu NIE obowiązuje:
+ *   - `unpaid → pending` (sesja płatności utworzona) `→ paid | payment_failed`,
+ *   - `payment_failed → pending` — ponowienie próby przez klienta,
+ *   - **zero regresu z `paid`**: `paid` wychodzi WYŁĄCZNIE w rozliczenie
+ *     (`deposit_refunded`, `refunded`). Spóźniony `checkout.session.expired`
+ *     po opłaconym zamówieniu nie ma prawa cofnąć go w `pending` — to jest
+ *     cała pointa drugiego reżimu,
+ *   - `manual`/`completed` są POZA obiegiem online (ręczne oznaczenia
+ *     operatora) — nieosiągalne, gdy płaci automat,
+ *   - `refunded`/`cancelled` terminalne, jak w ADR-035.
+ * Lustro w `app.payment_transition_allowed(text,text,text)` (0027); zgodność
+ * WSZYSTKICH par w OBU reżimach przypina order-gates.test.ts.
  */
-export function canPaymentTransition(from: PaymentStatus, to: PaymentStatus): boolean {
-  return PAYMENT_TRANSITIONS[from].includes(to);
+export const PAYMENT_TRANSITIONS_STRIPE: Record<PaymentStatus, readonly PaymentStatus[]> = {
+  unpaid: ["pending", "cancelled"],
+  pending: ["paid", "payment_failed", "cancelled"],
+  payment_failed: ["pending", "cancelled"],
+  paid: ["deposit_refunded", "refunded"],
+  manual: [],
+  completed: [],
+  deposit_refunded: ["refunded"],
+  refunded: [],
+  cancelled: [],
+};
+
+const PAYMENT_TRANSITIONS_BY_PROVIDER: Record<
+  PaymentProvider,
+  Record<PaymentStatus, readonly PaymentStatus[]>
+> = {
+  manual: PAYMENT_TRANSITIONS,
+  stripe: PAYMENT_TRANSITIONS_STRIPE,
+};
+
+/**
+ * Czy przejście payment_status `from` → `to` jest dozwolone w reżimie
+ * `provider`. Przejście tożsamościowe (from === to) NIE jest przejściem —
+ * zwraca false; UPDATE niezmieniający statusu w ogóle nie pyta maszyny (tak
+ * samo trigger 0015/0027).
+ *
+ * Reżim jest parametrem OBOWIĄZKOWYM: wywołanie bez wskazania obiegu
+ * musiałoby zgadywać, a domyślne `manual` cicho rozluźniałoby bramkę dla
+ * zamówień Stripe w każdym nowym miejscu wywołania.
+ */
+export function canPaymentTransition(
+  from: PaymentStatus,
+  to: PaymentStatus,
+  provider: PaymentProvider,
+): boolean {
+  return PAYMENT_TRANSITIONS_BY_PROVIDER[provider][from].includes(to);
 }
 
 /**

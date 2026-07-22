@@ -349,6 +349,7 @@
       "payment": {
         "unpaid": "Nieopłacone",
         "pending": "Oczekuje",
+        "payment_failed": "Płatność odrzucona",
         "paid": "Opłacone",
         "manual": "Płatność ręczna",
         "completed": "Rozliczone",
