@@ -397,6 +397,7 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .secondary-contract p { margin: 0 0 12px; color: var(--muted-foreground); font: 400 14px/20px "Geist Sans", sans-serif; }
 .secondary-contract .code-surface { margin-bottom: 12px; }
 .secondary-screen { margin: 0 0 32px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); color: var(--card-foreground); }
+.secondary-screen a { color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
 .secondary-screen-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 24px; }
 .secondary-screen-header h3 { margin-bottom: 4px; }
 .secondary-screen-header p, .secondary-demo-note, .secondary-help, .secondary-feedback { margin: 0; color: var(--muted-foreground); font: 400 13px/19px "Geist Sans", sans-serif; }
@@ -412,12 +413,18 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .secondary-form { display: grid; gap: 6px; }
 .secondary-form label { margin: 10px 0 0; font: 500 13px/18px "Geist Sans", sans-serif; }
 .secondary-form input, .secondary-form select, .secondary-form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); }
+.secondary-form [data-secondary-select] { position: relative; display: block; }
+.secondary-form [data-secondary-select]::after { content: ""; position: absolute; top: 50%; right: 16px; width: 8px; height: 8px; border-right: 2px solid var(--foreground); border-bottom: 2px solid var(--foreground); pointer-events: none; transform: translateY(-65%) rotate(45deg); }
+.secondary-form [data-secondary-select] select { appearance: none; -webkit-appearance: none; padding-right: 44px; }
 .secondary-form textarea { min-height: 104px; resize: vertical; }
 .secondary-form textarea[data-size="large"] { min-height: 220px; }
 .secondary-form fieldset { margin: 12px 0 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
 .secondary-form legend { padding: 0 6px; font: 600 13px/18px "Geist Sans", sans-serif; }
 .secondary-form .secondary-radio { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; }
-.secondary-form .secondary-radio input { width: 18px; min-height: 18px; }
+.secondary-form .secondary-radio input[type="radio"] { appearance: none; -webkit-appearance: none; display: grid; place-content: center; width: 20px; min-width: 20px; height: 20px; min-height: 20px; margin: 0; padding: 0; border: 2px solid var(--foreground); border-radius: 50%; background: var(--background); }
+.secondary-form .secondary-radio input[type="radio"]::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--foreground); transform: scale(0); }
+.secondary-form .secondary-radio input[type="radio"]:checked::before { transform: scale(1); }
+.secondary-form [data-secondary-select] select:focus-visible, .secondary-form .secondary-radio input[type="radio"]:focus-visible { border-color: var(--foreground); outline: 3px solid var(--accent); outline-offset: 2px; }
 .secondary-inline-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .secondary-read-list { display: grid; gap: 0; margin: 0; }
 .secondary-read-list div { display: grid; grid-template-columns: minmax(140px, .65fr) 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -1105,7 +1112,7 @@ color-scheme: light dark;
           </header>
           <form class="secondary-form" data-form-line-measure data-email-history-filter>
             <label for="email-status">Status wiadomości</label>
-            <select id="email-status" name="status"><option>Wszystkie</option><option>Wysłane</option><option>Nieudane</option></select>
+            <span data-secondary-select><select id="email-status" name="status"><option>Wszystkie</option><option>Wysłane</option><option>Nieudane</option></select></span>
             <div class="secondary-actions"><button class="button-secondary" data-action="filter-email-history" type="button">Filtruj historię</button></div>
           </form>
           <div class="secondary-table-wrap" data-email-history-table>
@@ -1139,7 +1146,7 @@ color-scheme: light dark;
               <p class="secondary-help">Sekret jest polem tylko do zapisu. Zapisanej wartości nie pokazujemy ponownie.</p>
               <label for="delivery-email">E-mail konta</label><input id="delivery-email" name="email" type="email" value="integracja@example.invalid">
               <label for="delivery-password">Nowe hasło</label><input id="delivery-password" name="password" type="password" value="">
-              <label for="delivery-environment">Środowisko</label><select id="delivery-environment" name="environment"><option>Testowe</option><option>Produkcyjne</option></select>
+              <label for="delivery-environment">Środowisko</label><span data-secondary-select><select id="delivery-environment" name="environment"><option>Testowe</option><option>Produkcyjne</option></select></span>
               <div class="secondary-card-title"><strong>Wariant bez sekretu</strong><span class="chip chip-attention" data-secondary-status-axis="delivery-secret" data-secondary-status-value="missing" data-tone="attention">Brak hasła</span></div>
               <div class="secondary-actions"><button class="button-primary" data-action="save-credentials" type="button">Zapisz konto integracji</button></div>
             </form>
@@ -1206,7 +1213,7 @@ color-scheme: light dark;
             <div class="secondary-card" data-email-warning><p>Gdy wysyłka e-mail jest niedostępna, pokażemy bezpośredni, ręczny link do zaproszenia po jego utworzeniu.</p></div>
             <form class="secondary-form" data-invitation-form data-owner-only="true">
               <label for="invite-email">E-mail osoby</label><input id="invite-email" name="email" type="email" value="nowa-osoba@example.invalid">
-              <label for="invite-role">Rola</label><select id="invite-role" name="role"><option>Pracownik</option><option>Właściciel</option></select>
+              <label for="invite-role">Rola</label><span data-secondary-select><select id="invite-role" name="role"><option>Pracownik</option><option>Właściciel</option></select></span>
               <div class="secondary-actions"><button class="button-primary" data-action="invite-member" type="button">Wyślij zaproszenie</button><span class="secondary-feedback" data-feedback="success">Przykład: zaproszenie utworzone.</span></div>
               <p class="field-error" data-feedback="error">Przykład błędu wysyłki: zaproszenie powstało, wiadomość nie została wysłana.</p>
               <p class="secondary-help" data-manual-invitation-link>Ręczny link: <a href="#secondary-team">app.example.invalid/pl/zaproszenie/fikcyjne</a></p>
@@ -1283,7 +1290,7 @@ color-scheme: light dark;
                 <div class="secondary-actions"><button class="button-secondary" data-action="update-template" type="button">Zapisz szablon</button></div>
               </form>
               <form class="secondary-form secondary-card" data-add-section-form>
-                <label for="section-type">Dodaj sekcję</label><select id="section-type" name="type"><option>Hero</option><option>Produkty</option><option>Cennik</option><option>FAQ</option><option>Kontakt</option><option>Treść własna</option></select>
+                <label for="section-type">Dodaj sekcję</label><span data-secondary-select><select id="section-type" name="type"><option>Hero</option><option>Produkty</option><option>Cennik</option><option>FAQ</option><option>Kontakt</option><option>Treść własna</option></select></span>
                 <div class="secondary-actions"><button class="button-secondary" data-action="add-section" type="button">Dodaj sekcję</button></div>
               </form>
               <div data-site-sections>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const artifactPath = `${root}/docs/branding/2026-07-20-avably-faza-2-system.html`;
@@ -1299,6 +1299,51 @@ assert.deepEqual(
   ).sort(),
   "Każdy status z secondary-status-map musi wystąpić w mockupach",
 );
+
+// ===== Recenzja PM: kontrolki native i linki UA =====
+// Sama obecność klas nie dowodzi, że przeglądarka nie wróci do własnej
+// kontrolki albo niebieskiego linku. Tak jak kontrakt fontów P1, sprawdzamy
+// obliczony styl rzeczywistego DOM-u w jsdom. CSS variables są celowo
+// rozwijane do wartości tokenów, bo jsdom zachowuje `var(...)` w `color`
+// zamiast obliczyć końcowy kolor.
+const jsdomPath = `${root}/packages/ui/node_modules/jsdom/lib/api.js`;
+assert.ok(existsSync(jsdomPath), "Verifier wymaga jsdom z workspace @avably/ui");
+const { JSDOM } = await import(pathToFileURL(jsdomPath).href);
+const computedTokenCss = Object.entries({
+  "--background": "#F4F6F5", "--foreground": "#0B1017", "--card": "#FFFFFF",
+  "--card-foreground": "#0B1017", "--secondary": "#E9EDF0", "--secondary-foreground": "#0B1017",
+  "--muted": "#E9EDF0", "--muted-foreground": "#53616C", "--primary": "#0B1017",
+  "--primary-foreground": "#FFFFFF", "--accent": "#DCE9A8", "--accent-foreground": "#0B1017",
+  "--destructive": "#A93226", "--destructive-foreground": "#FFFFFF", "--border": "#7E8994",
+  "--input": "#7E8994", "--ring": "#5F7500", "--signal-strong": "#536A00",
+}).reduce((resolved, [token, value]) => resolved.replaceAll(`var(${token})`, value), css)
+  .replace(/@font-face\s*\{[\s\S]*?\}/g, "");
+const computedDom = new JSDOM(html, { pretendToBeVisual: true });
+const computedStyle = computedDom.window.document.createElement("style");
+computedStyle.textContent = computedTokenCss;
+computedDom.window.document.head.appendChild(computedStyle);
+const systemComputedColors = new Set([
+  "rgb(11, 16, 23)", "rgb(83, 97, 108)", "rgb(255, 255, 255)",
+  "rgb(169, 50, 38)", "rgb(95, 117, 0)", "rgb(220, 233, 168)",
+]);
+const secondaryInteractive = computedDom.window.document.querySelectorAll(
+  '[data-screen^="secondary-"] :is(a, button, input, select, textarea)',
+);
+assert.ok(secondaryInteractive.length > 0, "Kontrola UA wymaga interaktywnych elementów secondary-*");
+for (const element of secondaryInteractive) {
+  const computed = computedDom.window.getComputedStyle(element);
+  assert.ok(
+    systemComputedColors.has(computed.color),
+    `${element.tagName.toLowerCase()} w secondary-* ma kolor spoza tokenów systemu: ${computed.color}`,
+  );
+  if (element.matches("a")) {
+    assert.equal(computed.color, "rgb(11, 16, 23)", "Link secondary-* musi mieć jawny kolor ink");
+    assert.match(computed.textDecoration, /underline/, "Link secondary-* musi mieć jawne podkreślenie");
+  }
+  if (element.matches('select, input[type="radio"]')) {
+    assert.equal(computed.appearance, "none", `${element.tagName.toLowerCase()} nie może używać wyglądu UA`);
+  }
+}
 
 const headings = findAll(tree, (node) => /^h[1-6]$/.test(node.tag));
 assert.equal(headings.filter((node) => node.tag === "h1").length, 1);
