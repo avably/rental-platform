@@ -20,6 +20,17 @@ import { SidebarNav } from "./sidebar-nav";
  * przejściu do innego ekranu nakładka zostałaby otwarta nad nową treścią,
  * bo nawigacja klientem nie odmontowuje shella.
  */
+/**
+ * CTA paska jako zwykła pozycja (decyzja właściciela 2026-07-22: bez
+ * wyróżnienia). Nie jest pozycją nawigacji — stąd lokalna stała, nie wpis
+ * w `PANEL_NAV_ITEMS`; ikona plusa dobierana jest w renderze.
+ */
+const NEW_ORDER_BAR_ITEM = {
+  id: "new-order",
+  href: "/zamowienia/nowe",
+  labelKey: "newOrderShort",
+} as const;
+
 const BOTTOM_ITEM_CLASS =
   "text-muted-foreground flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium outline-none transition-[color,background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent dark:focus-visible:outline-ring";
 
@@ -74,19 +85,36 @@ export function MobileNav({ userEmail }: { userEmail: string }) {
         aria-label={t("mobileNavigation")}
         className="border-border bg-background fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        {[PANEL_BOTTOM_NAV_HOME, ...PANEL_BOTTOM_NAV_ITEMS].map((item) => {
-          const Icon = NAV_ICONS[item.id];
-          // Dashboard nie przechodzi przez `matchNavItem` (nie jest pozycją
-          // nawigacji), więc bieżącość liczy się dla niego z DOKŁADNEJ ścieżki
-          // — prefiks „/" pasowałby do każdego ekranu panelu.
+        {/*
+          Kolejność: Dashboard · Zamówienia · Nowe · Katalog · Menu (decyzja
+          właściciela 2026-07-22) — „Nowe" stoi na środku, pod kciukiem,
+          i wygląda jak każda inna pozycja: bez obrysu i bez wyróżnienia.
+          Limonkowe wypełnienie niesie na pasku JEDNĄ informację — gdzie
+          jesteś — więc CTA dostaje je wyłącznie na własnej trasie.
+        */}
+        {[
+          PANEL_BOTTOM_NAV_HOME,
+          PANEL_BOTTOM_NAV_ITEMS[0],
+          NEW_ORDER_BAR_ITEM,
+          PANEL_BOTTOM_NAV_ITEMS[1],
+        ].map((item) => {
+          const Icon = NAV_ICONS[item.id] ?? PlusIcon;
+          // Dashboard i CTA nie przechodzą przez `matchNavItem` (nie są
+          // pozycjami nawigacji), więc bieżącość liczy się dla nich
+          // z DOKŁADNEJ ścieżki — prefiks „/" pasowałby do każdego ekranu.
           const current =
             item.id === PANEL_BOTTOM_NAV_HOME.id
               ? pathname === "/"
-              : active?.id === item.id && !(item.id === "orders" && newOrderActive);
+              : item.id === NEW_ORDER_BAR_ITEM.id
+                ? newOrderActive
+                : active?.id === item.id && !(item.id === "orders" && newOrderActive);
           return (
             <Link
               key={item.id}
               href={item.href}
+              // Skrócona etykieta CTA mieści się w komórce 70 px („Nowe
+              // zamówienie" mierzy 93 px); pełna nazwa zostaje w aria-label.
+              aria-label={item.id === NEW_ORDER_BAR_ITEM.id ? t("newOrder") : undefined}
               aria-current={current ? "page" : undefined}
               className={`${BOTTOM_ITEM_CLASS} ${current ? "bg-accent text-accent-foreground" : ""}`}
             >
@@ -95,29 +123,6 @@ export function MobileNav({ userEmail }: { userEmail: string }) {
             </Link>
           );
         })}
-        {/*
-          CTA jest obrysem, nie plamą (decyzja właściciela 2026-07-22):
-          limonkowe wypełnienie na pasku niesie JEDNĄ informację — gdzie
-          jesteś. Dwa wypełnienia obok siebie kasowały tę różnicę. Gdy CTA
-          samo staje się bieżącą trasą, dostaje tę samą limonkę co reszta.
-        */}
-        <Link
-          href="/zamowienia/nowe"
-          aria-label={t("newOrder")}
-          aria-current={newOrderActive ? "page" : undefined}
-          className={`${BOTTOM_ITEM_CLASS} m-1 min-h-14 rounded-md px-0 py-1 ${
-            newOrderActive ? "bg-accent text-accent-foreground" : "border-border border"
-          }`}
-        >
-          <PlusIcon aria-hidden="true" className="size-5" strokeWidth={NAV_ICON_STROKE_WIDTH} />
-          {/*
-            Skrócona etykieta wyłącznie na pasku: przy PIĘCIU kolumnach na
-            390 px komórka ma 70 px, a „Nowe zamówienie" mierzy 93 px i
-            wychodziło poza swoje pole na sąsiadów. Pełna nazwa zostaje
-            w `aria-label`, więc czytnik dalej słyszy całość.
-          */}
-          <span className="w-full truncate text-center">{t("newOrderShort")}</span>
-        </Link>
         <button
           type="button"
           aria-label={t("mobileMenu")}

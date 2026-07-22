@@ -86,6 +86,25 @@ describe("kontrakt mobilnego bottom bara — ADR-060", () => {
     expect(nav.PANEL_NAV_ITEMS.some((item) => item.id === home.id)).toBe(false);
   });
 
+  it("„Nowe\" stoi na środku paska i nie jest wyróżnione", () => {
+    const html = renderMobileNav("/zamowienia");
+    const bar = html.slice(html.indexOf("data-mobile-bottom-nav"));
+    // Kolejność decyzją właściciela: Dashboard · Zamówienia · Nowe · Katalog
+    // · Menu — CTA pod kciukiem, w trzeciej z pięciu komórek.
+    const kolejnosc = [
+      bar.indexOf('href="/"'),
+      bar.indexOf('href="/zamowienia"'),
+      bar.indexOf('href="/zamowienia/nowe"'),
+      bar.indexOf('href="/katalog"'),
+      bar.indexOf("aria-haspopup"),
+    ];
+    expect(kolejnosc.every((i) => i >= 0)).toBe(true);
+    expect([...kolejnosc].sort((a, b) => a - b)).toEqual(kolejnosc);
+    // Bez obrysu i bez własnej geometrii — CTA wygląda jak każda inna
+    // pozycja (wcześniejsza ramka `border-border` na Linku paska zniknęła).
+    expect(bar).not.toMatch(/<a[^>]*href="\/zamowienia\/nowe"[^>]*border/);
+  });
+
   /*
     Limonka na pasku niesie JEDNĄ informację: gdzie jesteś. CTA wypełnione
     limonką na stałe kasowało tę różnicę (decyzja właściciela 2026-07-22),
