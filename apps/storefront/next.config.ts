@@ -5,7 +5,8 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@avably/core", "@avably/db", "@avably/security", "@avably/ui"],
+  transpilePackages: ["@avably/core", "@avably/db",
+    "@avably/review", "@avably/security", "@avably/ui"],
   turbopack: {
     root: path.join(__dirname, "../.."),
   },

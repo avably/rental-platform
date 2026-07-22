@@ -2,7 +2,11 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
@@ -16,10 +20,24 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@avably/db": ["../../packages/db/src/index.ts"],
-      "@avably/core": ["../../packages/core/src/index.ts"],
-      "@avably/security": ["../../packages/security/src/index.ts"],
-      "@avably/ui": ["../../packages/ui/src/index.ts"]
+      "@avably/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@avably/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@avably/review": [
+        "../../packages/review/src/index.ts"
+      ],
+      "@avably/review/overlay": [
+        "../../packages/review/src/overlay/index.ts"
+      ],
+      "@avably/security": [
+        "../../packages/security/src/index.ts"
+      ],
+      "@avably/ui": [
+        "../../packages/ui/src/index.ts"
+      ]
     }
   }
 }

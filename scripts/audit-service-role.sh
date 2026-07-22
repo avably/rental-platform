@@ -17,7 +17,14 @@
 # CO WOLNO (i tylko to):
 #   packages/db/src/service.ts        — JEDYNA fabryka klienta service-role,
 #   apps/*/app/api/webhooks/**        — webhooki dostawców (ADR-054, ADR-067),
-#   apps/*/src/jobs/**                — zadania uruchamiane poza żądaniem.
+#   apps/*/src/jobs/**                — zadania uruchamiane poza żądaniem,
+#   apps/*/app/api/review/**          — narzędzie przeglądu produktu (ADR-071):
+#                                       storefront nie ma sesji, a endpoint jest
+#                                       podwójnie bramkowany (REVIEW_MODE w env
+#                                       + hasło całego site'u w proxy) i nie
+#                                       dotyka danych najemców (tabele 0033 są
+#                                       platformowe); znika na produkcji razem
+#                                       z REVIEW_MODE na go-live.
 #
 # CZEGO SKRYPT ŚWIADOMIE NIE ŁAPIE: `SUPABASE_LOCAL_SERVICE_ROLE_KEY`. To inna
 # zmienna — harness testów integracyjnych, który MUSI widzieć obie strony
@@ -32,7 +39,7 @@ set -euo pipefail
 # `eslint.config.mjs` musi NAZWAĆ zakazany moduł, żeby go zakazać — to
 # definicja reguły, nie jej złamanie. Wpis jest wąski (dokładnie ten plik),
 # więc nie da się pod nim przemycić kodu.
-ALLOWED='^(packages/db/src/service\.ts|apps/[^/]+/app/api/webhooks/|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
+ALLOWED='^(packages/db/src/service\.ts|apps/[^/]+/app/api/webhooks/|apps/[^/]+/app/api/review/|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
 
 # Wzorce, z których każdy oznacza „ta ścieżka może omijać RLS".
 PATTERNS='SUPABASE_SERVICE_ROLE_KEY|@avably/db/service|createServiceClient'

@@ -14,6 +14,7 @@
     "@avably/core": "workspace:*",
     "@avably/db": "workspace:*",
     "@avably/emails": "workspace:*",
+    "@avably/review": "workspace:*",
     "@avably/security": "workspace:*",
     "@avably/ui": "workspace:*",
     "@stripe/stripe-js": "^9.12.0",

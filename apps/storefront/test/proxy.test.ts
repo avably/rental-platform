@@ -166,6 +166,23 @@ describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {
   });
 });
 
+describe("proxy storefrontu — route handlery /api (ADR-071)", () => {
+  it("/api/review NIE dostaje prefiksu locale (przechodzi do handlera) i zachowuje CSP", async () => {
+    const response = await proxy(req("https://www.avably.io/api/review/comments"));
+
+    // Redirect na /en/api/... zepsułby route handler — gałąź /api omija i18n.
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+
+  it("/api bez hasła site'u wciąż odbija się na 401 — bramka stoi PRZED gałęzią api", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/api/review/comments"));
+
+    expect(response.status).toBe(401);
+  });
+});
+
 describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
   it("goły / przekierowuje na prefiks locale", async () => {
     const response = await proxy(req("https://www.avably.io/"));

@@ -45,6 +45,9 @@ importers:
       '@avably/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
+      '@avably/review':
+        specifier: workspace:*
+        version: link:../../packages/review
       '@avably/security':
         specifier: workspace:*
         version: link:../../packages/security
@@ -121,6 +124,9 @@ importers:
       '@avably/emails':
         specifier: workspace:*
         version: link:../../packages/emails
+      '@avably/review':
+        specifier: workspace:*
+        version: link:../../packages/review
       '@avably/security':
         specifier: workspace:*
         version: link:../../packages/security
