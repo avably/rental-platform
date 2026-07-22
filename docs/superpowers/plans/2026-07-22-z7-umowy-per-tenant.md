@@ -400,6 +400,6 @@ git commit -m "docs(z7): opisz trwały obieg umów"
 
 - [x] **Step 6: Request independent code review, fix all Critical/Important findings, rerun affected gates**
 
-- [ ] **Step 7: Push and create a draft PR**
+- [x] **Step 7: Push and create a draft PR**
 
 The PR body must state: depends on #90 then #91; PM rebases and reruns CI; owner approval required before merge; migration 0026 and ADR-061; six mutation results; no `delivered` webhook.
