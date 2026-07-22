@@ -43,6 +43,16 @@ const sources = sourceFiles(resolve(packageRoot, "src")).map((path) => ({
 }));
 const templateSource = readFileSync(resolve(packageRoot, "src/contract-template.tsx"), "utf8");
 
+// Skan hexów pilnuje NOTACJI, nie koloru NAMALOWANEGO — `@react-pdf` przyjmuje
+// też `rgb()/hsl()` i nazwy CSS, więc wycofana paleta wróciłaby jako
+// `rgb(212, 168, 67)` niewidzialna dla skanu. Dwa poniższe strażniki zamykają
+// tę furtkę: notacja funkcyjna jest zakazana, a wartość przypisana do
+// właściwości kolorystycznej musi być literałem hex (wtedy łapie ją paleta).
+const COLOR_FUNCTION_PATTERN = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/i;
+const COLOR_PROPERTY_PATTERN =
+  /\b(?:color|backgroundColor|borderColor|border(?:Top|Right|Bottom|Left)Color)\s*:\s*(?:"([^"]*)"|'([^']*)')/g;
+const HEX_LITERAL_PATTERN = /^#(?:[0-9A-Fa-f]{3,4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/;
+
 describe("kontrakt kolorów umowy PDF (sekcja 01 artefaktu → src)", () => {
   it("rozpoznaje pełne literały hex zamiast pomijać lub ucinać obce kolory", () => {
     expect([..."#BAD #C0DE #0B101780".matchAll(SOURCE_HEX_PATTERN)].map(([hex]) => hex)).toEqual([
@@ -96,6 +106,33 @@ describe("kontrakt kolorów umowy PDF (sekcja 01 artefaktu → src)", () => {
         /#A8C743/i,
       );
       expect(source, `${relativePath}: zakaz gradientów i cieni`).not.toMatch(/gradient|shadow/i);
+    }
+  });
+
+  it("wykrywa notację funkcyjną i nie-hexową wartość koloru (kontrola pozytywna)", () => {
+    expect(COLOR_FUNCTION_PATTERN.test('color: "rgb(212, 168, 67)"')).toBe(true);
+    expect(COLOR_FUNCTION_PATTERN.test('color: "oklch(0.7 0.1 90)"')).toBe(true);
+    expect(COLOR_FUNCTION_PATTERN.test('color: "#D4A843"')).toBe(false);
+    const probe = 'backgroundColor: "goldenrod", color: "#0B1017"';
+    expect(
+      [...probe.matchAll(COLOR_PROPERTY_PATTERN)].map(([, dq, sq]) => dq ?? sq),
+    ).toEqual(["goldenrod", "#0B1017"]);
+    expect(HEX_LITERAL_PATTERN.test("goldenrod")).toBe(false);
+    expect(HEX_LITERAL_PATTERN.test("#0B1017")).toBe(true);
+  });
+
+  it("nie dopuszcza kolorów zapisanych poza notacją hex", () => {
+    for (const { relativePath, source } of sources) {
+      expect(source, `${relativePath}: kolor w notacji funkcyjnej omija skan palety`).not.toMatch(
+        COLOR_FUNCTION_PATTERN,
+      );
+      for (const [, doubleQuoted, singleQuoted] of source.matchAll(COLOR_PROPERTY_PATTERN)) {
+        const value = doubleQuoted ?? singleQuoted ?? "";
+        expect(
+          HEX_LITERAL_PATTERN.test(value),
+          `${relativePath}: wartość koloru "${value}" nie jest literałem hex, więc paleta jej nie sprawdza`,
+        ).toBe(true);
+      }
     }
   });
 
