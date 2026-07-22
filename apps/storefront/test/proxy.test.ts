@@ -22,7 +22,10 @@ import { proxy, runProxy, type ProxyDeps } from "../proxy";
  */
 const SITE_PASSWORD_HEADER = `Basic ${btoa(":notavably")}`;
 
-function req(url: string, init: RequestInit = {}): NextRequest {
+/** Typ inicjalizatora dokładnie ten, jakiego oczekuje konstruktor `NextRequest` — nie globalny DOM `RequestInit` (rozjazd na `signal`). */
+type NextRequestInit = NonNullable<ConstructorParameters<typeof NextRequest>[1]>;
+
+function req(url: string, init: NextRequestInit = {}): NextRequest {
   return new NextRequest(url, {
     ...init,
     headers: {
