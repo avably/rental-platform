@@ -13,3 +13,14 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# Nadpisania wymuszone przez świeże doradztwa bezpieczeństwa (2026-07-22).
+# Oba pakiety są ZALEŻNOŚCIAMI POŚREDNIMI — nie da się ich podnieść przez
+# bump naszej zależności bezpośredniej, bo trzyma je next / react-email.
+#   sharp    <0.35.0  — GHSA-f88m-g3jw-g9cj (CVE libvips; panel i sklep
+#                       przetwarzają zdjęcia produktów, więc dotyczy nas)
+#   fast-uri <3.1.4   — GHSA-v2hh-gcrm-f6hx (ajv w react-email)
+# Wpisy usuwamy, gdy next i react-email podniosą je same.
+overrides:
+  fast-uri: "^3.1.4"
+  sharp: "^0.35.3"
