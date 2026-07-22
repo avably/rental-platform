@@ -1,14 +1,15 @@
 # Źródła materiałów wizualnych
 
-Strona marketingowa (`www.avably.io`) **nie używa zdjęć stockowych**. Zdjęcia
-warsztatu, które nosiła strona waitlisty, zostały usunięte razem z nią
-(zadanie „www”, 2026-07-22): pokazywały cudzy sprzęt w roli naszego kontekstu,
-a jedyny materiał, jaki wolno tam postawić, to konkret produktu — własne zrzuty
-panelu albo nic.
+Strona marketingowa (`www.avably.io`) **nie używa własnych zdjęć stockowych**.
+Zdjęcia warsztatu, które nosiła strona waitlisty, zostały usunięte razem z nią
+(zadanie „www”, 2026-07-22): pokazywały cudzy sprzęt w roli naszego kontekstu.
+Jedyny materiał zewnętrzny to zasoby kupionego szablonu (wiersz niżej) —
+wizuale abstrakcyjne/produktowe szablonu, nie „nasi klienci” i nie „nasz
+sprzęt”.
 
 | Plik lokalny | Źródło | Autor | Pobrano | Status |
 |---|---|---|---|---|
-| — | — | — | — | brak materiałów zewnętrznych w repozytorium |
+| `apps/storefront/public/forerunner/**` (CSS, `webflow.js`, fonty Raveo, obrazy, wideo) | szablon Forerunner — eksport HTML kupiony w sklepie autora | studio BYQ | 2026-07-22 | licencja single-site (jeden projekt: `www.avably.io`); wolno: self-host, własny backend, modyfikacje na potrzeby tego projektu; NIE wolno: redystrybucja, odsprzedaż, użycie jako motywów sklepów najemców |
 
 Zasady na przyszłość:
 
