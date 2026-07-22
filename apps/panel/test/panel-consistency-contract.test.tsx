@@ -109,6 +109,61 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     expect(offenders, `własny kontener ekranu: ${offenders.join(", ")}`).toEqual([]);
   });
 
+  /*
+    Skan `max-w-*` pilnuje JEDNEGO ZAPISU szerokości, a przeglądarka rozumie
+    trzy. Ekran przypięty przez `w-[42rem]` albo `style={{ maxWidth }}` daje
+    dokładnie ten objaw, przeciw któremu powstała ta paczka — rozjazd
+    szerokości między ekranami — a bramka na `max-w-` go nie widzi
+    (sprawdzone mutacją: 16/16 na zielono przy własnej szerokości ekranu).
+    Dowolne `w-[…]` mają w panelu legalne zastosowania (miniatura, minimalna
+    szerokość tabeli przewijanej w poziomie, szerokość popovera), więc zakaz
+    jest whitelistowany DOKŁADNĄ parą ścieżka+token, tak jak przy `max-w`,
+    i przypięty rozmiarem — nowy wpis musi przejść przez recenzję. Zapis
+    inline w `style` nie ma dziś ANI JEDNEGO wystąpienia i jest zakazany
+    całkowicie.
+  */
+  const ARBITRARY_WIDTH_PATTERN = /\b(?:min-)?w-\[[^\]]+\]/g;
+  const INLINE_WIDTH_PATTERN = /style=\{\{[^}]*\b(?:max-?[Ww]idth|width)\b/g;
+  const allowedArbitraryWidth = new Map<string, readonly string[]>([
+    ["katalog/[id]/zdjecia/photo-forms.tsx", ["w-[120px]", "w-[10rem]"]],
+    ["katalog/products-table.tsx", ["min-w-[720px]"]],
+    ["katalog/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
+    ["zamowienia/nowe/order-wizard.tsx", ["w-[320px]"]],
+    ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
+    ["zamowienia/orders-table.tsx", ["min-w-[880px]"]],
+  ]);
+
+  it("wykrywa oba obejścia skanu max-w (kontrola pozytywna)", () => {
+    expect('<div className="w-[42rem]">'.match(ARBITRARY_WIDTH_PATTERN)).toEqual(["w-[42rem]"]);
+    expect('<div className="min-w-[30rem]">'.match(ARBITRARY_WIDTH_PATTERN)).toEqual([
+      "min-w-[30rem]",
+    ]);
+    expect('<div className="w-full size-5">'.match(ARBITRARY_WIDTH_PATTERN)).toBeNull();
+    expect('<div style={{ maxWidth: "42rem" }}>'.match(INLINE_WIDTH_PATTERN)).toHaveLength(1);
+    expect('<div style={{ gap: 4 }}>'.match(INLINE_WIDTH_PATTERN)).toBeNull();
+  });
+
+  it("ekrany nie przypinają szerokości poza notacją max-w", () => {
+    expect(allowedArbitraryWidth.size).toBe(6);
+
+    const offenders = sources.flatMap(({ path, code }) => {
+      const relativePath = relative(path);
+      const allowed = allowedArbitraryWidth.get(relativePath) ?? [];
+      return [
+        ...[...code.matchAll(ARBITRARY_WIDTH_PATTERN)]
+          .map(([token]) => token)
+          .filter((token) => !allowed.includes(token))
+          .map((token) => `${relativePath}: ${token}`),
+        ...[...code.matchAll(INLINE_WIDTH_PATTERN)].map(() => `${relativePath}: style width`),
+      ];
+    });
+
+    expect(
+      offenders,
+      `szerokość ekranu poza kontraktem: ${offenders.join(", ")}`,
+    ).toEqual([]);
+  });
+
   it("layout jest jedynym właścicielem standardu max-w-6xl i paddingu", () => {
     expect(layout).toContain('data-panel-container="true"');
     expect(layout).toContain("max-w-6xl");
