@@ -39,6 +39,8 @@ const allowedMaxWidth = new Map<string, readonly string[]>([
   ["katalog/[id]/zdjecia/photo-forms.tsx", ["max-w-[10rem]"]],
   ["katalog/product-form.tsx", ["max-w-2xl"]],
   ["katalog/punkty-odbioru/location-form.tsx", ["max-w-2xl"]],
+  // Z7: ekran ustawień umowy to jeden formularz — miara jak kreator.
+  ["ustawienia-umow/page.tsx", ["max-w-2xl"]],
   ["zamowienia/[id]/extension-form.tsx", ["max-w-sm"]],
   ["zamowienia/nowe/order-wizard.tsx", ["max-w-2xl"]],
 ]);
@@ -53,6 +55,7 @@ const topbarOwnedTitleFiles = [
   "strona/page.tsx",
   "strona/site-editor.tsx",
   "ustawienia-domen/page.tsx",
+  "ustawienia-umow/page.tsx",
   "ustawienia-dostaw/page.tsx",
   "ustawienia-emaili/page.tsx",
   "zamowienia/page.tsx",
@@ -93,7 +96,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   it("skan obejmuje realny zbiór ekranów i precyzyjną whitelistę", () => {
     expect(sources.length).toBeGreaterThanOrEqual(50);
     expect(sources.some((file) => relative(file.path) === "zamowienia/page.tsx")).toBe(true);
-    expect(allowedMaxWidth.size).toBe(5);
+    expect(allowedMaxWidth.size).toBe(6);
   });
 
   it("pliki ekranów nie definiują własnego kontenera max-w", () => {

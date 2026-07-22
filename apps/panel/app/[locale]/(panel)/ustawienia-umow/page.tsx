@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
 import {
   CONTRACT_DOCUMENT_SETTINGS_KEY,
   contractDocumentSettingsFromRows,
@@ -26,12 +25,12 @@ export default async function ContractSettingsPage() {
     // Brak konfiguracji jest prawidłowym stanem początkowym.
   }
 
+  // Standard P7 (ADR-060): jedyny H1 niesie belka (trasa jest pozycją
+  // nawigacji, więc tytuł rozwiązuje się sam), a szerokość kontenera należy
+  // do layoutu. Krótsza miara max-w-2xl zostaje jako świadomy wyjątek
+  // formularza na whiteliście kontraktu — jak kreator zamówienia.
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t("title")}</h1>
-        <Link className="text-sm underline" href="/">{t("backLink")} ↩</Link>
-      </header>
+    <div className="flex max-w-2xl flex-col gap-6">
       <p className="text-sm text-muted-foreground">{t("intro")}</p>
       {context.role === "owner" ? (
         <ContractSettingsForm defaults={settings} />

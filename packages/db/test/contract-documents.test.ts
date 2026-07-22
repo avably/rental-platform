@@ -204,6 +204,35 @@ describe.skipIf(!hasEnv)("umowy per tenant — RLS tabeli i Storage", () => {
     expect(error?.code).toBe("23503");
   });
 
+  /*
+    Dwie warstwy obrony rejestru, których nie pokrywały pozostałe testy —
+    recenzja PM wykryła to mutacją na żywej bazie (zdjęcie każdego z tych
+    warunków zostawiało suitę zieloną, choć migracja je deklaruje):
+    - `created_by = auth.uid()` w polityce INSERT: bez niego operator może
+      zarejestrować dokument podpisany cudzym autorstwem (snapshot aktora
+      przestaje być wiarygodny, a to na nim wisi rozliczalność umów);
+    - CHECK kształtu `storage_path`: bez niego wiersz może wskazywać ścieżkę
+      w prefiksie INNEGO tenanta — pobranie i tak zatrzyma Storage RLS
+      (klient sesji), ale rejestr przestaje być źródłem prawdy o położeniu
+      dokumentu i każdy przyszły konsument service-role odziedziczy kłamstwo.
+  */
+  it("INSERT odrzuca cudze autorstwo i ścieżkę poza kształtem rejestru", async () => {
+    const spoofedAuthor = await a.ownerClient
+      .from("contract_documents")
+      .insert(documentRow(a, orderAId, { sha256: "2".repeat(64), created_by: staffAUserId }));
+    expect(spoofedAuthor.error?.code, "created_by ≠ auth.uid() musi paść na RLS").toBe("42501");
+
+    const id = randomUUID();
+    const foreignPrefix = await a.ownerClient.from("contract_documents").insert(
+      documentRow(a, orderAId, {
+        id,
+        sha256: "3".repeat(64),
+        storage_path: `${b.tenantId}/${orderAId}/${id}.pdf`,
+      }),
+    );
+    expect(foreignPrefix.error?.code, "obcy prefiks musi paść na CHECK kształtu").toBe("23514");
+  });
+
   it("dokument jest append-only dla zwykłej sesji", async () => {
     const row = documentRow(a, orderAId, { sha256: "d".repeat(64) });
     expect((await a.ownerClient.from("contract_documents").insert(row)).error).toBeNull();
