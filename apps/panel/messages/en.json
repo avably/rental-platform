@@ -93,6 +93,7 @@
     "domains": "Domains",
     "emails": "E-mails",
     "delivery": "Deliveries",
+    "contracts": "Agreements",
     "team": "Team",
     "organization": "Organization",
     "security": "Security",
@@ -102,6 +103,20 @@
     "localeEnglish": "English",
     "superadminPanel": "Superadmin panel",
     "skipToContent": "Skip to content"
+  },
+  "contractSettings": {
+    "title": "Agreement settings",
+    "intro": "Company details and versioned terms included in rental agreements.",
+    "address": "Company address",
+    "nip": "Tax ID (optional)",
+    "email": "Company email",
+    "termsVersion": "Terms version",
+    "termsBody": "Terms content",
+    "save": "Save",
+    "saved": "Agreement settings saved.",
+    "readOnly": "Only the organization owner can change these settings.",
+    "missing": "Agreement settings have not been configured yet.",
+    "backLink": "Panel"
   },
   "login": {
     "title": "Sign in",

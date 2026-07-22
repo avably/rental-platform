@@ -72,6 +72,7 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
       { id: "domains", href: "/ustawienia-domen", labelKey: "domains" },
       { id: "emails", href: "/ustawienia-emaili", labelKey: "emails" },
       { id: "delivery", href: "/ustawienia-dostaw", labelKey: "delivery" },
+      { id: "contracts", href: "/ustawienia-umow", labelKey: "contracts" },
     ],
   },
   {
