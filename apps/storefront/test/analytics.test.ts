@@ -16,6 +16,7 @@ describe("landing analytics contract", () => {
       "waitlist_page_view",
       "waitlist_section_view",
       "waitlist_cta_click",
+      "signup_cta_click",
       "waitlist_form_start",
       "pilot_interest_selected",
       "pilot_interest_cleared",

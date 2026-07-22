@@ -23,11 +23,11 @@ import type {
   WaitlistInput,
 } from "@/lib/waitlist/contract";
 
-import type { LandingCopy } from "./landing-page";
+import type { MarketingCopy } from "./marketing/types";
 import { TurnstileWidget } from "./turnstile-widget";
 
 interface WaitlistFormProps {
-  copy: LandingCopy["form"];
+  copy: MarketingCopy["form"];
   enabled: boolean;
   locale: "en" | "pl";
   /** Site key Turnstile; brak = widget i weryfikacja jawnie wyłączone (dev). */
@@ -60,7 +60,7 @@ const selectClassName =
   "border-input dark:bg-input/30 h-10 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive";
 
 function fieldErrorMessage(
-  copy: LandingCopy["form"],
+  copy: MarketingCopy["form"],
   field: WaitlistField,
   error: WaitlistFieldError | undefined,
 ): string | undefined {

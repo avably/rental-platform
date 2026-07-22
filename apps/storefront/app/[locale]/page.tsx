@@ -4,7 +4,7 @@ import { hasLocale } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { LandingPage, type LandingCopy } from "@/components/landing-page";
+import { MarketingPageView } from "@/components/marketing/marketing-page-view";
 import { routing } from "@/i18n/routing";
 import enMessages from "@/messages/en.json";
 
@@ -44,13 +44,6 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const messages = (await getMessages({ locale })) as AppMessages;
 
   return (
-    <LandingPage
-      copy={messages.landing as LandingCopy}
-      locale={locale as Locale}
-      waitlistEnabled={process.env.WAITLIST_ENABLED === "true"}
-      // Odczyt w komponencie serwerowym (strona jest force-dynamic): wartość
-      // idzie z runtime env, ten sam warunek co dyrektywy Turnstile w proxy.
-      turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-    />
+    <MarketingPageView copy={messages.marketing} locale={locale as Locale} page="home" />
   );
 }

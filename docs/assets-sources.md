@@ -1,10 +1,20 @@
 # Źródła materiałów wizualnych
 
-Materiały stockowe na landing page’u waitlisty są placeholderami. Każdy z nich musi zostać zastąpiony autentycznym zdjęciem przed publicznym startem.
+Strona marketingowa (`www.avably.io`) **nie używa zdjęć stockowych**. Zdjęcia
+warsztatu, które nosiła strona waitlisty, zostały usunięte razem z nią
+(zadanie „www”, 2026-07-22): pokazywały cudzy sprzęt w roli naszego kontekstu,
+a jedyny materiał, jaki wolno tam postawić, to konkret produktu — własne zrzuty
+panelu albo nic.
 
 | Plik lokalny | Źródło | Autor | Pobrano | Status |
 |---|---|---|---|---|
-| `apps/storefront/public/images/equipment-workbench.webp` | [Workshop tools are scattered on a work table](https://unsplash.com/photos/workshop-tools-are-scattered-on-a-work-table-f0T-eGanP_4) | Ben Spray | 2026-07-16 | DO PODMIANY NA AUTENTYCZNE ZDJĘCIE PRZED LAUNCHEM |
-| `apps/storefront/public/images/equipment-workshop.webp` | [Tools in a workshop, illuminated by a single light](https://unsplash.com/photos/tools-in-a-workshop-illuminated-by-a-single-light-b5vBGnCsq_g) | Sofie D. | 2026-07-16 | DO PODMIANY NA AUTENTYCZNE ZDJĘCIE PRZED LAUNCHEM |
+| — | — | — | — | brak materiałów zewnętrznych w repozytorium |
 
-Oba zdjęcia były udostępnione do bezpłatnego użycia na warunkach licencji Unsplash w dniu pobrania. Pliki w repozytorium są lokalnymi, zoptymalizowanymi wariantami WebP.
+Zasady na przyszłość:
+
+1. Żaden materiał zewnętrzny nie wchodzi na strony marketingowe bez wpisu w tej
+   tabeli (plik, źródło, autor, data, licencja).
+2. Zdjęcia mają pokazywać nasz produkt albo realną pracę wypożyczalni, która
+   zgodziła się na publikację. Stock w roli „naszego” kontekstu jest zakazany.
+3. Loga klientów, opinie i liczby wdrożeń publikujemy wyłącznie wtedy, gdy
+   istnieją i mamy na nie zgodę — nigdy jako element układu do wypełnienia.

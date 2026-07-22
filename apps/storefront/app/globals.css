@@ -1,70 +1,94 @@
 @import "tailwindcss";
 @import "@avably/ui/styles.css";
 
+/*
+ * Warstwa marketingowa (www.avably.io). Typografia dziedziczona ze wspólnego
+ * stacka @avably/ui (Geist Sans przez --font-geist-sans) — sekcja 08 artefaktu
+ * Fazy 2 zakazuje w sklepie innych rodzin. Kolory: WYŁĄCZNIE tokeny sekcji 01
+ * (canvas/surface/ink/muted/border/lime), stąd pasy sekcji są mapowaniem na
+ * --background i --card, a nie osobną, cieplejszą paletą landingu.
+ */
 @theme inline {
-  /* Typografia dziedziczona ze wspólnego stacka @avably/ui (Geist Sans przez
-     --font-geist-sans) — delta P1a usunęła nadpisania sans/mono/serif. */
   --color-landing-paper: var(--landing-paper);
-  --color-landing-warm: var(--landing-warm);
+  --color-landing-surface: var(--landing-surface);
   --color-landing-ink: var(--landing-ink);
+  --color-landing-ink-foreground: var(--landing-ink-foreground);
   --color-landing-ink-muted: var(--landing-ink-muted);
 }
 
 :root {
   --landing-paper: var(--background);
-  --landing-warm: oklch(0.972 0.004 80);
-  --landing-ink: oklch(0.238 0.008 75);
-  --landing-ink-muted: oklch(0.82 0.008 80);
+  --landing-surface: var(--card);
+  /* Pas „ciemny” w trybie jasnym to ink z palety, nie osobny brąz. */
+  --landing-ink: var(--foreground);
+  --landing-ink-foreground: var(--background);
+  --landing-ink-muted: oklch(0.80304 0.01135 234.859); /* #B8C0C5 */
 }
 
 .dark {
   --landing-paper: var(--background);
-  --landing-warm: oklch(0.18 0.018 75);
-  --landing-ink: oklch(0.16 0.014 75);
-  --landing-ink-muted: oklch(0.78 0.012 80);
+  --landing-surface: var(--card);
+  /* W trybie ciemnym tło strony JEST ink — pas kontrastuje przez --secondary. */
+  --landing-ink: var(--secondary);
+  --landing-ink-foreground: var(--foreground);
+  --landing-ink-muted: var(--muted-foreground);
 }
 
+/*
+ * Skala nagłówków: rytm szablonu odniesienia (72 / 48 / 24 px, ujemny tracking,
+ * waga 500) sprowadzony do clamp(), żeby 390 px nie wymuszał łamania słów.
+ */
 .landing-display {
-  font-size: clamp(3.25rem, 7vw, 5.25rem);
-  font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: -0.045em;
-}
-
-.landing-heading {
-  font-size: clamp(2.25rem, 4vw, 3.25rem);
-  font-weight: 400;
-  line-height: 1.06;
-  letter-spacing: -0.035em;
-}
-
-.landing-statement {
-  font-size: clamp(2.35rem, 5.2vw, 4.75rem);
-  font-weight: 400;
-  line-height: 1.08;
+  font-size: clamp(2.625rem, 5.6vw, 4.5rem);
+  font-weight: 500;
+  line-height: 1.02;
   letter-spacing: -0.04em;
 }
 
-.landing-hero > [data-wireframe-variant="hero"] {
-  position: absolute;
-  inset: 2rem;
-  z-index: -2;
-  min-height: calc(100% - 4rem);
-  opacity: 0.82;
-  transform: scale(1.08);
+.landing-heading {
+  font-size: clamp(1.875rem, 3.4vw, 3rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
 }
 
-.landing-hero::after {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background: color-mix(in oklch, var(--landing-ink) 84%, transparent);
-  content: "";
+.landing-statement {
+  font-size: clamp(1.75rem, 4vw, 3.25rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.landing-subheading {
+  font-size: clamp(1.125rem, 1.6vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+}
+
+.landing-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.landing-hero {
+  padding-top: 4.5rem;
+  padding-bottom: 4rem;
+}
+
+@media (min-width: 1024px) {
+  .landing-hero {
+    padding-top: 8.5rem;
+    padding-bottom: 7.5rem;
+  }
 }
 
 .landing-dark-section {
   background: var(--landing-ink);
-  color: oklch(0.985 0.002 80);
+  color: var(--landing-ink-foreground);
 }
 
 .landing-dark-section .landing-secondary {
@@ -79,6 +103,21 @@
   border: 1px solid var(--border);
   border-radius: 9999px;
   background: transparent;
+}
+
+/* Karta sekcji: promień z tokenów (radius-xl), obrys zamiast cienia — cienie są
+   w systemie wyzerowane (--shadow-*: none). */
+.landing-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+}
+
+/* Limonka ZAWSZE z nośnikiem: tło akcentu + obrys i tekst w ink (17,57:1). */
+.landing-accent {
+  border: 1px solid var(--accent-foreground);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 @keyframes landing-enter {
@@ -117,7 +156,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 5.5rem;
 }
 
 body {

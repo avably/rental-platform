@@ -81,189 +81,140 @@
       }
     ]
   },
-  "landing": {
-    "metadata": {
-      "title": "Avably — uruchom wypożyczalnię online",
-      "description": "Własna strona, rezerwacje, dostępność, dostawy, kaucje i zwroty w jednym planowanym systemie dla wypożyczalni sprzętu. Dołącz do waitlisty Avably.",
-      "ogTitle": "Wypożyczalnia online w 1 dzień — Avably",
-      "ogDescription": "Budujemy Avably dla firm, które wynajmują sprzęt. Zapisz się na waitlistę i pomóż ustalić priorytety pierwszej wersji."
-    },
-    "header": {
-      "brand": "Avably",
+  "marketing": {
+    "nav": {
+      "pricing": "Cennik",
+      "faq": "Pytania",
+      "contact": "Kontakt",
+      "waitlist": "Lista oczekujących",
+      "login": "Zaloguj się",
+      "cta": "Załóż sklep",
+      "menuLabel": "Nawigacja",
       "languageLabel": "Zmień język",
       "polish": "PL",
       "english": "EN",
-      "lightTheme": "Jasny motyw",
-      "darkTheme": "Ciemny motyw"
+      "langAlternate": "EN"
+    },
+    "banner": {
+      "text": "199 zł/msc w okresie testowym — pierwsze 20 wypożyczalni płaci połowę.",
+      "cta": "Załóż sklep"
     },
     "hero": {
-      "eyebrow": "Avably jest w budowie",
-      "title": "Uruchom wypożyczalnię online",
-      "body": "Własna strona i jeden planowany panel do rezerwacji, dostępności, dostaw, kaucji i zwrotów. Nasz cel: pomóc Ci uruchomić wynajem online w 1 dzień.",
-      "cta": "Dołącz do waitlisty",
-      "microcopy": "Bez płatności. Bez zobowiązań. Napiszemy, gdy będziemy gotowi zaprosić pierwsze firmy.",
-      "wireframe": {
-        "label": "Koncepcja planowanego interfejsu · Dane poglądowe",
-        "ariaLabel": "Planowany kalendarz dostępności z rezerwacją, zwrotem i statusem kaucji",
-        "items": [
-          "Kalendarz dostępności",
-          "Młotowiertarka 01",
-          "12–14 wrz · Zarezerwowane",
-          "15 wrz · Zwrot i kontrola",
-          "16 wrz · Dostępne",
-          "Rezerwacja",
-          "Odbiór osobisty",
-          "Kaucja do rozliczenia"
-        ]
-      }
+      "eyebrow": "System dla wypożyczalni sprzętu",
+      "titleTop": "Zamień telefon, zeszyt",
+      "titleBottom": "i przelewy na jeden system.",
+      "body": "Rezerwacje, dostępność egzemplarzy, kaucje, kurier i własna strona sklepu — w jednym miejscu. Konto zakładasz sam, e-mailem, i pracujesz tego samego dnia.",
+      "cta": "Załóż sklep",
+      "ctaSecondary": "Zobacz, co działa dziś",
+      "feature1": "Rezerwacje bez kolizji",
+      "feature2": "Kaucje z rejestrem",
+      "feature3": "Sklep pod własnym adresem"
     },
-    "problem": {
-      "title": "Obsłuż to, co wraca",
-      "intro": "W sprzedaży rzecz wychodzi. W wynajmie musi jeszcze wrócić — w terminie, we właściwym stanie i gotowa na następną rezerwację.",
-      "flow": "Rezerwacja → wydanie → w trasie → zwrot → kontrola → dostępne ponownie",
-      "items": [
-        {
-          "title": "Unikaj dwóch rezerwacji naraz",
-          "body": "Ten sam sprzęt trafia do dwóch klientów na ten sam weekend, bo termin zwrotu i czas na kontrolę nie zablokowały kolejnej rezerwacji."
-        },
-        {
-          "title": "Rozlicz kaucję bez zgadywania",
-          "body": "Przy zwrocie trzeba ustalić, ile oddać, co potrącić i z czego wynika kwota."
-        },
-        {
-          "title": "Znajdź aktualny status sprzętu",
-          "body": "Jest u klienta, u kuriera, w punkcie odbioru albo wrócił i czeka na sprawdzenie — ale nikt nie ma jednego obrazu sytuacji."
-        }
-      ],
-      "closing": "Avably powstaje wokół pełnego cyklu najmu, nie tylko momentu rezerwacji.",
-      "warehouseAlt": "Rzędy sprzętu przygotowanego do kolejnych wynajmów",
-      "useAlt": "Sprzęt roboczy używany poza magazynem"
+    "premise": {
+      "eyebrow": "Punkt wyjścia",
+      "statement": "Sprzedany towar wychodzi z firmy. Wynajęty musi wrócić — na czas i w stanie do kolejnego najmu. Narzędzia zbudowane pod sprzedaż nie domykają tego cyklu.",
+      "feature1": "Cały cykl wynajmu",
+      "feature2": "Jeden egzemplarz, jedna rezerwacja",
+      "feature3": "Własna strona sklepu"
     },
-    "capabilities": [
-      {
-        "eyebrow": "Planowana funkcja",
-        "title": "Sprawdź dostępność przed rezerwacją",
-        "body": "Zobacz, czy konkretny egzemplarz może wyjechać i wrócić bez kolizji z kolejnym najmem.",
-        "items": [
-          "Kalendarz dostępności dla sprzętu i egzemplarzy",
-          "Blokada terminów rezerwacji, transportu i kontroli po zwrocie",
-          "Podgląd przedłużeń najmu",
-          "Obsługa wielu punktów odbioru",
-          "Statusy: dostępne, zarezerwowane, wydane, w kontroli"
-        ],
-        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
-        "wireframeAriaLabel": "Planowany widok dostępności konkretnego egzemplarza",
-        "wireframeItems": [
-          "Dostępność",
-          "Młotowiertarka 01",
-          "Punkt odbioru: Centrum",
-          "Rezerwacja · 12–14 wrz",
-          "Kontrola po zwrocie · 15 wrz",
-          "Następny wolny termin · 16 wrz"
-        ]
-      },
-      {
-        "eyebrow": "Planowana funkcja",
-        "title": "Obsłuż wydanie i dostawę",
-        "body": "Ustal sposób przekazania sprzętu w tej samej rezerwacji, bez przepisywania ustaleń między wiadomościami.",
-        "items": [
-          "Odbiór osobisty w wybranym punkcie",
-          "Wysyłka kurierem",
-          "Nadanie do paczkomatu",
-          "Dostawa własnym transportem",
-          "Terminy wydania i planowanego zwrotu",
-          "Dane potrzebne do realizacji dostawy"
-        ],
-        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
-        "wireframeAriaLabel": "Planowany wybór sposobu dostawy i terminów",
-        "wireframeItems": [
-          "Sposób dostawy",
-          "Odbiór osobisty",
-          "Kurier",
-          "Paczkomat",
-          "Dostawa własna",
-          "Planowane wydanie · 12 wrz",
-          "Planowany zwrot · 14 wrz"
-        ]
-      },
-      {
-        "eyebrow": "Planowana funkcja",
-        "title": "Rozlicz kaucję przy zwrocie",
-        "body": "Zamknij najem z informacją o terminie, stanie sprzętu i kwocie zwracanej klientowi.",
-        "items": [
-          "Rejestr pobranej kaucji",
-          "Kwota zwrotu i potrącenia z opisem powodu",
-          "Stan sprzętu przy przyjęciu",
-          "Przedłużenie najmu z nowym terminem",
-          "Zwrot wysyłkowy z etykietą",
-          "Historia działań przy rezerwacji"
-        ],
-        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
-        "wireframeAriaLabel": "Planowany widok przyjęcia zwrotu i rozliczenia kaucji",
-        "wireframeItems": [
-          "Przyjmij zwrot",
-          "Sprzęt · Młotowiertarka 01",
-          "Stan · Do sprawdzenia",
-          "Kaucja pobrana · kwota poglądowa",
-          "Zwrot kaucji · do ustalenia",
-          "Powód potrącenia · opcjonalnie",
-          "Zakończ najem"
-        ]
-      },
-      {
-        "eyebrow": "Planowana funkcja",
-        "title": "Uruchom własną stronę",
-        "body": "Pokaż ofertę, dostępne terminy i sposoby odbioru pod własną domeną wypożyczalni.",
-        "items": [
-          "Strona wypożyczalni pod własną domeną",
-          "Katalog sprzętu z wariantami i egzemplarzami",
-          "Terminy dostępności przy ofercie",
-          "Rezerwacja z wyborem dostawy lub odbioru",
-          "Wiele punktów odbioru",
-          "Informacje potrzebne klientowi przed najmem"
-        ],
-        "wireframeLabel": "Koncepcja planowanego interfejsu · Dane poglądowe",
-        "wireframeAriaLabel": "Planowany widok strony własnej wypożyczalni",
-        "wireframeItems": [
-          "Twoja wypożyczalnia",
-          "Sprzęt",
-          "Dostępne terminy",
-          "Wybierz punkt odbioru",
-          "Sprawdź dostępność"
-        ]
-      }
-    ],
-    "founder": {
-      "title": "Twórz z kimś, kto wynajmuje",
-      "paragraphs": [
-        "Prowadzę wypożyczalnię sprzętu. Znam weekend z dwiema rezerwacjami na ten sam egzemplarz, szukanie informacji o kaucji i pytanie, czy sprzęt jest jeszcze u klienta, już w drodze, czy czeka na sprawdzenie.",
-        "Avably buduję z własnej potrzeby operacyjnej. Produkt jest na wczesnym etapie, dlatego nie chcę zgadywać za innych właścicieli. Pierwsze firmy pomogą zdecydować, które przepływy muszą działać najpierw."
-      ],
-      "signature": "Maciej — twórca Avably i właściciel wypożyczalni"
+    "tabs": {
+      "eyebrow": "Co działa dziś",
+      "title": "Prowadź wynajem od rezerwacji po zwrot",
+      "item1Title": "Pilnuj dostępności egzemplarzy",
+      "item1Body": "Kalendarz dostępności obejmuje pojedyncze egzemplarze razem z oknami serwisowymi. Nawet gdy dwie osoby klikną w tej samej sekundzie, rezerwację dostanie jedna.",
+      "item2Title": "Rozliczaj kaucje i zwroty",
+      "item2Body": "Rejestr pobrań i zwrotów trzyma kwotę potrącenia razem z jego powodem, a stan sprzętu odnotowujesz przy przyjęciu. Saldo nie ma jak się rozjechać.",
+      "item3Title": "Nadawaj i odbieraj kurierem",
+      "item3Body": "Nadania i zwroty przez brokera kurierskiego, etykiety w PDF prosto z panelu i własny cennik dostawy policzony w zamówieniu.",
+      "item4Title": "Uruchom własną stronę sklepu",
+      "item4Body": "Adres twojanazwa.avably.io jest gotowy zaraz po założeniu konta. Sekcje układasz w edytorze, wersja robocza zostaje prywatna, a publikacja to jeden przycisk.",
+      "item5Title": "Przyjmuj rezerwacje online",
+      "item5Body": "Klient wybiera sprzęt i termin, widząc dostępność na żywo. Cenę liczy serwer, zamówienie ląduje w panelu, a obie strony dostają e-mail."
     },
-    "founders": {
-      "eyebrow": "Oferta dla pierwszych 20 firm",
-      "title": "Płać połowę przy aktywnej subskrypcji",
-      "bodyBeforePrice": "Planowana cena Avably po uruchomieniu to",
-      "price": "199 zł miesięcznie",
-      "bodyBetween": ". Pierwsze 20 firm, które przejdą z waitlisty na płatny plan Founders, otrzyma",
-      "discount": "50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji",
-      "bodyAfter": ".",
-      "listIntro": "Firmy Founders otrzymają:",
-      "items": [
-        "wcześniejsze zaproszenie do testów i pilotażu,",
-        "wpływ na priorytety pierwszej wersji,",
-        "pomoc przy uruchomieniu własnej wypożyczalni online,",
-        "wsparcie e-mail z odpowiedzią do 24 godzin,",
-        "50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji."
-      ],
-      "cta": "Dołącz do waitlisty",
-      "microcopy": "Zapis nie wymaga płatności i nie uruchamia subskrypcji. Miejsce w planie Founders potwierdzimy przed startem płatnej usługi."
+    "video": {
+      "quote": "Prowadzę wypożyczalnię. Znam weekend z dwiema rezerwacjami na ten sam egzemplarz i szukanie, kto właściwie ma kaucję — Avably powstało z tej pracy, nie z prezentacji.",
+      "authorName": "Maciej",
+      "authorRole": "założyciel Avably, prowadzi wypożyczalnię"
+    },
+    "features": {
+      "eyebrow": "Zakres",
+      "title": "Domknij cały cykl, nie samą rezerwację",
+      "cta": "Załóż sklep",
+      "card1Title": "Dostępność i wycena",
+      "card1Body": "Kalendarze produktów i egzemplarzy, okna serwisowe, cenniki progowe z podglądem wyceny na żywo i przedłużenia z automatyczną dopłatą.",
+      "card2Title": "Kaucje bez sporu",
+      "card2Body": "Rejestr pobrań i zwrotów, potrącenie zawsze z powodem, stan sprzętu przy przyjęciu i pełna historia zdarzeń w zamówieniu.",
+      "card3Title": "Kurier w panelu",
+      "card3Body": "Nadania i zwroty przez brokera, etykiety w PDF, własny cennik dostawy i koszt policzony w zamówieniu.",
+      "card4Title": "E-maile cyklu",
+      "card4Body": "Potwierdzenie, gotowe do odbioru, wydane, zwrócone, anulowane — po polsku lub angielsku, w nazwie Twojej firmy, z historią wysyłek.",
+      "card5Title": "Dane oddzielone twardo",
+      "card5Body": "Separacja danych wypożyczalni działa na poziomie bazy, nie ekranu, i jest sprawdzana automatycznym testem przy każdej zmianie systemu."
+    },
+    "cta": {
+      "title": "Przenieś rezerwacje z telefonu do systemu",
+      "body": "Klient rezerwuje online, Ty widzisz zamówienie w panelu, a sprzęt wraca na stan z odnotowanym przeglądem. Bez arkusza, który zna tylko jedna osoba.",
+      "cta": "Załóż sklep"
+    },
+    "momentum": {
+      "eyebrow": "Start",
+      "title": "Uruchom sklep w trzech krokach",
+      "card1Title": "Załóż konto e-mailem",
+      "card1Body": "Potwierdzasz adres i jesteś w panelu. Bez instalacji, bez czekania na nas, bez rozmowy z handlowcem.",
+      "card2Title": "Wprowadź sprzęt i cennik",
+      "card2Body": "Produkty, egzemplarze, cenniki progowe i punkty odbioru — tyle, ile faktycznie wynajmujesz.",
+      "card3Title": "Przyjmij pierwszą rezerwację",
+      "card3Body": "Włączasz stronę sklepu, zamówienie ląduje w panelu, klient dostaje e-mail, a Ty prowadzisz najem aż do zwrotu."
+    },
+    "faq": {
+      "eyebrowTop": "Częste",
+      "eyebrowBottom": "pytania",
+      "q1": "Czy mogę przyjmować płatności online?",
+      "a1Lead": "Jeszcze nie.",
+      "a1": "Klient rezerwuje online, a płaci przy odbiorze albo przelewem — zamówienie i tak trafia do panelu. Płatności online (BLIK, karty, Przelewy24) i kaucje online są w budowie i nie podajemy ich dat.",
+      "q2": "Czy muszę mieć własną stronę?",
+      "a2Lead": "Nie.",
+      "a2": "Sklep dostaje adres twojanazwa.avably.io przy zakładaniu konta. Jeśli masz własną domenę, panel pokazuje jeden wpis do dodania u dostawcy domeny i sam sprawdza, czy już działa.",
+      "q3": "Ile trwa uruchomienie?",
+      "a3Lead": "Konto — kilka minut.",
+      "a3": "Adres sklepu działa od razu po założeniu. Czas do pierwszej rezerwacji zależy od tego, jak duży katalog wprowadzasz — tego nie obiecujemy w godzinach.",
+      "q4": "Co dokładnie znaczy founders −50%?",
+      "a4Lead": "Połowa ceny, dopóki abonament trwa.",
+      "a4": "Pierwsze 20 wypożyczalni, które przejdą na płatny abonament, płaci połowę bieżącej ceny tak długo, jak abonament pozostaje aktywny. Bez umowy na rok i bez opłaty wdrożeniowej.",
+      "q5": "Czy moje dane są oddzielone od innych firm?",
+      "a5Lead": "Tak.",
+      "a5": "Dane każdej wypożyczalni są odseparowane na poziomie bazy danych, a separacja jest sprawdzana automatycznym testem przy każdej zmianie systemu. Dostęp do panelu administracyjnego platformy chroni drugi składnik.",
+      "q6": "Jakie dane zbieracie na tej stronie?",
+      "a6Lead": "Tylko to, co sam zostawisz.",
+      "a6": "Adres e-mail i odpowiedzi z formularza zbieramy wyłącznie wtedy, gdy zapiszesz się na listę oczekujących. Cel, okres przechowywania i Twoje prawa opisuje Polityka prywatności."
+    },
+    "closing": {
+      "eyebrow": "Zacznij dziś",
+      "title": "Załóż sklep i przyjmij pierwszą rezerwację",
+      "cta": "Załóż sklep"
+    },
+    "footer": {
+      "description": "Avably — system dla wypożyczalni sprzętu: panel wynajmu i własna strona sklepu z rezerwacją online.",
+      "columnProduct": "Produkt",
+      "columnCompany": "Firma",
+      "waitlistLead": "Wolisz najpierw obserwować?",
+      "waitlistCta": "Zapisz się na listę oczekujących",
+      "waitlistNote": "Piszemy tylko przy większych zmianach. Adresu nie przekazujemy nikomu.",
+      "privacy": "Polityka prywatności",
+      "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
+    }
+  },
+  "landing": {
+    "metadata": {
+      "title": "Avably — system dla wypożyczalni sprzętu",
+      "description": "Rezerwacje, dostępność egzemplarzy, kaucje, kurier i własna strona sklepu w jednym systemie. Załóż sklep i przyjmuj rezerwacje online.",
+      "ogTitle": "Avably — prowadź wypożyczalnię w jednym systemie",
+      "ogDescription": "Panel wynajmu i własna strona sklepu z rezerwacją online. 199 zł/msc w okresie testowym, −50% dla pierwszych 20 wypożyczalni."
     },
     "form": {
       "eyebrow": "4 krótkie pola · około minuty",
-      "title": "Zapisz firmę na listę",
-      "intro": "Powiedz nam krótko, co wynajmujesz i jak dziś pilnujesz rezerwacji. Dzięki temu pierwsza wersja będzie odpowiadać na prawdziwe sytuacje z wypożyczalni.",
+      "title": "Zostaw adres, jeśli wolisz poczekać",
+      "intro": "Sklep możesz założyć od razu — rejestracja działa. Jeśli wolisz najpierw obserwować, powiedz krótko, co wynajmujesz: to pomaga nam ustawiać kolejność prac.",
       "emailLabel": "E-mail służbowy*",
       "emailPlaceholder": "ty@firma.pl",
       "emailHelp": "Na ten adres wyślemy informacje o pilotażu i starcie produktu.",
@@ -327,37 +278,12 @@
         "body": "Formularz jest gotowy, ale zapisy nie są jeszcze uruchomione. Wróć tu wkrótce."
       }
     },
-    "faq": {
-      "eyebrow": "Najczęstsze pytania",
-      "title": "Zanim dołączysz do listy",
-      "items": [
-        {
-          "question": "Czy muszę już mieć stronę internetową?",
-          "answer": "Nie. Jedną z planowanych części Avably jest strona wypożyczalni pod własną domeną. Jeśli masz już stronę, sposób przejścia lub połączenia ustalimy dopiero po poznaniu Twojej obecnej konfiguracji."
-        },
-        {
-          "question": "Ile trwa uruchomienie?",
-          "answer": "Naszym celem jest skrócenie uruchomienia wynajmu online do jednego dnia, ale nie jest to jeszcze gwarantowany czas wdrożenia. Rzeczywisty czas będzie zależał między innymi od wielkości katalogu, dostępnych danych i konfiguracji wypożyczalni. Produkt jest nadal w budowie i zweryfikujemy ten cel z pierwszymi firmami."
-        },
-        {
-          "question": "Co jest dostępne dzisiaj?",
-          "answer": "Avably jest na wczesnym etapie budowy. Widoki na tej stronie są koncepcjami planowanego interfejsu i używają danych poglądowych. Zapis na waitlistę lub deklaracja pilotażu nie daje natychmiastowego dostępu do gotowej usługi."
-        },
-        {
-          "question": "Co dokładnie oznacza 50% zniżki dla Founders i jak długo obowiązuje?",
-          "answer": "Pierwsze 20 firm, które przejdą z waitlisty na płatny plan Founders, otrzyma 50% zniżki na obowiązującą cenę planu przez cały okres aktywnej subskrypcji. Sam zapis na waitlistę nie uruchamia płatności ani nie potwierdza miejsca — potwierdzimy je przed startem płatnej usługi."
-        },
-        {
-          "question": "Jakie dane zbieracie?",
-          "answer": "Przy zapisie zbieramy adres e-mail i odpowiedzi z formularza, a numer telefonu tylko od osób zgłaszających się do pilotażu. Informacje o celu, czasie przechowywania i Twoich prawach znajdziesz w",
-          "linkLabel": "Polityce prywatności."
-        }
-      ]
-    },
-    "footer": {
-      "description": "Avably — planowany system do prowadzenia wypożyczalni sprzętu online.",
-      "privacy": "Polityka prywatności",
-      "copyright": "© Avably"
+    "waitlistPage": {
+      "metadataTitle": "Lista oczekujących — Avably",
+      "metadataDescription": "Zostaw adres, a napiszemy przy większych zmianach w Avably.",
+      "back": "Wróć na stronę główną",
+      "altLead": "Nie musisz czekać.",
+      "altCta": "Załóż sklep od razu"
     }
   },
   "storefront": {

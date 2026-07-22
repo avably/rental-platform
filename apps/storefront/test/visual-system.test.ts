@@ -13,8 +13,10 @@ describe("landing visual system", () => {
     const fonts = read("app/fonts.ts");
     const layout = read("app/[locale]/layout.tsx");
     const components = [
-      read("components/landing-page.tsx"),
-      read("components/landing-wireframes.tsx"),
+      read("components/marketing/landing-view.tsx"),
+      read("components/marketing/waitlist-view.tsx"),
+      read("components/marketing/site-header.tsx"),
+      read("components/marketing/site-footer.tsx"),
     ].join("\n");
 
     expect(fonts).toContain('variable: "--font-geist-sans"');
@@ -50,5 +52,20 @@ describe("landing visual system", () => {
     expect(form).toContain("if (!resultFocusArmedRef.current");
     expect(themeToggle).toContain("landing-ghost-pill");
     expect(languageSwitcher).toContain("landing-ghost-pill");
+  });
+
+  // Sekcja 01 artefaktu Fazy 2: paleta to canvas/surface/ink/muted/border/lime.
+  // Pasy strony marketingowej MUSZĄ być mapowaniem na te tokeny, a nie własną
+  // (cieplejszą) paletą landingu, którą nosiła strona waitlisty.
+  it("bierze kolory pasów wyłącznie z tokenów systemu", () => {
+    const css = read("app/globals.css");
+
+    expect(css).toContain("--landing-paper: var(--background)");
+    expect(css).toContain("--landing-surface: var(--card)");
+    expect(css).toContain("--landing-ink: var(--foreground)");
+    expect(css).toContain("--landing-ink-foreground: var(--background)");
+    // Limonka nigdy sama: klasa akcentu niesie obrys i tekst w ink.
+    expect(css).toMatch(/\.landing-accent \{[\s\S]*?border: 1px solid var\(--accent-foreground\)/);
+    expect(css).toMatch(/\.landing-accent \{[\s\S]*?color: var\(--accent-foreground\)/);
   });
 });

@@ -10,6 +10,11 @@ export const LANDING_EVENT_NAMES = [
   "waitlist_page_view",
   "waitlist_section_view",
   "waitlist_cta_click",
+  // Główne CTA strony to rejestracja w panelu, nie zapis na listę — osobne
+  // zdarzenie, bo `waitlist_cta_click` ma historię z okresu, gdy jedynym
+  // wyjściem ze strony była lista oczekujących. Nazw historycznych nie
+  // przemianowujemy, żeby nie rozerwać serii pomiarowych.
+  "signup_cta_click",
   "waitlist_form_start",
   "pilot_interest_selected",
   "pilot_interest_cleared",
@@ -51,6 +56,7 @@ interface EventProperties {
   };
   pilot_interest_cleared: { language: Locale };
   pilot_interest_selected: { language: Locale };
+  signup_cta_click: { language: Locale; placement: string };
   waitlist_cta_click: { language: Locale; placement: string };
   waitlist_duplicate: { language: Locale };
   waitlist_form_start: { language: Locale };
