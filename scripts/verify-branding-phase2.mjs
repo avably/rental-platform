@@ -165,7 +165,10 @@ assert.doesNotMatch(html, /font-family:[^;}]*(?:monospace|ui-monospace)/i);
 
 const requiredSections = [
   "foundations", "marks", "dashboard", "orders-light", "order-detail",
-  "product-form", "states", "storefront", "orders-dark", "motion", "handoff",
+  "product-form", "states", "storefront", "form-measure", "secondary-domains",
+  "secondary-emails", "secondary-delivery", "secondary-contracts", "secondary-team",
+  "secondary-organization", "secondary-security", "secondary-site-editor",
+  "orders-dark", "motion", "handoff", "secondary-out-of-scope",
 ];
 const phaseSections = findAll(tree, (node) => node.attributes["data-phase2-section"]);
 assert.deepEqual(
@@ -749,14 +752,17 @@ assert.ok(panelNavs.length >= 2, "Pokaż nawigację w jasnym i ciemnym shellu");
 for (const nav of panelNavs) {
   const items = directChildren(nav, (node) => "data-nav-item" in node.attributes);
   assert.deepEqual(items.map((node) => node.attributes["data-nav-item"]), [
-    "orders", "catalog", "store", "domains", "emails", "delivery", "team", "organization", "security",
+    "orders", "catalog", "store", "domains", "emails", "delivery", "contracts", "team", "organization", "security",
   ]);
   assert.equal(directChildren(nav, (node) => node.attributes["data-nav-placeholder"] === "dashboard").length, 1);
   assert.equal(items.filter((node) => node.attributes["aria-current"] === "page").length, 1);
   assert.equal(items.find((node) => node.attributes["aria-current"] === "page").attributes["data-nav-item"], "orders");
 }
-assert.match(html, /\.sidebar-nav[^}]*\[aria-current="page"\][^}]*border-left:\s*2px solid var\(--signal-strong\)/);
-assert.match(html, /\.dark[^}]*\.sidebar-nav[^}]*\[aria-current="page"\][^}]*border-left:\s*2px solid var\(--accent-foreground\)/);
+const activeNavRules = [...css.matchAll(/(?:\.dark\s+)?\.sidebar-nav\s+\[aria-current="page"\]\s*\{([^}]*)\}/g)];
+assert.equal(activeNavRules.length, 2);
+for (const [, declarations] of activeNavRules) {
+  assert.doesNotMatch(declarations, /border-(?:left|inline-start)/);
+}
 
 const dashboard = findOne(
   (node) => node.attributes["data-screen"] === "dashboard-placeholder",
@@ -1101,7 +1107,10 @@ for (const node of hardDontNodes) {
   assert.equal(textContent(node).replace(/\s+/g, " ").trim(), hardDontCopy[node.attributes["data-hard-dont"]]);
 }
 
-const codeSurfaceNames = ["tokens-light", "tokens-dark", "svg-set", "status-map", "motion-tokens"];
+const codeSurfaceNames = [
+  "form-measure", "secondary-status-map", "tokens-light", "tokens-dark", "svg-set",
+  "status-map", "motion-tokens",
+];
 const codeSurfaceNodes = findAll(tree, (node) => "data-code-surface" in node.attributes);
 assert.deepEqual(codeSurfaceNodes.map((node) => node.attributes["data-code-surface"]), codeSurfaceNames);
 const codeSurfaceText = (name) => {
@@ -1111,6 +1120,28 @@ const codeSurfaceText = (name) => {
   assert.ok(value.length > 0, `Powierzchnia kodu ${name} nie może być pusta`);
   return value;
 };
+const expectedFormMeasureSurface = [
+  '[data-brand-system="avably-phase-2"] { --form-line-measure: 42rem; }',
+  '[data-form-line-measure] { width: 100%; max-width: var(--form-line-measure); }',
+].join("\n");
+assert.equal(codeSurfaceText("form-measure"), expectedFormMeasureSurface);
+assert.match(css, /\[data-brand-system="avably-phase-2"\]\s*\{\s*--form-line-measure:\s*42rem;\s*\}/);
+assert.match(css, /\[data-form-line-measure\]\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*var\(--form-line-measure\);[^}]*\}/);
+
+const secondaryStatusMap = JSON.parse(codeSurfaceText("secondary-status-map"));
+assert.deepEqual(secondaryStatusMap, {
+  domain: { live: "positive", pending: "attention", registration_failed: "problem" },
+  "domain-provider": { available: "positive", unavailable: "attention" },
+  "email-transport": { available: "positive", unavailable: "attention" },
+  "email-sender": { configured: "positive", missing: "attention" },
+  "email-log": { sent: "positive", failed: "problem" },
+  "delivery-secret": { configured: "positive", missing: "attention" },
+  invitation: { accepted: "positive", pending: "attention" },
+  organization: { active: "positive" },
+  security: { not_configured: "attention", configured: "positive" },
+  "site-section": { enabled: "positive", disabled: "neutral" },
+  "site-publish": { published: "positive" },
+});
 const activeTokenCopy = (theme) => {
   const matches = findAll(tree, (node) => node.attributes["data-token-code"] === theme);
   assert.equal(matches.length, 1, `Brak jednej aktywnej kopii tokenów ${theme}`);
@@ -1141,7 +1172,10 @@ assert.equal(codeSurfaceText("motion-tokens"), expectedMotionTokens);
 const requiredScreens = [
   "dashboard-placeholder", "orders-light", "order-detail", "product-form",
   "system-states", "storefront", "loading", "empty", "not-found", "orders-dark",
-  "landing-motion", "social-ad-square", "social-ad-portrait",
+  "landing-motion", "social-ad-square", "social-ad-portrait", "secondary-domains",
+  "secondary-email-settings", "secondary-email-history", "secondary-delivery",
+  "secondary-contracts", "secondary-team", "secondary-organization",
+  "secondary-security", "secondary-site-editor",
 ];
 for (const screen of requiredScreens) {
   const nodes = findAll(tree, (node) => node.attributes["data-screen"] === screen);
@@ -1153,6 +1187,118 @@ for (const screen of requiredScreens) {
       : "product";
   assert.equal(nodes[0].attributes["data-font-scope"], expectedScope);
 }
+
+const secondaryScreenNames = requiredScreens.filter((name) => name.startsWith("secondary-"));
+for (const screen of secondaryScreenNames) {
+  const node = findAll(tree, (candidate) => candidate.attributes["data-screen"] === screen)[0];
+  assert.equal(node.attributes["data-demo-data"], "fictional", `${screen}: dane demo muszą być jawnie fikcyjne`);
+  assert.ok(
+    findAll(node, (candidate) => "data-form-line-measure" in candidate.attributes).length > 0,
+    `${screen}: brak wspólnej miary formularza`,
+  );
+}
+
+const expectedActions = {
+  "secondary-domains": ["back-to-panel", "retry-registration", "check-domain", "remove-domain", "add-domain"],
+  "secondary-email-settings": ["back-to-panel", "save-email-sender"],
+  "secondary-email-history": ["filter-email-history", "order-link", "previous-page", "next-page"],
+  "secondary-delivery": ["back-to-orders", "save-credentials", "save-sender", "save-parcel", "save-pricing"],
+  "secondary-contracts": ["save-contract-settings"],
+  "secondary-team": ["invite-member"],
+  "secondary-organization": [],
+  "secondary-security": ["enroll-totp", "verify-totp", "challenge-totp"],
+  "secondary-site-editor": [
+    "back-to-panel", "publish-site", "update-template", "add-section", "move-up",
+    "move-down", "toggle-section", "delete-section", "save-section", "faq-remove", "faq-add",
+  ],
+};
+for (const [screen, expected] of Object.entries(expectedActions)) {
+  const node = findAll(tree, (candidate) => candidate.attributes["data-screen"] === screen)[0];
+  const actual = [...new Set(
+    findAll(node, (candidate) => "data-action" in candidate.attributes)
+      .map((candidate) => candidate.attributes["data-action"]),
+  )];
+  assert.deepEqual(actual, expected, `${screen}: rozjazd akcji`);
+}
+
+const expectedNamedFields = {
+  "secondary-domains": ["domain"],
+  "secondary-email-settings": ["senderName", "replyTo"],
+  "secondary-email-history": ["status"],
+  "secondary-contracts": ["companyAddress", "taxId", "companyEmail", "termsVersion", "termsBody"],
+  "secondary-team": ["email", "role"],
+  "secondary-organization": [],
+  "secondary-security": ["code", "next"],
+  "secondary-site-editor": [
+    "template", "type", "heading", "subheading", "ctaText", "ctaHref", "note",
+    "question", "answer", "email", "phone", "address", "mapQuery", "body",
+  ],
+};
+for (const [screen, expected] of Object.entries(expectedNamedFields)) {
+  const node = findAll(tree, (candidate) => candidate.attributes["data-screen"] === screen)[0];
+  const actual = [...new Set(findAll(node, (candidate) =>
+    ["input", "select", "textarea"].includes(candidate.tag) && candidate.attributes.type !== "hidden"
+      ? candidate.attributes.name
+      : candidate.tag === "input" && candidate.attributes.type === "hidden"
+        ? candidate.attributes.name
+        : undefined,
+  ).map((candidate) => candidate.attributes.name).filter(Boolean))];
+  assert.deepEqual(actual, expected, `${screen}: rozjazd pól danych`);
+}
+
+const secondaryStateAnchors = {
+  "secondary-domains": ["data-dns-instructions", "data-domain-provider-availability"],
+  "secondary-email-history": ["data-email-history-empty"],
+  "secondary-delivery": ["data-delivery-access-rule"],
+  "secondary-contracts": ["data-contract-mode"],
+  "secondary-team": ["data-manual-invitation-link"],
+  "secondary-organization": ["data-organization-details"],
+  "secondary-security": ["data-security-state", "data-totp-qr", "data-totp-secret"],
+  "secondary-site-editor": ["data-site-load-error-state", "data-site-sections-empty", "data-site-preview"],
+};
+for (const [screen, attributes] of Object.entries(secondaryStateAnchors)) {
+  const node = findAll(tree, (candidate) => candidate.attributes["data-screen"] === screen)[0];
+  for (const attribute of attributes) {
+    assert.ok(findAll(node, (candidate) => attribute in candidate.attributes).length > 0, `${screen}: brak ${attribute}`);
+  }
+}
+const siteEditor = findAll(tree, (node) => node.attributes["data-screen"] === "secondary-site-editor")[0];
+assert.deepEqual(
+  [...new Set(findAll(siteEditor, (node) => "data-section-type" in node.attributes)
+    .map((node) => node.attributes["data-section-type"]))],
+  ["hero", "products", "pricing", "faq", "contact", "freeform"],
+);
+
+const deliveryScreen = findAll(tree, (node) => node.attributes["data-screen"] === "secondary-delivery")[0];
+const deliveryFields = findAll(deliveryScreen, (node) =>
+  ["input", "select", "textarea"].includes(node.tag) && node.attributes.type !== "hidden" && "name" in node.attributes,
+);
+assert.equal(deliveryFields.length, 21, "Dostawy muszą pokazywać wszystkie 21 pól");
+assert.deepEqual(
+  [...new Set(findAll(deliveryScreen, (node) => "data-settings-form" in node.attributes)
+    .map((node) => node.attributes["data-settings-form"]))],
+  ["credentials", "sender", "parcel", "pricing"],
+);
+
+const secondaryChips = findAll(tree, (node) => "data-secondary-status-axis" in node.attributes);
+assert.ok(secondaryChips.length >= 20, "Pokaż pełną semantykę statusów ekranów drugorzędnych");
+const usedSecondaryStatuses = new Set();
+for (const chip of secondaryChips) {
+  const axis = chip.attributes["data-secondary-status-axis"];
+  const value = chip.attributes["data-secondary-status-value"];
+  const expectedTone = secondaryStatusMap[axis]?.[value];
+  assert.ok(expectedTone, `Nieznany status drugorzędny ${axis}.${value}`);
+  assert.equal(chip.attributes["data-tone"], expectedTone, `${axis}.${value}: błędny ton`);
+  assert.ok((chip.attributes.class ?? "").split(/\s+/).includes(`chip-${expectedTone}`));
+  usedSecondaryStatuses.add(`${axis}.${value}`);
+}
+assert.deepEqual(
+  [...usedSecondaryStatuses].sort(),
+  Object.entries(secondaryStatusMap).flatMap(([axis, values]) =>
+    Object.keys(values).map((value) => `${axis}.${value}`)
+  ).sort(),
+  "Każdy status z secondary-status-map musi wystąpić w mockupach",
+);
 
 const headings = findAll(tree, (node) => /^h[1-6]$/.test(node.tag));
 assert.equal(headings.filter((node) => node.tag === "h1").length, 1);
@@ -1603,6 +1749,7 @@ const isRendered = (node) => {
 
 const contrastFindings = [];
 const scanTextNodes = findAll(tree, (node) => directText(node).length > 0 && isRendered(node));
+assert.ok(scanTextNodes.length >= 945, `Skan kontrastu skurczył się do ${scanTextNodes.length} par`);
 
 for (const node of scanTextNodes) {
   const activeStates = new Set();

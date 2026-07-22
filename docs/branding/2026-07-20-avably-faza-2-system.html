@@ -151,6 +151,9 @@
   --sidebar-ring: oklch(0.96416 0.11655 119.225); /* #EAFFA4 */
 }
 
+[data-brand-system="avably-phase-2"] { --form-line-measure: 42rem; }
+[data-form-line-measure] { width: 100%; max-width: var(--form-line-measure); }
+
 /* ===== base reset ===== */
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -389,6 +392,59 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .store-card h4 { margin: 0 0 6px; font: 600 15px/20px "Geist Sans", sans-serif; }
 .store-card p { margin: 0; color: var(--muted-foreground); font: 500 14px/20px "Geist Sans", sans-serif; }
 
+/* ===== secondary screens ===== */
+.secondary-contract { margin: 0 0 24px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
+.secondary-contract p { margin: 0 0 12px; color: var(--muted-foreground); font: 400 14px/20px "Geist Sans", sans-serif; }
+.secondary-contract .code-surface { margin-bottom: 12px; }
+.secondary-screen { margin: 0 0 32px; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); color: var(--card-foreground); }
+.secondary-screen-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 24px; }
+.secondary-screen-header h3 { margin-bottom: 4px; }
+.secondary-screen-header p, .secondary-demo-note, .secondary-help, .secondary-feedback { margin: 0; color: var(--muted-foreground); font: 400 13px/19px "Geist Sans", sans-serif; }
+.secondary-demo-note { display: inline-flex; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--secondary); color: var(--secondary-foreground); font-weight: 500; }
+.secondary-back { display: inline-flex; margin: 0 0 16px; color: var(--muted-foreground); font: 500 14px/20px "Geist Sans", sans-serif; }
+.secondary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.secondary-card { min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); }
+.secondary-card[data-span="full"] { grid-column: 1 / -1; }
+.secondary-card-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.secondary-card-title strong { min-width: 0; font: 600 15px/21px "Geist Sans", sans-serif; overflow-wrap: anywhere; }
+.secondary-card p { margin: 0 0 10px; color: var(--muted-foreground); font: 400 14px/20px "Geist Sans", sans-serif; }
+.secondary-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 0; }
+.secondary-form { display: grid; gap: 6px; }
+.secondary-form label { margin: 10px 0 0; font: 500 13px/18px "Geist Sans", sans-serif; }
+.secondary-form input, .secondary-form select, .secondary-form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); }
+.secondary-form textarea { min-height: 104px; resize: vertical; }
+.secondary-form textarea[data-size="large"] { min-height: 220px; }
+.secondary-form fieldset { margin: 12px 0 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.secondary-form legend { padding: 0 6px; font: 600 13px/18px "Geist Sans", sans-serif; }
+.secondary-form .secondary-radio { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; }
+.secondary-form .secondary-radio input { width: 18px; min-height: 18px; }
+.secondary-inline-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.secondary-read-list { display: grid; gap: 0; margin: 0; }
+.secondary-read-list div { display: grid; grid-template-columns: minmax(140px, .65fr) 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.secondary-read-list dt { color: var(--muted-foreground); font: 500 13px/18px "Geist Sans", sans-serif; }
+.secondary-read-list dd { margin: 0; font: 500 14px/20px "Geist Sans", sans-serif; overflow-wrap: anywhere; }
+.secondary-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.secondary-table { width: 100%; min-width: 720px; border-collapse: collapse; font: 400 13px/19px "Geist Sans", sans-serif; }
+.secondary-table th { padding: 10px 12px; background: var(--secondary); color: var(--secondary-foreground); text-align: left; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.secondary-table td { padding: 11px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+.secondary-table a { color: var(--foreground); font-weight: 500; }
+.secondary-failure td { padding-top: 0; color: var(--destructive); font-weight: 500; }
+.secondary-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0; }
+.secondary-pagination p { margin: 0; color: var(--muted-foreground); font: 500 13px/18px "Geist Sans", sans-serif; }
+.secondary-qr { display: grid; place-items: center; width: 160px; height: 160px; border: 2px solid var(--foreground); border-radius: var(--radius-md); background: var(--secondary); color: var(--secondary-foreground); text-align: center; font: 600 12px/16px "Geist Sans", sans-serif; }
+.secondary-secret { display: block; margin: 10px 0 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--secondary); color: var(--secondary-foreground); font: 600 13px/18px "Geist Sans", sans-serif; overflow-wrap: anywhere; }
+.site-editor-layout { display: grid; grid-template-columns: minmax(0, var(--form-line-measure)) minmax(280px, 1fr); gap: 24px; align-items: start; }
+.site-section-row { margin: 0 0 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); }
+.site-section-row header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.site-section-row header strong { font: 600 14px/20px "Geist Sans", sans-serif; }
+.site-section-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.site-preview-pane { position: sticky; top: 16px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--background); color: var(--foreground); }
+.site-preview-pane p { color: var(--muted-foreground); font: 400 13px/19px "Geist Sans", sans-serif; }
+.site-preview-pane .store-hero { padding: 20px 0; }
+.site-preview-pane .store-products { grid-template-columns: 1fr; padding: 0; }
+.outside-scope-list { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+.outside-scope-list li { break-inside: avoid; margin: 0 0 10px; font: 500 14px/20px "Geist Sans", sans-serif; }
+
 /* ===== panel states: loading / empty / 404 ===== */
 .panel-state { margin: 24px 0 0; padding: 32px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); }
 .panel-state[data-screen="empty"], .panel-state[data-screen="not-found"] { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
@@ -488,7 +544,12 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .dont-grid li { padding: 14px 16px; border: 1px solid #0B1017; border-radius: var(--radius-md); background: #FFFFFF; color: #0B1017; font: 500 14px/20px "Geist Sans", sans-serif; }
 
 @media (max-width: 760px) {
-  .handoff-grid, .dont-grid { grid-template-columns: 1fr; }
+  .handoff-grid, .dont-grid, .secondary-grid, .secondary-inline-fields, .site-editor-layout { grid-template-columns: 1fr; }
+  .secondary-screen { padding: 18px; }
+  .secondary-screen-header, .secondary-pagination { align-items: flex-start; flex-direction: column; }
+  .secondary-read-list div { grid-template-columns: 1fr; gap: 4px; }
+  .site-preview-pane { position: static; }
+  .outside-scope-list { columns: 1; }
 }
 
   </style>
@@ -941,6 +1002,315 @@ color-scheme: light dark;
         </article>
       </div>
     </section>
+    <section id="form-measure" data-phase2-section="form-measure" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08A / Reguła miary formularza</p>
+        <h2>Jedna czytelna szerokość dla wszystkich ekranów operacyjnych.</h2>
+        <article class="secondary-contract product-ui" data-form-measure-contract="42rem" data-font-scope="product">
+          <h3>Kontrakt P8: 42rem / odpowiednik max-w-2xl</h3>
+          <p>Formularz lub blok odczytowy zajmuje 100% dostępnej szerokości do 42rem. Tabele, listy danych i podgląd sklepu mogą korzystać z pełnej szerokości kontenera 6xl. Reguła wchłania istniejące świadome wyjątki kreatora zamówienia, katalogu i umów.</p>
+          <pre class="code-surface" data-code-surface="form-measure"><code>[data-brand-system=&quot;avably-phase-2&quot;] { --form-line-measure: 42rem; }
+[data-form-line-measure] { width: 100%; max-width: var(--form-line-measure); }</code></pre>
+          <h3>Mapa statusów ekranów drugorzędnych</h3>
+          <p>Semantyka korzysta z chipów sekcji 07, ale pozostaje osobnym kontraktem od statusów zamówień, płatności i wysyłek.</p>
+          <pre class="code-surface" data-code-surface="secondary-status-map"><code>{
+  &quot;domain&quot;: { &quot;live&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;registration_failed&quot;: &quot;problem&quot; },
+  &quot;domain-provider&quot;: { &quot;available&quot;: &quot;positive&quot;, &quot;unavailable&quot;: &quot;attention&quot; },
+  &quot;email-transport&quot;: { &quot;available&quot;: &quot;positive&quot;, &quot;unavailable&quot;: &quot;attention&quot; },
+  &quot;email-sender&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
+  &quot;email-log&quot;: { &quot;sent&quot;: &quot;positive&quot;, &quot;failed&quot;: &quot;problem&quot; },
+  &quot;delivery-secret&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
+  &quot;invitation&quot;: { &quot;accepted&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot; },
+  &quot;organization&quot;: { &quot;active&quot;: &quot;positive&quot; },
+  &quot;security&quot;: { &quot;not_configured&quot;: &quot;attention&quot;, &quot;configured&quot;: &quot;positive&quot; },
+  &quot;site-section&quot;: { &quot;enabled&quot;: &quot;positive&quot;, &quot;disabled&quot;: &quot;neutral&quot; },
+  &quot;site-publish&quot;: { &quot;published&quot;: &quot;positive&quot; }
+}</code></pre>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-domains" data-phase2-section="secondary-domains" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08B / Domeny</p>
+        <h2>Weryfikacja DNS jako sekwencja czytelnych stanów.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-domains" data-font-scope="product" data-demo-data="fictional" data-route="/ustawienia-domen">
+          <a class="secondary-back" data-action="back-to-panel" href="#orders-light">← Wróć do panelu</a>
+          <header class="secondary-screen-header">
+            <div><h3>Domeny sklepu</h3><p>Adres platformowy i własna domena mają osobne karty, instrukcje oraz akcje.</p></div>
+            <span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span>
+          </header>
+          <div data-form-line-measure>
+            <div class="secondary-grid" data-domain-provider-state>
+              <div class="secondary-card" data-domain-provider-availability="available"><div class="secondary-card-title"><strong>Rejestracja hostów</strong><span class="chip chip-positive" data-secondary-status-axis="domain-provider" data-secondary-status-value="available" data-tone="positive">Dostępna</span></div><p>Można rejestrować i ponawiać adresy sklepu.</p></div>
+              <div class="secondary-card" data-domain-provider-availability="unavailable"><div class="secondary-card-title"><strong>Wariant bez konfiguracji</strong><span class="chip chip-attention" data-secondary-status-axis="domain-provider" data-secondary-status-value="unavailable" data-tone="attention">Niedostępna</span></div><p>Wyjaśnij brak konfiguracji i nie pokazuj aktywnej próby rejestracji.</p></div>
+            </div>
+            <div class="secondary-grid" data-domain-list>
+              <div class="secondary-card" data-domain-kind="subdomain">
+                <div class="secondary-card-title"><strong>demo-rental.example.invalid</strong><span class="chip chip-problem" data-secondary-status-axis="domain" data-secondary-status-value="registration_failed" data-tone="problem">Rejestracja nieudana</span></div>
+                <p>Adres platformowy · ostatni błąd: nie udało się zarejestrować hosta.</p>
+                <div class="secondary-actions"><button class="button-secondary" data-action="retry-registration">Ponów rejestrację</button></div>
+              </div>
+              <div class="secondary-card" data-domain-kind="custom">
+                <div class="secondary-card-title"><strong>sklep-demo.example.invalid</strong><span class="chip chip-attention" data-secondary-status-axis="domain" data-secondary-status-value="pending" data-tone="attention">Oczekuje na DNS</span></div>
+                <p>Dodaj rekord CNAME. Propagacja ustawień może potrwać.</p>
+                <dl class="secondary-read-list" data-dns-instructions>
+                  <div><dt>Typ</dt><dd>CNAME</dd></div><div><dt>Nazwa</dt><dd>sklep-demo</dd></div><div><dt>Wartość</dt><dd>shops.example.invalid</dd></div>
+                </dl>
+                <div class="secondary-actions"><button class="button-secondary" data-action="check-domain">Sprawdź domenę</button><button class="button-destructive" data-action="remove-domain">Usuń domenę</button></div>
+              </div>
+              <div class="secondary-card" data-domain-kind="custom">
+                <div class="secondary-card-title"><strong>rezerwacje-demo.example.invalid</strong><span class="chip chip-positive" data-secondary-status-axis="domain" data-secondary-status-value="live" data-tone="positive">Aktywna</span></div>
+                <p>Domena własna jest zweryfikowana i obsługuje sklep.</p>
+              </div>
+            </div>
+            <form class="secondary-form" data-domain-add-form>
+              <label for="domain-name">Dodaj własną domenę</label>
+              <input id="domain-name" name="domain" value="nowy-sklep.example.invalid">
+              <p class="secondary-help">Użyj pełnej nazwy domeny bez protokołu.</p>
+              <div class="secondary-actions"><button class="button-primary" data-action="add-domain" type="button">Dodaj domenę</button></div>
+            </form>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-emails" data-phase2-section="secondary-emails" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08C / E-maile</p>
+        <h2>Konfiguracja nadawcy i historia pozostają dwoma odrębnymi zadaniami.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-email-settings" data-font-scope="product" data-demo-data="fictional" data-route="/ustawienia-emaili">
+          <a class="secondary-back" data-action="back-to-panel" href="#orders-light">← Wróć do panelu</a>
+          <header class="secondary-screen-header">
+            <div><h3>Ustawienia e-maili</h3><p>Status transportu jest widoczny przed edycją danych nadawcy.</p></div>
+            <span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span>
+          </header>
+          <div data-form-line-measure>
+            <div class="secondary-grid" data-email-health>
+              <div class="secondary-card"><div class="secondary-card-title"><strong>Wysyłka systemowa</strong><span class="chip chip-positive" data-secondary-status-axis="email-transport" data-secondary-status-value="available" data-tone="positive">Dostępna</span></div><p>System może wysyłać wiadomości transakcyjne.</p></div>
+              <div class="secondary-card"><div class="secondary-card-title"><strong>Stan awaryjny</strong><span class="chip chip-attention" data-secondary-status-axis="email-transport" data-secondary-status-value="unavailable" data-tone="attention">Niedostępna</span></div><p>W tym stanie formularz pozostaje czytelny, a ostrzeżenie nie zasłania danych.</p></div>
+            </div>
+            <form class="secondary-form" data-email-sender-form>
+              <div class="secondary-card-title"><strong>Dane nadawcy</strong><span class="chip chip-positive" data-secondary-status-axis="email-sender" data-secondary-status-value="configured" data-tone="positive">Skonfigurowane</span></div>
+              <label for="sender-name">Nazwa nadawcy</label><input id="sender-name" name="senderName" value="Fikcyjna Wypożyczalnia">
+              <label for="reply-to">Adres odpowiedzi <span aria-hidden="true">(opcjonalnie)</span></label><input id="reply-to" name="replyTo" type="email" value="kontakt@example.invalid">
+              <p class="secondary-help">Odpowiedzi klientów trafią na ten adres.</p>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-email-sender" type="button">Zapisz dane nadawcy</button><span class="secondary-feedback" data-feedback="success">Przykład: zmiany zapisane.</span></div>
+              <div class="secondary-card-title"><strong>Wariant bez danych</strong><span class="chip chip-attention" data-secondary-status-axis="email-sender" data-secondary-status-value="missing" data-tone="attention">Brak konfiguracji</span></div>
+            </form>
+          </div>
+        </article>
+        <article class="secondary-screen product-ui" data-screen="secondary-email-history" data-font-scope="product" data-demo-data="fictional" data-route="/historia-emaili">
+          <header class="secondary-screen-header">
+            <div><h3>Historia e-maili</h3><p>Filtr ma miarę formularza, a tabela zachowuje pełną szerokość na dane operacyjne.</p></div>
+            <span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span>
+          </header>
+          <form class="secondary-form" data-form-line-measure data-email-history-filter>
+            <label for="email-status">Status wiadomości</label>
+            <select id="email-status" name="status"><option>Wszystkie</option><option>Wysłane</option><option>Nieudane</option></select>
+            <div class="secondary-actions"><button class="button-secondary" data-action="filter-email-history" type="button">Filtruj historię</button></div>
+          </form>
+          <div class="secondary-table-wrap" data-email-history-table>
+            <table class="secondary-table"><thead><tr><th>Data</th><th>Rodzaj</th><th>Odbiorca</th><th>Temat</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="numeric-data">22.07.2026, 09:14</td><td>Potwierdzenie rezerwacji</td><td>klient-01@example.invalid</td><td><a data-action="order-link" href="#order-detail">ZAM/DEMO/104 — potwierdzenie</a></td><td><span class="chip chip-positive" data-secondary-status-axis="email-log" data-secondary-status-value="sent" data-tone="positive">Wysłano</span></td></tr>
+                <tr><td class="numeric-data">21.07.2026, 16:42</td><td>Przypomnienie</td><td>klient-02@example.invalid</td><td>Przypomnienie o zwrocie</td><td><span class="chip chip-problem" data-secondary-status-axis="email-log" data-secondary-status-value="failed" data-tone="problem">Nie wysłano</span></td></tr>
+                <tr class="secondary-failure"><td colspan="5">Powód: fikcyjny adres odbiorcy został odrzucony.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="secondary-card" data-email-history-empty><p>Wariant pusty: dla wybranego filtra nie znaleziono wiadomości. Filtr pozostaje dostępny.</p></div>
+          <div class="secondary-pagination" data-pagination><p>Strona 2 z 4 · 37 wiadomości</p><div class="secondary-actions"><button class="button-secondary" data-action="previous-page" type="button">Poprzednia</button><button class="button-secondary" data-action="next-page" type="button">Następna</button></div></div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-delivery" data-phase2-section="secondary-delivery" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08D / Dostawy</p>
+        <h2>Dwadzieścia jeden pól w czterech niezależnych rytmach zapisu.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-delivery" data-font-scope="product" data-demo-data="fictional" data-route="/ustawienia-dostaw">
+          <a class="secondary-back" data-action="back-to-orders" href="#orders-light">← Wróć do dostaw zamówień</a>
+          <header class="secondary-screen-header">
+            <div><h3>Ustawienia dostaw</h3><p>Każda odpowiedzialność ma osobną kartę, formularz i zapis; wszystkie pozostają w mierze 42rem.</p></div>
+            <span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span>
+          </header>
+          <div data-form-line-measure data-delivery-settings>
+            <div class="secondary-card" data-delivery-access-rule="owner-writes-members-read"><p>Każdy członek zespołu widzi dane operacyjne. Przyciski zapisu i pole nowego hasła są dostępne wyłącznie właścicielowi.</p></div>
+            <form class="secondary-form secondary-card" data-settings-form="credentials">
+              <div class="secondary-card-title"><strong>Konto integracji</strong><span class="chip chip-positive" data-secondary-status-axis="delivery-secret" data-secondary-status-value="configured" data-tone="positive">Hasło zapisane</span></div>
+              <p class="secondary-help">Sekret jest polem tylko do zapisu. Zapisanej wartości nie pokazujemy ponownie.</p>
+              <label for="delivery-email">E-mail konta</label><input id="delivery-email" name="email" type="email" value="integracja@example.invalid">
+              <label for="delivery-password">Nowe hasło</label><input id="delivery-password" name="password" type="password" value="">
+              <label for="delivery-environment">Środowisko</label><select id="delivery-environment" name="environment"><option>Testowe</option><option>Produkcyjne</option></select>
+              <div class="secondary-card-title"><strong>Wariant bez sekretu</strong><span class="chip chip-attention" data-secondary-status-axis="delivery-secret" data-secondary-status-value="missing" data-tone="attention">Brak hasła</span></div>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-credentials" type="button">Zapisz konto integracji</button></div>
+            </form>
+            <form class="secondary-form secondary-card" data-settings-form="sender">
+              <div class="secondary-card-title"><strong>Dane nadawcy przesyłki</strong></div>
+              <div class="secondary-inline-fields"><div><label for="sender-company">Nazwa</label><input id="sender-company" name="name" value="Fikcyjna Wypożyczalnia"></div><div><label for="sender-street">Ulica</label><input id="sender-street" name="street" value="Przykładowa"></div></div>
+              <div class="secondary-inline-fields"><div><label for="sender-house">Numer budynku</label><input id="sender-house" name="houseNumber" value="10"></div><div><label for="sender-apartment">Numer lokalu</label><input id="sender-apartment" name="apartmentNumber" value="2"></div></div>
+              <div class="secondary-inline-fields"><div><label for="sender-postcode">Kod pocztowy</label><input id="sender-postcode" name="postCode" value="00-001"></div><div><label for="sender-city">Miasto</label><input id="sender-city" name="city" value="Przykładowo"></div></div>
+              <div class="secondary-inline-fields"><div><label for="sender-phone">Telefon</label><input id="sender-phone" name="phone" value="+48 000 000 000"></div><div><label for="sender-contact-email">E-mail</label><input id="sender-contact-email" name="email" type="email" value="wysylka@example.invalid"></div></div>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-sender" type="button">Zapisz nadawcę</button></div>
+            </form>
+            <form class="secondary-form secondary-card" data-settings-form="parcel">
+              <div class="secondary-card-title"><strong>Domyślna paczka</strong></div>
+              <div class="secondary-inline-fields"><div><label for="parcel-length">Długość (cm)</label><input id="parcel-length" name="lengthCm" type="number" value="40"></div><div><label for="parcel-width">Szerokość (cm)</label><input id="parcel-width" name="widthCm" type="number" value="30"></div></div>
+              <div class="secondary-inline-fields"><div><label for="parcel-height">Wysokość (cm)</label><input id="parcel-height" name="heightCm" type="number" value="20"></div><div><label for="parcel-weight">Waga (kg)</label><input id="parcel-weight" name="weightKg" type="number" value="5"></div></div>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-parcel" type="button">Zapisz paczkę</button></div>
+            </form>
+            <form class="secondary-form secondary-card" data-settings-form="pricing">
+              <div class="secondary-card-title"><strong>Cennik metod dostawy</strong></div>
+              <div class="secondary-inline-fields"><div><label for="courier-price">Kurier — cena (zł)</label><input id="courier-price" name="courierPrice" type="number" value="24.99"></div><div><label for="courier-free">Kurier — bezpłatnie od (zł)</label><input id="courier-free" name="courierFreeAbove" type="number" value="500"></div></div>
+              <div class="secondary-inline-fields"><div><label for="locker-price">Punkt odbioru — cena (zł)</label><input id="locker-price" name="parcelLockerPrice" type="number" value="16.99"></div><div><label for="locker-free">Punkt odbioru — bezpłatnie od (zł)</label><input id="locker-free" name="parcelLockerFreeAbove" type="number" value="350"></div></div>
+              <div class="secondary-inline-fields"><div><label for="own-price">Dostawa własna — cena (zł)</label><input id="own-price" name="ownDeliveryPrice" type="number" value="39.99"></div><div><label for="own-free">Dostawa własna — bezpłatnie od (zł)</label><input id="own-free" name="ownDeliveryFreeAbove" type="number" value="800"></div></div>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-pricing" type="button">Zapisz cennik</button></div>
+            </form>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-contracts" data-phase2-section="secondary-contracts" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08E / Umowy</p>
+        <h2>Jedna treść, dwa jawne poziomy uprawnień.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-contracts" data-font-scope="product" data-demo-data="fictional" data-route="/ustawienia-umow">
+          <header class="secondary-screen-header">
+            <div><h3>Ustawienia umów</h3><p>Właściciel edytuje, członek zespołu odczytuje ten sam zestaw danych bez atrap akcji.</p></div>
+            <span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span>
+          </header>
+          <div data-form-line-measure>
+            <form class="secondary-form secondary-card" data-contract-mode="owner">
+              <div class="secondary-card-title"><strong>Widok właściciela · edycja</strong></div>
+              <label for="contract-address">Adres firmy</label><textarea id="contract-address" name="companyAddress">ul. Przykładowa 10, 00-001 Przykładowo</textarea>
+              <label for="contract-tax">NIP <span aria-hidden="true">(opcjonalnie)</span></label><input id="contract-tax" name="taxId" value="0000000000">
+              <label for="contract-email">E-mail firmy</label><input id="contract-email" name="companyEmail" type="email" value="umowy@example.invalid">
+              <label for="contract-version">Wersja regulaminu</label><input id="contract-version" name="termsVersion" value="DEMO-2026-07">
+              <label for="contract-body">Treść regulaminu</label><textarea id="contract-body" name="termsBody" data-size="large">Fikcyjna treść regulaminu przeznaczona wyłącznie do demonstracji układu.</textarea>
+              <div class="secondary-actions"><button class="button-primary" data-action="save-contract-settings" type="button">Zapisz ustawienia umów</button><span class="secondary-feedback" data-feedback="success">Przykład: ustawienia zapisane.</span></div>
+            </form>
+            <div class="secondary-card" data-contract-mode="member-read-only">
+              <div class="secondary-card-title"><strong>Widok członka zespołu · tylko odczyt</strong></div>
+              <dl class="secondary-read-list"><div><dt>Adres firmy</dt><dd>ul. Przykładowa 10, 00-001 Przykładowo</dd></div><div><dt>NIP</dt><dd>0000000000</dd></div><div><dt>E-mail firmy</dt><dd>umowy@example.invalid</dd></div><div><dt>Wersja regulaminu</dt><dd>DEMO-2026-07</dd></div><div><dt>Treść regulaminu</dt><dd>Fikcyjna treść widoczna bez możliwości edycji.</dd></div></dl>
+              <p class="secondary-help">Edycja jest dostępna wyłącznie dla właściciela organizacji.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-team" data-phase2-section="secondary-team" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08F / Zespół</p>
+        <h2>Zaproszenie jest krótkim formularzem nad pełną historią zespołu.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-team" data-font-scope="product" data-demo-data="fictional" data-route="/zaproszenia">
+          <header class="secondary-screen-header"><div><h3>Zespół i zaproszenia</h3><p>Ekran właściciela zachowuje ostrzeżenie o wysyłce, role oraz daty zaproszeń.</p></div><span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span></header>
+          <div data-form-line-measure>
+            <div class="secondary-card" data-email-warning><p>Gdy wysyłka e-mail jest niedostępna, pokażemy bezpośredni, ręczny link do zaproszenia po jego utworzeniu.</p></div>
+            <form class="secondary-form" data-invitation-form data-owner-only="true">
+              <label for="invite-email">E-mail osoby</label><input id="invite-email" name="email" type="email" value="nowa-osoba@example.invalid">
+              <label for="invite-role">Rola</label><select id="invite-role" name="role"><option>Pracownik</option><option>Właściciel</option></select>
+              <div class="secondary-actions"><button class="button-primary" data-action="invite-member" type="button">Wyślij zaproszenie</button><span class="secondary-feedback" data-feedback="success">Przykład: zaproszenie utworzone.</span></div>
+              <p class="field-error" data-feedback="error">Przykład błędu wysyłki: zaproszenie powstało, wiadomość nie została wysłana.</p>
+              <p class="secondary-help" data-manual-invitation-link>Ręczny link: <a href="#secondary-team">app.example.invalid/pl/zaproszenie/fikcyjne</a></p>
+            </form>
+          </div>
+          <div class="secondary-table-wrap" data-invitations-list><table class="secondary-table"><thead><tr><th>E-mail</th><th>Rola</th><th>Utworzono</th><th>Wygasa</th><th>Status</th></tr></thead><tbody>
+            <tr><td>osoba-01@example.invalid</td><td>Pracownik</td><td class="numeric-data">20.07.2026</td><td class="numeric-data">27.07.2026</td><td><span class="chip chip-attention" data-secondary-status-axis="invitation" data-secondary-status-value="pending" data-tone="attention">Oczekuje</span></td></tr>
+            <tr><td>osoba-02@example.invalid</td><td>Właściciel</td><td class="numeric-data">01.07.2026</td><td class="numeric-data">08.07.2026</td><td><span class="chip chip-positive" data-secondary-status-axis="invitation" data-secondary-status-value="accepted" data-tone="positive">Przyjęte</span></td></tr>
+          </tbody></table></div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-organization" data-phase2-section="secondary-organization" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08G / Organizacja</p>
+        <h2>Widok referencyjny bez sugerowania nieistniejącej edycji.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-organization" data-font-scope="product" data-demo-data="fictional" data-route="/organizacja" data-access-mode="read-only">
+          <header class="secondary-screen-header"><div><h3>Organizacja</h3><p>Dane identyfikacyjne i plan są czytane jak karta konta, nie jak wyłączony formularz.</p></div><span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span></header>
+          <div class="secondary-card" data-form-line-measure data-organization-details>
+            <div class="secondary-card-title"><strong>Fikcyjna Wypożyczalnia</strong><span class="chip chip-positive" data-secondary-status-axis="organization" data-secondary-status-value="active" data-tone="positive">Aktywna</span></div>
+            <dl class="secondary-read-list"><div><dt>Nazwa</dt><dd>Fikcyjna Wypożyczalnia</dd></div><div><dt>Identyfikator</dt><dd>fikcyjna-wypozyczalnia</dd></div><div><dt>Plan</dt><dd>Plan demonstracyjny</dd></div><div><dt>Status tenant-a</dt><dd>Aktywny</dd></div><div><dt>Utworzono</dt><dd class="numeric-data">15.06.2026</dd></div><div><dt>Język</dt><dd>Polski</dd></div></dl>
+            <p class="secondary-help">Ten ekran jest wyłącznie informacyjny zgodnie z ADR-059 D5.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-security" data-phase2-section="secondary-security" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08H / Bezpieczeństwo</p>
+        <h2>Sekret 2FA jest chwilowym krokiem, nigdy ozdobną treścią strony.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-security" data-font-scope="product" data-demo-data="fictional" data-route="/bezpieczenstwo">
+          <header class="secondary-screen-header"><div><h3>Weryfikacja dwuetapowa</h3><p>Trzy stany pokazują pełny istniejący przepływ: rozpoczęcie, potwierdzenie sekretu i ponowne uwierzytelnienie.</p></div><span class="secondary-demo-note">Dane i sekret demonstracyjne — fikcyjne</span></header>
+          <div data-form-line-measure data-security-flow>
+            <div class="secondary-card" data-security-state="not-configured">
+              <div class="secondary-card-title"><strong>Stan 1 · zabezpieczenie wyłączone</strong><span class="chip chip-attention" data-secondary-status-axis="security" data-secondary-status-value="not_configured" data-tone="attention">Nieskonfigurowane</span></div>
+              <p>Dodaj aplikację uwierzytelniającą, aby wymagać drugiego kroku logowania.</p>
+              <div class="secondary-actions"><button class="button-primary" data-action="enroll-totp" type="button">Skonfiguruj 2FA</button></div>
+            </div>
+            <form class="secondary-form secondary-card" data-security-state="enrollment">
+              <div class="secondary-card-title"><strong>Stan 2 · jednorazowe ujawnienie sekretu</strong></div>
+              <div class="secondary-qr" data-totp-qr="non-scannable" role="img" aria-label="Nieskanowalny symbol fikcyjnego kodu QR">FIKCYJNY QR<br>NIE SKANOWAĆ</div>
+              <span class="secondary-secret" data-totp-secret="fictional-redacted">FIKCYJNY-SEKRET-2FA-NIE-UŻYWAĆ</span>
+              <p class="secondary-help">Sekret pokazujemy tylko podczas konfiguracji. Ten przykład nie jest aktywnym kluczem.</p>
+              <label for="totp-verify">Kod 6-cyfrowy</label><input id="totp-verify" name="code" inputmode="numeric" autocomplete="one-time-code" value="000000">
+              <div class="secondary-actions"><button class="button-primary" data-action="verify-totp" type="button">Potwierdź konfigurację</button></div>
+              <p class="field-error" data-feedback="error">Przykład błędu: kod wygasł, wpisz nowy.</p>
+            </form>
+            <form class="secondary-form secondary-card" data-security-state="challenge">
+              <div class="secondary-card-title"><strong>Stan 3 · potwierdzenie przy logowaniu</strong><span class="chip chip-positive" data-secondary-status-axis="security" data-secondary-status-value="configured" data-tone="positive">Skonfigurowane</span></div>
+              <p>Sesja ma pierwszy poziom uwierzytelnienia. Wpisz kod, aby bezpiecznie przejść dalej.</p>
+              <label for="totp-challenge">Kod 6-cyfrowy</label><input id="totp-challenge" name="code" inputmode="numeric" autocomplete="one-time-code" value="000000">
+              <input type="hidden" name="next" value="/pl/panel" aria-label="Bezpieczny adres powrotu">
+              <div class="secondary-actions"><button class="button-primary" data-action="challenge-totp" type="button">Potwierdź kod</button></div>
+            </form>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="secondary-site-editor" data-phase2-section="secondary-site-editor" data-surface-phase="white">
+      <div class="wrap">
+        <p class="eyebrow">08I / Strona sklepu</p>
+        <h2>Edytor sekcji po lewej, prawdziwy podgląd szkicu po prawej.</h2>
+        <article class="secondary-screen product-ui" data-screen="secondary-site-editor" data-font-scope="product" data-demo-data="fictional" data-route="/strona">
+          <a class="secondary-back" data-action="back-to-panel" href="#orders-light">← Wróć do panelu</a>
+          <header class="secondary-screen-header"><div><h3>Strona sklepu</h3><p>Publikacja jest osobna od zapisu szablonu i każdej sekcji; podgląd korzysta wyłącznie z włączonych elementów.</p></div><span class="secondary-demo-note">Dane demonstracyjne — fikcyjne</span></header>
+          <div class="secondary-card" data-site-load-error-state><p>Wariant błędu ładowania: nie udało się pobrać szkicu strony. Nie pokazuj pustego edytora jako poprawnego stanu.</p></div>
+          <div class="secondary-card-title" data-publish-status><strong>Wersja publiczna</strong><span class="chip chip-positive" data-secondary-status-axis="site-publish" data-secondary-status-value="published" data-tone="positive">Opublikowana</span></div>
+          <div class="secondary-actions"><button class="button-primary" data-action="publish-site" type="button">Opublikuj stronę</button><span class="secondary-feedback" data-feedback="success">Przykład: opublikowano 22.07.2026, 10:30.</span></div>
+          <div class="site-editor-layout">
+            <div data-form-line-measure data-site-editor-controls>
+              <form class="secondary-form secondary-card" data-template-form>
+                <div class="secondary-card-title"><strong>Szablon</strong></div>
+                <fieldset><legend>Charakter strony</legend><label class="secondary-radio"><input type="radio" name="template" aria-label="Szablon klasyczny" checked> Klasyczny</label><label class="secondary-radio"><input type="radio" name="template" aria-label="Szablon wyrazisty"> Wyrazisty</label></fieldset>
+                <div class="secondary-actions"><button class="button-secondary" data-action="update-template" type="button">Zapisz szablon</button></div>
+              </form>
+              <form class="secondary-form secondary-card" data-add-section-form>
+                <label for="section-type">Dodaj sekcję</label><select id="section-type" name="type"><option>Hero</option><option>Produkty</option><option>Cennik</option><option>FAQ</option><option>Kontakt</option><option>Treść własna</option></select>
+                <div class="secondary-actions"><button class="button-secondary" data-action="add-section" type="button">Dodaj sekcję</button></div>
+              </form>
+              <div data-site-sections>
+                <div class="site-section-row" data-section-type="hero" data-section-order="1">
+                  <header><strong>01 · Hero</strong><span class="chip chip-positive" data-secondary-status-axis="site-section" data-secondary-status-value="enabled" data-tone="positive">Włączona</span></header>
+                  <form class="secondary-form"><label for="hero-heading">Nagłówek</label><input id="hero-heading" name="heading" value="Sprzęt wtedy, kiedy go potrzebujesz"><label for="hero-subheading">Opis</label><textarea id="hero-subheading" name="subheading">Fikcyjny opis oferty sklepu demonstracyjnego.</textarea><div class="secondary-inline-fields"><div><label for="hero-cta-text">Tekst przycisku</label><input id="hero-cta-text" name="ctaText" value="Zobacz ofertę"></div><div><label for="hero-cta-href">Adres przycisku</label><input id="hero-cta-href" name="ctaHref" value="#produkty"></div></div>
+                    <div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Wyłącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button></div>
+                    <div class="secondary-actions"><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button><span class="secondary-feedback" data-feedback="success">Sekcja zapisana.</span></div><p class="field-error" data-feedback="error">Wariant błędu: popraw zaznaczone pola i spróbuj ponownie.</p>
+                  </form>
+                </div>
+                <div class="site-section-row" data-section-type="products" data-section-order="2"><header><strong>02 · Produkty</strong><span class="chip chip-positive" data-secondary-status-axis="site-section" data-secondary-status-value="enabled" data-tone="positive">Włączona</span></header><form class="secondary-form"><label for="products-heading">Nagłówek</label><input id="products-heading" name="heading" value="Popularny sprzęt"><div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Wyłącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button></div></form></div>
+                <div class="site-section-row" data-section-type="pricing" data-section-order="3"><header><strong>03 · Cennik</strong><span class="chip chip-neutral" data-secondary-status-axis="site-section" data-secondary-status-value="disabled" data-tone="neutral">Wyłączona</span></header><form class="secondary-form"><label for="pricing-heading">Nagłówek</label><input id="pricing-heading" name="heading" value="Warunki cenowe"><label for="pricing-note">Notatka</label><textarea id="pricing-note" name="note">Fikcyjna informacja o cenach.</textarea><div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Włącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button></div></form></div>
+                <div class="site-section-row" data-section-type="faq" data-section-order="4"><header><strong>04 · FAQ</strong><span class="chip chip-positive" data-secondary-status-axis="site-section" data-secondary-status-value="enabled" data-tone="positive">Włączona</span></header><form class="secondary-form"><label for="faq-heading">Nagłówek</label><input id="faq-heading" name="heading" value="Najczęstsze pytania"><div data-faq-row><label for="faq-question">Pytanie</label><input id="faq-question" name="question" value="Jak działa rezerwacja?"><label for="faq-answer">Odpowiedź</label><textarea id="faq-answer" name="answer">To jest fikcyjna odpowiedź demonstracyjna.</textarea><div class="secondary-actions"><button class="button-destructive" data-action="faq-remove" type="button">Usuń pytanie</button></div></div><div class="secondary-actions"><button class="button-secondary" data-action="faq-add" type="button">Dodaj pytanie</button></div><div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Wyłącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button></div></form></div>
+                <div class="site-section-row" data-section-type="contact" data-section-order="5"><header><strong>05 · Kontakt</strong><span class="chip chip-positive" data-secondary-status-axis="site-section" data-secondary-status-value="enabled" data-tone="positive">Włączona</span></header><form class="secondary-form"><label for="contact-heading">Nagłówek</label><input id="contact-heading" name="heading" value="Kontakt"><div class="secondary-inline-fields"><div><label for="contact-email">E-mail</label><input id="contact-email" name="email" type="email" value="kontakt@example.invalid"></div><div><label for="contact-phone">Telefon</label><input id="contact-phone" name="phone" value="+48 000 000 000"></div></div><label for="contact-address">Adres</label><input id="contact-address" name="address" value="ul. Przykładowa 10, Przykładowo"><label for="contact-map">Zapytanie mapy</label><input id="contact-map" name="mapQuery" value="Przykładowa 10, Przykładowo"><div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Wyłącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button></div></form></div>
+                <div class="site-section-row" data-section-type="freeform" data-section-order="6"><header><strong>06 · Treść własna</strong><span class="chip chip-neutral" data-secondary-status-axis="site-section" data-secondary-status-value="disabled" data-tone="neutral">Wyłączona</span></header><form class="secondary-form"><label for="freeform-heading">Nagłówek</label><input id="freeform-heading" name="heading" value="O naszej wypożyczalni"><label for="freeform-body">Treść</label><textarea id="freeform-body" name="body" data-size="large">Fikcyjna treść własna sklepu demonstracyjnego.</textarea><div class="site-section-actions"><button class="button-secondary" data-action="move-up" type="button">Przenieś wyżej</button><button class="button-secondary" data-action="move-down" type="button">Przenieś niżej</button><button class="button-secondary" data-action="toggle-section" type="button">Włącz</button><button class="button-destructive" data-action="delete-section" type="button">Usuń</button><button class="button-primary" data-action="save-section" type="button">Zapisz sekcję</button></div></form></div>
+              </div>
+              <div class="secondary-card" data-site-sections-empty><p>Wariant pusty: sklep nie ma jeszcze sekcji. Selektor „Dodaj sekcję” pozostaje pierwszą dostępną akcją.</p></div>
+            </div>
+            <aside class="site-preview-pane" data-site-preview="draft">
+              <p class="store-eyebrow">PODGLĄD SZKICU</p><h3>Sprzęt wtedy, kiedy go potrzebujesz</h3><p>Fikcyjny opis oferty sklepu demonstracyjnego.</p><button class="button-primary" type="button">Zobacz ofertę</button>
+              <div class="store-products"><div class="store-card"><strong>Produkt demonstracyjny A</strong><p>od 120,00 zł / dzień</p></div><div class="store-card"><strong>Produkt demonstracyjny B</strong><p>od 210,00 zł / dzień</p></div></div>
+              <p data-preview-empty-state>Jeżeli wszystkie sekcje będą wyłączone, pokaż pusty podgląd bez fikcyjnej zawartości.</p>
+            </aside>
+          </div>
+        </article>
+      </div>
+    </section>
     <section id="orders-dark" data-phase2-section="orders-dark" data-surface-phase="dark" class="dark">
       <div class="wrap">
         <p class="eyebrow">09 / Dark mode</p>
@@ -1238,6 +1608,23 @@ color-scheme: light dark;
           <li data-hard-dont="fake-dashboard">Placeholder dashboardu nie pokazuje KPI, trendów ani procentów bez backendu.</li>
           <li data-hard-dont="extra-loops">Poza rail LP i reklamą nie ma nieskończonych animacji.</li>
         </ol>
+      </div>
+    </section>
+    <section id="secondary-out-of-scope" data-phase2-section="secondary-out-of-scope" data-surface-phase="lime">
+      <div class="wrap">
+        <p class="eyebrow">Poza kontraktem P8</p>
+        <h2>Propozycje poza zakresem</h2>
+        <p>Te pomysły zmieniają zachowanie produktu. Nie są częścią wykonanych mockupów ani kontraktu wdrożeniowego bez osobnej decyzji właściciela.</p>
+        <ul class="outside-scope-list" data-out-of-scope-proposals>
+          <li><strong>Domeny:</strong> domena główna, kopiowanie rekordów DNS i automatyczny test konfiguracji.</li>
+          <li><strong>E-maile:</strong> podgląd treści, wiadomość testowa oraz eksport historii.</li>
+          <li><strong>Dostawy:</strong> test połączenia, walidacja adresu i włączanie metod przełącznikami.</li>
+          <li><strong>Umowy:</strong> podgląd PDF oraz pobranie dokumentu przykładowego.</li>
+          <li><strong>Zespół:</strong> ponowienie i cofnięcie zaproszenia oraz osobny status wygaśnięcia.</li>
+          <li><strong>Organizacja:</strong> edycja nazwy, identyfikatora i języka oraz zmiana planu.</li>
+          <li><strong>Bezpieczeństwo:</strong> wyłączenie czynnika, kody odzyskiwania i zarządzanie wieloma czynnikami.</li>
+          <li><strong>Strona sklepu:</strong> autozapis, przeciąganie sekcji, cofanie i wersjonowanie.</li>
+        </ul>
       </div>
     </section>
   </main>
