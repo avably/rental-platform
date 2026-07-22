@@ -499,6 +499,53 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(await refundRequestsOf(fixture.orderId)).toHaveLength(1);
   }, 30_000);
 
+  it("dwuklik RÓWNOLEGŁY wysyła tylko JEDEN zwrot do dostawcy (0032, ADR-070)", async () => {
+    // Regresja przeglądu Z11: bramka in-flight z 0031 była SELECT-em, więc dwa
+    // RÓWNOLEGŁE żądania mijały ją oba i wysyłały DWA refundy z różnymi kluczami
+    // idempotencji (świeży UUID per żądanie). Częściowy unikat 0032 serializuje
+    // je na bazie: pierwszy INSERT wygrywa, drugi dostaje 23505 i kończy się
+    // `pending` PRZED `createRefund`. Dowodem jest LICZBA wyjść do dostawcy — bo
+    // to ona, a nie stan rejestru, mówi, ile razy pieniądze naprawdę wyszły.
+    const fixture = await paidOrderWithDeposit();
+
+    let providerCalls = 0;
+    // Zwycięzca trzyma wiersz w stanie in-flight (`requested`) dopóźnionym
+    // wyjściem do dostawcy — okno, w którym przegrany próbuje swojego INSERT-u
+    // i odbija się o unikat. Przegrany nie dotyka dostawcy, więc kończy w kilka
+    // ms; 300 ms > ta ścieżka z zapasem, a suita i tak ma budżet 30 s.
+    const deps = {
+      db: member.client,
+      createRefund: async () => {
+        providerCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return "re_rownolegly_1";
+      },
+      readRefund: async () => refundRead({ refundId: "re_rownolegly_1", status: "succeeded" }),
+    };
+    const input = {
+      tenantId: member.tenantId,
+      orderId: fixture.orderId,
+      amountGrosze: DEPOSIT_GROSZE,
+      actorId: member.userId,
+    };
+
+    const outcomes = await Promise.all([
+      requestDepositRefund(deps, input),
+      requestDepositRefund(deps, input),
+    ]);
+
+    // JEDNO wyjście do dostawcy — kaucja oddana RAZ.
+    expect(providerCalls).toBe(1);
+    // Jeden zwrot rozliczony, drugi odbity jako „w toku" — bez porażki
+    // zapraszającej operatora do ponowienia.
+    expect(outcomes.map((o) => o.status).sort()).toEqual(["pending", "settled"]);
+    // Baza nie wypuściła drugiego żądania: jeden wiersz, jeden refund w rejestrze.
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(1);
+    const events = await depositEventsOf(fixture.orderId);
+    expect(events.map((event) => event.kind)).toEqual(["collected", "refunded"]);
+    expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
+  }, 30_000);
+
   // -------------------------------------------------------------------
   // 3. Zwrot POTWIERDZONY odczytem
   // -------------------------------------------------------------------
