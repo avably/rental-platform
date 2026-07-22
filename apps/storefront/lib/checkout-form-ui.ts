@@ -15,13 +15,28 @@ import type { CheckoutFieldErrors, CheckoutOrderSummary, CheckoutResult } from "
 export type CheckoutViewState =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "success"; order: CheckoutOrderSummary; emailIssues: string[] }
+  | {
+      kind: "success";
+      order: CheckoutOrderSummary;
+      emailIssues: string[];
+      /**
+       * Dokąd idzie klient po utrwaleniu zamówienia. `payment` znaczy
+       * WYŁĄCZNIE „przejdź na krok płatności" — nigdy „zapłacono".
+       */
+      nextStep: "confirmation" | "payment";
+    }
   | { kind: "validation"; fields: CheckoutFieldErrors }
   | { kind: "unavailable" }
   | { kind: "rejected" }
   | { kind: "rate_limited" }
   | { kind: "captcha_error" }
   | { kind: "connection_error" }
+  /**
+   * Klient wybrał płatność online, a serwer ODCZYTAŁ, że sklep nie może jej
+   * dziś przyjąć. Zamówienie NIE powstało — formularz zostaje wypełniony,
+   * a klient wybiera tor offline (ADR-066).
+   */
+  | { kind: "payment_unavailable" }
   | { kind: "server_error" };
 
 /**
@@ -35,12 +50,18 @@ export type CheckoutMessageKey =
   | "rate_limited"
   | "captcha"
   | "connection"
+  | "payment_unavailable"
   | "server";
 
 export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
   switch (result.status) {
     case "success":
-      return { kind: "success", order: result.order, emailIssues: result.emailIssues ?? [] };
+      return {
+        kind: "success",
+        order: result.order,
+        emailIssues: result.emailIssues ?? [],
+        nextStep: result.nextStep,
+      };
     case "validation_error":
       return { kind: "validation", fields: result.fields };
     case "unavailable":
@@ -51,6 +72,8 @@ export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
       return { kind: "rate_limited" };
     case "captcha_failed":
       return { kind: "captcha_error" };
+    case "payment_unavailable":
+      return { kind: "payment_unavailable" };
     case "server_error":
       return { kind: "server_error" };
   }
@@ -68,6 +91,8 @@ export function getCheckoutMessageKey(view: CheckoutViewState): CheckoutMessageK
       return "captcha";
     case "connection_error":
       return "connection";
+    case "payment_unavailable":
+      return "payment_unavailable";
     case "server_error":
       return "server";
     case "idle":

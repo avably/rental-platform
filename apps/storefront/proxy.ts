@@ -76,6 +76,12 @@ function cspOptions(): CspOptions {
     // Dyrektywy Cloudflare tylko gdy widget faktycznie się renderuje (ten sam
     // warunek co w components/waitlist-form).
     turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
+    // Dyrektywy dostawcy płatności tylko gdy integracja jest skonfigurowana
+    // (Z3, ADR-066). Warunek patrzy na klucz SEKRETNY, nie publikowalny: to
+    // serwer decyduje, czy płatność w ogóle powstanie, a bez niej nie ma czego
+    // renderować w ramce. Liczy się sama OBECNOŚĆ zmiennej — wartość nie
+    // opuszcza middleware'u i nie ma jak trafić do polityki ani do bundla.
+    stripe: Boolean(process.env.AVABLY_STRIPE_SECRET_KEY),
   };
 }
 

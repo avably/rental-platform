@@ -82,6 +82,65 @@ export interface OnboardingUrls {
 }
 
 /**
+ * Parametry płatności online (Z3, ADR-066).
+ *
+ * KWOTA I WALUTA SĄ TU RAZEM I NIE MAJĄ WARTOŚCI DOMYŚLNYCH. Waluta bez
+ * zaszywania (`plans.currency`), kwota w najmniejszej jednostce — ta sama
+ * liczba, którą policzył serwer, bez żadnego przelicznika po drodze.
+ */
+export interface CreateIntentParams {
+  /** int, grosze — bez konwersji. Wartość policzona przez SERWER. */
+  amountGrosze: number;
+  /** Kod ISO waluty zamówienia (`plans.currency`) — nigdy zaszyty. */
+  currency: string;
+  /** Konto najemcy u dostawcy — na NIM powstaje płatność (charge bezpośredni). */
+  connectedAccountId: string;
+  /**
+   * Prowizja platformy. W fazie 3 zawsze 0, ale parametr istnieje OD DZIŚ:
+   * dołożenie prowizji w fazie 4 ma być zmianą WARTOŚCI, nie zmianą kształtu
+   * (ograniczenie globalne 8 planu fazy).
+   */
+  applicationFeeGrosze: number;
+  /** Zamówienie, którego dotyczy płatność — jedzie w metadanych do dostawcy. */
+  orderId: string;
+  /**
+   * Klucz idempotencji = `orders.id`. Powtórzony submit i ponowne wejście na
+   * krok płatności odtwarzają TEN SAM intent — inaczej klient płaci dwa razy.
+   */
+  idempotencyKey: string;
+}
+
+/**
+ * Uchwyt do płatności oddawany przeglądarce.
+ *
+ * `clientSecret` NIE JEST sekretem naszej platformy: to poświadczenie na JEDNĄ
+ * płatność, wystawione po to, żeby dane karty poszły z przeglądarki wprost do
+ * dostawcy, z pominięciem naszego serwera. `status` jedzie prosto od dostawcy,
+ * BEZ tłumaczenia na naszą oś `payment_status` — tłumaczenie jest w Z4 i tylko
+ * tam.
+ */
+export interface IntentHandle {
+  intentId: string;
+  clientSecret: string;
+  status: string;
+}
+
+/**
+ * Odczyt płatności u dostawcy (ADR-049) — jedyna dopuszczalna podstawa
+ * twierdzenia o pieniądzach.
+ *
+ * `amountReceivedGrosze` osobno od `amountGrosze`: pierwsze to ile WPŁYNĘŁO,
+ * drugie — o ile prosiliśmy. Wołający porównuje pierwsze z sumą policzoną
+ * przez WŁASNY serwer; drugie służy diagnozie rozjazdu.
+ */
+export interface IntentRead {
+  intentId: string;
+  status: string;
+  amountReceivedGrosze: number;
+  amountGrosze: number;
+}
+
+/**
  * Wynik synchronizacji stanu konta, zapisywalny wprost w kolumnach
  * `public.payment_accounts`. Wzorzec `DomainRegistrationResult` (ADR-046):
  * porażka jest WARTOŚCIĄ do zapisania i pokazania, nie wyjątkiem.

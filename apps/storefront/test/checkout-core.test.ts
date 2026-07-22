@@ -31,12 +31,16 @@ const VALID_INPUT = {
   items: [{ productId: "22222222-2222-4222-8222-222222222222", quantity: 1 }],
   termsAccepted: true,
   termsVersion: "v1",
+  paymentMethod: "transfer",
 } as const;
 
 const RPC_RESULT: CheckoutRpcResult = {
+  order_id: "44444444-4444-4444-8444-444444444444",
   order_number: "AV-2026-001",
   order_status: "pending",
   payment_status: "unpaid",
+  payment_method: "transfer",
+  payment_provider: "manual",
   start_date: "2026-10-01",
   end_date: "2026-10-07",
   delivery_method: "pickup",
@@ -67,6 +71,10 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     verifyCaptcha: vi.fn(async () => ({ ok: true })),
     callRpc: vi.fn(async () => RPC_RESULT),
     sendEmails: vi.fn(async () => []),
+    // Domyślnie sklep BEZ płatności online — tor offline i tak działa
+    // (ADR-066), więc istniejące przypadki tej suity nic nie tracą.
+    readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: false, chargesEnabled: false })),
+    rememberCheckout: vi.fn(async () => {}),
     ...overrides,
   };
 }
@@ -326,6 +334,7 @@ describe("ścieżka sukcesu", () => {
         "items",
         "orderNumber",
         "orderStatus",
+        "paymentMethod",
         "paymentStatus",
         "startDate",
         "totalDepositGrosze",

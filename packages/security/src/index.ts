@@ -38,9 +38,36 @@ export interface CspOptions {
    * wstrzykiwany przez zaufany chunk jest zaufany przechodnio.
    */
   turnstile?: boolean;
+  /**
+   * Płatność online skonfigurowana (Z3, ADR-066). Dyrektywy dla dostawcy
+   * płatności wchodzą TYLKO wtedy — sklep bez płatności online nie ma powodu
+   * mieć w polityce cudzych origins.
+   *
+   * KTÓRE DYREKTYWY I DLACZEGO KAŻDA:
+   *   * `frame-src` — pola karty żyją w RAMKACH dostawcy i to jest cały
+   *     sens tego rozwiązania: numer karty nie przechodzi przez naszą stronę,
+   *     więc nie mamy jak go zgubić. Bez tej dyrektywy `default-src 'self'`
+   *     tnie ramki i formularz płatności NIE RENDERUJE SIĘ WCALE;
+   *   * `connect-src` — biblioteka dostawcy rozmawia z jego API z
+   *     przeglądarki (potwierdzenie płatności, BLIK, 3DS);
+   *   * `script-src` — fallback CSP2 dla przeglądarek, które ignorują
+   *     `'strict-dynamic'`. W CSP3 skrypt dostawcy jest zaufany przechodnio
+   *     (wstrzykuje go nasz nonce'owany chunk), dokładnie jak api.js
+   *     Turnstile.
+   */
+  stripe?: boolean;
 }
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
+/**
+ * Origins dostawcy płatności. `js.` niesie bibliotekę i ramki pól karty,
+ * `api.` przyjmuje potwierdzenia z przeglądarki, `hooks.` obsługuje
+ * przekierowania 3DS wewnątrz ramki.
+ */
+const PAYMENTS_SCRIPT_ORIGIN = "https://js.stripe.com";
+const PAYMENTS_FRAME_ORIGINS = ["https://js.stripe.com", "https://hooks.stripe.com"];
+const PAYMENTS_CONNECT_ORIGINS = ["https://api.stripe.com", "https://js.stripe.com"];
 
 /**
  * Buduje wartość nagłówka Content-Security-Policy.
@@ -57,7 +84,7 @@ const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
  * nie wykonanie kodu — akceptowane, odnotowane w dokumentacji.
  */
 export function buildCsp(nonce: string, options: CspOptions = {}): string {
-  const { dev = false, supabaseUrl, turnstile = false } = options;
+  const { dev = false, supabaseUrl, turnstile = false, stripe = false } = options;
 
   const scriptSrc = [
     "'self'",
@@ -66,11 +93,21 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     // React Refresh / HMR w dev; w produkcji eval jest zabroniony.
     ...(dev ? ["'unsafe-eval'"] : []),
     ...(turnstile ? [TURNSTILE_ORIGIN] : []),
+    ...(stripe ? [PAYMENTS_SCRIPT_ORIGIN] : []),
   ];
 
   const connectSrc = ["'self'", ...(supabaseUrl ? [supabaseUrl] : [])];
   if (dev) connectSrc.push("ws:");
   if (turnstile) connectSrc.push(TURNSTILE_ORIGIN);
+  if (stripe) connectSrc.push(...PAYMENTS_CONNECT_ORIGINS);
+
+  // frame-src zbiera WSZYSTKICH osadzanych (Turnstile + płatności) — to jedna
+  // dyrektywa, więc druga jej deklaracja niżej po cichu nadpisałaby pierwszą
+  // i wyłączyła widget captchy w sklepie z płatnościami.
+  const frameSrc = [
+    ...(turnstile ? [TURNSTILE_ORIGIN] : []),
+    ...(stripe ? PAYMENTS_FRAME_ORIGINS : []),
+  ];
 
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
@@ -82,9 +119,9 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     "img-src": ["'self'", "data:", "blob:", ...(supabaseUrl ? [supabaseUrl] : [])],
     "font-src": ["'self'", "data:"],
     "connect-src": connectSrc,
-    // frame-src istnieje TYLKO dla Turnstile (widget żyje w ramce Cloudflare);
-    // bez niego ramki tnie default-src 'self' — jak przed tą opcją.
-    ...(turnstile ? { "frame-src": [TURNSTILE_ORIGIN] } : {}),
+    // frame-src istnieje TYLKO dla osadzanych, których jawnie włączono
+    // (widget captchy, pola płatności); bez nich ramki tnie default-src 'self'.
+    ...(frameSrc.length > 0 ? { "frame-src": frameSrc } : {}),
     "frame-ancestors": ["'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],

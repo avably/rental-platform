@@ -12,7 +12,7 @@
  *
  * Kontrakt zwracanych statusów: lib/checkout/contract.ts.
  */
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { PANEL_URL, emailAvailability, resendTransport } from "@avably/core";
 import {
@@ -25,6 +25,12 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
+import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
+import {
+  CHECKOUT_COOKIE,
+  CHECKOUT_COOKIE_MAX_AGE_SECONDS,
+  encodeCheckoutHandle,
+} from "@/lib/checkout/session-cookie";
 import {
   submitCheckoutCore,
   type CheckoutRpcArgs,
@@ -47,6 +53,22 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
   return submitCheckoutCore(input, {
     tenantId,
     ip,
+    // Świeży ODCZYT stanu konta u dostawcy (ADR-049) — nie kolumna z bazy.
+    readOnlineAvailability: () => readOnlinePaymentAvailability(tenantId),
+    // Uchwyt do własnego checkoutu: httpOnly, więc niewidoczny dla skryptów
+    // strony; `lax`, bo powrót od dostawcy to nawigacja z obcej witryny.
+    // `secure` zależnie od schematu — lokalny dev stoi na http i ciasteczko
+    // z flagą `secure` po prostu by nie doszło.
+    rememberCheckout: async (handle) => {
+      const store = await cookies();
+      store.set(CHECKOUT_COOKIE, encodeCheckoutHandle(handle), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: (h.get("x-forwarded-proto") ?? "http") === "https",
+        path: "/",
+        maxAge: CHECKOUT_COOKIE_MAX_AGE_SECONDS,
+      });
+    },
     checkRateLimit: (key, opts) =>
       checkRateLimit(key, { ...opts, prefix: STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX }),
     verifyCaptcha: (token) => verifyTurnstile(token),

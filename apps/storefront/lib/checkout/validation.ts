@@ -13,6 +13,7 @@ import { LOCALES } from "@avably/core";
 
 import {
   CHECKOUT_DELIVERY_METHODS,
+  CHECKOUT_PAYMENT_METHODS,
   type CheckoutField,
   type CheckoutFieldError,
   type CheckoutFieldErrors,
@@ -56,6 +57,12 @@ export const checkoutSchema = z
     startDate: isoDate,
     endDate: isoDate,
     deliveryMethod: z.enum(CHECKOUT_DELIVERY_METHODS),
+    // BEZ wartości domyślnej: metoda płatności ma być DEKLARACJĄ klienta,
+    // a nie czymś, co schemat dopisze za niego. Brak pola to błąd walidacji
+    // („wybierz sposób płatności"), nie ciche wskazanie jednej z opcji.
+    // O tym, czy wybrana metoda jest w tym sklepie dopuszczalna, rozstrzyga
+    // osobna bramka w rdzeniu — ta zna tylko ZBIÓR wartości.
+    paymentMethod: z.enum(CHECKOUT_PAYMENT_METHODS),
     pickupLocationId: z.string().uuid().optional(),
     items: z
       .array(
@@ -108,6 +115,7 @@ const FIELDS = new Set<string>([
   "endDate",
   "deliveryMethod",
   "pickupLocationId",
+  "paymentMethod",
   "items",
   "terms",
   "phone",
