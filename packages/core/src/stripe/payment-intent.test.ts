@@ -132,6 +132,9 @@ describe("idempotencja", () => {
     await createPaymentIntent(params(), deps(fetchFn));
     await createPaymentIntent(params(), deps(fetchFn));
 
+    // `toBeDefined` PRZED porównaniem: bez tego usunięcie nagłówka dawałoby
+    // undefined === undefined i test przechodziłby na złym powodzie.
+    expect(header(calls[0]!, "Idempotency-Key")).toBeDefined();
     expect(header(calls[0]!, "Idempotency-Key")).toBe(header(calls[1]!, "Idempotency-Key"));
   });
 
