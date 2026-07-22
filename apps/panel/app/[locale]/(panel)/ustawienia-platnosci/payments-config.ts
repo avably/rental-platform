@@ -26,21 +26,37 @@ export const PAYMENT_RETURN_PATH = `${PAYMENT_SETTINGS_PATH}/powrot`;
 export const CONNECT_ACCOUNT_COUNTRY = "PL";
 
 /**
- * Baza adresów powrotu.
+ * Hosty pętli zwrotnej — JEDYNE wartości nagłówka `Host`, którym ufamy.
  *
- * NA PRODUKCJI WYŁĄCZNIE Z NASZEJ KONFIGURACJI (`PANEL_URL` z `brand.ts`) —
- * ta sama zasada co przy linkach potwierdzających konto: host to tożsamość
- * produktu, nie parametr żądania. Nagłówek `Host` przychodzi od klienta;
- * gdyby produkcja go słuchała, dałoby się skierować powrót z onboardingu
- * na cudzy adres.
+ * Adres pętli zwrotnej wskazuje maszynę, z której PRZYSZŁO żądanie, więc
+ * podstawienie go nie kieruje nikogo poza jego własny komputer. To jest cała
+ * różnica między nim a dowolnym innym hostem z nagłówka.
+ */
+const LOOPBACK_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/;
+
+/**
+ * Baza adresów powrotu z onboardingu.
  *
- * POZA PRODUKCJĄ z nagłówka, bo inaczej weryfikacja w przeglądarce jest
- * niemożliwa: każdy worktree biegnie na własnym porcie, a dostawca wymaga
- * adresu bezwzględnego. Ryzyko jest zerowe — to lokalna maszyna dewelopera,
- * a w `return_url` nie ma żadnego sekretu (stan i tak odczytujemy sami).
+ * ŹRÓDŁEM JEST NASZA KONFIGURACJA (`PANEL_URL` z `brand.ts`), nie nagłówek
+ * żądania — ta sama zasada co przy linkach potwierdzających konto: host to
+ * tożsamość produktu, nie parametr żądania. Nagłówek `Host` przychodzi od
+ * klienta i gdyby decydował, dałoby się wysłać najemcę po onboardingu pod
+ * cudzy adres.
+ *
+ * JEDYNY WYJĄTEK: host pętli zwrotnej. Bez niego weryfikacja w przeglądarce
+ * jest niewykonalna — dostawca wymaga adresu bezwzględnego, a każdy worktree
+ * biegnie na własnym porcie. Wyjątek nic nie otwiera: `127.0.0.1` u napastnika
+ * to jego własna maszyna.
+ *
+ * DLACZEGO NIE `NODE_ENV` (znaleziono weryfikacją na żywo). Pierwsza wersja
+ * brała `PANEL_URL`, gdy `NODE_ENV === "production"` — a `next start` ustawia
+ * tę zmienną także dla buildu uruchomionego LOKALNIE. Powrót z prawdziwego
+ * onboardingu poszedł więc na produkcyjny host i skończył się 404. `NODE_ENV`
+ * odpowiada na pytanie „jak zbudowano", a my pytamy „gdzie to działa" — to
+ * dwie różne rzeczy i myliły się tylko dlatego, że zwykle się pokrywają.
  */
 export async function panelBaseUrl(): Promise<string> {
-  if (process.env.NODE_ENV === "production") return PANEL_URL;
   const host = (await headers()).get("host");
-  return host ? `http://${host}` : "http://127.0.0.1:3000";
+  if (host && LOOPBACK_HOST.test(host)) return `http://${host}`;
+  return PANEL_URL;
 }

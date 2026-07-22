@@ -133,7 +133,7 @@ class Redirected extends Error {
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("next/headers", () => ({
-  headers: async () => new Map([["host", "127.0.0.1:3052"]]),
+  headers: vi.fn(async () => new Map([["host", "127.0.0.1:3052"]])),
 }));
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -450,6 +450,45 @@ describe("konto płatności najemcy (Z2, ADR-065)", () => {
   // -------------------------------------------------------------------
 
   describe("link onboardingowy", () => {
+    it("baza adresu powrotu bierze host pętli zwrotnej, nie NODE_ENV", async () => {
+      // Regresja znaleziona weryfikacją na żywo: `next start` ustawia
+      // NODE_ENV=production także lokalnie, więc powrót z prawdziwego
+      // onboardingu poszedł na produkcyjny host i skończył się 404.
+      const previous = process.env.NODE_ENV;
+      vi.stubEnv("NODE_ENV", "production");
+      const fetchSpy = stubHonestProvider();
+      try {
+        expect(process.env.NODE_ENV, "podmiana NODE_ENV nie zadziałała").toBe("production");
+        await expectRedirect(startOnboarding);
+      } finally {
+        vi.stubEnv("NODE_ENV", previous ?? "test");
+      }
+
+      const linkCall = fetchSpy.mock.calls.find(([callUrl]) =>
+        String(callUrl).endsWith("/v1/account_links"),
+      );
+      const body = String((linkCall?.[1] as RequestInit | undefined)?.body);
+      expect(body).toContain(encodeURIComponent("http://127.0.0.1:3052"));
+    });
+
+    it("host spoza pętli zwrotnej NIE decyduje o adresie powrotu", async () => {
+      // Nagłówek Host przychodzi od klienta. Gdyby decydował, dałoby się
+      // wysłać najemcę po onboardingu pod cudzy adres.
+      const { headers } = await import("next/headers");
+      const spy = vi.mocked(headers as unknown as () => Promise<Map<string, string>>);
+      spy.mockResolvedValueOnce(new Map([["host", "zlosliwy.example.invalid"]]));
+      const fetchSpy = stubHonestProvider();
+
+      await expectRedirect(startOnboarding);
+
+      const linkCall = fetchSpy.mock.calls.find(([callUrl]) =>
+        String(callUrl).endsWith("/v1/account_links"),
+      );
+      const body = String((linkCall?.[1] as RequestInit | undefined)?.body);
+      expect(body).not.toContain("zlosliwy.example.invalid");
+      expect(body).toContain(encodeURIComponent("https://"));
+    });
+
     it("wraca na NASZ handler powrotu, nie na goły ekran", async () => {
       const fetchSpy = stubHonestProvider();
       const url = await expectRedirect(startOnboarding);
