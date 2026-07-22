@@ -151,6 +151,16 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "bez wysyłki, brak skonfigurowanego sekretu = endpoint nie działa wcale.",
   ],
   [
+    "/api/webhooks/stripe",
+    "Webhook płatności (Z4, ADR-067) — woła go dostawca płatności, nie " +
+      "zalogowany operator, więc guard sesji nie ma tu zastosowania. Chroni " +
+      "PODPIS (Stripe-Signature, HMAC-SHA256 z sekretu endpointu) w trybie " +
+      "fail-closed: brak albo zły podpis = 400 i ZERO zapisu, także w rejestrze " +
+      "zdarzeń; brak skonfigurowanego sekretu = endpoint nie działa wcale. " +
+      "To jedyna trasa panelu pisząca payment_status='paid' — rolą service_role, " +
+      "jedyną, którą baza do tego przejścia dopuszcza (migracja 0030).",
+  ],
+  [
     "/auth/confirm",
     "Callback linku z e-maila (potwierdzenie rejestracji i reset hasła) — " +
       "użytkownik z definicji nie ma jeszcze sesji, uwierzytelnia go " +

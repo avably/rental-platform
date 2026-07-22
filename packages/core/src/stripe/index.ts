@@ -40,6 +40,23 @@ export {
   type PaymentIntentDeps,
 } from "./payment-intent";
 
+export {
+  OBSERVED_INTENT_EVENTS,
+  STRIPE_SIGNATURE_HEADER,
+  STRIPE_WEBHOOK_TOLERANCE_SECONDS,
+  isObservedIntentEvent,
+  parseStripeEvent,
+  settlementVerdict,
+  signStripeWebhook,
+  verifyStripeSignature,
+  type SettlementVerdict,
+  type StripeEventEnvelope,
+  type StripeEventParseResult,
+  type StripeSignatureFailure,
+  type StripeSignatureResult,
+  type VerifyStripeSignatureInput,
+} from "./webhook";
+
 export type {
   ConnectAccountState,
   ConnectAccountSync,
