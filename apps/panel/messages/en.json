@@ -354,7 +354,9 @@
       "sending": "Sending…",
       "sent": "Sent",
       "failed": "Failed",
-      "notSent": "Not sent"
+      "notSent": "Not sent",
+      "regenerate": "Regenerate",
+      "preview": "Preview"
     },
     "statusLabels": {
       "order": {
@@ -634,7 +636,46 @@
       "history": "Event timeline",
       "loading": "Loading order…",
       "timelineCreated": "Order created",
-      "timelineShipment": "Shipment dispatched ({number})"
+      "timelineShipment": "Shipment dispatched ({number})",
+      "orderKicker": "Order",
+      "summary": "Summary"
+    },
+    "timeline": {
+      "ariaLabel": "Order timeline",
+      "steps": {
+        "order": "Order",
+        "payment": "Payment",
+        "shipment": "Shipment",
+        "return": "Return",
+        "deposit": "Deposit"
+      },
+      "states": {
+        "done": "done",
+        "current": "in progress",
+        "upcoming": "upcoming",
+        "cancelled": "cancelled"
+      },
+      "captions": {
+        "dueBy": "by {date}",
+        "depositHeld": "Held {amount}",
+        "handedOver": "Handed over",
+        "awaiting": "Awaiting",
+        "returned": "Returned",
+        "noDeposit": "No deposit",
+        "depositSettled": "Settled",
+        "depositDue": "To collect"
+      }
+    },
+    "customer": {
+      "title": "Customer profile",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "company": "Company",
+      "nip": "Tax ID {nip}",
+      "notProvided": "not provided",
+      "copyField": "Copy {field}",
+      "copied": "Copied {field}"
     },
     "deposit": {
       "title": "Deposit",

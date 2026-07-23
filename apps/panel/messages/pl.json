@@ -354,7 +354,9 @@
       "sending": "Wysyłanie…",
       "sent": "Wysłano",
       "failed": "Błąd",
-      "notSent": "Nie wysłano"
+      "notSent": "Nie wysłano",
+      "regenerate": "Generuj ponownie",
+      "preview": "Podgląd"
     },
     "statusLabels": {
       "order": {
@@ -634,7 +636,46 @@
       "history": "Oś zdarzeń",
       "loading": "Ładowanie zamówienia…",
       "timelineCreated": "Zamówienie utworzone",
-      "timelineShipment": "Przesyłka nadana ({number})"
+      "timelineShipment": "Przesyłka nadana ({number})",
+      "orderKicker": "Zamówienie",
+      "summary": "Podsumowanie"
+    },
+    "timeline": {
+      "ariaLabel": "Oś czasu zamówienia",
+      "steps": {
+        "order": "Zamówienie",
+        "payment": "Płatność",
+        "shipment": "Wysyłka",
+        "return": "Zwrot",
+        "deposit": "Kaucja"
+      },
+      "states": {
+        "done": "ukończono",
+        "current": "w toku",
+        "upcoming": "oczekuje",
+        "cancelled": "anulowano"
+      },
+      "captions": {
+        "dueBy": "do {date}",
+        "depositHeld": "Pobrana {amount}",
+        "handedOver": "Wydano",
+        "awaiting": "Oczekuje",
+        "returned": "Zwrócono",
+        "noDeposit": "Bez kaucji",
+        "depositSettled": "Rozliczona",
+        "depositDue": "Do pobrania"
+      }
+    },
+    "customer": {
+      "title": "Profil klienta",
+      "email": "E-mail",
+      "phone": "Telefon",
+      "address": "Adres",
+      "company": "Firma",
+      "nip": "NIP {nip}",
+      "notProvided": "nie podano",
+      "copyField": "Kopiuj: {field}",
+      "copied": "Skopiowano: {field}"
     },
     "deposit": {
       "title": "Kaucja",

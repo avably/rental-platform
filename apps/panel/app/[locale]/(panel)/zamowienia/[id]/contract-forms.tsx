@@ -13,13 +13,15 @@ function Result({ state }: { state: FormState }) {
   return state.success ? <p className="text-sm text-status-positive-fg">{state.success}</p> : null;
 }
 
-export function GenerateContractForm({ orderId }: { orderId: string }) {
+export function GenerateContractForm({ orderId, regenerate = false }: { orderId: string; regenerate?: boolean }) {
   const t = useTranslations("orders.contract");
   const [state, action, pending] = useActionState(generateContractAction, {});
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
       <input type="hidden" name="orderId" value={orderId} />
-      <Button type="submit" disabled={pending}>{pending ? t("generating") : t("generate")}</Button>
+      <Button type="submit" variant={regenerate ? "outline" : "default"} disabled={pending}>
+        {pending ? t("generating") : regenerate ? t("regenerate") : t("generate")}
+      </Button>
       <Result state={state} />
     </form>
   );

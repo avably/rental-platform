@@ -41,7 +41,8 @@ import { DepositForms } from "./deposit-forms";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
-import { OrderStatusAxes } from "./order-status-axes";
+import { CustomerCard } from "./customer-card";
+import { OrderTimeline } from "./order-timeline";
 import { StatusButtons } from "./status-buttons";
 
 interface OrderDetailRow {
@@ -58,7 +59,16 @@ interface OrderDetailRow {
   total_deposit_grosze: number;
   notes: string | null;
   created_at: string;
-  customers: { full_name: string | null; email: string; phone: string | null } | null;
+  customers: {
+    full_name: string | null;
+    email: string;
+    phone: string | null;
+    address_street: string | null;
+    address_zip: string | null;
+    address_city: string | null;
+    company_name: string | null;
+    nip: string | null;
+  } | null;
   pickup_locations: { name: string } | null;
   order_items: {
     id: string;
@@ -101,7 +111,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone), pickup_locations(name), order_items(id, rental_grosze, deposit_grosze, products(name), product_units(id, serial_number))",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name), order_items(id, rental_grosze, deposit_grosze, products(name), product_units(id, serial_number))",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -181,37 +191,15 @@ export default async function OrderDetailPage({
   // Długość najmu liczy silnik — jedyne źródło arytmetyki dat.
   const days = rentalDaysInclusive(row.start_date, row.end_date);
 
-  const equipment = row.order_items
-    .map((item) => item.products?.name)
-    .filter((name): name is string => Boolean(name));
-
-  /**
-   * Oś zdarzeń wyłącznie z danych, które ekran ma na wejściu: utworzenie
-   * zamówienia, zdarzenia kaucji i nadania przesyłek. Zero zdarzeń
-   * dopisywanych „dla kompletu" — czego produkt nie zapisuje, tego oś nie
-   * pokazuje.
-   */
-  const timeline = [
-    { at: row.created_at, label: t("timelineCreated") },
-    ...depositEvents.map((event) => ({
-      at: event.created_at,
-      label: `${tDeposit(`kinds.${event.kind}`)} — ${formatMoney(event.amount_grosze, currency, locale)}`,
-    })),
-    ...shipments.map((shipment) => ({
-      at: shipment.created_at,
-      label: t("timelineShipment", { number: shipment.provider_order_number }),
-    })),
-  ].sort((left, right) => left.at.localeCompare(right.at));
-
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-sm tabular-nums tracking-[0.01em]">
-            {row.order_number}
+          <p className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
+            {t("orderKicker")}
           </p>
-          <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em]">
-            {row.customers?.full_name ?? row.customers?.email ?? t("customer")}
+          <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em] tabular-nums">
+            {row.order_number}
           </h2>
         </div>
         <Link className="text-sm underline underline-offset-[3px]" href="/zamowienia">
@@ -219,74 +207,78 @@ export default async function OrderDetailPage({
         </Link>
       </header>
 
-      {/* Przestronny detal z sekcji 05: kolumna główna + panel boczny 320px. */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex flex-col gap-4">
-          <DetailField label={t("equipment")}>{equipment[0] ?? "—"}</DetailField>
-          <DetailField label={t("term")}>
-            <span className="tabular-nums tracking-[0.01em]">{term}</span>{" "}
-            <span className="text-muted-foreground font-normal">({t("days", { days })})</span>
-          </DetailField>
-          <DetailField label={t("quantity")}>
-            <span className="tabular-nums tracking-[0.01em]">
-              {t("quantityUnit", { count: row.order_items.length })}
-            </span>
-          </DetailField>
-          <DetailField label={t("value")}>
-            <span className="tabular-nums tracking-[0.01em]">
-              {formatMoney(row.total_rental_grosze, currency, locale)}
-            </span>
-          </DetailField>
-          {row.notes ? (
-            <DetailField label={t("notes")}>
-              <span className="font-normal whitespace-pre-wrap">{row.notes}</span>
-            </DetailField>
+      {/* Oś czasu zamówienia (uwaga przeglądu D5) — zastępuje rząd chipów
+          statusu. Stany kroków wyliczone wyłącznie z danych, które ekran i tak
+          ma na wejściu (status zamówienia/płatności/przesyłki, daty, kaucja). */}
+      <OrderTimeline
+        currency={currency}
+        orderStatus={row.order_status}
+        paymentStatus={row.payment_status}
+        shipmentStatus={latestShipment?.status ?? null}
+        createdAt={row.created_at}
+        endDate={row.end_date}
+        shipmentDispatchedAt={latestShipment?.created_at ?? null}
+        deposit={{
+          required: row.total_deposit_grosze > 0,
+          collectedGrosze: totals.collectedGrosze,
+          balanceGrosze: totals.balanceGrosze,
+          settled: isDepositSettled(totals),
+        }}
+      />
+
+      {/* Rama dwukolumnowa (uwaga przeglądu D9): treść operacyjna (pozycje,
+          kaucja, logistyka) w kolumnie głównej, karty meta (klient,
+          podsumowanie, umowa) w panelu bocznym. `col-start` trzyma panel po
+          prawej na desktopie, a że jest pierwszy w źródle — na wąskim ekranie
+          karta klienta ląduje NAD operacyjną resztą, nie pod nią. Miejsce na
+          kolejne karty (płatności, komunikacja) zostaje w oczywistym porządku. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1">
+          {row.customers ? (
+            <CustomerCard
+              data={{
+                fullName: row.customers.full_name,
+                email: row.customers.email,
+                phone: row.customers.phone,
+                addressStreet: row.customers.address_street,
+                addressZip: row.customers.address_zip,
+                addressCity: row.customers.address_city,
+                companyName: row.customers.company_name,
+                nip: row.customers.nip,
+              }}
+            />
           ) : null}
 
-          <section className="flex flex-col gap-2">
-            <SectionHeading>{t("history")}</SectionHeading>
-            <ol className="text-muted-foreground flex list-disc flex-col gap-1 pl-[18px] text-sm leading-[22px]">
-              {timeline.map((entry, index) => (
-                <li key={`${entry.at}-${index}`}>
-                  <span className="tabular-nums">{depositTimestamp.format(new Date(entry.at))}</span>{" "}
-                  — {entry.label}
-                </li>
-              ))}
-            </ol>
+          <section
+            data-order-summary
+            aria-labelledby="summary-heading"
+            className="border-border bg-card flex flex-col gap-4 rounded-md border p-5"
+          >
+            <h2
+              id="summary-heading"
+              className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+            >
+              {t("summary")}
+            </h2>
+            <DetailField label={t("term")}>
+              <span className="tabular-nums tracking-[0.01em]">{term}</span>{" "}
+              <span className="text-muted-foreground font-normal">({t("days", { days })})</span>
+            </DetailField>
+            <DetailField label={t("deliveryLabel")}>
+              {tDelivery(row.delivery_method)}
+              {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
+            </DetailField>
+            {row.notes ? (
+              <DetailField label={t("notes")}>
+                <span className="font-normal whitespace-pre-wrap">{row.notes}</span>
+              </DetailField>
+            ) : null}
           </section>
-        </div>
 
-        <aside className="border-border flex flex-col gap-4 lg:border-l lg:pl-6">
-          {/* Wszystkie osie statusu obok siebie — trzecia tylko wtedy, gdy
-              zamówienie naprawdę ma przesyłkę. */}
-          <OrderStatusAxes
-            orderStatus={row.order_status}
-            paymentStatus={row.payment_status}
-            shipmentStatus={latestShipment?.status ?? null}
-          />
-
-          <DetailField label={t("depositLabel")}>
-            <span className="tabular-nums tracking-[0.01em]">
-              {formatMoney(row.total_deposit_grosze, currency, locale)}
-            </span>
-          </DetailField>
-          <DetailField label={t("deliveryLabel")}>
-            {tDelivery(row.delivery_method)}
-            {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
-          </DetailField>
-          <DetailField label={t("trackingNumber")}>
-            {latestShipment?.tracking_number ?? (
-              <span className="text-muted-foreground font-normal">{t("trackingMissing")}</span>
-            )}
-          </DetailField>
-          <DetailField label={t("customer")}>
-            <span className="flex flex-col font-normal">
-              <span>{row.customers?.email}</span>
-              {row.customers?.phone ? <span>{row.customers.phone}</span> : null}
-            </span>
-          </DetailField>
+          <ContractSection orderId={row.id} />
         </aside>
-      </div>
+
+        <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">
 
       {/* Sekcja statusu jest celem pozycji „Zmień status" z menu wiersza. */}
       <section id="status" className="flex scroll-mt-6 flex-col gap-3">
@@ -503,9 +495,9 @@ export default async function OrderDetailPage({
 
       <DeliverySection orderId={row.id} deliveryMethod={row.delivery_method} totalRentalGrosze={row.total_rental_grosze} />
 
-      <ContractSection orderId={row.id} />
-
       <EmailLogSection orderId={row.id} />
+        </div>
+      </div>
     </div>
   );
 }
