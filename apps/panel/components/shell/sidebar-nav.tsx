@@ -90,7 +90,9 @@ export function SidebarNav({
             strokeWidth={NAV_ICON_STROKE_WIDTH}
           />
           {collapsed ? null : (
-            <span data-nav-label>{t(PANEL_NAV_PLACEHOLDER.labelKey)}</span>
+            <span data-nav-label className="sidebar-collapsed:hidden">
+              {t(PANEL_NAV_PLACEHOLDER.labelKey)}
+            </span>
           )}
         </span>
         {collapsed ? (
@@ -150,7 +152,9 @@ export function SidebarNav({
                 {collapsed ? (
                   <NavTooltip label={label} />
                 ) : (
-                  <span data-nav-label>{label}</span>
+                  <span data-nav-label className="sidebar-collapsed:hidden">
+                    {label}
+                  </span>
                 )}
               </Link>
             );

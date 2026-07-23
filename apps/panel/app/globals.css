@@ -14,6 +14,17 @@
 @custom-variant sidebar-collapsed (html[data-sidebar="collapsed"] &);
 
 /*
+  Zwinięty pasek nie może OBcinać tooltipów: dymek etykiety stoi na prawo od
+  paska (poza jego 72 px), a `md:overflow-y-auto` czyni z paska kontener
+  przewijania, który po CSS-owsku zamyka też oś X. W stanie zwiniętym nawigacja
+  jest krótka (mieści się na ekranie), więc przewijanie jest zbędne — pasek
+  puszcza przepełnienie, żeby dymek mógł wyjść poza jego krawędź.
+*/
+html[data-sidebar="collapsed"] [data-sidebar-rail] {
+  overflow: visible;
+}
+
+/*
   Miara wiersza formularza (P8, artefakt Fazy 2 — `data-form-measure-contract`).
 
   JEDNO miejsce w całym panelu, w którym mieszka szerokość formularza. Wersja

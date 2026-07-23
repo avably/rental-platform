@@ -58,7 +58,10 @@ export default async function PanelLayout({
         dangerouslySetInnerHTML={{ __html: SIDEBAR_BOOTSTRAP_SCRIPT }}
       />
       <SkipLink label={t("skipToContent")} />
-      <aside className="border-border bg-sidebar hidden w-[236px] shrink-0 flex-col border-r sidebar-collapsed:w-[72px] sidebar-collapsed:overflow-x-hidden md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto">
+      <aside
+        data-sidebar-rail
+        className="border-border bg-sidebar hidden w-[236px] shrink-0 flex-col border-r sidebar-collapsed:w-[72px] md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto"
+      >
         {/* Pełne logo wg reguł sekcji 02: minimalna szerokość w interfejsie to
             120 px — stąd wartość JAWNA, a nie płynna, która przy wąskim
             sidebarze zeszłaby poniżej progu.
