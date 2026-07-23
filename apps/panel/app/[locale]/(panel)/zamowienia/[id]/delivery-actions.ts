@@ -13,14 +13,18 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  COUNTRY_IDS,
   DEFAULT_TENANT_LOCALE,
   EMAIL_SENDER_KEY,
   GlobKurierAPIError,
   buildBestPriceRequest,
+  courierOfferFromProduct,
   emailAvailability,
   isLocale,
   mapProviderStatus,
   resendTransport,
+  type CarrierOffer,
+  type CourierSender,
   type Locale,
   type ShipmentParty,
   type ShipmentType,
@@ -34,9 +38,11 @@ import { requireMember } from "@/lib/supabase-server";
 
 import { loadCourierApi } from "./delivery";
 import {
+  carrierSearchSchema,
   pickupReturnReminderSchema,
   returnLabelEmailSchema,
   shipmentCreateSchema,
+  shipmentRefreshAllSchema,
   shipmentRefreshSchema,
 } from "./delivery-validation";
 import {
@@ -51,63 +57,55 @@ interface OrderForShipmentRow {
   id: string;
   order_number: string;
   delivery_method: string;
-  customers: {
-    full_name: string | null;
-    email: string;
-    phone: string | null;
-    address_street: string | null;
-    address_zip: string | null;
-    address_city: string | null;
-  } | null;
 }
 
-/**
- * Adres klienta z kartoteki → strona przesyłki. Braki są wymieniane z nazwy
- * (operator ma uzupełnić kartotekę klienta, nie zgadywać) — fabrykowanie
- * którejkolwiek wartości do API kurierskiego to anty-wzorzec usuwany tym
- * zadaniem. Numer domu/lokalu przychodzi z formularza nadania: customers
- * trzyma ulicę jednym polem.
- */
-function customerToParty(
-  customer: OrderForShipmentRow["customers"],
-  houseNumber: string,
-  apartmentNumber: string | undefined,
-): { party: ShipmentParty } | { missing: string[] } {
-  const missing: string[] = [];
-  if (!customer?.full_name?.trim()) missing.push("imię i nazwisko");
-  if (!customer?.address_street?.trim()) missing.push("ulica");
-  if (!customer?.address_zip?.trim()) missing.push("kod pocztowy");
-  if (!customer?.address_city?.trim()) missing.push("miasto");
-  if (!customer?.phone?.trim()) missing.push("telefon");
-  if (missing.length > 0 || !customer) return { missing };
+/** Stan wyszukiwarki przewoźników: oferty ALBO powód, dla którego ich nie ma. */
+export type CarrierSearchState = FormState & { offers?: CarrierOffer[] };
+
+/** Pola strony przesyłki z formularza → neutralna strona (nadawca/odbiorca). */
+function partyFromFields(fields: {
+  name: string;
+  street: string;
+  houseNumber: string;
+  apartmentNumber?: string;
+  postCode: string;
+  city: string;
+  phone: string;
+  email: string;
+}): ShipmentParty {
   return {
-    party: {
-      name: customer.full_name as string,
-      street: customer.address_street as string,
-      houseNumber,
-      ...(apartmentNumber !== undefined ? { apartmentNumber } : {}),
-      postCode: customer.address_zip as string,
-      city: customer.address_city as string,
-      phone: customer.phone as string,
-      email: customer.email,
-    },
+    name: fields.name,
+    street: fields.street,
+    houseNumber: fields.houseNumber,
+    ...(fields.apartmentNumber !== undefined ? { apartmentNumber: fields.apartmentNumber } : {}),
+    postCode: fields.postCode,
+    city: fields.city,
+    phone: fields.phone,
+    email: fields.email,
   };
 }
 
-export async function createShipmentAction(
-  _prevState: FormState,
+/**
+ * Wyszukiwarka przewoźników z cenami (searchProducts → GET /products).
+ *
+ * To zapytanie CENOWE, nie zlecenie: NIE tworzy przesyłki i NIE niesie kosztu —
+ * dlatego wolno je wołać przy weryfikacji na koncie testowym kuriera. Klucze
+ * dostawcy liczone są na SERWERZE (loadCourierApi odszyfrowuje hasło); do
+ * przeglądarki wraca sama lista ofert (bez credentiali). Oferty posortowane
+ * rosnąco ceną, żeby klient mógł zaznaczyć najtańszą domyślnie.
+ */
+export async function searchCarriersAction(
+  _prevState: CarrierSearchState,
   formData: FormData,
-): Promise<FormState> {
-  const parsed = shipmentCreateSchema.safeParse({
+): Promise<CarrierSearchState> {
+  const parsed = carrierSearchSchema.safeParse({
     orderId: str(formData.get("orderId")),
-    shipmentType: str(formData.get("shipmentType")),
-    houseNumber: str(formData.get("houseNumber")),
-    apartmentNumber: str(formData.get("apartmentNumber")),
+    senderPostCode: str(formData.get("senderPostCode")),
+    receiverPostCode: str(formData.get("receiverPostCode")),
     lengthCm: str(formData.get("lengthCm")),
     widthCm: str(formData.get("widthCm")),
     heightCm: str(formData.get("heightCm")),
     weightKg: str(formData.get("weightKg")),
-    content: str(formData.get("content")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
@@ -121,9 +119,92 @@ export async function createShipmentAction(
 
   const { data: order } = await ctx.supabase
     .from("orders")
-    .select(
-      "id, order_number, delivery_method, customers(full_name, email, phone, address_street, address_zip, address_city)",
-    )
+    .select("id, delivery_method")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data.orderId)
+    .maybeSingle();
+  if (!order) return { formError: "Zamówienie nie istnieje albo zostało usunięte." };
+  if (order.delivery_method !== "courier") {
+    return { formError: "Przewoźników wyszukujemy tylko dla zamówień z dostawą kurierem." };
+  }
+
+  const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
+  if (courier.configError !== undefined) return { formError: courier.configError };
+
+  let products;
+  try {
+    products = await courier.api.searchProducts({
+      senderPostCode: parsed.data.senderPostCode,
+      senderCountryId: COUNTRY_IDS.POLAND,
+      receiverPostCode: parsed.data.receiverPostCode,
+      receiverCountryId: COUNTRY_IDS.POLAND,
+      length: parsed.data.lengthCm,
+      width: parsed.data.widthCm,
+      height: parsed.data.heightCm,
+      weight: parsed.data.weightKg,
+      collectionType: "PICKUP",
+    });
+  } catch (err) {
+    if (err instanceof GlobKurierAPIError) {
+      return { formError: `Nie udało się pobrać ofert przewoźników: ${err.message}` };
+    }
+    throw err;
+  }
+
+  const offers = products
+    .map(courierOfferFromProduct)
+    .sort((a, b) => a.priceGrosze - b.priceGrosze);
+  if (offers.length === 0) {
+    return { formError: "Brak dostępnych przewoźników dla podanych parametrów przesyłki." };
+  }
+  return { offers };
+}
+
+export async function createShipmentAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = shipmentCreateSchema.safeParse({
+    orderId: str(formData.get("orderId")),
+    shipmentType: str(formData.get("shipmentType")),
+    lengthCm: str(formData.get("lengthCm")),
+    widthCm: str(formData.get("widthCm")),
+    heightCm: str(formData.get("heightCm")),
+    weightKg: str(formData.get("weightKg")),
+    content: str(formData.get("content")),
+    productId: str(formData.get("productId")),
+    insurance: str(formData.get("insurance")),
+    insuranceValuePln: str(formData.get("insuranceValuePln")),
+    senderName: str(formData.get("senderName")),
+    senderStreet: str(formData.get("senderStreet")),
+    senderHouseNumber: str(formData.get("senderHouseNumber")),
+    senderApartmentNumber: str(formData.get("senderApartmentNumber")),
+    senderPostCode: str(formData.get("senderPostCode")),
+    senderCity: str(formData.get("senderCity")),
+    senderPhone: str(formData.get("senderPhone")),
+    senderEmail: str(formData.get("senderEmail")),
+    recipientName: str(formData.get("recipientName")),
+    recipientStreet: str(formData.get("recipientStreet")),
+    recipientHouseNumber: str(formData.get("recipientHouseNumber")),
+    recipientApartmentNumber: str(formData.get("recipientApartmentNumber")),
+    recipientPostCode: str(formData.get("recipientPostCode")),
+    recipientCity: str(formData.get("recipientCity")),
+    recipientPhone: str(formData.get("recipientPhone")),
+    recipientEmail: str(formData.get("recipientEmail")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const { data: order } = await ctx.supabase
+    .from("orders")
+    .select("id, order_number, delivery_method")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.orderId)
     .maybeSingle();
@@ -137,24 +218,39 @@ export async function createShipmentAction(
     };
   }
 
-  const customer = customerToParty(
-    row.customers,
-    parsed.data.houseNumber,
-    parsed.data.apartmentNumber,
-  );
-  if ("missing" in customer) {
-    return {
-      formError: `Kartoteka klienta jest niekompletna — uzupełnij: ${customer.missing.join(", ")}.`,
-    };
-  }
-
   const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
   if (courier.configError !== undefined) return { formError: courier.configError };
 
+  // Nadawca i odbiorca z formularza (prefill z konfiguracji/kartoteki, override
+  // na tę przesyłkę). Konfiguracja tenanta wciąż jest bramką credentiali
+  // (loadCourierApi), ale adresy bierzemy z tego, co operator zatwierdził.
+  const sender: CourierSender = {
+    name: parsed.data.senderName,
+    street: parsed.data.senderStreet,
+    houseNumber: parsed.data.senderHouseNumber,
+    ...(parsed.data.senderApartmentNumber !== undefined
+      ? { apartmentNumber: parsed.data.senderApartmentNumber }
+      : {}),
+    postCode: parsed.data.senderPostCode,
+    city: parsed.data.senderCity,
+    phone: parsed.data.senderPhone,
+    email: parsed.data.senderEmail,
+  };
+  const recipient = partyFromFields({
+    name: parsed.data.recipientName,
+    street: parsed.data.recipientStreet,
+    houseNumber: parsed.data.recipientHouseNumber,
+    apartmentNumber: parsed.data.recipientApartmentNumber,
+    postCode: parsed.data.recipientPostCode,
+    city: parsed.data.recipientCity,
+    phone: parsed.data.recipientPhone,
+    email: parsed.data.recipientEmail,
+  });
+
   const request = buildBestPriceRequest({
     type: parsed.data.shipmentType as ShipmentType,
-    sender: courier.config.sender,
-    customer: customer.party,
+    sender,
+    customer: recipient,
     parcel: {
       lengthCm: parsed.data.lengthCm,
       widthCm: parsed.data.widthCm,
@@ -163,6 +259,10 @@ export async function createShipmentAction(
     },
     content: parsed.data.content,
     referenceNumber: row.order_number,
+    ...(parsed.data.productId !== undefined ? { productId: parsed.data.productId } : {}),
+    ...(parsed.data.insurance && parsed.data.insuranceValuePln !== undefined
+      ? { insuranceValuePln: parsed.data.insuranceValuePln }
+      : {}),
   });
 
   let created;
@@ -279,6 +379,84 @@ export async function refreshShipmentStatusAction(
 
   revalidatePath("/", "layout");
   return { success: "refreshed" };
+}
+
+/**
+ * Zbiorcze odświeżenie statusów WSZYSTKICH przesyłek zamówienia (przycisk
+ * „Odśwież status przesyłek"). Każda przesyłka pytana osobno (getOrder —
+ * odczyt, bez kosztu); pojedyncza porażka dostawcy nie wywraca całości —
+ * liczymy odświeżone i nieudane, a wynik częściowy wraca jako NEUTRALNY
+ * komunikat (nie „sukces", który kłamałby o niezsynchronizowanych, ani
+ * „błąd", gdy część się udała).
+ */
+export async function refreshOrderShipmentsAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = shipmentRefreshAllSchema.safeParse({
+    orderId: str(formData.get("orderId")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const { data: shipments } = await ctx.supabase
+    .from("courier_shipments")
+    .select("id, provider_order_number")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", parsed.data.orderId);
+  if (!shipments || shipments.length === 0) {
+    return { formError: "To zamówienie nie ma jeszcze przesyłek do odświeżenia." };
+  }
+
+  const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
+  if (courier.configError !== undefined) return { formError: courier.configError };
+
+  let refreshed = 0;
+  let failed = 0;
+  for (const shipment of shipments) {
+    try {
+      const remote = await courier.api.getOrder(shipment.provider_order_number as string);
+      const mapped = mapProviderStatus(remote.status);
+      const { error: updateError } = await ctx.supabase
+        .from("courier_shipments")
+        .update({
+          ...(mapped ? { status: mapped } : {}),
+          provider_status: remote.status,
+          tracking_number: remote.trackingNumber ?? null,
+          tracking_url: remote.trackingUrl ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("tenant_id", ctx.tenantId)
+        .eq("id", shipment.id)
+        .select("id");
+      if (updateError) failed += 1;
+      else refreshed += 1;
+    } catch (err) {
+      if (err instanceof GlobKurierAPIError) {
+        failed += 1;
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  revalidatePath("/", "layout");
+  if (refreshed === 0) {
+    return { formError: "Nie udało się odświeżyć statusów przesyłek — spróbuj ponownie." };
+  }
+  if (failed > 0) {
+    return {
+      notice: `Odświeżono ${refreshed} z ${refreshed + failed} przesyłek — dla ${failed} dostawca nie zwrócił statusu.`,
+    };
+  }
+  return { success: "refreshedAll" };
 }
 
 // ---------------------------------------------------------------------------

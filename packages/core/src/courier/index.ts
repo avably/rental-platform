@@ -15,4 +15,10 @@ export {
   type TenantSettingRow,
 } from "./tenant-config";
 export { DeliveryPricingError, calculateDeliveryCost } from "./delivery-pricing";
-export { buildBestPriceRequest, mapProviderStatus, type ShipmentParty } from "./shipments";
+export {
+  buildBestPriceRequest,
+  courierOfferFromProduct,
+  mapProviderStatus,
+  type CarrierOffer,
+  type ShipmentParty,
+} from "./shipments";

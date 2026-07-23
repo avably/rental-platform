@@ -37,7 +37,9 @@ import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import {
   createShipmentAction,
+  refreshOrderShipmentsAction,
   refreshShipmentStatusAction,
+  searchCarriersAction,
   sendPickupReturnReminderAction,
   sendReturnLabelEmailAction,
 } from "./delivery-actions";
@@ -45,14 +47,18 @@ import {
   SHIPMENT_ROW_COLUMNS,
   canCreateShipments,
   loadCourierConfigStatus,
+  loadRecipientDefaults,
+  type PartyDefaults,
   type ShipmentRow,
 } from "./delivery";
 import {
-  CreateShipmentForm,
+  RefreshAllShipmentsButton,
   RefreshStatusButton,
   SendPickupReminderButton,
   SendReturnLabelButton,
+  TrackingCopyButton,
 } from "./delivery-forms";
+import { ShipmentModalLauncher } from "./shipment-modal";
 
 export async function DeliverySection({
   orderId,
@@ -102,7 +108,8 @@ export async function DeliverySection({
     }
   }
 
-  // Kompletność konfiguracji kuriera decyduje o formularzu nadania.
+  // Kompletność konfiguracji kuriera decyduje o modalu nadania. Nadawca do
+  // prefillu bierzemy z tej samej konfiguracji (bez odszyfrowywania hasła).
   let configProblems: string[] | null = null;
   let parcelDefaults: {
     lengthCm: number;
@@ -110,9 +117,20 @@ export async function DeliverySection({
     heightCm: number;
     weightKg: number;
   } | null = null;
+  let senderDefaults: PartyDefaults | null = null;
   try {
     const config = await loadCourierConfigStatus(ctx.supabase, ctx.tenantId!, settings);
     parcelDefaults = config.parcel;
+    senderDefaults = {
+      name: config.sender.name,
+      street: config.sender.street,
+      houseNumber: config.sender.houseNumber,
+      apartmentNumber: config.sender.apartmentNumber ?? "",
+      postCode: config.sender.postCode,
+      city: config.sender.city,
+      phone: config.sender.phone,
+      email: config.sender.email,
+    };
   } catch (err) {
     if (err instanceof CourierConfigError) {
       configProblems = err.problems;
@@ -120,6 +138,9 @@ export async function DeliverySection({
       throw err;
     }
   }
+
+  // Odbiorca do prefillu z kartoteki klienta zamówienia (edytowalny w modalu).
+  const recipientDefaults = await loadRecipientDefaults(ctx.supabase, ctx.tenantId!, orderId);
 
   const timestamp = new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
@@ -159,7 +180,14 @@ export async function DeliverySection({
       {shipments.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
-        <Table>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-end">
+            <RefreshAllShipmentsButton
+              orderId={orderId}
+              action={refreshOrderShipmentsAction}
+            />
+          </div>
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t("colType")}</TableHead>
@@ -191,18 +219,23 @@ export async function DeliverySection({
                 </TableCell>
                 <TableCell>{shipment.provider_order_number}</TableCell>
                 <TableCell>
-                  {shipment.tracking_url ? (
-                    <a
-                      className="underline"
-                      href={shipment.tracking_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {shipment.tracking_number ?? shipment.tracking_url}
-                    </a>
-                  ) : (
-                    (shipment.tracking_number ?? "—")
-                  )}
+                  <div className="flex items-center gap-2">
+                    {shipment.tracking_url ? (
+                      <a
+                        className="underline"
+                        href={shipment.tracking_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {shipment.tracking_number ?? shipment.tracking_url}
+                      </a>
+                    ) : (
+                      <span>{shipment.tracking_number ?? "—"}</span>
+                    )}
+                    {shipment.tracking_number ? (
+                      <TrackingCopyButton value={shipment.tracking_number} />
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {shipment.price_grosze !== null
@@ -243,8 +276,9 @@ export async function DeliverySection({
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       {deliveryMethod === "pickup" ? (
@@ -271,13 +305,16 @@ export async function DeliverySection({
             {t("settingsLink")}
           </Link>
         </div>
-      ) : (
-        <CreateShipmentForm
+      ) : senderDefaults ? (
+        <ShipmentModalLauncher
           orderId={orderId}
-          defaults={parcelDefaults}
-          action={createShipmentAction}
+          senderDefaults={senderDefaults}
+          recipientDefaults={recipientDefaults}
+          parcelDefaults={parcelDefaults}
+          createAction={createShipmentAction}
+          searchAction={searchCarriersAction}
         />
-      )}
+      ) : null}
     </section>
   );
 }
