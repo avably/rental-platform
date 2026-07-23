@@ -2,6 +2,18 @@
 @import "@avably/ui/styles.css";
 
 /*
+  Wariant stanu ZWINIĘTEGO sidebara (uwaga przeglądu 2026-07-23).
+
+  Stan mieszka na `html[data-sidebar="collapsed"]` — ustawia go skrypt startowy
+  z `localStorage` PRZED malowaniem (`lib/shell/sidebar-collapse.ts`). Ten
+  wariant pozwala elementom powłoki reagować na atrybut samym CSS-em, bez
+  przerysowania Reacta: `<aside>` zwęża się, znak marki ustępuje sygnetowi.
+  Treść nawigacji (etykieta kontra tooltip) przełącza się w Reakcie, bo tam i
+  tak trzeba zmienić `aria-label` — CSS by tego nie dosięgnął.
+*/
+@custom-variant sidebar-collapsed (html[data-sidebar="collapsed"] &);
+
+/*
   Miara wiersza formularza (P8, artefakt Fazy 2 — `data-form-measure-contract`).
 
   JEDNO miejsce w całym panelu, w którym mieszka szerokość formularza. Wersja

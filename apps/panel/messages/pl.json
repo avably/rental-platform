@@ -102,7 +102,9 @@
     "localeEnglish": "Angielski",
     "superadminPanel": "Panel superadmina",
     "skipToContent": "Przejdź do treści",
-    "payments": "Płatności"
+    "payments": "Płatności",
+    "sidebarCollapse": "Zwiń menu",
+    "sidebarExpand": "Rozwiń menu"
   },
   "contractSettings": {
     "title": "Ustawienia umów",
