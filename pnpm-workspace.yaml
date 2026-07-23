@@ -25,8 +25,12 @@ allowBuilds:
 #                       (2026-07-23); zależność bezpośrednia podniesiona w
 #                       apps/*, ten wpis domyka ścieżkę pośrednią
 #                       @react-email/ui>next w packages/emails.
+#   postcss  <8.5.12  — GHSA-6g55-p6wh-862q (odczyt pliku przez
+#                       sourceMappingURL; 2026-07-23); pośredni przez
+#                       next w obu appkach — bump bezpośredni nic nie da.
 # Wpisy usuwamy, gdy next i react-email podniosą je same.
 overrides:
   fast-uri: "^3.1.4"
   sharp: "^0.35.3"
   next: "^16.2.11"
+  postcss: "^8.5.12"
