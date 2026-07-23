@@ -87,3 +87,11 @@ select.text-field {
 .marketing-static [style*="opacity: 0"] {
   opacity: 1 !important;
 }
+
+/* Odstęp na styku sekcji „momentum" (Uruchom sklep w 3 krokach) → FAQ.
+   Szablon dawał FAQ padding-top: 0, przez co nagłówek „Częste pytania" kleił
+   się do granicy sekcji — reszta sekcji ma pełny odstęp górny. Przywracamy
+   rytm skalą szablonu (uwaga przeglądu, landing). */
+.section.home-a-faq-section {
+  padding-top: var(--_spacing---section-spacing--80, 80px);
+}
