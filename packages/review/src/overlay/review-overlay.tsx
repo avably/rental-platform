@@ -307,7 +307,9 @@ export function ReviewOverlay({ surface, apiBase }: ReviewOverlayProps) {
         ) : null}
       </div>
 
-      <div className="avb-rev-toolbar">
+      {/* Pasek znika na czas otwartego popovera/arkusza — na wąskich
+          ekranach nachodziłby na bottom sheet. */}
+      <div className="avb-rev-toolbar" style={draft || openComment ? { display: "none" } : undefined}>
         {mode === "comment" ? (
           <button
             type="button"

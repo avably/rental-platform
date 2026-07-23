@@ -227,12 +227,15 @@ export const REVIEW_CSS = `
 .avb-rev-body { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; }
 .avb-rev-meta { margin-top: 6px; font-size: 12px; color: var(--rev-muted); }
 
-/* Bottom sheet na wąskich ekranach — popover nie wymaga kursora ani hoveru. */
+/* Bottom sheet na wąskich ekranach — popover nie wymaga kursora ani hoveru.
+   !important jest tu celowe: komponent pozycjonuje popover inline (left/top
+   przy pinezce), a arkusz MUSI to przebić i przykleić się do dołu. */
 @media (max-width: 640px) {
   .avb-rev-pop {
-    position: fixed;
-    left: 0; right: 0; bottom: 0; top: auto;
-    width: 100%;
+    position: fixed !important;
+    left: 0 !important; right: 0 !important;
+    bottom: 0 !important; top: auto !important;
+    width: 100% !important;
     max-height: 72vh;
     overflow-y: auto;
     border-radius: var(--rev-radius) var(--rev-radius) 0 0;
