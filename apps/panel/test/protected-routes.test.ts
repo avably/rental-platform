@@ -181,6 +181,20 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "więc wklejenie go ręcznie nie ustawia gotowości konta.",
   ],
   [
+    "/api/review/comments",
+    "Uwagi przeglądu produktu (ADR-071) — CHRONIONY SESJĄ SUPERADMINA: " +
+      "reviewGuard() wymaga REVIEW_MODE=1 w env ORAZ requireSuperadmin() " +
+      "(claim + aal2); każdy inny przypadek to 404, nie 403 — narzędzie " +
+      "wewnętrzne nie zdradza istnienia. Dane i Storage niezależnie domyka " +
+      "RLS 0033 (app.is_superadmin()), zero service_role na tej drodze.",
+  ],
+  [
+    "/api/review/comments/[id]",
+    "Zmiana uwagi przeglądu (ADR-071) — ta sama bramka co /api/review/comments: " +
+      "REVIEW_MODE=1 + sesja superadmina (reviewGuard), egzekucja w RLS 0033; " +
+      "poza trybem przeglądu endpoint odpowiada 404.",
+  ],
+  [
     "/zamowienia/[id]/contract/[documentId]",
     "Prywatny PDF umowy (ADR-061) — handler wymaga sesji członka, filtruje " +
       "metadane po tenant_id, order_id i document_id, a RLS tabeli i Storage " +

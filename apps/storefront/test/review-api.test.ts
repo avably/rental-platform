@@ -86,8 +86,15 @@ describe.runIf(hasEnv)("zapis service_rolem przy REVIEW_MODE=1 (integracyjnie)",
   });
 
   afterAll(async () => {
-    const { createServiceClient } = await import("@avably/db/service");
-    const client = createServiceClient();
+    // Sprzątanie kluczem HARNESSU testowego (SUPABASE_LOCAL_*), nie fabryką
+    // @avably/db/service — bramka audit-service-role.sh pilnuje ścieżek
+    // PRODUKCYJNYCH i test nie ma prawa być od niej wyjątkiem.
+    const { createClient } = await import("@supabase/supabase-js");
+    const client = createClient(
+      process.env.SUPABASE_LOCAL_API_URL as string,
+      process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY as string,
+      { auth: { persistSession: false } },
+    );
     for (const id of createdIds) {
       await client.from("review_comments").delete().eq("id", id);
     }

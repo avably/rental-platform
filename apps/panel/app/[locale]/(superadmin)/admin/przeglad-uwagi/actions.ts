@@ -17,8 +17,9 @@ const toggleSchema = z.object({
 });
 
 export async function toggleReviewStatusAction(formData: FormData): Promise<void> {
-  if (process.env.REVIEW_MODE !== "1") notFound();
+  // Kolejność jak na stronie obok: guard sesji przed kill-switchem.
   const ctx = await requireSuperadminPage("/admin/przeglad-uwagi");
+  if (process.env.REVIEW_MODE !== "1") notFound();
 
   const parsed = toggleSchema.safeParse({
     id: formData.get("id"),

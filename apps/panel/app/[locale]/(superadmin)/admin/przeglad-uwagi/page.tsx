@@ -74,8 +74,11 @@ export default async function ReviewCommentsPage({
 }: {
   searchParams: Promise<{ sort?: string }>;
 }) {
-  if (process.env.REVIEW_MODE !== "1") notFound();
+  // Guard sesji PRZED kill-switchem — anonim dostaje to samo co na każdej
+  // trasie /admin (przekierowanie na logowanie), a 404 z wyłączonego
+  // REVIEW_MODE widzi dopiero uwierzytelniony superadmin.
   const ctx = await requireSuperadminPage("/admin/przeglad-uwagi");
+  if (process.env.REVIEW_MODE !== "1") notFound();
   const { sort } = await searchParams;
   const byScreenSort = sort === "ekran";
 
@@ -133,8 +136,8 @@ export default async function ReviewCommentsPage({
 
       {comments.length === 0 ? (
         <p className="text-muted-foreground border-border rounded-xl border border-dashed p-8 text-center text-sm">
-          Jeszcze żadnych uwag. Wejdź na dowolny ekran z <code>?review=1</code>, przełącz na
-          tryb Komentarz i klikaj.
+          Jeszcze żadnych uwag. Wejdź na dowolny ekran z <code className="font-sans">?review=1</code>,
+          przełącz na tryb Komentarz i klikaj.
         </p>
       ) : (
         <ul className="space-y-3">
