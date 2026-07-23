@@ -190,6 +190,16 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
     return applySecurityHeaders(response, nonce, csp);
   }
 
+  // ROUTE HANDLERY (dziś wyłącznie /api/review — ADR-071, narzędzie
+  // przeglądu) nie mają wersji językowych i prefiks locale by je zepsuł —
+  // ten sam wzorzec co isNonLocalizedPath w proxy panelu. Gałąź świadomie
+  // siedzi ZA bramką hasła: endpoint przeglądu ma być dostępny wyłącznie po
+  // przejściu Basic Auth, na każdym hoście tak samo.
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    const response = NextResponse.next({ request: { headers: request.headers } });
+    return applySecurityHeaders(response, nonce, csp);
+  }
+
   /**
    * Gałąź tenancka — JEDNO miejsce dla obu osi hostów (subdomena i własna
    * domena), żeby wstrzyknięcie nagłówka i rewrite nie mogły się między nimi

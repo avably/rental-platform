@@ -20,7 +20,13 @@ allowBuilds:
 #   sharp    <0.35.0  — GHSA-f88m-g3jw-g9cj (CVE libvips; panel i sklep
 #                       przetwarzają zdjęcia produktów, więc dotyczy nas)
 #   fast-uri <3.1.4   — GHSA-v2hh-gcrm-f6hx (ajv w react-email)
+#   next     <16.2.11 — GHSA-6gpp-xcg3-4w24 / GHSA-m99w-x7hq-7vfj /
+#                       GHSA-4342-x723-8w8m i towarzyszące moderate
+#                       (2026-07-23); zależność bezpośrednia podniesiona w
+#                       apps/*, ten wpis domyka ścieżkę pośrednią
+#                       @react-email/ui>next w packages/emails.
 # Wpisy usuwamy, gdy next i react-email podniosą je same.
 overrides:
   fast-uri: "^3.1.4"
   sharp: "^0.35.3"
+  next: "^16.2.11"

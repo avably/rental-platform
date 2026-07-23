@@ -31,7 +31,9 @@ const restrictDbServiceImport = {
 };
 
 const allowDbServiceImport = {
-  files: ["app/api/webhooks/**/*.{ts,tsx}", "src/jobs/**/*.{ts,tsx}"],
+  // app/api/review/**: narzędzie przeglądu (ADR-071) — wyjątek uzasadniony
+  // w nagłówku route'u i w scripts/audit-service-role.sh.
+  files: ["app/api/webhooks/**/*.{ts,tsx}", "app/api/review/**/*.{ts,tsx}", "src/jobs/**/*.{ts,tsx}"],
   rules: {
     "no-restricted-imports": "off",
   },

@@ -170,3 +170,45 @@ export interface PaymentAccount {
   created_at: string;
   updated_at: string;
 }
+
+// --- Uwagi przeglądu produktu (0033_review_comments.sql, ADR-071) ---
+//
+// NARZĘDZIE WEWNĘTRZNE na czas przeglądu przed startem: tabele platformowe
+// (bez tenant_id), dostęp wyłącznie superadmin (RLS) lub service_role przez
+// podwójnie bramkowany endpoint storefrontu (REVIEW_MODE + hasło site'u).
+
+export type ReviewSurface = "panel" | "marketing" | "storefront";
+export type ReviewKind = "point" | "area";
+export type ReviewStatus = "open" | "done";
+
+export interface ReviewComment {
+  id: string;
+  surface: ReviewSurface;
+  /** Etykieta z listy 39 ekranów (np. „01 Dashboard"); prefiks numeryczny sortuje. */
+  screen: string;
+  /** Pathname bez prefiksu locale. */
+  route: string;
+  kind: ReviewKind;
+  /** Pozycja znormalizowana do dokumentu (0..1). */
+  pos_x: number;
+  pos_y: number;
+  area_w: number | null;
+  area_h: number | null;
+  scroll_y: number;
+  body: string;
+  /** 1 = najwyższy, 5 = najniższy. */
+  priority: number;
+  status: ReviewStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewCommentAttachment {
+  id: string;
+  comment_id: string;
+  /** Ścieżka w prywatnym buckecie review-attachments. */
+  image_path: string;
+  sort: number;
+  created_at: string;
+}

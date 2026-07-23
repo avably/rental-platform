@@ -1,3 +1,4 @@
+import { ReviewOverlayGate } from "@avably/review/overlay";
 import { getTranslations } from "next-intl/server";
 
 import { BrandSymbol } from "@/components/shell/brand-mark";
@@ -49,6 +50,13 @@ export default async function SuperadminLayout({ children }: { children: React.R
           <Link className={linkClass} href="/admin/audit">
             {t("auditLog")}
           </Link>
+          {process.env.REVIEW_MODE === "1" ? (
+            // Wejście widoczne tylko w trybie przeglądu (ADR-071) — poza nim
+            // trasa i tak odpowiada 404.
+            <Link className={linkClass} href="/admin/przeglad-uwagi">
+              Przegląd uwag
+            </Link>
+          ) : null}
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {ctx?.user.email ? (
               <span className="text-muted-foreground hidden truncate lg:inline">
@@ -76,6 +84,12 @@ export default async function SuperadminLayout({ children }: { children: React.R
       >
         {children}
       </main>
+      {/* Nakładka przeglądu (ADR-071) — oś admina to też ekrany przeglądu
+          (pozycja 39 listy). Warunki jak w (panel): REVIEW_MODE + superadmin
+          + ?review=1 po stronie klienta. */}
+      {process.env.REVIEW_MODE === "1" && ctx?.superadmin ? (
+        <ReviewOverlayGate surface="panel" />
+      ) : null}
     </div>
   );
 }
