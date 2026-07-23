@@ -102,7 +102,9 @@
     "localeEnglish": "English",
     "superadminPanel": "Superadmin panel",
     "skipToContent": "Skip to content",
-    "payments": "Payments"
+    "payments": "Payments",
+    "sidebarCollapse": "Collapse menu",
+    "sidebarExpand": "Expand menu"
   },
   "contractSettings": {
     "title": "Agreement settings",
