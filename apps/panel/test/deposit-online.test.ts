@@ -1138,6 +1138,77 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(requests[0]!.last_error).toContain("Potrącenie odrzucone");
   }, 30_000);
 
+  it("rozliczenie wobec NIEAKTUALNEGO salda odpada przed dostawcą (0034/ADR-072)", async () => {
+    // Deklaracja salda jedzie na wierszu POTRĄCENIA, czyli PRZED `createRefund`.
+    // Gdy rejestr ruszył się pod decyzją (cudze rozliczenie, stara karta,
+    // powrót przeglądarki), odmowa pada ZANIM cokolwiek wyjdzie do klienta —
+    // i jest odróżnialna od „rozliczenie przekracza saldo", bo operator ma tu
+    // odświeżyć ekran, a nie poprawić kwotę.
+    const fixture = await paidOrderWithDeposit();
+
+    let providerCalls = 0;
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          return "re_nigdy_stale";
+        },
+        readRefund: async () => refundRead({ refundId: "re_nigdy_stale" }),
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: 1_000,
+        actorId: member.userId,
+        deduction: { amountGrosze: 5_000, reasonCode: "damage", reason: null },
+        // Rozjazd o JEDEN grosz — dowód nie ma się opierać na wielkości różnicy.
+        expectedBalanceGrosze: DEPOSIT_GROSZE - 1,
+      },
+    );
+
+    expect(outcome.status).toBe("failed");
+    expect(outcome.status === "failed" && outcome.staleBalance).toBe(true);
+    expect(outcome.status === "failed" && outcome.reason).toContain("Saldo kaucji zmieniło się");
+    expect(providerCalls, "żądanie poszło do dostawcy mimo odmowy bramki").toBe(0);
+    // Rejestr nietknięty: samo pobranie, ANI JEDNEGO potrącenia.
+    expect((await depositEventsOf(fixture.orderId)).map((event) => event.kind)).toEqual([
+      "collected",
+    ]);
+    // Wiersz żądania DOMKNIĘTY — poprawiona próba nie odbije się od unikatu 0032.
+    const stale = await refundRequestsOf(fixture.orderId);
+    expect(stale).toHaveLength(1);
+    expect(stale[0]!.status).toBe("failed");
+
+    // …i faktycznie przechodzi, gdy deklaracja zgadza się z rejestrem.
+    const retry = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => "re_po_odswiezeniu",
+        readRefund: async () =>
+          refundRead({
+            refundId: "re_po_odswiezeniu",
+            status: "succeeded",
+            amountGrosze: DEPOSIT_GROSZE - 5_000,
+          }),
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: DEPOSIT_GROSZE - 5_000,
+        actorId: member.userId,
+        deduction: { amountGrosze: 5_000, reasonCode: "damage", reason: null },
+        expectedBalanceGrosze: DEPOSIT_GROSZE,
+      },
+    );
+    expect(retry.status).toBe("settled");
+    expect((await depositEventsOf(fixture.orderId)).map((event) => event.kind)).toEqual([
+      "collected",
+      "deducted",
+      "refunded",
+    ]);
+  }, 30_000);
+
   it("obieg ręczny: potrącenie i zwrot z modalu wchodzą JEDNYM poleceniem albo wcale", async () => {
     // Akcja panelu wstawia oba wiersze JEDNĄ tablicą, bo PostgREST robi z niej
     // jeden `INSERT`, czyli jedną transakcję. Test sprawdza OBIE strony tej

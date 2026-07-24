@@ -62,6 +62,13 @@ export const IN_FLIGHT_REFUND_STATUSES = ["requested", "pending"] as const;
  */
 const PG_UNIQUE_VIOLATION = "23505";
 
+/**
+ * 23P01 — bramka 0034 (ADR-072): rejestr pokazuje inne saldo niż to, wobec
+ * którego operator podjął decyzję. Na tej ścieżce odmowa pada na wierszu
+ * POTRĄCENIA, czyli PRZED `createRefund` — żaden przelew tędy nie wychodzi.
+ */
+const PG_STALE_BALANCE = "23P01";
+
 export interface DepositRefundDeps {
   db: SupabaseClient;
   /** `POST /v1/refunds` — oddaje SAM identyfikator (patrz `@avably/core`). */
@@ -113,6 +120,20 @@ export interface DepositRefundInput {
    */
   deduction?: DepositDeduction | null;
   /**
+   * Saldo kaucji, które operator ZASTAŁ na ekranie podejmując tę decyzję
+   * (0034, ADR-072). Trafia WYŁĄCZNIE na wiersz potrącenia.
+   *
+   * DLACZEGO NIE NA WIERSZ ZWROTU. Zwrot księguje się dopiero po potwierdzonym
+   * przelewie, więc bramka odmawiająca mu zapisu zostawiłaby pieniądze
+   * u klienta i rejestr twierdzący, że ich tam nie ma — czyli awarię, przed
+   * którą stoi całe Z5. Odmawiać wolno temu, co jeszcze nie nastąpiło:
+   * potrącenie powstaje PRZED `createRefund`, więc jego odmowa nie kosztuje
+   * ani grosza. Poza tym saldo między potrąceniem a zwrotem legalnie rusza
+   * cudza ścieżka (webhook potwierdzający pobranie albo zwrot), a to nie jest
+   * powód, by odmówić zapisu faktu.
+   */
+  expectedBalanceGrosze?: number | null;
+  /**
    * Opis operatora dopisywany do wiersza ZWROTU (`deposit_events.reason`).
    * Best-effort: gdy zwrot domknie webhook (potwierdzenie dostawcy przyszło
    * przed naszym odczytem), wiersz powstaje bez opisu. CHECK
@@ -127,8 +148,15 @@ export type DepositRefundOutcome =
   | { status: "settled"; amountGrosze: number; depositSettled: boolean; deductionGrosze: number }
   /** Żądanie przyjęte, pieniędzy u klienta JESZCZE NIE MA. Rejestr pusty. */
   | { status: "pending"; reason: string; deductionGrosze: number }
-  /** Nie będzie zwrotu — rejestr pusty, powód zapisany i pokazany. */
-  | { status: "failed"; reason: string; deductionGrosze: number };
+  /**
+   * Nie będzie zwrotu — rejestr pusty, powód zapisany i pokazany.
+   *
+   * `staleBalance` wyróżnia JEDEN powód odmowy: bramka 0034 zastała w rejestrze
+   * inne saldo niż to, wobec którego podjęto decyzję. Wołający ma go pokazać
+   * PRZY POLU salda i zdaniem o odświeżeniu ekranu, a nie jako błąd kwoty —
+   * kwota była dobra, nieaktualna jest podstawa.
+   */
+  | { status: "failed"; reason: string; deductionGrosze: number; staleBalance?: boolean };
 
 interface OrderPaymentRow {
   payment_provider: string;
@@ -325,6 +353,10 @@ export async function requestDepositRefund(
         amount_grosze: input.deduction.amountGrosze,
         reason_code: input.deduction.reasonCode,
         reason: input.deduction.reason,
+        // Deklaracja stanu (0034) — jedyny wiersz tej sekwencji, który
+        // powstaje ZANIM cokolwiek wyjdzie do klienta, więc jedyny, któremu
+        // wolno odmówić (uzasadnienie: `expectedBalanceGrosze` wyżej).
+        expected_balance_grosze: input.expectedBalanceGrosze ?? null,
         created_by: input.actorId,
       })
       .select("id");
@@ -334,11 +366,14 @@ export async function requestDepositRefund(
       // przez przeglądarkę jako „saldo minus potrącenie" byłby bez tego
       // potrącenia zwrotem ZA MAŁYM, a resztę zostawiłby w rejestrze bez
       // powodu. Zamykamy wiersz żądania, żeby nie blokował kolejnej próby.
-      const reason = deducted.error
-        ? `Potrącenie odrzucone przez rejestr kaucji — zwrotu nie zlecono: ${deducted.error.message}`
-        : "Potrącenia nie udało się zapisać — zwrotu nie zlecono.";
+      const staleBalance = deducted.error?.code === PG_STALE_BALANCE;
+      const reason = staleBalance
+        ? deducted.error!.message
+        : deducted.error
+          ? `Potrącenie odrzucone przez rejestr kaucji — zwrotu nie zlecono: ${deducted.error.message}`
+          : "Potrącenia nie udało się zapisać — zwrotu nie zlecono.";
       await mark(deps.db, requestId, "failed", reason);
-      return { status: "failed", deductionGrosze: 0, reason };
+      return { status: "failed", deductionGrosze: 0, reason, staleBalance };
     }
     deductionGrosze = input.deduction.amountGrosze;
   }
