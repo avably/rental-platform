@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { Badge, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@avably/ui";
+import { Badge } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
@@ -41,35 +41,98 @@ export async function ContractSection({ orderId }: { orderId: string }) {
   const formatDate = (value: string) => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="contract-heading">
-      <h2 id="contract-heading" className="text-base font-semibold">{t("title")}</h2>
+    <section
+      data-contract-card
+      aria-labelledby="contract-heading"
+      className="border-border bg-card flex flex-col gap-4 rounded-md border p-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2
+          id="contract-heading"
+          className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+        >
+          {t("title")}
+        </h2>
+        {settingsResult.data ? (
+          <GenerateContractForm orderId={orderId} regenerate={documents.length > 0} />
+        ) : null}
+      </div>
+
       {!settingsResult.data ? (
-        <p className="text-sm text-status-attention-fg">{t("missingSettings")} <Link className="underline" href="/ustawienia-umow">{t("settingsLink")}</Link></p>
+        <p className="text-status-attention-fg text-sm">
+          {t("missingSettings")}{" "}
+          <Link className="underline" href="/ustawienia-umow">
+            {t("settingsLink")}
+          </Link>
+        </p>
+      ) : documents.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
-        <GenerateContractForm orderId={orderId} />
-      )}
-      {documents.length === 0 ? <p className="text-sm text-muted-foreground">{t("empty")}</p> : (
-        <Table>
-          <TableHeader><TableRow><TableHead>{t("created")}</TableHead><TableHead>{t("details")}</TableHead><TableHead>{t("delivery")}</TableHead><TableHead>{t("actions")}</TableHead></TableRow></TableHeader>
-          <TableBody>{documents.map((document) => {
+        <ul className="flex flex-col gap-3">
+          {documents.map((document) => {
             const attempt = latestAttempt.get(document.id);
+            const href = `/zamowienia/${orderId}/contract/${document.id}`;
             return (
-              <TableRow key={document.id}>
-                <TableCell className="whitespace-nowrap">{formatDate(document.created_at)}</TableCell>
-                <TableCell className="space-y-1 text-xs">
-                  <p>{t("version")}: {document.terms_version} · {document.locale.toUpperCase()}</p>
-                  <p className="break-all font-mono">SHA-256: {document.sha256}</p>
-                  <p className="break-all">{document.recipient}</p>
-                </TableCell>
-                <TableCell>{attempt ? <div className="space-y-1"><Badge variant={attempt.status === "sent" ? "default" : "outline"}>{t(attempt.status)}</Badge>{attempt.error ? <p className="text-xs text-destructive">{attempt.error}</p> : null}</div> : <span className="text-sm text-muted-foreground">{t("notSent")}</span>}</TableCell>
-                <TableCell className="space-y-2">
-                  <Link className="text-sm underline" href={`/zamowienia/${orderId}/contract/${document.id}`}>{t("download")}</Link>
-                  <SendContractForm orderId={orderId} documentId={document.id} attemptId={randomUUID()} retry={attempt?.status === "failed"} />
-                </TableCell>
-              </TableRow>
+              <li
+                key={document.id}
+                data-contract-document
+                className="border-border flex flex-col gap-2.5 rounded-md border p-3"
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="text-muted-foreground mt-0.5 shrink-0" aria-hidden="true">
+                    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+                      <path
+                        d="M5 2.5h6.5L16 7v10.5a1 1 0 01-1 1H5a1 1 0 01-1-1v-14a1 1 0 011-1z"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinejoin="round"
+                      />
+                      <path d="M11.5 2.5V7H16" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-foreground text-sm font-medium">
+                      {t("version")}: {document.terms_version} · {document.locale.toUpperCase()}
+                    </p>
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {formatDate(document.created_at)}
+                    </p>
+                    <p className="text-muted-foreground text-xs break-all">{document.recipient}</p>
+                    <p className="text-muted-foreground mt-1 font-mono text-[10px] leading-[14px] break-all">
+                      SHA-256: {document.sha256}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <Link className="underline underline-offset-2" href={href} target="_blank">
+                    {t("preview")}
+                  </Link>
+                  <Link className="underline underline-offset-2" href={href}>
+                    {t("download")}
+                  </Link>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {attempt ? (
+                    <Badge variant={attempt.status === "sent" ? "default" : "outline"}>
+                      {t(attempt.status)}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">{t("notSent")}</span>
+                  )}
+                  <SendContractForm
+                    orderId={orderId}
+                    documentId={document.id}
+                    attemptId={randomUUID()}
+                    retry={attempt?.status === "failed"}
+                  />
+                </div>
+                {attempt?.error ? <p className="text-destructive text-xs">{attempt.error}</p> : null}
+              </li>
             );
-          })}</TableBody>
-        </Table>
+          })}
+        </ul>
       )}
     </section>
   );

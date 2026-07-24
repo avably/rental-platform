@@ -56,7 +56,10 @@ describe("kontrakt tonu statusów — ekrany zamówień", () => {
 
     // Ekrany sięgają po ton wyłącznie przez ten helper — i naprawdę go używają
     // (inaczej zakaz literałów byłby spełniony przez brak statusów w ogóle).
+    // Realni konsumenci po zdjęciu OrderStatusAxes (uwaga przeglądu D5 — chipy
+    // statusu na szczególe zastąpiła oś czasu): lista zamówień (osie zamówienia
+    // i płatności), sekcja logistyki (oś wysyłki) oraz sam helper.
     const users = sources.filter((file) => /StatusChip|statusBadgeProps/.test(file.source));
-    expect(users.length).toBeGreaterThanOrEqual(4);
+    expect(users.length).toBeGreaterThanOrEqual(3);
   });
 });
