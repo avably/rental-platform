@@ -367,7 +367,8 @@ export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>>
   DepositForms: "karta salda i akcji WEWNĄTRZ sekcji kaucji (region section-deposit)",
   DetailField: "para etykieta/wartość WEWNĄTRZ karty podsumowania (region summary)",
   OrderNotes: "formularz notatki WEWNĄTRZ karty notatek (region notes) — sam `<section>` stoi w page.tsx",
-  StatusButtons: "przyciski przejścia WEWNĄTRZ sekcji statusu (region section-status)",
+  StatusSelect:
+    "dropdown przejść, pytanie o wiadomość i baner odliczania WEWNĄTRZ sekcji statusu (region section-status) — sam `<section>` stoi w page.tsx",
 };
 
 /**
