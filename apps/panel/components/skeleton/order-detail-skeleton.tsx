@@ -190,14 +190,33 @@ export function OrderDetailSkeleton() {
             </div>
           </SkeletonRegion>
 
-          {/* Pozycje: nagłówek + tabela w ramce + linia podsumowania kwot. */}
+          {/* Pozycje po D6/N4: nagłówek + tabela z PIĄTĄ kolumną („Akcje",
+              przycisk „Edytuj" h-8 dosunięty do prawej) + linia sum + kafel
+              „Dodaj pozycję".
+
+              Szkielet maluje gałąź EDYTOWALNĄ, choć kolumna akcji i formularz
+              dodawania znikają w statusach `picked_up`/`returned`/`cancelled`.
+              To ten sam rodzaj warunku co formularz pobrania kaucji niżej,
+              a nie warunek rekordowy w rodzaju „firma/NIP": zamówienie żyje
+              w statusach edytowalnych przez CAŁY okres, w którym ktokolwiek na
+              nie patrzy w celu innym niż archiwalny, więc gałąź edytowalna
+              jest dominująca. W statusach zamkniętych sekcja jest o wysokość
+              kafla dodawania (≈118 px) niższa i o jedną kolumnę węższa.
+
+              Panel edycji pozycji NIE jest malowany: otwiera go dopiero
+              kliknięcie „Edytuj", więc na wejściu na ekran go nie ma — a
+              szkielet nie obiecuje rzeczy, których po załadowaniu nie widać
+              (ta sama reguła co przy pasku akcji masowych na liście). */}
           <SkeletonRegion region="section-items" className={SECTION_CLASS}>
             <SkeletonLine line="heading" className="w-32" />
-            <div className="border-border bg-card overflow-x-auto rounded-lg border">
+            <SkeletonRegion
+              region="items-table"
+              className="border-border bg-card overflow-x-auto rounded-lg border"
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {["w-20", "w-16", "w-14", "w-14"].map((width, column) => (
+                    {["w-20", "w-16", "w-14", "w-14", "w-12"].map((width, column) => (
                       <TableHead key={`${width}-${column}`} className="px-3.5">
                         <SkeletonLine line="micro" className={width} />
                       </TableHead>
@@ -206,10 +225,13 @@ export function OrderDetailSkeleton() {
                 </TableHeader>
                 <TableBody>
                   {times(ORDER_DETAIL_SKELETON_ITEM_ROWS).map((row) => (
-                    <TableRow key={row}>
+                    <TableRow key={row} data-skeleton-region="items-row">
                       <TableCell className="px-3.5 py-3">
                         <SkeletonLine className="w-40" />
                       </TableCell>
+                      {/* Komórka egzemplarza jest JEDNOLINIOWA: dwuwierszowy
+                          wariant („bez przypisania" + powód) dotyczy pozycji
+                          bez przypisanej sztuki, czyli przypadku mniejszości. */}
                       <TableCell className="px-3.5 py-3">
                         <SkeletonLine className="w-28" />
                       </TableCell>
@@ -219,12 +241,33 @@ export function OrderDetailSkeleton() {
                       <TableCell className="px-3.5 py-3">
                         <SkeletonLine className="ml-auto w-20" />
                       </TableCell>
+                      {/* Przycisk `size="sm"` = h-8; wiersz i tak mierzy
+                          32 px, bo to najwyższy element komórki. */}
+                      <TableCell className="px-3.5 py-3">
+                        <SkeletonBlock className="ml-auto h-8 w-20 rounded-md" />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </SkeletonRegion>
             <SkeletonLine line="text" className="w-64" />
+            {/* „Dodaj pozycję": ramka `gap-2 rounded-md border p-3` z tytułem
+                `text-sm font-semibold` (20), etykietą pola (14), wyborem
+                produktu (h-9) i przyciskiem (h-9) w jednym wierszu. */}
+            <SkeletonRegion
+              region="items-add"
+              className="border-border flex flex-col gap-2 rounded-md border p-3"
+            >
+              <SkeletonLine line="text" className="w-28" />
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex min-w-56 flex-1 flex-col gap-1">
+                  <SkeletonBlock className="h-[14px] w-16" />
+                  <SkeletonBlock className="h-9 w-full rounded-md" />
+                </div>
+                <SkeletonBlock className="h-9 w-44 rounded-md" />
+              </div>
+            </SkeletonRegion>
           </SkeletonRegion>
 
           {/* Kaucja po uproszczeniu D7/N5 (#118): NAJPIERW DZIAŁANIE, POTEM

@@ -299,8 +299,27 @@ export const ORDER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
   {
     region: "section-items",
     from: "source",
-    anchor: 't("items")',
-    note: "sekcja pozycji zamówienia z tabelą i podsumowaniem kwot",
+    anchor: "<ItemsSection",
+    note: "sekcja pozycji — po D6/N4 samowystarczalny RSC z własnym odczytem katalogu i dostępności, a nie tabela inline w page.tsx",
+  },
+  {
+    region: "items-table",
+    from: "render",
+    anchor: "data-items-table",
+    note: "ramka tabeli pozycji, przewijana poziomo wewnątrz; po D6/N4 z PIĄTĄ kolumną „Akcje”",
+  },
+  {
+    region: "items-row",
+    count: ORDER_DETAIL_SKELETON_ITEM_ROWS,
+    from: "render",
+    anchor: "data-items-row",
+    note: "wiersz pozycji zakończony przyciskiem „Edytuj” (h-8) — zmiana liczby kolumn wiersza pali kontrakt komórek",
+  },
+  {
+    region: "items-add",
+    from: "render",
+    anchor: "data-items-add",
+    note: "formularz „Dodaj pozycję” (D6/N4): wybór produktu z liczbą wolnych sztuk + przycisk; stoi POD sumami, bo kwoty czyta się częściej, niż dokłada pozycje",
   },
   {
     region: "section-deposit",
@@ -339,6 +358,7 @@ export const ORDER_DETAIL_SCREEN_PARTS: readonly string[] = [
   "DeliverySection",
   "EmailLogSection",
   "ExtensionSection",
+  "ItemsSection",
   "OrderTimeline",
 ] as const;
 
@@ -352,9 +372,11 @@ export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>>
 
 /**
  * Ile znaczników `<section` stoi WPROST w źródle szczegółu: podsumowanie
- * i notatki (panel boczny) oraz status, pozycje i kaucja (kolumna główna).
+ * i notatki (panel boczny) oraz status i kaucja (kolumna główna).
  * Sekcje wniesione przez komponenty (`<*Section`) liczy lista wyżej.
  * Dołożenie kolejnej sekcji inline bez regionu w szkielecie pali kontrakt —
- * i tak właśnie ta liczba urosła z 4 na 5 po #118 (karta notatek).
+ * ta liczba urosła z 4 na 5 po #118 (karta notatek) i SPADŁA z powrotem na 4
+ * po D6/N4: pozycje przestały być tabelą inline i wyszły do `<ItemsSection`,
+ * bo edycja potrzebuje własnego odczytu katalogu i dostępności.
  */
-export const ORDER_DETAIL_INLINE_SECTIONS = 5;
+export const ORDER_DETAIL_INLINE_SECTIONS = 4;

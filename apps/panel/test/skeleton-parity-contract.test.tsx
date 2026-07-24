@@ -19,6 +19,7 @@ import {
   ORDER_DETAIL_PARTS_WITHOUT_REGION,
   ORDER_DETAIL_REGIONS,
   ORDER_DETAIL_SCREEN_PARTS,
+  ORDER_DETAIL_SKELETON_ITEM_ROWS,
   type SkeletonRegionSpec,
 } from "@/components/skeleton/screen-regions";
 
@@ -56,6 +57,7 @@ const { OrdersTable } = await import("@/app/[locale]/(panel)/zamowienia/orders-t
 const { OrdersToolbar } = await import("@/app/[locale]/(panel)/zamowienia/orders-toolbar");
 const { OrderTimeline } = await import("@/app/[locale]/(panel)/zamowienia/[id]/order-timeline");
 const { CustomerCard } = await import("@/app/[locale]/(panel)/zamowienia/[id]/customer-card");
+const { ItemsEditor } = await import("@/app/[locale]/(panel)/zamowienia/[id]/items-editor");
 const { OrdersListSkeleton } = await import("@/components/skeleton/orders-list-skeleton");
 const { OrderDetailSkeleton } = await import("@/components/skeleton/order-detail-skeleton");
 
@@ -197,6 +199,50 @@ const detailRenderEvidence = [
       }}
     />,
   ),
+  // Sekcja pozycji w stanie WEJŚCIOWYM (D6/N4): zamówienie edytowalne, nic
+  // nie jest otwarte do edycji — dokładnie to, co szkielet odwzorowuje.
+  // Liczba pozycji = liczba wierszy szkieletu, żeby kontrakt komórek niżej
+  // porównywał to samo po obu stronach.
+  render(
+    <ItemsEditor
+      orderId="00000000-0000-4000-8000-000000000001"
+      orderStatus="reserved"
+      editable
+      items={[
+        {
+          id: "00000000-0000-4000-8000-0000000000a1",
+          productName: "Nagrzewnica 20 kW",
+          unitId: "00000000-0000-4000-8000-0000000000b1",
+          unitLabel: "NG-001",
+          rentalGrosze: 24_000,
+          depositGrosze: 50_000,
+          freeUnitCount: 1,
+          units: [{ id: "00000000-0000-4000-8000-0000000000b1", label: "NG-001", free: true }],
+        },
+        {
+          id: "00000000-0000-4000-8000-0000000000a2",
+          productName: "Agregat 5 kVA",
+          unitId: null,
+          unitLabel: null,
+          rentalGrosze: 36_000,
+          depositGrosze: 0,
+          freeUnitCount: 0,
+          units: [],
+        },
+      ]}
+      products={[{ id: "00000000-0000-4000-8000-0000000000c1", name: "Nagrzewnica 20 kW", freeUnits: 2, totalUnits: 3 }]}
+      collectedGrosze={0}
+      totalRentalGrosze={60_000}
+      totalDepositGrosze={50_000}
+      currency="PLN"
+      locale="pl"
+      actions={{
+        add: async () => ({}),
+        update: async () => ({}),
+        remove: async () => ({}),
+      }}
+    />,
+  ),
 ].join("\n");
 
 const listSkeleton = render(<OrdersListSkeleton />);
@@ -333,6 +379,17 @@ describe("kontrakt szkieletu szczegółu ↔ ekran szczegółu", () => {
     // Sekcje wniesione przez komponenty liczy test wyżej; te cztery stoją
     // w `page.tsx` jako `<section>` i też muszą mieć swój region.
     expect(countAnchor(detailSource, "<section")).toBe(ORDER_DETAIL_INLINE_SECTIONS);
+  });
+
+  it("wiersz pozycji w szkielecie ma tyle komórek, ile ekran ma kolumn", () => {
+    // Ta sama reguła co przy liście, przeniesiona na tabelę pozycji: po D6/N4
+    // doszła piąta kolumna („Akcje"), a `<td` w szkielecie szczegółu pochodzą
+    // WYŁĄCZNIE z tej tabeli (kaucja i dodawanie są malowane divami). Zdjęcie
+    // albo dołożenie kolumny na ekranie bez zmiany szkieletu pali tu.
+    const screenColumns = countAnchor(detailRenderEvidence, "<th ");
+    const skeletonCells = countAnchor(detailSkeleton, "<td ");
+    expect(screenColumns).toBe(5);
+    expect(skeletonCells).toBe(screenColumns * ORDER_DETAIL_SKELETON_ITEM_ROWS);
   });
 });
 
