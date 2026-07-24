@@ -171,6 +171,40 @@ export function statusChangeFromFormData(formData: FormData): unknown {
 }
 
 /**
+ * Masowa zmiana statusu z listy (uwaga przeglądu U4).
+ *
+ * Zaznaczenie działa na WCZYTANEJ STRONIE, a odczyt listy ma limit 100 — stąd
+ * ten sam limit tutaj: żądanie z tysiącem identyfikatorów nie pochodzi z
+ * naszego ekranu i nie ma powodu go obsługiwać. Identyfikatory są ODRÓŻNIANE
+ * (Set), bo ten sam wiersz dwa razy to druga, myląca odmowa „zmieniono
+ * w międzyczasie" w raporcie.
+ *
+ * `expectedFrom` NIE przychodzi z formularza — stany bieżące akcja czyta z
+ * bazy jednym zapytaniem, bo raport ma pokazywać stan FAKTYCZNY, a nie ten,
+ * który przeglądarka pamięta z chwili renderu.
+ */
+export const BULK_STATUS_MAX = 100;
+
+export const bulkStatusChangeSchema = z.object({
+  orderIds: z
+    .array(uuidSchema)
+    .min(1, "Zaznacz co najmniej jedno zamówienie.")
+    .max(BULK_STATUS_MAX, `Masowa zmiana obejmuje najwyżej ${BULK_STATUS_MAX} zamówień.`)
+    .transform((ids) => [...new Set(ids)]),
+  to: orderStatusSchema,
+});
+
+export type BulkStatusChangeInput = z.infer<typeof bulkStatusChangeSchema>;
+
+/** FormData → wejście bulkStatusChangeSchema (wzorzec statusChangeFromFormData). */
+export function bulkStatusChangeFromFormData(formData: FormData): unknown {
+  return {
+    orderIds: formData.getAll("orderId").filter((value) => typeof value === "string"),
+    to: typeof formData.get("to") === "string" ? formData.get("to") : "",
+  };
+}
+
+/**
  * Kolumny sortowalne listy (uwaga przeglądu U2). Whitelist trzyma ekran w
  * ryzach: nieznany klucz sortu spada na undefined (sort domyślny), nie na
  * błąd strony ani na `order by` po dowolnym polu z URL. Odwzorowanie klucz →

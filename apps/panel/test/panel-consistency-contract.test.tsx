@@ -138,7 +138,11 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     ["katalog/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
     ["zamowienia/nowe/order-wizard.tsx", ["w-[320px]"]],
     ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
-    ["zamowienia/orders-table.tsx", ["min-w-[880px]"]],
+    // `zamowienia/orders-table.tsx` wypadło z listy przy U5: szerokość
+    // minimalna tabeli zależy dziś od liczby WIDOCZNYCH kolumn i idzie
+    // progami ze skali (`min-w-4xl` / `min-w-2xl`), więc arbitralna wartość
+    // przestała być potrzebna. Wpisu nie zostawiamy „na wszelki wypadek" —
+    // martwa zgoda z czasem przestaje być czytana.
   ]);
 
   it("wykrywa oba obejścia skanu max-w (kontrola pozytywna)", () => {
@@ -152,7 +156,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   });
 
   it("ekrany nie przypinają szerokości poza notacją max-w", () => {
-    expect(allowedArbitraryWidth.size).toBe(6);
+    expect(allowedArbitraryWidth.size).toBe(5);
 
     const offenders = sources.flatMap(({ path, code }) => {
       const relativePath = relative(path);

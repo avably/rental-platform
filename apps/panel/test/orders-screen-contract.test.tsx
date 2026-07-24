@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import messages from "../messages/pl.json";
+import { ORDER_COLUMN_KEYS, type OrderColumnKey } from "@/lib/orders/order-columns";
 
 /**
  * Kontrakt renderu listy zamówień (ADR-057).
@@ -53,11 +54,33 @@ const rows = PAYMENT_STATUSES.map((paymentStatus, index) => ({
 const sort = { key: "numer", dir: "desc" } as const;
 const baseParams = { q: "szlifierka", status: "reserved" };
 
-const html = renderToStaticMarkup(
-  <NextIntlClientProvider locale="pl" messages={messages}>
-    <OrdersTable rows={rows} currency="PLN" locale="pl" sort={sort} baseParams={baseParams} />
-  </NextIntlClientProvider>,
-);
+/**
+ * Render tabeli z wybranym zestawem kolumn i zaznaczeniem (U4/U5). Tabela jest
+ * BEZSTANOWA — zaznaczenie i ukryte kolumny wchodzą propsami, więc kontrakt
+ * sprawdza dowolny wariant bez `localStorage` i bez atrapy magazynu.
+ */
+function renderTable(
+  hiddenColumns: ReadonlySet<OrderColumnKey> = new Set(),
+  selectedIds: ReadonlySet<string> = new Set(),
+): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="pl" messages={messages}>
+      <OrdersTable
+        rows={rows}
+        currency="PLN"
+        locale="pl"
+        sort={sort}
+        baseParams={baseParams}
+        hiddenColumns={hiddenColumns}
+        selectedIds={selectedIds}
+        onToggleRow={() => {}}
+        onToggleAll={() => {}}
+      />
+    </NextIntlClientProvider>,
+  );
+}
+
+const html = renderTable();
 
 /** Znacznik chipa danej osi i wartości — z całym zestawem atrybutów. */
 function chipTag(axis: string, value: string): string | undefined {
@@ -217,6 +240,20 @@ const rowBlocks = [...html.matchAll(/<tr[^>]*data-order-row[^>]*>([\s\S]*?)<\/tr
   (match) => match[1]!,
 );
 
+/** Kolumny BEZ kotwicy: zaznaczenie (U4) i menu wiersza. */
+const LINKLESS_CELLS = ["select", "actions"];
+
+/**
+ * Wiersz rozłożony na komórki: `data-cell` → treść komórki. `<td>` nie
+ * zagnieżdża się w `<td>`, więc granicą komórki jest następny `<td` albo
+ * koniec wiersza.
+ */
+function cellsOf(rowBlock: string): { key: string; content: string }[] {
+  return [...rowBlock.matchAll(/<td[^>]*data-cell="([^"]+)"[^>]*>([\s\S]*?)(?=<td|$)/g)].map(
+    (match) => ({ key: match[1]!, content: match[2]! }),
+  );
+}
+
 describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
   it("każdy wiersz ma link do szczegółu, nie tylko komórkę ID", () => {
     const rowLinks = [...html.matchAll(/<a[^>]*data-row-link[^>]*>/g)];
@@ -232,16 +269,80 @@ describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
    * prowadziły do jednego zamówienia. jsdom nie odda tamtego błędu CSS, więc
    * asercja celuje w to, co jest z nim równoważne strukturalnie: każdy wiersz
    * musi nieść własne, RÓŻNE kotwice do SWOJEGO id, bez pozycjonowania.
+   *
+   * PO U5 liczba kotwic jest ZMIENNA (kolumny da się ukryć), więc kontrakt jest
+   * REGUŁĄ, nie liczbą: każda WIDOCZNA komórka treściowa niesie DOKŁADNIE
+   * JEDNĄ kotwicę do celu swojego wiersza, komórki zaznaczenia i Akcji nie
+   * niosą żadnej, a cele są RÓŻNE między wierszami. Warianty ukrycia
+   * sprawdzamy niżej — ukryta kolumna nie ma prawa zostawić kotwicy w DOM.
    */
-  it("każdy wiersz prowadzi do SWOJEGO zamówienia — hrefy są niezależne", () => {
+  it("każda widoczna komórka treściowa niesie jedną kotwicę do SWOJEGO zamówienia", () => {
     expect(rowBlocks).toHaveLength(rows.length);
 
     const hrefPerRow = rowBlocks.map((block, index) => {
-      const hrefs = [...block.matchAll(/<a[^>]*?href="([^"]+)"/g)].map((m) => m[1]!);
-      // Komórki treściowe: ID, Klient, Sprzęt, Termin, Kwota, 2× status.
-      expect(hrefs, `wiersz ${index}`).toHaveLength(7);
-      expect(new Set(hrefs).size, `wiersz ${index} miesza cele`).toBe(1);
-      return hrefs[0]!;
+      const cells = cellsOf(block);
+      // Komplet: zaznaczenie, ID, sześć kolumn treściowych, Akcje.
+      expect(cells.map((cell) => cell.key), `wiersz ${index}`).toEqual([
+        "select",
+        "id",
+        ...ORDER_COLUMN_KEYS,
+        "actions",
+      ]);
+
+      const targets = new Set<string>();
+      for (const cell of cells) {
+        const hrefs = [...cell.content.matchAll(/<a[^>]*?href="([^"]+)"/g)].map((m) => m[1]!);
+        if (LINKLESS_CELLS.includes(cell.key)) {
+          expect(hrefs, `wiersz ${index}, komórka ${cell.key}`).toHaveLength(0);
+          expect(cell.content, `wiersz ${index}, komórka ${cell.key}`).not.toMatch(/<a[\s>]/);
+        } else {
+          expect(hrefs, `wiersz ${index}, komórka ${cell.key}`).toHaveLength(1);
+          targets.add(hrefs[0]!);
+        }
+      }
+
+      expect(targets.size, `wiersz ${index} miesza cele`).toBe(1);
+      return [...targets][0]!;
+    });
+
+    expect(hrefPerRow).toEqual(rows.map((row) => `/zamowienia/${row.id}`));
+    expect(new Set(hrefPerRow).size, "wiersze dzielą ten sam cel").toBe(rows.length);
+  });
+
+  /**
+   * Ta sama reguła przy UKRYTYCH kolumnach (U5). Ukrycie ma zdejmować komórkę
+   * z DOM-u, a nie zostawiać pustą kotwicę: niewidzialny link do zamówienia
+   * dalej łapałby klik i dalej byłby ogłaszany przez czytnik ekranu.
+   */
+  it.each([
+    ["dwie kolumny ukryte", ["customer", "amount"]],
+    ["wszystkie treściowe ukryte", [...ORDER_COLUMN_KEYS]],
+  ])("reguła kotwic trzyma się przy ukrytych kolumnach: %s", (_label, hiddenKeys) => {
+    const hidden = new Set(hiddenKeys as OrderColumnKey[]);
+    const visible = ORDER_COLUMN_KEYS.filter((key) => !hidden.has(key));
+    const variantHtml = renderTable(hidden);
+    const blocks = [...variantHtml.matchAll(/<tr[^>]*data-order-row[^>]*>([\s\S]*?)<\/tr>/g)].map(
+      (match) => match[1]!,
+    );
+
+    expect(blocks).toHaveLength(rows.length);
+    const hrefPerRow = blocks.map((block, index) => {
+      const cells = cellsOf(block);
+      expect(cells.map((cell) => cell.key), `wiersz ${index}`).toEqual([
+        "select",
+        "id",
+        ...visible,
+        "actions",
+      ]);
+      for (const key of hidden) {
+        expect(block, `wiersz ${index}`).not.toContain(`data-cell="${key}"`);
+      }
+
+      const anchors = [...block.matchAll(/<a[^>]*?href="([^"]+)"/g)].map((m) => m[1]!);
+      // Kotwic dokładnie tyle, ile widocznych komórek treściowych: ID + reszta.
+      expect(anchors, `wiersz ${index}`).toHaveLength(1 + visible.length);
+      expect(new Set(anchors).size, `wiersz ${index} miesza cele`).toBe(1);
+      return anchors[0]!;
     });
 
     expect(hrefPerRow).toEqual(rows.map((row) => `/zamowienia/${row.id}`));
@@ -279,5 +380,103 @@ describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
   it("na mobile każdy wiersz to osobna karta prowadząca do szczegółu", () => {
     const cards = [...html.matchAll(/data-order-card/g)];
     expect(cards).toHaveLength(rows.length);
+  });
+});
+
+/* ── Tabela: zaznaczanie wierszy (U4) ──────────────────────────────────── */
+
+describe("kontrakt tabeli: zaznaczanie wierszy (U4)", () => {
+  it("nagłówek ma jedno „zaznacz wszystkie”, a każdy wiersz własny checkbox", () => {
+    expect([...html.matchAll(/data-orders-select-all/g)]).toHaveLength(1);
+    expect([...html.matchAll(/data-orders-select-row/g)]).toHaveLength(rows.length);
+    // Karty mobilne też dają się zaznaczać — i to POZA kotwicą karty.
+    expect([...html.matchAll(/data-orders-select-card/g)]).toHaveLength(rows.length);
+  });
+
+  it("checkbox karty mobilnej stoi obok kotwicy, nie w środku niej", () => {
+    // Kontrolka wewnątrz <a> jest niepoprawnym HTML-em i pułapką na klik:
+    // każde kliknięcie w checkbox nawigowałoby do szczegółu.
+    const cards = [...html.matchAll(/<a[^>]*data-order-card[^>]*>([\s\S]*?)<\/a>/g)].map(
+      (match) => match[1]!,
+    );
+    expect(cards).toHaveLength(rows.length);
+    for (const [index, card] of cards.entries()) {
+      expect(card, `karta ${index}`).not.toContain("data-orders-select-card");
+      expect(card, `karta ${index}`).not.toMatch(/<(?:button|input)[\s>]/);
+    }
+  });
+
+  it("stan zaznaczenia idzie na checkbox I na wiersz, i tylko dla zaznaczonych", () => {
+    const selected = new Set([rows[0]!.id, rows[2]!.id]);
+    const selectedHtml = renderTable(new Set(), selected);
+    const blocks = [...selectedHtml.matchAll(/<tr[^>]*data-order-row[^>]*>[\s\S]*?<\/tr>/g)].map(
+      (match) => match[0]!,
+    );
+
+    expect(blocks).toHaveLength(rows.length);
+    for (const [index, block] of blocks.entries()) {
+      const isSelected = selected.has(rows[index]!.id);
+      const rowTag = block.match(/<tr[^>]*>/)![0];
+      expect(rowTag.includes("data-selected"), `wiersz ${index}`).toBe(isSelected);
+      // Radix niesie stan w `data-state` i `aria-checked` — bez tego drugiego
+      // czytnik ekranu nie ma czego ogłosić.
+      const rowCheckbox = block.match(/<button[^>]*data-orders-select-row[^>]*>/)![0];
+      expect(rowCheckbox, `wiersz ${index}`).toContain(
+        isSelected ? 'aria-checked="true"' : 'aria-checked="false"',
+      );
+    }
+  });
+
+  it("„zaznacz wszystkie” ma trzeci stan, gdy zaznaczona jest część strony", () => {
+    const partial = renderTable(new Set(), new Set([rows[0]!.id]));
+    const all = renderTable(new Set(), new Set(rows.map((row) => row.id)));
+    const none = renderTable();
+
+    const headOf = (markup: string) =>
+      markup.match(/<button[^>]*data-orders-select-all[^>]*>/)![0];
+
+    expect(headOf(partial)).toContain('aria-checked="mixed"');
+    expect(headOf(all)).toContain('aria-checked="true"');
+    expect(headOf(none)).toContain('aria-checked="false"');
+  });
+
+  it("każdy checkbox ma etykietę z numerem zamówienia, nie samą ramkę", () => {
+    const labels = [...html.matchAll(/aria-label="Zaznacz zamówienie ([^"]+)"/g)].map((m) => m[1]);
+    // Po jednym na wiersz tabeli i po jednym na kartę mobilną.
+    expect(labels).toHaveLength(rows.length * 2);
+    expect(new Set(labels)).toEqual(new Set(rows.map((row) => row.orderNumber)));
+    expect(html).toContain(messages.orders.list.selectAllOnPage);
+  });
+});
+
+/* ── Belka: wybór kolumn (U5) i układ filtrów (N2) ─────────────────────── */
+
+describe("kontrakt belki: wybór kolumn (U5) i układ filtrów (N2)", () => {
+  it("belka ma menu „Kolumny” z licznikiem widocznych", () => {
+    expect(toolbarHtml).toContain("data-orders-columns-trigger");
+    expect(toolbarHtml).toContain(messages.orders.list.columns);
+    // Domyślnie widoczny KOMPLET kolumn treściowych.
+    expect(toolbarHtml).toContain(`${ORDER_COLUMN_KEYS.length}/${ORDER_COLUMN_KEYS.length}`);
+  });
+
+  it("filtry zaawansowane stoją w TYM SAMYM wierszu co szybkie filtry (N2)", () => {
+    const row = toolbarHtml.match(
+      /<div[^>]*data-orders-filter-row[^>]*>([\s\S]*?)$/,
+    )?.[1];
+    expect(row, "brak wiersza sterowania listą").toBeDefined();
+    // Jeden wiersz niesie i szybkie zakresy, i oba przyciski z prawej.
+    expect(row).toContain(messages.orders.list.presetThisMonth);
+    expect(row).toContain(messages.orders.list.presetNextMonth);
+    expect(row).toContain(messages.orders.list.presetNext14);
+    expect(row).toContain("data-orders-advanced");
+    expect(row).toContain("data-orders-columns-trigger");
+  });
+
+  it("panel filtrów wychodzi nakładką, a nie pasem pełnej szerokości", () => {
+    const details = toolbarHtml.match(/<details[^>]*data-orders-advanced[^>]*>/)![0];
+    // Wąski przycisk (auto szerokość od sm), panel jako nakładka nad treścią.
+    expect(details).toContain("sm:w-auto");
+    expect(details).toContain("relative");
+    expect(toolbarHtml).toContain("sm:absolute");
   });
 });
