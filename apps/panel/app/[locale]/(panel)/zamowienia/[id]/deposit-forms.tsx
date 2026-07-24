@@ -1,57 +1,97 @@
 "use client";
 
-import { Button, Input, Label } from "@avably/ui";
+/**
+ * Powierzchnia działania na kaucji (uproszczenie D7/N5).
+ *
+ * ================== CO ZOSTAŁO NA WIERZCHU I DLACZEGO ==================
+ *
+ * Trzy równorzędne kafle formularzy zeszły do JEDNEJ liczby, JEDNEGO zdania
+ * o obiegu i JEDNEGO przycisku. Powód nie jest estetyczny: poprzedni układ
+ * pytał operatora o trzy rzeczy naraz w chwili, w której ten podjął jedną
+ * decyzję („klient oddał sprzęt, rozliczamy kaucję"), a najczęstsza ścieżka —
+ * oddaj wszystko — wymagała przeczytania wszystkich trzech, żeby zrozumieć,
+ * że dwa go nie dotyczą.
+ *
+ * Saldo jest tu jedyną liczbą pierwszego planu, bo jest jedyną odpowiedzią,
+ * po którą operator przychodzi: „ile trzymamy pieniędzy klienta". Rozbicie
+ * (pobrano / rozliczono) i chronologia zdarzeń są DOWODEM w sporze — czyta
+ * się je wtedy, gdy spór jest, więc mieszkają w rozwijanych szczegółach.
+ *
+ * ================== ROZDZIAŁ OBIEGÓW JEST TU BRAMKĄ, NIE ETYKIETĄ ==========
+ *
+ * W obiegu dostawcy NIE MA formularza pobrania i to nie jest uproszczenie
+ * widoku. Kaucja jedzie tam w tym samym `PaymentIntent` co najem (D1/D4,
+ * 0029) i księguje się SAMA przy potwierdzeniu płatności — z odnośnikiem
+ * intentu jako dowodem (lib/stripe-webhook.ts). Ręczny wiersz `manual`
+ * dołożony obok podwoiłby saldo w rejestrze i pozwolił zlecić dostawcy zwrot
+ * kwoty, której ten nigdy nie pobrał.
+ *
+ * Obieg ręczny zostaje BEZ ZMIAN (ADR-035): tam pobranie rejestruje człowiek,
+ * bo nie ma dostawcy, którego można zapytać o potwierdzenie.
+ */
 import { formatMoney, type CurrencyCode } from "@avably/core";
+import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
-import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 import { groszeToInputValue } from "@/lib/money-input";
-import { DEDUCTION_REASON_CODES } from "@/lib/order-validation";
+
+import { DepositRefundModal } from "./deposit-refund-modal";
 
 const initialState: FormState = {};
 
 type DepositAction = (prevState: FormState, formData: FormData) => Promise<FormState>;
 
-function FormMessages({ state }: { state: FormState }) {
-  if (state.formError) {
-    return (
-      <p role="alert" className="text-destructive text-sm">
-        {state.formError}
-      </p>
-    );
-  }
-  if (state.fieldErrors) {
-    return (
-      <p role="alert" className="text-destructive text-sm">
-        {Object.values(state.fieldErrors)[0]}
-      </p>
-    );
-  }
-  // Stan pośredni (zwrot przyjęty, jeszcze niepotwierdzony) — `status`,
-  // nie `alert`: czytnik ekranu ma przeczytać to jako informację, bo
-  // operator nie ma tu czego naprawiać (Z5, ADR-069).
-  if (state.notice) {
-    return (
-      <p role="status" className="text-muted-foreground text-sm">
-        {state.notice}
-      </p>
-    );
-  }
-  return null;
+/**
+ * Pobranie kaucji „z ręki" — WYŁĄCZNIE obieg ręczny (uzasadnienie w nagłówku).
+ */
+function ManualCollectForm({
+  orderId,
+  suggestedCollectGrosze,
+  action,
+}: {
+  orderId: string;
+  suggestedCollectGrosze: number;
+  action: DepositAction;
+}) {
+  const t = useTranslations("orders.deposit");
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="border-border flex flex-wrap items-end gap-2 rounded-md border p-3">
+      <input type="hidden" name="orderId" value={orderId} />
+      <div className="flex min-w-40 flex-1 flex-col gap-1">
+        <Label htmlFor="deposit-collect-amount">{t("collectTitle")}</Label>
+        <Input
+          id="deposit-collect-amount"
+          name="amount"
+          inputMode="decimal"
+          defaultValue={suggestedCollectGrosze > 0 ? groszeToInputValue(suggestedCollectGrosze) : ""}
+          placeholder="0,00"
+        />
+      </div>
+      <Button type="submit" variant="outline" disabled={pending}>
+        {t("collectCta")}
+      </Button>
+      {state.formError ? (
+        <p role="alert" className="text-destructive w-full text-sm">
+          {state.formError}
+        </p>
+      ) : null}
+      {state.fieldErrors ? (
+        <p role="alert" className="text-destructive w-full text-sm">
+          {Object.values(state.fieldErrors)[0]}
+        </p>
+      ) : null}
+    </form>
+  );
 }
 
-/**
- * Formularze rozliczeń kaucji: pobranie, zwrot pełny/częściowy, potrącenie
- * ze strukturalnym powodem. To jest UI — autorytatywnie odmawia trigger
- * 0011 (saldo) i CHECK (kształt powodu); zwrot pełny niesie kwotę salda
- * WIDZIANEGO przez operatora (optymistyczna współbieżność — nadmiar
- * odrzuci baza, nie ślepy re-odczyt po stronie serwera).
- */
 export function DepositForms({
   orderId,
   balanceGrosze,
+  collectedGrosze,
   suggestedCollectGrosze,
   currency,
   locale,
@@ -61,6 +101,8 @@ export function DepositForms({
 }: {
   orderId: string;
   balanceGrosze: number;
+  /** Ile już pobrano — rozstrzyga, czy tor automatyczny zdążył zadziałać. */
+  collectedGrosze: number;
   suggestedCollectGrosze: number;
   currency: CurrencyCode;
   locale: string;
@@ -70,112 +112,57 @@ export function DepositForms({
   refundInFlight: boolean;
   actions: {
     collect: DepositAction;
-    refund: DepositAction;
-    deduct: DepositAction;
+    settle: DepositAction;
   };
 }) {
   const t = useTranslations("orders.deposit");
-  const [collectState, collectAction, collectPending] = useActionState(actions.collect, initialState);
-  const [refundState, refundAction, refundPending] = useActionState(actions.refund, initialState);
-  const [deductState, deductAction, deductPending] = useActionState(actions.deduct, initialState);
-
-  const pending = collectPending || refundPending || deductPending;
-  const settleDisabled = pending || balanceGrosze <= 0;
-  // Blokada zwrotu przy zwrocie w toku jest tu WYGODĄ, nie bramką: przycisk
-  // wyłączony w przeglądarce nie broni przed drugą kartą ani powtórzonym
-  // żądaniem. Autorytatywnie odmawia `requestDepositRefund` (lib/deposit-refund.ts).
-  const refundDisabled = settleDisabled || (online && refundInFlight);
 
   return (
-    <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-      <form action={collectAction} className="flex flex-col gap-2 rounded border p-3">
-        <p className="font-medium">{t("collectTitle")}</p>
-        <input type="hidden" name="orderId" value={orderId} />
-        <Label htmlFor="deposit-collect-amount">{t("amountLabel")}</Label>
-        <Input
-          id="deposit-collect-amount"
-          name="amount"
-          inputMode="decimal"
-          defaultValue={suggestedCollectGrosze > 0 ? groszeToInputValue(suggestedCollectGrosze) : ""}
-          placeholder="0,00"
+    <div className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
+            {t("balance")}
+          </span>
+          <span className="text-2xl leading-7 font-semibold tabular-nums tracking-[-0.01em]">
+            {formatMoney(Math.max(balanceGrosze, 0), currency, locale)}
+          </span>
+          {/* Jedno zdanie o obiegu. Operator ma wiedzieć, czy pieniądze
+              ruszają się same, czy dopiero wtedy, gdy on je policzy. */}
+          <span className="text-muted-foreground text-sm">
+            {online ? t("trackOnline") : t("trackManual")}
+          </span>
+        </div>
+        <DepositRefundModal
+          orderId={orderId}
+          balanceGrosze={balanceGrosze}
+          currency={currency}
+          locale={locale}
+          online={online}
+          refundInFlight={refundInFlight}
+          action={actions.settle}
         />
-        <Button type="submit" disabled={pending}>
-          {t("collectCta")}
-        </Button>
-        <FormMessages state={collectState} />
-      </form>
-
-      <div className="flex flex-col gap-2 rounded border p-3">
-        <p className="font-medium">{t("refundTitle")}</p>
-        {/* Operator musi wiedzieć, czy klika „zapisz, że oddałem", czy
-            „przelej pieniądze klientowi" — to dwie różne odpowiedzialności. */}
-        <p className="text-muted-foreground text-xs">
-          {online ? t("refundOnlineHint") : t("refundManualHint")}
-        </p>
-        <form action={refundAction} className="flex flex-col gap-2">
-          <input type="hidden" name="orderId" value={orderId} />
-          <input type="hidden" name="amount" value={groszeToInputValue(Math.max(balanceGrosze, 0))} />
-          <Button type="submit" variant="outline" disabled={refundDisabled}>
-            {t("refundFullCta", { amount: formatMoney(Math.max(balanceGrosze, 0), currency, locale) })}
-          </Button>
-        </form>
-        <form action={refundAction} className="flex flex-col gap-2">
-          <input type="hidden" name="orderId" value={orderId} />
-          <Label htmlFor="deposit-refund-amount">{t("amountLabel")}</Label>
-          <Input
-            id="deposit-refund-amount"
-            name="amount"
-            inputMode="decimal"
-            placeholder="0,00"
-            disabled={refundDisabled}
-          />
-          <Button type="submit" disabled={refundDisabled}>
-            {t("refundPartialCta")}
-          </Button>
-        </form>
-        {online && refundInFlight ? (
-          <p role="status" className="text-muted-foreground text-sm">
-            {t("refundInFlightBlocked")}
-          </p>
-        ) : null}
-        <FormMessages state={refundState} />
       </div>
 
-      <form action={deductAction} className="flex flex-col gap-2 rounded border p-3">
-        <p className="font-medium">{t("deductTitle")}</p>
-        <input type="hidden" name="orderId" value={orderId} />
-        <Label htmlFor="deposit-deduct-amount">{t("amountLabel")}</Label>
-        <Input
-          id="deposit-deduct-amount"
-          name="amount"
-          inputMode="decimal"
-          placeholder="0,00"
-          disabled={settleDisabled}
+      {/* Tor automatyczny, kaucja jeszcze nieksięgowana: nie ma tu nic do
+          zrobienia i to jest informacja, a nie brak. */}
+      {online && collectedGrosze === 0 && suggestedCollectGrosze > 0 ? (
+        <p className="text-muted-foreground text-sm">{t("awaitingAutoCollect")}</p>
+      ) : null}
+
+      {online && refundInFlight ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("refundInFlightBlocked")}
+        </p>
+      ) : null}
+
+      {!online ? (
+        <ManualCollectForm
+          orderId={orderId}
+          suggestedCollectGrosze={suggestedCollectGrosze}
+          action={actions.collect}
         />
-        <Label htmlFor="deposit-deduct-reason-code">{t("reasonCodeLabel")}</Label>
-        <PanelSelect
-          id="deposit-deduct-reason-code"
-          name="reasonCode"
-          defaultValue="damage"
-          disabled={settleDisabled}
-          className="rounded border px-3 py-2"
-          options={DEDUCTION_REASON_CODES.map((code) => ({
-            value: code,
-            label: t(`reasonCodes.${code}`),
-          }))}
-        />
-        <Label htmlFor="deposit-deduct-reason">{t("reasonLabel")}</Label>
-        <Input
-          id="deposit-deduct-reason"
-          name="reason"
-          placeholder={t("reasonPlaceholder")}
-          disabled={settleDisabled}
-        />
-        <Button type="submit" variant="outline" disabled={settleDisabled}>
-          {t("deductCta")}
-        </Button>
-        <FormMessages state={deductState} />
-      </form>
+      ) : null}
     </div>
   );
 }

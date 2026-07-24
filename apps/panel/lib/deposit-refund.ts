@@ -77,6 +77,16 @@ export interface DepositRefundDeps {
   readRefund: (refundId: string, connectedAccountId: string) => Promise<RefundRead>;
 }
 
+/**
+ * Potrącenie zatrzymane z kaucji przy TYM SAMYM rozliczeniu co zwrot
+ * (uwagi właściciela D7/N5 — jeden modal, jedna decyzja).
+ */
+export interface DepositDeduction {
+  amountGrosze: number;
+  reasonCode: string;
+  reason: string | null;
+}
+
 export interface DepositRefundInput {
   tenantId: string;
   orderId: string;
@@ -84,15 +94,41 @@ export interface DepositRefundInput {
   amountGrosze: number;
   /** Operator zlecający zwrot; ląduje w `created_by`. */
   actorId: string | null;
+  /**
+   * Potrącenie księgowane RAZEM ze zwrotem, jeśli operator je wpisał.
+   *
+   * DLACZEGO TU, A NIE OSOBNYM WYWOŁANIEM PRZED. Miejsce w sekwencji jest
+   * jedynym zabezpieczeniem przed DWUKROTNYM potrąceniem przy dwukliku.
+   * Potrącenie zaksięgowane PRZED tą funkcją przechodzi bramkę 0011 dwa razy,
+   * ilekroć suma obu kopii mieści się w pobraniu (dwa razy 50 gr z kaucji 200
+   * przechodzi bez mrugnięcia) — a wtedy zwrot reszty, policzony przez
+   * przeglądarkę od salda SPRZED podwojenia, przekracza saldo i rozbija się
+   * o 23514 JUŻ PO wyjściu pieniędzy do klienta. Dokładnie ten kształt awarii
+   * („pieniądze wyszły, rejestr odmówił") ma wykluczać całe Z5.
+   *
+   * Wewnątrz tej funkcji potrącenie stoi ZA wstawieniem wiersza
+   * `deposit_refunds`, czyli za unikatem `deposit_refunds_one_in_flight_per_order`
+   * z 0032 (ADR-070). Przegrana ścieżka dwukliku wychodzi na 23505 ZANIM
+   * cokolwiek zaksięguje — jeden modal to jedno potrącenie i jeden zwrot.
+   */
+  deduction?: DepositDeduction | null;
+  /**
+   * Opis operatora dopisywany do wiersza ZWROTU (`deposit_events.reason`).
+   * Best-effort: gdy zwrot domknie webhook (potwierdzenie dostawcy przyszło
+   * przed naszym odczytem), wiersz powstaje bez opisu. CHECK
+   * `deposit_events_structured_reason` z 0011 obejmuje `reason_code`, nie
+   * `reason` — opis przy zwrocie jest więc legalny, ale nie jest obiecany.
+   */
+  refundNote?: string | null;
 }
 
 export type DepositRefundOutcome =
   /** Odczyt potwierdził zwrot; `depositSettled` mówi, czy saldo wróciło do zera. */
-  | { status: "settled"; amountGrosze: number; depositSettled: boolean }
+  | { status: "settled"; amountGrosze: number; depositSettled: boolean; deductionGrosze: number }
   /** Żądanie przyjęte, pieniędzy u klienta JESZCZE NIE MA. Rejestr pusty. */
-  | { status: "pending"; reason: string }
+  | { status: "pending"; reason: string; deductionGrosze: number }
   /** Nie będzie zwrotu — rejestr pusty, powód zapisany i pokazany. */
-  | { status: "failed"; reason: string };
+  | { status: "failed"; reason: string; deductionGrosze: number };
 
 interface OrderPaymentRow {
   payment_provider: string;
@@ -137,6 +173,21 @@ export async function requestDepositRefund(
   deps: DepositRefundDeps,
   input: DepositRefundInput,
 ): Promise<DepositRefundOutcome> {
+  // --- 0. Zwrot bez kwoty nie jest zwrotem ---
+  //
+  // `deposit_refunds.amount_grosze` ma CHECK `> 0` (0031), więc żądanie
+  // o zerowej kwocie rozbiłoby się o bazę w połowie sekwencji. Rozliczenie
+  // złożone z samego potrącenia (operator zatrzymuje całą kaucję) NIE
+  // przechodzi tędy w ogóle — nie ma dostawcy, którego można o cokolwiek
+  // poprosić — i jest księgowane wprost przez akcję panelu.
+  if (input.amountGrosze <= 0) {
+    return {
+      status: "failed",
+      deductionGrosze: 0,
+      reason: "Zwrot bez kwoty nie jest zwrotem — podaj kwotę albo rozlicz kaucję samym potrąceniem.",
+    };
+  }
+
   // --- 1. Płatność, z której zwracamy ---
   const orderQuery = await deps.db
     .from("orders")
@@ -148,6 +199,7 @@ export async function requestDepositRefund(
   if (orderQuery.error || !orderQuery.data) {
     return {
       status: "failed",
+      deductionGrosze: 0,
       reason: `Nie udało się odczytać zamówienia: ${orderQuery.error?.message ?? "brak wiersza"}`,
     };
   }
@@ -159,6 +211,7 @@ export async function requestDepositRefund(
     // przelewu (ADR-035 dopuszcza to świadomie i JAWNIE, przez inną akcję).
     return {
       status: "failed",
+      deductionGrosze: 0,
       reason: "To zamówienie nie ma płatności online — zwrotu nie da się zlecić u dostawcy.",
     };
   }
@@ -178,11 +231,16 @@ export async function requestDepositRefund(
     .limit(1);
 
   if (inFlight.error) {
-    return { status: "failed", reason: `Nie udało się sprawdzić zwrotów w toku: ${inFlight.error.message}` };
+    return {
+      status: "failed",
+      deductionGrosze: 0,
+      reason: `Nie udało się sprawdzić zwrotów w toku: ${inFlight.error.message}`,
+    };
   }
   if ((inFlight.data ?? []).length > 0) {
     return {
       status: "pending",
+      deductionGrosze: 0,
       reason:
         "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy — poczekaj na potwierdzenie zamiast zlecać drugi.",
     };
@@ -200,6 +258,7 @@ export async function requestDepositRefund(
   if (accountQuery.error || !connectedAccountId) {
     return {
       status: "failed",
+      deductionGrosze: 0,
       reason: "Najemca nie ma konta u dostawcy płatności — zwrotu nie da się zlecić.",
     };
   }
@@ -226,19 +285,63 @@ export async function requestDepositRefund(
     if (created.error.code === PG_UNIQUE_VIOLATION) {
       return {
         status: "pending",
+        deductionGrosze: 0,
         reason:
           "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy — poczekaj na potwierdzenie zamiast zlecać drugi.",
       };
     }
-    return { status: "failed", reason: `Nie udało się zarejestrować żądania zwrotu: ${created.error.message}` };
+    return {
+      status: "failed",
+      deductionGrosze: 0,
+      reason: `Nie udało się zarejestrować żądania zwrotu: ${created.error.message}`,
+    };
   }
   const requestRows = (created.data ?? []) as { id: string }[];
   if (requestRows.length === 0) {
     // `.select()` po mutacji potrafi oddać pustkę bez błędu, gdy polityka
     // RLS odfiltruje wiersz — pusty wynik jest tu BŁĘDEM, nie sukcesem.
-    return { status: "failed", reason: "Nie udało się zarejestrować żądania zwrotu." };
+    return { status: "failed", deductionGrosze: 0, reason: "Nie udało się zarejestrować żądania zwrotu." };
   }
   const requestId = requestRows[0]!.id;
+
+  // --- 4b. Potrącenie z TEGO SAMEGO modalu — za unikatem, przed dostawcą ---
+  //
+  // Kolejność jest tu całym zabezpieczeniem (uzasadnienie: `deduction`
+  // w DepositRefundInput). Wiersz `deposit_refunds` jest już wstawiony, więc
+  // równoległy dwuklik odpadł wyżej na 23505 i tego kodu nie osiągnie.
+  //
+  // Potrącenie idzie obiegiem `manual` (domyślnym), bo NIE JEST ruchem
+  // pieniędzy u dostawcy — to nasze roszczenie wobec kaucji, którą już mamy.
+  // Wpisanie mu `provider = 'stripe'` wymagałoby odnośnika u dostawcy, a
+  // takiego dla potrącenia nie ma i nigdy nie będzie (0031).
+  let deductionGrosze = 0;
+  if (input.deduction && input.deduction.amountGrosze > 0) {
+    const deducted = await deps.db
+      .from("deposit_events")
+      .insert({
+        tenant_id: input.tenantId,
+        order_id: input.orderId,
+        kind: "deducted",
+        amount_grosze: input.deduction.amountGrosze,
+        reason_code: input.deduction.reasonCode,
+        reason: input.deduction.reason,
+        created_by: input.actorId,
+      })
+      .select("id");
+
+    if (deducted.error || (deducted.data ?? []).length === 0) {
+      // Potrącenie odrzucone = ZERO żądania do dostawcy. Zwrot policzony
+      // przez przeglądarkę jako „saldo minus potrącenie" byłby bez tego
+      // potrącenia zwrotem ZA MAŁYM, a resztę zostawiłby w rejestrze bez
+      // powodu. Zamykamy wiersz żądania, żeby nie blokował kolejnej próby.
+      const reason = deducted.error
+        ? `Potrącenie odrzucone przez rejestr kaucji — zwrotu nie zlecono: ${deducted.error.message}`
+        : "Potrącenia nie udało się zapisać — zwrotu nie zlecono.";
+      await mark(deps.db, requestId, "failed", reason);
+      return { status: "failed", deductionGrosze: 0, reason };
+    }
+    deductionGrosze = input.deduction.amountGrosze;
+  }
 
   // --- 5. Żądanie u dostawcy ---
   let refundId: string;
@@ -258,7 +361,7 @@ export async function requestDepositRefund(
     // dostawca żądanie przyjmie.
     const reason = errorMessage(error);
     await mark(deps.db, requestId, "failed", reason);
-    return { status: "failed", reason };
+    return { status: "failed", reason, deductionGrosze };
   }
 
   // --- 6. Odnośnik zapisany; TO NADAL NIE JEST ZWROT ---
@@ -274,19 +377,19 @@ export async function requestDepositRefund(
     // dokończy to webhook `charge.refund.updated`.
     const reason = `Zwrot zlecony, ale nie udało się potwierdzić go odczytem: ${errorMessage(error)}`;
     await mark(deps.db, requestId, "pending", reason);
-    return { status: "pending", reason };
+    return { status: "pending", reason, deductionGrosze };
   }
 
   const verdict = refundVerdict(read);
 
   if (verdict.outcome === "failed") {
     await mark(deps.db, requestId, "failed", verdict.reason);
-    return { status: "failed", reason: verdict.reason };
+    return { status: "failed", reason: verdict.reason, deductionGrosze };
   }
 
   if (verdict.outcome === "pending") {
     await mark(deps.db, requestId, "pending", verdict.reason);
-    return { status: "pending", reason: verdict.reason };
+    return { status: "pending", reason: verdict.reason, deductionGrosze };
   }
 
   // --- 8. Rejestr kaucji: dopiero TERAZ i dopiero z kwotą Z ODCZYTU ---
@@ -297,11 +400,12 @@ export async function requestDepositRefund(
     amountGrosze: verdict.amountGrosze,
     providerReference: read.refundId,
     createdBy: input.actorId,
+    reason: input.refundNote ?? null,
   });
 
   if (!booked.ok) {
     await mark(deps.db, requestId, "failed", booked.reason);
-    return { status: "failed", reason: booked.reason };
+    return { status: "failed", reason: booked.reason, deductionGrosze };
   }
 
   await mark(deps.db, requestId, "succeeded", null);
@@ -311,6 +415,7 @@ export async function requestDepositRefund(
   if (!settlement.ok) {
     return {
       status: "failed",
+      deductionGrosze,
       reason: `Zwrot zaksięgowany u dostawcy i w rejestrze, ale rozliczenie kaucji nie przeszło: ${settlement.reason}`,
     };
   }
@@ -319,5 +424,6 @@ export async function requestDepositRefund(
     status: "settled",
     amountGrosze: verdict.amountGrosze,
     depositSettled: settlement.settled,
+    deductionGrosze,
   };
 }

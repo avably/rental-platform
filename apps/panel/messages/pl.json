@@ -704,13 +704,7 @@
         "other": "Inny powód"
       },
       "collectTitle": "Pobranie kaucji",
-      "refundTitle": "Zwrot kaucji",
-      "deductTitle": "Potrącenie z kaucji",
-      "amountLabel": "Kwota",
       "collectCta": "Zarejestruj pobranie",
-      "refundFullCta": "Zwróć całość ({amount})",
-      "refundPartialCta": "Zwrot częściowy",
-      "deductCta": "Zarejestruj potrącenie",
       "reasonCodeLabel": "Powód potrącenia",
       "reasonLabel": "Doprecyzowanie",
       "reasonPlaceholder": "wymagane przy powodzie „inny”",
@@ -723,7 +717,23 @@
         "pending": "Zwrot w toku",
         "succeeded": "Zwrot potwierdzony",
         "failed": "Zwrot odrzucony"
-      }
+      },
+      "trackOnline": "Kaucja pobierana i zwracana automatycznie przez dostawcę płatności.",
+      "trackManual": "Tor ręczny — pobranie i zwrot rejestruje operator (gotówka, przelew własny).",
+      "awaitingAutoCollect": "Kaucja zostanie pobrana automatycznie, gdy dostawca potwierdzi płatność.",
+      "ledgerToggle": "Szczegóły rozliczenia",
+      "refundCta": "Zwróć kaucję",
+      "refundModalTitle": "Zwrot kaucji",
+      "refundAmountLabel": "Kwota zwrotu",
+      "refundNoteLabel": "Opis (opcjonalnie)",
+      "refundNotePlaceholder": "np. sprzęt oddany kompletny i sprawny",
+      "refundConfirmCta": "Potwierdź zwrot",
+      "deductToggle": "Potrąć część kaucji",
+      "deductAmountLabel": "Kwota potrącenia",
+      "summaryKept": "Zatrzymujemy",
+      "summaryPaidOut": "Klient otrzyma przelewem",
+      "summaryPaidOutManual": "Do oddania klientowi",
+      "cancel": "Anuluj"
     },
     "extension": {
       "title": "Przedłużenie najmu",
@@ -732,6 +742,12 @@
       "quoteSurcharge": "Dopłata: {amount}",
       "pickDateHint": "Wybierz datę po obecnym końcu najmu, aby zobaczyć dopłatę.",
       "cta": "Przedłuż najem"
+    },
+    "notes": {
+      "label": "Notatki (stan sprzętu, uwagi o zwrocie kaucji)",
+      "placeholder": "np. kaucja pomniejszona o 50 zł za porysowany kabel…",
+      "saveCta": "Zapisz notatki",
+      "saved": "Notatki zapisane."
     }
   },
   "site": {
