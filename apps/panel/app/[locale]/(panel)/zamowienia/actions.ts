@@ -29,10 +29,18 @@ import { getTranslations } from "next-intl/server";
 
 import { AuthError } from "@/lib/auth";
 import {
+  bulkStatusChangeFromFormData,
+  bulkStatusChangeSchema,
   orderFormSchema,
   statusChangeFromFormData,
   statusChangeSchema,
 } from "@/lib/order-validation";
+import {
+  rejectReasonFromCode,
+  runBulkStatusChange,
+  type BulkStatusReport,
+  type BulkStatusTarget,
+} from "@/lib/orders/bulk-status";
 import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
@@ -315,6 +323,101 @@ export async function changeOrderStatusAction(
   // Sukces NIESIE powód niewysłania: status JEST zmieniony, ale operator
   // musi wiedzieć, że klient nic nie dostał.
   return emailProblem ? { success: "changed", formError: emailProblem } : { success: "changed" };
+}
+
+/**
+ * Stan masowej zmiany statusu: albo błąd całej operacji (walidacja, brak
+ * uprawnień, nieudany odczyt), albo RAPORT — nigdy zbiorcze „gotowe".
+ */
+export interface BulkStatusState {
+  formError?: string;
+  report?: BulkStatusReport;
+}
+
+/**
+ * Masowa zmiana statusu zaznaczonych zamówień (uwaga przeglądu U4).
+ *
+ * OSOBNA AKCJA, nie parametr do changeOrderStatusAction: tamta obsługuje
+ * JEDNO zamówienie z wysyłką e-maila i zwraca FormState, ta zwraca raport per
+ * zamówienie. Sygnatura pojedynczej zostaje nietknięta — używa jej ekran
+ * szczegółu (status-buttons).
+ *
+ * Wysyłki wiadomości do klientów NIE robi (świadomie): masowa zmiana dziesięciu
+ * statusów wysłałaby dziesięć maili bez możliwości przejrzenia treści, a
+ * decyzja „wyślij" jest w tym produkcie zawsze jawna (ADR-033). Interfejs mówi
+ * to wprost, zamiast po cichu nie wysyłać.
+ *
+ * Odmowy przychodzą Z BAZY (trigger 0010) — akcja nie odsiewa nielegalnych
+ * przejść przed wysłaniem żądania, patrz `lib/orders/bulk-status.ts`.
+ */
+export async function changeOrderStatusBulkAction(
+  _prevState: BulkStatusState,
+  formData: FormData,
+): Promise<BulkStatusState> {
+  const parsed = bulkStatusChangeSchema.safeParse(bulkStatusChangeFromFormData(formData));
+  if (!parsed.success) {
+    return { formError: parsed.error.issues[0]?.message ?? "Nieprawidłowe zaznaczenie." };
+  }
+  const { orderIds, to } = parsed.data;
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  // Stany bieżące jednym odczytem: raport ma nazywać zamówienia numerem, a
+  // przejście liczyć od stanu FAKTYCZNEGO. Czego RLS nie pokaże, tego nie ma
+  // w mapie — takie id trafia do raportu jako „nie znaleziono", a nie znika.
+  const { data: rows, error: readError } = await ctx.supabase
+    .from("orders")
+    .select("id, order_number, order_status")
+    .eq("tenant_id", ctx.tenantId)
+    .in("id", orderIds);
+  if (readError) return { formError: readError.message };
+
+  const byId = new Map(
+    ((rows ?? []) as { id: string; order_number: string; order_status: OrderStatus }[]).map(
+      (row) => [row.id, row],
+    ),
+  );
+
+  const targets: BulkStatusTarget[] = orderIds.map((orderId) => {
+    const row = byId.get(orderId);
+    return {
+      orderId,
+      // Brak wiersza = brak numeru; identyfikator jest jedyną nazwą, jaką
+      // mamy — lepsza niż puste miejsce w raporcie.
+      orderNumber: row?.order_number ?? orderId,
+      from: row?.order_status ?? null,
+    };
+  });
+
+  const report = await runBulkStatusChange(targets, to as OrderStatus, async (target) => {
+    // Ten sam UPDATE co w akcji pojedynczej, łącznie z optymistyczną
+    // współbieżnością (`.eq("order_status", from)`): zero wierszy znaczy, że
+    // ktoś zdążył zmienić status — to odmowa, nie cichy sukces.
+    const { data, error } = await ctx.supabase
+      .from("orders")
+      .update({ order_status: to })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", target.orderId)
+      .eq("order_status", target.from)
+      .select("id");
+    if (error) {
+      return { ok: false, reason: rejectReasonFromCode(error.code), detail: error.message };
+    }
+    if (!data || data.length === 0) return { ok: false, reason: "changed-meanwhile" };
+    return { ok: true };
+  });
+
+  // Odświeżamy WYŁĄCZNIE, gdy coś naprawdę wpadło — pełna odmowa nie ma czego
+  // przeładowywać, a przeładowanie skasowałoby raport z ekranu.
+  if (report.changed.length > 0) revalidatePath("/", "layout");
+
+  return { report };
 }
 
 /**

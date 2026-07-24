@@ -13,8 +13,9 @@ import { filterBySearch, type OrderSearchable } from "@/lib/orders/order-search"
 import { ORDER_SORT_COLUMNS, resolveOrderSort } from "@/lib/orders/order-sort";
 
 import { OrdersEmptyState } from "./orders-empty-state";
+import { OrdersList } from "./orders-list";
 import { OrdersStats } from "./orders-stats";
-import { OrdersTable, type OrdersTableRow } from "./orders-table";
+import { type OrdersTableRow } from "./orders-table";
 import { OrdersToolbar } from "./orders-toolbar";
 
 interface OrderRow {
@@ -195,7 +196,10 @@ export default async function OrdersPage({
           {visibleRows.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("empty")}</p>
           ) : (
-            <OrdersTable rows={visibleRows} currency={currency} locale={locale} sort={sort} baseParams={baseParams} />
+            /* Lista jest interaktywna od U4/U5 (zaznaczanie, wybór kolumn),
+               więc opakowuje ją klient — sam odczyt i filtrowanie zostają na
+               serwerze. */
+            <OrdersList rows={visibleRows} currency={currency} locale={locale} sort={sort} baseParams={baseParams} />
           )}
         </>
       ) : (

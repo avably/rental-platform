@@ -7,15 +7,17 @@ import { PanelSelect } from "@/components/fields/panel-select";
 import { DATE_PRESETS, type DatePreset } from "@/lib/orders/date-presets";
 import type { OrdersFilter } from "@/lib/order-validation";
 
+import { OrdersColumnsMenu } from "./orders-columns";
 import { OrdersDateFilter } from "./orders-date-filter";
 
 /**
- * Belka listy zamówień (uwaga przeglądu U1, ADR-057).
+ * Belka listy zamówień (uwagi przeglądu U1 i N2, ADR-057).
  *
  * Na wierzchu: WYSZUKIWARKA (główny sposób zawężania, zastępuje picker klienta)
- * z licznikiem „N wyników" i szybkie chipy zakresu terminu. Pod „Filtry
- * zaawansowane" (<details>, składane bez JS): status, własny zakres dat i wybór
- * klienta.
+ * z licznikiem „N wyników". Niżej JEDEN wiersz sterowania: szybkie chipy
+ * zakresu terminu z lewej, „Kolumny" (U5) i „Filtry zaawansowane" z prawej.
+ * Pod „Filtrami zaawansowanymi" (<details>, składane bez JS): status, własny
+ * zakres dat i wybór klienta.
  *
  * WSZYSTKIE chipy to LINKI (stan w URL, GET), a nie przyciski submit w jednym
  * formularzu: przy kilku niezależnych grupach chipów submit wysyła wyłącznie
@@ -116,105 +118,141 @@ export function OrdersToolbar({
         </span>
       </form>
 
-      {/* Szybkie zakresy terminu — chip aktywny przełącza się z powrotem na
-          brak zakresu (drugi klik zdejmuje filtr). */}
-      <div className="flex flex-wrap gap-2">
-        {DATE_PRESETS.map((preset) => {
-          const active = filter.preset === preset;
-          return (
-            <Link
-              key={preset}
-              href={hrefFor(
-                active
-                  ? { preset: undefined, od: undefined, do: undefined }
-                  : { preset, od: undefined, do: undefined },
-              )}
-              aria-pressed={active}
-              className={chipClass}
-            >
-              {t(PRESET_LABEL_KEY[preset])}
-            </Link>
-          );
-        })}
-      </div>
-
-      <details className="border-border bg-card rounded-lg border px-4 py-3">
-        <summary className="text-foreground cursor-pointer text-sm font-medium select-none">
-          {t("advancedFilters")}
-        </summary>
-
-        <div className="mt-3 flex flex-col gap-4">
-          {/* Status — jako chipy-linki (grupa niezależna od zakresu i klienta). */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
-              {t("filterStatus")}
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <Link href={hrefFor({ status: undefined })} aria-pressed={!filter.status} className={chipClass}>
-                {t("filterAll")}
+      {/* JEDEN wiersz: szybkie zakresy z lewej, „Kolumny" i „Filtry
+          zaawansowane" z prawej (uwaga przeglądu N2). Zaawansowane były
+          osobnym pasem pełnej szerokości — zajmowały cały wiersz po to, żeby
+          przez większość czasu pokazywać samą strzałkę. Teraz to wąski
+          przycisk, a treść wychodzi NAKŁADKĄ (`absolute`) od `sm` w górę, więc
+          otwarcie nie przesuwa tabeli. Poniżej `sm` nakładka wraca do
+          normalnego przepływu: na 390 px panel filtrów szerszy niż ekran byłby
+          gorszy niż zepchnięta w dół tabela. Nakładka wisi na `relative`
+          nałożonym na `<details>` (zwykły blok) — nie na elemencie tabeli,
+          którego pozycjonowanie Safari traktuje po swojemu (lekcja #117). */}
+      <div data-orders-filter-row className="flex flex-wrap items-start gap-2">
+        {/* Szybkie zakresy terminu — chip aktywny przełącza się z powrotem na
+            brak zakresu (drugi klik zdejmuje filtr). */}
+        <div className="flex flex-1 flex-wrap gap-2">
+          {DATE_PRESETS.map((preset) => {
+            const active = filter.preset === preset;
+            return (
+              <Link
+                key={preset}
+                href={hrefFor(
+                  active
+                    ? { preset: undefined, od: undefined, do: undefined }
+                    : { preset, od: undefined, do: undefined },
+                )}
+                aria-pressed={active}
+                className={chipClass}
+              >
+                {t(PRESET_LABEL_KEY[preset])}
               </Link>
-              {ORDER_STATUSES.map((status: OrderStatus) => {
-                const active = filter.status === status;
-                return (
-                  <Link
-                    key={status}
-                    href={hrefFor({ status: active ? undefined : status })}
-                    aria-pressed={active}
-                    className={chipClass}
-                  >
-                    {tStatus(status)}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Własny zakres terminu + klient — formularz (realne pola). Apply NIE
-              niesie presetu: własny zakres i preset wykluczają się. */}
-          <form method="get" action="/zamowienia" className="flex flex-wrap items-end gap-3 text-sm">
-            <PreservedParams committed={committed} exclude={["od", "do", "klient", "preset"]} />
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="filter-termin"
-                className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
-              >
-                {t("filterTerm")}
-              </label>
-              <OrdersDateFilter id="filter-termin" defaultFrom={filter.od ?? ""} defaultTo={filter.do ?? ""} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="filter-klient"
-                className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
-              >
-                {t("filterCustomer")}
-              </label>
-              <PanelSelect
-                id="filter-klient"
-                name="klient"
-                defaultValue={filter.klient ?? ""}
-                className={field}
-                options={[
-                  { value: "", label: t("filterAnyCustomer") },
-                  ...customers.map((customer) => ({
-                    value: customer.id,
-                    label: customer.full_name
-                      ? `${customer.full_name} (${customer.email})`
-                      : customer.email,
-                  })),
-                ]}
-              />
-            </div>
-            <Button type="submit" variant="outline">
-              {t("apply")}
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/zamowienia">{t("clear")}</Link>
-            </Button>
-          </form>
+            );
+          })}
         </div>
-      </details>
+
+        <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto">
+          <OrdersColumnsMenu />
+
+          <details data-orders-advanced className="group relative w-full sm:w-auto">
+            <summary
+              data-orders-advanced-summary
+              className="border-border bg-card text-foreground flex h-9 cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 text-sm font-medium outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] select-none hover:bg-muted focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring [&::-webkit-details-marker]:hidden"
+            >
+              {t("advancedFilters")}
+              <ChevronGlyph />
+            </summary>
+
+            <div className="border-border bg-card mt-2 flex w-full flex-col gap-4 rounded-lg border p-4 shadow-lg sm:absolute sm:top-full sm:right-0 sm:z-30 sm:w-xl">
+              {/* Status — jako chipy-linki (grupa niezależna od zakresu i klienta). */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
+                  {t("filterStatus")}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={hrefFor({ status: undefined })} aria-pressed={!filter.status} className={chipClass}>
+                    {t("filterAll")}
+                  </Link>
+                  {ORDER_STATUSES.map((status: OrderStatus) => {
+                    const active = filter.status === status;
+                    return (
+                      <Link
+                        key={status}
+                        href={hrefFor({ status: active ? undefined : status })}
+                        aria-pressed={active}
+                        className={chipClass}
+                      >
+                        {tStatus(status)}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Własny zakres terminu + klient — formularz (realne pola). Apply NIE
+                  niesie presetu: własny zakres i preset wykluczają się. */}
+              <form method="get" action="/zamowienia" className="flex flex-wrap items-end gap-3 text-sm">
+                <PreservedParams committed={committed} exclude={["od", "do", "klient", "preset"]} />
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="filter-termin"
+                    className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+                  >
+                    {t("filterTerm")}
+                  </label>
+                  <OrdersDateFilter id="filter-termin" defaultFrom={filter.od ?? ""} defaultTo={filter.do ?? ""} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="filter-klient"
+                    className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+                  >
+                    {t("filterCustomer")}
+                  </label>
+                  <PanelSelect
+                    id="filter-klient"
+                    name="klient"
+                    defaultValue={filter.klient ?? ""}
+                    className={field}
+                    options={[
+                      { value: "", label: t("filterAnyCustomer") },
+                      ...customers.map((customer) => ({
+                        value: customer.id,
+                        label: customer.full_name
+                          ? `${customer.full_name} (${customer.email})`
+                          : customer.email,
+                      })),
+                    ]}
+                  />
+                </div>
+                <Button type="submit" variant="outline">
+                  {t("apply")}
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link href="/zamowienia">{t("clear")}</Link>
+                </Button>
+              </form>
+            </div>
+          </details>
+        </div>
+      </div>
     </div>
+  );
+}
+
+/** Strzałka „rozwiń" przy podsumowaniu filtrów — obraca się przy otwarciu. */
+function ChevronGlyph() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+      className="text-muted-foreground shrink-0 transition-transform [transition-duration:var(--motion-fast)] group-open:rotate-180"
+    >
+      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
 
