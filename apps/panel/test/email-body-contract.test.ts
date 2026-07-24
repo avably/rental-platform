@@ -300,3 +300,57 @@ describe("historia komunikacji — treść w rejestrze = treść u klienta (ADR-
     expect(PATHS).toHaveLength(callers.length + 1);
   });
 });
+
+/**
+ * KONTRAKT (łatka recenzji PM): podgląd treści renderuje zapisany HTML
+ * WYŁĄCZNIE w izolowanej ramce.
+ *
+ * Zapisany `body` niesie dane pochodzące od klienta (nazwa, adres, uwagi
+ * z zamówienia), a po N3 zacznie nieść treść redagowaną w panelu. Wstrzyknięcie
+ * go w drzewo panelu przez `dangerouslySetInnerHTML` zamienia historię
+ * komunikacji w wektor TRWAŁEGO XSS-a wymierzonego w operatora — z zapisu,
+ * który wygląda na zwykły dowód wysyłki.
+ *
+ * Bezpieczeństwo ma tu być WŁASNOŚCIĄ KONSTRUKCJI (pusty `sandbox` odbiera
+ * dokumentowi skrypty, formularze, nawigację i dostęp do rodzica), a nie
+ * skutkiem ubocznym escapowania w szablonach — bo escapowanie przestanie
+ * wystarczać w dniu, w którym treść zacznie pochodzić od operatora.
+ *
+ * Skan ŹRÓDŁA, nie renderu: `srcDoc`/`sandbox` to atrybuty, których jsdom nie
+ * egzekwuje, więc test renderujący przeszedłby także BEZ nich — czyli byłby
+ * bramką, która nie umie spłonąć.
+ */
+describe("kontrakt podglądu treści — izolacja renderowanego HTML-a", () => {
+  const PREVIEW = join(
+    APP_ROOT,
+    "app/[locale]/(panel)/zamowienia/[id]/email-preview-modal.tsx",
+  );
+
+  it("zapisany HTML idzie do <iframe srcDoc> z PUSTYM sandboxem", () => {
+    const source = readFileSync(PREVIEW, "utf8");
+    expect(source, "podgląd przestał używać ramki").toMatch(/<iframe/);
+    expect(source, "ramka bez srcDoc").toMatch(/srcDoc=/);
+    expect(source, "ramka bez pustego sandboxa — dokument odzyskuje skrypty").toMatch(
+      /sandbox=""/,
+    );
+  });
+
+  it("żaden plik sekcji historii nie wstrzykuje HTML-a w drzewo panelu", () => {
+    for (const file of [
+      "email-preview-modal.tsx",
+      "email-log-section.tsx",
+      "email-body-actions.ts",
+    ]) {
+      const source = readFileSync(
+        join(APP_ROOT, "app/[locale]/(panel)/zamowienia/[id]", file),
+        "utf8",
+      );
+      // Szukamy UŻYCIA (`dangerouslySetInnerHTML={...}`), nie wzmianki:
+      // nagłówek modalu OPISUJE, dlaczego tej drogi nie wybrano, a bramka
+      // zakazująca nazwania decyzji karałaby za dokumentowanie jej.
+      expect(source, `${file} wstrzykuje HTML w drzewo panelu`).not.toMatch(
+        /dangerouslySetInnerHTML\s*=/,
+      );
+    }
+  });
+});
