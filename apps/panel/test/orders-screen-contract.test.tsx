@@ -212,8 +212,13 @@ describe("kontrakt tabeli: sortowalne nagłówki (U2)", () => {
 
 /* ── Tabela: wiersz-link i widok mobilny (U3) ──────────────────────────── */
 
+/** Wnętrze każdego `<tr data-order-row>` — do asercji per wiersz. */
+const rowBlocks = [...html.matchAll(/<tr[^>]*data-order-row[^>]*>([\s\S]*?)<\/tr>/g)].map(
+  (match) => match[1]!,
+);
+
 describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
-  it("każdy wiersz ma rozciągnięty link do szczegółu, nie tylko komórkę ID", () => {
+  it("każdy wiersz ma link do szczegółu, nie tylko komórkę ID", () => {
     const rowLinks = [...html.matchAll(/<a[^>]*data-row-link[^>]*>/g)];
     expect(rowLinks).toHaveLength(rows.length);
     for (const row of rows) {
@@ -221,14 +226,54 @@ describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
     }
   });
 
-  it("rozciągnięcie idzie pseudo-elementem (after:inset-0), a nie klikiem JS", () => {
-    const link = html.match(/<a[^>]*data-row-link[^>]*>/)?.[0] ?? "";
-    expect(link).toContain("after:inset-0");
+  /**
+   * Regresja buga #117: rozciągnięta nakładka (`after:inset-0` w komórce „#"
+   * na `relative` `<tr>`) sprawiała, że w Safari i Firefoksie WSZYSTKIE wiersze
+   * prowadziły do jednego zamówienia. jsdom nie odda tamtego błędu CSS, więc
+   * asercja celuje w to, co jest z nim równoważne strukturalnie: każdy wiersz
+   * musi nieść własne, RÓŻNE kotwice do SWOJEGO id, bez pozycjonowania.
+   */
+  it("każdy wiersz prowadzi do SWOJEGO zamówienia — hrefy są niezależne", () => {
+    expect(rowBlocks).toHaveLength(rows.length);
+
+    const hrefPerRow = rowBlocks.map((block, index) => {
+      const hrefs = [...block.matchAll(/<a[^>]*?href="([^"]+)"/g)].map((m) => m[1]!);
+      // Komórki treściowe: ID, Klient, Sprzęt, Termin, Kwota, 2× status.
+      expect(hrefs, `wiersz ${index}`).toHaveLength(7);
+      expect(new Set(hrefs).size, `wiersz ${index} miesza cele`).toBe(1);
+      return hrefs[0]!;
+    });
+
+    expect(hrefPerRow).toEqual(rows.map((row) => `/zamowienia/${row.id}`));
+    expect(new Set(hrefPerRow).size, "wiersze dzielą ten sam cel").toBe(rows.length);
   });
 
-  it("kolumna Akcje wychodzi ponad nakładkę (relative z-10), by menu działało", () => {
-    const cell = html.match(/<td[^>]*data-cell="actions"[^>]*>/)?.[0] ?? "";
-    expect(cell).toContain("z-10");
+  it("kolumna Akcje nie jest linkiem — menu klika się niezależnie", () => {
+    for (const [index, block] of rowBlocks.entries()) {
+      const actionsCell = block.match(/<td[^>]*data-cell="actions"[^>]*>([\s\S]*)$/)?.[1] ?? "";
+      expect(actionsCell, `wiersz ${index}`).not.toMatch(/<a[\s>]/);
+    }
+  });
+
+  it("nawigacja idzie kotwicami, nie nakładką pozycjonowaną na <tr>", () => {
+    // Sedno buga: `relative` na <tr> + `after:inset-0` w komórce.
+    const rowTags = [...html.matchAll(/<tr[^>]*data-order-row[^>]*>/g)].map((m) => m[0]);
+    expect(rowTags).toHaveLength(rows.length);
+    for (const tag of rowTags) {
+      expect(tag).not.toMatch(/class="[^"]*(?:^|\s)relative(?:\s|")/);
+    }
+    expect(html).not.toContain("after:inset-0");
+  });
+
+  it("powtórzone kotwice wiersza są ukryte przed czytnikiem i przed Tabem", () => {
+    for (const [index, block] of rowBlocks.entries()) {
+      const anchors = [...block.matchAll(/<a[^>]*?>/g)].map((m) => m[0]);
+      expect(anchors.filter((a) => a.includes("data-row-link")), `wiersz ${index}`).toHaveLength(1);
+      for (const anchor of anchors.filter((a) => !a.includes("data-row-link"))) {
+        expect(anchor, `wiersz ${index}`).toContain('aria-hidden="true"');
+        expect(anchor, `wiersz ${index}`).toContain('tabindex="-1"');
+      }
+    }
   });
 
   it("na mobile każdy wiersz to osobna karta prowadząca do szczegółu", () => {

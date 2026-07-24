@@ -9,6 +9,7 @@ import {
 } from "@avably/ui";
 import { formatMoney, type CurrencyCode, type OrderStatus, type PaymentStatus } from "@avably/core";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { Link } from "@/i18n/navigation";
 import { StatusChip } from "@/lib/orders/status-chip";
@@ -24,8 +25,9 @@ import { OrderRowActions } from "./order-row-actions";
  * / Status zamówienia / Status płatności / Akcje. Nowości przeglądu:
  *  - nagłówki SORTOWALNE (U2) — link zmienia sort/dir w URL, `aria-sort` niesie
  *    stan; „#" sortuje chronologicznie (created_at), patrz order-sort.ts;
- *  - CAŁY wiersz prowadzi do szczegółu (U3) rozciągniętym linkiem w „#"
- *    (`after:absolute inset-0`), kolumna Akcje zostaje wyjęta (relative z-10);
+ *  - CAŁY wiersz prowadzi do szczegółu (U3) — KAŻDA komórka treściowa niesie
+ *    własną kotwicę wypełniającą komórkę (`CellLink`), kolumna Akcje zostaje
+ *    bez linku, więc jej menu klika się niezależnie;
  *  - na wąskim ekranie zamiast poziomego przewijania — STOS KART (U3), ten sam
  *    wiersz-model.
  *
@@ -76,6 +78,63 @@ function initialsFor(name: string | null, email: string | null): string {
 
 const HEAD_CLASS =
   "h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase";
+
+/**
+ * Komórka treściowa nie ma własnego paddingu — wypełnia ją kotwica `CellLink`,
+ * więc klikalny jest cały prostokąt komórki, nie sam tekst.
+ */
+const CELL_CLASS = "h-[52px] p-0";
+
+/**
+ * Kotwica wypełniająca komórkę wiersza — mechanizm „cały wiersz prowadzi do
+ * szczegółu" (U3, naprawa #117).
+ *
+ * POPRZEDNIO był to JEDEN rozciągnięty link (`after:absolute after:inset-0`)
+ * na wierszu z klasą `relative`. `position: relative` na `<tr>` NIE ustanawia
+ * bloku zawierającego w Safari ani Firefoksie (pozycjonowanie elementów tabeli
+ * jest historycznie niespójne) — wszystkie nakładki rozciągały się do
+ * wspólnego przodka, nachodziły na siebie i klik/hover łapiła ostatnia w DOM.
+ * Efekt: cała tabela prowadziła do jednego zamówienia.
+ *
+ * Dlatego dziś KAŻDA komórka treściowa niesie WŁASNĄ, prawdziwą kotwicę do
+ * swojego zamówienia — zero pozycjonowania, zero nakładek, poprawne z
+ * konstrukcji w każdej przeglądarce. Etykietę i fokus niesie jedna kotwica
+ * (`primary`, komórka „#"); pozostałe są `aria-hidden` i wyjęte z taba, żeby
+ * czytnik nie ogłaszał siedmiu identycznych linków, a Tab nie przechodził
+ * przez wiersz siedem razy.
+ */
+function CellLink({
+  href,
+  primary = false,
+  align = "left",
+  className,
+  children,
+}: {
+  href: string;
+  primary?: boolean;
+  align?: "left" | "right";
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      data-cell-link
+      data-row-link={primary ? "" : undefined}
+      tabIndex={primary ? undefined : -1}
+      aria-hidden={primary ? undefined : true}
+      className={cn(
+        "text-foreground flex h-[52px] items-center px-3.5 no-underline outline-none",
+        align === "right" && "justify-end",
+        primary &&
+          "rounded-sm hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent dark:focus-visible:outline-ring",
+        className,
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export function OrdersTable({
   rows,
@@ -141,50 +200,56 @@ export function OrdersTable({
                 key={row.id}
                 data-order-row
                 data-order-id={row.orderNumber}
-                className="relative transition-colors [transition-duration:var(--motion-fast)] hover:bg-muted focus-within:bg-muted"
+                className="transition-colors [transition-duration:var(--motion-fast)] hover:bg-muted focus-within:bg-muted"
               >
-                <TableCell data-cell="id" className="h-[52px] px-3.5 py-2.5">
-                  <Link
-                    // Rozciągnięty link: `after:inset-0` robi z całego wiersza
-                    // cel nawigacji, ale fokus i etykieta siedzą na realnym <a>
-                    // w komórce „#" — <tr> nie jest tabowalny. Kolumna Akcje
-                    // wychodzi ponad tę nakładkę (relative z-10), więc jej menu
-                    // działa niezależnie.
-                    data-row-link
-                    className="text-foreground rounded-sm font-medium tabular-nums tracking-[0.01em] no-underline outline-none after:absolute after:inset-0 after:content-[''] hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+                <TableCell data-cell="id" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`} primary>
+                    <span className="font-medium tabular-nums tracking-[0.01em]">{row.orderNumber}</span>
+                  </CellLink>
+                </TableCell>
+                <TableCell data-cell="customer" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`} className="font-medium">
+                    {row.customerLabel}
+                  </CellLink>
+                </TableCell>
+                <TableCell data-cell="equipment" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`}>
+                    <span>
+                      {row.equipment[0] ?? "—"}
+                      {row.equipment.length > 1 ? (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          {t("itemsMore", { count: row.equipment.length - 1 })}
+                        </span>
+                      ) : null}
+                    </span>
+                  </CellLink>
+                </TableCell>
+                <TableCell data-cell="date" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`} className="tabular-nums tracking-[0.01em]">
+                    {formatTerm(locale, row.startDate, row.endDate)}
+                  </CellLink>
+                </TableCell>
+                <TableCell data-cell="amount" className={CELL_CLASS}>
+                  <CellLink
                     href={`/zamowienia/${row.id}`}
+                    align="right"
+                    className="tabular-nums tracking-[0.01em]"
                   >
-                    {row.orderNumber}
-                  </Link>
+                    {formatMoney(row.totalRentalGrosze, currency, locale)}
+                  </CellLink>
                 </TableCell>
-                <TableCell data-cell="customer" className="h-[52px] px-3.5 py-2.5 font-medium">
-                  {row.customerLabel}
+                <TableCell data-cell="order-status" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`}>
+                    <StatusChip axis="order" value={row.orderStatus} />
+                  </CellLink>
                 </TableCell>
-                <TableCell data-cell="equipment" className="h-[52px] px-3.5 py-2.5">
-                  {row.equipment[0] ?? "—"}
-                  {row.equipment.length > 1 ? (
-                    <span className="text-muted-foreground"> {t("itemsMore", { count: row.equipment.length - 1 })}</span>
-                  ) : null}
+                <TableCell data-cell="payment-status" className={CELL_CLASS}>
+                  <CellLink href={`/zamowienia/${row.id}`}>
+                    <StatusChip axis="payment" value={row.paymentStatus} />
+                  </CellLink>
                 </TableCell>
-                <TableCell
-                  data-cell="date"
-                  className="h-[52px] px-3.5 py-2.5 tabular-nums tracking-[0.01em]"
-                >
-                  {formatTerm(locale, row.startDate, row.endDate)}
-                </TableCell>
-                <TableCell
-                  data-cell="amount"
-                  className="h-[52px] px-3.5 py-2.5 text-right tabular-nums tracking-[0.01em]"
-                >
-                  {formatMoney(row.totalRentalGrosze, currency, locale)}
-                </TableCell>
-                <TableCell data-cell="order-status" className="h-[52px] px-3.5 py-2.5">
-                  <StatusChip axis="order" value={row.orderStatus} />
-                </TableCell>
-                <TableCell data-cell="payment-status" className="h-[52px] px-3.5 py-2.5">
-                  <StatusChip axis="payment" value={row.paymentStatus} />
-                </TableCell>
-                <TableCell data-cell="actions" className="relative z-10 h-[52px] px-3.5 py-2.5 text-right">
+                <TableCell data-cell="actions" className="h-[52px] px-3.5 py-2.5 text-right">
                   <OrderRowActions
                     orderId={row.id}
                     labels={{
