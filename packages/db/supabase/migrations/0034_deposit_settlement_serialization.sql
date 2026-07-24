@@ -138,6 +138,17 @@
 -- na obecnej wersji PostgREST-a jest 400; sprostowanie zapisane tutaj, bo
 -- migracji się nie przepisuje.
 --
+-- 23P01 NIE JEST TU NOWYM WYNALAZKIEM. To USTALONY w tym repo kod odmowy
+-- bramki stojącej na advisory locku, gdy stan rozjechał się pod żądaniem:
+-- `app.assert_unit_available` z 0010 rzuca dokładnie 23P01 („egzemplarz zajęty
+-- w żądanym terminie"), tak samo publiczny checkout z 0020/0021. Ta migracja
+-- dokłada trzeci przypadek tej samej klasy zdarzeń, a nie czwartą konwencję.
+--
+-- Pomylenie obu jest niereprezentowalne: bramka 0010 wisi na `orders` i
+-- `order_items`, ta — na `deposit_events`. Ścieżki panelu, które mapują 23P01
+-- na komunikat o saldzie (`deposit-actions.ts`, `deposit-refund.ts`), wstawiają
+-- WYŁĄCZNIE do `deposit_events`, więc kod z 0010 nie ma jak do nich dotrzeć.
+--
 -- Dlaczego nie P0001 i nie własny P0xxx: PostgREST zjada klasę P0xxx do
 -- gołego 500 bez kodu w odpowiedzi (zweryfikowane przy Zadaniu 4, nagłówek
 -- 0010 — z tego powodu 0011 spłaciło dług P0012/P0013). Odmowa bez kodu jest
