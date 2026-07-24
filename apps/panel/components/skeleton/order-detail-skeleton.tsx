@@ -174,19 +174,21 @@ export function OrderDetailSkeleton() {
         </SkeletonRegion>
 
         <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">
-          {/* Status: nagłówek `text-xl leading-[26px]` + rząd przycisków
-              przejścia (h-9) z podpisem „wyślij e-mail" (text-xs). */}
+          {/* Status po N3: nagłówek `text-xl leading-[26px]` + JEDEN dropdown
+              przejść (`SelectTrigger` w rozmiarze domyślnym, czyli h-9;
+              szerokość `w-full sm:w-72` z adaptera panelowego). Rząd
+              przycisków zniknął razem ze `status-buttons.tsx`.
+
+              Nie malujemy nic pod spodem, choć sekcja bywa wyższa: podpowiedź
+              o zablokowanym anulowaniu, ostrzeżenie o niedostępnej wysyłce,
+              baner odliczania i komunikat wyniku są WARUNKOWE, a przy wejściu
+              na ekran nie ma żadnego z nich — szkielet nie obiecuje rzeczy,
+              których po załadowaniu nie widać (ta sama reguła co przy pasku
+              akcji masowych na liście i panelu edycji pozycji niżej). */}
           <SkeletonRegion region="section-status" className={SECTION_CLASS}>
             <SkeletonLine line="heading" className="w-40" />
             <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2">
-                {times(2).map((action) => (
-                  <div key={action} className="flex flex-col gap-1">
-                    <SkeletonBlock className="h-9 w-44 rounded-md" />
-                    <SkeletonLine line="caption" className="w-28" />
-                  </div>
-                ))}
-              </div>
+              <SkeletonBlock className="h-9 w-full rounded-md sm:w-72" />
             </div>
           </SkeletonRegion>
 

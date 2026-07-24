@@ -13,6 +13,7 @@ import {
   DELIVERY_PRICING_KEY,
   DeliveryPricingError,
   EMAIL_SENDER_KEY,
+  ORDER_STATUSES,
   calculateDeliveryCost,
   canTransition,
   deliveryPricingFromSettings,
@@ -26,6 +27,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
 import {
@@ -34,6 +36,7 @@ import {
   orderFormSchema,
   statusChangeFromFormData,
   statusChangeSchema,
+  uuidSchema,
 } from "@/lib/order-validation";
 import {
   rejectReasonFromCode,
@@ -310,19 +313,124 @@ export async function changeOrderStatusAction(
     };
   }
 
-  // Wysyłka jest krokiem PO utrwalonej tranzycji i NIGDY jej nie blokuje
-  // (ADR-033). Od tego miejsca w dół status jest już zmieniony w bazie —
-  // cokolwiek pójdzie nie tak z pocztą, akcja musi to zgłosić jako powód
-  // przy sukcesie, nie jako porażkę całej operacji.
-  const emailProblem =
-    parsed.data.sendEmail === "on"
-      ? await sendEmailAfterTransition(ctx, orderId, to as OrderStatus)
-      : undefined;
-
+  // WYSYŁKI TU NIE MA — i to jest zmiana z N3/ADR-075, nie przeoczenie.
+  // Tranzycja i powiadomienie klienta są od teraz DWOMA krokami: ten kończy
+  // się na utrwalonym statusie, a wiadomość wysyła osobna, jawnie wołana
+  // `sendTransitionEmailAction` — dopiero po 10-sekundowym oknie na
+  // cofnięcie. Dzięki temu „anuluj" znaczy, że mail NIE POSZEDŁ, a nie że
+  // ekran udaje cofnięcie czegoś, co już wyleciało (ADR-033 domknięte).
   revalidatePath("/", "layout");
-  // Sukces NIESIE powód niewysłania: status JEST zmieniony, ale operator
-  // musi wiedzieć, że klient nic nie dostał.
-  return emailProblem ? { success: "changed", formError: emailProblem } : { success: "changed" };
+  return { success: "changed" };
+}
+
+/**
+ * Wynik odroczonej wysyłki powiadomienia o zmianie statusu (N3, ADR-075).
+ *
+ * Jedno pole, bo jedno pytanie: „czy klient dostał wiadomość". Brak
+ * `problem` = poszła. Każdy inny wynik NIESIE POWÓD — także ten, w którym
+ * wiadomość wyszła, ale nie udało się jej zapisać w historii (ADR-045).
+ */
+export interface TransitionEmailState {
+  problem?: string;
+}
+
+/** Lustro ORDER_STATUSES — wejście akcji waliduje się jak każde inne. */
+const transitionEmailSchema = z.object({
+  orderId: uuidSchema,
+  status: z.enum(ORDER_STATUSES as unknown as [OrderStatus, ...OrderStatus[]]),
+});
+
+/**
+ * Wysyłka powiadomienia o zmianie statusu — OSOBNA, EKSPORTOWANA akcja
+ * (N3, ADR-075). Woła ją klient po upływie okna na cofnięcie; do tego czasu
+ * NIC nie leci ani do dostawcy, ani do `email_logs`.
+ *
+ * ============== DLACZEGO STATUS JEST SPRAWDZANY PONOWNIE ==============
+ *
+ * Wydzielenie wysyłki z tranzycji czyni z niej powierzchnię wołaną WPROST
+ * z przeglądarki: gdyby brała status z argumentu na słowo, członek tenanta
+ * mógłby wysłać klientowi „sprzęt wydany" do zamówienia, które stoi w
+ * `pending` — i to bez jednego kłamstwa po stronie bazy. Dlatego status
+ * z żądania musi zgadzać się z AUTORYTATYWNYM odczytem `orders.order_status`;
+ * rozjazd (ktoś zdążył zmienić status w oknie odliczania) kończy się odmową
+ * z powodem, nie wiadomością o nieprawdziwym stanie.
+ *
+ * Reszta pozostaje jak była: logika (bramki konfiguracji, uczciwa częściowa
+ * porażka) siedzi w `sendRentalEmailForTransition` i jest testowana bez
+ * Supabase, a treść trafia do historii WYŁĄCZNIE przez `sendAndLog`.
+ */
+export async function sendTransitionEmailAction(input: {
+  orderId: string;
+  status: OrderStatus;
+}): Promise<TransitionEmailState> {
+  const parsed = transitionEmailSchema.safeParse(input);
+  if (!parsed.success) return { problem: "Nieprawidłowe dane wysyłki wiadomości." };
+  const { orderId, status } = parsed.data;
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { problem: err.message };
+    throw err;
+  }
+
+  // Zapytania są niezależne — jedna runda, nie cztery po kolei.
+  const [orderResult, settingsResult, tenantResult, currency] = await Promise.all([
+    ctx.supabase
+      .from("orders")
+      .select(
+        "order_status, order_number, start_date, end_date, total_rental_grosze, customers(full_name, email, locale), pickup_locations(name)",
+      )
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", orderId)
+      .maybeSingle(),
+    ctx.supabase
+      .from("tenant_settings")
+      .select("key, value")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("key", EMAIL_SENDER_KEY),
+    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+    // `!` jak w całym panelu: requireMember rzuca, gdy tenanta brak (auth.ts).
+    getTenantCurrency(ctx.supabase, ctx.tenantId!),
+  ]);
+
+  const order = orderResult.data as (RentalEmailOrderRow & { order_status: OrderStatus }) | null;
+  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+  if (!order || !tenant) {
+    return {
+      problem:
+        "Nie udało się odczytać danych do wiadomości — klient nie dostał powiadomienia.",
+    };
+  }
+  if (order.order_status !== status) {
+    return {
+      problem:
+        "Status zamówienia zmienił się w międzyczasie — wiadomość NIE została wysłana, żeby nie opisywała nieaktualnego stanu.",
+    };
+  }
+
+  const problem = await sendRentalEmailForTransition({
+    status,
+    order,
+    orderId,
+    tenantName: tenant.name,
+    // tenants.locale jest not null (0005), ale nieznana wartość nie może
+    // wywrócić wysyłki — spada na domyślne locale tenanta.
+    locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,
+    currency,
+    settings: (settingsResult.data ?? []) as TenantSettingRow[],
+    availability: emailAvailability(),
+    transport: resendTransport(),
+    // Log idzie sesją członka (RLS tenant_insert, 0021) — ta sama bramka co
+    // przy tranzycji. `!` jak wyżej: requireMember rzuca bez tenanta.
+    recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
+  });
+
+  // Historia komunikacji zamówienia ma pokazać nowy wpis bez ręcznego
+  // odświeżenia — wysyłka jest dla tego ekranu zdarzeniem, nie tłem.
+  revalidatePath("/", "layout");
+  return problem ? { problem } : {};
 }
 
 /**
@@ -338,14 +446,17 @@ export interface BulkStatusState {
  * Masowa zmiana statusu zaznaczonych zamówień (uwaga przeglądu U4).
  *
  * OSOBNA AKCJA, nie parametr do changeOrderStatusAction: tamta obsługuje
- * JEDNO zamówienie z wysyłką e-maila i zwraca FormState, ta zwraca raport per
- * zamówienie. Sygnatura pojedynczej zostaje nietknięta — używa jej ekran
- * szczegółu (status-buttons).
+ * JEDNO zamówienie i zwraca FormState, ta zwraca raport per zamówienie.
+ * Sygnatura pojedynczej zostaje nietknięta — używa jej ekran szczegółu
+ * (status-select).
  *
  * Wysyłki wiadomości do klientów NIE robi (świadomie): masowa zmiana dziesięciu
  * statusów wysłałaby dziesięć maili bez możliwości przejrzenia treści, a
  * decyzja „wyślij" jest w tym produkcie zawsze jawna (ADR-033). Interfejs mówi
- * to wprost, zamiast po cichu nie wysyłać.
+ * to wprost, zamiast po cichu nie wysyłać. Od N3/ADR-075 ta zasada obowiązuje
+ * po OBU stronach: także zmiana pojedynczego statusu nie wysyła sama z siebie
+ * — wysyłkę zleca osobna `sendTransitionEmailAction`, po jawnej decyzji
+ * operatora i po oknie na cofnięcie.
  *
  * Odmowy przychodzą Z BAZY (trigger 0010) — akcja nie odsiewa nielegalnych
  * przejść przed wysłaniem żądania, patrz `lib/orders/bulk-status.ts`.
@@ -420,59 +531,3 @@ export async function changeOrderStatusBulkAction(
   return { report };
 }
 
-/**
- * Dociąga dane potrzebne do wiadomości i zleca wysyłkę. Zwraca powód
- * niewysłania albo undefined.
- *
- * Wydzielone z akcji, bo to wyłącznie I/O: logika (bramki konfiguracji,
- * uczciwa częściowa porażka) siedzi w sendRentalEmailForTransition i jest
- * testowana bez Supabase.
- */
-async function sendEmailAfterTransition(
-  ctx: Awaited<ReturnType<typeof requireMember>>,
-  orderId: string,
-  to: OrderStatus,
-): Promise<string | undefined> {
-  // Zapytania są niezależne — jedna runda, nie cztery po kolei.
-  const [orderResult, settingsResult, tenantResult, currency] = await Promise.all([
-    ctx.supabase
-      .from("orders")
-      .select(
-        "order_number, start_date, end_date, total_rental_grosze, customers(full_name, email, locale), pickup_locations(name)",
-      )
-      .eq("tenant_id", ctx.tenantId)
-      .eq("id", orderId)
-      .maybeSingle(),
-    ctx.supabase
-      .from("tenant_settings")
-      .select("key, value")
-      .eq("tenant_id", ctx.tenantId)
-      .eq("key", EMAIL_SENDER_KEY),
-    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
-    // `!` jak w całym panelu: requireMember rzuca, gdy tenanta brak (auth.ts).
-    getTenantCurrency(ctx.supabase, ctx.tenantId!),
-  ]);
-
-  const order = orderResult.data as RentalEmailOrderRow | null;
-  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
-  if (!order || !tenant) {
-    return "Status zmieniony, ale nie udało się odczytać danych do wiadomości — klient nie dostał powiadomienia.";
-  }
-
-  return sendRentalEmailForTransition({
-    status: to,
-    order,
-    orderId,
-    tenantName: tenant.name,
-    // tenants.locale jest not null (0005), ale nieznana wartość nie może
-    // wywrócić wysyłki — spada na domyślne locale tenanta.
-    locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,
-    currency,
-    settings: (settingsResult.data ?? []) as TenantSettingRow[],
-    availability: emailAvailability(),
-    transport: resendTransport(),
-    // Log idzie sesją członka (RLS tenant_insert, 0021) — ta sama bramka co
-    // przy tranzycji. `!` jak wyżej: requireMember rzuca bez tenanta.
-    recorder: panelEmailLogRecorder(ctx.supabase, ctx.tenantId!),
-  });
-}

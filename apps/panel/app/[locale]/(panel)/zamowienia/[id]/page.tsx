@@ -23,7 +23,7 @@ import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
-import { changeOrderStatusAction } from "../actions";
+import { changeOrderStatusAction, sendTransitionEmailAction } from "../actions";
 import { ContractSection } from "./contract-section";
 import {
   depositTotals,
@@ -42,7 +42,7 @@ import { CustomerCard } from "./customer-card";
 import { OrderNotes } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
 import { updateOrderNotesAction } from "./notes-actions";
-import { StatusButtons } from "./status-buttons";
+import { StatusSelect } from "./status-select";
 
 interface OrderDetailRow {
   id: string;
@@ -287,8 +287,12 @@ export default async function OrderDetailPage({
       {/* Sekcja statusu jest celem pozycji „Zmień status" z menu wiersza. */}
       <section id="status" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading>{t("statusSection")}</SectionHeading>
-        <StatusButtons
-          action={changeOrderStatusAction}
+        {/* Dwie akcje, nie jedna (N3, ADR-075): tranzycja utrwala się od
+            razu, a wysyłkę zleca osobna akcja dopiero po oknie na cofnięcie.
+            Wcześniej jedna akcja robiła oba kroki naraz. */}
+        <StatusSelect
+          changeStatus={changeOrderStatusAction}
+          sendEmail={sendTransitionEmailAction}
           orderId={row.id}
           currentStatus={row.order_status}
           paymentStatus={row.payment_status}
