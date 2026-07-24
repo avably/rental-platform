@@ -175,6 +175,7 @@ export async function createShipmentAction(
     productId: str(formData.get("productId")),
     insurance: str(formData.get("insurance")),
     insuranceValuePln: str(formData.get("insuranceValuePln")),
+    saturdayDelivery: str(formData.get("saturdayDelivery")),
     senderName: str(formData.get("senderName")),
     senderStreet: str(formData.get("senderStreet")),
     senderHouseNumber: str(formData.get("senderHouseNumber")),
@@ -263,6 +264,7 @@ export async function createShipmentAction(
     ...(parsed.data.insurance && parsed.data.insuranceValuePln !== undefined
       ? { insuranceValuePln: parsed.data.insuranceValuePln }
       : {}),
+    ...(parsed.data.saturdayDelivery ? { saturdayDelivery: true } : {}),
   });
 
   let created;

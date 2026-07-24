@@ -552,6 +552,8 @@
         "insuranceLabel": "Ubezpieczenie przesyłki",
         "insuranceValueLabel": "Wartość ubezpieczenia (PLN)",
         "insuranceHint": "Zadeklarowana wartość zawartości do ubezpieczenia.",
+        "saturdayLabel": "Dostawa w sobotę",
+        "saturdayHint": "Przesyłka może być dostarczana również w sobotę (jeśli przewoźnik oferuje).",
         "cancelCta": "Anuluj",
         "confirmCreateCta": "Potwierdź i utwórz",
         "creatingShipment": "Tworzę przesyłkę…",

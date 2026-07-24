@@ -138,6 +138,48 @@ describe("buildBestPriceRequest", () => {
     });
     expect(req.addons).toEqual({ INSURANCE: { value: 1500 } });
   });
+
+  it("dostawa w sobotę: addons.WEEKEND_DELIVERY = {} (PUSTY obiekt, dodatek bez wartości)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+      saturdayDelivery: true,
+    });
+    // To jest DOWÓD MUTACYJNY bramki soboty: bez dosłania WEEKEND_DELIVERY
+    // przesyłka nie dostaje dostawy sobotniej, choć operator ją zaznaczył.
+    expect(req.addons).toEqual({ WEEKEND_DELIVERY: {} });
+  });
+
+  it("sobota=false nie dokłada dodatku (żądanie bez addons)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+      saturdayDelivery: false,
+    });
+    expect(req.addons).toBeUndefined();
+  });
+
+  it("ubezpieczenie + sobota: oba dodatki obok siebie (kluczowane kategorią)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+      insuranceValuePln: 2000,
+      saturdayDelivery: true,
+    });
+    expect(req.addons).toEqual({ INSURANCE: { value: 2000 }, WEEKEND_DELIVERY: {} });
+  });
 });
 
 const PRODUCT: GlobKurierProduct = {
