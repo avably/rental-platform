@@ -6,11 +6,13 @@
  * stronami. Jedna funkcja obsługuje oba kierunki, żeby lustro nie mogło się
  * rozjechać w dwóch kopiach.
  */
+import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from "../money";
 import { PAYMENT_IDS } from "./config";
 import type {
   CourierSender,
   GlobKurierBestPriceAddress,
   GlobKurierBestPriceRequest,
+  GlobKurierProduct,
   ParcelDimensions,
   ShipmentStatus,
   ShipmentType,
@@ -64,6 +66,14 @@ function senderToParty(sender: CourierSender): ShipmentParty {
  * Stałe (faza 1): płatność z konta pre-paid tenanta, odbiór kurierem spod
  * adresu (PICKUP/PICKUP — paczkomaty wymagają pointId i są długiem),
  * purpose NOT_SOLD (sprzęt wynajęty, nie sprzedany), odbiorca prywatny.
+ *
+ * `productId` PRZYPINA przewoźnika wybranego w wyszukiwarce ofert: bez niego
+ * bestPrice sam dobiera najtańszy produkt (zachowanie sprzed wyszukiwarki),
+ * z nim operator dostaje dokładnie tego przewoźnika, którego zaznaczył
+ * i którego cenę widział. `insuranceValuePln` włącza ubezpieczenie przesyłki —
+ * dodatek jest kluczowany KATEGORIĄ (INSURANCE), nie liczbowym id produktu,
+ * więc nie łamie decyzji „bez ADDON_IDS" (plan Zadania 7). Oba parametry są
+ * opcjonalne: gdy ich nie ma, żądanie jest identyczne jak przed tą zmianą.
  */
 export function buildBestPriceRequest(params: {
   type: ShipmentType;
@@ -72,19 +82,26 @@ export function buildBestPriceRequest(params: {
   parcel: ParcelDimensions;
   content: string;
   referenceNumber: string;
+  productId?: number;
+  insuranceValuePln?: number;
 }): GlobKurierBestPriceRequest {
   const tenantParty = senderToParty(params.sender);
   const from = params.type === "outbound" ? tenantParty : params.customer;
   const to = params.type === "outbound" ? params.customer : tenantParty;
 
-  return {
-    shipment: {
-      length: params.parcel.lengthCm,
-      width: params.parcel.widthCm,
-      height: params.parcel.heightCm,
-      weight: params.parcel.weightKg,
-      quantity: 1,
-    },
+  const shipment: GlobKurierBestPriceRequest["shipment"] = {
+    length: params.parcel.lengthCm,
+    width: params.parcel.widthCm,
+    height: params.parcel.heightCm,
+    weight: params.parcel.weightKg,
+    quantity: 1,
+  };
+  if (params.productId !== undefined) {
+    shipment.productId = params.productId;
+  }
+
+  const request: GlobKurierBestPriceRequest = {
+    shipment,
     senderAddress: toBestPriceAddress(from),
     receiverAddress: toBestPriceAddress(to),
     content: params.content,
@@ -96,6 +113,47 @@ export function buildBestPriceRequest(params: {
     referenceNumber: params.referenceNumber,
     receiverType: "PRIVATE_PERSON",
   };
+  if (params.insuranceValuePln !== undefined) {
+    request.addons = { INSURANCE: { value: params.insuranceValuePln } };
+  }
+  return request;
+}
+
+/**
+ * Oferta przewoźnika dla panelu — kształt, który wychodzi do przeglądarki
+ * (bez surowego produktu API). Cena w GROSZACH (int), spójnie z resztą
+ * pieniędzy w systemie i z formatMoney; API GlobKurier podaje ją w złotych.
+ */
+export interface CarrierOffer {
+  productId: number;
+  serviceCode?: string;
+  carrierName: string;
+  carrierLogo?: string;
+  priceGrosze: number;
+  currency: CurrencyCode;
+  deliveryDays?: number;
+  deliveryTime?: string;
+}
+
+/**
+ * Produkt z searchProducts → oferta dla UI. `productId` (= `id` produktu) jest
+ * TYM, co wraca do createOrderBestPrice, żeby przypiąć wybór operatora;
+ * serviceCode/nazwa/logo są wyłącznie do pokazania. Cena brutto w złotych
+ * przeliczana na grosze. Waluta zawężana do obsługiwanej (GlobKurier to
+ * dostawca PL — nieznana wartość spada na PLN, nie wywraca formatowania kwoty).
+ */
+export function courierOfferFromProduct(product: GlobKurierProduct): CarrierOffer {
+  const offer: CarrierOffer = {
+    productId: product.id,
+    carrierName: product.carrierName,
+    priceGrosze: Math.round(product.priceGross * 100),
+    currency: isCurrencyCode(product.currency) ? product.currency : DEFAULT_CURRENCY,
+  };
+  if (product.serviceCode) offer.serviceCode = product.serviceCode;
+  if (product.carrierLogo) offer.carrierLogo = product.carrierLogo;
+  if (typeof product.deliveryDays === "number") offer.deliveryDays = product.deliveryDays;
+  if (product.deliveryTime) offer.deliveryTime = product.deliveryTime;
+  return offer;
 }
 
 const PROVIDER_STATUS_MAP: Record<string, ShipmentStatus> = {

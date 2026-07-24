@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBestPriceRequest, mapProviderStatus, type ShipmentParty } from "./shipments";
-import type { CourierSender, ParcelDimensions } from "./types";
+import {
+  buildBestPriceRequest,
+  courierOfferFromProduct,
+  mapProviderStatus,
+  type ShipmentParty,
+} from "./shipments";
+import type { CourierSender, GlobKurierProduct, ParcelDimensions } from "./types";
 
 const SENDER: CourierSender = {
   name: "Wypożyczalnia Testowa",
@@ -91,6 +96,93 @@ describe("buildBestPriceRequest", () => {
     });
     expect(req.senderAddress).not.toHaveProperty("apartmentNumber");
     expect(req.receiverAddress).not.toHaveProperty("apartmentNumber");
+  });
+
+  it("wybrany przewoźnik: productId przypina produkt w shipment (bramka wyboru)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+      productId: 4242,
+    });
+    // To jest DOWÓD MUTACYJNY wyboru przewoźnika: bez przeniesienia productId
+    // do shipment bestPrice dobiera najtańszy sam, a wybór operatora znika.
+    expect(req.shipment.productId).toBe(4242);
+  });
+
+  it("bez wyboru: brak productId → bestPrice dobiera najtańszy (zachowanie sprzed wyszukiwarki)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+    });
+    expect(req.shipment).not.toHaveProperty("productId");
+    expect(req.addons).toBeUndefined();
+  });
+
+  it("ubezpieczenie: zadeklarowana wartość → addons.INSURANCE (kategoria, nie ADDON_ID)", () => {
+    const req = buildBestPriceRequest({
+      type: "outbound",
+      sender: SENDER,
+      customer: CUSTOMER,
+      parcel: PARCEL,
+      content: "Sprzęt",
+      referenceNumber: "AV-2026-001",
+      insuranceValuePln: 1500,
+    });
+    expect(req.addons).toEqual({ INSURANCE: { value: 1500 } });
+  });
+});
+
+const PRODUCT: GlobKurierProduct = {
+  id: 4242,
+  name: "Paczka standard",
+  carrierName: "Przewoźnik A",
+  carrierLogo: "https://logo.example/a.png",
+  priceGross: 23.45,
+  priceNet: 19.06,
+  currency: "PLN",
+  deliveryTime: "1-2 dni",
+  deliveryDays: 2,
+  collectionType: "PICKUP",
+  serviceCode: "STD",
+};
+
+describe("courierOfferFromProduct", () => {
+  it("produkt API → oferta UI: cena w groszach (int), productId zachowany", () => {
+    const offer = courierOfferFromProduct(PRODUCT);
+    expect(offer).toEqual({
+      productId: 4242,
+      carrierName: "Przewoźnik A",
+      carrierLogo: "https://logo.example/a.png",
+      priceGrosze: 2345,
+      currency: "PLN",
+      deliveryDays: 2,
+      deliveryTime: "1-2 dni",
+      serviceCode: "STD",
+    });
+  });
+
+  it("pola opcjonalne (logo/serviceCode/czas) nieobecne, gdy API ich nie podało", () => {
+    const offer = courierOfferFromProduct({
+      id: 7,
+      name: "",
+      carrierName: "Przewoźnik B",
+      priceGross: 10,
+      priceNet: 8.13,
+      currency: "PLN",
+      collectionType: "PICKUP",
+    });
+    expect(offer.priceGrosze).toBe(1000);
+    expect(offer).not.toHaveProperty("carrierLogo");
+    expect(offer).not.toHaveProperty("serviceCode");
+    expect(offer).not.toHaveProperty("deliveryDays");
   });
 });
 

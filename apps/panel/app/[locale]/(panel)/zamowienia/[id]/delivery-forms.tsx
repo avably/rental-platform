@@ -1,10 +1,9 @@
 "use client";
 
-import { Button, Input, Label } from "@avably/ui";
+import { Button } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
-import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
@@ -26,6 +25,11 @@ function FormMessages({ state, successText }: { state: FormState; successText?: 
       </p>
     );
   }
+  // Neutralny komunikat (ani sukces, ani porażka) — np. zbiorcze odświeżenie,
+  // które udało się tylko dla części przesyłek (ADR-069, wzorzec `notice`).
+  if (state.notice) {
+    return <p className="text-muted-foreground text-sm">{state.notice}</p>;
+  }
   if (state.success && successText) {
     return <p className="text-status-positive-fg text-sm">{successText}</p>;
   }
@@ -33,90 +37,53 @@ function FormMessages({ state, successText }: { state: FormState; successText?: 
 }
 
 /**
- * Formularz nadania przesyłki (wysyłka/zwrot lustrzany). To jest UI —
- * autorytatywnie odmawia silnik (konfiguracja tenanta, czytelna lista braków)
- * i dostawca (walidacja adresów). Wymiary prefillowane z domyślnej paczki
- * tenanta (courier_parcel); numer domu klienta wpisuje operator, bo kartoteka
- * klienta trzyma ulicę jednym polem, a fabrykowanie wartości do API
- * kurierskiego to anty-wzorzec (ADR-031).
+ * Kopiowanie numeru śledzenia do schowka. Numer bywa długi i przepisywany do
+ * innych narzędzi — przycisk „Kopiuj" oszczędza zaznaczania; potwierdzenie
+ * „Skopiowano" gaśnie po chwili. Fail-cichy: gdy przeglądarka odmówi dostępu
+ * do schowka, nie wywracamy widoku (numer jest też linkiem do skopiowania).
  */
-export function CreateShipmentForm({
+export function TrackingCopyButton({ value }: { value: string }) {
+  const t = useTranslations("orders.delivery.section");
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-7 px-2 text-xs"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // Schowek niedostępny (np. brak uprawnień) — bez akcji, numer widać.
+        }
+      }}
+    >
+      {copied ? t("copiedOk") : t("copyCta")}
+    </Button>
+  );
+}
+
+/** Zbiorcze odświeżenie statusów wszystkich przesyłek zamówienia (ADR-031). */
+export function RefreshAllShipmentsButton({
   orderId,
-  defaults,
   action,
 }: {
   orderId: string;
-  defaults: { lengthCm: number; widthCm: number; heightCm: number; weightKg: number } | null;
   action: DeliveryAction;
 }) {
   const t = useTranslations("orders.delivery.section");
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border p-3 text-sm">
-      <p className="font-medium">{t("createTitle")}</p>
+    <form action={formAction} className="flex flex-col items-start gap-1">
       <input type="hidden" name="orderId" value={orderId} />
-
-      <Label htmlFor="shipment-type">{t("typeLabel")}</Label>
-      <PanelSelect
-        id="shipment-type"
-        name="shipmentType"
-        defaultValue="outbound"
-        disabled={pending}
-        className="rounded border px-3 py-2"
-        options={[
-          { value: "outbound", label: t("types.outbound") },
-          { value: "return", label: t("types.return") },
-        ]}
-      />
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="shipment-house-number">{t("houseNumberLabel")}</Label>
-          <Input id="shipment-house-number" name="houseNumber" disabled={pending} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="shipment-apartment-number">{t("apartmentNumberLabel")}</Label>
-          <Input id="shipment-apartment-number" name="apartmentNumber" disabled={pending} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {(
-          [
-            ["lengthCm", "lengthLabel", defaults?.lengthCm],
-            ["widthCm", "widthLabel", defaults?.widthCm],
-            ["heightCm", "heightLabel", defaults?.heightCm],
-            ["weightKg", "weightLabel", defaults?.weightKg],
-          ] as const
-        ).map(([name, label, defaultValue]) => (
-          <div key={name} className="flex flex-col gap-1">
-            <Label htmlFor={`shipment-${name}`}>{t(label)}</Label>
-            <Input
-              id={`shipment-${name}`}
-              name={name}
-              type="number"
-              step="0.1"
-              min="0"
-              defaultValue={defaultValue ?? ""}
-              disabled={pending}
-            />
-          </div>
-        ))}
-      </div>
-
-      <Label htmlFor="shipment-content">{t("contentLabel")}</Label>
-      <Input
-        id="shipment-content"
-        name="content"
-        defaultValue={t("contentDefault")}
-        disabled={pending}
-      />
-
-      <Button type="submit" disabled={pending}>
-        {t("createCta")}
+      <Button type="submit" variant="outline" disabled={pending}>
+        {t("refreshAllCta")}
       </Button>
-      <FormMessages state={state} successText={t("createdOk")} />
+      <FormMessages state={state} successText={t("refreshedAllOk")} />
     </form>
   );
 }

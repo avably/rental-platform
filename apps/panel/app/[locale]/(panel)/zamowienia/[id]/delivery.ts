@@ -37,6 +37,64 @@ export const SHIPMENT_ROW_COLUMNS =
   "id, shipment_type, status, provider_order_number, provider_status, tracking_number, tracking_url, price_grosze, created_at";
 
 /**
+ * Prefill jednej strony przesyłki dla modalu nadania (wszystko jako string —
+ * pola formularza). Definicja żyje TU (moduł bez dyrektyw), żeby importował ją
+ * i server component, i klient modalu, bez sięgania serwera do „use client".
+ */
+export interface PartyDefaults {
+  name: string;
+  street: string;
+  houseNumber: string;
+  apartmentNumber: string;
+  postCode: string;
+  city: string;
+  phone: string;
+  email: string;
+}
+
+interface OrderCustomerRow {
+  customers: {
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    address_street: string | null;
+    address_zip: string | null;
+    address_city: string | null;
+  } | null;
+}
+
+/**
+ * Prefill odbiorcy z kartoteki klienta zamówienia. Numer domu/lokalu zostają
+ * puste — kartoteka trzyma ulicę jednym polem, a operator uzupełni je w modalu
+ * (edytowalny override). Braki to puste stringi, nie zmyślone wartości.
+ */
+export async function loadRecipientDefaults(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+): Promise<PartyDefaults> {
+  const { data } = await supabase
+    .from("orders")
+    .select(
+      "customers(full_name, email, phone, address_street, address_zip, address_city)",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("id", orderId)
+    .maybeSingle();
+  const customer = (data as unknown as OrderCustomerRow | null)?.customers ?? null;
+  return {
+    name: customer?.full_name ?? "",
+    street: customer?.address_street ?? "",
+    houseNumber: "",
+    apartmentNumber: "",
+    postCode: customer?.address_zip ?? "",
+    city: customer?.address_city ?? "",
+    phone: customer?.phone ?? "",
+    email: customer?.email ?? "",
+  };
+}
+
+/**
  * Nadanie przesyłki ograniczone do metody 'courier': paczkomaty wymagają
  * pointId punktu (dług — ADR-031), pickup/own_delivery nie są przesyłkami.
  */
