@@ -14,6 +14,15 @@
  * Przycisk zapisu jest wygaszony, dopóki nic się nie zmieniło: „zapisz" bez
  * zmiany to żądanie do bazy, które niczego nie robi, i sekunda niepewności,
  * czy aby na pewno.
+ *
+ * POTWIERDZENIE ZAPISU BIERZE SIĘ Z ODPOWIEDZI AKCJI, NIE Z ODŚWIEŻENIA
+ * PROPSA. Pierwsza wersja porównywała treść z `notes` przychodzącym z serwera
+ * i na tym opierała zarówno wygaszenie przycisku, jak i komunikat „zapisano".
+ * Na żywym panelu (weryfikacja w przeglądarce) zapis przechodził do bazy,
+ * a operator NIE DOSTAWAŁ ŻADNEGO POTWIERDZENIA: prop wracał z odświeżenia
+ * później niż wynik akcji, więc ekran wyglądał identycznie jak przed
+ * kliknięciem. „Zapisało się czy nie" jest przy notatce z odbioru sprzętu
+ * pytaniem, które kosztuje drugie wpisanie tego samego.
  */
 import { Button, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
@@ -34,12 +43,19 @@ export function OrderNotes({
 }) {
   const t = useTranslations("orders.notes");
   const [value, setValue] = useState(notes ?? "");
+  /** Ostatnia treść, o której WIEMY, że jest w bazie — punkt odniesienia. */
+  const [saved, setSaved] = useState(notes ?? "");
   const [state, formAction, pending] = useActionState<FormState, FormData>(
-    async (prev, formData) => action(prev, formData),
+    async (prev, formData) => {
+      const submitted = String(formData.get("notes") ?? "");
+      const result = await action(prev, formData);
+      if (result.success) setSaved(submitted);
+      return result;
+    },
     {},
   );
 
-  const unchanged = value.trim() === (notes ?? "").trim();
+  const unchanged = value.trim() === saved.trim();
   const fieldError = state.fieldErrors?.notes;
 
   return (

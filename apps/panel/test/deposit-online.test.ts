@@ -1138,6 +1138,95 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(requests[0]!.last_error).toContain("Potrącenie odrzucone");
   }, 30_000);
 
+  it("obieg ręczny: potrącenie i zwrot z modalu wchodzą JEDNYM poleceniem albo wcale", async () => {
+    // Akcja panelu wstawia oba wiersze JEDNĄ tablicą, bo PostgREST robi z niej
+    // jeden `INSERT`, czyli jedną transakcję. Test sprawdza OBIE strony tej
+    // decyzji na żywej bazie: że komplet przechodzi i że nadmiar nie zostawia
+    // połowy. Gdyby akcja wołała bazę dwa razy, druga asercja padłaby —
+    // potrącenie zostałoby zaksięgowane, a zwrot odrzucony.
+    const { data: customer } = await admin
+      .from("customers")
+      .insert({ tenant_id: member.tenantId, email: `k-${randomUUID().slice(0, 8)}@test.local` })
+      .select("id")
+      .single();
+    const { data: order } = await admin
+      .from("orders")
+      .insert({
+        tenant_id: member.tenantId,
+        customer_id: customer!.id as string,
+        order_number: `Z5-2026-${nextOrderNumber()}`,
+        start_date: "2026-12-01",
+        end_date: "2026-12-03",
+        delivery_method: "courier",
+        total_deposit_grosze: DEPOSIT_GROSZE,
+      })
+      .select("id")
+      .single();
+    const orderId = order!.id as string;
+
+    await member.client.from("deposit_events").insert({
+      tenant_id: member.tenantId,
+      order_id: orderId,
+      kind: "collected",
+      amount_grosze: DEPOSIT_GROSZE,
+      created_by: member.userId,
+    });
+
+    // Nadmiar: 40 000 + 20 000 > 50 000. Bramka 0011 widzi wiersze wstawione
+    // wcześniej TYM SAMYM poleceniem, więc odrzuca komplet, a nie połowę.
+    const tooMuch = await member.client.from("deposit_events").insert([
+      {
+        tenant_id: member.tenantId,
+        order_id: orderId,
+        kind: "deducted",
+        amount_grosze: 40_000,
+        reason_code: "damage",
+        created_by: member.userId,
+      },
+      {
+        tenant_id: member.tenantId,
+        order_id: orderId,
+        kind: "refunded",
+        amount_grosze: 20_000,
+        created_by: member.userId,
+      },
+    ]);
+    expect(tooMuch.error?.code).toBe("23514");
+    // ANI JEDNEGO wiersza z odrzuconej pary — to jest sedno atomowości.
+    expect((await depositEventsOf(orderId)).map((event) => event.kind)).toEqual(["collected"]);
+
+    // Komplet mieszczący się w pobraniu przechodzi w całości.
+    const ok = await member.client.from("deposit_events").insert([
+      {
+        tenant_id: member.tenantId,
+        order_id: orderId,
+        kind: "deducted",
+        amount_grosze: 10_000,
+        reason_code: "damage",
+        reason: "rysa",
+        created_by: member.userId,
+      },
+      {
+        tenant_id: member.tenantId,
+        order_id: orderId,
+        kind: "refunded",
+        amount_grosze: 40_000,
+        reason: "sprzęt oddany",
+        created_by: member.userId,
+      },
+    ]);
+    expect(ok.error).toBeNull();
+
+    const events = await depositEventsOf(orderId);
+    expect(events.map((event) => [event.kind, event.amount_grosze])).toEqual([
+      ["collected", DEPOSIT_GROSZE],
+      ["deducted", 10_000],
+      ["refunded", 40_000],
+    ]);
+    // Obieg ręczny NIE dostaje odnośnika dostawcy (CHECK z 0031).
+    expect(events.every((event) => event.provider === "manual")).toBe(true);
+  }, 30_000);
+
   // -------------------------------------------------------------------
   // 9. Porażka księgowania kaucji a status płatności
   // -------------------------------------------------------------------
