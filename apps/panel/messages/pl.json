@@ -75,7 +75,8 @@
       "pickup_return_reminder": "Przypomnienie o zwrocie",
       "checkout_confirmation": "Potwierdzenie zamówienia ze sklepu",
       "new_order_notification": "Powiadomienie o nowym zamówieniu",
-      "rental_contract": "Umowa najmu"
+      "rental_contract": "Umowa najmu",
+      "invoice": "Faktura"
     }
   },
   "nav": {
@@ -368,6 +369,35 @@
       "notSent": "Nie wysłano",
       "regenerate": "Generuj ponownie",
       "preview": "Podgląd"
+    },
+    "invoice": {
+      "title": "Faktura",
+      "send": "Wyślij fakturę",
+      "sendAgain": "Wyślij ponownie",
+      "sending": "Wysyłanie…",
+      "confirmSend": "Wyślij do klienta",
+      "cancel": "Anuluj",
+      "dialogTitle": "Wysyłka faktury",
+      "dialogRecipient": "Wiadomość pójdzie na adres klienta: {email}",
+      "fileLabel": "Plik faktury (PDF)",
+      "fileHint": "Tylko PDF, najwyżej {limit} MB.",
+      "noArchiveNote": "Wysłanego pliku nie przechowujemy — historia zapisze, że faktura poszła i na jaki adres, ale sam dokument zostaje u Ciebie.",
+      "notSent": "Faktury jeszcze nie wysłano.",
+      "sentBadge": "Wysłana",
+      "lastSentAt": "Wysłano {at}",
+      "sentCount": "Liczba wysyłek: {count}",
+      "sentSuccess": "Faktura została wysłana do klienta.",
+      "noCustomerEmail": "Zamówienie nie ma adresu e-mail klienta — nie ma dokąd wysłać faktury.",
+      "errors": {
+        "order": "Nie znaleziono zamówienia.",
+        "missing": "Wybierz plik faktury do wysłania.",
+        "empty": "Wybrany plik jest pusty.",
+        "type": "Faktura musi być plikiem PDF.",
+        "size": "Faktura może mieć najwyżej {limit} MB.",
+        "noCustomerEmail": "Zamówienie nie ma adresu e-mail klienta — faktura nie została wysłana.",
+        "unavailable": "Wysyłka e-maili jest niedostępna.",
+        "send": "Nie udało się wysłać faktury: {reason}"
+      }
     },
     "statusLabels": {
       "order": {

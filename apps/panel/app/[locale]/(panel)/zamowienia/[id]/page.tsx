@@ -37,6 +37,7 @@ import { DepositForms } from "./deposit-forms";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
+import { InvoiceSection } from "./invoice-section";
 import { ItemsSection } from "./items-section";
 import { CustomerCard } from "./customer-card";
 import { OrderNotes } from "./order-notes";
@@ -280,6 +281,14 @@ export default async function OrderDetailPage({
           </section>
 
           <ContractSection orderId={row.id} />
+
+          {/* Faktura stoi POD umową i to nie jest przypadek: obie karty
+              dotyczą dokumentów wysyłanych klientowi, ale umowa powstaje
+              u nas, a faktura przychodzi z zewnątrz i my ją tylko doręczamy
+              (D3, ADR-076). Adres klienta wchodzi propem, bo `page.tsx`
+              i tak go czyta — drugi odczyt tego samego pola po to, żeby
+              sekcja była „samowystarczalna", byłby zapytaniem dla zasady. */}
+          <InvoiceSection orderId={row.id} customerEmail={row.customers?.email ?? null} />
         </aside>
 
         <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">

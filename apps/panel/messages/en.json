@@ -75,7 +75,8 @@
       "pickup_return_reminder": "Return reminder",
       "checkout_confirmation": "Storefront order confirmation",
       "new_order_notification": "New order notification",
-      "rental_contract": "Rental contract"
+      "rental_contract": "Rental contract",
+      "invoice": "Invoice"
     }
   },
   "nav": {
@@ -368,6 +369,35 @@
       "notSent": "Not sent",
       "regenerate": "Regenerate",
       "preview": "Preview"
+    },
+    "invoice": {
+      "title": "Invoice",
+      "send": "Send invoice",
+      "sendAgain": "Send again",
+      "sending": "Sending…",
+      "confirmSend": "Send to customer",
+      "cancel": "Cancel",
+      "dialogTitle": "Send invoice",
+      "dialogRecipient": "The message will go to the customer's address: {email}",
+      "fileLabel": "Invoice file (PDF)",
+      "fileHint": "PDF only, up to {limit} MB.",
+      "noArchiveNote": "We do not store the sent file — the history records that the invoice went out and to which address, but the document itself stays with you.",
+      "notSent": "The invoice has not been sent yet.",
+      "sentBadge": "Sent",
+      "lastSentAt": "Sent {at}",
+      "sentCount": "Times sent: {count}",
+      "sentSuccess": "The invoice has been sent to the customer.",
+      "noCustomerEmail": "This order has no customer email address — there is nowhere to send the invoice.",
+      "errors": {
+        "order": "Order not found.",
+        "missing": "Choose an invoice file to send.",
+        "empty": "The selected file is empty.",
+        "type": "The invoice must be a PDF file.",
+        "size": "The invoice may be at most {limit} MB.",
+        "noCustomerEmail": "This order has no customer email address — the invoice was not sent.",
+        "unavailable": "Email sending is unavailable.",
+        "send": "Could not send the invoice: {reason}"
+      }
     },
     "statusLabels": {
       "order": {

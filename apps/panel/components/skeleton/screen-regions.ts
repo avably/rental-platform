@@ -291,6 +291,12 @@ export const ORDER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
     note: "karta „Umowa najmu” w panelu bocznym",
   },
   {
+    region: "invoice-card",
+    from: "source",
+    anchor: "<InvoiceSection",
+    note: "karta „Faktura” w panelu bocznym (D3, ADR-076) — wysyłka PDF-a od operatora i stan „wysłana” WYPROWADZONY z historii wiadomości, bez kolumny w orders",
+  },
+  {
     region: "section-status",
     from: "source",
     anchor: 'id="status"',
@@ -358,6 +364,7 @@ export const ORDER_DETAIL_SCREEN_PARTS: readonly string[] = [
   "DeliverySection",
   "EmailLogSection",
   "ExtensionSection",
+  "InvoiceSection",
   "ItemsSection",
   "OrderTimeline",
 ] as const;

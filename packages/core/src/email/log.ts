@@ -22,9 +22,15 @@
 import type { EmailTransport, OutgoingEmail } from "./types";
 
 /**
- * Rodzaje wiadomości — kontrakt z CHECK-iem kolumny email_logs.kind (0021).
- * Rozjazd tej listy z migracją kończy się 23514 przy zapisie, nie cichym
- * pominięciem wpisu.
+ * Rodzaje wiadomości — kontrakt z CHECK-iem kolumny email_logs.kind (0021,
+ * rozszerzonym w 0026 i 0036). Rozjazd tej listy z migracją kończy się 23514
+ * przy zapisie, nie cichym pominięciem wpisu.
+ *
+ * `invoice` (0036, ADR-076) to DORĘCZENIE faktury wystawionej poza systemem:
+ * plik wskazany przez operatora idzie do klienta jako załącznik. Nazwa mówi
+ * o WIADOMOŚCI, nie o dokumencie — faktury nie wystawiamy ani nie
+ * archiwizujemy, więc rodzaj nie ciągnie za sobą ani numeracji, ani
+ * odnośnika do dokumentu (inaczej niż `rental_contract`).
  */
 export const EMAIL_LOG_KINDS = [
   "rental_confirmed",
@@ -38,6 +44,7 @@ export const EMAIL_LOG_KINDS = [
   "checkout_confirmation",
   "new_order_notification",
   "rental_contract",
+  "invoice",
 ] as const;
 
 export type EmailLogKind = (typeof EMAIL_LOG_KINDS)[number];
