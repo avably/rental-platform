@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -6,21 +8,28 @@ import { describe, expect, it, vi } from "vitest";
 import messages from "../messages/pl.json";
 
 /**
- * Kontrakt zwijanego sidebara (uwaga przeglądu właściciela 2026-07-23).
+ * Kontrakt zwijanego sidebara (uwaga przeglądu właściciela 2026-07-23,
+ * rozszerzony po uwagach M1/M2 z 2026-07-24).
  *
- * Powłoka ma DWA stany i test broni OBU, bo cały sens zmiany leży w różnicy
- * między nimi:
- *  • ROZWINIĘTY — ikona + etykieta tekstowa (`data-nav-label`), nagłówki grup,
- *    badge zapowiedzi; jak przed zmianą.
- *  • ZWINIĘTY — sam pasek ikon: etykieta znika z przepływu (`data-nav-label`
- *    NIEOBECNE), a nazwa przenosi się do `aria-label` linku i wizualnego
- *    tooltipa (`data-nav-tooltip`). Aktywna pozycja W OBU stanach niesie
- *    `aria-current="page"` i `bg-accent` — „tu stoisz" nie może zniknąć razem
- *    z etykietą.
+ * SEDNO PO NAPRAWIE M2: powłoka ma dwa STANY, ale JEDEN RENDER. Stan zwinięcia
+ * mieszka w `localStorage` i trafia na `<html data-sidebar>` przez skrypt
+ * startowy — PRZED pierwszym malowaniem. Serwer tej wartości nie zna, więc
+ * cokolwiek wybiera GAŁĄŹ REACTA, maluje się w wariancie rozwiniętym na już
+ * zwężonym pasku i znika dopiero po hydracji. To był skok przy ładowaniu.
  *
- * Render `renderToStaticMarkup` (środowisko `node`, jak reszta suity powłoki):
- * `SidebarNav`/`SidebarToggle` czytają stan zewnętrzny hookiem, ale przyjmują
- * `collapsed` propem, więc test steruje stanem bez `document`.
+ * Dlatego test broni MECHANIZMU, nie wyglądu:
+ *  (1) markup niesie OBA warianty naraz — etykiety i dymki, nagłówki grup
+ *      i separatory, badge; nic nie zależy od stanu klienta;
+ *  (2) każdy z tych elementów przełącza się wariantem `rail-collapsed:`
+ *      (albo regułą `[data-nav-tooltip]` w arkuszu), czyli atrybutem
+ *      ustawionym przed malowaniem;
+ *  (3) źródła powłoki NIE MOGĄ wrócić do gałęzi Reacta po stanie zwinięcia —
+ *      skan źródeł pali suitę, gdy ktoś przywróci `collapsed ? … : …`.
+ *
+ * M1 (kontekst układania) też jest kontraktem: `md:sticky` na `<aside>` czyni
+ * z paska osobny kontekst układania, więc `z-index` dymka NIE SIĘGA poza pasek.
+ * Warstwę ustawia POWŁOKA (`md:z-40` na pasku), a dymki zostają nisko —
+ * regres w postaci licytacji `z-50` na dymku pali test.
  */
 
 const pathname = vi.hoisted(() => ({ current: "/zamowienia" }));
@@ -33,14 +42,25 @@ vi.mock("@/i18n/navigation", () => ({
 
 const { SidebarNav, PANEL_NAV_ID } = await import("@/components/shell/sidebar-nav");
 const { SidebarToggle } = await import("@/components/shell/sidebar-toggle");
+const { SuperadminEntry } = await import("@/components/shell/superadmin-entry");
 const { NAV_ICON_STROKE_WIDTH } = await import("@/components/shell/nav-icons");
-const { PANEL_NAV_ITEMS } = await import("@/lib/shell/nav");
+const { PANEL_NAV_ITEMS, PANEL_NAV_GROUPS } = await import("@/lib/shell/nav");
 
-function renderNav(collapsed: boolean, path = "/zamowienia"): string {
+function source(relative: string): string {
+  return readFileSync(resolve(process.cwd(), relative), "utf8");
+}
+
+const NAV_SOURCE = source("components/shell/sidebar-nav.tsx");
+const TOGGLE_SOURCE = source("components/shell/sidebar-toggle.tsx");
+const SUPERADMIN_SOURCE = source("components/shell/superadmin-entry.tsx");
+const LAYOUT_SOURCE = source("app/[locale]/(panel)/layout.tsx");
+const CSS_SOURCE = source("app/globals.css");
+
+function renderNav(path = "/zamowienia"): string {
   pathname.current = path;
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="pl" messages={messages}>
-      <SidebarNav collapsed={collapsed} />
+      <SidebarNav />
     </NextIntlClientProvider>,
   );
 }
@@ -60,47 +80,65 @@ function anchorFor(html: string, id: string): string {
   return match![0];
 }
 
-describe("kontrakt sidebara — stan ROZWINIĘTY", () => {
-  const html = renderNav(false);
+/** Znaczniki otwierające elementy niosące podany atrybut-marker. */
+function tagsWith(html: string, marker: string): string[] {
+  return [...html.matchAll(new RegExp(`<[a-z]+[^>]*\\b${marker}\\b[^>]*>`, "g"))].map(
+    (m) => m[0],
+  );
+}
 
-  it("każda pozycja niesie etykietę tekstową, nagłówki grup i badge są widoczne", () => {
+describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
+  const html = renderNav();
+
+  it("markup niesie OBA warianty naraz: etykiety i dymki, nagłówki grup i separatory, badge", () => {
     expect(PANEL_NAV_ITEMS.length).toBeGreaterThan(5); // podłoga: pusta lista nie chroni pętli
     for (const item of PANEL_NAV_ITEMS) {
       anchorFor(html, item.id);
     }
-    expect(html).toContain("data-nav-label");
+    // Wariant rozwinięty.
+    expect(tagsWith(html, "data-nav-label")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
+    expect(tagsWith(html, "data-nav-group-label")).toHaveLength(PANEL_NAV_GROUPS.length);
+    expect(tagsWith(html, "data-nav-badge")).toHaveLength(1);
     expect(html).toContain(messages.nav.groupSales);
     expect(html).toContain(messages.nav.comingSoon);
-  });
-
-  it("nie renderuje tooltipów — etykieta stoi w przepływie, nie w dymku", () => {
-    expect(html).not.toContain("data-nav-tooltip");
-    expect(html).not.toContain('role="tooltip"');
-  });
-});
-
-describe("kontrakt sidebara — stan ZWINIĘTY", () => {
-  const html = renderNav(true);
-
-  it("pokazuje ikony BEZ etykiety tekstowej w przepływie", () => {
-    // Sedno zwinięcia: znika widoczna etykieta i nagłówki grup, znika badge.
-    expect(html).not.toContain("data-nav-label");
-    expect(html).not.toContain(messages.nav.groupSales);
-    expect(html).not.toContain(messages.nav.comingSoon);
-  });
-
-  it("nazwę pozycji niesie aria-label ORAZ dostępny tooltip", () => {
-    for (const item of PANEL_NAV_ITEMS) {
-      const label = messages.nav[item.labelKey as keyof typeof messages.nav];
-      const anchor = anchorFor(html, item.id);
-      expect(anchor, `pozycja ${item.id} bez aria-label`).toContain(`aria-label="${label}"`);
-    }
-    // Tooltip jest realnym węzłem (rola + marker), nie samym atrybutem title.
-    const tooltips = [...html.matchAll(/data-nav-tooltip/g)];
-    expect(tooltips.length).toBe(PANEL_NAV_ITEMS.length + 1); // + zapowiedź
+    // Wariant zwinięty — W TYM SAMYM renderze.
+    expect(tagsWith(html, "data-nav-tooltip")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
+    expect(tagsWith(html, "data-nav-separator")).toHaveLength(PANEL_NAV_GROUPS.length - 1);
     expect(html).toContain('role="tooltip"');
     expect(html).not.toContain('title="');
-    // Zapowiedź dashboardu też dostaje dostępną nazwę.
+  });
+
+  it("każdy element zależny od zwinięcia przełącza się wariantem CSS, nie renderem", () => {
+    for (const tag of [
+      ...tagsWith(html, "data-nav-label"),
+      ...tagsWith(html, "data-nav-group-label"),
+      ...tagsWith(html, "data-nav-badge"),
+    ]) {
+      expect(tag, `element bez wariantu zwinięcia: ${tag}`).toContain(
+        "rail-collapsed:hidden",
+      );
+    }
+    for (const tag of tagsWith(html, "data-nav-separator")) {
+      expect(tag, `separator bez wariantu zwinięcia: ${tag}`).toContain(
+        "rail-collapsed:block",
+      );
+    }
+    // Dymek nie ma własnej klasy widoczności — całość należy do arkusza,
+    // więc w markupie NIE MOŻE stać `hidden` (to była wersja sprzed naprawy).
+    for (const tag of tagsWith(html, "data-nav-tooltip")) {
+      expect(tag, `dymek z klasą widoczności: ${tag}`).not.toMatch(
+        /class="[^"]*\bhidden\b/,
+      );
+    }
+  });
+
+  it("nazwa dostępna pozycji jest STAŁA — nie pojawia się dopiero po hydracji", () => {
+    for (const item of PANEL_NAV_ITEMS) {
+      const label = messages.nav[item.labelKey as keyof typeof messages.nav];
+      expect(anchorFor(html, item.id), `pozycja ${item.id} bez aria-label`).toContain(
+        `aria-label="${label}"`,
+      );
+    }
     expect(html).toContain(`aria-label="${messages.nav.dashboard}"`);
   });
 
@@ -112,18 +150,56 @@ describe("kontrakt sidebara — stan ZWINIĘTY", () => {
       expect(icon).toContain(`stroke-width="${NAV_ICON_STROKE_WIDTH}"`);
     }
   });
+
+  it("aktywna pozycja niesie aria-current i bg-accent (widoczne w obu stanach)", () => {
+    expect([...html.matchAll(/aria-current="page"/g)]).toHaveLength(1);
+    const orders = anchorFor(html, "orders");
+    expect(orders).toContain('aria-current="page"');
+    expect(orders).toContain("bg-accent");
+    expect(anchorFor(html, "catalog")).not.toContain("aria-current");
+  });
 });
 
-describe("kontrakt sidebara — aktywna pozycja w OBU stanach", () => {
-  it("aktywna trasa niesie aria-current i bg-accent niezależnie od zwinięcia", () => {
-    for (const collapsed of [false, true]) {
-      const html = renderNav(collapsed);
-      const stan = collapsed ? "zwinięty" : "rozwinięty";
-      expect([...html.matchAll(/aria-current="page"/g)], stan).toHaveLength(1);
-      const orders = anchorFor(html, "orders");
-      expect(orders, `${stan}: brak aria-current`).toContain('aria-current="page"');
-      expect(orders, `${stan}: brak bg-accent`).toContain("bg-accent");
-      expect(anchorFor(html, "catalog"), stan).not.toContain("aria-current");
+describe("kontrakt sidebara — źródła nie wracają do gałęzi Reacta (M2)", () => {
+  it("nawigacja NIE czyta stanu zwinięcia — nie ma czego rozjechać z serwerem", () => {
+    expect(NAV_SOURCE).not.toContain("useSidebarCollapsed");
+    expect(NAV_SOURCE).not.toMatch(/collapsed\s*\?/);
+  });
+
+  it("przełącznik i wejście superadmina wybierają wygląd CSS-em", () => {
+    // Ikona przełącznika: OBA warianty w DOM, wybór wariantem.
+    expect(TOGGLE_SOURCE).toContain("rail-collapsed:hidden");
+    expect(TOGGLE_SOURCE).toContain("rail-collapsed:block");
+    expect(TOGGLE_SOURCE).not.toMatch(/const\s+Icon\s*=\s*collapsed/);
+    expect(SUPERADMIN_SOURCE).toContain("rail-collapsed:hidden");
+    expect(SUPERADMIN_SOURCE).toContain("data-nav-tooltip");
+  });
+
+  it("arkusz definiuje wariant zakotwiczony w pasku i widoczność dymka", () => {
+    expect(CSS_SOURCE).toContain(
+      '@custom-variant rail-collapsed (html[data-sidebar="collapsed"] [data-sidebar-rail] &)',
+    );
+    expect(CSS_SOURCE).toMatch(/\[data-nav-tooltip\]\s*\{\s*display:\s*none/);
+    expect(CSS_SOURCE).toMatch(
+      /html\[data-sidebar="collapsed"\] \[data-sidebar-rail\] :hover > \[data-nav-tooltip\]/,
+    );
+  });
+});
+
+describe("kontrakt sidebara — kontekst układania dymka (M1)", () => {
+  it("warstwę ustawia POWŁOKA: pasek przyklejony dostaje własny numer warstwy", () => {
+    // `md:sticky` czyni z paska kontekst układania — bez numeru warstwy
+    // pozycjonowana treść strony (np. `sm:z-30` w pasku filtrów) wygrywa
+    // z dymkiem, bo stoi po pasku w porządku drzewa.
+    expect(LAYOUT_SOURCE).toContain("data-sidebar-rail");
+    expect(LAYOUT_SOURCE).toContain("md:sticky");
+    expect(LAYOUT_SOURCE).toContain("md:z-40");
+  });
+
+  it("dymki NIE licytują z-indeksem — problem nigdy nie był w ich wartości", () => {
+    for (const src of [NAV_SOURCE, SUPERADMIN_SOURCE]) {
+      expect(src).not.toContain("z-50");
+      expect(src).toContain("z-10");
     }
   });
 });
@@ -141,5 +217,18 @@ describe("kontrakt przełącznika zwijania", () => {
     const html = renderToggle(true);
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain(`aria-label="${messages.nav.sidebarExpand}"`);
+  });
+});
+
+describe("kontrakt wejścia superadmina w zwiniętym pasku", () => {
+  it("etykieta ustępuje CSS-em, nazwa dostępna zostaje na linku", () => {
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="pl" messages={messages}>
+        <SuperadminEntry superadmin label={messages.nav.superadminPanel} />
+      </NextIntlClientProvider>,
+    );
+    expect(html).toContain(`aria-label="${messages.nav.superadminPanel}"`);
+    expect(tagsWith(html, "data-nav-label")[0]).toContain("rail-collapsed:hidden");
+    expect(tagsWith(html, "data-nav-tooltip")).toHaveLength(1);
   });
 });

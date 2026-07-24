@@ -28,8 +28,6 @@ export function SidebarToggle({ collapsed: collapsedProp }: { collapsed?: boolea
   const stored = useSidebarCollapsed();
   const collapsed = collapsedProp ?? stored;
 
-  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-
   return (
     <button
       type="button"
@@ -40,7 +38,21 @@ export function SidebarToggle({ collapsed: collapsedProp }: { collapsed?: boolea
       aria-controls={PANEL_NAV_ID}
       className="border-border text-foreground flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-md border outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
     >
-      <Icon aria-hidden="true" className="size-4" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+      {/* OBIE ikony w DOM, wybór CSS-em (naprawa M2): serwer nie zna stanu
+          z `localStorage`, więc gałąź Reacta narysowałaby ikonę „zwiń" nad
+          już zwężonym paskiem i podmieniła ją dopiero po hydracji.
+          `aria-expanded` i `aria-label` zostają przy Reakcie — atrybutu CSS
+          nie ustawi, a ich korekta po hydracji nic nie przesuwa na ekranie. */}
+      <PanelLeftClose
+        aria-hidden="true"
+        className="size-4 rail-collapsed:hidden"
+        strokeWidth={NAV_ICON_STROKE_WIDTH}
+      />
+      <PanelLeftOpen
+        aria-hidden="true"
+        className="hidden size-4 rail-collapsed:block"
+        strokeWidth={NAV_ICON_STROKE_WIDTH}
+      />
     </button>
   );
 }
