@@ -987,4 +987,232 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(await refundRequestsOf(orderId)).toHaveLength(0);
     expect(await depositEventsOf(orderId)).toHaveLength(1);
   }, 30_000);
+
+  // -------------------------------------------------------------------
+  // 8. Rozliczenie Z JEDNEGO MODALU: potrącenie + zwrot (D7 / N5)
+  // -------------------------------------------------------------------
+  //
+  // Uproszczenie powierzchni nie ma prawa zdjąć ani jednego bezpiecznika Z5
+  // i Z11 — te trzy testy są tego dowodem, nie ilustracją.
+
+  it("potrącenie i zwrot z jednego modalu dają poprawne saldo w rejestrze", async () => {
+    const fixture = await paidOrderWithDeposit();
+    const DEDUCT = 15_000;
+    const REFUND = DEPOSIT_GROSZE - DEDUCT;
+
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => "re_modal_1",
+        readRefund: async () =>
+          refundRead({ refundId: "re_modal_1", status: "succeeded", amountGrosze: REFUND }),
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: REFUND,
+        actorId: member.userId,
+        deduction: { amountGrosze: DEDUCT, reasonCode: "damage", reason: "rysa na obudowie" },
+        refundNote: "sprzęt oddany kompletny",
+      },
+    );
+
+    expect(outcome.status).toBe("settled");
+    expect(outcome.deductionGrosze).toBe(DEDUCT);
+
+    // Arytmetyka W GROSZACH: pobrano 50 000, zatrzymano 15 000, oddano 35 000
+    // — saldo dokładnie 0, bez ani jednego grosza reszty.
+    const events = await depositEventsOf(fixture.orderId);
+    expect(events.map((event) => [event.kind, event.amount_grosze])).toEqual([
+      ["collected", DEPOSIT_GROSZE],
+      ["deducted", DEDUCT],
+      ["refunded", REFUND],
+    ]);
+    const balance = events.reduce(
+      (sum, event) => sum + (event.kind === "collected" ? event.amount_grosze : -event.amount_grosze),
+      0,
+    );
+    expect(balance).toBe(0);
+    // Potrącenie NIE jest ruchem u dostawcy — to nasze roszczenie wobec
+    // kaucji, którą już mamy, więc obieg zostaje `manual` i bez odnośnika.
+    expect(events[1]).toMatchObject({ provider: "manual", provider_reference: null });
+    expect(events[2]).toMatchObject({ provider: "stripe", provider_reference: "re_modal_1" });
+    expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
+  }, 30_000);
+
+  it("dwuklik RÓWNOLEGŁY w modalu księguje JEDNO potrącenie i JEDEN zwrot (Z11 po przebudowie)", async () => {
+    // TO JEST DOWÓD, ŻE UPROSZCZENIE NIE OTWORZYŁO DZIURY Z11 NA NOWO.
+    // Potrącenie wjechało do sekwencji zwrotu, więc dwuklik mógłby je
+    // zaksięgować DWA razy (bramka 0011 przepuszcza dwie kopie, dopóki suma
+    // mieści się w pobraniu) — a wtedy zwrot reszty, policzony od salda
+    // sprzed podwojenia, rozbiłby się o 23514 JUŻ PO wyjściu pieniędzy.
+    // Ratuje to WYŁĄCZNIE miejsce potrącenia: za unikatem jednego zwrotu
+    // w locie z 0032, nie przed nim.
+    const fixture = await paidOrderWithDeposit();
+    const DEDUCT = 10_000;
+    const REFUND = DEPOSIT_GROSZE - DEDUCT;
+
+    let providerCalls = 0;
+    const deps = {
+      db: member.client,
+      createRefund: async () => {
+        providerCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return "re_modal_rownolegly";
+      },
+      readRefund: async () =>
+        refundRead({
+          refundId: "re_modal_rownolegly",
+          status: "succeeded",
+          amountGrosze: REFUND,
+        }),
+    };
+    const input = {
+      tenantId: member.tenantId,
+      orderId: fixture.orderId,
+      amountGrosze: REFUND,
+      actorId: member.userId,
+      deduction: {
+        amountGrosze: DEDUCT,
+        reasonCode: "damage",
+        reason: null as string | null,
+      },
+    };
+
+    const outcomes = await Promise.all([
+      requestDepositRefund(deps, input),
+      requestDepositRefund(deps, input),
+    ]);
+
+    expect(providerCalls).toBe(1);
+    expect(outcomes.map((o) => o.status).sort()).toEqual(["pending", "settled"]);
+    // Przegrana ścieżka nie zaksięgowała potrącenia: 23505 pada PRZED nim.
+    expect(outcomes.map((o) => o.deductionGrosze).sort()).toEqual([0, DEDUCT]);
+
+    const events = await depositEventsOf(fixture.orderId);
+    expect(events.map((event) => event.kind)).toEqual(["collected", "deducted", "refunded"]);
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(1);
+    expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
+  }, 30_000);
+
+  it("odrzucone potrącenie nie wypuszcza żądania do dostawcy", async () => {
+    // Potrącenie większe niż pobranie odrzuca bramka 0011 (23514). Zwrot
+    // policzony w przeglądarce jako „saldo minus potrącenie" byłby wtedy
+    // zwrotem ZA MAŁYM — więc nie wychodzi w ogóle, a wiersz żądania
+    // zamyka się jako `failed`, żeby nie blokować kolejnej próby.
+    const fixture = await paidOrderWithDeposit();
+
+    let providerCalls = 0;
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          return "re_nigdy";
+        },
+        readRefund: async () => refundRead({ refundId: "re_nigdy" }),
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: 1_000,
+        actorId: member.userId,
+        deduction: {
+          amountGrosze: DEPOSIT_GROSZE + 1,
+          reasonCode: "damage",
+          reason: null,
+        },
+      },
+    );
+
+    expect(outcome.status).toBe("failed");
+    expect(outcome.deductionGrosze).toBe(0);
+    expect(providerCalls).toBe(0);
+    expect((await depositEventsOf(fixture.orderId)).map((event) => event.kind)).toEqual([
+      "collected",
+    ]);
+    // Wiersz żądania jest DOMKNIĘTY — kolejna próba nie odbije się od unikatu.
+    const requests = await refundRequestsOf(fixture.orderId);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.status).toBe("failed");
+    expect(requests[0]!.last_error).toContain("Potrącenie odrzucone");
+  }, 30_000);
+
+  // -------------------------------------------------------------------
+  // 9. Porażka księgowania kaucji a status płatności
+  // -------------------------------------------------------------------
+
+  it("porażka księgowania kaucji NIE cofa statusu płatności i naprawia się przy ponowieniu", async () => {
+    // Odnośnik intentu zajmuje wiersz CUDZEGO zamówienia — księgowanie
+    // dostaje 23505, a odczyt po zapisie nie widzi wiersza dla NASZEGO
+    // zamówienia, czyli porażkę nieponawialną. To jedyny realny kształt
+    // deterministycznej odmowy przy pobraniu: bramka salda z 0011 przepuszcza
+    // każde `collected` bez sprawdzania (pobranie może saldo tylko zwiększyć).
+    const fixture = await seedOnlineOrder();
+    const blocker = await seedOnlineOrder();
+
+    const { error: blockError } = await admin.from("deposit_events").insert({
+      tenant_id: member.tenantId,
+      order_id: blocker.orderId,
+      kind: "collected",
+      amount_grosze: 100,
+      provider: "stripe",
+      provider_reference: fixture.intentId,
+    });
+    expect(blockError).toBeNull();
+
+    const failedEventId = newEventId();
+    const rejected = await handleStripeWebhook(
+      signedRequest(
+        eventBody({
+          eventId: failedEventId,
+          type: "payment_intent.succeeded",
+          objectId: fixture.intentId,
+        }),
+      ),
+      webhookDeps({ readIntent: async () => intentRead({ intentId: fixture.intentId }) }),
+    );
+    expect(rejected.status).toBe(200);
+    expect(await rejected.json()).toMatchObject({ status: "rejected" });
+
+    // NIE COFNIĘTY: status jest dokładnie tym, czym był przed zdarzeniem.
+    // Zamówienie czeka na człowieka zamiast twierdzić, że kaucja jest
+    // zaksięgowana — i zostawia CZYTELNY ślad w rejestrze zdarzeń.
+    expect(await paymentStatusOf(fixture.orderId)).toBe("pending");
+    expect(await depositEventsOf(fixture.orderId)).toHaveLength(0);
+
+    const { data: logged } = await admin
+      .from("webhook_events")
+      .select("status, error")
+      .eq("event_id", failedEventId)
+      .single();
+    expect(logged).toMatchObject({ status: "failed" });
+    expect((logged as { error: string | null }).error).toBeTruthy();
+
+    // PONOWIENIE NAPRAWIA. Po usunięciu przeszkody kolejna dostawa księguje
+    // kaucję i dopiero wtedy przestawia status — dlatego księgowanie stoi
+    // PRZED zapisem `paid`, a nie po nim.
+    //
+    // Przeszkodę zdejmujemy kasując ZAMÓWIENIE, nie wiersz rejestru: rejestr
+    // kaucji jest append-only na poziomie UPRAWNIEŃ (0007 nie daje DELETE
+    // nikomu, także service_role), a kaskada z `orders` jest jedyną legalną
+    // drogą zniknięcia wiersza. `delete()` na `deposit_events` przeszłoby tu
+    // bez błędu i bez skutku — czyli test zielony z fałszywego powodu.
+    await admin.from("orders").delete().eq("id", blocker.orderId);
+    expect(await depositEventsOf(blocker.orderId)).toHaveLength(0);
+
+    const retried = await handleStripeWebhook(
+      signedRequest(
+        eventBody({
+          eventId: newEventId(),
+          type: "payment_intent.succeeded",
+          objectId: fixture.intentId,
+        }),
+      ),
+      webhookDeps({ readIntent: async () => intentRead({ intentId: fixture.intentId }) }),
+    );
+    expect(retried.status).toBe(200);
+    expect(await paymentStatusOf(fixture.orderId)).toBe("paid");
+    expect(await depositEventsOf(fixture.orderId)).toHaveLength(1);
+  }, 30_000);
 });

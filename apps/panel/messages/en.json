@@ -704,13 +704,7 @@
         "other": "Other reason"
       },
       "collectTitle": "Collect deposit",
-      "refundTitle": "Refund deposit",
-      "deductTitle": "Deduct from deposit",
-      "amountLabel": "Amount",
       "collectCta": "Record collection",
-      "refundFullCta": "Refund all ({amount})",
-      "refundPartialCta": "Partial refund",
-      "deductCta": "Record deduction",
       "reasonCodeLabel": "Deduction reason",
       "reasonLabel": "Details",
       "reasonPlaceholder": "required for “Other reason”",
@@ -723,7 +717,23 @@
         "pending": "Refund in progress",
         "succeeded": "Refund confirmed",
         "failed": "Refund rejected"
-      }
+      },
+      "trackOnline": "The deposit is collected and refunded automatically through the payment provider.",
+      "trackManual": "Manual track — the operator records the collection and the refund (cash, own transfer).",
+      "awaitingAutoCollect": "The deposit will be collected automatically once the provider confirms the payment.",
+      "ledgerToggle": "Settlement details",
+      "refundCta": "Refund deposit",
+      "refundModalTitle": "Refund deposit",
+      "refundAmountLabel": "Refund amount",
+      "refundNoteLabel": "Description (optional)",
+      "refundNotePlaceholder": "e.g. equipment returned complete and undamaged",
+      "refundConfirmCta": "Confirm refund",
+      "deductToggle": "Deduct part of the deposit",
+      "deductAmountLabel": "Deduction amount",
+      "summaryKept": "We keep",
+      "summaryPaidOut": "The customer will receive",
+      "summaryPaidOutManual": "To hand back to the customer",
+      "cancel": "Cancel"
     },
     "extension": {
       "title": "Rental extension",
@@ -732,6 +742,12 @@
       "quoteSurcharge": "Surcharge: {amount}",
       "pickDateHint": "Pick a date after the current rental end to see the surcharge.",
       "cta": "Extend rental"
+    },
+    "notes": {
+      "label": "Notes (equipment condition, deposit remarks)",
+      "placeholder": "e.g. deposit reduced by 50 for a scratched cable…",
+      "saveCta": "Save notes",
+      "saved": "Notes saved."
     }
   },
   "site": {

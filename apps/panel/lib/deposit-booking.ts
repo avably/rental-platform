@@ -77,6 +77,14 @@ export interface BookDepositEventInput {
   providerReference: string;
   /** Autor zapisu; NULL dla ścieżki webhooka (zapisu nie zrobił człowiek). */
   createdBy?: string | null;
+  /**
+   * Opis operatora („stan sprzętu przy odbiorze", „zwrot po ugodzie") —
+   * WYŁĄCZNIE na ścieżce panelu, bo przy webhooku nie ma człowieka, który
+   * by go napisał. CHECK `deposit_events_structured_reason` (0011) obejmuje
+   * `reason_code`, a nie `reason`, więc opis przy zwrocie jest legalny; KOD
+   * powodu przy zwrocie jest zabroniony i tego ten parametr nie rusza.
+   */
+  reason?: string | null;
 }
 
 /**
@@ -124,6 +132,7 @@ export async function bookDepositEvent(
     provider: DEPOSIT_PROVIDER_STRIPE,
     provider_reference: input.providerReference,
     created_by: input.createdBy ?? null,
+    reason: input.reason ?? null,
   });
 
   // ODCZYT PO ZAPISIE — także PO BŁĘDZIE. Brak błędu znaczy tylko „żądanie

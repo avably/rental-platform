@@ -31,18 +31,16 @@ import {
   runningBalances,
   type DepositEventRow,
 } from "./deposit";
-import {
-  collectDepositAction,
-  deductDepositAction,
-  refundDepositAction,
-} from "./deposit-actions";
+import { collectDepositAction, settleDepositAction } from "./deposit-actions";
 import { DeliverySection } from "./delivery-section";
 import { DepositForms } from "./deposit-forms";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
 import { CustomerCard } from "./customer-card";
+import { OrderNotes } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
+import { updateOrderNotesAction } from "./notes-actions";
 import { StatusButtons } from "./status-buttons";
 
 interface OrderDetailRow {
@@ -268,11 +266,23 @@ export default async function OrderDetailPage({
               {tDelivery(row.delivery_method)}
               {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
             </DetailField>
-            {row.notes ? (
-              <DetailField label={t("notes")}>
-                <span className="font-normal whitespace-pre-wrap">{row.notes}</span>
-              </DetailField>
-            ) : null}
+          </section>
+
+          {/* Notatki są EDYTOWALNE (uwaga właściciela N6). Kolumna
+              `orders.notes` istnieje od 0007 i do tej pory dało się ją
+              wypełnić wyłącznie z dostępem do bazy — brakowało zapisu,
+              nie miejsca na dane. */}
+          <section
+            aria-labelledby="notes-heading"
+            className="border-border bg-card flex flex-col gap-3 rounded-md border p-5"
+          >
+            <h2
+              id="notes-heading"
+              className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+            >
+              {t("notes")}
+            </h2>
+            <OrderNotes orderId={row.id} notes={row.notes} action={updateOrderNotesAction} />
           </section>
 
           <ContractSection orderId={row.id} />
@@ -353,10 +363,93 @@ export default async function OrderDetailPage({
 
       <section id="kaucja" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading>{tDeposit("title")}</SectionHeading>
+
+        {/* NAJPIERW DZIAŁANIE, POTEM DOWÓD (uproszczenie D7/N5). Saldo
+            i jeden przycisk stoją nad rejestrem, bo operator przychodzi tu
+            rozliczyć kaucję, a nie przeglądać chronologię. Chronologia jest
+            dowodem w sporze z klientem — zjeżdża do „szczegółów", zamiast
+            zajmować pierwszy ekran. */}
+        <DepositForms
+          orderId={row.id}
+          balanceGrosze={totals.balanceGrosze}
+          collectedGrosze={totals.collectedGrosze}
+          suggestedCollectGrosze={Math.max(row.total_deposit_grosze - totals.collectedGrosze, 0)}
+          currency={currency}
+          locale={locale}
+          online={isOnlineOrder}
+          refundInFlight={refundInFlight}
+          actions={{
+            collect: collectDepositAction,
+            settle: settleDepositAction,
+          }}
+        />
+
+        {/* STAN POŚREDNI MA WŁASNĄ REPREZENTACJĘ (Z5, ADR-069) i zostaje na
+            wierzchu, bo jest OSTRZEŻENIEM, a nie historią. „Zwrot w toku" nie
+            jest ani sukcesem, ani porażką: pieniądze wyszły z żądaniem, ale
+            u klienta ich jeszcze nie ma. Gdyby ten blok był schowany, operator
+            widziałby saldo dodatnie i rejestr bez wiersza — czyli obraz
+            nieodróżnialny od „nikt jeszcze nic nie zrobił" — i zlecił drugi
+            zwrot tej samej kaucji. */}
+        {isOnlineOrder && refundRequests.some((refund) => refund.status !== "succeeded") ? (
+          <ul className="flex flex-col gap-2 text-sm">
+            {refundRequests
+              .filter((refund) => refund.status !== "succeeded")
+              .map((refund) => (
+                <li key={refund.id} className="rounded border px-3.5 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                      {tDeposit(`refundStatus.${refund.status}`)}
+                    </Badge>
+                    <span className="tabular-nums tracking-[0.01em]">
+                      {formatMoney(refund.amount_grosze, currency, locale)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {depositTimestamp.format(new Date(refund.created_at))}
+                    </span>
+                  </div>
+                  {refund.last_error ? (
+                    <p className="text-muted-foreground mt-1">{refund.last_error}</p>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+        ) : null}
+
+        {/* `details`/`summary`, a nie stan Reacta: rozwijanie bez JS działa
+            tak samo w każdej przeglądarce, a sekcja jest server-rendered —
+            komponent kliencki tylko po to, żeby coś schować, byłby kosztem
+            bez zysku. */}
+        <details className="border-border bg-card group rounded-lg border">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium">
+            {tDeposit("ledgerToggle")}
+            <span className="text-muted-foreground ml-2 font-normal">
+              {tDeposit("collected")}:{" "}
+              <span className="tabular-nums tracking-[0.01em]">
+                {formatMoney(totals.collectedGrosze, currency, locale)}
+              </span>
+              {" · "}
+              {tDeposit("settled")}:{" "}
+              <span className="tabular-nums tracking-[0.01em]">
+                {formatMoney(totals.settledGrosze, currency, locale)}
+              </span>
+            </span>
+            {/* Rozliczona kaucja NIE jest osią statusu domenowego: nie ma
+                wpisu w statusSemantics, więc nie dostaje chipa statusu.
+                Zwykły badge mówi „stan wyliczony z salda", a nie „czwarta
+                oś" — i nie kusi do wpisania rodzaju z palca wbrew
+                kontraktowi tonu (ADR-057). */}
+            {isDepositSettled(totals) ? (
+              <Badge variant="outline" className="ml-2">
+                {tDeposit("settledBadge")}
+              </Badge>
+            ) : null}
+          </summary>
+          <div className="border-border border-t px-4 py-3">
         {depositEvents.length === 0 ? (
           <p className="text-muted-foreground text-sm">{tDeposit("empty")}</p>
         ) : (
-          <div className="border-border bg-card overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:border-b-border">
@@ -414,81 +507,8 @@ export default async function OrderDetailPage({
             </Table>
           </div>
         )}
-        {/* div, nie p: StatusBadge renderuje element inline w rzędzie chipów,
-            a układ i tak jest flexem, nie akapitem. */}
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span>
-            {tDeposit("collected")}:{" "}
-            <span className="tabular-nums tracking-[0.01em]">
-              {formatMoney(totals.collectedGrosze, currency, locale)}
-            </span>
-          </span>
-          <span>
-            {tDeposit("settled")}:{" "}
-            <span className="tabular-nums tracking-[0.01em]">
-              {formatMoney(totals.settledGrosze, currency, locale)}
-            </span>
-          </span>
-          <span className="font-semibold">
-            {tDeposit("balance")}:{" "}
-            <span className="tabular-nums tracking-[0.01em]">
-              {formatMoney(totals.balanceGrosze, currency, locale)}
-            </span>
-          </span>
-          {/* Rozliczona kaucja NIE jest osią statusu domenowego: nie ma wpisu
-              w statusSemantics, więc nie dostaje chipa statusu. Zwykły badge
-              mówi „stan wyliczony z salda", a nie „czwarta oś" — i nie kusi
-              do wpisania rodzaju z palca wbrew kontraktowi tonu (ADR-057). */}
-          {isDepositSettled(totals) ? (
-            <Badge variant="outline">{tDeposit("settledBadge")}</Badge>
-          ) : null}
-        </div>
-
-        {/* STAN POŚREDNI MA WŁASNĄ REPREZENTACJĘ (Z5, ADR-069).
-            „Zwrot w toku" nie jest ani sukcesem, ani porażką: pieniądze
-            wyszły z żądaniem, ale u klienta ich jeszcze nie ma. Gdyby ten
-            blok nie istniał, operator widziałby saldo dodatnie i rejestr bez
-            wiersza — czyli obraz nieodróżnialny od „nikt jeszcze nic nie
-            zrobił" — i zlecił drugi zwrot tej samej kaucji. */}
-        {isOnlineOrder && refundRequests.length > 0 ? (
-          <ul className="flex flex-col gap-2 text-sm">
-            {refundRequests
-              .filter((refund) => refund.status !== "succeeded")
-              .map((refund) => (
-                <li key={refund.id} className="rounded border px-3.5 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                      {tDeposit(`refundStatus.${refund.status}`)}
-                    </Badge>
-                    <span className="tabular-nums tracking-[0.01em]">
-                      {formatMoney(refund.amount_grosze, currency, locale)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {depositTimestamp.format(new Date(refund.created_at))}
-                    </span>
-                  </div>
-                  {refund.last_error ? (
-                    <p className="text-muted-foreground mt-1">{refund.last_error}</p>
-                  ) : null}
-                </li>
-              ))}
-          </ul>
-        ) : null}
-
-        <DepositForms
-          orderId={row.id}
-          balanceGrosze={totals.balanceGrosze}
-          suggestedCollectGrosze={Math.max(row.total_deposit_grosze - totals.collectedGrosze, 0)}
-          currency={currency}
-          locale={locale}
-          online={isOnlineOrder}
-          refundInFlight={refundInFlight}
-          actions={{
-            collect: collectDepositAction,
-            refund: refundDepositAction,
-            deduct: deductDepositAction,
-          }}
-        />
+          </div>
+        </details>
       </section>
 
       <ExtensionSection order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }} />
