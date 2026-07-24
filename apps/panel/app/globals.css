@@ -49,3 +49,39 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   width: 100%;
   max-width: var(--form-line-measure);
 }
+
+/*
+  PRÓG ANTYMIGOTANIA szkieletu ładowania (uwaga przeglądu N1).
+
+  Szkielet pokazany na 80 ms nie informuje o niczym — miga i czyta się jak
+  usterka. Standard UX mówi: nie pokazuj wskaźnika ładowania poniżej ~200 ms.
+  Next.js renderuje `loading.tsx` NATYCHMIAST po nawigacji, więc próg musi
+  siedzieć w prezentacji.
+
+  Robi go OPÓŹNIONA animacja pojawienia, a nie `visibility`/`display`: paski
+  są od pierwszej klatki obecne w układzie (`opacity: 0` nie zdejmuje pudełka),
+  więc przy szybkim odczycie użytkownik widzi po prostu pustą treść zamiast
+  mrugnięcia, a wysokość strony nie zmienia się ANI RAZ. Animacja jest
+  SKOŃCZONA (jedno przejście), więc nie łamie twardego zakazu `extra-loops`
+  z artefaktu — w panelu nie ma nieskończonego pulsowania.
+
+  `prefers-reduced-motion` obsługuje reguła globalna z `@avably/ui/styles.css`:
+  ścina `animation-duration` do 0.01 ms, ale NIE rusza `animation-delay` ani
+  `fill-mode` — próg 200 ms zostaje, znika samo przejście. To jest dokładnie
+  ten podział, o który chodzi: ruch jest ozdobą, próg jest funkcją.
+
+  Technika działa z konstrukcji w każdej przeglądarce (opacity + delay +
+  fill-mode `both`), bez `:has()`, `dvh` i innych rzeczy wrażliwych silnikowo.
+*/
+@keyframes skeleton-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+[data-skeleton-screen] {
+  animation: skeleton-reveal var(--motion-ui) var(--ease-standard) 200ms both;
+}
