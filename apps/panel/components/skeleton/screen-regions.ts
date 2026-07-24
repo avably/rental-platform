@@ -222,7 +222,13 @@ export const ORDER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
     region: "summary",
     from: "source",
     anchor: "data-order-summary",
-    note: "karta „Podsumowanie” w panelu bocznym: termin, dostawa, notatki",
+    note: "karta „Podsumowanie” w panelu bocznym: termin i dostawa (notatki wyprowadzone do własnej karty w #118)",
+  },
+  {
+    region: "notes",
+    from: "source",
+    anchor: 'id="notes-heading"',
+    note: "karta EDYTOWALNYCH notatek zamówienia (N6, #118) — etykieta, pole wieloliniowe i przycisk zapisu",
   },
   {
     region: "contract-card",
@@ -284,15 +290,17 @@ export const ORDER_DETAIL_SCREEN_PARTS: readonly string[] = [
 
 /** Lokalne komponenty szczegółu bez własnego regionu — każdy z powodem. */
 export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
-  DepositForms: "formularze operacji WEWNĄTRZ sekcji kaucji (region section-deposit)",
+  DepositForms: "karta salda i akcji WEWNĄTRZ sekcji kaucji (region section-deposit)",
   DetailField: "para etykieta/wartość WEWNĄTRZ karty podsumowania (region summary)",
+  OrderNotes: "formularz notatki WEWNĄTRZ karty notatek (region notes) — sam `<section>` stoi w page.tsx",
   StatusButtons: "przyciski przejścia WEWNĄTRZ sekcji statusu (region section-status)",
 };
 
 /**
  * Ile znaczników `<section` stoi WPROST w źródle szczegółu: podsumowanie
- * (panel boczny) oraz status, pozycje i kaucja (kolumna główna). Sekcje
- * wniesione przez komponenty (`<*Section`) liczy lista wyżej. Dołożenie
- * czwartej sekcji inline bez regionu w szkielecie pali kontrakt.
+ * i notatki (panel boczny) oraz status, pozycje i kaucja (kolumna główna).
+ * Sekcje wniesione przez komponenty (`<*Section`) liczy lista wyżej.
+ * Dołożenie kolejnej sekcji inline bez regionu w szkielecie pali kontrakt —
+ * i tak właśnie ta liczba urosła z 4 na 5 po #118 (karta notatek).
  */
-export const ORDER_DETAIL_INLINE_SECTIONS = 4;
+export const ORDER_DETAIL_INLINE_SECTIONS = 5;

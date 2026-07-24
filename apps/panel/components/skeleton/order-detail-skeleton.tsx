@@ -130,12 +130,37 @@ export function OrderDetailSkeleton() {
             </div>
           </SkeletonRegion>
 
-          {/* Podsumowanie: nagłówek (14) + termin + dostawa. Pole „notatki"
-              jest warunkowe — nie malujemy go z tego samego powodu. */}
+          {/* Podsumowanie: nagłówek (14) + termin + dostawa. Notatki wyszły
+              stąd do własnej karty (#118), więc pola są dokładnie dwa. */}
           <SkeletonRegion region="summary" className={ASIDE_CARD_CLASS}>
             <SkeletonLine line="micro" className="w-28" />
             <DetailFieldRow width="w-44" />
             <DetailFieldRow width="w-36" />
+          </SkeletonRegion>
+
+          {/* Notatki (N6, #118): nagłówek (14) + formularz `gap-2` z etykietą
+              `text-sm leading-none` (14), polem wieloliniowym i przyciskiem
+              `size="sm"` (32). Pole nosi `min-h-16` — tę SAMĄ podłogę
+              wysokości co `Textarea` z @avably/ui, zamiast zgadywanego piksela.
+              Karta ma `gap-3`, nie `gap-4` jak reszta panelu bocznego;
+              szkielet kopiuje tę różnicę, zamiast ją wygładzać. */}
+          <SkeletonRegion
+            region="notes"
+            className="border-border bg-card flex flex-col gap-3 rounded-md border p-5"
+          >
+            <SkeletonLine line="micro" className="w-20" />
+            <div className="flex flex-col gap-2">
+              {/* Etykieta pola jest DŁUGA („Notatki (stan sprzętu, uwagi
+                  o zwrocie kaucji)") i w kolumnie 320 px zawija się na dwie
+                  linie po 14 px. Dwa stykające się paski odwzorowują zawinięty
+                  wiersz i dają dokładnie te 28 px, zamiast jednego klocka. */}
+              <div className="flex flex-col">
+                <SkeletonBlock className="h-[14px] w-full" />
+                <SkeletonBlock className="h-[14px] w-32" />
+              </div>
+              <SkeletonBlock className="min-h-16 w-full rounded-md" />
+              <SkeletonBlock className="h-8 w-28 rounded-md" />
+            </div>
           </SkeletonRegion>
 
           {/* Umowa najmu: nagłówek z akcją i jeden wiersz treści. */}
@@ -172,8 +197,8 @@ export function OrderDetailSkeleton() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {["w-20", "w-16", "w-14", "w-14"].map((width) => (
-                      <TableHead key={width} className="px-3.5">
+                    {["w-20", "w-16", "w-14", "w-14"].map((width, column) => (
+                      <TableHead key={`${width}-${column}`} className="px-3.5">
                         <SkeletonLine line="micro" className={width} />
                       </TableHead>
                     ))}
@@ -202,30 +227,54 @@ export function OrderDetailSkeleton() {
             <SkeletonLine line="text" className="w-64" />
           </SkeletonRegion>
 
-          {/* Kaucja: nagłówek, rejestr zdarzeń (albo komunikat pustki),
-              podsumowanie sald i TRZY karty operacji (pobranie, zwrot,
-              potrącenie) w siatce `md:grid-cols-3` — jak `DepositForms`. */}
+          {/* Kaucja po uproszczeniu D7/N5 (#118): NAJPIERW DZIAŁANIE, POTEM
+              DOWÓD. Nagłówek, karta salda z jednym przyciskiem rozliczenia,
+              a chronologia zdarzeń w ZWINIĘTYCH szczegółach. Trzy kafle
+              formularzy z poprzedniej wersji już nie istnieją.
+
+              Karta salda: kolumna `gap-1` z mikro-etykietą (14), kwotą
+              `text-2xl leading-7` (28) i zdaniem o obiegu `text-sm` (20) =
+              70 px, po prawej przycisk `h-9` — wiersz `items-end` ma więc
+              70 px. Pod nim formularz pobrania „z ręki".
+
+              Dlaczego formularz pobrania JEST malowany, a wiersz firma/NIP
+              klienta nie: to dwa różne rodzaje warunku. Firma/NIP zależy od
+              REKORDU (to zamówienie może jej nie mieć) — takiego pola nie
+              obiecujemy. Formularz pobrania zależy od OBIEGU PŁATNOŚCI
+              TENANTA, który jest jednakowy dla wszystkich jego zamówień, a
+              obieg ręczny (`payment_provider = manual`) jest dziś domyślny
+              i dominujący — więc szkielet maluje gałąź dominującą, tak samo
+              jak przy liście maluje tenanta Z zamówieniami, a nie pusty stan.
+              Na torze dostawcy karta jest o te 92 px niższa. */}
           <SkeletonRegion region="section-deposit" className={SECTION_CLASS}>
             <SkeletonLine line="heading" className="w-28" />
-            <SkeletonLine line="text" className="w-72" />
-            <div className="flex flex-wrap items-center gap-3">
-              <SkeletonLine line="text" className="w-32" />
-              <SkeletonLine line="text" className="w-32" />
-              <SkeletonLine line="text" className="w-28" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {times(3).map((form) => (
-                <div key={form} className="flex flex-col gap-2 rounded border p-3">
-                  <SkeletonLine line="text" className="w-32" />
-                  {times(3).map((field) => (
-                    <div key={field} className="flex flex-col gap-2">
-                      <SkeletonLine line="caption" className="w-20" />
-                      <SkeletonBlock className="h-9 w-full rounded-md" />
-                    </div>
-                  ))}
+            <div className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4">
+              {/* Wiersz salda ZAWIJA SIĘ i to nie jest przypadek: zdanie
+                  o obiegu płatności jest długie (~485 px szerokości własnej),
+                  więc przycisk zwrotu nie mieści się obok i schodzi do drugiej
+                  linii flexa. Szkielet wymusza to samo `w-full` na kolumnie
+                  opisu — deterministycznie, bez dopasowywania piksela do
+                  długości jednego zdania. Wiersz ma przez to 70 + 12 + 36. */}
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="flex w-full flex-col gap-1">
+                  <SkeletonLine line="micro" className="w-16" />
+                  <SkeletonBlock className="h-7 w-32" />
+                  <SkeletonLine line="text" className="w-3/4" />
+                </div>
+                <SkeletonBlock className="h-9 w-40 rounded-md" />
+              </div>
+              <div className="border-border flex flex-wrap items-end gap-2 rounded-md border p-3">
+                <div className="flex min-w-40 flex-1 flex-col gap-1">
+                  <SkeletonBlock className="h-[14px] w-32" />
                   <SkeletonBlock className="h-9 w-full rounded-md" />
                 </div>
-              ))}
+                <SkeletonBlock className="h-9 w-44 rounded-md" />
+              </div>
+            </div>
+            {/* Rejestr wchodzi ZWINIĘTY, więc szkielet maluje samą ramkę
+                `<details>`: `px-4 py-3` + summary `text-sm` = 46 px. */}
+            <div className="border-border bg-card rounded-lg border px-4 py-3">
+              <SkeletonLine line="text" className="w-72" />
             </div>
           </SkeletonRegion>
 

@@ -212,7 +212,7 @@ describe("kontrakt szkieletów: dowody wejściowe", () => {
 
   it("manifesty nie są puste i mają unikalne nazwy regionów", () => {
     expect(ORDERS_LIST_REGIONS.length).toBeGreaterThanOrEqual(11);
-    expect(ORDER_DETAIL_REGIONS.length).toBeGreaterThanOrEqual(17);
+    expect(ORDER_DETAIL_REGIONS.length).toBeGreaterThanOrEqual(18);
     for (const manifest of [ORDERS_LIST_REGIONS, ORDER_DETAIL_REGIONS]) {
       const names = manifest.map((spec) => spec.region);
       expect(new Set(names).size, `zduplikowana nazwa regionu: ${names.join(", ")}`).toBe(
