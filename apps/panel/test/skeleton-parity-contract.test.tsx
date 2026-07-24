@@ -321,9 +321,15 @@ describe("kontrakt szkieletów: dostępność i próg antymigotania", () => {
     ["lista", listSkeleton, messages.orders.list.loading],
     ["szczegół", detailSkeleton, messages.orders.detail.loading],
   ])("szkielet %s jest dekoracją, a komunikat idzie przez role=status", (_name, html, label) => {
-    // Cała dekoracja pod aria-hidden…
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain('aria-busy="true"');
+    // Cała dekoracja pod aria-hidden — asercja MUSI celować w KORZEŃ szkieletu.
+    // (Łatka recenzji PM.) Samo `html.toContain('aria-hidden="true"')` było
+    // PUSTE: atom `Skeleton` z packages/ui nosi ten atrybut na KAŻDYM pasku,
+    // więc łańcuch był w HTML zawsze i zdjęcie `aria-hidden` z korzenia nie
+    // paliło testu. Bramka, która nie umie spłonąć, niczego nie broni.
+    const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0];
+    expect(rootTag, "brak korzenia szkieletu").toBeDefined();
+    expect(rootTag).toContain('aria-hidden="true"');
+    expect(rootTag).toContain('aria-busy="true"');
     // …a jedyna treść to komunikat ładowania POZA tym poddrzewem.
     expect(html).toContain('<p role="status" class="sr-only">');
     expect(html).toContain(label);
