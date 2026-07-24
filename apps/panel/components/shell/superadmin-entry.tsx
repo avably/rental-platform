@@ -44,18 +44,22 @@ export function SuperadminEntry({
         // dostępna nazwa nie może zniknąć razem z nią. W stanie rozwiniętym
         // pokrywa się z widoczną etykietą, więc nic nie dubluje.
         aria-label={label}
-        className="text-sidebar-foreground group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 border-transparent px-3 py-2.5 text-sm font-medium no-underline outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent sidebar-collapsed:justify-center dark:focus-visible:outline-ring"
+        className="text-sidebar-foreground group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 border-transparent px-3 py-2.5 text-sm font-medium no-underline outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent rail-collapsed:justify-center dark:focus-visible:outline-ring"
       >
         <ShieldIcon
           aria-hidden="true"
           className="size-4 shrink-0"
           strokeWidth={NAV_ICON_STROKE_WIDTH}
         />
-        <span className="sidebar-collapsed:hidden">{label}</span>
+        <span data-nav-label className="rail-collapsed:hidden">{label}</span>
+        {/* Widoczność dymka należy w całości do arkusza (`[data-nav-tooltip]`
+            w `globals.css`) — ten sam mechanizm, co w `SidebarNav`, żeby dymki
+            powłoki nie rozjechały się na dwa różne zapisy. */}
         <span
           role="tooltip"
+          data-nav-tooltip
           aria-hidden="true"
-          className="bg-popover text-popover-foreground border-border pointer-events-none absolute left-full top-1/2 z-50 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium sidebar-collapsed:group-hover:block sidebar-collapsed:group-focus-within:block"
+          className="bg-popover text-popover-foreground border-border pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap"
         >
           {label}
         </span>

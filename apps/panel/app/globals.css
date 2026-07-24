@@ -8,10 +8,45 @@
   z `localStorage` PRZED malowaniem (`lib/shell/sidebar-collapse.ts`). Ten
   wariant pozwala elementom powłoki reagować na atrybut samym CSS-em, bez
   przerysowania Reacta: `<aside>` zwęża się, znak marki ustępuje sygnetowi.
-  Treść nawigacji (etykieta kontra tooltip) przełącza się w Reakcie, bo tam i
-  tak trzeba zmienić `aria-label` — CSS by tego nie dosięgnął.
 */
 @custom-variant sidebar-collapsed (html[data-sidebar="collapsed"] &);
+
+/*
+  Wariant dla ZAWARTOŚCI paska (uwaga przeglądu M2, 2026-07-24).
+
+  DLACZEGO OSOBNY: `sidebar-collapsed:` celuje w cały dokument, a `SidebarNav`
+  renderuje się w DWÓCH miejscach — w pasku desktopowym ORAZ w szufladzie
+  mobilnej (`MobileNav`). Szuflada jest zawsze pełnej szerokości, więc nie
+  wolno jej zwijać tylko dlatego, że użytkownik zwinął pasek na desktopie.
+  Zakotwiczenie w `[data-sidebar-rail]` odcina szufladę bez jednego `if`-a.
+
+  DLACZEGO CSS, A NIE GAŁĄŹ REACTA (sedno M2): `collapsed` pochodzi
+  z `localStorage` przez `useSyncExternalStore`, a serwer go nie zna — SSR
+  zawsze rysuje wariant ROZWINIĘTY. Skrypt startowy zdążył już jednak zwęzić
+  pasek do 72 px, więc wszystko, co przełącza React, maluje się wciśnięte
+  w wąski pasek i znika dopiero po hydracji. To jest ten SKOK. Reguła: każdy
+  element powłoki zależny od zwinięcia przełącza się atrybutem (tym wariantem),
+  a nie gałęzią Reacta. Pilnuje tego `sidebar-collapse-contract`.
+*/
+@custom-variant rail-collapsed (html[data-sidebar="collapsed"] [data-sidebar-rail] &);
+
+/*
+  Dymek etykiety w zwiniętym pasku.
+
+  Zapisany JAWNIE, a nie stosem wariantów (`rail-collapsed:group-hover:block`),
+  bo stos generuje selektor o kolejności zależnej od implementacji Tailwinda —
+  a tu kolejność decyduje o tym, czy selektor w ogóle jest osiągalny. Dymek jest
+  w DOM zawsze (jeden render dla obu stanów), więc domyślnie NIE ISTNIEJE
+  wizualnie; pokazuje go dopiero zwinięty pasek pod kursorem lub fokusem.
+*/
+[data-nav-tooltip] {
+  display: none;
+}
+
+html[data-sidebar="collapsed"] [data-sidebar-rail] :hover > [data-nav-tooltip],
+html[data-sidebar="collapsed"] [data-sidebar-rail] :focus-within > [data-nav-tooltip] {
+  display: block;
+}
 
 /*
   Zwinięty pasek nie może OBcinać tooltipów: dymek etykiety stoi na prawo od

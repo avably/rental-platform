@@ -58,9 +58,29 @@ export default async function PanelLayout({
         dangerouslySetInnerHTML={{ __html: SIDEBAR_BOOTSTRAP_SCRIPT }}
       />
       <SkipLink label={t("skipToContent")} />
+      {/*
+        WARSTWA POWŁOKI (naprawa M1, uwaga przeglądu 2026-07-24).
+
+        `md:sticky` sam z siebie ustanawia KONTEKST UKŁADANIA — element
+        przyklejony tworzy go niezależnie od `z-index` (CSS Positioned Layout,
+        tak samo we wszystkich silnikach). Cały pasek jest więc jedną paczką
+        malowania, a `z-index` dymka etykiety licytuje się WEWNĄTRZ niej i nie
+        sięga poza pasek. Treść strony ma własne elementy pozycjonowane
+        (np. panel filtrów `sm:z-30` w `orders-toolbar`), które w porządku
+        drzewa stoją PO pasku — i wygrywały z dymkiem.
+
+        Rozwiązanie jest jedno i stoi TUTAJ: cała powłoka dostaje numer
+        warstwy wyższy niż cokolwiek w treści. Dymki wewnątrz paska mają wtedy
+        `z-10` (porządkuje je względem siebie) i NIE MUSZĄ licytować — dodanie
+        `z-50` na dymku niczego by nie zmieniło, bo problem nigdy nie był
+        w jego wartości. Pilnuje tego `sidebar-collapse-contract`.
+
+        Numer 40 mieści się pod nakładkami dialogowymi Radiksa (portal na
+        `<body>`, poza tym poddrzewem), więc modale i szuflada nadal wygrywają.
+      */}
       <aside
         data-sidebar-rail
-        className="border-border bg-sidebar hidden w-[236px] shrink-0 flex-col border-r sidebar-collapsed:w-[72px] md:sticky md:top-0 md:flex md:h-screen md:overflow-y-auto"
+        className="border-border bg-sidebar hidden w-[236px] shrink-0 flex-col border-r sidebar-collapsed:w-[72px] md:sticky md:top-0 md:z-40 md:flex md:h-screen md:overflow-y-auto"
       >
         {/* Pełne logo wg reguł sekcji 02: minimalna szerokość w interfejsie to
             120 px — stąd wartość JAWNA, a nie płynna, która przy wąskim
