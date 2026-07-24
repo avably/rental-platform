@@ -6,10 +6,16 @@ import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { ordersFilterSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
+import { datePresetRange } from "@/lib/orders/date-presets";
+import { warsawToday } from "@/lib/orders/order-dates";
+import { computeOrderStats, type OrderStatRow } from "@/lib/orders/order-stats";
+import { filterBySearch, type OrderSearchable } from "@/lib/orders/order-search";
+import { ORDER_SORT_COLUMNS, resolveOrderSort } from "@/lib/orders/order-sort";
 
 import { OrdersEmptyState } from "./orders-empty-state";
-import { OrdersFilters } from "./orders-filters";
+import { OrdersStats } from "./orders-stats";
 import { OrdersTable, type OrdersTableRow } from "./orders-table";
+import { OrdersToolbar } from "./orders-toolbar";
 
 interface OrderRow {
   id: string;
@@ -39,29 +45,57 @@ export default async function OrdersPage({
     od: single(params.od),
     do: single(params.do),
     klient: single(params.klient),
+    q: single(params.q),
+    sort: single(params.sort),
+    dir: single(params.dir),
+    preset: single(params.preset),
   });
 
-  let query = ctx.supabase
-    .from("orders")
-    .select(
-      // `order_items(products(name))` doszło pod kolumnę „Sprzęt" z sekcji 04
-      // artefaktu — odczyt zostaje w obrębie RLS tenanta, a filtry, sortowanie
-      // i limit są niezmienione co do znaku.
-      "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, customers(full_name, email), order_items(products(name))",
-    )
-    .eq("tenant_id", ctx.tenantId)
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (filter.status) query = query.eq("order_status", filter.status);
-  if (filter.klient) query = query.eq("customer_id", filter.klient);
-  // Filtr terminu to NACHODZENIE zakresów inclusive (konwencja 0007, ta sama
-  // co kolizje silnika): zamówienie łapie się, gdy [start, end] przecina
-  // [od, do] — start <= do AND end >= od.
-  if (filter.od) query = query.gte("end_date", filter.od);
-  if (filter.do) query = query.lte("start_date", filter.do);
+  const today = warsawToday();
+  // Preset (szybki chip) wygrywa nad surowym od/do i wyklucza się z nim: gdy
+  // jest, zakres liczymy z niego; w przeciwnym razie z pól własnego zakresu.
+  const range = filter.preset ? datePresetRange(filter.preset, today) : { od: filter.od, do: filter.do };
 
-  const [{ data: orders }, { data: customers }] = await Promise.all([
-    query,
+  const sort = resolveOrderSort(filter.sort, filter.dir);
+  const sortColumn = ORDER_SORT_COLUMNS[sort.key];
+  // „Klient" sortuje po ZŁOŻONEJ etykiecie (nazwa-albo-e-mail), której nie da
+  // się czysto wyrazić w `order by` PostgREST po zagnieżdżonym zasobie —
+  // sortujemy więc stronę w pamięci (spójnie z wyborem wyszukiwarki). Kolumny
+  // własne `orders` idą sortem bazy: globalnie i skalowalnie.
+  const sortInDb = sortColumn.foreignTable === undefined;
+
+  // Kafle liczą się z CAŁEGO zbioru tenanta (nie ze strony ani z filtra) —
+  // lekki odczyt czterech kolumn. Gdy wolumen urośnie, zastąpić agregatem SQL.
+  const [{ data: statOrders }, tableResult, { data: customers }] = await Promise.all([
+    ctx.supabase
+      .from("orders")
+      .select("start_date, order_status, payment_status, total_rental_grosze")
+      .eq("tenant_id", ctx.tenantId),
+    (() => {
+      let query = ctx.supabase
+        .from("orders")
+        .select(
+          "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, customers(full_name, email), order_items(products(name))",
+        )
+        .eq("tenant_id", ctx.tenantId);
+      if (filter.status) query = query.eq("order_status", filter.status);
+      if (filter.klient) query = query.eq("customer_id", filter.klient);
+      // Filtr terminu to NACHODZENIE zakresów inclusive (konwencja 0007):
+      // start <= do AND end >= od.
+      if (range.od) query = query.gte("end_date", range.od);
+      if (range.do) query = query.lte("start_date", range.do);
+      // Sort bazy dla kolumn własnych; dla „Klient" bierzemy stabilny
+      // created_at desc i dosortowujemy stronę niżej.
+      if (sortInDb) {
+        query = query.order(sortColumn.column, { ascending: sort.dir === "asc" });
+        if (sortColumn.column !== "created_at") {
+          query = query.order("created_at", { ascending: false });
+        }
+      } else {
+        query = query.order("created_at", { ascending: false });
+      }
+      return query.limit(100);
+    })(),
     ctx.supabase
       .from("customers")
       .select("id, email, full_name")
@@ -72,50 +106,100 @@ export default async function OrdersPage({
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.list");
+  const tOrderStatus = await getTranslations("orders.statusLabels.order");
+  const tPaymentStatus = await getTranslations("orders.statusLabels.payment");
 
-  const rows = ((orders ?? []) as unknown as OrderRow[]).map(
-    (order): OrdersTableRow => ({
-      id: order.id,
-      orderNumber: order.order_number,
-      customerLabel: order.customers?.full_name ?? order.customers?.email ?? "—",
-      equipment: order.order_items
-        .map((item) => item.products?.name)
-        .filter((name): name is string => Boolean(name)),
-      startDate: order.start_date,
-      endDate: order.end_date,
-      orderStatus: order.order_status,
-      paymentStatus: order.payment_status,
-      totalRentalGrosze: order.total_rental_grosze,
-    }),
-  );
+  const statRows: OrderStatRow[] = (
+    (statOrders ?? []) as {
+      start_date: string;
+      order_status: OrderStatus;
+      payment_status: PaymentStatus;
+      total_rental_grosze: number;
+    }[]
+  ).map((order) => ({
+    startDate: order.start_date,
+    orderStatus: order.order_status,
+    paymentStatus: order.payment_status,
+    totalRentalGrosze: order.total_rental_grosze,
+  }));
+  const stats = computeOrderStats(statRows, today);
 
-  // Pusty stan z artefaktu należy się tenantowi BEZ zamówień. Pusty wynik
-  // filtrów to co innego — tam zaproszenie „dodaj pierwsze" byłoby kłamstwem,
-  // więc zostaje komunikat o filtrach.
-  const filtered = Boolean(filter.status || filter.od || filter.do || filter.klient);
+  const orders = (tableResult.data ?? []) as unknown as OrderRow[];
+  const rows: OrdersTableRow[] = orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.order_number,
+    customerLabel: order.customers?.full_name ?? order.customers?.email ?? "—",
+    customerName: order.customers?.full_name ?? null,
+    customerEmail: order.customers?.email ?? null,
+    equipment: order.order_items
+      .map((item) => item.products?.name)
+      .filter((name): name is string => Boolean(name)),
+    startDate: order.start_date,
+    endDate: order.end_date,
+    orderStatus: order.order_status,
+    paymentStatus: order.payment_status,
+    totalRentalGrosze: order.total_rental_grosze,
+  }));
+
+  // Haystack wyszukiwarki: numer + klient + ETYKIETY statusów (tłumaczenia zna
+  // tylko warstwa i18n, stąd filtr nad odczytaną stroną — patrz order-search.ts).
+  const searchables: OrderSearchable[] = orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.order_number,
+    customerName: order.customers?.full_name ?? null,
+    customerEmail: order.customers?.email ?? null,
+    orderStatusLabel: tOrderStatus(order.order_status),
+    paymentStatusLabel: tPaymentStatus(order.payment_status),
+  }));
+
+  const visibleIds = new Set(filterBySearch(searchables, filter.q ?? "").map((s) => s.id));
+  let visibleRows = rows.filter((row) => visibleIds.has(row.id));
+  if (!sortInDb) {
+    const direction = sort.dir === "asc" ? 1 : -1;
+    visibleRows = [...visibleRows].sort(
+      (a, b) => a.customerLabel.localeCompare(b.customerLabel, locale) * direction,
+    );
+  }
+
+  const baseParams: Record<string, string | undefined> = {
+    q: filter.q,
+    status: filter.status,
+    od: filter.od,
+    do: filter.do,
+    klient: filter.klient,
+    preset: filter.preset,
+    sort: filter.sort,
+    dir: filter.dir,
+  };
+
+  const hasAnyOrders = stats.all.count > 0;
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
+      {/* Tytuł „Zamówienia" należy do belki (ADR-060: topbar jest jedynym
+          właścicielem widocznego tytułu), więc tu zostaje sam PODTYTUŁ jako
+          copy kontekstowe i akcja „Nowe zamówienie". */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
         <Button asChild>
           <Link href="/zamowienia/nowe">{t("newOrder")}</Link>
         </Button>
       </header>
 
-      {/* Tenant bez ANI JEDNEGO zamówienia nie dostaje filtrów: nie ma czego
-          filtrować, a pasek kontrolek nad pustym ekranem to sam szum. */}
-      {rows.length > 0 || filtered ? (
-        <OrdersFilters filter={filter} customers={customers ?? []} />
-      ) : null}
-
-      {rows.length === 0 ? (
-        filtered ? (
-          <p className="text-muted-foreground text-sm">{t("empty")}</p>
-        ) : (
-          <OrdersEmptyState />
-        )
+      {/* Tenant BEZ ani jednego zamówienia dostaje zaproszenie, nie kafle zer
+          i pustą belkę filtrów — nie ma czego liczyć ani filtrować. */}
+      {hasAnyOrders ? (
+        <>
+          <OrdersStats stats={stats} currency={currency} locale={locale} />
+          <OrdersToolbar filter={filter} customers={customers ?? []} resultCount={visibleRows.length} />
+          {visibleRows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("empty")}</p>
+          ) : (
+            <OrdersTable rows={visibleRows} currency={currency} locale={locale} sort={sort} baseParams={baseParams} />
+          )}
+        </>
       ) : (
-        <OrdersTable rows={rows} currency={currency} locale={locale} />
+        <OrdersEmptyState />
       )}
     </div>
   );

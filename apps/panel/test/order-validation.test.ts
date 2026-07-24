@@ -221,4 +221,36 @@ describe("ordersFilterSchema — filtry listy (błędne wartości są IGNOROWANE
     });
     expect(parsed).toEqual({ status: undefined, od: undefined, do: undefined, klient: undefined });
   });
+
+  it("q/sort/dir/preset: komplet poprawnych przechodzi", () => {
+    const parsed = ordersFilterSchema.parse({
+      q: "  Kowalski  ",
+      sort: "kwota",
+      dir: "asc",
+      preset: "biezacy-miesiac",
+    });
+    expect(parsed.q).toBe("Kowalski"); // przycięte
+    expect(parsed.sort).toBe("kwota");
+    expect(parsed.dir).toBe("asc");
+    expect(parsed.preset).toBe("biezacy-miesiac");
+  });
+
+  it("nieznany sort/dir/preset jest IGNOROWANY (undefined), nie błędem", () => {
+    const parsed = ordersFilterSchema.parse({
+      sort: "order_number", // spoza whitelisty — celowo kolumna bazy, nie klucz
+      dir: "rosnaco",
+      preset: "zeszly-rok",
+    });
+    expect(parsed.sort).toBeUndefined();
+    expect(parsed.dir).toBeUndefined();
+    expect(parsed.preset).toBeUndefined();
+  });
+
+  it("puste q spada na undefined (pole wyszukiwarki wysłane bez wpisu)", () => {
+    expect(ordersFilterSchema.parse({ q: "   " }).q).toBeUndefined();
+  });
+
+  it("nadmiarowo długie q jest ignorowane, nie wywraca strony", () => {
+    expect(ordersFilterSchema.parse({ q: "x".repeat(500) }).q).toBeUndefined();
+  });
 });

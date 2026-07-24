@@ -31,6 +31,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { OrdersTable } = await import("@/app/[locale]/(panel)/zamowienia/orders-table");
+const { OrdersStats } = await import("@/app/[locale]/(panel)/zamowienia/orders-stats");
+const { OrdersToolbar } = await import("@/app/[locale]/(panel)/zamowienia/orders-toolbar");
 const { OrderStatusAxes } = await import(
   "@/app/[locale]/(panel)/zamowienia/[id]/order-status-axes"
 );
@@ -44,6 +46,8 @@ const rows = PAYMENT_STATUSES.map((paymentStatus, index) => ({
   id: `00000000-0000-4000-8000-00000000000${index}`,
   orderNumber: `ZAM/2026/07${index}`,
   customerLabel: `Klient ${index}`,
+  customerName: `Klient ${index}`,
+  customerEmail: `klient${index}@example.com`,
   equipment: ["Nagrzewnica 20 kW"],
   startDate: "2026-07-20",
   endDate: "2026-07-22",
@@ -52,9 +56,13 @@ const rows = PAYMENT_STATUSES.map((paymentStatus, index) => ({
   totalRentalGrosze: 119900,
 }));
 
+/** Efektywny sort domyślny (najnowsze po „#") — dla nagłówków i aria-sort. */
+const sort = { key: "numer", dir: "desc" } as const;
+const baseParams = { q: "szlifierka", status: "reserved" };
+
 const html = renderToStaticMarkup(
   <NextIntlClientProvider locale="pl" messages={messages}>
-    <OrdersTable rows={rows} currency="PLN" locale="pl" />
+    <OrdersTable rows={rows} currency="PLN" locale="pl" sort={sort} baseParams={baseParams} />
   </NextIntlClientProvider>,
 );
 
@@ -126,6 +134,113 @@ describe("kontrakt renderu listy zamówień", () => {
     const triggers = [...html.matchAll(/aria-label="Działania dla ([^"]+)"/g)];
     expect(triggers).toHaveLength(rows.length);
     expect(triggers.map((match) => match[1])).toEqual(rows.map((row) => row.orderNumber));
+  });
+});
+
+/* ── Nagłówek: cztery kafle statystyk (U1) ─────────────────────────────── */
+
+const statsHtml = renderToStaticMarkup(
+  <NextIntlClientProvider locale="pl" messages={messages}>
+    <OrdersStats
+      stats={{
+        all: { count: 12, sumGrosze: 3_624_700 },
+        toDispatch: { count: 2, sumGrosze: 0 },
+        inRental: { count: 3, sumGrosze: 0 },
+        outstanding: { count: 1, sumGrosze: 129_900 },
+      }}
+      currency="PLN"
+      locale="pl"
+    />
+  </NextIntlClientProvider>,
+);
+
+describe("kontrakt nagłówka: cztery kafle statystyk (U1)", () => {
+  it("renderuje komplet czterech kafli z etykietami", () => {
+    for (const stat of ["all", "to-dispatch", "in-rental", "outstanding"]) {
+      expect(statsHtml, stat).toContain(`data-order-stat="${stat}"`);
+    }
+    expect(statsHtml).toContain(messages.orders.list.statAllLabel);
+    expect(statsHtml).toContain(messages.orders.list.statToDispatchLabel);
+    expect(statsHtml).toContain(messages.orders.list.statInRentalLabel);
+    expect(statsHtml).toContain(messages.orders.list.statOutstandingLabel);
+  });
+
+  it("kwota zaległa idzie akcentem ostrzegawczym z tokenów, nie własnym hexem", () => {
+    // „Do zapłaty" jako jedyny kafel niesie ton attention; brak hexa w klasach.
+    expect(statsHtml).toContain("text-status-attention-fg");
+    expect(statsHtml).not.toMatch(/#[0-9a-fA-F]{3,6}/);
+  });
+});
+
+/* ── Belka: wyszukiwarka, szybkie zakresy, zaawansowane (U1) ────────────── */
+
+const toolbarHtml = renderToStaticMarkup(
+  <NextIntlClientProvider locale="pl" messages={messages}>
+    <OrdersToolbar filter={{ q: "szlifierka", preset: "biezacy-miesiac" }} customers={[]} resultCount={7} />
+  </NextIntlClientProvider>,
+);
+
+describe("kontrakt belki: wyszukiwarka i szybkie filtry (U1)", () => {
+  it("ma pole wyszukiwarki z placeholderem i licznik wyników", () => {
+    expect(toolbarHtml).toContain("data-orders-search");
+    expect(toolbarHtml).toContain(messages.orders.list.searchPlaceholder);
+    expect(toolbarHtml).toContain("data-orders-result-count");
+    expect(toolbarHtml).toContain("7 wyników");
+  });
+
+  it("wystawia trzy szybkie zakresy terminu i sekcję zaawansowaną", () => {
+    expect(toolbarHtml).toContain(messages.orders.list.presetThisMonth);
+    expect(toolbarHtml).toContain(messages.orders.list.presetNextMonth);
+    expect(toolbarHtml).toContain(messages.orders.list.presetNext14);
+    expect(toolbarHtml).toContain(messages.orders.list.advancedFilters);
+  });
+});
+
+/* ── Tabela: sortowalne nagłówki (U2) ──────────────────────────────────── */
+
+describe("kontrakt tabeli: sortowalne nagłówki (U2)", () => {
+  it("sześć nagłówków sortu niesie klucz i parametr sort w href", () => {
+    for (const key of ["numer", "klient", "termin", "kwota", "status", "platnosc"]) {
+      const link = html.match(new RegExp(`<a[^>]*data-sort-key="${key}"[^>]*>`))?.[0];
+      expect(link, `brak nagłówka sortu ${key}`).toBeDefined();
+      expect(link, key).toMatch(new RegExp(`href="[^"]*sort=${key}[^"]*"`));
+    }
+    const keys = [...html.matchAll(/data-sort-key="([^"]+)"/g)].map((m) => m[1]);
+    expect(keys).toHaveLength(6);
+  });
+
+  it("dokładnie jedna kolumna jest aktywna (aria-sort), pozostałe none", () => {
+    const ariaSorts = [...html.matchAll(/aria-sort="([^"]+)"/g)].map((m) => m[1]);
+    // Domyślny sort to „#" malejąco (najnowsze): jedna descending, pięć none.
+    expect(ariaSorts.filter((a) => a === "descending")).toHaveLength(1);
+    expect(ariaSorts.filter((a) => a === "none")).toHaveLength(5);
+  });
+});
+
+/* ── Tabela: wiersz-link i widok mobilny (U3) ──────────────────────────── */
+
+describe("kontrakt tabeli: wiersz-link i karty mobilne (U3)", () => {
+  it("każdy wiersz ma rozciągnięty link do szczegółu, nie tylko komórkę ID", () => {
+    const rowLinks = [...html.matchAll(/<a[^>]*data-row-link[^>]*>/g)];
+    expect(rowLinks).toHaveLength(rows.length);
+    for (const row of rows) {
+      expect(html).toContain(`href="/zamowienia/${row.id}"`);
+    }
+  });
+
+  it("rozciągnięcie idzie pseudo-elementem (after:inset-0), a nie klikiem JS", () => {
+    const link = html.match(/<a[^>]*data-row-link[^>]*>/)?.[0] ?? "";
+    expect(link).toContain("after:inset-0");
+  });
+
+  it("kolumna Akcje wychodzi ponad nakładkę (relative z-10), by menu działało", () => {
+    const cell = html.match(/<td[^>]*data-cell="actions"[^>]*>/)?.[0] ?? "";
+    expect(cell).toContain("z-10");
+  });
+
+  it("na mobile każdy wiersz to osobna karta prowadząca do szczegółu", () => {
+    const cards = [...html.matchAll(/data-order-card/g)];
+    expect(cards).toHaveLength(rows.length);
   });
 });
 

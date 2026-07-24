@@ -11,6 +11,7 @@ import { assertIsoDate, ORDER_STATUSES, type IsoDate } from "@avably/core";
 import { z } from "zod";
 
 import { parseMajorToGrosze } from "./money-input";
+import { DATE_PRESETS } from "./orders/date-presets";
 
 export const uuidSchema = z.string().uuid("Nieprawidłowy identyfikator.");
 
@@ -170,15 +171,52 @@ export function statusChangeFromFormData(formData: FormData): unknown {
 }
 
 /**
+ * Kolumny sortowalne listy (uwaga przeglądu U2). Whitelist trzyma ekran w
+ * ryzach: nieznany klucz sortu spada na undefined (sort domyślny), nie na
+ * błąd strony ani na `order by` po dowolnym polu z URL. Odwzorowanie klucz →
+ * kolumna bazy żyje w `orders/order-sort.ts` — TU jest tylko zbiór dozwolonych
+ * wartości, wspólny dla schematu i mapy sortu.
+ */
+export const ORDER_SORT_KEYS = ["numer", "klient", "termin", "kwota", "status", "platnosc"] as const;
+export type OrderSortKey = (typeof ORDER_SORT_KEYS)[number];
+
+export const ORDER_SORT_DIRECTIONS = ["asc", "desc"] as const;
+export type OrderSortDirection = (typeof ORDER_SORT_DIRECTIONS)[number];
+
+/**
  * Filtry listy zamówień z searchParams. Błędna wartość jest IGNOROWANA
  * (`catch(undefined)`), nie błędem — zepsuty link nie ma wywracać listy,
  * a filtry i tak zawężają wyłącznie odczyt w obrębie RLS tenanta.
+ *
+ * `q` (wyszukiwarka), `sort`/`dir` (sortowanie po nagłówkach) i `preset`
+ * (szybki zakres terminu) to nowe parametry przeglądu — każdy tak samo
+ * odporny na śmieci: nadmiarowo długie `q` przycinamy, nieznany sort/preset
+ * ignorujemy.
  */
 export const ordersFilterSchema = z.object({
   status: orderStatusSchema.optional().catch(undefined),
   od: isoDateSchema.optional().catch(undefined),
   do: isoDateSchema.optional().catch(undefined),
   klient: z.string().uuid().optional().catch(undefined),
+  q: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((value) => (value === "" ? undefined : value))
+    .optional()
+    .catch(undefined),
+  sort: z
+    .enum(ORDER_SORT_KEYS as unknown as [OrderSortKey, ...OrderSortKey[]])
+    .optional()
+    .catch(undefined),
+  dir: z
+    .enum(ORDER_SORT_DIRECTIONS as unknown as [OrderSortDirection, ...OrderSortDirection[]])
+    .optional()
+    .catch(undefined),
+  preset: z
+    .enum(DATE_PRESETS as unknown as [(typeof DATE_PRESETS)[number], ...(typeof DATE_PRESETS)[number][]])
+    .optional()
+    .catch(undefined),
 });
 
 export type OrdersFilter = z.infer<typeof ordersFilterSchema>;
