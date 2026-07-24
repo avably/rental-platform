@@ -37,6 +37,7 @@ import { DepositForms } from "./deposit-forms";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
+import { ItemsSection } from "./items-section";
 import { CustomerCard } from "./customer-card";
 import { OrderNotes } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
@@ -68,13 +69,6 @@ interface OrderDetailRow {
     nip: string | null;
   } | null;
   pickup_locations: { name: string } | null;
-  order_items: {
-    id: string;
-    rental_grosze: number;
-    deposit_grosze: number;
-    products: { name: string } | null;
-    product_units: { id: string; serial_number: string | null } | null;
-  }[];
 }
 
 /** Żądanie zwrotu kaucji u dostawcy (0031) — zamiar, nie fakt. */
@@ -109,7 +103,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name), order_items(id, rental_grosze, deposit_grosze, products(name), product_units(id, serial_number))",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -304,62 +298,21 @@ export default async function OrderDetailPage({
         />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <SectionHeading>{t("items")}</SectionHeading>
-        <div className="border-border bg-card overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:border-b-border">
-                <TableHead className="text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
-                  {t("colProduct")}
-                </TableHead>
-                <TableHead className="text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
-                  {t("colUnit")}
-                </TableHead>
-                <TableHead className="text-muted-foreground px-3.5 text-right text-[11px] font-semibold tracking-[0.06em] uppercase">
-                  {t("colRental")}
-                </TableHead>
-                <TableHead className="text-muted-foreground px-3.5 text-right text-[11px] font-semibold tracking-[0.06em] uppercase">
-                  {t("colDeposit")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {row.order_items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="px-3.5 py-3">{item.products?.name ?? "—"}</TableCell>
-                  <TableCell className="px-3.5 py-3">
-                    {item.product_units
-                      ? (item.product_units.serial_number ?? item.product_units.id.slice(0, 8))
-                      : t("unitUnassigned")}
-                  </TableCell>
-                  <TableCell className="px-3.5 py-3 text-right tabular-nums tracking-[0.01em]">
-                    {formatMoney(item.rental_grosze, currency, locale)}
-                  </TableCell>
-                  <TableCell className="px-3.5 py-3 text-right tabular-nums tracking-[0.01em]">
-                    {formatMoney(item.deposit_grosze, currency, locale)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <p className="text-sm font-medium">
-          {t("totalRental")}:{" "}
-          <span className="tabular-nums tracking-[0.01em]">
-            {formatMoney(row.total_rental_grosze, currency, locale)}
-          </span>
-          {row.total_deposit_grosze > 0 ? (
-            <>
-              {" · "}
-              {t("totalDeposit")}:{" "}
-              <span className="tabular-nums tracking-[0.01em]">
-                {formatMoney(row.total_deposit_grosze, currency, locale)}
-              </span>
-            </>
-          ) : null}
-        </p>
-      </section>
+      {/* Pozycje są EDYTOWALNE (uwagi przeglądu D6/N4): wybór egzemplarza,
+          ręczna cena i kaucja, dodawanie (także produktów bez wolnej sztuki,
+          jawnie oznaczonych) i usuwanie. Sekcja jest samowystarczalnym RSC
+          z własnym odczytem katalogu i dostępności — `page.tsx` dokłada jedną
+          linię, tak jak przy przedłużeniu i logistyce. */}
+      <ItemsSection
+        order={{
+          id: row.id,
+          startDate: row.start_date,
+          endDate: row.end_date,
+          status: row.order_status,
+          totalRentalGrosze: row.total_rental_grosze,
+          totalDepositGrosze: row.total_deposit_grosze,
+        }}
+      />
 
       <section id="kaucja" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading>{tDeposit("title")}</SectionHeading>
