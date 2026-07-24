@@ -1,4 +1,12 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@avably/ui";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  cn,
+} from "@avably/ui";
 import { useTranslations } from "next-intl";
 
 import { ORDERS_LIST_SKELETON_ROWS } from "./screen-regions";
@@ -30,8 +38,28 @@ const HEAD_WIDTHS = ["w-10", "w-16", "w-20", "w-16", "w-14", "w-24", "w-24", "w-
 const HEAD_CLASS =
   "h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase";
 
-/** Kopia geometrii komórki wiersza z `orders-table.tsx`. */
-const CELL_CLASS = "h-[52px] px-3.5 py-2.5";
+/**
+ * Kopia geometrii komórki TREŚCIOWEJ z `orders-table.tsx`: po naprawie #117
+ * komórka nie ma własnego paddingu, bo wypełnia ją kotwica `CellLink`.
+ */
+const CELL_CLASS = "h-[52px] p-0";
+
+/**
+ * Pasek wewnątrz komórki treściowej — odpowiednik `CellLink`: to on, a nie
+ * komórka, niesie wysokość 52 px i padding poziomy.
+ */
+function CellBar({ className, align }: { className?: string; align?: "right" }) {
+  return (
+    <div
+      className={cn(
+        "flex h-[52px] items-center px-3.5",
+        align === "right" && "justify-end",
+      )}
+    >
+      <SkeletonBlock className={cn("h-3.5 rounded-[6px]", className)} />
+    </div>
+  );
+}
 
 export function OrdersListSkeleton() {
   const t = useTranslations("orders.list");
@@ -77,36 +105,63 @@ export function OrdersListSkeleton() {
           </SkeletonRegion>
         </div>
 
-        {/* Chipy zakresu: `px-3.5 py-2` + `text-[13px] leading-none` + obrys
-            1px = 31px wysokości. */}
-        <div className="flex flex-wrap gap-2">
-          {times(3).map((chip) => (
-            <SkeletonRegion key={chip} region="preset-chip">
-              <SkeletonBlock className="h-[31px] w-32 rounded-md" />
+        {/* JEDEN wiersz filtrów po N2 (#120): chipy zakresu z lewej (31 px —
+            `px-3.5 py-2` + `text-[13px] leading-none` + obrys), a z prawej
+            „Kolumny" i „Filtry zaawansowane" jako WĄSKIE przyciski h-9.
+            Zaawansowane były wcześniej pasem pełnej szerokości (46 px); ta
+            zmiana geometrii jest właśnie tym, czego szkielet nie może
+            przegapić. Ten sam przełom `sm` (prawa grupa `w-full` → `sm:w-auto`),
+            więc wysokość zgadza się w obu wariantach. */}
+        <SkeletonRegion region="filter-row" className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-1 flex-wrap gap-2">
+            {times(3).map((chip) => (
+              <SkeletonRegion key={chip} region="preset-chip">
+                <SkeletonBlock className="h-[31px] w-32 rounded-md" />
+              </SkeletonRegion>
+            ))}
+          </div>
+          <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto">
+            <SkeletonRegion region="columns-menu">
+              <SkeletonBlock className="h-9 w-36 rounded-lg" />
             </SkeletonRegion>
-          ))}
-        </div>
-
-        {/* „Filtry zaawansowane" wchodzą ZWINIĘTE, więc szkielet maluje samą
-            zwiniętą ramkę: `px-4 py-3` + summary `text-sm` = 46px. Malowanie
-            rozwiniętej treści byłoby obietnicą, której ekran nie spełni. */}
-        <SkeletonRegion
-          region="advanced-filters"
-          className="border-border bg-card rounded-lg border px-4 py-3"
-        >
-          <SkeletonLine line="text" className="w-44" />
+            {/* Panel zaawansowany wchodzi ZWINIĘTY i wychodzi NAKŁADKĄ, więc
+                szkielet maluje sam przycisk — rozwinięta treść byłaby
+                obietnicą, której ekran nie spełni. */}
+            <SkeletonRegion
+              region="advanced-filters"
+              className="w-full sm:w-auto"
+            >
+              <SkeletonBlock className="h-9 w-full rounded-lg sm:w-44" />
+            </SkeletonRegion>
+          </div>
         </SkeletonRegion>
       </div>
 
-      {/* Desktop: ta sama ramka i ta sama tabela co ekran (`min-w-[880px]`,
-          `border-collapse`), więc nagłówek i wiersze mają tę samą wysokość. */}
+      {/* Desktop: ta sama ramka i ta sama tabela co ekran. Po U5 minimalna
+          szerokość zależy od liczby WIDOCZNYCH kolumn — szkielet zakłada
+          komplet (nie zna preferencji z `localStorage`), czyli `min-w-4xl`
+          jak `tableMinWidthClass(6)`. */}
       <SkeletonRegion
         region="table"
         className="border-border bg-card hidden overflow-x-auto rounded-lg border md:block"
       >
-        <Table className="min-w-[880px] border-collapse">
+        <Table className="min-w-4xl border-collapse">
           <TableHeader>
             <TableRow>
+              {/* Kolumna zaznaczenia (U4): `w-11`, checkbox `size-4`. */}
+              <TableHead
+                data-skeleton-region="table-head"
+                className="h-auto w-11 px-3.5 py-3"
+              >
+                {/* `inline-block` nie jest ozdobnikiem: realny checkbox to
+                    `<button>`, czyli element LINIOWY, więc komórka nagłówka
+                    dostaje jeszcze strut linii (`text-sm` tabeli) i ma 44,5 px,
+                    a nie 40,5. Blokowy pasek zjadłby te 4 px i cała tabela
+                    przesunęłaby się po wejściu treści. */}
+                <SkeletonRegion region="select-all" className="inline-block align-middle">
+                  <SkeletonBlock className="size-4 rounded-[4px]" />
+                </SkeletonRegion>
+              </TableHead>
               {HEAD_WIDTHS.map((width, column) => (
                 <TableHead
                   key={`${width}-${column}`}
@@ -121,30 +176,38 @@ export function OrdersListSkeleton() {
           <TableBody>
             {times(ORDERS_LIST_SKELETON_ROWS).map((row) => (
               <TableRow key={row} data-skeleton-region="table-row">
+                <TableCell className="h-[52px] px-3.5 py-2.5">
+                  <SkeletonRegion region="select-row" className="inline-block align-middle">
+                    <SkeletonBlock className="size-4 rounded-[4px]" />
+                  </SkeletonRegion>
+                </TableCell>
+                {/* Komórki treściowe nie mają własnego paddingu (`p-0`) —
+                    wypełnia je kotwica `CellLink` o wysokości 52 px, więc
+                    pasek siedzi w środku takiej samej ramki. */}
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonLine className="w-24" />
+                  <CellBar className="w-24" />
                 </TableCell>
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonLine className="w-32" />
+                  <CellBar className="w-32" />
                 </TableCell>
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonLine className="w-40" />
+                  <CellBar className="w-40" />
                 </TableCell>
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonLine className="w-36" />
+                  <CellBar className="w-36" />
                 </TableCell>
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonLine className="ml-auto w-20" />
+                  <CellBar className="w-20" align="right" />
                 </TableCell>
                 {/* Chip statusu ma WŁASNĄ wysokość (h-7) — pasek ją kopiuje,
                     inaczej wiersz „usiadłby" po wejściu treści. */}
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonBlock className="h-7 w-24 rounded-sm" />
+                  <CellBar className="h-7 w-24 rounded-sm" />
                 </TableCell>
                 <TableCell className={CELL_CLASS}>
-                  <SkeletonBlock className="h-7 w-24 rounded-sm" />
+                  <CellBar className="h-7 w-24 rounded-sm" />
                 </TableCell>
-                <TableCell className={`${CELL_CLASS} text-right`}>
+                <TableCell className="h-[52px] px-3.5 py-2.5 text-right">
                   <SkeletonLine className="ml-auto w-6" />
                 </TableCell>
               </TableRow>
@@ -153,31 +216,36 @@ export function OrdersListSkeleton() {
         </Table>
       </SkeletonRegion>
 
-      {/* Mobile: stos kart o geometrii karty z `orders-table.tsx`
-          (24 + 8 + 28 + 4 + 20 + 12 + 28 treści, `p-4`, obrys) = 158px. */}
+      {/* Mobile: checkbox OBOK karty (U4) i karta o geometrii z
+          `orders-table.tsx` (24 + 8 + 28 + 4 + 20 + 12 + 28 treści, `p-4`,
+          obrys) = 158px. */}
       <SkeletonRegion region="mobile-cards" className="flex flex-col gap-3 md:hidden">
         {times(ORDERS_LIST_SKELETON_ROWS).map((card) => (
-          <SkeletonRegion
-            key={card}
-            region="mobile-card"
-            className="border-border bg-card rounded-lg border p-4"
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <SkeletonLine line="body" className="w-28" />
-              <SkeletonLine line="body" className="w-20" />
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <SkeletonBlock className="size-7 shrink-0 rounded-full" />
-              <SkeletonLine line="text" className="w-40" />
-            </div>
-            <div className="mt-1">
-              <SkeletonLine line="text" className="w-36" />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <SkeletonBlock className="h-7 w-24 rounded-sm" />
-              <SkeletonBlock className="h-7 w-24 rounded-sm" />
-            </div>
-          </SkeletonRegion>
+          <div key={card} className="flex items-start gap-2">
+            <SkeletonRegion region="select-card" className="mt-4 shrink-0">
+              <SkeletonBlock className="size-4 rounded-[4px]" />
+            </SkeletonRegion>
+            <SkeletonRegion
+              region="mobile-card"
+              className="border-border bg-card block min-w-0 flex-1 rounded-lg border p-4"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <SkeletonLine line="body" className="w-28" />
+                <SkeletonLine line="body" className="w-20" />
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <SkeletonBlock className="size-7 shrink-0 rounded-full" />
+                <SkeletonLine line="text" className="w-40" />
+              </div>
+              <div className="mt-1">
+                <SkeletonLine line="text" className="w-36" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <SkeletonBlock className="h-7 w-24 rounded-sm" />
+                <SkeletonBlock className="h-7 w-24 rounded-sm" />
+              </div>
+            </SkeletonRegion>
+          </div>
         ))}
       </SkeletonRegion>
     </SkeletonScreen>

@@ -84,6 +84,12 @@ export const ORDERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
     note: "licznik „N wyników” obok wyszukiwarki",
   },
   {
+    region: "filter-row",
+    from: "render",
+    anchor: "data-orders-filter-row",
+    note: "JEDEN wiersz filtrów (N2, #120): chipy z lewej, „Kolumny” i „Filtry zaawansowane” z prawej",
+  },
+  {
     region: "preset-chip",
     count: 3,
     from: "render",
@@ -92,10 +98,16 @@ export const ORDERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
     note: "szybkie chipy zakresu terminu (DATE_PRESETS)",
   },
   {
+    region: "columns-menu",
+    from: "render",
+    anchor: "data-orders-columns-trigger",
+    note: "menu wyboru widocznych kolumn (U5, #120) — przycisk h-9 w wierszu filtrów",
+  },
+  {
     region: "advanced-filters",
     from: "render",
-    anchor: "<details",
-    note: "składane „Filtry zaawansowane” — zwinięte, więc szkielet też",
+    anchor: "data-orders-advanced-summary",
+    note: "„Filtry zaawansowane” po N2 to WĄSKI przycisk h-9, nie pas pełnej szerokości; treść wychodzi nakładką, więc otwarcie nie przesuwa tabeli",
   },
   {
     region: "table",
@@ -105,12 +117,18 @@ export const ORDERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
   },
   {
     region: "table-head",
-    count: 8,
+    count: 9,
     from: "render",
     // Spacja po nazwie jest istotna: „<th" złapałoby też „<thead".
     anchor: "<th ",
-    anchorCount: 8,
-    note: "osiem kolumn tabeli — zmiana liczby kolumn pali kontrakt",
+    anchorCount: 9,
+    note: "dziewięć kolumn po U4/U5: zaznaczenie + ID + sześć treściowych + akcje; zmiana liczby pali kontrakt",
+  },
+  {
+    region: "select-all",
+    from: "render",
+    anchor: "data-orders-select-all",
+    note: "checkbox „zaznacz wszystkie na stronie” w nagłówku tabeli (U4, #120)",
   },
   {
     region: "table-row",
@@ -118,6 +136,13 @@ export const ORDERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
     from: "render",
     anchor: "data-order-row",
     note: "wiersz tabeli o wysokości h-[52px] jak wiersz realny",
+  },
+  {
+    region: "select-row",
+    count: ORDERS_LIST_SKELETON_ROWS,
+    from: "render",
+    anchor: "data-orders-select-row",
+    note: "checkbox zaznaczenia w każdym wierszu tabeli (U4)",
   },
   {
     region: "mobile-cards",
@@ -132,19 +157,44 @@ export const ORDERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
     anchor: "data-order-card",
     note: "pojedyncza karta mobilna — ten sam wiersz-model co tabela",
   },
+  {
+    region: "select-card",
+    count: ORDERS_LIST_SKELETON_ROWS,
+    from: "render",
+    anchor: "data-orders-select-card",
+    note: "checkbox zaznaczenia OBOK karty mobilnej (U4) — kontrolka w środku kotwicy byłaby pułapką na klik",
+  },
 ] as const;
 
 /**
- * Własne komponenty ekranu listy (importy `./…` w `zamowienia/page.tsx`),
- * które MAJĄ odpowiednik w szkielecie.
+ * Pliki, które SKŁADAJĄ ekran listy — źródła skanowane pod wyczerpującość.
  *
- * To jest bramka na WYCZERPUJĄCOŚĆ. Test wyciąga ze źródła ekranu komplet
- * lokalnych komponentów i wymaga, żeby każdy z nich stał albo tutaj, albo na
- * liście wyjątków niżej — z powodem. Dołożenie do ekranu np. `<OrdersBulkBar`
- * bez regionu w szkielecie pali kontrakt, czyli dokładnie to, co przeszło
+ * Po #120 `page.tsx` przestał być jedynym miejscem, w którym decyduje się, co
+ * na liście widać: interaktywną warstwę wnosi `orders-list.tsx` (tabela +
+ * pasek akcji masowych), a kontrolki filtrów `orders-toolbar.tsx` (menu
+ * kolumn). Skan tylko po `page.tsx` przepuściłby nowy region schowany o jeden
+ * poziom niżej — a to jest dokładnie ta klasa regresu, przeciw której ten
+ * kontrakt powstał.
+ */
+export const ORDERS_LIST_COMPOSITION_FILES: readonly string[] = [
+  "page.tsx",
+  "orders-list.tsx",
+  "orders-toolbar.tsx",
+] as const;
+
+/**
+ * Własne komponenty ekranu listy (importy `./…` z plików wyżej), które MAJĄ
+ * odpowiednik w szkielecie.
+ *
+ * To jest bramka na WYCZERPUJĄCOŚĆ. Test wyciąga ze źródeł komplet lokalnych
+ * komponentów i wymaga, żeby każdy z nich stał albo tutaj, albo na liście
+ * wyjątków niżej — z powodem. Dołożenie do ekranu nowego komponentu bez
+ * regionu w szkielecie pali kontrakt, czyli dokładnie to, co przeszło
  * niezauważone przy #113.
  */
 export const ORDERS_LIST_SCREEN_PARTS: readonly string[] = [
+  "OrdersColumnsMenu",
+  "OrdersList",
   "OrdersStats",
   "OrdersTable",
   "OrdersToolbar",
@@ -155,6 +205,10 @@ export const ORDERS_LIST_SCREEN_PARTS: readonly string[] = [
  * wyjątek zamieniłby tę bramkę w dekorację.
  */
 export const ORDERS_LIST_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
+  OrdersBulkActions:
+    "pasek akcji masowych zwraca null, dopóki nic nie jest zaznaczone (U4) — na wejściu na ekran go NIE MA, więc szkielet nie może go obiecywać",
+  OrdersDateFilter:
+    "pole własnego zakresu dat WEWNĄTRZ zwiniętego panelu „Filtry zaawansowane” (region advanced-filters)",
   OrdersEmptyState:
     "gałąź tenanta BEZ ani jednego zamówienia; szkielet nie wie z góry, którą gałąź zobaczy, więc maluje przypadek dominujący zamiast udawać zaproszenie",
 };

@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 import messages from "../messages/pl.json";
 
 import {
+  ORDERS_LIST_COMPOSITION_FILES,
   ORDERS_LIST_PARTS_WITHOUT_REGION,
   ORDERS_LIST_REGIONS,
   ORDERS_LIST_SCREEN_PARTS,
@@ -90,8 +91,18 @@ function stripComments(source: string): string {
 }
 
 const screensDir = resolve(process.cwd(), "app/[locale]/(panel)/zamowienia");
-const listSource = stripComments(readFileSync(resolve(screensDir, "page.tsx"), "utf8"));
-const detailSource = stripComments(readFileSync(resolve(screensDir, "[id]/page.tsx"), "utf8"));
+const readScreen = (file: string) =>
+  stripComments(readFileSync(resolve(screensDir, file), "utf8"));
+
+const listSource = readScreen("page.tsx");
+const detailSource = readScreen("[id]/page.tsx");
+/**
+ * Po #120 `page.tsx` nie jest jedynym miejscem, w którym decyduje się, co na
+ * liście widać — interaktywną warstwę wnosi `orders-list.tsx`, a kontrolki
+ * filtrów `orders-toolbar.tsx`. Skan po samym `page.tsx` przepuściłby nowy
+ * region schowany o poziom niżej.
+ */
+const listCompositionSources = ORDERS_LIST_COMPOSITION_FILES.map(readScreen);
 
 /**
  * Własne komponenty ekranu = nazwy z importów `./…` (bez importów typów).
@@ -99,12 +110,14 @@ const detailSource = stripComments(readFileSync(resolve(screensDir, "[id]/page.t
  * pobrany z importu, nie z JSX, żeby zapis wieloliniowy albo `<Foo\n` nie
  * przemycił nowej sekcji obok skanu.
  */
-function localComponents(source: string): string[] {
-  const names = [...source.matchAll(/import\s*\{([^}]+)\}\s*from\s*"\.\/[^"]+";/g)]
-    .flatMap((match) => match[1]!.split(","))
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== "" && !entry.startsWith("type "))
-    .filter((entry) => /^[A-Z]/.test(entry));
+function localComponents(sources: readonly string[]): string[] {
+  const names = sources.flatMap((source) =>
+    [...source.matchAll(/import\s*\{([^}]+)\}\s*from\s*"\.\/[^"]+";/g)]
+      .flatMap((match) => match[1]!.split(","))
+      .map((entry) => entry.trim())
+      .filter((entry) => entry !== "" && !entry.startsWith("type "))
+      .filter((entry) => /^[A-Z]/.test(entry)),
+  );
   return [...new Set(names)].sort();
 }
 
@@ -140,6 +153,8 @@ const listRenderEvidence = [
   // Belka BEZ aktywnego zakresu: każdy z trzech chipów niesie wtedy `preset=`
   // w adresie, więc liczba chipów jest policzalna z renderu, a nie z wiary.
   render(<OrdersToolbar filter={{}} customers={[]} resultCount={7} />),
+  // Tabela na KOMPLECIE kolumn i bez zaznaczenia — dokładnie ten stan, który
+  // szkielet odwzorowuje (preferencji kolumn z `localStorage` nie zna).
   render(
     <OrdersTable
       rows={listRows}
@@ -147,6 +162,10 @@ const listRenderEvidence = [
       locale="pl"
       sort={{ key: "numer", dir: "desc" }}
       baseParams={{}}
+      hiddenColumns={new Set()}
+      selectedIds={new Set()}
+      onToggleRow={() => {}}
+      onToggleAll={() => {}}
     />,
   ),
 ].join("\n");
@@ -200,7 +219,9 @@ describe("kontrakt szkieletów: dowody wejściowe", () => {
   });
 
   it("źródła ekranów są wczytane i zawierają swoje znaczniki", () => {
-    expect(listSource).toContain("<OrdersTable");
+    expect(listSource).toContain("<OrdersList");
+    expect(listCompositionSources.join("\n")).toContain("<OrdersTable");
+    expect(listCompositionSources.join("\n")).toContain("<OrdersColumnsMenu");
     expect(detailSource).toContain("<OrderTimeline");
   });
 
@@ -211,7 +232,8 @@ describe("kontrakt szkieletów: dowody wejściowe", () => {
   });
 
   it("manifesty nie są puste i mają unikalne nazwy regionów", () => {
-    expect(ORDERS_LIST_REGIONS.length).toBeGreaterThanOrEqual(11);
+    expect(ORDERS_LIST_REGIONS.length).toBeGreaterThanOrEqual(15);
+    expect(ORDERS_LIST_COMPOSITION_FILES.length).toBeGreaterThanOrEqual(3);
     expect(ORDER_DETAIL_REGIONS.length).toBeGreaterThanOrEqual(18);
     for (const manifest of [ORDERS_LIST_REGIONS, ORDER_DETAIL_REGIONS]) {
       const names = manifest.map((spec) => spec.region);
@@ -261,7 +283,7 @@ describe("kontrakt szkieletu listy zamówień ↔ ekran listy", () => {
   });
 
   it("każdy własny komponent ekranu ma region albo jawny wyjątek z powodem", () => {
-    expect(localComponents(listSource)).toEqual(
+    expect(localComponents(listCompositionSources)).toEqual(
       [...ORDERS_LIST_SCREEN_PARTS, ...Object.keys(ORDERS_LIST_PARTS_WITHOUT_REGION)].sort(),
     );
     for (const reason of Object.values(ORDERS_LIST_PARTS_WITHOUT_REGION)) {
@@ -299,7 +321,7 @@ describe("kontrakt szkieletu szczegółu ↔ ekran szczegółu", () => {
   );
 
   it("każdy własny komponent ekranu ma region albo jawny wyjątek z powodem", () => {
-    expect(localComponents(detailSource)).toEqual(
+    expect(localComponents([detailSource])).toEqual(
       [...ORDER_DETAIL_SCREEN_PARTS, ...Object.keys(ORDER_DETAIL_PARTS_WITHOUT_REGION)].sort(),
     );
     for (const reason of Object.values(ORDER_DETAIL_PARTS_WITHOUT_REGION)) {
