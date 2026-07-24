@@ -47,6 +47,23 @@ const allowedMaxWidth = new Map<string, readonly string[]>([
   ["katalog/[id]/zdjecia/photo-forms.tsx", ["max-w-[10rem]"]],
 ]);
 
+/**
+ * Pliki, które składają HTML WIADOMOŚCI E-MAIL, a nie ekran panelu.
+ *
+ * Skan chodzi po całym katalogu `(panel)`, bo tam mieszkają ekrany — ale
+ * mieszkają tam też moduły domenowe tras, w tym takie, które produkują
+ * OSOBNY DOKUMENT HTML wysyłany do klienta. Taki dokument ma własny konspekt
+ * i własne `h1`; reguła ADR-060 („belka jest jedynym tytułem ekranu") nie
+ * dotyczy go w ogóle, bo nie jest ekranem i nikt go w panelu nie renderuje.
+ *
+ * Wyjątek jest KLUCZOWANY DOKŁADNĄ ŚCIEŻKĄ i jego długość jest asercją —
+ * dołożenie drugiego pliku wymaga świadomej zmiany testu, więc lista nie
+ * daje się użyć do przemycenia `h1` na prawdziwy ekran. Dodatkowo plik musi
+ * być modułem BEZ JSX-a: gdyby kiedyś urósł do komponentu, warunek niżej
+ * przestanie go przepuszczać.
+ */
+const emailDocumentFiles = ["zamowienia/[id]/invoice-email.ts"] as const;
+
 const topbarOwnedTitleFiles = [
   "bezpieczenstwo/page.tsx",
   "bezpieczenstwo/wyzwanie/page.tsx",
@@ -184,11 +201,27 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   });
 
   it("źródła ekranów nie renderują drugiego h1", () => {
+    expect(emailDocumentFiles).toHaveLength(1);
+
     const offenders = sources
       .filter(({ code }) => /<h1\b/.test(code))
-      .map(({ path }) => relative(path));
+      .map(({ path }) => relative(path))
+      .filter((path) => !(emailDocumentFiles as readonly string[]).includes(path));
 
     expect(offenders, `drugi h1 w treści: ${offenders.join(", ")}`).toEqual([]);
+  });
+
+  it("wyjątek na h1 obejmuje WYŁĄCZNIE moduły składające wiadomość, nie ekrany", () => {
+    // Bez tego wyjątek byłby furtką: plik z listy wyżej mógłby z czasem
+    // urosnąć do komponentu ekranu i wnieść drugi `h1` niezauważony.
+    for (const path of emailDocumentFiles) {
+      const file = sources.find((candidate) => relative(candidate.path) === path);
+      expect(file, `brak pliku w skanie: ${path}`).toBeDefined();
+      expect(path.endsWith(".ts"), `${path} musi być modułem bez JSX`).toBe(true);
+      expect(file!.code).not.toMatch(/from "react"/);
+      // Kontrola pozytywna: plik NAPRAWDĘ zawiera h1, więc wyjątek nie jest martwy.
+      expect(file!.code).toMatch(/<h1\b/);
+    }
   });
 
   it("belka jest jedynym widocznym tytułem ekranów objętych ADR-060", () => {

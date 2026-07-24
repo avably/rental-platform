@@ -171,6 +171,26 @@ export function OrderDetailSkeleton() {
             </div>
             <SkeletonLine line="text" className="w-full" />
           </SkeletonRegion>
+
+          {/* Faktura (D3, ADR-076): karta panelu bocznego o tej samej
+              geometrii co pozostałe (`gap-4 p-5`), w stanie WEJŚCIOWYM —
+              nagłówek (14), zdanie „Faktury jeszcze nie wysłano" (`text-sm`,
+              czyli 20) i przycisk `size="sm"` (h-8) w wierszu akcji.
+
+              Czego szkielet NIE maluje i dlaczego: (a) plakietki „Wysłana",
+              daty i adresu ostatniej wysyłki — to gałąź warunkowa REKORDOWA
+              (to zamówienie może nigdy nie mieć faktury), a takich pól nie
+              obiecujemy, tak samo jak wiersza firma/NIP w karcie klienta;
+              (b) samego okna wysyłki — otwiera je dopiero kliknięcie, więc
+              przy wejściu na ekran go nie ma. Po wysłaniu karta jest o dwa
+              wiersze opisu (≈36 px) wyższa. */}
+          <SkeletonRegion region="invoice-card" className={ASIDE_CARD_CLASS}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <SkeletonLine line="micro" className="w-16" />
+            </div>
+            <SkeletonLine line="text" className="w-40" />
+            <SkeletonBlock className="h-8 w-32 rounded-md" />
+          </SkeletonRegion>
         </SkeletonRegion>
 
         <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">

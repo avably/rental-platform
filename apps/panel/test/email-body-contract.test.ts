@@ -52,6 +52,7 @@ import {
   type ContractServiceDeps,
 } from "@/app/[locale]/(panel)/zamowienia/[id]/contract-service";
 import { sha256Hex } from "@/app/[locale]/(panel)/zamowienia/[id]/contract-document";
+import { sendInvoice } from "@/app/[locale]/(panel)/zamowienia/[id]/invoice-service";
 
 const APP_ROOT = resolve(__dirname, "..");
 
@@ -232,6 +233,25 @@ const PATHS: readonly Path[] = [
         fromEmail: "send@avably.pl",
       }),
   },
+  {
+    name: "faktura (invoice-actions.ts → invoice-service.ts)",
+    kind: "invoice",
+    run: ({ transport, recorder }) =>
+      sendInvoice(
+        { transport, recorder },
+        {
+          orderId: "11111111-1111-4111-8111-111111111111",
+          locale: "pl",
+          tenantName: "Wypożyczalnia Demo",
+          customerName: "Jan Kowalski",
+          customerEmail: "klient@example.com",
+          orderNumber: "AV-2026-001",
+          bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          filename: "FV-2026-07-0042.pdf",
+          fromEmail: "send@avably.pl",
+        },
+      ),
+  },
 ];
 
 describe("historia komunikacji — treść w rejestrze = treść u klienta (ADR-073)", () => {
@@ -293,6 +313,7 @@ describe("historia komunikacji — treść w rejestrze = treść u klienta (ADR-
     expect(callers).toEqual([
       "app/[locale]/(panel)/zamowienia/[id]/contract-actions.ts",
       "app/[locale]/(panel)/zamowienia/[id]/delivery-actions.ts",
+      "app/[locale]/(panel)/zamowienia/[id]/invoice-actions.ts",
       "app/[locale]/(panel)/zamowienia/actions.ts",
       "app/[locale]/(panel)/zaproszenia/actions.ts",
     ]);
