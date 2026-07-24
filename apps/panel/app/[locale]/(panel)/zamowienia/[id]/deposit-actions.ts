@@ -57,8 +57,14 @@ const PG_ORDER_MISSING = "23503";
  * 23P01 — bramka 0034 (ADR-072): rejestr pokazuje inne saldo niż to, wobec
  * którego operator podjął decyzję. Przegrana ścieżka dwukliku wychodzi TĘDY,
  * bez ani jednego wiersza w rejestrze.
+ *
+ * NIE eksportowane, i to nie jest przeoczenie: plik ma dyrektywę `"use server"`,
+ * a w takim module KAŻDY eksport musi być funkcją asynchroniczną. Wyeksportowana
+ * stała nie wywala pojedynczego importu — unieważnia CAŁY zbiór eksportów modułu
+ * („The module has no exports at all"), więc `page.tsx` przestaje widzieć akcje.
+ * Typecheck, lint i vitest tego nie łapią; łapie dopiero `next build`.
  */
-export const PG_STALE_BALANCE = "23P01";
+const PG_STALE_BALANCE = "23P01";
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
