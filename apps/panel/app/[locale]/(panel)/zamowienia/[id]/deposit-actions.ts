@@ -53,6 +53,18 @@ import { depositSettleSchema } from "./deposit-settle";
 /** Kody bramek 0011 — mapowane na komunikaty dla operatora. */
 const PG_DEPOSIT_GATE = "23514";
 const PG_ORDER_MISSING = "23503";
+/**
+ * 23P01 — bramka 0034 (ADR-072): rejestr pokazuje inne saldo niż to, wobec
+ * którego operator podjął decyzję. Przegrana ścieżka dwukliku wychodzi TĘDY,
+ * bez ani jednego wiersza w rejestrze.
+ *
+ * NIE eksportowane, i to nie jest przeoczenie: plik ma dyrektywę `"use server"`,
+ * a w takim module KAŻDY eksport musi być funkcją asynchroniczną. Wyeksportowana
+ * stała nie wywala pojedynczego importu — unieważnia CAŁY zbiór eksportów modułu
+ * („The module has no exports at all"), więc `page.tsx` przestaje widzieć akcje.
+ * Typecheck, lint i vitest tego nie łapią; łapie dopiero `next build`.
+ */
+const PG_STALE_BALANCE = "23P01";
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
@@ -61,6 +73,12 @@ interface DepositEventInput {
   amountGrosze: number;
   reasonCode?: DeductionReasonCode | null;
   reason?: string | null;
+  /**
+   * Saldo, które wołający ZASTAŁ podejmując tę decyzję (0034, ADR-072).
+   * Pomijane wyłącznie tam, gdzie decyzji wobec salda nie było — czyli przy
+   * pobraniu, którego bramka i tak nie sprawdza.
+   */
+  expectedBalanceGrosze?: number | null;
 }
 
 /** Komunikat odmowy bazy → zdanie, które operator ma po co przeczytać. */
@@ -84,6 +102,12 @@ function gateMessage(code: string | undefined, fallback: string): string {
  * albo żaden. Bramka 0011 widzi przy tym wiersze wstawione wcześniej TYM SAMYM
  * poleceniem (reguły widoczności triggerów, uzasadnienie w nagłówku 0011),
  * więc suma jest sprawdzana na komplecie, a nie na połowie.
+ *
+ * DEKLARACJA SALDA (0034, ADR-072) jedzie na KAŻDYM wierszu rozliczenia i jest
+ * NARASTAJĄCA — z tej samej reguły widoczności: drugi wiersz pary zastaje
+ * saldo pomniejszone już o pierwszy, więc deklaruje właśnie tamto. To ona
+ * odbija drugie żądanie dwukliku, którego bramka salda z 0011 przepuszcza,
+ * ilekroć obie kopie mieszczą się w pobraniu.
  */
 async function insertDepositEvents(
   orderId: string,
@@ -113,11 +137,21 @@ async function insertDepositEvents(
         amount_grosze: event.amountGrosze,
         reason_code: event.reasonCode ?? null,
         reason: event.reason ?? null,
+        expected_balance_grosze: event.expectedBalanceGrosze ?? null,
         created_by: ctx.user.id,
       })),
     )
     .select("id");
 
+  if (error?.code === PG_STALE_BALANCE) {
+    // Rejestr ruszył się pod decyzją — ANI JEDEN wiersz nie wszedł. Błąd
+    // wraca przy POLU salda, a nie zbiorczo: to ono jest nieaktualne, a modal
+    // ma po czym poznać, że pokazać zdanie o odświeżeniu, nie o kwocie.
+    // Revalidate JEST tu potrzebne — ekran pod modalem pokazuje starą liczbę,
+    // a operator ma zobaczyć tę, wobec której będzie decydował ponownie.
+    revalidatePath("/", "layout");
+    return { fieldErrors: { balanceGrosze: error.message } };
+  }
   if (error) return { formError: gateMessage(error.code, error.message) };
   if (!data || data.length !== events.length) {
     return { formError: "Nie udało się zapisać zdarzeń kaucji." };
@@ -192,6 +226,7 @@ export async function settleDepositAction(
 ): Promise<FormState> {
   const parsed = depositSettleSchema.safeParse({
     orderId: str(formData.get("orderId")),
+    balanceGrosze: str(formData.get("balanceGrosze")),
     refundAmount: str(formData.get("refundAmount")),
     deductAmount: str(formData.get("deductAmount")),
     deductReasonCode: str(formData.get("deductReasonCode")),
@@ -199,7 +234,7 @@ export async function settleDepositAction(
     refundNote: str(formData.get("refundNote")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
-  const { orderId, refundGrosze, deduction, refundNote } = parsed.data;
+  const { orderId, balanceGrosze, refundGrosze, deduction, refundNote } = parsed.data;
 
   let ctx;
   try {
@@ -229,18 +264,33 @@ export async function settleDepositAction(
   const online = (order as { payment_provider: string }).payment_provider === "stripe";
 
   // --- Obieg ręczny ORAZ rozliczenie samym potrąceniem: sam rejestr ---
+  //
+  // TA GAŁĄŹ JEST TĄ, KTÓREJ 0032 NIE OBEJMUJE. Nie powstaje tu żaden wiersz
+  // `deposit_refunds` (bo nie ma o co prosić dostawcy), więc unikat jednego
+  // zwrotu w locie nie ma czego serializować, a bramka salda z 0011 przepuszcza
+  // dwie kopie tego samego rozliczenia, ilekroć obie mieszczą się w pobraniu.
+  // Serializatorem jest deklaracja salda z 0034 (ADR-072), NARASTAJĄCA po
+  // wierszach w kolejności, w jakiej widzi je bramka.
   if (!online || refundGrosze === 0) {
     const events: DepositEventInput[] = [];
+    let expected = balanceGrosze;
     if (deduction) {
       events.push({
         kind: "deducted",
         amountGrosze: deduction.amountGrosze,
         reasonCode: deduction.reasonCode,
         reason: deduction.reason,
+        expectedBalanceGrosze: expected,
       });
+      expected -= deduction.amountGrosze;
     }
     if (refundGrosze > 0) {
-      events.push({ kind: "refunded", amountGrosze: refundGrosze, reason: refundNote });
+      events.push({
+        kind: "refunded",
+        amountGrosze: refundGrosze,
+        reason: refundNote,
+        expectedBalanceGrosze: expected,
+      });
     }
     return insertDepositEvents(orderId, events);
   }
@@ -251,6 +301,12 @@ export async function settleDepositAction(
   // zwrotu w locie (0032, ADR-070) — inaczej dwuklik zaksięgowałby je dwa
   // razy, a policzony od starego salda zwrot rozbiłby się o bramkę 0011 już
   // po wyjściu pieniędzy. Uzasadnienie: `deduction` w DepositRefundInput.
+  //
+  // Deklaracja salda (0034) jedzie tu WYŁĄCZNIE na wierszu potrącenia —
+  // jedynym, który powstaje ZANIM cokolwiek wyjdzie do klienta. Wiersz zwrotu
+  // księguje się po potwierdzonym przelewie i deklaracji nie dostaje: bramka,
+  // która odmawia zapisu faktu dokonanego, produkuje stan „pieniądze u klienta,
+  // rejestr mówi że nie" (uzasadnienie: nagłówek 0034).
   const outcome = await requestDepositRefund(
     {
       db: ctx.supabase,
@@ -264,6 +320,7 @@ export async function settleDepositAction(
       amountGrosze: refundGrosze,
       actorId: ctx.user.id,
       deduction,
+      expectedBalanceGrosze: balanceGrosze,
       refundNote,
     },
   );
@@ -282,5 +339,9 @@ export async function settleDepositAction(
   // `notice`, nie `formError`: zwrot w toku nie jest porażką i nie wolno
   // zapraszać operatora do ponowienia (patrz FormState.notice).
   if (outcome.status === "pending") return { notice: `${kept}${outcome.reason}` };
+  // Odmowa bramki 0034 wraca przy POLU salda — tak samo jak na torze rejestru.
+  // Żaden przelew tą ścieżką nie wyszedł: potrącenie stoi PRZED `createRefund`,
+  // a `kept` jest wtedy z definicji puste.
+  if (outcome.staleBalance) return { fieldErrors: { balanceGrosze: outcome.reason } };
   return { formError: `${kept}${outcome.reason}` };
 }

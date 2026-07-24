@@ -137,6 +137,15 @@ export function DepositRefundModal({
 
         <form action={formAction} className="flex flex-col gap-4 text-sm">
           <input type="hidden" name="orderId" value={orderId} />
+          {/* PRZESŁANKA DECYZJI, nie ozdoba. Saldo, które to okno pokazało,
+              jedzie razem z rozliczeniem, a bramka 0034 (ADR-072) odmawia
+              zapisu, gdy rejestr pokazuje już inne. Tędy odpada DRUGIE żądanie
+              dwukliku — także sekwencyjne (stara karta, powrót przeglądarki),
+              którego unikat jednego zwrotu w locie z 0032 nie łapie w ogóle,
+              bo jego gwarancja wygasa z domknięciem pierwszego żądania.
+              Wartość SUROWA, nie przycięta do zera jak liczba wyświetlana:
+              deklaracja ma się równać saldu w rejestrze co do grosza. */}
+          <input type="hidden" name="balanceGrosze" value={balanceGrosze} />
 
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-muted-foreground">{t("balance")}</span>
@@ -144,6 +153,15 @@ export function DepositRefundModal({
               {formatMoney(Math.max(balanceGrosze, 0), currency, locale)}
             </span>
           </div>
+
+          {/* Odmowa bramki 0034: rejestr ruszył się pod decyzją. Komunikat
+              mówi o NASTĘPNEJ CZYNNOŚCI (odśwież i sprawdź saldo), a nie
+              o kwocie — kwota była dobra, nieaktualna jest podstawa. */}
+          {fieldError("balanceGrosze") ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("settleStaleBalance")}
+            </p>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             {/* Checkbox natywny, nie komponent overlaya: Radix Checkbox nie

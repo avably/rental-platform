@@ -62,6 +62,31 @@ const optionalAmountSchema = z.string().transform((raw, ctx) => {
   return grosze;
 });
 
+/**
+ * Saldo, które ekran POKAZAŁ operatorowi w chwili decyzji — w GROSZACH.
+ *
+ * To nie jest kwota do wpisania, tylko PRZESŁANKA decyzji: pole ukryte,
+ * przekazywane bramce `deposit_events_gate` (0034, ADR-072). Rozliczenie
+ * wchodzi do rejestru wyłącznie wtedy, gdy rejestr NADAL pokazuje tę liczbę,
+ * więc drugie żądanie dwukliku — deklarujące saldo sprzed pierwszego — odpada.
+ * Bez tego dwa równoległe potrącenia po 300 zł z kaucji 1000 zł księgowały się
+ * OBA: obie kwoty mieszczą się w pobraniu, więc niezmiennik 0011 nie miał
+ * czego odrzucić.
+ *
+ * BRAK POLA JEST BŁĘDEM, NIE POMINIĘCIEM. Żądanie bez deklaracji przeszłoby
+ * bramkę bez sprawdzenia — cichy obieg wokół zabezpieczenia pieniędzy to
+ * dokładnie ten kierunek pomyłki, który 0031 wybrał raz przy `provider`.
+ *
+ * Grosze jako liczba całkowita, bez przecinka i bez przejścia przez złotówki:
+ * ta liczba ma być RÓWNA saldu w rejestrze co do grosza, a nie „mniej więcej".
+ */
+const declaredBalanceSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+$/, "Ekran nie podał salda kaucji — odśwież stronę i spróbuj ponownie.")
+  .transform((raw) => Number.parseInt(raw, 10))
+  .refine(Number.isSafeInteger, "Saldo kaucji poza zakresem — odśwież stronę.");
+
 /** Puste → null (lustro optionalTextSchema z order-validation.ts). */
 const optionalReasonSchema = z
   .string()
@@ -79,6 +104,8 @@ const optionalReasonSchema = z
 export const depositSettleSchema = z
   .object({
     orderId: uuidSchema,
+    /** Przesłanka decyzji — saldo z ekranu, sprawdzane przez bramkę 0034. */
+    balanceGrosze: declaredBalanceSchema,
     refundAmount: optionalAmountSchema,
     deductAmount: optionalAmountSchema,
     deductReasonCode: z.string(),
@@ -115,6 +142,7 @@ export const depositSettleSchema = z
   })
   .transform((form) => ({
     orderId: form.orderId,
+    balanceGrosze: form.balanceGrosze,
     refundGrosze: form.refundAmount,
     // Potrącenie jest obecne albo go NIE MA — `null` zamiast zera z kodem
     // powodu, żeby wołający nie musiał pamiętać, że zero znaczy „pomiń".

@@ -19,9 +19,13 @@ import {
 /** Poprawny UUID (wersja 4, wariant RFC) — `uuidSchema` sprawdza też te bity. */
 const ORDER_ID = "11111111-2222-4333-8444-555555555555";
 
+/** Saldo z ekranu — pole ukryte modalu, przesłanka decyzji (0034, ADR-072). */
+const BALANCE_GROSZE = "50000";
+
 const settle = (overrides: Partial<Record<string, string>> = {}) =>
   depositSettleSchema.safeParse({
     orderId: ORDER_ID,
+    balanceGrosze: BALANCE_GROSZE,
     refundAmount: "",
     deductAmount: "",
     deductReasonCode: "",
@@ -66,6 +70,7 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data).toEqual({
       orderId: ORDER_ID,
+      balanceGrosze: 50_000,
       refundGrosze: 35_000,
       deduction: { amountGrosze: 15_050, reasonCode: "damage", reason: "rysa na obudowie" },
       refundNote: "sprzęt kompletny",
@@ -116,6 +121,31 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
     const parsed = settle({ refundAmount: "100", deductReasonCode: "damage" });
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.deduction).toBeNull();
+  });
+
+  it("saldo z ekranu jedzie dalej jako PRZESŁANKA decyzji (0034)", () => {
+    // Bez tej liczby bramka 0034 nie ma czego porównać, a rozliczenie samym
+    // potrąceniem wraca do stanu sprzed migracji: dwuklik księguje dwa razy.
+    const parsed = settle({ deductAmount: "500", deductReasonCode: "damage" });
+    expect(parsed.success && parsed.data.balanceGrosze).toBe(50_000);
+  });
+
+  it("brak salda z ekranu to ODMOWA, nie ciche pominięcie bramki", () => {
+    // Kierunek pomyłki wybiera się raz: żądanie bez deklaracji przeszłoby
+    // przez bramkę bez sprawdzenia. Zero jest przy tym legalną deklaracją
+    // (kaucja już rozliczona) — odrzucany jest BRAK, nie wartość zerowa.
+    expect(settle({ balanceGrosze: "", refundAmount: "100" }).success).toBe(false);
+    expect(settle({ balanceGrosze: "50 000", refundAmount: "100" }).success).toBe(false);
+    expect(settle({ balanceGrosze: "500,00", refundAmount: "100" }).success).toBe(false);
+    expect(settle({ balanceGrosze: "-1", refundAmount: "100" }).success).toBe(false);
+    expect(settle({ balanceGrosze: "0", refundAmount: "100" }).success).toBe(true);
+  });
+
+  it("odmowa salda jest wiązana z POLEM salda, nie ze zbiorczą linią", () => {
+    // Po tym kluczu modal poznaje, że ma pokazać zdanie o odświeżeniu ekranu,
+    // a nie o kwocie — i robi to w języku operatora (messages EN+PL).
+    const parsed = settle({ balanceGrosze: "", refundAmount: "100" });
+    expect(parsed.success === false && parsed.error.issues[0]!.path).toEqual(["balanceGrosze"]);
   });
 
   it("kwota ujemna i śmieci nie przechodzą", () => {

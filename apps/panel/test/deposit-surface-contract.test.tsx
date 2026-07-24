@@ -102,6 +102,18 @@ describe("powierzchnia kaucji — jeden przycisk, szczegóły w modalu (D7/N5)",
     }
   });
 
+  it("modal wysyła SALDO, wobec którego operator decyduje (0034/ADR-072)", () => {
+    // To pole jest WEJŚCIEM BRAMKI, nie informacją. Bez niego rozliczenie
+    // samym potrąceniem wraca do stanu sprzed 0034: dwuklik księguje je dwa
+    // razy, bo obie kopie mieszczą się w pobraniu i bramka salda z 0011 milczy.
+    // Wartość SUROWA — przycinanie do zera należy do liczby WYŚWIETLANEJ.
+    expect(modalSource).toContain('name="balanceGrosze"');
+    expect(modalSource).toContain("value={balanceGrosze}");
+    // Odmowa bramki ma własne zdanie i mówi o NASTĘPNEJ CZYNNOŚCI.
+    expect(modalSource).toContain('t("settleStaleBalance")');
+    expect(messages.orders.deposit.settleStaleBalance).toContain("odśwież");
+  });
+
   it("rejestr zdarzeń zjechał do rozwijanych szczegółów, a ostrzeżenia NIE", () => {
     const details = pageSource.indexOf("<details");
     const ledger = pageSource.indexOf('tDeposit("colBalance")');

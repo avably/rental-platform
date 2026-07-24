@@ -734,6 +734,7 @@
       "refundOnlineHint": "Zwrot idzie realnym przelewem do klienta przez dostawcę płatności — kaucja została pobrana razem z płatnością za najem.",
       "refundManualHint": "Zapis zwrotu wykonanego poza systemem (gotówka, przelew własny).",
       "refundInFlightBlocked": "Zwrot dla tego zamówienia czeka na potwierdzenie u dostawcy — kolejny byłby drugą wypłatą tej samej kaucji.",
+      "settleStaleBalance": "Saldo kaucji zmieniło się od chwili otwarcia tego okna — odśwież stronę i sprawdź aktualne saldo, zanim rozliczysz kaucję. Nic nie zostało zapisane.",
       "providerOnline": "przez dostawcę płatności",
       "refundStatus": {
         "requested": "Zwrot zlecony — brak odpowiedzi dostawcy",
