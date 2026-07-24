@@ -32,6 +32,10 @@ export function panelEmailLogRecorder(
         error: entry.error ?? null,
         contract_document_id: entry.contractDocumentId ?? null,
         idempotency_key: entry.idempotencyKey ?? null,
+        // `?? null`, NIE `?? ""` (0035, ADR-073): brak treści ma w bazie
+        // znaczyć „nie zapisaliśmy". Pusty string ekran pokazałby jako pustą
+        // wiadomość, czyli skłamałby o tym, co poszło do klienta.
+        body: entry.body ?? null,
       }, {
         onConflict: "tenant_id,idempotency_key",
         ignoreDuplicates: true,

@@ -300,9 +300,24 @@ export function OrderDetailSkeleton() {
             <SkeletonBlock className="h-9 w-48 rounded-md" />
           </SkeletonRegion>
 
+          {/* Historia komunikacji po D10 (0035): nie jedno zdanie, tylko
+              tabela z wierszem nagłówka i wpisami, a wysokość wiersza
+              dyktuje przycisk „Podgląd treści" (`size="sm"` → h-8), nie
+              tekst. Szkielet maluje przypadek dominujący — zamówienie
+              PRAWIE ZAWSZE ma co najmniej potwierdzenie — bo szkielet
+              odwzorowujący pusty stan skakałby przy każdym zamówieniu,
+              które jakąkolwiek wiadomość wysłało. */}
           <SkeletonRegion region="section-emails" className={SECTION_CLASS}>
             <SkeletonLine line="body" className="w-48" />
-            <SkeletonLine line="text" className="w-64" />
+            <SkeletonLine line="micro" className="w-full" />
+            <div className="flex items-center justify-between gap-3">
+              <SkeletonLine line="text" className="w-3/5" />
+              <SkeletonBlock className="h-8 w-28 rounded-md" />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <SkeletonLine line="text" className="w-2/3" />
+              <SkeletonBlock className="h-8 w-28 rounded-md" />
+            </div>
           </SkeletonRegion>
         </div>
       </SkeletonRegion>

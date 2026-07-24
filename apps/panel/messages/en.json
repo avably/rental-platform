@@ -34,7 +34,7 @@
     "backLink": "Panel"
   },
   "emailLog": {
-    "orderSectionTitle": "Sent messages",
+    "orderSectionTitle": "Communication history",
     "title": "Message history",
     "intro": "A record of every send attempt: what reached the customer, and what did not — with the reason.",
     "emptyForOrder": "No messages have been sent for this order yet.",
@@ -47,6 +47,16 @@
     "columnRecipient": "Recipient",
     "columnSubject": "Subject",
     "columnStatus": "Status",
+    "columnMessage": "Message",
+    "columnContent": "Content",
+    "previewButton": "Preview content",
+    "previewTitle": "Content of the sent message",
+    "previewLoading": "Loading content…",
+    "previewFrameTitle": "Content of the message sent to the customer",
+    "previewSandboxNote": "The preview shows the content as saved at the moment of sending. Links and scripts are disabled inside it.",
+    "previewFailed": "Could not load the message content.",
+    "previewClose": "Close",
+    "bodyUnavailable": "Content unavailable for older messages",
     "previousPage": "← Previous",
     "nextPage": "Next →",
     "pageOf": "Page {page} — entries: {total}",
@@ -64,7 +74,8 @@
       "return_label": "Return label",
       "pickup_return_reminder": "Return reminder",
       "checkout_confirmation": "Storefront order confirmation",
-      "new_order_notification": "New order notification"
+      "new_order_notification": "New order notification",
+      "rental_contract": "Rental contract"
     }
   },
   "nav": {
