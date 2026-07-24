@@ -34,7 +34,7 @@
     "backLink": "Panel"
   },
   "emailLog": {
-    "orderSectionTitle": "Wysłane wiadomości",
+    "orderSectionTitle": "Historia komunikacji",
     "title": "Historia wiadomości",
     "intro": "Ślad każdej próby wysyłki: co wyszło do klienta, a co nie i dlaczego.",
     "emptyForOrder": "Dla tego zamówienia nie wysłano jeszcze żadnej wiadomości.",
@@ -47,6 +47,16 @@
     "columnRecipient": "Odbiorca",
     "columnSubject": "Temat",
     "columnStatus": "Status",
+    "columnMessage": "Wiadomość",
+    "columnContent": "Treść",
+    "previewButton": "Podgląd treści",
+    "previewTitle": "Treść wysłanej wiadomości",
+    "previewLoading": "Wczytywanie treści…",
+    "previewFrameTitle": "Treść wiadomości wysłanej do klienta",
+    "previewSandboxNote": "Podgląd pokazuje treść zapisaną w chwili wysyłki. Odnośniki i skrypty są w nim wyłączone.",
+    "previewFailed": "Nie udało się wczytać treści wiadomości.",
+    "previewClose": "Zamknij",
+    "bodyUnavailable": "Treść niedostępna dla starszych wiadomości",
     "previousPage": "← Poprzednia",
     "nextPage": "Następna →",
     "pageOf": "Strona {page} — wpisów: {total}",
@@ -64,7 +74,8 @@
       "return_label": "Etykieta zwrotna",
       "pickup_return_reminder": "Przypomnienie o zwrocie",
       "checkout_confirmation": "Potwierdzenie zamówienia ze sklepu",
-      "new_order_notification": "Powiadomienie o nowym zamówieniu"
+      "new_order_notification": "Powiadomienie o nowym zamówieniu",
+      "rental_contract": "Umowa najmu"
     }
   },
   "nav": {

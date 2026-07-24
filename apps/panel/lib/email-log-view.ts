@@ -9,7 +9,13 @@
 import { EMAIL_LOG_STATUSES } from "@avably/core";
 import { z } from "zod";
 
-/** Kolumny czytane przez oba ekrany. Treści wiadomości tabela nie trzyma. */
+/**
+ * Kolumny czytane przez oba ekrany — SAME METADANE. Treść (`body`, 0035)
+ * celowo tu NIE STOI: żaden z tych ekranów jej nie pokazuje na liście, a
+ * dopisanie jej tutaj wysyłałoby całą korespondencję tenanta do przeglądarki
+ * przy każdym otwarciu historii. Sekcja zamówienia dokłada do tej listy sam
+ * bit `email_log_has_body` i pobiera treść osobnym odczytem na żądanie.
+ */
 export const EMAIL_LOG_ROW_COLUMNS =
   "id, created_at, kind, recipient, subject, status, error, order_id";
 

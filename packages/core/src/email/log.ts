@@ -65,6 +65,22 @@ export interface EmailLogEntry {
   contractDocumentId?: string | null;
   /** Klucz próby wspólny dla bazy i nagłówka Resend. */
   idempotencyKey?: string | null;
+  /**
+   * Treść HTML TEJ PRÓBY wysyłki — kopia `OutgoingEmail.html` z obiektu,
+   * który `sendAndLog` podał transportowi (0035, ADR-073).
+   *
+   * TO NIE JEST POLE DLA WOŁAJĄCEGO. Wypełnia je `sendAndLog` z wiadomości,
+   * którą sam wysyła, i na tym stoi CAŁA gwarancja „w rejestrze jest to, co
+   * dostał klient": kopia bierze się z tego samego obiektu, który sekundę
+   * później idzie do transportu, więc rozjazd jest niereprezentowalny.
+   * Ścieżka przekazująca treść osobno mogłaby przekazać INNĄ — a rejestr,
+   * który wygląda na dowód, nie będąc nim, jest gorszy niż jego brak.
+   *
+   * `undefined` = ta próba treści nie niosła (rejestrator wołany z pominięciem
+   * `sendAndLog`). Rejestrator zapisuje wtedy NULL, czyli „nie mamy" —
+   * nigdy „pusta wiadomość".
+   */
+  body?: string | null;
 }
 
 /**
@@ -116,6 +132,16 @@ export async function sendAndLog(input: SendAndLogInput): Promise<SendAndLogResu
     subject: input.email.subject,
     contractDocumentId: input.contractDocumentId ?? null,
     idempotencyKey: input.email.idempotencyKey ?? null,
+    // Treść bierze się Z TEJ SAMEJ wiadomości, którą za chwilę dostanie
+    // transport (ADR-073) — nie z ponownego renderu szablonu. Renderowanie
+    // drugi raz „do rejestru" byłoby zgadywaniem: szablon, dane tenanta i
+    // cennik zmieniają się w czasie, więc druga kopia potrafi różnić się od
+    // tej, którą zobaczył klient, i to bez ostrzeżenia.
+    //
+    // HTML, NIE TEXT: to wariant, który klient realnie ogląda w kliencie
+    // poczty; `text` jest zapasem dla czytników bez HTML i nie odpowiada na
+    // pytanie „co klient zobaczył".
+    body: input.email.html,
   };
 
   let sendError: unknown;
