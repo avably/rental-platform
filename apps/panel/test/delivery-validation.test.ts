@@ -36,6 +36,7 @@ const VALID = {
   productId: "",
   insurance: "",
   insuranceValuePln: "",
+  saturdayDelivery: "",
   ...PARTY,
 };
 
@@ -58,6 +59,12 @@ describe("shipmentCreateSchema", () => {
     const parsed = shipmentCreateSchema.parse(VALID);
     expect(parsed.productId).toBeUndefined();
     expect(parsed.insurance).toBe(false);
+    expect(parsed.saturdayDelivery).toBe(false);
+  });
+
+  it("dostawa w sobotę: checkbox 'on' → boolean true (uniwersalny, bez wartości)", () => {
+    const parsed = shipmentCreateSchema.parse({ ...VALID, saturdayDelivery: "on" });
+    expect(parsed.saturdayDelivery).toBe(true);
   });
 
   it("wybrany przewoźnik: productId koercjonowany do liczby całkowitej", () => {

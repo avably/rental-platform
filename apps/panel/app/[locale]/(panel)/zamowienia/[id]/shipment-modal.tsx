@@ -9,11 +9,11 @@
  *     klienta), EDYTOWALNYCH jako override na tę jedną przesyłkę,
  *   • WYSZUKIWARKĘ przewoźników z cenami (searchProducts na serwerze) —
  *     najtańszy zaznaczony domyślnie, „Odśwież"; wybór przypina productId,
- *   • ubezpieczenie przesyłki (obsługiwane przez API: addons.INSURANCE).
- *
- * „Dostawa w sobotę" NIE jest tu przełącznikiem: API dostawcy nie ma dla niej
- * typowanego parametru ani stabilnej kategorii dodatku (a plan Zadania 7 zakazuje
- * ADDON_IDS) — martwego toggla nie dodajemy, brak odnotowany w raporcie.
+ *   • opcje dodatkowe obsługiwane przez API i kluczowane KATEGORIĄ (nie
+ *     liczbowym id): ubezpieczenie (addons.INSURANCE z wartością) oraz dostawa
+ *     w sobotę (addons.WEEKEND_DELIVERY — pusty obiekt, dodatek bez wartości).
+ *     Checkbox soboty jest uniwersalny: dosyła dodatek na obecnym torze PICKUP,
+ *     bez bramkowania per-przewoźnik.
  *
  * Utworzenie idzie do createShipmentAction; searchProducts NIE tworzy zlecenia
  * i nie niesie kosztu (bezpieczne przy weryfikacji na koncie testowym kuriera).
@@ -232,6 +232,7 @@ function ModalBody({
 
   const [insurance, setInsurance] = useState(false);
   const [insuranceValue, setInsuranceValue] = useState("");
+  const [saturdayDelivery, setSaturdayDelivery] = useState(false);
 
   const [offers, setOffers] = useState<CarrierOffer[] | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -299,6 +300,7 @@ function ModalBody({
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="productId" value={selectedProductId ?? ""} />
       <input type="hidden" name="insurance" value={insurance ? "on" : ""} />
+      <input type="hidden" name="saturdayDelivery" value={saturdayDelivery ? "on" : ""} />
 
       {/* Typ przesyłki */}
       <div className="flex flex-col gap-1">
@@ -527,6 +529,15 @@ function ModalBody({
             <span className="text-muted-foreground text-xs">{t("insuranceHint")}</span>
           </div>
         ) : null}
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={saturdayDelivery}
+            onCheckedChange={(v) => setSaturdayDelivery(v === true)}
+            disabled={pending}
+          />
+          {t("saturdayLabel")}
+        </label>
+        <span className="text-muted-foreground text-xs">{t("saturdayHint")}</span>
       </fieldset>
 
       {errorText ? (

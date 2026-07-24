@@ -70,9 +70,13 @@ function senderToParty(sender: CourierSender): ShipmentParty {
  * `productId` PRZYPINA przewoźnika wybranego w wyszukiwarce ofert: bez niego
  * bestPrice sam dobiera najtańszy produkt (zachowanie sprzed wyszukiwarki),
  * z nim operator dostaje dokładnie tego przewoźnika, którego zaznaczył
- * i którego cenę widział. `insuranceValuePln` włącza ubezpieczenie przesyłki —
- * dodatek jest kluczowany KATEGORIĄ (INSURANCE), nie liczbowym id produktu,
- * więc nie łamie decyzji „bez ADDON_IDS" (plan Zadania 7). Oba parametry są
+ * i którego cenę widział.
+ *
+ * Dodatki (`addons`) są kluczowane KATEGORIĄ, nie liczbowym id produktu, więc
+ * nie łamią decyzji „bez ADDON_IDS" (plan Zadania 7): `insuranceValuePln`
+ * włącza ubezpieczenie (`INSURANCE: { value }`), `saturdayDelivery` — dostawę
+ * w sobotę (`WEEKEND_DELIVERY: {}` — PUSTY obiekt, dodatek bez wartości, wzór
+ * z działającego pierwowzoru). Mogą wystąpić razem. Wszystkie parametry są
  * opcjonalne: gdy ich nie ma, żądanie jest identyczne jak przed tą zmianą.
  */
 export function buildBestPriceRequest(params: {
@@ -84,6 +88,7 @@ export function buildBestPriceRequest(params: {
   referenceNumber: string;
   productId?: number;
   insuranceValuePln?: number;
+  saturdayDelivery?: boolean;
 }): GlobKurierBestPriceRequest {
   const tenantParty = senderToParty(params.sender);
   const from = params.type === "outbound" ? tenantParty : params.customer;
@@ -113,8 +118,17 @@ export function buildBestPriceRequest(params: {
     referenceNumber: params.referenceNumber,
     receiverType: "PRIVATE_PERSON",
   };
+  const addons: NonNullable<GlobKurierBestPriceRequest["addons"]> = {};
   if (params.insuranceValuePln !== undefined) {
-    request.addons = { INSURANCE: { value: params.insuranceValuePln } };
+    addons.INSURANCE = { value: params.insuranceValuePln };
+  }
+  if (params.saturdayDelivery) {
+    // Dostawa w sobotę: kategoria WEEKEND_DELIVERY z PUSTYM obiektem — to dodatek
+    // bez wartości (inaczej niż INSURANCE), dosyłany na obecnym torze PICKUP.
+    addons.WEEKEND_DELIVERY = {};
+  }
+  if (Object.keys(addons).length > 0) {
+    request.addons = addons;
   }
   return request;
 }

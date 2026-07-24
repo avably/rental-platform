@@ -106,6 +106,12 @@ export const shipmentCreateSchema = z
         .max(1_000_000, "Wartość ubezpieczenia poza zakresem.")
         .optional(),
     ),
+    // Dostawa w sobotę: uniwersalny checkbox ("on"/brak), bez pola wartości —
+    // dodatek WEEKEND_DELIVERY jest bez wartości.
+    saturdayDelivery: z.preprocess(
+      (v) => v === "on" || v === "true" || v === true,
+      z.boolean(),
+    ),
     ...senderFields,
     ...recipientFields,
   })
