@@ -2,9 +2,15 @@
 
 import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState, useId } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 
 import type { FormState } from "@/lib/form-state";
+import type { PrepareProductImageUploadResult } from "@/lib/product-image-upload";
+
+import {
+  runProductImageUpload,
+  uploadProductImageToSignedUrl,
+} from "./upload-flow";
 
 const initialState: FormState = {};
 
@@ -27,21 +33,66 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function UploadImageForm({ action }: { action: ImageAction }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+export function UploadImageForm({
+  prepare,
+  finalize,
+}: {
+  prepare: (input: { mime: string; size: number }) => Promise<PrepareProductImageUploadResult>;
+  finalize: (uploadId: string) => Promise<FormState>;
+}) {
+  const [state, setState] = useState<FormState>(initialState);
+  const [file, setFile] = useState<File | null>(null);
+  const [pending, setPending] = useState(false);
+  const [fileInputVersion, setFileInputVersion] = useState(0);
+  const pendingRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslations("catalog.images");
   const idPrefix = useId();
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pendingRef.current) return;
+
+    const form = event.currentTarget;
+    pendingRef.current = true;
+    setPending(true);
+    setState({});
+    try {
+      const result = await runProductImageUpload(file, {
+        prepare,
+        upload: uploadProductImageToSignedUrl,
+        finalize,
+        message: (problem) => t(`errors.${problem}`),
+      });
+      setState(result);
+      if (result.success) {
+        setFile(null);
+        form.reset();
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setFileInputVersion((version) => version + 1);
+      }
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  }
+
   return (
-    <form action={formAction} className="border-border bg-card flex flex-col gap-4 rounded-lg border p-5">
+    <form
+      onSubmit={handleSubmit}
+      className="border-border bg-card flex flex-col gap-4 rounded-lg border p-5"
+    >
       <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("addTitle")}</h2>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${idPrefix}-file`}>{t("file")}</Label>
         <Input
+          key={fileInputVersion}
           id={`${idPrefix}-file`}
+          ref={fileInputRef}
           name="file"
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
+          onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
           aria-invalid={state.fieldErrors?.file ? true : undefined}
           aria-describedby={state.fieldErrors?.file ? `${idPrefix}-file-error` : `${idPrefix}-file-hint`}
         />
@@ -62,7 +113,7 @@ export function UploadImageForm({ action }: { action: ImageAction }) {
       ) : null}
       <div>
         <Button type="submit" loading={pending} disabled={pending}>
-          {t("add")}
+          {pending ? t("uploading") : t("add")}
         </Button>
       </div>
     </form>
