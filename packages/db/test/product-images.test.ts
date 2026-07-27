@@ -80,6 +80,40 @@ async function createProductFor(tenantId: string): Promise<string> {
   return data.id as string;
 }
 
+async function uploadWithTicket(
+  client: SupabaseClient,
+  productId: string,
+): Promise<string> {
+  const issued = await client
+    .schema("app")
+    .rpc("issue_product_image_upload", {
+      p_product_id: productId,
+      p_declared_mime: "image/png",
+      p_declared_size: PNG_1PX.length,
+    })
+    .single();
+  if (issued.error || !issued.data) {
+    throw new Error(`Nie udało się wydać biletu: ${issued.error?.message}`);
+  }
+  const path = issued.data.storage_path as string;
+  const signed = await client.storage
+    .from(BUCKET)
+    .createSignedUploadUrl(path, { upsert: false });
+  if (signed.error || !signed.data) {
+    throw new Error(`Nie udało się podpisać uploadu: ${signed.error?.message}`);
+  }
+  const uploaded = await client.storage
+    .from(BUCKET)
+    .uploadToSignedUrl(path, signed.data.token, PNG_1PX, {
+      contentType: "image/png",
+      upsert: false,
+    });
+  if (uploaded.error) {
+    throw new Error(`Nie udało się wgrać obiektu: ${uploaded.error.message}`);
+  }
+  return path;
+}
+
 describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
   beforeAll(async () => {
     admin = createAdminClient();
@@ -168,12 +202,8 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
     ).not.toBeNull();
   });
 
-  it("pozwala właścicielowi wgrać zdjęcie do WŁASNEJ ścieżki, a odczyt jest publiczny (ADR-040)", async () => {
-    const ownPath = `${a.tenantId}/${productAId}/${randomUUID()}.png`;
-    const { error } = await a.ownerClient.storage.from(BUCKET).upload(ownPath, PNG_1PX, {
-      contentType: "image/png",
-    });
-    expect(error, `upload do własnego folderu nie powinien być odrzucony: ${error?.message}`).toBeNull();
+  it("pozwala właścicielowi wgrać zdjęcie z własnym biletem, a odczyt jest publiczny (ADR-040)", async () => {
+    const ownPath = await uploadWithTicket(a.ownerClient, productAId);
     uploadedPaths.push(ownPath);
 
     // Kontrola pozytywna odczytu: publiczny URL bez żadnej sesji zwraca bajty.
@@ -185,12 +215,8 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
   });
 
   it("blokuje USUNIĘCIE przez tenanta A obiektu w ścieżce tenanta B", async () => {
-    // Seed: B wgrywa własny obiekt (do własnego folderu — dozwolone politykami).
-    const bPath = `${b.tenantId}/${productBId}/${randomUUID()}.png`;
-    const { error: seedError } = await b.ownerClient.storage.from(BUCKET).upload(bPath, PNG_1PX, {
-      contentType: "image/png",
-    });
-    expect(seedError, `seed uploadu B nie powinien się nie udać: ${seedError?.message}`).toBeNull();
+    // Seed: B wgrywa własny obiekt przez dokładny bilet.
+    const bPath = await uploadWithTicket(b.ownerClient, productBId);
     uploadedPaths.push(bPath);
 
     // A próbuje skasować plik B. storage.remove potrafi zwrócić brak błędu, nic
