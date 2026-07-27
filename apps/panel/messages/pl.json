@@ -282,6 +282,7 @@
       "file": "Plik zdjęcia",
       "fileHint": "Formaty: JPEG, PNG, WebP, AVIF. Maksymalnie 5 MB.",
       "add": "Wgraj zdjęcie",
+      "uploading": "Wgrywanie…",
       "added": "Zdjęcie dodane.",
       "listHeading": "Zdjęcia ({count})",
       "empty": "Brak zdjęć — dodaj pierwsze, aby pokazać produkt w sklepie.",
@@ -290,7 +291,17 @@
       "saved": "Zapisano zmiany.",
       "delete": "Usuń",
       "deletedInfo": "Zdjęcie usunięte.",
-      "thumbnailAlt": "Miniatura zdjęcia produktu"
+      "thumbnailAlt": "Miniatura zdjęcia produktu",
+      "errors": {
+        "missing": "Wybierz plik zdjęcia do wgrania.",
+        "empty": "Wybrany plik jest pusty.",
+        "size": "Zdjęcie może mieć najwyżej 5 MB.",
+        "type": "Dozwolone formaty zdjęć: JPEG, PNG, WebP, AVIF.",
+        "denied": "Nie można wgrać zdjęcia do tego produktu.",
+        "upload": "Nie udało się przesłać zdjęcia.",
+        "content": "Plik nie jest prawidłowym obrazem w wybranym formacie.",
+        "finalize": "Nie udało się dodać zdjęcia. Spróbuj ponownie."
+      }
     },
     "tiers": {
       "title": "Progi cenowe: {name}",

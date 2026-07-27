@@ -282,6 +282,7 @@
       "file": "Image file",
       "fileHint": "Formats: JPEG, PNG, WebP, AVIF. Up to 5 MB.",
       "add": "Upload photo",
+      "uploading": "Uploading…",
       "added": "Photo added.",
       "listHeading": "Photos ({count})",
       "empty": "No photos yet — add the first one to show this product in the store.",
@@ -290,7 +291,17 @@
       "saved": "Changes saved.",
       "delete": "Delete",
       "deletedInfo": "Photo deleted.",
-      "thumbnailAlt": "Product photo thumbnail"
+      "thumbnailAlt": "Product photo thumbnail",
+      "errors": {
+        "missing": "Choose an image file to upload.",
+        "empty": "The selected file is empty.",
+        "size": "The image can be up to 5 MB.",
+        "type": "Allowed image formats: JPEG, PNG, WebP, AVIF.",
+        "denied": "This photo cannot be uploaded to the selected product.",
+        "upload": "The photo could not be uploaded.",
+        "content": "The file is not a valid image in the selected format.",
+        "finalize": "The photo could not be added. Try again."
+      }
     },
     "tiers": {
       "title": "Pricing tiers: {name}",

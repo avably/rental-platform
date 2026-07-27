@@ -185,42 +185,6 @@ export const tiersSchema = z
 
 export type TiersInput = z.infer<typeof tiersSchema>;
 
-// ---------------------------------------------------------------------
-// Zdjęcia produktów (Zadanie 2.2)
-// ---------------------------------------------------------------------
-
-/**
- * Dozwolone typy MIME zdjęcia + mapa na rozszerzenie ścieżki. Allowlista, nie
- * blacklista: przyjmujemy wyłącznie znane formaty rastrowe (bez SVG — wektor z
- * osadzonym skryptem serwowany z publicznego bucketu byłby wektorem XSS na
- * storefroncie). Walidacja jest SERWEROWA (bramka ostateczna); atrybut `accept`
- * w input tylko podpowiada wybór w przeglądarce.
- */
-export const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/avif": "avif",
-};
-
-/** Limit rozmiaru pojedynczego zdjęcia (5 MB). Bucket ma globalny 50 MiB. */
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-/**
- * Zod na obiekcie File z FormData. `z.instanceof(File)` odrzuca brak pliku i
- * wartości niebędące plikiem; refine'y pilnują niepustości, rozmiaru i typu.
- * Komunikaty po polsku (wzorzec repo) — trafiają do formError akcji.
- */
-export const imageFileSchema = z
-  .instanceof(File, { message: "Wybierz plik zdjęcia do wgrania." })
-  .refine((file) => file.size > 0, { message: "Wybrany plik jest pusty." })
-  .refine((file) => file.size <= MAX_IMAGE_BYTES, {
-    message: "Zdjęcie może mieć najwyżej 5 MB.",
-  })
-  .refine((file) => file.type in IMAGE_MIME_EXTENSIONS, {
-    message: "Dozwolone formaty zdjęć: JPEG, PNG, WebP, AVIF.",
-  });
-
 /** Kolejność miniatury: liczba całkowita 0..9999 (korekta lady). */
 export const sortOrderSchema = nonNegativeIntSchema(
   "Kolejność: podaj liczbę całkowitą 0 lub większą.",

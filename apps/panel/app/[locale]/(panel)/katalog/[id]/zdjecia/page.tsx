@@ -4,8 +4,12 @@ import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
-import { uploadImageAction, updateImageAction } from "./actions";
+import { updateImageAction } from "./actions";
 import { ImageRowForm, UploadImageForm } from "./photo-forms";
+import {
+  finalizeProductImageUploadAction,
+  prepareProductImageUploadAction,
+} from "./upload-actions";
 
 const BUCKET = "product-images";
 
@@ -58,7 +62,10 @@ export default async function ProductImagesPage({
         title={t("title", { name: product.name })}
       />
 
-      <UploadImageForm action={uploadImageAction.bind(null, product.id)} />
+      <UploadImageForm
+        prepare={prepareProductImageUploadAction.bind(null, product.id)}
+        finalize={finalizeProductImageUploadAction}
+      />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
