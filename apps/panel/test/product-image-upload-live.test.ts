@@ -155,11 +155,13 @@ describe.skipIf(!hasEnv)("pełna droga signed uploadu zdjęcia", () => {
       })
       .single();
     expect(issued.error, issued.error?.message).toBeNull();
+    expect(issued.data).not.toBeNull();
+    const uploadId = (issued.data as { upload_id: string }).upload_id;
 
     const claimed = await tenant.ownerClient
       .schema("app")
       .rpc("claim_product_image_upload", {
-        p_upload_id: issued.data.upload_id as string,
+        p_upload_id: uploadId,
       })
       .single();
     expect(claimed.error, claimed.error?.message).toBeNull();
@@ -167,7 +169,7 @@ describe.skipIf(!hasEnv)("pełna droga signed uploadu zdjęcia", () => {
     const finished = await tenant.ownerClient
       .schema("app")
       .rpc("finish_product_image_upload", {
-        p_upload_id: issued.data.upload_id as string,
+        p_upload_id: uploadId,
         p_outcome: "rejected",
       });
     expect(finished).toMatchObject({ data: null, error: null });
