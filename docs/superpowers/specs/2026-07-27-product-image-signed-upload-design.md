@@ -218,15 +218,16 @@ Zadanie:
 - dla każdej ścieżki sprawdza, czy nie wskazuje jej `product_images`;
 - usuwa osierocony obiekt przez Storage API, nigdy przez DELETE SQL na
   `storage.objects`;
-- usuwa zakończone rekordy techniczne po okresie retencji;
+- usuwa rekordy `completed` po 7 dniach bez usuwania wskazywanego zdjęcia;
 - działa porcjami i jest idempotentne.
 
 Chroniony Route Handler przyjmuje wyłącznie autoryzowane wywołanie harmonogramu.
 Sekret harmonogramu musi być ustawiony na Vercelu przed merge. Harmonogram
-uruchamia sprzątanie co godzinę. Obiekt staje się kwalifikowany do usunięcia po
-24 godzinach i znika przy najbliższym udanym przebiegu. Błąd zadania zwraca
-nie-2xx i pozostawia rekord do ponowienia; dokumentacja operacyjna nie obiecuje
-niemożliwego „najpóźniej po 24 godzinach”, gdy sam harmonogram jest niedostępny.
+uruchamia sprzątanie co godzinę. Niezakończony obiekt staje się kwalifikowany
+do usunięcia 24 godziny po `created_at` i znika przy najbliższym udanym
+przebiegu. Błąd zadania zwraca nie-2xx i pozostawia rekord do ponowienia;
+dokumentacja operacyjna nie obiecuje niemożliwego „najpóźniej po 24 godzinach”,
+gdy sam harmonogram jest niedostępny.
 
 ## Obsługa błędów
 
