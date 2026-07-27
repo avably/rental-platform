@@ -80,7 +80,12 @@ class ProductImagesQuery {
 }
 
 const memberSupabase = {
-  rpc: (...args: unknown[]) => actionHarness.rpc(...args),
+  schema: (schema: string) => {
+    if (schema !== "app") throw new Error(`nieoczekiwany schemat: ${schema}`);
+    return {
+      rpc: (...args: unknown[]) => actionHarness.rpc(...args),
+    };
+  },
   storage: {
     from: () => ({
       createSignedUploadUrl: (...args: unknown[]) =>
@@ -458,7 +463,7 @@ describe("akcje signed uploadu", () => {
       sort_order: 4,
     });
     expect(actionHarness.rpc).toHaveBeenNthCalledWith(2, "finish_product_image_upload", {
-      p_status: "completed",
+      p_outcome: "completed",
       p_upload_id: UPLOAD_ID,
     });
     expect(actionHarness.revalidatePath).toHaveBeenCalledWith("/", "layout");

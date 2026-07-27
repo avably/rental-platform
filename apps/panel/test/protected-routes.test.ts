@@ -144,6 +144,14 @@ function paramsOf(routePath: string): Record<string, string> {
  */
 const API_ROUTE_PROTECTION = new Map<string, string>([
   [
+    "/api/jobs/product-image-uploads",
+    "Cykliczne sprzątanie uploadów zdjęć (ADR-078) — endpoint nie używa " +
+      "sesji operatora, bo wywołuje go harmonogram Vercel. Chroni go " +
+      "Authorization: Bearer porównywany stałoczasowo z CRON_SECRET; brak " +
+      "sekretu wyłącza trasę kodem 503, a brak lub zły nagłówek daje 401. " +
+      "Klient service_role pozostaje wyłącznie w src/jobs/**.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +

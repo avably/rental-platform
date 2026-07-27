@@ -129,12 +129,14 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
   it("obcy i losowy produkt dają tę samą odmowę i nie tworzą wiersza", async () => {
     const before = await admin
       .from("product_image_uploads")
-      .select("id", { count: "exact", head: true });
+      .select("id", { count: "exact", head: true })
+      .eq("requested_by", a.ownerUserId);
     const foreign = await issue(a.ownerClient, productBId);
     const missing = await issue(a.ownerClient, randomUUID());
     const after = await admin
       .from("product_image_uploads")
-      .select("id", { count: "exact", head: true });
+      .select("id", { count: "exact", head: true })
+      .eq("requested_by", a.ownerUserId);
 
     expectUniformDenial(foreign.error);
     expectUniformDenial(missing.error);

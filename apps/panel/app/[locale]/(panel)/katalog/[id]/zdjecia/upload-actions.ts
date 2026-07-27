@@ -53,11 +53,13 @@ export async function prepareProductImageUploadAction(
     { productId, mime: input.mime, size: input.size },
     {
       issue: async ({ productId: requestedProductId, mime, size }) => {
-        const { data, error } = await ctx.supabase.rpc("issue_product_image_upload", {
-          p_product_id: requestedProductId,
-          p_declared_mime: mime,
-          p_declared_size: size,
-        });
+        const { data, error } = await ctx.supabase
+          .schema("app")
+          .rpc("issue_product_image_upload", {
+            p_product_id: requestedProductId,
+            p_declared_mime: mime,
+            p_declared_size: size,
+          });
         if (error) throw error;
         const row = singleRpcRow<{
           upload_id: string;
@@ -95,9 +97,11 @@ export async function finalizeProductImageUploadAction(uploadId: string): Promis
   const bucket = ctx.supabase.storage.from(PRODUCT_IMAGE_BUCKET);
   const result = await finalizeProductImageUpload(uploadId, {
     claim: async (claimedUploadId): Promise<ClaimedProductImageUpload> => {
-      const { data, error } = await ctx.supabase.rpc("claim_product_image_upload", {
-        p_upload_id: claimedUploadId,
-      });
+      const { data, error } = await ctx.supabase
+        .schema("app")
+        .rpc("claim_product_image_upload", {
+          p_upload_id: claimedUploadId,
+        });
       if (error) throw error;
       const row = singleRpcRow<{
         upload_id: string;
@@ -164,10 +168,12 @@ export async function finalizeProductImageUploadAction(uploadId: string): Promis
       if (error) throw error;
     },
     finish: async (finishedUploadId, status) => {
-      const { data, error } = await ctx.supabase.rpc("finish_product_image_upload", {
-        p_status: status,
-        p_upload_id: finishedUploadId,
-      });
+      const { data, error } = await ctx.supabase
+        .schema("app")
+        .rpc("finish_product_image_upload", {
+          p_outcome: status,
+          p_upload_id: finishedUploadId,
+        });
       if (error || data !== true) throw error ?? new Error("Nie zakończono biletu.");
     },
     report: (error) => {
