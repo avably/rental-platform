@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   finalizeProductImageUpload,
@@ -7,11 +7,97 @@ import {
   type FinalizeProductImageUploadDependencies,
 } from "@/lib/product-image-upload";
 
+import en from "../messages/en.json";
+import pl from "../messages/pl.json";
+
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
 const PRODUCT_ID = "22222222-2222-4222-8222-222222222222";
 const UPLOAD_ID = "33333333-3333-4333-8333-333333333333";
 const PATH = `${TENANT_ID}/${PRODUCT_ID}/${UPLOAD_ID}.png`;
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+const actionHarness = vi.hoisted(() => ({
+  locale: "pl",
+  requireMember: vi.fn(),
+  rpc: vi.fn(),
+  createSignedUploadUrl: vi.fn(),
+  info: vi.fn(),
+  download: vi.fn(),
+  remove: vi.fn(),
+  insert: vi.fn(),
+  nextSortOrder: 0,
+  existingPath: false,
+  revalidatePath: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: actionHarness.revalidatePath,
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => `${actionHarness.locale}:${key}`,
+}));
+
+vi.mock("@/lib/supabase-server", () => ({
+  requireMember: (...args: unknown[]) => actionHarness.requireMember(...args),
+}));
+
+class ProductImagesQuery {
+  private selected = "";
+
+  select(columns: string): this {
+    this.selected = columns;
+    return this;
+  }
+
+  eq(): this {
+    return this;
+  }
+
+  order(): this {
+    return this;
+  }
+
+  limit(): this {
+    return this;
+  }
+
+  async maybeSingle() {
+    if (this.selected === "sort_order") {
+      return {
+        data:
+          actionHarness.nextSortOrder === 0
+            ? null
+            : { sort_order: actionHarness.nextSortOrder - 1 },
+        error: null,
+      };
+    }
+    return {
+      data: actionHarness.existingPath ? { storage_path: PATH } : null,
+      error: null,
+    };
+  }
+}
+
+const memberSupabase = {
+  rpc: (...args: unknown[]) => actionHarness.rpc(...args),
+  storage: {
+    from: () => ({
+      createSignedUploadUrl: (...args: unknown[]) =>
+        actionHarness.createSignedUploadUrl(...args),
+      info: (...args: unknown[]) => actionHarness.info(...args),
+      download: (...args: unknown[]) => actionHarness.download(...args),
+      remove: (...args: unknown[]) => actionHarness.remove(...args),
+    }),
+  },
+  from: (table: string) => {
+    if (table !== "product_images") throw new Error(`nieoczekiwana tabela: ${table}`);
+    return {
+      select: (columns: string) => new ProductImagesQuery().select(columns),
+      insert: (...args: unknown[]) => actionHarness.insert(...args),
+    };
+  },
+};
 
 const CLAIMED: ClaimedProductImageUpload = {
   uploadId: UPLOAD_ID,
@@ -263,5 +349,227 @@ describe("finalizeProductImageUpload", () => {
     });
     expect(deps.finish).toHaveBeenCalledWith(UPLOAD_ID, "rejected");
     expect(deps.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("akcje signed uploadu", () => {
+  beforeEach(() => {
+    actionHarness.locale = "pl";
+    actionHarness.rpc.mockReset();
+    actionHarness.createSignedUploadUrl.mockReset();
+    actionHarness.info.mockReset();
+    actionHarness.download.mockReset();
+    actionHarness.remove.mockReset();
+    actionHarness.insert.mockReset();
+    actionHarness.revalidatePath.mockReset();
+    actionHarness.nextSortOrder = 4;
+    actionHarness.existingPath = false;
+    actionHarness.requireMember.mockReset();
+    actionHarness.requireMember.mockResolvedValue({
+      supabase: memberSupabase,
+      tenantId: TENANT_ID,
+      user: { id: "44444444-4444-4444-8444-444444444444" },
+    });
+    actionHarness.rpc.mockImplementation(async (name: string) => {
+      if (name === "issue_product_image_upload") {
+        return {
+          data: [{ upload_id: UPLOAD_ID, storage_path: PATH }],
+          error: null,
+        };
+      }
+      if (name === "claim_product_image_upload") {
+        return {
+          data: [
+            {
+              upload_id: UPLOAD_ID,
+              tenant_id: TENANT_ID,
+              product_id: PRODUCT_ID,
+              storage_path: PATH,
+              declared_mime: "image/png",
+              declared_size: PNG.length,
+            },
+          ],
+          error: null,
+        };
+      }
+      if (name === "finish_product_image_upload") {
+        return { data: true, error: null };
+      }
+      throw new Error(`nieoczekiwane RPC: ${name}`);
+    });
+    actionHarness.createSignedUploadUrl.mockResolvedValue({
+      data: { token: "signed-token", path: PATH, signedUrl: "https://storage.invalid" },
+      error: null,
+    });
+    actionHarness.info.mockResolvedValue({
+      data: { size: PNG.length, contentType: "image/png" },
+      error: null,
+    });
+    actionHarness.download.mockResolvedValue({
+      data: new Blob([PNG], { type: "image/png" }),
+      error: null,
+    });
+    actionHarness.remove.mockResolvedValue({ data: [], error: null });
+    actionHarness.insert.mockResolvedValue({ data: null, error: null });
+  });
+
+  it("prepare wysyła do RPC wyłącznie produkt, MIME i rozmiar oraz podpisuje sesją członka", async () => {
+    const { prepareProductImageUploadAction } = await import(
+      "@/app/[locale]/(panel)/katalog/[id]/zdjecia/upload-actions"
+    );
+
+    await expect(
+      prepareProductImageUploadAction(PRODUCT_ID, {
+        mime: "image/png",
+        size: PNG.length,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
+    });
+
+    expect(actionHarness.requireMember).toHaveBeenCalledTimes(1);
+    expect(actionHarness.rpc).toHaveBeenCalledWith("issue_product_image_upload", {
+      p_product_id: PRODUCT_ID,
+      p_declared_mime: "image/png",
+      p_declared_size: PNG.length,
+    });
+    expect(actionHarness.createSignedUploadUrl).toHaveBeenCalledWith(PATH, {
+      upsert: false,
+    });
+  });
+
+  it("finalize bierze tenant, produkt i ścieżkę wyłącznie z claim RPC", async () => {
+    const { finalizeProductImageUploadAction } = await import(
+      "@/app/[locale]/(panel)/katalog/[id]/zdjecia/upload-actions"
+    );
+
+    await expect(finalizeProductImageUploadAction(UPLOAD_ID)).resolves.toEqual({
+      success: "added",
+    });
+
+    expect(actionHarness.rpc).toHaveBeenNthCalledWith(1, "claim_product_image_upload", {
+      p_upload_id: UPLOAD_ID,
+    });
+    expect(actionHarness.insert).toHaveBeenCalledWith({
+      tenant_id: TENANT_ID,
+      product_id: PRODUCT_ID,
+      storage_path: PATH,
+      sort_order: 4,
+    });
+    expect(actionHarness.rpc).toHaveBeenNthCalledWith(2, "finish_product_image_upload", {
+      p_status: "completed",
+      p_upload_id: UPLOAD_ID,
+    });
+    expect(actionHarness.revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("mapuje błędy prepare na lokalizowane, stabilne komunikaty", async () => {
+    const { prepareProductImageUploadAction } = await import(
+      "@/app/[locale]/(panel)/katalog/[id]/zdjecia/upload-actions"
+    );
+
+    await expect(
+      prepareProductImageUploadAction(PRODUCT_ID, { mime: "image/png", size: 0 }),
+    ).resolves.toEqual({ ok: false, error: "pl:errors.empty" });
+
+    actionHarness.rpc.mockResolvedValueOnce({
+      data: null,
+      error: new Error("provider detail"),
+    });
+    await expect(
+      prepareProductImageUploadAction(PRODUCT_ID, {
+        mime: "image/png",
+        size: PNG.length,
+      }),
+    ).resolves.toEqual({ ok: false, error: "pl:errors.denied" });
+
+    actionHarness.createSignedUploadUrl.mockResolvedValueOnce({
+      data: null,
+      error: new Error("signed URL provider detail"),
+    });
+    await expect(
+      prepareProductImageUploadAction(PRODUCT_ID, {
+        mime: "image/png",
+        size: PNG.length,
+      }),
+    ).resolves.toEqual({ ok: false, error: "pl:errors.upload" });
+  });
+
+  it("mapuje odmowę i błędy finalizacji bez ujawniania szczegółów dostawcy", async () => {
+    const { finalizeProductImageUploadAction } = await import(
+      "@/app/[locale]/(panel)/katalog/[id]/zdjecia/upload-actions"
+    );
+
+    actionHarness.rpc.mockResolvedValueOnce({
+      data: null,
+      error: new Error("raw claim detail"),
+    });
+    await expect(finalizeProductImageUploadAction(UPLOAD_ID)).resolves.toEqual({
+      formError: "pl:errors.denied",
+    });
+
+    actionHarness.info.mockResolvedValueOnce({
+      data: { size: PNG.length + 1, contentType: "image/png" },
+      error: null,
+    });
+    await expect(finalizeProductImageUploadAction(UPLOAD_ID)).resolves.toEqual({
+      formError: "pl:errors.finalize",
+    });
+
+    const fake = new TextEncoder().encode("fałszywy obraz");
+    actionHarness.rpc.mockImplementationOnce(async () => ({
+      data: [
+        {
+          upload_id: UPLOAD_ID,
+          tenant_id: TENANT_ID,
+          product_id: PRODUCT_ID,
+          storage_path: PATH,
+          declared_mime: "image/png",
+          declared_size: fake.length,
+        },
+      ],
+      error: null,
+    }));
+    actionHarness.info.mockResolvedValueOnce({
+      data: { size: fake.length, contentType: "image/png" },
+      error: null,
+    });
+    actionHarness.download.mockResolvedValueOnce({
+      data: new Blob([fake], { type: "image/png" }),
+      error: null,
+    });
+    await expect(finalizeProductImageUploadAction(UPLOAD_ID)).resolves.toEqual({
+      formError: "pl:errors.content",
+    });
+  });
+
+  it("ma wierne i kompletne komunikaty PL/EN", () => {
+    expect(pl.catalog.images).toMatchObject({
+      uploading: "Wgrywanie…",
+      errors: {
+        missing: "Wybierz plik zdjęcia do wgrania.",
+        empty: "Wybrany plik jest pusty.",
+        size: "Zdjęcie może mieć najwyżej 5 MB.",
+        type: "Dozwolone formaty zdjęć: JPEG, PNG, WebP, AVIF.",
+        denied: "Nie można wgrać zdjęcia do tego produktu.",
+        upload: "Nie udało się przesłać zdjęcia.",
+        content: "Plik nie jest prawidłowym obrazem w wybranym formacie.",
+        finalize: "Nie udało się dodać zdjęcia. Spróbuj ponownie.",
+      },
+    });
+    expect(en.catalog.images).toMatchObject({
+      uploading: "Uploading…",
+      errors: {
+        missing: "Choose an image file to upload.",
+        empty: "The selected file is empty.",
+        size: "The image can be up to 5 MB.",
+        type: "Allowed image formats: JPEG, PNG, WebP, AVIF.",
+        denied: "This photo cannot be uploaded to the selected product.",
+        upload: "The photo could not be uploaded.",
+        content: "The file is not a valid image in the selected format.",
+        finalize: "The photo could not be added. Try again.",
+      },
+    });
   });
 });
