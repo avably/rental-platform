@@ -106,7 +106,7 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
     const { error } = await a.ownerClient.from("product_images").insert({
       tenant_id: a.tenantId,
       product_id: productBId,
-      storage_path: `${a.tenantId}/${productBId}/${randomUUID()}`,
+      storage_path: `${a.tenantId}/${productBId}/${randomUUID()}.png`,
     });
 
     expect(error, "INSERT zdjęcia pod cudzy produkt powinien zostać odrzucony").not.toBeNull();
@@ -119,9 +119,33 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
     const { error } = await a.ownerClient.from("product_images").insert({
       tenant_id: a.tenantId,
       product_id: productAId,
-      storage_path: `${a.tenantId}/${productAId}/${randomUUID()}`,
+      storage_path: `${a.tenantId}/${productAId}/${randomUUID()}.png`,
     });
     expect(error, `INSERT pod własny produkt nie powinien być odrzucony: ${error?.message}`).toBeNull();
+  });
+
+  it("wymusza dokładny kształt i unikalność storage_path", async () => {
+    const invalidPath = `${a.tenantId}/${productAId}/${randomUUID()}`;
+    const invalid = await a.ownerClient.from("product_images").insert({
+      tenant_id: a.tenantId,
+      product_id: productAId,
+      storage_path: invalidPath,
+    });
+    expect(invalid.error?.code).toBe("23514");
+
+    const validPath = `${a.tenantId}/${productAId}/${randomUUID()}.png`;
+    const first = await a.ownerClient.from("product_images").insert({
+      tenant_id: a.tenantId,
+      product_id: productAId,
+      storage_path: validPath,
+    });
+    expect(first.error, first.error?.message).toBeNull();
+    const duplicate = await a.ownerClient.from("product_images").insert({
+      tenant_id: a.tenantId,
+      product_id: productAId,
+      storage_path: validPath,
+    });
+    expect(duplicate.error?.code).toBe("23505");
   });
 
   // -------------------------------------------------------------------
@@ -129,7 +153,7 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
   // -------------------------------------------------------------------
 
   it("blokuje UPLOAD członka tenanta A do ścieżki tenanta B", async () => {
-    const crossPath = `${b.tenantId}/${productBId}/${randomUUID()}`;
+    const crossPath = `${b.tenantId}/${productBId}/${randomUUID()}.png`;
     const { error } = await a.ownerClient.storage.from(BUCKET).upload(crossPath, PNG_1PX, {
       contentType: "image/png",
     });
@@ -145,7 +169,7 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
   });
 
   it("pozwala właścicielowi wgrać zdjęcie do WŁASNEJ ścieżki, a odczyt jest publiczny (ADR-040)", async () => {
-    const ownPath = `${a.tenantId}/${productAId}/${randomUUID()}`;
+    const ownPath = `${a.tenantId}/${productAId}/${randomUUID()}.png`;
     const { error } = await a.ownerClient.storage.from(BUCKET).upload(ownPath, PNG_1PX, {
       contentType: "image/png",
     });
@@ -162,7 +186,7 @@ describe.skipIf(!hasEnv)("izolacja zdjęć produktów (0018)", () => {
 
   it("blokuje USUNIĘCIE przez tenanta A obiektu w ścieżce tenanta B", async () => {
     // Seed: B wgrywa własny obiekt (do własnego folderu — dozwolone politykami).
-    const bPath = `${b.tenantId}/${productBId}/${randomUUID()}`;
+    const bPath = `${b.tenantId}/${productBId}/${randomUUID()}.png`;
     const { error: seedError } = await b.ownerClient.storage.from(BUCKET).upload(bPath, PNG_1PX, {
       contentType: "image/png",
     });

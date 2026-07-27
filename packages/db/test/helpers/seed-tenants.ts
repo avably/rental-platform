@@ -605,9 +605,7 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     ciphertext: "v1:1:AAAAAAAAAAAAAAAA:BBBBBBBBBBBBBBBBBBBBBB:CCCCCCCCCCCC",
     key_version: 1,
   }),
-  // Zdjęcie produktu (0018). Ścieżka w konwencji {tenant_id}/{product_id}/{uuid}
-  // — sama tabela nie wymusza jej kształtu (izolację zapisu PLIKÓW pilnują
-  // polityki storage.objects), ale wiersz odzwierciedla realny zapis aplikacji.
+  // Zdjęcie produktu (0018 + kontrakt ścieżki 0038).
   // product_id z createProduct: FK złożony (tenant_id, product_id) wymaga
   // produktu TEGO SAMEGO tenanta.
   product_images: async (ctx, tenantId) => {
@@ -615,7 +613,23 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     return {
       tenant_id: tenantId,
       product_id: productId,
-      storage_path: `${tenantId}/${productId}/${randomUUID()}`,
+      storage_path: `${tenantId}/${productId}/${randomUUID()}.png`,
+    };
+  },
+  product_image_uploads: async (ctx, tenantId) => {
+    const id = randomUUID();
+    const productId = await createProduct(ctx, tenantId);
+    const userId = await createAuxMemberUser(ctx, tenantId);
+    return {
+      id,
+      tenant_id: tenantId,
+      product_id: productId,
+      requested_by: userId,
+      storage_path: `${tenantId}/${productId}/${id}.png`,
+      declared_mime: "image/png",
+      declared_size: 68,
+      status: "pending",
+      expires_at: new Date(Date.now() + 900_000).toISOString(),
     };
   },
 
@@ -792,6 +806,7 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // alt_text jest nullable i bez indeksu unikalnego — goła mutacja na wszystkich
   // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
   product_images: { alt_text: "rls-test-hacked" },
+  product_image_uploads: { status: "rejected" },
   // Append-only tabela 0026 nie ma polityki UPDATE, ale macierz nadal wymaga
   // poprawnego patcha, żeby brak polityki był testowany, a nie pomijany.
   contract_documents: { terms_version: "rls-test-hacked" },

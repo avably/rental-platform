@@ -64,6 +64,12 @@ const hasEnv = integrationEnv(REQUIRED_ENV);
 // dziurę w izolacji fałszywą zielenią.
 const PG_INSUFFICIENT_PRIVILEGE = "42501";
 
+// Tabele per-tenant będące prywatnymi rejestrami nie wystawiają bezpośredniego
+// API dla authenticated. Nadal wchodzą do automatycznej introspekcji, fabryk,
+// prób mutacji i kontroli trwałego stanu, ale poprawny SELECT kończy się
+// brakiem GRANT-u (42501), a nie pustą listą przefiltrowaną przez politykę.
+const PRIVATE_TENANT_TABLES = new Set(["product_image_uploads"]);
+
 /** Deterministyczna migawka wierszy tenanta w tabeli — odczyt service-role. */
 async function snapshotTenantRows(
   admin: SupabaseClient,
@@ -273,7 +279,14 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
           .from(table)
           .select("*")
           .eq("tenant_id", b.tenantId);
-        expect(selectError, `SELECT ${table}: nieoczekiwany błąd zamiast filtrowania`).toBeNull();
+        if (PRIVATE_TENANT_TABLES.has(table)) {
+          expect(
+            selectError?.code,
+            `SELECT ${table}: prywatny rejestr powinien nie mieć bezpośredniego GRANT-u`,
+          ).toBe(PG_INSUFFICIENT_PRIVILEGE);
+        } else {
+          expect(selectError, `SELECT ${table}: nieoczekiwany błąd zamiast filtrowania`).toBeNull();
+        }
         expect(selected ?? [], `SELECT ${table}: ujawnił wiersze tenanta B`).toHaveLength(0);
 
         // --- INSERT: A nie może wstawić wiersza z cudzym tenant_id ---
@@ -299,8 +312,22 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
         // --- UPDATE/DELETE: ścieżka PostgREST (powierzchnia API) ---
         // Najpierw udokumentuj, że przez API z filtrem stan B jest nienaruszony.
         const patch = mutationPatch(table);
-        await a.ownerClient.from(table).update(patch).eq("tenant_id", b.tenantId);
-        await a.ownerClient.from(table).delete().eq("tenant_id", b.tenantId);
+        const { error: updateError } = await a.ownerClient
+          .from(table)
+          .update(patch)
+          .eq("tenant_id", b.tenantId);
+        const { error: deleteError } = await a.ownerClient
+          .from(table)
+          .delete()
+          .eq("tenant_id", b.tenantId);
+        if (PRIVATE_TENANT_TABLES.has(table)) {
+          expect(updateError?.code, `UPDATE ${table}: brak odmowy prywatnego rejestru`).toBe(
+            PG_INSUFFICIENT_PRIVILEGE,
+          );
+          expect(deleteError?.code, `DELETE ${table}: brak odmowy prywatnego rejestru`).toBe(
+            PG_INSUFFICIENT_PRIVILEGE,
+          );
+        }
         expect(
           await snapshotTenantRows(admin, table, b.tenantId),
           `PostgREST ${table}: stan wierszy tenanta B zmieniony przez API — wyciek izolacji`,
