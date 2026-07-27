@@ -270,6 +270,34 @@ grant execute on function app.claim_product_image_upload(uuid)
 grant execute on function app.finish_product_image_upload(uuid, text)
   to authenticated, service_role;
 
+create or replace function app.can_upload_product_image(
+  p_storage_path text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, app
+as $$
+  select exists (
+    select 1
+    from public.product_image_uploads u
+    join public.products p
+      on p.tenant_id = u.tenant_id
+     and p.id = u.product_id
+    where u.storage_path = p_storage_path
+      and u.tenant_id = app.tenant_id()
+      and u.requested_by = auth.uid()
+      and u.status = 'pending'
+      and u.expires_at > clock_timestamp()
+  );
+$$;
+
+revoke all on function app.can_upload_product_image(text)
+  from public, anon, authenticated;
+grant execute on function app.can_upload_product_image(text)
+  to authenticated, service_role;
+
 -- ---------------------------------------------------------------------
 -- 4. Twardy kontrakt bucketa i polityk Storage
 -- ---------------------------------------------------------------------
@@ -299,34 +327,10 @@ create policy product_images_tenant_insert on storage.objects
 for insert to authenticated
 with check (
   bucket_id = 'product-images'
-  and (storage.foldername(name))[1] = app.tenant_id()::text
-  and exists (
-    select 1
-    from public.products p
-    where p.tenant_id = app.tenant_id()
-      and p.id::text = (storage.foldername(storage.objects.name))[2]
-  )
-  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|avif)$'
+  and app.can_upload_product_image(storage.objects.name)
 );
 
 drop policy if exists product_images_tenant_update on storage.objects;
-create policy product_images_tenant_update on storage.objects
-for update to authenticated
-using (
-  bucket_id = 'product-images'
-  and (storage.foldername(name))[1] = app.tenant_id()::text
-)
-with check (
-  bucket_id = 'product-images'
-  and (storage.foldername(name))[1] = app.tenant_id()::text
-  and exists (
-    select 1
-    from public.products p
-    where p.tenant_id = app.tenant_id()
-      and p.id::text = (storage.foldername(storage.objects.name))[2]
-  )
-  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|avif)$'
-);
 
 drop policy if exists product_images_tenant_delete on storage.objects;
 create policy product_images_tenant_delete on storage.objects

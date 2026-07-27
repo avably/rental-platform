@@ -30,6 +30,8 @@ let admin: SupabaseClient;
 let anon: SupabaseClient;
 let a: TenantCtx;
 let b: TenantCtx;
+let sameTenantClient: SupabaseClient;
+let sameTenantUserId: string;
 let productAId: string;
 let productBId: string;
 const uploadedPaths: string[] = [];
@@ -95,6 +97,37 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
       { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
     );
     ({ a, b } = await seedTwoTenants());
+    const sameTenantEmail = `signed-upload-same-tenant-${randomUUID()}@test.local`;
+    const { data: sameTenantUser, error: sameTenantUserError } =
+      await admin.auth.admin.createUser({
+        email: sameTenantEmail,
+        password: "SignedUploadTest!12345678",
+        email_confirm: true,
+        app_metadata: { tenant_id: a.tenantId, role: "staff" },
+      });
+    if (sameTenantUserError || !sameTenantUser.user) {
+      throw new Error(
+        `Nie udało się utworzyć drugiego użytkownika tenanta: ${sameTenantUserError?.message}`,
+      );
+    }
+    sameTenantUserId = sameTenantUser.user.id;
+    const { error: sameTenantMemberError } = await admin.from("members").insert({
+      tenant_id: a.tenantId,
+      user_id: sameTenantUserId,
+      role: "staff",
+    });
+    if (sameTenantMemberError) throw sameTenantMemberError;
+    sameTenantClient = createClient(
+      process.env.SUPABASE_LOCAL_API_URL!,
+      process.env.SUPABASE_LOCAL_ANON_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+    );
+    const { error: sameTenantSignInError } =
+      await sameTenantClient.auth.signInWithPassword({
+        email: sameTenantEmail,
+        password: "SignedUploadTest!12345678",
+      });
+    if (sameTenantSignInError) throw sameTenantSignInError;
     productAId = await createProduct(a.tenantId);
     productBId = await createProduct(b.tenantId);
   }, 30_000);
@@ -102,6 +135,9 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
   afterAll(async () => {
     if (uploadedPaths.length > 0) {
       await admin.storage.from(BUCKET).remove(uploadedPaths);
+    }
+    if (sameTenantUserId) {
+      await admin.auth.admin.deleteUser(sameTenantUserId);
     }
     await cleanupSeeded(admin);
     await sql?.end({ timeout: 5 });
@@ -213,6 +249,25 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
     expectUniformDenial((await finish(a.ownerClient, uploadId, "rejected")).error);
   });
 
+  it("drugi użytkownik tego samego tenanta nie może przejąć ani domknąć biletu", async () => {
+    const issuedForOwner = await issue(a.ownerClient, productAId);
+    expect(issuedForOwner.error, issuedForOwner.error?.message).toBeNull();
+    expectUniformDenial(
+      (await claim(sameTenantClient, issuedForOwner.data.upload_id as string)).error,
+    );
+
+    const issuedForStaff = await issue(sameTenantClient, productAId);
+    expect(issuedForStaff.error, issuedForStaff.error?.message).toBeNull();
+    const staffUploadId = issuedForStaff.data.upload_id as string;
+    expect((await claim(sameTenantClient, staffUploadId)).error).toBeNull();
+    expectUniformDenial(
+      (await finish(a.ownerClient, staffUploadId, "completed")).error,
+    );
+    expect(
+      (await finish(sameTenantClient, staffUploadId, "completed")).error,
+    ).toBeNull();
+  });
+
   it("authenticated nie ma bezpośredniego SELECT/INSERT/UPDATE/DELETE tabeli biletów", async () => {
     const id = randomUUID();
     const row = {
@@ -236,6 +291,54 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
       expect(attempt.error).not.toBeNull();
       expect(attempt.error?.code).toBe("42501");
     }
+  });
+
+  it("bramka Storage ma SECURITY DEFINER, stały search_path i minimalny EXECUTE", async () => {
+    const rows = await sql!<{
+      security_definer: boolean;
+      config: string[] | null;
+      authenticated_execute: boolean;
+      anon_execute: boolean;
+    }[]>`
+      select
+        p.prosecdef as security_definer,
+        p.proconfig as config,
+        has_function_privilege(
+          'authenticated',
+          'app.can_upload_product_image(text)',
+          'EXECUTE'
+        ) as authenticated_execute,
+        has_function_privilege(
+          'anon',
+          'app.can_upload_product_image(text)',
+          'EXECUTE'
+        ) as anon_execute
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'app'
+        and p.proname = 'can_upload_product_image'
+        and pg_get_function_identity_arguments(p.oid) = 'p_storage_path text'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      security_definer: true,
+      authenticated_execute: true,
+      anon_execute: false,
+    });
+    expect(rows[0]?.config).toContain("search_path=pg_catalog, public, app");
+  });
+
+  it("Storage nie ma polityki UPDATE dla authenticated", async () => {
+    const rows = await sql!<{ policyname: string }[]>`
+      select policyname
+      from pg_policies
+      where schemaname = 'storage'
+        and tablename = 'objects'
+        and cmd = 'UPDATE'
+        and 'authenticated' = any(roles)
+        and policyname = 'product_images_tenant_update'
+    `;
+    expect(rows).toEqual([]);
   });
 
   it("bucket ma dokładny publiczny kontrakt 5 MiB i cztery MIME", async () => {
@@ -279,6 +382,75 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć produktów (0038)", () => {
       .from(BUCKET)
       .createSignedUploadUrl(foreignPath, { upsert: false });
     expect(foreign.error).not.toBeNull();
+  });
+
+  it("odrzuca ścieżkę własnego produktu bez biletu i nie tworzy obiektu", async () => {
+    const path = `${a.tenantId}/${productAId}/${randomUUID()}.png`;
+    const signed = await a.ownerClient.storage
+      .from(BUCKET)
+      .createSignedUploadUrl(path, { upsert: false });
+    expect(signed.error).not.toBeNull();
+
+    const { error: missingError } = await admin.storage.from(BUCKET).download(path);
+    expect(missingError).not.toBeNull();
+  });
+
+  it("odrzuca podpis dla cudzego, wygasłego i biletu innego użytkownika tego samego tenanta", async () => {
+    const foreign = await issue(b.ownerClient, productBId);
+    expect(foreign.error, foreign.error?.message).toBeNull();
+
+    const expired = await issue(a.ownerClient, productAId);
+    expect(expired.error, expired.error?.message).toBeNull();
+    const expiredCreatedAt = new Date(Date.now() - 30 * 60_000).toISOString();
+    const expiredAt = new Date(Date.now() - 15 * 60_000).toISOString();
+    const { error: expireError } = await admin
+      .from("product_image_uploads")
+      .update({ created_at: expiredCreatedAt, expires_at: expiredAt })
+      .eq("id", expired.data.upload_id as string);
+    expect(expireError, expireError?.message).toBeNull();
+
+    const sameTenant = await issue(sameTenantClient, productAId);
+    expect(sameTenant.error, sameTenant.error?.message).toBeNull();
+
+    for (const path of [
+      foreign.data.storage_path as string,
+      expired.data.storage_path as string,
+      sameTenant.data.storage_path as string,
+    ]) {
+      const signed = await a.ownerClient.storage
+        .from(BUCKET)
+        .createSignedUploadUrl(path, { upsert: false });
+      expect(signed.error, `podpis nie powinien powstać dla ${path}`).not.toBeNull();
+    }
+  });
+
+  it("authenticated nie może nadpisać istniejącego obiektu, a bajty pozostają bez zmian", async () => {
+    const original = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const replacement = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x66, 0x61, 0x6b, 0x65]);
+    const issued = await issue(a.ownerClient, productAId, "image/png", original.length);
+    expect(issued.error, issued.error?.message).toBeNull();
+    const path = issued.data.storage_path as string;
+    const signed = await a.ownerClient.storage
+      .from(BUCKET)
+      .createSignedUploadUrl(path, { upsert: false });
+    expect(signed.error, signed.error?.message).toBeNull();
+    const uploaded = await a.ownerClient.storage
+      .from(BUCKET)
+      .uploadToSignedUrl(path, signed.data!.token, original, {
+        contentType: "image/png",
+        upsert: false,
+      });
+    expect(uploaded.error, uploaded.error?.message).toBeNull();
+    uploadedPaths.push(path);
+
+    const overwritten = await a.ownerClient.storage
+      .from(BUCKET)
+      .update(path, replacement, { contentType: "image/png", upsert: true });
+    expect(overwritten.error).not.toBeNull();
+
+    const downloaded = await admin.storage.from(BUCKET).download(path);
+    expect(downloaded.error, downloaded.error?.message).toBeNull();
+    expect(new Uint8Array(await downloaded.data!.arrayBuffer())).toEqual(original);
   });
 
   it("bucket przyjmuje dokładnie 5 MiB i odrzuca jeden bajt więcej", async () => {
