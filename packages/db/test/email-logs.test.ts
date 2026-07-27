@@ -275,6 +275,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
 
   it("anon zapisuje log checkoutu przez funkcję (kontrola pozytywna)", async () => {
     const recipient = `checkout-${randomUUID().slice(0, 8)}@test.local`;
+    const body = "<!doctype html>\n<html><body>Zażółć gęślą jaźń &amp; checkout</body></html>";
     const { error } = await anon.schema("app").rpc("log_public_checkout_email", {
       p_tenant_id: a.tenantId,
       p_order_number: orderANumber,
@@ -285,6 +286,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
       p_status: "sent",
       p_provider_message_id: "resend-checkout",
       p_error: null,
+      p_body: body,
     });
     expect(error, `zapis przez funkcję nie powinien być odrzucony: ${error?.message}`).toBeNull();
 
@@ -292,11 +294,37 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     // nie widzi identyfikatora wewnętrznego (ADR-042/045).
     const { data } = await admin
       .from("email_logs")
-      .select("order_id, tenant_id, kind")
+      .select("order_id, tenant_id, kind, body, hasBody:email_log_has_body")
       .eq("recipient", recipient);
     expect(data).toHaveLength(1);
     expect(data![0]!.order_id).toBe(orderAId);
     expect(data![0]!.tenant_id).toBe(a.tenantId);
+    expect(data![0]!.body, "baza musi zachować HTML byte-for-byte").toBe(body);
+    expect(data![0]!.hasBody).toBe(true);
+  });
+
+  it("wywołanie bez p_body pozostaje kompatybilne i zapisuje body = NULL", async () => {
+    const recipient = `checkout-compat-${randomUUID().slice(0, 8)}@test.local`;
+    const { error } = await anon.schema("app").rpc("log_public_checkout_email", {
+      p_tenant_id: a.tenantId,
+      p_order_number: orderANumber,
+      p_log_token: orderAToken,
+      p_kind: "checkout_confirmation",
+      p_recipient: recipient,
+      p_subject: "Klient sprzed migracji aplikacji",
+      p_status: "sent",
+      p_provider_message_id: "resend-checkout-compat",
+      p_error: null,
+    });
+    expect(error, `stary caller nie powinien zostać odrzucony: ${error?.message}`).toBeNull();
+
+    const { data } = await admin
+      .from("email_logs")
+      .select("body, hasBody:email_log_has_body")
+      .eq("recipient", recipient);
+    expect(data).toHaveLength(1);
+    expect(data![0]!.body).toBeNull();
+    expect(data![0]!.hasBody).toBe(false);
   });
 
   it("funkcja odrzuca rodzaj spoza checkoutu (22023)", async () => {
@@ -372,7 +400,12 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
   // wyrocznia do enumeracji numerów zamówień.
 
   /** Wywołanie funkcji z podmienialnym numerem i tokenem. */
-  const logCall = (orderNumber: string, token: string | null, recipient = "x@test.local") =>
+  const logCall = (
+    orderNumber: string,
+    token: string | null,
+    recipient = "x@test.local",
+    body = "<html><body>treść, której odmowa nie może zapisać</body></html>",
+  ) =>
     anon.schema("app").rpc("log_public_checkout_email", {
       p_tenant_id: a.tenantId,
       p_order_number: orderNumber,
@@ -383,6 +416,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
       p_status: "sent",
       p_provider_message_id: null,
       p_error: null,
+      p_body: body,
     });
 
   it("anon BEZ tokenu nie dopisze wpisu do cudzego zamówienia (22023)", async () => {
@@ -395,7 +429,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     // Stan TRWAŁY (service-role, omija RLS): wpis NIE powstał. Sam błąd w
     // odpowiedzi nie wystarcza — to ta sama klasa fałszywej zieleni, którą
     // macierz izolacji tępi przy UPDATE/DELETE.
-    const { data } = await admin.from("email_logs").select("id").eq("order_id", order.id);
+    const { data } = await admin.from("email_logs").select("id, body").eq("order_id", order.id);
     expect(data ?? []).toHaveLength(0);
   });
 
@@ -409,7 +443,7 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     const { error } = await logCall(target.number, other.token);
     expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
 
-    const { data } = await admin.from("email_logs").select("id").eq("order_id", target.id);
+    const { data } = await admin.from("email_logs").select("id, body").eq("order_id", target.id);
     expect(data ?? []).toHaveLength(0);
   });
 
@@ -454,8 +488,15 @@ describe.skipIf(!hasEnv)("historia wysyłek e-mail (0021)", () => {
     // Domknięcie osi tenanta: sam fakt posiadania WAŻNEGO tokenu nie może
     // otwierać dziennika cudzego najemcy.
     const orderB = await createOrderFor(b.tenantId);
-    const { error } = await logCall(orderB.number, orderB.token);
+    const recipient = `foreign-token-${randomUUID()}@test.local`;
+    const { error } = await logCall(orderB.number, orderB.token, recipient);
     expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER}`).toBe(PG_INVALID_PARAMETER);
+
+    const { data } = await admin
+      .from("email_logs")
+      .select("id, body")
+      .eq("recipient", recipient);
+    expect(data ?? [], "cudza para tenant/token nie może zostawić treści").toHaveLength(0);
   });
 
   it("zamówienia z PANELU nie mają tokenu — nie da się do nich dopisać wpisu checkoutu", async () => {
