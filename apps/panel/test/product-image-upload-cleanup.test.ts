@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { cleanupProductImageUploads } from "@/src/jobs/cleanup-product-image-uploads";
 
@@ -230,6 +231,19 @@ async function routeRequest(authorization?: string) {
 }
 
 describe("cron product-image-uploads", () => {
+  it("ma dzienny harmonogram zgodny z ograniczeniem Vercel Hobby", () => {
+    const config = JSON.parse(
+      readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
+    ) as { crons: Array<{ path: string; schedule: string }> };
+
+    expect(config.crons).toEqual([
+      {
+        path: "/api/jobs/product-image-uploads",
+        schedule: "17 3 * * *",
+      },
+    ]);
+  });
+
   beforeEach(() => {
     cleanupRouteMock.mockReset();
     cleanupRouteMock.mockResolvedValue({
