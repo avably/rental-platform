@@ -109,8 +109,9 @@ Tabela trafia do automatycznej macierzy RLS wraz z fabryką i mutacjami harnessu
 
 ### Wąskie funkcje
 
-Migracja tworzy trzy `SECURITY DEFINER` z zamrożonym `search_path`, jawnymi
-grantami i bez grantu dla `anon`:
+Migracja tworzy trzy RPC i jedną wewnętrzną bramkę Storage jako
+`SECURITY DEFINER` z zamrożonym `search_path`, jawnymi grantami i bez grantu
+dla `anon`:
 
 1. `app.issue_product_image_upload(product_id, declared_mime, declared_size)`
    sprawdza `auth.uid()`, `app.tenant_id()`, istnienie produktu w tym tenancie
@@ -123,10 +124,15 @@ grantami i bez grantu dla `anon`:
 3. `app.finish_product_image_upload(upload_id, outcome)` pozwala temu samemu
    użytkownikowi zakończyć wyłącznie własny `processing` jako `completed` albo
    `rejected`.
+4. `app.can_upload_product_image(storage_path)` zwraca prawdę wyłącznie dla
+   dokładnego, niewygasłego biletu `pending` bieżącego użytkownika i tenanta,
+   którego produkt nadal należy do tego tenanta. Funkcja jest przeznaczona dla
+   polityki INSERT Storage i nie daje użytkownikowi dostępu do tabeli biletów.
 
-Funkcje nie przyjmują `tenant_id`, ścieżki ani `requested_by` od wołającego.
+RPC nie przyjmują `tenant_id`, ścieżki ani `requested_by` od wołającego.
 Te wartości wynikają z sesji i wiersza. Tekst odmowy nie rozróżnia cudzego,
-nieistniejącego, wygasłego i wykorzystanego biletu.
+nieistniejącego, wygasłego i wykorzystanego biletu. Inny użytkownik tego
+samego tenanta również nie może podpisać, przejąć ani domknąć cudzego biletu.
 
 ### Tabela docelowa
 
@@ -147,10 +153,14 @@ Bucket `product-images` pozostaje publiczny. Migracja ustawia na nim:
 - `public = true`.
 
 Bucket jest więc niezależną bramką limitu i deklarowanego MIME. Odczyt
-storefrontu pozostaje publiczny. Polityka INSERT nadal wymaga sesji
-`authenticated` oraz pierwszego segmentu równego `app.tenant_id()`, ale
-dodatkowo wymaga pełnego kształtu ścieżki. Podpisany token powstaje tą samą
-sesją członka, nigdy z `service_role`, i ma `upsert: false`.
+storefrontu pozostaje publiczny. Polityka INSERT wymaga sesji `authenticated`
+oraz dokładnego, niewygasłego biletu `pending`, dla którego `storage_path`
+równa się nazwie obiektu, `tenant_id = app.tenant_id()`, `requested_by =
+auth.uid()`, a produkt należy do tego tenanta. Sam poprawny kształt ścieżki nie
+wystarcza. Polityka UPDATE nie istnieje, więc po weryfikacji nie można podmienić
+bajtów obiektu. Tenant-bound DELETE pozostaje dostępny dla usuwania zdjęć i
+kompensacji. Podpisany token powstaje tą samą sesją członka, nigdy z
+`service_role`, i ma `upsert: false`.
 
 Token signed uploadu jest sekretem krótkiego życia: nie trafia do bazy, logów,
 analityki ani komunikatu błędu. Token Supabase może technicznie działać dłużej
@@ -223,9 +233,10 @@ Zadanie:
 
 Chroniony Route Handler przyjmuje wyłącznie autoryzowane wywołanie harmonogramu.
 Sekret harmonogramu musi być ustawiony na Vercelu przed merge. Harmonogram
-uruchamia sprzątanie co godzinę. Niezakończony obiekt staje się kwalifikowany
-do usunięcia 24 godziny po `created_at` i znika przy najbliższym udanym
-przebiegu. Błąd zadania zwraca nie-2xx i pozostawia rekord do ponowienia;
+uruchamia sprzątanie raz dziennie, zgodnie z limitem Vercel Hobby.
+Niezakończony obiekt staje się kwalifikowany do usunięcia 24 godziny po
+`created_at` i znika przy najbliższym udanym przebiegu. Błąd zadania zwraca
+nie-2xx i pozostawia rekord do ponowienia;
 dokumentacja operacyjna nie obiecuje niemożliwego „najpóźniej po 24 godzinach”,
 gdy sam harmonogram jest niedostępny.
 
@@ -293,6 +304,11 @@ tokenów, ścieżek i błędów dostawcy nie są ujawniane w UI.
    i realnego uploadu.
 6. Usunięcie sprawdzenia referencji w cleanup musi zaczerwienić test ochrony
    poprawnego zdjęcia.
+7. Usunięcie związania INSERT z dokładnym biletem musi zaczerwienić test
+   własnej ścieżki bez biletu.
+8. Przywrócenie polityki UPDATE musi zaczerwienić test niezmienności bajtów.
+9. Oczekiwanie `true` od `finish_product_image_upload RETURNS void` musi
+   zaczerwienić żywy test adaptera dla odpowiedzi `data = null, error = null`.
 
 PM przy odbiorze wykonuje własną mutację na innym wektorze i potwierdza
 niepusty `git diff --stat` przed uruchomieniem testu.
@@ -308,9 +324,11 @@ Weryfikacja wykonawcza obejmuje:
 - oba joby GitHub (`ci`, `rls`);
 - preview panelu.
 
-Migracja `0038` jest kompatybilna ze starym panelem: istniejąca ścieżka
-serwerowa nadal zapisuje te same typy plików do tego samego bucketu, a nowe
-limity odpowiadają jej obecnej walidacji. Kolejność produkcyjna:
+Migracja `0038` zamyka dawny szeroki INSERT bez biletu, więc stary panel nie
+może po jej zastosowaniu rozpocząć nowego uploadu zdjęcia. Wdrożenie wymaga
+krótkiego, skoordynowanego okna: migracja wchodzi bezpośrednio przed wdrożeniem
+nowego panelu; nie wolno pozostawić starego panelu działającego z 0038 dłużej
+niż trwa kontrolowany deploy. Kolejność produkcyjna:
 
 1. ustawić i potwierdzić sekret harmonogramu sprzątania;
 2. zastosować na PROD dokładny blok migracji wycięty z pliku;
@@ -321,6 +339,18 @@ limity odpowiadają jej obecnej walidacji. Kolejność produkcyjna:
 6. po deployu wgrać kontrolowane zdjęcie produktu demo, potwierdzić miniaturę
    w panelu i exact publiczny odczyt na storefroncie, a następnie je usunąć;
 7. potwierdzić wykonanie i zielony wynik zadania sprzątającego.
+
+Po świeżym lokalnym resecie z plików oczekiwane
+`md5(pg_get_functiondef(...))` wynosi:
+
+- `app.issue_product_image_upload(uuid,text,bigint)`:
+  `64e33b76e377635c0e01b5642a675356`;
+- `app.claim_product_image_upload(uuid)`:
+  `30050eb86e5d7bccc69e858b7fb30f1f`;
+- `app.finish_product_image_upload(uuid,text)`:
+  `9685e8e8790bca3df0a233ff453069ec`;
+- `app.can_upload_product_image(text)`:
+  `51bf320015df0a30b206f914ea3577a1`.
 
 Rozjazd MD5, brak sekretu harmonogramu, brak polityki, zła konfiguracja bucketu
 albo niezgodność danych istniejących zatrzymują merge. Migracji nie wykonuje

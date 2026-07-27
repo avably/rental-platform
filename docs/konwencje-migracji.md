@@ -123,11 +123,19 @@ kontrakt bucketa, nie tylko istnienie wpisu w `storage.buckets`:
 
 1. jawność albo prywatność bucketa zgodną z decyzją architektoniczną;
 2. dokładny `file_size_limit` i pełną allowlistę `allowed_mime_types`;
-3. komplet polityk `storage.objects`, w tym związanie zapisu z tenantem i
-   oczekiwanym kształtem ścieżki;
+3. komplet polityk `storage.objects`, w tym związanie INSERT z dokładnym,
+   niewygasłym biletem bieżącego tenanta i użytkownika; sam kształt ścieżki
+   nie jest autoryzacją, a UPDATE obiektu pozostaje zabroniony, jeśli aplikacja
+   nie ma jawnego przepływu podmiany bajtów;
 4. definicję, granty i zachowanie każdej funkcji `SECURITY DEFINER`;
 5. `md5(pg_get_functiondef(...))` każdej nowej lub zmienionej funkcji
    `SECURITY DEFINER`, porównane po zastosowaniu dokładnego bloku migracji.
+
+Jeśli zaostrzenie polityki zamyka ścieżkę zapisu starej wersji aplikacji,
+`migration-before-code` oznacza skoordynowane okno: dokładny blok migracji jest
+stosowany bezpośrednio przed wdrożeniem nowego kodu, a stara wersja nie może
+pozostać aktywna dłużej niż trwa kontrolowany deploy. Tę niekompatybilność
+trzeba wpisać do checklisty PROD i opisu PR.
 
 Obiekty Storage usuwa się wyłącznie przez Storage API. Bezpośredni `DELETE`
 z `storage.objects` w SQL jest zabroniony: omija warstwę zarządzającą

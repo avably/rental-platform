@@ -4,7 +4,7 @@
 
 **Goal:** Move product-image bytes from Next.js Server Actions to a one-time, tenant-bound signed upload while preserving the current one-click operator experience and public storefront images.
 
-**Architecture:** Migration `0038` adds a private, RLS-protected upload-intent table, three narrow RPCs, a unique/path contract on `product_images`, and hard limits on the existing public bucket. The browser uploads directly with a server-issued token; a small authenticated action claims the intent, validates Storage metadata and real image bytes, inserts metadata, and compensates failures. A quarantined service-role job removes abandoned objects.
+**Architecture:** Migration `0038` adds a private, RLS-protected upload-intent table, three narrow RPCs, one ticket-bound Storage gate, a unique/path contract on `product_images`, and hard limits on the existing public bucket. The browser uploads directly with a server-issued token; a small authenticated action claims the intent, validates Storage metadata and real image bytes, inserts metadata, and compensates failures. A quarantined service-role job removes abandoned objects.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Supabase JS/Storage/Postgres/RLS, Zod 4, Vitest, Vercel Cron, pnpm/Turborepo.
 
@@ -268,6 +268,10 @@ app.finish_product_image_upload(
   p_upload_id uuid,
   p_outcome text
 ) returns void
+
+app.can_upload_product_image(
+  p_storage_path text
+) returns boolean
 ```
 
 - Consumers: Task 4 server adapters and Task 7 live test.
@@ -311,7 +315,8 @@ SUPABASE_LOCAL_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
 corepack pnpm --filter @avably/db exec vitest run test/rls-isolation.test.ts
 ```
 
-Expected: FAIL because `product_image_uploads` and the three RPCs do not exist.
+Expected: FAIL because `product_image_uploads`, the three RPCs and the Storage
+gate do not exist.
 
 - [ ] **Step 2: Write live RPC and bucket tests before SQL**
 
@@ -326,12 +331,18 @@ Expected: FAIL because `product_image_uploads` and the three RPCs do not exist.
 - claim again and as owner B; assert the same denial and no state change;
 - finish only `processing → completed|rejected`;
 - reject unknown outcome and expired intent;
+- reject claim and finish by another user of the same tenant;
 - prove authenticated users cannot select/insert/update/delete the table
   directly;
 - read `storage.buckets` with the admin client and assert exact public flag,
   file size and sorted MIME list;
-- use `createSignedUploadUrl` followed by `uploadToSignedUrl` for an exact valid
-  path and prove a cross-tenant path cannot receive a signed URL;
+- use `createSignedUploadUrl` followed by `uploadToSignedUrl` for an exact,
+  pending ticket owned by the caller;
+- reject signing for an own-shaped path without a ticket, an expired ticket,
+  a cross-tenant ticket and a ticket issued to another user of the same tenant;
+- prove the denied no-ticket path did not create an object;
+- reject Storage UPDATE and prove the existing object bytes did not change;
+- preserve tenant-bound DELETE used by image removal and compensation;
 - upload exactly 5 MiB with allowed MIME and reject 5 MiB + 1 byte;
 - reject `image/svg+xml`.
 
@@ -353,8 +364,10 @@ The migration must contain these sections in this order:
 4. The `product_image_uploads` table with exact status, MIME, size, path and
    timestamp CHECKs from the design.
 5. RLS, REVOKE and service-role grants.
-6. Three functions with one denial message, frozen search path and grants only
-   to `authenticated` and `service_role`.
+6. Three RPCs with one denial message plus
+   `app.can_upload_product_image(text)` as a `SECURITY DEFINER` Storage gate;
+   every function has a frozen search path and minimal grants only to
+   `authenticated` and `service_role`.
 7. Exact bucket settings and rewritten Storage policies.
 
 Use this path expression in both table CHECKs and functions:
@@ -434,24 +447,21 @@ end;
 $$;
 ```
 
-Storage INSERT policy must compare path strings without casting hostile input
-to UUID:
+Storage INSERT must be bound to the exact ticket without granting direct table
+access to `authenticated`. The policy delegates to the narrow gate:
 
 ```sql
 with check (
   bucket_id = 'product-images'
-  and (storage.foldername(name))[1] = app.tenant_id()::text
-  and exists (
-    select 1 from public.products p
-    where p.tenant_id = app.tenant_id()
-      and p.id::text = (storage.foldername(name))[2]
-  )
-  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|avif)$'
+  and app.can_upload_product_image(storage.objects.name)
 );
 ```
 
-Keep public SELECT. Keep tenant-scoped DELETE for the existing image-management
-flow. Do not grant table access to `anon` or `authenticated`.
+The gate returns true only when the exact `storage_path` belongs to a pending,
+unexpired ticket for `app.tenant_id()` and `auth.uid()`, joined to a product of
+that tenant. Keep public SELECT and tenant-scoped DELETE for the existing
+image-management flow. Drop the authenticated UPDATE policy entirely. Do not
+grant table access to `anon` or `authenticated`.
 
 - [ ] **Step 4: Reset local Supabase from the migration files**
 
@@ -480,6 +490,12 @@ Mutation A: remove the product ownership predicate from
 
 Mutation B: remove `u.status = 'pending'` from claim; confirm the second-claim
 test becomes RED.
+
+Mutation C: replace the ticket-bound INSERT predicate with the former broad
+tenant/path predicate; confirm the own-shaped no-ticket test becomes RED.
+
+Mutation D: recreate the authenticated UPDATE policy; confirm the immutable
+object-bytes test becomes RED.
 
 Before each run:
 
@@ -716,6 +732,8 @@ Mock `requireMember`, RPC and Storage. Assert:
 - finalize RPC claim result supplies path/product/tenant;
 - browser input cannot override those values;
 - localized PL/EN messages map each stable service error.
+- the finish adapter accepts the real `RETURNS void` response
+  (`data = null, error = null`) without reporting an error.
 
 - [ ] **Step 2: Run RED**
 
@@ -727,6 +745,9 @@ PATH=/opt/homebrew/opt/node@22/bin:$PATH corepack pnpm --filter panel exec vites
 
 Build `issue`, `sign`, `claim`, `info`, `download`, `insert`, `findByPath`,
 `remove`, `finish`, and `report` from the authenticated `ctx.supabase`.
+Because `app.finish_product_image_upload` returns `void`, its real PostgREST
+contract is `data = null, error = null`; the finish adapter checks only
+`error` and never expects `true`.
 Convert PostgREST snake_case rows once at the adapter boundary:
 
 ```ts
@@ -799,6 +820,9 @@ bash scripts/audit-service-role.sh
 ```
 
 Expected: PASS and no service-role occurrence in the upload action.
+
+Mutation: make the finish adapter require `data === true`; confirm the live
+adapter test becomes RED with a non-empty diff, restore and rerun GREEN.
 
 - [ ] **Step 6: Commit**
 
@@ -1110,10 +1134,13 @@ With local Supabase and seeded tenant/product:
 5. assert exactly one `product_images` row;
 6. fetch the public URL without auth and compare exact bytes;
 7. assert the intent is completed;
-8. call finalize again and assert denial with no second row.
+8. assert a successful finish produced no error report;
+9. call finalize again and assert denial with no second row.
 
 Add a spoof case: upload text bytes with `contentType: image/png`, finalize,
 assert rejection, zero metadata rows and missing Storage object.
+Add a direct live assertion that `finish_product_image_upload RETURNS void`
+returns exactly `data = null, error = null`.
 
 - [ ] **Step 2: Run the test**
 
@@ -1137,9 +1164,9 @@ PATH=/opt/homebrew/opt/node@22/bin:$PATH corepack pnpm --filter panel build
 
 Record exact test counts and durations in the PR report.
 
-- [ ] **Step 4: Execute all six required mutations**
+- [ ] **Step 4: Execute all nine required mutations**
 
-Use the six mutation vectors from the design/spec. For each:
+Use the nine mutation vectors from the design/spec. For each:
 
 1. apply only that mutation;
 2. run `git diff --stat` and save the non-empty output;
@@ -1177,7 +1204,8 @@ Document:
 - 5 MiB/MIME bucket enforcement plus byte-signature verification;
 - no service role in user flow;
 - cleanup job and exact 24h/7d retention;
-- migration-before-code compatibility;
+- the coordinated migration-before-code window, including the fact that 0038
+  closes the old no-ticket upload path;
 - rejected alternatives.
 
 - [ ] **Step 2: Update the model**
@@ -1278,12 +1306,13 @@ Push the feature branch and create a draft PR. The body must include:
 - product-images-only scope and explicit invoice exclusion;
 - migration `0038` and migration-before-code order;
 - exact test counts;
-- all six mutation results with non-empty diff evidence;
+- all nine mutation results with non-empty diff evidence;
 - bucket configuration;
 - CRON secret prerequisite;
 - PROD checklist with MD5 slots filled from the local database;
-- rollback: old panel remains compatible, do not reverse the migration after
-  new code deploys.
+- rollout: applying 0038 closes the old panel upload path, so coordinate the
+  migration immediately before the new panel deploy; do not reverse the
+  migration after new code deploys.
 
 - [ ] **Step 6: Add the build-log entry with the actual PR number**
 
