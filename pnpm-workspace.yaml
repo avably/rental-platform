@@ -14,6 +14,14 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 
+minimumReleaseAgeExclude:
+  - brace-expansion@5.0.8
+
+patchedDependencies:
+  # minimatch 3 oczekuje eksportu-funkcji z brace-expansion 1.x.
+  # Adapter zachowuje jego API po bezpiecznym podniesieniu do 5.0.8.
+  minimatch@3.1.5: patches/minimatch@3.1.5.patch
+
 # Nadpisania wymuszone przez świeże doradztwa bezpieczeństwa (2026-07-22).
 # Oba pakiety są ZALEŻNOŚCIAMI POŚREDNIMI — nie da się ich podnieść przez
 # bump naszej zależności bezpośredniej, bo trzyma je next / react-email.
@@ -34,3 +42,4 @@ overrides:
   sharp: "^0.35.3"
   next: "^16.2.11"
   postcss: "^8.5.12"
+  brace-expansion@<=5.0.7: ^5.0.8

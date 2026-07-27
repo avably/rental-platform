@@ -45,6 +45,7 @@ export function checkoutEmailLogRecorder(
         p_status: entry.status,
         p_provider_message_id: entry.providerMessageId ?? null,
         p_error: entry.error ?? null,
+        p_body: entry.body ?? null,
       });
       if (error) throw new Error(error.message);
     },
