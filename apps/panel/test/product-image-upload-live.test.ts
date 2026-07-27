@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { integrationEnv } from "./helpers/integration-env";
 import {
@@ -85,7 +85,12 @@ describe.skipIf(!hasEnv)("pełna droga signed uploadu zdjęcia", () => {
     await cleanupSeeded(admin);
   }, 60_000);
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("tworzy dokładnie jeden wiersz, publicznie oddaje te same bajty i odmawia drugi raz", async () => {
+    const reportSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const prepared = await prepareProductImageUploadAction(productId, {
       mime: "image/png",
       size: PNG.length,
@@ -107,6 +112,7 @@ describe.skipIf(!hasEnv)("pełna droga signed uploadu zdjęcia", () => {
     await expect(finalizeProductImageUploadAction(prepared.upload.uploadId)).resolves.toEqual({
       success: "added",
     });
+    expect(reportSpy).not.toHaveBeenCalled();
 
     const { data: rows, error: rowsError } = await admin
       .from("product_images")
@@ -138,6 +144,34 @@ describe.skipIf(!hasEnv)("pełna droga signed uploadu zdjęcia", () => {
       .eq("storage_path", prepared.upload.path);
     expect(count).toBe(1);
   }, 60_000);
+
+  it("realny PostgREST zwraca data null i error null dla finish RETURNS void", async () => {
+    const issued = await tenant.ownerClient
+      .schema("app")
+      .rpc("issue_product_image_upload", {
+        p_product_id: productId,
+        p_declared_mime: "image/png",
+        p_declared_size: PNG.length,
+      })
+      .single();
+    expect(issued.error, issued.error?.message).toBeNull();
+
+    const claimed = await tenant.ownerClient
+      .schema("app")
+      .rpc("claim_product_image_upload", {
+        p_upload_id: issued.data.upload_id as string,
+      })
+      .single();
+    expect(claimed.error, claimed.error?.message).toBeNull();
+
+    const finished = await tenant.ownerClient
+      .schema("app")
+      .rpc("finish_product_image_upload", {
+        p_upload_id: issued.data.upload_id as string,
+        p_outcome: "rejected",
+      });
+    expect(finished).toMatchObject({ data: null, error: null });
+  });
 
   it("usuwa tekst podszywający się pod PNG i nie tworzy metadanych", async () => {
     const fake = new TextEncoder().encode("to nie jest plik PNG");

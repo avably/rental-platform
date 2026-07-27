@@ -398,7 +398,7 @@ describe("akcje signed uploadu", () => {
         };
       }
       if (name === "finish_product_image_upload") {
-        return { data: true, error: null };
+        return { data: null, error: null };
       }
       throw new Error(`nieoczekiwane RPC: ${name}`);
     });

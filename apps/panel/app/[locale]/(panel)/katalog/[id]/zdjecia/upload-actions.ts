@@ -168,13 +168,13 @@ export async function finalizeProductImageUploadAction(uploadId: string): Promis
       if (error) throw error;
     },
     finish: async (finishedUploadId, status) => {
-      const { data, error } = await ctx.supabase
+      const { error } = await ctx.supabase
         .schema("app")
         .rpc("finish_product_image_upload", {
           p_outcome: status,
           p_upload_id: finishedUploadId,
         });
-      if (error || data !== true) throw error ?? new Error("Nie zakończono biletu.");
+      if (error) throw error;
     },
     report: (error) => {
       console.error("Nie udało się zakończyć biletu uploadu zdjęcia.", error);
