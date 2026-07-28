@@ -257,6 +257,13 @@ export default async function OrderDetailPage({
               <span className="tabular-nums tracking-[0.01em]">{term}</span>{" "}
               <span className="text-muted-foreground font-normal">({t("days", { days })})</span>
             </DetailField>
+            {/* Wejście w przedłużenie stoi PRZY TERMINIE (R4, uwaga właściciela):
+                przycisk „Przedłuż" pod datami odsłania wybór nowej daty końca
+                z dopłatą na żywo. Osobna sekcja przedłużenia zniknęła; RSC dokłada
+                tu jedną linię, tak jak przy pozycjach i logistyce. */}
+            <ExtensionSection
+              order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }}
+            />
             <DetailField label={t("deliveryLabel")}>
               {tDelivery(row.delivery_method)}
               {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
@@ -476,8 +483,6 @@ export default async function OrderDetailPage({
           </div>
         </details>
       </section>
-
-      <ExtensionSection order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }} />
 
       <DeliverySection orderId={row.id} deliveryMethod={row.delivery_method} totalRentalGrosze={row.total_rental_grosze} />
 

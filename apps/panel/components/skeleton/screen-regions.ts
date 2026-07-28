@@ -279,6 +279,12 @@ export const ORDER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
     note: "karta „Podsumowanie” w panelu bocznym: termin i dostawa (notatki wyprowadzone do własnej karty w #118)",
   },
   {
+    region: "summary-extension",
+    from: "source",
+    anchor: "<ExtensionSection",
+    note: "wejście w przedłużenie PRZY TERMINIE w karcie podsumowania (R4): przycisk „Przedłuż” odsłania wybór nowej daty końca z dopłatą na żywo; osobna sekcja przedłużenia zniknęła, mechanika bez zmian",
+  },
+  {
     region: "notes",
     from: "source",
     anchor: 'id="notes-heading"',
@@ -332,12 +338,6 @@ export const ORDER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
     from: "source",
     anchor: 'id="kaucja"',
     note: "sekcja kaucji — rejestr zdarzeń, salda i formularze",
-  },
-  {
-    region: "section-extension",
-    from: "source",
-    anchor: "<ExtensionSection",
-    note: "sekcja przedłużenia najmu",
   },
   {
     region: "section-delivery",

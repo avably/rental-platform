@@ -860,12 +860,13 @@
       "cancel": "Anuluj"
     },
     "extension": {
-      "title": "Przedłużenie najmu",
+      "trigger": "Przedłuż",
       "newEndLabel": "Nowa data końca",
       "quoteDays": "Dodatkowe dni: {days}",
       "quoteSurcharge": "Dopłata: {amount}",
       "pickDateHint": "Wybierz datę po obecnym końcu najmu, aby zobaczyć dopłatę.",
-      "cta": "Przedłuż najem"
+      "cta": "Przedłuż najem",
+      "cancel": "Anuluj"
     },
     "notes": {
       "label": "Notatki (stan sprzętu, uwagi o zwrocie kaucji)",
