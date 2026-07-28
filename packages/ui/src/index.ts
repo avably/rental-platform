@@ -40,6 +40,10 @@ export {
   DropdownMenuTrigger,
 } from "./components/dropdown-menu";
 export {
+  FileField,
+  type FileFieldProps,
+} from "./components/file-field";
+export {
   FilterChip,
   type FilterChipProps,
 } from "./components/filter-chip";

@@ -38,7 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  Input,
+  FileField,
   Label,
 } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
@@ -55,14 +55,6 @@ import {
 
 type SendAction = (previous: FormState, formData: FormData) => Promise<FormState>;
 
-/** Rozmiar pliku w jednostce, w której operator go widzi w systemie. */
-function formatSize(bytes: number, locale: string): string {
-  const mb = bytes / (1024 * 1024);
-  const value = mb >= 0.1 ? mb : bytes / 1024;
-  const unit = mb >= 0.1 ? "MB" : "kB";
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)} ${unit}`;
-}
-
 export function InvoiceDialog({
   orderId,
   customerEmail,
@@ -75,6 +67,7 @@ export function InvoiceDialog({
   resend: boolean;
 }) {
   const t = useTranslations("orders.invoice");
+  const tf = useTranslations("fileField");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<{ name: string; size: number } | null>(null);
@@ -129,36 +122,25 @@ export function InvoiceDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={fieldId}>{t("fileLabel")}</Label>
-            <Input
+            <FileField
               id={fieldId}
               name="file"
-              type="file"
               accept={INVOICE_MIME_TYPE}
               required
+              prompt={tf("prompt")}
+              hint={t("fileHint", { limit: INVOICE_MAX_MB })}
+              removeLabel={tf("remove")}
+              error={problemMessage ?? undefined}
+              locale={locale}
               onChange={handlePick}
-              aria-describedby={`${fieldId}-hint`}
             />
-            <p id={`${fieldId}-hint`} className="text-muted-foreground text-xs">
-              {t("fileHint", { limit: INVOICE_MAX_MB })}
-            </p>
           </div>
-
-          {picked ? (
-            <p className="text-muted-foreground text-xs break-all">
-              {picked.name} · {formatSize(picked.size, locale)}
-            </p>
-          ) : null}
 
           {/* Ten sam ekran mówi WPROST, czego nie robimy: PDF-a nie
               zostawiamy u siebie. Bez tego zdania historia wysyłek czytałaby
               się jak archiwum faktur, którym nie jest (ADR-076). */}
           <p className="text-muted-foreground text-xs">{t("noArchiveNote")}</p>
 
-          {problemMessage ? (
-            <p role="alert" className="text-destructive text-sm">
-              {problemMessage}
-            </p>
-          ) : null}
           {state.formError ? (
             <p role="alert" className="text-destructive text-sm">
               {state.formError}
