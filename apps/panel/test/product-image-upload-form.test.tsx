@@ -138,4 +138,22 @@ describe("UploadImageForm", () => {
     expect(input.files?.[0]).toBe(selected);
     expect(finalize).not.toHaveBeenCalled();
   });
+
+  it("nieoczekiwany wyjątek podczas wysyłki (np. brak env klienta przeglądarki) pokazuje błąd", async () => {
+    const prepare = vi.fn(async () => ({
+      ok: true as const,
+      upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
+    }));
+    const finalize = vi.fn(async () => ({ success: "added" }));
+    uploadMock.mockRejectedValue(new Error("Brak zmiennej środowiskowej NEXT_PUBLIC_SUPABASE_URL"));
+    mount(prepare, finalize);
+    selectFile(file());
+
+    fireEvent.click(screen.getByRole("button", { name: messages.catalog.images.add }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain(messages.catalog.images.errors.upload);
+    });
+    expect(finalize).not.toHaveBeenCalled();
+  });
 });

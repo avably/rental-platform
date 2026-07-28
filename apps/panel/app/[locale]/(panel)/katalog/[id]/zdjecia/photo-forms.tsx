@@ -71,6 +71,8 @@ export function UploadImageForm({
         if (fileInputRef.current) fileInputRef.current.value = "";
         setFileInputVersion((version) => version + 1);
       }
+    } catch {
+      setState({ formError: t("errors.upload") });
     } finally {
       pendingRef.current = false;
       setPending(false);
