@@ -64,7 +64,7 @@ function SaveRow({
   return (
     <div className="flex flex-wrap items-center gap-3 pt-2">
       {canWrite ? (
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" loading={pending} disabled={pending}>
           {label}
         </Button>
       ) : null}

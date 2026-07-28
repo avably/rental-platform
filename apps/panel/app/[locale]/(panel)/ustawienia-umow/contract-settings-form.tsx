@@ -84,7 +84,7 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
           className="min-h-64"
         />
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" loading={pending} disabled={pending}>
             {t("save")}
           </Button>
           <Feedback state={state} />

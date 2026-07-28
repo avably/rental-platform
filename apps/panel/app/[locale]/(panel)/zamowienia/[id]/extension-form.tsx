@@ -117,7 +117,7 @@ export function ExtensionForm({
         <p className="text-muted-foreground">{t("pickDateHint")}</p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={pending || !quote}>
+        <Button type="submit" size="sm" loading={pending} disabled={pending || !quote}>
           {t("cta")}
         </Button>
         <Button

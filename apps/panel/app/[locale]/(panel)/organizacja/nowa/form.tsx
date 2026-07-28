@@ -30,6 +30,7 @@ export function CreateTenantForm() {
       {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <button
         type="submit"
+          aria-busy={pending || undefined}
         disabled={pending}
         className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
       >

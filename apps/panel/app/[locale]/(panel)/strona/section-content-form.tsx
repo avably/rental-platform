@@ -233,7 +233,7 @@ export function SectionContentForm({
 
       <div data-section-actions className="flex flex-wrap items-center gap-2 pt-1">
         {actions}
-        <Button type="submit" size="sm" disabled={pending}>
+        <Button type="submit" size="sm" loading={pending} disabled={pending}>
           {pending ? t("saving") : t("saveSection")}
         </Button>
         {saved ? (

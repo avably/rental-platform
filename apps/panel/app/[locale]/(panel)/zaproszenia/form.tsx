@@ -59,7 +59,7 @@ export function InviteMemberForm({
           />
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" loading={pending} disabled={pending}>
               {pending ? t("submitPending") : t("submit")}
             </Button>
           </div>

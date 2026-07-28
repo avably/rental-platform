@@ -83,7 +83,7 @@ function RetrySubdomainButton({
   return (
     <div className="flex flex-col gap-2 text-sm">
       <form action={formAction}>
-        <Button type="submit" disabled={pending || !available}>
+        <Button type="submit" loading={pending} disabled={pending || !available}>
           {t("retryCta")}
         </Button>
       </form>
@@ -120,7 +120,7 @@ function AddDomainForm() {
         <p className="text-muted-foreground">{t("domainHint")}</p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" loading={pending} disabled={pending}>
             {t("addCta")}
           </Button>
           {state.success && <span className="text-status-positive-fg">{t("addedOk")}</span>}
@@ -169,7 +169,7 @@ function DomainActions({ domain }: { domain: DomainRow }) {
       <div className="flex flex-wrap items-center gap-2">
         <form action={checkAction}>
           <input type="hidden" name="domain" value={domain.domain} />
-          <Button type="submit" variant="secondary" disabled={checking}>
+          <Button type="submit" variant="secondary" loading={checking} disabled={checking}>
             {t("checkCta")}
           </Button>
         </form>
@@ -177,7 +177,7 @@ function DomainActions({ domain }: { domain: DomainRow }) {
         {domain.kind === "custom" && (
           <form action={removeAction}>
             <input type="hidden" name="domain" value={domain.domain} />
-            <Button type="submit" variant="destructive" disabled={removing}>
+            <Button type="submit" variant="destructive" loading={removing} disabled={removing}>
               {t("removeCta")}
             </Button>
           </form>

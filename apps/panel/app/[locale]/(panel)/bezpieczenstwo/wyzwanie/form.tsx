@@ -48,7 +48,7 @@ export function TotpChallengeForm({ next }: { next?: string }) {
           </p>
         ) : null}
         <div className="pt-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" loading={pending} disabled={pending}>
             {pending ? t("submitPending") : t("submit")}
           </Button>
         </div>

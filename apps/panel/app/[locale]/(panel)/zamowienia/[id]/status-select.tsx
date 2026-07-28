@@ -222,6 +222,7 @@ export function StatusSelect({
         onValueChange={applyStatus}
         options={options}
         placeholder={pending ? t("statusChanging") : t("changeStatusPlaceholder")}
+        busy={pending}
         disabled={pending}
         className="sm:w-72"
       />

@@ -295,7 +295,7 @@ export function DepositRefundModal({
                 {t("cancel")}
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={pending || blocked}>
+            <Button type="submit" loading={pending} disabled={pending || blocked}>
               {t("refundConfirmCta")}
             </Button>
           </DialogFooter>

@@ -89,7 +89,7 @@ export function OrderNotes({
         </p>
       ) : null}
       <div>
-        <Button type="submit" size="sm" variant="outline" disabled={pending || unchanged}>
+        <Button type="submit" size="sm" variant="outline" loading={pending} disabled={pending || unchanged}>
           {t("saveCta")}
         </Button>
       </div>

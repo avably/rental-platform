@@ -30,6 +30,7 @@ export default function ResetRequestPage() {
         {state.success ? <p className="text-sm text-green-700">{state.success}</p> : null}
         <button
           type="submit"
+          aria-busy={pending || undefined}
           disabled={pending}
           className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
         >
