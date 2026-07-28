@@ -71,7 +71,7 @@ function ManualCollectForm({
           placeholder="0,00"
         />
       </div>
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button type="submit" variant="outline" loading={pending} disabled={pending}>
         {t("collectCta")}
       </Button>
       {state.formError ? (

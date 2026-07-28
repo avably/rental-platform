@@ -80,7 +80,7 @@ export function RefreshAllShipmentsButton({
   return (
     <form action={formAction} className="flex flex-col items-start gap-1">
       <input type="hidden" name="orderId" value={orderId} />
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button type="submit" variant="outline" loading={pending} disabled={pending}>
         {t("refreshAllCta")}
       </Button>
       <FormMessages state={state} successText={t("refreshedAllOk")} />
@@ -102,7 +102,7 @@ export function RefreshStatusButton({
   return (
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="shipmentId" value={shipmentId} />
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button type="submit" variant="outline" loading={pending} disabled={pending}>
         {t("refreshCta")}
       </Button>
       <FormMessages state={state} successText={t("refreshedOk")} />
@@ -137,7 +137,7 @@ export function SendReturnLabelButton({
     <form action={formAction} className="flex flex-col gap-1">
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="shipmentId" value={shipmentId} />
-      <Button type="submit" variant="outline" disabled={pending || !emailAvailability.available}>
+      <Button type="submit" variant="outline" loading={pending} disabled={pending || !emailAvailability.available}>
         {t("sendReturnLabelCta")}
       </Button>
       {!emailAvailability.available ? (
@@ -171,7 +171,7 @@ export function SendPickupReminderButton({
       <p className="font-medium">{t("pickupReminderTitle")}</p>
       <p className="text-muted-foreground">{t("pickupReminderHint")}</p>
       <input type="hidden" name="orderId" value={orderId} />
-      <Button type="submit" disabled={pending || !emailAvailability.available}>
+      <Button type="submit" loading={pending} disabled={pending || !emailAvailability.available}>
         {t("sendPickupReminderCta")}
       </Button>
       {!emailAvailability.available ? (

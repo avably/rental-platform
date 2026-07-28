@@ -156,7 +156,7 @@ export function InvoiceDialog({
                 {t("cancel")}
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={pending || !picked || localProblem !== null}>
+            <Button type="submit" loading={pending} disabled={pending || !picked || localProblem !== null}>
               {pending ? t("sending") : t("confirmSend")}
             </Button>
           </DialogFooter>

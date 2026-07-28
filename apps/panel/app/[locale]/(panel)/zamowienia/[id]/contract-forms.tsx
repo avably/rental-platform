@@ -19,7 +19,7 @@ export function GenerateContractForm({ orderId, regenerate = false }: { orderId:
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
       <input type="hidden" name="orderId" value={orderId} />
-      <Button type="submit" variant={regenerate ? "outline" : "default"} disabled={pending}>
+      <Button type="submit" variant={regenerate ? "outline" : "default"} loading={pending} disabled={pending}>
         {pending ? t("generating") : regenerate ? t("regenerate") : t("generate")}
       </Button>
       <Result state={state} />
@@ -35,7 +35,7 @@ export function SendContractForm({ orderId, documentId, attemptId, retry }: { or
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="attemptId" value={attemptId} />
-      <Button type="submit" variant="outline" disabled={pending}>{pending ? t("sending") : retry ? t("retry") : t("send")}</Button>
+      <Button type="submit" variant="outline" loading={pending} disabled={pending}>{pending ? t("sending") : retry ? t("retry") : t("send")}</Button>
       <Result state={state} />
     </form>
   );

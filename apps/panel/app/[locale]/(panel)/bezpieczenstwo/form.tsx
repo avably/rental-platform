@@ -62,7 +62,7 @@ export function TotpEnrollForm({
             </p>
           ) : null}
           <div>
-            <Button type="submit" disabled={enrollPending}>
+            <Button type="submit" loading={enrollPending} disabled={enrollPending}>
               {enrollPending ? t("enrollPending") : t("enrollSubmit")}
             </Button>
           </div>
@@ -114,7 +114,7 @@ export function TotpEnrollForm({
           </p>
         ) : null}
         <div className="pt-2">
-          <Button type="submit" disabled={verifyPending}>
+          <Button type="submit" loading={verifyPending} disabled={verifyPending}>
             {verifyPending ? t("verifyPending") : t("verifySubmit")}
           </Button>
         </div>

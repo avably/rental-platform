@@ -196,7 +196,7 @@ export function UnitRowForm({ action, unit }: { action: UnitAction; unit: UnitVa
         <Button type="submit" name="intent" value="save" loading={pending} disabled={pending}>
           {t("save")}
         </Button>
-        <Button type="submit" name="intent" value="delete" variant="destructive" disabled={pending}>
+        <Button type="submit" name="intent" value="delete" variant="destructive" loading={pending} disabled={pending}>
           {t("delete")}
         </Button>
       </div>

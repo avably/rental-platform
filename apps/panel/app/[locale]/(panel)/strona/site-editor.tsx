@@ -117,6 +117,7 @@ export function SiteEditor({
           <Button
             type="button"
             onClick={() => run(() => publishSite(siteId), () => setPublished(true))}
+            loading={pending}
             disabled={pending}
           >
             {pending ? t("publish.publishing") : t("publish.publish")}
@@ -158,6 +159,7 @@ export function SiteEditor({
               <Button
                 type="button"
                 variant="secondary"
+                loading={pending}
                 disabled={pending}
                 onClick={() => run(() => updateTemplate(siteId, templateChoice))}
               >
@@ -188,6 +190,7 @@ export function SiteEditor({
               <Button
                 type="button"
                 variant="secondary"
+                loading={pending}
                 disabled={pending}
                 onClick={() => addSection(sectionType)}
               >
@@ -223,22 +226,26 @@ export function SiteEditor({
                       <>
                         <RowButton
                           label={t("sections.moveUp")}
+                          loading={pending}
                           disabled={pending || index === 0}
                           onClick={() => move(index, -1)}
                         />
                         <RowButton
                           label={t("sections.moveDown")}
+                          loading={pending}
                           disabled={pending || index === sections.length - 1}
                           onClick={() => move(index, 1)}
                         />
                         <RowButton
                           label={section.enabled ? t("sections.disable") : t("sections.enable")}
+                          loading={pending}
                           disabled={pending}
                           onClick={() => run(() => toggleSection(section.id, !section.enabled))}
                         />
                         <RowButton
                           label={t("sections.remove")}
                           variant="destructive"
+                          loading={pending}
                           disabled={pending}
                           onClick={() => run(() => deleteSection(section.id))}
                         />
@@ -262,15 +269,27 @@ function RowButton({
   label,
   onClick,
   disabled,
+  loading,
   variant = "secondary",
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /* Sygnał zajętości wiersza — dzieli wspólną tranzycję `pending` edytora,
+     więc akcje wiersza (kolejność/włączenie/usunięcie) sygnalizują razem, tak
+     jak razem szarzeją na `disabled`. */
+  loading?: boolean;
   variant?: "secondary" | "destructive";
 }) {
   return (
-    <Button type="button" size="sm" variant={variant} onClick={onClick} disabled={disabled}>
+    <Button
+      type="button"
+      size="sm"
+      variant={variant}
+      onClick={onClick}
+      loading={loading}
+      disabled={disabled}
+    >
       {label}
     </Button>
   );

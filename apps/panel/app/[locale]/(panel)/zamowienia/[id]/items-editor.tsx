@@ -201,7 +201,7 @@ function ItemEditPanel({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="submit" size="sm" disabled={updatePending}>
+          <Button type="submit" size="sm" loading={updatePending} disabled={updatePending}>
             {t("save")}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={onClose}>
@@ -217,7 +217,7 @@ function ItemEditPanel({
         {confirmRemove ? (
           <>
             <span className="text-sm">{t("removeConfirm")}</span>
-            <Button type="submit" size="sm" variant="destructive" disabled={removePending}>
+            <Button type="submit" size="sm" variant="destructive" loading={removePending} disabled={removePending}>
               {t("removeConfirmCta")}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>
@@ -364,7 +364,7 @@ function AddItemForm({
             }}
           />
         </div>
-        <Button type="submit" variant="outline" disabled={pending}>
+        <Button type="submit" variant="outline" loading={pending} disabled={pending}>
           {t("addCta")}
         </Button>
       </div>

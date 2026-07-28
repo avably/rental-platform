@@ -70,7 +70,7 @@ function OnboardingButton({
   return (
     <div className="flex flex-col gap-2 text-sm" data-payment-onboarding>
       <form action={formAction}>
-        <Button type="submit" disabled={disabled}>
+        <Button type="submit" loading={pending} disabled={disabled}>
           {resume ? t("resumeCta") : t("startCta")}
         </Button>
       </form>
@@ -109,14 +109,14 @@ function AccountActions({ isOwner }: { isOwner: boolean }) {
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <form action={refreshAction}>
-          <Button type="submit" variant="secondary" disabled={refreshing}>
+          <Button type="submit" variant="secondary" loading={refreshing} disabled={refreshing}>
             {t("refreshCta")}
           </Button>
         </form>
 
         {isOwner && (
           <form action={disconnectAction}>
-            <Button type="submit" variant="destructive" disabled={disconnecting}>
+            <Button type="submit" variant="destructive" loading={disconnecting} disabled={disconnecting}>
               {t("disconnectCta")}
             </Button>
           </form>

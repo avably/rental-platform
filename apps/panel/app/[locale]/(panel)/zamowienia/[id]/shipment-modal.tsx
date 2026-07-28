@@ -425,6 +425,7 @@ function ModalBody({
             type="button"
             variant="outline"
             onClick={runSearch}
+            loading={isSearching}
             disabled={pending || isSearching}
           >
             {isSearching
@@ -550,7 +551,7 @@ function ModalBody({
         <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
           {t("cancelCta")}
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" loading={pending} disabled={pending}>
           {pending ? t("creatingShipment") : t("confirmCreateCta")}
         </Button>
       </div>

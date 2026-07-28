@@ -35,6 +35,7 @@ export function PanelSelect({
   options,
   placeholder,
   disabled,
+  busy,
   invalid,
   describedBy,
   className,
@@ -47,6 +48,9 @@ export function PanelSelect({
   options: readonly PanelSelectOption[];
   placeholder?: string;
   disabled?: boolean;
+  /* Zajętość jak w `Button.loading`: sygnał maszynowy `aria-busy` na triggerze,
+     gdy wybór odpala akcję w tranzycji (np. zmiana statusu zamówienia). */
+  busy?: boolean;
   invalid?: boolean;
   describedBy?: string;
   className?: string;
@@ -76,6 +80,7 @@ export function PanelSelect({
         <SelectTrigger
           id={id}
           aria-invalid={invalid || undefined}
+          aria-busy={busy || undefined}
           aria-describedby={describedBy}
           className={cn("w-full", className)}
         >
