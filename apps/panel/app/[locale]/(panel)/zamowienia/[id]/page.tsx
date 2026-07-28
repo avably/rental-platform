@@ -60,6 +60,7 @@ interface OrderDetailRow {
   notes: string | null;
   created_at: string;
   customers: {
+    id: string;
     full_name: string | null;
     email: string;
     phone: string | null;
@@ -104,7 +105,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -230,6 +231,7 @@ export default async function OrderDetailPage({
           {row.customers ? (
             <CustomerCard
               data={{
+                customerId: row.customers.id,
                 fullName: row.customers.full_name,
                 email: row.customers.email,
                 phone: row.customers.phone,

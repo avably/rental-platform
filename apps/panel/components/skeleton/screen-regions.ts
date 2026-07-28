@@ -388,3 +388,149 @@ export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>>
  * bo edycja potrzebuje własnego odczytu katalogu i dostępności.
  */
 export const ORDER_DETAIL_INLINE_SECTIONS = 4;
+
+/* ── Lista klientów (R6a) ──────────────────────────────────────────────── */
+
+/**
+ * Ile wierszy maluje szkielet listy klientów. Jak przy zamówieniach: to
+ * jedyny wymiar nieznany przed odczytem, a wiersze rosną W DÓŁ, więc ich
+ * liczba nie przesuwa belki ani nagłówka tabeli.
+ */
+export const CUSTOMERS_LIST_SKELETON_ROWS = 6;
+
+export const CUSTOMERS_LIST_REGIONS: readonly SkeletonRegionSpec[] = [
+  {
+    region: "header",
+    from: "source",
+    anchor: "<header",
+    note: "podtytuł listy (tytuł „Klienci” należy do belki, ADR-060)",
+  },
+  {
+    region: "search",
+    from: "render",
+    anchor: "data-customers-search",
+    note: "wyszukiwarka belki — jedyny sposób zawężania listy klientów (po nazwisku/mailu/telefonie)",
+  },
+  {
+    region: "result-count",
+    from: "render",
+    anchor: "data-customers-result-count",
+    note: "licznik „N wyników” obok wyszukiwarki",
+  },
+  {
+    region: "table",
+    from: "render",
+    anchor: "<table",
+    note: "ramka tabeli desktopowej (md+), przewijana poziomo wewnątrz",
+  },
+  {
+    region: "table-head",
+    count: 5,
+    from: "render",
+    // Spacja po nazwie jest istotna: „<th" złapałoby też „<thead".
+    anchor: "<th ",
+    anchorCount: 5,
+    note: "pięć kolumn: klient + e-mail + telefon + zamówienia + ostatnie zamówienie; zmiana liczby pali kontrakt",
+  },
+  {
+    region: "table-row",
+    count: CUSTOMERS_LIST_SKELETON_ROWS,
+    from: "render",
+    anchor: "data-customer-row",
+    note: "wiersz tabeli o wysokości h-[52px] jak wiersz realny",
+  },
+  {
+    region: "mobile-cards",
+    from: "render",
+    anchor: "data-customer-card",
+    note: "stos kart zamiast tabeli poniżej md",
+  },
+  {
+    region: "mobile-card",
+    count: CUSTOMERS_LIST_SKELETON_ROWS,
+    from: "render",
+    anchor: "data-customer-card",
+    note: "pojedyncza karta mobilna — ten sam wiersz-model co tabela",
+  },
+] as const;
+
+/** Pliki składające ekran listy klientów — źródła skanowane pod wyczerpującość. */
+export const CUSTOMERS_LIST_COMPOSITION_FILES: readonly string[] = ["page.tsx"] as const;
+
+/** Własne komponenty ekranu listy klientów z odpowiednikiem w szkielecie. */
+export const CUSTOMERS_LIST_SCREEN_PARTS: readonly string[] = [
+  "CustomersTable",
+  "CustomersToolbar",
+] as const;
+
+/** Lokalne komponenty listy klientów BEZ własnego regionu — każdy z powodem. */
+export const CUSTOMERS_LIST_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
+  CustomersEmptyState:
+    "gałąź tenanta BEZ ani jednego klienta; szkielet nie wie z góry, którą gałąź zobaczy, więc maluje przypadek dominujący (lista) zamiast udawać zaproszenie",
+};
+
+/* ── Karta klienta (R6a) ───────────────────────────────────────────────── */
+
+/** Ile wierszy historii zamówień maluje szkielet karty (mediana krótkiej listy). */
+export const CUSTOMER_DETAIL_SKELETON_HISTORY_ROWS = 3;
+
+export const CUSTOMER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
+  {
+    region: "back",
+    from: "source",
+    anchor: "data-customer-back",
+    note: "powrót do listy klientów (tytuł „Klienci” niesie belka)",
+  },
+  {
+    region: "edit-form",
+    from: "render",
+    anchor: "data-customer-edit-form",
+    note: "formularz edycji danych klienta — kontakt, dane do faktury i adres w jednej karcie",
+  },
+  {
+    region: "field",
+    count: 8,
+    from: "render",
+    anchor: "data-customer-edit-field=",
+    anchorCount: 8,
+    note: "osiem edytowalnych pól: e-mail, imię i nazwisko, telefon, firma, NIP, ulica, kod, miasto — zmiana liczby pali kontrakt",
+  },
+  {
+    region: "save",
+    from: "render",
+    anchor: "data-customer-save",
+    note: "przycisk zapisu zmian pod formularzem",
+  },
+  {
+    region: "history",
+    from: "source",
+    anchor: "<CustomerOrders",
+    note: "karta „Historia zamówień” klienta — skrócona lista z wierszami-linkami do szczegółów",
+  },
+  {
+    region: "history-row",
+    count: CUSTOMER_DETAIL_SKELETON_HISTORY_ROWS,
+    from: "render",
+    anchor: "data-customer-order-row",
+    note: "wiersz historii zamówień (desktop) zakończony kwotą i statusem",
+  },
+  {
+    region: "history-card",
+    count: CUSTOMER_DETAIL_SKELETON_HISTORY_ROWS,
+    from: "render",
+    anchor: "data-customer-order-row",
+    note: "karta historii zamówień poniżej md — ten sam wiersz-model co tabela",
+  },
+] as const;
+
+/** Pliki składające ekran karty klienta — źródła skanowane pod wyczerpującość. */
+export const CUSTOMER_DETAIL_COMPOSITION_FILES: readonly string[] = ["[id]/page.tsx"] as const;
+
+/** Własne komponenty karty klienta z odpowiednikiem w szkielecie. */
+export const CUSTOMER_DETAIL_SCREEN_PARTS: readonly string[] = [
+  "CustomerEditForm",
+  "CustomerOrders",
+] as const;
+
+/** Lokalne komponenty karty klienta BEZ własnego regionu — każdy z powodem. */
+export const CUSTOMER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {};

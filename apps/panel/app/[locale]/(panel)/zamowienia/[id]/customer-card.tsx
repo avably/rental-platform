@@ -4,6 +4,8 @@ import { cn } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 
+import { Link } from "@/i18n/navigation";
+
 /**
  * Karta „Profil klienta” (uwaga przeglądu D1). Konsoliduje dane klienta, dziś
  * rozproszone po panelu bocznym (e-mail/telefon), w jedną kartę z pełnym
@@ -15,6 +17,12 @@ import { useState, type ReactNode } from "react";
  * odnotowany, a nie zgadywany.
  */
 export interface CustomerCardData {
+  /**
+   * Identyfikator klienta — wejście do jego karty (R6a). Opcjonalny, bo karta
+   * bywa renderowana także w kontrakcie parytetu szkieletu bez pełnego wiersza;
+   * bez niego link „Karta klienta" po prostu się nie pojawia.
+   */
+  customerId?: string | null;
   fullName: string | null;
   email: string;
   phone: string | null;
@@ -210,6 +218,27 @@ export function CustomerCard({ data }: { data: CustomerCardData }) {
           </Row>
         ) : null}
       </dl>
+
+      {/* Wejście do pełnej karty klienta (R6a): edycja danych, faktura, adres i
+          historia zamówień. Bez id (fixture kontraktu) link się nie pojawia. */}
+      {data.customerId ? (
+        <Link
+          href={`/klienci/${data.customerId}`}
+          data-customer-card-link
+          className="border-border text-foreground hover:bg-muted focus-visible:ring-ring inline-flex h-9 w-fit items-center gap-1.5 rounded-md border px-3 text-sm font-medium no-underline transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        >
+          {t("goToCard")}
+          <ArrowIcon />
+        </Link>
+      ) : null}
     </section>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

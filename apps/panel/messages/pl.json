@@ -103,6 +103,7 @@
     "groupChannels": "KANAŁY",
     "groupOrganization": "ORGANIZACJA",
     "orders": "Zamówienia",
+    "customers": "Klienci",
     "catalog": "Katalog",
     "store": "Strona sklepu",
     "domains": "Domeny",
@@ -800,7 +801,8 @@
       "nip": "NIP {nip}",
       "notProvided": "nie podano",
       "copyField": "Kopiuj: {field}",
-      "copied": "Skopiowano: {field}"
+      "copied": "Skopiowano: {field}",
+      "goToCard": "Karta klienta"
     },
     "deposit": {
       "title": "Kaucja",
@@ -873,6 +875,59 @@
       "placeholder": "np. kaucja pomniejszona o 50 zł za porysowany kabel…",
       "saveCta": "Zapisz notatki",
       "saved": "Notatki zapisane."
+    }
+  },
+  "customers": {
+    "list": {
+      "subtitle": "Baza klientów Twojej wypożyczalni — dane, faktury i historia zamówień.",
+      "loading": "Ładowanie listy klientów…",
+      "searchLabel": "Szukaj klientów",
+      "searchPlaceholder": "Szukaj po nazwisku, mailu lub telefonie…",
+      "results": "{count, plural, one {# klient} few {# klientów} many {# klientów} other {# klientów}}",
+      "empty": "Brak klientów pasujących do wyszukiwania.",
+      "colCustomer": "Klient",
+      "colEmail": "E-mail",
+      "colPhone": "Telefon",
+      "colOrders": "Zamówienia",
+      "colLastOrder": "Ostatnie zamówienie",
+      "sortBy": "Sortuj po: {column}",
+      "ordersCount": "{count, plural, one {# zamówienie} few {# zamówienia} many {# zamówień} other {# zamówień}}",
+      "noPhone": "—",
+      "noOrders": "—",
+      "openCard": "Otwórz kartę klienta {name}",
+      "cap": "Pokazujemy pierwszych {count} klientów. Zawęź wyszukiwaniem, aby znaleźć pozostałych."
+    },
+    "emptyState": {
+      "title": "Nie masz jeszcze żadnych klientów.",
+      "body": "Klient pojawia się tu automatycznie, gdy złoży pierwsze zamówienie w Twoim sklepie.",
+      "goToOrders": "Przejdź do zamówień"
+    },
+    "card": {
+      "backToList": "Wróć do listy klientów",
+      "notProvided": "nie podano",
+      "sinceLabel": "Klient od {date}",
+      "contactHeading": "Dane kontaktowe",
+      "invoiceHeading": "Dane do faktury",
+      "email": "E-mail",
+      "fullName": "Imię i nazwisko",
+      "phone": "Telefon",
+      "companyName": "Nazwa firmy",
+      "nip": "NIP",
+      "addressHeading": "Adres",
+      "addressStreet": "Ulica i numer",
+      "addressZip": "Kod pocztowy",
+      "addressCity": "Miejscowość",
+      "save": "Zapisz zmiany",
+      "saved": "Zmiany zapisane.",
+      "emailHint": "E-mail identyfikuje klienta — musi być unikalny w Twojej wypożyczalni.",
+      "historyHeading": "Historia zamówień",
+      "historyHint": "Edycja danych klienta nie zmienia złożonych zamówień — te zachowują dane z chwili złożenia.",
+      "historyEmpty": "Ten klient nie ma jeszcze żadnych zamówień.",
+      "colId": "Numer",
+      "colTerm": "Termin",
+      "colAmount": "Kwota",
+      "colStatus": "Status",
+      "openOrder": "Otwórz zamówienie {number}"
     }
   },
   "site": {

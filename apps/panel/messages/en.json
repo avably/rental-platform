@@ -103,6 +103,7 @@
     "groupChannels": "CHANNELS",
     "groupOrganization": "ORGANIZATION",
     "orders": "Orders",
+    "customers": "Customers",
     "catalog": "Catalog",
     "store": "Store page",
     "domains": "Domains",
@@ -800,7 +801,8 @@
       "nip": "Tax ID {nip}",
       "notProvided": "not provided",
       "copyField": "Copy {field}",
-      "copied": "Copied {field}"
+      "copied": "Copied {field}",
+      "goToCard": "Customer card"
     },
     "deposit": {
       "title": "Deposit",
@@ -873,6 +875,59 @@
       "placeholder": "e.g. deposit reduced by 50 for a scratched cable…",
       "saveCta": "Save notes",
       "saved": "Notes saved."
+    }
+  },
+  "customers": {
+    "list": {
+      "subtitle": "Your rental's customer base — details, invoicing and order history.",
+      "loading": "Loading customer list…",
+      "searchLabel": "Search customers",
+      "searchPlaceholder": "Search by name, e-mail or phone…",
+      "results": "{count, plural, one {# customer} other {# customers}}",
+      "empty": "No customers match your search.",
+      "colCustomer": "Customer",
+      "colEmail": "E-mail",
+      "colPhone": "Phone",
+      "colOrders": "Orders",
+      "colLastOrder": "Last order",
+      "sortBy": "Sort by: {column}",
+      "ordersCount": "{count, plural, one {# order} other {# orders}}",
+      "noPhone": "—",
+      "noOrders": "—",
+      "openCard": "Open customer card for {name}",
+      "cap": "Showing the first {count} customers. Narrow with search to find the rest."
+    },
+    "emptyState": {
+      "title": "You don't have any customers yet.",
+      "body": "A customer appears here automatically once they place their first order in your store.",
+      "goToOrders": "Go to orders"
+    },
+    "card": {
+      "backToList": "Back to customer list",
+      "notProvided": "not provided",
+      "sinceLabel": "Customer since {date}",
+      "contactHeading": "Contact details",
+      "invoiceHeading": "Invoicing details",
+      "email": "E-mail",
+      "fullName": "Full name",
+      "phone": "Phone",
+      "companyName": "Company name",
+      "nip": "Tax ID",
+      "addressHeading": "Address",
+      "addressStreet": "Street and number",
+      "addressZip": "Postal code",
+      "addressCity": "City",
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "emailHint": "The e-mail identifies the customer — it must be unique within your rental.",
+      "historyHeading": "Order history",
+      "historyHint": "Editing customer details does not change placed orders — those keep the data captured at checkout.",
+      "historyEmpty": "This customer has no orders yet.",
+      "colId": "Number",
+      "colTerm": "Period",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "openOrder": "Open order {number}"
     }
   },
   "site": {
