@@ -339,6 +339,73 @@ describe.skipIf(!hasEnv)("edycja pozycji zamówienia (akcje panelu, bramka 0010)
     expect(totals.order.deposit).toBe(totals.items.deposit);
   });
 
+  it("dodaje pozycję JEDNYM krokiem: wybrany egzemplarz + RĘCZNE kwoty (R1)", async () => {
+    // Własne zamówienie w odległym terminie — bez kolizji z egzemplarzami,
+    // którymi obracają pozostałe testy na wspólnym `orderId`.
+    const OWN_START = "2028-01-10";
+    const OWN_END = "2028-01-14";
+    const { data: own, error: ownError } = await tenant.client
+      .from("orders")
+      .insert({
+        tenant_id: tenant.tenantId,
+        customer_id: customerId,
+        start_date: OWN_START,
+        end_date: OWN_END,
+        delivery_method: "courier",
+        total_rental_grosze: 0,
+        total_deposit_grosze: 0,
+      })
+      .select("id")
+      .single();
+    if (ownError) throw new Error(`insert own order: ${ownError.message}`);
+    const ownOrderId = own!.id as string;
+
+    // Komplet z formularza: konkretny egzemplarz + kwoty operatora (inne niż
+    // wycena silnika — dowód, że to ręczne kwoty jadą do bazy, nie propozycja).
+    const engine = calculatePrice(OWN_START, OWN_END, HEATER);
+    const state = await addOrderItemAction(
+      {},
+      form({
+        orderId: ownOrderId,
+        productId: heaterId,
+        // DRUGA sztuka, nie pierwsza — auto-dobór wybrałby units[0], więc
+        // dopiero units[1] odróżnia uszanowany wybór operatora od zbiegu
+        // okoliczności (mutacja PM: akcja ignorująca unitId przechodziła
+        // na units[0] całą suitę).
+        unitId: heaterUnits[1]!,
+        rental: "123,45",
+        deposit: "67,89",
+      }),
+    );
+    expect(state.formError).toBeUndefined();
+    expect(state.success).toBe("item-added");
+
+    const { data: rows } = await tenant.client
+      .from("order_items")
+      .select("unit_id, rental_grosze, deposit_grosze")
+      .eq("tenant_id", tenant.tenantId)
+      .eq("order_id", ownOrderId);
+    expect(rows).toHaveLength(1);
+    const row = rows![0]!;
+    // Egzemplarz z formularza, nie auto-dobór.
+    expect(row.unit_id).toBe(heaterUnits[1]);
+    expect(row.unit_id).not.toBe(heaterUnits[0]);
+    // Kwoty RĘCZNE, a nie z silnika — komplet w jednym zapisie.
+    expect(row.rental_grosze).toBe(12_345);
+    expect(row.deposit_grosze).toBe(6_789);
+    expect(row.rental_grosze).not.toBe(engine.rentalGrosze);
+
+    // Sumy zamówienia przeliczone z tej jednej pozycji.
+    const { data: ownOrder } = await tenant.client
+      .from("orders")
+      .select("total_rental_grosze, total_deposit_grosze")
+      .eq("tenant_id", tenant.tenantId)
+      .eq("id", ownOrderId)
+      .single();
+    expect(ownOrder!.total_rental_grosze).toBe(12_345);
+    expect(ownOrder!.total_deposit_grosze).toBe(6_789);
+  });
+
   it("ręczna zmiana ceny i kaucji zapisuje grosze i przelicza sumy", async () => {
     const [item] = await itemsOfOrder();
     const state = await updateOrderItemAction(

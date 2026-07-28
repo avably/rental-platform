@@ -747,6 +747,7 @@
       "unitBusy": "booked for this term",
       "unassignedNoFree": "no free unit",
       "unassignedHasFree": "free to assign: {count}",
+      "assignUnit": "Assign unit",
       "addTitle": "Add item",
       "addProduct": "Product",
       "addCta": "Add to order",

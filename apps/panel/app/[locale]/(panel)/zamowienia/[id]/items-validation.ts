@@ -84,9 +84,26 @@ const optionalUnitSchema = z
     return raw;
   });
 
+/**
+ * Dodanie pozycji przyjmuje teraz KOMPLET w jednym kroku (R1): egzemplarz oraz
+ * najem i kaucję. Wszystkie trzy są OPCJONALNE i każdy niesie inny brak:
+ *
+ *  - `unitId` NIEOBECNE (klucz spoza formularza) → automatyczny wybór pierwszej
+ *    wolnej sztuki, jak przy tworzeniu zamówienia (zgodność wsteczna: akcja
+ *    wołana bez tego pola działa tak jak dotąd). `unitId` OBECNE, ale puste →
+ *    świadome „bez przypisania" (`unit_id = NULL`). UUID → konkretna sztuka.
+ *  - `rental`/`deposit` nieobecne → wycena silnikiem. Obecne → kwoty operatora
+ *    (ręczna korekta nadpisuje propozycję — lustro `updateOrderItemAction`).
+ *
+ * Rozróżnienie „nieobecne vs puste" robi akcja przez `formData.has(...)` —
+ * pusty string z `<select>` znaczy tu co innego niż brak klucza.
+ */
 export const addOrderItemSchema = z.object({
   orderId: uuidSchema,
   productId: uuidSchema,
+  unitId: optionalUnitSchema.optional(),
+  rental: itemAmountSchema.optional(),
+  deposit: itemAmountSchema.optional(),
 });
 
 export const updateOrderItemSchema = z
