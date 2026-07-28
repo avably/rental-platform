@@ -60,6 +60,9 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
     labelKey: "groupSales",
     items: [
       { id: "orders", href: "/zamowienia", labelKey: "orders" },
+      // Klienci tuż za zamówieniami: to dwie podstawowe listy operacyjne, na
+      // których pracuje lada (demand), przed katalogiem i stroną (offer).
+      { id: "customers", href: "/klienci", labelKey: "customers" },
       { id: "catalog", href: "/katalog", labelKey: "catalog" },
       { id: "store", href: "/strona", labelKey: "store" },
     ],

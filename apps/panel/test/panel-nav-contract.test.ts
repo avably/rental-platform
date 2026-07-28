@@ -94,7 +94,7 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
     }
   });
 
-  it("podłoga liczności: 1 placeholder + 11 pozycji + 3 grupy", () => {
+  it("podłoga liczności: 1 placeholder + 12 pozycji + 3 grupy", () => {
     // Kontrola po pustym zbiorze: gdyby parser przestał cokolwiek znajdować,
     // wszystkie porównania niżej byłyby zielone na pustych tablicach.
     const counts = {
@@ -102,9 +102,10 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
       item: artifactNav.filter((e) => e.kind === "item").length,
       group: artifactNav.filter((e) => e.kind === "group").length,
     };
-    expect(counts).toEqual({ placeholder: 1, item: 11, group: 3 });
+    // 12 po dołożeniu „Klienci" do grupy SPRZEDAŻ (R6a).
+    expect(counts).toEqual({ placeholder: 1, item: 12, group: 3 });
 
-    expect(PANEL_NAV_ITEMS).toHaveLength(11);
+    expect(PANEL_NAV_ITEMS).toHaveLength(12);
     expect(PANEL_NAV_GROUPS).toHaveLength(3);
   });
 

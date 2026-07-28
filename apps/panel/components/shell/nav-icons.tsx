@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Store,
   Truck,
+  UserRound,
   Users,
 } from "lucide-react";
 
@@ -33,6 +34,8 @@ export const NAV_ICON_STROKE_WIDTH = 1.75;
 export const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   orders: ReceiptText,
+  // Klient = pojedyncza osoba (UserRound), świadomie inna niż zespół (Users).
+  customers: UserRound,
   catalog: Package,
   store: Store,
   domains: Globe,
