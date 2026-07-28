@@ -37,19 +37,24 @@ if [ -z "$MATCH" ]; then
   exit 1
 fi
 
-FOUND=0
-for FILE in $MATCH; do
-  if grep -qF "$NEXT_PUBLIC_SUPABASE_URL" "$FILE"; then
-    FOUND=1
-    break
+# Obie zmienne klienta muszą być wmurowane — regresja jednej linii
+# (np. powrót dynamicznego odczytu tylko dla ANON_KEY) też ma palić bramkę.
+for VAR_NAME in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY; do
+  VAR_VALUE="${!VAR_NAME}"
+  FOUND=0
+  for FILE in $MATCH; do
+    if grep -qF "$VAR_VALUE" "$FILE"; then
+      FOUND=1
+      break
+    fi
+  done
+
+  if [ "$FOUND" -ne 1 ]; then
+    echo "$VAR_NAME nie jest wmurowana w bundlu klienckim (chunki:"
+    echo "$MATCH"
+    echo "). Klient przeglądarkowy dostanie w runtime pusty env i padnie po cichu."
+    exit 1
   fi
 done
 
-if [ "$FOUND" -ne 1 ]; then
-  echo "NEXT_PUBLIC_SUPABASE_URL nie jest wmurowana w bundlu klienckim (chunki:"
-  echo "$MATCH"
-  echo "). Klient przeglądarkowy dostanie w runtime pusty env i padnie po cichu."
-  exit 1
-fi
-
-echo "browser-env-inlining: NEXT_PUBLIC_SUPABASE_URL wmurowana w bundlu klienckim panelu."
+echo "browser-env-inlining: NEXT_PUBLIC_SUPABASE_URL i NEXT_PUBLIC_SUPABASE_ANON_KEY wmurowane w bundlu klienckim panelu."
