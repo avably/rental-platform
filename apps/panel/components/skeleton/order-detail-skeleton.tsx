@@ -77,18 +77,25 @@ export function OrderDetailSkeleton() {
         <SkeletonLine line="text" className="w-28" />
       </SkeletonRegion>
 
-      {/* Oś czasu: pięć kroków, kropka 28px i dwie linie podpisu o wysokości
-          line boxów `text-[13px] leading-tight` (16.25) i `text-xs
-          leading-tight` (15). Ta sama zmiana kierunku na `md`. */}
-      <SkeletonRegion region="timeline" className="flex flex-col md:flex-row">
+      {/* Oś czasu po R3: POZIOMA na każdej szerokości — pięć kroków w rzędzie,
+          kropka 28px i dwie linie podpisu o wysokości line boxów
+          `text-[13px] leading-tight` (16.25) i `text-xs leading-tight` (15).
+          Na wąskim ekranie to karuzela (`overflow-x-auto`, kroki `min-w-32`
+          się nie kurczą), na desktopie kroki dzielą szerokość równo (`flex-1`).
+          Szkielet kopiuje ten sam układ, żeby wejście osi nie skakało, a
+          `screen-regions.ts` pilnuje, że kroków jest dokładnie pięć. */}
+      <SkeletonRegion
+        region="timeline"
+        className="flex snap-x overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] md:overflow-visible [&::-webkit-scrollbar]:hidden"
+      >
         {times(5).map((step) => (
           <SkeletonRegion
             key={step}
             region="timeline-step"
-            className="relative flex flex-1 items-start gap-3 pb-6 last:pb-0 md:flex-col md:items-center md:gap-2 md:pb-0 md:text-center"
+            className="relative flex min-w-32 shrink-0 flex-col items-center gap-2 pb-1 md:min-w-0 md:flex-1 md:shrink md:pb-0"
           >
             <SkeletonBlock className="size-7 shrink-0 rounded-full" />
-            <div className="flex min-w-0 flex-col gap-0.5 pt-0.5 md:items-center md:pt-0">
+            <div className="flex min-w-0 flex-col items-center gap-0.5">
               <SkeletonBlock className="h-[16.25px] w-24" />
               <SkeletonBlock className="h-[15px] w-20" />
             </div>

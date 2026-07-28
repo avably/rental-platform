@@ -1,3 +1,5 @@
+"use client";
+
 import {
   formatMoney,
   type CurrencyCode,
@@ -7,11 +9,23 @@ import {
 } from "@avably/core";
 import { cn } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 
 /**
- * Oś czasu zamówienia (uwaga przeglądu D5) — poziomy stepper, który zastępuje
- * rząd chipów statusu (`OrderStatusAxes`). Pięć kroków domenowych: złożenie
- * zamówienia → płatność → wysyłka/wydanie → zwrot → kaucja.
+ * Oś czasu zamówienia (uwaga przeglądu D5, układ poziomy z R3) — poziomy
+ * stepper, który zastępuje rząd chipów statusu (`OrderStatusAxes`). Pięć
+ * kroków domenowych: złożenie zamówienia → płatność → wysyłka/wydanie →
+ * zwrot → kaucja.
+ *
+ * Oś jest POZIOMA na każdej szerokości (uwaga właściciela R3). Na desktopie
+ * pięć kroków dzieli szerokość równo (`flex-1`); na wąskim ekranie stają się
+ * KARUZELĄ przewijaną w poziomie (`overflow-x-auto` + scroll-snap) zamiast
+ * kolumny na pół ekranu wysokości. Przy wejściu karuzela ustawia się na kroku
+ * BIEŻĄCYM (efekt niżej w `OrderTimeline`), żeby „tu jesteś" był widoczny od
+ * razu, bez ręcznego przewijania. Technika jest neutralna silnikowo: przewijamy
+ * WYŁĄCZNIE kontener osi (`scrollTo` z `behavior: "instant"`), więc strona nie
+ * drga w pionie — bez `scrollIntoView` na kroku i bez sztuczek zależnych od
+ * Chromium (właściciel testuje w Safari).
  *
  * Komponent jest CZYSTO PREZENTACYJNY, jak zastąpione `OrderStatusAxes`:
  * stany kroków WYLICZA `deriveOrderTimeline` z danych, które szczegół i tak
@@ -221,6 +235,53 @@ export function OrderTimeline({
   const locale = useLocale();
   const steps = deriveOrderTimeline(input);
 
+  /**
+   * Ustawienie karuzeli na kroku BIEŻĄCYM przy wejściu (uwaga właściciela R3):
+   * krok „w toku" ma być pierwszy w polu widzenia, a nie schowany za prawą
+   * krawędzią. Przewijamy WYŁĄCZNIE kontener osi (`scrollTo` na `<ol>`), więc
+   * strona nie może drgnąć w pionie — `scrollIntoView` na kroku szarpnąłby
+   * całą stronę do kroku, a to jest dokładnie ta klasa błędu Safari, której
+   * unikamy. `behavior: "instant"` NADPISUJE `scroll-smooth` z klasy (który
+   * ma wygładzać ruch UŻYTKOWNIKA), żeby pozycja startowa pojawiła się bez
+   * animacji. Wartość liczymy z pozycji kroku względem kontenera — neutralnie
+   * silnikowo, bez założeń o `offsetParent`. Na desktopie kontener się nie
+   * przewija (kroki mieszczą się w rzędzie), więc `scrollTo` jest tam bezczynne.
+   */
+  const scrollRef = useRef<HTMLOListElement>(null);
+  const currentStepRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    const container = scrollRef.current;
+    const current = currentStepRef.current;
+    if (!container || !current) return;
+
+    const align = () => {
+      const left =
+        container.scrollLeft +
+        (current.getBoundingClientRect().left - container.getBoundingClientRect().left);
+      container.scrollTo({ left, behavior: "instant" });
+    };
+
+    // Szczegół wchodzi granicą Suspense — w chwili montażu oś bywa jeszcze
+    // NIEODSŁONIĘTA (zerowa geometria), więc pomiar w useEffect dałby zero
+    // i karuzela zostałaby na pierwszym kroku. ResizeObserver odpala się przy
+    // każdej zmianie rozmiaru kontenera (odsłonięcie, dołożenie layoutu,
+    // dogranie fontu). Czekamy, aż oś REALNIE ma co przewijać
+    // (`scrollWidth > clientWidth`) — to jest jedyny pewny sygnał, że poziomy
+    // rozkład jest gotowy; strzał wcześniej (rozmiar pośredni, kroki jeszcze
+    // spłaszczone) policzyłby przesunięcie zero. Dopiero wtedy wyrównujemy
+    // i odłączamy obserwatora — pojedynczo, żeby nie przewijać osi z powrotem
+    // na bieżący przy późniejszej zmianie szerokości (np. obrót ekranu), gdy
+    // operator już sam gdzieś przewinął. Na desktopie oś się nie przewija
+    // (`scrollWidth == clientWidth`), więc obserwator jest bezczynny do odmontowania.
+    const observer = new ResizeObserver(() => {
+      if (container.scrollWidth <= container.clientWidth) return;
+      align();
+      observer.disconnect();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   const formatDate = (value: string, dayOnly: boolean) =>
     new Intl.DateTimeFormat(locale, {
       day: "2-digit",
@@ -247,22 +308,36 @@ export function OrderTimeline({
   };
 
   return (
+    // Kontener jest przewijalny w poziomie na wąskim ekranie i FOKUSOWALNY
+    // (`tabIndex={0}`), więc karuzelę da się przewinąć samą klawiaturą
+    // (strzałki na natywnym scrollu) — spójnie z zakazem pułapek dostępności.
+    // `scroll-smooth` wygładza ruch użytkownika; ustawienie inicjalne biegnie
+    // efektem, który domyślnie jest natychmiastowy. `snap-x` trzyma kroki na
+    // krawędzi po puszczeniu palca.
     <ol
+      ref={scrollRef}
       data-order-timeline
       aria-label={t("ariaLabel")}
-      className="flex flex-col md:flex-row"
+      tabIndex={0}
+      // Pasek przewijania SCHOWANY (uwaga właściciela) — karuzela zostaje
+      // przewijalna palcem/klawiaturą, znika tylko sam wskaźnik. Trzy notacje,
+      // bo silniki różnią się API: `scrollbar-width` (Firefox), `-ms-overflow-style`
+      // (stary Edge), `::-webkit-scrollbar` (Safari/Chrome — silnik właściciela).
+      className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth rounded-md [-ms-overflow-style:none] [scrollbar-width:none] md:overflow-visible [&::-webkit-scrollbar]:hidden"
     >
       {steps.map((step, index) => (
         <li
           key={step.key}
+          ref={step.state === "current" ? currentStepRef : null}
           data-timeline-step={step.key}
           data-step-state={step.state}
-          className="relative flex flex-1 items-start gap-3 pb-6 last:pb-0 md:flex-col md:items-center md:gap-2 md:pb-0 md:text-center"
+          aria-current={step.state === "current" ? "step" : undefined}
+          className="relative flex min-w-32 shrink-0 snap-start flex-col items-center gap-2 pb-1 text-center md:min-w-0 md:flex-1 md:shrink md:pb-0"
         >
           {index > 0 ? (
             <span
               aria-hidden="true"
-              className="bg-border absolute left-[13.5px] top-0 h-6 w-px -translate-y-full md:left-auto md:right-1/2 md:top-[13.5px] md:h-px md:w-full md:translate-y-0"
+              className="bg-border absolute right-1/2 top-[13.5px] h-px w-full"
             />
           ) : null}
 
@@ -282,7 +357,7 @@ export function OrderTimeline({
             ) : null}
           </span>
 
-          <div className="flex min-w-0 flex-col gap-0.5 pt-0.5 md:items-center md:pt-0">
+          <div className="flex min-w-0 flex-col items-center gap-0.5">
             <span className="text-foreground text-[13px] leading-tight font-semibold">
               {t(`steps.${step.key}` as Parameters<typeof t>[0])}
               <span className="sr-only"> — {t(`states.${step.state}` as Parameters<typeof t>[0])}</span>
