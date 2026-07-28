@@ -11,10 +11,10 @@ import { requireEnv } from "./env";
  * Klient przeglądarkowy — zawsze anon key + sesja użytkownika.
  * Izolację tenantów wymusza RLS (app.tenant_id() z custom claim w JWT).
  *
- * Odczyt musi być statyczny (process.env.NEXT_PUBLIC_X, nie
- * process.env[name]) — Turbopack inlinuje NEXT_PUBLIC_* do bundla klienta
- * tylko przy dostępie statycznym; dynamiczny odczyt kompiluje się do
- * pustego shima w przeglądarce.
+ * Odczyt musi być statyczny (process.env.NEXT_PUBLIC_SUPABASE_URL, nie
+ * process.env[name]) — Turbopack inlinuje zmienne publiczne do bundla
+ * klienta tylko przy dostępie statycznym; dynamiczny odczyt kompiluje się
+ * do pustego shima w przeglądarce.
  */
 export function createBrowserClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
