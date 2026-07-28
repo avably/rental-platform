@@ -38,6 +38,11 @@ jobs:
       # konfiguracji ESLinta (ADR-067).
       - name: Bramka service-role (wyłącznie webhooki i joby)
         run: bash scripts/audit-service-role.sh
+      - name: Bramka wmurowania NEXT_PUBLIC_* w bundlu klienckim panelu
+        run: bash scripts/audit-browser-env-inlining.sh
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 
   rls:
     # Macierz testów izolacji RLS (packages/db/test/rls-isolation.test.ts) —
