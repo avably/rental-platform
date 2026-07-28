@@ -3,6 +3,10 @@
     "panelTitle": "Panel",
     "panelDescription": "Admin panel"
   },
+  "fileField": {
+    "prompt": "Drag a file here or click to choose",
+    "remove": "Remove selected file"
+  },
   "common": {
     "email": "Email",
     "password": "Password",

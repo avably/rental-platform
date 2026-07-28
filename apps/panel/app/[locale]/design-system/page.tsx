@@ -27,6 +27,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  FileField,
   FilterChip,
   Input,
   Label,
@@ -329,6 +330,52 @@ export default function DesignSystemGallery() {
               Statyczny z założenia — poza rail LP i reklamą nie ma
               nieskończonych animacji.
             </p>
+          </div>
+        </GallerySection>
+
+        <GallerySection
+          id="file-upload"
+          title="Pole wgrywania pliku"
+          description="Ukryty, ale fokusowalny input pod ostylowaną strefą — klik i przeciągnięcie kończą się w tym samym natywnym inpucie (źródło prawdy dla FormData). Stany: pusty, błąd, wyłączone poniżej; wybrany i drag-over wypróbujesz interakcją."
+        >
+          <div className="grid gap-5 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="ds-file-empty">Plik zdjęcia</Label>
+              <FileField
+                id="ds-file-empty"
+                name="ds-file-empty"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                prompt="Przeciągnij plik albo kliknij, aby wybrać"
+                hint="Formaty: JPEG, PNG, WebP, AVIF. Maksymalnie 5 MB."
+                removeLabel="Usuń wybrany plik"
+                locale="pl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ds-file-error">Plik faktury (PDF)</Label>
+              <FileField
+                id="ds-file-error"
+                name="ds-file-error"
+                accept="application/pdf"
+                prompt="Przeciągnij plik albo kliknij, aby wybrać"
+                hint="Tylko PDF, najwyżej 8 MB."
+                removeLabel="Usuń wybrany plik"
+                error="Faktura musi być plikiem PDF."
+                locale="pl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ds-file-disabled">Plik zdjęcia</Label>
+              <FileField
+                id="ds-file-disabled"
+                name="ds-file-disabled"
+                prompt="Wgrywanie zablokowane"
+                hint="Wygaszenie kontrastu + kursor not-allowed."
+                removeLabel="Usuń wybrany plik"
+                disabled
+                locale="pl"
+              />
+            </div>
           </div>
         </GallerySection>
 

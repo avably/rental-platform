@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, Input, Label } from "@avably/ui";
-import { useTranslations } from "next-intl";
+import { Button, FileField, Input, Label } from "@avably/ui";
+import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useId, useRef, useState } from "react";
 
 import type { FormState } from "@/lib/form-state";
@@ -47,6 +47,8 @@ export function UploadImageForm({
   const pendingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslations("catalog.images");
+  const tf = useTranslations("fileField");
+  const locale = useLocale();
   const idPrefix = useId();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -87,21 +89,19 @@ export function UploadImageForm({
       <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("addTitle")}</h2>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${idPrefix}-file`}>{t("file")}</Label>
-        <Input
+        <FileField
           key={fileInputVersion}
           id={`${idPrefix}-file`}
           ref={fileInputRef}
           name="file"
-          type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
+          prompt={tf("prompt")}
+          hint={t("fileHint")}
+          removeLabel={tf("remove")}
+          error={state.fieldErrors?.file}
+          locale={locale}
           onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-          aria-invalid={state.fieldErrors?.file ? true : undefined}
-          aria-describedby={state.fieldErrors?.file ? `${idPrefix}-file-error` : `${idPrefix}-file-hint`}
         />
-        <FieldError id={`${idPrefix}-file-error`} message={state.fieldErrors?.file} />
-        <p id={`${idPrefix}-file-hint`} className="text-muted-foreground text-[13px] leading-[18px]">
-          {t("fileHint")}
-        </p>
       </div>
       {state.formError ? (
         <p role="alert" className="text-destructive text-sm">

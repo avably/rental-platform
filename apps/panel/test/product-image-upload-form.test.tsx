@@ -90,7 +90,13 @@ describe("UploadImageForm", () => {
     });
 
     expect(prepare).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button").textContent).toContain(messages.catalog.images.uploading);
+    // Po wybraniu pliku FileField renderuje też przycisk „usuń wybór", więc
+    // celujemy w przycisk wysyłki po nazwie (nie osłabia asercji — zaostrza).
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(messages.catalog.images.uploading),
+      }).textContent,
+    ).toContain(messages.catalog.images.uploading);
 
     await act(async () => {
       resolvePrepare({

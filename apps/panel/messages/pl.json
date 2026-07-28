@@ -3,6 +3,10 @@
     "panelTitle": "Panel",
     "panelDescription": "Panel administracyjny"
   },
+  "fileField": {
+    "prompt": "Przeciągnij plik albo kliknij, aby wybrać",
+    "remove": "Usuń wybrany plik"
+  },
   "common": {
     "email": "E-mail",
     "password": "Hasło",
