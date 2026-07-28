@@ -6,11 +6,14 @@ import { cn } from "../lib/cn";
 
 // Stany sekcji 07 artefaktu: hover = podkreślenie (bez zmiany tła), focus =
 // obrys 3px na limonce z nośnikiem foreground, active = translacja 1px,
-// disabled = obrys kreskowany w kolorze tekstu + cursor not-allowed (bez
-// zbijania opacity), loading = aria-busy + cursor progress. Przejścia na
-// tokenach motion; zero cieni i ringów box-shadow.
+// disabled = WYCISZONY KONTRAST (opacity) + cursor not-allowed, loading =
+// aria-busy + cursor progress. Konwencja disabled (weto właściciela
+// 2026-07-28): obrys kreskowany czytał się jak fokus — nieaktywny przycisk ma
+// wyglądać na nieaktywny, więc go wygaszamy, a outline akcentowy zostaje
+// wyłącznie dla focus-visible. Przejścia na tokenach motion; zero cieni i
+// ringów box-shadow.
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent text-sm font-semibold outline-none transition-[color,background-color,border-color,text-decoration-color,outline-color,transform] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] not-disabled:hover:underline not-disabled:hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:border-dashed disabled:border-current aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent text-sm font-semibold outline-none transition-[color,background-color,border-color,text-decoration-color,outline-color,transform] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] not-disabled:hover:underline not-disabled:hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

@@ -358,7 +358,11 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .gallery-btn:hover, .gallery-filter:hover, .sidebar-nav a:hover, .row-action:hover, .store-preview a:hover, [data-detail-group="actions"] button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .gallery-btn:active, .gallery-filter:active, .button-primary:active { transform: translateY(1px); }
 :focus-visible { border: 2px solid var(--foreground); outline: 3px solid var(--accent); outline-offset: 2px; }
-:disabled, [aria-disabled="true"] { cursor: not-allowed; border-style: dashed; }
+/* disabled = wyciszony kontrast (opacity) + cursor not-allowed. Weto
+   właściciela 2026-07-28: obrys kreskowany czytał się jak fokus — nieaktywna
+   kontrolka ma wyglądać na nieaktywną. Outline akcentowy zostaje wyłącznie dla
+   focus-visible (reguła wyżej). Kod: packages/ui `disabled:opacity-50`. */
+:disabled, [aria-disabled="true"] { cursor: not-allowed; opacity: 0.5; }
 [aria-busy="true"] { cursor: progress; }
 [data-state="focus"] { border-color: var(--foreground); outline: 3px solid var(--accent); outline-offset: 2px; }
 

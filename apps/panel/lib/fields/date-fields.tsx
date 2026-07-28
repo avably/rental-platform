@@ -80,7 +80,7 @@ export function dateToIso(date: Date | undefined): string {
 
 /** Wyzwalacz wygląda i zachowuje się jak pole z P2 (ten sam obrys i focus). */
 const TRIGGER_CLASS =
-  "border-input bg-background text-foreground flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border px-3 text-left text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:border-dashed aria-invalid:border-destructive";
+  "border-input bg-background text-foreground flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border px-3 text-left text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive";
 
 function useDayFormat(): (value: string) => string {
   const locale = useLocale();
