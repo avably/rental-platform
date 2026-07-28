@@ -1,26 +1,25 @@
-import { AVAILABILITY_BLOCKING_ORDER_STATUSES, type OrderStatus } from "@avably/core";
-import { getLocale, getTranslations } from "next-intl/server";
+import { type OrderStatus } from "@avably/core";
+import { getLocale } from "next-intl/server";
 
 import { requireMember } from "@/lib/supabase-server";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { extendOrderAction } from "./extension-actions";
 import { ExtensionForm } from "./extension-form";
-import { priceParamsFromRow, type ExtensionProductRow } from "./extension-pricing";
+import { canExtendOrder, priceParamsFromRow, type ExtensionProductRow } from "./extension-pricing";
 
 /**
- * Sekcja przedłużenia najmu (Zadanie 6). Osobny RSC z WŁASNYM odczytem
- * cennika pozycji — page.tsx dokłada tylko jedną linię (protokół
- * antykolizyjny z równoległym Zadaniem 7). Statusy terminalne nie
- * renderują sekcji: przedłużanie zwróconego/anulowanego najmu nie ma
- * sensu operacyjnego (ADR-028), a akcja i tak by odmówiła.
+ * Wejście w przedłużenie PRZY TERMINIE (R4). RSC z WŁASNYM odczytem cennika
+ * pozycji — `page.tsx` dokłada tylko jedną linię w karcie podsumowania, tuż pod
+ * terminem najmu (protokół antykolizyjny, jak przy pozycjach i logistyce).
+ * Osobna sekcja przedłużenia zniknęła — to relokacja UI, mechanika bez zmian.
  */
 export async function ExtensionSection({
   order,
 }: {
   order: { id: string; startDate: string; endDate: string; status: OrderStatus };
 }) {
-  if (!AVAILABILITY_BLOCKING_ORDER_STATUSES.includes(order.status)) return null;
+  if (!canExtendOrder(order.status)) return null;
 
   const ctx = await requireMember();
   const { data: rows } = await ctx.supabase
@@ -36,20 +35,20 @@ export async function ExtensionSection({
 
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
-  const t = await getTranslations("orders.extension");
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-base font-semibold">{t("title")}</h2>
-      <ExtensionForm
-        orderId={order.id}
-        startDate={order.startDate}
-        endDate={order.endDate}
-        items={items}
-        currency={currency}
-        locale={locale}
-        action={extendOrderAction}
-      />
-    </section>
+    // Klucz po terminie: udane przedłużenie zmienia end_date, więc po odświeżeniu
+    // formularz montuje się od nowa (zwinięty, pusty wybór) — domknięcie bez
+    // efektu z setState.
+    <ExtensionForm
+      key={order.endDate}
+      orderId={order.id}
+      startDate={order.startDate}
+      endDate={order.endDate}
+      items={items}
+      currency={currency}
+      locale={locale}
+      action={extendOrderAction}
+    />
   );
 }

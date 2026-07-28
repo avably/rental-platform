@@ -860,12 +860,13 @@
       "cancel": "Cancel"
     },
     "extension": {
-      "title": "Rental extension",
+      "trigger": "Extend",
       "newEndLabel": "New end date",
       "quoteDays": "Additional days: {days}",
       "quoteSurcharge": "Surcharge: {amount}",
       "pickDateHint": "Pick a date after the current rental end to see the surcharge.",
-      "cta": "Extend rental"
+      "cta": "Extend rental",
+      "cancel": "Cancel"
     },
     "notes": {
       "label": "Notes (equipment condition, deposit remarks)",

@@ -8,7 +8,27 @@
  * re-odczyt cennika), i formularz kliencki (podgląd na żywo z tych samych
  * parametrów), więc podgląd i zapis nie mają jak się rozjechać.
  */
-import { quoteExtension, type IsoDate, type PriceParams } from "@avably/core";
+import {
+  AVAILABILITY_BLOCKING_ORDER_STATUSES,
+  quoteExtension,
+  type IsoDate,
+  type OrderStatus,
+  type PriceParams,
+} from "@avably/core";
+
+/**
+ * Czy zamówienie w danym statusie wolno przedłużyć: tylko statusy, w których
+ * bramka 0010 pilnuje dat (AVAILABILITY_BLOCKING). Statusy terminalne
+ * (zwrócone, anulowane) nie pokazują wejścia w przedłużenie — nie ma to sensu
+ * operacyjnego (ADR-028), a akcja i tak by odmówiła (filtr `.in()` w mutacji).
+ *
+ * Mieszka w tym czystym module (a nie w RSC `extension-section.tsx`, który
+ * importuje `next/headers` przez guard sesji), żeby reguła miała BEZPOŚREDNI
+ * dowód w teście, bez uruchamiania całego grafu serwerowego.
+ */
+export function canExtendOrder(status: OrderStatus): boolean {
+  return AVAILABILITY_BLOCKING_ORDER_STATUSES.includes(status);
+}
 
 /** Wiersz produktu z odczytu PostgREST — numeric przychodzi jako string. */
 export interface ExtensionProductRow {

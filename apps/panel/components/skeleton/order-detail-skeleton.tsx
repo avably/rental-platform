@@ -137,11 +137,22 @@ export function OrderDetailSkeleton() {
             </div>
           </SkeletonRegion>
 
-          {/* Podsumowanie: nagłówek (14) + termin + dostawa. Notatki wyszły
-              stąd do własnej karty (#118), więc pola są dokładnie dwa. */}
+          {/* Podsumowanie: nagłówek (14) + termin + WEJŚCIE W PRZEDŁUŻENIE
+              (R4) + dostawa. Notatki wyszły stąd do własnej karty (#118).
+              Przycisk „Przedłuż" (`size="sm"` → h-8) stoi PRZY TERMINIE, bo tam
+              przeniosło się wejście w przedłużenie — osobnej sekcji już nie ma.
+              Maluje się w stanie WEJŚCIOWYM (zwinięty przycisk): kalendarz
+              i dopłata wchodzą dopiero po kliknięciu, więc na wejściu na ekran
+              ich nie ma. Znika w statusach terminalnych (zwrócone/anulowane),
+              ale zamówienie żyje w statusach aktywnych przez cały okres, w którym
+              ktoś na nie patrzy operacyjnie — więc szkielet maluje gałąź
+              dominującą, tak jak formularz pobrania kaucji niżej. */}
           <SkeletonRegion region="summary" className={ASIDE_CARD_CLASS}>
             <SkeletonLine line="micro" className="w-28" />
             <DetailFieldRow width="w-44" />
+            <SkeletonRegion region="summary-extension">
+              <SkeletonBlock className="h-8 w-28 rounded-md" />
+            </SkeletonRegion>
             <DetailFieldRow width="w-36" />
           </SkeletonRegion>
 
@@ -350,21 +361,10 @@ export function OrderDetailSkeleton() {
             </div>
           </SkeletonRegion>
 
-          {/* Przedłużenie, logistyka i dziennik e-maili mają nagłówek
-              `text-base font-semibold` (24px), nie `text-xl` — szkielet
-              kopiuje tę różnicę zamiast ją wygładzać. */}
-          <SkeletonRegion region="section-extension" className={SECTION_CLASS}>
-            <SkeletonLine line="body" className="w-40" />
-            {/* Formularz przedłużenia: etykieta, pole daty, podpowiedź,
-                przycisk — w ramce `gap-2 rounded border p-3`. */}
-            <div className="flex flex-col gap-2 rounded border p-3">
-              <SkeletonLine line="micro" className="w-32" />
-              <SkeletonBlock className="h-9 w-48 rounded-md" />
-              <SkeletonLine line="text" className="w-64" />
-              <SkeletonBlock className="h-9 w-40 rounded-md" />
-            </div>
-          </SkeletonRegion>
-
+          {/* Logistyka i dziennik e-maili mają nagłówek `text-base font-semibold`
+              (24px), nie `text-xl` — szkielet kopiuje tę różnicę zamiast ją
+              wygładzać. Przedłużenie wyprowadziło się stąd do karty podsumowania
+              (R4), więc osobnej sekcji już nie ma. */}
           <SkeletonRegion region="section-delivery" className={SECTION_CLASS}>
             <SkeletonLine line="body" className="w-32" />
             <SkeletonLine line="text" className="w-72" />
