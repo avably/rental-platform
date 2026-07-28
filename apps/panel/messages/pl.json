@@ -747,6 +747,7 @@
       "unitBusy": "zajęty w tym terminie",
       "unassignedNoFree": "brak wolnej sztuki",
       "unassignedHasFree": "do przypisania: {count}",
+      "assignUnit": "Przypisz egzemplarz",
       "addTitle": "Dodaj pozycję",
       "addProduct": "Produkt",
       "addCta": "Dodaj do zamówienia",

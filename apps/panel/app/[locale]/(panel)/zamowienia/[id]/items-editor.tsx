@@ -35,7 +35,7 @@
 import { formatMoney, type CurrencyCode, type OrderStatus } from "@avably/core";
 import { Badge, Button, Input, Label, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { PanelSelect, type PanelSelectOption } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
@@ -71,6 +71,12 @@ export interface EditorProduct {
   name: string;
   freeUnits: number;
   totalUnits: number;
+  /** Egzemplarze produktu z podglądem wolności w terminie zamówienia (R1). */
+  units: EditorUnit[];
+  /** Propozycja najmu z dat+cennika (silnik) — wartość wstępna pola „Najem". */
+  proposedRentalGrosze: number;
+  /** Propozycja kaucji (silnik) — wartość wstępna pola „Kaucja". */
+  proposedDepositGrosze: number;
 }
 
 /** Komunikaty akcji — jedno miejsce, żeby każdy formularz mówił tak samo. */
@@ -104,6 +110,7 @@ function ItemEditPanel({
   collectedGrosze,
   currency,
   locale,
+  autoFocusUnit,
   onClose,
   actions,
 }: {
@@ -112,6 +119,8 @@ function ItemEditPanel({
   collectedGrosze: number;
   currency: CurrencyCode;
   locale: string;
+  /** Wejście z plakietki „nieprzypisany": otwórz z fokusem na wyborze sztuki. */
+  autoFocusUnit?: boolean;
   onClose: () => void;
   actions: { update: ItemsAction; remove: ItemsAction };
 }) {
@@ -120,6 +129,16 @@ function ItemEditPanel({
   const [updateState, updateAction, updatePending] = useActionState(actions.update, initialState);
   const [removeState, removeAction, removePending] = useActionState(actions.remove, initialState);
   const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const unitFieldId = `item-unit-${item.id}`;
+
+  // Wejście przez plakietkę „nieprzypisany" ma od razu postawić kursor na
+  // wyborze egzemplarza — to jest dokładnie ta rzecz, po którą operator tu
+  // przyszedł (R1, odkrywalność przypisania).
+  useEffect(() => {
+    if (!autoFocusUnit) return;
+    document.getElementById(unitFieldId)?.focus();
+  }, [autoFocusUnit, unitFieldId]);
 
   const unitOptions: PanelSelectOption[] = [
     { value: "", label: t("unitNone") },
@@ -142,9 +161,9 @@ function ItemEditPanel({
 
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex min-w-56 flex-1 flex-col gap-1">
-            <Label htmlFor={`item-unit-${item.id}`}>{tDetail("colUnit")}</Label>
+            <Label htmlFor={unitFieldId}>{tDetail("colUnit")}</Label>
             <PanelSelect
-              id={`item-unit-${item.id}`}
+              id={unitFieldId}
               name="unitId"
               defaultValue={item.unitId ?? ""}
               options={unitOptions}
@@ -216,7 +235,19 @@ function ItemEditPanel({
   );
 }
 
-/** Dodanie pozycji — także produktu, dla którego nie ma dziś wolnej sztuki. */
+/** Pierwsza wolna sztuka produktu — domyślny wybór, żeby typowy dodaj był
+    jednym kliknięciem; gdy wolnej nie ma, wybór pusty („bez przypisania"). */
+function firstFreeUnitId(product: EditorProduct | null): string {
+  return product?.units.find((unit) => unit.free)?.id ?? "";
+}
+
+/**
+ * Dodanie pozycji JEDNYM krokiem (R1): produkt + egzemplarz + najem + kaucja.
+ * Kwoty są wstępnie wypełnione propozycją silnika (z dat zamówienia i cennika);
+ * zmiana produktu przelicza propozycję, a ręczna edycja kwoty ją nadpisuje
+ * i od tej chwili trzyma się wartości operatora — dokładnie jak w panelu edycji.
+ * Produkt bez wolnej sztuki nadal wchodzi (BEZ przypisania, jawnie oznaczony).
+ */
 function AddItemForm({
   orderId,
   products,
@@ -227,8 +258,20 @@ function AddItemForm({
   action: ItemsAction;
 }) {
   const t = useTranslations("orders.items");
+  const tDetail = useTranslations("orders.detail");
   const [state, formAction, pending] = useActionState(action, initialState);
+
   const [productId, setProductId] = useState(products[0]?.id ?? "");
+  const [unitId, setUnitId] = useState(() => firstFreeUnitId(products[0] ?? null));
+  const [rental, setRental] = useState(() =>
+    groszeToInputValue(products[0]?.proposedRentalGrosze ?? 0),
+  );
+  const [deposit, setDeposit] = useState(() =>
+    groszeToInputValue(products[0]?.proposedDepositGrosze ?? 0),
+  );
+  // Po ręcznej korekcie propozycja PRZESTAJE nadpisywać kwoty — decyzja
+  // operatora ma pierwszeństwo (lustro ItemEditPanel z jego defaultValue).
+  const [amountsTouched, setAmountsTouched] = useState(false);
 
   if (products.length === 0) {
     return (
@@ -240,22 +283,42 @@ function AddItemForm({
 
   const selected = products.find((product) => product.id === productId) ?? null;
 
+  function changeProduct(nextId: string) {
+    setProductId(nextId);
+    const next = products.find((product) => product.id === nextId) ?? null;
+    // Nowy produkt → domyślnie jego pierwsza wolna sztuka i JEGO propozycja
+    // kwot (przeliczana z dat zamówienia). Ręcznie wpisanych kwot nie ruszamy.
+    setUnitId(firstFreeUnitId(next));
+    if (!amountsTouched && next) {
+      setRental(groszeToInputValue(next.proposedRentalGrosze));
+      setDeposit(groszeToInputValue(next.proposedDepositGrosze));
+    }
+  }
+
+  const unitOptions: PanelSelectOption[] = [
+    { value: "", label: t("unitNone") },
+    ...(selected?.units ?? []).map((unit) => ({
+      value: unit.id,
+      label: `${unit.label} — ${unit.free ? t("unitFree") : t("unitBusy")}`,
+    })),
+  ];
+
   return (
     <form
       action={formAction}
       data-items-add
-      className="border-border flex flex-col gap-2 rounded-md border p-3"
+      className="border-border flex flex-col gap-3 rounded-md border p-3"
     >
       <input type="hidden" name="orderId" value={orderId} />
       <p className="text-sm font-semibold">{t("addTitle")}</p>
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="flex min-w-56 flex-1 flex-col gap-1">
           <Label htmlFor="add-item-product">{t("addProduct")}</Label>
           <PanelSelect
             id="add-item-product"
             name="productId"
             value={productId}
-            onValueChange={setProductId}
+            onValueChange={changeProduct}
             options={products.map((product) => ({
               value: product.id,
               label:
@@ -263,6 +326,42 @@ function AddItemForm({
                   ? t("productFree", { name: product.name, count: product.freeUnits })
                   : t("productNoFree", { name: product.name }),
             }))}
+          />
+        </div>
+        <div className="flex min-w-52 flex-1 flex-col gap-1">
+          <Label htmlFor="add-item-unit">{tDetail("colUnit")}</Label>
+          <PanelSelect
+            id="add-item-unit"
+            name="unitId"
+            value={unitId}
+            onValueChange={setUnitId}
+            options={unitOptions}
+          />
+        </div>
+        <div className="flex min-w-32 flex-col gap-1">
+          <Label htmlFor="add-item-rental">{t("fieldRental")}</Label>
+          <Input
+            id="add-item-rental"
+            name="rental"
+            inputMode="decimal"
+            value={rental}
+            onChange={(event) => {
+              setAmountsTouched(true);
+              setRental(event.target.value);
+            }}
+          />
+        </div>
+        <div className="flex min-w-32 flex-col gap-1">
+          <Label htmlFor="add-item-deposit">{t("fieldDeposit")}</Label>
+          <Input
+            id="add-item-deposit"
+            name="deposit"
+            inputMode="decimal"
+            value={deposit}
+            onChange={(event) => {
+              setAmountsTouched(true);
+              setDeposit(event.target.value);
+            }}
           />
         </div>
         <Button type="submit" variant="outline" disabled={pending}>
@@ -309,8 +408,21 @@ export function ItemsEditor({
   const t = useTranslations("orders.items");
   const tDetail = useTranslations("orders.detail");
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Czy edycję otwarto przez plakietkę „nieprzypisany" — wtedy fokus ma iść
+  // od razu na wybór egzemplarza. Zwykłe „Edytuj" tego nie robi.
+  const [focusUnit, setFocusUnit] = useState(false);
 
   const editing = editable ? (items.find((item) => item.id === editingId) ?? null) : null;
+
+  function toggleEdit(itemId: string) {
+    setFocusUnit(false);
+    setEditingId((current) => (current === itemId ? null : itemId));
+  }
+
+  function openAssign(itemId: string) {
+    setFocusUnit(true);
+    setEditingId(itemId);
+  }
 
   // Sumy POKAZUJEMY z kolumn zamówienia — to ich używa faktura, e-mail
   // i lista. Sumę pozycji liczymy obok WYŁĄCZNIE po to, żeby rozjazd (np. po
@@ -349,15 +461,33 @@ export function ItemsEditor({
                 <TableCell className="px-3.5 py-3">
                   {item.unitId ? (
                     item.unitLabel
-                  ) : (
-                    // `items-start` jest tu konieczne, a nie kosmetyczne: bez
-                    // niego kolumna flexa rozciąga Badge na całą szerokość
-                    // komórki i „nieprzypisany" wygląda jak pole formularza.
-                    <span className="flex flex-col items-start gap-1">
+                  ) : editable ? (
+                    // Plakietka „nieprzypisany" JEST wejściem w przypisanie:
+                    // klik otwiera panel edycji tej pozycji z fokusem na
+                    // wyborze egzemplarza (R1, odkrywalność). `items-start`
+                    // trzyma przycisk przy treści, a nie na całą szerokość.
+                    <button
+                      type="button"
+                      data-items-assign-trigger
+                      onClick={() => openAssign(item.id)}
+                      aria-label={t("assignUnit")}
+                      className="hover:bg-muted focus-visible:ring-ring flex flex-col items-start gap-1 rounded-md text-left focus-visible:ring-2 focus-visible:outline-none"
+                    >
                       <Badge variant="outline">{tDetail("unitUnassigned")}</Badge>
                       {/* Powód liczony NA ŻYWO (patrz items-section.tsx):
                           „niedostępne" zapisane w bazie zestarzałoby się
                           w godzinę. */}
+                      <span className="text-muted-foreground text-xs">
+                        {item.freeUnitCount === 0
+                          ? t("unassignedNoFree")
+                          : t("unassignedHasFree", { count: item.freeUnitCount })}
+                      </span>
+                    </button>
+                  ) : (
+                    // Zamówienie zamknięte: plakietka informuje, nie zaprasza do
+                    // kliknięcia (powód blokady stoi pod tabelą — `data-items-locked`).
+                    <span className="flex flex-col items-start gap-1">
+                      <Badge variant="outline">{tDetail("unitUnassigned")}</Badge>
                       <span className="text-muted-foreground text-xs">
                         {item.freeUnitCount === 0
                           ? t("unassignedNoFree")
@@ -380,7 +510,7 @@ export function ItemsEditor({
                       variant="outline"
                       data-items-edit-trigger
                       aria-expanded={editingId === item.id}
-                      onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                      onClick={() => toggleEdit(item.id)}
                     >
                       {t("edit")}
                     </Button>
@@ -432,6 +562,7 @@ export function ItemsEditor({
           collectedGrosze={collectedGrosze}
           currency={currency}
           locale={locale}
+          autoFocusUnit={focusUnit}
           onClose={() => setEditingId(null)}
           actions={{ update: actions.update, remove: actions.remove }}
         />

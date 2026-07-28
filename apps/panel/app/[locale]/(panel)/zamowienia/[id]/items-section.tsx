@@ -4,7 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/supabase-server";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
-import { availabilityForRange, type ProductPricingRow } from "../pricing";
+import { availabilityForRange, proposeItemAmounts, type ProductPricingRow } from "../pricing";
 import { depositTotals, type DepositEventRow } from "./deposit";
 import {
   addOrderItemAction,
@@ -155,12 +155,26 @@ export async function ItemsSection({
 
   const productById = new Map(products.map((product) => [product.id, product]));
 
-  const editorProducts: EditorProduct[] = products.map((product) => ({
-    id: product.id,
-    name: product.name,
-    freeUnits: freeUnitIds(product).size,
-    totalUnits: product.product_units.length,
-  }));
+  const editorProducts: EditorProduct[] = products.map((product) => {
+    // Pula wolnych sztuk dla DODAWANIA nie wyklucza żadnej pozycji — nowa
+    // pozycja nie ma jeszcze rezerwacji (nagłówek). Propozycja kwot liczy się
+    // z dat zamówienia tym samym silnikiem, co reszta wyceny.
+    const free = freeUnitIds(product);
+    const proposal = proposeItemAmounts(product, start, end);
+    return {
+      id: product.id,
+      name: product.name,
+      freeUnits: free.size,
+      totalUnits: product.product_units.length,
+      units: product.product_units.map((unit) => ({
+        id: unit.id,
+        label: unit.serial_number ?? unit.id.slice(0, 8),
+        free: free.has(unit.id),
+      })),
+      proposedRentalGrosze: proposal.rentalGrosze,
+      proposedDepositGrosze: proposal.depositGrosze,
+    };
+  });
 
   const editorItems: EditorItem[] = items.map((item) => {
     const product = productById.get(item.product_id);

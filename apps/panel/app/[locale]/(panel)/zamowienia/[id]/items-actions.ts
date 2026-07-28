@@ -181,9 +181,15 @@ async function recalcOrderTotals(ctx: AuthContext, orderId: string): Promise<For
  * — wciśnięcie zajętego egzemplarza — byłaby podwójnym najmem tej samej sztuki
  * i bramka i tak by ją odrzuciła.
  *
- * Wycena: WYŁĄCZNIE silnikiem (pricing.ts) po AKTUALNYM cenniku produktu.
- * Ręczna korekta kwot jest osobną operacją (`updateOrderItemAction`) — dzięki
- * temu w rejestrze zmian widać różnicę między „cennikiem" a „decyzją operatora".
+ * Egzemplarz i kwoty mogą PRZYJŚĆ Z FORMULARZA jednym krokiem (R1). Gdy nie
+ * przyjdą, zachowanie jest jak dotąd: sztuka dobrana automatycznie, wycena
+ * silnikiem. `formData.has(...)` odróżnia „pole spoza formularza" (auto) od
+ * „pole puste" (świadome „bez przypisania" / kwota 0) — patrz nagłówek
+ * `addOrderItemSchema`.
+ *
+ * Wycena silnikiem (pricing.ts) zostaje PROPOZYCJĄ i FALLBACKIEM: gdy operator
+ * nie nadpisał kwot, wchodzą wartości z silnika po AKTUALNYM cenniku. Ręczna
+ * korekta nadpisuje propozycję — dokładnie jak w `updateOrderItemAction`.
  */
 export async function addOrderItemAction(
   _prevState: FormState,
@@ -192,6 +198,11 @@ export async function addOrderItemAction(
   const parsed = addOrderItemSchema.safeParse({
     orderId: str(formData.get("orderId")),
     productId: str(formData.get("productId")),
+    // Klucz OBECNY w formularzu (nawet pusty) znaczy co innego niż jego brak —
+    // dlatego `has`, a nie samo `get`.
+    ...(formData.has("unitId") ? { unitId: str(formData.get("unitId")) } : {}),
+    ...(formData.has("rental") ? { rental: str(formData.get("rental")) } : {}),
+    ...(formData.has("deposit") ? { deposit: str(formData.get("deposit")) } : {}),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
   const input = parsed.data;
@@ -271,8 +282,27 @@ export async function addOrderItemAction(
   // razem z cudzymi: zamówienie w statusie edytowalnym jest statusem
   // blokującym, więc jego pozycje są w `booked`. Ta sama sztuka nie może
   // stać na zamówieniu dwa razy.
-  const unitId = availability.availableUnitIds[0] ?? null;
+  const autoUnitId = availability.availableUnitIds[0] ?? null;
 
+  // Egzemplarz: wybór operatora ma pierwszeństwo, brak pola = auto (jak dotąd).
+  // UUID z formularza MUSI należeć do produktu pozycji — baza tego nie pilnuje
+  // (`order_items_unit_fk` sprawdza tylko parę tenant+unit), więc gdyby nie to
+  // sprawdzenie, dałoby się podpiąć sztukę innego produktu (lustro
+  // `updateOrderItemAction`). Kolizję terminu odbija dopiero bramka 0010.
+  let unitId: string | null;
+  if (input.unitId === undefined) {
+    unitId = autoUnitId;
+  } else if (input.unitId === null) {
+    unitId = null;
+  } else {
+    if (!product.product_units.some((unit) => unit.id === input.unitId)) {
+      return { formError: "Ten egzemplarz należy do innego produktu — wybierz sztukę produktu z tej pozycji." };
+    }
+    unitId = input.unitId;
+  }
+
+  // Wycena silnikiem liczy się ZAWSZE: jest propozycją, fallbackiem i jedynym
+  // miejscem, które zawczasu wykryje brak cennika produktu.
   let pricing;
   try {
     pricing = priceOrderItems(
@@ -286,13 +316,17 @@ export async function addOrderItemAction(
   }
   const priced = pricing.items[0]!;
 
+  // Kwoty z formularza nadpisują propozycję; bez nich wchodzi wycena silnika.
+  const rentalGrosze = input.rental ?? priced.rentalGrosze;
+  const depositGrosze = input.deposit ?? priced.depositGrosze;
+
   const { error: insertError } = await ctx.supabase.from("order_items").insert({
     tenant_id: ctx.tenantId,
     order_id: order.id,
     product_id: product.id,
     unit_id: unitId,
-    rental_grosze: priced.rentalGrosze,
-    deposit_grosze: priced.depositGrosze,
+    rental_grosze: rentalGrosze,
+    deposit_grosze: depositGrosze,
   });
   if (insertError) {
     if (insertError.code === PG_UNIT_CONFLICT) return { formError: unitConflictMessage(insertError.message) };
@@ -305,9 +339,14 @@ export async function addOrderItemAction(
   revalidatePath("/", "layout");
   // Pozycja bez egzemplarza to NIE jest połowiczna porażka — to świadomy stan,
   // o którym operator ma wiedzieć od razu, a nie dowiedzieć się z tabeli.
-  return unitId === null
-    ? { notice: `Dodano „${product.name}" BEZ przypisanego egzemplarza — w tym terminie nie ma wolnej sztuki.` }
-    : { success: "item-added" };
+  // Rozróżniamy „nie było czego przypisać" (pula pusta) od „operator wybrał
+  // brak przypisania mimo wolnych sztuk" — inny komunikat, żaden nie kłamie.
+  if (unitId === null) {
+    return availability.availableUnitIds.length === 0
+      ? { notice: `Dodano „${product.name}" BEZ przypisanego egzemplarza — w tym terminie nie ma wolnej sztuki.` }
+      : { notice: `Dodano „${product.name}" bez przypisanego egzemplarza.` };
+  }
+  return { success: "item-added" };
 }
 
 /* ── Edycja pozycji ───────────────────────────────────────────────────── */

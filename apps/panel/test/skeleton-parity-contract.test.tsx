@@ -230,7 +230,20 @@ const detailRenderEvidence = [
           units: [],
         },
       ]}
-      products={[{ id: "00000000-0000-4000-8000-0000000000c1", name: "Nagrzewnica 20 kW", freeUnits: 2, totalUnits: 3 }]}
+      products={[
+        {
+          id: "00000000-0000-4000-8000-0000000000c1",
+          name: "Nagrzewnica 20 kW",
+          freeUnits: 2,
+          totalUnits: 3,
+          units: [
+            { id: "00000000-0000-4000-8000-0000000000b1", label: "NG-001", free: true },
+            { id: "00000000-0000-4000-8000-0000000000b2", label: "NG-002", free: true },
+          ],
+          proposedRentalGrosze: 24_000,
+          proposedDepositGrosze: 50_000,
+        },
+      ]}
       collectedGrosze={0}
       totalRentalGrosze={60_000}
       totalDepositGrosze={50_000}

@@ -92,6 +92,28 @@ export function priceOrderItems(
 }
 
 /**
+ * PROPOZYCJA kwot dla JEDNEJ, jeszcze nieistniejącej pozycji — najem i kaucja
+ * wyliczone z DAT zamówienia i cennika produktu tym samym silnikiem, którym
+ * wycenia się pozycje przy tworzeniu zamówienia (`priceOrderItems` → engine).
+ *
+ * To jest wartość WSTĘPNA formularza dodawania pozycji (R1): operator dostaje
+ * gotową kwotę do zaakceptowania albo nadpisania, a nie puste pole. Zero
+ * drugiej ścieżki wyceny — gdyby propozycja liczyła się inaczej niż realne
+ * pozycje, formularz kłamałby o cenie jeszcze przed zapisem. Zmiana zakresu
+ * dat (albo cennika) MUSI zmienić wynik: to jedyny powód, dla którego ta
+ * funkcja bierze `start`/`end`, a nie stałą.
+ */
+export function proposeItemAmounts(
+  product: ProductPricingRow,
+  start: IsoDate,
+  end: IsoDate,
+): { rentalGrosze: number; depositGrosze: number } {
+  const priced = priceOrderItems([product.id], new Map([[product.id, product]]), start, end);
+  const item = priced.items[0]!;
+  return { rentalGrosze: item.rentalGrosze, depositGrosze: item.depositGrosze };
+}
+
+/**
  * Przypisanie egzemplarzy do pozycji: pierwsze wolne w kolejności podanej
  * przez wywołującego (zapytanie panelu sortuje po created_at — stabilnie).
  * To jest decyzja BIZNESOWA warstwy zamówień (silnik celowo jej nie
