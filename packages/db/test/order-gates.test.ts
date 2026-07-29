@@ -326,12 +326,14 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
     it("UPDATE niezmieniający statusu nie pyta maszyny stanów", async () => {
       const orderId = await createOrder(tenantId, customerId, "2026-08-01", "2026-08-03");
       await walkTo(orderId, "returned"); // stan terminalny — każde PRZEJŚCIE jest zabronione
+      // Pole obojętne dla maszyny stanów (0041 zdjął orders.notes — używamy
+      // delivery_grosze, którego bramka 0010 nie dotyka: to nie status ani data).
       const { data, error } = await admin
         .from("orders")
-        .update({ notes: "notatka po zwrocie" })
+        .update({ delivery_grosze: 1_234 })
         .eq("id", orderId)
         .select("id");
-      expect(error?.message, `UPDATE notatki na terminalnym statusie: ${error?.message}`).toBeUndefined();
+      expect(error?.message, `UPDATE pola obojętnego na terminalnym statusie: ${error?.message}`).toBeUndefined();
       expect(data).toHaveLength(1);
     });
 
@@ -344,7 +346,7 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
         .single();
       const { data: after } = await admin
         .from("orders")
-        .update({ notes: "zmiana" })
+        .update({ delivery_grosze: 4_321 })
         .eq("id", orderId)
         .select("updated_at")
         .single();
@@ -647,6 +649,7 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
   describe("wyścig o egzemplarz — dwie realne sesje, jeden egzemplarz, jeden termin", () => {
     let memberA: SupabaseClient;
     let memberB: SupabaseClient;
+    let memberAUserId: string; // autor zamówień z memberA — created_by w order_notes (0041)
     let tenantId: string;
     let customerId: string;
     let productId: string;
@@ -674,6 +677,7 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
     beforeAll(async () => {
       // Operator A zakłada organizację (realna ścieżka onboardingu)…
       const userA = await createUser("op-a");
+      memberAUserId = userA.id;
       const bootstrap = await signIn(userA.email);
       const { data: newTenantId, error: tenantError } = await bootstrap
         .schema("app")
@@ -894,6 +898,94 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
         .eq("id", orderId as string)
         .single();
       expect(order!.delivery_grosze).toBe(0);
+    });
+
+    // 0041 (ADR-081): p_notes zostaje w sygnaturze (zgodność wsteczna), ale
+    // niepusta treść zakłada WIERSZ w order_notes (0039), nie wpis do usuniętej
+    // kolumny orders.notes. Autor = twórca zamówienia (auth.uid(); SECURITY
+    // INVOKER → zalogowany członek). Dowód: notatka z kreatora trafia na LISTĘ
+    // wpisów szczegółu, a nie w martwe pole.
+    it("create_order z notatką → wpis w order_notes z autorem = twórca zamówienia (0041)", async () => {
+      const noteProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const noteUnitId = await createUnit(tenantId, noteProductId);
+
+      const { data: orderId, error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2027-05-01",
+        p_end_date: "2027-05-05",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: "  Klient prosi o dodatkowy pas transportowy.  ",
+        p_total_rental_grosze: 40_000,
+        p_total_deposit_grosze: 0,
+        p_items: [
+          { product_id: noteProductId, unit_id: noteUnitId, rental_grosze: 40_000, deposit_grosze: 0 },
+        ],
+      });
+      expect(error, `create_order z notatką: ${error?.message}`).toBeNull();
+
+      const { data: notes, error: notesError } = await admin
+        .from("order_notes")
+        .select("body, created_by")
+        .eq("order_id", orderId as string);
+      expect(notesError?.message, `odczyt order_notes: ${notesError?.message}`).toBeUndefined();
+      expect(notes, "notatka kreatora nie trafiła na listę wpisów").toHaveLength(1);
+      // btrim jak w 0039 — bez wiodących/kończących spacji.
+      expect(notes![0]!.body).toBe("Klient prosi o dodatkowy pas transportowy.");
+      // Autor = zalogowany członek (nie NULL — to nie wpis historyczny).
+      expect(notes![0]!.created_by, "autor wpisu != twórca zamówienia").toBe(memberAUserId);
+    });
+
+    it("create_order bez notatki (p_notes null) → zero wpisów w order_notes (0041)", async () => {
+      const nilProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const nilUnitId = await createUnit(tenantId, nilProductId);
+
+      const { data: orderId, error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2027-06-01",
+        p_end_date: "2027-06-05",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: null,
+        p_total_rental_grosze: 40_000,
+        p_total_deposit_grosze: 0,
+        p_items: [
+          { product_id: nilProductId, unit_id: nilUnitId, rental_grosze: 40_000, deposit_grosze: 0 },
+        ],
+      });
+      expect(error, `create_order bez notatki: ${error?.message}`).toBeNull();
+
+      const { data: notes } = await admin
+        .from("order_notes")
+        .select("id")
+        .eq("order_id", orderId as string);
+      expect(notes, "brak notatki, a wpis powstał").toHaveLength(0);
+    });
+
+    it("create_order z notatką z samych spacji → zero wpisów (btrim, jak filtr 0039)", async () => {
+      const blankProductId = await createProduct(tenantId, { before: 0, after: 0 });
+      const blankUnitId = await createUnit(tenantId, blankProductId);
+
+      const { data: orderId, error } = await memberA.schema("app").rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: "2027-07-01",
+        p_end_date: "2027-07-05",
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: "   ",
+        p_total_rental_grosze: 40_000,
+        p_total_deposit_grosze: 0,
+        p_items: [
+          { product_id: blankProductId, unit_id: blankUnitId, rental_grosze: 40_000, deposit_grosze: 0 },
+        ],
+      });
+      expect(error, `create_order z pustą notatką: ${error?.message}`).toBeNull();
+
+      const { data: notes } = await admin
+        .from("order_notes")
+        .select("id")
+        .eq("order_id", orderId as string);
+      expect(notes, "notatka z samych spacji założyła wpis").toHaveLength(0);
     });
   });
 

@@ -301,6 +301,53 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     }
   });
 
+  // 0041 (ADR-081): notatka klienta ze storefrontu trafia do order_notes
+  // (lista wpisów szczegółu), nie do usuniętej kolumny orders.notes. Autor =
+  // NULL (checkout anonimowy — brak członka; UI pokaże „—", jak wpis
+  // historyczny z 0039). Bez tego przekierowania notatka klienta byłaby
+  // niewidoczna w panelu (kolumny, której UI nie czyta, po prostu nie ma).
+  it("checkout z notatką → wpis w order_notes (autor NULL, treść przycięta) — 0041", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_notes: "  Proszę o telefon przed dostawą.  ",
+      }),
+    );
+    expect(error, `checkout z notatką zawiódł: ${error?.message}`).toBeNull();
+    const orderId = (data as { order_id: string }).order_id;
+
+    const { data: notes, error: notesError } = await admin
+      .from("order_notes")
+      .select("body, created_by")
+      .eq("order_id", orderId);
+    expect(notesError?.message, `odczyt order_notes: ${notesError?.message}`).toBeUndefined();
+    expect(notes, "notatka klienta nie trafiła na listę wpisów").toHaveLength(1);
+    expect(notes![0]!.body).toBe("Proszę o telefon przed dostawą."); // btrim jak w 0039
+    expect(notes![0]!.created_by, "checkout anonimowy nie może mieć autora").toBeNull();
+  });
+
+  it("checkout bez notatki → zero wpisów w order_notes — 0041", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId), // p_notes nieustawione → null
+    );
+    expect(error, `checkout bez notatki zawiódł: ${error?.message}`).toBeNull();
+    const orderId = (data as { order_id: string }).order_id;
+
+    const { data: notes } = await admin.from("order_notes").select("id").eq("order_id", orderId);
+    expect(notes, "brak notatki, a wpis powstał").toHaveLength(0);
+  });
+
   // -------------------------------------------------------------------
   // 3. IZOLACJA
   // -------------------------------------------------------------------
