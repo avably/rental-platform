@@ -803,7 +803,10 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   pricing_tiers: { label: "rls-test-hacked" },
   pickup_locations: { name: "rls-test-hacked" },
   customers: { full_name: "rls-test-hacked" },
-  orders: { notes: "rls-test-hacked" },
+  // orders.notes zdjęte w 0041 — patch na delivery_grosze (int, bez indeksu
+  // unikalnego, CHECK >= 0 spełniony przez 999_999): goła mutacja nie wywoła
+  // ani 23505, ani 23514, więc sonda odróżni odmowę RLS od błędu integralności.
+  orders: { delivery_grosze: 999_999 },
   order_items: { rental_grosze: 999_999 },
   deposit_events: { reason: "rls-test-hacked" },
   // last_error jest nullable, bez indeksu unikalnego i poza jakimkolwiek

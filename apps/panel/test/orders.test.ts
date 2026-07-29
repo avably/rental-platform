@@ -217,16 +217,18 @@ describe.skipIf(!hasEnv)("zamówienia (RLS 0007 + bramki 0010, ścieżka panelu)
   });
 
   it("tenant B nie zmieni zamówienia A: UPDATE dosięga zero wierszy, dane nietknięte", async () => {
+    // Pole dowodowe: delivery_grosze (0041 zdjął orders.notes). Zamówienie A
+    // powstało bez kosztu dostawy → default 0; próba przejęcia nie może go ruszyć.
     const { data, error } = await tenantB.client
       .from("orders")
-      .update({ notes: "przejęte" })
+      .update({ delivery_grosze: 999_999 })
       .eq("id", orderId)
       .select("id");
     expect(error).toBeNull();
     expect(data, "UPDATE cudzego zamówienia dosięgnął wierszy").toEqual([]);
 
-    const { data: after } = await admin.from("orders").select("notes").eq("id", orderId).single();
-    expect(after).toMatchObject({ notes: "test integracyjny" });
+    const { data: after } = await admin.from("orders").select("delivery_grosze").eq("id", orderId).single();
+    expect(after).toMatchObject({ delivery_grosze: 0 });
   });
 
   it("tenant B nie podepnie pozycji pod zamówienie A (klucz złożony — 23503)", async () => {
