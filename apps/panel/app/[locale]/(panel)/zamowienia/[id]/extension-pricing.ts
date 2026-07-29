@@ -55,10 +55,25 @@ export interface ExtensionItemPricing {
   params: PriceParams;
 }
 
+/** Dopłata przedłużenia dla POJEDYNCZEJ pozycji — dokładna liczba z silnika. */
+export interface ExtensionItemSurcharge {
+  itemId: string;
+  additionalRentalGrosze: number;
+}
+
 export interface OrderExtensionQuote {
   newEndDate: IsoDate;
   additionalDays: number;
   additionalRentalGrosze: number;
+  /**
+   * Rozbicie dopłaty NA POZYCJE. Każda kwota to WPROST wynik silnika dla tej
+   * pozycji — `additionalRentalGrosze` jest ich sumą CO DO GROSZA (nie proporcja
+   * ani rozsmarowanie z zaokrągleniami): akcja dopisuje te liczby do pozycji, więc
+   * sumy zamówienia i pozycji nie mają jak się rozjechać. Pozycje bez cennika
+   * (produkt wygaszony twardo) nie trafiają na wejście i nie ma ich tutaj — nie
+   * uczestniczą w wycenie i nie dostają dopłaty.
+   */
+  items: ExtensionItemSurcharge[];
 }
 
 export function quoteOrderExtension(
@@ -77,9 +92,45 @@ export function quoteOrderExtension(
   });
 
   let additionalRentalGrosze = 0;
+  const itemSurcharges: ExtensionItemSurcharge[] = [];
   for (const item of items) {
-    additionalRentalGrosze += quoteExtension(order, newEndDate, item.params).additionalRentalGrosze;
+    const itemAdditional = quoteExtension(order, newEndDate, item.params).additionalRentalGrosze;
+    additionalRentalGrosze += itemAdditional;
+    itemSurcharges.push({ itemId: item.itemId, additionalRentalGrosze: itemAdditional });
   }
 
-  return { newEndDate, additionalDays, additionalRentalGrosze };
+  return { newEndDate, additionalDays, additionalRentalGrosze, items: itemSurcharges };
+}
+
+/** Absolutna nowa kwota najmu jednej pozycji do zapisania. */
+export interface ExtensionItemRentalUpdate {
+  itemId: string;
+  rentalGrosze: number;
+}
+
+/**
+ * Nowe (absolutne) kwoty najmu pozycji po doliczeniu dopłat przedłużenia.
+ * `currentRentalById` to BIEŻĄCE kwoty z bazy (mogą być ręcznie skorygowane),
+ * `surcharges` to `quote.items` z `quoteOrderExtension` — dokładne liczby
+ * silnika. Zwraca tylko pozycje ZE ZMIANĄ (dopłata != 0; zero-dopłata nie
+ * potrzebuje zapisu ani nie tworzy rozjazdu) oraz `hasNegative`: czy któraś
+ * zeszłaby poniżej zera (lustro CHECK `rental_grosze >= 0` — ręczny rabat
+ * pozycji plus ujemna dopłata przy zejściu w tańszy próg). PostgREST nie
+ * potrafi `x = x + n`, więc absolut liczymy tutaj, na odczytanej kwocie.
+ */
+export function extensionItemRentals(
+  currentRentalById: Map<string, number>,
+  surcharges: readonly ExtensionItemSurcharge[],
+): { updates: ExtensionItemRentalUpdate[]; hasNegative: boolean } {
+  const updates: ExtensionItemRentalUpdate[] = [];
+  let hasNegative = false;
+  for (const surcharge of surcharges) {
+    if (surcharge.additionalRentalGrosze === 0) continue;
+    const current = currentRentalById.get(surcharge.itemId);
+    if (current === undefined) continue; // pozycja zniknęła między odczytem a wyceną
+    const next = current + surcharge.additionalRentalGrosze;
+    if (next < 0) hasNegative = true;
+    updates.push({ itemId: surcharge.itemId, rentalGrosze: next });
+  }
+  return { updates, hasNegative };
 }

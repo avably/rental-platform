@@ -8,6 +8,7 @@ import { quoteExtension, type PriceParams } from "@avably/core";
 import { describe, expect, it } from "vitest";
 
 import {
+  extensionItemRentals,
   priceParamsFromRow,
   quoteOrderExtension,
 } from "@/app/[locale]/(panel)/zamowienia/[id]/extension-pricing";
@@ -42,6 +43,16 @@ describe("quoteOrderExtension — suma dopłat pozycji", () => {
     expect(quote.additionalRentalGrosze).toBe(85_000); // pin ręczny — gdyby silnik i suma rozjechały się zgodnie
     expect(quote.additionalDays).toBe(3);
     expect(quote.newEndDate).toBe("2027-03-08");
+
+    // Rozbicie NA POZYCJE to dokładnie liczby silnika per pozycja, a ich suma
+    // == dopłata całości CO DO GROSZA (żadnego rozsmarowywania z zaokrągleniem).
+    expect(quote.items).toEqual([
+      { itemId: "i1", additionalRentalGrosze: 25_000 },
+      { itemId: "i2", additionalRentalGrosze: 60_000 },
+    ]);
+    expect(quote.items.reduce((sum, item) => sum + item.additionalRentalGrosze, 0)).toBe(
+      quote.additionalRentalGrosze,
+    );
   });
 
   it("dopłaty przeciwnych znaków sumują się uczciwie", () => {
@@ -57,11 +68,63 @@ describe("quoteOrderExtension — suma dopłat pozycji", () => {
 
   it("zamówienie bez pozycji: dopłata 0 (bramka 0010 i tak re-waliduje daty)", () => {
     const quote = quoteOrderExtension(ORDER, "2027-03-08", []);
-    expect(quote).toEqual({ newEndDate: "2027-03-08", additionalDays: 3, additionalRentalGrosze: 0 });
+    expect(quote).toEqual({
+      newEndDate: "2027-03-08",
+      additionalDays: 3,
+      additionalRentalGrosze: 0,
+      items: [],
+    });
   });
 
   it("skrócenie terminu propaguje jawny błąd silnika", () => {
     expect(() => quoteOrderExtension(ORDER, "2027-03-05", [])).toThrow(RangeError);
+  });
+});
+
+describe("extensionItemRentals — absolutne kwoty pozycji do zapisu", () => {
+  it("dolicza dopłatę do bieżącego najmu i pomija pozycje bez zmiany", () => {
+    const { updates, hasNegative } = extensionItemRentals(
+      new Map([
+        ["i1", 40_000],
+        ["i2", 100_000],
+        ["i3", 7_000],
+      ]),
+      [
+        { itemId: "i1", additionalRentalGrosze: 25_000 },
+        { itemId: "i2", additionalRentalGrosze: 60_000 },
+        { itemId: "i3", additionalRentalGrosze: 0 }, // bez zmiany → bez zapisu
+      ],
+    );
+    expect(hasNegative).toBe(false);
+    expect(updates).toEqual([
+      { itemId: "i1", rentalGrosze: 65_000 },
+      { itemId: "i2", rentalGrosze: 160_000 },
+    ]);
+  });
+
+  it("suma nowych kwot pozycji == stara suma + dopłata całości (co do grosza)", () => {
+    const current = new Map([
+      ["i1", 40_000],
+      ["i2", 100_000],
+    ]);
+    const surcharges = [
+      { itemId: "i1", additionalRentalGrosze: 25_000 },
+      { itemId: "i2", additionalRentalGrosze: 60_000 },
+    ];
+    const { updates } = extensionItemRentals(current, surcharges);
+    const oldSum = [...current.values()].reduce((sum, value) => sum + value, 0);
+    const additional = surcharges.reduce((sum, item) => sum + item.additionalRentalGrosze, 0);
+    const newSum = updates.reduce((sum, item) => sum + item.rentalGrosze, 0);
+    expect(newSum).toBe(oldSum + additional);
+  });
+
+  it("ręczny rabat pozycji + ujemna dopłata poniżej zera → hasNegative", () => {
+    const { updates, hasNegative } = extensionItemRentals(
+      new Map([["i1", 3_000]]), // operator dał rabat
+      [{ itemId: "i1", additionalRentalGrosze: -5_000 }], // zejście w tańszy próg
+    );
+    expect(hasNegative).toBe(true);
+    expect(updates).toEqual([{ itemId: "i1", rentalGrosze: -2_000 }]);
   });
 });
 

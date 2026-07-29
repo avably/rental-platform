@@ -19,7 +19,13 @@
  *      Ten test płonie po usunięciu filtru statusów z mutacji — nic go nie
  *      maskuje, bo trigger 0010 przepuszcza, a RLS to własny tenant,
  *   5. izolacja: członek tenanta B nie przedłuży zamówienia A (zero wierszy,
- *      dane nietknięte).
+ *      dane nietknięte),
+ *   6. dopłata NA POZYCJE (D1): po przedłużeniu zamówienia wieloproduktowego
+ *      sum(order_items.rental_grosze) == orders.total_rental_grosze CO DO
+ *      GROSZA (a więc ostrzeżenie ItemsSection „sumy się nie zgadzają" NIE
+ *      pojawia się), a każda pozycja dostaje SWOJĄ dokładną dopłatę silnika.
+ *      Sekwencja jest ta sama, którą wykonuje extendOrderAction: bramkowany
+ *      UPDATE zamówienia, potem writeExtensionItemRentals na pozycje.
  *
  * Mechanikę bramki 0010 dowodzi packages/db/test/order-extension.test.ts —
  * tu jej nie powtarzamy.
@@ -35,6 +41,13 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
+
+import { writeExtensionItemRentals } from "@/app/[locale]/(panel)/zamowienia/[id]/extension-mutation";
+import {
+  extensionItemRentals,
+  priceParamsFromRow,
+  quoteOrderExtension,
+} from "@/app/[locale]/(panel)/zamowienia/[id]/extension-pricing";
 
 import { integrationEnv } from "./helpers/integration-env";
 
@@ -364,4 +377,153 @@ describe.skipIf(!hasEnv)("przedłużenia najmu (ścieżka panelu, bramki 0010)",
       .single();
     expect(after).toEqual({ end_date: "2027-03-08", total_rental_grosze: 75_000 });
   });
+
+  it("D1: po przedłużeniu suma najmu pozycji == total zamówienia (2 różne cenniki, co do grosza)", async () => {
+    // Drugi produkt o INNYM cenniku (bez progów, auto-mnożnik 1.2). Dopłaty obu
+    // pozycji będą różne i „nierówne" — naiwny podział proporcjonalny musiałby
+    // zaokrąglić; my dopisujemy dokładne liczby silnika, więc sumy trzymają się
+    // co do grosza także wtedy, gdy dopłata całości nie dzieli się równo.
+    const PRICING2 = {
+      basePriceDayGrosze: 20_000,
+      depositGrosze: 0,
+      autoIncrementMultiplier: 1.2,
+      tiers: [] as { tierDays: number; multiplier: number }[],
+    };
+    const { data: product2, error: p2Error } = await tenantA.client
+      .from("products")
+      .insert({
+        tenant_id: tenantA.tenantId,
+        name: "Agregat do przedłużeń per pozycja",
+        base_price_day_grosze: PRICING2.basePriceDayGrosze,
+        deposit_grosze: PRICING2.depositGrosze,
+        auto_increment_multiplier: PRICING2.autoIncrementMultiplier,
+        buffer_before_days: 0,
+        buffer_after_days: 0,
+      })
+      .select("id")
+      .single();
+    if (p2Error) throw new Error(`insert product2: ${p2Error.message}`);
+    const product2Id = product2!.id as string;
+
+    // Świeże egzemplarze i odległe daty (2028-01) — zero kolizji z resztą testów.
+    const { data: unitP1 } = await tenantA.client
+      .from("product_units")
+      .insert({ tenant_id: tenantA.tenantId, product_id: productId, serial_number: "EXT-REC-1" })
+      .select("id")
+      .single();
+    const { data: unitP2 } = await tenantA.client
+      .from("product_units")
+      .insert({ tenant_id: tenantA.tenantId, product_id: product2Id, serial_number: "EXT-REC-2" })
+      .select("id")
+      .single();
+
+    const start = "2028-01-01";
+    const end = "2028-01-05";
+    const price1 = calculatePrice(start, end, PRICING);
+    const price2 = calculatePrice(start, end, PRICING2);
+    // Total = suma pozycji → PRZED przedłużeniem sumy się zgadzają (brak dryfu).
+    const { data: reconOrderId, error: createError } = await tenantA.client
+      .schema("app")
+      .rpc("create_order", {
+        p_customer_id: customerId,
+        p_start_date: start,
+        p_end_date: end,
+        p_delivery_method: "courier",
+        p_pickup_location_id: null,
+        p_notes: null,
+        p_total_rental_grosze: price1.rentalGrosze + price2.rentalGrosze,
+        p_total_deposit_grosze: price1.depositGrosze + price2.depositGrosze,
+        p_items: [
+          {
+            product_id: productId,
+            unit_id: unitP1!.id as string,
+            rental_grosze: price1.rentalGrosze,
+            deposit_grosze: price1.depositGrosze,
+          },
+          {
+            product_id: product2Id,
+            unit_id: unitP2!.id as string,
+            rental_grosze: price2.rentalGrosze,
+            deposit_grosze: price2.depositGrosze,
+          },
+        ],
+      });
+    if (createError) throw new Error(`create_order (recon): ${createError.message}`);
+    const reconId = reconOrderId as string;
+
+    // Autorytatywny re-odczyt pozycji z cennikiem — DOKŁADNIE jak akcja.
+    const { data: orderRow, error: readError } = await tenantA.client
+      .from("orders")
+      .select(
+        "total_rental_grosze, order_items(id, rental_grosze, products(base_price_day_grosze, deposit_grosze, auto_increment_multiplier, pricing_tiers(tier_days, multiplier)))",
+      )
+      .eq("id", reconId)
+      .single();
+    if (readError || !orderRow) throw new Error(`read recon order: ${readError?.message}`);
+    const itemRows = orderRow.order_items as unknown as {
+      id: string;
+      rental_grosze: number;
+      products: Parameters<typeof priceParamsFromRow>[0];
+    }[];
+
+    const newEndDate = "2028-01-09";
+    const quote = quoteOrderExtension(
+      { startDate: start, endDate: end },
+      newEndDate,
+      itemRows.map((item) => ({ itemId: item.id, params: priceParamsFromRow(item.products) })),
+    );
+    // Dopłaty per pozycja RÓŻNE i suma NIEPARZYSTA względem podziału na 2 — pin,
+    // że nie ma tu równego dzielenia. (Same liczby zależą od silnika; ważny jest
+    // fakt, że obie są > 0 i różne.)
+    expect(quote.items).toHaveLength(2);
+    expect(quote.items[0]!.additionalRentalGrosze).not.toBe(quote.items[1]!.additionalRentalGrosze);
+    expect(quote.items.reduce((sum, i) => sum + i.additionalRentalGrosze, 0)).toBe(
+      quote.additionalRentalGrosze,
+    );
+
+    const currentById = new Map(itemRows.map((item) => [item.id, item.rental_grosze]));
+    const { updates, hasNegative } = extensionItemRentals(currentById, quote.items);
+    expect(hasNegative).toBe(false);
+    const newTotal = (orderRow.total_rental_grosze as number) + quote.additionalRentalGrosze;
+
+    // Ta sama sekwencja co extendOrderAction: bramkowany UPDATE zamówienia…
+    const { data: extData, error: extError } = await extendAsPanel(
+      tenantA.client,
+      tenantA.tenantId,
+      reconId,
+      end,
+      newEndDate,
+      newTotal,
+    );
+    expect(extError).toBeNull();
+    expect(extData).toHaveLength(1);
+    // …a POTEM dopłaty na pozycje (współdzielony zapis, ten sam, którego używa akcja).
+    const itemsError = await writeExtensionItemRentals(tenantA.client, tenantA.tenantId, updates);
+    expect(itemsError).toBeNull();
+
+    // DOWÓD RECONCILIACJI: suma najmu pozycji == total zamówienia, co do grosza.
+    // To jest dokładnie warunek, którego pilnuje ItemsSection (`drifted`), więc
+    // równość == brak ostrzeżenia „sumy się nie zgadzają" po przedłużeniu.
+    const { data: afterRow } = await tenantA.client
+      .from("orders")
+      .select("total_rental_grosze, order_items(id, rental_grosze)")
+      .eq("id", reconId)
+      .single();
+    const afterItems = afterRow!.order_items as unknown as { id: string; rental_grosze: number }[];
+    const itemsSum = afterItems.reduce((sum, item) => sum + item.rental_grosze, 0);
+    expect(itemsSum).toBe(afterRow!.total_rental_grosze);
+    expect(afterRow!.total_rental_grosze).toBe(newTotal);
+    // I każda pozycja dostała SWOJĄ dokładną kwotę (bieżąca + dopłata silnika).
+    for (const item of afterItems) {
+      expect(item.rental_grosze).toBe(currentById.get(item.id)! + quoteItemSurcharge(quote, item.id));
+    }
+  });
 });
+
+/** Dopłata konkretnej pozycji z wyceny (0 gdy pozycji nie było w wycenie). */
+function quoteItemSurcharge(
+  quote: ReturnType<typeof quoteOrderExtension>,
+  itemId: string,
+): number {
+  return quote.items.find((item) => item.itemId === itemId)?.additionalRentalGrosze ?? 0;
+}
