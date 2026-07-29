@@ -871,10 +871,20 @@
       "cancel": "Cancel"
     },
     "notes": {
-      "label": "Notes (equipment condition, deposit remarks)",
+      "addLabel": "Add a note (equipment condition, deposit remarks)",
       "placeholder": "e.g. deposit reduced by 50 for a scratched cable…",
-      "saveCta": "Save notes",
-      "saved": "Notes saved."
+      "addCta": "Add note",
+      "empty": "No notes yet.",
+      "authorUnknown": "—",
+      "editLabel": "Note content",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this note? This cannot be undone.",
+      "added": "Note added.",
+      "edited": "Note saved.",
+      "deleted": "Note deleted."
     }
   },
   "customers": {

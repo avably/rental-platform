@@ -159,22 +159,7 @@ export const depositSettleSchema = z
 
 export type DepositSettleInput = z.infer<typeof depositSettleSchema>;
 
-/**
- * Notatka zamówienia (uwaga właściciela N6). Kolumna `orders.notes` istnieje
- * od 0007 i była do tej pory WYŁĄCZNIE wyświetlana — bez migracji, bo nie ma
- * czego migrować.
- *
- * Puste pole to `null`, a nie pusty napis: „brak notatki" ma w bazie jedną
- * reprezentację, inaczej ekran musiałby rozróżniać dwa kształty tej samej
- * nieobecności.
- */
-export const orderNotesSchema = z
-  .object({
-    orderId: uuidSchema,
-    notes: z
-      .string()
-      .trim()
-      .max(2000, "Notatka może mieć maksymalnie 2000 znaków.")
-      .transform((value) => (value === "" ? null : value)),
-  })
-  .transform((form) => ({ orderId: form.orderId, notes: form.notes }));
+// Notatki zamówienia przeniosły się z pojedynczego pola do LISTY WPISÓW
+// (ADR-079) — schematy i rdzeń mieszkają teraz w notes-core.ts, akcje w
+// notes-actions.ts. Kolumna orders.notes została zastąpiona tabelą
+// order_notes (migracja 0039).
