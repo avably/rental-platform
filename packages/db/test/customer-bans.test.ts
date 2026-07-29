@@ -186,8 +186,16 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
   let bannedCustomerId: string;
 
   const BANNED_EMAIL = `zbanowany-${randomUUID().slice(0, 8)}@test.local`;
-  const BANNED_PHONE_RAW = "+48 111 222 333"; // u klienta
-  const BANNED_PHONE_DIGITS = "48111222333"; // po normalizacji
+  const BANNED_PHONE_RAW = "+48 111 222 333"; // u klienta (z prefiksem +48)
+  // [0042] app.normalize_phone kanonizuje prefiks kraju: „+48 111 222 333"
+  // schodzi do 9-cyfrowej postaci krajowej — ten sam klucz co „111 222 333".
+  const BANNED_PHONE_DIGITS = "111222333";
+
+  // Klient zbanowany numerem BEZ prefiksu — do dowodu kierunku ODWROTNEGO
+  // (ban krajowy łapie checkout z „+48"). Numer rozłączny z BANNED_PHONE_*.
+  const BANNED_BARE_EMAIL = `zbanowany-bare-${randomUUID().slice(0, 8)}@test.local`;
+  const BANNED_BARE_PHONE_RAW = "882 333 444"; // u klienta (postać krajowa)
+  let bannedBarePhoneCustomerId: string;
 
   // Tenant B: niezależny (izolacja).
   let tenantB: string;
@@ -223,6 +231,14 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
     await seedUnits(admin, tenantA, productA, 5);
     pickupA = await seedPickup(admin, tenantA);
     bannedCustomerId = await seedCustomer(admin, tenantA, BANNED_EMAIL, BANNED_PHONE_RAW);
+    // Drugi klient — numer w postaci KRAJOWEJ (bez prefiksu); jego ban dowodzi
+    // kierunku odwrotnego w oś 2c (klucz krajowy łapie checkout z „+48").
+    bannedBarePhoneCustomerId = await seedCustomer(
+      admin,
+      tenantA,
+      BANNED_BARE_EMAIL,
+      BANNED_BARE_PHONE_RAW,
+    );
 
     // Tenant B — niezależny, z własnym zapasem.
     tenantB = await seedTenant(admin, "active");
@@ -252,6 +268,17 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
     const anonRead = await anon.from("customer_bans").select("id").eq("tenant_id", tenantA);
     const leaked = !anonRead.error && (anonRead.data ?? []).length > 0;
     expect(leaked, "anon odczytał ban-listę").toBe(false);
+
+    // Drugi ban — klient z numerem w postaci KRAJOWEJ (bez prefiksu). Klucz
+    // 9-cyfrowy zostaje nietknięty przez kanonizację (0042) i posłuży za dowód
+    // kierunku odwrotnego w oś 2c.
+    const bare = await memberA
+      .from("customer_bans")
+      .insert({ tenant_id: tenantA, customer_id: bannedBarePhoneCustomerId })
+      .select("phone_normalized")
+      .single();
+    expect(bare.error, `zapis banu (numer krajowy) odrzucony: ${bare.error?.message}`).toBeNull();
+    expect(bare.data!.phone_normalized).toBe("882333444");
   });
 
   it("oś 1 — zbanowany MAIL nie przechodzi checkoutu (22023), zamówienie nie powstaje", async () => {
@@ -288,6 +315,46 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
       .eq("tenant_id", tenantA)
       .eq("email", freshEmail);
     expect(cust ?? [], "odmowa po telefonie mimo to utworzyła klienta").toHaveLength(0);
+  });
+
+  it("oś 2b — ban z prefiksem +48 łapie checkout BEZ prefiksu (0042: +48 111... == 111...)", async () => {
+    // Klient zbanowany numerem „+48 111 222 333"; zbanowany wraca z NUMEREM
+    // KRAJOWYM „111 222 333" (bez prefiksu) i innym mailem. Przed 0042 klucze
+    // rozjeżdżały się (48111222333 vs 111222333) i przechodził — teraz nie.
+    const freshEmail = `bezpref-${randomUUID().slice(0, 8)}@test.local`;
+    const { data, error } = await checkout(
+      anon,
+      checkoutArgs(tenantA, productA, pickupA, { p_email: freshEmail, p_phone: "111 222 333" }),
+    );
+    expect(data, "checkout bez prefiksu ominął ban z prefiksem").toBeNull();
+    expect(error?.code, `zły SQLSTATE odmowy (2b): ${error?.message}`).toBe("22023");
+
+    const { data: cust } = await admin
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenantA)
+      .eq("email", freshEmail);
+    expect(cust ?? [], "odmowa (2b) mimo to utworzyła klienta").toHaveLength(0);
+  });
+
+  it("oś 2c — ban BEZ prefiksu łapie checkout z +48 (kierunek odwrotny)", async () => {
+    // Klient zbanowany numerem krajowym „882 333 444"; zbanowany wraca
+    // z „+48 882 333 444" i innym mailem — kanonizacja checkoutu schodzi do
+    // tego samego 9-cyfrowego klucza, więc ban łapie.
+    const freshEmail = `zpref-${randomUUID().slice(0, 8)}@test.local`;
+    const { data, error } = await checkout(
+      anon,
+      checkoutArgs(tenantA, productA, pickupA, { p_email: freshEmail, p_phone: "+48 882 333 444" }),
+    );
+    expect(data, "checkout z +48 ominął ban krajowy").toBeNull();
+    expect(error?.code, `zły SQLSTATE odmowy (2c): ${error?.message}`).toBe("22023");
+
+    const { data: cust } = await admin
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenantA)
+      .eq("email", freshEmail);
+    expect(cust ?? [], "odmowa (2c) mimo to utworzyła klienta").toHaveLength(0);
   });
 
   it("kontrola pozytywna — niezbanowany klient (świeży mail i telefon) przechodzi", async () => {
