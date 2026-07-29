@@ -265,6 +265,93 @@ export async function deleteSection(sectionId: string): Promise<SiteActionResult
   return { ok: true };
 }
 
+/**
+ * Duplikat sekcji: kopia tego samego typu z content_draft oryginału, wstawiona
+ * TUŻ ZA nim na liście. Kopia jest z definicji NIEOPUBLIKOWANA — content_published
+ * zostaje NULL (domyślne 0019), więc żyje w edytorze i podglądzie szkicu, a na
+ * publicznej stronie pojawia się dopiero po następnej publikacji. Po wstawieniu
+ * strona jest przenumerowana, by kopia DETERMINISTYCZNIE sąsiadowała z oryginałem:
+ * sam remis position nie gwarantowałby miejsca, bo odczyt sortuje (position, id).
+ */
+export async function duplicateSection(
+  sectionId: string,
+): Promise<SiteActionResult<{ sectionId: string }>> {
+  const parsed = uuidSchema.safeParse(sectionId);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+
+  // Oryginał — zawężony do tenanta (RLS jest bramką; filtr to druga warstwa).
+  const { data: original, error: readError } = await ctx.supabase
+    .from("site_sections")
+    .select("id, site_id, type, content_draft, enabled, position")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  if (!original) return { ok: false, error: "Nie znaleziono sekcji." };
+
+  // Komplet sekcji strony w kolejności — do limitu i do przenumerowania niżej.
+  const { data: siblings, error: siblingsError } = await ctx.supabase
+    .from("site_sections")
+    .select("id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("site_id", original.site_id)
+    .order("position", { ascending: true })
+    .order("id", { ascending: true });
+  if (siblingsError) return { ok: false, error: siblingsError.message };
+  if ((siblings?.length ?? 0) >= MAX_SECTIONS) {
+    return { ok: false, error: "Strona osiągnęła maksymalną liczbę sekcji." };
+  }
+
+  // Kopia: ten sam typ i enabled, content_draft skopiowany 1:1. content_published
+  // celowo NIE ustawiane — domyślny NULL czyni kopię nieopublikowaną. Pozycja jest
+  // tymczasowa (original+1); ostateczny porządek nadaje przenumerowanie niżej.
+  const { data: created, error: insertError } = await ctx.supabase
+    .from("site_sections")
+    .insert({
+      tenant_id: ctx.tenantId,
+      site_id: original.site_id,
+      type: original.type,
+      content_draft: original.content_draft,
+      enabled: original.enabled,
+      position: original.position + 1,
+    })
+    .select("id")
+    .single();
+  // 23503 = FK złożony (site spoza tenanta — ADR-019) zamieniony na czytelną odmowę.
+  if (insertError || !created) {
+    return {
+      ok: false,
+      error:
+        insertError?.code === "23503"
+          ? "Nie znaleziono strony."
+          : (insertError?.message ?? "Nie udało się zduplikować sekcji."),
+    };
+  }
+  const newId = created.id as string;
+
+  // Przenumerowanie: kopia ląduje tuż za oryginałem, reszta zachowuje kolejność.
+  // Seria UPDATE-ów (przejściowe duplikaty position legalne — 0019); częściowa
+  // awaria psuje najwyżej kolejność (odwracalną kolejnym reorderem), nie treść.
+  const order = (siblings ?? []).map((row) => row.id as string);
+  order.splice(order.indexOf(original.id as string) + 1, 0, newId);
+  const now = new Date().toISOString();
+  for (let position = 0; position < order.length; position++) {
+    const { error } = await ctx.supabase
+      .from("site_sections")
+      .update({ position, updated_at: now })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("site_id", original.site_id)
+      .eq("id", order[position]);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, sectionId: newId };
+}
+
 /** Zmiana szablonu strony (dotyczy od razu draftu i publikacji — szablon nie jest wersjonowany). */
 export async function updateTemplate(
   siteId: string,

@@ -30,6 +30,7 @@ import { ScreenSection } from "@/components/screens/screen-header";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import {
   deleteSection,
+  duplicateSection,
   publishSite,
   reorderSections,
   toggleSection,
@@ -38,8 +39,8 @@ import {
 } from "@/lib/actions/site";
 
 import { defaultContentFor, type EditorSection } from "./content";
-import { SectionContentForm } from "./section-content-form";
 import { SitePreview } from "./site-preview";
+import { SortableSections } from "./sortable-sections";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -78,14 +79,6 @@ export function SiteEditor({
         setError(result.error);
       }
     });
-  }
-
-  function move(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (target < 0 || target >= sections.length) return;
-    const order = sections.map((s) => s.id);
-    [order[index], order[target]] = [order[target]!, order[index]!];
-    run(() => reorderSections(siteId, order));
   }
 
   function addSection(type: SectionType) {
@@ -202,95 +195,20 @@ export function SiteEditor({
           {sections.length === 0 ? (
             <ScreenSection data-site-sections-empty description={t("sections.empty")} />
           ) : (
-            <ol data-site-sections className="flex list-none flex-col gap-4 p-0">
-              {sections.map((section, index) => (
-                <li
-                  key={section.id}
-                  data-section-type={section.type}
-                  data-section-order={index + 1}
-                  className="border-border bg-card flex flex-col gap-4 rounded-lg border p-5"
-                >
-                  <header className="flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-base leading-[22px] font-semibold">
-                      {`${String(index + 1).padStart(2, "0")} · ${t(`sectionTypes.${section.type}`)}`}
-                    </h3>
-                    <SecondaryStatusChip
-                      axis="site-section"
-                      value={section.enabled ? "enabled" : "disabled"}
-                    />
-                  </header>
-                  <SectionContentForm
-                    siteId={siteId}
-                    section={section}
-                    actions={
-                      <>
-                        <RowButton
-                          label={t("sections.moveUp")}
-                          loading={pending}
-                          disabled={pending || index === 0}
-                          onClick={() => move(index, -1)}
-                        />
-                        <RowButton
-                          label={t("sections.moveDown")}
-                          loading={pending}
-                          disabled={pending || index === sections.length - 1}
-                          onClick={() => move(index, 1)}
-                        />
-                        <RowButton
-                          label={section.enabled ? t("sections.disable") : t("sections.enable")}
-                          loading={pending}
-                          disabled={pending}
-                          onClick={() => run(() => toggleSection(section.id, !section.enabled))}
-                        />
-                        <RowButton
-                          label={t("sections.remove")}
-                          variant="destructive"
-                          loading={pending}
-                          disabled={pending}
-                          onClick={() => run(() => deleteSection(section.id))}
-                        />
-                      </>
-                    }
-                  />
-                </li>
-              ))}
-            </ol>
+            <SortableSections
+              siteId={siteId}
+              sections={sections}
+              reorderAction={(orderedIds) => reorderSections(siteId, orderedIds)}
+              toggleAction={(section) => toggleSection(section.id, !section.enabled)}
+              duplicateAction={(sectionId) => duplicateSection(sectionId)}
+              deleteAction={(sectionId) => deleteSection(sectionId)}
+              onChanged={() => router.refresh()}
+            />
           )}
         </FormMeasure>
 
         <SitePreview sections={sections} template={template} products={previewProducts} />
       </div>
     </div>
-  );
-}
-
-/** Akcja wiersza sekcji (kolejność, włączenie, usunięcie) — jeden rozmiar dla całego rzędu. */
-function RowButton({
-  label,
-  onClick,
-  disabled,
-  loading,
-  variant = "secondary",
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  /* Sygnał zajętości wiersza — dzieli wspólną tranzycję `pending` edytora,
-     więc akcje wiersza (kolejność/włączenie/usunięcie) sygnalizują razem, tak
-     jak razem szarzeją na `disabled`. */
-  loading?: boolean;
-  variant?: "secondary" | "destructive";
-}) {
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant={variant}
-      onClick={onClick}
-      loading={loading}
-      disabled={disabled}
-    >
-      {label}
-    </Button>
   );
 }
