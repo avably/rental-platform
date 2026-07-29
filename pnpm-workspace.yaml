@@ -16,6 +16,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - brace-expansion@5.0.8
+  - '@puckeditor/core@0.22.4'
 
 patchedDependencies:
   # minimatch 3 oczekuje eksportu-funkcji z brace-expansion 1.x.
