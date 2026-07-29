@@ -982,7 +982,13 @@
       "moveDown": "Move down",
       "enable": "Enable",
       "disable": "Disable",
-      "remove": "Remove"
+      "duplicate": "Duplicate",
+      "remove": "Remove",
+      "dragHandle": "Drag to reorder",
+      "confirmRemoveTitle": "Delete section?",
+      "confirmRemoveBody": "The section disappears from the editor and the draft preview. It leaves the published page on your next publish.",
+      "confirmRemove": "Delete section",
+      "cancel": "Cancel"
     },
     "sectionTypes": {
       "hero": "Hero banner",

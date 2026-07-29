@@ -194,10 +194,10 @@ const NON_SUBMIT_ACTION_REGISTRY: {
     note: "dodanie sekcji (tranzycja run)",
   },
   {
-    file: "strona/site-editor.tsx",
+    file: "strona/sortable-sections.tsx",
     anchor: "function RowButton(",
     signal: /loading\?/,
-    note: "akcje wiersza (reorder/toggle/delete) — loading przepięte przez RowButton",
+    note: "akcje wiersza (reorder/toggle/duplikat) — loading przepięte przez RowButton",
   },
   {
     file: "zamowienia/[id]/shipment-modal.tsx",

@@ -982,7 +982,13 @@
       "moveDown": "Przenieś niżej",
       "enable": "Włącz",
       "disable": "Wyłącz",
-      "remove": "Usuń"
+      "duplicate": "Duplikuj",
+      "remove": "Usuń",
+      "dragHandle": "Przeciągnij, aby zmienić kolejność",
+      "confirmRemoveTitle": "Usunąć sekcję?",
+      "confirmRemoveBody": "Sekcja zniknie z edytora i z podglądu szkicu. Na opublikowanej stronie zniknie po następnej publikacji.",
+      "confirmRemove": "Usuń sekcję",
+      "cancel": "Anuluj"
     },
     "sectionTypes": {
       "hero": "Baner (hero)",
