@@ -482,6 +482,12 @@ export const CUSTOMER_DETAIL_REGIONS: readonly SkeletonRegionSpec[] = [
     note: "powrót do listy klientów (tytuł „Klienci” niesie belka)",
   },
   {
+    region: "ban",
+    from: "source",
+    anchor: "<CustomerBanToggle",
+    note: "karta ban-listy (R6b) — stan zablokowania klienta i przełącznik ban/unban nad formularzem edycji",
+  },
+  {
     region: "edit-form",
     from: "render",
     anchor: "data-customer-edit-form",
@@ -528,6 +534,7 @@ export const CUSTOMER_DETAIL_COMPOSITION_FILES: readonly string[] = ["[id]/page.
 
 /** Własne komponenty karty klienta z odpowiednikiem w szkielecie. */
 export const CUSTOMER_DETAIL_SCREEN_PARTS: readonly string[] = [
+  "CustomerBanToggle",
   "CustomerEditForm",
   "CustomerOrders",
 ] as const;

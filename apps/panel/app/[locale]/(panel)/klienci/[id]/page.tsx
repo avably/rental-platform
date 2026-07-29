@@ -1,4 +1,5 @@
 import { type OrderStatus } from "@avably/core";
+import { Badge } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -7,7 +8,8 @@ import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
-import { updateCustomerAction } from "./actions";
+import { setCustomerBanAction, updateCustomerAction } from "./actions";
+import { CustomerBanToggle } from "./customer-ban-toggle";
 import { CustomerEditForm } from "./customer-edit-form";
 import { CustomerOrders, type CustomerOrderRow } from "./customer-orders";
 
@@ -76,6 +78,16 @@ export default async function CustomerDetailPage({
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
 
+  // Stan bansu (R6b): istnieje wiersz customer_bans dla tego klienta = zbanowany.
+  // Odczyt pod RLS tenanta (0040) — jedno lekkie zapytanie po kluczu.
+  const { data: ban } = await ctx.supabase
+    .from("customer_bans")
+    .select("id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("customer_id", id)
+    .maybeSingle();
+  const banned = ban != null;
+
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("customers.card");
@@ -98,6 +110,8 @@ export default async function CustomerDetailPage({
   }).format(new Date(row.created_at));
 
   const updateAction = updateCustomerAction.bind(null, row.id);
+  // Akcja ustawia stan PRZECIWNY do widzianego — intencja nie jedzie z klienta.
+  const banAction = setCustomerBanAction.bind(null, row.id, !banned);
 
   return (
     <div className="flex flex-col gap-6">
@@ -111,10 +125,19 @@ export default async function CustomerDetailPage({
           {t("backToList")}
         </Link>
         <div>
-          <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.01em]">{displayName}</h2>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.01em]">{displayName}</h2>
+            {banned ? (
+              <Badge data-customer-header-ban-badge variant="destructive">
+                {t("ban.statusBanned")}
+              </Badge>
+            ) : null}
+          </div>
           <p className="text-muted-foreground text-sm">{t("sinceLabel", { date: since })}</p>
         </div>
       </div>
+
+      <CustomerBanToggle banned={banned} action={banAction} />
 
       <CustomerEditForm
         action={updateAction}

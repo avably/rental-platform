@@ -1,4 +1,5 @@
 import {
+  Badge,
   Table,
   TableBody,
   TableCell,
@@ -49,6 +50,8 @@ export interface CustomersTableRow {
   orderCount: number;
   /** ISO timestamp ostatniego zamówienia albo null (klient bez zamówień). */
   lastOrderAt: string | null;
+  /** Klient na ban-liście (R6b) — badge na wierszu/karcie. */
+  banned: boolean;
 }
 
 const HEAD_CLASS =
@@ -190,8 +193,13 @@ export function CustomersTable({
                   className="transition-colors [transition-duration:var(--motion-fast)] hover:bg-muted focus-within:bg-muted"
                 >
                   <TableCell data-cell="customer" className={CELL_CLASS}>
-                    <CellLink href={href} primary ariaLabel={openLabel} className="font-medium">
-                      {row.customerLabel}
+                    <CellLink href={href} primary ariaLabel={openLabel} className="gap-2 font-medium">
+                      <span className="truncate">{row.customerLabel}</span>
+                      {row.banned ? (
+                        <Badge data-customer-row-ban-badge variant="destructive" className="shrink-0">
+                          {t("bannedBadge")}
+                        </Badge>
+                      ) : null}
                     </CellLink>
                   </TableCell>
                   <TableCell data-cell="email" className={CELL_CLASS}>
@@ -241,7 +249,14 @@ export function CustomersTable({
                   {initialsFor(row.fullName, row.email)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-foreground truncate font-medium">{row.customerLabel}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground truncate font-medium">{row.customerLabel}</p>
+                    {row.banned ? (
+                      <Badge data-customer-card-ban-badge variant="destructive" className="shrink-0">
+                        {t("bannedBadge")}
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="text-muted-foreground truncate text-sm">{row.email}</p>
                 </div>
               </div>

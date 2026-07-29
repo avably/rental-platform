@@ -34,12 +34,13 @@ interface Row {
   phone: string | null;
   orderCount: number;
   lastOrderAt: string | null;
+  banned: boolean;
 }
 
 const RAW: Row[] = [
-  { id: "aaaaaaaa-0000-4000-8000-000000000001", fullName: "Anna Kowalska", email: "anna@example.com", phone: "+48 600 100 200", orderCount: 3, lastOrderAt: "2026-07-20T10:00:00Z" },
-  { id: "bbbbbbbb-0000-4000-8000-000000000002", fullName: "Michał Nowak", email: "michal@firma.pl", phone: null, orderCount: 1, lastOrderAt: "2026-06-01T10:00:00Z" },
-  { id: "cccccccc-0000-4000-8000-000000000003", fullName: null, email: "biuro@studioplanb.pl", phone: "223334455", orderCount: 0, lastOrderAt: null },
+  { id: "aaaaaaaa-0000-4000-8000-000000000001", fullName: "Anna Kowalska", email: "anna@example.com", phone: "+48 600 100 200", orderCount: 3, lastOrderAt: "2026-07-20T10:00:00Z", banned: false },
+  { id: "bbbbbbbb-0000-4000-8000-000000000002", fullName: "Michał Nowak", email: "michal@firma.pl", phone: null, orderCount: 1, lastOrderAt: "2026-06-01T10:00:00Z", banned: true },
+  { id: "cccccccc-0000-4000-8000-000000000003", fullName: null, email: "biuro@studioplanb.pl", phone: "223334455", orderCount: 0, lastOrderAt: null, banned: false },
 ];
 
 /** Odwzorowanie potoki page.tsx: wiersz-model + etykieta klienta. */
@@ -52,6 +53,7 @@ function toTableRows(rows: Row[]) {
     phone: row.phone,
     orderCount: row.orderCount,
     lastOrderAt: row.lastOrderAt,
+    banned: row.banned,
   }));
 }
 
@@ -102,6 +104,17 @@ describe("lista klientów — render i wyszukiwanie", () => {
     for (const link of links) {
       expect(link.getAttribute("href")).toBe(`/klienci/${RAW[0]!.id}`);
     }
+  });
+
+  it("badge blokady pojawia się WYŁĄCZNIE przy zbanowanym kliencie (R6b)", () => {
+    renderList("");
+    // Michał jest zbanowany (RAW), Anna nie. Badge (desktop + karta mobilna).
+    const badges = screen.getAllByText(messages.customers.list.bannedBadge);
+    expect(badges.length).toBeGreaterThan(0);
+    // Anna NIE ma badge'a — gdyby lista malowała badge wszystkim, liczba
+    // trafień „Zablokowany" przewyższyłaby liczbę widoków Michała.
+    const michalViews = screen.getAllByText("Michał Nowak").length;
+    expect(badges.length).toBe(michalViews);
   });
 
   it("liczba zamówień klienta bez zamówień pokazuje myślnik, nie zero", () => {

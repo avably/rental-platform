@@ -584,6 +584,16 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     order_id: await createOrder(ctx, tenantId),
     body: `RLS test note ${randomUUID().slice(0, 8)}`,
   }),
+  // Ban klienta (0040). customer_id z createCustomer: FK ZŁOŻONY
+  // (tenant_id, customer_id) wymaga klienta TEGO SAMEGO tenanta. Klucze
+  // email_normalized/phone_normalized wypełnia trigger customer_bans_fill
+  // z wiersza klienta (nie podajemy ich tutaj) — trigger NIE podnosi wyjątku
+  // przy braku klienta, więc przy próbie międzytenantowej odmowa pochodzi
+  // z RLS WITH CHECK (42501), nie z 23503.
+  customer_bans: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    customer_id: await createCustomer(ctx, tenantId),
+  }),
   // Unikalny provider_order_number per wywołanie — dane fikcyjne (0013).
   courier_shipments: async (ctx, tenantId) => ({
     tenant_id: tenantId,
@@ -812,6 +822,12 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // goła mutacja na wszystkich widocznych wierszach nie wywoła ani 23505, ani
   // 23514 — sonda odróżni odmowę RLS od błędu integralności (0039).
   order_notes: { body: "rls-test-hacked" },
+  // reason jest nullable, bez indeksu unikalnego i z CHECK-iem tylko na długość
+  // (btrim 1..500) — „rls-test-hacked" go spełnia, więc goła mutacja nie wywoła
+  // ani 23505, ani 23514. customer_bans NIE ma polityki/grantu UPDATE (ban jest
+  // binarny), ale macierz i tak wymaga patcha, żeby brak UPDATE był testowany,
+  // a nie pomijany (jak contract_documents/0026).
+  customer_bans: { reason: "rls-test-hacked" },
   // tracking_number nie jest objęty żadnym indeksem unikalnym (pułapka 23505
   // opisana wyżej nie dotyczy).
   courier_shipments: { tracking_number: "rls-test-hacked" },
