@@ -40,9 +40,9 @@ import { ExtensionSection } from "./extension-section";
 import { InvoiceSection } from "./invoice-section";
 import { ItemsSection } from "./items-section";
 import { CustomerCard } from "./customer-card";
-import { OrderNotes } from "./order-notes";
+import { OrderNotes, type OrderNoteEntry } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
-import { updateOrderNotesAction } from "./notes-actions";
+import { addOrderNoteAction, editOrderNoteAction, deleteOrderNoteAction } from "./notes-actions";
 import { StatusSelect } from "./status-select";
 
 interface OrderDetailRow {
@@ -57,7 +57,6 @@ interface OrderDetailRow {
   delivery_method: string;
   total_rental_grosze: number;
   total_deposit_grosze: number;
-  notes: string | null;
   created_at: string;
   customers: {
     id: string;
@@ -105,7 +104,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, notes, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -160,6 +159,31 @@ export default async function OrderDetailPage({
   }[];
   const latestShipment = shipments.at(-1) ?? null;
 
+  // Notatki jako lista wpisów (ADR-079), najnowsze na górze. id jako
+  // rozstrzygający porządek przy równych znacznikach (indeks 0039 zaczyna się
+  // od tenant_id, order_id, created_at — skan wsteczny realizuje malejąco).
+  const { data: noteRows } = await ctx.supabase
+    .from("order_notes")
+    .select("id, body, created_by, created_at")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("order_id", row.id)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+  const rawNotes = (noteRows ?? []) as {
+    id: string;
+    body: string;
+    created_by: string | null;
+    created_at: string;
+  }[];
+
+  // Autor wpisu: uuid → e-mail członka tenanta (resolver 0039). Jedno zapytanie
+  // na całą listę; wpis historyczny (created_by null) albo autor spoza obecnego
+  // zespołu → brak w mapie → UI pokaże „—".
+  const { data: memberRows } = await ctx.supabase.schema("app").rpc("tenant_member_emails");
+  const emailByUser = new Map<string, string>(
+    ((memberRows ?? []) as { user_id: string; email: string }[]).map((m) => [m.user_id, m.email]),
+  );
+
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.detail");
@@ -171,6 +195,16 @@ export default async function OrderDetailPage({
     timeStyle: "short",
     timeZone: "Europe/Warsaw",
   });
+
+  // Wpisy notatek gotowe dla komponentu klienckiego: autor rozwiązany, data
+  // sformatowana na serwerze (jak znaczniki rejestru kaucji) — klient nie
+  // dubluje logiki strefy czasowej.
+  const noteEntries: OrderNoteEntry[] = rawNotes.map((note) => ({
+    id: note.id,
+    body: note.body,
+    author: note.created_by ? (emailByUser.get(note.created_by) ?? null) : null,
+    createdAtLabel: depositTimestamp.format(new Date(note.created_at)),
+  }));
   // Termin to zakres dni — czytany w UTC, bo daty są dniowe (`YYYY-MM-DD`).
   const term = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
@@ -272,10 +306,10 @@ export default async function OrderDetailPage({
             </DetailField>
           </section>
 
-          {/* Notatki są EDYTOWALNE (uwaga właściciela N6). Kolumna
-              `orders.notes` istnieje od 0007 i do tej pory dało się ją
-              wypełnić wyłącznie z dostępem do bazy — brakowało zapisu,
-              nie miejsca na dane. */}
+          {/* Notatki to LISTA WPISÓW (uwaga właściciela, runda 2026-07-28):
+              każdy zapis dokłada wpis (treść, autor, data), z edycją inline
+              i twardym usunięciem — zamiast jednego nadpisywanego pola.
+              ADR-079, migracja 0039. */}
           <section
             aria-labelledby="notes-heading"
             className="border-border bg-card flex flex-col gap-3 rounded-md border p-5"
@@ -286,7 +320,13 @@ export default async function OrderDetailPage({
             >
               {t("notes")}
             </h2>
-            <OrderNotes orderId={row.id} notes={row.notes} action={updateOrderNotesAction} />
+            <OrderNotes
+              orderId={row.id}
+              notes={noteEntries}
+              addAction={addOrderNoteAction}
+              editAction={editOrderNoteAction}
+              deleteAction={deleteOrderNoteAction}
+            />
           </section>
 
           <ContractSection orderId={row.id} />

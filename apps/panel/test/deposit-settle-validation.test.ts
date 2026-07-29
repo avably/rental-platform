@@ -12,7 +12,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   depositSettleSchema,
-  orderNotesSchema,
   refundAfterDeduction,
 } from "@/app/[locale]/(panel)/zamowienia/[id]/deposit-settle";
 
@@ -156,28 +155,5 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
   });
 });
 
-describe("orderNotesSchema — notatka zamówienia (N6)", () => {
-  it("pusta notatka to null, a nie pusty napis", () => {
-    const parsed = orderNotesSchema.safeParse({ orderId: ORDER_ID, notes: "   " });
-    expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.notes).toBeNull();
-  });
-
-  it("treść jest przycinana, ale nie okrajana ze środka", () => {
-    const parsed = orderNotesSchema.safeParse({
-      orderId: ORDER_ID,
-      notes: "  Kabel porysowany.\nKaucja pomniejszona.  ",
-    });
-    expect(parsed.success && parsed.data.notes).toBe("Kabel porysowany.\nKaucja pomniejszona.");
-  });
-
-  it("notatka ponad limit jest odrzucana z komunikatem, nie ucinana", () => {
-    const parsed = orderNotesSchema.safeParse({ orderId: ORDER_ID, notes: "x".repeat(2001) });
-    expect(parsed.success).toBe(false);
-    expect(parsed.success === false && parsed.error.issues[0]!.path).toEqual(["notes"]);
-  });
-
-  it("identyfikator spoza kształtu UUID nie dociera do bazy", () => {
-    expect(orderNotesSchema.safeParse({ orderId: "nie-uuid", notes: "x" }).success).toBe(false);
-  });
-});
+// Schematy notatek zamówienia przeniosły się do notes-core.ts (lista wpisów,
+// ADR-079) — testowane w notes-validation.test.ts.

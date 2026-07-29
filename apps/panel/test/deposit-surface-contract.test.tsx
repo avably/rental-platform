@@ -28,7 +28,6 @@ import { describe, expect, it } from "vitest";
 import messages from "../messages/pl.json";
 
 import { DepositForms } from "@/app/[locale]/(panel)/zamowienia/[id]/deposit-forms";
-import { OrderNotes } from "@/app/[locale]/(panel)/zamowienia/[id]/order-notes";
 import type { FormState } from "@/lib/form-state";
 
 const noop = async (): Promise<FormState> => ({});
@@ -130,25 +129,6 @@ describe("powierzchnia kaucji — jeden przycisk, szczegóły w modalu (D7/N5)",
   });
 });
 
-describe("notatki zamówienia (N6)", () => {
-  it("pole edycji istnieje i niesie dotychczasową treść", () => {
-    const html = renderToStaticMarkup(
-      <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
-        <OrderNotes
-          orderId="11111111-2222-4333-8444-555555555555"
-          notes="Kabel porysowany."
-          action={noop}
-        />
-      </NextIntlClientProvider>,
-    );
-
-    expect(html).toContain('name="notes"');
-    expect(html).toContain("Kabel porysowany.");
-    expect(html).toContain(messages.orders.notes.saveCta);
-  });
-
-  it("szczegół zamówienia renderuje edytor, a nie sam odczyt notatki", () => {
-    expect(pageSource).toContain("<OrderNotes");
-    expect(pageSource).toContain("updateOrderNotesAction");
-  });
-});
+// Notatki jako lista wpisów (ADR-079) mają własny kontrakt renderowania w
+// order-notes-list.test.tsx; szczegół zamówienia wiąże je akcjami add/edit/
+// delete zamiast dawnego pojedynczego pola.

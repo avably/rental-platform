@@ -576,6 +576,14 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     order_id: await createOrder(ctx, tenantId),
     amount_grosze: 10_000,
   }),
+  // Wpis notatki zamówienia (0039). order_id z createOrder: FK ZŁOŻONY
+  // (tenant_id, order_id) wymaga zamówienia TEGO SAMEGO tenanta. created_by
+  // pominięty (null = wpis historyczny) — macierz bada RLS, nie autorstwo.
+  order_notes: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    order_id: await createOrder(ctx, tenantId),
+    body: `RLS test note ${randomUUID().slice(0, 8)}`,
+  }),
   // Unikalny provider_order_number per wywołanie — dane fikcyjne (0013).
   courier_shipments: async (ctx, tenantId) => ({
     tenant_id: tenantId,
@@ -800,6 +808,10 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // na 23514 zamiast dojść do polityki — a błąd CHECK-a wyglądałby na
   // „mutacja zatrzymana" i maskował zepsutą politykę UPDATE.
   tenant_secrets: { updated_at: "2000-01-01T00:00:00.000Z" },
+  // body nie jest objęty żadnym indeksem unikalnym (pułapka 23505 nie dotyczy);
+  // goła mutacja na wszystkich widocznych wierszach nie wywoła ani 23505, ani
+  // 23514 — sonda odróżni odmowę RLS od błędu integralności (0039).
+  order_notes: { body: "rls-test-hacked" },
   // tracking_number nie jest objęty żadnym indeksem unikalnym (pułapka 23505
   // opisana wyżej nie dotyczy).
   courier_shipments: { tracking_number: "rls-test-hacked" },

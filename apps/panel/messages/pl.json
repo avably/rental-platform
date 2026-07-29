@@ -871,10 +871,20 @@
       "cancel": "Anuluj"
     },
     "notes": {
-      "label": "Notatki (stan sprzętu, uwagi o zwrocie kaucji)",
+      "addLabel": "Dodaj notatkę (stan sprzętu, uwagi o zwrocie kaucji)",
       "placeholder": "np. kaucja pomniejszona o 50 zł za porysowany kabel…",
-      "saveCta": "Zapisz notatki",
-      "saved": "Notatki zapisane."
+      "addCta": "Dodaj notatkę",
+      "empty": "Brak notatek.",
+      "authorUnknown": "—",
+      "editLabel": "Treść notatki",
+      "edit": "Edytuj",
+      "save": "Zapisz",
+      "cancel": "Anuluj",
+      "delete": "Usuń",
+      "deleteConfirm": "Usunąć tę notatkę? Tej operacji nie można cofnąć.",
+      "added": "Notatka dodana.",
+      "edited": "Notatka zapisana.",
+      "deleted": "Notatka usunięta."
     }
   },
   "customers": {

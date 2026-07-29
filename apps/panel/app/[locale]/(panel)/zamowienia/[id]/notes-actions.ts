@@ -1,19 +1,14 @@
 "use server";
 
 /**
- * Notatka zamówienia (uwaga właściciela N6: „no a te notatki gdzieś się
- * dodaje?").
+ * Akcje notatek zamówienia — LISTA WPISÓW (uwaga właściciela, runda
+ * 2026-07-28: „notatki powinny być listą… każda kolejna trafia do listy, nie
+ * do uzupełnianego inputa"). ADR-079.
  *
- * Kolumna `orders.notes` istnieje od 0007 i do tej pory była WYŁĄCZNIE
- * wyświetlana — czyli pole, które umiał wypełnić tylko ktoś z dostępem do
- * bazy. BEZ MIGRACJI: nie ma czego migrować, brakowało wyłącznie zapisu.
- *
- * BRAMKĄ JEST RLS TENANTA, NIE FILTR W ZAPYTANIU. `eq("tenant_id", …)`
- * niżej jest drugą warstwą i wygodą diagnostyczną; polityki z 0007
- * odfiltrowałyby cudzy wiersz nawet bez niego. Dlatego o wyniku decyduje
- * ODCZYT PO ZAPISIE (`.select("id")`), a nie brak błędu: PostgREST na
- * UPDATE, który nie trafił w żaden wiersz, odpowiada 204 bez ani jednego
- * błędu — cisza wyglądałaby jak zapisana notatka.
+ * Cienka warstwa serwerowa: parsuje FormData, bramkuje `requireMember`, woła
+ * rdzeń z `notes-core.ts` (tam RLS, odczyt-po-zapisie, autor), odświeża stronę.
+ * Rozdział wymuszony dyrektywą "use server" — plik-akcja nie może eksportować
+ * niczego poza akcjami (patrz nagłówek notes-core.ts).
  */
 import { revalidatePath } from "next/cache";
 
@@ -21,17 +16,26 @@ import { AuthError } from "@/lib/auth";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
-import { orderNotesSchema } from "./deposit-settle";
+import {
+  addOrderNote,
+  addOrderNoteSchema,
+  deleteOrderNote,
+  deleteOrderNoteSchema,
+  editOrderNote,
+  editOrderNoteSchema,
+} from "./notes-core";
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
-export async function updateOrderNotesAction(
+const NO_TENANT = "Sesja nie wskazuje najemcy — zaloguj się ponownie.";
+
+export async function addOrderNoteAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const parsed = orderNotesSchema.safeParse({
+  const parsed = addOrderNoteSchema.safeParse({
     orderId: str(formData.get("orderId")),
-    notes: str(formData.get("notes")),
+    body: str(formData.get("body")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
@@ -42,23 +46,62 @@ export async function updateOrderNotesAction(
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
   }
-  const tenantId = ctx.tenantId;
-  if (!tenantId) {
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
-  }
+  if (!ctx.tenantId) return { formError: NO_TENANT };
 
-  const { data, error } = await ctx.supabase
-    .from("orders")
-    .update({ notes: parsed.data.notes })
-    .eq("tenant_id", tenantId)
-    .eq("id", parsed.data.orderId)
-    .select("id");
-
-  if (error) return { formError: error.message };
-  if (!data || data.length === 0) {
-    return { formError: "Nie udało się zapisać notatki — zamówienie nie istnieje albo nie masz do niego dostępu." };
-  }
+  const result = await addOrderNote(ctx.supabase, ctx.tenantId, ctx.user.id, parsed.data);
+  if (!result.ok) return { formError: result.formError };
 
   revalidatePath("/", "layout");
-  return { success: "notes" };
+  return { success: "added" };
+}
+
+export async function editOrderNoteAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = editOrderNoteSchema.safeParse({
+    noteId: str(formData.get("noteId")),
+    body: str(formData.get("body")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+  if (!ctx.tenantId) return { formError: NO_TENANT };
+
+  const result = await editOrderNote(ctx.supabase, ctx.tenantId, parsed.data);
+  if (!result.ok) return { formError: result.formError };
+
+  revalidatePath("/", "layout");
+  return { success: "edited" };
+}
+
+export async function deleteOrderNoteAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = deleteOrderNoteSchema.safeParse({
+    noteId: str(formData.get("noteId")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+  if (!ctx.tenantId) return { formError: NO_TENANT };
+
+  const result = await deleteOrderNote(ctx.supabase, ctx.tenantId, parsed.data);
+  if (!result.ok) return { formError: result.formError };
+
+  revalidatePath("/", "layout");
+  return { success: "deleted" };
 }
