@@ -22,7 +22,9 @@ import { orderExtensionSchema } from "@/lib/extension-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
+import { writeExtensionItemRentals } from "./extension-mutation";
 import {
+  extensionItemRentals,
   priceParamsFromRow,
   quoteOrderExtension,
   type ExtensionProductRow,
@@ -41,7 +43,7 @@ interface ExtensionOrderRow {
   end_date: string;
   order_status: OrderStatus;
   total_rental_grosze: number;
-  order_items: { id: string; products: ExtensionProductRow | null }[];
+  order_items: { id: string; rental_grosze: number; products: ExtensionProductRow | null }[];
 }
 
 export async function extendOrderAction(
@@ -69,7 +71,7 @@ export async function extendOrderAction(
   const { data: orderRow, error: orderError } = await ctx.supabase
     .from("orders")
     .select(
-      "id, start_date, end_date, order_status, total_rental_grosze, order_items(id, products(base_price_day_grosze, deposit_grosze, auto_increment_multiplier, pricing_tiers(tier_days, multiplier)))",
+      "id, start_date, end_date, order_status, total_rental_grosze, order_items(id, rental_grosze, products(base_price_day_grosze, deposit_grosze, auto_increment_multiplier, pricing_tiers(tier_days, multiplier)))",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", input.orderId)
@@ -85,8 +87,10 @@ export async function extendOrderAction(
     return { formError: "Termin zamówienia został w międzyczasie zmieniony — odśwież stronę." };
   }
 
-  // Wycena WYŁĄCZNIE silnikiem, po AKTUALNYM cenniku (ADR-029): dopłata to
-  // różnica wyceny całości; nowy total = zapisany total + suma dopłat pozycji.
+  // Wycena WYŁĄCZNIE silnikiem, po AKTUALNYM cenniku (ADR-029): dopłata liczy
+  // się PER POZYCJA, a suma tych dopłat jest dopłatą całości. Nowy total =
+  // zapisany total + suma dopłat pozycji; te SAME liczby trafiają na pozycje
+  // (patrz niżej), więc sumy zamówienia i pozycji nie mają jak się rozjechać.
   let quote;
   try {
     quote = quoteOrderExtension(
@@ -103,6 +107,22 @@ export async function extendOrderAction(
   const newTotalRentalGrosze = order.total_rental_grosze + quote.additionalRentalGrosze;
   if (newTotalRentalGrosze < 0) {
     return { formError: "Wycena po przedłużeniu byłaby ujemna — sprawdź progi cennika produktu." };
+  }
+
+  // Absolutne nowe kwoty pozycji (bieżący najem + dopłata silnika tej pozycji).
+  // Liczymy PRZED mutacją, żeby ujemny wynik odsiać zanim cokolwiek zmienimy:
+  // przy ręcznym rabacie pozycji + zejściu w tańszy próg pojedyncza pozycja
+  // mogłaby zejść poniżej zera (CHECK `rental_grosze >= 0` odbiłby to dopiero
+  // w połowie zapisu, zostawiając rozjazd sum).
+  const { updates: itemRentalUpdates, hasNegative } = extensionItemRentals(
+    new Map(order.order_items.map((item) => [item.id, item.rental_grosze])),
+    quote.items,
+  );
+  if (hasNegative) {
+    return {
+      formError:
+        "Przedłużenie obniżyłoby najem którejś pozycji poniżej zera — skoryguj kwoty pozycji ręcznie przed przedłużeniem.",
+    };
   }
 
   // JEDNA instrukcja UPDATE na obie kolumny (ADR-028). Filtry end_date +
@@ -129,6 +149,24 @@ export async function extendOrderAction(
   }
   if (!data || data.length === 0) {
     return { formError: "Termin lub status zamówienia zmienił się w międzyczasie — odśwież stronę." };
+  }
+
+  // Dopłata NA POZYCJE — osobny krok od UPDATE zamówienia (PostgREST nie daje
+  // transakcji przez dwa żądania; wzorzec recalcOrderTotals w items-actions.ts).
+  // Idzie PO bramkowanym UPDATE terminu: gdyby data kolidowała, bramka 0010
+  // odrzuca całość powyżej i pozycji nie ruszamy. Zmiana samego rental_grosze
+  // nie przechodzi przez bramkę przypisania (short-circuit w 0010), więc nie
+  // wywoła fałszywej kolizji. Nieudany krok = WIDOCZNY rozjazd sum (ostrzeżenie
+  // sekcji pozycji), nie cichy — i naprawialny kolejną edycją pozycji.
+  const itemsError = await writeExtensionItemRentals(
+    ctx.supabase,
+    ctx.tenantId!,
+    itemRentalUpdates,
+  );
+  if (itemsError) {
+    return {
+      formError: `Termin przedłużony, ale kwoty pozycji nie zostały zaktualizowane (${itemsError.error}) — odśwież stronę i sprawdź sumy pozycji.`,
+    };
   }
 
   revalidatePath("/", "layout");
