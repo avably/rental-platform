@@ -905,7 +905,8 @@
       "noPhone": "—",
       "noOrders": "—",
       "openCard": "Open customer card for {name}",
-      "cap": "Showing the first {count} customers. Narrow with search to find the rest."
+      "cap": "Showing the first {count} customers. Narrow with search to find the rest.",
+      "bannedBadge": "Blocked"
     },
     "emptyState": {
       "title": "You don't have any customers yet.",
@@ -937,7 +938,25 @@
       "colTerm": "Period",
       "colAmount": "Amount",
       "colStatus": "Status",
-      "openOrder": "Open order {number}"
+      "openOrder": "Open order {number}",
+      "ban": {
+        "heading": "Ban list",
+        "statusBanned": "Blocked",
+        "statusActive": "Active",
+        "descriptionActive": "This customer can place orders in your store.",
+        "descriptionBanned": "This customer cannot place orders — checkout rejects their e-mail and phone.",
+        "blockCta": "Block customer",
+        "unblockCta": "Unblock customer",
+        "confirmBlockTitle": "Block this customer?",
+        "confirmBlockBody": "A blocked customer cannot place an order in your store — checkout will reject the same e-mail and phone number. You can remove the block at any time.",
+        "confirmUnblockTitle": "Unblock this customer?",
+        "confirmUnblockBody": "The customer will be able to place orders in your store again.",
+        "confirmBlock": "Block",
+        "confirmUnblock": "Unblock",
+        "cancel": "Cancel",
+        "blockedNotice": "Customer blocked.",
+        "unblockedNotice": "Customer unblocked."
+      }
     }
   },
   "site": {

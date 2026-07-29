@@ -55,7 +55,7 @@ export default async function CustomersPage({
     dir: single(params.dir),
   });
 
-  const [{ data: customerData }, { data: orderData }] = await Promise.all([
+  const [{ data: customerData }, { data: orderData }, { data: banData }] = await Promise.all([
     ctx.supabase
       .from("customers")
       .select("id, email, full_name, phone")
@@ -68,7 +68,16 @@ export default async function CustomersPage({
       .from("orders")
       .select("customer_id, created_at")
       .eq("tenant_id", ctx.tenantId),
+    // Zbanowani klienci (R6b): sam customer_id wystarcza do badge'a na liście.
+    ctx.supabase
+      .from("customer_bans")
+      .select("customer_id")
+      .eq("tenant_id", ctx.tenantId),
   ]);
+
+  const bannedIds = new Set(
+    ((banData ?? []) as { customer_id: string }[]).map((b) => b.customer_id),
+  );
 
   const allCustomers = (customerData ?? []) as CustomerRow[];
   const hasAnyCustomers = allCustomers.length > 0;
@@ -99,6 +108,7 @@ export default async function CustomersPage({
       phone: customer.phone,
       orderCount: agg?.count ?? 0,
       lastOrderAt: agg?.lastOrderAt ?? null,
+      banned: bannedIds.has(customer.id),
     };
   });
 

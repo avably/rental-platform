@@ -42,6 +42,18 @@ export function CustomerDetailSkeleton() {
         </div>
       </div>
 
+      {/* Ban-lista (R6b): karta ze stanem i przyciskiem — ta sama karta `p-5`. */}
+      <SkeletonRegion
+        region="ban"
+        className="border-border bg-card flex flex-wrap items-start justify-between gap-3 rounded-md border p-5"
+      >
+        <div className="flex flex-col gap-1.5">
+          <SkeletonLine line="micro" className="w-20" />
+          <SkeletonLine line="text" className="w-64" />
+        </div>
+        <SkeletonBlock className="h-9 w-36 rounded-md" />
+      </SkeletonRegion>
+
       {/* Formularz edycji (kontakt + faktura + adres). Ta sama karta `p-5`. */}
       <SkeletonRegion
         region="edit-form"

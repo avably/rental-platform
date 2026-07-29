@@ -905,7 +905,8 @@
       "noPhone": "—",
       "noOrders": "—",
       "openCard": "Otwórz kartę klienta {name}",
-      "cap": "Pokazujemy pierwszych {count} klientów. Zawęź wyszukiwaniem, aby znaleźć pozostałych."
+      "cap": "Pokazujemy pierwszych {count} klientów. Zawęź wyszukiwaniem, aby znaleźć pozostałych.",
+      "bannedBadge": "Zablokowany"
     },
     "emptyState": {
       "title": "Nie masz jeszcze żadnych klientów.",
@@ -937,7 +938,25 @@
       "colTerm": "Termin",
       "colAmount": "Kwota",
       "colStatus": "Status",
-      "openOrder": "Otwórz zamówienie {number}"
+      "openOrder": "Otwórz zamówienie {number}",
+      "ban": {
+        "heading": "Ban-lista",
+        "statusBanned": "Zablokowany",
+        "statusActive": "Aktywny",
+        "descriptionActive": "Ten klient może składać zamówienia w Twoim sklepie.",
+        "descriptionBanned": "Ten klient nie może składać zamówień — checkout odrzuca jego e-mail i telefon.",
+        "blockCta": "Zablokuj klienta",
+        "unblockCta": "Odblokuj klienta",
+        "confirmBlockTitle": "Zablokować klienta?",
+        "confirmBlockBody": "Zablokowany klient nie złoży zamówienia w Twoim sklepie — checkout odrzuci ten sam e-mail i numer telefonu. Ban możesz zdjąć w każdej chwili.",
+        "confirmUnblockTitle": "Odblokować klienta?",
+        "confirmUnblockBody": "Klient znów będzie mógł składać zamówienia w Twoim sklepie.",
+        "confirmBlock": "Zablokuj",
+        "confirmUnblock": "Odblokuj",
+        "cancel": "Anuluj",
+        "blockedNotice": "Klient zablokowany.",
+        "unblockedNotice": "Klient odblokowany."
+      }
     }
   },
   "site": {
