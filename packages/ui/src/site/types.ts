@@ -12,24 +12,36 @@
  */
 import type {
   ContactContent,
+  CtaContent,
+  DeliveryContent,
+  DirectionsContent,
   FaqContent,
   FreeformContent,
+  GalleryContent,
   HeroContent,
   PricingContent,
   ProductsContent,
   SectionType,
+  TestimonialsContent,
+  UspContent,
 } from "@avably/core/site";
 
 export type {
   ContactContent,
+  CtaContent,
+  DeliveryContent,
+  DirectionsContent,
   FaqContent,
   FreeformContent,
+  GalleryContent,
   HeroContent,
   PricingContent,
   ProductsContent,
   SectionContent,
   SectionType,
   SiteTemplate,
+  TestimonialsContent,
+  UspContent,
 } from "@avably/core/site";
 
 /**
@@ -51,7 +63,13 @@ export type RenderSection =
   | RenderSectionOf<"pricing", PricingContent>
   | RenderSectionOf<"faq", FaqContent>
   | RenderSectionOf<"contact", ContactContent>
-  | RenderSectionOf<"freeform", FreeformContent>;
+  | RenderSectionOf<"freeform", FreeformContent>
+  | RenderSectionOf<"testimonials", TestimonialsContent>
+  | RenderSectionOf<"gallery", GalleryContent>
+  | RenderSectionOf<"usp", UspContent>
+  | RenderSectionOf<"cta", CtaContent>
+  | RenderSectionOf<"directions", DirectionsContent>
+  | RenderSectionOf<"delivery", DeliveryContent>;
 
 /**
  * Pojedynczy produkt katalogu w wersji publicznej (sekcja products). Ceny są
@@ -85,4 +103,8 @@ export interface SiteRenderLabels {
   contactAddress: string;
   /** Etykieta linku do mapy w sekcji kontakt. */
   contactMap: string;
+  /** Sekcja dojazd (0043) — etykiety adresu, godzin i linku do map. */
+  directionsAddress: string;
+  directionsHours: string;
+  directionsMap: string;
 }

@@ -1,11 +1,17 @@
 import { cn } from "../lib/cn";
 import {
   ContactSection,
+  CtaSection,
+  DeliverySection,
+  DirectionsSection,
   FaqSection,
   FreeformSection,
+  GallerySection,
   HeroSection,
   PricingSection,
   ProductsSection,
+  TestimonialsSection,
+  UspSection,
 } from "./sections";
 import { getTemplateStyles } from "./template";
 import type { RenderSection, SiteRenderLabels, SiteTemplate, StorefrontProduct } from "./types";
@@ -17,6 +23,9 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   contactPhone: "Telefon:",
   contactAddress: "Adres:",
   contactMap: "Zobacz na mapie",
+  directionsAddress: "Adres:",
+  directionsHours: "Godziny otwarcia:",
+  directionsMap: "Zobacz na mapie",
 };
 
 function SectionSwitch({
@@ -24,16 +33,18 @@ function SectionSwitch({
   products,
   labels,
   template,
+  siteImageBase,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   template: SiteTemplate;
+  siteImageBase?: string;
 }) {
   const styles = getTemplateStyles(template);
   switch (section.type) {
     case "hero":
-      return <HeroSection content={section.content} styles={styles} />;
+      return <HeroSection content={section.content} styles={styles} siteImageBase={siteImageBase} />;
     case "products":
       return (
         <ProductsSection content={section.content} products={products} labels={labels} styles={styles} />
@@ -46,6 +57,18 @@ function SectionSwitch({
       return <ContactSection content={section.content} labels={labels} styles={styles} />;
     case "freeform":
       return <FreeformSection content={section.content} styles={styles} />;
+    case "testimonials":
+      return <TestimonialsSection content={section.content} styles={styles} />;
+    case "gallery":
+      return <GallerySection content={section.content} styles={styles} siteImageBase={siteImageBase} />;
+    case "usp":
+      return <UspSection content={section.content} styles={styles} />;
+    case "cta":
+      return <CtaSection content={section.content} styles={styles} />;
+    case "directions":
+      return <DirectionsSection content={section.content} labels={labels} styles={styles} />;
+    case "delivery":
+      return <DeliverySection content={section.content} styles={styles} />;
     default: {
       // Wyczerpanie unii — nowy typ sekcji bez gałęzi zapali się w typecheck.
       const _exhaustive: never = section;
@@ -67,12 +90,19 @@ export function SiteRenderer({
   products = [],
   labels = DEFAULT_SITE_LABELS,
   className,
+  siteImageBase,
 }: {
   sections: RenderSection[];
   template: SiteTemplate;
   products?: StorefrontProduct[];
   labels?: SiteRenderLabels;
   className?: string;
+  /**
+   * Prefiks publicznego URL-a bucketa `site-images` (do bucketa włącznie).
+   * Wstrzykiwany przez warstwę danych (storefront/podgląd) — hero i galeria
+   * budują z niego adres zdjęcia. Brak = zdjęcia jako placeholder (0043).
+   */
+  siteImageBase?: string;
 }) {
   const styles = getTemplateStyles(template);
   return (
@@ -84,6 +114,7 @@ export function SiteRenderer({
           products={products}
           labels={labels}
           template={template}
+          siteImageBase={siteImageBase}
         />
       ))}
     </div>

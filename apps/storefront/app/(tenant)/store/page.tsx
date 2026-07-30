@@ -64,7 +64,14 @@ export default async function TenantStorePage() {
     contactPhone: copy.siteLabels.contactPhone,
     contactAddress: copy.siteLabels.contactAddress,
     contactMap: copy.siteLabels.contactMap,
+    directionsAddress: copy.siteLabels.directionsAddress,
+    directionsHours: copy.siteLabels.directionsHours,
+    directionsMap: copy.siteLabels.directionsMap,
   };
+
+  // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043) — hero
+  // i galeria budują z niego adres obrazu, jak katalog buduje URL zdjęć produktów.
+  const siteImageBase = `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/site-images`;
 
   const products = toStorefrontProducts(catalog.products, {
     supabaseUrl,
@@ -104,7 +111,7 @@ export default async function TenantStorePage() {
       ) : (
         <main>
           {hasHero ? null : <h1 className="sr-only">{catalog.tenant.name}</h1>}
-          <SiteRenderer sections={site.sections} template={template} products={products} labels={labels} />
+          <SiteRenderer sections={site.sections} template={template} products={products} labels={labels} siteImageBase={siteImageBase} />
         </main>
       )}
     </>

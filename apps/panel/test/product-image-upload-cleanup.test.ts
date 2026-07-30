@@ -236,12 +236,13 @@ describe("cron product-image-uploads", () => {
       readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
     ) as { crons: Array<{ path: string; schedule: string }> };
 
-    expect(config.crons).toEqual([
-      {
-        path: "/api/jobs/product-image-uploads",
-        schedule: "17 3 * * *",
-      },
-    ]);
+    expect(config.crons).toContainEqual({
+      path: "/api/jobs/product-image-uploads",
+      schedule: "17 3 * * *",
+    });
+    // Hobby dopuszcza do 2 zadań cron (dziennych); drugie to sieroty zdjęć
+    // sekcji (0043) — patrz site-image-upload-cleanup.test.ts.
+    expect(config.crons).toHaveLength(2);
   });
 
   beforeEach(() => {

@@ -522,6 +522,9 @@ const siteSections: SiteEditorProps["sections"] = [
   { id: "s4", type: "faq", position: 3, enabled: true, content: { heading: "Pytania", items: [{ q: "Jak rezerwować?", a: "Fikcyjna odpowiedź." }] } },
   { id: "s5", type: "contact", position: 4, enabled: true, content: { heading: "Kontakt" } },
   { id: "s6", type: "freeform", position: 5, enabled: false, content: { heading: "O nas", body: "Fikcyjna treść własna." } },
+  // Sekcja USP (0043) — jej pole ikony to PanelSelect, czyli JEDYNY select
+  // widocznej kontrolki w edytorze po zamianie „Dodaj sekcję" na galerię-modal.
+  { id: "s7", type: "usp", position: 6, enabled: true, content: { heading: "Atuty", items: [{ icon: "truck", title: "Szybko", text: "Od ręki." }] } },
 ];
 
 const siteProducts: SiteEditorProps["previewProducts"] = [
@@ -608,19 +611,20 @@ describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
       messages.site.sections.enable,
       messages.site.sections.remove,
       messages.site.sections.add,
+      messages.site.sections.addBelow,
       messages.site.fields.saveSection,
       messages.site.fields.faqAdd,
     ]) {
       expect(html, `zgubiona możliwość: ${label}`).toContain(label);
     }
     expect(html).toContain("data-faq-row");
-    // Sześć typów sekcji do dodania — kompletu pilnuje sam artefakt.
-    for (const type of Object.values(messages.site.sectionTypes)) {
-      expect(html).toContain(type);
-    }
+    // Komplet typów do dodania siedzi w galerii-modalu „Dodaj sekcję" (zamknięty
+    // w SSR) — pełną listę 12 kafli pilnuje add-section-gallery.test.tsx.
   });
 
   it("selekty idą przez PanelSelect — zero natywnych kontrolek", () => {
+    // Po zamianie „Dodaj sekcję" na galerię-modal jedynym selectem widocznej
+    // kontrolki jest picker ikony USP — nadal PanelSelect, nie natywny.
     expect(html).toContain('data-slot="select-trigger"');
     // Jedyny `<select>` w renderze to most Radix (aria-hidden, dla autofillu) —
     // widoczna kontrolka nie ma prawa nim być (ADR-060).
