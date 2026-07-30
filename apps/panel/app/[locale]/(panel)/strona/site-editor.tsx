@@ -18,13 +18,12 @@
  * przez `useTransition`; po sukcesie robią `revalidatePath`, więc serwerowa
  * strona przeładowuje świeży szkic i przekazuje go tu w propsach.
  */
-import { SECTION_TYPES, SITE_TEMPLATES, type SectionType, type SiteTemplate } from "@avably/core/site";
-import { Button, Label, type StorefrontProduct } from "@avably/ui";
-import { useTranslations } from "next-intl";
+import { SITE_TEMPLATES, presetContentFor, type SectionType, type SiteTemplate } from "@avably/core/site";
+import { Button, type StorefrontProduct } from "@avably/ui";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { PanelSelect } from "@/components/fields/panel-select";
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenSection } from "@/components/screens/screen-header";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
@@ -38,7 +37,8 @@ import {
   upsertSection,
 } from "@/lib/actions/site";
 
-import { defaultContentFor, type EditorSection } from "./content";
+import { AddSectionDialog } from "./add-section-gallery";
+import { type EditorSection } from "./content";
 import { SitePreview } from "./site-preview";
 import { SortableSections } from "./sortable-sections";
 
@@ -59,11 +59,11 @@ export function SiteEditor({
   publishedAtLabel: string | null;
 }) {
   const t = useTranslations("site");
+  const locale = useLocale();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
-  const [sectionType, setSectionType] = useState<SectionType>("hero");
   const [templateChoice, setTemplateChoice] = useState<SiteTemplate>(template);
 
   /** Woła akcję w tranzycji, pokazuje błąd i odświeża RSC po sukcesie. */
@@ -81,10 +81,30 @@ export function SiteEditor({
     });
   }
 
-  function addSection(type: SectionType) {
-    run(() =>
-      upsertSection({ siteId, type, content: defaultContentFor(type) } as Parameters<typeof upsertSection>[0]),
-    );
+  /**
+   * Dodanie sekcji z galerii: treść startowa z presetu (język operatora).
+   * `afterSectionId` = wstawienie TUŻ ZA daną sekcją (akcja „dodaj poniżej") —
+   * dodajemy na końcu i przenumerowujemy jednym reorderem; bez niego sekcja
+   * ląduje na końcu (domyślnie).
+   */
+  function addSection(type: SectionType, afterSectionId?: string) {
+    run(async () => {
+      const added = await upsertSection({
+        siteId,
+        type,
+        content: presetContentFor(type, locale),
+      } as Parameters<typeof upsertSection>[0]);
+      if (!added.ok) return added;
+      if (afterSectionId) {
+        const ids = sections.map((s) => s.id);
+        const index = ids.indexOf(afterSectionId);
+        if (index >= 0) {
+          const order = [...ids.slice(0, index + 1), added.sectionId, ...ids.slice(index + 1)];
+          return reorderSections(siteId, order);
+        }
+      }
+      return { ok: true };
+    });
   }
 
   return (
@@ -166,30 +186,15 @@ export function SiteEditor({
             title={t("sections.heading")}
             description={t("sections.addHint")}
           >
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-section-type">{t("sections.addType")}</Label>
-                <PanelSelect
-                  id="add-section-type"
-                  value={sectionType}
-                  disabled={pending}
-                  onValueChange={(value) => setSectionType(value as SectionType)}
-                  options={SECTION_TYPES.map((type) => ({
-                    value: type,
-                    label: t(`sectionTypes.${type}`),
-                  }))}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                loading={pending}
-                disabled={pending}
-                onClick={() => addSection(sectionType)}
-              >
-                {t("sections.add")}
-              </Button>
-            </div>
+            <AddSectionDialog
+              disabled={pending}
+              onAdd={(type) => addSection(type)}
+              trigger={
+                <Button type="button" variant="secondary" loading={pending} disabled={pending}>
+                  {t("sections.add")}
+                </Button>
+              }
+            />
           </ScreenSection>
 
           {sections.length === 0 ? (
@@ -202,6 +207,7 @@ export function SiteEditor({
               toggleAction={(section) => toggleSection(section.id, !section.enabled)}
               duplicateAction={(sectionId) => duplicateSection(sectionId)}
               deleteAction={(sectionId) => deleteSection(sectionId)}
+              onAddSection={addSection}
               onChanged={() => router.refresh()}
             />
           )}

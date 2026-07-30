@@ -1,3 +1,20 @@
+import type { UspIcon } from "@avably/core/site";
+import {
+  BadgeCheck,
+  CalendarCheck,
+  Clock,
+  CreditCard,
+  Headphones,
+  type LucideIcon,
+  MapPin,
+  Package,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  ThumbsUp,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
@@ -5,14 +22,50 @@ import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
 import type {
   ContactContent,
+  CtaContent,
+  DeliveryContent,
+  DirectionsContent,
   FaqContent,
   FreeformContent,
+  GalleryContent,
   HeroContent,
   PricingContent,
   ProductsContent,
   SiteRenderLabels,
   StorefrontProduct,
+  TestimonialsContent,
+  UspContent,
 } from "./types";
+
+/**
+ * Publiczny URL zdjęcia sekcji z bucketa `site-images`. `base` (prefiks do
+ * bucketa włącznie) wstrzykuje warstwa danych (storefront/podgląd panelu) —
+ * pakiet UI nie zna adresu Supabase. Bez `base` zdjęcia degradują się do
+ * placeholderu (jak produkt bez imageUrl), więc render nie zależy od Storage.
+ */
+function siteImageUrl(base: string, path: string): string {
+  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+/**
+ * Allowlista ikon USP (ADR-082) → komponenty `lucide`. Zamknięty zbiór lustrem
+ * USP_ICONS z core; klucz spoza mapy (nie powinien przejść Zoda) degraduje do
+ * neutralnej gwiazdki, więc render nigdy nie pęka na treści.
+ */
+const USP_ICON_COMPONENTS: Record<UspIcon, LucideIcon> = {
+  truck: Truck,
+  "shield-check": ShieldCheck,
+  clock: Clock,
+  "badge-check": BadgeCheck,
+  wrench: Wrench,
+  headphones: Headphones,
+  "map-pin": MapPin,
+  "credit-card": CreditCard,
+  package: Package,
+  "calendar-check": CalendarCheck,
+  sparkles: Sparkles,
+  "thumbs-up": ThumbsUp,
+};
 
 /**
  * Prezentacyjne komponenty sekcji storefrontu. Każdy dostaje swoją treść
@@ -44,7 +97,15 @@ function SectionHeading({ heading, styles }: { heading?: string; styles: Templat
   return <h2 className={styles.sectionHeading}>{heading}</h2>;
 }
 
-export function HeroSection({ content, styles }: { content: HeroContent; styles: TemplateStyles }) {
+export function HeroSection({
+  content,
+  styles,
+  siteImageBase,
+}: {
+  content: HeroContent;
+  styles: TemplateStyles;
+  siteImageBase?: string;
+}) {
   return (
     <section className={styles.heroSection}>
       <div className={styles.container}>
@@ -54,6 +115,18 @@ export function HeroSection({ content, styles }: { content: HeroContent; styles:
           <a href={content.ctaHref} className={styles.cta}>
             {content.ctaText}
           </a>
+        ) : null}
+        {content.imagePath && siteImageBase ? (
+          // Zdjęcie hero jest DEKORACYJNE (nagłówek niesie treść) — alt puste,
+          // eager (element bywa LCP wysoko na stronie). Placeholder gdy brak
+          // bazy URL (podgląd bez Storage) — render nie zależy od Storage.
+          <img
+            src={siteImageUrl(siteImageBase, content.imagePath)}
+            alt=""
+            className="mt-10 aspect-[16/9] w-full rounded-lg object-cover"
+            loading="eager"
+            fetchPriority="high"
+          />
         ) : null}
       </div>
     </section>
@@ -232,6 +305,171 @@ export function FreeformSection({
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
       <SafeRichText body={content.body} className="mt-6 text-base" />
+    </SectionShell>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Sekcje z 0043 (kreator A2, ADR-082) — te same komponenty w obu szablonach.
+// -----------------------------------------------------------------------
+
+export function TestimonialsSection({
+  content,
+  styles,
+}: {
+  content: TestimonialsContent;
+  styles: TemplateStyles;
+}) {
+  const items = content.items ?? [];
+  return (
+    <SectionShell styles={styles}>
+      <SectionHeading heading={content.heading} styles={styles} />
+      {items.length > 0 ? (
+        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2">
+          {items.map((item, index) => (
+            <li key={index} className={styles.subtleCard}>
+              <blockquote className="text-lg">{item.quote}</blockquote>
+              <p className="mt-4 text-sm font-medium">{item.author}</p>
+              {item.role ? <p className="text-muted-foreground text-sm">{item.role}</p> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </SectionShell>
+  );
+}
+
+export function GallerySection({
+  content,
+  styles,
+  siteImageBase,
+}: {
+  content: GalleryContent;
+  styles: TemplateStyles;
+  siteImageBase?: string;
+}) {
+  const items = content.items ?? [];
+  return (
+    <SectionShell styles={styles}>
+      <SectionHeading heading={content.heading} styles={styles} />
+      {items.length > 0 ? (
+        <ul className={cn(styles.productGrid, "list-none p-0")}>
+          {items.map((item, index) => (
+            <li key={index} className="overflow-hidden rounded-lg border bg-card">
+              {siteImageBase ? (
+                <img
+                  src={siteImageUrl(siteImageBase, item.imagePath)}
+                  alt={item.alt}
+                  className="aspect-[4/3] w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </SectionShell>
+  );
+}
+
+export function UspSection({ content, styles }: { content: UspContent; styles: TemplateStyles }) {
+  const items = content.items ?? [];
+  return (
+    <SectionShell styles={styles}>
+      <SectionHeading heading={content.heading} styles={styles} />
+      {items.length > 0 ? (
+        <ul className="mt-10 grid list-none grid-cols-1 gap-8 p-0 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item, index) => {
+            const Icon = USP_ICON_COMPONENTS[item.icon] ?? Star;
+            return (
+              <li key={index} className="flex flex-col gap-3">
+                <span className={styles.iconTile}>
+                  <Icon className="size-5" aria-hidden="true" />
+                </span>
+                <h3 className={styles.cardTitle}>{item.title}</h3>
+                <p className="text-muted-foreground text-sm">{item.text}</p>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </SectionShell>
+  );
+}
+
+export function CtaSection({ content, styles }: { content: CtaContent; styles: TemplateStyles }) {
+  return (
+    <SectionShell styles={styles}>
+      <div className={styles.ctaBanner}>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{content.heading}</h2>
+        {content.text ? <p className="mt-3 max-w-2xl opacity-80">{content.text}</p> : null}
+        <a href={content.buttonHref} className={styles.cta}>
+          {content.buttonLabel}
+        </a>
+      </div>
+    </SectionShell>
+  );
+}
+
+export function DirectionsSection({
+  content,
+  labels,
+  styles,
+}: {
+  content: DirectionsContent;
+  labels: SiteRenderLabels;
+  styles: TemplateStyles;
+}) {
+  return (
+    <SectionShell styles={styles}>
+      <dl className="flex flex-col gap-3 text-base">
+        <div className="flex gap-2">
+          <dt className="font-medium">{labels.directionsAddress}</dt>
+          <dd className="whitespace-pre-line">{content.address}</dd>
+        </div>
+        {content.hours ? (
+          <div className="flex gap-2">
+            <dt className="font-medium">{labels.directionsHours}</dt>
+            <dd className="whitespace-pre-line">{content.hours}</dd>
+          </div>
+        ) : null}
+        {content.mapsUrl ? (
+          <div>
+            {/* Tylko LINK do map — bez osadzania obcych skryptów/iframe (ADR-082). */}
+            <a className="underline" href={content.mapsUrl} target="_blank" rel="noreferrer noopener">
+              {labels.directionsMap}
+            </a>
+          </div>
+        ) : null}
+      </dl>
+    </SectionShell>
+  );
+}
+
+export function DeliverySection({
+  content,
+  styles,
+}: {
+  content: DeliveryContent;
+  styles: TemplateStyles;
+}) {
+  const items = content.items ?? [];
+  return (
+    <SectionShell styles={styles}>
+      <SectionHeading heading={content.heading} styles={styles} />
+      <p className={styles.lead}>{content.text}</p>
+      {items.length > 0 ? (
+        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2">
+          {items.map((item, index) => (
+            <li key={index} className={styles.subtleCard}>
+              <h3 className={styles.cardTitle}>{item.title}</h3>
+              <p className="text-muted-foreground mt-2 text-sm">{item.text}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </SectionShell>
   );
 }

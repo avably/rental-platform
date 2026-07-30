@@ -18,6 +18,8 @@ import { SiteRenderer, type StorefrontProduct } from "@avably/ui";
 import type { SiteTemplate } from "@avably/core/site";
 import { useTranslations } from "next-intl";
 
+import { siteImagePublicBase } from "@/lib/site-image-base";
+
 import { previewSections, type EditorSection } from "./content";
 
 export function SitePreview({
@@ -47,7 +49,12 @@ export function SitePreview({
             {t("empty")}
           </p>
         ) : (
-          <SiteRenderer sections={visible} template={template} products={products} />
+          <SiteRenderer
+            sections={visible}
+            template={template}
+            products={products}
+            siteImageBase={siteImagePublicBase()}
+          />
         )}
       </div>
     </aside>

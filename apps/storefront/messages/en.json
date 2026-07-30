@@ -331,7 +331,10 @@
       "contactEmail": "Email:",
       "contactPhone": "Phone:",
       "contactAddress": "Address:",
-      "contactMap": "View on map"
+      "contactMap": "View on map",
+      "directionsAddress": "Address:",
+      "directionsHours": "Opening hours:",
+      "directionsMap": "View on map"
     },
     "common": {
       "from": "from",

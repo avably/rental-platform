@@ -44,6 +44,12 @@ export interface TemplateStyles {
   faqItem: string;
   /** Pytanie FAQ (summary). */
   faqQuestion: string;
+  /** Kafel bloku (opinia, pozycja dostawy) — lżejszy niż karta produktu (0043). */
+  subtleCard: string;
+  /** Baner sekcji CTA — mocny akcent tła, ustawia kolor tekstu potomków (0043). */
+  ctaBanner: string;
+  /** Kafelek ikony w sekcji USP (0043). */
+  iconTile: string;
 }
 
 const CLASSIC: TemplateStyles = {
@@ -64,6 +70,9 @@ const CLASSIC: TemplateStyles = {
   productGrid: "mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3",
   faqItem: "border-b py-4",
   faqQuestion: "cursor-pointer list-none text-lg font-medium",
+  subtleCard: "flex flex-col rounded-lg border bg-card p-6",
+  ctaBanner: "flex flex-col items-center rounded-xl border bg-[var(--landing-paper)] px-6 py-12 text-center text-[var(--landing-ink)]",
+  iconTile: "flex size-11 items-center justify-center rounded-lg border text-foreground",
 };
 
 const BOLD: TemplateStyles = {
@@ -84,6 +93,9 @@ const BOLD: TemplateStyles = {
   productGrid: "mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3",
   faqItem: "rounded-lg border-2 px-5 py-4",
   faqQuestion: "cursor-pointer list-none text-lg font-bold",
+  subtleCard: "flex flex-col rounded-xl border-2 bg-card p-6",
+  ctaBanner: "flex flex-col items-center rounded-2xl bg-foreground px-6 py-14 text-center text-background",
+  iconTile: "flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary",
 };
 
 const STYLES: Record<SiteTemplate, TemplateStyles> = {

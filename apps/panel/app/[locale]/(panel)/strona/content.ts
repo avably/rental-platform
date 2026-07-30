@@ -7,32 +7,22 @@
  */
 import {
   SECTION_CONTENT_SCHEMAS,
+  presetContentFor,
   type SectionContent,
   type SectionType,
 } from "@avably/core/site";
 import type { SiteSection } from "@avably/db";
 import type { RenderSection } from "@avably/ui";
 
-/** Treść startowa nowej sekcji danego typu (spełnia schemat core). */
-export function defaultContentFor(type: SectionType): SectionContent {
-  switch (type) {
-    case "hero":
-      return { heading: "Twoja wypożyczalnia" };
-    case "products":
-      return { heading: "Nasz sprzęt" };
-    case "pricing":
-      return { heading: "Jak rozliczamy najem" };
-    case "faq":
-      return { heading: "Najczęstsze pytania", items: [] };
-    case "contact":
-      return { heading: "Kontakt" };
-    case "freeform":
-      return { heading: "Sekcja", body: "Napisz coś o swojej wypożyczalni." };
-    default: {
-      const _exhaustive: never = type;
-      return _exhaustive;
-    }
-  }
+/**
+ * Treść startowa nowej sekcji danego typu (kreator A2, ADR-082) — PRESET z
+ * @avably/core/site, wypełniony sensownym przykładem w języku operatora
+ * (`locale`, domyślnie PL). Spełnia schemat core dla każdego z typów; służy też
+ * jako fallback, gdy content_draft nie sparsuje się schematem (edytor nie może
+ * zostać z pustką).
+ */
+export function defaultContentFor(type: SectionType, locale = "pl"): SectionContent {
+  return presetContentFor(type, locale);
 }
 
 /**

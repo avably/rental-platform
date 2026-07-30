@@ -29,10 +29,52 @@ export const SITE_TEMPLATES = ["classic", "bold"] as const;
 export type SiteTemplate = (typeof SITE_TEMPLATES)[number];
 export const siteTemplateSchema = z.enum(SITE_TEMPLATES);
 
-/** Typy sekcji — lustro CHECK-a site_sections.type (0019). */
-export const SECTION_TYPES = ["hero", "products", "pricing", "faq", "contact", "freeform"] as const;
+/**
+ * Typy sekcji — lustro CHECK-a site_sections.type (0019 + 0043). Zamknięta
+ * lista (ADR-041/ADR-082): nowy typ = zmiana TEJ stałej + schemat Zod niżej +
+ * CHECK w migracji. Sześć typów doszło w 0043 (kreator sekcyjny A2):
+ * testimonials, gallery, usp, cta, directions, delivery.
+ */
+export const SECTION_TYPES = [
+  "hero",
+  "products",
+  "pricing",
+  "faq",
+  "contact",
+  "freeform",
+  "testimonials",
+  "gallery",
+  "usp",
+  "cta",
+  "directions",
+  "delivery",
+] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 export const sectionTypeSchema = z.enum(SECTION_TYPES);
+
+/**
+ * Allowlista ikon sekcji USP (ADR-082): zamknięty zbiór nazw z biblioteki
+ * `lucide`, mapowany na komponenty w renderze (@avably/ui). Zamknięcie listy to
+ * oś bezpieczeństwa i spójności — treść tenanta nie może wskazać dowolnego,
+ * nieznanego renderowi symbolu ani (w przyszłości) obcego zasobu. Kolejność
+ * bez znaczenia; nazwy w kebab-case, tłumaczone na komponent po stronie UI.
+ */
+export const USP_ICONS = [
+  "truck",
+  "shield-check",
+  "clock",
+  "badge-check",
+  "wrench",
+  "headphones",
+  "map-pin",
+  "credit-card",
+  "package",
+  "calendar-check",
+  "sparkles",
+  "thumbs-up",
+] as const;
+export type UspIcon = (typeof USP_ICONS)[number];
+export const uspIconSchema = z.enum(USP_ICONS);
 
 // -----------------------------------------------------------------------
 // Cegiełki pól
@@ -81,6 +123,18 @@ const imagePath = z
   .refine((value) => !value.includes("..") && !value.includes("://"), {
     message: "Ścieżka Storage, nie URL",
   });
+
+// Cegiełki dla typów sekcji z 0043 (kreator A2). Te same zasady co wyżej: trim,
+// granice min. 1 / skończone maksimum. Osobne nazwy zamiast literałów, żeby
+// limit pola był jednym miejscem prawdy i był widoczny w schematach.
+/** Nazwa/podpis autora opinii, tytuł atutu, tytuł pozycji dostawy. */
+const blockTitle = z.string().trim().min(1).max(120);
+/** Etykieta przycisku CTA (limit jak hero.ctaText). */
+const buttonLabel = z.string().trim().min(1).max(80);
+/** Tekst alternatywny zdjęcia w galerii (a11y) — zwięzły opis, nie akapit. */
+const altText = z.string().trim().min(1).max(300);
+/** Akapit średniej długości (opis dostawy) — dłuższy niż shortText, krótszy niż freeform. */
+const mediumText = z.string().trim().min(1).max(2_000);
 
 // -----------------------------------------------------------------------
 // Schematy treści per typ sekcji (content_draft / content_published)
@@ -148,6 +202,113 @@ export const freeformContentSchema = z
   })
   .strict();
 
+// -----------------------------------------------------------------------
+// Typy sekcji z 0043 (kreator sekcyjny A2, ADR-082)
+// -----------------------------------------------------------------------
+//
+// Sekcje z pozycjami trzymają tablicę bloków (`items`) — reorder bloków W
+// SEKCJI to etap C1; tu tablica jest płaska, a edytor dodaje/usuwa pozycje.
+// Górne granice tablic są celowo skromne (strona sprzedażowa, nie katalog).
+
+/** Opinie klientów — lista cytatów z podpisem. */
+export const testimonialsContentSchema = z
+  .object({
+    heading: heading.optional(),
+    items: z
+      .array(
+        z
+          .object({
+            quote: shortText,
+            author: blockTitle,
+            role: blockTitle.optional(),
+          })
+          .strict(),
+      )
+      .max(20),
+  })
+  .strict();
+
+/**
+ * Galeria zdjęć — lista obrazów z bucketa sekcji (0043). `imagePath` to ścieżka
+ * Storage (nie URL — jak w hero); render buduje publiczny URL sam. `alt`
+ * wymagane: zdjęcie bez opisu alternatywnego to regres dostępności.
+ */
+export const galleryContentSchema = z
+  .object({
+    heading: heading.optional(),
+    items: z
+      .array(
+        z
+          .object({
+            imagePath,
+            alt: altText,
+          })
+          .strict(),
+      )
+      .max(30),
+  })
+  .strict();
+
+/** Atuty (USP) — lista kafli ikona + tytuł + tekst. Ikona z allowlisty USP_ICONS. */
+export const uspContentSchema = z
+  .object({
+    heading: heading.optional(),
+    items: z
+      .array(
+        z
+          .object({
+            icon: uspIconSchema,
+            title: blockTitle,
+            text: shortText,
+          })
+          .strict(),
+      )
+      .max(12),
+  })
+  .strict();
+
+/** Baner wezwania do działania — nagłówek + przycisk (href z tej samej allowlisty co hero). */
+export const ctaContentSchema = z
+  .object({
+    heading,
+    text: shortText.optional(),
+    buttonLabel,
+    buttonHref: ctaHref,
+  })
+  .strict();
+
+/**
+ * Dojazd — adres + opcjonalny LINK do map i godziny. Świadomie BEZ osadzania
+ * obcych skryptów/iframe map (ADR-082): `mapsUrl` przechodzi tę samą allowlistę
+ * schematów co ctaHref (żaden `javascript:`), render daje z niego zwykły link.
+ */
+export const directionsContentSchema = z
+  .object({
+    address: shortText,
+    mapsUrl: ctaHref.optional(),
+    hours: shortText.optional(),
+  })
+  .strict();
+
+/** Informacja o dostawie — nagłówek + opis + opcjonalne pozycje (np. warianty dostawy). */
+export const deliveryContentSchema = z
+  .object({
+    heading,
+    text: mediumText,
+    items: z
+      .array(
+        z
+          .object({
+            title: blockTitle,
+            text: shortText,
+          })
+          .strict(),
+      )
+      .max(12)
+      .optional(),
+  })
+  .strict();
+
 export const SECTION_CONTENT_SCHEMAS = {
   hero: heroContentSchema,
   products: productsContentSchema,
@@ -155,6 +316,12 @@ export const SECTION_CONTENT_SCHEMAS = {
   faq: faqContentSchema,
   contact: contactContentSchema,
   freeform: freeformContentSchema,
+  testimonials: testimonialsContentSchema,
+  gallery: galleryContentSchema,
+  usp: uspContentSchema,
+  cta: ctaContentSchema,
+  directions: directionsContentSchema,
+  delivery: deliveryContentSchema,
 } as const satisfies Record<SectionType, z.ZodTypeAny>;
 
 export type HeroContent = z.infer<typeof heroContentSchema>;
@@ -163,6 +330,12 @@ export type PricingContent = z.infer<typeof pricingContentSchema>;
 export type FaqContent = z.infer<typeof faqContentSchema>;
 export type ContactContent = z.infer<typeof contactContentSchema>;
 export type FreeformContent = z.infer<typeof freeformContentSchema>;
+export type TestimonialsContent = z.infer<typeof testimonialsContentSchema>;
+export type GalleryContent = z.infer<typeof galleryContentSchema>;
+export type UspContent = z.infer<typeof uspContentSchema>;
+export type CtaContent = z.infer<typeof ctaContentSchema>;
+export type DirectionsContent = z.infer<typeof directionsContentSchema>;
+export type DeliveryContent = z.infer<typeof deliveryContentSchema>;
 
 export type SectionContent =
   | HeroContent
@@ -170,7 +343,13 @@ export type SectionContent =
   | PricingContent
   | FaqContent
   | ContactContent
-  | FreeformContent;
+  | FreeformContent
+  | TestimonialsContent
+  | GalleryContent
+  | UspContent
+  | CtaContent
+  | DirectionsContent
+  | DeliveryContent;
 
 /** Para (type, content) walidowana spójnie — wejście upsertu sekcji w panelu. */
 export const sectionInputSchema = z.discriminatedUnion("type", [
@@ -180,6 +359,12 @@ export const sectionInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("faq"), content: faqContentSchema }),
   z.object({ type: z.literal("contact"), content: contactContentSchema }),
   z.object({ type: z.literal("freeform"), content: freeformContentSchema }),
+  z.object({ type: z.literal("testimonials"), content: testimonialsContentSchema }),
+  z.object({ type: z.literal("gallery"), content: galleryContentSchema }),
+  z.object({ type: z.literal("usp"), content: uspContentSchema }),
+  z.object({ type: z.literal("cta"), content: ctaContentSchema }),
+  z.object({ type: z.literal("directions"), content: directionsContentSchema }),
+  z.object({ type: z.literal("delivery"), content: deliveryContentSchema }),
 ]);
 export type SectionInput = z.infer<typeof sectionInputSchema>;
 
@@ -197,6 +382,12 @@ export const publishedSectionSchema = z.discriminatedUnion("type", [
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: faqContentSchema }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: contactContentSchema }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("freeform"), content: freeformContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("testimonials"), content: testimonialsContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("gallery"), content: galleryContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("usp"), content: uspContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: ctaContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: directionsContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: deliveryContentSchema }),
 ]);
 export type PublishedSection = z.infer<typeof publishedSectionSchema>;
 
@@ -243,3 +434,6 @@ export function parsePublishedSite(payload: unknown): PublishedSite | null {
     sections,
   };
 }
+
+// Presety treści startowej sekcji (kreator A2, ADR-082) — patrz ./presets.
+export { PRESET_LOCALES, presetContentFor, type PresetLocale } from "./presets";

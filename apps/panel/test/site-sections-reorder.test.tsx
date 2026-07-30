@@ -59,6 +59,7 @@ function renderList(overrides: Partial<Parameters<typeof SortableSections>[0]> =
     toggleAction: vi.fn(async () => ({ ok: true }) as const),
     duplicateAction: vi.fn(async () => ({ ok: true }) as const),
     deleteAction: vi.fn(async () => ({ ok: true }) as const),
+    onAddSection: vi.fn(),
     onChanged: vi.fn(),
     ...overrides,
   };

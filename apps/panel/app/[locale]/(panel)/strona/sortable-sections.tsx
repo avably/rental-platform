@@ -47,12 +47,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@avably/ui";
+import type { SectionType } from "@avably/core/site";
 import { GripVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 
+import { AddSectionDialog } from "./add-section-gallery";
 import type { EditorSection } from "./content";
 import { SectionContentForm } from "./section-content-form";
 
@@ -65,6 +67,7 @@ export function SortableSections({
   toggleAction,
   duplicateAction,
   deleteAction,
+  onAddSection,
   onChanged,
 }: {
   siteId: string;
@@ -74,6 +77,8 @@ export function SortableSections({
   toggleAction: (section: EditorSection) => Promise<ActionResult>;
   duplicateAction: (sectionId: string) => Promise<ActionResult>;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
+  /** Dodanie sekcji TUŻ ZA daną (akcja „dodaj poniżej" w wierszu). */
+  onAddSection: (type: SectionType, afterSectionId: string) => void;
   /** Odświeżenie RSC po udanej mutacji (server action zrobił revalidatePath). */
   onChanged: () => void;
 }) {
@@ -162,6 +167,7 @@ export function SortableSections({
                 onMoveDown={() => move(index, 1)}
                 onToggle={() => runRow(() => toggleAction(section))}
                 onDuplicate={() => runRow(() => duplicateAction(section.id))}
+                onAddSection={onAddSection}
                 deleteAction={deleteAction}
                 onDeleted={onChanged}
               />
@@ -184,6 +190,7 @@ function SortableSectionRow({
   onMoveDown,
   onToggle,
   onDuplicate,
+  onAddSection,
   deleteAction,
   onDeleted,
 }: {
@@ -196,6 +203,7 @@ function SortableSectionRow({
   onMoveDown: () => void;
   onToggle: () => void;
   onDuplicate: () => void;
+  onAddSection: (type: SectionType, afterSectionId: string) => void;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   onDeleted: () => void;
 }) {
@@ -265,6 +273,15 @@ function SortableSectionRow({
               loading={pending}
               disabled={pending}
               onClick={onDuplicate}
+            />
+            <AddSectionDialog
+              disabled={pending}
+              onAdd={(type) => onAddSection(type, section.id)}
+              trigger={
+                <Button type="button" size="sm" variant="secondary" disabled={pending}>
+                  {t("sections.addBelow")}
+                </Button>
+              }
             />
             <DeleteSectionDialog
               section={section}

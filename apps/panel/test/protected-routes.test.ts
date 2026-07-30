@@ -152,6 +152,14 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "Klient service_role pozostaje wyłącznie w src/jobs/**.",
   ],
   [
+    "/api/jobs/site-image-uploads",
+    "Cykliczne sprzątanie uploadów zdjęć SEKCJI (0043, ADR-082) — bliźniak " +
+      "crona zdjęć produktów. Endpoint nie używa sesji operatora (wywołuje go " +
+      "harmonogram Vercel); chroni go Authorization: Bearer porównywany " +
+      "stałoczasowo z CRON_SECRET (brak sekretu → 503, zły/brak nagłówka → 401). " +
+      "Klient service_role pozostaje wyłącznie w src/jobs/**.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +

@@ -650,6 +650,26 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
       expires_at: new Date(Date.now() + 900_000).toISOString(),
     };
   },
+  // Bilet uploadu zdjęcia sekcji (0043) — lustro product_image_uploads, z
+  // rodzicem `sites` (ensureSite) zamiast produktu. FK złożony (tenant_id,
+  // site_id) wymaga strony TEGO SAMEGO tenanta; ścieżka spełnia CHECK
+  // {tenant}/{site}/{upload_id}.png.
+  site_image_uploads: async (ctx, tenantId) => {
+    const id = randomUUID();
+    const siteId = await ensureSite(ctx, tenantId);
+    const userId = await createAuxMemberUser(ctx, tenantId);
+    return {
+      id,
+      tenant_id: tenantId,
+      site_id: siteId,
+      requested_by: userId,
+      storage_path: `${tenantId}/${siteId}/${id}.png`,
+      declared_mime: "image/png",
+      declared_size: 68,
+      status: "pending",
+      expires_at: new Date(Date.now() + 900_000).toISOString(),
+    };
+  },
 
   // Niezmienny dokument umowy (0026/ADR-061). ID powstaje przed storage_path,
   // bo CHECK wymaga ścieżki {tenant}/{order}/{document}.pdf. Fabryka macierzy
@@ -838,6 +858,11 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // widocznych wierszach nie wywoła 23505 (pułapka opisana wyżej nie dotyczy).
   product_images: { alt_text: "rls-test-hacked" },
   product_image_uploads: { status: "rejected" },
+  // Lustro product_image_uploads: status bez indeksu unikalnego, CHECK spełniony
+  // przez 'rejected' (goła mutacja nie wywoła 23505 ani 23514). Tabela nie ma
+  // polityki UPDATE dla authenticated (brak grantu), ale macierz i tak wymaga
+  // patcha, żeby brak UPDATE był testowany, a nie pomijany.
+  site_image_uploads: { status: "rejected" },
   // Append-only tabela 0026 nie ma polityki UPDATE, ale macierz nadal wymaga
   // poprawnego patcha, żeby brak polityki był testowany, a nie pomijany.
   contract_documents: { terms_version: "rls-test-hacked" },

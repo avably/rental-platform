@@ -189,9 +189,9 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   },
   {
     file: "strona/site-editor.tsx",
-    anchor: "onClick={() => addSection(sectionType)}",
+    anchor: "onAdd={(type) => addSection(type)}",
     signal: /loading=\{pending\}/,
-    note: "dodanie sekcji (tranzycja run)",
+    note: "dodanie sekcji z galerii — trigger niesie loading (tranzycja run)",
   },
   {
     file: "strona/sortable-sections.tsx",

@@ -68,7 +68,7 @@ const PG_INSUFFICIENT_PRIVILEGE = "42501";
 // API dla authenticated. Nadal wchodzą do automatycznej introspekcji, fabryk,
 // prób mutacji i kontroli trwałego stanu, ale poprawny SELECT kończy się
 // brakiem GRANT-u (42501), a nie pustą listą przefiltrowaną przez politykę.
-const PRIVATE_TENANT_TABLES = new Set(["product_image_uploads"]);
+const PRIVATE_TENANT_TABLES = new Set(["product_image_uploads", "site_image_uploads"]);
 
 /** Deterministyczna migawka wierszy tenanta w tabeli — odczyt service-role. */
 async function snapshotTenantRows(

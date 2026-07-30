@@ -11,11 +11,18 @@ import { describe, expect, it } from "vitest";
 import {
   SECTION_CONTENT_SCHEMAS,
   SECTION_TYPES,
+  USP_ICONS,
+  ctaContentSchema,
+  deliveryContentSchema,
+  directionsContentSchema,
   faqContentSchema,
   freeformContentSchema,
+  galleryContentSchema,
   heroContentSchema,
   parsePublishedSite,
   sectionInputSchema,
+  testimonialsContentSchema,
+  uspContentSchema,
 } from "./index";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
@@ -78,6 +85,119 @@ describe("schematy treści sekcji", () => {
     // Treść hero pod typem faq — discriminated union odrzuca.
     const result = sectionInputSchema.safeParse({ type: "faq", content: { heading: "X" } });
     expect(result.success, "treść niezgodna z typem sekcji przeszła walidację").toBe(false);
+  });
+
+  it("sectionInputSchema: nowe typy 0043 są rozpoznawane (para type↔content)", () => {
+    expect(
+      sectionInputSchema.safeParse({
+        type: "cta",
+        content: { heading: "Zarezerwuj", buttonLabel: "Katalog", buttonHref: "#produkty" },
+      }).success,
+    ).toBe(true);
+    // Treść cta pod typem usp — niespójna, discriminated union odrzuca.
+    expect(
+      sectionInputSchema.safeParse({
+        type: "usp",
+        content: { heading: "X", buttonLabel: "Y", buttonHref: "#z" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("nowe typy sekcji (0043, ADR-082)", () => {
+  it("testimonials: lista opinii z podpisem; nadmiar pozycji odrzucony", () => {
+    expect(
+      testimonialsContentSchema.safeParse({
+        heading: "Opinie",
+        items: [{ quote: "Super sprzęt.", author: "Jan", role: "DJ" }],
+      }).success,
+    ).toBe(true);
+    // role opcjonalne — brak jest OK.
+    expect(
+      testimonialsContentSchema.safeParse({ items: [{ quote: "OK", author: "Jan" }] }).success,
+    ).toBe(true);
+    const tooMany = { items: Array.from({ length: 21 }, () => ({ quote: "Q", author: "A" })) };
+    expect(testimonialsContentSchema.safeParse(tooMany).success).toBe(false);
+  });
+
+  it("gallery: imagePath jest ścieżką Storage (nie URL), alt wymagany", () => {
+    expect(
+      galleryContentSchema.safeParse({ items: [{ imagePath: "3f8a/site/1.webp", alt: "Namiot" }] })
+        .success,
+    ).toBe(true);
+    // URL zamiast ścieżki Storage — odrzucony (jak w hero.imagePath).
+    expect(
+      galleryContentSchema.safeParse({ items: [{ imagePath: "https://evil/x.png", alt: "x" }] })
+        .success,
+    ).toBe(false);
+    // alt pusty po trim — pozycja galerii bez opisu alternatywnego to regres a11y.
+    expect(
+      galleryContentSchema.safeParse({ items: [{ imagePath: "3f8a/site/1.webp", alt: "  " }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(USP_ICONS)("usp: ikona %s z allowlisty przechodzi", (icon) => {
+    expect(uspContentSchema.safeParse({ items: [{ icon, title: "T", text: "X" }] }).success).toBe(
+      true,
+    );
+  });
+
+  it("usp: ikona spoza allowlisty jest odrzucona", () => {
+    expect(
+      uspContentSchema.safeParse({ items: [{ icon: "skull", title: "T", text: "X" }] }).success,
+    ).toBe(false);
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,x", "  javascript:void(0)"])(
+    "cta: buttonHref odrzuca wektor XSS %s",
+    (href) => {
+      expect(
+        ctaContentSchema.safeParse({ heading: "H", buttonLabel: "L", buttonHref: href }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("cta: komplet pól z bezpiecznym href przechodzi; heading i przycisk wymagane", () => {
+    expect(
+      ctaContentSchema.safeParse({
+        heading: "Zarezerwuj termin",
+        text: "Sprawdź dostępność.",
+        buttonLabel: "Katalog",
+        buttonHref: "/katalog",
+      }).success,
+    ).toBe(true);
+    expect(ctaContentSchema.safeParse({ heading: "H", buttonLabel: "L" }).success).toBe(false);
+  });
+
+  it("directions: adres wymagany, mapsUrl przez allowlistę (bez javascript:)", () => {
+    expect(directionsContentSchema.safeParse({ address: "ul. Testowa 1" }).success).toBe(true);
+    expect(
+      directionsContentSchema.safeParse({ address: "ul. Testowa 1", mapsUrl: "https://maps.example" })
+        .success,
+    ).toBe(true);
+    expect(
+      directionsContentSchema.safeParse({ address: "ul. Testowa 1", mapsUrl: "javascript:x" })
+        .success,
+    ).toBe(false);
+    // BEZ osadzania obcych skryptów — brak pola na iframe/embed HTML (strict).
+    expect(
+      directionsContentSchema.safeParse({ address: "ul. Testowa 1", embed: "<iframe>" }).success,
+    ).toBe(false);
+  });
+
+  it("delivery: nagłówek i tekst wymagane; pozycje opcjonalne", () => {
+    expect(
+      deliveryContentSchema.safeParse({ heading: "Dostawa", text: "Dowozimy pod adres." }).success,
+    ).toBe(true);
+    expect(
+      deliveryContentSchema.safeParse({
+        heading: "Dostawa",
+        text: "Dowozimy.",
+        items: [{ title: "Lokalnie", text: "Tego samego dnia." }],
+      }).success,
+    ).toBe(true);
+    expect(deliveryContentSchema.safeParse({ heading: "Dostawa" }).success).toBe(false);
   });
 });
 
