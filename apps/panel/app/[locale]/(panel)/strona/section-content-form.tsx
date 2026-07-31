@@ -80,10 +80,18 @@ export function SectionContentForm({
   siteId,
   section,
   actions,
+  onSaved,
 }: {
   siteId: string;
   section: EditorSection;
   actions?: ReactNode;
+  /**
+   * Udany zapis treści (K1): szuflada kreatora odświeża tym RSC, żeby płótno
+   * pokazało nową treść BEZ przeładowania strony. Bez tego sygnału zapis w
+   * szufladzie byłby widoczny dopiero po ręcznym odświeżeniu — czyli płótno
+   * kłamałoby o tym, co jest w szkicu.
+   */
+  onSaved?: () => void;
 }) {
   const t = useTranslations("site.fields");
   const idPrefix = useId();
@@ -252,8 +260,10 @@ export function SectionContentForm({
         type: section.type,
         content: built,
       } as Parameters<typeof upsertSection>[0]);
-      if (result.ok) setSaved(true);
-      else setError(result.error);
+      if (result.ok) {
+        setSaved(true);
+        onSaved?.();
+      } else setError(result.error);
     });
   }
 
