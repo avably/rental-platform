@@ -108,14 +108,24 @@ export function SiteRenderer({
   return (
     <div className={cn(styles.page, className)}>
       {sections.map((section) => (
-        <SectionSwitch
-          key={section.id}
-          section={section}
-          products={products}
-          labels={labels}
-          template={template}
-          siteImageBase={siteImageBase}
-        />
+        /*
+          Owijka z `data-section-id` (kreator A3): podgląd w panelu przewija
+          ramkę do WŁAŚNIE ZAPISANEJ sekcji, a bez kotwicy nie ma czego w tym
+          dokumencie szukać. Wizualnie przezroczysta — `styles.page` nie
+          rozstawia dzieci (odstępy niosą same sekcje przez `styles.section`),
+          więc dodatkowy blok niczego nie przesuwa. Kotwica siedzi w rendererze
+          WSPÓLNYM ze storefrontem świadomie: drugi renderer dla podglądu
+          znaczyłby, że podgląd przestaje być dowodem na to, co zobaczy klient.
+        */
+        <div key={section.id} data-section-id={section.id}>
+          <SectionSwitch
+            section={section}
+            products={products}
+            labels={labels}
+            template={template}
+            siteImageBase={siteImageBase}
+          />
+        </div>
       ))}
     </div>
   );

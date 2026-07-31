@@ -47,6 +47,15 @@ describe("buildCsp", () => {
     expect(directive(csp, "base-uri")).toBe("base-uri 'self'");
   });
 
+  it("osadzanie WŁASNYCH stron schodzi z 'none' na 'self' tylko na żądanie", () => {
+    // Kreator A3: panel osadza własny podgląd szkicu w ramce. `'self'` nadal
+    // odcina osadzenie z CUDZEGO origin — to nie jest otwarcie polityki.
+    const csp = buildCsp("n", { sameOriginFraming: true });
+    expect(directive(csp, "frame-ancestors")).toBe("frame-ancestors 'self'");
+    // Kontrola negatywna: domyślnie (storefront) zostaje 'none'.
+    expect(directive(buildCsp("n"), "frame-ancestors")).toBe("frame-ancestors 'none'");
+  });
+
   it("connect-src dopuszcza API Supabase, gdy podane", () => {
     const csp = buildCsp("n", { supabaseUrl: "https://xyz.supabase.co" });
     expect(directive(csp, "connect-src")).toContain("https://xyz.supabase.co");
@@ -102,6 +111,16 @@ describe("applySecurityHeaders / securityHeadersResponse", () => {
     expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(response.headers.get("Permissions-Policy")).toContain("geolocation=()");
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("X-Frame-Options mówi TO SAMO co frame-ancestors", () => {
+    // Fallback dla przeglądarek bez frame-ancestors. Rozjazd znaczyłby, że
+    // ramka podglądu działa w jednej przeglądarce, a w drugiej jest pusta.
+    const response = securityHeadersResponse(new NextRequest("https://example.test/"), {
+      sameOriginFraming: true,
+    });
+    expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+    expect(response.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'self'");
   });
 
   it("nonce z nagłówka odpowiedzi jest tym samym, który dostaje Next.js w żądaniu", () => {

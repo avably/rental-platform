@@ -5,8 +5,11 @@
  *
  * Układ z mockupu `secondary-site-editor`: DWIE KOLUMNY — po lewej edytor pod
  * wspólną miarą formularza (`data-form-line-measure`, P8a), po prawej PODGLĄD
- * SZKICU. Na wąskim ekranie kolumny idą jedna pod drugą, bo miara zostaje ta
- * sama, a podgląd nie ma z czym konkurować o szerokość.
+ * SZKICU NA ŻYWO (kreator A3): ramka z osobnym dokumentem `/podglad-strony`,
+ * przeładowywana sygnałem po każdej udanej mutacji szkicu. Na wąskim ekranie
+ * kolumny nie idą jedna pod drugą — ramka wysokości pół ekranu odsuwałaby
+ * wtedy edytor poza widok — tylko wykluczają się przełącznikiem
+ * edycja/podgląd.
  *
  * PUBLIKACJA JEST OSOBNA OD ZAPISU — i to jest treść ekranu, nie szczegół
  * układu: zapis szablonu i zapis każdej sekcji piszą WYŁĄCZNIE do
@@ -19,7 +22,7 @@
  * strona przeładowuje świeży szkic i przekazuje go tu w propsach.
  */
 import { SITE_TEMPLATES, presetContentFor, type SectionType, type SiteTemplate } from "@avably/core/site";
-import { Button, type StorefrontProduct } from "@avably/ui";
+import { Button, cn } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -39,7 +42,7 @@ import {
 
 import { AddSectionDialog } from "./add-section-gallery";
 import { type EditorSection } from "./content";
-import { SitePreview } from "./site-preview";
+import { SitePreviewFrame } from "./site-preview-frame";
 import { SortableSections } from "./sortable-sections";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -48,13 +51,11 @@ export function SiteEditor({
   siteId,
   template,
   sections,
-  previewProducts,
   publishedAtLabel,
 }: {
   siteId: string;
   template: SiteTemplate;
   sections: EditorSection[];
-  previewProducts: StorefrontProduct[];
   /** Sformatowana data ostatniej publikacji albo null — strona nigdy nie publikowana. */
   publishedAtLabel: string | null;
 }) {
@@ -65,6 +66,24 @@ export function SiteEditor({
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
   const [templateChoice, setTemplateChoice] = useState<SiteTemplate>(template);
+  /**
+   * Sygnał odświeżenia podglądu (kreator A3). Ramka to OSOBNY dokument, więc
+   * `router.refresh()` — który odświeża drzewo RSC edytora — nie ma jak jej
+   * dotknąć. Licznik rośnie po KAŻDEJ udanej mutacji szkicu i to on
+   * przeładowuje ramkę; `focus` niesie sekcję, do której podgląd ma przewinąć
+   * (tylko zapis treści wie, o którą chodzi — reorder czy zmiana szablonu
+   * dotyczą całej strony).
+   */
+  const [preview, setPreview] = useState<{ signal: number; focus: string | null }>({
+    signal: 0,
+    focus: null,
+  });
+  /** Kolumna widoczna na wąskim ekranie — na desktopie stoją obok siebie. */
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
+
+  function refreshPreview(focusSectionId?: string) {
+    setPreview((current) => ({ signal: current.signal + 1, focus: focusSectionId ?? null }));
+  }
 
   /** Woła akcję w tranzycji, pokazuje błąd i odświeża RSC po sukcesie. */
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
@@ -75,6 +94,7 @@ export function SiteEditor({
       if (result.ok) {
         onOk?.();
         router.refresh();
+        refreshPreview();
       } else {
         setError(result.error);
       }
@@ -149,8 +169,40 @@ export function SiteEditor({
         </p>
       ) : null}
 
+      {/*
+        Przełącznik kolumn na wąskim ekranie (kreator A3). Na desktopie obie
+        kolumny stoją obok siebie i przełącznik znika — `lg:hidden`, żeby nie
+        udawał wyboru tam, gdzie wyboru nie ma. Poniżej `lg` podgląd w ramce
+        zająłby cały ekran nad edytorem, więc kolumny wykluczają się wzajemnie.
+      */}
+      <div
+        role="group"
+        aria-label={t("preview.viewLabel")}
+        data-preview-view={mobileView}
+        className="flex items-center gap-1 lg:hidden"
+      >
+        {(["edit", "preview"] as const).map((view) => (
+          <Button
+            key={view}
+            type="button"
+            size="sm"
+            variant={mobileView === view ? "default" : "secondary"}
+            aria-pressed={mobileView === view}
+            onClick={() => setMobileView(view)}
+          >
+            {t(`preview.view_${view}`)}
+          </Button>
+        ))}
+      </div>
+
       <div data-site-editor-layout className="grid gap-6 lg:grid-cols-2">
-        <FormMeasure data-site-editor-controls className="flex min-w-0 flex-col gap-4">
+        <FormMeasure
+          data-site-editor-controls
+          className={cn(
+            "flex min-w-0 flex-col gap-4",
+            mobileView === "preview" && "max-lg:hidden",
+          )}
+        >
           <ScreenSection data-template-form title={t("template.heading")}>
             <fieldset className="flex flex-col gap-2">
               <legend className="pb-2 text-sm font-medium">{t("template.legend")}</legend>
@@ -208,12 +260,21 @@ export function SiteEditor({
               duplicateAction={(sectionId) => duplicateSection(sectionId)}
               deleteAction={(sectionId) => deleteSection(sectionId)}
               onAddSection={addSection}
-              onChanged={() => router.refresh()}
+              onChanged={() => {
+                router.refresh();
+                refreshPreview();
+              }}
+              onSectionSaved={(sectionId) => {
+                router.refresh();
+                refreshPreview(sectionId);
+              }}
             />
           )}
         </FormMeasure>
 
-        <SitePreview sections={sections} template={template} products={previewProducts} />
+        <div className={cn("min-w-0", mobileView === "edit" && "max-lg:hidden")}>
+          <SitePreviewFrame signal={preview.signal} focusSectionId={preview.focus} />
+        </div>
       </div>
     </div>
   );

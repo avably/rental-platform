@@ -43,6 +43,9 @@ export async function proxy(request: NextRequest) {
   const csp: CspOptions = {
     dev: process.env.NODE_ENV !== "production",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    // Edytor strony osadza WŁASNY podgląd szkicu w ramce (kreator A3) — bez
+    // tego `frame-ancestors 'none'` ucina ramkę także przy tym samym origin.
+    sameOriginFraming: true,
   };
 
   // Kanał, którym Next.js dostaje nonce do własnych tagów <script>. Ustawiane

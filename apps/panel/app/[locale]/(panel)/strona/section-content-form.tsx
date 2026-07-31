@@ -80,10 +80,17 @@ export function SectionContentForm({
   siteId,
   section,
   actions,
+  onSaved,
 }: {
   siteId: string;
   section: EditorSection;
   actions?: ReactNode;
+  /**
+   * Udany zapis treści — sygnał dla podglądu na żywo (kreator A3), który
+   * przeładowuje ramkę i przewija ją do tej sekcji. Opcjonalny, bo formularz
+   * bywa renderowany bez podglądu (testy kontraktu ekranu).
+   */
+  onSaved?: () => void;
 }) {
   const t = useTranslations("site.fields");
   const idPrefix = useId();
@@ -252,8 +259,10 @@ export function SectionContentForm({
         type: section.type,
         content: built,
       } as Parameters<typeof upsertSection>[0]);
-      if (result.ok) setSaved(true);
-      else setError(result.error);
+      if (result.ok) {
+        setSaved(true);
+        onSaved?.();
+      } else setError(result.error);
     });
   }
 

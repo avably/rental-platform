@@ -56,6 +56,24 @@ export interface CspOptions {
    *     Turnstile.
    */
   stripe?: boolean;
+  /**
+   * Aplikacja osadza WŁASNE strony w ramce (kreator A3: podgląd szkicu obok
+   * edytora). Wtedy `frame-ancestors` schodzi z `'none'` na `'self'`, a
+   * `X-Frame-Options` z `DENY` na `SAMEORIGIN`.
+   *
+   * To NIE jest osłabienie ochrony przed clickjackingiem: obie wartości nadal
+   * odcinają osadzenie z CUDZEGO origin, a atakujący nie ma jak dostarczyć
+   * strony spod naszego origin — gdyby miał, ramki byłyby jego najmniejszym
+   * problemem. Ramka musi być tu prawdziwym dokumentem, bo cały sens podglądu
+   * „w ramce" to własny viewport: media queries storefrontu reagują na
+   * szerokość okna, a nie kontenera, więc podgląd mobilny renderowany
+   * bezpośrednio w panelu pokazywałby układ desktopowy w wąskiej kolumnie —
+   * czyli kłamałby o jedynej rzeczy, dla której istnieje.
+   *
+   * Domyślnie `false`: storefront nie osadza niczego swojego i zostaje przy
+   * `'none'`.
+   */
+  sameOriginFraming?: boolean;
 }
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
@@ -84,7 +102,13 @@ const PAYMENTS_CONNECT_ORIGINS = ["https://api.stripe.com", "https://js.stripe.c
  * nie wykonanie kodu — akceptowane, odnotowane w dokumentacji.
  */
 export function buildCsp(nonce: string, options: CspOptions = {}): string {
-  const { dev = false, supabaseUrl, turnstile = false, stripe = false } = options;
+  const {
+    dev = false,
+    supabaseUrl,
+    turnstile = false,
+    stripe = false,
+    sameOriginFraming = false,
+  } = options;
 
   const scriptSrc = [
     "'self'",
@@ -122,7 +146,7 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     // frame-src istnieje TYLKO dla osadzanych, których jawnie włączono
     // (widget captchy, pola płatności); bez nich ramki tnie default-src 'self'.
     ...(frameSrc.length > 0 ? { "frame-src": frameSrc } : {}),
-    "frame-ancestors": ["'none'"],
+    "frame-ancestors": [sameOriginFraming ? "'self'" : "'none'"],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],
     "object-src": ["'none'"],
@@ -159,7 +183,9 @@ export function applySecurityHeaders(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   );
-  response.headers.set("X-Frame-Options", "DENY");
+  // Fallback dla przeglądarek bez frame-ancestors — musi mówić TO SAMO co CSP,
+  // inaczej starsza przeglądarka ucięłaby ramkę, której polityka nie ucina.
+  response.headers.set("X-Frame-Options", options.sameOriginFraming ? "SAMEORIGIN" : "DENY");
   return response;
 }
 

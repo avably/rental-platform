@@ -1100,7 +1100,14 @@
       "eyebrow": "Draft preview",
       "intro": "This is the draft. Customers see it after you publish.",
       "empty": "The preview is empty — no section is enabled.",
-      "priceFrom": "from {price} / day"
+      "priceFrom": "from {price} / day",
+      "frameTitle": "Site draft preview",
+      "viewportLabel": "Preview width",
+      "viewport_desktop": "Desktop",
+      "viewport_mobile": "Phone",
+      "viewLabel": "Editor view",
+      "view_edit": "Edit",
+      "view_preview": "Preview"
     },
     "publish": {
       "heading": "Public version",

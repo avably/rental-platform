@@ -1100,7 +1100,14 @@
       "eyebrow": "Podgląd szkicu",
       "intro": "Tak wygląda wersja robocza. Klienci zobaczą ją po publikacji.",
       "empty": "Podgląd jest pusty — żadna sekcja nie jest włączona.",
-      "priceFrom": "od {price} / doba"
+      "priceFrom": "od {price} / doba",
+      "frameTitle": "Podgląd szkicu strony",
+      "viewportLabel": "Szerokość podglądu",
+      "viewport_desktop": "Komputer",
+      "viewport_mobile": "Telefon",
+      "viewLabel": "Widok edytora",
+      "view_edit": "Edycja",
+      "view_preview": "Podgląd"
     },
     "publish": {
       "heading": "Wersja publiczna",

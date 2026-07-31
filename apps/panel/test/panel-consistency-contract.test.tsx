@@ -155,6 +155,10 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     ["katalog/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
     ["zamowienia/nowe/order-wizard.tsx", ["w-[320px]"]],
     ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
+    // Ramka podglądu strony (kreator A3): 390 px to szerokość CSS telefonu,
+    // czyli SYMULOWANY VIEWPORT, a nie przypięta szerokość ekranu panelu.
+    // Wartości nie da się wziąć ze skali, bo nie pochodzi z naszej siatki.
+    ["strona/site-preview-frame.tsx", ["w-[390px]"]],
     // `zamowienia/orders-table.tsx` wypadło z listy przy U5: szerokość
     // minimalna tabeli zależy dziś od liczby WIDOCZNYCH kolumn i idzie
     // progami ze skali (`min-w-4xl` / `min-w-2xl`), więc arbitralna wartość
@@ -173,7 +177,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   });
 
   it("ekrany nie przypinają szerokości poza notacją max-w", () => {
-    expect(allowedArbitraryWidth.size).toBe(5);
+    expect(allowedArbitraryWidth.size).toBe(6);
 
     const offenders = sources.flatMap(({ path, code }) => {
       const relativePath = relative(path);

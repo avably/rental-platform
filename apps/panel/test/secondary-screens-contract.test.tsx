@@ -23,6 +23,9 @@ import messages from "../messages/pl.json";
 
 vi.mock("@/i18n/navigation", () => ({
   usePathname: () => "/ustawienia-domen",
+  // Ramka podglądu (kreator A3) buduje adres trasy podglądu przez getPathname.
+  getPathname: ({ href }: { href: { pathname: string } | string }) =>
+    typeof href === "string" ? href : href.pathname,
   Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));
@@ -92,6 +95,7 @@ const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/f
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
 const { SiteEditor } = await import("@/app/[locale]/(panel)/strona/site-editor");
 const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-error");
+const { SitePreview } = await import("@/app/[locale]/(panel)/strona/site-preview");
 const { PaymentsPanel } = await import(
   "@/app/[locale]/(panel)/ustawienia-platnosci/payments-panel"
 );
@@ -527,7 +531,7 @@ const siteSections: SiteEditorProps["sections"] = [
   { id: "s7", type: "usp", position: 6, enabled: true, content: { heading: "Atuty", items: [{ icon: "truck", title: "Szybko", text: "Od ręki." }] } },
 ];
 
-const siteProducts: SiteEditorProps["previewProducts"] = [
+const siteProducts: Parameters<typeof SitePreview>[0]["products"] = [
   {
     id: "p1",
     name: "Produkt demonstracyjny A",
@@ -544,7 +548,6 @@ function renderSiteEditor(overrides: Partial<SiteEditorProps> = {}): string {
       siteId="site-1"
       template="classic"
       sections={siteSections}
-      previewProducts={siteProducts}
       publishedAtLabel="22.07.2026, 10:30"
       {...overrides}
     />,
@@ -570,7 +573,11 @@ describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
   it("układ ma dwie kolumny: kontrolki pod miarą i podgląd szkicu", () => {
     expect(html).toContain("data-site-editor-layout");
     expect(html).toMatch(/data-form-line-measure[^>]*data-site-editor-controls/);
-    expect(html).toContain('data-site-preview="draft"');
+    // Podgląd jest RAMKĄ z osobnym dokumentem (kreator A3) — własny viewport,
+    // więc przełącznik szerokości pokazuje prawdziwy układ mobilny, a nie
+    // desktopowy ściśnięty do kolumny.
+    expect(html).toContain('data-site-preview="frame"');
+    expect(html).toContain("data-preview-frame");
     // Podgląd stoi POZA miarą — to widok sklepu, nie wiersz do czytania.
     expect(html.indexOf("data-site-preview")).toBeGreaterThan(
       html.indexOf("data-site-editor-controls"),
@@ -632,7 +639,12 @@ describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
       expect(tag, `natywny select w edytorze: ${tag}`).toContain('aria-hidden="true"');
     }
     // Druga strona: w ŹRÓDLE ekranu natywnego selecta nie ma w ogóle.
-    for (const file of ["site-editor.tsx", "section-content-form.tsx", "site-preview.tsx"]) {
+    for (const file of [
+      "site-editor.tsx",
+      "section-content-form.tsx",
+      "site-preview.tsx",
+      "site-preview-frame.tsx",
+    ]) {
       const source = readFileSync(
         resolve(process.cwd(), "app/[locale]/(panel)/strona", file),
         "utf8",
@@ -652,31 +664,46 @@ describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
 });
 
 describe("podgląd szkicu nie pokazuje treści, której klient nie zobaczy", () => {
-  it("wszystkie sekcje wyłączone → pusty podgląd BEZ fikcyjnej zawartości", () => {
-    const html = renderSiteEditor({
-      sections: siteSections.map((section) => ({ ...section, enabled: false })),
-    });
-    const preview = html.slice(html.indexOf('data-site-preview="draft"'));
+  // Podgląd jest ciałem osobnej trasy (`/podglad-strony`) osadzonej w ramce
+  // edytora, więc renderujemy go wprost — reguła została ta sama, zmieniło się
+  // tylko, po której stronie ramki mieszka.
+  function renderPreview(sections: SiteEditorProps["sections"]): string {
+    return render(<SitePreview sections={sections} template="classic" products={siteProducts} />);
+  }
 
+  it("wszystkie sekcje wyłączone → pusty podgląd BEZ fikcyjnej zawartości", () => {
+    const preview = renderPreview(siteSections.map((section) => ({ ...section, enabled: false })));
+
+    expect(preview).toContain('data-site-preview="draft"');
     expect(preview).toContain("data-preview-empty-state");
     expect(preview).toContain(messages.site.preview.empty);
     // Treść wyłączonych sekcji i kafle katalogu nie mają prawa tu być: podgląd
     // kłamałby o jedynej rzeczy, dla której istnieje.
     expect(preview, "podgląd pokazuje treść wyłączonej sekcji").not.toContain("Sprzęt na już");
-    expect(preview, "podgląd pokazuje kafle produktów").not.toContain(
-      "Produkt demonstracyjny A",
-    );
+    expect(preview, "podgląd pokazuje kafle produktów").not.toContain("Produkt demonstracyjny A");
   });
 
   it("włączone sekcje wracają do podglądu razem z realnym katalogiem", () => {
-    const preview = renderSiteEditor().slice(
-      renderSiteEditor().indexOf('data-site-preview="draft"'),
-    );
+    const preview = renderPreview(siteSections);
+
     expect(preview).not.toContain("data-preview-empty-state");
     expect(preview).toContain("Sprzęt na już");
     expect(preview).toContain("Produkt demonstracyjny A");
     // Sekcja wyłączona zostaje w edytorze, ale nie w podglądzie.
     expect(preview).not.toContain("Warunki cenowe");
+  });
+
+  it("każda sekcja podglądu ma kotwicę, po której podgląd da się przewinąć", () => {
+    // Kotwice (`data-section-id`) niesie renderer wspólny ze storefrontem —
+    // bez nich skok do właśnie zapisanej sekcji nie ma czego szukać.
+    const preview = renderPreview(siteSections);
+    const enabled = siteSections.filter((section) => section.enabled);
+    for (const section of enabled) {
+      expect(preview, `brak kotwicy sekcji ${section.id}`).toContain(
+        `data-section-id="${section.id}"`,
+      );
+    }
+    expect([...preview.matchAll(/data-section-id="/g)]).toHaveLength(enabled.length);
   });
 });
 

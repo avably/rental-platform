@@ -69,6 +69,7 @@ export function SortableSections({
   deleteAction,
   onAddSection,
   onChanged,
+  onSectionSaved,
 }: {
   siteId: string;
   sections: EditorSection[];
@@ -81,6 +82,12 @@ export function SortableSections({
   onAddSection: (type: SectionType, afterSectionId: string) => void;
   /** Odświeżenie RSC po udanej mutacji (server action zrobił revalidatePath). */
   onChanged: () => void;
+  /**
+   * Udany zapis TREŚCI sekcji. Osobno od `onChanged`, bo tylko tu wiadomo,
+   * KTÓRA sekcja się zmieniła — podgląd przewija się do niej po przeładowaniu
+   * (kreator A3).
+   */
+  onSectionSaved: (sectionId: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -170,6 +177,7 @@ export function SortableSections({
                 onAddSection={onAddSection}
                 deleteAction={deleteAction}
                 onDeleted={onChanged}
+                onSaved={onSectionSaved}
               />
             ))}
           </ol>
@@ -193,6 +201,7 @@ function SortableSectionRow({
   onAddSection,
   deleteAction,
   onDeleted,
+  onSaved,
 }: {
   siteId: string;
   section: EditorSection;
@@ -206,6 +215,7 @@ function SortableSectionRow({
   onAddSection: (type: SectionType, afterSectionId: string) => void;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   onDeleted: () => void;
+  onSaved: (sectionId: string) => void;
 }) {
   const t = useTranslations("site");
   // Uchwyt jest wyłączony w trakcie zapisu — przeciąganie w połowie tranzycji
@@ -248,6 +258,7 @@ function SortableSectionRow({
       <SectionContentForm
         siteId={siteId}
         section={section}
+        onSaved={() => onSaved(section.id)}
         actions={
           <>
             <RowButton
