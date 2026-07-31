@@ -235,3 +235,70 @@ describe("SiteRenderer — osie nowych typów", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe("https://cdn.example/bucket/t/s/hero.png");
   });
 });
+
+/**
+ * SZEW WARSTWY EDYCYJNEJ (`sectionWrapper`, K1 / ADR-083).
+ *
+ * Kreator obkłada sekcje obrysem, paskiem narzędzi i miejscami na „+”, NIE
+ * dotykając renderera — dostaje na to jedno wejście i to wejście jest tutaj
+ * opisane. Domyślnie (sklep, podgląd) owijka jest sama kotwicą sekcji.
+ */
+describe("SiteRenderer — szew owijki sekcji", () => {
+  it("bez owijki każda sekcja dostaje kotwicę data-section-id i nic więcej", () => {
+    const sections = [sectionOf("hero", { heading: "A" }), sectionOf("cta", { heading: "B", buttonLabel: "Idź", buttonHref: "#x" })];
+    sections[1]!.id = "s-2";
+    const { container } = render(<SiteRenderer sections={sections} template="classic" />);
+
+    const anchors = container.querySelectorAll("[data-section-id]");
+    expect(anchors).toHaveLength(2);
+    // Owijka jest PRZEZROCZYSTA: żadnych klas, żadnych innych atrybutów.
+    for (const anchor of anchors) {
+      expect(anchor.getAttributeNames().sort()).toEqual(["data-section-id"]);
+    }
+  });
+
+  it("podana owijka obejmuje treść sekcji, a nie zastępuje jej", () => {
+    const { container } = render(
+      <SiteRenderer
+        sections={[sectionOf("hero", { heading: "Wynajmij sprzęt" })]}
+        template="classic"
+        sectionWrapper={(section, children) => (
+          <div data-canvas-section={section.id} data-section-type={section.type}>
+            <button type="button" data-drag-handle aria-label="Przeciągnij" />
+            {children}
+          </div>
+        )}
+      />,
+    );
+
+    const wrapper = container.querySelector("[data-canvas-section]");
+    expect(wrapper?.getAttribute("data-section-type")).toBe("hero");
+    expect(wrapper?.querySelector("[data-drag-handle]")).not.toBeNull();
+    // Treść sekcji zostaje TA SAMA — owijka nie jest forkiem renderu.
+    expect(
+      within(container).getByRole("heading", { level: 1, name: "Wynajmij sprzęt" }),
+    ).toBeInTheDocument();
+    // Domyślna kotwica ustępuje owijce: jedna owijka na sekcję, nie dwie.
+    expect(container.querySelectorAll("[data-section-id]")).toHaveLength(0);
+  });
+
+  it("owijka dostaje KAŻDĄ sekcję, w kolejności wejścia", () => {
+    const seen: string[] = [];
+    const sections = [sectionOf("hero", { heading: "A" }), sectionOf("pricing", { heading: "B" }), sectionOf("faq", { heading: "C", items: [] })];
+    sections[1]!.id = "s-b";
+    sections[2]!.id = "s-c";
+
+    render(
+      <SiteRenderer
+        sections={sections}
+        template="classic"
+        sectionWrapper={(section, children) => {
+          seen.push(section.type);
+          return <div key={section.id}>{children}</div>;
+        }}
+      />,
+    );
+
+    expect(seen).toEqual(["hero", "pricing", "faq"]);
+  });
+});

@@ -15,22 +15,22 @@ import { describe, expect, it } from "vitest";
  * kursora progresu. Ta bramka wymusza, by KAŻDY przycisk WYSYŁAJĄCY akcję niósł
  * maszynowy sygnał zajętości.
  *
- * Sygnał maszynowy = `aria-busy` (nie obecność wielokropka „…"): `Button` z
+ * Sygnał maszynowy = `aria-busy` (nie obecność wielokropka „…”): `Button` z
  * `@avably/ui` ustawia `aria-busy` z propa `loading`, a dla `asChild` renderuje
  * je na slotowanym dziecku BEZ wielokropka — więc bramka pilnuje `loading=`
- * (Button) lub `aria-busy` (natywny `<button>` / adapter), nigdy „…".
+ * (Button) lub `aria-busy` (natywny `<button>` / adapter), nigdy „…”.
  *
  * ================== ZAKRES (dlaczego akurat te przyciski) ==================
  *
  * Sygnał zajętości ma sens TYLKO tam, gdzie istnieje kliencka flaga oczekiwania
  * do odbicia: `useActionState`/`useTransition`. Ekrany serwerowe (superadmin,
- * formularze filtrów GET) nie mają klienckiego `pending` — ich „ładowanie" to
+ * formularze filtrów GET) nie mają klienckiego `pending` — ich „ładowanie” to
  * nawigacja RSC z osobnymi szkieletami (`loading.tsx`, gałąź szkieletów), poza
  * tym zadaniem. Dlatego zakres bramki = pliki z HOOKIEM klienckim, i tylko one.
  *
  * PRZYCISKI CANCEL/CLOSE (`type="button"` zamykające dialog, `DialogClose`) mają
  * `disabled={pending}`, żeby nie zamknąć okna w trakcie akcji — ale SAME akcji
- * nie wysyłają, więc NIE dostają `loading` (napis „Anuluj …" kłamałby). Bramka
+ * nie wysyłają, więc NIE dostają `loading` (napis „Anuluj …” kłamałby). Bramka
  * celuje w `type="submit"` (zawsze wysyła akcję formularza) plus jawny rejestr
  * przycisków-nie-submit, które akcję inicjują (`onClick` odpalający tranzycję).
  *
@@ -41,7 +41,7 @@ import { describe, expect, it } from "vitest";
  * `<button type="submit">` — `aria-busy`. NOWY formularz z gołym submitem bez
  * okablowania → czerwone (dowód mutacyjny w raporcie: atrapa formularza).
  *
- * Część B (rejestr): przyciski akcji NIE-submit (site-editor, wyszukiwarka
+ * Część B (rejestr): przyciski akcji NIE-submit (kreator strony, wyszukiwarka
  * przesyłki) i adapter selecta statusu — detekcja submit-vs-cancel dla
  * `type="button"` jest statycznie krucha, więc te przypadki stoją na JAWNYM
  * rejestrze z kotwicą; zdjęcie sygnału z któregokolwiek → czerwone. Rejestr jest
@@ -176,28 +176,40 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   note: string;
 }[] = [
   {
-    file: "strona/site-editor.tsx",
-    anchor: "run(() => publishSite(siteId)",
+    file: "strona/site-launcher.tsx",
+    anchor: "onClick={publish}",
     signal: /loading=\{pending\}/,
-    note: "publikacja strony (tranzycja run)",
+    note: "publikacja z launchera (własna tranzycja)",
   },
   {
-    file: "strona/site-editor.tsx",
-    anchor: "run(() => updateTemplate(siteId",
+    file: "kreator/site-builder.tsx",
+    anchor: "onClick={() => run(() => publishSite(siteId))}",
     signal: /loading=\{pending\}/,
-    note: "zapis szablonu (tranzycja run)",
+    note: "publikacja z paska kreatora (tranzycja run)",
   },
   {
-    file: "strona/site-editor.tsx",
-    anchor: "onAdd={(type) => addSection(type)}",
-    signal: /loading=\{pending\}/,
-    note: "dodanie sekcji z galerii — trigger niesie loading (tranzycja run)",
+    file: "kreator/site-builder.tsx",
+    anchor: "<BuilderPalette",
+    signal: /disabled=\{pending\}/,
+    note: "paleta (dodanie sekcji, zapis szablonu) — zajętość skorupy schodzi propem",
   },
   {
-    file: "strona/sortable-sections.tsx",
-    anchor: "function RowButton(",
+    file: "kreator/site-builder.tsx",
+    anchor: "<BuilderCanvas",
+    signal: /busy=\{pending\}/,
+    note: "płótno (pasek sekcji, „+”, uchwyty) — zajętość skorupy schodzi propem",
+  },
+  {
+    file: "kreator/builder-canvas.tsx",
+    anchor: "function ToolbarButton(",
     signal: /loading\?/,
-    note: "akcje wiersza (reorder/toggle/duplikat) — loading przepięte przez RowButton",
+    note: "akcje paska sekcji (kolejność/włączenie/duplikat/ustawienia) — loading przez ToolbarButton",
+  },
+  {
+    file: "kreator/builder-canvas.tsx",
+    anchor: "data-insert-at={index}",
+    signal: /loading=\{disabled\}/,
+    note: "„+ Dodaj sekcję” między sekcjami — trigger galerii niesie loading",
   },
   {
     file: "zamowienia/[id]/shipment-modal.tsx",

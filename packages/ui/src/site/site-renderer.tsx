@@ -1,3 +1,5 @@
+import { Fragment, type ReactNode } from "react";
+
 import { cn } from "../lib/cn";
 import {
   ContactSection,
@@ -91,6 +93,7 @@ export function SiteRenderer({
   labels = DEFAULT_SITE_LABELS,
   className,
   siteImageBase,
+  sectionWrapper,
 }: {
   sections: RenderSection[];
   template: SiteTemplate;
@@ -103,19 +106,43 @@ export function SiteRenderer({
    * budują z niego adres zdjęcia. Brak = zdjęcia jako placeholder (0043).
    */
   siteImageBase?: string;
+  /**
+   * OWIJKA SEKCJI — jedyny szew, przez który kreator (ADR-083) dokłada swoją
+   * warstwę edycyjną: obrys, pływający pasek narzędzi, uchwyt przeciągania,
+   * miejsce na „+ Dodaj sekcję". Renderer zostaje JEDEN dla sklepu i dla
+   * płótna; drugi renderer znaczyłby, że płótno przestaje być dowodem na to,
+   * co zobaczy klient, i każdy nowy typ sekcji trzeba by pisać dwa razy.
+   *
+   * Domyślna owijka to sama KOTWICA `data-section-id` — przezroczysta
+   * wizualnie (`styles.page` nie rozstawia dzieci, odstępy niosą same sekcje),
+   * a potrzebna, żeby cokolwiek dało się w tym dokumencie znaleźć i przewinąć.
+   * Storefront NIE podaje własnej owijki, więc do publicznego renderu nie ma
+   * czym wnieść ani jednego elementu edycyjnego (kontrakt w apps/storefront).
+   */
+  sectionWrapper?: (section: RenderSection, children: ReactNode) => ReactNode;
 }) {
   const styles = getTemplateStyles(template);
+  const wrap =
+    sectionWrapper ??
+    ((section: RenderSection, children: ReactNode) => (
+      <div data-section-id={section.id}>{children}</div>
+    ));
+
   return (
     <div className={cn(styles.page, className)}>
       {sections.map((section) => (
-        <SectionSwitch
-          key={section.id}
-          section={section}
-          products={products}
-          labels={labels}
-          template={template}
-          siteImageBase={siteImageBase}
-        />
+        <Fragment key={section.id}>
+          {wrap(
+            section,
+            <SectionSwitch
+              section={section}
+              products={products}
+              labels={labels}
+              template={template}
+              siteImageBase={siteImageBase}
+            />,
+          )}
+        </Fragment>
       ))}
     </div>
   );

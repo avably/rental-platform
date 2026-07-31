@@ -23,6 +23,9 @@ import messages from "../messages/pl.json";
 
 vi.mock("@/i18n/navigation", () => ({
   usePathname: () => "/ustawienia-domen",
+  // Kreator odświeża RSC po udanej mutacji (K1) — poza <AppRouterContext>
+  // useRouter rzuca, a render kontraktu routera nie potrzebuje.
+  useRouter: () => ({ refresh: () => {} }),
   Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));
@@ -58,6 +61,7 @@ vi.mock("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/actions", () => ({
   challengeTotpAction: noopAction,
 }));
 vi.mock("@/lib/actions/site", () => ({
+  duplicateSection: noopAction,
   deleteSection: noopAction,
   publishSite: noopAction,
   reorderSections: noopAction,
@@ -90,7 +94,8 @@ const { InviteMemberForm } = await import("@/app/[locale]/(panel)/zaproszenia/fo
 const { OrganizationCard } = await import("@/app/[locale]/(panel)/organizacja/organization-card");
 const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/form");
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
-const { SiteEditor } = await import("@/app/[locale]/(panel)/strona/site-editor");
+const { SiteLauncher } = await import("@/app/[locale]/(panel)/strona/site-launcher");
+const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
 const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-error");
 const { PaymentsPanel } = await import(
   "@/app/[locale]/(panel)/ustawienia-platnosci/payments-panel"
@@ -482,13 +487,19 @@ describe("ekran bezpieczeństwa — trzy stany 2FA", () => {
   });
 });
 
-// ===== 9. Strona sklepu (secondary-site-editor) =====
+// ===== 9. Strona sklepu: launcher + kreator (secondary-site-editor) =====
 
 /**
  * Kontrakt DWUKIERUNKOWY, tak jak miara formularza: kotwice stanów czytamy z
  * ARTEFAKTU i dopiero potem sprawdzamy w renderze. Lista `toContain` na samym
  * renderze broniłaby tylko kodu — mockup mógłby zgubić stan i nikt by się nie
  * dowiedział, że kod pilnuje rzeczy, której projekt już nie zawiera.
+ *
+ * K1 (ADR-083) ROZDZIELIŁ ten ekran na dwa: zakładka „Strona sklepu" jest dziś
+ * LAUNCHEREM (status publikacji, wejście do kreatora, publikacja), a cała
+ * edycja przeniosła się na pełnoekranową trasę `/strona/kreator`. Kotwice
+ * z mockupu NIE ZNIKAJĄ — zmieniają adres, i właśnie tego pilnują asercje
+ * niżej: każda strona dostaje tę część kontraktu, którą naprawdę realizuje.
  */
 const artifact = readFileSync(
   resolve(process.cwd(), "../..", "docs/branding/2026-07-20-avably-faza-2-system.html"),
@@ -513,9 +524,9 @@ const SITE_MOCKUP_ANCHORS = [
   "data-preview-empty-state",
 ] as const;
 
-type SiteEditorProps = Parameters<typeof SiteEditor>[0];
+type BuilderProps = Parameters<typeof SiteBuilder>[0];
 
-const siteSections: SiteEditorProps["sections"] = [
+const siteSections: BuilderProps["sections"] = [
   { id: "s1", type: "hero", position: 0, enabled: true, content: { heading: "Sprzęt na już" } },
   { id: "s2", type: "products", position: 1, enabled: true, content: { heading: "Popularny sprzęt" } },
   { id: "s3", type: "pricing", position: 2, enabled: false, content: { heading: "Warunki cenowe" } },
@@ -523,11 +534,11 @@ const siteSections: SiteEditorProps["sections"] = [
   { id: "s5", type: "contact", position: 4, enabled: true, content: { heading: "Kontakt" } },
   { id: "s6", type: "freeform", position: 5, enabled: false, content: { heading: "O nas", body: "Fikcyjna treść własna." } },
   // Sekcja USP (0043) — jej pole ikony to PanelSelect, czyli JEDYNY select
-  // widocznej kontrolki w edytorze po zamianie „Dodaj sekcję" na galerię-modal.
+  // widocznej kontrolki w formularzu treści (dziś: w szufladzie kreatora).
   { id: "s7", type: "usp", position: 6, enabled: true, content: { heading: "Atuty", items: [{ icon: "truck", title: "Szybko", text: "Od ręki." }] } },
 ];
 
-const siteProducts: SiteEditorProps["previewProducts"] = [
+const siteProducts: BuilderProps["products"] = [
   {
     id: "p1",
     name: "Produkt demonstracyjny A",
@@ -538,14 +549,17 @@ const siteProducts: SiteEditorProps["previewProducts"] = [
   },
 ];
 
-function renderSiteEditor(overrides: Partial<SiteEditorProps> = {}): string {
+function renderLauncher(publishedAtLabel: string | null = "22.07.2026, 10:30"): string {
+  return render(<SiteLauncher siteId="site-1" publishedAtLabel={publishedAtLabel} />);
+}
+
+function renderBuilder(overrides: Partial<BuilderProps> = {}): string {
   return render(
-    <SiteEditor
+    <SiteBuilder
       siteId="site-1"
       template="classic"
       sections={siteSections}
-      previewProducts={siteProducts}
-      publishedAtLabel="22.07.2026, 10:30"
+      products={siteProducts}
       {...overrides}
     />,
   );
@@ -564,119 +578,126 @@ describe("ekran strony sklepu — mockup niesie komplet kotwic stanów", () => {
   });
 });
 
-describe("ekran strony sklepu — edytor obok podglądu szkicu", () => {
-  const html = renderSiteEditor();
-
-  it("układ ma dwie kolumny: kontrolki pod miarą i podgląd szkicu", () => {
-    expect(html).toContain("data-site-editor-layout");
-    expect(html).toMatch(/data-form-line-measure[^>]*data-site-editor-controls/);
-    expect(html).toContain('data-site-preview="draft"');
-    // Podgląd stoi POZA miarą — to widok sklepu, nie wiersz do czytania.
-    expect(html.indexOf("data-site-preview")).toBeGreaterThan(
-      html.indexOf("data-site-editor-controls"),
-    );
-  });
+describe("launcher: publikacja i wejście do kreatora — ZERO formularzy edycji", () => {
+  const html = renderLauncher();
 
   it("publikacja jest osobna od zapisu: własna karta, własny stan, własny przycisk", () => {
     expect(html).toContain("data-publish-status");
     expect(chips(html)).toContain("site-publish/published");
     expect(html).toContain(messages.site.publish.publish);
-    // Zapis szablonu i zapis KAŻDEJ sekcji to osobne akcje, nie „Publikuj".
-    expect(html).toContain(messages.site.template.save);
-    expect([...html.matchAll(/data-section-actions/g)]).toHaveLength(siteSections.length);
   });
 
   it("strona nigdy nieopublikowana nie dostaje chipa udającego stan spoza mapy", () => {
-    const never = renderSiteEditor({ publishedAtLabel: null });
+    const never = renderLauncher(null);
     expect(chips(never)).not.toContain("site-publish/published");
     expect(never).toContain(messages.site.publish.notPublished);
     expect(never).toContain("data-publish-status");
   });
 
-  it("każda sekcja jest wierszem z typem, numerem i chipem stanu", () => {
-    expect(html).toContain("data-site-sections");
-    expect([...html.matchAll(/data-section-type="/g)]).toHaveLength(siteSections.length);
-    expect([...html.matchAll(/data-section-order="/g)]).toHaveLength(siteSections.length);
-    // Fixture pokrywa OBA stany osi — bez tego asercje niżej oglądałyby jeden.
-    expect(chips(html)).toEqual(
-      expect.arrayContaining(["site-section/enabled", "site-section/disabled"]),
-    );
+  it("prowadzi do kreatora jednym, wyraźnym wejściem", () => {
+    expect(html).toContain("data-open-builder");
+    expect(html).toContain(messages.site.builder.open);
+    expect(html).toContain('href="/strona/kreator"');
   });
 
-  it("komplet możliwości edytora zostaje: kolejność, włączenie, usunięcie, FAQ", () => {
-    for (const label of [
-      messages.site.sections.moveUp,
-      messages.site.sections.moveDown,
-      messages.site.sections.disable,
-      messages.site.sections.enable,
-      messages.site.sections.remove,
-      messages.site.sections.add,
-      messages.site.sections.addBelow,
-      messages.site.fields.saveSection,
-      messages.site.fields.faqAdd,
+  it("nie ma tu ANI JEDNEGO formularza edycji strony", () => {
+    // Sedno zmiany K1: dwa miejsca edycji tego samego szkicu znaczyłyby, że
+    // jedno z nich zawsze jest o krok w tyle. Launcher przestaje edytować.
+    expect(html, "launcher renderuje formularz").not.toContain("<form");
+    for (const anchor of [
+      "data-site-editor-layout",
+      "data-site-editor-controls",
+      "data-template-form",
+      "data-add-section-form",
+      "data-site-sections",
+      "data-section-actions",
+      "data-site-preview",
     ]) {
-      expect(html, `zgubiona możliwość: ${label}`).toContain(label);
+      expect(html, `pozostałość edytora na launcherze: ${anchor}`).not.toContain(anchor);
     }
-    expect(html).toContain("data-faq-row");
-    // Komplet typów do dodania siedzi w galerii-modalu „Dodaj sekcję" (zamknięty
-    // w SSR) — pełną listę 12 kafli pilnuje add-section-gallery.test.tsx.
-  });
-
-  it("selekty idą przez PanelSelect — zero natywnych kontrolek", () => {
-    // Po zamianie „Dodaj sekcję" na galerię-modal jedynym selectem widocznej
-    // kontrolki jest picker ikony USP — nadal PanelSelect, nie natywny.
-    expect(html).toContain('data-slot="select-trigger"');
-    // Jedyny `<select>` w renderze to most Radix (aria-hidden, dla autofillu) —
-    // widoczna kontrolka nie ma prawa nim być (ADR-060).
-    for (const [tag] of html.matchAll(/<select[^>]*>/g)) {
-      expect(tag, `natywny select w edytorze: ${tag}`).toContain('aria-hidden="true"');
-    }
-    // Druga strona: w ŹRÓDLE ekranu natywnego selecta nie ma w ogóle.
-    for (const file of ["site-editor.tsx", "section-content-form.tsx", "site-preview.tsx"]) {
-      const source = readFileSync(
-        resolve(process.cwd(), "app/[locale]/(panel)/strona", file),
-        "utf8",
-      );
-      expect(source, `natywny <select> w ${file}`).not.toMatch(/<select\b/);
-    }
-  });
-
-  it("brak sekcji jest STANEM, a nie zniknięciem edytora", () => {
-    const empty = renderSiteEditor({ sections: [] });
-    expect(empty).toContain("data-site-sections-empty");
-    expect(empty).not.toContain("data-site-sections=");
-    expect(empty).toContain(messages.site.sections.empty);
-    // Selektor „Dodaj sekcję" pozostaje pierwszą dostępną akcją (mockup).
-    expect(empty).toContain("data-add-section-form");
+    // Kontrola po pustym zbiorze: launcher NA PEWNO coś renderuje.
+    expect(html.length).toBeGreaterThan(300);
   });
 });
 
-describe("podgląd szkicu nie pokazuje treści, której klient nie zobaczy", () => {
-  it("wszystkie sekcje wyłączone → pusty podgląd BEZ fikcyjnej zawartości", () => {
-    const html = renderSiteEditor({
-      sections: siteSections.map((section) => ({ ...section, enabled: false })),
-    });
-    const preview = html.slice(html.indexOf('data-site-preview="draft"'));
+describe("kreator przejmuje kotwice edycji z mockupu", () => {
+  const html = renderBuilder();
 
-    expect(preview).toContain("data-preview-empty-state");
-    expect(preview).toContain(messages.site.preview.empty);
-    // Treść wyłączonych sekcji i kafle katalogu nie mają prawa tu być: podgląd
-    // kłamałby o jedynej rzeczy, dla której istnieje.
-    expect(preview, "podgląd pokazuje treść wyłączonej sekcji").not.toContain("Sprzęt na już");
-    expect(preview, "podgląd pokazuje kafle produktów").not.toContain(
-      "Produkt demonstracyjny A",
-    );
+  it("skorupa jest pełnoekranowa: pasek, paleta, płótno", () => {
+    for (const anchor of [
+      "data-site-builder",
+      "data-builder-topbar",
+      'data-builder-palette="expanded"',
+      "data-builder-canvas",
+      "data-builder-stage",
+    ]) {
+      expect(html, `kreator zgubił kotwicę ${anchor}`).toContain(anchor);
+    }
   });
 
-  it("włączone sekcje wracają do podglądu razem z realnym katalogiem", () => {
-    const preview = renderSiteEditor().slice(
-      renderSiteEditor().indexOf('data-site-preview="draft"'),
-    );
-    expect(preview).not.toContain("data-preview-empty-state");
-    expect(preview).toContain("Sprzęt na już");
-    expect(preview).toContain("Produkt demonstracyjny A");
-    // Sekcja wyłączona zostaje w edytorze, ale nie w podglądzie.
-    expect(preview).not.toContain("Warunki cenowe");
+  it("każda sekcja szkicu jest kafelkiem płótna z typem i numerem", () => {
+    expect([...html.matchAll(/data-canvas-section="/g)]).toHaveLength(siteSections.length);
+    expect([...html.matchAll(/data-section-type="/g)]).toHaveLength(siteSections.length);
+    expect([...html.matchAll(/data-section-order="/g)]).toHaveLength(siteSections.length);
+  });
+
+  it("płótno pokazuje RÓWNIEŻ sekcje wyłączone — oznaczone chipem osi", () => {
+    // Płótno jest edytorem, a nie podglądem: sekcja wyłączona musi dać się
+    // znaleźć i włączyć. Gwarancję „klient tego nie zobaczy" niesie
+    // app.get_published_site (0019, dowód w packages/db/test/site-model),
+    // a nie filtr w interfejsie.
+    const disabled = siteSections.filter((section) => !section.enabled);
+    expect(disabled.length, "fixture bez sekcji wyłączonej niczego nie dowodzi").toBeGreaterThan(0);
+    expect([...html.matchAll(/data-section-hidden="/g)]).toHaveLength(disabled.length);
+    expect(chips(html)).toContain("site-section/disabled");
+    // Treść wyłączonej sekcji ZOSTAJE na płótnie — to jej jedyne miejsce edycji.
+    expect(html).toContain("Warunki cenowe");
+  });
+
+  it("między sekcjami i pod ostatnią stoi miejsce na „+ Dodaj sekcję”", () => {
+    // Jedno „+" przed każdą sekcją i jedno na końcu strony.
+    expect([...html.matchAll(/data-insert-at="/g)]).toHaveLength(siteSections.length + 1);
+    expect(html).toContain(`data-insert-at="${siteSections.length}"`);
+  });
+
+  it("pasek niesie powrót, viewport, szkielet historii, stan zapisu i publikację", () => {
+    expect(html).toContain("data-builder-back");
+    expect(html).toContain("data-builder-viewport-switch");
+    expect([...html.matchAll(/data-builder-history-button/g)]).toHaveLength(2);
+    expect(html).toContain("data-builder-save-state");
+    expect(html).toContain("data-builder-publish");
+    expect(html).toContain(messages.site.publish.publish);
+  });
+
+  it("puste płótno jest STANEM, a nie zniknięciem kreatora", () => {
+    const empty = renderBuilder({ sections: [] });
+    expect(empty).toContain("data-builder-canvas-empty");
+    expect(empty).toContain(messages.site.builder.emptyTitle);
+    expect(empty).not.toContain("data-canvas-section=");
+    // Paleta zostaje: pusta strona to nie powód, żeby chować narzędzia.
+    expect(empty).toContain('data-builder-palette="expanded"');
+  });
+
+  it("selekty idą przez PanelSelect — zero natywnych kontrolek", () => {
+    // Jedyny `<select>` w renderze to most Radiksa (aria-hidden, dla
+    // autofillu) — widoczna kontrolka nie ma prawa nim być (ADR-060).
+    for (const [tag] of html.matchAll(/<select[^>]*>/g)) {
+      expect(tag, `natywny select w kreatorze: ${tag}`).toContain('aria-hidden="true"');
+    }
+    // Druga strona: w ŹRÓDŁACH obu ekranów natywnego selecta nie ma w ogóle.
+    const files = [
+      "app/[locale]/(panel)/strona/site-launcher.tsx",
+      "app/[locale]/(panel)/strona/section-content-form.tsx",
+      "app/[locale]/(kreator)/strona/kreator/site-builder.tsx",
+      "app/[locale]/(kreator)/strona/kreator/builder-canvas.tsx",
+      "app/[locale]/(kreator)/strona/kreator/builder-palette.tsx",
+      "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
+    ];
+    for (const file of files) {
+      const source = readFileSync(resolve(process.cwd(), file), "utf8");
+      expect(source.length, `pusty plik ${file}`).toBeGreaterThan(200);
+      expect(source, `natywny <select> w ${file}`).not.toMatch(/<select\b/);
+    }
   });
 });
 

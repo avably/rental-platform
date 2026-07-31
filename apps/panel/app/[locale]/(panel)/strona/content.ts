@@ -3,7 +3,12 @@
  *
  * Kształt i walidację treści dostarcza WYŁĄCZNIE `@avably/core/site` (2.3a).
  * Tu tylko: treść startowa nowej sekcji, bezpieczne parsowanie `content_draft`
- * (jsonb → typ) i mapowanie sekcji draftu na sekcje renderu podglądu.
+ * (jsonb → typ) i mapowanie wierszy draftu na sekcje edytora.
+ *
+ * K1 zdjął stąd `previewSections` (filtr „tylko włączone"): płótno kreatora
+ * pokazuje RÓWNIEŻ sekcje wyłączone, jawnie oznaczone — bo jest edytorem, a nie
+ * podglądem. Gwarancję „klient tego nie zobaczy" niesie `app.get_published_site`
+ * (0019), która oddaje anonowi wyłącznie sekcje `enabled`.
  */
 import {
   SECTION_CONTENT_SCHEMAS,
@@ -12,7 +17,6 @@ import {
   type SectionType,
 } from "@avably/core/site";
 import type { SiteSection } from "@avably/db";
-import type { RenderSection } from "@avably/ui";
 
 /**
  * Treść startowa nowej sekcji danego typu (kreator A2, ADR-082) — PRESET z
@@ -56,13 +60,4 @@ export function toEditorSections(sections: SiteSection[]): EditorSection[] {
       enabled: section.enabled,
       content: parseDraftContent(section.type, section.content_draft) ?? defaultContentFor(section.type),
     }));
-}
-
-/**
- * Sekcje do PODGLĄDU: tylko włączone, w kolejności — dokładnie to, co zobaczy
- * anon po publikacji. `EditorSection` jest strukturalnie zgodna z `RenderSection`
- * (id, position, type, content), więc idzie wprost do `SiteRenderer`.
- */
-export function previewSections(sections: EditorSection[]): RenderSection[] {
-  return sections.filter((section) => section.enabled) as RenderSection[];
 }
