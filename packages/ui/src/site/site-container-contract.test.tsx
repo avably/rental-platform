@@ -239,6 +239,58 @@ describe("oba produkty importują wspólny arkusz sekcji", () => {
 });
 
 /**
+ * PŁÓTNO v2 MIERZY KONTENER, NIE OKNO (K2, ADR-084 — rozszerzenie ADR-085).
+ *
+ * Geometria elementów jest ABSOLUTNA, więc ryzyko jest tu inne niż w sekcjach
+ * v1: nie o wariant `sm:`, tylko o pokusę policzenia szerokości płótna z okna
+ * (`window.innerWidth`, `visualViewport`, `matchMedia`). Wystarczy jedno takie
+ * miejsce, żeby płótno kreatora zwężone do 390 px znowu zaczęło kłamać — tym
+ * razem CICHO, bo układ wyglądałby poprawnie w oknie operatora.
+ *
+ * Te źródła NIE muszą mieć wariantów kontenerowych (absolut ich nie potrzebuje),
+ * więc nie wchodzą do `SECTION_SOURCES` — mają własną, węższą regułę.
+ */
+const CANVAS_SOURCES = [
+  "packages/ui/src/site/element-canvas.tsx",
+  "packages/core/src/site/geometry.ts",
+  "packages/core/src/site/canvas-presets.ts",
+  "apps/panel/app/[locale]/(kreator)/strona/kreator/canvas-elements.tsx",
+] as const;
+
+/** Sposoby zapytania OKNA o rozmiar — każdy z nich obchodzi miarę kontenera. */
+const WINDOW_MEASURE = /\b(innerWidth|innerHeight|visualViewport|matchMedia|outerWidth|screen\.width)\b/;
+
+describe("płótno v2: geometria mierzy kontener, nie okno", () => {
+  it.each(CANVAS_SOURCES)("%s naprawdę liczy geometrię (kontrola pozytywna skanu)", (path) => {
+    const source = stripComments(read(path));
+    // Bez tego cały blok broniłby pustego zbioru: plik przepisany na coś
+    // innego przechodziłby „bo nie ma w nim window".
+    expect(source.length).toBeGreaterThan(500);
+    expect(source, "plik nie odwołuje się do jednostek siatki — czy to na pewno geometria płótna?").toMatch(
+      /CANVAS_COLUMNS|GRID_UNIT_PX|geometry|Geometry/,
+    );
+  });
+
+  it.each(CANVAS_SOURCES)("%s nie pyta OKNA o rozmiar", (path) => {
+    const offenders = stripComments(read(path))
+      .split("\n")
+      .map((text, index) => ({ line: index + 1, text: text.trim() }))
+      .filter((entry) => WINDOW_MEASURE.test(entry.text));
+    expect(
+      offenders,
+      "miarą płótna jest KONTENER (szerokość elementu nadrzędnego), nie okno — inaczej " +
+        "tryb mobilny kreatora znowu pokaże układ desktopowy ściśnięty do 390 px",
+    ).toEqual([]);
+  });
+
+  it.each(CANVAS_SOURCES)("%s nie używa jednostek vw/vh ani wariantów viewportowych", (path) => {
+    const lines = stripComments(read(path)).split("\n");
+    expect(lines.filter((line) => VIEWPORT_UNIT.test(line))).toEqual([]);
+    expect(lines.filter((line) => VIEWPORT_VARIANT.test(line))).toEqual([]);
+  });
+});
+
+/**
  * PROGI: warianty kontenerowe łamią się na TYCH SAMYCH liczbach, co dawne
  * `sm:`/`lg:`. Dowód idzie ze SKOMPILOWANEGO arkusza (tym samym silnikiem, co
  * build Next.js), więc przetrwa też zmianę motywu Tailwinda: gdyby ktoś ruszył

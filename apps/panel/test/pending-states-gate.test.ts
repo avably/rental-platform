@@ -212,6 +212,12 @@ const NON_SUBMIT_ACTION_REGISTRY: {
     note: "„+ Dodaj sekcję” między sekcjami — trigger galerii niesie loading",
   },
   {
+    file: "kreator/builder-canvas.tsx",
+    anchor: "function ElementActions(",
+    signal: /locked: boolean/,
+    note: "akcje elementu płótna (warstwa/kopia/usunięcie) — zajętość schodzi propem `locked`",
+  },
+  {
     file: "zamowienia/[id]/shipment-modal.tsx",
     anchor: "onClick={runSearch}",
     signal: /loading=\{isSearching\}/,

@@ -1,6 +1,8 @@
+import { isSectionCanvas, type CanvasElement } from "@avably/core/site";
 import { Fragment, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
+import { SectionCanvasRenderer } from "./element-canvas";
 import {
   ContactSection,
   CtaSection,
@@ -16,7 +18,13 @@ import {
   UspSection,
 } from "./sections";
 import { getTemplateStyles } from "./template";
-import type { RenderSection, SiteRenderLabels, SiteTemplate, StorefrontProduct } from "./types";
+import type {
+  LegacyRenderSection,
+  RenderSection,
+  SiteRenderLabels,
+  SiteTemplate,
+  StorefrontProduct,
+} from "./types";
 
 /** Domyślne etykiety chrome (PL — domyślny język tenanta). Nadpisywalne propsem. */
 export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
@@ -30,50 +38,80 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   directionsMap: "Zobacz na mapie",
 };
 
+/**
+ * DWUTOROWOŚĆ TREŚCI (K2, ADR-084) — jedno rozpoznanie wersji na cały system.
+ *
+ * Sekcja zapisana od K2 jest PŁÓTNEM z elementami (`version: 2`); sekcje
+ * zapisane wcześniej zostają w kształcie v1 i renderują się dotychczasowymi
+ * komponentami, dopóki nie przejdzie ich konwersja (plan wygaszenia w ADR-084).
+ * Rozstrzyga JEDNA funkcja z `@avably/core/site` — gdyby każde z trzech miejsc
+ * (render, edytor, walidacja) pytało „prawie tak samo", rozjazd byłby kwestią
+ * czasu, a nie możliwości.
+ */
 function SectionSwitch({
   section,
   products,
   labels,
   template,
   siteImageBase,
+  elementWrapper,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   template: SiteTemplate;
   siteImageBase?: string;
+  elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
   const styles = getTemplateStyles(template);
-  switch (section.type) {
+
+  if (isSectionCanvas(section.content)) {
+    // Płótno v2 (K2, ADR-084) — geometria absolutna zamiast układu z typu sekcji.
+    return (
+      <SectionCanvasRenderer
+        canvas={section.content}
+        styles={styles}
+        products={products}
+        labels={labels}
+        siteImageBase={siteImageBase}
+        elementWrapper={elementWrapper}
+      />
+    );
+  }
+
+  // Jedyne rzutowanie: `isSectionCanvas` wyżej odsiał treść v2, ale zawężenie
+  // POLA nie przeżywa przełącznika po `type`, który zawęża CAŁĄ sekcję.
+  const legacy = section as LegacyRenderSection;
+  switch (legacy.type) {
     case "hero":
-      return <HeroSection content={section.content} styles={styles} siteImageBase={siteImageBase} />;
+      return <HeroSection content={legacy.content} styles={styles} siteImageBase={siteImageBase} />;
     case "products":
       return (
-        <ProductsSection content={section.content} products={products} labels={labels} styles={styles} />
+        <ProductsSection content={legacy.content} products={products} labels={labels} styles={styles} />
       );
     case "pricing":
-      return <PricingSection content={section.content} styles={styles} />;
+      return <PricingSection content={legacy.content} styles={styles} />;
     case "faq":
-      return <FaqSection content={section.content} styles={styles} />;
+      return <FaqSection content={legacy.content} styles={styles} />;
     case "contact":
-      return <ContactSection content={section.content} labels={labels} styles={styles} />;
+      return <ContactSection content={legacy.content} labels={labels} styles={styles} />;
     case "freeform":
-      return <FreeformSection content={section.content} styles={styles} />;
+      return <FreeformSection content={legacy.content} styles={styles} />;
     case "testimonials":
-      return <TestimonialsSection content={section.content} styles={styles} />;
+      return <TestimonialsSection content={legacy.content} styles={styles} />;
     case "gallery":
-      return <GallerySection content={section.content} styles={styles} siteImageBase={siteImageBase} />;
+      return <GallerySection content={legacy.content} styles={styles} siteImageBase={siteImageBase} />;
     case "usp":
-      return <UspSection content={section.content} styles={styles} />;
+      return <UspSection content={legacy.content} styles={styles} />;
     case "cta":
-      return <CtaSection content={section.content} styles={styles} />;
+      return <CtaSection content={legacy.content} styles={styles} />;
     case "directions":
-      return <DirectionsSection content={section.content} labels={labels} styles={styles} />;
+      return <DirectionsSection content={legacy.content} labels={labels} styles={styles} />;
     case "delivery":
-      return <DeliverySection content={section.content} styles={styles} />;
+      return <DeliverySection content={legacy.content} styles={styles} />;
     default: {
       // Wyczerpanie unii — nowy typ sekcji bez gałęzi zapali się w typecheck.
-      const _exhaustive: never = section;
+      const _exhaustive: never = legacy;
       return _exhaustive;
     }
   }
@@ -94,6 +132,7 @@ export function SiteRenderer({
   className,
   siteImageBase,
   sectionWrapper,
+  elementWrapper,
 }: {
   sections: RenderSection[];
   template: SiteTemplate;
@@ -120,6 +159,16 @@ export function SiteRenderer({
    * czym wnieść ani jednego elementu edycyjnego (kontrakt w apps/storefront).
    */
   sectionWrapper?: (section: RenderSection, children: ReactNode) => ReactNode;
+  /**
+   * OWIJKA ELEMENTU płótna v2 (K2, ADR-084) — drugi szew warstwy edycyjnej,
+   * o piętro niżej niż `sectionWrapper`. Kreator wnosi przez niego zaznaczenie,
+   * osiem uchwytów rozmiaru i nasłuch przeciągania; sklep nie podaje nic i nie
+   * ma czym tej warstwy wnieść nawet przypadkiem (kontrakt w apps/storefront).
+   *
+   * Sekcja jest PIERWSZYM argumentem, bo edytor trzyma szkice per sekcja —
+   * bez niej owijka wiedziałaby, KTÓRY element rusza, ale nie GDZIE go zapisać.
+   */
+  elementWrapper?: (section: RenderSection, element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
   const styles = getTemplateStyles(template);
   const wrap =
@@ -146,6 +195,11 @@ export function SiteRenderer({
               labels={labels}
               template={template}
               siteImageBase={siteImageBase}
+              elementWrapper={
+                elementWrapper
+                  ? (element, children) => elementWrapper(section, element, children)
+                  : undefined
+              }
             />,
           )}
         </Fragment>

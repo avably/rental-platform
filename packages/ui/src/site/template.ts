@@ -65,6 +65,13 @@ export interface TemplateStyles {
   ctaBanner: string;
   /** Kafelek ikony w sekcji USP (0043). */
   iconTile: string;
+  /**
+   * Pas ODWRÓCONY płótna v2 (K2, ADR-084) — SAM kolor, bez odstępów: wysokość
+   * sekcji v2 niesie geometria płótna, nie padding. Dlatego osobny wpis, a nie
+   * `sectionInverted` (ten dokłada `py-*`, które w sekcji o zadanej wysokości
+   * przesuwałoby całą zawartość względem współrzędnych).
+   */
+  canvasInverted: string;
 }
 
 const CLASSIC: TemplateStyles = {
@@ -93,6 +100,7 @@ const CLASSIC: TemplateStyles = {
   subtleCard: "flex flex-col rounded-lg border bg-card p-6",
   ctaBanner: "flex flex-col items-center rounded-xl border bg-[var(--landing-paper)] px-6 py-12 text-center text-foreground",
   iconTile: "flex size-11 items-center justify-center rounded-lg border text-foreground",
+  canvasInverted: "landing-dark-section",
 };
 
 const BOLD: TemplateStyles = {
@@ -116,6 +124,7 @@ const BOLD: TemplateStyles = {
   subtleCard: "flex flex-col rounded-xl border-2 bg-card p-6",
   ctaBanner: "flex flex-col items-center rounded-2xl bg-foreground px-6 py-14 text-center text-background",
   iconTile: "flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary",
+  canvasInverted: "bg-foreground text-background",
 };
 
 const STYLES: Record<SiteTemplate, TemplateStyles> = {

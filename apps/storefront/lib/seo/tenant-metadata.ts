@@ -9,6 +9,7 @@
  * przeglądarki — ADR-039), więc copy opisów też jest w locale tenanta.
  * Canonical wskazuje na HOST TENANTA (patrz lib/seo/origin.ts).
  */
+import { isSectionCanvas, paintOrder } from "@avably/core/site";
 import type { Metadata } from "next";
 
 import type { PublishedSite } from "@/lib/site/published";
@@ -20,10 +21,29 @@ import type { PublishedSite } from "@/lib/site/published";
  */
 export const OG_IMAGE_PATH = "/store/og";
 
-/** Nagłówek i podtytuł pierwszej sekcji hero opublikowanej strony. */
+/**
+ * Nagłówek i podtytuł pierwszej sekcji hero opublikowanej strony.
+ *
+ * DWIE GENERACJE TREŚCI (K2, ADR-084): sekcja v1 ma nagłówek w polu, sekcja v2
+ * (płótno z elementami) ma go w ELEMENTACH. Dla v2 bierzemy pierwszy element
+ * nagłówka w kolejności rysowania i pierwszy element tekstu pod nim — czyli to,
+ * co czytelnik zobaczy jako pierwsze. Metadane muszą przetrwać obie generacje,
+ * bo dwutorowość jest stanem docelowym aż do wygaszenia v1.
+ */
 export function heroText(site: PublishedSite | null): { heading?: string; subheading?: string } {
   const hero = site?.sections.find((section) => section.type === "hero");
   if (!hero || hero.type !== "hero") return {};
+
+  if (isSectionCanvas(hero.content)) {
+    const ordered = paintOrder(hero.content.elements);
+    const heading = ordered.find((element) => element.kind === "heading");
+    if (!heading || heading.kind !== "heading") return {};
+    const lead = ordered.find((element) => element.kind === "text");
+    const result: { heading?: string; subheading?: string } = { heading: heading.text };
+    if (lead && lead.kind === "text") result.subheading = lead.text;
+    return result;
+  }
+
   const result: { heading?: string; subheading?: string } = { heading: hero.content.heading };
   if (hero.content.subheading) result.subheading = hero.content.subheading;
   return result;

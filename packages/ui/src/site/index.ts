@@ -3,6 +3,7 @@ export { getTemplateStyles, type TemplateStyles } from "./template";
 export { parseInlineBold, parseParagraphs, SafeRichText } from "./rich-text";
 export {
   ContactSection,
+  ProductCards,
   CtaSection,
   DeliverySection,
   DirectionsSection,
@@ -16,3 +17,5 @@ export {
   UspSection,
 } from "./sections";
 export { SiteRenderer, DEFAULT_SITE_LABELS } from "./site-renderer";
+// Płótno z elementami (K2, ADR-084) — render treści v2 i przeliczenie geometrii.
+export { SectionCanvasRenderer, geometryStyle } from "./element-canvas";

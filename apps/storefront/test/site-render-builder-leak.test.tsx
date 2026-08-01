@@ -22,11 +22,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { sectionCanvasFrom } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-/** Znaczniki, którymi kreator opisuje SWOJĄ warstwę (patrz builder-canvas). */
+/**
+ * Znaczniki, którymi kreator opisuje SWOJĄ warstwę (patrz builder-canvas oraz —
+ * od K2 — canvas-elements). Lista rośnie razem z warstwą edycyjną: nowy element
+ * interfejsu kreatora, który nie trafi tutaj, przestaje być pilnowany.
+ */
 const BUILDER_LAYER_MARKERS = [
   "data-canvas-section",
   "data-section-toolbar",
@@ -37,7 +42,24 @@ const BUILDER_LAYER_MARKERS = [
   "data-drag-handle",
   "data-add-section-tile",
   "data-builder",
+  // Warstwa elementów płótna v2 (K2, ADR-084): ramka zaznaczenia, uchwyty
+  // rozmiaru, prowadnice przyciągania i akcje warstw.
+  "data-element-frame",
+  "data-element-selected",
+  "data-resize-handle",
+  "data-canvas-guide",
+  "data-element-actions",
+  "data-canvas-settings",
+  "data-element-settings",
 ] as const;
+
+/** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */
+const heroCanvas = sectionCanvasFrom("hero", {
+  heading: "Sprzęt na już",
+  subheading: "Rezerwacja online.",
+  ctaText: "Katalog",
+  ctaHref: "#produkty",
+});
 
 const sections: RenderSection[] = [
   {
@@ -48,18 +70,24 @@ const sections: RenderSection[] = [
   },
   { id: "s2", position: 1, type: "pricing", content: { heading: "Warunki cenowe", note: "Doba od 8:00." } },
   { id: "s3", position: 2, type: "faq", content: { heading: "Pytania", items: [{ q: "Jak rezerwować?", a: "Online." }] } },
+  // Sekcja w NOWEJ generacji treści — publiczny render musi być tak samo czysty.
+  { id: "s4", position: 3, type: "hero", content: heroCanvas },
 ] as RenderSection[];
 
 /** Render DOKŁADNIE taki, jaki robi trasa sklepu: bez własnej owijki sekcji. */
 const html = renderToStaticMarkup(<SiteRenderer sections={sections} template="classic" />);
 
 describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
-  it("fixture naprawdę coś renderuje", () => {
+  it("fixture naprawdę coś renderuje — OBIE generacje treści", () => {
     // Kontrola po pustym zbiorze: wszystkie asercje `not.toContain` niżej
     // przelatywałyby na pustym stringu i broniły niczego.
     expect(html.length).toBeGreaterThan(200);
     expect(html).toContain("Sprzęt na już");
     expect(html).toContain("Warunki cenowe");
+    // Płótno v2 naprawdę weszło do renderu — inaczej znaczniki warstwy
+    // elementów nie miałyby gdzie wyciec i ta połowa kontraktu byłaby pusta.
+    expect(html).toContain("data-canvas-grid");
+    expect(html).toContain('data-element-kind="heading"');
   });
 
   it("w renderze nie ma ANI JEDNEGO znacznika warstwy kreatora", () => {
@@ -77,10 +105,13 @@ describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
     }
   });
 
-  it("źródła sklepu nie podają rendererowi własnej owijki sekcji", () => {
+  it("źródła sklepu nie podają rendererowi ŻADNEJ własnej owijki", () => {
     const storePage = readFileSync(resolve(process.cwd(), "app/(tenant)/store/page.tsx"), "utf8");
     // Martwa kotwica → czerwone: plik musi naprawdę renderować stronę sklepu.
     expect(storePage).toContain("SiteRenderer");
     expect(storePage, "sklep podaje własną owijkę sekcji").not.toContain("sectionWrapper");
+    // Szew elementów (K2) jest drugą drogą wniesienia warstwy edycyjnej — i tak
+    // samo zamkniętą po stronie sklepu jak szew sekcji.
+    expect(storePage, "sklep podaje własną owijkę elementów").not.toContain("elementWrapper");
   });
 });
