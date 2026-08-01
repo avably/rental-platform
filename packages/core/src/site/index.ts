@@ -15,6 +15,9 @@
  */
 import { z } from "zod";
 
+import { sectionCanvasSchema, type SectionCanvas } from "./elements";
+import { uspIconSchema } from "./icons";
+
 /**
  * Tag cache Next.js dla treści storefrontu tenanta — jeden format po obu
  * stronach kontraktu: panel emituje revalidateTag(tenantCacheTag(id)) przy
@@ -53,28 +56,11 @@ export type SectionType = (typeof SECTION_TYPES)[number];
 export const sectionTypeSchema = z.enum(SECTION_TYPES);
 
 /**
- * Allowlista ikon sekcji USP (ADR-082): zamknięty zbiór nazw z biblioteki
- * `lucide`, mapowany na komponenty w renderze (@avably/ui). Zamknięcie listy to
- * oś bezpieczeństwa i spójności — treść tenanta nie może wskazać dowolnego,
- * nieznanego renderowi symbolu ani (w przyszłości) obcego zasobu. Kolejność
- * bez znaczenia; nazwy w kebab-case, tłumaczone na komponent po stronie UI.
+ * Allowlista ikon (ADR-082) mieszka w `./icons` — korzystają z niej sekcja USP
+ * (v1) i element `icon` płótna v2 (K2), a wspólny moduł zamyka cykl wartości
+ * między tym plikiem a `./elements`.
  */
-export const USP_ICONS = [
-  "truck",
-  "shield-check",
-  "clock",
-  "badge-check",
-  "wrench",
-  "headphones",
-  "map-pin",
-  "credit-card",
-  "package",
-  "calendar-check",
-  "sparkles",
-  "thumbs-up",
-] as const;
-export type UspIcon = (typeof USP_ICONS)[number];
-export const uspIconSchema = z.enum(USP_ICONS);
+export { USP_ICONS, uspIconSchema, type UspIcon } from "./icons";
 
 // -----------------------------------------------------------------------
 // Cegiełki pól
@@ -309,6 +295,20 @@ export const deliveryContentSchema = z
   })
   .strict();
 
+/**
+ * Treść sekcji: PŁÓTNO v2 albo dotychczasowy kształt v1 (K2, ADR-084).
+ *
+ * Kolejność w unii nie jest przypadkiem — płótno idzie pierwsze, bo jest
+ * rozpoznawalne po `version: 2`, a schematy v1 są `.strict()`, więc obcy klucz
+ * `version` i tak by je odrzucił. Zbiory są rozłączne w obie strony: treść v1
+ * nie ma pola `version`, więc nie przejdzie jako płótno. Dzięki temu jsonb
+ * przyjmuje obie generacje BEZ MIGRACJI, a wersję niesie sama treść, nie
+ * kolumna obok niej.
+ */
+function withCanvas<T extends z.ZodTypeAny>(legacy: T) {
+  return z.union([sectionCanvasSchema, legacy]);
+}
+
 export const SECTION_CONTENT_SCHEMAS = {
   hero: heroContentSchema,
   products: productsContentSchema,
@@ -337,7 +337,8 @@ export type CtaContent = z.infer<typeof ctaContentSchema>;
 export type DirectionsContent = z.infer<typeof directionsContentSchema>;
 export type DeliveryContent = z.infer<typeof deliveryContentSchema>;
 
-export type SectionContent =
+/** Treść sekcji w kształcie v1 (przed K2). Zbiór zamknięty — patrz `SectionContentAny`. */
+export type LegacySectionContent =
   | HeroContent
   | ProductsContent
   | PricingContent
@@ -351,20 +352,27 @@ export type SectionContent =
   | DirectionsContent
   | DeliveryContent;
 
+/**
+ * Treść sekcji w DOWOLNEJ generacji. To jest typ, którym posługują się edytor,
+ * render i warstwa danych — rozróżnienia dokonuje `isSectionCanvas`, a nie
+ * osobne ścieżki w każdym z tych miejsc.
+ */
+export type SectionContent = LegacySectionContent | SectionCanvas;
+
 /** Para (type, content) walidowana spójnie — wejście upsertu sekcji w panelu. */
 export const sectionInputSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("hero"), content: heroContentSchema }),
-  z.object({ type: z.literal("products"), content: productsContentSchema }),
-  z.object({ type: z.literal("pricing"), content: pricingContentSchema }),
-  z.object({ type: z.literal("faq"), content: faqContentSchema }),
-  z.object({ type: z.literal("contact"), content: contactContentSchema }),
-  z.object({ type: z.literal("freeform"), content: freeformContentSchema }),
-  z.object({ type: z.literal("testimonials"), content: testimonialsContentSchema }),
-  z.object({ type: z.literal("gallery"), content: galleryContentSchema }),
-  z.object({ type: z.literal("usp"), content: uspContentSchema }),
-  z.object({ type: z.literal("cta"), content: ctaContentSchema }),
-  z.object({ type: z.literal("directions"), content: directionsContentSchema }),
-  z.object({ type: z.literal("delivery"), content: deliveryContentSchema }),
+  z.object({ type: z.literal("hero"), content: withCanvas(heroContentSchema) }),
+  z.object({ type: z.literal("products"), content: withCanvas(productsContentSchema) }),
+  z.object({ type: z.literal("pricing"), content: withCanvas(pricingContentSchema) }),
+  z.object({ type: z.literal("faq"), content: withCanvas(faqContentSchema) }),
+  z.object({ type: z.literal("contact"), content: withCanvas(contactContentSchema) }),
+  z.object({ type: z.literal("freeform"), content: withCanvas(freeformContentSchema) }),
+  z.object({ type: z.literal("testimonials"), content: withCanvas(testimonialsContentSchema) }),
+  z.object({ type: z.literal("gallery"), content: withCanvas(galleryContentSchema) }),
+  z.object({ type: z.literal("usp"), content: withCanvas(uspContentSchema) }),
+  z.object({ type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
+  z.object({ type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
+  z.object({ type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
 ]);
 export type SectionInput = z.infer<typeof sectionInputSchema>;
 
@@ -376,18 +384,18 @@ export type SectionInput = z.infer<typeof sectionInputSchema>;
 // nie jest opublikowaną stroną w znanym kształcie, nie dochodzi do renderu.
 
 export const publishedSectionSchema = z.discriminatedUnion("type", [
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("hero"), content: heroContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("products"), content: productsContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("pricing"), content: pricingContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: faqContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: contactContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("freeform"), content: freeformContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("testimonials"), content: testimonialsContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("gallery"), content: galleryContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("usp"), content: uspContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: ctaContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: directionsContentSchema }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: deliveryContentSchema }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("hero"), content: withCanvas(heroContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("products"), content: withCanvas(productsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("pricing"), content: withCanvas(pricingContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: withCanvas(faqContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: withCanvas(contactContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("freeform"), content: withCanvas(freeformContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("testimonials"), content: withCanvas(testimonialsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("gallery"), content: withCanvas(galleryContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("usp"), content: withCanvas(uspContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
 ]);
 export type PublishedSection = z.infer<typeof publishedSectionSchema>;
 
@@ -437,3 +445,71 @@ export function parsePublishedSite(payload: unknown): PublishedSite | null {
 
 // Presety treści startowej sekcji (kreator A2, ADR-082) — patrz ./presets.
 export { PRESET_LOCALES, presetContentFor, type PresetLocale } from "./presets";
+
+// ---------------------------------------------------------------------
+// Płótno z elementami — treść sekcji v2 (K2, ADR-084)
+// ---------------------------------------------------------------------
+
+export {
+  CANVAS_BREAKPOINTS,
+  CANVAS_COLUMNS,
+  CANVAS_DESIGN_WIDTH_PX,
+  ELEMENT_ALIGNMENTS,
+  ELEMENT_ICONS,
+  ELEMENT_KINDS,
+  GRID_UNIT_PX,
+  GUIDE_TOLERANCE_UNITS,
+  HEADING_LEVELS,
+  MAX_ELEMENTS_PER_SECTION,
+  SECTION_BACKGROUNDS,
+  SECTION_CANVAS_VERSION,
+  SECTION_MAX_ROWS,
+  SECTION_MIN_ROWS,
+  BUTTON_VARIANTS,
+  IMAGE_FITS,
+  SHAPE_FILLS,
+  SHAPE_KINDS,
+  TEXT_VARIANTS,
+  canvasElementSchema,
+  geometrySchema,
+  isSectionCanvas,
+  sectionCanvasSchema,
+  type ButtonVariant,
+  type CanvasBreakpoint,
+  type CanvasElement,
+  type CanvasElementKind,
+  type ElementAlignment,
+  type ElementLayout,
+  type Geometry,
+  type HeadingLevel,
+  type ImageFit,
+  type SectionBackground,
+  type SectionCanvas,
+  type ShapeFill,
+  type ShapeKind,
+  type TextVariant,
+} from "./elements";
+
+export {
+  MIN_ELEMENT_UNITS,
+  NUDGE_STEP,
+  NUDGE_STEP_LARGE,
+  RESIZE_HANDLES,
+  bringToFront,
+  clampGeometry,
+  normalizeLayers,
+  nudgeGeometry,
+  paintOrder,
+  sendToBack,
+  snapMove,
+  snapResize,
+  withGeometry,
+  type Guide,
+  type GuideAxis,
+  type GuideKind,
+  type ResizeHandle,
+  type SnapContext,
+  type SnapResult,
+} from "./geometry";
+
+export { sectionCanvasFrom, textRows } from "./canvas-presets";

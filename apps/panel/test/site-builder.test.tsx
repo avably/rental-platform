@@ -275,13 +275,19 @@ describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publi
     expect(container.querySelector("[data-builder-canvas]")?.getAttribute("data-viewport")).toBe("mobile");
   });
 
-  it("cofnij/ponów to SZKIELET: wyłączone i zapowiedziane, bez cichej atrapy", () => {
+  it("cofnij/ponów startuje WYŁĄCZONE — nie ma jeszcze czego cofnąć (K2)", () => {
+    // Do K1 przyciski były szkieletem z zapowiedzią „wkrótce". Od K2 historia
+    // istnieje naprawdę, więc wyłączenie znaczy „pusty stos", a nie „brak
+    // funkcji" — dowód, że stan płótna napędza pasek, jest w canvas-editing.
     const { container } = renderBuilder();
     const buttons = [...container.querySelectorAll<HTMLButtonElement>("[data-builder-history-button]")];
-    expect(buttons).toHaveLength(2);
+    expect(buttons.map((button) => button.getAttribute("data-builder-history-button"))).toEqual([
+      "undo",
+      "redo",
+    ]);
     for (const button of buttons) {
       expect(button.disabled).toBe(true);
-      expect(button.getAttribute("aria-label")).toContain(builder.soon);
+      expect(button.getAttribute("aria-label")).not.toContain(builder.soon);
     }
   });
 

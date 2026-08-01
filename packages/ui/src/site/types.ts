@@ -21,12 +21,16 @@ import type {
   HeroContent,
   PricingContent,
   ProductsContent,
+  SectionCanvas,
   SectionType,
   TestimonialsContent,
   UspContent,
 } from "@avably/core/site";
 
 export type {
+  CanvasElement,
+  Geometry,
+  SectionCanvas,
   ContactContent,
   CtaContent,
   DeliveryContent,
@@ -49,27 +53,40 @@ export type {
  * `PublishedSection` (@avably/core/site), więc storefront podaje zwrotkę
  * `getPublishedSite` wprost. Panel buduje ją z draftu (włączone sekcje) do
  * podglądu. Unia dyskryminowana po `type` zawęża `content` w rendererze.
+ *
+ * TREŚĆ MOŻE BYĆ W DWÓCH GENERACJACH (K2, ADR-084): dotychczasowy kształt v1
+ * albo PŁÓTNO z elementami (`SectionCanvas`, rozpoznawane po `version: 2`).
+ * Typ sekcji zostaje ten sam — decyduje o tym, jak czytać treść v1, a przy v2
+ * jest już tylko etykietą w interfejsie.
  */
-type RenderSectionOf<T extends SectionType, C> = {
-  id: string;
-  position: number;
-  type: T;
-  content: C;
+type SectionContentByType = {
+  hero: HeroContent;
+  products: ProductsContent;
+  pricing: PricingContent;
+  faq: FaqContent;
+  contact: ContactContent;
+  freeform: FreeformContent;
+  testimonials: TestimonialsContent;
+  gallery: GalleryContent;
+  usp: UspContent;
+  cta: CtaContent;
+  directions: DirectionsContent;
+  delivery: DeliveryContent;
 };
 
-export type RenderSection =
-  | RenderSectionOf<"hero", HeroContent>
-  | RenderSectionOf<"products", ProductsContent>
-  | RenderSectionOf<"pricing", PricingContent>
-  | RenderSectionOf<"faq", FaqContent>
-  | RenderSectionOf<"contact", ContactContent>
-  | RenderSectionOf<"freeform", FreeformContent>
-  | RenderSectionOf<"testimonials", TestimonialsContent>
-  | RenderSectionOf<"gallery", GalleryContent>
-  | RenderSectionOf<"usp", UspContent>
-  | RenderSectionOf<"cta", CtaContent>
-  | RenderSectionOf<"directions", DirectionsContent>
-  | RenderSectionOf<"delivery", DeliveryContent>;
+/** Sekcja o treści WYŁĄCZNIE v1 — wejście dotychczasowych komponentów sekcji. */
+export type LegacyRenderSection = {
+  [T in SectionType]: { id: string; position: number; type: T; content: SectionContentByType[T] };
+}[SectionType];
+
+export type RenderSection = {
+  [T in SectionType]: {
+    id: string;
+    position: number;
+    type: T;
+    content: SectionContentByType[T] | SectionCanvas;
+  };
+}[SectionType];
 
 /**
  * Pojedynczy produkt katalogu w wersji publicznej (sekcja products). Ceny są

@@ -1136,7 +1136,59 @@
       "settingsTitle": "Ustawienia sekcji: {type}",
       "settingsDescription": "Zmiany zapisują się do szkicu. Płótno odświeży się po zapisaniu.",
       "emptyTitle": "Strona jest pusta",
-      "emptyBody": "Dodaj pierwszą sekcję z palety po lewej albo przyciskiem poniżej."
+      "emptyBody": "Dodaj pierwszą sekcję z palety po lewej albo przyciskiem poniżej.",
+      "canvasSettingsDescription": "Zmiany płótna zapisują się same. Klikaj elementy na stronie, żeby je poprawiać."
+    },
+    "elementKinds": {
+      "heading": "Nagłówek",
+      "text": "Tekst",
+      "button": "Przycisk",
+      "image": "Obraz",
+      "icon": "Ikona",
+      "shape": "Kształt",
+      "catalog": "Katalog produktów"
+    },
+    "elements": {
+      "toFront": "Na wierzch",
+      "toBack": "Na spód",
+      "duplicate": "Kopiuj element",
+      "remove": "Usuń element"
+    },
+    "resizeHandles": {
+      "nw": "Zmień rozmiar — lewy górny róg",
+      "n": "Zmień rozmiar — górna krawędź",
+      "ne": "Zmień rozmiar — prawy górny róg",
+      "e": "Zmień rozmiar — prawa krawędź",
+      "se": "Zmień rozmiar — prawy dolny róg",
+      "s": "Zmień rozmiar — dolna krawędź",
+      "sw": "Zmień rozmiar — lewy dolny róg",
+      "w": "Zmień rozmiar — lewa krawędź"
+    },
+    "canvas": {
+      "rows": "Wysokość sekcji (jednostki siatki)",
+      "background": "Tło sekcji",
+      "backgrounds": {
+        "default": "Domyślne",
+        "muted": "Przygaszone",
+        "inverted": "Ciemny pas"
+      },
+      "noSelection": "Kliknij element na płótnie, żeby zmienić jego treść.",
+      "text": "Treść",
+      "label": "Etykieta przycisku",
+      "href": "Adres przycisku",
+      "alt": "Opis zdjęcia (alt)",
+      "variant": "Wielkość tekstu",
+      "variants": {
+        "lead": "Wprowadzenie",
+        "body": "Zwykły",
+        "small": "Drobny"
+      },
+      "align": "Wyrównanie",
+      "alignments": {
+        "left": "Do lewej",
+        "center": "Do środka",
+        "right": "Do prawej"
+      }
     }
   },
   "domainSettings": {

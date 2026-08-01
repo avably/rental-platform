@@ -1136,7 +1136,59 @@
       "settingsTitle": "Section settings: {type}",
       "settingsDescription": "Changes are saved to the draft. The canvas refreshes once saved.",
       "emptyTitle": "The page is empty",
-      "emptyBody": "Add your first section from the palette on the left or with the button below."
+      "emptyBody": "Add your first section from the palette on the left or with the button below.",
+      "canvasSettingsDescription": "Canvas changes save themselves. Click elements on the page to edit them."
+    },
+    "elementKinds": {
+      "heading": "Heading",
+      "text": "Text",
+      "button": "Button",
+      "image": "Image",
+      "icon": "Icon",
+      "shape": "Shape",
+      "catalog": "Product catalog"
+    },
+    "elements": {
+      "toFront": "Bring to front",
+      "toBack": "Send to back",
+      "duplicate": "Duplicate element",
+      "remove": "Delete element"
+    },
+    "resizeHandles": {
+      "nw": "Resize — top left corner",
+      "n": "Resize — top edge",
+      "ne": "Resize — top right corner",
+      "e": "Resize — right edge",
+      "se": "Resize — bottom right corner",
+      "s": "Resize — bottom edge",
+      "sw": "Resize — bottom left corner",
+      "w": "Resize — left edge"
+    },
+    "canvas": {
+      "rows": "Section height (grid units)",
+      "background": "Section background",
+      "backgrounds": {
+        "default": "Default",
+        "muted": "Muted",
+        "inverted": "Dark band"
+      },
+      "noSelection": "Click an element on the canvas to edit its content.",
+      "text": "Content",
+      "label": "Button label",
+      "href": "Button link",
+      "alt": "Image description (alt)",
+      "variant": "Text size",
+      "variants": {
+        "lead": "Lead",
+        "body": "Body",
+        "small": "Small"
+      },
+      "align": "Alignment",
+      "alignments": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      }
     }
   },
   "domainSettings": {

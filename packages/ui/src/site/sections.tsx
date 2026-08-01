@@ -43,7 +43,7 @@ import type {
  * pakiet UI nie zna adresu Supabase. Bez `base` zdjęcia degradują się do
  * placeholderu (jak produkt bez imageUrl), więc render nie zależy od Storage.
  */
-function siteImageUrl(base: string, path: string): string {
+export function siteImageUrl(base: string, path: string): string {
   return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
@@ -154,6 +154,28 @@ export function ProductsSection({
   return (
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
+      <ProductCards products={products} labels={labels} styles={styles} />
+    </SectionShell>
+  );
+}
+
+/**
+ * SAMA SIATKA KART katalogu, bez powłoki sekcji i bez nagłówka. Wydzielona,
+ * bo używają jej DWIE generacje treści: sekcja `products` (v1) i element
+ * `catalog` płótna v2 (K2, ADR-084), gdzie nagłówek jest osobnym, ruchomym
+ * elementem. Klasy siatki (warianty kontenerowe, ADR-085) zostają TUTAJ.
+ */
+export function ProductCards({
+  products,
+  labels,
+  styles,
+}: {
+  products: StorefrontProduct[];
+  labels: SiteRenderLabels;
+  styles: TemplateStyles;
+}) {
+  return (
+    <>
       {products.length === 0 ? (
         <p className="mt-8 text-muted-foreground">{labels.productsEmpty}</p>
       ) : (
@@ -210,7 +232,7 @@ export function ProductsSection({
           })}
         </ul>
       )}
-    </SectionShell>
+    </>
   );
 }
 
