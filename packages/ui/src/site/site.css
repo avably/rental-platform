@@ -1,0 +1,96 @@
+/*
+ * ARKUSZ SEKCJI STRONY NAJEMCY — JEDNO ŹRÓDŁO PRAWDY (K1b, ADR-085).
+ *
+ * Sekcje storefrontu renderuje JEDEN komponent (`SiteRenderer`) w DWÓCH
+ * miejscach: w sklepie publicznym i na płótnie kreatora w panelu. Skale
+ * typografii szablonów mieszkały dotąd WYŁĄCZNIE w
+ * `apps/storefront/app/globals.css`, więc płótno renderowało szablon `classic`
+ * bez nich — panel pokazywał inny rozmiar nagłówka niż sklep, a operator
+ * projektował stronę, której nie widział. Arkusz mieszka więc w pakiecie,
+ * który wystawia renderer, i importują go OBA produkty (`@avably/ui/site.css`).
+ *
+ * JEDNOSTKI KONTENERA, NIE VIEWPORTU. `clamp(…, 5.6cqw, …)` mierzy szerokość
+ * NAJBLIŻSZEGO kontenera zapytań, a jest nim korzeń `SiteRenderer`
+ * (`@container/site`). Ta sama sekcja zwężona na płótnie do 390 px dostaje
+ * dzięki temu rozmiar telefonu, a nie rozmiar okna operatora. W sklepie
+ * kontener to praktycznie szerokość strony, więc wynik jest równoważny
+ * dotychczasowemu `vw` (różnica: `cqw` nie liczy paska przewijania).
+ *
+ * Trwałości pilnuje `site-container-contract.test.ts` — `vw`/`vh` w tym pliku
+ * i viewportowe warianty (`sm:`/`lg:`) w źródłach sekcji są zakazane, bo
+ * każde z nich przywraca dokładnie tę wadę, przez którą powstał ten arkusz.
+ */
+
+/*
+ * Tokeny pasów szablonu `classic`. Sklep mapuje je dodatkowo na przestrzeń
+ * kolorów Tailwinda u siebie (marketing), tu stoi sama definicja — bez niej
+ * płótno w panelu renderowało `bg-[var(--landing-paper)]` jako przezroczyste.
+ */
+:root {
+  --landing-paper: var(--background);
+  --landing-surface: var(--card);
+  /* Pas „ciemny” w trybie jasnym to ink z palety, nie osobny brąz. */
+  --landing-ink: var(--foreground);
+  --landing-ink-foreground: var(--background);
+  --landing-ink-muted: oklch(0.80304 0.01135 234.859); /* #B8C0C5 */
+}
+
+.dark {
+  --landing-paper: var(--background);
+  --landing-surface: var(--card);
+  /* W trybie ciemnym tło strony JEST ink — pas kontrastuje przez --secondary. */
+  --landing-ink: var(--secondary);
+  --landing-ink-foreground: var(--foreground);
+  --landing-ink-muted: var(--muted-foreground);
+}
+
+/*
+ * Skala nagłówków: rytm szablonu odniesienia (72 / 48 / 24 px, ujemny tracking,
+ * waga 500) sprowadzony do clamp(), żeby 390 px nie wymuszał łamania słów.
+ * Wartości progowe BEZ ZMIAN względem wersji viewportowej — zmieniła się
+ * wyłącznie miara, do której się odnoszą (kontener zamiast okna).
+ */
+.landing-display {
+  font-size: clamp(2.625rem, 5.6cqw, 4.5rem);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.landing-heading {
+  font-size: clamp(1.875rem, 3.4cqw, 3rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+
+.landing-statement {
+  font-size: clamp(1.75rem, 4cqw, 3.25rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.landing-subheading {
+  font-size: clamp(1.125rem, 1.6cqw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -0.02em;
+}
+
+.landing-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.landing-dark-section {
+  background: var(--landing-ink);
+  color: var(--landing-ink-foreground);
+}
+
+.landing-dark-section .landing-secondary {
+  color: var(--landing-ink-muted);
+}

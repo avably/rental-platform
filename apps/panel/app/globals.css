@@ -1,5 +1,10 @@
 @import "tailwindcss";
 @import "@avably/ui/styles.css";
+/* Skale i pasy sekcji strony najemcy — TEN SAM arkusz, co w sklepie (ADR-085).
+   Płótno kreatora renderuje sekcje tym samym `SiteRenderer` co storefront,
+   więc bez tego importu szablon `classic` traci na płótnie całą swoją skalę
+   nagłówków i pas ciemny — a płótno przestaje mówić prawdę. */
+@import "@avably/ui/site.css";
 
 /*
   Wariant stanu ZWINIĘTEGO sidebara (uwaga przeglądu 2026-07-23).

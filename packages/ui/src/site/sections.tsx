@@ -92,6 +92,13 @@ function SectionShell({
   );
 }
 
+/**
+ * WARIANTY RESPONSYWNE W TYM PLIKU SĄ KONTENEROWE (`@min-[40rem]/site:`,
+ * `@min-[64rem]/site:`), nie viewportowe — patrz `template.ts` i ADR-085.
+ * `sm:`/`lg:` reagują na szerokość OKNA, więc płótno kreatora (kontener 390 px
+ * w oknie 1440 px) pokazywałoby układ desktopowy ściśnięty do szerokości
+ * telefonu. Kontrakt `site-container-contract.test.ts` odrzuca powrót do nich.
+ */
 function SectionHeading({ heading, styles }: { heading?: string; styles: TemplateStyles }) {
   if (!heading) return null;
   return <h2 className={styles.sectionHeading}>{heading}</h2>;
@@ -173,7 +180,10 @@ export function ProductsSection({
                 ) : (
                   <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
                 )}
-                <div className="flex flex-col gap-1 p-4">
+                {/* Ciaśniejszy padding w wąskim kontenerze: przy dwóch
+                    kolumnach na telefonie karta ma ~160 px, więc 16 px z każdej
+                    strony zjadałoby piątą część miary tekstu. */}
+                <div className="flex flex-col gap-1 p-3 @min-[40rem]/site:p-4">
                   <h3 className={styles.cardTitle}>{product.name}</h3>
                   <p className={styles.cardPrice}>{product.priceLabel}</p>
                   {product.description ? (
@@ -325,7 +335,7 @@ export function TestimonialsSection({
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
       {items.length > 0 ? (
-        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2">
+        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 @min-[40rem]/site:grid-cols-2">
           {items.map((item, index) => (
             <li key={index} className={styles.subtleCard}>
               <blockquote className="text-lg">{item.quote}</blockquote>
@@ -380,7 +390,7 @@ export function UspSection({ content, styles }: { content: UspContent; styles: T
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
       {items.length > 0 ? (
-        <ul className="mt-10 grid list-none grid-cols-1 gap-8 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-10 grid list-none grid-cols-1 gap-8 p-0 @min-[40rem]/site:grid-cols-2 @min-[64rem]/site:grid-cols-3">
           {items.map((item, index) => {
             const Icon = USP_ICON_COMPONENTS[item.icon] ?? Star;
             return (
@@ -403,7 +413,9 @@ export function CtaSection({ content, styles }: { content: CtaContent; styles: T
   return (
     <SectionShell styles={styles}>
       <div className={styles.ctaBanner}>
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{content.heading}</h2>
+        <h2 className="text-2xl font-bold tracking-tight break-words @min-[40rem]/site:text-3xl">
+          {content.heading}
+        </h2>
         {content.text ? <p className="mt-3 max-w-2xl opacity-80">{content.text}</p> : null}
         <a href={content.buttonHref} className={styles.cta}>
           {content.buttonLabel}
@@ -461,7 +473,7 @@ export function DeliverySection({
       <SectionHeading heading={content.heading} styles={styles} />
       <p className={styles.lead}>{content.text}</p>
       {items.length > 0 ? (
-        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2">
+        <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 @min-[40rem]/site:grid-cols-2">
           {items.map((item, index) => (
             <li key={index} className={styles.subtleCard}>
               <h3 className={styles.cardTitle}>{item.title}</h3>

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 @import "@avably/ui/styles.css";
+/* Skale i pasy sekcji strony najemcy — TEN SAM arkusz, co w panelu (ADR-085).
+   Wcześniej mieszkały w tym pliku, więc płótno kreatora renderowało szablon
+   `classic` bez nich. Definicje `--landing-*` przyszły razem z arkuszem. */
+@import "@avably/ui/site.css";
 
 /*
  * Warstwa marketingowa (www.avably.io). Typografia dziedziczona ze wspólnego
@@ -16,63 +20,12 @@
   --color-landing-ink-muted: var(--landing-ink-muted);
 }
 
-:root {
-  --landing-paper: var(--background);
-  --landing-surface: var(--card);
-  /* Pas „ciemny” w trybie jasnym to ink z palety, nie osobny brąz. */
-  --landing-ink: var(--foreground);
-  --landing-ink-foreground: var(--background);
-  --landing-ink-muted: oklch(0.80304 0.01135 234.859); /* #B8C0C5 */
-}
-
-.dark {
-  --landing-paper: var(--background);
-  --landing-surface: var(--card);
-  /* W trybie ciemnym tło strony JEST ink — pas kontrastuje przez --secondary. */
-  --landing-ink: var(--secondary);
-  --landing-ink-foreground: var(--foreground);
-  --landing-ink-muted: var(--muted-foreground);
-}
-
-/*
- * Skala nagłówków: rytm szablonu odniesienia (72 / 48 / 24 px, ujemny tracking,
- * waga 500) sprowadzony do clamp(), żeby 390 px nie wymuszał łamania słów.
- */
-.landing-display {
-  font-size: clamp(2.625rem, 5.6vw, 4.5rem);
-  font-weight: 500;
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-}
-
-.landing-heading {
-  font-size: clamp(1.875rem, 3.4vw, 3rem);
-  font-weight: 500;
-  line-height: 1.06;
-  letter-spacing: -0.03em;
-}
-
-.landing-statement {
-  font-size: clamp(1.75rem, 4vw, 3.25rem);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-}
-
-.landing-subheading {
-  font-size: clamp(1.125rem, 1.6vw, 1.5rem);
-  font-weight: 500;
-  line-height: 1.16;
-  letter-spacing: -0.02em;
-}
-
-.landing-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
+/* Tokeny `--landing-*` i skale `.landing-display` / `.landing-heading` /
+   `.landing-statement` / `.landing-subheading` / `.landing-eyebrow` oraz pas
+   `.landing-dark-section` mieszkają w `@avably/ui/site.css` (import wyżej) —
+   sklep i panel muszą je mieć CO DO JEDNEJ WARTOŚCI takie same, bo renderują
+   te same sekcje tym samym komponentem. Poniżej zostaje wyłącznie to, czego
+   sekcje nie używają (kształty i ruch warstwy marketingowej). */
 
 .landing-hero {
   padding-top: 4.5rem;
@@ -84,15 +37,6 @@
     padding-top: 8.5rem;
     padding-bottom: 7.5rem;
   }
-}
-
-.landing-dark-section {
-  background: var(--landing-ink);
-  color: var(--landing-ink-foreground);
-}
-
-.landing-dark-section .landing-secondary {
-  color: var(--landing-ink-muted);
 }
 
 .landing-pill {

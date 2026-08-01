@@ -129,7 +129,13 @@ export function SiteRenderer({
     ));
 
   return (
-    <div className={cn(styles.page, className)}>
+    // KONTENER ZAPYTAŃ SEKCJI (`site`, ADR-085) — miara, względem której układa
+    // się KAŻDA sekcja. Warianty responsywne i skale typografii patrzą odtąd na
+    // szerokość TEGO pudełka, a nie okna: w sklepie to praktycznie szerokość
+    // strony (render bez zmian), a na płótnie kreatora zwężonym do 390 px —
+    // realna szerokość telefonu. Nazwa `site` odcina przyszłe zagnieżdżone
+    // kontenery (np. karta z własnym `@container`) od przejęcia zapytań sekcji.
+    <div className={cn("@container/site", styles.page, className)}>
       {sections.map((section) => (
         <Fragment key={section.id}>
           {wrap(
