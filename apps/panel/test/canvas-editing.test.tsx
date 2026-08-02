@@ -1,23 +1,35 @@
 // @vitest-environment jsdom
 
 /**
- * EDYCJA ELEMENTÓW NA PŁÓTNIE (K2, ADR-084) — kontrakt warstwy klienta.
+ * EDYCJA ELEMENTÓW NA PŁÓTNIE (K2, ADR-084; silnik gestów K2c, ADR-087) —
+ * kontrakt warstwy klienta.
  *
- * Arytmetykę przyciągania i prowadnic dowodzi `@avably/core` bez DOM-u
- * (geometry.test.ts). TU pilnujemy tego, czego funkcja czysta nie widzi:
+ * Arytmetykę przyciągania, prowadnic i miary płótna dowodzi `@avably/core` bez
+ * DOM-u (geometry.test.ts). TU pilnujemy tego, czego funkcja czysta nie widzi:
  *
  *   1. sekcja rodzi się jako PŁÓTNO — dodanie z palety zapisuje treść v2;
  *   2. klik w element go ZAZNACZA i wystawia osiem uchwytów rozmiaru;
- *   3. przeciągnięcie uchwytu ZMIENIA GEOMETRIĘ w dokumencie (styl pudełka),
- *      a nie tylko stan w pamięci;
+ *   3. gest wskaźnika ZMIENIA GEOMETRIĘ w dokumencie (styl pudełka), a nie
+ *      tylko stan w pamięci;
  *   4. warstwy: „na wierzch" przestawia KOLEJNOŚĆ malowania;
  *   5. strzałki przesuwają o jednostkę, Shift o dziesięć;
  *   6. cofnij/ponów wraca do stanu, który operator widział, i ZAPISUJE go;
- *   7. autozapis geometrii idzie kanałem BEZ odświeżenia RSC.
+ *   7. autozapis geometrii idzie kanałem BEZ odświeżenia RSC i NIE blokuje
+ *      płótna;
+ *   8. cały gest to JEDEN wpis w historii, a płótno na czas gestu wycisza
+ *      interfejs najechania i zaznaczanie tekstu.
  *
  * Zapis geometrii jest opóźniony (autosave), więc testy przewijają zegar
  * jawnie — czekanie „aż samo" zamieniłoby kontrakt w loterię czasową.
+ *
+ * Geometria idzie w DOM-ie procentami obu osi (ADR-087), więc asercje liczą
+ * procent z `rows`/`CANVAS_COLUMNS`, a nie piksele. W jsdom płótno nie ma
+ * zmierzonej szerokości, więc miara spada na projektową — jednostka ma wtedy
+ * dokładnie `GRID_UNIT_PX`, co pozwala pisać ruchy wskaźnika w pikselach.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,9 +70,8 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
-const { sectionCanvasFrom, presetContentFor, paintOrder, GRID_UNIT_PX } = await import(
-  "@avably/core/site"
-);
+const { sectionCanvasFrom, presetContentFor, paintOrder, GRID_UNIT_PX, CANVAS_COLUMNS } =
+  await import("@avably/core/site");
 
 type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
 
@@ -97,6 +108,65 @@ function frameFor(container: HTMLElement, id: string): HTMLElement {
   const node = container.querySelector<HTMLElement>(`[data-element-frame="${id}"]`);
   expect(node, `brak ramki elementu ${id}`).not.toBeNull();
   return node!;
+}
+
+/** Płótno sekcji w kształcie v2 — wysokość i elementy potrzebne w asercjach. */
+function canvasOf(section: Section) {
+  return section.content as unknown as {
+    rows: number;
+    elements: { id: string; layout: { desktop: { x: number; y: number; w: number; h: number } } }[];
+  };
+}
+
+/** Procent, którym renderer opisuje pozycję na osi (ADR-087). */
+function pct(units: number, span: number): string {
+  return `${(units / span) * 100}%`;
+}
+
+/**
+ * GEST WSKAŹNIKA na przechwyconym węźle. Zdarzenia idą na TEN sam element,
+ * który gest zaczął — tak działa `setPointerCapture` i tak trzeba go zawołać
+ * w teście. jsdom nie zna `PointerEvent`, więc niesiemy `MouseEvent`
+ * z dopisanymi polami wskaźnika: silnik czyta z niego wyłącznie `clientX`,
+ * `clientY`, `altKey`, `button`, `isPrimary` i `pointerId`.
+ */
+function pointer(node: Element, type: string, init: MouseEventInit & { alt?: boolean } = {}) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
+  Object.assign(event, { pointerId: 1, isPrimary: true });
+  act(() => {
+    node.dispatchEvent(event);
+  });
+  return event;
+}
+
+/**
+ * Przewinięcie do NASTĘPNEJ KLATKI. Silnik rysuje ruch w `requestAnimationFrame`,
+ * więc test, który klatki nie puszcza, w ogóle nie wchodzi w pętlę rysowania —
+ * i przespałby mutację przenoszącą zapis geometrii z powrotem na każdy ruch.
+ */
+function nextFrame() {
+  act(() => {
+    vi.advanceTimersToNextFrame();
+  });
+}
+
+/** Pełne przeciągnięcie: wciśnięcie, `steps` ruchów po drodze, puszczenie. */
+function drag(
+  node: Element,
+  { dx, dy, steps = 4, alt = false }: { dx: number; dy: number; steps?: number; alt?: boolean },
+) {
+  const startX = 400;
+  const startY = 300;
+  pointer(node, "pointerdown", { clientX: startX, clientY: startY });
+  for (let step = 1; step <= steps; step += 1) {
+    pointer(node, "pointermove", {
+      clientX: startX + (dx * step) / steps,
+      clientY: startY + (dy * step) / steps,
+      altKey: alt,
+    });
+    nextFrame();
+  }
+  pointer(node, "pointerup", { clientX: startX + dx, clientY: startY + dy });
 }
 
 /** Wymusza wysłanie odłożonego autozapisu. */
@@ -175,27 +245,25 @@ describe("zaznaczenie i uchwyty rozmiaru", () => {
 
   it("uchwyt zmienia GEOMETRIĘ w dokumencie i zapisuje ją autozapisem", async () => {
     const section = heroSection();
-    const canvas = section.content as { elements: { id: string; layout: { desktop: { h: number } } }[] };
-    const target = paintOrder(canvas.elements as never)[0]!;
+    const canvas = canvasOf(section);
+    const target = paintOrder(canvas.elements as never)[0]! as (typeof canvas.elements)[number];
     const { container } = renderBuilder([section]);
 
     const frame = frameFor(container, target.id);
-    fireEvent.pointerDown(frame);
+    // Zaznaczenie DOMKNIĘTYM kliknięciem: samo wciśnięcie zostawiłoby na ramce
+    // gest w toku, a ruchy uchwytu przechodzą przez nią bąbelkiem.
+    drag(frame, { dx: 0, dy: 0, steps: 1 });
     const handle = within(frame).getByRole("button", { name: plMessages.site.resizeHandles.s });
 
     // Ciągnięcie dolnej krawędzi w dół o cztery jednostki siatki. `altKey`
     // zdejmuje przyciąganie do sąsiadów — tu mierzymy SAM ruch krawędzi, a nie
     // to, w co się po drodze wyrówna (od tego jest geometry.test.ts).
-    fireEvent.pointerDown(handle, { clientX: 100, clientY: 100 });
-    fireEvent(
-      window,
-      new MouseEvent("pointermove", { clientX: 100, clientY: 100 + 4 * GRID_UNIT_PX, altKey: true }),
-    );
-    fireEvent(window, new MouseEvent("pointerup", { clientX: 100, clientY: 100 + 4 * GRID_UNIT_PX }));
+    drag(handle, { dx: 0, dy: 4 * GRID_UNIT_PX, alt: true });
 
     const box = container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    const expected = (target.layout.desktop.h + 4) * GRID_UNIT_PX;
-    expect(box.style.height, "wysokość pudełka nie poszła za uchwytem").toBe(`${expected}px`);
+    expect(box.style.height, "wysokość pudełka nie poszła za uchwytem").toBe(
+      pct(target.layout.desktop.h + 4, canvas.rows),
+    );
 
     await flushAutosave();
     const saved = lastSavedCanvas();
@@ -241,18 +309,18 @@ describe("warstwy", () => {
 describe("klawiatura", () => {
   it("strzałka przesuwa o JEDNĄ jednostkę, Shift o dziesięć", () => {
     const section = heroSection();
-    const canvas = section.content as { elements: { id: string; layout: { desktop: { y: number } } }[] };
-    const target = paintOrder(canvas.elements as never)[0]!;
+    const canvas = canvasOf(section);
+    const target = paintOrder(canvas.elements as never)[0]! as (typeof canvas.elements)[number];
     const { container } = renderBuilder([section]);
     const frame = frameFor(container, target.id);
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
 
     fireEvent.pointerDown(frame);
     fireEvent.keyDown(frame, { key: "ArrowDown" });
-    expect(box().style.top).toBe(`${(target.layout.desktop.y + 1) * GRID_UNIT_PX}px`);
+    expect(box().style.top).toBe(pct(target.layout.desktop.y + 1, canvas.rows));
 
     fireEvent.keyDown(frame, { key: "ArrowDown", shiftKey: true });
-    expect(box().style.top).toBe(`${(target.layout.desktop.y + 11) * GRID_UNIT_PX}px`);
+    expect(box().style.top).toBe(pct(target.layout.desktop.y + 11, canvas.rows));
   });
 });
 
@@ -345,6 +413,33 @@ describe("autozapis geometrii", () => {
     expect(container.querySelector("[data-builder-save-state]")?.textContent).toBe(builder.saved);
   });
 
+  it("zapis w tle NIE blokuje płótna — kolejny gest idzie od razu", async () => {
+    // Zapis, który nigdy nie odpowiada: dokładnie ten stan, w którym operator
+    // dostawał wyszarzone paski i kursor „zakaz" między jednym ruchem a drugim.
+    actions.upsertSection.mockReturnValue(new Promise(() => {}));
+    const section = heroSection();
+    const canvas = canvasOf(section);
+    const target = paintOrder(canvas.elements as never)[0]! as (typeof canvas.elements)[number];
+    const { container } = renderBuilder([section]);
+
+    drag(frameFor(container, target.id), { dx: 3 * GRID_UNIT_PX, dy: 0, alt: true });
+    await flushAutosave();
+    expect(actions.upsertSection, "autozapis w ogóle nie wyszedł").toHaveBeenCalled();
+
+    const undo = container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!;
+    expect(undo.disabled, "zapis w tle wyłączył historię płótna").toBe(false);
+    const duplicate = screen.getByRole("button", {
+      name: plMessages.site.sections.duplicate,
+    }) as HTMLButtonElement;
+    expect(duplicate.disabled, "zapis w tle wyszarzył pasek narzędzi sekcji").toBe(false);
+
+    // Drugi gest w trakcie trwającego zapisu musi dojść do skutku.
+    const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+    const afterFirst = box().style.left;
+    drag(frameFor(container, target.id), { dx: 3 * GRID_UNIT_PX, dy: 0, alt: true });
+    expect(box().style.left).not.toBe(afterFirst);
+  });
+
   it("wiele kroków pod rząd składa się na JEDEN zapis, nie na jeden na klawisz", async () => {
     const section = heroSection();
     const target = paintOrder((section.content as { elements: never[] }).elements)[0]! as {
@@ -357,5 +452,170 @@ describe("autozapis geometrii", () => {
 
     await flushAutosave();
     expect(actions.upsertSection).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * SILNIK GESTÓW (K2c, ADR-087). Werdykt właściciela z produkcji brzmiał
+ * „przesuwanie działa bardzo źle", a przyczyny leżały w trzech różnych
+ * miejscach naraz. Każdy test niżej broni jednej z nich — i każdy zapala się na
+ * czerwono po cofnięciu dokładnie tej jednej zmiany.
+ */
+describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () => {
+  function firstElement(section: Section) {
+    const canvas = canvasOf(section);
+    return paintOrder(canvas.elements as never)[0]! as (typeof canvas.elements)[number];
+  }
+
+  it("CAŁE przeciągnięcie to JEDEN wpis w historii — cofnij wraca na start jednym kliknięciem", () => {
+    const section = heroSection();
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+    const start = { left: box().style.left, top: box().style.top };
+
+    // Osiem kroków pośrednich: gdyby commit szedł na KAŻDY ruch, historia
+    // dostałaby osiem wpisów i jedno cofnięcie zdjęłoby tylko ostatni piksel.
+    drag(frameFor(container, target.id), {
+      dx: 6 * GRID_UNIT_PX,
+      dy: 3 * GRID_UNIT_PX,
+      steps: 8,
+      alt: true,
+    });
+    expect(box().style.left, "element nie ruszył się w ogóle").not.toBe(start.left);
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!);
+    expect(box().style.left, "cofnij cofnęło mniej niż cały gest").toBe(start.left);
+    expect(box().style.top).toBe(start.top);
+    expect(
+      container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
+      "po jednym cofnięciu w historii został jeszcze jeden wpis z tego samego gestu",
+    ).toBe(true);
+  });
+
+  it("w trakcie ruchu szkic STOI — geometria powstaje dopiero przy puszczeniu", () => {
+    const section = heroSection();
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+    const frame = frameFor(container, target.id);
+    const startLeft = box().style.left;
+
+    pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
+    pointer(frame, "pointermove", { clientX: 400 + 5 * GRID_UNIT_PX, clientY: 300, altKey: true });
+    nextFrame();
+    pointer(frame, "pointermove", { clientX: 400 + 9 * GRID_UNIT_PX, clientY: 300, altKey: true });
+    nextFrame();
+
+    expect(box().style.left, "ruch dopisał geometrię do szkicu przed puszczeniem").toBe(startLeft);
+    expect(
+      container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
+      "ruch dopisał wpis do historii przed puszczeniem",
+    ).toBe(true);
+
+    pointer(frame, "pointerup", { clientX: 400 + 9 * GRID_UNIT_PX, clientY: 300 });
+    expect(box().style.left, "puszczenie nie zapisało geometrii").not.toBe(startLeft);
+  });
+
+  it("sam klik ZAZNACZA i nic nie rusza — próg gestu chroni przed przyciągnięciem bez ruchu", () => {
+    const section = heroSection();
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+    const start = { left: box().style.left, top: box().style.top };
+    const frame = frameFor(container, target.id);
+
+    pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
+    pointer(frame, "pointermove", { clientX: 401, clientY: 300 });
+    pointer(frame, "pointerup", { clientX: 401, clientY: 300 });
+
+    expect(frame.getAttribute("data-element-selected")).toBe("on");
+    expect(box().style.left, "klik przesunął element").toBe(start.left);
+    expect(box().style.top).toBe(start.top);
+    expect(
+      container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
+      "klik bez ruchu dopisał wpis do historii",
+    ).toBe(true);
+  });
+
+  it("płótno na czas gestu nosi `data-dragging` i zdejmuje je przy puszczeniu", () => {
+    const section = heroSection();
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const root = container.querySelector<HTMLElement>("[data-builder-canvas]")!;
+    const frame = frameFor(container, target.id);
+
+    expect(root.getAttribute("data-dragging")).toBeNull();
+    pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
+    expect(root.getAttribute("data-dragging"), "płótno nie wie, że trwa gest").toBe("on");
+
+    pointer(frame, "pointermove", { clientX: 440, clientY: 300, altKey: true });
+    expect(root.getAttribute("data-dragging")).toBe("on");
+
+    pointer(frame, "pointerup", { clientX: 440, clientY: 300 });
+    expect(root.getAttribute("data-dragging"), "flaga gestu została po puszczeniu").toBeNull();
+  });
+
+  it("gest przerwany przez system (`pointercancel`) sprząta po sobie", () => {
+    const section = heroSection();
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const root = container.querySelector<HTMLElement>("[data-builder-canvas]")!;
+    const frame = frameFor(container, target.id);
+
+    pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
+    pointer(frame, "pointercancel", { clientX: 400, clientY: 300 });
+    expect(root.getAttribute("data-dragging")).toBeNull();
+  });
+
+  it("przeciągnięcie poza sekcję zatrzymuje element W płótnie, nie pod kartą", () => {
+    const section = heroSection();
+    const canvas = canvasOf(section);
+    const target = firstElement(section);
+    const { container } = renderBuilder([section]);
+    const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+
+    // Ruch daleko poza prawy dolny róg płótna — tysiąc jednostek w każdą stronę.
+    drag(frameFor(container, target.id), {
+      dx: 1000 * GRID_UNIT_PX,
+      dy: 1000 * GRID_UNIT_PX,
+      alt: true,
+    });
+
+    expect(box().style.top, "element wyjechał pod widoczną kartę sekcji").toBe(
+      pct(canvas.rows - target.layout.desktop.h, canvas.rows),
+    );
+    expect(box().style.left, "element wyjechał poza prawą krawędź sekcji").toBe(
+      pct(CANVAS_COLUMNS - target.layout.desktop.w, CANVAS_COLUMNS),
+    );
+  });
+});
+
+/**
+ * ZAZNACZANIE TEKSTU I INTERFEJS NAJECHANIA (K2c, ADR-087).
+ *
+ * Reguły są w arkuszu, a nie w Reakcie — świadomie, bo ich zadaniem jest NIE
+ * wywoływać przerysowania w środku ruchu. jsdom nie stosuje arkuszy z plików,
+ * więc kontrakt broni ŹRÓDŁA: flaga `data-dragging` (dowiedziona wyżej na
+ * dokumencie) musi mieć po drugiej stronie regułę, która coś robi.
+ */
+describe("arkusz płótna wycisza gest", () => {
+  const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+  const dragScope = css.slice(css.indexOf('[data-builder-canvas][data-dragging="on"]'));
+
+  it("plik naprawdę zawiera blok gestu (kontrola pozytywna)", () => {
+    expect(css).toContain('[data-builder-canvas][data-dragging="on"]');
+    expect(dragScope.length).toBeGreaterThan(100);
+  });
+
+  it("na czas gestu płótno nie daje się zaznaczyć — z prefiksem dla Safari", () => {
+    expect(dragScope, "brak `user-select: none` na czas gestu").toMatch(/user-select:\s*none/);
+    expect(dragScope, "brak wariantu -webkit- (Safari)").toMatch(/-webkit-user-select:\s*none/);
+  });
+
+  it("na czas gestu znika pasek narzędzi, miejsca wstawienia i obrys sekcji", () => {
+    for (const marker of ["data-section-toolbar", "data-insert-slot", "data-section-outline"]) {
+      expect(dragScope, `interfejs najechania zostaje w trakcie gestu: ${marker}`).toContain(marker);
+    }
   });
 });

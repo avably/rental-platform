@@ -52,17 +52,22 @@ describe("geometria elementu trafia do stylu pudełka", () => {
     expect(box!.style.width).toBe("50%");
   });
 
-  it("oś pionowa jest w pikselach jednostki siatki", () => {
+  it("oś pionowa też jest PROCENTEM płótna (K2c, ADR-087)", () => {
     const { container } = renderCanvas(singleElement);
     const box = container.querySelector<HTMLElement>('[data-element-id="h1"]');
-    expect(box!.style.top).toBe("64px"); // 8 × 8 px
-    expect(box!.style.height).toBe("96px"); // 12 × 8 px
+    // 8 / 40 = 20 %, 12 / 40 = 30 % wysokości płótna o 40 jednostkach.
+    expect(box!.style.top).toBe("20%");
+    expect(box!.style.height).toBe("30%");
   });
 
-  it("wysokość PŁÓTNA wynika z liczby jednostek sekcji", () => {
+  it("wysokość PŁÓTNA wynika z SZEROKOŚCI — jednostka jest kwadratowa wszędzie", () => {
     const { container } = renderCanvas(singleElement);
     const grid = container.querySelector<HTMLElement>("[data-canvas-grid]");
-    expect(grid!.style.height).toBe("320px"); // 40 × 8 px
+    // Proporcja 144 : 40 daje wysokość 40 × (szerokość / 144), czyli dokładnie
+    // czterdzieści jednostek o boku równym kolumnie — przy KAŻDEJ szerokości.
+    // Stała wysokość w pikselach trzymała pion w miejscu, gdy poziom się zwężał.
+    expect(grid!.style.aspectRatio).toBe("144 / 40");
+    expect(grid!.style.height, "wysokość znowu stoi w pikselach").toBe("");
   });
 
   it("płótno PRZYCINA zawartość — element nie rozjedzie publicznej strony", () => {

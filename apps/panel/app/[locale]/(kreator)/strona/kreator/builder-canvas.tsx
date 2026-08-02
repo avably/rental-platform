@@ -20,23 +20,22 @@
  * ================== DWA POZIOMY PRZECIĄGANIA ==================
  *
  * KOLEJNOŚĆ SEKCJI zmienia się dwoma drogami wołającymi TĘ SAMĄ akcję z pełnym
- * kompletem pozycji: uchwytem (dnd-kit) i strzałkami w pasku narzędzi.
- * GEOMETRIA ELEMENTÓW żyje w szkicu klienta (`useCanvasEditor`) i zapisuje się
- * sama, z opóźnieniem — dlatego oba przeciągania stoją w JEDNYM `DndContext`,
- * rozróżniane po `data.kind` chwytanego obiektu, a nie w dwóch zagnieżdżonych.
+ * kompletem pozycji: uchwytem (dnd-kit) i strzałkami w pasku narzędzi. To jest
+ * problem „przeciągnij coś na coś" i biblioteka modeluje go wprost.
  *
- * PODGLĄD RUCHU NIE IDZIE PRZEZ HISTORIĘ: pozycja w trakcie przeciągania siedzi
- * w osobnym stanie i dokłada się do szkicu dopiero przy rysowaniu. Gdyby każdy
- * piksel ruchu wchodził do szkicu, „cofnij" cofałoby o piksel, a nie o ruch.
+ * GEOMETRIA ELEMENTÓW od K2c (ADR-087) NIE przechodzi tędy w ogóle. Element nie
+ * ma celu upuszczenia, ma współrzędne — jego gest prowadzi własny silnik na
+ * przechwyconym wskaźniku (canvas-gesture.ts), który w trakcie ruchu pisze po
+ * stylach, a nie po stanie Reacta. Płótno dowiaduje się o wyniku RAZ, przy
+ * puszczeniu: jeden wpis w historii i jeden zapis na cały gest. Wcześniej każdy
+ * piksel ruchu szedł przez `setState` i przerysowywał całą stronę — i to było
+ * widać jako szarpanie.
  */
 import {
-  GRID_UNIT_PX,
   bringToFront,
   sendToBack,
-  snapMove,
   type CanvasElement,
   type Geometry,
-  type Guide,
   type SectionCanvas,
   type SectionType,
   type SiteTemplate,
@@ -49,8 +48,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragMoveEvent,
-  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -76,14 +73,14 @@ import {
 } from "@avably/ui";
 import { GripVertical, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 
 import { AddSectionDialog } from "@/app/[locale]/(panel)/strona/add-section-gallery";
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { siteImagePublicBase } from "@/lib/site-image-base";
 
-import { ElementFrame, columnWidth, type ElementDragData } from "./canvas-elements";
+import { ElementFrame } from "./canvas-elements";
 import {
   duplicateElement,
   removeElement,
@@ -104,22 +101,6 @@ export interface ElementSelection {
   elementId: string;
 }
 
-/** Pozycja w trakcie ruchu — poza szkicem i poza historią (patrz nagłówek). */
-interface GeometryPreview {
-  sectionId: string;
-  elementId: string;
-  geometry: Geometry;
-}
-
-/** Stan przeciągania: miara płótna i punkt wyjścia zamrożone na czas ruchu. */
-interface ElementDrag {
-  sectionId: string;
-  elementId: string;
-  base: Geometry;
-  perColumn: number;
-  latest: Geometry;
-}
-
 /** Geometrie POZOSTAŁYCH elementów — cele przyciągania dla ruszanego. */
 function neighboursOf(canvas: SectionCanvas, elementId: string): Geometry[] {
   return canvas.elements
@@ -129,18 +110,6 @@ function neighboursOf(canvas: SectionCanvas, elementId: string): Geometry[] {
 
 function withDesktop(element: CanvasElement, geometry: Geometry): CanvasElement {
   return { ...element, layout: { ...element.layout, desktop: geometry } } as CanvasElement;
-}
-
-/** Szkic + ewentualny podgląd ruchu — to, co widzi operator w tej klatce. */
-function withPreview(
-  canvas: SectionCanvas,
-  sectionId: string,
-  preview: GeometryPreview | null,
-): SectionCanvas {
-  if (!preview || preview.sectionId !== sectionId) return canvas;
-  return replaceElement(canvas, preview.elementId, (element) =>
-    withDesktop(element, preview.geometry),
-  );
 }
 
 export function BuilderCanvas({
@@ -199,30 +168,15 @@ export function BuilderCanvas({
   // Stan Reacta, a nie samo `:hover`, bo pasek musi wychodzić też od klawiatury
   // (fokus wewnątrz sekcji) i nie może się mnożyć po dwunastu sekcjach naraz.
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<GeometryPreview | null>(null);
-  // Prowadnice bieżącego ruchu. Najwyżej jeden element rusza się naraz, więc
-  // jeden stan wystarcza na całe płótno.
-  const [guides, setGuides] = useState<{ elementId: string; lines: Guide[] } | null>(null);
-  const drag = useRef<ElementDrag | null>(null);
 
   /*
-   * Alt wyłącza przyciąganie do sąsiadów. dnd-kit nie niesie stanu modyfikatorów
-   * w zdarzeniu ruchu, więc śledzimy go osobno — inaczej „bez przyciągania"
-   * działałoby przy zmianie rozmiaru (surowe zdarzenia wskaźnika), a przy
-   * przeciąganiu nie, co jest gorsze niż brak tej możliwości w ogóle.
+   * Trwa gest elementu. Flaga jest REFERENCJĄ, a nie stanem: jej jedyne zadanie
+   * to POWSTRZYMAĆ przerysowanie płótna w trakcie ruchu. Najechanie kursorem na
+   * kolejną sekcję ustawiałoby `activeId`, a każdy taki `setState` to render
+   * całej strony w środku przeciągania — czyli dokładnie to szarpanie, które
+   * K2c usuwa. Warstwę wizualną paska narzędzi wycisza CSS po `data-dragging`.
    */
-  const altHeld = useRef(false);
-  useEffect(() => {
-    const sync = (event: KeyboardEvent) => {
-      altHeld.current = event.altKey;
-    };
-    window.addEventListener("keydown", sync);
-    window.addEventListener("keyup", sync);
-    return () => {
-      window.removeEventListener("keydown", sync);
-      window.removeEventListener("keyup", sync);
-    };
-  }, []);
+  const dragging = useRef(false);
 
   const locked = busy;
 
@@ -239,54 +193,8 @@ export function BuilderCanvas({
     );
   }
 
-  function elementDragData(event: DragStartEvent | DragMoveEvent | DragEndEvent) {
-    const data = event.active.data.current as Partial<ElementDragData> | undefined;
-    return data?.kind === "element" ? (data as ElementDragData) : null;
-  }
-
-  function handleDragStart(event: DragStartEvent) {
-    const data = elementDragData(event);
-    if (!data) return;
-    const canvas = editor.canvasOf(data.sectionId);
-    const element = canvas?.elements.find((item) => item.id === data.elementId);
-    if (!element) return;
-    onSelect({ sectionId: data.sectionId, elementId: data.elementId });
-    drag.current = {
-      sectionId: data.sectionId,
-      elementId: data.elementId,
-      base: element.layout.desktop,
-      // Miara PŁÓTNA, nie okna (ADR-085) — zamrożona na czas ruchu, żeby zmiana
-      // szerokości w trakcie przeciągania nie przeskalowała przebytej już drogi.
-      perColumn: columnWidth(data.gridWidth()),
-      latest: element.layout.desktop,
-    };
-  }
-
-  function handleDragMove(event: DragMoveEvent) {
-    const active = drag.current;
-    const canvas = active ? editor.canvasOf(active.sectionId) : undefined;
-    if (!active || !canvas) return;
-    const result = snapMove(
-      active.base,
-      event.delta.x / active.perColumn,
-      event.delta.y / GRID_UNIT_PX,
-      { rows: canvas.rows, neighbours: neighboursOf(canvas, active.elementId), snap: !altHeld.current },
-    );
-    active.latest = result.geometry;
-    setGuides({ elementId: active.elementId, lines: result.guides });
-    setPreview({ sectionId: active.sectionId, elementId: active.elementId, geometry: result.geometry });
-  }
-
+  /** Upuszczenie uchwytu sekcji. Geometria elementów NIE przechodzi tędy (K2c). */
   function handleDragEnd(event: DragEndEvent) {
-    const active = drag.current;
-    if (active) {
-      drag.current = null;
-      setGuides(null);
-      setPreview(null);
-      commitGeometry(active.sectionId, active.elementId, active.latest);
-      return;
-    }
-
     const { active: dragged, over } = event;
     if (!over || dragged.id === over.id) return;
     const from = order.findIndex((s) => s.id === dragged.id);
@@ -314,7 +222,7 @@ export function BuilderCanvas({
   const rendered = order.map((section) => {
     const canvas = editor.canvasOf(section.id);
     return canvas
-      ? { ...section, content: withPreview(canvas, section.id, preview) }
+      ? { ...section, content: canvas }
       : section;
   });
 
@@ -343,13 +251,7 @@ export function BuilderCanvas({
             />
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-          >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
               <SiteRenderer
                 sections={rendered as unknown as RenderSection[]}
@@ -373,7 +275,10 @@ export function BuilderCanvas({
                       orderedIds={orderedIds}
                       active={activeId === editorSection.id}
                       locked={locked}
-                      onActivate={() => setActiveId(editorSection.id)}
+                      onActivate={() => {
+                        // W trakcie gestu NIE zmieniamy stanu — patrz `dragging`.
+                        if (!dragging.current) setActiveId(editorSection.id);
+                      }}
                       onDeactivate={() => setActiveId((id) => (id === editorSection.id ? null : id))}
                       onMoveUp={() => move(index, -1)}
                       onMoveDown={() => move(index, 1)}
@@ -426,26 +331,19 @@ export function BuilderCanvas({
                       {children}
                       <ElementFrame
                         element={element}
-                        sectionId={section.id}
                         rows={canvas.rows}
                         neighbours={neighboursOf(canvas, element.id)}
                         selected={
                           selection?.sectionId === section.id && selection.elementId === element.id
                         }
                         locked={locked}
-                        guides={guides?.elementId === element.id ? guides.lines : EMPTY_GUIDES}
                         onSelect={() => {
                           setActiveId(section.id);
                           onSelect({ sectionId: section.id, elementId: element.id });
                         }}
-                        onPreview={(geometry, lines) => {
-                          setGuides({ elementId: element.id, lines });
-                          setPreview({ sectionId: section.id, elementId: element.id, geometry });
-                        }}
-                        onCommit={(geometry) => {
-                          setGuides(null);
-                          setPreview(null);
-                          commitGeometry(section.id, element.id, geometry);
+                        onCommit={(geometry) => commitGeometry(section.id, element.id, geometry)}
+                        onPhase={(active) => {
+                          dragging.current = active;
                         }}
                       />
                     </>
@@ -471,9 +369,6 @@ export function BuilderCanvas({
     </div>
   );
 }
-
-/** Stała referencja pustej listy — nowa tablica w propsie remontowałaby ramkę. */
-const EMPTY_GUIDES: Guide[] = [];
 
 /**
  * Jedna sekcja na płótnie: treść z renderera + warstwa edycyjna wokół niej.

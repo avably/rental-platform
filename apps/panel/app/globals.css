@@ -125,3 +125,36 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
 [data-skeleton-screen] {
   animation: skeleton-reveal var(--motion-ui) var(--ease-standard) 200ms both;
 }
+
+/*
+  PŁÓTNO KREATORA W TRAKCIE GESTU (K2c, ADR-087).
+
+  Silnik gestów (canvas-gesture.ts) wiesza na korzeniu płótna `data-dragging`
+  na czas przeciągania i zdejmuje je przy puszczeniu. Reguły niżej są CAŁYM
+  kosztem tej flagi — nie wchodzi ani jeden `setState`, więc przerysowanie
+  strony w środku ruchu nie ma jak się zdarzyć.
+
+  1. ZAZNACZANIE TEKSTU. Przeciąganie po sekcji pełnej nagłówków i akapitów bez
+     tego zaznacza tekst pod kursorem: pół strony robi się niebieskie, a gest
+     wygląda jak usterka. `user-select` stoi ZAKRESOWO (tylko płótno, tylko na
+     czas gestu) — poza gestem operator kopiuje treść normalnie, bo to jest
+     edytor strony, a nie kiosk. Prefiks `-webkit-` jest obowiązkowy: Safari
+     (przeglądarka właściciela) nie zna wersji bez niego.
+
+  2. INTERFEJS NAJECHANIA. Pasek narzędzi sekcji, miejsca „+ Dodaj sekcję"
+     i obrys sekcji wychodzą od `:hover`, więc w trakcie przeciągania wyskakują
+     spod jadącego elementu i migają przy każdym przekroczeniu granicy sekcji.
+     Znikają na czas gestu razem ze swoją klikalnością — wracają po upuszczeniu.
+     `opacity` zamiast `display: none`, żeby nie ruszać układu pod kursorem.
+*/
+[data-builder-canvas][data-dragging="on"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+[data-builder-canvas][data-dragging="on"] [data-section-toolbar],
+[data-builder-canvas][data-dragging="on"] [data-insert-slot],
+[data-builder-canvas][data-dragging="on"] [data-section-outline] {
+  opacity: 0;
+  pointer-events: none;
+}

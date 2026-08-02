@@ -255,6 +255,9 @@ const CANVAS_SOURCES = [
   "packages/core/src/site/geometry.ts",
   "packages/core/src/site/canvas-presets.ts",
   "apps/panel/app/[locale]/(kreator)/strona/kreator/canvas-elements.tsx",
+  // Silnik gestów (K2c, ADR-087) przelicza piksele wskaźnika na jednostki — to
+  // najbardziej naturalne miejsce, żeby sięgnąć po szerokość okna „na skróty".
+  "apps/panel/app/[locale]/(kreator)/strona/kreator/canvas-gesture.ts",
 ] as const;
 
 /** Sposoby zapytania OKNA o rozmiar — każdy z nich obchodzi miarę kontenera. */
