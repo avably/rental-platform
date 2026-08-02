@@ -33,6 +33,7 @@
 import { z } from "zod";
 
 import { USP_ICONS, uspIconSchema } from "./icons";
+import { plainTextOf, richTextSchema } from "./rich-text";
 
 // -----------------------------------------------------------------------
 // Siatka płótna — parametry gęstości (ADR-084)
@@ -201,6 +202,18 @@ export type ShapeKind = (typeof SHAPE_KINDS)[number];
 export const SHAPE_FILLS = ["none", "paper", "accent", "ink"] as const;
 export type ShapeFill = (typeof SHAPE_FILLS)[number];
 
+/**
+ * KOLOR TREŚCI — Z TOKENÓW MOTYWU, nigdy dowolny (K3, ADR-086).
+ *
+ * Operator wybiera ROLĘ koloru, a nie wartość: „akcent" wygląda inaczej
+ * w szablonie `classic` i `bold`, inaczej w motywie jasnym i ciemnym, i ma
+ * przejść z nimi razem. Dowolny `#rrggbb` w treści zamroziłby jeden odcień na
+ * zawsze i pierwsza zmiana motywu zostawiłaby stronę z kolorem, którego nikt
+ * już nie umie odtworzyć — a przy okazji rozjechałby kontrast.
+ */
+export const ELEMENT_COLORS = ["default", "muted", "accent", "inverted"] as const;
+export type ElementColor = (typeof ELEMENT_COLORS)[number];
+
 export const ICON_TONES = ["accent", "muted"] as const;
 export type IconTone = (typeof ICON_TONES)[number];
 
@@ -221,13 +234,28 @@ export type SectionBackground = (typeof SECTION_BACKGROUNDS)[number];
 
 const elementBase = { id: elementId, layout: elementLayoutSchema } as const;
 
+/**
+ * TREŚĆ SFORMATOWANA (K3, ADR-086) — pole `runs` obok zwykłego `text`.
+ *
+ * `text` zostaje WYMAGANY i jest tekstem PROSTYM: z niego biorą się metadane
+ * strony i on jest treścią, gdy formatowania nie ma. `runs` są opcjonalne i
+ * niosą pogrubienia, pochylenia i linki (patrz `rich-text.ts` — treść NIE jest
+ * HTML-em, render składa znaczniki sam).
+ *
+ * Zgodności spłaszczonych runów z `text` pilnuje refinement PŁÓTNA (niżej), a
+ * nie sam element: unia dyskryminowana przyjmuje wyłącznie zwykłe obiekty, więc
+ * `superRefine` na członku unii rozbiłby dyskryminację. Jedno miejsce kontroli
+ * jest zresztą lepsze niż dwa identyczne.
+ */
 export const headingElementSchema = z
   .object({
     ...elementBase,
     kind: z.literal("heading"),
     text: elementHeading,
+    runs: richTextSchema.optional(),
     level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     align: alignment,
+    color: z.enum(ELEMENT_COLORS).optional(),
   })
   .strict();
 
@@ -236,8 +264,10 @@ export const textElementSchema = z
     ...elementBase,
     kind: z.literal("text"),
     text: elementText,
+    runs: richTextSchema.optional(),
     variant: z.enum(TEXT_VARIANTS).default("body"),
     align: alignment,
+    color: z.enum(ELEMENT_COLORS).optional(),
   })
   .strict();
 
@@ -252,16 +282,65 @@ export const buttonElementSchema = z
   })
   .strict();
 
+/**
+ * ŹRÓDŁO ZDJĘCIA (K3, ADR-086) — unia dyskryminowana, bo to są dwa RÓŻNE
+ * światy, a nie dwa zapisy tego samego.
+ *
+ * `storage` to ścieżka w naszym buckecie (bilety uploadu z ADR-082): plik jest
+ * nasz, adres budujemy sami, CSP go zna. `unsplash` to HOTLINK do cudzego
+ * hosta — zdjęcia nie kopiujemy do siebie, więc razem z adresem MUSI jechać
+ * atrybucja autora (warunek licencyjny API) i adres wyzwalacza pobrania.
+ * Gdyby to było jedno pole „url albo ścieżka", render musiałby ZGADYWAĆ, czy
+ * dokleić prefiks bucketa i czy pokazać podpis autora — a zgadywanie w
+ * warunkach licencyjnych kończy się ich złamaniem.
+ */
+export const imageSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("storage"), path: elementImagePath }).strict(),
+  z
+    .object({
+      kind: z.literal("unsplash"),
+      /** Bezpośredni adres zdjęcia u dostawcy (hotlink — wymóg licencji). */
+      url: z.string().trim().url().max(2_000),
+      /** Podpis autora — musi być widoczny przy zdjęciu. */
+      authorName: z.string().trim().min(1).max(120),
+      /** Profil autora z parametrami atrybucji. */
+      authorUrl: z.string().trim().url().max(2_000),
+      /** Adres wyzwalacza pobrania — wołany RAZ, w chwili wyboru zdjęcia. */
+      downloadLocation: z.string().trim().url().max(2_000),
+    })
+    .strict(),
+]);
+export type ImageSource = z.infer<typeof imageSourceSchema>;
+
 export const imageElementSchema = z
   .object({
     ...elementBase,
     kind: z.literal("image"),
-    /** Brak ścieżki = kafel zastępczy. Element istnieje w układzie, zanim wejdzie zdjęcie. */
+    /** Brak źródła = kafel zastępczy. Element istnieje w układzie, zanim wejdzie zdjęcie. */
+    source: imageSourceSchema.optional(),
+    /**
+     * Ścieżka Storage sprzed K3 (K2 nie znało innego źródła). Czytana dla
+     * zgodności wstecz i normalizowana do `source` przy pierwszym zapisie —
+     * patrz `normalizeImageSource`. Nowa treść JEJ NIE ZAPISUJE.
+     */
     imagePath: elementImagePath.optional(),
     alt: elementAlt,
     fit: z.enum(IMAGE_FITS).default("cover"),
   })
   .strict();
+
+/**
+ * Jedno źródło prawdy o tym, skąd wziąć zdjęcie — niezależnie od tego, czy
+ * element pochodzi sprzed K3, czy z pickera. Render i edytor pytają TĄ funkcją,
+ * więc zgodność wstecz nie rozłazi się po `if`-ach w komponentach.
+ */
+export function normalizeImageSource(element: {
+  source?: ImageSource;
+  imagePath?: string;
+}): ImageSource | undefined {
+  if (element.source) return element.source;
+  return element.imagePath ? { kind: "storage", path: element.imagePath } : undefined;
+}
 
 export const iconElementSchema = z
   .object({
@@ -294,6 +373,24 @@ export const catalogElementSchema = z
   })
   .strict();
 
+/**
+ * MAPA-LINK (K3, ADR-086) — adres i LINK do map, bez osadzania czegokolwiek.
+ *
+ * Decyzja ADR-082 obowiązuje bez zmian: żadnego `iframe`, żadnego obcego
+ * skryptu. Osadzona mapa wnosi na publiczną stronę najemcy trzeci skrypt,
+ * cudze ciasteczka i własne CSP — a daje dokładnie to samo, co odnośnik.
+ * `url` przechodzi tę samą allowlistę schematów, co przycisk i link w treści.
+ */
+export const mapLinkElementSchema = z
+  .object({
+    ...elementBase,
+    kind: z.literal("mapLink"),
+    address: z.string().trim().min(1).max(500),
+    url: elementHref,
+    align: alignment,
+  })
+  .strict();
+
 export const canvasElementSchema = z.discriminatedUnion("kind", [
   headingElementSchema,
   textElementSchema,
@@ -302,6 +399,7 @@ export const canvasElementSchema = z.discriminatedUnion("kind", [
   iconElementSchema,
   shapeElementSchema,
   catalogElementSchema,
+  mapLinkElementSchema,
 ]);
 export type CanvasElement = z.infer<typeof canvasElementSchema>;
 export type CanvasElementKind = CanvasElement["kind"];
@@ -314,8 +412,26 @@ export const ELEMENT_KINDS = [
   "image",
   "icon",
   "shape",
+  "mapLink",
   "catalog",
 ] as const satisfies readonly CanvasElementKind[];
+
+/**
+ * Rodzaje dostępne w PALECIE (K3). `catalog` jest poza nią świadomie: to nie
+ * jest element, który operator „dokłada", tylko miejsce na listę z bazy —
+ * powstaje przy konwersji sekcji produktów i dwie takie listy na jednej
+ * stronie znaczyłyby ten sam katalog wyświetlony dwa razy.
+ */
+export const PALETTE_ELEMENT_KINDS = [
+  "heading",
+  "text",
+  "button",
+  "image",
+  "icon",
+  "shape",
+  "mapLink",
+] as const satisfies readonly CanvasElementKind[];
+export type PaletteElementKind = (typeof PALETTE_ELEMENT_KINDS)[number];
 
 // -----------------------------------------------------------------------
 // Płótno sekcji
@@ -344,6 +460,18 @@ export const sectionCanvasSchema = z
   .superRefine((canvas, ctx) => {
     const seen = new Set<string>();
     for (const [index, element] of canvas.elements.entries()) {
+      // Sformatowana treść MUSI spłaszczać się dokładnie do `text` (K3,
+      // ADR-086). Rozjazd znaczy, że strona pokazuje co innego, niż idzie do
+      // metadanych i do podglądu — a tego nie widać, dopóki ktoś nie zajrzy
+      // do bazy.
+      if ("runs" in element && element.runs && plainTextOf(element.runs) !== element.text) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["elements", index, "runs"],
+          message: "Sformatowana treść nie zgadza się z tekstem elementu.",
+        });
+      }
+
       if (seen.has(element.id)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

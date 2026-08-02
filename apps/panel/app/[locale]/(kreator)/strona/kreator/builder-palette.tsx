@@ -8,22 +8,29 @@
  * palecie dokłada sekcję na KOŃCU strony; wstawienie w środku ma własną drogę
  * („+" między sekcjami), bo to inna intencja, a nie inny sposób.
  *
- * „Elementy" to jawna ZAPOWIEDŹ, nie atrapa kontrolek: paleta elementów
- * przeciąganych na sekcję przychodzi z K3 i do tego czasu zakładka mówi wprost,
- * czego jeszcze nie ma. Pusta zakładka bez zdania wyglądałaby na awarię.
+ * „Elementy" (K3, ADR-086) to kafle przeciągane NA sekcję albo dokładane
+ * kliknięciem — patrz `element-palette.tsx`. Do K2 zakładka była jawną
+ * zapowiedzią; teraz jest paletą.
  *
  * SZABLON GRAFICZNY siedzi w STOPCE palety, a nie na launcherze: launcher
  * przestał być miejscem edycji strony (K1), a wybór szablonu jest edycją —
  * zmienia wygląd każdej sekcji na płótnie obok. Docelowo wchłonie go panel
  * „Styl strony" z K5 razem z kolorem akcentu i parą fontów.
  */
-import { SITE_TEMPLATES, type SectionType, type SiteTemplate } from "@avably/core/site";
+import {
+  SITE_TEMPLATES,
+  type PaletteElementKind,
+  type SectionType,
+  type SiteTemplate,
+} from "@avably/core/site";
 import { Button } from "@avably/ui";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { SectionTypeGallery } from "@/app/[locale]/(panel)/strona/add-section-gallery";
+
+import { ElementPalette } from "./element-palette";
 
 type PaletteTab = "sections" | "elements";
 
@@ -33,6 +40,8 @@ export function BuilderPalette({
   disabled,
   template,
   onAddSection,
+  onAddElement,
+  onDropElement,
   onSaveTemplate,
 }: {
   open: boolean;
@@ -41,6 +50,10 @@ export function BuilderPalette({
   template: SiteTemplate;
   /** Dodanie sekcji na KOŃCU strony (paleta nie zna pozycji). */
   onAddSection: (type: SectionType) => void;
+  /** Dodanie ELEMENTU kliknięciem kafla (K3) — ląduje pod treścią sekcji. */
+  onAddElement: (kind: PaletteElementKind) => void;
+  /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM (K3). */
+  onDropElement: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
   onSaveTemplate: (template: SiteTemplate) => void;
 }) {
   const t = useTranslations("site");
@@ -104,11 +117,9 @@ export function BuilderPalette({
           role="tabpanel"
           id={`${idPrefix}-panel-elements`}
           aria-labelledby={`${idPrefix}-tab-elements`}
-          data-palette-elements-soon
-          className="border-border flex flex-col gap-2 rounded-lg border border-dashed p-4"
+          data-palette-elements
         >
-          <p className="text-sm font-medium">{t("builder.elementsSoonTitle")}</p>
-          <p className="text-muted-foreground text-[13px] leading-[18px]">{t("builder.elementsSoonBody")}</p>
+          <ElementPalette disabled={disabled} onAdd={onAddElement} onDrop={onDropElement} />
         </div>
       )}
 

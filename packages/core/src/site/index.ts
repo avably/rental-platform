@@ -455,8 +455,10 @@ export {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
   ELEMENT_ALIGNMENTS,
+  ELEMENT_COLORS,
   ELEMENT_ICONS,
   ELEMENT_KINDS,
+  PALETTE_ELEMENT_KINDS,
   GRID_UNIT_PX,
   GUIDE_TOLERANCE_UNITS,
   HEADING_LEVELS,
@@ -472,16 +474,22 @@ export {
   TEXT_VARIANTS,
   canvasElementSchema,
   geometrySchema,
+  imageSourceSchema,
   isSectionCanvas,
+  mapLinkElementSchema,
+  normalizeImageSource,
   sectionCanvasSchema,
   type ButtonVariant,
   type CanvasBreakpoint,
   type CanvasElement,
   type CanvasElementKind,
   type ElementAlignment,
+  type ElementColor,
   type ElementLayout,
   type Geometry,
   type HeadingLevel,
+  type ImageSource,
+  type PaletteElementKind,
   type ImageFit,
   type SectionBackground,
   type SectionCanvas,
@@ -524,3 +532,19 @@ export {
 } from "./geometry";
 
 export { sectionCanvasFrom, textRows } from "./canvas-presets";
+
+// Nowy element z palety — treść startowa i rozmiar domyślny (K3, ADR-086).
+export { createElement, defaultSizeOf, freeSpotFor } from "./element-factory";
+
+// Treść sformatowana elementów — runy, nie HTML (K3, ADR-086).
+export {
+  MAX_RUNS_PER_ELEMENT,
+  linkHrefSchema,
+  normalizeRuns,
+  plainTextOf,
+  richTextSchema,
+  runsFromPlainText,
+  textRunSchema,
+  type RichText,
+  type TextRun,
+} from "./rich-text";

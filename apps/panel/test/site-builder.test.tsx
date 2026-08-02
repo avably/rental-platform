@@ -235,14 +235,22 @@ describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stop
     );
   });
 
-  it("zakładka „Elementy” mówi wprost, czego jeszcze nie ma", () => {
+  it("zakładka „Elementy” niesie KOMPLET kafli palety (K3)", async () => {
+    // Do K2 zakładka była jawną zapowiedzią („wkrótce”). Od K3 jest paletą —
+    // po jednym kaflu na rodzaj elementu dostępny operatorowi. Kafla katalogu
+    // w palecie NIE MA świadomie: powstaje z konwersji sekcji produktów, a dwa
+    // katalogi na stronie znaczyłyby tę samą listę wyświetloną dwa razy.
+    const { PALETTE_ELEMENT_KINDS } = await import("@avably/core/site");
     const { container } = renderBuilder();
     fireEvent.click(container.querySelector<HTMLElement>('[data-palette-tab="elements"]')!);
-    expect(container.querySelector("[data-palette-elements-soon]")?.textContent).toContain(
-      builder.elementsSoonTitle,
-    );
-    // Zapowiedź NIE udaje kontrolek: żadnego przycisku dodania elementu.
-    expect(container.querySelector("[data-palette-elements-soon] button")).toBeNull();
+
+    const tiles = [...container.querySelectorAll("[data-element-tile]")];
+    expect(tiles.map((tile) => tile.getAttribute("data-element-tile"))).toEqual([
+      ...PALETTE_ELEMENT_KINDS,
+    ]);
+    for (const tile of tiles) {
+      expect(tile.getAttribute("aria-label"), "kafel palety bez etykiety").toBeTruthy();
+    }
   });
 
   it("paleta się zwija i rozwija", () => {

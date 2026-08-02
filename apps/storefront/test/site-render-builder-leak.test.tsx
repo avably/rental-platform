@@ -57,6 +57,38 @@ const BUILDER_LAYER_MARKERS = [
   "data-canvas-ghost",
   "data-canvas-guide-slot",
   "data-dragging",
+  // Paleta elementów, edycja w miejscu i picker zdjęcia (K3, ADR-086).
+  "data-element-tile",
+  "data-palette-elements",
+  "data-element-editing",
+  "data-inline-editor",
+  "data-inline-toolbar",
+  "data-inline-format",
+  "data-inline-link-form",
+  "data-inline-link-apply",
+  "data-image-picker",
+  "data-picker-tab",
+  "data-picker-upload",
+  "data-picker-search",
+  "data-picker-search-run",
+  "data-picker-photo",
+  "data-picker-photo-author",
+  // Skorupa i pasek narzędzi kreatora — dopisane przy nodze kompletności (K3).
+  // Były w warstwie od K1/K2, ale rejestr ich nie znał, bo nikt go nie sprawdzał;
+  // to jest dokładnie ta cicha luka, którą noga niżej zamyka.
+  "data-site-builder",
+  "data-viewport",
+  "data-section-remove",
+  "data-section-settings",
+  "data-canvas-no-selection",
+  "data-guide-kind",
+  // Paleta i galeria typów sekcji — również warstwa kreatora, choć część z nich
+  // renderuje plik z pasa ekranu „Strona sklepu".
+  "data-palette",
+  "data-add-section",
+  // Akcje pasków jako IKONY (K3, punkt 4) i wejście w picker z szuflady.
+  "data-toolbar-action",
+  "data-element-image-pick",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */
@@ -119,5 +151,113 @@ describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
     // Szew elementów (K2) jest drugą drogą wniesienia warstwy edycyjnej — i tak
     // samo zamkniętą po stronie sklepu jak szew sekcji.
     expect(storePage, "sklep podaje własną owijkę elementów").not.toContain("elementWrapper");
+  });
+});
+
+/**
+ * KOMPLETNOŚĆ REJESTRU (K3, ADR-086 — znalezisko recenzji PM z K2).
+ *
+ * Rejestr wyżej był do tej pory RĘCZNY, a to znaczyło dwie ciche awarie:
+ * znacznik usunięty z listy przestawał być pilnowany bez jednego czerwonego
+ * testu, a nowy element interfejsu kreatora nigdy się na nią sam nie dopisywał.
+ * Kontrakt „render nie zawiera znaczników z listy" jest dokładnie tak dobry,
+ * jak lista — więc listę też trzeba pilnować.
+ *
+ * Ta noga skanuje ŹRÓDŁA warstwy edycyjnej i wymaga, żeby każdy użyty tam
+ * atrybut `data-*` był albo w rejestrze, albo na jawnej liście wyjątków. Nie
+ * zgaduje: wyjątek trzeba dopisać ręcznie i uzasadnić, a to jest moment,
+ * w którym ktoś musi pomyśleć, czy nowy atrybut wycieka na publiczną stronę.
+ */
+const BUILDER_LAYER_SOURCES = [
+  "app/[locale]/(kreator)/strona/kreator/builder-canvas.tsx",
+  "app/[locale]/(kreator)/strona/kreator/canvas-elements.tsx",
+  "app/[locale]/(kreator)/strona/kreator/canvas-gesture.ts",
+  "app/[locale]/(kreator)/strona/kreator/element-palette.tsx",
+  "app/[locale]/(kreator)/strona/kreator/inline-editor.tsx",
+  "app/[locale]/(kreator)/strona/kreator/image-picker.tsx",
+  "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
+  "app/[locale]/(kreator)/strona/kreator/site-builder.tsx",
+  "app/[locale]/(kreator)/strona/kreator/builder-palette.tsx",
+  // Galeria typów sekcji żyje w pasie ekranu „Strona sklepu", ale renderuje się
+  // WEWNĄTRZ kreatora (paleta i „+" na płótnie) — jej znaczniki są warstwą.
+  "app/[locale]/(panel)/strona/add-section-gallery.tsx",
+] as const;
+
+/**
+ * Atrybuty, które w warstwie edycyjnej WYSTĘPUJĄ, ale do rejestru nie należą.
+ * Każdy z powodem — lista wyjątków bez uzasadnień zamienia się w wysypisko,
+ * na które trafia wszystko, co akurat zapaliło test.
+ */
+const MARKER_EXCEPTIONS: Record<string, string> = {
+  // Znaczniki TREŚCI, nie warstwy: renderer wystawia je także w sklepie, bo po
+  // nich znajduje się sekcję i element w dokumencie (kotwice z K1/K2).
+  "data-section-id": "kotwica sekcji w publicznym renderze (ADR-083)",
+  "data-section-type": "typ sekcji na kotwicy — czytany przez testy i płótno",
+  "data-section-order": "pozycja sekcji na kotwicy",
+  "data-element-id": "kotwica elementu w publicznym renderze (ADR-084)",
+  "data-element-kind": "rodzaj elementu na kotwicy",
+  "data-canvas-grid": "pudełko płótna — wspólne dla sklepu i kreatora",
+  "data-section-canvas": "wersja treści sekcji na korzeniu płótna",
+  // Atrybuty PLATFORMY, nie nasze: Radix opisuje nimi własne prymitywy.
+  "data-slot": "atrybut biblioteki prymitywów (Radix), nie warstwy kreatora",
+  "data-state": "stan prymitywu Radix (otwarte/zamknięte)",
+  "data-side": "strona prymitywu Radix",
+};
+
+describe("rejestr znaczników nadąża za warstwą edycyjną", () => {
+  const panelRoot = resolve(process.cwd(), "../panel");
+  /** Komentarze wypadają ze skanu — inaczej przykład w komentarzu zapala test. */
+  const readSource = (path: string) =>
+    readFileSync(resolve(panelRoot, path), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  it("źródła warstwy edycyjnej są na miejscu (kontrola pozytywna skanu)", () => {
+    // Bez tego cała noga broniłaby pustego zbioru: przeniesiony plik znaczyłby
+    // „nie ma znaczników do sprawdzenia", a nie „coś jest nie tak".
+    for (const path of BUILDER_LAYER_SOURCES) {
+      const source = readSource(path);
+      expect(source.length, `${path}: pusty albo nieistniejący`).toBeGreaterThan(200);
+    }
+  });
+
+  it("KAŻDY atrybut data-* z warstwy edycyjnej jest w rejestrze albo w wyjątkach", () => {
+    /*
+     * Pokrycie liczy się PREFIKSEM, bo tak działa asercja wycieku wyżej:
+     * `not.toContain("data-builder")` broni całej rodziny `data-builder-*`.
+     * Sprawdzanie pełnych nazw kazałoby wpisywać do rejestru każdy wariant
+     * z osobna i rozjechałoby listę z tym, co ona naprawdę gwarantuje.
+     */
+    const covered = (attribute: string) =>
+      BUILDER_LAYER_MARKERS.some((marker) => attribute.startsWith(marker)) ||
+      Object.hasOwn(MARKER_EXCEPTIONS, attribute);
+    const found = new Map<string, string>();
+
+    for (const path of BUILDER_LAYER_SOURCES) {
+      for (const [, attribute] of readSource(path).matchAll(/\b(data-[a-z][a-z0-9-]*)/g)) {
+        if (!found.has(attribute!)) found.set(attribute!, path);
+      }
+    }
+
+    // Kontrola pozytywna: skan po pustym zbiorze nie broniłby niczego.
+    expect(found.size, "skan nie znalazł ŻADNEGO atrybutu data-*").toBeGreaterThan(10);
+
+    const missing = [...found.entries()]
+      .filter(([attribute]) => !covered(attribute))
+      .map(([attribute, path]) => `${attribute} (${path})`);
+    expect(
+      missing,
+      "atrybut warstwy edycyjnej spoza rejestru. Dopisz go do BUILDER_LAYER_MARKERS " +
+        "(wtedy publiczny render będzie go pilnował) albo do MARKER_EXCEPTIONS z powodem, " +
+        "jeśli to znacznik TREŚCI wystawiany także w sklepie.",
+    ).toEqual([]);
+  });
+
+  it("rejestr nie zawiera wpisów MARTWYCH — każdy znacznik naprawdę gdzieś jest", () => {
+    // Druga strona tej samej reguły: wpis usunięty ze źródła (bo funkcja
+    // zniknęła) ma zejść z listy, a nie zostać na niej jako pusta obietnica.
+    const sources = BUILDER_LAYER_SOURCES.map(readSource).join("\n");
+    const dead = BUILDER_LAYER_MARKERS.filter((marker) => !sources.includes(marker));
+    expect(dead, "znacznik w rejestrze, którego nie ma w żadnym źródle warstwy").toEqual([]);
   });
 });

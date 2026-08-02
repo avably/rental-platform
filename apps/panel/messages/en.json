@@ -1137,7 +1137,8 @@
       "settingsDescription": "Changes are saved to the draft. The canvas refreshes once saved.",
       "emptyTitle": "The page is empty",
       "emptyBody": "Add your first section from the palette on the left or with the button below.",
-      "canvasSettingsDescription": "Canvas changes save themselves. Click elements on the page to edit them."
+      "canvasSettingsDescription": "Canvas changes save themselves. Click elements on the page to edit them.",
+      "tabElementsHint": "Drag a tile onto a section, or click — the element lands below the content."
     },
     "elementKinds": {
       "heading": "Heading",
@@ -1146,7 +1147,8 @@
       "image": "Image",
       "icon": "Icon",
       "shape": "Shape",
-      "catalog": "Product catalog"
+      "catalog": "Product catalog",
+      "mapLink": "Map (link)"
     },
     "elements": {
       "toFront": "Bring to front",
@@ -1188,7 +1190,47 @@
         "left": "Left",
         "center": "Center",
         "right": "Right"
-      }
+      },
+      "color": "Text colour",
+      "colors": {
+        "default": "Default",
+        "muted": "Muted",
+        "accent": "Accent",
+        "inverted": "On dark band"
+      },
+      "level": "Heading size",
+      "levels": {
+        "1": "Largest (hero)",
+        "2": "Section heading",
+        "3": "Block title"
+      },
+      "icon": "Icon",
+      "image": "Photo",
+      "changeImage": "Change photo",
+      "address": "Address",
+      "mapUrl": "Maps link"
+    },
+    "inline": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "link": "Insert link",
+      "unlink": "Remove link",
+      "linkAddress": "Link address",
+      "linkApply": "Insert link",
+      "linkInvalid": "Allowed: http(s) address, relative path (/...) or anchor (#...)",
+      "editing": "Editing element text"
+    },
+    "picker": {
+      "title": "Choose a photo",
+      "description": "Upload your own photo or search the web.",
+      "tabUpload": "Upload",
+      "tabSearch": "Web photos",
+      "fileLabel": "Image file (JPG, PNG or WebP)",
+      "upload": "Upload photo",
+      "searchLabel": "What are you looking for",
+      "searchPlaceholder": "e.g. excavator, construction, tools",
+      "search": "Search",
+      "open": "Change photo"
     }
   },
   "domainSettings": {

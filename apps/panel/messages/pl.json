@@ -1137,7 +1137,8 @@
       "settingsDescription": "Zmiany zapisują się do szkicu. Płótno odświeży się po zapisaniu.",
       "emptyTitle": "Strona jest pusta",
       "emptyBody": "Dodaj pierwszą sekcję z palety po lewej albo przyciskiem poniżej.",
-      "canvasSettingsDescription": "Zmiany płótna zapisują się same. Klikaj elementy na stronie, żeby je poprawiać."
+      "canvasSettingsDescription": "Zmiany płótna zapisują się same. Klikaj elementy na stronie, żeby je poprawiać.",
+      "tabElementsHint": "Przeciągnij kafel na sekcję albo kliknij — element dopisze się pod treścią."
     },
     "elementKinds": {
       "heading": "Nagłówek",
@@ -1146,7 +1147,8 @@
       "image": "Obraz",
       "icon": "Ikona",
       "shape": "Kształt",
-      "catalog": "Katalog produktów"
+      "catalog": "Katalog produktów",
+      "mapLink": "Mapa (link)"
     },
     "elements": {
       "toFront": "Na wierzch",
@@ -1188,7 +1190,47 @@
         "left": "Do lewej",
         "center": "Do środka",
         "right": "Do prawej"
-      }
+      },
+      "color": "Kolor tekstu",
+      "colors": {
+        "default": "Domyślny",
+        "muted": "Przygaszony",
+        "accent": "Akcent",
+        "inverted": "Na ciemnym tle"
+      },
+      "level": "Wielkość nagłówka",
+      "levels": {
+        "1": "Największy (hero)",
+        "2": "Nagłówek sekcji",
+        "3": "Tytuł bloku"
+      },
+      "icon": "Ikona",
+      "image": "Zdjęcie",
+      "changeImage": "Zmień zdjęcie",
+      "address": "Adres",
+      "mapUrl": "Adres do map"
+    },
+    "inline": {
+      "bold": "Pogrubienie",
+      "italic": "Pochylenie",
+      "link": "Wstaw link",
+      "unlink": "Usuń link",
+      "linkAddress": "Adres linku",
+      "linkApply": "Wstaw link",
+      "linkInvalid": "Dozwolone: adres http(s), ścieżka względna (/...) albo kotwica (#...)",
+      "editing": "Edycja tekstu elementu"
+    },
+    "picker": {
+      "title": "Wybierz zdjęcie",
+      "description": "Wgraj własne zdjęcie albo wyszukaj w sieci.",
+      "tabUpload": "Wgraj",
+      "tabSearch": "Zdjęcia z sieci",
+      "fileLabel": "Plik zdjęcia (JPG, PNG lub WebP)",
+      "upload": "Wgraj zdjęcie",
+      "searchLabel": "Czego szukasz",
+      "searchPlaceholder": "np. koparka, budowa, narzędzia",
+      "search": "Szukaj",
+      "open": "Zmień zdjęcie"
     }
   },
   "domainSettings": {

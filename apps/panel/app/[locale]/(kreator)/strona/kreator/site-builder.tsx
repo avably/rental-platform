@@ -33,13 +33,21 @@
  * płótna ma iść bez przerwy między jednym gestem a drugim.
  */
 import {
+  canvasMetrics,
+  clampGeometry,
+  createElement,
+  defaultSizeOf,
+  freeSpotFor,
   presetContentFor,
   sectionCanvasFrom,
+  type PaletteElementKind,
   type SectionCanvas,
   type SectionType,
   type SiteTemplate,
+  snapMove,
+  unitsFromPx,
 } from "@avably/core/site";
-import { Button, type StorefrontProduct } from "@avably/ui";
+import { Button, TooltipProvider, type StorefrontProduct } from "@avably/ui";
 import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useState, useTransition } from "react";
@@ -58,9 +66,10 @@ import {
 
 import { BuilderCanvas, type BuilderViewport, type ElementSelection } from "./builder-canvas";
 import { BuilderPalette } from "./builder-palette";
+import { ImagePicker } from "./image-picker";
 import { orderWithInsertedAt } from "./insert-position";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
-import { useCanvasEditor } from "./use-canvas-editor";
+import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type SaveState = "idle" | "saving" | "saved";
@@ -86,6 +95,7 @@ export function SiteBuilder({
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [selection, setSelection] = useState<ElementSelection | null>(null);
+  const [picking, setPicking] = useState<ElementSelection | null>(null);
 
   /**
    * Jedyna droga mutacji w kreatorze. Sukces odświeża RSC (`router.refresh`),
@@ -177,9 +187,82 @@ export function SiteBuilder({
     });
   }
 
+  /**
+   * Dodanie elementu KLIKNIĘCIEM kafla palety (K3). Trafia do sekcji, w której
+   * operator ostatnio coś zaznaczył — a gdy nic nie zaznaczył, do PIERWSZEJ
+   * sekcji strony. Zgadywanie „gdzieś" byłoby gorsze niż jedna przewidywalna
+   * zasada, którą widać po wyniku.
+   */
+  function addElement(kind: PaletteElementKind) {
+    const target = selection?.sectionId ?? sections[0]?.id;
+    if (!target) return;
+    const canvas = editor.canvasOf(target);
+    if (!canvas) return;
+    const id = newElementId();
+    editor.mutate(target, (current) => ({
+      ...current,
+      elements: [
+        ...current.elements,
+        createElement(kind, id, freeSpotFor(kind, current.elements, current.rows), locale),
+      ],
+    }));
+    setSelection({ sectionId: target, elementId: id });
+  }
+
+  /**
+   * UPUSZCZENIE KAFLA PALETY NA PŁÓTNO (K3, ADR-086).
+   *
+   * Logika siedzi w SKORUPIE, nie w płótnie, bo paleta jest jej rodzeństwem —
+   * `DndContext` płótna obejmuje wyłącznie kolejność sekcji, więc kafel i tak
+   * nie mógłby być w nim źródłem przeciągania. Miejsce liczymy z pozycji
+   * wskaźnika względem PŁÓTNA sekcji, pod którą wypadł kursor, JEDNĄ KWADRATOWĄ
+   * miarą siatki (`canvasMetrics`) w obu osiach — stała wysokość jednostki
+   * kładłaby element gdzie indziej, niż pokazywał kursor, na każdej szerokości
+   * płótna innej niż projektowa (ADR-087, decyzja 3).
+   */
+  function dropElementAt(kind: PaletteElementKind, pointer: { x: number; y: number }): boolean {
+    const grid = document
+      .elementsFromPoint(pointer.x, pointer.y)
+      .find((node): node is HTMLElement => node instanceof HTMLElement && node.hasAttribute("data-canvas-grid"));
+    const sectionId = grid?.closest<HTMLElement>("[data-canvas-section]")?.getAttribute("data-canvas-section");
+    const canvas = sectionId ? editor.canvasOf(sectionId) : undefined;
+    if (!grid || !sectionId || !canvas) return false;
+
+    const box = grid.getBoundingClientRect();
+    const metrics = canvasMetrics(grid.clientWidth, canvas.rows);
+    const size = defaultSizeOf(kind);
+    // Kafel „chwyta się" środkiem — bez odjęcia połowy pudełka element
+    // wyskakiwałby w prawo i w dół od kursora.
+    const raw = {
+      x: unitsFromPx(pointer.x - box.left, metrics) - size.w / 2,
+      y: unitsFromPx(pointer.y - box.top, metrics) - size.h / 2,
+      w: size.w,
+      h: size.h,
+      z: canvas.elements.length,
+    };
+    // Przyciąganie do siatki i sąsiadów — te same czyste funkcje, co gest.
+    const snapped = snapMove(clampGeometry(raw, canvas.rows), 0, 0, {
+      rows: canvas.rows,
+      neighbours: canvas.elements.map((element) => element.layout.desktop),
+      snap: true,
+    });
+
+    const id = newElementId();
+    editor.mutate(sectionId, (current) => ({
+      ...current,
+      elements: [...current.elements, createElement(kind, id, snapped.geometry, locale)],
+    }));
+    setSelection({ sectionId, elementId: id });
+    return true;
+  }
+
   const openSection = sections.find((section) => section.id === settingsId) ?? null;
 
   return (
+    // Kreator ma WŁASNEGO dostawcę tooltipów: trasa stoi poza powłoką panelu
+    // (grupa `(kreator)`, ADR-083), więc nie dziedziczy tego z belki — a od K3
+    // tooltipy niosą znaczenie ikon w paskach akcji i w pasku formatowania.
+    <TooltipProvider>
     <div data-site-builder className="flex h-screen min-h-screen flex-col">
       <h1 className="sr-only">{t("builder.title")}</h1>
 
@@ -262,6 +345,8 @@ export function SiteBuilder({
           disabled={pending}
           template={template}
           onAddSection={(type) => addSection(type, sections.length, sections.map((s) => s.id))}
+          onAddElement={addElement}
+          onDropElement={dropElementAt}
           onSaveTemplate={(choice) => run(() => updateTemplate(siteId, choice))}
         />
 
@@ -282,6 +367,7 @@ export function SiteBuilder({
             editor={editor}
             selection={selection}
             onSelect={setSelection}
+            onPickImage={setPicking}
             onChanged={() => {
               setSaveState("saved");
               router.refresh();
@@ -289,6 +375,31 @@ export function SiteBuilder({
           />
         </main>
       </div>
+
+      <ImagePicker
+        siteId={siteId}
+        open={picking !== null}
+        onClose={() => setPicking(null)}
+        onPick={(source, alt) => {
+          const target = picking;
+          if (!target) return;
+          editor.mutate(target.sectionId, (canvas) =>
+            replaceElement(canvas, target.elementId, (element) =>
+              element.kind === "image"
+                ? {
+                    ...element,
+                    source,
+                    // Stara ścieżka schodzi razem ze źródłem — zgodność wstecz
+                    // jest DROGĄ ODCZYTU, nie miejscem zapisu (ADR-086).
+                    imagePath: undefined,
+                    alt: alt && alt.trim().length > 0 ? alt : element.alt,
+                  }
+                : element,
+            ),
+          );
+          setPicking(null);
+        }}
+      />
 
       <SectionSettingsDrawer
         siteId={siteId}
@@ -300,6 +411,11 @@ export function SiteBuilder({
         onCanvasChange={(update) => {
           if (openSection) editor.mutate(openSection.id, update);
         }}
+        onPickImage={
+          openSection && selection?.sectionId === openSection.id
+            ? () => setPicking(selection)
+            : undefined
+        }
         onClose={() => setSettingsId(null)}
         onSaved={() => {
           setSaveState("saved");
@@ -307,6 +423,7 @@ export function SiteBuilder({
         }}
       />
     </div>
+    </TooltipProvider>
   );
 }
 
