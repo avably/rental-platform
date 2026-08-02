@@ -13,16 +13,27 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { CANVAS_COLUMNS, type CanvasElement, type Geometry } from "./elements";
+import {
+  CANVAS_COLUMNS,
+  CANVAS_DESIGN_WIDTH_PX,
+  type CanvasElement,
+  type Geometry,
+} from "./elements";
 import {
   MIN_ELEMENT_UNITS,
   NUDGE_STEP,
   NUDGE_STEP_LARGE,
   bringToFront,
+  canvasMetrics,
   clampGeometry,
+  commitMove,
+  commitResize,
+  geometryRect,
   normalizeLayers,
   nudgeGeometry,
   paintOrder,
+  rawMove,
+  rawResize,
   sendToBack,
   snapMove,
   snapResize,
@@ -225,5 +236,108 @@ describe("warstwy", () => {
 
   it("nieznany identyfikator nie wywraca listy", () => {
     expect(bringToFront(elements, "brak").map((item) => item.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+/**
+ * MIARA PŁÓTNA I GEST (K2c, ADR-087).
+ *
+ * Sedno naprawy: JEDNA jednostka na obie osie. Wcześniej poziom liczył się
+ * w procentach kontenera, a pion w stałych ośmiu pikselach — siatka była
+ * kwadratowa dokładnie przy szerokości projektowej i krzywiła się przy każdej
+ * innej. Testy niżej mierzą to na trzech szerokościach, bo błąd tego rodzaju
+ * jest niewidoczny dokładnie w jednym punkcie: tam, gdzie się go zwykle patrzy.
+ */
+describe("miara płótna: jednostka jest kwadratowa przy każdej szerokości", () => {
+  const WIDTHS = [CANVAS_DESIGN_WIDTH_PX, 830, 512];
+
+  it.each(WIDTHS)("przy płótnie %i px jednostka ma ten sam bok w pionie i w poziomie", (width) => {
+    const metrics = canvasMetrics(width, ROWS);
+    const rect = geometryRect({ x: 0, y: 0, w: 1, h: 1 }, metrics);
+    expect(rect.width).toBeCloseTo(rect.height, 10);
+    expect(rect.width).toBeCloseTo(width / CANVAS_COLUMNS, 10);
+  });
+
+  it.each(WIDTHS)("wysokość płótna przy %i px to dokładnie `rows` jednostek", (width) => {
+    const metrics = canvasMetrics(width, ROWS);
+    expect(metrics.height).toBeCloseTo(ROWS * metrics.unit, 10);
+  });
+
+  it("ten sam ruch wskaźnika w pionie i w poziomie daje ten sam ruch w jednostkach", () => {
+    // To jest test WŁAŚCIWEJ wady: przy szerokości innej niż projektowa stara
+    // miara dzieliła `dy` przez 8 px, a `dx` przez ~5,8 px — ręka szła po
+    // przekątnej, element nie.
+    const metrics = canvasMetrics(830, ROWS);
+    const base = box(40, 20, 10, 6);
+    const result = commitMove(base, 10 * metrics.unit, 10 * metrics.unit, metrics, {
+      neighbours: [],
+      snap: false,
+    });
+    expect(result.geometry.x - base.x).toBe(10);
+    expect(result.geometry.y - base.y).toBe(10);
+  });
+
+  it("płótno bez pomiaru (szerokość 0) liczy się w skali projektowej", () => {
+    expect(canvasMetrics(0, ROWS).unit).toBe(CANVAS_DESIGN_WIDTH_PX / CANVAS_COLUMNS);
+  });
+});
+
+describe("pipeline commitu gestu: piksele → jednostki → przyciąganie → płótno", () => {
+  const metrics = canvasMetrics(CANVAS_DESIGN_WIDTH_PX, ROWS);
+
+  it("przeciągnięcie w pikselach przechodzi przez przyciąganie do sąsiada", () => {
+    // Pudełko zatrzymane o pół jednostki przed lewą krawędzią sąsiada (x = 20).
+    const base = box(19, 30, 20, 6);
+    const result = commitMove(base, 0.4 * metrics.unit, 0, metrics, {
+      neighbours: [NEIGHBOUR],
+      snap: true,
+    });
+    expect(result.geometry.x, "commit nie przyciągnął do krawędzi sąsiada").toBe(20);
+    expect(result.guides.some((guide) => guide.axis === "x" && guide.at === 20)).toBe(true);
+  });
+
+  it("commit PRZYCINA do płótna — element nie wyjeżdża poza sekcję", () => {
+    const base = box(40, 20, 10, 6);
+    const far = commitMove(base, 10_000, 10_000, metrics, { neighbours: [], snap: false });
+    expect(far.geometry.x + far.geometry.w).toBe(CANVAS_COLUMNS);
+    expect(far.geometry.y + far.geometry.h).toBe(ROWS);
+  });
+
+  it("commit uchwytu rusza TYLKO jego krawędzie", () => {
+    const base = box(40, 20, 10, 6);
+    const result = commitResize(base, "s", 0, 4 * metrics.unit, metrics, {
+      neighbours: [],
+      snap: false,
+    });
+    expect(result.geometry.y).toBe(20);
+    expect(result.geometry.h).toBe(10);
+    expect(result.geometry.x).toBe(40);
+    expect(result.geometry.w).toBe(10);
+  });
+});
+
+describe("pozycja w trakcie gestu: ułamkowa, ale w płótnie", () => {
+  it("przesunięcie NIE zaokrągla się do jednostki — pudełko idzie za kursorem", () => {
+    const raw = rawMove(box(40, 20, 10, 6), 2.4, -1.6, ROWS);
+    expect(raw.x).toBeCloseTo(42.4, 10);
+    expect(raw.y).toBeCloseTo(18.4, 10);
+  });
+
+  it("pudełko zatrzymuje się o krawędź płótna, zamiast poza nią jechać", () => {
+    const raw = rawMove(box(40, 20, 10, 6), 1_000, 1_000, ROWS);
+    expect(raw.x).toBe(CANVAS_COLUMNS - 10);
+    expect(raw.y).toBe(ROWS - 6);
+  });
+
+  it("uchwyt nie zwija pudełka poniżej minimum ani nie przesuwa przeciwnego boku", () => {
+    const raw = rawResize(box(40, 20, 10, 6), "w", 1_000, 0, ROWS);
+    expect(raw.w).toBe(MIN_ELEMENT_UNITS);
+    expect(raw.x + raw.w).toBe(50);
+  });
+
+  it("uchwyt rozmiaru też idzie ułamkowo — bez schodków w trakcie ciągnięcia", () => {
+    const raw = rawResize(box(40, 20, 10, 6), "se", 1.5, 2.25, ROWS);
+    expect(raw.w).toBeCloseTo(11.5, 10);
+    expect(raw.h).toBeCloseTo(8.25, 10);
   });
 });

@@ -51,6 +51,12 @@ const BUILDER_LAYER_MARKERS = [
   "data-element-actions",
   "data-canvas-settings",
   "data-element-settings",
+  // Warstwa podglądu gestu (K2c, ADR-087): obrys miejsca lądowania i pula linii
+  // prowadnic. Rysuje je silnik gestów kreatora, sklep nie ma po nich śladu.
+  "data-canvas-gesture-layer",
+  "data-canvas-ghost",
+  "data-canvas-guide-slot",
+  "data-dragging",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */

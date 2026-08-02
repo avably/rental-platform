@@ -25,6 +25,12 @@
  * a po drodze podmieniłoby propsy w środku kolejnego przeciągnięcia. Zmiany
  * STRUKTURY (dodanie, usunięcie, kolejność, publikacja) odświeżają jak dotąd,
  * bo tam płótno musi zobaczyć nową listę sekcji.
+ *
+ * ================== CO ZMIENIŁ K2c (ADR-087) ==================
+ *
+ * Zapis `quiet` wyszedł też POZA tranzycję — jego `pending` szarzył całe płótno
+ * co 700 ms w środku pracy. Blokada zostaje przy operacjach struktury; edycja
+ * płótna ma iść bez przerwy między jednym gestem a drugim.
  */
 import {
   presetContentFor,
@@ -95,16 +101,37 @@ export function SiteBuilder({
     ) => {
       setError(null);
       setSaveState("saving");
-      startTransition(async () => {
-        const result = await action();
+
+      const settle = (result: ActionResult, refresh: boolean) => {
         if (result.ok) {
           setSaveState("saved");
-          if (!options?.quiet) router.refresh();
+          if (refresh) router.refresh();
         } else {
           setSaveState("idle");
           setError(result.error);
           onFail?.();
         }
+      };
+
+      /*
+       * AUTOZAPIS NIE ZAMRAŻA PŁÓTNA (K2c, ADR-087). Zapisy `quiet` (geometria
+       * elementów) idą POZA tranzycją, bo `pending` tranzycji szarzy uchwyty
+       * i paski narzędzi całego kreatora — a autozapis wpada co 700 ms w środku
+       * pracy. Operator dostawał między gestami kursor „zakaz" i wyłączone
+       * przyciski, choć nic nie było zablokowane. Wskaźnik „Zapisywanie…/
+       * Zapisano" zostaje jeden i wspólny, bo on informuje, a nie blokuje.
+       *
+       * Zmiany STRUKTURY (kolejność, dodanie, usunięcie, publikacja) zostają
+       * w tranzycji: tam blokada jest na miejscu, bo druga taka operacja
+       * w locie rozjechałaby listę sekcji.
+       */
+      if (options?.quiet) {
+        void action().then((result) => settle(result, false));
+        return;
+      }
+
+      startTransition(async () => {
+        settle(await action(), true);
       });
     },
     [router],

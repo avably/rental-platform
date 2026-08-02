@@ -22,6 +22,7 @@
  */
 import {
   CANVAS_COLUMNS,
+  CANVAS_DESIGN_WIDTH_PX,
   GUIDE_TOLERANCE_UNITS,
   SECTION_MAX_ROWS,
   type CanvasBreakpoint,
@@ -330,6 +331,188 @@ export function nudgeGeometry(
   const dx = direction === "left" ? -step : direction === "right" ? step : 0;
   const dy = direction === "up" ? -step : direction === "down" ? step : 0;
   return clampGeometry({ ...base, x: base.x + dx, y: base.y + dy }, rows);
+}
+
+// -----------------------------------------------------------------------
+// Miara płótna i gest wskaźnika (K2c, ADR-087)
+// -----------------------------------------------------------------------
+
+/**
+ * MIARA PŁÓTNA — bok jednostki siatki w pikselach, TEN SAM na obu osiach.
+ *
+ * Do K2c oś X liczyła się w procentach kontenera, a oś Y w stałych
+ * `GRID_UNIT_PX`. Siatka była więc kwadratowa przy DOKŁADNIE jednej szerokości
+ * płótna ({@link CANVAS_DESIGN_WIDTH_PX}) i krzywiła się tym mocniej, im węższe
+ * okno: przy płótnie 830 px kolumna miała ~5,8 px, a wiersz wciąż 8. Bolało to
+ * operatora na trzy sposoby naraz — przeciągnięcie o 10 px w prawo znaczyło co
+ * innego niż o 10 px w dół, przyciąganie „na środek" wypadało gdzie indziej,
+ * niż widać, a układ złożony na szerokim ekranie rozjeżdżał się w pionie na
+ * węższym.
+ *
+ * Jednostka jest teraz JEDNA: szerokość płótna przez liczbę kolumn. Wysokość
+ * płótna z niej WYNIKA (`rows × unit`), więc siatka jest kwadratowa przy każdej
+ * szerokości, a układ skaluje się proporcjonalnie — tak samo w kreatorze i w
+ * sklepie, bo renderer jest wspólny.
+ */
+export interface CanvasMetrics {
+  /** Bok jednostki siatki w pikselach — wspólny dla osi X i Y. */
+  unit: number;
+  /** Szerokość płótna w pikselach (zmierzona albo projektowa, gdy brak pomiaru). */
+  width: number;
+  /** Wysokość płótna w pikselach — z definicji `rows × unit`. */
+  height: number;
+  /** Wysokość płótna w jednostkach, sprowadzona do dozwolonego zakresu. */
+  rows: number;
+}
+
+/**
+ * Miara dla ZMIERZONEGO płótna. Szerokość 0 (pomiar przed pierwszym układem)
+ * spada na szerokość projektową — lepiej policzyć gest w skali 1:1 niż podzielić
+ * przez zero i wysłać element w nieskończoność.
+ */
+export function canvasMetrics(containerWidthPx: number, rows: number): CanvasMetrics {
+  const width = containerWidthPx > 0 ? containerWidthPx : CANVAS_DESIGN_WIDTH_PX;
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const unit = width / CANVAS_COLUMNS;
+  return { unit, width, height: safeRows * unit, rows: safeRows };
+}
+
+/** Piksele wskaźnika → jednostki siatki. TA SAMA miara dla `dx` i dla `dy`. */
+export function unitsFromPx(px: number, metrics: CanvasMetrics): number {
+  return px / metrics.unit;
+}
+
+/** Pudełko o wymiarach ułamkowych — pozycja W TRAKCIE gestu, przed przyciągnięciem. */
+export interface RawBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Pudełko w pikselach — warstwa wizualna gestu i pomiary w testach. */
+export interface CanvasRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Jednostki → piksele. Obie osie mnożą się przez `unit`, więc kwadrat
+ * w jednostkach jest kwadratem na ekranie — to jest cała teza tej miary.
+ */
+export function geometryRect(box: RawBox, metrics: CanvasMetrics): CanvasRect {
+  return {
+    left: box.x * metrics.unit,
+    top: box.y * metrics.unit,
+    width: box.w * metrics.unit,
+    height: box.h * metrics.unit,
+  };
+}
+
+/** Przycięcie BEZ zaokrąglania — pozycja w trakcie gestu jest ułamkowa. */
+function clampFloat(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/**
+ * SUROWA pozycja przeciągania: bez zaokrągleń i bez przyciągania, ale już
+ * w granicach płótna.
+ *
+ * To jest to, co widać pod kursorem. Zaokrąglanie w locie było źródłem
+ * „schodków" zgłoszonych z produkcji — element skakał co jednostkę zamiast
+ * jechać za ręką, a przy nierównych osiach skakał w pionie i w poziomie
+ * o różną odległość. Przyciągnięcie zdarza się dopiero w commit
+ * ({@link snapMove}), a prowadnica pokazuje je z wyprzedzeniem.
+ *
+ * Przycięcie do płótna jest tu ŚWIADOME i jest jedynym odstępstwem od zasady
+ * „element trzyma kursor 1:1": pudełko zatrzymuje się o krawędź, zamiast
+ * wyjechać poza sekcję i wrócić skokiem przy upuszczeniu.
+ */
+export function rawMove(base: Geometry, dx: number, dy: number, rows: number): RawBox {
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  return {
+    x: clampFloat(base.x + dx, 0, CANVAS_COLUMNS - base.w),
+    y: clampFloat(base.y + dy, 0, Math.max(0, safeRows - base.h)),
+    w: base.w,
+    h: base.h,
+  };
+}
+
+/**
+ * SUROWY rozmiar w trakcie ciągnięcia uchwytu — bliźniak {@link rawMove} dla
+ * krawędzi. Ta sama zasada, co w {@link snapResize}: uchwyt rusza tylko swoje
+ * boki, przeciwległe stoją, rozmiar nie schodzi poniżej
+ * {@link MIN_ELEMENT_UNITS} i nie wychodzi poza płótno.
+ */
+export function rawResize(
+  base: Geometry,
+  handle: ResizeHandle,
+  dx: number,
+  dy: number,
+  rows: number,
+): RawBox {
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+
+  let left = base.x;
+  let right = base.x + base.w;
+  let top = base.y;
+  let bottom = base.y + base.h;
+
+  if (handle === "w" || handle === "nw" || handle === "sw") {
+    left = clampFloat(left + dx, 0, right - MIN_ELEMENT_UNITS);
+  }
+  if (handle === "e" || handle === "ne" || handle === "se") {
+    right = clampFloat(right + dx, left + MIN_ELEMENT_UNITS, CANVAS_COLUMNS);
+  }
+  if (handle === "n" || handle === "nw" || handle === "ne") {
+    top = clampFloat(top + dy, 0, bottom - MIN_ELEMENT_UNITS);
+  }
+  if (handle === "s" || handle === "sw" || handle === "se") {
+    bottom = clampFloat(bottom + dy, top + MIN_ELEMENT_UNITS, safeRows);
+  }
+
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
+/** Kontekst gestu bez `rows` — wysokość płótna niesie już {@link CanvasMetrics}. */
+export type GestureContext = Omit<SnapContext, "rows">;
+
+/**
+ * PIPELINE COMMITU PRZECIĄGNIĘCIA: surowe piksele wskaźnika → jednostki (jedną
+ * miarą na obie osie) → przyciąganie → przycięcie do płótna → geometria.
+ *
+ * Warstwa interfejsu nie liczy tu NICZEGO od siebie i nie ma własnej miary osi
+ * pionowej — dzięki temu „co się zapisze po upuszczeniu" jest dowodliwe testem
+ * bez DOM-u, a nie tylko okiem na zrzucie.
+ */
+export function commitMove(
+  base: Geometry,
+  dxPx: number,
+  dyPx: number,
+  metrics: CanvasMetrics,
+  context: GestureContext,
+): SnapResult {
+  return snapMove(base, unitsFromPx(dxPx, metrics), unitsFromPx(dyPx, metrics), {
+    ...context,
+    rows: metrics.rows,
+  });
+}
+
+/** Ten sam pipeline dla uchwytu rozmiaru — patrz {@link commitMove}. */
+export function commitResize(
+  base: Geometry,
+  handle: ResizeHandle,
+  dxPx: number,
+  dyPx: number,
+  metrics: CanvasMetrics,
+  context: GestureContext,
+): SnapResult {
+  return snapResize(base, handle, unitsFromPx(dxPx, metrics), unitsFromPx(dyPx, metrics), {
+    ...context,
+    rows: metrics.rows,
+  });
 }
 
 // -----------------------------------------------------------------------

@@ -10,9 +10,13 @@
  *
  * Oś POZIOMA jest procentem szerokości PŁÓTNA (kontener), nigdy okna — to ta
  * sama zasada, którą K1b wprowadził dla wariantów responsywnych (ADR-085).
- * Oś PIONOWA to jednostki po 8 px. Płótno ma sufit szerokości
- * (`CANVAS_DESIGN_WIDTH_PX`) i jest wycentrowane: bez sufitu ten sam układ na
- * monitorze 2560 px rozciągałby wiersze tekstu do nieczytelnej długości.
+ * Oś PIONOWA od K2c (ADR-087) jest procentem WYSOKOŚCI płótna, a wysokość
+ * wynika z szerokości przez proporcję `CANVAS_COLUMNS : rows`. Jednostka siatki
+ * jest więc kwadratowa przy KAŻDEJ szerokości, a nie tylko przy projektowej —
+ * wcześniej pion stał w stałych 8 px i układ rozjeżdżał się na węższym ekranie.
+ * Płótno ma sufit szerokości (`CANVAS_DESIGN_WIDTH_PX`) i jest wycentrowane:
+ * bez sufitu ten sam układ na monitorze 2560 px rozciągałby wiersze tekstu do
+ * nieczytelnej długości.
  *
  * ================== BEZPIECZEŃSTWO UKŁADU ==================
  *
@@ -25,7 +29,6 @@
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
-  GRID_UNIT_PX,
   paintOrder,
   type CanvasElement,
   type Geometry,
@@ -93,13 +96,24 @@ const JUSTIFY_CLASS = {
   right: "justify-end",
 } as const;
 
-/** Geometria (jednostki siatki) → styl pudełka. Jedyne przeliczenie w systemie. */
-export function geometryStyle(box: Geometry): CSSProperties {
+/**
+ * Geometria (jednostki siatki) → styl pudełka. Jedyne przeliczenie w systemie.
+ *
+ * OBIE osie idą w PROCENTACH (K2c, ADR-087) — pozioma względem szerokości
+ * płótna, pionowa względem jego wysokości. To nie jest kosmetyka zapisu, tylko
+ * warunek kwadratowej siatki: płótno ma proporcję `CANVAS_COLUMNS : rows`
+ * (patrz {@link SectionCanvasRenderer}), więc jeden procent wysokości i jeden
+ * procent szerokości znaczą tyle samo pikseli przy KAŻDEJ szerokości okna.
+ * Wcześniej oś pionowa stała w stałych `GRID_UNIT_PX` i siatka była kwadratowa
+ * dokładnie przy jednej szerokości płótna.
+ */
+export function geometryStyle(box: Geometry, rows: number): CSSProperties {
+  const safeRows = rows > 0 ? rows : 1;
   return {
     left: `${(box.x / CANVAS_COLUMNS) * 100}%`,
     width: `${(box.w / CANVAS_COLUMNS) * 100}%`,
-    top: box.y * GRID_UNIT_PX,
-    height: box.h * GRID_UNIT_PX,
+    top: `${(box.y / safeRows) * 100}%`,
+    height: `${(box.h / safeRows) * 100}%`,
     zIndex: box.z,
   };
 }
@@ -259,8 +273,18 @@ export function SectionCanvasRenderer({
     <section data-section-canvas={canvas.version} className={backgroundClass(canvas, styles)}>
       <div
         data-canvas-grid
+        data-canvas-rows={canvas.rows}
         className="relative isolate mx-auto w-full overflow-hidden"
-        style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX, height: canvas.rows * GRID_UNIT_PX }}
+        /*
+         * WYSOKOŚĆ WYNIKA Z SZEROKOŚCI (K2c, ADR-087). Proporcja
+         * `CANVAS_COLUMNS : rows` daje wysokość `rows × (szerokość / kolumny)`,
+         * czyli dokładnie `rows` jednostek o boku równym kolumnie — siatka jest
+         * kwadratowa przy każdej szerokości, a nie tylko przy projektowej.
+         * Stała wysokość w pikselach (`rows × GRID_UNIT_PX`) trzymała pion w
+         * miejscu, gdy poziom się zwężał: to ona rozjeżdżała układy na węższych
+         * ekranach i sadzała elementy w pasie pod widoczną treścią sekcji.
+         */
+        style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX, aspectRatio: `${CANVAS_COLUMNS} / ${canvas.rows}` }}
       >
         {paintOrder(canvas.elements).map((element) => {
           const body = (
@@ -268,7 +292,7 @@ export function SectionCanvasRenderer({
               data-element-id={element.id}
               data-element-kind={element.kind}
               className="absolute"
-              style={geometryStyle(element.layout.desktop)}
+              style={geometryStyle(element.layout.desktop, canvas.rows)}
             >
               <ElementBody
                 element={element}
