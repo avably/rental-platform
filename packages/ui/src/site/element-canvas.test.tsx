@@ -172,3 +172,79 @@ describe("dwutorowość: jeden renderer, dwie generacje treści", () => {
     expect(container.textContent).toContain("Cennik v1");
   });
 });
+
+/**
+ * ZDJĘCIA: DWA ŹRÓDŁA I ZGODNOŚĆ WSTECZ (K3, ADR-086).
+ *
+ * Render pyta o źródło JEDNĄ funkcją (`normalizeImageSource`), więc to tutaj
+ * widać, czy treść sprzed K3 — niosąca gołe `imagePath` — nadal pokazuje
+ * zdjęcie. Bez tej nogi wycięcie odczytu starego pola przechodziło przez cały
+ * pakiet na zielono (mutacja recenzji PM do PR #156), a najemca, który wgrał
+ * zdjęcie przed K3, zobaczyłby pusty kafel.
+ */
+describe("zdjęcie: skąd render bierze adres", () => {
+  const BASE = "https://storage.example.com/site-images";
+
+  function imageCanvas(image: Record<string, unknown>): SectionCanvas {
+    return {
+      version: 2,
+      rows: 40,
+      background: "default",
+      elements: [
+        {
+          id: "img1",
+          kind: "image",
+          alt: "Koparka gąsienicowa",
+          fit: "cover",
+          layout: { desktop: { x: 0, y: 0, w: 40, h: 20, z: 0 } },
+          ...image,
+        },
+      ] as SectionCanvas["elements"],
+    };
+  }
+
+  function renderImage(canvas: SectionCanvas) {
+    const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
+    return render(<SiteRenderer sections={sections} template="classic" siteImageBase={BASE} />);
+  }
+
+  it("treść SPRZED K3 (samo `imagePath`) nadal pokazuje zdjęcie", () => {
+    const { container } = renderImage(imageCanvas({ imagePath: "tenant/hero.jpg" }));
+    const img = container.querySelector("img");
+    expect(img, "element sprzed K3 przestał renderować zdjęcie").not.toBeNull();
+    expect(img?.getAttribute("src")).toBe(`${BASE}/tenant/hero.jpg`);
+    expect(img?.getAttribute("alt")).toBe("Koparka gąsienicowa");
+  });
+
+  it("treść po K3 (`source: storage`) buduje ten sam adres", () => {
+    const { container } = renderImage(imageCanvas({ source: { kind: "storage", path: "tenant/hero.jpg" } }));
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(`${BASE}/tenant/hero.jpg`);
+  });
+
+  it("hotlink idzie WPROST do dostawcy i niesie widoczną atrybucję", () => {
+    // Atrybucja jest warunkiem licencji — nie da się wystawić zdjęcia bez niej,
+    // bo podpis siedzi w tym samym pudełku co obraz.
+    const { container } = renderImage(
+      imageCanvas({
+        source: {
+          kind: "unsplash",
+          url: "https://images.example.com/photo.jpg",
+          authorName: "Jan Kowalski",
+          authorUrl: "https://example.com/@jan?utm_source=avably&utm_medium=referral",
+          downloadLocation: "https://api.unsplash.com/photos/abc/download",
+        },
+      }),
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("https://images.example.com/photo.jpg");
+    const credit = container.querySelector("[data-image-credit]");
+    expect(credit, "hotlink bez atrybucji autora").not.toBeNull();
+    expect(credit?.textContent).toContain("Jan Kowalski");
+    expect(credit?.querySelector("a")?.getAttribute("href")).toContain("utm_source=avably");
+  });
+
+  it("element bez źródła zostaje kafelkiem zastępczym, nie znika z układu", () => {
+    const { container } = renderImage(imageCanvas({}));
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-element-id="img1"]')).not.toBeNull();
+  });
+});

@@ -29,10 +29,12 @@
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  normalizeImageSource,
   paintOrder,
   type CanvasElement,
   type Geometry,
   type SectionCanvas,
+  type TextRun,
   type UspIcon,
 } from "@avably/core/site";
 import {
@@ -97,6 +99,41 @@ const JUSTIFY_CLASS = {
 } as const;
 
 /**
+ * TREŚĆ SFORMATOWANA — SKŁADANA, NIGDY WSTRZYKIWANA (K3, ADR-086).
+ *
+ * To jest miejsce, w którym pogrubienie i link operatora stają się znacznikami
+ * — i dlatego nie ma tu ani jednego stringa HTML. `<strong>`, `<em>` i `<a>`
+ * powstają jako ELEMENTY REACTA, a tekst runu wchodzi jako dziecko tekstowe,
+ * czyli jest escape'owany przez React z definicji. Nawet gdyby operator wpisał
+ * `<script>alert(1)</script>`, wyświetli się jako napis.
+ *
+ * `dangerouslySetInnerHTML` NIE MA tu prawa się pojawić — pilnuje tego kontrakt
+ * bezpieczeństwa (skan źródeł renderu). Adres linku przeszedł już allowlistę
+ * schematów w Zodzie; `rel` domykamy tak samo, jak w pozostałych linkach
+ * wychodzących.
+ */
+function FormattedText({ text, runs }: { text: string; runs?: readonly TextRun[] }) {
+  if (!runs || runs.length === 0) return <>{text}</>;
+  return (
+    <>
+      {runs.map((run, index) => {
+        let node: ReactNode = run.text;
+        if (run.bold) node = <strong>{node}</strong>;
+        if (run.italic) node = <em>{node}</em>;
+        if (run.href) {
+          node = (
+            <a href={run.href} className="underline" rel="noreferrer noopener">
+              {node}
+            </a>
+          );
+        }
+        return <Fragment key={index}>{node}</Fragment>;
+      })}
+    </>
+  );
+}
+
+/**
  * Geometria (jednostki siatki) → styl pudełka. Jedyne przeliczenie w systemie.
  *
  * OBIE osie idą w PROCENTACH (K2c, ADR-087) — pozioma względem szerokości
@@ -141,9 +178,10 @@ function ElementBody({
             : styles.cardTitle,
         ALIGN_CLASS[element.align],
       );
-      if (element.level === 1) return <h1 className={className}>{element.text}</h1>;
-      if (element.level === 2) return <h2 className={className}>{element.text}</h2>;
-      return <h3 className={className}>{element.text}</h3>;
+      const body = <FormattedText text={element.text} runs={element.runs} />;
+      if (element.level === 1) return <h1 className={className}>{body}</h1>;
+      if (element.level === 2) return <h2 className={className}>{body}</h2>;
+      return <h3 className={className}>{body}</h3>;
     }
     case "text": {
       const variant =
@@ -154,7 +192,7 @@ function ElementBody({
             : "text-base";
       return (
         <p className={boxed(variant, cn("whitespace-pre-line", ALIGN_CLASS[element.align]))}>
-          {element.text}
+          <FormattedText text={element.text} runs={element.runs} />
         </p>
       );
     }
@@ -173,21 +211,51 @@ function ElementBody({
           </a>
         </span>
       );
-    case "image":
-      return element.imagePath && siteImageBase ? (
+    case "image": {
+      const source = normalizeImageSource(element);
+      const objectFit = element.fit === "contain" ? "object-contain" : "object-cover";
+      if (source?.kind === "unsplash") {
+        // ATRYBUCJA JEST WARUNKIEM LICENCJI, nie ozdobą — dlatego podpis stoi
+        // w tym samym pudełku co zdjęcie i nie da się wystawić jednego bez
+        // drugiego. Zdjęcie jest hotlinkowane u dostawcy (świadomie nie
+        // kopiujemy go do naszego bucketa).
+        return (
+          <span className="relative block size-full overflow-hidden rounded-lg">
+            <img src={source.url} alt={element.alt} className={cn("size-full", objectFit)} loading="lazy" />
+            <span
+              data-image-credit
+              className="text-background absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[11px] leading-4"
+            >
+              <a href={source.authorUrl} rel="noreferrer noopener" className="underline">
+                {source.authorName}
+              </a>
+            </span>
+          </span>
+        );
+      }
+      return source?.kind === "storage" && siteImageBase ? (
         <img
-          src={siteImageUrl(siteImageBase, element.imagePath)}
+          src={siteImageUrl(siteImageBase, source.path)}
           alt={element.alt}
-          className={cn(
-            "size-full rounded-lg",
-            element.fit === "contain" ? "object-contain" : "object-cover",
-          )}
+          className={cn("size-full rounded-lg", objectFit)}
           loading="lazy"
         />
       ) : (
         // Bez ścieżki (albo bez bazy URL — podgląd bez Storage) element zostaje
         // w układzie jako kafel zastępczy: geometria jest treścią samą w sobie.
         <div className="bg-muted size-full rounded-lg" aria-hidden="true" />
+      );
+    }
+    case "mapLink":
+      // TYLKO ODNOŚNIK — bez osadzania obcych map (ADR-082, podtrzymane
+      // w ADR-086). Adres jest treścią, link celem; jedno i drugie widoczne.
+      return (
+        <span className={cn("flex size-full flex-col justify-center gap-1", ALIGN_CLASS[element.align])}>
+          <span className="text-base whitespace-pre-line">{element.address}</span>
+          <a href={element.url} target="_blank" rel="noreferrer noopener" className="text-sm underline">
+            {element.url}
+          </a>
+        </span>
       );
     case "icon": {
       const Icon = ELEMENT_ICON_COMPONENTS[element.name] ?? Star;

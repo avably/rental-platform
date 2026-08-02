@@ -240,7 +240,7 @@ function heroCanvas(content: HeroContent): SectionCanvas {
     // projektowej, czyli 540 px wysokości = 68 jednostek.
     built.add({
       kind: "image",
-      imagePath: content.imagePath,
+      source: { kind: "storage", path: content.imagePath },
       alt: content.heading,
       fit: "cover",
       geometry: geometry(CONTENT_X, y, CONTENT_W, 68),
@@ -398,7 +398,7 @@ function galleryCanvas(content: GalleryContent): SectionCanvas {
   content.items.forEach((item, index) => {
     built.add({
       kind: "image",
-      imagePath: item.imagePath,
+      source: { kind: "storage", path: item.imagePath },
       alt: item.alt,
       fit: "cover",
       geometry: geometry(columnX(index, 3), top + Math.floor(index / 3) * (tileRows + 3), COL3_W, tileRows),

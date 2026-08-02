@@ -42,7 +42,7 @@ import { geometryStyle } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 
-import { GUIDE_SLOTS, startCanvasGesture } from "./canvas-gesture";
+import { GESTURE_ACTIVATION_PX, GUIDE_SLOTS, startCanvasGesture } from "./canvas-gesture";
 
 /**
  * Warstwa ramek. Elementy tenanta sięgają `z` = 999 (schemat), więc warstwa
@@ -116,6 +116,7 @@ export function ElementFrame({
   selected,
   locked,
   onSelect,
+  onEdit,
   onCommit,
   onPhase,
 }: {
@@ -126,6 +127,12 @@ export function ElementFrame({
   selected: boolean;
   locked: boolean;
   onSelect: () => void;
+  /**
+   * Wejście w EDYCJĘ TREŚCI elementu (K3): tekst edytuje się w miejscu, obraz
+   * otwiera picker. Elementy bez własnej treści (kształt, katalog) nie podają
+   * tego handlera i dwuklik nic dla nich nie znaczy.
+   */
+  onEdit?: () => void;
   /** Koniec gestu — jeden wpis w historii i jeden zapis. */
   onCommit: (geometry: Geometry) => void;
   /** Początek i koniec gestu — płótno wycisza na ten czas interfejs najechania. */
@@ -134,7 +141,38 @@ export function ElementFrame({
   const t = useTranslations("site");
   const frameRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  /*
+   * WEJŚCIE W EDYCJĘ vs GEST (K3 na silniku K2c, ADR-087).
+   *
+   * Zaznaczenie zdarza się na WCIŚNIĘCIU, bo od niego zaczyna się też gest.
+   * Gdyby drugie wciśnięcie w zaznaczony tekst od razu otwierało edytor,
+   * ramka znikałaby pod palcem w chwili, w której silnik dopiero przechwycił
+   * wskaźnik — przeciągnięcie zamieniałoby się w przypadkowe pisanie.
+   *
+   * Dlatego decyzja zapada na KLIKNIĘCIU (czyli po puszczeniu) i tylko wtedy,
+   * gdy wskaźnik nie odjechał dalej niż PRÓG GESTU. Drogę mierzymy sami, z
+   * własnych zdarzeń: sygnał fazy silnika podnosi się już przy chwycie (flaga
+   * `data-dragging` musi wisieć od pierwszej klatki), więc nie odpowiada na
+   * pytanie „czy to było przeciągnięcie".
+   */
+  const downPointRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
+  const wasSelectedRef = useRef(false);
   const box = element.layout.desktop;
+
+  /**
+   * Droga liczy się z RUCHU WSKAŹNIKA, a nie ze współrzędnych kliknięcia:
+   * silnik przechwytuje wskaźnik na tej ramce, więc `pointermove` trafia tu
+   * także wtedy, gdy kursor wyjechał poza pudełko — a `click` niesie pozycję
+   * niepewnie (zdarzenia z klawiatury i syntetyczne dają zera).
+   */
+  function trackPointer(event: { clientX: number; clientY: number }): void {
+    const from = downPointRef.current;
+    if (!from || movedRef.current) return;
+    if (Math.hypot(event.clientX - from.x, event.clientY - from.y) > GESTURE_ACTIVATION_PX) {
+      movedRef.current = true;
+    }
+  }
 
   /**
    * Strzałki przesuwają o jednostkę, z Shiftem o dziesięć. `preventDefault`
@@ -210,10 +248,26 @@ export function ElementFrame({
           // Zaznaczenie idzie PRZED gestem i zdarza się także wtedy, gdy ruch
           // nie przekroczy progu — klik w element ma go zaznaczyć, a nie ruszyć.
           event.stopPropagation();
+          wasSelectedRef.current = selected;
+          downPointRef.current = { x: event.clientX, y: event.clientY };
+          movedRef.current = false;
           onSelect();
           beginGesture(event, null);
         }}
+        onPointerMove={trackPointer}
+        onClick={() => {
+          // Drugi klik w JUŻ zaznaczony element otwiera jego treść — ale tylko
+          // wtedy, gdy to naprawdę był klik, a nie koniec przeciągnięcia.
+          if (!onEdit || !wasSelectedRef.current || movedRef.current) return;
+          onEdit();
+        }}
         onKeyDown={handleKeyDown}
+        onDoubleClick={() => {
+          // Dwuklik działa też na elemencie jeszcze NIEZAZNACZONYM — po
+          // przeciągnięciu nie zadziała, bo wskaźnik odjechał od punktu chwytu.
+          if (!onEdit || movedRef.current) return;
+          onEdit();
+        }}
       >
         {selected && !locked
           ? RESIZE_HANDLES.map((handle) => (

@@ -19,6 +19,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // `server-only` rzuca przy imporcie poza serwerem Reacta; moduły serwerowe
+      // kreatora (klient wyszukiwarki zdjęć) testujemy wprost w Node.
+      "server-only": path.resolve(__dirname, "test/helpers/server-only-stub.ts"),
       // PRZED aliasem korzenia: dopasowanie jest prefiksowe i w kolejności
       // wpisów, więc "@avably/security" złapałby też subpath i przepisał go
       // na `index.ts/rate-limit`.
