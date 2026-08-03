@@ -89,6 +89,10 @@ const BUILDER_LAYER_MARKERS = [
   // Akcje pasków jako IKONY (K3, punkt 4) i wejście w picker z szuflady.
   "data-toolbar-action",
   "data-element-image-pick",
+  // Widok mobilny (K4, ADR-088): znacznik elementu z RĘCZNĄ poprawką układu
+  // (plus jego kropka na ramce) i przełącznik wymiaru na „z treści".
+  "data-element-detached",
+  "data-element-hug",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */

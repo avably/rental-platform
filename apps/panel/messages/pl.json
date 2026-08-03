@@ -1154,7 +1154,9 @@
       "toFront": "Na wierzch",
       "toBack": "Na spód",
       "duplicate": "Kopiuj element",
-      "remove": "Usuń element"
+      "remove": "Usuń element",
+      "autoMobile": "Wróć do układu automatycznego",
+      "detached": "Układ mobilny ustawiony ręcznie"
     },
     "resizeHandles": {
       "nw": "Zmień rozmiar — lewy górny róg",
@@ -1208,7 +1210,9 @@
       "image": "Zdjęcie",
       "changeImage": "Zmień zdjęcie",
       "address": "Adres",
-      "mapUrl": "Adres do map"
+      "mapUrl": "Adres do map",
+      "hugWidth": "Szerokość do treści",
+      "hugHeight": "Wysokość do treści"
     },
     "inline": {
       "bold": "Pogrubienie",

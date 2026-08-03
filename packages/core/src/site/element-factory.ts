@@ -12,13 +12,22 @@
  */
 import {
   CANVAS_COLUMNS,
+  HUG_SIZE,
+  supportsHug,
+  withSize,
   type CanvasElement,
   type Geometry,
   type PaletteElementKind,
 } from "./elements";
 import { PRESET_LOCALES, type PresetLocale } from "./presets";
+import { hugBox } from "./text-metrics";
 
-/** Rozmiar startowy pudełka w jednostkach siatki — dobrany do skali rodzaju. */
+/**
+ * Rozmiar startowy pudełka w jednostkach siatki — dobrany do skali rodzaju.
+ * Od K4 (ADR-088) obowiązuje TYLKO dla rodzajów bez własnego rozmiaru
+ * naturalnego (zdjęcie, kształt): reszta rodzi się w trybie `hug`, czyli
+ * z pudełkiem obejmującym treść.
+ */
 const DEFAULT_SIZE: Record<PaletteElementKind, { w: number; h: number }> = {
   heading: { w: 60, h: 10 },
   text: { w: 60, h: 9 },
@@ -56,21 +65,29 @@ function copyFor(locale: string): Record<PaletteElementKind, string> {
     : COPY.pl;
 }
 
-/** Rozmiar startowy rodzaju — potrzebny płótnu, żeby policzyć miejsce upuszczenia. */
-export function defaultSizeOf(kind: PaletteElementKind): { w: number; h: number } {
-  return DEFAULT_SIZE[kind];
+/**
+ * Rozmiar startowy rodzaju — potrzebny płótnu, żeby policzyć miejsce
+ * upuszczenia. Dla rodzajów z trybem `hug` to SZACUNEK pudełka obejmującego
+ * treść startową: kafel przeciągany z palety musi „chwytać się" środkiem tego
+ * samego pudełka, które za chwilę wyląduje na stronie.
+ */
+export function defaultSizeOf(kind: PaletteElementKind, locale = "pl"): { w: number; h: number } {
+  const fallback = DEFAULT_SIZE[kind];
+  if (!supportsHug(kind)) return fallback;
+  const natural = hugBox(buildElement(kind, "podglad", { x: 0, y: 0, ...fallback, z: 0 }, locale));
+  return natural ?? fallback;
 }
 
 /**
- * Nowy element danego rodzaju, gotowy do wstawienia na płótno. Geometrię podaje
- * wołający (zna miejsce upuszczenia i wynik przyciągania), identyfikator też —
- * bo to on odpowiada za jego unikalność w sekcji.
+ * Element danego rodzaju z treścią startową — BEZ trybu wymiaru. Wydzielony
+ * z {@link createElement}, bo szacunek pudełka `hug` potrzebuje gotowej treści,
+ * a nie odwrotnie.
  */
-export function createElement(
+function buildElement(
   kind: PaletteElementKind,
   id: string,
   geometry: Geometry,
-  locale = "pl",
+  locale: string,
 ): CanvasElement {
   const text = copyFor(locale)[kind];
   const layout = { desktop: geometry };
@@ -109,6 +126,26 @@ export function createElement(
 }
 
 /**
+ * Nowy element danego rodzaju, gotowy do wstawienia na płótno. Geometrię podaje
+ * wołający (zna miejsce upuszczenia i wynik przyciągania), identyfikator też —
+ * bo to on odpowiada za jego unikalność w sekcji.
+ *
+ * ELEMENT RODZI SIĘ W TRYBIE `hug` (K4, ADR-088, decyzja właściciela): pudełko
+ * obejmuje treść, a nie pas na całą szerokość. Rozmiar JAWNY bierze się dopiero
+ * z ręki operatora — pociągnięcia za uchwyt — i to jest właściwa kolejność:
+ * najpierw widać, co się dodało, potem decyduje się, ile ma zajmować.
+ */
+export function createElement(
+  kind: PaletteElementKind,
+  id: string,
+  geometry: Geometry,
+  locale = "pl",
+): CanvasElement {
+  const element = buildElement(kind, id, geometry, locale);
+  return supportsHug(kind) ? withSize(element, HUG_SIZE) : element;
+}
+
+/**
  * Miejsce dla nowego elementu, gdy operator KLIKNĄŁ kafel zamiast go
  * przeciągnąć. Szukamy pierwszego wolnego pasa POD wszystkim, co już leży na
  * płótnie — kładzenie w lewym górnym rogu przykrywałoby istniejącą treść, a
@@ -118,8 +155,9 @@ export function freeSpotFor(
   kind: PaletteElementKind,
   elements: readonly CanvasElement[],
   rows: number,
+  locale = "pl",
 ): Geometry {
-  const size = defaultSizeOf(kind);
+  const size = defaultSizeOf(kind, locale);
   const bottom = elements.reduce(
     (lowest, element) => Math.max(lowest, element.layout.desktop.y + element.layout.desktop.h),
     0,

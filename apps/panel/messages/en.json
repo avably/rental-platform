@@ -1154,7 +1154,9 @@
       "toFront": "Bring to front",
       "toBack": "Send to back",
       "duplicate": "Duplicate element",
-      "remove": "Delete element"
+      "remove": "Delete element",
+      "autoMobile": "Back to automatic layout",
+      "detached": "Mobile layout set manually"
     },
     "resizeHandles": {
       "nw": "Resize — top left corner",
@@ -1208,7 +1210,9 @@
       "image": "Photo",
       "changeImage": "Change photo",
       "address": "Address",
-      "mapUrl": "Maps link"
+      "mapUrl": "Maps link",
+      "hugWidth": "Width fits content",
+      "hugHeight": "Height fits content"
     },
     "inline": {
       "bold": "Bold",

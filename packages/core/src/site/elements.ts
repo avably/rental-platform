@@ -27,8 +27,24 @@
  *
  * Cena absolutu jest znana i przyjęta świadomie (plan Kreatora 2.0, decyzja 3):
  * układ desktopowy zwężony do telefonu robi się ciasny, dlatego geometria jest
- * PER BREAKPOINT — `desktop` jest źródłem prawdy, a `mobile` to delta, którą
- * EDYTUJE dopiero K4. K2 zapisuje wyłącznie `desktop`.
+ * PER BREAKPOINT — `desktop` jest źródłem prawdy, a `mobile` to delta.
+ *
+ * ================== CO ZMIENIŁ K4 (ADR-088) ==================
+ *
+ * 1. `layout.mobile` PRZESTAJE być pustą strukturą. Obecność tego pola znaczy
+ *    dokładnie jedno: „operator poprawił ten element ręcznie na telefonie".
+ *    Brak pola znaczy „licz z automatu" — i to jest stan domyślny KAŻDEGO
+ *    elementu, także dodanego po latach na desktopie (patrz `mobile-layout.ts`).
+ *    Osobna flaga „odpięty" byłaby drugim źródłem tej samej prawdy.
+ *
+ * 2. WYMIAR MOŻE BYĆ HUG (decyzja właściciela 2026-08-03). Do K3 pudełko
+ *    elementu było zawsze prostokątem z geometrii, więc przycisk zajmował pas
+ *    na całą szerokość pasa treści, a ramka zaznaczenia obejmowała pustkę wokół
+ *    napisu. Od K4 wymiar jest ALBO jawny (jednostki siatki), ALBO wynika
+ *    z TREŚCI ({@link elementSizeSchema}). Liczba w geometrii zostaje przy obu
+ *    trybach — przy `hug` jest szacunkiem projektowym (miejsce w układzie,
+ *    granice płótna), a prawdą jest sama treść: render wystawia `max-content`,
+ *    a kreator mierzy pudełko w DOM-ie.
  */
 import { z } from "zod";
 
@@ -70,6 +86,61 @@ export const SECTION_MIN_ROWS = 8;
 /** Sufit wysokości sekcji: 240 jednostek = 1920 px. Sekcja, nie cała strona. */
 export const SECTION_MAX_ROWS = 240;
 
+/**
+ * Margines boczny pasa treści w kolumnach i szerokość samego pasa. Mieszkają
+ * TU, a nie w konwersji presetów, bo od K4 liczy z nich także auto-układ
+ * mobilny — dwie kopie tej liczby znaczyłyby dwa różne pasy treści na jednej
+ * stronie.
+ */
+export const CANVAS_PAD_COLUMNS = 12;
+export const CANVAS_CONTENT_COLUMNS = CANVAS_COLUMNS - 2 * CANVAS_PAD_COLUMNS;
+
+/**
+ * SZEROKOŚĆ PROJEKTOWA PŁÓTNA MOBILNEGO (K4, ADR-088) — 390 px, czyli ta sama
+ * liczba, którą przełącznik kreatora ustawia jako szerokość podglądu.
+ *
+ * Auto-układ musi być DETERMINISTYCZNY, a wysokości pudełek tekstowych zależą
+ * od szerokości, przy której tekst się łamie. Gdyby liczyły się z realnej
+ * szerokości urządzenia, ta sama treść dawałaby inny układ na 360 i na 430 px —
+ * czyli układ, którego nie da się ani zapisać, ani porównać w teście. Jedna
+ * liczba projektowa, a różnice urządzeń zbiera proporcja płótna.
+ */
+export const MOBILE_DESIGN_WIDTH_PX = 390;
+
+/**
+ * Próg breakpointu w `rem` — TA SAMA liczba, co dolny próg kontenera z K1b
+ * (ADR-085). Poniżej niego renderer bierze geometrię mobilną, powyżej —
+ * desktopową. Nowy próg to decyzja PM, nie skutek uboczny (kontrakt
+ * `site-container-contract.test.tsx`).
+ */
+export const CANVAS_MOBILE_MAX_REM = 40;
+
+/**
+ * Ile razy sekcja rozłożona w JEDNĄ kolumnę może urosnąć w pionie względem
+ * desktopu. Trzy, bo tyle kolumn ma najgęstsza siatka układu (atuty, galeria) —
+ * zwinięcie ich w kolumnę zamienia szerokość na wysokość.
+ */
+export const MOBILE_STACK_FACTOR = 3;
+
+/**
+ * Sufit wysokości płótna MOBILNEGO w jednostkach. Dwa powody, dla których nie
+ * jest to ta sama liczba, co {@link SECTION_MAX_ROWS}: jednostka siatki jest
+ * ułamkiem szerokości płótna (na 390 px ma ~2,7 px zamiast 8 px), a jedna
+ * kolumna jest z definicji wyższa niż trzy obok siebie. Sufit jest więc
+ * PRZELICZONY — przepisany wprost obcinałby pierwszą lepszą sekcję hero.
+ */
+export const SECTION_MAX_ROWS_MOBILE = Math.ceil(
+  (SECTION_MAX_ROWS * CANVAS_DESIGN_WIDTH_PX * MOBILE_STACK_FACTOR) / MOBILE_DESIGN_WIDTH_PX,
+);
+
+/**
+ * Sufit POLA `y`/`h` w schemacie geometrii — wspólny dla obu breakpointów, więc
+ * równy sufitowi mobilnemu. Wysokość płótna DESKTOPOWEGO nadal ogranicza
+ * {@link SECTION_MAX_ROWS}: pilnuje tego `rows` sekcji i kontrola mieszczenia
+ * się w płótnie niżej.
+ */
+export const GEOMETRY_MAX_ROWS = SECTION_MAX_ROWS_MOBILE;
+
 /** Sufit liczby elementów w JEDNEJ sekcji — strona, nie edytor grafiki. */
 export const MAX_ELEMENTS_PER_SECTION = 60;
 
@@ -99,19 +170,19 @@ export const SECTION_CANVAS_VERSION = 2;
 export const geometrySchema = z
   .object({
     x: z.number().int().min(0).max(CANVAS_COLUMNS),
-    y: z.number().int().min(0).max(SECTION_MAX_ROWS),
+    y: z.number().int().min(0).max(GEOMETRY_MAX_ROWS),
     w: z.number().int().min(1).max(CANVAS_COLUMNS),
-    h: z.number().int().min(1).max(SECTION_MAX_ROWS),
+    h: z.number().int().min(1).max(GEOMETRY_MAX_ROWS),
     z: z.number().int().min(0).max(999),
   })
   .strict();
 export type Geometry = z.infer<typeof geometrySchema>;
 
 /**
- * Geometria PER BREAKPOINT. `desktop` jest źródłem prawdy i jedynym, co
- * zapisuje K2; `mobile` to opcjonalna DELTA — struktura jest gotowa, edycję
- * wnosi K4 (auto-wyprowadzenie układu + ręczne poprawki). Osobne pole zamiast
- * osobnej sekcji, bo to ten sam element, tylko inaczej ułożony.
+ * Geometria PER BREAKPOINT. `desktop` jest źródłem prawdy; `mobile` to RĘCZNA
+ * POPRAWKA i jej obecność jest jedynym znacznikiem tego, że element został
+ * „odpięty" od auto-układu (K4, ADR-088). Osobne pole zamiast osobnej sekcji,
+ * bo to ten sam element, tylko inaczej ułożony.
  */
 export const elementLayoutSchema = z
   .object({
@@ -124,6 +195,35 @@ export type ElementLayout = z.infer<typeof elementLayoutSchema>;
 /** Breakpointy geometrii. `desktop` źródłowy — patrz nagłówek pliku. */
 export const CANVAS_BREAKPOINTS = ["desktop", "mobile"] as const;
 export type CanvasBreakpoint = (typeof CANVAS_BREAKPOINTS)[number];
+
+// -----------------------------------------------------------------------
+// Tryb wymiaru — jawny albo z treści (K4, ADR-088)
+// -----------------------------------------------------------------------
+
+/**
+ * TRYB WYMIARU OSI. `fixed` = tyle jednostek, ile mówi geometria; `hug` =
+ * tyle, ile zajmuje TREŚĆ.
+ *
+ * Tryb jest PER OŚ, bo tak wygląda prawdziwa intencja układu: akapit ma zwykle
+ * szerokość jawną (operator decyduje, gdzie łamie się wiersz) i wysokość
+ * z treści (tyle, ile wyszło wierszy). Jeden wspólny przełącznik na oba wymiary
+ * kazałby wybierać między „nie mogę ustawić szerokości" a „muszę pilnować
+ * wysokości po każdej literze".
+ */
+export const SIZE_MODES = ["fixed", "hug"] as const;
+export type SizeMode = (typeof SIZE_MODES)[number];
+
+export const elementSizeSchema = z
+  .object({
+    w: z.enum(SIZE_MODES).default("fixed"),
+    h: z.enum(SIZE_MODES).default("fixed"),
+  })
+  .strict();
+export type ElementSize = z.infer<typeof elementSizeSchema>;
+
+/** Brak pola `size` = zachowanie sprzed K4, czyli oba wymiary jawne. */
+export const FIXED_SIZE: ElementSize = { w: "fixed", h: "fixed" };
+export const HUG_SIZE: ElementSize = { w: "hug", h: "hug" };
 
 // -----------------------------------------------------------------------
 // Cegiełki treści elementów
@@ -256,6 +356,7 @@ export const headingElementSchema = z
     level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     align: alignment,
     color: z.enum(ELEMENT_COLORS).optional(),
+    size: elementSizeSchema.optional(),
   })
   .strict();
 
@@ -268,6 +369,7 @@ export const textElementSchema = z
     variant: z.enum(TEXT_VARIANTS).default("body"),
     align: alignment,
     color: z.enum(ELEMENT_COLORS).optional(),
+    size: elementSizeSchema.optional(),
   })
   .strict();
 
@@ -279,6 +381,7 @@ export const buttonElementSchema = z
     href: elementHref,
     variant: z.enum(BUTTON_VARIANTS).default("solid"),
     align: alignment,
+    size: elementSizeSchema.optional(),
   })
   .strict();
 
@@ -349,6 +452,7 @@ export const iconElementSchema = z
     /** Allowlista `lucide` wspólna z sekcją USP (ADR-082) — zamknięty zbiór. */
     name: uspIconSchema,
     tone: z.enum(ICON_TONES).default("accent"),
+    size: elementSizeSchema.optional(),
   })
   .strict();
 
@@ -388,6 +492,7 @@ export const mapLinkElementSchema = z
     address: z.string().trim().min(1).max(500),
     url: elementHref,
     align: alignment,
+    size: elementSizeSchema.optional(),
   })
   .strict();
 
@@ -432,6 +537,46 @@ export const PALETTE_ELEMENT_KINDS = [
   "mapLink",
 ] as const satisfies readonly CanvasElementKind[];
 export type PaletteElementKind = (typeof PALETTE_ELEMENT_KINDS)[number];
+
+/**
+ * Rodzaje, których pudełko UMIE objąć treść (K4, ADR-088). Zbiór jest
+ * zamknięty i wynika z pytania „czy element ma własny, naturalny rozmiar":
+ *   • napis, akapit, etykieta przycisku i adres mapy — mają (tekst i jego skala);
+ *   • ikona — ma (kwadrat o boku ze skali interfejsu);
+ *   • ZDJĘCIE, KSZTAŁT i KATALOG — NIE mają. Zdjęcie o proporcjach z pliku
+ *     rozjeżdżałoby układ przy każdej podmianie, kształt JEST geometrią (nie ma
+ *     w nim treści do objęcia), a katalog to lista z bazy o zmiennej długości —
+ *     jego „naturalna" wysokość zmieniałaby się przy każdym dodanym produkcie.
+ */
+export const HUG_KINDS = [
+  "heading",
+  "text",
+  "button",
+  "icon",
+  "mapLink",
+] as const satisfies readonly CanvasElementKind[];
+export type HugElementKind = (typeof HUG_KINDS)[number];
+
+/** Czy rodzaj elementu w ogóle zna tryb `hug` — jedno pytanie na cały system. */
+export function supportsHug(kind: CanvasElementKind): kind is HugElementKind {
+  return (HUG_KINDS as readonly CanvasElementKind[]).includes(kind);
+}
+
+/**
+ * Tryb wymiaru elementu. Element bez pola `size` (cała treść sprzed K4) i każdy
+ * rodzaj bez wsparcia dla hug dostają wymiar JAWNY — dzięki temu wprowadzenie
+ * hug nie rusza ani jednego zapisanego piksela.
+ */
+export function sizeOf(element: CanvasElement): ElementSize {
+  if (!supportsHug(element.kind)) return FIXED_SIZE;
+  return "size" in element && element.size ? element.size : FIXED_SIZE;
+}
+
+/** Element z ustawionym trybem wymiaru — bez mutacji wejścia. */
+export function withSize(element: CanvasElement, size: ElementSize): CanvasElement {
+  if (!supportsHug(element.kind)) return element;
+  return { ...element, size } as CanvasElement;
+}
 
 // -----------------------------------------------------------------------
 // Płótno sekcji
@@ -491,7 +636,20 @@ export const sectionCanvasSchema = z
             message: "Element wychodzi poza prawą krawędź płótna.",
           });
         }
-        if (geometry.y + geometry.h > canvas.rows) {
+        /*
+         * OŚ PIONOWA: sprawdzana WYŁĄCZNIE dla desktopu (K4, ADR-088).
+         *
+         * `rows` opisuje wysokość płótna DESKTOPOWEGO — mobilnej nie ma
+         * w treści, bo wynika z auto-układu (`mobile-layout.ts`) i z ręcznych
+         * poprawek RAZEM. Porównanie mobilnej geometrii z desktopowym `rows`
+         * odrzucałoby poprawne poprawki (na telefonie jednostka jest trzy razy
+         * mniejsza, więc ta sama treść zajmuje trzy razy więcej jednostek),
+         * a porównanie z liczbą wyliczoną tutaj byłoby błędnym kołem: wysokość
+         * mobilna OBEJMUJE te poprawki z definicji. Zamiast kontroli, której
+         * nie da się uczciwie postawić, mamy gwarancję KONSTRUKCYJNĄ — dowodzi
+         * jej kontrakt „każda poprawka mieści się w płótnie mobilnym".
+         */
+        if (breakpoint === "desktop" && geometry.y + geometry.h > canvas.rows) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["elements", index, "layout", breakpoint, "h"],

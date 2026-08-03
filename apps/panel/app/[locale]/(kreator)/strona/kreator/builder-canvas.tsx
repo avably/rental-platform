@@ -33,10 +33,18 @@
  */
 import {
   bringToFront,
+  geometryAt,
+  isDetachedOnMobile,
+  mobileLayoutOf,
   plainTextOf,
   sendToBack,
-  type CanvasElement,
+  sizeOf,
+  withGeometry,
+  withSize,
+  withoutMobileGeometry,
+  type CanvasBreakpoint,
   type Geometry,
+  type MobileLayout,
   type SectionCanvas,
   type SectionType,
   type SiteTemplate,
@@ -90,6 +98,7 @@ import {
   SendToBack,
   Settings2,
   Trash2,
+  Wand2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition, type ReactNode } from "react";
@@ -99,7 +108,7 @@ import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { siteImagePublicBase } from "@/lib/site-image-base";
 
-import { ElementFrame } from "./canvas-elements";
+import { ElementFrame, type FixedAxes } from "./canvas-elements";
 import { InlineTextEditor } from "./inline-editor";
 import { runsEqual } from "./inline-text";
 import {
@@ -114,6 +123,18 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 /** Szerokość CSS telefonu — SYMULOWANY VIEWPORT płótna, nie szerokość ekranu. */
 const MOBILE_CANVAS_WIDTH = 390;
 
+/**
+ * NAJWĘŻSZE płótno w widoku „komputer" — 40 rem, czyli dokładnie próg, poniżej
+ * którego renderer przechodzi na geometrię mobilną (K4, ADR-088).
+ *
+ * Bez tej podłogi wąskie okno operatora (albo rozwinięta paleta na laptopie)
+ * zwężałoby płótno pod próg i kreator CICHO pokazywałby układ telefonu, mimo
+ * że przełącznik stoi na „komputer" — a gest zapisywałby wtedy do slotu
+ * desktopowego to, co widać w mobilnym. Scena przewija się w poziomie zamiast
+ * ściskać płótno.
+ */
+const DESKTOP_CANVAS_MIN_WIDTH = "40rem";
+
 export type BuilderViewport = "desktop" | "mobile";
 
 /** Zaznaczony element — para (sekcja, element): id elementu jest lokalne dla sekcji. */
@@ -122,15 +143,15 @@ export interface ElementSelection {
   elementId: string;
 }
 
-/** Geometrie POZOSTAŁYCH elementów — cele przyciągania dla ruszanego. */
-function neighboursOf(canvas: SectionCanvas, elementId: string): Geometry[] {
-  return canvas.elements
-    .filter((element) => element.id !== elementId)
-    .map((element) => element.layout.desktop);
-}
-
-function withDesktop(element: CanvasElement, geometry: Geometry): CanvasElement {
-  return { ...element, layout: { ...element.layout, desktop: geometry } } as CanvasElement;
+/**
+ * BREAKPOINT, KTÓRY OPERATOR EDYTUJE (K4, ADR-088) — wprost z przełącznika
+ * szerokości płótna. Płótno w trybie „komputer" ma zagwarantowaną szerokość
+ * co najmniej 40 rem (patrz `site-builder.tsx`), więc to, co widać, i to, co
+ * się zapisuje, dotyczy TEGO SAMEGO układu; renderer wybiera go z szerokości
+ * kontenera, a nie z tej flagi.
+ */
+function breakpointOf(viewport: BuilderViewport): CanvasBreakpoint {
+  return viewport === "mobile" ? "mobile" : "desktop";
 }
 
 export function BuilderCanvas({
@@ -212,6 +233,19 @@ export function BuilderCanvas({
   const dragging = useRef(false);
 
   const locked = busy;
+  const breakpoint = breakpointOf(viewport);
+
+  /**
+   * Układ mobilny per sekcja — liczony TĄ SAMĄ czystą funkcją, co w rendererze
+   * (ADR-088). Płótno potrzebuje go osobno, bo ramki zaznaczenia i gest muszą
+   * wiedzieć, gdzie element leży NA TELEFONIE; wynik jest z definicji ten sam,
+   * bo wejściem jest ta sama treść.
+   */
+  const mobileOf = (canvas: SectionCanvas): MobileLayout => mobileLayoutOf(canvas);
+
+  /** Wysokość płótna dla AKTYWNEGO breakpointu (geometrię elementu daje `geometryAt`). */
+  const activeRows = (canvas: SectionCanvas, mobile: MobileLayout): number =>
+    breakpoint === "mobile" ? mobile.rows : canvas.rows;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -255,11 +289,46 @@ export function BuilderCanvas({
     );
   }
 
-  /** Koniec ruchu: JEDEN wpis w historii i JEDEN zapis na całe przeciągnięcie. */
-  function commitGeometry(sectionId: string, elementId: string, geometry: Geometry) {
+  /**
+   * Koniec ruchu: JEDEN wpis w historii i JEDEN zapis na całe przeciągnięcie.
+   *
+   * ================== DWA SLOTY, JEDEN GEST (K4, ADR-088) ==================
+   *
+   * Ten sam silnik zapisuje do INNEGO slotu geometrii zależnie od breakpointu.
+   * Na telefonie powstaje RĘCZNA POPRAWKA (`layout.mobile`) i nic poza nią się
+   * nie rusza — desktop zostaje bajtowo taki, jaki był. To nie jest ostrożność,
+   * tylko definicja: układ mobilny jest WYPROWADZONY z desktopu, więc poprawka
+   * ruszająca źródło poprawiałaby jednocześnie samą siebie i cały desktop.
+   *
+   * Poprawka mobilna ma z definicji wymiar JAWNY — operator narysował pudełko
+   * i ma ono zostać takie, jak je narysował. Tryb `hug` opisuje projekt
+   * desktopowy i zostaje nietknięty; „wróć do auto" oddaje jedno i drugie.
+   */
+  function commitGeometry(
+    sectionId: string,
+    elementId: string,
+    geometry: Geometry,
+    fixed?: FixedAxes,
+  ) {
     editor.mutate(sectionId, (canvas) =>
-      replaceElement(canvas, elementId, (element) => withDesktop(element, geometry)),
+      replaceElement(canvas, elementId, (element) => {
+        const moved = withGeometry(element, breakpoint, geometry);
+        if (breakpoint === "mobile" || !fixed) return moved;
+        // Pociągnięcie za uchwyt JEST decyzją „ma być tyle" — i dotyczy
+        // wyłącznie osi, których uchwyt naprawdę dotknął.
+        const size = sizeOf(element);
+        const next = {
+          w: fixed.w ? ("fixed" as const) : size.w,
+          h: fixed.h ? ("fixed" as const) : size.h,
+        };
+        return next.w === size.w && next.h === size.h ? moved : withSize(moved, next);
+      }),
     );
+  }
+
+  /** Zdjęcie ręcznej poprawki mobilnej — element wraca pod auto-układ. */
+  function resetMobile(sectionId: string, elementId: string) {
+    editor.mutate(sectionId, (canvas) => replaceElement(canvas, elementId, withoutMobileGeometry));
   }
 
   function move(index: number, direction: -1 | 1) {
@@ -283,7 +352,11 @@ export function BuilderCanvas({
       data-builder-canvas
       data-viewport={viewport}
       className="mx-auto flex w-full flex-col"
-      style={viewport === "mobile" ? { maxWidth: MOBILE_CANVAS_WIDTH } : undefined}
+      style={
+        viewport === "mobile"
+          ? { maxWidth: MOBILE_CANVAS_WIDTH }
+          : { minWidth: DESKTOP_CANVAS_MIN_WIDTH }
+      }
     >
       <div className="border-border bg-card overflow-hidden rounded-lg border">
         {order.length === 0 ? (
@@ -344,6 +417,11 @@ export function BuilderCanvas({
                         selected ? (
                           <ElementActions
                             locked={locked}
+                            onAutoMobile={
+                              breakpoint === "mobile" && isDetachedOnMobile(selected)
+                                ? () => resetMobile(editorSection.id, selected.id)
+                                : undefined
+                            }
                             onToFront={() =>
                               editor.mutate(editorSection.id, (current) => ({
                                 ...current,
@@ -379,6 +457,9 @@ export function BuilderCanvas({
                   const canvas = editor.canvasOf(section.id);
                   if (!canvas) return children;
 
+                  const mobile = mobileOf(canvas);
+                  const box = geometryAt(element, breakpoint, mobile);
+                  const rows = activeRows(canvas, mobile);
                   const isSelected =
                     selection?.sectionId === section.id && selection.elementId === element.id;
                   const editable = element.kind === "heading" || element.kind === "text";
@@ -396,7 +477,7 @@ export function BuilderCanvas({
                       <div
                         data-element-editing={element.id}
                         className="absolute"
-                        style={{ ...geometryStyle(element.layout.desktop, canvas.rows), zIndex: 1_001 }}
+                        style={{ ...geometryStyle(box, rows), zIndex: 1_001 }}
                       >
                         <InlineTextEditor
                           onCommit={(runs) => commitRuns(section.id, element.id, runs)}
@@ -413,8 +494,9 @@ export function BuilderCanvas({
                       {children}
                       <ElementFrame
                         element={element}
-                        rows={canvas.rows}
-                        neighbours={neighboursOf(canvas, element.id)}
+                        box={box}
+                        rows={rows}
+                        detached={breakpoint === "mobile" && mobile.detached.has(element.id)}
                         selected={isSelected}
                         locked={locked}
                         onSelect={() => {
@@ -428,7 +510,9 @@ export function BuilderCanvas({
                               ? () => onPickImage({ sectionId: section.id, elementId: element.id })
                               : undefined
                         }
-                        onCommit={(geometry) => commitGeometry(section.id, element.id, geometry)}
+                        onCommit={(geometry, fixed) =>
+                          commitGeometry(section.id, element.id, geometry, fixed)
+                        }
                         onPhase={(active) => {
                           dragging.current = active;
                         }}
@@ -639,12 +723,19 @@ function ElementActions({
   onToBack,
   onDuplicate,
   onRemove,
+  onAutoMobile,
 }: {
   locked: boolean;
   onToFront: () => void;
   onToBack: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  /**
+   * Powrót pod auto-układ mobilny (K4, ADR-088). Akcja pojawia się WYŁĄCZNIE
+   * wtedy, gdy jest co cofać: w widoku telefonu, na elemencie z ręczną
+   * poprawką. Przycisk wyszarzony „na zawsze" uczyłby, że nic nie robi.
+   */
+  onAutoMobile?: () => void;
 }) {
   const t = useTranslations("site");
   return (
@@ -652,6 +743,16 @@ function ElementActions({
       data-element-actions
       className="border-border ml-1 flex items-center gap-1 border-l pl-2"
     >
+      {onAutoMobile ? (
+        <ToolbarButton
+          label={t("elements.autoMobile")}
+          marker="element-auto-mobile"
+          icon={<Wand2 className="size-4" aria-hidden />}
+          disabled={locked}
+          loading={locked}
+          onClick={onAutoMobile}
+        />
+      ) : null}
       <ToolbarButton
         label={t("elements.toFront")}
         marker="element-front"

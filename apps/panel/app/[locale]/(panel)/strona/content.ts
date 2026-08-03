@@ -11,7 +11,7 @@
  * (0019), która oddaje anonowi wyłącznie sekcje `enabled`.
  */
 import {
-  SECTION_CONTENT_SCHEMAS,
+  SECTION_DRAFT_SCHEMAS,
   presetContentFor,
   type SectionContent,
   type SectionType,
@@ -30,12 +30,20 @@ export function defaultContentFor(type: SectionType, locale = "pl"): SectionCont
 }
 
 /**
- * Parsuje `content_draft` (jsonb) schematem typu. Zwraca typowaną treść albo
- * `null`, gdy draft jest w nieznanym kształcie (np. sprzed zmiany schematu) —
- * wołający podstawia treść startową, żeby edytor się nie wywrócił.
+ * Parsuje `content_draft` (jsonb) schematem typu — W OBU GENERACJACH treści.
+ * Zwraca typowaną treść albo `null`, gdy draft jest w nieznanym kształcie (np.
+ * sprzed zmiany schematu); wołający podstawia treść startową, żeby edytor się
+ * nie wywrócił.
+ *
+ * NAPRAWA (K4, ADR-088; wada obecna od K2): schemat był tu WYŁĄCZNIE v1, więc
+ * płótno v2 odpadało na walidacji i w jego miejsce wchodził preset typu. Zapis
+ * działał, odczyt nie — a że preset wygląda jak świeżo dodana sekcja, objawem
+ * nie był błąd, tylko układ cofający się do stanu startowego przy każdym
+ * przeładowaniu kreatora. Schematem odczytu jest odtąd `SECTION_DRAFT_SCHEMAS`,
+ * czyli ta sama unia, którą zna zapis i odczyt publiczny.
  */
 export function parseDraftContent(type: SectionType, raw: unknown): SectionContent | null {
-  const parsed = SECTION_CONTENT_SCHEMAS[type].safeParse(raw);
+  const parsed = SECTION_DRAFT_SCHEMAS[type].safeParse(raw);
   return parsed.success ? (parsed.data as SectionContent) : null;
 }
 

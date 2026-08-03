@@ -74,8 +74,19 @@ export interface CanvasGestureOptions {
   neighbours: readonly Geometry[];
   /** Miara płótna zamrożona na czas gestu (jedna jednostka na obie osie). */
   metrics: CanvasMetrics;
-  /** Warstwa wizualna: pudełko treści i ramka edycyjna jadą razem. */
-  nodes: readonly (HTMLElement | null)[];
+  /**
+   * PUDEŁKO TREŚCI — węzeł renderera. Od K4 (ADR-088) jego pozycję niesie
+   * ARKUSZ (właściwości niestandardowe plus zapytanie kontenera), więc po
+   * geście style gestu trzeba z niego ZDJĄĆ, a nie przywrócić: przywrócona
+   * wartość zamroziłaby jeden breakpoint i zablokowała wymiar `hug`.
+   */
+  box: HTMLElement | null;
+  /**
+   * RAMKA EDYCYJNA — węzeł Reacta. Tu jest odwrotnie: pozycję wpisuje React
+   * w atrybucie `style`, więc po geście wracamy do wartości bazowej. Skasowana
+   * właściwość zniknęłaby też Reactowi, który ma ją u siebie za aktualną.
+   */
+  frame: HTMLElement | null;
   /** Korzeń płótna — na czas gestu dostaje `data-dragging`. */
   root: HTMLElement | null;
   /** Warstwa podglądu gestu (prowadnice + obrys lądowania). */
@@ -180,7 +191,8 @@ export function startCanvasGesture(
     base,
     neighbours,
     metrics,
-    nodes,
+    box,
+    frame: frameNode,
     root,
     overlay,
     onCommit,
@@ -203,8 +215,8 @@ export function startCanvasGesture(
   const startX = event.clientX;
   const startY = event.clientY;
   const rows = metrics.rows;
-  const live = nodes.filter((node): node is HTMLElement => node !== null);
-  /** Styl, do którego wracamy po geście — dokładnie ten, który wystawił React. */
+  const live = [box, frameNode].filter((node): node is HTMLElement => node !== null);
+  /** Styl, do którego wraca RAMKA po geście — dokładnie ten, który wystawił React. */
   const restore = boxStyle(base, base.z, rows);
 
   let pending: { dx: number; dy: number; alt: boolean } | null = null;
@@ -295,13 +307,23 @@ export function startCanvasGesture(
      * zostałaby pusta.
      */
     if (active) onCommit(landed);
-    for (const node of live) {
-      node.style.transform = "";
-      if (!handle) continue;
-      node.style.left = String(restore.left);
-      node.style.top = String(restore.top);
-      node.style.width = String(restore.width);
-      node.style.height = String(restore.height);
+    for (const node of live) node.style.transform = "";
+    if (!handle) return;
+
+    // Pudełko treści: ZDEJMUJEMY style gestu. Pozycję niesie arkusz, więc
+    // wpisana tu wartość zamroziłaby jeden breakpoint na stałe i odebrała
+    // wymiarowi `hug` jego jedyną własność — bycie rozmiarem treści.
+    if (box) {
+      for (const property of ["left", "top", "width", "height"]) {
+        box.style.removeProperty(property);
+      }
+    }
+    // Ramka: WRACAMY do wartości bazowej — patrz komentarz przy `frame`.
+    if (frameNode) {
+      frameNode.style.left = String(restore.left);
+      frameNode.style.top = String(restore.top);
+      frameNode.style.width = String(restore.width);
+      frameNode.style.height = String(restore.height);
     }
   }
 

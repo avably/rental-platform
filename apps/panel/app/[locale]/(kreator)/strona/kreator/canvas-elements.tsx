@@ -29,20 +29,71 @@
  * i to przeliczenie mierzy PŁÓTNO, nigdy okno (ADR-085).
  */
 import {
+  MIN_ELEMENT_UNITS,
   NUDGE_STEP,
   NUDGE_STEP_LARGE,
   RESIZE_HANDLES,
   canvasMetrics,
   nudgeGeometry,
+  sizeOf,
   type CanvasElement,
+  type CanvasMetrics,
   type Geometry,
   type ResizeHandle,
 } from "@avably/core/site";
 import { geometryStyle } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { GESTURE_ACTIVATION_PX, GUIDE_SLOTS, startCanvasGesture } from "./canvas-gesture";
+
+/** Osie, które gest zmienił z „z treści" na „jawne" — patrz `ElementFrame.onCommit`. */
+export interface FixedAxes {
+  w: boolean;
+  h: boolean;
+}
+
+/** Które wymiary rusza dany uchwyt. Róg rusza oba, krawędź jeden. */
+function axesOf(handle: ResizeHandle): FixedAxes {
+  return {
+    w: handle === "e" || handle === "w" || handle.length === 2,
+    h: handle === "n" || handle === "s" || handle.length === 2,
+  };
+}
+
+/**
+ * POMIAR PUDEŁKA Z DOM-u (K4, ADR-088).
+ *
+ * Wymiar `hug` nie ma liczby w treści — ma treść. Zapisana geometria jest przy
+ * nim SZACUNKIEM (fabryka, konwersja, auto-układ mobilny), a prawdą jest to, co
+ * naprawdę zajmuje pudełko na ekranie. Gest musi wychodzić z prawdy: inaczej
+ * chwyt za uchwyt przyciskiem obejmującym napis skakałby na szacunkową
+ * szerokość, a prowadnice pokazywałyby krawędź, której nie widać.
+ */
+function measuredGeometry(
+  node: HTMLElement,
+  grid: HTMLElement,
+  metrics: CanvasMetrics,
+  fallback: Geometry,
+): Geometry {
+  const box = node.getBoundingClientRect();
+  const frame = grid.getBoundingClientRect();
+  // jsdom (i pierwsza klatka przed układem) oddaje same zera — wtedy szacunek
+  // z treści jest jedyną sensowną odpowiedzią.
+  if (box.width <= 0 || box.height <= 0 || metrics.unit <= 0) return fallback;
+  return {
+    x: Math.max(0, Math.round((box.left - frame.left) / metrics.unit)),
+    y: Math.max(0, Math.round((box.top - frame.top) / metrics.unit)),
+    w: Math.max(MIN_ELEMENT_UNITS, Math.round(box.width / metrics.unit)),
+    h: Math.max(MIN_ELEMENT_UNITS, Math.round(box.height / metrics.unit)),
+    z: fallback.z,
+  };
+}
 
 /**
  * Warstwa ramek. Elementy tenanta sięgają `z` = 999 (schemat), więc warstwa
@@ -111,8 +162,9 @@ function GestureOverlay({ overlayRef }: { overlayRef: React.RefObject<HTMLDivEle
 
 export function ElementFrame({
   element,
+  box,
   rows,
-  neighbours,
+  detached,
   selected,
   locked,
   onSelect,
@@ -121,9 +173,15 @@ export function ElementFrame({
   onPhase,
 }: {
   element: CanvasElement;
+  /**
+   * Geometria AKTYWNEGO breakpointu — na telefonie z auto-układu albo z ręcznej
+   * poprawki, na desktopie z treści. Ramka nie liczy jej sama, bo źródłem
+   * prawdy o układzie mobilnym jest jedna funkcja czysta na całą sekcję.
+   */
+  box: Geometry;
   rows: number;
-  /** Geometrie POZOSTAŁYCH elementów sekcji — cele przyciągania. */
-  neighbours: Geometry[];
+  /** Element ma RĘCZNĄ poprawkę mobilną — ramka mówi to wprost (K4, ADR-088). */
+  detached?: boolean;
   selected: boolean;
   locked: boolean;
   onSelect: () => void;
@@ -133,8 +191,12 @@ export function ElementFrame({
    * tego handlera i dwuklik nic dla nich nie znaczy.
    */
   onEdit?: () => void;
-  /** Koniec gestu — jeden wpis w historii i jeden zapis. */
-  onCommit: (geometry: Geometry) => void;
+  /**
+   * Koniec gestu — jeden wpis w historii i jeden zapis. `fixed` mówi, które
+   * wymiary przestały wynikać z treści: pociągnięcie za uchwyt JEST decyzją
+   * „ma być tyle" (K4, ADR-088).
+   */
+  onCommit: (geometry: Geometry, fixed?: FixedAxes) => void;
   /** Początek i koniec gestu — płótno wycisza na ten czas interfejs najechania. */
   onPhase: (dragging: boolean) => void;
 }) {
@@ -158,7 +220,55 @@ export function ElementFrame({
   const downPointRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   const wasSelectedRef = useRef(false);
-  const box = element.layout.desktop;
+  const size = sizeOf(element);
+  const hugs = size.w === "hug" || size.h === "hug";
+  /** Pudełko z GEOMETRII — jedno przeliczenie na render, wspólne dla stylu i efektu. */
+  const boxStyle = geometryStyle(box, rows);
+  const cssWidth = String(boxStyle.width);
+  const cssHeight = String(boxStyle.height);
+
+  /*
+   * RAMKA RÓWNA SIĘ PUDEŁKU TREŚCI (K4, ADR-088, decyzja właściciela).
+   *
+   * Przy wymiarze jawnym wystarczy geometria — ramka i pudełko liczą się z tej
+   * samej liczby. Przy `hug` pudełko wyznacza TREŚĆ (`max-content` w arkuszu),
+   * więc jedynym uczciwym źródłem rozmiaru jest pomiar: ramka pusta w środku,
+   * której kazano by objąć treść, miałaby zero szerokości.
+   *
+   * Obserwator pilnuje zmian treści i szerokości płótna. Na czas gestu pomiar
+   * MILCZY — wtedy stylami pudełka rządzi silnik i zapis obserwatora walczyłby
+   * z nim o ten sam atrybut.
+   */
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    if (!hugs) {
+      // Powrót z `hug` na wymiar jawny zostawiłby po sobie rozmiar w pikselach
+      // z ostatniego pomiaru. Wpisujemy procent Z GEOMETRII, zamiast kasować
+      // właściwość: skasowana zniknęłaby też Reactowi, który ma ją u siebie
+      // za aktualną i nie odtworzyłby jej przy następnym renderze.
+      frame.style.width = cssWidth;
+      frame.style.height = cssHeight;
+      return;
+    }
+    const grid = frame.closest<HTMLElement>("[data-canvas-grid]");
+    const node = grid?.querySelector<HTMLElement>(`[data-element-id="${element.id}"]`);
+    if (!grid || !node) return;
+
+    const apply = () => {
+      if (frame.closest<HTMLElement>("[data-builder-canvas]")?.hasAttribute("data-dragging")) return;
+      const rect = node.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      if (size.w === "hug") frame.style.width = `${rect.width}px`;
+      if (size.h === "hug") frame.style.height = `${rect.height}px`;
+    };
+    apply();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [element.id, hugs, size.w, size.h, cssWidth, cssHeight]);
 
   /**
    * Droga liczy się z RUCHU WSKAŹNIKA, a nie ze współrzędnych kliknięcia:
@@ -211,16 +321,33 @@ export function ElementFrame({
     const grid = frame?.closest<HTMLElement>("[data-canvas-grid]") ?? null;
     if (!frame || !grid) return;
 
+    const metrics = canvasMetrics(grid.clientWidth, rows);
+    const self = grid.querySelector<HTMLElement>(`[data-element-id="${element.id}"]`);
+
+    /*
+     * PUNKT ODNIESIENIA I CELE PRZYCIĄGANIA IDĄ Z EKRANU, nie z treści. Dla
+     * pudełek o wymiarze jawnym to ta sama liczba (pomiar wraca do geometrii),
+     * dla `hug` to jedyna prawda — a prowadnica pokazująca krawędź, której
+     * nie widać, jest gorsza niż brak prowadnicy.
+     */
+    const neighbours: Geometry[] = [];
+    for (const node of grid.querySelectorAll<HTMLElement>("[data-element-id]")) {
+      const id = node.getAttribute("data-element-id");
+      if (!id || id === element.id) continue;
+      neighbours.push(measuredGeometry(node, grid, metrics, box));
+    }
+
     startCanvasGesture(event.nativeEvent, {
       capture: event.currentTarget,
       handle,
-      base: box,
+      base: self ? measuredGeometry(self, grid, metrics, box) : box,
       neighbours,
-      metrics: canvasMetrics(grid.clientWidth, rows),
-      nodes: [grid.querySelector<HTMLElement>(`[data-element-id="${element.id}"]`), frame],
+      metrics,
+      box: self,
+      frame,
       root: frame.closest<HTMLElement>("[data-builder-canvas]"),
       overlay: overlayRef.current,
-      onCommit,
+      onCommit: (geometry) => onCommit(geometry, handle ? axesOf(handle) : undefined),
       onPhase,
     });
   }
@@ -231,18 +358,23 @@ export function ElementFrame({
         ref={frameRef}
         data-element-frame={element.id}
         data-element-selected={selected ? "on" : "off"}
+        data-element-detached={detached ? "on" : undefined}
         role="button"
         tabIndex={0}
         aria-pressed={selected}
-        aria-label={t(`elementKinds.${element.kind}`)}
+        aria-label={
+          detached
+            ? `${t(`elementKinds.${element.kind}`)} — ${t("elements.detached")}`
+            : t(`elementKinds.${element.kind}`)
+        }
         className={`absolute touch-none outline-none ${
           locked ? "cursor-not-allowed" : "cursor-move"
         } ${
           selected
             ? "border-accent border-2"
             : "hover:border-accent/60 focus-visible:border-accent border-2 border-transparent"
-        }`}
-        style={{ ...geometryStyle(box, rows), zIndex: FRAME_Z }}
+        } ${detached ? "border-accent border-dashed" : ""}`}
+        style={{ ...boxStyle, zIndex: FRAME_Z }}
         onFocus={onSelect}
         onPointerDown={(event) => {
           // Zaznaczenie idzie PRZED gestem i zdarza się także wtedy, gdy ruch
@@ -269,6 +401,17 @@ export function ElementFrame({
           onEdit();
         }}
       >
+        {/* MARKER ODPIĘCIA (K4, ADR-088) — element z ręczną poprawką mobilną
+            ma to mówić SAM, bez klikania i bez zaglądania do szuflady. Kropka
+            stoi w rogu ramki, żeby nie zasłaniać treści, i niesie własną
+            etykietę dla czytnika ekranu. */}
+        {detached ? (
+          <span
+            data-element-detached-badge
+            title={t("elements.detached")}
+            className="bg-accent absolute -top-1 -right-1 size-2 rounded-full"
+          />
+        ) : null}
         {selected && !locked
           ? RESIZE_HANDLES.map((handle) => (
               <button

@@ -28,6 +28,9 @@ import {
   SECTION_MAX_ROWS,
   SECTION_MIN_ROWS,
   TEXT_VARIANTS,
+  sizeOf,
+  supportsHug,
+  withSize,
   type CanvasElement,
   type SectionCanvas,
 } from "@avably/core/site";
@@ -227,9 +230,45 @@ function ElementSettings({
     onChange((current) => ({ ...current, ...changes }) as CanvasElement);
   }
 
+  const size = sizeOf(element);
+
   return (
     <div data-element-settings={element.kind} className="border-border flex flex-col gap-5 border-t pt-5">
       <p className="text-sm font-medium">{t(`elementKinds.${element.kind}`)}</p>
+
+      {/*
+        POWRÓT WYMIARU DO TREŚCI (K4, ADR-088, decyzja właściciela).
+        Pociągnięcie za uchwyt ustawia wymiar JAWNY i to jest właściwy domyślny
+        kierunek — tu jest droga z powrotem. Przycisk pokazuje się wyłącznie
+        wtedy, gdy jest co przywracać: wymiar już objęty treścią nie ma czego
+        obejmować drugi raz.
+      */}
+      {supportsHug(element.kind) && (size.w === "fixed" || size.h === "fixed") ? (
+        <div className="flex flex-wrap gap-2">
+          {size.w === "fixed" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              data-element-hug="w"
+              onClick={() => onChange((current) => withSize(current, { ...size, w: "hug" }))}
+            >
+              {t("canvas.hugWidth")}
+            </Button>
+          ) : null}
+          {size.h === "fixed" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              data-element-hug="h"
+              onClick={() => onChange((current) => withSize(current, { ...size, h: "hug" }))}
+            >
+              {t("canvas.hugHeight")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {element.kind === "heading" || element.kind === "text" ? (
         <Field label={t("canvas.text")} htmlFor={`${id}-text`}>
