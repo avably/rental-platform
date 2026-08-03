@@ -593,7 +593,12 @@
       "paymentMethod_transfer": "Bank transfer",
       "paymentMethod_online": "Online payment",
       "paymentMethodOnlineBlocked": "Requires a connected payout account in payment settings.",
-      "paymentMethodUndecided": "Not decided yet"
+      "paymentMethodUndecided": "Not decided yet",
+      "itemQuantity": "Units",
+      "itemQuantityIncrease": "Add one unit: {product}",
+      "itemQuantityDecrease": "Remove one unit: {product}",
+      "itemDeposit": "+ deposit {amount}",
+      "itemPriceUnknown": "The price is calculated once a term is picked"
     },
     "delivery": {
       "pickup": "Personal pickup",
@@ -617,9 +622,8 @@
           "outbound": "Outbound to customer",
           "return": "Return from customer"
         },
-        "deliveryCost": "Delivery cost per price list",
-        "deliveryCostFree": "free (threshold reached)",
-        "pricingMissing": "No delivery price list for this method.",
+        "deliveryCost": "Delivery cost",
+        "deliveryCostFree": "free",
         "configMissing": "Courier configuration is incomplete:",
         "settingsLink": "Delivery settings",
         "notCourier": "This order is not delivered by courier — shipments unavailable.",
@@ -683,7 +687,8 @@
         "copyCta": "Copy",
         "copiedOk": "Copied",
         "refreshAllCta": "Refresh shipment statuses",
-        "refreshedAllOk": "Shipment statuses refreshed."
+        "refreshedAllOk": "Shipment statuses refreshed.",
+        "deliveryCostManual": "price set manually"
       },
       "settings": {
         "title": "Delivery settings",

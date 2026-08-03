@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   cn,
+  dayPickerLocale,
 } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
 import * as React from "react";
@@ -82,6 +83,20 @@ export function dateToIso(date: Date | undefined): string {
 const TRIGGER_CLASS =
   "border-input bg-background text-foreground flex h-9 w-full min-w-0 cursor-pointer items-center rounded-md border px-3 text-left text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive";
 
+/**
+ * Język kalendarza = język interfejsu (R3-1c, uwaga 5).
+ *
+ * Ten moduł jest JEDYNYM wejściem do dat w panelu (zakazu natywnego pola
+ * pilnuje `panel-date-fields-contract`), więc jest też jedynym miejscem,
+ * w którym locale next-intl spotyka się z kalendarzem. Wcześniej `Calendar`
+ * miał polski wpisany na sztywno i w interfejsie EN wychodziło „sierpień
+ * 2026" nad angielskim formularzem — wyciek dotyczył KAŻDEGO ekranu z datą.
+ */
+function useCalendarLocale() {
+  const locale = useLocale();
+  return React.useMemo(() => dayPickerLocale(locale), [locale]);
+}
+
 function useDayFormat(): (value: string) => string {
   const locale = useLocale();
   return React.useCallback(
@@ -121,6 +136,7 @@ export function DateField({
 }) {
   const t = useTranslations("common.dateField");
   const format = useDayFormat();
+  const calendarLocale = useCalendarLocale();
   const [open, setOpen] = React.useState(false);
   const selected = isoToDate(value);
   const before = min ? isoToDate(min) : undefined;
@@ -144,6 +160,7 @@ export function DateField({
           <Calendar
             mode="single"
             autoFocus
+            locale={calendarLocale}
             defaultMonth={selected ?? before}
             selected={selected}
             disabled={before ? { before } : undefined}
@@ -190,6 +207,7 @@ export function DateRangeField({
 }) {
   const t = useTranslations("common.dateField");
   const format = useDayFormat();
+  const calendarLocale = useCalendarLocale();
   const [open, setOpen] = React.useState(false);
   const isDesktop = useDesktopCalendar();
 
@@ -223,6 +241,7 @@ export function DateRangeField({
           <Calendar
             mode="range"
             autoFocus
+            locale={calendarLocale}
             numberOfMonths={isDesktop ? 2 : 1}
             defaultMonth={isoToDate(from)}
             selected={selected}
@@ -294,6 +313,8 @@ export function InlineDateRangeField({
   describedBy?: string;
   className?: string;
 }) {
+  const calendarLocale = useCalendarLocale();
+
   const selected: CalendarRange | undefined = isoToDate(from)
     ? { from: isoToDate(from), to: isoToDate(to) }
     : undefined;
@@ -315,6 +336,7 @@ export function InlineDateRangeField({
       <input type="hidden" name={toName} value={to} />
       <Calendar
         mode="range"
+        locale={calendarLocale}
         defaultMonth={isoToDate(from)}
         selected={selected}
         modifiers={{ occupied }}

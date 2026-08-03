@@ -3,8 +3,9 @@
  * (własne odczyty przesyłek i konfiguracji): page.tsx wpina ją jedną linią
  * (protokół antykolizyjny Zadań 6/7).
  *
- * Pokazuje: koszt dostawy wg cennika (ADR-030), listę przesyłek z etykietą
- * i odświeżeniem statusu (ADR-031) oraz formularz nadania — a przy
+ * Pokazuje: ZAPISANY koszt dostawy zamówienia (kolumny 0016/0044 — dlaczego
+ * zapisany, a nie przeliczany, tłumaczy `delivery-cost.tsx`), listę przesyłek
+ * z etykietą i odświeżeniem statusu (ADR-031) oraz formularz nadania — a przy
  * niekompletnej konfiguracji kuriera CZYTELNĄ listę braków z linkiem do
  * ustawień, zamiast ukrywać funkcję bez wyjaśnienia.
  */
@@ -19,14 +20,10 @@ import {
 import {
   COURIER_CONFIG_KEYS,
   CourierConfigError,
-  DELIVERY_PRICING_KEY,
-  DeliveryPricingError,
-  calculateDeliveryCost,
-  deliveryPricingFromSettings,
   emailAvailability,
   formatMoney,
   mapProviderStatus,
-  type DeliveryMethod,
+  type DeliveryPriceSource,
 } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -43,6 +40,7 @@ import {
   sendPickupReturnReminderAction,
   sendReturnLabelEmailAction,
 } from "./delivery-actions";
+import { DeliveryCost } from "./delivery-cost";
 import {
   SHIPMENT_ROW_COLUMNS,
   canCreateShipments,
@@ -63,11 +61,15 @@ import { ShipmentModalLauncher } from "./shipment-modal";
 export async function DeliverySection({
   orderId,
   deliveryMethod,
-  totalRentalGrosze,
+  deliveryGrosze,
+  deliveryPriceSource,
 }: {
   orderId: string;
   deliveryMethod: string;
-  totalRentalGrosze: number;
+  /** `orders.delivery_grosze` — kwota utrwalona przy tworzeniu zamówienia. */
+  deliveryGrosze: number;
+  /** `orders.delivery_price_source` — cennik czy ustalenie ręczne (0044). */
+  deliveryPriceSource: DeliveryPriceSource;
 }) {
   const ctx = await requireMember();
   const t = await getTranslations("orders.delivery.section");
@@ -82,31 +84,16 @@ export async function DeliverySection({
     .order("created_at", { ascending: true });
   const shipments = (shipmentRows ?? []) as unknown as ShipmentRow[];
 
+  // Cennik dostaw NIE JEST tu odczytywany i to jest sedno poprawki R3-1b:
+  // kwota dostawy zamówienia przychodzi propem z kolumn zamówienia, więc
+  // zmiana cennika nie ma jak przepisać historii (patrz `delivery-cost.tsx`).
+  // Z ustawień bierzemy WYŁĄCZNIE konfigurację kuriera — do modalu nadania.
   const { data: settingRows } = await ctx.supabase
     .from("tenant_settings")
     .select("key, value")
     .eq("tenant_id", ctx.tenantId)
-    .in("key", [...COURIER_CONFIG_KEYS, DELIVERY_PRICING_KEY]);
+    .in("key", [...COURIER_CONFIG_KEYS]);
   const settings = settingRows ?? [];
-
-  // Koszt dostawy wg cennika (ADR-030): brak cennika dla metody płatnej to
-  // stan konfiguracji pokazywany operatorowi, nie cichy koszt 0.
-  let deliveryCostGrosze: number | null = null;
-  let pricingProblem: string | null = null;
-  try {
-    const pricing = deliveryPricingFromSettings(settings);
-    deliveryCostGrosze = calculateDeliveryCost({
-      method: deliveryMethod as DeliveryMethod,
-      pricing,
-      rentalTotalGrosze: totalRentalGrosze,
-    });
-  } catch (err) {
-    if (err instanceof DeliveryPricingError || err instanceof CourierConfigError) {
-      pricingProblem = err.message;
-    } else {
-      throw err;
-    }
-  }
 
   // Kompletność konfiguracji kuriera decyduje o modalu nadania. Nadawca do
   // prefillu bierzemy z tej samej konfiguracji (bez odszyfrowywania hasła).
@@ -158,23 +145,12 @@ export async function DeliverySection({
       <h2 className="text-base font-semibold">{t("title")}</h2>
 
       {deliveryMethod !== "pickup" ? (
-        <p className="text-sm">
-          {t("deliveryCost")}:{" "}
-          {pricingProblem ? (
-            <span className="text-destructive">
-              {t("pricingMissing")}{" "}
-              <Link className="underline" href="/ustawienia-dostaw">
-                {t("settingsLink")}
-              </Link>
-            </span>
-          ) : deliveryCostGrosze === 0 ? (
-            <span>{t("deliveryCostFree")}</span>
-          ) : (
-            <span className="font-semibold">
-              {formatMoney(deliveryCostGrosze ?? 0, currency, locale)}
-            </span>
-          )}
-        </p>
+        <DeliveryCost
+          grosze={deliveryGrosze}
+          source={deliveryPriceSource}
+          currency={currency}
+          locale={locale}
+        />
       ) : null}
 
       {shipments.length === 0 ? (

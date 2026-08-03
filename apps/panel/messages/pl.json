@@ -593,7 +593,12 @@
       "paymentMethod_transfer": "Przelew",
       "paymentMethod_online": "Płatność online",
       "paymentMethodOnlineBlocked": "Wymaga podłączonego konta rozliczeniowego w ustawieniach płatności.",
-      "paymentMethodUndecided": "Jeszcze nie ustalono"
+      "paymentMethodUndecided": "Jeszcze nie ustalono",
+      "itemQuantity": "Sztuk",
+      "itemQuantityIncrease": "Dodaj sztukę: {product}",
+      "itemQuantityDecrease": "Zdejmij sztukę: {product}",
+      "itemDeposit": "+ kaucja {amount}",
+      "itemPriceUnknown": "Cenę policzymy po wybraniu terminu"
     },
     "delivery": {
       "pickup": "Odbiór osobisty",
@@ -617,9 +622,8 @@
           "outbound": "Wysyłka do klienta",
           "return": "Zwrot od klienta"
         },
-        "deliveryCost": "Koszt dostawy wg cennika",
-        "deliveryCostFree": "darmowa (próg osiągnięty)",
-        "pricingMissing": "Brak cennika dostaw dla tej metody.",
+        "deliveryCost": "Koszt dostawy",
+        "deliveryCostFree": "bezpłatnie",
         "configMissing": "Konfiguracja kuriera jest niekompletna:",
         "settingsLink": "Ustawienia dostaw",
         "notCourier": "Zamówienie nie ma dostawy kurierem — przesyłki są niedostępne.",
@@ -683,7 +687,8 @@
         "copyCta": "Kopiuj",
         "copiedOk": "Skopiowano",
         "refreshAllCta": "Odśwież status przesyłek",
-        "refreshedAllOk": "Statusy przesyłek odświeżone."
+        "refreshedAllOk": "Statusy przesyłek odświeżone.",
+        "deliveryCostManual": "cena ustalona ręcznie"
       },
       "settings": {
         "title": "Ustawienia dostaw",

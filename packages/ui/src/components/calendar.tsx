@@ -8,14 +8,31 @@ import {
 import {
   DayPicker,
   getDefaultClassNames,
+  useDayPicker,
   type DayButton,
 } from "react-day-picker";
-import { pl } from "react-day-picker/locale";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
 import { Button, buttonVariants } from "./button";
 
+/**
+ * JĘZYK KALENDARZA JEST PROPEM, NIE STAŁĄ (R3-1c, uwaga 5).
+ *
+ * Do R3-1c komponent miał `locale = pl` jako wartość domyślną, polskie
+ * etykiety nawigacji wpisane z palca i `toLocaleString("pl-PL")` w obu
+ * formaterach. Skutkiem był kalendarz mówiący po polsku RÓWNIEŻ w interfejsie
+ * angielskim — a że to jedyny widżet dat całego panelu (`lib/fields`), wyciek
+ * dotyczył każdego ekranu z datą, nie jednego.
+ *
+ * Dziś język przychodzi z zewnątrz i JEDNA wartość rozstrzyga wszystko:
+ * nazwy miesięcy i dni maluje `react-day-picker` z podanego locale, etykiety
+ * czytników ekranu biorą się z tego samego obiektu (v10 wozi je w
+ * `locale.labels`), a formatowanie własne idzie przez `Intl` z jego kodem.
+ * Brak propa = wbudowany angielski biblioteki, czyli stan jawny; poprzednie
+ * zachowanie było ciche i myliło „domyślny język komponentu" z „językiem
+ * interfejsu". Mapę kodów aplikacji na locale trzyma `calendar-locale.ts`.
+ */
 function Calendar({
   className,
   classNames,
@@ -23,14 +40,15 @@ function Calendar({
   captionLayout = "label",
   buttonVariant = "ghost",
   formatters,
-  labels,
-  locale = pl,
+  locale,
   components,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
   const defaultClassNames = getDefaultClassNames();
+  // Kod BCP-47 dla `Intl` — ten sam, którym maluje się reszta kalendarza.
+  const localeCode = locale?.code;
 
   return (
     <DayPicker
@@ -43,14 +61,9 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
-      labels={{
-        labelPrevious: () => "Poprzedni miesiąc",
-        labelNext: () => "Następny miesiąc",
-        ...labels,
-      }}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("pl-PL", { month: "short" }),
+          new Intl.DateTimeFormat(localeCode, { month: "short" }).format(date),
         ...formatters,
       }}
       classNames={{
@@ -201,6 +214,9 @@ function CalendarDayButton({
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames();
   const ref = React.useRef<HTMLButtonElement>(null);
+  // Ten sam język, co reszta kalendarza — przycisk dnia czyta go z kontekstu
+  // DayPickera, zamiast trzymać drugą, własną odpowiedź o formacie daty.
+  const { dayPickerProps } = useDayPicker();
 
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus();
@@ -211,7 +227,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString("pl-PL")}
+      data-day={new Intl.DateTimeFormat(dayPickerProps.locale?.code).format(day.date)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&
