@@ -93,6 +93,13 @@ const BUILDER_LAYER_MARKERS = [
   // (plus jego kropka na ramce) i przełącznik wymiaru na „z treści".
   "data-element-detached",
   "data-element-hug",
+  // Sekcja USUNIĘTA W SZKICU (K5a, ADR-091): jej oznaczenie, przywrócenie
+  // i zakres ostrzeżenia w dialogu usunięcia. Nagrobek żyje WYŁĄCZNIE
+  // w kreatorze — sklep dostaje sekcję zwykłą aż do publikacji, a potem nie
+  // dostaje jej wcale, więc żaden z tych znaczników nie ma prawa tam trafić.
+  "data-section-deleted",
+  "data-section-restore",
+  "data-remove-scope",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */

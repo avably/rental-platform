@@ -90,7 +90,8 @@ const requireMember = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 
-const { reorderSections, duplicateSection, deleteSection } = await import("@/lib/actions/site");
+const { reorderSections, duplicateSection, deleteSection, restoreSection, publishSite, updateTemplate } =
+  await import("@/lib/actions/site");
 
 describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
   let admin: SupabaseClient;
@@ -250,11 +251,128 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
     const { data: still } = await admin.from("site_sections").select("id").eq("id", target);
     expect(still, "cudza sekcja została usunięta — wyciek izolacji").toHaveLength(1);
 
-    // Kontrola pozytywna: właściciel usuwa własną sekcję.
+    // Kontrola pozytywna: właściciel usuwa własną sekcję. Sekcja NIGDY nie była
+    // publikowana, więc od 0045 (ADR-091) ginie wierszem, a nie znacznikiem —
+    // nie ma czego chronić do publikacji.
     actAs(tenantA);
     const ok = await deleteSection(target);
     expect(ok.ok, `właściciel nie usunął własnej sekcji: ${ok.ok ? "" : ok.error}`).toBe(true);
+    expect(ok.ok && ok.mode, "sekcja nieopublikowana powinna zginąć wierszem").toBe("removed");
     const { data: gone } = await admin.from("site_sections").select("id").eq("id", target);
     expect(gone, "sekcja właściciela nie została usunięta").toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------
+  // 4. Usunięcie sekcji OPUBLIKOWANEJ jest operacją SZKICU (ADR-091)
+  // -------------------------------------------------------------------
+
+  describe("usunięcie i przywrócenie sekcji opublikowanej (0045, ADR-091)", () => {
+    /** Koperta widziana przez sklep — anon, jedyna publiczna ścieżka odczytu. */
+    async function envelope(): Promise<{ sections: { id: string }[]; template: string } | null> {
+      const { data, error } = await createAnonClient()
+        .schema("app")
+        .rpc("get_published_site", { p_tenant_id: tenantA.tenantId });
+      if (error) throw new Error(`get_published_site: ${error.message}`);
+      return data as { sections: { id: string }[]; template: string } | null;
+    }
+
+    let victimId: string;
+
+    beforeAll(async () => {
+      // Sekcja wchodzi na ŻYWĄ stronę — inaczej test usuwałby coś, czego
+      // klient i tak nie widzi, i nie dowodziłby niczego o bramce.
+      const { data, error } = await tenantA.client
+        .from("site_sections")
+        .insert({
+          tenant_id: tenantA.tenantId,
+          site_id: siteAId,
+          type: "cta",
+          position: 50,
+          content_draft: { heading: "Sekcja na żywo" },
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`insert sekcji do publikacji: ${error?.message}`);
+      victimId = data.id as string;
+
+      actAs(tenantA);
+      const published = await publishSite(siteAId);
+      expect(published.ok, `publikacja startowa: ${published.ok ? "" : published.error}`).toBe(true);
+    }, 60_000);
+
+    it("usunięcie sekcji opublikowanej zostawia wiersz i NIE rusza strony klienta", async () => {
+      const before = await envelope();
+      expect(before?.sections.some((s) => s.id === victimId), "sekcja nie weszła na żywą stronę").toBe(
+        true,
+      );
+
+      actAs(tenantA);
+      const result = await deleteSection(victimId);
+      expect(result.ok, `usunięcie: ${result.ok ? "" : result.error}`).toBe(true);
+      expect(result.ok && result.mode, "sekcja opublikowana powinna dostać znacznik, nie DELETE").toBe(
+        "marked",
+      );
+
+      const { data: row } = await admin
+        .from("site_sections")
+        .select("id, deleted_in_draft")
+        .eq("id", victimId)
+        .maybeSingle();
+      expect(row?.id, "akcja skasowała wiersz zamiast oznaczyć go w szkicu").toBe(victimId);
+      expect(row?.deleted_in_draft).toBe(true);
+
+      expect(await envelope(), "usunięcie w szkicu zmieniło stronę klienta").toEqual(before);
+    });
+
+    it("zmiana szablonu też nie rusza strony klienta przed publikacją", async () => {
+      const before = await envelope();
+      actAs(tenantA);
+      const result = await updateTemplate(siteAId, "bold");
+      expect(result.ok, `zmiana szablonu: ${result.ok ? "" : result.error}`).toBe(true);
+
+      const { data: site } = await admin.from("sites").select("template").eq("id", siteAId).single();
+      expect(site?.template, "szablon nie zapisał się w szkicu").toBe("bold");
+      expect(await envelope(), "zmiana szablonu przemalowała żywą stronę przed publikacją").toEqual(
+        before,
+      );
+    });
+
+    it("przywrócenie zdejmuje znacznik; obcy tenant nie przywróci cudzej sekcji", async () => {
+      actAs(tenantB);
+      const denied = await restoreSection(victimId);
+      expect(denied.ok, "obcy tenant przywrócił cudzą sekcję").toBe(false);
+      const { data: stillMarked } = await admin
+        .from("site_sections")
+        .select("deleted_in_draft")
+        .eq("id", victimId)
+        .single();
+      expect(stillMarked?.deleted_in_draft, "znacznik zmieniony przez obcego tenanta").toBe(true);
+
+      actAs(tenantA);
+      const restored = await restoreSection(victimId);
+      expect(restored.ok, `przywrócenie: ${restored.ok ? "" : restored.error}`).toBe(true);
+      const { data: row } = await admin
+        .from("site_sections")
+        .select("deleted_in_draft")
+        .eq("id", victimId)
+        .single();
+      expect(row?.deleted_in_draft).toBe(false);
+    });
+
+    it("dopiero publikacja zdejmuje sekcję z żywej strony i kasuje wiersz", async () => {
+      actAs(tenantA);
+      const marked = await deleteSection(victimId);
+      expect(marked.ok && marked.mode).toBe("marked");
+
+      const published = await publishSite(siteAId);
+      expect(published.ok, `publikacja: ${published.ok ? "" : published.error}`).toBe(true);
+
+      const after = await envelope();
+      expect(after?.sections.some((s) => s.id === victimId), "sekcja przeżyła publikację").toBe(false);
+      expect(after?.template, "szablon nie wszedł razem z publikacją").toBe("bold");
+
+      const { data: gone } = await admin.from("site_sections").select("id").eq("id", victimId);
+      expect(gone, "publikacja nie skasowała wiersza sekcji usuniętej w szkicu").toHaveLength(0);
+    });
   });
 });

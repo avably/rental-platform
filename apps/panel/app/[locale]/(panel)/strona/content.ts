@@ -7,8 +7,11 @@
  *
  * K1 zdjął stąd `previewSections` (filtr „tylko włączone"): płótno kreatora
  * pokazuje RÓWNIEŻ sekcje wyłączone, jawnie oznaczone — bo jest edytorem, a nie
- * podglądem. Gwarancję „klient tego nie zobaczy" niesie `app.get_published_site`
- * (0019), która oddaje anonowi wyłącznie sekcje `enabled`.
+ * podglądem. Od K5a (ADR-091) pokazuje też sekcje USUNIĘTE W SZKICU, z tego
+ * samego powodu: stoją jeszcze na stronie klienta, więc muszą dać się znaleźć
+ * i przywrócić. Gwarancję „klient tego nie zobaczy" niesie
+ * `app.get_published_site` (0019/0045), czytająca wyłącznie kolumny
+ * `*_published` — nie filtr w tym pliku.
  */
 import {
   SECTION_DRAFT_SCHEMAS,
@@ -53,6 +56,19 @@ export interface EditorSection {
   type: SectionType;
   position: number;
   enabled: boolean;
+  /**
+   * Sekcja USUNIĘTA W SZKICU (ADR-091): stoi jeszcze na opublikowanej stronie,
+   * w kreatorze jest oznaczona chipem i da się ją przywrócić. Znika dopiero
+   * przy publikacji — dlatego zostaje na liście, a nie jest z niej filtrowana.
+   */
+  deletedInDraft: boolean;
+  /**
+   * Sekcja MA stan opublikowany (była w którejś publikacji). Nie służy do
+   * rysowania sekcji — służy do mówienia prawdy o skutkach: usunięcie sekcji
+   * opublikowanej jest odwracalne do publikacji, usunięcie nieopublikowanej
+   * jest natychmiastowe i ostateczne (ADR-091).
+   */
+  published: boolean;
   content: SectionContent;
 }
 
@@ -66,6 +82,8 @@ export function toEditorSections(sections: SiteSection[]): EditorSection[] {
       type: section.type,
       position: section.position,
       enabled: section.enabled,
+      deletedInDraft: section.deleted_in_draft,
+      published: section.content_published !== null,
       content: parseDraftContent(section.type, section.content_draft) ?? defaultContentFor(section.type),
     }));
 }

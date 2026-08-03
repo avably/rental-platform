@@ -1029,9 +1029,11 @@
       "disable": "Wyłącz",
       "duplicate": "Duplikuj",
       "remove": "Usuń",
+      "restore": "Przywróć",
       "dragHandle": "Przeciągnij, aby zmienić kolejność",
       "confirmRemoveTitle": "Usunąć sekcję?",
-      "confirmRemoveBody": "Sekcja zniknie z edytora i z podglądu szkicu. Na opublikowanej stronie zniknie po następnej publikacji.",
+      "confirmRemoveBodyPublished": "Sekcja zniknie ze strony klienta dopiero po publikacji — do tego czasu przywrócisz ją w kreatorze.",
+      "confirmRemoveBodyDraft": "Sekcja nie była jeszcze publikowana — zniknie od razu i nie da się jej przywrócić.",
       "confirmRemove": "Usuń sekcję",
       "cancel": "Anuluj"
     },
@@ -1377,7 +1379,8 @@
     },
     "site-section": {
       "enabled": "Włączona",
-      "disabled": "Wyłączona"
+      "disabled": "Wyłączona",
+      "deleted": "Usunięta w szkicu"
     },
     "site-publish": {
       "published": "Opublikowana"

@@ -527,15 +527,15 @@ const SITE_MOCKUP_ANCHORS = [
 type BuilderProps = Parameters<typeof SiteBuilder>[0];
 
 const siteSections: BuilderProps["sections"] = [
-  { id: "s1", type: "hero", position: 0, enabled: true, content: { heading: "Sprzęt na już" } },
-  { id: "s2", type: "products", position: 1, enabled: true, content: { heading: "Popularny sprzęt" } },
-  { id: "s3", type: "pricing", position: 2, enabled: false, content: { heading: "Warunki cenowe" } },
-  { id: "s4", type: "faq", position: 3, enabled: true, content: { heading: "Pytania", items: [{ q: "Jak rezerwować?", a: "Fikcyjna odpowiedź." }] } },
-  { id: "s5", type: "contact", position: 4, enabled: true, content: { heading: "Kontakt" } },
-  { id: "s6", type: "freeform", position: 5, enabled: false, content: { heading: "O nas", body: "Fikcyjna treść własna." } },
+  { id: "s1", type: "hero", position: 0, enabled: true, deletedInDraft: false, published: true, content: { heading: "Sprzęt na już" } },
+  { id: "s2", type: "products", position: 1, enabled: true, deletedInDraft: false, published: true, content: { heading: "Popularny sprzęt" } },
+  { id: "s3", type: "pricing", position: 2, enabled: false, deletedInDraft: false, published: true, content: { heading: "Warunki cenowe" } },
+  { id: "s4", type: "faq", position: 3, enabled: true, deletedInDraft: false, published: true, content: { heading: "Pytania", items: [{ q: "Jak rezerwować?", a: "Fikcyjna odpowiedź." }] } },
+  { id: "s5", type: "contact", position: 4, enabled: true, deletedInDraft: false, published: true, content: { heading: "Kontakt" } },
+  { id: "s6", type: "freeform", position: 5, enabled: false, deletedInDraft: false, published: true, content: { heading: "O nas", body: "Fikcyjna treść własna." } },
   // Sekcja USP (0043) — jej pole ikony to PanelSelect, czyli JEDYNY select
   // widocznej kontrolki w formularzu treści (dziś: w szufladzie kreatora).
-  { id: "s7", type: "usp", position: 6, enabled: true, content: { heading: "Atuty", items: [{ icon: "truck", title: "Szybko", text: "Od ręki." }] } },
+  { id: "s7", type: "usp", position: 6, enabled: true, deletedInDraft: false, published: true, content: { heading: "Atuty", items: [{ icon: "truck", title: "Szybko", text: "Od ręki." }] } },
 ];
 
 const siteProducts: BuilderProps["products"] = [

@@ -1029,9 +1029,11 @@
       "disable": "Disable",
       "duplicate": "Duplicate",
       "remove": "Remove",
+      "restore": "Restore",
       "dragHandle": "Drag to reorder",
       "confirmRemoveTitle": "Delete section?",
-      "confirmRemoveBody": "The section disappears from the editor and the draft preview. It leaves the published page on your next publish.",
+      "confirmRemoveBodyPublished": "The section leaves the customer-facing page only on your next publish — until then you can restore it in the builder.",
+      "confirmRemoveBodyDraft": "This section has never been published — it disappears right away and cannot be restored.",
       "confirmRemove": "Delete section",
       "cancel": "Cancel"
     },
@@ -1377,7 +1379,8 @@
     },
     "site-section": {
       "enabled": "Enabled",
-      "disabled": "Disabled"
+      "disabled": "Disabled",
+      "deleted": "Removed in draft"
     },
     "site-publish": {
       "published": "Published"
