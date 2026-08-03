@@ -8,7 +8,11 @@
  */
 import { z } from "zod";
 
-import { sectionInputSchema, siteTemplateSchema } from "@avably/core/site";
+import {
+  STARTER_TEMPLATES,
+  sectionInputSchema,
+  siteStyleSchema,
+} from "@avably/core/site";
 
 import { uuidSchema } from "./catalog-validation";
 
@@ -53,10 +57,38 @@ export const toggleSectionInputSchema = z.object({
   enabled: z.boolean(),
 });
 
-export const updateTemplateInputSchema = z.object({
+
+/**
+ * Wejście zapisu STYLU STRONY (K5, ADR-090). Kształt samego stylu pochodzi
+ * z @avably/core/site — tu jest tylko otoczka akcji, jak przy sekcjach.
+ *
+ * Styl jedzie w CAŁOŚCI, a nie jako łatka pojedynczego pola. Scalanie po
+ * stronie serwera („zmień sam akcent, resztę zostaw") wymagałoby odczytu przed
+ * zapisem, a to jest wyścig: dwie karty kreatora otwarte na tej samej stronie
+ * nadpisywałyby sobie nawzajem wybór, i to niedeterministycznie. Panel trzyma
+ * pełny stan stylu i odsyła go w komplecie — ostatni zapis wygrywa, ale wygrywa
+ * PRZEWIDYWALNIE.
+ */
+export const updateSiteStyleInputSchema = z.object({
   siteId: uuidSchema,
-  template: siteTemplateSchema,
+  style: siteStyleSchema,
 });
+export type UpdateSiteStyleInput = z.infer<typeof updateSiteStyleInputSchema>;
+
+/**
+ * Wejście zastosowania SZABLONU STARTOWEGO (K5, ADR-090) — operacja
+ * DESTRUKCYJNA dla szkicu, stąd `confirm` w interfejsie, a nie tutaj: schemat
+ * pilnuje kształtu, a nie intencji operatora.
+ *
+ * `locale` decyduje o języku treści przykładowej i degraduje do PL tak samo jak
+ * presety sekcji (`presetContentFor`) — jedna zasada dla całej treści startowej.
+ */
+export const applyStarterTemplateInputSchema = z.object({
+  siteId: uuidSchema,
+  starterId: z.enum(STARTER_TEMPLATES),
+  locale: z.string().trim().min(2).max(10),
+});
+export type ApplyStarterTemplateInput = z.infer<typeof applyStarterTemplateInputSchema>;
 
 /**
  * Plan zmiany kolejności: orderedIds musi być PERMUTACJĄ kompletu sekcji

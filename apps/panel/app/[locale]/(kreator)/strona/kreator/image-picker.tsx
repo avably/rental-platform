@@ -158,6 +158,9 @@ function altFromFileName(name: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
+/** Kody przyczyn, które warstwa serwerowa naprawdę zwraca (lib/unsplash.ts). */
+const PICKER_ERRORS = new Set(["disabled", "network", "provider"]);
+
 function SearchCard({ onPick }: { onPick: (source: ImageSource, alt?: string) => void }) {
   const t = useTranslations("site");
   const [query, setQuery] = useState("");
@@ -170,7 +173,12 @@ function SearchCard({ onPick }: { onPick: (source: ImageSource, alt?: string) =>
     startTransition(async () => {
       const result = await searchPhotos(query);
       if (!result.ok) {
-        setError(result.error);
+        // Warstwa serwerowa zwraca KOD przyczyny (`disabled`/`network`/`provider`),
+        // a nie zdanie — celowo: komunikat dostawcy potrafiłby nieść szczegóły
+        // żądania, a operator i tak potrzebuje zdania w SWOIM języku. Kod
+        // spoza słownika degraduje do komunikatu ogólnego, żeby nieznana
+        // przyczyna nie wyświetliła się jako surowy identyfikator.
+        setError(t(`picker.errors.${PICKER_ERRORS.has(result.error) ? result.error : "unknown"}`));
         setPhotos([]);
         return;
       }

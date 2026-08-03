@@ -1,3 +1,4 @@
+import { DEFAULT_SITE_STYLE } from "@avably/core/site";
 // @vitest-environment jsdom
 
 /**
@@ -27,6 +28,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import plMessages from "../messages/pl.json";
 
+/** Styl szkicu w motywie zastanym — dokładnie to, czym strona jest bez wyboru. */
+const STYL = DEFAULT_SITE_STYLE;
+
 /** Radix Dialog i sensory dnd-kit wołają API, których jsdom nie implementuje. */
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -47,7 +51,8 @@ const actions = vi.hoisted(() => ({
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
   restoreSection: vi.fn(),
-  updateTemplate: vi.fn(),
+  updateSiteStyle: vi.fn(),
+  applyStarterTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));
 
@@ -80,7 +85,7 @@ const builder = plMessages.site.builder;
 function renderBuilder(sections: Section[] = [A, B, C]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} template="classic" sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
 }
@@ -117,7 +122,8 @@ beforeEach(() => {
   actions.duplicateSection.mockResolvedValue({ ok: true });
   actions.deleteSection.mockResolvedValue({ ok: true, mode: "marked" });
   actions.restoreSection.mockResolvedValue({ ok: true });
-  actions.updateTemplate.mockResolvedValue({ ok: true });
+  actions.updateSiteStyle.mockResolvedValue({ ok: true });
+  actions.applyStarterTemplate.mockResolvedValue({ ok: true, sectionIds: [] });
   actions.publishSite.mockResolvedValue({ ok: true, publishedAt: "2026-07-31T10:00:00Z" });
 });
 
@@ -331,13 +337,67 @@ describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stop
     expect(container.querySelector('[data-builder-palette="expanded"]')).not.toBeNull();
   });
 
-  it("wybór szablonu zapisuje się istniejącą akcją", async () => {
+  it("wybór AKCENTU zapisuje się istniejącym kanałem stylu", async () => {
+    // Przełącznik „classic/bold" zniknął z kreatora decyzją właściciela
+    // (ADR-090): szablon nie jest skórką, tylko światem wybieranym w galerii.
+    // W palecie zostaje personalizacja W RAMACH motywu — i to ona ma iść tym
+    // samym kanałem zapisu, co reszta kreatora.
     const { container } = renderBuilder();
-    const templateBlock = container.querySelector<HTMLElement>("[data-builder-template]")!;
-    fireEvent.click(within(templateBlock).getByRole("radio", { name: /Bold/ }));
-    fireEvent.click(within(templateBlock).getByRole("button", { name: plMessages.site.template.save }));
-    await waitFor(() => expect(actions.updateTemplate).toHaveBeenCalledWith(SITE_ID, "bold"));
+    const styleBlock = container.querySelector<HTMLElement>("[data-builder-style]")!;
+    const accents = styleBlock.querySelectorAll<HTMLElement>("[data-style-accent]");
+    expect(accents.length, "paleta motywu bez akcentów do wyboru").toBeGreaterThan(1);
+
+    const inny = [...accents].find((node) => node.getAttribute("aria-pressed") !== "true")!;
+    fireEvent.click(inny);
+    await waitFor(() =>
+      expect(actions.updateSiteStyle).toHaveBeenCalledWith(
+        SITE_ID,
+        expect.objectContaining({ accent: inny.getAttribute("data-style-accent") }),
+      ),
+    );
   });
+
+  it("przełącznika szablonu graficznego W OGÓLE nie ma — to nie jest już wybór operatora", () => {
+    const { container } = renderBuilder();
+    expect(container.querySelector("[data-builder-template]")).toBeNull();
+  });
+
+  it("MOTYW STRONY jedzie wyłącznie PŁÓTNEM — chrome kreatora zostaje przy motywie panelu", () => {
+    // Warunek ratyfikacji PM (K5 v2): płótno ma mówić prawdę o stronie klienta,
+    // ale paski, paleta i szuflady są częścią PANELU i mają iść jego motywem.
+    // Technicznie sprowadza się to do jednego zdania: korzeń strony
+    // (`.site-root`, nosiciel zmiennych motywu) leży WEWNĄTRZ płótna i ani
+    // jeden znacznik chrome nie jest jego potomkiem — bo zmienne `--site-*`
+    // kaskadują w dół i przemalowałyby wszystko, co pod nim stoi.
+    const { container } = renderBuilder();
+
+    const canvas = container.querySelector("[data-builder-canvas]");
+    expect(canvas, "kreator bez płótna — kontrola po pustym zbiorze").not.toBeNull();
+    const roots = [...container.querySelectorAll(".site-root")];
+    expect(roots.length, "płótno nie wystawiło korzenia strony").toBeGreaterThan(0);
+    for (const root of roots) {
+      expect(canvas!.contains(root), "korzeń strony poza płótnem").toBe(true);
+    }
+
+    const chrome = [
+      "[data-builder-palette]",
+      "[data-builder-style]",
+      "[data-builder-publish]",
+      "[data-builder-back]",
+      "[data-builder-history]",
+      "[data-builder-save-state]",
+    ];
+    for (const selector of chrome) {
+      const node = container.querySelector(selector);
+      expect(node, `brak elementu chrome ${selector} — kontrola po pustym zbiorze`).not.toBeNull();
+      for (const root of roots) {
+        expect(root.contains(node!), `${selector} stoi POD korzeniem strony i weźmie motyw najemcy`).toBe(
+          false,
+        );
+      }
+    }
+  });
+
 });
 
 describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publikacja", () => {

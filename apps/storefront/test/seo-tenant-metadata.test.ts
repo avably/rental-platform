@@ -17,6 +17,9 @@ import {
 const site: PublishedSite = {
   template: "classic",
   publishedAt: "2026-07-18T17:00:12+00:00",
+  // Styl pusty (K5, ADR-090) — metadane opisują TREŚĆ, a nie wygląd, więc ten
+  // fixture ma zostać stanem „operator nigdy nie dotknął panelu stylu".
+  style: {},
   sections: [
     {
       id: "11111111-1111-1111-1111-111111111111",

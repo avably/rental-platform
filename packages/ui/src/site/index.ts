@@ -1,5 +1,5 @@
 export * from "./types";
-export { getTemplateStyles, type TemplateStyles } from "./template";
+export { siteStyles, type TemplateStyles } from "./template";
 export { parseInlineBold, parseParagraphs, SafeRichText } from "./rich-text";
 export {
   ContactSection,

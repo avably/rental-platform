@@ -12,23 +12,29 @@
  * kliknięciem — patrz `element-palette.tsx`. Do K2 zakładka była jawną
  * zapowiedzią; teraz jest paletą.
  *
- * SZABLON GRAFICZNY siedzi w STOPCE palety, a nie na launcherze: launcher
- * przestał być miejscem edycji strony (K1), a wybór szablonu jest edycją —
- * zmienia wygląd każdej sekcji na płótnie obok. Docelowo wchłonie go panel
- * „Styl strony" z K5 razem z kolorem akcentu i parą fontów.
+ * STYL STRONY siedzi w STOPCE palety (K5, ADR-090). Przełącznik „szablon
+ * graficzny" (classic/bold) ZNIKŁ stąd decyzją właściciela: szablon nie jest
+ * już skórką, tylko ŚWIATEM wizualnym wybieranym razem z gotową stroną
+ * w galerii szablonów. W palecie zostaje to, co jest personalizacją W RAMACH
+ * tego świata — akcent z palety motywu i para krojów. Obie zmiany idą do
+ * SZKICU stylu i wchodzą na żywą stronę dopiero publikacją.
  */
 import {
-  SITE_TEMPLATES,
+  FONT_PAIRS,
+  SELECTABLE_FONT_PAIRS,
+  accentsOf,
+  themeTokens,
   type PaletteElementKind,
+  type ResolvedSiteStyle,
   type SectionType,
-  type SiteTemplate,
+  type SiteFontPair,
 } from "@avably/core/site";
-import { Button } from "@avably/ui";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { SectionTypeGallery } from "@/app/[locale]/(panel)/strona/add-section-gallery";
+import { PanelSelect } from "@/components/fields/panel-select";
 
 import { ElementPalette } from "./element-palette";
 
@@ -38,27 +44,28 @@ export function BuilderPalette({
   open,
   onToggle,
   disabled,
-  template,
+  style,
   onAddSection,
   onAddElement,
   onDropElement,
-  onSaveTemplate,
+  onSaveStyle,
 }: {
   open: boolean;
   onToggle: () => void;
   disabled: boolean;
-  template: SiteTemplate;
+  style: ResolvedSiteStyle;
   /** Dodanie sekcji na KOŃCU strony (paleta nie zna pozycji). */
   onAddSection: (type: SectionType) => void;
   /** Dodanie ELEMENTU kliknięciem kafla (K3) — ląduje pod treścią sekcji. */
   onAddElement: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM (K3). */
   onDropElement: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
-  onSaveTemplate: (template: SiteTemplate) => void;
+  /** Zapis stylu — CAŁY stan, nie pojedyncze pole (scalanie robi akcja). */
+  onSaveStyle: (style: ResolvedSiteStyle) => void;
 }) {
   const t = useTranslations("site");
+  const locale = useLocale();
   const [tab, setTab] = useState<PaletteTab>("sections");
-  const [choice, setChoice] = useState<SiteTemplate>(template);
   const idPrefix = useId();
 
   if (!open) {
@@ -123,35 +130,95 @@ export function BuilderPalette({
         </div>
       )}
 
-      <div data-builder-template className="border-border mt-auto flex flex-col gap-2 border-t pt-3">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="pb-2 text-sm font-medium">{t("template.legend")}</legend>
-          {SITE_TEMPLATES.map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="template"
-                value={option}
-                checked={choice === option}
-                disabled={disabled}
-                onChange={() => setChoice(option)}
-              />
-              {t(`template.template_${option}`)}
-            </label>
-          ))}
-        </fieldset>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          loading={disabled}
-          disabled={disabled}
-          onClick={() => onSaveTemplate(choice)}
-        >
-          {t("template.save")}
-        </Button>
-      </div>
+      <StylePanel disabled={disabled} style={style} locale={locale} idPrefix={idPrefix} onSave={onSaveStyle} />
+
     </aside>
+  );
+}
+
+
+/**
+ * PANEL „STYL STRONY" (K5, ADR-090) — personalizacja W RAMACH motywu.
+ *
+ * Operator nie wybiera tu koloru, tylko AKCENT Z PALETY SWOJEGO MOTYWU. Zbiór
+ * jest zamknięty i należy do motywu, bo tylko wtedy da się UDOWODNIĆ, że każdy
+ * wybór daje czytelną stronę — dowodem jest wyczerpująca bramka kontrastu
+ * w @avably/core/site, która chodzi po tym samym rejestrze, z którego pochodzą
+ * próbki niżej. Dowolny hex byłby obietnicą bez pokrycia: szesnastu milionów
+ * kombinacji nikt nie policzy.
+ *
+ * Para krojów jest wspólna dla wszystkich motywów, więc wybiera się ją z pełnej
+ * listy — motyw wnosi tu tylko wartość domyślną.
+ */
+function StylePanel({
+  disabled,
+  style,
+  locale,
+  idPrefix,
+  onSave,
+}: {
+  disabled: boolean;
+  style: ResolvedSiteStyle;
+  locale: string;
+  idPrefix: string;
+  onSave: (style: ResolvedSiteStyle) => void;
+}) {
+  const t = useTranslations("site");
+  const theme = themeTokens(style.theme);
+  const language = locale === "en" ? "en" : "pl";
+
+  return (
+    <div data-builder-style className="border-border mt-auto flex flex-col gap-3 border-t pt-3">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium">{t("style.legend")}</h3>
+        {/* Opis dyrekcji jest DANYMI motywu — panel go tylko pokazuje. */}
+        <p className="text-muted-foreground text-[13px] leading-[18px]">{theme.mood[language]}</p>
+      </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="pb-1 text-[13px] font-medium">{t("style.accent")}</legend>
+        <div className="flex flex-wrap gap-2">
+          {accentsOf(style.theme).map((accent) => {
+            const wariant = theme.bands.default.accent;
+            const swatch = theme.accents[accent]![wariant]!.fill;
+            const active = accent === style.accent;
+            return (
+              <button
+                key={accent}
+                type="button"
+                data-style-accent={accent}
+                aria-pressed={active}
+                aria-label={accent}
+                disabled={disabled}
+                onClick={() => onSave({ ...style, accent })}
+                className={`size-7 cursor-pointer rounded-full border-2 transition-transform [transition-duration:var(--motion-fast)] disabled:cursor-not-allowed ${
+                  active ? "border-foreground scale-110" : "border-border hover:scale-105"
+                }`}
+                style={{ background: swatch }}
+              />
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div className="flex flex-col gap-1" data-style-font-pair>
+        <label htmlFor={`${idPrefix}-font-pair`} className="text-[13px] font-medium">
+          {t("style.fontPair")}
+        </label>
+        {/* Kontrolka panelu, nie natywny `select` — kontrakt powłoki (ADR-063)
+            pilnuje jednego wyglądu pól w całej aplikacji. */}
+        <PanelSelect
+          id={`${idPrefix}-font-pair`}
+          value={style.fontPair}
+          disabled={disabled}
+          onValueChange={(value) => onSave({ ...style, fontPair: value as SiteFontPair })}
+          options={SELECTABLE_FONT_PAIRS.map((pair) => ({
+            value: pair,
+            label: FONT_PAIRS[pair].label[language],
+          }))}
+        />
+      </div>
+    </div>
   );
 }
 

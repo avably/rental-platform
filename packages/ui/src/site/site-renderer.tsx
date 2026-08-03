@@ -1,5 +1,12 @@
-import { isSectionCanvas, type CanvasElement } from "@avably/core/site";
-import { Fragment, type ReactNode } from "react";
+import {
+  DEFAULT_SITE_STYLE,
+  isSectionCanvas,
+  styleTokensFor,
+  themeTokens,
+  type CanvasElement,
+  type ResolvedSiteStyle,
+} from "@avably/core/site";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { SectionCanvasRenderer } from "./element-canvas";
@@ -17,12 +24,11 @@ import {
   TestimonialsSection,
   UspSection,
 } from "./sections";
-import { getTemplateStyles } from "./template";
+import { siteStyles } from "./template";
 import type {
   LegacyRenderSection,
   RenderSection,
   SiteRenderLabels,
-  SiteTemplate,
   StorefrontProduct,
 } from "./types";
 
@@ -52,18 +58,16 @@ function SectionSwitch({
   section,
   products,
   labels,
-  template,
   siteImageBase,
   elementWrapper,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
-  template: SiteTemplate;
   siteImageBase?: string;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
-  const styles = getTemplateStyles(template);
+  const styles = siteStyles();
 
   if (isSectionCanvas(section.content)) {
     // Płótno v2 (K2, ADR-084) — geometria absolutna zamiast układu z typu sekcji.
@@ -126,7 +130,7 @@ function SectionSwitch({
  */
 export function SiteRenderer({
   sections,
-  template,
+  style = DEFAULT_SITE_STYLE,
   products = [],
   labels = DEFAULT_SITE_LABELS,
   className,
@@ -135,7 +139,23 @@ export function SiteRenderer({
   elementWrapper,
 }: {
   sections: RenderSection[];
-  template: SiteTemplate;
+  /**
+   * STYL STRONY (K5, ADR-090) — motyw, akcent i para krojów.
+   *
+   * JEDYNE wejście wyglądu. Do K5 obok stylu stał osobny props `template`
+   * i to ON rozstrzygał o klasach sekcji; od ADR-090 klas jest jeden zestaw,
+   * a różnice niesie motyw jako ZMIENNE na korzeniu strony. Props zniknął
+   * świadomie: gdyby został, mielibyśmy dwa źródła prawdy o wyglądzie i pytanie
+   * „co wygrywa, gdy szablon mówi co innego niż motyw stylu".
+   *
+   * Wołający czyta styl z `resolveSiteStyle(style, template)` — kolumna
+   * `sites.template` wchodzi tam jako FALLBACK strony sprzed ADR-090, więc
+   * strona zastana nie zmienia ani jednego piksela.
+   *
+   * Brak propsu = motyw zastany `classic`, czyli dokładnie to, czym strona
+   * była przed wprowadzeniem motywów.
+   */
+  style?: ResolvedSiteStyle;
   products?: StorefrontProduct[];
   labels?: SiteRenderLabels;
   className?: string;
@@ -170,7 +190,8 @@ export function SiteRenderer({
    */
   elementWrapper?: (section: RenderSection, element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
-  const styles = getTemplateStyles(template);
+  const styles = siteStyles();
+  const theme = themeTokens(style.theme);
   const wrap =
     sectionWrapper ??
     ((section: RenderSection, children: ReactNode) => (
@@ -184,7 +205,25 @@ export function SiteRenderer({
     // strony (render bez zmian), a na płótnie kreatora zwężonym do 390 px —
     // realna szerokość telefonu. Nazwa `site` odcina przyszłe zagnieżdżone
     // kontenery (np. karta z własnym `@container`) od przejęcia zapytań sekcji.
-    <div className={cn("@container/site", styles.page, className)}>
+    //
+    // KORZEŃ NIESIE TEŻ STYL (K5, ADR-090). Zmienne źródłowe akcentu jadą tu
+    // jako właściwości niestandardowe, a nie jako kolory na elementach — element
+    // z własnym heksem zamroziłby jeden odcień na zawsze i wypadłby spod bramki
+    // kontrastu. Klasa `site-root` jest zaczepieniem dla arkusza: to on wybiera
+    // z dwóch kompletów źródłowych ten właściwy dla PASA i on nakłada kroje.
+    <div
+      className={cn("@container/site site-root", styles.page, className)}
+      /*
+       * Motyw jako DANE także w drzewie: `data-site-theme` jest kotwicą testów
+       * i zrzutów, a `data-site-button` jest jedynym przełącznikiem, którego
+       * arkusz potrzebuje do wypełnienia przycisku (pełne albo obrys). Gdyby
+       * wypełnienie szło klasą z komponentu, kształt przycisku przestałby być
+       * własnością motywu, a stałby się własnością kodu.
+       */
+      data-site-theme={style.theme}
+      data-site-button={theme.shape.buttonFill}
+      style={{ ...styleTokensFor(style) } as CSSProperties}
+    >
       {sections.map((section) => (
         <Fragment key={section.id}>
           {wrap(
@@ -193,7 +232,6 @@ export function SiteRenderer({
               section={section}
               products={products}
               labels={labels}
-              template={template}
               siteImageBase={siteImageBase}
               elementWrapper={
                 elementWrapper

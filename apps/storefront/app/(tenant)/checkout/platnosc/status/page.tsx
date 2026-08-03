@@ -76,7 +76,7 @@ export default async function TenantPaymentStatusPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, template, tenantId } = ctx;
+  const { catalog, copy, locale, currency, style, tenantId } = ctx;
 
   const order = await loadCheckoutOrder();
   if (!order) redirect("/store");
@@ -106,7 +106,7 @@ export default async function TenantPaymentStatusPage() {
   return (
     <>
       <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell template={template}>
+      <PageShell style={style}>
         <h1 className="text-2xl font-semibold tracking-tight">{copy.payment.statusTitle}</h1>
         <div className="mt-6 rounded-lg border border-border bg-card p-6" role="status">
           <p className="text-lg leading-7">{headline}</p>

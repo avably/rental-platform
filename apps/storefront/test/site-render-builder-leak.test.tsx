@@ -73,6 +73,18 @@ const BUILDER_LAYER_MARKERS = [
   "data-picker-search-run",
   "data-picker-photo",
   "data-picker-photo-author",
+  // Galeria szablonów, panel „Styl strony" i „zacznij od nowa" (K5 v2, ADR-090).
+  // Miniatury w galerii renderują SiteRenderer, więc znaczniki tej warstwy mają
+  // szczególny powód, żeby nigdy nie wyjechać na publiczną stronę.
+  "data-template-gallery",
+  "data-template-gallery-dismiss",
+  "data-starter-template",
+  "data-builder-style",
+  "data-style-accent",
+  "data-style-font-pair",
+  "data-builder-start-over",
+  "data-start-over-scope",
+  "data-start-over-confirm",
   // Skorupa i pasek narzędzi kreatora — dopisane przy nodze kompletności (K3).
   // Były w warstwie od K1/K2, ale rejestr ich nie znał, bo nikt go nie sprawdzał;
   // to jest dokładnie ta cicha luka, którą noga niżej zamyka.
@@ -124,7 +136,7 @@ const sections: RenderSection[] = [
 ] as RenderSection[];
 
 /** Render DOKŁADNIE taki, jaki robi trasa sklepu: bez własnej owijki sekcji. */
-const html = renderToStaticMarkup(<SiteRenderer sections={sections} template="classic" />);
+const html = renderToStaticMarkup(<SiteRenderer sections={sections} />);
 
 describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
   it("fixture naprawdę coś renderuje — OBIE generacje treści", () => {
@@ -189,6 +201,7 @@ const BUILDER_LAYER_SOURCES = [
   "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
   "app/[locale]/(kreator)/strona/kreator/site-builder.tsx",
   "app/[locale]/(kreator)/strona/kreator/builder-palette.tsx",
+  "app/[locale]/(kreator)/strona/kreator/template-gallery.tsx",
   // Galeria typów sekcji żyje w pasie ekranu „Strona sklepu", ale renderuje się
   // WEWNĄTRZ kreatora (paleta i „+" na płótnie) — jej znaczniki są warstwą.
   "app/[locale]/(panel)/strona/add-section-gallery.tsx",

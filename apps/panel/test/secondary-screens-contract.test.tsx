@@ -5,6 +5,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_SITE_STYLE } from "@avably/core/site";
+
 import messages from "../messages/pl.json";
 
 /**
@@ -151,6 +153,9 @@ const domains = [
     registered: true,
   },
 ];
+
+/** Styl szkicu w motywie zastanym — dokładnie to, czym strona jest bez wyboru. */
+const STYL = DEFAULT_SITE_STYLE;
 
 describe("ekran domen — sekwencja stanów rejestracji i DNS", () => {
   const html = render(
@@ -557,7 +562,7 @@ function renderBuilder(overrides: Partial<BuilderProps> = {}): string {
   return render(
     <SiteBuilder
       siteId="site-1"
-      template="classic"
+      style={STYL}
       sections={siteSections}
       products={siteProducts}
       {...overrides}

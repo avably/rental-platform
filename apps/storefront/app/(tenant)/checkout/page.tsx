@@ -44,7 +44,7 @@ export default async function TenantCheckoutPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, template, tenantId } = ctx;
+  const { catalog, copy, locale, currency, style, tenantId } = ctx;
 
   // Które metody pokazać — liczone TU, na serwerze, ze ŚWIEŻEGO odczytu stanu
   // konta najemcy u dostawcy (ADR-049). Strona jest `force-dynamic`, więc
@@ -56,7 +56,7 @@ export default async function TenantCheckoutPage() {
   return (
     <>
       <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell template={template}>
+      <PageShell style={style}>
         <h1 className="text-2xl font-semibold tracking-tight">{copy.checkout.title}</h1>
         <div className="mt-6">
           <CheckoutForm

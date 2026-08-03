@@ -1,35 +1,49 @@
-import type { SiteTemplate } from "./types";
-
 /**
- * Tokeny wizualne szablonu storefrontu. Dwa szablony (`classic`, `bold`) to dwa
- * zestawy klas dla tych samych komponentów sekcji — komponent renderuje raz,
- * a wygląd wynika z wybranego zestawu. Dzięki temu podgląd w panelu i sklep
- * publiczny są renderowane TYM SAMYM kodem; różni je tylko przekazany szablon.
+ * KLASY SEKCJI — JEDEN ZESTAW NA WSZYSTKIE MOTYWY (K5, ADR-090).
  *
- * `classic` — powściągliwy, serif w nagłówkach, jasny „papier”, dużo światła.
- * `bold` — wysoki kontrast, ciemny hero, wielka typografia sans, mocny akcent.
+ * ==================== CO ZNIKŁO I DLACZEGO ====================
+ *
+ * Do K5 stały tu DWIE tablice klas (`classic`, `bold`) i komponent dostawał
+ * jedną z nich. Wyglądem strony rządził więc KOD: „szablon" był zestawem klas
+ * Tailwinda, a każdy nowy świat wizualny znaczył trzecią tablicę, potem
+ * czwartą — przy piętnastu motywach z briefu byłoby to piętnaście kopii tych
+ * samych trzydziestu pól, z których każda mogła się rozjechać osobno.
+ *
+ * Odtąd tablica jest JEDNA, a różnice niosą ZMIENNE CSS wystawione przez motyw
+ * (`@avably/core/site` → `styleTokensFor`). Klasy mówią, CZYM element jest
+ * („to jest karta", „to jest przycisk pierwszorzędny"), a nie jak wygląda.
+ * Dopisanie motywu nr 7 nie dotyka więc tego pliku ANI RAZU — i to jest cały
+ * warunek postawiony przez właściciela.
+ *
+ * ==================== ANI JEDNEGO TOKENU APLIKACJI ====================
+ *
+ * W tym pliku nie ma prawa stać `bg-card`, `text-muted-foreground` ani
+ * `bg-foreground`. To są kolory PANELU: strona najemcy dziedziczyła je bez
+ * pytania, więc wyglądała jak panel i zmieniała się razem z nim. Wszystkie
+ * powierzchnie i kolory tekstu idą przez `--site-*`, których wartości ustawia
+ * arkusz per PAS (site.css), a wartości pasów wystawia render z rejestru
+ * motywów. Pilnuje tego kontrakt `site-style.test.tsx` — klasa motywu
+ * aplikacji w tej tablicy jest czerwona.
  *
  * RESPONSYWNOŚĆ IDZIE PO KONTENERZE, NIE PO OKNIE (ADR-085). Zamiast `sm:`
  * i `lg:` (media queries — szerokość OKNA) sekcje używają wariantów
  * kontenerowych `@min-[40rem]/site:` i `@min-[64rem]/site:`, celujących
  * w kontener `site` z korzenia `SiteRenderer`. Progi są DOKŁADNIE te same
- * liczby, co dotychczasowe breakpointy Tailwinda (`sm` = 40rem, `lg` = 64rem),
- * więc sklep na realnych szerokościach układa się jak przedtem — ale płótno
- * kreatora zwężone do 390 px dostaje wreszcie układ telefonu, a nie desktopowy
- * ściśnięty do 390 px. Progi zapisane są JAWNIE (`40rem`/`64rem`), a nie
- * nazwanym rozmiarem kontenera z motywu: liczba, która musi zostać zgodna
- * z `sm:`/`lg:`, ma stać w klasie, a nie w słowniku obok.
+ * liczby, co dotychczasowe breakpointy Tailwinda, więc sklep na realnych
+ * szerokościach układa się jak przedtem — ale płótno kreatora zwężone do
+ * 390 px dostaje układ telefonu, a nie desktopowy ściśnięty do 390 px.
  *
  * Siatki NIE dają więcej niż 2 kolumny poniżej 40rem (decyzja właściciela
  * 2026-08-01: produkty na telefonie w dwóch kolumnach). Pilnuje tego
  * `site-container-contract.test.ts`, razem z zakazem `sm:`/`lg:` i `vw`.
  */
+
 export interface TemplateStyles {
   /** Zewnętrzna powłoka strony. */
   page: string;
   /** Owijka pojedynczej sekcji (odstępy pionowe). */
   section: string;
-  /** Wariant sekcji na ciemnym tle (używany przez hero w `bold`). */
+  /** Wariant sekcji na pasie odwróconym (używany przez hero sekcji v1). */
   sectionInverted: string;
   /** Kontener centrujący treść z maksymalną szerokością. */
   container: string;
@@ -67,71 +81,48 @@ export interface TemplateStyles {
   iconTile: string;
   /**
    * Pas ODWRÓCONY płótna v2 (K2, ADR-084) — SAM kolor, bez odstępów: wysokość
-   * sekcji v2 niesie geometria płótna, nie padding. Dlatego osobny wpis, a nie
-   * `sectionInverted` (ten dokłada `py-*`, które w sekcji o zadanej wysokości
-   * przesuwałoby całą zawartość względem współrzędnych).
+   * sekcji v2 niesie geometria płótna, nie padding.
    */
   canvasInverted: string;
 }
 
-const CLASSIC: TemplateStyles = {
-  // Tekst strony to `--foreground`, NIE `--landing-ink`. `--landing-ink` jest
-  // kolorem PASA ciemnego (tło `.landing-dark-section`) i w motywie ciemnym
-  // celowo równa się `--secondary` — użyty jako kolor tekstu dawał niemal
-  // niewidoczny napis na tle strony (kontrast ~1,2:1). W motywie jasnym obie
-  // wartości są tożsame, więc render sklepu nie zmienia się ani o piksel.
-  page: "bg-[var(--landing-paper)] text-foreground",
+/**
+ * KLASA PRZYCISKU PIERWSZORZĘDNEGO. Wypełnienie (`solid`/`outline`) jest
+ * decyzją MOTYWU, a motyw jest danymi — więc przełącznikiem nie może być kod
+ * komponentu. Rozstrzyga arkusz przez atrybut `data-site-button` na korzeniu
+ * strony (site.css); tutaj stoi sam kształt i odstępy, wspólne dla obu.
+ */
+const STYLES: TemplateStyles = {
+  page: "site-surface",
   section: "py-16 @min-[40rem]/site:py-20",
-  sectionInverted: "py-16 @min-[40rem]/site:py-20 landing-dark-section",
-  container: "mx-auto w-full max-w-4xl px-6",
-  eyebrow: "text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground",
+  sectionInverted: "py-16 @min-[40rem]/site:py-20 site-band-inverted",
+  container: "mx-auto w-full max-w-5xl px-6",
+  eyebrow: "site-eyebrow site-text-muted",
   sectionHeading: "landing-heading mt-3 break-words",
-  lead: "mt-4 max-w-2xl text-lg text-muted-foreground",
+  lead: "mt-4 max-w-2xl text-lg site-text-muted",
   heroSection: "py-24 @min-[40rem]/site:py-32",
   heroHeading: "landing-display break-words",
-  heroSubheading: "mt-6 max-w-2xl text-xl text-muted-foreground",
-  cta: "mt-8 inline-flex items-center rounded-full border border-current px-6 py-3 text-sm font-medium transition-colors hover:bg-foreground hover:text-[var(--background)]",
-  card: "flex flex-col overflow-hidden rounded-lg border bg-card",
-  cardTitle: "text-lg font-medium tracking-tight",
-  cardPrice: "mt-1 text-sm text-muted-foreground",
+  heroSubheading: "mt-6 max-w-2xl text-xl site-text-muted",
+  cta: "site-cta mt-8 inline-flex items-center",
+  card: "site-card flex flex-col overflow-hidden",
+  cardTitle: "site-title text-lg tracking-tight",
+  cardPrice: "mt-1 text-sm site-text-accent",
   productGrid: "mt-10 grid grid-cols-2 gap-4 @min-[40rem]/site:gap-6 @min-[64rem]/site:grid-cols-3",
-  faqItem: "border-b py-4",
-  faqQuestion: "cursor-pointer list-none text-lg font-medium",
-  subtleCard: "flex flex-col rounded-lg border bg-card p-6",
-  ctaBanner: "flex flex-col items-center rounded-xl border bg-[var(--landing-paper)] px-6 py-12 text-center text-foreground",
-  iconTile: "flex size-11 items-center justify-center rounded-lg border text-foreground",
-  canvasInverted: "landing-dark-section",
+  faqItem: "site-rule py-4",
+  faqQuestion: "site-title cursor-pointer list-none text-lg",
+  subtleCard: "site-card flex flex-col p-6",
+  ctaBanner: "site-banner site-band-inverted flex flex-col items-center px-6 py-12 text-center",
+  // Alfa 10 % musi zgadzać się z bramką kontrastu (`ICON_TILE_ALPHA`), która
+  // liczy kafelek jako MIESZANINĘ akcentu z pasem pod spodem.
+  iconTile: "site-icon-tile flex size-11 items-center justify-center site-text-accent",
+  canvasInverted: "site-band-inverted",
 };
 
-const BOLD: TemplateStyles = {
-  page: "bg-background text-foreground",
-  section: "py-20 @min-[40rem]/site:py-28",
-  sectionInverted: "py-20 @min-[40rem]/site:py-28 bg-foreground text-background",
-  container: "mx-auto w-full max-w-5xl px-6",
-  eyebrow: "text-sm font-bold uppercase tracking-[0.25em] text-primary",
-  sectionHeading: "mt-4 text-4xl font-extrabold tracking-tight break-words @min-[40rem]/site:text-5xl",
-  lead: "mt-5 max-w-2xl text-lg text-muted-foreground",
-  heroSection: "bg-foreground text-background py-28 @min-[40rem]/site:py-40",
-  heroHeading: "text-5xl font-extrabold tracking-tight break-words @min-[40rem]/site:text-7xl",
-  heroSubheading: "mt-6 max-w-2xl text-xl opacity-80",
-  cta: "mt-10 inline-flex items-center rounded-md bg-primary px-8 py-4 text-base font-bold text-[var(--background)] transition-transform hover:scale-[1.03]",
-  card: "flex flex-col overflow-hidden rounded-xl border-2 bg-card",
-  cardTitle: "text-xl font-bold tracking-tight",
-  cardPrice: "mt-1 text-base font-semibold text-primary",
-  productGrid: "mt-12 grid grid-cols-2 gap-4 @min-[40rem]/site:gap-8 @min-[64rem]/site:grid-cols-3",
-  faqItem: "rounded-lg border-2 px-5 py-4",
-  faqQuestion: "cursor-pointer list-none text-lg font-bold",
-  subtleCard: "flex flex-col rounded-xl border-2 bg-card p-6",
-  ctaBanner: "flex flex-col items-center rounded-2xl bg-foreground px-6 py-14 text-center text-background",
-  iconTile: "flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary",
-  canvasInverted: "bg-foreground text-background",
-};
-
-const STYLES: Record<SiteTemplate, TemplateStyles> = {
-  classic: CLASSIC,
-  bold: BOLD,
-};
-
-export function getTemplateStyles(template: SiteTemplate): TemplateStyles {
-  return STYLES[template] ?? CLASSIC;
+/**
+ * Klasy sekcji. Argumentu nie ma i nie będzie: wygląd wynika ze zmiennych
+ * motywu na korzeniu strony, a nie z tego, który motyw jest wybrany — dzięki
+ * temu ten moduł nie musi znać rejestru motywów ani rosnąć razem z nim.
+ */
+export function siteStyles(): TemplateStyles {
+  return STYLES;
 }

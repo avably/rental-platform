@@ -25,7 +25,15 @@
    `.landing-dark-section` mieszkają w `@avably/ui/site.css` (import wyżej) —
    sklep i panel muszą je mieć CO DO JEDNEJ WARTOŚCI takie same, bo renderują
    te same sekcje tym samym komponentem. Poniżej zostaje wyłącznie to, czego
-   sekcje nie używają (kształty i ruch warstwy marketingowej). */
+   sekcje nie używają (kształty i ruch warstwy marketingowej).
+
+   TO SAMO DOTYCZY `--site-*` (styl strony, K5 / ADR-090) i to mocniej, bo te
+   zmienne mają DWIE warstwy: źródłową (wystawia ją render na korzeniu strony
+   z wyboru najemcy) i czynną (przełącza ją per pas arkusz pakietu). Deklaracja
+   któregokolwiek z nich w TYM pliku wygrywałaby z obiema — jest późniejsza niż
+   import — i zamroziłaby akcent na jednym odcieniu dla wszystkich sklepów
+   naraz, w miejscu, w którym nikt takiego skutku nie szuka. Rozjazdu pilnuje
+   test/site-style.test.tsx, żeby ta reguła nie była samym komentarzem. */
 
 .landing-hero {
   padding-top: 4.5rem;

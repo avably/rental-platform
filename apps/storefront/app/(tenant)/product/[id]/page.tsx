@@ -61,7 +61,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, template, supabaseUrl } = ctx;
+  const { catalog, copy, locale, currency, style, supabaseUrl } = ctx;
   const raw = catalog.products.find((product) => product.id === id);
   if (!raw) notFound();
 
@@ -90,7 +90,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
     <>
       <StoreHeader copy={copy} storeName={catalog.tenant.name} />
       {productLd ? <JsonLd data={productLd} /> : null}
-      <PageShell template={template}>
+      <PageShell style={style}>
         <Link href="/store" className="text-sm text-muted-foreground underline underline-offset-4">
           {copy.common.backToCatalog}
         </Link>

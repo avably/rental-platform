@@ -30,7 +30,7 @@ function canvasWith(elements: SectionCanvas["elements"]): SectionCanvas {
 
 function renderCanvas(canvas: SectionCanvas) {
   const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
-  return render(<SiteRenderer sections={sections} template="classic" />);
+  return render(<SiteRenderer sections={sections} />);
 }
 
 describe("formatowanie składa się ze ZNACZNIKÓW REACTA", () => {
@@ -116,7 +116,7 @@ describe("wrogi tekst zostaje TEKSTEM", () => {
 
   it("w wygenerowanym HTML-u znaczniki są ZAESCAPE'OWANE", () => {
     const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
-    const html = renderToStaticMarkup(<SiteRenderer sections={sections} template="classic" />);
+    const html = renderToStaticMarkup(<SiteRenderer sections={sections} />);
     expect(html).toContain("&lt;script&gt;");
     // Sedno: żaden ZNACZNIK nie powstał. Sam napis „onerror=" w treści jest
     // nieszkodliwy (siedzi w zaescape'owanym tekście) — groźny byłby atrybut

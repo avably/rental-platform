@@ -16,6 +16,7 @@
  * Bramka wejścia jest ta sama, co na reszcie tras tenanta (`requireMemberPage`);
  * właściwą izolacją danych pozostaje RLS (0019), nie ten guard.
  */
+import { resolveSiteStyle } from "@avably/core/site";
 import { notFound } from "next/navigation";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
@@ -40,7 +41,12 @@ export default async function SiteBuilderPage() {
   return (
     <SiteBuilder
       siteId={data.site.id}
-      template={data.site.template}
+      /*
+       * Styl SZKICU. Kolumna `sites.template` wchodzi tu jako FALLBACK stron
+       * sprzed ADR-090 — dzięki temu strona zastana renderuje się motywem
+       * zastanym, czyli dokładnie tak, jak wyglądała.
+       */
+      style={resolveSiteStyle(data.site.style_draft, data.site.template)}
       sections={toEditorSections(data.sections)}
       products={products}
     />

@@ -90,7 +90,15 @@ const requireMember = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 
-const { reorderSections, duplicateSection, deleteSection, restoreSection, publishSite, updateTemplate } =
+const {
+  reorderSections,
+  duplicateSection,
+  deleteSection,
+  restoreSection,
+  publishSite,
+  updateSiteStyle,
+  applyStarterTemplate,
+} =
   await import("@/lib/actions/site");
 
 describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
@@ -324,17 +332,23 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
       expect(await envelope(), "usunięcie w szkicu zmieniło stronę klienta").toEqual(before);
     });
 
-    it("zmiana szablonu też nie rusza strony klienta przed publikacją", async () => {
+    it("zmiana STYLU też nie rusza strony klienta przed publikacją", async () => {
+      // Do ADR-090 tym testem chodziła zmiana szablonu graficznego. Przełącznik
+      // zniknął z kreatora (szablon jest odtąd światem wybieranym w galerii),
+      // ale zdanie, którego test broni, zostaje to samo i jest MOCNIEJSZE:
+      // styl przemalowuje CAŁĄ stronę, więc tym bardziej nie ma prawa wejść na
+      // nią przed publikacją.
       const before = await envelope();
       actAs(tenantA);
-      const result = await updateTemplate(siteAId, "bold");
-      expect(result.ok, `zmiana szablonu: ${result.ok ? "" : result.error}`).toBe(true);
+      const result = await updateSiteStyle(siteAId, { theme: "noir-lux", accent: "champagne" });
+      expect(result.ok, `zmiana stylu: ${result.ok ? "" : result.error}`).toBe(true);
 
-      const { data: site } = await admin.from("sites").select("template").eq("id", siteAId).single();
-      expect(site?.template, "szablon nie zapisał się w szkicu").toBe("bold");
-      expect(await envelope(), "zmiana szablonu przemalowała żywą stronę przed publikacją").toEqual(
-        before,
-      );
+      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
+      expect(site?.style_draft, "styl nie zapisał się w szkicu").toEqual({
+        theme: "noir-lux",
+        accent: "champagne",
+      });
+      expect(await envelope(), "zmiana stylu przemalowała żywą stronę przed publikacją").toEqual(before);
     });
 
     it("przywrócenie zdejmuje znacznik; obcy tenant nie przywróci cudzej sekcji", async () => {
@@ -359,6 +373,46 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
       expect(row?.deleted_in_draft).toBe(false);
     });
 
+    it("SZABLON STARTOWY nie zdejmuje z żywej strony ani jednej sekcji", async () => {
+      // Najostrzejszy przypadek całej K5 v2: operator ogląda inny szablon na
+      // stronie, która JUŻ stoi u klientów. Do 0045 ta akcja kasowała wiersze,
+      // więc sklep gasł w chwili kliknięcia — mimo że nowe sekcje wchodziły
+      // wyłącznie do szkicu. Odtąd usunięcia idą nagrobkami, a żywa strona
+      // zostaje bajtowo taka sama do publikacji.
+      const before = await envelope();
+      expect(before?.sections.length, "fixture: strona musi być opublikowana").toBeGreaterThan(0);
+
+      actAs(tenantA);
+      const applied = await applyStarterTemplate({
+        siteId: siteAId,
+        starterId: "photo-video",
+        locale: "pl",
+      });
+      expect(applied.ok, `szablon: ${applied.ok ? "" : applied.error}`).toBe(true);
+
+      expect(await envelope(), "szablon startowy zmienił stronę klienta").toEqual(before);
+
+      // Szkic jest już szablonem: nowe sekcje istnieją i są nieopublikowane,
+      // a zastane leżą pod nagrobkiem (wiersz zostaje — inaczej publikacja nie
+      // miałaby czego zdjąć).
+      const { data: rows } = await admin
+        .from("site_sections")
+        .select("id, deleted_in_draft, content_published")
+        .eq("site_id", siteAId);
+      const nagrobki = (rows ?? []).filter((row) => row.deleted_in_draft);
+      const nowe = (rows ?? []).filter((row) => !row.deleted_in_draft);
+      expect(nagrobki.length, "zastane sekcje skasowane zamiast oznaczone").toBeGreaterThan(0);
+      expect(nowe.length, "szablon nie wstawił sekcji").toBeGreaterThan(0);
+      expect(
+        nowe.every((row) => row.content_published === null),
+        "sekcja szablonu urodziła się opublikowana",
+      ).toBe(true);
+
+      // Motyw szablonu wszedł do SZKICU stylu tą samą operacją.
+      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
+      expect((site?.style_draft as { theme?: string })?.theme).toBe("noir-lux");
+    });
+
     it("dopiero publikacja zdejmuje sekcję z żywej strony i kasuje wiersz", async () => {
       actAs(tenantA);
       const marked = await deleteSection(victimId);
@@ -369,7 +423,14 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
 
       const after = await envelope();
       expect(after?.sections.some((s) => s.id === victimId), "sekcja przeżyła publikację").toBe(false);
-      expect(after?.template, "szablon nie wszedł razem z publikacją").toBe("bold");
+      // Publikacja przenosi TO, CO STOI W SZKICU — porównujemy z kolumną, a nie
+      // z literałem, bo testy wyżej zmieniają styl i test miałby wtedy dwie
+      // prawdy o tym samym stanie.
+      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
+      expect(
+        (after as unknown as { style?: unknown }).style,
+        "styl nie wszedł razem z publikacją",
+      ).toEqual(site?.style_draft);
 
       const { data: gone } = await admin.from("site_sections").select("id").eq("id", victimId);
       expect(gone, "publikacja nie skasowała wiersza sekcji usuniętej w szkicu").toHaveLength(0);

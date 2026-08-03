@@ -19,16 +19,27 @@
  */
 import { revalidatePath, revalidateTag } from "next/cache";
 
-import { tenantCacheTag } from "@avably/core/site";
+import {
+  starterPhoto,
+  starterTemplateCanvases,
+  starterTemplatePhotoSlots,
+  starterTemplateTheme,
+  tenantCacheTag,
+  type StarterTemplate,
+} from "@avably/core/site";
+
+import { triggerUnsplashDownload } from "@/lib/unsplash";
 
 import { AuthError } from "@/lib/auth";
 import {
+  applyStarterTemplateInputSchema,
   reorderPlan,
   reorderSectionsInputSchema,
   toggleSectionInputSchema,
-  updateTemplateInputSchema,
+  updateSiteStyleInputSchema,
   upsertSectionInputSchema,
   MAX_SECTIONS,
+  type ApplyStarterTemplateInput,
   type SiteActionResult,
   type UpsertSectionInput,
 } from "@/lib/site-validation";
@@ -426,20 +437,20 @@ export async function duplicateSection(
 }
 
 /**
- * Zmiana szablonu strony — OPERACJA SZKICU (ADR-091). Do 0045 szablon był
- * kolumną WSPÓLNĄ: przełączenie „classic ↔ bold" przemalowywało stronę klienta
- * natychmiast (akcja unieważniała nawet cache storefrontu, żeby zmiana była
- * widoczna od razu). Odtąd pisze do `sites.template`, a publiczny odczyt bierze
- * `template_published` — więc szablon wchodzi na żywą stronę razem z resztą,
- * przy publikacji.
+ * ZAPIS STYLU STRONY — motyw, akcent i para fontów (K5, ADR-090).
+ *
+ * Pisze WYŁĄCZNIE do `style_draft`, dokładnie tak, jak edycja sekcji pisze
+ * wyłącznie do `content_draft` (ADR-091: publikacja jedyną bramką). Publiczny
+ * wygląd zmienia dopiero publikacja, która kopiuje styl tą samą transakcją co
+ * treść (0046).
  */
-export async function updateTemplate(
+export async function updateSiteStyle(
   siteId: string,
-  template: string,
+  style: unknown,
 ): Promise<SiteActionResult> {
-  const parsed = updateTemplateInputSchema.safeParse({ siteId, template });
+  const parsed = updateSiteStyleInputSchema.safeParse({ siteId, style });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowy szablon." };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowy styl strony." };
   }
   const auth = await memberCtx();
   if (!auth.ok) return auth;
@@ -447,7 +458,7 @@ export async function updateTemplate(
 
   const { data, error } = await ctx.supabase
     .from("sites")
-    .update({ template: parsed.data.template })
+    .update({ style_draft: parsed.data.style })
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.siteId)
     .select("id");
@@ -459,6 +470,155 @@ export async function updateTemplate(
   // cache storefrontu byłoby kłamstwem o zmianie (i jedynym miejscem w panelu,
   // które ruszałoby publiczny cache poza publikacją).
   return { ok: true };
+}
+
+/**
+ * SZABLON STARTOWY — GOTOWA STRONA DO SZKICU (K5, ADR-090 na kanonie ADR-091).
+ *
+ * Operacja jest DESTRUKCYJNA dla szkicu i interfejs musi ją potwierdzić. Dla
+ * strony OPUBLIKOWANEJ nie jest destrukcyjna wcale — i to jest różnica, którą
+ * przyniosło ADR-091.
+ *
+ * DLACZEGO USUNIĘCIE I WSTAWIENIE, A NIE NADPISANIE W MIEJSCU. Typ sekcji jest
+ * NIEZMIENNY (patrz upsertSection: treść published starego typu nie może wisieć
+ * pod nowym typem do następnej publikacji). Szablon startowy przynosi własną
+ * sekwencję typów, która z zastaną nie ma powodu się pokrywać — nadpisanie
+ * w miejscu byłoby więc możliwe tylko tam, gdzie typy przypadkiem się zgadzają,
+ * a to jest gorsze niż jedna jasna zasada.
+ *
+ * USUNIĘCIE IDZIE NAGROBKIEM, NIE KASOWANIEM WIERSZA. Do 0045 ta akcja
+ * kasowała komplet sekcji, więc zastosowanie szablonu ZDEJMOWAŁO sekcje z żywej
+ * strony natychmiast — mimo że nowe sekcje wchodziły wyłącznie do szkicu.
+ * Operator, który chciał obejrzeć inny szablon, gasił sobie sklep. Odtąd:
+ *
+ *   • sekcja stojąca na żywej stronie dostaje `deleted_in_draft = true` —
+ *     wiersz zostaje, klient dalej ją widzi, a znika dopiero przy publikacji;
+ *   • sekcja NIGDY nieopublikowana jest kasowana (nagrobek na takiej sekcji
+ *     jest zabroniony CHECK-iem 0045: nie ma czego chronić).
+ *
+ * Publikacja pozostaje więc jedyną bramką Z KONSTRUKCJI, a nie z uprzejmości
+ * tego kodu: żadna linijka niżej nie dotyka kolumn `*_published`, a strażnik
+ * bazy (ADR-091) i tak by na to nie pozwolił.
+ *
+ * MOTYW WCHODZI RAZEM ZE STRONĄ. Wybór szablonu JEST wyborem świata wizualnego
+ * (ADR-090), więc ta sama akcja zapisuje motyw do `style_draft`. Gdyby motyw
+ * szedł osobnym wywołaniem, istniałby stan pośredni „treść nowa, wygląd stary",
+ * a operator zobaczyłby przez chwilę stronę, której nikt nie zaprojektował.
+ *
+ * WYZWALACZ POBRANIA — WARUNEK LICENCJI, nie telemetria. Dostawca zdjęć wymaga
+ * wywołania `download_location` w chwili UŻYCIA kadru; szablon startowy używa
+ * kilkunastu naraz. Wywołania idą po zapisie i NIE blokują odpowiedzi: ich
+ * niepowodzenie nie może cofnąć zastosowanego szablonu, bo to nie jest warunek
+ * poprawności treści, tylko zobowiązanie wobec dostawcy.
+ */
+export async function applyStarterTemplate(
+  input: ApplyStarterTemplateInput,
+): Promise<SiteActionResult<{ sectionIds: string[] }>> {
+  const parsed = applyStarterTemplateInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowy szablon startowy." };
+  }
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+  const { siteId, starterId, locale } = parsed.data;
+
+  const sections = starterTemplateCanvases(starterId, locale);
+  if (sections.length > MAX_SECTIONS) {
+    return { ok: false, error: "Szablon startowy ma za dużo sekcji." };
+  }
+
+  // Zawężenie do (tenant, site) jest drugą warstwą — bramką izolacji zostaje
+  // RLS (0019). Szablon ZASTĘPUJE stronę, więc zastane sekcje schodzą ze szkicu
+  // w komplecie; rozstrzygnięcie „nagrobek czy kasowanie" idzie po tym, czy
+  // sekcja stoi na żywej stronie (ADR-091).
+  const { data: existing, error: readError } = await ctx.supabase
+    .from("site_sections")
+    .select("id, content_published")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("site_id", siteId);
+  if (readError) return { ok: false, error: readError.message };
+
+  const published = (existing ?? []).filter((row) => row.content_published !== null).map((row) => row.id as string);
+  const drafts = (existing ?? []).filter((row) => row.content_published === null).map((row) => row.id as string);
+
+  if (published.length > 0) {
+    const { error } = await ctx.supabase
+      .from("site_sections")
+      .update({ deleted_in_draft: true, updated_at: new Date().toISOString() })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("site_id", siteId)
+      .in("id", published);
+    if (error) return { ok: false, error: error.message };
+  }
+  if (drafts.length > 0) {
+    const { error } = await ctx.supabase
+      .from("site_sections")
+      .delete()
+      .eq("tenant_id", ctx.tenantId)
+      .eq("site_id", siteId)
+      .in("id", drafts);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  // Wstawienie jednym zapytaniem: częściowo zastosowany szablon (kilka sekcji
+  // weszło, reszta nie) zostawiłby stronę-hybrydę, której operator nie umie
+  // odróżnić od własnej pracy. content_published celowo NIE ustawiane —
+  // domyślny NULL czyni każdą wstawioną sekcję nieopublikowaną.
+  const { data: created, error: insertError } = await ctx.supabase
+    .from("site_sections")
+    .insert(
+      sections.map((section, position) => ({
+        tenant_id: ctx.tenantId,
+        site_id: siteId,
+        type: section.type,
+        content_draft: section.content,
+        position,
+        enabled: true,
+      })),
+    )
+    .select("id");
+  if (insertError || !created) {
+    return {
+      ok: false,
+      error:
+        insertError?.code === "23503"
+          ? "Nie znaleziono strony."
+          : (insertError?.message ?? "Nie udało się zastosować szablonu startowego."),
+    };
+  }
+
+  // Motyw szablonu do SZKICU stylu — jedno wywołanie, ta sama operacja co treść.
+  const { error: styleError } = await ctx.supabase
+    .from("sites")
+    .update({ style_draft: { theme: starterTemplateTheme(starterId) } })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", siteId);
+  if (styleError) return { ok: false, error: styleError.message };
+
+  // Wyzwalacz pobrania per kadr — po zapisie, bez blokowania odpowiedzi.
+  void triggerStarterPhotoDownloads(starterId);
+
+  revalidatePath("/", "layout");
+  return { ok: true, sectionIds: created.map((row) => row.id as string) };
+}
+
+/**
+ * Wywołanie `download_location` dla KAŻDEGO kadru szablonu (wymóg regulaminu
+ * dostawcy — z tych wywołań liczą się statystyki autora zdjęcia).
+ *
+ * Świadomie NIE `await` w akcji: pojedyncze wywołanie bywa wolne, a operator ma
+ * zobaczyć stronę od razu. Wyodrębnione do funkcji, żeby dało się je podmienić
+ * atrapą w teście — inaczej „szablon odpala wyzwalacz" byłoby zdaniem, którego
+ * nikt nie sprawdza.
+ */
+export async function triggerStarterPhotoDownloads(starterId: StarterTemplate): Promise<void> {
+  await Promise.all(
+    starterTemplatePhotoSlots(starterId).map(async (slot) => {
+      const photo = starterPhoto(slot);
+      if (photo?.kind === "unsplash") await triggerUnsplashDownload(photo.downloadLocation);
+    }),
+  );
 }
 
 /**

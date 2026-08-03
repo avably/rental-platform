@@ -1013,13 +1013,6 @@
     "backHome": "← Panel",
     "loadErrorTitle": "Nie udało się wczytać szkicu",
     "loadError": "Nie udało się wczytać strony sklepu. Odśwież stronę.",
-    "template": {
-      "heading": "Szablon",
-      "legend": "Charakter strony",
-      "save": "Zapisz szablon",
-      "template_classic": "Classic (stonowany)",
-      "template_bold": "Bold (kontrastowy)"
-    },
     "sections": {
       "heading": "Sekcje strony",
       "addType": "Dodaj sekcję",
@@ -1284,7 +1277,36 @@
       "searchLabel": "Czego szukasz",
       "searchPlaceholder": "np. koparka, budowa, narzędzia",
       "search": "Szukaj",
-      "open": "Zmień zdjęcie"
+      "open": "Zmień zdjęcie",
+      "errors": {
+        "disabled": "Wyszukiwarka zdjęć jest wyłączona.",
+        "network": "Nie udało się połączyć z bazą zdjęć. Spróbuj ponownie.",
+        "provider": "Baza zdjęć nie odpowiedziała poprawnie. Spróbuj za chwilę.",
+        "unknown": "Nie udało się wyszukać zdjęć."
+      }
+    },
+    "style": {
+      "legend": "Styl strony",
+      "accent": "Kolor akcentu",
+      "fontPair": "Para krojów"
+    },
+    "starter": {
+      "title": "Wybierz punkt wyjścia",
+      "description": "Każdy szablon to gotowa strona z własną kolorystyką, typografią i zdjęciami. Wszystko zmienisz później.",
+      "dismiss": "Wróć do kreatora",
+      "startOver": "Zacznij od nowa",
+      "confirmTitle": "Zastąpić stronę szablonem?",
+      "confirmBody": "Twoja obecna wersja robocza zniknie i nie da się jej cofnąć. Opublikowana strona zostaje bez zmian — nowa wejdzie na nią dopiero po publikacji.",
+      "confirmCancel": "Anuluj",
+      "confirmAccept": "Wybierz szablon",
+      "names": {
+        "construction-tools": "Budowa i narzędzia",
+        "bike-sport": "Rowery i sport",
+        "event-party": "Eventy i wesela",
+        "photo-video": "Foto i wideo",
+        "one-page-lean": "Jedna strona",
+        "catalog-first": "Katalog na start"
+      }
     }
   },
   "domainSettings": {
