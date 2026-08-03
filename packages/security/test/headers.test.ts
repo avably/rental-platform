@@ -55,9 +55,17 @@ describe("buildCsp", () => {
   it("img-src dopuszcza Storage Supabase, gdy podany (zdjęcia produktów storefrontu)", () => {
     const csp = buildCsp("n", { supabaseUrl: "https://xyz.supabase.co" });
     expect(directive(csp, "img-src")).toContain("https://xyz.supabase.co");
-    // bez supabaseUrl img-src zostaje przy self/data/blob (żadnego obcego origin)
+    // bez supabaseUrl img-src zostaje przy self/data/blob/unsplash (żadnego innego obcego origin)
     const bare = buildCsp("n");
     expect(directive(bare, "img-src")).not.toContain("supabase");
+  });
+
+  it("img-src dopuszcza images.unsplash.com zawsze (K3, ADR-086: hotlink zdjęć w pickerze i na opublikowanych stronach)", () => {
+    // Host wchodzi bez konfiguracji tenanta — wyszukiwanie idzie server-side,
+    // więc connect-src go NIE potrzebuje (sprawdzone niżej).
+    const csp = buildCsp("n");
+    expect(directive(csp, "img-src")).toContain("https://images.unsplash.com");
+    expect(directive(csp, "connect-src")).not.toContain("unsplash");
   });
 
   it("turnstile: true dodaje challenges.cloudflare.com do script/connect/frame-src", () => {
