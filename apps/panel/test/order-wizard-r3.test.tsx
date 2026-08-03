@@ -241,7 +241,10 @@ describe("nowe zamówienie — pozycje przez wyszukiwarkę (pinezka 0007c5a4)", 
     expect(document.querySelector("[data-item-search]")).toBeNull();
   });
 
-  it("ten sam produkt można dodać dwa razy, a usunięcie zdejmuje jedną sztukę", () => {
+  it("ten sam produkt dwa razy to JEDEN wiersz o ilości 2, a wysyłka nadal dwie sztuki", () => {
+    // R3-1c (uwaga 4): duplikaty zwijają się w wiersz z licznikiem, ale
+    // KONTRAKT WYSYŁKI zostaje płaski — pozycja zamówienia to jedna sztuka
+    // z własnym egzemplarzem (`order_items` nie ma kolumny ilości).
     mount();
     for (const _ of [0, 1]) {
       fireEvent.click(screen.getByRole("button", { name: form.addItem }));
@@ -251,10 +254,22 @@ describe("nowe zamówienie — pozycje przez wyszukiwarkę (pinezka 0007c5a4)", 
         ),
       );
     }
-    expect(JSON.parse(hidden("items")!)).toHaveLength(2);
 
-    fireEvent.click(screen.getAllByRole("button", { name: form.removeItem })[0]!);
+    expect(JSON.parse(hidden("items")!)).toHaveLength(2);
+    expect(document.querySelectorAll("[data-order-item]")).toHaveLength(1);
+    expect(
+      document
+        .querySelector(`[data-order-item="${HEATER.pricing.id}"] [data-item-quantity]`)!
+        .getAttribute("data-item-quantity"),
+    ).toBe("2");
+
+    // „−" zdejmuje JEDNĄ sztukę…
+    fireEvent.click(document.querySelector<HTMLButtonElement>("[data-item-quantity-decrease]")!);
     expect(JSON.parse(hidden("items")!)).toEqual([{ productId: HEATER.pricing.id }]);
+
+    // …a „Usuń" zdejmuje CAŁY wiersz.
+    fireEvent.click(screen.getByRole("button", { name: form.removeItem }));
+    expect(JSON.parse(hidden("items")!)).toEqual([]);
   });
 });
 
@@ -275,8 +290,11 @@ describe("nowe zamówienie — termin kalendarzem (pinezka 00aa35ca)", () => {
     const today = new Date();
     const monthsAhead =
       (2026 - today.getFullYear()) * 12 + (8 /* wrzesień, licząc od zera */ - today.getMonth());
+    // Etykieta nawigacji przychodzi z locale kalendarza (R3-1c, uwaga 5) —
+    // pod `pl` jest po polsku, a jej dokładne brzmienie należy do biblioteki,
+    // nie do nas. Dlatego dopasowanie po sensie, a nie po całym stringu.
     for (let step = 0; step < monthsAhead; step += 1) {
-      fireEvent.click(screen.getByRole("button", { name: "Następny miesiąc" }));
+      fireEvent.click(screen.getByRole("button", { name: /następnego miesiąca/i }));
     }
 
     fireEvent.click(day(new Date(2026, 8, 1).toLocaleDateString("pl-PL")));

@@ -9,6 +9,22 @@
  * Termin i wycena zmieniają się przy każdym ruchu w lewej kolumnie, więc mają
  * być widoczne cały czas, a nie po doscrollowaniu.
  *
+ * ============ MIARA OBEJMUJE KOLUMNĘ PÓL, NIE CAŁY EKRAN (R3-1c, uwaga 1) ============
+ *
+ * Do R3-1c `data-form-line-measure` siedziało na `<form>`, czyli na RAMIE OBU
+ * KOLUMN. Skutek dało się zmierzyć: przy 1280 px i rozwiniętym menu kontener
+ * treści panelu ma 1044 px, a formularz stał w 672 px — kolumna pól zjeżdżała
+ * do 296 px, kalendarz obok miał 352 px (czyli WIĘCEJ niż wszystkie pola
+ * razem), a 372 px kontenera zostawało puste. Stąd „nie trzyma się
+ * w kontencie": ekran nie był za szeroki, tylko przycięty w połowie.
+ *
+ * Miara jest regułą DŁUGOŚCI WIERSZA formularza (42 rem, artefakt Fazy 2),
+ * a nie szerokością ekranu — więc obejmuje kolumnę, w której stoją pola.
+ * Rama dwukolumnowa rozpina się na kontener panelu, dokładnie tak jak na
+ * szczególe zamówienia (`[id]/page.tsx`, ta sama siatka `1fr` + stała
+ * kolumna boczna). Liczby po zmianie sprawdzone w przeglądarce na 1280
+ * i 1440 px, przy menu zwiniętym i rozwiniętym.
+ *
  * Ten plik trzyma STAN i SKŁADA sekcje; same sekcje mieszkają osobno
  * (`customer-picker`, `item-picker`, `term-calendar`, `delivery-fields`).
  * Podział jest funkcjonalny, nie kosmetyczny: każda sekcja odpowiada jednej
@@ -39,6 +55,7 @@ import {
   type ProductPricingRow,
 } from "../pricing";
 import { blockedDays, mergeDayMaps } from "./basket-availability";
+import { sumLineAmounts } from "./basket-lines";
 import { CustomerPicker, type CustomerPickerState } from "./customer-picker";
 import { DeliveryFields, EMPTY_DELIVERY_STATE, type DeliveryState } from "./delivery-fields";
 import { FIELD_CLASS } from "./field-class";
@@ -179,6 +196,18 @@ export function OrderWizard({
   }, [hasValidRange, itemProductIds, pricingById, startDate, endDate, freeUnitsByProduct]);
 
   /**
+   * Kwoty WIERSZY koszyka (uwaga 3) — wyłącznie przegrupowanie wyniku silnika
+   * po produkcie. Zero drugiej ścieżki liczenia: gdyby koszyk mnożył cenę
+   * dobową przez liczbę dni, pokazałby inną kwotę niż wycena obok i inną niż
+   * zamówienie, które za chwilę policzy serwer (progi cenowe, mnożnik).
+   * `null` bez terminu — nie ma czego liczyć, więc wiersz mówi to wprost.
+   */
+  const lineAmounts = useMemo(
+    () => (preview ? sumLineAmounts(preview.pricing.items) : null),
+    [preview],
+  );
+
+  /**
    * Koszt dostawy NA ŻYWO — ta sama funkcja silnika (`resolveDeliveryCost`),
    * która policzy autorytatywny koszt po stronie serwera: cennik albo cena
    * ustalona ręcznie. Metoda płatna bez cennika i bez ceny własnej rzuca
@@ -214,10 +243,10 @@ export function OrderWizard({
   );
 
   return (
-    <form action={formAction} data-form-line-measure className="flex flex-col gap-6">
+    <form action={formAction} className="flex flex-col gap-6">
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* ================= KOLUMNA LEWA — treść zamówienia ================= */}
-        <div className="flex flex-col gap-6">
+        <div data-form-line-measure className="flex flex-col gap-6">
           <fieldset className="flex flex-col gap-3">
             <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
               {t("customerSection")}
@@ -241,6 +270,9 @@ export function OrderWizard({
               itemProductIds={itemProductIds}
               onChange={setItemProductIds}
               freeUnitsByProduct={freeUnitsByProduct}
+              amountsByProduct={lineAmounts}
+              currency={currency}
+              locale={locale}
               errorSlot={errorSlot}
             />
           </fieldset>

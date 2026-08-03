@@ -57,6 +57,45 @@ export const DELIVERY_METHOD_ORDER = [
 /** Dostawca punktu odbioru — dziś jeden, więc pole jest ukryte i stałe. */
 const DEFAULT_POINT_PROVIDER = "inpost";
 
+/**
+ * KARTA METODY DOSTAWY — trzy stany, jedna geometria (R3-1c, uwaga 2).
+ *
+ * Właściciel zgłosił, że stan wybrany i najechanie „wyglądają źle, a
+ * obramowanie skacze". Powód był konkretny: karta miała WYŁĄCZNIE stan
+ * wybrany (`bg-secondary`, czyli bardzo jasna szarość, plus obrys w kolorze
+ * tekstu) i ani jednego stanu najechania. Kursor przejeżdżał po kartach bez
+ * żadnej odpowiedzi, a kliknięcie przeskakiwało z jasnoszarego obrysu na
+ * niemal czarny — bez kroku pośredniego to czyta się jak szarpnięcie, a nie
+ * jak wybór.
+ *
+ * Teraz karta idzie tym samym językiem, co WYBRANY FILTR listy zamówień
+ * (`zamowienia/orders-toolbar.tsx`), czyli jedyną powierzchnią wyboru, jaką
+ * panel dziś ma: limonka jako tło stanu wybranego, obrys w kolorze tekstu,
+ * treść na tle limonki. Najechanie na kartę NIEWYBRANĄ zapowiada ten wybór
+ * (ciemniejszy obrys + przygaszone tło), więc przejście default → hover →
+ * wybrana jest ciągiem, a nie skokiem.
+ *
+ * GEOMETRIA JEST STAŁA WE WSZYSTKICH STANACH: obrys ma 1 px zawsze, a
+ * wyróżnienie fokusa idzie `outline`, który nie zajmuje miejsca w układzie.
+ * Dlatego żaden stan nie przesuwa sąsiadów — „skakanie" nie ma jak wrócić.
+ *
+ * Klasy stanu są ROZŁĄCZNE i wybierane w JS, a nie nakładane wariantami
+ * `has-[:checked]:` i `hover:` na jednym elemencie: przy nakładaniu o wyniku
+ * decyduje kolejność reguł w wygenerowanym arkuszu, więc najechanie na kartę
+ * wybraną potrafiłoby zdjąć z niej limonkę. Radio i tak jest sterowane
+ * Reactem (`checked={selected}`), więc nie tracimy tu żadnego zachowania.
+ */
+const METHOD_CARD_BASE =
+  "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2";
+
+/** Stan wybrany: limonka i obrys w kolorze tekstu — jak wciśnięty filtr listy. */
+const METHOD_CARD_SELECTED =
+  "border-foreground bg-accent text-accent-foreground has-[:focus-visible]:outline-foreground";
+
+/** Stan spoczynku i najechania: zapowiedź wyboru, bez zmiany geometrii. */
+const METHOD_CARD_IDLE =
+  "border-input hover:border-foreground hover:bg-secondary has-[:focus-visible]:outline-accent dark:has-[:focus-visible]:outline-ring";
+
 export interface DeliveryState {
   method: DeliveryMethod;
   pickupLocationId: string;
@@ -155,7 +194,7 @@ export function DeliveryFields({
                 key={method}
                 data-delivery-method={method}
                 data-selected={selected || undefined}
-                className="border-input has-[:checked]:border-foreground has-[:checked]:bg-secondary has-[:focus-visible]:outline-accent dark:has-[:focus-visible]:outline-ring flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm has-[:focus-visible]:outline-solid has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
+                className={`${METHOD_CARD_BASE} ${selected ? METHOD_CARD_SELECTED : METHOD_CARD_IDLE}`}
               >
                 <input
                   type="radio"
@@ -186,7 +225,13 @@ export function DeliveryFields({
                 />
                 <span className="flex flex-col gap-0.5">
                   <span className="font-medium">{tDelivery(method)}</span>
-                  <span className="text-muted-foreground text-xs" data-delivery-price>
+                  {/* Cena na karcie WYBRANEJ leży na limonce — przygaszona
+                      szarość byłaby tam nieczytelna, więc drugi wiersz idzie
+                      kolorem treści karty, tylko lżejszym krojem. */}
+                  <span
+                    className={selected ? "text-xs opacity-80" : "text-muted-foreground text-xs"}
+                    data-delivery-price
+                  >
                     {method === "pickup"
                       ? t("deliveryFree")
                       : grosze === null

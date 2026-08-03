@@ -1,6 +1,7 @@
 export { Badge, badgeVariants, type BadgeProps } from "./components/badge";
 export { Button, buttonVariants } from "./components/button";
 export { Calendar, CalendarDayButton } from "./components/calendar";
+export { dayPickerLocale } from "./components/calendar-locale";
 export {
   Card,
   CardContent,

@@ -11,6 +11,7 @@ import {
   emailAvailability,
   formatMoney,
   rentalDaysInclusive,
+  type DeliveryPriceSource,
   type OrderStatus,
   type PaymentStatus,
   type ShipmentStatus,
@@ -55,6 +56,10 @@ interface OrderDetailRow {
   /** Obieg płatności (0027) — decyduje, czy zwrot kaucji idzie przez dostawcę. */
   payment_provider: string;
   delivery_method: string;
+  /** Kwota dostawy UTRWALONA przy tworzeniu zamówienia (0016). */
+  delivery_grosze: number;
+  /** Skąd ta kwota — cennik czy ustalenie ręczne operatora (0044). */
+  delivery_price_source: DeliveryPriceSource;
   total_rental_grosze: number;
   total_deposit_grosze: number;
   created_at: string;
@@ -104,7 +109,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, total_rental_grosze, total_deposit_grosze, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -526,7 +531,16 @@ export default async function OrderDetailPage({
         </details>
       </section>
 
-      <DeliverySection orderId={row.id} deliveryMethod={row.delivery_method} totalRentalGrosze={row.total_rental_grosze} />
+      {/* Kwota dostawy jedzie PROPEM z kolumn zamówienia, a nie odczytem
+          cennika w sekcji: dopiero to sprawia, że zamówienie z ceną ustaloną
+          ręcznie pokazuje swoją kwotę, a zmiana cennika nie przepisuje
+          historii (R3-1b). */}
+      <DeliverySection
+        orderId={row.id}
+        deliveryMethod={row.delivery_method}
+        deliveryGrosze={row.delivery_grosze}
+        deliveryPriceSource={row.delivery_price_source}
+      />
 
       <EmailLogSection orderId={row.id} />
         </div>

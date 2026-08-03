@@ -67,7 +67,9 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  dayPickerLocale,
 } from "@avably/ui";
+import { useLocale } from "next-intl";
 import { useState, type ReactNode } from "react";
 
 // Etykiety PL statusów zamówienia jak w sekcji 04 artefaktu — sam rodzaj
@@ -119,6 +121,7 @@ function GallerySection({
 }
 
 export default function DesignSystemGallery() {
+  const locale = useLocale();
   const [darkMode, setDarkMode] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     new Date(2026, 6, 14),
@@ -624,12 +627,13 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="calendar"
           title="Calendar"
-          description="Polska lokalizacja, dostępna nawigacja i wybór pojedynczej daty."
+          description="Język z interfejsu, dostępna nawigacja i wybór pojedynczej daty."
         >
           <Card className="w-fit max-w-full">
             <CardContent className="p-0">
               <Calendar
                 mode="single"
+                locale={dayPickerLocale(locale)}
                 defaultMonth={new Date(2026, 6, 1)}
                 selected={selectedDate}
                 onSelect={setSelectedDate}
