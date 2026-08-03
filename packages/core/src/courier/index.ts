@@ -14,7 +14,31 @@ export {
   type CourierTenantConfig,
   type TenantSettingRow,
 } from "./tenant-config";
-export { DeliveryPricingError, calculateDeliveryCost } from "./delivery-pricing";
+export {
+  DELIVERY_PRICE_OVERRIDE_MAX_GROSZE,
+  DELIVERY_PRICE_SOURCES,
+  DeliveryPriceOverrideError,
+  DeliveryPricingError,
+  calculateDeliveryCost,
+  resolveDeliveryCost,
+  type DeliveryPriceSource,
+  type ResolvedDeliveryCost,
+} from "./delivery-pricing";
+export {
+  DELIVERY_ADDRESS_SOURCES,
+  DELIVERY_POINT_PROVIDERS,
+  destinationColumns,
+  destinationMatchesMethod,
+  isDeliveryPointProvider,
+  methodUsesDeliveryAddress,
+  methodUsesDeliveryPoint,
+  type DeliveryAddress,
+  type DeliveryAddressSource,
+  type DeliveryDestination,
+  type DeliveryDestinationColumns,
+  type DeliveryPoint,
+  type DeliveryPointProvider,
+} from "./delivery-destination";
 export {
   buildBestPriceRequest,
   courierOfferFromProduct,

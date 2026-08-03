@@ -1,65 +1,64 @@
 "use client";
 
-import { Button, Input, Label, Textarea } from "@avably/ui";
+/**
+ * Kreator nowego zamówienia — orkiestracja formularza po przebudowie R3.
+ *
+ * UKŁAD (pinezka 00aa35ca „termin pod klientem albo po prawej"): dwie kolumny.
+ * Po LEWEJ decyzje o treści zamówienia — klient, pozycje, dostawa, notatka.
+ * Po PRAWEJ, przyklejony przy przewijaniu, TERMIN jako kalendarz i wycena.
+ * Termin i wycena zmieniają się przy każdym ruchu w lewej kolumnie, więc mają
+ * być widoczne cały czas, a nie po doscrollowaniu.
+ *
+ * Ten plik trzyma STAN i SKŁADA sekcje; same sekcje mieszkają osobno
+ * (`customer-picker`, `item-picker`, `term-calendar`, `delivery-fields`).
+ * Podział jest funkcjonalny, nie kosmetyczny: każda sekcja odpowiada jednej
+ * pinezce przeglądu i daje się czytać oraz testować w oderwaniu od reszty.
+ *
+ * Podgląd wyceny, dostępności i kosztu dostawy liczą TE SAME czyste funkcje
+ * silnika, które policzą zamówienie po stronie serwera. Wynik podglądu jest
+ * informacyjny — autorytatywna wycena, przypisanie egzemplarzy i koszt
+ * dostawy dzieją się w akcji serwerowej na świeżo odczytanym cenniku.
+ */
 import {
-  calculateDeliveryCost,
   formatMoney,
+  resolveDeliveryCost,
   type CurrencyCode,
   type DeliveryMethod,
   type DeliveryPricing,
 } from "@avably/core";
+import { Button, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
-import { PanelSelect } from "@/components/fields/panel-select";
 import type { FormState } from "@/lib/form-state";
-import { DateRangeField } from "@/lib/fields/date-fields";
+import { parseMajorToGrosze } from "@/lib/money-input";
+
 import {
   availabilityForRange,
   priceOrderItems,
-  type DayAvailability,
   type ProductPricingRow,
 } from "../pricing";
+import { blockedDays, mergeDayMaps } from "./basket-availability";
+import { CustomerPicker, type CustomerPickerState } from "./customer-picker";
+import { DeliveryFields, EMPTY_DELIVERY_STATE, type DeliveryState } from "./delivery-fields";
+import { FIELD_CLASS } from "./field-class";
+import { ItemPicker } from "./item-picker";
+import { TermCalendar } from "./term-calendar";
+import type { WizardCustomer, WizardLocation, WizardProduct } from "./wizard-data";
 
 const initialState: FormState = {};
 
 const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-const FIELD_CLASS =
-  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive";
+export type {
+  WizardBooked,
+  WizardCustomer,
+  WizardLocation,
+  WizardProduct,
+  WizardUnit,
+} from "./wizard-data";
 
-
-export interface WizardCustomer {
-  id: string;
-  email: string;
-  full_name: string | null;
-}
-
-export interface WizardUnit {
-  unitId: string;
-  unavailableFrom: string | null;
-  unavailableTo: string | null;
-}
-
-export interface WizardBooked {
-  unitId: string;
-  startDate: string;
-  endDate: string;
-}
-
-export interface WizardProduct {
-  pricing: ProductPricingRow;
-  name: string;
-  units: WizardUnit[];
-  booked: WizardBooked[];
-  /** Mapa dostępności policzona SERWEROWO silnikiem (buildDayMap). */
-  dayMap: DayAvailability[];
-}
-
-export interface WizardLocation {
-  id: string;
-  name: string;
-}
+export { FIELD_CLASS };
 
 /**
  * Błąd POD polem, w kolorze destructive i z rolą alertu — wzorzec sekcji 06
@@ -75,104 +74,49 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-/**
- * Pasek dostępności produktu: renderuje WYŁĄCZNIE gotową mapę dni z silnika
- * (buildDayMap) — zero arytmetyki dat w komponencie; nawet etykiety miesięcy
- * to operacje na stringach `YYYY-MM-DD`. Bufory są tu widoczne jako zajętość,
- * bo tak liczy silnik, nie dlatego, że komponent coś dokleja.
- */
-function AvailabilityStrip({
-  dayMap,
-  rangeStart,
-  rangeEnd,
-  legendLabels,
-}: {
-  dayMap: DayAvailability[];
-  rangeStart: string;
-  rangeEnd: string;
-  legendLabels: { available: string; blocked: string; selected: string };
-}) {
-  const hasRange =
-    ISO_DAY_PATTERN.test(rangeStart) && ISO_DAY_PATTERN.test(rangeEnd) && rangeEnd >= rangeStart;
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap gap-px" role="img" aria-label={`${legendLabels.available} / ${legendLabels.blocked}`}>
-        {dayMap.map((entry) => {
-          const inRange = hasRange && entry.day >= rangeStart && entry.day <= rangeEnd;
-          const showMonthEdge = entry.day.endsWith("-01");
-          return (
-            <span
-              key={entry.day}
-              title={`${entry.day}${entry.available ? "" : ` — ${legendLabels.blocked}`}`}
-              className={[
-                "h-5 w-2.5",
-                entry.available ? "bg-status-positive-bg" : "bg-status-problem-bg",
-                inRange ? "ring-signal-strong ring-2 ring-inset" : "",
-                showMonthEdge ? "ml-1.5" : "",
-              ].join(" ")}
-            />
-          );
-        })}
-      </div>
-      <p className="text-muted-foreground flex gap-4 text-xs">
-        <span className="flex items-center gap-1">
-          <span aria-hidden className="bg-status-positive-bg inline-block h-3 w-3" /> {legendLabels.available}
-        </span>
-        <span className="flex items-center gap-1">
-          <span aria-hidden className="bg-status-problem-bg inline-block h-3 w-3" /> {legendLabels.blocked}
-        </span>
-        <span className="flex items-center gap-1">
-          <span aria-hidden className="ring-signal-strong inline-block h-3 w-3 ring-2 ring-inset" /> {legendLabels.selected}
-        </span>
-        <span>
-          {dayMap[0]?.day} — {dayMap.at(-1)?.day}
-        </span>
-      </p>
-    </div>
-  );
-}
-
 export function OrderWizard({
   action,
   customers,
+  customersTruncated,
   products,
   locations,
   currency,
   locale,
   deliveryPricing,
+  paymentAccountConnected,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   customers: WizardCustomer[];
+  customersTruncated: boolean;
   products: WizardProduct[];
   locations: WizardLocation[];
   currency: CurrencyCode;
   locale: string;
   // Cennik dostaw tenanta (tenant_settings.delivery_pricing, ADR-030) do
   // PODGLĄDU na żywo. null = brak konfiguracji; autorytatywny koszt liczy i
-  // tak akcja serwerowa (silnik, ten sam calculateDeliveryCost).
+  // tak akcja serwerowa (silnik, ten sam resolveDeliveryCost).
   deliveryPricing: DeliveryPricing | null;
+  /** Czy tenant ma konto rozliczeniowe — bramka wyboru płatności online. */
+  paymentAccountConnected: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.form");
-  const tStatus = useTranslations("orders");
 
-  const [customerMode, setCustomerMode] = useState<"existing" | "new">(
-    customers.length > 0 ? "existing" : "new",
-  );
-  const [itemProductIds, setItemProductIds] = useState<string[]>(
-    products.length > 0 ? [products[0]!.pricing.id] : [],
-  );
+  const [customer, setCustomer] = useState<CustomerPickerState>({ selected: null, creating: false });
+  const [itemProductIds, setItemProductIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [deliveryMethod, setDeliveryMethod] = useState("courier");
+  const [delivery, setDelivery] = useState<DeliveryState>({
+    ...EMPTY_DELIVERY_STATE,
+    pickupLocationId: locations[0]?.id ?? "",
+  });
 
   const productById = useMemo(
     () => new Map(products.map((product) => [product.pricing.id, product])),
     [products],
   );
   const pricingById = useMemo(
-    () => new Map(products.map((product) => [product.pricing.id, product.pricing])),
+    () => new Map<string, ProductPricingRow>(products.map((product) => [product.pricing.id, product.pricing])),
     [products],
   );
 
@@ -180,10 +124,39 @@ export function OrderWizard({
     ISO_DAY_PATTERN.test(startDate) && ISO_DAY_PATTERN.test(endDate) && endDate >= startDate;
 
   /**
-   * Podgląd wyceny i dostępności NA ŻYWO — te same czyste funkcje silnika,
-   * które policzą zamówienie po stronie serwera (pricing.ts). Wynik podglądu
-   * jest informacyjny; autorytatywna wycena i przypisanie egzemplarzy dzieją
-   * się w akcji serwerowej na świeżo odczytanym cenniku.
+   * Mapa dostępności KOSZYKA — koniunkcja map produktów (patrz
+   * `basket-availability.ts`). Pusty koszyk daje pustą mapę, więc kalendarz
+   * nie maluje wtedy zajętości, której nikt nie policzył.
+   */
+  const basketDayMap = useMemo(() => {
+    const unique = [...new Set(itemProductIds)];
+    const maps = unique
+      .map((productId) => productById.get(productId)?.dayMap)
+      .filter((dayMap): dayMap is NonNullable<typeof dayMap> => dayMap !== undefined);
+    return mergeDayMaps(maps);
+  }, [itemProductIds, productById]);
+
+  const occupiedDays = useMemo(() => blockedDays(basketDayMap), [basketDayMap]);
+
+  /** Wolne egzemplarze per produkt w WYBRANYM terminie (do wierszy pozycji). */
+  const freeUnitsByProduct = useMemo(() => {
+    if (!hasValidRange) return null;
+    const free = new Map<string, number>();
+    for (const productId of new Set(itemProductIds)) {
+      const product = productById.get(productId);
+      if (!product) continue;
+      const result = availabilityForRange(product.units, product.booked, startDate, endDate, {
+        bufferBeforeDays: product.pricing.buffer_before_days,
+        bufferAfterDays: product.pricing.buffer_after_days,
+      });
+      free.set(productId, result.availableUnitIds.length);
+    }
+    return free;
+  }, [hasValidRange, itemProductIds, productById, startDate, endDate]);
+
+  /**
+   * Podgląd wyceny i braków NA ŻYWO — te same czyste funkcje silnika, które
+   * policzą zamówienie po stronie serwera (pricing.ts).
    */
   const preview = useMemo(() => {
     if (!hasValidRange || itemProductIds.length === 0) return null;
@@ -196,334 +169,193 @@ export function OrderWizard({
       }
       const shortages: { productId: string; needed: number; free: number }[] = [];
       for (const [productId, needed] of neededByProduct) {
-        const product = productById.get(productId);
-        if (!product) continue;
-        const result = availabilityForRange(product.units, product.booked, startDate, endDate, {
-          bufferBeforeDays: product.pricing.buffer_before_days,
-          bufferAfterDays: product.pricing.buffer_after_days,
-        });
-        if (result.availableUnitIds.length < needed) {
-          shortages.push({ productId, needed, free: result.availableUnitIds.length });
-        }
+        const free = freeUnitsByProduct?.get(productId) ?? 0;
+        if (free < needed) shortages.push({ productId, needed, free });
       }
       return { pricing, shortages };
     } catch {
       return null;
     }
-  }, [hasValidRange, itemProductIds, pricingById, productById, startDate, endDate]);
+  }, [hasValidRange, itemProductIds, pricingById, startDate, endDate, freeUnitsByProduct]);
 
   /**
-   * Koszt dostawy NA ŻYWO — ta sama czysta funkcja silnika (calculateDeliveryCost),
-   * która policzy autorytatywny koszt po stronie serwera. Metoda płatna bez
-   * cennika rzuca (ADR-030: zero cichych zer) — łapiemy to jako `configMissing`
-   * i pokazujemy podpowiedź zamiast wywracać podgląd. Sam koszt jest
-   * informacyjny; do zamówienia trafia wartość policzona w akcji.
+   * Koszt dostawy NA ŻYWO — ta sama funkcja silnika (`resolveDeliveryCost`),
+   * która policzy autorytatywny koszt po stronie serwera: cennik albo cena
+   * ustalona ręcznie. Metoda płatna bez cennika i bez ceny własnej rzuca
+   * (ADR-030: zero cichych zer) — łapiemy to jako `problem` i pokazujemy
+   * podpowiedź zamiast wywracać podgląd.
    */
   const deliveryPreview = useMemo(() => {
     if (!preview) return null;
+    // Niedokończona kwota („19,") daje `null` — dla PODGLĄDU znaczy to
+    // „jeszcze nie ma czego pokazać", nie błąd. Regułę parsowania niesie ta
+    // sama funkcja co schemat, żeby podgląd i walidacja nie rozjechały się.
+    const overrideGrosze =
+      delivery.priceSource === "manual" ? parseMajorToGrosze(delivery.price) : null;
+    // Deklaracja ceny własnej bez wpisanej kwoty to jeszcze nie błąd —
+    // operator jest w trakcie wpisywania. Podgląd milczy, a odmowę (jeśli
+    // trzeba) wystawi schemat przy wysyłce.
+    if (delivery.priceSource === "manual" && overrideGrosze === null) return null;
     try {
-      const grosze = calculateDeliveryCost({
-        method: deliveryMethod as DeliveryMethod,
+      const resolved = resolveDeliveryCost({
+        method: delivery.method as DeliveryMethod,
         pricing: deliveryPricing,
         rentalTotalGrosze: preview.pricing.totalRentalGrosze,
+        overrideGrosze,
       });
-      return { grosze, configMissing: false as const };
+      return { ...resolved, problem: false as const };
     } catch {
-      return { grosze: null, configMissing: true as const };
+      return { grosze: null, source: null, problem: true as const };
     }
-  }, [preview, deliveryMethod, deliveryPricing]);
+  }, [preview, delivery.method, delivery.priceSource, delivery.price, deliveryPricing]);
 
-  const errorId = (field: string) => (state.fieldErrors?.[field] ? `order-${field}-error` : undefined);
+  const errorSlot = (field: string) => (
+    <FieldError id={`order-${field}-error`} message={state.fieldErrors?.[field]} />
+  );
 
   return (
     <form action={formAction} data-form-line-measure className="flex flex-col gap-6">
-      {/* --- Klient --- */}
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("customerSection")}</legend>
-        <div className="flex gap-4" role="radiogroup" aria-label={t("customerSection")}>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="customerMode"
-              value="existing"
-              checked={customerMode === "existing"}
-              onChange={() => setCustomerMode("existing")}
-              disabled={customers.length === 0}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {/* ================= KOLUMNA LEWA — treść zamówienia ================= */}
+        <div className="flex flex-col gap-6">
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
+              {t("customerSection")}
+            </legend>
+            <CustomerPicker
+              customers={customers}
+              truncated={customersTruncated}
+              state={customer}
+              onChange={setCustomer}
+              fieldErrors={state.fieldErrors}
+              errorSlot={errorSlot}
             />
-            {t("existingCustomer")}
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              name="customerMode"
-              value="new"
-              checked={customerMode === "new"}
-              onChange={() => setCustomerMode("new")}
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
+              {t("itemsSection")}
+            </legend>
+            <ItemPicker
+              products={products}
+              itemProductIds={itemProductIds}
+              onChange={setItemProductIds}
+              freeUnitsByProduct={freeUnitsByProduct}
+              errorSlot={errorSlot}
             />
-            {t("newCustomer")}
-          </label>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-3">
+            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
+              {t("deliverySection")}
+            </legend>
+            <DeliveryFields
+              state={delivery}
+              onChange={(patch) => setDelivery((current) => ({ ...current, ...patch }))}
+              locations={locations}
+              pricing={deliveryPricing}
+              rentalTotalGrosze={preview?.pricing.totalRentalGrosze ?? 0}
+              currency={currency}
+              locale={locale}
+              customer={customer.selected}
+              paymentAccountConnected={paymentAccountConnected}
+              errorSlot={errorSlot}
+              fieldErrors={state.fieldErrors}
+            />
+          </fieldset>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="order-notes">{t("notes")}</Label>
+            <Textarea id="order-notes" name="notes" rows={3} maxLength={2000} />
+          </div>
         </div>
 
-        {customerMode === "existing" ? (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-customer">{t("customer")}</Label>
-            <PanelSelect
-              id="order-customer"
-              name="customerId"
-              defaultValue={customers[0]?.id ?? ""}
-              className={FIELD_CLASS}
-              invalid={Boolean(state.fieldErrors?.customerId)}
-              describedBy={errorId("customerId")}
-              options={customers.map((customer) => ({
-                value: customer.id,
-                label: customer.full_name
-                  ? `${customer.full_name} (${customer.email})`
-                  : customer.email,
-              }))}
+        {/* ================= KOLUMNA PRAWA — termin i wycena ================= */}
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
+          <section className="border-border flex flex-col gap-3 rounded-lg border p-4">
+            <h2 className="text-base font-semibold">{t("termSection")}</h2>
+            <TermCalendar
+              from={startDate}
+              to={endDate}
+              onChange={(range) => {
+                setStartDate(range.from);
+                setEndDate(range.to);
+              }}
+              occupiedDays={occupiedDays}
+              hasBasket={itemProductIds.length > 0}
+              invalid={Boolean(state.fieldErrors?.startDate || state.fieldErrors?.endDate)}
+              errorSlot={errorSlot}
             />
-            <FieldError id="order-customerId-error" message={state.fieldErrors?.customerId} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-new-email">{t("newCustomerEmail")}</Label>
-              <Input
-                id="order-new-email"
-                name="newCustomerEmail"
-                type="email"
-                required
-                aria-invalid={state.fieldErrors?.newCustomerEmail ? true : undefined}
-                aria-describedby={errorId("newCustomerEmail")}
-              />
-              <FieldError id="order-newCustomerEmail-error" message={state.fieldErrors?.newCustomerEmail} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-new-name">{t("newCustomerName")}</Label>
-              <Input id="order-new-name" name="newCustomerName" maxLength={200} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-new-phone">{t("newCustomerPhone")}</Label>
-              <Input id="order-new-phone" name="newCustomerPhone" maxLength={32} />
-            </div>
-          </div>
-        )}
-        {/* Pole customerId wysyłamy TYLKO w trybie „istniejący" — pusty string
-            w trybie „nowy" załatwia hidden input. */}
-        {customerMode === "new" ? <input type="hidden" name="customerId" value="" /> : null}
-      </fieldset>
+          </section>
 
-      {/* --- Pozycje --- */}
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("itemsSection")}</legend>
-        {itemProductIds.map((productId, index) => (
-          // Indeks jako klucz jest tu poprawny: wiersze są reordering-free
-          // (dodawanie na koniec, usuwanie po indeksie), a wartość żyje w stanie.
-          <div key={`${index}-${productId}`} className="flex items-end gap-3">
-            <div className="flex grow flex-col gap-1.5">
-              <Label htmlFor={`order-item-${index}`}>{t("itemProduct", { index: index + 1 })}</Label>
-              <PanelSelect
-                id={`order-item-${index}`}
-                value={productId}
-                onValueChange={(value) => {
-                  const next = [...itemProductIds];
-                  next[index] = value;
-                  setItemProductIds(next);
-                }}
-                className={FIELD_CLASS}
-                options={products.map((product) => ({
-                  value: product.pricing.id,
-                  label: product.name,
-                }))}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setItemProductIds(itemProductIds.filter((_, i) => i !== index))}
-              disabled={itemProductIds.length === 1}
+          {preview ? (
+            <section
+              className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4"
+              role="status"
+              data-order-preview
             >
-              {t("removeItem")}
-            </Button>
-          </div>
-        ))}
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              products.length > 0 && setItemProductIds([...itemProductIds, products[0]!.pricing.id])
-            }
-          >
-            {t("addItem")}
-          </Button>
-        </div>
-        <input
-          type="hidden"
-          name="items"
-          value={JSON.stringify(itemProductIds.map((id) => ({ productId: id })))}
-        />
-        <FieldError id="order-items-error" message={state.fieldErrors?.items} />
-      </fieldset>
-
-      {/* --- Termin --- */}
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("termSection")}</legend>
-        {/* Termin to JEDEN zakres, ale do akcji jadą dwa pola o niezmienionych
-            nazwach (`startDate`, `endDate`) i w niezmienionym formacie ISO —
-            walidacja i wycena nie widzą różnicy. Sam początek bez końca jest
-            dopuszczalny w trakcie wyboru; brak końca zatrzyma schemat akcji
-            tak samo jak puste pole wcześniej. */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="order-term">{t("termLabel")}</Label>
-          <DateRangeField
-            id="order-term"
-            fromName="startDate"
-            toName="endDate"
-            from={startDate}
-            to={endDate}
-            onChange={(range) => {
-              setStartDate(range.from);
-              setEndDate(range.to);
-            }}
-            invalid={Boolean(state.fieldErrors?.startDate || state.fieldErrors?.endDate)}
-            describedBy={errorId("startDate") ?? errorId("endDate")}
-            className="sm:w-[320px]"
-          />
-          <FieldError id="order-startDate-error" message={state.fieldErrors?.startDate} />
-          <FieldError id="order-endDate-error" message={state.fieldErrors?.endDate} />
-        </div>
-
-        {/* Kalendarz dostępności każdego produktu z pozycji. */}
-        {[...new Set(itemProductIds)].map((productId) => {
-          const product = productById.get(productId);
-          if (!product) return null;
-          return (
-            <div key={productId} className="flex flex-col gap-1.5">
-              <p className="text-sm font-medium">{product.name}</p>
-              <AvailabilityStrip
-                dayMap={product.dayMap}
-                rangeStart={startDate}
-                rangeEnd={endDate}
-                legendLabels={{
-                  available: t("legendAvailable"),
-                  blocked: t("legendBlocked"),
-                  selected: t("legendSelected"),
-                }}
-              />
-            </div>
-          );
-        })}
-      </fieldset>
-
-      {/* --- Dostawa --- */}
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("deliverySection")}</legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="order-delivery">{t("deliveryMethod")}</Label>
-            <PanelSelect
-              id="order-delivery"
-              name="deliveryMethod"
-              value={deliveryMethod}
-              onValueChange={setDeliveryMethod}
-              className={FIELD_CLASS}
-              options={[
-                { value: "pickup", label: tStatus("delivery.pickup") },
-                { value: "courier", label: tStatus("delivery.courier") },
-                { value: "parcel_locker", label: tStatus("delivery.parcel_locker") },
-                { value: "own_delivery", label: tStatus("delivery.own_delivery") },
-              ]}
-            />
-          </div>
-          {deliveryMethod === "pickup" ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="order-location">{t("pickupLocation")}</Label>
-              <PanelSelect
-                id="order-location"
-                name="pickupLocationId"
-                defaultValue={locations[0]?.id ?? ""}
-                className={FIELD_CLASS}
-                invalid={Boolean(state.fieldErrors?.pickupLocationId)}
-                describedBy={errorId("pickupLocationId")}
-                options={locations.map((location) => ({
-                  value: location.id,
-                  label: location.name,
-                }))}
-              />
-              <FieldError id="order-pickupLocationId-error" message={state.fieldErrors?.pickupLocationId} />
-            </div>
-          ) : (
-            <input type="hidden" name="pickupLocationId" value="" />
-          )}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="order-notes">{t("notes")}</Label>
-          <Textarea id="order-notes" name="notes" rows={3} maxLength={2000} />
-        </div>
-      </fieldset>
-
-      {/* --- Podgląd wyceny (silnik, na żywo) --- */}
-      {preview ? (
-        <div className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4" role="status">
-          <p className="text-sm font-semibold">
-            {t("previewTitle", { days: preview.pricing.days })}
-          </p>
-          <ul className="flex flex-col gap-1 text-sm">
-            {preview.pricing.items.map((item, index) => (
-              <li key={index} className="flex justify-between gap-4">
-                <span>{productById.get(item.productId)?.name ?? item.productId}</span>
-                <span>
-                  {formatMoney(item.rentalGrosze, currency, locale)}
-                  {item.depositGrosze > 0
-                    ? ` (+ ${t("deposit")}: ${formatMoney(item.depositGrosze, currency, locale)})`
-                    : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
-            <span>{t("totalRental")}</span>
-            <span>{formatMoney(preview.pricing.totalRentalGrosze, currency, locale)}</span>
-          </p>
-          {preview.pricing.totalDepositGrosze > 0 ? (
-            <p className="flex justify-between gap-4 text-sm">
-              <span>{t("totalDeposit")}</span>
-              <span>{formatMoney(preview.pricing.totalDepositGrosze, currency, locale)}</span>
-            </p>
-          ) : null}
-          {deliveryPreview?.configMissing ? (
-            <p role="alert" className="text-destructive text-sm">
-              {t("deliveryPricingMissing")}
-            </p>
-          ) : deliveryPreview && deliveryPreview.grosze !== null ? (
-            <>
-              <p className="flex justify-between gap-4 text-sm">
-                <span>{t("deliveryCost")}</span>
-                <span>{formatMoney(deliveryPreview.grosze, currency, locale)}</span>
-              </p>
+              <p className="text-sm font-semibold">{t("previewTitle", { days: preview.pricing.days })}</p>
+              <ul className="flex flex-col gap-1 text-sm">
+                {preview.pricing.items.map((item, index) => (
+                  <li key={index} className="flex justify-between gap-4">
+                    <span>{productById.get(item.productId)?.name ?? item.productId}</span>
+                    <span>
+                      {formatMoney(item.rentalGrosze, currency, locale)}
+                      {item.depositGrosze > 0
+                        ? ` (+ ${t("deposit")}: ${formatMoney(item.depositGrosze, currency, locale)})`
+                        : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
               <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
-                <span>{t("totalWithDelivery")}</span>
-                <span>
-                  {formatMoney(
-                    preview.pricing.totalRentalGrosze + deliveryPreview.grosze,
-                    currency,
-                    locale,
-                  )}
-                </span>
+                <span>{t("totalRental")}</span>
+                <span>{formatMoney(preview.pricing.totalRentalGrosze, currency, locale)}</span>
               </p>
-            </>
+              {preview.pricing.totalDepositGrosze > 0 ? (
+                <p className="flex justify-between gap-4 text-sm">
+                  <span>{t("totalDeposit")}</span>
+                  <span>{formatMoney(preview.pricing.totalDepositGrosze, currency, locale)}</span>
+                </p>
+              ) : null}
+              {deliveryPreview?.problem ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {t("deliveryPricingMissing")}
+                </p>
+              ) : deliveryPreview && deliveryPreview.grosze !== null ? (
+                <>
+                  <p className="flex justify-between gap-4 text-sm">
+                    <span>
+                      {t("deliveryCost")}
+                      {deliveryPreview.source === "manual" ? ` · ${t("deliveryPriceManualTag")}` : null}
+                    </span>
+                    <span>{formatMoney(deliveryPreview.grosze, currency, locale)}</span>
+                  </p>
+                  <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
+                    <span>{t("totalWithDelivery")}</span>
+                    <span>
+                      {formatMoney(
+                        preview.pricing.totalRentalGrosze + deliveryPreview.grosze,
+                        currency,
+                        locale,
+                      )}
+                    </span>
+                  </p>
+                </>
+              ) : null}
+              {preview.shortages.map((shortage) => (
+                <p key={shortage.productId} role="alert" className="text-destructive text-sm">
+                  {t("shortage", {
+                    product: productById.get(shortage.productId)?.name ?? shortage.productId,
+                    needed: shortage.needed,
+                    free: shortage.free,
+                  })}
+                </p>
+              ))}
+            </section>
           ) : null}
-          {preview.shortages.map((shortage) => (
-            <p key={shortage.productId} role="alert" className="text-destructive text-sm">
-              {t("shortage", {
-                product: productById.get(shortage.productId)?.name ?? shortage.productId,
-                needed: shortage.needed,
-                free: shortage.free,
-              })}
-            </p>
-          ))}
-        </div>
-      ) : null}
+        </aside>
+      </div>
 
       {state.formError ? (
         <p role="alert" className="text-destructive text-sm">

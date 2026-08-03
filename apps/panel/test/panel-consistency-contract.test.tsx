@@ -153,8 +153,10 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     ["katalog/[id]/zdjecia/photo-forms.tsx", ["w-[120px]", "w-[10rem]"]],
     ["katalog/products-table.tsx", ["min-w-[720px]"]],
     ["katalog/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
-    ["zamowienia/nowe/order-wizard.tsx", ["w-[320px]"]],
     ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
+    // `zamowienia/nowe/order-wizard.tsx` wypadło z listy przy R3: termin
+    // przestał być polem o przypiętej szerokości — jest kalendarzem
+    // wypełniającym kolumnę, więc wyjątek stał się martwy.
     // `zamowienia/orders-table.tsx` wypadło z listy przy U5: szerokość
     // minimalna tabeli zależy dziś od liczby WIDOCZNYCH kolumn i idzie
     // progami ze skali (`min-w-4xl` / `min-w-2xl`), więc arbitralna wartość
@@ -173,7 +175,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   });
 
   it("ekrany nie przypinają szerokości poza notacją max-w", () => {
-    expect(allowedArbitraryWidth.size).toBe(5);
+    expect(allowedArbitraryWidth.size).toBe(4);
 
     const offenders = sources.flatMap(({ path, code }) => {
       const relativePath = relative(path);

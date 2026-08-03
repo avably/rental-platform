@@ -94,14 +94,30 @@ describe("kontrakt pól daty — wszystkie ekrany tenanta", () => {
     // Kontrakt wysyłki: wartość nadal jedzie ukrytym polem jako string ISO.
     expect(fields!.code).toContain('type="hidden"');
 
+    // R3: termin najmu przeniósł się z pola w popoverze do KALENDARZA stojącego
+    // otwarto w kolumnie obok formularza, więc konsumentem pól dat jest teraz
+    // `term-calendar.tsx`, a nie `order-wizard.tsx`. Wariant inline mieszka
+    // w TYM SAMYM module `lib/fields` — zakaz „każdy ekran robi sobie własny
+    // widżet dat" obowiązuje bez zmian.
     const users = sources.filter((file) => /DateField|DateRangeField/.test(file.code));
     expect(users.map((file) => file.path.split("/").at(-1)!).sort()).toEqual([
       "date-fields.tsx",
       "extension-form.tsx",
-      "order-wizard.tsx",
       "orders-date-filter.tsx",
+      "term-calendar.tsx",
       "unit-forms.tsx",
     ]);
+  });
+
+  it("wariant inline zakresu jedzie tym samym kontraktem co popover", () => {
+    const fields = sources.find((file) => file.path.endsWith("lib/fields/date-fields.tsx"));
+    expect(fields).toBeDefined();
+    // Podłoga istnienia: bez tej asercji reguły niżej broniłyby nieobecnego kodu.
+    expect(fields!.code).toContain("export function InlineDateRangeField");
+    // Wartość nadal jedzie DWOMA ukrytymi polami jako string ISO — tak jak
+    // w wariancie z popoverem; akcja i schemat nie widzą różnicy.
+    expect(fields!.code).toMatch(/name=\{fromName\}/);
+    expect(fields!.code).toMatch(/name=\{toName\}/);
   });
 
   it("zakres pokazuje jeden miesiąc na mobile i dwa od md", () => {

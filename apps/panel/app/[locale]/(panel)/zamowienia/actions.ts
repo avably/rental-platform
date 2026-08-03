@@ -11,17 +11,20 @@ import {
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   DEFAULT_TENANT_LOCALE,
   DELIVERY_PRICING_KEY,
+  DeliveryPriceOverrideError,
   DeliveryPricingError,
   EMAIL_SENDER_KEY,
   ORDER_STATUSES,
-  calculateDeliveryCost,
   canTransition,
   deliveryPricingFromSettings,
+  destinationColumns,
   emailAvailability,
   isLocale,
   resendTransport,
+  resolveDeliveryCost,
   type Locale,
   type OrderStatus,
+  type ResolvedDeliveryCost,
   type TenantSettingRow,
 } from "@avably/core";
 import { revalidatePath } from "next/cache";
@@ -66,6 +69,8 @@ const PG_UNIT_CONFLICT = "23P01";
 const PG_BAD_TRANSITION = "23514";
 const PG_CANCEL_BLOCKED = "23001";
 const PG_UNIQUE_VIOLATION = "23505";
+/** `raise ... using errcode = '22023'` — odmowy walidacyjne funkcji app.*. */
+const PG_INVALID_INPUT = "22023";
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
@@ -88,6 +93,19 @@ export async function createOrderAction(
     deliveryMethod: str(formData.get("deliveryMethod")),
     pickupLocationId: str(formData.get("pickupLocationId")),
     notes: str(formData.get("notes")),
+    // R3 — forma płatności, cena dostawy i cel dostarczenia (ADR-089).
+    paymentMethod: str(formData.get("paymentMethod")),
+    deliveryPriceSource: str(formData.get("deliveryPriceSource")),
+    deliveryPrice: str(formData.get("deliveryPrice")),
+    deliveryPointProvider: str(formData.get("deliveryPointProvider")),
+    deliveryPointCode: str(formData.get("deliveryPointCode")),
+    deliveryPointAddress: str(formData.get("deliveryPointAddress")),
+    deliveryAddressSource: str(formData.get("deliveryAddressSource")),
+    deliveryAddressName: str(formData.get("deliveryAddressName")),
+    deliveryAddressStreet: str(formData.get("deliveryAddressStreet")),
+    deliveryAddressZip: str(formData.get("deliveryAddressZip")),
+    deliveryAddressCity: str(formData.get("deliveryAddressCity")),
+    deliveryAddressPhone: str(formData.get("deliveryAddressPhone")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
   const input = parsed.data;
@@ -209,20 +227,30 @@ export async function createOrderAction(
     .eq("key", DELIVERY_PRICING_KEY);
   if (deliveryError) return { formError: deliveryError.message };
 
-  let deliveryGrosze: number;
+  let delivery: ResolvedDeliveryCost;
   try {
-    deliveryGrosze = calculateDeliveryCost({
+    delivery = resolveDeliveryCost({
       method: input.deliveryMethod,
       pricing: deliveryPricingFromSettings((deliveryRows ?? []) as TenantSettingRow[]),
       rentalTotalGrosze: pricing.totalRentalGrosze,
+      // Cena USTALONA RĘCZNIE wygrywa z cennikiem i cennika nie potrzebuje —
+      // to odpowiedź na sytuację, w której cennik odpowiedzi nie ma (R3).
+      overrideGrosze: input.deliveryPriceOverrideGrosze,
     });
   } catch (err) {
     if (err instanceof DeliveryPricingError) {
       const t = await getTranslations("orders.form");
       return { formError: t("deliveryPricingMissing") };
     }
+    if (err instanceof DeliveryPriceOverrideError) {
+      return { fieldErrors: { deliveryPrice: err.message } };
+    }
     throw err;
   }
+
+  // Cel dostarczenia rozłożony na kolumny 0044 przez silnik — akcja nie zna
+  // wariantów celu z palca, zna JEDNĄ funkcję, która je rozkłada.
+  const destination = destinationColumns(input.destination);
 
   // Atomowo: zamówienie + pozycje + koszt dostawy w jednej transakcji
   // (app.create_order, SECURITY INVOKER — RLS i bramki 0010 obowiązują
@@ -238,7 +266,18 @@ export async function createOrderAction(
       p_notes: input.notes,
       p_total_rental_grosze: pricing.totalRentalGrosze,
       p_total_deposit_grosze: pricing.totalDepositGrosze,
-      p_delivery_grosze: deliveryGrosze,
+      p_delivery_grosze: delivery.grosze,
+      p_delivery_price_source: delivery.source,
+      p_payment_method: input.paymentMethod,
+      p_delivery_point_provider: destination.deliveryPointProvider,
+      p_delivery_point_code: destination.deliveryPointCode,
+      p_delivery_point_address: destination.deliveryPointAddress,
+      p_delivery_address_source: destination.deliveryAddressSource,
+      p_delivery_address_name: destination.deliveryAddressName,
+      p_delivery_address_street: destination.deliveryAddressStreet,
+      p_delivery_address_zip: destination.deliveryAddressZip,
+      p_delivery_address_city: destination.deliveryAddressCity,
+      p_delivery_address_phone: destination.deliveryAddressPhone,
       p_items: productIds.map((productId, index) => ({
         product_id: productId,
         unit_id: unitIds[index],
@@ -252,6 +291,13 @@ export async function createOrderAction(
         formError:
           "Wybrany termin został właśnie zajęty przez inne zamówienie — odśwież kalendarz i spróbuj ponownie.",
       };
+    }
+    // Bramka płatności online (0044): tenant bez konta rozliczeniowego nie ma
+    // dokąd przyjąć środków. Ekran zna ten stan i wygasza wybór ZANIM
+    // formularz wyjedzie — ta gałąź łapie wyścig (konto zniknęło w trakcie)
+    // i nazywa go przy właściwym polu, zamiast zrzucać surowy komunikat bazy.
+    if (createError.code === PG_INVALID_INPUT && /rozliczeniowego/.test(createError.message)) {
+      return { fieldErrors: { paymentMethod: createError.message } };
     }
     return { formError: createError.message };
   }

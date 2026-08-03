@@ -14,16 +14,27 @@ import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { buildDayMap, type ProductPricingRow } from "../pricing";
 import { createOrderAction } from "../actions";
-import {
-  OrderWizard,
-  type WizardBooked,
-  type WizardCustomer,
-  type WizardProduct,
-  type WizardUnit,
-} from "./order-wizard";
+import { OrderWizard } from "./order-wizard";
+import type {
+  WizardBooked,
+  WizardCustomer,
+  WizardProduct,
+  WizardUnit,
+} from "./wizard-data";
 
 /** Zakres kalendarza dostępności: od dziś, ~3 miesiące w przód. */
 const CALENDAR_DAYS = 90;
+
+/**
+ * Ile klientów wczytujemy do wyszukiwarki kreatora (R3).
+ *
+ * Wyszukiwarka filtruje NAD WCZYTANĄ STRONĄ — wzorzec listy klientów (R6a)
+ * i listy zamówień. Odczyt bez limitu ciągnąłby całą kartotekę tenanta do
+ * każdego renderu ekranu tworzenia zamówienia. „+1" jest sondą: gdy wróci
+ * o wiersz więcej, niż mieści strona, ekran WIE, że zbiór jest ucięty,
+ * i mówi to operatorowi zamiast po cichu nie znaleźć klienta.
+ */
+const CUSTOMER_SUGGESTION_LIMIT = 200;
 
 interface ProductRow extends ProductPricingRow {
   name: string;
@@ -44,12 +55,14 @@ export default async function NewOrderPage() {
     { data: locations },
     { data: bookedRows },
     { data: settingsRows },
+    { data: paymentAccounts },
   ] = await Promise.all([
       ctx.supabase
         .from("customers")
-        .select("id, email, full_name")
+        .select("id, email, full_name, phone, address_street, address_zip, address_city")
         .eq("tenant_id", ctx.tenantId)
-        .order("email"),
+        .order("email")
+        .limit(CUSTOMER_SUGGESTION_LIMIT + 1),
       ctx.supabase
         .from("products")
         .select(
@@ -82,6 +95,15 @@ export default async function NewOrderPage() {
         .select("key, value")
         .eq("tenant_id", ctx.tenantId)
         .eq("key", DELIVERY_PRICING_KEY),
+      // ISTNIENIE konta rozliczeniowego — bramka wyboru płatności online
+      // (ta sama, którą egzekwuje app.create_order). To NIE jest ocena
+      // gotowości konta: tę wolno stwierdzić wyłącznie odczytem u dostawcy
+      // (ADR-049), więc `charges_enabled` świadomie tu nie występuje.
+      ctx.supabase
+        .from("payment_accounts")
+        .select("tenant_id")
+        .eq("tenant_id", ctx.tenantId)
+        .limit(1),
     ]);
 
   // Wadliwy cennik (nie powinien wystąpić — CHECK 0013 pilnuje kształtu) nie
@@ -93,6 +115,9 @@ export default async function NewOrderPage() {
   } catch {
     deliveryPricing = null;
   }
+
+  const customerRows = (customers ?? []) as WizardCustomer[];
+  const customersTruncated = customerRows.length > CUSTOMER_SUGGESTION_LIMIT;
 
   // „Dziś" w UTC — spójnie z IsoDate silnika (doby bez strefy). To odczyt
   // zegara, nie arytmetyka dat: całą arytmetykę robi buildDayMap silnikiem.
@@ -156,12 +181,14 @@ export default async function NewOrderPage() {
       ) : (
         <OrderWizard
           action={createOrderAction}
-          customers={(customers ?? []) as WizardCustomer[]}
+          customers={customerRows.slice(0, CUSTOMER_SUGGESTION_LIMIT)}
+          customersTruncated={customersTruncated}
           products={wizardProducts}
           locations={locations ?? []}
           currency={currency}
           locale={locale}
           deliveryPricing={deliveryPricing}
+          paymentAccountConnected={(paymentAccounts ?? []).length > 0}
         />
       )}
     </div>
