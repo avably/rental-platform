@@ -7,7 +7,19 @@
  * Daty waliduje assertIsoDate z silnika — jedyne źródło arytmetyki i
  * poprawności dat (2026-02-31 ma poprawny kształt, a nie istnieje).
  */
-import { assertIsoDate, ORDER_STATUSES, type IsoDate } from "@avably/core";
+import {
+  DELIVERY_ADDRESS_SOURCES,
+  DELIVERY_POINT_PROVIDERS,
+  DELIVERY_PRICE_OVERRIDE_MAX_GROSZE,
+  ORDER_PAYMENT_METHODS,
+  ORDER_STATUSES,
+  assertIsoDate,
+  methodUsesDeliveryAddress,
+  methodUsesDeliveryPoint,
+  type DeliveryDestination,
+  type IsoDate,
+  type OrderPaymentMethod,
+} from "@avably/core";
 import { z } from "zod";
 
 import { parseMajorToGrosze } from "./money-input";
@@ -64,6 +76,46 @@ const itemsSchema = z
       .max(50, "Zbyt wiele pozycji (maksymalnie 50)."),
   );
 
+/**
+ * Pola „pustego wyboru" listy: `""` znaczy „nie wybrano" i JEST poprawne na
+ * poziomie pola — sensowność braku rozstrzygają dopiero `.refine` niżej,
+ * w kontekście metody dostawy. Dzięki temu komunikat mówi „paczkomat wymaga
+ * numeru punktu", a nie „nieprawidłowa wartość".
+ */
+const optionalEnumSchema = <T extends readonly [string, ...string[]]>(
+  values: T,
+  message: string,
+) => z.union([z.literal(""), z.enum(values, { error: () => message })]);
+
+/**
+ * Ręcznie ustalona cena dostawy (R3, pinezka o cennikach).
+ *
+ * Wejściem jest kwota w jednostkach głównych z pola formularza — TA SAMA
+ * dyscyplina co przy kaucjach (`parseMajorToGrosze`): przecinek albo kropka,
+ * najwyżej dwa miejsca, śmieci odrzucone zamiast zgadywane. Zero przechodzi
+ * (dostawa gratis to decyzja operatora), górną granicę trzyma silnik
+ * (`DELIVERY_PRICE_OVERRIDE_MAX_GROSZE`) — tu jest jej lustro, żeby operator
+ * zobaczył powód przy polu, a nie dopiero jako błąd całego formularza.
+ */
+const deliveryPriceSchema = z.string().transform((raw, ctx) => {
+  const grosze = parseMajorToGrosze(raw);
+  if (grosze === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Podaj kwotę dostawy (np. 19 albo 19,90).",
+    });
+    return z.NEVER;
+  }
+  if (grosze > DELIVERY_PRICE_OVERRIDE_MAX_GROSZE) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Cena dostawy nie może przekraczać ${DELIVERY_PRICE_OVERRIDE_MAX_GROSZE / 100} zł.`,
+    });
+    return z.NEVER;
+  }
+  return grosze;
+});
+
 export const orderFormSchema = z
   .object({
     customerId: z
@@ -92,6 +144,41 @@ export const orderFormSchema = z
       .transform((value) => value.trim())
       .pipe(z.union([z.literal(""), z.string().uuid("Nieprawidłowy identyfikator punktu.")])),
     notes: optionalTextSchema(2000),
+
+    // --- R3: forma płatności (pinezka 82a0c41a) ---
+    // Pusto = operator jeszcze nie ustalił; to POPRAWNY stan zamówienia
+    // (kolumna orders.payment_method jest NULLABLE od 0029), a nie brak danych
+    // do uzupełnienia na siłę.
+    paymentMethod: optionalEnumSchema(
+      ORDER_PAYMENT_METHODS as unknown as [OrderPaymentMethod, ...OrderPaymentMethod[]],
+      "Wybierz formę płatności.",
+    ),
+
+    // --- R3: cena dostawy z cennika albo ustalona ręcznie (pinezka 3c944a2d) ---
+    deliveryPriceSource: optionalEnumSchema(
+      ["pricing", "manual"] as const,
+      "Nieznane źródło ceny dostawy.",
+    ),
+    deliveryPrice: z.string(),
+
+    // --- R3: punkt odbioru przewoźnika (pinezka ff2dfefc) ---
+    deliveryPointProvider: optionalEnumSchema(
+      DELIVERY_POINT_PROVIDERS as unknown as [string, ...string[]],
+      "Nieznany dostawca punktu odbioru.",
+    ),
+    deliveryPointCode: optionalTextSchema(32),
+    deliveryPointAddress: optionalTextSchema(300),
+
+    // --- R3: adres dostarczenia (pinezka e2aef3f6) ---
+    deliveryAddressSource: optionalEnumSchema(
+      DELIVERY_ADDRESS_SOURCES as unknown as [string, ...string[]],
+      "Wybierz adres dostarczenia.",
+    ),
+    deliveryAddressName: optionalTextSchema(200),
+    deliveryAddressStreet: optionalTextSchema(200),
+    deliveryAddressZip: optionalTextSchema(20),
+    deliveryAddressCity: optionalTextSchema(100),
+    deliveryAddressPhone: optionalTextSchema(32),
   })
   // Klient jest DOKŁADNIE jeden: istniejący (customerId) albo nowy (e-mail).
   .refine((form) => (form.customerId !== "") !== (form.newCustomerEmail !== ""), {
@@ -108,6 +195,112 @@ export const orderFormSchema = z
     message: "Odbiór osobisty wymaga wskazania punktu odbioru.",
     path: ["pickupLocationId"],
   })
+  /*
+    R3 — CEL DOSTARCZENIA (ADR-089). Reguły są STRICTE dwustronne: metoda,
+    która jedzie do punktu, punktu WYMAGA; każda inna go ZABRANIA. Wariant
+    „zignoruj nieadekwatne pole" odpada świadomie — cicho porzucony numer
+    paczkomatu wygląda z ekranu identycznie jak zapisany, a to jest dokładnie
+    ta klasa gubienia danych, którą zamknęła migracja 0041. Formularz wysyła
+    pola warunkowo (puste ukryte pole przy nieadekwatnej metodzie), więc
+    strictness nie generuje fałszywych odmów.
+  */
+  .refine(
+    (form) => !methodUsesDeliveryPoint(form.deliveryMethod) || form.deliveryPointCode !== null,
+    {
+      message: "Dostawa do paczkomatu wymaga numeru punktu.",
+      path: ["deliveryPointCode"],
+    },
+  )
+  .refine(
+    (form) => !methodUsesDeliveryPoint(form.deliveryMethod) || form.deliveryPointProvider !== "",
+    {
+      message: "Wskaż dostawcę punktu odbioru.",
+      path: ["deliveryPointProvider"],
+    },
+  )
+  .refine(
+    (form) =>
+      methodUsesDeliveryPoint(form.deliveryMethod) ||
+      (form.deliveryPointProvider === "" &&
+        form.deliveryPointCode === null &&
+        form.deliveryPointAddress === null),
+    {
+      message: "Punkt odbioru dotyczy wyłącznie dostawy do paczkomatu.",
+      path: ["deliveryPointCode"],
+    },
+  )
+  .refine(
+    (form) => !methodUsesDeliveryAddress(form.deliveryMethod) || form.deliveryAddressSource !== "",
+    {
+      message: "Wskaż adres dostarczenia — z danych klienta albo inny.",
+      path: ["deliveryAddressSource"],
+    },
+  )
+  .refine(
+    (form) => methodUsesDeliveryAddress(form.deliveryMethod) || form.deliveryAddressSource === "",
+    {
+      message: "Adres dostarczenia dotyczy wyłącznie kuriera i dostawy własnej.",
+      path: ["deliveryAddressSource"],
+    },
+  )
+  // Lustro orders_delivery_address_shape: „inny adres" wymaga kompletu.
+  .refine(
+    (form) =>
+      form.deliveryAddressSource !== "custom" ||
+      (form.deliveryAddressStreet !== null &&
+        form.deliveryAddressZip !== null &&
+        form.deliveryAddressCity !== null),
+    {
+      message: "Inny adres wymaga ulicy, kodu pocztowego i miejscowości.",
+      path: ["deliveryAddressStreet"],
+    },
+  )
+  /*
+    Druga strona tego samego CHECK-a: „adres z danych klienta" to WSKAŹNIK na
+    kartotekę, więc pola adresu muszą zostać puste. Gdyby wolno je było
+    wypełnić, powstałaby druga prawda o tym samym adresie i pytanie, która
+    pojechała na etykietę.
+  */
+  .refine(
+    (form) =>
+      form.deliveryAddressSource === "custom" ||
+      (form.deliveryAddressName === null &&
+        form.deliveryAddressStreet === null &&
+        form.deliveryAddressZip === null &&
+        form.deliveryAddressCity === null &&
+        form.deliveryAddressPhone === null),
+    {
+      message: "Adres z danych klienta czytamy z kartoteki — nie kopiujemy go do zamówienia.",
+      path: ["deliveryAddressStreet"],
+    },
+  )
+  // R3 — CENA DOSTAWY. Kwota jest wymagana dokładnie wtedy, gdy operator
+  // zadeklarował, że ustala ją sam; przy cenniku pole musi zostać puste,
+  // żeby wpisana i porzucona liczba nie udawała, że coś znaczy.
+  .refine((form) => form.deliveryPriceSource !== "manual" || form.deliveryPrice.trim() !== "", {
+    message: "Podaj kwotę dostawy albo wróć do ceny z cennika.",
+    path: ["deliveryPrice"],
+  })
+  .refine((form) => form.deliveryPriceSource === "manual" || form.deliveryPrice.trim() === "", {
+    message: "Cena dostawy jest liczona z cennika — wyczyść kwotę albo wybierz cenę własną.",
+    path: ["deliveryPrice"],
+  })
+  // Lustro reguły silnika: pickup jest bezpłatny z definicji (ADR-030).
+  .refine((form) => form.deliveryMethod !== "pickup" || form.deliveryPriceSource !== "manual", {
+    message: "Odbiór osobisty jest bezpłatny — nie można ustalić dla niego ceny.",
+    path: ["deliveryPrice"],
+  })
+  .superRefine((form, ctx) => {
+    if (form.deliveryPriceSource !== "manual") return;
+    const parsed = deliveryPriceSchema.safeParse(form.deliveryPrice);
+    if (!parsed.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: parsed.error.issues[0]?.message ?? "Nieprawidłowa kwota dostawy.",
+        path: ["deliveryPrice"],
+      });
+    }
+  })
   .transform((form) => ({
     customerId: form.customerId === "" ? null : form.customerId,
     newCustomer:
@@ -120,7 +313,63 @@ export const orderFormSchema = z
     deliveryMethod: form.deliveryMethod,
     pickupLocationId: form.pickupLocationId === "" ? null : form.pickupLocationId,
     notes: form.notes,
+    paymentMethod: form.paymentMethod === "" ? null : (form.paymentMethod as OrderPaymentMethod),
+    /**
+     * `null` = licz z cennika. Kwota jest już zwalidowana przez superRefine
+     * powyżej, więc `parseMajorToGrosze` nie może tu zwrócić null — a gdyby
+     * kiedyś mogło, `?? null` spada na cennik zamiast wstawić NaN do pieniędzy.
+     */
+    deliveryPriceOverrideGrosze:
+      form.deliveryPriceSource === "manual" ? (parseMajorToGrosze(form.deliveryPrice) ?? null) : null,
+    destination: destinationFromForm(form),
   }));
+
+/**
+ * Cel dostarczenia jako JEDNA wartość wariantowa (`DeliveryDestination`
+ * z silnika) — akcja serwerowa dostaje gotowy kształt, zamiast składać
+ * dziewięć luźnych pól i mieć okazję pomylić wariant.
+ *
+ * Funkcja jest wołana PO wszystkich `.refine`, więc każdy `!` niżej jest
+ * spełniony z konstrukcji: „custom" bez kompletu adresu i „parcel_locker"
+ * bez punktu nie dochodzą do tego miejsca.
+ */
+function destinationFromForm(form: {
+  deliveryMethod: DeliveryMethod;
+  deliveryPointProvider: string;
+  deliveryPointCode: string | null;
+  deliveryPointAddress: string | null;
+  deliveryAddressSource: string;
+  deliveryAddressName: string | null;
+  deliveryAddressStreet: string | null;
+  deliveryAddressZip: string | null;
+  deliveryAddressCity: string | null;
+  deliveryAddressPhone: string | null;
+}): DeliveryDestination {
+  if (methodUsesDeliveryPoint(form.deliveryMethod)) {
+    return {
+      kind: "point",
+      point: {
+        provider: form.deliveryPointProvider as (typeof DELIVERY_POINT_PROVIDERS)[number],
+        code: form.deliveryPointCode!,
+        address: form.deliveryPointAddress,
+      },
+    };
+  }
+  if (form.deliveryAddressSource === "customer") return { kind: "customer" };
+  if (form.deliveryAddressSource === "custom") {
+    return {
+      kind: "custom",
+      address: {
+        name: form.deliveryAddressName,
+        street: form.deliveryAddressStreet!,
+        zip: form.deliveryAddressZip!,
+        city: form.deliveryAddressCity!,
+        phone: form.deliveryAddressPhone,
+      },
+    };
+  }
+  return { kind: "none" };
+}
 
 export type OrderFormInput = z.infer<typeof orderFormSchema>;
 

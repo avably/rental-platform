@@ -247,3 +247,86 @@ export function DateRangeField({
     </>
   );
 }
+
+/**
+ * Wybór ZAKRESU bez popovera — kalendarz stoi OTWARTY na ekranie (R3,
+ * pinezka „termin powinien być gdzieś pod klientem albo po prawej i w formie
+ * kalendarza").
+ *
+ * To WARIANT OPRAWY `DateRangeField`, a nie drugi widżet dat: ten sam
+ * `Calendar` i ten sam kontrakt wysyłki (dwa ukryte pola ze stringiem ISO).
+ * Różnica jest w tym, czym kalendarz JEST na ekranie — przy wybieraniu
+ * terminu najmu to główna treść kolumny, a nie coś, co trzeba najpierw
+ * wywołać kliknięciem. Dlatego nie ma tu ani wyzwalacza, ani logiki
+ * domykania popovera: nie ma czego domykać.
+ *
+ * JEDEN miesiąc niezależnie od szerokości — pole żyje w wąskiej kolumnie
+ * obok formularza, a nie na całej szerokości jak popover filtrów listy.
+ *
+ * Dni ZAJĘTE przychodzą z zewnątrz jako gotowa lista (silnik dostępności) i
+ * są tu tylko MALOWANE — modułowi dat nie wolno liczyć zajętości. Zajęty
+ * dzień zostaje KLIKALNY świadomie: odmowa i tak przychodzi z podglądu
+ * braków i z bramek bazy, a kalendarz ma informować, nie decydować za
+ * operatora, który bywa uprawniony sięgnąć po termin zwalniający się lada
+ * moment.
+ */
+export function InlineDateRangeField({
+  id,
+  fromName,
+  toName,
+  from,
+  to,
+  onChange,
+  occupiedDays = [],
+  invalid,
+  describedBy,
+  className,
+}: {
+  id: string;
+  fromName: string;
+  toName: string;
+  from: string;
+  to: string;
+  onChange: (next: { from: string; to: string }) => void;
+  /** Dni zajęte jako stringi `YYYY-MM-DD`; źródłem jest silnik dostępności. */
+  occupiedDays?: readonly string[];
+  invalid?: boolean;
+  describedBy?: string;
+  className?: string;
+}) {
+  const selected: CalendarRange | undefined = isoToDate(from)
+    ? { from: isoToDate(from), to: isoToDate(to) }
+    : undefined;
+
+  const occupied = React.useMemo(
+    () => occupiedDays.map(isoToDate).filter((date): date is Date => date !== undefined),
+    [occupiedDays],
+  );
+
+  return (
+    <div
+      id={id}
+      data-inline-date-range
+      aria-invalid={invalid || undefined}
+      aria-describedby={describedBy}
+      className={cn("flex justify-center", className)}
+    >
+      <input type="hidden" name={fromName} value={from} />
+      <input type="hidden" name={toName} value={to} />
+      <Calendar
+        mode="range"
+        defaultMonth={isoToDate(from)}
+        selected={selected}
+        modifiers={{ occupied }}
+        // Modyfikator ląduje na KOMÓRCE dnia, a tło maluje przycisk w środku —
+        // stąd wariant zstępujący, a nie klasa na samej komórce (tę zasłoniłoby
+        // własne tło przycisku).
+        modifiersClassNames={{ occupied: "[&_button]:bg-status-problem-bg" }}
+        onSelect={(next) => {
+          onChange({ from: dateToIso(next?.from), to: dateToIso(next?.to) });
+        }}
+        className="p-0"
+      />
+    </div>
+  );
+}
