@@ -20,15 +20,19 @@
  * 144 kolumny szerokości płótna, oś pionowa to jednostki po 8 px.
  */
 import {
-  CANVAS_COLUMNS,
+  CANVAS_CONTENT_COLUMNS,
+  CANVAS_PAD_COLUMNS,
+  HUG_SIZE,
   SECTION_CANVAS_VERSION,
   SECTION_MAX_ROWS,
   SECTION_MIN_ROWS,
+  withSize,
   type CanvasElement,
   type Geometry,
   type SectionBackground,
   type SectionCanvas,
 } from "./elements";
+import { hugBox, textRows } from "./text-metrics";
 import type {
   ContactContent,
   CtaContent,
@@ -46,60 +50,20 @@ import type {
 } from "./index";
 
 /** Margines boczny płótna w kolumnach — pas treści to 120 z 144 kolumn. */
-const PAD = 12;
+const PAD = CANVAS_PAD_COLUMNS;
 /** Lewa krawędź pasa treści. */
 const CONTENT_X = PAD;
 /** Szerokość pasa treści (parzysta — prowadnica środka działa, patrz geometry.ts). */
-const CONTENT_W = CANVAS_COLUMNS - 2 * PAD;
+const CONTENT_W = CANVAS_CONTENT_COLUMNS;
 /** Odstęp od górnej krawędzi sekcji do pierwszego elementu. */
 const TOP = 10;
 /** Zapas pod ostatnim elementem — bez niego sekcje sklejałyby się wizualnie. */
 const BOTTOM = 10;
 
-/**
- * SKALE TEKSTU — ile znaków mieści się w wierszu na PEŁNEJ szerokości pasa
- * treści i ile jednostek siatki zajmuje jeden wiersz.
- *
- * Liczby są zmierzone na żywym renderze (szablon `classic`, płótno przy
- * szerokości projektowej), a nie zgadnięte. Pierwsza wersja konwersji miała
- * JEDNĄ gęstość dla wszystkich skal (~90 znaków w wierszu) i dlatego nagłówek
- * hero — idący skalą `landing-display`, czyli 72 px, gdzie w wierszu mieszczą
- * się ~22 znaki — wychodził poza swoje pudełko i NACHODZIŁ na tekst pod nim.
- * Widać to było dopiero na sklepie, przy szerokości, na której nagłówek łamie
- * się na dwa wiersze; w panelu, przy węższym płótnie, mieścił się w jednym.
- */
-const TEXT_SCALES = {
-  /** Nagłówek hero (`landing-display`, do 72 px). */
-  display: { charsPerLine: 22, rowsPerLine: 10 },
-  /** Nagłówek sekcji (`landing-heading`, do 48 px). */
-  heading: { charsPerLine: 34, rowsPerLine: 7 },
-  /** Tytuł bloku (poziom 3, ~18–20 px). */
-  title: { charsPerLine: 44, rowsPerLine: 4 },
-  /** Wprowadzenie (`lead`, ~20 px). */
-  lead: { charsPerLine: 70, rowsPerLine: 4 },
-  /** Akapit (16 px). */
-  body: { charsPerLine: 90, rowsPerLine: 3 },
-  /** Drobny tekst (14 px). */
-  small: { charsPerLine: 100, rowsPerLine: 3 },
-} as const;
-export type TextScale = keyof typeof TEXT_SCALES;
-
-/**
- * Wysokość pudełka tekstowego w jednostkach siatki. Estymator jest CELOWO
- * zgrubny — ma dać pudełko z zapasem, a nie zmierzyć font, którego ten pakiet
- * nie zna. Wąskie pudełko mieści proporcjonalnie mniej znaków w wierszu.
- */
-export function textRows(
-  text: string,
-  scale: TextScale = "body",
-  columns = CONTENT_W,
-  minRows = 0,
-): number {
-  const { charsPerLine, rowsPerLine } = TEXT_SCALES[scale];
-  const perLine = Math.max(8, Math.round((columns / CONTENT_W) * charsPerLine));
-  const lines = Math.max(1, Math.ceil(text.trim().length / perLine));
-  return Math.max(minRows, rowsPerLine, lines * rowsPerLine);
-}
+// Estymator wysokości pudełka tekstowego mieszka od K4 w `text-metrics.ts` —
+// tam, gdzie liczy z niego także auto-układ mobilny. Tutaj zostaje re-eksport,
+// bo `textRows` jest publicznym wejściem pakietu od K2.
+export { textRows, type TextScale } from "./text-metrics";
 
 function geometry(x: number, y: number, w: number, h: number, z = 0): Geometry {
   return { x, y, w, h, z };
@@ -123,7 +87,17 @@ function asLabel(text: string): string {
  */
 type ElementDraft = CanvasElement extends infer E
   ? E extends CanvasElement
-    ? Omit<E, "id" | "layout"> & { geometry: Geometry }
+    ? Omit<E, "id" | "layout" | "size"> & {
+        geometry: Geometry;
+        /**
+         * Pudełko ma OBEJMOWAĆ TREŚĆ (K4, ADR-088). `geometry` jest wtedy
+         * PASEM, w którym element ma stanąć — bufor podmienia jego szerokość
+         * i wysokość na naturalny rozmiar treści, a `hugAlign` decyduje, czy
+         * element przylega do lewej krawędzi pasa, czy stoi w jego środku.
+         */
+        hug?: boolean;
+        hugAlign?: "left" | "center";
+      }
     : never
   : never;
 
@@ -147,10 +121,27 @@ function draft(type: SectionType) {
   return {
     elements,
     add(element: ElementDraft): void {
-      const { geometry: box, ...rest } = element;
+      const { geometry: box, hug, hugAlign, ...rest } = element;
       // Jedyne rzutowanie w tym pliku: rozsypanie unii przez spread gubi
       // dyskryminator dla TS-a, choć w czasie wykonania `kind` jest na miejscu.
-      elements.push({ ...rest, id: id(rest.kind), layout: { desktop: box } } as CanvasElement);
+      const built = { ...rest, id: id(rest.kind), layout: { desktop: box } } as CanvasElement;
+      if (!hug) {
+        elements.push(built);
+        return;
+      }
+      // Naturalny rozmiar liczymy z GOTOWEGO elementu, więc estymator widzi
+      // dokładnie tę treść i tę skalę, które trafią na stronę.
+      const natural = hugBox(built) ?? { w: box.w, h: box.h };
+      const x =
+        hugAlign === "center"
+          ? Math.max(0, box.x + Math.floor((box.w - natural.w) / 2))
+          : box.x;
+      elements.push(
+        withSize(
+          { ...built, layout: { desktop: { ...box, x, w: natural.w, h: natural.h } } } as CanvasElement,
+          HUG_SIZE,
+        ),
+      );
     },
     /** Pierwsza wolna jednostka pod wszystkim, co już leży na płótnie. */
     bottom(): number {
@@ -224,6 +215,9 @@ function heroCanvas(content: HeroContent): SectionCanvas {
   }
 
   if (content.ctaText && content.ctaHref) {
+    // Przycisk OBEJMUJE swoją etykietę (K4, ADR-088) — pas o szerokości 40
+    // kolumn był pudełkiem na napis o dziesięciu znakach, a ramka zaznaczenia
+    // obejmowała pustkę wokół niego.
     built.add({
       kind: "button",
       label: content.ctaText,
@@ -231,6 +225,7 @@ function heroCanvas(content: HeroContent): SectionCanvas {
       variant: "solid",
       align: "left",
       geometry: geometry(CONTENT_X, y, 40, 7),
+      hug: true,
     });
     y += 10;
   }
@@ -330,6 +325,7 @@ function contactCanvas(content: ContactContent): SectionCanvas {
       variant: "outline",
       align: "left",
       geometry: geometry(CONTENT_X, y + 2, 44, 7),
+      hug: true,
     });
   }
   return finish(built);
@@ -417,7 +413,13 @@ function uspCanvas(content: UspContent): SectionCanvas {
     const x = columnX(index, 3);
     const blockRows = iconRows + 2 + titleRows + 1 + textRowsMax;
     const y = top + Math.floor(index / 3) * (blockRows + 4);
-    built.add({ kind: "icon", name: item.icon, tone: "accent", geometry: geometry(x, y, iconRows, iconRows) });
+    built.add({
+      kind: "icon",
+      name: item.icon,
+      tone: "accent",
+      geometry: geometry(x, y, iconRows, iconRows),
+      hug: true,
+    });
     built.add({
       kind: "heading",
       text: item.title,
@@ -465,6 +467,8 @@ function ctaCanvas(content: CtaContent): SectionCanvas {
     y += rows + 2;
   }
 
+  // Baner ma przycisk na ŚRODKU: przy pudełku obejmującym treść wyrównanie nie
+  // ma już czego przesuwać wewnątrz pudełka, więc środkuje się SAMO PUDEŁKO.
   built.add({
     kind: "button",
     label: content.buttonLabel,
@@ -472,6 +476,8 @@ function ctaCanvas(content: CtaContent): SectionCanvas {
     variant: "solid",
     align: "center",
     geometry: geometry(innerX, y, inner, 7, 1),
+    hug: true,
+    hugAlign: "center",
   });
   y += 7;
 
@@ -509,6 +515,7 @@ function directionsCanvas(content: DirectionsContent): SectionCanvas {
       variant: "outline",
       align: "left",
       geometry: geometry(CONTENT_X, y + 2, 44, 7),
+      hug: true,
     });
   }
   return finish(built);

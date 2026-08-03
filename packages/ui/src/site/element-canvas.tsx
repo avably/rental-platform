@@ -18,6 +18,28 @@
  * bez sufitu ten sam układ na monitorze 2560 px rozciągałby wiersze tekstu do
  * nieczytelnej długości.
  *
+ * ================== DWA UKŁADY W JEDNYM DRZEWIE (K4, ADR-088) ==================
+ *
+ * Sekcja niesie geometrię PER BREAKPOINT, a wybór między nimi robi CSS, nie
+ * JavaScript: pudełko dostaje oba komplety współrzędnych jako właściwości
+ * niestandardowe, a zapytanie kontenera w `site.css` podmienia zestaw poniżej
+ * progu 40 rem. Nic tu nie mierzy okna i nic nie czeka na hydrację — sklep
+ * wychodzi z serwera od razu w układzie właściwym dla szerokości, na której
+ * został osadzony, a płótno kreatora zwężone do 390 px pokazuje DOKŁADNIE to,
+ * co dostanie telefon (K1b, ADR-085).
+ *
+ * Układ mobilny NIE JEST ZAPISANY w treści: liczy go czysta funkcja
+ * (`mobileLayoutOf`) przy każdym renderze, a w treści siedzą wyłącznie RĘCZNE
+ * poprawki. Dzięki temu element dodany na desktopie pojawia się na telefonie
+ * bez niczyjej ręki.
+ *
+ * ================== PUDEŁKO OBEJMUJE TREŚĆ ==================
+ *
+ * Wymiar może być jawny (procent płótna) albo `hug` — wtedy w miejsce procentu
+ * idzie `max-content`, a pudełko jest dokładnie tym, co widać. Sufit szerokości
+ * (`max-width` do prawej krawędzi płótna) pilnuje, żeby długi napis zawinął się
+ * zamiast wyjechać poza sekcję.
+ *
  * ================== BEZPIECZEŃSTWO UKŁADU ==================
  *
  * Płótno PRZYCINA zawartość (`overflow-hidden`) i tworzy własny kontekst
@@ -29,10 +51,14 @@
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  mobileLayoutOf,
   normalizeImageSource,
   paintOrder,
+  sizeOf,
   type CanvasElement,
+  type ElementSize,
   type Geometry,
+  type MobileLayout,
   type SectionCanvas,
   type TextRun,
   type UspIcon,
@@ -155,19 +181,102 @@ export function geometryStyle(box: Geometry, rows: number): CSSProperties {
   };
 }
 
+/**
+ * Geometria → WŁAŚCIWOŚCI NIESTANDARDOWE pudełka (K4, ADR-088).
+ *
+ * Dwa komplety (`--el-*` dla desktopu, `--el-m*` dla telefonu) jadą w jednym
+ * atrybucie `style`, a wybór między nimi robi zapytanie kontenera w arkuszu.
+ * Wartości MUSZĄ być stringami — silnik nie zna typu właściwości
+ * niestandardowej, więc goła liczba zostałaby wstawiona bez jednostki.
+ *
+ * `hug` zamienia wymiar na `max-content`: pudełko jest wtedy dokładnie tym, co
+ * widać, a nie prostokątem, w którym treść leży gdzieś w środku. Sufit
+ * szerokości sięga prawej krawędzi płótna — długi napis ma się ZAWINĄĆ, a nie
+ * wyjechać poza sekcję.
+ */
+function boxVariables(
+  box: Geometry,
+  rows: number,
+  size: ElementSize,
+  breakpoint: "desktop" | "mobile",
+): Record<string, string> {
+  const safeRows = rows > 0 ? rows : 1;
+  const prefix = breakpoint === "mobile" ? "--el-m" : "--el-";
+  const left = (box.x / CANVAS_COLUMNS) * 100;
+  return {
+    [`${prefix}x`]: `${left}%`,
+    [`${prefix}y`]: `${(box.y / safeRows) * 100}%`,
+    [`${prefix}w`]: size.w === "hug" ? "max-content" : `${(box.w / CANVAS_COLUMNS) * 100}%`,
+    [`${prefix}h`]: size.h === "hug" ? "max-content" : `${(box.h / safeRows) * 100}%`,
+    [`${prefix}maxw`]: `${100 - left}%`,
+    [`${prefix}z`]: String(box.z),
+  };
+}
+
+/**
+ * Klasa wypełnienia pudełka. Treść rozpycha się do krawędzi TYLKO na osiach
+ * o wymiarze jawnym — `size-full` w pudełku obejmującym treść znaczyłoby
+ * „sto procent z wysokości, która wynika ze mnie", czyli zapętlenie, które
+ * przeglądarka rozstrzyga zerem albo zignorowaniem reguły.
+ */
+function fillClass(size: ElementSize): string | undefined {
+  if (size.w === "fixed" && size.h === "fixed") return "size-full";
+  if (size.w === "fixed") return "w-full";
+  if (size.h === "fixed") return "h-full";
+  return undefined;
+}
+
+/**
+ * SKALA TYPOGRAFII PŁÓTNA (K4, ADR-088) — klasa, nie rozmiar w kodzie.
+ *
+ * Do K3 tekst elementu szedł skalami szablonu w `rem`, a geometria — procentem
+ * płótna. Przy szerokości projektowej to się zgadzało i rozjeżdżało wszędzie
+ * indziej: płótno zwężone do 700 px miało pudełka o 40 % mniejsze i tekst
+ * niezmieniony, więc akapit wychodził poza swoje pudełko. Skale płótna są więc
+ * zaciśnięte do JEDNOSTEK KONTENERA (`cqw` płótna): powyżej pewnej szerokości
+ * stoją na rozmiarze projektowym, w dół skalują się razem z geometrią, a przy
+ * szerokości telefonu zatrzymują się na rozmiarze CZYTELNYM — i to jest ten sam
+ * rozmiar, którym auto-układ mierzy wysokość pudełek (`text-metrics.ts`).
+ */
+function typeClass(element: CanvasElement): string {
+  switch (element.kind) {
+    case "heading":
+      return element.level === 1
+        ? "canvas-type-display"
+        : element.level === 2
+          ? "canvas-type-heading"
+          : "canvas-type-title";
+    case "text":
+      return element.variant === "lead"
+        ? "canvas-type-lead"
+        : element.variant === "small"
+          ? "canvas-type-small"
+          : "canvas-type-body";
+    case "button":
+      return "canvas-type-small";
+    default:
+      return "canvas-type-body";
+  }
+}
+
 function ElementBody({
   element,
+  size,
   styles,
   products,
   labels,
   siteImageBase,
 }: {
   element: CanvasElement;
+  size: ElementSize;
   styles: TemplateStyles;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   siteImageBase?: string;
 }) {
+  const fill = fillClass(size);
+  const type = typeClass(element);
+
   switch (element.kind) {
     case "heading": {
       const className = boxed(
@@ -176,7 +285,7 @@ function ElementBody({
           : element.level === 2
             ? styles.sectionHeading
             : styles.cardTitle,
-        ALIGN_CLASS[element.align],
+        cn(type, ALIGN_CLASS[element.align]),
       );
       const body = <FormattedText text={element.text} runs={element.runs} />;
       if (element.level === 1) return <h1 className={className}>{body}</h1>;
@@ -188,29 +297,35 @@ function ElementBody({
         element.variant === "lead"
           ? styles.lead
           : element.variant === "small"
-            ? "text-muted-foreground text-sm"
-            : "text-base";
+            ? "text-muted-foreground"
+            : undefined;
       return (
-        <p className={boxed(variant, cn("whitespace-pre-line", ALIGN_CLASS[element.align]))}>
+        <p className={boxed(cn(variant, type), cn("whitespace-pre-line", ALIGN_CLASS[element.align]))}>
           <FormattedText text={element.text} runs={element.runs} />
         </p>
       );
     }
-    case "button":
-      return (
-        <span className={cn("flex size-full items-center", JUSTIFY_CLASS[element.align])}>
-          <a
-            href={element.href}
-            className={boxed(
-              element.variant === "solid"
-                ? styles.cta
-                : "inline-flex items-center rounded-full border border-current px-6 py-3 text-sm font-medium",
-            )}
-          >
-            {element.label}
-          </a>
-        </span>
+    case "button": {
+      const label = (
+        <a
+          href={element.href}
+          className={boxed(
+            element.variant === "solid"
+              ? styles.cta
+              : "inline-flex items-center rounded-full border border-current px-6 py-3 font-medium",
+            type,
+          )}
+        >
+          {element.label}
+        </a>
       );
+      // Pudełko OBEJMUJĄCE treść nie ma czego w sobie wyrównywać — jest
+      // przyciskiem. Owijka wyrównująca zostaje wyłącznie przy wymiarze jawnym.
+      if (!fill) return label;
+      return (
+        <span className={cn("flex items-center", fill, JUSTIFY_CLASS[element.align])}>{label}</span>
+      );
+    }
     case "image": {
       const source = normalizeImageSource(element);
       const objectFit = element.fit === "contain" ? "object-contain" : "object-cover";
@@ -250,20 +365,28 @@ function ElementBody({
       // TYLKO ODNOŚNIK — bez osadzania obcych map (ADR-082, podtrzymane
       // w ADR-086). Adres jest treścią, link celem; jedno i drugie widoczne.
       return (
-        <span className={cn("flex size-full flex-col justify-center gap-1", ALIGN_CLASS[element.align])}>
-          <span className="text-base whitespace-pre-line">{element.address}</span>
-          <a href={element.url} target="_blank" rel="noreferrer noopener" className="text-sm underline">
+        <span className={cn("flex flex-col justify-center gap-1", fill, ALIGN_CLASS[element.align])}>
+          <span className={cn("whitespace-pre-line", type)}>{element.address}</span>
+          <a
+            href={element.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="canvas-type-small underline"
+          >
             {element.url}
           </a>
         </span>
       );
     case "icon": {
       const Icon = ELEMENT_ICON_COMPONENTS[element.name] ?? Star;
+      // Przy pudełku obejmującym treść rozmiar kafelka bierze się ze SKALI
+      // PŁÓTNA (`canvas-icon`), a nie ze stałej szablonu: ikona w `rem` nie
+      // malała razem z płótnem i wchodziła na tytuł pod sobą.
       return (
         <span
           className={cn(
             styles.iconTile,
-            "size-full",
+            fill ?? "canvas-icon",
             element.tone === "muted" ? "text-muted-foreground" : undefined,
           )}
         >
@@ -322,12 +445,21 @@ export function SectionCanvasRenderer({
   labels,
   siteImageBase,
   elementWrapper,
+  mobile = mobileLayoutOf(canvas),
 }: {
   canvas: SectionCanvas;
   styles: TemplateStyles;
   products?: StorefrontProduct[];
   labels: SiteRenderLabels;
   siteImageBase?: string;
+  /**
+   * Układ mobilny (K4, ADR-088). Domyślnie liczony TU, z tej samej czystej
+   * funkcji, co w kreatorze — sklep nie musi o nim wiedzieć. Kreator podaje
+   * własną instancję, bo ten sam wynik jest mu potrzebny także do ramek
+   * zaznaczenia i do gestu; liczenie go dwa razy dałoby ten sam obiekt, ale
+   * dwa razy.
+   */
+  mobile?: MobileLayout;
   /**
    * OWIJKA ELEMENTU — szew bliźniaczy do `sectionWrapper` (ADR-083): kreator
    * wnosi przez niego zaznaczenie, uchwyty rozmiaru i nasłuch przeciągania,
@@ -342,7 +474,8 @@ export function SectionCanvasRenderer({
       <div
         data-canvas-grid
         data-canvas-rows={canvas.rows}
-        className="relative isolate mx-auto w-full overflow-hidden"
+        data-canvas-rows-mobile={mobile.rows}
+        className="canvas-grid relative isolate mx-auto w-full overflow-hidden"
         /*
          * WYSOKOŚĆ WYNIKA Z SZEROKOŚCI (K2c, ADR-087). Proporcja
          * `CANVAS_COLUMNS : rows` daje wysokość `rows × (szerokość / kolumny)`,
@@ -351,19 +484,41 @@ export function SectionCanvasRenderer({
          * Stała wysokość w pikselach (`rows × GRID_UNIT_PX`) trzymała pion w
          * miejscu, gdy poziom się zwężał: to ona rozjeżdżała układy na węższych
          * ekranach i sadzała elementy w pasie pod widoczną treścią sekcji.
+         *
+         * Proporcja idzie WŁAŚCIWOŚCIĄ NIESTANDARDOWĄ, bo od K4 są dwie —
+         * płótno mobilne jest wyższe (jedna kolumna) i podmienia ją zapytanie
+         * kontenera w `site.css`.
          */
-        style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX, aspectRatio: `${CANVAS_COLUMNS} / ${canvas.rows}` }}
+        style={
+          {
+            maxWidth: CANVAS_DESIGN_WIDTH_PX,
+            "--canvas-ratio": `${CANVAS_COLUMNS} / ${canvas.rows}`,
+            "--canvas-ratio-mobile": `${CANVAS_COLUMNS} / ${mobile.rows}`,
+          } as CSSProperties
+        }
       >
         {paintOrder(canvas.elements).map((element) => {
+          const size = sizeOf(element);
           const body = (
             <div
               data-element-id={element.id}
               data-element-kind={element.kind}
-              className="absolute"
-              style={geometryStyle(element.layout.desktop, canvas.rows)}
+              className="canvas-box"
+              style={
+                {
+                  ...boxVariables(element.layout.desktop, canvas.rows, size, "desktop"),
+                  ...boxVariables(
+                    mobile.boxes[element.id] ?? element.layout.desktop,
+                    mobile.rows,
+                    size,
+                    "mobile",
+                  ),
+                } as CSSProperties
+              }
             >
               <ElementBody
                 element={element}
+                size={size}
                 styles={styles}
                 products={products}
                 labels={labels}

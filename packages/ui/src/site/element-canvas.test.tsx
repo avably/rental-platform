@@ -12,7 +12,7 @@
  *      `version`, a nie po typie sekcji.
  */
 import { sectionCanvasFrom, type SectionCanvas } from "@avably/core/site";
-import { render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { SiteRenderer } from "./site-renderer";
@@ -47,17 +47,19 @@ describe("geometria elementu trafia do stylu pudełka", () => {
     const { container } = renderCanvas(singleElement);
     const box = container.querySelector<HTMLElement>('[data-element-id="h1"]');
     expect(box).not.toBeNull();
-    // 36 / 144 = 25 %, 72 / 144 = 50 %.
-    expect(box!.style.left).toBe("25%");
-    expect(box!.style.width).toBe("50%");
+    // 36 / 144 = 25 %, 72 / 144 = 50 %. Od K4 (ADR-088) współrzędne jadą
+    // właściwościami niestandardowymi, bo w jednym drzewie są DWA układy —
+    // arkusz podmienia komplet poniżej progu 40 rem.
+    expect(box!.style.getPropertyValue("--el-x")).toBe("25%");
+    expect(box!.style.getPropertyValue("--el-w")).toBe("50%");
   });
 
   it("oś pionowa też jest PROCENTEM płótna (K2c, ADR-087)", () => {
     const { container } = renderCanvas(singleElement);
     const box = container.querySelector<HTMLElement>('[data-element-id="h1"]');
     // 8 / 40 = 20 %, 12 / 40 = 30 % wysokości płótna o 40 jednostkach.
-    expect(box!.style.top).toBe("20%");
-    expect(box!.style.height).toBe("30%");
+    expect(box!.style.getPropertyValue("--el-y")).toBe("20%");
+    expect(box!.style.getPropertyValue("--el-h")).toBe("30%");
   });
 
   it("wysokość PŁÓTNA wynika z SZEROKOŚCI — jednostka jest kwadratowa wszędzie", () => {
@@ -66,7 +68,7 @@ describe("geometria elementu trafia do stylu pudełka", () => {
     // Proporcja 144 : 40 daje wysokość 40 × (szerokość / 144), czyli dokładnie
     // czterdzieści jednostek o boku równym kolumnie — przy KAŻDEJ szerokości.
     // Stała wysokość w pikselach trzymała pion w miejscu, gdy poziom się zwężał.
-    expect(grid!.style.aspectRatio).toBe("144 / 40");
+    expect(grid!.style.getPropertyValue("--canvas-ratio")).toBe("144 / 40");
     expect(grid!.style.height, "wysokość znowu stoi w pikselach").toBe("");
   });
 
@@ -115,7 +117,10 @@ describe("warstwy decydują o KOLEJNOŚCI malowania", () => {
   it("warstwa trafia do `z-index`, a nie tylko do kolejności w DOM", () => {
     const { container } = renderCanvas(layered);
     const top = container.querySelector<HTMLElement>('[data-element-id="gora"]');
-    expect(top!.style.zIndex).toBe("5");
+    expect(top!.style.getPropertyValue("--el-z")).toBe("5");
+    // Warstwa jest ta sama na obu breakpointach — „na wierzch" znaczy to samo
+    // na telefonie, co na desktopie (K4, ADR-088).
+    expect(top!.style.getPropertyValue("--el-mz")).toBe("5");
   });
 });
 
@@ -246,5 +251,140 @@ describe("zdjęcie: skąd render bierze adres", () => {
     const { container } = renderImage(imageCanvas({}));
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector('[data-element-id="img1"]')).not.toBeNull();
+  });
+});
+
+/**
+ * PUDEŁKO OBEJMUJE TREŚĆ (K4, ADR-088; decyzja właściciela 2026-08-03).
+ *
+ * Wymiar `hug` nie ma być liczbą w stylu — ma być `max-content`. To jest cała
+ * różnica między „przycisk stoi w pasie na całą szerokość" a „pudełko jest
+ * przyciskiem", i tylko w tej drugiej postaci ramka zaznaczenia kreatora może
+ * równać się temu, co widać.
+ */
+describe("wymiar z treści zamiast z geometrii", () => {
+  function hugCanvas(size: { w: "fixed" | "hug"; h: "fixed" | "hug" }): SectionCanvas {
+    return {
+      version: 2,
+      rows: 40,
+      background: "default",
+      elements: [
+        {
+          id: "cta",
+          kind: "button",
+          label: "Zobacz katalog",
+          href: "#katalog",
+          variant: "solid",
+          align: "left",
+          size,
+          layout: { desktop: { x: 12, y: 8, w: 120, h: 7, z: 0 } },
+        },
+      ] as SectionCanvas["elements"],
+    };
+  }
+
+  it("wymiar JAWNY nadal jedzie procentem płótna", () => {
+    const { container } = renderCanvas(hugCanvas({ w: "fixed", h: "fixed" }));
+    const box = container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    expect(box.style.getPropertyValue("--el-w")).toBe(`${(120 / 144) * 100}%`);
+    expect(box.style.getPropertyValue("--el-h")).toBe(`${(7 / 40) * 100}%`);
+  });
+
+  it("wymiar Z TREŚCI zamienia procent na `max-content` — na OBU breakpointach", () => {
+    const { container } = renderCanvas(hugCanvas({ w: "hug", h: "hug" }));
+    const box = container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    expect(box.style.getPropertyValue("--el-w")).toBe("max-content");
+    expect(box.style.getPropertyValue("--el-h")).toBe("max-content");
+    expect(box.style.getPropertyValue("--el-mw")).toBe("max-content");
+    expect(box.style.getPropertyValue("--el-mh")).toBe("max-content");
+  });
+
+  it("tryb działa PER OŚ — szerokość jawna, wysokość z treści", () => {
+    const { container } = renderCanvas(hugCanvas({ w: "fixed", h: "hug" }));
+    const box = container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    expect(box.style.getPropertyValue("--el-w")).toBe(`${(120 / 144) * 100}%`);
+    expect(box.style.getPropertyValue("--el-h")).toBe("max-content");
+  });
+
+  it("pudełko z treści ma SUFIT do prawej krawędzi płótna", () => {
+    // Bez sufitu długi napis wyjechałby poza sekcję zamiast się zawinąć —
+    // a płótno przycina zawartość, więc ogon zniknąłby bez śladu.
+    const { container } = renderCanvas(hugCanvas({ w: "hug", h: "hug" }));
+    const box = container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    // x = 12 ze 144 kolumn, więc do prawej krawędzi zostaje 100 − 8,33 %.
+    expect(box.style.getPropertyValue("--el-maxw")).toBe(`${100 - (12 / 144) * 100}%`);
+  });
+
+  it("przycisk z treści NIE ma owijki rozpychającej go na całe pudełko", () => {
+    // `size-full` w pudełku obejmującym treść znaczyłoby „sto procent
+    // z wysokości, która wynika ze mnie" — pętla, którą przeglądarka
+    // rozstrzyga zerem albo zignorowaniem reguły.
+    const hug = renderCanvas(hugCanvas({ w: "hug", h: "hug" }));
+    const hugBox = hug.container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    expect(hugBox.querySelector("span")).toBeNull();
+    expect(hugBox.firstElementChild?.tagName).toBe("A");
+
+    cleanup();
+
+    const fixed = renderCanvas(hugCanvas({ w: "fixed", h: "fixed" }));
+    const fixedBox = fixed.container.querySelector<HTMLElement>('[data-element-id="cta"]')!;
+    // Kontrola pozytywna: przy wymiarze jawnym owijka wyrównująca ZOSTAJE.
+    expect(fixedBox.firstElementChild?.tagName).toBe("SPAN");
+    expect(fixedBox.querySelector("span")!.className.split(/\s+/)).toContain("size-full");
+  });
+});
+
+/**
+ * DRUGI UKŁAD JEST WYLICZANY, NIE ZAPISANY (K4, ADR-088).
+ *
+ * Renderer nie czeka na to, aż ktoś „zrobi wersję mobilną": liczy ją czystą
+ * funkcją z treści desktopowej. Dowód, że tak jest naprawdę, a nie tylko
+ * w komentarzu: sekcja BEZ ani jednej zapisanej geometrii mobilnej i tak
+ * wystawia komplet współrzędnych mobilnych, i to INNY niż desktopowy.
+ */
+describe("układ mobilny wychodzi z treści desktopowej", () => {
+  it("sekcja bez ręcznych poprawek ma pełny komplet współrzędnych mobilnych", () => {
+    const canvas = sectionCanvasFrom("usp", presetContentFor("usp", "pl"));
+    expect(
+      canvas.elements.every((element) => element.layout.mobile === undefined),
+      "preset niesie zapisaną geometrię mobilną — ta noga nie ma czego dowodzić",
+    ).toBe(true);
+
+    const { container } = renderCanvas(canvas);
+    const boxes = [...container.querySelectorAll<HTMLElement>("[data-element-id]")];
+    expect(boxes.length).toBe(canvas.elements.length);
+    for (const box of boxes) {
+      expect(box.style.getPropertyValue("--el-mx")).not.toBe("");
+      expect(box.style.getPropertyValue("--el-my")).not.toBe("");
+    }
+    // Układ mobilny jest INNY: atuty stoją na desktopie w trzech kolumnach,
+    // a na telefonie jeden pod drugim.
+    const rozne = boxes.filter(
+      (box) => box.style.getPropertyValue("--el-x") !== box.style.getPropertyValue("--el-mx"),
+    );
+    expect(rozne.length, "układ mobilny jest kopią desktopowego").toBeGreaterThan(0);
+  });
+
+  it("RĘCZNA poprawka trafia do współrzędnych mobilnych, a desktopowe zostawia", () => {
+    const base = sectionCanvasFrom("hero", presetContentFor("hero", "pl"));
+    const target = base.elements[0]!;
+    const canvas: SectionCanvas = {
+      ...base,
+      elements: base.elements.map((element) =>
+        element.id === target.id
+          ? ({
+              ...element,
+              layout: { ...element.layout, mobile: { x: 24, y: 30, w: 96, h: 20, z: 0 } },
+            } as SectionCanvas["elements"][number])
+          : element,
+      ),
+    };
+
+    const { container } = renderCanvas(canvas);
+    const box = container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
+    expect(box.style.getPropertyValue("--el-mx")).toBe(`${(24 / 144) * 100}%`);
+    expect(box.style.getPropertyValue("--el-x")).toBe(
+      `${(target.layout.desktop.x / 144) * 100}%`,
+    );
   });
 });

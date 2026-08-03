@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SECTION_CONTENT_SCHEMAS,
+  SECTION_DRAFT_SCHEMAS,
   SECTION_TYPES,
   USP_ICONS,
   ctaContentSchema,
@@ -20,6 +21,8 @@ import {
   galleryContentSchema,
   heroContentSchema,
   parsePublishedSite,
+  presetContentFor,
+  sectionCanvasFrom,
   sectionInputSchema,
   testimonialsContentSchema,
   uspContentSchema,
@@ -251,5 +254,67 @@ describe("parsePublishedSite — kontrakt odczytu publicznego", () => {
       ],
     });
     expect(site?.sections.map((s) => s.id)).toEqual([uuid(2), uuid(1)]);
+  });
+});
+
+/**
+ * ODCZYT SZKICU ZNA OBIE GENERACJE TREŚCI (K4, ADR-088).
+ *
+ * Wada, którą ten blok zamyka, była obecna od K2 i NIE wywalała niczego na
+ * czerwono: edytor panelu parsował `content_draft` schematami wyłącznie v1,
+ * więc zapisane płótno odpadało na walidacji, a w jego miejsce wchodził preset
+ * typu. Zapis szedł do bazy poprawnie, odczyt wracał wyprany — i ponieważ
+ * preset wygląda dokładnie jak świeżo dodana sekcja, objawem nie był błąd,
+ * tylko układ cofający się do stanu startowego po każdym przeładowaniu.
+ *
+ * Kontrakt pyta o zgodność TRZECH dróg treści: zapisu, odczytu publicznego
+ * i odczytu szkicu. Rozjazd którejkolwiek z nich znaczy treść, którą da się
+ * zapisać, a której nie da się odczytać (albo odwrotnie).
+ */
+describe("odczyt szkicu: płótno v2 przeżywa podróż do bazy i z powrotem", () => {
+  it.each(SECTION_TYPES)("%s: schemat szkicu przyjmuje treść v1", (type) => {
+    const parsed = SECTION_DRAFT_SCHEMAS[type].safeParse(presetContentFor(type, "pl"));
+    expect(parsed.success ? null : parsed.error.issues).toBeNull();
+  });
+
+  it.each(SECTION_TYPES)("%s: schemat szkicu przyjmuje PŁÓTNO v2", (type) => {
+    const canvas = sectionCanvasFrom(type, presetContentFor(type, "pl"));
+    const parsed = SECTION_DRAFT_SCHEMAS[type].safeParse(canvas);
+    expect(
+      parsed.success ? null : parsed.error.issues,
+      `płótno ${type} nie przechodzi odczytu szkicu — edytor podstawi preset`,
+    ).toBeNull();
+  });
+
+  it.each(SECTION_TYPES)("%s: odczyt szkicu oddaje płótno BEZ ZMIANY", (type) => {
+    // Sedno: nie chodzi o „przeszło walidację", tylko o „wróciło to samo".
+    const canvas = sectionCanvasFrom(type, presetContentFor(type, "pl"));
+    const parsed = SECTION_DRAFT_SCHEMAS[type].parse(canvas);
+    expect(parsed).toEqual(canvas);
+  });
+
+  it("odczyt szkicu zachowuje RĘCZNĄ poprawkę mobilną i tryb wymiaru", () => {
+    // Dwie rzeczy, które K4 dokłada do treści. Schemat, który je milcząco
+    // gubi, kasowałby pracę operatora przy pierwszym odczycie.
+    const canvas = sectionCanvasFrom("hero", presetContentFor("hero", "pl"));
+    const zPoprawka = {
+      ...canvas,
+      elements: canvas.elements.map((element, index) =>
+        index === 0
+          ? { ...element, layout: { ...element.layout, mobile: { x: 12, y: 300, w: 100, h: 40, z: 0 } } }
+          : element,
+      ),
+    };
+    const parsed = SECTION_DRAFT_SCHEMAS.hero.parse(zPoprawka) as typeof zPoprawka;
+    expect(parsed.elements[0]!.layout.mobile).toEqual({ x: 12, y: 300, w: 100, h: 40, z: 0 });
+    const przycisk = parsed.elements.find((element) => element.kind === "button")!;
+    expect("size" in przycisk ? przycisk.size : undefined).toEqual({ w: "hug", h: "hug" });
+  });
+
+  it("schemat v1 SAM W SOBIE płótna nie przyjmuje (kontrola pozytywna wady)", () => {
+    // Kontrola, bez której cały blok broniłby oczywistości: gdyby schematy v1
+    // od zawsze przyjmowały płótno, nie byłoby czego naprawiać.
+    const canvas = sectionCanvasFrom("hero", presetContentFor("hero", "pl"));
+    expect(SECTION_CONTENT_SCHEMAS.hero.safeParse(canvas).success).toBe(false);
   });
 });

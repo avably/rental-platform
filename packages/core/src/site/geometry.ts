@@ -23,8 +23,8 @@
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  GEOMETRY_MAX_ROWS,
   GUIDE_TOLERANCE_UNITS,
-  SECTION_MAX_ROWS,
   type CanvasBreakpoint,
   type CanvasElement,
   type Geometry,
@@ -225,7 +225,7 @@ export function clampGeometry(geometry: Geometry, rows: number): Geometry {
  */
 export function snapMove(base: Geometry, dx: number, dy: number, context: SnapContext): SnapResult {
   const tolerance = context.tolerance ?? GUIDE_TOLERANCE_UNITS;
-  const rows = clampNumber(context.rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const rows = clampNumber(context.rows, MIN_ELEMENT_UNITS, GEOMETRY_MAX_ROWS);
 
   if (!context.snap) {
     return {
@@ -273,7 +273,7 @@ export function snapResize(
   context: SnapContext,
 ): SnapResult {
   const tolerance = context.tolerance ?? GUIDE_TOLERANCE_UNITS;
-  const rows = clampNumber(context.rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const rows = clampNumber(context.rows, MIN_ELEMENT_UNITS, GEOMETRY_MAX_ROWS);
   const targetsX = context.snap ? axisTargets("x", context.neighbours, rows) : [];
   const targetsY = context.snap ? axisTargets("y", context.neighbours, rows) : [];
 
@@ -372,7 +372,7 @@ export interface CanvasMetrics {
  */
 export function canvasMetrics(containerWidthPx: number, rows: number): CanvasMetrics {
   const width = containerWidthPx > 0 ? containerWidthPx : CANVAS_DESIGN_WIDTH_PX;
-  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, GEOMETRY_MAX_ROWS);
   const unit = width / CANVAS_COLUMNS;
   return { unit, width, height: safeRows * unit, rows: safeRows };
 }
@@ -431,7 +431,7 @@ function clampFloat(value: number, min: number, max: number): number {
  * wyjechać poza sekcję i wrócić skokiem przy upuszczeniu.
  */
 export function rawMove(base: Geometry, dx: number, dy: number, rows: number): RawBox {
-  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, GEOMETRY_MAX_ROWS);
   return {
     x: clampFloat(base.x + dx, 0, CANVAS_COLUMNS - base.w),
     y: clampFloat(base.y + dy, 0, Math.max(0, safeRows - base.h)),
@@ -453,7 +453,7 @@ export function rawResize(
   dy: number,
   rows: number,
 ): RawBox {
-  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, SECTION_MAX_ROWS);
+  const safeRows = clampNumber(rows, MIN_ELEMENT_UNITS, GEOMETRY_MAX_ROWS);
 
   let left = base.x;
   let right = base.x + base.w;
@@ -529,16 +529,35 @@ export function withGeometry(
 }
 
 /**
+ * Zdjęcie RĘCZNEJ POPRAWKI mobilnej (K4, ADR-088) — element wraca pod automat.
+ * Kasujemy KLUCZ, a nie ustawiamy „pustej" geometrii: obecność tego pola jest
+ * jedynym znacznikiem odpięcia, więc pole obecne i puste znaczyłoby dwie
+ * rzeczy naraz.
+ */
+export function withoutMobileGeometry(element: CanvasElement): CanvasElement {
+  if (element.layout.mobile === undefined) return element;
+  return { ...element, layout: { desktop: element.layout.desktop } } as CanvasElement;
+}
+
+/**
  * Normalizacja warstw do ciągu 0…n-1 z zachowaniem kolejności. Bez niej „na
  * wierzch" klikane w kółko dobijałoby do sufitu `z` ze schematu, a różnice
  * między warstwami rosłyby bez powodu.
+ *
+ * Warstwa jest WSPÓLNA dla obu breakpointów: „na wierzch" znaczy to samo na
+ * telefonie, co na desktopie. Ręczna poprawka mobilna dostaje więc tę samą
+ * liczbę — inaczej element wyniesiony na wierzch zostawałby pod spodem
+ * dokładnie tam, gdzie operator ustawił go ręcznie.
  */
 export function normalizeLayers(elements: readonly CanvasElement[]): CanvasElement[] {
   const zById = new Map<string, number>();
   paintOrder(elements).forEach((element, position) => zById.set(element.id, position));
-  return elements.map((element) =>
-    withGeometry(element, "desktop", { ...element.layout.desktop, z: zById.get(element.id) ?? 0 }),
-  );
+  return elements.map((element) => {
+    const z = zById.get(element.id) ?? 0;
+    const withDesktop = withGeometry(element, "desktop", { ...element.layout.desktop, z });
+    const mobile = element.layout.mobile;
+    return mobile ? withGeometry(withDesktop, "mobile", { ...mobile, z }) : withDesktop;
+  });
 }
 
 /** Element na WIERZCH — dostaje najwyższą warstwę, reszta zostaje pod nim. */

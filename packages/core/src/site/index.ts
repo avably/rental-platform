@@ -324,6 +324,37 @@ export const SECTION_CONTENT_SCHEMAS = {
   delivery: deliveryContentSchema,
 } as const satisfies Record<SectionType, z.ZodTypeAny>;
 
+/**
+ * SCHEMAT ODCZYTU SZKICU — DOWOLNA GENERACJA TREŚCI (K4, ADR-088).
+ *
+ * Wada, którą ta mapa zamyka (znaleziona przy weryfikacji K4 na żywym
+ * kreatorze, obecna od K2): edytor panelu parsował `content_draft` mapą
+ * {@link SECTION_CONTENT_SCHEMAS}, czyli schematami WYŁĄCZNIE v1. Płótno v2
+ * odpadało na walidacji i wołający podstawiał w jego miejsce PRESET typu —
+ * a że preset wygląda dokładnie tak, jak świeżo dodana sekcja, objaw nie
+ * przypominał błędu. Zapis działał (`sectionInputSchema` zna obie generacje),
+ * więc geometria szła do bazy poprawnie i wracała stamtąd wyprana: każde
+ * przeładowanie kreatora cofało układ do stanu startowego.
+ *
+ * Trzy miejsca, przez które przechodzi treść, mają odtąd jedną odpowiedź na
+ * pytanie „co jest poprawną treścią sekcji": zapis (`sectionInputSchema`),
+ * odczyt publiczny (`publishedSectionSchema`) i odczyt szkicu (ta mapa).
+ */
+export const SECTION_DRAFT_SCHEMAS = {
+  hero: withCanvas(heroContentSchema),
+  products: withCanvas(productsContentSchema),
+  pricing: withCanvas(pricingContentSchema),
+  faq: withCanvas(faqContentSchema),
+  contact: withCanvas(contactContentSchema),
+  freeform: withCanvas(freeformContentSchema),
+  testimonials: withCanvas(testimonialsContentSchema),
+  gallery: withCanvas(galleryContentSchema),
+  usp: withCanvas(uspContentSchema),
+  cta: withCanvas(ctaContentSchema),
+  directions: withCanvas(directionsContentSchema),
+  delivery: withCanvas(deliveryContentSchema),
+} as const satisfies Record<SectionType, z.ZodTypeAny>;
+
 export type HeroContent = z.infer<typeof heroContentSchema>;
 export type ProductsContent = z.infer<typeof productsContentSchema>;
 export type PricingContent = z.infer<typeof pricingContentSchema>;
@@ -453,32 +484,47 @@ export { PRESET_LOCALES, presetContentFor, type PresetLocale } from "./presets";
 export {
   CANVAS_BREAKPOINTS,
   CANVAS_COLUMNS,
+  CANVAS_CONTENT_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  CANVAS_MOBILE_MAX_REM,
+  CANVAS_PAD_COLUMNS,
   ELEMENT_ALIGNMENTS,
   ELEMENT_COLORS,
   ELEMENT_ICONS,
   ELEMENT_KINDS,
+  FIXED_SIZE,
+  GEOMETRY_MAX_ROWS,
+  HUG_KINDS,
+  HUG_SIZE,
   PALETTE_ELEMENT_KINDS,
   GRID_UNIT_PX,
   GUIDE_TOLERANCE_UNITS,
   HEADING_LEVELS,
   MAX_ELEMENTS_PER_SECTION,
+  MOBILE_DESIGN_WIDTH_PX,
+  MOBILE_STACK_FACTOR,
   SECTION_BACKGROUNDS,
   SECTION_CANVAS_VERSION,
   SECTION_MAX_ROWS,
+  SECTION_MAX_ROWS_MOBILE,
   SECTION_MIN_ROWS,
+  SIZE_MODES,
   BUTTON_VARIANTS,
   IMAGE_FITS,
   SHAPE_FILLS,
   SHAPE_KINDS,
   TEXT_VARIANTS,
   canvasElementSchema,
+  elementSizeSchema,
   geometrySchema,
   imageSourceSchema,
   isSectionCanvas,
   mapLinkElementSchema,
   normalizeImageSource,
   sectionCanvasSchema,
+  sizeOf,
+  supportsHug,
+  withSize,
   type ButtonVariant,
   type CanvasBreakpoint,
   type CanvasElement,
@@ -486,8 +532,10 @@ export {
   type ElementAlignment,
   type ElementColor,
   type ElementLayout,
+  type ElementSize,
   type Geometry,
   type HeadingLevel,
+  type HugElementKind,
   type ImageSource,
   type PaletteElementKind,
   type ImageFit,
@@ -495,6 +543,7 @@ export {
   type SectionCanvas,
   type ShapeFill,
   type ShapeKind,
+  type SizeMode,
   type TextVariant,
 } from "./elements";
 
@@ -519,6 +568,7 @@ export {
   snapResize,
   unitsFromPx,
   withGeometry,
+  withoutMobileGeometry,
   type CanvasMetrics,
   type CanvasRect,
   type GestureContext,
@@ -531,7 +581,34 @@ export {
   type SnapResult,
 } from "./geometry";
 
-export { sectionCanvasFrom, textRows } from "./canvas-presets";
+export { sectionCanvasFrom } from "./canvas-presets";
+
+// Miary tekstu, skale typografii płótna i szacunek pudełka obejmującego treść
+// (K4, ADR-088) — wspólne dla konwersji, fabryki i auto-układu mobilnego.
+export {
+  ICON_DESIGN_PX,
+  ICON_MIN_PX,
+  TEXT_SCALES,
+  charsPerLineAt,
+  fontPxAt,
+  hugBox,
+  iconPxAt,
+  rowsPerLineAt,
+  scaleOfElement,
+  textRows,
+  textRowsAt,
+  unitPxAt,
+  unitsForPx,
+  type TextScale,
+} from "./text-metrics";
+
+// Auto-układ mobilny + ręczne poprawki per breakpoint (K4, ADR-088).
+export {
+  geometryAt,
+  isDetachedOnMobile,
+  mobileLayoutOf,
+  type MobileLayout,
+} from "./mobile-layout";
 
 // Nowy element z palety — treść startowa i rozmiar domyślny (K3, ADR-086).
 export { createElement, defaultSizeOf, freeSpotFor } from "./element-factory";

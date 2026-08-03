@@ -26,6 +26,12 @@
  * procent z `rows`/`CANVAS_COLUMNS`, a nie piksele. W jsdom płótno nie ma
  * zmierzonej szerokości, więc miara spada na projektową — jednostka ma wtedy
  * dokładnie `GRID_UNIT_PX`, co pozwala pisać ruchy wskaźnika w pikselach.
+ *
+ * Od K4 (ADR-088) pudełko niesie DWA komplety współrzędnych naraz — desktopowy
+ * (`--el-*`) i mobilny (`--el-m*`) — a wybiera między nimi arkusz, zapytaniem
+ * o szerokość kontenera. Asercje czytają więc właściwość niestandardową, a nie
+ * `style.left`: to nadal jest dowód „geometria trafiła do dokumentu", tylko pod
+ * nazwą, którą dokument naprawdę nosi.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -261,7 +267,7 @@ describe("zaznaczenie i uchwyty rozmiaru", () => {
     drag(handle, { dx: 0, dy: 4 * GRID_UNIT_PX, alt: true });
 
     const box = container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    expect(box.style.height, "wysokość pudełka nie poszła za uchwytem").toBe(
+    expect(box.style.getPropertyValue("--el-h"), "wysokość pudełka nie poszła za uchwytem").toBe(
       pct(target.layout.desktop.h + 4, canvas.rows),
     );
 
@@ -317,10 +323,10 @@ describe("klawiatura", () => {
 
     fireEvent.pointerDown(frame);
     fireEvent.keyDown(frame, { key: "ArrowDown" });
-    expect(box().style.top).toBe(pct(target.layout.desktop.y + 1, canvas.rows));
+    expect(box().style.getPropertyValue("--el-y")).toBe(pct(target.layout.desktop.y + 1, canvas.rows));
 
     fireEvent.keyDown(frame, { key: "ArrowDown", shiftKey: true });
-    expect(box().style.top).toBe(pct(target.layout.desktop.y + 11, canvas.rows));
+    expect(box().style.getPropertyValue("--el-y")).toBe(pct(target.layout.desktop.y + 11, canvas.rows));
   });
 });
 
@@ -331,17 +337,17 @@ describe("cofnij / ponów", () => {
     const target = paintOrder(canvas.elements as never)[0]!;
     const { container } = renderBuilder([section]);
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    const startTop = box().style.top;
+    const startTop = box().style.getPropertyValue("--el-y");
 
     const frame = frameFor(container, target.id);
     fireEvent.pointerDown(frame);
     fireEvent.keyDown(frame, { key: "ArrowDown", shiftKey: true });
-    expect(box().style.top).not.toBe(startTop);
+    expect(box().style.getPropertyValue("--el-y")).not.toBe(startTop);
 
     const undo = container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!;
     expect(undo.disabled, "cofnij nie zauważyło zmiany").toBe(false);
     fireEvent.click(undo);
-    expect(box().style.top).toBe(startTop);
+    expect(box().style.getPropertyValue("--el-y")).toBe(startTop);
 
     await flushAutosave();
     expect(lastSavedCanvas()?.elements.find((item) => item.id === target.id)?.layout.desktop.y).toBe(
@@ -359,13 +365,13 @@ describe("cofnij / ponów", () => {
     const frame = frameFor(container, target.id);
     fireEvent.pointerDown(frame);
     fireEvent.keyDown(frame, { key: "ArrowDown" });
-    const movedTop = box().style.top;
+    const movedTop = box().style.getPropertyValue("--el-y");
 
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!);
     const redo = container.querySelector<HTMLButtonElement>('[data-builder-history-button="redo"]')!;
     expect(redo.disabled).toBe(false);
     fireEvent.click(redo);
-    expect(box().style.top).toBe(movedTop);
+    expect(box().style.getPropertyValue("--el-y")).toBe(movedTop);
   });
 
   it("usunięcie elementu da się cofnąć — dlatego nie pyta o potwierdzenie", () => {
@@ -435,9 +441,9 @@ describe("autozapis geometrii", () => {
 
     // Drugi gest w trakcie trwającego zapisu musi dojść do skutku.
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    const afterFirst = box().style.left;
+    const afterFirst = box().style.getPropertyValue("--el-x");
     drag(frameFor(container, target.id), { dx: 3 * GRID_UNIT_PX, dy: 0, alt: true });
-    expect(box().style.left).not.toBe(afterFirst);
+    expect(box().style.getPropertyValue("--el-x")).not.toBe(afterFirst);
   });
 
   it("wiele kroków pod rząd składa się na JEDEN zapis, nie na jeden na klawisz", async () => {
@@ -472,7 +478,7 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
     const target = firstElement(section);
     const { container } = renderBuilder([section]);
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    const start = { left: box().style.left, top: box().style.top };
+    const start = { left: box().style.getPropertyValue("--el-x"), top: box().style.getPropertyValue("--el-y") };
 
     // Osiem kroków pośrednich: gdyby commit szedł na KAŻDY ruch, historia
     // dostałaby osiem wpisów i jedno cofnięcie zdjęłoby tylko ostatni piksel.
@@ -482,11 +488,11 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
       steps: 8,
       alt: true,
     });
-    expect(box().style.left, "element nie ruszył się w ogóle").not.toBe(start.left);
+    expect(box().style.getPropertyValue("--el-x"), "element nie ruszył się w ogóle").not.toBe(start.left);
 
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!);
-    expect(box().style.left, "cofnij cofnęło mniej niż cały gest").toBe(start.left);
-    expect(box().style.top).toBe(start.top);
+    expect(box().style.getPropertyValue("--el-x"), "cofnij cofnęło mniej niż cały gest").toBe(start.left);
+    expect(box().style.getPropertyValue("--el-y")).toBe(start.top);
     expect(
       container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
       "po jednym cofnięciu w historii został jeszcze jeden wpis z tego samego gestu",
@@ -499,7 +505,7 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
     const { container } = renderBuilder([section]);
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
     const frame = frameFor(container, target.id);
-    const startLeft = box().style.left;
+    const startLeft = box().style.getPropertyValue("--el-x");
 
     pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
     pointer(frame, "pointermove", { clientX: 400 + 5 * GRID_UNIT_PX, clientY: 300, altKey: true });
@@ -507,14 +513,14 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
     pointer(frame, "pointermove", { clientX: 400 + 9 * GRID_UNIT_PX, clientY: 300, altKey: true });
     nextFrame();
 
-    expect(box().style.left, "ruch dopisał geometrię do szkicu przed puszczeniem").toBe(startLeft);
+    expect(box().style.getPropertyValue("--el-x"), "ruch dopisał geometrię do szkicu przed puszczeniem").toBe(startLeft);
     expect(
       container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
       "ruch dopisał wpis do historii przed puszczeniem",
     ).toBe(true);
 
     pointer(frame, "pointerup", { clientX: 400 + 9 * GRID_UNIT_PX, clientY: 300 });
-    expect(box().style.left, "puszczenie nie zapisało geometrii").not.toBe(startLeft);
+    expect(box().style.getPropertyValue("--el-x"), "puszczenie nie zapisało geometrii").not.toBe(startLeft);
   });
 
   it("sam klik ZAZNACZA i nic nie rusza — próg gestu chroni przed przyciągnięciem bez ruchu", () => {
@@ -522,7 +528,7 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
     const target = firstElement(section);
     const { container } = renderBuilder([section]);
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
-    const start = { left: box().style.left, top: box().style.top };
+    const start = { left: box().style.getPropertyValue("--el-x"), top: box().style.getPropertyValue("--el-y") };
     const frame = frameFor(container, target.id);
 
     pointer(frame, "pointerdown", { clientX: 400, clientY: 300 });
@@ -530,8 +536,8 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
     pointer(frame, "pointerup", { clientX: 401, clientY: 300 });
 
     expect(frame.getAttribute("data-element-selected")).toBe("on");
-    expect(box().style.left, "klik przesunął element").toBe(start.left);
-    expect(box().style.top).toBe(start.top);
+    expect(box().style.getPropertyValue("--el-x"), "klik przesunął element").toBe(start.left);
+    expect(box().style.getPropertyValue("--el-y")).toBe(start.top);
     expect(
       container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!.disabled,
       "klik bez ruchu dopisał wpis do historii",
@@ -582,10 +588,10 @@ describe("gest wskaźnika: jeden ruch, jeden wpis, jedno przyciągnięcie", () =
       alt: true,
     });
 
-    expect(box().style.top, "element wyjechał pod widoczną kartę sekcji").toBe(
+    expect(box().style.getPropertyValue("--el-y"), "element wyjechał pod widoczną kartę sekcji").toBe(
       pct(canvas.rows - target.layout.desktop.h, canvas.rows),
     );
-    expect(box().style.left, "element wyjechał poza prawą krawędź sekcji").toBe(
+    expect(box().style.getPropertyValue("--el-x"), "element wyjechał poza prawą krawędź sekcji").toBe(
       pct(CANVAS_COLUMNS - target.layout.desktop.w, CANVAS_COLUMNS),
     );
   });

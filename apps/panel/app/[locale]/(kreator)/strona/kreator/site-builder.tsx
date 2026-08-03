@@ -203,7 +203,7 @@ export function SiteBuilder({
       ...current,
       elements: [
         ...current.elements,
-        createElement(kind, id, freeSpotFor(kind, current.elements, current.rows), locale),
+        createElement(kind, id, freeSpotFor(kind, current.elements, current.rows, locale), locale),
       ],
     }));
     setSelection({ sectionId: target, elementId: id });
@@ -228,9 +228,30 @@ export function SiteBuilder({
     const canvas = sectionId ? editor.canvasOf(sectionId) : undefined;
     if (!grid || !sectionId || !canvas) return false;
 
+    /*
+     * W WIDOKU TELEFONU upuszczenie NIE wskazuje miejsca (K4, ADR-088).
+     * Współrzędne pod kursorem opisują wtedy układ MOBILNY, a nowy element musi
+     * dostać geometrię DESKTOPOWĄ — to ona jest źródłem, z którego wyprowadza
+     * się telefon. Przeliczenie jednego na drugie byłoby zgadywaniem; element
+     * ląduje więc pod treścią wskazanej sekcji, dokładnie tak, jak po
+     * kliknięciu kafla, i od razu widać go na obu breakpointach.
+     */
+    if (viewport === "mobile") {
+      const id = newElementId();
+      editor.mutate(sectionId, (current) => ({
+        ...current,
+        elements: [
+          ...current.elements,
+          createElement(kind, id, freeSpotFor(kind, current.elements, current.rows, locale), locale),
+        ],
+      }));
+      setSelection({ sectionId, elementId: id });
+      return true;
+    }
+
     const box = grid.getBoundingClientRect();
     const metrics = canvasMetrics(grid.clientWidth, canvas.rows);
-    const size = defaultSizeOf(kind);
+    const size = defaultSizeOf(kind, locale);
     // Kafel „chwyta się" środkiem — bez odjęcia połowy pudełka element
     // wyskakiwałby w prawo i w dół od kursora.
     const raw = {
@@ -350,7 +371,11 @@ export function SiteBuilder({
           onSaveTemplate={(choice) => run(() => updateTemplate(siteId, choice))}
         />
 
-        <main data-builder-stage className="bg-muted min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
+        {/* Scena przewija się w OBU osiach (K4, ADR-088): płótno desktopowe ma
+            zagwarantowaną szerokość co najmniej 40 rem, żeby renderer nigdy nie
+            wpadł w układ mobilny w widoku „komputer" — a w wąskim oknie ta
+            gwarancja musi mieć gdzie się zmieścić. */}
+        <main data-builder-stage className="bg-muted min-w-0 flex-1 overflow-auto p-4 md:p-6">
           <BuilderCanvas
             template={template}
             sections={sections}

@@ -94,3 +94,126 @@
 .landing-dark-section .landing-secondary {
   color: var(--landing-ink-muted);
 }
+
+/*
+ * =====================================================================
+ * PŁÓTNO ELEMENTÓW — DWA UKŁADY W JEDNYM DRZEWIE (K4, ADR-088)
+ * =====================================================================
+ *
+ * Treść sekcji v2 niesie geometrię PER BREAKPOINT (ADR-084), a wybór między
+ * nimi robi CSS, nie JavaScript. Renderer wystawia oba komplety współrzędnych
+ * jako właściwości niestandardowe (`--el-*` desktop, `--el-m*` telefon), a
+ * zapytanie kontenera niżej podmienia zestaw poniżej progu 40 rem — TEGO SAMEGO
+ * progu, co warianty sekcji z K1b (ADR-085).
+ *
+ * Miarą jest KONTENER `site`, nie okno. To nie jest szczegół implementacji,
+ * tylko warunek istnienia kreatora: płótno zwężone do 390 px ma pokazywać układ
+ * telefonu, a nie desktop ściśnięty do 390 px. Media query odpowiadałoby
+ * w panelu o oknie operatora, czyli zawsze desktopowo.
+ */
+
+.canvas-grid {
+  aspect-ratio: var(--canvas-ratio);
+  /*
+   * Płótno jest WŁASNYM kontenerem zapytań — po to, żeby skale typografii
+   * niżej mierzyły szerokość PŁÓTNA, a nie strony. Sekcja jest wycentrowana
+   * i ma sufit szerokości, więc te dwie miary rozjeżdżają się na szerokich
+   * ekranach; skalowanie tekstu ma iść za geometrią, a geometria idzie za
+   * płótnem.
+   */
+  container-type: inline-size;
+  container-name: canvas;
+}
+
+.canvas-box {
+  position: absolute;
+  left: var(--el-x);
+  top: var(--el-y);
+  width: var(--el-w);
+  height: var(--el-h);
+  max-width: var(--el-maxw);
+  z-index: var(--el-z);
+}
+
+@container site (width < 40rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-mobile);
+  }
+
+  .canvas-box {
+    left: var(--el-mx);
+    top: var(--el-my);
+    width: var(--el-mw);
+    height: var(--el-mh);
+    max-width: var(--el-mmaxw);
+    z-index: var(--el-mz);
+  }
+}
+
+/*
+ * SKALE TYPOGRAFII PŁÓTNA (K4, ADR-088) — jednostki KONTENERA, nie okna.
+ *
+ * Do K3 tekst elementu szedł skalami w `rem`, a jego pudełko procentem płótna:
+ * przy szerokości projektowej zgadzało się, a przy każdej innej rozjeżdżało.
+ * Płótno 700 px miało pudełka o 40 % mniejsze i tekst niezmieniony, więc akapit
+ * wychodził poza swoje pudełko — to jest ten sam błąd, który K2c usunął
+ * z geometrii, tylko w typografii.
+ *
+ * Zacisk ma trzy części i każda ma powód:
+ *   • DÓŁ — rozmiar CZYTELNY na telefonie. Poniżej niego tekst przestaje maleć,
+ *     bo strona jest do czytania, a nie do oglądania przez lupę. To jest ta sama
+ *     liczba, którą auto-układ mobilny bierze do liczenia wysokości pudełek
+ *     (`minPx` w `text-metrics.ts`) — rozjazd tych dwóch miejsc znaczy tekst
+ *     wylewający się z pudełka na telefonie, więc pilnuje ich kontrakt.
+ *   • ŚRODEK — `cqw` PŁÓTNA: `100cqw` to jego szerokość, a szerokość projektowa
+ *     ma 1152 px, więc `1cqw` = 11,52 px. Współczynnik to rozmiar projektowy
+ *     podzielony przez 11,52.
+ *   • GÓRA — rozmiar PROJEKTOWY, powyżej którego płótno i tak się nie rozciąga
+ *     (ma sufit szerokości).
+ *
+ * Wysokość wiersza stoi tu JAWNIE, bo to ona przekłada rozmiar fontu na
+ * wysokość pudełka w estymatorze (`rowsPerLine`).
+ */
+
+.canvas-type-display {
+  font-size: clamp(2.625rem, 6.25cqw, 4.5rem);
+  line-height: 1.05;
+}
+
+.canvas-type-heading {
+  font-size: clamp(1.875rem, 4.1667cqw, 3rem);
+  line-height: 1.1;
+}
+
+.canvas-type-title {
+  font-size: clamp(1.0625rem, 1.7361cqw, 1.25rem);
+  line-height: 1.3;
+}
+
+.canvas-type-lead {
+  font-size: clamp(1rem, 1.7361cqw, 1.25rem);
+  line-height: 1.5;
+}
+
+.canvas-type-body {
+  font-size: clamp(0.875rem, 1.3889cqw, 1rem);
+  line-height: 1.5;
+}
+
+.canvas-type-small {
+  font-size: clamp(0.8125rem, 1.2153cqw, 0.875rem);
+  line-height: 1.5;
+}
+
+/*
+ * KAFELEK IKONY — ta sama zasada, co typografia. Rozmiar w `rem` nie malał
+ * razem z płótnem, więc ikona wyliczona na sześć jednostek (48 px przy
+ * szerokości projektowej, 32 px przy 768 px) wychodziła poza swoje miejsce
+ * i wchodziła na tytuł pod sobą. Dolny koniec zacisku to rozmiar, który da się
+ * jeszcze trafić palcem; liczby MUSZĄ zgadzać się z `ICON_DESIGN_PX`/
+ * `ICON_MIN_PX` w `text-metrics.ts` (pilnuje ich kontrakt typografii płótna).
+ */
+.canvas-icon {
+  width: clamp(2rem, 4.1667cqw, 3rem);
+  height: clamp(2rem, 4.1667cqw, 3rem);
+}
