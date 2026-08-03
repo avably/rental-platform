@@ -17,6 +17,8 @@ import { z } from "zod";
 
 import { sectionCanvasSchema, type SectionCanvas } from "./elements";
 import { uspIconSchema } from "./icons";
+import { siteStyleSchema, type SiteStyle } from "./style";
+import { siteTemplateSchema, type SiteTemplate } from "./templates";
 
 /**
  * Tag cache Next.js dla treści storefrontu tenanta — jeden format po obu
@@ -27,10 +29,12 @@ export function tenantCacheTag(tenantId: string): string {
   return `tenant:${tenantId}`;
 }
 
-/** Szablony strony — lustro CHECK-a sites.template (0019). */
-export const SITE_TEMPLATES = ["classic", "bold"] as const;
-export type SiteTemplate = (typeof SITE_TEMPLATES)[number];
-export const siteTemplateSchema = z.enum(SITE_TEMPLATES);
+/**
+ * Szablony strony — lustro CHECK-a sites.template (0019). Definicja mieszka
+ * w liściu `./templates`, bo od K5 czyta ją także `./style` (patrz komentarz
+ * tam: cykl przez `z.enum` w chwili ładowania modułu).
+ */
+export { SITE_TEMPLATES, siteTemplateSchema, type SiteTemplate } from "./templates";
 
 /**
  * Typy sekcji — lustro CHECK-a site_sections.type (0019 + 0043). Zamknięta
@@ -441,6 +445,16 @@ export const publishedSiteEnvelopeSchema = z
     template: siteTemplateSchema,
     published_at: z.string(),
     sections: z.array(z.unknown()),
+    /**
+     * STYL STRONY (K5, ADR-090) — klucz OPCJONALNY, i to w obie strony.
+     *
+     * Baza dokłada go wyłącznie dla strony z niepustym stylem (0046), więc
+     * koperta bez niego jest stanem normalnym, a nie awarią. Sam styl jest
+     * `unknown` i parsuje się OSOBNO (niżej), z tego samego powodu, dla którego
+     * `sections` jest tablicą `unknown`: styl w kształcie sprzed zmiany
+     * allowlisty ma zdegradować się do domyślnego, a nie położyć całej strony.
+     */
+    style: z.unknown().optional(),
   })
   .strict();
 
@@ -448,6 +462,8 @@ export interface PublishedSite {
   template: SiteTemplate;
   publishedAt: string;
   sections: PublishedSection[];
+  /** Styl w kształcie zapisanym; render uzupełnia braki `resolveSiteStyle`. */
+  style: SiteStyle;
 }
 
 /**
@@ -467,15 +483,112 @@ export function parsePublishedSite(payload: unknown): PublishedSite | null {
     if (section.success) sections.push(section.data);
   }
 
+  // Styl fail-SOFT (koperta jest fail-closed): nieznany kształt stylu znaczy
+  // najwyżej „strona wygląda domyślnie", a nie „strona pokazuje coś, czego
+  // pokazać nie wolno" — degradacja jest tu właściwą odpowiedzią, inaczej niż
+  // przy sekcjach, gdzie chodzi o granicę draft/publish.
+  const style = siteStyleSchema.safeParse(envelope.data.style ?? {});
+
   return {
     template: envelope.data.template,
     publishedAt: envelope.data.published_at,
     sections,
+    style: style.success ? style.data : {},
   };
 }
 
 // Presety treści startowej sekcji (kreator A2, ADR-082) — patrz ./presets.
 export { PRESET_LOCALES, presetContentFor, type PresetLocale } from "./presets";
+
+// Szablony startowe — gotowe SKŁADY strony na pierwsze wejście do kreatora
+// (K5, ADR-090). Presety odpowiadały na pustą sekcję, te na pustą stronę.
+export {
+  STARTER_LAYOUTS,
+  STARTER_SECTION_BOUNDS,
+  STARTER_TEMPLATES,
+  starterTemplateCanvases,
+  starterTemplatePhotoSlots,
+  starterTemplateSections,
+  starterTemplateTheme,
+  type StarterSection,
+  type StarterSectionCanvas,
+  type StarterTemplate,
+} from "./starter-templates";
+
+// Kadry szablonów startowych — kuracja przez API dostawcy (K5 v2, ADR-090).
+export {
+  STARTER_PHOTOS,
+  STARTER_PHOTO_QUERIES,
+  STARTER_PHOTO_SLOTS,
+  starterPhoto,
+  type StarterPhotoSlot,
+} from "./starter-photos";
+
+// Motywy strony — rejestr światów wizualnych jako DANE (K5, ADR-090).
+export {
+  ACCENT_VARIANTS,
+  BUTTON_FILLS,
+  BUTTON_SHAPES,
+  DEFAULT_THEME,
+  SCRIM_ALPHA,
+  SELECTABLE_THEMES,
+  SITE_THEMES,
+  SITE_THEME_TOKENS,
+  THEME_BAND_KEYS,
+  accentsOf,
+  scrimBandOf,
+  siteThemeSchema,
+  themeTokens,
+  variantsUsedBy,
+  type AccentTokens,
+  type AccentVariant,
+  type ButtonFill,
+  type ButtonShape,
+  type SiteThemeId,
+  type SiteThemeTokens,
+  type ThemeBand,
+  type ThemeBandKey,
+  type ThemeShape,
+  type ThemeType,
+} from "./theme";
+
+// Kroje: rodziny (pliki OFL w repo) i pary do wyboru (K5, ADR-090).
+export {
+  FONT_FAMILIES,
+  FONT_PAIRS,
+  SELECTABLE_FONT_PAIRS,
+  SITE_FONT_PAIRS,
+  fontPairStacks,
+  fontStack,
+  type FontFamilyId,
+  type FontFamilyTokens,
+  type FontPairTokens,
+  type SiteFontPair,
+} from "./fonts";
+
+// Styl strony: motyw, akcent i para krojów wybrane przez operatora (K5, ADR-090).
+export {
+  ACTIVE_TOKENS,
+  DEFAULT_SITE_STYLE,
+  STYLE_TOKENS,
+  bandTokenName,
+  resolveSiteStyle,
+  siteStyleSchema,
+  styleTokensFor,
+  type ResolvedSiteStyle,
+  type SiteStyle,
+} from "./style";
+
+// Miara kontrastu — podstawa kontraktu palety (K5, ADR-090).
+export {
+  CONTRAST_AA_LARGE,
+  CONTRAST_AA_TEXT,
+  VISIBLE_EDGE,
+  contrastRatio,
+  flatten,
+  relativeLuminance,
+  rgbFromHex,
+} from "./contrast";
 
 // ---------------------------------------------------------------------
 // Płótno z elementami — treść sekcji v2 (K2, ADR-084)
@@ -581,7 +694,13 @@ export {
   type SnapResult,
 } from "./geometry";
 
-export { sectionCanvasFrom } from "./canvas-presets";
+export {
+  SECTION_COMPOSITIONS,
+  sectionCanvasFrom,
+  sectionCanvasWith,
+  type SectionComposition,
+  type SectionMedia,
+} from "./canvas-presets";
 
 // Miary tekstu, skale typografii płótna i szacunek pudełka obejmującego treść
 // (K4, ADR-088) — wspólne dla konwersji, fabryki i auto-układu mobilnego.

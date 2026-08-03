@@ -55,7 +55,7 @@ export default async function TenantStorePage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, template, site, supabaseUrl } = ctx;
+  const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
   const origin = await tenantOrigin();
 
   const labels: SiteRenderLabels = {
@@ -111,7 +111,21 @@ export default async function TenantStorePage() {
       ) : (
         <main>
           {hasHero ? null : <h1 className="sr-only">{catalog.tenant.name}</h1>}
-          <SiteRenderer sections={site.sections} template={template} products={products} labels={labels} siteImageBase={siteImageBase} />
+          {/*
+            STYL STRONY jako TOKENY (K5, ADR-090), nie jako kolory na elementach.
+            Sklep podaje rozstrzygnięty styl, renderer wystawia z niego zmienne
+            CSS na korzeniu, a to, czy element weźmie odcień papierowy, czy
+            atramentowy, rozstrzyga arkusz per PAS. Gdyby sklep liczył kolory
+            sam, płótno kreatora przestałoby być dowodem na to, co widzi klient
+            — a to jest cała stawka wspólnego renderera (ADR-083).
+          */}
+          <SiteRenderer
+            sections={site.sections}
+            style={style}
+            products={products}
+            labels={labels}
+            siteImageBase={siteImageBase}
+          />
         </main>
       )}
     </>

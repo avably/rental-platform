@@ -224,11 +224,14 @@ describe("skan źródeł: sekcje nie mierzą okna", () => {
     expect(offenders, "siatka bez wariantu daje >2 kolumny — na telefonie karta zrobi się nieczytelna").toEqual([]);
   });
 
-  it("nagłówki hero i sekcji łamią długie słowa w OBU szablonach", () => {
+  it("nagłówki hero i sekcji łamią długie słowa", () => {
     const source = stripComments(read("packages/ui/src/site/template.ts"));
     const declarations = [...source.matchAll(/(heroHeading|sectionHeading):\s*"([^"]*)"/g)];
-    // Dwa szablony × dwa nagłówki — mniej znaczy, że któryś zniknął z kontraktu.
-    expect(declarations).toHaveLength(4);
+    // Od ADR-090 tablica klas jest JEDNA (wygląd niesie motyw jako zmienne),
+    // więc deklaracje są dwie, a nie cztery. Sedno kontraktu bez zmian: oba
+    // nagłówki muszą łamać długie słowo, bo najemca wpisze nazwę sprzętu,
+    // której nikt nie przewidział.
+    expect(declarations).toHaveLength(2);
     for (const [, key, classes] of declarations) {
       expect(classes, `${key} bez break-words — długie słowo wyjdzie poza kontener`).toContain(
         "break-words",
@@ -249,7 +252,7 @@ describe("korzeń renderera JEST kontenerem zapytań", () => {
   it("wyrenderowany korzeń NIESIE klasę kontenera (po tailwind-merge)", () => {
     // Sedno: `cn()` scala klasy przez tailwind-merge. Sprawdzenie samego źródła
     // przepuściłoby regresję, w której klasa ginie po drodze do DOM-u.
-    const { container } = render(<SiteRenderer sections={sections} template="classic" />);
+    const { container } = render(<SiteRenderer sections={sections} />);
     const root = container.firstElementChild;
     expect(root).not.toBeNull();
     expect(root?.className.split(/\s+/)).toContain("@container/site");
@@ -257,7 +260,7 @@ describe("korzeń renderera JEST kontenerem zapytań", () => {
 
   it("klasa kontenera przeżywa własny className wołającego", () => {
     const { container } = render(
-      <SiteRenderer sections={sections} template="bold" className="min-h-full" />,
+      <SiteRenderer sections={sections} className="min-h-full" />,
     );
     expect(container.firstElementChild?.className.split(/\s+/)).toContain("@container/site");
   });
@@ -267,6 +270,26 @@ describe("oba produkty importują wspólny arkusz sekcji", () => {
   it.each(["panel", "storefront"] as const)("%s importuje @avably/ui/site.css", (application) => {
     const globals = read(`apps/${application}/app/globals.css`);
     expect(globals).toContain('@import "@avably/ui/site.css"');
+  });
+
+  it("arkusz sekcji WCIĄGA arkusz krojów — jeden import po stronie aplikacji", () => {
+    // Warunek ratyfikacji PM (K5 v2): rodziny krojów mają dojechać do OBU
+    // produktów tym samym importem, co reszta arkusza sekcji. Osobny import
+    // per aplikacja to dokładnie ta wada, przez którą powstał ADR-085: arkusz
+    // żyjący w jednym appie nie jest źródłem prawdy, tylko kopią.
+    expect(read("packages/ui/src/site/site.css")).toContain('@import "./site-fonts.css"');
+  });
+
+  it("KAŻDA rodzina kroju deklaruje `font-display: swap`", () => {
+    // Bez `swap` strona najemcy stoi przez pierwsze sekundy bez tekstu —
+    // dla strony sprzedażowej to gorszy wybór niż jedno przemalowanie.
+    const arkusz = read("packages/ui/src/site/site-fonts.css");
+    const faces = arkusz.match(/@font-face\s*\{[^}]*\}/g) ?? [];
+    expect(faces.length, "arkusz krojów bez ani jednej deklaracji (kontrola po pustym zbiorze)").toBeGreaterThan(
+      8,
+    );
+    const bezSwap = faces.filter((face) => !/font-display:\s*swap/.test(face));
+    expect(bezSwap.length, `deklaracje bez swap: ${bezSwap.length}`).toBe(0);
   });
 
   it("skale zniknęły z globals sklepu — jedno źródło prawdy, nie dwa", () => {
@@ -452,7 +475,7 @@ describe("płótno v2: dwa układy przełączane zapytaniem kontenera", () => {
     // powstaje, ale nie dojeżdża do atrybutu `style`.
     const canvas = sectionCanvasFrom("hero", presetContentFor("hero", "pl"));
     const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
-    const { container } = render(<SiteRenderer sections={sections} template="classic" />);
+    const { container } = render(<SiteRenderer sections={sections} />);
 
     const box = container.querySelector<HTMLElement>("[data-element-id]");
     expect(box, "renderer nie narysował ani jednego elementu").not.toBeNull();

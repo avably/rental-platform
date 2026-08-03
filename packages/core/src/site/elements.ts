@@ -299,19 +299,35 @@ export type ImageFit = (typeof IMAGE_FITS)[number];
 export const SHAPE_KINDS = ["box", "divider"] as const;
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
-export const SHAPE_FILLS = ["none", "paper", "accent", "ink"] as const;
+/**
+ * WYPEŁNIENIA KSZTAŁTU. `scrim` doszło w K5 (ADR-090) i jest jedynym z nich,
+ * które ma stać NAD ZDJĘCIEM: półprzezroczysta powłoka w kolorze najciemniejszego
+ * pasa motywu, dzięki której tekst na pełnokadrowej fotografii ma policzalny
+ * kontrast (tło pod nim jest nieznane, bo zdjęcie podmienia najemca — patrz
+ * SCRIM_ALPHA w ./theme). Bez niego „ciemny luksus na pełnej fotografii" byłby
+ * obietnicą, której żadna bramka nie potrafi sprawdzić.
+ */
+export const SHAPE_FILLS = ["none", "paper", "accent", "ink", "scrim"] as const;
 export type ShapeFill = (typeof SHAPE_FILLS)[number];
 
 /**
  * KOLOR TREŚCI — Z TOKENÓW MOTYWU, nigdy dowolny (K3, ADR-086).
  *
  * Operator wybiera ROLĘ koloru, a nie wartość: „akcent" wygląda inaczej
- * w szablonie `classic` i `bold`, inaczej w motywie jasnym i ciemnym, i ma
- * przejść z nimi razem. Dowolny `#rrggbb` w treści zamroziłby jeden odcień na
- * zawsze i pierwsza zmiana motywu zostawiłaby stronę z kolorem, którego nikt
- * już nie umie odtworzyć — a przy okazji rozjechałby kontrast.
+ * w każdym motywie i inaczej na każdym pasie tego samego motywu, a ma przejść
+ * z nimi razem. Dowolny `#rrggbb` w treści zamroziłby jeden odcień na zawsze
+ * i pierwsza zmiana motywu zostawiłaby stronę z kolorem, którego nikt już nie
+ * umie odtworzyć — a przy okazji rozjechałby kontrast.
  */
-export const ELEMENT_COLORS = ["default", "muted", "accent", "inverted"] as const;
+/**
+ * `onScrim` doszło w K5 v2 (ADR-090) i jest jedyną rolą, która NIE bierze
+ * koloru z pasa sekcji. Tekst leżący na WELONIE (kształt `scrim` nad zdjęciem)
+ * ma tło welonu, a nie tło pasa — a te bywają skrajnie różne: pastelowy motyw
+ * ma pas kremowy i welon ciemny, więc napis w kolorze pasa robi się na welonie
+ * niewidzialny. Rola celuje więc w kolor WELONU, którego kontrast liczy bramka
+ * (patrz SCRIM_ALPHA w ./theme).
+ */
+export const ELEMENT_COLORS = ["default", "muted", "accent", "inverted", "onScrim"] as const;
 export type ElementColor = (typeof ELEMENT_COLORS)[number];
 
 export const ICON_TONES = ["accent", "muted"] as const;

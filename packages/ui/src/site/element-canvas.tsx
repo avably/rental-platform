@@ -56,6 +56,7 @@ import {
   paintOrder,
   sizeOf,
   type CanvasElement,
+  type ElementColor,
   type ElementSize,
   type Geometry,
   type MobileLayout,
@@ -123,6 +124,36 @@ const JUSTIFY_CLASS = {
   center: "justify-center",
   right: "justify-end",
 } as const;
+
+/**
+ * ROLA KOLORU → KLASA (K5, ADR-090) — domknięcie wady z K3.
+ *
+ * Model treści niósł `color` na nagłówku i tekście od K3 (ADR-086), a szuflada
+ * ustawień w panelu ZAPISYWAŁA go — ale render nigdy go nie czytał. Operator
+ * wybierał kolor, widział zapis i nie widział skutku; wada była niema, bo nic
+ * się nie wywracało. Ta tablica jest tym brakującym ogniwem.
+ *
+ * `accent` celuje w klasę arkusza, a nie w wartość: kolor przychodzi ze zmiennej
+ * CZYNNEJ, którą arkusz przełącza per pas (site.css), więc ten sam napis czyta
+ * się i na papierze, i na atramencie. `inverted` bierze `--background`, czyli
+ * dokładnie ten kolor, którym pasy odwrócone i kształt `ink` (`bg-foreground`)
+ * malują swój tekst — jedno źródło prawdy o „odwrotności" w obu motywach.
+ *
+ * `default` jest PUSTE świadomie: brak roli znaczy kolor odziedziczony po pasie,
+ * a nie kolor własny. Dopisanie tu `text-foreground` zamroziłoby napis w kolorze
+ * strony i wywróciłoby go na pasie odwróconym.
+ */
+const ELEMENT_COLOR_CLASS = {
+  default: undefined,
+  muted: "site-text-muted",
+  accent: "site-text-accent",
+  inverted: "site-text-inverted",
+  onScrim: "site-text-on-scrim",
+} as const satisfies Record<ElementColor, string | undefined>;
+
+function colorClass(color: ElementColor | undefined): string | undefined {
+  return color ? ELEMENT_COLOR_CLASS[color] : undefined;
+}
 
 /**
  * TREŚĆ SFORMATOWANA — SKŁADANA, NIGDY WSTRZYKIWANA (K3, ADR-086).
@@ -285,7 +316,7 @@ function ElementBody({
           : element.level === 2
             ? styles.sectionHeading
             : styles.cardTitle,
-        cn(type, ALIGN_CLASS[element.align]),
+        cn(type, ALIGN_CLASS[element.align], colorClass(element.color)),
       );
       const body = <FormattedText text={element.text} runs={element.runs} />;
       if (element.level === 1) return <h1 className={className}>{body}</h1>;
@@ -297,10 +328,18 @@ function ElementBody({
         element.variant === "lead"
           ? styles.lead
           : element.variant === "small"
-            ? "text-muted-foreground"
+            ? "site-text-muted"
             : undefined;
       return (
-        <p className={boxed(cn(variant, type), cn("whitespace-pre-line", ALIGN_CLASS[element.align]))}>
+        // Rola koloru idzie OSTATNIA, żeby wygrała z przygaszeniem, które
+        // wariant `small` dokłada z definicji (tailwind-merge zostawia
+        // ostatnią klasę tej samej właściwości).
+        <p
+          className={boxed(
+            cn(variant, type),
+            cn("whitespace-pre-line", ALIGN_CLASS[element.align], colorClass(element.color)),
+          )}
+        >
           <FormattedText text={element.text} runs={element.runs} />
         </p>
       );
@@ -312,7 +351,7 @@ function ElementBody({
           className={boxed(
             element.variant === "solid"
               ? styles.cta
-              : "inline-flex items-center rounded-full border border-current px-6 py-3 font-medium",
+              : "site-cta-secondary inline-flex items-center font-medium",
             type,
           )}
         >
@@ -335,11 +374,11 @@ function ElementBody({
         // drugiego. Zdjęcie jest hotlinkowane u dostawcy (świadomie nie
         // kopiujemy go do naszego bucketa).
         return (
-          <span className="relative block size-full overflow-hidden rounded-lg">
+          <span className="site-media relative block size-full overflow-hidden">
             <img src={source.url} alt={element.alt} className={cn("size-full", objectFit)} loading="lazy" />
             <span
               data-image-credit
-              className="text-background absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[11px] leading-4"
+              className="site-scrim site-text-inverted absolute inset-x-0 bottom-0 px-2 py-1 text-[11px] leading-4"
             >
               <a href={source.authorUrl} rel="noreferrer noopener" className="underline">
                 {source.authorName}
@@ -352,13 +391,13 @@ function ElementBody({
         <img
           src={siteImageUrl(siteImageBase, source.path)}
           alt={element.alt}
-          className={cn("size-full rounded-lg", objectFit)}
+          className={cn("site-media size-full", objectFit)}
           loading="lazy"
         />
       ) : (
         // Bez ścieżki (albo bez bazy URL — podgląd bez Storage) element zostaje
         // w układzie jako kafel zastępczy: geometria jest treścią samą w sobie.
-        <div className="bg-muted size-full rounded-lg" aria-hidden="true" />
+        <div className="site-placeholder size-full" aria-hidden="true" />
       );
     }
     case "mapLink":
@@ -387,7 +426,7 @@ function ElementBody({
           className={cn(
             styles.iconTile,
             fill ?? "canvas-icon",
-            element.tone === "muted" ? "text-muted-foreground" : undefined,
+            element.tone === "muted" ? "site-text-muted" : undefined,
           )}
         >
           <Icon className="size-1/2" aria-hidden="true" />
@@ -398,7 +437,7 @@ function ElementBody({
       if (element.shape === "divider") {
         return (
           <span className="flex size-full items-center" aria-hidden="true">
-            <span className="bg-border h-px w-full" />
+            <span className="site-divider h-px w-full" />
           </span>
         );
       }
@@ -406,11 +445,18 @@ function ElementBody({
         <span
           aria-hidden="true"
           className={cn(
-            "block size-full rounded-lg",
-            element.fill === "paper" && "bg-card border",
-            element.fill === "accent" && "bg-primary/10",
-            element.fill === "ink" && "bg-foreground",
-            element.fill === "none" && "border border-dashed",
+            "block size-full",
+            element.fill === "paper" && "site-card",
+            // Kształt akcentowy bierze akcent STRONY, nie kolor panelu (K5,
+            // ADR-090) — alfa zostaje ta sama, którą liczy bramka kontrastu.
+            element.fill === "accent" && "site-shape-accent",
+            element.fill === "ink" && "site-band-inverted site-media",
+            // WELON pod tekstem na zdjęciu: półprzezroczysta powłoka w kolorze
+            // najciemniejszego pasa motywu. Jedyny kształt, który ma stać NAD
+            // zdjęciem i pod tekstem — i jedyny, którego kontrast liczy się do
+            // mieszaniny, a nie do koloru (patrz SCRIM_ALPHA w core).
+            element.fill === "scrim" && "site-scrim",
+            element.fill === "none" && "site-outline",
           )}
         />
       );
@@ -433,7 +479,7 @@ function ElementBody({
  * płótna — dlatego pasy są samym kolorem.
  */
 function backgroundClass(canvas: SectionCanvas, styles: TemplateStyles): string | undefined {
-  if (canvas.background === "muted") return "bg-muted";
+  if (canvas.background === "muted") return "site-band-muted";
   if (canvas.background === "inverted") return styles.canvasInverted;
   return undefined;
 }

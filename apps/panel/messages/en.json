@@ -1013,13 +1013,6 @@
     "backHome": "← Panel",
     "loadErrorTitle": "Could not load the draft",
     "loadError": "Could not load the storefront page. Refresh to try again.",
-    "template": {
-      "heading": "Template",
-      "legend": "Page character",
-      "save": "Save template",
-      "template_classic": "Classic (restrained)",
-      "template_bold": "Bold (high-contrast)"
-    },
     "sections": {
       "heading": "Page sections",
       "addType": "Add section",
@@ -1284,7 +1277,36 @@
       "searchLabel": "What are you looking for",
       "searchPlaceholder": "e.g. excavator, construction, tools",
       "search": "Search",
-      "open": "Change photo"
+      "open": "Change photo",
+      "errors": {
+        "disabled": "Photo search is turned off.",
+        "network": "Could not reach the photo library. Please try again.",
+        "provider": "The photo library returned an error. Please try again shortly.",
+        "unknown": "Could not search for photos."
+      }
+    },
+    "style": {
+      "legend": "Page style",
+      "accent": "Accent colour",
+      "fontPair": "Type pairing"
+    },
+    "starter": {
+      "title": "Pick a starting point",
+      "description": "Every template is a finished page with its own colours, typography and photography. You can change all of it later.",
+      "dismiss": "Back to the builder",
+      "startOver": "Start over",
+      "confirmTitle": "Replace the page with a template?",
+      "confirmBody": "Your current draft will be gone for good. The published page stays as it is — the new one goes live only when you publish.",
+      "confirmCancel": "Cancel",
+      "confirmAccept": "Use this template",
+      "names": {
+        "construction-tools": "Construction and tools",
+        "bike-sport": "Bikes and sport",
+        "event-party": "Events and weddings",
+        "photo-video": "Photo and video",
+        "one-page-lean": "Single page",
+        "catalog-first": "Catalogue first"
+      }
     }
   },
   "domainSettings": {

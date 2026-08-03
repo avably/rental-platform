@@ -1,3 +1,5 @@
+@import "./site-fonts.css";
+
 /*
  * ARKUSZ SEKCJI STRONY NAJEMCY — JEDNO ŹRÓDŁO PRAWDY (K1b, ADR-085).
  *
@@ -93,6 +95,266 @@
 
 .landing-dark-section .landing-secondary {
   color: var(--landing-ink-muted);
+}
+
+/*
+ * =====================================================================
+ * MOTYW STRONY: PASY, KROJE I KSZTAŁT (K5, ADR-090)
+ * =====================================================================
+ *
+ * Renderer wystawia na korzeniu strony (`.site-root`) komplet zmiennych
+ * ŹRÓDŁOWYCH — po jednym zestawie NA KAŻDY PAS (`--site-band-<pas>-*`) plus
+ * wartości wspólne (kroje, promienie, wagi). Ten arkusz robi jedną rzecz:
+ * wskazuje, który zestaw jest CZYNNY, i robi to KLASĄ PASA.
+ *
+ * Podział pracy nie jest tu wygodą, tylko warunkiem działania. W chwili renderu
+ * (serwer) nie wiadomo, na jakim tle stanie dany element: ta sama sekcja bywa
+ * pasem jasnym w jednym motywie i ciemnym w drugim, a pas „odwrócony" bywa
+ * JAŚNIEJSZY od strony (`industrial-noir`). Element deklaruje więc wyłącznie
+ * ROLĘ (`color: "accent"`, „to jest karta") i nie niesie ani jednej wartości
+ * koloru — gdyby niósł, pierwsza zmiana motywu zostawiłaby stronę z odcieniem,
+ * którego nikt już nie umie odtworzyć i którego kontrastu nikt nie sprawdził.
+ *
+ * DLACZEGO WARIANT AKCENTU NIE JEST TU WIDOCZNY. Zestaw pasa niesie GOTOWĄ
+ * trójkę akcentu, wybraną po stronie danych (`styleTokensFor` czyta pole
+ * `accent: "paper" | "ink"` z rejestru motywu). Arkusz nie zna pojęcia
+ * „papier/atrament" i nie ma reguły per motyw — dlatego piętnasty motyw nie
+ * dopisze tu ani jednej linijki.
+ *
+ * ZERO TOKENÓW APLIKACJI. Poniżej nie ma `var(--background)`, `var(--card)`
+ * ani `var(--foreground)`: strona najemcy przestała dziedziczyć paletę panelu
+ * (patrz nagłówek `theme.ts`). Wyjątkiem są zmienne `--landing-*` wyżej,
+ * które obsługują WŁASNE strony marketingowe storefrontu, a nie strony najemców.
+ */
+
+.site-root {
+  --site-surface: var(--site-band-default-surface);
+  --site-ink: var(--site-band-default-ink);
+  --site-ink-muted: var(--site-band-default-ink-muted);
+  --site-border: var(--site-band-default-border);
+  --site-accent: var(--site-band-default-accent);
+  --site-accent-contrast: var(--site-band-default-accent-contrast);
+  --site-accent-text: var(--site-band-default-accent-text);
+
+  background: var(--site-surface);
+  color: var(--site-ink);
+  /*
+   * Krój tekstu ciągłego stoi na KORZENIU, a nie na akapitach: strona ma jeden
+   * krój podstawowy, a nie listę elementów, którą trzeba pamiętać uzupełnić.
+   * Nagłówki nadpisują go niżej — i tylko one.
+   */
+  font-family: var(--site-font-body);
+  font-weight: var(--site-body-weight);
+}
+
+.site-band-muted {
+  --site-surface: var(--site-band-muted-surface);
+  --site-ink: var(--site-band-muted-ink);
+  --site-ink-muted: var(--site-band-muted-ink-muted);
+  --site-border: var(--site-band-muted-border);
+  --site-accent: var(--site-band-muted-accent);
+  --site-accent-contrast: var(--site-band-muted-accent-contrast);
+  --site-accent-text: var(--site-band-muted-accent-text);
+  background: var(--site-surface);
+  color: var(--site-ink);
+}
+
+.site-band-inverted {
+  --site-surface: var(--site-band-inverted-surface);
+  --site-ink: var(--site-band-inverted-ink);
+  --site-ink-muted: var(--site-band-inverted-ink-muted);
+  --site-border: var(--site-band-inverted-border);
+  --site-accent: var(--site-band-inverted-accent);
+  --site-accent-contrast: var(--site-band-inverted-accent-contrast);
+  --site-accent-text: var(--site-band-inverted-accent-text);
+  background: var(--site-surface);
+  color: var(--site-ink);
+}
+
+/* Karta jest POWIERZCHNIĄ, nie pasem sekcji — stąd obrys i promień w tej samej regule. */
+.site-card {
+  --site-surface: var(--site-band-card-surface);
+  --site-ink: var(--site-band-card-ink);
+  --site-ink-muted: var(--site-band-card-ink-muted);
+  --site-border: var(--site-band-card-border);
+  --site-accent: var(--site-band-card-accent);
+  --site-accent-contrast: var(--site-band-card-accent-contrast);
+  --site-accent-text: var(--site-band-card-accent-text);
+  background: var(--site-surface);
+  color: var(--site-ink);
+  border: var(--site-border-width) solid var(--site-border);
+  border-radius: var(--site-radius);
+}
+
+/* Powłoka strony — pas domyślny bez powtarzania zmiennych korzenia. */
+.site-surface {
+  background: var(--site-surface);
+  color: var(--site-ink);
+}
+
+/*
+ * ROLE KOLORU TREŚCI. Element z rolą `accent` (ELEMENT_COLORS w core) dostaje
+ * `site-text-accent` i nic poza nią — kolor przychodzi ze zmiennej CZYNNEJ,
+ * więc ten sam napis jest ciemnozielony na papierze i szronowy na pasie
+ * ciemnym, bez jednej linijki JavaScriptu. Klasy są zwykłym CSS-em (poza
+ * warstwą `utilities`), więc wygrywają z przygaszeniem, które wariant tekstu
+ * mógł dołożyć wcześniej.
+ */
+.site-text-accent {
+  color: var(--site-accent-text);
+}
+
+.site-text-muted {
+  color: var(--site-ink-muted);
+}
+
+/* Tekst NA powierzchni odwróconej (napis na kształcie `ink`). */
+.site-text-inverted {
+  color: var(--site-band-inverted-ink);
+}
+
+/*
+ * Tekst NA WELONIE. Bierze kolor pasa, z którego welon czerpie barwę — bo to
+ * ON jest tłem tego napisu, a nie pas sekcji. W motywie pastelowym pas hero
+ * jest kremowy, a welon ciemny: napis w kolorze pasa byłby na nim niewidzialny.
+ */
+.site-text-on-scrim {
+  color: var(--site-scrim-ink);
+}
+
+.site-rule {
+  border-bottom: var(--site-border-width) solid var(--site-border);
+}
+
+.site-divider {
+  background: var(--site-border);
+}
+
+/* Obrys bez wypełnienia — kształt `none` na płótnie (miejsce zarezerwowane). */
+.site-outline {
+  border: var(--site-border-width) dashed var(--site-border);
+  border-radius: var(--site-radius);
+}
+
+/* Kształt akcentowy: alfa 10 % — ta sama liczba, którą liczy bramka kontrastu. */
+.site-shape-accent {
+  background: color-mix(in srgb, var(--site-accent) 10%, transparent);
+  border-radius: var(--site-radius);
+}
+
+/*
+ * ZDJĘCIE i KAFEL ZASTĘPCZY. Promień idzie z motywu, więc motyw o ostrych
+ * rogach nie ma jednego zaokrąglonego zdjęcia pośrodku ostrej strony. Kafel
+ * zastępczy bierze pas przygaszony — ma być widoczny jako „miejsce na zdjęcie",
+ * a nie jako dziura w układzie.
+ */
+.site-media {
+  border-radius: var(--site-radius);
+  overflow: hidden;
+}
+
+.site-placeholder {
+  background: var(--site-band-muted-surface);
+  border-radius: var(--site-radius);
+}
+
+.site-title {
+  font-weight: var(--site-heading-weight);
+}
+
+.site-eyebrow {
+  letter-spacing: var(--site-eyebrow-tracking);
+  text-transform: var(--site-eyebrow-transform);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.site-banner {
+  border-radius: var(--site-radius-lg);
+}
+
+.site-icon-tile {
+  border-radius: var(--site-radius);
+  background: color-mix(in srgb, var(--site-accent) 10%, transparent);
+}
+
+/*
+ * PRZYCISK PIERWSZORZĘDNY. Kształt i wypełnienie są decyzją MOTYWU, czyli
+ * danymi — więc przełącznikiem jest atrybut na korzeniu strony, a nie gałąź
+ * w komponencie. `solid` maluje wypełnieniem akcentu, `outline` obrysem
+ * w kolorze akcentowego tekstu i dopiero pod kursorem wchodzi w wypełnienie.
+ * Obie ścieżki mają policzony kontrast: `onFill` na `fill` oraz `text` na pasie.
+ */
+.site-cta {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--site-button-radius);
+  border: var(--site-border-width) solid transparent;
+  background: var(--site-accent);
+  color: var(--site-accent-contrast);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+[data-site-button="outline"] .site-cta {
+  background: transparent;
+  border-color: currentColor;
+  color: var(--site-accent-text);
+}
+
+[data-site-button="outline"] .site-cta:hover {
+  background: var(--site-accent);
+  color: var(--site-accent-contrast);
+}
+
+/* Przycisk drugorzędny (`outline` w treści) — zawsze obrys, niezależnie od motywu. */
+.site-cta-secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--site-button-radius);
+  border: var(--site-border-width) solid currentColor;
+  color: var(--site-ink);
+}
+
+/*
+ * WELON POD TEKSTEM NA ZDJĘCIU. Wartość liczy render z motywu (najciemniejszy
+ * pas z alfą `SCRIM_ALPHA`), bo to ona jest liczbą sprawdzaną przez kontrakt
+ * kontrastu — arkusz tylko ją nakłada.
+ */
+.site-scrim {
+  background: var(--site-scrim);
+}
+
+/*
+ * KROJE I CHARAKTER NAGŁÓWKÓW. Hakami są WYŁĄCZNIE klasy skal — `.landing-*`
+ * dla sekcji v1 i `.canvas-type-*` dla płótna v2 — bo to jedyne miejsca,
+ * w których „nagłówek" jest już rozpoznany. Dopisywanie `font-family` do
+ * dowolnych elementów znaczyłoby trzecie źródło prawdy o tym, co jest
+ * nagłówkiem, obok skali i modelu treści.
+ *
+ * Zasięg zaczyna się od `.site-root`, bo poza stroną najemcy zmienne krojów nie
+ * istnieją — a `font-family: var(--nieistniejąca)` jest deklaracją nieważną
+ * i cicho zdejmuje krój odziedziczony po aplikacji.
+ *
+ * ROZMIARU MOTYW NIE RUSZA. Skale liczy estymator pudełek (`text-metrics.ts`,
+ * ADR-088) i mnożnik per motyw rozjechałby wysokość pudełka z wysokością
+ * tekstu w nim. Motyw różnicuje WAGĘ i ŚWIATŁO MIĘDZYLITEROWE — to widać, a
+ * pudełka zostają prawdziwe.
+ */
+.site-root .landing-display,
+.site-root .canvas-type-display {
+  font-family: var(--site-font-heading);
+  font-weight: var(--site-display-weight);
+  letter-spacing: var(--site-display-tracking);
+}
+
+.site-root .landing-heading,
+.site-root .landing-statement,
+.site-root .landing-subheading,
+.site-root .canvas-type-heading,
+.site-root .canvas-type-title {
+  font-family: var(--site-font-heading);
+  font-weight: var(--site-heading-weight);
+  letter-spacing: var(--site-display-tracking);
 }
 
 /*

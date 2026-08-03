@@ -1,7 +1,8 @@
 import {
   SECTION_TYPES,
-  SITE_TEMPLATES,
+  SITE_THEMES,
   presetContentFor,
+  themeTokens,
   type SectionType,
 } from "@avably/core/site";
 import { render, screen, within } from "@testing-library/react";
@@ -9,6 +10,12 @@ import { describe, expect, it } from "vitest";
 
 import { SiteRenderer } from "./site-renderer";
 import type { RenderSection, SectionContent, StorefrontProduct } from "./types";
+
+/** Styl motywu w jego własnym domyślnym ustawieniu — rejestr, nie literały. */
+function styleOf(theme: Parameters<typeof themeTokens>[0]) {
+  const tokens = themeTokens(theme);
+  return { theme, accent: tokens.defaultAccent, fontPair: tokens.fontPair };
+}
 
 function hero(): RenderSection {
   return {
@@ -26,14 +33,14 @@ const products: StorefrontProduct[] = [
 
 describe("SiteRenderer — render per typ sekcji", () => {
   it("renderuje hero z nagłówkiem i CTA (ctaText/ctaHref)", () => {
-    render(<SiteRenderer sections={[hero()]} template="classic" />);
+    render(<SiteRenderer sections={[hero()]} />);
     expect(screen.getByRole("heading", { level: 1, name: "Wynajmij sprzęt" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zobacz" })).toHaveAttribute("href", "#produkty");
   });
 
   it("sekcja products pokazuje przekazany katalog", () => {
     const section: RenderSection = { id: "s-prod", position: 1, type: "products", content: { heading: "Nasz sprzęt" } };
-    render(<SiteRenderer sections={[section]} template="classic" products={products} />);
+    render(<SiteRenderer sections={[section]} products={products} />);
     expect(screen.getByText("Wiertarka")).toBeInTheDocument();
     expect(screen.getByText("Betoniarka")).toBeInTheDocument();
   });
@@ -43,10 +50,10 @@ describe("SiteRenderer — render per typ sekcji", () => {
     const linked: StorefrontProduct[] = [
       { id: "p1", name: "Wiertarka", description: null, priceLabel: "od 40,00 zł / doba", imageUrl: null, imageAlt: "Wiertarka", href: "/product/p1" },
     ];
-    const { rerender } = render(<SiteRenderer sections={[section]} template="classic" products={linked} />);
+    const { rerender } = render(<SiteRenderer sections={[section]} products={linked} />);
     expect(screen.getByRole("link", { name: /Wiertarka/ })).toHaveAttribute("href", "/product/p1");
     // Podgląd panelu (bez href) nie robi z karty linku.
-    rerender(<SiteRenderer sections={[section]} template="classic" products={products} />);
+    rerender(<SiteRenderer sections={[section]} products={products} />);
     expect(screen.queryByRole("link", { name: /Wiertarka/ })).toBeNull();
   });
 
@@ -55,7 +62,6 @@ describe("SiteRenderer — render per typ sekcji", () => {
     render(
       <SiteRenderer
         sections={[section]}
-        template="classic"
         products={[]}
         labels={{ productsEmpty: "Brak produktów", contactEmail: "E:", contactPhone: "T:", contactAddress: "A:", contactMap: "Mapa", directionsAddress: "A:", directionsHours: "G:", directionsMap: "Mapa" }}
       />,
@@ -70,7 +76,7 @@ describe("SiteRenderer — render per typ sekcji", () => {
       type: "faq",
       content: { heading: "Pytania", items: [{ q: "Jak zwrócić?", a: "Osobiście." }] },
     };
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     const details = container.querySelector("details");
     expect(details).not.toBeNull();
     expect(within(details as HTMLElement).getByText("Jak zwrócić?")).toBeInTheDocument();
@@ -83,7 +89,7 @@ describe("SiteRenderer — render per typ sekcji", () => {
       type: "contact",
       content: { heading: "Kontakt", email: "sklep@acme.pl", mapQuery: "Kwiatowa 5, Warszawa" },
     };
-    render(<SiteRenderer sections={[section]} template="classic" />);
+    render(<SiteRenderer sections={[section]} />);
     expect(screen.getByRole("link", { name: "sklep@acme.pl" })).toHaveAttribute(
       "href",
       "mailto:sklep@acme.pl",
@@ -100,21 +106,35 @@ describe("SiteRenderer — render per typ sekcji", () => {
       type: "freeform",
       content: { heading: "O nas", body: "<b>surowy</b> tekst" },
     };
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     expect(container.querySelector("p b")).toBeNull();
     expect(screen.getByText(/surowy/)).toBeInTheDocument();
   });
 });
 
 describe("SiteRenderer — szablony", () => {
-  it("classic i bold dają różne klasy nagłówka hero", () => {
-    const { container: classic } = render(<SiteRenderer sections={[hero()]} template="classic" />);
-    const { container: bold } = render(<SiteRenderer sections={[hero()]} template="bold" />);
-    const classicH1 = classic.querySelector("h1")!.className;
-    const boldH1 = bold.querySelector("h1")!.className;
-    expect(classicH1).not.toEqual(boldH1);
-    expect(classicH1).toContain("landing-display");
-    expect(boldH1).toContain("font-extrabold");
+  it("motyw NIE zmienia klas nagłówka hero — zmienia wartości zmiennych (ADR-090)", () => {
+    // Do K5 ten test żądał, żeby `classic` i `bold` dały RÓŻNE klasy: wyglądem
+    // rządził kod. Od ADR-090 jest odwrotnie i to jest teza całego zadania —
+    // klasy są jedne, a świat wizualny niesie rejestr motywów jako zmienne.
+    // Odwrócenie asercji jest więc zmianą modelu, a nie osłabieniem kontraktu:
+    // różnicy dowodzimy tam, gdzie ona naprawdę jest.
+    const first = render(<SiteRenderer sections={[hero()]} style={styleOf("industrial-noir")} />);
+    const second = render(<SiteRenderer sections={[hero()]} style={styleOf("confetti")} />);
+    expect(first.container.querySelector("h1")!.className).toEqual(
+      second.container.querySelector("h1")!.className,
+    );
+    expect(first.container.querySelector("h1")!.className).toContain("landing-display");
+    // jsdom normalizuje wartości w atrybucie `style` do małych liter — stąd
+    // porównanie po obu stronach sprowadzone do jednego rejestru znaków.
+    const niesieKolor = (container: HTMLElement, hex: string) =>
+      container
+        .querySelector<HTMLElement>(".site-root")!
+        .getAttribute("style")!
+        .toLowerCase()
+        .includes(hex.toLowerCase());
+    expect(niesieKolor(first.container, themeTokens("industrial-noir").bands.default.surface)).toBe(true);
+    expect(niesieKolor(second.container, themeTokens("confetti").bands.default.surface)).toBe(true);
   });
 });
 
@@ -126,15 +146,15 @@ function sectionOf(type: SectionType, content: SectionContent): RenderSection {
   return { id: `s-${type}`, position: 0, type, content } as RenderSection;
 }
 
-describe("SiteRenderer — nowe typy 0043 renderują się w OBU szablonach", () => {
-  // Kontrakt spójności między typami (brief A2): każdy typ, wypełniony swoim
-  // presetem, renderuje się bez wyjątku w classic I bold. Brak gałęzi w
-  // SectionSwitch albo zły kształt presetu wywali ten test na całej macierzy.
-  it.each(SECTION_TYPES.flatMap((type) => SITE_TEMPLATES.map((template) => [type, template] as const)))(
-    "typ %s w szablonie %s",
-    (type, template) => {
+describe("SiteRenderer — każdy typ sekcji renderuje się w KAŻDYM motywie", () => {
+  // Kontrakt spójności między typami (brief A2), rozszerzony w ADR-090 z dwóch
+  // szablonów na CAŁY REJESTR MOTYWÓW: macierz rośnie sama przy dopisaniu
+  // motywu nr 7, bo idzie po `SITE_THEMES`, a nie po liście przypadków.
+  it.each(SECTION_TYPES.flatMap((type) => SITE_THEMES.map((theme) => [type, theme] as const)))(
+    "typ %s w motywie %s",
+    (type, theme) => {
       const { container } = render(
-        <SiteRenderer sections={[sectionOf(type, presetContentFor(type, "pl"))]} template={template} />,
+        <SiteRenderer sections={[sectionOf(type, presetContentFor(type, "pl"))]} style={styleOf(theme)} />,
       );
       // Sekcja wyrenderowała treść (element <section> obecny), nie pustkę.
       expect(container.querySelector("section")).not.toBeNull();
@@ -151,7 +171,7 @@ describe("SiteRenderer — osie nowych typów", () => {
       heading: "Opinie",
       items: [{ quote: "Świetny sprzęt", author: "Jan Test", role: "DJ" }],
     });
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     const q = within(container);
     expect(q.getByText("Świetny sprzęt")).toBeInTheDocument();
     expect(q.getByText("Jan Test")).toBeInTheDocument();
@@ -164,7 +184,7 @@ describe("SiteRenderer — osie nowych typów", () => {
       items: [{ imagePath: "t/s/foto.webp", alt: "Namiot imprezowy" }],
     });
     const { container: withBase } = render(
-      <SiteRenderer sections={[section]} template="bold" siteImageBase="https://cdn.example/storage/v1/object/public/site-images" />,
+      <SiteRenderer sections={[section]} siteImageBase="https://cdn.example/storage/v1/object/public/site-images" />,
     );
     const img = withBase.querySelector("img");
     expect(img?.getAttribute("src")).toBe(
@@ -172,7 +192,7 @@ describe("SiteRenderer — osie nowych typów", () => {
     );
     expect(img).toHaveAttribute("alt", "Namiot imprezowy");
 
-    const { container: noBase } = render(<SiteRenderer sections={[section]} template="bold" />);
+    const { container: noBase } = render(<SiteRenderer sections={[section]} />);
     expect(noBase.querySelector("img")).toBeNull();
   });
 
@@ -180,7 +200,7 @@ describe("SiteRenderer — osie nowych typów", () => {
     const section = sectionOf("usp", {
       items: [{ icon: "truck", title: "Dostawa", text: "Pod adres" }],
     });
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     const q = within(container);
     expect(container.querySelector("svg")).not.toBeNull();
     expect(q.getByText("Dostawa")).toBeInTheDocument();
@@ -194,7 +214,7 @@ describe("SiteRenderer — osie nowych typów", () => {
       buttonLabel: "Katalog",
       buttonHref: "#produkty",
     });
-    const { container } = render(<SiteRenderer sections={[section]} template="bold" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     expect(within(container).getByRole("link", { name: "Katalog" })).toHaveAttribute("href", "#produkty");
   });
 
@@ -204,7 +224,7 @@ describe("SiteRenderer — osie nowych typów", () => {
       mapsUrl: "https://maps.example/x",
       hours: "Pon–Pt 9–17",
     });
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     const q = within(container);
     expect(q.getByText("ul. Testowa 1, Warszawa")).toBeInTheDocument();
     const mapLink = q.getByRole("link", { name: "Zobacz na mapie" });
@@ -220,7 +240,7 @@ describe("SiteRenderer — osie nowych typów", () => {
       text: "Dowozimy pod adres.",
       items: [{ title: "Lokalnie", text: "Tego samego dnia" }],
     });
-    const { container } = render(<SiteRenderer sections={[section]} template="classic" />);
+    const { container } = render(<SiteRenderer sections={[section]} />);
     const q = within(container);
     expect(q.getByRole("heading", { name: "Dostawa" })).toBeInTheDocument();
     expect(q.getByText("Dowozimy pod adres.")).toBeInTheDocument();
@@ -230,7 +250,7 @@ describe("SiteRenderer — osie nowych typów", () => {
   it("hero: z imagePath + siteImageBase renderuje zdjęcie", () => {
     const section = sectionOf("hero", { heading: "Hero", imagePath: "t/s/hero.png" });
     const { container } = render(
-      <SiteRenderer sections={[section]} template="classic" siteImageBase="https://cdn.example/bucket" />,
+      <SiteRenderer sections={[section]} siteImageBase="https://cdn.example/bucket" />,
     );
     expect(container.querySelector("img")?.getAttribute("src")).toBe("https://cdn.example/bucket/t/s/hero.png");
   });
@@ -247,7 +267,7 @@ describe("SiteRenderer — szew owijki sekcji", () => {
   it("bez owijki każda sekcja dostaje kotwicę data-section-id i nic więcej", () => {
     const sections = [sectionOf("hero", { heading: "A" }), sectionOf("cta", { heading: "B", buttonLabel: "Idź", buttonHref: "#x" })];
     sections[1]!.id = "s-2";
-    const { container } = render(<SiteRenderer sections={sections} template="classic" />);
+    const { container } = render(<SiteRenderer sections={sections} />);
 
     const anchors = container.querySelectorAll("[data-section-id]");
     expect(anchors).toHaveLength(2);
@@ -261,7 +281,6 @@ describe("SiteRenderer — szew owijki sekcji", () => {
     const { container } = render(
       <SiteRenderer
         sections={[sectionOf("hero", { heading: "Wynajmij sprzęt" })]}
-        template="classic"
         sectionWrapper={(section, children) => (
           <div data-canvas-section={section.id} data-section-type={section.type}>
             <button type="button" data-drag-handle aria-label="Przeciągnij" />
@@ -291,7 +310,6 @@ describe("SiteRenderer — szew owijki sekcji", () => {
     render(
       <SiteRenderer
         sections={sections}
-        template="classic"
         sectionWrapper={(section, children) => {
           seen.push(section.type);
           return <div key={section.id}>{children}</div>;

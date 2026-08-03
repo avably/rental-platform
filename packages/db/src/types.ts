@@ -111,8 +111,17 @@ export type SiteSectionType = import("@avably/core/site").SectionType;
 export interface Site {
   id: string;
   tenant_id: string;
-  /** Szablon w SZKICU — na żywą stronę wchodzi dopiero publikacją (ADR-091). */
+  /**
+   * ZASTANE (przed ADR-090): szablon graficzny sprzed wprowadzenia stylu strony.
+   * Kolumna SZKICU w rozumieniu ADR-091 (bliźniak `template_published` niżej),
+   * ale panel już do niej nie pisze — nowy zapis idzie w `style_draft.theme`.
+   * Zostaje wyłącznie jako fallback stron, które nigdy nie zapisały stylu.
+   */
   template: SiteTemplate;
+  /** Styl strony w kreatorze (0046) — kształt pilnuje @avably/core/site. */
+  style_draft: Json;
+  /** Styl strony po publikacji; pusty obiekt = nigdy nie zapisany (0046). */
+  style_published: Json;
   /** NULL = strona nigdy nie opublikowana; stawia ją wyłącznie app.publish_site. */
   published_at: string | null;
   /** Szablon OPUBLIKOWANY; NULL = strona nigdy nie opublikowana (ADR-091). */

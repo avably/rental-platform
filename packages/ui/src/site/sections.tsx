@@ -177,7 +177,7 @@ export function ProductCards({
   return (
     <>
       {products.length === 0 ? (
-        <p className="mt-8 text-muted-foreground">{labels.productsEmpty}</p>
+        <p className="mt-8 site-text-muted">{labels.productsEmpty}</p>
       ) : (
         <ul className={cn(styles.productGrid, "list-none p-0")}>
           {products.map((product, index) => {
@@ -200,7 +200,7 @@ export function ProductCards({
                     fetchPriority={eager ? "high" : undefined}
                   />
                 ) : (
-                  <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
+                  <div className="site-placeholder aspect-[4/3] w-full" aria-hidden="true" />
                 )}
                 {/* Ciaśniejszy padding w wąskim kontenerze: przy dwóch
                     kolumnach na telefonie karta ma ~160 px, więc 16 px z każdej
@@ -209,7 +209,7 @@ export function ProductCards({
                   <h3 className={styles.cardTitle}>{product.name}</h3>
                   <p className={styles.cardPrice}>{product.priceLabel}</p>
                   {product.description ? (
-                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                    <p className="mt-2 line-clamp-3 text-sm site-text-muted">
                       {product.description}
                     </p>
                   ) : null}
@@ -246,7 +246,7 @@ export function PricingSection({
   return (
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
-      {content.note ? <p className="mt-6 text-base text-muted-foreground">{content.note}</p> : null}
+      {content.note ? <p className="mt-6 text-base site-text-muted">{content.note}</p> : null}
     </SectionShell>
   );
 }
@@ -261,7 +261,7 @@ export function FaqSection({ content, styles }: { content: FaqContent; styles: T
           {items.map((item, index) => (
             <details key={index} className={styles.faqItem}>
               <summary className={styles.faqQuestion}>{item.q}</summary>
-              <div className="mt-3 text-muted-foreground">
+              <div className="mt-3 site-text-muted">
                 <SafeRichText body={item.a} />
               </div>
             </details>
@@ -362,7 +362,7 @@ export function TestimonialsSection({
             <li key={index} className={styles.subtleCard}>
               <blockquote className="text-lg">{item.quote}</blockquote>
               <p className="mt-4 text-sm font-medium">{item.author}</p>
-              {item.role ? <p className="text-muted-foreground text-sm">{item.role}</p> : null}
+              {item.role ? <p className="site-text-muted text-sm">{item.role}</p> : null}
             </li>
           ))}
         </ul>
@@ -387,7 +387,7 @@ export function GallerySection({
       {items.length > 0 ? (
         <ul className={cn(styles.productGrid, "list-none p-0")}>
           {items.map((item, index) => (
-            <li key={index} className="overflow-hidden rounded-lg border bg-card">
+            <li key={index} className="site-card overflow-hidden">
               {siteImageBase ? (
                 <img
                   src={siteImageUrl(siteImageBase, item.imagePath)}
@@ -396,7 +396,7 @@ export function GallerySection({
                   loading="lazy"
                 />
               ) : (
-                <div className="aspect-[4/3] w-full bg-muted" aria-hidden="true" />
+                <div className="site-placeholder aspect-[4/3] w-full" aria-hidden="true" />
               )}
             </li>
           ))}
@@ -421,7 +421,7 @@ export function UspSection({ content, styles }: { content: UspContent; styles: T
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
                 <h3 className={styles.cardTitle}>{item.title}</h3>
-                <p className="text-muted-foreground text-sm">{item.text}</p>
+                <p className="site-text-muted text-sm">{item.text}</p>
               </li>
             );
           })}
@@ -499,7 +499,7 @@ export function DeliverySection({
           {items.map((item, index) => (
             <li key={index} className={styles.subtleCard}>
               <h3 className={styles.cardTitle}>{item.title}</h3>
-              <p className="text-muted-foreground mt-2 text-sm">{item.text}</p>
+              <p className="site-text-muted mt-2 text-sm">{item.text}</p>
             </li>
           ))}
         </ul>

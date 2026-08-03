@@ -19,7 +19,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { parsePublishedSite, type PublishedSite } from "@avably/core/site";
+import {
+  parsePublishedSite,
+  resolveSiteStyle,
+  type PublishedSite,
+  type ResolvedSiteStyle,
+} from "@avably/core/site";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -45,4 +50,28 @@ export async function getPublishedSite(
   if (error || data == null) return null;
 
   return parsePublishedSite(data);
+}
+
+/**
+ * STYL STRONY w postaci, w której posługuje się nim render (K5, ADR-090):
+ * szablon, akcent i para fontów uzupełnione o wartości domyślne.
+ *
+ * Rozstrzygnięcie stoi TUTAJ, a nie w komponencie trasy, z trzech powodów:
+ *
+ *   1. SZABLON MA OD K5 DWA ŹRÓDŁA. `sites.template` jest kolumną ZASTANĄ —
+ *      strona sprzed ADR-090 nie ma zapisanego stylu, więc kolumna zostaje
+ *      jedynym źródłem; strona, która przeszła przez panel stylu, niesie
+ *      szablon w jsonb i to on obowiązuje. Dwa niezależne odczyty rozjechałyby
+ *      się dokładnie w dniu, w którym operator zmieni szablon w kreatorze —
+ *      i to jest ten rodzaj rozjazdu, który widać dopiero u klienta.
+ *   2. BRAK STRONY MA MIEĆ STYL. `null` (nieopublikowana / tenant nieaktywny)
+ *      dostaje styl domyślny zamiast zmuszać każdą trasę do własnego `?:`.
+ *   3. TESTOWALNOŚĆ SZWU. Cały tor „koperta RPC → tokeny na korzeniu strony"
+ *      da się przejechać bez nagłówków żądania i bez bazy (test site-style).
+ *
+ * Fail-soft jest w `resolveSiteStyle`: styl w nieznanym kształcie znaczy
+ * „strona wygląda domyślnie", a nie „strona nie wygląda wcale".
+ */
+export function publishedSiteStyle(site: PublishedSite | null): ResolvedSiteStyle {
+  return resolveSiteStyle(site?.style, site?.template);
 }

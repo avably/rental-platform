@@ -43,11 +43,23 @@ import {
   type PaletteElementKind,
   type SectionCanvas,
   type SectionType,
-  type SiteTemplate,
   snapMove,
   unitsFromPx,
+  type ResolvedSiteStyle,
 } from "@avably/core/site";
-import { Button, TooltipProvider, type StorefrontProduct } from "@avably/ui";
+import {
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  TooltipProvider,
+  type StorefrontProduct,
+} from "@avably/ui";
 import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useState, useTransition } from "react";
@@ -61,12 +73,14 @@ import {
   reorderSections,
   restoreSection,
   toggleSection,
-  updateTemplate,
+  applyStarterTemplate,
+  updateSiteStyle,
   upsertSection,
 } from "@/lib/actions/site";
 
 import { BuilderCanvas, type BuilderViewport, type ElementSelection } from "./builder-canvas";
 import { BuilderPalette } from "./builder-palette";
+import { TemplateGallery } from "./template-gallery";
 import { ImagePicker } from "./image-picker";
 import { orderWithInsertedAt } from "./insert-position";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
@@ -77,12 +91,13 @@ type SaveState = "idle" | "saving" | "saved";
 
 export function SiteBuilder({
   siteId,
-  template,
+  style,
   sections,
   products,
 }: {
   siteId: string;
-  template: SiteTemplate;
+  /** Styl SZKICU (motyw + akcent + para krojów) — jedyne wejście wyglądu (ADR-090). */
+  style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
 }) {
@@ -97,6 +112,13 @@ export function SiteBuilder({
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [selection, setSelection] = useState<ElementSelection | null>(null);
   const [picking, setPicking] = useState<ElementSelection | null>(null);
+  /**
+   * GALERIA SZABLONÓW (K5 v2, ADR-090). Otwarta z automatu przy PIERWSZEJ
+   * wizycie, czyli wtedy, gdy strona nie ma ani jednej sekcji: pusty kreator
+   * jest gorszą odpowiedzią na „nie wiem, od czego zacząć" niż sześć gotowych
+   * stron. Później wraca przyciskiem „zacznij od nowa".
+   */
+  const [galleryOpen, setGalleryOpen] = useState(sections.length === 0);
 
   /**
    * Jedyna droga mutacji w kreatorze. Sukces odświeża RSC (`router.refresh`),
@@ -347,6 +369,12 @@ export function SiteBuilder({
           {saveState === "saving" ? t("builder.saving") : saveState === "saved" ? t("builder.saved") : null}
         </p>
 
+        <StartOverButton
+          disabled={pending}
+          hasSections={sections.length > 0}
+          onConfirm={() => setGalleryOpen(true)}
+        />
+
         <Button
           type="button"
           size="sm"
@@ -365,16 +393,35 @@ export function SiteBuilder({
         </p>
       ) : null}
 
-      <div className="flex min-h-0 flex-1">
+      {galleryOpen ? (
+        <TemplateGallery
+          disabled={pending}
+          onPick={(starterId) =>
+            // Galeria zamyka się WYŁĄCZNIE po udanym zapisie: przy błędzie
+            // operator ma zostać tam, gdzie kliknął, i zobaczyć komunikat.
+            run(() =>
+              applyStarterTemplate({ siteId, starterId, locale }).then((result: ActionResult) => {
+                if (result.ok) setGalleryOpen(false);
+                return result;
+              }),
+            )
+          }
+          // Przy pierwszej wizycie nie ma do czego wracać — bez sekcji kreator
+          // pokazałby puste płótno, więc zamknięcie galerii byłoby ślepą uliczką.
+          onDismiss={sections.length > 0 ? () => setGalleryOpen(false) : undefined}
+        />
+      ) : null}
+
+      <div className={galleryOpen ? "hidden" : "flex min-h-0 flex-1"}>
         <BuilderPalette
           open={paletteOpen}
           onToggle={() => setPaletteOpen((open) => !open)}
           disabled={pending}
-          template={template}
+          style={style}
           onAddSection={(type) => addSection(type, sections.length, sections.map((s) => s.id))}
           onAddElement={addElement}
           onDropElement={dropElementAt}
-          onSaveTemplate={(choice) => run(() => updateTemplate(siteId, choice))}
+          onSaveStyle={(next) => run(() => updateSiteStyle(siteId, next))}
         />
 
         {/* Scena przewija się w OBU osiach (K4, ADR-088): płótno desktopowe ma
@@ -383,7 +430,7 @@ export function SiteBuilder({
             gwarancja musi mieć gdzie się zmieścić. */}
         <main data-builder-stage className="bg-muted min-w-0 flex-1 overflow-auto p-4 md:p-6">
           <BuilderCanvas
-            template={template}
+            style={style}
             sections={sections}
             products={products}
             viewport={viewport}
@@ -516,3 +563,61 @@ function HistoryButton({
     </button>
   );
 }
+
+/**
+ * „ZACZNIJ OD NOWA" (K5 v2, ADR-090) — powrót do galerii szablonów.
+ *
+ * Dialog MÓWI PRAWDĘ o skutku, i to jest tu cała robota. Do 0045 zastosowanie
+ * szablonu kasowało sekcje wierszami, więc zdejmowało je z ŻYWEJ strony
+ * natychmiast; dziś usunięcia idą nagrobkami (ADR-091), więc opublikowana
+ * strona nie zmienia się ani o piksel do chwili publikacji. Komunikat opisuje
+ * dokładnie ten stan — inaczej operator albo bałby się kliknąć, albo
+ * dowiedziałby się o skutku od klienta.
+ *
+ * Rozróżnienie „strona ma sekcje / nie ma" jest istotne: przy pierwszej wizycie
+ * nie ma czego zastępować, więc nie ma o co pytać.
+ */
+function StartOverButton({
+  disabled,
+  hasSections,
+  onConfirm,
+}: {
+  disabled: boolean;
+  hasSections: boolean;
+  onConfirm: () => void;
+}) {
+  const t = useTranslations("site");
+
+  if (!hasSections) return null;
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="secondary" data-builder-start-over disabled={disabled}>
+          {t("starter.startOver")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("starter.confirmTitle")}</DialogTitle>
+          <DialogDescription data-start-over-scope="draft-only">
+            {t("starter.confirmBody")}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              {t("starter.confirmCancel")}
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button type="button" onClick={onConfirm} data-start-over-confirm>
+              {t("starter.confirmAccept")}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

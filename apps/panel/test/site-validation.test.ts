@@ -8,7 +8,6 @@ import { describe, expect, it } from "vitest";
 import {
   reorderPlan,
   reorderSectionsInputSchema,
-  updateTemplateInputSchema,
   upsertSectionInputSchema,
 } from "../lib/site-validation";
 
@@ -40,14 +39,6 @@ describe("upsertSectionInputSchema", () => {
     expect(
       upsertSectionInputSchema.safeParse({ siteId: "nie-uuid", type: "products", content: {} }).success,
     ).toBe(false);
-  });
-});
-
-describe("updateTemplateInputSchema", () => {
-  it("dopuszcza wyłącznie szablony z kontraktu (lustro CHECK-a 0019)", () => {
-    expect(updateTemplateInputSchema.safeParse({ siteId: uuid(1), template: "classic" }).success).toBe(true);
-    expect(updateTemplateInputSchema.safeParse({ siteId: uuid(1), template: "bold" }).success).toBe(true);
-    expect(updateTemplateInputSchema.safeParse({ siteId: uuid(1), template: "neon" }).success).toBe(false);
   });
 });
 

@@ -158,3 +158,27 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   opacity: 0;
   pointer-events: none;
 }
+
+/*
+ * MINIATURY GALERII SZABLONÓW (K5 v2, ADR-090).
+ *
+ * Kafel pokazuje ZMNIEJSZONY RENDER całej strony, a nie ikonkę — operator ma
+ * zobaczyć to, co dostanie. Skala jest STAŁA i dobrana do stałej szerokości
+ * kafla, bo alternatywy są gorsze: zwężenie kontenera pokazałoby układ
+ * TELEFONU (renderer mierzy kontener — ADR-085), a wyliczanie skali z pomiaru
+ * w JavaScripcie dokładałoby obserwator rozmiaru do ekranu, który i tak renderuje
+ * sześć pełnych stron. Dwie liczby, jedno miejsce, wynik dokładny.
+ *
+ * 1152 px to szerokość PROJEKTOWA płótna (CANVAS_DESIGN_WIDTH_PX).
+ */
+.starter-preview {
+  width: 1152px;
+  transform: scale(0.2778); /* 320 / 1152 */
+  transform-origin: top left;
+}
+
+@media (min-width: 768px) {
+  .starter-preview {
+    transform: scale(0.4167); /* 480 / 1152 */
+  }
+}

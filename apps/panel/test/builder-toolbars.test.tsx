@@ -1,3 +1,4 @@
+import { DEFAULT_SITE_STYLE } from "@avably/core/site";
 // @vitest-environment jsdom
 
 /**
@@ -18,6 +19,9 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import plMessages from "../messages/pl.json";
+
+/** Styl szkicu w motywie zastanym — dokładnie to, czym strona jest bez wyboru. */
+const STYL = DEFAULT_SITE_STYLE;
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -42,7 +46,8 @@ const actions = vi.hoisted(() => ({
   toggleSection: vi.fn(),
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
-  updateTemplate: vi.fn(),
+  updateSiteStyle: vi.fn(),
+  applyStarterTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));
 
@@ -84,7 +89,7 @@ function heroSection(): Section {
 function renderBuilder(sections: Section[] = [heroSection()]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} template="classic" sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
 }

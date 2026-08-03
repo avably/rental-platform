@@ -20,6 +20,7 @@
  * 144 kolumny szerokości płótna, oś pionowa to jednostki po 8 px.
  */
 import {
+  CANVAS_COLUMNS,
   CANVAS_CONTENT_COLUMNS,
   CANVAS_PAD_COLUMNS,
   HUG_SIZE,
@@ -29,6 +30,7 @@ import {
   withSize,
   type CanvasElement,
   type Geometry,
+  type ImageSource,
   type SectionBackground,
   type SectionCanvas,
 } from "./elements";
@@ -156,10 +158,16 @@ function draft(type: SectionType) {
 function finish(
   built: ReturnType<typeof draft>,
   background: SectionBackground = "default",
+  /**
+   * Wysokość WYMUSZONA przez kompozycję. Sekcja z pełnokadrowym zdjęciem ma
+   * wysokość, którą zadaje KADR, a nie długość napisu w niej — inaczej hero
+   * z krótkim nagłówkiem byłby paskiem, a z długim plakatem.
+   */
+  forcedRows?: number,
 ): SectionCanvas {
   const rows = Math.min(
     SECTION_MAX_ROWS,
-    Math.max(SECTION_MIN_ROWS, built.bottom() + BOTTOM),
+    Math.max(SECTION_MIN_ROWS, forcedRows ?? built.bottom() + BOTTOM),
   );
   return { version: SECTION_CANVAS_VERSION, rows, background, elements: built.elements };
 }
@@ -598,4 +606,296 @@ export function sectionCanvasFrom(type: SectionType, content: SectionContent): S
       return exhaustive;
     }
   }
+}
+
+// -----------------------------------------------------------------------
+// KOMPOZYCJE — układ, który niesie ZDJĘCIE (K5 v2, ADR-090)
+// -----------------------------------------------------------------------
+//
+// Sześć szablonów startowych ma być sześcioma RÓŻNYMI ŚWIATAMI, a nie jednym
+// układem w sześciu skórkach. Kolor i krój załatwia motyw; drugą połową
+// różnicy jest KADR — to, czy strona zaczyna się od nagłówka na pełnoekranowym
+// zdjęciu, od zdjęcia obok tekstu, czy od samego tekstu.
+//
+// Kompozycje są ZAMKNIĘTYM SŁOWNIKIEM i mieszkają tu, a nie w szablonach,
+// z tego samego powodu, dla którego motyw jest rejestrem: szablon nr 7 ma
+// wybrać archetyp NAZWĄ, a nie wnieść własną geometrię. Ręcznie wpisane
+// współrzędne w szablonie byłyby drugą, nietestowaną definicją układu —
+// rozjechałyby się po cichu z estymatorem pudełek i pierwsza poprawka copy
+// wsadzałaby nagłówek w akapit pod nim.
+//
+// WSZYSTKIE liczby niżej przechodzą przez ten sam estymator (`textRows`), co
+// reszta konwersji, więc pudełka obejmują treść, a auto-układ mobilny (ADR-088)
+// wyprowadza z nich kolumnę bez jednej dodatkowej liczby.
+
+/** Archetypy kadru. `stack` to zachowanie sprzed K5 v2 — sam tekst w kolumnie. */
+export const SECTION_COMPOSITIONS = ["stack", "overlay", "split", "band"] as const;
+export type SectionComposition = (typeof SECTION_COMPOSITIONS)[number];
+
+/**
+ * Zdjęcie sekcji. `source` jest OPCJONALNE i to jest celowe: układ ma być
+ * identyczny, zanim zdjęcie zostanie wyselekcjonowane, i po tym, jak wejdzie.
+ * Element bez źródła renderuje się jako kafel zastępczy, więc geometria
+ * szablonu nie zależy od tego, czy kuracja zdjęć już się odbyła.
+ */
+export interface SectionMedia {
+  alt: string;
+  source?: ImageSource;
+}
+
+/** Wysokość pełnokadrowego hero w jednostkach siatki (≈ 1160 px przy szerokości projektowej). */
+const OVERLAY_MIN_ROWS = 96;
+/** Wysokość hero rozdzielonego (tekst obok zdjęcia). */
+const SPLIT_MIN_ROWS = 76;
+/** Szerokość pasa tekstu w kompozycji `split` — reszta idzie na kadr. */
+const SPLIT_TEXT_W = 60;
+/** Lewa krawędź zdjęcia w `split`: kadr dochodzi do prawej krawędzi płótna. */
+const SPLIT_MEDIA_X = 80;
+/** Wysokość pasa zdjęciowego pod treścią (`band`) — 16:9 z pasa treści. */
+const BAND_MEDIA_ROWS = 56;
+
+/**
+ * ZAPAS NA KRÓJ MOTYWU (K5 v2, ADR-090).
+ *
+ * Estymator wierszy (`textRows`, ADR-088) liczy je dla znaku o średniej
+ * szerokości kroju BAZOWEGO. Motywy wnoszą kroje plakatowe — Archivo 800,
+ * Space Grotesk 700, Playfair 500 — których znaki są szersze o kilkanaście
+ * procent przy tym samym stopniu pisma. Nagłówek zawija się więc WCZEŚNIEJ,
+ * niż wynika z estymatora, i wchodzi w akapit pod sobą.
+ *
+ * Odpowiedzią NIE jest poprawka estymatora: liczy on wysokość pudełek dla
+ * całej zapisanej treści tenantów i zmiana jego stałych przeliczyłaby wstecz
+ * układy, których nikt nie ogląda. Kompozycje liczą zamiast tego wysokość dla
+ * pasa WĘŻSZEGO, niż jest naprawdę — dostają wtedy pudełko z zapasem, a sam
+ * estymator zostaje nietknięty.
+ */
+const TYPE_SAFETY = 0.92;
+
+/**
+ * Szerokość, dla której liczymy wysokość tekstu: pas przemnożony przez zapas
+ * i przez WZGLĘDNĄ SZEROKOŚĆ ZNAKU kroju nagłówkowego (`metricRatio` z rejestru
+ * krojów). Bez drugiego czynnika jeden zapas obsługiwałby oba skrajne
+ * przypadki naraz — plakatowy Archivo wychodziłby poza pudełko, a wąski
+ * Instrument Serif zostawiał pod nagłówkiem pół ekranu pustki.
+ */
+function estimateWidth(columns: number, metricRatio = 1): number {
+  return Math.max(8, Math.round(columns * TYPE_SAFETY * metricRatio));
+}
+
+/** Warstwy kompozycji: zdjęcie na spodzie, welon nad nim, treść na wierzchu. */
+const Z_MEDIA = 0;
+const Z_SCRIM = 1;
+const Z_CONTENT = 2;
+
+/**
+ * Blok tekstowy hero: nagłówek, podtytuł i przycisk w zadanym pasie.
+ * Wspólny dla WSZYSTKICH kompozycji hero — różni je kadr, nie treść, więc
+ * odstępy i skale mają być dosłownie tym samym kodem.
+ */
+function heroTextBlock(
+  built: ReturnType<typeof draft>,
+  content: HeroContent,
+  box: { x: number; w: number; top: number; z: number; color?: "onScrim" },
+  metricRatio = 1,
+): number {
+  let y = box.top;
+
+  const headingRows = textRows(content.heading, "display", estimateWidth(box.w, metricRatio));
+  built.add({
+    kind: "heading",
+    text: content.heading,
+    level: 1,
+    align: "left",
+    ...(box.color ? { color: box.color } : {}),
+    geometry: geometry(box.x, y, box.w, headingRows, box.z),
+  });
+  y += headingRows + 3;
+
+  if (content.subheading) {
+    // Lead idzie krojem TEKSTOWYM (nie nagłówkowym), więc bez współczynnika rodziny.
+    const rows = textRows(content.subheading, "lead", estimateWidth(box.w));
+    built.add({
+      kind: "text",
+      text: content.subheading,
+      variant: "lead",
+      align: "left",
+      // Na welonie lead idzie kolorem PODSTAWOWYM welonu, nie przygaszonym:
+      // przygaszenie na zdjęciu jest jedynym miejscem, którego bramka nie
+      // potrafi obronić liczbą (patrz SCRIM_ALPHA).
+      ...(box.color ? { color: box.color } : {}),
+      geometry: geometry(box.x, y, box.w, rows, box.z),
+    });
+    y += rows + 3;
+  }
+
+  if (content.ctaText && content.ctaHref) {
+    built.add({
+      kind: "button",
+      label: content.ctaText,
+      href: content.ctaHref,
+      variant: "solid",
+      align: "left",
+      geometry: geometry(box.x, y, 40, 7, box.z),
+      hug: true,
+    });
+    y += 10;
+  }
+
+  return y;
+}
+
+/**
+ * HERO NA PEŁNYM KADRZE. Zdjęcie od krawędzi do krawędzi, na nim WELON
+ * (kształt `scrim`), na welonie tekst.
+ *
+ * Welon nie jest ozdobą: tło pod tekstem jest wtedy ZDJĘCIEM, którego najemca
+ * może podmienić na dowolne, więc kontrast tekstu byłby nie do policzenia.
+ * Welon zamienia nieznane tło w znane i dopiero to daje się obronić bramką
+ * (patrz SCRIM_ALPHA w ./theme oraz kontrakt kontrastu).
+ *
+ * Tekst siedzi w DOLNEJ części kadru — tak, jak w plakacie: górna połowa
+ * zostaje zdjęciu, dolna niesie obietnicę i przycisk.
+ */
+function heroOverlayCanvas(content: HeroContent, media: SectionMedia | undefined, metricRatio: number): SectionCanvas {
+  const built = draft("hero");
+
+  // Wysokość liczymy z treści, ale nie schodzimy poniżej kadru kinowego.
+  const probe = draft("hero");
+  const contentRows = heroTextBlock(probe, content, { x: CONTENT_X, w: CONTENT_W, top: 0, z: Z_CONTENT }, metricRatio);
+  const rows = Math.max(OVERLAY_MIN_ROWS, contentRows + 30);
+
+  built.add({
+    kind: "image",
+    ...(media?.source ? { source: media.source } : {}),
+    alt: media?.alt ?? content.heading,
+    fit: "cover",
+    geometry: geometry(0, 0, CANVAS_COLUMNS, rows, Z_MEDIA),
+  });
+  built.add({
+    kind: "shape",
+    shape: "box",
+    fill: "scrim",
+    geometry: geometry(0, 0, CANVAS_COLUMNS, rows, Z_SCRIM),
+  });
+  heroTextBlock(
+    built,
+    content,
+    { x: CONTENT_X, w: CONTENT_W, top: rows - contentRows - 14, z: Z_CONTENT, color: "onScrim" },
+    metricRatio,
+  );
+
+  return finish(built, "default", rows);
+}
+
+/**
+ * HERO ROZDZIELONY: tekst w lewym pasie, kadr od jego prawej krawędzi do
+ * krawędzi płótna. Tekst liczy się w SWOJEJ szerokości — dlatego blok dostaje
+ * `SPLIT_TEXT_W`, a nie pas treści: gdyby liczył się w pełnej szerokości,
+ * nagłówek zawijałby się na stronie inaczej niż w estymatorze i wchodził
+ * w akapit pod sobą.
+ */
+function heroSplitCanvas(content: HeroContent, media: SectionMedia | undefined, metricRatio: number): SectionCanvas {
+  const built = draft("hero");
+
+  const probe = draft("hero");
+  const contentRows = heroTextBlock(
+    probe,
+    content,
+    { x: CONTENT_X, w: SPLIT_TEXT_W, top: 0, z: Z_CONTENT },
+    metricRatio,
+  );
+  const rows = Math.max(SPLIT_MIN_ROWS, contentRows + 24);
+
+  built.add({
+    kind: "image",
+    ...(media?.source ? { source: media.source } : {}),
+    alt: media?.alt ?? content.heading,
+    fit: "cover",
+    geometry: geometry(SPLIT_MEDIA_X, 0, CANVAS_COLUMNS - SPLIT_MEDIA_X, rows, Z_MEDIA),
+  });
+  heroTextBlock(
+    built,
+    content,
+    { x: CONTENT_X, w: SPLIT_TEXT_W, top: Math.max(TOP, Math.floor((rows - contentRows) / 2)), z: Z_CONTENT },
+    metricRatio,
+  );
+
+  return finish(built, "default", rows);
+}
+
+/**
+ * PAS ZDJĘCIOWY POD TREŚCIĄ — kompozycja dla sekcji, które nie są hero.
+ * Zdjęcie idzie na pasie treści (nie od krawędzi), bo pełni tu rolę ilustracji,
+ * a nie kadru otwierającego.
+ *
+ * Zdjęć może być kilka: dwa albo trzy kafle w rzędzie dzielą pas treści tak
+ * samo, jak siatka atutów i galerii wyżej (te same stałe kolumn), więc rząd
+ * zdjęć w szablonie jest tym samym układem, co rząd zdjęć dodany ręcznie.
+ */
+function withMediaBand(
+  canvas: SectionCanvas,
+  media: readonly SectionMedia[],
+  type: SectionType,
+): SectionCanvas {
+  if (media.length === 0) return canvas;
+
+  const bottom = canvas.elements.reduce(
+    (lowest, element) => Math.max(lowest, element.layout.desktop.y + element.layout.desktop.h),
+    0,
+  );
+  const y = bottom + 6;
+  const perRow = media.length >= 3 ? 3 : media.length === 2 ? 2 : 1;
+  const width = perRow === 3 ? COL3_W : perRow === 2 ? COL2_W : CONTENT_W;
+  const step = perRow === 3 ? COL3_STEP : perRow === 2 ? COL2_STEP : 0;
+  // Proporcja kadru zachowana przy każdej liczbie kafli: wysokość idzie za
+  // szerokością (16:9 dla pełnego pasa, 4:3 dla kolumn), więc rząd nie
+  // rozjeżdża się przy dwóch zdjęciach zamiast trzech.
+  const rows = perRow === 1 ? BAND_MEDIA_ROWS : Math.round((width * 3) / 4);
+
+  const tiles: CanvasElement[] = media.map((item, index) => ({
+    id: `${type}-image-band-${index + 1}`,
+    kind: "image",
+    ...(item.source ? { source: item.source } : {}),
+    alt: item.alt,
+    fit: "cover",
+    layout: { desktop: geometry(CONTENT_X + index * step, y, width, rows) },
+  }));
+
+  return {
+    ...canvas,
+    rows: Math.min(SECTION_MAX_ROWS, y + rows + BOTTOM),
+    elements: [...canvas.elements, ...tiles],
+  };
+}
+
+/**
+ * Treść sekcji v1 + ARCHETYP KADRU → płótno v2.
+ *
+ * Trzecim argumentem posługują się WYŁĄCZNIE szablony startowe; galeria „dodaj
+ * sekcję" woła tę funkcję jak dotąd, dwuargumentowo, i dostaje dokładnie to samo
+ * płótno co przed K5 v2 (`stack`). Dzięki temu kompozycje nie zmieniają ani
+ * jednego piksela w istniejącej ścieżce dodawania sekcji.
+ */
+export function sectionCanvasWith(
+  type: SectionType,
+  content: SectionContent,
+  options: {
+    composition?: SectionComposition;
+    media?: readonly SectionMedia[];
+    /** Względna szerokość znaku kroju nagłówkowego motywu (patrz `metricRatio`). */
+    metricRatio?: number;
+  } = {},
+): SectionCanvas {
+  const { composition = "stack", media, metricRatio = 1 } = options;
+
+  if (type === "hero" && composition === "overlay") {
+    return heroOverlayCanvas(content as HeroContent, media?.[0], metricRatio);
+  }
+  if (type === "hero" && composition === "split") {
+    return heroSplitCanvas(content as HeroContent, media?.[0], metricRatio);
+  }
+
+  const base = sectionCanvasFrom(type, content);
+  if (composition === "band" && media) return withMediaBand(base, media, type);
+  return base;
 }

@@ -19,11 +19,9 @@ import { SiteRenderer } from "./site-renderer";
 import { SECTION_TYPES, presetContentFor, type SectionType } from "@avably/core/site";
 import type { RenderSection } from "./types";
 
-const TEMPLATES = ["classic", "bold"] as const;
-
-function renderCanvas(canvas: SectionCanvas, template: (typeof TEMPLATES)[number] = "classic") {
+function renderCanvas(canvas: SectionCanvas) {
   const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
-  return render(<SiteRenderer sections={sections} template={template} />);
+  return render(<SiteRenderer sections={sections} />);
 }
 
 const singleElement: SectionCanvas = {
@@ -129,25 +127,23 @@ describe("kontrakt: konwersja KAŻDEGO typu renderuje się w OBU szablonach", ()
     expect(SECTION_TYPES.length).toBe(12);
   });
 
-  const combinations = SECTION_TYPES.flatMap((type) =>
-    TEMPLATES.map((template) => [type, template] as const),
-  );
-
-  it.each(combinations)("%s w szablonie %s rysuje wszystkie swoje elementy", (type, template) => {
+  // Macierz idzie po TYPACH sekcji; wygląd niesie motyw jako zmienne (ADR-090),
+  // więc drugi wymiar „szablon graficzny" zniknął razem z samym pojęciem.
+  it.each(SECTION_TYPES)("%s rysuje wszystkie swoje elementy", (type) => {
     const canvas = sectionCanvasFrom(type as SectionType, presetContentFor(type as SectionType, "pl"));
-    const { container } = renderCanvas(canvas, template);
+    const { container } = renderCanvas(canvas);
     const drawn = container.querySelectorAll("[data-element-id]");
     // Sedno porównania typów ze sobą: liczba narysowanych pudełek musi zgadzać
     // się z liczbą elementów płótna. Typ, który gubi element w rendererze
     // (brak gałęzi w przełączniku), wypada tu z szeregu.
-    expect(drawn.length, `${type}/${template}: narysowano ${drawn.length} z ${canvas.elements.length}`).toBe(
+    expect(drawn.length, `${type}: narysowano ${drawn.length} z ${canvas.elements.length}`).toBe(
       canvas.elements.length,
     );
   });
 
-  it.each(combinations)("%s w szablonie %s niesie widoczny tekst", (type, template) => {
+  it.each(SECTION_TYPES)("%s niesie widoczny tekst", (type) => {
     const canvas = sectionCanvasFrom(type as SectionType, presetContentFor(type as SectionType, "pl"));
-    const { container } = renderCanvas(canvas, template);
+    const { container } = renderCanvas(canvas);
     // Sekcja bez ani jednego znaku to sekcja, której operator nie rozpozna na
     // płótnie — a taki jest właśnie objaw renderu, który „coś" narysował.
     expect(container.textContent?.trim().length ?? 0).toBeGreaterThan(0);
@@ -159,7 +155,7 @@ describe("dwutorowość: jeden renderer, dwie generacje treści", () => {
     const sections = [
       { id: "s1", position: 0, type: "hero", content: { heading: "Stara sekcja" } },
     ] as RenderSection[];
-    const { container } = render(<SiteRenderer sections={sections} template="classic" />);
+    const { container } = render(<SiteRenderer sections={sections} />);
     expect(container.textContent).toContain("Stara sekcja");
     // Brak płótna = brak konwersji w locie: sekcje sprzed K2 zostają v1 do
     // chwili, w której ich treść naprawdę przejdzie konwersję.
@@ -172,7 +168,7 @@ describe("dwutorowość: jeden renderer, dwie generacje treści", () => {
       { id: "s1", position: 0, type: "pricing", content: canvas },
       { id: "s2", position: 1, type: "pricing", content: { heading: "Cennik v1" } },
     ] as RenderSection[];
-    const { container } = render(<SiteRenderer sections={sections} template="bold" />);
+    const { container } = render(<SiteRenderer sections={sections} />);
     expect(container.querySelectorAll("[data-canvas-grid]")).toHaveLength(1);
     expect(container.textContent).toContain("Cennik v1");
   });
@@ -210,7 +206,7 @@ describe("zdjęcie: skąd render bierze adres", () => {
 
   function renderImage(canvas: SectionCanvas) {
     const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
-    return render(<SiteRenderer sections={sections} template="classic" siteImageBase={BASE} />);
+    return render(<SiteRenderer sections={sections} siteImageBase={BASE} />);
   }
 
   it("treść SPRZED K3 (samo `imagePath`) nadal pokazuje zdjęcie", () => {

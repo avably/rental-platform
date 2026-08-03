@@ -57,8 +57,8 @@ import {
   type MobileLayout,
   type SectionCanvas,
   type SectionType,
-  type SiteTemplate,
   type TextRun,
+  type ResolvedSiteStyle,
 } from "@avably/core/site";
 import {
   DndContext,
@@ -166,7 +166,7 @@ function breakpointOf(viewport: BuilderViewport): CanvasBreakpoint {
 }
 
 export function BuilderCanvas({
-  template,
+  style,
   sections,
   products,
   viewport,
@@ -185,7 +185,8 @@ export function BuilderCanvas({
   onSelect,
   onPickImage,
 }: {
-  template: SiteTemplate;
+  /** Styl szkicu — płótno renderuje TYM SAMYM kodem, co sklep (ADR-090). */
+  style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
   viewport: BuilderViewport;
@@ -394,7 +395,7 @@ export function BuilderCanvas({
             <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
               <SiteRenderer
                 sections={rendered as unknown as RenderSection[]}
-                template={template}
+                style={style}
                 products={products}
                 siteImageBase={siteImagePublicBase()}
                 sectionWrapper={(section, children) => {

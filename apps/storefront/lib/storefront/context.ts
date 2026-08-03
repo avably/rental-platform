@@ -12,12 +12,12 @@
 import { cache } from "react";
 
 import type { CurrencyCode } from "@avably/core";
-import type { SiteTemplate } from "@avably/ui";
+import type { ResolvedSiteStyle } from "@avably/core/site";
 import { headers } from "next/headers";
 
 import { getPublicCatalog } from "@/lib/checkout/catalog";
 import type { PublicCatalog } from "@/lib/checkout/contract";
-import { getPublishedSite, type PublishedSite } from "@/lib/site/published";
+import { getPublishedSite, publishedSiteStyle, type PublishedSite } from "@/lib/site/published";
 import { getStorefrontCopy, type StorefrontCopy } from "@/lib/storefront/copy";
 import { normalizeStorefrontLocale, type StorefrontLocale } from "@/lib/storefront/locale";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
@@ -28,8 +28,12 @@ export interface StorefrontContext {
   locale: StorefrontLocale;
   currency: CurrencyCode;
   copy: StorefrontCopy;
-  /** Szablon opublikowanego site'u; „classic” gdy strona nieopublikowana. */
-  template: SiteTemplate;
+  /**
+   * Styl strony po uzupełnieniu braków (K5, ADR-090): szablon, akcent i para
+   * fontów. Render zamienia go na zmienne CSS na korzeniu strony — to jedyna
+   * droga, którą kolor akcentu wchodzi do sklepu.
+   */
+  style: ResolvedSiteStyle;
   /** Pełna opublikowana strona (sekcje) — null gdy brak/nieopublikowana. */
   site: PublishedSite | null;
   supabaseUrl: string;
@@ -55,13 +59,18 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
   const locale = normalizeStorefrontLocale(catalog.tenant.locale);
   const copy = await getStorefrontCopy(locale);
 
+  // JEDNO rozstrzygnięcie stylu na żądanie — razem z szablonem. Gdyby szablon
+  // dalej szedł wprost z kolumny, a akcent ze stylu, strona po zmianie szablonu
+  // w panelu stylu renderowałaby się w starym układzie z nowym kolorem.
+  const style = publishedSiteStyle(site);
+
   return {
     tenantId,
     catalog,
     locale,
     currency: catalog.tenant.currency,
     copy,
-    template: site?.template ?? "classic",
+    style,
     site,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   };
