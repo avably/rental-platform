@@ -59,6 +59,7 @@ import {
   duplicateSection,
   publishSite,
   reorderSections,
+  restoreSection,
   toggleSection,
   updateTemplate,
   upsertSection,
@@ -194,8 +195,11 @@ export function SiteBuilder({
    * zasada, którą widać po wyniku.
    */
   function addElement(kind: PaletteElementKind) {
-    const target = selection?.sectionId ?? sections[0]?.id;
-    if (!target) return;
+    // Sekcja usunięta w szkicu nie przyjmuje elementów (K5a, ADR-091) — zniknie
+    // przy najbliższej publikacji, więc byłby to zapis do kosza.
+    const editable = sections.filter((section) => !section.deletedInDraft);
+    const target = selection?.sectionId ?? editable[0]?.id;
+    if (!target || editable.every((section) => section.id !== target)) return;
     const canvas = editor.canvasOf(target);
     if (!canvas) return;
     const id = newElementId();
@@ -227,6 +231,8 @@ export function SiteBuilder({
     const sectionId = grid?.closest<HTMLElement>("[data-canvas-section]")?.getAttribute("data-canvas-section");
     const canvas = sectionId ? editor.canvasOf(sectionId) : undefined;
     if (!grid || !sectionId || !canvas) return false;
+    // Upuszczenie na sekcję usuniętą w szkicu nie ma skutku (K5a, ADR-091).
+    if (sections.find((section) => section.id === sectionId)?.deletedInDraft) return false;
 
     /*
      * W WIDOKU TELEFONU upuszczenie NIE wskazuje miejsca (K4, ADR-088).
@@ -387,6 +393,7 @@ export function SiteBuilder({
             toggleAction={(section) => toggleSection(section.id, !section.enabled)}
             duplicateAction={(sectionId) => duplicateSection(sectionId)}
             deleteAction={(sectionId) => deleteSection(sectionId)}
+            restoreAction={(sectionId) => restoreSection(sectionId)}
             onAddSection={addSection}
             onOpenSettings={setSettingsId}
             editor={editor}

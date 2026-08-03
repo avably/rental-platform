@@ -2,8 +2,15 @@
 
 /**
  * Akcje modelu sekcyjnego storefrontu (Zadanie 2.3a, ADR-041) — WARSTWA LOGIKI
- * dla edytora 2.3b (UI powstaje osobno). Edycja pisze WYŁĄCZNIE do
- * content_draft; publiczny stan zmienia się jedynie przez publishSite.
+ * dla edytora 2.3b (UI powstaje osobno).
+ *
+ * PUBLIKACJA JEST JEDYNĄ BRAMKĄ (ADR-091, migracja 0045). Każda akcja z tego
+ * pliku poza `publishSite` pisze WYŁĄCZNIE do kolumn SZKICU
+ * (`content_draft`, `position`, `enabled`, `sites.template`,
+ * `deleted_in_draft`). Publiczny odczyt `app.get_published_site` czyta wyłącznie
+ * bliźniaki `*_published`, więc żadna z nich nie zmienia strony klienta — do
+ * momentu publikacji. Gwarancji NIE niesie ten kod (można ją stąd obejść
+ * dowolnym zapytaniem), tylko rozdzielenie kolumn w bazie.
  *
  * Bezpieczeństwo: każda akcja działa klientem zalogowanego membera — bramką
  * izolacji jest RLS (0019), nie ten kod. Filtry .eq("tenant_id", …) są
@@ -244,8 +251,73 @@ export async function toggleSection(
   return { ok: true };
 }
 
-/** Usunięcie sekcji (odwracalne w sensie pracy lady: sekcję można dodać ponownie). */
-export async function deleteSection(sectionId: string): Promise<SiteActionResult> {
+/**
+ * Usunięcie sekcji — OPERACJA SZKICU (ADR-091). Dwie drogi, rozstrzygane
+ * stanem sekcji, nie wyborem operatora:
+ *
+ *   * sekcja STOI NA ŻYWEJ STRONIE (content_published nie jest NULL-em) →
+ *     `deleted_in_draft = true`. Wiersz zostaje: na stronie klienta sekcja
+ *     wisi dalej (bo to publikacja o tym decyduje), a w kreatorze widać ją
+ *     z chipem „usunięta w szkicu" i akcją „przywróć". Kasuje ją dopiero
+ *     app.publish_site.
+ *   * sekcja NIGDY nie była opublikowana → twardy DELETE. Nie ma czego
+ *     chronić do publikacji, a nagrobek bez stanu opublikowanego jest
+ *     w bazie niereprezentowalny (CHECK site_sections_tombstone_published).
+ *
+ * `mode` mówi wołającemu, co się stało — UI dobiera komunikat i decyduje, czy
+ * sekcja zniknęła z płótna, czy tylko zmieniła wygląd.
+ */
+export async function deleteSection(
+  sectionId: string,
+): Promise<SiteActionResult<{ mode: "marked" | "removed" }>> {
+  const parsed = uuidSchema.safeParse(sectionId);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+
+  const { data: existing, error: readError } = await ctx.supabase
+    .from("site_sections")
+    .select("id, content_published")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data)
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  if (!existing) return { ok: false, error: "Nie znaleziono sekcji." };
+
+  if (existing.content_published === null) {
+    const { data, error } = await ctx.supabase
+      .from("site_sections")
+      .delete()
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", parsed.data)
+      .select("id");
+    if (error) return { ok: false, error: error.message };
+    if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono sekcji." };
+
+    revalidatePath("/", "layout");
+    return { ok: true, mode: "removed" };
+  }
+
+  const { data, error } = await ctx.supabase
+    .from("site_sections")
+    .update({ deleted_in_draft: true, updated_at: new Date().toISOString() })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono sekcji." };
+
+  revalidatePath("/", "layout");
+  return { ok: true, mode: "marked" };
+}
+
+/**
+ * Cofnięcie usunięcia PRZED publikacją (ADR-091). Zdejmuje znacznik z sekcji,
+ * która wciąż stoi na żywej stronie — po publikacji nie ma czego przywracać,
+ * bo wiersza już nie ma, i wtedy odmowa jest prawdziwa („nie znaleziono").
+ */
+export async function restoreSection(sectionId: string): Promise<SiteActionResult> {
   const parsed = uuidSchema.safeParse(sectionId);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
   const auth = await memberCtx();
@@ -254,12 +326,13 @@ export async function deleteSection(sectionId: string): Promise<SiteActionResult
 
   const { data, error } = await ctx.supabase
     .from("site_sections")
-    .delete()
+    .update({ deleted_in_draft: false, updated_at: new Date().toISOString() })
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data)
+    .eq("deleted_in_draft", true)
     .select("id");
   if (error) return { ok: false, error: error.message };
-  if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono sekcji." };
+  if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono usuniętej sekcji." };
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -352,7 +425,14 @@ export async function duplicateSection(
   return { ok: true, sectionId: newId };
 }
 
-/** Zmiana szablonu strony (dotyczy od razu draftu i publikacji — szablon nie jest wersjonowany). */
+/**
+ * Zmiana szablonu strony — OPERACJA SZKICU (ADR-091). Do 0045 szablon był
+ * kolumną WSPÓLNĄ: przełączenie „classic ↔ bold" przemalowywało stronę klienta
+ * natychmiast (akcja unieważniała nawet cache storefrontu, żeby zmiana była
+ * widoczna od razu). Odtąd pisze do `sites.template`, a publiczny odczyt bierze
+ * `template_published` — więc szablon wchodzi na żywą stronę razem z resztą,
+ * przy publikacji.
+ */
 export async function updateTemplate(
   siteId: string,
   template: string,
@@ -375,10 +455,9 @@ export async function updateTemplate(
   if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono strony." };
 
   revalidatePath("/", "layout");
-  // Szablon działa natychmiast także na opublikowanej stronie — unieważniamy
-  // cache storefrontu tak samo jak przy publikacji. Profil "max" (Next 16):
-  // natychmiastowa inwalidacja niezależnie od cacheLife wpisu.
-  revalidateTag(tenantCacheTag(auth.tenantId), "max");
+  // BEZ revalidateTag: opublikowana strona się nie zmieniła, więc unieważnianie
+  // cache storefrontu byłoby kłamstwem o zmianie (i jedynym miejscem w panelu,
+  // które ruszałoby publiczny cache poza publikacją).
   return { ok: true };
 }
 

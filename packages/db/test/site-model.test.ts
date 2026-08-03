@@ -245,7 +245,10 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
       ).toBe(false);
     });
 
-    it("wyłączenie sekcji PO publikacji zdejmuje ją z publicznego odczytu (enabled bramkowane przy odczycie)", async () => {
+    it("wyłączenie sekcji PO publikacji NIE zdejmuje jej z żywej strony — bramką jest enabled_published (0045)", async () => {
+      // Do 0045 `enabled` było kolumną WSPÓLNĄ i ten UPDATE chował sekcję
+      // natychmiast. Po ADR-091 wyłączenie jest operacją SZKICU; publiczny
+      // odczyt filtruje po `enabled_published`, które rusza tylko publikacja.
       const { error } = await a.ownerClient
         .from("site_sections")
         .update({ enabled: false })
@@ -253,15 +256,30 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
         .eq("id", pricingId);
       expect(error).toBeNull();
 
-      const site = await getPublishedAsAnon(a.tenantId);
-      expect(site?.sections.map((s) => s.id), "wyłączona sekcja dalej jest publiczna").toEqual([heroId]);
+      const beforePublish = await getPublishedAsAnon(a.tenantId);
+      expect(
+        beforePublish?.sections.some((s) => s.id === pricingId),
+        "wyłączenie w szkicu zdjęło sekcję z żywej strony przed publikacją",
+      ).toBe(true);
 
-      // Przywrócenie (dane wspólne dla kolejnych testów).
+      const { error: publishError } = await a.ownerClient
+        .schema("app")
+        .rpc("publish_site", { p_site_id: siteAId });
+      expect(publishError, `publikacja zawiodła: ${publishError?.message}`).toBeNull();
+
+      const afterPublish = await getPublishedAsAnon(a.tenantId);
+      expect(
+        afterPublish?.sections.some((s) => s.id === pricingId),
+        "publikacja nie przeniosła wyłączenia sekcji",
+      ).toBe(false);
+
+      // Przywrócenie (dane wspólne dla kolejnych testów) — też przez publikację.
       await a.ownerClient
         .from("site_sections")
         .update({ enabled: true })
         .eq("tenant_id", a.tenantId)
         .eq("id", pricingId);
+      await a.ownerClient.schema("app").rpc("publish_site", { p_site_id: siteAId });
     });
 
     it("odpowiedź dla tenanta A nie zawiera sekcji tenanta B (dwa opublikowane sklepy)", async () => {
@@ -298,9 +316,17 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
     const suspendedTenantId = tenant.id as string;
 
     try {
+      // Stan opublikowany od 0045 to KOMPLET bliźniaków (*_published), a nie
+      // sama treść — CHECK-i site_sections_published_complete i
+      // sites_published_template_complete czynią stan połowiczny
+      // niereprezentowalnym, także dla service_role.
       const { data: site, error: siteError } = await admin
         .from("sites")
-        .insert({ tenant_id: suspendedTenantId, published_at: new Date().toISOString() })
+        .insert({
+          tenant_id: suspendedTenantId,
+          published_at: new Date().toISOString(),
+          template_published: "classic",
+        })
         .select("id")
         .single();
       if (siteError || !site) throw new Error(`seed strony: ${siteError?.message}`);
@@ -311,6 +337,8 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
         position: 0,
         content_draft: { heading: "X" },
         content_published: { heading: "X" },
+        position_published: 0,
+        enabled_published: true,
       });
       if (sectionError) throw new Error(`seed sekcji: ${sectionError.message}`);
 

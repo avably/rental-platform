@@ -46,6 +46,7 @@ const actions = vi.hoisted(() => ({
   toggleSection: vi.fn(),
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
+  restoreSection: vi.fn(),
   updateTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));
@@ -67,9 +68,9 @@ const { orderWithInsertedAt } = await import(
 
 type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
 
-const A: Section = { id: "aaaaaaaa-1111-4111-8111-111111111111", type: "hero", position: 0, enabled: true, content: { heading: "Alfa" } };
-const B: Section = { id: "bbbbbbbb-2222-4222-8222-222222222222", type: "pricing", position: 1, enabled: true, content: { heading: "Beta" } };
-const C: Section = { id: "cccccccc-3333-4333-8333-333333333333", type: "faq", position: 2, enabled: false, content: { heading: "Gamma", items: [] } };
+const A: Section = { id: "aaaaaaaa-1111-4111-8111-111111111111", type: "hero", position: 0, enabled: true, deletedInDraft: false, published: true, content: { heading: "Alfa" } };
+const B: Section = { id: "bbbbbbbb-2222-4222-8222-222222222222", type: "pricing", position: 1, enabled: true, deletedInDraft: false, published: true, content: { heading: "Beta" } };
+const C: Section = { id: "cccccccc-3333-4333-8333-333333333333", type: "faq", position: 2, enabled: false, deletedInDraft: false, published: true, content: { heading: "Gamma", items: [] } };
 const NEW_ID = "dddddddd-4444-4444-8444-444444444444";
 const SITE_ID = "99999999-9999-4999-8999-999999999999";
 
@@ -114,7 +115,8 @@ beforeEach(() => {
   actions.reorderSections.mockResolvedValue({ ok: true });
   actions.toggleSection.mockResolvedValue({ ok: true });
   actions.duplicateSection.mockResolvedValue({ ok: true });
-  actions.deleteSection.mockResolvedValue({ ok: true });
+  actions.deleteSection.mockResolvedValue({ ok: true, mode: "marked" });
+  actions.restoreSection.mockResolvedValue({ ok: true });
   actions.updateTemplate.mockResolvedValue({ ok: true });
   actions.publishSite.mockResolvedValue({ ok: true, publishedAt: "2026-07-31T10:00:00Z" });
 });
@@ -156,6 +158,74 @@ describe("pasek narzędzi sekcji wychodzi przy sekcji i niesie komplet akcji", (
     // Wyłączona proponuje WŁĄCZENIE.
     const toolbar = hoverSection(container, C.id);
     expect(within(toolbar).getByRole("button", { name: sec.enable })).toBeTruthy();
+  });
+});
+
+/**
+ * SEKCJA USUNIĘTA W SZKICU (K5a, ADR-091). Trzy rzeczy naraz, bo każda psuje się
+ * osobno: sekcja ma ZOSTAĆ na płótnie (klient ją jeszcze widzi), ma być
+ * OZNACZONA (samo przygaszenie mówi „wyłączona", a to co innego) i ma dać się
+ * PRZYWRÓCIĆ bez szukania paska narzędzi pod kursorem.
+ */
+describe("sekcja usunięta w szkicu stoi na płótnie z chipem i przywróceniem", () => {
+  const D: Section = {
+    id: "eeeeeeee-5555-4555-8555-555555555555",
+    type: "contact",
+    position: 3,
+    enabled: true,
+    deletedInDraft: true,
+    published: true,
+    content: { heading: "Delta" },
+  };
+
+  it("zostaje na płótnie i niesie chip osi site-section o wartości `deleted`", () => {
+    const { container } = renderBuilder([A, B, C, D]);
+    expect(
+      container.querySelector(`[data-canvas-section="${D.id}"]`),
+      "sekcja zniknęła z płótna",
+    ).not.toBeNull();
+
+    const marker = container.querySelector(`[data-section-deleted="${D.id}"]`);
+    expect(marker, "brak oznaczenia sekcji usuniętej w szkicu").not.toBeNull();
+    const chip = marker!.querySelector('[data-secondary-status-axis="site-section"]');
+    expect(chip?.getAttribute("data-secondary-status-value")).toBe("deleted");
+    // Chip NIESIE TEKST (twardy zakaz statusu samym kolorem).
+    expect(chip?.textContent).toBe(plMessages.secondaryStatus["site-section"].deleted);
+
+    // Chip wyłączenia NIE dubluje się z chipem usunięcia — dwa naraz kłóciłyby
+    // się o znaczenie („klient nie widzi" kontra „klient jeszcze widzi").
+    expect(container.querySelector(`[data-section-hidden="${D.id}"]`)).toBeNull();
+  });
+
+  it("przywrócenie stoi przy chipie i woła restoreSection — BEZ najeżdżania na sekcję", async () => {
+    const { container } = renderBuilder([A, B, C, D]);
+    const marker = container.querySelector<HTMLElement>(`[data-section-deleted="${D.id}"]`)!;
+    fireEvent.click(within(marker).getByRole("button", { name: sec.restore }));
+    await waitFor(() => expect(actions.restoreSection).toHaveBeenCalledWith(D.id));
+  });
+
+  it("nie dostaje paska narzędzi — nie ma czego duplikować ani usuwać drugi raz", () => {
+    const { container } = renderBuilder([A, B, C, D]);
+    fireEvent.mouseEnter(container.querySelector<HTMLElement>(`[data-canvas-section="${D.id}"]`)!);
+    expect(container.querySelector(`[data-section-toolbar="${D.id}"]`)).toBeNull();
+    // Kontrola pozytywna: zdrowa sekcja pasek dostaje tym samym gestem.
+    expect(hoverSection(container, B.id)).toBeTruthy();
+  });
+
+  it("ostrzeżenie przed usunięciem mówi prawdę o skutku — inną dla opublikowanej i nieopublikowanej", async () => {
+    const swieza: Section = { ...B, published: false };
+    const { container } = renderBuilder([A, swieza, C]);
+    fireEvent.click(within(hoverSection(container, B.id)).getByRole("button", { name: sec.remove }));
+    expect(await screen.findByText(sec.confirmRemoveBodyDraft)).toBeTruthy();
+    expect(screen.queryByText(sec.confirmRemoveBodyPublished)).toBeNull();
+
+    cleanup();
+    const published = renderBuilder([A, B, C]);
+    fireEvent.click(
+      within(hoverSection(published.container, B.id)).getByRole("button", { name: sec.remove }),
+    );
+    expect(await screen.findByText(sec.confirmRemoveBodyPublished)).toBeTruthy();
+    expect(screen.queryByText(sec.confirmRemoveBodyDraft)).toBeNull();
   });
 });
 

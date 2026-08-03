@@ -439,7 +439,11 @@ describe.skipIf(!hasEnv)("podpisane uploady zdjęć sekcji (0043)", () => {
         site_id: siteAId,
         type: "gallery",
         content_draft: { items: [{ imagePath: usedGalleryDraft, alt: "x" }] },
+        // Stan opublikowany to od 0045 KOMPLET bliźniaków (ADR-091) — sama
+        // treść, bez pozycji i włączenia, jest niereprezentowalna (23514).
         content_published: { items: [{ imagePath: usedGalleryPublished, alt: "y" }] },
+        position_published: 0,
+        enabled_published: true,
       })
       .select("id")
       .single();

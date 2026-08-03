@@ -111,9 +111,12 @@ export type SiteSectionType = import("@avably/core/site").SectionType;
 export interface Site {
   id: string;
   tenant_id: string;
+  /** Szablon w SZKICU — na żywą stronę wchodzi dopiero publikacją (ADR-091). */
   template: SiteTemplate;
   /** NULL = strona nigdy nie opublikowana; stawia ją wyłącznie app.publish_site. */
   published_at: string | null;
+  /** Szablon OPUBLIKOWANY; NULL = strona nigdy nie opublikowana (ADR-091). */
+  template_published: SiteTemplate | null;
   created_at: string;
 }
 
@@ -122,12 +125,24 @@ export interface SiteSection {
   tenant_id: string;
   site_id: string;
   type: SiteSectionType;
+  /** Kolejność w SZKICU — publicznie widoczna jest position_published (ADR-091). */
   position: number;
+  /** Włączenie w SZKICU — publicznie widoczne jest enabled_published (ADR-091). */
   enabled: boolean;
   /** Stan roboczy edytora — nigdy nie serwowany publicznie. */
   content_draft: Json;
   /** Stan opublikowany; NULL = sekcja nigdy nie opublikowana. */
   content_published: Json | null;
+  /** Kolejność na OPUBLIKOWANEJ stronie; NULL = sekcja nigdy nieopublikowana. */
+  position_published: number | null;
+  /** Włączenie na OPUBLIKOWANEJ stronie; NULL = sekcja nigdy nieopublikowana. */
+  enabled_published: boolean | null;
+  /**
+   * Sekcja USUNIĘTA W SZKICU, ale wciąż stojąca na opublikowanej stronie —
+   * wiersz kasuje dopiero app.publish_site (ADR-091). Sekcja nigdy
+   * nieopublikowana nie może nosić tego znacznika (CHECK 0045).
+   */
+  deleted_in_draft: boolean;
   updated_at: string;
 }
 

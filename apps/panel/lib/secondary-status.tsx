@@ -28,7 +28,13 @@ export const secondaryStatusSemantics = {
   invitation: { accepted: "positive", pending: "attention" },
   organization: { active: "positive" },
   security: { not_configured: "attention", configured: "positive" },
-  "site-section": { enabled: "positive", disabled: "neutral" },
+  /**
+   * Sekcja strony sklepu. `deleted` (K5a, ADR-091) to NIE jest mocniejsze
+   * „disabled": sekcja wyłączona jest niewidoczna dla klienta, a usunięta
+   * w szkicu — WIDOCZNA, tylko z wyrokiem wykonywanym przy publikacji. Ton
+   * `attention` mówi dokładnie to: jest zmiana czekająca na wypchnięcie.
+   */
+  "site-section": { enabled: "positive", disabled: "neutral", deleted: "attention" },
   "site-publish": { published: "positive" },
   /**
    * Konto najemcy u dostawcy płatności (Z2, ADR-065).

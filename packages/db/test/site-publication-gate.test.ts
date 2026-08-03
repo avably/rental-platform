@@ -1,0 +1,678 @@
+/**
+ * PUBLIKACJA JEDYNĄ BRAMKĄ (0045, ADR-091) — gwarancja DWUSTRONNA.
+ *
+ * Model 0019 trzymał szkic i stan opublikowany w jednym wierszu, ale rozdzielał
+ * wyłącznie TREŚĆ. Kolejność (`position`), włączenie (`enabled`), ISTNIENIE
+ * wiersza i szablon strony były wspólne — więc reorder, wyłączenie, usunięcie
+ * sekcji i zmiana szablonu przestawiały ŻYWĄ stronę klienta natychmiast, bez
+ * publikacji. 0045 dokłada bliźniaki `*_published` i znacznik `deleted_in_draft`.
+ *
+ * Ten plik pilnuje obu stron kontraktu, bo każda z nich psuje się inaczej:
+ *
+ *   (a) ŻADNA operacja edytora nie zmienia wyniku app.get_published_site przed
+ *       publikacją — dowodzone CAŁĄ SESJĄ EDYCYJNĄ (siedem operacji po kolei),
+ *       z porównaniem koperty po każdym kroku. Regres jednej kolumny zapala
+ *       dokładnie ten krok.
+ *   (b) app.publish_site przenosi KOMPLET: treść, kolejność, włączenie, szablon
+ *       ORAZ usunięcia (sekcja znika z żywej strony dopiero tu). Test „nie
+ *       wycieka" bez tego byłby spełniony także przez funkcję, która nie
+ *       publikuje NICZEGO.
+ *
+ * Do tego: bramki spójności (CHECK-i czynią stan połowiczny niereprezentowalnym),
+ * strażnik strukturalny odczytu publicznego (definicja funkcji nie wolno, żeby
+ * wspominała kolumny szkicu), izolacja tenantów na nowych kolumnach oraz OKNO
+ * WDROŻENIOWE (koperta bajtowo zgodna z odczytem sprzed 0045 dla strony, której
+ * szkicu nikt nie ruszył).
+ *
+ * Wymaga lokalnego Supabase i zmiennych SUPABASE_LOCAL_* (patrz seed-tenants.ts).
+ */
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
+import WebSocket from "ws";
+
+import { integrationEnv } from "./helpers/integration-env";
+import { cleanupSeeded, createAdminClient, seedTwoTenants, type TenantCtx } from "./helpers/seed-tenants";
+
+const REQUIRED_ENV = [
+  "SUPABASE_LOCAL_URL",
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+  "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+] as const;
+const hasEnv = integrationEnv(REQUIRED_ENV);
+
+const PG_CHECK_VIOLATION = "23514";
+const PG_INVALID_PARAMETER_VALUE = "22023";
+
+const sql = process.env.SUPABASE_LOCAL_URL
+  ? postgres(process.env.SUPABASE_LOCAL_URL, { max: 1 })
+  : null;
+
+// supabase-js zawsze konstruuje klienta Realtime; Node 20 nie ma globalnego
+// WebSocket (patrz helpers/seed-tenants.ts). To samo obejście.
+const realtimeTransport = {
+  realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+};
+
+interface PublishedSitePayload {
+  template: string;
+  published_at: string;
+  sections: { id: string; type: string; position: number; content: Record<string, unknown> }[];
+}
+
+let admin: SupabaseClient;
+let anon: SupabaseClient;
+let a: TenantCtx;
+let b: TenantCtx;
+
+function createAnonClient(): SupabaseClient {
+  return createClient(
+    process.env.SUPABASE_LOCAL_API_URL as string,
+    process.env.SUPABASE_LOCAL_ANON_KEY as string,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      ...realtimeTransport,
+    },
+  );
+}
+
+/** Koperta widziana przez sklep — jedyna publiczna ścieżka odczytu. */
+async function envelope(tenantId: string): Promise<PublishedSitePayload | null> {
+  const { data, error } = await anon
+    .schema("app")
+    .rpc("get_published_site", { p_tenant_id: tenantId });
+  if (error) throw new Error(`get_published_site jako anon zawiodło: ${error.message}`);
+  return data as PublishedSitePayload | null;
+}
+
+async function createSite(ctx: TenantCtx): Promise<string> {
+  const { data, error } = await ctx.ownerClient
+    .from("sites")
+    .insert({ tenant_id: ctx.tenantId })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`Nie udało się utworzyć strony: ${error?.message}`);
+  return data.id as string;
+}
+
+async function addSection(
+  ctx: TenantCtx,
+  siteId: string,
+  row: { type: string; position: number; content_draft: Record<string, unknown> },
+): Promise<string> {
+  const { data, error } = await ctx.ownerClient
+    .from("site_sections")
+    .insert({ tenant_id: ctx.tenantId, site_id: siteId, ...row })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`Nie udało się dodać sekcji: ${error?.message}`);
+  return data.id as string;
+}
+
+async function publish(ctx: TenantCtx, siteId: string): Promise<void> {
+  const { error } = await ctx.ownerClient.schema("app").rpc("publish_site", { p_site_id: siteId });
+  if (error) throw new Error(`publish_site zawiodło: ${error.message}`);
+}
+
+describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, ADR-091)", () => {
+  let siteAId: string;
+  let heroId: string;
+  let pricingId: string;
+  let faqId: string;
+
+  beforeAll(async () => {
+    admin = createAdminClient();
+    anon = createAnonClient();
+    ({ a, b } = await seedTwoTenants());
+
+    siteAId = await createSite(a);
+    heroId = await addSection(a, siteAId, { type: "hero", position: 0, content_draft: { heading: "Hero" } });
+    pricingId = await addSection(a, siteAId, {
+      type: "pricing",
+      position: 1,
+      content_draft: { heading: "Cennik" },
+    });
+    faqId = await addSection(a, siteAId, { type: "faq", position: 2, content_draft: { heading: "FAQ" } });
+    await publish(a, siteAId);
+  }, 60_000);
+
+  afterAll(async () => {
+    await cleanupSeeded(admin);
+    await sql?.end({ timeout: 5 });
+  });
+
+  // -------------------------------------------------------------------
+  // (a) Sesja edycyjna NIE rusza żywej strony
+  // -------------------------------------------------------------------
+
+  it("cała sesja edycyjna nie zmienia koperty ani o bajt — po KAŻDEJ operacji", async () => {
+    const baseline = await envelope(a.tenantId);
+    expect(baseline, "strona po publikacji nie jest publiczna").not.toBeNull();
+    expect(baseline?.sections.map((s) => s.id)).toEqual([heroId, pricingId, faqId]);
+
+    // Każda pozycja to JEDNA operacja edytora — te same zapisy, które wysyła
+    // apps/panel/lib/actions/site.ts przez PostgREST.
+    const operacje: { nazwa: string; run: () => Promise<void> }[] = [
+      {
+        nazwa: "upsertSection (treść szkicu)",
+        run: async () => {
+          const { error } = await a.ownerClient
+            .from("site_sections")
+            .update({ content_draft: { heading: "Hero PO ZMIANIE" } })
+            .eq("tenant_id", a.tenantId)
+            .eq("id", heroId);
+          expect(error, `zapis treści szkicu: ${error?.message}`).toBeNull();
+        },
+      },
+      {
+        nazwa: "reorderSections (odwrócenie kolejności)",
+        run: async () => {
+          for (const [position, id] of [faqId, pricingId, heroId].entries()) {
+            const { error } = await a.ownerClient
+              .from("site_sections")
+              .update({ position })
+              .eq("tenant_id", a.tenantId)
+              .eq("site_id", siteAId)
+              .eq("id", id);
+            expect(error, `reorder: ${error?.message}`).toBeNull();
+          }
+        },
+      },
+      {
+        nazwa: "toggleSection (wyłączenie)",
+        run: async () => {
+          const { error } = await a.ownerClient
+            .from("site_sections")
+            .update({ enabled: false })
+            .eq("tenant_id", a.tenantId)
+            .eq("id", pricingId);
+          expect(error, `wyłączenie: ${error?.message}`).toBeNull();
+        },
+      },
+      {
+        nazwa: "deleteSection (znacznik usunięcia w szkicu)",
+        run: async () => {
+          const { data, error } = await a.ownerClient
+            .from("site_sections")
+            .update({ deleted_in_draft: true })
+            .eq("tenant_id", a.tenantId)
+            .eq("id", faqId)
+            .select("id");
+          expect(error, `usunięcie w szkicu: ${error?.message}`).toBeNull();
+          expect(data?.length, "znacznik usunięcia nie zapisał się").toBe(1);
+        },
+      },
+      {
+        nazwa: "upsertSection (dodanie sekcji)",
+        run: async () => {
+          await addSection(a, siteAId, {
+            type: "contact",
+            position: 3,
+            content_draft: { heading: "Kontakt" },
+          });
+        },
+      },
+      {
+        nazwa: "updateTemplate (szablon strony)",
+        run: async () => {
+          const { error } = await a.ownerClient
+            .from("sites")
+            .update({ template: "bold" })
+            .eq("tenant_id", a.tenantId)
+            .eq("id", siteAId);
+          expect(error, `zmiana szablonu: ${error?.message}`).toBeNull();
+        },
+      },
+    ];
+
+    for (const operacja of operacje) {
+      await operacja.run();
+      expect(
+        await envelope(a.tenantId),
+        `operacja „${operacja.nazwa}" zmieniła stronę klienta PRZED publikacją`,
+      ).toEqual(baseline);
+    }
+  }, 60_000);
+
+  // -------------------------------------------------------------------
+  // (b) Publikacja przenosi KOMPLET — w tym usunięcia
+  // -------------------------------------------------------------------
+
+  it("publikacja przenosi treść, kolejność, wyłączenie, szablon ORAZ usunięcie sekcji", async () => {
+    await publish(a, siteAId);
+    const after = await envelope(a.tenantId);
+
+    expect(after?.template, "szablon nie wszedł razem z publikacją").toBe("bold");
+
+    const ids = after?.sections.map((s) => s.id) ?? [];
+    expect(ids, "sekcja usunięta w szkicu przeżyła publikację").not.toContain(faqId);
+    expect(ids, "sekcja wyłączona w szkicu przeżyła publikację").not.toContain(pricingId);
+    expect(ids[0], "publikacja nie przeniosła nowej kolejności").toBe(heroId);
+    expect(after?.sections.find((s) => s.id === heroId)?.content).toEqual({
+      heading: "Hero PO ZMIANIE",
+    });
+
+    // Sekcja dodana w szkicu wchodzi na stronę TĄ SAMĄ publikacją.
+    const kontakt = after?.sections.find((s) => s.type === "contact");
+    expect(kontakt?.content, "nowa sekcja nie weszła przy publikacji").toEqual({ heading: "Kontakt" });
+  }, 30_000);
+
+  it("wiersz sekcji usuniętej w szkicu znika z bazy dopiero przy publikacji", async () => {
+    const { data } = await admin.from("site_sections").select("id").eq("id", faqId);
+    expect(data ?? [], "nagrobek nie został sprzątnięty przez publikację").toEqual([]);
+  });
+
+  it("przywrócenie przed publikacją zostawia sekcję na stronie", async () => {
+    const sectionId = await addSection(a, siteAId, {
+      type: "usp",
+      position: 9,
+      content_draft: { heading: "Atuty" },
+    });
+    await publish(a, siteAId);
+    expect((await envelope(a.tenantId))?.sections.some((s) => s.id === sectionId)).toBe(true);
+
+    await a.ownerClient
+      .from("site_sections")
+      .update({ deleted_in_draft: true })
+      .eq("tenant_id", a.tenantId)
+      .eq("id", sectionId);
+    const { data: restored, error } = await a.ownerClient
+      .from("site_sections")
+      .update({ deleted_in_draft: false })
+      .eq("tenant_id", a.tenantId)
+      .eq("id", sectionId)
+      .eq("deleted_in_draft", true)
+      .select("id");
+    expect(error, `przywrócenie: ${error?.message}`).toBeNull();
+    expect(restored?.length, "przywrócenie nie trafiło w nagrobek").toBe(1);
+
+    await publish(a, siteAId);
+    expect(
+      (await envelope(a.tenantId))?.sections.some((s) => s.id === sectionId),
+      "przywrócona sekcja zniknęła mimo cofnięcia usunięcia",
+    ).toBe(true);
+  }, 30_000);
+
+  // -------------------------------------------------------------------
+  // Bramki spójności — stan połowiczny jest niereprezentowalny
+  // -------------------------------------------------------------------
+
+  describe("CHECK-i spójności stanu opublikowanego", () => {
+    it("sekcja z treścią opublikowaną, ale bez pozycji/włączenia → 23514", async () => {
+      const { error } = await admin.from("site_sections").insert({
+        tenant_id: a.tenantId,
+        site_id: siteAId,
+        type: "hero",
+        content_draft: { heading: "X" },
+        content_published: { heading: "X" },
+      });
+      expect(error?.code, `oczekiwano ${PG_CHECK_VIOLATION}: ${error?.message}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+    });
+
+    it("nagrobek na sekcji NIGDY nieopublikowanej → 23514 (nie ma czego chronić)", async () => {
+      const fresh = await addSection(a, siteAId, {
+        type: "cta",
+        position: 20,
+        content_draft: { heading: "Świeża" },
+      });
+      const { error } = await admin
+        .from("site_sections")
+        .update({ deleted_in_draft: true })
+        .eq("id", fresh);
+      expect(error?.code, `oczekiwano ${PG_CHECK_VIOLATION}: ${error?.message}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+      await admin.from("site_sections").delete().eq("id", fresh);
+    });
+
+    it("strona opublikowana bez opublikowanego szablonu → 23514", async () => {
+      const { error } = await admin
+        .from("sites")
+        .update({ template_published: null })
+        .eq("id", siteAId);
+      expect(error?.code, `oczekiwano ${PG_CHECK_VIOLATION}: ${error?.message}`).toBe(
+        PG_CHECK_VIOLATION,
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Strażnik kolumn opublikowanych — niezmiennik ma ZĘBY W BAZIE
+  // -------------------------------------------------------------------
+  //
+  // Bez tego bloku cały ADR-091 opierałby się na tym, że kod panelu nie pisze
+  // po `*_published`. GRANT UPDATE na tabelę ma jednak KAŻDY członek tenanta,
+  // więc jedno zapytanie przez PostgREST odtwarzało wyciek, który ta migracja
+  // zamyka: `update site_sections set enabled_published = false` zdejmowało
+  // sekcję z żywej strony bez publikacji. Werdykt zawsze z TRWAŁEGO stanu
+  // (odczyt service-rolem), nie z samego kodu błędu.
+
+  describe("bezpośredni zapis do kolumn opublikowanych (trigger 0045)", () => {
+    const PG_INSUFFICIENT_PRIVILEGE = "42501";
+
+    let guardedSiteId: string;
+    let guardedSectionId: string;
+
+    beforeAll(async () => {
+      const { data: site } = await admin
+        .from("sites")
+        .select("id")
+        .eq("tenant_id", a.tenantId)
+        .single();
+      guardedSiteId = site!.id as string;
+      guardedSectionId = await addSection(a, guardedSiteId, {
+        type: "delivery",
+        position: 40,
+        content_draft: { heading: "Dostawa", text: "Tekst" },
+      });
+      await publish(a, guardedSiteId);
+    }, 30_000);
+
+    it.each([
+      { kolumna: "enabled_published", wartosc: false },
+      { kolumna: "position_published", wartosc: 999 },
+      { kolumna: "content_published", wartosc: { heading: "WSTRZYKNIĘTE" } },
+    ])(
+      "member NIE zapisze site_sections.$kolumna wprost (42501, stan nietknięty)",
+      async ({ kolumna, wartosc }) => {
+        const { data: before } = await admin
+          .from("site_sections")
+          .select("content_published, position_published, enabled_published")
+          .eq("id", guardedSectionId)
+          .single();
+
+        const { error } = await a.ownerClient
+          .from("site_sections")
+          .update({ [kolumna]: wartosc })
+          .eq("tenant_id", a.tenantId)
+          .eq("id", guardedSectionId);
+
+        expect(error, `zapis do ${kolumna} przeszedł — niezmiennik bez zębów`).not.toBeNull();
+        expect(error?.code, `oczekiwano ${PG_INSUFFICIENT_PRIVILEGE}: ${error?.message}`).toBe(
+          PG_INSUFFICIENT_PRIVILEGE,
+        );
+
+        const { data: after } = await admin
+          .from("site_sections")
+          .select("content_published, position_published, enabled_published")
+          .eq("id", guardedSectionId)
+          .single();
+        expect(after, `stan opublikowany zmieniony mimo odmowy (${kolumna})`).toEqual(before);
+      },
+    );
+
+    it("member NIE zapisze sites.template_published ani published_at wprost (42501)", async () => {
+      const { data: before } = await admin
+        .from("sites")
+        .select("template_published, published_at")
+        .eq("id", guardedSiteId)
+        .single();
+
+      // Wartość musi być INNA niż bieżąca — inaczej test przechodziłby przez
+      // zapis, który i tak niczego nie zmienia (patrz przypadek niżej).
+      const innySzablon = before?.template_published === "bold" ? "classic" : "bold";
+      const patches = [
+        { template_published: innySzablon },
+        { published_at: null },
+        { published_at: "2020-01-01T00:00:00.000Z" },
+      ];
+
+      for (const patch of patches) {
+        const { error } = await a.ownerClient
+          .from("sites")
+          .update(patch)
+          .eq("tenant_id", a.tenantId)
+          .eq("id", guardedSiteId);
+        expect(error?.code, `${JSON.stringify(patch)}: ${error?.message ?? "brak odmowy"}`).toBe(
+          PG_INSUFFICIENT_PRIVILEGE,
+        );
+      }
+
+      const { data: after } = await admin
+        .from("sites")
+        .select("template_published, published_at")
+        .eq("id", guardedSiteId)
+        .single();
+      expect(after, "stan opublikowany strony zmieniony mimo odmowy").toEqual(before);
+    });
+
+    it("zapis TĄ SAMĄ wartością przechodzi — strażnik broni ZMIANY, nie kolumny", async () => {
+      // Świadoma granica: `is distinct from` znaczy, że no-op nie jest odmawiany.
+      // Gdyby strażnik blokował każdą wzmiankę o kolumnie, zwykły UPDATE całego
+      // wiersza (PostgREST potrafi wysłać komplet pól) padałby bez powodu —
+      // a stan opublikowany i tak by się nie zmienił.
+      const { data: before } = await admin
+        .from("sites")
+        .select("template_published")
+        .eq("id", guardedSiteId)
+        .single();
+
+      const { error } = await a.ownerClient
+        .from("sites")
+        .update({ template_published: before?.template_published })
+        .eq("tenant_id", a.tenantId)
+        .eq("id", guardedSiteId);
+      expect(error, `no-op odrzucony: ${error?.message}`).toBeNull();
+
+      const { data: after } = await admin
+        .from("sites")
+        .select("template_published")
+        .eq("id", guardedSiteId)
+        .single();
+      expect(after?.template_published).toBe(before?.template_published);
+    });
+
+    it("sekcja nie może URODZIĆ SIĘ opublikowana — INSERT z *_published to 42501", async () => {
+      const { error } = await a.ownerClient.from("site_sections").insert({
+        tenant_id: a.tenantId,
+        site_id: guardedSiteId,
+        type: "cta",
+        position: 41,
+        content_draft: { heading: "X", buttonLabel: "Y", buttonHref: "/" },
+        content_published: { heading: "OD RAZU NA ŻYWO" },
+        position_published: 41,
+        enabled_published: true,
+      });
+      expect(error?.code, `oczekiwano ${PG_INSUFFICIENT_PRIVILEGE}: ${error?.message}`).toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+    });
+
+    it("zapisy SZKICU idą dalej bez przeszkód — strażnik nie jest kłódką na całą tabelę", async () => {
+      const { error } = await a.ownerClient
+        .from("site_sections")
+        .update({ position: 42, enabled: false, content_draft: { heading: "Szkic", text: "T" } })
+        .eq("tenant_id", a.tenantId)
+        .eq("id", guardedSectionId);
+      expect(error, `zapis szkicu odrzucony: ${error?.message}`).toBeNull();
+    });
+
+    it("publikacja NADAL przenosi stan — flaga otwiera strażnika tylko z wnętrza publish_site", async () => {
+      await publish(a, guardedSiteId);
+      const { data: row } = await admin
+        .from("site_sections")
+        .select("position_published, enabled_published, content_published")
+        .eq("id", guardedSectionId)
+        .single();
+      expect(row?.position_published, "publikacja nie przeniosła pozycji").toBe(42);
+      expect(row?.enabled_published, "publikacja nie przeniosła wyłączenia").toBe(false);
+      expect(row?.content_published).toEqual({ heading: "Szkic", text: "T" });
+
+      // Flaga jest zdejmowana w ciele publikacji: kolejny zapis wprost, w tej
+      // samej sesji PO udanej publikacji, dalej jest odmawiany.
+      const { error } = await a.ownerClient
+        .from("site_sections")
+        .update({ enabled_published: true })
+        .eq("tenant_id", a.tenantId)
+        .eq("id", guardedSectionId);
+      expect(error?.code, "okno publikacji zostało otwarte na dłużej niż jej ciało").toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Strażnik strukturalny: publiczny odczyt nie zna kolumn szkicu
+  // -------------------------------------------------------------------
+
+  it("app.get_published_site nie czyta ANI JEDNEJ kolumny szkicu", async () => {
+    const [row] = await sql!<{ def: string }[]>`
+      select pg_get_functiondef('app.get_published_site(uuid)'::regprocedure) as def
+    `;
+
+    // Bliźniaki znikają najpierw, żeby odwołanie `sec.enabled_published` nie
+    // udawało `sec.enabled`. Szukamy ODWOŁAŃ DO KOLUMN (`alias.kolumna`), nie
+    // gołych nazw: klucz koperty `'template'` ma zostać, bo to nazwa pola
+    // w odpowiedzi, a nie odczyt szkicu.
+    const odchudzona = (definicja: string) =>
+      definicja
+        .replaceAll("content_published", "")
+        .replaceAll("position_published", "")
+        .replaceAll("enabled_published", "")
+        .replaceAll("template_published", "")
+        .replaceAll("published_at", "");
+
+    const KOLUMNY_SZKICU = ['."position"', ".enabled", ".template", ".content_draft", ".deleted_in_draft"];
+
+    const czysta = odchudzona(row!.def);
+    for (const kolumna of KOLUMNY_SZKICU) {
+      expect(czysta, `odczyt publiczny sięga po kolumnę szkicu ${kolumna}`).not.toContain(kolumna);
+    }
+
+    // KONTROLA POZYTYWNA: ten sam skan puszczony na ciało sprzed 0045 musi
+    // zapalić się na trzech kolumnach — inaczej test przechodziłby przez
+    // pustkę, a nie przez dowód.
+    const cialo0019 = `
+      select jsonb_build_object('template', s.template, 'sections', (
+        select jsonb_agg(jsonb_build_object('position', sec."position", 'content', sec.content_published)
+        order by sec."position", sec.id)
+        from public.site_sections sec where sec.enabled and sec.content_published is not null))
+      from public.sites s`;
+    const trafienia = KOLUMNY_SZKICU.filter((kolumna) => odchudzona(cialo0019).includes(kolumna));
+    expect(trafienia.sort(), "skan nie wykrywa odczytu szkicu — dowód byłby pusty").toEqual(
+      ['."position"', ".enabled", ".template"].sort(),
+    );
+  });
+
+  // -------------------------------------------------------------------
+  // Okno wdrożeniowe: koperta bajtowo zgodna z odczytem sprzed 0045
+  // -------------------------------------------------------------------
+
+  it("dla strony bez zmian szkicu koperta jest BAJTOWO zgodna z odczytem sprzed 0045", async () => {
+    // Świeży tenant: strona opublikowana i od tej pory NIETKNIĘTA — dokładnie
+    // sytuacja produkcyjnej strony w oknie między migracją a deployem kodu.
+    const siteBId = await createSite(b);
+    await addSection(b, siteBId, { type: "hero", position: 0, content_draft: { heading: "B hero" } });
+    await addSection(b, siteBId, {
+      type: "gallery",
+      position: 5,
+      content_draft: { heading: "B galeria" },
+    });
+    await publish(b, siteBId);
+
+    // Replika ciała funkcji Z 0019 (czyta kolumny WSPÓLNE) — to jest odpowiedź,
+    // którą sklep dostawał przed migracją.
+    const [stare] = await sql!<{ envelope: unknown }[]>`
+      select jsonb_build_object(
+        'template', s.template,
+        'published_at', s.published_at,
+        'sections', coalesce(
+          (
+            select jsonb_agg(
+              jsonb_build_object(
+                'id', sec.id,
+                'type', sec.type,
+                'position', sec."position",
+                'content', sec.content_published
+              )
+              order by sec."position", sec.id
+            )
+            from public.site_sections sec
+            where sec.tenant_id = s.tenant_id
+              and sec.site_id = s.id
+              and sec.enabled
+              and sec.content_published is not null
+          ),
+          '[]'::jsonb
+        )
+      ) as envelope
+      from public.sites s
+      join public.tenants t on t.id = s.tenant_id
+      where s.tenant_id = ${b.tenantId}
+        and s.published_at is not null
+        and t.status in ('trialing', 'active')
+    `;
+
+    const [nowe] = await sql!<{ envelope: unknown }[]>`
+      select app.get_published_site(${b.tenantId}) as envelope
+    `;
+
+    expect(stare?.envelope, "replika odczytu sprzed 0045 nic nie zwróciła").not.toBeNull();
+    // Porównanie tekstem, nie tylko strukturą: „bajtowo zgodna" znaczy też te
+    // same klucze w tej samej kolejności i te same typy liczb.
+    expect(JSON.stringify(nowe?.envelope)).toBe(JSON.stringify(stare?.envelope));
+  }, 30_000);
+
+  // -------------------------------------------------------------------
+  // Izolacja na NOWYCH kolumnach
+  // -------------------------------------------------------------------
+
+  describe("izolacja tenantów na kolumnach 0045", () => {
+    let siteBId: string;
+    let sectionBId: string;
+
+    beforeAll(async () => {
+      const { data } = await admin.from("sites").select("id").eq("tenant_id", b.tenantId).maybeSingle();
+      siteBId = (data?.id as string) ?? (await createSite(b));
+      sectionBId = await addSection(b, siteBId, {
+        type: "cta",
+        position: 30,
+        content_draft: { heading: "B cta" },
+      });
+      await publish(b, siteBId);
+    }, 30_000);
+
+    it("owner A nie oznaczy sekcji tenanta B jako usuniętej (RLS: zero wierszy, stan B nietknięty)", async () => {
+      const { data, error } = await a.ownerClient
+        .from("site_sections")
+        .update({ deleted_in_draft: true })
+        .eq("id", sectionBId)
+        .select("id");
+      expect(error, `oczekiwano cichej odmowy RLS, nie błędu: ${error?.message}`).toBeNull();
+      expect(data ?? [], "tenant A oznaczył cudzą sekcję").toEqual([]);
+
+      const { data: after } = await admin
+        .from("site_sections")
+        .select("deleted_in_draft")
+        .eq("id", sectionBId)
+        .single();
+      expect(after?.deleted_in_draft, "znacznik usunięcia u tenanta B zmienił się").toBe(false);
+    });
+
+    it("owner A nie opublikuje strony B — nagrobek B zostaje nietknięty (22023)", async () => {
+      await admin.from("site_sections").update({ deleted_in_draft: true }).eq("id", sectionBId);
+
+      const { error } = await a.ownerClient
+        .schema("app")
+        .rpc("publish_site", { p_site_id: siteBId });
+      expect(error?.code, `oczekiwano ${PG_INVALID_PARAMETER_VALUE}: ${error?.message}`).toBe(
+        PG_INVALID_PARAMETER_VALUE,
+      );
+
+      // Werdykt z TRWAŁEGO stanu: cudza publikacja nie skasowała wiersza B.
+      const { data: after } = await admin
+        .from("site_sections")
+        .select("id, deleted_in_draft")
+        .eq("id", sectionBId)
+        .maybeSingle();
+      expect(after?.id, "cudza publikacja skasowała sekcję tenanta B").toBe(sectionBId);
+      expect(after?.deleted_in_draft).toBe(true);
+
+      await admin.from("site_sections").update({ deleted_in_draft: false }).eq("id", sectionBId);
+    });
+  });
+});

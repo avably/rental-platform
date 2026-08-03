@@ -17,6 +17,16 @@
  * się znaleźć, włączyć i poprawić. Gwarancji „klient tego nie zobaczy" nie
  * niesie tu żaden filtr UI, tylko `app.get_published_site` (0019).
  *
+ * ================== CO ZMIENIŁ K5a (ADR-091) ==================
+ *
+ * SEKCJA USUNIĘTA ZOSTAJE NA PŁÓTNIE. Usunięcie sekcji opublikowanej jest od
+ * 0045 operacją SZKICU (`deleted_in_draft`), a nie kasowaniem wiersza: na
+ * stronie klienta sekcja stoi do najbliższej publikacji, więc kreator ma
+ * pokazywać ją tak, jak jest — z chipem „usunięta w szkicu" i akcją
+ * „przywróć" stojącą przy chipie, a nie schowaną w pasku pod kursorem.
+ * Warstwa edycyjna jest jej odbierana (nie ma po co poprawiać treści, która
+ * zaraz zniknie), pasek narzędzi też — zostaje przywrócenie i nic poza nim.
+ *
  * ================== DWA POZIOMY PRZECIĄGANIA ==================
  *
  * KOLEJNOŚĆ SEKCJI zmienia się dwoma drogami wołającymi TĘ SAMĄ akcję z pełnym
@@ -95,6 +105,7 @@ import {
   EyeOff,
   GripVertical,
   Plus,
+  RotateCcw,
   SendToBack,
   Settings2,
   Trash2,
@@ -165,6 +176,7 @@ export function BuilderCanvas({
   toggleAction,
   duplicateAction,
   deleteAction,
+  restoreAction,
   onAddSection,
   onOpenSettings,
   onChanged,
@@ -188,6 +200,8 @@ export function BuilderCanvas({
   toggleAction: (section: EditorSection) => Promise<ActionResult>;
   duplicateAction: (sectionId: string) => Promise<ActionResult>;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
+  /** Cofnięcie usunięcia sekcji przed publikacją (K5a, ADR-091). */
+  restoreAction: (sectionId: string) => Promise<ActionResult>;
   /** Wstawienie sekcji na POZYCJI (index w skali listy bez nowej sekcji). */
   onAddSection: (type: SectionType, index: number, orderedIds: string[]) => void;
   onOpenSettings: (sectionId: string) => void;
@@ -413,6 +427,7 @@ export function BuilderCanvas({
                       onOpenSettings={() => onOpenSettings(editorSection.id)}
                       deleteAction={deleteAction}
                       onDeleted={onChanged}
+                      onRestore={() => run(() => restoreAction(editorSection.id))}
                       elementActions={
                         selected ? (
                           <ElementActions
@@ -456,6 +471,15 @@ export function BuilderCanvas({
                 elementWrapper={(section, element, children) => {
                   const canvas = editor.canvasOf(section.id);
                   if (!canvas) return children;
+                  /*
+                   * Sekcja USUNIĘTA W SZKICU nie dostaje warstwy edycyjnej
+                   * (K5a, ADR-091): jej treść jest już poza edycją — zostaje
+                   * na płótnie po to, żeby pokazać, co jeszcze stoi na żywej
+                   * stronie, a nie po to, żeby ją poprawiać. Bez tej bramki
+                   * autozapis geometrii pisałby do szkicu sekcji przeznaczonej
+                   * do skasowania przy najbliższej publikacji.
+                   */
+                  if (order.find((s) => s.id === section.id)?.deletedInDraft) return children;
 
                   const mobile = mobileOf(canvas);
                   const box = geometryAt(element, breakpoint, mobile);
@@ -564,6 +588,7 @@ function CanvasSection({
   onOpenSettings,
   deleteAction,
   onDeleted,
+  onRestore,
   elementActions,
   children,
 }: {
@@ -583,6 +608,8 @@ function CanvasSection({
   onOpenSettings: () => void;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   onDeleted: () => void;
+  /** Cofnięcie usunięcia (K5a) — jedyna akcja sekcji-nagrobka. */
+  onRestore: () => void;
   /**
    * Akcje ZAZNACZONEGO elementu (K2). Stoją w pasku SEKCJI, a nie przy samym
    * elemencie: płótno przycina zawartość, więc pasek przy elemencie stojącym
@@ -630,7 +657,7 @@ function CanvasSection({
         }`}
       />
 
-      {active ? (
+      {active && !section.deletedInDraft ? (
         <div
           data-section-toolbar={section.id}
           className="border-border bg-background absolute top-2 right-2 z-20 flex flex-wrap items-center gap-1 rounded-md border p-1"
@@ -699,14 +726,41 @@ function CanvasSection({
       ) : null}
 
       {/* Sekcja wyłączona zostaje na płótnie, ale mówi wprost, że klient jej nie
-          zobaczy — przygaszenie SAMO w sobie byłoby zagadką, nie komunikatem. */}
-      {!section.enabled ? (
+          zobaczy — przygaszenie SAMO w sobie byłoby zagadką, nie komunikatem.
+
+          Sekcja USUNIĘTA W SZKICU (K5a) mówi coś odwrotnego i mocniejszego:
+          klient JĄ WIDZI, a zniknie dopiero po publikacji. Dlatego jej chip
+          wypiera chip wyłączenia (dwa naraz kłóciłyby się o znaczenie), a
+          „Przywróć" stoi PRZY chipie i jest widoczne bez najeżdżania kursorem
+          — cofnięcie pomyłki nie może wymagać odnalezienia paska narzędzi. */}
+      {section.deletedInDraft ? (
+        <div
+          data-section-deleted={section.id}
+          className="border-border bg-background absolute top-2 left-2 z-20 flex items-center gap-2 rounded-md border p-1 pl-2"
+        >
+          <SecondaryStatusChip axis="site-section" value="deleted" />
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            data-section-restore
+            disabled={locked}
+            loading={locked}
+            onClick={onRestore}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            {t("sections.restore")}
+          </Button>
+        </div>
+      ) : !section.enabled ? (
         <div data-section-hidden={section.id} className="absolute top-2 left-2 z-20">
           <SecondaryStatusChip axis="site-section" value="disabled" />
         </div>
       ) : null}
 
-      <div className={section.enabled ? undefined : "opacity-50"}>{children}</div>
+      <div className={section.enabled && !section.deletedInDraft ? undefined : "opacity-50"}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -900,6 +954,12 @@ function ToolbarButton({
 /**
  * Usunięcie sekcji WYMAGA potwierdzenia (wzorzec R6b) — na płótnie tym bardziej,
  * bo pasek narzędzi wychodzi od samego najechania kursorem.
+ *
+ * OSTRZEŻENIE MÓWI PRAWDĘ O SKUTKU (K5a, ADR-091), a skutek jest inny dla
+ * sekcji opublikowanej (znika ze strony klienta dopiero przy publikacji, do
+ * tego czasu da się ją przywrócić) niż dla nigdy nieopublikowanej (ginie od
+ * razu i bezpowrotnie). Do 0045 dialog obiecywał to pierwsze WSZYSTKIM —
+ * i było to nieprawdą dla obu.
  */
 function DeleteSectionDialog({
   section,
@@ -948,7 +1008,11 @@ function DeleteSectionDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("sections.confirmRemoveTitle")}</DialogTitle>
-          <DialogDescription>{t("sections.confirmRemoveBody")}</DialogDescription>
+          <DialogDescription data-remove-scope={section.published ? "published" : "draft-only"}>
+            {section.published
+              ? t("sections.confirmRemoveBodyPublished")
+              : t("sections.confirmRemoveBodyDraft")}
+          </DialogDescription>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
