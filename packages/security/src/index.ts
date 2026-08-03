@@ -61,6 +61,16 @@ export interface CspOptions {
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 /**
+ * Host hotlinkowanych zdjęć Unsplash (K3, ADR-086). Zdjęcia w pickerze
+ * kreatora i na opublikowanych stronach ładują się bezpośrednio z Unsplash
+ * (bez pośrednictwa naszego Storage), więc host wchodzi do img-src na stałe —
+ * w obu apkach, niezależnie od konfiguracji tenanta. Wyszukiwanie zdjęć idzie
+ * server-side (API key nie trafia do przeglądarki), więc connect-src tego
+ * hosta NIE potrzebuje.
+ */
+const UNSPLASH_IMAGE_ORIGIN = "https://images.unsplash.com";
+
+/**
  * Origins dostawcy płatności. `js.` niesie bibliotekę i ramki pól karty,
  * `api.` przyjmuje potwierdzenia z przeglądarki, `hooks.` obsługuje
  * przekierowania 3DS wewnątrz ramki.
@@ -116,7 +126,13 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     // supabaseUrl: zdjęcia produktów storefrontu leżą w publicznym bucketcie
     // Storage (inny origin niż strona tenanta), więc bez niego CSP tnie je jak
     // każdy obcy obraz. Ta sama motywacja co supabaseUrl w connect-src.
-    "img-src": ["'self'", "data:", "blob:", ...(supabaseUrl ? [supabaseUrl] : [])],
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      UNSPLASH_IMAGE_ORIGIN,
+      ...(supabaseUrl ? [supabaseUrl] : []),
+    ],
     "font-src": ["'self'", "data:"],
     "connect-src": connectSrc,
     // frame-src istnieje TYLKO dla osadzanych, których jawnie włączono
