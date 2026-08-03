@@ -15,7 +15,7 @@ allowBuilds:
   unrs-resolver: true
 
 minimumReleaseAgeExclude:
-  - brace-expansion@5.0.8
+  - brace-expansion@5.0.9
 
 patchedDependencies:
   # minimatch 3 oczekuje eksportu-funkcji z brace-expansion 1.x.
@@ -36,10 +36,14 @@ patchedDependencies:
 #   postcss  <8.5.12  — GHSA-6g55-p6wh-862q (odczyt pliku przez
 #                       sourceMappingURL; 2026-07-23); pośredni przez
 #                       next w obu appkach — bump bezpośredni nic nie da.
+#   brace-expansion <5.0.9 — GHSA-rgw5-rvv9-x895 (DoS, obejście
+#                       mitygacji CVE-2026-14257; 2026-08-03).
+#                       Poprzednie nadpisanie na 5.0.8 przestało
+#                       wystarczać — advisory obejmuje 5.0.8.
 # Wpisy usuwamy, gdy next i react-email podniosą je same.
 overrides:
   fast-uri: "^3.1.4"
   sharp: "^0.35.3"
   next: "^16.2.11"
   postcss: "^8.5.12"
-  brace-expansion@<=5.0.7: ^5.0.8
+  brace-expansion@<=5.0.8: ^5.0.9
