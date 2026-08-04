@@ -182,3 +182,87 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
     transform: scale(0.4167); /* 480 / 1152 */
   }
 }
+
+/*
+ * =====================================================================
+ * WARSTWA EDYCYJNA PŁÓTNA (K5-iteracje) — WŁASNY KOLOR, NIE MOTYW NAJEMCY
+ * =====================================================================
+ *
+ * Obrys zaznaczenia i hoveru brał dotąd `--accent`, czyli limonkę PANELU.
+ * Właściciel odrzucił ją jako nieczytelną (2026-08-03) — i ma rację niezależnie
+ * od gustu: limonka ma na jasnym papierze kontrast ~1,3:1, więc na białej
+ * sekcji obrys praktycznie znika, a na sekcji ciemnej gubi się w akcencie
+ * motywu najemcy.
+ *
+ * Warstwa edycyjna dostaje więc WŁASNY token. Nie bierze koloru z motywu strony
+ * (`--site-*`) i nie może: ten sam obrys ma być rozpoznawalny na białym
+ * minimalizmie, na czarnym plakacie i na pastelu, a motyw najemcy zmienia się
+ * pod nim co chwilę. Para „błękit + biała otoczka" jest klasycznym obrysem
+ * edytorskim właśnie dlatego, że czyta się na OBU krańcach jasności: błękit
+ * odcina się od bieli, otoczka od czerni.
+ */
+:root {
+  --builder-selection: #2F6FEB;
+  --builder-selection-halo: rgb(255 255 255 / 0.9);
+}
+
+.dark {
+  --builder-selection: #6AA1FF;
+  --builder-selection-halo: rgb(0 0 0 / 0.55);
+}
+
+/*
+ * Obrys idzie `outline`, a nie `border` — świadomie. Border wchodzi do pudełka
+ * elementu i przy `box-sizing: border-box` zjada 2 px treści, więc zaznaczenie
+ * PRZESUWAŁOBY tekst pod sobą. `outline` rysuje się poza układem i nie rusza
+ * ani jednego piksela treści.
+ */
+[data-element-frame] {
+  outline: 1px solid transparent;
+  outline-offset: 0;
+}
+
+[data-element-frame]:hover,
+[data-element-frame]:focus-visible {
+  outline-color: color-mix(in srgb, var(--builder-selection) 65%, transparent);
+}
+
+[data-element-frame][data-element-selected="on"] {
+  outline: 2px solid var(--builder-selection);
+  box-shadow: 0 0 0 1px var(--builder-selection-halo);
+}
+
+[data-element-frame][data-element-detached="on"] {
+  outline-style: dashed;
+}
+
+/* Uchwyty rozmiaru — kwadraciki w tej samej parze kolorów, co obrys. */
+[data-resize-handle] {
+  background: var(--builder-selection-halo);
+  border: 1.5px solid var(--builder-selection);
+}
+
+/* Obrys sekcji (najechanie/aktywna) — cieńszy: sekcja jest tłem dla elementów. */
+[data-section-outline="on"] {
+  outline: 1px solid var(--builder-selection);
+  outline-offset: -1px;
+}
+
+/*
+ * EDYCJA W MIEJSCU nie może przesuwać tekstu (pinezka właściciela 2135fd75).
+ * Pudełko edycji jest TYM SAMYM pudełkiem `canvas-box`, co render, więc
+ * wyrenderowany element w środku musi przestać pozycjonować się drugi raz —
+ * inaczej jego współrzędne dodają się do współrzędnych owijki i tekst odjeżdża
+ * dokładnie o (x, y) elementu.
+ */
+[data-element-editing] > .canvas-box {
+  position: static;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+[data-inline-editor] {
+  outline: 2px solid var(--builder-selection);
+  outline-offset: 2px;
+}

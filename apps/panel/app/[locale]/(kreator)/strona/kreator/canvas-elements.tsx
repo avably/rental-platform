@@ -147,7 +147,7 @@ function GestureOverlay({ overlayRef }: { overlayRef: React.RefObject<HTMLDivEle
       className="pointer-events-none absolute inset-0"
       style={{ zIndex: FRAME_Z + 2 }}
     >
-      <span data-canvas-ghost className="border-accent absolute border-2 border-dashed" />
+      <span data-canvas-ghost className="absolute border-2 border-dashed border-[var(--builder-selection)]" />
       {Array.from({ length: GUIDE_SLOTS }, (_, index) => (
         <span
           key={index}
@@ -367,13 +367,16 @@ export function ElementFrame({
             ? `${t(`elementKinds.${element.kind}`)} — ${t("elements.detached")}`
             : t(`elementKinds.${element.kind}`)
         }
+        /*
+         * Wygląd obrysu (kolor, grubość, otoczka) siedzi w arkuszu panelu przy
+         * tokenie `--builder-selection` — patrz komentarz tam. Tutaj zostaje
+         * WYŁĄCZNIE zachowanie: kursor i stan zablokowania. Obrys rysuje się
+         * `outline`, a nie `border`, więc zaznaczenie nie zjada ani piksela
+         * treści pod sobą (pinezka o przesuwającym się tekście).
+         */
         className={`absolute touch-none outline-none ${
           locked ? "cursor-not-allowed" : "cursor-move"
-        } ${
-          selected
-            ? "border-accent border-2"
-            : "hover:border-accent/60 focus-visible:border-accent border-2 border-transparent"
-        } ${detached ? "border-accent border-dashed" : ""}`}
+        }`}
         style={{ ...boxStyle, zIndex: FRAME_Z }}
         onFocus={onSelect}
         onPointerDown={(event) => {
@@ -426,7 +429,8 @@ export function ElementFrame({
                   onSelect();
                   beginGesture(event, handle);
                 }}
-                className={`border-accent bg-background absolute size-2.5 touch-none border ${HANDLE_POSITION[handle]} ${HANDLE_CURSOR[handle]}`}
+                // Kolory uchwytu też idą z arkusza (`[data-resize-handle]`).
+                className={`absolute size-2.5 touch-none ${HANDLE_POSITION[handle]} ${HANDLE_CURSOR[handle]}`}
               />
             ))
           : null}

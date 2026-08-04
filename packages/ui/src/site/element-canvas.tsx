@@ -225,7 +225,7 @@ export function geometryStyle(box: Geometry, rows: number): CSSProperties {
  * szerokości sięga prawej krawędzi płótna — długi napis ma się ZAWINĄĆ, a nie
  * wyjechać poza sekcję.
  */
-function boxVariables(
+export function boxVariables(
   box: Geometry,
   rows: number,
   size: ElementSize,
@@ -484,6 +484,45 @@ function backgroundClass(canvas: SectionCanvas, styles: TemplateStyles): string 
   return undefined;
 }
 
+/**
+ * KOMPLET zmiennych pudełka elementu — oba breakpointy naraz, dokładnie tak,
+ * jak układa je render (niżej). Wystawione, bo kreator MUSI umieć postawić
+ * własną owijkę (edycja w miejscu) w TYM SAMYM pudełku: własne przeliczenie
+ * współrzędnych rozjeżdżało się z tym i przesuwało tekst w chwili wejścia
+ * w edycję (pinezka właściciela 2026-08-03).
+ */
+/**
+ * CZY ELEMENT JEST TŁEM PEŁNOEKRANOWYM (aneks do ADR-088).
+ *
+ * Reguła jest w GEOMETRII, nie w nowym polu treści: element, który zajmuje CAŁĄ
+ * szerokość płótna i leży pod treścią, jest tłem — nic innego nie ma powodu tak
+ * stać. Dzięki temu istniejące szablony (hero na pełnym kadrze z welonem)
+ * dostają zachowanie bez zmiany ani jednego bajtu zapisanej treści, a operator
+ * uzyskuje je, rozciągając zdjęcie do krawędzi płótna.
+ *
+ * Zawężenie do zdjęcia i kształtu jest celowe: tekst rozciągnięty na całą
+ * szerokość ma zostać w kolumnie czytelności, bo linia na 1600 px jest nie do
+ * czytania — a to jest właśnie ta granica, o którą prosił właściciel
+ * („treść zostaje w kolumnie").
+ */
+export function bleedsToEdges(element: CanvasElement): boolean {
+  if (element.kind !== "image" && element.kind !== "shape") return false;
+  const box = element.layout.desktop;
+  return box.x === 0 && box.w === CANVAS_COLUMNS;
+}
+
+export function canvasBoxVariables(
+  element: CanvasElement,
+  rows: number,
+  mobile: { rows: number; boxes: Record<string, Geometry> },
+): Record<string, string> {
+  const size = sizeOf(element);
+  return {
+    ...boxVariables(element.layout.desktop, rows, size, "desktop"),
+    ...boxVariables(mobile.boxes[element.id] ?? element.layout.desktop, mobile.rows, size, "mobile"),
+  };
+}
+
 export function SectionCanvasRenderer({
   canvas,
   styles,
@@ -515,8 +554,55 @@ export function SectionCanvasRenderer({
    */
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
+  const bleeding = paintOrder(canvas.elements).filter(bleedsToEdges);
+
   return (
-    <section data-section-canvas={canvas.version} className={backgroundClass(canvas, styles)}>
+    <section
+      data-section-canvas={canvas.version}
+      className={cn("relative overflow-hidden", backgroundClass(canvas, styles))}
+    >
+      {/*
+        TŁO PEŁNOEKRANOWE (aneks do ADR-088). Elementy rozciągnięte na CAŁĄ
+        szerokość płótna (zdjęcie hero, welon) wychodzą poza siatkę, bo to ona
+        ma sufit szerokości 1152 px — a tło ma sięgać krawędzi okna. Leżą więc
+        w osobnej warstwie, dziecku SEKCJI: pion biorą z tych samych zmiennych
+        (`--el-y`, `--el-h`, per breakpoint), poziom rozciągają na 100 %
+        szerokości sekcji. Treść zostaje w siatce, czyli w kolumnie czytelności.
+      */}
+      {bleeding.length > 0 ? (
+        <div
+          data-canvas-bleed
+          /*
+           * `isolate` NIE jest ozdobą. Elementy tła niosą własne `z-index`
+           * (zdjęcie 0, welon 1) — bez własnego kontekstu składania te wartości
+           * trafiają do kontekstu SEKCJI i welon z `z-index: 1` wychodzi nad
+           * siatkę treści, czyli nad tekst hero (złapane w weryfikacji: napis
+           * robił się szary, bo leżał POD welonem). `isolation: isolate` zamyka
+           * je w tej warstwie, a warstwa jako całość zostaje pod siatką.
+           */
+          className="pointer-events-none absolute inset-0 isolate"
+        >
+          {bleeding.map((element) => (
+            <div
+              key={element.id}
+              data-element-id={element.id}
+              data-element-kind={element.kind}
+              className="canvas-box canvas-bleed"
+              style={canvasBoxVariables(element, canvas.rows, mobile) as CSSProperties}
+            >
+              <ElementBody
+                element={element}
+                size={sizeOf(element)}
+                styles={styles}
+                products={products}
+                labels={labels}
+                siteImageBase={siteImageBase}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div
         data-canvas-grid
         data-canvas-rows={canvas.rows}
@@ -545,7 +631,26 @@ export function SectionCanvasRenderer({
       >
         {paintOrder(canvas.elements).map((element) => {
           const size = sizeOf(element);
-          const body = (
+          /*
+           * ELEMENT PEŁNOEKRANOWY MALUJE SIĘ W WARSTWIE TŁA, ALE ZOSTAJE TUTAJ
+           * jako miejsce dla warstwy edycyjnej (regres złapany przez PM przy
+           * PR #172).
+           *
+           * Pierwsza wersja odfiltrowywała go z siatki w całości — a to siatka
+           * jest jedynym miejscem, przez które kreator wnosi ramkę zaznaczenia
+           * (`elementWrapper`, ADR-083). Skutek był jednokierunkową pułapką:
+           * rozciągnięcie zdjęcia na pełną szerokość odbierało do niego dostęp
+           * NA ZAWSZE — nie dało się go zaznaczyć, podmienić, przeskalować ani
+           * usunąć.
+           *
+           * Odtąd element pełnoekranowy przechodzi przez owijkę z PUSTĄ treścią:
+           * maluje się raz (w warstwie tła), a jego ramka rysuje się w siatce,
+           * z jego własnej geometrii. Sklep, który owijki nie podaje, nie
+           * dostaje w siatce nic — czyli dokładnie tyle, ile ma dostać.
+           */
+          const bleeds = bleedsToEdges(element);
+          if (bleeds && !elementWrapper) return null;
+          const body = bleeds ? null : (
             <div
               data-element-id={element.id}
               data-element-kind={element.kind}

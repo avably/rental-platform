@@ -150,7 +150,9 @@ export function InlineTextEditor({
         role="textbox"
         aria-multiline="true"
         aria-label={t("inline.editing")}
-        className="outline-accent size-full outline-2 outline-offset-2"
+        // Obrys edycji rysuje arkusz panelu (`[data-inline-editor]`) tokenem
+        // warstwy edycyjnej — patrz komentarz tam.
+        className="size-full"
         onKeyDown={(event) => {
           event.stopPropagation();
           if (event.key === "Escape") {

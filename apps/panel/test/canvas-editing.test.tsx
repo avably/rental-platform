@@ -630,3 +630,102 @@ describe("arkusz płótna wycisza gest", () => {
     }
   });
 });
+
+// -----------------------------------------------------------------------
+// TŁO PEŁNOEKRANOWE ZOSTAJE EDYTOWALNE (regres z recenzji PR #172)
+// -----------------------------------------------------------------------
+
+/**
+ * Sekcja z hero na PEŁNYM KADRZE: zdjęcie i welon rozciągnięte na całą
+ * szerokość płótna, tekst w kolumnie. Dokładnie ten kształt, który produkuje
+ * archetyp `overlay` szablonów startowych.
+ */
+function heroPelnoekranowy(): Section {
+  const base = sectionCanvasFrom("hero", presetContentFor("hero", "pl")) as unknown as {
+    version: 2;
+    rows: number;
+    background: "default";
+    elements: unknown[];
+  };
+  const tlo = [
+    {
+      id: "hero-image-1",
+      kind: "image",
+      alt: "Kadr hero",
+      fit: "cover",
+      layout: { desktop: { x: 0, y: 0, w: CANVAS_COLUMNS, h: base.rows, z: 0 } },
+    },
+    {
+      id: "hero-shape-1",
+      kind: "shape",
+      shape: "box",
+      fill: "scrim",
+      layout: { desktop: { x: 0, y: 0, w: CANVAS_COLUMNS, h: base.rows, z: 1 } },
+    },
+  ];
+  return {
+    id: SECTION_ID,
+    type: "hero",
+    position: 0,
+    enabled: true,
+    content: { ...base, elements: [...tlo, ...base.elements] },
+  } as unknown as Section;
+}
+
+describe("element pełnoekranowy nie wypada z warstwy edycyjnej", () => {
+  it("KAŻDY element sekcji ma ramkę — także zdjęcie i welon rozciągnięte na całe płótno", () => {
+    // Regres z recenzji PR #172: elementy tła malowały się w osobnej warstwie
+    // i BYŁY ODFILTROWANE z siatki, czyli z jedynego miejsca, przez które
+    // kreator wnosi ramkę. Rozciągnięcie zdjęcia na pełną szerokość odbierało
+    // do niego dostęp na zawsze — pułapka jednokierunkowa.
+    const section = heroPelnoekranowy();
+    const { container } = renderBuilder([section]);
+
+    const wszystkie = canvasOf(section).elements.map((element) => element.id);
+    expect(wszystkie, "fixture bez tła — kontrola po pustym zbiorze").toContain("hero-image-1");
+
+    const zRamka = frames(container).map((node) => node.getAttribute("data-element-frame"));
+    expect(zRamka.length, `ramek ${zRamka.length} przy ${wszystkie.length} elementach`).toBe(
+      wszystkie.length,
+    );
+    for (const id of ["hero-image-1", "hero-shape-1"]) {
+      expect(zRamka, `element pełnoekranowy ${id} bez ramki`).toContain(id);
+    }
+  });
+
+  it("tło maluje się RAZ — w warstwie pełnoekranowej, nie dwa razy", () => {
+    // Ramka w siatce nie może oznaczać drugiego renderu zdjęcia: dwa <img> to
+    // dwa pobrania i dwa różne kadry przy każdej zmianie.
+    const { container } = renderBuilder([heroPelnoekranowy()]);
+    const kopie = container.querySelectorAll('[data-element-id="hero-image-1"]');
+    expect(kopie).toHaveLength(1);
+    expect(
+      container.querySelector("[data-canvas-bleed]")?.contains(kopie[0]!),
+      "tło wyrenderowało się poza warstwą pełnoekranową",
+    ).toBe(true);
+  });
+
+  it("klik w zdjęcie hero zaznacza je, a drugi otwiera picker — scenariusz właściciela", () => {
+    const { container } = renderBuilder([heroPelnoekranowy()]);
+    const frame = frameFor(container, "hero-image-1");
+
+    /** Klik BEZ ruchu — gest nie przekracza progu, więc kończy się zaznaczeniem. */
+    const clickNoMove = (node: Element) => {
+      pointer(node, "pointerdown", { clientX: 400, clientY: 300 });
+      pointer(node, "pointerup", { clientX: 400, clientY: 300 });
+      act(() => {
+        node.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+    };
+
+    clickNoMove(frame);
+    expect(frame.getAttribute("data-element-selected"), "zdjęcie tła nie dało się zaznaczyć").toBe("on");
+
+    clickNoMove(frameFor(container, "hero-image-1"));
+    // Dialog wyboru zdjęcia renderuje się w PORTALU (poza kontenerem testu).
+    expect(
+      document.querySelector("[data-image-picker]"),
+      "drugi klik w zdjęcie tła nie otworzył wyboru zdjęcia",
+    ).not.toBeNull();
+  });
+});

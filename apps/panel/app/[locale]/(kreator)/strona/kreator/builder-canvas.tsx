@@ -91,7 +91,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  geometryStyle,
+  canvasBoxVariables,
   type RenderSection,
   type StorefrontProduct,
 } from "@avably/ui";
@@ -112,7 +112,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
 import { AddSectionDialog } from "@/app/[locale]/(panel)/strona/add-section-gallery";
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
@@ -499,10 +499,35 @@ export function BuilderCanvas({
                    */
                   if (isEditing && editable) {
                     return (
+                      /*
+                       * PUDEŁKO EDYCJI JEST TYM SAMYM PUDEŁKIEM, CO RENDER.
+                       *
+                       * Do tej poprawki owijka edycji miała własne, liczone tu
+                       * współrzędne (`geometryStyle`), a w środku stał
+                       * wyrenderowany element — czyli `.canvas-box`, który
+                       * pozycjonuje się SAM, absolutnie, względem najbliższego
+                       * pozycjonowanego przodka. Tym przodkiem stawała się
+                       * owijka, więc współrzędne dodawały się do siebie i tekst
+                       * odskakiwał dokładnie o (x, y) elementu w chwili wejścia
+                       * w edycję (pinezka właściciela 2026-08-03).
+                       *
+                       * Odtąd owijka bierze KOMPLET zmiennych z tej samej
+                       * funkcji, co render (`canvasBoxVariables`) i klasę
+                       * `canvas-box`, a arkusz panelu neutralizuje pozycjonowanie
+                       * pudełka w środku. Dzięki temu pudełko obejmujące treść
+                       * (`hug`) też zostaje sobą — własne przeliczenie gubiło
+                       * `max-content` i zmieniało szerokość, przez co tekst
+                       * zawijał się inaczej niż przed kliknięciem.
+                       */
                       <div
                         data-element-editing={element.id}
-                        className="absolute"
-                        style={{ ...geometryStyle(box, rows), zIndex: 1_001 }}
+                        className="canvas-box"
+                        style={
+                          {
+                            ...canvasBoxVariables(element, canvas.rows, mobile),
+                            zIndex: 1_001,
+                          } as CSSProperties
+                        }
                       >
                         <InlineTextEditor
                           onCommit={(runs) => commitRuns(section.id, element.id, runs)}
@@ -653,9 +678,9 @@ function CanvasSection({
       <div
         aria-hidden="true"
         data-section-outline={active ? "on" : "off"}
-        className={`pointer-events-none absolute inset-0 z-10 border-2 transition-colors [transition-duration:var(--motion-fast)] ${
-          active ? "border-accent" : "border-transparent"
-        }`}
+        // Kolor obrysu sekcji idzie z arkusza panelu (`[data-section-outline]`),
+        // z tokenu WARSTWY EDYCYJNEJ — nie z akcentu motywu najemcy.
+        className="pointer-events-none absolute inset-0 z-10 transition-[outline-color] [transition-duration:var(--motion-fast)]"
       />
 
       {active && !section.deletedInDraft ? (

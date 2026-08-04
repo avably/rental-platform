@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { DEFAULT_SITE_STYLE } from "@avably/core/site";
 // @vitest-environment jsdom
 
@@ -243,6 +246,51 @@ describe("edycja NIE jest gestem", () => {
     const editor = container.querySelector<HTMLElement>("[data-inline-editor]")!;
     fireEvent.keyDown(editor, { key: "a" });
     expect(canvas.getAttribute("data-dragging")).not.toBe("on");
+  });
+
+  it("PUDEŁKO TEKSTU NIE RUSZA SIĘ przy wejściu w edycję — te same współrzędne", () => {
+    // Pinezka właściciela 2026-08-03: po wejściu w edycję tekst odskakiwał.
+    // Przyczyna: owijka edycji liczyła współrzędne WŁASNYM wzorem, a element
+    // w środku pozycjonował się absolutnie DRUGI RAZ — względem niej. jsdom nie
+    // liczy układu, więc mierzymy WEJŚCIA układu: komplet zmiennych pudełka
+    // (`--el-*`) musi być co do wartości ten sam przed i po. Wizualnego dowodu
+    // dostarcza pomiar `getBoundingClientRect` w przeglądarce (dziennik budowy).
+    const section = heroSection();
+    const target = firstTextElement(section);
+    const { container } = renderBuilder([section]);
+
+    const zmienne = (node: HTMLElement) =>
+      Object.fromEntries(
+        (node.getAttribute("style") ?? "")
+          .split(";")
+          .map((part) => part.split(":").map((piece) => piece.trim()))
+          .filter(([name]) => name?.startsWith("--el-"))
+          .map(([name, value]) => [name!, value!]),
+      );
+
+    const przed = zmienne(container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!);
+    expect(Object.keys(przed).length, "pudełko bez zmiennych — kontrola po pustym zbiorze").toBeGreaterThan(
+      6,
+    );
+
+    clickNoMove(frameFor(container, target.id));
+    clickNoMove(frameFor(container, target.id));
+
+    const owijka = container.querySelector<HTMLElement>(`[data-element-editing="${target.id}"]`)!;
+    expect(owijka.className, "owijka edycji musi być TYM SAMYM pudełkiem, co render").toContain(
+      "canvas-box",
+    );
+    expect(zmienne(owijka), "wejście w edycję zmieniło współrzędne pudełka").toEqual(przed);
+  });
+
+  it("arkusz panelu NEUTRALIZUJE pozycjonowanie pudełka w środku owijki edycji", () => {
+    // Druga połowa tego samego dowodu: gdyby reguła zniknęła, element w środku
+    // pozycjonowałby się względem owijki i tekst znów by odjechał — a test wyżej
+    // dalej byłby zielony, bo zmienne owijki się nie zmieniają.
+    const arkusz = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    const blok = /\[data-element-editing\]\s*>\s*\.canvas-box\s*\{([^}]*)\}/.exec(arkusz);
+    expect(blok, "brak reguły neutralizującej pudełko w owijce edycji").not.toBeNull();
+    expect(blok![1]).toContain("position: static");
   });
 
   it("ramka elementu znika na czas edycji — jedno pudełko nie robi dwóch rzeczy naraz", () => {

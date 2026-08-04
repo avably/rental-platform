@@ -357,6 +357,37 @@ describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stop
     );
   });
 
+  it("ZAPIS W TLE nie blokuje kreatora — czeka się WYŁĄCZNIE na publikację", async () => {
+    // Pinezka właściciela 2026-08-03: „za każdym razem po kliknięciu się
+    // zapisuje, muszę czekać". Przyczyną był `startTransition` na KAŻDEJ
+    // operacji strukturalnej — jego `pending` szarzył całe płótno na czas
+    // odczytu RSC. Test trzyma zdanie odwrotne: akcja, która nie kończy się
+    // od razu, NIE wyłącza narzędzi kreatora.
+    let rozstrzygnij: (value: { ok: true }) => void = () => {};
+    actions.updateSiteStyle.mockImplementation(
+      () => new Promise((resolve) => { rozstrzygnij = resolve; }),
+    );
+
+    const { container } = renderBuilder();
+    const akcent = container.querySelectorAll<HTMLElement>("[data-style-accent]");
+    const inny = [...akcent].find((node) => node.getAttribute("aria-pressed") !== "true")!;
+    fireEvent.click(inny);
+
+    await waitFor(() => expect(actions.updateSiteStyle).toHaveBeenCalled());
+
+    // Zapis JESZCZE trwa (obietnica nierozstrzygnięta) — a kreator ma żyć.
+    const toolbar = hoverSection(container, B.id);
+    const zablokowane = [...toolbar.querySelectorAll<HTMLElement>("button")].filter((node) =>
+      node.hasAttribute("disabled"),
+    );
+    expect(
+      zablokowane.length,
+      "zapis w tle wyłączył narzędzia sekcji — to jest dokładnie ta blokada, którą zgłosił właściciel",
+    ).toBe(0);
+
+    rozstrzygnij({ ok: true });
+  });
+
   it("przełącznika szablonu graficznego W OGÓLE nie ma — to nie jest już wybór operatora", () => {
     const { container } = renderBuilder();
     expect(container.querySelector("[data-builder-template]")).toBeNull();

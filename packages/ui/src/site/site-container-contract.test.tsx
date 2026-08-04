@@ -31,6 +31,7 @@ import tailwindcssPostcss from "@tailwindcss/postcss";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
+  CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
   ICON_DESIGN_PX,
   ICON_MIN_PX,
@@ -41,6 +42,7 @@ import {
   type TextScale,
 } from "@avably/core/site";
 
+import { bleedsToEdges } from "./element-canvas";
 import { SiteRenderer } from "./site-renderer";
 import type { RenderSection } from "./types";
 
@@ -448,6 +450,59 @@ describe("progi kontenerowe = dotychczasowe breakpointy viewportu", () => {
  * Kontrakt broni trzech rzeczy naraz: że przełącznik JEST w arkuszu, że renderer
  * naprawdę wystawia OBA komplety współrzędnych, i że oba trafiają do DOM-u.
  */
+describe("tło pełnoekranowe (aneks do ADR-088) nie łamie miary kontenera", () => {
+  // Właściciel odrzucił pasy po bokach hero (2026-08-03): tło ma sięgać krawędzi
+  // okna. Rozwiązanie NIE MOŻE sięgnąć po jednostki okna — to jest dokładnie
+  // ten błąd, przez który powstał ADR-085 (płótno 390 px pokazywałoby wtedy
+  // szerokość monitora, a nie telefonu).
+  it("warstwa pełnoekranowa rozciąga się PROCENTEM sekcji, nie szerokością okna", () => {
+    const arkusz = stripComments(read("packages/ui/src/site/site.css"));
+    const blok = /\.canvas-bleed\s*\{([^}]*)\}/.exec(arkusz);
+    expect(blok, "brak reguły tła pełnoekranowego").not.toBeNull();
+    expect(blok![1]).toContain("width: 100%");
+    expect(blok![1], "tło pełnoekranowe sięgnęło po jednostkę OKNA").not.toMatch(/\d+(vw|vh|dvw|dvh)/);
+  });
+
+  it("PION tła idzie tymi samymi zmiennymi co reszta — auto-układ mobilny rządzi nim tak samo", () => {
+    // Gdyby warstwa brała pion z własnego wzoru, tło rozjechałoby się z treścią
+    // na telefonie, a `mobileLayoutOf` przestałby być jedynym źródłem układu.
+    const blok = /\.canvas-bleed\s*\{([^}]*)\}/.exec(stripComments(read("packages/ui/src/site/site.css")))![1];
+    expect(blok, "warstwa pełnoekranowa nadpisuje PION").not.toMatch(/(^|\s)(top|height)\s*:/);
+  });
+
+  it("tłem jest wyłącznie zdjęcie albo kształt rozciągnięty na CAŁE płótno", () => {
+    const hero = sectionCanvasFrom("hero", presetContentFor("hero", "pl"));
+    for (const element of hero.elements) {
+      // Preset hero nie ma tła pełnoekranowego — kontrola po pustym zbiorze dla
+      // reguły niżej (gdyby predykat zwracał `true` dla czegokolwiek, ten
+      // przypadek by go złapał).
+      expect(bleedsToEdges(element)).toBe(false);
+    }
+    const tlo = {
+      id: "x",
+      kind: "image" as const,
+      alt: "kadr",
+      fit: "cover" as const,
+      layout: { desktop: { x: 0, y: 0, w: CANVAS_COLUMNS, h: 40, z: 0 } },
+    };
+    expect(bleedsToEdges(tlo)).toBe(true);
+    expect(bleedsToEdges({ ...tlo, layout: { desktop: { ...tlo.layout.desktop, x: 12, w: 120 } } })).toBe(
+      false,
+    );
+    expect(
+      bleedsToEdges({
+        id: "t",
+        kind: "text" as const,
+        text: "szeroki tekst",
+        variant: "body" as const,
+        align: "left" as const,
+        layout: { desktop: { x: 0, y: 0, w: CANVAS_COLUMNS, h: 6, z: 2 } },
+      }),
+      "tekst rozciągnięty na całą szerokość ma ZOSTAĆ w kolumnie czytelności",
+    ).toBe(false);
+  });
+});
+
 describe("płótno v2: dwa układy przełączane zapytaniem kontenera", () => {
   const sheet = read(SHARED_SHEET);
 
