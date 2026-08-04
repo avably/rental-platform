@@ -269,16 +269,34 @@ describe("kontrakt szkieletu karty klienta ↔ ekran karty", () => {
 
 /* ── Dostępność ────────────────────────────────────────────────────────── */
 
-describe("kontrakt szkieletów klientów: dostępność", () => {
+// Delta 2026-08-04: komunikat zszedł z `sr-only` na WIDOCZNY, a geometria
+// przestała malować powierzchnie (pinezka o stanach ładowania). Ekrany klientów
+// jadą tymi samymi prymitywami co zamówienia, więc mierzymy je tak samo.
+describe("kontrakt ekranów ładowania klientów: dostępność", () => {
   it.each([
     ["lista", listSkeleton, messages.customers.list.loading],
     ["karta", detailSkeleton, messages.customers.card.historyHeading],
-  ])("szkielet %s jest dekoracją, a komunikat idzie przez role=status", (_name, html, label) => {
+  ])("geometria %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
     const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0];
-    expect(rootTag, "brak korzenia szkieletu").toBeDefined();
+    expect(rootTag, "brak korzenia geometrii").toBeDefined();
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
-    expect(html).toContain('<p role="status" class="sr-only">');
+    const statusTag = html.match(/<p[^>]*role="status"[^>]*>/)?.[0];
+    expect(statusTag, "brak komunikatu role=status").toBeDefined();
+    expect(statusTag).toContain("data-skeleton-status");
+    expect(statusTag).not.toContain("sr-only");
     expect(html).toContain(label);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["karta", detailSkeleton],
+  ])("ekran %s: puste pudełka geometrii i szyna z design systemu", (_name, html) => {
+    const boxes = [...html.matchAll(/<div[^>]*data-slot="skeleton-box"[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    expect(boxes.length, "brak pudełek geometrii — asercja mierzyłaby pustkę").toBeGreaterThan(10);
+    expect(boxes.filter((box) => /class="[^"]*\bbg-/.test(box))).toEqual([]);
+    expect(html).toContain('data-slot="loading-rail"');
   });
 });

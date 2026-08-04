@@ -85,7 +85,7 @@ export {
   SheetTrigger,
   type SheetSide,
 } from "./components/sheet";
-export { Skeleton } from "./components/skeleton";
+export { LoadingRail } from "./components/loading-rail";
 export {
   StatusBadge,
   type StatusBadgeProps,

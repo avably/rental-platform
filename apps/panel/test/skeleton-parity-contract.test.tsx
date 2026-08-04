@@ -408,33 +408,74 @@ describe("kontrakt szkieletu szczegółu ↔ ekran szczegółu", () => {
 
 /* ── Dostępność i próg antymigotania ───────────────────────────────────── */
 
-describe("kontrakt szkieletów: dostępność i próg antymigotania", () => {
+/**
+ * DELTA 2026-08-04 (pinezka właściciela o stanach ładowania). Reguły tego bloku
+ * zmieniły adres, ŻADNA nie została zdjęta:
+ *  1. komunikat `role="status"` był `sr-only`, dziś jest WIDOCZNY — czytnik ma
+ *     to samo, operator ma więcej, a asercja pilnuje, że nie ma DRUGIEGO,
+ *     ukrytego tekstu (czytnik ogłosiłby stan dwa razy);
+ *  2. próg antymigotania przeniósł się z `[data-skeleton-screen]` na ramę
+ *     `[data-skeleton-frame]`, bo rama trzyma dziś także szynę i komunikat —
+ *     gdyby próg został na geometrii, oba mrugałyby przy szybkim odczycie;
+ *  3. doszła reguła NOWA, wprost z pinezki: żadne pudełko geometrii nie maluje
+ *     powierzchni. Wróci ściana szarych plam — pali się kontrakt.
+ */
+describe("kontrakt ekranów ładowania: dostępność i próg antymigotania", () => {
   it.each([
     ["lista", listSkeleton, messages.orders.list.loading],
     ["szczegół", detailSkeleton, messages.orders.detail.loading],
-  ])("szkielet %s jest dekoracją, a komunikat idzie przez role=status", (_name, html, label) => {
-    // Cała dekoracja pod aria-hidden — asercja MUSI celować w KORZEŃ szkieletu.
+  ])("geometria %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
+    // Cała dekoracja pod aria-hidden — asercja MUSI celować w KORZEŃ geometrii.
     // (Łatka recenzji PM.) Samo `html.toContain('aria-hidden="true"')` było
-    // PUSTE: atom `Skeleton` z packages/ui nosi ten atrybut na KAŻDYM pasku,
-    // więc łańcuch był w HTML zawsze i zdjęcie `aria-hidden` z korzenia nie
-    // paliło testu. Bramka, która nie umie spłonąć, niczego nie broni.
+    // PUSTE: pudełka geometrii noszą ten atrybut każde z osobna, więc łańcuch
+    // był w HTML zawsze i zdjęcie `aria-hidden` z korzenia nie paliło testu.
+    // Bramka, która nie umie spłonąć, niczego nie broni.
     const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0];
-    expect(rootTag, "brak korzenia szkieletu").toBeDefined();
+    expect(rootTag, "brak korzenia geometrii").toBeDefined();
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
-    // …a jedyna treść to komunikat ładowania POZA tym poddrzewem.
-    expect(html).toContain('<p role="status" class="sr-only">');
+    // …a treścią jest WIDOCZNY komunikat stojący POZA tym poddrzewem.
+    const statusTag = html.match(/<p[^>]*role="status"[^>]*>/)?.[0];
+    expect(statusTag, "brak komunikatu role=status").toBeDefined();
+    expect(statusTag).toContain("data-skeleton-status");
     expect(html).toContain(label);
     expect(html.indexOf('role="status"')).toBeLessThan(html.indexOf("data-skeleton-screen"));
+    // Widoczny znaczy widoczny: `sr-only` schowałoby go z powrotem, a drugi
+    // egzemplarz komunikatu kazałby czytnikowi ogłosić stan dwa razy.
+    expect(statusTag).not.toContain("sr-only");
+    expect(html.split(label).length - 1, "komunikat ładowania zdublowany").toBe(1);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["szczegół", detailSkeleton],
+  ])("żadne pudełko geometrii %s nie maluje powierzchni (koniec ściany plam)", (_name, html) => {
+    const boxes = [...html.matchAll(/<div[^>]*data-slot="skeleton-box"[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    // Kontrola pozytywna: gdyby selektor przestał cokolwiek łapać, reguła niżej
+    // byłaby zielona po pustym zbiorze i nie broniłaby niczego.
+    expect(boxes.length, "brak pudełek geometrii — asercja mierzyłaby pustkę").toBeGreaterThan(20);
+    const painted = boxes.filter((box) => /class="[^"]*\bbg-/.test(box));
+    expect(painted, `pudełka malujące tło:\n${painted.join("\n")}`).toEqual([]);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["szczegół", detailSkeleton],
+  ])("ekran %s niesie szynę ładowania z design systemu", (_name, html) => {
+    expect(html).toContain('data-slot="loading-rail"');
   });
 
   it("próg antymigotania siedzi w CSS panelu i nie jest pętlą", () => {
     const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-    expect(css).toContain("[data-skeleton-screen]");
+    // Próg obejmuje CAŁY wskaźnik (geometria + szyna + komunikat), więc siedzi
+    // na ramie. Zejście z powrotem na samą geometrię pali ten wiersz.
+    expect(css).toContain("[data-skeleton-frame]");
     expect(css).toContain("skeleton-reveal");
     // Opóźnienie 200 ms — poniżej tego progu wskaźnik ładowania miga.
     expect(css).toMatch(/animation:\s*skeleton-reveal[^;]*200ms\s+both/);
-    // Zakaz `extra-loops`: żadnej nieskończonej animacji szkieletu.
+    // Zakaz `extra-loops`: żadnej nieskończonej animacji w panelu.
     expect(css).not.toMatch(/animation:[^;]*infinite/);
   });
 });

@@ -31,6 +31,7 @@ import {
   FilterChip,
   Input,
   Label,
+  LoadingRail,
   Popover,
   PopoverContent,
   PopoverDescription,
@@ -52,7 +53,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  Skeleton,
   StatusBadge,
   statusSemantics,
   Table,
@@ -313,25 +313,27 @@ export default function DesignSystemGallery() {
             </div>
           </div>
           <div className="space-y-3 rounded-md border bg-card p-5">
-            <p className="text-sm font-medium">Wzorzec loading — skeleton</p>
-            <div className="grid grid-cols-6 items-center gap-3">
-              <Skeleton />
-              <Skeleton />
-              <Skeleton className="col-span-2" />
-              <Skeleton />
-              <Skeleton />
-            </div>
-            <Separator />
-            <div className="grid grid-cols-6 items-center gap-3">
-              <Skeleton />
-              <Skeleton />
-              <Skeleton className="col-span-2" />
-              <Skeleton />
-              <Skeleton />
+            <p className="text-sm font-medium">
+              Wzorzec loading — szyna i komunikat
+            </p>
+            <div className="relative rounded-md border border-border p-4">
+              <LoadingRail className="absolute inset-x-4 top-0" />
+              <div className="grid grid-cols-6 items-center gap-3 py-8">
+                <div className="col-span-6 h-5" />
+                <div className="col-span-2 h-5" />
+                <div className="col-span-3 h-5" />
+                <div className="h-5" />
+              </div>
+              <p role="status" className="text-muted-foreground text-center text-sm">
+                Ładowanie zamówień…
+              </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Statyczny z założenia — poza rail LP i reklamą nie ma
-              nieskończonych animacji.
+              Geometria ekranu zostaje PUSTA — nic nie udaje treści, której
+              jeszcze nie ma. Stan niosą dwie rzeczy: szyna rysowana RAZ (bez
+              pętli i bez udawanego procentu) oraz widoczny komunikat w roli
+              status. Wysokości pustych pudełek są kopią linii docelowego
+              tekstu, więc wejście treści nie rusza układu.
             </p>
           </div>
         </GallerySection>

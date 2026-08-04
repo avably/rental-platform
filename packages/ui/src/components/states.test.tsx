@@ -8,8 +8,8 @@ import { Button } from "./button";
 import { Checkbox } from "./checkbox";
 import { FilterChip } from "./filter-chip";
 import { Input } from "./input";
+import { LoadingRail } from "./loading-rail";
 import { Select, SelectTrigger, SelectValue } from "./select";
-import { Skeleton } from "./skeleton";
 import { Table, TableBody, TableCell, TableRow } from "./table";
 import { Textarea } from "./textarea";
 
@@ -194,14 +194,70 @@ describe("wspólna konwencja disabled całego zestawu kontrolek", () => {
   );
 });
 
-describe("Skeleton — wzorzec loading z sekcji 07", () => {
-  it("maluje się powierzchnią secondary, statycznie (twardy zakaz pętli), poza drzewem dostępności", () => {
-    render(<Skeleton data-testid="skeleton" />);
+// PRZENIESIONY KONTRAKT (decyzja właściciela 2026-08-04). Stał tu blok
+// „Skeleton — wzorzec loading": pasek zastępczy malowany powierzchnią
+// `secondary`, mierzony trzema regułami (secondary + aria-hidden + ZAKAZ klasy
+// `animate-`). Atom zniknął razem ze ścianą szarych plam, ale ani jedna reguła
+// nie została zdjęta — każda ma tu następcę:
+//   * `secondary` → tor szyny to ta sama powierzchnia;
+//   * `aria-hidden` → szyna jest dekoracją, stan niesie `role="status"`;
+//   * zakaz `animate-` → zastąpiony MOCNIEJSZĄ regułą: ruch jest dozwolony, ale
+//     musi być skończony, a jego definicję czytamy z dysku (blok niżej), więc
+//     dopisanie `infinite` pali suitę. Stary zakaz patrzył tylko na listę klas
+//     i nie umiał zobaczyć, co ta klasa robi.
+describe("LoadingRail — wzorzec loading z sekcji 07 (delta 2026-08-04)", () => {
+  it("tor to powierzchnia secondary, a cała szyna stoi poza drzewem dostępności", () => {
+    const { container } = render(<LoadingRail />);
 
-    const skeleton = screen.getByTestId("skeleton");
-    expect(skeleton).toHaveAttribute("aria-hidden", "true");
-    expect(skeleton).toHaveClass("bg-secondary");
-    expect(skeleton.className).not.toContain("animate-");
+    const rail = container.querySelector<HTMLElement>('[data-slot="loading-rail"]');
+    expect(rail, "brak szyny w DOM").not.toBeNull();
+    expect(rail).toHaveAttribute("aria-hidden", "true");
+    expect(rail).toHaveClass("bg-secondary");
+  });
+
+  it("wypełnienie jedzie limonką Z NOŚNIKIEM (signal-strong / akcent w ciemnym)", () => {
+    const { container } = render(<LoadingRail />);
+
+    const fill = container.querySelector<HTMLElement>(
+      '[data-slot="loading-rail"] > span',
+    );
+    expect(fill, "brak wypełnienia szyny").not.toBeNull();
+    // Zakaz `lime-without-carrier`: na jasnym tle akcent bez nośnika nie
+    // oznacza stanu, więc szyna bierze signal-strong, a limonkę dopiero na
+    // ciemnym tle, gdzie nośnikiem jest samo tło.
+    expect(fill).toHaveClass("bg-signal-strong", "dark:bg-accent-foreground");
+    expect(fill).toHaveClass("animate-loading-rail", "origin-left");
+  });
+});
+
+// Bramka ruchu czytana Z DYSKU — asercja na klasie nie widzi, czy animacja
+// pętli. Tu mierzymy DEFINICJĘ tokenu `--animate-loading-rail`. Dowód
+// mutacyjny: dopisz `infinite` do tokenu → czerwone.
+describe("kontrakt ruchu szyny (odczyt tokenu z arkusza)", () => {
+  const stylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
+
+  const token = stylesheet.match(/--animate-loading-rail:([^;]*);/)?.[1];
+
+  it("token animacji w ogóle istnieje (kontrola pozytywna)", () => {
+    expect(token, "brak --animate-loading-rail w styles.css").toBeTypeOf("string");
+  });
+
+  it("szyna przebiega RAZ i zostaje (twardy zakaz extra-loops)", () => {
+    expect(token ?? "").not.toContain("infinite");
+    expect(token ?? "").toContain("both");
+  });
+
+  it("start szyny trzyma próg antymigotania 200 ms", () => {
+    expect(token ?? "").toContain("200ms");
+  });
+
+  it("klatki rysują szynę od zera do PEŁNEJ szerokości, bez udawanego procentu", () => {
+    const frames = stylesheet.match(/@keyframes loading-rail\s*\{([\s\S]*?)\n\}/)?.[1];
+    expect(frames, "brak @keyframes loading-rail").toBeTypeOf("string");
+    expect(frames ?? "").toContain("scaleX(0)");
+    // Pełne `scaleX(1)` to jawna deklaracja: szyna NIE jest miernikiem postępu,
+    // który pełznie asymptotycznie i nigdy nie dobija (wzorzec NProgress).
+    expect(frames ?? "").toContain("scaleX(1)");
   });
 });
 

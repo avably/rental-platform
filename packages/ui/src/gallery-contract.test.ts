@@ -33,7 +33,10 @@ describe("integracja design systemu", () => {
     expect(source).toContain('id="status-badges"');
     expect(source).toContain("<StatusBadge");
     expect(source).toContain("<FilterChip");
-    expect(source).toContain("<Skeleton");
+    // Delta 2026-08-04: wzorzec loading to dziś szyna + widoczny komunikat,
+    // nie ściana pasków zastępczych — galeria pokazuje nową parę.
+    expect(source).toContain("<LoadingRail");
+    expect(source).toContain('role="status"');
     expect(source).toContain("statusSemantics");
     // Lekcja P1 (opis „Inter dla interfejsu" wisiał po zmianie na Geist):
     // opisy nie mogą obiecywać elewacji cieniem ani malować nakładek klasami
