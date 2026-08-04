@@ -474,10 +474,6 @@ async function ensureSite(ctx: SeedCtx, tenantId: string): Promise<string> {
   return insertReturningId(ctx, "sites", { tenant_id: tenantId, template: "classic" });
 }
 
-// Tenanty, dla których fabryka `sites` zrobiła już jednorazowe sprzątnięcie
-// (patrz komentarz przy fabryce) — kolejne wywołania zostawiają wiersz w spokoju.
-const sitesFactoryCleanedTenants = new Set<string>();
-
 type SampleRowFactory = (ctx: SeedCtx, tenantId: string) => Promise<Record<string, unknown>>;
 
 /**
@@ -709,24 +705,20 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
 
   // --- model sekcyjny storefrontu (0019_site_model.sql, ADR-041) ---
   //
-  // sites ma UNIQUE(tenant_id): jedna strona per tenant. Fabryka jest wołana
-  // dwa razy dla tego samego tenanta (zasiew + payload sondy INSERT), a stronę
-  // tenanta mogła już wcześniej utworzyć fabryka site_sections (ensureSite).
-  // Jednorazowe sprzątnięcie usuwa TAMTĄ stronę, żeby zasiew nie kolidował
-  // 23505 na etapie service-role; drugie wywołanie zwraca świeży wiersz BEZ
-  // sprzątania — kolizja z zasianym wierszem jest wtedy nieszkodliwa, bo
-  // WITH CHECK jest egzekwowane przed unikalnością i sonda i tak dostaje
-  // 42501 (wzorzec subscriptions, PK = tenant_id).
-  sites: async (ctx, tenantId) => {
-    if (!sitesFactoryCleanedTenants.has(tenantId)) {
-      sitesFactoryCleanedTenants.add(tenantId);
-      const { error } = await ctx.admin.from("sites").delete().eq("tenant_id", tenantId);
-      if (error) {
-        throw new Error(`Nie udało się sprzątnąć strony tenanta przed zasiewem sites: ${error.message}`);
-      }
-    }
-    return { tenant_id: tenantId, template: "classic" };
-  },
+  // Do 0047 `sites` miało UNIQUE(tenant_id) i ta fabryka musiała jednorazowo
+  // KASOWAĆ stronę tenanta, żeby zasiew nie kolidował 23505 z wierszem, który
+  // wcześniej założyła fabryka `site_sections`. Model stron (0048, ADR-093)
+  // zdjął tamten unikat: tenant ma wiele WERSJI strony, a ograniczenie dotyczy
+  // wyłącznie ŻYWEJ (unikat częściowy po `published_at`). Fabryka wraca więc do
+  // najprostszej postaci — dokłada kolejny wiersz i nikomu nic nie kasuje.
+  //
+  // Wersja rodzi się NIEŻYWA (bez `published_at`), więc dwa wywołania fabryki
+  // dla tego samego tenanta nie mają jak trafić na unikat częściowy.
+  sites: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    template: "classic",
+    name: `RLS test page ${randomUUID().slice(0, 8)}`,
+  }),
   site_sections: async (ctx, tenantId) => ({
     tenant_id: tenantId,
     site_id: await ensureSite(ctx, tenantId),

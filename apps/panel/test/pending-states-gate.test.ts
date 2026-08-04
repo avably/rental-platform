@@ -176,10 +176,10 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   note: string;
 }[] = [
   {
-    file: "strona/site-launcher.tsx",
-    anchor: "onClick={publish}",
-    signal: /loading=\{pending\}/,
-    note: "publikacja z launchera (własna tranzycja)",
+    file: "strona/site-pages.tsx",
+    anchor: "run(() => publishSite(row.id))",
+    signal: /disabled=\{pending\}/,
+    note: "publikacja z listy stron (wspólna tranzycja ekranu)",
   },
   {
     file: "kreator/site-builder.tsx",

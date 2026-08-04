@@ -324,10 +324,10 @@ const CANVAS_SOURCES = [
   "packages/ui/src/site/element-canvas.tsx",
   "packages/core/src/site/geometry.ts",
   "packages/core/src/site/canvas-presets.ts",
-  "apps/panel/app/[locale]/(kreator)/strona/kreator/canvas-elements.tsx",
+  "apps/panel/app/[locale]/(kreator)/strona/[siteId]/kreator/canvas-elements.tsx",
   // Silnik gestów (K2c, ADR-087) przelicza piksele wskaźnika na jednostki — to
   // najbardziej naturalne miejsce, żeby sięgnąć po szerokość okna „na skróty".
-  "apps/panel/app/[locale]/(kreator)/strona/kreator/canvas-gesture.ts",
+  "apps/panel/app/[locale]/(kreator)/strona/[siteId]/kreator/canvas-gesture.ts",
   // Auto-układ mobilny i miary tekstu (K4, ADR-088). Tu pokusa jest największa
   // z całego kreatora: „sprawdźmy, czy to telefon" przez `matchMedia` albo
   // `innerWidth` byłoby o jedną linijkę krótsze niż policzenie tego z treści —

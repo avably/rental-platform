@@ -19,7 +19,7 @@ import {
   redoHistory,
   replacePresent,
   undoHistory,
-} from "@/app/[locale]/(kreator)/strona/kreator/canvas-history";
+} from "@/app/[locale]/(kreator)/strona/[siteId]/kreator/canvas-history";
 
 describe("stos cofnij/ponów", () => {
   it("świeża historia nie ma czego cofnąć ani ponowić", () => {

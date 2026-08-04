@@ -64,7 +64,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ refresh }),
 }));
 
-const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
+const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder");
 const { sectionCanvasFrom, presetContentFor, mobileLayoutOf, sizeOf } = await import(
   "@avably/core/site"
 );
@@ -90,7 +90,7 @@ function heroSection(): Section {
 function renderBuilder(sections: Section[] = [heroSection()]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
 }

@@ -124,12 +124,55 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
   });
 
   // -------------------------------------------------------------------
-  // Schemat: jedna strona per tenant
+  // Schemat: wiele WERSJI strony, najwyżej jedna ŻYWA (0048, ADR-093)
   // -------------------------------------------------------------------
+  //
+  // Do 0047 stał tu unikat `sites_tenant_unique (tenant_id)` i test mówił
+  // „druga strona tego samego tenanta → 23505". Model stron uchylił tamten
+  // niezmiennik, ale NIE zniósł ograniczenia — przesunął je na oś ŻYWOŚCI.
+  // Oba testy niżej są tą samą parą co przedtem: co wolno i czego nie.
 
-  it("druga strona tego samego tenanta → 23505 (UNIQUE tenant_id — jedna strona w MVP)", async () => {
-    const { error } = await a.ownerClient.from("sites").insert({ tenant_id: a.tenantId });
+  it("druga WERSJA strony tego samego tenanta jest legalna", async () => {
+    const { data, error } = await a.ownerClient
+      .from("sites")
+      .insert({ tenant_id: a.tenantId, name: "Wersja robocza" })
+      .select("id, name, published_at")
+      .single();
+    expect(error, `druga wersja strony odrzucona: ${error?.message}`).toBeNull();
+    expect(data?.name).toBe("Wersja robocza");
+    // Wersja rodzi się NIEŻYWA — inaczej wpadłaby na unikat częściowy niżej
+    // (i, co ważniejsze, urodziłaby się publiczna bez publikacji).
+    expect(data?.published_at, "nowa wersja urodziła się widoczna w sklepie").toBeNull();
+
+    await admin.from("site_sections").delete().eq("site_id", data!.id as string);
+    await admin.from("sites").delete().eq("id", data!.id as string);
+  });
+
+  it("druga ŻYWA strona tego samego tenanta → 23505 (unikat częściowy 0048)", async () => {
+    // Test jest SAMODZIELNY: sam czyni stronę A żywą i sam ją zdejmuje, żeby
+    // nie zależeć od kolejności bloków w tym pliku. Wszystko rolą serwisową,
+    // czyli Z POMINIĘCIEM strażnika bliźniaków — dowód ma dotyczyć DANYCH,
+    // a nie tego, że akcja panelu jest grzeczna.
+    const { error: liveError } = await admin
+      .from("sites")
+      .update({ published_at: new Date().toISOString(), template_published: "classic" })
+      .eq("id", siteAId);
+    expect(liveError, `nie udało się uczynić strony A żywą: ${liveError?.message}`).toBeNull();
+
+    const { error } = await admin.from("sites").insert({
+      tenant_id: a.tenantId,
+      name: "Druga żywa",
+      published_at: new Date().toISOString(),
+      template_published: "classic",
+    });
     expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(PG_UNIQUE_VIOLATION);
+    expect(error?.message, "odmowa spoza unikatu żywej strony").toContain("sites_one_live_per_tenant_idx");
+
+    // Stan wejściowy z powrotem — kolejne bloki publikują stronę A same.
+    await admin
+      .from("sites")
+      .update({ published_at: null, template_published: null })
+      .eq("id", siteAId);
   });
 
   // -------------------------------------------------------------------

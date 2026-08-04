@@ -96,8 +96,8 @@ const { InviteMemberForm } = await import("@/app/[locale]/(panel)/zaproszenia/fo
 const { OrganizationCard } = await import("@/app/[locale]/(panel)/organizacja/organization-card");
 const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/form");
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
-const { SiteLauncher } = await import("@/app/[locale]/(panel)/strona/site-launcher");
-const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
+const { SitePages } = await import("@/app/[locale]/(panel)/strona/site-pages");
+const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder");
 const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-error");
 const { PaymentsPanel } = await import(
   "@/app/[locale]/(panel)/ustawienia-platnosci/payments-panel"
@@ -555,13 +555,29 @@ const siteProducts: BuilderProps["products"] = [
 ];
 
 function renderLauncher(publishedAtLabel: string | null = "22.07.2026, 10:30"): string {
-  return render(<SiteLauncher siteId="site-1" publishedAtLabel={publishedAtLabel} />);
+  // Po 0048 (ADR-093) ekran „Strona sklepu" jest LISTĄ wersji, a nie launcherem
+  // jednej strony. Kontrakt spójności ekranów dostaje ten sam przypadek co
+  // przedtem — jedną stronę widoczną w sklepie — tylko w nowym kształcie.
+  return render(
+    <SitePages
+      rows={[
+        {
+          id: "site-1",
+          name: "Strona sklepu",
+          live: publishedAtLabel !== null,
+          publishedAtLabel,
+          createdAtLabel: "22.07.2026, 10:00",
+        },
+      ]}
+    />,
+  );
 }
 
 function renderBuilder(overrides: Partial<BuilderProps> = {}): string {
   return render(
     <SiteBuilder
       siteId="site-1"
+      siteName="Strona sklepu"
       style={STYL}
       sections={siteSections}
       products={siteProducts}
@@ -595,14 +611,20 @@ describe("launcher: publikacja i wejście do kreatora — ZERO formularzy edycji
   it("strona nigdy nieopublikowana nie dostaje chipa udającego stan spoza mapy", () => {
     const never = renderLauncher(null);
     expect(chips(never)).not.toContain("site-publish/published");
-    expect(never).toContain(messages.site.publish.notPublished);
+    // KOTWICA PRZENIESIONA (0048, ADR-093): zdanie o wersji roboczej mówi
+    // o stanie BIEŻĄCYM, bo po zdjęciu strony ze sklepu `published_at` jest
+    // NULL i „nie była jeszcze publikowana" bywałoby nieprawdą. Asercja
+    // pilnuje tego samego, czego pilnowała: że stan bez chipa dostaje ZDANIE.
+    expect(never).toContain(messages.site.pages.notLive);
     expect(never).toContain("data-publish-status");
   });
 
   it("prowadzi do kreatora jednym, wyraźnym wejściem", () => {
     expect(html).toContain("data-open-builder");
     expect(html).toContain(messages.site.builder.open);
-    expect(html).toContain('href="/strona/kreator"');
+    // KOTWICA PRZENIESIONA (0048, ADR-093): wejście do kreatora niesie
+    // identyfikator WERSJI, bo bez niego kreator nie ma czym wybrać strony.
+    expect(html).toContain('href="/strona/site-1/kreator"');
   });
 
   it("nie ma tu ANI JEDNEGO formularza edycji strony", () => {
@@ -691,12 +713,12 @@ describe("kreator przejmuje kotwice edycji z mockupu", () => {
     }
     // Druga strona: w ŹRÓDŁACH obu ekranów natywnego selecta nie ma w ogóle.
     const files = [
-      "app/[locale]/(panel)/strona/site-launcher.tsx",
+      "app/[locale]/(panel)/strona/site-pages.tsx",
       "app/[locale]/(panel)/strona/section-content-form.tsx",
-      "app/[locale]/(kreator)/strona/kreator/site-builder.tsx",
-      "app/[locale]/(kreator)/strona/kreator/builder-canvas.tsx",
-      "app/[locale]/(kreator)/strona/kreator/builder-palette.tsx",
-      "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
+      "app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx",
+      "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-canvas.tsx",
+      "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-palette.tsx",
+      "app/[locale]/(kreator)/strona/[siteId]/kreator/section-settings-drawer.tsx",
     ];
     for (const file of files) {
       const source = readFileSync(resolve(process.cwd(), file), "utf8");

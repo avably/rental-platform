@@ -72,7 +72,7 @@ const topbarOwnedTitleFiles = [
   "organizacja/page.tsx",
   "organizacja/nowa/page.tsx",
   "strona/page.tsx",
-  "strona/site-launcher.tsx",
+  "strona/site-pages.tsx",
   "ustawienia-domen/page.tsx",
   "ustawienia-umow/page.tsx",
   "ustawienia-dostaw/page.tsx",

@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { runsEqual, runsFromDom } from "@/app/[locale]/(kreator)/strona/kreator/inline-text";
+import { runsEqual, runsFromDom } from "@/app/[locale]/(kreator)/strona/[siteId]/kreator/inline-text";
 
 function dom(html: string): HTMLElement {
   const host = document.createElement("div");

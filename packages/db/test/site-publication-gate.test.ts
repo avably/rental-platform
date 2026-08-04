@@ -44,6 +44,8 @@ const REQUIRED_ENV = [
 const hasEnv = integrationEnv(REQUIRED_ENV);
 
 const PG_CHECK_VIOLATION = "23514";
+const PG_UNIQUE_VIOLATION = "23505";
+const PG_INSUFFICIENT_PRIVILEGE = "42501";
 const PG_INVALID_PARAMETER_VALUE = "22023";
 
 const sql = process.env.SUPABASE_LOCAL_URL
@@ -620,6 +622,190 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
   // -------------------------------------------------------------------
   // Izolacja na NOWYCH kolumnach
   // -------------------------------------------------------------------
+
+
+  // -------------------------------------------------------------------
+  // (e) MODEL STRON (0048, ADR-093) — wiele wersji, jedna ŻYWA
+  // -------------------------------------------------------------------
+  //
+  // Model stron dokłada trzy operacje, których kanon ADR-091 dotąd nie znał:
+  // utworzenie wersji, PRZEŁĄCZENIE żywej strony i usunięcie wersji. Każda
+  // z nich jest mierzona tą samą miarą, co reszta tego pliku — KOPERTĄ, którą
+  // widzi sklep. Rozumowanie z ADR-093 („strona z published_at is null nie
+  // wnosi do koperty ani bajtu") jest tu zamienione na pomiar.
+
+  describe("wiele wersji strony, najwyżej jedna żywa", () => {
+    let wersjaId: string;
+
+    afterAll(async () => {
+      // Sprzątanie: zostawiamy tenanta A dokładnie z jedną, żywą stroną.
+      await admin.from("site_sections").delete().eq("site_id", wersjaId);
+      await admin.from("sites").delete().eq("id", wersjaId);
+    });
+
+    it("utworzenie DRUGIEJ wersji i praca na niej nie ruszają koperty ani o bajt", async () => {
+      const baseline = await envelope(a.tenantId);
+      expect(baseline, "strona A nie jest publiczna — nie ma czego bronić").not.toBeNull();
+
+      const { data, error } = await a.ownerClient
+        .from("sites")
+        .insert({ tenant_id: a.tenantId, name: "Wersja jesienna" })
+        .select("id")
+        .single();
+      expect(error, `utworzenie drugiej wersji odrzucone: ${error?.message}`).toBeNull();
+      wersjaId = data!.id as string;
+      expect(await envelope(a.tenantId), "utworzenie wersji zmieniło stronę klienta").toEqual(baseline);
+
+      // Pełna sesja edycyjna na wersji roboczej — każda operacja osobno.
+      const operacje: { nazwa: string; run: () => Promise<void> }[] = [
+        {
+          nazwa: "dodanie sekcji",
+          run: async () => {
+            await addSection(a, wersjaId, {
+              type: "hero",
+              position: 0,
+              content_draft: { heading: "Zupełnie inna strona" },
+            });
+          },
+        },
+        {
+          nazwa: "druga sekcja",
+          run: async () => {
+            await addSection(a, wersjaId, {
+              type: "contact",
+              position: 1,
+              content_draft: { heading: "Kontakt wersji roboczej" },
+            });
+          },
+        },
+        {
+          nazwa: "zmiana stylu wersji",
+          run: async () => {
+            const { error: styleError } = await a.ownerClient
+              .from("sites")
+              .update({ style_draft: { theme: "confetti" } })
+              .eq("tenant_id", a.tenantId)
+              .eq("id", wersjaId);
+            expect(styleError, `styl wersji: ${styleError?.message}`).toBeNull();
+          },
+        },
+        {
+          nazwa: "zmiana nazwy wersji",
+          run: async () => {
+            const { error: nameError } = await a.ownerClient
+              .from("sites")
+              .update({ name: "Wersja jesienna v2" })
+              .eq("tenant_id", a.tenantId)
+              .eq("id", wersjaId);
+            expect(nameError, `nazwa wersji: ${nameError?.message}`).toBeNull();
+          },
+        },
+      ];
+
+      for (const operacja of operacje) {
+        await operacja.run();
+        expect(
+          await envelope(a.tenantId),
+          `operacja „${operacja.nazwa}" na WERSJI ROBOCZEJ zmieniła stronę klienta`,
+        ).toEqual(baseline);
+      }
+    }, 60_000);
+
+    it("wersja NIE MOŻE urodzić się żywa — INSERT z published_at to 42501", async () => {
+      // Bez tego „wersja rodzi się nieżywa" byłoby konwencją panelu, a nie
+      // regułą: strażnik bliźniaków (0045) obejmuje `published_at` wprost.
+      const { error } = await a.ownerClient.from("sites").insert({
+        tenant_id: a.tenantId,
+        name: "Od razu publiczna",
+        published_at: new Date().toISOString(),
+        template_published: "classic",
+      });
+      expect(error?.code, `oczekiwano ${PG_INSUFFICIENT_PRIVILEGE}: ${error?.message}`).toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+    });
+
+    it("PRZEŁĄCZENIE: publikacja wersji zmienia kopertę RAZ i bez miksu dwóch stron", async () => {
+      const przed = await envelope(a.tenantId);
+      const sekcjeStarej = new Set((przed?.sections ?? []).map((s) => s.id));
+      expect(sekcjeStarej.size, "kontrola po pustym zbiorze: stara strona bez sekcji").toBeGreaterThan(0);
+
+      await publish(a, wersjaId);
+
+      const po = await envelope(a.tenantId);
+      expect(po, "po przełączeniu sklep nie ma strony").not.toBeNull();
+
+      // (1) Zmiana nastąpiła.
+      expect(po).not.toEqual(przed);
+      // (2) ANI JEDNEJ sekcji starej strony — to jest dowód braku miksu.
+      const wspolne = (po?.sections ?? []).filter((s) => sekcjeStarej.has(s.id));
+      expect(wspolne, `koperta niesie sekcje OBU stron: ${wspolne.map((s) => s.id).join(", ")}`).toEqual([]);
+      // (3) Treść jest treścią wersji.
+      expect(po?.sections.map((s) => s.type)).toEqual(["hero", "contact"]);
+
+      // (4) Stara strona przestała być żywa, ale ZACHOWAŁA bliźniaki (ADR-093 D2).
+      const { data: stara } = await admin
+        .from("sites")
+        .select("published_at, template_published, style_published")
+        .eq("id", siteAId)
+        .single();
+      expect(stara?.published_at, "stara strona dalej jest żywa — dwie żywe naraz").toBeNull();
+      expect(stara?.template_published, "bliźniak szablonu wyczyszczony przy zdejmowaniu").not.toBeNull();
+
+      const { count } = await admin
+        .from("site_sections")
+        .select("id", { count: "exact", head: true })
+        .eq("site_id", siteAId)
+        .not("content_published", "is", null);
+      expect(count, "bliźniaki sekcji starej strony zniknęły").toBeGreaterThan(0);
+    }, 60_000);
+
+    it("dwie ŻYWE strony są NIEREPREZENTOWALNE — nawet rolą serwisową (23505)", async () => {
+      // Rola serwisowa omija strażnika bliźniaków, więc to jest dowód na
+      // poziomie DANYCH: niezmiennik trzyma po obejściu całej aplikacji.
+      const { error } = await admin
+        .from("sites")
+        .update({ published_at: new Date().toISOString(), template_published: "classic" })
+        .eq("id", siteAId);
+      expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(PG_UNIQUE_VIOLATION);
+      expect(error?.message).toContain("sites_one_live_per_tenant_idx");
+    });
+
+    it("USUNIĘCIE strony nieżywej nie rusza koperty ani o bajt", async () => {
+      const baseline = await envelope(a.tenantId);
+
+      const { error } = await a.ownerClient
+        .from("sites")
+        .delete()
+        .eq("tenant_id", a.tenantId)
+        .eq("id", siteAId);
+      expect(error, `usunięcie nieżywej strony odrzucone: ${error?.message}`).toBeNull();
+
+      const { data: po } = await admin.from("sites").select("id").eq("id", siteAId).maybeSingle();
+      expect(po, "strona nieżywa nie została usunięta").toBeNull();
+      expect(await envelope(a.tenantId), "usunięcie NIEŻYWEJ strony zmieniło stronę klienta").toEqual(
+        baseline,
+      );
+    }, 60_000);
+
+    it("USUNIĘCIA strony ŻYWEJ odmawia BAZA (42501), koperta nietknięta", async () => {
+      const baseline = await envelope(a.tenantId);
+
+      const { error } = await a.ownerClient
+        .from("sites")
+        .delete()
+        .eq("tenant_id", a.tenantId)
+        .eq("id", wersjaId);
+      expect(error?.code, `oczekiwano ${PG_INSUFFICIENT_PRIVILEGE}: ${error?.message}`).toBe(
+        PG_INSUFFICIENT_PRIVILEGE,
+      );
+
+      // Werdykt z TRWAŁEGO stanu, nie ze zwrotu: wiersz stoi, sklep bez zmian.
+      const { data: dalej } = await admin.from("sites").select("id").eq("id", wersjaId).maybeSingle();
+      expect(dalej?.id, "żywa strona zniknęła mimo odmowy").toBe(wersjaId);
+      expect(await envelope(a.tenantId), "odmowa i tak ruszyła stronę klienta").toEqual(baseline);
+    }, 60_000);
+  });
 
   describe("izolacja tenantów na kolumnach 0045", () => {
     let siteBId: string;
