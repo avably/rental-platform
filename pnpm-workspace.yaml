@@ -37,6 +37,9 @@ patchedDependencies:
 #   postcss  <8.5.12  — GHSA-6g55-p6wh-862q (odczyt pliku przez
 #                       sourceMappingURL; 2026-07-23); pośredni przez
 #                       next w obu appkach — bump bezpośredni nic nie da.
+#                       Wartość trzymamy równą bezpośredniej zależności
+#                       packages/ui — rozjazd daje DWIE wersje w drzewie
+#                       i czerwony typecheck (dependabot #170).
 #   brace-expansion <5.0.9 — GHSA-rgw5-rvv9-x895 (DoS, obejście
 #                       mitygacji CVE-2026-14257; 2026-08-03).
 #                       Poprzednie nadpisanie na 5.0.8 przestało
@@ -50,6 +53,6 @@ overrides:
   fast-uri: "^3.1.5"
   sharp: "^0.35.3"
   next: "^16.2.11"
-  postcss: "^8.5.12"
+  postcss: "^8.5.25"
   brace-expansion@<=5.0.8: ^5.0.9
   undici: "^7.29.0"
