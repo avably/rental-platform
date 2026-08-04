@@ -80,7 +80,6 @@ const STRETCHY_KINDS = new Set<CanvasElement["kind"]>([
   "text",
   "image",
   "catalog",
-  "mapLink",
   "shape",
 ]);
 

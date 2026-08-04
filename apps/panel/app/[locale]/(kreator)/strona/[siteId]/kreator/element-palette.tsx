@@ -22,7 +22,6 @@ import { PALETTE_ELEMENT_KINDS, type PaletteElementKind } from "@avably/core/sit
 import {
   Heading2,
   Image as ImageIcon,
-  MapPin,
   MousePointerClick,
   Sparkles,
   Square,
@@ -46,7 +45,6 @@ const TILE_ICONS: Record<PaletteElementKind, LucideIcon> = {
   image: ImageIcon,
   icon: Sparkles,
   shape: Square,
-  mapLink: MapPin,
 };
 
 export function ElementPalette({

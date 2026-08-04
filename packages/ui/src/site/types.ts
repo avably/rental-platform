@@ -24,6 +24,7 @@ import type {
   ProductsContent,
   SectionCanvas,
   SectionType,
+  StructuredSectionContent,
   TestimonialsContent,
   UspContent,
 } from "@avably/core/site";
@@ -46,6 +47,7 @@ export type {
   SectionContent,
   SectionType,
   SiteTemplate,
+  StructuredSectionContent,
   TestimonialsContent,
   UspContent,
 } from "@avably/core/site";
@@ -87,7 +89,13 @@ export type RenderSection = {
     id: string;
     position: number;
     type: T;
-    content: SectionContentByType[T] | SectionCanvas;
+    /**
+     * TRZY GENERACJE TREŚCI (E1, ADR-094): kształt v1 typu, PŁÓTNO v2
+     * (`SectionCanvas`) albo SEKCJA STRUKTURALNA v3 (`StructuredSectionContent`).
+     * Rozstrzygają `isStructuredSection` / `isSectionCanvas` — po jednym
+     * pytaniu na generację, w jednym miejscu na cały system.
+     */
+    content: SectionContentByType[T] | SectionCanvas | StructuredSectionContent;
   };
 }[SectionType];
 

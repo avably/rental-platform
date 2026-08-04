@@ -1,6 +1,7 @@
 import {
   DEFAULT_SITE_STYLE,
   isSectionCanvas,
+  isStructuredSection,
   styleTokensFor,
   themeTokens,
   type CanvasElement,
@@ -25,6 +26,7 @@ import {
   TestimonialsSection,
   UspSection,
 } from "./sections";
+import { structuredRendererFor } from "./structured/registry";
 import { siteStyles } from "./template";
 import type {
   LegacyRenderSection,
@@ -69,6 +71,27 @@ function SectionSwitch({
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
   const styles = siteStyles();
+
+  if (isStructuredSection(section.content)) {
+    /*
+     * SEKCJA STRUKTURALNA v3 (E1, ADR-094) — render z REJESTRU pary
+     * (typ, układ). Idzie PRZED płótnem, bo jest rozpoznawalna po własnym
+     * znaczniku (`v: 3`), a zbiory generacji są rozłączne.
+     *
+     * Brak komponentu = sekcja POMINIĘTA, nie wywrócona strona. To ta sama
+     * zasada, którą `parsePublishedSite` stosuje do sekcji w nieznanym
+     * kształcie: opublikowana treść sprzed zmiany rejestru nie może zabrać
+     * klientowi całego sklepu. Kompletność rejestru pilnuje osobny kontrakt,
+     * więc ta gałąź jest bezpiecznikiem, a nie planem na co dzień.
+     *
+     * Sekcja strukturalna NIE dostaje `elementWrapper` — nie ma w niej
+     * elementów do zaznaczania. Kreator otwiera dla niej szufladę klikiem
+     * w całą sekcję (warstwa `sectionWrapper`).
+     */
+    const Structured = structuredRendererFor(section.content.type, section.content.layout);
+    if (!Structured) return null;
+    return <Structured content={section.content} styles={styles} />;
+  }
 
   if (isSectionCanvas(section.content)) {
     // Płótno v2 (K2, ADR-084) — geometria absolutna zamiast układu z typu sekcji.

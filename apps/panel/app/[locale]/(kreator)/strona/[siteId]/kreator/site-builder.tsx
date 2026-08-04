@@ -40,10 +40,12 @@ import {
   freeSpotFor,
   insertableSlots,
   isPinnedLastType,
+  isStructuredType,
   presetContentFor,
   sectionCanvasFrom,
+  structuredPresetFor,
   type PaletteElementKind,
-  type SectionCanvas,
+  type SectionContent,
   type SectionType,
   snapMove,
   unitsFromPx,
@@ -202,14 +204,14 @@ export function SiteBuilder({
   const editor = useCanvasEditor({
     sections,
     persist: useCallback(
-      (section: EditorSection, canvas: SectionCanvas) => {
+      (section: EditorSection, content: SectionContent) => {
         run(
           () =>
             upsertSection({
               siteId,
               sectionId: section.id,
               type: section.type,
-              content: canvas,
+              content,
             } as Parameters<typeof upsertSection>[0]),
           undefined,
           { quiet: true },
@@ -224,15 +226,20 @@ export function SiteBuilder({
    * pojęcia „między"), więc miejsce powstaje dopiero drugim krokiem —
    * `reorderSections` z KOMPLETEM pozycji, tą samą akcją co przeciąganie.
    *
-   * Nowa sekcja rodzi się OD RAZU jako płótno v2 (K2): preset treści przechodzi
-   * przez tę samą konwersję, którą kiedyś przejdą sekcje zapisane przed K2.
+   * GENERACJA NOWEJ SEKCJI ZALEŻY OD TYPU (E1, ADR-094). Typ z rejestru
+   * strukturalnego rodzi się jako treść v3 z presetem swojego typu (FAQ: trzy
+   * realne pary pytań), pozostałe — jak dotąd — jako płótno v2 z presetu v1.
+   * Rozstrzyga REJESTR, nie lista `if`-ów: kolejny typ strukturalny wchodzi tu
+   * bez zmiany ani jednej linii.
    */
   function addSection(type: SectionType, index: number, orderedIds: string[]) {
     run(async () => {
       const added = await upsertSection({
         siteId,
         type,
-        content: sectionCanvasFrom(type, presetContentFor(type, locale)),
+        content: isStructuredType(type)
+          ? structuredPresetFor(type, locale)
+          : sectionCanvasFrom(type, presetContentFor(type, locale)),
       } as Parameters<typeof upsertSection>[0]);
       if (!added.ok) return added;
       return reorderSections(siteId, orderWithInsertedAt(orderedIds, added.sectionId, index));
@@ -647,12 +654,35 @@ export function SiteBuilder({
         siteId={siteId}
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
+        structured={openSection ? editor.structuredOf(openSection.id) : undefined}
         selectedElementId={
           openSection && selection?.sectionId === openSection.id ? selection.elementId : null
         }
         onCanvasChange={(update) => {
           if (openSection) editor.mutate(openSection.id, update);
         }}
+        onStructuredChange={(update) => {
+          if (openSection) editor.mutateStructured(openSection.id, update);
+        }}
+        /*
+          KONWERSJA „Przełącz na sekcję 2.0" (ADR-094). Nowa sekcja wchodzi
+          BEZPOŚREDNIO POD starą — dlatego indeks liczymy z aktualnej kolejności
+          płótna, a nie z propsów: płótno trzyma stan optymistyczny i to ono
+          pokazuje operatorowi, gdzie ta sekcja stoi.
+
+          Szuflada zamyka się od razu: zostawałaby otwarta na STAREJ sekcji,
+          sugerując, że to w niej coś się zmieniło.
+        */
+        onConvert={
+          openSection && !editor.structuredOf(openSection.id)
+            ? () => {
+                const ids = canvasBands().ids;
+                const at = ids.indexOf(openSection.id);
+                addSection(openSection.type, at < 0 ? slotsFor(ids) : at + 1, ids);
+                setSettingsId(null);
+              }
+            : undefined
+        }
         onPickImage={
           openSection && selection?.sectionId === openSection.id
             ? () => setPicking(selection)

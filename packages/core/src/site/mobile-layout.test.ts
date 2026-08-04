@@ -26,6 +26,7 @@ import {
   CANVAS_COLUMNS,
   CANVAS_CONTENT_COLUMNS,
   CANVAS_PAD_COLUMNS,
+  PALETTE_ELEMENT_KINDS,
   SECTION_MAX_ROWS_MOBILE,
   SECTION_MIN_ROWS,
   type CanvasElement,
@@ -68,7 +69,10 @@ function randomCanvases(count: number): SectionCanvas[] {
     const elements: CanvasElement[] = [];
     const total = 1 + Math.floor(next() * 8);
     for (let index = 0; index < total; index += 1) {
-      const kind = pick(["heading", "text", "button", "image", "icon", "shape", "mapLink"] as const);
+      // Zbiór rodzajów idzie z REJESTRU palety, nie z listy obok testu:
+      // rodzaj dodany albo usunięty (jak `mapLink` w ADR-094) przestawia
+      // generator razem z paletą, a nie po tygodniu, gdy ktoś zauważy.
+      const kind = pick(PALETTE_ELEMENT_KINDS);
       const w = 4 + Math.floor(next() * 60);
       const h = 4 + Math.floor(next() * 30);
       const geometry: Geometry = {

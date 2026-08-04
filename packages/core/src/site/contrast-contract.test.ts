@@ -33,6 +33,9 @@ import {
   SECTION_BACKGROUNDS,
   SITE_MOTIONS,
   SITE_THEMES,
+  STRUCTURED_SECTIONS,
+  STRUCTURED_SECTION_TYPES,
+  STRUCTURED_THEME_ROLES,
   THEME_BAND_KEYS,
   accentsOf,
   contrastRatio,
@@ -41,6 +44,7 @@ import {
   scrimBandOf,
   themeTokens,
   variantsUsedBy,
+  type StructuredThemeRole,
 } from "./index";
 
 /** Alfa kafelka ikony (`bg-[var(--site-accent)]/10`) — lustro arkusza @avably/ui. */
@@ -278,6 +282,125 @@ describe("kontrast: welon nad zdjęciem", () => {
       }
     }
     expect(failures, `kombinacje poniżej progu:\n${failures.join("\n")}`).toEqual([]);
+  });
+});
+
+/**
+ * NOGA REJESTROWA SEKCJI STRUKTURALNYCH (E1, ADR-094).
+ *
+ * Komponent sekcji strukturalnej nie zna ani jednego heksa — deklaruje
+ * w rejestrze, KTÓRYCH ról motywu używa (`themeRoles`). Ten blok zamyka
+ * deklarację w liczbę: każda zadeklarowana rola jest liczona na KAŻDYM pasie
+ * KAŻDEGO motywu (i dla każdego akcentu tam, gdzie rola jest akcentowa).
+ *
+ * Konsekwencja jest ta, o którą chodzi: nowy typ strukturalny WCHŁANIA SIĘ do
+ * macierzy sam. Nie ma listy komponentów obok testu, którą trzeba pamiętać —
+ * jest rejestr, a wpis bez policzonego kontrastu nie ma jak przejść.
+ */
+describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", () => {
+  /**
+   * PRZEPIS POMIARU dla każdej roli. Rola bez przepisu jest błędem, nie
+   * pominięciem — dlatego mapa jest pełna i pilnuje jej osobny test niżej.
+   * `accent` w argumencie: role akcentowe liczą się per akcent palety motywu,
+   * pozostałe ignorują go i są liczone raz na pas.
+   */
+  const RECIPES: Record<
+    StructuredThemeRole,
+    {
+      perAccent: boolean;
+      threshold: number;
+      /** Kolor roli albo `null`, gdy motyw nie ma tego wariantu (łapie kontrakt kompletności wyżej). */
+      color: (theme: (typeof SITE_THEMES)[number], key: (typeof THEME_BAND_KEYS)[number], accent: string) => string | null;
+      /** Tło, na którym rola stoi. */
+      against: (theme: (typeof SITE_THEMES)[number], key: (typeof THEME_BAND_KEYS)[number]) => string;
+    }
+  > = {
+    ink: {
+      perAccent: false,
+      threshold: CONTRAST_AA_TEXT,
+      color: (theme, key) => themeTokens(theme).bands[key].ink,
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
+    inkMuted: {
+      perAccent: false,
+      threshold: CONTRAST_AA_TEXT,
+      color: (theme, key) => themeTokens(theme).bands[key].inkMuted,
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
+    border: {
+      // Próg WIDOCZNOŚCI, nie WCAG — kreska rozdzielająca pary FAQ ma być
+      // widoczna jako kreska, a nie czytana jako tekst.
+      perAccent: false,
+      threshold: VISIBLE_EDGE,
+      color: (theme, key) => themeTokens(theme).bands[key].border,
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
+    accentText: {
+      perAccent: true,
+      threshold: CONTRAST_AA_TEXT,
+      color: (theme, key, accent) => {
+        const band = themeTokens(theme).bands[key];
+        return themeTokens(theme).accents[accent]?.[band.accent]?.text ?? null;
+      },
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
+    accentFill: {
+      perAccent: true,
+      threshold: CONTRAST_AA_LARGE,
+      color: (theme, key, accent) => {
+        const band = themeTokens(theme).bands[key];
+        return themeTokens(theme).accents[accent]?.[band.accent]?.fill ?? null;
+      },
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
+  };
+
+  it("rejestr typów strukturalnych NIE jest pusty i każdy deklaruje role", () => {
+    // Osłona anty-pusty-zbiór: pętla niżej po pustym rejestrze byłaby zielona
+    // i nie broniłaby niczego.
+    expect(STRUCTURED_SECTION_TYPES.length).toBeGreaterThan(0);
+    for (const type of STRUCTURED_SECTION_TYPES) {
+      expect(
+        STRUCTURED_SECTIONS[type].themeRoles.length,
+        `typ "${type}" nie deklaruje ani jednej roli motywu — wypadłby z macierzy`,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("KAŻDA rola z allowlisty ma przepis pomiaru", () => {
+    // Bez tego zdania dopisanie roli do allowlisty przechodziłoby na zielono,
+    // a jej kontrastu nie liczyłby nikt.
+    for (const role of STRUCTURED_THEME_ROLES) {
+      expect(Object.keys(RECIPES), `rola "${role}" bez przepisu pomiaru`).toContain(role);
+    }
+  });
+
+  it("każda rola KAŻDEJ sekcji strukturalnej jest czytelna na każdym pasie każdego motywu", () => {
+    const failures: string[] = [];
+    let checks = 0;
+    for (const type of STRUCTURED_SECTION_TYPES) {
+      for (const role of STRUCTURED_SECTIONS[type].themeRoles) {
+        const recipe = RECIPES[role];
+        for (const theme of SITE_THEMES) {
+          const accents = recipe.perAccent ? accentsOf(theme) : ([""] as readonly string[]);
+          for (const accent of accents) {
+            for (const key of THEME_BAND_KEYS) {
+              const color = recipe.color(theme, key, accent);
+              if (!color) continue; // brak wariantu łapie kontrakt kompletności rejestru motywów
+              const ratio = contrastRatio(color, recipe.against(theme, key));
+              checks += 1;
+              if (ratio < recipe.threshold) {
+                failures.push(
+                  `${type}/${role}/${theme}${accent ? `/${accent}` : ""}/${key}: ${color} = ${round(ratio)}:1 (próg ${recipe.threshold})`,
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(checks, "macierz sekcji strukturalnych nie policzyła ANI JEDNEJ pary").toBeGreaterThan(0);
+    expect(failures, `role sekcji strukturalnych poniżej progu:\n${failures.join("\n")}`).toEqual([]);
   });
 });
 

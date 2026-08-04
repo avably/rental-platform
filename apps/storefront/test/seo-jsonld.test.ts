@@ -5,6 +5,10 @@
  *   1. znaczniki NIE niosą niczego spoza publicznego kontraktu,
  *   2. treść najemcy nie ma jak wyjść z bloku `<script>`.
  */
+import { faqPageJsonLd } from "@avably/core/site";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -136,5 +140,51 @@ describe("productJsonLd — Product + Offer", () => {
     expect(Object.keys(node).sort()).toEqual(
       ["@context", "@type", "description", "image", "name", "offers", "url"].sort(),
     );
+  });
+});
+
+/**
+ * FAQPage z sekcji strukturalnych (E1, ADR-094) — blok bez obietnic.
+ *
+ * Budowniczy siedzi w @avably/core (zna model treści), a serializacja i bramka
+ * wyjścia z `<script>` zostają tutaj. Ten opis pilnuje styku: blok trafia na
+ * stronę sklepu, przechodzi tę samą bramkę uciekania co reszta znaczników i
+ * NIE POWSTAJE, kiedy nie ma czego opisać.
+ */
+describe("FAQPage — styk modelu treści z blokiem <script>", () => {
+  it("strona bez strukturalnego FAQ nie dostaje bloku", () => {
+    expect(faqPageJsonLd([])).toBeNull();
+    expect(faqPageJsonLd([{ content: { heading: "FAQ", items: [{ q: "P?", a: "O." }] } }])).toBeNull();
+  });
+
+  it("pary przechodzą przez bramkę uciekania bez utraty treści", () => {
+    const zle = "Czy </script><script>alert(1)</script> działa?";
+    const data = faqPageJsonLd([
+      {
+        content: {
+          v: 3,
+          type: "faq",
+          layout: "accordion",
+          background: "default",
+          allowMultiple: false,
+          items: [{ q: zle, a: "Nie." }],
+        },
+      },
+    ]);
+    const serialized = serializeJsonLd(data);
+    expect(serialized).not.toContain("</script>");
+    expect(JSON.parse(serialized)).toEqual(data);
+    expect((JSON.parse(serialized).mainEntity as { name: string }[])[0]!.name).toBe(zle);
+  });
+
+  it("strona sklepu wystawia blok FAQ obok LocalBusiness", () => {
+    // Kontrakt strukturalny: bez tego zdania builder mógłby działać wyśmienicie
+    // i nie być nigdzie zawołany.
+    const page = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "..", "app", "(tenant)", "store", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("faqPageJsonLd");
+    expect(page).toMatch(/<JsonLd data=\{faqJsonLd\}/);
   });
 });

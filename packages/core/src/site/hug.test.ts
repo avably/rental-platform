@@ -33,8 +33,10 @@ const GEOMETRY = { x: 0, y: 0, w: 20, h: 8, z: 0 } as const;
 
 describe("nowy element z palety rodzi się w trybie `hug`", () => {
   it("lista rodzajów palety nie jest pusta (kontrola po pustym zbiorze)", () => {
-    expect(PALETTE_ELEMENT_KINDS.length).toBe(7);
-    expect(HUG_KINDS.length).toBe(5);
+    // Liczby zeszły o jeden w ADR-094 (E1): martwy element `mapLink` wypadł
+    // z palety i z rodzajów obejmujących treść.
+    expect(PALETTE_ELEMENT_KINDS.length).toBe(6);
+    expect(HUG_KINDS.length).toBe(4);
   });
 
   it.each(PALETTE_ELEMENT_KINDS)("%s: tryb wymiaru zgadza się ze wsparciem rodzaju", (kind) => {

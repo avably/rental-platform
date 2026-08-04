@@ -26,9 +26,12 @@
 import {
   CANVAS_COLUMNS,
   isSectionCanvas,
+  isStructuredSection,
   sectionCanvasFrom,
   type CanvasElement,
   type SectionCanvas,
+  type SectionContent,
+  type StructuredSectionContent,
 } from "@avably/core/site";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -49,22 +52,36 @@ import {
 /** Zwłoka autozapisu. Krótsza mieli serwer w trakcie ruchu myszą, dłuższa każe czekać. */
 export const AUTOSAVE_DELAY_MS = 700;
 
-export type CanvasDrafts = Record<string, SectionCanvas>;
+/**
+ * SZKIC SEKCJI — PŁÓTNO v2 ALBO SEKCJA STRUKTURALNA v3 (E1, ADR-094).
+ *
+ * Do E1 szkicem było wyłącznie płótno, więc każda treść, która nim nie była,
+ * przechodziła przez konwersję. Sekcja strukturalna MUSI być z tej konwersji
+ * wyjęta — spłaszczenie jej do pudełek jest dokładnie tą wadą, którą ADR-094
+ * likwiduje (pary FAQ zamieniały się w luźne nagłówki i akapity).
+ *
+ * Poza tym rozróżnieniem obie generacje jadą JEDNYM kanałem: ta sama historia
+ * cofania, ten sam autozapis, ten sam wskaźnik „Zapisywanie…/Zapisano”.
+ */
+export type SectionDraft = SectionCanvas | StructuredSectionContent;
+export type CanvasDrafts = Record<string, SectionDraft>;
 
 /**
- * Szkic płótna dla sekcji. Treść v1 jest KONWERTOWANA w locie — ta sama
- * funkcja, którą galeria tworzy nową sekcję (patrz `canvas-presets`), więc
- * sekcja sprzed K2 daje się edytować od razu, bez migracji danych. Zapis
- * utrwala wynik konwersji dopiero, gdy operator czegoś dotknie.
+ * Szkic sekcji. Treść v3 zostaje sobą; treść v1 jest KONWERTOWANA do płótna
+ * w locie — ta sama funkcja, którą galeria tworzy nową sekcję (patrz
+ * `canvas-presets`), więc sekcja sprzed K2 daje się edytować od razu, bez
+ * migracji danych. Zapis utrwala wynik konwersji dopiero, gdy operator czegoś
+ * dotknie.
  */
-function canvasOfSection(section: EditorSection): SectionCanvas {
+function draftOfSection(section: EditorSection): SectionDraft {
+  if (isStructuredSection(section.content)) return section.content;
   return isSectionCanvas(section.content)
     ? section.content
     : sectionCanvasFrom(section.type, section.content);
 }
 
 function draftsOf(sections: EditorSection[]): CanvasDrafts {
-  return Object.fromEntries(sections.map((section) => [section.id, canvasOfSection(section)]));
+  return Object.fromEntries(sections.map((section) => [section.id, draftOfSection(section)]));
 }
 
 /**
@@ -77,7 +94,7 @@ function mergeDrafts(current: CanvasDrafts, sections: EditorSection[]): CanvasDr
   const next: CanvasDrafts = {};
   for (const section of sections) {
     const existing = current[section.id];
-    next[section.id] = existing ?? canvasOfSection(section);
+    next[section.id] = existing ?? draftOfSection(section);
     if (!existing) changed = true;
   }
   return changed ? next : current;
@@ -91,7 +108,19 @@ export function newElementId(): string {
 }
 
 export interface CanvasEditor {
+  /**
+   * Szkic sekcji w DOWOLNEJ generacji — tego pyta płótno, żeby narysować to,
+   * co operator ma przed oczami, a nie to, co przyszło z serwera.
+   */
+  contentOf: (sectionId: string) => SectionDraft | undefined;
+  /**
+   * Szkic sekcji WYŁĄCZNIE jako płótno. Sekcja strukturalna daje `undefined`
+   * i to jest właściwa odpowiedź: nie ma w niej elementów, uchwytów ani
+   * geometrii, więc wołający (warstwa edycyjna płótna) ma ją pominąć.
+   */
   canvasOf: (sectionId: string) => SectionCanvas | undefined;
+  /** Szkic sekcji WYŁĄCZNIE jako treść strukturalna (mini-CMS w szufladzie). */
+  structuredOf: (sectionId: string) => StructuredSectionContent | undefined;
   /**
    * Zmiana szkicu sekcji: JEDEN wpis w historii i JEDEN zaplanowany zapis.
    * Podgląd ruchu (przeciąganie w toku) NIE idzie tędy — siedzi w stanie
@@ -99,6 +128,11 @@ export interface CanvasEditor {
    * a nie piksel.
    */
   mutate: (sectionId: string, update: (canvas: SectionCanvas) => SectionCanvas) => void;
+  /** Ten sam kanał dla treści strukturalnej — historia i autozapis bez zmian. */
+  mutateStructured: (
+    sectionId: string,
+    update: (content: StructuredSectionContent) => StructuredSectionContent,
+  ) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -112,7 +146,7 @@ export function useCanvasEditor({
   persist,
 }: {
   sections: EditorSection[];
-  persist: (section: EditorSection, canvas: SectionCanvas) => void;
+  persist: (section: EditorSection, content: SectionContent) => void;
 }): CanvasEditor {
   const [history, setHistory] = useState<HistoryState<CanvasDrafts>>(() =>
     initialHistory(draftsOf(sections)),
@@ -170,8 +204,8 @@ export function useCanvasEditor({
     dirty.current.clear();
     for (const id of ids) {
       const section = sectionsRef.current.get(id);
-      const canvas = historyRef.current.present[id];
-      if (section && canvas) persistRef.current(section, canvas);
+      const content = historyRef.current.present[id];
+      if (section && content) persistRef.current(section, content);
     }
   }, []);
 
@@ -188,18 +222,39 @@ export function useCanvasEditor({
   // Zamknięcie kreatora nie może zjeść ostatniego przeciągnięcia.
   useEffect(() => () => flush(), [flush]);
 
-  const mutate = useCallback<CanvasEditor["mutate"]>(
-    (sectionId, update) => {
+  /**
+   * Rdzeń obu mutacji: jeden wpis w historii i jeden zaplanowany zapis. Funkcja
+   * `update` dostaje szkic dopiero po sprawdzeniu GENERACJI (`guard`) — bez
+   * tego przekształcenie płótna dostałoby treść strukturalną i odwrotnie,
+   * a wynik zapisałby się do bazy.
+   */
+  const mutateDraft = useCallback(
+    (
+      sectionId: string,
+      guard: (draft: SectionDraft) => boolean,
+      update: (draft: never) => SectionDraft,
+    ) => {
       const current = historyRef.current;
-      const canvas = current.present[sectionId];
-      if (!canvas) return;
-      const nextCanvas = update(canvas);
-      if (nextCanvas === canvas) return;
-      historyRef.current = commitHistory(current, { ...current.present, [sectionId]: nextCanvas });
+      const draft = current.present[sectionId];
+      if (!draft || !guard(draft)) return;
+      const next = (update as (draft: SectionDraft) => SectionDraft)(draft);
+      if (next === draft) return;
+      historyRef.current = commitHistory(current, { ...current.present, [sectionId]: next });
       setHistory(historyRef.current);
       schedule([sectionId]);
     },
     [schedule],
+  );
+
+  const mutate = useCallback<CanvasEditor["mutate"]>(
+    (sectionId, update) => mutateDraft(sectionId, isSectionCanvas, update as (d: never) => SectionDraft),
+    [mutateDraft],
+  );
+
+  const mutateStructured = useCallback<CanvasEditor["mutateStructured"]>(
+    (sectionId, update) =>
+      mutateDraft(sectionId, isStructuredSection, update as (d: never) => SectionDraft),
+    [mutateDraft],
   );
 
   const step = useCallback(
@@ -216,8 +271,23 @@ export function useCanvasEditor({
   );
 
   return {
-    canvasOf: useCallback((sectionId: string) => history.present[sectionId], [history.present]),
+    contentOf: useCallback((sectionId: string) => history.present[sectionId], [history.present]),
+    canvasOf: useCallback(
+      (sectionId: string) => {
+        const draft = history.present[sectionId];
+        return draft && isSectionCanvas(draft) ? draft : undefined;
+      },
+      [history.present],
+    ),
+    structuredOf: useCallback(
+      (sectionId: string) => {
+        const draft = history.present[sectionId];
+        return draft && isStructuredSection(draft) ? draft : undefined;
+      },
+      [history.present],
+    ),
     mutate,
+    mutateStructured,
     undo: useCallback(() => step(undoHistory), [step]),
     redo: useCallback(() => step(redoHistory), [step]),
     canUndo: canUndoOf(history),
