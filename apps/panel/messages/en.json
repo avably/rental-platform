@@ -228,7 +228,6 @@
     "list": {
       "title": "Product catalog",
       "newProduct": "New product",
-      "locationsLink": "Pickup locations",
       "colName": "Name",
       "colPricePerDay": "Price / day",
       "colDeposit": "Deposit",
@@ -334,30 +333,6 @@
       "previewColAppliedTier": "Applied tier",
       "previewBasePrice": "base price",
       "previewAppliedTier": "tier: {days} days"
-    },
-    "locations": {
-      "title": "Pickup locations",
-      "backToCatalog": "← Product catalog",
-      "backToList": "← Pickup locations",
-      "newLocation": "New location",
-      "createTitle": "New pickup location",
-      "editTitle": "Edit location: {name}",
-      "empty": "No pickup locations yet.",
-      "colName": "Name",
-      "colAddress": "Address",
-      "colActive": "Status",
-      "colActions": "Actions",
-      "activeYes": "Active",
-      "activeNo": "Inactive",
-      "activate": "Activate",
-      "deactivate": "Deactivate",
-      "name": "Name",
-      "street": "Street and number",
-      "zip": "Postal code",
-      "city": "City",
-      "active": "Location active",
-      "save": "Save",
-      "saved": "Changes saved."
     },
     "emptyState": {
       "title": "Empty warehouse. Add your first product."
@@ -729,6 +704,32 @@
         "saveSenderCta": "Save sender",
         "saveParcelCta": "Save parcel",
         "savePricingCta": "Save pricing"
+      },
+      "locations": {
+        "title": "Pickup locations",
+        "backToDelivery": "← Deliveries",
+        "cardDescription": "Addresses where the customer collects the equipment and returns it. An inactive location disappears from the new-order picker but stays on orders already issued.",
+        "cardCta": "Manage pickup locations",
+        "backToList": "← Pickup locations",
+        "newLocation": "New location",
+        "createTitle": "New pickup location",
+        "editTitle": "Edit location: {name}",
+        "empty": "No pickup locations yet.",
+        "colName": "Name",
+        "colAddress": "Address",
+        "colActive": "Status",
+        "colActions": "Actions",
+        "activeYes": "Active",
+        "activeNo": "Inactive",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "name": "Name",
+        "street": "Street and number",
+        "zip": "Postal code",
+        "city": "City",
+        "active": "Location active",
+        "save": "Save",
+        "saved": "Changes saved."
       }
     },
     "detail": {

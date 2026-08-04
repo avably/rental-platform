@@ -73,10 +73,12 @@ describe("sidebar panelu", () => {
   });
 
   it("ekran zagnieżdżony trzyma podświetlenie na swojej sekcji", () => {
-    const html = renderNav("/katalog/punkty-odbioru/nowy");
+    // Trasa dwupoziomowa: punkty odbioru stoją pod Dostawami od 2026-08-04.
+    const html = renderNav("/ustawienia-dostaw/punkty-odbioru/nowy");
 
     expect([...html.matchAll(/aria-current="page"/g)]).toHaveLength(1);
-    expect(anchorFor(html, "catalog")).toContain('aria-current="page"');
+    expect(anchorFor(html, "delivery")).toContain('aria-current="page"');
+    expect(anchorFor(html, "catalog")).not.toContain("aria-current");
   });
 
   it("trasa spoza nawigacji nie podświetla żadnej pozycji", () => {

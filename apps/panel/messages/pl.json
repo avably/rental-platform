@@ -228,7 +228,6 @@
     "list": {
       "title": "Katalog produktów",
       "newProduct": "Nowy produkt",
-      "locationsLink": "Punkty odbioru",
       "colName": "Nazwa",
       "colPricePerDay": "Cena / doba",
       "colDeposit": "Kaucja",
@@ -334,30 +333,6 @@
       "previewColAppliedTier": "Zastosowany próg",
       "previewBasePrice": "cena bazowa",
       "previewAppliedTier": "próg: {days} dni"
-    },
-    "locations": {
-      "title": "Punkty odbioru",
-      "backToCatalog": "← Katalog produktów",
-      "backToList": "← Punkty odbioru",
-      "newLocation": "Nowy punkt",
-      "createTitle": "Nowy punkt odbioru",
-      "editTitle": "Edycja punktu: {name}",
-      "empty": "Brak punktów odbioru.",
-      "colName": "Nazwa",
-      "colAddress": "Adres",
-      "colActive": "Status",
-      "colActions": "Akcje",
-      "activeYes": "Aktywny",
-      "activeNo": "Nieaktywny",
-      "activate": "Przywróć",
-      "deactivate": "Wygaś",
-      "name": "Nazwa",
-      "street": "Ulica i numer",
-      "zip": "Kod pocztowy",
-      "city": "Miejscowość",
-      "active": "Punkt aktywny",
-      "save": "Zapisz",
-      "saved": "Zapisano zmiany."
     },
     "emptyState": {
       "title": "Pusty magazyn. Dodaj pierwszy produkt."
@@ -729,6 +704,32 @@
         "saveSenderCta": "Zapisz nadawcę",
         "saveParcelCta": "Zapisz paczkę",
         "savePricingCta": "Zapisz cennik"
+      },
+      "locations": {
+        "title": "Punkty odbioru",
+        "backToDelivery": "← Dostawy",
+        "cardDescription": "Adresy, pod które klient przyjeżdża po sprzęt i pod które go oddaje. Punkt nieaktywny znika z wyboru w nowym zamówieniu, ale zostaje na zamówieniach już wystawionych.",
+        "cardCta": "Zarządzaj punktami odbioru",
+        "backToList": "← Punkty odbioru",
+        "newLocation": "Nowy punkt",
+        "createTitle": "Nowy punkt odbioru",
+        "editTitle": "Edycja punktu: {name}",
+        "empty": "Brak punktów odbioru.",
+        "colName": "Nazwa",
+        "colAddress": "Adres",
+        "colActive": "Status",
+        "colActions": "Akcje",
+        "activeYes": "Aktywny",
+        "activeNo": "Nieaktywny",
+        "activate": "Przywróć",
+        "deactivate": "Wygaś",
+        "name": "Nazwa",
+        "street": "Ulica i numer",
+        "zip": "Kod pocztowy",
+        "city": "Miejscowość",
+        "active": "Punkt aktywny",
+        "save": "Zapisz",
+        "saved": "Zapisano zmiany."
       }
     },
     "detail": {

@@ -12,8 +12,9 @@ import { Link } from "@/i18n/navigation";
  * go przypiąć kontraktem do źródła, którego nie ma — dlatego odstępstwo jest
  * spisane w ADR-058 i zgłoszone w raporcie, zamiast udawać cytat.
  *
- * Dwie akcje, obie prowadzące do istniejących ekranów: dodanie produktu i
- * punkty odbioru (bez punktu nie ma skąd wydać sprzętu). Znaku marki z
+ * JEDNA akcja, od 2026-08-04: dodanie produktu. Drugie wezwanie prowadziło do
+ * punktów odbioru, a te przeprowadziły się do Dostaw — pusty magazyn zaprasza
+ * do napełnienia magazynu, nie do konfiguracji wydawania. Znaku marki z
  * artefaktu tu nie ma — ta sama decyzja co w P4.
  */
 export function CatalogEmptyState() {
@@ -29,9 +30,6 @@ export function CatalogEmptyState() {
       <div className="flex flex-wrap gap-3">
         <Button asChild>
           <Link href="/katalog/nowy">{tList("newProduct")}</Link>
-        </Button>
-        <Button asChild variant="secondary">
-          <Link href="/katalog/punkty-odbioru">{tList("locationsLink")}</Link>
         </Button>
       </div>
     </div>

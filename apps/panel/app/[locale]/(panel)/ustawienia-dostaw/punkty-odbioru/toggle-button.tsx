@@ -17,7 +17,7 @@ export function ToggleLocationButton({
   nextActive: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const t = useTranslations("catalog.locations");
+  const t = useTranslations("orders.delivery.locations");
 
   return (
     <form action={formAction} className="inline-flex flex-col gap-1">

@@ -13,7 +13,7 @@ export default async function EditPickupLocationPage({
   params: Promise<{ locationId: string }>;
 }) {
   const { locationId } = await params;
-  const ctx = await requireMemberPage(`/katalog/punkty-odbioru/${locationId}`);
+  const ctx = await requireMemberPage(`/ustawienia-dostaw/punkty-odbioru/${locationId}`);
 
   const { data: location } = await ctx.supabase
     .from("pickup_locations")
@@ -24,12 +24,12 @@ export default async function EditPickupLocationPage({
 
   if (!location) notFound();
 
-  const t = await getTranslations("catalog.locations");
+  const t = await getTranslations("orders.delivery.locations");
 
   return (
     <div className="flex flex-col gap-4">
       <ScreenHeader
-        back={{ href: "/katalog/punkty-odbioru", label: t("backToList") }}
+        back={{ href: "/ustawienia-dostaw/punkty-odbioru", label: t("backToList") }}
         title={t("editTitle", { name: location.name })}
       />
       <LocationForm

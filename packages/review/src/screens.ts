@@ -28,9 +28,15 @@ export const REVIEW_SCREENS: ReviewScreen[] = [
   { label: "04 Zamówienie — szczegół", surface: "panel", match: /^\/zamowienia\/[^/]+/ },
   { label: "05 Katalog — lista", surface: "panel", match: /^\/katalog$/ },
   { label: "06 Katalog — nowy produkt", surface: "panel", match: /^\/katalog\/nowy/ },
-  { label: "07 Punkty odbioru — lista", surface: "panel", match: /^\/katalog\/punkty-odbioru$/ },
-  { label: "08 Punkt odbioru — nowy", surface: "panel", match: /^\/katalog\/punkty-odbioru\/nowy/ },
-  { label: "09 Punkt odbioru — szczegół", surface: "panel", match: /^\/katalog\/punkty-odbioru\/[^/]+/ },
+  // 07–09: ekran przeprowadził się spod Katalogu do Dostaw (2026-08-04).
+  // Zmieniamy DOPASOWANIE, nie etykiety: numer jest kluczem sortowania i stoi
+  // w bazie razem z każdą wystawioną pinezką, więc przenumerowanie rozjechałoby
+  // uwagi zebrane wcześniej. Wpisy zostają PRZED „25 Ustawienia dostaw" —
+  // wygrywa pierwsze trafienie, więc `/ustawienia-dostaw/punkty-odbioru` musi
+  // być sprawdzone zanim złapie je szerszy wzorzec ustawień dostaw.
+  { label: "07 Punkty odbioru — lista", surface: "panel", match: /^\/ustawienia-dostaw\/punkty-odbioru$/ },
+  { label: "08 Punkt odbioru — nowy", surface: "panel", match: /^\/ustawienia-dostaw\/punkty-odbioru\/nowy/ },
+  { label: "09 Punkt odbioru — szczegół", surface: "panel", match: /^\/ustawienia-dostaw\/punkty-odbioru\/[^/]+/ },
   { label: "10 Katalog — egzemplarze", surface: "panel", match: /^\/katalog\/[^/]+\/egzemplarze/ },
   { label: "11 Katalog — progi cenowe", surface: "panel", match: /^\/katalog\/[^/]+\/progi/ },
   { label: "12 Katalog — zdjęcia", surface: "panel", match: /^\/katalog\/[^/]+\/zdjecia/ },

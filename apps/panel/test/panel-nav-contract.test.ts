@@ -177,7 +177,12 @@ describe("dopasowanie trasy aktywnej", () => {
 
   it("ekran zagnieżdżony podświetla swoją sekcję", () => {
     expect(matchNavItem("/zamowienia/ZAM-1")?.id).toBe("orders");
-    expect(matchNavItem("/katalog/punkty-odbioru/nowy")?.id).toBe("catalog");
+    expect(matchNavItem("/katalog/nowy")?.id).toBe("catalog");
+    // Punkty odbioru przeprowadziły się spod Katalogu do Dostaw (2026-08-04),
+    // więc dwupoziomowe zagnieżdżenie sprawdzamy tam, gdzie teraz stoi — i to
+    // ono jest tu istotne: `/ustawienia-dostaw` musi wygrać dopasowanie mimo
+    // dwóch segmentów pod spodem.
+    expect(matchNavItem("/ustawienia-dostaw/punkty-odbioru/nowy")?.id).toBe("delivery");
   });
 
   it("trasa spoza nawigacji nie podświetla niczego", () => {

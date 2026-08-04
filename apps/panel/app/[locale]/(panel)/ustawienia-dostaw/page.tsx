@@ -12,6 +12,11 @@
  * Odczyt dla każdego członka, ZAPIS wyłącznie dla właściciela (RLS 0024) —
  * odmowa przychodzi z bazy, a akcja tłumaczy ją na komunikat. Dojście: link
  * z sekcji dostawy zamówienia.
+ *
+ * Od 2026-08-04 ekran jest też RODZICEM punktów odbioru
+ * (`/ustawienia-dostaw/punkty-odbioru`, decyzja właściciela): odbiór osobisty
+ * to metoda dostawy, więc mieszka przy kurierze i paczkomacie, a nie przy
+ * katalogu produktów, gdzie stał wcześniej.
  */
 import {
   COURIER_CONFIG_KEYS,
@@ -22,10 +27,12 @@ import {
   GLOBKURIER_PASSWORD_SECRET_KEY,
   deliveryPricingFromSettings,
 } from "@avably/core";
+import { Button } from "@avably/ui";
 import { getTranslations } from "next-intl/server";
 
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenBackLink, ScreenSection } from "@/components/screens/screen-header";
+import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
 import {
@@ -56,6 +63,7 @@ export default async function DeliverySettingsPage() {
   const ctx = await requireMemberPage("/ustawienia-dostaw");
   const t = await getTranslations("orders.delivery.settings");
   const tSection = await getTranslations("orders.delivery.section");
+  const tLocations = await getTranslations("orders.delivery.locations");
 
   const { data: rows } = await ctx.supabase
     .from("tenant_settings")
@@ -124,6 +132,27 @@ export default async function DeliverySettingsPage() {
     <FormMeasure className="flex flex-col gap-4">
       <ScreenBackLink href="/zamowienia" label={`← ${tSection("title")}`} />
       <p className="text-muted-foreground text-sm">{t("intro")}</p>
+
+      {/*
+        Wejście w punkty odbioru stoi NAD kartą reguły dostępu i nad czterema
+        formularzami, a nie pod nimi — z dwóch powodów. Po pierwsze karta reguły
+        mówi o zapisie USTAWIEŃ (właściciel, RLS 0024), a punkty odbioru
+        prowadzi każdy członek zespołu; zamknięta pod nią wyglądałaby na objętą
+        tym samym ograniczeniem. Po drugie to nawigacja, nie ustawienie: gdyby
+        stała na końcu, trzeba by przewinąć dwadzieścia jeden pól konfiguracji
+        kuriera, żeby dojść do ekranu, na którym pracuje się na co dzień.
+      */}
+      <ScreenSection
+        data-delivery-locations-entry="true"
+        title={tLocations("title")}
+        description={tLocations("cardDescription")}
+      >
+        <div>
+          <Button asChild variant="secondary">
+            <Link href="/ustawienia-dostaw/punkty-odbioru">{tLocations("cardCta")}</Link>
+          </Button>
+        </div>
+      </ScreenSection>
 
       <ScreenSection
         data-delivery-access-rule={canWrite ? "owner-writes" : "member-reads"}

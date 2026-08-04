@@ -65,7 +65,7 @@ const SCREENS_UNDER_MEASURE = [
   // Formularze, które przed P8 miały WŁASNY wpis na whiteliście kontraktu
   // spójności — reguła artefaktu je wchłonęła.
   "app/[locale]/(panel)/katalog/product-form.tsx",
-  "app/[locale]/(panel)/katalog/punkty-odbioru/location-form.tsx",
+  "app/[locale]/(panel)/ustawienia-dostaw/punkty-odbioru/location-form.tsx",
   "app/[locale]/(panel)/zamowienia/nowe/order-wizard.tsx",
   "app/[locale]/(panel)/zamowienia/[id]/extension-form.tsx",
   // P8b/K1 — strona sklepu: miarę niesie SZUFLADA ustawień sekcji w kreatorze

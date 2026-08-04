@@ -23,7 +23,11 @@ describe("lista ekranów przeglądu", () => {
     ["panel", "/zamowienia", "02 Zamówienia — lista"],
     ["panel", "/zamowienia/nowe", "03 Zamówienie — nowe"],
     ["panel", "/zamowienia/6a4b", "04 Zamówienie — szczegół"],
-    ["panel", "/katalog/punkty-odbioru/nowy", "08 Punkt odbioru — nowy"],
+    ["panel", "/ustawienia-dostaw/punkty-odbioru/nowy", "08 Punkt odbioru — nowy"],
+    // Kolejność wpisów jest tu ZNACZĄCA: gdyby „25 Ustawienia dostaw" stało
+    // przed punktami odbioru, przejęłoby ich trasy i pinezka trafiłaby na
+    // niewłaściwy ekran. Ta para asercji pilnuje obu stron rozstrzygnięcia.
+    ["panel", "/ustawienia-dostaw", "25 Ustawienia dostaw"],
     ["panel", "/katalog/6a4b/progi", "11 Katalog — progi cenowe"],
     ["panel", "/katalog/6a4b", "13 Katalog — produkt"],
     ["panel", "/ustawienia-platnosci", "28 Ustawienia płatności"],

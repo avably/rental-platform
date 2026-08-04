@@ -33,7 +33,7 @@ export function LocationForm({
   defaults: LocationFormValues;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  const t = useTranslations("catalog.locations");
+  const t = useTranslations("orders.delivery.locations");
 
   const errorId = (field: string) =>
     state.fieldErrors?.[field] ? `location-${field}-error` : undefined;
