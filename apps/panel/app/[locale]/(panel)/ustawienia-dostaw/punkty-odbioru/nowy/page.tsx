@@ -7,13 +7,13 @@ import { createLocationAction } from "../actions";
 import { LocationForm } from "../location-form";
 
 export default async function NewPickupLocationPage() {
-  await requireMemberPage("/katalog/punkty-odbioru/nowy");
-  const t = await getTranslations("catalog.locations");
+  await requireMemberPage("/ustawienia-dostaw/punkty-odbioru/nowy");
+  const t = await getTranslations("orders.delivery.locations");
 
   return (
     <div className="flex flex-col gap-4">
       <ScreenHeader
-        back={{ href: "/katalog/punkty-odbioru", label: t("backToList") }}
+        back={{ href: "/ustawienia-dostaw/punkty-odbioru", label: t("backToList") }}
         title={t("createTitle")}
       />
       <LocationForm

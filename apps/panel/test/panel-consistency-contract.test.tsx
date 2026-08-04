@@ -152,7 +152,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   const allowedArbitraryWidth = new Map<string, readonly string[]>([
     ["katalog/[id]/zdjecia/photo-forms.tsx", ["w-[120px]", "w-[10rem]"]],
     ["katalog/products-table.tsx", ["min-w-[720px]"]],
-    ["katalog/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
+    ["ustawienia-dostaw/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
     ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
     // `zamowienia/nowe/order-wizard.tsx` wypadło z listy przy R3: termin
     // przestał być polem o przypiętej szerokości — jest kalendarzem

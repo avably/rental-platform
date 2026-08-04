@@ -34,7 +34,7 @@ export interface LocationsTableRow {
 }
 
 export function LocationsTable({ rows }: { rows: LocationsTableRow[] }) {
-  const t = useTranslations("catalog.locations");
+  const t = useTranslations("orders.delivery.locations");
 
   const headClass =
     "h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase";
@@ -58,7 +58,7 @@ export function LocationsTable({ rows }: { rows: LocationsTableRow[] }) {
               <TableCell data-cell="name" className="h-[52px] px-3.5 py-2.5">
                 <Link
                   className="text-foreground rounded-sm font-medium no-underline outline-none hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
-                  href={`/katalog/punkty-odbioru/${location.id}`}
+                  href={`/ustawienia-dostaw/punkty-odbioru/${location.id}`}
                 >
                   {location.name}
                 </Link>

@@ -45,11 +45,11 @@ export default async function CatalogPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Punkty odbioru wyprowadzone do Dostaw (2026-08-04): katalog opisuje
+          SPRZĘT, a punkt odbioru jest sposobem jego wydania — stoi więc obok
+          kuriera i paczkomatu. Katalogowi zostaje jedna akcja. */}
       <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <Button asChild variant="secondary">
-            <Link href="/katalog/punkty-odbioru">{t("locationsLink")}</Link>
-          </Button>
           <Button asChild>
             <Link href="/katalog/nowy">{t("newProduct")}</Link>
           </Button>

@@ -54,7 +54,7 @@ export async function createLocationAction(
     .insert({ tenant_id: ctx.tenantId, ...locationPayload(parsed.data) });
   if (error) return { formError: error.message };
 
-  redirect(await localePath("/katalog/punkty-odbioru"));
+  redirect(await localePath("/ustawienia-dostaw/punkty-odbioru"));
 }
 
 export async function updateLocationAction(

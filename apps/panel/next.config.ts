@@ -46,6 +46,36 @@ const nextConfig: NextConfig = {
      */
     serverActions: { bodySizeLimit: "12mb" },
   },
+
+  /**
+   * Punkty odbioru przeprowadziły się spod Katalogu do Dostaw (2026-08-04).
+   * Stary adres zostaje żywy jako przekierowanie stałe — właściciel ma go
+   * w zakładkach, a i tak jest w historii przeglądarek zespołu.
+   *
+   * `redirects()` z konfiguracji, a NIE trasa-stub pod `katalog/`, i to jest
+   * decyzja: stub oznaczałby, że w Katalogu dalej stoi katalog `punkty-odbioru`
+   * — czyli dokładnie ten ślad, który przeprowadzka miała usunąć (znalazłby go
+   * skan tras, `protected-routes`, każdy `grep`). Konfiguracja trzyma to jako
+   * fakt o adresach, nie o strukturze ekranów.
+   *
+   * `permanent: true` daje 308, a nie 301: 308 zachowuje metodę żądania.
+   * Znaczenia praktycznego to tu nie ma (przekierowujemy GET-y z zakładek),
+   * ale przeglądarki cache'ują oba tak samo agresywnie, a 308 nie kłamie.
+   *
+   * Prefiks locale jest CZĘŚCIĄ wzorca: routing panelu ma `localePrefix:
+   * "always"`, więc każdy realny adres nosi `/pl` albo `/en` i wzorzec bez
+   * prefiksu nie trafiłby w nic. `:rest*` niesie podstrony (`/nowy`,
+   * `/<id>`) — zakładka bywa założona na formularzu edycji, nie tylko na liście.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/:locale(pl|en)/katalog/punkty-odbioru/:rest*",
+        destination: "/:locale/ustawienia-dostaw/punkty-odbioru/:rest*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
