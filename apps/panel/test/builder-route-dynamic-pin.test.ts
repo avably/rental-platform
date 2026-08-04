@@ -19,7 +19,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const BUILDER_ROUTE = "app/[locale]/(kreator)/strona/kreator/page.tsx";
+const BUILDER_ROUTE = "app/[locale]/(kreator)/strona/[siteId]/kreator/page.tsx";
 
 function source(relative: string): string {
   return readFileSync(resolve(process.cwd(), relative), "utf8");

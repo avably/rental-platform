@@ -112,6 +112,12 @@ export interface Site {
   id: string;
   tenant_id: string;
   /**
+   * Nazwa WERSJI strony, widoczna wyłącznie na liście stron w panelu (0048,
+   * ADR-093). Dana czysto szkicowa: `app.get_published_site` jej nie czyta,
+   * więc nie ma bliźniaka `*_published` i nie wchodzi na listę strażnika.
+   */
+  name: string;
+  /**
    * ZASTANE (przed ADR-090): szablon graficzny sprzed wprowadzenia stylu strony.
    * Kolumna SZKICU w rozumieniu ADR-091 (bliźniak `template_published` niżej),
    * ale panel już do niej nie pisze — nowy zapis idzie w `style_draft.theme`.
@@ -122,7 +128,12 @@ export interface Site {
   style_draft: Json;
   /** Styl strony po publikacji; pusty obiekt = nigdy nie zapisany (0046). */
   style_published: Json;
-  /** NULL = strona nigdy nie opublikowana; stawia ją wyłącznie app.publish_site. */
+  /**
+   * NULL = strona NIE JEST widoczna w sklepie; stawia i zdejmuje ją WYŁĄCZNIE
+   * app.publish_site. Od 0048 (ADR-093) jest to zarazem JEDYNA prawda o tym,
+   * która z wersji strony tenanta jest żywa — pilnuje tego unikat częściowy
+   * `sites_one_live_per_tenant_idx`.
+   */
   published_at: string | null;
   /** Szablon OPUBLIKOWANY; NULL = strona nigdy nie opublikowana (ADR-091). */
   template_published: SiteTemplate | null;

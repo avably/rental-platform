@@ -1,58 +1,59 @@
 /**
- * Zakładka „Strona sklepu" — LAUNCHER kreatora (K1, ADR-083).
+ * Zakładka „Strona sklepu" — LISTA WERSJI STRONY (0048, ADR-093).
  *
- * Serwerowo zostaje dokładnie tyle, ile launcher potrzebuje: guard członka,
- * utworzenie strony przy pierwszym wejściu (`ensureSite`, idempotentne —
- * tworzenie to mutacja, nie skutek uboczny odczytu) i data ostatniej publikacji.
- * Szkic, katalog i cała interakcja edycyjna przeniosły się na `/strona/kreator`,
- * więc ten ekran ich nie czyta — po co miałby, skoro nic z nimi nie robi.
+ * Do 0047 był tu launcher jednej strony, a samą stronę zakładało wejście na tę
+ * trasę (`ensureSite`). Model stron uchylił jedno i drugie: wersji może być
+ * wiele, więc ekran jest listą, a tworzenie stało się jawnym czasownikiem —
+ * operator nie może dostać wersji, o którą nie prosił, przy kliknięciu w menu.
  *
- * `ensureSite` zostaje TUTAJ, a nie w kreatorze: launcher jest wejściem
- * z nawigacji panelu, więc to on odpowiada za istnienie strony. Kreator z pustą
- * bazą oddaje 404 (wejście na adres z ręki), zamiast zakładać byty po cichu.
+ * Serwerowo zostaje dokładnie tyle, ile lista potrzebuje: guard członka, odczyt
+ * wersji i sformatowane daty. Cała interakcja (publikacja, nazwa, usunięcie)
+ * siedzi w komponencie klienckim, bo to są mutacje ze stanem oczekiwania.
  *
- * Nieudany odczyt kończy się WŁASNYM stanem (`SiteLoadError`), a nie pustym
- * ekranem: „nie ma strony" i „nie wiadomo, czy jest" to dwa różne komunikaty.
+ * Nieudany odczyt kończy się WŁASNYM stanem (`SiteLoadError`), a nie pustą
+ * listą: „nie masz żadnej strony" i „nie wiadomo, czy masz" to dwa różne
+ * komunikaty — i tylko jeden z nich zaprasza do klikania.
  */
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ScreenBackLink } from "@/components/screens/screen-header";
-import { ensureSite } from "@/lib/actions/site";
 import { requireMemberPage } from "@/lib/member-page";
-import { getSiteWithSections } from "@/lib/site-queries";
+import { listSites } from "@/lib/site-queries";
 
-import { SiteLauncher } from "./site-launcher";
+import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
 
 export default async function SitePage() {
   await requireMemberPage("/strona");
   const t = await getTranslations("site");
 
-  const ensured = await ensureSite();
-  const data = ensured.ok ? await getSiteWithSections() : null;
-
-  if (!ensured.ok || !data) {
+  let sites;
+  try {
+    sites = await listSites();
+  } catch {
     return (
-      <SiteLoadError
-        backLabel={t("backHome")}
-        title={t("loadErrorTitle")}
-        message={ensured.ok ? t("loadError") : ensured.error}
-      />
+      <SiteLoadError backLabel={t("backHome")} title={t("loadErrorTitle")} message={t("loadError")} />
     );
   }
 
   const format = await getFormatter();
-  const publishedAtLabel = data.site.published_at
-    ? format.dateTime(new Date(data.site.published_at), {
-        dateStyle: "short",
-        timeStyle: "short",
-      })
-    : null;
+  const stamp = (value: string | null) =>
+    value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
+
+  const rows: SitePageRow[] = sites.map((site) => ({
+    id: site.id,
+    name: site.name,
+    // ŻYWOŚĆ to jedyna prawda o tym, co widzi klient (ADR-093 D1) — lista
+    // czyta ją z tej samej kolumny, z której czyta ją sklep.
+    live: site.published_at !== null,
+    publishedAtLabel: stamp(site.published_at),
+    createdAtLabel: stamp(site.created_at),
+  }));
 
   return (
     <div className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={t("backHome")} />
-      <SiteLauncher siteId={data.site.id} publishedAtLabel={publishedAtLabel} />
+      <SitePages rows={rows} />
     </div>
   );
 }

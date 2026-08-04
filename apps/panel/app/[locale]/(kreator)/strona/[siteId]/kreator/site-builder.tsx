@@ -93,11 +93,19 @@ type SaveState = "idle" | "saving" | "saved";
 
 export function SiteBuilder({
   siteId,
+  siteName,
   style,
   sections,
   products,
 }: {
   siteId: string;
+  /**
+   * Nazwa WERSJI, którą operator ma otwartą (0048, ADR-093). Przy wielu
+   * wersjach płótno bez etykiety nie odpowiada na pytanie „którą stronę
+   * właśnie edytuję" — a to jest pytanie, które przy przełączaniu wersji
+   * pada najczęściej.
+   */
+  siteName: string;
   /** Styl SZKICU (motyw + akcent + para krojów) — jedyne wejście wyglądu (ADR-090). */
   style: ResolvedSiteStyle;
   sections: EditorSection[];
@@ -442,6 +450,10 @@ export function SiteBuilder({
           </Link>
         </Button>
 
+        <span data-builder-site-name className="truncate text-sm font-medium">
+          {siteName}
+        </span>
+
         <div
           role="group"
           aria-label={t("builder.viewportLegend")}
@@ -494,7 +506,7 @@ export function SiteBuilder({
         */}
         <Button asChild type="button" size="sm" variant="secondary">
           <a
-            href={`/${locale}/strona/podglad`}
+            href={`/${locale}/strona/${siteId}/podglad`}
             target="_blank"
             rel="noreferrer"
             data-builder-preview

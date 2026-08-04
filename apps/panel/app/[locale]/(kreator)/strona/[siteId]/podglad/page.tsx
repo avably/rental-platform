@@ -1,5 +1,5 @@
 /**
- * PODGLĄD SZKICU `/strona/podglad` (pinezka właściciela 2026-08-03) — strona
+ * PODGLĄD SZKICU `/strona/[siteId]/podglad` (pinezka właściciela 2026-08-03) — strona
  * taka, jaka BĘDZIE po publikacji, otwierana w nowej karcie.
  *
  * ==================== DLACZEGO TRASA PANELU, A NIE SKLEPU ====================
@@ -48,9 +48,14 @@ import { siteImagePublicBase } from "@/lib/site-image-base";
 
 export const dynamic = "force-dynamic";
 
-export default async function SiteDraftPreviewPage() {
-  const ctx = await requireMemberPage("/strona/podglad");
-  const data = await getSiteWithSections();
+export default async function SiteDraftPreviewPage({
+  params,
+}: {
+  params: Promise<{ siteId: string }>;
+}) {
+  const { siteId } = await params;
+  const ctx = await requireMemberPage(`/strona/${siteId}/podglad`);
+  const data = await getSiteWithSections(siteId);
   if (!data) notFound();
 
   const t = await getTranslations("site");
@@ -81,7 +86,7 @@ export default async function SiteDraftPreviewPage() {
         <div className="flex items-center gap-3">
           <p className="text-muted-foreground hidden text-sm sm:block">{t("preview.draftHint")}</p>
           <Link
-            href="/strona/kreator"
+            href={`/strona/${siteId}/kreator`}
             data-preview-back
             className="text-sm underline underline-offset-4"
           >

@@ -1,0 +1,246 @@
+/**
+ * AKCJE MODELU STRON (0048, ADR-093) na ŻYWYM Supabase, przez FAKTYCZNE server
+ * actions — wzorzec `site-editor-actions.test.ts` (mock `requireMember`
+ * wstrzykuje realnego, zalogowanego membera; bramką zostaje RLS, nie mock).
+ *
+ * Pakiet `packages/db/test/site-publication-gate.test.ts` dowodzi tego samego
+ * na poziomie DANYCH (koperta przed/po, unikat, trigger). Tutaj mierzone jest
+ * to, czego tamten nie widzi — **czy warstwa akcji nie rozmija się z bazą**:
+ *
+ *   1. limit wersji liczony ze STANU BAZY, a nie z listy od klienta (lekcja
+ *      wyścigu z K6-delty: dwa równoległe „Nowa strona" nie mają go obejść);
+ *   2. odmowa usunięcia ŻYWEJ strony dociera do operatora jako ZDANIE, co
+ *      zrobić, a nie jako „brak uprawnień" — 42501 z triggera jest tłumaczone
+ *      w jednym miejscu i test pilnuje, że nie przecieka surowe;
+ *   3. `createSite` nie ma jak urodzić wersji żywej — nawet gdyby ktoś dopisał
+ *      `published_at` do wstawki, strażnik 0045 odpowiada 42501;
+ *   4. izolacja: cudzej wersji nie da się ani przemianować, ani usunąć.
+ *
+ * Werdykt zawsze z TRWAŁEGO stanu (odczyt service-rolem), nie ze zwrotu akcji.
+ */
+import { randomUUID } from "node:crypto";
+
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import WebSocket from "ws";
+
+import { integrationEnv } from "./helpers/integration-env";
+
+const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
+
+const REQUIRED_ENV = [
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+  "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+] as const;
+const hasEnv = integrationEnv(REQUIRED_ENV);
+
+const TEST_PASSWORD = "SitePagesActions!12345678";
+const createdUserIds: string[] = [];
+const createdTenantIds: string[] = [];
+
+function env(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Brak zmiennej środowiskowej ${name}`);
+  return value;
+}
+
+function createAdminClient(): SupabaseClient {
+  return createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...realtimeTransport,
+  });
+}
+
+async function signIn(email: string): Promise<SupabaseClient> {
+  const client = createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_ANON_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...realtimeTransport,
+  });
+  const { error } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
+  if (error) throw new Error(`signIn(${email}): ${error.message}`);
+  return client;
+}
+
+async function createTenantMember(
+  admin: SupabaseClient,
+  label: string,
+): Promise<{ client: SupabaseClient; tenantId: string }> {
+  const email = `pages-${label}-${randomUUID()}@test.local`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: TEST_PASSWORD,
+    email_confirm: true,
+  });
+  if (error || !data.user) throw new Error(`createUser(${label}): ${error?.message}`);
+  createdUserIds.push(data.user.id);
+
+  const bootstrap = await signIn(email);
+  const { data: tenantId, error: tenantError } = await bootstrap.schema("app").rpc("create_tenant", {
+    p_slug: `pages-${label}-${randomUUID()}`.slice(0, 39),
+    p_name: `Organizacja stron ${label}`,
+  });
+  if (tenantError) throw new Error(`create_tenant(${label}): ${tenantError.message}`);
+  createdTenantIds.push(tenantId as string);
+
+  return { client: await signIn(email), tenantId: tenantId as string };
+}
+
+const requireMember = vi.fn();
+vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+
+const { createSite, renameSite, deleteSite, publishSite } = await import("@/lib/actions/site");
+const { MAX_SITES } = await import("@/lib/site-validation");
+
+describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
+  let admin: SupabaseClient;
+  let tenantA: { client: SupabaseClient; tenantId: string };
+  let tenantB: { client: SupabaseClient; tenantId: string };
+
+  function actAs(actor: { client: SupabaseClient; tenantId: string }) {
+    requireMember.mockResolvedValue({ supabase: actor.client, tenantId: actor.tenantId });
+  }
+
+  async function sites(tenantId: string) {
+    const { data } = await admin
+      .from("sites")
+      .select("id, name, published_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: true });
+    return data ?? [];
+  }
+
+  beforeAll(async () => {
+    admin = createAdminClient();
+    tenantA = await createTenantMember(admin, "a");
+    tenantB = await createTenantMember(admin, "b");
+  }, 60_000);
+
+  beforeEach(async () => {
+    await admin.from("sites").delete().eq("tenant_id", tenantA.tenantId);
+    await admin.from("sites").delete().eq("tenant_id", tenantB.tenantId);
+    actAs(tenantA);
+  });
+
+  afterAll(async () => {
+    if (!hasEnv) return;
+    if (createdTenantIds.length > 0) await admin.from("tenants").delete().in("id", createdTenantIds);
+    for (const id of createdUserIds) await admin.auth.admin.deleteUser(id);
+    createdUserIds.length = 0;
+    createdTenantIds.length = 0;
+  }, 60_000);
+
+  it("createSite zakłada wersję NIEŻYWĄ i z nazwą", async () => {
+    const result = await createSite({ name: "Wersja jesienna" });
+    expect(result.ok, result.ok ? "" : result.error).toBe(true);
+
+    const rows = await sites(tenantA.tenantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.name).toBe("Wersja jesienna");
+    expect(rows[0]!.published_at, "nowa wersja urodziła się widoczna w sklepie").toBeNull();
+  });
+
+  it("pusta nazwa jest odrzucana PRZED dotknięciem bazy", async () => {
+    const result = await createSite({ name: "   " });
+    expect(result.ok).toBe(false);
+    expect(await sites(tenantA.tenantId), "odrzucona nazwa i tak założyła wiersz").toHaveLength(0);
+  });
+
+  it("LIMIT wersji liczy się ze STANU BAZY (lekcja wyścigu K6-delty)", async () => {
+    // Wiersze wstawia rola serwisowa, więc akcja NIE MA skąd znać ich liczby
+    // inaczej niż pytając bazę. Gdyby limit szedł z listy podanej przez
+    // klienta, ten test przechodziłby przy każdej implementacji.
+    const rows = Array.from({ length: MAX_SITES }, (_, index) => ({
+      tenant_id: tenantA.tenantId,
+      name: `Wersja ${index + 1}`,
+    }));
+    const { error } = await admin.from("sites").insert(rows);
+    expect(error, `zasiew limitu: ${error?.message}`).toBeNull();
+
+    const result = await createSite({ name: "O jedną za dużo" });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("limit stron nie zadziałał");
+    expect(result.error).toContain(String(MAX_SITES));
+    expect(await sites(tenantA.tenantId), "limit przekroczony mimo odmowy").toHaveLength(MAX_SITES);
+  }, 60_000);
+
+  it("deleteSite usuwa wersję NIEŻYWĄ razem z jej sekcjami", async () => {
+    const created = await createSite({ name: "Do usunięcia" });
+    if (!created.ok) throw new Error(created.error);
+    const { error: sectionError } = await admin.from("site_sections").insert({
+      tenant_id: tenantA.tenantId,
+      site_id: created.siteId,
+      type: "hero",
+      position: 0,
+      content_draft: { heading: "Treść wersji" },
+    });
+    expect(sectionError, `zasiew sekcji: ${sectionError?.message}`).toBeNull();
+
+    const result = await deleteSite(created.siteId);
+    expect(result.ok, result.ok ? "" : result.error).toBe(true);
+
+    expect(await sites(tenantA.tenantId)).toHaveLength(0);
+    const { count } = await admin
+      .from("site_sections")
+      .select("id", { count: "exact", head: true })
+      .eq("site_id", created.siteId);
+    expect(count, "sekcje usuniętej wersji zostały w bazie").toBe(0);
+  }, 60_000);
+
+  it("deleteSite ŻYWEJ wersji: odmowa bazy dociera jako ZDANIE, co zrobić", async () => {
+    const created = await createSite({ name: "Żywa" });
+    if (!created.ok) throw new Error(created.error);
+    const published = await publishSite(created.siteId);
+    expect(published.ok, published.ok ? "" : published.error).toBe(true);
+
+    const result = await deleteSite(created.siteId);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("usunięto żywą wersję");
+
+    /*
+     * Asercja celuje w zdanie PANELU, a nie w cokolwiek zawierające „opublikuj
+     * inną" — bo komunikat triggera też te słowa zawiera. Wersja słabsza
+     * (`toContain("opublikuj inną")`) przechodziła również wtedy, gdy akcja
+     * przepuszczała surowy tekst z Postgresa: znalazł to dowód mutacyjny M4
+     * i to jest dokładny powód, dla którego ta asercja wygląda tak, jak wygląda.
+     */
+    expect(result.error, "surowa odmowa bazy zamiast zdania panelu").toContain(
+      "bo widzą ją klienci",
+    );
+    expect(result.error).not.toContain("42501");
+
+    expect(await sites(tenantA.tenantId), "żywa wersja zniknęła mimo odmowy").toHaveLength(1);
+  }, 60_000);
+
+  it("renameSite zmienia WYŁĄCZNIE nazwę, nie rusza żywości", async () => {
+    const created = await createSite({ name: "Przed" });
+    if (!created.ok) throw new Error(created.error);
+    await publishSite(created.siteId);
+
+    const result = await renameSite({ siteId: created.siteId, name: "Po zmianie" });
+    expect(result.ok, result.ok ? "" : result.error).toBe(true);
+
+    const rows = await sites(tenantA.tenantId);
+    expect(rows[0]!.name).toBe("Po zmianie");
+    expect(rows[0]!.published_at, "zmiana nazwy zdjęła stronę ze sklepu").not.toBeNull();
+  }, 60_000);
+
+  it("IZOLACJA: obcy tenant nie przemianuje ani nie usunie cudzej wersji", async () => {
+    const created = await createSite({ name: "Wersja tenanta A" });
+    if (!created.ok) throw new Error(created.error);
+
+    actAs(tenantB);
+    const renamed = await renameSite({ siteId: created.siteId, name: "Przejęta" });
+    expect(renamed.ok, "obcy tenant przemianował cudzą wersję").toBe(false);
+
+    const removed = await deleteSite(created.siteId);
+    expect(removed.ok, "obcy tenant usunął cudzą wersję").toBe(false);
+
+    // Werdykt z trwałego stanu: wiersz ofiary nietknięty.
+    const rows = await sites(tenantA.tenantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.name).toBe("Wersja tenanta A");
+  }, 60_000);
+});

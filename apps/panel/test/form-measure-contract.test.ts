@@ -72,7 +72,7 @@ const SCREENS_UNDER_MEASURE = [
   // (jedyny formularz tego ekranu po K1) oraz stan błędu ładowania. Płótno
   // zostaje poza miarą świadomie: to widok sklepu, a nie wiersz do czytania
   // i pole do wypełnienia. Launcher wypadł z listy, bo przestał mieć formularz.
-  "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/section-settings-drawer.tsx",
   "app/[locale]/(panel)/strona/site-load-error.tsx",
 ] as const;
 

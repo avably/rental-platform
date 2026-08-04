@@ -1,10 +1,13 @@
 /**
- * TRASA KREATORA STRON `/strona/kreator` (K1, ADR-083) — pełny ekran.
+ * TRASA KREATORA STRON `/strona/[siteId]/kreator` (K1, ADR-083; segment wersji
+ * od 0048/ADR-093) — pełny ekran.
  *
  * Grupa `(kreator)` stoi POZA `(panel)`, więc trasa nie dostaje powłoki panelu:
  * na płótnie buduje się stronę sklepu i każdy piksel sidebara jest tu zabrany
  * z tej pracy. Nazwa grupy nie wchodzi do adresu — trasa to po prostu
- * `/strona/kreator`, a zakładka „Strona sklepu" (`/strona`) jest jej launcherem.
+ * `/strona/[siteId]/kreator`, a zakładka „Strona sklepu" (`/strona`) jest listą
+ * wersji, z której się tu wchodzi. Segment `[siteId]` jest OBOWIĄZKOWY, odkąd
+ * wersji może być wiele — bez niego kreator nie miałby czym wybrać strony.
  *
  * `force-dynamic` NIE JEST OZDOBĄ: layout locale ma `generateStaticParams`, więc
  * bez pinu Next.js wciągnąłby kreator w statyczny prerender, a CSP panelu
@@ -28,12 +31,18 @@ import { SiteBuilder } from "./site-builder";
 
 export const dynamic = "force-dynamic";
 
-export default async function SiteBuilderPage() {
-  const ctx = await requireMemberPage("/strona/kreator");
-  const data = await getSiteWithSections();
+export default async function SiteBuilderPage({
+  params,
+}: {
+  params: Promise<{ siteId: string }>;
+}) {
+  const { siteId } = await params;
+  const ctx = await requireMemberPage(`/strona/${siteId}/kreator`);
+  const data = await getSiteWithSections(siteId);
 
-  // Stronę zakłada wejście na launcher (`ensureSite`), więc jej brak znaczy, że
-  // ktoś wszedł na adres kreatora z ręki — to 404, a nie puste płótno.
+  // Wersja strony wskazana adresem NIE ISTNIEJE albo należy do innego tenanta
+  // (RLS tnie wiersz — wynik ten sam, celowo nieodróżnialny). To 404, a nie
+  // puste płótno: kreator bez strony nie ma czego edytować.
   if (!data) notFound();
 
   const products = await previewProductsFor(ctx, ctx.tenantId!);
@@ -41,6 +50,7 @@ export default async function SiteBuilderPage() {
   return (
     <SiteBuilder
       siteId={data.site.id}
+      siteName={data.site.name}
       /*
        * Styl SZKICU. Kolumna `sites.template` wchodzi tu jako FALLBACK stron
        * sprzed ADR-090 — dzięki temu strona zastana renderuje się motywem

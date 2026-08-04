@@ -25,8 +25,8 @@ const panelRoot = process.cwd();
 const repositoryRoot = resolve(panelRoot, "../..");
 const read = (path: string) => readFileSync(resolve(repositoryRoot, path), "utf8");
 
-const TRASA = "apps/panel/app/[locale]/(kreator)/strona/podglad/page.tsx";
-const PASEK = "apps/panel/app/[locale]/(kreator)/strona/kreator/site-builder.tsx";
+const TRASA = "apps/panel/app/[locale]/(kreator)/strona/[siteId]/podglad/page.tsx";
+const PASEK = "apps/panel/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx";
 
 /** Źródła sklepu, które dotykają danych strony najemcy. */
 const ZRODLA_SKLEPU = [
@@ -97,8 +97,11 @@ describe("podgląd szkicu: wejście z paska kreatora", () => {
     expect(przycisk![0], "nowa karta z dostępem do window.opener").toContain('rel="noreferrer"');
   });
 
-  it("adres podglądu niesie język — panel jest dwujęzyczny", () => {
-    expect(pasek).toContain("/strona/podglad");
-    expect(pasek).toMatch(/\$\{locale\}\/strona\/podglad/);
+  it("adres podglądu niesie język I wersję strony — panel jest dwujęzyczny, a stron jest wiele", () => {
+    // KOTWICA PRZENIESIONA (0048, ADR-093): do języka dołączył segment wersji.
+    // Asercja została WZMOCNIONA, nie osłabiona — pilnuje teraz obu członów.
+    expect(pasek).toContain("/strona/");
+    expect(pasek).toContain("/podglad");
+    expect(pasek).toMatch(/\$\{locale\}\/strona\/\$\{siteId\}\/podglad/);
   });
 });

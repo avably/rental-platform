@@ -26,6 +26,32 @@ export type SiteActionResult<T = object> = ({ ok: true } & T) | { ok: false; err
 /** Górna granica pozycji/liczby sekcji — strona to kilkanaście sekcji, nie tysiące. */
 export const MAX_SECTIONS = 100;
 
+/**
+ * Ile WERSJI strony może mieć jeden sklep (0048, ADR-093). Limit stoi po
+ * stronie aplikacji, a nie w CHECK-u bazy, i to jest świadome: liczba wersji
+ * jest decyzją PRODUKTOWĄ (docelowo różnicowaną planem), a nie niezmiennikiem
+ * danych. Niezmiennikiem jest co innego — najwyżej jedna wersja ŻYWA — i tego
+ * pilnuje unikat częściowy w bazie.
+ */
+export const MAX_SITES = 10;
+
+/**
+ * Nazwa wersji strony. Lustro CHECK-a `sites_name_length_check` (0048): 1–80
+ * znaków po przycięciu. `trim` w schemacie, żeby „   " nie przechodziło jako
+ * nazwa, którą baza i tak odrzuci.
+ */
+const siteNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Nazwa strony nie może być pusta.")
+  .max(80, "Nazwa strony może mieć najwyżej 80 znaków.");
+
+export const createSiteInputSchema = z.object({ name: siteNameSchema });
+export type CreateSiteInput = z.infer<typeof createSiteInputSchema>;
+
+export const renameSiteInputSchema = z.object({ siteId: uuidSchema, name: siteNameSchema });
+export type RenameSiteInput = z.infer<typeof renameSiteInputSchema>;
+
 const positionSchema = z.number().int().min(0).max(1_000_000);
 
 /**

@@ -8,7 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
  *
  * Grupa nie miała WŁASNEGO layoutu — nakładka przeglądu montuje się dziś
  * wyłącznie w layoucie `(panel)` (`surface="panel"`), więc na
- * `/strona/kreator` i `/strona/podglad` nie renderowała się w ogóle: trasy
+ * `/strona/[siteId]/kreator` i `/strona/[siteId]/podglad` nie renderowała się w ogóle: trasy
  * stoją POZA `(panel)` świadomie (kreator jest pełnym ekranem, ADR-083).
  * Ten plik nie dokłada żadnej powłoki wizualnej — jedyne zadanie to
  * `{children}` plus TA SAMA potrójna bramka co w `(panel)`: env

@@ -1317,6 +1317,36 @@
         "one-page-lean": "Jedna strona",
         "catalog-first": "Katalog na start"
       }
+    },
+    "pages": {
+      "subtitle": "Sklep pokazuje jedną wersję strony. Pozostałe czekają w panelu — możesz je budować i przełączać, kiedy chcesz.",
+      "new": "Nowa strona",
+      "newTitle": "Nowa wersja strony",
+      "newBody": "Powstanie pusta strona — wybierzesz dla niej szablon startowy. Klienci zobaczą ją dopiero, gdy ją opublikujesz.",
+      "newConfirm": "Utwórz stronę",
+      "defaultName": "Nowa wersja",
+      "nameLabel": "Nazwa strony",
+      "emptyTitle": "Nie masz jeszcze żadnej strony.",
+      "emptyBody": "Utwórz pierwszą — zaczniesz od gotowego szablonu i opublikujesz, gdy będzie gotowa.",
+      "statusDraft": "Robocza",
+      "publishedAt": "W sklepie od {date}",
+      "createdAt": "Utworzona {date}",
+      "rename": "Zmień nazwę",
+      "renameTitle": "Zmień nazwę strony",
+      "renameConfirm": "Zapisz nazwę",
+      "delete": "Usuń",
+      "deleteBlocked": "Widoczna w sklepie",
+      "deleteTitle": "Usunąć stronę „{name}”?",
+      "deleteBody": "Strona i jej sekcje znikną bez śladu. Klienci nigdy jej nie widzieli, więc w sklepie nic się nie zmieni.",
+      "deleteConfirm": "Usuń stronę",
+      "switchTitle": "Opublikować stronę „{name}”?",
+      "switchBody": "Sklep zacznie pokazywać tę stronę. Dotychczasowa strona „{previous}” przestanie być publiczna, ale zostanie w panelu — możesz do niej wrócić.",
+      "switchBodyFirst": "Sklep zacznie pokazywać tę stronę klientom.",
+      "switchDraftNote": "Opublikowane zostaną też zmiany, które w niej zrobiłeś.",
+      "limitReached": "Osiągnięto limit {max} stron. Usuń nieużywaną wersję, żeby dodać nową.",
+      "cancel": "Anuluj",
+      "switchBodySelf": "Sklep pokaże tę stronę w aktualnej wersji — razem ze zmianami, które w niej zrobiłeś.",
+      "notLive": "Nie jest widoczna w sklepie — pracujesz nad nią w panelu."
     }
   },
   "domainSettings": {

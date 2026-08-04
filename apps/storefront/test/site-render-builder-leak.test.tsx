@@ -199,16 +199,16 @@ describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
  * w którym ktoś musi pomyśleć, czy nowy atrybut wycieka na publiczną stronę.
  */
 const BUILDER_LAYER_SOURCES = [
-  "app/[locale]/(kreator)/strona/kreator/builder-canvas.tsx",
-  "app/[locale]/(kreator)/strona/kreator/canvas-elements.tsx",
-  "app/[locale]/(kreator)/strona/kreator/canvas-gesture.ts",
-  "app/[locale]/(kreator)/strona/kreator/element-palette.tsx",
-  "app/[locale]/(kreator)/strona/kreator/inline-editor.tsx",
-  "app/[locale]/(kreator)/strona/kreator/image-picker.tsx",
-  "app/[locale]/(kreator)/strona/kreator/section-settings-drawer.tsx",
-  "app/[locale]/(kreator)/strona/kreator/site-builder.tsx",
-  "app/[locale]/(kreator)/strona/kreator/builder-palette.tsx",
-  "app/[locale]/(kreator)/strona/kreator/template-gallery.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-canvas.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/canvas-elements.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/canvas-gesture.ts",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/element-palette.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/inline-editor.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/image-picker.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/section-settings-drawer.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-palette.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/template-gallery.tsx",
   // Galeria typów sekcji żyje w pasie ekranu „Strona sklepu", ale renderuje się
   // WEWNĄTRZ kreatora (paleta i „+" na płótnie) — jej znaczniki są warstwą.
   "app/[locale]/(panel)/strona/add-section-gallery.tsx",

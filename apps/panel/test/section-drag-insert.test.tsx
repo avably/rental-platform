@@ -30,7 +30,7 @@ import plMessages from "../messages/pl.json";
 import {
   insertIndexAtPointer,
   type SectionBand,
-} from "@/app/[locale]/(kreator)/strona/kreator/insert-position";
+} from "@/app/[locale]/(kreator)/strona/[siteId]/kreator/insert-position";
 
 const STYL = DEFAULT_SITE_STYLE;
 
@@ -76,7 +76,7 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ refresh: () => {} }),
 }));
 
-const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
+const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder");
 const { sectionCanvasFrom, presetContentFor } = await import("@avably/core/site");
 
 type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
@@ -100,7 +100,7 @@ function sekcja(id: string, type: "hero" | "cta" | "footer", position: number): 
 function renderBuilder(sections: Section[]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
 }

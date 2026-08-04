@@ -59,7 +59,7 @@ vi.mock("@/app/[locale]/(panel)/strona/upload-flow", async (importOriginal) => (
   uploadSiteImageToSignedUrl: vi.fn(async () => ({ error: null })),
 }));
 
-const { ImagePicker } = await import("@/app/[locale]/(kreator)/strona/kreator/image-picker");
+const { ImagePicker } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/image-picker");
 
 const PHOTO = {
   id: "abc",

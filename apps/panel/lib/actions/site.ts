@@ -40,8 +40,13 @@ import {
   toggleSectionInputSchema,
   updateSiteStyleInputSchema,
   upsertSectionInputSchema,
+  createSiteInputSchema,
+  renameSiteInputSchema,
   MAX_SECTIONS,
+  MAX_SITES,
   type ApplyStarterTemplateInput,
+  type CreateSiteInput,
+  type RenameSiteInput,
   type SiteActionResult,
   type UpsertSectionInput,
 } from "@/lib/site-validation";
@@ -65,40 +70,119 @@ async function memberCtx(): Promise<
 }
 
 /**
- * Zwraca stronę tenanta, tworząc ją przy pierwszym wejściu do edytora (jedna
- * strona per tenant — UNIQUE 0019). Wyścig dwóch kart rozstrzyga baza:
- * przegrany INSERT (23505) kończy się ponownym odczytem zwycięzcy.
+ * NOWA WERSJA STRONY (0048, ADR-093).
+ *
+ * Do 0047 stało tu `ensureSite()`: strona powstawała jako SKUTEK UBOCZNY
+ * wejścia w zakładkę, bo mogła być tylko jedna. Przy wielu wersjach taki
+ * automat jest nie do obronienia — operator dostawałby wersję, o którą nie
+ * prosił, przy każdym kliknięciu w menu. Tworzenie jest odtąd jawnym
+ * czasownikiem, a pusta lista pokazuje stan pusty z przyciskiem.
+ *
+ * Wersja rodzi się NIEŻYWA: `published_at` zostaje NULL, bo jego zapis jest
+ * zastrzeżony dla `app.publish_site` (strażnik 0045 odpowiada 42501). Czyli
+ * nowa wersja nie ma jak urodzić się publiczna nawet przez pomyłkę.
  */
-export async function ensureSite(): Promise<SiteActionResult<{ siteId: string }>> {
+export async function createSite(
+  input: CreateSiteInput,
+): Promise<SiteActionResult<{ siteId: string }>> {
+  const parsed = createSiteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowa nazwa strony." };
+  }
   const auth = await memberCtx();
   if (!auth.ok) return auth;
   const { ctx } = auth;
 
-  const { data: existing, error: selectError } = await ctx.supabase
+  // Limit liczony ze STANU BAZY, nie z listy przekazanej przez klienta
+  // (lekcja wyścigu z K6-delty): dwa szybkie kliknięcia „Nowa strona" nie mają
+  // jak przekroczyć limitu, bo każde z nich liczy od nowa.
+  const { count, error: countError } = await ctx.supabase
     .from("sites")
-    .select("id")
-    .eq("tenant_id", ctx.tenantId)
-    .maybeSingle();
-  if (selectError) return { ok: false, error: selectError.message };
-  if (existing) return { ok: true, siteId: existing.id as string };
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", ctx.tenantId);
+  if (countError) return { ok: false, error: countError.message };
+  if ((count ?? 0) >= MAX_SITES) {
+    return { ok: false, error: `Sklep może mieć najwyżej ${MAX_SITES} stron.` };
+  }
 
-  const { data: created, error: insertError } = await ctx.supabase
+  const { data: created, error } = await ctx.supabase
     .from("sites")
-    .insert({ tenant_id: ctx.tenantId })
+    .insert({ tenant_id: ctx.tenantId, name: parsed.data.name })
     .select("id")
     .single();
-  if (created) return { ok: true, siteId: created.id as string };
-
-  // 23505 = przegrany wyścig o UNIQUE(tenant_id) — strona już jest, czytamy ją.
-  if (insertError?.code === "23505") {
-    const { data: winner } = await ctx.supabase
-      .from("sites")
-      .select("id")
-      .eq("tenant_id", ctx.tenantId)
-      .maybeSingle();
-    if (winner) return { ok: true, siteId: winner.id as string };
+  if (error || !created) {
+    return { ok: false, error: error?.message ?? "Nie udało się utworzyć strony." };
   }
-  return { ok: false, error: insertError?.message ?? "Nie udało się utworzyć strony." };
+
+  // BEZ revalidateTag: nowa wersja jest nieżywa, więc sklep się nie zmienił.
+  revalidatePath("/", "layout");
+  return { ok: true, siteId: created.id as string };
+}
+
+/** Zmiana nazwy wersji — dana wyłącznie szkicowa, sklep jej nie widzi. */
+export async function renameSite(input: RenameSiteInput): Promise<SiteActionResult> {
+  const parsed = renameSiteInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowa nazwa strony." };
+  }
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+
+  const { data, error } = await ctx.supabase
+    .from("sites")
+    .update({ name: parsed.data.name })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data.siteId)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if ((data ?? []).length === 0) return { ok: false, error: "Nie znaleziono strony." };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * USUNIĘCIE WERSJI STRONY (0048, ADR-093).
+ *
+ * Twardy DELETE, bez nagrobków — i to jest poprawne dokładnie dlatego, że
+ * usunąć da się wyłącznie wersję NIEŻYWĄ. Strona z `published_at is null` nie
+ * wnosi do `app.get_published_site` ani jednego bajtu, więc nie ma czego
+ * chronić; nagrobki bronią treści STOJĄCEJ NA ŻYWEJ STRONIE.
+ *
+ * Sprawdzenia „czy żywa" NIE MA w tej akcji i to też jest świadome: robi je
+ * trigger `sites_guard_live_delete` (42501). Warunek w kodzie panelu byłby
+ * drugą prawdą o tej samej regule — i tą słabszą, bo omijalną.
+ */
+export async function deleteSite(siteId: string): Promise<SiteActionResult> {
+  const parsed = uuidSchema.safeParse(siteId);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+
+  const { data, error } = await ctx.supabase
+    .from("sites")
+    .delete()
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data)
+    .select("id");
+  if (error) {
+    // 42501 = strażnik żywej strony. Odmowa dostaje własny komunikat, bo
+    // operator ma usłyszeć, CO zrobić, a nie „brak uprawnień".
+    return {
+      ok: false,
+      error:
+        error.code === "42501"
+          ? "Tej strony nie można usunąć, bo widzą ją klienci. Najpierw opublikuj inną."
+          : error.message,
+    };
+  }
+  if ((data ?? []).length === 0) return { ok: false, error: "Nie znaleziono strony." };
+
+  // BEZ revalidateTag: usunięta wersja była nieżywa, więc sklep się nie zmienił.
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 /**

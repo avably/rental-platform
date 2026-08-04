@@ -66,9 +66,9 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ refresh: () => {} }),
 }));
 
-const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/kreator/site-builder");
+const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder");
 const { orderWithInsertedAt } = await import(
-  "@/app/[locale]/(kreator)/strona/kreator/insert-position"
+  "@/app/[locale]/(kreator)/strona/[siteId]/kreator/insert-position"
 );
 
 type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
@@ -85,7 +85,7 @@ const builder = plMessages.site.builder;
 function renderBuilder(sections: Section[] = [A, B, C]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
 }
