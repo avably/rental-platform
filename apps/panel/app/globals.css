@@ -91,24 +91,30 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
 }
 
 /*
-  PRÓG ANTYMIGOTANIA szkieletu ładowania (uwaga przeglądu N1).
+  PRÓG ANTYMIGOTANIA ekranu ładowania (uwaga przeglądu N1).
 
-  Szkielet pokazany na 80 ms nie informuje o niczym — miga i czyta się jak
+  Wskaźnik pokazany na 80 ms nie informuje o niczym — miga i czyta się jak
   usterka. Standard UX mówi: nie pokazuj wskaźnika ładowania poniżej ~200 ms.
   Next.js renderuje `loading.tsx` NATYCHMIAST po nawigacji, więc próg musi
   siedzieć w prezentacji.
 
-  Robi go OPÓŹNIONA animacja pojawienia, a nie `visibility`/`display`: paski
-  są od pierwszej klatki obecne w układzie (`opacity: 0` nie zdejmuje pudełka),
-  więc przy szybkim odczycie użytkownik widzi po prostu pustą treść zamiast
-  mrugnięcia, a wysokość strony nie zmienia się ANI RAZ. Animacja jest
+  Robi go OPÓŹNIONA animacja pojawienia, a nie `visibility`/`display`: pudełka
+  geometrii są od pierwszej klatki obecne w układzie (`opacity: 0` nie zdejmuje
+  pudełka), więc przy szybkim odczycie użytkownik widzi po prostu pustą treść
+  zamiast mrugnięcia, a wysokość strony nie zmienia się ANI RAZ. Animacja jest
   SKOŃCZONA (jedno przejście), więc nie łamie twardego zakazu `extra-loops`
   z artefaktu — w panelu nie ma nieskończonego pulsowania.
 
+  Próg siedzi na RAMIE (`[data-skeleton-frame]`), a nie na samej geometrii:
+  od delty z 2026-08-04 rama trzyma także szynę i widoczny komunikat, więc
+  gdyby próg został na `[data-skeleton-screen]`, oba mrugałyby przy szybkim
+  odczycie mimo progu. Jedna reguła gasi i zapala cały wskaźnik naraz.
+
   `prefers-reduced-motion` obsługuje reguła globalna z `@avably/ui/styles.css`:
   ścina `animation-duration` do 0.01 ms, ale NIE rusza `animation-delay` ani
-  `fill-mode` — próg 200 ms zostaje, znika samo przejście. To jest dokładnie
-  ten podział, o który chodzi: ruch jest ozdobą, próg jest funkcją.
+  `fill-mode` — próg 200 ms zostaje, znika samo przejście (także rysowanie
+  szyny). To jest dokładnie ten podział, o który chodzi: ruch jest ozdobą,
+  próg i komunikat są funkcją.
 
   Technika działa z konstrukcji w każdej przeglądarce (opacity + delay +
   fill-mode `both`), bez `:has()`, `dvh` i innych rzeczy wrażliwych silnikowo.
@@ -122,7 +128,7 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   }
 }
 
-[data-skeleton-screen] {
+[data-skeleton-frame] {
   animation: skeleton-reveal var(--motion-ui) var(--ease-standard) 200ms both;
 }
 
