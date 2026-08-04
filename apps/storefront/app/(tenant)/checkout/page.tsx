@@ -13,7 +13,7 @@ import { notFound } from "next/navigation";
 
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { PageShell } from "@/components/storefront/page-shell";
-import { StoreHeader } from "@/components/storefront/store-header";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
 import { availablePaymentMethods } from "@/lib/checkout/payment-options";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -54,23 +54,20 @@ export default async function TenantCheckoutPage() {
   const paymentMethods = availablePaymentMethods(await readOnlinePaymentAvailability(tenantId));
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell style={style}>
-        <h1 className="text-2xl font-semibold tracking-tight">{copy.checkout.title}</h1>
-        <div className="mt-6">
-          <CheckoutForm
-            products={catalog.products}
-            deliveryMethods={catalog.delivery_methods}
-            pickupLocations={catalog.pickup_locations}
-            currency={currency}
-            locale={locale}
-            copy={copy}
-            turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-            paymentMethods={paymentMethods}
-          />
-        </div>
-      </PageShell>
-    </>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+      <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
+      <div className="mt-6">
+        <CheckoutForm
+          products={catalog.products}
+          deliveryMethods={catalog.delivery_methods}
+          pickupLocations={catalog.pickup_locations}
+          currency={currency}
+          locale={locale}
+          copy={copy}
+          turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+          paymentMethods={paymentMethods}
+        />
+      </div>
+    </PageShell>
   );
 }

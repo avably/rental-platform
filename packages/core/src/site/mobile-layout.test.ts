@@ -99,7 +99,7 @@ describe("auto-układ mobilny: kontrakt wspólny dla wszystkich płócien", () =
   it("zbiór wejść nie jest pusty (kontrola po pustym zbiorze)", () => {
     // Bez tego wszystkie `it.each` niżej przelatywałyby po zerowej liście.
     expect(CASES.length).toBe(SECTION_TYPES.length + 24);
-    expect(SECTION_TYPES.length).toBe(12);
+    expect(SECTION_TYPES.length).toBe(13);
   });
 
   it.each(CASES)("%s: układ jest POWTARZALNY co do bajtu", (_name, canvas) => {

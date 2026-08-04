@@ -10,9 +10,21 @@
  * KWOTY: podsumowanie na żywo to PODGLĄD (previewTotals). Po sukcesie ekran
  * potwierdzenia pokazuje kwoty WYŁĄCZNIE z order serwera (orderSummaryTotals) —
  * podgląd lokalny nie ma na nie wpływu (ADR-042).
+ *
+ * WYGLĄD Z MOTYWU NAJEMCY (K6, ADR-092). Kasa jest ostatnim ekranem przed
+ * zapłatą, więc rozjazd wizualny kosztuje tu najwięcej zaufania — nosi zatem
+ * WYŁĄCZNIE role (`site-card`, `site-field`, `site-label`, `site-cta`,
+ * `site-error`, `site-error-panel`), a wartości bierze ze zmiennych motywu
+ * z korzenia strony.
+ *
+ * POLA SĄ ZWYKŁYM HTML-em, nie komponentami `@avably/ui`. Tamte wnoszą własne
+ * tokeny panelu (obrys pola, wypełnienie przycisku, kolor fokusu) w warstwie
+ * utilities — czyli paleta panelu wjeżdżałaby tu przez zależność, której skan
+ * ŹRÓDEŁ tego pliku nie widzi, a gwarancja „bez palety panelu" byłaby pozorna.
+ * Zamiana kosztuje kilka klas układu; nic z dostępności (etykiety, `aria-*`,
+ * natywny `<select>`, natywny checkbox) nie znika.
  */
 import { formatMoney, type CurrencyCode } from "@avably/core";
-import { Button, Checkbox, Input, Label, Textarea } from "@avably/ui";
 import { useEffect, useState, type FormEvent } from "react";
 
 import Link from "next/link";
@@ -42,6 +54,7 @@ import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 import { STOREFRONT_TERMS_VERSION } from "@/lib/storefront/constants";
 import { TurnstileWidget } from "@/components/turnstile-widget";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 
 interface CheckoutFormProps {
   products: PublicCatalogProduct[];
@@ -133,7 +146,7 @@ const EMPTY_VALUES: Omit<Values, "paymentMethod"> = {
 
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   return (
-    <p className="min-h-5 text-sm text-destructive" id={id}>
+    <p className="site-error min-h-5 text-sm" id={id}>
       {message}
     </p>
   );
@@ -231,8 +244,8 @@ export function CheckoutForm({
   // nieprawdą, a mignąłby mu na ułamek sekundy przed przekierowaniem.
   if (view.kind === "success" && view.nextStep === "payment") {
     return (
-      <div className="rounded-lg border border-border bg-card p-6" role="status">
-        <p className="text-muted-foreground">{copy.payment.loading}</p>
+      <div className="site-card p-6" role="status">
+        <p className="site-text-muted">{copy.payment.loading}</p>
       </div>
     );
   }
@@ -246,47 +259,47 @@ export function CheckoutForm({
       // h2, nie h1: strona checkoutu ma już własny h1, a ekran potwierdzenia
       // renderuje się W NIEJ. Dwa h1 na jednej stronie łamią hierarchię
       // nagłówków (WCAG 1.3.1) i psują nawigację czytnika po nagłówkach.
-      <div className="rounded-lg border border-border bg-card p-6" role="status">
-        <h2 className="text-2xl font-semibold tracking-tight">{copy.confirmation.title}</h2>
+      <div className="site-card p-6" role="status">
+        <h2 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.confirmation.title}</h2>
         <p className="mt-2 text-lg">
           {copy.confirmation.orderNumber}:{" "}
           <strong className="tabular-nums">{order.orderNumber}</strong>
         </p>
-        <p className="mt-3 leading-7 text-muted-foreground">{copy.confirmation.paymentNote}</p>
+        <p className="site-text-muted mt-3 leading-7">{copy.confirmation.paymentNote}</p>
 
-        <dl className="mt-6 grid gap-2 border-t border-border pt-4 text-sm">
+        <dl className="site-rule-top mt-6 grid gap-2 pt-4 text-sm">
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.rentalPeriod}</dt>
+            <dt className="site-text-muted">{copy.confirmation.rentalPeriod}</dt>
             <dd>
               {order.startDate} → {order.endDate}
             </dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.deliveryMethod}</dt>
+            <dt className="site-text-muted">{copy.confirmation.deliveryMethod}</dt>
             <dd>{methodLabel}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.summaryRental}</dt>
+            <dt className="site-text-muted">{copy.confirmation.summaryRental}</dt>
             <dd>{formatMoney(totals.rentalGrosze, currency, locale)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.summaryDeposit}</dt>
+            <dt className="site-text-muted">{copy.confirmation.summaryDeposit}</dt>
             <dd>{formatMoney(totals.depositGrosze, currency, locale)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.summaryDelivery}</dt>
+            <dt className="site-text-muted">{copy.confirmation.summaryDelivery}</dt>
             <dd>{formatMoney(totals.deliveryGrosze, currency, locale)}</dd>
           </div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+          <div className="site-rule-top flex justify-between pt-2 text-base font-semibold">
             <dt>{copy.confirmation.summaryTotal}</dt>
             <dd>{formatMoney(totals.totalGrosze, currency, locale)}</dd>
           </div>
         </dl>
 
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="site-text-muted mt-4 text-sm">
           {view.emailIssues.length > 0 ? copy.confirmation.emailIssue : copy.confirmation.emailSent}
         </p>
-        <Link href="/store" className="mt-6 inline-block font-medium underline underline-offset-4">
+        <Link href="/store" className="site-link mt-6 inline-block font-medium">
           {copy.confirmation.backToStore}
         </Link>
       </div>
@@ -297,8 +310,8 @@ export function CheckoutForm({
   if (hydrated && !isCheckoutReady(cart)) {
     return (
       <div className="flex flex-col items-start gap-4">
-        <p className="text-muted-foreground">{copy.checkout.cartEmpty}</p>
-        <Link href="/store" className="font-medium underline underline-offset-4">
+        <p className="site-text-muted">{copy.checkout.cartEmpty}</p>
+        <Link href="/store" className="site-link font-medium">
           {copy.cart.emptyCta}
         </Link>
       </div>
@@ -367,7 +380,7 @@ export function CheckoutForm({
       <div className="grid gap-8">
         {/* Alert błędu (nie-walidacyjny) */}
         {messageKey ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm" role="alert">
+          <div className="site-error-panel p-4 text-sm" role="alert">
             {messageKey === "unavailable" ? copy.checkout.errors.unavailable : null}
             {messageKey === "rejected" ? copy.checkout.errors.rejected : null}
             {messageKey === "rate_limited" ? copy.checkout.errors.rateLimited : null}
@@ -380,12 +393,13 @@ export function CheckoutForm({
 
         {/* Dane kontaktowe */}
         <fieldset className="grid gap-4" disabled={submitting}>
-          <legend className="text-lg font-semibold">{copy.checkout.contactHeading}</legend>
+          <legend className={`text-lg ${SITE_HEADING}`}>{copy.checkout.contactHeading}</legend>
           <div className="grid gap-1">
-            <Label htmlFor="co-fullname">
-              {copy.checkout.fullName} <span className="text-muted-foreground">({copy.common.required})</span>
-            </Label>
-            <Input
+            <label className="site-label text-sm" htmlFor="co-fullname">
+              {copy.checkout.fullName} <span className="site-text-muted">({copy.common.required})</span>
+            </label>
+            <input
+              className="site-field h-9 w-full px-3 text-sm"
               id="co-fullname"
               autoComplete="name"
               aria-invalid={Boolean(fields.fullName)}
@@ -397,10 +411,11 @@ export function CheckoutForm({
             <FieldError id="co-fullname-error" message={fieldMessage("fullName")} />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="co-email">
-              {copy.checkout.email} <span className="text-muted-foreground">({copy.common.required})</span>
-            </Label>
-            <Input
+            <label className="site-label text-sm" htmlFor="co-email">
+              {copy.checkout.email} <span className="site-text-muted">({copy.common.required})</span>
+            </label>
+            <input
+              className="site-field h-9 w-full px-3 text-sm"
               id="co-email"
               type="email"
               autoComplete="email"
@@ -413,10 +428,11 @@ export function CheckoutForm({
             <FieldError id="co-email-error" message={fieldMessage("email")} />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="co-phone">
-              {copy.checkout.phone} <span className="text-muted-foreground">({copy.common.optional})</span>
-            </Label>
-            <Input
+            <label className="site-label text-sm" htmlFor="co-phone">
+              {copy.checkout.phone} <span className="site-text-muted">({copy.common.optional})</span>
+            </label>
+            <input
+              className="site-field h-9 w-full px-3 text-sm"
               id="co-phone"
               type="tel"
               autoComplete="tel"
@@ -430,11 +446,12 @@ export function CheckoutForm({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="co-company">
+              <label className="site-label text-sm" htmlFor="co-company">
                 {copy.checkout.companyName}{" "}
-                <span className="text-muted-foreground">({copy.common.optional})</span>
-              </Label>
-              <Input
+                <span className="site-text-muted">({copy.common.optional})</span>
+              </label>
+              <input
+                className="site-field h-9 w-full px-3 text-sm"
                 id="co-company"
                 autoComplete="organization"
                 value={values.companyName}
@@ -443,10 +460,11 @@ export function CheckoutForm({
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="co-nip">
-                {copy.checkout.nip} <span className="text-muted-foreground">({copy.common.optional})</span>
-              </Label>
-              <Input
+              <label className="site-label text-sm" htmlFor="co-nip">
+                {copy.checkout.nip} <span className="site-text-muted">({copy.common.optional})</span>
+              </label>
+              <input
+                className="site-field h-9 w-full px-3 text-sm"
                 id="co-nip"
                 value={values.nip}
                 onChange={(event) => set("nip", event.target.value)}
@@ -458,13 +476,14 @@ export function CheckoutForm({
 
         {/* Adres (opcjonalny) */}
         <fieldset className="grid gap-4" disabled={submitting}>
-          <legend className="text-lg font-semibold">
+          <legend className={`text-lg ${SITE_HEADING}`}>
             {copy.checkout.addressHeading}{" "}
-            <span className="text-sm font-normal text-muted-foreground">({copy.common.optional})</span>
+            <span className="site-text-muted text-sm font-normal">({copy.common.optional})</span>
           </legend>
           <div className="grid gap-1">
-            <Label htmlFor="co-street">{copy.checkout.addressStreet}</Label>
-            <Input
+            <label className="site-label text-sm" htmlFor="co-street">{copy.checkout.addressStreet}</label>
+            <input
+              className="site-field h-9 w-full px-3 text-sm"
               id="co-street"
               autoComplete="street-address"
               value={values.addressStreet}
@@ -474,8 +493,9 @@ export function CheckoutForm({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="co-zip">{copy.checkout.addressZip}</Label>
-              <Input
+              <label className="site-label text-sm" htmlFor="co-zip">{copy.checkout.addressZip}</label>
+              <input
+                className="site-field h-9 w-full px-3 text-sm"
                 id="co-zip"
                 autoComplete="postal-code"
                 value={values.addressZip}
@@ -484,8 +504,9 @@ export function CheckoutForm({
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="co-city">{copy.checkout.addressCity}</Label>
-              <Input
+              <label className="site-label text-sm" htmlFor="co-city">{copy.checkout.addressCity}</label>
+              <input
+                className="site-field h-9 w-full px-3 text-sm"
                 id="co-city"
                 autoComplete="address-level2"
                 value={values.addressCity}
@@ -498,18 +519,19 @@ export function CheckoutForm({
 
         {/* Sposób odbioru */}
         <fieldset className="grid gap-4" disabled={submitting}>
-          <legend className="text-lg font-semibold">{copy.checkout.deliveryHeading}</legend>
+          <legend className={`text-lg ${SITE_HEADING}`}>{copy.checkout.deliveryHeading}</legend>
           <div className="grid gap-2">
             {deliveryMethods.map((method) => {
               const free = method.method === "pickup" || method.price_grosze === 0;
               return (
                 <label
                   key={method.method}
-                  className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
+                  className="site-card flex items-center justify-between gap-3 p-3"
                 >
                   <span className="flex items-center gap-3">
                     <input
                       type="radio"
+                      className="accent-[color:var(--site-accent)]"
                       name="deliveryMethod"
                       value={method.method}
                       aria-describedby={describedBy("deliveryMethod", "co-delivery-error")}
@@ -518,7 +540,7 @@ export function CheckoutForm({
                     />
                     <span>{deliveryLabel(copy, method.method)}</span>
                   </span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="site-text-muted text-sm">
                     {free ? copy.checkout.deliveryFree : formatMoney(method.price_grosze, currency, locale)}
                   </span>
                 </label>
@@ -529,7 +551,7 @@ export function CheckoutForm({
 
           {showPickup ? (
             <div className="grid gap-1">
-              <Label htmlFor="co-pickup">{copy.checkout.pickupLocation}</Label>
+              <label className="site-label text-sm" htmlFor="co-pickup">{copy.checkout.pickupLocation}</label>
               {/*
                 Natywny <select> zostaje (dostępność, klawiatura, natywna lista
                 na telefonie), ale systemowa strzałka znika: `appearance-none`
@@ -545,7 +567,7 @@ export function CheckoutForm({
               <div className="relative">
                 <select
                   id="co-pickup"
-                  className="border-input h-10 w-full appearance-none rounded-md border bg-transparent px-3 pr-9 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive"
+                  className="site-field h-10 w-full appearance-none px-3 pr-9 text-sm"
                   aria-invalid={Boolean(fields.pickupLocationId)}
                   aria-describedby={describedBy("pickupLocationId", "co-pickup-error")}
                   value={values.pickupLocationId}
@@ -561,7 +583,7 @@ export function CheckoutForm({
                 </select>
                 <svg
                   aria-hidden="true"
-                  className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  className="site-text-muted pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
                   viewBox="0 0 16 16"
                   fill="none"
                   stroke="currentColor"
@@ -579,17 +601,17 @@ export function CheckoutForm({
 
         {/* Sposób płatności */}
         <fieldset className="grid gap-4" disabled={submitting}>
-          <legend className="text-lg font-semibold">{copy.checkout.paymentHeading}</legend>
+          <legend className={`text-lg ${SITE_HEADING}`}>{copy.checkout.paymentHeading}</legend>
           <div className="grid gap-2">
             {paymentMethods.map((method) => (
               <label
                 key={method}
-                className="flex items-start gap-3 rounded-md border border-border p-3"
+                className="site-card flex items-start gap-3 p-3"
               >
                 <input
                   type="radio"
                   name="paymentMethod"
-                  className="mt-1"
+                  className="mt-1 accent-[color:var(--site-accent)]"
                   value={method}
                   aria-describedby={describedBy("paymentMethod", "co-payment-error")}
                   checked={values.paymentMethod === method}
@@ -597,7 +619,7 @@ export function CheckoutForm({
                 />
                 <span className="grid gap-0.5">
                   <span>{paymentLabel(copy, method)}</span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="site-text-muted text-sm">
                     {paymentHint(copy, method)}
                   </span>
                 </span>
@@ -613,17 +635,18 @@ export function CheckoutForm({
             brak funkcji, tylko informacja o sprzedawcy.
           */}
           {paymentMethods.includes("online") ? null : (
-            <p className="text-sm text-muted-foreground">{copy.checkout.paymentOfflineNote}</p>
+            <p className="site-text-muted text-sm">{copy.checkout.paymentOfflineNote}</p>
           )}
         </fieldset>
 
         {/* Uwagi */}
         <fieldset className="grid gap-2" disabled={submitting}>
-          <Label htmlFor="co-notes">
-            {copy.checkout.notes} <span className="text-muted-foreground">({copy.common.optional})</span>
-          </Label>
-          <Textarea
+          <label className="site-label text-sm" htmlFor="co-notes">
+            {copy.checkout.notes} <span className="site-text-muted">({copy.common.optional})</span>
+          </label>
+          <textarea
             id="co-notes"
+            className="site-field w-full px-3 py-2 text-sm"
             value={values.notes}
             onChange={(event) => set("notes", event.target.value)}
             maxLength={2000}
@@ -647,42 +670,51 @@ export function CheckoutForm({
       </div>
 
       {/* Podsumowanie + akcje (sticky na desktopie) */}
-      <aside className="grid h-fit gap-4 rounded-lg border border-border p-5 lg:sticky lg:top-6">
-        <h2 className="text-lg font-semibold">{copy.checkout.summaryHeading}</h2>
+      <aside className="site-card grid h-fit gap-4 p-5 lg:sticky lg:top-6">
+        <h2 className={`text-lg ${SITE_HEADING}`}>{copy.checkout.summaryHeading}</h2>
         <dl className="grid gap-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.checkout.summaryRental}</dt>
+            <dt className="site-text-muted">{copy.checkout.summaryRental}</dt>
             <dd>{formatMoney(totals.rentalGrosze, currency, locale)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.checkout.summaryDeposit}</dt>
+            <dt className="site-text-muted">{copy.checkout.summaryDeposit}</dt>
             <dd>{formatMoney(totals.depositGrosze, currency, locale)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.checkout.summaryDelivery}</dt>
+            <dt className="site-text-muted">{copy.checkout.summaryDelivery}</dt>
             <dd>{formatMoney(totals.deliveryGrosze, currency, locale)}</dd>
           </div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+          <div className="site-rule-top flex justify-between pt-2 text-base font-semibold">
             <dt>{copy.checkout.summaryTotal}</dt>
             <dd>{formatMoney(totals.totalGrosze, currency, locale)}</dd>
           </div>
         </dl>
-        <p className="text-xs text-muted-foreground">{copy.checkout.depositNote}</p>
-        <p className="text-xs text-muted-foreground">{copy.common.estimateNote}</p>
+        <p className="site-text-muted text-xs">{copy.checkout.depositNote}</p>
+        <p className="site-text-muted text-xs">{copy.common.estimateNote}</p>
 
         {/* Regulamin */}
-        <div className="flex items-start gap-3 border-t border-border pt-4">
-          <Checkbox
+        <div className="site-rule-top flex items-start gap-3 pt-4">
+          {/*
+            Natywny checkbox zamiast komponentu panelu: znacznik akceptacji ma
+            być w AKCENCIE najemcy (`accent-color`), a nie w kolorze aplikacji.
+            Kontrakt zdarzeń wraca do natywnego `onChange` — `checked` dalej
+            steruje stanem formularza, więc pole zostaje kontrolowane.
+          */}
+          <input
             id="co-terms"
+            type="checkbox"
+            className="mt-1 size-4 accent-[color:var(--site-accent)]"
             aria-invalid={Boolean(fields.terms)}
             aria-describedby={describedBy("terms", "co-terms-error")}
             checked={values.terms}
-            onCheckedChange={(checked) => set("terms", checked === true)}
+            onChange={(event) => set("terms", event.target.checked)}
             disabled={submitting}
           />
-          <Label htmlFor="co-terms" className="text-sm leading-6 font-normal">
+          {/* Zgoda to tekst ciągły, nie etykieta pola — stąd bez `site-label`. */}
+          <label htmlFor="co-terms" className="text-sm leading-6">
             {copy.checkout.termsLabel}
-          </Label>
+          </label>
         </div>
         <FieldError id="co-terms-error" message={fields.terms ? copy.checkout.errors.terms : undefined} />
 
@@ -695,9 +727,13 @@ export function CheckoutForm({
           />
         ) : null}
 
-        <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+        <button
+          type="submit"
+          className="site-cta w-full cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={submitting}
+        >
           {submitting ? copy.checkout.submitting : copy.checkout.submit}
-        </Button>
+        </button>
       </aside>
     </form>
   );

@@ -31,11 +31,13 @@ import {
   FONT_PAIRS,
   SCRIM_ALPHA,
   SECTION_BACKGROUNDS,
+  SITE_MOTIONS,
   SITE_THEMES,
   THEME_BAND_KEYS,
   accentsOf,
   contrastRatio,
   flatten,
+  motionPreset,
   scrimBandOf,
   themeTokens,
   variantsUsedBy,
@@ -178,6 +180,42 @@ describe("kontrast: akcent na pasie", () => {
     expect(failures, `kombinacje poniżej progu:\n${failures.join("\n")}`).toEqual([]);
   });
 
+  it("SYGNAŁ BŁĘDU jest czytelny na każdym pasie każdego motywu (K6, chrome sklepu)", () => {
+    // Chrome sklepu (koszyk, kasa) mówi „nie wyszło" kolorem `danger`, a stoi
+    // na TYCH SAMYCH pasach co sekcje strony. Bez tego bloku komunikat o
+    // odrzuconej płatności byłby jedyną powierzchnią sklepu, której kontrastu
+    // nikt nie policzył — a jest to akurat ta, której nieprzeczytanie kosztuje
+    // klienta pieniądze.
+    const failures: string[] = [];
+    for (const theme of SITE_THEMES) {
+      const tokens = themeTokens(theme);
+      for (const key of THEME_BAND_KEYS) {
+        const band = tokens.bands[key];
+        const family = tokens.danger[band.accent];
+        if (!family) continue; // brak wariantu łapie kontrakt kompletności niżej
+        const text = contrastRatio(family.text, band.surface);
+        if (text < CONTRAST_AA_TEXT) {
+          failures.push(
+            `${theme}/${key}: tekst błędu ${family.text} na ${band.surface} = ${round(text)}:1 (próg ${CONTRAST_AA_TEXT})`,
+          );
+        }
+        const fill = contrastRatio(family.fill, band.surface);
+        if (fill < CONTRAST_AA_LARGE) {
+          failures.push(
+            `${theme}/${key}: wypełnienie błędu ${family.fill} na ${band.surface} = ${round(fill)}:1 (próg ${CONTRAST_AA_LARGE})`,
+          );
+        }
+        const onFill = contrastRatio(family.onFill, family.fill);
+        if (onFill < CONTRAST_AA_TEXT) {
+          failures.push(
+            `${theme}/${key}: etykieta ${family.onFill} na wypełnieniu błędu ${family.fill} = ${round(onFill)}:1`,
+          );
+        }
+      }
+    }
+    expect(failures, `sygnał błędu poniżej progu:\n${failures.join("\n")}`).toEqual([]);
+  });
+
   it("kafelek ikony: akcent z alfą 10 % na pasie, akcentowy znak na wierzchu", () => {
     // `bg-[var(--site-accent)]/10` nie jest tłem — jest MIESZANINĄ z pasem pod
     // spodem. Liczenie kontrastu wprost do akcentu dałoby wynik, którego nie ma
@@ -276,6 +314,46 @@ describe("kompletność rejestru motywów", () => {
           ).toEqual(["fill", "onFill", "text"]);
         }
       }
+    }
+  });
+
+  it("każdy motyw ma sygnał błędu w każdym wariancie, którego UŻYWA (K6)", () => {
+    // Lustro testu wyżej dla akcentów. Bez niego motyw nr 7 mógłby wnieść
+    // wyłącznie wariant papierowy, a jego pas odwrócony malowałby błąd
+    // czerwienią wyliczoną dla białego tła — czyli plamą.
+    for (const theme of SITE_THEMES) {
+      const tokens = themeTokens(theme);
+      for (const variant of variantsUsedBy(theme)) {
+        expect(
+          Object.keys(tokens.danger[variant] ?? {}).sort(),
+          `motyw "${theme}" nie ma sygnału błędu w wariancie ${variant}, którego używa`,
+        ).toEqual(["fill", "onFill", "text"]);
+      }
+    }
+  });
+
+  it("każdy motyw wskazuje ISTNIEJĄCY preset ruchu (K6)", () => {
+    // Sedno „animacji jako danych": motyw nr 7 wybiera ruch NAZWĄ z rejestru.
+    // Nazwa spoza rejestru znaczyłaby stronę bez animacji i bez błędu — czyli
+    // dokładnie ten rodzaj cichej awarii, przed którym broni reszta pliku.
+    for (const theme of SITE_THEMES) {
+      expect(
+        SITE_MOTIONS as readonly string[],
+        `motyw "${theme}" wskazuje preset ruchu spoza rejestru`,
+      ).toContain(themeTokens(theme).motion);
+    }
+  });
+
+  it("każdy preset ruchu ma komplet liczb i opis w OBU językach (K6)", () => {
+    // Preset niepełny znaczy zmienną CSS o wartości `undefined` — animacja
+    // wtedy nie pada, tylko cicho nie rusza.
+    for (const id of SITE_MOTIONS) {
+      const preset = motionPreset(id);
+      for (const field of ["duration", "easing", "distance", "scale", "opacity", "range"] as const) {
+        expect(preset[field]?.length, `preset ruchu "${id}" bez pola ${field}`).toBeGreaterThan(0);
+      }
+      expect(preset.mood.pl.length, `preset ruchu "${id}" bez opisu PL`).toBeGreaterThan(10);
+      expect(preset.mood.en.length, `preset ruchu "${id}" bez opisu EN`).toBeGreaterThan(10);
     }
   });
 

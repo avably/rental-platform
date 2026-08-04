@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 
 import { CartView } from "@/components/storefront/cart-view";
 import { PageShell } from "@/components/storefront/page-shell";
-import { StoreHeader } from "@/components/storefront/store-header";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { loadStorefrontContext } from "@/lib/storefront/context";
@@ -41,20 +41,17 @@ export default async function TenantCartPage() {
   const { catalog, copy, locale, currency, style, supabaseUrl } = ctx;
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell style={style}>
-        <h1 className="text-2xl font-semibold tracking-tight">{copy.cart.title}</h1>
-        <div className="mt-6">
-          <CartView
-            products={catalog.products}
-            supabaseUrl={supabaseUrl}
-            currency={currency}
-            locale={locale}
-            copy={copy}
-          />
-        </div>
-      </PageShell>
-    </>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+      <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.cart.title}</h1>
+      <div className="mt-6">
+        <CartView
+          products={catalog.products}
+          supabaseUrl={supabaseUrl}
+          currency={currency}
+          locale={locale}
+          copy={copy}
+        />
+      </div>
+    </PageShell>
   );
 }

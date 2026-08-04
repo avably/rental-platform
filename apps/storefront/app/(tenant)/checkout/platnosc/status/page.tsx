@@ -20,7 +20,7 @@ import { notFound, redirect } from "next/navigation";
 import { formatMoney, isIntentSettled, readPaymentIntent } from "@avably/core";
 
 import { PageShell } from "@/components/storefront/page-shell";
-import { StoreHeader } from "@/components/storefront/store-header";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { readTenantAccountId } from "@/lib/checkout/online-availability";
 import { loadCheckoutOrder } from "@/lib/checkout/payment-session";
 import { paymentStatusView } from "@/lib/checkout/payment-status-view";
@@ -104,47 +104,36 @@ export default async function TenantPaymentStatusPage() {
   }[view.kind];
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell style={style}>
-        <h1 className="text-2xl font-semibold tracking-tight">{copy.payment.statusTitle}</h1>
-        <div className="mt-6 rounded-lg border border-border bg-card p-6" role="status">
-          <p className="text-lg leading-7">{headline}</p>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+      <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
+      <div className="site-card mt-6 p-6" role="status">
+        <p className="text-lg leading-7">{headline}</p>
 
-          {view.kind === "checking" && view.providerSettled ? (
-            <p className="mt-3 leading-7 text-muted-foreground">
-              {copy.payment.statusProviderConfirmed}
-            </p>
-          ) : null}
+        {view.kind === "checking" && view.providerSettled ? (
+          <p className="site-text-muted mt-3 leading-7">{copy.payment.statusProviderConfirmed}</p>
+        ) : null}
 
-          <dl className="mt-6 grid gap-2 border-t border-border pt-4 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">{copy.confirmation.orderNumber}</dt>
-              <dd className="tabular-nums">{order.orderNumber}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">{copy.payment.amountDue}</dt>
-              <dd>{formatMoney(order.amountGrosze, currency, locale)}</dd>
-            </div>
-          </dl>
+        <dl className="site-rule-top mt-6 grid gap-2 pt-4 text-sm">
+          <div className="flex justify-between">
+            <dt className="site-text-muted">{copy.confirmation.orderNumber}</dt>
+            <dd className="tabular-nums">{order.orderNumber}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="site-text-muted">{copy.payment.amountDue}</dt>
+            <dd>{formatMoney(order.amountGrosze, currency, locale)}</dd>
+          </div>
+        </dl>
 
-          {view.kind === "failed" ? (
-            <Link
-              href="/checkout/platnosc"
-              className="mt-6 inline-block font-medium underline underline-offset-4"
-            >
-              {copy.payment.retry}
-            </Link>
-          ) : (
-            <Link
-              href="/store"
-              className="mt-6 inline-block font-medium underline underline-offset-4"
-            >
-              {copy.confirmation.backToStore}
-            </Link>
-          )}
-        </div>
-      </PageShell>
-    </>
+        {view.kind === "failed" ? (
+          <Link href="/checkout/platnosc" className="site-link mt-6 inline-block font-medium">
+            {copy.payment.retry}
+          </Link>
+        ) : (
+          <Link href="/store" className="site-link mt-6 inline-block font-medium">
+            {copy.confirmation.backToStore}
+          </Link>
+        )}
+      </div>
+    </PageShell>
   );
 }

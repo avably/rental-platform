@@ -281,7 +281,8 @@ describe("arkusz jest lustrem rejestru pasów", () => {
 
   it("kontrola po pustym zbiorze: rejestr pasów i lista ról nie są puste", () => {
     expect(THEME_BAND_KEYS.length).toBeGreaterThan(2);
-    expect(Object.values(ACTIVE_TOKENS).length).toBe(7);
+    // 7 ról koloru z ADR-090 + trójka sygnału błędu z K6 (ADR-092).
+    expect(Object.values(ACTIVE_TOKENS).length).toBe(10);
   });
 });
 

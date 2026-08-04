@@ -51,6 +51,7 @@ import { z } from "zod";
 
 import { relativeLuminance } from "./contrast";
 import { type SiteFontPair } from "./fonts";
+import { type SiteMotionId } from "./motion";
 
 // -----------------------------------------------------------------------
 // Pasy
@@ -169,6 +170,21 @@ export interface SiteThemeTokens {
   accents: Record<string, Partial<Record<AccentVariant, AccentTokens>>>;
   /** Akcent, który dostaje strona, dopóki operator nie wybierze innego. */
   defaultAccent: string;
+  /**
+   * SYGNAŁ BŁĘDU (K6, ADR-092). Ta sama trójka tokenów co akcent i ten sam
+   * podział na warianty — bo problem jest ten sam: czerwień czytelna na
+   * papierze jest niewidoczna na czerni, a odwrotnie. Osobne pole, a nie
+   * kolejny wpis w `accents`, bo `danger` NIE jest do wyboru: operator nie
+   * maluje nim strony, on niesie komunikat „coś nie wyszło" w koszyku i w
+   * formularzu kasy.
+   */
+  danger: Partial<Record<AccentVariant, AccentTokens>>;
+  /**
+   * RUCH motywu — identyfikator presetu z rejestru `./motion`. Motyw nie
+   * opisuje animacji, tylko ją WSKAZUJE; dzięki temu motyw nr 7 nie wnosi
+   * żadnych klatek kluczowych (ADR-092).
+   */
+  motion: SiteMotionId;
   /** Para krojów motywu (identyfikator z rejestru `./fonts`). */
   fontPair: SiteFontPair;
   shape: ThemeShape;
@@ -181,6 +197,24 @@ export interface SiteThemeTokens {
    */
   legacy?: true;
 }
+
+/**
+ * SYGNAŁ BŁĘDU — WSPÓLNY DLA WSZYSTKICH MOTYWÓW (K6, ADR-092).
+ *
+ * Jedna czerwień w całym rejestrze jest decyzją, nie oszczędnością: „nie
+ * wyszło" to komunikat systemu, a nie element dyrekcji wizualnej. Motyw, który
+ * malowałby błąd swoim akcentem, uczyłby klienta, że czerwony w jednym sklepie
+ * znaczy „uwaga", a w drugim „promocja". Pole jest mimo to per motyw (a nie
+ * globalną stałą w arkuszu), bo motyw MOŻE mieć powód, żeby je nadpisać —
+ * i wtedy nadpisanie przechodzi przez ten sam kontrakt kontrastu, co reszta.
+ *
+ * Dwa warianty z tego samego powodu co przy akcentach: czerwień czytelna na
+ * papierze jest plamą na czerni.
+ */
+const DANGER: SiteThemeTokens["danger"] = {
+  paper: { fill: "#B3261E", onFill: "#FFFFFF", text: "#A0231C" },
+  ink: { fill: "#FF6B61", onFill: "#2A0603", text: "#FF9A90" },
+};
 
 /**
  * Kolory zastane — lustro motywu JASNEGO aplikacji (packages/ui/src/styles.css).
@@ -279,6 +313,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "amber",
+    danger: DANGER,
+    motion: "crisp",
     fontPair: "poster",
     shape: { radius: "0px", radiusLarge: "0px", borderWidth: "1px", button: "square", buttonFill: "solid" },
     type: {
@@ -321,6 +357,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "lime",
+    danger: DANGER,
+    motion: "crisp",
     fontPair: "sport",
     shape: { radius: "2px", radiusLarge: "4px", borderWidth: "2px", button: "square", buttonFill: "solid" },
     type: {
@@ -363,6 +401,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "berry",
+    danger: DANGER,
+    motion: "spring",
     fontPair: "playful",
     shape: { radius: "20px", radiusLarge: "32px", borderWidth: "1px", button: "pill", buttonFill: "solid" },
     type: {
@@ -405,6 +445,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "champagne",
+    danger: DANGER,
+    motion: "editorial",
     fontPair: "editorial",
     shape: { radius: "0px", radiusLarge: "0px", borderWidth: "1px", button: "square", buttonFill: "outline" },
     type: {
@@ -447,6 +489,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "terracotta",
+    danger: DANGER,
+    motion: "calm",
     fontPair: "warm",
     shape: { radius: "6px", radiusLarge: "10px", borderWidth: "1px", button: "rounded", buttonFill: "outline" },
     type: {
@@ -489,6 +533,8 @@ export const SITE_THEME_TOKENS = {
       },
     },
     defaultAccent: "indigo",
+    danger: DANGER,
+    motion: "calm",
     fontPair: "tech",
     shape: { radius: "8px", radiusLarge: "12px", borderWidth: "1px", button: "rounded", buttonFill: "solid" },
     type: {
@@ -518,6 +564,8 @@ export const SITE_THEME_TOKENS = {
     },
     accents: LEGACY_ACCENTS,
     defaultAccent: "ink",
+    danger: DANGER,
+    motion: "still",
     fontPair: "system",
     shape: { radius: "8px", radiusLarge: "12px", borderWidth: "1px", button: "pill", buttonFill: "outline" },
     type: LEGACY_TYPE,
@@ -536,6 +584,8 @@ export const SITE_THEME_TOKENS = {
     },
     accents: LEGACY_ACCENTS,
     defaultAccent: "ink",
+    danger: DANGER,
+    motion: "still",
     fontPair: "system",
     shape: { radius: "12px", radiusLarge: "16px", borderWidth: "2px", button: "rounded", buttonFill: "solid" },
     type: {

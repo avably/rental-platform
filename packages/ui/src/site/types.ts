@@ -16,6 +16,7 @@ import type {
   DeliveryContent,
   DirectionsContent,
   FaqContent,
+  FooterContent,
   FreeformContent,
   GalleryContent,
   HeroContent,
@@ -36,6 +37,7 @@ export type {
   DeliveryContent,
   DirectionsContent,
   FaqContent,
+  FooterContent,
   FreeformContent,
   GalleryContent,
   HeroContent,
@@ -72,6 +74,7 @@ type SectionContentByType = {
   cta: CtaContent;
   directions: DirectionsContent;
   delivery: DeliveryContent;
+  footer: FooterContent;
 };
 
 /** Sekcja o treści WYŁĄCZNIE v1 — wejście dotychczasowych komponentów sekcji. */

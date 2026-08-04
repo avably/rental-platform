@@ -124,7 +124,7 @@ describe("warstwy decydują o KOLEJNOŚCI malowania", () => {
 
 describe("kontrakt: konwersja KAŻDEGO typu renderuje się w OBU szablonach", () => {
   it("lista typów nie jest pusta (kontrola po pustym zbiorze)", () => {
-    expect(SECTION_TYPES.length).toBe(12);
+    expect(SECTION_TYPES.length).toBe(13);
   });
 
   // Macierz idzie po TYPACH sekcji; wygląd niesie motyw jako zmienne (ADR-090),

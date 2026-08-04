@@ -135,6 +135,9 @@
   --site-accent: var(--site-band-default-accent);
   --site-accent-contrast: var(--site-band-default-accent-contrast);
   --site-accent-text: var(--site-band-default-accent-text);
+  --site-danger: var(--site-band-default-danger);
+  --site-danger-contrast: var(--site-band-default-danger-contrast);
+  --site-danger-text: var(--site-band-default-danger-text);
 
   background: var(--site-surface);
   color: var(--site-ink);
@@ -155,6 +158,9 @@
   --site-accent: var(--site-band-muted-accent);
   --site-accent-contrast: var(--site-band-muted-accent-contrast);
   --site-accent-text: var(--site-band-muted-accent-text);
+  --site-danger: var(--site-band-muted-danger);
+  --site-danger-contrast: var(--site-band-muted-danger-contrast);
+  --site-danger-text: var(--site-band-muted-danger-text);
   background: var(--site-surface);
   color: var(--site-ink);
 }
@@ -167,6 +173,9 @@
   --site-accent: var(--site-band-inverted-accent);
   --site-accent-contrast: var(--site-band-inverted-accent-contrast);
   --site-accent-text: var(--site-band-inverted-accent-text);
+  --site-danger: var(--site-band-inverted-danger);
+  --site-danger-contrast: var(--site-band-inverted-danger-contrast);
+  --site-danger-text: var(--site-band-inverted-danger-text);
   background: var(--site-surface);
   color: var(--site-ink);
 }
@@ -180,6 +189,9 @@
   --site-accent: var(--site-band-card-accent);
   --site-accent-contrast: var(--site-band-card-accent-contrast);
   --site-accent-text: var(--site-band-card-accent-text);
+  --site-danger: var(--site-band-card-danger);
+  --site-danger-contrast: var(--site-band-card-danger-contrast);
+  --site-danger-text: var(--site-band-card-danger-text);
   background: var(--site-surface);
   color: var(--site-ink);
   border: var(--site-border-width) solid var(--site-border);
@@ -316,6 +328,102 @@
 }
 
 /*
+ * =====================================================================
+ * CHROME SKLEPU CZERPIE Z MOTYWU (K6, ADR-092)
+ * =====================================================================
+ *
+ * Do K6 motyw kończył się na sekcjach strony: nagłówek sklepu, koszyk i kasa
+ * brały paletę PANELU (`bg-card`, `border-border`, `bg-primary`), więc szablon
+ * „urywał się" na pierwszym pikselu pod treścią — a na motywie ciemnym klient
+ * dostawał jasny nagłówek nad czarną stroną.
+ *
+ * Klasy niżej są tym, czego brakowało: rolami chrome wyrażonymi WYŁĄCZNIE przez
+ * zmienne czynne. Dzięki temu działają w każdym pasie bez wyjątku (pas
+ * podmienia zmienne, nie klasy) i nie dokładają ani jednej reguły per motyw.
+ *
+ * Zasięgu pilnuje korzeń: bez `.site-root` nad sobą zmienne nie istnieją, więc
+ * te klasy są bezzębne — arkusz jest wspólny dla sklepu i panelu, a panel
+ * korzenia nie wystawia poza płótnem kreatora (kontrakt K5).
+ */
+
+.site-header {
+  background: var(--site-surface);
+  color: var(--site-ink);
+  border-bottom: var(--site-border-width) solid var(--site-border);
+}
+
+/* Link nawigacyjny i link w treści — podkreślenie z odstępem, kolor z pasa. */
+.site-link,
+.site-nav-link {
+  color: var(--site-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.site-link:hover,
+.site-nav-link:hover {
+  color: var(--site-accent-text);
+}
+
+/* Licznik pozycji w koszyku — akcent z policzonym kontrastem etykiety. */
+.site-badge {
+  background: var(--site-accent);
+  color: var(--site-accent-contrast);
+  border-radius: 999px;
+}
+
+/*
+ * POLE FORMULARZA. Powierzchnia KARTY, a nie pasa: pole na pasie przygaszonym
+ * musi się od niego odciąć, inaczej kasa wygląda jak lista napisów.
+ */
+.site-field {
+  background: var(--site-band-card-surface);
+  color: var(--site-band-card-ink);
+  border: var(--site-border-width) solid var(--site-border);
+  border-radius: var(--site-radius);
+}
+
+.site-field::placeholder {
+  color: var(--site-band-card-ink-muted);
+}
+
+.site-field:focus-visible {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+.site-label {
+  color: var(--site-ink);
+  font-weight: var(--site-heading-weight);
+}
+
+/*
+ * SYGNAŁ BŁĘDU. Osobna zmienna, nie akcent: „nie wyszło" nie jest elementem
+ * dyrekcji wizualnej sklepu (patrz `DANGER` w theme.ts). Kontrast obu ról liczy
+ * kontrakt palety na KAŻDYM pasie każdego motywu.
+ */
+.site-error {
+  color: var(--site-danger-text);
+}
+
+.site-error-panel {
+  border: var(--site-border-width) solid var(--site-danger);
+  background: color-mix(in srgb, var(--site-danger) 8%, transparent);
+  color: var(--site-ink);
+  border-radius: var(--site-radius);
+}
+
+/* Kreska NAD treścią — stopka domyka stronę, więc odcina się od góry. */
+.site-rule-top {
+  border-top: var(--site-border-width) solid var(--site-border);
+}
+
+.site-footer {
+  background: var(--site-surface);
+  color: var(--site-ink);
+}
+
+/*
  * WELON POD TEKSTEM NA ZDJĘCIU. Wartość liczy render z motywu (najciemniejszy
  * pas z alfą `SCRIM_ALPHA`), bo to ona jest liczbą sprawdzaną przez kontrakt
  * kontrastu — arkusz tylko ją nakłada.
@@ -355,6 +463,67 @@
   font-family: var(--site-font-heading);
   font-weight: var(--site-heading-weight);
   letter-spacing: var(--site-display-tracking);
+}
+
+/*
+ * =====================================================================
+ * WEJŚCIE SEKCJI — JEDNA ANIMACJA, LICZBY Z MOTYWU (K6, ADR-092)
+ * =====================================================================
+ *
+ * Cztery zdania, na których stoi cały ten blok:
+ *
+ * 1. JEST JEDNA RODZINA KLATEK. `site-reveal` czyta wyłącznie zmienne
+ *    (`--site-motion-*`) wystawione przez `styleTokensFor` z presetu wskazanego
+ *    przez motyw. Motyw nr 7 nie dopisuje tu ani jednej linijki — a to był
+ *    warunek postawiony wprost w zadaniu.
+ *
+ * 2. TREŚĆ JEST WIDOCZNA DOMYŚLNIE. Animacja nie ma stanu początkowego
+ *    zapisanego w regule bazowej: sekcja stoi na swoim miejscu, w pełnym
+ *    kryciu, i dopiero animacja ODBIERA jej to na czas wejścia. Przeglądarka
+ *    bez `animation-timeline`, robot indeksujący i czytnik ekranu widzą stronę
+ *    gotową — a CLS nie ma skąd wziąć skoku, bo nic nie zmienia wysokości
+ *    (ruszają się wyłącznie `opacity` i `transform`, obie na kompozytorze).
+ *
+ * 3. OŚ CZASU TO WIDOK, NIE SKRYPT. `animation-timeline: view()` znaczy zero
+ *    kilobajtów JavaScriptu na stronie sklepu i zero pracy na wątku głównym
+ *    w trakcie hydracji — inaczej niż IntersectionObserver, który przy
+ *    kilkunastu sekcjach dokłada tę pracę dokładnie wtedy, gdy strona się
+ *    uruchamia. `@supports` czyni to ULEPSZENIEM: brak wsparcia = strona bez
+ *    animacji, nigdy strona pusta.
+ *
+ * 4. PREFERENCJA CZYTELNIKA WYGRYWA Z MOTYWEM. Cały blok stoi pod
+ *    `prefers-reduced-motion: no-preference`, więc „ogranicz ruch" nie jest
+ *    tłumione ani skracane — po prostu nie ma czego wyłączać. Motyw NIE MA
+ *    pola, którym mógłby to nadpisać (patrz `motion.ts`).
+ *
+ * Zasięg: owijki sekcji (`[data-section-id]`) POD korzeniem strony — celowo
+ * selektor potomka, nie dziecka. Powłoka sklepu wkłada sekcje do `<main>`
+ * (K6), więc kombinator dziecka wyciszyłby animacje wszędzie poza podglądem
+ * szkicu, i to bez jednego czerwonego testu. Element WEWNĄTRZ sekcji nie
+ * animuje się osobno — przy płótnie v2 z geometrią absolutną wejście per
+ * element byłoby rozsypywaniem układu na oczach czytelnika, a nie animacją.
+ */
+
+@keyframes site-reveal {
+  from {
+    opacity: var(--site-motion-opacity, 0);
+    transform: translateY(var(--site-motion-distance, 0px)) scale(var(--site-motion-scale, 1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .site-root:not([data-site-motion="off"]) [data-section-id] {
+      animation: site-reveal var(--site-motion-duration) var(--site-motion-easing) both;
+      animation-timeline: view();
+      animation-range: var(--site-motion-range);
+    }
+  }
 }
 
 /*

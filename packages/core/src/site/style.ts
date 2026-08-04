@@ -31,6 +31,7 @@
 import { z } from "zod";
 
 import { fontPairStacks, SITE_FONT_PAIRS, type SiteFontPair } from "./fonts";
+import { motionPreset } from "./motion";
 import {
   DEFAULT_THEME,
   SCRIM_ALPHA,
@@ -130,6 +131,11 @@ export const ACTIVE_TOKENS = {
   accentFill: "--site-accent",
   accentOnFill: "--site-accent-contrast",
   accentText: "--site-accent-text",
+  // Sygnał błędu (K6, ADR-092) — czynny per pas dokładnie tak, jak akcent:
+  // komunikat „nie wyszło" pojawia się i na karcie, i na pasie odwróconym.
+  dangerFill: "--site-danger",
+  dangerOnFill: "--site-danger-contrast",
+  dangerText: "--site-danger-text",
 } as const;
 
 /** Zmienne stałe dla całej strony (nie zmieniają się per pas). */
@@ -150,6 +156,14 @@ export const STYLE_TOKENS = {
   eyebrowTracking: "--site-eyebrow-tracking",
   eyebrowTransform: "--site-eyebrow-transform",
   scrim: "--site-scrim",
+  // Ruch motywu (K6, ADR-092) — liczby presetu, po których chodzi JEDNA
+  // rodzina klatek kluczowych w arkuszu.
+  motionDuration: "--site-motion-duration",
+  motionEasing: "--site-motion-easing",
+  motionDistance: "--site-motion-distance",
+  motionScale: "--site-motion-scale",
+  motionOpacity: "--site-motion-opacity",
+  motionRange: "--site-motion-range",
 } as const;
 
 /** Nazwa zmiennej źródłowej pasa — jedno miejsce, w którym powstaje ten napis. */
@@ -190,6 +204,7 @@ export function styleTokensFor(style: ResolvedSiteStyle): Record<string, string>
   const accent = theme.accents[style.accent] ?? theme.accents[theme.defaultAccent]!;
   const fonts = fontPairStacks(style.fontPair);
   const scrimBand = theme.bands[scrimBandOf(style.theme)];
+  const motion = motionPreset(theme.motion);
 
   const tokens: Record<string, string> = {
     [STYLE_TOKENS.fontHeading]: fonts.heading,
@@ -210,11 +225,20 @@ export function styleTokensFor(style: ResolvedSiteStyle): Record<string, string>
     // a nie z pasa sekcji (te bywają skrajnie różne; patrz ELEMENT_COLORS).
     [STYLE_TOKENS.scrimInk]: scrimBand.ink,
     [STYLE_TOKENS.scrimInkMuted]: scrimBand.inkMuted,
+    [STYLE_TOKENS.motionDuration]: motion.duration,
+    [STYLE_TOKENS.motionEasing]: motion.easing,
+    [STYLE_TOKENS.motionDistance]: motion.distance,
+    [STYLE_TOKENS.motionScale]: motion.scale,
+    [STYLE_TOKENS.motionOpacity]: motion.opacity,
+    [STYLE_TOKENS.motionRange]: motion.range,
   };
 
   for (const key of THEME_BAND_KEYS) {
     const band = theme.bands[key];
     const family = accent[band.accent] ?? accent.paper ?? accent.ink!;
+    // Sygnał błędu wybiera wariant TYM SAMYM polem pasa co akcent — inaczej
+    // czerwień papierowa wylądowałaby na pasie odwróconym.
+    const danger = theme.danger[band.accent] ?? theme.danger.paper ?? theme.danger.ink!;
     tokens[bandTokenName(key, "surface")] = band.surface;
     tokens[bandTokenName(key, "ink")] = band.ink;
     tokens[bandTokenName(key, "ink-muted")] = band.inkMuted;
@@ -222,6 +246,9 @@ export function styleTokensFor(style: ResolvedSiteStyle): Record<string, string>
     tokens[bandTokenName(key, "accent")] = family.fill;
     tokens[bandTokenName(key, "accent-contrast")] = family.onFill;
     tokens[bandTokenName(key, "accent-text")] = family.text;
+    tokens[bandTokenName(key, "danger")] = danger.fill;
+    tokens[bandTokenName(key, "danger-contrast")] = danger.onFill;
+    tokens[bandTokenName(key, "danger-text")] = danger.text;
   }
 
   return tokens;

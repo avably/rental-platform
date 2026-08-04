@@ -429,6 +429,22 @@ describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stop
     }
   });
 
+  it("PŁÓTNO STOI — animacje wejścia są na nim wyłączone (K6, ADR-092)", () => {
+    // Płótno renderuje TEN SAM komponent co sklep, więc bez jawnego wyłączenia
+    // każda sekcja przenikałaby przy każdym przewinięciu palety. Mutacja
+    // „zdejmij motion=off" nie psuje ani jednego testu renderu — psuje wyłącznie
+    // możliwość pracy, a tego nie widać w markupie bez tej asercji.
+    const { container } = renderBuilder();
+    const roots = [...container.querySelectorAll(".site-root")];
+    expect(roots.length, "płótno bez korzenia strony — kontrola po pustym zbiorze").toBeGreaterThan(0);
+    for (const root of roots) {
+      expect(
+        root.getAttribute("data-site-motion"),
+        "płótno kreatora animuje wejścia sekcji",
+      ).toBe("off");
+    }
+  });
+
 });
 
 describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publikacja", () => {

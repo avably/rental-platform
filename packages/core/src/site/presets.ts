@@ -133,6 +133,19 @@ const PRESETS: PresetTable = {
         },
       ],
     },
+    footer: {
+      businessName: "Wypożyczalnia Przykład",
+      address: "ul. Przykładowa 1, 00-001 Warszawa",
+      phone: "+48 500 100 200",
+      email: "kontakt@przyklad.pl",
+      hours: "Pon–Pt 9:00–17:00, Sob 9:00–13:00",
+      links: [
+        { label: "Regulamin", href: "/regulamin" },
+        { label: "Polityka prywatności", href: "/prywatnosc" },
+        { label: "Kontakt", href: "#kontakt" },
+      ],
+      legal: "© Wypożyczalnia Przykład. Wszelkie prawa zastrzeżone.",
+    },
   },
   en: {
     hero: {
@@ -240,6 +253,19 @@ const PRESETS: PresetTable = {
           text: "Free at our location after booking ahead.",
         },
       ],
+    },
+    footer: {
+      businessName: "Example Rentals",
+      address: "1 Example St, 00-001 Warsaw",
+      phone: "+48 500 100 200",
+      email: "hello@example.com",
+      hours: "Mon–Fri 9:00–17:00, Sat 9:00–13:00",
+      links: [
+        { label: "Terms", href: "/regulamin" },
+        { label: "Privacy policy", href: "/prywatnosc" },
+        { label: "Contact", href: "#kontakt" },
+      ],
+      legal: "© Example Rentals. All rights reserved.",
     },
   },
 };

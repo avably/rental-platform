@@ -125,7 +125,7 @@ export function TemplateGallery({
                   {/* Skala i szerokość projektowa siedzą w arkuszu panelu
                       (`.starter-preview`) — patrz komentarz tam. */}
                   <span className="starter-preview pointer-events-none block">
-                    <SiteRenderer sections={preview.sections} style={preview.style} />
+                    <SiteRenderer sections={preview.sections} style={preview.style} motion="off" />
                   </span>
                 </span>
                 <span className="flex flex-col gap-1 p-4">

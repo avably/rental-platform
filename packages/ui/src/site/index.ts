@@ -8,6 +8,7 @@ export {
   DeliverySection,
   DirectionsSection,
   FaqSection,
+  FooterSection,
   FreeformSection,
   GallerySection,
   HeroSection,
@@ -16,6 +17,6 @@ export {
   TestimonialsSection,
   UspSection,
 } from "./sections";
-export { SiteRenderer, DEFAULT_SITE_LABELS } from "./site-renderer";
+export { SiteRenderer, SiteChrome, DEFAULT_SITE_LABELS, type SiteMotionMode } from "./site-renderer";
 // Płótno z elementami (K2, ADR-084) — render treści v2 i przeliczenie geometrii.
 export { SectionCanvasRenderer, canvasBoxVariables, geometryStyle } from "./element-canvas";

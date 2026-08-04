@@ -156,8 +156,11 @@ describe("SiteRenderer — każdy typ sekcji renderuje się w KAŻDYM motywie", 
       const { container } = render(
         <SiteRenderer sections={[sectionOf(type, presetContentFor(type, "pl"))]} style={styleOf(theme)} />,
       );
-      // Sekcja wyrenderowała treść (element <section> obecny), nie pustkę.
-      expect(container.querySelector("section")).not.toBeNull();
+      // Sekcja wyrenderowała treść, nie pustkę. Stopka (K6, ADR-092) niesie
+      // rolę dokumentu, a nie sekcję treści — stąd `<footer>` zamiast
+      // `<section>`; asercja pyta o którykolwiek z landmarków, żeby nie
+      // udawać, że każdy typ jest sekcją.
+      expect(container.querySelector("section, footer")).not.toBeNull();
     },
   );
 });

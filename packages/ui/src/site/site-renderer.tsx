@@ -16,6 +16,7 @@ import {
   DeliverySection,
   DirectionsSection,
   FaqSection,
+  FooterSection,
   FreeformSection,
   GallerySection,
   HeroSection,
@@ -74,6 +75,10 @@ function SectionSwitch({
     return (
       <SectionCanvasRenderer
         canvas={section.content}
+        // Stopka jest ROLĄ dokumentu w OBU generacjach treści (K6, ADR-092).
+        // Bez tego landmark istniałby wyłącznie dla sekcji zapisanych przed K2,
+        // czyli w praktyce dla żadnej.
+        as={section.type === "footer" ? "footer" : "section"}
         styles={styles}
         products={products}
         labels={labels}
@@ -113,12 +118,84 @@ function SectionSwitch({
       return <DirectionsSection content={legacy.content} labels={labels} styles={styles} />;
     case "delivery":
       return <DeliverySection content={legacy.content} styles={styles} />;
+    case "footer":
+      return <FooterSection content={legacy.content} styles={styles} />;
     default: {
       // Wyczerpanie unii — nowy typ sekcji bez gałęzi zapali się w typecheck.
       const _exhaustive: never = legacy;
       return _exhaustive;
     }
   }
+}
+
+/**
+ * Tryb ruchu strony (K6, ADR-092). `auto` = animacje wejścia sterowane osią
+ * widoku, o ile motyw je przewiduje i czytelnik ich nie wyłączył; `off` =
+ * strona stoi.
+ *
+ * `off` jest dla POWIERZCHNI EDYCYJNYCH: płótno kreatora i miniatury galerii
+ * szablonów. Sekcja, która przenika przy każdym przewinięciu palety, nie jest
+ * podglądem strony — jest migotaniem, przez które nie da się nic ustawić.
+ */
+export type SiteMotionMode = "auto" | "off";
+
+/**
+ * KORZEŃ STRONY NAJEMCY (K6, ADR-092) — jedno miejsce, w którym powstają
+ * kontener zapytań `site`, klasa `site-root` i komplet zmiennych motywu.
+ *
+ * Do K6 korzeń rodził się WYŁĄCZNIE wewnątrz {@link SiteRenderer}, więc
+ * wszystko, co stało obok sekcji — nagłówek sklepu, koszyk, kasa — leżało poza
+ * motywem i brało paletę panelu. Wydzielenie korzenia jest całą różnicą:
+ * powłoka sklepu owija się nim raz, a renderer wchodzi do środka bez własnego
+ * korzenia (`asRoot={false}`), żeby zmienne i kontener nie dublowały się.
+ */
+export function SiteChrome({
+  style = DEFAULT_SITE_STYLE,
+  motion = "auto",
+  className,
+  children,
+}: {
+  style?: ResolvedSiteStyle;
+  motion?: SiteMotionMode;
+  className?: string;
+  children: ReactNode;
+}) {
+  const theme = themeTokens(style.theme);
+  return (
+    // KONTENER ZAPYTAŃ SEKCJI (`site`, ADR-085) — miara, względem której układa
+    // się KAŻDA sekcja. Warianty responsywne i skale typografii patrzą odtąd na
+    // szerokość TEGO pudełka, a nie okna: w sklepie to praktycznie szerokość
+    // strony (render bez zmian), a na płótnie kreatora zwężonym do 390 px —
+    // realna szerokość telefonu. Nazwa `site` odcina przyszłe zagnieżdżone
+    // kontenery (np. karta z własnym `@container`) od przejęcia zapytań sekcji.
+    //
+    // KORZEŃ NIESIE TEŻ STYL (K5, ADR-090). Zmienne źródłowe akcentu jadą tu
+    // jako właściwości niestandardowe, a nie jako kolory na elementach — element
+    // z własnym heksem zamroziłby jeden odcień na zawsze i wypadłby spod bramki
+    // kontrastu. Klasa `site-root` jest zaczepieniem dla arkusza: to on wybiera
+    // z kompletów źródłowych ten właściwy dla PASA i on nakłada kroje.
+    <div
+      className={cn("@container/site site-root", siteStyles().page, className)}
+      /*
+       * Motyw jako DANE także w drzewie: `data-site-theme` jest kotwicą testów
+       * i zrzutów, a `data-site-button` jest jedynym przełącznikiem, którego
+       * arkusz potrzebuje do wypełnienia przycisku (pełne albo obrys). Gdyby
+       * wypełnienie szło klasą z komponentu, kształt przycisku przestałby być
+       * własnością motywu, a stałby się własnością kodu.
+       */
+      data-site-theme={style.theme}
+      data-site-button={theme.shape.buttonFill}
+      /*
+       * Atrybut pojawia się WYŁĄCZNIE przy wyłączonym ruchu. Strona publiczna
+       * nie niesie więc żadnego znacznika trybu — a reguła w arkuszu jest
+       * napisana jako `:not([data-site-motion="off"])`, czyli działa domyślnie.
+       */
+      {...(motion === "off" ? { "data-site-motion": "off" } : {})}
+      style={{ ...styleTokensFor(style) } as CSSProperties}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -137,6 +214,8 @@ export function SiteRenderer({
   siteImageBase,
   sectionWrapper,
   elementWrapper,
+  asRoot = true,
+  motion = "auto",
 }: {
   sections: RenderSection[];
   /**
@@ -189,59 +268,50 @@ export function SiteRenderer({
    * bez niej owijka wiedziałaby, KTÓRY element rusza, ale nie GDZIE go zapisać.
    */
   elementWrapper?: (section: RenderSection, element: CanvasElement, children: ReactNode) => ReactNode;
+  /**
+   * Czy renderer ma wystawić WŁASNY korzeń strony (K6, ADR-092).
+   *
+   * Domyślnie tak — to jest zachowanie sprzed K6 i wszystkie dotychczasowe
+   * wołania (płótno kreatora, podgląd szkicu, galeria) na nim stoją. Powłoka
+   * sklepu podaje `false`, bo korzeń wystawia SAMA (`SiteChrome`) — po to,
+   * żeby nagłówek i koszyk stały POD nim, a nie obok. Dwa korzenie w jednym
+   * drzewie znaczyłyby dwa kontenery `site` i podwójnie liczoną szerokość
+   * zapytań kontenerowych.
+   */
+  asRoot?: boolean;
+  /** Tryb ruchu — patrz {@link SiteMotionMode}. Ignorowany przy `asRoot={false}`. */
+  motion?: SiteMotionMode;
 }) {
-  const styles = siteStyles();
-  const theme = themeTokens(style.theme);
   const wrap =
     sectionWrapper ??
     ((section: RenderSection, children: ReactNode) => (
       <div data-section-id={section.id}>{children}</div>
     ));
 
+  const body = sections.map((section) => (
+    <Fragment key={section.id}>
+      {wrap(
+        section,
+        <SectionSwitch
+          section={section}
+          products={products}
+          labels={labels}
+          siteImageBase={siteImageBase}
+          elementWrapper={
+            elementWrapper
+              ? (element, children) => elementWrapper(section, element, children)
+              : undefined
+          }
+        />,
+      )}
+    </Fragment>
+  ));
+
+  if (!asRoot) return <>{body}</>;
+
   return (
-    // KONTENER ZAPYTAŃ SEKCJI (`site`, ADR-085) — miara, względem której układa
-    // się KAŻDA sekcja. Warianty responsywne i skale typografii patrzą odtąd na
-    // szerokość TEGO pudełka, a nie okna: w sklepie to praktycznie szerokość
-    // strony (render bez zmian), a na płótnie kreatora zwężonym do 390 px —
-    // realna szerokość telefonu. Nazwa `site` odcina przyszłe zagnieżdżone
-    // kontenery (np. karta z własnym `@container`) od przejęcia zapytań sekcji.
-    //
-    // KORZEŃ NIESIE TEŻ STYL (K5, ADR-090). Zmienne źródłowe akcentu jadą tu
-    // jako właściwości niestandardowe, a nie jako kolory na elementach — element
-    // z własnym heksem zamroziłby jeden odcień na zawsze i wypadłby spod bramki
-    // kontrastu. Klasa `site-root` jest zaczepieniem dla arkusza: to on wybiera
-    // z dwóch kompletów źródłowych ten właściwy dla PASA i on nakłada kroje.
-    <div
-      className={cn("@container/site site-root", styles.page, className)}
-      /*
-       * Motyw jako DANE także w drzewie: `data-site-theme` jest kotwicą testów
-       * i zrzutów, a `data-site-button` jest jedynym przełącznikiem, którego
-       * arkusz potrzebuje do wypełnienia przycisku (pełne albo obrys). Gdyby
-       * wypełnienie szło klasą z komponentu, kształt przycisku przestałby być
-       * własnością motywu, a stałby się własnością kodu.
-       */
-      data-site-theme={style.theme}
-      data-site-button={theme.shape.buttonFill}
-      style={{ ...styleTokensFor(style) } as CSSProperties}
-    >
-      {sections.map((section) => (
-        <Fragment key={section.id}>
-          {wrap(
-            section,
-            <SectionSwitch
-              section={section}
-              products={products}
-              labels={labels}
-              siteImageBase={siteImageBase}
-              elementWrapper={
-                elementWrapper
-                  ? (element, children) => elementWrapper(section, element, children)
-                  : undefined
-              }
-            />,
-          )}
-        </Fragment>
-      ))}
-    </div>
+    <SiteChrome style={style} motion={motion} className={className}>
+      {body}
+    </SiteChrome>
   );
 }

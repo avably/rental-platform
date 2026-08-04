@@ -46,7 +46,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { PageShell } from "../components/storefront/page-shell";
 import { getPublishedSite, publishedSiteStyle } from "../lib/site/published";
+import { getStorefrontCopy } from "../lib/storefront/copy";
 
 const TENANT_ID = "00000000-0000-4000-8000-000000000001";
 const SECTION_ID = "00000000-0000-4000-8000-0000000000a1";
@@ -278,5 +280,158 @@ describe("arkusz sklepu nie przechwytuje tokenów wspólnego renderera", () => {
     ).toBe(true);
     // Żadnego heksa w trasie: kolor przychodzi tokenem z rdzenia (ADR-090).
     expect(storePage).not.toMatch(/#[0-9a-fA-F]{6}\b/);
+  });
+});
+
+/**
+ * CHROME SKLEPU CZERPIE Z MOTYWU (K6, ADR-092) — dwie nogi, dwa tryby awarii.
+ *
+ * Skan źródeł jest bliźniaczy do tego w `packages/ui/src/site/site-style.test.tsx`
+ * i pilnuje tej samej rzeczy o piętro wyżej: jedna klasa `bg-card` w nagłówku
+ * albo w kasie wraca do stanu sprzed K6 PO CICHU — sklep dalej się renderuje,
+ * tylko pasek nad ciemną stroną znowu jest jasny, a motyw najemcy przestaje być
+ * danymi i zaczyna zależeć od palety panelu.
+ *
+ * Druga noga broni WARUNKU, bez którego pierwsza jest bezzębna: klasy `site-*`
+ * są zaczepione na zmiennych, które istnieją WYŁĄCZNIE pod `.site-root`.
+ * Nagłówek zapisany rolami, ale wyrenderowany OBOK korzenia (czyli dokładnie
+ * tak, jak stał do K6), przechodziłby skan źródeł i dalej nie miałby motywu.
+ */
+const CHROME_SKLEPU = [
+  "components/storefront/store-header.tsx",
+  "components/storefront/page-shell.tsx",
+  "components/storefront/store-chrome.tsx",
+  "components/storefront/cart-view.tsx",
+  "components/storefront/product-detail.tsx",
+  "components/storefront/checkout-form.tsx",
+  "components/storefront/payment-step.tsx",
+];
+
+/**
+ * Komentarze WYPADAJĄ ze skanu — bez tego zdanie tłumaczące, DLACZEGO `bg-card`
+ * jest w tych plikach zakazane, samo wywracałoby test, który tego zakazu pilnuje.
+ */
+function bezKomentarzy(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
+}
+
+describe("chrome sklepu nie dziedziczy palety panelu", () => {
+  const czytaj = (plik: string) => readFileSync(resolve(process.cwd(), plik), "utf8");
+
+  it("nagłówek, koszyk, produkt i kasa nie używają ANI JEDNEGO tokenu motywu aplikacji", () => {
+    const zakazane = [
+      "bg-background",
+      "bg-card",
+      "bg-muted",
+      "bg-foreground",
+      "bg-primary",
+      "bg-secondary",
+      "bg-accent",
+      "bg-border",
+      "bg-destructive",
+      "text-foreground",
+      "text-background",
+      "text-muted-foreground",
+      "text-card-foreground",
+      "text-primary",
+      "text-primary-foreground",
+      "text-destructive",
+      "border-border",
+      "border-input",
+      "border-primary",
+      "border-destructive",
+      "border-ring",
+      "ring-ring",
+    ];
+    const winne: string[] = [];
+    for (const plik of CHROME_SKLEPU) {
+      const zrodlo = bezKomentarzy(czytaj(plik));
+      for (const klasa of zakazane) {
+        // Wariant z alfą (`bg-destructive/5`) to ten sam token — stąd `/liczba`
+        // w dopuszczonym ograniczniku z prawej.
+        if (new RegExp(`["' \`]${klasa}(?:/\\d+)?[ "'\`]`).test(zrodlo)) {
+          winne.push(`${plik}: ${klasa}`);
+        }
+      }
+    }
+    expect(winne, `tokeny motywu aplikacji w chrome sklepu:\n${winne.join("\n")}`).toEqual([]);
+  });
+
+  it("kontrola po pustym zbiorze: skan naprawdę czyta te pliki", () => {
+    // Bez tego przeniesiony albo pusty plik świeciłby na zielono, a skan
+    // broniłby zbioru pustego — czyli niczego.
+    for (const plik of CHROME_SKLEPU) {
+      expect(czytaj(plik).length, `${plik} pusty albo przeniesiony?`).toBeGreaterThan(200);
+    }
+  });
+});
+
+/**
+ * Ścieżka od korzenia dokumentu do PIERWSZEGO elementu z podaną klasą — liczona
+ * ze stosu znaczników, a nie z kolejności w napisie. „Klasa występuje dalej
+ * w HTML-u" jest prawdą także dla RODZEŃSTWA, czyli dla dokładnie tej wady,
+ * którą K6 naprawia; pytanie brzmi, czy węzeł jest POTOMKIEM.
+ */
+interface Wezel {
+  tag: string;
+  klasy: string[];
+}
+
+function sciezkaDoKlasy(html: string, klasa: string): Wezel[] | null {
+  const PUSTE = new Set(["img", "input", "br", "hr", "meta", "link", "source", "path"]);
+  const stos: Wezel[] = [];
+  const tag = /<(\/?)([a-zA-Z][\w-]*)([^>]*?)(\/?)>/g;
+
+  for (let m = tag.exec(html); m !== null; m = tag.exec(html)) {
+    const [, zamykajacy, nazwa = "", atrybuty = "", samozamykajacy] = m;
+    if (zamykajacy) {
+      stos.pop();
+      continue;
+    }
+    const klasy = /\sclass="([^"]*)"/.exec(atrybuty)?.[1]?.split(/\s+/) ?? [];
+    if (klasy.includes(klasa)) return [...stos, { tag: nazwa, klasy }];
+    if (!samozamykajacy && !PUSTE.has(nazwa.toLowerCase())) stos.push({ tag: nazwa, klasy });
+  }
+  return null;
+}
+
+const opisSciezki = (sciezka: Wezel[]) =>
+  sciezka.map((w) => (w.klasy.length > 0 ? `${w.tag}.${w.klasy.join(".")}` : w.tag)).join(" > ");
+
+describe("nagłówek sklepu stoi POD korzeniem strony", () => {
+  it("`.site-header` jest POTOMKIEM `.site-root`, a nie jego rodzeństwem", async () => {
+    const copy = await getStorefrontCopy("pl");
+    const html = renderToStaticMarkup(
+      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa">
+        <p>treść podstrony</p>
+      </PageShell>,
+    );
+
+    // Kontrola pozytywna: bez obu węzłów asercja o zagnieżdżeniu porównywałaby
+    // `null` z `null` i przechodziła na pustym renderze.
+    const sciezkaKorzenia = sciezkaDoKlasy(html, "site-root");
+    const sciezkaNaglowka = sciezkaDoKlasy(html, "site-header");
+    expect(sciezkaKorzenia, "render sklepu bez korzenia strony").not.toBeNull();
+    expect(sciezkaNaglowka, "render sklepu bez nagłówka").not.toBeNull();
+    expect(html).toContain("Wypożyczalnia Testowa");
+
+    // PRZODKOWIE nagłówka (bez niego samego) muszą zawierać korzeń strony.
+    const przodkowie = sciezkaNaglowka!.slice(0, -1);
+    expect(
+      przodkowie.some((wezel) => wezel.klasy.includes("site-root")),
+      `nagłówek stoi POZA korzeniem strony (ścieżka: ${opisSciezki(sciezkaNaglowka!)}) — ` +
+        "zmienne motywu żyją na korzeniu, więc pasek wróciłby do palety panelu",
+    ).toBe(true);
+  });
+
+  it("korzeń jest DOKŁADNIE JEDEN — dwa znaczyłyby dwa kontenery zapytań `site`", async () => {
+    const copy = await getStorefrontCopy("pl");
+    const html = renderToStaticMarkup(
+      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa">
+        <p>treść podstrony</p>
+      </PageShell>,
+    );
+
+    expect(html.match(/class="[^"]*\bsite-root\b/g) ?? []).toHaveLength(1);
   });
 });

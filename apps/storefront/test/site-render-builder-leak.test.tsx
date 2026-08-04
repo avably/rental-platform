@@ -112,6 +112,13 @@ const BUILDER_LAYER_MARKERS = [
   "data-section-deleted",
   "data-section-restore",
   "data-remove-scope",
+  // Wskazanie miejsca upuszczenia i sekcja przypięta (K6, ADR-092). Belka celu
+  // i obrys sekcji-celu są komunikatem KREATORA — w sklepie nie ma czego
+  // wskazywać, więc żaden z tych znaczników nie ma prawa tam trafić.
+  "data-insert-active",
+  "data-insert-target",
+  "data-drop-target",
+  "data-section-pinned",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */

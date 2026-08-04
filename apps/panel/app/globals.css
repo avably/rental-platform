@@ -266,3 +266,36 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   outline: 2px solid var(--builder-selection);
   outline-offset: 2px;
 }
+
+/*
+ * WSKAZANIE MIEJSCA UPUSZCZENIA (K6, ADR-092).
+ *
+ * Przeciągnięcie kafla z palety musi POKAZYWAĆ wynik, zanim operator puści
+ * przycisk — inaczej „upuść i zobacz" jest jedyną drogą sprawdzenia, gdzie
+ * sekcja wyląduje, a jedyną drogą poprawki jest cofnięcie.
+ *
+ * Dwie role, dwa różne komunikaty:
+ *   • BELKA między sekcjami — „sekcja wejdzie TUTAJ" (miejsce w kolejności);
+ *   • OBRYS sekcji — „element wyląduje w TEJ sekcji" (cel, nie miejsce).
+ *
+ * Obie malowane tokenem WARSTWY EDYCYJNEJ, nie motywem najemcy: wskazanie jest
+ * komunikatem kreatora, a nie elementem strony — i ma być widoczne na każdym
+ * motywie, także na tym, którego akcentem jest ten sam błękit.
+ *
+ * Podświetlony slot odsłania też swój przycisk „+": w spoczynku jest ukryty
+ * (`opacity: 0` do najechania), a w trakcie przeciągania kursor stoi nad
+ * płótnem, nie nad nim.
+ */
+[data-insert-slot][data-insert-active="on"] [data-insert-target] {
+  background: var(--builder-selection);
+  box-shadow: 0 0 0 1px var(--builder-selection-halo);
+}
+
+[data-insert-slot][data-insert-active="on"] [data-insert-at] {
+  opacity: 1;
+}
+
+[data-canvas-section][data-drop-target="on"] {
+  outline: 2px dashed var(--builder-selection);
+  outline-offset: -2px;
+}

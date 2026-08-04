@@ -26,6 +26,7 @@ import type {
   DeliveryContent,
   DirectionsContent,
   FaqContent,
+  FooterContent,
   FreeformContent,
   GalleryContent,
   HeroContent,
@@ -479,6 +480,62 @@ export function DirectionsSection({
         ) : null}
       </dl>
     </SectionShell>
+  );
+}
+
+/**
+ * STOPKA (K6, ADR-092). Znacznik `<footer>`, a nie `<section>` — to nie jest
+ * kolejna sekcja treści, tylko ROLA w dokumencie, i czytnik ekranu ma prawo
+ * o tym wiedzieć. Stąd własna powłoka zamiast `SectionShell`.
+ *
+ * Kreska NAD treścią, nie tło pod nią: stopka domyka stronę, a nie otwiera
+ * kolejny wątek. Pas (`muted`, `inverted`…) wybiera operator jak w każdej
+ * innej sekcji — ta klasa go nie narzuca.
+ */
+export function FooterSection({
+  content,
+  styles,
+}: {
+  content: FooterContent;
+  styles: TemplateStyles;
+}) {
+  const details = [content.address, content.phone, content.email, content.hours].filter(
+    (line): line is string => Boolean(line),
+  );
+  const links = content.links ?? [];
+  return (
+    <footer className={styles.footer}>
+      <div className={styles.container}>
+        <div className={styles.footerInner}>
+          <div className="grid gap-8 @min-[40rem]/site:grid-cols-2">
+            <div>
+              <p className={styles.footerName}>{content.businessName}</p>
+              {details.length > 0 ? (
+                <ul className="site-text-muted mt-3 list-none space-y-1 p-0 text-sm">
+                  {details.map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+            {links.length > 0 ? (
+              <nav aria-label={content.businessName}>
+                <ul className="list-none space-y-2 p-0 text-sm @min-[40rem]/site:text-right">
+                  {links.map((link, index) => (
+                    <li key={index}>
+                      <a className={styles.footerLink} href={link.href}>
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
+          </div>
+          <p className="site-text-muted mt-10 text-sm">{content.legal}</p>
+        </div>
+      </div>
+    </footer>
   );
 }
 

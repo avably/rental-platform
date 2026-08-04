@@ -18,14 +18,20 @@
  * przyniosłaby własny cykl życia i drugą zależność sprzężoną z wersją Reacta,
  * a to jest ~40 linii `useEffect`. Ta sama decyzja co przy koderze formularza
  * w porcie (piszemy swoje zamiast ciągnąć SDK).
+ *
+ * WYGLĄD Z MOTYWU NAJEMCY (K6, ADR-092): powłoka kroku płatności nosi role
+ * (`site-card`, `site-cta`, `site-error-panel`), nie kolory panelu. WYJĄTKIEM
+ * jest samo pole karty — rysuje je RAMKA DOSTAWCY w cudzej domenie i stylujemy
+ * ją wyłącznie przez API dostawcy, nie naszym arkuszem (tak samo jak widget
+ * antybotowy w kasie).
  */
 import { useEffect, useRef, useState } from "react";
 
 import { formatMoney, type CurrencyCode } from "@avably/core";
-import { Button } from "@avably/ui";
 import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
 import Link from "next/link";
 
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import type { OnlinePaymentPreparation } from "@/lib/checkout/online-payment";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
@@ -58,16 +64,16 @@ export function PaymentStep({
         ? copy.payment.offlineFallback
         : copy.payment.error;
     return (
-      <div className="rounded-lg border border-border bg-card p-6" role="status">
-        <h2 className="text-xl font-semibold tracking-tight">{copy.payment.offlineTitle}</h2>
-        <p className="mt-3 leading-7 text-muted-foreground">{message}</p>
+      <div className="site-card p-6" role="status">
+        <h2 className={`text-xl tracking-tight ${SITE_HEADING}`}>{copy.payment.offlineTitle}</h2>
+        <p className="site-text-muted mt-3 leading-7">{message}</p>
         <p className="mt-4 text-sm">
           {copy.confirmation.orderNumber}:{" "}
           <strong className="tabular-nums">{orderNumber}</strong>
         </p>
         <Link
           href="/checkout/platnosc/status"
-          className="mt-6 inline-block font-medium underline underline-offset-4"
+          className="site-link mt-6 inline-block font-medium"
         >
           {copy.payment.checkStatus}
         </Link>
@@ -190,42 +196,41 @@ function PaymentFields({
       <div className="grid gap-4">
         {error ? (
           <div
-            className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm"
+            className="site-error-panel p-4 text-sm"
             role="alert"
           >
             {error}
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-border p-5">
+        <div className="site-card p-5">
           <div ref={mountRef} />
-          {ready ? null : (
-            <p className="text-sm text-muted-foreground">{copy.payment.loading}</p>
-          )}
+          {ready ? null : <p className="site-text-muted text-sm">{copy.payment.loading}</p>}
         </div>
       </div>
 
-      <aside className="grid h-fit gap-4 rounded-lg border border-border p-5 lg:sticky lg:top-6">
-        <h2 className="text-lg font-semibold">{copy.payment.summaryHeading}</h2>
+      <aside className="site-card grid h-fit gap-4 p-5 lg:sticky lg:top-6">
+        <h2 className={`text-lg ${SITE_HEADING}`}>{copy.payment.summaryHeading}</h2>
         <dl className="grid gap-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">{copy.confirmation.orderNumber}</dt>
+            <dt className="site-text-muted">{copy.confirmation.orderNumber}</dt>
             <dd className="tabular-nums">{orderNumber}</dd>
           </div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
+          <div className="site-rule-top flex justify-between pt-2 text-base font-semibold">
             <dt>{copy.payment.amountDue}</dt>
             <dd>{formatMoney(amountGrosze, currency, locale)}</dd>
           </div>
         </dl>
-        <p className="text-xs text-muted-foreground">{copy.payment.depositNote}</p>
+        <p className="site-text-muted text-xs">{copy.payment.depositNote}</p>
 
-        <Button type="submit" className="w-full" size="lg" disabled={!ready || submitting}>
-          {submitting ? copy.payment.submitting : copy.payment.submit}
-        </Button>
-        <Link
-          href="/checkout/platnosc/status"
-          className="text-center text-sm underline underline-offset-4"
+        <button
+          type="submit"
+          className="site-cta w-full cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!ready || submitting}
         >
+          {submitting ? copy.payment.submitting : copy.payment.submit}
+        </button>
+        <Link href="/checkout/platnosc/status" className="site-link text-center text-sm">
           {copy.payment.checkStatus}
         </Link>
       </aside>

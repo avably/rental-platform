@@ -8,9 +8,15 @@
  *
  * Kwoty tu to PODGLĄD (calculatePrice) — informacyjny szacunek. Wiążącą kwotę
  * policzy serwer przy składaniu zamówienia (ADR-042).
+ *
+ * WYGLĄD Z MOTYWU NAJEMCY (K6, ADR-092): koszyk nosi role (`site-card`,
+ * `site-field`, `site-cta`, `site-text-muted`), a nie kolory. Pola i przyciski
+ * są ZWYKŁYMI elementami HTML, nie komponentami `@avably/ui`: tamte wnoszą
+ * własne tokeny panelu (`bg-primary`, `border-input`) w warstwie utilities,
+ * więc „brak tokenu panelu w tym pliku" byłby gwarancją pozorną — token
+ * wjeżdżałby tu przez komponent, którego skan źródeł nie widzi.
  */
 import { calculatePrice, formatMoney, type CurrencyCode } from "@avably/core";
-import { Button, Input, Label } from "@avably/ui";
 import Link from "next/link";
 
 import { isCheckoutReady, MAX_QUANTITY_PER_PRODUCT } from "@/lib/cart/model";
@@ -51,8 +57,8 @@ export function CartView({
   if (lines.length === 0) {
     return (
       <div className="flex flex-col items-start gap-4">
-        <p className="text-muted-foreground">{copy.cart.empty}</p>
-        <Link href="/store" className="font-medium underline underline-offset-4">
+        <p className="site-text-muted">{copy.cart.empty}</p>
+        <Link href="/store" className="site-link font-medium">
           {copy.cart.emptyCta}
         </Link>
       </div>
@@ -73,12 +79,12 @@ export function CartView({
   return (
     <div className="grid gap-8">
       {/* Termin (wspólny) */}
-      <div className="rounded-lg border border-border p-4">
+      <div className="site-card p-4">
         <p className="text-sm font-medium">{copy.cart.rentalPeriod}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="site-text-muted mt-1 text-sm">
           {datesValid ? `${cart.startDate} → ${cart.endDate}` : copy.cart.noDates}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">{copy.cart.editInProduct}</p>
+        <p className="site-text-muted mt-1 text-xs">{copy.cart.editInProduct}</p>
       </div>
 
       {/* Pozycje */}
@@ -91,7 +97,7 @@ export function CartView({
           return (
             <li
               key={product.id}
-              className="flex flex-wrap items-center gap-4 rounded-lg border border-border p-4"
+              className="site-card flex flex-wrap items-center gap-4 p-4"
             >
               {image ? (
                 // Zdjęcia z publicznego Storage — zwykły <img> (jak sekcja
@@ -100,17 +106,17 @@ export function CartView({
                 <img
                   src={storagePublicUrl(supabaseUrl, image.storage_path)}
                   alt={image.alt_text ?? product.name}
-                  className="h-16 w-16 rounded-md object-cover"
+                  className="site-media h-16 w-16 object-cover"
                 />
               ) : (
-                <div className="h-16 w-16 rounded-md bg-muted" aria-hidden="true" />
+                <div className="site-placeholder h-16 w-16" aria-hidden="true" />
               )}
               <div className="min-w-40 flex-1">
-                <Link href={`/product/${product.id}`} className="font-medium hover:underline">
+                <Link href={`/product/${product.id}`} className="site-link font-medium">
                   {product.name}
                 </Link>
                 {linePreview ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="site-text-muted text-sm">
                     {copy.cart.lineRental}: {formatMoney(linePreview.rentalGrosze * line.quantity, currency, locale)}{" "}
                     · {copy.cart.lineDeposit}:{" "}
                     {formatMoney(linePreview.depositGrosze * line.quantity, currency, locale)}
@@ -118,10 +124,10 @@ export function CartView({
                 ) : null}
               </div>
               <div className="grid gap-1">
-                <Label htmlFor={`qty-${product.id}`} className="sr-only">
+                <label htmlFor={`qty-${product.id}`} className="sr-only">
                   {copy.cart.quantity}
-                </Label>
-                <Input
+                </label>
+                <input
                   id={`qty-${product.id}`}
                   type="number"
                   min={1}
@@ -132,19 +138,23 @@ export function CartView({
                     if (Number.isNaN(parsed)) return;
                     setQty(product.id, parsed);
                   }}
-                  className="w-20"
+                  className="site-field h-9 w-20 px-3 text-sm"
                 />
               </div>
-              <Button type="button" variant="outline" onClick={() => remove(product.id)}>
+              <button
+                type="button"
+                className="site-cta-secondary cursor-pointer text-sm font-semibold"
+                onClick={() => remove(product.id)}
+              >
                 {copy.cart.remove}
-              </Button>
+              </button>
             </li>
           );
         })}
       </ul>
 
       {/* Podsumowanie (podgląd) */}
-      <div className="grid gap-2 rounded-lg border border-border p-4">
+      <div className="site-card grid gap-2 p-4">
         <div className="flex justify-between text-sm">
           <span>{copy.cart.subtotalRental}</span>
           <span>{formatMoney(totals.rentalGrosze, currency, locale)}</span>
@@ -153,21 +163,21 @@ export function CartView({
           <span>{copy.cart.subtotalDeposit}</span>
           <span>{formatMoney(totals.depositGrosze, currency, locale)}</span>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">{copy.common.estimateNote}</p>
+        <p className="site-text-muted mt-1 text-xs">{copy.common.estimateNote}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
         {ready ? (
           <Link
             href="/checkout"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="site-cta inline-flex items-center justify-center text-sm font-semibold"
           >
             {copy.cart.goToCheckout}
           </Link>
         ) : (
-          <p className="text-sm text-destructive">{copy.cart.checkoutBlocked}</p>
+          <p className="site-error text-sm">{copy.cart.checkoutBlocked}</p>
         )}
-        <Link href="/store" className="text-sm underline underline-offset-4">
+        <Link href="/store" className="site-link text-sm">
           {copy.common.continueShopping}
         </Link>
       </div>

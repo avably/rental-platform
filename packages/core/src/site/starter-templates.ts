@@ -335,6 +335,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Betonowa 21, 40-001 Katowice",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 6:00–18:00, Sob 7:00–13:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -416,6 +433,23 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Check the calendar and book online — the confirmation lands in your inbox straight away.",
           buttonLabel: "Book equipment",
           buttonHref: "#produkty",
+        },
+      },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "21 Betonowa St, 40-001 Katowice",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 6:00–18:00, Sat 7:00–13:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
         },
       },
     ],
@@ -509,6 +543,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Sportowa 12, 30-001 Kraków",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 8:00–19:00, Sob–Nd 8:00–16:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -592,6 +643,23 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Book your dates online and collect the gear ready to ride.",
           buttonLabel: "Book online",
           buttonHref: "#produkty",
+        },
+      },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "12 Sportowa St, 30-001 Krakow",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 8:00–19:00, Sat–Sun 8:00–16:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
         },
       },
     ],
@@ -702,6 +770,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#kontakt",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Wesoła 8, 61-001 Poznań",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 9:00–18:00, Sob 10:00–14:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -800,6 +885,23 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Send us the date and the number of guests — you will have a quote for the whole set the same day.",
           buttonLabel: "Ask about a date",
           buttonHref: "#kontakt",
+        },
+      },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "8 Wesola St, 61-001 Poznan",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 9:00–18:00, Sat 10:00–14:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
         },
       },
     ],
@@ -906,6 +1008,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Filmowa 3, 00-001 Warszawa",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 10:00–19:00, Sob 10:00–15:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -1003,6 +1122,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "3 Filmowa St, 00-001 Warsaw",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 10:00–19:00, Sat 10:00–15:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
+        },
+      },
     ],
   },
 
@@ -1073,6 +1209,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Krótka 4, 50-001 Wrocław",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 9:00–17:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -1134,6 +1287,23 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Pick the gear and the dates — the confirmation is instant.",
           buttonLabel: "Book online",
           buttonHref: "#produkty",
+        },
+      },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "4 Krotka St, 50-001 Wroclaw",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 9:00–17:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
         },
       },
     ],
@@ -1225,6 +1395,23 @@ const STARTER_SECTIONS: StarterTable = {
           buttonHref: "#produkty",
         },
       },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Twoja Firma",
+          address: "ul. Magazynowa 17, 80-001 Gdańsk",
+          phone: "+48 500 600 700",
+          email: "kontakt@twojafirma.pl",
+          hours: "Pon–Pt 8:00–17:00, Sob 9:00–13:00",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Polityka prywatności", href: "/prywatnosc" },
+            { label: "Kontakt", href: "#kontakt" },
+          ],
+          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+        },
+      },
     ],
     en: [
       {
@@ -1305,6 +1492,23 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Book it online — the calendar holds the item right away.",
           buttonLabel: "Book from the catalog",
           buttonHref: "#produkty",
+        },
+      },
+      {
+        type: "footer",
+        background: "muted",
+        content: {
+          businessName: "Your Company",
+          address: "17 Magazynowa St, 80-001 Gdansk",
+          phone: "+48 500 600 700",
+          email: "hello@yourcompany.com",
+          hours: "Mon–Fri 8:00–17:00, Sat 9:00–13:00",
+          links: [
+            { label: "Terms", href: "/regulamin" },
+            { label: "Privacy policy", href: "/prywatnosc" },
+            { label: "Contact", href: "#kontakt" },
+          ],
+          legal: "© Your Company. All rights reserved.",
         },
       },
     ],

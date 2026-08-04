@@ -45,6 +45,7 @@ import {
   bringToFront,
   geometryAt,
   isDetachedOnMobile,
+  isPinnedLastType,
   mobileLayoutOf,
   plainTextOf,
   sendToBack,
@@ -171,6 +172,8 @@ export function BuilderCanvas({
   products,
   viewport,
   busy,
+  dropIndex,
+  dropSectionId,
   run,
   reorderAction,
   toggleAction,
@@ -192,6 +195,19 @@ export function BuilderCanvas({
   viewport: BuilderViewport;
   /** Trwa mutacja — uchwyty i pasek narzędzi szarzeją razem (R2, #135). */
   busy: boolean;
+  /**
+   * Miejsce, w które wejdzie sekcja przeciągana właśnie z palety (K6, ADR-092),
+   * albo `null`. Płótno samo go NIE liczy — dostaje gotowy indeks od skorupy,
+   * bo to ona widzi paletę. Podświetlony slot jest OBIETNICĄ wyniku, więc
+   * musi pochodzić z tej samej liczby, którą zapisze upuszczenie.
+   */
+  dropIndex: number | null;
+  /**
+   * Sekcja, która przyjmie przeciągany właśnie ELEMENT (K6, ADR-092), albo
+   * `null`. Do K6 upuszczenie elementu było „w ciemno" — operator widział cel
+   * dopiero po fakcie.
+   */
+  dropSectionId: string | null;
   /**
    * Uruchomienie mutacji W TRANZYCJI SKORUPY: jeden wskaźnik stanu zapisu na
    * całą trasę, jeden komunikat błędu. `onFail` cofa zmianę optymistyczną.
@@ -396,6 +412,13 @@ export function BuilderCanvas({
               <SiteRenderer
                 sections={rendered as unknown as RenderSection[]}
                 style={style}
+                /*
+                 * PŁÓTNO STOI (K6, ADR-092). Sekcja, która przenika przy
+                 * każdym przewinięciu palety, nie jest podglądem strony —
+                 * jest migotaniem, przez które nie da się nic ustawić.
+                 * Animacje ogląda się w PODGLĄDZIE szkicu i na sklepie.
+                 */
+                motion="off"
                 products={products}
                 siteImageBase={siteImagePublicBase()}
                 sectionWrapper={(section, children) => {
@@ -414,6 +437,8 @@ export function BuilderCanvas({
                       total={order.length}
                       orderedIds={orderedIds}
                       active={activeId === editorSection.id}
+                      dropActive={dropIndex === index}
+                      dropTarget={dropSectionId === editorSection.id}
                       locked={locked}
                       onActivate={() => {
                         // W trakcie gestu NIE zmieniamy stanu — patrz `dragging`.
@@ -577,12 +602,18 @@ export function BuilderCanvas({
       </div>
 
       {/* Ostatnie miejsce wstawienia stoi POZA rendererem: owijka sekcji niesie
-          „+" PRZED swoją sekcją, więc koniec strony nie ma czyjego brzegu użyć. */}
-      {order.length > 0 ? (
+          „+" PRZED swoją sekcją, więc koniec strony nie ma czyjego brzegu użyć.
+
+          Strona ze STOPKĄ (K6, ADR-092) tego miejsca nie ma: pod stopką nic nie
+          stoi i stać nie może, a slot, który po upuszczeniu przesuwa sekcję nad
+          stopkę, kłamałby o wyniku. Ostatnim miejscem jest wtedy „+" NAD stopką,
+          czyli jej własny slot `between`. */}
+      {order.length > 0 && !isPinnedLastType(order[order.length - 1]!.type) ? (
         <InsertSlot
           index={order.length}
           orderedIds={orderedIds}
           disabled={locked}
+          active={dropIndex === order.length}
           onAddSection={onAddSection}
           variant="trailing"
         />
@@ -603,6 +634,8 @@ function CanvasSection({
   total,
   orderedIds,
   active,
+  dropActive,
+  dropTarget,
   locked,
   onActivate,
   onDeactivate,
@@ -623,6 +656,10 @@ function CanvasSection({
   total: number;
   orderedIds: string[];
   active: boolean;
+  /** Sekcja przeciągana z palety wejdzie PRZED tą — podświetl jej slot. */
+  dropActive: boolean;
+  /** Przeciągany element wyląduje W TEJ sekcji — pokaż obrys celu. */
+  dropTarget: boolean;
   locked: boolean;
   onActivate: () => void;
   onDeactivate: () => void;
@@ -646,9 +683,16 @@ function CanvasSection({
   children: ReactNode;
 }) {
   const t = useTranslations("site");
+  /**
+   * SEKCJA PRZYPIĘTA (K6, ADR-092) — stopka. Nie da się jej przeciągnąć ani
+   * przesunąć strzałkami, bo jej miejsce nie jest wyborem operatora. Uchwyt
+   * ZOSTAJE w drzewie, ale wyłączony: znikający uchwyt kazałby zgadywać, czy
+   * to awaria interfejsu, czy reguła.
+   */
+  const pinned = isPinnedLastType(section.type);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: section.id,
-    disabled: locked,
+    disabled: locked || pinned,
   });
 
   return (
@@ -659,6 +703,8 @@ function CanvasSection({
       data-section-id={section.id}
       data-section-type={section.type}
       data-section-order={index + 1}
+      {...(pinned ? { "data-section-pinned": "on" } : {})}
+      {...(dropTarget ? { "data-drop-target": "on" } : {})}
       className={`relative${isDragging ? " z-20 opacity-80" : ""}`}
       onMouseEnter={onActivate}
       onMouseLeave={onDeactivate}
@@ -668,6 +714,7 @@ function CanvasSection({
         index={index}
         orderedIds={orderedIds}
         disabled={locked}
+        active={dropActive}
         onAddSection={onAddSection}
         variant="between"
       />
@@ -693,7 +740,7 @@ function CanvasSection({
             data-drag-handle
             aria-label={t("sections.dragHandle")}
             className="text-muted-foreground hover:text-foreground focus-visible:border-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex size-7 cursor-grab touch-none items-center justify-center rounded-md border border-transparent outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={locked}
+            disabled={locked || pinned}
             {...attributes}
             {...listeners}
           >
@@ -704,7 +751,7 @@ function CanvasSection({
             marker="move-up"
             icon={<ArrowUp className="size-4" aria-hidden />}
             loading={locked}
-            disabled={locked || index === 0}
+            disabled={locked || pinned || index === 0}
             onClick={onMoveUp}
           />
           <ToolbarButton
@@ -712,7 +759,7 @@ function CanvasSection({
             marker="move-down"
             icon={<ArrowDown className="size-4" aria-hidden />}
             loading={locked}
-            disabled={locked || index === total - 1}
+            disabled={locked || pinned || index === total - 1}
             onClick={onMoveDown}
           />
           <ToolbarButton
@@ -882,12 +929,15 @@ function InsertSlot({
   index,
   orderedIds,
   disabled,
+  active,
   onAddSection,
   variant,
 }: {
   index: number;
   orderedIds: string[];
   disabled: boolean;
+  /** Sekcja przeciągana z palety wejdzie TUTAJ (K6, ADR-092) — pokaż to. */
+  active: boolean;
   onAddSection: (type: SectionType, index: number, orderedIds: string[]) => void;
   variant: "between" | "trailing";
 }) {
@@ -896,10 +946,21 @@ function InsertSlot({
   return (
     <div
       data-insert-slot={index}
+      {...(active ? { "data-insert-active": "on" } : {})}
       className={`group/insert z-30 flex justify-center ${
         variant === "between" ? "absolute inset-x-0 top-0 -translate-y-1/2" : "relative py-3"
       }`}
     >
+      {/* Belka celu. Rysuje ją WARSTWA EDYCYJNA (token `--builder-selection`),
+          a nie akcent motywu najemcy — wskazanie miejsca jest komunikatem
+          kreatora, nie elementem strony. */}
+      {active ? (
+        <span
+          aria-hidden="true"
+          data-insert-target
+          className="pointer-events-none absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
+        />
+      ) : null}
       <AddSectionDialog
         disabled={disabled}
         onAdd={(type) => onAddSection(type, index, orderedIds)}
