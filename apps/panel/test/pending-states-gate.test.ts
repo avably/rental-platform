@@ -183,9 +183,11 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   },
   {
     file: "kreator/site-builder.tsx",
-    anchor: "onClick={() => run(() => publishSite(siteId))}",
+    anchor: "run(() => publishSite(siteId), undefined, { blocking: true })",
     signal: /loading=\{pending\}/,
-    note: "publikacja z paska kreatora (tranzycja run)",
+    // Od pinezki właściciela 2026-08-03 publikacja jest JEDYNĄ operacją
+    // kreatora, która blokuje — stąd jawne `blocking: true` w kotwicy.
+    note: "publikacja z paska kreatora (jedyna tranzycja blokująca)",
   },
   {
     file: "kreator/site-builder.tsx",

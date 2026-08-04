@@ -1143,7 +1143,13 @@
       "eyebrow": "Draft preview",
       "intro": "This is the draft. Customers see it after you publish.",
       "empty": "The preview is empty — no section is enabled.",
-      "priceFrom": "from {price} / day"
+      "priceFrom": "from {price} / day",
+      "open": "See preview",
+      "openHint": "Opens in a new tab",
+      "draftTitle": "Draft preview",
+      "draftHint": "This is how the page will look once published. Customers still see the previous version.",
+      "backToBuilder": "Back to the builder",
+      "draftEmpty": "The draft has no visible sections yet."
     },
     "publish": {
       "heading": "Public version",

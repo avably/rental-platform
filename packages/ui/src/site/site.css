@@ -397,6 +397,26 @@
   z-index: var(--el-z);
 }
 
+/*
+ * TŁO PEŁNOEKRANOWE (aneks do ADR-088, pinezka właściciela 2026-08-03).
+ *
+ * Siatka płótna ma sufit szerokości (szerokość PROJEKTOWA), bo treść czyta się
+ * w kolumnie, a nie na całej szerokości monitora. Tło hero ma jednak sięgać
+ * krawędzi okna — inaczej „pełna fotografia" kończy się czarnymi pasami po
+ * bokach. Element rozciągnięty na całe płótno renderuje się więc w warstwie
+ * będącej dzieckiem SEKCJI (patrz element-canvas.tsx) i tu dostaje poziom
+ * rozciągnięty na 100 % tej sekcji.
+ *
+ * PION zostaje bez zmian — te same zmienne, co w siatce, więc auto-układ
+ * mobilny (ADR-088) rządzi tłem dokładnie tak samo, jak resztą elementów.
+ * Miara nadal idzie po KONTENERZE (ADR-085): ani jednej jednostki okna.
+ */
+.canvas-bleed {
+  left: 0;
+  width: 100%;
+  max-width: none;
+}
+
 @container site (width < 40rem) {
   .canvas-grid {
     aspect-ratio: var(--canvas-ratio-mobile);
@@ -409,6 +429,19 @@
     height: var(--el-mh);
     max-width: var(--el-mmaxw);
     z-index: var(--el-mz);
+  }
+
+  /*
+   * Tło pełnoekranowe zostaje pełnoekranowe TAKŻE na telefonie. Reguła musi
+   * stać w tym samym zapytaniu kontenera, bo to ono podmienia poziom na
+   * współrzędne mobilne — bez niej auto-układ wsadzałby tło z powrotem
+   * w kolumnę treści i hero na telefonie miałby marginesy z obu stron.
+   * PION zostaje mobilny: tłem rządzi ten sam auto-układ, co resztą.
+   */
+  .canvas-bleed {
+    left: 0;
+    width: 100%;
+    max-width: none;
   }
 }
 

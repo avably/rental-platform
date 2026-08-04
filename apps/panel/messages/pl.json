@@ -1143,7 +1143,13 @@
       "eyebrow": "Podgląd szkicu",
       "intro": "Tak wygląda wersja robocza. Klienci zobaczą ją po publikacji.",
       "empty": "Podgląd jest pusty — żadna sekcja nie jest włączona.",
-      "priceFrom": "od {price} / doba"
+      "priceFrom": "od {price} / doba",
+      "open": "Zobacz podgląd",
+      "openHint": "Otwiera w nowej karcie",
+      "draftTitle": "Podgląd wersji roboczej",
+      "draftHint": "Tak strona wygląda po publikacji. Klienci widzą jeszcze poprzednią wersję.",
+      "backToBuilder": "Wróć do kreatora",
+      "draftEmpty": "Wersja robocza nie ma jeszcze żadnej widocznej sekcji."
     },
     "publish": {
       "heading": "Wersja publiczna",

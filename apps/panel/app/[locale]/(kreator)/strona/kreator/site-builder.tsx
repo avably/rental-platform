@@ -130,7 +130,7 @@ export function SiteBuilder({
     (
       action: () => Promise<ActionResult>,
       onFail?: () => void,
-      options?: { quiet?: boolean },
+      options?: { quiet?: boolean; blocking?: boolean },
     ) => {
       setError(null);
       setSaveState("saving");
@@ -147,25 +147,36 @@ export function SiteBuilder({
       };
 
       /*
-       * AUTOZAPIS NIE ZAMRAŻA PŁÓTNA (K2c, ADR-087). Zapisy `quiet` (geometria
-       * elementów) idą POZA tranzycją, bo `pending` tranzycji szarzy uchwyty
-       * i paski narzędzi całego kreatora — a autozapis wpada co 700 ms w środku
-       * pracy. Operator dostawał między gestami kursor „zakaz" i wyłączone
-       * przyciski, choć nic nie było zablokowane. Wskaźnik „Zapisywanie…/
-       * Zapisano" zostaje jeden i wspólny, bo on informuje, a nie blokuje.
+       * ŻADEN ZAPIS NIE BLOKUJE PŁÓTNA — POZA PUBLIKACJĄ (pinezka właściciela
+       * 2026-08-03, druga tura po K2c/ADR-087).
        *
-       * Zmiany STRUKTURY (kolejność, dodanie, usunięcie, publikacja) zostają
-       * w tranzycji: tam blokada jest na miejscu, bo druga taka operacja
-       * w locie rozjechałaby listę sekcji.
+       * K2c wyprowadziło z tranzycji zapisy `quiet` (geometria), ale zmiany
+       * STRUKTURY — włączenie sekcji, duplikat, usunięcie, przywrócenie,
+       * kolejność, wybór szablonu, a od K5 także KAŻDE kliknięcie w panelu
+       * „Styl strony" — dalej szły `startTransition`. Jego `pending` jedzie do
+       * `busy` płótna i wyłącza wszystko: uchwyty, paski sekcji, ramki
+       * elementów. Operator klikał akcent i przez cały odczyt RSC (lokalnie
+       * kilkaset ms, na produkcji więcej) miał martwy kreator — dokładnie to,
+       * co zgłosił: „za każdym razem po kliknięciu się zapisuje, muszę czekać".
+       *
+       * Odtąd blokada zostaje WYŁĄCZNIE przy publikacji, bo tam wstrzymanie ma
+       * sens merytoryczny: publikacja przenosi komplet stanu widocznego (ADR-091)
+       * i druga w locie znaczyłaby dwie prawdy o tym, co jest opublikowane.
+       * Reszta idzie w tle, ze wspólnym wskaźnikiem „Zapisywanie…/Zapisano" —
+       * on INFORMUJE, a nie zatrzymuje.
+       *
+       * Czego to NIE psuje: kolejność sekcji zapisuje się KOMPLETEM pozycji
+       * (`reorderPlan`), więc dwie operacje w locie kończą się stanem ostatniej,
+       * a nie stanem połowicznym; serwer i tak przelicza pozycje od zera.
        */
-      if (options?.quiet) {
-        void action().then((result) => settle(result, false));
+      if (options?.blocking) {
+        startTransition(async () => {
+          settle(await action(), true);
+        });
         return;
       }
 
-      startTransition(async () => {
-        settle(await action(), true);
-      });
+      void action().then((result) => settle(result, !options?.quiet));
     },
     [router],
   );
@@ -369,6 +380,25 @@ export function SiteBuilder({
           {saveState === "saving" ? t("builder.saving") : saveState === "saved" ? t("builder.saved") : null}
         </p>
 
+        {/*
+          PODGLĄD SZKICU otwiera się w NOWEJ KARCIE (pinezka właściciela): karta
+          kreatora zostaje tam, gdzie była, z niezapisaną historią cofania i
+          zaznaczeniem. `target="_blank"` wymaga `rel="noreferrer"` — trasa jest
+          nasza, ale nowa karta z dostępem do `window.opener` to nawyk, którego
+          nie zostawiamy nawet u siebie.
+        */}
+        <Button asChild type="button" size="sm" variant="secondary">
+          <a
+            href={`/${locale}/strona/podglad`}
+            target="_blank"
+            rel="noreferrer"
+            data-builder-preview
+            title={t("preview.openHint")}
+          >
+            {t("preview.open")}
+          </a>
+        </Button>
+
         <StartOverButton
           disabled={pending}
           hasSections={sections.length > 0}
@@ -379,7 +409,8 @@ export function SiteBuilder({
           type="button"
           size="sm"
           data-builder-publish
-          onClick={() => run(() => publishSite(siteId))}
+          // JEDYNA operacja, która blokuje kreator — patrz komentarz przy `run`.
+          onClick={() => run(() => publishSite(siteId), undefined, { blocking: true })}
           loading={pending}
           disabled={pending}
         >

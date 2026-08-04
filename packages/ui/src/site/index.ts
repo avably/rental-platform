@@ -18,4 +18,4 @@ export {
 } from "./sections";
 export { SiteRenderer, DEFAULT_SITE_LABELS } from "./site-renderer";
 // Płótno z elementami (K2, ADR-084) — render treści v2 i przeliczenie geometrii.
-export { SectionCanvasRenderer, geometryStyle } from "./element-canvas";
+export { SectionCanvasRenderer, canvasBoxVariables, geometryStyle } from "./element-canvas";
