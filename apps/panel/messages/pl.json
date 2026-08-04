@@ -1034,7 +1034,8 @@
       "confirmRemoveBodyPublished": "Sekcja zniknie ze strony klienta dopiero po publikacji — do tego czasu przywrócisz ją w kreatorze.",
       "confirmRemoveBodyDraft": "Sekcja nie była jeszcze publikowana — zniknie od razu i nie da się jej przywrócić.",
       "confirmRemove": "Usuń sekcję",
-      "cancel": "Anuluj"
+      "cancel": "Anuluj",
+      "alreadyOnPage": "Strona ma już tę sekcję."
     },
     "sectionTypes": {
       "hero": "Baner (hero)",
@@ -1048,7 +1049,8 @@
       "usp": "Atuty",
       "cta": "Wezwanie do działania",
       "directions": "Dojazd",
-      "delivery": "Dostawa"
+      "delivery": "Dostawa",
+      "footer": "Stopka"
     },
     "sectionTypeDescriptions": {
       "hero": "Duży baner powitalny z nagłówkiem i przyciskiem.",
@@ -1062,7 +1064,8 @@
       "usp": "Kafelki z atutami i ikonami.",
       "cta": "Baner z jednym wyraźnym przyciskiem.",
       "directions": "Adres, godziny i link do map.",
-      "delivery": "Informacja o dostawie i odbiorze."
+      "delivery": "Informacja o dostawie i odbiorze.",
+      "footer": "Dane kontaktowe, godziny, linki i nota o prawach — zawsze na końcu strony."
     },
     "uspIcons": {
       "truck": "Ciężarówka",

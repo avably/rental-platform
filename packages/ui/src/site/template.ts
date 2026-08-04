@@ -79,6 +79,14 @@ export interface TemplateStyles {
   ctaBanner: string;
   /** Kafelek ikony w sekcji USP (0043). */
   iconTile: string;
+  /** Stopka strony: owijka `<footer>` (odstępy) — K6, ADR-092. */
+  footer: string;
+  /** Stopka: pas treści z kreską odcinającą ją od reszty strony. */
+  footerInner: string;
+  /** Stopka: nazwa firmy. */
+  footerName: string;
+  /** Stopka: link pomocniczy (regulamin, polityka, kotwica). */
+  footerLink: string;
   /**
    * Pas ODWRÓCONY płótna v2 (K2, ADR-084) — SAM kolor, bez odstępów: wysokość
    * sekcji v2 niesie geometria płótna, nie padding.
@@ -115,6 +123,10 @@ const STYLES: TemplateStyles = {
   // Alfa 10 % musi zgadzać się z bramką kontrastu (`ICON_TILE_ALPHA`), która
   // liczy kafelek jako MIESZANINĘ akcentu z pasem pod spodem.
   iconTile: "site-icon-tile flex size-11 items-center justify-center site-text-accent",
+  footer: "site-footer pb-12 pt-6",
+  footerInner: "site-rule-top pt-10",
+  footerName: "site-title text-lg",
+  footerLink: "site-link",
   canvasInverted: "site-band-inverted",
 };
 

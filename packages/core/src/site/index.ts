@@ -37,10 +37,12 @@ export function tenantCacheTag(tenantId: string): string {
 export { SITE_TEMPLATES, siteTemplateSchema, type SiteTemplate } from "./templates";
 
 /**
- * Typy sekcji — lustro CHECK-a site_sections.type (0019 + 0043). Zamknięta
- * lista (ADR-041/ADR-082): nowy typ = zmiana TEJ stałej + schemat Zod niżej +
- * CHECK w migracji. Sześć typów doszło w 0043 (kreator sekcyjny A2):
- * testimonials, gallery, usp, cta, directions, delivery.
+ * Typy sekcji — lustro CHECK-a site_sections.type (0019 + 0043 + 0047).
+ * Zamknięta lista (ADR-041/ADR-082): nowy typ = zmiana TEJ stałej + schemat Zod
+ * niżej + CHECK w migracji. Sześć typów doszło w 0043 (kreator sekcyjny A2):
+ * testimonials, gallery, usp, cta, directions, delivery. Trzynasty — `footer`
+ * — doszedł w 0047 (K6, ADR-092) i jako jedyny jest PRZYPIĘTY do końca strony
+ * (arytmetyka w `./section-order`, jedyność w bazie).
  */
 export const SECTION_TYPES = [
   "hero",
@@ -55,9 +57,24 @@ export const SECTION_TYPES = [
   "cta",
   "directions",
   "delivery",
+  "footer",
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 export const sectionTypeSchema = z.enum(SECTION_TYPES);
+
+/**
+ * Sekcje PRZYPIĘTE do końca strony i arytmetyka kolejności (K6, ADR-092) —
+ * patrz `./section-order`. Osobny liść, bo korzystają z niego trzy warstwy:
+ * płótno kreatora (gdzie wolno upuścić sekcję), akcja serwerowa (normalizacja
+ * zapisanej kolejności) i testy arytmetyki bez DOM-u.
+ */
+export {
+  PINNED_LAST_TYPES,
+  isPinnedLastType,
+  normalizeSectionOrder,
+  insertableSlots,
+  type OrderedSection,
+} from "./section-order";
 
 /**
  * Allowlista ikon (ADR-082) mieszka w `./icons` — korzystają z niej sekcja USP
@@ -299,6 +316,46 @@ export const deliveryContentSchema = z
   })
   .strict();
 
+// -----------------------------------------------------------------------
+// Typ sekcji z 0047 (K6, ADR-092) — STOPKA
+// -----------------------------------------------------------------------
+
+/**
+ * STOPKA STRONY — dane kontaktowe, godziny, linki i nota o prawach.
+ *
+ * Trzy rzeczy odróżniają ją od `contact`, z którym łatwo ją pomylić:
+ *   1. jest PRZYPIĘTA do końca strony (ADR-092) — operator nie może jej wsunąć
+ *      nad hero, bo stopka nad treścią to błąd, którego nie chcemy udostępniać;
+ *   2. jest JEDYNA na stronie — pilnuje tego unikat częściowy w 0047, nie
+ *      dobra wola edytora;
+ *   3. niesie `legal` (nota o prawach) jako pole WYMAGANE — stopka bez niej
+ *      nie jest stopką, tylko drugą sekcją kontaktową.
+ *
+ * `links` to nawigacja pomocnicza (regulamin, polityka, kotwice sekcji) — ten
+ * sam allowlistowany `ctaHref` co wszędzie: żadnego `javascript:`.
+ */
+export const footerContentSchema = z
+  .object({
+    businessName: blockTitle,
+    address: shortText.optional(),
+    phone: z.string().trim().min(1).max(40).optional(),
+    email: z.string().trim().email().max(254).optional(),
+    hours: shortText.optional(),
+    links: z
+      .array(
+        z
+          .object({
+            label: buttonLabel,
+            href: ctaHref,
+          })
+          .strict(),
+      )
+      .max(8)
+      .optional(),
+    legal: shortText,
+  })
+  .strict();
+
 /**
  * Treść sekcji: PŁÓTNO v2 albo dotychczasowy kształt v1 (K2, ADR-084).
  *
@@ -326,6 +383,7 @@ export const SECTION_CONTENT_SCHEMAS = {
   cta: ctaContentSchema,
   directions: directionsContentSchema,
   delivery: deliveryContentSchema,
+  footer: footerContentSchema,
 } as const satisfies Record<SectionType, z.ZodTypeAny>;
 
 /**
@@ -357,6 +415,7 @@ export const SECTION_DRAFT_SCHEMAS = {
   cta: withCanvas(ctaContentSchema),
   directions: withCanvas(directionsContentSchema),
   delivery: withCanvas(deliveryContentSchema),
+  footer: withCanvas(footerContentSchema),
 } as const satisfies Record<SectionType, z.ZodTypeAny>;
 
 export type HeroContent = z.infer<typeof heroContentSchema>;
@@ -371,6 +430,7 @@ export type UspContent = z.infer<typeof uspContentSchema>;
 export type CtaContent = z.infer<typeof ctaContentSchema>;
 export type DirectionsContent = z.infer<typeof directionsContentSchema>;
 export type DeliveryContent = z.infer<typeof deliveryContentSchema>;
+export type FooterContent = z.infer<typeof footerContentSchema>;
 
 /** Treść sekcji w kształcie v1 (przed K2). Zbiór zamknięty — patrz `SectionContentAny`. */
 export type LegacySectionContent =
@@ -385,7 +445,8 @@ export type LegacySectionContent =
   | UspContent
   | CtaContent
   | DirectionsContent
-  | DeliveryContent;
+  | DeliveryContent
+  | FooterContent;
 
 /**
  * Treść sekcji w DOWOLNEJ generacji. To jest typ, którym posługują się edytor,
@@ -408,6 +469,7 @@ export const sectionInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
   z.object({ type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
   z.object({ type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
+  z.object({ type: z.literal("footer"), content: withCanvas(footerContentSchema) }),
 ]);
 export type SectionInput = z.infer<typeof sectionInputSchema>;
 
@@ -431,6 +493,7 @@ export const publishedSectionSchema = z.discriminatedUnion("type", [
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("footer"), content: withCanvas(footerContentSchema) }),
 ]);
 export type PublishedSection = z.infer<typeof publishedSectionSchema>;
 
@@ -551,6 +614,15 @@ export {
   type ThemeShape,
   type ThemeType,
 } from "./theme";
+
+// Ruch: presety wejścia sekcji, wskazywane NAZWĄ przez motyw (K6, ADR-092).
+export {
+  SITE_MOTIONS,
+  SITE_MOTION_PRESETS,
+  motionPreset,
+  type SiteMotionId,
+  type SiteMotionPreset,
+} from "./motion";
 
 // Kroje: rodziny (pliki OFL w repo) i pary do wyboru (K5, ADR-090).
 export {

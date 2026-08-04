@@ -39,6 +39,7 @@ import {
   SECTION_TYPES,
   SITE_THEMES,
   imageSourceSchema,
+  isPinnedLastType,
   themeTokens,
 } from "./index";
 import { STARTER_PHOTOS, STARTER_PHOTO_QUERIES, STARTER_PHOTO_SLOTS } from "./starter-photos";
@@ -206,9 +207,28 @@ describe("szablony startowe: kontrakt porównujący je ZE SOBĄ", () => {
 
   it.each(STARTER_TEMPLATES)("%s: liczba sekcji mieści się w granicach szablonu", (id) => {
     for (const locale of PRESET_LOCALES) {
-      const count = starterTemplateSections(id, locale).length;
+      // Granice liczą sekcje, które operator WYBIERA. Stopka jest przypięta i
+      // jedyna (K6, ADR-092) — wliczanie jej do budżetu treści znaczyłoby, że
+      // strona z danymi kontaktowymi w stopce ma prawo do jednego atutu mniej.
+      const count = starterTemplateSections(id, locale).filter(
+        (section) => !isPinnedLastType(section.type),
+      ).length;
       expect(count, `${id}/${locale}: za mało sekcji`).toBeGreaterThanOrEqual(STARTER_SECTION_BOUNDS.min);
       expect(count, `${id}/${locale}: za dużo sekcji`).toBeLessThanOrEqual(STARTER_SECTION_BOUNDS.max);
+    }
+  });
+
+  it.each(STARTER_TEMPLATES)("%s: strona kończy się DOKŁADNIE jedną stopką", (id) => {
+    // Szablon startowy jest jedyną stroną, której operator nie składał sam —
+    // ma więc być kompletna, a strona bez stopki nie ma gdzie postawić noty
+    // o prawach ani godzin otwarcia. Dwie stopki są niereprezentowalne w
+    // bazie (unikat częściowy w 0047); tu bronimy drugiej połowy tej samej
+    // reguły: że w ogóle JEST i że stoi na końcu.
+    for (const locale of PRESET_LOCALES) {
+      const sections = starterTemplateSections(id, locale);
+      const footers = sections.filter((section) => section.type === "footer");
+      expect(footers.length, `${id}/${locale}: stopek na stronie`).toBe(1);
+      expect(sections.at(-1)?.type, `${id}/${locale}: stopka nie jest ostatnia`).toBe("footer");
     }
   });
 

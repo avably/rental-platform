@@ -17,7 +17,7 @@ import { notFound } from "next/navigation";
 
 import { toStorefrontProducts } from "@/lib/catalog/present";
 import { JsonLd } from "@/components/storefront/json-ld";
-import { StoreHeader } from "@/components/storefront/store-header";
+import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
@@ -100,13 +100,19 @@ export default async function TenantStorePage() {
   const hasHero = site?.sections.some((section) => section.type === "hero") ?? false;
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
+    /*
+      KORZEŃ STRONY NAJEMCY WYSTAWIA POWŁOKA, NIE RENDERER (K6, ADR-092).
+      Nagłówek sklepu stał do K6 obok korzenia, więc jako jedyny element sklepu
+      nie widział zmiennych motywu i brał paletę panelu. Teraz stoi w środku —
+      razem z sekcjami i z ekranem „sklep w budowie", który jest tą samą stroną
+      tego samego najemcy, tylko bez treści.
+    */
+    <StoreChrome style={style} copy={copy} storeName={catalog.tenant.name}>
       {origin ? <JsonLd data={businessJsonLd} /> : null}
       {!site || site.sections.length === 0 ? (
         <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-3 px-6 text-center">
-          <h1 className="text-2xl font-semibold">{catalog.tenant.name}</h1>
-          <p className="text-muted-foreground">{copy.siteLabels.productsEmpty}</p>
+          <h1 className={`text-2xl ${SITE_HEADING}`}>{catalog.tenant.name}</h1>
+          <p className="site-text-muted">{copy.siteLabels.productsEmpty}</p>
         </main>
       ) : (
         <main>
@@ -119,15 +125,21 @@ export default async function TenantStorePage() {
             sam, płótno kreatora przestałoby być dowodem na to, co widzi klient
             — a to jest cała stawka wspólnego renderera (ADR-083).
           */}
+          {/*
+            `asRoot={false}` — korzeń niesie już powłoka wyżej, tym SAMYM stylem.
+            Drugi korzeń znaczyłby drugi kontener zapytań `site` i podwójnie
+            liczoną szerokość, na której stoi responsywność sekcji (ADR-085).
+          */}
           <SiteRenderer
             sections={site.sections}
             style={style}
+            asRoot={false}
             products={products}
             labels={labels}
             siteImageBase={siteImageBase}
           />
         </main>
       )}
-    </>
+    </StoreChrome>
   );
 }

@@ -38,6 +38,8 @@ import {
   createElement,
   defaultSizeOf,
   freeSpotFor,
+  insertableSlots,
+  isPinnedLastType,
   presetContentFor,
   sectionCanvasFrom,
   type PaletteElementKind,
@@ -82,7 +84,7 @@ import { BuilderCanvas, type BuilderViewport, type ElementSelection } from "./bu
 import { BuilderPalette } from "./builder-palette";
 import { TemplateGallery } from "./template-gallery";
 import { ImagePicker } from "./image-picker";
-import { orderWithInsertedAt } from "./insert-position";
+import { insertIndexAtPointer, orderWithInsertedAt, type SectionBand } from "./insert-position";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
 import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
 
@@ -112,6 +114,14 @@ export function SiteBuilder({
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [selection, setSelection] = useState<ElementSelection | null>(null);
   const [picking, setPicking] = useState<ElementSelection | null>(null);
+  /**
+   * Miejsce, w które wejdzie sekcja przeciągana właśnie z palety (K6, ADR-092),
+   * albo `null`, gdy nic nie jest przeciągane. Stan żyje w SKORUPIE, bo to ona
+   * widzi jednocześnie paletę (źródło) i płótno (cel).
+   */
+  const [sectionDropIndex, setSectionDropIndex] = useState<number | null>(null);
+  /** Sekcja, która przyjmie przeciągany właśnie ELEMENT (K6, ADR-092). */
+  const [elementDropSectionId, setElementDropSectionId] = useState<string | null>(null);
   /**
    * GALERIA SZABLONÓW (K5 v2, ADR-090). Otwarta z automatu przy PIERWSZEJ
    * wizycie, czyli wtedy, gdy strona nie ma ani jednej sekcji: pusty kreator
@@ -220,6 +230,101 @@ export function SiteBuilder({
       return reorderSections(siteId, orderWithInsertedAt(orderedIds, added.sectionId, index));
     });
   }
+
+  /**
+   * PRZECIĄGNIĘCIE SEKCJI Z PALETY NA KONKRETNE MIEJSCE (K6, ADR-092).
+   *
+   * Do K6 paleta nie znała pojęcia „gdzie": kafel dokładał sekcję na KOŃCU,
+   * a wstawienie w środku miało osobną drogę („+" między sekcjami). Operator
+   * po przejściu kreatora na produkcji zgłosił to wprost — przeciąganie jest
+   * pierwszym odruchem, a jego brak każe budować stronę w dwóch krokach.
+   *
+   * Miara siedzi w SKORUPIE z tego samego powodu, co przy elementach (K3):
+   * paleta jest RODZEŃSTWEM płótna, więc jej gest nie sięga płótna, a płótno
+   * nie widzi kafla. Skorupa widzi oba.
+   *
+   * Pomiar idzie po DOM-ie, nie po propsach: płótno trzyma własny, optymistyczny
+   * stan kolejności (K1), więc lista z propsów potrafi być o jeden ruch do tyłu.
+   * Kolejność zmierzona z drzewa jest tą, którą operator MA PRZED OCZAMI — a
+   * podświetlony slot ma obiecywać dokładnie to, co widać.
+   */
+  function canvasBands(): { bands: SectionBand[]; ids: string[] } {
+    const nodes = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-builder-canvas] [data-canvas-section]"),
+    );
+    const bands: SectionBand[] = [];
+    const ids: string[] = [];
+    nodes.forEach((node) => {
+      const id = node.getAttribute("data-canvas-section");
+      if (!id) return;
+      const rect = node.getBoundingClientRect();
+      bands.push({ index: ids.length, top: rect.top, bottom: rect.bottom });
+      ids.push(id);
+    });
+    return { bands, ids };
+  }
+
+  /** Ile miejsc wstawienia ma strona — sekcja przypięta odbiera miejsce POD sobą. */
+  function slotsFor(ids: readonly string[]): number {
+    const known = ids
+      .map((id) => sections.find((section) => section.id === id))
+      .filter((section): section is EditorSection => Boolean(section))
+      .map((section) => ({ id: section.id, type: section.type }));
+    return insertableSlots(known);
+  }
+
+  /**
+   * Miejsce wstawienia pod kursorem — albo `null`, gdy kursor stoi POZA
+   * płótnem. Rozróżnienie jest istotne: puszczenie kafla nad paletą ma nie
+   * dodać niczego, a nie dodać na końcu strony.
+   */
+  function sectionDropIndexAt(pointer: { x: number; y: number }): number | null {
+    const overCanvas = document
+      .elementsFromPoint(pointer.x, pointer.y)
+      .some((node) => node instanceof HTMLElement && node.hasAttribute("data-builder-canvas"));
+    if (!overCanvas) return null;
+    const { bands, ids } = canvasBands();
+    return insertIndexAtPointer(bands, pointer.y, slotsFor(ids));
+  }
+
+  /**
+   * Sekcja pod kursorem przy przeciąganiu ELEMENTU. Ta sama miara, której
+   * używa `dropElementAt` przy puszczeniu — wskazanie i wynik muszą pochodzić
+   * z jednego pomiaru, inaczej obrys obiecuje sekcję, a element ląduje obok.
+   */
+  function elementDropTargetAt(pointer: { x: number; y: number }): string | null {
+    const grid = document
+      .elementsFromPoint(pointer.x, pointer.y)
+      .find((node): node is HTMLElement => node instanceof HTMLElement && node.hasAttribute("data-canvas-grid"));
+    const sectionId = grid?.closest<HTMLElement>("[data-canvas-section]")?.getAttribute("data-canvas-section");
+    if (!sectionId) return null;
+    // Sekcja usunięta w szkicu elementów nie przyjmuje (K5a) — nie obiecujemy
+    // celu, którego upuszczenie i tak odrzuci.
+    if (sections.find((section) => section.id === sectionId)?.deletedInDraft) return null;
+    return sectionId;
+  }
+
+  const sectionDrag = {
+    onDragMove: (pointer: { x: number; y: number }) => setSectionDropIndex(sectionDropIndexAt(pointer)),
+    onDragEnd: () => setSectionDropIndex(null),
+    onDrop: (type: SectionType, pointer: { x: number; y: number }) => {
+      const index = sectionDropIndexAt(pointer);
+      setSectionDropIndex(null);
+      if (index === null) return;
+      addSection(type, index, canvasBands().ids);
+    },
+  };
+
+  /**
+   * Typy, których na tej stronie nie da się dołożyć. Dziś dokładnie jeden
+   * przypadek: stopka, gdy strona ma już ŻYWĄ stopkę (unikat częściowy w 0047).
+   * Nagrobek się nie liczy — po jego usunięciu w szkicu nowa stopka wejdzie.
+   */
+  const unavailableTypes = sections.some(
+    (section) => isPinnedLastType(section.type) && !section.deletedInDraft,
+  )
+    ? (["footer"] as const)
+    : [];
 
   /**
    * Dodanie elementu KLIKNIĘCIEM kafla palety (K3). Trafia do sekcji, w której
@@ -449,9 +554,22 @@ export function SiteBuilder({
           onToggle={() => setPaletteOpen((open) => !open)}
           disabled={pending}
           style={style}
-          onAddSection={(type) => addSection(type, sections.length, sections.map((s) => s.id))}
+          // Klik kafla dokłada sekcję na końcu treści — czyli PRZED stopką,
+          // jeśli strona ją ma. Bez tego kliknięcie i przeciągnięcie kończyłyby
+          // się w dwóch różnych miejscach.
+          onAddSection={(type) =>
+            addSection(
+              type,
+              slotsFor(sections.map((s) => s.id)),
+              sections.map((s) => s.id),
+            )
+          }
           onAddElement={addElement}
           onDropElement={dropElementAt}
+          onDragElementOver={(pointer) => setElementDropSectionId(elementDropTargetAt(pointer))}
+          onDragElementEnd={() => setElementDropSectionId(null)}
+          onDragSection={sectionDrag}
+          unavailableSectionTypes={unavailableTypes}
           onSaveStyle={(next) => run(() => updateSiteStyle(siteId, next))}
         />
 
@@ -466,6 +584,8 @@ export function SiteBuilder({
             products={products}
             viewport={viewport}
             busy={pending}
+            dropIndex={sectionDropIndex}
+            dropSectionId={elementDropSectionId}
             run={run}
             reorderAction={(orderedIds) => reorderSections(siteId, orderedIds)}
             toggleAction={(section) => toggleSection(section.id, !section.enabled)}

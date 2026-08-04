@@ -24,8 +24,8 @@ import { notFound, redirect } from "next/navigation";
 import { createPaymentIntent, readConnectAccount, canAcceptCharges } from "@avably/core";
 
 import { PageShell } from "@/components/storefront/page-shell";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { PaymentStep } from "@/components/storefront/payment-step";
-import { StoreHeader } from "@/components/storefront/store-header";
 import { attachPaymentIntent } from "@/lib/checkout/attach-intent";
 import {
   readPublishableKey,
@@ -92,21 +92,18 @@ export default async function TenantPaymentPage() {
   });
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
-      <PageShell style={style}>
-        <h1 className="text-2xl font-semibold tracking-tight">{copy.payment.title}</h1>
-        <div className="mt-6">
-          <PaymentStep
-            preparation={preparation}
-            orderNumber={order.orderNumber}
-            amountGrosze={order.amountGrosze}
-            currency={currency}
-            locale={locale}
-            copy={copy}
-          />
-        </div>
-      </PageShell>
-    </>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+      <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.title}</h1>
+      <div className="mt-6">
+        <PaymentStep
+          preparation={preparation}
+          orderNumber={order.orderNumber}
+          amountGrosze={order.amountGrosze}
+          currency={currency}
+          locale={locale}
+          copy={copy}
+        />
+      </div>
+    </PageShell>
   );
 }

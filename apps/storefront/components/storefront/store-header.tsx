@@ -6,11 +6,16 @@
  * PO hydratacji — do tego czasu badge jest ukryty, żeby serwer i klient nie
  * rozjechały się na pierwszym renderze.
  *
- * Styl neutralny (tokeny bg-card/border), żeby leżał spójnie nad oboma
- * szablonami (classic „papier” i bold „ciemny”).
+ * KOLOR NIE JEST TU DECYZJĄ (K6, ADR-092). Nagłówek nosi wyłącznie ROLE
+ * (`site-header`, `site-title`, `site-nav-link`, `site-badge`), a wartości
+ * przychodzą ze zmiennych motywu z korzenia strony. Warunkiem jest to, że
+ * nagłówek stoi POD tym korzeniem — dlatego renderuje go `StoreChrome`, a nie
+ * trasa obok powłoki (poza korzeniem zmienne nie istnieją i te klasy są
+ * bezzębne).
  */
 import Link from "next/link";
 
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { cartItemCount } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
 import { format, type StorefrontCopy } from "@/lib/storefront/copy";
@@ -20,20 +25,17 @@ export function StoreHeader({ copy, storeName }: { copy: StorefrontCopy; storeNa
   const count = cartItemCount(cart);
 
   return (
-    <header className="border-b border-border bg-card">
+    <header className="site-header">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
-        <Link href="/store" className="text-lg font-semibold tracking-tight text-card-foreground">
+        <Link href="/store" className={`text-lg tracking-tight ${SITE_HEADING}`}>
           {storeName}
         </Link>
-        <Link
-          href="/cart"
-          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-muted"
-        >
+        <Link href="/cart" className="site-nav-link inline-flex items-center gap-2 text-sm font-medium">
           <span>{copy.nav.cart}</span>
           {hydrated && count > 0 ? (
             <span
               aria-label={format(copy.nav.cartCount, { count })}
-              className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground"
+              className="site-badge inline-flex min-w-6 items-center justify-center px-2 text-xs font-semibold"
             >
               {count}
             </span>

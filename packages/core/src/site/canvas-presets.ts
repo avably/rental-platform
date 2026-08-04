@@ -41,6 +41,7 @@ import type {
   DeliveryContent,
   DirectionsContent,
   FaqContent,
+  FooterContent,
   FreeformContent,
   GalleryContent,
   HeroContent,
@@ -529,6 +530,81 @@ function directionsCanvas(content: DirectionsContent): SectionCanvas {
   return finish(built);
 }
 
+/**
+ * STOPKA (K6, ADR-092) — dwie kolumny pod kreską: dane kontaktowe po lewej,
+ * linki pomocnicze po prawej, nota o prawach na dole na pełnym pasie.
+ *
+ * Kreska (`divider`) powstaje PIERWSZA i celowo stoi nad treścią, a nie pod
+ * nią: stopka wchodzi po sekcji, która skończyła się dowolnie wysoko, więc to
+ * kreska ma odciąć ją od reszty strony. Odstęp startowy jest większy niż `TOP`
+ * z tego samego powodu — stopka doklejona do poprzedniej sekcji czyta się jak
+ * jej dalszy ciąg.
+ */
+function footerCanvas(content: FooterContent): SectionCanvas {
+  const built = draft("footer");
+  const inner = COL2_W - 2;
+
+  built.add({
+    kind: "shape",
+    shape: "divider",
+    fill: "none",
+    geometry: geometry(CONTENT_X, TOP, CONTENT_W, 1),
+  });
+
+  let left = TOP + 6;
+  const nameRows = textRows(content.businessName, "title", inner);
+  built.add({
+    kind: "heading",
+    text: content.businessName,
+    level: 3,
+    align: "left",
+    geometry: geometry(CONTENT_X, left, inner, nameRows, 1),
+  });
+  left += nameRows + 2;
+
+  for (const line of [content.address, content.phone, content.email, content.hours]) {
+    if (!line) continue;
+    const rows = textRows(line, "small", inner);
+    built.add({
+      kind: "text",
+      text: line,
+      variant: "small",
+      align: "left",
+      geometry: geometry(CONTENT_X, left, inner, rows, 1),
+    });
+    left += rows + 1;
+  }
+
+  // Linki niosą adres, a jedynym rodzajem elementu z adresem jest przycisk —
+  // stąd `outline` w kolumnie, a nie tekst z runą linku: runa żyje w treści
+  // akapitu, a to jest nawigacja, nie zdanie.
+  let right = TOP + 6;
+  for (const link of content.links ?? []) {
+    built.add({
+      kind: "button",
+      label: link.label,
+      href: link.href,
+      variant: "outline",
+      align: "left",
+      geometry: geometry(columnX(1, 2), right, inner, 7, 1),
+      hug: true,
+    });
+    right += 9;
+  }
+
+  const legalTop = Math.max(left, right) + 3;
+  const legalRows = textRows(content.legal, "small", CONTENT_W);
+  built.add({
+    kind: "text",
+    text: content.legal,
+    variant: "small",
+    align: "left",
+    geometry: geometry(CONTENT_X, legalTop, CONTENT_W, legalRows, 1),
+  });
+
+  return finish(built, "muted");
+}
+
 function deliveryCanvas(content: DeliveryContent): SectionCanvas {
   const built = draft("delivery");
   let y = addSectionHeading(built, content.heading, TOP);
@@ -601,6 +677,8 @@ export function sectionCanvasFrom(type: SectionType, content: SectionContent): S
       return directionsCanvas(content as DirectionsContent);
     case "delivery":
       return deliveryCanvas(content as DeliveryContent);
+    case "footer":
+      return footerCanvas(content as FooterContent);
     default: {
       const exhaustive: never = type;
       return exhaustive;

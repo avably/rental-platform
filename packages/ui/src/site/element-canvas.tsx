@@ -531,6 +531,7 @@ export function SectionCanvasRenderer({
   siteImageBase,
   elementWrapper,
   mobile = mobileLayoutOf(canvas),
+  as = "section",
 }: {
   canvas: SectionCanvas;
   styles: TemplateStyles;
@@ -553,11 +554,19 @@ export function SectionCanvasRenderer({
    * jak wygląda strona.
    */
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
+  /**
+   * ZNACZNIK POWŁOKI (K6, ADR-092). Płótno jest jedno dla wszystkich typów
+   * sekcji, ale nie każda sekcja jest `<section>`: stopka to ROLA W DOKUMENCIE
+   * i czytnik ekranu ma prawo ją znaleźć jako `contentinfo`. Rozstrzyga o tym
+   * TYP sekcji, który zna wołający — płótno o typie nie wie i wiedzieć nie musi.
+   */
+  as?: "section" | "footer";
 }) {
   const bleeding = paintOrder(canvas.elements).filter(bleedsToEdges);
+  const Shell = as;
 
   return (
-    <section
+    <Shell
       data-section-canvas={canvas.version}
       className={cn("relative overflow-hidden", backgroundClass(canvas, styles))}
     >
@@ -684,6 +693,6 @@ export function SectionCanvasRenderer({
           );
         })}
       </div>
-    </section>
+    </Shell>
   );
 }

@@ -3,10 +3,12 @@
 /**
  * LEWA PALETA KREATORA (K1, ADR-083) — dwie zakładki i stopka szablonu.
  *
- * „Sekcje" to TA SAMA galeria 12 typów z presetami, co modal „+" na płótnie
- * (`SectionTypeGallery`) — jedna siatka, dwa opakowania. Kliknięcie kafla w
- * palecie dokłada sekcję na KOŃCU strony; wstawienie w środku ma własną drogę
- * („+" między sekcjami), bo to inna intencja, a nie inny sposób.
+ * „Sekcje" to TA SAMA galeria typów z presetami, co modal „+" na płótnie
+ * (`SectionTypeGallery`) — jedna siatka, dwa opakowania. Kafel ma odtąd (K6,
+ * ADR-092) DWIE drogi, tak samo jak kafel elementu od K3: kliknięcie dokłada
+ * sekcję na końcu treści, a PRZECIĄGNIĘCIE wstawia ją w podświetlone miejsce
+ * między sekcjami. Klik zostaje, bo przeciąganie nie ma odpowiednika
+ * klawiaturowego — a „+" między sekcjami zostaje, bo jest drogą bez myszy.
  *
  * „Elementy" (K3, ADR-086) to kafle przeciągane NA sekcję albo dokładane
  * kliknięciem — patrz `element-palette.tsx`. Do K2 zakładka była jawną
@@ -33,7 +35,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
-import { SectionTypeGallery } from "@/app/[locale]/(panel)/strona/add-section-gallery";
+import { SectionTypeGallery, type SectionDragHandlers } from "@/app/[locale]/(panel)/strona/add-section-gallery";
 import { PanelSelect } from "@/components/fields/panel-select";
 
 import { ElementPalette } from "./element-palette";
@@ -48,6 +50,10 @@ export function BuilderPalette({
   onAddSection,
   onAddElement,
   onDropElement,
+  onDragElementOver,
+  onDragElementEnd,
+  onDragSection,
+  unavailableSectionTypes,
   onSaveStyle,
 }: {
   open: boolean;
@@ -60,6 +66,18 @@ export function BuilderPalette({
   onAddElement: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM (K3). */
   onDropElement: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
+  /** Ruch kafla ELEMENTU nad płótnem — wskaż sekcję, która go przyjmie (K6). */
+  onDragElementOver: (pointer: { x: number; y: number }) => void;
+  /** Koniec gestu kafla elementu — zdejmij wskazanie (K6). */
+  onDragElementEnd: () => void;
+  /**
+   * Przeciągnięcie kafla SEKCJI na płótno (K6, ADR-092). Paleta sama nie liczy
+   * miejsca wstawienia — nie widzi płótna; przekazuje surowe współrzędne
+   * skorupie, która widzi oba.
+   */
+  onDragSection: SectionDragHandlers;
+  /** Typy, których strona nie przyjmie drugi raz (dziś: stopka) — ADR-092. */
+  unavailableSectionTypes: readonly SectionType[];
   /** Zapis stylu — CAŁY stan, nie pojedyncze pole (scalanie robi akcja). */
   onSaveStyle: (style: ResolvedSiteStyle) => void;
 }) {
@@ -117,7 +135,13 @@ export function BuilderPalette({
           className="flex flex-col gap-2"
         >
           <p className="text-muted-foreground text-[13px] leading-[18px]">{t("builder.tabSectionsHint")}</p>
-          <SectionTypeGallery columns="single" disabled={disabled} onAdd={onAddSection} />
+          <SectionTypeGallery
+            columns="single"
+            disabled={disabled}
+            onAdd={onAddSection}
+            drag={onDragSection}
+            unavailable={unavailableSectionTypes}
+          />
         </div>
       ) : (
         <div
@@ -126,7 +150,13 @@ export function BuilderPalette({
           aria-labelledby={`${idPrefix}-tab-elements`}
           data-palette-elements
         >
-          <ElementPalette disabled={disabled} onAdd={onAddElement} onDrop={onDropElement} />
+          <ElementPalette
+            disabled={disabled}
+            onAdd={onAddElement}
+            onDrop={onDropElement}
+            onDragOver={onDragElementOver}
+            onDragEnd={onDragElementEnd}
+          />
         </div>
       )}
 

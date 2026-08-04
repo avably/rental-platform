@@ -53,12 +53,22 @@ export function ElementPalette({
   disabled,
   onAdd,
   onDrop,
+  onDragOver,
+  onDragEnd,
 }: {
   disabled: boolean;
   /** Kliknięcie kafla — element ląduje pod treścią wybranej sekcji. */
   onAdd: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM. */
   onDrop: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
+  /**
+   * Ruch nad płótnem (K6, ADR-092) — ma wskazać SEKCJĘ, która przyjmie element.
+   * Do K6 upuszczenie było „w ciemno": operator widział wynik dopiero po
+   * puszczeniu i przy chybieniu musiał cofać.
+   */
+  onDragOver: (pointer: { x: number; y: number }) => void;
+  /** Koniec albo przerwanie gestu — zdejmij wskazanie. */
+  onDragEnd: () => void;
 }) {
   const t = useTranslations("site");
 
@@ -68,7 +78,14 @@ export function ElementPalette({
       <ul className="grid list-none grid-cols-2 gap-2 p-0">
         {PALETTE_ELEMENT_KINDS.map((kind) => (
           <li key={kind}>
-            <PaletteTile kind={kind} disabled={disabled} onAdd={() => onAdd(kind)} onDrop={onDrop} />
+            <PaletteTile
+              kind={kind}
+              disabled={disabled}
+              onAdd={() => onAdd(kind)}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragEnd={onDragEnd}
+            />
           </li>
         ))}
       </ul>
@@ -81,11 +98,15 @@ function PaletteTile({
   disabled,
   onAdd,
   onDrop,
+  onDragOver,
+  onDragEnd,
 }: {
   kind: PaletteElementKind;
   disabled: boolean;
   onAdd: () => void;
   onDrop: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
+  onDragOver: (pointer: { x: number; y: number }) => void;
+  onDragEnd: () => void;
 }) {
   const t = useTranslations("site");
   const Icon = TILE_ICONS[kind];
@@ -118,13 +139,15 @@ function PaletteTile({
         moved = true;
         setDragging(true);
       }
+      if (moved) onDragOver({ x: pointer.clientX, y: pointer.clientY });
     };
     const finish = (pointer: PointerEvent) => {
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", finish);
       target.removeEventListener("pointercancel", finish);
       setDragging(false);
-      if (moved) onDrop(kind, { x: pointer.clientX, y: pointer.clientY });
+      onDragEnd();
+      if (moved && pointer.type !== "pointercancel") onDrop(kind, { x: pointer.clientX, y: pointer.clientY });
     };
 
     target.addEventListener("pointermove", move);

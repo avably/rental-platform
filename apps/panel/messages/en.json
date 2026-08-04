@@ -1034,7 +1034,8 @@
       "confirmRemoveBodyPublished": "The section leaves the customer-facing page only on your next publish — until then you can restore it in the builder.",
       "confirmRemoveBodyDraft": "This section has never been published — it disappears right away and cannot be restored.",
       "confirmRemove": "Delete section",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "alreadyOnPage": "The page already has this section."
     },
     "sectionTypes": {
       "hero": "Hero banner",
@@ -1048,7 +1049,8 @@
       "usp": "Highlights",
       "cta": "Call to action",
       "directions": "Directions",
-      "delivery": "Delivery"
+      "delivery": "Delivery",
+      "footer": "Footer"
     },
     "sectionTypeDescriptions": {
       "hero": "Large welcome banner with a heading and button.",
@@ -1062,7 +1064,8 @@
       "usp": "Tiles highlighting your strengths with icons.",
       "cta": "A banner with one clear call-to-action button.",
       "directions": "Address, hours and a map link.",
-      "delivery": "Information about delivery and pickup."
+      "delivery": "Information about delivery and pickup.",
+      "footer": "Contact details, hours, links and a rights notice — always at the end of the page."
     },
     "uspIcons": {
       "truck": "Truck",

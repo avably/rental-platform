@@ -73,6 +73,19 @@ describe("arkusz panelu maluje KAŻDĄ rolę warstwy edycyjnej", () => {
     expect(edycja!).toContain("--builder-selection");
   });
 
+  it("WSKAZANIE MIEJSCA UPUSZCZENIA jest malowane (K6, ADR-092)", () => {
+    // Ta sama luka, co przy zaznaczeniu: belka i obrys celu żyją WYŁĄCZNIE
+    // w CSS, więc skasowanie reguły zostawia kreator, w którym przeciąganie
+    // działa, ale nic nie pokazuje — a testy komponentów tego nie widzą.
+    const belka = regula("[data-insert-slot][data-insert-active=\"on\"] [data-insert-target]");
+    expect(belka, "brak belki wskazującej miejsce wstawienia sekcji").not.toBeNull();
+    expect(belka!, "belka celu spoza tokenu warstwy").toContain("--builder-selection");
+
+    const cel = regula("[data-canvas-section][data-drop-target=\"on\"]");
+    expect(cel, "brak obrysu sekcji przyjmującej element").not.toBeNull();
+    expect(cel!, "obrys celu spoza tokenu warstwy").toContain("--builder-selection");
+  });
+
   it("element odłączony na telefonie ma własny wariant obrysu", () => {
     expect(regula('[data-element-frame][data-element-detached="on"]')).not.toBeNull();
   });
@@ -86,6 +99,8 @@ describe("arkusz panelu maluje KAŻDĄ rolę warstwy edycyjnej", () => {
       "[data-resize-handle]",
       '[data-section-outline="on"]',
       "[data-inline-editor]",
+      '[data-insert-slot][data-insert-active="on"] [data-insert-target]',
+      '[data-canvas-section][data-drop-target="on"]',
     ]) {
       expect(regula(selektor)!, `${selektor} sięga po zmienną motywu strony`).not.toMatch(
         /var\(--site-/,

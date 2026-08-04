@@ -15,7 +15,6 @@ import { toProductDetail } from "@/lib/catalog/present";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { ProductDetail } from "@/components/storefront/product-detail";
 import { PageShell } from "@/components/storefront/page-shell";
-import { StoreHeader } from "@/components/storefront/store-header";
 import { productJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
@@ -87,17 +86,14 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
     : null;
 
   return (
-    <>
-      <StoreHeader copy={copy} storeName={catalog.tenant.name} />
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
       {productLd ? <JsonLd data={productLd} /> : null}
-      <PageShell style={style}>
-        <Link href="/store" className="text-sm text-muted-foreground underline underline-offset-4">
-          {copy.common.backToCatalog}
-        </Link>
-        <div className="mt-6">
-          <ProductDetail product={product} copy={copy} locale={locale} currency={currency} />
-        </div>
-      </PageShell>
-    </>
+      <Link href="/store" className="site-link text-sm">
+        {copy.common.backToCatalog}
+      </Link>
+      <div className="mt-6">
+        <ProductDetail product={product} copy={copy} locale={locale} currency={currency} />
+      </div>
+    </PageShell>
   );
 }

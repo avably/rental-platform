@@ -20,11 +20,13 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
+  normalizeSectionOrder,
   starterPhoto,
   starterTemplateCanvases,
   starterTemplatePhotoSlots,
   starterTemplateTheme,
   tenantCacheTag,
+  type SectionType,
   type StarterTemplate,
 } from "@avably/core/site";
 
@@ -188,8 +190,75 @@ export async function upsertSection(
     return { ok: false, error: error?.code === "23503" ? "Nie znaleziono strony." : (error?.message ?? "Nie udało się dodać sekcji.") };
   }
 
+  /*
+   * SEKCJA PRZYPIĘTA MUSI ZOSTAĆ OSTATNIA JUŻ TU (K6-delta, ADR-092).
+   *
+   * Wstawka idzie na `max(position) + 1`, czyli POD STOPKĘ. Do delty prostował
+   * to dopiero krok drugi po stronie klienta (`reorderSections` z kompletem
+   * pozycji) — a ten krok bywa przegrany: dwa szybkie kliknięcia w kafel palety
+   * puszczają dwa `addSection` w locie (zapisy strukturalne przestały blokować
+   * kreator w #172), więc drugi reorder liczy plan na stanie klienta, który nie
+   * zna sekcji dodanej przez pierwszy. Efekt zgłoszony przez PM: obie nowe
+   * sekcje trwale pod stopką w szkicu, do najbliższej operacji strukturalnej.
+   *
+   * Odtąd niezmiennik nie zależy od tego, czy krok drugi w ogóle dojdzie:
+   * przenumerowanie liczy się ze STANU BAZY, tuż po wstawce.
+   */
+  const pinned = await renumberFromDatabase(ctx, siteId);
+  if (!pinned.ok) return pinned;
+
   revalidatePath("/", "layout");
   return { ok: true, sectionId: created.id as string };
+}
+
+/**
+ * PRZENUMEROWANIE POZYCJI ZE STANU BAZY (K6-delta, ADR-092).
+ *
+ * Jedno miejsce, w którym powstaje kolejność zapisana, gdy wołający nie ma
+ * własnego zdania o niej (wstawka). Czyta komplet sekcji strony PRAWDZIWY
+ * w chwili wywołania, przepuszcza go przez `normalizeSectionOrder` (sekcje
+ * przypięte na koniec) i zapisuje pozycje.
+ *
+ * Dlaczego to nie jest to samo, co normalizacja w `reorderSections`: tam
+ * kolejność ZWYKŁYCH sekcji przychodzi od operatora i ma zostać uszanowana;
+ * tutaj nie ma czego szanować — jedynym pytaniem jest, czy przypięte stoją na
+ * końcu. Wspólna funkcja z parametrem „czyja kolejność" odpowiadałaby na dwa
+ * różne pytania naraz.
+ */
+async function renumberFromDatabase(ctx: Ctx, siteId: string): Promise<SiteActionResult> {
+  const { data, error } = await ctx.supabase
+    .from("site_sections")
+    .select("id, type, position")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("site_id", siteId)
+    .order("position", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) return { ok: false, error: error.message };
+
+  const known = (data ?? []).map((row) => ({
+    id: row.id as string,
+    type: row.type as SectionType,
+    position: row.position as number,
+  }));
+  const ordered = normalizeSectionOrder(
+    known.map((row) => row.id),
+    known,
+  );
+
+  // Piszemy WYŁĄCZNIE wiersze, których pozycja naprawdę się zmienia — przy
+  // stronie już poprawnej ta funkcja nie robi ani jednego zapytania zapisu.
+  const now = new Date().toISOString();
+  for (const [position, id] of ordered.entries()) {
+    if (known.find((row) => row.id === id)?.position === position) continue;
+    const { error: writeError } = await ctx.supabase
+      .from("site_sections")
+      .update({ position, updated_at: now })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("site_id", siteId)
+      .eq("id", id);
+    if (writeError) return { ok: false, error: writeError.message };
+  }
+  return { ok: true };
 }
 
 /** Nowa kolejność sekcji strony — orderedIds musi być permutacją kompletu (patrz reorderPlan). */
@@ -207,14 +276,57 @@ export async function reorderSections(
 
   const { data: current, error: readError } = await ctx.supabase
     .from("site_sections")
-    .select("id")
+    .select("id, type")
     .eq("tenant_id", ctx.tenantId)
     .eq("site_id", parsed.data.siteId);
   if (readError) return { ok: false, error: readError.message };
 
+  /*
+   * PRZYPIĘCIE STOPKI JEST NORMALIZACJĄ, NIE ODMOWĄ (K6, ADR-092).
+   *
+   * Kolejność ze stopką w środku strony nie jest atakiem ani błędem klienta —
+   * bywa zwykłym skutkiem przeciągnięcia sekcji pod nią. Odrzucenie zapisu
+   * zostawiłoby operatora z komunikatem zamiast wyniku; normalizacja daje mu
+   * dokładnie to, co widział na płótnie: sekcję NAD stopką.
+   *
+   * Reguła stoi po stronie SERWERA, a nie tylko w płótnie, bo płótno jest jedną
+   * z dróg zapisu, nie jedyną — klient, który wyśle kolejność własnym żądaniem,
+   * ma dostać stronę z tym samym niezmiennikiem.
+   */
+  const known = (current ?? []).map((row) => ({
+    id: row.id as string,
+    type: row.type as SectionType,
+  }));
+
+  /*
+   * ŻĄDANIE NIEPEŁNE TO WYŚCIG, NIE BŁĄD — ŻĄDANIE OBCE TO BŁĄD (K6-delta).
+   *
+   * Do delty bramką był `reorderPlan(komplet, żądanie)`, czyli wymóg DOKŁADNEJ
+   * permutacji. To odrzucało jednym komunikatem dwa różne zdarzenia:
+   *
+   *   • sekcję, której klient nie mógł znać, bo powstała po jego odczycie (dwa
+   *     `addSection` w locie) — zdarzenie NORMALNE, a odmowa zostawiała świeżą
+   *     sekcję na `max(position) + 1`, czyli POD STOPKĄ, na stałe;
+   *   • identyfikator spoza tej strony — zdarzenie, które ma zostać odmówione
+   *     (macierz izolacji: reorder cudzej strony nie ma prawa się udać).
+   *
+   * Rozdzielamy je: nieznany identyfikator = odmowa (dla cudzej strony komplet
+   * znanych jest PUSTY, więc odmowa izolacji zostaje bez zmian), identyfikator
+   * BRAKUJĄCY = uzupełnienie ze stanu bazy. Uzupełnia `normalizeSectionOrder`,
+   * dopisując nieznane klientowi sekcje w kolejności kompletu — i, jak zawsze,
+   * przypięte na koniec.
+   */
+  if (new Set(parsed.data.orderedIds).size !== parsed.data.orderedIds.length) {
+    return { ok: false, error: "Kolejność zawiera zduplikowane sekcje." };
+  }
+  const knownIds = new Set(known.map((row) => row.id));
+  if (parsed.data.orderedIds.some((id) => !knownIds.has(id))) {
+    return { ok: false, error: "Kolejność obejmuje sekcje spoza tej strony — odśwież edytor." };
+  }
+
   const plan = reorderPlan(
-    (current ?? []).map((row) => row.id as string),
-    parsed.data.orderedIds,
+    known.map((row) => row.id),
+    normalizeSectionOrder(parsed.data.orderedIds, known),
   );
   if (!plan.ok) return plan;
 
@@ -377,9 +489,11 @@ export async function duplicateSection(
   if (!original) return { ok: false, error: "Nie znaleziono sekcji." };
 
   // Komplet sekcji strony w kolejności — do limitu i do przenumerowania niżej.
+  // TYP jedzie razem z identyfikatorem, bo przenumerowanie musi wiedzieć, które
+  // sekcje są PRZYPIĘTE (K6-delta, ADR-092).
   const { data: siblings, error: siblingsError } = await ctx.supabase
     .from("site_sections")
-    .select("id")
+    .select("id, type")
     .eq("tenant_id", ctx.tenantId)
     .eq("site_id", original.site_id)
     .order("position", { ascending: true })
@@ -411,16 +525,30 @@ export async function duplicateSection(
       error:
         insertError?.code === "23503"
           ? "Nie znaleziono strony."
-          : (insertError?.message ?? "Nie udało się zduplikować sekcji."),
+          : // 23505 = unikat jednej ŻYWEJ stopki (0047). Duplikat stopki jest
+            // niereprezentowalny z definicji, więc odmowa ma to powiedzieć.
+            insertError?.code === "23505"
+            ? "Strona może mieć tylko jedną stopkę."
+            : (insertError?.message ?? "Nie udało się zduplikować sekcji."),
     };
   }
   const newId = created.id as string;
 
-  // Przenumerowanie: kopia ląduje tuż za oryginałem, reszta zachowuje kolejność.
+  // Przenumerowanie: kopia ląduje tuż za oryginałem, reszta zachowuje kolejność,
+  // a sekcje PRZYPIĘTE i tak schodzą na koniec (K6-delta) — duplikat sekcji
+  // stojącej tuż nad stopką nie ma prawa wylądować pod nią.
   // Seria UPDATE-ów (przejściowe duplikaty position legalne — 0019); częściowa
   // awaria psuje najwyżej kolejność (odwracalną kolejnym reorderem), nie treść.
-  const order = (siblings ?? []).map((row) => row.id as string);
-  order.splice(order.indexOf(original.id as string) + 1, 0, newId);
+  const rodzenstwo = (siblings ?? []).map((row) => ({
+    id: row.id as string,
+    type: row.type as SectionType,
+  }));
+  const wanted = rodzenstwo.map((row) => row.id);
+  wanted.splice(wanted.indexOf(original.id as string) + 1, 0, newId);
+  const order = normalizeSectionOrder(wanted, [
+    ...rodzenstwo,
+    { id: newId, type: original.type as SectionType },
+  ]);
   const now = new Date().toISOString();
   for (let position = 0; position < order.length; position++) {
     const { error } = await ctx.supabase

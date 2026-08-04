@@ -9,13 +9,18 @@
  * produktu ustawia zakres dat koszyka na wybrany tu termin. Podgląd ceny liczy
  * calculatePrice (@avably/core) — to SZACUNEK; wiążącą kwotę policzy serwer przy
  * składaniu zamówienia (ADR-042).
+ *
+ * WYGLĄD Z MOTYWU NAJEMCY (K6, ADR-092): podstrona nosi role, nie kolory.
+ * Pola i przyciski są ZWYKŁYMI elementami HTML, nie komponentami `@avably/ui` —
+ * tamte wnoszą własne tokeny panelu, których skan źródeł tego pliku nie widzi,
+ * więc gwarancja „bez palety panelu" byłaby pozorna.
  */
 import { calculatePrice, formatMoney, type CurrencyCode } from "@avably/core";
-import { Button, Input, Label } from "@avably/ui";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { checkAvailability } from "@/lib/actions/availability";
+import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { MAX_QUANTITY_PER_PRODUCT } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
 import type { ProductDetailView } from "@/lib/catalog/present";
@@ -117,7 +122,7 @@ export function ProductDetail({
             <img
               src={product.images[activeImage]!.url}
               alt={product.images[activeImage]!.alt}
-              className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
+              className="site-media aspect-[4/3] w-full object-cover"
             />
             {product.images.length > 1 ? (
               <ul className="flex list-none flex-wrap gap-2 p-0">
@@ -129,7 +134,14 @@ export function ProductDetail({
                       // Przełącznik zdjęcia w galerii, nie wskazanie pozycji
                       // nawigacji — stąd aria-pressed zamiast aria-current.
                       aria-pressed={index === activeImage}
-                      className={`overflow-hidden rounded-md border ${index === activeImage ? "border-primary" : "border-border"}`}
+                      // Zaznaczenie miniatury idzie AKCENTEM motywu, a nie
+                      // kolorem panelu — obrys jako `outline`, żeby grubość
+                      // ramki nie przesuwała sąsiadów przy przełączaniu.
+                      className={`site-media block cursor-pointer outline-offset-1 ${
+                        index === activeImage
+                          ? "outline-2 outline-[color:var(--site-accent)]"
+                          : "outline-1 outline-[color:var(--site-border)]"
+                      }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={image.url} alt={image.alt} className="h-16 w-16 object-cover" />
@@ -140,47 +152,53 @@ export function ProductDetail({
             ) : null}
           </>
         ) : (
-          <div className="aspect-[4/3] w-full rounded-lg bg-muted" aria-hidden="true" />
+          <div className="site-placeholder aspect-[4/3] w-full" aria-hidden="true" />
         )}
       </div>
 
       {/* Treść + akcja */}
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{product.name}</h1>
-          <p className="mt-2 text-lg text-muted-foreground">{product.basePriceLabel}</p>
-          <p className="text-sm text-muted-foreground">
+          <h1 className={`text-3xl tracking-tight ${SITE_HEADING}`}>{product.name}</h1>
+          <p className="site-text-muted mt-2 text-lg">{product.basePriceLabel}</p>
+          <p className="site-text-muted text-sm">
             {copy.product.depositLabel}: {product.depositFormatted}
           </p>
         </div>
 
         {product.description ? (
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="site-text-muted text-sm font-semibold uppercase tracking-wide">
               {copy.product.descriptionHeading}
             </h2>
             <p className="mt-1 whitespace-pre-line leading-7">{product.description}</p>
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-border p-4">
+        <div className="site-card p-4">
           <p className="font-medium">{copy.product.chooseDates}</p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="grid gap-1">
-              <Label htmlFor="rent-start">{copy.product.startDate}</Label>
-              <Input
+              <label htmlFor="rent-start" className="site-label text-sm">
+                {copy.product.startDate}
+              </label>
+              <input
                 id="rent-start"
                 type="date"
+                className="site-field h-9 w-full px-3 text-sm"
                 min={todayIso()}
                 value={start}
                 onChange={(event) => resetOnDateChange({ start: event.target.value })}
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor="rent-end">{copy.product.endDate}</Label>
-              <Input
+              <label htmlFor="rent-end" className="site-label text-sm">
+                {copy.product.endDate}
+              </label>
+              <input
                 id="rent-end"
                 type="date"
+                className="site-field h-9 w-full px-3 text-sm"
                 min={start || todayIso()}
                 value={end}
                 onChange={(event) => resetOnDateChange({ end: event.target.value })}
@@ -189,22 +207,21 @@ export function ProductDetail({
           </div>
 
           {rangeInverted ? (
-            <p className="mt-2 text-sm text-destructive">{copy.product.dateRangeInvalid}</p>
+            <p className="site-error mt-2 text-sm">{copy.product.dateRangeInvalid}</p>
           ) : null}
 
-          <Button
+          <button
             type="button"
-            variant="outline"
-            className="mt-3"
+            className="site-cta-secondary mt-3 cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!rangeValid || availability.kind === "loading"}
             onClick={onCheck}
           >
             {availability.kind === "loading" ? copy.product.availabilityChecking : copy.product.checkAvailability}
-          </Button>
+          </button>
 
           <div className="mt-3 min-h-6 text-sm" role="status" aria-live="polite">
             {availability.kind === "ok" && availability.available > 0 ? (
-              <span className="text-foreground">
+              <span>
                 {format(copy.product.available, {
                   available: availability.available,
                   total: availability.total,
@@ -212,18 +229,20 @@ export function ProductDetail({
               </span>
             ) : null}
             {availability.kind === "ok" && availability.available === 0 ? (
-              <span className="text-destructive">{copy.product.unavailable}</span>
+              <span className="site-error">{copy.product.unavailable}</span>
             ) : null}
             {availability.kind === "error" ? (
-              <span className="text-destructive">{copy.product.availabilityError}</span>
+              <span className="site-error">{copy.product.availabilityError}</span>
             ) : null}
           </div>
 
           {availability.kind === "ok" && availability.available > 0 ? (
             <div className="mt-3 grid gap-3">
               <div className="grid gap-1">
-                <Label htmlFor="rent-qty">{copy.product.quantity}</Label>
-                <Input
+                <label htmlFor="rent-qty" className="site-label text-sm">
+                  {copy.product.quantity}
+                </label>
+                <input
                   id="rent-qty"
                   type="number"
                   min={1}
@@ -234,28 +253,33 @@ export function ProductDetail({
                     if (Number.isNaN(parsed)) return setQuantity(1);
                     setQuantity(Math.min(Math.max(1, parsed), maxQty));
                   }}
-                  className="w-24"
+                  className="site-field h-9 w-24 px-3 text-sm"
                 />
               </div>
               {preview ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="site-text-muted text-sm">
                   {copy.checkout.summaryRental}: {formatMoney(preview.rental, currency, locale)} ·{" "}
                   {copy.checkout.summaryDeposit}: {formatMoney(preview.deposit, currency, locale)}
                 </p>
               ) : null}
-              <p className="text-xs text-muted-foreground">{copy.common.estimateNote}</p>
+              <p className="site-text-muted text-xs">{copy.common.estimateNote}</p>
             </div>
           ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" disabled={!canAdd} onClick={onAdd}>
+          <button
+            type="button"
+            className="site-cta cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canAdd}
+            onClick={onAdd}
+          >
             {copy.product.addToCart}
-          </Button>
+          </button>
           {added ? (
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="site-text-muted inline-flex items-center gap-2 text-sm">
               {copy.product.added} ·{" "}
-              <Link href="/cart" className="font-medium underline underline-offset-4">
+              <Link href="/cart" className="site-link font-medium">
                 {copy.product.goToCart}
               </Link>
             </span>
@@ -263,7 +287,7 @@ export function ProductDetail({
         </div>
 
         {!rangeValid ? (
-          <p className="text-sm text-muted-foreground">{copy.product.dateRequired}</p>
+          <p className="site-text-muted text-sm">{copy.product.dateRequired}</p>
         ) : null}
       </div>
     </div>
