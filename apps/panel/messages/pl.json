@@ -1200,8 +1200,7 @@
       "image": "Obraz",
       "icon": "Ikona",
       "shape": "Kształt",
-      "catalog": "Katalog produktów",
-      "mapLink": "Mapa (link)"
+      "catalog": "Katalog produktów"
     },
     "elements": {
       "toFront": "Na wierzch",
@@ -1262,8 +1261,6 @@
       "icon": "Ikona",
       "image": "Zdjęcie",
       "changeImage": "Zmień zdjęcie",
-      "address": "Adres",
-      "mapUrl": "Adres do map",
       "hugWidth": "Szerokość do treści",
       "hugHeight": "Wysokość do treści"
     },
@@ -1347,6 +1344,38 @@
       "cancel": "Anuluj",
       "switchBodySelf": "Sklep pokaże tę stronę w aktualnej wersji — razem ze zmianami, które w niej zrobiłeś.",
       "notLive": "Nie jest widoczna w sklepie — pracujesz nad nią w panelu."
+    },
+    "structured": {
+      "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",
+      "layout": "Układ sekcji",
+      "heading": "Nagłówek sekcji (opcjonalny)",
+      "dragHandle": "Przeciągnij, żeby zmienić kolejność",
+      "moveUp": "Przenieś wyżej",
+      "moveDown": "Przenieś niżej",
+      "removeItem": "Usuń wpis",
+      "removeTitle": "Usunąć ten wpis?",
+      "removeCancel": "Zostaw",
+      "removeConfirm": "Usuń wpis",
+      "openSettings": "Otwórz ustawienia sekcji",
+      "convertTitle": "Sekcje 2.0",
+      "convertBody": "Wstawimy pod spodem nową sekcję tego typu z pełną mechaniką. Starą zostawiamy nietkniętą — przepisz do niej treść i usuń ją, kiedy skończysz.",
+      "convertAction": "Przełącz na sekcję 2.0",
+      "faq": {
+        "itemsTitle": "Pytania i odpowiedzi",
+        "addItem": "Dodaj pytanie",
+        "removeBody": "Pytanie i odpowiedź znikną z tej sekcji. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "q": "Pytanie",
+          "a": "Odpowiedź"
+        },
+        "layouts": {
+          "accordion": "Rozwijane odpowiedzi",
+          "open-list": "Lista otwarta"
+        },
+        "toggles": {
+          "allowMultiple": "Pozwól otworzyć wiele odpowiedzi naraz"
+        }
+      }
     }
   },
   "domainSettings": {

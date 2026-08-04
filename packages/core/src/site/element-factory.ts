@@ -35,7 +35,6 @@ const DEFAULT_SIZE: Record<PaletteElementKind, { w: number; h: number }> = {
   image: { w: 48, h: 36 },
   icon: { w: 6, h: 6 },
   shape: { w: 40, h: 12 },
-  mapLink: { w: 48, h: 10 },
 };
 
 const COPY: Record<PresetLocale, Record<PaletteElementKind, string>> = {
@@ -46,7 +45,6 @@ const COPY: Record<PresetLocale, Record<PaletteElementKind, string>> = {
     image: "Zdjęcie",
     icon: "Ikona",
     shape: "Kształt",
-    mapLink: "ul. Przykładowa 1, 00-001 Warszawa",
   },
   en: {
     heading: "New heading",
@@ -55,7 +53,6 @@ const COPY: Record<PresetLocale, Record<PaletteElementKind, string>> = {
     image: "Photo",
     icon: "Icon",
     shape: "Shape",
-    mapLink: "1 Example St, 00-001 Warsaw",
   },
 };
 
@@ -109,15 +106,6 @@ function buildElement(
       return { id, layout, kind: "icon", name: "sparkles", tone: "accent" };
     case "shape":
       return { id, layout, kind: "shape", shape: "box", fill: "paper" };
-    case "mapLink":
-      return {
-        id,
-        layout,
-        kind: "mapLink",
-        address: text,
-        url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`,
-        align: "left",
-      };
     default: {
       const exhaustive: never = kind;
       return exhaustive;

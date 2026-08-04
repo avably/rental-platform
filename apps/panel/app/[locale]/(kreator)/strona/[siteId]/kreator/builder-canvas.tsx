@@ -370,12 +370,16 @@ export function BuilderCanvas({
 
   const orderedIds = order.map((s) => s.id);
 
-  /** Sekcje do renderu: treść bierzemy ze SZKICU (plus podgląd ruchu), nie z propsów. */
+  /**
+   * Sekcje do renderu: treść bierzemy ze SZKICU (plus podgląd ruchu), nie
+   * z propsów. Od E1 (ADR-094) szkicem bywa też treść STRUKTURALNA — pytamy
+   * więc o treść w dowolnej generacji, a nie wyłącznie o płótno. Zapytanie
+   * `canvasOf` zwracałoby dla sekcji strukturalnej `undefined`, przez co
+   * płótno rysowałoby wersję sprzed ostatniej edycji w szufladzie.
+   */
   const rendered = order.map((section) => {
-    const canvas = editor.canvasOf(section.id);
-    return canvas
-      ? { ...section, content: canvas }
-      : section;
+    const content = editor.contentOf(section.id);
+    return content ? { ...section, content } : section;
   });
 
   return (
@@ -433,6 +437,12 @@ export function BuilderCanvas({
                   return (
                     <CanvasSection
                       section={editorSection}
+                      /*
+                        SEKCJA STRUKTURALNA (E1, ADR-094) nie ma elementów do
+                        zaznaczania — jej jedyną drogą edycji jest szuflada,
+                        więc klik w CAŁĄ sekcję ma ją otwierać.
+                      */
+                      structured={Boolean(editor.structuredOf(editorSection.id))}
                       index={index}
                       total={order.length}
                       orderedIds={orderedIds}
@@ -630,6 +640,7 @@ export function BuilderCanvas({
  */
 function CanvasSection({
   section,
+  structured,
   index,
   total,
   orderedIds,
@@ -652,6 +663,8 @@ function CanvasSection({
   children,
 }: {
   section: EditorSection;
+  /** Sekcja strukturalna: klik w całą sekcję otwiera szufladę (ADR-094). */
+  structured: boolean;
   index: number;
   total: number;
   orderedIds: string[];
@@ -729,6 +742,31 @@ function CanvasSection({
         // z tokenu WARSTWY EDYCYJNEJ — nie z akcentu motywu najemcy.
         className="pointer-events-none absolute inset-0 z-10 transition-[outline-color] [transition-duration:var(--motion-fast)]"
       />
+
+      {/*
+        POWIERZCHNIA KLIKNIĘCIA SEKCJI STRUKTURALNEJ (E1, ADR-094).
+
+        Sekcja strukturalna nie ma w środku niczego, co dałoby się zaznaczyć —
+        próba klikania jej accordionu na płótnie byłaby edycją POZORNĄ (stan
+        podglądu, nie treść). Zamiast tego cała sekcja jest jednym przyciskiem
+        otwierającym szufladę: to jedyna droga edycji i ma być pierwszą, którą
+        operator znajdzie.
+
+        `<button>`, a nie `onClick` na `div`: klawiatura, focus i rola w drzewie
+        dostępności mają działać bez dopisywania ich ręcznie. Warstwa siedzi POD
+        paskiem narzędzi sekcji (z-20), więc uchwyt, strzałki i kosz zostają
+        klikalne.
+      */}
+      {structured && !section.deletedInDraft ? (
+        <button
+          type="button"
+          data-cms-open={section.id}
+          aria-label={t("structured.openSettings")}
+          disabled={locked}
+          onClick={onOpenSettings}
+          className="focus-visible:outline-accent dark:focus-visible:outline-ring absolute inset-0 z-10 cursor-pointer outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:-outline-offset-4"
+        />
+      ) : null}
 
       {active && !section.deletedInDraft ? (
         <div

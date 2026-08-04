@@ -20,6 +20,8 @@
  * fokusu na pasek narzędzi dostajemy z przetestowanego prymitywu.
  */
 import {
+  isStructuredType,
+  type StructuredSectionContent,
   ELEMENT_ALIGNMENTS,
   ELEMENT_COLORS,
   ELEMENT_ICONS,
@@ -53,14 +55,18 @@ import { SectionContentForm } from "@/app/[locale]/(panel)/strona/section-conten
 import { PanelSelect } from "@/components/fields/panel-select";
 import { FormMeasure } from "@/components/screens/form-measure";
 
+import { StructuredSectionForm } from "./structured-section-form";
 import { replaceElement } from "./use-canvas-editor";
 
 export function SectionSettingsDrawer({
   siteId,
   section,
   canvas,
+  structured,
   selectedElementId,
   onCanvasChange,
+  onStructuredChange,
+  onConvert,
   onPickImage,
   onClose,
   onSaved,
@@ -68,10 +74,21 @@ export function SectionSettingsDrawer({
   siteId: string;
   /** Sekcja w edycji albo null — szuflada zamknięta. */
   section: EditorSection | null;
-  /** Szkic płótna tej sekcji (v2). Brak = sekcja jeszcze w kształcie v1. */
+  /** Szkic płótna tej sekcji (v2). Brak = sekcja w kształcie v1 albo v3. */
   canvas?: SectionCanvas;
+  /** Szkic sekcji STRUKTURALNEJ (v3, ADR-094) — wtedy szuflada jest mini-CMS-em. */
+  structured?: StructuredSectionContent;
   selectedElementId: string | null;
   onCanvasChange: (update: (canvas: SectionCanvas) => SectionCanvas) => void;
+  onStructuredChange: (
+    update: (content: StructuredSectionContent) => StructuredSectionContent,
+  ) => void;
+  /**
+   * KONWERSJA „Przełącz na sekcję 2.0” (ADR-094, decyzja właściciela z grilla).
+   * Podana wyłącznie dla sekcji, której typ MA silnik strukturalny, a treść go
+   * jeszcze nie używa. Wstawia świeży preset POD spodem — bez zgadywania treści.
+   */
+  onConvert?: () => void;
   /** Otwarcie pickera zdjęcia dla ZAZNACZONEGO elementu (K3). */
   onPickImage?: () => void;
   onClose: () => void;
@@ -87,7 +104,11 @@ export function SectionSettingsDrawer({
             <SheetHeader>
               <SheetTitle>{t("builder.settingsTitle", { type: t(`sectionTypes.${section.type}`) })}</SheetTitle>
               <SheetDescription>
-                {canvas ? t("builder.canvasSettingsDescription") : t("builder.settingsDescription")}
+                {structured
+                  ? t("structured.drawerDescription")
+                  : canvas
+                    ? t("builder.canvasSettingsDescription")
+                    : t("builder.settingsDescription")}
               </SheetDescription>
             </SheetHeader>
             {/*
@@ -101,15 +122,33 @@ export function SectionSettingsDrawer({
               pokazywałoby wartości poprzedniej.
             */}
             <FormMeasure>
-              {canvas ? (
+              {structured ? (
+                /*
+                  SEKCJA STRUKTURALNA (v3, ADR-094) — szuflada JEST edytorem
+                  treści: lista wpisów, pola z rejestru typu, wariant układu.
+                  Na płótnie nie ma czego zaznaczać, więc nie ma tu ani ustawień
+                  elementu, ani wysokości sekcji (tę niesie treść, nie geometria).
+                */
+                <StructuredSectionForm key={section.id} content={structured} onChange={onStructuredChange} />
+              ) : canvas ? (
                 <CanvasSettings
                   canvas={canvas}
                   selectedElementId={selectedElementId}
                   onChange={onCanvasChange}
                   onPickImage={onPickImage}
+                  convert={
+                    onConvert && isStructuredType(section.type) ? (
+                      <ConvertToStructured type={section.type} onConvert={onConvert} />
+                    ) : null
+                  }
                 />
               ) : (
-                <SectionContentForm key={section.id} siteId={siteId} section={section} onSaved={onSaved} />
+                <>
+                  <SectionContentForm key={section.id} siteId={siteId} section={section} onSaved={onSaved} />
+                  {onConvert && isStructuredType(section.type) ? (
+                    <ConvertToStructured type={section.type} onConvert={onConvert} />
+                  ) : null}
+                </>
               )}
             </FormMeasure>
           </>
@@ -133,11 +172,14 @@ function CanvasSettings({
   selectedElementId,
   onChange,
   onPickImage,
+  convert,
 }: {
   canvas: SectionCanvas;
   selectedElementId: string | null;
   onChange: (update: (canvas: SectionCanvas) => SectionCanvas) => void;
   onPickImage?: () => void;
+  /** Akcja „Przełącz na sekcję 2.0” albo `null` — patrz `ConvertToStructured`. */
+  convert?: ReactNode;
 }) {
   const t = useTranslations("site");
   const id = useId();
@@ -198,6 +240,46 @@ function CanvasSettings({
           {t("canvas.noSelection")}
         </p>
       )}
+
+      {convert}
+    </div>
+  );
+}
+
+/**
+ * „PRZEŁĄCZ NA SEKCJĘ 2.0" (ADR-094, decyzja właściciela z grilla 2026-08-04).
+ *
+ * Konwersja jest RĘCZNA i mówi to wprost. Wstawia POD spodem świeżą sekcję
+ * strukturalną tego samego typu z presetem, a starą zostawia nietkniętą —
+ * operator przepisuje treść i kasuje starą, kiedy skończy.
+ *
+ * Dlaczego bez auto-mapowania: treść spłaszczona do płótna nie niesie już
+ * informacji, który napis był pytaniem, a który odpowiedzią. Zgadywanie dałoby
+ * wynik poprawny czasem i cicho przestawiony resztę razy — a to jest gorsze niż
+ * przepisanie trzech akapitów, bo błędu nie widać.
+ *
+ * Komponent jest GENERYCZNY: pokazuje się dla KAŻDEGO typu, który ma silnik
+ * strukturalny (dziś FAQ, po E3–E7 dziewięć typów) — bez zmian w tym pliku.
+ */
+function ConvertToStructured({ type, onConvert }: { type: string; onConvert: () => void }) {
+  const t = useTranslations("site");
+
+  return (
+    <div data-cms-convert={type} className="border-border flex flex-col gap-2 border-t pt-5">
+      <p className="text-sm font-medium">{t("structured.convertTitle")}</p>
+      <p className="text-muted-foreground text-[13px] leading-[18px]">
+        {t("structured.convertBody")}
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        data-cms-convert-action
+        className="self-start"
+        onClick={onConvert}
+      >
+        {t("structured.convertAction")}
+      </Button>
     </div>
   );
 }
@@ -345,32 +427,6 @@ function ElementSettings({
             options={ELEMENT_ICONS.map((value) => ({ value, label: value }))}
           />
         </Field>
-      ) : null}
-
-      {element.kind === "mapLink" ? (
-        <>
-          <Field label={t("canvas.address")} htmlFor={`${id}-address`}>
-            <Textarea
-              id={`${id}-address`}
-              rows={2}
-              value={element.address}
-              onChange={(event) => {
-                if (event.target.value.trim() === "") return;
-                patch({ address: event.target.value } as Partial<CanvasElement>);
-              }}
-            />
-          </Field>
-          <Field label={t("canvas.mapUrl")} htmlFor={`${id}-mapurl`}>
-            <Input
-              id={`${id}-mapurl`}
-              value={element.url}
-              onChange={(event) => {
-                if (event.target.value.trim() === "") return;
-                patch({ url: event.target.value } as Partial<CanvasElement>);
-              }}
-            />
-          </Field>
-        </>
       ) : null}
 
       {element.kind === "heading" ? (

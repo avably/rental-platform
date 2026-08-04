@@ -83,6 +83,8 @@ import {
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
+import { sectionBandClass } from "./bands";
+import { externalLinkRel } from "./links";
 import { ProductCards, siteImageUrl } from "./sections";
 import type { TemplateStyles } from "./template";
 import type { SiteRenderLabels, StorefrontProduct } from "./types";
@@ -348,6 +350,10 @@ function ElementBody({
       const label = (
         <a
           href={element.href}
+          // Adres pochodzi od najemcy i bywa absolutny — link wychodzący bez
+          // `rel` oddawałby obcemu hostowi `window.opener` karty klienta
+          // (audyt E1, ADR-094). Kotwice i ścieżki własne zostają bez atrybutu.
+          rel={externalLinkRel(element.href)}
           className={boxed(
             element.variant === "solid"
               ? styles.cta
@@ -400,22 +406,6 @@ function ElementBody({
         <div className="site-placeholder size-full" aria-hidden="true" />
       );
     }
-    case "mapLink":
-      // TYLKO ODNOŚNIK — bez osadzania obcych map (ADR-082, podtrzymane
-      // w ADR-086). Adres jest treścią, link celem; jedno i drugie widoczne.
-      return (
-        <span className={cn("flex flex-col justify-center gap-1", fill, ALIGN_CLASS[element.align])}>
-          <span className={cn("whitespace-pre-line", type)}>{element.address}</span>
-          <a
-            href={element.url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="canvas-type-small underline"
-          >
-            {element.url}
-          </a>
-        </span>
-      );
     case "icon": {
       const Icon = ELEMENT_ICON_COMPONENTS[element.name] ?? Star;
       // Przy pudełku obejmującym treść rozmiar kafelka bierze się ze SKALI
@@ -474,15 +464,6 @@ function ElementBody({
   }
 }
 
-/**
- * Tło pasa sekcji. Wysokości NIE niesie tu padding (jak w v1), tylko geometria
- * płótna — dlatego pasy są samym kolorem.
- */
-function backgroundClass(canvas: SectionCanvas, styles: TemplateStyles): string | undefined {
-  if (canvas.background === "muted") return "site-band-muted";
-  if (canvas.background === "inverted") return styles.canvasInverted;
-  return undefined;
-}
 
 /**
  * KOMPLET zmiennych pudełka elementu — oba breakpointy naraz, dokładnie tak,
@@ -568,7 +549,7 @@ export function SectionCanvasRenderer({
   return (
     <Shell
       data-section-canvas={canvas.version}
-      className={cn("relative overflow-hidden", backgroundClass(canvas, styles))}
+      className={cn("relative overflow-hidden", sectionBandClass(canvas.background, styles))}
     >
       {/*
         TŁO PEŁNOEKRANOWE (aneks do ADR-088). Elementy rozciągnięte na CAŁĄ

@@ -57,6 +57,13 @@ const BUILDER_LAYER_MARKERS = [
   "data-canvas-ghost",
   "data-canvas-guide-slot",
   "data-dragging",
+  // Mini-CMS sekcji strukturalnych i konwersja „Przełącz na sekcję 2.0"
+  // (E1, ADR-094). Prefiks celowo INNY niż `data-structured-*` renderu:
+  // tamte znaczniki (`data-structured-section`, `data-structured-layout`) są
+  // kotwicami TREŚCI i wychodzą do sklepu, te są warstwą edycyjną i wyjść
+  // nie mogą. Jeden wspólny prefiks kazałby wybierać między pilnowaniem
+  // wycieku a możliwością zaczepienia zrzutu w sklepie.
+  "data-cms",
   // Paleta elementów, edycja w miejscu i picker zdjęcia (K3, ADR-086).
   "data-element-tile",
   "data-palette-elements",
@@ -206,6 +213,7 @@ const BUILDER_LAYER_SOURCES = [
   "app/[locale]/(kreator)/strona/[siteId]/kreator/inline-editor.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/image-picker.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/section-settings-drawer.tsx",
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/structured-section-form.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-palette.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/template-gallery.tsx",

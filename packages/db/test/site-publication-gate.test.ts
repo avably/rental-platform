@@ -26,6 +26,7 @@
  *
  * Wymaga lokalnego Supabase i zmiennych SUPABASE_LOCAL_* (patrz seed-tenants.ts).
  */
+import { parsePublishedSite, structuredPresetFor } from "@avably/core/site";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -296,6 +297,90 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
       "przywrócona sekcja zniknęła mimo cofnięcia usunięcia",
     ).toBe(true);
   }, 30_000);
+
+  // -------------------------------------------------------------------
+  // Sekcje strukturalne v3 (E1, ADR-094) — kanał publikacji BEZ MIGRACJI
+  // -------------------------------------------------------------------
+
+  describe("treść v3 przechodzi kanałem publikacji CO DO BAJTA", () => {
+    /**
+     * Stawka: ADR-094 wnosi TRZECIĄ generację treści sekcji do tego samego
+     * `jsonb` i obiecuje, że baza nie musi o niej wiedzieć — `publish_site`
+     * i `get_published_site` zostają NIETKNIĘTE. Obietnica bez pomiaru jest
+     * życzeniem, więc mierzymy dwie rzeczy naraz:
+     *
+     *   (a) edycja treści v3 w szkicu NIE RUSZA koperty (bramka ADR-091 działa
+     *       tak samo dla generacji, o której nie wie);
+     *   (b) publikacja przenosi treść v3 co do POLA i co do WARTOŚCI.
+     *
+     * Porównanie „bajtowe" idzie po formie KANONICZNEJ (klucze posortowane
+     * rekurencyjnie), bo `jsonb` normalizuje kolejność kluczy z definicji —
+     * porównywanie surowego `JSON.stringify` mierzyłoby kolejność zapisu
+     * w teście, a nie wierność przeniesienia.
+     */
+    const canonical = (value: unknown): string =>
+      JSON.stringify(value, (_key, item) =>
+        item && typeof item === "object" && !Array.isArray(item)
+          ? Object.fromEntries(Object.entries(item as Record<string, unknown>).sort(([x], [y]) => x.localeCompare(y)))
+          : item,
+      );
+
+    let v3Id: string;
+    const v3 = structuredPresetFor("faq", "pl") as unknown as Record<string, unknown>;
+
+    it("sekcja v3 zapisuje się do szkicu i NIE pojawia się na żywej stronie", async () => {
+      const before = await envelope(a.tenantId);
+      v3Id = await addSection(a, siteAId, { type: "faq", position: 20, content_draft: v3 });
+      expect(
+        await envelope(a.tenantId),
+        "sekcja strukturalna weszła na stronę klienta bez publikacji",
+      ).toEqual(before);
+    }, 30_000);
+
+    it("publikacja przenosi treść v3 co do bajta (forma kanoniczna)", async () => {
+      await publish(a, siteAId);
+      const section = (await envelope(a.tenantId))?.sections.find((s) => s.id === v3Id);
+
+      expect(section, "sekcja strukturalna nie weszła przy publikacji").toBeDefined();
+      expect(section?.content, "publikacja zmieniła kształt treści v3").toEqual(v3);
+      expect(
+        canonical(section?.content),
+        "treść v3 wróciła z bazy inna, niż do niej weszła",
+      ).toBe(canonical(v3));
+      // Znacznik generacji przeżył podróż jako LICZBA, nie jako napis —
+      // rozpoznanie wersji w renderze stoi na `=== 3`.
+      expect((section?.content as { v?: unknown }).v).toBe(3);
+    }, 30_000);
+
+    it("edycja pary FAQ w szkicu nie rusza koperty aż do publikacji", async () => {
+      const baseline = await envelope(a.tenantId);
+      const edited = {
+        ...v3,
+        items: [{ q: "Pytanie po zmianie?", a: "Odpowiedź po zmianie." }],
+      };
+      const { error } = await a.ownerClient
+        .from("site_sections")
+        .update({ content_draft: edited })
+        .eq("tenant_id", a.tenantId)
+        .eq("id", v3Id);
+      expect(error, `zapis szkicu v3: ${error?.message}`).toBeNull();
+      expect(await envelope(a.tenantId), "edycja v3 wyciekła na żywą stronę").toEqual(baseline);
+
+      await publish(a, siteAId);
+      const after = (await envelope(a.tenantId))?.sections.find((s) => s.id === v3Id);
+      expect(canonical(after?.content)).toBe(canonical(edited));
+    }, 30_000);
+
+    it("odczyt publiczny PARSUJE treść v3 (sekcja nie degraduje się do pominięcia)", async () => {
+      // Koperta może nieść cokolwiek — o tym, co zobaczy sklep, rozstrzyga
+      // `parsePublishedSite`. Bez tego zdania test wyżej byłby spełniony także
+      // wtedy, gdyby storefront odsiewał sekcję v3 jako nieznany kształt.
+      const parsed = parsePublishedSite(await envelope(a.tenantId));
+      const section = parsed?.sections.find((s) => s.id === v3Id);
+      expect(section, "storefront odsiałby sekcję strukturalną jako nieznaną").toBeDefined();
+      expect((section?.content as { type?: string }).type).toBe("faq");
+    }, 30_000);
+  });
 
   // -------------------------------------------------------------------
   // Bramki spójności — stan połowiczny jest niereprezentowalny

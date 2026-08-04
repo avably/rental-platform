@@ -17,6 +17,11 @@ import { z } from "zod";
 
 import { sectionCanvasSchema, type SectionCanvas } from "./elements";
 import { uspIconSchema } from "./icons";
+import {
+  structuredSchemaFor,
+  type StructuredContentOf,
+  type StructuredSectionContent,
+} from "./structured";
 import { siteStyleSchema, type SiteStyle } from "./style";
 import { siteTemplateSchema, type SiteTemplate } from "./templates";
 
@@ -357,17 +362,35 @@ export const footerContentSchema = z
   .strict();
 
 /**
- * Treść sekcji: PŁÓTNO v2 albo dotychczasowy kształt v1 (K2, ADR-084).
+ * Treść sekcji: SEKCJA STRUKTURALNA v3 (E1, ADR-094), PŁÓTNO v2 (K2, ADR-084)
+ * albo dotychczasowy kształt v1.
  *
- * Kolejność w unii nie jest przypadkiem — płótno idzie pierwsze, bo jest
- * rozpoznawalne po `version: 2`, a schematy v1 są `.strict()`, więc obcy klucz
- * `version` i tak by je odrzucił. Zbiory są rozłączne w obie strony: treść v1
- * nie ma pola `version`, więc nie przejdzie jako płótno. Dzięki temu jsonb
- * przyjmuje obie generacje BEZ MIGRACJI, a wersję niesie sama treść, nie
- * kolumna obok niej.
+ * Kolejność w unii nie jest przypadkiem — generacje rozpoznawalne po znaczniku
+ * idą pierwsze (`v: 3`, potem `version: 2`), a schematy v1 są `.strict()`, więc
+ * obcy klucz i tak by je odrzucił. Zbiory są rozłączne we wszystkie strony:
+ * treść v1 nie ma ani `v`, ani `version`. Dzięki temu jsonb przyjmuje TRZY
+ * generacje BEZ MIGRACJI, a wersję niesie sama treść, nie kolumna obok niej.
+ *
+ * Wariant strukturalny wchodzi Z REJESTRU (`structuredSchemaFor`), a nie z listy
+ * pisanej ręcznie przy każdej z czterech map niżej: dopisanie typu do rejestru
+ * ADR-094 rozszerza zapis, odczyt szkicu, odczyt publiczny i wejście upsertu
+ * jednocześnie — albo nie rozszerza żadnego, co widać natychmiast.
  */
-function withCanvas<T extends z.ZodTypeAny>(legacy: T) {
-  return z.union([sectionCanvasSchema, legacy]);
+function contentUnionFor<T extends SectionType, S extends z.ZodTypeAny>(type: T, legacy: S) {
+  const structured = structuredSchemaFor(type);
+  const schema = structured
+    ? z.union([structured, sectionCanvasSchema, legacy])
+    : z.union([sectionCanvasSchema, legacy]);
+  /*
+   * RZUTOWANIE JEST TU KONIECZNE i ma jeden powód: obecność wariantu
+   * strukturalnego rozstrzyga się W CZASIE WYKONANIA (przez rejestr), więc
+   * TypeScript widziałby wyłącznie `ZodTypeAny` i cała treść sekcji zapadłaby
+   * się do `unknown` — łącznie z typem `PublishedSection`, na którym stoi
+   * storefront. Zbiór wartości jest za to znany STATYCZNIE: żadna z trzech
+   * generacji nie jest szersza niż to, co wypisano niżej, a każdą z nich
+   * i tak weryfikuje Zod przy parsowaniu.
+   */
+  return schema as unknown as z.ZodType<StructuredContentOf<T> | SectionCanvas | z.infer<S>>;
 }
 
 export const SECTION_CONTENT_SCHEMAS = {
@@ -403,19 +426,19 @@ export const SECTION_CONTENT_SCHEMAS = {
  * odczyt publiczny (`publishedSectionSchema`) i odczyt szkicu (ta mapa).
  */
 export const SECTION_DRAFT_SCHEMAS = {
-  hero: withCanvas(heroContentSchema),
-  products: withCanvas(productsContentSchema),
-  pricing: withCanvas(pricingContentSchema),
-  faq: withCanvas(faqContentSchema),
-  contact: withCanvas(contactContentSchema),
-  freeform: withCanvas(freeformContentSchema),
-  testimonials: withCanvas(testimonialsContentSchema),
-  gallery: withCanvas(galleryContentSchema),
-  usp: withCanvas(uspContentSchema),
-  cta: withCanvas(ctaContentSchema),
-  directions: withCanvas(directionsContentSchema),
-  delivery: withCanvas(deliveryContentSchema),
-  footer: withCanvas(footerContentSchema),
+  hero: contentUnionFor("hero", heroContentSchema),
+  products: contentUnionFor("products", productsContentSchema),
+  pricing: contentUnionFor("pricing", pricingContentSchema),
+  faq: contentUnionFor("faq", faqContentSchema),
+  contact: contentUnionFor("contact", contactContentSchema),
+  freeform: contentUnionFor("freeform", freeformContentSchema),
+  testimonials: contentUnionFor("testimonials", testimonialsContentSchema),
+  gallery: contentUnionFor("gallery", galleryContentSchema),
+  usp: contentUnionFor("usp", uspContentSchema),
+  cta: contentUnionFor("cta", ctaContentSchema),
+  directions: contentUnionFor("directions", directionsContentSchema),
+  delivery: contentUnionFor("delivery", deliveryContentSchema),
+  footer: contentUnionFor("footer", footerContentSchema),
 } as const satisfies Record<SectionType, z.ZodTypeAny>;
 
 export type HeroContent = z.infer<typeof heroContentSchema>;
@@ -453,23 +476,23 @@ export type LegacySectionContent =
  * render i warstwa danych — rozróżnienia dokonuje `isSectionCanvas`, a nie
  * osobne ścieżki w każdym z tych miejsc.
  */
-export type SectionContent = LegacySectionContent | SectionCanvas;
+export type SectionContent = LegacySectionContent | SectionCanvas | StructuredSectionContent;
 
 /** Para (type, content) walidowana spójnie — wejście upsertu sekcji w panelu. */
 export const sectionInputSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("hero"), content: withCanvas(heroContentSchema) }),
-  z.object({ type: z.literal("products"), content: withCanvas(productsContentSchema) }),
-  z.object({ type: z.literal("pricing"), content: withCanvas(pricingContentSchema) }),
-  z.object({ type: z.literal("faq"), content: withCanvas(faqContentSchema) }),
-  z.object({ type: z.literal("contact"), content: withCanvas(contactContentSchema) }),
-  z.object({ type: z.literal("freeform"), content: withCanvas(freeformContentSchema) }),
-  z.object({ type: z.literal("testimonials"), content: withCanvas(testimonialsContentSchema) }),
-  z.object({ type: z.literal("gallery"), content: withCanvas(galleryContentSchema) }),
-  z.object({ type: z.literal("usp"), content: withCanvas(uspContentSchema) }),
-  z.object({ type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
-  z.object({ type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
-  z.object({ type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
-  z.object({ type: z.literal("footer"), content: withCanvas(footerContentSchema) }),
+  z.object({ type: z.literal("hero"), content: contentUnionFor("hero", heroContentSchema) }),
+  z.object({ type: z.literal("products"), content: contentUnionFor("products", productsContentSchema) }),
+  z.object({ type: z.literal("pricing"), content: contentUnionFor("pricing", pricingContentSchema) }),
+  z.object({ type: z.literal("faq"), content: contentUnionFor("faq", faqContentSchema) }),
+  z.object({ type: z.literal("contact"), content: contentUnionFor("contact", contactContentSchema) }),
+  z.object({ type: z.literal("freeform"), content: contentUnionFor("freeform", freeformContentSchema) }),
+  z.object({ type: z.literal("testimonials"), content: contentUnionFor("testimonials", testimonialsContentSchema) }),
+  z.object({ type: z.literal("gallery"), content: contentUnionFor("gallery", galleryContentSchema) }),
+  z.object({ type: z.literal("usp"), content: contentUnionFor("usp", uspContentSchema) }),
+  z.object({ type: z.literal("cta"), content: contentUnionFor("cta", ctaContentSchema) }),
+  z.object({ type: z.literal("directions"), content: contentUnionFor("directions", directionsContentSchema) }),
+  z.object({ type: z.literal("delivery"), content: contentUnionFor("delivery", deliveryContentSchema) }),
+  z.object({ type: z.literal("footer"), content: contentUnionFor("footer", footerContentSchema) }),
 ]);
 export type SectionInput = z.infer<typeof sectionInputSchema>;
 
@@ -481,19 +504,19 @@ export type SectionInput = z.infer<typeof sectionInputSchema>;
 // nie jest opublikowaną stroną w znanym kształcie, nie dochodzi do renderu.
 
 export const publishedSectionSchema = z.discriminatedUnion("type", [
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("hero"), content: withCanvas(heroContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("products"), content: withCanvas(productsContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("pricing"), content: withCanvas(pricingContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: withCanvas(faqContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: withCanvas(contactContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("freeform"), content: withCanvas(freeformContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("testimonials"), content: withCanvas(testimonialsContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("gallery"), content: withCanvas(galleryContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("usp"), content: withCanvas(uspContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: withCanvas(ctaContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: withCanvas(directionsContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: withCanvas(deliveryContentSchema) }),
-  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("footer"), content: withCanvas(footerContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("hero"), content: contentUnionFor("hero", heroContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("products"), content: contentUnionFor("products", productsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("pricing"), content: contentUnionFor("pricing", pricingContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: contentUnionFor("faq", faqContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: contentUnionFor("contact", contactContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("freeform"), content: contentUnionFor("freeform", freeformContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("testimonials"), content: contentUnionFor("testimonials", testimonialsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("gallery"), content: contentUnionFor("gallery", galleryContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("usp"), content: contentUnionFor("usp", uspContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("cta"), content: contentUnionFor("cta", ctaContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("directions"), content: contentUnionFor("directions", directionsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("delivery"), content: contentUnionFor("delivery", deliveryContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("footer"), content: contentUnionFor("footer", footerContentSchema) }),
 ]);
 export type PublishedSection = z.infer<typeof publishedSectionSchema>;
 
@@ -704,7 +727,6 @@ export {
   geometrySchema,
   imageSourceSchema,
   isSectionCanvas,
-  mapLinkElementSchema,
   normalizeImageSource,
   sectionCanvasSchema,
   sizeOf,
@@ -765,6 +787,41 @@ export {
   type SnapContext,
   type SnapResult,
 } from "./geometry";
+
+// ---------------------------------------------------------------------
+// Sekcje strukturalne — treść v3 (E1, ADR-094)
+// ---------------------------------------------------------------------
+
+export {
+  FAQ_LAYOUTS,
+  STRUCTURED_SECTIONS,
+  STRUCTURED_SECTION_TYPES,
+  STRUCTURED_SECTION_VERSION,
+  STRUCTURED_THEME_ROLES,
+  appendStructuredItem,
+  faqPageJsonLd,
+  faqStructuredSchema,
+  isStructuredSection,
+  isStructuredType,
+  moveStructuredItem,
+  patchStructuredItem,
+  removeStructuredItem,
+  structuredNewItemFor,
+  structuredPresetFor,
+  structuredSchemaFor,
+  structuredSpecOf,
+  withStructuredLayout,
+  type FaqLayout,
+  type FaqStructuredContent,
+  type StructuredFieldKind,
+  type StructuredContentOf,
+  type StructuredFieldSpec,
+  type StructuredSectionContent,
+  type StructuredSectionSpec,
+  type StructuredSectionType,
+  type StructuredThemeRole,
+  type StructuredToggleSpec,
+} from "./structured";
 
 export {
   SECTION_COMPOSITIONS,

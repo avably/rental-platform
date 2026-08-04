@@ -493,24 +493,16 @@ export const catalogElementSchema = z
   })
   .strict();
 
-/**
- * MAPA-LINK (K3, ADR-086) — adres i LINK do map, bez osadzania czegokolwiek.
+/*
+ * MAPA-LINK (K3, ADR-086) ZNIKŁA W E1 (ADR-094).
  *
- * Decyzja ADR-082 obowiązuje bez zmian: żadnego `iframe`, żadnego obcego
- * skryptu. Osadzona mapa wnosi na publiczną stronę najemcy trzeci skrypt,
- * cudze ciasteczka i własne CSP — a daje dokładnie to samo, co odnośnik.
- * `url` przechodzi tę samą allowlistę schematów, co przycisk i link w treści.
+ * Element nie wchodził do ŻADNEGO presetu ani szablonu startowego — istniał
+ * wyłącznie jako kafel palety, którym operator składał ręcznie „adres + link".
+ * Dojazd dostaje własną sekcję strukturalną z kartą mapy (etap E5), więc kafel
+ * dublowałby ją gorszą wersją. Usunięcie jest CAŁKOWITE (schemat, paleta,
+ * miary, render), bo element pozostawiony w unii to element, który trzeba
+ * utrzymywać przy każdej zmianie płótna.
  */
-export const mapLinkElementSchema = z
-  .object({
-    ...elementBase,
-    kind: z.literal("mapLink"),
-    address: z.string().trim().min(1).max(500),
-    url: elementHref,
-    align: alignment,
-    size: elementSizeSchema.optional(),
-  })
-  .strict();
 
 export const canvasElementSchema = z.discriminatedUnion("kind", [
   headingElementSchema,
@@ -520,7 +512,6 @@ export const canvasElementSchema = z.discriminatedUnion("kind", [
   iconElementSchema,
   shapeElementSchema,
   catalogElementSchema,
-  mapLinkElementSchema,
 ]);
 export type CanvasElement = z.infer<typeof canvasElementSchema>;
 export type CanvasElementKind = CanvasElement["kind"];
@@ -533,7 +524,6 @@ export const ELEMENT_KINDS = [
   "image",
   "icon",
   "shape",
-  "mapLink",
   "catalog",
 ] as const satisfies readonly CanvasElementKind[];
 
@@ -550,7 +540,6 @@ export const PALETTE_ELEMENT_KINDS = [
   "image",
   "icon",
   "shape",
-  "mapLink",
 ] as const satisfies readonly CanvasElementKind[];
 export type PaletteElementKind = (typeof PALETTE_ELEMENT_KINDS)[number];
 
@@ -569,7 +558,6 @@ export const HUG_KINDS = [
   "text",
   "button",
   "icon",
-  "mapLink",
 ] as const satisfies readonly CanvasElementKind[];
 export type HugElementKind = (typeof HUG_KINDS)[number];
 

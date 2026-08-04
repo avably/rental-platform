@@ -11,6 +11,7 @@
  * i18n: język i copy z osi tenanckiej (tenants.locale), nie z URL — patrz
  * lib/storefront/context.ts.
  */
+import { faqPageJsonLd } from "@avably/core/site";
 import { SiteRenderer, type SiteRenderLabels } from "@avably/ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -94,6 +95,20 @@ export default async function TenantStorePage() {
       : null,
   });
 
+  /*
+   * FAQPage (schema.org) dla strukturalnych sekcji FAQ (E1, ADR-094).
+   *
+   * NIESZKODLIWY DODATEK, nie funkcja sprzedażowa: wyszukiwarka wycofała bogate
+   * wyniki FAQ dla większości stron (2026-05-07), więc bloku nie ma w panelu,
+   * nie ma o nim narracji w produkcie i nikomu niczego nie obiecuje. Zostaje,
+   * bo poprawnie opisane pytania i odpowiedzi kosztują kilkanaście linii,
+   * a przydają się czytnikom i asystentom.
+   *
+   * `null` (brak sekcji strukturalnej FAQ) = brak bloku. Pusty `FAQPage` byłby
+   * gorszy niż jego brak.
+   */
+  const faqJsonLd = site ? faqPageJsonLd(site.sections) : null;
+
   // Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). Sekcja hero go
   // niesie; układ bez hero zostawiłby stronę bez nagłówka pierwszego poziomu,
   // więc dokładamy go dla czytników ekranu (wizualnie bez zmian).
@@ -109,6 +124,7 @@ export default async function TenantStorePage() {
     */
     <StoreChrome style={style} copy={copy} storeName={catalog.tenant.name}>
       {origin ? <JsonLd data={businessJsonLd} /> : null}
+      {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {!site || site.sections.length === 0 ? (
         <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-3 px-6 text-center">
           <h1 className={`text-2xl ${SITE_HEADING}`}>{catalog.tenant.name}</h1>

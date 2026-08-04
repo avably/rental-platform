@@ -170,9 +170,6 @@ export function iconPxAt(canvasWidthPx = CANVAS_DESIGN_WIDTH_PX): number {
   );
 }
 
-/** Odstęp między adresem a linkiem w elemencie mapy (px) plus wiersz linku. */
-const MAP_LINK_EXTRA_PX = 28;
-
 /** Skala tekstu, którą element rysuje — jedno miejsce prawdy dla estymatorów. */
 export function scaleOfElement(element: CanvasElement): TextScale {
   switch (element.kind) {
@@ -182,8 +179,6 @@ export function scaleOfElement(element: CanvasElement): TextScale {
       return element.variant === "lead" ? "lead" : element.variant === "small" ? "small" : "body";
     case "button":
       return "small";
-    case "mapLink":
-      return "body";
     default:
       return "body";
   }
@@ -233,20 +228,6 @@ export function hugBox(
     case "icon": {
       const side = unitsForPx(iconPxAt(canvasWidthPx), canvasWidthPx);
       return { w: side, h: side };
-    }
-    case "mapLink": {
-      const scale = scaleOfElement(element);
-      const w = columnsForChars(
-        Math.max(element.address.trim().length, element.url.trim().length),
-        scale,
-        canvasWidthPx,
-      );
-      return {
-        w,
-        h:
-          textRowsAt(element.address, scale, w, canvasWidthPx) +
-          unitsForPx(MAP_LINK_EXTRA_PX, canvasWidthPx),
-      };
     }
     default:
       return null;

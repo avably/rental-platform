@@ -18,6 +18,7 @@ import {
 import * as React from "react";
 
 import { cn } from "../lib/cn";
+import { externalLinkRel } from "./links";
 import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
 import type {
@@ -120,7 +121,7 @@ export function HeroSection({
         <h1 className={styles.heroHeading}>{content.heading}</h1>
         {content.subheading ? <p className={styles.heroSubheading}>{content.subheading}</p> : null}
         {content.ctaText && content.ctaHref ? (
-          <a href={content.ctaHref} className={styles.cta}>
+          <a href={content.ctaHref} rel={externalLinkRel(content.ctaHref)} className={styles.cta}>
             {content.ctaText}
           </a>
         ) : null}
@@ -440,7 +441,7 @@ export function CtaSection({ content, styles }: { content: CtaContent; styles: T
           {content.heading}
         </h2>
         {content.text ? <p className="mt-3 max-w-2xl opacity-80">{content.text}</p> : null}
-        <a href={content.buttonHref} className={styles.cta}>
+        <a href={content.buttonHref} rel={externalLinkRel(content.buttonHref)} className={styles.cta}>
           {content.buttonLabel}
         </a>
       </div>
@@ -523,7 +524,7 @@ export function FooterSection({
                 <ul className="list-none space-y-2 p-0 text-sm @min-[40rem]/site:text-right">
                   {links.map((link, index) => (
                     <li key={index}>
-                      <a className={styles.footerLink} href={link.href}>
+                      <a className={styles.footerLink} href={link.href} rel={externalLinkRel(link.href)}>
                         {link.label}
                       </a>
                     </li>
