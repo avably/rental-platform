@@ -23,7 +23,6 @@
  * `structured.pricing.fields.price` na ekranie operatora.
  */
 import {
-  STRUCTURED_SECTIONS,
   STRUCTURED_SECTION_TYPES,
   structuredNewItemFor,
   structuredSpecOf,
