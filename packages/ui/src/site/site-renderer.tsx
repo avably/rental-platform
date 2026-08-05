@@ -45,6 +45,11 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   directionsAddress: "Adres:",
   directionsHours: "Godziny otwarcia:",
   directionsMap: "Zobacz na mapie",
+  galleryZoom: "Powiększ zdjęcie",
+  galleryClose: "Zamknij powiększenie",
+  galleryPrev: "Poprzednie zdjęcie",
+  galleryNext: "Następne zdjęcie",
+  galleryPosition: "Zdjęcie {current} z {total}",
 };
 
 /**
@@ -90,7 +95,14 @@ function SectionSwitch({
      */
     const Structured = structuredRendererFor(section.content.type, section.content.layout);
     if (!Structured) return null;
-    return <Structured content={section.content} styles={styles} />;
+    return (
+      <Structured
+        content={section.content}
+        styles={styles}
+        siteImageBase={siteImageBase}
+        labels={labels}
+      />
+    );
   }
 
   if (isSectionCanvas(section.content)) {

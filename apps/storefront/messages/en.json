@@ -334,7 +334,12 @@
       "contactMap": "View on map",
       "directionsAddress": "Address:",
       "directionsHours": "Opening hours:",
-      "directionsMap": "View on map"
+      "directionsMap": "View on map",
+      "galleryZoom": "Enlarge photo",
+      "galleryClose": "Close the enlarged photo",
+      "galleryPrev": "Previous photo",
+      "galleryNext": "Next photo",
+      "galleryPosition": "Photo {current} of {total}"
     },
     "common": {
       "from": "from",

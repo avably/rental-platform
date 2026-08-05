@@ -18,6 +18,7 @@ import {
 import * as React from "react";
 
 import { cn } from "../lib/cn";
+import { siteImageUrl } from "./image-url";
 import { externalLinkRel } from "./links";
 import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
@@ -40,14 +41,11 @@ import type {
 } from "./types";
 
 /**
- * Publiczny URL zdjęcia sekcji z bucketa `site-images`. `base` (prefiks do
- * bucketa włącznie) wstrzykuje warstwa danych (storefront/podgląd panelu) —
- * pakiet UI nie zna adresu Supabase. Bez `base` zdjęcia degradują się do
- * placeholderu (jak produkt bez imageUrl), więc render nie zależy od Storage.
+ * Prawda o adresie zdjęcia sekcji mieszka od E3 w `./image-url` (plik BEZ ani
+ * jednej klasy — patrz tamten nagłówek). Re-eksport zostaje, bo `siteImageUrl`
+ * jest publicznym wejściem pakietu od 0043 i wołają je oba produkty.
  */
-export function siteImageUrl(base: string, path: string): string {
-  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-}
+export { siteImageUrl };
 
 /**
  * Allowlista ikon USP (ADR-082) → komponenty `lucide`. Zamknięty zbiór lustrem

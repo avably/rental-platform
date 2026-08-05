@@ -1388,6 +1388,56 @@
         "toggles": {
           "allowMultiple": "Pozwól otworzyć wiele odpowiedzi naraz"
         }
+      },
+      "upload": {
+        "label": "Wgraj zdjęcia",
+        "prompt": "Przeciągnij zdjęcia albo kliknij, żeby wybrać",
+        "busy": "Wgrywanie…",
+        "hint": "JPG, PNG, WebP albo AVIF. Możesz wybrać kilka plików naraz.",
+        "remove": "Usuń wybrany plik",
+        "missing": "Bez zdjęcia"
+      },
+      "gallery": {
+        "itemsTitle": "Zdjęcia",
+        "full": "Osiągnięto limit zdjęć w tej sekcji.",
+        "removeBody": "Zdjęcie zniknie z tej sekcji. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "tabs": {
+          "items": "Zarządzaj zdjęciami",
+          "appearance": "Wygląd"
+        },
+        "fields": {
+          "image": "Zdjęcie",
+          "alt": "Opis dla czytnika ekranu",
+          "caption": "Podpis",
+          "link": "Odnośnik"
+        },
+        "hints": {
+          "alt": "Zostaw puste, jeśli zdjęcie jest tylko ozdobą — czytnik ekranu je wtedy pominie."
+        },
+        "layouts": {
+          "grid": "Siatka",
+          "masonry": "Mozaika",
+          "carousel": "Karuzela"
+        },
+        "toggles": {
+          "lightbox": "Kliknięcie w zdjęcie je powiększa"
+        },
+        "choices": {
+          "columns": "Zdjęć w rzędzie",
+          "gap": "Odstęp między zdjęciami"
+        },
+        "choiceValues": {
+          "columns": {
+            "2": "2",
+            "3": "3",
+            "4": "4"
+          },
+          "gap": {
+            "tight": "Ciasny",
+            "regular": "Zwykły",
+            "roomy": "Luźny"
+          }
+        }
       }
     }
   },

@@ -334,7 +334,12 @@
       "contactMap": "Zobacz na mapie",
       "directionsAddress": "Adres:",
       "directionsHours": "Godziny otwarcia:",
-      "directionsMap": "Zobacz na mapie"
+      "directionsMap": "Zobacz na mapie",
+      "galleryZoom": "Powiększ zdjęcie",
+      "galleryClose": "Zamknij powiększenie",
+      "galleryPrev": "Poprzednie zdjęcie",
+      "galleryNext": "Następne zdjęcie",
+      "galleryPosition": "Zdjęcie {current} z {total}"
     },
     "common": {
       "from": "od",

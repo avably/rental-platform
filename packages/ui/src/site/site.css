@@ -433,6 +433,31 @@
 }
 
 /*
+ * OKNO POWIĘKSZENIA ZDJĘCIA (E3, aneks ADR-094).
+ *
+ * Klasa NIE maluje żadnej roli motywu — role przychodzą z `.site-root`
+ * i `.site-surface`, które komponent nakłada obok niej. Okno stoi w warstwie
+ * nadrzędnej przeglądarki, ale właściwości niestandardowe dziedziczy po drzewie
+ * DOM, więc pas i akcent strony obowiązują w nim tak samo jak w sekcji. Tutaj
+ * siedzi WYŁĄCZNIE geometria okna i jego zasłona.
+ *
+ * Bez jednostek okna (ADR-085): szerokość jest ułamkiem rodzica, a wysokość
+ * ogranicza `max-height` z arkusza przeglądarki dla `<dialog>` — dokładamy do
+ * niego przewijanie, żeby wysoki kadr dał się obejrzeć zamiast zostać uciętym.
+ */
+.site-lightbox {
+  width: min(64rem, 92%);
+  padding: 0;
+  overflow: auto;
+  border: var(--site-border-width) solid var(--site-border);
+  border-radius: var(--site-radius);
+}
+
+.site-lightbox::backdrop {
+  background: var(--site-scrim);
+}
+
+/*
  * KROJE I CHARAKTER NAGŁÓWKÓW. Hakami są WYŁĄCZNIE klasy skal — `.landing-*`
  * dla sekcji v1 i `.canvas-type-*` dla płótna v2 — bo to jedyne miejsca,
  * w których „nagłówek" jest już rozpoznany. Dopisywanie `font-family` do
