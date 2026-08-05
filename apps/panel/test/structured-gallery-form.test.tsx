@@ -209,6 +209,7 @@ function renderBuilder(sections: Section[]) {
         style={STYL}
         sections={sections}
         products={[]}
+        money={{ currency: "PLN", locale: "pl" }}
       />
     </NextIntlClientProvider>,
   );

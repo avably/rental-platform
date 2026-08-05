@@ -32,6 +32,7 @@ import type {
   ContactFormBinding,
   LegacyRenderSection,
   RenderSection,
+  SiteMoney,
   SiteRenderLabels,
   StorefrontProduct,
 } from "./types";
@@ -58,6 +59,17 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   galleryNext: "Następne zdjęcie",
   galleryPosition: "Zdjęcie {current} z {total}",
   contactHours: "Godziny otwarcia:",
+  pricingFrom: "od",
+  pricingUnits: {
+    hour: "godzina",
+    day: "doba",
+    week: "tydzień",
+    month: "miesiąc",
+    piece: "sztuka",
+  },
+  pricingCatalog: "Zobacz pełny katalog",
+  testimonialsPrev: "Poprzednia opinia",
+  testimonialsNext: "Następna opinia",
   contactForm: {
     title: "Napisz do nas",
     name: "Imię",
@@ -84,6 +96,14 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
 };
 
 /**
+ * WALUTA I ZAPIS KWOT DOMYŚLNE (E6) — para do `DEFAULT_SITE_LABELS` i z tego
+ * samego powodu: rynek startowy jest polski, więc render bez wstrzykniętej
+ * warstwy danych (miniatura szablonu, podgląd presetu w palecie) pokazuje
+ * kwoty tak, jak zobaczy je najemca, który niczego nie zmieniał.
+ */
+export const DEFAULT_SITE_MONEY: SiteMoney = { currency: "PLN", locale: "pl" };
+
+/**
  * DWUTOROWOŚĆ TREŚCI (K2, ADR-084) — jedno rozpoznanie wersji na cały system.
  *
  * Sekcja zapisana od K2 jest PŁÓTNEM z elementami (`version: 2`); sekcje
@@ -97,6 +117,7 @@ function SectionSwitch({
   section,
   products,
   labels,
+  money,
   siteImageBase,
   contactForm,
   mapEmbed,
@@ -105,6 +126,7 @@ function SectionSwitch({
   section: RenderSection;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
+  money: SiteMoney;
   siteImageBase?: string;
   contactForm?: ContactFormBinding;
   mapEmbed?: boolean;
@@ -136,6 +158,7 @@ function SectionSwitch({
         styles={styles}
         siteImageBase={siteImageBase}
         labels={labels}
+        money={money}
         sectionId={section.id}
         contactForm={contactForm}
         mapEmbed={mapEmbed}
@@ -283,6 +306,7 @@ export function SiteRenderer({
   style = DEFAULT_SITE_STYLE,
   products = [],
   labels = DEFAULT_SITE_LABELS,
+  money = DEFAULT_SITE_MONEY,
   className,
   siteImageBase,
   contactForm,
@@ -312,6 +336,13 @@ export function SiteRenderer({
   style?: ResolvedSiteStyle;
   products?: StorefrontProduct[];
   labels?: SiteRenderLabels;
+  /**
+   * WALUTA I ZAPIS KWOT (E6, aneks ADR-094) — sekcja cennika niesie kwoty
+   * w groszach, a to, W CZYM je pokazać, jest ustawieniem najemcy, nie treścią
+   * strony (patrz `SiteMoney`). Brak propsu = wartości domyślne, tak samo jak
+   * przy `labels`.
+   */
+  money?: SiteMoney;
   className?: string;
   /**
    * Prefiks publicznego URL-a bucketa `site-images` (do bucketa włącznie).
@@ -396,6 +427,7 @@ export function SiteRenderer({
           section={section}
           products={products}
           labels={labels}
+          money={money}
           siteImageBase={siteImageBase}
           contactForm={contactForm}
           mapEmbed={mapEmbed}

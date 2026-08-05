@@ -94,6 +94,15 @@ export default async function TenantStorePage() {
     // a nie językiem, w którym akurat stoi kod.
     contactHours: copy.siteLabels.contactHours,
     contactForm: copy.siteLabels.contactForm,
+    // Cennik i opinie strukturalne (E6): przedrostek „od", nazwy jednostek
+    // rozliczeniowych, odnośnik do katalogu i strzałki pasa opinii mówią
+    // językiem SKLEPU. Jednostka jest tu szczególnie istotna: najemca wybiera
+    // ją ze słownika, więc sklep po angielsku nie ma prawa pokazać „doba".
+    pricingFrom: copy.siteLabels.pricingFrom,
+    pricingUnits: copy.siteLabels.pricingUnits,
+    pricingCatalog: copy.siteLabels.pricingCatalog,
+    testimonialsPrev: copy.siteLabels.testimonialsPrev,
+    testimonialsNext: copy.siteLabels.testimonialsNext,
   };
 
   /*
@@ -200,6 +209,7 @@ export default async function TenantStorePage() {
             asRoot={false}
             products={products}
             labels={labels}
+            money={{ currency, locale }}
             siteImageBase={siteImageBase}
             contactForm={contactForm}
             /*

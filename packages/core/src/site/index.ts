@@ -587,6 +587,14 @@ export function parsePublishedSite(payload: unknown): PublishedSite | null {
 // Presety treści startowej sekcji (kreator A2, ADR-082) — patrz ./presets.
 export { PRESET_LOCALES, presetContentFor, type PresetLocale } from "./presets";
 
+/*
+ * WALUTA W MODELU STRONY (E6). Sekcja cennika niesie kwoty, więc render musi
+ * wiedzieć, W CZYM je pokazać — a wie to warstwa danych (ustawienie najemcy).
+ * Typ jedzie tą samą drogą, co reszta modelu treści, żeby pakiet UI nie musiał
+ * sięgać po drugi punkt wejścia rdzenia dla jednej nazwy.
+ */
+export type { CurrencyCode } from "../money";
+
 // Szablony startowe — gotowe SKŁADY strony na pierwsze wejście do kreatora
 // (K5, ADR-090). Presety odpowiadały na pustą sekcję, te na pustą stronę.
 export {
@@ -803,6 +811,10 @@ export {
   GALLERY_GAPS,
   GALLERY_LAYOUTS,
   MAP_PROVIDER_ORIGIN,
+  PRICING_CATALOG_HREF,
+  PRICING_LAYOUTS,
+  PRICING_PRICE_MODES,
+  PRICING_UNITS,
   STRUCTURED_SECTIONS,
   STRUCTURED_SECTION_TYPES,
   STRUCTURED_SECTION_VERSION,
@@ -830,12 +842,17 @@ export {
   parseContactMessage,
   patchStructuredField,
   patchStructuredItem,
+  pricingHeadAndNoteFromLegacy,
+  pricingPriceLabel,
+  pricingStructuredSchema,
   removeStructuredItem,
   structuredFromLegacy,
   structuredNewItemFor,
   structuredPresetFor,
   structuredSchemaFor,
   structuredSpecOf,
+  testimonialsFromLegacy,
+  testimonialsStructuredSchema,
   withStructuredLayout,
   type ContactEntryKind,
   type ContactLayout,
@@ -858,17 +875,28 @@ export {
   type GalleryLayout,
   type GalleryStructuredContent,
   type GalleryStructuredItem,
+  type PricingLayout,
+  type PricingPriceMode,
+  type PricingPriceWords,
+  type PricingStructuredContent,
+  type PricingStructuredItem,
+  type PricingUnit,
   type StructuredChoiceSpec,
   type StructuredContentOf,
   type StructuredEditorShape,
   type StructuredFieldEmpty,
   type StructuredFieldKind,
   type StructuredFieldSpec,
+  type StructuredPresetLocale,
   type StructuredSectionContent,
   type StructuredSectionSpec,
   type StructuredSectionType,
   type StructuredThemeRole,
   type StructuredToggleSpec,
+  type TestimonialsLayout,
+  type TestimonialsStructuredContent,
+  type TestimonialsStructuredItem,
+  TESTIMONIALS_LAYOUTS,
 } from "./structured";
 
 export {

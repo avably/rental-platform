@@ -17,7 +17,15 @@ export {
   TestimonialsSection,
   UspSection,
 } from "./sections";
-export { SiteRenderer, SiteChrome, DEFAULT_SITE_LABELS, type SiteMotionMode } from "./site-renderer";
+export {
+  SiteRenderer,
+  SiteChrome,
+  DEFAULT_SITE_LABELS,
+  DEFAULT_SITE_MONEY,
+  type SiteMotionMode,
+} from "./site-renderer";
+// Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
+export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).
 export { EXTERNAL_LINK_REL, externalLinkRel } from "./links";
 // Pas motywu sekcji — wspólny dla płótna v2 i sekcji strukturalnych v3.

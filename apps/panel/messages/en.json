@@ -1485,6 +1485,56 @@
           "nothingNew": "Every pickup point is already in this section.",
           "full": "This section already has the maximum number of locations — remove one to insert another."
         }
+      },
+      "pricing": {
+        "itemsTitle": "Price list items",
+        "addItem": "Add an item",
+        "removeBody": "This item will disappear from the price list. You can undo the change with “Undo” in the builder toolbar.",
+        "fields": {
+          "name": "Item name",
+          "price_grosze": "Price",
+          "unit": "Charged per",
+          "mode": "Price type",
+          "note": "Item note (optional)",
+          "footnote": "Footnote below the price list (optional)"
+        },
+        "hints": {
+          "price_grosze": "Amount in major units, e.g. 120 or 120.50. No currency symbol."
+        },
+        "fieldValues": {
+          "unit": {
+            "hour": "Per hour",
+            "day": "Per day",
+            "week": "Per week",
+            "month": "Per month",
+            "piece": "Per piece"
+          },
+          "mode": {
+            "exact": "Exact",
+            "from": "From (starting price)"
+          }
+        },
+        "layouts": {
+          "table": "Table",
+          "cards": "Cards"
+        },
+        "toggles": {
+          "showCatalogLink": "Show a link to the full catalog"
+        }
+      },
+      "testimonials": {
+        "itemsTitle": "Testimonials",
+        "addItem": "Add a testimonial",
+        "removeBody": "This testimonial will disappear from the section. You can undo the change with “Undo” in the builder toolbar.",
+        "fields": {
+          "quote": "Testimonial text",
+          "author": "Attribution",
+          "role": "Role of the person quoted (optional)"
+        },
+        "layouts": {
+          "grid": "Grid",
+          "carousel": "Carousel"
+        }
       }
     }
   },

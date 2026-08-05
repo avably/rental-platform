@@ -101,7 +101,7 @@ function sekcja(id: string, type: "hero" | "cta" | "footer", position: number): 
 function renderBuilder(sections: Section[]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} money={{ currency: "PLN", locale: "pl" }} />
     </NextIntlClientProvider>,
   );
 }
@@ -215,13 +215,16 @@ describe("picker: typy po lewej, PODGLĄDY po prawej", () => {
   it("typ płótnowy ma JEDEN podgląd i wstawia preset płótna", async () => {
     const { container } = renderBuilder([sekcja(HERO_ID, "hero", 0)]);
     const dialog = openPicker(container, 0);
-    fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="testimonials"]')!);
+    // Typ PŁÓTNOWY, czyli taki, którego rejestr ADR-094 nie zna. Opinie stały
+    // się typem strukturalnym w E6 i mają odtąd DWA podglądy, więc przestały
+    // być przykładem tej drogi — sedno testu zostaje bez zmian.
+    fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="usp"]')!);
     expect(dialog.querySelectorAll("[data-picker-add]").length).toBe(1);
 
     fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-add="default"]')!);
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     expect(lastInsert()?.content).toEqual(
-      sectionCanvasFrom("testimonials", presetContentFor("testimonials", "pl")),
+      sectionCanvasFrom("usp", presetContentFor("usp", "pl")),
     );
   });
 
@@ -293,7 +296,7 @@ describe("świeża sekcja MIGA (E2)", () => {
       const zNowa = [sekcja(HERO_ID, "hero", 0), sekcja(NOWA_ID, "cta", 1)];
       rerender(
         <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-          <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={zNowa} products={[]} />
+          <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={zNowa} products={[]} money={{ currency: "PLN", locale: "pl" }} />
         </NextIntlClientProvider>,
       );
 

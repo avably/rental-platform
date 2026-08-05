@@ -36,6 +36,7 @@ import {
   type CanvasElement,
   type SectionCanvas,
 } from "@avably/core/site";
+import type { CurrencyCode } from "@avably/core";
 import {
   Button,
   Input,
@@ -60,6 +61,7 @@ import { replaceElement } from "./use-canvas-editor";
 
 export function SectionSettingsDrawer({
   siteId,
+  currency,
   importSources,
   section,
   canvas,
@@ -78,6 +80,8 @@ export function SectionSettingsDrawer({
    * Szuflada ich nie czyta — podaje dalej mini-CMS-owi, który zestawia je
    * z deklaracją `itemsImport` w rejestrze typu.
    */
+  /** Waluta najemcy — pole pieniężne szuflady (E6). */
+  currency: CurrencyCode;
   importSources?: Record<string, readonly unknown[]>;
   /** Sekcja w edycji albo null — szuflada zamknięta. */
   section: EditorSection | null;
@@ -140,6 +144,7 @@ export function SectionSettingsDrawer({
                   key={section.id}
                   siteId={siteId}
                   content={structured}
+                  currency={currency}
                   importSources={importSources}
                   onChange={onStructuredChange}
                 />

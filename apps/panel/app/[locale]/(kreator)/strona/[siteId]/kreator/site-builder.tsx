@@ -63,6 +63,7 @@ import {
   DialogTitle,
   DialogTrigger,
   TooltipProvider,
+  type SiteMoney,
   type StorefrontProduct,
 } from "@avably/ui";
 import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
@@ -112,6 +113,7 @@ export function SiteBuilder({
   style,
   sections,
   products,
+  money,
   importSources,
 }: {
   siteId: string;
@@ -131,6 +133,13 @@ export function SiteBuilder({
    * po nazwie źródła z rejestru typów. Trasa czyta je z bazy i mapuje na
    * kształt wpisu; kreator przenosi je do szuflady i nic o nich nie wie.
    */
+  /**
+   * WALUTA I ZAPIS KWOT NAJEMCY (E6). Jedna wartość na dwa cele: płótno rysuje
+   * nią cennik tak, jak zobaczy go klient, a szuflada przelicza nią to, co
+   * operator wpisuje w polu ceny. Rozdzielenie ich na dwa propsy pozwalałoby
+   * im się rozjechać — a wtedy podgląd pokazywałby inną walutę niż edytor.
+   */
+  money: SiteMoney;
   importSources?: Record<string, readonly unknown[]>;
 }) {
   const t = useTranslations("site");
@@ -636,6 +645,7 @@ export function SiteBuilder({
             gwarancja musi mieć gdzie się zmieścić. */}
         <main data-builder-stage className="bg-muted min-w-0 flex-1 overflow-auto p-4 md:p-6">
           <BuilderCanvas
+            money={money}
             style={style}
             sections={sections}
             products={products}
@@ -704,6 +714,7 @@ export function SiteBuilder({
 
       <SectionSettingsDrawer
         siteId={siteId}
+        currency={money.currency}
         importSources={importSources}
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}

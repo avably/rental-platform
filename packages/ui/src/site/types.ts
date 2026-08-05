@@ -17,6 +17,7 @@ import type {
   ContactSubmitInput,
   ContactSubmitResult,
   CtaContent,
+  CurrencyCode,
   DeliveryContent,
   DirectionsContent,
   FaqContent,
@@ -25,6 +26,7 @@ import type {
   GalleryContent,
   HeroContent,
   PricingContent,
+  PricingUnit,
   ProductsContent,
   SectionCanvas,
   SectionType,
@@ -42,6 +44,7 @@ export type {
   ContactSubmitInput,
   ContactSubmitResult,
   CtaContent,
+  CurrencyCode,
   DeliveryContent,
   DirectionsContent,
   FaqContent,
@@ -50,12 +53,15 @@ export type {
   GalleryContent,
   HeroContent,
   PricingContent,
+  PricingStructuredContent,
+  PricingUnit,
   ProductsContent,
   SectionContent,
   SectionType,
   SiteTemplate,
   StructuredSectionContent,
   TestimonialsContent,
+  TestimonialsStructuredContent,
   UspContent,
 } from "@avably/core/site";
 
@@ -252,4 +258,57 @@ export interface SiteRenderLabels {
    */
   contactHours: string;
   contactForm: ContactFormLabels;
+  /**
+   * CENNIK STRUKTURALNY (E6, aneks ADR-094). Trzy rzeczy w tej sekcji mówią
+   * CHROME renderu, a nie najemca, i wszystkie trzy z jednego powodu: sklep po
+   * angielsku ma je powiedzieć po angielsku, choćby cennik był pisany po polsku.
+   *   • `pricingFrom` — przedrostek ceny wyjściowej („od”). Sam wybór, czy cena
+   *     jest wyjściowa, należy do najemcy (pole `mode` wpisu) — ale SŁOWO nie;
+   *   • `pricingUnits` — nazwa jednostki rozliczeniowej per wartość słownika.
+   *     Zamknięty zbiór, więc komplet jest wymuszony typem, a nie pamięcią;
+   *   • `pricingCatalog` — nazwa odnośnika do pełnego katalogu pod listą.
+   */
+  pricingFrom: string;
+  pricingUnits: Record<PricingUnit, string>;
+  pricingCatalog: string;
+  /**
+   * OPINIE STRUKTURALNE (E6). Strzałki pasa mają w środku SAM ZNAK graficzny,
+   * więc ich dostępna nazwa jest jedynym, co słyszy czytnik ekranu. Osobne od
+   * `galleryPrev`/`galleryNext` ŚWIADOMIE: „Poprzednie zdjęcie” przy cytacie
+   * jest komunikatem fałszywym, a nie niedokładnym.
+   */
+  testimonialsPrev: string;
+  testimonialsNext: string;
+}
+
+/**
+ * WALUTA I ZAPIS KWOT (E6, aneks ADR-094) — trzecia rzecz (po formularzu
+ * kontaktu i zgodzie na obcą ramkę), którą do wspólnego renderera wnosi
+ * WARSTWA DANYCH, a nie treść sekcji.
+ *
+ * ==================== DLACZEGO NIE W TREŚCI ====================
+ *
+ * Kusi dopisać walutę do treści cennika — byłaby wtedy pod ręką i nie trzeba by
+ * jej nigdzie przekazywać. Odpada, bo waluta jest USTAWIENIEM NAJEMCY, a nie
+ * jego tekstem: jest jedna dla całego sklepu (katalog, kasa, faktury), więc
+ * kopia w każdej sekcji cennika byłaby drugim źródłem prawdy, które przy
+ * pierwszej zmianie ustawienia rozjeżdża stronę z kasą.
+ *
+ * ==================== DLACZEGO NIE GOTOWA ETYKIETA ====================
+ *
+ * Karta produktu dostaje cenę JUŻ SFORMATOWANĄ (`StorefrontProduct.priceLabel`)
+ * — bo jej cena pochodzi z katalogu, czyli spoza treści strony, i warstwa
+ * odczytu i tak ją czyta. Cena pozycji cennika jest przeciwnym przypadkiem:
+ * mieszka w treści sekcji, którą operator edytuje w szufladzie, więc gotowa
+ * etykieta musiałaby powstawać przy każdym naciśnięciu klawisza i wracać do
+ * `jsonb` obok liczby — czyli dokładnie to drugie źródło prawdy, którego
+ * kanon „pieniądze w groszach jako `int`” zabrania.
+ *
+ * Brak propsu = waluta i zapis DOMYŚLNE (patrz `DEFAULT_SITE_MONEY`), tak samo
+ * jak brak `labels` znaczy etykiety domyślne.
+ */
+export interface SiteMoney {
+  currency: CurrencyCode;
+  /** Locale ZAPISU kwoty (separatory, pozycja symbolu) — język sklepu. */
+  locale: string;
 }
