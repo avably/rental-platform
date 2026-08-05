@@ -41,7 +41,16 @@
  */
 import { z } from "zod";
 
-import { SECTION_BACKGROUNDS } from "./elements";
+import {
+  imageSourceSchema,
+  isSectionCanvas,
+  linkHrefSchema,
+  normalizeImageSource,
+  SECTION_BACKGROUNDS,
+  type ImageSource,
+  type SectionCanvas,
+} from "./elements";
+import { GALLERY_PRESET_SLOTS, starterPhoto } from "./starter-photos";
 
 /** Znacznik generacji w treści sekcji. Jedyny sposób rozpoznania v3. */
 export const STRUCTURED_SECTION_VERSION = 3;
@@ -119,11 +128,183 @@ export const faqStructuredSchema = z
 export type FaqStructuredContent = z.infer<typeof faqStructuredSchema>;
 
 // -----------------------------------------------------------------------
+// Galeria — pierwszy typ MEDIALNY (E3, aneks ADR-094)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu galerii. Trzy, bo trzy są realnymi odpowiedziami na pytanie
+ * „jak pokazać zdjęcia":
+ *   • `grid` — równy rytm kafli o jednej proporcji (katalog realizacji);
+ *   • `masonry` — kadry w NATURALNYCH proporcjach, dopasowane wysokością
+ *     (pion i poziom obok siebie bez przycinania);
+ *   • `carousel` — jeden pas przewijany w bok, gdy zdjęć jest dużo, a miejsca
+ *     na stronie mało.
+ *
+ * Wszystkie trzy czytają TEN SAM `items` — przełącznik układu jest polem
+ * treści, więc jego zmiana z definicji nie dosięga wpisów (patrz
+ * {@link withStructuredLayout}).
+ */
+export const GALLERY_LAYOUTS = ["grid", "masonry", "carousel"] as const;
+export type GalleryLayout = (typeof GALLERY_LAYOUTS)[number];
+
+/**
+ * Ile kafli w rzędzie na szerokim kontenerze. Dwójka jest podłogą, bo poniżej
+ * progu 40 rem układ i tak schodzi do dwóch kolumn (decyzja właściciela
+ * 2026-08-01), a czwórka sufitem: piąta kolumna robi z realizacji miniatury.
+ */
+export const GALLERY_COLUMNS = [2, 3, 4] as const;
+export type GalleryColumns = (typeof GALLERY_COLUMNS)[number];
+
+/**
+ * Odstęp między kaflami — NAZWY, nie piksele. Operator wybiera gęstość, a nie
+ * liczbę, więc zmiana skali rozstawu przestawia stronę razem z motywem.
+ */
+export const GALLERY_GAPS = ["tight", "regular", "roomy"] as const;
+export type GalleryGap = (typeof GALLERY_GAPS)[number];
+
+/** Górna granica zdjęć — lustro `maxItems` w rejestrze (test pilnuje zgody). */
+const GALLERY_MAX_ITEMS = 60;
+
+/**
+ * Opis alternatywny kafla. W ODRÓŻNIENIU od `altText` sekcji v1 wolno mu być
+ * PUSTY, i to jest decyzja dostępnościowa, a nie ustępstwo: zdjęcie czysto
+ * dekoracyjne opisane zdaniem „zdjęcie 3" zaśmieca czytnik ekranu bardziej,
+ * niż pomaga. Pustka renderuje się jako `alt=""` (WAI-ARIA: obraz dekoracyjny),
+ * a nie jako brak atrybutu — brak atrybutu każe czytnikowi przeczytać nazwę
+ * pliku.
+ */
+const galleryAlt = z.string().trim().max(300);
+
+/** Podpis pod kafelkiem — widoczny tekst, więc pusty nie ma sensu (pole znika). */
+const galleryCaption = z.string().trim().min(1).max(300);
+
+export const galleryStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("gallery"),
+    layout: z.enum(GALLERY_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Zdjęcia. MINIMUM JEDNO — galeria bez ani jednego kadru jest pustym
+     * nagłówkiem, czyli dokładnie tą atrapą, którą ADR-094 usuwa z produktu.
+     *
+     * `image` to `imageSourceSchema` (ten sam, co element płótna): plik w
+     * naszym buckecie albo hotlink u dostawcy Z ATRYBUCJĄ. Jedno pole „ścieżka
+     * albo adres" kazałoby renderowi ZGADYWAĆ, czy dokleić prefiks bucketa
+     * i czy pokazać podpis autora — a zgadywanie w warunkach licencyjnych
+     * kończy się ich złamaniem.
+     */
+    items: z
+      .array(
+        z
+          .object({
+            image: imageSourceSchema,
+            alt: galleryAlt.default(""),
+            caption: galleryCaption.optional(),
+            /** Dokąd prowadzi kafel. Ta sama allowlista, co przycisk płótna. */
+            link: linkHrefSchema.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(GALLERY_MAX_ITEMS),
+    /** Kafle w rzędzie (siatka i mozaika) — patrz {@link GALLERY_COLUMNS}. */
+    columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
+    gap: z.enum(GALLERY_GAPS).default("regular"),
+    /**
+     * Powiększanie zdjęcia po kliknięciu. DOMYŚLNIE WŁĄCZONE (pinezka
+     * właściciela): galeria, w której kliknięcie kafla nic nie robi, wygląda
+     * na zepsutą — a wyłączyć ją trzeba móc, bo strona z kaflami-odnośnikami
+     * ma inne zadanie niż album.
+     */
+    lightbox: z.boolean().default(true),
+  })
+  .strict();
+
+export type GalleryStructuredContent = z.infer<typeof galleryStructuredSchema>;
+export type GalleryStructuredItem = GalleryStructuredContent["items"][number];
+
+/**
+ * WPISY GALERII WYPROWADZONE ZE STAREJ TREŚCI (konwersja E3).
+ *
+ * FAQ konwersji nie ma i mieć nie może: treść spłaszczona do płótna nie niesie
+ * już informacji, który napis był pytaniem, a który odpowiedzią (ADR-094,
+ * decyzja o konwersji ręcznej). GALERIA jest przeciwnym przypadkiem — zdjęcie
+ * pozostaje zdjęciem w każdej generacji, a jego opis alternatywny jedzie razem
+ * z nim. Tu nie ma czego zgadywać, więc konwersja przenosi kadry CO DO JEDNEGO
+ * i to jest jedyna różnica wobec E1 (sam przycisk zostaje ręczny).
+ *
+ * Kolejność wpisów bierzemy z kolejności CZYTANIA płótna (od góry, potem od
+ * lewej), a nie z kolejności w tablicy elementów: tamta jest kolejnością
+ * DODAWANIA i po kilku poprawkach nie ma nic wspólnego z tym, co operator widzi.
+ */
+export function galleryItemsFromLegacy(content: unknown): GalleryStructuredItem[] {
+  if (isSectionCanvas(content)) return galleryItemsFromCanvas(content);
+  return galleryItemsFromV1(content);
+}
+
+function galleryItemsFromCanvas(canvas: SectionCanvas): GalleryStructuredItem[] {
+  return canvas.elements
+    .filter((element) => element.kind === "image")
+    .slice()
+    .sort((a, b) => {
+      const first = a.layout.desktop;
+      const second = b.layout.desktop;
+      return first.y - second.y || first.x - second.x;
+    })
+    .map((element) => {
+      const image = normalizeImageSource(element as { source?: ImageSource; imagePath?: string });
+      if (!image) return null;
+      // Element płótna WYMAGA opisu alternatywnego, więc przenosimy go wprost;
+      // kafel bez opisu nie powstanie tą drogą.
+      return { image, alt: (element as { alt?: string }).alt ?? "" };
+    })
+    .filter((item): item is GalleryStructuredItem => item !== null)
+    .slice(0, GALLERY_MAX_ITEMS);
+}
+
+/** Sekcja galerii SPRZED płótna: `items[].imagePath` + `alt` (schemat v1). */
+function galleryItemsFromV1(content: unknown): GalleryStructuredItem[] {
+  if (typeof content !== "object" || content === null) return [];
+  const items = (content as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (typeof item !== "object" || item === null) return null;
+      const path = (item as { imagePath?: unknown }).imagePath;
+      if (typeof path !== "string" || path.length === 0) return null;
+      const alt = (item as { alt?: unknown }).alt;
+      return {
+        image: { kind: "storage", path } as ImageSource,
+        alt: typeof alt === "string" ? alt : "",
+      };
+    })
+    .filter((item): item is GalleryStructuredItem => item !== null)
+    .slice(0, GALLERY_MAX_ITEMS);
+}
+
+// -----------------------------------------------------------------------
 // Opis edytora — mini-CMS czyta pola z DANYCH, nie z `if`-ów per typ
 // -----------------------------------------------------------------------
 
-/** Rodzaj kontrolki pola wpisu: jednowierszowa albo wielowierszowa. */
-export type StructuredFieldKind = "text" | "multiline";
+/**
+ * Rodzaj kontrolki pola wpisu. `image` NIE jest polem tekstowym: wartością
+ * jest źródło zdjęcia, a nie napis, więc szuflada rysuje w tym miejscu
+ * miniaturę, a nie `<input>` ze ścieżką do Storage.
+ */
+export type StructuredFieldKind = "text" | "multiline" | "image";
+
+/**
+ * Co znaczy PUSTE pole. Brak deklaracji = pustki NIE ZAPISUJEMY w ogóle (E1:
+ * pytanie bez treści nie jest pytaniem, a błąd walidacji przy każdym skasowanym
+ * znaku jest gorszy niż brak zapisu). Dwie jawne alternatywy:
+ *   • `"value"` — pustka jest ZNACZĄCA i zostaje w treści (`alt: ""` to
+ *     zdjęcie dekoracyjne, czyli decyzja, a nie brak decyzji);
+ *   • `"unset"` — pustka ZDEJMUJE pole opcjonalne (podpis, odnośnik), bo
+ *     schemat nie przyjmie pustego napisu, a operator ma prawo je usunąć.
+ */
+export type StructuredFieldEmpty = "value" | "unset";
 
 export interface StructuredFieldSpec {
   /** Klucz pola we wpisie — zarazem końcówka klucza tłumaczenia etykiety. */
@@ -131,12 +312,40 @@ export interface StructuredFieldSpec {
   kind: StructuredFieldKind;
   /** Wysokość pola wielowierszowego (wiersze). */
   rows?: number;
+  empty?: StructuredFieldEmpty;
 }
 
 /** Przełącznik logiczny w ustawieniach sekcji (np. „pozwól otworzyć wiele naraz"). */
 export interface StructuredToggleSpec {
   key: string;
 }
+
+/**
+ * Ustawienie sekcji o ZAMKNIĘTYM zbiorze wartości (liczba kafli w rzędzie,
+ * gęstość odstępu). Wartości są tu DANYMI o oryginalnym typie — dzięki temu
+ * szuflada oddaje do treści liczbę tam, gdzie schemat oczekuje liczby, zamiast
+ * zgadywać po kształcie napisu z `<select>`.
+ */
+export interface StructuredChoiceSpec {
+  key: string;
+  /** Wartości do wyboru — kolejność = kolejność na liście. */
+  values: readonly (string | number)[];
+  /**
+   * Układy, przy których to ustawienie ma sens (brak = wszystkie). Liczba kafli
+   * w rzędzie nie znaczy nic w karuzeli, a widoczna kontrolka bez skutku uczy
+   * operatora, że ustawienia sekcji bywają ozdobą.
+   */
+  layouts?: readonly string[];
+}
+
+/**
+ * KSZTAŁT SZUFLADY. `single` to jedna kolumna pól (FAQ: trzy przełączniki
+ * i lista par). `split` rozdziela TREŚĆ od WYGLĄDU na dwie zakładki — bo typ
+ * medialny ma obu naraz tyle, że jedna ściana pól przestaje być czytelna
+ * (research planu „Sekcje 2.0": zarządzanie zdjęciami i wygląd galerii to
+ * w narzędziach rynkowych dwa osobne ekrany).
+ */
+export type StructuredEditorShape = "single" | "split";
 
 export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   schema: TSchema;
@@ -147,20 +356,66 @@ export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeA
   itemFields: readonly StructuredFieldSpec[];
   /** Ustawienia sekcji poza listą wpisów. */
   toggles: readonly StructuredToggleSpec[];
+  /** Ustawienia wyglądu o zamkniętym zbiorze wartości. */
+  choices: readonly StructuredChoiceSpec[];
+  editor: StructuredEditorShape;
   minItems: number;
   maxItems: number;
   /** Role motywu malowane przez render tego typu — wejście macierzy kontrastu. */
   themeRoles: readonly StructuredThemeRole[];
   /** Treść startowa (preset) w obu językach — parytet pilnuje test. */
   preset: Record<"pl" | "en", unknown>;
-  /** Świeży wpis dodawany przyciskiem „dodaj" — musi spełniać schemat. */
-  newItem: Record<"pl" | "en", unknown>;
+  /**
+   * Świeży wpis dodawany przyciskiem „dodaj" — musi spełniać schemat.
+   * NIEOBECNY dla typów, w których wpis rodzi się z WGRANIA PLIKU: pusty kafel
+   * galerii bez zdjęcia nie jest „wpisem do uzupełnienia", tylko treścią,
+   * której schemat i tak nie przyjmie.
+   */
+  newItem?: Record<"pl" | "en", unknown>;
+  /**
+   * Treść v3 wyprowadzona z treści STAREJ generacji tej samej sekcji (v1 albo
+   * płótno v2) — albo `null`, gdy wyprowadzenie wymagałoby zgadywania.
+   * Nieobecność jest RÓWNIE mocną deklaracją co obecność: znaczy „tej treści
+   * nie da się przenieść bez wymyślania" (FAQ — patrz ADR-094).
+   */
+  fromLegacy?: (content: unknown) => unknown | null;
 }
 
 /**
- * REJESTR TYPÓW STRUKTURALNYCH. E1 wnosi jeden wpis — FAQ jako typ
- * referencyjny end-to-end. Kolejne typy (galeria, kontakt, dojazd, cennik,
- * opinie, sprzęt, dostawa, atuty, CTA) dopisują się TUTAJ i nigdzie indziej.
+ * PRESET GALERII — kadry z kuracji szablonów, opisy z języka wypożyczalni.
+ *
+ * Zdjęcia są DANYMI z jednego miejsca ({@link GALLERY_PRESET_SLOTS}), a opisy
+ * i podpisy tekstem UI-owym per język. Slot bez kadru wypada — a że preset bez
+ * ani jednego zdjęcia nie przeszedłby schematu, kontrakt rdzenia liczy wpisy
+ * wprost i zapala się, gdy kuracja zniknie.
+ */
+function galleryPreset(
+  headingText: string,
+  texts: readonly { alt: string; caption: string }[],
+): unknown {
+  const items = GALLERY_PRESET_SLOTS.map((slot, index) => {
+    const image = starterPhoto(slot);
+    return image ? { image, alt: texts[index]!.alt, caption: texts[index]!.caption } : null;
+  }).filter((item): item is { image: ImageSource; alt: string; caption: string } => item !== null);
+
+  return {
+    v: STRUCTURED_SECTION_VERSION,
+    type: "gallery",
+    layout: "grid",
+    background: "default",
+    heading: headingText,
+    columns: 3,
+    gap: "regular",
+    lightbox: true,
+    items,
+  };
+}
+
+/**
+ * REJESTR TYPÓW STRUKTURALNYCH. E1 wniósł jeden wpis — FAQ jako typ
+ * referencyjny end-to-end; E3 dokłada GALERIĘ, czyli pierwszy typ medialny.
+ * Kolejne typy (kontakt, dojazd, cennik, opinie, sprzęt, dostawa, atuty, CTA)
+ * dopisują się TUTAJ i nigdzie indziej.
  */
 export const STRUCTURED_SECTIONS = {
   faq: {
@@ -172,6 +427,11 @@ export const STRUCTURED_SECTIONS = {
       { key: "a", kind: "multiline", rows: 4 },
     ],
     toggles: [{ key: "allowMultiple" }],
+    // FAQ nie ma ustawień wyglądu poza układem — pusto JAWNIE, żeby „nie ma"
+    // było decyzją widoczną w rejestrze, a nie brakiem, którego nikt nie
+    // rozpatrzył.
+    choices: [],
+    editor: "single",
     minItems: 1,
     maxItems: FAQ_MAX_ITEMS,
     // Render FAQ maluje: tytuł pytania (ink), odpowiedź (inkMuted) i kreskę
@@ -226,6 +486,86 @@ export const STRUCTURED_SECTIONS = {
     newItem: {
       pl: { q: "Nowe pytanie", a: "Odpowiedź na nowe pytanie." },
       en: { q: "New question", a: "Answer to the new question." },
+    },
+    // Bez `fromLegacy` ŚWIADOMIE: treść FAQ spłaszczona do płótna nie niesie
+    // już informacji, który napis był pytaniem, a który odpowiedzią (ADR-094).
+  },
+
+  gallery: {
+    schema: galleryStructuredSchema,
+    layouts: GALLERY_LAYOUTS,
+    defaultLayout: "grid",
+    itemFields: [
+      { key: "image", kind: "image" },
+      // Pusty opis alternatywny to DECYZJA („zdjęcie dekoracyjne"), więc
+      // zostaje w treści jako `""` — patrz `galleryAlt`.
+      { key: "alt", kind: "text", empty: "value" },
+      { key: "caption", kind: "text", empty: "unset" },
+      { key: "link", kind: "text", empty: "unset" },
+    ],
+    toggles: [{ key: "lightbox" }],
+    choices: [
+      { key: "columns", values: GALLERY_COLUMNS, layouts: ["grid", "masonry"] },
+      { key: "gap", values: GALLERY_GAPS },
+    ],
+    // Zdjęcia i wygląd to dwie różne prace przy jednej sekcji — patrz
+    // `StructuredEditorShape`.
+    editor: "split",
+    minItems: 1,
+    maxItems: GALLERY_MAX_ITEMS,
+    // Render galerii maluje: nagłówek sekcji (ink, z powłoki), podpis pod
+    // kafelkiem i licznik lightboxa (inkMuted) oraz obrys kafla, przycisków
+    // karuzeli i panelu lightboxa (border). Zero akcentu — kafel ma pokazywać
+    // zdjęcie, nie konkurować z nim kolorem.
+    themeRoles: ["ink", "inkMuted", "border"],
+    preset: {
+      pl: galleryPreset("Nasze realizacje", [
+        {
+          alt: "Nakryty stół na przyjęciu weselnym w namiocie",
+          caption: "Wesele na 120 osób — namiot, stoły i nakrycia",
+        },
+        {
+          alt: "Parkiet taneczny z oświetleniem pod namiotem",
+          caption: "Parkiet i oświetlenie sceniczne",
+        },
+        {
+          alt: "Rzędy krzeseł ustawione na ceremonię w plenerze",
+          caption: "Ceremonia w plenerze — krzesła i nagłośnienie",
+        },
+      ]),
+      en: galleryPreset("Our work", [
+        {
+          alt: "Banquet table set for a wedding reception in a marquee",
+          caption: "Wedding for 120 — marquee, tables and place settings",
+        },
+        {
+          alt: "Dance floor with stage lighting under a marquee",
+          caption: "Dance floor and stage lighting",
+        },
+        {
+          alt: "Rows of chairs set up for an outdoor ceremony",
+          caption: "Outdoor ceremony — chairs and sound system",
+        },
+      ]),
+    },
+    // Bez `newItem` ŚWIADOMIE: kafel galerii rodzi się z WGRANIA PLIKU, a nie
+    // z przycisku „dodaj wpis". Pusty kafel bez zdjęcia nie przeszedłby
+    // schematu, więc przycisk obiecywałby operację, która kończy się błędem.
+    fromLegacy: (content: unknown) => {
+      const items = galleryItemsFromLegacy(content);
+      if (items.length === 0) return null;
+      const heading = (content as { heading?: unknown } | null)?.heading;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "gallery",
+        layout: "grid",
+        background: "default",
+        ...(typeof heading === "string" && heading.trim().length > 0 ? { heading } : {}),
+        columns: 3,
+        gap: "regular",
+        lightbox: true,
+        items,
+      };
     },
   },
 } as const satisfies Record<string, StructuredSectionSpec>;
@@ -332,9 +672,40 @@ export function structuredPresetFor(
   ) as unknown as StructuredSectionContent;
 }
 
-/** Świeży wpis listy dla przycisku „dodaj" w mini-CMS. */
-export function structuredNewItemFor(type: StructuredSectionType, locale: string): unknown {
-  return structuredClone(STRUCTURED_SECTIONS[type].newItem[localeOf(locale)]);
+/**
+ * Świeży wpis listy dla przycisku „dodaj" w mini-CMS — albo `undefined`, gdy
+ * typ tworzy wpisy inną drogą (galeria: wgranie pliku). Szuflada pyta TĄ
+ * funkcją, więc brak przycisku wynika z rejestru, a nie z `if`-a po nazwie typu.
+ */
+export function structuredNewItemFor(
+  type: StructuredSectionType,
+  locale: string,
+): unknown | undefined {
+  const { newItem } = STRUCTURED_SECTIONS[type] as StructuredSectionSpec;
+  return newItem ? structuredClone(newItem[localeOf(locale)]) : undefined;
+}
+
+/**
+ * KONWERSJA STAREJ TREŚCI NA v3 (E3) — treść wyprowadzona z sekcji poprzedniej
+ * generacji albo PRESET, gdy tej treści nie da się przenieść bez zgadywania.
+ *
+ * Wołający (kreator) nie rozgałęzia się po typie: pyta rejestr i dostaje albo
+ * przeniesione zdjęcia, albo świeży preset. Wynik jest PARSOWANY schematem
+ * typu — przeniesienie, które dałoby treść niepoprawną, degraduje do presetu
+ * zamiast zapisać do bazy coś, czego render nie narysuje.
+ */
+export function structuredFromLegacy(
+  type: StructuredSectionType,
+  content: unknown,
+  locale: string,
+): StructuredSectionContent {
+  const spec = STRUCTURED_SECTIONS[type] as StructuredSectionSpec;
+  const converted = spec.fromLegacy?.(content) ?? null;
+  if (converted !== null) {
+    const parsed = spec.schema.safeParse(converted);
+    if (parsed.success) return parsed.data as StructuredSectionContent;
+  }
+  return structuredPresetFor(type, locale);
 }
 
 // -----------------------------------------------------------------------
@@ -387,18 +758,27 @@ export function moveStructuredItem<T extends StructuredSectionContent>(
   return { ...content, items: next } as T;
 }
 
-/** Jedno pole jednego wpisu — edycja w mini-CMS. */
+/**
+ * Jedno pole jednego wpisu — edycja w mini-CMS. `undefined` ZDEJMUJE pole
+ * (podpis i odnośnik kafla są opcjonalne, a schemat nie przyjmie pustego
+ * napisu): bez tej drogi jedynym sposobem usunięcia podpisu byłoby skasowanie
+ * całego zdjęcia.
+ */
 export function patchStructuredItem<T extends StructuredSectionContent>(
   content: T,
   index: number,
   key: string,
-  value: string,
+  value: string | undefined,
 ): T {
   const items = itemsOf(content);
   if (index < 0 || index >= items.length) return content;
-  const next = items.map((item, i) =>
-    i === index ? { ...(item as Record<string, unknown>), [key]: value } : item,
-  );
+  const next = items.map((item, i) => {
+    if (i !== index) return item;
+    const patched = { ...(item as Record<string, unknown>) };
+    if (value === undefined) delete patched[key];
+    else patched[key] = value;
+    return patched;
+  });
   return { ...content, items: next } as T;
 }
 

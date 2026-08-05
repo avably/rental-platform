@@ -135,4 +135,16 @@ export interface SiteRenderLabels {
   directionsAddress: string;
   directionsHours: string;
   directionsMap: string;
+  /**
+   * GALERIA STRUKTURALNA (E3, aneks ADR-094). Przyciski powiększenia i pasa
+   * karuzeli mają w środku SAM ZNAK graficzny, więc ich dostępna nazwa jest
+   * jedynym, co słyszy czytnik ekranu — musi przyjść z języka strony, a nie
+   * ze stałej zaszytej w komponencie.
+   */
+  galleryZoom: string;
+  galleryClose: string;
+  galleryPrev: string;
+  galleryNext: string;
+  /** Wzorzec licznika w powiększeniu — `{current}` i `{total}` podmienia render. */
+  galleryPosition: string;
 }

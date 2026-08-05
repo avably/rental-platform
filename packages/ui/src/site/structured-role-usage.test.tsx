@@ -63,6 +63,17 @@ const ALLOWED_FOREIGN_IMPORTS = [
   "../bands",
   "@avably/core/site",
   "react",
+  /*
+   * E3 (galeria) — trzy moduły, każdy CZYSTY z klas:
+   *   • `../image-url` — przelicznik publicznego adresu zdjęcia. Mieszkał
+   *     w `sections.tsx`, ale tamten plik JEST producentem klas, więc zamiast
+   *     wpuszczać go na tę listę, wyprowadziliśmy stąd samą funkcję;
+   *   • `../links` — reguła `rel` linków wychodzących (funkcja czysta);
+   *   • `../types` — WYŁĄCZNIE typy (etykiety chrome renderu), zero runtime'u.
+   */
+  "../image-url",
+  "../links",
+  "../types",
 ];
 
 const SOURCES = new Map<string, string>(

@@ -54,6 +54,10 @@ export const ROLE_CLASSES: Record<string, readonly StructuredThemeRole[]> = {
   "site-outline": ["border"],
   // Karta przełącza pas na `card`, ale RYSUJE obrys ze zmiennej kreski.
   "site-card": ["border"],
+  // Okno powiększenia zdjęcia (E3): geometria plus obrys ze zmiennej kreski.
+  // Powierzchnię i atrament bierze z `site-root`/`site-surface` obok siebie —
+  // dlatego wnosi TYLKO kreskę.
+  "site-lightbox": ["border"],
   "site-header": ["border"],
   "site-field": ["border"],
   // — wypełnienia akcentem —

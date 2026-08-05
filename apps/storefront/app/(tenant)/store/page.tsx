@@ -68,6 +68,14 @@ export default async function TenantStorePage() {
     directionsAddress: copy.siteLabels.directionsAddress,
     directionsHours: copy.siteLabels.directionsHours,
     directionsMap: copy.siteLabels.directionsMap,
+    // Galeria strukturalna (E3): przyciski powiększenia i pasa karuzeli mają
+    // w środku sam znak graficzny, więc ich dostępna nazwa jest jedynym, co
+    // słyszy czytnik ekranu — musi przyjść z języka strony.
+    galleryZoom: copy.siteLabels.galleryZoom,
+    galleryClose: copy.siteLabels.galleryClose,
+    galleryPrev: copy.siteLabels.galleryPrev,
+    galleryNext: copy.siteLabels.galleryNext,
+    galleryPosition: copy.siteLabels.galleryPosition,
   };
 
   // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043) — hero

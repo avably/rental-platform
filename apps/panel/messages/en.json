@@ -1388,6 +1388,56 @@
         "toggles": {
           "allowMultiple": "Allow several answers open at once"
         }
+      },
+      "upload": {
+        "label": "Upload photos",
+        "prompt": "Drag photos here or click to choose",
+        "busy": "Uploading…",
+        "hint": "JPG, PNG, WebP or AVIF. You can pick several files at once.",
+        "remove": "Remove the chosen file",
+        "missing": "No photo"
+      },
+      "gallery": {
+        "itemsTitle": "Photos",
+        "full": "This section has reached its photo limit.",
+        "removeBody": "The photo will disappear from this section. You can undo it with “Undo” in the builder toolbar.",
+        "tabs": {
+          "items": "Manage photos",
+          "appearance": "Appearance"
+        },
+        "fields": {
+          "image": "Photo",
+          "alt": "Screen reader description",
+          "caption": "Caption",
+          "link": "Link"
+        },
+        "hints": {
+          "alt": "Leave empty if the photo is decoration only — screen readers will then skip it."
+        },
+        "layouts": {
+          "grid": "Grid",
+          "masonry": "Masonry",
+          "carousel": "Carousel"
+        },
+        "toggles": {
+          "lightbox": "Clicking a photo enlarges it"
+        },
+        "choices": {
+          "columns": "Photos per row",
+          "gap": "Space between photos"
+        },
+        "choiceValues": {
+          "columns": {
+            "2": "2",
+            "3": "3",
+            "4": "4"
+          },
+          "gap": {
+            "tight": "Tight",
+            "regular": "Regular",
+            "roomy": "Roomy"
+          }
+        }
       }
     }
   },

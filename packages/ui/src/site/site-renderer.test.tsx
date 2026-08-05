@@ -63,7 +63,7 @@ describe("SiteRenderer — render per typ sekcji", () => {
       <SiteRenderer
         sections={[section]}
         products={[]}
-        labels={{ productsEmpty: "Brak produktów", contactEmail: "E:", contactPhone: "T:", contactAddress: "A:", contactMap: "Mapa", directionsAddress: "A:", directionsHours: "G:", directionsMap: "Mapa" }}
+        labels={{ productsEmpty: "Brak produktów", contactEmail: "E:", contactPhone: "T:", contactAddress: "A:", contactMap: "Mapa", directionsAddress: "A:", directionsHours: "G:", directionsMap: "Mapa", galleryZoom: "Powiększ", galleryClose: "Zamknij", galleryPrev: "Poprzednie", galleryNext: "Następne", galleryPosition: "{current}/{total}" }}
       />,
     );
     expect(screen.getByText("Brak produktów")).toBeInTheDocument();

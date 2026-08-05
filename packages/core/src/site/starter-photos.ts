@@ -191,6 +191,23 @@ export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
 };
 
 /**
+ * SLOTY, Z KTÓRYCH POWSTAJE PRESET GALERII STRUKTURALNEJ (E3, aneks ADR-094).
+ *
+ * Preset sekcji v3 ma pokazywać, CZYM galeria jest — czyli realnymi kadrami,
+ * a nie trzema szarymi kaflami. Bierzemy je z tej samej kuracji, co szablony
+ * startowe, zamiast wklejać drugi komplet adresów: wymiana kadru przy
+ * najbliższej kuracji przestawia wtedy szablon i preset naraz, a atrybucja
+ * zostaje JEDNA (warunek licencji, nie ozdoba).
+ *
+ * Kolejność slotów jest kolejnością wpisów w presecie.
+ */
+export const GALLERY_PRESET_SLOTS = [
+  "event-gallery-1",
+  "event-gallery-2",
+  "event-gallery-3",
+] as const satisfies readonly StarterPhotoSlot[];
+
+/**
  * Kadr slotu w postaci, w jakiej wchodzi do treści sekcji. Zwraca `undefined`
  * dla slotu bez kadru — sekcja renderuje wtedy kafel zastępczy w tym samym
  * pudełku, więc brak kuracji nie zmienia układu strony ani o jednostkę.

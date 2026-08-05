@@ -245,8 +245,13 @@ const elementAlt = z.string().trim().min(1).max(300);
  * Cel przycisku — ta sama allowlista schematów co `ctaHref` w v1: http(s),
  * ścieżka względna albo kotwica. `javascript:` i `data:` odpadają z definicji,
  * a nie z listy zakazów, więc przyszły egzotyczny schemat też nie przejdzie.
+ *
+ * EKSPORTOWANY od E3: odnośnik pod kafelkiem galerii (treść v3) prowadzi tam,
+ * gdzie przycisk płótna, więc musi go wpuszczać DOKŁADNIE ta sama allowlista.
+ * Druga, „prawie taka sama" kopia reguły bezpieczeństwa rozjeżdża się z pierwszą
+ * w dniu, w którym jedną z nich ktoś poprawi.
  */
-const elementHref = z
+export const linkHrefSchema = z
   .string()
   .trim()
   .min(1)
@@ -394,7 +399,7 @@ export const buttonElementSchema = z
     ...elementBase,
     kind: z.literal("button"),
     label: elementLabel,
-    href: elementHref,
+    href: linkHrefSchema,
     variant: z.enum(BUTTON_VARIANTS).default("solid"),
     align: alignment,
     size: elementSizeSchema.optional(),

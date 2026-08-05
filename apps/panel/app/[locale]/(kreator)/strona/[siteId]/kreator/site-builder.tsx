@@ -42,6 +42,7 @@ import {
   isStructuredType,
   presetContentFor,
   sectionCanvasFrom,
+  structuredFromLegacy,
   structuredPresetFor,
   withStructuredLayout,
   type PaletteElementKind,
@@ -257,19 +258,32 @@ export function SiteBuilder({
    * jak dotąd — jako płótno v2 z presetu v1. Rozstrzyga REJESTR, nie lista
    * `if`-ów: kolejny typ strukturalny wchodzi tu bez zmiany ani jednej linii.
    */
-  function addSection(type: SectionType, layout: InsertLayout, target: InsertTarget) {
-    const content = isStructuredType(type)
-      ? (() => {
-          const preset = structuredPresetFor(type, locale);
-          return layout ? withStructuredLayout(preset, layout) : preset;
-        })()
-      : sectionCanvasFrom(type, presetContentFor(type, locale));
+  function addSection(
+    type: SectionType,
+    layout: InsertLayout,
+    target: InsertTarget,
+    /**
+     * Gotowa treść zamiast presetu — dziś jedna droga: konwersja „Przełącz na
+     * sekcję 2.0", która PRZENOSI treść starej sekcji (E3). Bez tego parametru
+     * konwersja musiałaby być drugim wywołaniem `upsertSection` obok tego,
+     * a para kroków przegrywa wyścig (patrz nagłówek tej funkcji).
+     */
+    content?: unknown,
+  ) {
+    const treść =
+      content ??
+      (isStructuredType(type)
+        ? (() => {
+            const preset = structuredPresetFor(type, locale);
+            return layout ? withStructuredLayout(preset, layout) : preset;
+          })()
+        : sectionCanvasFrom(type, presetContentFor(type, locale)));
 
     run(async () => {
       const added = await upsertSection({
         siteId,
         type,
-        content,
+        content: treść,
         insertBefore: target.beforeId,
       } as Parameters<typeof upsertSection>[0]);
       if (added.ok) flash(added.sectionId);
@@ -713,9 +727,27 @@ export function SiteBuilder({
             ? () => {
                 const ids = canvasOrderIds();
                 const next = ids[ids.indexOf(openSection.id) + 1];
-                addSection(openSection.type, undefined, {
-                  beforeId: ids.includes(openSection.id) ? next : undefined,
-                });
+                /*
+                 * TREŚĆ NOWEJ SEKCJI ROZSTRZYGA REJESTR (E3), nie ten plik.
+                 * FAQ dostaje preset, bo treści spłaszczonej do płótna nie da
+                 * się rozpisać z powrotem na pytania i odpowiedzi bez
+                 * zgadywania; galeria dostaje PRZENIESIONE zdjęcia, bo zdjęcie
+                 * zostaje zdjęciem w każdej generacji. Kolejny typ zmienia to
+                 * zachowanie wpisem w rejestrze, a nie gałęzią tutaj.
+                 */
+                const converted = isStructuredType(openSection.type)
+                  ? structuredFromLegacy(
+                      openSection.type,
+                      editor.contentOf(openSection.id) ?? openSection.content,
+                      locale,
+                    )
+                  : undefined;
+                addSection(
+                  openSection.type,
+                  undefined,
+                  { beforeId: ids.includes(openSection.id) ? next : undefined },
+                  converted,
+                );
                 setSettingsId(null);
               }
             : undefined

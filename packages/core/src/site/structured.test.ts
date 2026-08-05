@@ -21,9 +21,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GALLERY_COLUMNS,
+  GALLERY_GAPS,
+  GALLERY_LAYOUTS,
   SECTION_DRAFT_SCHEMAS,
   SECTION_TYPES,
   STRUCTURED_SECTIONS,
+  galleryItemsFromLegacy,
+  structuredFromLegacy,
   STRUCTURED_SECTION_TYPES,
   STRUCTURED_SECTION_VERSION,
   STRUCTURED_THEME_ROLES,
@@ -40,6 +45,7 @@ import {
   structuredPresetFor,
   structuredSpecOf,
   withStructuredLayout,
+  type StructuredChoiceSpec,
   type StructuredSectionContent,
   type StructuredSectionType,
 } from "./index";
@@ -51,13 +57,30 @@ function itemsOf(content: StructuredSectionContent): unknown[] {
   return (content as unknown as { items: unknown[] }).items;
 }
 
+/**
+ * Wpis, którym wolno wypełnić listę w testach granic. Typ z przyciskiem „dodaj"
+ * daje go wprost; typ, w którym wpis rodzi się z WGRANIA PLIKU (galeria), nie
+ * ma czego dać — bierzemy wtedy pierwszy wpis presetu, bo to jedyny wpis tego
+ * typu, o którym rejestr twierdzi wprost, że jest poprawny.
+ */
+function sampleItemFor(type: StructuredSectionType): unknown {
+  const fresh = structuredNewItemFor(type, "pl");
+  if (fresh !== undefined) return fresh;
+  return structuredClone(itemsOf(structuredPresetFor(type, "pl"))[0]);
+}
+
+/** Pola wpisu, które są TEKSTEM — zdjęcia nie da się „wpisać" napisem. */
+function textFieldsOf(type: StructuredSectionType) {
+  return structuredSpecOf(type).itemFields.filter((field) => field.kind !== "image");
+}
+
 /** Preset z podmienioną listą wpisów o zadanej długości (do testów granic). */
 function withItemCount(
   type: StructuredSectionType,
   count: number,
 ): Record<string, unknown> {
   const preset = structuredPresetFor(type, "pl") as unknown as Record<string, unknown>;
-  const sample = structuredNewItemFor(type, "pl");
+  const sample = sampleItemFor(type);
   return {
     ...preset,
     items: Array.from({ length: count }, () => structuredClone(sample)),
@@ -133,17 +156,56 @@ describe("presety strukturalne: poprawność i parytet PL/EN", () => {
     );
     expect(en.layout, `parytet układu ${type}`).toBe(pl.layout);
     expect(en.background, `parytet pasa ${type}`).toBe(pl.background);
-    for (const field of structuredSpecOf(type).itemFields) {
+    /*
+     * PARYTET WPISU liczymy po ZBIORZE KLUCZY pary PL/EN, a nie po liście pól
+     * z rejestru. Powód (E3): pola bywają OPCJONALNE — kafel galerii ma podpis,
+     * ale nie musi mieć odnośnika. Wymaganie „każde pole rejestru jest w każdym
+     * wpisie" kazałoby więc presetowi wypełniać pola, których operator wcale
+     * nie musi używać. Porównanie kluczy w parze łapie za to prawdziwą wadę:
+     * wpis EN z innym kompletem pól niż PL.
+     */
+    const klucze = (content: Record<string, unknown>, index: number) =>
+      Object.keys(
+        itemsOf(content as unknown as StructuredSectionContent)[index] as Record<string, unknown>,
+      ).sort();
+    const dozwolone = new Set(structuredSpecOf(type).itemFields.map((field) => field.key));
+    for (const [index] of itemsOf(en as unknown as StructuredSectionContent).entries()) {
+      expect(klucze(en, index), `wpis ${index} presetu ${type}: PL i EN mają inne pola`).toEqual(
+        klucze(pl, index),
+      );
+      for (const key of klucze(en, index)) {
+        expect(dozwolone, `wpis ${index} presetu ${type}: pole "${key}" spoza rejestru`).toContain(key);
+      }
+    }
+    for (const field of textFieldsOf(type)) {
       for (const [index, item] of itemsOf(en as unknown as StructuredSectionContent).entries()) {
-        expect(
-          (item as Record<string, unknown>)[field.key],
-          `wpis ${index} presetu EN/${type} nie ma pola "${field.key}"`,
-        ).toBeTypeOf("string");
+        const value = (item as Record<string, unknown>)[field.key];
+        if (value === undefined) continue;
+        expect(value, `wpis ${index} presetu EN/${type}: pole "${field.key}" nie jest tekstem`).toBeTypeOf(
+          "string",
+        );
       }
     }
   });
 
   it.each(STRUCTURED_SECTION_TYPES)("%s: świeży wpis „dodaj” przechodzi schemat w OBU językach", (type) => {
+    const fresh = structuredNewItemFor(type, "pl");
+    if (fresh === undefined) {
+      /*
+       * BRAK świeżego wpisu jest DEKLARACJĄ, nie przeoczeniem: wpis tego typu
+       * rodzi się z wgrania pliku (galeria), więc pusty kafel bez zdjęcia i tak
+       * nie przeszedłby schematu, a przycisk „dodaj" obiecywałby operację
+       * kończącą się błędem. Żeby ta deklaracja miała pokrycie, wymagamy, by
+       * typ NAPRAWDĘ miał pole obrazowe — inaczej byłoby to po prostu
+       * zapomniane `newItem`.
+       */
+      expect(
+        structuredSpecOf(type).itemFields.some((field) => field.kind === "image"),
+        `typ "${type}" nie ma świeżego wpisu ANI pola obrazowego — nie ma czym dodać pozycji`,
+      ).toBe(true);
+      expect(structuredNewItemFor(type, "en"), "brak świeżego wpisu musi być taki sam w obu językach").toBeUndefined();
+      return;
+    }
     for (const locale of LOCALES) {
       const content = appendStructuredItem(
         structuredPresetFor(type, locale),
@@ -302,7 +364,7 @@ describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () =
 
   it.each(STRUCTURED_SECTION_TYPES)("%s: operacje listy trzymają się granic rejestru", (type) => {
     const spec = structuredSpecOf(type);
-    const item = structuredNewItemFor(type, "pl");
+    const item = sampleItemFor(type);
 
     // Sufit: dopisanie do pełnej listy zwraca WEJŚCIE (bez cichego przycięcia).
     const full = spec.schema.parse(withItemCount(type, spec.maxItems)) as StructuredSectionContent;
@@ -320,7 +382,8 @@ describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () =
 
   it.each(STRUCTURED_SECTION_TYPES)("%s: kolejność i edycja pola wpisu", (type) => {
     const spec = structuredSpecOf(type);
-    const field = spec.itemFields[0]!;
+    const field = textFieldsOf(type)[0]!;
+    expect(field, `typ "${type}" nie ma ANI JEDNEGO pola tekstowego — nie ma czego edytować`).toBeTruthy();
     const base = structuredPresetFor(type, "pl");
     const items = itemsOf(base);
     expect(items.length, "preset za krótki, żeby przestawić wpisy").toBeGreaterThan(1);
@@ -379,5 +442,251 @@ describe("rejestr FAQ — typ referencyjny E1", () => {
         expect(item.a.length, "odpowiedź-atrapa").toBeGreaterThan(20);
       }
     }
+  });
+});
+
+describe("KONTRAKT 5: deklaracja `empty` pola znaczy to, czego pilnuje Zod (E3)", () => {
+  /*
+   * Trzy zachowania pustki są DEKLARACJĄ rejestru (`StructuredFieldEmpty`),
+   * a szuflada rozgałęzia się po niej zamiast po nazwie pola. Deklaracja bez
+   * zestawienia ze schematem byłaby jednak dokładnie tą klasą wady, którą
+   * złapała recenzja PM do PR #178: napis w rejestrze, którego nikt nie
+   * porównał z prawdą. Tu każde z trzech znaczeń jest sprawdzane na REALNYM
+   * schemacie typu.
+   */
+  const POLA = STRUCTURED_SECTION_TYPES.flatMap((type) =>
+    textFieldsOf(type).map((field) => [`${type}.${field.key}`, type, field] as const),
+  );
+
+  it("skan ma co czytać (kontrola po pustym zbiorze)", () => {
+    expect(POLA.length, "brak pól tekstowych — pętla niżej nic nie sprawdza").toBeGreaterThan(0);
+    const znaczenia = new Set(POLA.map(([, , field]) => field.empty ?? "reject"));
+    expect(
+      [...znaczenia].sort(),
+      "w rejestrze nie ma kompletu znaczeń pustki — kontrakt broniłby jednego przypadku",
+    ).toEqual(["reject", "unset", "value"]);
+  });
+
+  it.each(POLA)("%s: pustka zachowuje się tak, jak deklaruje rejestr", (_etykieta, type, field) => {
+    const spec = structuredSpecOf(type);
+    const base = structuredPresetFor(type, "pl");
+
+    const zPustka = patchStructuredItem(base, 0, field.key, "");
+    const zdjete = patchStructuredItem(base, 0, field.key, undefined);
+    const wpis = (content: StructuredSectionContent) =>
+      itemsOf(content)[0] as Record<string, unknown>;
+
+    if (field.empty === "value") {
+      expect(spec.schema.safeParse(zPustka).success, "pustka ZNACZĄCA odrzucona przez schemat").toBe(true);
+      expect(wpis(zPustka)[field.key], "pustka znacząca nie została zapisana").toBe("");
+      return;
+    }
+    if (field.empty === "unset") {
+      expect(spec.schema.safeParse(zdjete).success, "zdjęcie pola opcjonalnego odrzucone").toBe(true);
+      expect(Object.hasOwn(wpis(zdjete), field.key), "pole miało zniknąć, a zostało").toBe(false);
+      expect(
+        spec.schema.safeParse(zPustka).success,
+        "pole „unset” przyjęło PUSTY NAPIS — wtedy zdejmowanie byłoby zbędne",
+      ).toBe(false);
+      return;
+    }
+    expect(
+      spec.schema.safeParse(zPustka).success,
+      "pole bez deklaracji pustki przyjęło pustkę — szuflada odrzuca ją bez powodu",
+    ).toBe(false);
+  });
+});
+
+describe("rejestr GALERII — pierwszy typ medialny (E3)", () => {
+  const spec = STRUCTURED_SECTIONS.gallery;
+
+  it("ma trzy układy, wybory wyglądu i szufladę dwudzielną", () => {
+    expect(spec.layouts).toEqual(["grid", "masonry", "carousel"]);
+    expect(spec.layouts, "rejestr i allowlista układów się rozjechały").toEqual([...GALLERY_LAYOUTS]);
+    expect(spec.defaultLayout).toBe("grid");
+    expect(spec.editor, "typ medialny w jednej ścianie pól").toBe("split");
+    expect(spec.toggles.map((toggle) => toggle.key)).toEqual(["lightbox"]);
+    expect(spec.itemFields.map((field) => field.key)).toEqual(["image", "alt", "caption", "link"]);
+    expect(spec.itemFields[0]!.kind, "pierwsze pole kafla nie jest zdjęciem").toBe("image");
+
+    const wybory: Record<string, StructuredChoiceSpec> = Object.fromEntries(
+      spec.choices.map((choice) => [choice.key, choice]),
+    );
+    expect(Object.keys(wybory).sort()).toEqual(["columns", "gap"]);
+    expect(wybory.columns!.values).toEqual([...GALLERY_COLUMNS]);
+    expect(wybory.gap!.values).toEqual([...GALLERY_GAPS]);
+    expect(
+      wybory.columns!.layouts,
+      "liczba kafli w rzędzie pokazana przy karuzeli byłaby kontrolką bez skutku",
+    ).toEqual(["grid", "masonry"]);
+    expect(wybory.gap!.layouts, "odstęp działa w KAŻDYM układzie").toBeUndefined();
+  });
+
+  it("wybory wyglądu są tymi, które PRZYJMUJE schemat (i tylko one)", () => {
+    const preset = structuredPresetFor("gallery", "pl") as unknown as Record<string, unknown>;
+    for (const choice of spec.choices) {
+      for (const value of choice.values) {
+        expect(
+          spec.schema.safeParse({ ...preset, [choice.key]: value }).success,
+          `wartość ${String(value)} z rejestru nie przechodzi schematu pola "${choice.key}"`,
+        ).toBe(true);
+      }
+      expect(
+        spec.schema.safeParse({ ...preset, [choice.key]: "wartość-z-przyszłości" }).success,
+        `pole "${choice.key}" przyjęło wartość spoza rejestru`,
+      ).toBe(false);
+    }
+    expect(spec.schema.safeParse({ ...preset, columns: 5 }).success, "piąta kolumna").toBe(false);
+  });
+
+  it("preset niesie TRZY realne kadry z KOMPLETNĄ atrybucją, nie szare kafle", () => {
+    for (const locale of LOCALES) {
+      const items = itemsOf(structuredPresetFor("gallery", locale)) as {
+        image: { kind: string; authorName?: string; authorUrl?: string; downloadLocation?: string };
+        alt: string;
+        caption?: string;
+      }[];
+      expect(items.length, "kuracja kadrów presetu zniknęła").toBe(3);
+      for (const item of items) {
+        expect(item.image.kind, "kadr presetu nie pochodzi z kuracji").toBe("unsplash");
+        // Atrybucja jest warunkiem licencji — sprawdzamy komplet, a nie obecność
+        // samego adresu zdjęcia.
+        expect(item.image.authorName!.length).toBeGreaterThan(0);
+        expect(item.image.authorUrl!.length).toBeGreaterThan(0);
+        expect(item.image.downloadLocation!.length).toBeGreaterThan(0);
+        expect(item.alt.length, "kafel presetu bez opisu alternatywnego").toBeGreaterThan(10);
+        expect(item.caption!.length, "kafel presetu bez podpisu").toBeGreaterThan(10);
+      }
+    }
+  });
+
+  it("BEZSTRATNOŚĆ UKŁADU na REALNEJ treści: odnośniki, podpisy i puste alty przeżywają", () => {
+    /*
+     * Kontrakt 1 wyżej chodzi po PRESECIE. To za mało dla galerii: preset nie
+     * ma ani jednego odnośnika i ani jednego pustego opisu alternatywnego,
+     * więc przekształcenie gubiące dokładnie te pola przeszłoby na zielono.
+     * Tu treść jest taka, jaką składa operator.
+     */
+    const preset = structuredPresetFor("gallery", "pl") as unknown as Record<string, unknown>;
+    const realna = spec.schema.parse({
+      ...preset,
+      columns: 4,
+      gap: "roomy",
+      lightbox: false,
+      items: [
+        { ...(itemsOf(preset as never)[0] as object), link: "https://partner.przyklad.test/realizacja" },
+        { ...(itemsOf(preset as never)[1] as object), alt: "", link: "/kontakt" },
+        itemsOf(preset as never)[2],
+      ],
+    });
+
+    for (const layout of GALLERY_LAYOUTS) {
+      const przelaczona = withStructuredLayout(realna, layout);
+      expect(przelaczona.layout, `układ ${layout} nie został ustawiony`).toBe(layout);
+      expect(
+        { ...przelaczona, layout: realna.layout },
+        `układ ${layout} ruszył coś poza polem "layout"`,
+      ).toEqual(realna);
+      expect(spec.schema.safeParse(przelaczona).success).toBe(true);
+    }
+    // Pusty opis alternatywny to DECYZJA, nie brak — musi przeżyć zapis i odczyt.
+    const powrot = spec.schema.parse(withStructuredLayout(withStructuredLayout(realna, "carousel"), "grid"));
+    expect((itemsOf(powrot)[1] as { alt: string }).alt).toBe("");
+    expect((itemsOf(powrot)[0] as { link: string }).link).toBe("https://partner.przyklad.test/realizacja");
+  });
+});
+
+describe("konwersja galerii ze STAREJ treści (E3)", () => {
+  const KADR = { kind: "unsplash" as const, ...(STRUCTURED_SECTIONS.gallery.preset.pl as { items: { image: Record<string, unknown> }[] }).items[0]!.image };
+
+  /** Płótno v2 z trzema zdjęciami rozstawionymi NIE w kolejności dodania. */
+  const plotno = {
+    version: 2,
+    rows: 40,
+    background: "default",
+    elements: [
+      {
+        id: "trzecie",
+        kind: "image",
+        alt: "Trzeci kadr",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant-a/site/trzeci.jpg" },
+        layout: { desktop: { x: 0, y: 20, w: 40, h: 12, z: 0 } },
+      },
+      {
+        id: "pierwsze",
+        kind: "image",
+        alt: "Pierwszy kadr",
+        fit: "cover",
+        source: KADR,
+        layout: { desktop: { x: 12, y: 4, w: 40, h: 12, z: 1 } },
+      },
+      {
+        id: "naglowek",
+        kind: "heading",
+        text: "Realizacje",
+        level: 2,
+        align: "left",
+        layout: { desktop: { x: 12, y: 0, w: 60, h: 4, z: 2 } },
+      },
+      {
+        id: "drugie",
+        kind: "image",
+        alt: "Drugi kadr",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant-a/site/drugi.jpg" },
+        layout: { desktop: { x: 60, y: 4, w: 40, h: 12, z: 3 } },
+      },
+    ],
+  };
+
+  it("płótno v2: zdjęcia wchodzą w kolejności CZYTANIA, opisy jadą razem z nimi", () => {
+    const items = galleryItemsFromLegacy(plotno);
+    expect(items.map((item) => item.alt)).toEqual(["Pierwszy kadr", "Drugi kadr", "Trzeci kadr"]);
+    // Oba światy źródeł przechodzą bez tłumaczenia na siebie nawzajem.
+    expect(items[0]!.image.kind).toBe("unsplash");
+    expect(items[2]!.image).toEqual({ kind: "storage", path: "tenant-a/site/trzeci.jpg" });
+    expect(items.length, "nagłówek płótna wszedł do galerii jako kafel").toBe(3);
+  });
+
+  it("sekcja v1: `items[].imagePath` staje się źródłem `storage`", () => {
+    const items = galleryItemsFromLegacy({
+      heading: "Realizacje",
+      items: [
+        { imagePath: "tenant-a/site/a.jpg", alt: "Kadr A" },
+        { imagePath: "tenant-a/site/b.jpg", alt: "Kadr B" },
+      ],
+    });
+    expect(items).toEqual([
+      { image: { kind: "storage", path: "tenant-a/site/a.jpg" }, alt: "Kadr A" },
+      { image: { kind: "storage", path: "tenant-a/site/b.jpg" }, alt: "Kadr B" },
+    ]);
+  });
+
+  it("konwersja daje treść v3, która PRZECHODZI schemat i zachowuje nagłówek", () => {
+    const converted = structuredFromLegacy("gallery", plotno, "pl");
+    expect(STRUCTURED_SECTIONS.gallery.schema.safeParse(converted).success).toBe(true);
+    expect(itemsOf(converted).length).toBe(3);
+    expect(converted.layout).toBe("grid");
+    expect(isStructuredSection(converted)).toBe(true);
+
+    const zV1 = structuredFromLegacy(
+      "gallery",
+      { heading: "Nasze realizacje", items: [{ imagePath: "tenant-a/site/a.jpg", alt: "Kadr A" }] },
+      "pl",
+    );
+    expect((zV1 as unknown as { heading?: string }).heading).toBe("Nasze realizacje");
+  });
+
+  it("treść BEZ zdjęć degraduje do presetu, a nie do pustej sekcji", () => {
+    const pusta = structuredFromLegacy("gallery", { heading: "Realizacje", items: [] }, "pl");
+    expect(itemsOf(pusta)).toEqual(itemsOf(structuredPresetFor("gallery", "pl")));
+    expect(structuredFromLegacy("gallery", null, "pl")).toEqual(structuredPresetFor("gallery", "pl"));
+  });
+
+  it("typ BEZ konwersji dostaje preset — i to jest deklaracja, nie awaria", () => {
+    // FAQ: treść spłaszczona do płótna nie mówi już, co było pytaniem (ADR-094).
+    expect(STRUCTURED_SECTIONS.faq).not.toHaveProperty("fromLegacy");
+    expect(structuredFromLegacy("faq", plotno, "pl")).toEqual(structuredPresetFor("faq", "pl"));
   });
 });

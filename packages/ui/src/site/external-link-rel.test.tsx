@@ -11,7 +11,7 @@
  * KAŻDY link o `rel`. Test wypisany z nazwy dla sześciu przypadków przestałby
  * bronić siódmego w dniu, w którym ten siódmy powstał.
  */
-import type { SectionCanvas } from "@avably/core/site";
+import { structuredPresetFor, type SectionCanvas } from "@avably/core/site";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -98,6 +98,29 @@ const SECTIONS = [
     },
   },
   { id: "canvas", position: 3, type: "freeform", content: canvas },
+  /*
+   * GALERIA STRUKTURALNA (E3) wnosi DWA nowe źródła linków wychodzących: kafel
+   * z odnośnikiem (adres od najemcy) i atrybucję autora zdjęcia. Test jest
+   * ZAMIATAJĄCY, więc nowe miejsce ma wejść do PRÓBKI, a nie dostać własne
+   * zdanie wypisane z nazwy — to jest cała jego wartość.
+   */
+  {
+    id: "galeria",
+    position: 4,
+    type: "gallery",
+    content: {
+      ...structuredPresetFor("gallery", "pl"),
+      items: [
+        {
+          ...((structuredPresetFor("gallery", "pl") as unknown as {
+            items: Record<string, unknown>[];
+          }).items[0] as Record<string, unknown>),
+          link: OBCY,
+        },
+        { image: { kind: "storage", path: "tenant-a/site/a.jpg" }, alt: "Kadr", link: "/kontakt" },
+      ],
+    },
+  },
 ] as unknown as RenderSection[];
 
 describe("reguła `rel` (funkcja czysta)", () => {

@@ -129,7 +129,12 @@ export function SectionSettingsDrawer({
                   Na płótnie nie ma czego zaznaczać, więc nie ma tu ani ustawień
                   elementu, ani wysokości sekcji (tę niesie treść, nie geometria).
                 */
-                <StructuredSectionForm key={section.id} content={structured} onChange={onStructuredChange} />
+                <StructuredSectionForm
+                  key={section.id}
+                  siteId={siteId}
+                  content={structured}
+                  onChange={onStructuredChange}
+                />
               ) : canvas ? (
                 <CanvasSettings
                   canvas={canvas}
