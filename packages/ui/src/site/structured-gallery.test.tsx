@@ -83,6 +83,31 @@ function wpisyOperatora(content: GalleryStructuredContent) {
   ] as GalleryStructuredContent["items"];
 }
 
+/**
+ * ODNOŚNIK W ŚRODKU ALBUMU — fikstura kształtu [otwieralny, ODNOŚNIK, otwieralny].
+ *
+ * Delta recenzji PM: `wpisyOperatora` ma tylko JEDEN kafel bez odnośnika, więc
+ * album ma długość 1, a każdy krok modulo 1 stoi w miejscu — na takiej treści
+ * przechodzi także implementacja licząca krok po WSZYSTKICH kaflach zamiast po
+ * albumie. Dopiero dwa otwieralne kafle Z NIEOTWIERALNYM MIĘDZY NIMI odróżniają
+ * te dwie implementacje: krok po wszystkich wchodzi wtedy na kafel-odnośnik,
+ * którego album nie obejmuje.
+ *
+ * Podpisy są tu ETYKIETAMI POZYCJI, a nie treścią — po nich test poznaje, KTÓRY
+ * kafel okno naprawdę pokazuje. Sam licznik by nie wystarczył: mówi położenie
+ * w albumie, a pytanie brzmi, czy okno w ogóle stoi na kafelku z albumu.
+ */
+function zOdnosnikiemWSrodku(): GalleryStructuredContent {
+  const [a, b, c] = galeria().items;
+  return galeria({
+    items: [
+      { ...a!, caption: "PIERWSZY" },
+      { ...b!, caption: "ŚRODKOWY — ODNOŚNIK", link: OBCY },
+      { ...c!, caption: "TRZECI" },
+    ] as GalleryStructuredContent["items"],
+  });
+}
+
 const uzytkownik = () => userEvent.setup({ pointerEventsCheck: 0 });
 
 describe("trzy układy rysują TĘ SAMĄ treść", () => {
@@ -253,6 +278,39 @@ describe("POWIĘKSZENIE według W3C APG", () => {
     // Zawijanie: strzałka wygaszona na pierwszym zdjęciu wygląda jak awaria.
     await user.keyboard("{ArrowLeft}");
     expect(within(okno).getByText("Zdjęcie 3 z 3")).toBeTruthy();
+  });
+
+  it("←/→ chodzą po ALBUMIE, a nie po wszystkich kaflach (delta recenzji PM)", async () => {
+    /*
+     * Niezmiennik, którego pilnuje `galleryLightboxIndexes`: strzałka przechodzi
+     * do NASTĘPNEGO OTWIERALNEGO kafla, przeskakując te, które kliknięciem
+     * wychodzą ze strony. Implementacja licząca krok po `content.items`
+     * przechodziła całą dotychczasową suitę, a w przeglądarce wchodziła na
+     * kafel-odnośnik i pokazywała licznik „Zdjęcie 0 z 2" (pozycja spoza albumu
+     * daje `indexOf` równe -1).
+     */
+    const user = uzytkownik();
+    const { container } = pokaz(zOdnosnikiemWSrodku());
+
+    const kafle = screen.getAllByRole("button", { name: L.galleryZoom });
+    expect(kafle.length, "kafel z odnośnikiem wszedł do albumu").toBe(2);
+
+    await user.click(kafle[0]!);
+    const okno = container.querySelector<HTMLDialogElement>("[data-gallery-lightbox]")!;
+    const podpis = () => okno.querySelector("[data-gallery-lightbox-caption]")?.textContent;
+    expect(within(okno).getByText("Zdjęcie 1 z 2")).toBeTruthy();
+    expect(podpis()).toBe("PIERWSZY");
+
+    await user.keyboard("{ArrowRight}");
+    expect(
+      within(okno).getByText("Zdjęcie 2 z 2"),
+      "licznik wypadł poza album — strzałka stanęła na kafelku, którego nie obejmuje",
+    ).toBeTruthy();
+    expect(podpis(), "strzałka weszła na kafel-odnośnik zamiast go przeskoczyć").toBe("TRZECI");
+
+    await user.keyboard("{ArrowRight}");
+    expect(within(okno).getByText("Zdjęcie 1 z 2"), "album nie zawinął się na początek").toBeTruthy();
+    expect(podpis()).toBe("PIERWSZY");
   });
 
   it("powiększenie obejmuje WYŁĄCZNIE kafle bez odnośnika", async () => {
