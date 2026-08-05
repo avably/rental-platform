@@ -207,6 +207,14 @@ export interface ContactFormBinding {
 export interface SiteRenderLabels {
   /** Fallback sekcji produktów, gdy katalog pusty / niedostępny publicznie. */
   productsEmpty: string;
+  /**
+   * SPRZĘT STRUKTURALNY (E7, aneks ADR-094). Odnośnik pod sekcją prowadzący do
+   * pełnego katalogu. Osobny od `pricingCatalog` ŚWIADOMIE: pod cennikiem
+   * zaprasza do obejrzenia sprzętu („Zobacz pełny katalog"), a pod sekcją
+   * sprzętu mówi, że widać WYCINEK („Zobacz cały sprzęt"). Jedna etykieta pod
+   * obiema byłaby w jednym z tych miejsc zdaniem nie na temat.
+   */
+  productsCatalog: string;
   contactEmail: string;
   contactPhone: string;
   contactAddress: string;

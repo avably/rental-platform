@@ -74,6 +74,13 @@ const ALLOWED_FOREIGN_IMPORTS = [
   "../image-url",
   "../links",
   "../types",
+  /*
+   * E7 (atuty) — mapa nazwa ikony → komponent `lucide`. Wyprowadzona
+   * z `sections.tsx` dokładnie po to, żeby nie wpuszczać tu producenta klas:
+   * `site-icons.ts` nie ma ANI JEDNEJ klasy, a rozmiar, kolor i kafelek pod
+   * znakiem ustawia komponent, który go rysuje.
+   */
+  "../site-icons",
 ];
 
 const SOURCES = new Map<string, string>(

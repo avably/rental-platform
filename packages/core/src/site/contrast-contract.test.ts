@@ -311,8 +311,17 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
       threshold: number;
       /** Kolor roli albo `null`, gdy motyw nie ma tego wariantu (łapie kontrakt kompletności wyżej). */
       color: (theme: (typeof SITE_THEMES)[number], key: (typeof THEME_BAND_KEYS)[number], accent: string) => string | null;
-      /** Tło, na którym rola stoi. */
-      against: (theme: (typeof SITE_THEMES)[number], key: (typeof THEME_BAND_KEYS)[number]) => string;
+      /**
+       * Tło, na którym rola stoi. AKCENT JEST TU TRZECIM ARGUMENTEM (E7): do
+       * E6 każda rola stała na powierzchni PASA, więc tło zależało wyłącznie od
+       * motywu i pasa. `accentOnFill` jest pierwszą, która stoi na WYPEŁNIENIU
+       * akcentu — a wypełnienie zależy od tego, który akcent operator wybrał.
+       */
+      against: (
+        theme: (typeof SITE_THEMES)[number],
+        key: (typeof THEME_BAND_KEYS)[number],
+        accent: string,
+      ) => string | null;
     }
   > = {
     ink: {
@@ -371,6 +380,32 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
       },
       against: (theme, key) => themeTokens(theme).bands[key].surface,
     },
+    /*
+     * ETYKIETA NA WYPEŁNIENIU AKCENTU (E7) — jedyna rola, której TŁEM nie jest
+     * pas, tylko sam akcent. Do E6 tę parę liczył wyłącznie blok „etykieta NA
+     * wypełnieniu akcentu" wyżej, czyli poza macierzą typów: sekcja z
+     * przyciskiem wchodziła do rejestru bez policzenia jedynej pary, której
+     * nieprzeczytanie zatrzymuje odwiedzającego NA przycisku. Tutaj wchodzi
+     * PER TYP, więc każdy przyszły typ z wypełnieniem akcentu (a wariant
+     * `accent` sekcji CTA maluje nim CAŁĄ powierzchnię) dostaje ją policzoną
+     * bez dopisywania czegokolwiek obok.
+     *
+     * Próg TEKSTOWY, nie nietekstowy: na wypełnieniu stoją LITERY. `accentFill`
+     * obok mierzy ten sam kolor jako KSZTAŁT na pasie (próg 3:1) — to dwa różne
+     * pytania o ten sam heks i oba muszą mieć odpowiedź.
+     */
+    accentOnFill: {
+      perAccent: true,
+      threshold: CONTRAST_AA_TEXT,
+      color: (theme, key, accent) => {
+        const band = themeTokens(theme).bands[key];
+        return themeTokens(theme).accents[accent]?.[band.accent]?.onFill ?? null;
+      },
+      against: (theme, key, accent) => {
+        const band = themeTokens(theme).bands[key];
+        return themeTokens(theme).accents[accent]?.[band.accent]?.fill ?? null;
+      },
+    },
   };
 
   it("rejestr typów strukturalnych NIE jest pusty i każdy deklaruje role", () => {
@@ -393,6 +428,44 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
     }
   });
 
+  /**
+   * ILE PAR MACIERZ MA POLICZYĆ — liczba wyprowadzona z REJESTRÓW, nie zapisana
+   * obok testu (E7).
+   *
+   * ==================== PO CO OSOBNA LICZBA ====================
+   *
+   * Pętla niżej ma wadę, której nie widać, dopóki jej ktoś nie skróci:
+   * zwężenie zbioru, po którym chodzi (jeden pas mniej, jeden motyw mniej,
+   * `continue` na roli akcentowej), zostawia ją ZIELONĄ — bo test sprawdza
+   * WYNIKI par, a nie to, czy policzył wszystkie. To jest dokładnie klasa
+   * wady z PR #83, tyle że o piętro wyżej: nie „lista przypadków obok testu",
+   * lecz „pętla, która po cichu omija część zbioru".
+   *
+   * Ta liczba jest drugą, niezależną drogą do tego samego wyniku — iloczyn
+   * kartezjański wyprowadzony wprost z rejestrów. Rozjazd znaczy, że pętla
+   * czegoś NIE policzyła, i mówi tego dokładną liczbę.
+   *
+   * `null` (motyw bez wariantu akcentu) NIE jest tu odliczany świadomie:
+   * kompletność palety ma własny kontrakt niżej, więc pominięta para ma zapalić
+   * TĘ liczbę, zamiast po cichu zmniejszyć oczekiwanie.
+   */
+  const expectedChecks = STRUCTURED_SECTION_TYPES.reduce(
+    (total, type) =>
+      total +
+      STRUCTURED_SECTIONS[type].themeRoles.reduce(
+        (perType, role) =>
+          perType +
+          SITE_THEMES.reduce(
+            (perRole, theme) =>
+              perRole +
+              (RECIPES[role].perAccent ? accentsOf(theme).length : 1) * THEME_BAND_KEYS.length,
+            0,
+          ),
+        0,
+      ),
+    0,
+  );
+
   it("każda rola KAŻDEJ sekcji strukturalnej jest czytelna na każdym pasie każdego motywu", () => {
     const failures: string[] = [];
     let checks = 0;
@@ -404,12 +477,13 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
           for (const accent of accents) {
             for (const key of THEME_BAND_KEYS) {
               const color = recipe.color(theme, key, accent);
-              if (!color) continue; // brak wariantu łapie kontrakt kompletności rejestru motywów
-              const ratio = contrastRatio(color, recipe.against(theme, key));
+              const background = recipe.against(theme, key, accent);
+              if (!color || !background) continue; // brak wariantu łapie liczba par niżej
+              const ratio = contrastRatio(color, background);
               checks += 1;
               if (ratio < recipe.threshold) {
                 failures.push(
-                  `${type}/${role}/${theme}${accent ? `/${accent}` : ""}/${key}: ${color} = ${round(ratio)}:1 (próg ${recipe.threshold})`,
+                  `${type}/${role}/${theme}${accent ? `/${accent}` : ""}/${key}: ${color} na ${background} = ${round(ratio)}:1 (próg ${recipe.threshold})`,
                 );
               }
             }
@@ -418,6 +492,11 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
       }
     }
     expect(checks, "macierz sekcji strukturalnych nie policzyła ANI JEDNEJ pary").toBeGreaterThan(0);
+    expect(
+      checks,
+      "macierz policzyła INNĄ liczbę par, niż wynika z rejestrów — pętla omija część " +
+        "zbioru (pas, motyw, akcent) albo motyw nie ma wariantu akcentu",
+    ).toBe(expectedChecks);
     expect(failures, `role sekcji strukturalnych poniżej progu:\n${failures.join("\n")}`).toEqual([]);
   });
 });

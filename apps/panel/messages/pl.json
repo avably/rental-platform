@@ -1535,6 +1535,123 @@
           "grid": "Siatka",
           "carousel": "Karuzela"
         }
+      },
+      "products": {
+        "itemsTitle": "Wskazany sprzęt",
+        "itemsIdle": "Sekcja pokazuje początek katalogu. Przełącz „Skąd brać sprzęt” na „Wybrane pozycje”, żeby wskazać konkretny sprzęt.",
+        "removeBody": "Ta pozycja zniknie z sekcji. Sam sprzęt zostaje w katalogu.",
+        "fields": {
+          "productId": "Pozycja katalogu"
+        },
+        "choices": {
+          "source": "Skąd brać sprzęt",
+          "limit": "Ile pozycji pokazać"
+        },
+        "choiceValues": {
+          "source": {
+            "catalog": "Początek katalogu",
+            "picked": "Wybrane pozycje"
+          },
+          "limit": {
+            "2": "2",
+            "3": "3",
+            "4": "4",
+            "6": "6",
+            "8": "8",
+            "12": "12",
+            "16": "16",
+            "24": "24"
+          }
+        },
+        "layouts": {
+          "grid": "Kafle",
+          "list": "Lista"
+        },
+        "tabs": {
+          "items": "Sprzęt",
+          "appearance": "Wygląd"
+        },
+        "pick": {
+          "label": "Sprzęt z katalogu",
+          "placeholder": "Wybierz pozycję",
+          "action": "Dodaj wskazaną pozycję",
+          "empty": "Katalog jest pusty. Dodaj sprzęt w module Sprzęt.",
+          "nothingNew": "Cały sprzęt z katalogu jest już wskazany.",
+          "full": "Sekcja jest pełna. Usuń pozycję, żeby wskazać inną.",
+          "missing": "Ta pozycja zniknęła z katalogu — nie pokaże się na stronie."
+        }
+      },
+      "usp": {
+        "itemsTitle": "Atuty",
+        "addItem": "Dodaj atut",
+        "removeBody": "Ten atut zniknie ze strony. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "icon": "Znak",
+          "title": "Tytuł",
+          "text": "Zdanie pod tytułem"
+        },
+        "fieldValues": {
+          "icon": {
+            "truck": "Ciężarówka",
+            "shield-check": "Tarcza",
+            "clock": "Zegar",
+            "badge-check": "Odznaka",
+            "wrench": "Klucz",
+            "headphones": "Słuchawki",
+            "map-pin": "Pinezka",
+            "credit-card": "Karta",
+            "package": "Paczka",
+            "calendar-check": "Kalendarz",
+            "sparkles": "Iskry",
+            "thumbs-up": "Kciuk w górę"
+          }
+        },
+        "layouts": {
+          "cards": "Karty",
+          "plain": "Bez obudowy"
+        }
+      },
+      "delivery": {
+        "itemsTitle": "Sposoby dostawy",
+        "addItem": "Dodaj sposób dostawy",
+        "removeBody": "Ten sposób dostawy zniknie ze strony. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "title": "Nazwa",
+          "text": "Opis",
+          "price_grosze": "Cena (opcjonalna)",
+          "intro": "Zdanie nad listą (opcjonalne)"
+        },
+        "hints": {
+          "price_grosze": "Kwota w jednostkach głównych, np. 120 albo 120,50. Puste pole = wariant bez ceny."
+        },
+        "layouts": {
+          "cards": "Karty",
+          "list": "Lista"
+        }
+      },
+      "cta": {
+        "itemsTitle": "Przyciski",
+        "addItem": "Dodaj przycisk",
+        "removeBody": "Ten przycisk zniknie z wezwania. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "label": "Etykieta przycisku",
+          "href": "Dokąd prowadzi",
+          "text": "Zdanie pod nagłówkiem (opcjonalne)"
+        },
+        "choices": {
+          "variant": "Powierzchnia wezwania"
+        },
+        "choiceValues": {
+          "variant": {
+            "plain": "Bez panelu",
+            "panel": "Panel",
+            "accent": "Panel akcentowy"
+          }
+        },
+        "layouts": {
+          "banner": "Baner",
+          "split": "Tekst i przycisk obok"
+        }
       }
     }
   },

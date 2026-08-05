@@ -14,8 +14,22 @@ import { getLocale, getTranslations } from "next-intl/server";
 import type { AuthContext } from "./auth";
 import { getTenantCurrency } from "./tenant-currency";
 
-/** Limit kafli katalogu na płótnie — tyle, ile pokazuje sekcja produktów. */
-const CANVAS_PRODUCTS_LIMIT = 12;
+/**
+ * ILE POZYCJI KATALOGU CZYTA KREATOR.
+ *
+ * Do E7 było ich dwanaście — tyle, ile mieściła sekcja produktów na płótnie.
+ * Sekcja sprzętu v3 czyta tę samą listę DWA RAZY: raz jako treść (przy źródle
+ * „katalog") i raz jako zbiór do WSKAZANIA w szufladzie. Przy suficie 12 sprzęt
+ * spoza pierwszej dwunastki alfabetu byłby nie do wybrania, a pozycja wskazana
+ * wcześniej znikałaby z podglądu jako „usunięta z katalogu" — mimo że w
+ * katalogu stoi.
+ *
+ * Sufit zostaje mimo to, i to nie jest ostrożność na zapas: to jest ODCZYT DO
+ * PODGLĄDU, a katalog najemcy nie ma górnej granicy. Sześćdziesiąt pokrywa
+ * z zapasem i sufit sekcji (24 wskazania), i realny katalog wypożyczalni —
+ * a strona publiczna i tak czyta katalog własną drogą, bez tego limitu.
+ */
+const CANVAS_PRODUCTS_LIMIT = 60;
 
 export async function previewProductsFor(
   ctx: AuthContext,

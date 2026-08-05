@@ -102,6 +102,18 @@ const DOZWOLONE_WARIANTY = [
    * z drugiej strony. Poniżej niej element bierze geometrię MOBILNĄ.
    */
   "@container site (width < 40rem)",
+  /*
+   * PEŁNE RZĘDY SIATKI SPRZĘTU (E7, aneks ADR-094) — para zapytań wokół progu,
+   * który siatka produktów miała już wcześniej (`grid-cols-2` do 64 rem,
+   * `grid-cols-3` powyżej — `productGrid` w template.ts). ŻADNEGO nowego progu
+   * układu tu nie ma: to ta sama liczba, pytana z obu stron, bo reguła ucinająca
+   * ostatni niepełny rząd musi znać liczbę kolumn, a ta jest inna po każdej
+   * stronie progu. Jedno zapytanie nie wystarczy: reguła dla trzech kolumn
+   * obowiązywałaby wtedy także tam, gdzie siatka ma dwie, i ucinałaby rzędy,
+   * które są pełne.
+   */
+  "@container site (width < 64rem)",
+  "@container site (width >= 64rem)",
 ] as const;
 const DOZWOLONE_PROGI = ["40rem", "64rem"] as const;
 

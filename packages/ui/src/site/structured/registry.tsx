@@ -5,9 +5,13 @@ import type {
 } from "@avably/core/site";
 
 import type { TemplateStyles } from "../template";
-import type { ContactFormBinding, SiteMoney, SiteRenderLabels } from "../types";
+import type { ContactFormBinding, SiteMoney, SiteRenderLabels, StorefrontProduct } from "../types";
 import { StructuredContactSplit } from "./contact-split";
 import { StructuredContactStacked } from "./contact-stacked";
+import { StructuredCtaBanner } from "./cta-banner";
+import { StructuredCtaSplit } from "./cta-split";
+import { StructuredDeliveryCards } from "./delivery-cards";
+import { StructuredDeliveryList } from "./delivery-list";
 import { StructuredDirectionsSplit } from "./directions-split";
 import { StructuredDirectionsStacked } from "./directions-stacked";
 import { StructuredFaqAccordion } from "./faq-accordion";
@@ -17,8 +21,12 @@ import { StructuredGalleryGrid } from "./gallery-grid";
 import { StructuredGalleryMasonry } from "./gallery-masonry";
 import { StructuredPricingCards } from "./pricing-cards";
 import { StructuredPricingTable } from "./pricing-table";
+import { StructuredProductsGrid } from "./products-grid";
+import { StructuredProductsList } from "./products-list";
 import { StructuredTestimonialsCarousel } from "./testimonials-carousel";
 import { StructuredTestimonialsGrid } from "./testimonials-grid";
+import { StructuredUspCards } from "./usp-cards";
+import { StructuredUspPlain } from "./usp-plain";
 
 /**
  * REJESTR RENDERU SEKCJI STRUKTURALNYCH (E1, ADR-094) — para (typ, układ)
@@ -74,6 +82,21 @@ export interface StructuredSectionProps<
    * wartość domyślną), więc cennik nie ma stanu „nie wiem, w czym to pokazać".
    */
   money: SiteMoney;
+  /**
+   * KATALOG NAJEMCY (E7, aneks ADR-094) — trzecia rzecz (po formularzu kontaktu
+   * i zgodzie na obcą ramkę), którą do wspólnego renderera wnosi WARSTWA
+   * DANYCH, i pierwsza, którą wnoszą OBIE strony: sklep czyta ją publicznym
+   * katalogiem, a kreator — uwierzytelnionym odczytem tabeli przez RLS.
+   *
+   * Sekcja sprzętu jest jedynym typem strukturalnym, którego treścią nie jest
+   * jej własna lista: lista niesie WSKAZANIA, a nazwy, ceny i zdjęcia mieszkają
+   * w katalogu i zmieniają się bez publikacji strony. Kopia w treści byłaby
+   * drugim źródłem prawdy o cenie — patrz uzasadnienie przy `items` schematu.
+   *
+   * Brak = pusta tablica: typ bez katalogu ją ignoruje, a sekcja sprzętu
+   * pokazuje stan pusty zamiast pęknąć.
+   */
+  products?: StorefrontProduct[];
 }
 
 export type StructuredSectionComponent<
@@ -115,6 +138,22 @@ export const STRUCTURED_RENDERERS: StructuredRendererRegistry = {
   testimonials: {
     grid: StructuredTestimonialsGrid,
     carousel: StructuredTestimonialsCarousel,
+  },
+  products: {
+    grid: StructuredProductsGrid,
+    list: StructuredProductsList,
+  },
+  usp: {
+    cards: StructuredUspCards,
+    plain: StructuredUspPlain,
+  },
+  delivery: {
+    cards: StructuredDeliveryCards,
+    list: StructuredDeliveryList,
+  },
+  cta: {
+    banner: StructuredCtaBanner,
+    split: StructuredCtaSplit,
   },
 };
 

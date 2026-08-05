@@ -1,25 +1,9 @@
-import type { UspIcon } from "@avably/core/site";
-import {
-  BadgeCheck,
-  CalendarCheck,
-  Clock,
-  CreditCard,
-  Headphones,
-  type LucideIcon,
-  MapPin,
-  Package,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  ThumbsUp,
-  Truck,
-  Wrench,
-} from "lucide-react";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
 import { siteImageUrl } from "./image-url";
 import { externalLinkRel } from "./links";
+import { siteIconComponent } from "./site-icons";
 import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
 import type {
@@ -47,25 +31,6 @@ import type {
  */
 export { siteImageUrl };
 
-/**
- * Allowlista ikon USP (ADR-082) → komponenty `lucide`. Zamknięty zbiór lustrem
- * USP_ICONS z core; klucz spoza mapy (nie powinien przejść Zoda) degraduje do
- * neutralnej gwiazdki, więc render nigdy nie pęka na treści.
- */
-const USP_ICON_COMPONENTS: Record<UspIcon, LucideIcon> = {
-  truck: Truck,
-  "shield-check": ShieldCheck,
-  clock: Clock,
-  "badge-check": BadgeCheck,
-  wrench: Wrench,
-  headphones: Headphones,
-  "map-pin": MapPin,
-  "credit-card": CreditCard,
-  package: Package,
-  "calendar-check": CalendarCheck,
-  sparkles: Sparkles,
-  "thumbs-up": ThumbsUp,
-};
 
 /**
  * Prezentacyjne komponenty sekcji storefrontu. Każdy dostaje swoją treść
@@ -414,7 +379,7 @@ export function UspSection({ content, styles }: { content: UspContent; styles: T
       {items.length > 0 ? (
         <ul className="mt-10 grid list-none grid-cols-1 gap-8 p-0 @min-[40rem]/site:grid-cols-2 @min-[64rem]/site:grid-cols-3">
           {items.map((item, index) => {
-            const Icon = USP_ICON_COMPONENTS[item.icon] ?? Star;
+            const Icon = siteIconComponent(item.icon);
             return (
               <li key={index} className="flex flex-col gap-3">
                 <span className={styles.iconTile}>

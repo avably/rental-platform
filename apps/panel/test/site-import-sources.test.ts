@@ -22,7 +22,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { pickupLocationEntries, type PickupLocationRow } from "@/lib/site-import-sources";
+import {
+  catalogProductEntries,
+  pickupLocationEntries,
+  type PickupLocationRow,
+} from "@/lib/site-import-sources";
 
 function punkt(patch: Partial<PickupLocationRow> = {}): PickupLocationRow {
   return {
@@ -150,5 +154,44 @@ describe("trasa kreatora WOŁA tę funkcję i nie filtruje sama", () => {
     // Kolumna MUSI być czytana, inaczej funkcja dostaje `active: undefined`
     // i odsiew wycina wszystko po cichu.
     expect(zrodlo, "zapytanie nie czyta kolumny `active`").toMatch(/select\([^)]*active/);
+  });
+});
+
+describe("pozycje katalogu do WSKAZANIA w sekcji sprzętu (E7)", () => {
+  it("wynik niesie SAM identyfikator i nazwę — zero kopii ceny", () => {
+    const wpisy = catalogProductEntries([
+      { id: "aaaaaaaa-0001-4000-8000-000000000001", name: "Namiot 5 × 10 m" },
+      { id: "aaaaaaaa-0002-4000-8000-000000000002", name: "Nagłośnienie" },
+    ]);
+    expect(wpisy).toEqual([
+      { value: "aaaaaaaa-0001-4000-8000-000000000001", label: "Namiot 5 × 10 m" },
+      { value: "aaaaaaaa-0002-4000-8000-000000000002", label: "Nagłośnienie" },
+    ]);
+    /*
+     * Kształt jest wąski CELOWO: `label` żyje wyłącznie w szufladzie, a do
+     * treści sekcji jedzie `value`. Dopisanie tu ceny albo zdjęcia zrobiłoby
+     * z wpisu kopię oferty — i strona główna zostałaby przy cenie, której
+     * najemca już nie ma w katalogu.
+     */
+    for (const wpis of wpisy) expect(Object.keys(wpis).sort()).toEqual(["label", "value"]);
+  });
+
+  it("KOLEJNOŚĆ zostaje z wejścia — trasa sortuje tak, jak operator widzi katalog", () => {
+    expect(
+      catalogProductEntries([
+        { id: "aaaaaaaa-0003-4000-8000-000000000003", name: "Zestaw C" },
+        { id: "aaaaaaaa-0001-4000-8000-000000000001", name: "Aparat A" },
+      ]).map((wpis) => wpis.label),
+    ).toEqual(["Zestaw C", "Aparat A"]);
+  });
+
+  it("pozycja bez nazwy WYPADA — bezimienny wiersz na liście wyboru nic nie mówi", () => {
+    expect(
+      catalogProductEntries([
+        { id: "aaaaaaaa-0001-4000-8000-000000000001", name: "   " },
+        { id: "", name: "Bez identyfikatora" },
+        { id: "aaaaaaaa-0002-4000-8000-000000000002", name: " Nagłośnienie " },
+      ]),
+    ).toEqual([{ value: "aaaaaaaa-0002-4000-8000-000000000002", label: "Nagłośnienie" }]);
   });
 });

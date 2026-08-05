@@ -53,6 +53,7 @@ import {
   SECTION_BACKGROUNDS,
   type ImageSource,
   type StructuredFieldSpec,
+  type StructuredPickEntry,
   type StructuredSectionContent,
   type StructuredSectionType,
 } from "@avably/core/site";
@@ -87,7 +88,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowDown, ArrowUp, GripVertical, MapPin, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, MapPin, Package, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -201,6 +202,26 @@ export function StructuredSectionForm({
   const freshItem = structuredNewItemFor(type, locale);
   /** Pole obrazowe wpisu (jest ich najwyżej jedno) — wejście multi-uploadu. */
   const mediaField = spec.itemFields.find((field) => field.kind === "image");
+  /** Pole WSKAZUJĄCE encję panelu (E7) — jest ich najwyżej jedno. */
+  const referenceField = spec.itemFields.find((field) => field.kind === "reference");
+  /**
+   * Encje do wskazania — z tego samego kanału, co wpisy do skopiowania (E5),
+   * ale po nazwie źródła z `itemsPick`. Framework nie wie, czym są: dostaje pary
+   * „identyfikator, nazwa" i tyle mu potrzeba.
+   */
+  const pickEntries = (spec.itemsPick ? (importSources?.[spec.itemsPick] ?? []) : []) as
+    readonly StructuredPickEntry[];
+  /**
+   * CZY LISTA WPISÓW W OGÓLE COŚ ZNACZY (E7, `itemsWhen` w rejestrze).
+   *
+   * Sekcja sprzętu ma stan, w którym wybór pozycji jest bez skutku: przy źródle
+   * „katalog" treść bierze się z katalogu. Pokazywanie wtedy listy i selektora
+   * uczyłoby operatora, że ustawienia sekcji bywają ozdobą — więc w tym stanie
+   * stoi tam ZDANIE mówiące, co przełączyć, żeby wybór zaczął działać.
+   */
+  const itemsMatter =
+    !spec.itemsWhen ||
+    (content as unknown as Record<string, unknown>)[spec.itemsWhen.key] === spec.itemsWhen.value;
 
   const wyglad = (
     <div className="flex flex-col gap-5">
@@ -345,6 +366,12 @@ export function StructuredSectionForm({
         </span>
       </div>
 
+      {itemsMatter ? null : (
+        <p data-cms-items-idle className="text-muted-foreground text-sm">
+          {t(`structured.${type}.itemsIdle`)}
+        </p>
+      )}
+
       {mediaField ? (
         <MediaUpload
           siteId={siteId}
@@ -363,6 +390,7 @@ export function StructuredSectionForm({
         />
       ) : null}
 
+      {itemsMatter ? (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <ul className="flex list-none flex-col gap-3 p-0">
@@ -375,6 +403,7 @@ export function StructuredSectionForm({
                 type={type}
                 item={item}
                 currency={currency}
+                pickEntries={pickEntries}
                 canRemove={items.length > spec.minItems}
                 onPatch={(key, value) =>
                   onChange((current) => patchStructuredItem(current, index, key, value))
@@ -388,13 +417,14 @@ export function StructuredSectionForm({
           </ul>
         </SortableContext>
       </DndContext>
+      ) : null}
 
       {/*
         Przycisk „dodaj wpis" istnieje WYŁĄCZNIE tam, gdzie rejestr umie podać
         świeży wpis. Przy typie medialnym pusty kafel bez zdjęcia nie przeszedłby
         schematu, więc przycisk obiecywałby operację kończącą się błędem.
       */}
-      {freshItem !== undefined ? (
+      {freshItem !== undefined && itemsMatter ? (
         <Button
           type="button"
           size="sm"
@@ -413,6 +443,24 @@ export function StructuredSectionForm({
         tam, gdzie REJESTR wskazał źródło (`itemsImport`), tak samo jak przycisk
         „dodaj wpis" istnieje tam, gdzie rejestr umie podać świeży wpis.
       */}
+      {/*
+        WYBÓR ENCJI Z MODUŁU PANELU (E7) — przycisk istnieje wyłącznie tam, gdzie
+        REJESTR wskazał źródło (`itemsPick`), tak samo jak przycisk „dodaj wpis"
+        istnieje tam, gdzie rejestr umie podać świeży wpis.
+      */}
+      {referenceField && spec.itemsPick && itemsMatter ? (
+        <PickItems
+          type={type}
+          fieldKey={referenceField.key}
+          entries={pickEntries}
+          chosen={items.map((item) => String(item[referenceField.key] ?? ""))}
+          full={items.length >= spec.maxItems}
+          onPick={(value) =>
+            onChange((current) => appendStructuredItem(current, { [referenceField.key]: value }))
+          }
+        />
+      ) : null}
+
       {spec.itemsImport ? (
         <ImportItems
           type={type}
@@ -489,6 +537,111 @@ function entryFingerprint(entry: unknown): string {
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .sort(([a], [b]) => a.localeCompare(b));
   return JSON.stringify(pairs);
+}
+
+/**
+ * „WSTAW POZYCJĘ Z KATALOGU" (E7, aneks ADR-094) — WSKAZANIE, NIE KOPIA.
+ *
+ * ==================== RÓŻNICA WOBEC IMPORTU Z E5 ====================
+ *
+ * Punkty odbioru KOPIUJEMY: po wstawieniu adres należy do sekcji i wolno go
+ * w niej poprawić (uzasadnienie przy `ImportItems` niżej). Pozycję katalogu
+ * WSKAZUJEMY: w treści zostaje sam identyfikator, a nazwa, cena i zdjęcie są
+ * czytane na bieżąco. Kopia byłaby tu wprost szkodliwa — strona główna
+ * pokazywałaby cenę, której najemca już nie ma w ofercie, a jedyną drogą
+ * naprawy byłoby odszukanie wszystkich sekcji, w których ta pozycja stoi.
+ *
+ * ==================== DLACZEGO WYBÓR, A NIE „WSTAW WSZYSTKIE" ====================
+ *
+ * Katalog ma dziesiątki pozycji, a sekcja pokazuje ich kilka. Przycisk
+ * kopiujący wszystko byłby obietnicą kończącą się kasowaniem dwudziestu wpisów
+ * z ręki — a przy suficie sekcji wstawiłby i tak tylko tyle, ile się zmieści,
+ * w kolejności, której operator nie wybierał.
+ *
+ * ==================== DLACZEGO POZYCJE JUŻ WSKAZANE ZNIKAJĄ Z LISTY ====================
+ *
+ * Ta sama pozycja dwa razy w jednej sekcji nie jest decyzją, tylko pomyłką:
+ * sekcja pokazywałaby dwa identyczne kafle i zjadałaby miejsce, które ma sufit.
+ * Odsiew jest po identyfikatorze, więc działa także po przeładowaniu kreatora.
+ */
+function PickItems({
+  type,
+  fieldKey,
+  entries,
+  chosen,
+  full,
+  onPick,
+}: {
+  type: StructuredSectionType;
+  fieldKey: string;
+  entries: readonly StructuredPickEntry[];
+  chosen: readonly string[];
+  full: boolean;
+  onPick: (value: string) => void;
+}) {
+  const t = useTranslations("site");
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const [picked, setPicked] = useState("");
+
+  const taken = new Set(chosen);
+  const dostepne = entries.filter((entry) => !taken.has(entry.value));
+
+  /*
+   * POWÓD WYŁĄCZENIA JEST TRZECH RODZAJÓW i każdy prowadzi gdzie indziej:
+   * „katalog jest pusty" odsyła do modułu sprzętu, „wszystko już wskazane"
+   * mówi, że praca jest zrobiona, a „sekcja pełna" — że trzeba coś usunąć.
+   * Jeden wspólny komunikat kazałby operatorowi zgadywać, które z trzech.
+   */
+  const reason = full
+    ? t(`structured.${type}.pick.full`)
+    : entries.length === 0
+      ? t(`structured.${type}.pick.empty`)
+      : dostepne.length === 0
+        ? t(`structured.${type}.pick.nothingNew`)
+        : null;
+
+  return (
+    <div data-cms-pick={fieldKey} className="flex flex-col gap-1.5">
+      <Field label={t(`structured.${type}.pick.label`)} htmlFor={id}>
+        <PanelSelect
+          id={id}
+          value={picked}
+          onValueChange={setPicked}
+          disabled={reason !== null}
+          placeholder={t(`structured.${type}.pick.placeholder`)}
+          options={dostepne.map((entry) => ({ value: entry.value, label: entry.label }))}
+        />
+      </Field>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        data-cms-pick-add
+        // Przycisk bez wybranej pozycji nie ma czego wstawić. Wyłączony, a nie
+        // wstawiający „pierwszą z brzegu": sekcja sprzętu jest listą decyzji
+        // operatora, a nie skrótem do katalogu.
+        disabled={reason !== null || picked === ""}
+        aria-describedby={reason ? hintId : undefined}
+        onClick={() => {
+          if (picked === "") return;
+          onPick(picked);
+          // Wybór wraca do pustki: wskazana pozycja znika z listy dostępnych,
+          // więc zostawienie jej w selektorze pokazywałoby wartość, której tam
+          // już nie ma.
+          setPicked("");
+        }}
+      >
+        <Package className="size-4" aria-hidden />
+        {t(`structured.${type}.pick.action`)}
+      </Button>
+      {reason ? (
+        <p id={hintId} data-cms-pick-reason className="text-muted-foreground text-xs">
+          {reason}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -694,6 +847,7 @@ function MoneyField({
   label,
   hint,
   amountMinor,
+  clearable,
   currency,
   locale,
   onCommit,
@@ -702,12 +856,25 @@ function MoneyField({
   fieldKey: string;
   label: string;
   hint: string;
-  amountMinor: number;
+  /** Kwota z treści albo `undefined`, gdy pole jest opcjonalne i puste. */
+  amountMinor: number | undefined;
+  /**
+   * Czy PUSTE pole ZDEJMUJE kwotę (E7, `empty: "unset"` w rejestrze).
+   *
+   * Cennik ma cenę WYMAGANĄ, więc pustka jest tam stanem przejściowym pod
+   * klawiaturą i nie zapisuje nic. Dostawa ma cenę OPCJONALNĄ: „Odbiór osobisty"
+   * bez kwoty jest kompletną informacją, a jedyną drogą usunięcia raz wpisanej
+   * ceny jest wyczyszczenie pola. Bez tej gałęzi operator, który wpisał kwotę
+   * przez pomyłkę, nie miałby jak jej cofnąć inaczej niż kasując cały wariant.
+   */
+  clearable: boolean;
   currency: CurrencyCode;
   locale: string;
-  onCommit: (amountMinor: number) => void;
+  onCommit: (amountMinor: number | undefined) => void;
 }) {
-  const [draft, setDraft] = useState(() => formatMoneyAmount(amountMinor, currency, locale));
+  const [draft, setDraft] = useState(() =>
+    amountMinor === undefined ? "" : formatMoneyAmount(amountMinor, currency, locale),
+  );
 
   return (
     <Field label={label} hint={hint} htmlFor={id}>
@@ -719,6 +886,13 @@ function MoneyField({
         onChange={(event) => {
           const raw = event.target.value;
           setDraft(raw);
+          // Pustka w polu ZDEJMUJĄCYM kwotę jest DECYZJĄ („ten wariant nie ma
+          // ceny"), a nie stanem przejściowym — więc jedzie do treści od razu,
+          // tak samo jak pustka w polu tekstowym z `empty: "unset"`.
+          if (clearable && raw.trim() === "") {
+            onCommit(undefined);
+            return;
+          }
           const minor = parseMoneyAmount(raw, currency);
           if (minor !== null) onCommit(minor);
         }}
@@ -729,7 +903,7 @@ function MoneyField({
            * zostawałoby z napisem, którego w treści nie ma — a operator
            * widziałby cenę, której strona nie pokazuje.
            */
-          setDraft(formatMoneyAmount(amountMinor, currency, locale));
+          setDraft(amountMinor === undefined ? "" : formatMoneyAmount(amountMinor, currency, locale));
         }}
       />
     </Field>
@@ -768,6 +942,7 @@ function ItemRow({
   type,
   item,
   currency,
+  pickEntries,
   canRemove,
   onPatch,
   onMove,
@@ -779,6 +954,8 @@ function ItemRow({
   type: StructuredSectionType;
   item: Record<string, unknown>;
   currency: CurrencyCode;
+  /** Nazwy encji do rozwiązania pola wskazującego (E7) — patrz `ItemReference`. */
+  pickEntries: readonly StructuredPickEntry[];
   canRemove: boolean;
   onPatch: (key: string, value: string | number | undefined) => void;
   onMove: (direction: -1 | 1) => void;
@@ -845,6 +1022,17 @@ function ItemRow({
         if (field.kind === "image") {
           return <ItemThumbnail key={field.key} source={item[field.key] as ImageSource | undefined} />;
         }
+        if (field.kind === "reference") {
+          return (
+            <ItemReference
+              key={field.key}
+              fieldKey={field.key}
+              value={typeof item[field.key] === "string" ? (item[field.key] as string) : ""}
+              entries={pickEntries}
+              missingLabel={t(`structured.${type}.pick.missing`)}
+            />
+          );
+        }
         const label = t(`structured.${type}.fields.${field.key}`);
         if (field.kind === "money") {
           /*
@@ -861,7 +1049,14 @@ function ItemRow({
               fieldKey={field.key}
               label={label}
               hint={t(`structured.${type}.hints.${field.key}`)}
-              amountMinor={typeof item[field.key] === "number" ? (item[field.key] as number) : 0}
+              amountMinor={
+                typeof item[field.key] === "number"
+                  ? (item[field.key] as number)
+                  : field.empty === "unset"
+                    ? undefined
+                    : 0
+              }
+              clearable={field.empty === "unset"}
               currency={currency}
               locale={locale}
               onCommit={(minor) => onPatch(field.key, minor)}
@@ -918,6 +1113,42 @@ function ItemRow({
         );
       })}
     </li>
+  );
+}
+
+/**
+ * WPIS WSKAZUJĄCY ENCJĘ (E7) — NAZWA, a nie pole z identyfikatorem.
+ *
+ * Identyfikator jest szczegółem technicznym, którego operator nie ma po co
+ * widzieć ani móc zepsuć — ta sama zasada, co przy miniaturze zdjęcia zamiast
+ * ścieżki do Storage. Wiersz jest więc PODGLĄDEM: zmienia się go usunięciem
+ * i wskazaniem innej pozycji, a nie przepisywaniem uuid-a.
+ *
+ * POZYCJA, KTÓREJ JUŻ NIE MA (usunięta albo wyłączona w katalogu), dostaje
+ * własne zdanie zamiast pustego wiersza. Bez niego operator widziałby wpis bez
+ * treści i nie miałby jak zgadnąć, czy to awaria kreatora, czy skutek zmiany
+ * w module sprzętu — a sekcja po cichu pokazywałaby o jedną pozycję mniej.
+ */
+function ItemReference({
+  fieldKey,
+  value,
+  entries,
+  missingLabel,
+}: {
+  fieldKey: string;
+  value: string;
+  entries: readonly StructuredPickEntry[];
+  missingLabel: string;
+}) {
+  const entry = entries.find((candidate) => candidate.value === value);
+  return entry ? (
+    <p data-cms-reference={fieldKey} className="text-sm font-medium">
+      {entry.label}
+    </p>
+  ) : (
+    <p data-cms-reference-missing={fieldKey} className="text-muted-foreground text-sm">
+      {missingLabel}
+    </p>
   );
 }
 

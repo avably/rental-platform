@@ -215,16 +215,19 @@ describe("picker: typy po lewej, PODGLĄDY po prawej", () => {
   it("typ płótnowy ma JEDEN podgląd i wstawia preset płótna", async () => {
     const { container } = renderBuilder([sekcja(HERO_ID, "hero", 0)]);
     const dialog = openPicker(container, 0);
-    // Typ PŁÓTNOWY, czyli taki, którego rejestr ADR-094 nie zna. Opinie stały
-    // się typem strukturalnym w E6 i mają odtąd DWA podglądy, więc przestały
-    // być przykładem tej drogi — sedno testu zostaje bez zmian.
-    fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="usp"]')!);
+    /*
+     * Typ PŁÓTNOWY, czyli taki, którego rejestr ADR-094 nie zna. Rola przechodzi
+     * z typu na typ, w miarę jak rejestr rośnie: opinie do E6, atuty do E7,
+     * teraz treść dowolna. Po E7 poza rejestrem zostają już tylko `hero`,
+     * `freeform` i `footer` — sedno testu zostaje bez zmian.
+     */
+    fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="freeform"]')!);
     expect(dialog.querySelectorAll("[data-picker-add]").length).toBe(1);
 
     fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-add="default"]')!);
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     expect(lastInsert()?.content).toEqual(
-      sectionCanvasFrom("usp", presetContentFor("usp", "pl")),
+      sectionCanvasFrom("freeform", presetContentFor("freeform", "pl")),
     );
   });
 

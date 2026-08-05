@@ -167,13 +167,20 @@ describe("droga operatora: „+” → typ → wstawienie", () => {
     await user.click(screen.getAllByRole("button", { name: plMessages.site.builder.addHere })[1]!);
 
     const okno = await screen.findByRole("dialog");
-    await user.click(within(okno).getByRole("radio", { name: typy.usp }));
+    /*
+     * TYP PŁÓTNOWY, czyli taki, którego rejestr ADR-094 nie zna — bo tylko on
+     * ma JEDEN podgląd i jedną kontrolkę „dodaj". Atuty pełniły tę rolę do E6;
+     * w E7 stały się typem strukturalnym i mają odtąd po jednej kontrolce na
+     * wariant układu. Sedno testu (kontrolka znaleziona PO NAZWIE woła akcję
+     * z kotwicą) zostaje bez zmian.
+     */
+    await user.click(within(okno).getByRole("radio", { name: typy.freeform }));
     await user.click(
-      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.usp) }),
+      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.freeform) }),
     );
 
     expect(actions.upsertSection, "kliknięcie w podgląd nie wysłało zapisu").toHaveBeenCalledTimes(1);
-    expect(wstawienia()[0]).toMatchObject({ type: "usp", insertBefore: CTA_ID });
+    expect(wstawienia()[0]).toMatchObject({ type: "freeform", insertBefore: CTA_ID });
   });
 
   it("TA SAMA droga z palety — kontekst końca strony", async () => {
@@ -182,13 +189,14 @@ describe("droga operatora: „+” → typ → wstawienie", () => {
     await user.click(screen.getByRole("button", { name: plMessages.site.sections.add }));
 
     const okno = await screen.findByRole("dialog");
-    await user.click(within(okno).getByRole("radio", { name: typy.delivery }));
+    // Ten sam powód, co wyżej: dostawa jest od E7 typem strukturalnym.
+    await user.click(within(okno).getByRole("radio", { name: typy.freeform }));
     await user.click(
-      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.delivery) }),
+      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.freeform) }),
     );
 
     expect(actions.upsertSection).toHaveBeenCalledTimes(1);
-    expect(wstawienia()[0]).toMatchObject({ type: "delivery" });
+    expect(wstawienia()[0]).toMatchObject({ type: "freeform" });
     expect(wstawienia()[0]!.insertBefore, "paleta wskazała kotwicę zamiast końca strony").toBeUndefined();
   });
 

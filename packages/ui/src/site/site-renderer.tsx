@@ -40,6 +40,7 @@ import type {
 /** Domyślne etykiety chrome (PL — domyślny język tenanta). Nadpisywalne propsem. */
 export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   productsEmpty: "Katalog jest w przygotowaniu.",
+  productsCatalog: "Zobacz cały sprzęt",
   contactEmail: "E-mail:",
   contactPhone: "Telefon:",
   contactAddress: "Adres:",
@@ -159,6 +160,7 @@ function SectionSwitch({
         siteImageBase={siteImageBase}
         labels={labels}
         money={money}
+        products={products}
         sectionId={section.id}
         contactForm={contactForm}
         mapEmbed={mapEmbed}

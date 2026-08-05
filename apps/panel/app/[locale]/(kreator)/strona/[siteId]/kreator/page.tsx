@@ -25,7 +25,7 @@ import { getLocale } from "next-intl/server";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { requireMemberPage } from "@/lib/member-page";
-import { pickupLocationEntries } from "@/lib/site-import-sources";
+import { catalogProductEntries, pickupLocationEntries } from "@/lib/site-import-sources";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -94,11 +94,20 @@ export default async function SiteBuilderPage({
       products={products}
       money={money}
       /*
-       * Nazwa źródła jest LUSTREM `itemsImport` z rejestru typów strukturalnych
-       * (@avably/core/site) — dopisanie tu drugiego źródła nie wymaga zmiany
-       * w szufladzie, a typ bez deklaracji nie dostanie cudzych danych.
+       * Nazwa źródła jest LUSTREM `itemsImport` / `itemsPick` z rejestru typów
+       * strukturalnych (@avably/core/site) — dopisanie tu drugiego źródła nie
+       * wymaga zmiany w szufladzie, a typ bez deklaracji nie dostanie cudzych
+       * danych.
+       *
+       * Katalog do WSKAZANIA składamy z tej samej listy, którą dostaje płótno:
+       * podgląd kreatora i selektor szuflady widzą wtedy dokładnie ten sam
+       * sprzęt, więc pozycja wskazana w szufladzie na pewno narysuje się na
+       * płótnie (i odwrotnie — brak pozycji w jednym miejscu znaczy brak w obu).
        */
-      importSources={{ pickupLocations: pickupEntries }}
+      importSources={{
+        pickupLocations: pickupEntries,
+        catalogProducts: catalogProductEntries(products),
+      }}
     />
   );
 }
