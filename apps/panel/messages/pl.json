@@ -1019,7 +1019,6 @@
       "addType": "Dodaj sekcję",
       "add": "Dodaj sekcję",
       "addHint": "Nowa sekcja dopisuje się na końcu strony.",
-      "addModalDescription": "Wybierz typ sekcji — doda się wypełniona przykładem, który podmienisz.",
       "addBelow": "Dodaj sekcję poniżej",
       "empty": "Brak sekcji. Dodaj pierwszą, aby zbudować stronę.",
       "moveUp": "Przenieś wyżej",
@@ -1036,6 +1035,18 @@
       "confirmRemove": "Usuń sekcję",
       "cancel": "Anuluj",
       "alreadyOnPage": "Strona ma już tę sekcję."
+    },
+    "sectionPicker": {
+      "title": "Dodaj sekcję",
+      "placeAtEnd": "Sekcja stanie na końcu strony.",
+      "placeBefore": "Sekcja stanie nad sekcją „{type}”.",
+      "typesLegend": "Typ sekcji",
+      "chooseLayout": "Wygląd sekcji „{type}” — kliknij, żeby wstawić ją na stronę.",
+      "add": "Dodaj sekcję",
+      "addLayout": "Dodaj: {layout}",
+      "addAria": "Dodaj sekcję: {type}",
+      "addLayoutAria": "Dodaj sekcję: {type} — {layout}",
+      "pinnedOnlyAtEnd": "Ta sekcja zawsze stoi na końcu strony — dodasz ją przyciskiem pod ostatnią sekcją albo z palety."
     },
     "sectionTypes": {
       "hero": "Baner (hero)",
@@ -1181,7 +1192,9 @@
       "paletteExpand": "Rozwiń paletę",
       "tabSections": "Sekcje",
       "tabElements": "Elementy",
-      "tabSectionsHint": "Kliknij typ sekcji — dopisze się na końcu strony, wypełniona przykładem.",
+      "tabSectionsHint": "Wybierz typ z podglądem. Sekcja dopisze się na końcu strony, wypełniona przykładem. Żeby wstawić ją w środku, użyj „+” między sekcjami.",
+      "pathLabel": "Ścieżka zaznaczenia",
+      "pathSelectSection": "Zaznacz całą sekcję",
       "elementsSoonTitle": "Elementy pojawią się wkrótce",
       "elementsSoonBody": "Pojedyncze nagłówki, teksty, przyciski i obrazy będzie można przeciągać na sekcję. Na razie stronę budujesz z gotowych sekcji.",
       "addHere": "Dodaj sekcję tutaj",

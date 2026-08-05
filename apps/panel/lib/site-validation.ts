@@ -59,12 +59,20 @@ const positionSchema = z.number().int().min(0).max(1_000_000);
  * sekcji (typ NIEZMIENNY — zmiana typu to usunięcie + dodanie, inaczej stara
  * treść published innego kształtu wisiałaby pod nowym typem); nieobecne =
  * dodanie nowej sekcji na końcu (albo na podanej pozycji).
+ *
+ * `insertBefore` (E2) opisuje MIEJSCE świeżej sekcji SĄSIADEM: nowa sekcja ma
+ * stanąć bezpośrednio przed wskazaną. Indeksu tu NIE MA świadomie — indeks jest
+ * prawdziwy tylko na liście, na której go policzono, więc drugie kliknięcie
+ * „+" wysłane bez czekania na pierwsze trafiałoby obok wskazanego miejsca
+ * (lekcja K6-delty, ADR-092 decyzja 1b). Pole jest ignorowane przy
+ * AKTUALIZACJI: kolejność zmienia `reorderSections`, nie zapis treści.
  */
 export const upsertSectionInputSchema = z
   .object({
     siteId: uuidSchema,
     sectionId: uuidSchema.optional(),
     position: positionSchema.optional(),
+    insertBefore: uuidSchema.optional(),
     enabled: z.boolean().optional(),
   })
   .and(sectionInputSchema);

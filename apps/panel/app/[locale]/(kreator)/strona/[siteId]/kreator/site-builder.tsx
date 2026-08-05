@@ -38,12 +38,12 @@ import {
   createElement,
   defaultSizeOf,
   freeSpotFor,
-  insertableSlots,
   isPinnedLastType,
   isStructuredType,
   presetContentFor,
   sectionCanvasFrom,
   structuredPresetFor,
+  withStructuredLayout,
   type PaletteElementKind,
   type SectionContent,
   type SectionType,
@@ -66,7 +66,7 @@ import {
 } from "@avably/ui";
 import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { Link, useRouter } from "@/i18n/navigation";
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
@@ -82,16 +82,28 @@ import {
   upsertSection,
 } from "@/lib/actions/site";
 
-import { BuilderCanvas, type BuilderViewport, type ElementSelection } from "./builder-canvas";
+import {
+  BuilderCanvas,
+  type BuilderSelection,
+  type BuilderViewport,
+  type ElementSelection,
+} from "./builder-canvas";
 import { BuilderPalette } from "./builder-palette";
 import { TemplateGallery } from "./template-gallery";
 import { ImagePicker } from "./image-picker";
-import { insertIndexAtPointer, orderWithInsertedAt, type SectionBand } from "./insert-position";
+import { SectionPicker, type InsertLayout, type InsertTarget } from "./section-picker";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
 import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 type SaveState = "idle" | "saving" | "saved";
+
+/**
+ * Jak długo świeża sekcja MIGA po wstawieniu (E2). Tyle, żeby przyciągnąć oko
+ * i zniknąć, zanim zacznie przeszkadzać — dłuższy błysk zamienia się w drugi,
+ * konkurencyjny stan zaznaczenia.
+ */
+const FLASH_MS = 700;
 
 export function SiteBuilder({
   siteId,
@@ -122,16 +134,23 @@ export function SiteBuilder({
   const [viewport, setViewport] = useState<BuilderViewport>("desktop");
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
-  const [selection, setSelection] = useState<ElementSelection | null>(null);
-  const [picking, setPicking] = useState<ElementSelection | null>(null);
   /**
-   * Miejsce, w które wejdzie sekcja przeciągana właśnie z palety (K6, ADR-092),
-   * albo `null`, gdy nic nie jest przeciągane. Stan żyje w SKORUPIE, bo to ona
-   * widzi jednocześnie paletę (źródło) i płótno (cel).
+   * ZAZNACZENIE W HIERARCHII (E2): sekcja albo element W SEKCJI. Jeden stan na
+   * oba poziomy — patrz `BuilderSelection` w `builder-canvas.tsx`.
    */
-  const [sectionDropIndex, setSectionDropIndex] = useState<number | null>(null);
+  const [selection, setSelection] = useState<BuilderSelection | null>(null);
+  const [picking, setPicking] = useState<ElementSelection | null>(null);
   /** Sekcja, która przyjmie przeciągany właśnie ELEMENT (K6, ADR-092). */
   const [elementDropSectionId, setElementDropSectionId] = useState<string | null>(null);
+  /**
+   * MIEJSCE, w którym otwarto picker (E2), albo `null` przy zamkniętym oknie.
+   * Skorupa trzyma to sama, bo to ona zna WSZYSTKIE trzy wejścia: „+" na
+   * płótnie, paletę („na końcu strony") i konwersję z szuflady.
+   */
+  const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
+  /** Sekcja, która właśnie weszła — miga i gaśnie (E2). */
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * GALERIA SZABLONÓW (K5 v2, ADR-090). Otwarta z automatu przy PIERWSZEJ
    * wizycie, czyli wtedy, gdy strona nie ma ani jednej sekcji: pusty kreator
@@ -222,84 +241,97 @@ export function SiteBuilder({
   });
 
   /**
-   * Dodanie sekcji NA POZYCJI: `upsertSection` dopisuje na końcu (nie zna
-   * pojęcia „między"), więc miejsce powstaje dopiero drugim krokiem —
-   * `reorderSections` z KOMPLETEM pozycji, tą samą akcją co przeciąganie.
+   * WSTAWIENIE SEKCJI W MIEJSCU WSKAZANYM PRZEZ „+" (E2).
+   *
+   * Jedno wywołanie, nie dwa. Do E2 dodanie sekcji było parą kroków (wstawka
+   * na końcu + `reorderSections` z kompletem pozycji policzonym u KLIENTA),
+   * a para kroków przegrywa wyścig: drugie kliknięcie liczy komplet na stanie
+   * sprzed pierwszego (K6-delta, ADR-092 decyzja 1b). Odtąd miejsce jedzie
+   * z żądaniem jako KOTWICA (`insertBefore` — identyfikator sekcji, nad którą
+   * ma stanąć nowa), a układa je serwer na stanie BAZY. Klient nie zapisuje
+   * kolejności przy dodawaniu w ogóle.
    *
    * GENERACJA NOWEJ SEKCJI ZALEŻY OD TYPU (E1, ADR-094). Typ z rejestru
    * strukturalnego rodzi się jako treść v3 z presetem swojego typu (FAQ: trzy
-   * realne pary pytań), pozostałe — jak dotąd — jako płótno v2 z presetu v1.
-   * Rozstrzyga REJESTR, nie lista `if`-ów: kolejny typ strukturalny wchodzi tu
-   * bez zmiany ani jednej linii.
+   * realne pary pytań) — w wariancie układu WYBRANYM w pickerze; pozostałe —
+   * jak dotąd — jako płótno v2 z presetu v1. Rozstrzyga REJESTR, nie lista
+   * `if`-ów: kolejny typ strukturalny wchodzi tu bez zmiany ani jednej linii.
    */
-  function addSection(type: SectionType, index: number, orderedIds: string[]) {
+  function addSection(type: SectionType, layout: InsertLayout, target: InsertTarget) {
+    const content = isStructuredType(type)
+      ? (() => {
+          const preset = structuredPresetFor(type, locale);
+          return layout ? withStructuredLayout(preset, layout) : preset;
+        })()
+      : sectionCanvasFrom(type, presetContentFor(type, locale));
+
     run(async () => {
       const added = await upsertSection({
         siteId,
         type,
-        content: isStructuredType(type)
-          ? structuredPresetFor(type, locale)
-          : sectionCanvasFrom(type, presetContentFor(type, locale)),
+        content,
+        insertBefore: target.beforeId,
       } as Parameters<typeof upsertSection>[0]);
-      if (!added.ok) return added;
-      return reorderSections(siteId, orderWithInsertedAt(orderedIds, added.sectionId, index));
+      if (added.ok) flash(added.sectionId);
+      return added;
     });
   }
 
   /**
-   * PRZECIĄGNIĘCIE SEKCJI Z PALETY NA KONKRETNE MIEJSCE (K6, ADR-092).
-   *
-   * Do K6 paleta nie znała pojęcia „gdzie": kafel dokładał sekcję na KOŃCU,
-   * a wstawienie w środku miało osobną drogę („+" między sekcjami). Operator
-   * po przejściu kreatora na produkcji zgłosił to wprost — przeciąganie jest
-   * pierwszym odruchem, a jego brak każe budować stronę w dwóch krokach.
-   *
-   * Miara siedzi w SKORUPIE z tego samego powodu, co przy elementach (K3):
-   * paleta jest RODZEŃSTWEM płótna, więc jej gest nie sięga płótna, a płótno
-   * nie widzi kafla. Skorupa widzi oba.
-   *
-   * Pomiar idzie po DOM-ie, nie po propsach: płótno trzyma własny, optymistyczny
-   * stan kolejności (K1), więc lista z propsów potrafi być o jeden ruch do tyłu.
-   * Kolejność zmierzona z drzewa jest tą, którą operator MA PRZED OCZAMI — a
-   * podświetlony slot ma obiecywać dokładnie to, co widać.
+   * BŁYSK NA ŚWIEŻEJ SEKCJI (E2). Znacznik zdejmuje się sam — bez tego zostałby
+   * na płótnie jako drugi, konkurencyjny stan zaznaczenia. Poprzedni licznik
+   * kasujemy, bo dwa dodania pod rząd mają migać po kolei, a nie zgasić się
+   * nawzajem w połowie.
    */
-  function canvasBands(): { bands: SectionBand[]; ids: string[] } {
-    const nodes = Array.from(
+  function flash(sectionId: string) {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    setFlashId(sectionId);
+    flashTimer.current = setTimeout(() => setFlashId(null), FLASH_MS);
+  }
+
+  useEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+  }, []);
+
+  /**
+   * ESCAPE WSPINA SIĘ O POZIOM WYŻEJ (E2): element → sekcja → nic.
+   *
+   * Nasłuch stoi na DOKUMENCIE, a nie na płótnie, bo zaznaczenie sekcji nie
+   * przenosi fokusu (klik w tło niczego nie fokusuje) — handler na kontenerze
+   * nie dostałby ani jednego zdarzenia.
+   *
+   * Dwa wyjątki, oba dlatego, że Escape ma tam WŁASNE, mocniejsze znaczenie:
+   * otwarte okno (szuflada, picker, dialog usunięcia) zamyka się nim, a edycja
+   * tekstu w miejscu — anuluje. Wspinaczka po poziomach zdarzyłaby się wtedy
+   * „przy okazji" i operator straciłby zaznaczenie, którego nie chciał puszczać.
+   */
+  useEffect(() => {
+    if (!selection) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"], [data-inline-editor]')) return;
+      event.preventDefault();
+      setSelection((current) =>
+        current?.elementId ? { sectionId: current.sectionId } : null,
+      );
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selection]);
+
+  /**
+   * KOLEJNOŚĆ, KTÓRĄ OPERATOR MA PRZED OCZAMI — czytana z drzewa, nie z
+   * propsów: płótno trzyma własny, optymistyczny stan kolejności (K1), więc
+   * lista z propsów potrafi być o jeden ruch do tyłu. Potrzebuje tego jedno
+   * miejsce — konwersja „Przełącz na sekcję 2.0", która wstawia świeży preset
+   * BEZPOŚREDNIO POD starą sekcją (ADR-094, decyzja 5).
+   */
+  function canvasOrderIds(): string[] {
+    return Array.from(
       document.querySelectorAll<HTMLElement>("[data-builder-canvas] [data-canvas-section]"),
-    );
-    const bands: SectionBand[] = [];
-    const ids: string[] = [];
-    nodes.forEach((node) => {
-      const id = node.getAttribute("data-canvas-section");
-      if (!id) return;
-      const rect = node.getBoundingClientRect();
-      bands.push({ index: ids.length, top: rect.top, bottom: rect.bottom });
-      ids.push(id);
-    });
-    return { bands, ids };
-  }
-
-  /** Ile miejsc wstawienia ma strona — sekcja przypięta odbiera miejsce POD sobą. */
-  function slotsFor(ids: readonly string[]): number {
-    const known = ids
-      .map((id) => sections.find((section) => section.id === id))
-      .filter((section): section is EditorSection => Boolean(section))
-      .map((section) => ({ id: section.id, type: section.type }));
-    return insertableSlots(known);
-  }
-
-  /**
-   * Miejsce wstawienia pod kursorem — albo `null`, gdy kursor stoi POZA
-   * płótnem. Rozróżnienie jest istotne: puszczenie kafla nad paletą ma nie
-   * dodać niczego, a nie dodać na końcu strony.
-   */
-  function sectionDropIndexAt(pointer: { x: number; y: number }): number | null {
-    const overCanvas = document
-      .elementsFromPoint(pointer.x, pointer.y)
-      .some((node) => node instanceof HTMLElement && node.hasAttribute("data-builder-canvas"));
-    if (!overCanvas) return null;
-    const { bands, ids } = canvasBands();
-    return insertIndexAtPointer(bands, pointer.y, slotsFor(ids));
+    )
+      .map((node) => node.getAttribute("data-canvas-section"))
+      .filter((id): id is string => Boolean(id));
   }
 
   /**
@@ -318,17 +350,6 @@ export function SiteBuilder({
     if (sections.find((section) => section.id === sectionId)?.deletedInDraft) return null;
     return sectionId;
   }
-
-  const sectionDrag = {
-    onDragMove: (pointer: { x: number; y: number }) => setSectionDropIndex(sectionDropIndexAt(pointer)),
-    onDragEnd: () => setSectionDropIndex(null),
-    onDrop: (type: SectionType, pointer: { x: number; y: number }) => {
-      const index = sectionDropIndexAt(pointer);
-      setSectionDropIndex(null);
-      if (index === null) return;
-      addSection(type, index, canvasBands().ids);
-    },
-  };
 
   /**
    * Typy, których na tej stronie nie da się dołożyć. Dziś dokładnie jeden
@@ -573,22 +594,18 @@ export function SiteBuilder({
           onToggle={() => setPaletteOpen((open) => !open)}
           disabled={pending}
           style={style}
-          // Klik kafla dokłada sekcję na końcu treści — czyli PRZED stopką,
-          // jeśli strona ją ma. Bez tego kliknięcie i przeciągnięcie kończyłyby
-          // się w dwóch różnych miejscach.
-          onAddSection={(type) =>
-            addSection(
-              type,
-              slotsFor(sections.map((s) => s.id)),
-              sections.map((s) => s.id),
-            )
-          }
+          /*
+            Zakładka „Sekcje" jest odtąd WEJŚCIEM DO PICKERA z kontekstem
+            „na końcu strony" (E2) — brak kotwicy znaczy dokładnie to, a serwer
+            i tak postawi sekcję przypiętą pod spodem. Lista typów żyje w JEDNYM
+            miejscu (picker), razem z podglądami; druga jej kopia w palecie
+            znaczyłaby dwa miejsca, w których operator wybiera to samo.
+          */
+          onAddSection={() => setInsertTarget({})}
           onAddElement={addElement}
           onDropElement={dropElementAt}
           onDragElementOver={(pointer) => setElementDropSectionId(elementDropTargetAt(pointer))}
           onDragElementEnd={() => setElementDropSectionId(null)}
-          onDragSection={sectionDrag}
-          unavailableSectionTypes={unavailableTypes}
           onSaveStyle={(next) => run(() => updateSiteStyle(siteId, next))}
         />
 
@@ -603,15 +620,15 @@ export function SiteBuilder({
             products={products}
             viewport={viewport}
             busy={pending}
-            dropIndex={sectionDropIndex}
             dropSectionId={elementDropSectionId}
+            flashId={flashId}
             run={run}
             reorderAction={(orderedIds) => reorderSections(siteId, orderedIds)}
             toggleAction={(section) => toggleSection(section.id, !section.enabled)}
             duplicateAction={(sectionId) => duplicateSection(sectionId)}
             deleteAction={(sectionId) => deleteSection(sectionId)}
             restoreAction={(sectionId) => restoreSection(sectionId)}
-            onAddSection={addSection}
+            onInsert={setInsertTarget}
             onOpenSettings={setSettingsId}
             editor={editor}
             selection={selection}
@@ -624,6 +641,20 @@ export function SiteBuilder({
           />
         </main>
       </div>
+
+      {/* PICKER SEKCJI (E2) — jedno okno na wszystkie trzy wejścia: „+" na
+          płótnie, paleta („na końcu strony") i pusta strona. Miejsce niesie
+          `insertTarget`, więc okno nie musi wiedzieć, kto je otworzył. */}
+      <SectionPicker
+        open={insertTarget !== null}
+        target={insertTarget}
+        style={style}
+        products={products}
+        disabled={pending}
+        unavailableTypes={unavailableTypes}
+        onAdd={addSection}
+        onClose={() => setInsertTarget(null)}
+      />
 
       <ImagePicker
         siteId={siteId}
@@ -656,7 +687,9 @@ export function SiteBuilder({
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
         structured={openSection ? editor.structuredOf(openSection.id) : undefined}
         selectedElementId={
-          openSection && selection?.sectionId === openSection.id ? selection.elementId : null
+          openSection && selection?.sectionId === openSection.id
+            ? (selection.elementId ?? null)
+            : null
         }
         onCanvasChange={(update) => {
           if (openSection) editor.mutate(openSection.id, update);
@@ -666,9 +699,11 @@ export function SiteBuilder({
         }}
         /*
           KONWERSJA „Przełącz na sekcję 2.0" (ADR-094). Nowa sekcja wchodzi
-          BEZPOŚREDNIO POD starą — dlatego indeks liczymy z aktualnej kolejności
-          płótna, a nie z propsów: płótno trzyma stan optymistyczny i to ono
-          pokazuje operatorowi, gdzie ta sekcja stoi.
+          BEZPOŚREDNIO POD starą — czyli NAD sekcją, która stoi zaraz za nią.
+          Kotwicę bierzemy z aktualnej kolejności PŁÓTNA, a nie z propsów:
+          płótno trzyma stan optymistyczny i to ono pokazuje operatorowi, gdzie
+          ta sekcja stoi. Stara sekcja na końcu treści nie ma następnika — brak
+          kotwicy znaczy wtedy „na końcu", czyli dokładnie pod nią.
 
           Szuflada zamyka się od razu: zostawałaby otwarta na STAREJ sekcji,
           sugerując, że to w niej coś się zmieniło.
@@ -676,16 +711,20 @@ export function SiteBuilder({
         onConvert={
           openSection && !editor.structuredOf(openSection.id)
             ? () => {
-                const ids = canvasBands().ids;
-                const at = ids.indexOf(openSection.id);
-                addSection(openSection.type, at < 0 ? slotsFor(ids) : at + 1, ids);
+                const ids = canvasOrderIds();
+                const next = ids[ids.indexOf(openSection.id) + 1];
+                addSection(openSection.type, undefined, {
+                  beforeId: ids.includes(openSection.id) ? next : undefined,
+                });
                 setSettingsId(null);
               }
             : undefined
         }
+        /* Picker zdjęcia dotyczy ELEMENTU, więc pojawia się wyłącznie na tym
+           poziomie zaznaczenia — zaznaczona sama sekcja nie ma czego zmienić. */
         onPickImage={
-          openSection && selection?.sectionId === openSection.id
-            ? () => setPicking(selection)
+          openSection && selection?.sectionId === openSection.id && selection.elementId
+            ? () => setPicking({ sectionId: selection.sectionId, elementId: selection.elementId! })
             : undefined
         }
         onClose={() => setSettingsId(null)}
