@@ -769,3 +769,91 @@
     );
   }
 }
+
+/* =======================================================================
+ * PEŁNE RZĘDY SIATKI SPRZĘTU (E7, aneks ADR-094)
+ * =======================================================================
+ *
+ * Osiem kafli w siatce trzykolumnowej daje 3 + 3 + 2, czyli dwa kafle i dziurę
+ * obok nich. Reguła niżej UKRYWA ostatni, niepełny rząd — a że sekcja ma pod
+ * spodem odnośnik do katalogu (warunek na danych, `productsCatalogLinkVisible`),
+ * nie chowa oferty, tylko odsyła po resztę tam, gdzie jest jej pełna lista.
+ *
+ * DLACZEGO ARKUSZ, A NIE RENDER. Liczba kolumn zmienia się z SZEROKOŚCIĄ
+ * KONTENERA (dwie do 64 rem, trzy powyżej — lustro `productGrid` w template.ts),
+ * a render tej szerokości nie zna i znać nie może: ta sama treść stoi na
+ * płótnie kreatora zwężonym do 390 px i na pełnej szerokości sklepu. Podział
+ * jest ten sam, co przy auto-układzie E6: REGUŁĘ liczy rdzeń (`fullRowCount`,
+ * czysta funkcja z testami), a JEJ ZASTOSOWANIE przy bieżącej szerokości —
+ * arkusz. Zgodność obu stron pilnuje kontrakt artefaktu (`product-grid.test.ts`),
+ * który generuje oczekiwany tekst reguły z tej samej tabeli progów i szuka go
+ * w TYM pliku.
+ *
+ * JAK TO CZYTAĆ. `:nth-child(Nn + 1)` to PIERWSZY kafel rzędu; jeśli jest
+ * zarazem wśród ostatnich N-1 kafli listy, to jego rząd się nie domknął — więc
+ * znika on i wszystko po nim. `:not(:first-child)` jest podłogą reguły: gdy
+ * kafli jest mniej niż kolumn, jedyny rząd jest niepełny z konstrukcji, a jego
+ * ukrycie dałoby sekcję pustą.
+ */
+
+@container site (width < 64rem) {
+  .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1),
+  .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1) ~ li {
+    display: none;
+  }
+}
+
+@container site (width >= 64rem) {
+  .site-product-grid > li:nth-child(3n + 1):not(:first-child):nth-last-child(-n + 2),
+  .site-product-grid > li:nth-child(3n + 1):not(:first-child):nth-last-child(-n + 2) ~ li {
+    display: none;
+  }
+}
+
+/* =======================================================================
+ * POWIERZCHNIA AKCENTOWA WEZWANIA (E7)
+ * =======================================================================
+ *
+ * Wariant `accent` sekcji CTA maluje CAŁY panel wypełnieniem akcentu, a napis
+ * na nim kolorem etykiety (`--site-accent-contrast`, czyli `onFill` rejestru
+ * motywów). Ta para ma policzony kontrast w macierzy przez rolę `accentOnFill`
+ * — ZERO heksów tutaj, tak samo jak wszędzie indziej w tym arkuszu.
+ *
+ * Zmienne roli zostają PRZESTAWIONE wewnątrz panelu: tekst przygaszony
+ * i kreska na wypełnieniu akcentu musiałyby mieć własne tokeny, których rejestr
+ * motywów nie ma — więc panel akcentowy po prostu nie używa ich wcale (render
+ * dobiera klasy per wariant), a nie „prawie ich używa" w kolorze wziętym
+ * z sąsiedniego pasa.
+ */
+.site-panel-accent {
+  background: var(--site-accent);
+  color: var(--site-accent-contrast);
+  border-radius: var(--site-radius-lg);
+}
+
+/*
+ * PRZYCISK NA WYPEŁNIENIU AKCENTU. Zwykły `.site-cta` maluje się akcentem —
+ * na panelu akcentowym byłby więc niewidoczny. Para jest tu ODWRÓCONA
+ * (etykieta staje się tłem), czyli ma dokładnie ten sam iloraz kontrastu, co
+ * przycisk na pasie: `onFill` kontra `fill`.
+ */
+.site-cta-on-accent {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--site-button-radius);
+  border: var(--site-border-width) solid transparent;
+  background: var(--site-accent-contrast);
+  color: var(--site-accent);
+}
+
+/*
+ * PRZYCISK DRUGORZĘDNY NA WYPEŁNIENIU AKCENTU. `.site-cta-secondary` maluje
+ * etykietę atramentem PASA (`--site-ink`) — na panelu akcentowym byłby to kolor
+ * policzony dla innego tła. Tutaj obrys i etykieta biorą kolor etykiety na
+ * wypełnieniu, czyli tę samą parę, którą macierz liczy jako `accentOnFill`.
+ */
+.site-cta-outline-on-accent {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--site-button-radius);
+  border: var(--site-border-width) solid var(--site-accent-contrast);
+  color: var(--site-accent-contrast);
+}

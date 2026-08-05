@@ -1535,6 +1535,123 @@
           "grid": "Grid",
           "carousel": "Carousel"
         }
+      },
+      "products": {
+        "itemsTitle": "Selected equipment",
+        "itemsIdle": "The section shows the start of your catalog. Switch “Where equipment comes from” to “Selected items” to pick specific equipment.",
+        "removeBody": "This item disappears from the section. The equipment itself stays in the catalog.",
+        "fields": {
+          "productId": "Catalog item"
+        },
+        "choices": {
+          "source": "Where equipment comes from",
+          "limit": "How many items to show"
+        },
+        "choiceValues": {
+          "source": {
+            "catalog": "Start of the catalog",
+            "picked": "Selected items"
+          },
+          "limit": {
+            "2": "2",
+            "3": "3",
+            "4": "4",
+            "6": "6",
+            "8": "8",
+            "12": "12",
+            "16": "16",
+            "24": "24"
+          }
+        },
+        "layouts": {
+          "grid": "Tiles",
+          "list": "List"
+        },
+        "tabs": {
+          "items": "Equipment",
+          "appearance": "Appearance"
+        },
+        "pick": {
+          "label": "Equipment from the catalog",
+          "placeholder": "Pick an item",
+          "action": "Add the selected item",
+          "empty": "The catalog is empty. Add equipment in the Equipment module.",
+          "nothingNew": "Every catalog item is already selected.",
+          "full": "The section is full. Remove an item to select another.",
+          "missing": "This item is gone from the catalog — it will not appear on the page."
+        }
+      },
+      "usp": {
+        "itemsTitle": "Selling points",
+        "addItem": "Add a selling point",
+        "removeBody": "This selling point disappears from the page. You can undo it with “Undo” in the builder bar.",
+        "fields": {
+          "icon": "Symbol",
+          "title": "Title",
+          "text": "Sentence under the title"
+        },
+        "fieldValues": {
+          "icon": {
+            "truck": "Truck",
+            "shield-check": "Shield",
+            "clock": "Clock",
+            "badge-check": "Badge",
+            "wrench": "Wrench",
+            "headphones": "Headphones",
+            "map-pin": "Map pin",
+            "credit-card": "Card",
+            "package": "Package",
+            "calendar-check": "Calendar",
+            "sparkles": "Sparkles",
+            "thumbs-up": "Thumbs up"
+          }
+        },
+        "layouts": {
+          "cards": "Cards",
+          "plain": "No frame"
+        }
+      },
+      "delivery": {
+        "itemsTitle": "Delivery options",
+        "addItem": "Add a delivery option",
+        "removeBody": "This delivery option disappears from the page. You can undo it with “Undo” in the builder bar.",
+        "fields": {
+          "title": "Name",
+          "text": "Description",
+          "price_grosze": "Price (optional)",
+          "intro": "Sentence above the list (optional)"
+        },
+        "hints": {
+          "price_grosze": "Amount in major units, e.g. 120 or 120.50. An empty field means no price."
+        },
+        "layouts": {
+          "cards": "Cards",
+          "list": "List"
+        }
+      },
+      "cta": {
+        "itemsTitle": "Buttons",
+        "addItem": "Add a button",
+        "removeBody": "This button disappears from the call to action. You can undo it with “Undo” in the builder bar.",
+        "fields": {
+          "label": "Button label",
+          "href": "Where it leads",
+          "text": "Sentence under the heading (optional)"
+        },
+        "choices": {
+          "variant": "Call-to-action surface"
+        },
+        "choiceValues": {
+          "variant": {
+            "plain": "No panel",
+            "panel": "Panel",
+            "accent": "Accent panel"
+          }
+        },
+        "layouts": {
+          "banner": "Banner",
+          "split": "Text and button side by side"
+        }
       }
     }
   },

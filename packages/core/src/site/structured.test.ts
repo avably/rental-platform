@@ -21,6 +21,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CTA_VARIANTS,
+  ctaFromLegacy,
+  deliveryFromLegacy,
+  fullRowCount,
+  productsCatalogLinkVisible,
+  sectionCanvasFrom,
+  uspItemsFromLegacy,
   GALLERY_COLUMNS,
   GALLERY_GAPS,
   GALLERY_LAYOUTS,
@@ -70,7 +77,47 @@ function itemsOf(content: StructuredSectionContent): unknown[] {
 function sampleItemFor(type: StructuredSectionType): unknown {
   const fresh = structuredNewItemFor(type, "pl");
   if (fresh !== undefined) return fresh;
+  const reference = referenceFieldOf(type);
+  /*
+   * Typ, którego wpis WSKAZUJE encję panelu (E7), nie ma ani świeżego wpisu,
+   * ani wpisu w presecie: w chwili powstania sekcji nie ma jeszcze czego
+   * wskazać. Wpis jest wtedy samym identyfikatorem, więc test składa go sam —
+   * `reference` w rejestrze znaczy „identyfikator encji", a identyfikatory
+   * w tym systemie są uuid-ami.
+   */
+  if (reference) return { [reference.key]: sampleReferenceId(0) };
   return structuredClone(itemsOf(structuredPresetFor(type, "pl"))[0]);
+}
+
+/** Pole wpisu wskazujące encję panelu (E7) — najwyżej jedno na typ. */
+function referenceFieldOf(type: StructuredSectionType) {
+  return structuredSpecOf(type).itemFields.find((field) => field.kind === "reference");
+}
+
+/** Identyfikator testowy o kształcie uuid, RÓŻNY dla każdego indeksu wpisu. */
+function sampleReferenceId(index: number): string {
+  return `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
+}
+
+/**
+ * PIERWSZE POLE WPISU, W KTÓRE OPERATOR COKOLWIEK WSTAWIA — napis albo
+ * wskazanie encji. Kontrakty kolejności i edycji potrzebują pola, po którym da
+ * się ODRÓŻNIĆ wpisy od siebie; rodzaj tego pola zależy od typu, a to, że
+ * jakieś jest, jest wymogiem rejestru (mini-CMS bez pola nie ma czego pokazać).
+ */
+function editableFieldOf(type: StructuredSectionType) {
+  return structuredSpecOf(type).itemFields.find(
+    (field) => field.kind === "text" || field.kind === "multiline" || field.kind === "reference",
+  );
+}
+
+/**
+ * WARTOŚĆ, KTÓRĄ WOLNO WPISAĆ W POLE WPISU — zależy od RODZAJU pola, a nie od
+ * typu sekcji. Napis „Wpis nr 3" w polu wskazującym encję nie jest inną
+ * treścią, tylko treścią, której schemat nie przyjmie.
+ */
+function sampleValueFor(field: { kind: string }, index: number): string {
+  return field.kind === "reference" ? sampleReferenceId(index) : `Wpis nr ${index + 1}`;
 }
 
 /**
@@ -91,16 +138,29 @@ function choiceFieldsOf(type: StructuredSectionType) {
   return structuredSpecOf(type).itemFields.filter((field) => field.kind === "choice");
 }
 
-/** Preset z podmienioną listą wpisów o zadanej długości (do testów granic). */
+/**
+ * Preset z podmienioną listą wpisów o zadanej długości (do testów granic).
+ *
+ * WPISY SĄ ROZRÓŻNIALNE (E7), a nie `count` kopiami tego samego obiektu:
+ * kontrakt kolejności na liście identycznych wpisów przechodzi także wtedy, gdy
+ * przestawienie nic nie robi — a to jest dokładnie ta wada, którą w E6 złapała
+ * fikstura czterech różnych opinii. Różnicujemy PIERWSZYM polem, w które
+ * operator cokolwiek wstawia, wartością pasującą do RODZAJU tego pola.
+ */
 function withItemCount(
   type: StructuredSectionType,
   count: number,
 ): Record<string, unknown> {
   const preset = structuredPresetFor(type, "pl") as unknown as Record<string, unknown>;
   const sample = sampleItemFor(type);
+  const field = editableFieldOf(type);
   return {
     ...preset,
-    items: Array.from({ length: count }, () => structuredClone(sample)),
+    items: Array.from({ length: count }, (_, index) => {
+      const item = structuredClone(sample) as Record<string, unknown>;
+      if (field) item[field.key] = sampleValueFor(field, index);
+      return item;
+    }),
   };
 }
 
@@ -127,7 +187,37 @@ describe("rejestr typów strukturalnych — osłona anty-pusty-zbiór", () => {
       expect(spec.layouts.length, `typ "${type}" bez wariantów układu`).toBeGreaterThan(0);
       expect(spec.itemFields.length, `typ "${type}" bez pól wpisu — mini-CMS nie ma czego pokazać`).toBeGreaterThan(0);
       expect(spec.themeRoles.length, `typ "${type}" bez ról motywu — wypada z macierzy kontrastu`).toBeGreaterThan(0);
-      expect(spec.minItems, `typ "${type}": podłoga listy poniżej jednego wpisu`).toBeGreaterThanOrEqual(1);
+      /*
+       * PODŁOGA LISTY ZALEŻY OD TEGO, CZYM JEST LISTA (E7).
+       *
+       * Dla typu, którego TREŚCIĄ jest lista (pytania FAQ, kafle galerii,
+       * pozycje cennika), podłoga poniżej jednego wpisu znaczy sekcję będącą
+       * pustym nagłówkiem — klasę atrap, którą ADR-094 usuwa z produktu.
+       *
+       * Typ z `itemsPick` jest inny z konstrukcji: jego lista jest WYBOREM
+       * z kolekcji mieszkającej poza stroną (katalog sprzętu), a treścią sekcji
+       * jest ta kolekcja. Pusty wybór znaczy „pokaż wycinek katalogu", a nie
+       * „nie napisano ani jednego wpisu" — i nie ma jak być inaczej, bo w chwili
+       * powstania sekcji nie ma jeszcze czego wskazać (preset i konwersja nie
+       * mają skąd wziąć identyfikatorów sprzętu, który dopiero powstanie).
+       *
+       * Rozgałęzienie idzie po DEKLARACJI w rejestrze, a nie po nazwie typu:
+       * wyjątek jest własnością rodzaju listy, więc drugi taki typ dostanie go
+       * bez dopisywania czegokolwiek tutaj — a typ BEZ tej deklaracji nie ma
+       * jak się pod niego podszyć.
+       */
+      if (spec.itemsPick) {
+        expect(
+          spec.minItems,
+          `typ "${type}" wskazuje encje (itemsPick), więc pusty wybór jest STANEM — podłoga musi być zerowa`,
+        ).toBe(0);
+        expect(
+          spec.itemsWhen,
+          `typ "${type}" z pustym wyborem musi powiedzieć szufladzie, KIEDY lista coś znaczy`,
+        ).toBeTruthy();
+      } else {
+        expect(spec.minItems, `typ "${type}": podłoga listy poniżej jednego wpisu`).toBeGreaterThanOrEqual(1);
+      }
       expect(spec.maxItems, `typ "${type}": sufit listy nie jest większy od podłogi`).toBeGreaterThan(spec.minItems);
     }
   });
@@ -216,9 +306,11 @@ describe("presety strukturalne: poprawność i parytet PL/EN", () => {
        * typ NAPRAWDĘ miał pole obrazowe — inaczej byłoby to po prostu
        * zapomniane `newItem`.
        */
+      const spec = structuredSpecOf(type);
       expect(
-        structuredSpecOf(type).itemFields.some((field) => field.kind === "image"),
-        `typ "${type}" nie ma świeżego wpisu ANI pola obrazowego — nie ma czym dodać pozycji`,
+        spec.itemFields.some((field) => field.kind === "image") || spec.itemsPick !== undefined,
+        `typ "${type}" nie ma świeżego wpisu, pola obrazowego ANI wyboru z modułu panelu — ` +
+          `nie ma czym dodać pozycji`,
       ).toBe(true);
       expect(structuredNewItemFor(type, "en"), "brak świeżego wpisu musi być taki sam w obu językach").toBeUndefined();
       return;
@@ -242,8 +334,21 @@ describe("presety strukturalne: poprawność i parytet PL/EN", () => {
   it("preset jest KOPIĄ — mutacja nie sięga stałej modułu", () => {
     for (const type of STRUCTURED_SECTION_TYPES) {
       const first = structuredPresetFor(type, "pl");
+      const items = itemsOf(first).length;
       itemsOf(first).length = 0;
-      expect(itemsOf(structuredPresetFor(type, "pl")).length).toBeGreaterThan(0);
+      /*
+       * MUTUJEMY TEŻ POLE SEKCJI (E7). Typ z pustym wyborem startowym nie ma
+       * czego skrócić, więc sam dowód „lista wróciła" byłby dla niego pusty —
+       * a pusty kontrakt nie broni niczego. Nagłówek mutujemy przy KAŻDYM
+       * typie, żeby kontrakt był jeden, a nie dwa, z których jeden bywa słabszy.
+       */
+      (first as unknown as Record<string, unknown>).heading = "ZMIENIONE PRZEZ TEST";
+      const second = structuredPresetFor(type, "pl");
+      expect(itemsOf(second).length, `preset "${type}" współdzieli listę ze stałą modułu`).toBe(items);
+      expect(
+        (second as unknown as Record<string, unknown>).heading,
+        `preset "${type}" współdzieli nagłówek ze stałą modułu`,
+      ).not.toBe("ZMIENIONE PRZEZ TEST");
     }
   });
 });
@@ -367,10 +472,19 @@ describe("KONTRAKT 3: treść v3 przechodzi WSZYSTKIMI drogami modelu", () => {
 describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () => {
   it.each(STRUCTURED_SECTION_TYPES)("%s: podłoga i sufit z rejestru są tymi, których pilnuje Zod", (type) => {
     const spec = structuredSpecOf(type);
-    expect(
-      spec.schema.safeParse(withItemCount(type, spec.minItems - 1)).success,
-      `${type}: lista krótsza niż podłoga rejestru przeszła walidację`,
-    ).toBe(false);
+    if (spec.minItems > 0) {
+      expect(
+        spec.schema.safeParse(withItemCount(type, spec.minItems - 1)).success,
+        `${type}: lista krótsza niż podłoga rejestru przeszła walidację`,
+      ).toBe(false);
+    } else {
+      // Podłoga zerowa (E7) nie ma „poniżej" — zdaniem do udowodnienia jest
+      // wtedy, że pusta lista NAPRAWDĘ przechodzi, a nie że nikt jej nie sprawdził.
+      expect(
+        spec.schema.safeParse(withItemCount(type, 0)).success,
+        `${type}: rejestr deklaruje zerową podłogę, a schemat pustej listy nie przyjmuje`,
+      ).toBe(true);
+    }
     expect(spec.schema.safeParse(withItemCount(type, spec.minItems)).success).toBe(true);
     expect(spec.schema.safeParse(withItemCount(type, spec.maxItems)).success).toBe(true);
     expect(
@@ -392,18 +506,36 @@ describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () =
     expect(removeStructuredItem(minimal, 0)).toBe(minimal);
 
     // Usunięcie ze środka listy dłuższej niż podłoga działa i skraca o jeden.
-    const three = spec.schema.parse(withItemCount(type, spec.minItems + 2)) as StructuredSectionContent;
-    expect(itemsOf(removeStructuredItem(three, 1)).length).toBe(spec.minItems + 1);
+    // Sufit bywa niski (CTA ma dwa przyciski), więc długość bierzemy z OBU
+    // granic rejestru — lista dłuższa od sufitu nie przeszłaby schematu.
+    const many = Math.min(spec.minItems + 2, spec.maxItems);
+    const three = spec.schema.parse(withItemCount(type, many)) as StructuredSectionContent;
+    expect(itemsOf(removeStructuredItem(three, 1)).length).toBe(many - 1);
     expect(removeStructuredItem(three, 99), "indeks poza listą nie rusza treści").toBe(three);
   });
 
   it.each(STRUCTURED_SECTION_TYPES)("%s: kolejność i edycja pola wpisu", (type) => {
     const spec = structuredSpecOf(type);
-    const field = textFieldsOf(type)[0]!;
-    expect(field, `typ "${type}" nie ma ANI JEDNEGO pola tekstowego — nie ma czego edytować`).toBeTruthy();
-    const base = structuredPresetFor(type, "pl");
+    const field = editableFieldOf(type)!;
+    expect(
+      field,
+      `typ "${type}" nie ma ANI JEDNEGO pola, które operator ustawia — nie ma czego edytować`,
+    ).toBeTruthy();
+    /*
+     * Baza z REJESTRU, a nie z presetu (E7). Preset bywa jednowpisowy (CTA ma
+     * jeden przycisk) albo pusty (sprzęt zaczyna bez wyboru), a wtedy kontrakt
+     * kolejności nie miałby czego przestawiać i przechodziłby pusty. Lista
+     * z `withItemCount` jest za to zawsze co najmniej dwuwpisowa i — co
+     * ważniejsze — jej wpisy są ROZRÓŻNIALNE, więc „przestawiono" znaczy tu
+     * naprawdę „inna kolejność", a nie „ta sama lista kopii".
+     */
+    const length = Math.max(2, Math.min(spec.minItems + 1, spec.maxItems));
+    const base = spec.schema.parse(withItemCount(type, length)) as StructuredSectionContent;
     const items = itemsOf(base);
-    expect(items.length, "preset za krótki, żeby przestawić wpisy").toBeGreaterThan(1);
+    expect(items.length, "lista za krótka, żeby przestawić wpisy").toBeGreaterThan(1);
+    expect(items[0], "wpisy fikstury są nierozróżnialne — kontrakt kolejności byłby ślepy").not.toEqual(
+      items[1],
+    );
 
     const moved = moveStructuredItem(base, 0, items.length - 1);
     expect(itemsOf(moved).at(-1)).toEqual(items[0]);
@@ -411,8 +543,9 @@ describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () =
     expect(moveStructuredItem(base, 0, 0), "ruch w miejscu nie tworzy nowej treści").toBe(base);
     expect(moveStructuredItem(base, 0, 99)).toBe(base);
 
-    const patched = patchStructuredItem(base, 0, field.key, "ZMIENIONE");
-    expect((itemsOf(patched)[0] as Record<string, unknown>)[field.key]).toBe("ZMIENIONE");
+    const wpisana = sampleValueFor(field, 99);
+    const patched = patchStructuredItem(base, 0, field.key, wpisana);
+    expect((itemsOf(patched)[0] as Record<string, unknown>)[field.key]).toBe(wpisana);
     expect(itemsOf(base)[0], "edycja zmutowała wejście").not.toEqual(itemsOf(patched)[0]);
     expect(spec.schema.safeParse(patched).success).toBe(true);
   });
@@ -912,5 +1045,257 @@ describe("konwersja DOJAZDU ze starej treści (E5)", () => {
     expect(structuredFromLegacy("directions", null, "pl")).toEqual(
       structuredPresetFor("directions", "pl"),
     );
+  });
+});
+
+// -----------------------------------------------------------------------
+// E7 — sprzęt, atuty, dostawa, CTA
+// -----------------------------------------------------------------------
+
+describe("E7 sprzęt: pełne rzędy i odnośnik do katalogu", () => {
+  /**
+   * REGUŁA PEŁNYCH RZĘDÓW na licznościach z briefu (2/3/5/8) i na KAŻDEJ
+   * liczbie kolumn, którą siatka naprawdę przyjmuje. Tabela jest wypisana
+   * wprost — bo dowód „funkcja zgadza się sama ze sobą" (przeliczenie tego
+   * samego wzoru w teście) nie jest dowodem na nic.
+   */
+  const OCZEKIWANE: { count: number; columns: number; visible: number }[] = [
+    // Jeden niepełny rząd zostaje w całości — nie ma czego uciąć.
+    { count: 2, columns: 2, visible: 2 },
+    { count: 2, columns: 3, visible: 2 },
+    { count: 2, columns: 4, visible: 2 },
+    { count: 3, columns: 2, visible: 2 },
+    { count: 3, columns: 3, visible: 3 },
+    { count: 3, columns: 4, visible: 3 },
+    { count: 5, columns: 2, visible: 4 },
+    { count: 5, columns: 3, visible: 3 },
+    { count: 5, columns: 4, visible: 4 },
+    { count: 8, columns: 2, visible: 8 },
+    { count: 8, columns: 3, visible: 6 },
+    { count: 8, columns: 4, visible: 8 },
+  ];
+
+  it.each(OCZEKIWANE)(
+    "$count kafli w $columns kolumnach → widocznych $visible (zero wiszących)",
+    ({ count, columns, visible }) => {
+      expect(fullRowCount(count, columns)).toBe(visible);
+      // Zdanie właściwe: to, co zostaje, JEST pełnymi rzędami — chyba że mamy
+      // jeden rząd niepełny z konstrukcji (pozycji mniej niż kolumn).
+      const zostalo = fullRowCount(count, columns);
+      if (count > columns) expect(zostalo % columns).toBe(0);
+      expect(zostalo, "ucięcie w GÓRĘ pokazałoby sprzęt, którego operator nie wybrał").toBeLessThanOrEqual(count);
+      expect(zostalo, "ucięcie do zera zrobiłoby z sekcji pusty nagłówek").toBeGreaterThan(0);
+    },
+  );
+
+  it("siatka jednokolumnowa nie ma czego uciąć — każdy rząd jest pełny", () => {
+    for (const count of [1, 2, 5, 8]) expect(fullRowCount(count, 1)).toBe(count);
+  });
+
+  it("odnośnik do katalogu pojawia się DOKŁADNIE wtedy, gdy katalog ma więcej, niż sekcja pokazuje", () => {
+    // Próg z briefu, zmierzony po OBU stronach: równość to jeszcze nie „więcej".
+    expect(productsCatalogLinkVisible(8, 8), "katalog równy temu, co widać → link zbędny").toBe(false);
+    expect(productsCatalogLinkVisible(8, 9), "katalog większy o jeden → link musi być").toBe(true);
+    expect(productsCatalogLinkVisible(6, 8), "ucięcie do pełnych rzędów też odsłania resztę").toBe(true);
+    expect(productsCatalogLinkVisible(8, 3), "katalog mniejszy niż limit → link zbędny").toBe(false);
+  });
+
+  it("konwersja przenosi NAGŁÓWEK i zostaje przy katalogu — z obu starych generacji", () => {
+    const zV1 = structuredFromLegacy("products", { heading: "Sprzęt na wesela" }, "pl");
+    expect(STRUCTURED_SECTIONS.products.schema.safeParse(zV1).success).toBe(true);
+    expect((zV1 as unknown as Record<string, unknown>).heading).toBe("Sprzęt na wesela");
+    expect((zV1 as unknown as Record<string, unknown>).source).toBe("catalog");
+    expect(itemsOf(zV1), "konwersja WYMYŚLIŁA wybór pozycji").toEqual([]);
+
+    const plotno = sectionCanvasFrom("products", { heading: "Sprzęt na wesela" });
+    const zPlotna = structuredFromLegacy("products", plotno, "pl");
+    expect((zPlotna as unknown as Record<string, unknown>).heading).toBe("Sprzęt na wesela");
+    expect((zPlotna as unknown as Record<string, unknown>).source).toBe("catalog");
+  });
+
+  it("treść bez nagłówka degraduje do presetu, a nie do sekcji bez ustawień", () => {
+    expect(structuredFromLegacy("products", {}, "pl")).toEqual(structuredPresetFor("products", "pl"));
+  });
+});
+
+describe("E7 atuty: konwersja wiąże trójkę GEOMETRIĄ kolumny", () => {
+  /**
+   * FIKSTURA RÓŻNICUJĄCA: cztery atuty, czyli DWA RZĘDY po trzy kolumny —
+   * dokładnie ta sytuacja, w której kolejność czytania płótna daje
+   * ikona 1, ikona 2, ikona 3, tytuł 1, tytuł 2, tytuł 3, zdanie 1…
+   * Heurystyka „następny element" składałaby tu atuty z części należących do
+   * trzech różnych kafli (lekcja E6 o podpisach pod opiniami).
+   */
+  const ATUTY = {
+    heading: "Dlaczego my",
+    items: [
+      { icon: "truck" as const, title: "Dowóz", text: "Podstawiamy sprzęt pod adres." },
+      { icon: "clock" as const, title: "Szybko", text: "Potwierdzenie tego samego dnia." },
+      { icon: "wrench" as const, title: "Serwis", text: "Przegląd po każdym najmie." },
+      { icon: "headphones" as const, title: "Wsparcie", text: "Telefon czynny w weekendy." },
+    ],
+  };
+
+  it("z płótna wracają CAŁE kafle, w kolejności rzędów i bez pomieszania części", () => {
+    const plotno = sectionCanvasFrom("usp", ATUTY);
+    expect(uspItemsFromLegacy(plotno)).toEqual(ATUTY.items);
+  });
+
+  it("czwarty atut (drugi rząd, pierwsza kolumna) NIE dostaje tytułu z pierwszego rzędu", () => {
+    const plotno = sectionCanvasFrom("usp", ATUTY);
+    const items = uspItemsFromLegacy(plotno);
+    expect(items).toHaveLength(4);
+    // Zdanie właściwe dla tej lekcji: każdy tytuł stoi przy SWOIM zdaniu.
+    for (const [index, item] of items.entries()) {
+      expect(item.title, `atut ${index + 1} dostał cudzy tytuł`).toBe(ATUTY.items[index]!.title);
+      expect(item.text, `atut ${index + 1} dostał cudze zdanie`).toBe(ATUTY.items[index]!.text);
+      expect(item.icon, `atut ${index + 1} dostał cudzą ikonę`).toBe(ATUTY.items[index]!.icon);
+    }
+  });
+
+  it("z v1 jadą wszystkie trójki, a wpis niepełny odpada zamiast wejść z dziurą", () => {
+    expect(uspItemsFromLegacy(ATUTY)).toEqual(ATUTY.items);
+    expect(
+      uspItemsFromLegacy({ items: [{ icon: "truck", title: "Bez zdania" }] }),
+      "atut bez zdania przeszedł — schemat i tak by go nie przyjął",
+    ).toEqual([]);
+    expect(
+      uspItemsFromLegacy({ items: [{ icon: "nie-ma-takiej", title: "A", text: "B" }] }),
+      "ikona spoza allowlisty weszła do treści",
+    ).toEqual([]);
+  });
+
+  it("cała konwersja przechodzi schemat i nie jest presetem", () => {
+    const converted = structuredFromLegacy("usp", sectionCanvasFrom("usp", ATUTY), "pl");
+    expect(STRUCTURED_SECTIONS.usp.schema.safeParse(converted).success).toBe(true);
+    expect(itemsOf(converted)).toEqual(ATUTY.items);
+    expect(itemsOf(converted), "wynik jest presetem — atuty operatora przepadły").not.toEqual(
+      itemsOf(structuredPresetFor("usp", "pl")),
+    );
+  });
+});
+
+describe("E7 dostawa: karty z ceną i bez", () => {
+  const DOSTAWA = {
+    heading: "Dostawa i odbiór",
+    text: "Sprzęt można odebrać albo zamówić z dowozem.",
+    items: [
+      { title: "Odbiór osobisty", text: "Wydajemy w magazynie." },
+      { title: "Dowóz w mieście", text: "Podstawiamy pod adres." },
+      { title: "Dowóz poza miasto", text: "Do 50 km od magazynu." },
+    ],
+  };
+
+  it("z v1 jadą nagłówek, zdanie wprowadzające i karty — BEZ wymyślonych cen", () => {
+    const { intro, items } = deliveryFromLegacy(DOSTAWA);
+    expect(intro).toBe(DOSTAWA.text);
+    expect(items).toEqual(DOSTAWA.items);
+    for (const item of items) {
+      expect(item, "konwersja dopisała cenę, której w starej treści nie było").not.toHaveProperty(
+        "price_grosze",
+      );
+    }
+  });
+
+  it("z płótna karty wracają po KOLUMNIE, a zdanie wprowadzające po wariancie tekstu", () => {
+    const plotno = sectionCanvasFrom("delivery", DOSTAWA);
+    const { intro, items } = deliveryFromLegacy(plotno);
+    expect(intro).toBe(DOSTAWA.text);
+    expect(items).toEqual(DOSTAWA.items);
+  });
+
+  it("pusta cena jest STANEM treści, a nie ceną zerową", () => {
+    const zCena = STRUCTURED_SECTIONS.delivery.schema.parse({
+      ...structuredPresetFor("delivery", "pl"),
+      items: [{ title: "Dowóz", text: "Pod adres.", price_grosze: 12_000 }],
+    }) as unknown as { items: { price_grosze?: number }[] };
+    expect(zCena.items[0]!.price_grosze).toBe(12_000);
+
+    const bezCeny = STRUCTURED_SECTIONS.delivery.schema.parse({
+      ...structuredPresetFor("delivery", "pl"),
+      items: [{ title: "Odbiór", text: "W magazynie." }],
+    }) as unknown as { items: Record<string, unknown>[] };
+    expect(bezCeny.items[0]).not.toHaveProperty("price_grosze");
+    // Zero jest legalne i ZNACZY co innego niż brak: „0,00 zł" przy dowozie
+    // do 10 km jest informacją handlową, a nie brakiem ceny (jak w cenniku E6).
+    expect(
+      STRUCTURED_SECTIONS.delivery.schema.safeParse({
+        ...structuredPresetFor("delivery", "pl"),
+        items: [{ title: "Dowóz do 10 km", text: "Gratis.", price_grosze: 0 }],
+      }).success,
+    ).toBe(true);
+    expect(
+      STRUCTURED_SECTIONS.delivery.schema.safeParse({
+        ...structuredPresetFor("delivery", "pl"),
+        items: [{ title: "Dowóz", text: "Pod adres.", price_grosze: 1250.5 }],
+      }).success,
+      "cena ułamkowa w groszach przeszła — grosz jest niepodzielny",
+    ).toBe(false);
+  });
+});
+
+describe("E7 CTA: wariant powierzchni i konwersja", () => {
+  const WEZWANIE = {
+    heading: "Zarezerwuj termin",
+    text: "Sprawdź dostępność i zarezerwuj online.",
+    buttonLabel: "Zobacz katalog",
+    buttonHref: "/store",
+  };
+
+  it("z v1 jadą nagłówek, zdanie i przycisk; wariant zostaje DOMYŚLNY", () => {
+    const converted = structuredFromLegacy("cta", WEZWANIE, "pl") as unknown as Record<string, unknown>;
+    expect(STRUCTURED_SECTIONS.cta.schema.safeParse(converted).success).toBe(true);
+    expect(converted.heading).toBe(WEZWANIE.heading);
+    expect(converted.text).toBe(WEZWANIE.text);
+    expect(converted.items).toEqual([{ label: "Zobacz katalog", href: "/store" }]);
+    /*
+     * PINEZKA „złe kolory w każdym szablonie": stary baner był ZAWSZE odwrócony,
+     * niezależnie od motywu. Przeniesienie tej decyzji powielałoby wadę zamiast
+     * ją zamknąć — po konwersji CTA stoi na pasie sekcji i to operator decyduje,
+     * czy ma krzyczeć.
+     */
+    expect(converted.variant).toBe("plain");
+  });
+
+  it("z płótna wraca komplet, a przycisków najwyżej tyle, ile mieści sufit", () => {
+    const plotno = sectionCanvasFrom("cta", WEZWANIE);
+    const { heading: naglowek, text, items } = ctaFromLegacy(plotno);
+    expect(naglowek).toBe(WEZWANIE.heading);
+    expect(text).toBe(WEZWANIE.text);
+    expect(items).toEqual([{ label: "Zobacz katalog", href: "/store" }]);
+  });
+
+  it("treść BEZ przycisku degraduje do presetu — wezwania nie da się wymyślić", () => {
+    expect(structuredFromLegacy("cta", { heading: "Sam nagłówek" }, "pl")).toEqual(
+      structuredPresetFor("cta", "pl"),
+    );
+  });
+
+  it("wariant powierzchni jest ZAMKNIĘTYM zbiorem i nie wpuszcza własnego heksa", () => {
+    const base = structuredPresetFor("cta", "pl") as unknown as Record<string, unknown>;
+    for (const variant of CTA_VARIANTS) {
+      expect(
+        STRUCTURED_SECTIONS.cta.schema.safeParse({ ...base, variant }).success,
+        `wariant "${variant}" z rejestru odpadł na schemacie`,
+      ).toBe(true);
+    }
+    expect(STRUCTURED_SECTIONS.cta.schema.safeParse({ ...base, variant: "#ff0000" }).success).toBe(false);
+    expect(STRUCTURED_SECTIONS.cta.schema.safeParse({ ...base, variant: "inverted" }).success).toBe(false);
+  });
+
+  it("adres przycisku przechodzi TĘ SAMĄ allowlistę, co przycisk płótna", () => {
+    const base = structuredPresetFor("cta", "pl") as unknown as Record<string, unknown>;
+    for (const href of ["/store", "https://example.com", "#kotwica"]) {
+      expect(
+        STRUCTURED_SECTIONS.cta.schema.safeParse({ ...base, items: [{ label: "Idź", href }] }).success,
+        `adres "${href}" odpadł, choć allowlista go wpuszcza`,
+      ).toBe(true);
+    }
+    for (const href of ["javascript:alert(1)", "data:text/html,<b>x</b>"]) {
+      expect(
+        STRUCTURED_SECTIONS.cta.schema.safeParse({ ...base, items: [{ label: "Idź", href }] }).success,
+        `adres "${href}" przeszedł — allowlista przycisku jest dziurawa`,
+      ).toBe(false);
+    }
   });
 });

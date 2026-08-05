@@ -93,6 +93,29 @@ function keysFor(type: (typeof STRUCTURED_SECTION_TYPES)[number]): string[] {
       `${base}.import.full`,
     );
   }
+  /*
+   * WSKAZANIE ENCJI Z MODUŁU PANELU (E7) — selektor, przycisk, TRZY powody
+   * wyłączenia (jak przy imporcie) plus zdanie o pozycji, której już nie ma.
+   * To ostatnie jest osobnym kluczem, bo pojawia się w WIERSZU listy, a nie
+   * pod przyciskiem: operator widzi wtedy, KTÓRE wskazanie osierociało.
+   */
+  if (spec.itemsPick) {
+    keys.push(
+      `${base}.pick.label`,
+      `${base}.pick.placeholder`,
+      `${base}.pick.action`,
+      `${base}.pick.empty`,
+      `${base}.pick.nothingNew`,
+      `${base}.pick.full`,
+      `${base}.pick.missing`,
+    );
+  }
+  /*
+   * LISTA BEZ SKUTKU (E7, `itemsWhen`) — zdanie stojące ZAMIAST listy w stanie,
+   * w którym wybór pozycji niczego nie zmienia. Bez niego szuflada pokazywałaby
+   * w tym miejscu pustkę, a operator nie miałby jak zgadnąć, co przełączyć.
+   */
+  if (spec.itemsWhen) keys.push(`${base}.itemsIdle`);
 
   return keys;
 }

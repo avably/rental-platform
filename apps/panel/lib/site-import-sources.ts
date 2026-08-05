@@ -75,3 +75,43 @@ export function pickupLocationEntries(
     .map((row) => ({ label: row.name, address: addressOf(row) }))
     .filter((entry) => entry.address.length > 0);
 }
+
+// -----------------------------------------------------------------------
+// Pozycje katalogu do WSKAZANIA w sekcji sprzętu (E7, aneks ADR-094)
+// -----------------------------------------------------------------------
+
+/**
+ * Wiersz katalogu w kształcie, w jakim czyta go trasa kreatora. Świadomie
+ * WĄSKI: szuflada potrzebuje identyfikatora i nazwy, a cena, zdjęcia i bufory
+ * serwisowe są sprawą renderu, który i tak czyta katalog własną drogą.
+ */
+export interface CatalogProductRow {
+  id: string;
+  name: string;
+}
+
+/**
+ * POZYCJE KATALOGU DO WSKAZANIA — odnośnik do danych, NIE ich kopia.
+ *
+ * Odwrotnie niż przy punktach odbioru wyżej, i to jest różnica zamierzona.
+ * Punkt odbioru kopiujemy, bo po skopiowaniu treść należy do sekcji i wolno ją
+ * poprawić. Pozycję katalogu WSKAZUJEMY: w treści zostaje `value`
+ * (identyfikator), a `label` żyje wyłącznie w szufladzie i znika razem z nią.
+ * Kopia nazwy albo ceny byłaby drugim źródłem prawdy o ofercie — a cena
+ * zmieniona w katalogu zostawiłaby na stronie głównej ofertę, której najemca
+ * już nie składa.
+ *
+ * POZYCJA BEZ NAZWY WYPADA: schemat katalogu jej nie dopuszcza, ale gdyby
+ * przeszła (import, migracja), operator dostałby na liście wyboru bezimienny
+ * wiersz i nie miałby jak zgadnąć, co wskazuje.
+ *
+ * Kolejność zostaje z wejścia — trasa sortuje po nazwie, czyli tak, jak
+ * operator widzi sprzęt na ekranie katalogu.
+ */
+export function catalogProductEntries(
+  rows: readonly CatalogProductRow[],
+): { value: string; label: string }[] {
+  return rows
+    .map((row) => ({ value: row.id, label: row.name.trim() }))
+    .filter((entry) => entry.value.length > 0 && entry.label.length > 0);
+}

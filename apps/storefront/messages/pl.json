@@ -328,6 +328,7 @@
     },
     "siteLabels": {
       "productsEmpty": "Katalog jest w przygotowaniu.",
+      "productsCatalog": "Zobacz cały sprzęt",
       "contactEmail": "E-mail:",
       "contactPhone": "Telefon:",
       "contactAddress": "Adres:",

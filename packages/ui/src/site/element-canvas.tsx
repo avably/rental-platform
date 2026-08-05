@@ -62,47 +62,16 @@ import {
   type MobileLayout,
   type SectionCanvas,
   type TextRun,
-  type UspIcon,
 } from "@avably/core/site";
-import {
-  BadgeCheck,
-  CalendarCheck,
-  Clock,
-  CreditCard,
-  Headphones,
-  type LucideIcon,
-  MapPin,
-  Package,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  ThumbsUp,
-  Truck,
-  Wrench,
-} from "lucide-react";
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { sectionBandClass } from "./bands";
 import { externalLinkRel } from "./links";
 import { ProductCards, siteImageUrl } from "./sections";
+import { siteIconComponent } from "./site-icons";
 import type { TemplateStyles } from "./template";
 import type { SiteRenderLabels, StorefrontProduct } from "./types";
-
-const ELEMENT_ICON_COMPONENTS: Record<UspIcon, LucideIcon> = {
-  truck: Truck,
-  "shield-check": ShieldCheck,
-  clock: Clock,
-  "badge-check": BadgeCheck,
-  wrench: Wrench,
-  headphones: Headphones,
-  "map-pin": MapPin,
-  "credit-card": CreditCard,
-  package: Package,
-  "calendar-check": CalendarCheck,
-  sparkles: Sparkles,
-  "thumbs-up": ThumbsUp,
-};
 
 /**
  * Klasy szablonu opisują element W PRZEPŁYWIE (marginesy, sufit szerokości),
@@ -407,7 +376,7 @@ function ElementBody({
       );
     }
     case "icon": {
-      const Icon = ELEMENT_ICON_COMPONENTS[element.name] ?? Star;
+      const Icon = siteIconComponent(element.name);
       // Przy pudełku obejmującym treść rozmiar kafelka bierze się ze SKALI
       // PŁÓTNA (`canvas-icon`), a nie ze stałej szablonu: ikona w `rem` nie
       // malała razem z płótnem i wchodziła na tytuł pod sobą.

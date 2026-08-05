@@ -65,7 +65,24 @@ export const ROLE_CLASSES: Record<string, readonly StructuredThemeRole[]> = {
   "site-header": ["border"],
   "site-field": ["border"],
   // — wypełnienia akcentem —
-  "site-cta": ["accentFill", "accentText"],
+  /*
+   * PRZYCISK PIERWSZORZĘDNY maluje TRZY role, a nie dwie (E7). Wypełnienie
+   * (`--site-accent`) i etykietę na nim (`--site-accent-contrast`) w motywie
+   * z przyciskiem pełnym, a w motywie z przyciskiem obrysowym — akcentowy
+   * tekst. Do E6 deklaracja pomijała parę „etykieta NA wypełnieniu", czyli
+   * jedyną, której nieprzeczytanie zatrzymuje odwiedzającego NA przycisku:
+   * liczył ją wyłącznie blok chrome sklepu, poza macierzą typów.
+   */
+  "site-cta": ["accentFill", "accentText", "accentOnFill"],
+  // Panel wezwania wypełniony akcentem (E7): powierzchnia z `--site-accent`,
+  // treść na niej w kolorze etykiety.
+  "site-panel-accent": ["accentFill", "accentOnFill"],
+  // Przycisk na panelu akcentowym — para ODWRÓCONA (etykieta staje się tłem),
+  // czyli ten sam iloraz kontrastu, co etykieta na wypełnieniu.
+  "site-cta-on-accent": ["accentFill", "accentOnFill"],
+  // Przycisk drugorzędny na panelu akcentowym: obrys i etykieta w kolorze
+  // etykiety na wypełnieniu.
+  "site-cta-outline-on-accent": ["accentOnFill"],
   "site-badge": ["accentFill"],
   "site-icon-tile": ["accentFill"],
   "site-shape-accent": ["accentFill"],
@@ -100,4 +117,11 @@ export const NEUTRAL_CLASSES: readonly string[] = [
    * `site-text-muted`) i to one wchodzą do macierzy kontrastu.
    */
   "site-auto-grid",
+  /*
+   * SIATKA SPRZĘTU (E7, aneks ADR-094). Niesie WYŁĄCZNIE regułę pełnych rzędów
+   * (`:nth-child` ukrywający ostatni, niepełny rząd) — geometrię, nie kolor.
+   * Kafel maluje się klasami stojącymi obok (`site-card`, `site-title`,
+   * `site-text-accent`) i to one wchodzą do macierzy kontrastu.
+   */
+  "site-product-grid",
 ];

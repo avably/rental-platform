@@ -64,6 +64,9 @@ export default async function TenantStorePage() {
 
   const labels: SiteRenderLabels = {
     productsEmpty: copy.siteLabels.productsEmpty,
+    // Sprzęt strukturalny (E7): odnośnik pod sekcją mówi, że widać WYCINEK
+    // oferty — a zdanie o tym jest CHROME renderu, nie tekstem najemcy.
+    productsCatalog: copy.siteLabels.productsCatalog,
     contactEmail: copy.siteLabels.contactEmail,
     contactPhone: copy.siteLabels.contactPhone,
     contactAddress: copy.siteLabels.contactAddress,

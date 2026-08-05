@@ -52,6 +52,7 @@ import {
   type ImageSource,
   type SectionCanvas,
 } from "./elements";
+import { USP_ICONS } from "./icons";
 import { GALLERY_PRESET_SLOTS, starterPhoto } from "./starter-photos";
 
 /** Znacznik generacji w treści sekcji. Jedyny sposób rozpoznania v3. */
@@ -91,6 +92,24 @@ export const STRUCTURED_THEME_ROLES = [
    * sekcja nie wnosi ani jednego heksa — dokłada wyłącznie POMIAR.
    */
   "dangerText",
+  /**
+   * ETYKIETA NA WYPEŁNIENIU AKCENTU (E7). Doszła razem z pierwszym typem,
+   * którego CAŁA POWIERZCHNIA bywa akcentem (wariant `accent` sekcji CTA) —
+   * ale luka, którą zamyka, istniała wcześniej i w trzech typach naraz.
+   *
+   * `accentFill` mierzy WYPEŁNIENIE względem pasa (czy kształt widać),
+   * `accentText` — akcentowy TEKST na pasie (czy da się go przeczytać). Ani
+   * jedno, ani drugie nie liczy pary, która na przycisku jest najważniejsza:
+   * NAPISU NA TYM WYPEŁNIENIU. Do E6 ta para miała pomiar wyłącznie w bloku
+   * chrome sklepu — czyli poza macierzą typów strukturalnych, więc sekcja
+   * z przyciskiem wchodziła do rejestru bez policzenia jedynej pary, której
+   * nieprzeczytanie zatrzymuje odwiedzającego na przycisku.
+   *
+   * Deklarują ją odtąd WSZYSTKIE typy malujące klasę `site-cta` (kontakt,
+   * dojazd, CTA) — pilnuje tego skan `structured-role-usage.test.tsx`, który
+   * zestawia role NAMALOWANE z ZADEKLAROWANYMI w obie strony.
+   */
+  "accentOnFill",
 ] as const;
 export type StructuredThemeRole = (typeof STRUCTURED_THEME_ROLES)[number];
 
@@ -1343,6 +1362,721 @@ function testimonialsFromV1(content: unknown): TestimonialsStructuredItem[] {
 }
 
 // -----------------------------------------------------------------------
+// Sprzęt — pierwszy typ czytający KATALOG, a nie własną treść (E7)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu sprzętu. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „ile miejsca sprzęt ma zająć na stronie":
+ *   • `grid` — kafle ze zdjęciem, po kilka w rzędzie. Strona pokazuje SPRZĘT:
+ *     zdjęcie jest tu argumentem sprzedażowym, a nie ozdobą;
+ *   • `list` — wiersze z miniaturą, nazwą i ceną, jeden pod drugim. Strona
+ *     pokazuje OFERTĘ: ceny stoją w jednej kolumnie i dają się przebiec okiem,
+ *     a sekcja zajmuje ułamek wysokości siatki.
+ *
+ * Oba czytają TĘ SAMĄ treść — przełącznik układu jest polem treści, więc jego
+ * zmiana z definicji nie dosięga wyboru pozycji.
+ */
+export const PRODUCTS_LAYOUTS = ["grid", "list"] as const;
+export type ProductsLayout = (typeof PRODUCTS_LAYOUTS)[number];
+
+/**
+ * SKĄD SEKCJA BIERZE POZYCJE — i dlaczego to NIE JEST „najnowsze / kategoria".
+ *
+ * ==================== ZAŁOŻENIE, KTÓRE NIE ISTNIEJE ====================
+ *
+ * Brief E7 przewidywał dwie osie źródła: „najnowsze" i „kategoria z katalogu
+ * tenanta". Żadnej z nich nie da się dziś policzyć, i nie jest to kwestia
+ * nakładu pracy:
+ *   • KATEGORII NIE MA w modelu — ani tabeli, ani kolumny na `products`.
+ *     Sekcja strony nie jest miejscem, w którym powstaje taksonomia katalogu;
+ *   • NAJNOWSZE nie przechodzi granicą danych: `app.get_public_catalog` (0020)
+ *     nie wypuszcza `created_at`, a panel czyta tabelę wprost. Sortowanie po
+ *     dacie znaczyłoby więc INNĄ kolejność w podglądzie kreatora niż w sklepie
+ *     — czyli podgląd, który kłamie o tym, co zobaczy klient (a to jest cała
+ *     stawka wspólnego renderera, ADR-083).
+ *
+ * ==================== CO STOI W ICH MIEJSCU (decyzja właściciela) ====================
+ *
+ *   • `catalog` — pierwsze `limit` pozycji katalogu w jego własnej kolejności.
+ *     Stan DOMYŚLNY i jedyny możliwy dla presetu oraz konwersji: ani jedno, ani
+ *     drugie nie ma skąd wziąć identyfikatorów sprzętu, który dopiero powstanie;
+ *   • `picked` — RĘCZNY WYBÓR pozycji (decyzja właściciela, 2026-08-05). Operator
+ *     wskazuje konkretny sprzęt w szufladzie, a treść niesie jego identyfikatory.
+ *
+ * Wybór jest SŁOWNIKIEM, a nie flagą logiczną, z tego samego powodu, co tryb
+ * ceny w cenniku (E6): „katalog" i „ręcznie" to dwa punkty skali, na której są
+ * jeszcze „kategoria" i „najnowsze" — dopisanie ich będzie wpisem do słownika,
+ * a nie zmianą znaczenia pola.
+ */
+export const PRODUCTS_SOURCES = ["catalog", "picked"] as const;
+export type ProductsSource = (typeof PRODUCTS_SOURCES)[number];
+
+/** Górna granica wskazanych pozycji — lustro `maxItems` w rejestrze. */
+const PRODUCTS_MAX_ITEMS = 24;
+
+/**
+ * ILE POZYCJI POKAZAĆ — zbiór ZAMKNIĘTY w granicach 2–24 z briefu.
+ *
+ * Kusi wpuścić dowolną liczbę całkowitą z przedziału. Odpada, bo szuflada zna
+ * kontrolkę listy zamkniętej i nie zna pola liczbowego (a pole liczbowe
+ * przeglądarki zmienia wartość przy przewinięciu kółkiem — patrz uzasadnienie
+ * przy polu pieniężnym E6). Zbiór jest przy tym gęstszy tam, gdzie realnie się
+ * wybiera: różnica między 8 a 12 kaflami jest widoczna, między 13 a 14 — nie.
+ */
+export const PRODUCTS_LIMITS = [2, 3, 4, 6, 8, 12, 16, 24] as const;
+export type ProductsLimit = (typeof PRODUCTS_LIMITS)[number];
+
+export const productsStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("products"),
+    layout: z.enum(PRODUCTS_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    source: z.enum(PRODUCTS_SOURCES).default("catalog"),
+    /**
+     * WSKAZANE POZYCJE — identyfikatory sprzętu z katalogu najemcy.
+     *
+     * PUSTA LISTA JEST LEGALNA i to jest jedyne odstępstwo od reguły „sekcja
+     * bez ani jednego wpisu jest atrapą" (ADR-094). Powód jest w naturze tego
+     * typu: treścią sekcji sprzętu NIE JEST jej lista, tylko KATALOG — przy
+     * `source: "catalog"` sekcja z pustą listą pokazuje pełny wycinek oferty
+     * i pustego nagłówka nie ma jak z niej zrobić. Odwrotnie niż w FAQ, gdzie
+     * pustka znaczy „nie napisano ani jednego pytania".
+     *
+     * SAM IDENTYFIKATOR, bez kopii nazwy i ceny. Kopia byłaby drugim źródłem
+     * prawdy o cenie — a cena zmieniona w katalogu zostawiłaby na stronie
+     * głównej ofertę, której najemca już nie składa. Pozycja usunięta z
+     * katalogu po prostu WYPADA z sekcji (render pomija nierozpoznane
+     * identyfikatory), zamiast pokazywać sprzęt, którego nie ma.
+     */
+    items: z
+      .array(z.object({ productId: z.string().uuid() }).strict())
+      .max(PRODUCTS_MAX_ITEMS)
+      .default([]),
+    /** Sufit liczby pokazanych pozycji — patrz {@link PRODUCTS_LIMITS}. */
+    limit: z
+      .union([
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(6),
+        z.literal(8),
+        z.literal(12),
+        z.literal(16),
+        z.literal(24),
+      ])
+      .default(8),
+  })
+  .strict();
+
+export type ProductsStructuredContent = z.infer<typeof productsStructuredSchema>;
+export type ProductsStructuredItem = ProductsStructuredContent["items"][number];
+
+/** Adres katalogu — ten sam, do którego odsyła cennik (jedna trasa, jedna stała). */
+export const PRODUCTS_CATALOG_HREF = PRICING_CATALOG_HREF;
+
+/**
+ * PEŁNE RZĘDY: ile kafli zostaje po ucięciu W DÓŁ do ostatniego pełnego rzędu.
+ *
+ * ==================== CO TO NAPRAWIA ====================
+ *
+ * Osiem kafli w siatce trzykolumnowej daje 3 + 3 + 2, czyli dwa kafle i dziurę
+ * obok nich. Dziura w liście OPINII jest brzydka; dziura w liście SPRZĘTU
+ * czyta się jako „tu miało być coś jeszcze" — bo obok stoi katalog, w którym
+ * naprawdę jest coś jeszcze. E6 zamykał to przeciwnym ruchem (wpisy ROSNĄ
+ * i wypełniają rząd), który tu nie działa: kafel sprzętu ma zdjęcie o stałej
+ * proporcji, więc rozciągnięty dwukrotnie rośnie też W PIONIE i ostatni rząd
+ * staje się największym elementem sekcji.
+ *
+ * Zostaje ucięcie w dół — i jest ono UCZCIWE dokładnie dlatego, że sekcja ma
+ * odnośnik do katalogu: nie chowamy oferty, tylko odsyłamy po resztę tam, gdzie
+ * jest jej pełna lista (patrz {@link productsCatalogLinkVisible}).
+ *
+ * ==================== GRANICA: JEDEN NIEPEŁNY RZĄD ====================
+ *
+ * Gdy pozycji jest MNIEJ niż kolumn, nie ma czego uciąć — jedyny rząd jest
+ * niepełny z konstrukcji, a jego ucięcie dałoby sekcję pustą. Dwie pozycje w
+ * siatce trzykolumnowej zostają więc dwiema pozycjami.
+ *
+ * Sam podział pracy jest ten sam, co w E6: LICZBĘ liczy ta funkcja (dane),
+ * a to, ile kolumn ma siatka przy danej szerokości kontenera, niesie ARKUSZ —
+ * bo kolumny zmieniają się z szerokością, której render nie zna. Arkusz
+ * realizuje dokładnie tę regułę i pilnuje tego kontrakt artefaktu w @avably/ui.
+ */
+export function fullRowCount(count: number, columns: number): number {
+  if (columns <= 1 || count <= columns) return count;
+  return count - (count % columns);
+}
+
+/**
+ * CZY POD SEKCJĄ STOI ODNOŚNIK „ZOBACZ CAŁY SPRZĘT" — WARUNEK NA DANYCH, a nie
+ * przełącznik operatora.
+ *
+ * Cennik ma tu przełącznik (`showCatalogLink`) i to jest różnica ZAMIERZONA:
+ * tam odnośnik jest zaproszeniem („wiesz już ile, zobacz co"), więc może być
+ * zbędny; tutaj jest ODPOWIEDZIĄ NA FAKT — sekcja pokazuje WYCINEK oferty, więc
+ * albo mówi, gdzie jest reszta, albo zataja, że reszta istnieje. Przełącznik
+ * pozwalałby zataić, a domyślnie włączony przełącznik przy pełnym katalogu
+ * odsyłałby do listy, którą odwiedzający właśnie w całości widzi.
+ *
+ * `shown` jest liczbą pozycji, które sekcja NAPRAWDĘ oddaje do dokumentu.
+ */
+export function productsCatalogLinkVisible(shown: number, catalogSize: number): boolean {
+  return catalogSize > shown;
+}
+
+/**
+ * TREŚĆ SPRZĘTU WYPROWADZONA ZE STAREJ GENERACJI (konwersja E7) — albo `null`.
+ *
+ * Przenosimy USTAWIENIA, nie treść, bo treści w starej sekcji NIE MA: sekcja
+ * `products` v1 to dosłownie `{ heading? }`, a płótno v2 dostawało z niej
+ * nagłówek i jeden element `catalog` — czyli tę samą informację „tu ma stać
+ * katalog". Pozycje zawsze pochodziły z bazy, więc nie ma czego przenosić i nie
+ * ma czego zgadywać.
+ *
+ * Wynik jedzie zatem w stanie `catalog`: strona pokazuje po konwersji dokładnie
+ * to, co pokazywała przedtem, a ręczny wybór jest decyzją, którą operator
+ * dopiero podejmie.
+ */
+export function productsHeadingFromLegacy(content: unknown): string | undefined {
+  if (isSectionCanvas(content)) return canvasHeading(content);
+  if (typeof content !== "object" || content === null) return undefined;
+  const legacy = (content as { heading?: unknown }).heading;
+  return typeof legacy === "string" && legacy.trim().length > 0
+    ? legacy.trim().slice(0, 200)
+    : undefined;
+}
+
+// -----------------------------------------------------------------------
+// Atuty — typ IKONOWY (E7)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu atutów. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „czy atut jest osobnym obiektem na stronie":
+ *   • `cards` — każdy atut w karcie z obrysem. Kafle są policzalne wzrokiem,
+ *     a sekcja czyta się jak zestawienie;
+ *   • `plain` — ikona, tytuł i zdanie bez obrysu, w kolumnach. Sekcja wtapia
+ *     się w stronę i nie konkuruje z sekcją, która NAPRAWDĘ jest zestawieniem
+ *     (cennik, sprzęt).
+ *
+ * Oba czytają TEN SAM `items` — przełącznik układu jest polem treści.
+ */
+export const USP_LAYOUTS = ["cards", "plain"] as const;
+export type UspLayout = (typeof USP_LAYOUTS)[number];
+
+/** Górna granica atutów — lustro `maxItems` w rejestrze (test pilnuje zgody). */
+const USP_MAX_ITEMS = 12;
+
+/** Tytuł atutu („Dowóz w 24 h") — hasło, nie zdanie. */
+const uspTitle = z.string().trim().min(1).max(120);
+
+/** Zdanie pod tytułem — rozwinięcie hasła, więc puste nie ma sensu. */
+const uspText = z.string().trim().min(1).max(500);
+
+export const uspStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("usp"),
+    layout: z.enum(USP_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Atuty. MINIMUM JEDEN — sekcja atutów bez ani jednego atutu jest pustym
+     * nagłówkiem (klasa atrap usuwana przez ADR-094).
+     *
+     * KAFEL JEST JEDNYM WPISEM, i to jest cała różnica wobec płótna. Tam ikona,
+     * tytuł i zdanie były TRZEMA niezależnymi pudełkami, które operator mógł
+     * rozsunąć, przestawić albo skasować pojedynczo — a wtedy strona pokazywała
+     * ikonę bez opisu albo opis bez ikony i nic tego nie zauważało. Tutaj
+     * trójka jest nierozerwalna z konstrukcji: nie ma stanu, w którym atut ma
+     * ikonę, a nie ma tytułu.
+     *
+     * Ikona idzie z ZAMKNIĘTEGO słownika strony (`USP_ICONS`, ADR-082) — tego
+     * samego, którym mówi element ikony na płótnie. Druga, „prawie taka sama"
+     * lista symboli znaczyłaby atut, który po konwersji traci ikonę, bo jego
+     * nazwy nie ma po drugiej stronie.
+     */
+    items: z
+      .array(
+        z
+          .object({ icon: z.enum(USP_ICONS), title: uspTitle, text: uspText })
+          .strict(),
+      )
+      .min(1)
+      .max(USP_MAX_ITEMS),
+  })
+  .strict();
+
+export type UspStructuredContent = z.infer<typeof uspStructuredSchema>;
+export type UspStructuredItem = UspStructuredContent["items"][number];
+
+/**
+ * KOLEJNOŚĆ CZYTANIA PŁÓTNA — od góry, potem od lewej.
+ *
+ * Wydzielona w E7, bo od tej chwili pyta o nią PIĘĆ konwersji. Kolejność
+ * w tablicy elementów jest kolejnością DODAWANIA i po kilku poprawkach nie ma
+ * nic wspólnego z tym, co operator widzi na ekranie.
+ */
+function readingOrder(a: CanvasElement, b: CanvasElement): number {
+  return (
+    a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x
+  );
+}
+
+/**
+ * ATUTY WYPROWADZONE ZE STAREJ TREŚCI (konwersja E7).
+ *
+ *   • v1 niesie gotową trójkę (`icon`, `title`, `text`), więc wpisy jadą CO DO
+ *     JEDNEGO i w swojej kolejności;
+ *   • PŁÓTNO v2 rozbiło je na trzy osobne elementy, ale NIE na nierozróżnialne:
+ *     rodzaj elementu jest zapisany wprost (`icon` / `heading` / `text`), a
+ *     przynależność do jednego atutu — GEOMETRIĄ.
+ *
+ * ==================== DLACZEGO KOLUMNA, A NIE SĄSIEDZTWO ====================
+ *
+ * To jest dokładnie ta pułapka, która w E6 podpisała opinię cudzym nazwiskiem.
+ * Konwersja v1→v2 układa atuty w TRZECH KOLUMNACH, więc kolejność czytania daje:
+ * ikona 1, ikona 2, ikona 3, tytuł 1, tytuł 2, tytuł 3, zdanie 1… Sąsiadem
+ * ikony 1 jest tam ikona 2, a nie jej własny tytuł — heurystyka „następny
+ * element" składałaby atuty z części należących do trzech różnych kafli.
+ *
+ * Prawdziwe wiązanie jest zapisane w tym, co konwersja NARYSOWAŁA: ikona, tytuł
+ * i zdanie jednego atutu stoją w TEJ SAMEJ KOLUMNIE (ten sam `x`), jedno pod
+ * drugim. To jest odczytanie własnego układu, a nie zgadywanie sensu.
+ *
+ * Kolejność WPISÓW bierze się z kolejności ikon w czytaniu (od góry, potem od
+ * lewej), więc atuty wracają rzędami — tak, jak stoją na ekranie.
+ */
+export function uspItemsFromLegacy(content: unknown): UspStructuredItem[] {
+  if (isSectionCanvas(content)) return uspItemsFromCanvas(content);
+  return uspItemsFromV1(content);
+}
+
+function uspItemsFromCanvas(canvas: SectionCanvas): UspStructuredItem[] {
+  type IconElement = Extract<CanvasElement, { kind: "icon" }>;
+  type HeadingElement = Extract<CanvasElement, { kind: "heading" }>;
+  type TextElement = Extract<CanvasElement, { kind: "text" }>;
+
+  const ordered = canvas.elements.slice().sort(readingOrder);
+  const icons = ordered.filter((element): element is IconElement => element.kind === "icon");
+  // Nagłówek SEKCJI jest poziomu 2 i stoi nad kolumnami; tytuły kafli mają
+  // poziom 3. Bez tego odsiewu pierwszy atut dostałby tytuł całej sekcji.
+  const titles = ordered.filter(
+    (element): element is HeadingElement => element.kind === "heading" && element.level === 3,
+  );
+  const texts = ordered.filter((element): element is TextElement => element.kind === "text");
+
+  const takenTitles = new Set<HeadingElement>();
+  const takenTexts = new Set<TextElement>();
+  const items: UspStructuredItem[] = [];
+
+  for (const icon of icons) {
+    const column = icon.layout.desktop.x;
+    const title = titles.find(
+      (candidate) =>
+        !takenTitles.has(candidate) &&
+        candidate.layout.desktop.x === column &&
+        candidate.layout.desktop.y > icon.layout.desktop.y,
+    );
+    if (!title) continue;
+    const text = texts.find(
+      (candidate) =>
+        !takenTexts.has(candidate) &&
+        candidate.layout.desktop.x === column &&
+        candidate.layout.desktop.y > title.layout.desktop.y,
+    );
+    // Atut bez zdania ODPADA: schemat wymaga obu napisów, a dopisanie zdania
+    // za operatora byłoby wymyślaniem treści marketingowej — czyli tym samym,
+    // czego zabrania granica z FAQ.
+    if (!text) continue;
+    const titleText = title.text.trim();
+    const bodyText = text.text.trim();
+    if (titleText.length === 0 || bodyText.length === 0) continue;
+    takenTitles.add(title);
+    takenTexts.add(text);
+    items.push({
+      icon: icon.name,
+      title: titleText.slice(0, 120),
+      text: bodyText.slice(0, 500),
+    });
+  }
+  return items.slice(0, USP_MAX_ITEMS);
+}
+
+/** Sekcja atutów SPRZED płótna: gotowa lista trójek (schemat v1). */
+function uspItemsFromV1(content: unknown): UspStructuredItem[] {
+  if (typeof content !== "object" || content === null) return [];
+  const items = (content as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  const allowed = new Set<string>(USP_ICONS);
+  return items
+    .map((item) => {
+      if (typeof item !== "object" || item === null) return null;
+      const source = item as Record<string, unknown>;
+      const icon = typeof source.icon === "string" && allowed.has(source.icon) ? source.icon : null;
+      const title = typeof source.title === "string" ? source.title.trim() : "";
+      const text = typeof source.text === "string" ? source.text.trim() : "";
+      if (!icon || title.length === 0 || text.length === 0) return null;
+      return {
+        icon: icon as UspStructuredItem["icon"],
+        title: title.slice(0, 120),
+        text: text.slice(0, 500),
+      };
+    })
+    .filter((item): item is UspStructuredItem => item !== null)
+    .slice(0, USP_MAX_ITEMS);
+}
+
+// -----------------------------------------------------------------------
+// Dostawa — typ z ceną OPCJONALNĄ (E7)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu dostawy. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „czy warianty dostawy się PORÓWNUJE":
+ *   • `cards` — kafle obok siebie, każdy z ceną pod tytułem. Tak czyta się
+ *     wybór: „odbiór osobisty czy dowóz";
+ *   • `list` — wiersze z ceną wyrównaną do prawej. Tak czyta się cennik
+ *     dodatków, w którym pozycji jest więcej niż trzy.
+ *
+ * Oba czytają TEN SAM `items` — przełącznik układu jest polem treści.
+ */
+export const DELIVERY_LAYOUTS = ["cards", "list"] as const;
+export type DeliveryLayout = (typeof DELIVERY_LAYOUTS)[number];
+
+/** Górna granica wariantów dostawy — lustro `maxItems` w rejestrze. */
+const DELIVERY_MAX_ITEMS = 12;
+
+/** Nazwa wariantu („Odbiór osobisty", „Dowóz na terenie miasta"). */
+const deliveryTitle = z.string().trim().min(1).max(200);
+
+/** Opis wariantu — warunki, zasięg, czas. */
+const deliveryText = z.string().trim().min(1).max(1_000);
+
+/**
+ * WPROWADZENIE NAD LISTĄ. Pole SEKCJI, bo dotyczy całej dostawy, a nie
+ * pojedynczego wariantu — i jest jedynym polem, przez które konwersja przenosi
+ * zdanie, które sekcja dostawy miała w generacji v1 (`text`, wymagane).
+ *
+ * NAZWA `intro`, A NIE `text`, i nie jest to kosmetyka: wpis ma WŁASNE pole
+ * `text`, a szuflada pyta i18n o etykietę PO KLUCZU POLA. Dwa różne pola pod
+ * jednym kluczem dostałyby w edytorze jedną etykietę — dokładnie ta sama
+ * pułapka, którą w E6 zamknęła para `footnote` / `note`.
+ */
+const deliveryIntro = z.string().trim().min(1).max(2_000);
+
+export const deliveryStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("delivery"),
+    layout: z.enum(DELIVERY_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    intro: deliveryIntro.optional(),
+    /**
+     * Warianty dostawy. MINIMUM JEDEN — sekcja dostawy bez ani jednego sposobu
+     * dostarczenia sprzętu jest pustym nagłówkiem (klasa atrap, ADR-094).
+     *
+     * CENA JEST OPCJONALNA i to jest cała różnica wobec cennika (E6), gdzie
+     * pozycja bez ceny nie jest pozycją. Tutaj „Odbiór osobisty" bez kwoty jest
+     * kompletną informacją — dopisanie mu „0,00 zł" byłoby odpowiedzią na
+     * pytanie, którego nikt nie zadał, a wymuszenie kwoty kazałoby najemcy
+     * wpisać liczbę tam, gdzie cena zależy od zamówienia („wycena indywidualna").
+     * Pustka ZDEJMUJE pole (`empty: "unset"` w rejestrze), więc karta bez ceny
+     * jest stanem treści, a nie ceną zerową.
+     */
+    items: z
+      .array(
+        z
+          .object({
+            title: deliveryTitle,
+            text: deliveryText,
+            /** Kwota w jednostkach podrzędnych (`int`) — kanon pieniędzy projektu. */
+            price_grosze: z.number().int().min(0).max(100_000_000).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(DELIVERY_MAX_ITEMS),
+  })
+  .strict();
+
+export type DeliveryStructuredContent = z.infer<typeof deliveryStructuredSchema>;
+export type DeliveryStructuredItem = DeliveryStructuredContent["items"][number];
+
+/**
+ * ETYKIETA CENY WARIANTU DOSTAWY — sama kwota, bez jednostki rozliczeniowej.
+ *
+ * Cennik (E6) dopisuje do kwoty jednostkę („/ doba"), bo najem trwa. Dostawa
+ * jest ZDARZENIEM: „120,00 zł / doba" przy dowozie byłoby ofertą, której nikt
+ * nie składa. Brak jednostki jest tu więc informacją, a nie brakiem.
+ *
+ * Funkcja stoi w rdzeniu — jak `pricingPriceLabel` i z tego samego powodu:
+ * `formatMoney` jest jedynym formatterem pieniędzy w systemie, a komponenty
+ * strukturalne mają zamkniętą listę modułów, po które wolno im sięgać.
+ * Dzielenia przez sto w pakiecie UI nie ma i mieć nie może.
+ *
+ * `null` dla wariantu BEZ ceny — żeby render nie musiał pytać o obecność pola
+ * drugi raz, własnym `if`-em, minimalnie inaczej niż ta funkcja.
+ */
+export function deliveryPriceLabel(
+  item: DeliveryStructuredItem,
+  currency: CurrencyCode,
+  locale: string,
+): string | null {
+  return item.price_grosze === undefined
+    ? null
+    : formatMoney(item.price_grosze, currency, locale);
+}
+
+/**
+ * TREŚĆ DOSTAWY WYPROWADZONA ZE STAREJ GENERACJI (konwersja E7) — albo `null`.
+ *
+ *   • v1 niesie nagłówek, zdanie wprowadzające (`text`) i gotową listę par
+ *     `{ title, text }`, więc wszystko jedzie wprost. CEN nie ma i mieć nie
+ *     może: schemat v1 pojęcia ceny dostawy nie znał;
+ *   • PŁÓTNO v2 rozbiło karty na kształt, nagłówek i tekst. Wiązanie jest —
+ *     tak jak przy atutach — GEOMETRYCZNE: tytuł i opis jednej karty stoją
+ *     w tej samej kolumnie (`x`), jeden pod drugim. Zdanie wprowadzające
+ *     rozpoznajemy po WARIANCIE tekstu (`lead`), którym zapisała je nasza
+ *     własna konwersja — to odczytanie, a nie interpretacja.
+ */
+export function deliveryFromLegacy(content: unknown): {
+  intro?: string;
+  items: DeliveryStructuredItem[];
+} {
+  if (isSectionCanvas(content)) return deliveryFromCanvas(content);
+  return deliveryFromV1(content);
+}
+
+function deliveryFromCanvas(canvas: SectionCanvas): {
+  intro?: string;
+  items: DeliveryStructuredItem[];
+} {
+  type HeadingElement = Extract<CanvasElement, { kind: "heading" }>;
+  type TextElement = Extract<CanvasElement, { kind: "text" }>;
+
+  const ordered = canvas.elements.slice().sort(readingOrder);
+  const lead = ordered.find(
+    (element): element is TextElement => element.kind === "text" && element.variant === "lead",
+  );
+  const titles = ordered.filter(
+    (element): element is HeadingElement => element.kind === "heading" && element.level === 3,
+  );
+  const bodies = ordered.filter(
+    (element): element is TextElement => element.kind === "text" && element.variant === "small",
+  );
+
+  const taken = new Set<TextElement>();
+  const items: DeliveryStructuredItem[] = [];
+  for (const title of titles) {
+    const body = bodies.find(
+      (candidate) =>
+        !taken.has(candidate) &&
+        candidate.layout.desktop.x === title.layout.desktop.x &&
+        candidate.layout.desktop.y > title.layout.desktop.y,
+    );
+    if (!body) continue;
+    const name = title.text.trim();
+    const description = body.text.trim();
+    if (name.length === 0 || description.length === 0) continue;
+    taken.add(body);
+    items.push({ title: name.slice(0, 200), text: description.slice(0, 1_000) });
+  }
+
+  const intro = lead?.text.trim();
+  return {
+    ...(intro && intro.length > 0 ? { intro: intro.slice(0, 2_000) } : {}),
+    items: items.slice(0, DELIVERY_MAX_ITEMS),
+  };
+}
+
+/** Sekcja dostawy SPRZED płótna: nagłówek, zdanie i lista par (schemat v1). */
+function deliveryFromV1(content: unknown): { intro?: string; items: DeliveryStructuredItem[] } {
+  if (typeof content !== "object" || content === null) return { items: [] };
+  const source = content as Record<string, unknown>;
+  const intro = typeof source.text === "string" ? source.text.trim() : "";
+  const raw = Array.isArray(source.items) ? source.items : [];
+  const items = raw
+    .map((item) => {
+      if (typeof item !== "object" || item === null) return null;
+      const entry = item as Record<string, unknown>;
+      const title = typeof entry.title === "string" ? entry.title.trim() : "";
+      const text = typeof entry.text === "string" ? entry.text.trim() : "";
+      if (title.length === 0 || text.length === 0) return null;
+      return { title: title.slice(0, 200), text: text.slice(0, 1_000) };
+    })
+    .filter((item): item is DeliveryStructuredItem => item !== null)
+    .slice(0, DELIVERY_MAX_ITEMS);
+  return { ...(intro.length > 0 ? { intro: intro.slice(0, 2_000) } : {}), items };
+}
+
+// -----------------------------------------------------------------------
+// CTA — typ, którego CAŁA POWIERZCHNIA bywa akcentem (E7)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu CTA. Dwa, bo tyle jest realnych odpowiedzi na pytanie „gdzie
+ * jest przycisk":
+ *   • `banner` — wszystko wyśrodkowane, przycisk pod tekstem. Sekcja jest
+ *     przystankiem: strona zatrzymuje się i pyta;
+ *   • `split` — tekst po lewej, przycisk po prawej (poniżej progu schodzą
+ *     w jedną kolumnę). Sekcja jest pasem domykającym stronę i nie zabiera
+ *     całego ekranu.
+ */
+export const CTA_LAYOUTS = ["banner", "split"] as const;
+export type CtaLayout = (typeof CTA_LAYOUTS)[number];
+
+/**
+ * WARIANT POWIERZCHNI CTA — TRZY WARTOŚCI, ZERO HEKSÓW.
+ *
+ * ==================== PINEZKA, KTÓRĄ TO ZAMYKA ====================
+ *
+ * Baner CTA sprzed v3 miał wpisaną w klasę powłoki jedną decyzję kolorystyczną
+ * („odwrócony", `styles.ctaBanner`), taką samą w każdym motywie i w każdym
+ * szablonie — stąd pinezka „złe kolory w każdym szablonie": strona o jasnej
+ * dyrekcji dostawała pośrodku czarny prostokąt, którego nie zamawiała, a jedyną
+ * drogą naprawy było nieużywanie sekcji.
+ *
+ * ==================== TRZY WARIANTY, KAŻDY PO ROLACH ====================
+ *
+ *   • `plain` — CTA stoi wprost na pasie sekcji (pas wybiera pole `background`,
+ *     tak jak w każdym innym typie). Nagłówek atramentem pasa, przycisk akcentem;
+ *   • `panel` — CTA w panelu o powierzchni KARTY, z obrysem ze zmiennej kreski.
+ *     Odcina sekcję od reszty strony, nie zmieniając jej temperatury;
+ *   • `accent` — panel WYPEŁNIONY akcentem, napis kolorem etykiety na tym
+ *     wypełnieniu. To jest „pas akcentowy" z briefu, zrealizowany rolami, które
+ *     rejestr motywów NAPRAWDĘ ma.
+ *
+ * ==================== DLACZEGO NIE CZWARTY PAS SEKCJI ====================
+ *
+ * Brief mówił o „pasie akcentowym" obok domyślnego i odwróconego. Pasy sekcji
+ * (`SECTION_BACKGROUNDS` → `THEME_BAND_KEYS`) są jednak wspólne dla WSZYSTKICH
+ * typów i wszystkich generacji treści: dopisanie czwartego znaczyłoby komplet
+ * nowych tokenów (powierzchnia, atrament, atrament przygaszony, kreska, wariant
+ * akcentu) w KAŻDYM motywie — czyli zmianę rejestru motywów (K5, ADR-090)
+ * przemyconą pod sekcją CTA, a przy okazji akcentowy pas do wyboru pod każdą
+ * galerią i każdym FAQ. Wypełnienie akcentem jest za to rolą pierwszej klasy,
+ * z policzonymi tokenami (`fill` / `onFill`) w każdym motywie i każdym akcencie.
+ *
+ * Czytelność KAŻDEJ pary wariant × motyw egzekwuje macierz kontrastu przez role
+ * zadeklarowane w rejestrze — z rolą `accentOnFill` włącznie, która powstała
+ * właśnie po to, żeby napis na wariancie `accent` miał policzoną liczbę.
+ */
+export const CTA_VARIANTS = ["plain", "panel", "accent"] as const;
+export type CtaVariant = (typeof CTA_VARIANTS)[number];
+
+/** Górna granica przycisków — patrz uzasadnienie przy `items` niżej. */
+const CTA_MAX_ITEMS = 2;
+
+/** Etykieta przycisku — ta sama granica, co na płótnie (przycisk to nie akapit). */
+const ctaButtonLabel = z.string().trim().min(1).max(80);
+
+/** Zdanie pod nagłówkiem — rozwinięcie wezwania, więc puste nie ma sensu. */
+const ctaText = z.string().trim().min(1).max(1_000);
+
+export const ctaStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("cta"),
+    layout: z.enum(CTA_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    text: ctaText.optional(),
+    /**
+     * PRZYCISKI — LISTA, a nie jedno pole `button`, i są ku temu dwa powody.
+     *
+     * Pierwszy jest o produkcie: wezwanie ma realnie DWA stopnie („Zarezerwuj
+     * termin" i obok „Zobacz katalog"), a druga ścieżka wpisana w zdanie obok
+     * przestaje być przyciskiem. Sufit to DWA — trzeci przycisk w banerze nie
+     * jest wezwaniem, tylko menu.
+     *
+     * Drugi jest o edytorze: mini-CMS jest frameworkiem listy wpisów (kolejność
+     * uchwytem i strzałkami, dodawanie, usuwanie z potwierdzeniem). Pojedynczy
+     * obiekt `button` wymagałby w nim osobnej ścieżki dla jednego typu — czyli
+     * dokładnie tego `if`-a po nazwie typu, którego rejestr ma nie mieć.
+     *
+     * Allowlista adresu ta sama, co dla przycisku płótna: druga kopia reguły
+     * bezpieczeństwa rozjeżdża się z pierwszą w dniu, w którym jedną z nich
+     * ktoś poprawi.
+     */
+    items: z
+      .array(z.object({ label: ctaButtonLabel, href: linkHrefSchema }).strict())
+      .min(1)
+      .max(CTA_MAX_ITEMS),
+    variant: z.enum(CTA_VARIANTS).default("plain"),
+  })
+  .strict();
+
+export type CtaStructuredContent = z.infer<typeof ctaStructuredSchema>;
+
+/**
+ * CTA WYPROWADZONE ZE STAREJ TREŚCI (konwersja E7) — albo `null`.
+ *
+ *   • v1 niesie komplet (`heading`, `text?`, `buttonLabel`, `buttonHref`), więc
+ *     jedzie wprost;
+ *   • PŁÓTNO v2 rozbiło je na nagłówek, tekst, przycisk i kształt banera, ale
+ *     każdego z nich jest DOKŁADNIE JEDEN, a rodzaj elementu niesie znaczenie.
+ *     Nie ma tu więc czego wiązać geometrią — pierwsze wystąpienie w kolejności
+ *     czytania jest jedynym.
+ *
+ * Bez przycisku wynik jest `null`: schemat wymaga przycisku, a wymyślenie jego
+ * etykiety i adresu byłoby dopisaniem najemcy wezwania, którego nie napisał.
+ * Wariant zostaje `plain` — o tym, że baner ma być akcentowy, decyduje operator,
+ * a przeniesienie starego „zawsze odwrócony" powielałoby dokładnie tę pinezkę,
+ * którą ten typ zamyka.
+ */
+export interface CtaLegacyParts {
+  heading?: string;
+  text?: string;
+  /** Przyciski w kolejności czytania — pusto, gdy stara treść żadnego nie miała. */
+  items: { label: string; href: string }[];
+}
+
+export function ctaFromLegacy(content: unknown): CtaLegacyParts {
+  if (isSectionCanvas(content)) return ctaFromCanvas(content);
+  if (typeof content !== "object" || content === null) return { items: [] };
+  const source = content as Record<string, unknown>;
+  const legacyHeading = typeof source.heading === "string" ? source.heading.trim() : "";
+  const legacyText = typeof source.text === "string" ? source.text.trim() : "";
+  const label = typeof source.buttonLabel === "string" ? source.buttonLabel.trim() : "";
+  const href = typeof source.buttonHref === "string" ? source.buttonHref.trim() : "";
+  return {
+    ...(legacyHeading.length > 0 ? { heading: legacyHeading.slice(0, 200) } : {}),
+    ...(legacyText.length > 0 ? { text: legacyText.slice(0, 1_000) } : {}),
+    items: label.length > 0 && href.length > 0 ? [{ label: label.slice(0, 80), href }] : [],
+  };
+}
+
+function ctaFromCanvas(canvas: SectionCanvas): CtaLegacyParts {
+  const ordered = canvas.elements.slice().sort(readingOrder);
+  const legacyHeading = ordered.find(
+    (element): element is Extract<CanvasElement, { kind: "heading" }> => element.kind === "heading",
+  );
+  const legacyText = ordered.find(
+    (element): element is Extract<CanvasElement, { kind: "text" }> => element.kind === "text",
+  );
+  const headingText = legacyHeading?.text.trim() ?? "";
+  const bodyText = legacyText?.text.trim() ?? "";
+  const items = ordered
+    .filter(
+      (element): element is Extract<CanvasElement, { kind: "button" }> => element.kind === "button",
+    )
+    .map((element) => ({ label: element.label.trim(), href: element.href }))
+    .filter((button) => button.label.length > 0)
+    .map((button) => ({ label: button.label.slice(0, 80), href: button.href }))
+    .slice(0, CTA_MAX_ITEMS);
+  return {
+    ...(headingText.length > 0 ? { heading: headingText.slice(0, 200) } : {}),
+    ...(bodyText.length > 0 ? { text: bodyText.slice(0, 1_000) } : {}),
+    items,
+  };
+}
+
+// -----------------------------------------------------------------------
 // Opis edytora — mini-CMS czyta pola z DANYCH, nie z `if`-ów per typ
 // -----------------------------------------------------------------------
 
@@ -1361,7 +2095,28 @@ function testimonialsFromV1(content: unknown): TestimonialsStructuredItem[] {
  * (`parseMoneyAmount`), nie kontrolka — inaczej każda powierzchnia edycyjna
  * miałaby własną, minimalnie inną odpowiedź na pytanie, czym jest „12,5”.
  */
-export type StructuredFieldKind = "text" | "multiline" | "image" | "choice" | "money";
+export type StructuredFieldKind =
+  | "text"
+  | "multiline"
+  | "image"
+  | "choice"
+  | "money"
+  /**
+   * ODWOŁANIE DO ENCJI PANELU (E7) — piąty rodzaj NIE-TEKSTOWY i jedyny,
+   * którego wartość nie jest treścią najemcy, tylko WSKAZANIEM czegoś, co
+   * mieszka poza stroną (dziś: pozycja katalogu).
+   *
+   * Szuflada rysuje w tym miejscu NAZWĘ wskazanej encji, a nie pole z jej
+   * identyfikatorem — identyfikator jest szczegółem technicznym, którego
+   * operator nie ma po co widzieć ani móc zepsuć (ta sama zasada, co przy
+   * miniaturze zdjęcia zamiast ścieżki do Storage). Wpisy rodzą się WYBOREM
+   * z listy, a nie przyciskiem „dodaj", więc typ z tym polem nie ma `newItem`
+   * — dokładnie jak typ medialny, w którym wpis rodzi się z wgrania pliku.
+   *
+   * Nazwy encji podaje HOST szuflady (`itemsPick` w opisie typu): rdzeń nie ma
+   * dostępu do bazy i nie zna kształtu wiersza.
+   */
+  | "reference";
 
 /**
  * Co znaczy PUSTE pole. Brak deklaracji = pustki NIE ZAPISUJEMY w ogóle (E1:
@@ -1393,6 +2148,23 @@ export interface StructuredFieldSpec {
 /** Przełącznik logiczny w ustawieniach sekcji (np. „pozwól otworzyć wiele naraz"). */
 export interface StructuredToggleSpec {
   key: string;
+}
+
+/**
+ * ENCJA DO WSKAZANIA W SZUFLADZIE (E7) — para „identyfikator, nazwa".
+ *
+ * Kształt jest tak wąski celowo. Do treści jedzie WYŁĄCZNIE `value`; `label`
+ * służy operatorowi i znika razem z szufladą, bo nazwa mieszka w katalogu
+ * i zmienia się bez publikacji strony. Gdyby wpis niósł kopię nazwy, strona
+ * pokazywałaby sprzęt pod nazwą, której najemca już nie używa — i nie byłoby
+ * jak tego naprawić inaczej niż przez ponowne wskazanie pozycji.
+ *
+ * Wypełnia go HOST szuflady (trasa kreatora): rdzeń nie ma dostępu do bazy
+ * i nie zna kształtu wiersza.
+ */
+export interface StructuredPickEntry {
+  value: string;
+  label: string;
 }
 
 /**
@@ -1466,6 +2238,36 @@ export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeA
    * zmieniony w Dostawach NIE przestawia opublikowanej strony — patrz ADR-096.
    */
   itemsImport?: string;
+  /**
+   * MODUŁ PANELU, Z KTÓREGO SZUFLADA POZWALA WYBRAĆ WPIS (E7) — nazwa źródła,
+   * tak samo jak przy {@link itemsImport}, i tym samym kanałem (`importSources`
+   * hosta szuflady). Różnica jest w SPOSOBIE i w tym, co zostaje w treści:
+   *
+   *   • `itemsImport` KOPIUJE dane jednym kliknięciem i po skopiowaniu treść
+   *     należy do sekcji (adres punktu odbioru wolno w niej poprawić);
+   *   • `itemsPick` WSKAZUJE encję po identyfikatorze — w treści zostaje samo
+   *     odwołanie, a nazwa i cena są czytane na bieżąco z katalogu. Kopia byłaby
+   *     tu wprost szkodliwa: strona główna pokazywałaby cenę, której najemca
+   *     już nie ma w ofercie.
+   *
+   * Wybór zamiast kopiowania wszystkiego, bo katalog ma dziesiątki pozycji,
+   * a sekcja pokazuje ich kilka — „wstaw wszystkie" byłoby tu obietnicą
+   * kończącą się kasowaniem dwudziestu wpisów z ręki.
+   */
+  itemsPick?: string;
+  /**
+   * KIEDY LISTA WPISÓW W OGÓLE COŚ ZNACZY (E7) — para „klucz ustawienia,
+   * wartość". Brak = zawsze (wszystkie typy do E6).
+   *
+   * Sekcja sprzętu ma stan, w którym wybór pozycji jest bez skutku: przy
+   * `source: "catalog"` treść bierze się z katalogu, a nie z listy. Szuflada
+   * pokazuje wtedy zdanie ZAMIAST listy i selektora — bo kontrolka bez skutku
+   * uczy operatora, że ustawienia sekcji bywają ozdobą (ta sama zasada, którą
+   * `choice.layouts` stosuje do ustawień wyglądu).
+   *
+   * DANE, a nie `if` po nazwie typu: framework szuflady nie zna słowa „sprzęt".
+   */
+  itemsWhen?: { key: string; value: string };
   /**
    * Treść v3 wyprowadzona z treści STAREJ generacji tej samej sekcji (v1 albo
    * płótno v2) — albo `null`, gdy wyprowadzenie wymagałoby zgadywania.
@@ -1692,8 +2494,17 @@ export const STRUCTURED_SECTIONS = {
     // Render kontaktu maluje: etykiety rodzajów i wartości (ink), notkę RODO
     // i podpis pod formularzem (inkMuted), obrys pól i karty formularza
     // (border), odnośniki `mailto:`/`tel:` pod kursorem oraz przycisk wysyłki
-    // (accentText, accentFill) i komunikat błędu (dangerText).
-    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill", "dangerText"],
+    // (accentText, accentFill), ETYKIETĘ NA WYPEŁNIENIU przycisku wysyłki
+    // (accentOnFill — dopisana w E7 razem z rolą) i komunikat błędu (dangerText).
+    themeRoles: [
+      "ink",
+      "inkMuted",
+      "border",
+      "accentText",
+      "accentFill",
+      "accentOnFill",
+      "dangerText",
+    ],
     preset: {
       pl: {
         v: STRUCTURED_SECTION_VERSION,
@@ -1782,9 +2593,10 @@ export const STRUCTURED_SECTIONS = {
     itemsImport: "pickupLocations",
     // Render dojazdu maluje: nazwę punktu i nagłówek (ink), godziny i notkę
     // o mapie (inkMuted), obrys karty, ramki mapy i chipów wyboru (border),
-    // przycisk „Pokaż mapę" (accentFill, accentText) oraz odnośnik „Prowadź"
-    // (ink w spoczynku, accentText pod kursorem).
-    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill"],
+    // przycisk „Pokaż mapę" (accentFill, accentText, a od E7 także accentOnFill
+    // — etykieta NA jego wypełnieniu) oraz odnośnik „Prowadź" (ink w spoczynku,
+    // accentText pod kursorem).
+    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill", "accentOnFill"],
     preset: {
       pl: {
         v: STRUCTURED_SECTION_VERSION,
@@ -2027,6 +2839,341 @@ export const STRUCTURED_SECTIONS = {
         layout: "grid",
         background: "default",
         ...(legacyHeading ? { heading: legacyHeading } : {}),
+        items,
+      };
+    },
+  },
+
+  products: {
+    schema: productsStructuredSchema,
+    layouts: PRODUCTS_LAYOUTS,
+    defaultLayout: "grid",
+    // Jedno pole na wpis i nie jest nim napis: wpis sekcji sprzętu WSKAZUJE
+    // pozycję katalogu, a nie opisuje ją (patrz `reference` w rodzajach pól).
+    itemFields: [{ key: "productId", kind: "reference" }],
+    toggles: [],
+    choices: [
+      { key: "source", values: PRODUCTS_SOURCES },
+      { key: "limit", values: PRODUCTS_LIMITS },
+    ],
+    // Wybór pozycji i wygląd sekcji to dwie różne prace — jak przy galerii.
+    editor: "split",
+    // PODŁOGA ZERO, jedyna w rejestrze. Uzasadnienie przy polu `items`
+    // schematu: treścią tej sekcji jest KATALOG, więc pusta lista nie robi
+    // z niej pustego nagłówka.
+    minItems: 0,
+    maxItems: PRODUCTS_MAX_ITEMS,
+    itemsPick: "catalogProducts",
+    itemsWhen: { key: "source", value: "picked" },
+    // Render sprzętu maluje: nagłówek sekcji i nazwę pozycji (ink), opis
+    // (inkMuted), obrys kafla i kreski wierszy (border) oraz cenę i odnośnik
+    // do katalogu pod kursorem (accentText). Zero wypełnienia akcentem: kolor
+    // ma nieść ZDJĘCIE sprzętu, a nie ramka wokół niego.
+    themeRoles: ["ink", "inkMuted", "border", "accentText"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "products",
+        layout: "grid",
+        background: "default",
+        heading: "Nasz sprzęt",
+        source: "catalog",
+        items: [],
+        limit: 8,
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "products",
+        layout: "grid",
+        background: "default",
+        heading: "Our equipment",
+        source: "catalog",
+        items: [],
+        limit: 8,
+      },
+    },
+    // Bez `newItem` ŚWIADOMIE: wpis rodzi się WYBOREM pozycji z katalogu, a nie
+    // przyciskiem „dodaj". Świeży wpis musiałby nieść wymyślony identyfikator,
+    // którego schemat nie przyjmie — a operator zobaczyłby błąd zamiast wpisu.
+    fromLegacy: (content: unknown) => {
+      const legacyHeading = productsHeadingFromLegacy(content);
+      if (!legacyHeading) return null;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "products",
+        layout: "grid",
+        background: "default",
+        heading: legacyHeading,
+        source: "catalog",
+        items: [],
+        limit: 8,
+      };
+    },
+  },
+
+  usp: {
+    schema: uspStructuredSchema,
+    layouts: USP_LAYOUTS,
+    defaultLayout: "cards",
+    itemFields: [
+      { key: "icon", kind: "choice", values: USP_ICONS },
+      { key: "title", kind: "text" },
+      { key: "text", kind: "multiline", rows: 3 },
+    ],
+    toggles: [],
+    // Atuty nie mają czego ustawiać poza układem: gęstość siatki wynika
+    // z LICZBY atutów (auto-układ E6). Pusto JAWNIE, jak przy FAQ.
+    choices: [],
+    editor: "single",
+    minItems: 1,
+    maxItems: USP_MAX_ITEMS,
+    // Render atutów maluje: nagłówek sekcji i tytuł kafla (ink), zdanie pod
+    // tytułem (inkMuted), obrys kafla w układzie `cards` (border) oraz kafelek
+    // ikony (accentFill) i sam znak na nim (accentText).
+    themeRoles: ["ink", "inkMuted", "border", "accentFill", "accentText"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "usp",
+        layout: "cards",
+        background: "default",
+        heading: "Dlaczego my",
+        items: [
+          {
+            icon: "truck",
+            title: "Dowóz i odbiór pod adres",
+            text: "Podstawiamy sprzęt na miejsce i odbieramy go po zakończeniu najmu — bez organizowania transportu na własną rękę.",
+          },
+          {
+            icon: "shield-check",
+            title: "Sprzęt sprawdzany po każdym najmie",
+            text: "Każdy egzemplarz przechodzi przegląd przed wydaniem. Usterka w trakcie najmu znaczy wymianę, a nie czekanie.",
+          },
+          {
+            icon: "clock",
+            title: "Potwierdzenie rezerwacji tego samego dnia",
+            text: "Rezerwację złożoną w godzinach pracy potwierdzamy tego samego dnia, razem z terminem podstawienia.",
+          },
+        ],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "usp",
+        layout: "cards",
+        background: "default",
+        heading: "Why us",
+        items: [
+          {
+            icon: "truck",
+            title: "Delivery and pickup at your address",
+            text: "We bring the gear to the site and collect it when the rental ends — no need to arrange transport yourself.",
+          },
+          {
+            icon: "shield-check",
+            title: "Every item checked after each rental",
+            text: "Each unit is serviced before it goes out. A fault during the rental means a replacement, not a wait.",
+          },
+          {
+            icon: "clock",
+            title: "Same-day booking confirmation",
+            text: "Bookings placed during business hours are confirmed the same day, together with the delivery slot.",
+          },
+        ],
+      },
+    },
+    newItem: {
+      pl: { icon: "badge-check", title: "Nowy atut", text: "Zdanie, które go rozwija." },
+      en: { icon: "badge-check", title: "New selling point", text: "A sentence that expands on it." },
+    },
+    fromLegacy: (content: unknown) => {
+      const items = uspItemsFromLegacy(content);
+      if (items.length === 0) return null;
+      const source = content as { heading?: unknown } | null;
+      const legacyHeading =
+        typeof source?.heading === "string" && source.heading.trim().length > 0
+          ? source.heading
+          : isSectionCanvas(content)
+            ? canvasHeading(content)
+            : undefined;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "usp",
+        layout: "cards",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        items,
+      };
+    },
+  },
+
+  delivery: {
+    schema: deliveryStructuredSchema,
+    layouts: DELIVERY_LAYOUTS,
+    defaultLayout: "cards",
+    itemFields: [
+      { key: "title", kind: "text" },
+      { key: "text", kind: "multiline", rows: 3 },
+      // CENA OPCJONALNA — pustka ZDEJMUJE pole, więc „Odbiór osobisty" zostaje
+      // kartą bez ceny, a nie kartą za zero złotych (patrz schemat).
+      { key: "price_grosze", kind: "money", empty: "unset" },
+    ],
+    // Zdanie wprowadzające dotyczy CAŁEJ dostawy, nie pojedynczego wariantu —
+    // kopia w każdym wpisie byłaby tym samym akapitem powtórzonym dwanaście razy.
+    fields: [{ key: "intro", kind: "multiline", rows: 3, empty: "unset" }],
+    toggles: [],
+    choices: [],
+    editor: "single",
+    minItems: 1,
+    maxItems: DELIVERY_MAX_ITEMS,
+    // Render dostawy maluje: nagłówek sekcji i tytuł wariantu (ink), zdanie
+    // wprowadzające oraz opis wariantu (inkMuted), obrys kart i kreski wierszy
+    // (border) i cenę (accentText). Zero wypełnienia akcentem — jak w cenniku.
+    themeRoles: ["ink", "inkMuted", "border", "accentText"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "delivery",
+        layout: "cards",
+        background: "default",
+        heading: "Dostawa i odbiór",
+        intro:
+          "Sprzęt można odebrać osobiście albo zamówić z dowozem. Termin podstawienia ustalamy przy potwierdzeniu rezerwacji.",
+        items: [
+          {
+            title: "Odbiór osobisty",
+            text: "Wydajemy sprzęt w magazynie w godzinach pracy. Zabierz dokument tożsamości i miejsce na transport.",
+          },
+          {
+            title: "Dowóz na terenie miasta",
+            text: "Podstawiamy sprzęt pod wskazany adres i odbieramy go po zakończeniu najmu.",
+            price_grosze: 12_000,
+          },
+          {
+            title: "Dowóz poza miasto",
+            text: "Do 50 km od magazynu. Dalsze trasy wyceniamy indywidualnie przy potwierdzeniu rezerwacji.",
+            price_grosze: 29_000,
+          },
+        ],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "delivery",
+        layout: "cards",
+        background: "default",
+        heading: "Delivery and pickup",
+        intro:
+          "You can collect the gear yourself or have it delivered. We agree the delivery slot when we confirm your booking.",
+        items: [
+          {
+            title: "Collect in person",
+            text: "We hand the gear over at the warehouse during business hours. Bring photo ID and room to carry it.",
+          },
+          {
+            title: "Delivery within the city",
+            text: "We bring the gear to the address you give us and collect it when the rental ends.",
+            price_grosze: 12_000,
+          },
+          {
+            title: "Delivery outside the city",
+            text: "Up to 50 km from the warehouse. We quote longer routes individually when confirming the booking.",
+            price_grosze: 29_000,
+          },
+        ],
+      },
+    },
+    newItem: {
+      pl: { title: "Nowy sposób dostawy", text: "Warunki, zasięg i czas podstawienia." },
+      en: { title: "New delivery option", text: "Terms, coverage and lead time." },
+    },
+    fromLegacy: (content: unknown) => {
+      const { intro, items } = deliveryFromLegacy(content);
+      if (items.length === 0) return null;
+      const source = content as { heading?: unknown } | null;
+      const legacyHeading =
+        typeof source?.heading === "string" && source.heading.trim().length > 0
+          ? source.heading
+          : isSectionCanvas(content)
+            ? canvasHeading(content)
+            : undefined;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "delivery",
+        layout: "cards",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        ...(intro ? { intro } : {}),
+        items,
+      };
+    },
+  },
+
+  cta: {
+    schema: ctaStructuredSchema,
+    layouts: CTA_LAYOUTS,
+    defaultLayout: "banner",
+    // Wpisem jest PRZYCISK: etykieta i cel. Uzasadnienie listy zamiast jednego
+    // pola `button` stoi przy `items` w schemacie.
+    itemFields: [
+      { key: "label", kind: "text" },
+      { key: "href", kind: "text" },
+    ],
+    // Zdanie pod nagłówkiem jest polem SEKCJI, bo nie należy do żadnego
+    // z przycisków — a przy dwóch przyciskach kopia w każdym byłaby tym samym
+    // zdaniem napisanym dwa razy.
+    fields: [{ key: "text", kind: "multiline", rows: 3, empty: "unset" }],
+    toggles: [],
+    choices: [{ key: "variant", values: CTA_VARIANTS }],
+    editor: "single",
+    minItems: 1,
+    maxItems: CTA_MAX_ITEMS,
+    // Render CTA maluje: nagłówek (ink), zdanie pod nim (inkMuted), obrys
+    // panelu w wariancie `panel` (border), wypełnienie przycisku i panelu
+    // akcentowego (accentFill), etykietę przycisku obrysowego (accentText)
+    // oraz — i to jest cała stawka wariantu `accent` — NAPIS NA WYPEŁNIENIU
+    // akcentu (accentOnFill).
+    themeRoles: ["ink", "inkMuted", "border", "accentFill", "accentText", "accentOnFill"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "cta",
+        layout: "banner",
+        background: "default",
+        variant: "accent",
+        heading: "Potrzebujesz sprzętu na konkretny termin?",
+        text: "Sprawdź dostępność w katalogu i zarezerwuj online. Potwierdzenie dostaniesz mailem.",
+        items: [{ label: "Zobacz katalog", href: PRODUCTS_CATALOG_HREF }],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "cta",
+        layout: "banner",
+        background: "default",
+        variant: "accent",
+        heading: "Need equipment for a specific date?",
+        text: "Check availability in the catalog and book online. You will get an email confirmation.",
+        items: [{ label: "Browse the catalog", href: PRODUCTS_CATALOG_HREF }],
+      },
+    },
+    newItem: {
+      pl: { label: "Nowy przycisk", href: PRODUCTS_CATALOG_HREF },
+      en: { label: "New button", href: PRODUCTS_CATALOG_HREF },
+    },
+    fromLegacy: (content: unknown) => {
+      const { heading: legacyHeading, text, items } = ctaFromLegacy(content);
+      // Bez przycisku nie ma CTA: schemat go wymaga, a wymyślenie etykiety
+      // i adresu byłoby dopisaniem najemcy wezwania, którego nie napisał.
+      if (items.length === 0) return null;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "cta",
+        layout: "banner",
+        background: "default",
+        // Wariant zostaje DOMYŚLNY, a nie „odwrócony jak dotąd": przeniesienie
+        // starego „zawsze ciemny baner" powielałoby dokładnie tę pinezkę
+        // („złe kolory w każdym szablonie"), którą ten typ zamyka.
+        variant: "plain",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        ...(text ? { text } : {}),
         items,
       };
     },

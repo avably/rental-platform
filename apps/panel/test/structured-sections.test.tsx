@@ -206,12 +206,17 @@ describe("nowa sekcja typu strukturalnego rodzi się jako v3", () => {
 
   it("typ BEZ silnika strukturalnego dalej rodzi się jako płótno", async () => {
     renderBuilder([heroSection()]);
-    dodajPickerem("usp");
+    /*
+     * Rola „typu spoza rejestru" przechodzi z typu na typ, w miarę jak rejestr
+     * rośnie (atuty pełniły ją do E7). Po E7 poza rejestrem zostają `hero`,
+     * `freeform` i `footer` — zdanie testu dotyczy KAŻDEGO z nich.
+     */
+    dodajPickerem("freeform");
 
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     const content = actions.upsertSection.mock.calls
       .map(([arg]) => arg as { type: string; content: Record<string, unknown> })
-      .find((arg) => arg.type === "usp")?.content;
+      .find((arg) => arg.type === "freeform")?.content;
     expect(content?.version, "sekcja spoza rejestru zmieniła silnik").toBe(2);
   });
 });
