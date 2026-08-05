@@ -43,6 +43,7 @@
 import {
   appendStructuredItem,
   moveStructuredItem,
+  patchStructuredField,
   patchStructuredItem,
   removeStructuredItem,
   structuredNewItemFor,
@@ -109,6 +110,31 @@ function itemsOf(content: StructuredSectionContent): Record<string, unknown>[] {
 
 /** Zakładki szuflady dwudzielnej. Nazwy niosą i18n per typ. */
 type FormTab = "items" | "appearance";
+
+/**
+ * CO ZAPISAĆ ZA PUSTE POLE — JEDNA reguła dla pól wpisu i pól sekcji (E4).
+ *
+ * `null` znaczy „nie zapisuj nic" (E1: pytanie bez treści nie jest pytaniem,
+ * a błąd walidacji przy każdym skasowanym znaku jest gorszy niż brak zapisu).
+ * Reguła stoi w jednym miejscu, bo jest jedna — dwie kopie rozjechałyby się
+ * przy pierwszym typie, który dostanie i pole wpisu, i pole sekcji.
+ */
+function valueToWrite(field: StructuredFieldSpec, raw: string): { value: string | undefined } | null {
+  if (raw.trim() !== "") return { value: raw };
+  if (field.empty === "value") return { value: "" };
+  if (field.empty === "unset") return { value: undefined };
+  return null;
+}
+
+/** Zapis pola CAŁEJ SEKCJI zgodnie z deklaracją pustki. */
+function writeField(
+  content: StructuredSectionContent,
+  field: StructuredFieldSpec,
+  raw: string,
+): StructuredSectionContent {
+  const decision = valueToWrite(field, raw);
+  return decision ? patchStructuredField(content, field.key, decision.value) : content;
+}
 
 export function StructuredSectionForm({
   siteId,
@@ -202,6 +228,35 @@ export function StructuredSectionForm({
           }}
         />
       </Field>
+
+      {/*
+        POLA CAŁEJ SEKCJI (E4, `fields` w rejestrze) — np. odnośnik do polityki
+        prywatności pod formularzem kontaktu. Stoją przy nagłówku, bo są tym
+        samym rodzajem ustawienia: dotyczą SEKCJI, a nie pojedynczego wpisu.
+        Pustka znaczy to, co deklaruje rejestr (`empty`) — ta sama reguła, co
+        w polach wpisu, i ta sama funkcja, która ją stosuje.
+      */}
+      {(spec.fields ?? []).map((field) => (
+        <Field
+          key={field.key}
+          label={t(`structured.${type}.fields.${field.key}`)}
+          htmlFor={`${id}-${field.key}`}
+        >
+          <Input
+            id={`${id}-${field.key}`}
+            data-cms-section-field={field.key}
+            value={
+              typeof (content as unknown as Record<string, unknown>)[field.key] === "string"
+                ? ((content as unknown as Record<string, unknown>)[field.key] as string)
+                : ""
+            }
+            onChange={(event) => {
+              const raw = event.target.value;
+              onChange((current) => writeField(current, field, raw));
+            }}
+          />
+        </Field>
+      ))}
 
       {/*
         WYBORY WYGLĄDU pokazujemy WYŁĄCZNIE przy układach, w których coś znaczą
@@ -521,17 +576,11 @@ function ItemRow({
 
   /**
    * Zapis wartości pola zgodnie z DEKLARACJĄ pustki w rejestrze — patrz decyzja
-   * 5 w nagłówku pliku. Rozgałęzienie jest tu, a nie w trzech miejscach niżej,
-   * bo to jedna reguła, a nie trzy podobne.
+   * 5 w nagłówku pliku. Regułę niesie `valueToWrite`, wspólna z polami sekcji.
    */
   function write(field: StructuredFieldSpec, raw: string) {
-    if (raw.trim() !== "") {
-      onPatch(field.key, raw);
-      return;
-    }
-    if (field.empty === "value") onPatch(field.key, "");
-    else if (field.empty === "unset") onPatch(field.key, undefined);
-    // Brak deklaracji: pustki nie zapisujemy w ogóle (E1).
+    const decision = valueToWrite(field, raw);
+    if (decision) onPatch(field.key, decision.value);
   }
 
   return (
@@ -580,6 +629,30 @@ function ItemRow({
         }
         const value = typeof item[field.key] === "string" ? (item[field.key] as string) : "";
         const label = t(`structured.${type}.fields.${field.key}`);
+        if (field.kind === "choice") {
+          /*
+           * LISTA O ZAMKNIĘTYM ZBIORZE (E4). Wartości biorą się z REJESTRU, więc
+           * kontrolka nie zna ani jednego rodzaju wpisu z nazwy — dopisanie
+           * rodzaju do rejestru pojawia się tu samo. Wartość jedzie do treści
+           * bez konwersji: to dana słownikowa, nie liczba.
+           */
+          return (
+            <Field key={field.key} label={label} htmlFor={`${id}-${field.key}`}>
+              <PanelSelect
+                id={`${id}-${field.key}`}
+                value={value}
+                onValueChange={(picked) => {
+                  if (!field.values?.includes(picked)) return;
+                  onPatch(field.key, picked);
+                }}
+                options={(field.values ?? []).map((option) => ({
+                  value: option,
+                  label: t(`structured.${type}.fieldValues.${field.key}.${option}`),
+                }))}
+              />
+            </Field>
+          );
+        }
         // Podpowiedź istnieje tylko tam, gdzie rejestr mówi, że pustka coś
         // ZNACZY — bez niej `alt=""` wyglądałoby na pole zapomniane.
         const hint = field.empty === "value" ? t(`structured.${type}.hints.${field.key}`) : undefined;

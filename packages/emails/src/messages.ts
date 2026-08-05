@@ -112,6 +112,16 @@ export interface RentalLifecycleMessages {
   returned: RentalLifecycleStatusMessages;
 }
 
+export interface ContactMessageMessages {
+  heading: string;
+  preview: (senderName: string) => string;
+  intro: string;
+  footer: string;
+  /** Subject wiadomości — składa go wysyłka, treść zostaje przy tłumaczeniach. */
+  subject: (senderName: string) => string;
+  fields: { name: string; email: string; phone: string };
+}
+
 export interface EmailMessages {
   greeting: (recipientName?: string) => string;
   layout: EmailLayoutMessages;
@@ -123,6 +133,7 @@ export interface EmailMessages {
   returnLabel: ReturnLabelMessages;
   pickupReturnReminder: PickupReturnReminderMessages;
   rentalContract: RentalContractMessages;
+  contactMessage: ContactMessageMessages;
 }
 
 const pl: EmailMessages = {
@@ -231,6 +242,14 @@ const pl: EmailMessages = {
     attachmentHint: "Umowa najmu (PDF) znajduje się w załączniku.",
     orderNumber: "Numer zamówienia",
   },
+  contactMessage: {
+    heading: "Wiadomość ze strony",
+    preview: (senderName) => `Nowa wiadomość od ${senderName} ze strony sklepu.`,
+    intro: "Ktoś napisał do Was przez formularz kontaktowy na stronie.",
+    footer: "Wiadomość wysłana przez formularz kontaktowy na Waszej stronie. Odpowiedz na nią zwykłym „Odpowiedz” — trafi wprost do nadawcy.",
+    subject: (senderName) => `Wiadomość ze strony: ${senderName}`,
+    fields: { name: "Imię", email: "E-mail", phone: "Telefon" },
+  },
 };
 
 const en: EmailMessages = {
@@ -338,6 +357,14 @@ const en: EmailMessages = {
     body: "Please find the rental agreement for your order attached.",
     attachmentHint: "The rental agreement (PDF) is attached to this message.",
     orderNumber: "Order number",
+  },
+  contactMessage: {
+    heading: "Message from your website",
+    preview: (senderName) => `New message from ${senderName} via your storefront.`,
+    intro: "Someone wrote to you through the contact form on your website.",
+    footer: "Sent through the contact form on your website. Just hit Reply — it goes straight to the sender.",
+    subject: (senderName) => `Website message: ${senderName}`,
+    fields: { name: "Name", email: "Email", phone: "Phone" },
   },
 };
 

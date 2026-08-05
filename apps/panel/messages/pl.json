@@ -1438,6 +1438,33 @@
             "roomy": "Luźny"
           }
         }
+      },
+      "contact": {
+        "itemsTitle": "Dane kontaktowe",
+        "addItem": "Dodaj dane kontaktowe",
+        "removeBody": "Ten wpis zniknie z sekcji. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "kind": "Rodzaj",
+          "value": "Treść",
+          "privacyHref": "Odnośnik do polityki prywatności (opcjonalny)"
+        },
+        "fieldValues": {
+          "kind": {
+            "email": "E-mail",
+            "phone": "Telefon",
+            "address": "Adres",
+            "hours": "Godziny otwarcia",
+            "map": "Mapa"
+          }
+        },
+        "layouts": {
+          "stacked": "Dane, pod nimi formularz",
+          "split": "Dane i formularz obok siebie"
+        },
+        "toggles": {
+          "showForm": "Pokaż formularz kontaktowy",
+          "askPhone": "Pytaj o telefon w formularzu"
+        }
       }
     }
   },

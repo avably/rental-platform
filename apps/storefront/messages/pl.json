@@ -339,7 +339,30 @@
       "galleryClose": "Zamknij powiększenie",
       "galleryPrev": "Poprzednie zdjęcie",
       "galleryNext": "Następne zdjęcie",
-      "galleryPosition": "Zdjęcie {current} z {total}"
+      "galleryPosition": "Zdjęcie {current} z {total}",
+      "contactHours": "Godziny otwarcia:",
+      "contactForm": {
+        "title": "Napisz do nas",
+        "name": "Imię",
+        "email": "E-mail",
+        "phone": "Telefon",
+        "message": "Wiadomość",
+        "submit": "Wyślij wiadomość",
+        "sending": "Wysyłanie…",
+        "success": "Dziękujemy — wiadomość dotarła. Odpowiemy na podany adres.",
+        "privacyNote": "Podane dane wykorzystamy wyłącznie do odpowiedzi na tę wiadomość.",
+        "privacyLink": "Polityka prywatności",
+        "errors": {
+          "required": "To pole jest wymagane.",
+          "invalid": "Sprawdź, czy wpis jest poprawny.",
+          "tooLong": "Wpis jest za długi.",
+          "captcha": "Weryfikacja nie powiodła się. Spróbuj jeszcze raz.",
+          "rateLimited": "Za dużo wiadomości z tego miejsca. Spróbuj później.",
+          "expired": "Formularz był otwarty zbyt długo. Wyślij wiadomość jeszcze raz.",
+          "unavailable": "Ten formularz jest chwilowo niedostępny. Skorzystaj z danych kontaktowych obok.",
+          "server": "Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę."
+        }
+      }
     },
     "common": {
       "from": "od",

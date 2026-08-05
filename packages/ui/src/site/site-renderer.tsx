@@ -29,6 +29,7 @@ import {
 import { structuredRendererFor } from "./structured/registry";
 import { siteStyles } from "./template";
 import type {
+  ContactFormBinding,
   LegacyRenderSection,
   RenderSection,
   SiteRenderLabels,
@@ -50,6 +51,30 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   galleryPrev: "Poprzednie zdjęcie",
   galleryNext: "Następne zdjęcie",
   galleryPosition: "Zdjęcie {current} z {total}",
+  contactHours: "Godziny otwarcia:",
+  contactForm: {
+    title: "Napisz do nas",
+    name: "Imię",
+    email: "E-mail",
+    phone: "Telefon",
+    message: "Wiadomość",
+    submit: "Wyślij wiadomość",
+    sending: "Wysyłanie…",
+    success: "Dziękujemy — wiadomość dotarła. Odpowiemy na podany adres.",
+    privacyNote:
+      "Podane dane wykorzystamy wyłącznie do odpowiedzi na tę wiadomość.",
+    privacyLink: "Polityka prywatności",
+    errors: {
+      required: "To pole jest wymagane.",
+      invalid: "Sprawdź, czy wpis jest poprawny.",
+      tooLong: "Wpis jest za długi.",
+      captcha: "Weryfikacja nie powiodła się. Spróbuj jeszcze raz.",
+      rateLimited: "Za dużo wiadomości z tego miejsca. Spróbuj później.",
+      expired: "Formularz był otwarty zbyt długo. Wyślij wiadomość jeszcze raz.",
+      unavailable: "Ten formularz jest chwilowo niedostępny. Skorzystaj z danych kontaktowych obok.",
+      server: "Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę.",
+    },
+  },
 };
 
 /**
@@ -67,12 +92,14 @@ function SectionSwitch({
   products,
   labels,
   siteImageBase,
+  contactForm,
   elementWrapper,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   siteImageBase?: string;
+  contactForm?: ContactFormBinding;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
   const styles = siteStyles();
@@ -101,6 +128,8 @@ function SectionSwitch({
         styles={styles}
         siteImageBase={siteImageBase}
         labels={labels}
+        sectionId={section.id}
+        contactForm={contactForm}
       />
     );
   }
@@ -247,6 +276,7 @@ export function SiteRenderer({
   labels = DEFAULT_SITE_LABELS,
   className,
   siteImageBase,
+  contactForm,
   sectionWrapper,
   elementWrapper,
   asRoot = true,
@@ -279,6 +309,17 @@ export function SiteRenderer({
    * budują z niego adres zdjęcia. Brak = zdjęcia jako placeholder (0043).
    */
   siteImageBase?: string;
+  /**
+   * SZEW FORMULARZA KONTAKTU (E4, ADR-095) — akcja serwerowa, bilet z chwili
+   * renderu i widget CAPTCHY.
+   *
+   * Trzecia (po `sectionWrapper` i `elementWrapper`) i ostatnia droga, którą do
+   * wspólnego renderera wchodzi coś, czego pakiet UI mieć nie może. Różnica
+   * wobec tamtych dwóch jest zasadnicza: te wnosi KREATOR, a tę — SKLEP.
+   * Kierunek jest odwrócony, bo to sklep ma serwer, tenanta i pocztę; kreator
+   * nie podaje nic i dostaje ten sam formularz jako podgląd (`inert`).
+   */
+  contactForm?: ContactFormBinding;
   /**
    * OWIJKA SEKCJI — jedyny szew, przez który kreator (ADR-083) dokłada swoją
    * warstwę edycyjną: obrys, pływający pasek narzędzi, uchwyt przeciągania,
@@ -332,6 +373,7 @@ export function SiteRenderer({
           products={products}
           labels={labels}
           siteImageBase={siteImageBase}
+          contactForm={contactForm}
           elementWrapper={
             elementWrapper
               ? (element, children) => elementWrapper(section, element, children)
