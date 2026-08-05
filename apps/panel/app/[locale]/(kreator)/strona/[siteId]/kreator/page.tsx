@@ -24,6 +24,7 @@ import { notFound } from "next/navigation";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { requireMemberPage } from "@/lib/member-page";
+import { pickupLocationEntries } from "@/lib/site-import-sources";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
 
@@ -50,36 +51,22 @@ export default async function SiteBuilderPage({
   /*
    * PUNKTY ODBIORU DO SKOPIOWANIA W SEKCJI DOJAZDU (E5, ADR-096).
    *
-   * Mapowanie wiersza bazy na wpis sekcji siedzi TUTAJ, a nie w szufladzie:
-   * mini-CMS jest frameworkiem, który nie zna ani tabel, ani typów sekcji, więc
-   * gdyby to on składał adres z trzech kolumn, przestałby nim być.
+   * Trasa CZYTA wiersze, a o tym, które z nich stają się wpisami sekcji,
+   * rozstrzyga czysta `pickupLocationEntries` — łącznie z odsiewem punktów
+   * NIEAKTYWNYCH. Zapytanie celowo nie filtruje samo (delta recenzji PM do
+   * PR #186): reguła w warunku SQL była niewidoczna dla każdego testu, więc jej
+   * wycięcie przechodziło całą siatkę na zielono.
    *
-   * TYLKO AKTYWNE punkty: punkt wyłączony w Dostawach nie przyjmuje odbiorów,
-   * a strona, która go ogłasza, wysyła klienta pod zamknięte drzwi. Kolejność po
-   * nazwie jest tą, którą operator widzi na ekranie punktów — po skopiowaniu
-   * i tak może ją przestawić, bo treść należy już do sekcji.
+   * Sortowanie zostaje tutaj — kolejność to własność ODCZYTU (operator widzi
+   * punkty po nazwie na ekranie Dostaw), a nie reguła produktowa.
    */
   const { data: pickupLocations } = await ctx.supabase
     .from("pickup_locations")
-    .select("name, address_street, address_zip, address_city")
+    .select("name, address_street, address_zip, address_city, active")
     .eq("tenant_id", ctx.tenantId!)
-    .eq("active", true)
     .order("name", { ascending: true });
 
-  const pickupEntries = (pickupLocations ?? [])
-    .map((location) => ({
-      label: location.name,
-      address: [
-        location.address_street,
-        [location.address_zip, location.address_city].filter(Boolean).join(" "),
-      ]
-        .filter((part) => part !== null && part.trim().length > 0)
-        .join(", "),
-    }))
-    // Punkt bez adresu nie przeszedłby schematu sekcji (adres jest jej jedynym
-    // polem wymaganym), a wpis, którego zapis kończy się błędem, jest gorszy niż
-    // jego brak na liście do skopiowania.
-    .filter((entry) => entry.address.length > 0);
+  const pickupEntries = pickupLocationEntries(pickupLocations ?? []);
 
   return (
     <SiteBuilder

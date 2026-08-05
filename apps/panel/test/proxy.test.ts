@@ -88,6 +88,43 @@ describe("proxy panelu — nonce CSP", () => {
     const csp = (await proxy(request("/en"))).headers.get("Content-Security-Policy") ?? "";
     expect(csp).not.toMatch(/script-src [^;]*'unsafe-inline'/);
   });
+
+  /*
+   * PANEL NIE OSADZA OBCYCH RAMEK (E5, ADR-096 — delta recenzji PM do PR #186).
+   *
+   * Sklep dostaje źródło ramki dostawcy map (`maps` w @avably/security), bo bez
+   * niego sekcja dojazdu nie pokazałaby mapy. Panel go NIE dostaje świadomie:
+   * powierzchnia edycyjna z zalogowaną sesją najemcy nie jest miejscem na obce
+   * ramki, a płótno i podgląd rysują tam zdanie zamiast ramki (kreator nie
+   * podaje `mapEmbed`).
+   *
+   * Niezmiennik był udokumentowany w BUILDERZE, ale nie kontraktowany po
+   * stronie aplikacji: dopisanie `maps: true` do opcji w proxy.ts przechodziło
+   * całą siatkę na zielono. Ten test mierzy politykę, którą panel naprawdę
+   * wysyła, więc pali się od takiej zmiany — i od każdej innej, która wpuści
+   * tu obcy origin.
+   */
+  it("frame-src panelu nie wpuszcza dostawcy map ANI żadnego obcego originu", async () => {
+    const csp = (await proxy(request("/en"))).headers.get("Content-Security-Policy") ?? "";
+
+    expect(csp, "brak polityki na odpowiedzi panelu").toContain("script-src");
+    expect(csp, "panel dostał źródło ramki dostawcy map").not.toContain("https://www.google.com");
+
+    const frameSrc = csp
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("frame-src "));
+    /*
+     * Brak dyrektywy jest stanem POPRAWNYM (ramki tnie wtedy `default-src
+     * 'self'`), więc sprawdzamy ją tylko wtedy, gdy istnieje — a gdy istnieje,
+     * nie wolno jej nieść ani jednego obcego hosta.
+     */
+    if (frameSrc) {
+      expect(frameSrc, `frame-src panelu niesie obcy origin: ${frameSrc}`).not.toMatch(
+        /https?:\/\//,
+      );
+    }
+  });
 });
 
 describe("proxy panelu — odświeżanie sesji względem next-intl", () => {
