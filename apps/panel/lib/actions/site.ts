@@ -21,7 +21,6 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
   normalizeSectionOrder,
-  orderWithSectionBefore,
   starterPhoto,
   starterTemplateCanvases,
   starterTemplatePhotoSlots,
@@ -200,7 +199,7 @@ export async function upsertSection(
   const auth = await memberCtx();
   if (!auth.ok) return auth;
   const { ctx } = auth;
-  const { siteId, sectionId, type, content, position, insertBefore, enabled } = parsed.data;
+  const { siteId, sectionId, type, content, position, enabled } = parsed.data;
 
   if (sectionId) {
     // Typ jest niezmienny: treść published starego typu nie może wisieć pod
@@ -276,57 +275,41 @@ export async function upsertSection(
   }
 
   /*
-   * SEKCJA PRZYPIĘTA MUSI ZOSTAĆ OSTATNIA JUŻ TU (K6-delta, ADR-092),
-   * A ŚWIEŻA SEKCJA MA STANĄĆ TAM, GDZIE OPERATOR KLIKNĄŁ „+" (E2).
+   * SEKCJA PRZYPIĘTA MUSI ZOSTAĆ OSTATNIA JUŻ TU (K6-delta, ADR-092).
    *
    * Wstawka idzie na `max(position) + 1`, czyli POD STOPKĘ. Do delty prostował
    * to dopiero krok drugi po stronie klienta (`reorderSections` z kompletem
-   * pozycji) — a ten krok bywa przegrany: dwa szybkie kliknięcia puszczają dwa
-   * zapisy w locie (zapisy strukturalne przestały blokować kreator w #172),
-   * więc drugi reorder liczy plan na stanie klienta, który nie zna sekcji
-   * dodanej przez pierwszy. Efekt zgłoszony przez PM: obie nowe sekcje trwale
-   * pod stopką w szkicu, do najbliższej operacji strukturalnej.
+   * pozycji) — a ten krok bywa przegrany: dwa szybkie kliknięcia w kafel palety
+   * puszczają dwa `addSection` w locie (zapisy strukturalne przestały blokować
+   * kreator w #172), więc drugi reorder liczy plan na stanie klienta, który nie
+   * zna sekcji dodanej przez pierwszy. Efekt zgłoszony przez PM: obie nowe
+   * sekcje trwale pod stopką w szkicu, do najbliższej operacji strukturalnej.
    *
-   * E2 idzie tą samą drogą do końca: kroku drugiego NIE MA WCALE. Miejsce
-   * wstawienia przyjeżdża od klienta jako SĄSIAD (`insertBefore`), a układa je
-   * to samo przenumerowanie ze STANU BAZY — czyli z listy, która zna także
-   * sekcje dodane sekundę wcześniej przez inne kliknięcie.
+   * Odtąd niezmiennik nie zależy od tego, czy krok drugi w ogóle dojdzie:
+   * przenumerowanie liczy się ze STANU BAZY, tuż po wstawce.
    */
-  const placed = await renumberFromDatabase(ctx, siteId, {
-    id: created.id as string,
-    before: insertBefore,
-  });
-  if (!placed.ok) return placed;
+  const pinned = await renumberFromDatabase(ctx, siteId);
+  if (!pinned.ok) return pinned;
 
   revalidatePath("/", "layout");
   return { ok: true, sectionId: created.id as string };
 }
 
 /**
- * PRZENUMEROWANIE POZYCJI ZE STANU BAZY (K6-delta, ADR-092; miejsce wstawienia
- * — E2).
+ * PRZENUMEROWANIE POZYCJI ZE STANU BAZY (K6-delta, ADR-092).
  *
  * Jedno miejsce, w którym powstaje kolejność zapisana, gdy wołający nie ma
  * własnego zdania o niej (wstawka). Czyta komplet sekcji strony PRAWDZIWY
  * w chwili wywołania, przepuszcza go przez `normalizeSectionOrder` (sekcje
  * przypięte na koniec) i zapisuje pozycje.
  *
- * `place` opisuje ŚWIEŻĄ sekcję: dokąd ma trafić względem SĄSIADA. Kotwica jest
- * rozwiązywana tutaj, na liście z bazy — dlatego dwa wstawienia w locie nie
- * przeszkadzają sobie nawzajem, a kotwica, której już nie ma, degraduje do
- * końca treści zamiast wywracać zapis.
- *
  * Dlaczego to nie jest to samo, co normalizacja w `reorderSections`: tam
  * kolejność ZWYKŁYCH sekcji przychodzi od operatora i ma zostać uszanowana;
- * tutaj szanujemy wyłącznie kolejność zastaną plus jedno wskazane miejsce.
- * Wspólna funkcja z parametrem „czyja kolejność" odpowiadałaby na dwa różne
- * pytania naraz.
+ * tutaj nie ma czego szanować — jedynym pytaniem jest, czy przypięte stoją na
+ * końcu. Wspólna funkcja z parametrem „czyja kolejność" odpowiadałaby na dwa
+ * różne pytania naraz.
  */
-async function renumberFromDatabase(
-  ctx: Ctx,
-  siteId: string,
-  place?: { id: string; before?: string },
-): Promise<SiteActionResult> {
+async function renumberFromDatabase(ctx: Ctx, siteId: string): Promise<SiteActionResult> {
   const { data, error } = await ctx.supabase
     .from("site_sections")
     .select("id, type, position")
@@ -341,9 +324,8 @@ async function renumberFromDatabase(
     type: row.type as SectionType,
     position: row.position as number,
   }));
-  const zastana = known.map((row) => row.id);
   const ordered = normalizeSectionOrder(
-    place ? orderWithSectionBefore(zastana, place.id, place.before) : zastana,
+    known.map((row) => row.id),
     known,
   );
 

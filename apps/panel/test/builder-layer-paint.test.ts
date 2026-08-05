@@ -63,56 +63,27 @@ describe("arkusz panelu maluje KAŻDĄ rolę warstwy edycyjnej", () => {
     expect(uchwyt!).toContain("--builder-selection-halo");
   });
 
-  it("KAŻDY z trzech stanów obrysu sekcji ma WŁASNĄ regułę (E2)", () => {
-    /*
-     * Hierarchia zaznaczenia mówi trzy różne rzeczy tym samym miejscem na
-     * ekranie (najechanie, zaznaczenie, sekcja-kontekst edytowanego elementu),
-     * więc trzy reguły muszą naprawdę istnieć i naprawdę się różnić. Bez tej
-     * asercji dwa stany mogłyby po cichu spaść do jednego wyglądu i cała
-     * hierarchia przestałaby być widoczna, nie psując ani jednego testu DOM-u.
-     */
-    const stany = ["hover", "selected", "context"].map((stan) => ({
-      stan,
-      cialo: regula(`[data-section-outline="${stan}"]`),
-    }));
-    for (const { stan, cialo } of stany) {
-      expect(cialo, `brak reguły obrysu sekcji dla stanu ${stan}`).not.toBeNull();
-      expect(cialo!, `obrys ${stan} spoza tokenu warstwy`).toContain("--builder-selection");
-    }
-    const opisy = stany.map(({ cialo }) => cialo!.replace(/\s+/g, " ").trim());
-    expect(new Set(opisy).size, "stany obrysu sekcji wyglądają identycznie").toBe(3);
+  it("obrys sekcji i edycja w miejscu też mają swoje reguły", () => {
+    const sekcja = regula('[data-section-outline="on"]');
+    expect(sekcja, "brak obrysu aktywnej sekcji").not.toBeNull();
+    expect(sekcja!).toContain("--builder-selection");
 
     const edycja = regula("[data-inline-editor]");
     expect(edycja, "brak obrysu edycji w miejscu").not.toBeNull();
     expect(edycja!).toContain("--builder-selection");
   });
 
-  it("BŁYSK świeżej sekcji jest malowany i widoczny TAKŻE bez animacji (E2)", () => {
-    const blysk = regula('[data-canvas-section][data-section-flash="on"]');
-    expect(blysk, "brak reguły błysku świeżej sekcji").not.toBeNull();
-    expect(blysk!, "błysk spoza tokenu warstwy").toContain("--builder-selection");
-    // Sygnał NIE może istnieć wyłącznie w animacji: operator z
-    // `prefers-reduced-motion` dostałby wtedy brak odpowiedzi na „weszła?".
-    expect(blysk!, "błysk niesiony wyłącznie ruchem").toMatch(/outline:/);
-    expect(arkusz, "animacja błysku poza bramką preferencji ruchu").toMatch(
-      /@media \(prefers-reduced-motion: no-preference\) \{\s*\[data-canvas-section\]\[data-section-flash="on"\]/,
-    );
-  });
+  it("WSKAZANIE MIEJSCA UPUSZCZENIA jest malowane (K6, ADR-092)", () => {
+    // Ta sama luka, co przy zaznaczeniu: belka i obrys celu żyją WYŁĄCZNIE
+    // w CSS, więc skasowanie reguły zostawia kreator, w którym przeciąganie
+    // działa, ale nic nie pokazuje — a testy komponentów tego nie widzą.
+    const belka = regula("[data-insert-slot][data-insert-active=\"on\"] [data-insert-target]");
+    expect(belka, "brak belki wskazującej miejsce wstawienia sekcji").not.toBeNull();
+    expect(belka!, "belka celu spoza tokenu warstwy").toContain("--builder-selection");
 
-  it("WSKAZANIE SEKCJI-CELU przy przeciąganiu ELEMENTU jest malowane (K6, ADR-092)", () => {
-    // Ta sama luka, co przy zaznaczeniu: obrys celu żyje WYŁĄCZNIE w CSS, więc
-    // skasowanie reguły zostawia kreator, w którym przeciąganie działa, ale nic
-    // nie pokazuje — a testy komponentów tego nie widzą.
     const cel = regula("[data-canvas-section][data-drop-target=\"on\"]");
     expect(cel, "brak obrysu sekcji przyjmującej element").not.toBeNull();
     expect(cel!, "obrys celu spoza tokenu warstwy").toContain("--builder-selection");
-  });
-
-  it("po belce wskazującej miejsce sekcji nie został ŚLAD (E2)", () => {
-    // Sekcji nie przeciąga się z palety, więc nie ma czego zapowiadać. Reguła,
-    // która by została, malowałaby znacznik, którego nikt już nie wystawia.
-    expect(arkusz).not.toContain("data-insert-active");
-    expect(arkusz).not.toContain("data-insert-target");
   });
 
   it("element odłączony na telefonie ma własny wariant obrysu", () => {
@@ -126,11 +97,9 @@ describe("arkusz panelu maluje KAŻDĄ rolę warstwy edycyjnej", () => {
       "[data-element-frame]:hover",
       '[data-element-frame][data-element-selected="on"]',
       "[data-resize-handle]",
-      '[data-section-outline="hover"]',
-      '[data-section-outline="selected"]',
-      '[data-section-outline="context"]',
-      '[data-canvas-section][data-section-flash="on"]',
+      '[data-section-outline="on"]',
       "[data-inline-editor]",
+      '[data-insert-slot][data-insert-active="on"] [data-insert-target]',
       '[data-canvas-section][data-drop-target="on"]',
     ]) {
       expect(regula(selektor)!, `${selektor} sięga po zmienną motywu strony`).not.toMatch(
