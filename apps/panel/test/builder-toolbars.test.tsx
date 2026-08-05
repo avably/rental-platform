@@ -94,16 +94,16 @@ function renderBuilder(sections: Section[] = [heroSection()]) {
   );
 }
 
-/** Zaznacza sekcję i odsłania jej pasek — od E2 pasek wychodzi z zaznaczenia. */
+/** Odsłania pasek sekcji — dokładnie tak, jak robi to kursor. */
 function sectionToolbar(container: HTMLElement): HTMLElement {
   const node = container.querySelector<HTMLElement>(`[data-canvas-section="${SECTION_ID}"]`)!;
-  fireEvent.pointerDown(node);
+  fireEvent.mouseEnter(node);
   const toolbar = container.querySelector<HTMLElement>(`[data-section-toolbar="${SECTION_ID}"]`);
   expect(toolbar, "pasek sekcji nie wyszedł").not.toBeNull();
   return toolbar!;
 }
 
-/** Zaznacza pierwszy element — pasek przechodzi wtedy na poziom elementu (E2). */
+/** Zaznacza pierwszy element — przy nim pasek sekcji dostaje akcje elementu. */
 function selectFirstElement(container: HTMLElement) {
   const frame = container.querySelector<HTMLElement>("[data-element-frame]")!;
   fireEvent.pointerDown(frame, { clientX: 10, clientY: 10 });
@@ -154,7 +154,7 @@ describe("pasek sekcji: ikony z etykietami", () => {
 
   it("USUNIĘCIE zostaje destrukcyjne i nadal pyta o potwierdzenie", () => {
     // Zamiana napisu na ikonę nie może po cichu zdjąć bariery: pasek wychodzi
-    // od jednego kliknięcia w sekcję, więc pomyłka jest tu łatwa.
+    // od samego najechania, więc pomyłka jest tu łatwiejsza niż gdziekolwiek.
     const { container } = renderBuilder();
     const remove = within(sectionToolbar(container)).getByRole("button", { name: sec.remove });
     fireEvent.click(remove);

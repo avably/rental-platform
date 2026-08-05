@@ -70,15 +70,14 @@ export const sectionTypeSchema = z.enum(SECTION_TYPES);
 /**
  * Sekcje PRZYPIĘTE do końca strony i arytmetyka kolejności (K6, ADR-092) —
  * patrz `./section-order`. Osobny liść, bo korzystają z niego trzy warstwy:
- * płótno kreatora (czy sekcja da się przesunąć), akcja serwerowa (normalizacja
- * zapisanej kolejności ORAZ miejsce świeżej sekcji — E2) i testy arytmetyki
- * bez DOM-u.
+ * płótno kreatora (gdzie wolno upuścić sekcję), akcja serwerowa (normalizacja
+ * zapisanej kolejności) i testy arytmetyki bez DOM-u.
  */
 export {
   PINNED_LAST_TYPES,
   isPinnedLastType,
   normalizeSectionOrder,
-  orderWithSectionBefore,
+  insertableSlots,
   type OrderedSection,
 } from "./section-order";
 

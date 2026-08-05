@@ -3,7 +3,7 @@
  * testowalne bez DOM-u i bez bazy.
  *
  * Do K5 kolejność sekcji była zwykłą permutacją: każda sekcja mogła stanąć
- * wszędzie, a arytmetyka wstawienia siedziała w panelu. STOPKA
+ * wszędzie, a jedyną arytmetyką było `orderWithInsertedAt` w panelu. STOPKA
  * łamie to założenie — jest z definicji ostatnia. Decyzja ADR-092 brzmi
  * „przypięta, nie zwykła", więc przypięcie musi mieć MIEJSCE, w którym żyje,
  * inaczej rozjedzie się na trzy niezależne kopie reguły: płótno kreatora,
@@ -85,30 +85,16 @@ export function normalizeSectionOrder(
 }
 
 /**
- * MIEJSCE WSTAWIENIA OPISANE SĄSIADEM, NIE INDEKSEM (E2).
+ * Ile jest MIEJSC WSTAWIENIA na stronie o takim składzie — czyli największy
+ * dopuszczalny indeks dla nowej sekcji zwykłej.
  *
- * Kolejność po wstawieniu `newId` BEZPOŚREDNIO PRZED sekcją `beforeId`.
- * Nieznana (albo nieobecna) kotwica znaczy „na końcu" — bo dokładnie tym jest
- * „+" pod ostatnią sekcją, a także sytuacja, w której kotwica zniknęła między
- * kliknięciem a zapisem.
- *
- * Dlaczego SĄSIAD, a nie indeks: indeks jest prawdziwy wyłącznie w liście, na
- * której go policzono. Dwa zapisy w locie (dwa kliknięcia w „+" bez czekania na
- * odpowiedź) liczą go na dwóch różnych listach, więc drugi trafia obok miejsca,
- * które operator wskazał. Identyfikator sąsiada znaczy to samo w każdej wersji
- * listy — i to jest cała odporność tej ścieżki na wyścig (lekcja K6-delty,
- * ADR-092 decyzja 1b: niezmiennik należy do serwera).
- *
- * Funkcja NIE pilnuje przypięcia — od tego jest `normalizeSectionOrder`, przez
- * które wynik i tak przechodzi po drodze do zapisu.
+ * Na stronie bez stopki miejsc jest `length` (0 = przed pierwszą, `length` =
+ * na końcu). Stopka odbiera miejsce POD sobą: gdyby operator mógł upuścić
+ * sekcję pod stopką, normalizacja i tak przesunęłaby ją nad nią, a podświetlony
+ * slot skłamałby o wyniku. Płótno po prostu nie rysuje slotu, którego nie
+ * potrafi dotrzymać.
  */
-export function orderWithSectionBefore(
-  orderedIds: readonly string[],
-  newId: string,
-  beforeId?: string,
-): string[] {
-  const without = orderedIds.filter((id) => id !== newId);
-  const at = beforeId === undefined ? -1 : without.indexOf(beforeId);
-  if (at < 0) return [...without, newId];
-  return [...without.slice(0, at), newId, ...without.slice(at)];
+export function insertableSlots(sections: readonly OrderedSection[]): number {
+  const pinnedCount = sections.filter((section) => isPinnedLastType(section.type)).length;
+  return Math.max(0, sections.length - pinnedCount);
 }

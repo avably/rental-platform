@@ -216,16 +216,15 @@ describe("sekcja rodzi się jako płótno z elementami", () => {
     expect(canvas.elements.length).toBeGreaterThan(1);
   });
 
-  it("dodanie sekcji pickerem zapisuje treść v2, a nie formularz v1", async () => {
+  it("dodanie sekcji z palety zapisuje treść v2, a nie formularz v1", async () => {
     const { baseElement } = renderBuilder([]);
     fireEvent.click(screen.getAllByRole("button", { name: plMessages.site.sections.add })[0]!);
-    const picker = await waitFor(() => {
-      const node = baseElement.querySelector<HTMLElement>("[data-section-picker]");
-      expect(node, "picker sekcji się nie otworzył").not.toBeNull();
+    const tile = await waitFor(() => {
+      const node = baseElement.querySelector<HTMLElement>('[data-add-section-tile="hero"]');
+      expect(node, "galeria sekcji się nie otworzyła").not.toBeNull();
       return node!;
     });
-    fireEvent.click(picker.querySelector<HTMLElement>('[data-picker-type="hero"]')!);
-    fireEvent.click(picker.querySelector<HTMLElement>('[data-picker-add="default"]')!);
+    fireEvent.click(tile);
 
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     const content = actions.upsertSection.mock.calls[0]![0].content as { version?: number };
@@ -440,12 +439,10 @@ describe("autozapis geometrii", () => {
 
     const undo = container.querySelector<HTMLButtonElement>('[data-builder-history-button="undo"]')!;
     expect(undo.disabled, "zapis w tle wyłączył historię płótna").toBe(false);
-    // Pasek jest wtedy na poziomie ELEMENTU (E2: zaznaczony element = narzędzia
-    // elementu), więc pytamy o akcję, która na nim naprawdę stoi.
     const duplicate = screen.getByRole("button", {
-      name: plMessages.site.elements.duplicate,
+      name: plMessages.site.sections.duplicate,
     }) as HTMLButtonElement;
-    expect(duplicate.disabled, "zapis w tle wyszarzył pasek narzędzi").toBe(false);
+    expect(duplicate.disabled, "zapis w tle wyszarzył pasek narzędzi sekcji").toBe(false);
 
     // Drugi gest w trakcie trwającego zapisu musi dojść do skutku.
     const box = () => container.querySelector<HTMLElement>(`[data-element-id="${target.id}"]`)!;
