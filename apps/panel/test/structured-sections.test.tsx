@@ -79,6 +79,7 @@ type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
 const SITE_ID = "99999999-9999-4999-8999-999999999999";
 const FAQ_ID = "bbbbbbbb-2222-4222-8222-222222222222";
 const HERO_ID = "aaaaaaaa-1111-4111-8111-111111111111";
+const CTA_ID = "cccccccc-3333-4333-8333-333333333333";
 const struct = plMessages.site.structured;
 
 function faqSection(overrides: Partial<Section> = {}): Section {
@@ -103,6 +104,17 @@ function flatFaqSection(): Section {
   } as Section;
 }
 
+/** Sekcja STOJĄCA POD FAQ — dzięki niej „pod starą" ma czym się różnić od „na końcu". */
+function ctaSection(): Section {
+  return {
+    id: CTA_ID,
+    type: "cta",
+    position: 2,
+    enabled: true,
+    content: sectionCanvasFrom("cta", presetContentFor("cta", "pl")),
+  } as Section;
+}
+
 function heroSection(): Section {
   return {
     id: HERO_ID,
@@ -119,6 +131,18 @@ function renderBuilder(sections: Section[]) {
       <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
     </NextIntlClientProvider>,
   );
+}
+
+/**
+ * Dodanie sekcji PICKEREM (E2): otwarcie z palety („na końcu strony"), wybór
+ * typu w lewej kolumnie i kliknięcie podglądu wariantu po prawej.
+ */
+function dodajPickerem(type: string, variant = "default") {
+  fireEvent.click(document.querySelector<HTMLElement>("[data-palette-add-section]")!);
+  const dialog = document.querySelector<HTMLElement>("[data-section-picker]");
+  expect(dialog, "picker się nie otworzył").not.toBeNull();
+  fireEvent.click(dialog!.querySelector<HTMLElement>(`[data-picker-type="${type}"]`)!);
+  fireEvent.click(dialog!.querySelector<HTMLElement>(`[data-picker-add="${variant}"]`)!);
 }
 
 /** Otwarcie szuflady klikiem w sekcję strukturalną — jedyna droga edycji. */
@@ -161,8 +185,8 @@ describe("nowa sekcja typu strukturalnego rodzi się jako v3", () => {
   it("dodanie FAQ z palety zapisuje treść z rejestru, a nie płótno", async () => {
     renderBuilder([heroSection()]);
 
-    // Kafel typu w palecie — ta sama droga, którą operator dodaje sekcję.
-    fireEvent.click(document.querySelector<HTMLElement>('[data-add-section-tile="faq"]')!);
+    // Picker sekcji — jedyna droga dodania od E2: typ po lewej, podgląd po prawej.
+    dodajPickerem("faq", "accordion");
 
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     const content = actions.upsertSection.mock.calls
@@ -182,7 +206,7 @@ describe("nowa sekcja typu strukturalnego rodzi się jako v3", () => {
 
   it("typ BEZ silnika strukturalnego dalej rodzi się jako płótno", async () => {
     renderBuilder([heroSection()]);
-    fireEvent.click(document.querySelector<HTMLElement>('[data-add-section-tile="usp"]')!);
+    dodajPickerem("usp");
 
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     const content = actions.upsertSection.mock.calls
@@ -319,9 +343,9 @@ describe("przełącznik układu nie dotyka danych", () => {
 });
 
 describe("konwersja „Przełącz na sekcję 2.0”", () => {
-  /** Szuflada sekcji PŁÓTNOWEJ otwiera się z paska narzędzi (najechanie). */
+  /** Szuflada sekcji PŁÓTNOWEJ otwiera się z paska narzędzi (po zaznaczeniu). */
   function openCanvasDrawer(container: HTMLElement) {
-    fireEvent.mouseEnter(container.querySelector<HTMLElement>(`[data-canvas-section="${FAQ_ID}"]`)!);
+    fireEvent.pointerDown(container.querySelector<HTMLElement>(`[data-canvas-section="${FAQ_ID}"]`)!);
     const toolbar = container.querySelector<HTMLElement>(`[data-section-toolbar="${FAQ_ID}"]`)!;
     fireEvent.click(within(toolbar).getByRole("button", { name: plMessages.site.builder.settings }));
     return screen.getByRole("dialog");
@@ -336,13 +360,16 @@ describe("konwersja „Przełącz na sekcję 2.0”", () => {
   });
 
   it("konwersja wstawia świeży preset POD starą sekcją i NIC w niej nie rusza", async () => {
-    const { container } = renderBuilder([heroSection(), flatFaqSection()]);
+    const { container } = renderBuilder([heroSection(), flatFaqSection(), ctaSection()]);
     const dialog = openCanvasDrawer(container);
     fireEvent.click(dialog.querySelector("[data-cms-convert-action]")!);
 
     await waitFor(() => expect(actions.upsertSection).toHaveBeenCalled());
     const dodana = actions.upsertSection.mock.calls
-      .map(([arg]) => arg as { sectionId?: string; type: string; content: Record<string, unknown> })
+      .map(
+        ([arg]) =>
+          arg as { sectionId?: string; type: string; content: Record<string, unknown>; insertBefore?: string },
+      )
       .find((arg) => !arg.sectionId);
 
     expect(dodana?.type).toBe("faq");
@@ -358,10 +385,12 @@ describe("konwersja „Przełącz na sekcję 2.0”", () => {
     ).toBe(false);
     expect(actions.deleteSection).not.toHaveBeenCalled();
 
-    // Kolejność: nowa sekcja ląduje BEZPOŚREDNIO pod starą.
-    await waitFor(() => expect(actions.reorderSections).toHaveBeenCalled());
-    const [, kolejnosc] = actions.reorderSections.mock.calls.at(-1) as [string, string[]];
-    expect(kolejnosc.indexOf("nowa-sekcja")).toBe(kolejnosc.indexOf(FAQ_ID) + 1);
+    // Miejsce: nowa sekcja ląduje BEZPOŚREDNIO pod starą, czyli NAD sekcją,
+    // która stoi za nią. Strona ma następnik (CTA), więc „pod starą" różni się
+    // od „na końcu" — bez tej trzeciej sekcji asercja przechodziłaby także dla
+    // wstawki dopisanej gdziekolwiek dalej.
+    expect(dodana?.insertBefore, "konwersja wskazała inne miejsce niż pod starą sekcją").toBe(CTA_ID);
+    expect(actions.reorderSections, "konwersja poszła drugim krokiem u klienta").not.toHaveBeenCalled();
   });
 
   it("sekcja JUŻ strukturalna nie proponuje konwersji drugi raz", () => {

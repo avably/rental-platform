@@ -194,6 +194,96 @@ describe.skipIf(!hasEnv)("kolejność sekcji przeżywa równoległe zapisy struk
     expect(await draftTypes()).toEqual(["hero", "faq", "footer"]);
   });
 
+  /*
+   * ================= MIEJSCE WSTAWIENIA JEST SERWEROWE (E2) =================
+   *
+   * Klik w „+" nie liczy już nic u klienta: żądanie niesie KOTWICĘ
+   * (`insertBefore` — identyfikator sekcji, nad którą ma stanąć nowa), a
+   * kolejność układa `renumberFromDatabase` na stanie BAZY. Testy niżej mierzą
+   * TRWAŁY stan, bo tylko on odpowiada na pytanie „gdzie ta sekcja jest".
+   */
+  async function draftRows(): Promise<{ id: string; type: string }[]> {
+    const { data } = await admin
+      .from("site_sections")
+      .select("id, type, position")
+      .eq("tenant_id", tenantA.tenantId)
+      .eq("site_id", siteAId)
+      .order("position", { ascending: true })
+      .order("id", { ascending: true });
+    return (data ?? []).map((row) => ({ id: row.id as string, type: row.type as string }));
+  }
+
+  it("KOTWICA stawia sekcję dokładnie nad wskazaną — bez drugiego kroku klienta", async () => {
+    // Strona z trzema sekcjami, żeby „nad hero" różniło się od „na końcu":
+    // wstawka bez kotwicy dałaby [hero, usp, faq, footer].
+    const usp = await upsertSection({ siteId: siteAId, type: "usp", content: canvasOf("usp") });
+    if (!usp.ok) throw new Error(usp.error);
+    expect(await draftTypes(), "kontrola: wstawka bez kotwicy idzie na koniec treści").toEqual([
+      "hero",
+      "usp",
+      "footer",
+    ]);
+
+    const hero = (await draftRows()).find((row) => row.type === "hero")!.id;
+    const added = await upsertSection({
+      siteId: siteAId,
+      type: "faq",
+      content: canvasOf("faq"),
+      insertBefore: hero,
+    });
+    expect(added.ok, added.ok ? "" : added.error).toBe(true);
+
+    expect(await draftTypes()).toEqual(["faq", "hero", "usp", "footer"]);
+  });
+
+  it("KOTWICA, KTÓREJ NIE MA, degraduje do końca treści zamiast wywracać zapis", async () => {
+    // Sekcja skasowana w innej karcie między kliknięciem „+" a zapisem — i to
+    // samo dotyczy identyfikatora z CUDZEJ strony: dopasowanie idzie po liście
+    // TEJ strony, więc obcy id po prostu nie ma czego wskazać.
+    const added = await upsertSection({
+      siteId: siteAId,
+      type: "faq",
+      content: canvasOf("faq"),
+      insertBefore: randomUUID(),
+    });
+    expect(added.ok, added.ok ? "" : added.error).toBe(true);
+    expect(await draftTypes()).toEqual(["hero", "faq", "footer"]);
+  });
+
+  it("DWA wstawienia BEZ await na TĘ SAMĄ kotwicę trzymają niezmiennik", async () => {
+    /*
+     * Scenariusz, na którym poległa ścieżka dwukrokowa: dwa kliknięcia bez
+     * czekania na odpowiedź. Dopóki miejsce liczył klient, drugie żądanie
+     * liczyło komplet pozycji na stanie sprzed pierwszego i kończyło się
+     * odmową — a świeże sekcje zostawały POD STOPKĄ. Tu nie ma czego przegrać:
+     * kotwicą jest identyfikator, który znaczy to samo w obu wersjach listy.
+     */
+    const footer = (await draftRows()).find((row) => row.type === "footer")!.id;
+    const pierwszy = upsertSection({
+      siteId: siteAId,
+      type: "faq",
+      content: canvasOf("faq"),
+      insertBefore: footer,
+    });
+    const drugi = upsertSection({
+      siteId: siteAId,
+      type: "cta",
+      content: canvasOf("cta"),
+      insertBefore: footer,
+    });
+    const [a, b] = await Promise.all([pierwszy, drugi]);
+    expect(a.ok && b.ok, "wstawki nie przeszły").toBe(true);
+
+    const typy = await draftTypes();
+    expect(typy.length, "obie sekcje miały wejść").toBe(4);
+    expect(typy.at(-1), `stopka nie jest ostatnia: ${typy.join(" > ")}`).toBe("footer");
+    // Obie stanęły NAD stopką, czyli w miejscu, które wskazywała kotwica.
+    expect(typy.slice(1, 3).sort(), `sekcje nie trafiły nad stopkę: ${typy.join(" > ")}`).toEqual([
+      "cta",
+      "faq",
+    ]);
+  });
+
   it("DWA addSection BEZ await kończą się stopką na końcu (scenariusz PM)", async () => {
     // Dwa szybkie kliknięcia w kafel palety: obie akcje lecą naraz, obie liczą
     // swój komplet pozycji na stanie klienta sprzed drugiej.

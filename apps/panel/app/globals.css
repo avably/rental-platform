@@ -300,9 +300,42 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   border: 1.5px solid var(--builder-selection);
 }
 
-/* Obrys sekcji (najechanie/aktywna) — cieńszy: sekcja jest tłem dla elementów. */
-[data-section-outline="on"] {
+/*
+ * OBRYS SEKCJI — TRZY ZDANIA, NIE JEDNO (E2, pinezka 39a4327a).
+ *
+ * Sekcja jest tłem dla elementów, więc jej obrys jest z zasady cieńszy niż
+ * obrys elementu. Rozróżniamy jednak trzy stany, bo znaczą co innego:
+ *
+ *   • `hover` — „tu jest kursor". Najechanie NIE jest wyborem, więc obrys jest
+ *     przygaszony (65 % koloru warstwy) i znika razem z kursorem.
+ *   • `selected` — „ta sekcja jest zaznaczona, pasek obok jest jej". Pełny
+ *     kolor warstwy edycyjnej.
+ *   • `context` — „edytujesz element, który stoi W TEJ sekcji". Obrys jest
+ *     DYSKRETNY i STAŁY: ma dać poczucie granicy, w której operator pracuje,
+ *     i nie konkurować z obrysem samego elementu. Przerywana linia mówi
+ *     „to jest rama, nie cel". Świadomie NIE przygaszamy reszty strony —
+ *     element ustawia się WZGLĘDEM sąsiadów, więc muszą być widoczni.
+ */
+/*
+ * Przygaszenie idzie OSOBNĄ deklaracją `outline-color`, a nie kolorem w skrócie:
+ * gdyby silnik nie znał `color-mix`, odpada wtedy JEDNA deklaracja, a obrys
+ * zostaje (w pełnym kolorze) zamiast zniknąć razem z całym skrótem. Ten sam
+ * zapis, co przy ramce elementu wyżej — technika poprawna z konstrukcji.
+ */
+[data-section-outline="hover"] {
   outline: 1px solid var(--builder-selection);
+  outline-color: color-mix(in srgb, var(--builder-selection) 65%, transparent);
+  outline-offset: -1px;
+}
+
+[data-section-outline="selected"] {
+  outline: 1px solid var(--builder-selection);
+  outline-offset: -1px;
+}
+
+[data-section-outline="context"] {
+  outline: 1px dashed var(--builder-selection);
+  outline-color: color-mix(in srgb, var(--builder-selection) 55%, transparent);
   outline-offset: -1px;
 }
 
@@ -326,34 +359,71 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
 }
 
 /*
- * WSKAZANIE MIEJSCA UPUSZCZENIA (K6, ADR-092).
+ * WSKAZANIE SEKCJI-CELU PRZY PRZECIĄGANIU ELEMENTU (K6, ADR-092).
  *
- * Przeciągnięcie kafla z palety musi POKAZYWAĆ wynik, zanim operator puści
- * przycisk — inaczej „upuść i zobacz" jest jedyną drogą sprawdzenia, gdzie
- * sekcja wyląduje, a jedyną drogą poprawki jest cofnięcie.
+ * Upuszczenie kafla elementu musi POKAZYWAĆ, w której sekcji wyląduje, zanim
+ * operator puści przycisk — inaczej „upuść i zobacz" jest jedyną drogą
+ * sprawdzenia. Obrys maluje token WARSTWY EDYCYJNEJ, nie motyw najemcy:
+ * wskazanie jest komunikatem kreatora, a nie elementem strony, i ma być
+ * widoczne na każdym motywie — także na tym, którego akcentem jest ten sam
+ * błękit.
  *
- * Dwie role, dwa różne komunikaty:
- *   • BELKA między sekcjami — „sekcja wejdzie TUTAJ" (miejsce w kolejności);
- *   • OBRYS sekcji — „element wyląduje w TEJ sekcji" (cel, nie miejsce).
- *
- * Obie malowane tokenem WARSTWY EDYCYJNEJ, nie motywem najemcy: wskazanie jest
- * komunikatem kreatora, a nie elementem strony — i ma być widoczne na każdym
- * motywie, także na tym, którego akcentem jest ten sam błękit.
- *
- * Podświetlony slot odsłania też swój przycisk „+": w spoczynku jest ukryty
- * (`opacity: 0` do najechania), a w trakcie przeciągania kursor stoi nad
- * płótnem, nie nad nim.
+ * Belki wskazującej miejsce dla SEKCJI już nie ma: sekcji nie przeciąga się
+ * z palety (E2, decyzja właściciela z grilla planu „Sekcje 2.0"), więc nie ma
+ * czego zapowiadać — miejsce wskazuje sam przycisk „+", w który operator klika.
  */
-[data-insert-slot][data-insert-active="on"] [data-insert-target] {
-  background: var(--builder-selection);
-  box-shadow: 0 0 0 1px var(--builder-selection-halo);
-}
-
-[data-insert-slot][data-insert-active="on"] [data-insert-at] {
-  opacity: 1;
-}
-
 [data-canvas-section][data-drop-target="on"] {
   outline: 2px dashed var(--builder-selection);
   outline-offset: -2px;
+}
+
+/*
+ * BŁYSK NA ŚWIEŻO WSTAWIONEJ SEKCJI (E2).
+ *
+ * „+" między sekcjami wstawia dokładnie tam, gdzie kliknięto — ale na długiej
+ * stronie sam wynik bywa niewidoczny (nowa sekcja wchodzi POD krawędzią okna
+ * albo między dwie podobne). Błysk odpowiada na pytanie „weszła?" bez szukania
+ * wzrokiem.
+ *
+ * Sygnał jest DWUCZĘŚCIOWY, bo ruch nie może być jedynym nośnikiem: obrys stoi
+ * w regule bazowej (widzi go także operator z `prefers-reduced-motion`), a
+ * gaśnięcie dokłada się dopiero tam, gdzie ruch jest mile widziany.
+ */
+[data-canvas-section][data-section-flash="on"] {
+  outline: 2px solid var(--builder-selection);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-canvas-section][data-section-flash="on"] {
+    animation: builder-section-flash 700ms var(--ease-out) both;
+  }
+}
+
+@keyframes builder-section-flash {
+  from {
+    outline-color: var(--builder-selection);
+  }
+  to {
+    outline-color: transparent;
+  }
+}
+
+/*
+ * PODGLĄD SEKCJI W PICKERZE (E2) — ta sama technika, co miniatura szablonu
+ * (`.starter-preview`) i z tego samego powodu: renderer mierzy KONTENER
+ * (ADR-085), więc kontener zwężony do szerokości kafla pokazałby układ
+ * TELEFONU, czyli podgląd czegoś innego, niż operator dostanie. Skalujemy
+ * OBRAZ, a nie pudełko: 1152 px to szerokość projektowa płótna.
+ */
+.section-preview {
+  width: 1152px;
+  transform: scale(0.2778); /* 320 / 1152 */
+  transform-origin: top left;
+}
+
+@media (min-width: 768px) {
+  .section-preview {
+    transform: scale(0.4167); /* 480 / 1152 */
+  }
 }

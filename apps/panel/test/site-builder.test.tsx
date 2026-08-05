@@ -8,19 +8,15 @@ import { DEFAULT_SITE_STYLE } from "@avably/core/site";
  * `site-editor-actions.test.ts` (żywy Supabase). TU pilnujemy tego, co robi
  * klik i klawiatura na płótnie:
  *
- *   1. pasek narzędzi sekcji WYCHODZI dopiero przy sekcji (hover/fokus) i
- *      niesie komplet akcji — nie wisi nad dwunastoma sekcjami naraz;
+ *   1. pasek narzędzi sekcji WYCHODZI dopiero przy ZAZNACZONEJ sekcji i niesie
+ *      komplet akcji — nie wisi nad dwunastoma sekcjami naraz;
  *   2. duplikowanie woła akcję z id TEJ sekcji;
  *   3. usunięcie WYMAGA potwierdzenia — sam klik „Usuń” NIE woła akcji;
- *   4. „+” MIĘDZY sekcjami wstawia DOKŁADNIE tam, gdzie kliknięto (asercja na
- *      TREŚCI wywołania `reorderSections`, nie na fakcie wywołania);
- *   5. „+” na końcu i kafel z palety dokładają na KOŃCU;
- *   6. strzałka „niżej” zapisuje PEŁEN komplet pozycji.
+ *   4. strzałka „niżej” zapisuje PEŁEN komplet pozycji.
  *
- * Dowód mutacyjny warstwy klienta (opis w raporcie): gdy `addSection` przestaje
- * czytać wskazany indeks i wstawia zawsze na końcu (`orderedIds.length`),
- * test 4 staje się czerwony, a test 5 zostaje zielony — czyli asercja mierzy
- * POZYCJĘ, a nie sam fakt dodania.
+ * Hierarchia zaznaczenia (E2) ma własny plik — `builder-selection.test.tsx`;
+ * wstawianie sekcji pickerem — `section-insert.test.tsx`. Tutaj zostaje to,
+ * co dotyczy skorupy i kanału zapisu.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -67,9 +63,6 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { SiteBuilder } = await import("@/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder");
-const { orderWithInsertedAt } = await import(
-  "@/app/[locale]/(kreator)/strona/[siteId]/kreator/insert-position"
-);
 
 type Section = Parameters<typeof SiteBuilder>[0]["sections"][number];
 
@@ -90,28 +83,17 @@ function renderBuilder(sections: Section[] = [A, B, C]) {
   );
 }
 
-/** Odsłania pasek narzędzi sekcji — dokładnie tak, jak robi to kursor. */
-function hoverSection(container: HTMLElement, id: string): HTMLElement {
+/**
+ * ZAZNACZA sekcję i zwraca jej pasek narzędzi. Od E2 pasek wychodzi z
+ * zaznaczenia, a nie z najechania (hierarchia — patrz `builder-selection`).
+ */
+function selectSection(container: HTMLElement, id: string): HTMLElement {
   const node = container.querySelector<HTMLElement>(`[data-canvas-section="${id}"]`);
   expect(node, `brak sekcji ${id} na płótnie`).not.toBeNull();
-  fireEvent.mouseEnter(node!);
+  fireEvent.pointerDown(node!);
   const toolbar = node!.querySelector<HTMLElement>(`[data-section-toolbar="${id}"]`);
   expect(toolbar, `pasek narzędzi nie wyszedł przy sekcji ${id}`).not.toBeNull();
   return toolbar!;
-}
-
-/** Klika „+” o danym indeksie i wybiera z galerii kafel „Baner (hero)”. */
-function addHeroAt(container: HTMLElement, index: number) {
-  const trigger = container.querySelector<HTMLElement>(`[data-insert-at="${index}"]`);
-  expect(trigger, `brak miejsca wstawienia o indeksie ${index}`).not.toBeNull();
-  fireEvent.click(trigger!);
-  // Kafel MUSI pochodzić z OTWARTEGO OKNA, nie z palety: ta sama siatka
-  // (`SectionTypeGallery`) stoi na stałe również w lewej kolumnie, a paleta
-  // dokłada na KOŃCU — bez zawężenia do okna test mierzyłby nie tę drogę
-  // i przechodziłby także wtedy, gdy „+” w środku strony jest zepsute.
-  const tile = document.querySelector<HTMLElement>('[role="dialog"] [data-add-section-tile="hero"]');
-  expect(tile, "galeria nie otworzyła się z kaflem hero").not.toBeNull();
-  fireEvent.click(tile!);
 }
 
 beforeEach(() => {
@@ -138,16 +120,16 @@ describe("pasek narzędzi sekcji wychodzi przy sekcji i niesie komplet akcji", (
     expect(container.querySelectorAll("[data-canvas-section]")).toHaveLength(3);
   });
 
-  it("najechanie odsłania pasek TEJ sekcji — i tylko tej", () => {
+  it("zaznaczenie odsłania pasek TEJ sekcji — i tylko tej", () => {
     const { container } = renderBuilder();
-    hoverSection(container, B.id);
+    selectSection(container, B.id);
     expect(container.querySelectorAll("[data-section-toolbar]")).toHaveLength(1);
     expect(container.querySelector(`[data-section-toolbar="${A.id}"]`)).toBeNull();
   });
 
   it("pasek niesie uchwyt przeciągania, kolejność, duplikat, ustawienia i usunięcie", () => {
     const { container } = renderBuilder();
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
 
     expect(within(toolbar).getByLabelText(sec.dragHandle)).toBeTruthy();
     for (const label of [sec.moveUp, sec.moveDown, sec.duplicate, builder.settings, sec.remove]) {
@@ -162,7 +144,7 @@ describe("pasek narzędzi sekcji wychodzi przy sekcji i niesie komplet akcji", (
     expect(container.querySelector(`[data-section-hidden="${C.id}"]`)).not.toBeNull();
     expect(container.querySelector(`[data-section-hidden="${A.id}"]`)).toBeNull();
     // Wyłączona proponuje WŁĄCZENIE.
-    const toolbar = hoverSection(container, C.id);
+    const toolbar = selectSection(container, C.id);
     expect(within(toolbar).getByRole("button", { name: sec.enable })).toBeTruthy();
   });
 });
@@ -212,23 +194,23 @@ describe("sekcja usunięta w szkicu stoi na płótnie z chipem i przywróceniem"
 
   it("nie dostaje paska narzędzi — nie ma czego duplikować ani usuwać drugi raz", () => {
     const { container } = renderBuilder([A, B, C, D]);
-    fireEvent.mouseEnter(container.querySelector<HTMLElement>(`[data-canvas-section="${D.id}"]`)!);
+    fireEvent.pointerDown(container.querySelector<HTMLElement>(`[data-canvas-section="${D.id}"]`)!);
     expect(container.querySelector(`[data-section-toolbar="${D.id}"]`)).toBeNull();
     // Kontrola pozytywna: zdrowa sekcja pasek dostaje tym samym gestem.
-    expect(hoverSection(container, B.id)).toBeTruthy();
+    expect(selectSection(container, B.id)).toBeTruthy();
   });
 
   it("ostrzeżenie przed usunięciem mówi prawdę o skutku — inną dla opublikowanej i nieopublikowanej", async () => {
     const swieza: Section = { ...B, published: false };
     const { container } = renderBuilder([A, swieza, C]);
-    fireEvent.click(within(hoverSection(container, B.id)).getByRole("button", { name: sec.remove }));
+    fireEvent.click(within(selectSection(container, B.id)).getByRole("button", { name: sec.remove }));
     expect(await screen.findByText(sec.confirmRemoveBodyDraft)).toBeTruthy();
     expect(screen.queryByText(sec.confirmRemoveBodyPublished)).toBeNull();
 
     cleanup();
     const published = renderBuilder([A, B, C]);
     fireEvent.click(
-      within(hoverSection(published.container, B.id)).getByRole("button", { name: sec.remove }),
+      within(selectSection(published.container, B.id)).getByRole("button", { name: sec.remove }),
     );
     expect(await screen.findByText(sec.confirmRemoveBodyPublished)).toBeTruthy();
     expect(screen.queryByText(sec.confirmRemoveBodyDraft)).toBeNull();
@@ -238,14 +220,14 @@ describe("sekcja usunięta w szkicu stoi na płótnie z chipem i przywróceniem"
 describe("akcje paska idą do istniejących akcji modelu sekcyjnego", () => {
   it("duplikowanie woła duplicateSection z id TEJ sekcji", async () => {
     const { container } = renderBuilder();
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
     fireEvent.click(within(toolbar).getByRole("button", { name: sec.duplicate }));
     await waitFor(() => expect(actions.duplicateSection).toHaveBeenCalledWith(B.id));
   });
 
   it("usunięcie WYMAGA potwierdzenia — sam klik w „Usuń” nie woła akcji", async () => {
     const { container } = renderBuilder();
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
     fireEvent.click(within(toolbar).getByRole("button", { name: sec.remove }));
     expect(actions.deleteSection).not.toHaveBeenCalled();
 
@@ -255,7 +237,7 @@ describe("akcje paska idą do istniejących akcji modelu sekcyjnego", () => {
 
   it("strzałka „niżej” zapisuje PEŁEN komplet pozycji w nowej kolejności", async () => {
     const { container } = renderBuilder();
-    const toolbar = hoverSection(container, A.id);
+    const toolbar = selectSection(container, A.id);
     fireEvent.click(within(toolbar).getByRole("button", { name: sec.moveDown }));
     await waitFor(() =>
       expect(actions.reorderSections).toHaveBeenCalledWith(SITE_ID, [B.id, A.id, C.id]),
@@ -263,52 +245,18 @@ describe("akcje paska idą do istniejących akcji modelu sekcyjnego", () => {
   });
 });
 
-describe("„+ Dodaj sekcję” wstawia DOKŁADNIE tam, gdzie kliknięto", () => {
-  it("między pierwszą a drugą sekcją: nowa sekcja ląduje na pozycji 2", async () => {
-    const { container } = renderBuilder();
-    addHeroAt(container, 1);
-
-    await waitFor(() => expect(actions.upsertSection).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(actions.reorderSections).toHaveBeenCalledWith(SITE_ID, [A.id, NEW_ID, B.id, C.id]),
-    );
-  });
-
-  it("na samym początku strony: nowa sekcja ląduje na pozycji 1", async () => {
-    const { container } = renderBuilder();
-    addHeroAt(container, 0);
-    await waitFor(() =>
-      expect(actions.reorderSections).toHaveBeenCalledWith(SITE_ID, [NEW_ID, A.id, B.id, C.id]),
-    );
-  });
-
-  it("„+” pod ostatnią sekcją dokłada na KOŃCU", async () => {
-    const { container } = renderBuilder();
-    addHeroAt(container, 3);
-    await waitFor(() =>
-      expect(actions.reorderSections).toHaveBeenCalledWith(SITE_ID, [A.id, B.id, C.id, NEW_ID]),
-    );
-  });
-
-  it("nieudany zapis sekcji NIE zapisuje kolejności", async () => {
-    actions.upsertSection.mockResolvedValue({ ok: false, error: "Nie udało się." });
-    const { container } = renderBuilder();
-    addHeroAt(container, 1);
-
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Nie udało się."));
-    expect(actions.reorderSections).not.toHaveBeenCalled();
-  });
-});
-
-describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stopce", () => {
-  it("kafel z palety dokłada sekcję na KOŃCU strony", async () => {
+describe("lewa paleta: wejście do pickera, elementy, szablon w stopce", () => {
+  it("zakładka „Sekcje” OTWIERA PICKER, a nie dokłada sekcji sama (E2)", () => {
+    // Typ sekcji wybiera się odtąd z podglądem — paleta jest wejściem, nie
+    // drugą listą typów. Gdyby przycisk dodawał od razu, operator dostałby
+    // sekcję, której nie zobaczył przed kliknięciem.
     const { container } = renderBuilder();
     const palette = container.querySelector<HTMLElement>('[data-builder-palette="expanded"]');
     expect(palette).not.toBeNull();
-    fireEvent.click(within(palette!).getByRole("button", { name: /Cennik/ }));
-    await waitFor(() =>
-      expect(actions.reorderSections).toHaveBeenCalledWith(SITE_ID, [A.id, B.id, C.id, NEW_ID]),
-    );
+
+    fireEvent.click(palette!.querySelector<HTMLElement>("[data-palette-add-section]")!);
+    expect(document.querySelector("[data-section-picker]"), "picker się nie otworzył").not.toBeNull();
+    expect(actions.upsertSection, "paleta dodała sekcję bez wyboru typu").not.toHaveBeenCalled();
   });
 
   it("zakładka „Elementy” niesie KOMPLET kafli palety (K3)", async () => {
@@ -376,7 +324,7 @@ describe("lewa paleta: sekcje z palety, elementy jako zapowiedź, szablon w stop
     await waitFor(() => expect(actions.updateSiteStyle).toHaveBeenCalled());
 
     // Zapis JESZCZE trwa (obietnica nierozstrzygnięta) — a kreator ma żyć.
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
     const zablokowane = [...toolbar.querySelectorAll<HTMLElement>("button")].filter((node) =>
       node.hasAttribute("disabled"),
     );
@@ -481,7 +429,7 @@ describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publi
     const state = container.querySelector("[data-builder-save-state]")!;
     expect(state.textContent).toBe("");
 
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
     fireEvent.click(within(toolbar).getByRole("button", { name: sec.duplicate }));
     await waitFor(() => expect(state.textContent).toBe(builder.saved));
   });
@@ -489,7 +437,7 @@ describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publi
   it("nieudana mutacja NIE melduje zapisu — zostawia komunikat", async () => {
     actions.duplicateSection.mockResolvedValue({ ok: false, error: "Brak uprawnień." });
     const { container } = renderBuilder();
-    const toolbar = hoverSection(container, B.id);
+    const toolbar = selectSection(container, B.id);
     fireEvent.click(within(toolbar).getByRole("button", { name: sec.duplicate }));
 
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Brak uprawnień."));
@@ -515,19 +463,3 @@ describe("puste płótno jest STANEM, a nie zniknięciem kreatora", () => {
   });
 });
 
-describe("arytmetyka wstawienia (czysta funkcja)", () => {
-  it("indeks liczony jest w skali listy BEZ nowego elementu", () => {
-    expect(orderWithInsertedAt(["a", "b", "c"], "n", 0)).toEqual(["n", "a", "b", "c"]);
-    expect(orderWithInsertedAt(["a", "b", "c"], "n", 2)).toEqual(["a", "b", "n", "c"]);
-    expect(orderWithInsertedAt(["a", "b", "c"], "n", 3)).toEqual(["a", "b", "c", "n"]);
-  });
-
-  it("indeks spoza zakresu przycina się do krawędzi zamiast wywracać zapis", () => {
-    expect(orderWithInsertedAt(["a", "b"], "n", -5)).toEqual(["n", "a", "b"]);
-    expect(orderWithInsertedAt(["a", "b"], "n", 99)).toEqual(["a", "b", "n"]);
-  });
-
-  it("nowe id nie duplikuje się, gdy przyszło już w komplecie z serwera", () => {
-    expect(orderWithInsertedAt(["a", "n", "b"], "n", 0)).toEqual(["n", "a", "b"]);
-  });
-});

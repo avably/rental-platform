@@ -40,6 +40,23 @@
  * puszczeniu: jeden wpis w historii i jeden zapis na cały gest. Wcześniej każdy
  * piksel ruchu szedł przez `setState` i przerysowywał całą stronę — i to było
  * widać jako szarpanie.
+ *
+ * ================== HIERARCHIA ZAZNACZENIA (E2) ==================
+ *
+ * Pinezka właściciela 39a4327a: kliknięcie elementu pokazywało JEDEN pasek
+ * z akcjami sekcji I elementu naraz, więc „usuń" znaczyło dwie różne rzeczy
+ * w odległości dwóch ikon. Model jest odtąd dwupoziomowy, jak w dojrzałych
+ * kreatorach:
+ *
+ *   • NAJECHANIE maluje obrys i nic poza tym — najechanie nie jest wyborem;
+ *   • KLIK W TŁO SEKCJI zaznacza SEKCJĘ → pasek niesie akcje sekcji;
+ *   • KLIK W ELEMENT zaznacza ELEMENT → pasek niesie WYŁĄCZNIE akcje elementu,
+ *     a sekcja-kontekst trzyma dyskretny, STAŁY obrys (nic nie jest przygaszane
+ *     — reszta strony pozostaje czytelna, bo operator ustawia element WZGLĘDEM
+ *     niej);
+ *   • PASEK ŚCIEŻKI („Sekcja › Element") mówi, gdzie się stoi, i jest DROGĄ
+ *     w górę: klik w człon sekcji zaznacza sekcję. Ta sama droga bez myszy to
+ *     Escape (obsługiwany w skorupie — patrz `site-builder.tsx`).
  */
 import {
   bringToFront,
@@ -100,6 +117,7 @@ import {
   ArrowDown,
   ArrowUp,
   BringToFront,
+  ChevronRight,
   Copy,
   CopyPlus,
   Eye,
@@ -115,7 +133,6 @@ import {
 import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
-import { AddSectionDialog } from "@/app/[locale]/(panel)/strona/add-section-gallery";
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { siteImagePublicBase } from "@/lib/site-image-base";
@@ -123,6 +140,7 @@ import { siteImagePublicBase } from "@/lib/site-image-base";
 import { ElementFrame, type FixedAxes } from "./canvas-elements";
 import { InlineTextEditor } from "./inline-editor";
 import { runsEqual } from "./inline-text";
+import type { InsertTarget } from "./section-picker";
 import {
   duplicateElement,
   removeElement,
@@ -156,6 +174,21 @@ export interface ElementSelection {
 }
 
 /**
+ * ZAZNACZENIE W HIERARCHII (E2). Jeden stan na oba poziomy, bo poziomy nie są
+ * niezależne: element ZAWSZE stoi w sekcji, a dwa osobne stany pozwoliłyby na
+ * zaznaczenie elementu w jednej sekcji i sekcji obok naraz — czyli na pytanie
+ * „co usunie kosz", na które nie ma dobrej odpowiedzi.
+ */
+export interface BuilderSelection {
+  sectionId: string;
+  /** Brak = poziom SEKCJI. Obecne = poziom ELEMENTU w tej sekcji. */
+  elementId?: string;
+}
+
+/** Poziom zaznaczenia WIDZIANY PRZEZ SEKCJĘ: nie ta sekcja / ona / jej element. */
+type SelectionLevel = "none" | "section" | "element";
+
+/**
  * BREAKPOINT, KTÓRY OPERATOR EDYTUJE (K4, ADR-088) — wprost z przełącznika
  * szerokości płótna. Płótno w trybie „komputer" ma zagwarantowaną szerokość
  * co najmniej 40 rem (patrz `site-builder.tsx`), więc to, co widać, i to, co
@@ -172,15 +205,15 @@ export function BuilderCanvas({
   products,
   viewport,
   busy,
-  dropIndex,
   dropSectionId,
+  flashId,
   run,
   reorderAction,
   toggleAction,
   duplicateAction,
   deleteAction,
   restoreAction,
-  onAddSection,
+  onInsert,
   onOpenSettings,
   onChanged,
   editor,
@@ -196,18 +229,17 @@ export function BuilderCanvas({
   /** Trwa mutacja — uchwyty i pasek narzędzi szarzeją razem (R2, #135). */
   busy: boolean;
   /**
-   * Miejsce, w które wejdzie sekcja przeciągana właśnie z palety (K6, ADR-092),
-   * albo `null`. Płótno samo go NIE liczy — dostaje gotowy indeks od skorupy,
-   * bo to ona widzi paletę. Podświetlony slot jest OBIETNICĄ wyniku, więc
-   * musi pochodzić z tej samej liczby, którą zapisze upuszczenie.
-   */
-  dropIndex: number | null;
-  /**
    * Sekcja, która przyjmie przeciągany właśnie ELEMENT (K6, ADR-092), albo
    * `null`. Do K6 upuszczenie elementu było „w ciemno" — operator widział cel
    * dopiero po fakcie.
    */
   dropSectionId: string | null;
+  /**
+   * Sekcja ŚWIEŻO WSTAWIONA (E2) — miga przez chwilę i gaśnie. Bez tego
+   * kliknięcie „+" na długiej stronie kończy się pytaniem „weszła czy nie",
+   * a odpowiedzi trzeba szukać wzrokiem po całym płótnie.
+   */
+  flashId: string | null;
   /**
    * Uruchomienie mutacji W TRANZYCJI SKORUPY: jeden wskaźnik stanu zapisu na
    * całą trasę, jeden komunikat błędu. `onFail` cofa zmianę optymistyczną.
@@ -219,14 +251,14 @@ export function BuilderCanvas({
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   /** Cofnięcie usunięcia sekcji przed publikacją (K5a, ADR-091). */
   restoreAction: (sectionId: string) => Promise<ActionResult>;
-  /** Wstawienie sekcji na POZYCJI (index w skali listy bez nowej sekcji). */
-  onAddSection: (type: SectionType, index: number, orderedIds: string[]) => void;
+  /** Otwarcie pickera na WSKAZANYM miejscu — „+" nie zna typów sekcji (E2). */
+  onInsert: (target: InsertTarget) => void;
   onOpenSettings: (sectionId: string) => void;
   onChanged: () => void;
   /** Szkice płótna, historia i autozapis — jedna prawda o stanie edycji (K2). */
   editor: CanvasEditor;
-  selection: ElementSelection | null;
-  onSelect: (selection: ElementSelection | null) => void;
+  selection: BuilderSelection | null;
+  onSelect: (selection: BuilderSelection | null) => void;
   /** Otwarcie pickera zdjęcia (K3) — właścicielem okna jest skorupa, bo zna `siteId`. */
   onPickImage: (target: ElementSelection) => void;
 }) {
@@ -240,10 +272,13 @@ export function BuilderCanvas({
     setOrder(sections);
   }
 
-  // Sekcja pod kursorem / z fokusem — TYLKO ona pokazuje pasek narzędzi.
-  // Stan Reacta, a nie samo `:hover`, bo pasek musi wychodzić też od klawiatury
-  // (fokus wewnątrz sekcji) i nie może się mnożyć po dwunastu sekcjach naraz.
-  const [activeId, setActiveId] = useState<string | null>(null);
+  /*
+   * Sekcja POD KURSOREM. Od E2 najechanie maluje WYŁĄCZNIE obrys — narzędzia
+   * wychodzą z ZAZNACZENIA, nie z hoveru. Stan Reacta, a nie samo `:hover`,
+   * bo obrys ma wychodzić także od klawiatury (fokus wewnątrz sekcji), a przy
+   * gescie elementu musi umieć zamilknąć (patrz `dragging`).
+   */
+  const [hoverId, setHoverId] = useState<string | null>(null);
   /**
    * Element w EDYCJI TREŚCI (K3). Osobno od zaznaczenia, bo to dwa różne stany:
    * zaznaczony element da się przesuwać i zmieniać mu rozmiar, edytowany —
@@ -400,15 +435,19 @@ export function BuilderCanvas({
             <p className="text-muted-foreground text-[13px] leading-[18px]">
               {t("builder.emptyBody")}
             </p>
-            <AddSectionDialog
+            {/* Pusta strona ma dokładnie jedno miejsce — koniec, czyli brak
+                kotwicy. To ta sama droga, co „+" i kafel palety. */}
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              data-insert-at="0"
+              loading={locked}
               disabled={locked}
-              onAdd={(type) => onAddSection(type, 0, orderedIds)}
-              trigger={
-                <Button type="button" size="sm" variant="secondary" data-insert-at="0" loading={locked} disabled={locked}>
-                  {t("sections.add")}
-                </Button>
-              }
-            />
+              onClick={() => onInsert({})}
+            >
+              {t("sections.add")}
+            </Button>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -431,9 +470,15 @@ export function BuilderCanvas({
                   if (!editorSection) return children;
                   const canvas = editor.canvasOf(editorSection.id);
                   const selected =
-                    selection && selection.sectionId === editorSection.id
+                    selection && selection.sectionId === editorSection.id && selection.elementId
                       ? canvas?.elements.find((element) => element.id === selection.elementId)
                       : undefined;
+                  const level: SelectionLevel =
+                    selection?.sectionId !== editorSection.id
+                      ? "none"
+                      : selection.elementId
+                        ? "element"
+                        : "section";
                   return (
                     <CanvasSection
                       section={editorSection}
@@ -445,25 +490,29 @@ export function BuilderCanvas({
                       structured={Boolean(editor.structuredOf(editorSection.id))}
                       index={index}
                       total={order.length}
-                      orderedIds={orderedIds}
-                      active={activeId === editorSection.id}
-                      dropActive={dropIndex === index}
+                      level={level}
+                      hovered={hoverId === editorSection.id}
                       dropTarget={dropSectionId === editorSection.id}
+                      flash={flashId === editorSection.id}
                       locked={locked}
-                      onActivate={() => {
+                      onHover={(inside) => {
                         // W trakcie gestu NIE zmieniamy stanu — patrz `dragging`.
-                        if (!dragging.current) setActiveId(editorSection.id);
+                        if (dragging.current) return;
+                        setHoverId((id) =>
+                          inside ? editorSection.id : id === editorSection.id ? null : id,
+                        );
                       }}
-                      onDeactivate={() => setActiveId((id) => (id === editorSection.id ? null : id))}
+                      onSelectSection={() => onSelect({ sectionId: editorSection.id })}
                       onMoveUp={() => move(index, -1)}
                       onMoveDown={() => move(index, 1)}
                       onToggle={() => run(() => toggleAction(editorSection))}
                       onDuplicate={() => run(() => duplicateAction(editorSection.id))}
-                      onAddSection={onAddSection}
+                      onInsert={onInsert}
                       onOpenSettings={() => onOpenSettings(editorSection.id)}
                       deleteAction={deleteAction}
                       onDeleted={onChanged}
                       onRestore={() => run(() => restoreAction(editorSection.id))}
+                      elementLabel={selected ? t(`elementKinds.${selected.kind}`) : undefined}
                       elementActions={
                         selected ? (
                           <ElementActions
@@ -584,10 +633,7 @@ export function BuilderCanvas({
                         detached={breakpoint === "mobile" && mobile.detached.has(element.id)}
                         selected={isSelected}
                         locked={locked}
-                        onSelect={() => {
-                          setActiveId(section.id);
-                          onSelect({ sectionId: section.id, elementId: element.id });
-                        }}
+                        onSelect={() => onSelect({ sectionId: section.id, elementId: element.id })}
                         onEdit={
                           editable
                             ? () => setEditing({ sectionId: section.id, elementId: element.id })
@@ -621,10 +667,8 @@ export function BuilderCanvas({
       {order.length > 0 && !isPinnedLastType(order[order.length - 1]!.type) ? (
         <InsertSlot
           index={order.length}
-          orderedIds={orderedIds}
           disabled={locked}
-          active={dropIndex === order.length}
-          onAddSection={onAddSection}
+          onInsert={onInsert}
           variant="trailing"
         />
       ) : null}
@@ -643,22 +687,23 @@ function CanvasSection({
   structured,
   index,
   total,
-  orderedIds,
-  active,
-  dropActive,
+  level,
+  hovered,
   dropTarget,
+  flash,
   locked,
-  onActivate,
-  onDeactivate,
+  onHover,
+  onSelectSection,
   onMoveUp,
   onMoveDown,
   onToggle,
   onDuplicate,
-  onAddSection,
+  onInsert,
   onOpenSettings,
   deleteAction,
   onDeleted,
   onRestore,
+  elementLabel,
   elementActions,
   children,
 }: {
@@ -667,30 +712,34 @@ function CanvasSection({
   structured: boolean;
   index: number;
   total: number;
-  orderedIds: string[];
-  active: boolean;
-  /** Sekcja przeciągana z palety wejdzie PRZED tą — podświetl jej slot. */
-  dropActive: boolean;
+  /** Poziom zaznaczenia W TEJ sekcji (E2) — patrz nagłówek pliku. */
+  level: SelectionLevel;
+  /** Kursor (albo fokus) jest w tej sekcji — sam obrys, bez narzędzi. */
+  hovered: boolean;
   /** Przeciągany element wyląduje W TEJ sekcji — pokaż obrys celu. */
   dropTarget: boolean;
+  /** Sekcja właśnie weszła na stronę — mignij i zgaś (E2). */
+  flash: boolean;
   locked: boolean;
-  onActivate: () => void;
-  onDeactivate: () => void;
+  onHover: (inside: boolean) => void;
+  onSelectSection: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggle: () => void;
   onDuplicate: () => void;
-  onAddSection: (type: SectionType, index: number, orderedIds: string[]) => void;
+  onInsert: (target: InsertTarget) => void;
   onOpenSettings: () => void;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   onDeleted: () => void;
   /** Cofnięcie usunięcia (K5a) — jedyna akcja sekcji-nagrobka. */
   onRestore: () => void;
+  /** Nazwa rodzaju zaznaczonego elementu — ostatni człon paska ścieżki. */
+  elementLabel?: string;
   /**
-   * Akcje ZAZNACZONEGO elementu (K2). Stoją w pasku SEKCJI, a nie przy samym
-   * elemencie: płótno przycina zawartość, więc pasek przy elemencie stojącym
-   * przy krawędzi zostałby obcięty — a przy ikonie 48 × 48 px byłby od niej
-   * kilka razy szerszy.
+   * Akcje ZAZNACZONEGO elementu (K2). Stoją w pasku PRZY SEKCJI, a nie przy
+   * samym elemencie: płótno przycina zawartość, więc pasek przy elemencie
+   * stojącym przy krawędzi zostałby obcięty — a przy ikonie 48 × 48 px byłby od
+   * niej kilka razy szerszy. Od E2 stoją tam ZAMIAST akcji sekcji, nigdy obok.
    */
   elementActions?: ReactNode;
   children: ReactNode;
@@ -718,28 +767,51 @@ function CanvasSection({
       data-section-order={index + 1}
       {...(pinned ? { "data-section-pinned": "on" } : {})}
       {...(dropTarget ? { "data-drop-target": "on" } : {})}
+      {...(flash ? { "data-section-flash": "on" } : {})}
       className={`relative${isDragging ? " z-20 opacity-80" : ""}`}
-      onMouseEnter={onActivate}
-      onMouseLeave={onDeactivate}
-      onFocusCapture={onActivate}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      onFocusCapture={() => onHover(true)}
+      /*
+        KLIK W TŁO SEKCJI ZAZNACZA SEKCJĘ (E2). Na WCIŚNIĘCIU, a nie na
+        kliknięciu, z jednego powodu: ramka elementu zatrzymuje `pointerdown`
+        u siebie (tam zaczyna się gest), więc wciśnięcie w element NIE dochodzi
+        tutaj i nie nadpisuje zaznaczenia elementu sekcją. Na `click` doszłoby —
+        i każdy klik w element kończyłby się paskiem sekcji.
+      */
+      onPointerDown={() => {
+        if (locked || section.deletedInDraft) return;
+        onSelectSection();
+      }}
     >
-      <InsertSlot
-        index={index}
-        orderedIds={orderedIds}
-        disabled={locked}
-        active={dropActive}
-        onAddSection={onAddSection}
-        variant="between"
-      />
+      {/* Miejsce wstawienia NAD tą sekcją. Kotwicą jest sekcja, przed którą
+          slot stoi — czyli ta. Wciśnięcie nie może przy okazji zaznaczyć
+          sekcji: „+" mówi o miejscu, nie o tym, co jest edytowane. */}
+      <div onPointerDown={(event) => event.stopPropagation()}>
+        <InsertSlot
+          index={index}
+          beforeId={section.id}
+          beforeType={section.type}
+          disabled={locked}
+          onInsert={onInsert}
+          variant="between"
+        />
+      </div>
 
       {/* Obrys sekcji: warstwa NAD treścią, ale przepuszczająca kliknięcia —
           ramki elementów (K2) mają własną, wyższą warstwę wewnątrz płótna,
-          a obrys nie ma prawa przechwytywać zdarzeń paska narzędzi. */}
+          a obrys nie ma prawa przechwytywać zdarzeń paska narzędzi.
+
+          Cztery stany, bo cztery różne zdania (arkusz panelu, token warstwy
+          edycyjnej — nie akcent motywu najemcy): `hover` („tu jesteś"),
+          `selected` („to jest zaznaczone"), `context` („element, który
+          edytujesz, stoi w TEJ sekcji" — dyskretny i STAŁY, bez przygaszania
+          czegokolwiek dookoła) oraz `off`. */}
       <div
         aria-hidden="true"
-        data-section-outline={active ? "on" : "off"}
-        // Kolor obrysu sekcji idzie z arkusza panelu (`[data-section-outline]`),
-        // z tokenu WARSTWY EDYCYJNEJ — nie z akcentu motywu najemcy.
+        data-section-outline={
+          level === "element" ? "context" : level === "section" ? "selected" : hovered ? "hover" : "off"
+        }
         className="pointer-events-none absolute inset-0 z-10 transition-[outline-color] [transition-duration:var(--motion-fast)]"
       />
 
@@ -756,6 +828,11 @@ function CanvasSection({
         dostępności mają działać bez dopisywania ich ręcznie. Warstwa siedzi POD
         paskiem narzędzi sekcji (z-20), więc uchwyt, strzałki i kosz zostają
         klikalne.
+
+        Klik ZAZNACZA i OTWIERA naraz (E2): sekcja strukturalna nie ma poziomu
+        elementu, więc jej jedyne zaznaczenie to zaznaczenie sekcji, a jedyna
+        edycja to szuflada. Rozdzielanie tego na dwa kliknięcia dokładałoby krok
+        bez ani jednej nowej możliwości.
       */}
       {structured && !section.deletedInDraft ? (
         <button
@@ -763,76 +840,102 @@ function CanvasSection({
           data-cms-open={section.id}
           aria-label={t("structured.openSettings")}
           disabled={locked}
-          onClick={onOpenSettings}
+          onClick={() => {
+            onSelectSection();
+            onOpenSettings();
+          }}
           className="focus-visible:outline-accent dark:focus-visible:outline-ring absolute inset-0 z-10 cursor-pointer outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:-outline-offset-4"
         />
       ) : null}
 
-      {active && !section.deletedInDraft ? (
+      {/*
+        NARZĘDZIA JEDNEGO POZIOMU (E2, pinezka 39a4327a).
+
+        Pasek wychodzi z ZAZNACZENIA (nie z najechania) i niesie akcje DOKŁADNIE
+        jednego poziomu. Przy zaznaczonym elemencie nie ma tu ani uchwytu sekcji,
+        ani jej kosza — droga do nich prowadzi przez pasek ścieżki albo Escape,
+        czyli przez świadome wyjście o poziom wyżej.
+
+        Wciśnięcie na pasku NIE schodzi do tła sekcji: bez tego kliknięcie
+        „usuń element" najpierw zaznaczyłoby sekcję i skasowałoby własny cel.
+      */}
+      {level !== "none" && !section.deletedInDraft ? (
         <div
           data-section-toolbar={section.id}
+          data-toolbar-scope={level}
+          onPointerDown={(event) => event.stopPropagation()}
           className="border-border bg-background absolute top-2 right-2 z-20 flex flex-wrap items-center gap-1 rounded-md border p-1"
         >
-          <button
-            type="button"
-            data-drag-handle
-            aria-label={t("sections.dragHandle")}
-            className="text-muted-foreground hover:text-foreground focus-visible:border-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex size-7 cursor-grab touch-none items-center justify-center rounded-md border border-transparent outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={locked || pinned}
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="size-4" aria-hidden />
-          </button>
-          <ToolbarButton
-            label={t("sections.moveUp")}
-            marker="move-up"
-            icon={<ArrowUp className="size-4" aria-hidden />}
-            loading={locked}
-            disabled={locked || pinned || index === 0}
-            onClick={onMoveUp}
+          <SelectionPath
+            sectionLabel={t(`sectionTypes.${section.type}`)}
+            elementLabel={level === "element" ? elementLabel : undefined}
+            onSelectSection={onSelectSection}
           />
-          <ToolbarButton
-            label={t("sections.moveDown")}
-            marker="move-down"
-            icon={<ArrowDown className="size-4" aria-hidden />}
-            loading={locked}
-            disabled={locked || pinned || index === total - 1}
-            onClick={onMoveDown}
-          />
-          <ToolbarButton
-            label={section.enabled ? t("sections.disable") : t("sections.enable")}
-            marker="toggle"
-            icon={
-              section.enabled ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />
-            }
-            loading={locked}
-            disabled={locked}
-            onClick={onToggle}
-          />
-          <ToolbarButton
-            label={t("sections.duplicate")}
-            marker="duplicate"
-            icon={<Copy className="size-4" aria-hidden />}
-            loading={locked}
-            disabled={locked}
-            onClick={onDuplicate}
-          />
-          <ToolbarButton
-            label={t("builder.settings")}
-            marker="settings"
-            icon={<Settings2 className="size-4" aria-hidden />}
-            loading={locked}
-            disabled={locked}
-            onClick={onOpenSettings}
-          />
-          <DeleteSectionDialog
-            section={section}
-            deleteAction={deleteAction}
-            onDeleted={onDeleted}
-            disabled={locked}
-          />
-          {elementActions}
+          {level === "element" ? (
+            elementActions
+          ) : (
+            <>
+              <button
+                type="button"
+                data-drag-handle
+                aria-label={t("sections.dragHandle")}
+                className="text-muted-foreground hover:text-foreground focus-visible:border-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex size-7 cursor-grab touch-none items-center justify-center rounded-md border border-transparent outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={locked || pinned}
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="size-4" aria-hidden />
+              </button>
+              <ToolbarButton
+                label={t("sections.moveUp")}
+                marker="move-up"
+                icon={<ArrowUp className="size-4" aria-hidden />}
+                loading={locked}
+                disabled={locked || pinned || index === 0}
+                onClick={onMoveUp}
+              />
+              <ToolbarButton
+                label={t("sections.moveDown")}
+                marker="move-down"
+                icon={<ArrowDown className="size-4" aria-hidden />}
+                loading={locked}
+                disabled={locked || pinned || index === total - 1}
+                onClick={onMoveDown}
+              />
+              <ToolbarButton
+                label={section.enabled ? t("sections.disable") : t("sections.enable")}
+                marker="toggle"
+                icon={
+                  section.enabled ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />
+                }
+                loading={locked}
+                disabled={locked}
+                onClick={onToggle}
+              />
+              <ToolbarButton
+                label={t("sections.duplicate")}
+                marker="duplicate"
+                icon={<Copy className="size-4" aria-hidden />}
+                loading={locked}
+                disabled={locked}
+                onClick={onDuplicate}
+              />
+              <ToolbarButton
+                label={t("builder.settings")}
+                marker="settings"
+                icon={<Settings2 className="size-4" aria-hidden />}
+                loading={locked}
+                disabled={locked}
+                onClick={onOpenSettings}
+              />
+              <DeleteSectionDialog
+                section={section}
+                deleteAction={deleteAction}
+                onDeleted={onDeleted}
+                disabled={locked}
+              />
+            </>
+          )}
         </div>
       ) : null}
 
@@ -956,27 +1059,88 @@ function ElementActions({
 }
 
 /**
+ * PASEK ŚCIEŻKI „Sekcja › Element" (E2).
+ *
+ * Dwa zadania naraz i oba są odpowiedzią na tę samą pinezkę: MÓWI, na którym
+ * poziomie stoi operator (skoro pasek narzędzi pokazuje już tylko jeden), i
+ * JEST DROGĄ w górę — klik w człon sekcji zaznacza sekcję.
+ *
+ * Człon bieżący nie jest przyciskiem: „kliknij to, na czym już stoisz" to
+ * kontrolka bez skutku. Nawigacja niesie własną nazwę, bo w drzewie dostępności
+ * dwa napisy oddzielone znakiem „›" nie mówią nic same z siebie.
+ */
+function SelectionPath({
+  sectionLabel,
+  elementLabel,
+  onSelectSection,
+}: {
+  sectionLabel: string;
+  /** Obecna WYŁĄCZNIE na poziomie elementu — wtedy sekcja staje się drogą w górę. */
+  elementLabel?: string;
+  onSelectSection: () => void;
+}) {
+  const t = useTranslations("site");
+  const atElement = elementLabel !== undefined;
+
+  return (
+    <nav
+      data-selection-path
+      aria-label={t("builder.pathLabel")}
+      className="text-muted-foreground border-border mr-1 flex items-center gap-1 border-r pr-2 text-[13px] leading-[18px]"
+    >
+      {atElement ? (
+        <button
+          type="button"
+          data-path-step="section"
+          title={t("builder.pathSelectSection")}
+          onClick={onSelectSection}
+          className="hover:text-foreground focus-visible:outline-accent dark:focus-visible:outline-ring max-w-[10rem] cursor-pointer truncate rounded-sm underline underline-offset-2 outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2"
+        >
+          {sectionLabel}
+        </button>
+      ) : (
+        <span data-path-step="section" aria-current="true" className="text-foreground max-w-[10rem] truncate font-medium">
+          {sectionLabel}
+        </span>
+      )}
+      {atElement ? (
+        <>
+          <ChevronRight className="size-3 shrink-0" aria-hidden />
+          <span data-path-step="element" aria-current="true" className="text-foreground max-w-[10rem] truncate font-medium">
+            {elementLabel}
+          </span>
+        </>
+      ) : null}
+    </nav>
+  );
+}
+
+/**
  * Miejsce wstawienia sekcji („+ Dodaj sekcję" MIĘDZY sekcjami).
  *
  * Przycisk jest W DRZEWIE zawsze, a nie dorysowywany na hover: inaczej
  * klawiatura nie miałaby jak do niego dojść, a operator bez myszy zostałby z
  * jedynym „+" na końcu strony. Hover i fokus tylko go ODSŁANIAJĄ (opacity),
  * więc płótno w spoczynku wygląda jak strona.
+ *
+ * Od E2 slot niesie KOTWICĘ, nie indeks: identyfikator sekcji, nad którą stanie
+ * nowa (`beforeId`), albo nic — i wtedy znaczy koniec strony. `data-insert-slot`
+ * zostaje liczbą, bo to jest kolejność w drzewie i po niej testy oraz operator
+ * rozpoznają, o które miejsce chodzi.
  */
 function InsertSlot({
   index,
-  orderedIds,
+  beforeId,
+  beforeType,
   disabled,
-  active,
-  onAddSection,
+  onInsert,
   variant,
 }: {
   index: number;
-  orderedIds: string[];
+  beforeId?: string;
+  beforeType?: SectionType;
   disabled: boolean;
-  /** Sekcja przeciągana z palety wejdzie TUTAJ (K6, ADR-092) — pokaż to. */
-  active: boolean;
-  onAddSection: (type: SectionType, index: number, orderedIds: string[]) => void;
+  onInsert: (target: InsertTarget) => void;
   variant: "between" | "trailing";
 }) {
   const t = useTranslations("site");
@@ -984,43 +1148,27 @@ function InsertSlot({
   return (
     <div
       data-insert-slot={index}
-      {...(active ? { "data-insert-active": "on" } : {})}
       className={`group/insert z-30 flex justify-center ${
         variant === "between" ? "absolute inset-x-0 top-0 -translate-y-1/2" : "relative py-3"
       }`}
     >
-      {/* Belka celu. Rysuje ją WARSTWA EDYCYJNA (token `--builder-selection`),
-          a nie akcent motywu najemcy — wskazanie miejsca jest komunikatem
-          kreatora, nie elementem strony. */}
-      {active ? (
-        <span
-          aria-hidden="true"
-          data-insert-target
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2"
-        />
-      ) : null}
-      <AddSectionDialog
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        data-insert-at={index}
+        loading={disabled}
         disabled={disabled}
-        onAdd={(type) => onAddSection(type, index, orderedIds)}
-        trigger={
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            data-insert-at={index}
-            loading={disabled}
-            disabled={disabled}
-            className={
-              variant === "between"
-                ? "opacity-0 transition-opacity [transition-duration:var(--motion-fast)] group-hover/insert:opacity-100 focus-visible:opacity-100"
-                : undefined
-            }
-          >
-            <Plus className="size-4" aria-hidden />
-            {t("builder.addHere")}
-          </Button>
+        onClick={() => onInsert({ beforeId, beforeType })}
+        className={
+          variant === "between"
+            ? "opacity-0 transition-opacity [transition-duration:var(--motion-fast)] group-hover/insert:opacity-100 focus-visible:opacity-100"
+            : undefined
         }
-      />
+      >
+        <Plus className="size-4" aria-hidden />
+        {t("builder.addHere")}
+      </Button>
     </div>
   );
 }

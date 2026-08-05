@@ -40,8 +40,24 @@ const BUILDER_LAYER_MARKERS = [
   "data-insert-slot",
   "data-insert-at",
   "data-drag-handle",
-  "data-add-section-tile",
   "data-builder",
+  // Hierarchia zaznaczenia i picker sekcji (E2): zakres paska narzędzi, pasek
+  // ścieżki „Sekcja › Element", błysk świeżo wstawionej sekcji oraz całe okno
+  // wyboru typu z podglądami. Podgląd w pickerze renderuje ten sam
+  // `SiteRenderer` co sklep, więc jego znaczniki mają szczególny powód, żeby
+  // nigdy nie wyjechać na publiczną stronę.
+  "data-toolbar-scope",
+  "data-selection-path",
+  "data-path-step",
+  "data-section-flash",
+  "data-section-picker",
+  "data-picker-types",
+  "data-picker-type",
+  "data-picker-previews",
+  "data-picker-add",
+  "data-picker-blocked",
+  "data-picker-hint",
+  "data-picker-target",
   // Warstwa elementów płótna v2 (K2, ADR-084): ramka zaznaczenia, uchwyty
   // rozmiaru, prowadnice przyciągania i akcje warstw.
   "data-element-frame",
@@ -101,10 +117,8 @@ const BUILDER_LAYER_MARKERS = [
   "data-section-settings",
   "data-canvas-no-selection",
   "data-guide-kind",
-  // Paleta i galeria typów sekcji — również warstwa kreatora, choć część z nich
-  // renderuje plik z pasa ekranu „Strona sklepu".
+  // Paleta kreatora (zakładki, kafle elementów, wejście do pickera sekcji).
   "data-palette",
-  "data-add-section",
   // Akcje pasków jako IKONY (K3, punkt 4) i wejście w picker z szuflady.
   "data-toolbar-action",
   "data-element-image-pick",
@@ -119,11 +133,10 @@ const BUILDER_LAYER_MARKERS = [
   "data-section-deleted",
   "data-section-restore",
   "data-remove-scope",
-  // Wskazanie miejsca upuszczenia i sekcja przypięta (K6, ADR-092). Belka celu
-  // i obrys sekcji-celu są komunikatem KREATORA — w sklepie nie ma czego
-  // wskazywać, więc żaden z tych znaczników nie ma prawa tam trafić.
-  "data-insert-active",
-  "data-insert-target",
+  // Wskazanie sekcji-celu przy przeciąganiu ELEMENTU i sekcja przypięta
+  // (K6, ADR-092). Obrys celu jest komunikatem KREATORA — w sklepie nie ma
+  // czego wskazywać, więc nie ma prawa tam trafić. Belka wskazująca miejsce
+  // dla SEKCJI zeszła z listy razem z przeciąganiem sekcji z palety (E2).
   "data-drop-target",
   "data-section-pinned",
 ] as const;
@@ -217,9 +230,10 @@ const BUILDER_LAYER_SOURCES = [
   "app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-palette.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/template-gallery.tsx",
-  // Galeria typów sekcji żyje w pasie ekranu „Strona sklepu", ale renderuje się
-  // WEWNĄTRZ kreatora (paleta i „+" na płótnie) — jej znaczniki są warstwą.
-  "app/[locale]/(panel)/strona/add-section-gallery.tsx",
+  // Picker sekcji (E2) — okno wyboru typu z PODGLĄDAMI. Podgląd montuje ten sam
+  // `SiteRenderer`, co sklep, więc jego znaczniki muszą być pilnowane tak samo
+  // jak znaczniki płótna.
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/section-picker.tsx",
 ] as const;
 
 /**
