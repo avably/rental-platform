@@ -1019,7 +1019,6 @@
       "addType": "Add section",
       "add": "Add section",
       "addHint": "A new section is appended at the end of the page.",
-      "addModalDescription": "Pick a section type — it's added filled with an example you can replace.",
       "addBelow": "Add section below",
       "empty": "No sections yet. Add the first one to build your page.",
       "moveUp": "Move up",
@@ -1036,6 +1035,15 @@
       "confirmRemove": "Delete section",
       "cancel": "Cancel",
       "alreadyOnPage": "The page already has this section."
+    },
+    "sectionPicker": {
+      "title": "Add section",
+      "placeAtEnd": "The section goes to the end of the page.",
+      "placeBefore": "The section goes above the “{type}” section.",
+      "typesLegend": "Section types",
+      "singleLayout": "Insert this section",
+      "addVariant": "Add: {type} — {layout}",
+      "pinnedOnlyAtEnd": "This section always sits at the end of the page — add it with the button below the last section or from the palette."
     },
     "sectionTypes": {
       "hero": "Hero banner",
@@ -1181,7 +1189,9 @@
       "paletteExpand": "Expand palette",
       "tabSections": "Sections",
       "tabElements": "Elements",
-      "tabSectionsHint": "Pick a section type — it is appended at the end of the page, filled with an example.",
+      "tabSectionsHint": "Pick a type with a preview. The section is appended at the end of the page, filled with an example. To insert it in the middle, use the “+” between sections.",
+      "pathLabel": "Selection path",
+      "pathSelectSection": "Select the whole section",
       "elementsSoonTitle": "Elements are coming soon",
       "elementsSoonBody": "Individual headings, text, buttons and images will be draggable onto a section. For now you build the page from ready-made sections.",
       "addHere": "Add section here",

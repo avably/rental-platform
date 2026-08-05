@@ -3,16 +3,18 @@
 /**
  * LEWA PALETA KREATORA (K1, ADR-083) — dwie zakładki i stopka szablonu.
  *
- * „Sekcje" to TA SAMA galeria typów z presetami, co modal „+" na płótnie
- * (`SectionTypeGallery`) — jedna siatka, dwa opakowania. Kafel ma odtąd (K6,
- * ADR-092) DWIE drogi, tak samo jak kafel elementu od K3: kliknięcie dokłada
- * sekcję na końcu treści, a PRZECIĄGNIĘCIE wstawia ją w podświetlone miejsce
- * między sekcjami. Klik zostaje, bo przeciąganie nie ma odpowiednika
- * klawiaturowego — a „+" między sekcjami zostaje, bo jest drogą bez myszy.
+ * „Sekcje" jest od E2 WEJŚCIEM DO PICKERA z kontekstem „na końcu strony", a nie
+ * drugą listą typów. Powody są dwa. Po pierwsze, decyzja właściciela z grilla
+ * planu „Sekcje 2.0" wycięła przeciąganie sekcji z palety — kafel przestał więc
+ * mieć drugą drogę i został zwykłym przyciskiem. Po drugie, typ sekcji wybiera
+ * się odtąd Z PODGLĄDEM (`section-picker.tsx`); lista bez podglądów obok listy
+ * z podglądami byłaby dwoma miejscami wyboru tego samego, z których jedno mówi
+ * mniej.
  *
  * „Elementy" (K3, ADR-086) to kafle przeciągane NA sekcję albo dokładane
- * kliknięciem — patrz `element-palette.tsx`. Do K2 zakładka była jawną
- * zapowiedzią; teraz jest paletą.
+ * kliknięciem — patrz `element-palette.tsx`. Ta zakładka zostaje BEZ ZMIAN:
+ * element ma współrzędne, więc jego przeciąganie odpowiada na pytanie, na które
+ * klik nie odpowiada. Do K2 zakładka była jawną zapowiedzią; teraz jest paletą.
  *
  * STYL STRONY siedzi w STOPCE palety (K5, ADR-090). Przełącznik „szablon
  * graficzny" (classic/bold) ZNIKŁ stąd decyzją właściciela: szablon nie jest
@@ -28,14 +30,13 @@ import {
   themeTokens,
   type PaletteElementKind,
   type ResolvedSiteStyle,
-  type SectionType,
   type SiteFontPair,
 } from "@avably/core/site";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Button } from "@avably/ui";
+import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
-import { SectionTypeGallery, type SectionDragHandlers } from "@/app/[locale]/(panel)/strona/add-section-gallery";
 import { PanelSelect } from "@/components/fields/panel-select";
 
 import { ElementPalette } from "./element-palette";
@@ -52,16 +53,14 @@ export function BuilderPalette({
   onDropElement,
   onDragElementOver,
   onDragElementEnd,
-  onDragSection,
-  unavailableSectionTypes,
   onSaveStyle,
 }: {
   open: boolean;
   onToggle: () => void;
   disabled: boolean;
   style: ResolvedSiteStyle;
-  /** Dodanie sekcji na KOŃCU strony (paleta nie zna pozycji). */
-  onAddSection: (type: SectionType) => void;
+  /** Otwarcie pickera z kontekstem „na końcu strony" (E2). */
+  onAddSection: () => void;
   /** Dodanie ELEMENTU kliknięciem kafla (K3) — ląduje pod treścią sekcji. */
   onAddElement: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM (K3). */
@@ -70,14 +69,6 @@ export function BuilderPalette({
   onDragElementOver: (pointer: { x: number; y: number }) => void;
   /** Koniec gestu kafla elementu — zdejmij wskazanie (K6). */
   onDragElementEnd: () => void;
-  /**
-   * Przeciągnięcie kafla SEKCJI na płótno (K6, ADR-092). Paleta sama nie liczy
-   * miejsca wstawienia — nie widzi płótna; przekazuje surowe współrzędne
-   * skorupie, która widzi oba.
-   */
-  onDragSection: SectionDragHandlers;
-  /** Typy, których strona nie przyjmie drugi raz (dziś: stopka) — ADR-092. */
-  unavailableSectionTypes: readonly SectionType[];
   /** Zapis stylu — CAŁY stan, nie pojedyncze pole (scalanie robi akcja). */
   onSaveStyle: (style: ResolvedSiteStyle) => void;
 }) {
@@ -135,13 +126,17 @@ export function BuilderPalette({
           className="flex flex-col gap-2"
         >
           <p className="text-muted-foreground text-[13px] leading-[18px]">{t("builder.tabSectionsHint")}</p>
-          <SectionTypeGallery
-            columns="single"
+          <Button
+            type="button"
+            variant="secondary"
+            data-palette-add-section
             disabled={disabled}
-            onAdd={onAddSection}
-            drag={onDragSection}
-            unavailable={unavailableSectionTypes}
-          />
+            loading={disabled}
+            onClick={onAddSection}
+          >
+            <Plus className="size-4" aria-hidden />
+            {t("sections.add")}
+          </Button>
         </div>
       ) : (
         <div

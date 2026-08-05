@@ -1,19 +1,19 @@
 /**
  * KONTRAKT PRZYPIĘTEJ STOPKI (K6, ADR-092) — arytmetyka, bez DOM-u i bez bazy.
  *
- * Reguła „stopka jest ostatnia" ma trzech niezależnych konsumentów (płótno,
+ * Reguła „stopka jest ostatnia” ma trzech niezależnych konsumentów (płótno,
  * akcja zapisu, render), więc testujemy ją tam, gdzie mieszka, a nie trzy razy
  * przez interfejs. Testy niżej są celowo napisane od strony NADUŻYĆ: kolejność
- * przychodząca „z zewnątrz" bywa niepełna, ma duplikaty albo stawia stopkę na
+ * przychodząca „z zewnątrz” bywa niepełna, ma duplikaty albo stawia stopkę na
  * początku — i każda z tych postaci ma dać stronę ze stopką na końcu.
  */
 import { describe, expect, it } from "vitest";
 
 import {
   PINNED_LAST_TYPES,
-  insertableSlots,
   isPinnedLastType,
   normalizeSectionOrder,
+  orderWithSectionBefore,
   type OrderedSection,
   type SectionType,
 } from "./index";
@@ -59,7 +59,7 @@ describe("normalizacja kolejności", () => {
   });
 
   it("id spoza kompletu jest pomijane, a sekcja pominięta w żądaniu dopisuje się", () => {
-    // Wyścig: druga karta dodała sekcję „d" w chwili, gdy ta przeciągała „b".
+    // Wyścig: druga karta dodała sekcję „d” w chwili, gdy ta przeciągała „b”.
     expect(normalizeSectionOrder(["b", "a", "obcy"], page)).toEqual(["b", "a", "d", "c"]);
   });
 
@@ -77,17 +77,35 @@ describe("normalizacja kolejności", () => {
   });
 });
 
-describe("miejsca wstawienia", () => {
-  it("stopka odbiera miejsce POD sobą", () => {
-    // 4 sekcje, z czego jedna przypięta → wolno wstawić na 0..3, nie na 4.
-    expect(insertableSlots(page)).toBe(3);
+describe("wstawienie przed wskazaną sekcją", () => {
+  const ids = page.map((section) => section.id);
+
+  it("nowa sekcja staje BEZPOŚREDNIO przed kotwicą", () => {
+    expect(orderWithSectionBefore(ids, "n", "b")).toEqual(["a", "n", "b", "c", "d"]);
+    expect(orderWithSectionBefore(ids, "n", "a")).toEqual(["n", "a", "b", "c", "d"]);
   });
 
-  it("strona bez stopki ma miejsce na końcu", () => {
-    expect(insertableSlots(page.filter((s) => s.type !== "footer"))).toBe(3);
+  it("brak kotwicy znaczy KONIEC — tak samo jak „+” pod ostatnią sekcją", () => {
+    expect(orderWithSectionBefore(ids, "n", undefined)).toEqual([...ids, "n"]);
   });
 
-  it("pusta strona ma dokładnie jedno miejsce (zero)", () => {
-    expect(insertableSlots([])).toBe(0);
+  it("kotwica, której już nie ma, degraduje do końca zamiast wywracać zapis", () => {
+    // Sekcja skasowana w innej karcie między kliknięciem „+” a zapisem.
+    expect(orderWithSectionBefore(ids, "n", "znikneła")).toEqual([...ids, "n"]);
+  });
+
+  it("nowe id nie duplikuje się, gdy przyszło już w komplecie", () => {
+    // Komplet czytany ZE STANU BAZY zawiera świeżą sekcję (wstawka poszła przed
+    // przenumerowaniem) — bez odsiania miałaby dwie pozycje.
+    expect(orderWithSectionBefore(["a", "n", "b"], "n", "a")).toEqual(["n", "a", "b"]);
+  });
+
+  it("KOTWICĄ JEST IDENTYFIKATOR, nie miejsce na liście (odporność na wyścig)", () => {
+    // Ta sama kotwica („przed b”) na dwóch RÓŻNYCH wersjach listy — raz przed
+    // wstawką sąsiada, raz po niej. Wynik obu razy jest tym, co operator
+    // wskazał: bezpośrednio nad „b”. Indeks policzony na pierwszej liście
+    // (czyli 1) trafiłby na drugiej przed „x”, a nie przed „b”.
+    expect(orderWithSectionBefore(["a", "b"], "n", "b")).toEqual(["a", "n", "b"]);
+    expect(orderWithSectionBefore(["a", "x", "b"], "n", "b")).toEqual(["a", "x", "n", "b"]);
   });
 });
