@@ -46,6 +46,12 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   directionsAddress: "Adres:",
   directionsHours: "Godziny otwarcia:",
   directionsMap: "Zobacz na mapie",
+  directionsRoute: "Prowadź",
+  directionsChoose: "Pokaż mapę dla:",
+  directionsShowMap: "Pokaż mapę",
+  directionsMapNotice: "Mapa ładuje się z serwisu zewnętrznego dopiero po kliknięciu.",
+  directionsMapTitle: "Mapa: {location}",
+  directionsMapPreview: "Mapa otworzy się na opublikowanej stronie.",
   galleryZoom: "Powiększ zdjęcie",
   galleryClose: "Zamknij powiększenie",
   galleryPrev: "Poprzednie zdjęcie",
@@ -93,6 +99,7 @@ function SectionSwitch({
   labels,
   siteImageBase,
   contactForm,
+  mapEmbed,
   elementWrapper,
 }: {
   section: RenderSection;
@@ -100,6 +107,7 @@ function SectionSwitch({
   labels: SiteRenderLabels;
   siteImageBase?: string;
   contactForm?: ContactFormBinding;
+  mapEmbed?: boolean;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
 }) {
   const styles = siteStyles();
@@ -130,6 +138,7 @@ function SectionSwitch({
         labels={labels}
         sectionId={section.id}
         contactForm={contactForm}
+        mapEmbed={mapEmbed}
       />
     );
   }
@@ -277,6 +286,7 @@ export function SiteRenderer({
   className,
   siteImageBase,
   contactForm,
+  mapEmbed,
   sectionWrapper,
   elementWrapper,
   asRoot = true,
@@ -320,6 +330,20 @@ export function SiteRenderer({
    * nie podaje nic i dostaje ten sam formularz jako podgląd (`inert`).
    */
   contactForm?: ContactFormBinding;
+  /**
+   * ZGODA NA OSADZENIE OBCEJ RAMKI (E5, ADR-096) — mapa dojazdu.
+   *
+   * Druga rzecz (po `contactForm`), którą do wspólnego renderera wnosi SKLEP,
+   * a nie kreator, i z tego samego powodu: to sklep ma politykę CSP, która
+   * wpuszcza źródło ramki dostawcy map (`maps` w @avably/security). Panel jej
+   * nie ma — świadomie, bo powierzchnia edycyjna nie jest miejscem na obce
+   * ramki — więc płótno i podgląd szkicu rysują w tym miejscu zdanie zamiast
+   * ramki uciętej przez politykę.
+   *
+   * Brak zgody NIE WYŁĄCZA mechaniki: kafel, wybór punktu i przycisk stoją tak
+   * samo, żeby operator widział, co dostanie klient.
+   */
+  mapEmbed?: boolean;
   /**
    * OWIJKA SEKCJI — jedyny szew, przez który kreator (ADR-083) dokłada swoją
    * warstwę edycyjną: obrys, pływający pasek narzędzi, uchwyt przeciągania,
@@ -374,6 +398,7 @@ export function SiteRenderer({
           labels={labels}
           siteImageBase={siteImageBase}
           contactForm={contactForm}
+          mapEmbed={mapEmbed}
           elementWrapper={
             elementWrapper
               ? (element, children) => elementWrapper(section, element, children)

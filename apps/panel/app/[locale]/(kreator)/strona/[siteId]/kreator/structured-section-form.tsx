@@ -86,7 +86,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowDown, ArrowUp, GripVertical, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, GripVertical, MapPin, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
@@ -139,11 +139,23 @@ function writeField(
 export function StructuredSectionForm({
   siteId,
   content,
+  importSources,
   onChange,
   onConvertHint,
 }: {
   siteId: string;
   content: StructuredSectionContent;
+  /**
+   * WPISY DO SKOPIOWANIA Z INNYCH MODUŁÓW PANELU (E5, ADR-096), po nazwie
+   * źródła z rejestru (`itemsImport`). Framework nie wie, skąd się biorą ani co
+   * znaczą — dostaje je już w kształcie wpisu tego typu, bo mapowanie wiersza
+   * bazy na treść sekcji jest wiedzą TRASY, a nie szuflady.
+   *
+   * Klucz zamiast gołej tablicy, żeby drugi typ z importem (cennik z katalogu?)
+   * nie dostał przypadkiem cudzych danych — host podaje komplet źródeł, a
+   * rejestr rozstrzyga, które z nich należy do tego typu.
+   */
+  importSources?: Record<string, readonly unknown[]>;
   onChange: (update: Update) => void;
   /** Miejsce na komunikat/akcję spoza mini-CMS (np. konwersja) — opcjonalne. */
   onConvertHint?: React.ReactNode;
@@ -385,6 +397,28 @@ export function StructuredSectionForm({
           {t(`structured.${type}.addItem`)}
         </Button>
       ) : null}
+
+      {/*
+        KOPIOWANIE WPISÓW Z INNEGO MODUŁU (E5) — przycisk istnieje wyłącznie
+        tam, gdzie REJESTR wskazał źródło (`itemsImport`), tak samo jak przycisk
+        „dodaj wpis" istnieje tam, gdzie rejestr umie podać świeży wpis.
+      */}
+      {spec.itemsImport ? (
+        <ImportItems
+          type={type}
+          entries={importSources?.[spec.itemsImport] ?? []}
+          items={items}
+          room={spec.maxItems - items.length}
+          onImport={(fresh) =>
+            onChange((current) =>
+              fresh.reduce<StructuredSectionContent>(
+                (draft, entry) => appendStructuredItem(draft, entry),
+                current,
+              ),
+            )
+          }
+        />
+      ) : null}
     </div>
   );
 
@@ -427,6 +461,101 @@ export function StructuredSectionForm({
 
       {tab === "items" ? lista : wyglad}
       {onConvertHint}
+    </div>
+  );
+}
+
+/**
+ * ODCISK WPISU — do rozpoznania, czy taki sam już w sekcji jest.
+ *
+ * Liczony z DANYCH, bez wiedzy o typie: klucze sortujemy (jsonb w bazie i tak
+ * nie zachowuje ich kolejności, więc porównanie po surowym `JSON.stringify`
+ * rozjeżdżałoby się po pierwszym przeładowaniu strony), a puste wartości
+ * pomijamy — pole zdjęte i pole puste znaczą tu to samo „nie ma".
+ */
+function entryFingerprint(entry: unknown): string {
+  if (typeof entry !== "object" || entry === null) return JSON.stringify(entry);
+  const pairs = Object.entries(entry as Record<string, unknown>)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify(pairs);
+}
+
+/**
+ * „WSTAW Z PUNKTÓW ODBIORU" (E5, ADR-096) — KOPIA, NIE SPRZĘŻENIE.
+ *
+ * ==================== DLACZEGO KOPIA ====================
+ *
+ * Kusi wyświetlać punkty odbioru na stronie na żywo („zmień w Dostawach, zmieni
+ * się na stronie"). Odpada z dwóch powodów, i oba są o tym, czyja to jest
+ * strona: (1) publikacja przestałaby być momentem, w którym operator decyduje,
+ * co widzi klient — zmiana ustawienia logistycznego przestawiałaby OPUBLIKOWANĄ
+ * treść bez publikacji; (2) punkt odbioru ma nazwę roboczą („magazyn 2"), której
+ * najemca nie chce na stronie, a nie da się jej zmienić, nie zmieniając nazwy
+ * w module dostaw. Po skopiowaniu treść należy do sekcji i tam się ją edytuje.
+ *
+ * ==================== DLACZEGO ODSIEWAMY POWTÓRKI ====================
+ *
+ * Drugie kliknięcie ma nie dokładać tych samych punktów jeszcze raz — a że wpis
+ * po skopiowaniu wolno edytować, odsiew działa DOPÓKI wpis jest kopią. Punkt
+ * z ręcznie zmienioną nazwą wejdzie ponownie i to jest w porządku: sekcja jest
+ * właścicielem swojej treści, więc dwa podobne wpisy są decyzją operatora, a nie
+ * błędem, który mielibyśmy zgadywać.
+ */
+function ImportItems({
+  type,
+  entries,
+  items,
+  room,
+  onImport,
+}: {
+  type: StructuredSectionType;
+  entries: readonly unknown[];
+  items: Record<string, unknown>[];
+  room: number;
+  onImport: (fresh: unknown[]) => void;
+}) {
+  const t = useTranslations("site");
+  const hintId = useId();
+
+  const known = new Set(items.map(entryFingerprint));
+  const fresh = entries.filter((entry) => !known.has(entryFingerprint(entry)));
+  const insertable = fresh.slice(0, Math.max(room, 0));
+
+  /*
+   * POWÓD WYŁĄCZENIA JEST TRZECH RODZAJÓW i każdy prowadzi gdzie indziej:
+   * „nie masz punktów" odsyła do modułu dostaw, „wszystkie już są" mówi, że
+   * praca jest zrobiona, a „sekcja pełna" — że trzeba coś usunąć. Jeden wspólny
+   * komunikat („nie można") kazałby operatorowi zgadywać, które z trzech.
+   */
+  const reason =
+    insertable.length > 0
+      ? null
+      : entries.length === 0
+        ? t(`structured.${type}.import.empty`)
+        : room <= 0
+          ? t(`structured.${type}.import.full`)
+          : t(`structured.${type}.import.nothingNew`);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        data-cms-import
+        disabled={reason !== null}
+        aria-describedby={reason ? hintId : undefined}
+        onClick={() => onImport(insertable)}
+      >
+        <MapPin className="size-4" aria-hidden />
+        {t(`structured.${type}.import.action`)}
+      </Button>
+      {reason ? (
+        <p id={hintId} data-cms-import-reason className="text-muted-foreground text-xs">
+          {reason}
+        </p>
+      ) : null}
     </div>
   );
 }

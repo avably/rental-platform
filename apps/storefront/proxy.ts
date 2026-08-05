@@ -137,6 +137,16 @@ function cspOptions(): CspOptions {
     // renderować w ramce. Liczy się sama OBECNOŚĆ zmiennej — wartość nie
     // opuszcza middleware'u i nie ma jak trafić do polityki ani do bundla.
     stripe: Boolean(process.env.AVABLY_STRIPE_SECRET_KEY),
+    /*
+     * Ramka mapy dojazdu (E5, ADR-096) — BEZ warunku, i to jest świadome.
+     * Middleware liczy politykę per ŻĄDANIE, zanim wiadomo, jakie sekcje ma
+     * strona tego najemcy; warunek „czy ta strona ma sekcję dojazdu" kosztowałby
+     * odczyt treści na każdym żądaniu, żeby zaoszczędzić jedno źródło RAMKI,
+     * którego samo dopuszczenie NICZEGO nie ładuje. Prywatności pilnuje
+     * KLIKNIĘCIE w renderze (przed nim nie ma ani ramki, ani preconnectu), a nie
+     * ta linia — polityka mówi wyłącznie, co wolno, gdy odwiedzający poprosi.
+     */
+    maps: true,
   };
 }
 

@@ -71,6 +71,16 @@ export default async function TenantStorePage() {
     directionsAddress: copy.siteLabels.directionsAddress,
     directionsHours: copy.siteLabels.directionsHours,
     directionsMap: copy.siteLabels.directionsMap,
+    // Dojazd strukturalny (E5): przycisk „Pokaż mapę", wybór punktu i tytuł
+    // ramki są CHROME renderu — mówią językiem sklepu, a nie językiem, w którym
+    // akurat stoi kod. Notka o ładowaniu mapy z serwisu zewnętrznego jest tu
+    // z tego samego powodu: to informacja dla odwiedzającego, nie tekst najemcy.
+    directionsRoute: copy.siteLabels.directionsRoute,
+    directionsChoose: copy.siteLabels.directionsChoose,
+    directionsShowMap: copy.siteLabels.directionsShowMap,
+    directionsMapNotice: copy.siteLabels.directionsMapNotice,
+    directionsMapTitle: copy.siteLabels.directionsMapTitle,
+    directionsMapPreview: copy.siteLabels.directionsMapPreview,
     // Galeria strukturalna (E3): przyciski powiększenia i pasa karuzeli mają
     // w środku sam znak graficzny, więc ich dostępna nazwa jest jedynym, co
     // słyszy czytnik ekranu — musi przyjść z języka strony.
@@ -192,6 +202,14 @@ export default async function TenantStorePage() {
             labels={labels}
             siteImageBase={siteImageBase}
             contactForm={contactForm}
+            /*
+              ZGODA NA OSADZENIE MAPY (E5, ADR-096) — podaje ją WYŁĄCZNIE sklep,
+              bo tylko jego polityka CSP wpuszcza źródło ramki dostawcy map
+              (`maps` w proxy.ts). Panel tej flagi nie podaje i dostaje ten sam
+              kafel w trybie podglądu. Zgoda dotyczy PRAWA do osadzenia; samo
+              osadzenie robi dopiero kliknięcie odwiedzającego.
+            */
+            mapEmbed
           />
         </main>
       )}

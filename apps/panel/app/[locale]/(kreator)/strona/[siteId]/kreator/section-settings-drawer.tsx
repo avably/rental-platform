@@ -60,6 +60,7 @@ import { replaceElement } from "./use-canvas-editor";
 
 export function SectionSettingsDrawer({
   siteId,
+  importSources,
   section,
   canvas,
   structured,
@@ -72,6 +73,12 @@ export function SectionSettingsDrawer({
   onSaved,
 }: {
   siteId: string;
+  /**
+   * Wpisy z innych modułów panelu do skopiowania w mini-CMS (E5, ADR-096).
+   * Szuflada ich nie czyta — podaje dalej mini-CMS-owi, który zestawia je
+   * z deklaracją `itemsImport` w rejestrze typu.
+   */
+  importSources?: Record<string, readonly unknown[]>;
   /** Sekcja w edycji albo null — szuflada zamknięta. */
   section: EditorSection | null;
   /** Szkic płótna tej sekcji (v2). Brak = sekcja w kształcie v1 albo v3. */
@@ -133,6 +140,7 @@ export function SectionSettingsDrawer({
                   key={section.id}
                   siteId={siteId}
                   content={structured}
+                  importSources={importSources}
                   onChange={onStructuredChange}
                 />
               ) : canvas ? (

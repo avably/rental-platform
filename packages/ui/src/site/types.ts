@@ -211,6 +211,27 @@ export interface SiteRenderLabels {
   directionsHours: string;
   directionsMap: string;
   /**
+   * DOJAZD STRUKTURALNY (E5, ADR-096). Sześć etykiet, bo tyle rzeczy w tej
+   * sekcji mówi CHROME renderu, a nie najemca:
+   *   • `directionsRoute` — odnośnik nawigacji przy każdym punkcie;
+   *   • `directionsChoose` — nazwa grupy wyboru punktu nad mapą (czytnik ekranu
+   *     zapowiada ją przed każdą opcją, więc bez niej wybór jest bezimienny);
+   *   • `directionsShowMap` — przycisk, którym odwiedzający prosi o mapę;
+   *   • `directionsMapNotice` — zdanie o tym, co się po tym kliknięciu stanie
+   *     (mapa ładuje się z serwisu zewnętrznego). Bez niego przycisk wygląda na
+   *     zwykłe „rozwiń";
+   *   • `directionsMapTitle` — tytuł ramki mapy (WCAG 4.1.2). `{location}`
+   *     podmienia render nazwą punktu;
+   *   • `directionsMapPreview` — zdanie w miejscu mapy na powierzchniach
+   *     edycyjnych panelu, których polityka CSP ramki dostawcy nie wpuszcza.
+   */
+  directionsRoute: string;
+  directionsChoose: string;
+  directionsShowMap: string;
+  directionsMapNotice: string;
+  directionsMapTitle: string;
+  directionsMapPreview: string;
+  /**
    * GALERIA STRUKTURALNA (E3, aneks ADR-094). Przyciski powiększenia i pasa
    * karuzeli mają w środku SAM ZNAK graficzny, więc ich dostępna nazwa jest
    * jedynym, co słyszy czytnik ekranu — musi przyjść z języka strony, a nie

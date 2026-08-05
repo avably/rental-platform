@@ -82,6 +82,46 @@ describe("buildCsp", () => {
     expect(csp).not.toContain("frame-src");
   });
 
+  /*
+   * MAPA DOJAZDU (E5, ADR-096) — źródło RAMKI i wyłącznie ramki.
+   *
+   * Test ma dwa zdania, bo są dwa sposoby zepsucia tej decyzji: źródło może
+   * ZNIKNĄĆ (sklep przestaje pokazywać mapę — objaw: pusta ramka i błąd
+   * w konsoli, którego nikt nie ogląda) albo TRAFIĆ NIE TAM (dostawca w
+   * `script-src` mógłby wykonać kod w naszym kontekście, w `connect-src` —
+   * przyjmować dane z naszej strony). Sprawdzamy więc obecność w `frame-src`
+   * i NIEOBECNOŚĆ w każdej innej dyrektywie.
+   */
+  it("maps: true dodaje źródło ramki dostawcy map do frame-src", () => {
+    const csp = buildCsp("n", { maps: true });
+    expect(directive(csp, "frame-src")).toBe("frame-src https://www.google.com");
+  });
+
+  it("maps: źródło NIE trafia do żadnej innej dyrektywy", () => {
+    const csp = buildCsp("n", { maps: true, supabaseUrl: "https://xyz.supabase.co" });
+    for (const name of ["script-src", "connect-src", "img-src", "style-src", "font-src", "default-src"]) {
+      expect(directive(csp, name), `dostawca map w dyrektywie ${name}`).not.toContain("google");
+    }
+  });
+
+  it("maps współżyje z pozostałymi osadzanymi — frame-src jest JEDNĄ dyrektywą", () => {
+    const csp = buildCsp("n", { maps: true, turnstile: true, stripe: true });
+    const frameSrc = directive(csp, "frame-src");
+    expect(frameSrc).toContain("https://www.google.com");
+    expect(frameSrc).toContain("https://challenges.cloudflare.com");
+    expect(frameSrc).toContain("https://js.stripe.com");
+    // Druga deklaracja tej samej dyrektywy po cichu nadpisałaby pierwszą.
+    expect(csp.split(";").filter((part) => part.trim().startsWith("frame-src "))).toHaveLength(1);
+  });
+
+  it("bez maps polityka NIE zna dostawcy map (panel: ta flaga nie jest podawana)", () => {
+    // Panel renderuje tę samą sekcję, ale mapy nie osadza (render dostaje
+    // `mapEmbed={false}`) — powierzchnia edycyjna z sesją najemcy nie jest
+    // miejscem na obce ramki.
+    const csp = buildCsp("n", { supabaseUrl: "https://xyz.supabase.co" });
+    expect(csp).not.toContain("google");
+  });
+
   it("upgrade-insecure-requests tylko poza devem", () => {
     expect(buildCsp("n", { dev: false })).toContain("upgrade-insecure-requests");
     expect(buildCsp("n", { dev: true })).not.toContain("upgrade-insecure-requests");

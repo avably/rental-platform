@@ -112,6 +112,7 @@ export function SiteBuilder({
   style,
   sections,
   products,
+  importSources,
 }: {
   siteId: string;
   /**
@@ -125,6 +126,12 @@ export function SiteBuilder({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /**
+   * WPISY Z INNYCH MODUŁÓW PANELU do skopiowania w mini-CMS (E5, ADR-096) —
+   * po nazwie źródła z rejestru typów. Trasa czyta je z bazy i mapuje na
+   * kształt wpisu; kreator przenosi je do szuflady i nic o nich nie wie.
+   */
+  importSources?: Record<string, readonly unknown[]>;
 }) {
   const t = useTranslations("site");
   const locale = useLocale();
@@ -697,6 +704,7 @@ export function SiteBuilder({
 
       <SectionSettingsDrawer
         siteId={siteId}
+        importSources={importSources}
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
         structured={openSection ? editor.structuredOf(openSection.id) : undefined}

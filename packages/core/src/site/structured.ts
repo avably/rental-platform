@@ -703,6 +703,166 @@ export type ContactSubmitResult =
   | { status: "server_error" };
 
 // -----------------------------------------------------------------------
+// Dojazd — pierwszy typ z OSADZENIEM OBCEJ RAMKI (E5, ADR-096)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu dojazdu. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „co czyta odwiedzający":
+ *   • `stacked` — adresy w rzędzie kart, mapa POD nimi na pełnej szerokości.
+ *     Kto zna miasto, czyta adres i wychodzi; kto nie zna, otwiera mapę i ma ją
+ *     szeroką;
+ *   • `split` — adresy po lewej, mapa po prawej (poniżej progu schodzą w tę samą
+ *     kolumnę, co `stacked`). Adres i mapa są wtedy widoczne naraz.
+ *
+ * Oba czytają TEN SAM `items` — przełącznik układu jest polem treści, więc jego
+ * zmiana z definicji nie dosięga wpisów.
+ */
+export const DIRECTIONS_LAYOUTS = ["stacked", "split"] as const;
+export type DirectionsLayout = (typeof DIRECTIONS_LAYOUTS)[number];
+
+/** Górna granica lokalizacji — lustro `maxItems` w rejestrze (test pilnuje zgody). */
+const DIRECTIONS_MAX_ITEMS = 6;
+
+/**
+ * Nazwa punktu („Magazyn", „Punkt odbioru — centrum"). OPCJONALNA, i to jest
+ * decyzja konwersji, a nie niedbałość: sekcja dojazdu sprzed v3 znała JEDEN
+ * adres i nie miała pola na jego nazwę, więc wymóg nazwy kazałby konwersji ją
+ * WYMYŚLIĆ. Jeden punkt bez nazwy renderuje się jako sam adres — dokładnie to,
+ * co strona pokazywała wcześniej.
+ */
+const directionsLabel = z.string().trim().min(1).max(120);
+
+/**
+ * Adres punktu — JEDYNE pole wymagane. Sekcja dojazdu bez ani jednego adresu
+ * jest pustym nagłówkiem (klasa atrap usuwana przez ADR-094), a dodatkowo nie
+ * ma z czego zbudować ani mapy, ani nawigacji: obie liczą się WYŁĄCZNIE z tego
+ * napisu.
+ */
+const directionsAddressValue = z.string().trim().min(1).max(300);
+
+/** Godziny otwarcia punktu — tekst najemcy, nie kalendarz (ta sama zasada, co w kontakcie). */
+const directionsHoursValue = z.string().trim().min(1).max(200);
+
+export const directionsStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("directions"),
+    layout: z.enum(DIRECTIONS_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Lokalizacje. MINIMUM JEDNA — patrz {@link directionsAddressValue}.
+     * Lista, a nie jeden adres, bo wypożyczalnia realnie ma magazyn i punkt
+     * odbioru, a do niedawna model pozwalał opisać tylko jedno z nich.
+     */
+    items: z
+      .array(
+        z
+          .object({
+            label: directionsLabel.optional(),
+            address: directionsAddressValue,
+            hours: directionsHoursValue.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(DIRECTIONS_MAX_ITEMS),
+  })
+  .strict();
+
+export type DirectionsStructuredContent = z.infer<typeof directionsStructuredSchema>;
+export type DirectionsStructuredItem = DirectionsStructuredContent["items"][number];
+
+/**
+ * ORIGIN DOSTAWCY MAP — lustro źródła ramki w polityce CSP (`maps` w
+ * @avably/security). Stała stoi tutaj, przy adresach, żeby zmiana dostawcy była
+ * JEDNĄ zmianą w jednym pliku; test rdzenia pilnuje, że oba adresy niżej z niej
+ * wychodzą, a test polityki — że dokładnie ten origin wpuszcza `frame-src`.
+ */
+export const MAP_PROVIDER_ORIGIN = "https://www.google.com";
+
+/**
+ * ADRES OSADZONEJ MAPY dla adresu punktu.
+ *
+ * ==================== BEZ KLUCZA API, BEZ SDK ====================
+ *
+ * `output=embed` na zwykłym wyszukiwaniu daje ramkę mapy bez klucza, bez konta
+ * i bez ani jednego skryptu dostawcy na naszej stronie. Wersja z SDK (Maps
+ * JavaScript API) znaczyłaby: klucz w bundlu, obcy skrypt z `strict-dynamic`,
+ * rozliczane wywołania i drugą zależność do pilnowania — za funkcję, która ma
+ * pokazać, gdzie stoi magazyn.
+ *
+ * Adres jedzie przez `encodeURIComponent`, więc spacje, przecinki i polskie
+ * znaki nie rozsadzają zapytania.
+ */
+export function directionsMapEmbedSrc(address: string): string {
+  return `${MAP_PROVIDER_ORIGIN}/maps?q=${encodeURIComponent(address)}&output=embed`;
+}
+
+/**
+ * ADRES NAWIGACJI („Prowadź") — otwiera trasę w serwisie map, na telefonie
+ * w aplikacji. `api=1` to udokumentowana, stabilna postać takiego odnośnika;
+ * `destination` przyjmuje adres tekstem, więc nie potrzebujemy współrzędnych,
+ * których najemca i tak nigdzie nie ma.
+ */
+export function directionsRouteHref(address: string): string {
+  return `${MAP_PROVIDER_ORIGIN}/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+}
+
+/**
+ * LOKALIZACJE WYPROWADZONE ZE STAREJ TREŚCI (konwersja E5).
+ *
+ * Dojazd jest konwertowalny w obu generacjach, ale NIE tak samo głęboko:
+ *
+ *   • v1 niesie OSOBNE pola (`address`, `hours`), więc obie wartości mają
+ *     zapisane znaczenie i jadą wprost;
+ *   • PŁÓTNO v2 spłaszczyło je do napisów. Przenosimy stamtąd PIERWSZY napis
+ *     jako adres — tyle wynika z kolejności czytania i z tego, jak układa
+ *     sekcję nasza własna konwersja v1→v2. Napisu DRUGIEGO nie tykamy, choć
+ *     bywa godzinami: „bywa" to za mało, żeby podpisać dowolne zdanie operatora
+ *     etykietą „Godziny otwarcia". To jest ta sama granica, co przy FAQ (który
+ *     napis był pytaniem) — z tą różnicą, że tu pierwszy napis ma znaczenie
+ *     wymuszone geometrią, więc jego przeniesienie nie jest zgadywaniem.
+ *
+ * `mapsUrl` z v1 NIE JEDZIE i to jest decyzja: mapa i nawigacja liczą się
+ * w v3 WYŁĄCZNIE z adresu, więc zapisany odnośnik byłby drugim źródłem prawdy
+ * o tym samym miejscu — i pierwsza poprawka adresu rozjechałaby stronę
+ * z przyciskiem, który dalej prowadzi pod stary pinezkowy link.
+ */
+export function directionsLocationsFromLegacy(content: unknown): DirectionsStructuredItem[] {
+  if (isSectionCanvas(content)) return directionsLocationsFromCanvas(content);
+  return directionsLocationsFromV1(content);
+}
+
+function directionsLocationsFromCanvas(canvas: SectionCanvas): DirectionsStructuredItem[] {
+  const firstText = canvas.elements
+    .filter((element): element is Extract<CanvasElement, { kind: "text" }> => element.kind === "text")
+    .slice()
+    .sort(
+      (a, b) =>
+        a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x,
+    )[0];
+  const address = firstText?.text.trim();
+  return address && address.length > 0 ? [{ address: address.slice(0, 300) }] : [];
+}
+
+/** Sekcja dojazdu SPRZED płótna: osobne pola adresu i godzin (schemat v1). */
+function directionsLocationsFromV1(content: unknown): DirectionsStructuredItem[] {
+  if (typeof content !== "object" || content === null) return [];
+  const source = content as Record<string, unknown>;
+  const address = typeof source.address === "string" ? source.address.trim() : "";
+  if (address.length === 0) return [];
+  const hours = typeof source.hours === "string" ? source.hours.trim() : "";
+  return [
+    {
+      address: address.slice(0, 300),
+      ...(hours.length > 0 ? { hours: hours.slice(0, 200) } : {}),
+    },
+  ];
+}
+
+// -----------------------------------------------------------------------
 // Opis edytora — mini-CMS czyta pola z DANYCH, nie z `if`-ów per typ
 // -----------------------------------------------------------------------
 
@@ -807,6 +967,18 @@ export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeA
    * której schemat i tak nie przyjmie.
    */
   newItem?: Record<"pl" | "en", unknown>;
+  /**
+   * MODUŁ PANELU, Z KTÓREGO SZUFLADA UMIE SKOPIOWAĆ WPISY (E5, ADR-096).
+   *
+   * Nazwa źródła, nie funkcja: rdzeń nie ma dostępu do bazy i nie zna kształtu
+   * wiersza. Wpisy w kształcie tego typu podaje HOST szuflady (trasa kreatora),
+   * a rejestr mówi wyłącznie, KTÓRY moduł jest dla tego typu sensowny — dzięki
+   * temu przycisk „wstaw z…" pojawia się z danych, a nie z `if`-a po nazwie typu.
+   *
+   * KOPIA, NIE SPRZĘŻENIE: po wstawieniu treść należy do sekcji. Punkt odbioru
+   * zmieniony w Dostawach NIE przestawia opublikowanej strony — patrz ADR-096.
+   */
+  itemsImport?: string;
   /**
    * Treść v3 wyprowadzona z treści STAREJ generacji tej samej sekcji (v1 albo
    * płótno v2) — albo `null`, gdy wyprowadzenie wymagałoby zgadywania.
@@ -1086,6 +1258,100 @@ export const STRUCTURED_SECTIONS = {
         ...(legacyHeading ? { heading: legacyHeading } : {}),
         showForm: true,
         askPhone: false,
+        items,
+      };
+    },
+  },
+
+  directions: {
+    schema: directionsStructuredSchema,
+    layouts: DIRECTIONS_LAYOUTS,
+    defaultLayout: "stacked",
+    itemFields: [
+      { key: "label", kind: "text", empty: "unset" },
+      { key: "address", kind: "text" },
+      { key: "hours", kind: "text", empty: "unset" },
+    ],
+    // Sekcja dojazdu nie ma nic do ustawienia poza układem: mapa jest ZAWSZE za
+    // kliknięciem (decyzja właściciela, ADR-096), a nie przełącznikiem — gdyby
+    // dało się ją włączyć na stałe, cała gwarancja „zero żądań do dostawcy przed
+    // kliknięciem" zależałaby od tego, czego operator nie odznaczył. Pusto
+    // JAWNIE, jak przy FAQ i kontakcie.
+    toggles: [],
+    choices: [],
+    // Jedna kolumna: trzy pola na wpis i sam układ mieszczą się bez zakładek.
+    editor: "single",
+    minItems: 1,
+    maxItems: DIRECTIONS_MAX_ITEMS,
+    // Punkty odbioru mieszkają w module Dostaw i to samo miejsce operator
+    // opisuje drugi raz na stronie. Przycisk kopiujący zdejmuje przepisywanie
+    // adresów z ręki — patrz `itemsImport` w opisie typu.
+    itemsImport: "pickupLocations",
+    // Render dojazdu maluje: nazwę punktu i nagłówek (ink), godziny i notkę
+    // o mapie (inkMuted), obrys karty, ramki mapy i chipów wyboru (border),
+    // przycisk „Pokaż mapę" (accentFill, accentText) oraz odnośnik „Prowadź"
+    // (ink w spoczynku, accentText pod kursorem).
+    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "directions",
+        layout: "stacked",
+        background: "default",
+        heading: "Jak do nas trafić",
+        items: [
+          {
+            label: "Magazyn i wydawanie sprzętu",
+            address: "ul. Przykładowa 5, 00-001 Warszawa",
+            hours: "pon.–pt. 8:00–17:00",
+          },
+          {
+            label: "Punkt odbioru w centrum",
+            address: "ul. Druga 12, 00-002 Warszawa",
+            hours: "sob. 9:00–13:00",
+          },
+        ],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "directions",
+        layout: "stacked",
+        background: "default",
+        heading: "How to find us",
+        items: [
+          {
+            label: "Warehouse and gear pickup",
+            address: "5 Example Street, London EC1A 1AA",
+            hours: "Mon–Fri 8:00–17:00",
+          },
+          {
+            label: "City centre pickup point",
+            address: "12 Sample Road, London EC1A 2BB",
+            hours: "Sat 9:00–13:00",
+          },
+        ],
+      },
+    },
+    newItem: {
+      pl: { label: "Nowy punkt", address: "ul. Przykładowa 1, 00-001 Warszawa" },
+      en: { label: "New location", address: "1 Example Street, London EC1A 1AA" },
+    },
+    fromLegacy: (content: unknown) => {
+      const items = directionsLocationsFromLegacy(content);
+      if (items.length === 0) return null;
+      const source = content as { heading?: unknown } | null;
+      const legacyHeading =
+        typeof source?.heading === "string" && source.heading.trim().length > 0
+          ? source.heading
+          : isSectionCanvas(content)
+            ? canvasHeading(content)
+            : undefined;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "directions",
+        layout: "stacked",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
         items,
       };
     },
