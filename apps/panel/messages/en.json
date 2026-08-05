@@ -1465,6 +1465,26 @@
           "showForm": "Show the contact form",
           "askPhone": "Ask for a phone number"
         }
+      },
+      "directions": {
+        "itemsTitle": "Locations and addresses",
+        "addItem": "Add location",
+        "removeBody": "This location will disappear from the section. You can undo it with “Undo” in the builder toolbar.",
+        "fields": {
+          "label": "Location name (optional)",
+          "address": "Address",
+          "hours": "Opening hours (optional)"
+        },
+        "layouts": {
+          "stacked": "Addresses, map below",
+          "split": "Addresses and map side by side"
+        },
+        "import": {
+          "action": "Insert from pickup points",
+          "empty": "You have no active pickup points yet — add them under Delivery.",
+          "nothingNew": "Every pickup point is already in this section.",
+          "full": "This section already has the maximum number of locations — remove one to insert another."
+        }
       }
     }
   },

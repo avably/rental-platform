@@ -8,6 +8,8 @@ import type { TemplateStyles } from "../template";
 import type { ContactFormBinding, SiteRenderLabels } from "../types";
 import { StructuredContactSplit } from "./contact-split";
 import { StructuredContactStacked } from "./contact-stacked";
+import { StructuredDirectionsSplit } from "./directions-split";
+import { StructuredDirectionsStacked } from "./directions-stacked";
 import { StructuredFaqAccordion } from "./faq-accordion";
 import { StructuredFaqOpenList } from "./faq-open-list";
 import { StructuredGalleryCarousel } from "./gallery-carousel";
@@ -53,6 +55,14 @@ export interface StructuredSectionProps<
    * nie podaje nic i dostaje ten sam formularz w trybie podglądu.
    */
   contactForm?: ContactFormBinding;
+  /**
+   * ZGODA NA OSADZENIE OBCEJ RAMKI (E5, ADR-096). Podaje ją WYŁĄCZNIE sklep, bo
+   * tylko jego polityka CSP wpuszcza źródło ramki dostawcy map. Typ z mapą
+   * (dojazd) renderuje bez niej ten sam kafel w trybie PODGLĄDU — zdanie
+   * zamiast ramki, którą polityka panelu i tak by ucięła. Typy bez osadzenia
+   * ignorują tę flagę.
+   */
+  mapEmbed?: boolean;
 }
 
 export type StructuredSectionComponent<
@@ -82,6 +92,10 @@ export const STRUCTURED_RENDERERS: StructuredRendererRegistry = {
   contact: {
     stacked: StructuredContactStacked,
     split: StructuredContactSplit,
+  },
+  directions: {
+    stacked: StructuredDirectionsStacked,
+    split: StructuredDirectionsSplit,
   },
 };
 

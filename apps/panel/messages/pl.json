@@ -1465,6 +1465,26 @@
           "showForm": "Pokaż formularz kontaktowy",
           "askPhone": "Pytaj o telefon w formularzu"
         }
+      },
+      "directions": {
+        "itemsTitle": "Punkty i adresy",
+        "addItem": "Dodaj punkt",
+        "removeBody": "Ten punkt zniknie z sekcji. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "label": "Nazwa punktu (opcjonalna)",
+          "address": "Adres",
+          "hours": "Godziny otwarcia (opcjonalne)"
+        },
+        "layouts": {
+          "stacked": "Adresy, pod nimi mapa",
+          "split": "Adresy i mapa obok siebie"
+        },
+        "import": {
+          "action": "Wstaw z punktów odbioru",
+          "empty": "Nie masz jeszcze aktywnych punktów odbioru — dodasz je w Dostawach.",
+          "nothingNew": "Wszystkie punkty odbioru są już w tej sekcji.",
+          "full": "Sekcja ma już maksymalną liczbę punktów — usuń któryś, żeby wstawić kolejny."
+        }
       }
     }
   },

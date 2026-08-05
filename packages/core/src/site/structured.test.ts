@@ -24,9 +24,13 @@ import {
   GALLERY_COLUMNS,
   GALLERY_GAPS,
   GALLERY_LAYOUTS,
+  MAP_PROVIDER_ORIGIN,
   SECTION_DRAFT_SCHEMAS,
   SECTION_TYPES,
   STRUCTURED_SECTIONS,
+  directionsLocationsFromLegacy,
+  directionsMapEmbedSrc,
+  directionsRouteHref,
   galleryItemsFromLegacy,
   structuredFromLegacy,
   STRUCTURED_SECTION_TYPES,
@@ -748,5 +752,165 @@ describe("konwersja galerii ze STAREJ treści (E3)", () => {
     // FAQ: treść spłaszczona do płótna nie mówi już, co było pytaniem (ADR-094).
     expect(STRUCTURED_SECTIONS.faq).not.toHaveProperty("fromLegacy");
     expect(structuredFromLegacy("faq", plotno, "pl")).toEqual(structuredPresetFor("faq", "pl"));
+  });
+});
+
+describe("rejestr DOJAZDU — pierwszy typ z OSADZENIEM (E5, ADR-096)", () => {
+  const spec = STRUCTURED_SECTIONS.directions;
+
+  it("ma dwa układy, listę bez ustawień wyglądu i ŹRÓDŁO wpisów w panelu", () => {
+    expect([...spec.layouts]).toEqual(["stacked", "split"]);
+    expect(spec.defaultLayout).toBe("stacked");
+    expect(spec.editor).toBe("single");
+    /*
+     * ZERO PRZEŁĄCZNIKÓW to DEKLARACJA, nie brak: gdyby dało się włączyć mapę
+     * na stałe, cała gwarancja „zero żądań do dostawcy przed kliknięciem"
+     * zależałaby od tego, czego operator nie odznaczył.
+     */
+    expect(spec.toggles).toEqual([]);
+    expect(spec.choices).toEqual([]);
+    // Źródło kopiowania jest DANĄ rejestru — po niej szuflada rysuje przycisk
+    // i po niej kontrakt i18n żąda kompletu etykiet.
+    expect(spec.itemsImport).toBe("pickupLocations");
+  });
+
+  it("adres jest JEDYNYM polem wymaganym — nazwa i godziny są opcjonalne", () => {
+    const bazowa = { v: 3, type: "directions", layout: "stacked", background: "default" };
+    expect(spec.schema.safeParse({ ...bazowa, items: [{ address: "ul. Polna 12" }] }).success).toBe(
+      true,
+    );
+    // Punkt bez adresu nie ma z czego zbudować ani mapy, ani nawigacji.
+    expect(spec.schema.safeParse({ ...bazowa, items: [{ label: "Magazyn" }] }).success).toBe(false);
+    // Sekcja bez ANI JEDNEGO punktu to pusty nagłówek (klasa atrap, ADR-094).
+    expect(spec.schema.safeParse({ ...bazowa, items: [] }).success).toBe(false);
+  });
+
+  it("preset niesie DWA realne punkty — czyli sekcję, w której widać przełącznik", () => {
+    for (const locale of LOCALES) {
+      const preset = structuredPresetFor("directions", locale) as unknown as {
+        items: { label?: string; address: string }[];
+      };
+      expect(preset.items.length, `${locale}: preset z jednym punktem nie pokazuje przełącznika`).toBe(2);
+      const adresy = preset.items.map((item) => item.address);
+      expect(new Set(adresy).size, `${locale}: oba punkty pod tym samym adresem`).toBe(2);
+      for (const item of preset.items) {
+        expect(item.label?.trim().length ?? 0).toBeGreaterThan(0);
+        expect(item.address.trim().length).toBeGreaterThan(10);
+      }
+    }
+  });
+});
+
+describe("adresy mapy i nawigacji (E5) — jeden origin, zakodowane zapytanie", () => {
+  const ADRES = "ul. Polna 12/3, 30-001 Kraków";
+
+  it("oba adresy wychodzą z origin dostawcy — lustro źródła ramki w CSP", () => {
+    expect(new URL(directionsMapEmbedSrc(ADRES)).origin).toBe(MAP_PROVIDER_ORIGIN);
+    expect(new URL(directionsRouteHref(ADRES)).origin).toBe(MAP_PROVIDER_ORIGIN);
+    // Stała jest tym, co polityka CSP wpuszcza do `frame-src` (@avably/security).
+    expect(MAP_PROVIDER_ORIGIN).toBe("https://www.google.com");
+  });
+
+  it("mapa jest OSADZENIEM bez klucza API, a adres jedzie zakodowany", () => {
+    const src = directionsMapEmbedSrc(ADRES);
+    const url = new URL(src);
+    expect(url.pathname).toBe("/maps");
+    expect(url.searchParams.get("q"), "adres nie doszedł w całości").toBe(ADRES);
+    expect(url.searchParams.get("output")).toBe("embed");
+    // Spacje i ukośnik nie mogą rozsadzić zapytania — inaczej mapa pokazuje
+    // pierwszy człon adresu i wygląda na działającą.
+    expect(src).toContain(encodeURIComponent(ADRES));
+    expect(src).not.toContain("key=");
+  });
+
+  it("nawigacja idzie udokumentowaną postacią odnośnika", () => {
+    const url = new URL(directionsRouteHref(ADRES));
+    expect(url.pathname).toBe("/maps/dir/");
+    expect(url.searchParams.get("api")).toBe("1");
+    expect(url.searchParams.get("destination")).toBe(ADRES);
+  });
+});
+
+describe("konwersja DOJAZDU ze starej treści (E5)", () => {
+  it("sekcja v1: adres i godziny jadą wprost, bez nazwy punktu", () => {
+    const items = directionsLocationsFromLegacy({
+      address: "ul. Polna 12, 30-001 Kraków",
+      mapsUrl: "https://maps.example/pin/12345",
+      hours: "pon.–pt. 9–17",
+    });
+    expect(items).toEqual([
+      { address: "ul. Polna 12, 30-001 Kraków", hours: "pon.–pt. 9–17" },
+    ]);
+    // Nazwy punktu v1 nie ma, więc konwersja jej NIE WYMYŚLA.
+    expect(items[0]).not.toHaveProperty("label");
+  });
+
+  it("sekcja v1 bez godzin: pole opcjonalne nie powstaje jako pusty napis", () => {
+    expect(directionsLocationsFromLegacy({ address: "ul. Polna 12" })).toEqual([
+      { address: "ul. Polna 12" },
+    ]);
+    expect(directionsLocationsFromLegacy({ address: "   " })).toEqual([]);
+  });
+
+  it("płótno v2: adresem zostaje PIERWSZY napis w kolejności czytania", () => {
+    const plotnoDojazdu = {
+      version: 2,
+      rows: 24,
+      background: "default",
+      elements: [
+        {
+          id: "godziny",
+          kind: "text",
+          text: "pon.–pt. 9–17",
+          variant: "body",
+          align: "left",
+          layout: { desktop: { x: 12, y: 12, w: 60, h: 4, z: 1 } },
+        },
+        {
+          id: "adres",
+          kind: "text",
+          text: "ul. Polna 12, 30-001 Kraków",
+          variant: "body",
+          align: "left",
+          layout: { desktop: { x: 12, y: 6, w: 60, h: 4, z: 0 } },
+        },
+        {
+          id: "naglowek",
+          kind: "heading",
+          text: "Jak dojechać",
+          level: 2,
+          align: "left",
+          layout: { desktop: { x: 12, y: 0, w: 60, h: 4, z: 2 } },
+        },
+      ],
+    };
+
+    const items = directionsLocationsFromLegacy(plotnoDojazdu);
+    // Kolejność bierzemy z CZYTANIA płótna, a nie z tablicy elementów (ta jest
+    // kolejnością DODAWANIA — tu celowo odwrócona).
+    expect(items).toEqual([{ address: "ul. Polna 12, 30-001 Kraków" }]);
+    /*
+     * Drugi napis BYWA godzinami, ale bywa też czymkolwiek, co operator dopisał
+     * — a etykieta „Godziny otwarcia" przy dowolnym zdaniu to informacja
+     * ZMYŚLONA, nie przeniesiona. Ta asercja pilnuje granicy, a nie braku.
+     */
+    expect(items[0]).not.toHaveProperty("hours");
+
+    const converted = structuredFromLegacy("directions", plotnoDojazdu, "pl");
+    expect(STRUCTURED_SECTIONS.directions.schema.safeParse(converted).success).toBe(true);
+    expect((converted as unknown as { heading?: string }).heading).toBe("Jak dojechać");
+    expect(
+      itemsOf(converted),
+      "wynik jest presetem — czyli adres operatora przepadł po cichu",
+    ).not.toEqual(itemsOf(structuredPresetFor("directions", "pl")));
+  });
+
+  it("treść BEZ adresu degraduje do presetu, a nie do sekcji, której nie da się wyświetlić", () => {
+    expect(structuredFromLegacy("directions", { mapsUrl: "https://maps.example" }, "pl")).toEqual(
+      structuredPresetFor("directions", "pl"),
+    );
+    expect(structuredFromLegacy("directions", null, "pl")).toEqual(
+      structuredPresetFor("directions", "pl"),
+    );
   });
 });

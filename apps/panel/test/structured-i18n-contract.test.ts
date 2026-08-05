@@ -71,6 +71,20 @@ function keysFor(type: (typeof STRUCTURED_SECTION_TYPES)[number]): string[] {
   if (spec.editor === "split") keys.push(`${base}.tabs.items`, `${base}.tabs.appearance`);
   // Typ medialny mówi, kiedy lista jest pełna.
   if (spec.itemFields.some((field) => field.kind === "image")) keys.push(`${base}.full`);
+  /*
+   * KOPIOWANIE WPISÓW Z INNEGO MODUŁU (E5, ADR-096) — przycisk plus TRZY powody
+   * jego wyłączenia. Każdy powód jest osobnym kluczem, bo prowadzi gdzie indziej
+   * („dodaj punkty w Dostawach" kontra „usuń któryś z sekcji"), a operator, który
+   * widzi wyłączony przycisk bez wyjaśnienia, ma zgadywać, czego mu brakuje.
+   */
+  if (spec.itemsImport) {
+    keys.push(
+      `${base}.import.action`,
+      `${base}.import.empty`,
+      `${base}.import.nothingNew`,
+      `${base}.import.full`,
+    );
+  }
 
   return keys;
 }

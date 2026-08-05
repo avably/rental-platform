@@ -56,6 +56,24 @@ export interface CspOptions {
    *     Turnstile.
    */
   stripe?: boolean;
+  /**
+   * Osadzona mapa dojazdu (E5, ADR-096). Dodaje źródło ramki dostawcy map —
+   * i WYŁĄCZNIE ramki.
+   *
+   * DLACZEGO TYLKO `frame-src`: dokument mapy żyje w RAMCE, czyli ma własne
+   * pochodzenie i własną politykę. Kafle, skrypty i zapytania, które on
+   * wykonuje, nie przechodzą przez NASZĄ politykę, więc dopisanie dostawcy do
+   * `img-src`, `script-src` albo `connect-src` nie umożliwiłoby niczego —
+   * otworzyłoby za to naszą stronę na wykonanie jego kodu i na wysyłanie do
+   * niego danych z naszego kontekstu. Test pilnuje OBU stron tej decyzji:
+   * że źródło jest w `frame-src` i że nie ma go nigdzie indziej.
+   *
+   * DLACZEGO NIE W PANELU: aplikacja panelu tej flagi nie podaje. Kreator
+   * renderuje tę samą sekcję, ale mapy nie osadza (render dostaje wtedy
+   * `mapEmbed={false}` i rysuje zdanie zamiast ramki) — powierzchnia
+   * edycyjna z zalogowaną sesją najemcy nie jest miejscem na obce ramki.
+   */
+  maps?: boolean;
 }
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
@@ -80,6 +98,16 @@ const PAYMENTS_FRAME_ORIGINS = ["https://js.stripe.com", "https://hooks.stripe.c
 const PAYMENTS_CONNECT_ORIGINS = ["https://api.stripe.com", "https://js.stripe.com"];
 
 /**
+ * Origin dostawcy osadzonej mapy (E5, ADR-096) — lustro `MAP_PROVIDER_ORIGIN`
+ * z @avably/core/site, z którego render składa adres ramki. Pakiet
+ * bezpieczeństwa NIE importuje rdzenia (polityka ma stać sama, bez zależności
+ * od modelu treści), więc zgodność obu stałych jest pilnowana testami po obu
+ * stronach: rdzeń sprawdza, że adres ramki wychodzi z tego origin, a test
+ * polityki — że dokładnie ten origin wpuszcza `frame-src`.
+ */
+const MAPS_FRAME_ORIGIN = "https://www.google.com";
+
+/**
  * Buduje wartość nagłówka Content-Security-Policy.
  *
  * `'strict-dynamic'` sprawia, że skrypty załadowane przez zaufany (nonce'owany)
@@ -94,7 +122,7 @@ const PAYMENTS_CONNECT_ORIGINS = ["https://api.stripe.com", "https://js.stripe.c
  * nie wykonanie kodu — akceptowane, odnotowane w dokumentacji.
  */
 export function buildCsp(nonce: string, options: CspOptions = {}): string {
-  const { dev = false, supabaseUrl, turnstile = false, stripe = false } = options;
+  const { dev = false, supabaseUrl, turnstile = false, stripe = false, maps = false } = options;
 
   const scriptSrc = [
     "'self'",
@@ -111,12 +139,13 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
   if (turnstile) connectSrc.push(TURNSTILE_ORIGIN);
   if (stripe) connectSrc.push(...PAYMENTS_CONNECT_ORIGINS);
 
-  // frame-src zbiera WSZYSTKICH osadzanych (Turnstile + płatności) — to jedna
-  // dyrektywa, więc druga jej deklaracja niżej po cichu nadpisałaby pierwszą
-  // i wyłączyła widget captchy w sklepie z płatnościami.
+  // frame-src zbiera WSZYSTKICH osadzanych (Turnstile + płatności + mapa) — to
+  // jedna dyrektywa, więc druga jej deklaracja niżej po cichu nadpisałaby
+  // pierwszą i wyłączyła widget captchy w sklepie z płatnościami.
   const frameSrc = [
     ...(turnstile ? [TURNSTILE_ORIGIN] : []),
     ...(stripe ? PAYMENTS_FRAME_ORIGINS : []),
+    ...(maps ? [MAPS_FRAME_ORIGIN] : []),
   ];
 
   const directives: Record<string, string[]> = {
