@@ -69,9 +69,22 @@ function sampleItemFor(type: StructuredSectionType): unknown {
   return structuredClone(itemsOf(structuredPresetFor(type, "pl"))[0]);
 }
 
-/** Pola wpisu, które są TEKSTEM — zdjęcia nie da się „wpisać" napisem. */
+/**
+ * Pola wpisu, w które operator WPISUJE dowolny napis. Odpada zdjęcie (wartością
+ * jest źródło, nie tekst) i odpada lista o zamkniętym zbiorze wartości (E4:
+ * rodzaj danych kontaktowych — napis spoza zbioru nie jest „inną treścią",
+ * tylko treścią, której schemat nie przyjmie). Zbiory wartości list mają własny
+ * kontrakt niżej.
+ */
 function textFieldsOf(type: StructuredSectionType) {
-  return structuredSpecOf(type).itemFields.filter((field) => field.kind !== "image");
+  return structuredSpecOf(type).itemFields.filter(
+    (field) => field.kind === "text" || field.kind === "multiline",
+  );
+}
+
+/** Pola wpisu o ZAMKNIĘTYM zbiorze wartości (E4). */
+function choiceFieldsOf(type: StructuredSectionType) {
+  return structuredSpecOf(type).itemFields.filter((field) => field.kind === "choice");
 }
 
 /** Preset z podmienioną listą wpisów o zadanej długości (do testów granic). */
@@ -398,6 +411,38 @@ describe("KONTRAKT 4: rejestr i schemat mówią to samo o granicach listy", () =
     expect((itemsOf(patched)[0] as Record<string, unknown>)[field.key]).toBe("ZMIENIONE");
     expect(itemsOf(base)[0], "edycja zmutowała wejście").not.toEqual(itemsOf(patched)[0]);
     expect(spec.schema.safeParse(patched).success).toBe(true);
+  });
+
+  /**
+   * ZBIÓR WARTOŚCI LISTY = ZBIÓR ZE SCHEMATU (E4, ADR-095).
+   *
+   * Kontrolka o zamkniętym zbiorze bierze wartości z REJESTRU, a zapisuje je do
+   * treści bronionej SCHEMATEM. Rozjazd tych dwóch zbiorów jest niewidoczny do
+   * chwili, w której operator wybierze pozycję z listy i zapis wróci błędem —
+   * albo, co gorsza, wybierze pozycję, której render nie zna. Test liczy w OBIE
+   * strony: każda wartość z rejestru musi przejść schemat, a wartość spoza
+   * zbioru musi zostać odrzucona (inaczej „zamknięty zbiór" jest deklaracją).
+   */
+  it.each(STRUCTURED_SECTION_TYPES)("%s: zamknięte zbiory wartości wpisu zgadzają się ze schematem", (type) => {
+    const spec = structuredSpecOf(type);
+    for (const field of choiceFieldsOf(type)) {
+      const values = field.values;
+      expect(values, `pole "${field.key}" typu "${type}" jest listą BEZ wartości`).toBeTruthy();
+      expect(values!.length, `pole "${field.key}": pusta lista wartości`).toBeGreaterThan(0);
+
+      const base = structuredPresetFor(type, "pl");
+      for (const value of values!) {
+        const patched = patchStructuredItem(base, 0, field.key, value);
+        expect(
+          spec.schema.safeParse(patched).success,
+          `${type}/${field.key}: wartość "${value}" z rejestru NIE przechodzi schematu`,
+        ).toBe(true);
+      }
+      expect(
+        spec.schema.safeParse(patchStructuredItem(base, 0, field.key, "spoza-zbioru")).success,
+        `${type}/${field.key}: schemat przyjął wartość spoza zbioru rejestru`,
+      ).toBe(false);
+    }
   });
 });
 

@@ -5,7 +5,9 @@ import type {
 } from "@avably/core/site";
 
 import type { TemplateStyles } from "../template";
-import type { SiteRenderLabels } from "../types";
+import type { ContactFormBinding, SiteRenderLabels } from "../types";
+import { StructuredContactSplit } from "./contact-split";
+import { StructuredContactStacked } from "./contact-stacked";
 import { StructuredFaqAccordion } from "./faq-accordion";
 import { StructuredFaqOpenList } from "./faq-open-list";
 import { StructuredGalleryCarousel } from "./gallery-carousel";
@@ -39,6 +41,18 @@ export interface StructuredSectionProps<
    * czytnika ekranu, więc muszą przyjść z języka strony, a nie ze stałej.
    */
   labels: SiteRenderLabels;
+  /**
+   * Identyfikator sekcji. Typ z AKCJĄ (E4) odsyła go na serwer, bo to z niego
+   * serwer wyprowadza adresata wiadomości — sam formularz adresu nie zna i nie
+   * ma jak go podmienić. Typy bez akcji go ignorują.
+   */
+  sectionId?: string;
+  /**
+   * Szew formularza kontaktu (E4, ADR-095): akcja serwerowa, bilet z chwili
+   * renderu i widget CAPTCHY. Podaje go WYŁĄCZNIE storefront; płótno kreatora
+   * nie podaje nic i dostaje ten sam formularz w trybie podglądu.
+   */
+  contactForm?: ContactFormBinding;
 }
 
 export type StructuredSectionComponent<
@@ -64,6 +78,10 @@ export const STRUCTURED_RENDERERS: StructuredRendererRegistry = {
     grid: StructuredGalleryGrid,
     masonry: StructuredGalleryMasonry,
     carousel: StructuredGalleryCarousel,
+  },
+  contact: {
+    stacked: StructuredContactStacked,
+    split: StructuredContactSplit,
   },
 };
 

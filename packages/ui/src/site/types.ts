@@ -10,8 +10,12 @@
  * storefront (odczyt published) i panel (odczyt draft) wstrzykują je z własnych
  * warstw danych.
  */
+import type { ReactNode } from "react";
+
 import type {
   ContactContent,
+  ContactSubmitInput,
+  ContactSubmitResult,
   CtaContent,
   DeliveryContent,
   DirectionsContent,
@@ -34,6 +38,9 @@ export type {
   Geometry,
   SectionCanvas,
   ContactContent,
+  ContactStructuredContent,
+  ContactSubmitInput,
+  ContactSubmitResult,
   CtaContent,
   DeliveryContent,
   DirectionsContent,
@@ -122,6 +129,74 @@ export interface StorefrontProduct {
   href?: string;
 }
 
+/**
+ * ETYKIETY FORMULARZA KONTAKTU (E4, ADR-095).
+ *
+ * Formularz jest CHROME renderu, nie treścią najemcy: „Imię", „Wiadomość"
+ * i komunikat o błędzie mówią językiem STRONY, a nie językiem pola, którego
+ * operator nigdy nie wypełniał. Stąd komplet tutaj, a nie w treści sekcji —
+ * i stąd domyślne wartości w `DEFAULT_SITE_LABELS`, dzięki którym płótno
+ * kreatora rysuje ten sam formularz, co sklep.
+ */
+export interface ContactFormLabels {
+  /** Nagłówek nad formularzem (h3 pod nagłówkiem sekcji). */
+  title: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  submit: string;
+  /** Etykieta przycisku w trakcie wysyłki — zastępuje `submit`. */
+  sending: string;
+  /** Potwierdzenie po przyjęciu wiadomości (komunikat w motywie). */
+  success: string;
+  /** Notka RODO pod formularzem — zdanie o tym, po co zbieramy dane. */
+  privacyNote: string;
+  /** Etykieta odnośnika do polityki prywatności (gdy sekcja go niesie). */
+  privacyLink: string;
+  /** Komunikaty błędów: per pole i całego zgłoszenia. */
+  errors: {
+    required: string;
+    invalid: string;
+    tooLong: string;
+    captcha: string;
+    rateLimited: string;
+    /** Bilet nieważny — formularz otwarty zbyt długo albo wysłany za szybko. */
+    expired: string;
+    /** Sekcja nie ma adresata albo poczta jest niedostępna. */
+    unavailable: string;
+    server: string;
+  };
+}
+
+/**
+ * SZEW FORMULARZA KONTAKTU — wszystko, czego render nie ma prawa mieć sam.
+ *
+ * Renderer jest JEDEN dla sklepu i dla płótna kreatora (ADR-083), a akcja
+ * serwerowa istnieje wyłącznie w storefroncie: to on ma nagłówek tenanta,
+ * weryfikator CAPTCHY i tor poczty. Pakiet UI dostaje więc wiązanie, a nie
+ * implementację — i rysuje TEN SAM formularz w obu miejscach. Bez wiązania
+ * (płótno kreatora) formularz jest PODGLĄDEM: pełne drzewo, wyłączone
+ * z interakcji, żeby operator widział, co dostanie klient.
+ */
+export interface ContactFormBinding {
+  /**
+   * Bilet z chwili renderu — podpisany serwerowo znacznik czasu. Wraca do akcji
+   * bez zmian; formularz nie zna jego budowy i nie ma jak jej podrobić.
+   */
+  ticket: string;
+  /** Akcja serwerowa storefrontu. Adresata wyprowadza SERWER, nie formularz. */
+  submit: (input: ContactSubmitInput) => Promise<ContactSubmitResult>;
+  /**
+   * Widget CAPTCHY wstawiany przez storefront (gotowe drzewo, nie komponent).
+   * Zapisuje token do UKRYTEGO POLA formularza zamiast wołać zwrotkę — dzięki
+   * temu przechodzi przez granicę serwer→klient jako zwykłe dane, a pakiet UI
+   * nie musi znać ani dostawcy, ani jego klucza. Brak = CAPTCHA wyłączona
+   * (dev/CI bez kluczy); bramka i tak stoi po stronie serwera.
+   */
+  captcha?: ReactNode;
+}
+
 /** Etykiety chrome renderu (locale tenanta). Treść sekcji jest autorska. */
 export interface SiteRenderLabels {
   /** Fallback sekcji produktów, gdy katalog pusty / niedostępny publicznie. */
@@ -147,4 +222,13 @@ export interface SiteRenderLabels {
   galleryNext: string;
   /** Wzorzec licznika w powiększeniu — `{current}` i `{total}` podmienia render. */
   galleryPosition: string;
+  /**
+   * KONTAKT STRUKTURALNY (E4, ADR-095). Etykieta godzin otwarcia jest nowa —
+   * sekcja v1 nie znała tego rodzaju danych. Pozostałe rodzaje wpisów mówią
+   * etykietami, które sekcja kontaktu miała od 2.3b (`contactEmail`,
+   * `contactPhone`, `contactAddress`, `contactMap`), bo to są te same pojęcia
+   * i dwie ich nazwy w jednym sklepie byłyby usterką, a nie funkcją.
+   */
+  contactHours: string;
+  contactForm: ContactFormLabels;
 }

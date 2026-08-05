@@ -339,7 +339,30 @@
       "galleryClose": "Close the enlarged photo",
       "galleryPrev": "Previous photo",
       "galleryNext": "Next photo",
-      "galleryPosition": "Photo {current} of {total}"
+      "galleryPosition": "Photo {current} of {total}",
+      "contactHours": "Opening hours:",
+      "contactForm": {
+        "title": "Send us a message",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "message": "Message",
+        "submit": "Send message",
+        "sending": "Sending…",
+        "success": "Thank you — your message came through. We will reply to the address you gave us.",
+        "privacyNote": "We will use these details only to reply to this message.",
+        "privacyLink": "Privacy policy",
+        "errors": {
+          "required": "This field is required.",
+          "invalid": "Please check this entry.",
+          "tooLong": "This entry is too long.",
+          "captcha": "Verification failed. Please try again.",
+          "rateLimited": "Too many messages from here. Please try later.",
+          "expired": "The form was open for too long. Please send the message again.",
+          "unavailable": "This form is temporarily unavailable. Please use the contact details next to it.",
+          "server": "We could not send the message. Please try again in a moment."
+        }
+      }
     },
     "common": {
       "from": "from",

@@ -1438,6 +1438,33 @@
             "roomy": "Roomy"
           }
         }
+      },
+      "contact": {
+        "itemsTitle": "Contact details",
+        "addItem": "Add contact detail",
+        "removeBody": "This entry will disappear from the section. You can undo the change with “Undo” in the builder toolbar.",
+        "fields": {
+          "kind": "Type",
+          "value": "Value",
+          "privacyHref": "Privacy policy link (optional)"
+        },
+        "fieldValues": {
+          "kind": {
+            "email": "Email",
+            "phone": "Phone",
+            "address": "Address",
+            "hours": "Opening hours",
+            "map": "Map"
+          }
+        },
+        "layouts": {
+          "stacked": "Details, form below",
+          "split": "Details and form side by side"
+        },
+        "toggles": {
+          "showForm": "Show the contact form",
+          "askPhone": "Ask for a phone number"
+        }
       }
     }
   },

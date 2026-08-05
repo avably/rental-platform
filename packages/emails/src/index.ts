@@ -33,8 +33,13 @@ export {
   RentalContractEmail,
   type RentalContractEmailProps,
 } from "./templates/rental-contract";
+export {
+  ContactMessageEmail,
+  type ContactMessageEmailProps,
+} from "./templates/contact-message";
 export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
+  renderContactMessage,
   renderEmailConfirmation,
   renderNewOrderNotification,
   renderOrganizationInvitation,

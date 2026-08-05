@@ -16,7 +16,10 @@ import { SiteRenderer, type SiteRenderLabels } from "@avably/ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { submitContactMessage } from "@/lib/actions/contact";
 import { toStorefrontProducts } from "@/lib/catalog/present";
+import { issueContactTicket } from "@/lib/contact/ticket";
+import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
@@ -76,6 +79,33 @@ export default async function TenantStorePage() {
     galleryPrev: copy.siteLabels.galleryPrev,
     galleryNext: copy.siteLabels.galleryNext,
     galleryPosition: copy.siteLabels.galleryPosition,
+    // Kontakt strukturalny (E4): godziny otwarcia to nowy rodzaj wpisu, a cały
+    // formularz jest CHROME renderu — jego etykiety mówią językiem sklepu,
+    // a nie językiem, w którym akurat stoi kod.
+    contactHours: copy.siteLabels.contactHours,
+    contactForm: copy.siteLabels.contactForm,
+  };
+
+  /*
+   * SZEW FORMULARZA KONTAKTU (E4, ADR-095). Trzy rzeczy, których pakiet UI mieć
+   * nie może: akcja serwerowa, BILET z chwili renderu (podpisany znacznik
+   * czasu — warstwa „minimalnego czasu od renderu") i widget CAPTCHY.
+   *
+   * Bilet powstaje TU, przy renderze strony, bo to jest moment, w którym
+   * odwiedzający zobaczył formularz. Trasa jest `force-dynamic`, więc każde
+   * wyświetlenie dostaje własny, świeży bilet.
+   *
+   * Klucz publiczny CAPTCHY jest zmienną `NEXT_PUBLIC_*` (wchodzi do bundla —
+   * i tak ma być). SEKRET nie pojawia się w tym pliku ani w żadnym innym
+   * pliku panelu: weryfikacja stoi w akcji serwerowej storefrontu.
+   */
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const contactForm = {
+    ticket: issueContactTicket(),
+    submit: submitContactMessage,
+    ...(turnstileSiteKey
+      ? { captcha: <ContactCaptchaField siteKey={turnstileSiteKey} locale={locale} /> }
+      : {}),
   };
 
   // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043) — hero
@@ -161,6 +191,7 @@ export default async function TenantStorePage() {
             products={products}
             labels={labels}
             siteImageBase={siteImageBase}
+            contactForm={contactForm}
           />
         </main>
       )}

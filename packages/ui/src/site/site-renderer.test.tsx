@@ -8,7 +8,7 @@ import {
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { SiteRenderer } from "./site-renderer";
+import { DEFAULT_SITE_LABELS, SiteRenderer } from "./site-renderer";
 import type { RenderSection, SectionContent, StorefrontProduct } from "./types";
 
 /** Styl motywu w jego własnym domyślnym ustawieniu — rejestr, nie literały. */
@@ -63,7 +63,10 @@ describe("SiteRenderer — render per typ sekcji", () => {
       <SiteRenderer
         sections={[section]}
         products={[]}
-        labels={{ productsEmpty: "Brak produktów", contactEmail: "E:", contactPhone: "T:", contactAddress: "A:", contactMap: "Mapa", directionsAddress: "A:", directionsHours: "G:", directionsMap: "Mapa", galleryZoom: "Powiększ", galleryClose: "Zamknij", galleryPrev: "Poprzednie", galleryNext: "Następne", galleryPosition: "{current}/{total}" }}
+        // Nadpisujemy JEDNĄ etykietę, o którą chodzi w teście — reszta jedzie
+        // z domyślnych. Wypisany komplet trzeba by dopisywać przy każdej nowej
+        // etykiecie chrome, a test nie jest o nich.
+        labels={{ ...DEFAULT_SITE_LABELS, productsEmpty: "Brak produktów" }}
       />,
     );
     expect(screen.getByText("Brak produktów")).toBeInTheDocument();

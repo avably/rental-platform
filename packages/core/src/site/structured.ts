@@ -47,6 +47,7 @@ import {
   linkHrefSchema,
   normalizeImageSource,
   SECTION_BACKGROUNDS,
+  type CanvasElement,
   type ImageSource,
   type SectionCanvas,
 } from "./elements";
@@ -81,6 +82,14 @@ export const STRUCTURED_THEME_ROLES = [
   "border",
   "accentText",
   "accentFill",
+  /**
+   * SYGNAŁ BŁĘDU (E4). Doszedł razem z pierwszym typem, który ma FORMULARZ:
+   * „to pole jest wymagane" musi być czytelne na każdym pasie każdego motywu,
+   * a jest to jedyny komunikat sekcji, którego nieprzeczytanie zatrzymuje
+   * odwiedzającego. Kolor niesie rejestr motywów (`danger`, K6/ADR-092), więc
+   * sekcja nie wnosi ani jednego heksa — dokłada wyłącznie POMIAR.
+   */
+  "dangerText",
 ] as const;
 export type StructuredThemeRole = (typeof STRUCTURED_THEME_ROLES)[number];
 
@@ -285,15 +294,427 @@ function galleryItemsFromV1(content: unknown): GalleryStructuredItem[] {
 }
 
 // -----------------------------------------------------------------------
+// Kontakt — pierwszy typ z AKCJĄ (E4, ADR-095)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu kontaktu. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „co robi odwiedzający na tej sekcji":
+ *   • `stacked` — dane kontaktowe, a pod nimi formularz. Kolumna czytana od
+ *     góry: kto chce zadzwonić, dzwoni i nie schodzi niżej;
+ *   • `split` — dane i formularz OBOK SIEBIE na szerokim kontenerze (poniżej
+ *     progu schodzą w tę samą kolumnę, co `stacked`). Formularz jest wtedy
+ *     widoczny od razu, bez przewijania pod dane.
+ *
+ * Oba czytają TEN SAM `items` i tę samą parę przełączników — przełącznik
+ * układu jest polem treści, więc jego zmiana z definicji nie dosięga wpisów.
+ */
+export const CONTACT_LAYOUTS = ["stacked", "split"] as const;
+export type ContactLayout = (typeof CONTACT_LAYOUTS)[number];
+
+/**
+ * RODZAJE DANYCH KONTAKTOWYCH. Rodzaj nie jest etykietą — jest DECYZJĄ
+ * O ZACHOWANIU: `email` renderuje się jako `mailto:`, `phone` jako `tel:`,
+ * `map` jako odnośnik do wyszukiwarki map, a `address` i `hours` jako tekst.
+ * Gdyby wpis niósł sam napis, render musiałby ZGADYWAĆ po jego kształcie,
+ * czy zrobić z niego odnośnik — a numer wpisany nietypowo (albo adres
+ * zawierający „@") przestawałby być klikalny bez żadnego komunikatu.
+ *
+ * Zamknięty zbiór ma też drugi skutek: etykieta wpisu idzie z JĘZYKA STRONY
+ * (`SiteRenderLabels`), a nie z pola tekstowego najemcy, więc sklep po
+ * angielsku nie pokazuje polskiego „Telefon:" przy numerze.
+ */
+export const CONTACT_ENTRY_KINDS = ["email", "phone", "address", "hours", "map"] as const;
+export type ContactEntryKind = (typeof CONTACT_ENTRY_KINDS)[number];
+
+/** Górna granica wpisów — lustro `maxItems` w rejestrze (test pilnuje zgody). */
+const CONTACT_MAX_ITEMS = 8;
+
+/**
+ * Wartość wpisu — JEDEN typ dla wszystkich rodzajów, i to jest decyzja, a nie
+ * uproszczenie. Kusi, żeby `email` walidować schematem adresu (repo robi tak
+ * wszędzie indziej), ale wpis powstaje POD KLAWISZAMI operatora: przy trzecim
+ * znaku „ko" adres nie jest jeszcze adresem, więc autozapis szkicu odbijałby
+ * się o schemat przy każdej literze i sekcja stawałaby się nieedytowalna.
+ *
+ * Konsekwencja jest zamknięta tam, gdzie realnie boli: adresata formularza
+ * wyprowadza {@link contactRecipient}, który sprawdza adres schematem i przy
+ * niepoprawnym oddaje `null` — czyli sekcja renderuje się BEZ formularza,
+ * zamiast wysyłać wiadomość donikąd.
+ */
+const contactValue = z.string().trim().min(1).max(200);
+
+/** Adres, na który wolno wysłać wiadomość z formularza (bramka nadawania). */
+const contactEmailValue = z.string().trim().email().max(254);
+
+export const contactStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("contact"),
+    layout: z.enum(CONTACT_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Dane kontaktowe. MINIMUM JEDEN wpis — sekcja kontaktowa, w której nie ma
+     * ani jednego sposobu kontaktu, jest pustym nagłówkiem (klasa atrap
+     * usuwana przez ADR-094). Lista, a nie cztery pola stałe, bo wypożyczalnia
+     * realnie ma DWA numery (biuro i serwis) albo dwa adresy (magazyn i punkt
+     * odbioru), a kolejność jest jej decyzją.
+     */
+    items: z
+      .array(z.object({ kind: z.enum(CONTACT_ENTRY_KINDS), value: contactValue }).strict())
+      .min(1)
+      .max(CONTACT_MAX_ITEMS),
+    /**
+     * Czy pod danymi stoi formularz. DOMYŚLNIE WŁĄCZONY: sekcja kontaktowa bez
+     * możliwości napisania z poziomu strony odsyła odwiedzającego do własnego
+     * programu pocztowego, czyli poza sklep — a wyłączyć ją trzeba móc, bo
+     * najemca bez obsłużonej skrzynki wolałby telefon.
+     *
+     * Sam przełącznik NIE WYSTARCZA, żeby formularz się pojawił: potrzebny
+     * jest jeszcze adresat ({@link contactFormVisible}).
+     */
+    showForm: z.boolean().default(true),
+    /**
+     * Czy formularz pyta o telefon. DOMYŚLNIE WYŁĄCZONY (minimalizacja danych:
+     * do odpowiedzi na wiadomość wystarcza adres e-mail). Włączony znaczy pole
+     * WYMAGANE, nie „dodatkowe": operator włącza je wtedy, gdy zamierza
+     * oddzwaniać, a pole opcjonalne zostawałoby puste i przełącznik byłby
+     * ozdobą.
+     */
+    askPhone: z.boolean().default(false),
+    /**
+     * Dokąd prowadzi notka RODO pod formularzem. Pole SEKCJI, bo w modelu nie
+     * ma dziś miejsca na „politykę prywatności strony" (byłaby to migracja),
+     * a wyprowadzanie adresu z odnośników stopki po ich NAZWIE („polityka",
+     * „privacy"…) byłoby zgadywaniem — najemca nazywa je po swojemu.
+     *
+     * Brak = notka bez odnośnika. Zdanie o tym, co robimy z danymi, jest
+     * wtedy nadal na stronie; nie ma tylko dokąd z niego przejść.
+     */
+    privacyHref: linkHrefSchema.optional(),
+  })
+  .strict();
+
+export type ContactStructuredContent = z.infer<typeof contactStructuredSchema>;
+export type ContactStructuredItem = ContactStructuredContent["items"][number];
+
+/**
+ * ADRESAT WIADOMOŚCI Z FORMULARZA — pierwszy wpis rodzaju `email` o wartości,
+ * która przechodzi schemat adresu; `null`, gdy takiego nie ma.
+ *
+ * ==================== DLACZEGO WŁAŚNIE TEN ADRES ====================
+ *
+ * Kandydatem był adres powiadomień najemcy (`tenant_settings.email_sender.
+ * reply_to`, ADR-042) — ten sam, na który idą powiadomienia o zamówieniach.
+ * Odpada z twardego powodu: publiczny katalog (0020) JAWNIE nie wypuszcza
+ * `email_sender` („zero danych wrażliwych"), storefront nie ma klucza
+ * service-role, a wystawienie tego ustawienia anonowi byłoby zmianą schematu
+ * bezpieczeństwa, nie dodaniem sekcji.
+ *
+ * Adres z TREŚCI sekcji jest za to danymi, które storefront już legalnie ma —
+ * i które sekcja i tak wypisuje na stronie jako `mailto:`. Wiadomość idzie
+ * więc dokładnie tam, gdzie najemca kazał do siebie pisać, a operator ma
+ * jedno miejsce prawdy zamiast dwóch, które mogą się rozjechać.
+ *
+ * PIERWSZY, nie „wszystkie": dwa adresy w sekcji znaczą dwa działy, a nie
+ * dwóch odbiorców jednej wiadomości; rozsyłanie kopii byłoby decyzją, której
+ * nikt nie podjął.
+ */
+export function contactRecipient(content: ContactStructuredContent): string | null {
+  for (const item of content.items) {
+    if (item.kind !== "email") continue;
+    const parsed = contactEmailValue.safeParse(item.value);
+    if (parsed.success) return parsed.data;
+  }
+  return null;
+}
+
+/**
+ * Czy sekcja pokazuje formularz. DWA warunki, oba konieczne: przełącznik
+ * operatora i istnienie adresata. Brak adresu to STAN, nie błąd — sekcja
+ * renderuje wtedy same dane kontaktowe, zamiast wystawiać formularz, którego
+ * wysłanie nie miałoby dokąd trafić.
+ */
+export function contactFormVisible(content: ContactStructuredContent): boolean {
+  return content.showForm && contactRecipient(content) !== null;
+}
+
+/**
+ * Numer w postaci, którą przyjmuje `tel:` — bez spacji. Ta sama normalizacja,
+ * co w renderze sekcji v1 (`sections.tsx`), i celowo NIE ostrzejsza: „+48",
+ * nawiasy i myślniki są w `tel:` legalne, a zdejmowanie ich zmieniałoby numer
+ * najemcy w coś, czego on sam nie zapisał.
+ */
+export function contactTelHref(value: string): string {
+  return `tel:${value.replace(/\s+/g, "")}`;
+}
+
+/** Prefiks wyszukiwania w mapach — ten sam, którym konwersja v1→v2 robi z zapytania przycisk. */
+const MAP_SEARCH_PREFIX = "https://www.google.com/maps/search/?api=1&query=";
+
+/** Odnośnik do map z zapytania wpisanego przez najemcę (tekst, nie URL). */
+export function contactMapHref(value: string): string {
+  return `${MAP_SEARCH_PREFIX}${encodeURIComponent(value)}`;
+}
+
+/**
+ * WPISY KONTAKTU WYPROWADZONE ZE STAREJ TREŚCI (konwersja E4).
+ *
+ * Kontakt jest — inaczej niż FAQ — konwertowalny w OBU generacjach:
+ *
+ *   • v1 niesie osobne pola (`email`, `phone`, `address`, `mapQuery`), więc
+ *     rodzaj wpisu jest w nich zapisany wprost i nie ma czego zgadywać;
+ *   • PŁÓTNO v2 spłaszczyło je do napisów, ale rodzaj da się odczytać
+ *     z KSZTAŁTU wartości, a nie z jej znaczenia: „@" pomiędzy niepustymi
+ *     członami to adres e-mail, ciąg cyfr z separatorami to numer, reszta to
+ *     adres. To jest rozpoznanie, nie interpretacja — dlatego wolno je zrobić
+ *     maszynie, podczas gdy „który napis był pytaniem, a który odpowiedzią"
+ *     (FAQ) wolno wyłącznie człowiekowi.
+ *
+ * Kolejność bierzemy z kolejności CZYTANIA płótna (od góry, potem od lewej),
+ * tak samo jak w galerii: kolejność w tablicy elementów jest kolejnością
+ * DODAWANIA i po kilku poprawkach nie ma nic wspólnego z tym, co widać.
+ */
+export function contactEntriesFromLegacy(content: unknown): ContactStructuredItem[] {
+  if (isSectionCanvas(content)) return contactEntriesFromCanvas(content);
+  return contactEntriesFromV1(content);
+}
+
+/** Adres e-mail „na oko": jeden `@` między niepustymi członami, kropka w domenie. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Numer telefonu „na oko": zaczyna się od `+`, cyfry albo nawiasu i dalej ma
+ * WYŁĄCZNIE cyfry i separatory. Litera w środku dyskwalifikuje — dzięki temu
+ * „00-001 Warszawa" zostaje adresem, mimo że zaczyna się od cyfry.
+ */
+const PHONE_SHAPE = /^[+(\d][\d\s()./+-]{5,}$/;
+
+function contactKindOf(value: string): ContactEntryKind {
+  if (EMAIL_SHAPE.test(value)) return "email";
+  if (PHONE_SHAPE.test(value)) return "phone";
+  return "address";
+}
+
+/** Zapytanie mapy z adresu przycisku płótna albo `null`, gdy to inny odnośnik. */
+function mapQueryOf(href: string): string | null {
+  if (!href.startsWith(MAP_SEARCH_PREFIX)) return null;
+  try {
+    const query = new URL(href).searchParams.get("query");
+    return query && query.trim().length > 0 ? query : null;
+  } catch {
+    return null;
+  }
+}
+
+function contactEntriesFromCanvas(canvas: SectionCanvas): ContactStructuredItem[] {
+  const ordered = canvas.elements.slice().sort((a, b) => {
+    const first = a.layout.desktop;
+    const second = b.layout.desktop;
+    return first.y - second.y || first.x - second.x;
+  });
+
+  const items: ContactStructuredItem[] = [];
+  for (const element of ordered) {
+    if (element.kind === "text") {
+      const value = element.text.trim();
+      if (value.length > 0) items.push({ kind: contactKindOf(value), value: value.slice(0, 200) });
+      continue;
+    }
+    if (element.kind === "button") {
+      const query = mapQueryOf(element.href);
+      if (query) items.push({ kind: "map", value: query.slice(0, 200) });
+    }
+  }
+  return items.slice(0, CONTACT_MAX_ITEMS);
+}
+
+/** Nagłówek sekcji z płótna — pierwszy element nagłówkowy w kolejności czytania. */
+function canvasHeading(canvas: SectionCanvas): string | undefined {
+  const headings = canvas.elements
+    .filter((element): element is Extract<CanvasElement, { kind: "heading" }> => element.kind === "heading")
+    .slice()
+    .sort((a, b) => a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x);
+  const first = headings[0]?.text.trim();
+  return first && first.length > 0 ? first.slice(0, 200) : undefined;
+}
+
+/** Sekcja kontaktu SPRZED płótna: osobne pola adresu, telefonu, e-maila i mapy. */
+function contactEntriesFromV1(content: unknown): ContactStructuredItem[] {
+  if (typeof content !== "object" || content === null) return [];
+  const source = content as Record<string, unknown>;
+  const items: ContactStructuredItem[] = [];
+  // Kolejność wpisów = kolejność, w jakiej render v1 rysował pola. Konwersja
+  // ma dać stronę WYGLĄDAJĄCĄ tak samo, a nie posortowaną po naszym uznaniu.
+  for (const [key, kind] of [
+    ["email", "email"],
+    ["phone", "phone"],
+    ["address", "address"],
+    ["mapQuery", "map"],
+  ] as const) {
+    const value = source[key];
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) items.push({ kind, value: trimmed.slice(0, 200) });
+  }
+  return items.slice(0, CONTACT_MAX_ITEMS);
+}
+
+// -----------------------------------------------------------------------
+// Wiadomość z formularza kontaktu — JEDNA reguła po obu stronach (E4)
+// -----------------------------------------------------------------------
+
+/** Pola wiadomości — klucze mapy błędów walidacji. */
+export const CONTACT_MESSAGE_FIELDS = ["name", "email", "phone", "message"] as const;
+export type ContactMessageField = (typeof CONTACT_MESSAGE_FIELDS)[number];
+
+/**
+ * Rodzaj błędu pola. Komunikat składa STRONA (w języku sklepu) — rdzeń nie zna
+ * tłumaczeń, a odsyłanie gotowych zdań z serwera zamroziłoby język formularza
+ * na tym, w którym akurat stoi kod (wzorzec kontraktu waitlisty).
+ */
+export type ContactMessageFieldError = "required" | "invalid" | "too_long";
+export type ContactMessageFieldErrors = Partial<Record<ContactMessageField, ContactMessageFieldError>>;
+
+export interface ContactMessageInput {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+}
+
+/** Dolna granica treści — jedno słowo nie jest wiadomością, na którą da się odpowiedzieć. */
+const CONTACT_MESSAGE_MIN = 10;
+const CONTACT_MESSAGE_MAX = 5_000;
+
+/**
+ * Schemat wiadomości. Zależy od USTAWIENIA sekcji, bo telefon jest wymagany
+ * dokładnie wtedy, gdy operator o niego pyta — a to jest pole treści, nie
+ * stała. Ta sama funkcja stoi w przeglądarce i w akcji serwerowej: gdyby
+ * reguły były dwie, formularz przepuszczałby wejście, które serwer odrzuca
+ * (albo odwrotnie — i wtedy walidacja przeglądarki byłaby dekoracją).
+ */
+export function contactMessageSchema(askPhone: boolean) {
+  return z
+    .object({
+      name: z.string().trim().min(2).max(120),
+      email: contactEmailValue,
+      phone: askPhone
+        ? z.string().trim().min(4).max(40)
+        : z.string().trim().max(40).optional(),
+      message: z.string().trim().min(CONTACT_MESSAGE_MIN).max(CONTACT_MESSAGE_MAX),
+    })
+    .strict();
+}
+
+/**
+ * WYNIK WALIDACJI WIADOMOŚCI. Rozstrzygnięcie „poprawne / niepoprawne" jest tu
+ * OSOBNYM polem, a nie pustką w mapie błędów — bo te dwie rzeczy nie są tym
+ * samym. Wejście z nieznanym kluczem odpada na `.strict()`, ale żadne POLE nie
+ * jest wtedy winne, więc mapa błędów zostaje pusta; wołający czytający „pusta
+ * mapa = w porządku" przepuściłby takie wejście dalej.
+ */
+export type ContactMessageParse =
+  | { ok: true; data: ContactMessageInput }
+  | { ok: false; fields: ContactMessageFieldErrors };
+
+/**
+ * Walidacja wiadomości — JEDNA dla przeglądarki i dla akcji serwerowej.
+ *
+ * Rozpoznanie rodzaju błędu idzie po KODZIE zoda, nie po treści komunikatu:
+ * komunikaty są tekstem biblioteki i zmieniają się między jej wersjami.
+ * Wyjątkiem jest PUSTE POLE: schemat adresu odrzuca pustkę jako zły FORMAT,
+ * a dla piszącego pusty i błędny adres to dwie różne sytuacje i dwa różne
+ * zdania („uzupełnij" kontra „sprawdź"). Pustkę rozstrzygamy więc po wejściu,
+ * zanim spojrzymy w kod.
+ */
+export function parseContactMessage(input: unknown, askPhone: boolean): ContactMessageParse {
+  const parsed = contactMessageSchema(askPhone).safeParse(input);
+  if (parsed.success) return { ok: true, data: parsed.data };
+
+  const raw = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const fields: ContactMessageFieldErrors = {};
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0];
+    if (typeof key !== "string" || !(CONTACT_MESSAGE_FIELDS as readonly string[]).includes(key)) {
+      continue;
+    }
+    const field = key as ContactMessageField;
+    if (fields[field]) continue; // pierwszy błąd pola wygrywa — komunikat jest jeden
+    const value = raw[field];
+    if (value === undefined || (typeof value === "string" && value.trim() === "")) {
+      fields[field] = "required";
+    } else if (issue.code === "too_big") fields[field] = "too_long";
+    else if (issue.code === "too_small") fields[field] = "required";
+    else fields[field] = "invalid";
+  }
+  return { ok: false, fields };
+}
+
+/**
+ * Same błędy pól — wygodne wejście dla formularza, który i tak buduje obiekt
+ * wiadomości sam i nie ma jak wnieść nieznanego klucza. Serwer używa
+ * {@link parseContactMessage}, bo tam wejście przychodzi z sieci.
+ */
+export function contactMessageErrors(
+  input: unknown,
+  askPhone: boolean,
+): ContactMessageFieldErrors {
+  const parsed = parseContactMessage(input, askPhone);
+  return parsed.ok ? {} : parsed.fields;
+}
+
+/**
+ * WEJŚCIE AKCJI WYSYŁKI. Poza samą wiadomością niesie trzy rzeczy, które nie
+ * są treścią, tylko DOWODAMI pochodzenia zgłoszenia:
+ *
+ *   • `sectionId` — z której sekcji przyszło. Serwer wyprowadza z niego
+ *     adresata z OPUBLIKOWANEJ treści; adres nigdy nie przychodzi z klienta,
+ *     bo formularz przyjmujący adresata byłby otwartą bramką do rozsyłki;
+ *   • `ticket` — podpisany serwerowo znacznik czasu z chwili renderu;
+ *   • `trap` — pole-pułapka (honeypot). Wypełnione = bot.
+ */
+export interface ContactSubmitInput extends ContactMessageInput {
+  sectionId: string;
+  ticket: string;
+  /** Token CAPTCHY; brak = weryfikator odmówi, o ile CAPTCHA jest włączona. */
+  captchaToken?: string;
+  trap: string;
+}
+
+/**
+ * Wynik akcji — zamknięty zbiór, każdy wariant ma własny komunikat w formularzu.
+ *
+ * `sent` NIE ZNACZY „wysłaliśmy": znaczy „przyjęliśmy i nie mamy nic do
+ * powiedzenia". Zgłoszenie z wypełnioną pułapką kończy się TYM SAMYM statusem
+ * bez wysyłki — bot, który dostaje inną odpowiedź niż człowiek, uczy się w
+ * dziesięć minut, czego nie wypełniać.
+ */
+export type ContactSubmitResult =
+  | { status: "sent" }
+  | { status: "validation_error"; fields: ContactMessageFieldErrors }
+  | { status: "rate_limited" }
+  | { status: "captcha_failed" }
+  /** Bilet nieważny: podrobiony, przeterminowany albo formularz wysłany natychmiast po renderze. */
+  | { status: "expired" }
+  /** Sekcja bez adresata albo poczta niedostępna — uczciwie, zamiast cichego sukcesu. */
+  | { status: "unavailable" }
+  | { status: "server_error" };
+
+// -----------------------------------------------------------------------
 // Opis edytora — mini-CMS czyta pola z DANYCH, nie z `if`-ów per typ
 // -----------------------------------------------------------------------
 
 /**
- * Rodzaj kontrolki pola wpisu. `image` NIE jest polem tekstowym: wartością
- * jest źródło zdjęcia, a nie napis, więc szuflada rysuje w tym miejscu
- * miniaturę, a nie `<input>` ze ścieżką do Storage.
+ * Rodzaj kontrolki pola. `image` NIE jest polem tekstowym: wartością jest
+ * źródło zdjęcia, a nie napis, więc szuflada rysuje w tym miejscu miniaturę,
+ * a nie `<input>` ze ścieżką do Storage. `choice` jest listą o ZAMKNIĘTYM
+ * zbiorze wartości (rodzaj danych kontaktowych, E4) — pole tekstowe w tym
+ * miejscu pozwalałoby wpisać rodzaj, którego render nie zna, więc wpis
+ * przestałby być klikalny bez żadnego komunikatu.
  */
-export type StructuredFieldKind = "text" | "multiline" | "image";
+export type StructuredFieldKind = "text" | "multiline" | "image" | "choice";
 
 /**
  * Co znaczy PUSTE pole. Brak deklaracji = pustki NIE ZAPISUJEMY w ogóle (E1:
@@ -313,6 +734,13 @@ export interface StructuredFieldSpec {
   /** Wysokość pola wielowierszowego (wiersze). */
   rows?: number;
   empty?: StructuredFieldEmpty;
+  /**
+   * Wartości do wyboru dla `kind: "choice"` — kolejność = kolejność na liście.
+   * Wartości są napisami, bo w tej kontrolce siedzi rodzaj wpisu (dana
+   * słownikowa), a nie liczba; ustawienia wyglądu o typie liczbowym mają
+   * własny opis ({@link StructuredChoiceSpec}) i własną drogę zapisu.
+   */
+  values?: readonly string[];
 }
 
 /** Przełącznik logiczny w ustawieniach sekcji (np. „pozwól otworzyć wiele naraz"). */
@@ -354,6 +782,13 @@ export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeA
   defaultLayout: string;
   /** Pola JEDNEGO wpisu listy — framework szuflady renderuje je po kolei. */
   itemFields: readonly StructuredFieldSpec[];
+  /**
+   * Pola CAŁEJ SEKCJI poza nagłówkiem (E4: odnośnik do polityki prywatności).
+   * Osobne od `itemFields`, bo dotyczą sekcji, a nie wpisu — wciśnięcie ich do
+   * listy znaczyłoby, że każdy wpis niesie własną kopię tej samej wartości.
+   * Brak = sekcja nie ma nic poza nagłówkiem (FAQ, galeria).
+   */
+  fields?: readonly StructuredFieldSpec[];
   /** Ustawienia sekcji poza listą wpisów. */
   toggles: readonly StructuredToggleSpec[];
   /** Ustawienia wyglądu o zamkniętym zbiorze wartości. */
@@ -564,6 +999,93 @@ export const STRUCTURED_SECTIONS = {
         columns: 3,
         gap: "regular",
         lightbox: true,
+        items,
+      };
+    },
+  },
+
+  contact: {
+    schema: contactStructuredSchema,
+    layouts: CONTACT_LAYOUTS,
+    defaultLayout: "stacked",
+    itemFields: [
+      { key: "kind", kind: "choice", values: CONTACT_ENTRY_KINDS },
+      { key: "value", kind: "text" },
+    ],
+    // Odnośnik do polityki prywatności jest polem SEKCJI — patrz `fields`
+    // w opisie typu i pole `privacyHref` w schemacie.
+    fields: [{ key: "privacyHref", kind: "text", empty: "unset" }],
+    toggles: [{ key: "showForm" }, { key: "askPhone" }],
+    // Układ kontaktu nie ma nic do ustawienia poza sobą: liczba kolumn wynika
+    // z wariantu, a nie z osobnej kontrolki. Pusto JAWNIE (jak przy FAQ).
+    choices: [],
+    // Jedna kolumna: cztery wpisy po dwa pola i trzy ustawienia mieszczą się
+    // bez dzielenia na zakładki — a zakładka na trzy pola to klik bez korzyści.
+    editor: "single",
+    minItems: 1,
+    maxItems: CONTACT_MAX_ITEMS,
+    // Render kontaktu maluje: etykiety rodzajów i wartości (ink), notkę RODO
+    // i podpis pod formularzem (inkMuted), obrys pól i karty formularza
+    // (border), odnośniki `mailto:`/`tel:` pod kursorem oraz przycisk wysyłki
+    // (accentText, accentFill) i komunikat błędu (dangerText).
+    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill", "dangerText"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "contact",
+        layout: "stacked",
+        background: "default",
+        heading: "Kontakt",
+        showForm: true,
+        askPhone: false,
+        items: [
+          // Adres w domenie zarezerwowanej normą (RFC 2606): preset ma
+          // WYGLĄDAĆ jak adres i jednocześnie nie móc nigdzie dojść, dopóki
+          // operator nie wpisze swojego.
+          { kind: "email", value: "kontakt@twojadomena.example" },
+          { kind: "phone", value: "+48 500 600 700" },
+          { kind: "address", value: "ul. Przykładowa 5, 00-001 Warszawa" },
+          { kind: "hours", value: "pon.–pt. 8:00–17:00, sob. 9:00–13:00" },
+        ],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "contact",
+        layout: "stacked",
+        background: "default",
+        heading: "Contact us",
+        showForm: true,
+        askPhone: false,
+        items: [
+          { kind: "email", value: "hello@yourdomain.example" },
+          { kind: "phone", value: "+44 20 7946 0000" },
+          { kind: "address", value: "5 Example Street, London EC1A 1AA" },
+          { kind: "hours", value: "Mon–Fri 8:00–17:00, Sat 9:00–13:00" },
+        ],
+      },
+    },
+    newItem: {
+      pl: { kind: "phone", value: "+48 500 600 700" },
+      en: { kind: "phone", value: "+44 20 7946 0000" },
+    },
+    fromLegacy: (content: unknown) => {
+      const items = contactEntriesFromLegacy(content);
+      if (items.length === 0) return null;
+      const source = content as { heading?: unknown } | null;
+      const legacyHeading =
+        typeof source?.heading === "string" && source.heading.trim().length > 0
+          ? source.heading
+          : isSectionCanvas(content)
+            ? canvasHeading(content)
+            : undefined;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "contact",
+        layout: "stacked",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        showForm: true,
+        askPhone: false,
         items,
       };
     },
@@ -780,6 +1302,26 @@ export function patchStructuredItem<T extends StructuredSectionContent>(
     return patched;
   });
   return { ...content, items: next } as T;
+}
+
+/**
+ * Jedno pole CAŁEJ SEKCJI (E4, `fields` w rejestrze) — ta sama semantyka
+ * pustki, co przy polach wpisu: `undefined` ZDEJMUJE pole opcjonalne, którego
+ * schemat nie przyjąłby jako pustego napisu.
+ *
+ * Osobna funkcja zamiast spreadu u wołającego, bo skasowanie klucza i wpisanie
+ * do niego `undefined` to w `jsonb` DWIE RÓŻNE treści — a kopia tej reguły
+ * w szufladzie rozjechałaby się z regułą wpisów przy pierwszej poprawce.
+ */
+export function patchStructuredField<T extends StructuredSectionContent>(
+  content: T,
+  key: string,
+  value: string | undefined,
+): T {
+  const next = { ...(content as unknown as Record<string, unknown>) };
+  if (value === undefined) delete next[key];
+  else next[key] = value;
+  return next as unknown as T;
 }
 
 // -----------------------------------------------------------------------

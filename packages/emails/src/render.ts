@@ -35,6 +35,10 @@ import {
   RentalContractEmail,
   type RentalContractEmailProps,
 } from "./templates/rental-contract";
+import {
+  ContactMessageEmail,
+  type ContactMessageEmailProps,
+} from "./templates/contact-message";
 
 export interface RenderedEmail {
   html: string;
@@ -120,4 +124,11 @@ export function renderRentalContractEmail(
   props: RentalContractEmailProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(RentalContractEmail, props));
+}
+
+/** Wiadomość z formularza kontaktowego sklepu (E4, ADR-095). */
+export function renderContactMessage(
+  props: ContactMessageEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(ContactMessageEmail, props));
 }

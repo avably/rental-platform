@@ -353,6 +353,24 @@ describe("kontrast: sekcje strukturalne wchłaniane przez rejestr (ADR-094)", ()
       },
       against: (theme, key) => themeTokens(theme).bands[key].surface,
     },
+    /*
+     * SYGNAŁ BŁĘDU sekcji z formularzem (E4, ADR-095). Kolor jest WSPÓLNY dla
+     * motywów (K6: „nie wyszło" to komunikat systemu, nie element dyrekcji
+     * wizualnej), więc `perAccent: false` — wariant (papier/atrament) wybiera
+     * PAS, dokładnie jak przy chrome sklepu wyżej. Blok chrome liczy tę samą
+     * czerwień, ale dla POWIERZCHNI, których nie ma w rejestrze sekcji; tu
+     * wchodzi ona do macierzy PER TYP, więc nowy typ z formularzem dostanie ją
+     * policzoną bez dopisywania czegokolwiek obok.
+     */
+    dangerText: {
+      perAccent: false,
+      threshold: CONTRAST_AA_TEXT,
+      color: (theme, key) => {
+        const band = themeTokens(theme).bands[key];
+        return themeTokens(theme).danger[band.accent]?.text ?? null;
+      },
+      against: (theme, key) => themeTokens(theme).bands[key].surface,
+    },
   };
 
   it("rejestr typów strukturalnych NIE jest pusty i każdy deklaruje role", () => {

@@ -38,6 +38,10 @@ export const ROLE_CLASSES: Record<string, readonly StructuredThemeRole[]> = {
   "site-text-accent": ["accentText"],
   // — tekst przygaszony —
   "site-text-muted": ["inkMuted"],
+  // — sygnał błędu (E4: pierwszy typ strukturalny z FORMULARZEM) —
+  // Osobna zmienna motywu (`--site-danger-text`), nie akcent: „nie wyszło" jest
+  // komunikatem systemu, a nie elementem dyrekcji wizualnej sklepu (K6/ADR-092).
+  "site-error": ["dangerText"],
   // — tekst na atramencie pasa (kolor dziedziczony z `.site-root` / pasa) —
   "site-title": ["ink"],
   "site-eyebrow": ["ink"],
