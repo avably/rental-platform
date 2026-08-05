@@ -38,10 +38,18 @@ describe("KWOTA POD KLAWISZAMI: parser i zapis pola edycji", () => {
     ["0", 0],
     ["0,05", 5],
     ["1299", 129_900],
-    // Zaokrąglenie PO przemnożeniu: `12.05 * 100` daje w arytmetyce
-    // zmiennoprzecinkowej 1204.9999999999998, a `Math.trunc` zrobiłby z tego
-    // dwanaście złotych CZTERY grosze.
-    ["12,05", 1_205],
+    /*
+     * ZAOKRĄGLENIE, NIE OBCIĘCIE — i to są przypadki, na których różnicę
+     * naprawdę widać. `2.01 * 100` daje w arytmetyce zmiennoprzecinkowej
+     * 200.99999999999997, więc `Math.trunc` zrobiłby z dwóch złotych JEDNEGO
+     * GROSZA równe dwa złote. Wartość myląco „okrągła" (12,05) tego NIE
+     * pokazuje: tam iloczyn wypada powyżej liczby całkowitej i obcięcie
+     * przechodzi na zielono — pierwsza wersja tego testu stała właśnie na niej
+     * i mutacja `Math.round` → `Math.trunc` przeżyła cały pakiet.
+     */
+    ["2,01", 201],
+    ["0,29", 29],
+    ["1,13", 113],
     // Spacja NIEŁAMLIWA (U+00A0 i U+202F) — tak separator tysięcy wkleja się
     // razem z kwotą skopiowaną ze strony dostawcy.
     ["1\u00A0299,00", 129_900],

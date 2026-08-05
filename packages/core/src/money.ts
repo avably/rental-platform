@@ -86,9 +86,12 @@ export function formatMoneyAmount(amountMinor: number, currency: CurrencyCode, l
  * Odrzucamy też wartość ujemną: cennik z ceną poniżej zera nie jest cennikiem,
  * tylko rabatem, którego model nie zna.
  *
- * Zaokrąglenie idzie przez `Math.round` PO przemnożeniu, bo `12.05 * 100`
- * w arytmetyce zmiennoprzecinkowej daje 1204.9999999999998 — a `Math.trunc`
- * zamieniłby dwanaście złotych pięć groszy w dwanaście cztery.
+ * Zaokrąglenie idzie przez `Math.round` PO przemnożeniu, i nie jest to
+ * ostrożność na zapas: `2.01 * 100` daje w arytmetyce zmiennoprzecinkowej
+ * 200.99999999999997, więc `Math.trunc` zamieniłby dwa złote jeden grosz
+ * w równe dwa złote. Wartość myląco „okrągła" (12,05) tej różnicy NIE
+ * pokazuje — iloczyn wypada tam powyżej liczby całkowitej i obcięcie daje ten
+ * sam wynik — więc dowód mutacyjny stoi na 2,01 / 0,29 / 1,13.
  */
 export function parseMoneyAmount(raw: string, currency: CurrencyCode): number | null {
   // Spacje są w liczbie szumem, nie znaczeniem. `\s` obejmuje też spacje
