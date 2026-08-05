@@ -111,6 +111,7 @@ import {
   TooltipTrigger,
   canvasBoxVariables,
   type RenderSection,
+  type SiteMoney,
   type StorefrontProduct,
 } from "@avably/ui";
 import {
@@ -203,6 +204,7 @@ export function BuilderCanvas({
   style,
   sections,
   products,
+  money,
   viewport,
   busy,
   dropSectionId,
@@ -225,6 +227,8 @@ export function BuilderCanvas({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /** Waluta i zapis kwot najemcy (E6) — płótno rysuje cennik tak, jak sklep. */
+  money: SiteMoney;
   viewport: BuilderViewport;
   /** Trwa mutacja — uchwyty i pasek narzędzi szarzeją razem (R2, #135). */
   busy: boolean;
@@ -463,6 +467,7 @@ export function BuilderCanvas({
                  */
                 motion="off"
                 products={products}
+                money={money}
                 siteImageBase={siteImagePublicBase()}
                 sectionWrapper={(section, children) => {
                   const index = order.findIndex((s) => s.id === section.id);

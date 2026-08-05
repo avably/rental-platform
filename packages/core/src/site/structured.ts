@@ -41,6 +41,7 @@
  */
 import { z } from "zod";
 
+import { formatMoney, type CurrencyCode } from "../money";
 import {
   imageSourceSchema,
   isSectionCanvas,
@@ -540,6 +541,24 @@ function canvasHeading(canvas: SectionCanvas): string | undefined {
   return first && first.length > 0 ? first.slice(0, 200) : undefined;
 }
 
+/**
+ * Pierwszy akapit płótna w kolejności czytania — bliźniak {@link canvasHeading}
+ * dla treści, która w v1 była jednym napisem (notka cennika). Wspólny, bo
+ * dwie kopie tego samego sortowania rozjechałyby się przy pierwszej poprawce
+ * reguły „od góry, potem od lewej".
+ */
+function canvasFirstText(canvas: SectionCanvas): string | undefined {
+  const texts = canvas.elements
+    .filter((element): element is Extract<CanvasElement, { kind: "text" }> => element.kind === "text")
+    .slice()
+    .sort(
+      (a, b) =>
+        a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x,
+    );
+  const first = texts[0]?.text.trim();
+  return first && first.length > 0 ? first : undefined;
+}
+
 /** Sekcja kontaktu SPRZED płótna: osobne pola adresu, telefonu, e-maila i mapy. */
 function contactEntriesFromV1(content: unknown): ContactStructuredItem[] {
   if (typeof content !== "object" || content === null) return [];
@@ -863,6 +882,467 @@ function directionsLocationsFromV1(content: unknown): DirectionsStructuredItem[]
 }
 
 // -----------------------------------------------------------------------
+// Cennik — pierwszy typ z polem PIENIĘŻNYM (E6, aneks ADR-094)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu cennika. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „co robi odwiedzający z tą listą":
+ *   • `table` — PORÓWNUJE. Nazwa i cena stoją w kolumnach, więc oko przebiega
+ *     ceny w pionie i widzi różnice między pozycjami;
+ *   • `cards` — CZYTA POJEDYNCZO. Każda pozycja jest kaflem z miejscem na
+ *     notkę („min. 3 doby", „z montażem"), której w wierszu tabeli nie ma jak
+ *     zmieścić bez rozbicia rytmu kolumn.
+ *
+ * Oba czytają TEN SAM `items` — przełącznik układu jest polem treści, więc jego
+ * zmiana z definicji nie dosięga wpisów.
+ */
+export const PRICING_LAYOUTS = ["table", "cards"] as const;
+export type PricingLayout = (typeof PRICING_LAYOUTS)[number];
+
+/**
+ * JEDNOSTKA ROZLICZENIOWA POZYCJI — ZAMKNIĘTY SŁOWNIK, nie pole tekstowe.
+ *
+ * ==================== DLACZEGO NIE TEKST ====================
+ *
+ * Kusi wpuścić dowolny napis („za dobę", „/24h", „doba (netto)”) — najemca zna
+ * swój cennik lepiej niż my. Odpada z tego samego powodu, dla którego rodzaj
+ * wpisu kontaktowego jest słownikiem (E4): jednostka jest CHROME renderu, więc
+ * jej nazwa musi iść z JĘZYKA STRONY. Najemca prowadzący sklep po polsku
+ * i po angielsku wpisałby „doba” raz, a angielski sklep pokazywałby „doba”
+ * przy każdej cenie — i nie miałby jak tego naprawić, nie psując polskiego.
+ *
+ * ==================== SKĄD TE PIĘĆ ====================
+ *
+ * `day` jest kotwicą, bo cały katalog liczy w dobach (`base_price_day_grosze`,
+ * progi `tier_days`) i storefront ma na nią gotowe słowo (`common.perDay`).
+ * `hour`, `week` i `month` to pozostałe realne okresy najmu, a `piece` —
+ * pozycje sprzedawane na sztuki (krzesło, nakrycie), których cennik
+ * wypożyczalni jest pełny. Szóstej nie ma ŚWIADOMIE: każda kolejna musiałaby
+ * mieć nazwę w obu językach i miejsce w słowniku, a nie „bo może się przyda".
+ */
+export const PRICING_UNITS = ["hour", "day", "week", "month", "piece"] as const;
+export type PricingUnit = (typeof PRICING_UNITS)[number];
+
+/**
+ * CZY CENA JEST DOKŁADNA, CZY WYJŚCIOWA. Brief E6 mówił o polu `from` (flaga
+ * „od” per pozycja); w treści stoi SŁOWNIK dwuwartościowy, i to z dwóch
+ * powodów. Pierwszy jest o edytorze: szuflada zna przełączniki CAŁEJ SEKCJI,
+ * ale nie zna przełącznika przy pojedynczym wpisie — słownik wchodzi za to
+ * istniejącą kontrolką listy zamkniętej (E4) i nie kosztuje ani jednej nowej
+ * ścieżki zapisu. Drugi jest o przyszłości: „od 60 zł” i „60 zł” to dwa punkty
+ * skali, na której są jeszcze „do” i „od–do”; flaga logiczna zamknęłaby ją na
+ * dwóch, a rozszerzenie słownika jest wpisem, nie migracją znaczenia.
+ */
+export const PRICING_PRICE_MODES = ["exact", "from"] as const;
+export type PricingPriceMode = (typeof PRICING_PRICE_MODES)[number];
+
+/** Górna granica pozycji — lustro `maxItems` w rejestrze (test pilnuje zgody). */
+const PRICING_MAX_ITEMS = 40;
+
+/** Nazwa pozycji cennika („Wiertarka udarowa”, „Namiot 5×10 m”). */
+const pricingName = z.string().trim().min(1).max(200);
+
+/** Notka pozycji („min. 3 doby”, „z montażem”) — widoczny tekst, więc pusta nie ma sensu. */
+const pricingNote = z.string().trim().min(1).max(200);
+
+/**
+ * PRZYPIS CAŁEJ SEKCJI („Ceny netto. Kaucja zwrotna liczona osobno.”). Pole
+ * sekcji, nie wpisu — i jest to jedyne pole treści, które sekcja cennika miała
+ * już w generacji v1, więc to przez nie konwersja przenosi cokolwiek prócz
+ * nagłówka.
+ *
+ * NAZWA `footnote`, A NIE `note`, i to nie jest kosmetyka: wpis ma WŁASNE pole
+ * `note` („Minimum 20 sztuk”), a szuflada pyta i18n o etykietę PO KLUCZU POLA.
+ * Dwa różne pola pod jednym kluczem dostałyby w edytorze jedną etykietę — czyli
+ * przypis całego cennika podpisany „Notka przy pozycji”.
+ */
+const pricingFootnote = z.string().trim().min(1).max(500);
+
+/**
+ * CENA W JEDNOSTKACH PODRZĘDNYCH (`int`) — kanon pieniędzy w tym projekcie
+ * i jedyny dopuszczalny zapis. Trzy granice, każda z powodem:
+ *   • `int` — grosz jest niepodzielny, a `12.005` w treści sekcji byłoby ceną,
+ *     której nie da się zapłacić ani wystawić na fakturze;
+ *   • `min(0)` — cennik z ceną ujemną nie jest cennikiem, tylko rabatem,
+ *     którego model nie zna. Zero zostaje legalne: „0 zł / doba” przy pozycji
+ *     „Dowóz do 10 km” jest realną informacją handlową, a nie brakiem ceny;
+ *   • `max` — milion w walucie rozliczeniowej. Nie ma tu nic świętego poza
+ *     tym, że liczba wpisana przez pomyłkę (wklejony numer telefonu) ma odpaść
+ *     na schemacie, a nie rozjechać kolumnę cen na opublikowanej stronie.
+ */
+const pricingPriceGrosze = z.number().int().min(0).max(100_000_000);
+
+export const pricingStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("pricing"),
+    layout: z.enum(PRICING_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Pozycje cennika. MINIMUM JEDNA — sekcja cennika bez ani jednej ceny jest
+     * pustym nagłówkiem, czyli dokładnie tą atrapą, którą ADR-094 usuwa
+     * z produktu. I jest to zarazem cała różnica wobec generacji v1, która
+     * pojęcia ceny NIE ZNAŁA (`{ heading?, note? }`) — patrz `fromLegacy`.
+     */
+    items: z
+      .array(
+        z
+          .object({
+            name: pricingName,
+            price_grosze: pricingPriceGrosze,
+            unit: z.enum(PRICING_UNITS),
+            mode: z.enum(PRICING_PRICE_MODES).default("exact"),
+            note: pricingNote.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(PRICING_MAX_ITEMS),
+    /** Przypis pod listą — jedyne pole treści, które v1 cennika naprawdę miało. */
+    footnote: pricingFootnote.optional(),
+    /**
+     * Czy pod cennikiem stoi odnośnik do katalogu. DOMYŚLNIE WŁĄCZONY: cennik
+     * jest miejscem, w którym odwiedzający wie już, ile to kosztuje, i chce
+     * zobaczyć, co konkretnie jest do wzięcia — a wyłączyć go trzeba móc, bo
+     * sekcja stojąca tuż nad katalogiem odsyłałaby tam, gdzie odwiedzający
+     * właśnie jest.
+     */
+    showCatalogLink: z.boolean().default(true),
+  })
+  .strict();
+
+export type PricingStructuredContent = z.infer<typeof pricingStructuredSchema>;
+export type PricingStructuredItem = PricingStructuredContent["items"][number];
+
+/**
+ * ADRES KATALOGU. Jedno miejsce, bo dziś jest jeden: publiczny sklep najemcy
+ * stoi pod `/store` i to tam mieszka pełna lista sprzętu z dostępnością.
+ *
+ * ŚWIADOMY DZISIEJSZY KOSZT: sekcje strony renderują się na TEJ SAMEJ trasie,
+ * więc odnośnik prowadzi na górę bieżącej strony, a nie na inną. Zostaje mimo
+ * to — bo `/store` jest jedyną trasą, pod którą katalog istnieje, a przełącznik
+ * `showCatalogLink` daje operatorowi wyjście tam, gdzie sekcja i tak stoi obok
+ * katalogu. Gdy model strony dostanie podstrony, odnośnik zacznie przechodzić
+ * między nimi bez ani jednej zmiany w renderze.
+ */
+export const PRICING_CATALOG_HREF = "/store";
+
+/**
+ * POZYCJE STARTOWE CENNIKA — osobna stała, bo czyta je DWÓCH wołających:
+ * preset typu i konwersja ze starej treści (która pozycji nie ma skąd wziąć,
+ * patrz {@link pricingHeadAndNoteFromLegacy}). Dwie kopie tej samej listy
+ * rozjechałyby się przy pierwszej poprawce, a operator dostawałby inny cennik
+ * startowy w zależności od tego, którą drogą sekcja powstała.
+ */
+const PRICING_PRESET_ITEMS = {
+  pl: [
+    { name: "Namiot 5 × 10 m z montażem", price_grosze: 90_000, unit: "day", mode: "from" },
+    { name: "Stół bankietowy 220 cm", price_grosze: 2_500, unit: "day", mode: "exact" },
+    {
+      name: "Krzesło bankietowe z pokrowcem",
+      price_grosze: 800,
+      unit: "piece",
+      mode: "exact",
+      note: "Minimum 20 sztuk",
+    },
+    {
+      name: "Nagłośnienie z obsługą",
+      price_grosze: 25_000,
+      unit: "hour",
+      mode: "from",
+      note: "Minimum 3 godziny",
+    },
+  ],
+  en: [
+    { name: "5 × 10 m marquee, installed", price_grosze: 90_000, unit: "day", mode: "from" },
+    { name: "220 cm banquet table", price_grosze: 2_500, unit: "day", mode: "exact" },
+    {
+      name: "Banquet chair with cover",
+      price_grosze: 800,
+      unit: "piece",
+      mode: "exact",
+      note: "Minimum 20 pieces",
+    },
+    {
+      name: "Sound system with an operator",
+      price_grosze: 25_000,
+      unit: "hour",
+      mode: "from",
+      note: "Minimum 3 hours",
+    },
+  ],
+} as const;
+
+/** Słowa, których render potrzebuje do złożenia etykiety ceny (język STRONY). */
+export interface PricingPriceWords {
+  /** Przedrostek ceny wyjściowej — „od” / „from”. */
+  from: string;
+  /** Nazwa jednostki rozliczeniowej — „doba” / „day”. */
+  unit: string;
+}
+
+/**
+ * ETYKIETA CENY — „120,00 zł / doba”, „od 60,00 zł / godzina”.
+ *
+ * Składanie stoi TUTAJ, a nie w dwóch komponentach układu, bo jest jedno:
+ * kopia w tabeli i kopia w kartach rozjechałyby się przy pierwszej poprawce
+ * (a rozjazd dotyczyłby CENY). Sama kwota idzie przez {@link formatMoney} —
+ * jedyny formatter pieniędzy w systemie. Dzielenia przez sto w tym pliku nie
+ * ma i mieć nie może: separator dziesiętny, pozycja symbolu i odstęp tysięcy
+ * są własnością locale, a nie naszej arytmetyki.
+ */
+export function pricingPriceLabel(
+  item: PricingStructuredItem,
+  currency: CurrencyCode,
+  locale: string,
+  words: PricingPriceWords,
+): string {
+  const money = formatMoney(item.price_grosze, currency, locale);
+  const amount = item.mode === "from" ? `${words.from} ${money}` : money;
+  return `${amount} / ${words.unit}`;
+}
+
+/**
+ * TREŚĆ CENNIKA WYPROWADZONA ZE STAREJ GENERACJI (konwersja E6) — albo `null`.
+ *
+ * ==================== CZEGO TU NIE MA I DLACZEGO ====================
+ *
+ * POZYCJE NIE JADĄ, bo ich w starej treści NIE MA. Sekcja cennika v1 to
+ * dosłownie `{ heading?, note? }` — dwa napisy, ani jednej ceny (to jest ten
+ * „cennik, który nie zna pojęcia ceny” z nagłówka tego pliku, i powód, dla
+ * którego E6 w ogóle istnieje). Płótno v2 dostawało z niej dokładnie tyle samo:
+ * nagłówek i jeden akapit. Wyprowadzenie pozycji znaczyłoby więc rozbicie
+ * zdania operatora na nazwy i kwoty — czyli WYMYŚLENIE cen, a nie ich
+ * przeniesienie. To ta sama granica, co przy FAQ („który napis był pytaniem”),
+ * z jednym zaostrzeniem: pomyłka o rząd wielkości w cenie jest widoczna dopiero
+ * u klienta, który już zapłacił.
+ *
+ * ==================== CO JEDZIE ====================
+ *
+ * Wszystko, co w starej treści MA zapisane znaczenie: nagłówek i notka. Pozycje
+ * przychodzą z presetu — tak samo, jak przyszłyby przy braku konwersji w ogóle
+ * (patrz {@link structuredFromLegacy}) — więc operator dostaje swoją sekcję
+ * z gotowym rusztowaniem do nadpisania, zamiast tracić dwa napisy, które
+ * naprawdę napisał.
+ *
+ * Z płótna bierzemy PIERWSZY nagłówek i PIERWSZY akapit w kolejności czytania:
+ * ich znaczenie jest wymuszone geometrią NASZEJ WŁASNEJ konwersji v1→v2, która
+ * układa sekcję cennika dokładnie w tej kolejności (ta sama zasada, co przy
+ * adresie dojazdu w E5).
+ */
+export function pricingHeadAndNoteFromLegacy(content: unknown): {
+  heading?: string;
+  footnote?: string;
+} {
+  if (isSectionCanvas(content)) {
+    const canvasNote = canvasFirstText(content);
+    const legacyHeading = canvasHeading(content);
+    return {
+      ...(legacyHeading ? { heading: legacyHeading } : {}),
+      ...(canvasNote ? { footnote: canvasNote.slice(0, 500) } : {}),
+    };
+  }
+  if (typeof content !== "object" || content === null) return {};
+  const source = content as Record<string, unknown>;
+  const legacyHeading = typeof source.heading === "string" ? source.heading.trim() : "";
+  const legacyNote = typeof source.note === "string" ? source.note.trim() : "";
+  return {
+    ...(legacyHeading.length > 0 ? { heading: legacyHeading.slice(0, 200) } : {}),
+    ...(legacyNote.length > 0 ? { footnote: legacyNote.slice(0, 500) } : {}),
+  };
+}
+
+// -----------------------------------------------------------------------
+// Opinie — typ CYTATOWY (E6, aneks ADR-094)
+// -----------------------------------------------------------------------
+
+/**
+ * Warianty układu opinii. Dwa, bo tyle jest realnych odpowiedzi na pytanie
+ * „ile miejsca opinie mają zająć":
+ *   • `grid` — wszystkie naraz, jedna pod drugą i obok siebie. Kto czyta,
+ *     porównuje; kto przewija, widzi, że opinii jest wiele;
+ *   • `carousel` — jeden pas przewijany w bok, gdy opinii jest dużo, a strona
+ *     ma je pokazać, nie zamienić się w nie.
+ *
+ * Oba czytają TEN SAM `items` — przełącznik układu jest polem treści.
+ */
+export const TESTIMONIALS_LAYOUTS = ["grid", "carousel"] as const;
+export type TestimonialsLayout = (typeof TESTIMONIALS_LAYOUTS)[number];
+
+/** Górna granica opinii — lustro `maxItems` w rejestrze i granicy schematu v1. */
+const TESTIMONIALS_MAX_ITEMS = 20;
+
+/** Sama opinia. Dłuższa niż `shortText` v1, bo v1 ucinał realne wypowiedzi. */
+const testimonialQuote = z.string().trim().min(1).max(1_000);
+
+/** Podpis pod opinią — imię albo nazwa firmy. */
+const testimonialAuthor = z.string().trim().min(1).max(120);
+
+/**
+ * Rola podpisującego („Organizatorka wesela”, „Kierownik budowy”). OPCJONALNA
+ * — tak samo, jak w schemacie v1, z którego jedzie konwersja: wymóg roli
+ * kazałby jej WYMYŚLIĆ przy każdej opinii, która jej nie miała.
+ */
+const testimonialRole = z.string().trim().min(1).max(120);
+
+export const testimonialsStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("testimonials"),
+    layout: z.enum(TESTIMONIALS_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    /**
+     * Opinie. MINIMUM JEDNA — sekcja opinii bez ani jednej opinii jest pustym
+     * nagłówkiem (klasa atrap usuwana przez ADR-094). Podpis jest WYMAGANY,
+     * i to jest decyzja o wiarygodności: cytat bez autora nie jest opinią,
+     * tylko hasłem reklamowym w cudzysłowie.
+     */
+    items: z
+      .array(
+        z
+          .object({
+            quote: testimonialQuote,
+            author: testimonialAuthor,
+            role: testimonialRole.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(TESTIMONIALS_MAX_ITEMS),
+  })
+  .strict();
+
+export type TestimonialsStructuredContent = z.infer<typeof testimonialsStructuredSchema>;
+export type TestimonialsStructuredItem = TestimonialsStructuredContent["items"][number];
+
+/**
+ * SEPARATOR PODPISU NA PŁÓTNIE. Konwersja v1→v2 skleja autora z rolą DOKŁADNIE
+ * tym ciągiem (`${author} — ${role}` w `canvas-presets`), więc rozdzielenie go
+ * z powrotem jest ODWRÓCENIEM NASZEJ WŁASNEJ operacji, a nie interpretacją
+ * cudzego zdania. Stała stoi tutaj, żeby obie strony tej pary miały jedno
+ * źródło i żeby zmiana sklejania zapaliła test rozdzielania.
+ */
+const TESTIMONIAL_BYLINE_SEPARATOR = " — ";
+
+/**
+ * OPINIE WYPROWADZONE ZE STAREJ TREŚCI (konwersja E6).
+ *
+ * Opinie są — inaczej niż cennik — konwertowalne w OBU generacjach, i to bez
+ * ani jednego zgadywania:
+ *
+ *   • v1 niesie pełną trójkę (`quote`, `author`, `role`), więc wpisy jadą CO DO
+ *     JEDNEGO i w swojej kolejności;
+ *   • PŁÓTNO v2 spłaszczyło je do napisów, ale nie do NIEROZRÓŻNIALNYCH
+ *     napisów: nasza konwersja zapisała cytat jako tekst wariantu `lead`,
+ *     a podpis jako następujący po nim tekst wariantu `small`. Wariant jest
+ *     w treści zapisany wprost, więc para (cytat, podpis) jest do ODCZYTANIA,
+ *     a nie do rozpoznania po kształcie. Podpis rozdzielamy z powrotem po
+ *     {@link TESTIMONIAL_BYLINE_SEPARATOR} — na PIERWSZYM wystąpieniu, żeby
+ *     rola zawierająca ten sam znak została rolą, a nie zniknęła.
+ *
+ * Kolejność bierzemy z kolejności CZYTANIA płótna (od góry, potem od lewej) —
+ * ta sama zasada, co w galerii i kontakcie: kolejność w tablicy elementów jest
+ * kolejnością DODAWANIA i po kilku poprawkach nie ma nic wspólnego z tym, co
+ * operator widzi na ekranie.
+ */
+export function testimonialsFromLegacy(content: unknown): TestimonialsStructuredItem[] {
+  if (isSectionCanvas(content)) return testimonialsFromCanvas(content);
+  return testimonialsFromV1(content);
+}
+
+/**
+ * PODPIS NALEŻY DO CYTATU PO KOLUMNIE, A NIE PO SĄSIEDZTWIE W LIŚCIE.
+ *
+ * ==================== LUKA ZNALEZIONA WŁASNYM KONTRAKTEM ====================
+ *
+ * Pierwsza wersja brała podpis jako NASTĘPNY tekst w kolejności czytania — co
+ * jest poprawne dokładnie do chwili, w której spojrzy się na realne płótno.
+ * Konwersja v1→v2 układa opinie w DWÓCH KOLUMNACH, więc kolejność czytania
+ * (od góry, potem od lewej) daje: cytat 1, cytat 2, podpis 1, podpis 2,
+ * cytat 3… Sąsiadem cytatu 1 jest tam cytat 2, a nie jego własny podpis —
+ * heurystyka „następny tekst" podpisywała więc opinię CUDZYM nazwiskiem
+ * i po cichu gubiła co drugą. Kontrakt zapalił się na fiksturze CZTERECH
+ * rozróżnialnych opinii; przy jednej opinii przechodził na zielono.
+ *
+ * Prawdziwe wiązanie jest GEOMETRYCZNE i zapisane wprost w tym, co konwersja
+ * narysowała: podpis stoi w TEJ SAMEJ KOLUMNIE (ten sam `x`), bezpośrednio
+ * pod swoim cytatem. To odczytanie własnego układu, a nie zgadywanie sensu.
+ */
+function testimonialsFromCanvas(canvas: SectionCanvas): TestimonialsStructuredItem[] {
+  type TextElement = Extract<CanvasElement, { kind: "text" }>;
+
+  const texts = canvas.elements
+    .filter((element): element is TextElement => element.kind === "text")
+    .slice()
+    .sort(
+      (a, b) =>
+        a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x,
+    );
+
+  const quotes = texts.filter((element) => element.variant === "lead");
+  const bylines = texts.filter((element) => element.variant === "small");
+  const taken = new Set<TextElement>();
+
+  const items: TestimonialsStructuredItem[] = [];
+  for (const element of quotes) {
+    const quote = element.text.trim();
+    if (quote.length === 0) continue;
+
+    // Pierwszy NIEZAJĘTY podpis w tej samej kolumnie, poniżej cytatu. Lista
+    // jest już posortowana od góry, więc „pierwszy" znaczy „najbliższy".
+    const byline = bylines.find(
+      (candidate) =>
+        !taken.has(candidate) &&
+        candidate.layout.desktop.x === element.layout.desktop.x &&
+        candidate.layout.desktop.y > element.layout.desktop.y,
+    );
+    // Cytat bez podpisu ODPADA: schemat wymaga autora, a wymyślenie go byłoby
+    // fabrykowaniem dowodu społecznego — czyli dokładnie tym, czego ten produkt
+    // ma nie robić.
+    if (!byline) continue;
+    const signature = byline.text.trim();
+    if (signature.length === 0) continue;
+    taken.add(byline);
+
+    const cut = signature.indexOf(TESTIMONIAL_BYLINE_SEPARATOR);
+    const author = cut > 0 ? signature.slice(0, cut) : signature;
+    const role = cut > 0 ? signature.slice(cut + TESTIMONIAL_BYLINE_SEPARATOR.length).trim() : "";
+    items.push({
+      quote: quote.slice(0, 1_000),
+      author: author.slice(0, 120),
+      ...(role.length > 0 ? { role: role.slice(0, 120) } : {}),
+    });
+  }
+  return items.slice(0, TESTIMONIALS_MAX_ITEMS);
+}
+
+/** Sekcja opinii SPRZED płótna: gotowa lista trójek (schemat v1). */
+function testimonialsFromV1(content: unknown): TestimonialsStructuredItem[] {
+  if (typeof content !== "object" || content === null) return [];
+  const items = (content as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (typeof item !== "object" || item === null) return null;
+      const source = item as Record<string, unknown>;
+      const quote = typeof source.quote === "string" ? source.quote.trim() : "";
+      const author = typeof source.author === "string" ? source.author.trim() : "";
+      if (quote.length === 0 || author.length === 0) return null;
+      const role = typeof source.role === "string" ? source.role.trim() : "";
+      return {
+        quote: quote.slice(0, 1_000),
+        author: author.slice(0, 120),
+        ...(role.length > 0 ? { role: role.slice(0, 120) } : {}),
+      };
+    })
+    .filter((item): item is TestimonialsStructuredItem => item !== null)
+    .slice(0, TESTIMONIALS_MAX_ITEMS);
+}
+
+// -----------------------------------------------------------------------
 // Opis edytora — mini-CMS czyta pola z DANYCH, nie z `if`-ów per typ
 // -----------------------------------------------------------------------
 
@@ -873,8 +1353,15 @@ function directionsLocationsFromV1(content: unknown): DirectionsStructuredItem[]
  * zbiorze wartości (rodzaj danych kontaktowych, E4) — pole tekstowe w tym
  * miejscu pozwalałoby wpisać rodzaj, którego render nie zna, więc wpis
  * przestałby być klikalny bez żadnego komunikatu.
+ *
+ * `money` (E6) jest czwartym rodzajem NIE-TEKSTOWYM i jedynym, którego wartość
+ * w treści jest LICZBĄ: kwota mieszka w jednostkach podrzędnych jako `int`
+ * (kanon pieniędzy projektu), a operator wpisuje ją w jednostkach głównych.
+ * Przeliczenie i rozpoznanie „to jeszcze nie jest kwota” robi rdzeń
+ * (`parseMoneyAmount`), nie kontrolka — inaczej każda powierzchnia edycyjna
+ * miałaby własną, minimalnie inną odpowiedź na pytanie, czym jest „12,5”.
  */
-export type StructuredFieldKind = "text" | "multiline" | "image" | "choice";
+export type StructuredFieldKind = "text" | "multiline" | "image" | "choice" | "money";
 
 /**
  * Co znaczy PUSTE pole. Brak deklaracji = pustki NIE ZAPISUJEMY w ogóle (E1:
@@ -984,8 +1471,14 @@ export interface StructuredSectionSpec<TSchema extends z.ZodTypeAny = z.ZodTypeA
    * płótno v2) — albo `null`, gdy wyprowadzenie wymagałoby zgadywania.
    * Nieobecność jest RÓWNIE mocną deklaracją co obecność: znaczy „tej treści
    * nie da się przenieść bez wymyślania" (FAQ — patrz ADR-094).
+   *
+   * JĘZYK JEST DRUGIM ARGUMENTEM (E6). Konwersje E3–E5 przenosiły wyłącznie
+   * treść najemcy, więc język nie miał do czego się przyłożyć. Cennik przenosi
+   * nagłówek i notkę, ale POZYCJE bierze z presetu (bo stara treść ich nie ma)
+   * — a preset istnieje per język. Bez tego argumentu angielski sklep dostawałby
+   * po konwersji polskie pozycje startowe.
    */
-  fromLegacy?: (content: unknown) => unknown | null;
+  fromLegacy?: (content: unknown, locale: StructuredPresetLocale) => unknown | null;
 }
 
 /**
@@ -1356,6 +1849,188 @@ export const STRUCTURED_SECTIONS = {
       };
     },
   },
+  pricing: {
+    schema: pricingStructuredSchema,
+    layouts: PRICING_LAYOUTS,
+    defaultLayout: "table",
+    itemFields: [
+      { key: "name", kind: "text" },
+      // PIERWSZE POLE PIENIĘŻNE W SZUFLADZIE (E6). Osobny rodzaj, a nie „text",
+      // bo wartość w treści jest LICZBĄ całkowitą groszy — pole tekstowe
+      // zapisałoby tam napis, którego schemat i tak by nie przyjął, a operator
+      // zobaczyłby sekcję, która przestała się zapisywać bez podania powodu.
+      { key: "price_grosze", kind: "money" },
+      { key: "unit", kind: "choice", values: PRICING_UNITS },
+      { key: "mode", kind: "choice", values: PRICING_PRICE_MODES },
+      { key: "note", kind: "text", empty: "unset" },
+    ],
+    // Notka pod listą jest polem SEKCJI: dotyczy całego cennika („ceny netto"),
+    // a nie pojedynczej pozycji — kopia w każdym wpisie byłaby tym samym
+    // zdaniem powtórzonym czterdzieści razy.
+    fields: [{ key: "footnote", kind: "multiline", rows: 2, empty: "unset" }],
+    toggles: [{ key: "showCatalogLink" }],
+    // Układ cennika nie ma nic do ustawienia poza sobą: liczba kolumn tabeli
+    // wynika z pól wpisu, a karty układają się od LICZBY POZYCJI, nie od
+    // kontrolki (patrz auto-układ w @avably/ui). Pusto JAWNIE, jak przy FAQ.
+    choices: [],
+    // Pięć pól na wpis plus notka sekcji i przełącznik katalogu: dwie zakładki
+    // rozdzieliłyby cenę od jej jednostki, czyli dwie połowy jednej decyzji.
+    editor: "single",
+    minItems: 1,
+    maxItems: PRICING_MAX_ITEMS,
+    // Render cennika maluje: nazwę pozycji i nagłówki kolumn (ink), jednostkę,
+    // notkę pozycji i notkę sekcji (inkMuted), kreski wierszy tabeli i obrys
+    // kart (border), cenę oraz odnośnik do katalogu pod kursorem (accentText).
+    // Zero wypełnienia akcentem: cennik ma się CZYTAĆ, a nie krzyczeć.
+    themeRoles: ["ink", "inkMuted", "border", "accentText"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "pricing",
+        layout: "table",
+        background: "default",
+        heading: "Cennik",
+        footnote: "Ceny netto. Kaucja zwrotna liczona osobno, przy odbiorze sprzętu.",
+        showCatalogLink: true,
+        items: PRICING_PRESET_ITEMS.pl,
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "pricing",
+        layout: "table",
+        background: "default",
+        heading: "Pricing",
+        footnote: "Prices exclude VAT. A refundable deposit is charged separately at pickup.",
+        showCatalogLink: true,
+        items: PRICING_PRESET_ITEMS.en,
+      },
+    },
+    newItem: {
+      pl: { name: "Nowa pozycja", price_grosze: 0, unit: "day", mode: "exact" },
+      en: { name: "New item", price_grosze: 0, unit: "day", mode: "exact" },
+    },
+    /*
+     * KONWERSJA PRZENOSI NAGŁÓWEK I NOTKĘ, A POZYCJE BIERZE Z PRESETU — bo
+     * pozycji w starej treści NIE MA (patrz `pricingHeadAndNoteFromLegacy`).
+     * Zwrócenie `null` byłoby czystsze o jedną linię i gorsze o dwa napisy,
+     * które operator naprawdę napisał: degradacja do presetu (którą i tak
+     * dostaje) skasowałaby jego nagłówek i notkę bez słowa.
+     */
+    fromLegacy: (content: unknown, locale: StructuredPresetLocale) => {
+      const { heading: legacyHeading, footnote } = pricingHeadAndNoteFromLegacy(content);
+      if (!legacyHeading && !footnote) return null;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "pricing",
+        layout: "table",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        ...(footnote ? { footnote } : {}),
+        showCatalogLink: true,
+        items: structuredClone(PRICING_PRESET_ITEMS[locale]),
+      };
+    },
+  },
+
+  testimonials: {
+    schema: testimonialsStructuredSchema,
+    layouts: TESTIMONIALS_LAYOUTS,
+    defaultLayout: "grid",
+    itemFields: [
+      { key: "quote", kind: "multiline", rows: 4 },
+      { key: "author", kind: "text" },
+      { key: "role", kind: "text", empty: "unset" },
+    ],
+    // Opinie nie mają czego ustawiać poza układem: gęstość siatki wynika
+    // z LICZBY opinii (auto-układ), a karuzela z definicji pokazuje jedną po
+    // drugiej. Pusto JAWNIE, jak przy FAQ i kontakcie.
+    toggles: [],
+    choices: [],
+    editor: "single",
+    minItems: 1,
+    maxItems: TESTIMONIALS_MAX_ITEMS,
+    // Render opinii maluje: cytat i podpis (ink), rolę podpisującego (inkMuted),
+    // obrys kart i strzałek pasa (border). Zero akcentu — opinia ma brzmieć
+    // wiarygodnie, a kolorowy cudzysłów robi z niej reklamę.
+    themeRoles: ["ink", "inkMuted", "border"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "testimonials",
+        layout: "grid",
+        background: "default",
+        heading: "Co mówią klienci",
+        items: [
+          {
+            quote:
+              "Namiot stanął dzień wcześniej, a ekipa została, dopóki wszystko nie było ustawione. W dniu wesela nie musieliśmy myśleć o sprzęcie ani przez chwilę.",
+            author: "Anna i Marek",
+            role: "Wesele w plenerze, 120 osób",
+          },
+          {
+            quote:
+              "Zamawiamy u nich sprzęt na każdą imprezę firmową od trzech lat. Nagłośnienie zawsze sprawne, a rozliczenie idzie fakturą bez przypominania.",
+            author: "Katarzyna Nowak",
+            role: "Dział administracji",
+          },
+          {
+            quote:
+              "Potrzebowaliśmy stołów i krzeseł z dnia na dzień. Dostaliśmy potwierdzenie w godzinę i podstawiony transport następnego ranka.",
+            author: "Dom Kultury w Bukowinie",
+          },
+        ],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "testimonials",
+        layout: "grid",
+        background: "default",
+        heading: "What our customers say",
+        items: [
+          {
+            quote:
+              "The marquee went up a day early and the crew stayed until everything was in place. On the wedding day we never once had to think about the equipment.",
+            author: "Anna and Mark",
+            role: "Outdoor wedding, 120 guests",
+          },
+          {
+            quote:
+              "We have booked their gear for every company event for three years. The sound system always works and the invoice arrives without chasing.",
+            author: "Katherine Novak",
+            role: "Office management",
+          },
+          {
+            quote:
+              "We needed tables and chairs at a day's notice. We had confirmation within the hour and a van at the door the next morning.",
+            author: "Bukowina Community Centre",
+          },
+        ],
+      },
+    },
+    newItem: {
+      pl: { quote: "Treść nowej opinii.", author: "Imię i nazwisko" },
+      en: { quote: "The new testimonial goes here.", author: "Full name" },
+    },
+    fromLegacy: (content: unknown) => {
+      const items = testimonialsFromLegacy(content);
+      if (items.length === 0) return null;
+      const source = content as { heading?: unknown } | null;
+      const legacyHeading =
+        typeof source?.heading === "string" && source.heading.trim().length > 0
+          ? source.heading
+          : isSectionCanvas(content)
+            ? canvasHeading(content)
+            : undefined;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "testimonials",
+        layout: "grid",
+        background: "default",
+        ...(legacyHeading ? { heading: legacyHeading } : {}),
+        items,
+      };
+    },
+  },
 } as const satisfies Record<string, StructuredSectionSpec>;
 
 export type StructuredSectionType = keyof typeof STRUCTURED_SECTIONS;
@@ -1439,7 +2114,7 @@ export function withStructuredLayout<T extends StructuredSectionContent>(
 
 /** Języki presetów — lustro PRESET_LOCALES z ./presets (parytet w CI). */
 const STRUCTURED_PRESET_LOCALES = ["pl", "en"] as const;
-type StructuredPresetLocale = (typeof STRUCTURED_PRESET_LOCALES)[number];
+export type StructuredPresetLocale = (typeof STRUCTURED_PRESET_LOCALES)[number];
 
 function localeOf(locale: string): StructuredPresetLocale {
   return (STRUCTURED_PRESET_LOCALES as readonly string[]).includes(locale)
@@ -1488,7 +2163,7 @@ export function structuredFromLegacy(
   locale: string,
 ): StructuredSectionContent {
   const spec = STRUCTURED_SECTIONS[type] as StructuredSectionSpec;
-  const converted = spec.fromLegacy?.(content) ?? null;
+  const converted = spec.fromLegacy?.(content, localeOf(locale)) ?? null;
   if (converted !== null) {
     const parsed = spec.schema.safeParse(converted);
     if (parsed.success) return parsed.data as StructuredSectionContent;
@@ -1551,12 +2226,17 @@ export function moveStructuredItem<T extends StructuredSectionContent>(
  * (podpis i odnośnik kafla są opcjonalne, a schemat nie przyjmie pustego
  * napisu): bez tej drogi jedynym sposobem usunięcia podpisu byłoby skasowanie
  * całego zdjęcia.
+ *
+ * WARTOŚĆ BYWA LICZBĄ (E6): cena pozycji cennika jest `int` groszy, więc
+ * przepuszczenie tu wyłącznie napisów zapisywałoby do treści `"12000"` —
+ * kształt, którego schemat nie przyjmie, a którego odrzucenie operator
+ * zobaczyłby dopiero jako sekcję, która przestała się zapisywać.
  */
 export function patchStructuredItem<T extends StructuredSectionContent>(
   content: T,
   index: number,
   key: string,
-  value: string | undefined,
+  value: string | number | undefined,
 ): T {
   const items = itemsOf(content);
   if (index < 0 || index >= items.length) return content;

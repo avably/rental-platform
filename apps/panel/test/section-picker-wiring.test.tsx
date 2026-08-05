@@ -106,7 +106,7 @@ function sekcja(id: string, type: "hero" | "cta", position: number): Section {
 function renderBuilder(sections: Section[] = [sekcja(HERO_ID, "hero", 0), sekcja(CTA_ID, "cta", 1)]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} money={{ currency: "PLN", locale: "pl" }} />
     </NextIntlClientProvider>,
   );
 }
@@ -167,13 +167,13 @@ describe("droga operatora: „+” → typ → wstawienie", () => {
     await user.click(screen.getAllByRole("button", { name: plMessages.site.builder.addHere })[1]!);
 
     const okno = await screen.findByRole("dialog");
-    await user.click(within(okno).getByRole("radio", { name: typy.pricing }));
+    await user.click(within(okno).getByRole("radio", { name: typy.usp }));
     await user.click(
-      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.pricing) }),
+      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.usp) }),
     );
 
     expect(actions.upsertSection, "kliknięcie w podgląd nie wysłało zapisu").toHaveBeenCalledTimes(1);
-    expect(wstawienia()[0]).toMatchObject({ type: "pricing", insertBefore: CTA_ID });
+    expect(wstawienia()[0]).toMatchObject({ type: "usp", insertBefore: CTA_ID });
   });
 
   it("TA SAMA droga z palety — kontekst końca strony", async () => {
@@ -182,13 +182,13 @@ describe("droga operatora: „+” → typ → wstawienie", () => {
     await user.click(screen.getByRole("button", { name: plMessages.site.sections.add }));
 
     const okno = await screen.findByRole("dialog");
-    await user.click(within(okno).getByRole("radio", { name: typy.testimonials }));
+    await user.click(within(okno).getByRole("radio", { name: typy.delivery }));
     await user.click(
-      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.testimonials) }),
+      within(okno).getByRole("button", { name: picker.addAria.replace("{type}", typy.delivery) }),
     );
 
     expect(actions.upsertSection).toHaveBeenCalledTimes(1);
-    expect(wstawienia()[0]).toMatchObject({ type: "testimonials" });
+    expect(wstawienia()[0]).toMatchObject({ type: "delivery" });
     expect(wstawienia()[0]!.insertBefore, "paleta wskazała kotwicę zamiast końca strony").toBeUndefined();
   });
 

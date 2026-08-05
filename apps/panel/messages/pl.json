@@ -1485,6 +1485,56 @@
           "nothingNew": "Wszystkie punkty odbioru są już w tej sekcji.",
           "full": "Sekcja ma już maksymalną liczbę punktów — usuń któryś, żeby wstawić kolejny."
         }
+      },
+      "pricing": {
+        "itemsTitle": "Pozycje cennika",
+        "addItem": "Dodaj pozycję",
+        "removeBody": "Ta pozycja zniknie z cennika. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "name": "Nazwa pozycji",
+          "price_grosze": "Cena",
+          "unit": "Za co",
+          "mode": "Rodzaj ceny",
+          "note": "Notka przy pozycji (opcjonalna)",
+          "footnote": "Przypis pod cennikiem (opcjonalny)"
+        },
+        "hints": {
+          "price_grosze": "Kwota w jednostkach głównych, np. 120 albo 120,50. Bez symbolu waluty."
+        },
+        "fieldValues": {
+          "unit": {
+            "hour": "Za godzinę",
+            "day": "Za dobę",
+            "week": "Za tydzień",
+            "month": "Za miesiąc",
+            "piece": "Za sztukę"
+          },
+          "mode": {
+            "exact": "Dokładna",
+            "from": "Od (cena wyjściowa)"
+          }
+        },
+        "layouts": {
+          "table": "Tabela",
+          "cards": "Karty"
+        },
+        "toggles": {
+          "showCatalogLink": "Pokaż odnośnik do pełnego katalogu"
+        }
+      },
+      "testimonials": {
+        "itemsTitle": "Opinie",
+        "addItem": "Dodaj opinię",
+        "removeBody": "Ta opinia zniknie z sekcji. Możesz cofnąć zmianę przyciskiem „Cofnij” w pasku kreatora.",
+        "fields": {
+          "quote": "Treść opinii",
+          "author": "Podpis",
+          "role": "Rola podpisującego (opcjonalna)"
+        },
+        "layouts": {
+          "grid": "Siatka",
+          "carousel": "Karuzela"
+        }
       }
     }
   },

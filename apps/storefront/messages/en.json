@@ -347,6 +347,17 @@
       "galleryNext": "Next photo",
       "galleryPosition": "Photo {current} of {total}",
       "contactHours": "Opening hours:",
+      "pricingFrom": "from",
+      "pricingUnits": {
+        "hour": "hour",
+        "day": "day",
+        "week": "week",
+        "month": "month",
+        "piece": "piece"
+      },
+      "pricingCatalog": "See the full catalog",
+      "testimonialsPrev": "Previous testimonial",
+      "testimonialsNext": "Next testimonial",
       "contactForm": {
         "title": "Send us a message",
         "name": "Name",

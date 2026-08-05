@@ -713,3 +713,59 @@
   width: clamp(2rem, 4.1667cqw, 3rem);
   height: clamp(2rem, 4.1667cqw, 3rem);
 }
+
+/*
+ * ====================================================================
+ * AUTO-UKŁAD LISTY WPISÓW (E6, aneks ADR-094)
+ * ====================================================================
+ *
+ * WADA, KTÓRĄ TA REGUŁA ZAMYKA. Siatka o stałej liczbie kolumn (`grid-cols-3`)
+ * przy siedmiu wpisach daje rzędy 3 + 3 + 1, a ostatni wpis zostaje w PIERWSZEJ
+ * kolumnie z dwiema pustymi obok. Dziura nie jest usterką układu — jest
+ * komunikatem: sekcja wygląda na niedokończoną dokładnie wtedy, gdy najemca
+ * wpisał NIEPARZYSTĄ liczbę pozycji, czyli w większości realnych przypadków.
+ * Ta sama siatka przy jednym wpisie zostawia kafel na jedną trzecią szerokości
+ * i dwie trzecie pustki.
+ *
+ * REGUŁA. Wpisy są elementami zawijanego pasa (`flex-wrap`), których podstawa
+ * to DOKŁADNIE jedna kolumna z `--site-auto-cols`, a `flex-grow` pozwala im
+ * rozejść się na resztę rzędu. Skutek jest bezwarunkowy: KAŻDY rząd —
+ * z ostatnim włącznie — jest wypełniony do końca, niezależnie od liczby wpisów.
+ * Liczbę kolumn liczy `autoColumns()` (@avably/ui) z LICZBY WPISÓW, więc cztery
+ * wpisy stają w 2 + 2, a nie 3 + 1. Ani jednego `if`-a po liczbie: jedna
+ * właściwość niestandardowa i jedno działanie.
+ *
+ * PODZIAŁ PRACY: liczbę kolumn wnosi RENDER (dane), a rozstaw i przeliczenie
+ * podstawy — ARKUSZ. Gdyby podstawę liczył komponent, każda zmiana rozstawu
+ * wymagałaby przeliczenia w dwóch miejscach naraz.
+ */
+.site-auto-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--site-auto-gap);
+}
+
+.site-auto-grid > * {
+  flex-grow: 1;
+  flex-shrink: 1;
+  flex-basis: calc(
+    (100% - (var(--site-auto-cols) - 1) * var(--site-auto-gap)) / var(--site-auto-cols)
+  );
+  /* Bez tego długie słowo (nazwa sprzętu) rozpycha kolumnę ponad podstawę. */
+  min-width: 0;
+}
+
+@container site (width < 40rem) {
+  /*
+   * SUFIT DWÓCH KOLUMN NA WĄSKIM KONTENERZE (decyzja właściciela 2026-08-01,
+   * ta sama, co dla siatki produktów). `min()` zamiast drugiej zmiennej: sufit
+   * jest własnością UKŁADU, a nie treści, więc render nie ma go po co znać —
+   * i nie ma jak go przypadkiem podnieść.
+   */
+  .site-auto-grid > * {
+    flex-basis: calc(
+      (100% - (min(var(--site-auto-cols), 2) - 1) * var(--site-auto-gap)) /
+        min(var(--site-auto-cols), 2)
+    );
+  }
+}

@@ -5,7 +5,7 @@ import type {
 } from "@avably/core/site";
 
 import type { TemplateStyles } from "../template";
-import type { ContactFormBinding, SiteRenderLabels } from "../types";
+import type { ContactFormBinding, SiteMoney, SiteRenderLabels } from "../types";
 import { StructuredContactSplit } from "./contact-split";
 import { StructuredContactStacked } from "./contact-stacked";
 import { StructuredDirectionsSplit } from "./directions-split";
@@ -15,6 +15,10 @@ import { StructuredFaqOpenList } from "./faq-open-list";
 import { StructuredGalleryCarousel } from "./gallery-carousel";
 import { StructuredGalleryGrid } from "./gallery-grid";
 import { StructuredGalleryMasonry } from "./gallery-masonry";
+import { StructuredPricingCards } from "./pricing-cards";
+import { StructuredPricingTable } from "./pricing-table";
+import { StructuredTestimonialsCarousel } from "./testimonials-carousel";
+import { StructuredTestimonialsGrid } from "./testimonials-grid";
 
 /**
  * REJESTR RENDERU SEKCJI STRUKTURALNYCH (E1, ADR-094) — para (typ, układ)
@@ -63,6 +67,13 @@ export interface StructuredSectionProps<
    * ignorują tę flagę.
    */
   mapEmbed?: boolean;
+  /**
+   * WALUTA I ZAPIS KWOT (E6, aneks ADR-094). Podaje je WARSTWA DANYCH, bo
+   * waluta jest ustawieniem najemcy, a nie treścią sekcji — patrz `SiteMoney`.
+   * Typ bez kwot ją ignoruje; typ z kwotami dostaje ją ZAWSZE (renderer ma
+   * wartość domyślną), więc cennik nie ma stanu „nie wiem, w czym to pokazać".
+   */
+  money: SiteMoney;
 }
 
 export type StructuredSectionComponent<
@@ -96,6 +107,14 @@ export const STRUCTURED_RENDERERS: StructuredRendererRegistry = {
   directions: {
     stacked: StructuredDirectionsStacked,
     split: StructuredDirectionsSplit,
+  },
+  pricing: {
+    table: StructuredPricingTable,
+    cards: StructuredPricingCards,
+  },
+  testimonials: {
+    grid: StructuredTestimonialsGrid,
+    carousel: StructuredTestimonialsCarousel,
   },
 };
 

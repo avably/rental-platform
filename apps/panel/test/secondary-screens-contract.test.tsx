@@ -581,6 +581,7 @@ function renderBuilder(overrides: Partial<BuilderProps> = {}): string {
       style={STYL}
       sections={siteSections}
       products={siteProducts}
+      money={{ currency: "PLN", locale: "pl" }}
       {...overrides}
     />,
   );

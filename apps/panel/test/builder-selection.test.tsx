@@ -112,7 +112,7 @@ function faqSection(): Section {
 function renderBuilder(sections: Section[] = [canvasSection(HERO_ID, "hero"), canvasSection(CTA_ID, "cta")]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
-      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} />
+      <SiteBuilder siteId={SITE_ID} siteName="Strona sklepu" style={STYL} sections={sections} products={[]} money={{ currency: "PLN", locale: "pl" }} />
     </NextIntlClientProvider>,
   );
 }

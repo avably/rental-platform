@@ -93,4 +93,11 @@ export const NEUTRAL_CLASSES: readonly string[] = [
   "site-placeholder",
   "site-scrim",
   "site-footer",
+  /*
+   * AUTO-UKŁAD LISTY WPISÓW (E6, aneks ADR-094). Ustala WYŁĄCZNIE geometrię
+   * rzędu: zawijanie, podstawę kolumny i rozstaw. Nie sięga po ani jedną
+   * zmienną roli — kolor wpisu niosą klasy stojące obok (`site-card`,
+   * `site-text-muted`) i to one wchodzą do macierzy kontrastu.
+   */
+  "site-auto-grid",
 ];

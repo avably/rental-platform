@@ -21,12 +21,14 @@
  */
 import { resolveSiteStyle } from "@avably/core/site";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { requireMemberPage } from "@/lib/member-page";
 import { pickupLocationEntries } from "@/lib/site-import-sources";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
+import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { SiteBuilder } from "./site-builder";
 
@@ -38,6 +40,7 @@ export default async function SiteBuilderPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
+  const locale = await getLocale();
   const ctx = await requireMemberPage(`/strona/${siteId}/kreator`);
   const data = await getSiteWithSections(siteId);
 
@@ -47,6 +50,15 @@ export default async function SiteBuilderPage({
   if (!data) notFound();
 
   const products = await previewProductsFor(ctx, ctx.tenantId!);
+
+  /*
+   * WALUTA I ZAPIS KWOT NAJEMCY (E6, aneks ADR-094). Jedna wartość na dwa
+   * cele: płótno rysuje nią cennik dokładnie tak, jak zobaczy go klient,
+   * a szuflada przelicza nią to, co operator wpisuje w polu ceny. Locale bierze
+   * się z PANELU, bo to jego język operator ma pod klawiaturą — a waluta
+   * z ustawienia najemcy, bo to ona stoi w katalogu, kasie i na fakturach.
+   */
+  const money = { currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!), locale };
 
   /*
    * PUNKTY ODBIORU DO SKOPIOWANIA W SEKCJI DOJAZDU (E5, ADR-096).
@@ -80,6 +92,7 @@ export default async function SiteBuilderPage({
       style={resolveSiteStyle(data.site.style_draft, data.site.template)}
       sections={toEditorSections(data.sections)}
       products={products}
+      money={money}
       /*
        * Nazwa źródła jest LUSTREM `itemsImport` z rejestru typów strukturalnych
        * (@avably/core/site) — dopisanie tu drugiego źródła nie wymaga zmiany

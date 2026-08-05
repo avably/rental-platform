@@ -36,15 +36,16 @@
  */
 import { resolveSiteStyle } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { previewProductsFor } from "@/lib/site-preview-data";
-import { getSiteWithSections } from "@/lib/site-queries";
 import { siteImagePublicBase } from "@/lib/site-image-base";
+import { getSiteWithSections } from "@/lib/site-queries";
+import { getTenantCurrency } from "@/lib/tenant-currency";
 
 export const dynamic = "force-dynamic";
 
@@ -58,8 +59,10 @@ export default async function SiteDraftPreviewPage({
   const data = await getSiteWithSections(siteId);
   if (!data) notFound();
 
-  const t = await getTranslations("site");
+  const [t, locale] = await Promise.all([getTranslations("site"), getLocale()]);
   const products = await previewProductsFor(ctx, ctx.tenantId!);
+  // Waluta i zapis kwot (E6) — podgląd szkicu pokazuje cennik tak, jak sklep.
+  const money = { currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!), locale };
   const style = resolveSiteStyle(data.site.style_draft, data.site.template);
 
   const sections = toEditorSections(data.sections)
@@ -109,6 +112,7 @@ export default async function SiteDraftPreviewPage({
             sections={sections as unknown as RenderSection[]}
             style={style}
             products={products}
+            money={money}
             siteImageBase={siteImagePublicBase()}
           />
         </main>

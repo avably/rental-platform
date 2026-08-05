@@ -59,8 +59,16 @@ function keysFor(type: (typeof STRUCTURED_SECTION_TYPES)[number]): string[] {
   }
   for (const field of [...spec.itemFields, ...(spec.fields ?? [])]) {
     keys.push(`${base}.fields.${field.key}`);
-    // Podpowiedź istnieje TYLKO tam, gdzie rejestr mówi, że pustka coś znaczy.
+    // Podpowiedź istnieje TYLKO tam, gdzie rejestr mówi, że pustka coś znaczy…
     if (field.empty === "value") keys.push(`${base}.hints.${field.key}`);
+    /*
+     * …ALBO tam, gdzie pole ma FORMAT, w którym da się pomylić (E6). Kwota jest
+     * dziś jedynym takim polem: „120,50" i „120.50" przechodzą, „1.299,00" nie,
+     * a symbol waluty w polu jest błędem — czego operator nie zgadnie z samej
+     * etykiety „Cena". Podpowiedź jest więc częścią kontrolki, nie ozdobą, więc
+     * jej brak w jednym języku ma palić tak samo, jak brak etykiety.
+     */
+    if (field.kind === "money") keys.push(`${base}.hints.${field.key}`);
     // Lista o zamkniętym zbiorze: etykieta na każdą wartość z rejestru.
     for (const option of field.values ?? []) keys.push(`${base}.fieldValues.${field.key}.${option}`);
   }

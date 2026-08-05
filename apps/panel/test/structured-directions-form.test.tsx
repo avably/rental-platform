@@ -140,6 +140,7 @@ function renderBuilder(
         style={STYL}
         sections={sections}
         products={[]}
+        money={{ currency: "PLN", locale: "pl" }}
         importSources={importSources}
       />
     </NextIntlClientProvider>,

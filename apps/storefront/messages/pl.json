@@ -347,6 +347,17 @@
       "galleryNext": "Następne zdjęcie",
       "galleryPosition": "Zdjęcie {current} z {total}",
       "contactHours": "Godziny otwarcia:",
+      "pricingFrom": "od",
+      "pricingUnits": {
+        "hour": "godzina",
+        "day": "doba",
+        "week": "tydzień",
+        "month": "miesiąc",
+        "piece": "sztuka"
+      },
+      "pricingCatalog": "Zobacz pełny katalog",
+      "testimonialsPrev": "Poprzednia opinia",
+      "testimonialsNext": "Następna opinia",
       "contactForm": {
         "title": "Napisz do nas",
         "name": "Imię",

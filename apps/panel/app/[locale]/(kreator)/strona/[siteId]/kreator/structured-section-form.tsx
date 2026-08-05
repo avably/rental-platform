@@ -40,6 +40,7 @@
  * Zapis idzie SZKICEM edytora (historia + autozapis), jak płótno — bez własnego
  * przycisku „Zapisz" i bez drugiego wskaźnika stanu.
  */
+import { formatMoneyAmount, parseMoneyAmount, type CurrencyCode } from "@avably/core";
 import {
   appendStructuredItem,
   moveStructuredItem,
@@ -139,12 +140,20 @@ function writeField(
 export function StructuredSectionForm({
   siteId,
   content,
+  currency,
   importSources,
   onChange,
   onConvertHint,
 }: {
   siteId: string;
   content: StructuredSectionContent;
+  /**
+   * WALUTA NAJEMCY (E6) — potrzebna polu pieniężnemu, żeby przeliczyć to, co
+   * operator wpisał w jednostkach głównych, na jednostki podrzędne treści.
+   * Wchodzi PROPSEM, a nie stałą: waluta jest ustawieniem sklepu, a szuflada
+   * nie ma (i nie ma po co mieć) dostępu do bazy.
+   */
+  currency: CurrencyCode;
   /**
    * WPISY DO SKOPIOWANIA Z INNYCH MODUŁÓW PANELU (E5, ADR-096), po nazwie
    * źródła z rejestru (`itemsImport`). Framework nie wie, skąd się biorą ani co
@@ -365,6 +374,7 @@ export function StructuredSectionForm({
                 total={items.length}
                 type={type}
                 item={item}
+                currency={currency}
                 canRemove={items.length > spec.minItems}
                 onPatch={(key, value) =>
                   onChange((current) => patchStructuredItem(current, index, key, value))
@@ -650,6 +660,82 @@ function MediaUpload({
   );
 }
 
+/**
+ * POLE PIENIĘŻNE (E6, aneks ADR-094) — pierwsze pole szuflady, którego wartość
+ * w treści jest LICZBĄ.
+ *
+ * ==================== DLACZEGO MA WŁASNY STAN ====================
+ *
+ * Pozostałe pola są sterowane wprost z treści: co w treści, to w polu. Kwota
+ * tak nie może, bo POD KLAWISZAMI przechodzi przez kształty, które kwotą nie
+ * są. Operator kasujący „120,00", żeby wpisać „90,00", przechodzi przez pustkę
+ * i przez „9"; ktoś piszący „12,5" przechodzi przez „12,". Gdyby pole
+ * odczytywało z treści, każdy taki znak wracałby jako ostatnia POPRAWNA kwota
+ * i kursor skakałby po cyfrach, których nikt nie wpisał.
+ *
+ * Stąd podział: NAPIS jest lokalny (to, co operator naprawdę widzi), a do
+ * treści idzie WYŁĄCZNIE kwota, którą rdzeń rozpoznał (`parseMoneyAmount`).
+ * Wejście nierozpoznane nie zapisuje NIC — czyli ta sama reguła, co przy
+ * pustym polu tekstowym (patrz `valueToWrite`): błąd walidacji przy każdym
+ * skasowanym znaku byłby gorszy niż brak zapisu.
+ *
+ * ==================== DLACZEGO NIE `type="number"` ====================
+ *
+ * Pole liczbowe przeglądarki niesie strzałki zmieniające kwotę o jeden przy
+ * przewinięciu kółkiem nad polem — a to jest zmiana CENY zrobiona gestem,
+ * którym operator chciał przewinąć szufladę. Do tego jego zapis dziesiętny
+ * chodzi po locale przeglądarki, a nie panelu, więc „120,50" bywa w nim
+ * wejściem niepoprawnym bez żadnego komunikatu. `inputMode="decimal"` daje
+ * telefonowi tę samą klawiaturę i żadnej z tych dwóch wad.
+ */
+function MoneyField({
+  id,
+  fieldKey,
+  label,
+  hint,
+  amountMinor,
+  currency,
+  locale,
+  onCommit,
+}: {
+  id: string;
+  fieldKey: string;
+  label: string;
+  hint: string;
+  amountMinor: number;
+  currency: CurrencyCode;
+  locale: string;
+  onCommit: (amountMinor: number) => void;
+}) {
+  const [draft, setDraft] = useState(() => formatMoneyAmount(amountMinor, currency, locale));
+
+  return (
+    <Field label={label} hint={hint} htmlFor={id}>
+      <Input
+        id={id}
+        data-cms-field={fieldKey}
+        inputMode="decimal"
+        value={draft}
+        onChange={(event) => {
+          const raw = event.target.value;
+          setDraft(raw);
+          const minor = parseMoneyAmount(raw, currency);
+          if (minor !== null) onCommit(minor);
+        }}
+        onBlur={() => {
+          /*
+           * WYJŚCIE Z POLA PORZĄDKUJE ZAPIS: „90" staje się „90,00", a wejście
+           * nierozpoznane wraca do OSTATNIEJ zapisanej kwoty. Bez tego pole
+           * zostawałoby z napisem, którego w treści nie ma — a operator
+           * widziałby cenę, której strona nie pokazuje.
+           */
+          setDraft(formatMoneyAmount(amountMinor, currency, locale));
+        }}
+      />
+    </Field>
+  );
+}
+
 function Field({
   label,
   htmlFor,
@@ -681,6 +767,7 @@ function ItemRow({
   total,
   type,
   item,
+  currency,
   canRemove,
   onPatch,
   onMove,
@@ -691,12 +778,14 @@ function ItemRow({
   total: number;
   type: StructuredSectionType;
   item: Record<string, unknown>;
+  currency: CurrencyCode;
   canRemove: boolean;
-  onPatch: (key: string, value: string | undefined) => void;
+  onPatch: (key: string, value: string | number | undefined) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
 }) {
   const t = useTranslations("site");
+  const locale = useLocale();
   const id = useId();
   const spec = structuredSpecOf(type);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -756,8 +845,30 @@ function ItemRow({
         if (field.kind === "image") {
           return <ItemThumbnail key={field.key} source={item[field.key] as ImageSource | undefined} />;
         }
-        const value = typeof item[field.key] === "string" ? (item[field.key] as string) : "";
         const label = t(`structured.${type}.fields.${field.key}`);
+        if (field.kind === "money") {
+          /*
+           * POLE PIENIĘŻNE (E6). Wartość jedzie do treści jako LICZBA groszy —
+           * przeliczenie i rozpoznanie „to jeszcze nie jest kwota" robi rdzeń,
+           * nie ta kontrolka (patrz `MoneyField`). Podpowiedź o formacie stoi
+           * przy każdej kwocie, bo zapis dziesiętny jest jedyną rzeczą,
+           * w której operator ma tu jak się pomylić.
+           */
+          return (
+            <MoneyField
+              key={field.key}
+              id={`${id}-${field.key}`}
+              fieldKey={field.key}
+              label={label}
+              hint={t(`structured.${type}.hints.${field.key}`)}
+              amountMinor={typeof item[field.key] === "number" ? (item[field.key] as number) : 0}
+              currency={currency}
+              locale={locale}
+              onCommit={(minor) => onPatch(field.key, minor)}
+            />
+          );
+        }
+        const value = typeof item[field.key] === "string" ? (item[field.key] as string) : "";
         if (field.kind === "choice") {
           /*
            * LISTA O ZAMKNIĘTYM ZBIORZE (E4). Wartości biorą się z REJESTRU, więc
