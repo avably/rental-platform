@@ -119,6 +119,14 @@ function trescGalerii(): Galeria {
   const [a, b, c] = preset.items;
   return {
     ...preset,
+    /*
+     * Ustawienia wyglądu ŚWIADOMIE różne od domyślnych (znalezisko własnego
+     * dowodu mutacyjnego M6): na treści z wartościami domyślnymi kontrakt
+     * bezstratności jest ślepy na przekształcenie, które te wartości USTAWIA
+     * — a dokładnie tak wygląda najczęstsza wada przełącznika układu.
+     */
+    columns: 4,
+    gap: "roomy",
     items: [
       { ...a!, link: "https://partner.przyklad.test/realizacja" },
       { ...b!, alt: "" },
@@ -493,11 +501,11 @@ describe("wygląd: układ i powiększenie", () => {
     await przejdzDo(user, szuflada, gal.tabs.appearance);
 
     await user.click(within(szuflada).getByLabelText(gal.choices.columns));
-    await user.click(await screen.findByRole("option", { name: gal.choiceValues.columns["4"] }));
+    await user.click(await screen.findByRole("option", { name: gal.choiceValues.columns["2"] }));
     flushAutosave();
 
     await waitFor(() => expect(ostatniZapis()).toBeDefined());
-    expect(ostatniZapis()!.columns, "wybór zapisał się napisem — schemat go odrzuci").toBe(4);
+    expect(ostatniZapis()!.columns, "wybór zapisał się napisem — schemat go odrzuci").toBe(2);
   });
 });
 

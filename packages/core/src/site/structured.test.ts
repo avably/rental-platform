@@ -666,9 +666,24 @@ describe("konwersja galerii ze STAREJ treści (E3)", () => {
   it("konwersja daje treść v3, która PRZECHODZI schemat i zachowuje nagłówek", () => {
     const converted = structuredFromLegacy("gallery", plotno, "pl");
     expect(STRUCTURED_SECTIONS.gallery.schema.safeParse(converted).success).toBe(true);
-    expect(itemsOf(converted).length).toBe(3);
     expect(converted.layout).toBe("grid");
     expect(isStructuredSection(converted)).toBe(true);
+
+    /*
+     * WYNIK MUSI POCHODZIĆ ZE STAREJ TREŚCI, nie z presetu (znalezisko własnego
+     * dowodu mutacyjnego M5). Sama liczba wpisów tego NIE ODRÓŻNIA: preset też
+     * ma trzy kafle, więc konwersja, która gubi wszystkie zdjęcia i degraduje do
+     * presetu, przechodziła asercję „są trzy wpisy" na zielono. Porównujemy więc
+     * KADRY — i zarazem żądamy, żeby różniły się od presetowych.
+     */
+    expect(
+      itemsOf(converted).map((item) => (item as { alt: string }).alt),
+      "konwersja oddała treść, która nie pochodzi z konwertowanej sekcji",
+    ).toEqual(["Pierwszy kadr", "Drugi kadr", "Trzeci kadr"]);
+    expect(
+      itemsOf(converted),
+      "wynik jest presetem — czyli zdjęcia operatora przepadły po cichu",
+    ).not.toEqual(itemsOf(structuredPresetFor("gallery", "pl")));
 
     const zV1 = structuredFromLegacy(
       "gallery",
