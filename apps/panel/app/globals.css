@@ -98,12 +98,16 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   Next.js renderuje `loading.tsx` NATYCHMIAST po nawigacji, więc próg musi
   siedzieć w prezentacji.
 
-  Robi go OPÓŹNIONA animacja pojawienia, a nie `visibility`/`display`: pudełka
-  geometrii są od pierwszej klatki obecne w układzie (`opacity: 0` nie zdejmuje
-  pudełka), więc przy szybkim odczycie użytkownik widzi po prostu pustą treść
-  zamiast mrugnięcia, a wysokość strony nie zmienia się ANI RAZ. Animacja jest
+  Robi go OPÓŹNIONA animacja pojawienia, a nie `display`: rezerwa geometrii jest
+  od pierwszej klatki obecna w układzie (`opacity: 0` nie zdejmuje pudełka), więc
+  przy szybkim odczycie użytkownik widzi po prostu pustą treść zamiast
+  mrugnięcia, a wysokość strony nie zmienia się ANI RAZ. Animacja jest
   SKOŃCZONA (jedno przejście), więc nie łamie twardego zakazu `extra-loops`
   z artefaktu — w panelu nie ma nieskończonego pulsowania.
+
+  (Delta v3: `visibility: hidden` NA REZERWIE robi co innego niż próg i nie jest
+  jego alternatywą — wyłącza malowanie rezerwy NA STAŁE, a nie na 200 ms. Próg
+  dotyczy dziś wyłącznie tego, co widać: szyny i komunikatu.)
 
   Próg siedzi na RAMIE (`[data-skeleton-frame]`), a nie na samej geometrii:
   od delty z 2026-08-04 rama trzyma także szynę i widoczny komunikat, więc
@@ -130,6 +134,54 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
 
 [data-skeleton-frame] {
   animation: skeleton-reveal var(--motion-ui) var(--ease-standard) 200ms both;
+}
+
+/*
+  KOMUNIKAT ŁADOWANIA PRZY DOLNEJ KRAWĘDZI OKNA (delta v3, pinezka właściciela
+  z 2026-08-05: „chcę widzieć TYLKO pasek u góry i informację na dole").
+
+  Pozycjonowanie siedzi tutaj, a nie w klasach komponentu, z dwóch powodów:
+  obie liczby niżej są ZAPOŻYCZONE z powłoki (szerokość paska bocznego i
+  rezerwa pod pasek mobilny), a taką zależność lepiej widać w jednym miejscu
+  z uzasadnieniem niż rozsypaną po `left-[236px] sidebar-collapsed:md:left-…`.
+
+  DLACZEGO `fixed`, A NIE DÓŁ REZERWY. Rezerwa geometrii jest niewidoczna i ma
+  inną wysokość na każdej trasie — komunikat przywiązany do jej dołu wędrowałby
+  po ekranie, a na szczególe zamówienia (rezerwa wyższa niż okno) wypadałby pod
+  zgięcie. Okno jest jedynym odniesieniem wspólnym dla wszystkich tras. `fixed`
+  wypada też z układu całkowicie, więc kontrakt braku skoku jest tu mocniejszy
+  niż przy poprzednim `absolute`.
+
+  DLACZEGO NIE ŚRODEK OKNA. Szyna jest u góry KOLUMNY TREŚCI (rama siedzi w
+  `[data-panel-container]`), więc komunikat wyśrodkowany na oknie stałby o pół
+  szerokości paska bocznego w lewo od środka szyny. Na ekranie, na którym poza
+  tymi dwiema rzeczami nie ma NIC, taki rozjazd jest jedyną rzeczą, jaką widać.
+*/
+[data-skeleton-status] {
+  position: fixed;
+  z-index: 30;
+  right: 0;
+  left: 0;
+  /* Poniżej `md` pasek boczny jest schowany, a dół okna zajmuje `mobile-nav`
+     (`fixed bottom-0`); `main` rezerwuje pod niego dokładnie tyle miejsca —
+     komunikat siada nad tą rezerwą, zamiast pod paskiem nawigacji. */
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  [data-skeleton-status] {
+    bottom: 1.5rem;
+    /* Szerokości MUSZĄ zgadzać się z `[data-sidebar-rail]` z powłoki panelu
+       (`app/[locale]/(panel)/layout.tsx`: `w-[236px]`, `sidebar-collapsed:w-[72px]`).
+       Pilnuje tego kontrakt ekranów ładowania — rozjazd pali test, a nie
+       dopiero oko na zrzucie. */
+    left: 236px;
+  }
+
+  html[data-sidebar="collapsed"] [data-skeleton-status] {
+    left: 72px;
+  }
 }
 
 /*

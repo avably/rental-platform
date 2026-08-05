@@ -22,6 +22,12 @@ import {
   ORDER_DETAIL_SKELETON_ITEM_ROWS,
   type SkeletonRegionSpec,
 } from "@/components/skeleton/screen-regions";
+import {
+  PAINTED_TAGS,
+  tagsInsideReserve,
+  tagsOutsideReserve,
+  visibilityOverridesInsideReserve,
+} from "./helpers/skeleton-html";
 
 /**
  * Kontrakt ODPOWIEDNIOŚCI szkielet ↔ ekran (uwaga przeglądu N1).
@@ -409,29 +415,34 @@ describe("kontrakt szkieletu szczegółu ↔ ekran szczegółu", () => {
 /* ── Dostępność i próg antymigotania ───────────────────────────────────── */
 
 /**
- * DELTA 2026-08-04 (pinezka właściciela o stanach ładowania). Reguły tego bloku
- * zmieniły adres, ŻADNA nie została zdjęta:
- *  1. komunikat `role="status"` był `sr-only`, dziś jest WIDOCZNY — czytnik ma
- *     to samo, operator ma więcej, a asercja pilnuje, że nie ma DRUGIEGO,
- *     ukrytego tekstu (czytnik ogłosiłby stan dwa razy);
- *  2. próg antymigotania przeniósł się z `[data-skeleton-screen]` na ramę
- *     `[data-skeleton-frame]`, bo rama trzyma dziś także szynę i komunikat —
- *     gdyby próg został na geometrii, oba mrugałyby przy szybkim odczycie;
- *  3. doszła reguła NOWA, wprost z pinezki: żadne pudełko geometrii nie maluje
- *     powierzchni. Wróci ściana szarych plam — pali się kontrakt.
+ * DELTA v3 2026-08-05 (pinezka właściciela: „chcę widzieć TYLKO pasek u góry
+ * i informację na dole — ładowanie"). Reguły tego bloku zmieniają adres albo
+ * się WZMACNIAJĄ, ŻADNA nie została zdjęta:
+ *  1. komunikat `role="status"` był `sr-only` (do 2026-08-04), potem widoczny
+ *     na płytce w połowie ekranu, dziś jest widoczny przy DOLNEJ krawędzi okna
+ *     i bez płytki — asercja nadal pilnuje, że nie ma DRUGIEGO, ukrytego
+ *     tekstu (czytnik ogłosiłby stan dwa razy);
+ *  2. próg antymigotania został na ramie `[data-skeleton-frame]`, bo rama
+ *     trzyma szynę i komunikat — zejście na geometrię pali test;
+ *  3. reguła „pudełko geometrii nie maluje powierzchni" (z 2026-08-04) ZOSTAJE
+ *     jako pierwszy zamek…
+ *  4. …a nad nią staje reguła MOCNIEJSZA i nowa: ekran ładowania nie maluje
+ *     NICZEGO poza szyną i komunikatem. Cała rezerwa geometrii siedzi pod
+ *     `visibility: hidden`, a poza jej poddrzewem nie ma prawa stać ani jeden
+ *     element więcej. Wrócą ramki kafli i kreski tabeli — pali się kontrakt.
  */
-describe("kontrakt ekranów ładowania: dostępność i próg antymigotania", () => {
+describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () => {
   it.each([
     ["lista", listSkeleton, messages.orders.list.loading],
     ["szczegół", detailSkeleton, messages.orders.detail.loading],
-  ])("geometria %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
-    // Cała dekoracja pod aria-hidden — asercja MUSI celować w KORZEŃ geometrii.
+  ])("rezerwa %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
+    // Cała dekoracja pod aria-hidden — asercja MUSI celować w KORZEŃ rezerwy.
     // (Łatka recenzji PM.) Samo `html.toContain('aria-hidden="true"')` było
     // PUSTE: pudełka geometrii noszą ten atrybut każde z osobna, więc łańcuch
     // był w HTML zawsze i zdjęcie `aria-hidden` z korzenia nie paliło testu.
     // Bramka, która nie umie spłonąć, niczego nie broni.
     const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0];
-    expect(rootTag, "brak korzenia geometrii").toBeDefined();
+    expect(rootTag, "brak korzenia rezerwy").toBeDefined();
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
     // …a treścią jest WIDOCZNY komunikat stojący POZA tym poddrzewem.
@@ -449,7 +460,81 @@ describe("kontrakt ekranów ładowania: dostępność i próg antymigotania", ()
   it.each([
     ["lista", listSkeleton],
     ["szczegół", detailSkeleton],
-  ])("żadne pudełko geometrii %s nie maluje powierzchni (koniec ściany plam)", (_name, html) => {
+  ])("ekran %s nie maluje NIC poza szyną i komunikatem", (_name, html) => {
+    // Sedno pinezki v3. Rezerwa nie maluje z definicji (`visibility: hidden`),
+    // więc pytanie brzmi: co stoi POZA nią? Odpowiedź ma być zawsze ta sama —
+    // rama, szyna z wypełnieniem i komunikat. Dołożenie czegokolwiek obok
+    // (nagłówek, pudełko, druga szyna) natychmiast pali ten wiersz.
+    expect(tagsOutsideReserve(html)).toEqual([...PAINTED_TAGS]);
+    // Kontrola pozytywna: wycięcie faktycznie coś zabrało. Bez tego zielone
+    // byłoby też puste poddrzewo, czyli szkielet bez geometrii.
+    const allTags = [...html.matchAll(/<([a-z]+)[^>]*>/g)].length;
+    expect(allTags, "rezerwa niemal pusta — kontrakt mierzyłby pustkę").toBeGreaterThan(100);
+  });
+
+  it("kontrola pozytywna helpera: element dołożony obok rezerwy jest widziany", () => {
+    // Bramka, która nie umie spłonąć, niczego nie broni — sprawdzamy więc na
+    // sztucznym HTML, że wycięcie poddrzewa NIE zjada rodzeństwa rezerwy.
+    const doctored = `<div data-skeleton-frame><div data-skeleton-screen="true"><span><b>x</b></span></div><i>obok</i></div>`;
+    expect(tagsOutsideReserve(doctored)).toEqual(["div", "i"]);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["szczegół", detailSkeleton],
+  ])("rezerwa %s stoi pod visibility: hidden (a nie tylko bez tła)", (_name, html) => {
+    const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0] ?? "";
+    const classes = (rootTag.match(/class="([^"]*)"/)?.[1] ?? "").split(/\s+/);
+    // `invisible` = `visibility: hidden`. Zdejmuje malowanie CAŁEGO poddrzewa
+    // (obrysy, tła, tekst) i NIE rusza pudełka, więc rezerwa dalej trzyma
+    // wysokość co do piksela — inaczej niż `hidden`, które ZDEJMUJE ją
+    // z układu i przywraca skok przy wejściu treści.
+    expect(classes, "korzeń rezerwy bez klasy `invisible`").toContain("invisible");
+    expect(classes, "rezerwa zdjęta z układu — wróciłby skok").not.toContain("hidden");
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["szczegół", detailSkeleton],
+  ])("żaden węzeł rezerwy %s nie przywraca sobie widoczności", (_name, html) => {
+    // Uwaga recenzji PM do #179. `visibility: hidden` DZIEDZICZY się w dół, ale
+    // potomek z własnym `visibility: visible` maluje się mimo ukrytego rodzica
+    // (inaczej niż przy `display: none`). Deklaracja na korzeniu nie jest więc
+    // dowodem na to, co widać: mutacja `cn("visible", className)` w
+    // `SkeletonBlock` przechodziła CAŁĄ suitę, malując komplet pudełek.
+    // Ta asercja idzie po RENDEROWANYM drzewie, a nie po jednym atrybucie.
+    const nodes = tagsInsideReserve(html);
+    // Osłona anty-pusta: bez węzłów filtr niżej byłby zielony po pustym zbiorze.
+    expect(nodes.length, "rezerwa bez węzłów — asercja mierzyłaby pustkę").toBeGreaterThan(20);
+    const offenders = visibilityOverridesInsideReserve(html);
+    expect(
+      offenders,
+      `węzły rezerwy przywracające widoczność:\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("kontrola pozytywna: odwrócenie widoczności JEST widziane w każdej postaci", () => {
+    // Trzy zapisy, które realnie odwracają dziedziczenie — klasa goła, klasa
+    // pod wariantem i deklaracja wprost w `style`. Czwarty przypadek jest
+    // KONTROLĄ NEGATYWNĄ: `invisible` na korzeniu nie może liczyć się jako
+    // odwrócenie, inaczej kontrakt paliłby się zawsze i nic nie znaczył.
+    const frame = (inner: string) =>
+      `<div data-skeleton-frame><div data-skeleton-screen="true" class="invisible">${inner}</div></div>`;
+    expect(visibilityOverridesInsideReserve(frame('<div class="h-5 visible"></div>'))).toHaveLength(1);
+    expect(visibilityOverridesInsideReserve(frame('<div class="md:visible"></div>'))).toHaveLength(1);
+    expect(
+      visibilityOverridesInsideReserve(frame('<div class="[visibility:visible]"></div>')),
+    ).toHaveLength(1);
+    expect(
+      visibilityOverridesInsideReserve(frame('<div style="visibility: visible"></div>')),
+    ).toHaveLength(1);
+    expect(visibilityOverridesInsideReserve(frame('<div class="h-5"></div>'))).toEqual([]);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["szczegół", detailSkeleton],
+  ])("żadne pudełko geometrii %s nie maluje powierzchni (pierwszy zamek)", (_name, html) => {
     const boxes = [...html.matchAll(/<div[^>]*data-slot="skeleton-box"[^>]*>/g)].map(
       (match) => match[0],
     );
@@ -469,7 +554,7 @@ describe("kontrakt ekranów ładowania: dostępność i próg antymigotania", ()
 
   it("próg antymigotania siedzi w CSS panelu i nie jest pętlą", () => {
     const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-    // Próg obejmuje CAŁY wskaźnik (geometria + szyna + komunikat), więc siedzi
+    // Próg obejmuje CAŁY wskaźnik (rezerwa + szyna + komunikat), więc siedzi
     // na ramie. Zejście z powrotem na samą geometrię pali ten wiersz.
     expect(css).toContain("[data-skeleton-frame]");
     expect(css).toContain("skeleton-reveal");
@@ -477,5 +562,40 @@ describe("kontrakt ekranów ładowania: dostępność i próg antymigotania", ()
     expect(css).toMatch(/animation:\s*skeleton-reveal[^;]*200ms\s+both/);
     // Zakaz `extra-loops`: żadnej nieskończonej animacji w panelu.
     expect(css).not.toMatch(/animation:[^;]*infinite/);
+  });
+
+  it("komunikat stoi przy dolnej krawędzi OKNA i nad paskiem mobilnym", () => {
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    const rule = css.match(/\[data-skeleton-status\]\s*\{([^}]*)\}/)?.[1];
+    expect(rule, "brak reguły pozycji komunikatu").toBeTypeOf("string");
+    // `fixed` — bo dół niewidocznej rezerwy nie jest żadną krawędzią, a na
+    // szczególe wypadałby pod zgięcie.
+    expect(rule).toMatch(/position:\s*fixed/);
+    // Poniżej `md` dół okna zajmuje `mobile-nav`; komunikat siada NAD rezerwą,
+    // którą `main` trzyma pod ten pasek (ta sama liczba co w layoucie powłoki).
+    const layout = readFileSync(
+      resolve(process.cwd(), "app/[locale]/(panel)/layout.tsx"),
+      "utf8",
+    );
+    expect(layout).toContain("pb-[calc(5.5rem+env(safe-area-inset-bottom))]");
+    expect(rule).toMatch(/bottom:\s*calc\(5\.5rem \+ env\(safe-area-inset-bottom\)\)/);
+  });
+
+  it("komunikat jest wyśrodkowany na KOLUMNIE TREŚCI, nie na oknie", () => {
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    const layout = readFileSync(
+      resolve(process.cwd(), "app/[locale]/(panel)/layout.tsx"),
+      "utf8",
+    );
+    // Odsunięcie od lewej MUSI być kopią szerokości paska bocznego — inaczej
+    // jedyne dwie rzeczy na ekranie (szyna i komunikat) rozjeżdżają się
+    // względem siebie o pół sidebara. Rozjazd ma palić test, a nie czekać na
+    // oko właściciela na zrzucie.
+    expect(layout).toContain("w-[236px]");
+    expect(layout).toContain("sidebar-collapsed:w-[72px]");
+    expect(css).toMatch(/\[data-skeleton-status\]\s*\{[^}]*left:\s*236px/);
+    expect(css).toMatch(
+      /html\[data-sidebar="collapsed"\]\s*\[data-skeleton-status\]\s*\{[^}]*left:\s*72px/,
+    );
   });
 });

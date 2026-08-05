@@ -20,6 +20,12 @@ import {
   CUSTOMER_DETAIL_SCREEN_PARTS,
   type SkeletonRegionSpec,
 } from "@/components/skeleton/screen-regions";
+import {
+  PAINTED_TAGS,
+  tagsInsideReserve,
+  tagsOutsideReserve,
+  visibilityOverridesInsideReserve,
+} from "./helpers/skeleton-html";
 
 /**
  * Kontrakt ODPOWIEDNIOŚCI szkielet ↔ ekran dla sekcji klientów (R6a) —
@@ -269,16 +275,18 @@ describe("kontrakt szkieletu karty klienta ↔ ekran karty", () => {
 
 /* ── Dostępność ────────────────────────────────────────────────────────── */
 
-// Delta 2026-08-04: komunikat zszedł z `sr-only` na WIDOCZNY, a geometria
-// przestała malować powierzchnie (pinezka o stanach ładowania). Ekrany klientów
-// jadą tymi samymi prymitywami co zamówienia, więc mierzymy je tak samo.
-describe("kontrakt ekranów ładowania klientów: dostępność", () => {
+// Delta v3 2026-08-05: z ekranu ładowania znika WSZYSTKO poza szyną u góry i
+// komunikatem na dole — rezerwa geometrii stoi pod `visibility: hidden`
+// (pinezka właściciela). Ekrany klientów jadą tymi samymi prymitywami co
+// zamówienia, więc reguły są te same i mierzymy je tak samo. Zejście z tej pary
+// ekranów pod inny prymityw pali ten blok razem z blokiem zamówień.
+describe("kontrakt ekranów ładowania klientów: co widać i dostępność", () => {
   it.each([
     ["lista", listSkeleton, messages.customers.list.loading],
     ["karta", detailSkeleton, messages.customers.card.historyHeading],
-  ])("geometria %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
+  ])("rezerwa %s jest dekoracją, a stan niesie widoczny role=status", (_name, html, label) => {
     const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0];
-    expect(rootTag, "brak korzenia geometrii").toBeDefined();
+    expect(rootTag, "brak korzenia rezerwy").toBeDefined();
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
     const statusTag = html.match(/<p[^>]*role="status"[^>]*>/)?.[0];
@@ -286,6 +294,35 @@ describe("kontrakt ekranów ładowania klientów: dostępność", () => {
     expect(statusTag).toContain("data-skeleton-status");
     expect(statusTag).not.toContain("sr-only");
     expect(html).toContain(label);
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["karta", detailSkeleton],
+  ])("ekran %s nie maluje NIC poza szyną i komunikatem", (_name, html) => {
+    expect(tagsOutsideReserve(html)).toEqual([...PAINTED_TAGS]);
+    // Kontrola pozytywna: wycięcie faktycznie coś zabrało (rezerwa nie jest pusta).
+    expect([...html.matchAll(/<([a-z]+)[^>]*>/g)].length).toBeGreaterThan(50);
+    const rootTag = html.match(/<div[^>]*data-skeleton-screen[^>]*>/)?.[0] ?? "";
+    const classes = (rootTag.match(/class="([^"]*)"/)?.[1] ?? "").split(/\s+/);
+    expect(classes, "korzeń rezerwy bez klasy `invisible`").toContain("invisible");
+    expect(classes, "rezerwa zdjęta z układu — wróciłby skok").not.toContain("hidden");
+  });
+
+  it.each([
+    ["lista", listSkeleton],
+    ["karta", detailSkeleton],
+  ])("żaden węzeł rezerwy %s nie przywraca sobie widoczności", (_name, html) => {
+    // Uwaga recenzji PM do #179: `visibility: hidden` dziedziczy się w dół, ale
+    // potomek z własnym `visible` maluje się mimo ukrytego rodzica. Kontrakt
+    // musi więc przejść RENDEROWANE drzewo, a nie klasę korzenia.
+    const nodes = tagsInsideReserve(html);
+    expect(nodes.length, "rezerwa bez węzłów — asercja mierzyłaby pustkę").toBeGreaterThan(10);
+    const offenders = visibilityOverridesInsideReserve(html);
+    expect(
+      offenders,
+      `węzły rezerwy przywracające widoczność:\n${offenders.join("\n")}`,
+    ).toEqual([]);
   });
 
   it.each([

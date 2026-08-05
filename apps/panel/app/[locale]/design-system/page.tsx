@@ -318,22 +318,31 @@ export default function DesignSystemGallery() {
             </p>
             <div className="relative rounded-md border border-border p-4">
               <LoadingRail className="absolute inset-x-4 top-0" />
-              <div className="grid grid-cols-6 items-center gap-3 py-8">
-                <div className="col-span-6 h-5" />
-                <div className="col-span-2 h-5" />
-                <div className="col-span-3 h-5" />
-                <div className="h-5" />
+              {/* Rezerwa układu: te same pudełka co na ekranie, ale pod
+                  `invisible` — zajmują miejsce, nie malują ani piksela.
+                  Obrysy niżej są w podglądzie CELOWO: gdyby cokolwiek z tej
+                  rezerwy było widać, byłyby pierwszą rzeczą, którą widać. */}
+              <div
+                aria-hidden="true"
+                className="invisible grid grid-cols-6 items-center gap-3 py-8"
+              >
+                <div className="col-span-6 h-5 rounded-md border" />
+                <div className="col-span-2 h-5 rounded-md border" />
+                <div className="col-span-3 h-5 rounded-md border" />
+                <div className="h-5 rounded-md border" />
               </div>
               <p role="status" className="text-muted-foreground text-center text-sm">
                 Ładowanie zamówień…
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Geometria ekranu zostaje PUSTA — nic nie udaje treści, której
-              jeszcze nie ma. Stan niosą dwie rzeczy: szyna rysowana RAZ (bez
-              pętli i bez udawanego procentu) oraz widoczny komunikat w roli
-              status. Wysokości pustych pudełek są kopią linii docelowego
-              tekstu, więc wejście treści nie rusza układu.
+              Ekran ładowania pokazuje DWIE rzeczy i nic poza nimi: szynę przy
+              górnej krawędzi (rysowaną RAZ, bez pętli i bez udawanego procentu)
+              oraz komunikat w roli status przy dolnej krawędzi okna. Układ
+              ekranu zostaje pod spodem jako rezerwa o wysokości docelowych
+              linii tekstu — stoi pod visibility hidden, więc trzyma miejsce co
+              do piksela i nie maluje niczego, a wejście treści nie rusza
+              układu.
             </p>
           </div>
         </GallerySection>
