@@ -87,18 +87,36 @@ export function DirectionsMapPanel({
                 key={`${item.address}-${index}`}
                 data-directions-choice={index}
                 className={cn(
-                  "cursor-pointer rounded-full px-3 py-1.5 text-sm",
+                  "flex cursor-pointer items-center gap-2 text-sm",
                   // Obrys grupy fokusu bierze `currentColor` (atrament pasa albo
                   // tekst na akcencie), więc stan skupienia nie wnosi koloru,
                   // którego motyw nie zna.
                   "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
-                  index === current ? "site-cta" : "site-outline",
+                  /*
+                   * Wybrany punkt jest przyciskiem GŁÓWNYM, pozostałe —
+                   * drugorzędnymi. Obie klasy niosą kształt przycisku z MOTYWU
+                   * (wypełnienie albo obrys, promień, odstęp wewnętrzny), więc
+                   * chipy wyglądają jak reszta przycisków sklepu, a nie jak
+                   * własny wynalazek tej sekcji.
+                   */
+                  index === current ? "site-cta" : "site-cta-secondary",
                 )}
               >
+                {/*
+                  KÓŁKO ZOSTAJE WIDOCZNE, i to jest decyzja dostępnościowa.
+                  Kusiło schować je (`sr-only`) i pokazywać wybór SAMYM
+                  wyglądem chipa — ale kształt przycisku niesie MOTYW: w motywie
+                  z przyciskiem obrysowym „główny" i „drugorzędny" różnią się
+                  wyłącznie odcieniem tekstu, a przy akcencie równym atramentowi
+                  nie różnią się niczym. Wybór byłby wtedy nie do zobaczenia
+                  (WCAG 1.4.1). Natywne kółko mówi to samo w każdym motywie i bez
+                  ani jednej reguły koloru: `accent-current` bierze atrament
+                  chipa, więc kontrolka jest w kolorze napisu obok.
+                */}
                 <input
                   type="radio"
                   name={group}
-                  className="sr-only"
+                  className="size-4 shrink-0 accent-current"
                   checked={index === current}
                   onChange={() => setCurrent(index)}
                 />
@@ -128,7 +146,7 @@ export function DirectionsMapPanel({
             src={directionsMapEmbedSrc(location.address)}
             loading="lazy"
             referrerPolicy="no-referrer"
-            className="site-outline aspect-[4/3] w-full rounded-lg @min-[32rem]/site:aspect-[16/9]"
+            className="site-card aspect-[4/3] w-full @min-[32rem]/site:aspect-[16/9]"
           />
         ) : (
           <p data-directions-preview role="status" className="site-text-muted text-sm">
@@ -140,7 +158,7 @@ export function DirectionsMapPanel({
           <button
             type="button"
             data-directions-show
-            className="site-cta focus-visible:outline-2 focus-visible:outline-offset-2 w-fit cursor-pointer rounded-md px-4 py-2 text-sm"
+            className="site-cta focus-visible:outline-2 focus-visible:outline-offset-2 w-fit cursor-pointer text-sm"
             onClick={() => setOpen(true)}
           >
             {labels.directionsShowMap}
