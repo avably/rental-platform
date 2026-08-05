@@ -56,6 +56,7 @@ import {
   structuredPresetFor,
   structuredSpecOf,
   withStructuredLayout,
+  type SectionCanvas,
   type StructuredChoiceSpec,
   type StructuredSectionContent,
   type StructuredSectionType,
@@ -1163,6 +1164,77 @@ describe("E7 atuty: konwersja wiąże trójkę GEOMETRIĄ kolumny", () => {
       uspItemsFromLegacy({ items: [{ icon: "nie-ma-takiej", title: "A", text: "B" }] }),
       "ikona spoza allowlisty weszła do treści",
     ).toEqual([]);
+  });
+
+  /**
+   * PŁÓTNO PO RĘCE OPERATORA — fikstura, która ODRÓŻNIA wiązanie po kolumnie od
+   * wiązania po kolejności czytania.
+   *
+   * ==================== LUKA ZNALEZIONA WŁASNYM DOWODEM MUTACYJNYM ====================
+   *
+   * Kontrakt wyżej stoi na płótnie prosto z konwersji v1→v2 — a tam wszystkie
+   * tytuły jednego rzędu mają TĘ SAMĄ współrzędną `y` (wysokość bloku liczy się
+   * z najwyższego wpisu). Kolejność tytułów w czytaniu jest więc identyczna
+   * z kolejnością ikon i heurystyka „następny nagłówek poniżej" daje przypadkiem
+   * ten sam wynik, co wiązanie kolumną. Mutacja zdejmująca warunek kolumny
+   * przeszła CAŁY plik na zielono (209 testów) — dokładnie ta klasa wady, którą
+   * ADR-094 nazywa „kontrakt zielony, bo fikstura nie rozróżnia".
+   *
+   * Płótno jest jednak EDYTOWALNE i to jest cały powód istnienia sekcji atutów:
+   * ikona, tytuł i zdanie są tam trzema NIEZALEŻNYMI pudełkami, które operator
+   * przesuwa osobno. Wystarczy, że opuści jeden tytuł o dwa wiersze, a kolejność
+   * czytania tytułów przestaje odpowiadać kolejności ikon — i wtedy „następny
+   * nagłówek" podpisuje pierwszy atut tytułem drugiego.
+   */
+  function zTytulemOpuszczonymWKolumnie(canvas: SectionCanvas, kolumna: number, oDol: number) {
+    return {
+      ...canvas,
+      elements: canvas.elements.map((element) =>
+        element.kind === "heading" &&
+        element.level === 3 &&
+        element.layout.desktop.x === kolumna
+          ? {
+              ...element,
+              layout: {
+                ...element.layout,
+                desktop: { ...element.layout.desktop, y: element.layout.desktop.y + oDol },
+              },
+            }
+          : element,
+      ),
+    } as SectionCanvas;
+  }
+
+  it("PRZESUNIĘTY tytuł zostaje przy SWOJEJ ikonie, a nie przy pierwszej z brzegu", () => {
+    const plotno = sectionCanvasFrom("usp", ATUTY);
+    const kolumnaPierwszegoAtutu = plotno.elements.find((element) => element.kind === "icon")!.layout
+      .desktop.x;
+    /*
+     * Opuszczamy tytuł PIERWSZEJ kolumny o dwa wiersze. To za mało, żeby zszedł
+     * pod własne zdanie (odstęp tytuł→zdanie jest większy), a wystarczy, żeby
+     * w kolejności czytania wypadł ZA tytułami kolumn drugiej i trzeciej.
+     */
+    const poRece = zTytulemOpuszczonymWKolumnie(plotno, kolumnaPierwszegoAtutu, 2);
+
+    const kolejnosc = poRece.elements
+      .filter((element) => element.kind === "heading" && element.level === 3)
+      .slice()
+      .sort(
+        (a, b) => a.layout.desktop.y - b.layout.desktop.y || a.layout.desktop.x - b.layout.desktop.x,
+      )
+      .map((element) => (element as { text: string }).text);
+    expect(
+      kolejnosc[0],
+      "fikstura nie rozróżnia: tytuł pierwszego atutu nadal jest pierwszy w czytaniu",
+    ).not.toBe("Dowóz");
+
+    const items = uspItemsFromLegacy(poRece);
+    expect(items).toHaveLength(4);
+    expect(
+      items[0],
+      "pierwszy atut dostał CUDZY tytuł — konwersja wiąże sąsiedztwem w liście, a nie kolumną",
+    ).toEqual(ATUTY.items[0]);
+    expect(items).toEqual(ATUTY.items);
   });
 
   it("cała konwersja przechodzi schemat i nie jest presetem", () => {
