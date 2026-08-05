@@ -447,6 +447,13 @@
  */
 .site-lightbox {
   width: min(64rem, 92%);
+  /*
+   * WYŚRODKOWANIE MUSI BYĆ TUTAJ. Arkusz przeglądarki centruje `<dialog>`
+   * marginesem automatycznym, ale preflight Tailwinda zeruje marginesy na
+   * WSZYSTKICH elementach — więc bez tej linii okno przykleja się do lewego
+   * górnego rogu ekranu (znalezisko z weryfikacji w przeglądarce).
+   */
+  margin: auto;
   padding: 0;
   overflow: auto;
   border: var(--site-border-width) solid var(--site-border);
