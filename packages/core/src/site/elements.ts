@@ -49,6 +49,7 @@
 import { z } from "zod";
 
 import { USP_ICONS, uspIconSchema } from "./icons";
+import { linkHrefSchema } from "./link-href";
 import { plainTextOf, richTextSchema } from "./rich-text";
 
 // -----------------------------------------------------------------------
@@ -242,32 +243,15 @@ const elementLabel = z.string().trim().min(1).max(80);
 const elementAlt = z.string().trim().min(1).max(300);
 
 /**
- * Cel przycisku — ta sama allowlista schematów co `ctaHref` w v1: http(s),
- * ścieżka względna albo kotwica. `javascript:` i `data:` odpadają z definicji,
- * a nie z listy zakazów, więc przyszły egzotyczny schemat też nie przejdzie.
+ * Cel przycisku — allowlista schematów z `./link-href`, ta sama, którą dostaje
+ * `ctaHref` treści v1 i `href` runu tekstowego.
  *
- * EKSPORTOWANY od E3: odnośnik pod kafelkiem galerii (treść v3) prowadzi tam,
- * gdzie przycisk płótna, więc musi go wpuszczać DOKŁADNIE ta sama allowlista.
- * Druga, „prawie taka sama" kopia reguły bezpieczeństwa rozjeżdża się z pierwszą
- * w dniu, w którym jedną z nich ktoś poprawi.
+ * Do tej pory stała TUTAJ, w drugiej z trzech identycznych kopii tej samej
+ * reguły bezpieczeństwa — razem z komentarzem o tym, że kopii być nie może.
+ * Definicja przeniosła się do własnego liścia, a ten plik ją re-eksportuje, bo
+ * czyta go treść v3 (`./structured`) i panel; nazwa importu zostaje bez zmian.
  */
-export const linkHrefSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2_000)
-  .refine(
-    (value) => {
-      if (value.startsWith("/") || value.startsWith("#")) return true;
-      try {
-        const url = new URL(value);
-        return url.protocol === "http:" || url.protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    { message: "Dozwolone: adres http(s), ścieżka względna (/...) albo kotwica (#...)" },
-  );
+export { linkHrefSchema };
 
 /** Ścieżka w buckecie `site-images` (konwencja 0018) — nie dowolny URL. */
 const elementImagePath = z

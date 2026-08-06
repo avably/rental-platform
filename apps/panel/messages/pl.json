@@ -1284,7 +1284,7 @@
       "unlink": "Usuń link",
       "linkAddress": "Adres linku",
       "linkApply": "Wstaw link",
-      "linkInvalid": "Dozwolone: adres http(s), ścieżka względna (/...) albo kotwica (#...)",
+      "linkInvalid": "Dozwolone: adres http(s), ścieżka względna (/...), kotwica (#...), e-mail (mailto:...) albo telefon (tel:...)",
       "editing": "Edycja tekstu elementu"
     },
     "picker": {
