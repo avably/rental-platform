@@ -106,11 +106,17 @@ export const FONT_FAMILIES = {
    * szerokości znaku, tylko ZAPASEM dobranym tak, żeby estymator nie wypuszczał
    * nagłówka poza pudełko (Archivo) ani nie zostawiał pod nim pustki
    * (Instrument Serif). Nowe rodziny dostają wartości z tej samej skali,
-   * wstawione względem sąsiadów: Saira jest zwężona (więcej znaków w wierszu →
-   * wyżej), Fraunces szeroka (mniej znaków → niżej). Sprawdzianem jest kontrakt
-   * geometrii mobilnej szablonów i akcept wizualny pierwszego ekranu.
+   * wstawione względem sąsiadów i SPRAWDZONE NA PIERWSZYM EKRANIE. Pierwsze
+   * podejście (Saira 1,1 „bo zwężona, więc więcej znaków w wierszu") dało
+   * nagłówek wchodzący w lead: estymator liczy wiersze z szerokości znaku, ale
+   * wysokość wiersza bierze ze STAŁEJ dobranej pod kroje o metryce Intera,
+   * a Saira ma wyższy wiersz. Zapas musi więc pokryć OBIE różnice naraz — stąd
+   * 0,8, czyli wartość z okolic Archiva (0,86), mimo że sam krój jest węższy.
+   * To jest dokładnie powód, dla którego pole nazywa się „zapas", a nie
+   * „szerokość znaku": sprawdzianem jest kadr pierwszego ekranu, nie arkusz
+   * kalkulacyjny.
    */
-  saira: { family: "Saira Site", fallback: SANS_FALLBACK, slug: "saira", weight: "100 900", license: "OFL-saira.txt", metricRatio: 1.1 },
+  saira: { family: "Saira Site", fallback: SANS_FALLBACK, slug: "saira", weight: "100 900", license: "OFL-saira.txt", metricRatio: 0.8 },
   fraunces: { family: "Fraunces Site", fallback: SERIF_FALLBACK, slug: "fraunces", weight: "100 900", license: "OFL-fraunces.txt", metricRatio: 0.92 },
   /**
    * Kroje aplikacji — to, czym strona najemcy była do K5. Bez plików: rodzina
