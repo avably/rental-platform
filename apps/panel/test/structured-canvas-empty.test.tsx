@@ -85,14 +85,18 @@ function produkt(id: string, name: string): Product {
   return { id, name, description: null, priceLabel: "od 120,00 zł / doba", imageUrl: null, imageAlt: "" };
 }
 
-/** Sekcja sprzętu w podanym stanie źródła i wskazań. */
-function productsSection(overrides: Record<string, unknown>): Section {
+/**
+ * Sekcja sprzętu w podanym stanie źródła i wskazań (`tresc`), opcjonalnie
+ * w podanym stanie SAMEJ SEKCJI (`sekcja` — np. nagrobek szkicu).
+ */
+function productsSection(tresc: Record<string, unknown>, sekcja: Record<string, unknown> = {}): Section {
   return {
     id: PRODUCTS_ID,
     type: "products",
     position: 1,
     enabled: true,
-    content: { ...(structuredPresetFor("products", "pl") as unknown as Record<string, unknown>), ...overrides },
+    content: { ...(structuredPresetFor("products", "pl") as unknown as Record<string, unknown>), ...tresc },
+    ...sekcja,
   } as Section;
 }
 
@@ -168,6 +172,36 @@ describe("sekcja bez wpisów mówi, co zrobić", () => {
     );
 
     expect(screen.getByText(puste.title)).toBeTruthy();
+  });
+
+  it("sekcja USUNIĘTA W SZKICU stanu pustego NIE dostaje — to byłaby praca do kosza", () => {
+    /*
+     * Nagrobek (K5a, ADR-091) stoi na płótnie po to, żeby pokazać, co JESZCZE
+     * widzi klient, i dać się przywrócić — a nie po to, żeby go uzupełniać.
+     * Przycisk „wskaż pierwszą pozycję" obiecywałby tu pracę, którą najbliższa
+     * publikacja skasuje razem z sekcją; ten sam powód, dla którego sekcja
+     * usunięta traci CAŁĄ resztę warstwy edycyjnej (pasek narzędzi, powierzchnię
+     * otwierającą szufladę, ramki elementów).
+     *
+     * Delta recenzji PM: reguła stała w kodzie i w komentarzu, a jej zdjęcie
+     * przechodziło CAŁĄ suitę panelu na zielono.
+     */
+    const { container } = renderBuilder([
+      heroSection(),
+      productsSection({ source: "picked", items: [] }, { deletedInDraft: true }),
+    ]);
+
+    // Kontrola dodatnia jest o piętro wyżej w tym samym pliku (ta sama treść BEZ
+    // nagrobka przycisk MA) — bez niej ten test przechodziłby też dla płótna,
+    // które stanu pustego nie rysuje nigdy.
+    expect(
+      container.querySelector(`[data-canvas-section="${PRODUCTS_ID}"]`),
+      "nagrobek zniknął z płótna — test nie ma czego mierzyć",
+    ).not.toBeNull();
+    expect(container.querySelector("[data-canvas-empty]")).toBeNull();
+    expect(screen.queryByText(puste.title)).toBeNull();
+    expect(screen.queryByRole("button", { name: puste.action })).toBeNull();
+    expect(screen.queryByText(puste.elsewhere)).toBeNull();
   });
 });
 
