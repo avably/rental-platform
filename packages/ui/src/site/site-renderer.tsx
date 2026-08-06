@@ -26,6 +26,7 @@ import {
   TestimonialsSection,
   UspSection,
 } from "./sections";
+import { SiteRevealScript } from "./site-reveal-script";
 import { structuredRendererFor } from "./structured/registry";
 import { siteStyles } from "./template";
 import type {
@@ -250,11 +251,23 @@ export type SiteMotionMode = "auto" | "off";
 export function SiteChrome({
   style = DEFAULT_SITE_STYLE,
   motion = "auto",
+  revealNonce,
   className,
   children,
 }: {
   style?: ResolvedSiteStyle;
   motion?: SiteMotionMode;
+  /**
+   * NONCE CSP POWIERZCHNI, KTÓRA CHCE ANIMACJI WEJŚCIA (ADR-097).
+   *
+   * Skrypt uzbrajający jest inline i musi wykonać się przed malowaniem, więc
+   * potrzebuje nonce'a z nagłówka żądania — a ten znają wyłącznie trasy
+   * (sklep, podgląd szkicu), nie pakiet UI. Brak nonce'a znaczy „ta powierzchnia
+   * nie animuje" i jest to stan poprawny: płótno kreatora go nie podaje, więc
+   * warstwa edycyjna stoi Z KONSTRUKCJI, a nie z uprzejmości wołającego
+   * (bramka `motion="off"` z E8 zostaje jako drugi zamek).
+   */
+  revealNonce?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -291,6 +304,18 @@ export function SiteChrome({
       {...(motion === "off" ? { "data-site-motion": "off" } : {})}
       style={{ ...styleTokensFor(style) } as CSSProperties}
     >
+      {/*
+       * SKRYPT UZBRAJAJĄCY JAKO PIERWSZE DZIECKO KORZENIA (ADR-097).
+       *
+       * Miejsce nie jest kosmetyczne: przeglądarka wykonuje skrypt inline,
+       * zanim sparsuje to, co stoi niżej w strumieniu, więc stan startowy
+       * obowiązuje od pierwszej klatki i treść nie mignie. Ten sam skrypt
+       * doładowany później (moduł, `defer`, hydracja) pokazałby sekcje,
+       * a potem je schował.
+       */}
+      {motion !== "off" && revealNonce ? (
+        <SiteRevealScript nonce={revealNonce} />
+      ) : null}
       {children}
     </div>
   );
@@ -317,6 +342,7 @@ export function SiteRenderer({
   elementWrapper,
   asRoot = true,
   motion = "auto",
+  revealNonce,
 }: {
   sections: RenderSection[];
   /**
@@ -414,6 +440,8 @@ export function SiteRenderer({
   asRoot?: boolean;
   /** Tryb ruchu — patrz {@link SiteMotionMode}. Ignorowany przy `asRoot={false}`. */
   motion?: SiteMotionMode;
+  /** Nonce CSP pod skrypt uzbrajający wejście sekcji — patrz {@link SiteChrome}. */
+  revealNonce?: string;
 }) {
   const wrap =
     sectionWrapper ??
@@ -446,7 +474,7 @@ export function SiteRenderer({
   if (!asRoot) return <>{body}</>;
 
   return (
-    <SiteChrome style={style} motion={motion} className={className}>
+    <SiteChrome style={style} motion={motion} revealNonce={revealNonce} className={className}>
       {body}
     </SiteChrome>
   );

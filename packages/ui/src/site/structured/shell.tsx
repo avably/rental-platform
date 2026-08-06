@@ -46,7 +46,7 @@ export function StructuredSectionShell({
           (addendum E9). Znacznik stoi na kontenerze, a nie na pasie, bo pas ma
           80 px pustego marginesu u góry: oś widoku liczona od jego krawędzi
           przepalała ~85% przebiegu, zanim pierwsza litera wjechała w okno. */}
-      <div data-section-reveal className={styles.container}>
+      <div data-section-reveal="stagger" className={styles.container}>
         {heading ? <h2 className={styles.sectionHeading}>{heading}</h2> : null}
         {children}
       </div>

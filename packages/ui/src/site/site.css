@@ -499,65 +499,48 @@
 
 /*
  * =====================================================================
- * WEJŚCIE SEKCJI — JEDNA ANIMACJA, LICZBY Z MOTYWU (K6, ADR-092)
+ * WEJŚCIE SEKCJI — JEDEN OPIS, LICZBY Z MOTYWU (K6/ADR-092, silnik ADR-097)
  * =====================================================================
  *
- * Cztery zdania, na których stoi cały ten blok:
+ * Pięć zdań, na których stoi cały ten blok:
  *
- * 1. JEST JEDNA RODZINA KLATEK. `site-reveal` czyta wyłącznie zmienne
+ * 1. JEST JEDEN OPIS WEJŚCIA. Reguły niżej czytają wyłącznie zmienne
  *    (`--site-motion-*`) wystawione przez `styleTokensFor` z presetu wskazanego
  *    przez motyw. Motyw nr 7 nie dopisuje tu ani jednej linijki — a to był
  *    warunek postawiony wprost w zadaniu.
  *
- * 2. TREŚĆ JEST WIDOCZNA DOMYŚLNIE. Animacja nie ma stanu początkowego
- *    zapisanego w regule bazowej: sekcja stoi na swoim miejscu, w pełnym
- *    kryciu, i dopiero animacja ODBIERA jej to na czas wejścia. Przeglądarka
- *    bez `animation-timeline`, robot indeksujący i czytnik ekranu widzą stronę
- *    gotową — a CLS nie ma skąd wziąć skoku, bo nic nie zmienia wysokości
- *    (ruszają się wyłącznie `opacity` i `transform`, obie na kompozytorze).
+ * 2. TREŚĆ JEST WIDOCZNA DOMYŚLNIE, I TO BEZ NOSCRIPTU. Stan startowy stoi pod
+ *    `[data-site-reveal="armed"]`, czyli pod atrybutem, który nadaje SKRYPT.
+ *    Brak JavaScriptu = brak atrybutu = brak stanu startowego: przeglądarka bez
+ *    skryptów, robot indeksujący i czytnik ekranu dostają stronę gotową, a nie
+ *    pustą. Nie ma tu reguły awaryjnej do zapomnienia — fail-open wynika
+ *    z konstrukcji selektora.
  *
- * 3. OŚ CZASU TO WIDOK, NIE SKRYPT. `animation-timeline: view()` znaczy zero
- *    kilobajtów JavaScriptu na stronie sklepu i zero pracy na wątku głównym
- *    w trakcie hydracji — inaczej niż IntersectionObserver, który przy
- *    kilkunastu sekcjach dokłada tę pracę dokładnie wtedy, gdy strona się
- *    uruchamia. `@supports` czyni to ULEPSZENIEM: brak wsparcia = strona bez
- *    animacji, nigdy strona pusta.
+ * 3. RUCH MA WŁASNĄ PRĘDKOŚĆ (ADR-097). Do E9 wejście jechało na osi widoku
+ *    (`animation-timeline: view()`), więc jego postęp był funkcją przewijania:
+ *    przy jednym obrocie kółka cały przebieg wykonywał się w kilku klatkach,
+ *    a przy przewijaniu w tył — cofał. Odtąd jest to PRZEJŚCIE CZASOWE
+ *    odpalane zdjęciem stanu startowego, a stan zdejmuje obserwator wejścia
+ *    w okno (skrypt uzbrajający). Ruszają się wyłącznie `opacity` i `transform`,
+ *    obie na kompozytorze, więc CLS nie ma skąd wziąć skoku.
  *
- * 4. PREFERENCJA CZYTELNIKA WYGRYWA Z MOTYWEM. Cały blok stoi pod
- *    `prefers-reduced-motion: no-preference`, więc „ogranicz ruch" nie jest
- *    tłumione ani skracane — po prostu nie ma czego wyłączać. Motyw NIE MA
- *    pola, którym mógłby to nadpisać (patrz `motion.ts`).
+ * 4. PREFERENCJA CZYTELNIKA WYGRYWA Z MOTYWEM — DWA RAZY. Blok stoi pod
+ *    `prefers-reduced-motion: no-preference`, a skrypt w ogóle się nie uzbraja,
+ *    gdy czytelnik prosi o mniej ruchu. Motyw NIE MA pola, którym mógłby to
+ *    nadpisać (patrz `motion.ts`).
  *
- * Zasięg: PUDEŁKO TREŚCI (`[data-section-reveal]`) wewnątrz owijki sekcji
- * (`[data-section-id]`) POD korzeniem strony — celowo selektor potomka, nie
- * dziecka. Powłoka sklepu wkłada sekcje do `<main>` (K6), więc kombinator
- * dziecka wyciszyłby animacje wszędzie poza podglądem szkicu, i to bez jednego
- * czerwonego testu. Element WEWNĄTRZ pudełka treści nie animuje się osobno —
- * przy płótnie v2 z geometrią absolutną wejście per element byłoby
- * rozsypywaniem układu na oczach czytelnika, a nie animacją.
- *
- * DLACZEGO NIE OWIJKA SEKCJI (addendum E9 — weto akceptu właściciela). Do
- * pierwszej wersji E9 podmiotem była owijka, czyli pas razem z jego pustym
- * marginesem: 80 px u góry przy oknie 720 px i strefie 130 px znaczyło, że
- * ~85% przebiegu animacji rozgrywało się NAD treścią, na gołym tle. Czytelnik
- * widział pierwszą linię dopiero przy krycia 1,0 — pomiar „krycie sekcji idzie
- * 0 → 1" był prawdziwy i mierzył niewidzialną część przebiegu. Podmiotem jest
- * odtąd pudełko treści, więc oś widoku liczy się od PIERWSZEJ LITERY, a nie od
- * krawędzi pasa. Pas zostaje nieruchomy i to jest skutek zamierzony: kolor tła
- * nie ma prawa migotać, bo migotanie pasa czyta się jak błąd renderu.
- *
- * 5. DŁUGOŚĆ WEJŚCIA MIERZY OKNO, NIE SEKCJA (E9). Koniec `animation-range`
- *    idzie z presetu w jednostkach `vh`, więc każda sekcja odsłania się przez
- *    tyle samo przewijania — niezależnie od tego, ile treści ma w środku.
- *    Do E8 zakres kończył się procentem fazy `cover`, przez co ta sama strona
- *    miała wejścia różnej długości (pomiar: 357 px przy stopce, 503 px przy
- *    sekcji sprzętu), a ruch czytał się jak zbiór osobnych animacji.
+ * 5. DWA WARIANTY PODMIOTU. `block` — pudełko treści wchodzi jako całość (tak
+ *    robi płótno v2, w którym elementy stoją na współrzędnych absolutnych i
+ *    animowanie ich osobno rozsypywałoby układ na oczach czytelnika).
+ *    `stagger` — wchodzą DZIECI pudełka: nagłówek pierwszy, reszta o krok
+ *    później i razem (dwa kroki, nie kaskada — uzasadnienie przy polu
+ *    `stagger` w `motion.ts`).
  */
 
 @keyframes site-reveal {
   from {
     opacity: var(--site-motion-opacity, 0);
-    transform: translateY(var(--site-motion-distance, 0px)) scale(var(--site-motion-scale, 1));
+    transform: translateY(var(--site-motion-distance, 0px));
   }
 
   to {
@@ -567,22 +550,70 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    .site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal] {
-      /*
-       * CZAS TRWANIA JEST STAŁĄ, NIE TOKENEM MOTYWU (E9). Przy osi widoku
-       * animacja rozciąga się na `animation-range`, więc zadeklarowany czas
-       * nie ma czego mierzyć: profil krycia zmierzony na żywej stronie był
-       * identyczny dla 360 ms, 1,5 s, 9 s i `auto`. Jedyną wartością, która
-       * cokolwiek zmienia, jest `0s` — czyli WARTOŚĆ POCZĄTKOWA, przy której
-       * animacja zwija się do stanu końcowego i wejścia nie ma wcale. Stąd
-       * jedna sekunda wpisana tutaj: nie steruje niczym, broni przed zerem
-       * i nie udaje w danych motywu pokrętła, które nic nie robi (./motion).
-       */
-      animation: site-reveal 1s var(--site-motion-easing) both;
-      animation-timeline: view();
-      animation-range: var(--site-motion-range);
-    }
+  /* STAN STARTOWY — wchodzi DOPIERO po uzbrojeniu skryptem (fail-open). */
+  [data-site-reveal="armed"]
+    .site-root:not([data-site-motion="off"])
+    [data-section-reveal="block"]:not([data-section-revealed]) {
+    opacity: var(--site-motion-opacity, 0);
+    transform: translateY(var(--site-motion-distance, 0px));
+  }
+
+  [data-site-reveal="armed"]
+    .site-root:not([data-site-motion="off"])
+    [data-section-reveal="stagger"]:not([data-section-revealed])
+    > * {
+    opacity: var(--site-motion-opacity, 0);
+    transform: translateY(var(--site-motion-distance, 0px));
+  }
+
+  /*
+   * WEJŚCIE JEST ANIMACJĄ, NIE PRZEJŚCIEM — i to jest decyzja, nie składnia.
+   *
+   * Pierwsza wersja ADR-097 nakładała na podmioty `transition`. Skrót
+   * `transition` jest jednak WŁAŚCIWOŚCIĄ ELEMENTU: reguła o swoistości (0,3,0)
+   * na `[data-section-reveal="stagger"] > *` kasowała własne przejścia
+   * bezpośrednich dzieci — w tym `transition: background-color` przycisku
+   * `.site-cta` w pierwszym ekranie — i dokładała mu opóźnienie kaskady.
+   * Hover na głównym przycisku strony przestawał płynnie zmieniać kolor,
+   * a żaden test tego nie widział. `animation` jest osobnym kanałem: nie
+   * dotyka `transition` elementu, `animation-delay` niesie kaskadę,
+   * a `both` trzyma stan przed pierwszą klatką i po ostatniej.
+   */
+  [data-site-reveal="armed"]
+    .site-root:not([data-site-motion="off"])
+    [data-section-reveal="block"][data-section-revealed] {
+    animation: site-reveal var(--site-motion-duration, 0ms) var(--site-motion-easing, linear) both;
+  }
+
+  [data-site-reveal="armed"]
+    .site-root:not([data-site-motion="off"])
+    [data-section-reveal="stagger"][data-section-revealed]
+    > * {
+    animation: site-reveal var(--site-motion-duration, 0ms) var(--site-motion-easing, linear) both;
+    animation-delay: var(--site-motion-stagger, 0ms);
+  }
+
+  /* Nagłówek wchodzi pierwszy, reszta pudełka o krok później i RAZEM. */
+  [data-site-reveal="armed"]
+    .site-root:not([data-site-motion="off"])
+    [data-section-reveal="stagger"][data-section-revealed]
+    > :first-child {
+    animation-delay: 0ms;
+  }
+}
+
+/*
+ * OGRANICZ RUCH — twarde zdjęcie stanu startowego. Skrypt się wtedy nie
+ * uzbraja, więc ta reguła jest drugą linią: broni przed atrybutem `armed`
+ * zastanym z chwili przed zmianą preferencji w systemie (przełącznik działa
+ * bez przeładowania strony).
+ */
+@media (prefers-reduced-motion: reduce) {
+  [data-site-reveal="armed"] [data-section-reveal="block"],
+  [data-site-reveal="armed"] [data-section-reveal="stagger"] > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
   }
 }
 

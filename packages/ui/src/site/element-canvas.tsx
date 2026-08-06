@@ -565,14 +565,17 @@ export function SectionCanvasRenderer({
       <div
         data-canvas-grid
         /*
-         * PODMIOT ANIMACJI WEJŚCIA (addendum E9). Sekcja v2 nie ma pustego
-         * marginesu nad treścią — siatka JEST treścią — więc znacznik nie
-         * przesuwa tu strefy ani o piksel. Stoi mimo to, bo kontrakt liczy
-         * DOKŁADNIE JEDEN podmiot na sekcję: gdyby płótno go nie miało,
-         * animacja znikałaby z sekcji v2 po cichu, przy pierwszym szablonie
-         * bez sekcji strukturalnej.
+         * PODMIOT ANIMACJI WEJŚCIA — WARIANT `block` (E9 + ADR-097).
+         *
+         * Sekcja v2 nie ma pustego marginesu nad treścią (siatka JEST treścią),
+         * więc znacznik nie przesuwa tu strefy ani o piksel. Wariant `block`,
+         * a nie `stagger`, bo elementy płótna stoją na współrzędnych
+         * absolutnych: kaskada po dzieciach rozsypywałaby układ na oczach
+         * czytelnika zamiast go odsłaniać. Znacznik stoi mimo to, bo kontrakt
+         * liczy DOKŁADNIE JEDEN podmiot na sekcję: gdyby płótno go nie miało,
+         * animacja znikałaby z sekcji v2 po cichu.
          */
-        data-section-reveal
+        data-section-reveal="block"
         data-canvas-rows={canvas.rows}
         data-canvas-rows-mobile={mobile.rows}
         className="canvas-grid relative isolate mx-auto w-full overflow-hidden"

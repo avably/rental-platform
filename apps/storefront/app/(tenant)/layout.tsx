@@ -48,7 +48,13 @@ export default async function TenantLayout({ children }: { children: ReactNode }
   const storageOrigin = ctx?.supabaseUrl ? safeOrigin(ctx.supabaseUrl) : null;
 
   return (
-    <html lang={ctx?.locale ?? "pl"} className={`${fontVariables} h-full antialiased`}>
+    // `suppressHydrationWarning`: skrypt uzbrajający wejście sekcji (ADR-097)
+    // dopisuje `data-site-reveal` do <html> jeszcze przed hydracją.
+    <html
+      lang={ctx?.locale ?? "pl"}
+      suppressHydrationWarning
+      className={`${fontVariables} h-full antialiased`}
+    >
       <head>
         {storageOrigin ? (
           <link rel="preconnect" href={storageOrigin} crossOrigin="anonymous" />
