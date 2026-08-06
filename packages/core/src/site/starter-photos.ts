@@ -40,14 +40,34 @@ import { imageSourceSchema, type ImageSource } from "./elements";
 export const STARTER_PHOTO_SLOTS = [
   "construction-hero",
   "construction-delivery",
+  "construction-gallery-1",
+  "construction-gallery-2",
+  "construction-gallery-3",
+  "construction-gallery-4",
+  "construction-gallery-5",
   "bike-hero",
   "bike-location",
+  "bike-gallery-1",
+  "bike-gallery-2",
+  "bike-gallery-3",
+  "bike-gallery-4",
+  "bike-gallery-5",
   "event-hero",
   "event-gallery-1",
   "event-gallery-2",
   "event-gallery-3",
+  "event-gallery-4",
+  "event-gallery-5",
+  "event-gallery-6",
+  "event-gallery-7",
+  "event-gallery-8",
   "photo-hero",
   "photo-studio",
+  "photo-gallery-1",
+  "photo-gallery-2",
+  "photo-gallery-3",
+  "photo-gallery-4",
+  "photo-gallery-5",
   "lean-hero",
   "lean-workshop",
   "catalog-hero",
@@ -64,14 +84,34 @@ export type StarterPhotoSlot = (typeof STARTER_PHOTO_SLOTS)[number];
 export const STARTER_PHOTO_QUERIES: Record<StarterPhotoSlot, string> = {
   "construction-hero": "construction site heavy machinery dusk",
   "construction-delivery": "flatbed truck construction equipment delivery",
+  "construction-gallery-1": "scaffolding building facade construction",
+  "construction-gallery-2": "plate compactor worker asphalt",
+  "construction-gallery-3": "portable generator construction site",
+  "construction-gallery-4": "jackhammer breaker concrete worker",
+  "construction-gallery-5": "aerial work platform boom lift site",
   "bike-hero": "mountain bike rider trail action",
   "bike-location": "bicycle workshop shop interior",
+  "bike-gallery-1": "row of bicycles for rent rack",
+  "bike-gallery-2": "cycling helmet gear equipment",
+  "bike-gallery-3": "family cycling path summer",
+  "bike-gallery-4": "electric bike city street",
+  "bike-gallery-5": "bicycle wheel repair workshop hands",
   "event-hero": "outdoor wedding tent string lights evening",
   "event-gallery-1": "banquet table setting event",
   "event-gallery-2": "party marquee dance floor",
   "event-gallery-3": "event chairs rows outdoor ceremony",
+  "event-gallery-4": "wedding reception fairy lights tent evening",
+  "event-gallery-5": "catering buffet table event",
+  "event-gallery-6": "stage lighting truss event",
+  "event-gallery-7": "round tables white linen reception",
+  "event-gallery-8": "garden party tent outdoor",
   "photo-hero": "film camera cinema lighting dark studio",
   "photo-studio": "photography studio softbox equipment",
+  "photo-gallery-1": "cinema camera rig shoulder",
+  "photo-gallery-2": "camera lenses collection dark",
+  "photo-gallery-3": "film set lighting stands",
+  "photo-gallery-4": "gimbal stabilizer camera operator",
+  "photo-gallery-5": "photo studio backdrop seamless",
   "lean-hero": "warm minimal workshop tools daylight",
   "lean-workshop": "craftsman workbench warm light",
   "catalog-hero": "clean product shelves warehouse organised",
@@ -79,7 +119,8 @@ export const STARTER_PHOTO_QUERIES: Record<StarterPhotoSlot, string> = {
 };
 
 /**
- * KADRY — wybrane 2026-08-03 przez API dostawcy, wartości WPROST z odpowiedzi
+ * KADRY — pierwsza kuracja 2026-08-03 (hero i pasma), druga 2026-08-06 (E9:
+ * galerie szablonów), obie przez API dostawcy, wartości WPROST z odpowiedzi
  * (adres, nazwisko autora, profil, wyzwalacz pobrania). Do linku profilu
  * doklejone są parametry atrybucji wymagane regulaminem — te same, które
  * dokłada picker w kreatorze (`withAttribution` w apps/panel/lib/unsplash.ts).
@@ -87,7 +128,9 @@ export const STARTER_PHOTO_QUERIES: Record<StarterPhotoSlot, string> = {
  * Każdy kadr obejrzany w DWÓCH przycięciach: poziomym (desktop) i pionowym
  * 2:3 (auto-układ mobilny przy 390 px). Kadr, który po zwężeniu tracił temat,
  * nie wchodził — stąd np. rezygnacja z panoram budowy na rzecz maszyny
- * w pionie i wymiana zapytania dla warsztatu rowerowego.
+ * w pionie i wymiana zapytania dla warsztatu rowerowego. W E9 z tego samego
+ * powodu wypadło zapytanie „wedding string lights marquee": dostawca czyta
+ * „marquee" jako neon nad wejściem do kina, więc wracały szyldy, a nie namiot.
  */
 export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
   "construction-hero": {
@@ -104,6 +147,41 @@ export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
     authorUrl: "https://unsplash.com/@troyscanon?utm_source=avably&utm_medium=referral",
     downloadLocation: "https://api.unsplash.com/photos/4wj8Rs9SJeQ/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NHx8dHJ1Y2slMjBjb25zdHJ1Y3Rpb24lMjBlcXVpcG1lbnQlMjBkZWxpdmVyeXxlbnwxfDB8fHwxNzg1NzgyOTA2fDA",
   },
+  "construction-gallery-1": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1504964670878-71b73cec0ce1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8c2NhZmZvbGRpbmclMjBidWlsZGluZyUyMGZhY2FkZSUyMGNvbnN0cnVjdGlvbnxlbnwxfDB8fHwxNzg2MDAzNTY4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Reto Simonet",
+    authorUrl: "https://unsplash.com/@reetoo?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/WN9QRESOu5c/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8c2NhZmZvbGRpbmclMjBidWlsZGluZyUyMGZhY2FkZSUyMGNvbnN0cnVjdGlvbnxlbnwxfDB8fHwxNzg2MDAzNTY4fDA",
+  },
+  "construction-gallery-2": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1779384896076-51cbd33c36ac?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cGxhdGUlMjBjb21wYWN0b3IlMjB3b3JrZXIlMjBhc3BoYWx0fGVufDF8MHx8fDE3ODYwMDM1Njh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Evan Porter",
+    authorUrl: "https://unsplash.com/@evanporter?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/iomm8RoI-vU/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cGxhdGUlMjBjb21wYWN0b3IlMjB3b3JrZXIlMjBhc3BoYWx0fGVufDF8MHx8fDE3ODYwMDM1Njh8MA",
+  },
+  "construction-gallery-3": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1658260867231-535a1f7c98b9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8cG9ydGFibGUlMjBnZW5lcmF0b3IlMjBjb25zdHJ1Y3Rpb24lMjBzaXRlfGVufDF8MHx8fDE3ODYwMDM1Njl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Dima Solomin",
+    authorUrl: "https://unsplash.com/@solomin_d?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/8gXzLPWPu7E/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8cG9ydGFibGUlMjBnZW5lcmF0b3IlMjBjb25zdHJ1Y3Rpb24lMjBzaXRlfGVufDF8MHx8fDE3ODYwMDM1Njl8MA",
+  },
+  "construction-gallery-4": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1685464197144-790d716b8649?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8amFja2hhbW1lciUyMGJyZWFrZXIlMjBjb25jcmV0ZSUyMHdvcmtlcnxlbnwxfDB8fHwxNzg2MDAzNTcwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Mélyna Côté",
+    authorUrl: "https://unsplash.com/@laptiteminimaliste?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/NxwMP5V57Zg/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8amFja2hhbW1lciUyMGJyZWFrZXIlMjBjb25jcmV0ZSUyMHdvcmtlcnxlbnwxfDB8fHwxNzg2MDAzNTcwfDA",
+  },
+  "construction-gallery-5": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1765435149256-56f3ea3db68f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8YWVyaWFsJTIwd29yayUyMHBsYXRmb3JtJTIwYm9vbSUyMGxpZnQlMjBzaXRlfGVufDF8MHx8fDE3ODYwMDM2MDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Sergej *****",
+    authorUrl: "https://unsplash.com/@skstrannik?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/nYZBLnfgUmQ/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8YWVyaWFsJTIwd29yayUyMHBsYXRmb3JtJTIwYm9vbSUyMGxpZnQlMjBzaXRlfGVufDF8MHx8fDE3ODYwMDM2MDB8MA",
+  },
   "bike-hero": {
     kind: "unsplash",
     url: "https://images.unsplash.com/photo-1760462127033-2189eb2202e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8bW91bnRhaW4lMjBiaWtlJTIwcmlkZXIlMjB0cmFpbHxlbnwxfDB8fHwxNzg1NzgyOTA3fDA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -117,6 +195,41 @@ export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
     authorName: "Viktor Keri",
     authorUrl: "https://unsplash.com/@viktorkeri?utm_source=avably&utm_medium=referral",
     downloadLocation: "https://api.unsplash.com/photos/UdGEXZtlx-E/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8YmlrZSUyMHNob3AlMjBpbnRlcmlvciUyMGJpY3ljbGVzJTIwZm9yJTIwcmVudHxlbnwxfDB8fHwxNzg1NzgzNTMyfDA",
+  },
+  "bike-gallery-1": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1632070554458-395ad71242ed?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cm93JTIwb2YlMjBiaWN5Y2xlcyUyMGZvciUyMHJlbnQlMjByYWNrfGVufDF8MHx8fDE3ODYwMDM1NzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Julio Lopez",
+    authorUrl: "https://unsplash.com/@juliolopez?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/wihH78E0d5Q/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cm93JTIwb2YlMjBiaWN5Y2xlcyUyMGZvciUyMHJlbnQlMjByYWNrfGVufDF8MHx8fDE3ODYwMDM1NzF8MA",
+  },
+  "bike-gallery-2": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1591511275477-88f079d88154?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Y3ljbGluZyUyMGhlbG1ldCUyMGdlYXIlMjBlcXVpcG1lbnR8ZW58MXwwfHx8MTc4NjAwMzU3Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "bady abbas",
+    authorUrl: "https://unsplash.com/@bady?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/wCopCzgH5xc/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Y3ljbGluZyUyMGhlbG1ldCUyMGdlYXIlMjBlcXVpcG1lbnR8ZW58MXwwfHx8MTc4NjAwMzU3Mnww",
+  },
+  "bike-gallery-3": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1773521478765-3bfd7d398456?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8ZmFtaWx5JTIwY3ljbGluZyUyMHBhdGglMjBzdW1tZXJ8ZW58MXwwfHx8MTc4NjAwMzU3Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Sven Eisenschmidt",
+    authorUrl: "https://unsplash.com/@sveneisenschmidt?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/EgyX7h-CO3s/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8ZmFtaWx5JTIwY3ljbGluZyUyMHBhdGglMjBzdW1tZXJ8ZW58MXwwfHx8MTc4NjAwMzU3Mnww",
+  },
+  "bike-gallery-4": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1758764046093-7ea3e9850eba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NHx8ZWxlY3RyaWMlMjBiaWtlJTIwY2l0eSUyMHN0cmVldHxlbnwxfDB8fHwxNzg2MDAzNTczfDA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Hiboy",
+    authorUrl: "https://unsplash.com/@hiboyofficial?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/9D18SHig-LA/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NHx8ZWxlY3RyaWMlMjBiaWtlJTIwY2l0eSUyMHN0cmVldHxlbnwxfDB8fHwxNzg2MDAzNTczfDA",
+  },
+  "bike-gallery-5": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1673870861511-cc572623d271?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8M3x8YmljeWNsZSUyMHdoZWVsJTIwcmVwYWlyJTIwd29ya3Nob3AlMjBoYW5kc3xlbnwxfDB8fHwxNzg2MDAzNTczfDA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Anton Savinov",
+    authorUrl: "https://unsplash.com/@tonchik?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/EsAWJPsVPNI/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8M3x8YmljeWNsZSUyMHdoZWVsJTIwcmVwYWlyJTIwd29ya3Nob3AlMjBoYW5kc3xlbnwxfDB8fHwxNzg2MDAzNTczfDA",
   },
   "event-hero": {
     kind: "unsplash",
@@ -146,6 +259,41 @@ export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
     authorUrl: "https://unsplash.com/@hujason?utm_source=avably&utm_medium=referral",
     downloadLocation: "https://api.unsplash.com/photos/9SpwaoeIe1U/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8b3V0ZG9vciUyMGNlcmVtb255JTIwY2hhaXJzfGVufDF8MHx8fDE3ODU3ODI5MTB8MA",
   },
+  "event-gallery-4": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1622081627652-bc2fcb2e67df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8d2VkZGluZyUyMHJlY2VwdGlvbiUyMGZhaXJ5JTIwbGlnaHRzJTIwdGVudCUyMGV2ZW5pbmd8ZW58MXwwfHx8MTc4NjAwMzcwM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Shannon Elizabeth",
+    authorUrl: "https://unsplash.com/@shanliz?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/XXIiDzhcFfw/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8d2VkZGluZyUyMHJlY2VwdGlvbiUyMGZhaXJ5JTIwbGlnaHRzJTIwdGVudCUyMGV2ZW5pbmd8ZW58MXwwfHx8MTc4NjAwMzcwM3ww",
+  },
+  "event-gallery-5": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1576842546422-60562b9242ae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Y2F0ZXJpbmclMjBidWZmZXQlMjB0YWJsZSUyMGV2ZW50fGVufDF8MHx8fDE3ODYwMDM1NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Yukiko Kanada",
+    authorUrl: "https://unsplash.com/@okikuy0930?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/Ou4CQo6jzvU/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Y2F0ZXJpbmclMjBidWZmZXQlMjB0YWJsZSUyMGV2ZW50fGVufDF8MHx8fDE3ODYwMDM1NzR8MA",
+  },
+  "event-gallery-6": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1727096857692-e9dadf2bc92e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8c3RhZ2UlMjBsaWdodGluZyUyMHRydXNzJTIwZXZlbnR8ZW58MXwwfHx8MTc4NjAwMzU3NXww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Ambitious Studio* | Rick Barrett",
+    authorUrl: "https://unsplash.com/@weareambitious?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/Ugzhg8-tO3U/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8MXx8c3RhZ2UlMjBsaWdodGluZyUyMHRydXNzJTIwZXZlbnR8ZW58MXwwfHx8MTc4NjAwMzU3NXww",
+  },
+  "event-gallery-7": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1677129661406-114c058df06c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cm91bmQlMjB0YWJsZXMlMjB3aGl0ZSUyMGxpbmVuJTIwcmVjZXB0aW9ufGVufDF8MHx8fDE3ODYwMDM1NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Quang Nguyen Vinh",
+    authorUrl: "https://unsplash.com/@quangpraha?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/lQXe3oNZ8YY/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8cm91bmQlMjB0YWJsZXMlMjB3aGl0ZSUyMGxpbmVuJTIwcmVjZXB0aW9ufGVufDF8MHx8fDE3ODYwMDM1NzZ8MA",
+  },
+  "event-gallery-8": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1772127822525-7eda37383b9f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Nnx8Z2FyZGVuJTIwcGFydHklMjB0ZW50JTIwb3V0ZG9vcnxlbnwxfDB8fHwxNzg2MDAzNTc2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Vidit Goswami",
+    authorUrl: "https://unsplash.com/@viditgoswami?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/Zi_NOBHIk9A/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Nnx8Z2FyZGVuJTIwcGFydHklMjB0ZW50JTIwb3V0ZG9vcnxlbnwxfDB8fHwxNzg2MDAzNTc2fDA",
+  },
   "photo-hero": {
     kind: "unsplash",
     url: "https://images.unsplash.com/photo-1727451139462-cd34008cd50b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NHx8Y2luZW1hJTIwY2FtZXJhJTIwc3R1ZGlvJTIwbGlnaHRpbmclMjBkYXJrfGVufDF8MHx8fDE3ODU3ODI5MTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
@@ -159,6 +307,41 @@ export const STARTER_PHOTOS: Partial<Record<StarterPhotoSlot, ImageSource>> = {
     authorName: "Aditya Wardhana",
     authorUrl: "https://unsplash.com/@wardhanaaditya?utm_source=avably&utm_medium=referral",
     downloadLocation: "https://api.unsplash.com/photos/ckF9dDIWS70/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8OHx8cGhvdG9ncmFwaHklMjBzdHVkaW8lMjBsaWdodGluZyUyMGVxdWlwbWVudHxlbnwxfDB8fHwxNzg1NzgyOTEyfDA",
+  },
+  "photo-gallery-1": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1574304904744-2e6919c5a2a9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Nnx8Y2luZW1hJTIwY2FtZXJhJTIwcmlnJTIwc2hvdWxkZXJ8ZW58MXwwfHx8MTc4NjAwMzU3N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Jakob Owens",
+    authorUrl: "https://unsplash.com/@jakobowens1?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/w3FkreIe4ho/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Nnx8Y2luZW1hJTIwY2FtZXJhJTIwcmlnJTIwc2hvdWxkZXJ8ZW58MXwwfHx8MTc4NjAwMzU3N3ww",
+  },
+  "photo-gallery-2": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1526063803516-3fd204f18b75?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8M3x8Y2FtZXJhJTIwbGVuc2VzJTIwY29sbGVjdGlvbiUyMGRhcmt8ZW58MXwwfHx8MTc4NjAwMzU3OHww&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "lucas Favre",
+    authorUrl: "https://unsplash.com/@we_are_rising?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/zae9zxwLbrA/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8M3x8Y2FtZXJhJTIwbGVuc2VzJTIwY29sbGVjdGlvbiUyMGRhcmt8ZW58MXwwfHx8MTc4NjAwMzU3OHww",
+  },
+  "photo-gallery-3": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1637250096679-c10f2751def8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8ZmlsbSUyMHNldCUyMGxpZ2h0aW5nJTIwc3RhbmRzfGVufDF8MHx8fDE3ODYwMDM1Nzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Jakob Owens",
+    authorUrl: "https://unsplash.com/@jakobowens1?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/ZSSuEANDxM0/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8NXx8ZmlsbSUyMHNldCUyMGxpZ2h0aW5nJTIwc3RhbmRzfGVufDF8MHx8fDE3ODYwMDM1Nzl8MA",
+  },
+  "photo-gallery-4": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1623157072268-829727d352bd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Z2ltYmFsJTIwc3RhYmlsaXplciUyMGNhbWVyYSUyMG9wZXJhdG9yfGVufDF8MHx8fDE3ODYwMDM1Nzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "Rafa Sanfilippo",
+    authorUrl: "https://unsplash.com/@rafasanfilippo?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/Kq8qKbXAKFY/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8Z2ltYmFsJTIwc3RhYmlsaXplciUyMGNhbWVyYSUyMG9wZXJhdG9yfGVufDF8MHx8fDE3ODYwMDM1Nzl8MA",
+  },
+  "photo-gallery-5": {
+    kind: "unsplash",
+    url: "https://images.unsplash.com/photo-1648740678671-c37d78567ea8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8cGhvdG8lMjBzdHVkaW8lMjBiYWNrZHJvcCUyMHNlYW1sZXNzfGVufDF8MHx8fDE3ODYwMDM1ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    authorName: "KOBU Agency",
+    authorUrl: "https://unsplash.com/@kobuagency?utm_source=avably&utm_medium=referral",
+    downloadLocation: "https://api.unsplash.com/photos/O8AtzoQcnY4/download?ixid=M3wxMDE1NzU1fDB8MXxzZWFyY2h8Mnx8cGhvdG8lMjBzdHVkaW8lMjBiYWNrZHJvcCUyMHNlYW1sZXNzfGVufDF8MHx8fDE3ODYwMDM1ODB8MA",
   },
   "lean-hero": {
     kind: "unsplash",

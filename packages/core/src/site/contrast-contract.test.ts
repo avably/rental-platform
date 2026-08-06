@@ -569,7 +569,8 @@ describe("kompletność rejestru motywów", () => {
     // wtedy nie pada, tylko cicho nie rusza.
     for (const id of SITE_MOTIONS) {
       const preset = motionPreset(id);
-      for (const field of ["duration", "easing", "distance", "scale", "opacity", "range"] as const) {
+      // Bez „duration": pole zdjęte w E9 jako martwe przy osi widoku (./motion).
+      for (const field of ["easing", "distance", "scale", "opacity", "range"] as const) {
         expect(preset[field]?.length, `preset ruchu "${id}" bez pola ${field}`).toBeGreaterThan(0);
       }
       expect(preset.mood.pl.length, `preset ruchu "${id}" bez opisu PL`).toBeGreaterThan(10);

@@ -1,6 +1,6 @@
 /**
- * SZABLONY STARTOWE (K5, ADR-090) — sześć gotowych STRON, od których tenant
- * zaczyna pracę w kreatorze, zamiast od pustego płótna.
+ * SZABLONY STARTOWE (K5, ADR-090; treść 2.0 w E9) — sześć gotowych STRON, od
+ * których tenant zaczyna pracę w kreatorze, zamiast od pustego płótna.
  *
  * Presety sekcji (ADR-082) rozwiązały problem „pustej sekcji": nowa sekcja
  * rodzi się z treścią. Nie rozwiązały problemu PUSTEJ STRONY — operator
@@ -9,11 +9,35 @@
  * startowy odpowiada na to jednym kliknięciem: dostaje SKŁAD strony, a nie
  * kolejny pusty ekran z przyciskiem „dodaj sekcję".
  *
- * ============ DLACZEGO LISTA TREŚCI v1, A NIE GOTOWA GEOMETRIA ============
+ * ================ DWIE GENERACJE TREŚCI W JEDNYM SZABLONIE (E9) ================
  *
- * Szablon deklaruje UPORZĄDKOWANĄ LISTĘ SEKCJI w kształcie v1 (typ + treść +
- * pasmo tła), a płótno v2 rodzi się z niej przez {@link sectionCanvasFrom} —
- * tę samą, obłożoną kontraktem konwersję, z której korzysta galeria sekcji
+ * Do E8 szablon deklarował WSZYSTKO w kształcie v1, a konwersja robiła z tego
+ * płótno v2. Po domknięciu rejestru typów strukturalnych (E1–E7, ADR-094) taka
+ * strona startowa była już GORSZA od strony składanej ręcznie: FAQ ze szablonu
+ * nie miał accordionu, cennik nie znał pojęcia ceny, kontakt nie miał
+ * formularza, a galeria — zdjęć. Operator dostawał więc od nas płaską atrapę
+ * tego, co sam mógł dodać jednym kliknięciem w pełnej wersji.
+ *
+ * Odtąd szablon deklaruje treść w GENERACJI WŁAŚCIWEJ DLA TYPU:
+ *
+ *   • typ z rejestru strukturalnego (`isStructuredType`) → treść v3, czyli
+ *     dokładnie ta, którą zapisałby edytor sekcji — z układem, listą wpisów
+ *     i przełącznikami;
+ *   • typ bez silnika strukturalnego (`hero`, `freeform`, `footer`) → treść v1
+ *     przepuszczona przez {@link sectionCanvasWith}, tak jak dotąd. To są
+ *     jedyne trzy typy, dla których wolna kompozycja płótna JEST właściwym
+ *     kształtem: pierwszy ekran na pełnym kadrze, dowolny blok i stopka nie
+ *     mają „wpisów listy", które dałoby się z nich wydobyć.
+ *
+ * Pasmo tła zostaje przy DEKLARACJI w obu generacjach (patrz niżej), a treść
+ * v3 dostaje je przy emisji — dzięki temu rytm pasm całej strony czyta się
+ * z jednego miejsca, a nie z trzynastu obiektów treści.
+ *
+ * ============ DLACZEGO TYPY BEZ SILNIKA TO NADAL LISTA TREŚCI v1 ============
+ *
+ * Szablon deklaruje dla nich UPORZĄDKOWANĄ LISTĘ SEKCJI w kształcie v1 (typ +
+ * treść + pasmo tła), a płótno v2 rodzi się z niej przez {@link sectionCanvasWith}
+ * — tę samą, obłożoną kontraktem konwersję, z której korzysta galeria sekcji
  * (K2, ADR-084). Wpisanie współrzędnych ręcznie byłoby szybsze do napisania
  * i kosztowałoby trzy rzeczy naraz:
  *
@@ -38,6 +62,16 @@
  * okazji wystawia to akcent strony na więcej niż jednym paśmie — czego kontrast
  * palety (K5, ADR-090) wymaga od strony, a nie od pojedynczej sekcji.
  *
+ * ================ KADR GALERII WSKAZUJE SLOT, A NIE ADRES ================
+ *
+ * Wpis galerii w deklaracji niesie SLOT z rejestru kuracji (./starter-photos),
+ * a nie gotowy `ImageSource`. Powód jest ten sam, dla którego rejestr kadrów
+ * stoi w osobnym pliku: adres, nazwisko autora i wyzwalacz pobrania przychodzą
+ * Z API dostawcy i nie wolno ich przepisywać z ręki. Gdyby treść szablonu
+ * niosła je wprost, wymiana kadru przy najbliższej kuracji wymagałaby edycji
+ * DWÓCH wersji językowych tego samego akapitu, a atrybucja miałaby dwie kopie
+ * — czyli dwie okazje do rozjazdu z licencją.
+ *
  * ====================== DWA JĘZYKI, PARYTET W CI ======================
  *
  * Jak przy presetach (ADR-082): treść jest DANYMI tenanta, więc pisana ręcznie
@@ -51,6 +85,14 @@ import { sectionCanvasWith, type SectionComposition, type SectionMedia } from ".
 import type { SectionBackground, SectionCanvas } from "./elements";
 import { starterPhoto, type StarterPhotoSlot } from "./starter-photos";
 import { headingMetricRatio } from "./fonts";
+import {
+  isStructuredType,
+  STRUCTURED_SECTION_VERSION,
+  type GalleryStructuredContent,
+  type StructuredContentOf,
+  type StructuredSectionContent,
+  type StructuredSectionType,
+} from "./structured";
 import { themeTokens, type SiteThemeId } from "./theme";
 /*
  * IMPORT TYLKO TYPÓW, i to jest tu warunek działania, a nie kosmetyka:
@@ -58,6 +100,8 @@ import { themeTokens, type SiteThemeId } from "./theme";
  * `index → starter-templates → index`. Re-eksporty są hoistowane, więc ten plik
  * ewaluowałby się PRZED ciałem `index.ts` i zobaczyłby `SECTION_CONTENT_SCHEMAS`
  * w martwej strefie. `import type` znika przy kompilacji — cyklu nie ma.
+ * (`./structured` wyżej wolno importować WARTOŚCIOWO: ten moduł nie sięga
+ * z powrotem do `./index`, więc cyklu nie ma czym zamknąć.)
  */
 import type { SECTION_CONTENT_SCHEMAS, SectionType } from "./index";
 import { PRESET_LOCALES, type PresetLocale } from "./presets";
@@ -85,27 +129,90 @@ export type StarterTemplate = (typeof STARTER_TEMPLATES)[number];
  * po zastosowaniu szablonu nadal wygląda na niedokończoną; górna — przed
  * stroną, którą pierwszy raz w życiu widziany kreator każe najpierw PRZYCIĄĆ.
  * Obie są pilnowane kontraktem porównującym szablony ze sobą.
+ *
+ * Granice zostają NIETKNIĘTE w E9, mimo że sekcje strukturalne są dłuższe od
+ * płaskich odpowiedników z v1: strona urosła w treść, więc podnoszenie sufitu
+ * liczby sekcji szłoby w złą stronę.
  */
 export const STARTER_SECTION_BOUNDS = { min: 5, max: 7 } as const;
 
 /**
- * Jedna sekcja szablonu: typ, treść w kształcie v1 ZGODNA z tym typem i pasmo
- * tła. Kształt treści bierze się wprost ze schematów sekcji, więc treść
- * niepasująca do typu nie skompiluje się — bez tego rozjazd wyszedłby dopiero
- * na walidacji, w teście, daleko od miejsca, w którym powstał.
+ * KOMPLETNOŚĆ TREŚCI SEKCJI STRUKTURALNEJ — próg, poniżej którego szablon
+ * przestaje być „gotową stroną" (E9).
+ *
+ * Schemat typu wymaga JEDNEGO wpisu, bo jeden wpis to najmniejsza sensowna
+ * sekcja, którą operator może sobie sam zbudować. Szablon startowy ma inny
+ * cel: pokazać, jak sekcja wygląda PEŁNA. FAQ z jednym pytaniem i galeria
+ * z jednym kadrem spełniają schemat i nie spełniają obietnicy — więc próg
+ * stoi tutaj, obok treści, a kontrakt liczy go po CAŁYM zbiorze szablonów.
  */
-export type StarterSection = {
-  [T in SectionType]: {
-    type: T;
-    content: z.infer<(typeof SECTION_CONTENT_SCHEMAS)[T]>;
-    background: SectionBackground;
-  };
-}[SectionType];
+export const STARTER_CONTENT_MINIMUMS = {
+  faq: 4,
+  gallery: 6,
+  pricing: 4,
+  usp: 3,
+  delivery: 3,
+  testimonials: 3,
+  contact: 3,
+  directions: 2,
+  cta: 1,
+  products: 0,
+} as const satisfies Record<StructuredSectionType, number>;
 
-/** Sekcja szablonu po konwersji — treść jest już płótnem v2. */
-export interface StarterSectionCanvas {
+/**
+ * Wpis galerii W DEKLARACJI szablonu: kadr wskazany SLOTEM z rejestru kuracji,
+ * plus opis alternatywny i podpis w języku tej wersji szablonu.
+ */
+export interface StarterGalleryItem {
+  slot: StarterPhotoSlot;
+  /** Opis alternatywny — NIGDY pusty w szablonie (kontrakt niżej go liczy). */
+  alt: string;
+  caption?: string;
+}
+
+/**
+ * Treść sekcji strukturalnej W DEKLARACJI: bez `v`, `type` i `background`
+ * (te dokłada emisja — pierwsze dwa są znane z kształtu, trzecie z rytmu pasm),
+ * a dla galerii z listą slotów zamiast gotowych adresów kadrów.
+ */
+type StarterStructuredContent<T extends StructuredSectionType> = T extends "gallery"
+  ? Omit<GalleryStructuredContent, "v" | "type" | "background" | "items"> & {
+      items: StarterGalleryItem[];
+    }
+  : Omit<StructuredContentOf<T>, "v" | "type" | "background">;
+
+/** Typy sekcji BEZ silnika strukturalnego — jedyne, które szablon deklaruje w v1. */
+type LegacySectionType = Exclude<SectionType, StructuredSectionType>;
+
+/**
+ * Jedna sekcja szablonu: typ, treść ZGODNA z generacją tego typu i pasmo tła.
+ * Kształt treści bierze się wprost ze schematów — treść niepasująca do typu nie
+ * skompiluje się. Bez tego rozjazd wyszedłby dopiero na walidacji, w teście,
+ * daleko od miejsca, w którym powstał.
+ */
+export type StarterSection =
+  | {
+      [T in LegacySectionType]: {
+        type: T;
+        content: z.infer<(typeof SECTION_CONTENT_SCHEMAS)[T]>;
+        background: SectionBackground;
+      };
+    }[LegacySectionType]
+  | {
+      [T in StructuredSectionType]: {
+        type: T;
+        content: StarterStructuredContent<T>;
+        background: SectionBackground;
+      };
+    }[StructuredSectionType];
+
+/**
+ * Sekcja szablonu po emisji — treść jest już tym, co kreator zapisze do
+ * `content_draft`: płótnem v2 albo sekcją strukturalną v3.
+ */
+export interface StarterSectionContent {
   type: SectionType;
-  content: SectionCanvas;
+  content: SectionCanvas | StructuredSectionContent;
 }
 
 type StarterTable = Record<StarterTemplate, Record<PresetLocale, StarterSection[]>>;
@@ -113,7 +220,7 @@ type StarterTable = Record<StarterTemplate, Record<PresetLocale, StarterSection[
 /**
  * Adres map w sekcji „dojazd" i przy kontakcie. Wskazuje wyszukiwarkę, a nie
  * konkretny punkt: adresy w szablonie są PRZYKŁADOWE i operator podmienia je
- * na własne, więc utrwalony pineski prowadziłby donikąd.
+ * na własne, więc utrwalony pinesek prowadziłby donikąd.
  */
 const MAPS_URL = "https://maps.google.com";
 
@@ -126,7 +233,7 @@ const MAPS_URL = "https://maps.google.com";
 // szablony mają być RÓŻNYMI ŚWIATAMI. Świat składa się z trzech rzeczy i
 // wszystkie trzy stoją tutaj jako DANE:
 //
-//   • MOTYW — paleta, kroje, promienie, styl przycisku (rejestr w ./theme);
+//   • MOTYW — paleta, kroje, promienie, styl przycisku, RUCH (rejestr ./theme);
 //   • ARCHETYP KADRU per sekcja — czy hero stoi na pełnokadrowym zdjęciu,
 //     czy obok niego (słownik w ./canvas-presets);
 //   • SLOTY ZDJĘĆ — które kadry wchodzą i gdzie (rejestr w ./starter-photos).
@@ -141,19 +248,27 @@ const MAPS_URL = "https://maps.google.com";
 // szablonie bywa zmieniana przy poprawkach treści, a typ jest tym, co naprawdę
 // identyfikuje miejsce kadru. Kontrakt pilnuje, żeby typ z tej tabeli istniał
 // w szablonie — wpis wskazujący na nieistniejącą sekcję jest czerwony.
+//
+// UWAGA E9: `compositions`/`media` obsługują WYŁĄCZNIE typy bez silnika
+// strukturalnego, bo tylko one jadą przez konwersję do płótna. Kadr sekcji,
+// która stała się strukturalna (dawne pasy przy dostawie, atutach czy
+// dojeździe), nie zniknął z szablonu — przeniósł się do GALERII, czyli do
+// jedynego typu strukturalnego, którego treścią SĄ zdjęcia.
 
 interface StarterLayout {
   theme: SiteThemeId;
   /** Archetyp kadru per typ sekcji; brak wpisu = `stack` (sam tekst). */
-  compositions?: Partial<Record<SectionType, SectionComposition>>;
+  compositions?: Partial<Record<LegacySectionType, SectionComposition>>;
   /** Kadry per typ sekcji — slot z rejestru zdjęć + opis alternatywny w obu językach. */
-  media?: Partial<Record<SectionType, { slot: StarterPhotoSlot; alt: { pl: string; en: string } }[]>>;
+  media?: Partial<
+    Record<LegacySectionType, { slot: StarterPhotoSlot; alt: { pl: string; en: string } }[]>
+  >;
 }
 
 export const STARTER_LAYOUTS: Record<StarterTemplate, StarterLayout> = {
   "construction-tools": {
     theme: "industrial-noir",
-    compositions: { hero: "overlay", delivery: "band" },
+    compositions: { hero: "overlay" },
     media: {
       hero: [
         {
@@ -161,29 +276,20 @@ export const STARTER_LAYOUTS: Record<StarterTemplate, StarterLayout> = {
           alt: { pl: "Sprzęt budowlany na placu o zmierzchu", en: "Construction machinery on site at dusk" },
         },
       ],
-      delivery: [
-        {
-          slot: "construction-delivery",
-          alt: { pl: "Załadunek sprzętu na lawetę", en: "Equipment loaded onto a flatbed truck" },
-        },
-      ],
     },
   },
   "bike-sport": {
     theme: "velocity",
-    compositions: { hero: "split", directions: "band" },
+    compositions: { hero: "split" },
     media: {
       hero: [
         { slot: "bike-hero", alt: { pl: "Rowerzysta na trasie", en: "Rider on the trail" } },
-      ],
-      directions: [
-        { slot: "bike-location", alt: { pl: "Wnętrze serwisu rowerowego", en: "Inside the bike workshop" } },
       ],
     },
   },
   "event-party": {
     theme: "confetti",
-    compositions: { hero: "overlay", gallery: "band" },
+    compositions: { hero: "overlay" },
     media: {
       hero: [
         {
@@ -191,45 +297,37 @@ export const STARTER_LAYOUTS: Record<StarterTemplate, StarterLayout> = {
           alt: { pl: "Namiot weselny w wieczornym świetle", en: "Wedding marquee in evening light" },
         },
       ],
-      gallery: [
-        { slot: "event-gallery-1", alt: { pl: "Nakryty stół bankietowy", en: "Set banquet table" } },
-        { slot: "event-gallery-2", alt: { pl: "Parkiet pod namiotem", en: "Dance floor under the marquee" } },
-        { slot: "event-gallery-3", alt: { pl: "Rzędy krzeseł na ceremonię", en: "Rows of ceremony chairs" } },
-      ],
     },
   },
   "photo-video": {
     theme: "noir-lux",
-    compositions: { hero: "overlay", usp: "band" },
+    compositions: { hero: "overlay" },
     media: {
       hero: [
         { slot: "photo-hero", alt: { pl: "Kamera i światło w studiu", en: "Camera and lighting on set" } },
-      ],
-      usp: [
-        { slot: "photo-studio", alt: { pl: "Sprzęt oświetleniowy w studiu", en: "Lighting gear in the studio" } },
       ],
     },
   },
   "one-page-lean": {
     theme: "atelier",
-    compositions: { hero: "split", contact: "band" },
+    compositions: { hero: "split", freeform: "band" },
     media: {
       hero: [
         { slot: "lean-hero", alt: { pl: "Narzędzia w dziennym świetle", en: "Tools in daylight" } },
       ],
-      contact: [
+      freeform: [
         { slot: "lean-workshop", alt: { pl: "Warsztat od strony stołu", en: "The workbench side of the shop" } },
       ],
     },
   },
   "catalog-first": {
     theme: "gridline",
-    compositions: { hero: "band", delivery: "band" },
+    compositions: { hero: "band", freeform: "band" },
     media: {
       hero: [
         { slot: "catalog-hero", alt: { pl: "Uporządkowany magazyn sprzętu", en: "Neatly organised equipment store" } },
       ],
-      delivery: [
+      freeform: [
         { slot: "catalog-delivery", alt: { pl: "Załadunek dostawczaka", en: "Loading the delivery van" } },
       ],
     },
@@ -241,11 +339,25 @@ export function starterTemplateTheme(id: StarterTemplate): SiteThemeId {
   return STARTER_LAYOUTS[id].theme;
 }
 
-/** Sloty zdjęć użyte przez szablon — wejście wyzwalacza pobrania przy zastosowaniu. */
+/**
+ * Sloty zdjęć użyte przez szablon — wejście wyzwalacza pobrania przy zastosowaniu.
+ *
+ * Liczy DWA źródła, bo od E9 kadry stoją w dwóch miejscach: pasy i pierwsze
+ * ekrany w tabeli układu, a kadry galerii w treści. Pominięcie drugiego źródła
+ * nie zepsułoby ani jednego piksela strony — złamałoby warunek licencji dla
+ * większości kadrów, czyli wadę, której nie widać na zrzucie ekranu.
+ *
+ * Sloty galerii bierzemy z wersji „pl": parytet PL↔EN jest kontraktem, więc
+ * druga wersja językowa wskazuje te same kadry (osobny test tego pilnuje).
+ */
 export function starterTemplatePhotoSlots(id: StarterTemplate): StarterPhotoSlot[] {
-  return Object.values(STARTER_LAYOUTS[id].media ?? {})
+  const zUkładu = Object.values(STARTER_LAYOUTS[id].media ?? {})
     .flat()
     .map((entry) => entry.slot);
+  const zGalerii = STARTER_SECTIONS[id].pl.flatMap((section) =>
+    section.type === "gallery" ? section.content.items.map((item) => item.slot) : [],
+  );
+  return [...new Set([...zUkładu, ...zGalerii])];
 }
 
 const STARTER_SECTIONS: StarterTable = {
@@ -269,6 +381,7 @@ const STARTER_SECTIONS: StarterTable = {
         type: "usp",
         background: "muted",
         content: {
+          layout: "cards",
           heading: "Dlaczego wykonawcy do nas wracają",
           items: [
             {
@@ -297,42 +410,126 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { heading: "Sprzęt do wynajęcia" },
+        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "gallery",
+        background: "muted",
+        content: {
+          layout: "masonry",
+          heading: "Nasz sprzęt na budowach",
+          columns: 3,
+          gap: "regular",
+          lightbox: true,
+          items: [
+            {
+              slot: "construction-gallery-1",
+              alt: "Rusztowanie postawione na całej wysokości betonowego budynku",
+              caption: "Rusztowanie elewacyjne — komplet z pomostami i barierkami",
+            },
+            {
+              slot: "construction-gallery-4",
+              alt: "Robotnicy wylewają beton wężem pompy przy ścianie budynku",
+              caption: "Pompa do betonu z obsługą operatora",
+            },
+            {
+              slot: "construction-gallery-2",
+              alt: "Żółty walec drogowy zagęszcza świeżo wylany asfalt",
+              caption: "Walec i zagęszczarki na drogi dojazdowe",
+            },
+            {
+              slot: "construction-gallery-5",
+              alt: "Czerwony podnośnik koszowy z platformą roboczą",
+              caption: "Podnośnik koszowy — prace na wysokości do 12 m",
+            },
+            {
+              slot: "construction-gallery-3",
+              alt: "Agregat prądotwórczy na kółkach stojący na placu",
+              caption: "Agregaty prądotwórcze na budowy bez zasilania",
+            },
+            {
+              slot: "construction-delivery",
+              alt: "Załadunek sprzętu na lawetę",
+              caption: "Transport pod adres inwestycji",
+            },
+          ],
+        },
       },
       {
         type: "delivery",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "cards",
           heading: "Transport i odbiór",
-          text: "Dowozimy sprzęt na plac budowy w umówionym oknie czasowym i odbieramy go po zakończeniu najmu — Twoi ludzie nie tracą dnia na dojazdy do wypożyczalni.",
+          intro:
+            "Dowozimy sprzęt na plac budowy w umówionym oknie czasowym i odbieramy go po zakończeniu najmu — Twoi ludzie nie tracą dnia na dojazdy do wypożyczalni.",
           items: [
-            {
-              title: "Dostawa do 30 km",
-              text: "Realizacja w kolejnym dniu roboczym po potwierdzeniu rezerwacji.",
-            },
             {
               title: "Odbiór własny z magazynu",
               text: "Bezpłatnie, w godzinach pracy magazynu, po wcześniejszym potwierdzeniu terminu.",
+              price_grosze: 0,
+            },
+            {
+              title: "Dostawa do 30 km",
+              text: "Realizacja w kolejnym dniu roboczym po potwierdzeniu rezerwacji.",
+              price_grosze: 15000,
+            },
+            {
+              title: "Dostawa powyżej 30 km",
+              text: "Wyceniamy trasę przy potwierdzeniu rezerwacji. Sprzęt wielkogabarytowy wozimy lawetą.",
+              price_grosze: 29000,
             },
           ],
         },
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
+          layout: "table",
           heading: "Stawki i kaucje",
-          note: "Rozliczamy dobę roboczą. Przy najmie od siedmiu dni stawka spada o 20%. Kaucję zwracamy po przeglądzie zwróconego sprzętu.",
+          showCatalogLink: true,
+          footnote:
+            "Rozliczamy dobę roboczą. Przy najmie od siedmiu dni stawka spada o 20%. Kaucję zwracamy po przeglądzie zwróconego sprzętu.",
+          items: [
+            { name: "Zagęszczarka płytowa 90 kg", price_grosze: 12000, unit: "day", mode: "exact" },
+            { name: "Młot wyburzeniowy 30 kg", price_grosze: 9000, unit: "day", mode: "exact" },
+            {
+              name: "Rusztowanie elewacyjne",
+              price_grosze: 1800,
+              unit: "day",
+              mode: "from",
+              note: "Cena za metr kwadratowy postawionego rusztowania",
+            },
+            {
+              name: "Agregat prądotwórczy 6 kW",
+              price_grosze: 14000,
+              unit: "day",
+              mode: "exact",
+              note: "Paliwo po stronie najemcy",
+            },
+            {
+              name: "Podnośnik koszowy 12 m",
+              price_grosze: 45000,
+              unit: "day",
+              mode: "from",
+              note: "Z dowozem i instruktażem na miejscu",
+            },
+          ],
         },
       },
       {
         type: "cta",
         background: "inverted",
         content: {
+          layout: "banner",
+          variant: "accent",
           heading: "Potrzebujesz sprzętu na jutro rano?",
           text: "Sprawdź dostępność w kalendarzu i zarezerwuj online — potwierdzenie przyjdzie od razu na maila.",
-          buttonLabel: "Zarezerwuj sprzęt",
-          buttonHref: "#produkty",
+          items: [
+            { label: "Zarezerwuj sprzęt", href: "#produkty" },
+            { label: "Zobacz cały katalog", href: "/store" },
+          ],
         },
       },
       {
@@ -369,6 +566,7 @@ const STARTER_SECTIONS: StarterTable = {
         type: "usp",
         background: "muted",
         content: {
+          layout: "cards",
           heading: "Why contractors keep coming back",
           items: [
             {
@@ -397,42 +595,126 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { heading: "Equipment for hire" },
+        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "gallery",
+        background: "muted",
+        content: {
+          layout: "masonry",
+          heading: "Our gear on site",
+          columns: 3,
+          gap: "regular",
+          lightbox: true,
+          items: [
+            {
+              slot: "construction-gallery-1",
+              alt: "Scaffolding erected across the full height of a concrete building",
+              caption: "Facade scaffolding — decks and guardrails included",
+            },
+            {
+              slot: "construction-gallery-4",
+              alt: "Workers placing concrete through a pump hose next to a wall",
+              caption: "Concrete pump with an operator",
+            },
+            {
+              slot: "construction-gallery-2",
+              alt: "A yellow road roller compacting freshly laid asphalt",
+              caption: "Rollers and compactors for access roads",
+            },
+            {
+              slot: "construction-gallery-5",
+              alt: "A red boom lift with a work platform basket",
+              caption: "Boom lift — work at heights up to 12 m",
+            },
+            {
+              slot: "construction-gallery-3",
+              alt: "A wheeled portable generator standing on a site",
+              caption: "Generators for sites without mains power",
+            },
+            {
+              slot: "construction-delivery",
+              alt: "Equipment loaded onto a flatbed truck",
+              caption: "Transport to the address of your project",
+            },
+          ],
+        },
       },
       {
         type: "delivery",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "cards",
           heading: "Delivery and collection",
-          text: "We deliver to the site within an agreed time window and collect once the rental ends — your crew does not lose a day driving to the depot.",
+          intro:
+            "We deliver to the site within an agreed time window and collect once the rental ends — your crew does not lose a day driving to the depot.",
           items: [
-            {
-              title: "Delivery up to 30 km",
-              text: "Next working day after the booking has been confirmed.",
-            },
             {
               title: "Self pickup from the depot",
               text: "Free of charge during depot hours, once the slot has been confirmed.",
+              price_grosze: 0,
+            },
+            {
+              title: "Delivery up to 30 km",
+              text: "Next working day after the booking has been confirmed.",
+              price_grosze: 15000,
+            },
+            {
+              title: "Delivery beyond 30 km",
+              text: "We price the route when confirming the booking. Oversized machines travel on a flatbed.",
+              price_grosze: 29000,
             },
           ],
         },
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
+          layout: "table",
           heading: "Rates and deposits",
-          note: "We charge per working day. From seven days the rate drops by 20%. The deposit is refunded after we inspect the returned gear.",
+          showCatalogLink: true,
+          footnote:
+            "We charge per working day. From seven days the rate drops by 20%. The deposit is refunded after we inspect the returned gear.",
+          items: [
+            { name: "Plate compactor 90 kg", price_grosze: 12000, unit: "day", mode: "exact" },
+            { name: "Demolition breaker 30 kg", price_grosze: 9000, unit: "day", mode: "exact" },
+            {
+              name: "Facade scaffolding",
+              price_grosze: 1800,
+              unit: "day",
+              mode: "from",
+              note: "Price per square metre of erected scaffolding",
+            },
+            {
+              name: "Generator 6 kW",
+              price_grosze: 14000,
+              unit: "day",
+              mode: "exact",
+              note: "Fuel is on the hirer",
+            },
+            {
+              name: "Boom lift 12 m",
+              price_grosze: 45000,
+              unit: "day",
+              mode: "from",
+              note: "Delivered, with an on-site briefing",
+            },
+          ],
         },
       },
       {
         type: "cta",
         background: "inverted",
         content: {
+          layout: "banner",
+          variant: "accent",
           heading: "Need the gear on site tomorrow morning?",
           text: "Check the calendar and book online — the confirmation lands in your inbox straight away.",
-          buttonLabel: "Book equipment",
-          buttonHref: "#produkty",
+          items: [
+            { label: "Book equipment", href: "#produkty" },
+            { label: "Browse the full catalog", href: "/store" },
+          ],
         },
       },
       {
@@ -474,90 +756,179 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { heading: "Nasza flota" },
+        content: { layout: "grid", heading: "Nasza flota", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "gallery",
+        background: "muted",
+        content: {
+          layout: "grid",
+          heading: "Sprzęt i warsztat",
+          columns: 3,
+          gap: "regular",
+          lightbox: true,
+          items: [
+            {
+              slot: "bike-gallery-1",
+              alt: "Rząd rowerów miejskich zaparkowanych obok siebie",
+              caption: "Flota miejska — rowery gotowe do wydania",
+            },
+            {
+              slot: "bike-gallery-4",
+              alt: "Rowerzystka jedzie rowerem elektrycznym ulicą miasta",
+              caption: "Rowery elektryczne z pełnym akumulatorem",
+            },
+            {
+              slot: "bike-gallery-3",
+              alt: "Dziecko jedzie rowerem leśną ścieżką",
+              caption: "Rowery dziecięce i przyczepki",
+            },
+            {
+              slot: "bike-gallery-2",
+              alt: "Kask rowerowy leżący na drewnianej ławce",
+              caption: "Kask i zapięcie w cenie najmu",
+            },
+            {
+              slot: "bike-gallery-5",
+              alt: "Mechanik centruje koło rowerowe kluczem w warsztacie",
+              caption: "Przegląd przed każdym wydaniem",
+            },
+            {
+              slot: "bike-location",
+              alt: "Wnętrze serwisu rowerowego",
+              caption: "Serwis i wydawanie sprzętu na miejscu",
+            },
+          ],
+        },
       },
       {
         type: "pricing",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "cards",
           heading: "Cennik najmu",
-          note: "Doba, weekend albo cały tydzień — im dłużej, tym taniej. Kask i zapięcie dokładamy bez dopłaty.",
+          showCatalogLink: true,
+          footnote: "Kask i zapięcie dokładamy bez dopłaty. Kaucja 300 zł, zwracana przy oddaniu sprzętu.",
+          items: [
+            { name: "Rower miejski", price_grosze: 5000, unit: "day", mode: "exact" },
+            {
+              name: "Rower górski",
+              price_grosze: 8000,
+              unit: "day",
+              mode: "exact",
+              note: "Amortyzowany, z zestawem naprawczym",
+            },
+            {
+              name: "Rower elektryczny",
+              price_grosze: 14000,
+              unit: "day",
+              mode: "exact",
+              note: "Zasięg do 80 km, ładowarka w komplecie",
+            },
+            {
+              name: "Pakiet weekendowy",
+              price_grosze: 12000,
+              unit: "piece",
+              mode: "from",
+              note: "Piątek po południu — poniedziałek rano",
+            },
+          ],
         },
       },
       {
         type: "faq",
-        background: "default",
+        background: "muted",
         content: {
+          layout: "accordion",
           heading: "Zanim wypożyczysz",
+          allowMultiple: false,
           items: [
             {
               q: "Czy pobieracie kaucję?",
-              a: "Tak. Kaucję pobieramy przy odbiorze i zwracamy w całości po sprawdzeniu sprzętu. Jej wysokość podajemy przy każdej pozycji w katalogu, żeby na miejscu nie było niespodzianek.",
+              a: "Tak, 300 zł od roweru. Zwracamy ją od razu przy oddaniu sprzętu, jeśli wraca w takim stanie, w jakim wyjechał.",
             },
             {
-              q: "Co zrobić, gdy sprzęt odmówi posłuszeństwa w trasie?",
-              a: "Zadzwoń do nas od razu. Drobne usterki podpowiemy, jak usunąć przez telefon, a przy poważniejszej awarii podmieniamy sprzęt na najbliższy dostępny. Zwykłe zużycie nigdy nie obciąża klienta.",
+              q: "Co jest w cenie najmu?",
+              a: "Kask, zapięcie i przegląd przed wydaniem. Do rowerów górskich dokładamy zestaw naprawczy z pompką.",
             },
             {
-              q: "Czy macie sprzęt dla dzieci?",
-              a: "Mamy rowery i kaski w rozmiarach dziecięcych, foteliki oraz przyczepki. Podaj wzrost dziecka w uwagach do rezerwacji, a właściwy rozmiar będzie czekał na godzinę odbioru.",
+              q: "Czy mogę zarezerwować konkretny rozmiar ramy?",
+              a: "Tak. Rozmiar wybierasz przy rezerwacji, a przy odbiorze ustawiamy siodełko i kierownicę pod Twój wzrost.",
+            },
+            {
+              q: "Co, jeśli złapię gumę na trasie?",
+              a: "Zadzwoń — podpowiemy najbliższy serwis albo podjedziemy z zapasowym rowerem. Czasu przestoju nie liczymy do najmu.",
+            },
+            {
+              q: "Czy można oddać sprzęt poza godzinami pracy?",
+              a: "Tak, po wcześniejszym ustaleniu. Zostawiasz rower w boksie przy wejściu i wrzucasz klucz do skrzynki.",
             },
           ],
         },
       },
       {
         type: "testimonials",
-        background: "muted",
+        background: "default",
         content: {
-          heading: "Opinie z zeszłego sezonu",
+          layout: "carousel",
+          heading: "Co mówią klienci",
           items: [
             {
-              quote: "Rowery przygotowane co do ciśnienia w oponach. Tydzień w górach bez jednej awarii.",
-              author: "Kamil Wrona",
-              role: "Klient weekendowy",
+              quote:
+                "Wypożyczyliśmy cztery rowery na długi weekend. Wszystkie po przeglądzie, kaski dopasowane na miejscu, zero czekania przy odbiorze.",
+              author: "Michał W.",
+              role: "Weekend nad jeziorem",
             },
             {
-              quote: "Zamiana na większy rozmiar zajęła pięć minut, bez dopłaty i bez dyskusji.",
-              author: "Ola Bąk",
-              role: "Wyjazd rodzinny",
+              quote:
+                "Rower elektryczny wystarczył na cały dzień zwiedzania i jeszcze została połowa akumulatora. Ładowarkę dostaliśmy bez pytania.",
+              author: "Ola i Piotr",
+              role: "Wycieczka po okolicy",
+            },
+            {
+              quote:
+                "Złapałem gumę 20 km od miasta. Jeden telefon i po pół godziny miałem podstawiony inny rower. Tego dnia nie policzyli.",
+              author: "Tomasz K.",
+              role: "Trasa szutrowa",
             },
           ],
         },
       },
       {
         type: "directions",
-        background: "default",
-        content: {
-          address: "ul. Sportowa 12, 30-001 Kraków",
-          mapsUrl: MAPS_URL,
-          hours: "Pon–Pt 8:00–19:00, Sob–Nd 8:00–16:00",
-        },
-      },
-      {
-        type: "cta",
         background: "inverted",
         content: {
-          heading: "Sprzęt czeka, sezon nie.",
-          text: "Zarezerwuj termin online i odbierz sprzęt gotowy do jazdy.",
-          buttonLabel: "Rezerwuję online",
-          buttonHref: "#produkty",
+          layout: "split",
+          heading: "Jak do nas trafić",
+          items: [
+            {
+              label: "Wypożyczalnia i serwis",
+              address: "ul. Sportowa 8, 80-001 Gdańsk",
+              hours: "Pon–Pt 9:00–19:00, Sob–Nd 8:00–16:00",
+            },
+            {
+              label: "Punkt sezonowy przy plaży",
+              address: "al. Nadmorska 2, 80-002 Gdańsk",
+              hours: "Czerwiec–wrzesień, codziennie 9:00–20:00",
+            },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Twoja Firma",
-          address: "ul. Sportowa 12, 30-001 Kraków",
+          businessName: "Twoja Wypożyczalnia",
+          address: "ul. Sportowa 8, 80-001 Gdańsk",
           phone: "+48 500 600 700",
-          email: "kontakt@twojafirma.pl",
-          hours: "Pon–Pt 8:00–19:00, Sob–Nd 8:00–16:00",
+          email: "kontakt@twojawypozyczalnia.pl",
+          hours: "Pon–Pt 9:00–19:00, Sob–Nd 8:00–16:00",
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
-            { label: "Kontakt", href: "#kontakt" },
+            { label: "Dojazd", href: MAPS_URL },
           ],
-          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+          legal: "© Twoja Wypożyczalnia. Wszelkie prawa zastrzeżone.",
         },
       },
     ],
@@ -568,107 +939,194 @@ const STARTER_SECTIONS: StarterTable = {
         content: {
           heading: "Bikes and sports gear for every weekend",
           subheading:
-            "Book online, pick it up ready to ride — helmet, lock and a full check included in the rate.",
-          ctaText: "Pick your gear",
+            "Book online, pick up ready to ride — helmet, lock and a safety check included in the rate.",
+          ctaText: "Choose your gear",
           ctaHref: "#produkty",
         },
       },
       {
         type: "products",
         background: "default",
-        content: { heading: "Our fleet" },
+        content: { layout: "grid", heading: "Our fleet", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "gallery",
+        background: "muted",
+        content: {
+          layout: "grid",
+          heading: "The fleet and the workshop",
+          columns: 3,
+          gap: "regular",
+          lightbox: true,
+          items: [
+            {
+              slot: "bike-gallery-1",
+              alt: "A row of city bikes parked next to each other",
+              caption: "City fleet — bikes ready to hand over",
+            },
+            {
+              slot: "bike-gallery-4",
+              alt: "A woman riding an electric bike along a city street",
+              caption: "Electric bikes with a full battery",
+            },
+            {
+              slot: "bike-gallery-3",
+              alt: "A child riding a bicycle along a woodland path",
+              caption: "Children's bikes and trailers",
+            },
+            {
+              slot: "bike-gallery-2",
+              alt: "A cycling helmet resting on a wooden bench",
+              caption: "Helmet and lock included in the rate",
+            },
+            {
+              slot: "bike-gallery-5",
+              alt: "A mechanic truing a bicycle wheel with a spoke wrench",
+              caption: "A safety check before every handover",
+            },
+            {
+              slot: "bike-location",
+              alt: "Inside the bike workshop",
+              caption: "Workshop and handover on site",
+            },
+          ],
+        },
       },
       {
         type: "pricing",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "cards",
           heading: "Rental rates",
-          note: "A day, a weekend or a full week — the longer you keep it, the less you pay. Helmet and lock come with it.",
+          showCatalogLink: true,
+          footnote: "Helmet and lock at no extra charge. Deposit PLN 300, refunded when you return the bike.",
+          items: [
+            { name: "City bike", price_grosze: 5000, unit: "day", mode: "exact" },
+            {
+              name: "Mountain bike",
+              price_grosze: 8000,
+              unit: "day",
+              mode: "exact",
+              note: "Full suspension, repair kit included",
+            },
+            {
+              name: "Electric bike",
+              price_grosze: 14000,
+              unit: "day",
+              mode: "exact",
+              note: "Range up to 80 km, charger included",
+            },
+            {
+              name: "Weekend package",
+              price_grosze: 12000,
+              unit: "piece",
+              mode: "from",
+              note: "Friday afternoon to Monday morning",
+            },
+          ],
         },
       },
       {
         type: "faq",
-        background: "default",
+        background: "muted",
         content: {
+          layout: "accordion",
           heading: "Before you book",
+          allowMultiple: false,
           items: [
             {
-              q: "Do you take a deposit?",
-              a: "Yes. We take the deposit at pickup and refund it in full once we have checked the gear. The amount is listed with every item in the catalog, so there are no surprises at the counter.",
+              q: "Do you charge a deposit?",
+              a: "Yes, PLN 300 per bike. We refund it the moment you return the bike in the condition it went out in.",
             },
             {
-              q: "What if something breaks mid-route?",
-              a: "Call us right away. We talk you through the small fixes over the phone, and for anything serious we swap the gear for the nearest available unit. Normal wear is never charged to the customer.",
+              q: "What is included in the rate?",
+              a: "A helmet, a lock and a safety check before handover. Mountain bikes also come with a repair kit and a pump.",
             },
             {
-              q: "Do you have gear for children?",
-              a: "We keep bikes and helmets in children's sizes, plus child seats and trailers. Add the child's height to the booking notes and the right size will be waiting at pickup.",
+              q: "Can I reserve a specific frame size?",
+              a: "Yes. You pick the size when booking, and we set the saddle and bars to your height at pickup.",
+            },
+            {
+              q: "What if I get a puncture on the trail?",
+              a: "Call us — we will point you to the nearest workshop or bring a replacement bike. Downtime is not charged.",
+            },
+            {
+              q: "Can I return the bike outside opening hours?",
+              a: "Yes, if arranged in advance. You leave the bike in the bay by the entrance and drop the key in the box.",
             },
           ],
         },
       },
       {
         type: "testimonials",
-        background: "muted",
+        background: "default",
         content: {
-          heading: "Voices from last season",
+          layout: "carousel",
+          heading: "What customers say",
           items: [
             {
-              quote: "The bikes were ready down to the tyre pressure. A week in the mountains without a single breakdown.",
-              author: "Kamil Wrona",
-              role: "Weekend customer",
+              quote:
+                "We hired four bikes for a long weekend. All of them serviced, helmets fitted on the spot, no waiting at pickup.",
+              author: "Michał W.",
+              role: "Weekend by the lake",
             },
             {
-              quote: "Swapping for a larger frame took five minutes, no surcharge and no argument.",
-              author: "Ola Bąk",
-              role: "Family trip",
+              quote:
+                "The electric bike lasted a full day of sightseeing with half the battery left. The charger came without us asking.",
+              author: "Ola and Piotr",
+              role: "Day trip around the area",
+            },
+            {
+              quote:
+                "I got a puncture 20 km out of town. One call and half an hour later a replacement bike arrived. They did not charge for that day.",
+              author: "Tomasz K.",
+              role: "Gravel route",
             },
           ],
         },
       },
       {
         type: "directions",
-        background: "default",
-        content: {
-          address: "12 Sportowa St, 30-001 Krakow",
-          mapsUrl: MAPS_URL,
-          hours: "Mon–Fri 8:00–19:00, Sat–Sun 8:00–16:00",
-        },
-      },
-      {
-        type: "cta",
         background: "inverted",
         content: {
-          heading: "The gear is ready. The season is not waiting.",
-          text: "Book your dates online and collect the gear ready to ride.",
-          buttonLabel: "Book online",
-          buttonHref: "#produkty",
+          layout: "split",
+          heading: "How to find us",
+          items: [
+            {
+              label: "Rental and workshop",
+              address: "8 Sportowa St, 80-001 Gdansk",
+              hours: "Mon–Fri 9:00–19:00, Sat–Sun 8:00–16:00",
+            },
+            {
+              label: "Seasonal point by the beach",
+              address: "2 Nadmorska Ave, 80-002 Gdansk",
+              hours: "June–September, daily 9:00–20:00",
+            },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Your Company",
-          address: "12 Sportowa St, 30-001 Krakow",
+          businessName: "Your Rental",
+          address: "8 Sportowa St, 80-001 Gdansk",
           phone: "+48 500 600 700",
-          email: "hello@yourcompany.com",
-          hours: "Mon–Fri 8:00–19:00, Sat–Sun 8:00–16:00",
+          email: "hello@yourrental.com",
+          hours: "Mon–Fri 9:00–19:00, Sat–Sun 8:00–16:00",
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
-            { label: "Contact", href: "#kontakt" },
+            { label: "Directions", href: MAPS_URL },
           ],
-          legal: "© Your Company. All rights reserved.",
+          legal: "© Your Rental. All rights reserved.",
         },
       },
     ],
   },
 
   // ---------------------------------------------------------------------
-  // Eventy — sprzedaje zdjęcia z realizacji i zdjęty z głowy montaż.
-  // Galeria startuje PUSTA (bucket sekcji zapełnia się pierwszym uploadem) —
-  // ta sama zasada, co w presecie galerii (ADR-082).
+  // Eventy — sprzedaje realizacje i spokój organizatora; stąd galeria i kontakt.
   // ---------------------------------------------------------------------
   "event-party": {
     pl: [
@@ -676,33 +1134,34 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Wyposażenie na wesela, konferencje i imprezy firmowe",
+          heading: "Wesela, urodziny, firmowe imprezy — sprzęt na cały dzień",
           subheading:
-            "Namioty, stoły, nagłośnienie i światło — z montażem na miejscu i odbiorem następnego dnia.",
-          ctaText: "Zobacz wyposażenie",
-          ctaHref: "#produkty",
+            "Namioty, stoły, nagłośnienie i oświetlenie. Przywozimy, stawiamy i zabieramy — Ty zajmujesz się gośćmi.",
+          ctaText: "Zapytaj o termin",
+          ctaHref: "#kontakt",
         },
       },
       {
         type: "usp",
         background: "muted",
         content: {
-          heading: "Bierzemy na siebie logistykę",
+          layout: "plain",
+          heading: "Jak z nami pracujesz",
           items: [
             {
+              icon: "calendar-check",
+              title: "Termin blokujemy od ręki",
+              text: "Po rozmowie wysyłamy wycenę tego samego dnia i rezerwujemy datę na siedem dni.",
+            },
+            {
               icon: "package",
-              title: "Komplet na jedno zamówienie",
-              text: "Stoły, krzesła, obrusy i zastawa jadą jednym transportem, w jednym terminie.",
+              title: "Montaż i demontaż w cenie",
+              text: "Przyjeżdżamy dzień wcześniej, stawiamy komplet i wracamy po sprzęt po imprezie.",
             },
             {
-              icon: "clock",
-              title: "Montaż przed Twoim przyjazdem",
-              text: "Ekipa rozstawia sprzęt na kilka godzin przed startem imprezy.",
-            },
-            {
-              icon: "sparkles",
-              title: "Wszystko czyste i sprawdzone",
-              text: "Tekstylia po praniu, sprzęt po przeglądzie — komplet sprawdzamy przy załadunku.",
+              icon: "headphones",
+              title: "Obsługa techniczna na miejscu",
+              text: "Przy nagłośnieniu i oświetleniu zostaje z Wami technik — od pierwszego toastu do ostatniego kawałka.",
             },
           ],
         },
@@ -710,81 +1169,157 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "gallery",
         background: "default",
-        content: { heading: "Nasze realizacje", items: [] },
+        content: {
+          layout: "grid",
+          heading: "Nasze realizacje",
+          columns: 4,
+          gap: "tight",
+          lightbox: true,
+          items: [
+            {
+              slot: "event-gallery-4",
+              alt: "Rozświetlony namiot weselny na trawie po zmroku",
+              caption: "Wesele w plenerze — namiot i oświetlenie",
+            },
+            {
+              slot: "event-gallery-1",
+              alt: "Nakryty stół na przyjęciu weselnym w namiocie",
+              caption: "Wesele na 120 osób — stoły i nakrycia",
+            },
+            {
+              slot: "event-gallery-7",
+              alt: "Okrągły stół z białymi pokrowcami na krzesłach i złotą zastawą",
+              caption: "Sala bankietowa — pokrowce i zastawa",
+            },
+            {
+              slot: "event-gallery-2",
+              alt: "Parkiet taneczny z oświetleniem pod namiotem",
+              caption: "Parkiet i oświetlenie sceniczne",
+            },
+            {
+              slot: "event-gallery-6",
+              alt: "Reflektory sceniczne nad sceną w trakcie koncertu",
+              caption: "Nagłośnienie i światło pod scenę",
+            },
+            {
+              slot: "event-gallery-5",
+              alt: "Bufet z przekąskami rozstawiony na stole cateringowym",
+              caption: "Stoły bufetowe i podgrzewacze",
+            },
+            {
+              slot: "event-gallery-3",
+              alt: "Rzędy krzeseł ustawione na ceremonię w plenerze",
+              caption: "Ceremonia w plenerze — krzesła i nagłośnienie",
+            },
+            {
+              slot: "event-gallery-8",
+              alt: "Ogrodowe przyjęcie pod białymi zadaszeniami z okrągłymi stołami",
+              caption: "Przyjęcie w ogrodzie — zadaszenia i stoły",
+            },
+          ],
+        },
       },
       {
         type: "delivery",
         background: "muted",
         content: {
-          heading: "Montaż i demontaż",
-          text: "Przyjeżdżamy w umówionym oknie, rozstawiamy wyposażenie i wracamy po nie po zakończeniu imprezy. Nie musisz szukać ludzi do znoszenia stołów o drugiej w nocy.",
+          layout: "list",
+          heading: "Dowóz, montaż, odbiór",
+          intro:
+            "Sprzęt eventowy wozimy sami — kompletem, w jednym kursie, w oknie ustalonym przy potwierdzeniu terminu.",
           items: [
             {
-              title: "Montaż dzień wcześniej",
-              text: "Standard przy weselach i konferencjach — sala jest gotowa z wyprzedzeniem.",
+              title: "Dowóz i montaż w mieście",
+              text: "Przyjeżdżamy dzień przed imprezą, stawiamy namiot i rozstawiamy sprzęt.",
+              price_grosze: 40000,
             },
             {
-              title: "Demontaż następnego dnia",
-              text: "Odbieramy sprzęt rano, bez pośpiechu i bez dodatkowej doby najmu.",
+              title: "Dowóz poza miasto",
+              text: "Do 60 km od magazynu. Dalsze trasy wyceniamy przy potwierdzeniu terminu.",
+              price_grosze: 70000,
+            },
+            {
+              title: "Odbiór po imprezie",
+              text: "Wracamy następnego dnia rano. Nie musicie nic składać ani pakować.",
+              price_grosze: 0,
             },
           ],
         },
       },
       {
         type: "testimonials",
-        background: "default",
+        background: "inverted",
         content: {
-          heading: "Co mówią organizatorzy",
+          layout: "grid",
+          heading: "Opinie organizatorów",
           items: [
             {
-              quote: "Namiot stanął na czas mimo deszczu, a ekipa została do końca montażu parkietu.",
-              author: "Marta Zielińska",
-              role: "Wesele na 120 osób",
+              quote:
+                "Namiot stanął dzień wcześniej, a ekipa została, dopóki wszystko nie było ustawione. W dniu wesela nie musieliśmy myśleć o sprzęcie ani przez chwilę.",
+              author: "Anna i Marek",
+              role: "Wesele w plenerze, 120 osób",
             },
             {
-              quote: "Konferencja na trzy sale, jedno zamówienie i jeden kontakt. Tak to ma wyglądać.",
-              author: "Paweł Sikora",
-              role: "Agencja eventowa",
+              quote:
+                "Zamawiamy u nich sprzęt na każdą imprezę firmową od trzech lat. Nagłośnienie zawsze sprawne, a rozliczenie idzie fakturą bez przypominania.",
+              author: "Katarzyna Nowak",
+              role: "Dział administracji",
+            },
+            {
+              quote:
+                "Potrzebowaliśmy stołów i krzeseł z dnia na dzień. Dostaliśmy potwierdzenie w godzinę i podstawiony transport następnego ranka.",
+              author: "Dom Kultury w Bukowinie",
+              role: "Piknik rodzinny",
             },
           ],
         },
       },
       {
         type: "contact",
-        background: "muted",
+        background: "default",
         content: {
-          heading: "Porozmawiajmy o Twojej imprezie",
-          address: "ul. Wesoła 8, 61-001 Poznań",
-          phone: "+48 500 600 700",
-          email: "eventy@twojafirma.pl",
-          mapQuery: "Wesoła 8, Poznań",
+          layout: "split",
+          heading: "Zapytaj o swój termin",
+          showForm: true,
+          askPhone: true,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "eventy@twojafirma.pl" },
+            { kind: "address", value: "ul. Weselna 3, 61-001 Poznań" },
+            { kind: "hours", value: "Pon–Pt 9:00–17:00, Sob 10:00–14:00" },
+          ],
         },
       },
       {
         type: "cta",
-        background: "inverted",
+        background: "default",
         content: {
-          heading: "Masz termin? Zablokujmy sprzęt.",
-          text: "Podaj datę i liczbę gości — wycenę kompletu przygotujemy tego samego dnia.",
-          buttonLabel: "Zapytaj o termin",
-          buttonHref: "#kontakt",
+          layout: "split",
+          variant: "accent",
+          heading: "Data jest zajęta szybciej, niż myślisz",
+          text: "Sezon weselny rezerwuje się z półrocznym wyprzedzeniem. Napisz, sprawdzimy dostępność na Twój termin.",
+          items: [
+            { label: "Napisz do nas", href: "#kontakt" },
+            { label: "Zobacz sprzęt", href: "/store" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Twoja Firma",
-          address: "ul. Wesoła 8, 61-001 Poznań",
+          businessName: "Twoja Firma Eventowa",
+          address: "ul. Weselna 3, 61-001 Poznań",
           phone: "+48 500 600 700",
-          email: "kontakt@twojafirma.pl",
-          hours: "Pon–Pt 9:00–18:00, Sob 10:00–14:00",
+          email: "eventy@twojafirma.pl",
+          hours: "Pon–Pt 9:00–17:00, Sob 10:00–14:00",
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
             { label: "Kontakt", href: "#kontakt" },
           ],
-          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+          legal: "© Twoja Firma Eventowa. Wszelkie prawa zastrzeżone.",
         },
       },
     ],
@@ -793,33 +1328,34 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Equipment for weddings, conferences and company parties",
+          heading: "Weddings, birthdays, company parties — gear for the whole day",
           subheading:
-            "Marquees, tables, sound and lighting — set up on location and collected the next day.",
-          ctaText: "See the equipment",
-          ctaHref: "#produkty",
+            "Marquees, tables, sound and lighting. We deliver, set up and collect — you look after the guests.",
+          ctaText: "Ask about your date",
+          ctaHref: "#kontakt",
         },
       },
       {
         type: "usp",
         background: "muted",
         content: {
-          heading: "The logistics are on us",
+          layout: "plain",
+          heading: "How working with us looks",
           items: [
             {
+              icon: "calendar-check",
+              title: "We hold your date right away",
+              text: "After the call we send a quote the same day and hold the date for seven days.",
+            },
+            {
               icon: "package",
-              title: "One order, the whole set",
-              text: "Tables, chairs, linen and tableware travel together, on one delivery, on one date.",
+              title: "Set-up and take-down included",
+              text: "We arrive the day before, put everything up and come back for the gear after the party.",
             },
             {
-              icon: "clock",
-              title: "Set up before you arrive",
-              text: "Our crew puts everything in place hours before the event starts.",
-            },
-            {
-              icon: "sparkles",
-              title: "Clean and checked",
-              text: "Linen freshly laundered, equipment inspected — the set is checked as it is loaded.",
+              icon: "headphones",
+              title: "A technician stays on site",
+              text: "With sound and lighting a technician stays with you — from the first toast to the last track.",
             },
           ],
         },
@@ -827,89 +1363,164 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "gallery",
         background: "default",
-        content: { heading: "Our work", items: [] },
+        content: {
+          layout: "grid",
+          heading: "Our work",
+          columns: 4,
+          gap: "tight",
+          lightbox: true,
+          items: [
+            {
+              slot: "event-gallery-4",
+              alt: "A lit wedding marquee on a lawn after dark",
+              caption: "Outdoor wedding — marquee and lighting",
+            },
+            {
+              slot: "event-gallery-1",
+              alt: "Banquet table set for a wedding reception in a marquee",
+              caption: "Wedding for 120 — tables and place settings",
+            },
+            {
+              slot: "event-gallery-7",
+              alt: "A round table with white chair covers and gold place settings",
+              caption: "Banquet hall — chair covers and tableware",
+            },
+            {
+              slot: "event-gallery-2",
+              alt: "Dance floor with stage lighting under a marquee",
+              caption: "Dance floor and stage lighting",
+            },
+            {
+              slot: "event-gallery-6",
+              alt: "Stage spotlights above a stage during a concert",
+              caption: "Sound and light for the stage",
+            },
+            {
+              slot: "event-gallery-5",
+              alt: "A buffet of snacks laid out on a catering table",
+              caption: "Buffet tables and chafing dishes",
+            },
+            {
+              slot: "event-gallery-3",
+              alt: "Rows of chairs set up for an outdoor ceremony",
+              caption: "Outdoor ceremony — chairs and sound system",
+            },
+            {
+              slot: "event-gallery-8",
+              alt: "A garden party under white canopies with round tables",
+              caption: "Garden party — canopies and tables",
+            },
+          ],
+        },
       },
       {
         type: "delivery",
         background: "muted",
         content: {
-          heading: "Set-up and take-down",
-          text: "We arrive within the agreed window, set the equipment up and come back for it once the event is over. You will not be looking for people to carry tables at two in the morning.",
+          layout: "list",
+          heading: "Delivery, set-up, collection",
+          intro:
+            "We move event gear ourselves — as one load, in one run, within the window agreed when the date is confirmed.",
           items: [
             {
-              title: "Set-up the day before",
-              text: "Standard for weddings and conferences — the venue is ready ahead of time.",
+              title: "Delivery and set-up in town",
+              text: "We arrive the day before the party, raise the marquee and set the gear out.",
+              price_grosze: 40000,
             },
             {
-              title: "Take-down the next day",
-              text: "We collect in the morning, unhurried and with no extra rental day.",
+              title: "Delivery out of town",
+              text: "Up to 60 km from the depot. Longer routes are priced when the date is confirmed.",
+              price_grosze: 70000,
+            },
+            {
+              title: "Collection after the party",
+              text: "We come back the next morning. Nothing to fold, nothing to pack.",
+              price_grosze: 0,
             },
           ],
         },
       },
       {
         type: "testimonials",
-        background: "default",
+        background: "inverted",
         content: {
-          heading: "What organizers say",
+          layout: "grid",
+          heading: "What organisers say",
           items: [
             {
-              quote: "The marquee went up on time despite the rain, and the crew stayed until the dance floor was done.",
-              author: "Marta Zielińska",
-              role: "Wedding for 120 guests",
+              quote:
+                "The marquee went up a day early and the crew stayed until everything was in place. On the wedding day we did not think about the gear once.",
+              author: "Anna and Marek",
+              role: "Outdoor wedding, 120 guests",
             },
             {
-              quote: "A three-room conference, one order and one point of contact. That is how it should work.",
-              author: "Paweł Sikora",
-              role: "Event agency",
+              quote:
+                "We have hired from them for every company event for three years. The sound system always works and the invoice arrives without chasing.",
+              author: "Katarzyna Nowak",
+              role: "Office management",
+            },
+            {
+              quote:
+                "We needed tables and chairs overnight. We had a confirmation within the hour and transport the next morning.",
+              author: "Bukowina Community Centre",
+              role: "Family picnic",
             },
           ],
         },
       },
       {
         type: "contact",
-        background: "muted",
+        background: "default",
         content: {
-          heading: "Let's talk about your event",
-          address: "8 Wesola St, 61-001 Poznan",
-          phone: "+48 500 600 700",
-          email: "events@yourcompany.com",
-          mapQuery: "Wesola 8, Poznan",
+          layout: "split",
+          heading: "Ask about your date",
+          showForm: true,
+          askPhone: true,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "events@yourcompany.com" },
+            { kind: "address", value: "3 Weselna St, 61-001 Poznan" },
+            { kind: "hours", value: "Mon–Fri 9:00–17:00, Sat 10:00–14:00" },
+          ],
         },
       },
       {
         type: "cta",
-        background: "inverted",
+        background: "default",
         content: {
-          heading: "Got a date? Let's hold the equipment.",
-          text: "Send us the date and the number of guests — you will have a quote for the whole set the same day.",
-          buttonLabel: "Ask about a date",
-          buttonHref: "#kontakt",
+          layout: "split",
+          variant: "accent",
+          heading: "Dates go faster than you think",
+          text: "The wedding season books six months ahead. Write to us and we will check availability for your date.",
+          items: [
+            { label: "Write to us", href: "#kontakt" },
+            { label: "See the gear", href: "/store" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Your Company",
-          address: "8 Wesola St, 61-001 Poznan",
+          businessName: "Your Event Company",
+          address: "3 Weselna St, 61-001 Poznan",
           phone: "+48 500 600 700",
-          email: "hello@yourcompany.com",
-          hours: "Mon–Fri 9:00–18:00, Sat 10:00–14:00",
+          email: "events@yourcompany.com",
+          hours: "Mon–Fri 9:00–17:00, Sat 10:00–14:00",
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
             { label: "Contact", href: "#kontakt" },
           ],
-          legal: "© Your Company. All rights reserved.",
+          legal: "© Your Event Company. All rights reserved.",
         },
       },
     ],
   },
 
   // ---------------------------------------------------------------------
-  // Foto i wideo — klient kupuje pewność na planie, nie cenę; stąd atuty
-  // o teście przed wydaniem i sprzęcie zastępczym oraz obszerne FAQ.
+  // Foto i wideo — sprzedaje sprzęt i zaufanie do stanu technicznego.
   // ---------------------------------------------------------------------
   "photo-video": {
     pl: [
@@ -917,43 +1528,57 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Sprzęt foto i wideo na sesję, plan i transmisję",
+          heading: "Sprzęt filmowy i fotograficzny na zdjęcia, których nie da się powtórzyć",
           subheading:
-            "Korpusy, optyka, światło i dźwięk — skonfigurowane i przetestowane przed każdym wydaniem.",
-          ctaText: "Zobacz katalog",
+            "Kamery, optyka, światło i stabilizacja — skonfigurowane i sprawdzone przed każdym wydaniem.",
+          ctaText: "Zobacz sprzęt",
           ctaHref: "#produkty",
         },
       },
       {
         type: "products",
         background: "default",
-        content: { heading: "Sprzęt w wypożyczalni" },
+        content: { layout: "list", heading: "Sprzęt w wypożyczalni", source: "catalog", items: [], limit: 8 },
       },
       {
-        type: "usp",
+        type: "gallery",
         background: "muted",
         content: {
-          heading: "Co dostajesz w cenie najmu",
+          layout: "carousel",
+          heading: "Z naszych planów",
+          columns: 3,
+          gap: "roomy",
+          lightbox: true,
           items: [
             {
-              icon: "badge-check",
-              title: "Test przed każdym wydaniem",
-              text: "Sprawdzamy matrycę, ostrość i akumulatory, zanim spakujemy zestaw.",
+              slot: "photo-gallery-3",
+              alt: "Ekipa filmowa na planie oświetlonym niebieskim światłem",
+              caption: "Komplet oświetlenia planu z obsługą",
             },
             {
-              icon: "package",
-              title: "Komplet w walizce",
-              text: "Karty, akumulatory, ładowarki i filtry jadą razem z korpusem.",
+              slot: "photo-gallery-1",
+              alt: "Profesjonalna kamera wideo ustawiona na statywie",
+              caption: "Kamery kinowe z pełnym rigiem",
             },
             {
-              icon: "headphones",
-              title: "Wsparcie w dniu zdjęciowym",
-              text: "Odbieramy telefon także w weekend, gdy coś dzieje się na planie.",
+              slot: "photo-gallery-2",
+              alt: "Sześć obiektywów fotograficznych ustawionych w rzędzie na blacie",
+              caption: "Optyka stałoogniskowa i zoomy",
             },
             {
-              icon: "shield-check",
-              title: "Sprzęt zastępczy",
-              text: "Awaria na planie znaczy podmianę zestawu, a nie koniec zdjęć.",
+              slot: "photo-gallery-4",
+              alt: "Operator trzyma kamerę na gimbalu w niebieskim świetle",
+              caption: "Gimbale i stabilizacja ruchu",
+            },
+            {
+              slot: "photo-studio",
+              alt: "Sprzęt oświetleniowy w studiu",
+              caption: "Lampy studyjne, softboxy i statywy",
+            },
+            {
+              slot: "photo-gallery-5",
+              alt: "Studio fotograficzne z tłem bez szwu i lampą na statywie",
+              caption: "Tła bez szwu i zestawy studyjne",
             },
           ],
         },
@@ -962,67 +1587,115 @@ const STARTER_SECTIONS: StarterTable = {
         type: "pricing",
         background: "default",
         content: {
-          heading: "Jak liczymy najem",
-          note: "Doba zdjęciowa to 24 godziny od odbioru. Weekend liczymy jak jedną dobę, a przy najmie od pięciu dni schodzimy o 25%.",
+          layout: "cards",
+          heading: "Stawki dobowe",
+          showCatalogLink: true,
+          footnote:
+            "Doba to 24 godziny od odbioru. Weekend (piątek–poniedziałek) liczymy jak dwie doby. Kaucja ustalana per zestaw.",
+          items: [
+            {
+              name: "Kamera kinowa z rigiem",
+              price_grosze: 65000,
+              unit: "day",
+              mode: "from",
+              note: "Z monitorem podglądowym i kompletem akumulatorów",
+            },
+            {
+              name: "Obiektyw stałoogniskowy",
+              price_grosze: 12000,
+              unit: "day",
+              mode: "exact",
+              note: "Cena za jedną ogniskową z zestawu",
+            },
+            {
+              name: "Zestaw oświetleniowy 3-punktowy",
+              price_grosze: 38000,
+              unit: "day",
+              mode: "exact",
+            },
+            {
+              name: "Gimbal z obsługą operatora",
+              price_grosze: 90000,
+              unit: "day",
+              mode: "from",
+              note: "Minimum 4 godziny pracy operatora",
+            },
+          ],
         },
       },
       {
         type: "faq",
         background: "muted",
         content: {
-          heading: "Pytania przed rezerwacją",
+          layout: "open-list",
+          heading: "Najczęstsze pytania",
+          allowMultiple: true,
           items: [
             {
-              q: "Czy wymagacie ubezpieczenia sprzętu?",
-              a: "Przy zestawach powyżej ustalonej wartości prosimy o polisę albo o podwyższoną kaucję. Podpowiemy, co bardziej opłaca się przy Twoim projekcie — wybór należy do Ciebie.",
+              q: "Czy sprawdzacie sprzęt przed wydaniem?",
+              a: "Tak. Każdy zestaw przechodzi test nagraniowy i kontrolę optyki. Protokół wydania podpisujemy razem, przy sprzęcie.",
             },
             {
-              q: "Czy mogę przedłużyć najem w trakcie zdjęć?",
-              a: "Tak, o ile sprzęt nie jest zarezerwowany dalej. Napisz albo zadzwoń przed końcem doby, a przedłużenie doliczymy do tej samej rezerwacji, bez ponownego odbioru.",
+              q: "Co z ubezpieczeniem?",
+              a: "Sprzęt jest ubezpieczony od uszkodzeń na planie. Kradzież i zalanie wymagają osobnej polisy — pomożemy ją dobrać.",
             },
             {
-              q: "Co z kartami pamięci i akumulatorami?",
-              a: "Karty i akumulatory wchodzą w komplet i są w cenie zestawu. Materiał zgrywasz u siebie — kart nie czyścimy, dopóki nie potwierdzisz, że kopia jest bezpieczna.",
+              q: "Czy mogę odebrać sprzęt wieczorem przed zdjęciami?",
+              a: "Tak, po wcześniejszym ustaleniu. Odbiór po 18:00 nie liczy się do doby, jeśli zwrot następuje dzień później do 18:00.",
+            },
+            {
+              q: "Czy dowozicie sprzęt na plan?",
+              a: "Tak, na terenie miasta i do 100 km. Przy większych zestawach dokładamy technika, który pomaga rozstawić i spakować.",
             },
           ],
         },
       },
       {
         type: "contact",
-        background: "default",
+        background: "inverted",
         content: {
-          heading: "Wypożyczalnia",
-          address: "ul. Filmowa 3, 00-001 Warszawa",
-          phone: "+48 500 600 700",
-          email: "rezerwacje@twojafirma.pl",
-          mapQuery: "Filmowa 3, Warszawa",
+          layout: "split",
+          heading: "Skonsultuj zestaw",
+          showForm: true,
+          askPhone: true,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "studio@twojafirma.pl" },
+            { kind: "address", value: "ul. Filmowa 12, 00-001 Warszawa" },
+            { kind: "hours", value: "Pon–Pt 9:00–18:00, Sob po ustaleniu" },
+          ],
         },
       },
       {
         type: "cta",
-        background: "inverted",
+        background: "default",
         content: {
-          heading: "Masz termin zdjęciowy?",
-          text: "Sprawdź dostępność zestawu i zarezerwuj sprzęt online.",
-          buttonLabel: "Rezerwuj zestaw",
-          buttonHref: "#produkty",
+          layout: "banner",
+          variant: "panel",
+          heading: "Masz zdjęcia w przyszłym tygodniu?",
+          text: "Napisz, jaki masz plan zdjęciowy — dobierzemy zestaw i zarezerwujemy go na Twój termin.",
+          items: [
+            { label: "Zapytaj o zestaw", href: "#kontakt" },
+            { label: "Przeglądaj katalog", href: "/store" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Twoja Firma",
-          address: "ul. Filmowa 3, 00-001 Warszawa",
+          businessName: "Twoje Studio",
+          address: "ul. Filmowa 12, 00-001 Warszawa",
           phone: "+48 500 600 700",
-          email: "kontakt@twojafirma.pl",
-          hours: "Pon–Pt 10:00–19:00, Sob 10:00–15:00",
+          email: "studio@twojafirma.pl",
+          hours: "Pon–Pt 9:00–18:00",
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
             { label: "Kontakt", href: "#kontakt" },
           ],
-          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+          legal: "© Twoje Studio. Wszelkie prawa zastrzeżone.",
         },
       },
     ],
@@ -1031,43 +1704,57 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Photo and video gear for shoots, sets and live streams",
+          heading: "Film and photo gear for shots you cannot take twice",
           subheading:
-            "Bodies, glass, lighting and sound — configured and tested before every handover.",
-          ctaText: "Browse the catalog",
+            "Cameras, glass, lighting and stabilisation — configured and tested before every handover.",
+          ctaText: "See the gear",
           ctaHref: "#produkty",
         },
       },
       {
         type: "products",
         background: "default",
-        content: { heading: "Gear in stock" },
+        content: { layout: "list", heading: "In the rental house", source: "catalog", items: [], limit: 8 },
       },
       {
-        type: "usp",
+        type: "gallery",
         background: "muted",
         content: {
-          heading: "What the rate includes",
+          layout: "carousel",
+          heading: "From our sets",
+          columns: 3,
+          gap: "roomy",
+          lightbox: true,
           items: [
             {
-              icon: "badge-check",
-              title: "Tested before every handover",
-              text: "We check the sensor, the focus and the batteries before the kit is packed.",
+              slot: "photo-gallery-3",
+              alt: "A film crew on a set lit in blue light",
+              caption: "A full lighting package with a crew",
             },
             {
-              icon: "package",
-              title: "The whole kit in one case",
-              text: "Cards, batteries, chargers and filters travel with the body.",
+              slot: "photo-gallery-1",
+              alt: "A professional video camera mounted on a tripod",
+              caption: "Cinema cameras with a full rig",
             },
             {
-              icon: "headphones",
-              title: "Support on shooting days",
-              text: "We pick up the phone at weekends too, when something happens on set.",
+              slot: "photo-gallery-2",
+              alt: "Six camera lenses lined up on a wooden surface",
+              caption: "Prime lenses and zooms",
             },
             {
-              icon: "shield-check",
-              title: "Replacement gear",
-              text: "A failure on set means a swapped kit, not the end of the shoot.",
+              slot: "photo-gallery-4",
+              alt: "An operator holding a camera on a gimbal in blue light",
+              caption: "Gimbals and motion stabilisation",
+            },
+            {
+              slot: "photo-studio",
+              alt: "Lighting gear in the studio",
+              caption: "Studio heads, softboxes and stands",
+            },
+            {
+              slot: "photo-gallery-5",
+              alt: "A photo studio with a seamless backdrop and a light on a stand",
+              caption: "Seamless backdrops and studio kits",
             },
           ],
         },
@@ -1076,75 +1763,122 @@ const STARTER_SECTIONS: StarterTable = {
         type: "pricing",
         background: "default",
         content: {
-          heading: "How we count the rental",
-          note: "A shooting day is 24 hours from pickup. A weekend counts as one day, and from five days the rate drops by 25%.",
+          layout: "cards",
+          heading: "Daily rates",
+          showCatalogLink: true,
+          footnote:
+            "A day is 24 hours from pickup. A weekend (Friday to Monday) counts as two days. Deposit is set per package.",
+          items: [
+            {
+              name: "Cinema camera with a rig",
+              price_grosze: 65000,
+              unit: "day",
+              mode: "from",
+              note: "With a monitor and a full set of batteries",
+            },
+            {
+              name: "Prime lens",
+              price_grosze: 12000,
+              unit: "day",
+              mode: "exact",
+              note: "Price per focal length from the set",
+            },
+            {
+              name: "Three-point lighting kit",
+              price_grosze: 38000,
+              unit: "day",
+              mode: "exact",
+            },
+            {
+              name: "Gimbal with an operator",
+              price_grosze: 90000,
+              unit: "day",
+              mode: "from",
+              note: "Minimum four hours of operator time",
+            },
+          ],
         },
       },
       {
         type: "faq",
         background: "muted",
         content: {
-          heading: "Questions before you book",
+          layout: "open-list",
+          heading: "Frequently asked questions",
+          allowMultiple: true,
           items: [
             {
-              q: "Do you require insurance?",
-              a: "For kits above an agreed value we ask for a policy or for a higher deposit. We will tell you which works out better for your project — the choice is yours.",
+              q: "Do you test the gear before handover?",
+              a: "Yes. Every package goes through a recording test and an optics check. We sign the handover protocol together, with the gear in front of us.",
             },
             {
-              q: "Can I extend the rental during the shoot?",
-              a: "Yes, as long as the gear is not booked after you. Write or call before the day ends and the extension goes onto the same booking, with no second handover.",
+              q: "What about insurance?",
+              a: "The gear is insured against damage on set. Theft and water damage need a separate policy — we will help you pick one.",
             },
             {
-              q: "What about memory cards and batteries?",
-              a: "Cards and batteries are part of the kit and are included in the rate. You copy the footage yourself — we do not wipe a card until you confirm your backup is safe.",
+              q: "Can I collect the gear the evening before the shoot?",
+              a: "Yes, if arranged in advance. Pickup after 18:00 does not count towards the day if you return by 18:00 the next day.",
+            },
+            {
+              q: "Do you deliver to set?",
+              a: "Yes, in town and up to 100 km out. With larger packages we send a technician who helps set up and pack down.",
             },
           ],
         },
       },
       {
         type: "contact",
-        background: "default",
+        background: "inverted",
         content: {
-          heading: "The rental house",
-          address: "3 Filmowa St, 00-001 Warsaw",
-          phone: "+48 500 600 700",
-          email: "bookings@yourcompany.com",
-          mapQuery: "Filmowa 3, Warsaw",
+          layout: "split",
+          heading: "Talk through your package",
+          showForm: true,
+          askPhone: true,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "studio@yourcompany.com" },
+            { kind: "address", value: "12 Filmowa St, 00-001 Warsaw" },
+            { kind: "hours", value: "Mon–Fri 9:00–18:00, Sat by arrangement" },
+          ],
         },
       },
       {
         type: "cta",
-        background: "inverted",
+        background: "default",
         content: {
-          heading: "Got a shooting date?",
-          text: "Check whether the kit is free and book it online.",
-          buttonLabel: "Book a kit",
-          buttonHref: "#produkty",
+          layout: "banner",
+          variant: "panel",
+          heading: "Shooting next week?",
+          text: "Tell us about the shoot — we will put a package together and hold it for your dates.",
+          items: [
+            { label: "Ask about a package", href: "#kontakt" },
+            { label: "Browse the catalog", href: "/store" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Your Company",
-          address: "3 Filmowa St, 00-001 Warsaw",
+          businessName: "Your Studio",
+          address: "12 Filmowa St, 00-001 Warsaw",
           phone: "+48 500 600 700",
-          email: "hello@yourcompany.com",
-          hours: "Mon–Fri 10:00–19:00, Sat 10:00–15:00",
+          email: "studio@yourcompany.com",
+          hours: "Mon–Fri 9:00–18:00",
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
             { label: "Contact", href: "#kontakt" },
           ],
-          legal: "© Your Company. All rights reserved.",
+          legal: "© Your Studio. All rights reserved.",
         },
       },
     ],
   },
 
   // ---------------------------------------------------------------------
-  // Jedna strona, pięć sekcji — najkrótsza sensowna strona sprzedażowa.
-  // Dolna granica {@link STARTER_SECTION_BOUNDS} jest ustawiona pod NIĄ.
+  // Jedna strona, krótko — dla tych, którzy chcą stronę na dziś, nie projekt.
   // ---------------------------------------------------------------------
   "one-page-lean": {
     pl: [
@@ -1152,10 +1886,10 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Wypożyczalnia, która mieści się na jednej stronie",
+          heading: "Wypożyczalnia, która oddzwania",
           subheading:
-            "Krótko: co wynajmujesz, dlaczego u Ciebie i jak zarezerwować. Reszta tylko rozprasza.",
-          ctaText: "Zobacz ofertę",
+            "Narzędzia i sprzęt na dobę albo na tydzień. Rezerwacja online, odbiór w warsztacie, wszystko na jednej stronie.",
+          ctaText: "Zobacz, co mamy",
           ctaHref: "#produkty",
         },
       },
@@ -1163,22 +1897,23 @@ const STARTER_SECTIONS: StarterTable = {
         type: "usp",
         background: "muted",
         content: {
-          heading: "Trzy powody, żeby zacząć u nas",
+          layout: "cards",
+          heading: "Trzy rzeczy, na które możesz liczyć",
           items: [
             {
               icon: "clock",
-              title: "Rezerwacja w kilka minut",
-              text: "Klient wybiera termin i potwierdza — bez telefonów i wymiany maili.",
+              title: "Odpowiadamy tego samego dnia",
+              text: "Rezerwację złożoną do 16:00 potwierdzamy jeszcze tego dnia — mailem albo telefonem.",
             },
             {
-              icon: "shield-check",
-              title: "Jasne zasady kaucji",
-              text: "Kwota i warunki zwrotu są widoczne, zanim ktokolwiek zapłaci.",
+              icon: "badge-check",
+              title: "Sprzęt sprawdzony przed wydaniem",
+              text: "Każde narzędzie przechodzi przegląd po zwrocie i przed kolejnym najmem.",
             },
             {
-              icon: "thumbs-up",
-              title: "Sprzęt gotowy na godzinę odbioru",
-              text: "Przygotowany, sprawdzony i opisany — bez niespodzianek na miejscu.",
+              icon: "map-pin",
+              title: "Odbiór w jednym miejscu",
+              text: "Jeden warsztat, jedno wejście, parking pod drzwiami. Bez szukania magazynu na obrzeżach.",
             },
           ],
         },
@@ -1186,27 +1921,42 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { heading: "Co wynajmujemy" },
+        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "freeform",
+        background: "muted",
+        content: {
+          heading: "O warsztacie",
+          body: "Prowadzimy wypożyczalnię od dwunastu lat, w tym samym miejscu i z tym samym numerem telefonu. Znamy sprzęt, który wydajemy, bo sami go serwisujemy — a jeśli czegoś nie mamy, powiemy wprost, zamiast obiecywać termin, którego nie dotrzymamy.",
+        },
       },
       {
         type: "contact",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "stacked",
           heading: "Kontakt",
-          address: "ul. Krótka 4, 50-001 Wrocław",
-          phone: "+48 500 600 700",
-          email: "kontakt@twojafirma.pl",
-          mapQuery: "Krótka 4, Wrocław",
+          showForm: true,
+          askPhone: false,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "kontakt@twojafirma.pl" },
+            { kind: "address", value: "ul. Warsztatowa 4, 30-001 Kraków" },
+            { kind: "hours", value: "Pon–Pt 8:00–17:00, Sob 9:00–13:00" },
+          ],
         },
       },
       {
         type: "cta",
         background: "inverted",
         content: {
-          heading: "Zaczynamy?",
-          text: "Wybierz sprzęt i termin — potwierdzenie dostaniesz od razu.",
-          buttonLabel: "Zarezerwuj online",
-          buttonHref: "#produkty",
+          layout: "banner",
+          variant: "accent",
+          heading: "Potrzebujesz czegoś na jutro?",
+          text: "Napisz albo zadzwoń — sprawdzimy dostępność i odłożymy sprzęt na Twoje nazwisko.",
+          items: [{ label: "Zarezerwuj", href: "#kontakt" }],
         },
       },
       {
@@ -1214,14 +1964,13 @@ const STARTER_SECTIONS: StarterTable = {
         background: "muted",
         content: {
           businessName: "Twoja Firma",
-          address: "ul. Krótka 4, 50-001 Wrocław",
+          address: "ul. Warsztatowa 4, 30-001 Kraków",
           phone: "+48 500 600 700",
           email: "kontakt@twojafirma.pl",
-          hours: "Pon–Pt 9:00–17:00",
+          hours: "Pon–Pt 8:00–17:00, Sob 9:00–13:00",
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
-            { label: "Kontakt", href: "#kontakt" },
           ],
           legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
         },
@@ -1232,10 +1981,10 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "A rental business that fits on a single page",
+          heading: "A rental shop that calls you back",
           subheading:
-            "The short version: what you rent, why from you, and how to book it. The rest is noise.",
-          ctaText: "See the offer",
+            "Tools and equipment by the day or by the week. Book online, collect at the workshop, all on one page.",
+          ctaText: "See what we have",
           ctaHref: "#produkty",
         },
       },
@@ -1243,22 +1992,23 @@ const STARTER_SECTIONS: StarterTable = {
         type: "usp",
         background: "muted",
         content: {
-          heading: "Three reasons to start here",
+          layout: "cards",
+          heading: "Three things you can count on",
           items: [
             {
               icon: "clock",
-              title: "Booking in minutes",
-              text: "The customer picks the dates and confirms — no phone tag, no email threads.",
+              title: "We reply the same day",
+              text: "A booking placed before 16:00 is confirmed the same day — by email or by phone.",
             },
             {
-              icon: "shield-check",
-              title: "Clear deposit rules",
-              text: "The amount and the refund terms are visible before anybody pays.",
+              icon: "badge-check",
+              title: "Checked before handover",
+              text: "Every tool is inspected after it comes back and before it goes out again.",
             },
             {
-              icon: "thumbs-up",
-              title: "Ready at pickup time",
-              text: "Prepared, checked and labelled — no surprises at the counter.",
+              icon: "map-pin",
+              title: "One place to collect",
+              text: "One workshop, one door, parking outside. No hunting for a depot on the ring road.",
             },
           ],
         },
@@ -1266,27 +2016,42 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { heading: "What we rent" },
+        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8 },
+      },
+      {
+        type: "freeform",
+        background: "muted",
+        content: {
+          heading: "About the workshop",
+          body: "We have run this rental shop for twelve years, in the same place and on the same phone number. We know the gear we hand out because we service it ourselves — and if we do not have something, we say so instead of promising a date we cannot keep.",
+        },
       },
       {
         type: "contact",
-        background: "muted",
+        background: "default",
         content: {
+          layout: "stacked",
           heading: "Contact",
-          address: "4 Krotka St, 50-001 Wroclaw",
-          phone: "+48 500 600 700",
-          email: "hello@yourcompany.com",
-          mapQuery: "Krotka 4, Wroclaw",
+          showForm: true,
+          askPhone: false,
+          privacyHref: "/prywatnosc",
+          items: [
+            { kind: "phone", value: "+48 500 600 700" },
+            { kind: "email", value: "hello@yourcompany.com" },
+            { kind: "address", value: "4 Warsztatowa St, 30-001 Krakow" },
+            { kind: "hours", value: "Mon–Fri 8:00–17:00, Sat 9:00–13:00" },
+          ],
         },
       },
       {
         type: "cta",
         background: "inverted",
         content: {
-          heading: "Shall we start?",
-          text: "Pick the gear and the dates — the confirmation is instant.",
-          buttonLabel: "Book online",
-          buttonHref: "#produkty",
+          layout: "banner",
+          variant: "accent",
+          heading: "Need something for tomorrow?",
+          text: "Write or call — we will check availability and put the gear aside in your name.",
+          items: [{ label: "Book now", href: "#kontakt" }],
         },
       },
       {
@@ -1294,14 +2059,13 @@ const STARTER_SECTIONS: StarterTable = {
         background: "muted",
         content: {
           businessName: "Your Company",
-          address: "4 Krotka St, 50-001 Wroclaw",
+          address: "4 Warsztatowa St, 30-001 Krakow",
           phone: "+48 500 600 700",
           email: "hello@yourcompany.com",
-          hours: "Mon–Fri 9:00–17:00",
+          hours: "Mon–Fri 8:00–17:00, Sat 9:00–13:00",
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
-            { label: "Contact", href: "#kontakt" },
           ],
           legal: "© Your Company. All rights reserved.",
         },
@@ -1310,8 +2074,7 @@ const STARTER_SECTIONS: StarterTable = {
   },
 
   // ---------------------------------------------------------------------
-  // Katalog na pierwszym planie — dla tych, u których sprzedaje sam asortyment.
-  // Katalog stoi zaraz pod hero, a cała narracja idzie POD nim.
+  // Katalog na pierwszym planie — dla wypożyczalni z dużym, gotowym magazynem.
   // ---------------------------------------------------------------------
   "catalog-first": {
     pl: [
@@ -1319,47 +2082,85 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "Cały katalog od pierwszego ekranu",
-          subheading: "Klient wchodzi i od razu widzi, co jest wolne w jego terminie.",
-          ctaText: "Przeglądaj katalog",
+          heading: "Cały magazyn online, z terminami na żywo",
+          subheading:
+            "Sprawdzasz dostępność, wybierasz daty i rezerwujesz — bez telefonów i bez czekania na wycenę.",
+          ctaText: "Przejdź do katalogu",
           ctaHref: "#produkty",
         },
       },
       {
         type: "products",
         background: "default",
-        content: { heading: "Dostępny sprzęt" },
+        content: { layout: "grid", heading: "Katalog sprzętu", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "freeform",
         background: "muted",
         content: {
-          heading: "O wypożyczalni",
-          body: "Napisz w tym miejscu, skąd wzięła się Twoja firma i za co odpowiadasz przed klientem. Sprzęt kupujemy pod realne zapotrzebowanie, serwisujemy go sami i wycofujemy, zanim zacznie zawodzić — to jest ten jeden akapit, który ludzie czytają w całości, więc powiedz w nim coś konkretnego zamiast ogólników o pasji i jakości.",
+          heading: "Jak działa rezerwacja",
+          body: "Wybierasz sprzęt i termin w katalogu, a system od razu pokazuje, czy egzemplarz jest wolny. Rezerwację potwierdzamy mailem razem z adresem odbioru i wysokością kaucji. Zmiana terminu jest możliwa do 24 godzin przed odbiorem — bez dopłat i bez tłumaczeń.",
         },
       },
       {
         type: "pricing",
         background: "default",
         content: {
-          heading: "Zasady rozliczenia",
-          note: "Stawka dobowa maleje wraz z długością najmu. Kaucja jest zwrotna, a jej wysokość podajemy przy każdej pozycji katalogu.",
+          layout: "table",
+          heading: "Cennik podstawowy",
+          showCatalogLink: true,
+          footnote:
+            "Stawki dobowe dla najmu do trzech dni. Od czwartej doby liczymy 80% stawki, od siódmej — 70%.",
+          items: [
+            { name: "Narzędzia ręczne i elektronarzędzia", price_grosze: 3000, unit: "day", mode: "from" },
+            { name: "Sprzęt ogrodowy", price_grosze: 6000, unit: "day", mode: "from" },
+            {
+              name: "Sprzęt czyszczący",
+              price_grosze: 9000,
+              unit: "day",
+              mode: "from",
+              note: "Środki chemiczne rozliczamy osobno",
+            },
+            { name: "Rusztowania i drabiny", price_grosze: 4000, unit: "day", mode: "from" },
+            {
+              name: "Przyczepy i transport",
+              price_grosze: 12000,
+              unit: "day",
+              mode: "from",
+              note: "Wymagane prawo jazdy kat. B i kaucja 500 zł",
+            },
+            {
+              name: "Najem miesięczny",
+              price_grosze: 90000,
+              unit: "month",
+              mode: "from",
+              note: "Dla firm, z fakturą zbiorczą",
+            },
+          ],
         },
       },
       {
         type: "delivery",
         background: "muted",
         content: {
-          heading: "Odbiór i dostawa",
-          text: "Sprzęt odbierzesz osobiście w magazynie albo dowieziemy go pod wskazany adres. Termin ustalamy przy potwierdzeniu rezerwacji, więc nikt nie czeka pod zamkniętą bramą.",
+          layout: "cards",
+          heading: "Odbiór i dowóz",
+          intro: "Sprzęt z katalogu odbierzesz sam albo przywieziemy go pod wskazany adres.",
           items: [
             {
-              title: "Odbiór osobisty",
-              text: "Bezpłatnie, w godzinach pracy magazynu.",
+              title: "Odbiór własny",
+              text: "Magazyn przy obwodnicy, parking przy rampie, wydanie w kilka minut.",
+              price_grosze: 0,
             },
             {
-              title: "Dostawa pod adres",
-              text: "Wycena po podaniu kodu pocztowego i terminu najmu.",
+              title: "Dowóz w mieście",
+              text: "Tego samego dnia dla rezerwacji potwierdzonych do 12:00.",
+              price_grosze: 8000,
+            },
+            {
+              title: "Dowóz do 50 km",
+              text: "Kolejnego dnia roboczego, w dwugodzinnym oknie do wyboru.",
+              price_grosze: 18000,
             },
           ],
         },
@@ -1368,19 +2169,29 @@ const STARTER_SECTIONS: StarterTable = {
         type: "faq",
         background: "default",
         content: {
-          heading: "Najczęstsze pytania",
+          layout: "accordion",
+          heading: "Pytania o rezerwację",
+          allowMultiple: false,
           items: [
             {
-              q: "Jak sprawdzić, czy sprzęt jest wolny w moim terminie?",
-              a: "Kalendarz w katalogu pokazuje realną dostępność każdej pozycji. Wybierz daty, a lista zawęzi się do sprzętu wolnego w całym tym okresie.",
+              q: "Czy terminy w katalogu są aktualne?",
+              a: "Tak. Katalog pokazuje stan magazynu na żywo — egzemplarz zarezerwowany przez kogoś innego znika z wyboru od razu.",
             },
             {
-              q: "Czy mogę odwołać rezerwację?",
-              a: "Tak, bezpłatnie do 48 godzin przed odbiorem. Później zatrzymujemy część kaucji, bo przez ten czas sprzęt był zablokowany dla innych klientów.",
+              q: "Jak długo trwa potwierdzenie?",
+              a: "Rezerwacja online potwierdza się automatycznie. Mail z adresem odbioru i kwotą kaucji przychodzi w ciągu kilku minut.",
             },
             {
-              q: "Czy wystawiacie faktury?",
-              a: "Do każdej rezerwacji wystawiamy fakturę VAT. Dane podajesz przy składaniu zamówienia, a dokument wysyłamy mailem po zakończeniu najmu.",
+              q: "Czy mogę przedłużyć najem w trakcie?",
+              a: "Tak, jeśli sprzęt nie jest zarezerwowany przez kolejnego klienta. Zadzwoń albo napisz — przedłużenie liczymy według cennika.",
+            },
+            {
+              q: "Jaka jest kaucja?",
+              a: "Zależy od sprzętu i jest podana przy każdej pozycji w katalogu. Zwracamy ją po przeglądzie, zwykle w ciągu dwóch dni roboczych.",
+            },
+            {
+              q: "Co, jeśli sprzęt wróci uszkodzony?",
+              a: "Wyceniamy naprawę i pokazujemy kosztorys przed potrąceniem czegokolwiek z kaucji. Zużycie eksploatacyjne jest po naszej stronie.",
             },
           ],
         },
@@ -1389,17 +2200,21 @@ const STARTER_SECTIONS: StarterTable = {
         type: "cta",
         background: "inverted",
         content: {
-          heading: "Znalazłeś sprzęt na swój termin?",
-          text: "Zarezerwuj go online — kalendarz zablokuje pozycję od razu.",
-          buttonLabel: "Rezerwuj z katalogu",
-          buttonHref: "#produkty",
+          layout: "split",
+          variant: "accent",
+          heading: "Wiesz, czego potrzebujesz?",
+          text: "Wejdź do katalogu, wybierz termin i zarezerwuj. Potwierdzenie dostaniesz od razu.",
+          items: [
+            { label: "Otwórz katalog", href: "/store" },
+            { label: "Warunki najmu", href: "/regulamin" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Twoja Firma",
+          businessName: "Twoja Wypożyczalnia",
           address: "ul. Magazynowa 17, 80-001 Gdańsk",
           phone: "+48 500 600 700",
           email: "kontakt@twojafirma.pl",
@@ -1409,7 +2224,7 @@ const STARTER_SECTIONS: StarterTable = {
             { label: "Polityka prywatności", href: "/prywatnosc" },
             { label: "Kontakt", href: "#kontakt" },
           ],
-          legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
+          legal: "© Twoja Wypożyczalnia. Wszelkie prawa zastrzeżone.",
         },
       },
     ],
@@ -1418,47 +2233,85 @@ const STARTER_SECTIONS: StarterTable = {
         type: "hero",
         background: "default",
         content: {
-          heading: "The whole catalog from the first screen",
-          subheading: "Visitors land and immediately see what is free on their dates.",
-          ctaText: "Browse the catalog",
+          heading: "The whole depot online, with live availability",
+          subheading:
+            "Check availability, pick your dates and book — no phone calls and no waiting for a quote.",
+          ctaText: "Go to the catalog",
           ctaHref: "#produkty",
         },
       },
       {
         type: "products",
         background: "default",
-        content: { heading: "Available equipment" },
+        content: { layout: "grid", heading: "Equipment catalog", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "freeform",
         background: "muted",
         content: {
-          heading: "About the rental",
-          body: "Use this space to say where your business came from and what you answer for in front of a customer. We buy gear against real demand, service it ourselves and retire it before it starts letting people down — this is the one paragraph people read in full, so put something concrete in it instead of generalities about passion and quality.",
+          heading: "How booking works",
+          body: "You pick the gear and the dates in the catalog, and the system shows straight away whether a unit is free. We confirm the booking by email, together with the pickup address and the deposit amount. You can move the dates up to 24 hours before pickup — no surcharge and no explaining.",
         },
       },
       {
         type: "pricing",
         background: "default",
         content: {
-          heading: "How billing works",
-          note: "The daily rate goes down as the rental gets longer. The deposit is refundable and its amount is listed with every catalog item.",
+          layout: "table",
+          heading: "Base rates",
+          showCatalogLink: true,
+          footnote:
+            "Daily rates for rentals up to three days. From the fourth day we charge 80% of the rate, from the seventh — 70%.",
+          items: [
+            { name: "Hand tools and power tools", price_grosze: 3000, unit: "day", mode: "from" },
+            { name: "Garden equipment", price_grosze: 6000, unit: "day", mode: "from" },
+            {
+              name: "Cleaning equipment",
+              price_grosze: 9000,
+              unit: "day",
+              mode: "from",
+              note: "Chemicals are billed separately",
+            },
+            { name: "Scaffolding and ladders", price_grosze: 4000, unit: "day", mode: "from" },
+            {
+              name: "Trailers and transport",
+              price_grosze: 12000,
+              unit: "day",
+              mode: "from",
+              note: "Category B licence and a PLN 500 deposit required",
+            },
+            {
+              name: "Monthly hire",
+              price_grosze: 90000,
+              unit: "month",
+              mode: "from",
+              note: "For companies, with a consolidated invoice",
+            },
+          ],
         },
       },
       {
         type: "delivery",
         background: "muted",
         content: {
+          layout: "cards",
           heading: "Pickup and delivery",
-          text: "Collect the gear at the depot yourself or have it delivered to the address you give us. We agree the slot when the booking is confirmed, so nobody waits at a closed gate.",
+          intro: "Collect catalog gear yourself, or we bring it to the address you give us.",
           items: [
             {
               title: "Self pickup",
-              text: "Free of charge, during depot hours.",
+              text: "Depot by the ring road, parking at the ramp, handover in minutes.",
+              price_grosze: 0,
             },
             {
-              title: "Delivery to your address",
-              text: "Quoted once we have your postcode and rental dates.",
+              title: "Delivery in town",
+              text: "Same day for bookings confirmed before 12:00.",
+              price_grosze: 8000,
+            },
+            {
+              title: "Delivery up to 50 km",
+              text: "Next working day, in a two-hour window of your choice.",
+              price_grosze: 18000,
             },
           ],
         },
@@ -1467,19 +2320,29 @@ const STARTER_SECTIONS: StarterTable = {
         type: "faq",
         background: "default",
         content: {
-          heading: "Frequently asked questions",
+          layout: "accordion",
+          heading: "Questions about booking",
+          allowMultiple: false,
           items: [
             {
-              q: "How do I check whether the gear is free on my dates?",
-              a: "The calendar in the catalog shows the real availability of every item. Pick your dates and the list narrows down to gear that is free for the whole period.",
+              q: "Is the availability in the catalog current?",
+              a: "Yes. The catalog shows live stock — a unit booked by someone else disappears from the picker immediately.",
             },
             {
-              q: "Can I cancel a booking?",
-              a: "Yes, free of charge up to 48 hours before pickup. After that we keep part of the deposit, because the gear was held for you and unavailable to others.",
+              q: "How long does confirmation take?",
+              a: "Online bookings confirm automatically. The email with the pickup address and the deposit arrives within minutes.",
             },
             {
-              q: "Do you issue invoices?",
-              a: "Every booking gets a VAT invoice. You give us the billing details when you order and we email the document once the rental ends.",
+              q: "Can I extend the rental while it runs?",
+              a: "Yes, if the gear is not booked by the next customer. Call or write — the extension is charged at the standard rate.",
+            },
+            {
+              q: "How much is the deposit?",
+              a: "It depends on the item and is listed with every catalog entry. We refund it after inspection, usually within two business days.",
+            },
+            {
+              q: "What if the gear comes back damaged?",
+              a: "We price the repair and show you the quote before deducting anything from the deposit. Normal wear is on us.",
             },
           ],
         },
@@ -1488,17 +2351,21 @@ const STARTER_SECTIONS: StarterTable = {
         type: "cta",
         background: "inverted",
         content: {
-          heading: "Found the gear for your dates?",
-          text: "Book it online — the calendar holds the item right away.",
-          buttonLabel: "Book from the catalog",
-          buttonHref: "#produkty",
+          layout: "split",
+          variant: "accent",
+          heading: "Know what you need?",
+          text: "Open the catalog, pick your dates and book. The confirmation arrives straight away.",
+          items: [
+            { label: "Open the catalog", href: "/store" },
+            { label: "Rental terms", href: "/regulamin" },
+          ],
         },
       },
       {
         type: "footer",
         background: "muted",
         content: {
-          businessName: "Your Company",
+          businessName: "Your Rental",
           address: "17 Magazynowa St, 80-001 Gdansk",
           phone: "+48 500 600 700",
           email: "hello@yourcompany.com",
@@ -1508,7 +2375,7 @@ const STARTER_SECTIONS: StarterTable = {
             { label: "Privacy policy", href: "/prywatnosc" },
             { label: "Contact", href: "#kontakt" },
           ],
-          legal: "© Your Company. All rights reserved.",
+          legal: "© Your Rental. All rights reserved.",
         },
       },
     ],
@@ -1516,8 +2383,8 @@ const STARTER_SECTIONS: StarterTable = {
 };
 
 /**
- * Sekcje szablonu w kształcie v1 — UPORZĄDKOWANE tak, jak mają stanąć na
- * stronie. Zwraca GŁĘBOKĄ KOPIĘ (ten sam kontrakt, co `presetContentFor`):
+ * Sekcje szablonu w kształcie DEKLARACJI — uporządkowane tak, jak mają stanąć
+ * na stronie. Zwraca GŁĘBOKĄ KOPIĘ (ten sam kontrakt, co `presetContentFor`):
  * wołający wkłada tę treść do stanu edytora i ją mutuje, więc współdzielenie
  * referencji ze stałą modułu skaziłoby szablon dla następnego tenanta w tym
  * samym procesie. `locale` spoza allowlisty degraduje do „pl".
@@ -1534,21 +2401,66 @@ export function starterTemplateSections(
 }
 
 /**
- * Sekcje szablonu jako PŁÓTNA v2 — to jest postać, którą kreator zapisuje do
- * `content_draft`. Konwersję robi w całości {@link sectionCanvasFrom}; jedyne,
- * co dokładamy, to pasmo tła, bo konwersja widzi pojedynczą sekcję i nie ma
- * z czego wiedzieć, jaki rytm ma cała strona (patrz nagłówek pliku).
+ * Wpisy galerii z deklaracji → wpisy treści v3. Slot bez kadru w rejestrze
+ * WYPADA, zamiast wjechać do treści jako `undefined`: schemat wymaga zdjęcia,
+ * więc wpis bez niego nie jest „galerią bez obrazka", tylko treścią, której nie
+ * da się zapisać. Kontrakt szablonów pilnuje, żeby ten filtr nigdy nie miał co
+ * odsiewać — brak kuracji ma być CZERWONYM testem, a nie cichą dziurą w siatce.
  */
-export function starterTemplateCanvases(
+function galleryItemsOf(items: readonly StarterGalleryItem[]): GalleryStructuredContent["items"] {
+  return items.flatMap((item) => {
+    const photo = starterPhoto(item.slot);
+    if (!photo) return [];
+    return [
+      {
+        image: photo,
+        alt: item.alt,
+        ...(item.caption ? { caption: item.caption } : {}),
+      },
+    ];
+  });
+}
+
+/**
+ * Sekcje szablonu w postaci, którą kreator zapisuje do `content_draft`.
+ *
+ * Dwie drogi, jedna na generację (patrz nagłówek pliku):
+ *   • typ strukturalny → treść v3 domknięta o `v`, `type` i pasmo tła. Nie ma
+ *     tu żadnej konwersji: to, co zadeklarowaliśmy, JEST treścią sekcji;
+ *   • typ bez silnika → konwersja {@link sectionCanvasWith}, a pasmo dokładamy
+ *     na wyjściu, bo konwersja widzi pojedynczą sekcję i nie zna rytmu strony.
+ */
+export function starterTemplateContents(
   id: StarterTemplate,
   locale: string,
-): StarterSectionCanvas[] {
+): StarterSectionContent[] {
   const layout = STARTER_LAYOUTS[id];
   const language = (PRESET_LOCALES as readonly string[]).includes(locale)
     ? (locale as PresetLocale)
     : "pl";
 
-  return starterTemplateSections(id, locale).map(({ type, content, background }) => {
+  return starterTemplateSections(id, locale).map((section) => {
+    const { type, background } = section;
+
+    if (isStructuredType(type)) {
+      const content =
+        type === "gallery"
+          ? {
+              ...(section.content as StarterStructuredContent<"gallery">),
+              items: galleryItemsOf((section.content as StarterStructuredContent<"gallery">).items),
+            }
+          : section.content;
+      return {
+        type,
+        content: {
+          v: STRUCTURED_SECTION_VERSION,
+          type,
+          ...content,
+          background,
+        } as StructuredSectionContent,
+      };
+    }
+
     const media: SectionMedia[] = (layout.media?.[type] ?? []).map((entry) => ({
       alt: entry.alt[language],
       // `source` NIEOBECNE dla slotu bez kadru — element renderuje wtedy kafel
@@ -1560,7 +2472,7 @@ export function starterTemplateCanvases(
     return {
       type,
       content: {
-        ...sectionCanvasWith(type, content, {
+        ...sectionCanvasWith(type, section.content, {
           composition: layout.compositions?.[type],
           media: media.length > 0 ? media : undefined,
           metricRatio: headingMetricRatio(themeTokens(layout.theme).fontPair),

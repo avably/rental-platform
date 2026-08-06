@@ -23,7 +23,7 @@ import {
   normalizeSectionOrder,
   orderWithSectionBefore,
   starterPhoto,
-  starterTemplateCanvases,
+  starterTemplateContents,
   starterTemplatePhotoSlots,
   starterTemplateTheme,
   tenantCacheTag,
@@ -753,7 +753,7 @@ export async function applyStarterTemplate(
   const { ctx } = auth;
   const { siteId, starterId, locale } = parsed.data;
 
-  const sections = starterTemplateCanvases(starterId, locale);
+  const sections = starterTemplateContents(starterId, locale);
   if (sections.length > MAX_SECTIONS) {
     return { ok: false, error: "Szablon startowy ma za dużo sekcji." };
   }

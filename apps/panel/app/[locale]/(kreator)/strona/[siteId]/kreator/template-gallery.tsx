@@ -28,14 +28,13 @@
  */
 import {
   STARTER_TEMPLATES,
-  starterTemplateCanvases,
+  starterTemplateContents,
   starterTemplateTheme,
   themeTokens,
   type ResolvedSiteStyle,
-  type SectionCanvas,
   type StarterTemplate,
 } from "@avably/core/site";
-import { SiteRenderer } from "@avably/ui";
+import { SiteRenderer, type RenderSection } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
@@ -74,12 +73,12 @@ export function TemplateGallery({
         id,
         style: styleOf(id),
         mood: themeTokens(starterTemplateTheme(id)).mood[language],
-        sections: starterTemplateCanvases(id, locale).map((section, index) => ({
+        sections: starterTemplateContents(id, locale).map((section, index) => ({
           id: `${id}-${index}`,
           position: index,
           type: section.type,
-          content: section.content as SectionCanvas,
-        })),
+          content: section.content,
+        })) as RenderSection[],
       })),
     [locale, language],
   );

@@ -598,15 +598,17 @@ export type { CurrencyCode } from "../money";
 // Szablony startowe — gotowe SKŁADY strony na pierwsze wejście do kreatora
 // (K5, ADR-090). Presety odpowiadały na pustą sekcję, te na pustą stronę.
 export {
+  STARTER_CONTENT_MINIMUMS,
   STARTER_LAYOUTS,
   STARTER_SECTION_BOUNDS,
   STARTER_TEMPLATES,
-  starterTemplateCanvases,
+  starterTemplateContents,
   starterTemplatePhotoSlots,
   starterTemplateSections,
   starterTemplateTheme,
+  type StarterGalleryItem,
   type StarterSection,
-  type StarterSectionCanvas,
+  type StarterSectionContent,
   type StarterTemplate,
 } from "./starter-templates";
 

@@ -534,6 +534,13 @@
  * szkicu, i to bez jednego czerwonego testu. Element WEWNĄTRZ sekcji nie
  * animuje się osobno — przy płótnie v2 z geometrią absolutną wejście per
  * element byłoby rozsypywaniem układu na oczach czytelnika, a nie animacją.
+ *
+ * 5. DŁUGOŚĆ WEJŚCIA MIERZY OKNO, NIE SEKCJA (E9). Koniec `animation-range`
+ *    idzie z presetu w jednostkach `vh`, więc każda sekcja odsłania się przez
+ *    tyle samo przewijania — niezależnie od tego, ile treści ma w środku.
+ *    Do E8 zakres kończył się procentem fazy `cover`, przez co ta sama strona
+ *    miała wejścia różnej długości (pomiar: 357 px przy stopce, 503 px przy
+ *    sekcji sprzętu), a ruch czytał się jak zbiór osobnych animacji.
  */
 
 @keyframes site-reveal {
@@ -551,7 +558,17 @@
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
     .site-root:not([data-site-motion="off"]) [data-section-id] {
-      animation: site-reveal var(--site-motion-duration) var(--site-motion-easing) both;
+      /*
+       * CZAS TRWANIA JEST STAŁĄ, NIE TOKENEM MOTYWU (E9). Przy osi widoku
+       * animacja rozciąga się na `animation-range`, więc zadeklarowany czas
+       * nie ma czego mierzyć: profil krycia zmierzony na żywej stronie był
+       * identyczny dla 360 ms, 1,5 s, 9 s i `auto`. Jedyną wartością, która
+       * cokolwiek zmienia, jest `0s` — czyli WARTOŚĆ POCZĄTKOWA, przy której
+       * animacja zwija się do stanu końcowego i wejścia nie ma wcale. Stąd
+       * jedna sekunda wpisana tutaj: nie steruje niczym, broni przed zerem
+       * i nie udaje w danych motywu pokrętła, które nic nie robi (./motion).
+       */
+      animation: site-reveal 1s var(--site-motion-easing) both;
       animation-timeline: view();
       animation-range: var(--site-motion-range);
     }
