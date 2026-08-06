@@ -3235,6 +3235,28 @@ export function structuredSpecOf(type: StructuredSectionType): StructuredSection
 }
 
 /**
+ * CZY LISTA WPISÓW W OGÓLE COŚ ZNACZY (`itemsWhen` w rejestrze, E7).
+ *
+ * Sekcja sprzętu ma stan, w którym wybór pozycji jest bez skutku: przy źródle
+ * „katalog" treść bierze się z katalogu, a nie z listy wskazań. Odpowiedź na
+ * to pytanie rozstrzyga w interfejsie DWIE różne rzeczy — czy szuflada pokazuje
+ * listę wpisów (E7) i czy pusty stan na płótnie da się naprawić W SZUFLADZIE
+ * (E8) — więc od E8 stoi w rdzeniu, a nie w dwóch kopiach warunku po stronie
+ * panelu. Dwie kopie rozjechałyby się przy pierwszym typie, który dostanie
+ * własne `itemsWhen`: pusty stan obiecywałby wtedy szufladę, w której listy
+ * nie ma.
+ *
+ * Typ bez `itemsWhen` odpowiada ZAWSZE „tak" — jego lista jest jedynym źródłem.
+ */
+export function structuredItemsMatter(content: StructuredSectionContent): boolean {
+  const spec = (STRUCTURED_SECTIONS as Record<string, StructuredSectionSpec | undefined>)[
+    content.type
+  ];
+  if (!spec?.itemsWhen) return true;
+  return (content as unknown as Record<string, unknown>)[spec.itemsWhen.key] === spec.itemsWhen.value;
+}
+
+/**
  * PRZEŁĄCZENIE UKŁADU BEZ DOTYKANIA DANYCH (kontrakt bezstratności).
  *
  * Układ jest JEDNYM polem treści, więc jego zmiana z definicji nie może

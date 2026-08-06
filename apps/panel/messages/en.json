@@ -1540,6 +1540,11 @@
         "itemsTitle": "Selected equipment",
         "itemsIdle": "The section shows the start of your catalog. Switch “Where equipment comes from” to “Selected items” to pick specific equipment.",
         "removeBody": "This item disappears from the section. The equipment itself stays in the catalog.",
+        "canvasEmpty": {
+          "title": "This section will show nothing — not a single item is selected.",
+          "action": "Select the first item",
+          "elsewhere": "Your catalog is empty, so the section has nothing to show. Add equipment in the Equipment module — it will appear here on its own."
+        },
         "fields": {
           "productId": "Catalog item"
         },

@@ -67,6 +67,7 @@ import {
   plainTextOf,
   sendToBack,
   sizeOf,
+  structuredItemsMatter,
   withGeometry,
   withSize,
   withoutMobileGeometry,
@@ -110,6 +111,7 @@ import {
   TooltipContent,
   TooltipTrigger,
   canvasBoxVariables,
+  structuredEntryCount,
   type RenderSection,
   type SiteMoney,
   type StorefrontProduct,
@@ -142,6 +144,7 @@ import { ElementFrame, type FixedAxes } from "./canvas-elements";
 import { InlineTextEditor } from "./inline-editor";
 import { runsEqual } from "./inline-text";
 import type { InsertTarget } from "./section-picker";
+import type { StructuredFormTab } from "./structured-section-form";
 import {
   duplicateElement,
   removeElement,
@@ -257,7 +260,12 @@ export function BuilderCanvas({
   restoreAction: (sectionId: string) => Promise<ActionResult>;
   /** Otwarcie pickera na WSKAZANYM miejscu — „+" nie zna typów sekcji (E2). */
   onInsert: (target: InsertTarget) => void;
-  onOpenSettings: (sectionId: string) => void;
+  /**
+   * Otwarcie szuflady sekcji. Od E8 wołający MOŻE wskazać zakładkę mini-CMS-u:
+   * przycisk pustego stanu obiecuje „dodaj pierwszy wpis", więc musi wylądować
+   * na liście wpisów, a nie tam, gdzie operator był ostatnio.
+   */
+  onOpenSettings: (sectionId: string, tab?: StructuredFormTab) => void;
   onChanged: () => void;
   /** Szkice płótna, historia i autozapis — jedna prawda o stanie edycji (K2). */
   editor: CanvasEditor;
@@ -474,6 +482,7 @@ export function BuilderCanvas({
                   const editorSection = order[index];
                   if (!editorSection) return children;
                   const canvas = editor.canvasOf(editorSection.id);
+                  const structuredContent = editor.structuredOf(editorSection.id);
                   const selected =
                     selection && selection.sectionId === editorSection.id && selection.elementId
                       ? canvas?.elements.find((element) => element.id === selection.elementId)
@@ -492,7 +501,29 @@ export function BuilderCanvas({
                         zaznaczania — jej jedyną drogą edycji jest szuflada,
                         więc klik w CAŁĄ sekcję ma ją otwierać.
                       */
-                      structured={Boolean(editor.structuredOf(editorSection.id))}
+                      structured={Boolean(structuredContent)}
+                      /*
+                        PUSTY STAN (E8) — liczy się to, co sekcja ODDA DO
+                        DOKUMENTU, a nie długość jej listy: sekcja sprzętu przy
+                        źródle „katalog" ma listę pustą z założenia i mimo to
+                        pokazuje pozycje (a przy pustym katalogu — nie pokazuje
+                        nic, mając tę samą listę). Rozstrzyga `structuredEntryCount`
+                        z pakietu renderu, czyli ta sama wiedza, którą maluje.
+
+                        Sekcja USUNIĘTA W SZKICU pustego stanu nie dostaje: jej
+                        treść jest już poza edycją (K5a), więc przycisk „dodaj
+                        pierwszy wpis" obiecywałby pracę do kosza.
+                      */
+                      empty={
+                        structuredContent &&
+                        !editorSection.deletedInDraft &&
+                        structuredEntryCount(structuredContent, products) === 0
+                          ? {
+                              type: structuredContent.type,
+                              inDrawer: structuredItemsMatter(structuredContent),
+                            }
+                          : null
+                      }
                       index={index}
                       total={order.length}
                       level={level}
@@ -513,7 +544,7 @@ export function BuilderCanvas({
                       onToggle={() => run(() => toggleAction(editorSection))}
                       onDuplicate={() => run(() => duplicateAction(editorSection.id))}
                       onInsert={onInsert}
-                      onOpenSettings={() => onOpenSettings(editorSection.id)}
+                      onOpenSettings={(tab) => onOpenSettings(editorSection.id, tab)}
                       deleteAction={deleteAction}
                       onDeleted={onChanged}
                       onRestore={() => run(() => restoreAction(editorSection.id))}
@@ -690,6 +721,7 @@ export function BuilderCanvas({
 function CanvasSection({
   section,
   structured,
+  empty,
   index,
   total,
   level,
@@ -715,6 +747,11 @@ function CanvasSection({
   section: EditorSection;
   /** Sekcja strukturalna: klik w całą sekcję otwiera szufladę (ADR-094). */
   structured: boolean;
+  /**
+   * SEKCJA NIE MA CZEGO POKAZAĆ (E8) albo `null`. `inDrawer` mówi, czy naprawa
+   * jest w szufladzie tej sekcji — patrz `StructuredEmptyState`.
+   */
+  empty: { type: string; inDrawer: boolean } | null;
   index: number;
   total: number;
   /** Poziom zaznaczenia W TEJ sekcji (E2) — patrz nagłówek pliku. */
@@ -733,7 +770,8 @@ function CanvasSection({
   onToggle: () => void;
   onDuplicate: () => void;
   onInsert: (target: InsertTarget) => void;
-  onOpenSettings: () => void;
+  /** Otwarcie szuflady, opcjonalnie na WSKAZANEJ zakładce mini-CMS-u (E8). */
+  onOpenSettings: (tab?: StructuredFormTab) => void;
   deleteAction: (sectionId: string) => Promise<ActionResult>;
   onDeleted: () => void;
   /** Cofnięcie usunięcia (K5a) — jedyna akcja sekcji-nagrobka. */
@@ -931,7 +969,13 @@ function CanvasSection({
                 icon={<Settings2 className="size-4" aria-hidden />}
                 loading={locked}
                 disabled={locked}
-                onClick={onOpenSettings}
+                /*
+                  Owijka, a nie `onClick={onOpenSettings}`: od E8 pierwszym
+                  argumentem jest ZAKŁADKA, a `<button>` podałby tu zdarzenie
+                  myszy. Szuflada dostałaby wtedy „zakładkę", której nie ma
+                  w zbiorze, i otworzyłaby się na wyglądzie zamiast na wpisach.
+                */
+                onClick={() => onOpenSettings()}
               />
               <DeleteSectionDialog
                 section={section}
@@ -980,6 +1024,90 @@ function CanvasSection({
       <div className={section.enabled && !section.deletedInDraft ? undefined : "opacity-50"}>
         {children}
       </div>
+
+      {/*
+        PUSTY STAN SEKCJI (E8) — POD treścią, nie zamiast niej.
+
+        Sekcja bez wpisów renderuje się na sklepie tak, jak renderowała się do
+        E8 (jedno zdanie dla odwiedzającego) i tak samo wygląda w podglądzie —
+        pustka na sklepie jest problemem operatora, nie klienta, więc nie
+        wymyślamy tam treści. To, czego brakowało, to ODPOWIEDŹ NA PYTANIE
+        „i co ja mam z tym zrobić": stoi więc TUTAJ, w warstwie edycyjnej, jako
+        blok pod sekcją. Nakładka na sekcję zasłoniłaby jej nagłówek, czyli
+        jedyną rzecz, po której operator poznaje, o którą sekcję chodzi.
+
+        Warstwa jest CAŁA po stronie panelu — pakiet renderu jej nie zna, więc
+        do sklepu nie ma jej czym wnieść nawet przypadkiem (ta sama zasada, co
+        przy obrysie i pasku narzędzi).
+      */}
+      {empty ? (
+        <StructuredEmptyState
+          type={empty.type}
+          inDrawer={empty.inDrawer}
+          locked={locked}
+          onOpen={() => onOpenSettings("items")}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * SEKCJA, KTÓRA NIE POKAŻE NIC — I DROGA WYJŚCIA (E8).
+ *
+ * ==================== DWIE KLASY PUSTKI, DWIE ODPOWIEDZI ====================
+ *
+ * Pustkę da się naprawić w SZUFLADZIE tej sekcji albo POZA nią, i to jest cała
+ * różnica, którą operator musi zobaczyć:
+ *
+ *   • `inDrawer` — lista wpisów sekcji coś znaczy i jest pusta (sekcja sprzętu
+ *     ze źródłem „wybrane pozycje" bez ani jednego wskazania). Wtedy stoi tu
+ *     DUŻY przycisk, który otwiera szufladę OD RAZU na liście wpisów;
+ *   • bez `inDrawer` — treść sekcji bierze się skądinąd i tam trzeba pójść
+ *     (sekcja sprzętu ze źródłem „katalog" przy pustym katalogu). Wtedy stoi tu
+ *     ZDANIE mówiące, gdzie iść, i ŻADNEGO przycisku: przycisk otwierający
+ *     szufladę obiecywałby naprawę, której w niej nie ma.
+ *
+ * Etykiety idą z i18n po kluczu REJESTRU (`structured.<typ>.canvasEmpty.*`),
+ * jak cała reszta mini-CMS-u, więc kolejny typ, który dopuści pustą listę,
+ * wchodzi tu bez zmiany ani jednej linii — a kontrakt i18n dopilnuje, żeby nie
+ * wszedł z gołym kluczem na ekranie.
+ */
+function StructuredEmptyState({
+  type,
+  inDrawer,
+  locked,
+  onOpen,
+}: {
+  type: string;
+  inDrawer: boolean;
+  locked: boolean;
+  onOpen: () => void;
+}) {
+  const t = useTranslations("site");
+
+  return (
+    /*
+      `relative z-10` — powierzchnia otwierająca szufladę (`data-cms-open`)
+      leży NAD całą sekcją, więc blok bez własnej warstwy dostałby kliknięcie
+      przeznaczone dla przycisku. Ta sama warstwa, późniejsza kolejność w
+      drzewie: przycisk wygrywa, a kliknięcie obok niego dalej otwiera szufladę.
+    */
+    <div
+      data-canvas-empty={type}
+      className="border-border text-muted-foreground relative z-10 m-3 flex flex-col items-center gap-3 rounded-lg border border-dashed p-6 text-center"
+    >
+      <p className="text-sm font-medium">{t(`structured.${type}.canvasEmpty.title`)}</p>
+      {inDrawer ? (
+        <Button type="button" size="lg" data-canvas-empty-action disabled={locked} onClick={onOpen}>
+          <Plus className="size-4" aria-hidden />
+          {t(`structured.${type}.canvasEmpty.action`)}
+        </Button>
+      ) : (
+        <p data-canvas-empty-elsewhere className="text-[13px] leading-[18px]">
+          {t(`structured.${type}.canvasEmpty.elsewhere`)}
+        </p>
+      )}
     </div>
   );
 }

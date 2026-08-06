@@ -863,6 +863,7 @@ export {
   PRODUCTS_SOURCES,
   removeStructuredItem,
   structuredFromLegacy,
+  structuredItemsMatter,
   structuredNewItemFor,
   structuredPresetFor,
   structuredSchemaFor,

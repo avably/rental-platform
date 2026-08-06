@@ -116,6 +116,22 @@ function keysFor(type: (typeof STRUCTURED_SECTION_TYPES)[number]): string[] {
    * w tym miejscu pustkę, a operator nie miałby jak zgadnąć, co przełączyć.
    */
   if (spec.itemsWhen) keys.push(`${base}.itemsIdle`);
+  /*
+   * PUSTY STAN NA PŁÓTNIE (E8) — wyłącznie tam, gdzie sekcja MOŻE zostać bez
+   * ani jednego wpisu, czyli tam, gdzie rejestr opuścił podłogę do zera. Typ
+   * z podłogą 1 nie ma jak opustoszeć (szuflada nie usunie ostatniego wpisu,
+   * a schemat nie przyjmie pustej listy), więc żądanie tych kluczy od niego
+   * byłoby żądaniem tłumaczenia zdania, którego nikt nigdy nie zobaczy.
+   *
+   * `elsewhere` jest OSOBNYM kluczem i dokładnie tam, gdzie ma sens: przy typie
+   * z `itemsWhen` pustka bywa nienaprawialna w szufladzie (sekcja sprzętu przy
+   * pustym katalogu), a wtedy zdanie musi powiedzieć, GDZIE iść — jeden wspólny
+   * komunikat kazałby operatorowi zgadywać, które z dwojga.
+   */
+  if (spec.minItems === 0) {
+    keys.push(`${base}.canvasEmpty.title`, `${base}.canvasEmpty.action`);
+    if (spec.itemsWhen) keys.push(`${base}.canvasEmpty.elsewhere`);
+  }
 
   return keys;
 }

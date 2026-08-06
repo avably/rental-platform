@@ -37,5 +37,7 @@ export {
   type StructuredSectionComponent,
   type StructuredSectionProps,
 } from "./structured/registry";
+// Ile wpisów sekcja odda do dokumentu (E8) — pytanie płótna o stan pusty.
+export { structuredEntryCount } from "./structured/entries";
 // Płótno z elementami (K2, ADR-084) — render treści v2 i przeliczenie geometrii.
 export { SectionCanvasRenderer, canvasBoxVariables, geometryStyle } from "./element-canvas";

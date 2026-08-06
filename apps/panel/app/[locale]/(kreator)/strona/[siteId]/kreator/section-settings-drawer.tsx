@@ -56,7 +56,7 @@ import { SectionContentForm } from "@/app/[locale]/(panel)/strona/section-conten
 import { PanelSelect } from "@/components/fields/panel-select";
 import { FormMeasure } from "@/components/screens/form-measure";
 
-import { StructuredSectionForm } from "./structured-section-form";
+import { StructuredSectionForm, type StructuredFormTab } from "./structured-section-form";
 import { replaceElement } from "./use-canvas-editor";
 
 export function SectionSettingsDrawer({
@@ -66,6 +66,7 @@ export function SectionSettingsDrawer({
   section,
   canvas,
   structured,
+  structuredTab,
   selectedElementId,
   onCanvasChange,
   onStructuredChange,
@@ -89,6 +90,12 @@ export function SectionSettingsDrawer({
   canvas?: SectionCanvas;
   /** Szkic sekcji STRUKTURALNEJ (v3, ADR-094) — wtedy szuflada jest mini-CMS-em. */
   structured?: StructuredSectionContent;
+  /**
+   * Zakładka, na której ma się otworzyć mini-CMS (E8) — patrz `initialTab`
+   * w `StructuredSectionForm`. Szuflada jej nie interpretuje: przenosi ją od
+   * tego, kto ją otworzył, do formularza.
+   */
+  structuredTab?: StructuredFormTab;
   selectedElementId: string | null;
   onCanvasChange: (update: (canvas: SectionCanvas) => SectionCanvas) => void;
   onStructuredChange: (
@@ -146,6 +153,7 @@ export function SectionSettingsDrawer({
                   content={structured}
                   currency={currency}
                   importSources={importSources}
+                  initialTab={structuredTab}
                   onChange={onStructuredChange}
                 />
               ) : canvas ? (

@@ -1540,6 +1540,11 @@
         "itemsTitle": "Wskazany sprzęt",
         "itemsIdle": "Sekcja pokazuje początek katalogu. Przełącz „Skąd brać sprzęt” na „Wybrane pozycje”, żeby wskazać konkretny sprzęt.",
         "removeBody": "Ta pozycja zniknie z sekcji. Sam sprzęt zostaje w katalogu.",
+        "canvasEmpty": {
+          "title": "Ta sekcja nie pokaże nic — nie wskazano ani jednej pozycji.",
+          "action": "Wskaż pierwszą pozycję",
+          "elsewhere": "Katalog jest pusty, więc sekcja nie ma czego pokazać. Dodaj sprzęt w module Sprzęt — pojawi się tutaj sam."
+        },
         "fields": {
           "productId": "Pozycja katalogu"
         },

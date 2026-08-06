@@ -95,6 +95,7 @@ import { TemplateGallery } from "./template-gallery";
 import { ImagePicker } from "./image-picker";
 import { SectionPicker, type InsertLayout, type InsertTarget } from "./section-picker";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
+import type { StructuredFormTab } from "./structured-section-form";
 import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -151,6 +152,13 @@ export function SiteBuilder({
   const [viewport, setViewport] = useState<BuilderViewport>("desktop");
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  /**
+   * ZAKŁADKA, NA KTÓREJ MA SIĘ OTWORZYĆ SZUFLADA (E8) — albo `undefined`, gdy
+   * wołający nie wskazał żadnej („ustawienia sekcji" z paska narzędzi).
+   * Trzyma ją SKORUPA, bo to ona zna wszystkie drogi otwarcia; szuflada tylko
+   * przenosi wskazanie do mini-CMS-u.
+   */
+  const [settingsTab, setSettingsTab] = useState<StructuredFormTab | undefined>(undefined);
   /**
    * ZAZNACZENIE W HIERARCHII (E2): sekcja albo element W SEKCJI. Jeden stan na
    * oba poziomy — patrz `BuilderSelection` w `builder-canvas.tsx`.
@@ -660,7 +668,15 @@ export function SiteBuilder({
             deleteAction={(sectionId) => deleteSection(sectionId)}
             restoreAction={(sectionId) => restoreSection(sectionId)}
             onInsert={setInsertTarget}
-            onOpenSettings={setSettingsId}
+            /*
+              Otwarcie szuflady NIESIE ZE SOBĄ ZAKŁADKĘ (E8): „ustawienia
+              sekcji" z paska narzędzi jej nie wskazują, a przycisk pustego
+              stanu wskazuje listę wpisów — bo dokładnie to obiecuje jego napis.
+            */
+            onOpenSettings={(sectionId, tab) => {
+              setSettingsTab(tab);
+              setSettingsId(sectionId);
+            }}
             editor={editor}
             selection={selection}
             onSelect={setSelection}
@@ -719,6 +735,7 @@ export function SiteBuilder({
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
         structured={openSection ? editor.structuredOf(openSection.id) : undefined}
+        structuredTab={settingsTab}
         selectedElementId={
           openSection && selection?.sectionId === openSection.id
             ? (selection.elementId ?? null)
