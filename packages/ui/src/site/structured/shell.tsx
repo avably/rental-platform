@@ -42,7 +42,11 @@ export function StructuredSectionShell({
       data-structured-layout={layout}
       className={cn(styles.section, sectionBandClass(background, styles))}
     >
-      <div className={styles.container}>
+      {/* `data-section-reveal` — PUDEŁKO TREŚCI, czyli podmiot animacji wejścia
+          (addendum E9). Znacznik stoi na kontenerze, a nie na pasie, bo pas ma
+          80 px pustego marginesu u góry: oś widoku liczona od jego krawędzi
+          przepalała ~85% przebiegu, zanim pierwsza litera wjechała w okno. */}
+      <div data-section-reveal className={styles.container}>
         {heading ? <h2 className={styles.sectionHeading}>{heading}</h2> : null}
         {children}
       </div>

@@ -30,9 +30,19 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { SITE_MOTIONS, SITE_THEMES, STYLE_TOKENS, motionPreset, styleTokensFor, themeTokens } from "@avably/core/site";
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import {
+  SITE_MOTIONS,
+  SITE_THEMES,
+  STRUCTURED_SECTION_TYPES,
+  STYLE_TOKENS,
+  motionPreset,
+  sectionCanvasFrom,
+  structuredPresetFor,
+  styleTokensFor,
+  themeTokens,
+} from "@avably/core/site";
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { SiteChrome, SiteRenderer } from "./site-renderer";
 import type { RenderSection } from "./types";
@@ -40,7 +50,10 @@ import type { RenderSection } from "./types";
 const ARKUSZ = readFileSync(resolve(__dirname, "site.css"), "utf8");
 
 /** Blok reguły wejścia — jedyne miejsce w arkuszu, które wiąże `site-reveal` z osią widoku. */
-const REGULA_WEJSCIA = /\.site-root:not\(\[data-site-motion="off"\]\) \[data-section-id\] \{([^}]*)\}/;
+const REGULA_WEJSCIA =
+  /\.site-root:not\(\[data-site-motion="off"\]\) \[data-section-id\] \[data-section-reveal\] \{([^}]*)\}/;
+
+afterEach(cleanup);
 
 function sekcja(): RenderSection {
   return {
@@ -189,10 +202,10 @@ describe("arkusz: jedna animacja, liczby z motywu", () => {
     );
     expect(liczby).toEqual({
       still: "linear | 0px | 1 | 1 | entry 0% entry 0%",
-      calm: "cubic-bezier(0.22, 0.61, 0.36, 1) | 22px | 1 | 0 | entry 0% 28vh",
-      crisp: "cubic-bezier(0.16, 1, 0.3, 1) | 14px | 1 | 0 | entry 0% 18vh",
-      spring: "cubic-bezier(0.34, 1.56, 0.64, 1) | 18px | 1 | 0 | entry 0% 24vh",
-      editorial: "cubic-bezier(0.33, 1, 0.68, 1) | 28px | 1 | 0 | entry 0% 34vh",
+      calm: "cubic-bezier(0.25, 0.1, 0.25, 1) | 22px | 1 | 0 | entry 0% 32vh",
+      crisp: "cubic-bezier(0.4, 0, 0.2, 1) | 14px | 1 | 0 | entry 0% 26vh",
+      spring: "cubic-bezier(0.34, 1.42, 0.64, 1) | 18px | 1 | 0 | entry 0% 28vh",
+      editorial: "cubic-bezier(0.5, 0, 0.2, 1) | 28px | 1 | 0 | entry 0% 38vh",
     });
 
     expect(Object.fromEntries(SITE_THEMES.map((t) => [t, themeTokens(t).motion]))).toEqual({
@@ -265,7 +278,7 @@ describe("preferencja czytelnika wygrywa z motywem", () => {
      * gdzie animacji nie ma: bez wsparcia osi widoku, przy `prefers-reduced-
      * -motion`, na płótnie kreatora i u robota indeksującego.
      */
-    const podejrzane = [...ARKUSZ.matchAll(/([^{}]*\[data-section-id\][^{}]*)\{([^}]*)\}/g)]
+    const podejrzane = [...ARKUSZ.matchAll(/([^{}]*\[data-section-(?:id|reveal)\][^{}]*)\{([^}]*)\}/g)]
       .filter(([, , ciało]) => /(?:opacity\s*:\s*0(?!\.\d*[1-9])|visibility\s*:\s*hidden|display\s*:\s*none)/.test(ciało ?? ""))
       .map(([, selektor]) => (selektor ?? "").trim());
     expect(podejrzane, `reguły chowające sekcję:\n${podejrzane.join("\n")}`).toEqual([]);
@@ -277,10 +290,14 @@ describe("preferencja czytelnika wygrywa z motywem", () => {
     // JavaScriptu jest pusta. Renderer sekcji nie ma prawa nic ukrywać.
     const { container } = render(<SiteRenderer sections={[sekcja()]} />);
     const owijka = container.querySelector<HTMLElement>("[data-section-id]");
+    const pudelko = container.querySelector<HTMLElement>("[data-section-reveal]");
     expect(owijka, "brak owijki sekcji").not.toBeNull();
-    expect(owijka!.style.opacity, "renderer wystawia sekcję z kryciem w atrybucie").toBe("");
-    expect(owijka!.style.visibility).toBe("");
-    expect(owijka!.style.display).toBe("");
+    expect(pudelko, "brak pudełka treści — animacja nie miałaby podmiotu").not.toBeNull();
+    for (const el of [owijka!, pudelko!]) {
+      expect(el.style.opacity, "renderer wystawia sekcję z kryciem w atrybucie").toBe("");
+      expect(el.style.visibility).toBe("");
+      expect(el.style.display).toBe("");
+    }
     expect(container.innerHTML, "treść sekcji nie dojechała do dokumentu").toContain("Nagłówek");
   });
 });
@@ -316,5 +333,56 @@ describe("warstwa edycyjna stoi", () => {
     );
     expect(container.querySelectorAll(".site-root")).toHaveLength(1);
     expect(container.querySelectorAll("[data-section-id]")).toHaveLength(1);
+  });
+});
+
+/**
+ * PODMIOT ANIMACJI — DOKŁADNIE JEDEN NA SEKCJĘ (addendum E9).
+ *
+ * Reguła arkusza celuje w `[data-section-reveal]`, a znacznik stawia POWŁOKA
+ * sekcji — a powłok jest kilka (strukturalna, v1, hero, stopka, siatka płótna).
+ * Rozjazd nie daje błędu: sekcja renderuje się poprawnie i po prostu nie ma
+ * wejścia, a przy zerowej liczbie podmiotów cała reguła staje się martwa.
+ * Ten blok liczy podmioty PO CAŁYM REJESTRZE typów, więc typ dopisany bez
+ * znacznika (albo z dwoma) zapala się sam z siebie.
+ */
+describe("podmiot animacji wejścia stoi pod każdym typem sekcji", () => {
+  it("kontrola po pustym zbiorze: rejestr typów strukturalnych jest niepusty", () => {
+    expect(STRUCTURED_SECTION_TYPES.length).toBeGreaterThan(5);
+  });
+
+  it.each([...STRUCTURED_SECTION_TYPES])("sekcja strukturalna %s ma jeden podmiot", (type) => {
+    const { container } = render(
+      <SiteRenderer
+        sections={[
+          { id: `s-${type}`, position: 0, type, content: structuredPresetFor(type, "pl") } as RenderSection,
+        ]}
+      />,
+    );
+    expect(
+      container.querySelectorAll("[data-section-reveal]").length,
+      `sekcja ${type}: podmiotów animacji`,
+    ).toBe(1);
+  });
+
+  it("sekcja v1 (treść płaska) ma jeden podmiot", () => {
+    const { container } = render(<SiteRenderer sections={[sekcja()]} />);
+    expect(container.querySelectorAll("[data-section-reveal]").length).toBe(1);
+  });
+
+  it("sekcja v2 (płótno) ma jeden podmiot", () => {
+    const canvas = sectionCanvasFrom("freeform", { heading: "Nagłówek", body: "Treść" });
+    const { container } = render(
+      <SiteRenderer
+        sections={[{ id: "s-canvas", position: 0, type: "freeform", content: canvas } as RenderSection]}
+      />,
+    );
+    expect(container.querySelectorAll("[data-section-reveal]").length).toBe(1);
+  });
+
+  it("podmiot leży WEWNĄTRZ owijki sekcji — inaczej selektor arkusza go nie widzi", () => {
+    const { container } = render(<SiteRenderer sections={[sekcja()]} />);
+    const owijka = container.querySelector("[data-section-id]")!;
+    expect(owijka.querySelector("[data-section-reveal]"), "podmiot poza owijką sekcji").not.toBeNull();
   });
 });
