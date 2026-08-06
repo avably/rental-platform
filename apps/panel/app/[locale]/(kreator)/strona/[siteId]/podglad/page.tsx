@@ -111,6 +111,18 @@ export default async function SiteDraftPreviewPage({
             // z `toEditorSections`, które parsuje treść schematem TEGO typu.
             sections={sections as unknown as RenderSection[]}
             style={style}
+            /*
+              PODGLĄD JEST W RUCHU (E8, przewód pod E9). Płótno kreatora stoi,
+              bo tam się stronę USTAWIA; tutaj się ją OGLĄDA, więc animacje
+              wejścia jadą tym samym torem, co na sklepie: liczby bierze preset
+              ruchu MOTYWU (ADR-090/K6), a ostatnie słowo ma
+              `prefers-reduced-motion` czytelnika (bramka w arkuszu).
+
+              Wartość stoi tu JAWNIE, choć jest domyślna — inaczej różnica
+              między podglądem a płótnem byłaby brakiem linijki, a kontrakt
+              „warstwa edycyjna stoi" nie miałby czego pilnować po tej stronie.
+            */
+            motion="auto"
             products={products}
             money={money}
             siteImageBase={siteImagePublicBase()}

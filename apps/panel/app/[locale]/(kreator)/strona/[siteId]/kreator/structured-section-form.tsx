@@ -47,6 +47,7 @@ import {
   patchStructuredField,
   patchStructuredItem,
   removeStructuredItem,
+  structuredItemsMatter,
   structuredNewItemFor,
   structuredSpecOf,
   withStructuredLayout,
@@ -110,8 +111,12 @@ function itemsOf(content: StructuredSectionContent): Record<string, unknown>[] {
   return (content as unknown as { items: Record<string, unknown>[] }).items;
 }
 
-/** Zakładki szuflady dwudzielnej. Nazwy niosą i18n per typ. */
-type FormTab = "items" | "appearance";
+/**
+ * Zakładki szuflady dwudzielnej. Nazwy niosą i18n per typ (galeria: „Zarządzaj
+ * zdjęciami", sprzęt: „Sprzęt"), więc TU są to role, a nie napisy: `items`
+ * trzyma WPISY, `appearance` — wygląd sekcji.
+ */
+export type StructuredFormTab = "items" | "appearance";
 
 /**
  * CO ZAPISAĆ ZA PUSTE POLE — JEDNA reguła dla pól wpisu i pól sekcji (E4).
@@ -143,6 +148,7 @@ export function StructuredSectionForm({
   content,
   currency,
   importSources,
+  initialTab,
   onChange,
   onConvertHint,
 }: {
@@ -166,6 +172,22 @@ export function StructuredSectionForm({
    * rejestr rozstrzyga, które z nich należy do tego typu.
    */
   importSources?: Record<string, readonly unknown[]>;
+  /**
+   * ZAKŁADKA, NA KTÓREJ SZUFLADA MA SIĘ OTWORZYĆ (E8).
+   *
+   * Do E8 zakładka startowa była stałą (`items`) i nikt jej nie podawał. Odtąd
+   * podaje ją WOŁAJĄCY, bo od E8 są dwie drogi otwarcia i mówią o dwóch różnych
+   * pracach: pasek narzędzi otwiera „ustawienia sekcji" (bez wskazania), a
+   * przycisk PUSTEGO STANU na płótnie obiecuje wprost „dodaj pierwszy wpis" —
+   * i musi wylądować tam, gdzie te wpisy są, niezależnie od tego, jak nazywa je
+   * i18n danego typu („Zarządzaj zdjęciami", „Sprzęt").
+   *
+   * Brak = `items`, czyli zachowanie sprzed E8. Zakładka jest stanem WEWNĘTRZNYM
+   * od chwili otwarcia — operator, który przełączył się na „Wygląd", ma tam
+   * zostać; szuflada zamknięta i otwarta ponownie wraca do wskazania wołającego,
+   * bo host odmontowuje jej treść przy zamknięciu.
+   */
+  initialTab?: StructuredFormTab;
   onChange: (update: Update) => void;
   /** Miejsce na komunikat/akcję spoza mini-CMS (np. konwersja) — opcjonalne. */
   onConvertHint?: React.ReactNode;
@@ -176,7 +198,7 @@ export function StructuredSectionForm({
   const type = content.type as StructuredSectionType;
   const spec = structuredSpecOf(type);
   const items = itemsOf(content);
-  const [tab, setTab] = useState<FormTab>("items");
+  const [tab, setTab] = useState<StructuredFormTab>(initialTab ?? "items");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -218,10 +240,11 @@ export function StructuredSectionForm({
    * „katalog" treść bierze się z katalogu. Pokazywanie wtedy listy i selektora
    * uczyłoby operatora, że ustawienia sekcji bywają ozdobą — więc w tym stanie
    * stoi tam ZDANIE mówiące, co przełączyć, żeby wybór zaczął działać.
+   *
+   * Pytanie zadaje RDZEŃ (E8), a nie ten plik: tej samej odpowiedzi potrzebuje
+   * płótno, żeby wiedzieć, czy pusty stan sekcji da się naprawić W SZUFLADZIE.
    */
-  const itemsMatter =
-    !spec.itemsWhen ||
-    (content as unknown as Record<string, unknown>)[spec.itemsWhen.key] === spec.itemsWhen.value;
+  const itemsMatter = structuredItemsMatter(content);
 
   const wyglad = (
     <div className="flex flex-col gap-5">
