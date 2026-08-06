@@ -57,7 +57,7 @@ export function StructuredPricingCards({
               Cena stoi POD nazwą i jest największym elementem kafla: kafel
               cennika czyta się po cenie, a nazwa jest jej wyjaśnieniem.
             */}
-            <span data-pricing-price className="site-text-accent text-lg">
+            <span data-pricing-price className="site-text-accent site-numeric text-lg">
               {priceLabelOf(item, money, labels)}
             </span>
             <PricingItemNote item={item} className="mt-auto" />

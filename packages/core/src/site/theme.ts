@@ -359,7 +359,7 @@ export const SITE_THEME_TOKENS = {
     defaultAccent: "lime",
     danger: DANGER,
     motion: "crisp",
-    fontPair: "sport",
+    fontPair: "track",
     shape: { radius: "2px", radiusLarge: "4px", borderWidth: "2px", button: "square", buttonFill: "solid" },
     type: {
       displayWeight: "700",
@@ -491,7 +491,7 @@ export const SITE_THEME_TOKENS = {
     defaultAccent: "terracotta",
     danger: DANGER,
     motion: "calm",
-    fontPair: "warm",
+    fontPair: "workshop",
     shape: { radius: "6px", radiusLarge: "10px", borderWidth: "1px", button: "rounded", buttonFill: "outline" },
     type: {
       displayWeight: "400",

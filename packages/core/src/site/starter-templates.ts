@@ -755,12 +755,12 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "products",
-        background: "default",
+        background: "muted",
         content: { layout: "grid", heading: "Nasza flota", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "gallery",
-        background: "muted",
+        background: "default",
         content: {
           layout: "grid",
           heading: "Sprzęt i warsztat",
@@ -803,7 +803,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
           layout: "cards",
           heading: "Cennik najmu",
@@ -837,7 +837,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "faq",
-        background: "muted",
+        background: "default",
         content: {
           layout: "accordion",
           heading: "Zanim wypożyczysz",
@@ -868,7 +868,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "testimonials",
-        background: "default",
+        background: "inverted",
         content: {
           layout: "carousel",
           heading: "Co mówią klienci",
@@ -896,7 +896,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "directions",
-        background: "inverted",
+        background: "default",
         content: {
           layout: "split",
           heading: "Jak do nas trafić",
@@ -946,12 +946,12 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "products",
-        background: "default",
+        background: "muted",
         content: { layout: "grid", heading: "Our fleet", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "gallery",
-        background: "muted",
+        background: "default",
         content: {
           layout: "grid",
           heading: "The fleet and the workshop",
@@ -994,7 +994,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
           layout: "cards",
           heading: "Rental rates",
@@ -1028,7 +1028,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "faq",
-        background: "muted",
+        background: "default",
         content: {
           layout: "accordion",
           heading: "Before you book",
@@ -1059,7 +1059,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "testimonials",
-        background: "default",
+        background: "inverted",
         content: {
           layout: "carousel",
           heading: "What customers say",
@@ -1087,7 +1087,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "directions",
-        background: "inverted",
+        background: "default",
         content: {
           layout: "split",
           heading: "How to find us",
@@ -1952,11 +1952,14 @@ const STARTER_SECTIONS: StarterTable = {
         type: "cta",
         background: "inverted",
         content: {
-          layout: "banner",
+          layout: "split",
           variant: "accent",
           heading: "Potrzebujesz czegoś na jutro?",
           text: "Napisz albo zadzwoń — sprawdzimy dostępność i odłożymy sprzęt na Twoje nazwisko.",
-          items: [{ label: "Zarezerwuj", href: "#kontakt" }],
+          items: [
+            { label: "Zarezerwuj", href: "#kontakt" },
+            { label: "Zobacz sprzęt", href: "#produkty" },
+          ],
         },
       },
       {
@@ -2047,11 +2050,14 @@ const STARTER_SECTIONS: StarterTable = {
         type: "cta",
         background: "inverted",
         content: {
-          layout: "banner",
+          layout: "split",
           variant: "accent",
           heading: "Need something for tomorrow?",
           text: "Write or call — we will check availability and put the gear aside in your name.",
-          items: [{ label: "Book now", href: "#kontakt" }],
+          items: [
+            { label: "Book now", href: "#kontakt" },
+            { label: "See the gear", href: "#produkty" },
+          ],
         },
       },
       {
@@ -2091,20 +2097,20 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "products",
-        background: "default",
+        background: "muted",
         content: { layout: "grid", heading: "Katalog sprzętu", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "freeform",
-        background: "muted",
+        background: "default",
         content: {
           heading: "Jak działa rezerwacja",
-          body: "Wybierasz sprzęt i termin w katalogu, a system od razu pokazuje, czy egzemplarz jest wolny. Rezerwację potwierdzamy mailem razem z adresem odbioru i wysokością kaucji. Zmiana terminu jest możliwa do 24 godzin przed odbiorem — bez dopłat i bez tłumaczeń.",
+          body: "1. WYBIERASZ — sprzęt i termin w katalogu; system od razu pokazuje, czy egzemplarz jest wolny.\n\n2. POTWIERDZAMY — mailem, razem z adresem odbioru i wysokością kaucji. Zwykle w kilka minut.\n\n3. ZMIENIASZ, JEŚLI TRZEBA — termin przesuniesz do 24 godzin przed odbiorem, bez dopłat i bez tłumaczeń.",
         },
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
           layout: "table",
           heading: "Cennik podstawowy",
@@ -2141,7 +2147,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "delivery",
-        background: "muted",
+        background: "default",
         content: {
           layout: "cards",
           heading: "Odbiór i dowóz",
@@ -2167,7 +2173,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "faq",
-        background: "default",
+        background: "muted",
         content: {
           layout: "accordion",
           heading: "Pytania o rezerwację",
@@ -2242,20 +2248,20 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "products",
-        background: "default",
+        background: "muted",
         content: { layout: "grid", heading: "Equipment catalog", source: "catalog", items: [], limit: 8 },
       },
       {
         type: "freeform",
-        background: "muted",
+        background: "default",
         content: {
           heading: "How booking works",
-          body: "You pick the gear and the dates in the catalog, and the system shows straight away whether a unit is free. We confirm the booking by email, together with the pickup address and the deposit amount. You can move the dates up to 24 hours before pickup — no surcharge and no explaining.",
+          body: "1. YOU PICK — the gear and the dates in the catalog; the system shows straight away whether a unit is free.\n\n2. WE CONFIRM — by email, with the pickup address and the deposit amount. Usually within minutes.\n\n3. YOU CHANGE IT IF NEEDED — move the dates up to 24 hours before pickup, no surcharge and no explaining.",
         },
       },
       {
         type: "pricing",
-        background: "default",
+        background: "muted",
         content: {
           layout: "table",
           heading: "Base rates",
@@ -2292,7 +2298,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "delivery",
-        background: "muted",
+        background: "default",
         content: {
           layout: "cards",
           heading: "Pickup and delivery",
@@ -2318,7 +2324,7 @@ const STARTER_SECTIONS: StarterTable = {
       },
       {
         type: "faq",
-        background: "default",
+        background: "muted",
         content: {
           layout: "accordion",
           heading: "Questions about booking",

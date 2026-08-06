@@ -62,7 +62,7 @@ export function StructuredPricingTable({
               </th>
               <td
                 data-pricing-price
-                className="site-text-accent py-4 text-right align-top text-base whitespace-nowrap"
+                className="site-text-accent site-numeric py-4 text-right align-top text-base whitespace-nowrap"
               >
                 {priceLabelOf(item, money, labels)}
               </td>

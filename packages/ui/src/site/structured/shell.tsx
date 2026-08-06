@@ -42,11 +42,19 @@ export function StructuredSectionShell({
       data-structured-layout={layout}
       className={cn(styles.section, sectionBandClass(background, styles))}
     >
-      {/* `data-section-reveal` — PUDEŁKO TREŚCI, czyli podmiot animacji wejścia
-          (addendum E9). Znacznik stoi na kontenerze, a nie na pasie, bo pas ma
-          80 px pustego marginesu u góry: oś widoku liczona od jego krawędzi
-          przepalała ~85% przebiegu, zanim pierwsza litera wjechała w okno. */}
-      <div data-section-reveal="stagger" className={styles.container}>
+      {/*
+       * `data-section-reveal` — PUDEŁKO TREŚCI, czyli podmiot animacji wejścia
+       * (addendum E9). Znacznik stoi na kontenerze, a nie na pasie, bo pas ma
+       * 80 px pustego marginesu u góry: oś widoku liczona od jego krawędzi
+       * przepalała ~85% przebiegu, zanim pierwsza litera wjechała w okno.
+       *
+       * WARIANT WYNIKA Z NAGŁÓWKA. Kaskada „nagłówek → reszta" potrzebuje co
+       * najmniej dwojga dzieci; sekcja bez nagłówka oddaje do kontenera jeden
+       * blok (tak wygląda baner CTA), więc kaskada nie miałaby czego kaskadować
+       * i udawałaby ruch, którego nie ma. Bez nagłówka pudełko wchodzi więc
+       * jako całość.
+       */}
+      <div data-section-reveal={heading ? "stagger" : "block"} className={styles.container}>
         {heading ? <h2 className={styles.sectionHeading}>{heading}</h2> : null}
         {children}
       </div>

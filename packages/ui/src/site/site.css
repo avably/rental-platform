@@ -270,6 +270,19 @@
   border-radius: var(--site-radius);
 }
 
+/*
+ * LICZBY W KOLUMNIE (E9 addendum 2). Kroje proporcjonalne dają cyfrom RÓŻNE
+ * szerokości, więc kolumna cen w cenniku „tańczy": 140,00 stoi w innym miejscu
+ * niż 90,00, a oko czyta to jako niedbałość, zanim zdąży przeczytać kwotę.
+ * `tabular-nums` zrównuje szerokości; `slashed-zero` odróżnia zero od litery O
+ * w krojach o zamkniętych owalach. Klasa, a nie styl w komponencie — cena
+ * pokazuje się w czterech miejscach (cennik w dwóch układach, karta sprzętu,
+ * dostawa) i jedna zmiana ma dotykać jednego pliku.
+ */
+.site-numeric {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
 .site-title {
   font-weight: var(--site-heading-weight);
 }

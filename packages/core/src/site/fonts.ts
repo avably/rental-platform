@@ -90,6 +90,28 @@ export const FONT_FAMILIES = {
   "dm-sans": { family: "DM Sans Site", fallback: SANS_FALLBACK, slug: "dm-sans", weight: "100 1000", license: "OFL-dmsans.txt", metricRatio: 0.98 },
   "playfair-display": { family: "Playfair Display Site", fallback: SERIF_FALLBACK, slug: "playfair-display", weight: "400 900", license: "OFL-playfairdisplay.txt", metricRatio: 0.95 },
   "instrument-serif": { family: "Instrument Serif Site", fallback: SERIF_FALLBACK, slug: "instrument-serif", weight: "400", license: "OFL-instrumentserif.txt", metricRatio: 1.15 },
+  /*
+   * DWIE RODZINY DOPISANE W E9 (addendum 2), po odrzuceniu przez właściciela
+   * krojów motywów `velocity` i `atelier`.
+   *
+   * Podmiana na rodzinę Z ZAPASU była tańsza i została odrzucona świadomie:
+   * rejestr ma sześć par na sześć motywów w relacji 1:1, więc każda podmiana
+   * dawałaby DWA światy z tym samym krojem nagłówkowym — czyli dokładnie ten
+   * sygnał szablonowości, który mamy usuwać.
+   *
+   * `metricRatio` OBU DOBRANY, A NIE ZMIERZONY — i to jest ważne rozróżnienie.
+   * Pomiar szerokości tego samego napisu w przeglądarce (E9, 48 px/700, plik
+   * `metryka-krojow-e9.mjs`) daje rozrzut 0,99–1,05 dla rodzin, którym rejestr
+   * przypisuje 0,86–1,15. Wartości w tym rejestrze nie są więc stosunkiem
+   * szerokości znaku, tylko ZAPASEM dobranym tak, żeby estymator nie wypuszczał
+   * nagłówka poza pudełko (Archivo) ani nie zostawiał pod nim pustki
+   * (Instrument Serif). Nowe rodziny dostają wartości z tej samej skali,
+   * wstawione względem sąsiadów: Saira jest zwężona (więcej znaków w wierszu →
+   * wyżej), Fraunces szeroka (mniej znaków → niżej). Sprawdzianem jest kontrakt
+   * geometrii mobilnej szablonów i akcept wizualny pierwszego ekranu.
+   */
+  saira: { family: "Saira Site", fallback: SANS_FALLBACK, slug: "saira", weight: "100 900", license: "OFL-saira.txt", metricRatio: 1.1 },
+  fraunces: { family: "Fraunces Site", fallback: SERIF_FALLBACK, slug: "fraunces", weight: "100 900", license: "OFL-fraunces.txt", metricRatio: 0.92 },
   /**
    * Kroje aplikacji — to, czym strona najemcy była do K5. Bez plików: rodzina
    * przychodzi z `next/font/google` w obu aplikacjach (zmienna `--font-geist-sans`)
@@ -128,6 +150,10 @@ export const FONT_PAIRS = {
   editorial: { heading: "playfair-display", body: "inter", label: { pl: "Magazynowa", en: "Editorial" } },
   warm: { heading: "instrument-serif", body: "inter", label: { pl: "Ciepła", en: "Warm" } },
   tech: { heading: "inter-tight", body: "inter", label: { pl: "Techniczna", en: "Technical" } },
+  /* Zwężony grotesk o atletycznej proporcji — tempo bez ozdobników (E9). */
+  track: { heading: "saira", body: "inter", label: { pl: "Torowa", en: "Track" } },
+  /* Szeroka szeryfowa o wysokim x-height — ciepło z zapasem wag (E9). */
+  workshop: { heading: "fraunces", body: "inter", label: { pl: "Warsztatowa", en: "Workshop" } },
   system: { heading: "system", body: "system", label: { pl: "Systemowa", en: "System" } },
 } as const satisfies Record<string, FontPairTokens>;
 
