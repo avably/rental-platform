@@ -101,6 +101,9 @@ export const ROLE_CLASSES: Record<string, readonly StructuredThemeRole[]> = {
  * od „nikt tego nie rozpatrzył".
  */
 export const NEUTRAL_CLASSES: readonly string[] = [
+  // Kształt LICZBY, nie jej kolor: `font-variant-numeric` zrównuje szerokości
+  // cyfr, żeby kolumna cen nie „tańczyła". Zero zmiennych motywu (E9).
+  "site-numeric",
   "site-root",
   "site-surface",
   "site-band-muted",

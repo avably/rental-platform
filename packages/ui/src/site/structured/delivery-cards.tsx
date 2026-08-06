@@ -58,7 +58,7 @@ export function StructuredDeliveryCards({
                 {item.title}
               </h3>
               {price ? (
-                <span data-delivery-price className="site-text-accent text-lg">
+                <span data-delivery-price className="site-text-accent site-numeric text-lg">
                   {price}
                 </span>
               ) : null}

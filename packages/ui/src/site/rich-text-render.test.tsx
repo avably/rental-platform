@@ -166,7 +166,7 @@ describe("w renderze NIE MA drogi do wstrzyknięcia HTML-u", () => {
     // Wyłuskujemy KAŻDĄ wstrzykiwaną wartość i pytamy, czy jest to dokładnie
     // importowana stała. Regex z wyprzedzeniem negatywnym dałby się tu obejść
     // przez nawrót silnika wyrażeń, więc porównujemy wprost.
-    const wstrzykiwane = [...source.matchAll(/__html:\s*([^}]+?)\s*\}/g)].map(([, v]) => v.trim());
+    const wstrzykiwane = [...source.matchAll(/__html:\s*([^}]+?)\s*\}/g)].map(([, v]) => (v ?? "").trim());
     expect(wstrzykiwane, "brak wstrzyknięcia — plik przestał być tym, czym był").not.toEqual([]);
     expect(wstrzykiwane, "wstrzyknięcie dostaje coś innego niż samą stałą").toEqual([
       "SITE_REVEAL_SCRIPT",

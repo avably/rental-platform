@@ -310,7 +310,15 @@ describe("podmiot animacji wejścia stoi pod każdym typem sekcji", () => {
     expect(STRUCTURED_SECTION_TYPES.length).toBeGreaterThan(5);
   });
 
-  it.each([...STRUCTURED_SECTION_TYPES])("sekcja strukturalna %s ma jeden podmiot z kaskadą", (type) => {
+  it.each([...STRUCTURED_SECTION_TYPES])("sekcja strukturalna %s ma jeden podmiot", (type) => {
+    /*
+     * Wariant NIE jest tu sprawdzany na sztywno: powłoka wyprowadza go
+     * z obecności nagłówka (sekcja bez nagłówka oddaje jeden blok, więc
+     * kaskada nie miałaby czego kaskadować). Pilnuje tego osobne zdanie
+     * „stagger dostają wyłącznie pudełka o co najmniej dwóch dzieciach";
+     * tutaj pytamy o LICZBĘ podmiotów i o to, że wariant jest jednym z dwóch
+     * znanych — trzeci znaczyłby regułę arkusza bez pokrycia.
+     */
     const { container } = render(
       <SiteRenderer
         sections={[
@@ -320,9 +328,10 @@ describe("podmiot animacji wejścia stoi pod każdym typem sekcji", () => {
     );
     const podmioty = container.querySelectorAll("[data-section-reveal]");
     expect(podmioty.length, `sekcja ${type}: podmiotów animacji`).toBe(1);
-    expect(podmioty[0]!.getAttribute("data-section-reveal"), `sekcja ${type}: wariant podmiotu`).toBe(
-      "stagger",
-    );
+    expect(
+      ["stagger", "block"],
+      `sekcja ${type}: nieznany wariant podmiotu`,
+    ).toContain(podmioty[0]!.getAttribute("data-section-reveal"));
   });
 
   it("sekcja v1 (treść płaska) ma jeden podmiot z kaskadą", () => {
@@ -344,6 +353,36 @@ describe("podmiot animacji wejścia stoi pod każdym typem sekcji", () => {
     const podmioty = container.querySelectorAll("[data-section-reveal]");
     expect(podmioty.length).toBe(1);
     expect(podmioty[0]!.getAttribute("data-section-reveal")).toBe("block");
+  });
+
+  it("wariant `stagger` dostają WYŁĄCZNIE pudełka o co najmniej dwóch dzieciach", () => {
+    /*
+     * Kaskada nagłówek → reszta potrzebuje co najmniej dwóch dzieci. Pudełko
+     * z jednym (tak wyglądała stopka) przechodzi wszystkie inne zdania, a ruch
+     * ma tam dokładnie zero kroków — kod udaje kaskadę, której nie ma.
+     */
+    const bledy: string[] = [];
+    const sprawdz = (etykieta: string, kontener: HTMLElement) => {
+      for (const podmiot of kontener.querySelectorAll('[data-section-reveal="stagger"]')) {
+        if (podmiot.children.length < 2) {
+          bledy.push(`${etykieta}: pudełko z kaskadą ma ${podmiot.children.length} dzieci`);
+        }
+      }
+    };
+    for (const type of STRUCTURED_SECTION_TYPES) {
+      const { container } = render(
+        <SiteRenderer
+          sections={[
+            { id: `s-${type}`, position: 0, type, content: structuredPresetFor(type, "pl") } as RenderSection,
+          ]}
+        />,
+      );
+      sprawdz(type, container);
+      cleanup();
+    }
+    const { container } = render(<SiteRenderer sections={[sekcja()]} />);
+    sprawdz("freeform (v1)", container);
+    expect(bledy, bledy.join("\n")).toEqual([]);
   });
 
   it("podmiot leży WEWNĄTRZ owijki sekcji — inaczej selektor arkusza go nie widzi", () => {
@@ -522,5 +561,28 @@ describe("skrypt uzbrajający: kiedy uzbraja i kiedy odsłania", () => {
       document.querySelectorAll(`[data-section-reveal]:not([${REVEAL_DONE_ATTR}])`).length,
       "wyjątek zostawił treść schowaną",
     ).toBe(0);
+  });
+});
+
+describe("render sekcji zostaje serwerowy (ADR-097, budżet JS)", () => {
+  /*
+   * Skrypt uzbrajający to jedyny JavaScript, jaki strona najemcy dostała
+   * w zamian za scrub. Ryzyko wtórne jest większe niż on sam: pierwsza osoba,
+   * która „naprawi" animację dopisując `"use client"` do renderu sekcji,
+   * wrzuci do bundla klienta CAŁY render strony — a tego nie widać ani na
+   * zrzucie, ani w żadnym teście renderu.
+   */
+  const ZRODLA_SERWEROWE = [
+    "site-renderer.tsx",
+    "sections.tsx",
+    "element-canvas.tsx",
+    "structured/shell.tsx",
+    "site-reveal-script.tsx",
+  ] as const;
+
+  it.each(ZRODLA_SERWEROWE)("%s nie jest komponentem klienckim", (plik) => {
+    const source = readFileSync(resolve(__dirname, plik), "utf8");
+    expect(source.length, "plik przestał być źródłem renderu").toBeGreaterThan(200);
+    expect(source.slice(0, 400), "render sekcji wjechał do bundla klienta").not.toContain('"use client"');
   });
 });

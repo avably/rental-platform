@@ -114,7 +114,7 @@ const STYLES: TemplateStyles = {
   cta: "site-cta mt-8 inline-flex items-center",
   card: "site-card flex flex-col overflow-hidden",
   cardTitle: "site-title text-lg tracking-tight",
-  cardPrice: "mt-1 text-sm site-text-accent",
+  cardPrice: "mt-1 text-sm site-text-accent site-numeric",
   productGrid: "mt-10 grid grid-cols-2 gap-4 @min-[40rem]/site:gap-6 @min-[64rem]/site:grid-cols-3",
   faqItem: "site-rule py-4",
   faqQuestion: "site-title cursor-pointer list-none text-lg",

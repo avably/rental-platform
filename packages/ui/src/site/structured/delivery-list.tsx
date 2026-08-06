@@ -61,7 +61,7 @@ export function StructuredDeliveryList({
               {price ? (
                 <span
                   data-delivery-price
-                  className="site-text-accent shrink-0 text-base whitespace-nowrap @min-[40rem]/site:text-right"
+                  className="site-text-accent site-numeric shrink-0 text-base whitespace-nowrap @min-[40rem]/site:text-right"
                 >
                   {price}
                 </span>
