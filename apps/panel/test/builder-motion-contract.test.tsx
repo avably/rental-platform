@@ -290,16 +290,20 @@ describe("preferencja czytelnika stoi PONAD trybem", () => {
      * animacja w ogóle wchodzi w grę, a preferencja — czy wolno ją odtworzyć.
      */
     const arkusz = read("packages/ui/src/site/site.css");
-    const bramka = arkusz.indexOf("@media (prefers-reduced-motion: no-preference)");
     /*
      * Selektor celuje w PUDEŁKO TREŚCI (addendum E9), a stan startowy stoi pod
      * atrybutem uzbrojenia (ADR-097). Pilnujemy OBU: reguła stanu startowego
      * musi stać pod bramką preferencji, a warstwa edycyjna musi być z niej
      * wykluczona zapisem `:not([data-site-motion="off"])`.
      */
-    const regula = arkusz.indexOf(
+    // Selektor stoi w arkuszu ZŁAMANY na kilka wierszy (jest długi), więc
+    // porównujemy na kopii ze zwiniętymi białymi znakami — inaczej kontrakt
+    // pilnowałby formatowania, a nie reguły.
+    const zwiniety = arkusz.replace(/\s+/g, " ");
+    const regula = zwiniety.indexOf(
       '[data-site-reveal="armed"] .site-root:not([data-site-motion="off"]) [data-section-reveal="block"]',
     );
+    const bramka = zwiniety.indexOf("@media (prefers-reduced-motion: no-preference)");
     expect(bramka, "arkusz stracił bramkę preferencji").toBeGreaterThan(-1);
     expect(regula, "arkusz stracił regułę wejścia sekcji").toBeGreaterThan(-1);
     expect(regula, "reguła wejścia wypadła sprzed bramki preferencji").toBeGreaterThan(bramka);
