@@ -139,6 +139,14 @@ const BUILDER_LAYER_MARKERS = [
   // dla SEKCJI zeszła z listy razem z przeciąganiem sekcji z palety (E2).
   "data-drop-target",
   "data-section-pinned",
+  /*
+   * PUSTY STAN SEKCJI NA PŁÓTNIE (E8, aneks ADR-083). Blok mówi OPERATOROWI,
+   * czego brakuje i czym to naprawić — odwiedzającemu nie mówi nic, bo pusta
+   * sekcja jest problemem najemcy, nie klienta. To jest ten znacznik, który
+   * najłatwiej wnieść do pakietu renderu „bo to przecież jedno zdanie": stąd
+   * jego miejsce na tej liście i osobna oś dowodu mutacyjnego w E8.
+   */
+  "data-canvas-empty",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */
