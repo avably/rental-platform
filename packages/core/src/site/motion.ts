@@ -108,19 +108,19 @@ export const SITE_MOTION_PRESETS = {
   },
   calm: {
     mood: { pl: "Spokojne podniesienie i przenik.", en: "A calm lift and fade." },
-    easing: "cubic-bezier(0.22, 0.61, 0.36, 1)",
+    easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
     distance: "22px",
     scale: "1",
     opacity: "0",
-    range: "entry 0% 28vh",
+    range: "entry 0% 32vh",
   },
   crisp: {
     mood: { pl: "Krótkie, rzeczowe wejście.", en: "Short, matter-of-fact entrance." },
-    easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
     distance: "14px",
     scale: "1",
     opacity: "0",
-    range: "entry 0% 18vh",
+    range: "entry 0% 26vh",
   },
   spring: {
     mood: { pl: "Sprężyste wejście z lekkim naddatkiem.", en: "Springy entrance with a slight overshoot." },
@@ -131,19 +131,19 @@ export const SITE_MOTION_PRESETS = {
      * strony — na paśmie odwróconym byłaby to widoczna szpara, a nie ruch).
      * Krzywa z przeskokiem daje ten sam charakter samym przesunięciem.
      */
-    easing: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+    easing: "cubic-bezier(0.34, 1.42, 0.64, 1)",
     distance: "18px",
     scale: "1",
     opacity: "0",
-    range: "entry 0% 24vh",
+    range: "entry 0% 28vh",
   },
   editorial: {
     mood: { pl: "Powolne wynurzenie, jak przewracana strona.", en: "A slow surfacing, like a turning page." },
-    easing: "cubic-bezier(0.33, 1, 0.68, 1)",
+    easing: "cubic-bezier(0.5, 0, 0.2, 1)",
     distance: "28px",
     scale: "1",
     opacity: "0",
-    range: "entry 0% 34vh",
+    range: "entry 0% 38vh",
   },
 } as const satisfies Record<string, SiteMotionPreset>;
 

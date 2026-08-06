@@ -155,7 +155,8 @@ function wywolaniaRenderera(source: string): string[] {
  * Tryby ruchu WSZYSTKICH korzeni strony NAD każdą sekcją w poddrzewie.
  *
  * Nie „każdy korzeń w drzewie", tylko dokładnie to, co mówi selektor arkusza:
- * `.site-root:not([data-site-motion="off"]) [data-section-id]` zapala się, gdy
+ * `.site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal]`
+ * zapala się, gdy
  * ISTNIEJE przodek-korzeń bez znacznika. Korzenie bywają zagnieżdżone —
  * powiększenie zdjęcia w galerii wystawia własny (`site-lightbox`) i nie niesie
  * znacznika, bo nie ma pod sobą ani jednej sekcji. Liczenie go do „każdy korzeń
@@ -290,7 +291,12 @@ describe("preferencja czytelnika stoi PONAD trybem", () => {
      */
     const arkusz = read("packages/ui/src/site/site.css");
     const bramka = arkusz.indexOf("@media (prefers-reduced-motion: no-preference)");
-    const regula = arkusz.indexOf('.site-root:not([data-site-motion="off"]) [data-section-id]');
+    // Selektor celuje w PUDEŁKO TREŚCI wewnątrz owijki (addendum E9): pas ma
+    // pusty margines u góry, więc oś widoku liczona od jego krawędzi przepalała
+    // większość przebiegu, zanim treść wjechała w okno.
+    const regula = arkusz.indexOf(
+      '.site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal]',
+    );
     expect(bramka, "arkusz stracił bramkę preferencji").toBeGreaterThan(-1);
     expect(regula, "arkusz stracił regułę wejścia sekcji").toBeGreaterThan(-1);
     expect(regula, "reguła wejścia wypadła sprzed bramki preferencji").toBeGreaterThan(bramka);

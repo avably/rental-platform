@@ -564,6 +564,15 @@ export function SectionCanvasRenderer({
 
       <div
         data-canvas-grid
+        /*
+         * PODMIOT ANIMACJI WEJŚCIA (addendum E9). Sekcja v2 nie ma pustego
+         * marginesu nad treścią — siatka JEST treścią — więc znacznik nie
+         * przesuwa tu strefy ani o piksel. Stoi mimo to, bo kontrakt liczy
+         * DOKŁADNIE JEDEN podmiot na sekcję: gdyby płótno go nie miało,
+         * animacja znikałaby z sekcji v2 po cichu, przy pierwszym szablonie
+         * bez sekcji strukturalnej.
+         */
+        data-section-reveal
         data-canvas-rows={canvas.rows}
         data-canvas-rows-mobile={mobile.rows}
         className="canvas-grid relative isolate mx-auto w-full overflow-hidden"

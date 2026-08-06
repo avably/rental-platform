@@ -52,7 +52,11 @@ function SectionShell({
 }) {
   return (
     <section className={cn(styles.section, className)}>
-      <div className={styles.container}>{children}</div>
+      {/* `data-section-reveal` — podmiot animacji wejścia (addendum E9); patrz
+          komentarz przy regule w site.css. */}
+      <div data-section-reveal className={styles.container}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -80,7 +84,7 @@ export function HeroSection({
 }) {
   return (
     <section className={styles.heroSection}>
-      <div className={styles.container}>
+      <div data-section-reveal className={styles.container}>
         <h1 className={styles.heroHeading}>{content.heading}</h1>
         {content.subheading ? <p className={styles.heroSubheading}>{content.subheading}</p> : null}
         {content.ctaText && content.ctaHref ? (
@@ -469,7 +473,7 @@ export function FooterSection({
   const links = content.links ?? [];
   return (
     <footer className={styles.footer}>
-      <div className={styles.container}>
+      <div data-section-reveal className={styles.container}>
         <div className={styles.footerInner}>
           <div className="grid gap-8 @min-[40rem]/site:grid-cols-2">
             <div>

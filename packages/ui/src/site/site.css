@@ -528,12 +528,23 @@
  *    tłumione ani skracane — po prostu nie ma czego wyłączać. Motyw NIE MA
  *    pola, którym mógłby to nadpisać (patrz `motion.ts`).
  *
- * Zasięg: owijki sekcji (`[data-section-id]`) POD korzeniem strony — celowo
- * selektor potomka, nie dziecka. Powłoka sklepu wkłada sekcje do `<main>`
- * (K6), więc kombinator dziecka wyciszyłby animacje wszędzie poza podglądem
- * szkicu, i to bez jednego czerwonego testu. Element WEWNĄTRZ sekcji nie
- * animuje się osobno — przy płótnie v2 z geometrią absolutną wejście per
- * element byłoby rozsypywaniem układu na oczach czytelnika, a nie animacją.
+ * Zasięg: PUDEŁKO TREŚCI (`[data-section-reveal]`) wewnątrz owijki sekcji
+ * (`[data-section-id]`) POD korzeniem strony — celowo selektor potomka, nie
+ * dziecka. Powłoka sklepu wkłada sekcje do `<main>` (K6), więc kombinator
+ * dziecka wyciszyłby animacje wszędzie poza podglądem szkicu, i to bez jednego
+ * czerwonego testu. Element WEWNĄTRZ pudełka treści nie animuje się osobno —
+ * przy płótnie v2 z geometrią absolutną wejście per element byłoby
+ * rozsypywaniem układu na oczach czytelnika, a nie animacją.
+ *
+ * DLACZEGO NIE OWIJKA SEKCJI (addendum E9 — weto akceptu właściciela). Do
+ * pierwszej wersji E9 podmiotem była owijka, czyli pas razem z jego pustym
+ * marginesem: 80 px u góry przy oknie 720 px i strefie 130 px znaczyło, że
+ * ~85% przebiegu animacji rozgrywało się NAD treścią, na gołym tle. Czytelnik
+ * widział pierwszą linię dopiero przy krycia 1,0 — pomiar „krycie sekcji idzie
+ * 0 → 1" był prawdziwy i mierzył niewidzialną część przebiegu. Podmiotem jest
+ * odtąd pudełko treści, więc oś widoku liczy się od PIERWSZEJ LITERY, a nie od
+ * krawędzi pasa. Pas zostaje nieruchomy i to jest skutek zamierzony: kolor tła
+ * nie ma prawa migotać, bo migotanie pasa czyta się jak błąd renderu.
  *
  * 5. DŁUGOŚĆ WEJŚCIA MIERZY OKNO, NIE SEKCJA (E9). Koniec `animation-range`
  *    idzie z presetu w jednostkach `vh`, więc każda sekcja odsłania się przez
@@ -557,7 +568,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
-    .site-root:not([data-site-motion="off"]) [data-section-id] {
+    .site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal] {
       /*
        * CZAS TRWANIA JEST STAŁĄ, NIE TOKENEM MOTYWU (E9). Przy osi widoku
        * animacja rozciąga się na `animation-range`, więc zadeklarowany czas
