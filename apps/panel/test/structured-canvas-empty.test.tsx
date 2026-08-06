@@ -23,7 +23,7 @@ import { DEFAULT_SITE_STYLE } from "@avably/core/site";
  * Kontrolki znajdujemy PO ROLI I NAZWIE, klikamy `userEvent`-em, a mierzymy
  * SKUTEK (co jest zaznaczone w szufladzie), nie stan wewnętrzny komponentu.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -189,6 +189,34 @@ describe("przycisk pustego stanu prowadzi TAM, GDZIE OBIECUJE", () => {
     ).toBe(plMessages.site.structured.products.tabs.items);
     // Skutek, a nie sam napis zakładki: pod nią stoi selektor pozycji katalogu.
     expect(within(drawer).getByLabelText(plMessages.site.structured.products.pick.label)).toBeTruthy();
+  });
+
+  it("„Ustawienia sekcji” z paska narzędzi też lądują na wpisach", async () => {
+    /*
+     * Druga droga otwarcia i jedyna, która NIE wskazuje zakładki. Odkąd
+     * pierwszym argumentem `onOpenSettings` jest zakładka, podpięcie go wprost
+     * pod `onClick` przekazywałoby tam ZDARZENIE MYSZY — szuflada dostałaby
+     * „zakładkę” spoza zbioru i pokazała wygląd zamiast wpisów. Objawu nie widać
+     * ani w typie, ani w oku recenzenta; widać go dopiero tutaj.
+     */
+    const user = userEvent.setup();
+    const { container } = renderBuilder(
+      [heroSection(), productsSection({ source: "picked", items: [{ productId: "p-1" }] })],
+      [produkt("p-1", "Namiot 6×12")],
+    );
+
+    // Zaznaczenie sekcji (wciśnięcie w tło) wywołuje pasek narzędzi; dopiero
+    // z niego prowadzi droga do ustawień.
+    fireEvent.pointerDown(container.querySelector<HTMLElement>(`[data-canvas-section="${PRODUCTS_ID}"]`)!);
+    const toolbar = container.querySelector<HTMLElement>(`[data-section-toolbar="${PRODUCTS_ID}"]`);
+    expect(toolbar, "zaznaczenie sekcji nie wywołało paska narzędzi").not.toBeNull();
+    await user.click(within(toolbar!).getByRole("button", { name: plMessages.site.builder.settings }));
+
+    const drawer = await screen.findByRole("dialog");
+    const wybrana = within(drawer)
+      .getAllByRole("tab")
+      .find((tab) => tab.getAttribute("aria-selected") === "true");
+    expect(wybrana?.textContent).toBe(plMessages.site.structured.products.tabs.items);
   });
 
   it("KONTROLA NEGATYWNA: wskazanie zakładki naprawdę działa w obie strony", () => {
