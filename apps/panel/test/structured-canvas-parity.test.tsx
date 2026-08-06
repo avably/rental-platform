@@ -133,16 +133,43 @@ const KATALOG: Product[] = [
 
 /** KAŻDA para (typ, układ) z rejestru — po jednej sekcji na parę. */
 const PARY = STRUCTURED_SECTION_TYPES.flatMap((type) =>
-  structuredSpecOf(type).layouts.map((layout) => ({ type, layout, id: `${type}--${layout}` })),
+  structuredSpecOf(type).layouts.map((layout) => ({
+    type,
+    layout,
+    id: `${type}--${layout}`,
+    content: withStructuredLayout(structuredPresetFor(type, "pl"), layout),
+  })),
 );
 
+/**
+ * FIKSTURA RÓŻNICUJĄCA — galeria ze zdjęciem Z MAGAZYNU.
+ *
+ * Presety galerii niosą zdjęcia z gotowymi adresami, więc na samych presetach
+ * PREFIKS bucketa nie ma czego zmienić: obie strony narysowałyby ten sam kafel
+ * także wtedy, gdyby płótno przestało go podawać. Ten jeden przypadek jest po
+ * to, żeby wsad, który do renderera wnosi WARSTWA DANYCH, miał w kontrakcie
+ * jakikolwiek ślad — bez niego rozjazd na prefiksie byłby niewidoczny.
+ */
+const GALERIA_Z_MAGAZYNU = {
+  type: "gallery" as const,
+  layout: "grid",
+  id: "gallery--zdjecie-z-magazynu",
+  content: {
+    ...(structuredPresetFor("gallery", "pl") as unknown as Record<string, unknown>),
+    items: [{ image: { kind: "storage", path: "tenant/realizacja.jpg" }, alt: "Namiot na łące", caption: "Wesele" }],
+  } as never,
+};
+
+/** Wszystko, co porównujemy: rejestr w komplecie plus fikstury różnicujące. */
+const PRZYPADKI = [...PARY, GALERIA_Z_MAGAZYNU];
+
 function sekcje(): Section[] {
-  return PARY.map((para, index) => ({
-    id: para.id,
-    type: para.type,
+  return PRZYPADKI.map((przypadek, index) => ({
+    id: przypadek.id,
+    type: przypadek.type,
     position: index,
     enabled: true,
-    content: withStructuredLayout(structuredPresetFor(para.type, "pl"), para.layout),
+    content: przypadek.content,
   })) as Section[];
 }
 
@@ -258,7 +285,7 @@ describe("ten sam wsad → to samo drzewo, para po parze", () => {
     const rozjazdy: string[] = [];
     let porownane = 0;
 
-    for (const para of PARY) {
+    for (const para of PRZYPADKI) {
       const zPlotna = drzewoSekcji(plotno.container, para.id);
       const zeSklepu = drzewoSekcji(sklep.container, para.id);
       if (zPlotna === null || zeSklepu === null) {
@@ -273,7 +300,7 @@ describe("ten sam wsad → to samo drzewo, para po parze", () => {
       }
     }
 
-    expect(porownane, "nie porównano ani jednej pary").toBe(PARY.length);
+    expect(porownane, "nie porównano ani jednego przypadku").toBe(PRZYPADKI.length);
     /*
      * Normalizacja MUSI mieć co robić. Gdyby React zmienił kształt ziarna
      * `useId`, wzorzec przestałby cokolwiek łapać — a wtedy test albo padłby
@@ -314,7 +341,7 @@ describe("wsad sklepu → różnice DOKŁADNIE tam, gdzie mówi allowlista", () 
 
       const niezgodne: string[] = [];
 
-      for (const para of PARY) {
+      for (const para of PRZYPADKI) {
         const zPlotna = drzewoSekcji(plotno.container, para.id)!;
         const zeSklepu = drzewoSekcji(sklep.container, para.id)!;
         const rozne = zPlotna !== zeSklepu;
