@@ -541,10 +541,33 @@ const STARTER_SECTIONS: StarterTable = {
           phone: "+48 500 600 700",
           email: "kontakt@twojafirma.pl",
           hours: "Pon–Pt 6:00–18:00, Sob 7:00–13:00",
+          /*
+           * ODNOŚNIK STOPKI CELUJE W SEKCJĘ, KTÓRA W TYM SKŁADZIE JEST.
+           *
+           * Do chwili, w której sekcje dostały `id`, ten odnośnik prowadził na
+           * `#kontakt` — a ten szablon sekcji kontaktu NIE MA (skład: hero,
+           * atuty, sprzęt, galeria, dostawa, cennik, wezwanie, stopka) i mieć
+           * jej nie będzie, bo skład jest zamkniętą decyzją designową E9. Póki
+           * kotwic nie było, nie robiło to różnicy: nie działał ŻADEN odnośnik
+           * kotwiczny. Odkąd działają, ten byłby jedynym martwym na stronie.
+           *
+           * Celem jest pasmo wezwania (`#rezerwacja`) — jedyne miejsce na tej
+           * stronie, w którym odwiedzający może się do najemcy odezwać, i pasmo
+           * stojące bezpośrednio NAD stopką, więc skok jest widoczny jako ruch.
+           * Kotwica własnej stopki (`#stopka`) byłaby gorsza dokładnie tam,
+           * gdzie ten odnośnik stoi: czytelnik jest już na dole strony, więc
+           * przeglądarka nie ma dokąd przewinąć i klik NIE ROBIŁBY NIC — czyli
+           * dawałby objaw, który to zadanie usuwa.
+           *
+           * Etykieta zostaje bez zmian ŚWIADOMIE: treść szablonów należy do
+           * pasa E9, a rozjazd „Kontakt → pasmo rezerwacji" jest widoczny i
+           * zapisany, a nie przemycony. Docelowa naprawa to sekcja kontaktu
+           * w składzie i wtedy ten adres wraca na `#kontakt`.
+           */
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
-            { label: "Kontakt", href: "#kontakt" },
+            { label: "Kontakt", href: "#rezerwacja" },
           ],
           legal: "© Twoja Firma. Wszelkie prawa zastrzeżone.",
         },
@@ -726,10 +749,11 @@ const STARTER_SECTIONS: StarterTable = {
           phone: "+48 500 600 700",
           email: "hello@yourcompany.com",
           hours: "Mon–Fri 6:00–18:00, Sat 7:00–13:00",
+          /* Cel jak w wersji polskiej tego szablonu — uzasadnienie tam. */
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
-            { label: "Contact", href: "#kontakt" },
+            { label: "Contact", href: "#rezerwacja" },
           ],
           legal: "© Your Company. All rights reserved.",
         },
@@ -2225,10 +2249,16 @@ const STARTER_SECTIONS: StarterTable = {
           phone: "+48 500 600 700",
           email: "kontakt@twojafirma.pl",
           hours: "Pon–Pt 8:00–17:00, Sob 9:00–13:00",
+          /*
+           * Cel jak w `construction-tools` (uzasadnienie w komentarzu przy jego
+           * stopce): ten szablon też nie ma sekcji kontaktu w składzie (hero,
+           * sprzęt, o nas, cennik, dostawa, pytania, wezwanie, stopka), a pasmo
+           * wezwania stoi bezpośrednio nad stopką.
+           */
           links: [
             { label: "Regulamin", href: "/regulamin" },
             { label: "Polityka prywatności", href: "/prywatnosc" },
-            { label: "Kontakt", href: "#kontakt" },
+            { label: "Kontakt", href: "#rezerwacja" },
           ],
           legal: "© Twoja Wypożyczalnia. Wszelkie prawa zastrzeżone.",
         },
@@ -2376,10 +2406,11 @@ const STARTER_SECTIONS: StarterTable = {
           phone: "+48 500 600 700",
           email: "hello@yourcompany.com",
           hours: "Mon–Fri 8:00–17:00, Sat 9:00–13:00",
+          /* Cel jak w wersji polskiej tego szablonu. */
           links: [
             { label: "Terms", href: "/regulamin" },
             { label: "Privacy policy", href: "/prywatnosc" },
-            { label: "Contact", href: "#kontakt" },
+            { label: "Contact", href: "#rezerwacja" },
           ],
           legal: "© Your Rental. All rights reserved.",
         },

@@ -43,31 +43,6 @@ import {
 } from "./index";
 
 /**
- * SZABLONY, W KTÓRYCH KOTWICA PROWADZI DONIKĄD — stan zastany, nie zgoda.
- *
- * Cztery z sześciu szablonów kierują przycisk na sekcję, której same nie mają
- * w składzie: trzy niosą w stopce odnośnik „Kontakt" na `#kontakt` bez sekcji
- * `contact`, a `event-party` obiecuje w hero katalog (`#produkty`) i sekcji
- * `products` nie stawia. Do teraz nie miało to skutku, bo kotwic nie było
- * w ogóle; z chwilą, w której zaczęły działać, TE przyciski są jedynymi, które
- * nadal nie działają — i to jest różnica widoczna dla najemcy.
- *
- * Ta lista NIE jest wyjątkiem od reguły „kotwica ma mieć cel": jest jej
- * pomiarem. Rozstrzygnięcie (usunąć odnośnik, skierować go gdzie indziej, czy
- * dołożyć sekcję docelową) należy do TREŚCI szablonów, a ta ma własnego
- * właściciela i własne zadanie — kotwice mogą tylko pokazać rachunek.
- *
- * Wpis, który przestanie być prawdą, jest tak samo czerwony jak brakujący —
- * inaczej lista przeżyłaby naprawę i przykryła następny taki przypadek.
- */
-const MARTWE_KOTWICE_SZABLONU: Record<string, readonly string[]> = {
-  "construction-tools": ["kontakt"],
-  "bike-sport": ["kontakt"],
-  "catalog-first": ["kontakt"],
-  "event-party": ["produkty"],
-};
-
-/**
  * Wszystkie adresy kotwic z dowolnie zagnieżdżonej treści sekcji.
  *
  * Chodzimy po WARTOŚCIACH, a nie po znanych polach (`ctaHref`, `buttonHref`,
@@ -199,44 +174,65 @@ describe("treść startowa kieruje WYŁĄCZNIE na kotwice z rejestru", () => {
   });
 });
 
+/**
+ * ==================== ŻADNA KOTWICA SZABLONU NIE PROWADZI DONIKĄD ====================
+ *
+ * Adres poprawny to jeszcze nie adres żywy: `#kontakt` w stopce szablonu, który
+ * nie ma sekcji kontaktu, jest gramatycznie w porządku i prowadzi w pustkę.
+ *
+ * Pierwsza wersja tego bloku (napisana przed E9) mierzyła stan zastany LISTĄ
+ * wyjątków: cztery szablony z martwą kotwicą wymienione z nazwy, z regułą, że
+ * wpis nieprawdziwy pali tak samo jak brakujący. Lista zrobiła dokładnie to, po
+ * co była — po przepisaniu szablonów w E9 zapaliła się na `bike-sport`
+ * i `event-party` (ich martwe adresy zniknęły razem ze zmianą treści), a dwa
+ * pozostałe (`construction-tools`, `catalog-first`) doczekały poprawki adresu
+ * w stopce. Zbiór wyjątków jest odtąd PUSTY, więc lista zniknęła: pusty rejestr
+ * wyjątków to nie „mechanizm na przyszłość", tylko furtka, przez którą następny
+ * martwy odnośnik wszedłby jako wpis zamiast jako czerwony test.
+ *
+ * Zdanie brzmi więc twardo: KAŻDY adres kotwicy w KAŻDYM szablonie ma w tym
+ * szablonie sekcję docelową.
+ */
 describe("kotwice szablonu startowego mają dokąd prowadzić", () => {
-  /** Kotwice, których szablon używa, a których jego własny skład nie wystawia. */
+  /** Kotwice używane w treści, których skład tej strony nie wystawia. */
+  function martweKotwice(sections: readonly { type: SectionType; content: unknown }[]): string[] {
+    const wystawione = new Set(sections.map((section) => SECTION_ANCHORS[section.type]));
+    const martwe = new Set(kotwiceW(sections).filter((anchor) => !wystawione.has(anchor)));
+    return [...martwe].sort();
+  }
+
   function martweW(id: (typeof STARTER_TEMPLATES)[number]): string[] {
     const martwe = new Set<string>();
     for (const locale of PRESET_LOCALES) {
-      const sections = starterTemplateSections(id, locale);
-      const wystawione = new Set(sections.map((section) => SECTION_ANCHORS[section.type]));
-      for (const anchor of kotwiceW(sections)) {
-        if (!wystawione.has(anchor)) martwe.add(anchor);
-      }
+      for (const anchor of martweKotwice(starterTemplateSections(id, locale))) martwe.add(anchor);
     }
     return [...martwe].sort();
   }
 
-  it.each([...STARTER_TEMPLATES])("%s: martwe kotwice DOKŁADNIE takie, jak wymienia lista", (id) => {
-    expect(martweW(id)).toEqual([...(MARTWE_KOTWICE_SZABLONU[id] ?? [])].sort());
+  it.each([...STARTER_TEMPLATES])("%s: żadna kotwica nie prowadzi donikąd", (id) => {
+    expect(
+      martweW(id),
+      "przycisk kieruje na sekcję, której ten szablon nie ma w składzie — na opublikowanej " +
+        "stronie nie zrobi NIC. Skieruj adres na sekcję obecną w składzie (skład szablonu " +
+        "jest decyzją designową, nie skutkiem ubocznym kotwic).",
+    ).toEqual([]);
   });
 
-  it("lista martwych kotwic nie zawiera wpisów o szablonach, których nie ma", () => {
-    // Druga strona reguły: naprawiony szablon musi ZEJŚĆ z listy, a szablon
-    // przemianowany nie może zostawić po sobie cichej zgody na martwy odnośnik.
-    for (const id of Object.keys(MARTWE_KOTWICE_SZABLONU)) {
-      expect(
-        (STARTER_TEMPLATES as readonly string[]).includes(id),
-        `lista wymienia szablon spoza rejestru: ${id}`,
-      ).toBe(true);
-    }
-  });
-
-  it("co najmniej jeden szablon jest w komplecie (kontrola negatywna listy)", () => {
+  it("detektor martwej kotwicy naprawdę ją widzi (kontrola pozytywna)", () => {
     /*
-     * Gdyby lista puchła aż do „wszystkie szablony", noga wyżej przestałaby
-     * cokolwiek znaczyć — chwaliłaby dowolny stan, byle wpisany. Zdanie jest
-     * przy tym mocniejsze, niż wygląda: szablon bez wpisu dowodzi, że komplet
-     * (przycisk → kotwica → sekcja) jest w tych danych OSIĄGALNY, więc pozostałe
-     * cztery są brakiem treści, a nie ograniczeniem mechanizmu.
+     * Bez tego zdania cała noga wyżej przechodzi także wtedy, gdy `martweKotwice`
+     * przestanie cokolwiek znajdować — a to jest najbardziej prawdopodobna
+     * awaria detektora chodzącego po danych, i awaria CICHA: sześć zielonych
+     * testów wyglądałoby wtedy jak sześć naprawionych szablonów.
      */
-    const zdrowe = STARTER_TEMPLATES.filter((id) => !(id in MARTWE_KOTWICE_SZABLONU));
-    expect(zdrowe.length, "każdy szablon startowy ma martwą kotwicę").toBeGreaterThan(0);
+    const stopkaZKotwica = {
+      type: "footer" as SectionType,
+      content: { links: [{ label: "Kontakt", href: sectionAnchorHref("contact") }] },
+    };
+    expect(martweKotwice([stopkaZKotwica])).toEqual([SECTION_ANCHORS.contact]);
+    expect(
+      martweKotwice([stopkaZKotwica, { type: "contact" as SectionType, content: {} }]),
+      "kotwica przestaje być martwa, gdy sekcja docelowa STOI na stronie",
+    ).toEqual([]);
   });
 });
