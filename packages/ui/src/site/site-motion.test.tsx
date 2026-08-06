@@ -169,6 +169,44 @@ describe("arkusz: jedna animacja, liczby z motywu", () => {
     expect(Number(czas![1]), "czas trwania w regule wejścia wynosi zero").toBeGreaterThan(0);
   });
 
+  it("ARTEFAKT: liczby ruchu każdego presetu i przypisanie motywów", () => {
+    /*
+     * DWUKIERUNKOWOŚĆ. Testy wyżej porównują TOKENY Z PRESETEM, więc zmiana
+     * wartości w rejestrze przechodzi przez nie bez mrugnięcia: obie strony
+     * porównania jadą z tego samego źródła. To zdanie jest drugą stroną —
+     * spisuje liczby WPROST, więc dostrojenie ruchu (choćby o jeden piksel)
+     * musi przejść przez ten wiersz i zostać zauważone w recenzji.
+     *
+     * Nie jest to snapshot generowany narzędziem: wpisany ręcznie artefakt
+     * wymusza decyzję („tak, zmieniam charakter ruchu motywu X"), a nie odruch
+     * `-u`. Przy okazji pilnuje, że motyw ZASTANY nigdy nie dostanie ruchu.
+     */
+    const liczby = Object.fromEntries(
+      SITE_MOTIONS.map((id) => {
+        const p = motionPreset(id);
+        return [id, [p.easing, p.distance, p.scale, p.opacity, p.range].join(" | ")];
+      }),
+    );
+    expect(liczby).toEqual({
+      still: "linear | 0px | 1 | 1 | entry 0% entry 0%",
+      calm: "cubic-bezier(0.22, 0.61, 0.36, 1) | 22px | 1 | 0 | entry 0% 28vh",
+      crisp: "cubic-bezier(0.16, 1, 0.3, 1) | 14px | 1 | 0 | entry 0% 18vh",
+      spring: "cubic-bezier(0.34, 1.56, 0.64, 1) | 18px | 1 | 0 | entry 0% 24vh",
+      editorial: "cubic-bezier(0.33, 1, 0.68, 1) | 28px | 1 | 0 | entry 0% 34vh",
+    });
+
+    expect(Object.fromEntries(SITE_THEMES.map((t) => [t, themeTokens(t).motion]))).toEqual({
+      "industrial-noir": "crisp",
+      velocity: "crisp",
+      confetti: "spring",
+      "noir-lux": "editorial",
+      atelier: "calm",
+      gridline: "calm",
+      classic: "still",
+      bold: "still",
+    });
+  });
+
   it("czas trwania NIE jest tokenem motywu — martwe pokrętło nie wraca tylnymi drzwiami", () => {
     // Zdjęte w E9 po pomiarze na żywej stronie (patrz nagłówek ./motion).
     // Token dopisany z powrotem obiecywałby sterowanie, którego nie ma.
