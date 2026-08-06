@@ -273,7 +273,16 @@ describe("preferencja czytelnika wygrywa z motywem", () => {
      * skryptu nie ma: bez JS, przy `prefers-reduced-motion`, na płótnie
      * kreatora i u robota indeksującego.
      */
-    const podejrzane = [...ARKUSZ.matchAll(/([^{}]*\[data-section-(?:id|reveal)[^{}]*)\{([^}]*)\}/g)]
+    /*
+     * KOMENTARZE WYPADAJĄ ZE SKANU, i to nie jest kosmetyka. Nagłówek tego
+     * bloku w arkuszu OPISUJE mechanizm, więc zawiera napis
+     * `[data-site-reveal="armed"]`. Bez zdjęcia komentarzy trafiał on do grupy
+     * „selektor" sąsiedniej reguły i filtr niżej uznawał ją za uzbrojoną —
+     * czyli mutacja „schowaj sekcję bez uzbrojenia" przechodziła na zielono.
+     * Znalezione własnym dowodem mutacyjnym (M4), nie w recenzji.
+     */
+    const arkuszBezKomentarzy = ARKUSZ.replace(/\/\*[\s\S]*?\*\//g, "\n");
+    const podejrzane = [...arkuszBezKomentarzy.matchAll(/([^{}]*\[data-section-(?:id|reveal)[^{}]*)\{([^}]*)\}/g)]
       .filter(([, , ciało]) =>
         /(?:opacity\s*:\s*0(?!\.\d*[1-9])|visibility\s*:\s*hidden|display\s*:\s*none)/.test(ciało ?? ""),
       )
