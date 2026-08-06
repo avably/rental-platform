@@ -2,6 +2,7 @@ import {
   DEFAULT_SITE_STYLE,
   isSectionCanvas,
   isStructuredSection,
+  sectionAnchorIds,
   styleTokensFor,
   themeTokens,
   type CanvasElement,
@@ -343,6 +344,7 @@ export function SiteRenderer({
   asRoot = true,
   motion = "auto",
   revealNonce,
+  anchors = false,
 }: {
   sections: RenderSection[];
   /**
@@ -415,6 +417,9 @@ export function SiteRenderer({
    * a potrzebna, żeby cokolwiek dało się w tym dokumencie znaleźć i przewinąć.
    * Storefront NIE podaje własnej owijki, więc do publicznego renderu nie ma
    * czym wnieść ani jednego elementu edycyjnego (kontrakt w apps/storefront).
+   *
+   * Drugą rzeczą, którą owijka domyślna umie nieść, jest KOTWICA DOKUMENTU
+   * (`id`) — i tylko na jawne życzenie wołającego (patrz `anchors`).
    */
   sectionWrapper?: (section: RenderSection, children: ReactNode) => ReactNode;
   /**
@@ -442,34 +447,71 @@ export function SiteRenderer({
   motion?: SiteMotionMode;
   /** Nonce CSP pod skrypt uzbrajający wejście sekcji — patrz {@link SiteChrome}. */
   revealNonce?: string;
+  /**
+   * KOTWICE SEKCJI W DOKUMENCIE — czy owijka niesie `id` (`#produkty`,
+   * `#kontakt`), na które od zawsze wskazują przyciski presetów i szablonów
+   * (rejestr adresów: `SECTION_ANCHORS` w @avably/core/site).
+   *
+   * DOMYŚLNIE NIE, i to nie jest ostrożność — to warunek poprawności HTML.
+   * Renderer strony bywa montowany po KILKA RAZY w JEDNYM dokumencie:
+   * galeria szablonów pokazuje sześć miniatur stron obok siebie, a picker
+   * sekcji — po jednym podglądzie na wariant. Gołe `id="produkty"` dałoby tam
+   * sześć elementów o tym samym identyfikatorze, czyli dokument, w którym
+   * „ta jedna kotwica" nie znaczy już nic (i w którym pierwszy skok kotwicą
+   * prowadzi do miniatury w palecie, a nie do sekcji strony).
+   *
+   * Włącza to więc POWIERZCHNIA, która jest CAŁĄ stroną i występuje w
+   * dokumencie raz: opublikowany sklep i podgląd szkicu. Płótno kreatora nie
+   * dostaje kotwic świadomie — tam się stronę ustawia, a nie zwiedza, i tak
+   * czy inaczej wnosi WŁASNĄ owijkę sekcji (patrz `sectionWrapper` niżej),
+   * więc `id` nie miałoby jak w niej stanąć.
+   *
+   * Kotwice jadą na owijce DOMYŚLNEJ. Wołający z własnym `sectionWrapper` jest
+   * z definicji powierzchnią edycyjną, a ta kotwic nie potrzebuje; para
+   * `anchors` + własna owijka jest więc bez skutku, a nie po cichu połowiczna.
+   */
+  anchors?: boolean;
 }) {
-  const wrap =
-    sectionWrapper ??
-    ((section: RenderSection, children: ReactNode) => (
-      <div data-section-id={section.id}>{children}</div>
-    ));
+  /*
+   * Mapa liczona RAZ na render, nie per sekcja: „pierwsza sekcja tego typu"
+   * jest własnością całej listy, a nie pojedynczego elementu. `null` przy
+   * wyłączonych kotwicach zamiast pustej mapy — żeby różnica „powierzchnia
+   * bez kotwic" kontra „strona, na której akurat nie ma sekcji" była widoczna
+   * w kodzie, a nie tylko w skutku.
+   */
+  const anchorById = anchors ? sectionAnchorIds(sections) : null;
 
-  const body = sections.map((section) => (
-    <Fragment key={section.id}>
-      {wrap(
-        section,
-        <SectionSwitch
-          section={section}
-          products={products}
-          labels={labels}
-          money={money}
-          siteImageBase={siteImageBase}
-          contactForm={contactForm}
-          mapEmbed={mapEmbed}
-          elementWrapper={
-            elementWrapper
-              ? (element, children) => elementWrapper(section, element, children)
-              : undefined
-          }
-        />,
-      )}
-    </Fragment>
-  ));
+  const body = sections.map((section) => {
+    const content = (
+      <SectionSwitch
+        section={section}
+        products={products}
+        labels={labels}
+        money={money}
+        siteImageBase={siteImageBase}
+        contactForm={contactForm}
+        mapEmbed={mapEmbed}
+        elementWrapper={
+          elementWrapper
+            ? (element, children) => elementWrapper(section, element, children)
+            : undefined
+        }
+      />
+    );
+    const anchor = anchorById?.get(section.id);
+
+    return (
+      <Fragment key={section.id}>
+        {sectionWrapper ? (
+          sectionWrapper(section, content)
+        ) : (
+          <div data-section-id={section.id} {...(anchor ? { id: anchor } : {})}>
+            {content}
+          </div>
+        )}
+      </Fragment>
+    );
+  });
 
   if (!asRoot) return <>{body}</>;
 

@@ -65,6 +65,20 @@ describe("podgląd szkicu: bramka i źródło danych", () => {
     expect(trasa).toContain("resolveSiteStyle(data.site.style_draft");
     expect(trasa, "podgląd sięgnął po stan opublikowany").not.toContain("style_published");
   });
+
+  it("kotwice sekcji ma włączone tak samo, jak sklep", () => {
+    /*
+     * Podgląd odpowiada na pytanie „co zobaczy klient po publikacji", a klient
+     * dostaje stronę, na której przycisk hero prowadzi na `#produkty`. Bez tej
+     * flagi podgląd pokazywałby stronę z martwymi przyciskami, czyli kłamałby
+     * dokładnie w tym, po co powstał.
+     *
+     * Flagi nie ma za to na płótnie ani w galerii szablonów: tam ten sam render
+     * stoi w jednym dokumencie po kilka razy naraz, więc kotwice byłyby
+     * duplikatem identyfikatorów (bramka i jej kontrakt: packages/ui).
+     */
+    expect(trasa, "podgląd renderuje stronę BEZ kotwic sekcji").toMatch(/^\s*anchors$/m);
+  });
 });
 
 describe("podgląd szkicu: sklep publiczny nie zyskuje ani jednej furtki", () => {

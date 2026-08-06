@@ -201,6 +201,51 @@ describe("publiczny render strony sklepu nie niesie warstwy edycyjnej", () => {
     }
   });
 
+  /*
+   * KOTWICA DOKUMENTU (`id`) JEST DRUGĄ — I OSTATNIĄ — RZECZĄ, KTÓRĄ OWIJKA NIESIE.
+   *
+   * Zdanie wyżej („nic poza kotwicą") zostało napisane, gdy owijka miała
+   * dokładnie jeden atrybut, a render sklepu wołało się bez flag. Kotwice
+   * sekcji dokładają `id` i to jest zmiana kontraktu, a nie szczegół: gdyby
+   * przeszła bez słowa, następny atrybut wjechałby do publicznego renderu tą
+   * samą, wydeptaną już ścieżką. Mierzymy więc OBIE postaci owijki — z kotwicą
+   * i bez — i w obu wymagamy, żeby zbiór atrybutów był policzony co do jednego.
+   */
+  const htmlZKotwicami = renderToStaticMarkup(<SiteRenderer sections={sections} anchors />);
+
+  it("z kotwicami owijka zyskuje `id` i ANI JEDNEGO atrybutu więcej", () => {
+    const owijki = [...htmlZKotwicami.matchAll(/<div ([^>]*data-section-id="[^"]*"[^>]*)>/g)].map(
+      (match) => match[1]!,
+    );
+    expect(owijki, "render bez ani jednej owijki sekcji").toHaveLength(sections.length);
+
+    const atrybutyOwijek = owijki.map((atrybuty) =>
+      [...atrybuty.matchAll(/([a-z-]+)="/g)].map((match) => match[1]!).sort(),
+    );
+    /*
+     * Fikstura to hero, cennik, FAQ i DRUGIE hero. Kotwicę dostają trzy
+     * pierwsze sekcje (pierwsza swojego typu), czwarta — powtórzone hero —
+     * zostaje bez `id`, bo dwa elementy `id="start"` to niepoprawny dokument.
+     * Oczekiwanie jest wypisane WPROST, a nie policzone z tego, co wyszło:
+     * asercja licząca sama siebie przechodzi dla dowolnego wyniku.
+     */
+    expect(atrybutyOwijek).toEqual([
+      ["data-section-id", "id"],
+      ["data-section-id", "id"],
+      ["data-section-id", "id"],
+      ["data-section-id"],
+    ]);
+  });
+
+  it("kotwice nie wnoszą ANI JEDNEGO znacznika warstwy kreatora", () => {
+    // Ta sama lista, ten sam render, druga ścieżka wywołania. Flaga, która
+    // otwiera nową gałąź w rendererze, otwiera też nową drogę na publiczną
+    // stronę — więc jedzie pod tym samym kontraktem, co wywołanie domyślne.
+    for (const marker of BUILDER_LAYER_MARKERS) {
+      expect(htmlZKotwicami, `warstwa kreatora w renderze z kotwicami: ${marker}`).not.toContain(marker);
+    }
+  });
+
   it("źródła sklepu nie podają rendererowi ŻADNEJ własnej owijki", () => {
     const storePage = readFileSync(resolve(process.cwd(), "app/(tenant)/store/page.tsx"), "utf8");
     // Martwa kotwica → czerwone: plik musi naprawdę renderować stronę sklepu.

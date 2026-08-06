@@ -235,6 +235,16 @@ export default async function TenantStorePage() {
               osadzenie robi dopiero kliknięcie odwiedzającego.
             */
             mapEmbed
+            /*
+              KOTWICE SEKCJI — `id` na owijce PIERWSZEJ sekcji każdego typu
+              (rejestr `SECTION_ANCHORS` w @avably/core/site). Flagę podaje
+              POWIERZCHNIA, bo tylko ona wie, że jest w dokumencie jedna:
+              galeria szablonów w panelu montuje sześć stron obok siebie i te
+              same `id` byłyby tam duplikatem. Bez niej przyciski, które presety
+              i szablony od zawsze kierują na `#produkty` i `#kontakt`, nie
+              robią NIC — kotwicy o takiej nazwie po prostu nie ma w dokumencie.
+            */
+            anchors
           />
         </main>
       )}

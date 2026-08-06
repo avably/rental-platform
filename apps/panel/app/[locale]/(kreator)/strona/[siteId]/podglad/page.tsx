@@ -138,6 +138,15 @@ export default async function SiteDraftPreviewPage({
               „warstwa edycyjna stoi" nie miałby czego pilnować po tej stronie.
             */
             motion="auto"
+            /*
+              KOTWICE SEKCJI z tego samego powodu, co ruch: podgląd odpowiada
+              na pytanie „co dostanie klient", a klient dostaje stronę, na
+              której przycisk hero prowadzi na `#produkty`. Podgląd jest —
+              obok sklepu — jedyną powierzchnią, która jest CAŁĄ stroną i
+              występuje w dokumencie raz, więc `id` mogą tu stanąć bez ryzyka
+              duplikatu (płótno i galeria szablonów kotwic nie dostają).
+            */
+            anchors
             products={products}
             money={money}
             siteImageBase={siteImagePublicBase()}
