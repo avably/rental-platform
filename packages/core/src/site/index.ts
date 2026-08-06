@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { sectionCanvasSchema, type SectionCanvas } from "./elements";
 import { uspIconSchema } from "./icons";
+import { linkHrefSchema } from "./link-href";
 import {
   structuredSchemaFor,
   type StructuredContentOf,
@@ -110,27 +111,15 @@ const shortText = z.string().trim().min(1).max(500);
 const longText = z.string().trim().min(1).max(10_000);
 
 /**
- * Cel przycisku CTA: absolutny http(s), ścieżka względna ("/cennik") albo
- * kotwica ("#kontakt"). Allowlista, nie blocklista — `javascript:`, `data:`
- * i każdy przyszły egzotyczny scheme odpadają z definicji.
+ * Cel przycisku CTA — allowlista schematów z `./link-href`, ta sama, którą
+ * dostaje `href` elementu płótna v2 i `href` runu tekstowego.
+ *
+ * Nazwa lokalna zostaje, bo czyta ją kilkanaście schematów treści niżej i mówi
+ * ona, CZYM to pole jest w tym pliku. Zniknęła natomiast trzecia kopia REGUŁY:
+ * granica bezpieczeństwa ma jedno miejsce, a nie trzy identyczne, z których
+ * każda niosła komentarz o tym, że kopii być nie może.
  */
-const ctaHref = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2_000)
-  .refine(
-    (value) => {
-      if (value.startsWith("/") || value.startsWith("#")) return true;
-      try {
-        const url = new URL(value);
-        return url.protocol === "http:" || url.protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    { message: "Dozwolone: adres http(s), ścieżka względna (/...) albo kotwica (#...)" },
-  );
+const ctaHref = linkHrefSchema;
 
 /**
  * Ścieżka obrazu w Storage (konwencja 0018: `{tenant}/{...}`), NIE dowolny URL
@@ -984,10 +973,17 @@ export {
 // Nowy element z palety — treść startowa i rozmiar domyślny (K3, ADR-086).
 export { createElement, defaultSizeOf, freeSpotFor } from "./element-factory";
 
+/**
+ * Cel odnośnika — JEDNA allowlista schematów na cały produkt (`./link-href`).
+ * Eksport stoi tu, a nie przy runach tekstu, bo reguła nie należy do żadnej
+ * z trzech generacji treści: obowiązuje `ctaHref` v1, `href` elementu płótna v2
+ * i `href` runu tak samo.
+ */
+export { linkHrefSchema } from "./link-href";
+
 // Treść sformatowana elementów — runy, nie HTML (K3, ADR-086).
 export {
   MAX_RUNS_PER_ELEMENT,
-  linkHrefSchema,
   normalizeRuns,
   plainTextOf,
   richTextSchema,

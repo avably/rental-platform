@@ -30,6 +30,8 @@
  */
 import { z } from "zod";
 
+import { linkHrefSchema } from "./link-href";
+
 /** Sufit długości pojedynczego runu — akapit dzieli się na runy, nie odwrotnie. */
 const RUN_MAX_LENGTH = 2_000;
 
@@ -38,26 +40,13 @@ export const MAX_RUNS_PER_ELEMENT = 200;
 
 /**
  * Cel linku w runie — DOKŁADNIE ta sama allowlista, co `href` przycisku.
- * Wspólna definicja, bo dwie kopie tej reguły rozjechałyby się w dniu, w którym
- * ktoś poprawi jedną z nich.
+ *
+ * Zdanie „wspólna definicja, bo dwie kopie tej reguły rozjechałyby się" stało
+ * tu od K3 nad WŁASNĄ, trzecią kopią. Definicja mieszka teraz w `./link-href`
+ * i ten plik ją re-eksportuje: nazwa importu (także w `./index` i w panelu)
+ * zostaje bez zmian, a kopii nie da się już zrobić przez nieuwagę.
  */
-export const linkHrefSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2_000)
-  .refine(
-    (value) => {
-      if (value.startsWith("/") || value.startsWith("#")) return true;
-      try {
-        const url = new URL(value);
-        return url.protocol === "http:" || url.protocol === "https:";
-      } catch {
-        return false;
-      }
-    },
-    { message: "Dozwolone: adres http(s), ścieżka względna (/...) albo kotwica (#...)" },
-  );
+export { linkHrefSchema };
 
 /**
  * Pojedynczy run: kawałek tekstu i jego formatowanie. `.strict()` jest tu

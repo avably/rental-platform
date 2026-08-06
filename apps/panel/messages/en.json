@@ -1284,7 +1284,7 @@
       "unlink": "Remove link",
       "linkAddress": "Link address",
       "linkApply": "Insert link",
-      "linkInvalid": "Allowed: http(s) address, relative path (/...) or anchor (#...)",
+      "linkInvalid": "Allowed: http(s) address, relative path (/...), anchor (#...), email (mailto:...) or phone (tel:...)",
       "editing": "Editing element text"
     },
     "picker": {
