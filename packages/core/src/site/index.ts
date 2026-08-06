@@ -83,6 +83,15 @@ export {
 } from "./section-order";
 
 /**
+ * KOTWICE SEKCJI — adresy, które od zawsze niosą presety (`#produkty`,
+ * `#kontakt`), a którym do teraz nie odpowiadał ŻADEN `id` w dokumencie.
+ * Osobny liść z tego samego powodu, co `./section-order`: pytanie „jak nazywa
+ * się to miejsce na stronie" pada w rendererze, w treści startowej i w testach,
+ * a odpowiedź musi być jedna. Patrz `./section-anchors`.
+ */
+export { SECTION_ANCHORS, sectionAnchorHref, sectionAnchorIds } from "./section-anchors";
+
+/**
  * Allowlista ikon (ADR-082) mieszka w `./icons` — korzystają z niej sekcja USP
  * (v1) i element `icon` płótna v2 (K2), a wspólny moduł zamyka cykl wartości
  * między tym plikiem a `./elements`.

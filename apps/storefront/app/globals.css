@@ -106,9 +106,23 @@
   }
 }
 
+/*
+ * Płynne przewijanie zostaje (skok kotwicą w sklepie ma być widoczny jako ruch,
+ * a nie jako przeskok), z bramką `prefers-reduced-motion` wyżej.
+ *
+ * `scroll-padding-top` ZDJĘTE. Wartość 5,5 rem była dostrojona do PRZYKLEJONEGO
+ * nagłówka landingu sprzed przeniesienia strony marketingowej na szablon
+ * (ADR-068). Oś marketingowa ma dziś własny root layout i tego arkusza nie
+ * ładuje, więc reguła obowiązywała już wyłącznie sklep najemcy — a tam nagłówek
+ * jest zwykły, zjeżdża razem ze stroną i niczego nie zasłania. Do teraz nie było
+ * tego widać, bo w osi tenanckiej nie istniała ANI JEDNA żywa kotwica; z chwilą,
+ * w której sekcje dostały `id`, ta liczba doszłaby do odstępu celu i skok
+ * kotwicą zatrzymywałby się 88 px za wysoko. Odstęp niesie dziś sam cel
+ * (`scroll-margin-top` przy kotwicy sekcji w @avably/ui/site.css) — jedna
+ * wartość, ta sama w sklepie i w podglądzie szkicu.
+ */
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5.5rem;
 }
 
 body {

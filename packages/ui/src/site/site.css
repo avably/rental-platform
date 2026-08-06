@@ -632,6 +632,35 @@
 
 /*
  * =====================================================================
+ * KOTWICA SEKCJI NIE LĄDUJE POD KRAWĘDZIĄ OKNA
+ * =====================================================================
+ *
+ * Owijka sekcji dostaje `id` (rejestr `SECTION_ANCHORS` w @avably/core/site)
+ * wyłącznie na powierzchniach, które SĄ całą stroną — w sklepie i w podglądzie
+ * szkicu. Selektor jest więc parą `[data-section-id][id]`: kotwica DLA KODU
+ * i kotwica DLA DOKUMENTU na tym samym elemencie. Zapis po samym `[id]`
+ * łapałby przy okazji każdy przyszły element z identyfikatorem, a po samym
+ * `[data-section-id]` — wszystkie sekcje, także te bez kotwicy.
+ *
+ * Odstęp jest własnością CELU (`scroll-margin`), a nie okna (`scroll-padding`),
+ * i to jest tu decyzja, a nie zamiennik. Sekcje renderuje ten sam kod w dwóch
+ * dokumentach o różnym chrome: sklep ma nagłówek, który zjeżdża razem ze
+ * stroną, a podgląd szkicu — przyklejony pasek z nazwą i powrotem do kreatora.
+ * Wartość przy CELU jedzie z sekcją wszędzie, gdzie ta sekcja stanie;
+ * `scroll-padding-top` trzeba by wpisać osobno w arkusz każdej aplikacji
+ * i utrzymywać dwie liczby, które muszą znaczyć to samo.
+ *
+ * 4 rem ma pokryć NAJWYŻSZE chrome, jakie nad sekcją stoi (pasek podglądu to
+ * ~2,5 rem), i zostawić trochę powietrza. Nadmiar w sklepie kosztuje pasek
+ * ogona poprzedniej sekcji nad celem — czyli dokładnie to, po czym poznaje
+ * się, że strona skoczyła DO sekcji, a nie ucięła ją na krawędzi.
+ */
+.site-root [data-section-id][id] {
+  scroll-margin-top: 4rem;
+}
+
+/*
+ * =====================================================================
  * PŁÓTNO ELEMENTÓW — DWA UKŁADY W JEDNYM DRZEWIE (K4, ADR-088)
  * =====================================================================
  *
