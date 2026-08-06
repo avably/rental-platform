@@ -155,7 +155,7 @@ function wywolaniaRenderera(source: string): string[] {
  * Tryby ruchu WSZYSTKICH korzeni strony NAD każdą sekcją w poddrzewie.
  *
  * Nie „każdy korzeń w drzewie", tylko dokładnie to, co mówi selektor arkusza:
- * `.site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal]`
+ * `[data-site-reveal="armed"] .site-root:not([data-site-motion="off"]) [data-section-reveal]`
  * zapala się, gdy
  * ISTNIEJE przodek-korzeń bez znacznika. Korzenie bywają zagnieżdżone —
  * powiększenie zdjęcia w galerii wystawia własny (`site-lightbox`) i nie niesie
@@ -291,11 +291,14 @@ describe("preferencja czytelnika stoi PONAD trybem", () => {
      */
     const arkusz = read("packages/ui/src/site/site.css");
     const bramka = arkusz.indexOf("@media (prefers-reduced-motion: no-preference)");
-    // Selektor celuje w PUDEŁKO TREŚCI wewnątrz owijki (addendum E9): pas ma
-    // pusty margines u góry, więc oś widoku liczona od jego krawędzi przepalała
-    // większość przebiegu, zanim treść wjechała w okno.
+    /*
+     * Selektor celuje w PUDEŁKO TREŚCI (addendum E9), a stan startowy stoi pod
+     * atrybutem uzbrojenia (ADR-097). Pilnujemy OBU: reguła stanu startowego
+     * musi stać pod bramką preferencji, a warstwa edycyjna musi być z niej
+     * wykluczona zapisem `:not([data-site-motion="off"])`.
+     */
     const regula = arkusz.indexOf(
-      '.site-root:not([data-site-motion="off"]) [data-section-id] [data-section-reveal]',
+      '[data-site-reveal="armed"] .site-root:not([data-site-motion="off"]) [data-section-reveal="block"]',
     );
     expect(bramka, "arkusz stracił bramkę preferencji").toBeGreaterThan(-1);
     expect(regula, "arkusz stracił regułę wejścia sekcji").toBeGreaterThan(-1);

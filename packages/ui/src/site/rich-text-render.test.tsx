@@ -153,6 +153,28 @@ describe("w renderze NIE MA drogi do wstrzyknięcia HTML-u", () => {
     );
   });
 
+  it("JEDYNE dozwolone wstrzyknięcie wstrzykuje STAŁĄ, a nie dane", () => {
+    /*
+     * Skrypt uzbrajający wejście sekcji (ADR-097) musi wejść do dokumentu
+     * inline, więc ma własny plik i własne, węższe zdanie zamiast rozszczelnienia
+     * skanu wyżej. Pytamy o dwie rzeczy: że wstrzykiwana jest IMPORTOWANA STAŁA
+     * (nie napis składany na miejscu) i że plik nie przyjmuje żadnej treści —
+     * jedyny props jedzie atrybutem, czyli drogą, którą React escape'uje.
+     */
+    const source = read("packages/ui/src/site/site-reveal-script.tsx");
+    expect(source.length).toBeGreaterThan(200);
+    // Wyłuskujemy KAŻDĄ wstrzykiwaną wartość i pytamy, czy jest to dokładnie
+    // importowana stała. Regex z wyprzedzeniem negatywnym dałby się tu obejść
+    // przez nawrót silnika wyrażeń, więc porównujemy wprost.
+    const wstrzykiwane = [...source.matchAll(/__html:\s*([^}]+?)\s*\}/g)].map(([, v]) => v.trim());
+    expect(wstrzykiwane, "brak wstrzyknięcia — plik przestał być tym, czym był").not.toEqual([]);
+    expect(wstrzykiwane, "wstrzyknięcie dostaje coś innego niż samą stałą").toEqual([
+      "SITE_REVEAL_SCRIPT",
+    ]);
+    expect(source, "plik przyjmuje treść do wstrzyknięcia").not.toMatch(/\$\{/);
+    expect(source, "wstrzyknięcie skleja napis").not.toContain("__html: `");
+  });
+
   it("składanie formatowania idzie przez elementy Reacta, nie przez string", () => {
     const source = read("packages/ui/src/site/element-canvas.tsx");
     expect(source).toContain("<strong>");

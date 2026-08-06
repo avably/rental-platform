@@ -569,8 +569,9 @@ describe("kompletność rejestru motywów", () => {
     // wtedy nie pada, tylko cicho nie rusza.
     for (const id of SITE_MOTIONS) {
       const preset = motionPreset(id);
-      // Bez „duration": pole zdjęte w E9 jako martwe przy osi widoku (./motion).
-      for (const field of ["easing", "distance", "scale", "opacity", "range"] as const) {
+      // Kształt presetu po ADR-097 (oś czasu): czas trwania wraca jako pole ŻYWE,
+      // zakres przewijania i skala znikają razem z mechanizmem, który je czytał.
+      for (const field of ["duration", "easing", "distance", "opacity", "stagger"] as const) {
         expect(preset[field]?.length, `preset ruchu "${id}" bez pola ${field}`).toBeGreaterThan(0);
       }
       expect(preset.mood.pl.length, `preset ruchu "${id}" bez opisu PL`).toBeGreaterThan(10);

@@ -14,6 +14,7 @@
 import { faqPageJsonLd } from "@avably/core/site";
 import { SiteRenderer, type SiteRenderLabels } from "@avably/ui";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { submitContactMessage } from "@/lib/actions/contact";
@@ -57,6 +58,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function TenantStorePage() {
   const ctx = await loadStorefrontContext();
+  /*
+   * NONCE POD SKRYPT UZBRAJAJĄCY WEJŚCIE SEKCJI (ADR-097). Ten sam nagłówek,
+   * którym oś marketingowa uruchamia bootstrap szablonu — CSP nie ma
+   * `unsafe-inline`, więc inline bez nonce'a po prostu się nie wykona.
+   */
+  const revealNonce = (await headers()).get("x-nonce") ?? undefined;
   if (!ctx) notFound();
 
   const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
@@ -182,7 +189,12 @@ export default async function TenantStorePage() {
       razem z sekcjami i z ekranem „sklep w budowie", który jest tą samą stroną
       tego samego najemcy, tylko bez treści.
     */
-    <StoreChrome style={style} copy={copy} storeName={catalog.tenant.name}>
+    <StoreChrome
+      style={style}
+      copy={copy}
+      storeName={catalog.tenant.name}
+      revealNonce={revealNonce}
+    >
       {origin ? <JsonLd data={businessJsonLd} /> : null}
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {!site || site.sections.length === 0 ? (

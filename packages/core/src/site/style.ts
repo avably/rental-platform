@@ -156,14 +156,15 @@ export const STYLE_TOKENS = {
   eyebrowTracking: "--site-eyebrow-tracking",
   eyebrowTransform: "--site-eyebrow-transform",
   scrim: "--site-scrim",
-  // Ruch motywu (K6, ADR-092) — liczby presetu, po których chodzi JEDNA
-  // rodzina klatek kluczowych w arkuszu. Czasu trwania NIE ma wśród nich
-  // świadomie: przy osi widoku jest martwy (pomiar E9, patrz ./motion).
+  // Ruch motywu (K6/ADR-092, silnik czasowy od ADR-097) — liczby presetu,
+  // po których chodzi JEDEN opis wejścia w arkuszu. Zakresu przewijania nie ma
+  // wśród nich, bo nie ma już osi przewijania; skali nie ma, bo naddatek niesie
+  // krzywa (patrz ./motion).
+  motionDuration: "--site-motion-duration",
   motionEasing: "--site-motion-easing",
   motionDistance: "--site-motion-distance",
-  motionScale: "--site-motion-scale",
   motionOpacity: "--site-motion-opacity",
-  motionRange: "--site-motion-range",
+  motionStagger: "--site-motion-stagger",
 } as const;
 
 /** Nazwa zmiennej źródłowej pasa — jedno miejsce, w którym powstaje ten napis. */
@@ -225,11 +226,11 @@ export function styleTokensFor(style: ResolvedSiteStyle): Record<string, string>
     // a nie z pasa sekcji (te bywają skrajnie różne; patrz ELEMENT_COLORS).
     [STYLE_TOKENS.scrimInk]: scrimBand.ink,
     [STYLE_TOKENS.scrimInkMuted]: scrimBand.inkMuted,
+    [STYLE_TOKENS.motionDuration]: motion.duration,
     [STYLE_TOKENS.motionEasing]: motion.easing,
     [STYLE_TOKENS.motionDistance]: motion.distance,
-    [STYLE_TOKENS.motionScale]: motion.scale,
     [STYLE_TOKENS.motionOpacity]: motion.opacity,
-    [STYLE_TOKENS.motionRange]: motion.range,
+    [STYLE_TOKENS.motionStagger]: motion.stagger,
   };
 
   for (const key of THEME_BAND_KEYS) {

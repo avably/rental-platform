@@ -37,12 +37,15 @@ export function StoreChrome({
   style,
   copy,
   storeName,
+  revealNonce,
   className,
   children,
 }: {
   style: ResolvedSiteStyle;
   copy: StorefrontCopy;
   storeName: string;
+  /** Nonce CSP pod skrypt uzbrajający wejście sekcji (ADR-097). */
+  revealNonce?: string;
   className?: string;
   children: ReactNode;
 }) {
@@ -50,7 +53,11 @@ export function StoreChrome({
     // `min-h-screen` na KORZENIU, a nie na treści: powierzchnia motywu ma
     // sięgać dołu okna, inaczej pod krótką stroną (pusty koszyk) prześwituje
     // tło aplikacji i sklep kończy się w połowie ekranu.
-    <SiteChrome style={style} className={className ? `min-h-screen ${className}` : "min-h-screen"}>
+    <SiteChrome
+      style={style}
+      revealNonce={revealNonce}
+      className={className ? `min-h-screen ${className}` : "min-h-screen"}
+    >
       <StoreHeader copy={copy} storeName={storeName} />
       {children}
     </SiteChrome>

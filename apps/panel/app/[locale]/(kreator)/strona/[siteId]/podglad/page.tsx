@@ -37,6 +37,7 @@
 import { resolveSiteStyle } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
@@ -56,6 +57,13 @@ export default async function SiteDraftPreviewPage({
 }) {
   const { siteId } = await params;
   const ctx = await requireMemberPage(`/strona/${siteId}/podglad`);
+  /*
+   * Nonce czytamy PO bramce sesji, nie przed. Kolejność jest kontraktem:
+   * `headers()` poza zakresem żądania rzuca, a kontrakt tras chronionych
+   * woła tę funkcję właśnie tak, żeby sprawdzić, czy anonim wychodzi na
+   * logowanie. Odczyt przed bramką zamieniał odesłanie w wyjątek.
+   */
+  const revealNonce = (await headers()).get("x-nonce") ?? undefined;
   const data = await getSiteWithSections(siteId);
   if (!data) notFound();
 
@@ -111,6 +119,13 @@ export default async function SiteDraftPreviewPage({
             // z `toEditorSections`, które parsuje treść schematem TEGO typu.
             sections={sections as unknown as RenderSection[]}
             style={style}
+            /*
+             * NONCE POD SKRYPT UZBRAJAJĄCY (ADR-097). Podgląd ma pokazywać to
+             * samo, co sklep — także ruch. Płótno kreatora nonce'a NIE dostaje
+             * i to jest drugi zamek obok `motion="off"`: warstwa edycyjna nie
+             * ma jak się uzbroić, nawet gdyby ktoś zdjął tamten atrybut.
+             */
+            revealNonce={revealNonce}
             /*
               PODGLĄD JEST W RUCHU (E8, przewód pod E9). Płótno kreatora stoi,
               bo tam się stronę USTAWIA; tutaj się ją OGLĄDA, więc animacje
