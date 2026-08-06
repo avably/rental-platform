@@ -1543,7 +1543,7 @@
         "canvasEmpty": {
           "title": "This section will show nothing — not a single item is selected.",
           "action": "Select the first item",
-          "elsewhere": "Your catalog is empty, so the section has nothing to show. Add equipment in the Equipment module — it will appear here on its own."
+          "elsewhere": "Your catalog is empty, so the section has nothing to show. Add equipment in the Catalog module — it will appear here on its own."
         },
         "fields": {
           "productId": "Catalog item"
@@ -1580,7 +1580,7 @@
           "label": "Equipment from the catalog",
           "placeholder": "Pick an item",
           "action": "Add the selected item",
-          "empty": "The catalog is empty. Add equipment in the Equipment module.",
+          "empty": "The catalog is empty. Add equipment in the Catalog module.",
           "nothingNew": "Every catalog item is already selected.",
           "full": "The section is full. Remove an item to select another.",
           "missing": "This item is gone from the catalog — it will not appear on the page."

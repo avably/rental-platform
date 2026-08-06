@@ -1543,7 +1543,7 @@
         "canvasEmpty": {
           "title": "Ta sekcja nie pokaże nic — nie wskazano ani jednej pozycji.",
           "action": "Wskaż pierwszą pozycję",
-          "elsewhere": "Katalog jest pusty, więc sekcja nie ma czego pokazać. Dodaj sprzęt w module Sprzęt — pojawi się tutaj sam."
+          "elsewhere": "Katalog jest pusty, więc sekcja nie ma czego pokazać. Dodaj sprzęt w module Katalog — pojawi się tutaj sam."
         },
         "fields": {
           "productId": "Pozycja katalogu"
@@ -1580,7 +1580,7 @@
           "label": "Sprzęt z katalogu",
           "placeholder": "Wybierz pozycję",
           "action": "Dodaj wskazaną pozycję",
-          "empty": "Katalog jest pusty. Dodaj sprzęt w module Sprzęt.",
+          "empty": "Katalog jest pusty. Dodaj sprzęt w module Katalog.",
           "nothingNew": "Cały sprzęt z katalogu jest już wskazany.",
           "full": "Sekcja jest pełna. Usuń pozycję, żeby wskazać inną.",
           "missing": "Ta pozycja zniknęła z katalogu — nie pokaże się na stronie."

@@ -43,6 +43,7 @@ const STYL = DEFAULT_SITE_STYLE;
 const MONEY = { currency: "PLN", locale: "pl" } as const;
 const SITE_ID = "99999999-9999-4999-8999-999999999999";
 const FAQ_ID = "bbbbbbbb-2222-4222-8222-222222222222";
+const GALLERY_ID = "cccccccc-3333-4333-8333-333333333333";
 
 const panelRoot = process.cwd();
 const repositoryRoot = resolve(panelRoot, "../..");
@@ -103,6 +104,25 @@ function faqSection(): Section {
   } as Section;
 }
 
+/**
+ * FIKSTURA RÓŻNICUJĄCA — galeria z powiększeniem zdjęcia.
+ *
+ * Wnosi na płótno DRUGI, ZAGNIEŻDŻONY korzeń strony (panel powiększenia).
+ * Bez niej kontrakt chodziłby po drzewie z jednym korzeniem i nie odróżniłby
+ * „każdy korzeń ma off" od „każdy korzeń NAD SEKCJĄ ma off" — a to jest cała
+ * różnica między zdaniem prawdziwym a takim, które wywraca się przy pierwszej
+ * galerii na stronie (znalezione na buildzie produkcyjnym).
+ */
+function gallerySection(): Section {
+  return {
+    id: GALLERY_ID,
+    type: "gallery",
+    position: 1,
+    enabled: true,
+    content: structuredPresetFor("gallery", "pl"),
+  } as Section;
+}
+
 function renderBuilder(sections: Section[]) {
   return render(
     <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
@@ -131,35 +151,55 @@ function wywolaniaRenderera(source: string): string[] {
   return bezKomentarzy.match(/<SiteRenderer[\s\S]*?\/>/g) ?? [];
 }
 
-/** Tryb ruchu KAŻDEGO korzenia strony w poddrzewie — `null` znaczy „bez znacznika". */
-function trybyRuchu(root: HTMLElement): (string | null)[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(".site-root")).map((node) =>
-    node.getAttribute("data-site-motion"),
-  );
+/**
+ * Tryby ruchu WSZYSTKICH korzeni strony NAD każdą sekcją w poddrzewie.
+ *
+ * Nie „każdy korzeń w drzewie", tylko dokładnie to, co mówi selektor arkusza:
+ * `.site-root:not([data-site-motion="off"]) [data-section-id]` zapala się, gdy
+ * ISTNIEJE przodek-korzeń bez znacznika. Korzenie bywają zagnieżdżone —
+ * powiększenie zdjęcia w galerii wystawia własny (`site-lightbox`) i nie niesie
+ * znacznika, bo nie ma pod sobą ani jednej sekcji. Liczenie go do „każdy korzeń
+ * ma off" byłoby fałszywą czerwienią; pominięcie zagnieżdżenia w ogóle —
+ * fałszywą zielenią, gdyby kiedyś sekcja pod takim korzeniem stanęła.
+ */
+function trybyNadSekcjami(root: HTMLElement): (string | null)[] {
+  const tryby: (string | null)[] = [];
+  for (const sekcja of root.querySelectorAll<HTMLElement>("[data-section-id]")) {
+    let przodek = sekcja.parentElement;
+    while (przodek) {
+      if (przodek.classList.contains("site-root")) tryby.push(przodek.getAttribute("data-site-motion"));
+      przodek = przodek.parentElement;
+    }
+  }
+  return tryby;
 }
 
 afterEach(cleanup);
 
 describe("warstwa edycyjna kreatora stoi", () => {
   it("płótno: każdy korzeń strony niesie off", () => {
-    const { container } = renderBuilder([faqSection()]);
+    const { container } = renderBuilder([faqSection(), gallerySection()]);
     const plotno = container.querySelector<HTMLElement>("[data-builder-canvas]");
     expect(plotno, "nie znaleziono płótna").not.toBeNull();
+    expect(
+      plotno!.querySelectorAll(".site-root").length,
+      "fikstura miała wnieść zagnieżdżony korzeń (powiększenie galerii)",
+    ).toBeGreaterThan(1);
 
-    const tryby = trybyRuchu(plotno!);
-    expect(tryby.length, "płótno nie wyrenderowało ani jednego korzenia strony").toBeGreaterThan(0);
+    const tryby = trybyNadSekcjami(plotno!);
+    expect(tryby.length, "płótno nie wyrenderowało ani jednej sekcji pod korzeniem").toBeGreaterThan(0);
     expect(tryby, "płótno przepuściło ruch motywu").toEqual(tryby.map(() => "off"));
   });
 
   it("podglądy w pickerze sekcji: każdy korzeń niesie off", async () => {
     const user = userEvent.setup();
-    renderBuilder([faqSection()]);
+    renderBuilder([faqSection(), gallerySection()]);
 
     // Drogą operatora: paleta → „Dodaj sekcję" otwiera picker z podglądami.
     await user.click(screen.getByRole("button", { name: plMessages.site.sections.add }));
     const picker = await screen.findByRole("dialog");
 
-    const tryby = trybyRuchu(picker);
+    const tryby = trybyNadSekcjami(picker);
     expect(tryby.length, "picker nie pokazał ani jednego podglądu").toBeGreaterThan(0);
     expect(tryby, "podgląd wariantu przepuścił ruch motywu").toEqual(tryby.map(() => "off"));
   });
@@ -170,7 +210,7 @@ describe("warstwa edycyjna kreatora stoi", () => {
     const { container } = renderBuilder([]);
     const galeria = container.querySelector<HTMLElement>("[data-template-gallery]") ?? container;
 
-    const tryby = trybyRuchu(galeria);
+    const tryby = trybyNadSekcjami(galeria);
     expect(tryby.length, "galeria nie pokazała ani jednej miniatury").toBeGreaterThan(0);
     expect(tryby, "miniatura szablonu przepuściła ruch motywu").toEqual(tryby.map(() => "off"));
   });
@@ -189,7 +229,7 @@ describe("kontrola negatywna: poza edytorem ruch JEDZIE", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(trybyRuchu(container)).toEqual([null]);
+    expect(trybyNadSekcjami(container)).toEqual([null]);
   });
 });
 
