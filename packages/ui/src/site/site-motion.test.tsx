@@ -95,7 +95,6 @@ describe("arkusz: jedna animacja, liczby z motywu", () => {
         fontPair: themeTokens(theme).fontPair,
       });
       const oczekiwane = {
-        [STYLE_TOKENS.motionDuration]: preset.duration,
         [STYLE_TOKENS.motionEasing]: preset.easing,
         [STYLE_TOKENS.motionDistance]: preset.distance,
         [STYLE_TOKENS.motionScale]: preset.scale,
@@ -109,6 +108,72 @@ describe("arkusz: jedna animacja, liczby z motywu", () => {
       }
     }
     expect(rozjazdy, `motywy wystawiają cudze liczby ruchu:\n${rozjazdy.join("\n")}`).toEqual([]);
+  });
+
+  it("motywy RÓŻNIĄ SIĘ ruchem — jest ich więcej niż jeden i nie jest to jeden preset", () => {
+    /*
+     * FIKSTURA RÓŻNICUJĄCA. Bez tego zdania cały plik przeszedłby na rejestrze,
+     * w którym wszystkie motywy wskazują ten sam preset: „każdy motyw wystawia
+     * liczby swojego presetu" byłoby wtedy prawdą TRYWIALNĄ, a „ruch jest daną
+     * motywu" — hasłem bez pokrycia. Pytamy więc o trzy rzeczy naraz: że
+     * presetów w użyciu jest co najmniej dwa, że różnią się LICZBAMI (a nie
+     * tylko nazwą) i że wśród motywów jest taki, który mówi „bez ruchu".
+     */
+    const użyte = [...new Set(SITE_THEMES.map((theme) => themeTokens(theme).motion))];
+    expect(użyte.length, `wszystkie motywy dzielą jeden preset ruchu: ${użyte.join(", ")}`).toBeGreaterThan(2);
+
+    const odciski = new Set(
+      użyte.map((id) => {
+        const p = motionPreset(id);
+        return [p.easing, p.distance, p.scale, p.opacity, p.range].join("|");
+      }),
+    );
+    expect(odciski.size, "różne nazwy presetów, te same liczby").toBe(użyte.length);
+
+    const bezRuchu = SITE_THEMES.filter((theme) => motionPreset(themeTokens(theme).motion).opacity === "1");
+    expect(bezRuchu.length, "żaden motyw nie umie powiedzieć DANYMI, że stoi bez ruchu").toBeGreaterThan(0);
+  });
+
+  it("wejście trwa TYLE SAMO w każdej sekcji — koniec zakresu mierzy okno, nie sekcję (E9)", () => {
+    /*
+     * Regres, którego to zdanie broni, jest niewidoczny na zrzucie: zakres
+     * kończący się procentem fazy `cover` liczy się od SUMY wysokości sekcji
+     * i okna, więc długa sekcja odsłania się dłużej niż krótka. Strona ma
+     * wtedy tyle różnych animacji, ile ma sekcji o różnej wysokości.
+     */
+    const rozjazdy: string[] = [];
+    for (const id of SITE_MOTIONS) {
+      const preset = motionPreset(id);
+      // Preset „bez ruchu" ma zakres zerowy i mierzyć go w oknie nie ma po co.
+      if (preset.opacity === "1" && preset.distance === "0px") continue;
+      if (!/\d+vh\s*$/.test(preset.range)) {
+        rozjazdy.push(`${id}: zakres „${preset.range}" nie kończy się długością w jednostkach okna`);
+      }
+    }
+    expect(rozjazdy, rozjazdy.join("\n")).toEqual([]);
+  });
+
+  it("reguła wejścia deklaruje NIEZEROWY czas — zero zwija animację do stanu końcowego", () => {
+    /*
+     * To nie jest kosmetyka składni. Przy osi widoku czas trwania jest
+     * obojętny dla KAŻDEJ wartości poza `0s` — a `0s` jest wartością POCZĄTKOWĄ
+     * `animation-duration`. Skreślenie stałej z arkusza („przecież i tak nic
+     * nie robi") wyłączyłoby więc wejście na wszystkich motywach naraz, nie
+     * ruszając ani jednej liczby w rejestrze ruchu.
+     */
+    const dopasowanie = REGULA_WEJSCIA.exec(ARKUSZ);
+    expect(dopasowanie, "nie znaleziono reguły wejścia sekcji").not.toBeNull();
+    const cialo = dopasowanie![1] ?? "";
+    const czas = /animation:\s*site-reveal\s+([0-9.]+)(m?s)/.exec(cialo);
+    expect(czas, `reguła wejścia bez zadeklarowanego czasu: ${cialo.trim()}`).not.toBeNull();
+    expect(Number(czas![1]), "czas trwania w regule wejścia wynosi zero").toBeGreaterThan(0);
+  });
+
+  it("czas trwania NIE jest tokenem motywu — martwe pokrętło nie wraca tylnymi drzwiami", () => {
+    // Zdjęte w E9 po pomiarze na żywej stronie (patrz nagłówek ./motion).
+    // Token dopisany z powrotem obiecywałby sterowanie, którego nie ma.
+    expect(Object.keys(STYLE_TOKENS)).not.toContain("motionDuration");
+    expect(ARKUSZ, "arkusz znów czyta zmienną czasu trwania").not.toContain("--site-motion-duration");
   });
 });
 
@@ -152,6 +217,33 @@ describe("preferencja czytelnika wygrywa z motywem", () => {
     const dopasowanie = REGULA_WEJSCIA.exec(ARKUSZ)!;
     expect(dopasowanie[1]).toContain("animation");
     expect(dopasowanie[1], "reguła bazowa ukrywa sekcję").not.toMatch(/opacity\s*:\s*0/);
+  });
+
+  it("ŻADNA reguła arkusza nie chowa sekcji poza animacją (fail-open)", () => {
+    /*
+     * Test wyżej patrzy na JEDNĄ regułę. Ta sama wada wchodzi jednak także
+     * obok niej — `[data-section-id] { opacity: 0 }` dopisane gdziekolwiek,
+     * z myślą „animacja i tak to odsłoni", robi stronę pustą wszędzie tam,
+     * gdzie animacji nie ma: bez wsparcia osi widoku, przy `prefers-reduced-
+     * -motion`, na płótnie kreatora i u robota indeksującego.
+     */
+    const podejrzane = [...ARKUSZ.matchAll(/([^{}]*\[data-section-id\][^{}]*)\{([^}]*)\}/g)]
+      .filter(([, , ciało]) => /(?:opacity\s*:\s*0(?!\.\d*[1-9])|visibility\s*:\s*hidden|display\s*:\s*none)/.test(ciało ?? ""))
+      .map(([, selektor]) => (selektor ?? "").trim());
+    expect(podejrzane, `reguły chowające sekcję:\n${podejrzane.join("\n")}`).toEqual([]);
+  });
+
+  it("render sekcji nie wychodzi z serwera z ukrytą treścią", () => {
+    // Druga połowa tej samej obietnicy: nawet gdyby arkusz był czysty, stan
+    // startowy wpisany w atrybut `style` renderera dawałby stronę, która bez
+    // JavaScriptu jest pusta. Renderer sekcji nie ma prawa nic ukrywać.
+    const { container } = render(<SiteRenderer sections={[sekcja()]} />);
+    const owijka = container.querySelector<HTMLElement>("[data-section-id]");
+    expect(owijka, "brak owijki sekcji").not.toBeNull();
+    expect(owijka!.style.opacity, "renderer wystawia sekcję z kryciem w atrybucie").toBe("");
+    expect(owijka!.style.visibility).toBe("");
+    expect(owijka!.style.display).toBe("");
+    expect(container.innerHTML, "treść sekcji nie dojechała do dokumentu").toContain("Nagłówek");
   });
 });
 

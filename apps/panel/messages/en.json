@@ -1050,7 +1050,7 @@
     },
     "sectionTypes": {
       "hero": "Hero banner",
-      "products": "Products",
+      "products": "Equipment",
       "pricing": "Pricing",
       "faq": "FAQ",
       "contact": "Contact",
@@ -1065,7 +1065,7 @@
     },
     "sectionTypeDescriptions": {
       "hero": "Large welcome banner with a heading and button.",
-      "products": "A grid of products from your catalog.",
+      "products": "A grid of equipment from your catalog.",
       "pricing": "A short note about how pricing works.",
       "faq": "Frequently asked questions and answers.",
       "contact": "Contact details and a map link.",
@@ -1213,7 +1213,7 @@
       "image": "Image",
       "icon": "Icon",
       "shape": "Shape",
-      "catalog": "Product catalog"
+      "catalog": "Equipment catalog"
     },
     "elements": {
       "toFront": "Bring to front",

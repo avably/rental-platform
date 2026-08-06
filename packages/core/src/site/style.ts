@@ -157,8 +157,8 @@ export const STYLE_TOKENS = {
   eyebrowTransform: "--site-eyebrow-transform",
   scrim: "--site-scrim",
   // Ruch motywu (K6, ADR-092) — liczby presetu, po których chodzi JEDNA
-  // rodzina klatek kluczowych w arkuszu.
-  motionDuration: "--site-motion-duration",
+  // rodzina klatek kluczowych w arkuszu. Czasu trwania NIE ma wśród nich
+  // świadomie: przy osi widoku jest martwy (pomiar E9, patrz ./motion).
   motionEasing: "--site-motion-easing",
   motionDistance: "--site-motion-distance",
   motionScale: "--site-motion-scale",
@@ -225,7 +225,6 @@ export function styleTokensFor(style: ResolvedSiteStyle): Record<string, string>
     // a nie z pasa sekcji (te bywają skrajnie różne; patrz ELEMENT_COLORS).
     [STYLE_TOKENS.scrimInk]: scrimBand.ink,
     [STYLE_TOKENS.scrimInkMuted]: scrimBand.inkMuted,
-    [STYLE_TOKENS.motionDuration]: motion.duration,
     [STYLE_TOKENS.motionEasing]: motion.easing,
     [STYLE_TOKENS.motionDistance]: motion.distance,
     [STYLE_TOKENS.motionScale]: motion.scale,

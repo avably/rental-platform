@@ -1050,7 +1050,7 @@
     },
     "sectionTypes": {
       "hero": "Baner (hero)",
-      "products": "Produkty",
+      "products": "Sprzęt",
       "pricing": "Cennik",
       "faq": "FAQ",
       "contact": "Kontakt",
@@ -1065,7 +1065,7 @@
     },
     "sectionTypeDescriptions": {
       "hero": "Duży baner powitalny z nagłówkiem i przyciskiem.",
-      "products": "Siatka produktów z Twojego katalogu.",
+      "products": "Siatka sprzętu z Twojego katalogu.",
       "pricing": "Krótka informacja o zasadach rozliczeń.",
       "faq": "Najczęstsze pytania i odpowiedzi.",
       "contact": "Dane kontaktowe i link do mapy.",
@@ -1213,7 +1213,7 @@
       "image": "Obraz",
       "icon": "Ikona",
       "shape": "Kształt",
-      "catalog": "Katalog produktów"
+      "catalog": "Katalog sprzętu"
     },
     "elements": {
       "toFront": "Na wierzch",
