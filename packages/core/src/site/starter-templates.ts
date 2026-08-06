@@ -554,10 +554,16 @@ const STARTER_SECTIONS: StarterTable = {
            * Celem jest pasmo wezwania (`#rezerwacja`) — jedyne miejsce na tej
            * stronie, w którym odwiedzający może się do najemcy odezwać, i pasmo
            * stojące bezpośrednio NAD stopką, więc skok jest widoczny jako ruch.
-           * Kotwica własnej stopki (`#stopka`) byłaby gorsza dokładnie tam,
-           * gdzie ten odnośnik stoi: czytelnik jest już na dole strony, więc
-           * przeglądarka nie ma dokąd przewinąć i klik NIE ROBIŁBY NIC — czyli
-           * dawałby objaw, który to zadanie usuwa.
+           *
+           * Kotwica własnej stopki (`#stopka`) jest odrzucona POMIAREM, a nie
+           * argumentem: ten odnośnik stoi na DOLE strony, a żądana pozycja celu
+           * (górna krawędź stopki minus odstęp) wypada wtedy ZA końcem
+           * dokumentu, więc przeglądarka ją przycina i nie przewija. Zmierzone
+           * w oknie 813 px: koniec dokumentu 4143 px, `#stopka` żąda 4420 px
+           * (przycięte) i daje przesunięcie 1 px, a cel zostaje 341 px pod
+           * krawędzią okna; `#rezerwacja` żąda 4015 px (mieści się), daje −127 px
+           * i stawia cel na 64 px. Innymi słowy `#stopka` odtwarzałaby objaw,
+           * który to zadanie usuwa: klik, po którym nic się nie dzieje.
            *
            * Etykieta zostaje bez zmian ŚWIADOMIE: treść szablonów należy do
            * pasa E9, a rozjazd „Kontakt → pasmo rezerwacji" jest widoczny i
