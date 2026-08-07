@@ -36,6 +36,7 @@ export function readSeedState(): SeedState {
     throw new Error(
       `Nie mogę odczytać stanu seeda (${SEED_STATE_PATH}) — global-setup nie zasiał ` +
         `środowiska? Szczegół: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }
