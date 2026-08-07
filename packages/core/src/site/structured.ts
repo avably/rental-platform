@@ -164,8 +164,11 @@ export type FaqStructuredContent = z.infer<typeof faqStructuredSchema>;
  * Warianty układu galerii. Trzy, bo trzy są realnymi odpowiedziami na pytanie
  * „jak pokazać zdjęcia":
  *   • `grid` — równy rytm kafli o jednej proporcji (katalog realizacji);
- *   • `masonry` — kadry w NATURALNYCH proporcjach, dopasowane wysokością
- *     (pion i poziom obok siebie bez przycinania);
+ *   • `masonry` — kafle płynące kolumnami (czytanie w dół, rytm przesuwają
+ *     podpisy). Proporcja kafla jest STAŁA jak w siatce: treść nie niesie
+ *     wymiarów kadru, a obraz bez zarezerwowanej wysokości rośnie po
+ *     wczytaniu i psuje celność skoków kotwicznych (pełny kadr pokazuje
+ *     powiększenie);
  *   • `carousel` — jeden pas przewijany w bok, gdy zdjęć jest dużo, a miejsca
  *     na stronie mało.
  *
