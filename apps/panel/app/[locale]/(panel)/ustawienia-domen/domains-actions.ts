@@ -248,9 +248,20 @@ export async function checkDomainAction(
 }
 
 /**
- * Usunięcie WŁASNEJ domeny. Subdomena platformy jest nieusuwalna z UI (filtr
- * `kind = 'custom'`): jest jedynym gwarantowanym adresem sklepu, a jej
- * skasowanie zostawiłoby najemcę bez działającego storefrontu.
+ * Usunięcie WŁASNEJ domeny. Subdomena platformy jest nieusuwalna z UI (bramka
+ * własności przepuszcza wyłącznie `kind = 'custom'`): jest jedynym
+ * gwarantowanym adresem sklepu, a jej skasowanie zostawiłoby najemcę bez
+ * działającego storefrontu.
+ *
+ * BRAMKA WŁASNOŚCI PRZED DOSTAWCĄ (ADR-100). Host przychodzi z formularza,
+ * a hosty WSZYSTKICH najemców siedzą w jednym projekcie u dostawcy — samo
+ * `removeDomain(host)` wypięłoby więc także host, który nie należy do
+ * wywołującego, gasząc cudzy storefront; tenant-scoped DB-delete trafiałby
+ * wtedy 0 wierszy, a ofiara dalej widziałaby u siebie `verified = true`.
+ * Dlatego NAJPIERW tenant-scoped odczyt wiersza `custom` i dopiero dowiedziona
+ * własność otwiera wywołanie sieciowe. Komunikat odmowy jest celowo tożsamy
+ * z checkDomainAction — inaczej akcja byłaby sondą ujawniającą, czyje domeny
+ * są w systemie.
  *
  * Kolejność odwrotna niż przy dodawaniu — najpierw dostawca, potem wiersz:
  * skasowany wiersz bez wypięcia hosta zostawiłby u dostawcy sierotę, której
@@ -267,6 +278,18 @@ export async function removeCustomDomainAction(
 
   const ctx = await member();
   if (isFormState(ctx)) return ctx;
+
+  const { data: owned, error: readError } = await ctx.supabase
+    .from("domains")
+    .select("id")
+    // Filtr po tenant_id NA WIERZCHU RLS (pas i szelki, jak w checkDomainAction):
+    // nawet regresja polityki nie zamieni tego odczytu w dowód na cudzy wiersz.
+    .eq("tenant_id", ctx.tenantId)
+    .eq("domain", host)
+    .eq("kind", "custom")
+    .maybeSingle();
+  if (readError) return { formError: readError.message };
+  if (!owned) return { formError: "Nie znaleziono tej domeny." };
 
   try {
     await new VercelDomainsClient().removeDomain(host);
