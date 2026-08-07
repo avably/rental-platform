@@ -1,12 +1,12 @@
 {
-  "slug": "e2e-k1-c4743784",
-  "tenantId": "612d968e-197e-4290-996f-08bee9ca6782",
-  "ownerEmail": "e2e-k1-owner-c4743784@example.com",
+  "slug": "e2e-k1-82fb6026",
+  "tenantId": "680748da-5951-4b84-b114-39ffadbc5f37",
+  "ownerEmail": "e2e-k1-owner-82fb6026@example.com",
   "ownerPassword": "E2eTest!12345678",
-  "productId": "574f3372-9491-4501-82f8-dfca308034f3",
+  "productId": "91debdb9-bbe1-43a5-b1f0-4db3c6127213",
   "productName": "Młot wyburzeniowy E2E",
   "priceDayGrosze": 5000,
   "unitCount": 2,
   "pickupLocationName": "Magazyn E2E",
-  "providerAccountId": "acct_e2e_c4743784"
+  "providerAccountId": "acct_e2e_82fb6026"
 }
