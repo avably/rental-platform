@@ -1204,7 +1204,10 @@
       "emptyTitle": "The page is empty",
       "emptyBody": "Add your first section from the palette on the left or with the button below.",
       "canvasSettingsDescription": "Canvas changes save themselves. Click elements on the page to edit them.",
-      "tabElementsHint": "Drag a tile onto a section, or click — the element lands below the content."
+      "tabElementsHint": "Drag a tile onto a section, or click — the element lands below the content.",
+      "published": "Published",
+      "saveFailed": "Saving failed.",
+      "retry": "Try again"
     },
     "elementKinds": {
       "heading": "Heading",
@@ -1656,6 +1659,62 @@
         "layouts": {
           "banner": "Banner",
           "split": "Text and button side by side"
+        }
+      }
+    },
+    "renderLabels": {
+      "productsEmpty": "The catalog is being prepared.",
+      "productsCatalog": "See all equipment",
+      "contactEmail": "Email:",
+      "contactPhone": "Phone:",
+      "contactAddress": "Address:",
+      "contactMap": "View on map",
+      "directionsAddress": "Address:",
+      "directionsHours": "Opening hours:",
+      "directionsMap": "View on map",
+      "directionsRoute": "Get directions",
+      "directionsChoose": "Show the map for:",
+      "directionsShowMap": "Show map",
+      "directionsMapNotice": "The map loads from an external service only after you click.",
+      "directionsMapTitle": "Map: {location}",
+      "directionsMapPreview": "The map will open on the published page.",
+      "galleryZoom": "Enlarge photo",
+      "galleryClose": "Close the enlarged photo",
+      "galleryPrev": "Previous photo",
+      "galleryNext": "Next photo",
+      "galleryPosition": "Photo {current} of {total}",
+      "contactHours": "Opening hours:",
+      "pricingFrom": "from",
+      "pricingUnits": {
+        "hour": "hour",
+        "day": "day",
+        "week": "week",
+        "month": "month",
+        "piece": "piece"
+      },
+      "pricingCatalog": "See the full catalog",
+      "testimonialsPrev": "Previous testimonial",
+      "testimonialsNext": "Next testimonial",
+      "contactForm": {
+        "title": "Send us a message",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "message": "Message",
+        "submit": "Send message",
+        "sending": "Sending…",
+        "success": "Thank you — your message came through. We will reply to the address you gave us.",
+        "privacyNote": "We will use these details only to reply to this message.",
+        "privacyLink": "Privacy policy",
+        "errors": {
+          "required": "This field is required.",
+          "invalid": "Please check this entry.",
+          "tooLong": "This entry is too long.",
+          "captcha": "Verification failed. Please try again.",
+          "rateLimited": "Too many messages from here. Please try later.",
+          "expired": "The form was open for too long. Please send the message again.",
+          "unavailable": "This form is temporarily unavailable. Please use the contact details next to it.",
+          "server": "We could not send the message. Please try again in a moment."
         }
       }
     }

@@ -70,6 +70,7 @@ import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
+import { PublishDialog } from "@/components/publish-dialog";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
 import {
@@ -99,7 +100,18 @@ import type { StructuredFormTab } from "./structured-section-form";
 import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-type SaveState = "idle" | "saving" | "saved";
+/**
+ * `published` jest OSOBNYM stanem sukcesu (L6, audyt E2E 2026-08-07): publikacja
+ * meldowana wspólnym „Zapisano" była zdaniem prawdziwym dla szkicu i fałszywym
+ * dla operacji, która właśnie przestawiła sklep.
+ */
+type SaveState = "idle" | "saving" | "saved" | "published";
+type RunOptions = {
+  quiet?: boolean;
+  blocking?: boolean;
+  /** Jaki stan sukcesu zamelduje wskaźnik — publikacja mówi swoim zdaniem. */
+  announce?: "saved" | "published";
+};
 
 /**
  * Jak długo świeża sekcja MIGA po wstawieniu (E2). Tyle, żeby przyciągnąć oko
@@ -111,6 +123,8 @@ const FLASH_MS = 700;
 export function SiteBuilder({
   siteId,
   siteName,
+  live = false,
+  liveName = null,
   style,
   sections,
   products,
@@ -125,6 +139,15 @@ export function SiteBuilder({
    * pada najczęściej.
    */
   siteName: string;
+  /**
+   * Czy edytowana wersja jest ŻYWA i jak nazywa się żywa INNA wersja (L6) —
+   * wsad potwierdzenia publikacji, dokładnie ten, którym mówi lista wersji:
+   * publikacja wersji roboczej GASI dotychczasową żywą stronę, a dialog musi
+   * powiedzieć którą. Domyślne wartości opisują stronę bez żadnej żywej
+   * wersji, czyli pierwszą publikację.
+   */
+  live?: boolean;
+  liveName?: string | null;
   /** Styl SZKICU (motyw + akcent + para krojów) — jedyne wejście wyglądu (ADR-090). */
   style: ResolvedSiteStyle;
   sections: EditorSection[];
@@ -149,6 +172,19 @@ export function SiteBuilder({
   const [pending, startTransition] = useTransition();
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  /**
+   * AKCJA DO PONOWIENIA po ODRZUCONYM promise (L6). Trzymamy argumenty, nie
+   * gotową funkcję: handler kliknięcia woła `run` z nich, więc ponowienie
+   * przechodzi ten sam kanał (wskaźnik, błąd, odświeżenie) co pierwotny zapis.
+   * Ustawia ją WYŁĄCZNIE ścieżka odrzucenia — błąd biznesowy (`ok: false`)
+   * odrzuciłby drugie podejście identycznie, więc przycisk obiecywałby
+   * naprawę, której nie ma.
+   */
+  const [retryArgs, setRetryArgs] = useState<{
+    action: () => Promise<ActionResult>;
+    onFail?: () => void;
+    options?: RunOptions;
+  } | null>(null);
   const [viewport, setViewport] = useState<BuilderViewport>("desktop");
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
@@ -191,23 +227,39 @@ export function SiteBuilder({
    * patrz nagłówek pliku (autozapis geometrii).
    */
   const run = useCallback(
-    (
-      action: () => Promise<ActionResult>,
-      onFail?: () => void,
-      options?: { quiet?: boolean; blocking?: boolean },
-    ) => {
+    (action: () => Promise<ActionResult>, onFail?: () => void, options?: RunOptions) => {
       setError(null);
+      setRetryArgs(null);
       setSaveState("saving");
 
       const settle = (result: ActionResult, refresh: boolean) => {
         if (result.ok) {
-          setSaveState("saved");
+          setSaveState(options?.announce ?? "saved");
           if (refresh) router.refresh();
         } else {
           setSaveState("idle");
           setError(result.error);
           onFail?.();
         }
+      };
+
+      /*
+       * ODRZUCONY PROMISE ≠ `ok: false` (L6, audyt E2E 2026-08-07). Akcje
+       * zwracają porażki jako wynik, ale ich obietnica potrafi zostać
+       * ODRZUCONA naprawdę: memberCtx re-rzuca wszystko poza AuthError
+       * (site.ts), a transport dokłada własne awarie. Bez tej gałęzi `settle`
+       * nie odpalał się wcale — wskaźnik zostawał na „Zapisywanie…" NA ZAWSZE,
+       * a operator zamykał kartę w przekonaniu, że edycja jest na serwerze.
+       *
+       * Rollback optymistyczny (`onFail`) idzie jak przy porażce biznesowej;
+       * edycja treści NIE ginie — autozapis nie ma rollbacku (treść zostaje
+       * w edytorze), a ponowienie wysyła dokładnie tę samą akcję jeszcze raz.
+       */
+      const reject = () => {
+        setSaveState("idle");
+        setError(t("builder.saveFailed"));
+        setRetryArgs({ action, onFail, options });
+        onFail?.();
       };
 
       /*
@@ -235,14 +287,20 @@ export function SiteBuilder({
        */
       if (options?.blocking) {
         startTransition(async () => {
-          settle(await action(), true);
+          try {
+            settle(await action(), true);
+          } catch {
+            reject();
+          }
         });
         return;
       }
 
-      void action().then((result) => settle(result, !options?.quiet));
+      void action()
+        .then((result) => settle(result, !options?.quiet))
+        .catch(reject);
     },
-    [router],
+    [router, t],
   );
 
   const editor = useCanvasEditor({
@@ -560,7 +618,13 @@ export function SiteBuilder({
         </div>
 
         <p data-builder-save-state role="status" className="text-muted-foreground ml-auto text-sm">
-          {saveState === "saving" ? t("builder.saving") : saveState === "saved" ? t("builder.saved") : null}
+          {saveState === "saving"
+            ? t("builder.saving")
+            : saveState === "saved"
+              ? t("builder.saved")
+              : saveState === "published"
+                ? t("builder.published")
+                : null}
         </p>
 
         {/*
@@ -588,23 +652,51 @@ export function SiteBuilder({
           onConfirm={() => setGalleryOpen(true)}
         />
 
-        <Button
-          type="button"
-          size="sm"
-          data-builder-publish
-          // JEDYNA operacja, która blokuje kreator — patrz komentarz przy `run`.
-          onClick={() => run(() => publishSite(siteId), undefined, { blocking: true })}
-          loading={pending}
+        {/*
+          PUBLIKACJA MA POTWIERDZENIE (L6) — ten sam `PublishDialog`, którym
+          ostrzega lista wersji: publikacja z kreatora tak samo GASI dotychczasową
+          żywą stronę, więc nie ma prawa mówić o tym mniej niż lista. Akcja idzie
+          dopiero po potwierdzeniu; jedynie ona blokuje kreator (patrz `run`)
+          i melduje sukces osobnym „Opublikowano".
+        */}
+        <PublishDialog
           disabled={pending}
-        >
-          {pending ? t("publish.publishing") : t("publish.publish")}
-        </Button>
+          live={live}
+          name={siteName}
+          liveName={liveName}
+          onConfirm={() =>
+            run(() => publishSite(siteId), undefined, { blocking: true, announce: "published" })
+          }
+          trigger={
+            <Button type="button" size="sm" data-builder-publish loading={pending} disabled={pending}>
+              {pending ? t("publish.publishing") : t("publish.publish")}
+            </Button>
+          }
+        />
       </header>
 
       {error ? (
-        <p role="alert" className="text-destructive border-border border-b px-3 py-2 text-sm">
-          {error}
-        </p>
+        <div className="border-border flex flex-wrap items-center gap-3 border-b px-3 py-2">
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+          {/*
+            PONOWIENIE stoi wyłącznie po ODRZUCENIU (L6): ta sama akcja, ten sam
+            kanał. Przy porażce biznesowej przycisku nie ma — walidacja odrzuci
+            drugie podejście identycznie.
+          */}
+          {retryArgs ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              data-builder-retry
+              onClick={() => run(retryArgs.action, retryArgs.onFail, retryArgs.options)}
+            >
+              {t("builder.retry")}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
       {galleryOpen ? (

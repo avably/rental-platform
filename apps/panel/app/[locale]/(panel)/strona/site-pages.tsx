@@ -37,6 +37,7 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
+import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
 import { createSite, deleteSite, publishSite, renameSite } from "@/lib/actions/site";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
@@ -230,63 +231,6 @@ function NewPageDialog({ disabled, onCreate }: { disabled: boolean; onCreate: (n
           >
             {t("pages.newConfirm")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * Potwierdzenie publikacji. Treść mówi o SKUTKU dla sklepu, a nie o czynności:
- * operator, który przełącza wersję, musi wiedzieć, że dotychczasowa strona
- * przestanie być publiczna — i że nie znika z panelu.
- */
-function PublishDialog({
-  disabled,
-  live,
-  name,
-  liveName,
-  onConfirm,
-}: {
-  disabled: boolean;
-  /** Czy TA wersja jest już w sklepie — wtedy publikacja jest odświeżeniem, nie przełączeniem. */
-  live: boolean;
-  name: string;
-  liveName: string | null;
-  onConfirm: () => void;
-}) {
-  const t = useTranslations("site");
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="secondary" disabled={disabled} data-publish-site>
-          {t("publish.publish")}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("pages.switchTitle", { name })}</DialogTitle>
-          <DialogDescription>
-            {live
-              ? t("pages.switchBodySelf")
-              : liveName
-                ? t("pages.switchBody", { previous: liveName })
-                : t("pages.switchBodyFirst")}
-          </DialogDescription>
-        </DialogHeader>
-        <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.switchDraftNote")}</p>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              {t("pages.cancel")}
-            </Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button type="button" data-publish-site-confirm onClick={onConfirm}>
-              {t("publish.publish")}
-            </Button>
-          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

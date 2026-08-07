@@ -34,11 +34,20 @@ const CANVAS_PRODUCTS_LIMIT = 60;
 export async function previewProductsFor(
   ctx: AuthContext,
   tenantId: string,
+  /**
+   * Język ETYKIETY CENY („od {price} / doba" i zapis kwoty). Domyślnie locale
+   * PANELU — na płótnie kreatora cena mówi językiem operatora. PODGLĄD SZKICU
+   * podaje tu locale TENANTA (L6, ADR-102): odpowiada na pytanie „co zobaczy
+   * klient", a klient sklepu EN dostaje „from PLN … / day", nie „od … / doba".
+   */
+  labelLocale?: string,
 ): Promise<StorefrontProduct[]> {
   const [t, currency, locale] = await Promise.all([
-    getTranslations("site"),
+    labelLocale
+      ? getTranslations({ locale: labelLocale, namespace: "site" })
+      : getTranslations("site"),
     getTenantCurrency(ctx.supabase, tenantId),
-    getLocale(),
+    labelLocale ?? getLocale(),
   ]);
 
   const { data: products } = await ctx.supabase

@@ -61,6 +61,20 @@ export default async function SiteBuilderPage({
   const money = { currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!), locale };
 
   /*
+   * ŻYWA WERSJA TENANTA — wsad potwierdzenia publikacji (L6). Unikat częściowy
+   * `sites_one_live_per_tenant_idx` (0048) gwarantuje najwyżej jeden wiersz,
+   * więc `maybeSingle` jest tu twierdzeniem o modelu, nie optymizmem. Dialog
+   * dostaje dokładnie to, co lista wersji: czy edytowana wersja jest żywa,
+   * a jeśli nie — którą żywą stronę publikacja zgasi.
+   */
+  const { data: liveSite } = await ctx.supabase
+    .from("sites")
+    .select("id, name")
+    .eq("tenant_id", ctx.tenantId!)
+    .not("published_at", "is", null)
+    .maybeSingle();
+
+  /*
    * PUNKTY ODBIORU DO SKOPIOWANIA W SEKCJI DOJAZDU (E5, ADR-096).
    *
    * Trasa CZYTA wiersze, a o tym, które z nich stają się wpisami sekcji,
@@ -84,6 +98,8 @@ export default async function SiteBuilderPage({
     <SiteBuilder
       siteId={data.site.id}
       siteName={data.site.name}
+      live={liveSite?.id === data.site.id}
+      liveName={liveSite && liveSite.id !== data.site.id ? liveSite.name : null}
       /*
        * Styl SZKICU. Kolumna `sites.template` wchodzi tu jako FALLBACK stron
        * sprzed ADR-090 — dzięki temu strona zastana renderuje się motywem
