@@ -48,6 +48,12 @@ patchedDependencies:
 #                       użytkownikami i awaria parsera przez
 #                       zdegenerowane dyrektywy cache; 2026-08-03).
 #                       Pośrednia przez jsdom w suicie panelu.
+#   js-yaml  <4.3.1  — CVE-2026-59870 (kwadratowe zużycie CPU przy
+#                       rozwiązywaniu !!omap w 4.x; 2026-08-06).
+#                       Pośrednia WYŁĄCZNIE przez toolchain dev
+#                       (eslint>@eslint/eslintrc, typescript-eslint) —
+#                       runtime produktu nie parsuje YAML-a; wpis
+#                       domyka bramkę audytu, nie realny wektor.
 # Wpisy usuwamy, gdy next i react-email podniosą je same.
 overrides:
   fast-uri: "^3.1.5"
@@ -56,3 +62,4 @@ overrides:
   postcss: "^8.5.25"
   brace-expansion@<=5.0.8: ^5.0.9
   undici: "^7.29.0"
+  js-yaml: "^4.3.1"
