@@ -24,7 +24,6 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  */
 const SUPABASE_API_URL = requiredEnv("SUPABASE_LOCAL_API_URL");
 const SUPABASE_ANON_KEY = requiredEnv("SUPABASE_LOCAL_ANON_KEY");
-const SUPABASE_SERVICE_ROLE_KEY = requiredEnv("SUPABASE_LOCAL_SERVICE_ROLE_KEY");
 
 /**
  * Preload przekierowujący `api.stripe.com` na lokalny stub. Konieczny,
@@ -108,7 +107,11 @@ export default defineConfig({
       env: {
         ...nextEnv,
         PORT: String(PANEL_PORT),
-        SUPABASE_SERVICE_ROLE_KEY,
+        // Webhook panelu pisze stan zamówień poza sesją — wymaga produkcyjnej
+        // nazwy zmiennej; wartością jest klucz LOKALNEGO Supabase (harness
+        // testowy, nie istnieje na produkcji — jawny wyjątek bramki
+        // audit-service-role dla SUPABASE_LOCAL_SERVICE_ROLE_KEY).
+        SUPABASE_SERVICE_ROLE_KEY: requiredEnv("SUPABASE_LOCAL_SERVICE_ROLE_KEY"),
       },
     },
   ],
