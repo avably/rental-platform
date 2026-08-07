@@ -21,6 +21,7 @@
  * kształt odpowiedzi jest tu zamrożony. Dryf API Stripe wykryje dopiero
  * tor żywy (test mode) za sekretami.
  */
+import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 
 const port = Number(process.env.E2E_STRIPE_STUB_PORT ?? 4302);
@@ -28,6 +29,15 @@ const port = Number(process.env.E2E_STRIPE_STUB_PORT ?? 4302);
 /** @type {Map<string, { amount: number, currency: string, status: string, orderId: string | null }>} */
 const intents = new Map();
 let intentCounter = 0;
+/**
+ * Znacznik przebiegu w identyfikatorach intentów. Lokalna baza jest
+ * WSPÓŁDZIELONA i nie jest resetowana między przebiegami — `pi_e2e_1`
+ * z poprzedniego przebiegu wciąż siedzi w orders.provider_payment_intent_id
+ * (kolumna z unikatem). Powtórzony identyfikator to: attach nowego
+ * zamówienia odbity od unikatu ORAZ webhook trafiający w CUDZE, stare
+ * zamówienie. Identyfikatory muszą być unikalne globalnie, jak w realnym API.
+ */
+const runToken = randomBytes(4).toString("hex");
 
 function json(res, status, body) {
   const payload = JSON.stringify(body);
@@ -105,7 +115,7 @@ const server = createServer(async (req, res) => {
       }
     }
     intentCounter += 1;
-    const id = `pi_e2e_${intentCounter}`;
+    const id = `pi_e2e_${runToken}_${intentCounter}`;
     const intent = {
       amount,
       currency: form.get("currency") ?? "pln",
