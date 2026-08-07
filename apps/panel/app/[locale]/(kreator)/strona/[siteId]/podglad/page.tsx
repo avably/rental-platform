@@ -36,7 +36,7 @@
  */
 import { resolveSiteStyle } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
@@ -46,6 +46,7 @@ import { requireMemberPage } from "@/lib/member-page";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { siteImagePublicBase } from "@/lib/site-image-base";
 import { getSiteWithSections } from "@/lib/site-queries";
+import { getTenantSiteLocale, siteRenderLabels } from "@/lib/site-render-labels";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 export const dynamic = "force-dynamic";
@@ -67,10 +68,24 @@ export default async function SiteDraftPreviewPage({
   const data = await getSiteWithSections(siteId);
   if (!data) notFound();
 
-  const [t, locale] = await Promise.all([getTranslations("site"), getLocale()]);
-  const products = await previewProductsFor(ctx, ctx.tenantId!);
+  /*
+   * DWA JĘZYKI NA JEDNEJ STRONIE — I OBA CELOWO (L6, ADR-102). PASEK podglądu
+   * jest chrome PANELU i mówi językiem OPERATORA (`getLocale()`, locale URL).
+   * STRONA pod nim jest tym, co zobaczy klient — więc etykiety chrome renderu
+   * (`labels`) i formatowanie pieniędzy jadą z `tenants.locale`, tej samej osi
+   * tenanckiej, z której czyta sklep. Do L6 wszystko szło językiem panelu:
+   * `SiteRenderer` bez `labels` spadał na `DEFAULT_SITE_LABELS` (polskie),
+   * a najemca EN oglądał w podglądzie „doba", której jego klient nie zobaczy.
+   */
+  const t = await getTranslations("site");
+  const tenantLocale = await getTenantSiteLocale(ctx.supabase, ctx.tenantId!);
+  const labels = siteRenderLabels(tenantLocale);
+  const products = await previewProductsFor(ctx, ctx.tenantId!, tenantLocale);
   // Waluta i zapis kwot (E6) — podgląd szkicu pokazuje cennik tak, jak sklep.
-  const money = { currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!), locale };
+  const money = {
+    currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!),
+    locale: tenantLocale,
+  };
   const style = resolveSiteStyle(data.site.style_draft, data.site.template);
 
   const sections = toEditorSections(data.sections)
@@ -148,6 +163,13 @@ export default async function SiteDraftPreviewPage({
             */
             anchors
             products={products}
+            /*
+              ETYKIETY CHROME RENDERU w locale TENANTA (L6, ADR-102) — lustro
+              sklepu: bez tego propsu render spada na `DEFAULT_SITE_LABELS`
+              (polskie) i najemca EN ogląda podgląd, który kłamie o języku
+              jego strony.
+            */
+            labels={labels}
             money={money}
             siteImageBase={siteImagePublicBase()}
           />

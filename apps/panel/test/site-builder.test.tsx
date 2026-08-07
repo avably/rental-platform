@@ -444,9 +444,15 @@ describe("górny pasek: powrót, viewport, szkielet historii, stan zapisu, publi
     expect(container.querySelector("[data-builder-save-state]")?.textContent).toBe("");
   });
 
-  it("publikacja idzie istniejącą akcją publish_site", async () => {
+  it("publikacja WYMAGA potwierdzenia i idzie istniejącą akcją publish_site (L6)", async () => {
+    // Klik w „Publikuj" otwiera TEN SAM dialog, co lista wersji — publikacja
+    // gasi żywą stronę, więc nie ma prawa iść bez ostrzeżenia. Kontrakt treści
+    // dialogu ma własny plik: site-publish-confirm.test.tsx.
     const { container } = renderBuilder();
     fireEvent.click(container.querySelector<HTMLElement>("[data-builder-publish]")!);
+    expect(actions.publishSite, "publikacja poszła bez potwierdzenia").not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Opublikuj/ }));
     await waitFor(() => expect(actions.publishSite).toHaveBeenCalledWith(SITE_ID));
   });
 });

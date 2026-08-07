@@ -183,10 +183,12 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   },
   {
     file: "kreator/site-builder.tsx",
-    anchor: "run(() => publishSite(siteId), undefined, { blocking: true })",
+    anchor: 'run(() => publishSite(siteId), undefined, { blocking: true, announce: "published" })',
     signal: /loading=\{pending\}/,
     // Od pinezki właściciela 2026-08-03 publikacja jest JEDYNĄ operacją
-    // kreatora, która blokuje — stąd jawne `blocking: true` w kotwicy.
+    // kreatora, która blokuje — stąd jawne `blocking: true` w kotwicy. Od L6
+    // idzie przez potwierdzenie (PublishDialog) i melduje sukces osobnym
+    // stanem `published` — sygnał pending został na triggerze dialogu.
     note: "publikacja z paska kreatora (jedyna tranzycja blokująca)",
   },
   {
