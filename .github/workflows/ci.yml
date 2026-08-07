@@ -80,3 +80,56 @@ jobs:
       # pomija się sam (brak zmiennych SUPABASE_LOCAL_*), więc bez tego kroku
       # dowód „zapis naprawdę tworzy wiersz" nie wykonywałby się w CI nigdy.
       - run: pnpm --filter storefront test
+
+  e2e:
+    # Testy end-to-end ścieżki krytycznej (packages/e2e): przeglądarkowy
+    # przebieg rezerwacja → checkout → płatność → panel na PRODUKCYJNYCH
+    # buildach obu aplikacji (next build + next start), z lokalnym Supabase
+    # jak w jobie `rls`. Noga płatności biegnie torem stubowanym — podpis
+    # webhooka i werdykt z odczytu są prawdziwe, API dostawcy udaje lokalny
+    # stub (granica zaufania: ADR-101). Sekrety dostawcy nie są potrzebne.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6.0.9
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v3
+        with: { version: latest }
+      - run: supabase start
+        working-directory: packages/db
+      - run: supabase db reset
+        working-directory: packages/db
+      - name: Eksport zmiennych lokalnego Supabase
+        working-directory: packages/db
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_LOCAL_URL=$DB_URL"
+            echo "SUPABASE_LOCAL_API_URL=$API_URL"
+            echo "SUPABASE_LOCAL_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+      - name: Cache przeglądarek Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm --filter @avably/e2e exec playwright install chromium --with-deps
+      # NEXT_PUBLIC_* to stałe build-time — build MUSI iść po eksporcie
+      # zmiennych lokalnego Supabase, inaczej bundle wmuruje puste wartości.
+      - name: Produkcyjny build obu aplikacji
+        run: pnpm --filter @avably/e2e e2e:build
+      - name: Testy e2e ścieżki krytycznej
+        run: pnpm --filter @avably/e2e e2e
+      # Trace/zrzuty/raport Playwrighta — bez nich porażka w CI jest nie do
+      # zdiagnozowania (przebieg dzieje się w headless przeglądarce).
+      - name: Artefakty diagnostyczne po porażce
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artefakty
+          path: packages/e2e/.artefakty/
+          retention-days: 7
