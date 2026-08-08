@@ -3,13 +3,13 @@
  * lokalnym Supabase.
  *
  * PRZEDMIOTEM TESTU JEST BAZA: cztery funkcje `app.dashboard_*` liczą
- * DOKŁADNE liczby z seedu o znanych kwotach — nie „coś się zwróciło".
+ * DOKŁADNE liczby z seedu o znanych kwotach — nie „coś się zwróciło”.
  * Każda asercja kwotowa porównuje pełny zbiór wierszy (toEqual), więc
  * jakikolwiek wyciek między tenantami, doliczenie kaucji albo zmieszanie
  * walut zmienia wynik i pali test (dowody mutacyjne M1–M3 briefu C1).
  *
  * Osie:
- *   1. PRZYCHÓD — definicja „zrealizowany" jako kontrakt: dokładne sumy
+ *   1. PRZYCHÓD — definicja „zrealizowany” jako kontrakt: dokładne sumy
  *      rental+delivery per miesiąc × waluta; kaucja POZA sumą; statusy
  *      unpaid/pending/payment_failed/refunded oraz anulowane zamówienia
  *      poza sumą; stare zamówienie poza oknem 12 miesięcy.
@@ -32,6 +32,7 @@ import { randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 import WebSocket from "ws";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -75,7 +76,7 @@ const anonClient = (): SupabaseClient =>
   });
 
 /**
- * „Dziś" testów — data przyszła i stała, żeby okna były deterministyczne
+ * „Dziś” testów — data przyszła i stała, żeby okna były deterministyczne
  * i żeby seedy innych suit (biegnących równolegle na wspólnej bazie, ale
  * w INNYCH tenantach) nie miały jak wejść w te liczby.
  */
@@ -325,7 +326,7 @@ describe.skipIf(!hasEnv)("agregaty dashboardu operatora (0054, ADR-109)", () => 
     customerCelina = await createCustomer(admin, a.tenantId, "Celina Gamma");
 
     // ----- Tenant A: przychód (zamówienia bez pozycji — nie wchodzą
-    // w zajętość; kwoty rozmyślnie „podpisane", żeby pomyłka była widoczna) --
+    // w zajętość; kwoty rozmyślnie „podpisane”, żeby pomyłka była widoczna) --
     // r1: paid, czerwiec, PLN — W SUMIE (11 500 z dostawą; kaucja 5 000 NIE).
     await createOrder(admin, {
       tenantId: a.tenantId,
@@ -813,6 +814,46 @@ describe.skipIf(!hasEnv)("agregaty dashboardu operatora (0054, ADR-109)", () => 
         .rpc("dashboard_revenue", { p_months: 12, p_today: TODAY });
       expect(error).toBeNull();
       expect(data).toEqual([]);
+    });
+  });
+
+  describe("kontrakt źródła funkcji (recenzja PM #209)", () => {
+    /**
+     * Wszystkie testy okien podają `p_today` JAWNIE — więc gałąź DOMYŚLNEGO
+     * „dziś” (coalesce z now()) nie jest przypięta zachowaniem: regres
+     * Europe/Warsaw → UTC przechodzi zielono, a przesuwa granice miesięcy
+     * operatora o 1–2 h. Pin na ŹRÓDLE funkcji (pg_get_functiondef z żywej
+     * bazy, wzorzec pinu predykatu z M1/#208): każda funkcja 0054 musi
+     * liczyć domyślne „dziś” w Europe/Warsaw.
+     */
+    it("każda funkcja app.dashboard_* liczy domyślne „dziś” w Europe/Warsaw (pin pg_get_functiondef)", async () => {
+      const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+      try {
+        const rows = await sql<{ proname: string; def: string }[]>`
+          select p.proname, pg_get_functiondef(p.oid) as def
+          from pg_proc p
+          join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'app' and p.proname like 'dashboard%'
+        `;
+        expect(rows.map((row) => row.proname).sort()).toEqual([
+          "dashboard_attention",
+          "dashboard_revenue",
+          "dashboard_top_customers",
+          "dashboard_utilization",
+        ]);
+        for (const row of rows) {
+          expect(
+            row.def,
+            `${row.proname}: domyślna gałąź „dziś” musi liczyć w Europe/Warsaw — ` +
+              `okna miesięczne mają biec tak, jak widzi je operator, nie UTC (ADR-109)`,
+          ).toContain("Europe/Warsaw");
+          // Strefa ma siedzieć w gałęzi domyślnej (coalesce z now()), nie być
+          // martwym literałem: pilnujemy współobecności wzorca w tym samym źródle.
+          expect(row.def).toMatch(/coalesce\(p_today/i);
+        }
+      } finally {
+        await sql.end({ timeout: 5 });
+      }
     });
   });
 });
