@@ -144,11 +144,18 @@ export function ApiKeysPanel({
   apiKeys,
   isOwner,
   apiBaseUrl,
+  pluginDownloadHref,
+  pluginFilename,
+  pluginVersion,
 }: {
   apiKeys: ApiKeyRow[];
   isOwner: boolean;
   /** Baza adresowa API sklepu (host subdomeny) — informacyjnie dla integracji. */
   apiBaseUrl: string | null;
+  /** Paczka wtyczki: adres trasy pobierania i metadane (M2, ADR-110). */
+  pluginDownloadHref: string;
+  pluginFilename: string;
+  pluginVersion: string;
 }) {
   const t = useTranslations("apiSettings");
 
@@ -190,7 +197,12 @@ export function ApiKeysPanel({
 
       {/* Instrukcja stoi POD generowaniem: krok 1 odsyła do formularza wyżej,
           a operator czyta ekran w kolejności, w jakiej ma działać. */}
-      <WordPressGuide hasActiveKey={apiKeys.some((key) => key.revokedAt === null)} />
+      <WordPressGuide
+        hasActiveKey={apiKeys.some((key) => key.revokedAt === null)}
+        pluginDownloadHref={pluginDownloadHref}
+        pluginFilename={pluginFilename}
+        pluginVersion={pluginVersion}
+      />
     </>
   );
 }

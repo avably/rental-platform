@@ -247,6 +247,17 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "przed jakąkolwiek pracą, rdzeń filtruje po tenant_id niezależnie od " +
       "RLS; zbiór nie zawiera danych osobowych (produkty i progi cenowe).",
   ],
+  [
+    "/ustawienia-api/wtyczka",
+    "Paczka instalacyjna wtyczki WordPress (M2, ADR-110) — CHRONIONY SESJĄ: " +
+      "requireMember() PRZED złożeniem odpowiedzi (anonim dostaje 401 i zero " +
+      "bajtów). Zawartość jest ta sama dla każdego najemcy — to publiczny kod " +
+      "wtyczki, NIE dane tenanta: paczka nie niesie klucza API ani niczego, " +
+      "co zależy od organizacji (bramka zawartości w " +
+      "test/wordpress-plugin-package.test.ts). Bramka sesji jest tu higieną " +
+      "panelu (zero anonimowych pobrań z naszego hostingu), nie granicą " +
+      "izolacji — dlatego handler nie potrzebuje roli ani filtra tenant_id.",
+  ],
 ]);
 
 const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");

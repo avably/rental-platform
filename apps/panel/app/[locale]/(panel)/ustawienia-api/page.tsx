@@ -15,6 +15,11 @@ import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
+import {
+  WORDPRESS_PLUGIN_FILENAME,
+  WORDPRESS_PLUGIN_VERSION,
+} from "@/lib/wordpress/plugin-package";
+
 import { ApiKeysPanel, type ApiKeyRow } from "./api-keys-panel";
 
 export default async function ApiSettingsPage() {
@@ -63,7 +68,16 @@ export default async function ApiSettingsPage() {
   return (
     <FormMeasure className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
-      <ApiKeysPanel apiKeys={apiKeys} isOwner={ctx.role === "owner"} apiBaseUrl={apiBaseUrl} />
+      <ApiKeysPanel
+        apiKeys={apiKeys}
+        isOwner={ctx.role === "owner"}
+        apiBaseUrl={apiBaseUrl}
+        // Trasa pobierania żyje pod tym samym ekranem; prefiks locale
+        // dokładamy tu, bo zwykły <a> nie przechodzi przez Link next-intl.
+        pluginDownloadHref={`/${locale}/ustawienia-api/wtyczka`}
+        pluginFilename={WORDPRESS_PLUGIN_FILENAME}
+        pluginVersion={WORDPRESS_PLUGIN_VERSION}
+      />
     </FormMeasure>
   );
 }

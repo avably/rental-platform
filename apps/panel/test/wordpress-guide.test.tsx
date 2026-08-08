@@ -19,7 +19,12 @@ afterEach(cleanup);
 function renderGuide(locale: "pl" | "en", hasActiveKey = false) {
   return render(
     <NextIntlClientProvider locale={locale} messages={locale === "pl" ? pl : en}>
-      <WordPressGuide hasActiveKey={hasActiveKey} />
+      <WordPressGuide
+        hasActiveKey={hasActiveKey}
+        pluginDownloadHref={`/${locale}/ustawienia-api/wtyczka`}
+        pluginFilename="avably-booking-0.1.0.zip"
+        pluginVersion="0.1.0"
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -64,6 +69,33 @@ describe("instrukcja podłączenia WordPressa (/ustawienia-api)", () => {
     expect(withKey).not.toBe(withoutKey);
     expect(withKey).toContain(pl.apiSettings.wordpress.step1DoneBody);
     expect(withoutKey).toContain(pl.apiSettings.wordpress.step1Body);
+  });
+
+  it("krok 2 daje pobranie paczki jednym kliknięciem", () => {
+    for (const locale of ["pl", "en"] as const) {
+      const { container } = renderGuide(locale);
+      const link = container.querySelector("a[data-plugin-download]");
+      expect(link, `brak przycisku pobierania dla ${locale}`).not.toBeNull();
+      // Adres musi nieść prefiks locale — zwykły <a> nie przechodzi przez
+      // Link next-intl, więc brak prefiksu dałby 404 na trasie panelu.
+      expect(link?.getAttribute("href")).toBe(`/${locale}/ustawienia-api/wtyczka`);
+      // Nazwa pliku z wersją: operator ma widzieć, co pobiera, także po
+      // zapisaniu na dysk.
+      expect(link?.getAttribute("download")).toBe("avably-booking-0.1.0.zip");
+      expect(link?.textContent).toContain("0.1.0");
+      cleanup();
+    }
+  });
+
+  it("krok 2 mówi wprost, że po wgraniu trzeba wtyczkę WŁĄCZYĆ", () => {
+    for (const [locale, needle] of [
+      ["pl", "Włącz wtyczkę"],
+      ["en", "Activate Plugin"],
+    ] as const) {
+      const text = renderGuide(locale).container.textContent ?? "";
+      expect(text, `${locale} nie mówi o włączeniu`).toContain(needle);
+      cleanup();
+    }
   });
 
   it("nie obiecuje płatności online (iteracja 1 to tor offline)", () => {

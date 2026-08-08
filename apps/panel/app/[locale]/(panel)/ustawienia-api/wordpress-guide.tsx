@@ -73,7 +73,18 @@ function Step({ number, title, children }: { number: number; title: string; chil
   );
 }
 
-export function WordPressGuide({ hasActiveKey }: { hasActiveKey: boolean }) {
+export function WordPressGuide({
+  hasActiveKey,
+  pluginDownloadHref,
+  pluginFilename,
+  pluginVersion,
+}: {
+  hasActiveKey: boolean;
+  /** Adres trasy pobierania (z prefiksem locale — składa go strona serwerowa). */
+  pluginDownloadHref: string;
+  pluginFilename: string;
+  pluginVersion: string;
+}) {
   const t = useTranslations("apiSettings.wordpress");
 
   return (
@@ -85,6 +96,18 @@ export function WordPressGuide({ hasActiveKey }: { hasActiveKey: boolean }) {
 
         <Step number={2} title={t("step2Title")}>
           <p>{t("step2Body")}</p>
+          {/* Pobranie idzie ZWYKŁYM linkiem (a nie fetchem): przeglądarka
+              sama obsłuży Content-Disposition, a operator może ponowić je
+              z historii. `download` podpowiada nazwę pliku także wtedy, gdy
+              przeglądarka zignoruje nagłówek. */}
+          <p>
+            <Button asChild variant="secondary">
+              <a href={pluginDownloadHref} download={pluginFilename} data-plugin-download>
+                {t("downloadCta", { version: pluginVersion })}
+              </a>
+            </Button>
+          </p>
+          <p>{t("step2Activate")}</p>
         </Step>
 
         <Step number={3} title={t("step3Title")}>
