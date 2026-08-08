@@ -48,6 +48,9 @@ services:
   cli:
     image: wordpress:cli-php8.1
     container_name: avably_wp_m2_cli
+    # Obraz cli (alpine) ma www-data pod UID 82, a obraz apache pod 33 —
+    # bez wymuszenia UID instalacje motywów/wtyczek padają na uprawnieniach.
+    user: "33:33"
     depends_on:
       db:
         condition: service_healthy
