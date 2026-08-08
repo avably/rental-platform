@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBestPriceRequest,
   courierOfferFromProduct,
+  isShipmentCancellable,
   mapProviderStatus,
   type ShipmentParty,
 } from "./shipments";
@@ -241,5 +242,36 @@ describe("mapProviderStatus", () => {
   it("nieznany status → null: dryf API dostawcy nie może wywalać syncu (ADR-031)", () => {
     expect(mapProviderStatus("COŚ_NOWEGO")).toBeNull();
     expect(mapProviderStatus("")).toBeNull();
+  });
+});
+
+describe("isShipmentCancellable (ADR-105)", () => {
+  it("anulować wolno dopóki przewoźnik nie odebrał paczki", () => {
+    expect(isShipmentCancellable("created")).toBe(true);
+    expect(isShipmentCancellable("in_progress")).toBe(true);
+  });
+
+  it("paczki w drodze, doręczonej, zwróconej i już anulowanej — nie", () => {
+    expect(isShipmentCancellable("in_transit")).toBe(false);
+    expect(isShipmentCancellable("delivered")).toBe(false);
+    expect(isShipmentCancellable("returned_to_sender")).toBe(false);
+    expect(isShipmentCancellable("cancelled")).toBe(false);
+  });
+
+  it("lista jest POZYTYWNA: komplet statusów cyklu życia jest rozstrzygnięty", () => {
+    // Kontrola kompletności — nowy status wewnętrzny ma trafić do tej listy
+    // świadomie, a nie wpaść do anulowalnych domyślnie.
+    const all = [
+      "created",
+      "in_progress",
+      "in_transit",
+      "delivered",
+      "cancelled",
+      "returned_to_sender",
+    ] as const;
+    expect(all.filter((status) => isShipmentCancellable(status))).toEqual([
+      "created",
+      "in_progress",
+    ]);
   });
 });

@@ -149,6 +149,15 @@ export const shipmentRefreshAllSchema = z.object({
   orderId: uuidSchema,
 });
 
+/**
+ * Anulowanie nadanej przesyłki u dostawcy (L4, ADR-105). Wejściem jest sam
+ * identyfikator przesyłki — numer u dostawcy i credentiale kuriera bierze
+ * serwer z wiersza i z ustawień właściciela zamówienia, nigdy z formularza.
+ */
+export const shipmentCancelSchema = z.object({
+  shipmentId: uuidSchema,
+});
+
 /** Wyślij klientowi etykietę zwrotną e-mailem (istniejąca przesyłka zwrotna). */
 export const returnLabelEmailSchema = z.object({
   orderId: uuidSchema,

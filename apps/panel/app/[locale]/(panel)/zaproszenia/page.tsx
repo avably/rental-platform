@@ -12,11 +12,20 @@ import { redirect } from "next/navigation";
 
 import { FormMeasure } from "@/components/screens/form-measure";
 import { AuthError } from "@/lib/auth";
+import { invitationIsOpen, invitationStatus } from "@/lib/invitations";
 import { localePath } from "@/lib/navigation";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { requireMember } from "@/lib/supabase-server";
 
+import { resendInvitationAction, revokeInvitationAction } from "./actions";
 import { InviteMemberForm } from "./form";
+import {
+  RemoveMemberButton,
+  ResendInvitationButton,
+  RevokeInvitationButton,
+} from "./row-forms";
+import { removeMemberAction } from "./team-actions";
+import { loadTeamMembers } from "./team";
 
 /**
  * Zespół i zaproszenia (mockup P8: `secondary-team`).
@@ -27,6 +36,12 @@ import { InviteMemberForm } from "./form";
  * kontenera. Lista pisana wcześniej jako `email · rola · status` w jednym
  * wierszu gubiła daty — a wygasające zaproszenie bez daty wygaśnięcia jest
  * informacją bezużyteczną.
+ *
+ * L4 (ADR-105) dokłada tu sekcję ZESPOŁU zamiast osobnego ekranu: pozycja
+ * nawigacji „Zespół" już celowała w tę trasę, a lista członków i lista
+ * zaproszeń to dwa etapy jednej sprawy (kto ma dostęp i kto go dopiero
+ * dostanie) — rozbite na dwa ekrany kazałyby operatora przełączać, żeby
+ * odpowiedzieć na jedno pytanie.
  */
 export default async function InvitationsPage() {
   let ctx;
@@ -37,11 +52,14 @@ export default async function InvitationsPage() {
     throw err;
   }
 
-  const { data: invitations } = await ctx.supabase
-    .from("invitations")
-    .select("id, email, role, accepted_at, expires_at, created_at")
-    .eq("tenant_id", ctx.tenantId)
-    .order("created_at", { ascending: false });
+  const [{ data: invitations }, members] = await Promise.all([
+    ctx.supabase
+      .from("invitations")
+      .select("id, email, role, accepted_at, revoked_at, expires_at, created_at")
+      .eq("tenant_id", ctx.tenantId)
+      .order("created_at", { ascending: false }),
+    loadTeamMembers(ctx),
+  ]);
 
   const t = await getTranslations("invitations");
   const locale = await getLocale();
@@ -53,12 +71,56 @@ export default async function InvitationsPage() {
   });
 
   const rows = invitations ?? [];
+  // Jeden znacznik czasu na cały render: gdyby każdy wiersz liczył „teraz"
+  // osobno, dwa zaproszenia wygasające w tej samej sekundzie mogłyby pokazać
+  // różne statusy w jednej tabeli.
+  const now = new Date();
 
   return (
     <div className="flex flex-col gap-6">
       <FormMeasure className="flex flex-col gap-4">
         <InviteMemberForm emailUnavailableReason={emailAvailability().reason} />
       </FormMeasure>
+
+      <section data-team-list className="flex flex-col gap-3">
+        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
+          {t("team.heading")}
+        </h2>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("columnEmail")}</TableHead>
+              <TableHead>{t("columnRole")}</TableHead>
+              <TableHead>{t("team.columnJoinedAt")}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {members.map((member) => (
+              <TableRow key={member.userId}>
+                <TableCell className="break-all">
+                  {member.email ?? t("team.unknownEmail")}
+                  {member.userId === ctx.user.id ? (
+                    <span className="text-muted-foreground ml-2 text-xs">{t("team.you")}</span>
+                  ) : null}
+                </TableCell>
+                <TableCell>{member.role === "owner" ? t("roleOwner") : t("roleStaff")}</TableCell>
+                <TableCell className="tabular-nums whitespace-nowrap">
+                  {formatDate.format(new Date(member.createdAt))}
+                </TableCell>
+                <TableCell>
+                  <RemoveMemberButton
+                    userId={member.userId}
+                    email={member.email}
+                    isSelf={member.userId === ctx.user.id}
+                    action={removeMemberAction}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </section>
 
       <section data-invitations-list className="flex flex-col gap-3">
         <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
@@ -75,29 +137,45 @@ export default async function InvitationsPage() {
                 <TableHead>{t("columnCreatedAt")}</TableHead>
                 <TableHead>{t("columnExpiresAt")}</TableHead>
                 <TableHead>{t("columnStatus")}</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((invitation) => (
-                <TableRow key={invitation.id}>
-                  <TableCell className="break-all">{invitation.email}</TableCell>
-                  <TableCell>
-                    {invitation.role === "owner" ? t("roleOwner") : t("roleStaff")}
-                  </TableCell>
-                  <TableCell className="tabular-nums whitespace-nowrap">
-                    {formatDate.format(new Date(invitation.created_at))}
-                  </TableCell>
-                  <TableCell className="tabular-nums whitespace-nowrap">
-                    {formatDate.format(new Date(invitation.expires_at))}
-                  </TableCell>
-                  <TableCell>
-                    <SecondaryStatusChip
-                      axis="invitation"
-                      value={invitation.accepted_at ? "accepted" : "pending"}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows.map((invitation) => {
+                const status = invitationStatus(invitation, now);
+                return (
+                  <TableRow key={invitation.id}>
+                    <TableCell className="break-all">{invitation.email}</TableCell>
+                    <TableCell>
+                      {invitation.role === "owner" ? t("roleOwner") : t("roleStaff")}
+                    </TableCell>
+                    <TableCell className="tabular-nums whitespace-nowrap">
+                      {formatDate.format(new Date(invitation.created_at))}
+                    </TableCell>
+                    <TableCell className="tabular-nums whitespace-nowrap">
+                      {formatDate.format(new Date(invitation.expires_at))}
+                    </TableCell>
+                    <TableCell>
+                      <SecondaryStatusChip axis="invitation" value={status} />
+                    </TableCell>
+                    <TableCell>
+                      {invitationIsOpen(status) ? (
+                        <div className="flex flex-col gap-2">
+                          <ResendInvitationButton
+                            invitationId={invitation.id}
+                            action={resendInvitationAction}
+                          />
+                          <RevokeInvitationButton
+                            invitationId={invitation.id}
+                            email={invitation.email}
+                            action={revokeInvitationAction}
+                          />
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

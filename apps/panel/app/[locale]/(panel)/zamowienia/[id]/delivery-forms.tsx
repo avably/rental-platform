@@ -4,6 +4,7 @@ import { Button } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
+import { ConfirmSubmit } from "@/components/forms/confirm-submit";
 import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
@@ -106,6 +107,43 @@ export function RefreshStatusButton({
         {t("refreshCta")}
       </Button>
       <FormMessages state={state} successText={t("refreshedOk")} />
+    </form>
+  );
+}
+
+/**
+ * Anulowanie nadanej przesyłki u dostawcy (L4, ADR-105).
+ *
+ * Przycisk pojawia się WYŁĄCZNIE przy przesyłkach, które da się jeszcze
+ * anulować — o tym rozstrzyga serwer (`isShipmentCancellable`), a akcja i tak
+ * sprawdza to drugi raz na własnym odczycie, bo widok bywa nieświeży.
+ * Potwierdzenie zamiaru jest obowiązkowe: operacja jest nieodwracalna
+ * i kosztowa, a stoi w wierszu tabeli obok „Odśwież status".
+ */
+export function CancelShipmentButton({
+  shipmentId,
+  shipmentNumber,
+  action,
+}: {
+  shipmentId: string;
+  shipmentNumber: string;
+  action: DeliveryAction;
+}) {
+  const t = useTranslations("orders.delivery.section");
+  const [state, formAction, pending] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-1">
+      <input type="hidden" name="shipmentId" value={shipmentId} />
+      <ConfirmSubmit
+        marker={`cancel-shipment-${shipmentId}`}
+        pending={pending}
+        label={t("cancelShipmentCta")}
+        question={t("cancelShipmentQuestion", { number: shipmentNumber })}
+        confirmLabel={t("cancelShipmentConfirm")}
+        cancelLabel={t("cancelShipmentAbort")}
+      />
+      <FormMessages state={state} successText={t("shipmentCancelledOk")} />
     </form>
   );
 }

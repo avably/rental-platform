@@ -25,7 +25,19 @@ export const secondaryStatusSemantics = {
   "email-sender": { configured: "positive", missing: "attention" },
   "email-log": { sent: "positive", failed: "problem" },
   "delivery-secret": { configured: "positive", missing: "attention" },
-  invitation: { accepted: "positive", pending: "attention" },
+  /**
+   * Zaproszenie (L4, ADR-105). Cztery wartości, bo cztery różne powody, dla
+   * których link działa albo nie działa. `expired` ma ton `problem`, a nie
+   * `neutral`: to JEDYNY stan, w którym ktoś czeka na dostęp, którego nigdy
+   * nie dostanie — do L4 wyświetlany kłamliwie jako „Oczekuje". `revoked`
+   * jest `neutral`, bo to zamknięcie świadomą decyzją właściciela, nie awaria.
+   */
+  invitation: {
+    accepted: "positive",
+    pending: "attention",
+    revoked: "neutral",
+    expired: "problem",
+  },
   organization: { active: "positive" },
   security: { not_configured: "attention", configured: "positive" },
   /**

@@ -71,6 +71,29 @@ export const acceptInvitationSchema = z.object({
   token: z.string().min(16, "Nieprawidłowy token zaproszenia."),
 });
 
+// --- L4: ścieżki wygaszania (ADR-105) ---
+
+/**
+ * Odwołanie/ponowienie zaproszenia — identyfikator wiersza.
+ *
+ * `tenant_id` NIE JEST i nie będzie polem formularza: tenant bierze się
+ * wyłącznie z claimu JWT (`ctx.tenantId`), więc podstawienie cudzego id
+ * w żądaniu nie ma gdzie zadziałać.
+ */
+export const invitationIdSchema = z.object({
+  invitationId: z.string().uuid("Nieprawidłowy identyfikator zaproszenia."),
+});
+
+/** Usunięcie członka zespołu — identyfikator konta usuwanej osoby. */
+export const removeMemberSchema = z.object({
+  userId: z.string().uuid("Nieprawidłowy identyfikator członka zespołu."),
+});
+
+/** Ponowienie e-maila potwierdzającego adres (trasa dla NIEzalogowanych). */
+export const resendConfirmationSchema = z.object({
+  email: emailSchema,
+});
+
 // --- Panel superadmina (Zadanie 7) ---
 
 export const tenantIdSchema = z.string().uuid("Nieprawidłowy identyfikator organizacji.");

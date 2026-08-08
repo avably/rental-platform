@@ -188,3 +188,29 @@ const PROVIDER_STATUS_MAP: Record<string, ShipmentStatus> = {
 export function mapProviderStatus(providerStatus: string): ShipmentStatus | null {
   return PROVIDER_STATUS_MAP[providerStatus] ?? null;
 }
+
+/**
+ * Stany, z których wolno ANULOWAĆ nadaną przesyłkę (L4, ADR-105).
+ *
+ * Lista jest pozytywna, nie negatywna, i to jest cała jej treść: gdyby
+ * powstała jako „wszystko poza dostarczonym", każdy nowy stan cyklu życia
+ * wpadałby domyślnie do anulowalnych — czyli nowy stan otwierałby operację
+ * kosztową, o której nikt nie zdecydował.
+ *
+ * Rozstrzygnięcie po mapie `mapProviderStatus`:
+ *   * `created` (NEW_SHIPMENT) i `in_progress` (IN_PROGRESS) — zlecenie jest
+ *     u dostawcy, paczki jeszcze nikt nie wiezie: anulowanie ma sens i skutek,
+ *   * `in_transit` — paczka jest fizycznie w drodze; „anulowanie" nie zawróci
+ *     kuriera, a lokalny status skłamałby o tym, gdzie jest sprzęt,
+ *   * `delivered` i `returned_to_sender` — stany terminalne, nie ma czego
+ *     anulować,
+ *   * `cancelled` — już anulowana; drugie żądanie to koszt bez skutku.
+ *
+ * Nieznany status dostawcy NIE zmienia statusu wewnętrznego (ADR-031), więc
+ * ta funkcja pyta wyłącznie o stan wewnętrzny — nigdy o surowy string dostawcy.
+ */
+const CANCELLABLE_STATUSES: readonly ShipmentStatus[] = ["created", "in_progress"];
+
+export function isShipmentCancellable(status: ShipmentStatus): boolean {
+  return CANCELLABLE_STATUSES.includes(status);
+}

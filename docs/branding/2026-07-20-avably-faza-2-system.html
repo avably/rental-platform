@@ -1041,7 +1041,7 @@ color-scheme: light dark;
   &quot;email-sender&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
   &quot;email-log&quot;: { &quot;sent&quot;: &quot;positive&quot;, &quot;failed&quot;: &quot;problem&quot; },
   &quot;delivery-secret&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
-  &quot;invitation&quot;: { &quot;accepted&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot; },
+  &quot;invitation&quot;: { &quot;accepted&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;revoked&quot;: &quot;neutral&quot;, &quot;expired&quot;: &quot;problem&quot; },
   &quot;organization&quot;: { &quot;active&quot;: &quot;positive&quot; },
   &quot;security&quot;: { &quot;not_configured&quot;: &quot;attention&quot;, &quot;configured&quot;: &quot;positive&quot; },
   &quot;site-section&quot;: { &quot;enabled&quot;: &quot;positive&quot;, &quot;disabled&quot;: &quot;neutral&quot;, &quot;deleted&quot;: &quot;attention&quot; },
@@ -1245,6 +1245,8 @@ color-scheme: light dark;
           <div class="secondary-table-wrap" data-invitations-list><table class="secondary-table"><thead><tr><th>E-mail</th><th>Rola</th><th>Utworzono</th><th>Wygasa</th><th>Status</th></tr></thead><tbody>
             <tr><td>osoba-01@example.invalid</td><td>Pracownik</td><td class="numeric-data">20.07.2026</td><td class="numeric-data">27.07.2026</td><td><span class="chip chip-attention" data-secondary-status-axis="invitation" data-secondary-status-value="pending" data-tone="attention">Oczekuje</span></td></tr>
             <tr><td>osoba-02@example.invalid</td><td>Właściciel</td><td class="numeric-data">01.07.2026</td><td class="numeric-data">08.07.2026</td><td><span class="chip chip-positive" data-secondary-status-axis="invitation" data-secondary-status-value="accepted" data-tone="positive">Przyjęte</span></td></tr>
+            <tr><td>osoba-03@example.invalid</td><td>Pracownik</td><td class="numeric-data">02.07.2026</td><td class="numeric-data">09.07.2026</td><td><span class="chip chip-neutral" data-secondary-status-axis="invitation" data-secondary-status-value="revoked" data-tone="neutral">Odwołane</span></td></tr>
+            <tr><td>osoba-04@example.invalid</td><td>Pracownik</td><td class="numeric-data">10.06.2026</td><td class="numeric-data">17.06.2026</td><td><span class="chip chip-problem" data-secondary-status-axis="invitation" data-secondary-status-value="expired" data-tone="problem">Wygasłe</span></td></tr>
           </tbody></table></div>
         </article>
       </div>

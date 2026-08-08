@@ -155,7 +155,13 @@
   },
   "checkInbox": {
     "title": "Check your inbox",
-    "body": "We sent you an email with a confirmation link. Click it to finish signing up and create your organization."
+    "body": "We sent you an email with a confirmation link. Click it to finish signing up and create your organization.",
+    "resendIntro": "Message did not arrive? Enter the address you are signing up with and we will send the link again.",
+    "resendEmailLabel": "Email address",
+    "resendCta": "Send again",
+    "resendPending": "Sending…",
+    "resendDone": "If this address needs confirmation, the message has been sent. Check your spam folder too.",
+    "resendThrottled": "Too many attempts. Please try again in a moment."
   },
   "resetRequest": {
     "title": "Reset password",
@@ -201,7 +207,29 @@
     "columnCreatedAt": "Created",
     "columnExpiresAt": "Expires",
     "columnStatus": "Status",
-    "empty": "No invitation has been sent yet."
+    "empty": "No invitation has been sent yet.",
+    "team": {
+      "heading": "Team",
+      "columnJoinedAt": "Joined",
+      "unknownEmail": "—",
+      "you": "(this is you)",
+      "removeCta": "Remove from team",
+      "removeQuestion": "{subject} will lose access to this organization's panel.",
+      "removeConfirm": "Yes, remove",
+      "leaveCta": "Leave organization",
+      "leaveQuestion": "You will lose access to this organization and be signed out.",
+      "leaveConfirm": "Yes, I'm leaving",
+      "cancelConfirm": "No, keep"
+    },
+    "lifecycle": {
+      "revokeCta": "Revoke",
+      "revokeQuestion": "The invitation link for {subject} will stop granting access.",
+      "revokeConfirm": "Yes, revoke",
+      "cancelConfirm": "No, keep",
+      "resendCta": "Send again",
+      "resendPending": "Sending…",
+      "resendHint": "The previous link will stop working."
+    }
   },
   "security": {
     "title": "Security",
@@ -656,14 +684,19 @@
         "insuranceHint": "Declared value of the contents to insure.",
         "saturdayLabel": "Saturday delivery",
         "saturdayHint": "The parcel may also be delivered on Saturday (if the carrier offers it).",
-        "cancelCta": "Cancel",
         "confirmCreateCta": "Confirm and create",
         "creatingShipment": "Creating shipment…",
         "copyCta": "Copy",
         "copiedOk": "Copied",
         "refreshAllCta": "Refresh shipment statuses",
         "refreshedAllOk": "Shipment statuses refreshed.",
-        "deliveryCostManual": "price set manually"
+        "deliveryCostManual": "price set manually",
+        "closeCta": "Close",
+        "cancelShipmentCta": "Cancel shipment",
+        "cancelShipmentQuestion": "Shipment {number} will be cancelled with the carrier. This cannot be undone.",
+        "cancelShipmentConfirm": "Yes, cancel with carrier",
+        "cancelShipmentAbort": "No, keep it",
+        "shipmentCancelledOk": "Shipment cancelled with the carrier."
       },
       "settings": {
         "title": "Delivery settings",
@@ -1810,7 +1843,9 @@
     },
     "invitation": {
       "accepted": "Accepted",
-      "pending": "Pending"
+      "pending": "Pending",
+      "revoked": "Revoked",
+      "expired": "Expired"
     },
     "organization": {
       "active": "Active"

@@ -1,5 +1,7 @@
 import { useTranslations } from "next-intl";
 
+import { ResendConfirmationForm } from "./form";
+
 export default function CheckInboxPage() {
   const t = useTranslations("checkInbox");
 
@@ -7,6 +9,10 @@ export default function CheckInboxPage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-3 p-6 text-center">
       <h1 className="text-xl font-semibold">{t("title")}</h1>
       <p className="text-sm text-gray-600">{t("body")}</p>
+      {/* Wyjście ze ślepego zaułka: bez tego formularza kto zgubił wiadomość,
+          ten miał konto, którego nie da się potwierdzić (L4, ADR-105). */}
+      <p className="text-sm text-gray-600">{t("resendIntro")}</p>
+      <ResendConfirmationForm />
     </main>
   );
 }

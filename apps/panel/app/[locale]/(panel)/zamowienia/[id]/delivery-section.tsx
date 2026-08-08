@@ -22,6 +22,7 @@ import {
   CourierConfigError,
   emailAvailability,
   formatMoney,
+  isShipmentCancellable,
   mapProviderStatus,
   type CurrencyCode,
   type DeliveryPriceSource,
@@ -33,6 +34,7 @@ import { StatusChip } from "@/lib/orders/status-chip";
 import { requireMember } from "@/lib/supabase-server";
 
 import {
+  cancelShipmentAction,
   createShipmentAction,
   refreshOrderShipmentsAction,
   refreshShipmentStatusAction,
@@ -50,6 +52,7 @@ import {
   type ShipmentRow,
 } from "./delivery";
 import {
+  CancelShipmentButton,
   RefreshAllShipmentsButton,
   RefreshStatusButton,
   SendPickupReminderButton,
@@ -252,6 +255,16 @@ export async function DeliverySection({
                         shipmentId={shipment.id}
                         emailAvailability={emailStatus}
                         action={sendReturnLabelEmailAction}
+                      />
+                    ) : null}
+                    {/* Anulowanie tylko tam, gdzie ma jeszcze skutek (ADR-105):
+                        przy przesyłce w drodze przycisk nie istnieje, zamiast
+                        obiecywać operację, którą dostawca i tak odrzuci. */}
+                    {isShipmentCancellable(shipment.status) ? (
+                      <CancelShipmentButton
+                        shipmentId={shipment.id}
+                        shipmentNumber={shipment.provider_order_number}
+                        action={cancelShipmentAction}
                       />
                     ) : null}
                   </div>

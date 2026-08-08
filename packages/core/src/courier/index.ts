@@ -42,6 +42,7 @@ export {
 export {
   buildBestPriceRequest,
   courierOfferFromProduct,
+  isShipmentCancellable,
   mapProviderStatus,
   type CarrierOffer,
   type ShipmentParty,
