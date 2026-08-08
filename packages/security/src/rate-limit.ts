@@ -35,6 +35,12 @@
  */
 export const PANEL_AUTH_RATE_LIMIT_PREFIX = "panel-auth-rl";
 export const STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX = "storefront-public-rl";
+/**
+ * Publiczne API maszynowe /api/v1 (M1, ADR-108) — osobna przestrzeń: ruch
+ * wtyczek/serwerów najemców nie może zjadać budżetu formularzy storefrontu
+ * (ani odwrotnie), bo to inne populacje klientów o innych profilach ruchu.
+ */
+export const STOREFRONT_API_RATE_LIMIT_PREFIX = "storefront-api-rl";
 
 export interface RateLimitResult {
   success: boolean;
