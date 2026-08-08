@@ -239,7 +239,7 @@ describe.skipIf(!hasEnv)("ścieżki wygaszania — akcje panelu (ADR-105)", () =
     expect(data ?? []).toHaveLength(0);
   });
 
-  it("staff NIE usuwa nikogo — odmowa na serwerze, wiersz nietknięty", async () => {
+  it("staff NIE usuwa nikogo — odbija się o BRAMKĘ ROLI, nie o pusty wynik", async () => {
     const victim = await addMember(admin, owner.tenantId, "staff-victim", "staff");
     actAs(staff);
 
@@ -247,7 +247,14 @@ describe.skipIf(!hasEnv)("ścieżki wygaszania — akcje panelu (ADR-105)", () =
     form.set("userId", victim.userId);
     const state = await removeMemberAction({}, form);
 
-    expect(state.error, "staff nie ma prawa usuwać członków").toBeTruthy();
+    // Asercja celuje w KONKRETNĄ warstwę. Samo „error jest prawdziwe" nie
+    // dowodzi niczego o akcji: polityka RLS `tenant_delete` i tak nie dosięgnie
+    // wiersza dla staffa, więc akcja bez guardu roli wróciłaby z „nie znaleziono"
+    // — czyli test świeciłby na zielono przy zdjętej bramce, a operator
+    // dostawałby mylący komunikat zamiast informacji o braku uprawnień.
+    expect(state.error, "staff nie ma prawa usuwać członków").toBe(
+      "Brak uprawnień do tej operacji.",
+    );
     expect(state.success).toBeUndefined();
 
     const { data } = await admin
@@ -333,7 +340,10 @@ describe.skipIf(!hasEnv)("ścieżki wygaszania — akcje panelu (ADR-105)", () =
     const form = new FormData();
     form.set("invitationId", invitation.id);
     const state = await revokeInvitationAction({}, form);
-    expect(state.error).toBeTruthy();
+    // Jak przy usuwaniu członka: mierzymy BRAMKĘ ROLI, a nie to, że cokolwiek
+    // poszło nie tak — odczyt zaproszeń jest dla staffa dozwolony, więc bez
+    // guardu akcja doszłaby aż do UPDATE-u i odbiła się dopiero o RLS.
+    expect(state.error).toBe("Brak uprawnień do tej operacji.");
 
     const { data: row } = await admin
       .from("invitations")
