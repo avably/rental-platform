@@ -48,12 +48,24 @@ vi.mock("@/lib/supabase-server", () => ({
 // Import po zamockowaniu supabase-server, żeby member-page dostał atrapę.
 const { requireMemberPage } = await import("@/lib/member-page");
 
-/** Atrapa klienta Supabase: getClaims zwraca podane claimy (albo brak sesji). */
+/**
+ * Atrapa klienta Supabase: getClaims zwraca podane claimy (albo brak sesji).
+ * Od L3 (ADR-107) rdzeń czyta też `tenants.status` — atrapa oddaje organizację
+ * DZIAŁAJĄCĄ; scenariusze statusów zamykających mieszkają w
+ * tenant-status-guard.test.ts.
+ */
 function fakeClient(claims: Record<string, unknown> | null) {
   return {
     auth: {
       getClaims: async () => ({ data: claims ? { claims } : null, error: null }),
     },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { status: "active" }, error: null }),
+        }),
+      }),
+    }),
   } as never;
 }
 

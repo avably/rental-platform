@@ -1864,5 +1864,10 @@
     "requirementsHeading": "What the provider still needs",
     "requirementsHint": "The names come from the provider — you fill them in on their form via “Finish verification”.",
     "lastError": "The last read attempt failed:"
+  },
+  "suspendedOrganization": {
+    "title": "Organization suspended",
+    "description": "Access to the panel has been put on hold. Contact Avably support to restore access.",
+    "logout": "Sign out"
   }
 }
