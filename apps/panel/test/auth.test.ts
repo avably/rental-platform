@@ -17,7 +17,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
-import { AuthError, getAuthContext, requireMemberWithClient, requireSuperadminWithClient } from "@/lib/auth";
+import {
+  AuthError,
+  getAuthContext,
+  requireMemberWithClient,
+  requireSuperadminWithClient,
+} from "@/lib/auth";
 
 import { integrationEnv } from "./helpers/integration-env";
 
@@ -197,5 +202,119 @@ describe.skipIf(!hasEnv)("guardy auth panelu (lib/auth.ts)", () => {
     const superadminCtx = await requireSuperadminWithClient(clientSuperadminAal1);
     expect(superadminCtx.superadmin).toBe(true);
     expect(superadminCtx.aal).toBe("aal2");
+  });
+});
+
+/**
+ * Egzekwowanie statusu tenanta (L3, ADR-107) na żywym Supabase: guard czyta
+ * `tenants.status` klientem SESJI (RLS `own_select`), więc te testy są
+ * jednocześnie testem izolacji — członek nie ma jak odczytać cudzego statusu.
+ * Asercje blokady mierzą kod `tenant_suspended` (zdanie bramki), nie sam fakt
+ * odrzucenia.
+ */
+describe.skipIf(!hasEnv)("egzekwowanie statusu tenanta (L3, ADR-107)", () => {
+  const admin = hasEnv ? createAdminClient() : (null as unknown as SupabaseClient);
+
+  afterAll(async () => {
+    if (!hasEnv) return;
+    for (const id of createdUserIds) {
+      await admin.auth.admin.deleteUser(id);
+    }
+    createdUserIds.length = 0;
+  });
+
+  /** User + własny tenant przez app.create_tenant; zwraca ŚWIEŻĄ sesję z claimem. */
+  async function createMemberWithTenant(label: string): Promise<{
+    email: string;
+    tenantId: string;
+    client: SupabaseClient;
+  }> {
+    const user = await createConfirmedUser(admin, label);
+    const bootstrap = await signIn(user.email);
+    const slug = `panelauth-${randomUUID()}`.slice(0, 39);
+    const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+      p_slug: slug,
+      p_name: `Tenant statusowy (${label})`,
+    });
+    if (error) throw new Error(`create_tenant(${label}): ${error.message}`);
+    return { email: user.email, tenantId: tenantId as string, client: await signIn(user.email) };
+  }
+
+  async function setTenantStatus(tenantId: string, status: string): Promise<void> {
+    const { error } = await admin.from("tenants").update({ status }).eq("id", tenantId);
+    if (error) throw new Error(`update tenants.status=${status}: ${error.message}`);
+  }
+
+  it.each(["suspended", "cancelled", "superadmin_locked"] as const)(
+    "status %s: strona → tenant_suspended, tor akcji → mutacja NIE wchodzi",
+    async (status) => {
+      const member = await createMemberWithTenant(`closed-${status}`);
+      await setTenantStatus(member.tenantId, status);
+
+      // Tor strony/rdzenia: odmowa nazwanym kodem, nie przypadkowym brakiem danych.
+      await expect(requireMemberWithClient(member.client)).rejects.toMatchObject({
+        status: 403,
+        code: "tenant_suspended",
+      });
+
+      // Tor akcji: KAŻDA server action panelu zaczyna od requireMember()
+      // (kontrakt — patrz sweep wejść w ADR-107), więc odmowa guardu musi
+      // uciąć przebieg PRZED zapisem. Symulujemy dokładnie ten przebieg.
+      const actionAttempt = (async () => {
+        const ctx = await requireMemberWithClient(member.client);
+        return ctx.supabase.from("customers").insert({
+          tenant_id: ctx.tenantId,
+          email: "proba@test.local",
+        });
+      })();
+      await expect(actionAttempt).rejects.toMatchObject({ code: "tenant_suspended" });
+
+      // Stan po próbie: zero wierszy — mutacja nie weszła.
+      const { count, error: countError } = await admin
+        .from("customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", member.tenantId);
+      expect(countError).toBeNull();
+      expect(count).toBe(0);
+    },
+  );
+
+  it.each(["trialing", "active", "past_due"] as const)(
+    "status %s przepuszcza (kontekst niesie tenantStatus)",
+    async (status) => {
+      const member = await createMemberWithTenant(`open-${status}`);
+      await setTenantStatus(member.tenantId, status);
+
+      const ctx = await requireMemberWithClient(member.client);
+      expect(ctx.tenantId).toBe(member.tenantId);
+      expect(ctx.tenantStatus).toBe(status);
+    },
+  );
+
+  it("izolacja RLS: członek nie widzi statusu CUDZEGO tenanta (odczyt guardu niczego nie otwiera)", async () => {
+    const alice = await createMemberWithTenant("rls-a");
+    const mallory = await createMemberWithTenant("rls-b");
+    await setTenantStatus(alice.tenantId, "suspended");
+
+    // Ta sama ścieżka odczytu, której używa guard — tyle że po cudzym id.
+    const { data, error } = await mallory.client
+      .from("tenants")
+      .select("status")
+      .eq("id", alice.tenantId)
+      .maybeSingle();
+    expect(error).toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("superadmin bez organizacji: kod superadmin_without_org bez regresu (mimo zawieszonych tenantów w bazie)", async () => {
+    const user = await createConfirmedUser(admin, "sa-no-org");
+    const { error } = await admin.schema("app").from("superadmins").insert({ user_id: user.id });
+    expect(error, `insert app.superadmins: ${error?.message}`).toBeNull();
+
+    const client = await signIn(user.email);
+    await expect(requireMemberWithClient(client)).rejects.toMatchObject({
+      status: 403,
+      code: "superadmin_without_org",
+    });
   });
 });

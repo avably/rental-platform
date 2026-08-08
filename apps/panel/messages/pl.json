@@ -1864,5 +1864,10 @@
     "requirementsHeading": "Czego brakuje dostawcy",
     "requirementsHint": "Nazwy pochodzą od dostawcy — uzupełnisz je w jego formularzu, klikając „Dokończ weryfikację”.",
     "lastError": "Ostatnia próba odczytu nie powiodła się:"
+  },
+  "suspendedOrganization": {
+    "title": "Organizacja jest zawieszona",
+    "description": "Dostęp do panelu został wstrzymany. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+    "logout": "Wyloguj się"
   }
 }

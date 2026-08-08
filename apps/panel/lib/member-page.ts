@@ -34,6 +34,12 @@ export async function requireMemberPage(nextPath: string): Promise<AuthContext> 
     if (error.code === "superadmin_without_org") {
       redirect(await localePath(SUPERADMIN_HOME));
     }
+    // Organizacja ze statusem zamykającym panel (ADR-107) → dedykowany ekran
+    // z komunikatem i wylogowaniem. NIE na „/": strona główna sama pokazuje
+    // dane tenanta, a każdy kolejny guard odmówiłby tym samym kodem — pętla.
+    if (error.code === "tenant_suspended") {
+      redirect(await localePath("/organizacja-zawieszona"));
+    }
     // Zwykły zalogowany bez organizacji (albo inna odmowa) → strona główna
     // panelu, która pokieruje dalej (założenie organizacji).
     redirect(await localePath("/"));

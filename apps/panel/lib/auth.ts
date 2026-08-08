@@ -15,7 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Role } from "@avably/db";
+import type { Role, TenantStatus } from "@avably/db";
 
 /**
  * Powód odmowy — rozstrzyga, co ma zrobić wywołujący (patrz
@@ -32,13 +32,35 @@ import type { Role } from "@avably/db";
  *   a nie odmawiać na głucho,
  * - `mfa_enrollment_required` → 403: superadmin bez ŻADNEGO czynnika 2FA —
  *   musi go najpierw włączyć (/bezpieczenstwo).
+ * - `tenant_suspended` → 403: organizacja ma status zamykający panel
+ *   (PANEL_CLOSED_STATUSES — ADR-107). Guard strony kieruje operatora na
+ *   /organizacja-zawieszona (komunikat + wylogowanie), akcje i handlery po
+ *   prostu odmawiają. Jeden kod dla wszystkich trzech statusów: operator nie
+ *   dostaje szczegółów rozliczeniowych, a superadmin i tak widzi prawdę
+ *   w /admin/tenants.
  */
 export type AuthErrorCode =
   | "unauthenticated"
   | "forbidden"
   | "superadmin_without_org"
   | "mfa_required"
-  | "mfa_enrollment_required";
+  | "mfa_enrollment_required"
+  | "tenant_suspended";
+
+/**
+ * Statusy tenanta zamykające panel (ADR-107). `past_due` ŚWIADOMIE
+ * przepuszcza: operator musi mieć wejście do panelu, żeby uregulować płatność
+ * (przyszły banner, nie blokada). To różnica wobec storefrontu, który wpuszcza
+ * wyłącznie trialing|active (migracje 0017/0022) — publiczny sklep niepłacącego
+ * najemcy nie przyjmuje zamówień, ale panel zostaje otwarty. Nadzbiór
+ * LOCKED_STATUS superadmina (lib/superadmin.ts) — blokada platformy zamyka
+ * panel tak samo jak zawieszenie rozliczeniowe.
+ */
+export const PANEL_CLOSED_STATUSES: readonly TenantStatus[] = [
+  "suspended",
+  "cancelled",
+  "superadmin_locked",
+];
 
 export class AuthError extends Error {
   readonly status: 401 | 403;
@@ -59,6 +81,13 @@ export interface AuthContext {
   superadmin: boolean;
   /** Authentication Assurance Level — "aal2" = po weryfikacji MFA. */
   aal: string;
+  /**
+   * Status organizacji odczytany z bazy przez requireMemberWithClient
+   * (ADR-107) — zawsze spoza PANEL_CLOSED_STATUSES, bo statusy zamykające
+   * kończą się odmową. `null` w kontekstach bez odczytu (getAuthContext,
+   * requireSuperadminWithClient): claim JWT statusu NIE niesie.
+   */
+  tenantStatus: TenantStatus | null;
   supabase: SupabaseClient;
 }
 
@@ -79,6 +108,7 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     role: (appMetadata.role as Role | null | undefined) ?? null,
     superadmin: Boolean(appMetadata.superadmin),
     aal: (claims.aal as string | undefined) ?? "aal1",
+    tenantStatus: null,
     supabase,
   };
 }
@@ -89,7 +119,17 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
  * - 403 `superadmin_without_org`, jeśli sesja jest superadminem bez organizacji
  *   (kierowanie do panelu superadmina należy do wołającego — patrz member-page),
  * - 403 `forbidden`, jeśli zwykły user nie ma przypisanej organizacji,
+ * - 403 `tenant_suspended`, jeśli organizacja ma status zamykający panel
+ *   (ADR-107) — sprawdzane PRZED rolą: zawieszenie dotyczy całej organizacji,
+ *   więc odmowa nazywa zawieszenie, nie przypadkowy brak roli,
  * - 403, jeśli podano `role` i nie zgadza się z rolą usera w tenancie.
+ *
+ * Odczyt statusu (ADR-107) to JEDYNE zapytanie guardu do bazy: klientem SESJI
+ * (RLS `own_select` z 0001 ogranicza wiersz do własnego tenanta — guard nie ma
+ * jak odczytać cudzego statusu), bez cache'u między żądaniami (zawieszenie
+ * działa od NASTĘPNEGO żądania, stale-while-suspended nie istnieje).
+ * Fail-closed: błąd odczytu rzuca (500 strony), brak wiersza przy poprawnym
+ * claimie — anomalia (tenant usunięty przy żywej sesji) — daje 403.
  */
 export async function requireMemberWithClient(
   supabase: SupabaseClient,
@@ -112,6 +152,30 @@ export async function requireMemberWithClient(
     }
     throw new AuthError(403, "Brak przypisanej organizacji.");
   }
+
+  const { data: tenantRow, error: statusError } = await supabase
+    .from("tenants")
+    .select("status")
+    .eq("id", ctx.tenantId)
+    .maybeSingle();
+  if (statusError) {
+    // NIE AuthError: to awaria infrastruktury, nie decyzja autoryzacyjna —
+    // maskowanie jej kodem 403 wysyłałoby operatora na ekran „organizacja
+    // zawieszona" przy zwykłej czkawce bazy. Rzut kończy żądanie błędem 500,
+    // czyli i tak fail-closed.
+    throw new Error(`Nie udało się zweryfikować statusu organizacji: ${statusError.message}`);
+  }
+  if (!tenantRow) throw new AuthError(403, "Brak przypisanej organizacji.");
+  const tenantStatus = (tenantRow as { status: TenantStatus }).status;
+  if (PANEL_CLOSED_STATUSES.includes(tenantStatus)) {
+    throw new AuthError(
+      403,
+      "Organizacja jest zawieszona. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+      "tenant_suspended",
+    );
+  }
+  ctx.tenantStatus = tenantStatus;
+
   if (role && ctx.role !== role) {
     throw new AuthError(403, `Wymagana rola „${role}".`);
   }
