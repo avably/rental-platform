@@ -7,6 +7,10 @@
     {
       "path": "/api/jobs/site-image-uploads",
       "schedule": "37 3 * * *"
+    },
+    {
+      "path": "/api/jobs/payment-reconciliation",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

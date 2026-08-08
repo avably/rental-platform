@@ -15,7 +15,13 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { PaymentAmountError, createPaymentIntent, isIntentSettled, readPaymentIntent } from "./payment-intent";
+import {
+  PaymentAmountError,
+  cancelPaymentIntent,
+  createPaymentIntent,
+  isIntentSettled,
+  readPaymentIntent,
+} from "./payment-intent";
 
 const SECRET = "sk_test_klucz_platformy";
 const PUBLISHABLE = "pk_test_klucz_publiczny";
@@ -278,6 +284,81 @@ describe("odczyt płatności (ADR-049)", () => {
     expect(read.currency).toBe("");
     expect(isIntentSettled(read, 12_300, "PLN")).toBe(false);
   });
+
+  it("czas powstania płatności jedzie Z ODCZYTU (podstawa progu porzucenia)", async () => {
+    const { fetchFn } = transport([
+      {
+        status: 200,
+        body: {
+          id: "pi_1",
+          status: "requires_payment_method",
+          amount: 12_300,
+          created: 1_800_000_000,
+        },
+      },
+    ]);
+
+    const read = await readPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT });
+
+    expect(read.createdAtSeconds).toBe(1_800_000_000);
+  });
+
+  it("brak pola `created` znaczy ZERO — jawny brak dowodu, nie rok 1970", async () => {
+    // Wołający (L11) ma z tego wyprowadzić „nie wiem, więc nie wygaszam".
+    const { fetchFn } = transport([
+      { status: 200, body: { id: "pi_1", status: "requires_payment_method", amount: 12_300 } },
+    ]);
+
+    const read = await readPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT });
+
+    expect(read.createdAtSeconds).toBe(0);
+  });
+});
+
+describe("wygaszenie płatności u dostawcy (L11)", () => {
+  it("anuluje NA KONCIE NAJEMCY i nie zwraca żadnego stanu", async () => {
+    const { calls, fetchFn } = transport([
+      { status: 200, body: { id: "pi_1", status: "canceled", amount: 12_300 } },
+    ]);
+
+    const result = await cancelPaymentIntent("pi_1", {
+      ...deps(fetchFn),
+      connectedAccountId: ACCOUNT,
+    });
+
+    expect(calls[0]!.url).toContain("/v1/payment_intents/pi_1/cancel");
+    expect(calls[0]!.init.method).toBe("POST");
+    expect(header(calls[0]!, "Stripe-Account")).toBe(ACCOUNT);
+    // Status `canceled` BYŁ w odpowiedzi — i nie wyszedł z funkcji.
+    expect(result).toBeUndefined();
+  });
+
+  it("odmowa dostawcy („płatność już rozliczona”) rzuca, zamiast udawać sukces", async () => {
+    const { fetchFn } = transport([
+      {
+        status: 400,
+        body: {
+          error: {
+            message: "You cannot cancel this PaymentIntent because it has a status of succeeded.",
+            code: "payment_intent_unexpected_state",
+          },
+        },
+      },
+    ]);
+
+    await expect(
+      cancelPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT }),
+    ).rejects.toThrow(/succeeded/);
+  });
+
+  it("bez konta najemcy NIE wysyła żądania — anulowanie na koncie platformy nie istnieje", async () => {
+    const { calls, fetchFn } = transport([]);
+
+    await expect(
+      cancelPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: "" }),
+    ).rejects.toThrow(/konta najemcy/);
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe("isIntentSettled", () => {
@@ -287,6 +368,7 @@ describe("isIntentSettled", () => {
     amountReceivedGrosze: received,
     amountGrosze: 12_300,
     currency,
+    createdAtSeconds: 1_800_000_000,
   });
 
   it("succeeded z pełną kwotą = opłacone", () => {

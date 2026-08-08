@@ -22,6 +22,7 @@ import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
+import { CHECKABLE_PAYMENT_STATUSES } from "@/lib/payment-settlement";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction, sendTransitionEmailAction } from "../actions";
@@ -44,6 +45,8 @@ import { CustomerCard } from "./customer-card";
 import { OrderNotes, type OrderNoteEntry } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
 import { addOrderNoteAction, editOrderNoteAction, deleteOrderNoteAction } from "./notes-actions";
+import { checkPaymentStatusAction } from "./payment-actions";
+import { PaymentCheck } from "./payment-check";
 import { StatusSelect } from "./status-select";
 
 interface OrderDetailRow {
@@ -374,6 +377,17 @@ export default async function OrderDetailPage({
           // a komponent potrzebuje wyłącznie odpowiedzi „czy i dlaczego nie".
           emailAvailability={emailAvailability()}
         />
+
+        {/* Ręczne wejście w rekoncyliację (L11, ADR-104). Widoczne WYŁĄCZNIE
+            tam, gdzie ma co robić: obieg online i płatność, o którą jest
+            jeszcze sens pytać dostawcę. Przy zamówieniu opłaconym przycisk
+            byłby zaproszeniem do regresu, którego bramka 0027 i tak nie
+            wpuści — a komunikat o odmowie bramki jest szumem, nie
+            odpowiedzią. Tu operator zamyka rozmowę „zapłaciłem, a u was nie
+            widać" bez czekania na kolejny przebieg pętli. */}
+        {isOnlineOrder && CHECKABLE_PAYMENT_STATUSES.includes(row.payment_status) ? (
+          <PaymentCheck orderId={row.id} action={checkPaymentStatusAction} />
+        ) : null}
       </section>
 
       {/* Pozycje są EDYTOWALNE (uwagi przeglądu D6/N4): wybór egzemplarza,
