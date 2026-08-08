@@ -64,6 +64,22 @@ describe("adres bazowy publicznego API (/ustawienia-api)", () => {
     ).toBe(true);
   });
 
+  it("strona /ustawienia-api składa adres z helpera — bez doklejania ścieżki", () => {
+    // Render panelu dostaje adres PROPEM, więc regresja w page.tsx (powrót
+    // szablonu z `/api/v1/` doklejonym do hosta) nie zapaliłaby testów
+    // renderu — pin idzie na źródło definicji.
+    const source = readFileSync(
+      resolve(process.cwd(), "app/[locale]/(panel)/ustawienia-api/page.tsx"),
+      "utf8",
+    );
+    const definitions = source.split("\n").filter((line) => line.includes("apiBaseUrl ="));
+    expect(definitions.length).toBeGreaterThan(0);
+    for (const line of definitions) {
+      expect(line).toContain("apiBaseUrlForSlug(");
+      expect(line).not.toContain("api/v1");
+    }
+  });
+
   it("karta pokazuje adres bazowy BEZ sufiksu i osobno nazywa ścieżkę kontraktu (PL+EN)", () => {
     const base = apiBaseUrlForSlug("demo");
     for (const locale of ["pl", "en"] as const) {
