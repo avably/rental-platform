@@ -1,0 +1,70 @@
+# Żywa instalacja WordPressa do dowodu M2 (iteracja 1) — realne warunki:
+# motyw + builder (Gutenberg) + wtyczka cache. Własny prefiks nazw i porty
+# niekolidujące z lokalnym Supabase (54321-54324) ani dev-serwerami Next.
+#
+# Start:    docker compose -f dev/docker-compose.yml up -d
+# Provisioning (WP + motyw + cache + strona z blokiem): dev/setup.sh
+# WP-Admin: http://localhost:8090/wp-admin (admin / avably-local-admin)
+name: avably-wp-m2
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: avably_wp_m2_db
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: avably-local-root
+    volumes:
+      - avably_wp_m2_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pavably-local-root"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  wordpress:
+    image: wordpress:php8.1-apache
+    container_name: avably_wp_m2_wp
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8090:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - avably_wp_m2_wp_data:/var/www/html
+      - ..:/var/www/html/wp-content/plugins/avably-booking
+    extra_hosts:
+      # Storefront (nasze API) działa na hoście — WP w kontenerze woła
+      # http://host.docker.internal:<port>.
+      - "host.docker.internal:host-gateway"
+
+  cli:
+    image: wordpress:cli-php8.1
+    container_name: avably_wp_m2_cli
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - avably_wp_m2_wp_data:/var/www/html
+      - ..:/var/www/html/wp-content/plugins/avably-booking
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles: ["cli"]
+    entrypoint: ["wp"]
+    command: ["--info"]
+
+volumes:
+  avably_wp_m2_db_data:
+  avably_wp_m2_wp_data:
