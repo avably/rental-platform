@@ -19,6 +19,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
@@ -29,6 +30,7 @@ const realtimeTransport = {
 };
 
 const REQUIRED_ENV = [
+  "SUPABASE_LOCAL_URL",
   "SUPABASE_LOCAL_API_URL",
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
@@ -217,6 +219,30 @@ describe.skipIf(!hasEnv)("klucze publicznego API (0053, ADR-108)", () => {
         .schema("app")
         .rpc("verify_api_key", { p_key_hash: sha256Hex(keyA.slice(0, 13)) });
       expect(data).toEqual([]);
+    });
+
+    it("lookup porównuje PEŁNY hash równością — kontrakt źródła funkcji (dowód mutacyjny M1/M2 od strony SQL)", async () => {
+      // Porównania prefiksem hasha (left(...)/like) nie da się wykryć sondą
+      // behawioralną bez kolizji sha256 — dlatego predykat jest przypięty
+      // KONTRAKTEM ŹRÓDŁA (wzorzec skanów źródeł panelu): mutacja lookupu
+      // na prefiks albo zdjęcie filtra revoked_at pali ten test.
+      const sql = postgres(process.env.SUPABASE_LOCAL_URL as string, { max: 1 });
+      try {
+        const [row] = await sql`
+          select pg_get_functiondef(p.oid) as def
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'app' and p.proname = 'verify_api_key'
+        `;
+        const def = (row?.def as string) ?? "";
+        expect(def).toContain("k.key_hash = p_key_hash");
+        expect(def).toContain("k.revoked_at is null");
+        expect(def).not.toMatch(/left\s*\(\s*k\.key_hash/i);
+        expect(def).not.toMatch(/key_hash\s+like/i);
+        expect(def).not.toMatch(/starts_with/i);
+      } finally {
+        await sql.end({ timeout: 5 });
+      }
     });
 
     it("weryfikacja aktualizuje last_used_at (obserwowalność użycia)", async () => {
