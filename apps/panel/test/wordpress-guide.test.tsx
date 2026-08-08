@@ -6,6 +6,9 @@
  * dowiaduje się, CO zrobić z wygenerowanym kluczem — jej zniknięcie albo
  * rozjazd shortcode'u z tym, co rejestruje wtyczka, jest regresją produktu.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { render, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,6 +16,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WordPressGuide } from "@/app/[locale]/(panel)/ustawienia-api/wordpress-guide";
 import en from "@/messages/en.json";
 import pl from "@/messages/pl.json";
+
+/** Źródło prawdy o shortcode'zie — klasa główna wtyczki (względem korzenia repo). */
+const PLUGIN_MAIN_CLASS =
+  "integrations/wordpress/avably-booking/includes/class-avably-booking-plugin.php";
 
 afterEach(cleanup);
 
@@ -46,11 +53,25 @@ describe("instrukcja podłączenia WordPressa (/ustawienia-api)", () => {
   });
 
   it("shortcode jest DOKŁADNIE tym, który rejestruje wtyczka", () => {
+    // Kontrakt DWUKIERUNKOWY: nazwa czytana ZE ŹRÓDŁA wtyczki, nie z literału
+    // powtórzonego w teście. Poprzednia wersja porównywała literał z literałem,
+    // więc przemianowanie stałej we wtyczce zostawiało suitę zieloną, a
+    // operatora z shortcode'em, którego nic nie rejestruje — strona renderowała
+    // pustkę (znalezisko recenzji PM #212, potwierdzone mutantem).
+    const source = readFileSync(resolve(process.cwd(), "../..", PLUGIN_MAIN_CLASS), "utf8");
+
+    const registered = source.match(/public const SHORTCODE\s*=\s*'([^']+)'/)?.[1];
+    expect(registered, `nie znaleziono stałej SHORTCODE w ${PLUGIN_MAIN_CLASS}`).toBeTruthy();
+    // Sama stała nic nie znaczy, dopóki to NIE ONA idzie do add_shortcode:
+    // literał wstawiony obok niej rozjechałby wtyczkę z instrukcją przy
+    // zielonej asercji wyżej.
+    expect(source, "add_shortcode nie rejestruje stałej SHORTCODE").toMatch(
+      /add_shortcode\(\s*self::SHORTCODE\s*,/,
+    );
+
     const { container } = renderGuide("pl");
     const shortcode = container.querySelector("[data-wordpress-shortcode]");
-    // Rozjazd z `add_shortcode( 'avably_booking' )` po stronie wtyczki
-    // zostawiłby operatora z instrukcją, która nic nie wstawia.
-    expect(shortcode?.textContent).toBe("[avably_booking]");
+    expect(shortcode?.textContent).toBe(`[${registered}]`);
   });
 
   it("ma sekcję „co zrobić, gdy nie działa” z trzema przypadkami", () => {
