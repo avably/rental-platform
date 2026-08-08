@@ -214,6 +214,54 @@ final class SettingsTest extends TestCase {
 	}
 
 	/**
+	 * PRODUKCYJNE rozstrzygnięcie trybu dev PRZYPIĘTE (recenzja PM #216):
+	 * `sanitize_settings` woła `sanitize_input` BEZ trzeciego argumentu, więc
+	 * wartość bierze się ze stałej `AVABLY_BOOKING_ALLOW_PRIVATE_HOSTS`. Każdy
+	 * inny test podaje argument jawnie — mutacja `$allow_private = true;` w
+	 * rozstrzygnięciu domyślnym przepuszczała na produkcji `http://` (klucz
+	 * otwartym tekstem) i adresy prywatne przy CAŁEJ suicie zielonej. Ten test
+	 * odtwarza wywołanie produkcyjne: bez argumentu, przy NIEZDEFINIOWANEJ
+	 * stałej.
+	 */
+	public function test_default_resolution_without_dev_constant_rejects_http_and_private(): void {
+		// STRAŻNIK KOLEJNOŚCI: stałej raz zdefiniowanej nie da się odebrać w tym
+		// samym procesie PHP. Dowód wymaga czystego stanu — jeśli inny test
+		// kiedyś zdefiniuje stałą, ten ma spłonąć GŁOŚNO tutaj, a nie przejść
+		// pusto (albo zależeć od kolejności plików w suicie).
+		$this->assertFalse(
+			defined( 'AVABLY_BOOKING_ALLOW_PRIVATE_HOSTS' ),
+			'Suita zdefiniowała stałą trybu dev — dowód produkcyjnego domyślnego rozstrzygnięcia wymaga osobnego procesu'
+		);
+
+		$current = $this->current();
+
+		// http:// — na produkcji (bez stałej) odmowa, zapisany URL zostaje.
+		$http = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'http://sklep.example.com' ),
+			$current
+		);
+		$this->assertNotNull( $http['error'], 'Domyślne rozstrzygnięcie przepuściło http://' );
+		$this->assertSame( $current['api_url'], $http['settings']['api_url'] );
+
+		// Host prywatny (metadane chmury) — to samo.
+		$private = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'https://169.254.169.254' ),
+			$current
+		);
+		$this->assertNotNull( $private['error'], 'Domyślne rozstrzygnięcie przepuściło host prywatny' );
+		$this->assertSame( $current['api_url'], $private['settings']['api_url'] );
+
+		// Kontrola pozytywna: publiczny https przechodzi także bez argumentu —
+		// bez niej test byłby zielony również dla „odrzucaj wszystko".
+		$public = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'https://sklep.example.com' ),
+			$current
+		);
+		$this->assertNull( $public['error'] );
+		$this->assertSame( 'https://sklep.example.com', $public['settings']['api_url'] );
+	}
+
+	/**
 	 * Klucz API nie może być autoloadowany (jechać w pamięci z KAŻDYM żądaniem
 	 * frontu). register_settings wymusza wyłączenie autoloadu opcji.
 	 */
