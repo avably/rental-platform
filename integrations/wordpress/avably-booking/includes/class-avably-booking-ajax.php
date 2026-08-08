@@ -31,6 +31,20 @@ class Avably_Booking_Ajax {
 	/** Czas życia cache'u miesiąca dostępności (sekundy). */
 	public const MONTH_CACHE_TTL = 300;
 
+	/**
+	 * Dławienie rezerwacji PER ODWIEDZAJĄCY (okno stałe).
+	 *
+	 * DLACZEGO WTYCZKA MUSI LICZYĆ SAMA: limity API (ADR-108) mają dwa
+	 * wymiary — klucz i IP — ale IP, które widzi nasze API, to adres SERWERA
+	 * WordPressa, wspólny dla wszystkich odwiedzających tę stronę. Wymiar IP
+	 * jest więc po tamtej stronie ślepy, a wymiar klucza (30 rezerwacji/h)
+	 * chroni najemcę PRZED WYCZERPANIEM, nie przed jednym botem, który ten
+	 * budżet zje. Ten licznik odcina pojedynczego napastnika ZANIM dotknie
+	 * naszego API.
+	 */
+	public const RESERVE_RATE_LIMIT = 10;
+	public const RESERVE_RATE_WINDOW = 3600;
+
 	public static function register(): void {
 		add_action( 'wp_ajax_avably_booking_availability', array( __CLASS__, 'handle_availability' ) );
 		add_action( 'wp_ajax_nopriv_avably_booking_availability', array( __CLASS__, 'handle_availability' ) );
@@ -102,6 +116,39 @@ class Avably_Booking_Ajax {
 			'product_id' => strtolower( $product_id ),
 			'month'      => $month,
 		);
+	}
+
+	/**
+	 * Rdzeń dławienia (czysty, testowalny): stan okna → decyzja + nowy stan.
+	 *
+	 * @param array{start:int,count:int}|null $state Stan z transientu.
+	 * @return array{allowed:bool,state:array{start:int,count:int}}
+	 */
+	public static function next_rate_state( ?array $state, int $now, int $window, int $limit ): array {
+		if ( ! is_array( $state ) || ! isset( $state['start'], $state['count'] ) || ( $now - (int) $state['start'] ) >= $window ) {
+			$state = array(
+				'start' => $now,
+				'count' => 0,
+			);
+		}
+		$count = (int) $state['count'] + 1;
+		return array(
+			'allowed' => $count <= $limit,
+			'state'   => array(
+				'start' => (int) $state['start'],
+				'count' => $count,
+			),
+		);
+	}
+
+	/** Adres odwiedzającego — WYŁĄCZNIE do kubełka limitu (nie do autoryzacji). */
+	public static function visitor_bucket( array $server ): string {
+		$ip = isset( $server['REMOTE_ADDR'] ) && is_scalar( $server['REMOTE_ADDR'] )
+			? (string) $server['REMOTE_ADDR']
+			: 'unknown';
+		// REMOTE_ADDR (a nie X-Forwarded-For): nagłówek klienta jest
+		// podrabialny, więc dałby napastnikowi świeży licznik na żądanie.
+		return md5( $ip );
 	}
 
 	/**
@@ -219,6 +266,21 @@ class Avably_Booking_Ajax {
 		self::guard();
 		if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
 			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'validation_failed' ) ), 400 );
+		}
+
+		// Dławienie PRZED walidacją i przed dotknięciem API — patrz stała
+		// RESERVE_RATE_LIMIT (IP widziane przez nasze API to adres serwera WP).
+		$bucket    = 'avably_bk_rl_' . self::visitor_bucket( $_SERVER );
+		$stored    = get_transient( $bucket );
+		$decision  = self::next_rate_state(
+			is_array( $stored ) ? $stored : null,
+			time(),
+			self::RESERVE_RATE_WINDOW,
+			self::RESERVE_RATE_LIMIT
+		);
+		set_transient( $bucket, $decision['state'], self::RESERVE_RATE_WINDOW );
+		if ( ! $decision['allowed'] ) {
+			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'rate_limited' ) ), 429 );
 		}
 
 		$input     = wp_unslash( $_POST );

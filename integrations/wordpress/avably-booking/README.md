@@ -72,6 +72,39 @@ WP-Admin: `http://localhost:8090/wp-admin` (admin / avably-local-admin).
 Lokalne API podłączysz ustawiając URL API na
 `http://host.docker.internal:<port storefrontu>`.
 
+## Bezpieczeństwo — model zagrożeń
+
+WordPress jest atakowany masowo i automatycznie, więc wtyczka zakłada wrogie
+otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
+
+1. **Nonce chroni przed CSRF, nie przed odczytem.** Każda z trzech akcji
+   ajaxowych (`availability`, `month`, `reserve`) wymaga poprawnego nonce'a
+   WP. Bez niego żądanie kończy się odmową **zanim wtyczka dotknie API** —
+   obca strona nie złoży rezerwacji w imieniu Twojego odwiedzającego ani nie
+   użyje Twojej instalacji jako darmowego proxy do naszego API. Nonce nie
+   jest sekretem i jego obecność w HTML-u jest normalna.
+2. **Klucz API jest server-side, bo przeglądarka to teren wroga.** Klucz żyje
+   w `wp_options` (bez autoloadu) i wychodzi wyłącznie nagłówkiem
+   `Authorization` z PHP do naszego API. Nie ma go w HTML-u strony, w JS-ie
+   ani w odpowiedziach ajaxowych — gdyby był, każdy odwiedzający mógłby
+   składać rezerwacje i czytać katalog poza Twoją stroną.
+3. **Przejęcie konta administratora WP = przejęcie integracji.** Admin może
+   odczytać opcje bazy, więc traktuj klucz jak hasło do sklepu: przy podejrzeniu
+   włamania **odwołaj klucz w panelu Avably** (Organizacja → Ustawienia API) i
+   wygeneruj nowy. Odwołanie działa natychmiast i nie rusza Twoich zamówień.
+   Wtyczka ogranicza szkody: pole URL API odrzuca adresy prywatne i loopback
+   (żeby przejęty admin nie zamienił serwera w skaner sieci wewnętrznej), a
+   klucz nigdy nie wraca do formularza, więc nie da się go „podejrzeć" w HTML-u.
+4. **Dane rezerwującego są przelotem.** Imię, e-mail i telefon lecą wyłącznie
+   do API Avably. Wtyczka nie zapisuje ich w bazie WordPressa ani w logach —
+   wyciek z bazy WP nie ujawni danych Twoich klientów, bo ich tam nie ma.
+   Odinstalowanie usuwa zapisany klucz.
+5. **Nadużycia formularza są dławione dwustopniowo.** Wtyczka odcina
+   nadmiarowe rezerwacje per odwiedzający (10/h), a nasze API dokłada limit per
+   klucz (30 rezerwacji/h). Pierwszy stopień jest konieczny, bo dla API cały
+   ruch z Twojej strony wygląda jak jeden adres IP — bez niego jeden bot
+   mógłby wyczerpać godzinny budżet całego sklepu.
+
 ## Bezpieczeństwo (warunki zamknięcia M2 §5)
 
 - klucz API nigdy nie wychodzi do przeglądarki (payload frontowy ma
@@ -83,4 +116,11 @@ Lokalne API podłączysz ustawiając URL API na
   zapisuje ich w bazie WordPressa ani nie loguje,
 - każda treść z API renderowana przez `esc_html`/`esc_attr` (PHP) lub
   `textContent` (JS),
-- błędy API mapowane na komunikaty bez szczegółów technicznych.
+- błędy API mapowane na komunikaty bez szczegółów technicznych;
+- pole „URL API" odrzuca adresy prywatne/loopback (anty-SSRF). W środowisku
+  deweloperskim, gdzie API stoi pod adresem lokalnym, dopuść je jawnie w
+  `wp-config.php`:
+
+  ```php
+  define( 'AVABLY_BOOKING_ALLOW_PRIVATE_HOSTS', true );
+  ```
