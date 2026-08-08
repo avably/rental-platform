@@ -37,6 +37,11 @@ services:
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
+      # Środowisko DEV: API stoi na hoście pod adresem prywatnym, więc bramka
+      # anty-SSRF pola „URL API" musi być tu jawnie rozbrojona (na produkcji
+      # stała nie istnieje i adresy prywatne są odrzucane).
+      WORDPRESS_CONFIG_EXTRA: |
+        define( 'AVABLY_BOOKING_ALLOW_PRIVATE_HOSTS', true );
     volumes:
       - avably_wp_m2_wp_data:/var/www/html
       - ..:/var/www/html/wp-content/plugins/avably-booking

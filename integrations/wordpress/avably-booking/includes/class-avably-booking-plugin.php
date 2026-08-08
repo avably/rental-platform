@@ -52,14 +52,22 @@ class Avably_Booking_Plugin {
 		return is_string( $version ) && '' !== $version ? $version : self::TERMS_VERSION;
 	}
 
-	/** Produkcyjny klient API — klucz i URL z ustawień, transport WP HTTP. */
+	/**
+	 * Produkcyjny klient API — klucz i URL z ustawień, transport WP HTTP.
+	 *
+	 * Filtr `avably_booking_api_client` pozwala podstawić własną implementację
+	 * (używany przez suitę testów do atrapy z LICZNIKIEM wywołań — dowód, że
+	 * bramka nonce zatrzymuje żądanie PRZED dotknięciem API).
+	 */
 	public static function api_client(): Avably_Booking_Api_Client {
 		$settings = Avably_Booking_Settings::get();
-		return new Avably_Booking_Api_Client(
+		$client   = new Avably_Booking_Api_Client(
 			$settings['api_url'],
 			$settings['api_key'],
 			array( __CLASS__, 'http_transport' )
 		);
+		$filtered = apply_filters( 'avably_booking_api_client', $client );
+		return $filtered instanceof Avably_Booking_Api_Client ? $filtered : $client;
 	}
 
 	/**
