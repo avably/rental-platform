@@ -151,7 +151,8 @@
     "payments": "Płatności",
     "sidebarCollapse": "Zwiń menu",
     "sidebarExpand": "Rozwiń menu",
-    "apiKeys": "Klucze API"
+    "apiKeys": "Klucze API",
+    "dataExport": "Eksport danych"
   },
   "contractSettings": {
     "title": "Ustawienia umów",
@@ -1874,7 +1875,10 @@
     },
     "apiKeysTitle": "Publiczne API rezerwacji",
     "apiKeysDescription": "Klucze API dla zewnętrznych integracji — katalog, dostępność i rezerwacje na Twojej stronie.",
-    "apiKeysLink": "Zarządzaj kluczami API"
+    "apiKeysLink": "Zarządzaj kluczami API",
+    "dataExportTitle": "Eksport danych",
+    "dataExportDescription": "Pobierz zamówienia, klientów i katalog jako pliki CSV — Twoje dane należą do Ciebie.",
+    "dataExportLink": "Eksport danych (CSV) →"
   },
   "secondaryStatus": {
     "domain": {
@@ -1965,5 +1969,28 @@
     "title": "Organizacja jest zawieszona",
     "description": "Dostęp do panelu został wstrzymany. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
     "logout": "Wyloguj się"
+  },
+  "dataExport": {
+    "backLink": "Organizacja",
+    "intro": "Pobierz swoje dane jako pliki CSV (UTF-8, separator średnika — otwierają się wprost w Excelu). Kwoty są zapisane w groszach, z walutą zamówienia w osobnej kolumnie.",
+    "errorLimit": "Eksport przekracza limit 10 000 wierszy. Zawęź zakres dat i spróbuj ponownie.",
+    "errorRange": "Nieprawidłowy zakres dat. Podaj daty w formacie RRRR-MM-DD (data początkowa nie późniejsza niż końcowa).",
+    "orders": {
+      "title": "Zamówienia",
+      "description": "Numer, statusy zamówienia i płatności, termin, klient, kwoty w groszach z walutą wiersza oraz metody dostawy i płatności. Zakres dat filtruje po dacie rozpoczęcia najmu.",
+      "submit": "Pobierz CSV zamówień",
+      "rangeLabel": "Zakres dat rozpoczęcia najmu (opcjonalnie)"
+    },
+    "customers": {
+      "title": "Klienci",
+      "description": "Dane kontaktowe, dane do faktury i liczba zamówień. To pełny zrzut danych osobowych Twoich klientów — dostępny wyłącznie dla właściciela organizacji.",
+      "ownerOnly": "Eksport klientów może pobrać wyłącznie właściciel organizacji.",
+      "submit": "Pobierz CSV klientów"
+    },
+    "catalog": {
+      "title": "Katalog",
+      "description": "Produkty z cenami, kaucjami i progami cenowymi. Jeden wiersz to produkt z jednym progiem — format przygotowany pod przyszły import.",
+      "submit": "Pobierz CSV katalogu"
+    }
   }
 }
