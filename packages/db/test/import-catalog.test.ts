@@ -298,6 +298,10 @@ describe.skipIf(!hasEnv)("app.import_catalog (C3, migracja 0055)", () => {
     const { error } = await importCatalog(anonClient(), [productRow()]);
     expect(error).not.toBeNull();
     expect(error!.code).toBe("42501");
+    // Pin WARSTWY: odmowa pochodzi z braku EXECUTE (revoke/grant), nie ze
+    // strażnika tenanta w ciele funkcji — oba dają 42501, więc bez tej
+    // asercji mutacja `grant ... to anon` nie paliłaby testu.
+    expect(error!.message).toMatch(/permission denied/i);
   });
 
   it("SERVICE-ROLE: brak grantu + brak claimu = fail-closed, zero zapisu poza własnym najemcą", async () => {
@@ -306,6 +310,9 @@ describe.skipIf(!hasEnv)("app.import_catalog (C3, migracja 0055)", () => {
       productRow({ name: "Zrzut service-role" }),
     ]);
     expect(error).not.toBeNull();
+    // Pin WARSTWY jak w teście anon: brak grantu EXECUTE dla service_role,
+    // a nie dopiero strażnik `v_tenant is null` w ciele funkcji.
+    expect(error!.message).toMatch(/permission denied/i);
     expect(await snapshotCatalog(admin, a.tenantId)).toEqual(beforeA);
     // Produkt nie powstał u NIKOGO (żaden tenant nie dostał tego wiersza).
     const { data: anywhere } = await admin
@@ -313,6 +320,23 @@ describe.skipIf(!hasEnv)("app.import_catalog (C3, migracja 0055)", () => {
       .select("id")
       .eq("name", "Zrzut service-role");
     expect(anywhere).toEqual([]);
+  });
+
+  it("IZOLACJA: podrzucone pole tenant_id w p_rows jest IGNOROWANE — produkt ląduje u najemcy z sesji", async () => {
+    // Wektor INNY niż kolumna w pliku (tę odsiewa parser panelu): klucz
+    // tenant_id wstrzyknięty wprost do payloadu RPC. Funkcja nie czyta go
+    // wcale — najemca pochodzi wyłącznie z claimu sesji.
+    const name = `Podrzucony tenant ${randomUUID().slice(0, 8)}`;
+    const { data, error } = await importCatalog(a.ownerClient, [
+      productRow({ name, tenant_id: b.tenantId }),
+    ]);
+    expect(error).toBeNull();
+    expect((data as { created: number }).created).toBe(1);
+    const { data: everywhere } = await admin
+      .from("products")
+      .select("tenant_id")
+      .eq("name", name);
+    expect(everywhere).toEqual([{ tenant_id: a.tenantId }]);
   });
 
   it("WALIDACJA: nie-tablica i pusta tablica → 22023", async () => {
