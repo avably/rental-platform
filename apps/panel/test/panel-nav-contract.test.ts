@@ -94,7 +94,7 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
     }
   });
 
-  it("podłoga liczności: 1 placeholder + 13 pozycji + 3 grupy", () => {
+  it("podłoga liczności: 1 placeholder + 14 pozycji + 3 grupy", () => {
     // Kontrola po pustym zbiorze: gdyby parser przestał cokolwiek znajdować,
     // wszystkie porównania niżej byłyby zielone na pustych tablicach.
     const counts = {
@@ -102,12 +102,13 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
       item: artifactNav.filter((e) => e.kind === "item").length,
       group: artifactNav.filter((e) => e.kind === "group").length,
     };
-    // 12 po dołożeniu „Klienci" do grupy SPRZEDAŻ (R6a); 13 po dołożeniu
-    // „Integracje" do grupy KANAŁY (M2, ADR-110 — zgoda właściciela na
-    // zmianę artefaktu, bo ekran kluczy API był wejściem-sierotą).
-    expect(counts).toEqual({ placeholder: 1, item: 13, group: 3 });
+    // 12 po dołożeniu „Klienci" do grupy SPRZEDAŻ (R6a); 13 po „Integracje"
+    // w KANAŁACH i 14 po „Eksport danych" w ORGANIZACJI (M2, ADR-110 —
+    // zgoda właściciela na zmianę artefaktu: oba ekrany były wejściami-
+    // sierotami, osiągalnymi wyłącznie linkiem z Organizacji).
+    expect(counts).toEqual({ placeholder: 1, item: 14, group: 3 });
 
-    expect(PANEL_NAV_ITEMS).toHaveLength(13);
+    expect(PANEL_NAV_ITEMS).toHaveLength(14);
     expect(PANEL_NAV_GROUPS).toHaveLength(3);
   });
 

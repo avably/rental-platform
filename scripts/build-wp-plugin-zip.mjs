@@ -21,7 +21,8 @@
  * Użycie: node scripts/build-wp-plugin-zip.mjs [--check]
  *   --check  nie zapisuje, tylko zwraca kod 1 przy rozjeździe z repo.
  */
-import { deflateRawSync } from "node:zlib";
+import { createHash } from "node:crypto";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -205,12 +206,64 @@ export function wordpressPluginZip(): Buffer {
 }
 `;
 
+/**
+ * Rozpakowuje archiwum z zapisanego modułu i zwraca mapę ścieżka → sha256
+ * ZAWARTOŚCI.
+ *
+ * Bramka porównuje TREŚĆ, nie bajty pliku .ts: strumień deflate zależy od
+ * wersji zlib w danym środowisku, więc porównanie bajt w bajt czerwieniłoby
+ * CI na maszynie z inną biblioteką, mimo że paczka niesie dokładnie te same
+ * pliki. Dowodzimy tego, co ma znaczenie — że najemca dostaje bieżące źródła.
+ */
+function digestsFromModule(source) {
+  const base64 = [...source.matchAll(/^\s*"([A-Za-z0-9+/=]+)",$/gm)].map((m) => m[1]).join("");
+  if (base64 === "") throw new Error("Nie znaleziono danych archiwum w module");
+  const archive = Buffer.from(base64, "base64");
+
+  const digests = new Map();
+  let cursor = 0;
+  while (cursor < archive.length && archive.readUInt32LE(cursor) === 0x04034b50) {
+    const compressedSize = archive.readUInt32LE(cursor + 18);
+    const nameLength = archive.readUInt16LE(cursor + 26);
+    const extraLength = archive.readUInt16LE(cursor + 28);
+    const name = archive.subarray(cursor + 30, cursor + 30 + nameLength).toString("utf8");
+    const dataStart = cursor + 30 + nameLength + extraLength;
+    const content = inflateRawSync(archive.subarray(dataStart, dataStart + compressedSize));
+    digests.set(name, createHash("sha256").update(content).digest("hex"));
+    cursor = dataStart + compressedSize;
+  }
+  return digests;
+}
+
 if (process.argv.includes("--check")) {
   const current = readFileSync(outputFile, "utf8");
-  if (current !== module) {
+  const problems = [];
+
+  if (!current.includes(JSON.stringify(version))) {
+    problems.push(`wersja w module nie odpowiada nagłówkowi wtyczki (${version})`);
+  }
+
+  const stored = digestsFromModule(current);
+  const expected = new Map(
+    files.map((file) => [
+      `${ARCHIVE_ROOT}/${file.path}`,
+      createHash("sha256").update(readFileSync(file.absolute)).digest("hex"),
+    ]),
+  );
+
+  for (const [name, digest] of expected) {
+    if (!stored.has(name)) problems.push(`brak w paczce: ${name}`);
+    else if (stored.get(name) !== digest) problems.push(`nieaktualna treść: ${name}`);
+  }
+  for (const name of stored.keys()) {
+    if (!expected.has(name)) problems.push(`nadmiarowy plik w paczce: ${name}`);
+  }
+
+  if (problems.length > 0) {
     console.error(
-      `ROZJAZD: ${relative(repoRoot, outputFile)} nie odpowiada źródłom wtyczki.\n` +
-        "Uruchom: node scripts/build-wp-plugin-zip.mjs",
+      `ROZJAZD: ${relative(repoRoot, outputFile)} nie odpowiada źródłom wtyczki:\n` +
+        problems.map((line) => `  - ${line}`).join("\n") +
+        "\nUruchom: node scripts/build-wp-plugin-zip.mjs",
     );
     process.exit(1);
   }

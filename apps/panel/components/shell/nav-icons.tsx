@@ -1,6 +1,7 @@
 import {
   Blocks,
   Building2,
+  Download,
   CreditCard,
   Globe,
   LayoutDashboard,
@@ -49,5 +50,8 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   integrations: Blocks,
   team: Users,
   organization: Building2,
+  // Eksport = zabranie swoich danych na dysk; strzalka w dol czyta sie
+  // jednoznacznie obok Organizacji i Bezpieczenstwa.
+  dataExport: Download,
   security: ShieldCheck,
 };

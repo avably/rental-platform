@@ -3,10 +3,10 @@
  * zamówienia, klienci, katalog jako CSV (zaufanie/anty-lock-in + fundament
  * pod przenoszalność z RODO).
  *
- * Trasa POZA PANEL_NAV_GROUPS (struktura grup jest kontraktem 1:1 z
- * artefaktem Fazy 2): wejście linkiem z ekranu organizacji, tytuł belki przez
- * PANEL_ROUTE_TITLE_OVERRIDES. Uwaga: /ustawienia-api NIE jest już takim
- * przypadkiem — od M2 (ADR-110) ma pozycję „Integracje" w grupie KANAŁY.
+ * Wejście: pozycja „Eksport danych" w grupie ORGANIZACJA (od M2/ADR-110 —
+ * wcześniej ekran był osiągalny wyłącznie linkiem z organizacji, który
+ * ZOSTAJE jako drugie wejście). Tytuł belki bierze się z pozycji nawigacji,
+ * więc nazwa w menu i w nagłówku jest jedna.
  */
 import { getLocale, getTranslations } from "next-intl/server";
 
