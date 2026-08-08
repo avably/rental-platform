@@ -155,7 +155,13 @@
   },
   "checkInbox": {
     "title": "Sprawdź skrzynkę",
-    "body": "Wysłaliśmy e-mail z linkiem potwierdzającym adres. Kliknij go, aby dokończyć rejestrację i móc założyć organizację."
+    "body": "Wysłaliśmy e-mail z linkiem potwierdzającym adres. Kliknij go, aby dokończyć rejestrację i móc założyć organizację.",
+    "resendIntro": "Wiadomość nie dotarła? Podaj adres, na który zakładasz konto, a wyślemy link jeszcze raz.",
+    "resendEmailLabel": "Adres e-mail",
+    "resendCta": "Wyślij ponownie",
+    "resendPending": "Wysyłam…",
+    "resendDone": "Jeśli ten adres wymaga potwierdzenia, wiadomość została wysłana. Sprawdź też folder ze spamem.",
+    "resendThrottled": "Zbyt wiele prób. Spróbuj ponownie za chwilę."
   },
   "resetRequest": {
     "title": "Reset hasła",
@@ -201,7 +207,29 @@
     "columnCreatedAt": "Utworzono",
     "columnExpiresAt": "Wygasa",
     "columnStatus": "Status",
-    "empty": "Nie wysłano jeszcze żadnego zaproszenia."
+    "empty": "Nie wysłano jeszcze żadnego zaproszenia.",
+    "team": {
+      "heading": "Zespół",
+      "columnJoinedAt": "Dołączył(a)",
+      "unknownEmail": "—",
+      "you": "(to Ty)",
+      "removeCta": "Usuń z zespołu",
+      "removeQuestion": "Osoba {subject} straci dostęp do panelu tej organizacji.",
+      "removeConfirm": "Tak, usuń",
+      "leaveCta": "Opuść organizację",
+      "leaveQuestion": "Stracisz dostęp do tej organizacji i zostaniesz wylogowany(a).",
+      "leaveConfirm": "Tak, opuszczam",
+      "cancelConfirm": "Nie, zostaw"
+    },
+    "lifecycle": {
+      "revokeCta": "Odwołaj",
+      "revokeQuestion": "Link zaproszenia dla {subject} przestanie wpuszczać do organizacji.",
+      "revokeConfirm": "Tak, odwołaj",
+      "cancelConfirm": "Nie, zostaw",
+      "resendCta": "Wyślij ponownie",
+      "resendPending": "Wysyłam…",
+      "resendHint": "Poprzedni link przestanie działać."
+    }
   },
   "security": {
     "title": "Bezpieczeństwo",
@@ -656,14 +684,19 @@
         "insuranceHint": "Zadeklarowana wartość zawartości do ubezpieczenia.",
         "saturdayLabel": "Dostawa w sobotę",
         "saturdayHint": "Przesyłka może być dostarczana również w sobotę (jeśli przewoźnik oferuje).",
-        "cancelCta": "Anuluj",
         "confirmCreateCta": "Potwierdź i utwórz",
         "creatingShipment": "Tworzę przesyłkę…",
         "copyCta": "Kopiuj",
         "copiedOk": "Skopiowano",
         "refreshAllCta": "Odśwież status przesyłek",
         "refreshedAllOk": "Statusy przesyłek odświeżone.",
-        "deliveryCostManual": "cena ustalona ręcznie"
+        "deliveryCostManual": "cena ustalona ręcznie",
+        "closeCta": "Zamknij",
+        "cancelShipmentCta": "Anuluj przesyłkę",
+        "cancelShipmentQuestion": "Przesyłka {number} zostanie anulowana u przewoźnika. Tej operacji nie da się cofnąć.",
+        "cancelShipmentConfirm": "Tak, anuluj u przewoźnika",
+        "cancelShipmentAbort": "Nie, zostaw",
+        "shipmentCancelledOk": "Przesyłka anulowana u przewoźnika."
       },
       "settings": {
         "title": "Ustawienia dostaw",
@@ -1810,7 +1843,9 @@
     },
     "invitation": {
       "accepted": "Przyjęte",
-      "pending": "Oczekuje"
+      "pending": "Oczekuje",
+      "revoked": "Odwołane",
+      "expired": "Wygasłe"
     },
     "organization": {
       "active": "Aktywna"

@@ -548,8 +548,11 @@ function ModalBody({
       ) : null}
 
       <div className="flex justify-end gap-2">
+        {/* `closeCta`, nie `cancelCta`: ten przycisk ZAMYKA modal nadania.
+            Od L4 w tej samej sekcji istnieje prawdziwe anulowanie przesyłki
+            u dostawcy i dwie różne operacje nie mogą dzielić nazwy etykiety. */}
         <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
-          {t("cancelCta")}
+          {t("closeCta")}
         </Button>
         <Button type="submit" loading={pending} disabled={pending}>
           {pending ? t("creatingShipment") : t("confirmCreateCta")}

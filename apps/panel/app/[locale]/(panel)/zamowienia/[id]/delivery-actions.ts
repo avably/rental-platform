@@ -21,12 +21,14 @@ import {
   courierOfferFromProduct,
   emailAvailability,
   isLocale,
+  isShipmentCancellable,
   mapProviderStatus,
   resendTransport,
   type CarrierOffer,
   type CourierSender,
   type Locale,
   type ShipmentParty,
+  type ShipmentStatus,
   type ShipmentType,
   type TenantSettingRow,
 } from "@avably/core";
@@ -41,6 +43,7 @@ import {
   carrierSearchSchema,
   pickupReturnReminderSchema,
   returnLabelEmailSchema,
+  shipmentCancelSchema,
   shipmentCreateSchema,
   shipmentRefreshAllSchema,
   shipmentRefreshSchema,
@@ -381,6 +384,95 @@ export async function refreshShipmentStatusAction(
 
   revalidatePath("/", "layout");
   return { success: "refreshed" };
+}
+
+/**
+ * Anulowanie nadanej przesyłki U DOSTAWCY (L4, ADR-105).
+ *
+ * Do L4 `GlobKurierAPI.cancelOrder` istniało wraz z testem, ale nie wołała go
+ * ANI JEDNA linijka aplikacji: jedyną drogą do `status='cancelled'` była
+ * synchronizacja, czyli anulowanie musiało zajść poza systemem, w panelu
+ * dostawcy. Operator miał w Avably przycisk „Anuluj", który zamykał modal.
+ *
+ * KOLEJNOŚĆ JEST TU CAŁĄ TREŚCIĄ AKCJI: najpierw potwierdzenie od dostawcy,
+ * dopiero potem zapis `cancelled`. Odwrotna kolejność (albo zapis „na wszelki
+ * wypadek" przy błędzie dostawcy) daje rozjazd, w którym system twierdzi, że
+ * przesyłki nie ma, a kurier ją wiezie i wystawia za nią fakturę. Dlatego
+ * błąd dostawcy zostawia stan lokalny NIETKNIĘTY i wraca jako komunikat.
+ *
+ * Credentiale kuriera pochodzą z ustawień TENANTA Z JWT (loadCourierApi
+ * dostaje `ctx.tenantId`) — nigdy z formularza i nigdy współdzielone; wiersz
+ * przesyłki jest wyszukiwany z tym samym ograniczeniem, więc dla cudzej
+ * przesyłki nie dochodzi nawet do zapytania u dostawcy.
+ */
+export async function cancelShipmentAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = shipmentCancelSchema.safeParse({
+    shipmentId: str(formData.get("shipmentId")),
+  });
+  if (!parsed.success) return zodErrorToState(parsed.error);
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const { data: shipment } = await ctx.supabase
+    .from("courier_shipments")
+    .select("id, status, provider_order_number")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data.shipmentId)
+    .maybeSingle();
+  if (!shipment) return { formError: "Przesyłka nie istnieje albo została usunięta." };
+
+  // Odmowa PRZED dotknięciem dostawcy: żądanie anulowania przesyłki w drodze
+  // albo doręczonej to koszt bez skutku (a przy niektórych przewoźnikach —
+  // koszt ze skutkiem, którego nikt nie chciał).
+  if (!isShipmentCancellable(shipment.status as ShipmentStatus)) {
+    return {
+      formError:
+        "Tej przesyłki nie da się już anulować — anulowanie jest możliwe, dopóki przewoźnik " +
+        "jej nie odebrał. Obecny status: " + String(shipment.status) + ".",
+    };
+  }
+
+  const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
+  if (courier.configError !== undefined) return { formError: courier.configError };
+
+  try {
+    await courier.api.cancelOrder(shipment.provider_order_number as string);
+  } catch (err) {
+    if (err instanceof GlobKurierAPIError) {
+      // Brak zapisu lokalnego — patrz nagłówek.
+      return { formError: `Dostawca nie anulował przesyłki: ${err.message}` };
+    }
+    throw err;
+  }
+
+  const { data: updated, error: updateError } = await ctx.supabase
+    .from("courier_shipments")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", parsed.data.shipmentId)
+    .select("id");
+  if (updateError || !updated || updated.length === 0) {
+    // Rozjazd W DRUGĄ STRONĘ (u dostawcy anulowana, u nas nie) jest mniej
+    // groźny, ale nie wolno go przemilczeć: mówimy wprost, co się stało
+    // i czym to naprawić.
+    return {
+      formError:
+        `Przesyłka została anulowana u dostawcy, ale zapis statusu w systemie nie powiódł się` +
+        `${updateError ? `: ${updateError.message}` : ""}. Odśwież status przesyłki.`,
+    };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: "shipmentCancelled" };
 }
 
 /**

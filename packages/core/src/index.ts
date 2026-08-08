@@ -143,6 +143,7 @@ export {
   destinationMatchesMethod,
   getApiUrl,
   isDeliveryPointProvider,
+  isShipmentCancellable,
   mapProviderStatus,
   methodUsesDeliveryAddress,
   methodUsesDeliveryPoint,
