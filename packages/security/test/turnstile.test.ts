@@ -1,8 +1,10 @@
 /**
- * Weryfikator Turnstile (src/turnstile.ts) — lustro semantyki
- * apps/panel/lib/turnstile.ts: brak sekretu = dev-skip (CAPTCHA jawnie
- * wyłączona), sekret ustawiony = fail-closed. Transport jest wstrzykiwany,
- * więc testy nie biją w sieć.
+ * Weryfikator Turnstile (src/turnstile.ts): brak sekretu = dev-skip (CAPTCHA
+ * jawnie wyłączona — to rozbraja minę lockoutu: kod z widżetem może wejść na
+ * prod PRZED ustawieniem sekretu), sekret ustawiony = token wymagany. Awaria
+ * dostawcy (timeout/nie-2xx/wyjątek transportu) jest sygnalizowana JAWNIE
+ * przez `providerError` — decyzję fail-open/fail-closed podejmuje wołający
+ * (ADR-106). Transport jest wstrzykiwany, więc testy nie biją w sieć.
  */
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,8 +14,8 @@ function fetchOk(success: boolean) {
   return vi.fn(async () => new Response(JSON.stringify({ success }), { status: 200 }));
 }
 
-describe("brak konfiguracji (dev)", () => {
-  it("bez sekretu przepuszcza jako devSkip i nie dotyka sieci", async () => {
+describe("brak konfiguracji (dev / prod przed ustawieniem sekretu)", () => {
+  it("bez sekretu przepuszcza jako devSkip i nie dotyka sieci (anty-lockout)", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchFn = vi.fn();
     const result = await verifyTurnstile(undefined, { secret: undefined, fetchFn });
@@ -24,8 +26,8 @@ describe("brak konfiguracji (dev)", () => {
   });
 });
 
-describe("sekret ustawiony = fail-closed", () => {
-  it("brak tokenu → odmowa bez wywołania sieci", async () => {
+describe("sekret ustawiony = token wymagany", () => {
+  it("brak tokenu → odmowa bez wywołania sieci i BEZ providerError", async () => {
     const fetchFn = vi.fn();
     expect(await verifyTurnstile(undefined, { secret: "s3cret", fetchFn })).toEqual({ ok: false });
     expect(fetchFn).not.toHaveBeenCalled();
@@ -40,14 +42,57 @@ describe("sekret ustawiony = fail-closed", () => {
     expect(JSON.parse(init.body as string)).toEqual({ secret: "s3cret", response: "tok-123" });
   });
 
-  it("siteverify success:false → odmowa", async () => {
+  it("siteverify success:false → odmowa BEZ providerError (to nie awaria)", async () => {
     expect(await verifyTurnstile("tok", { secret: "s", fetchFn: fetchOk(false) })).toEqual({
       ok: false,
     });
   });
+});
 
-  it("HTTP != 2xx → odmowa (fail-closed, nie wyjątek)", async () => {
+describe("awaria dostawcy → ok:false + providerError (decyzja u wołającego)", () => {
+  it("HTTP != 2xx → providerError, nie wyjątek", async () => {
     const fetchFn = vi.fn(async () => new Response("upstream error", { status: 503 }));
-    expect(await verifyTurnstile("tok", { secret: "s", fetchFn })).toEqual({ ok: false });
+    expect(await verifyTurnstile("tok", { secret: "s", fetchFn })).toEqual({
+      ok: false,
+      providerError: true,
+    });
+  });
+
+  it("wyjątek transportu (timeout/DNS) → providerError, nie wyjątek", async () => {
+    const fetchFn = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    expect(await verifyTurnstile("tok", { secret: "s", fetchFn })).toEqual({
+      ok: false,
+      providerError: true,
+    });
+  });
+
+  it("niesparsowalna odpowiedź dostawcy → providerError", async () => {
+    const fetchFn = vi.fn(async () => new Response('{"weird":1}', { status: 200 }));
+    expect(await verifyTurnstile("tok", { secret: "s", fetchFn })).toEqual({
+      ok: false,
+      providerError: true,
+    });
+  });
+
+  it("żądanie siteverify niesie sygnał timeoutu (AbortSignal)", async () => {
+    const fetchFn = fetchOk(true);
+    await verifyTurnstile("tok", { secret: "s", fetchFn });
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.signal, "brak AbortSignal — wiszący dostawca wiesza logowanie").toBeInstanceOf(
+      AbortSignal,
+    );
+  });
+});
+
+describe("brak cache'owania wyniku między żądaniami", () => {
+  it("dwa wywołania z tym samym tokenem = dwa niezależne siteverify", async () => {
+    // Token dostawcy jest jednorazowy — gdyby kod cache'ował pozytywny wynik,
+    // zużyty (a nawet unieważniony) token otwierałby kolejne żądania.
+    const fetchFn = fetchOk(true);
+    await verifyTurnstile("tok-x", { secret: "s", fetchFn });
+    await verifyTurnstile("tok-x", { secret: "s", fetchFn });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 });

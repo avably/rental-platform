@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { Link } from "@/i18n/navigation";
 
+import { AuthCaptchaField } from "../captcha-field";
 import { registerAction, type RegisterState } from "./actions";
 
 // Warstwa wizualna (stylowanie @avably/ui) — pas GPT (docs/DOKUMENTACJA.md
@@ -43,7 +44,9 @@ export function RegisterForm({ next }: { next?: string }) {
             className="rounded border px-3 py-2"
           />
         </label>
-        {/* TODO(Task 3 infra): widżet Turnstile, gdy NEXT_PUBLIC_TURNSTILE_SITE_KEY ustawiony (patrz @avably/security/turnstile). */}
+        {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
+            (semantyka włączenia — L2/ADR-106). */}
+        <AuthCaptchaField resetSignal={state} />
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
         <button
           type="submit"

@@ -1,7 +1,9 @@
 "use server";
 
 import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
+import { clientIpFromHeaders } from "@avably/security/client-ip";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 import { verifyTurnstile } from "@avably/security/turnstile";
 
@@ -25,19 +27,32 @@ export async function resetRequestAction(
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
   }
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimit = await checkRateLimit(`reset:${ip}`, {
-    limit: 5,
-    windowSeconds: 60,
+  // IP z zaufanego źródła + drugi wymiar po znormalizowanym adresie
+  // (resetRequestSchema robi trim+lowercase): reset wysyła e-mail, więc bez
+  // wymiaru adresowego atak rozproszony po IP mail-bombuje jedną skrzynkę.
+  // Progi i jednolity komunikat (bez zdradzania wymiaru): L2, ADR-106.
+  const ip = clientIpFromHeaders(await headers());
+  const rateLimitIp = await checkRateLimit(`reset:ip:${ip}`, {
+    limit: 3,
+    windowSeconds: 3600,
     prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
   });
-  if (!rateLimit.success) {
-    return { error: "Zbyt wiele prób. Spróbuj ponownie za chwilę." };
+  const rateLimitEmail = await checkRateLimit(`reset:email:${parsed.data.email}`, {
+    limit: 3,
+    windowSeconds: 3600,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
+  });
+  if (!rateLimitIp.success || !rateLimitEmail.success) {
+    const t = await getTranslations("authError");
+    return { error: t("tooManyRequests") };
   }
 
+  // FAIL-CLOSED także przy awarii dostawcy (providerError) — ADR-106: reset
+  // wysyła pocztę, fail-open w oknie awarii = darmowy mail-bombing.
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken);
   if (!turnstile.ok) {
-    return { error: "Weryfikacja CAPTCHA nie powiodła się." };
+    const t = await getTranslations("resetRequest");
+    return { error: t("captchaFailed") };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -45,7 +60,6 @@ export async function resetRequestAction(
   // konto istnieje) — Supabase i tak nie zwraca informacji o istnieniu usera.
   await supabase.auth.resetPasswordForEmail(parsed.data.email);
 
-  return {
-    success: "Jeśli konto z tym adresem istnieje, wysłaliśmy e-mail z linkiem do resetu hasła.",
-  };
+  const t = await getTranslations("resetRequest");
+  return { success: t("successNeutral") };
 }

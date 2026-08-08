@@ -43,6 +43,9 @@ export async function proxy(request: NextRequest) {
   const csp: CspOptions = {
     dev: process.env.NODE_ENV !== "production",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    // Hosty Turnstile w script-src/connect-src/frame-src wchodzą wyłącznie
+    // przy skonfigurowanym site key (L2/ADR-106; wzorzec storefrontu).
+    turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
   };
 
   // Kanał, którym Next.js dostaje nonce do własnych tagów <script>. Ustawiane

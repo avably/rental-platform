@@ -166,7 +166,9 @@
   "resetRequest": {
     "title": "Reset password",
     "submit": "Send reset link",
-    "submitPending": "Sending…"
+    "submitPending": "Sending…",
+    "captchaFailed": "CAPTCHA verification failed.",
+    "successNeutral": "If an account with this address exists, we have sent an email with a password reset link."
   },
   "resetConfirm": {
     "title": "Set a new password",

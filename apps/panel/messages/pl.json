@@ -166,7 +166,9 @@
   "resetRequest": {
     "title": "Reset hasła",
     "submit": "Wyślij link do resetu",
-    "submitPending": "Wysyłam…"
+    "submitPending": "Wysyłam…",
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
+    "successNeutral": "Jeśli konto z tym adresem istnieje, wysłaliśmy e-mail z linkiem do resetu hasła."
   },
   "resetConfirm": {
     "title": "Ustaw nowe hasło",

@@ -1,8 +1,11 @@
 /**
- * Testy jadą po ścieżce fallbacku in-memory: bez UPSTASH_REDIS_REST_URL/TOKEN
- * `checkRateLimit` nigdy nie sięga po sieć, więc mechanikę progu i segmentacji
- * da się sprawdzić bez mockowania Redisa. Ścieżka Upstasha to cienki adapter
- * nad `@upstash/ratelimit` — testujemy tu regułę, nie cudzą bibliotekę.
+ * Rate-limit (src/rate-limit.ts, ADR-106): backend to Postgres
+ * (app.check_rate_limit przez PostgREST), a in-memory jest WYŁĄCZNIE
+ * degradacją (brak env bazy albo błąd transportu). Testy jednostkowe kryją
+ * obie warstwy bez sieci: adapter DB dostaje wstrzyknięty `fetchFn`, a
+ * mechanika progu/segmentacji jedzie po fallbacku (env bazy wyczyszczony).
+ * Dowód WSPÓŁDZIELENIA licznika między instancjami żyje w teście
+ * integracyjnym packages/db/test/auth-rate-limit.test.ts (żywa baza).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,17 +18,108 @@ import {
 
 const OPTS = { limit: 3, windowSeconds: 60, prefix: "test-rl" };
 
+const DB_ENV_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+] as const;
+
 beforeEach(() => {
   __resetMemoryRateLimitForTests();
-  delete process.env.UPSTASH_REDIS_REST_URL;
-  delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Izolacja od env procesu (lokalny Supabase, CI job rls): testy jednostkowe
+  // mechaniki fallbacku nie mogą po cichu bić w prawdziwą bazę.
+  for (const key of DB_ENV_KEYS) vi.stubEnv(key, "");
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.useRealTimers();
 });
 
-describe("próg limitu", () => {
+describe("adapter DB (env bazy ustawiony)", () => {
+  const DB_URL = "http://db.example.test";
+  const ANON = "anon-key-x";
+
+  function stubDbEnv() {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", DB_URL);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ANON);
+  }
+
+  function fetchRow(success: boolean, remaining: number) {
+    return vi.fn(
+      async () => new Response(JSON.stringify([{ success, remaining }]), { status: 200 }),
+    );
+  }
+
+  it("woła app.check_rate_limit przez PostgREST z prefiksowanym kluczem", async () => {
+    stubDbEnv();
+    const fetchFn = fetchRow(true, 2);
+
+    const result = await checkRateLimit("login:ip:198.51.100.7", { ...OPTS, fetchFn });
+
+    expect(result).toEqual({ success: true, remaining: 2 });
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${DB_URL}/rest/v1/rpc/check_rate_limit`);
+    const headers = init.headers as Record<string, string>;
+    expect(headers["Content-Profile"], "funkcja żyje w schemacie app").toBe("app");
+    expect(headers.apikey).toBe(ANON);
+    expect(JSON.parse(init.body as string)).toEqual({
+      p_key: "test-rl:login:ip:198.51.100.7",
+      p_limit: 3,
+      p_window_seconds: 60,
+    });
+    expect(init.signal, "brak timeoutu — wisząca baza wiesza logowanie").toBeInstanceOf(
+      AbortSignal,
+    );
+  });
+
+  it("odmowa z bazy przechodzi 1:1 (success:false)", async () => {
+    stubDbEnv();
+    expect(await checkRateLimit("k", { ...OPTS, fetchFn: fetchRow(false, 0) })).toEqual({
+      success: false,
+      remaining: 0,
+    });
+  });
+
+  it("błąd transportu → degradacja do licznika in-memory (limit dalej działa)", async () => {
+    stubDbEnv();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn(async () => {
+      throw new Error("db down");
+    });
+
+    const results = [];
+    for (let i = 0; i < 5; i += 1) {
+      results.push(await checkRateLimit("ip:203.0.113.5", { ...OPTS, fetchFn }));
+    }
+
+    // Fallback nadal odcina po progu — awaria bazy nie wyłącza limitu.
+    expect(results.map((r) => r.success)).toEqual([true, true, true, false, false]);
+    warn.mockRestore();
+  });
+
+  it("nie-2xx z PostgREST → degradacja, nie wyjątek", async () => {
+    stubDbEnv();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn(async () => new Response("boom", { status: 500 }));
+
+    expect((await checkRateLimit("k2", { ...OPTS, fetchFn })).success).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("niespodziewany kształt odpowiedzi → degradacja, nie błędna zgoda", async () => {
+    stubDbEnv();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn(async () => new Response('{"nie":"tablica"}', { status: 200 }));
+
+    // Degradacja = licznik in-memory, więc pierwsze wywołanie przechodzi.
+    expect((await checkRateLimit("k3", { ...OPTS, fetchFn })).success).toBe(true);
+    warn.mockRestore();
+  });
+});
+
+describe("fallback in-memory: próg limitu", () => {
   it("przepuszcza dokładnie do progu i odcina powyżej", async () => {
     const results = [];
     for (let i = 0; i < 5; i += 1) {
@@ -56,7 +150,7 @@ describe("próg limitu", () => {
   });
 });
 
-describe("segmentacja", () => {
+describe("fallback in-memory: segmentacja", () => {
   it("liczy każdy klucz osobno w obrębie prefiksu", async () => {
     for (let i = 0; i < 3; i += 1) await checkRateLimit("login:a@example.com", OPTS);
     expect((await checkRateLimit("login:a@example.com", OPTS)).success).toBe(false);

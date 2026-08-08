@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { clientIpFromHeaders } from "@avably/security/client-ip";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 import { verifyTurnstile } from "@avably/security/turnstile";
 
@@ -32,16 +33,22 @@ export async function registerAction(
 
   const next = safeNextPath(formData.get("next"));
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimit = await checkRateLimit(`register:${ip}`, {
+  // IP z zaufanego źródła (nie goły x-forwarded-for) + progi: L2, ADR-106.
+  // Rejestracja to najtańszy punkt masowego zakładania kont — okno godzinne.
+  const ip = clientIpFromHeaders(await headers());
+  const rateLimit = await checkRateLimit(`register:ip:${ip}`, {
     limit: 5,
-    windowSeconds: 60,
+    windowSeconds: 3600,
     prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
   });
   if (!rateLimit.success) {
-    return { error: "Zbyt wiele prób rejestracji. Spróbuj ponownie za chwilę." };
+    const t = await getTranslations("authError");
+    return { error: t("tooManyRequests") };
   }
 
+  // FAIL-CLOSED także przy awarii dostawcy (providerError) — rozstrzygnięcie
+  // ADR-106: chwilowo zablokowana rejestracja jest tańsza niż okno, w którym
+  // boty zakładają konta bez weryfikacji. Fail-open dostaje wyłącznie login.
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken);
   if (!turnstile.ok) {
     const t = await getTranslations("register");
