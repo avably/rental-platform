@@ -85,13 +85,14 @@ export interface OnboardingUrls {
  * Parametry płatności online (Z3, ADR-066).
  *
  * KWOTA I WALUTA SĄ TU RAZEM I NIE MAJĄ WARTOŚCI DOMYŚLNYCH. Waluta bez
- * zaszywania (`plans.currency`), kwota w najmniejszej jednostce — ta sama
+ * zaszywania — od 0049 obie przychodzą z WIERSZA ZAMÓWIENIA
+ * (`orders.currency`, ADR-103), kwota w najmniejszej jednostce — ta sama
  * liczba, którą policzył serwer, bez żadnego przelicznika po drodze.
  */
 export interface CreateIntentParams {
   /** int, grosze — bez konwersji. Wartość policzona przez SERWER. */
   amountGrosze: number;
-  /** Kod ISO waluty zamówienia (`plans.currency`) — nigdy zaszyty. */
+  /** Kod ISO waluty zamówienia (`orders.currency`, ADR-103) — nigdy zaszyty. */
   currency: string;
   /** Konto najemcy u dostawcy — na NIM powstaje płatność (charge bezpośredni). */
   connectedAccountId: string;
@@ -132,12 +133,19 @@ export interface IntentHandle {
  * `amountReceivedGrosze` osobno od `amountGrosze`: pierwsze to ile WPŁYNĘŁO,
  * drugie — o ile prosiliśmy. Wołający porównuje pierwsze z sumą policzoną
  * przez WŁASNY serwer; drugie służy diagnozie rozjazdu.
+ *
+ * `currency` (K3, ADR-103): waluta, w której dostawca księgował. Liczba bez
+ * waluty nie jest kwotą — werdykt porównuje ją z `orders.currency` (0049),
+ * czyli z walutą, z którą intent POWSTAŁ. Małe litery jak w odpowiedzi
+ * dostawcy; porównanie robi wołający, niewrażliwie na wielkość. Pusta
+ * wartość znaczy „dostawca nie powiedział" i NIE przechodzi jako zgodna.
  */
 export interface IntentRead {
   intentId: string;
   status: string;
   amountReceivedGrosze: number;
   amountGrosze: number;
+  currency: string;
 }
 
 /**

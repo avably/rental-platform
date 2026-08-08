@@ -424,6 +424,10 @@ export class StripeConnectClient {
       // domyślna gotowość konta w `toAccountState`.
       amountReceivedGrosze: typeof intent.amount_received === "number" ? intent.amount_received : 0,
       amountGrosze: typeof intent.amount === "number" ? intent.amount : 0,
+      // [K3/ADR-103] Brak pola = waluta NIEZNANA (""), nie „ta, o którą
+      // prosiliśmy" — ten sam kierunek domyślności co przy kwocie: nieznana
+      // waluta nie przejdzie porównania waluty w werdykcie.
+      currency: typeof intent.currency === "string" ? intent.currency : "",
     };
   }
 

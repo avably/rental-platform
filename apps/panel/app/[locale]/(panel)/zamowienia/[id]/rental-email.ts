@@ -8,10 +8,12 @@
  * emailMessages (też eksportowane z pakietu); nagłówek wiadomości jest
  * naturalnym tematem i trzyma spójność z treścią bez duplikowania tekstów.
  *
- * Waluta pochodzi z getTenantCurrency (nie z plans.currency): e-mail musi
- * pokazać klientowi TĘ SAMĄ kwotę, którą operator widzi na ekranie
- * zamówienia — rozjazd tych źródeł byłby cichym bugiem. Locale pochodzi
- * z tenants.locale. Oba: patrz ADR-033.
+ * Waluta pochodzi z WIERSZA ZAMÓWIENIA (orders.currency, 0049/ADR-103;
+ * wcześniej getTenantCurrency): e-mail musi pokazać klientowi TĘ SAMĄ
+ * kwotę, którą operator widzi na ekranie zamówienia — a oba ekrany mówią
+ * odtąd walutą, w której zamówienie POWSTAŁO, więc zmiana ustawienia
+ * najemcy nie przepisuje ani ekranu, ani maila. Locale pochodzi
+ * z tenants.locale (ADR-033).
  */
 import {
   emailMessages,
@@ -149,6 +151,8 @@ export interface RentalEmailOrderRow {
   start_date: string;
   end_date: string;
   total_rental_grosze: number;
+  /** Waluta UTRWALONA na zamówieniu (orders.currency, 0049/ADR-103). */
+  currency: string;
   // locale KLIENTA (customers.locale, 0016/ADR-037): opcjonalne, bo NULL/brak
   // = brak preferencji → spada na locale tenanta. CHECK 0016 gwarantuje, że
   // wartość niepusta jest w LOCALES.

@@ -30,6 +30,8 @@ export interface CustomerOrderRow {
   startDate: string;
   endDate: string;
   totalRentalGrosze: number;
+  /** Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — własność wiersza. */
+  currency: CurrencyCode;
   orderStatus: OrderStatus;
 }
 
@@ -85,11 +87,9 @@ function CellLink({
 
 export function CustomerOrders({
   orders,
-  currency,
   locale,
 }: {
   orders: CustomerOrderRow[];
-  currency: CurrencyCode;
   locale: string;
 }) {
   const t = useTranslations("customers.card");
@@ -147,7 +147,7 @@ export function CustomerOrders({
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
                         <CellLink href={href} align="right" className="tabular-nums">
-                          {formatMoney(order.totalRentalGrosze, currency, locale)}
+                          {formatMoney(order.totalRentalGrosze, order.currency, locale)}
                         </CellLink>
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
@@ -176,7 +176,7 @@ export function CustomerOrders({
                       {order.orderNumber}
                     </span>
                     <span className="text-foreground font-semibold tabular-nums">
-                      {formatMoney(order.totalRentalGrosze, currency, locale)}
+                      {formatMoney(order.totalRentalGrosze, order.currency, locale)}
                     </span>
                   </div>
                   <div className="text-muted-foreground mt-1 text-sm tabular-nums">

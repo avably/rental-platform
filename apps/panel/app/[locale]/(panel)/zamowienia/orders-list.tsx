@@ -1,6 +1,5 @@
 "use client";
 
-import type { CurrencyCode } from "@avably/core";
 import { useCallback, useMemo, useState } from "react";
 
 import type { ResolvedSort } from "@/lib/orders/order-sort";
@@ -27,13 +26,11 @@ import { useHiddenOrderColumns } from "./use-order-columns";
  */
 export function OrdersList({
   rows,
-  currency,
   locale,
   sort,
   baseParams,
 }: {
   rows: OrdersTableRow[];
-  currency: CurrencyCode;
   locale: string;
   sort: ResolvedSort;
   baseParams: Record<string, string | undefined>;
@@ -78,7 +75,6 @@ export function OrdersList({
     <>
       <OrdersTable
         rows={rows}
-        currency={currency}
         locale={locale}
         sort={sort}
         baseParams={baseParams}

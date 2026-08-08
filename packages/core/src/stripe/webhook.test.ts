@@ -50,6 +50,8 @@ const read = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   status: "succeeded",
   amountReceivedGrosze: 12_345,
   amountGrosze: 12_345,
+  // Małe litery jak w odpowiedzi dostawcy — konwersję wielkości robi werdykt.
+  currency: "pln",
   ...overrides,
 });
 
@@ -304,11 +306,13 @@ describe("isObservedIntentEvent", () => {
 
 describe("settlementVerdict", () => {
   it("succeeded z pełną kwotą → paid", () => {
-    expect(settlementVerdict(read(), 12_345)).toEqual({ status: "paid", reason: "" });
+    expect(settlementVerdict(read(), 12_345, "PLN")).toEqual({ status: "paid", reason: "" });
   });
 
   it("nadpłata też jest opłaceniem", () => {
-    expect(settlementVerdict(read({ amountReceivedGrosze: 20_000 }), 12_345).status).toBe("paid");
+    expect(settlementVerdict(read({ amountReceivedGrosze: 20_000 }), 12_345, "PLN").status).toBe(
+      "paid",
+    );
   });
 
   /**
@@ -319,22 +323,49 @@ describe("settlementVerdict", () => {
    * stronę. To stan dla człowieka.
    */
   it("succeeded z NIEPEŁNĄ kwotą NIE jest opłaceniem", () => {
-    const verdict = settlementVerdict(read({ amountReceivedGrosze: 12_344 }), 12_345);
+    const verdict = settlementVerdict(read({ amountReceivedGrosze: 12_344 }), 12_345, "PLN");
     expect(verdict.status).toBeNull();
     expect(verdict.reason).toContain("12344");
     expect(verdict.reason).toContain("12345");
   });
 
+  /**
+   * WALUTA JEST CZĘŚCIĄ KWOTY (K3, ADR-103): 12 345 jednostek podrzędnych
+   * EUR to nie jest 12 345 groszy PLN. Zamówienie utrwala walutę przy
+   * narodzinach (orders.currency, 0049) i intent powstaje z tej pary — więc
+   * rozjazd waluty przy werdykcie oznacza, że dostawca zaksięgował INNĄ
+   * kwotę, niż mówi liczba. Werdykt `null` z powodem (stan dla człowieka),
+   * lustro płatności częściowej: pieniądze wpłynęły, tylko nie te.
+   */
+  it("succeeded z pełną liczbą w INNEJ walucie NIE jest opłaceniem", () => {
+    const verdict = settlementVerdict(read({ currency: "eur" }), 12_345, "PLN");
+    expect(verdict.status).toBeNull();
+    expect(verdict.reason.toUpperCase()).toContain("EUR");
+    expect(verdict.reason.toUpperCase()).toContain("PLN");
+  });
+
+  it("porównanie waluty jest niewrażliwe na wielkość liter (dostawca mówi małymi)", () => {
+    expect(settlementVerdict(read({ currency: "pln" }), 12_345, "PLN").status).toBe("paid");
+    expect(settlementVerdict(read({ currency: "EUR" }), 12_345, "EUR").status).toBe("paid");
+  });
+
+  it("odczyt bez waluty NIE dowodzi opłacenia (domyślna odmowa, jak przy kwocie)", () => {
+    const verdict = settlementVerdict(read({ currency: "" }), 12_345, "PLN");
+    expect(verdict.status).toBeNull();
+  });
+
   it("requires_payment_method i canceled → payment_failed", () => {
-    expect(settlementVerdict(read({ status: "requires_payment_method" }), 12_345).status).toBe(
+    expect(
+      settlementVerdict(read({ status: "requires_payment_method" }), 12_345, "PLN").status,
+    ).toBe("payment_failed");
+    expect(settlementVerdict(read({ status: "canceled" }), 12_345, "PLN").status).toBe(
       "payment_failed",
     );
-    expect(settlementVerdict(read({ status: "canceled" }), 12_345).status).toBe("payment_failed");
   });
 
   it("processing i requires_action nie zmieniają statusu zamówienia", () => {
     for (const status of ["processing", "requires_action", "requires_confirmation"]) {
-      const verdict = settlementVerdict(read({ status }), 12_345);
+      const verdict = settlementVerdict(read({ status }), 12_345, "PLN");
       expect(verdict.status, `status ${status}`).toBeNull();
       expect(verdict.reason).toContain(status);
     }
@@ -347,13 +378,17 @@ describe("settlementVerdict", () => {
    * werdykt liczy się z tego, co odpowiedział dostawca.
    */
   it("nie ma jak zbudować werdyktu z ciała zdarzenia — wejściem jest odczyt", () => {
-    const verdictFromRead = settlementVerdict(read({ status: "requires_payment_method" }), 12_345);
+    const verdictFromRead = settlementVerdict(
+      read({ status: "requires_payment_method" }),
+      12_345,
+      "PLN",
+    );
     expect(verdictFromRead.status).toBe("payment_failed");
     expect(verdictFromRead.status).not.toBe("paid");
   });
 
   it("nieznany status dostawcy nie ustawia niczego (zamiast zgadywać)", () => {
-    const verdict = settlementVerdict(read({ status: "nowy_status_dostawcy" }), 12_345);
+    const verdict = settlementVerdict(read({ status: "nowy_status_dostawcy" }), 12_345, "PLN");
     expect(verdict.status).toBeNull();
     expect(verdict.reason).toContain("nowy_status_dostawcy");
   });

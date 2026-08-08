@@ -23,6 +23,7 @@ import {
   emailAvailability,
   formatMoney,
   mapProviderStatus,
+  type CurrencyCode,
   type DeliveryPriceSource,
 } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -30,7 +31,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { StatusChip } from "@/lib/orders/status-chip";
 import { requireMember } from "@/lib/supabase-server";
-import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import {
   createShipmentAction,
@@ -63,6 +63,7 @@ export async function DeliverySection({
   deliveryMethod,
   deliveryGrosze,
   deliveryPriceSource,
+  currency,
 }: {
   orderId: string;
   deliveryMethod: string;
@@ -70,11 +71,16 @@ export async function DeliverySection({
   deliveryGrosze: number;
   /** `orders.delivery_price_source` — cennik czy ustalenie ręczne (0044). */
   deliveryPriceSource: DeliveryPriceSource;
+  /**
+   * Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — koszt dostawy
+   * i koszty przesyłek TEGO zamówienia mówią walutą, w której powstało,
+   * a nie bieżącym ustawieniem najemcy.
+   */
+  currency: CurrencyCode;
 }) {
   const ctx = await requireMember();
   const t = await getTranslations("orders.delivery.section");
   const locale = await getLocale();
-  const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
 
   const { data: shipmentRows } = await ctx.supabase
     .from("courier_shipments")

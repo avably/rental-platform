@@ -114,15 +114,27 @@ export async function readPaymentIntent(
 /**
  * Czy odczyt dowodzi, że zamówienie jest opłacone.
  *
- * DWA WARUNKI, OBA KONIECZNE: dostawca mówi `succeeded` **i** kwota, którą
- * zaksięgował, pokrywa sumę policzoną przez NASZ serwer. Sam status nie
- * wystarcza — płatność częściowa (nadpłata/niedopłata przy zmianie kwoty
- * w locie) też bywa `succeeded`. Suma z klienta w tej funkcji nie istnieje:
- * `expectedGrosze` ma pochodzić z bazy, nie z przeglądarki.
+ * TRZY WARUNKI, WSZYSTKIE KONIECZNE (lustro `settlementVerdict`): dostawca
+ * mówi `succeeded` **i** kwota, którą zaksięgował, pokrywa sumę policzoną
+ * przez NASZ serwer, **i** [K3/ADR-103] księgował w walucie ZAMÓWIENIA
+ * (`orders.currency`, 0049). Sam status nie wystarcza — płatność częściowa
+ * (nadpłata/niedopłata przy zmianie kwoty w locie) też bywa `succeeded`;
+ * sama liczba nie wystarcza — bez waluty nie jest kwotą. Suma i waluta
+ * z klienta w tej funkcji nie istnieją: oba oczekiwania mają pochodzić
+ * z bazy, nie z przeglądarki. Porównanie waluty niewrażliwe na wielkość
+ * liter (dostawca mówi małymi); pusta waluta odczytu NIE przechodzi.
  *
  * Funkcja jest CZYSTA i nic nie zapisuje — decyzję o `payment_status='paid'`
  * podejmuje wyłącznie handler webhooka (Z4).
  */
-export function isIntentSettled(read: IntentRead, expectedGrosze: number): boolean {
-  return read.status === "succeeded" && read.amountReceivedGrosze >= expectedGrosze;
+export function isIntentSettled(
+  read: IntentRead,
+  expectedGrosze: number,
+  expectedCurrency: string,
+): boolean {
+  return (
+    read.status === "succeeded" &&
+    read.currency.toUpperCase() === expectedCurrency.toUpperCase() &&
+    read.amountReceivedGrosze >= expectedGrosze
+  );
 }

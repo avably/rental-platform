@@ -104,6 +104,8 @@ interface OrderRow {
   total_rental_grosze: number;
   total_deposit_grosze: number;
   delivery_grosze: number;
+  /** Waluta UTRWALONA na zamówieniu (0049, ADR-103) — z niej powstał intent. */
+  currency: string;
 }
 
 function json(status: number, body: Record<string, unknown>): Response {
@@ -430,7 +432,7 @@ export async function handleStripeWebhook(
   const orderQuery = await deps.db
     .from("orders")
     .select(
-      "id, tenant_id, payment_status, payment_provider, total_rental_grosze, total_deposit_grosze, delivery_grosze",
+      "id, tenant_id, payment_status, payment_provider, total_rental_grosze, total_deposit_grosze, delivery_grosze, currency",
     )
     .eq("provider_payment_intent_id", event.objectId)
     .maybeSingle();
@@ -479,10 +481,12 @@ export async function handleStripeWebhook(
 
   // Suma policzona przez NASZ serwer z utrwalonych danych zamówienia —
   // ta sama arytmetyka co w `app.get_public_order_payment` (0029). Kwota
-  // z ciała zdarzenia nie występuje w tym obiegu ani razu.
+  // z ciała zdarzenia nie występuje w tym obiegu ani razu. Waluta również
+  // z UTRWALONEGO wiersza (orders.currency, 0049/ADR-103): intent powstał
+  // z tej pary, więc werdykt porównuje odczyt z tym samym źródłem.
   const expectedGrosze =
     order.total_rental_grosze + order.total_deposit_grosze + order.delivery_grosze;
-  const verdict = settlementVerdict(read, expectedGrosze);
+  const verdict = settlementVerdict(read, expectedGrosze, order.currency);
 
   if (verdict.status === null) {
     await finish(deps.db, eventRowId, "processed", verdict.reason);

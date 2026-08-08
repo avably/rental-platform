@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
-import { getTenantCurrency } from "@/lib/tenant-currency";
+import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { setCustomerBanAction, updateCustomerAction } from "./actions";
 import { CustomerBanToggle } from "./customer-ban-toggle";
@@ -45,6 +45,7 @@ interface OrderHistoryRow {
   start_date: string;
   end_date: string;
   total_rental_grosze: number;
+  currency: string;
   order_status: OrderStatus;
 }
 
@@ -72,7 +73,7 @@ export default async function CustomerDetailPage({
 
   const { data: orderData } = await ctx.supabase
     .from("orders")
-    .select("id, order_number, start_date, end_date, total_rental_grosze, order_status")
+    .select("id, order_number, start_date, end_date, total_rental_grosze, currency, order_status")
     .eq("tenant_id", ctx.tenantId)
     .eq("customer_id", id)
     .order("created_at", { ascending: false })
@@ -88,7 +89,6 @@ export default async function CustomerDetailPage({
     .maybeSingle();
   const banned = ban != null;
 
-  const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("customers.card");
 
@@ -98,6 +98,9 @@ export default async function CustomerDetailPage({
     startDate: order.start_date,
     endDate: order.end_date,
     totalRentalGrosze: order.total_rental_grosze,
+    // Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — historia mówi
+    // walutą, w której każde zamówienie POWSTAŁO.
+    currency: orderCurrencyCode(order.currency),
     orderStatus: order.order_status,
   }));
 
@@ -153,7 +156,7 @@ export default async function CustomerDetailPage({
         }}
       />
 
-      <CustomerOrders orders={orders} currency={currency} locale={locale} />
+      <CustomerOrders orders={orders} locale={locale} />
     </div>
   );
 }

@@ -48,6 +48,7 @@ const rows = PAYMENT_STATUSES.map((paymentStatus, index) => ({
   orderStatus: ORDER_STATUSES[index % ORDER_STATUSES.length]!,
   paymentStatus,
   totalRentalGrosze: 119900,
+  currency: "PLN" as const,
 }));
 
 /** Efektywny sort domyślny (najnowsze po „#") — dla nagłówków i aria-sort. */
@@ -67,7 +68,6 @@ function renderTable(
     <NextIntlClientProvider locale="pl" messages={messages}>
       <OrdersTable
         rows={rows}
-        currency="PLN"
         locale="pl"
         sort={sort}
         baseParams={baseParams}
