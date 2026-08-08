@@ -400,6 +400,54 @@
       "title": "Pusty magazyn. Dodaj pierwszy produkt."
     }
   },
+  "catalogImport": {
+    "entry": "Import z CSV",
+    "backLink": "Katalog",
+    "title": "Import katalogu z CSV",
+    "intro": "Wgraj plik w formacie eksportu katalogu (te same kolumny). Najpierw zobaczysz podgląd zmian — zapis nastąpi dopiero po potwierdzeniu.",
+    "filePrompt": "Przeciągnij plik CSV albo kliknij, aby wybrać",
+    "fileHint": "Format zgodny z eksportem katalogu. Wiersze z pustym product_id utworzą nowe produkty.",
+    "fileRemove": "Usuń plik",
+    "previewButton": "Pokaż podgląd",
+    "confirmButton": "Importuj",
+    "backToCatalog": "Wróć do katalogu",
+    "summaryTitle": "Podgląd importu",
+    "summaryRows": "Wierszy danych w pliku: {count}",
+    "summaryCreated": "Nowe produkty: {count}",
+    "summaryUpdated": "Aktualizowane produkty: {count}",
+    "summaryTiers": "Progi cenowe po imporcie: {count}",
+    "summaryNote": "Produkty nieobecne w pliku pozostaną bez zmian. Progi produktów z pliku zostaną zastąpione kompletem z pliku.",
+    "issuesTitle": "Błędy w pliku — import wstrzymany",
+    "issueRow": "Wiersz {row}",
+    "done": {
+      "title": "Import zakończony",
+      "created": "Utworzone produkty: {count}",
+      "updated": "Zaktualizowane produkty: {count}",
+      "tiers": "Zapisane progi cenowe: {count}"
+    },
+    "errors": {
+      "noFile": "Wybierz plik CSV.",
+      "badType": "To nie wygląda na plik CSV — wybierz plik z rozszerzeniem .csv.",
+      "tooLarge": "Plik jest za duży (limit {mb} MB).",
+      "limit": "Plik przekracza limit {limit} wierszy — podziel go na mniejsze części.",
+      "empty": "Plik nie zawiera żadnych wierszy danych.",
+      "server": "Zapis nie powiódł się. Katalog pozostał bez zmian."
+    },
+    "codes": {
+      "missingColumn": "brak wymaganej kolumny {column}",
+      "columnCount": "nieprawidłowa liczba pól w wierszu",
+      "badInteger": "kolumna {column}: wymagana liczba całkowita, jest {value}",
+      "notPositive": "kolumna {column}: wartość musi być większa od zera",
+      "badDecimal": "kolumna {column}: nieprawidłowa liczba, jest {value}",
+      "badBoolean": "kolumna {column}: dozwolone wartości to true, false, 1 albo 0",
+      "badUuid": "kolumna {column}: to nie jest poprawny identyfikator produktu",
+      "emptyName": "pusta nazwa produktu",
+      "nameTooLong": "nazwa produktu przekracza 200 znaków",
+      "tierIncomplete": "niekompletny próg cenowy: brak wartości w kolumnie {column}",
+      "duplicateTierDays": "powtórzony próg {value} dni dla tego samego produktu",
+      "unknownProduct": "produkt o identyfikatorze {value} nie istnieje w Twoim katalogu"
+    }
+  },
   "orders": {
     "contract": {
       "title": "Umowa najmu",
