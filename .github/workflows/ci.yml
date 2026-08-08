@@ -112,6 +112,36 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 
+  wp-plugin:
+    # Suita PHP wtyczki WordPress (kontrakt źródła R10, bramki amplifikacji
+    # R11) + kontrola zgodności wygenerowanej paczki z repo. Bez tego jobu
+    # 120+ testów wtyczki odpalało się WYŁĄCZNIE ręcznie
+    # (dev/run-tests.sh) — trzy pozostałe joby nie mówią o nich nic, więc
+    # bramka degradowała się przy pierwszym refaktorze (recenzja PM #216).
+    # Job biegnie na KAŻDYM PR (jest tani, < 1 min): warunkowanie po
+    # ścieżkach tworzyłoby martwe pole przy zmianach zależności
+    # współdzielonych ze skryptem paczki.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          # Ta sama wersja, co lokalny kontener dev (php:8.1-cli) — wtyczka
+          # deklaruje zgodność od PHP 8.1, więc testujemy dolną granicę.
+          php-version: "8.1"
+          coverage: none
+      - name: Pobierz PHPUnit (wersja z dev/run-tests.sh)
+        run: curl -fsSL -o /tmp/phpunit.phar https://phar.phpunit.de/phpunit-10.5.38.phar
+      - name: Testy jednostkowe wtyczki
+        run: php /tmp/phpunit.phar -c integrations/wordpress/avably-booking/phpunit.xml.dist
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # Paczka w repo MUSI odpowiadać źródłom wtyczki bajt w bajt — inaczej
+      # operator pobiera z panelu starą wersję. Skrypt używa wyłącznie
+      # modułów wbudowanych Node, więc nie potrzebuje pnpm install.
+      - name: Zgodność wygenerowanej paczki z repo
+        run: node scripts/build-wp-plugin-zip.mjs --check
+
   rls:
     # Macierz testów izolacji RLS (packages/db/test/rls-isolation.test.ts) —
     # najważniejsza bramka bezpieczeństwa Fazy 0. Osobny, równoległy job:
