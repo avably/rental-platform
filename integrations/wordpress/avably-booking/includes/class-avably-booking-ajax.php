@@ -32,6 +32,51 @@ class Avably_Booking_Ajax {
 	public const MONTH_CACHE_TTL = 300;
 
 	/**
+	 * Krótki TTL dla wyniku ZDEGRADOWANEGO (budżet wywołań/czasu przerwał
+	 * rozstrzyganie — część dni ma zachowawcze 0): wynik dalej zbija falę
+	 * żądań współbieżnych, ale „wszystko zajęte" nie wisi pełnych 5 minut.
+	 */
+	public const MONTH_DEGRADED_CACHE_TTL = 30;
+
+	/**
+	 * TWARDY sufit wywołań API na JEDNO żądanie month (R11, ADR-114).
+	 *
+	 * Audyt 2026-08-08 (potwierdzony pomiarem w suicie): pętla per dzień
+	 * kosztowała do 31 wywołań API na żądanie, a 10 żądań współbieżnych —
+	 * ~300. Po naprawie miesiąc rozstrzygany jest ZAKRESAMI (patrz
+	 * resolve_month_days): w pełni dostępny miesiąc = 1 wywołanie, a budżet
+	 * ogranicza najgorszy przypadek (mocno pofragmentowana dostępność).
+	 */
+	public const MONTH_API_CALL_BUDGET = 12;
+
+	/**
+	 * Budżet CZASU (sekundy wall-clock) na rozstrzyganie miesiąca — po jego
+	 * przekroczeniu oddajemy to, co mamy, zamiast trzymać workera PHP na
+	 * kolejnych wywołaniach wolnego API.
+	 */
+	public const MONTH_TIME_BUDGET = 10;
+
+	/**
+	 * TTL wpisu-blokady „miesiąc w trakcie rozstrzygania": musi pokrywać
+	 * najgorszy czas przebiegu (budżet czasu + jedno wywołanie, które
+	 * przekroczyło deadline), a po padzie procesu PHP blokada ma sama
+	 * wygasnąć, nie zawiesić kalendarza na stałe.
+	 */
+	public const MONTH_LOCK_TTL = 20;
+
+	/**
+	 * Dławienie ścieżek kalendarza PER ODWIEDZAJĄCY (R11): przed naprawą
+	 * limit istniał wyłącznie na reserve, a najdroższa ścieżka (month) nie
+	 * miała żadnego. Limity dobrane OSOBNO od rezerwacji — kalendarz jest
+	 * wołany częściej (nawigacja po miesiącach, wybór zakresów), więc dostaje
+	 * okna krótsze i pojemniejsze.
+	 */
+	public const MONTH_RATE_LIMIT           = 30;
+	public const MONTH_RATE_WINDOW          = 300;
+	public const AVAILABILITY_RATE_LIMIT    = 60;
+	public const AVAILABILITY_RATE_WINDOW   = 300;
+
+	/**
 	 * Dławienie rezerwacji PER ODWIEDZAJĄCY (okno stałe).
 	 *
 	 * DLACZEGO WTYCZKA MUSI LICZYĆ SAMA: limity API (ADR-108) mają dwa
@@ -141,14 +186,122 @@ class Avably_Booking_Ajax {
 		);
 	}
 
-	/** Adres odwiedzającego — WYŁĄCZNIE do kubełka limitu (nie do autoryzacji). */
-	public static function visitor_bucket( array $server ): string {
-		$ip = isset( $server['REMOTE_ADDR'] ) && is_scalar( $server['REMOTE_ADDR'] )
+	/**
+	 * Adres odwiedzającego — WYŁĄCZNIE do kubełka limitu (nie do autoryzacji).
+	 *
+	 * DOMYŚLNIE kubełkiem jest REMOTE_ADDR: nagłówek klienta jest podrabialny,
+	 * więc dałby napastnikowi świeży licznik na żądanie. ŚWIADOMY KOMPROMIS
+	 * (ADR-114): za CDN-em/reverse proxy bez konfiguracji wszyscy odwiedzający
+	 * zlewają się w jeden kubełek — pierwszy bot może wyczerpać limit całemu
+	 * sklepowi do końca okna. Właściciel sklepu może temu zaradzić JAWNĄ
+	 * konfiguracją zaufanego proxy (stałe w wp-config, patrz
+	 * trusted_proxy_config()): nagłówkowi ufamy WYŁĄCZNIE, gdy żądanie
+	 * przyszło z adresu na liście zaufanych proxy, i bierzemy OSTATNI wpis
+	 * nagłówka (dopisany przez to proxy) — podrobiony prefiks od klienta
+	 * niczego nie zmienia. Wariant „ufamy X-Forwarded-For domyślnie" jest
+	 * wykluczony z konstrukcji.
+	 *
+	 * @param array                                            $server  Superglobal $_SERVER (wstrzykiwany w testach).
+	 * @param array{proxies:string[],header:string}|null       $trusted Konfiguracja zaufanego proxy; null = ze stałych
+	 *                                                                  (rozstrzygnięcie produkcyjne, przypięte testem).
+	 */
+	public static function visitor_bucket( array $server, ?array $trusted = null ): string {
+		if ( null === $trusted ) {
+			$trusted = self::trusted_proxy_config();
+		}
+		$remote = isset( $server['REMOTE_ADDR'] ) && is_scalar( $server['REMOTE_ADDR'] )
 			? (string) $server['REMOTE_ADDR']
 			: 'unknown';
-		// REMOTE_ADDR (a nie X-Forwarded-For): nagłówek klienta jest
-		// podrabialny, więc dałby napastnikowi świeży licznik na żądanie.
+		$ip = $remote;
+
+		if ( array() !== $trusted['proxies'] && self::ip_matches_any( $remote, $trusted['proxies'] ) ) {
+			$header_key = 'HTTP_' . strtoupper( str_replace( '-', '_', $trusted['header'] ) );
+			if ( isset( $server[ $header_key ] ) && is_scalar( $server[ $header_key ] ) ) {
+				// Ostatni wpis = dopisany przez zaufane proxy (semantyka XFF:
+				// każdy hop dokleja adres, który WIDZIAŁ). Wcześniejsze wpisy
+				// pochodzą od klienta i są podrabialne — ignorujemy je.
+				$parts     = explode( ',', (string) $server[ $header_key ] );
+				$candidate = trim( (string) end( $parts ) );
+				if ( '' !== $candidate ) {
+					$ip = $candidate;
+				}
+			}
+		}
 		return md5( $ip );
+	}
+
+	/**
+	 * Konfiguracja zaufanego proxy ze stałych wp-config (brak stałych =
+	 * brak zaufania do nagłówków):
+	 *   - AVABLY_BOOKING_TRUSTED_PROXIES — lista adresów proxy po przecinku
+	 *     (IP lub prefiks IPv4 CIDR, np. '203.0.113.9, 173.245.48.0/20');
+	 *   - AVABLY_BOOKING_TRUSTED_PROXY_HEADER — nagłówek z adresem klienta
+	 *     (domyślnie X-Forwarded-For; CDN-y miewają własne pojedyncze).
+	 *
+	 * @return array{proxies:string[],header:string}
+	 */
+	public static function trusted_proxy_config(): array {
+		$proxies = array();
+		if ( defined( 'AVABLY_BOOKING_TRUSTED_PROXIES' ) && is_string( AVABLY_BOOKING_TRUSTED_PROXIES ) ) {
+			foreach ( explode( ',', AVABLY_BOOKING_TRUSTED_PROXIES ) as $entry ) {
+				$entry = trim( $entry );
+				if ( '' !== $entry ) {
+					$proxies[] = $entry;
+				}
+			}
+		}
+		$header = 'X-Forwarded-For';
+		if ( defined( 'AVABLY_BOOKING_TRUSTED_PROXY_HEADER' ) && is_string( AVABLY_BOOKING_TRUSTED_PROXY_HEADER )
+			&& '' !== trim( AVABLY_BOOKING_TRUSTED_PROXY_HEADER ) ) {
+			$header = trim( AVABLY_BOOKING_TRUSTED_PROXY_HEADER );
+		}
+		return array(
+			'proxies' => $proxies,
+			'header'  => $header,
+		);
+	}
+
+	/**
+	 * Czy adres pasuje do któregoś wpisu listy zaufanych proxy: dopasowanie
+	 * DOKŁADNE albo prefiks IPv4 CIDR. Wpis nierozpoznany (literówka) nie
+	 * pasuje do niczego — fail-closed w stronę REMOTE_ADDR.
+	 */
+	public static function ip_matches_any( string $ip, array $entries ): bool {
+		foreach ( $entries as $entry ) {
+			if ( ! is_string( $entry ) || '' === $entry ) {
+				continue;
+			}
+			if ( $ip === $entry ) {
+				return true;
+			}
+			if ( str_contains( $entry, '/' ) && self::ipv4_in_cidr( $ip, $entry ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Dopasowanie IPv4 do prefiksu CIDR (a.b.c.d/nn); śmieć => false. */
+	private static function ipv4_in_cidr( string $ip, string $cidr ): bool {
+		$split = explode( '/', $cidr, 2 );
+		if ( 2 !== count( $split ) ) {
+			return false;
+		}
+		list( $network, $bits_raw ) = $split;
+		if ( ! preg_match( '/^\d{1,2}$/', $bits_raw ) ) {
+			return false;
+		}
+		$bits = (int) $bits_raw;
+		if ( $bits > 32 ) {
+			return false;
+		}
+		$ip_long  = ip2long( $ip );
+		$net_long = ip2long( $network );
+		if ( false === $ip_long || false === $net_long ) {
+			return false;
+		}
+		$mask = 0 === $bits ? 0 : ( ~0 << ( 32 - $bits ) ) & 0xFFFFFFFF;
+		return ( $ip_long & $mask ) === ( $net_long & $mask );
 	}
 
 	/**
@@ -205,6 +358,120 @@ class Avably_Booking_Ajax {
 		return $days;
 	}
 
+	/**
+	 * Rozstrzyganie dostępności miesiąca ZAKRESAMI zamiast pętli per dzień
+	 * (R11, ADR-114). Publiczne API zwraca dla zakresu liczbę sztuk wolnych
+	 * przez CAŁY zakres — to DOLNE OGRANICZENIE dostępności każdego dnia
+	 * zakresu (sztuka wolna przez cały zakres jest wolna każdego dnia), więc
+	 * wynik > 0 wystarcza siatce kalendarza, która rozstrzyga po `> 0`.
+	 *
+	 * Algorytm: zapytaj o cały zakres; wynik > 0 => wszystkie dni dostają tę
+	 * wartość; wynik 0 na zakresie wielodniowym => podziel na pół i zapytaj
+	 * o połówki (0 na zakresie NIE przesądza o żadnym dniu z osobna — inna
+	 * sztuka może być zajęta każdego dnia). W pełni dostępny miesiąc kosztuje
+	 * 1 wywołanie; przy silnej fragmentacji pętlę tną budżet wywołań
+	 * i budżet czasu, a dni nierozstrzygnięte dostają ZACHOWAWCZE 0 (kalendarz
+	 * pokaże „zajęte", a krótki TTL cache'u szybko pozwoli na nową próbę).
+	 *
+	 * @param Avably_Booking_Api_Client $client      Klient API.
+	 * @param string                    $product_id  Produkt (UUID, zwalidowany).
+	 * @param string[]                  $days        CIĄGŁA lista dat ISO (month_days()).
+	 * @param int                       $call_budget Twardy sufit wywołań API.
+	 * @param float                     $deadline    Chwila zegara, po której nie wolno wołać dalej.
+	 * @param callable|null             $clock       Zegar (wstrzykiwany w testach); null = microtime(true).
+	 * @return array{days:array<string,int>, complete:bool, calls:int, failure:?array}
+	 */
+	public static function resolve_month_days( Avably_Booking_Api_Client $client, string $product_id, array $days, int $call_budget, float $deadline, ?callable $clock = null ): array {
+		if ( null === $clock ) {
+			$clock = static fn (): float => microtime( true );
+		}
+		// Zachowawczy punkt wyjścia: każdy dzień „zajęty", dopóki API nie
+		// powie inaczej. Dzień nierozstrzygnięty nigdy nie udaje wolnego.
+		$resolved = array_fill_keys( $days, 0 );
+		$count    = count( $days );
+		if ( 0 === $count ) {
+			return array(
+				'days'     => $resolved,
+				'complete' => true,
+				'calls'    => 0,
+				'failure'  => null,
+			);
+		}
+
+		$calls    = 0;
+		$complete = true;
+		$stack    = array( array( 0, $count - 1 ) );
+
+		while ( array() !== $stack ) {
+			if ( $calls >= $call_budget || $clock() >= $deadline ) {
+				// Budżet wywołań albo czasu wyczerpany: oddaj to, co masz —
+				// reszta zakresów zostaje przy zachowawczym 0.
+				$complete = false;
+				break;
+			}
+			list( $lo, $hi ) = array_pop( $stack );
+
+			$result = $client->get_availability( $product_id, $days[ $lo ], $days[ $hi ] );
+			$calls++;
+			if ( ! $result['ok'] ) {
+				// Pierwszy błąd przerywa rozstrzyganie — komunikat ogólny
+				// zamiast palenia limitu żądań na martwym kluczu/produkcie.
+				return array(
+					'days'     => $resolved,
+					'complete' => false,
+					'calls'    => $calls,
+					'failure'  => $result,
+				);
+			}
+			$picked = self::pick_availability( (array) $result['data'] );
+			$units  = $picked['available_units'];
+
+			if ( $units > 0 ) {
+				for ( $i = $lo; $i <= $hi; $i++ ) {
+					$resolved[ $days[ $i ] ] = $units;
+				}
+				continue;
+			}
+			if ( $lo === $hi ) {
+				continue; // Pojedynczy dzień: 0 jest wynikiem dokładnym.
+			}
+			$mid = intdiv( $lo + $hi, 2 );
+			// Lewa połówka na wierzch stosu — rozstrzyganie idzie od początku
+			// miesiąca, więc przy odcięciu budżetem zachowawcze 0 zostają na
+			// końcówce, nie na dniach najbliższych.
+			$stack[] = array( $mid + 1, $hi );
+			$stack[] = array( $lo, $mid );
+		}
+
+		return array(
+			'days'     => $resolved,
+			'complete' => $complete && array() === $stack,
+			'calls'    => $calls,
+			'failure'  => null,
+		);
+	}
+
+	/**
+	 * Wspólny hash stanu konfiguracji dla kluczy transientów miesiąca:
+	 * adres API i prefiks klucza MUSZĄ różnicować wpisy (zmiana ustawień nie
+	 * może serwować starych/cudzych danych), a md5 gwarantuje, że klucz
+	 * transientu nie niesie ani fragmentu konfiguracji, ani sekretu.
+	 */
+	private static function month_scope_hash( string $product_id, string $month, string $today ): string {
+		$settings = Avably_Booking_Settings::get();
+		return md5( $settings['api_url'] . '|' . $settings['key_prefix'] . '|' . $product_id . '|' . $month . '|' . $today );
+	}
+
+	/** Klucz cache'u miesiąca (publiczny: testy współbieżności go seedują). */
+	public static function month_cache_key( string $product_id, string $month, string $today ): string {
+		return 'avably_bk_m_' . self::month_scope_hash( $product_id, $month, $today );
+	}
+
+	/** Klucz wpisu-blokady „miesiąc w trakcie rozstrzygania". */
+	public static function month_lock_key( string $product_id, string $month, string $today ): string {
+		return 'avably_bk_mlk_' . self::month_scope_hash( $product_id, $month, $today );
+	}
+
 	// ------------------------------------------------------------------
 	// Handlery WP (nonce => parsery => klient => whitelist odpowiedzi).
 	// ------------------------------------------------------------------
@@ -212,6 +479,10 @@ class Avably_Booking_Ajax {
 	/** GET availability: dostępność zakresu dat dla produktu. */
 	public static function handle_availability(): void {
 		self::guard();
+		// Dławienie PRZED walidacją i przed dotknięciem API (R11) — jak przy
+		// rezerwacji: IP widziane przez nasze API to adres serwera WP, więc
+		// wtyczka musi liczyć sama.
+		self::enforce_rate_limit( 'avail', self::AVAILABILITY_RATE_LIMIT, self::AVAILABILITY_RATE_WINDOW );
 		$params = self::parse_availability_params( wp_unslash( $_GET ) );
 		if ( null === $params ) {
 			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'validation_failed' ) ), 400 );
@@ -225,39 +496,78 @@ class Avably_Booking_Ajax {
 		wp_send_json_success( self::pick_availability( (array) $result['data'] ) );
 	}
 
-	/** GET month: dostępność per dzień dla siatki kalendarza (cache transient). */
+	/**
+	 * GET month: dostępność per dzień dla siatki kalendarza.
+	 *
+	 * Konstrukcja R11 (ADR-114) — trzy zapory między odwiedzającym a API:
+	 *   1. dławienie per odwiedzający (przed czymkolwiek innym),
+	 *   2. cache miesiąca + wpis-blokada zakładana PRZED rozstrzyganiem
+	 *      (żądania współbieżne dostają odmowę tymczasową `busy` zamiast
+	 *      własnego przebiegu — front ponawia po chwili i trafia w cache),
+	 *   3. rozstrzyganie zakresami z budżetem wywołań i czasu
+	 *      (resolve_month_days) zamiast pętli per dzień.
+	 *
+	 * SEMANTYKA BLOKADY: get/set_transient nie jest atomowe, więc dwa żądania
+	 * mogą minąć się między odczytem a zapisem blokady i oba ruszyć. Blokada
+	 * łapie falę typową (żądania przychodzące PO założeniu wpisu — to one
+	 * robiły amplifikację ~300 wywołań przy 10 równoległych), nie doskonały
+	 * wyścig — koszt przegranej to jeden nadmiarowy przebieg, nie lawina.
+	 */
 	public static function handle_month(): void {
 		self::guard();
+		self::enforce_rate_limit( 'month', self::MONTH_RATE_LIMIT, self::MONTH_RATE_WINDOW );
 		$today  = current_time( 'Y-m-d' );
 		$params = self::parse_month_params( wp_unslash( $_GET ), $today );
 		if ( null === $params ) {
 			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'validation_failed' ) ), 400 );
 		}
 
-		$cache_key = 'avably_bk_m_' . md5( $params['product_id'] . '|' . $params['month'] . '|' . $today );
+		$cache_key = self::month_cache_key( $params['product_id'], $params['month'], $today );
 		$cached    = get_transient( $cache_key );
 		if ( is_array( $cached ) ) {
 			wp_send_json_success( $cached );
 		}
 
+		$lock_key = self::month_lock_key( $params['product_id'], $params['month'], $today );
+		if ( false !== get_transient( $lock_key ) ) {
+			// Ktoś inny właśnie rozstrzyga ten miesiąc — wynik za chwilę
+			// będzie w cache'u. Kod `busy` mówi frontowi „ponów cicho";
+			// komunikat (dla klienta bez ponowienia) bez szczegółów
+			// technicznych, jak każe bramka U1.
+			wp_send_json_error(
+				array(
+					'message' => Avably_Booking_Contract::error_message( 'rate_limited' ),
+					'code'    => 'busy',
+				),
+				429
+			);
+		}
+		set_transient( $lock_key, 1, self::MONTH_LOCK_TTL );
+
 		$client = Avably_Booking_Plugin::api_client();
-		$days   = array();
-		foreach ( self::month_days( $params['month'], $today ) as $day ) {
-			$result = $client->get_availability( $params['product_id'], $day, $day );
-			if ( ! $result['ok'] ) {
-				// Pierwszy błąd przerywa pętlę — komunikat ogólny zamiast
-				// palenia limitu żądań na martwym kluczu/produkcie.
-				self::send_api_error( $result );
-			}
-			$picked        = self::pick_availability( (array) $result['data'] );
-			$days[ $day ] = $picked['available_units'];
+		$result = self::resolve_month_days(
+			$client,
+			$params['product_id'],
+			self::month_days( $params['month'], $today ),
+			self::MONTH_API_CALL_BUDGET,
+			microtime( true ) + self::MONTH_TIME_BUDGET
+		);
+
+		if ( null !== $result['failure'] ) {
+			delete_transient( $lock_key );
+			self::send_api_error( $result['failure'] );
 		}
 
 		$payload = array(
 			'month' => $params['month'],
-			'days'  => $days,
+			'days'  => $result['days'],
 		);
-		set_transient( $cache_key, $payload, self::MONTH_CACHE_TTL );
+		set_transient(
+			$cache_key,
+			$payload,
+			$result['complete'] ? self::MONTH_CACHE_TTL : self::MONTH_DEGRADED_CACHE_TTL
+		);
+		delete_transient( $lock_key );
 		wp_send_json_success( $payload );
 	}
 
@@ -270,18 +580,7 @@ class Avably_Booking_Ajax {
 
 		// Dławienie PRZED walidacją i przed dotknięciem API — patrz stała
 		// RESERVE_RATE_LIMIT (IP widziane przez nasze API to adres serwera WP).
-		$bucket    = 'avably_bk_rl_' . self::visitor_bucket( $_SERVER );
-		$stored    = get_transient( $bucket );
-		$decision  = self::next_rate_state(
-			is_array( $stored ) ? $stored : null,
-			time(),
-			self::RESERVE_RATE_WINDOW,
-			self::RESERVE_RATE_LIMIT
-		);
-		set_transient( $bucket, $decision['state'], self::RESERVE_RATE_WINDOW );
-		if ( ! $decision['allowed'] ) {
-			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'rate_limited' ) ), 429 );
-		}
+		self::enforce_rate_limit( 'reserve', self::RESERVE_RATE_LIMIT, self::RESERVE_RATE_WINDOW );
 
 		$input     = wp_unslash( $_POST );
 		$locale    = str_starts_with( (string) get_locale(), 'pl' ) ? 'pl' : 'en';
@@ -311,6 +610,28 @@ class Avably_Booking_Ajax {
 	private static function guard(): void {
 		nocache_headers();
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
+	}
+
+	/**
+	 * Dławienie per odwiedzający i PER AKCJA (okno stałe, rdzeń w
+	 * next_rate_state). Osobne kubełki per akcja: najdroższa ścieżka (month)
+	 * nie może wyżerać budżetu rezerwacjom ani odwrotnie. Przekroczenie
+	 * limitu kończy żądanie ZANIM wtyczka dotknie API najemcy — komunikat
+	 * ogólny, bez nazw zmiennych i kluczy ustawień (bramka U1).
+	 */
+	private static function enforce_rate_limit( string $action, int $limit, int $window ): void {
+		$bucket   = 'avably_bk_rl_' . $action . '_' . self::visitor_bucket( $_SERVER );
+		$stored   = get_transient( $bucket );
+		$decision = self::next_rate_state(
+			is_array( $stored ) ? $stored : null,
+			time(),
+			$window,
+			$limit
+		);
+		set_transient( $bucket, $decision['state'], $window );
+		if ( ! $decision['allowed'] ) {
+			wp_send_json_error( array( 'message' => Avably_Booking_Contract::error_message( 'rate_limited' ) ), 429 );
+		}
 	}
 
 	/**

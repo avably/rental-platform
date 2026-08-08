@@ -180,11 +180,23 @@
 		return { grid: grid, status: status };
 	}
 
-	function loadMonth() {
+	function loadMonth(attempt) {
 		var shell = renderCalendarShell();
 		var monthStr = viewYear + '-' + pad(viewMonth + 1);
 		ajax('avably_booking_month', { product_id: productId, month: monthStr }, 'GET', function (err, json) {
 			if (err || !json || !json.success) {
+				// `busy`: serwer właśnie rozstrzyga ten miesiąc dla innego
+				// żądania (wpis-blokada) — wynik za chwilę będzie w cache'u.
+				// Ponawiamy cicho, zamiast pokazywać drugiemu odwiedzającemu
+				// komunikat błędu, na który nic nie poradzi.
+				var code = json && json.data && json.data.code;
+				if (code === 'busy' && (attempt || 0) < 2) {
+					shell.status.textContent = i18n.checking || '';
+					window.setTimeout(function () {
+						loadMonth((attempt || 0) + 1);
+					}, 1800);
+					return;
+				}
 				shell.status.textContent = (json && json.data && json.data.message) || i18n.genericError || '';
 				return;
 			}

@@ -32,6 +32,17 @@ class Avably_Booking_Api_Client {
 	/** Format daty ISO (YYYY-MM-DD) — bramka PRZED budową URL-a. */
 	public const ISO_DATE_PATTERN = '/^\d{4}-\d{2}-\d{2}$/';
 
+	/**
+	 * Timeouty transportu per typ ścieżki (R11, ADR-114): odczyty (katalog,
+	 * dostępność) są wołane przez kalendarz wielokrotnie — długi timeout
+	 * zamieniał wolne API w zajętego workera PHP (audyt: ~60 s na jedno
+	 * żądanie month). Zapis rezerwacji zostaje przy dłuższym timeoucie,
+	 * bo przerwanie w połowie zostawia klienta bez numeru zamówienia,
+	 * które mogło powstać.
+	 */
+	public const TIMEOUT_READ  = 5;
+	public const TIMEOUT_WRITE = 15;
+
 	/** Zamknięty zbiór ścieżek kontraktu v1 — jedyne, co klient umie wołać. */
 	private const PATH_CATALOG      = '/api/v1/catalog';
 	private const PATH_AVAILABILITY = '/api/v1/availability';
@@ -128,7 +139,8 @@ class Avably_Booking_Api_Client {
 		$args = array(
 			'method'  => $method,
 			'url'     => $url,
-			'timeout' => 15,
+			// Odczyt (GET) = krótki timeout; zapis (POST) = długi (R11).
+			'timeout' => 'POST' === $method ? self::TIMEOUT_WRITE : self::TIMEOUT_READ,
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $this->api_key,
 				'Accept'        => 'application/json',
