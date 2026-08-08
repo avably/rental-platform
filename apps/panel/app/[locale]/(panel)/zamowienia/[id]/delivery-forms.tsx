@@ -148,8 +148,12 @@ export function CancelShipmentButton({
   );
 }
 
-/** Stan dostępności wysyłki e-maili — przekazywany z serwera (ADR-033). */
-type EmailAvailabilityProp = { available: boolean; reason?: string };
+/**
+ * Stan dostępności wysyłki e-maili — przekazywany z serwera (ADR-033).
+ * Sam boolean (U1, audyt W3): powód niedostępności to wnętrzności platformy
+ * i nie schodzi do klienta — treść komunikatu daje słownik.
+ */
+type EmailAvailabilityProp = { available: boolean };
 
 /**
  * „Wyślij klientowi etykietę zwrotną e-mailem" — dla istniejącej przesyłki
@@ -179,9 +183,7 @@ export function SendReturnLabelButton({
         {t("sendReturnLabelCta")}
       </Button>
       {!emailAvailability.available ? (
-        <p className="text-muted-foreground text-xs">
-          {emailAvailability.reason ?? t("emailUnavailable")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("emailUnavailable")}</p>
       ) : null}
       <FormMessages state={state} successText={t("returnLabelSentOk")} />
     </form>
@@ -213,9 +215,7 @@ export function SendPickupReminderButton({
         {t("sendPickupReminderCta")}
       </Button>
       {!emailAvailability.available ? (
-        <p className="text-muted-foreground text-xs">
-          {emailAvailability.reason ?? t("emailUnavailable")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("emailUnavailable")}</p>
       ) : null}
       <FormMessages state={state} successText={t("pickupReminderSentOk")} />
     </form>

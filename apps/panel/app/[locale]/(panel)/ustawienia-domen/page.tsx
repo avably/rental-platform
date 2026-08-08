@@ -63,14 +63,14 @@ export default async function DomainSettingsPage() {
       <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
       <p className="text-muted-foreground text-sm">{t("intro")}</p>
 
-      {/* Powód braku konfiguracji schodzi do klienta ŚWIADOMIE: to komunikat
-          `VercelConfigError` (nazwy brakujących zmiennych), nigdy ich wartości
-          — bez niego przycisk ponowienia byłby wyszarzony bez wyjaśnienia. */}
+      {/* Powód braku konfiguracji (nazwy zmiennych z `VercelConfigError`)
+          NIE schodzi do klienta (U1, audyt W3): to sprawa platformy, a ekran
+          tłumaczy stan na neutralne zdania ze słownika. Wyjaśnienie przy
+          wyszarzonym przycisku ponowienia daje `retryUnavailable`. */}
       <DomainsPanel
         domains={domains}
         cnameTarget={CUSTOM_DOMAIN_CNAME_TARGET}
         registrationAvailable={availability.available}
-        registrationBlockedReason={availability.available ? null : (availability.reason ?? null)}
       />
     </FormMeasure>
   );

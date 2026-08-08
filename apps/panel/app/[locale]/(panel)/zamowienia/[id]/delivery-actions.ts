@@ -661,7 +661,11 @@ export async function sendReturnLabelEmailAction(
   // nie ściągamy etykiety, której i tak nie wyślemy.
   const availability = emailAvailability();
   if (!availability.available) {
-    return { formError: availability.reason ?? "Wysyłka e-maili jest niedostępna." };
+    // Neutralnie i bez powodu z serwera (U1, audyt W3): to sprawa platformy.
+    return {
+      formError:
+        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — spróbuj ponownie później.",
+    };
   }
 
   const { data: shipment } = await ctx.supabase
@@ -741,7 +745,11 @@ export async function sendPickupReturnReminderAction(
 
   const availability = emailAvailability();
   if (!availability.available) {
-    return { formError: availability.reason ?? "Wysyłka e-maili jest niedostępna." };
+    // Neutralnie i bez powodu z serwera (U1, audyt W3): to sprawa platformy.
+    return {
+      formError:
+        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — spróbuj ponownie później.",
+    };
   }
 
   const context = await loadReturnEmailContext(ctx, parsed.data.orderId);

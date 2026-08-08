@@ -1037,7 +1037,7 @@ color-scheme: light dark;
           <h3>Mapa statusów ekranów drugorzędnych</h3>
           <p>Semantyka korzysta z chipów sekcji 07, ale pozostaje osobnym kontraktem od statusów zamówień, płatności i wysyłek.</p>
           <pre class="code-surface" data-code-surface="secondary-status-map"><code>{
-  &quot;domain&quot;: { &quot;live&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;registration_failed&quot;: &quot;problem&quot; },
+  &quot;domain&quot;: { &quot;live&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;registration_failed&quot;: &quot;problem&quot;, &quot;awaiting_platform&quot;: &quot;attention&quot; },
   &quot;domain-provider&quot;: { &quot;available&quot;: &quot;positive&quot;, &quot;unavailable&quot;: &quot;attention&quot; },
   &quot;email-transport&quot;: { &quot;available&quot;: &quot;positive&quot;, &quot;unavailable&quot;: &quot;attention&quot; },
   &quot;email-sender&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
@@ -1081,6 +1081,13 @@ color-scheme: light dark;
                 <div class="secondary-card-title"><strong>demo-rental.example.invalid</strong><span class="chip chip-problem" data-secondary-status-axis="domain" data-secondary-status-value="registration_failed" data-tone="problem">Rejestracja nieudana</span></div>
                 <p>Adres platformowy · ostatni błąd: nie udało się zarejestrować hosta.</p>
                 <div class="secondary-actions"><button class="button-secondary" data-action="retry-registration">Ponów rejestrację</button></div>
+              </div>
+              <!-- U1 (audyt UX W3/6.6): subdomena zablokowana brakiem konfiguracji
+                   PLATFORMY nie jest porażką najemcy — osobny stan z tonem uwagi,
+                   bez sugerowania działań, których najemca nie może wykonać. -->
+              <div class="secondary-card" data-domain-kind="subdomain">
+                <div class="secondary-card-title"><strong>demo-rental.example.invalid</strong><span class="chip chip-attention" data-secondary-status-axis="domain" data-secondary-status-value="awaiting_platform" data-tone="attention">Czekamy na konfigurację platformy</span></div>
+                <p>Adres platformowy · zarejestruje się automatycznie, gdy ukończymy konfigurację po naszej stronie.</p>
               </div>
               <div class="secondary-card" data-domain-kind="custom">
                 <div class="secondary-card-title"><strong>sklep-demo.example.invalid</strong><span class="chip chip-attention" data-secondary-status-axis="domain" data-secondary-status-value="pending" data-tone="attention">Oczekuje na DNS</span></div>

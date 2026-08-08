@@ -373,9 +373,10 @@ export default async function OrderDetailPage({
           orderId={row.id}
           currentStatus={row.order_status}
           paymentStatus={row.payment_status}
-          // Liczone na serwerze: RESEND_API_KEY nie może trafić do klienta,
-          // a komponent potrzebuje wyłącznie odpowiedzi „czy i dlaczego nie".
-          emailAvailability={emailAvailability()}
+          // Liczone na serwerze: klucz transportu nie może trafić do klienta,
+          // a od U1 (audyt W3) nie schodzi też POWÓD — komponent dostaje samą
+          // odpowiedź „czy", treść komunikatu daje słownik.
+          emailAvailability={{ available: emailAvailability().available }}
         />
 
         {/* Ręczne wejście w rekoncyliację (L11, ADR-104). Widoczne WYŁĄCZNIE

@@ -382,7 +382,10 @@ describe("konto płatności najemcy (Z2, ADR-065)", () => {
 
       const state = await startOnboarding();
 
-      expect(state.formError).toContain(STRIPE_SECRET_KEY_ENV);
+      // U1 (audyt W3): powód dla najemcy jest neutralny — nazwa brakującej
+      // zmiennej zostaje w StripeConfigError (logi platformy), nie w formError.
+      expect(state.formError).toContain("niedostępne po stronie platformy");
+      expect(state.formError).not.toContain(STRIPE_SECRET_KEY_ENV);
       expect(fetchSpy, "próba wywołania dostawcy bez konfiguracji").not.toHaveBeenCalled();
       expect(accountOf(TENANT_A), "powstał wiersz konta bez konfiguracji").toBeUndefined();
     });

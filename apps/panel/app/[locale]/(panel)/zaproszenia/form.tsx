@@ -19,9 +19,12 @@ const initialState: InviteMemberState = {};
  * (ADR-036 D1), ale link trzeba będzie przekazać ręcznie.
  */
 export function InviteMemberForm({
-  emailUnavailableReason,
+  // Boolean, nie powód (U1, audyt W3): brak transportu to sprawa platformy,
+  // a surowy powód w propie zjeżdżałby do payloadu RSC — czyli do źródła
+  // strony najemcy. Treść ostrzeżenia w całości ze słownika.
+  emailUnavailable,
 }: {
-  emailUnavailableReason?: string;
+  emailUnavailable?: boolean;
 }) {
   const t = useTranslations("invitations");
   const [state, formAction, pending] = useActionState(inviteMemberAction, initialState);
@@ -34,10 +37,10 @@ export function InviteMemberForm({
 
   return (
     <>
-      {emailUnavailableReason ? (
+      {emailUnavailable ? (
         <ScreenSection
           data-email-warning
-          description={`${t("emailUnavailable")} ${emailUnavailableReason} ${t("emailUnavailableConsequence")}`}
+          description={`${t("emailUnavailable")} ${t("emailUnavailableConsequence")}`}
         />
       ) : null}
 

@@ -106,9 +106,12 @@ export async function startPaymentOnboardingAction(
 ): Promise<FormState> {
   const availability = stripeAvailability();
   if (!availability.available) {
-    // Powód schodzi do klienta ŚWIADOMIE: to komunikat `StripeConfigError`
-    // (nazwy brakujących zmiennych), nigdy ich wartości.
-    return { formError: availability.reason ?? "Płatności są niedostępne." };
+    // Neutralnie i bez powodu z serwera (U1, audyt W3): nazwy brakujących
+    // zmiennych to sprawa platformy, nie ekran najemcy.
+    return {
+      formError:
+        "Płatności online są chwilowo niedostępne po stronie platformy — spróbuj ponownie później.",
+    };
   }
 
   const ctx = await member();

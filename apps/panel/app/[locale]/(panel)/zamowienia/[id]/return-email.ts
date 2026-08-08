@@ -65,7 +65,13 @@ function resolveRecipient(
   customer: ReturnEmailCustomer | null,
   settings: TenantSettingRow[],
 ): { sender: EmailSender; email: string; name: string } | string {
-  if (!availability.available) return availability.reason ?? "Wysyłka e-maili jest niedostępna.";
+  if (!availability.available) {
+    // Powód z core jest od U1 neutralny; fallback trzyma to samo brzmienie.
+    return (
+      availability.reason ??
+      "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — pracujemy nad przywróceniem."
+    );
+  }
 
   const email = customer?.email;
   if (!email) {

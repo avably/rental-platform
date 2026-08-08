@@ -83,7 +83,6 @@ export default async function PaymentSettingsPage() {
         stage={stage}
         isOwner={ctx.role === "owner"}
         configAvailable={availability.available}
-        configBlockedReason={availability.available ? null : availability.reason}
       />
     </FormMeasure>
   );

@@ -19,6 +19,8 @@ import {
 } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { courierConfigSummaryPl } from "./courier-config-copy";
+
 /** Wiersz przesyłki dla UI — BEZ provider_order_hash (klucz do etykiety
  * zostaje server-side, ADR-031). */
 export interface ShipmentRow {
@@ -218,7 +220,12 @@ export async function loadCourierApi(
     const config = courierConfigFromSettings(data ?? [], secret.password);
     return { api: new GlobKurierAPI(config.credentials), config };
   } catch (err) {
-    if (err instanceof CourierConfigError) return { configError: err.message };
+    // Język najemcy zamiast nazw kluczy ustawień (U1, audyt W3): formError
+    // z akcji ląduje na ekranie, więc dostaje to samo tłumaczenie na wiadra,
+    // co sekcja dostawy. Surowa lista problemów zostaje w wyjątku silnika.
+    if (err instanceof CourierConfigError) {
+      return { configError: courierConfigSummaryPl(err.problems) };
+    }
     throw err;
   }
 }

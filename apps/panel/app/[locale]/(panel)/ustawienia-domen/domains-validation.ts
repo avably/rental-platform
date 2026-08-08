@@ -55,6 +55,23 @@ export function customDomainInputFromFormData(formData: FormData): { domain: unk
   return { domain: formData.get("domain") };
 }
 
+/**
+ * Czy `last_error` jest zapisem awarii KONFIGURACJI PLATFORMY (U1, audyt
+ * UX W3/6.6)? `VercelConfigError` ląduje w `domains.last_error` w brzmieniu
+ * technicznym (nazwy brakujących zmiennych z przestrzeni `AVABLY_…`) — to
+ * jest zapis dla operatora PLATFORMY. Ekran najemcy rozpoznaje go po tym
+ * markerze i pokazuje zamiast niego neutralne „czekamy na konfigurację po
+ * stronie platformy": taka porażka nie jest porażką najemcy i nie ma dla
+ * niego żadnej akcji do wykonania.
+ *
+ * Marker to prefiks NASZEJ przestrzeni zmiennych (patrz packages/core/src/
+ * vercel/config.ts) — komunikaty dostawcy domen go nie zawierają, więc
+ * prawdziwe błędy rejestracji przechodzą na ekran jak dotąd.
+ */
+export function isPlatformConfigNote(raw: string | null): boolean {
+  return raw !== null && /\bAVABLY_[A-Z0-9_]+/.test(raw);
+}
+
 /** Ile znaków powodu pokazujemy najemcy (reszta to i tak szum dostawcy). */
 const ERROR_DISPLAY_LIMIT = 180;
 

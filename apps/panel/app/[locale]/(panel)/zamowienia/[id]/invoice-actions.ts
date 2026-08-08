@@ -87,7 +87,9 @@ export async function sendInvoiceAction(
 
   const availability = emailAvailability();
   if (!availability.available) {
-    return { formError: availability.reason ?? t("errors.unavailable") };
+    // Neutralnie, ze słownika (U1, audyt W3): powód z serwera to sprawa
+    // platformy i nie schodzi na ekran najemcy.
+    return { formError: t("errors.unavailable") };
   }
 
   let ctx;

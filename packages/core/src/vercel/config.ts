@@ -104,8 +104,10 @@ function selfTargetProblem(projectId: string): string | null {
   const running = present(process.env[RUNNING_PROJECT_ENV]);
   if (!running || running !== projectId) return null;
 
-  // Bez WARTOŚCI id: komunikat idzie do `domains.last_error` i na ekran
-  // najemcy (page.tsx: nazwy zmiennych — nigdy ich wartości).
+  // Bez WARTOŚCI id: komunikat idzie do `domains.last_error` jako zapis dla
+  // operatora PLATFORMY. Na ekran najemcy NIE schodzi (U1, audyt UX W3):
+  // panel rozpoznaje zapis po prefiksie `AVABLY_` (isPlatformConfigNote)
+  // i pokazuje neutralne „czekamy na konfigurację po stronie platformy".
   return (
     `${STOREFRONT_PROJECT_ENV} wskazuje projekt, w którym biegnie panel ` +
     `(${RUNNING_PROJECT_ENV}) — hosty sklepów trafiłyby do panelu zamiast do storefrontu`

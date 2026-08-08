@@ -53,7 +53,16 @@ function resolveApiKey(options: EmailTransportOptions): string | undefined {
   return apiKey ? apiKey : undefined;
 }
 
-const NOT_CONFIGURED = "Wysyłka e-maili nie jest skonfigurowana (brak RESEND_API_KEY).";
+/**
+ * Powód niedostępności czytany przez NAJEMCĘ na ekranach panelu (U1, audyt
+ * UX W3): brak klucza transportu to sprawa PLATFORMY, więc komunikat jest
+ * neutralny — bez nazwy zmiennej (mapa infrastruktury dla napastnika, szum
+ * dla operatora wypożyczalni) i bez sugerowania najemcy działań, których
+ * nie może wykonać. Która zmienna gasi transport, mówi komentarz wyżej
+ * i `resolveApiKey` — miejsce dla operatora platformy, nie dla ekranu.
+ */
+const NOT_CONFIGURED =
+  "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — pracujemy nad przywróceniem.";
 
 /** Załącznik w kształcie API Resend: content zawsze jako base64. */
 function attachmentToPayload(attachment: EmailAttachment): {

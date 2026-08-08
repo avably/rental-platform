@@ -56,7 +56,7 @@
     "intro": "Nadawca wiadomości wysyłanych do klientów i zaproszonych oraz stan wysyłki. Adres wysyłki jest wspólny dla platformy — Ty personalizujesz nazwę i adres odpowiedzi.",
     "statusHeading": "Stan wysyłki",
     "transportAvailable": "System może wysyłać wiadomości transakcyjne.",
-    "transportUnavailable": "Transport e-maili: niedostępny.",
+    "transportUnavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — pracujemy nad przywróceniem. Nie wymaga to żadnych zmian po Twojej stronie; wiadomości ruszą, gdy wysyłka wróci.",
     "senderMissing": "Nadawca: nieustawiony — do czasu ustawienia nazwy wiadomości cyklu najmu nie wyjdą.",
     "formTitle": "Nadawca",
     "nameLabel": "Nazwa nadawcy (widoczna w polu Od)",
@@ -234,7 +234,7 @@
     "roleOwner": "Właściciel",
     "submit": "Wyślij zaproszenie",
     "submitPending": "Wysyłam…",
-    "emailUnavailable": "Wysyłka e-maili jest niedostępna:",
+    "emailUnavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy.",
     "emailUnavailableConsequence": "Zaproszenie utworzysz, ale link do niego trzeba będzie przekazać ręcznie.",
     "columnEmail": "E-mail",
     "columnRole": "Rola",
@@ -448,7 +448,7 @@
         "type": "Faktura musi być plikiem PDF.",
         "size": "Faktura może mieć najwyżej {limit} MB.",
         "noCustomerEmail": "Zamówienie nie ma adresu e-mail klienta — faktura nie została wysłana.",
-        "unavailable": "Wysyłka e-maili jest niedostępna.",
+        "unavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — spróbuj ponownie później.",
         "send": "Nie udało się wysłać faktury: {reason}"
       }
     },
@@ -661,8 +661,8 @@
         },
         "deliveryCost": "Koszt dostawy",
         "deliveryCostFree": "bezpłatnie",
-        "configMissing": "Konfiguracja kuriera jest niekompletna:",
-        "settingsLink": "Ustawienia dostaw",
+        "configMissing": "Zanim nadasz przesyłkę, uzupełnij w ustawieniach dostaw:",
+        "settingsLink": "Przejdź do ustawień dostaw",
         "notCourier": "Zamówienie nie ma dostawy kurierem — przesyłki są niedostępne.",
         "typeLabel": "Typ przesyłki",
         "lengthLabel": "Długość (cm)",
@@ -680,7 +680,7 @@
         "pickupReminderHint": "Wyślij klientowi przypomnienie o zwrocie sprzętu w punkcie odbioru.",
         "sendPickupReminderCta": "Wyślij przypomnienie o zwrocie",
         "pickupReminderSentOk": "Przypomnienie o zwrocie wysłane do klienta.",
-        "emailUnavailable": "Wysyłka e-maili jest niedostępna — skonfiguruj ją, aby wysyłać wiadomości.",
+        "emailUnavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — przycisk zadziała, gdy ją przywrócimy.",
         "modalTitle": "Potwierdź etykietę wysyłkową",
         "modalDescription": "Sprawdź dane, wybierz przewoźnika i utwórz przesyłkę.",
         "sizeSection": "Rozmiar paczki",
@@ -730,7 +730,13 @@
         "cancelShipmentQuestion": "Przesyłka {number} zostanie anulowana u przewoźnika. Tej operacji nie da się cofnąć.",
         "cancelShipmentConfirm": "Tak, anuluj u przewoźnika",
         "cancelShipmentAbort": "Nie, zostaw",
-        "shipmentCancelledOk": "Przesyłka anulowana u przewoźnika."
+        "shipmentCancelledOk": "Przesyłka anulowana u przewoźnika.",
+        "configItems": {
+          "integrationAccount": "konto integracji kuriera (e-mail, hasło i środowisko)",
+          "sender": "dane nadawcy przesyłki",
+          "parcel": "domyślne wymiary i wagę paczki",
+          "other": "pozostałe ustawienia dostaw"
+        }
       },
       "settings": {
         "title": "Ustawienia dostaw",
@@ -821,7 +827,7 @@
       "changeStatusPlaceholder": "Zmień status…",
       "statusChanging": "Zmieniam status…",
       "cancelBlockedHint": "Anulowanie zablokowane — płatność wymaga rozliczenia (zwrotu) przed anulowaniem.",
-      "sendEmailUnavailable": "Wysyłka e-maili nie jest skonfigurowana — klient nie dostanie powiadomienia.",
+      "sendEmailUnavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — klient nie dostanie teraz powiadomienia.",
       "emailPromptTitle": "Powiadomić klienta?",
       "emailPromptBody": "Status zamówienia został zmieniony na „{status}”. Czy wysłać klientowi wiadomość o tej zmianie?",
       "emailPromptUndoNote": "Wiadomość wyjdzie dopiero po {seconds} s — przez ten czas można wysyłkę anulować.",
@@ -1794,14 +1800,14 @@
   "domainSettings": {
     "title": "Domeny sklepu",
     "intro": "Adresy, pod którymi działa Twój sklep. Subdomenę na naszej domenie dostajesz automatycznie przy zakładaniu organizacji. Własną domenę możesz dodać poniżej — wymaga wpisania jednego rekordu u Twojego rejestratora.",
-    "registrationUnavailable": "Dodane adresy nie zaczną działać, dopóki konfiguracja nie zostanie uzupełniona.",
+    "registrationUnavailable": "Rejestracja adresów jest chwilowo niedostępna po stronie platformy. Pracujemy nad tym — nie musisz nic robić; dodane adresy zaczną działać, gdy ją przywrócimy.",
     "listHeading": "Adresy sklepu",
     "emptyState": "Nie masz jeszcze żadnego adresu sklepu. Subdomena powstaje razem z organizacją — jeśli jej nie ma, utwórz ją i zarejestruj poniżej.",
     "retryCta": "Ponów rejestrację adresu",
     "retryOk": "Adres zarejestrowany — sklep działa pod tym adresem.",
     "retryFailed": "Ponowienie nie powiodło się:",
     "retryContactFallback": "Jeśli powtórzy się przy kolejnej próbie, napisz do nas.",
-    "retryUnavailable": "Rejestracja adresów jest teraz niedostępna:",
+    "retryUnavailable": "Ponowienie będzie możliwe, gdy przywrócimy rejestrację adresów po naszej stronie — nie musisz nic robić.",
     "kindSubdomain": "Subdomena platformy — działa od razu, nie wymaga konfiguracji DNS.",
     "kindCustom": "Domena własna — działa po potwierdzeniu rekordu DNS.",
     "lastErrorLabel": "Ostatni błąd:",
@@ -1822,7 +1828,8 @@
     "addedOk": "Domena dodana. Wpisz rekord DNS, a potem kliknij „Sprawdź weryfikację”.",
     "backLink": "Panel",
     "providerTitle": "Rejestracja hostów",
-    "providerAvailable": "Można rejestrować i ponawiać adresy sklepu."
+    "providerAvailable": "Można rejestrować i ponawiać adresy sklepu.",
+    "platformPending": "Czekamy na konfigurację po stronie platformy — Twój adres zarejestruje się automatycznie, gdy ją ukończymy."
   },
   "apiSettings": {
     "backLink": "Panel",
@@ -1909,7 +1916,8 @@
     "domain": {
       "live": "Aktywna",
       "pending": "Oczekuje na DNS",
-      "registration_failed": "Rejestracja nieudana"
+      "registration_failed": "Rejestracja nieudana",
+      "awaiting_platform": "Czekamy na konfigurację platformy"
     },
     "domain-provider": {
       "available": "Dostępna",
@@ -1976,7 +1984,7 @@
     "refreshOk": "Stan konta odczytany u dostawcy.",
     "refreshFailed": "Nie udało się odczytać stanu konta:",
     "disconnectCta": "Odłącz konto",
-    "unavailable": "Płatności online są teraz niedostępne:",
+    "unavailable": "Płatności online są chwilowo niedostępne po stronie platformy. Pracujemy nad tym — nie musisz nic robić.",
     "ownerOnly": "Konto płatności może podpiąć wyłącznie właściciel organizacji.",
     "chargesLabel": "Przyjmowanie płatności",
     "payoutsLabel": "Wypłaty na Twoje konto",

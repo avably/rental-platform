@@ -58,7 +58,7 @@ let sendEmail: ReturnType<typeof vi.fn>;
 type MountOptions = {
   currentStatus?: "pending" | "reserved" | "ready_for_pickup" | "picked_up";
   paymentStatus?: "unpaid" | "paid";
-  emailAvailability?: { available: boolean; reason?: string };
+  emailAvailability?: { available: boolean };
 };
 
 function mount(options: MountOptions = {}) {
@@ -210,10 +210,10 @@ describe("decyzja o wiadomości — status nie czeka na odpowiedź (ADR-075)", (
   });
 
   it("niedostępna wysyłka: pytania nie ma, a powód stoi na ekranie", async () => {
-    mount({
-      emailAvailability: { available: false, reason: "Brak klucza dostawcy poczty." },
-    });
-    expect(screen.getByText("Brak klucza dostawcy poczty.")).toBeTruthy();
+    mount({ emailAvailability: { available: false } });
+    // U1 (audyt W3): komunikat w całości ze słownika — neutralny, bez
+    // powodu z serwera (nazw zmiennych platformy).
+    expect(screen.getByText(detail.sendEmailUnavailable)).toBeTruthy();
 
     await pickStatus(statusLabels.ready_for_pickup);
     expect(changeStatus).toHaveBeenCalledTimes(1);
