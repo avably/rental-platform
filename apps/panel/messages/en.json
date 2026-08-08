@@ -400,6 +400,54 @@
       "title": "Empty warehouse. Add your first product."
     }
   },
+  "catalogImport": {
+    "entry": "Import from CSV",
+    "backLink": "Catalog",
+    "title": "Import catalog from CSV",
+    "intro": "Upload a file in the catalog export format (the same columns). You will see a preview of the changes first — nothing is saved until you confirm.",
+    "filePrompt": "Drag a CSV file here or click to choose one",
+    "fileHint": "Format matches the catalog export. Rows with an empty product_id create new products.",
+    "fileRemove": "Remove file",
+    "previewButton": "Show preview",
+    "confirmButton": "Import",
+    "backToCatalog": "Back to catalog",
+    "summaryTitle": "Import preview",
+    "summaryRows": "Data rows in the file: {count}",
+    "summaryCreated": "New products: {count}",
+    "summaryUpdated": "Updated products: {count}",
+    "summaryTiers": "Pricing tiers after import: {count}",
+    "summaryNote": "Products missing from the file stay untouched. Tiers of products present in the file are replaced with the set from the file.",
+    "issuesTitle": "Errors in the file — import on hold",
+    "issueRow": "Row {row}",
+    "done": {
+      "title": "Import finished",
+      "created": "Products created: {count}",
+      "updated": "Products updated: {count}",
+      "tiers": "Pricing tiers saved: {count}"
+    },
+    "errors": {
+      "noFile": "Choose a CSV file.",
+      "badType": "This does not look like a CSV file — choose a file with the .csv extension.",
+      "tooLarge": "The file is too large (limit {mb} MB).",
+      "limit": "The file exceeds the limit of {limit} rows — split it into smaller parts.",
+      "empty": "The file contains no data rows.",
+      "server": "Saving failed. The catalog was left unchanged."
+    },
+    "codes": {
+      "missingColumn": "missing required column {column}",
+      "columnCount": "wrong number of fields in the row",
+      "badInteger": "column {column}: an integer is required, got {value}",
+      "notPositive": "column {column}: the value must be greater than zero",
+      "badDecimal": "column {column}: invalid number, got {value}",
+      "badBoolean": "column {column}: allowed values are true, false, 1 or 0",
+      "badUuid": "column {column}: this is not a valid product identifier",
+      "emptyName": "empty product name",
+      "nameTooLong": "product name exceeds 200 characters",
+      "tierIncomplete": "incomplete pricing tier: missing value in column {column}",
+      "duplicateTierDays": "duplicate {value}-day tier for the same product",
+      "unknownProduct": "product with identifier {value} does not exist in your catalog"
+    }
+  },
   "orders": {
     "contract": {
       "title": "Rental agreement",

@@ -389,9 +389,9 @@ export function parseCatalogCsv(text: string): CatalogImportParseResult {
     } else {
       // Nowy produkt: sąsiedni wiersz (bez dziury) z identyczną nazwą dokleja
       // próg do poprzedniej grupy; wszystko inne otwiera nową.
-      const adjacent =
+      const adjacent: boolean =
         lastNewProduct !== null && row.row === lastRowNumber + 1 && lastNewProduct.name === row.name;
-      const product = adjacent ? lastNewProduct! : startGroup(row);
+      const product: CatalogImportProduct = adjacent ? lastNewProduct! : startGroup(row);
       appendRow(product, row);
       lastNewProduct = product;
     }

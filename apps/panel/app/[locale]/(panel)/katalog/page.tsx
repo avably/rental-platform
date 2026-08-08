@@ -31,6 +31,7 @@ export default async function CatalogPage() {
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("catalog.list");
+  const tImport = await getTranslations("catalogImport");
 
   const rows = ((products ?? []) as ProductRow[]).map(
     (product): ProductsTableRow => ({
@@ -47,9 +48,15 @@ export default async function CatalogPage() {
     <div className="flex flex-col gap-4">
       {/* Punkty odbioru wyprowadzone do Dostaw (2026-08-04): katalog opisuje
           SPRZĘT, a punkt odbioru jest sposobem jego wydania — stoi więc obok
-          kuriera i paczkomatu. Katalogowi zostaje jedna akcja. */}
+          kuriera i paczkomatu. Import CSV (C3, ADR-112) wraca tu jako druga
+          akcja ŚWIADOMIE: to operacja NA katalogu (hurtowa edycja cennika),
+          nie na jego otoczeniu — a wejście przyciskiem zamiast pozycją
+          w nawigacji utrzymuje kontrakt struktury grup z artefaktu Fazy 2. */}
       <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-3">
+          <Button asChild variant="secondary">
+            <Link href="/katalog/import">{tImport("entry")}</Link>
+          </Button>
           <Button asChild>
             <Link href="/katalog/nowy">{t("newProduct")}</Link>
           </Button>
