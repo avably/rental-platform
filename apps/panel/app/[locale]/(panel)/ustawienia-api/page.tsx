@@ -8,13 +8,13 @@
  * Daty formatowane na serwerze (locale operatora), surowy klucz nigdy nie
  * przechodzi przez ten plik — istnieje tylko w odpowiedzi akcji generującej.
  */
-import { tenantSubdomainHost } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
+import { apiBaseUrlForSlug } from "@/lib/wordpress/api-base-url";
 import {
   WORDPRESS_PLUGIN_FILENAME,
   WORDPRESS_PLUGIN_VERSION,
@@ -55,15 +55,15 @@ export default async function ApiSettingsPage() {
   }));
 
   // Baza adresowa API = host subdomeny sklepu (informacyjnie; API działa na
-  // każdym hoście storefrontu tego najemcy).
+  // każdym hoście storefrontu tego najemcy). BEZ ścieżki kontraktu /api/v1/ —
+  // wtyczka dokleja ją sama, a baza z sufiksem prowadziła operatora do
+  // /api/v1/api/v1/ i 404 (recenzja PM #212); ścieżkę nazywa osobno karta.
   const { data: tenant } = await ctx.supabase
     .from("tenants")
     .select("slug")
     .eq("id", ctx.tenantId)
     .maybeSingle();
-  const apiBaseUrl = tenant?.slug
-    ? `https://${tenantSubdomainHost(tenant.slug as string)}/api/v1/`
-    : null;
+  const apiBaseUrl = tenant?.slug ? apiBaseUrlForSlug(tenant.slug as string) : null;
 
   return (
     <FormMeasure className="flex flex-col gap-4">

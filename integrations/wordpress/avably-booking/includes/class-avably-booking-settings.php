@@ -106,6 +106,7 @@ class Avably_Booking_Settings {
 
 		$api_url = isset( $raw['api_url'] ) && is_scalar( $raw['api_url'] ) ? trim( (string) $raw['api_url'] ) : '';
 		$api_url = rtrim( $api_url, '/' );
+		$api_url = self::strip_contract_suffix( $api_url );
 		if ( '' === $api_url ) {
 			$api_url = self::DEFAULT_API_URL;
 		} elseif ( ! preg_match( '#^https?://[^\s]+$#i', $api_url ) ) {
@@ -140,6 +141,28 @@ class Avably_Booking_Settings {
 			),
 			'error'    => $error,
 		);
+	}
+
+	/**
+	 * Zdejmuje z końca adresu sufiks ścieżki kontraktu `/api/v1` (z ukośnikiem
+	 * i bez, niezależnie od wielkości liter), zachowując resztę ścieżki.
+	 *
+	 * Operator kopiuje bywa adres z karty „Publiczne API rezerwacji” w panelu
+	 * — a klient API (`Avably_Booking_Api_Client::PATH_*`) dokleja `/api/v1/…`
+	 * SAM. Baza z sufiksem dawała `/api/v1/api/v1/catalog` → 404 → komunikat
+	 * „Rezerwacja online jest chwilowo niedostępna” i mylącą diagnozę klucza.
+	 * Pętla łapie także adres wklejony dwukrotnie; wynik, który przestałby
+	 * być URL-em http(s), zostaje nietknięty (np. `https://api/v1`).
+	 */
+	public static function strip_contract_suffix( string $api_url ): string {
+		while ( preg_match( '#^(.*?)/api/v1/?$#i', $api_url, $match ) ) {
+			$candidate = rtrim( $match[1], '/' );
+			if ( ! preg_match( '#^https?://[^\s]+$#i', $candidate ) ) {
+				break;
+			}
+			$api_url = $candidate;
+		}
+		return $api_url;
 	}
 
 	/** Host z URL-a (bez portu, lowercase); pusty gdy nie da się wyłuskać. */

@@ -71,6 +71,51 @@ final class SettingsTest extends TestCase {
 	}
 
 	/**
+	 * Operator kopiuje bywa adres z karty panelu — historycznie z sufiksem
+	 * kontraktu `/api/v1/`. Klient API dokleja tę ścieżkę SAM, więc baza z
+	 * sufiksem dawała `/api/v1/api/v1/catalog` → 404 → mylącą diagnozę
+	 * „nieprawidłowy klucz”. Sanitizer zdejmuje sufiks (z ukośnikiem i bez),
+	 * zachowując resztę ścieżki.
+	 */
+	public function test_api_url_strips_contract_suffix(): void {
+		$cases = [
+			'https://sklep.avably.io/api/v1/'              => 'https://sklep.avably.io',
+			'https://sklep.avably.io/api/v1'               => 'https://sklep.avably.io',
+			'https://sklep.example.com/podkatalog/api/v1/' => 'https://sklep.example.com/podkatalog',
+			'https://sklep.avably.io/API/V1/'              => 'https://sklep.avably.io',
+			// Wklejone dwa razy (zdarza się przy sklejaniu z instrukcji).
+			'https://sklep.avably.io/api/v1/api/v1'        => 'https://sklep.avably.io',
+		];
+		foreach ( $cases as $input => $expected ) {
+			$result = Avably_Booking_Settings::sanitize_input(
+				[ 'api_url' => $input ],
+				$this->current()
+			);
+			$this->assertNull( $result['error'], $input );
+			$this->assertSame( $expected, $result['settings']['api_url'], $input );
+		}
+	}
+
+	/** Adres już poprawny przechodzi bez zmian (idempotencja normalizacji). */
+	public function test_api_url_without_suffix_is_untouched(): void {
+		$cases = [
+			'https://sklep.avably.io',
+			'https://sklep.example.com/podkatalog',
+			// `/api` i `/v1` osobno to NIE sufiks kontraktu — zostają.
+			'https://sklep.example.com/api',
+			'https://sklep.example.com/v1',
+		];
+		foreach ( $cases as $url ) {
+			$result = Avably_Booking_Settings::sanitize_input(
+				[ 'api_url' => $url ],
+				$this->current()
+			);
+			$this->assertNull( $result['error'], $url );
+			$this->assertSame( $url, $result['settings']['api_url'], $url );
+		}
+	}
+
+	/**
 	 * SSRF: pole URL-a zapisuje admin, ale przejęte konto admina nie ma
 	 * zamieniać server-side fetcha wtyczki w skaner sieci wewnętrznej ani
 	 * czytnik metadanych chmury. Bramka odrzuca hosty prywatne/loopback

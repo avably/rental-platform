@@ -23,6 +23,7 @@ import { useActionState } from "react";
 import { ConfirmSubmit } from "@/components/forms/confirm-submit";
 import { ScreenSection } from "@/components/screens/screen-header";
 import type { FormState } from "@/lib/form-state";
+import { API_CONTRACT_PATH } from "@/lib/wordpress/api-base-url";
 
 import { generateApiKeyAction, revokeApiKeyAction, type GeneratedKeyState } from "./api-keys-actions";
 import { WordPressGuide } from "./wordpress-guide";
@@ -170,7 +171,11 @@ export function ApiKeysPanel({
             {apiBaseUrl && (
               <>
                 {" "}
-                {t("baseUrlLabel")} <code className="font-sans text-[13px]">{apiBaseUrl}</code>
+                {/* Adres bazowy BEZ ścieżki kontraktu (wtyczka dokleja ją
+                    sama — recenzja PM #212); ścieżka nazwana OSOBNO, z tej
+                    samej stałej, którą przypina test kontraktu adresu. */}
+                {t("baseUrlLabel")} <code className="font-sans text-[13px]">{apiBaseUrl}</code>{" "}
+                {t("baseUrlPathNote", { path: API_CONTRACT_PATH })}
               </>
             )}
           </>
