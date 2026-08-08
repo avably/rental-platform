@@ -227,6 +227,26 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "metadane po tenant_id, order_id i document_id, a RLS tabeli i Storage " +
       "niezależnie blokują cudzy dokument. Przed odpowiedzią weryfikuje SHA-256.",
   ],
+  [
+    "/eksport-danych/zamowienia",
+    "Eksport CSV zamówień (C2, ADR-111) — CHRONIONY SESJĄ: handler woła " +
+      "requireMember() PRZED odczytem formularza (anonim dostaje 401 zanim " +
+      "cokolwiek się policzy), rdzeń filtruje po tenant_id niezależnie od RLS " +
+      "(dowód mutacyjny M1), a POST zamiast GET trzyma parametry poza URL-em.",
+  ],
+  [
+    "/eksport-danych/klienci",
+    "Eksport CSV klientów (C2, ADR-111) — CHRONIONY SESJĄ WŁAŚCICIELA: " +
+      "hurtowy zrzut danych osobowych, więc requireMember(\"owner\") w " +
+      "handlerze ORAZ autorytatywna bramka roli w rdzeniu eksportu " +
+      "(lib/export/customers, dowód mutacyjny M3); staff dostaje 403.",
+  ],
+  [
+    "/eksport-danych/katalog",
+    "Eksport CSV katalogu (C2, ADR-111) — CHRONIONY SESJĄ: requireMember() " +
+      "przed jakąkolwiek pracą, rdzeń filtruje po tenant_id niezależnie od " +
+      "RLS; zbiór nie zawiera danych osobowych (produkty i progi cenowe).",
+  ],
 ]);
 
 const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");

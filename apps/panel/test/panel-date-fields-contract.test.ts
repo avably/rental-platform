@@ -102,6 +102,9 @@ describe("kontrakt pól daty — wszystkie ekrany tenanta", () => {
     const users = sources.filter((file) => /DateField|DateRangeField/.test(file.code));
     expect(users.map((file) => file.path.split("/").at(-1)!).sort()).toEqual([
       "date-fields.tsx",
+      // Zakres dat eksportu zamówień (C2, ADR-111) — ukryte pola date_from/
+      // date_to w ciele POST route handlera eksportu.
+      "export-orders-range.tsx",
       "extension-form.tsx",
       "orders-date-filter.tsx",
       "term-calendar.tsx",

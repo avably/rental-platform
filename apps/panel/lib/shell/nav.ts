@@ -142,6 +142,9 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   // jest kontraktem 1:1 z artefaktem Fazy 2 (panel-nav-contract), a ekran
   // kluczy nie ma tam pozycji. Wejście: link z ekranu organizacji.
   { path: "/ustawienia-api", labelKey: "apiKeys" },
+  // Eksport danych (C2, ADR-111) — jak klucze API: ekran spoza grup
+  // nawigacji, wejście z ekranu organizacji.
+  { path: "/eksport-danych", labelKey: "dataExport" },
 ] as const;
 
 /**
