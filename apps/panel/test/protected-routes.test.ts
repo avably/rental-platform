@@ -160,6 +160,17 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "Klient service_role pozostaje wyłącznie w src/jobs/**.",
   ],
   [
+    "/api/jobs/payment-reconciliation",
+    "Rekoncyliacja płatności utkniętych w pending (L11, ADR-104) — endpoint " +
+      "nie używa sesji operatora, bo wywołuje go harmonogram. Chroni go " +
+      "Authorization: Bearer porównywany stałoczasowo z CRON_SECRET (brak " +
+      "sekretu → 503, zły/brak nagłówka → 401), a każdy przypadek negatywny " +
+      "jest dowiedziony BRAKIEM WYWOŁANIA rdzenia, nie samym kodem odpowiedzi " +
+      "(payment-reconciliation-route.test.ts). Klient service_role pozostaje " +
+      "wyłącznie w src/jobs/**; stan zapisywany wyłącznie z odczytu u dostawcy, " +
+      "kontem connected właściciela zamówienia.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +
