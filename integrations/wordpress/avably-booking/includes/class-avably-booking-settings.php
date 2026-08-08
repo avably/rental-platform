@@ -149,18 +149,74 @@ class Avably_Booking_Settings {
 	}
 
 	/**
+	 * Czy host WYGLĄDA na zapis liczbowy adresu (a nie na nazwę domeny).
+	 *
+	 * Wszystkie segmenty muszą być w całości liczbowe — dziesiętne albo
+	 * szesnastkowe z prefiksem `0x`. Nazwa domeny z literami (nawet
+	 * `cafe.example`) nie spełnia tego warunku, bo segment `example` nie jest
+	 * liczbą; dzięki temu bramka nie blokuje legalnych domen.
+	 */
+	public static function looks_numeric_host( string $host ): bool {
+		if ( '' === $host ) {
+			return false;
+		}
+		foreach ( explode( '.', $host ) as $segment ) {
+			if ( ! preg_match( '/^(0[xX][0-9a-fA-F]+|[0-9]+)$/', $segment ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Czy host jest KANONICZNYM adresem IPv4: dokładnie cztery segmenty
+	 * dziesiętne 0-255 BEZ wiodących zer.
+	 *
+	 * Wiodące zero jest tu sednem: `0177.0.0.1` to dla biblioteki sieciowej
+	 * (inet_aton, a więc i cURL) ósemkowe 127.0.0.1, ale dla
+	 * `filter_var(FILTER_VALIDATE_IP)` — śmieć. Rozjazd tych dwóch
+	 * interpretacji jest klasycznym bypassem filtrów SSRF.
+	 */
+	public static function is_canonical_ipv4( string $host ): bool {
+		$segments = explode( '.', $host );
+		if ( 4 !== count( $segments ) ) {
+			return false;
+		}
+		foreach ( $segments as $segment ) {
+			// `0` wolno; `00`, `0177`, `010` już nie.
+			if ( ! preg_match( '/^(0|[1-9][0-9]{0,2})$/', $segment ) ) {
+				return false;
+			}
+			if ( (int) $segment > 255 ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Czy host jest prywatny/loopback/link-local — bramka anty-SSRF.
 	 *
 	 * Rozstrzyga na LITERALNYM hoście z konfiguracji (bez resolucji DNS):
 	 * pełna obrona przed DNS rebinding wymagałaby sprawdzania adresu przy
 	 * KAŻDYM żądaniu — świadomie poza zakresem iteracji 1 (patrz ADR-110),
 	 * bo wektor wymaga już przejętego konta administratora.
+	 *
+	 * ZAPISY LICZBOWE (recenzja PM #212): adres da się zapisać na wiele
+	 * sposobów, które biblioteka sieciowa rozwinie do tego samego IP, a
+	 * naiwny filtr przepuści — ósemkowo (`0177.0.0.1`), szesnastkowo
+	 * (`0x7f.0.0.1`), dziesiętnie w jednej liczbie (`2130706433`) albo w
+	 * formie skróconej (`127.1`). Dlatego bramka NIE próbuje rozumieć tych
+	 * wariantów: dopuszcza WYŁĄCZNIE kanoniczny zapis dziesiętny, a każdy
+	 * inny zapis liczbowy odrzuca w całości. Lista bypassów bywa dłuższa niż
+	 * wyobraźnia autora filtra — zamknięty zbiór dozwolonych form jest
+	 * odporny także na te, których tu nie wymieniono.
 	 */
 	public static function is_private_host( string $host ): bool {
 		if ( '' === $host ) {
 			return true;
 		}
-		$host = trim( $host, '[]' );
+		$host = strtolower( trim( $host, '[]' ) );
 		if ( 'localhost' === $host || str_ends_with( $host, '.localhost' ) ) {
 			return true;
 		}
@@ -173,11 +229,20 @@ class Avably_Booking_Settings {
 		if ( 'host.docker.internal' === $host ) {
 			return true;
 		}
+		// IPv6 z osadzonym IPv4 (`::ffff:127.0.0.1`) — o przynależności
+		// rozstrzyga część IPv4, której flagi filter_var dla IPv6 nie badają.
+		if ( str_contains( $host, ':' ) && preg_match( '/((?:[0-9a-fx]+\.){1,3}[0-9a-fx]+)$/', $host, $match ) ) {
+			return self::is_private_host( $match[1] );
+		}
 		// IPv6 loopback / unique-local / link-local.
 		if ( '::1' === $host || preg_match( '/^(fc|fd|fe80)/i', $host ) ) {
 			return true;
 		}
-		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+		if ( self::looks_numeric_host( $host ) ) {
+			// Zapis liczbowy inny niż kanoniczny dotted-quad = odmowa.
+			if ( ! self::is_canonical_ipv4( $host ) ) {
+				return true;
+			}
 			// Adresy publiczne przechodzą; prywatne i zarezerwowane (w tym
 			// 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16) odpadają.
 			return false === filter_var(

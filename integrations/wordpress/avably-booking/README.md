@@ -95,6 +95,11 @@ otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
    Wtyczka ogranicza szkody: pole URL API odrzuca adresy prywatne i loopback
    (żeby przejęty admin nie zamienił serwera w skaner sieci wewnętrznej), a
    klucz nigdy nie wraca do formularza, więc nie da się go „podejrzeć" w HTML-u.
+   Bramka adresu nie daje się obejść nietypowym zapisem liczbowym: dopuszczamy
+   wyłącznie kanoniczny zapis dziesiętny (`203.0.113.10`), więc odpadają formy
+   ósemkowe (`0177.0.0.1`), szesnastkowe (`0x7f.0.0.1`), jednoliczbowe
+   (`2130706433`), skrócone (`127.1`), z wiodącymi zerami (`192.168.001.001`)
+   oraz IPv4 osadzone w IPv6 (`::ffff:127.0.0.1`).
 4. **Dane rezerwującego są przelotem.** Imię, e-mail i telefon lecą wyłącznie
    do API Avably. Wtyczka nie zapisuje ich w bazie WordPressa ani w logach —
    wyciek z bazy WP nie ujawni danych Twoich klientów, bo ich tam nie ma.
@@ -117,9 +122,10 @@ otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
 - każda treść z API renderowana przez `esc_html`/`esc_attr` (PHP) lub
   `textContent` (JS),
 - błędy API mapowane na komunikaty bez szczegółów technicznych;
-- pole „URL API" odrzuca adresy prywatne/loopback (anty-SSRF). W środowisku
-  deweloperskim, gdzie API stoi pod adresem lokalnym, dopuść je jawnie w
-  `wp-config.php`:
+- pole „URL API" odrzuca adresy prywatne/loopback we wszystkich formach zapisu
+  (dziesiętnej, ósemkowej, szesnastkowej, skróconej i IPv4-w-IPv6) — anty-SSRF.
+  W środowisku deweloperskim, gdzie API stoi pod adresem lokalnym, dopuść je
+  jawnie w `wp-config.php`:
 
   ```php
   define( 'AVABLY_BOOKING_ALLOW_PRIVATE_HOSTS', true );
