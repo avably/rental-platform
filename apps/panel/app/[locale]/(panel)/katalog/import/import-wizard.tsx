@@ -11,7 +11,7 @@
  * a podmiana pliku po podglądzie unieważnia przycisk zapisu (previewedFile).
  */
 import { useActionState, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Button, FileField } from "@avably/ui";
 
@@ -36,6 +36,7 @@ function issueMessage(
 
 export function ImportWizard() {
   const t = useTranslations("catalogImport");
+  const locale = useLocale();
   const [state, dispatch] = useActionState<CatalogImportActionState, FormData>(
     catalogImportAction,
     CATALOG_IMPORT_INITIAL_STATE,
@@ -90,6 +91,7 @@ export function ImportWizard() {
         id="catalog-import-file"
         name="file"
         accept=".csv,text/csv"
+        locale={locale}
         prompt={t("filePrompt")}
         hint={t("fileHint")}
         removeLabel={t("fileRemove")}
