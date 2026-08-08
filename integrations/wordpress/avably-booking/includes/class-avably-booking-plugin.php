@@ -6,7 +6,8 @@
  * GRANICA SEKRETU (§5.1 briefu M2): jedyne dane, które wtyczka przekazuje
  * do przeglądarki, buduje front_script_data() — klucz API nie jest jej
  * częścią i nigdy nie może być. Wywołania API dzieją się WYŁĄCZNIE w PHP
- * (Avably_Booking_Api_Client przez wp_remote_request).
+ * (Avably_Booking_Api_Client przez wp_safe_remote_request, bez podążania za
+ * przekierowaniami — patrz http_transport()).
  */
 
 if ( ! defined( 'ABSPATH' ) && ! defined( 'AVABLY_BOOKING_TESTSUITE' ) ) {
@@ -71,28 +72,52 @@ class Avably_Booking_Plugin {
 	}
 
 	/**
-	 * Transport HTTP: wp_remote_request => { code, body } albo transport_error.
+	 * Transport HTTP: wp_safe_remote_request => { code, body } albo transport_error.
+	 *
+	 * OBRONA ANTY-SSRF (R10, ADR-110 decyzje R10):
+	 *   - `wp_safe_remote_request()` (nie surowy wp_remote_request) włącza
+	 *     `reject_unsafe_urls` — WordPress waliduje adres KAŻDEGO żądania po
+	 *     resolucji DNS i odrzuca hosty prywatne/loopback/link-local. To warstwa,
+	 *     która łapie W2 (nazwa domeny wskazująca na adres prywatny) w chwili
+	 *     żądania, a nie tylko literał z ustawień;
+	 *   - `redirection => 0` — żadnego podążania za `Location`. Bez tego API
+	 *     oddające 302 na adres prywatny sprawiało, że WordPress szedł za
+	 *     przekierowaniem, PONOWNIE wysyłając nagłówek `Authorization: Bearer
+	 *     avbl_…` na host docelowy (pełny SSRF + eksfiltracja klucza najemcy).
+	 *
+	 * Kod 3xx to błąd KONFIGURACJI (API nie powinno przekierowywać), nie stan
+	 * aplikacyjny: zgłaszamy go jak awarię transportu, żeby warstwa wyżej pokazała
+	 * ogólny komunikat, a nie surowe „302". Klucz nigdy nie jedzie za Location.
 	 *
 	 * @param array $args method/url/timeout/headers/body z klienta.
 	 * @return array
 	 */
 	public static function http_transport( array $args ): array {
-		$response = wp_remote_request(
+		$response = wp_safe_remote_request(
 			$args['url'],
 			array(
-				'method'  => $args['method'],
-				'timeout' => $args['timeout'],
-				'headers' => $args['headers'],
-				'body'    => isset( $args['body'] ) ? $args['body'] : null,
+				'method'             => $args['method'],
+				'timeout'            => $args['timeout'],
+				'headers'            => $args['headers'],
+				'body'               => isset( $args['body'] ) ? $args['body'] : null,
+				'redirection'        => 0,
+				'reject_unsafe_urls' => true,
 			)
 		);
 		if ( is_wp_error( $response ) ) {
 			// Szczegół błędu transportu zostaje w PHP — do przeglądarki idzie
-			// wyłącznie ogólny komunikat (mapowanie w warstwie ajax).
+			// wyłącznie ogólny komunikat (mapowanie w warstwie ajax). Tu wpada
+			// też adres odrzucony przez reject_unsafe_urls (host prywatny).
 			return array( 'transport_error' => $response->get_error_code() );
 		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code >= 300 && $code < 400 ) {
+			// Przekierowanie z API = błąd konfiguracji; nie oddajemy surowego
+			// „302" i nie podążamy za nim (redirection => 0 już to gwarantuje).
+			return array( 'transport_error' => 'unexpected_redirect' );
+		}
 		return array(
-			'code' => (int) wp_remote_retrieve_response_code( $response ),
+			'code' => $code,
 			'body' => (string) wp_remote_retrieve_body( $response ),
 		);
 	}

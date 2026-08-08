@@ -53,6 +53,8 @@ final class AvablyTestState {
 	public static $apiClient = null;
 	/** Zarejestrowane wywołania add_options_page (capability itd.). */
 	public static array $optionsPages = array();
+	/** Żądania wyłączenia autoloadu opcji (wp_set_option_autoload). */
+	public static array $autoloadCalls = array();
 
 	public static function reset(): void {
 		self::$options = array(
@@ -67,6 +69,7 @@ final class AvablyTestState {
 		self::$canManageOptions = true;
 		self::$apiClient        = null;
 		self::$optionsPages     = array();
+		self::$autoloadCalls    = array();
 		$_GET                   = array();
 		$_POST                  = array();
 		$_REQUEST               = array();
@@ -235,6 +238,95 @@ function add_action( $hook, $callback, $priority = 10, $args = 1 ) {
 
 function add_shortcode( $tag, $callback ) {
 	return true;
+}
+
+function wp_set_option_autoload( $option, $autoload ) {
+	AvablyTestState::$autoloadCalls[ $option ] = (bool) $autoload;
+	return true;
+}
+
+// ---------------------------------------------------------------------
+// Model transportu HTTP WP — dowód W1 (podążanie za przekierowaniem).
+//
+// Wierny w tym, co dowodzimy: WordPress domyślnie podąża za `redirection`
+// przekierowaniami, PONOWNIE wysyłając nagłówki żądania (w tym Authorization)
+// na host docelowy. Z `redirection => 0` nie podąża wcale. Model jest domyślnie
+// bierny (żaden istniejący test nie woła http_transport), a test W1 programuje
+// scenariusz 302 → host prywatny i sprawdza, że klucz nie opuszcza pierwotnego
+// hosta.
+// ---------------------------------------------------------------------
+
+/** Odpowiednik WP_Error dla shimu (is_wp_error rozpoznaje po typie). */
+final class AvablyTestWpError {
+	public string $code;
+	public function __construct( string $code ) {
+		$this->code = $code;
+	}
+	public function get_error_code(): string {
+		return $this->code;
+	}
+}
+
+final class AvablyHttpModel {
+	/** @var array<int,array{url:string,headers:array,redirection:int,safe:bool}> */
+	public static array $calls = array();
+	/** Host (pełny URL), który oddaje 302. */
+	public static string $redirectFrom = '';
+	/** Cel przekierowania (Location) — zwykle host prywatny. */
+	public static string $redirectTo = '';
+	/** Gdy ustawione, transport zwraca WP_Error o tym kodzie. */
+	public static string $forceError = '';
+
+	public static function reset(): void {
+		self::$calls        = array();
+		self::$redirectFrom = '';
+		self::$redirectTo   = '';
+		self::$forceError   = '';
+	}
+
+	public static function dispatch( bool $safe, string $url, array $args ) {
+		$redirection = isset( $args['redirection'] ) ? (int) $args['redirection'] : 5;
+		self::$calls[] = array(
+			'url'         => $url,
+			'headers'     => isset( $args['headers'] ) && is_array( $args['headers'] ) ? $args['headers'] : array(),
+			'redirection' => $redirection,
+			'safe'        => $safe,
+		);
+		if ( '' !== self::$forceError ) {
+			return new AvablyTestWpError( self::$forceError );
+		}
+		if ( '' !== self::$redirectFrom && $url === self::$redirectFrom ) {
+			if ( $redirection > 0 ) {
+				// WP podąża za Location, przenosząc nagłówki na host docelowy.
+				$next                = $args;
+				$next['redirection'] = $redirection - 1;
+				return self::dispatch( $safe, self::$redirectTo, $next );
+			}
+			// redirection => 0: oddaj 302 bez podążania.
+			return array( 'code' => 302, 'body' => '' );
+		}
+		return array( 'code' => 200, 'body' => '{"products":[]}' );
+	}
+}
+
+function wp_safe_remote_request( $url, $args = array() ) {
+	return AvablyHttpModel::dispatch( true, (string) $url, is_array( $args ) ? $args : array() );
+}
+
+function wp_remote_request( $url, $args = array() ) {
+	return AvablyHttpModel::dispatch( false, (string) $url, is_array( $args ) ? $args : array() );
+}
+
+function wp_remote_retrieve_response_code( $response ) {
+	return is_array( $response ) && isset( $response['code'] ) ? $response['code'] : 0;
+}
+
+function wp_remote_retrieve_body( $response ) {
+	return is_array( $response ) && isset( $response['body'] ) ? $response['body'] : '';
+}
+
+function is_wp_error( $thing ) {
+	return $thing instanceof AvablyTestWpError;
 }
 
 // --- Klasy wtyczki ---

@@ -13,8 +13,8 @@
  *     (odpowiedzi klienta nie niosą nagłówków żądania).
  *
  * Transport jest wstrzykiwany (callable), więc logika jest testowalna
- * phpunitem bez WordPressa; produkcyjny transport to wp_remote_request
- * (patrz Avably_Booking_Plugin::http_transport()).
+ * phpunitem bez WordPressa; produkcyjny transport to wp_safe_remote_request
+ * z redirection => 0 (patrz Avably_Booking_Plugin::http_transport()).
  */
 
 if ( ! defined( 'ABSPATH' ) && ! defined( 'AVABLY_BOOKING_TESTSUITE' ) ) {
