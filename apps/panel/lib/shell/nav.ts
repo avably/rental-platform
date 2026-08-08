@@ -138,6 +138,10 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/historia-emaili", labelKey: "emailHistory" },
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
   { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
+  // Klucze API (M1, ADR-108) — CELOWO poza PANEL_NAV_GROUPS: struktura grup
+  // jest kontraktem 1:1 z artefaktem Fazy 2 (panel-nav-contract), a ekran
+  // kluczy nie ma tam pozycji. Wejście: link z ekranu organizacji.
+  { path: "/ustawienia-api", labelKey: "apiKeys" },
 ] as const;
 
 /**

@@ -2,6 +2,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenSection } from "@/components/screens/screen-header";
+import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { OrganizationCard } from "./organization-card";
@@ -76,6 +78,16 @@ export default async function OrganizationPage() {
   return (
     <FormMeasure className="flex flex-col gap-4">
       <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
+
+      {/* Klucze publicznego API (M1, ADR-108) — wejście do ekranu spoza
+          głównej nawigacji (grupy nav są kontraktem z artefaktem Fazy 2).
+          Ekran organizacji jest naturalnym miejscem: klucz API to
+          poświadczenie CAŁEJ organizacji, jak członkostwo. */}
+      <ScreenSection title={t("apiKeysTitle")} description={t("apiKeysDescription")}>
+        <Link href="/ustawienia-api" className="text-sm font-medium underline underline-offset-[3px]">
+          {t("apiKeysLink")}
+        </Link>
+      </ScreenSection>
     </FormMeasure>
   );
 }

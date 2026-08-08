@@ -100,7 +100,7 @@ const AUTH_A = { authorization: `Bearer ${RAW_KEY_A}` };
 
 describe("api v1 — autoryzacja kluczem", () => {
   it("bez nagłówka / zły schemat / śmieć / klucz obcięty / klucz-prefiks → 401 BEZ dotykania bazy", async () => {
-    const badHeaders = [
+    const badHeaders: Record<string, string>[] = [
       {},
       { authorization: "Basic abc" },
       { authorization: "Bearer nie-klucz" },

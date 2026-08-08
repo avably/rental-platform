@@ -121,7 +121,8 @@
     "skipToContent": "Skip to content",
     "payments": "Payments",
     "sidebarCollapse": "Collapse menu",
-    "sidebarExpand": "Expand menu"
+    "sidebarExpand": "Expand menu",
+    "apiKeys": "API keys"
   },
   "contractSettings": {
     "title": "Agreement settings",
@@ -1792,6 +1793,32 @@
     "providerTitle": "Host registration",
     "providerAvailable": "Store addresses can be registered and retried."
   },
+  "apiSettings": {
+    "backLink": "Panel",
+    "introTitle": "Public reservations API",
+    "intro": "API keys let external integrations (e.g. a plugin on your own website) read the catalog, check availability and place reservations in your store.",
+    "baseUrlLabel": "API base URL:",
+    "listHeading": "API keys",
+    "emptyState": "You don't have any API keys yet.",
+    "generateTitle": "Generate a new key",
+    "nameLabel": "Key name",
+    "namePlaceholder": "e.g. WordPress — company website",
+    "nameHint": "The name describes where the key is used — it makes revoking the right one easier.",
+    "generateCta": "Generate key",
+    "generatedOk": "Key “{name}” has been generated.",
+    "generatedWarning": "Save the key now — we show it only this once. After a refresh you will only see its beginning.",
+    "createdLabel": "Created",
+    "lastUsedLabel": "Last used",
+    "neverUsed": "never",
+    "stateLabel": "State",
+    "stateActive": "Active",
+    "stateRevoked": "Revoked {date}",
+    "revokeCta": "Revoke key",
+    "revokeQuestion": "Integrations using this key will stop working immediately.",
+    "revokeConfirm": "Revoke",
+    "revokeCancel": "Keep",
+    "ownerOnly": "API keys are generated and revoked by the organization owner. You can browse the list and check when a key was last used."
+  },
   "organization": {
     "title": "Organization",
     "description": "Organization details shown on documents and in billing.",
@@ -1815,7 +1842,10 @@
     "localeValue": {
       "pl": "Polish",
       "en": "English"
-    }
+    },
+    "apiKeysTitle": "Public reservations API",
+    "apiKeysDescription": "API keys for external integrations — catalog, availability and reservations on your own website.",
+    "apiKeysLink": "Manage API keys"
   },
   "secondaryStatus": {
     "domain": {
