@@ -1,8 +1,7 @@
-import { AVAILABILITY_BLOCKING_ORDER_STATUSES, type IsoDate, type OrderStatus } from "@avably/core";
+import { AVAILABILITY_BLOCKING_ORDER_STATUSES, type CurrencyCode, type IsoDate, type OrderStatus } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { requireMember } from "@/lib/supabase-server";
-import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { availabilityForRange, proposeItemAmounts, type ProductPricingRow } from "../pricing";
 import { depositTotals, type DepositEventRow } from "./deposit";
@@ -78,6 +77,8 @@ export async function ItemsSection({
     /** Sumy z kolumn zamówienia — to ICH używa faktura, e-mail i lista. */
     totalRentalGrosze: number;
     totalDepositGrosze: number;
+    /** Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103). */
+    currency: CurrencyCode;
   };
 }) {
   const ctx = await requireMember();
@@ -201,7 +202,6 @@ export async function ItemsSection({
     };
   });
 
-  const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.detail");
 
@@ -217,7 +217,7 @@ export async function ItemsSection({
         collectedGrosze={collectedGrosze}
         totalRentalGrosze={order.totalRentalGrosze}
         totalDepositGrosze={order.totalDepositGrosze}
-        currency={currency}
+        currency={order.currency}
         locale={locale}
         actions={{
           add: addOrderItemAction,

@@ -231,9 +231,18 @@ describe("odpowiedź dostawcy", () => {
 });
 
 describe("odczyt płatności (ADR-049)", () => {
-  it("czyta z konta najemcy i oddaje kwotę FAKTYCZNIE pobraną", async () => {
+  it("czyta z konta najemcy i oddaje kwotę FAKTYCZNIE pobraną wraz z walutą", async () => {
     const { calls, fetchFn } = transport([
-      { status: 200, body: { id: "pi_1", status: "succeeded", amount: 12_300, amount_received: 12_300 } },
+      {
+        status: 200,
+        body: {
+          id: "pi_1",
+          status: "succeeded",
+          amount: 12_300,
+          amount_received: 12_300,
+          currency: "pln",
+        },
+      },
     ]);
 
     const read = await readPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT });
@@ -241,6 +250,7 @@ describe("odczyt płatności (ADR-049)", () => {
     expect(calls[0]!.url).toContain("/v1/payment_intents/pi_1");
     expect(header(calls[0]!, "Stripe-Account")).toBe(ACCOUNT);
     expect(read.amountReceivedGrosze).toBe(12_300);
+    expect(read.currency).toBe("pln");
   });
 
   it("brak amount_received w odpowiedzi znaczy ZERO, nie „pewnie tyle, ile prosiliśmy”", async () => {
@@ -253,29 +263,54 @@ describe("odczyt płatności (ADR-049)", () => {
     const read = await readPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT });
 
     expect(read.amountReceivedGrosze).toBe(0);
-    expect(isIntentSettled(read, 12_300)).toBe(false);
+    expect(isIntentSettled(read, 12_300, "PLN")).toBe(false);
+  });
+
+  it("brak waluty w odpowiedzi znaczy „nieznana”, nie „pewnie ta, o którą prosiliśmy”", async () => {
+    // Ten sam kierunek domyślności: rozstrzyga porównanie w werdykcie,
+    // a nieznana waluta nie ma prawa przejść jako zgodna.
+    const { fetchFn } = transport([
+      { status: 200, body: { id: "pi_1", status: "succeeded", amount: 12_300, amount_received: 12_300 } },
+    ]);
+
+    const read = await readPaymentIntent("pi_1", { ...deps(fetchFn), connectedAccountId: ACCOUNT });
+
+    expect(read.currency).toBe("");
+    expect(isIntentSettled(read, 12_300, "PLN")).toBe(false);
   });
 });
 
 describe("isIntentSettled", () => {
-  const read = (status: string, received: number) => ({
+  const read = (status: string, received: number, currency = "pln") => ({
     intentId: "pi_1",
     status,
     amountReceivedGrosze: received,
     amountGrosze: 12_300,
+    currency,
   });
 
   it("succeeded z pełną kwotą = opłacone", () => {
-    expect(isIntentSettled(read("succeeded", 12_300), 12_300)).toBe(true);
+    expect(isIntentSettled(read("succeeded", 12_300), 12_300, "PLN")).toBe(true);
   });
 
   it("succeeded z NIEPEŁNĄ kwotą to NIE jest opłacone", () => {
     // Sam status wygląda jak dowód i nim nie jest — to jest cały powód,
     // dla którego ta funkcja porównuje dwie liczby zamiast czytać jedno pole.
-    expect(isIntentSettled(read("succeeded", 12_299), 12_300)).toBe(false);
+    expect(isIntentSettled(read("succeeded", 12_299), 12_300, "PLN")).toBe(false);
   });
 
   it("processing z pełną kwotą to jeszcze nie jest opłacone", () => {
-    expect(isIntentSettled(read("processing", 12_300), 12_300)).toBe(false);
+    expect(isIntentSettled(read("processing", 12_300), 12_300, "PLN")).toBe(false);
+  });
+
+  it("pełna liczba w INNEJ walucie to NIE jest opłacone (K3, ADR-103)", () => {
+    // 12 300 jednostek podrzędnych EUR ≠ 12 300 groszy PLN. Waluta
+    // oczekiwana pochodzi z orders.currency (0049) — tej samej pary,
+    // z której intent POWSTAŁ.
+    expect(isIntentSettled(read("succeeded", 12_300, "eur"), 12_300, "PLN")).toBe(false);
+  });
+
+  it("porównanie waluty jest niewrażliwe na wielkość liter", () => {
+    expect(isIntentSettled(read("succeeded", 12_300, "pln"), 12_300, "PLN")).toBe(true);
   });
 });

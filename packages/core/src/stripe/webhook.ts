@@ -333,16 +333,34 @@ export interface SettlementVerdict {
  * zdarzenie. Podpis funkcji jest tu częścią bariery: nie da się jej podać
  * ciała webhooka, więc nie da się przez pomyłkę zbudować statusu z payloadu.
  *
- * DWA WARUNKI NA `paid`, OBA KONIECZNE (lustro `isIntentSettled`): dostawca
- * mówi `succeeded` **i** zaksięgowana kwota pokrywa sumę policzoną przez NASZ
- * serwer. Sam status nie wystarcza — płatność częściowa też bywa `succeeded`,
- * a zamówienie opłacone w połowie nie jest opłacone. Rozjazd kwoty daje
- * `null` z powodem, nie `paid` i nie `payment_failed`: to stan wymagający
- * człowieka, a nie automatycznego werdyktu w którąkolwiek stronę.
+ * TRZY WARUNKI NA `paid`, WSZYSTKIE KONIECZNE (lustro `isIntentSettled`):
+ * dostawca mówi `succeeded` **i** zaksięgowana kwota pokrywa sumę policzoną
+ * przez NASZ serwer, **i** [K3/ADR-103] księgowanie szło w walucie
+ * ZAMÓWIENIA (`orders.currency`, 0049 — ta sama para kwota+waluta, z której
+ * intent POWSTAŁ). Sam status nie wystarcza — płatność częściowa też bywa
+ * `succeeded`, a zamówienie opłacone w połowie nie jest opłacone; sama
+ * liczba też nie wystarcza — 12 345 centów EUR to nie 12 345 groszy PLN.
+ * Rozjazd kwoty ALBO waluty daje `null` z powodem, nie `paid` i nie
+ * `payment_failed`: to stan wymagający człowieka, a nie automatycznego
+ * werdyktu w którąkolwiek stronę. Porównanie waluty jest niewrażliwe na
+ * wielkość liter (dostawca mówi małymi, kolumna wielkimi); pusta waluta
+ * odczytu NIE przechodzi jako zgodna (domyślna odmowa, jak przy kwocie).
  */
-export function settlementVerdict(read: IntentRead, expectedGrosze: number): SettlementVerdict {
+export function settlementVerdict(
+  read: IntentRead,
+  expectedGrosze: number,
+  expectedCurrency: string,
+): SettlementVerdict {
   switch (read.status) {
     case "succeeded":
+      if (read.currency.toUpperCase() !== expectedCurrency.toUpperCase()) {
+        return {
+          status: null,
+          reason:
+            `Dostawca zgłasza succeeded w walucie ${read.currency || "(nieznanej)"} ` +
+            `wobec oczekiwanej ${expectedCurrency} — zamówienie NIE zostało oznaczone jako opłacone.`,
+        };
+      }
       if (read.amountReceivedGrosze >= expectedGrosze) {
         return { status: "paid", reason: "" };
       }

@@ -112,6 +112,7 @@ describe("sendRentalEmailForTransition", () => {
     start_date: "2026-08-01",
     end_date: "2026-08-05",
     total_rental_grosze: 55_000,
+    currency: "PLN",
     customers: { full_name: "Jan Kowalski", email: "klient@example.com" },
     pickup_locations: null,
   };
@@ -259,6 +260,7 @@ describe("sendRentalEmailForTransition — historia wysyłek (ADR-045)", () => {
     start_date: "2026-08-01",
     end_date: "2026-08-05",
     total_rental_grosze: 55_000,
+    currency: "PLN",
     customers: { full_name: "Jan Kowalski", email: "klient@example.com" },
     pickup_locations: null,
   };

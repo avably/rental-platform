@@ -51,7 +51,7 @@ import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
-import { getTenantCurrency } from "@/lib/tenant-currency";
+import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import {
   sendRentalEmailForTransition,
@@ -422,11 +422,13 @@ export async function sendTransitionEmailAction(input: {
   }
 
   // Zapytania są niezależne — jedna runda, nie cztery po kolei.
-  const [orderResult, settingsResult, tenantResult, currency] = await Promise.all([
+  // Waluta z WIERSZA ZAMÓWIENIA (orders.currency, 0049/ADR-103) — mail
+  // o zamówieniu formatuje kwoty walutą, w której ono POWSTAŁO.
+  const [orderResult, settingsResult, tenantResult] = await Promise.all([
     ctx.supabase
       .from("orders")
       .select(
-        "order_status, order_number, start_date, end_date, total_rental_grosze, customers(full_name, email, locale), pickup_locations(name)",
+        "order_status, order_number, start_date, end_date, total_rental_grosze, currency, customers(full_name, email, locale), pickup_locations(name)",
       )
       .eq("tenant_id", ctx.tenantId)
       .eq("id", orderId)
@@ -437,8 +439,6 @@ export async function sendTransitionEmailAction(input: {
       .eq("tenant_id", ctx.tenantId)
       .eq("key", EMAIL_SENDER_KEY),
     ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
-    // `!` jak w całym panelu: requireMember rzuca, gdy tenanta brak (auth.ts).
-    getTenantCurrency(ctx.supabase, ctx.tenantId!),
   ]);
 
   const order = orderResult.data as (RentalEmailOrderRow & { order_status: OrderStatus }) | null;
@@ -464,7 +464,7 @@ export async function sendTransitionEmailAction(input: {
     // tenants.locale jest not null (0005), ale nieznana wartość nie może
     // wywrócić wysyłki — spada na domyślne locale tenanta.
     locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,
-    currency,
+    currency: orderCurrencyCode(order.currency),
     settings: (settingsResult.data ?? []) as TenantSettingRow[],
     availability: emailAvailability(),
     transport: resendTransport(),

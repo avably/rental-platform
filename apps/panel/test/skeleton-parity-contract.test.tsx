@@ -143,6 +143,7 @@ const listRows = PAYMENT_STATUSES.map((paymentStatus, index) => ({
   orderStatus: ORDER_STATUSES[index % ORDER_STATUSES.length]!,
   paymentStatus,
   totalRentalGrosze: 119900,
+  currency: "PLN" as const,
 }));
 
 const listRenderEvidence = [
@@ -166,7 +167,6 @@ const listRenderEvidence = [
   render(
     <OrdersTable
       rows={listRows}
-      currency="PLN"
       locale="pl"
       sort={{ key: "numer", dir: "desc" }}
       baseParams={{}}

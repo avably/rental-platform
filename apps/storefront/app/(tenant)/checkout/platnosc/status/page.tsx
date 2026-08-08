@@ -17,7 +17,13 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { formatMoney, isIntentSettled, readPaymentIntent } from "@avably/core";
+import {
+  DEFAULT_CURRENCY,
+  formatMoney,
+  isCurrencyCode,
+  isIntentSettled,
+  readPaymentIntent,
+} from "@avably/core";
 
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
@@ -57,6 +63,7 @@ async function readProviderSettlement(
   tenantId: string,
   intentId: string | null,
   amountGrosze: number,
+  currency: string,
 ): Promise<boolean | undefined> {
   if (!intentId) return undefined;
   try {
@@ -64,9 +71,10 @@ async function readProviderSettlement(
     if (!accountId) return undefined;
     const read = await readPaymentIntent(intentId, { connectedAccountId: accountId });
     // Porównanie z sumą policzoną przez NASZ serwer (kwota z bazy, nie
-    // z przeglądarki). Sam status `succeeded` nie wystarcza — płatność
-    // częściowa też go ma.
-    return isIntentSettled(read, amountGrosze);
+    // z przeglądarki) i z walutą UTRWALONĄ na zamówieniu (orders.currency,
+    // 0049/ADR-103) — z tej pary intent powstał. Sam status `succeeded`
+    // nie wystarcza — płatność częściowa też go ma.
+    return isIntentSettled(read, amountGrosze, currency);
   } catch {
     return undefined;
   }
@@ -76,15 +84,23 @@ export default async function TenantPaymentStatusPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, style, tenantId } = ctx;
+  const { catalog, copy, locale, style, tenantId } = ctx;
 
   const order = await loadCheckoutOrder();
   if (!order) redirect("/store");
+
+  // Waluta ZAMÓWIENIA (orders.currency przez get_public_order_payment,
+  // 0049/ADR-103) — nie waluta z kontekstu sklepu: po zmianie ustawienia
+  // najemcy ta strona ma dalej mówić walutą, w której zamówienie POWSTAŁO.
+  // Zawężenie jak w checkout/emails.ts — kolumna ma CHECK, więc fallback
+  // jest higieną granicy typów, nie realną ścieżką.
+  const orderCurrency = isCurrencyCode(order.currency) ? order.currency : DEFAULT_CURRENCY;
 
   const providerSettled = await readProviderSettlement(
     tenantId,
     order.providerPaymentIntentId,
     order.amountGrosze,
+    order.currency,
   );
 
   const view = paymentStatusView({
@@ -120,7 +136,7 @@ export default async function TenantPaymentStatusPage() {
           </div>
           <div className="flex justify-between">
             <dt className="site-text-muted">{copy.payment.amountDue}</dt>
-            <dd>{formatMoney(order.amountGrosze, currency, locale)}</dd>
+            <dd>{formatMoney(order.amountGrosze, orderCurrency, locale)}</dd>
           </div>
         </dl>
 

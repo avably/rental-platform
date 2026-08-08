@@ -22,7 +22,7 @@ import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
-import { getTenantCurrency } from "@/lib/tenant-currency";
+import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction, sendTransitionEmailAction } from "../actions";
 import { ContractSection } from "./contract-section";
@@ -62,6 +62,8 @@ interface OrderDetailRow {
   delivery_price_source: DeliveryPriceSource;
   total_rental_grosze: number;
   total_deposit_grosze: number;
+  /** Waluta UTRWALONA na zamówieniu (0049, ADR-103) — wszystkie kwoty ekranu. */
+  currency: string;
   created_at: string;
   customers: {
     id: string;
@@ -109,7 +111,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, currency, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -189,7 +191,10 @@ export default async function OrderDetailPage({
     ((memberRows ?? []) as { user_id: string; email: string }[]).map((m) => [m.user_id, m.email]),
   );
 
-  const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
+  // Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — nie bieżące
+  // ustawienie najemcy: po zmianie ustawienia ten ekran ma dalej mówić
+  // walutą, w której zamówienie POWSTAŁO (kwoty, kaucje, zwroty, oś czasu).
+  const currency = orderCurrencyCode(row.currency);
   const locale = await getLocale();
   const t = await getTranslations("orders.detail");
   const tDelivery = await getTranslations("orders.delivery");
@@ -303,7 +308,13 @@ export default async function OrderDetailPage({
                 z dopłatą na żywo. Osobna sekcja przedłużenia zniknęła; RSC dokłada
                 tu jedną linię, tak jak przy pozycjach i logistyce. */}
             <ExtensionSection
-              order={{ id: row.id, startDate: row.start_date, endDate: row.end_date, status: row.order_status }}
+              order={{
+                id: row.id,
+                startDate: row.start_date,
+                endDate: row.end_date,
+                status: row.order_status,
+                currency,
+              }}
             />
             <DetailField label={t("deliveryLabel")}>
               {tDelivery(row.delivery_method)}
@@ -378,6 +389,7 @@ export default async function OrderDetailPage({
           status: row.order_status,
           totalRentalGrosze: row.total_rental_grosze,
           totalDepositGrosze: row.total_deposit_grosze,
+          currency,
         }}
       />
 
@@ -540,6 +552,7 @@ export default async function OrderDetailPage({
         deliveryMethod={row.delivery_method}
         deliveryGrosze={row.delivery_grosze}
         deliveryPriceSource={row.delivery_price_source}
+        currency={currency}
       />
 
       <EmailLogSection orderId={row.id} />

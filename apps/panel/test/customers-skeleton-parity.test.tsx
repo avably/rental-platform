@@ -143,11 +143,11 @@ const detailRenderEvidence = [
           orderNumber: "AV-2026-001",
           startDate: "2026-07-20",
           endDate: "2026-07-22",
+          currency: "PLN" as const,
           totalRentalGrosze: 119900,
           orderStatus: "reserved",
         },
       ]}
-      currency="PLN"
       locale="pl"
     />,
   ),

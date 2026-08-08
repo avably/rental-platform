@@ -118,6 +118,7 @@ const intentRead = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   status: "succeeded",
   amountReceivedGrosze: TOTAL_GROSZE,
   amountGrosze: TOTAL_GROSZE,
+  currency: "pln",
   ...overrides,
 });
 

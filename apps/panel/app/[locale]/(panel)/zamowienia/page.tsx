@@ -5,7 +5,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { ordersFilterSchema } from "@/lib/order-validation";
-import { getTenantCurrency } from "@/lib/tenant-currency";
+import { getTenantCurrency, orderCurrencyCode } from "@/lib/tenant-currency";
 import { datePresetRange } from "@/lib/orders/date-presets";
 import { warsawToday } from "@/lib/orders/order-dates";
 import { computeOrderStats, type OrderStatRow } from "@/lib/orders/order-stats";
@@ -26,6 +26,7 @@ interface OrderRow {
   order_status: OrderStatus;
   payment_status: PaymentStatus;
   total_rental_grosze: number;
+  currency: string;
   customers: { full_name: string | null; email: string } | null;
   order_items: { products: { name: string } | null }[];
 }
@@ -76,7 +77,7 @@ export default async function OrdersPage({
       let query = ctx.supabase
         .from("orders")
         .select(
-          "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, customers(full_name, email), order_items(products(name))",
+          "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, currency, customers(full_name, email), order_items(products(name))",
         )
         .eq("tenant_id", ctx.tenantId);
       if (filter.status) query = query.eq("order_status", filter.status);
@@ -104,6 +105,11 @@ export default async function OrdersPage({
       .order("email"),
   ]);
 
+  // Waluta OPERACYJNA najemcy — od 0049 służy tu WYŁĄCZNIE kaflom
+  // statystyk (agregaty sumują grosze przez całą historię; suma mieszanych
+  // walut nie istnieje, a rozbicie agregatów per waluta to świadomie
+  // odłożona wielowalutowość operacyjna — ADR-103/§8 planu). Kwoty
+  // WIERSZY mówią walutą SWOJEGO zamówienia (orders.currency).
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("orders.list");
@@ -140,6 +146,7 @@ export default async function OrdersPage({
     orderStatus: order.order_status,
     paymentStatus: order.payment_status,
     totalRentalGrosze: order.total_rental_grosze,
+    currency: orderCurrencyCode(order.currency),
   }));
 
   // Haystack wyszukiwarki: numer + klient + ETYKIETY statusów (tłumaczenia zna
@@ -199,7 +206,7 @@ export default async function OrdersPage({
             /* Lista jest interaktywna od U4/U5 (zaznaczanie, wybór kolumn),
                więc opakowuje ją klient — sam odczyt i filtrowanie zostają na
                serwerze. */
-            <OrdersList rows={visibleRows} currency={currency} locale={locale} sort={sort} baseParams={baseParams} />
+            <OrdersList rows={visibleRows} locale={locale} sort={sort} baseParams={baseParams} />
           )}
         </>
       ) : (

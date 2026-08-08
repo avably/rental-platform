@@ -18,6 +18,8 @@ export interface ContractOrderRow {
   total_rental_grosze: number;
   total_deposit_grosze: number;
   delivery_grosze: number;
+  /** Waluta UTRWALONA na zamówieniu (orders.currency, 0049/ADR-103). */
+  currency: string;
   customers: {
     full_name: string | null;
     email: string;

@@ -60,6 +60,12 @@ export interface OrdersTableRow {
   orderStatus: OrderStatus;
   paymentStatus: PaymentStatus;
   totalRentalGrosze: number;
+  /**
+   * Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — własność WIERSZA,
+   * nie tabeli: po zmianie ustawienia najemcy historia dalej mówi swoją
+   * walutą, więc dwa wiersze tej samej listy mogą mówić dwiema.
+   */
+  currency: CurrencyCode;
 }
 
 /**
@@ -163,7 +169,6 @@ function CellLink({
 
 export function OrdersTable({
   rows,
-  currency,
   locale,
   sort,
   baseParams,
@@ -173,7 +178,6 @@ export function OrdersTable({
   onToggleAll,
 }: {
   rows: OrdersTableRow[];
-  currency: CurrencyCode;
   locale: string;
   /** Efektywny sort (klucz + kierunek) — dla `aria-sort` i strzałek nagłówków. */
   sort: ResolvedSort;
@@ -253,7 +257,7 @@ export function OrdersTable({
       head: sortableHead(t("colAmount"), "kwota", "right"),
       align: "right",
       className: "tabular-nums tracking-[0.01em]",
-      cell: (row) => formatMoney(row.totalRentalGrosze, currency, locale),
+      cell: (row) => formatMoney(row.totalRentalGrosze, row.currency, locale),
     },
     {
       key: "order-status",
@@ -375,7 +379,7 @@ export function OrdersTable({
                   {row.orderNumber}
                 </span>
                 <span className="text-foreground font-semibold tabular-nums">
-                  {formatMoney(row.totalRentalGrosze, currency, locale)}
+                  {formatMoney(row.totalRentalGrosze, row.currency, locale)}
                 </span>
               </div>
               <div className="mt-2 flex items-center gap-2">

@@ -109,6 +109,7 @@ const intentRead = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   status: "succeeded",
   amountReceivedGrosze: AMOUNT_GROSZE,
   amountGrosze: AMOUNT_GROSZE,
+  currency: "pln",
   ...overrides,
 });
 
@@ -456,6 +457,31 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       const [row] = await eventRows(eventId);
       expect(row?.status).toBe("processed");
       expect(row?.error).toContain("12344");
+    });
+
+    /**
+     * WALUTA JEST CZĘŚCIĄ KWOTY (K3, ADR-103): zamówienie utrwala walutę
+     * przy narodzinach (orders.currency, 0049 — seed tego pliku rodzi się
+     * w PLN z triggera), a intent powstał z tej pary. Odczyt succeeded
+     * z PEŁNĄ liczbą, ale w INNEJ walucie, to nie jest opłacenie — 12 345
+     * centów EUR to nie 12 345 groszy. Stan dla człowieka: `pending`
+     * zostaje, powód w rejestrze.
+     */
+    it("succeeded w OBCEJ walucie nie ustawia paid — werdykt porównuje walutę zamówienia", async () => {
+      const fixture = await seedOrder();
+      const eventId = newEventId();
+
+      const response = await handleStripeWebhook(
+        signedRequest(eventBody({ eventId, intentId: fixture.intentId })),
+        deps(alwaysRead(intentRead({ intentId: fixture.intentId, currency: "eur" }))),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await paymentStatusOf(fixture.orderId)).toBe("pending");
+      const [row] = await eventRows(eventId);
+      expect(row?.status).toBe("processed");
+      expect(row?.error?.toUpperCase()).toContain("EUR");
+      expect(row?.error?.toUpperCase()).toContain("PLN");
     });
   });
 

@@ -9,7 +9,7 @@ import { panelEmailLogRecorder } from "@/lib/email-log";
 import type { FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
-import { getTenantCurrency } from "@/lib/tenant-currency";
+import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { contractServiceDeps } from "./contract-adapters";
 import { buildContractPdfProps, type ContractOrderRow } from "./contract-document";
@@ -23,13 +23,15 @@ function field(formData: FormData, name: string): string {
 async function loadGenerationContext(orderId: string) {
   const context = await requireMember();
   const tenantId = context.tenantId!;
-  const [orderResult, settingsResult, tenantResult, currency] = await Promise.all([
+  // Waluta idzie z WIERSZA ZAMÓWIENIA (orders.currency, 0049/ADR-103) —
+  // umowa opisuje kwoty w walucie, w której zamówienie POWSTAŁO, a nie
+  // w bieżącym ustawieniu najemcy.
+  const [orderResult, settingsResult, tenantResult] = await Promise.all([
     context.supabase.from("orders").select(
-      "order_number,start_date,end_date,total_rental_grosze,total_deposit_grosze,delivery_grosze,customers(full_name,email,locale,address_street,address_zip,address_city),order_items(rental_grosze,deposit_grosze,products(name),product_units(serial_number))",
+      "order_number,start_date,end_date,total_rental_grosze,total_deposit_grosze,delivery_grosze,currency,customers(full_name,email,locale,address_street,address_zip,address_city),order_items(rental_grosze,deposit_grosze,products(name),product_units(serial_number))",
     ).eq("tenant_id", tenantId).eq("id", orderId).maybeSingle(),
     context.supabase.from("tenant_settings").select("key,value").eq("tenant_id", tenantId).in("key", ["contract_document", "email_sender"]),
     context.supabase.from("tenants").select("name,locale").eq("id", tenantId).maybeSingle(),
-    getTenantCurrency(context.supabase, tenantId),
   ]);
   if (!orderResult.data || !tenantResult.data) throw new Error("Zamówienie nie istnieje.");
   const settingRows = (settingsResult.data ?? []) as TenantSettingRow[];
@@ -42,7 +44,7 @@ async function loadGenerationContext(orderId: string) {
   if (!order.order_items.length || order.order_items.some((item) => !item.products)) {
     throw new Error("Zamówienie nie ma kompletnych pozycji.");
   }
-  return { context, tenantId, tenant: tenantResult.data as { name: string; locale: "pl" | "en" }, settings, settingRows, order, currency };
+  return { context, tenantId, tenant: tenantResult.data as { name: string; locale: "pl" | "en" }, settings, settingRows, order, currency: orderCurrencyCode(order.currency) };
 }
 
 export async function generateContractAction(_previous: FormState, formData: FormData): Promise<FormState> {

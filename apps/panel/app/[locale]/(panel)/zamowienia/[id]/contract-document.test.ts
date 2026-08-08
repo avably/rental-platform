@@ -28,6 +28,7 @@ const input = {
     total_rental_grosze: 45_000,
     total_deposit_grosze: 90_000,
     delivery_grosze: 2_500,
+    currency: "PLN",
     customers: {
       full_name: "Anna Kowalska",
       email: "anna@example.pl",

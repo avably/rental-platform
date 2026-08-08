@@ -21,7 +21,13 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { createPaymentIntent, readConnectAccount, canAcceptCharges } from "@avably/core";
+import {
+  DEFAULT_CURRENCY,
+  canAcceptCharges,
+  createPaymentIntent,
+  isCurrencyCode,
+  readConnectAccount,
+} from "@avably/core";
 
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
@@ -62,7 +68,7 @@ export default async function TenantPaymentPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, style, tenantId } = ctx;
+  const { catalog, copy, locale, style, tenantId } = ctx;
 
   const order = await loadCheckoutOrder();
   // Brak uchwytu to stan NORMALNY (wygasłe ciasteczko, wejście z zakładki),
@@ -71,6 +77,12 @@ export default async function TenantPaymentPage() {
   // Zamówienie przelewowe nie ma tu czego szukać; jego ścieżka skończyła się
   // na ekranie potwierdzenia.
   if (order.paymentProvider !== "stripe") redirect("/checkout/platnosc/status");
+
+  // Waluta ZAMÓWIENIA (orders.currency przez get_public_order_payment,
+  // 0049/ADR-103): to ta sama wartość, która za chwilę idzie do intentu
+  // w `preparePayment` (`order.currency`) — napis na ekranie i obciążenie
+  // nie mają prawa mówić dwiema walutami. Zawężenie jak w checkout/emails.ts.
+  const orderCurrency = isCurrencyCode(order.currency) ? order.currency : DEFAULT_CURRENCY;
 
   const publishableKey = readPublishableKey();
 
@@ -99,7 +111,7 @@ export default async function TenantPaymentPage() {
           preparation={preparation}
           orderNumber={order.orderNumber}
           amountGrosze={order.amountGrosze}
-          currency={currency}
+          currency={orderCurrency}
           locale={locale}
           copy={copy}
         />

@@ -1,8 +1,7 @@
-import { type OrderStatus } from "@avably/core";
+import { type CurrencyCode, type OrderStatus } from "@avably/core";
 import { getLocale } from "next-intl/server";
 
 import { requireMember } from "@/lib/supabase-server";
-import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { extendOrderAction } from "./extension-actions";
 import { ExtensionForm } from "./extension-form";
@@ -17,7 +16,14 @@ import { canExtendOrder, priceParamsFromRow, type ExtensionProductRow } from "./
 export async function ExtensionSection({
   order,
 }: {
-  order: { id: string; startDate: string; endDate: string; status: OrderStatus };
+  order: {
+    id: string;
+    startDate: string;
+    endDate: string;
+    status: OrderStatus;
+    /** Waluta ZAMÓWIENIA (orders.currency, 0049/ADR-103) — dopłata mówi nią. */
+    currency: CurrencyCode;
+  };
 }) {
   if (!canExtendOrder(order.status)) return null;
 
@@ -33,7 +39,6 @@ export async function ExtensionSection({
   const items = ((rows ?? []) as unknown as { id: string; products: ExtensionProductRow | null }[])
     .flatMap((row) => (row.products ? [{ itemId: row.id, params: priceParamsFromRow(row.products) }] : []));
 
-  const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
 
   return (
@@ -46,7 +51,7 @@ export async function ExtensionSection({
       startDate={order.startDate}
       endDate={order.endDate}
       items={items}
-      currency={currency}
+      currency={order.currency}
       locale={locale}
       action={extendOrderAction}
     />

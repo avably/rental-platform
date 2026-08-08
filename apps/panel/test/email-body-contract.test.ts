@@ -150,6 +150,7 @@ const PATHS: readonly Path[] = [
           order_number: "AV-2026-001",
           start_date: "2026-08-01",
           end_date: "2026-08-05",
+          currency: "PLN",
           total_rental_grosze: 55_000,
           customers: { full_name: "Jan Kowalski", email: "klient@example.com" },
           pickup_locations: null,
