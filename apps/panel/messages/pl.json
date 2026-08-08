@@ -121,7 +121,8 @@
     "skipToContent": "Przejdź do treści",
     "payments": "Płatności",
     "sidebarCollapse": "Zwiń menu",
-    "sidebarExpand": "Rozwiń menu"
+    "sidebarExpand": "Rozwiń menu",
+    "apiKeys": "Klucze API"
   },
   "contractSettings": {
     "title": "Ustawienia umów",
@@ -1792,6 +1793,32 @@
     "providerTitle": "Rejestracja hostów",
     "providerAvailable": "Można rejestrować i ponawiać adresy sklepu."
   },
+  "apiSettings": {
+    "backLink": "Panel",
+    "introTitle": "Publiczne API rezerwacji",
+    "intro": "Klucze API pozwalają zewnętrznym integracjom (np. wtyczce na Twojej stronie) czytać katalog, sprawdzać dostępność i składać rezerwacje w Twoim sklepie.",
+    "baseUrlLabel": "Adres bazowy API:",
+    "listHeading": "Klucze API",
+    "emptyState": "Nie masz jeszcze żadnego klucza API.",
+    "generateTitle": "Wygeneruj nowy klucz",
+    "nameLabel": "Nazwa klucza",
+    "namePlaceholder": "np. WordPress — strona firmowa",
+    "nameHint": "Nazwa opisuje, gdzie klucz jest używany — ułatwia odwołanie właściwego.",
+    "generateCta": "Wygeneruj klucz",
+    "generatedOk": "Klucz „{name}” został wygenerowany.",
+    "generatedWarning": "Zapisz klucz teraz — pokazujemy go tylko ten jeden raz. Po odświeżeniu strony zobaczysz wyłącznie jego początek.",
+    "createdLabel": "Utworzony",
+    "lastUsedLabel": "Ostatnio użyty",
+    "neverUsed": "nigdy",
+    "stateLabel": "Stan",
+    "stateActive": "Aktywny",
+    "stateRevoked": "Odwołany {date}",
+    "revokeCta": "Odwołaj klucz",
+    "revokeQuestion": "Integracje używające tego klucza natychmiast przestaną działać.",
+    "revokeConfirm": "Odwołaj",
+    "revokeCancel": "Zostaw",
+    "ownerOnly": "Klucze API generuje i odwołuje właściciel organizacji. Możesz przeglądać listę i sprawdzić, kiedy klucz był ostatnio używany."
+  },
   "organization": {
     "title": "Organizacja",
     "description": "Dane organizacji widoczne na dokumentach i w rozliczeniach.",
@@ -1815,7 +1842,10 @@
     "localeValue": {
       "pl": "Polski",
       "en": "Angielski"
-    }
+    },
+    "apiKeysTitle": "Publiczne API rezerwacji",
+    "apiKeysDescription": "Klucze API dla zewnętrznych integracji — katalog, dostępność i rezerwacje na Twojej stronie.",
+    "apiKeysLink": "Zarządzaj kluczami API"
   },
   "secondaryStatus": {
     "domain": {
