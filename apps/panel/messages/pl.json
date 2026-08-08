@@ -910,6 +910,11 @@
       "summaryPaidOutManual": "Do oddania klientowi",
       "cancel": "Anuluj"
     },
+    "payment": {
+      "checkCta": "Sprawdź status płatności",
+      "checkHint": "Odpytamy dostawcę i zapiszemy to, co odpowie.",
+      "checkDone": "Status płatności zaktualizowany:"
+    },
     "extension": {
       "trigger": "Przedłuż",
       "newEndLabel": "Nowa data końca",

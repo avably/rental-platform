@@ -146,6 +146,20 @@ export interface IntentRead {
   amountReceivedGrosze: number;
   amountGrosze: number;
   currency: string;
+  /**
+   * Sekundy epoki, prosto od dostawcy (`created`) — KIEDY POWSTAŁA PŁATNOŚĆ,
+   * a nie kiedy powstał nasz wiersz.
+   *
+   * Pole istnieje wyłącznie dla rekoncyliacji (L11, ADR-104) i to ono jest
+   * jedyną dopuszczalną podstawą zdania „ta płatność jest porzucona".
+   * Zamówienie bywa sprzed tygodnia, a płatność przy nim — sprzed minuty
+   * (klient wrócił i właśnie zaczął płacić); decyzja oparta na wieku
+   * NASZEGO rekordu wygasiłaby ją w trakcie wpisywania karty.
+   *
+   * `0` znaczy „dostawca nie podał" i NIE JEST datą 1970: wołający ma
+   * traktować to jako brak dowodu, nie jako wiek maksymalny.
+   */
+  createdAtSeconds: number;
 }
 
 /**

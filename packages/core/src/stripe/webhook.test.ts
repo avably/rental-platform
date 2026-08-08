@@ -52,6 +52,10 @@ const read = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   amountGrosze: 12_345,
   // Małe litery jak w odpowiedzi dostawcy — konwersję wielkości robi werdykt.
   currency: "pln",
+  // `settlementVerdict` czasu powstania NIE czyta i czytać nie zacznie —
+  // próg porzucenia jest decyzją rekoncyliacji (reconciliation.ts), nie
+  // tłumaczenia odczytu na oś statusów.
+  createdAtSeconds: 1_800_000_000,
   ...overrides,
 });
 

@@ -119,6 +119,7 @@ const intentRead = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   amountReceivedGrosze: TOTAL_GROSZE,
   amountGrosze: TOTAL_GROSZE,
   currency: "pln",
+  createdAtSeconds: Math.floor(Date.now() / 1000),
   ...overrides,
 });
 

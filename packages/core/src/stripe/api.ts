@@ -122,6 +122,8 @@ interface StripePaymentIntentBody {
   amount?: number;
   amount_received?: number;
   currency?: string;
+  /** Sekundy epoki powstania płatności — podstawa progu porzucenia (L11). */
+  created?: number;
 }
 
 /**
@@ -428,7 +430,36 @@ export class StripeConnectClient {
       // prosiliśmy" — ten sam kierunek domyślności co przy kwocie: nieznana
       // waluta nie przejdzie porównania waluty w werdykcie.
       currency: typeof intent.currency === "string" ? intent.currency : "",
+      // Brak pola = 0, czyli „nie wiemy, kiedy powstała". Domyślne `now`
+      // udawałoby płatność świeżą (nic by nigdy nie wygasło), a domyślne
+      // zero wieku od epoki — wiecznie porzuconą. Zero jako JAWNY brak
+      // dowodu zostawia decyzję wołającemu, który umie ją odmówić.
+      createdAtSeconds: typeof intent.created === "number" ? intent.created : 0,
     };
+  }
+
+  /**
+   * Anuluje płatność u dostawcy i NIE ZWRACA STANU — ta sama bariera
+   * w kształcie typu, co przy `createAccount` i `createRefund` (ADR-049).
+   *
+   * Odpowiedź na `POST /v1/payment_intents/{id}/cancel` niesie komplet pól
+   * intentu, więc wołający miałby status pod ręką i użyłby go „bo już jest".
+   * A to jest dokładnie ten status, którego użyć nie wolno: anulowanie bywa
+   * ODRZUCONE przez dostawcę, gdy klient zapłacił sekundę wcześniej —
+   * i wtedy prawdą jest `succeeded`, o którym mówi wyłącznie ODCZYT
+   * wykonany PO tej próbie.
+   *
+   * Metoda rzuca `StripeApiError` przy odmowie dostawcy. Wołający ma tę
+   * odmowę potraktować jak sygnał „sprawdź jeszcze raz", nigdy jak dowód
+   * czegokolwiek o pieniądzach.
+   */
+  async cancelPaymentIntent(intentId: string, connectedAccountId: string): Promise<void> {
+    const { status, body } = await this.request(
+      `/v1/payment_intents/${encodeURIComponent(intentId)}/cancel`,
+      { method: "POST", stripeAccount: connectedAccountId, body: "" },
+    );
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
   }
 
   /**

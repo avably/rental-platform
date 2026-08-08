@@ -34,11 +34,22 @@ export {
 
 export {
   PaymentAmountError,
+  cancelPaymentIntent,
   createPaymentIntent,
   isIntentSettled,
   readPaymentIntent,
   type PaymentIntentDeps,
 } from "./payment-intent";
+
+export {
+  ABANDONED_INTENT_SECONDS,
+  CUSTOMER_ACTION_INTENT_STATUSES,
+  RECONCILIATION_GRACE_SECONDS,
+  isCustomerActionPending,
+  reconciliationCutoff,
+  reconciliationDecision,
+  type ReconciliationDecision,
+} from "./reconciliation";
 
 export {
   OBSERVED_REFUND_EVENTS,

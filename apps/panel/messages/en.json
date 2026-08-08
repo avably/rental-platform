@@ -910,6 +910,11 @@
       "summaryPaidOutManual": "To hand back to the customer",
       "cancel": "Cancel"
     },
+    "payment": {
+      "checkCta": "Check payment status",
+      "checkHint": "We will ask the provider and save whatever it reports.",
+      "checkDone": "Payment status updated:"
+    },
     "extension": {
       "trigger": "Extend",
       "newEndLabel": "New end date",

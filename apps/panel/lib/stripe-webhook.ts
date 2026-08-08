@@ -56,13 +56,13 @@ import {
   settlementVerdict,
   verifyStripeSignature,
   type IntentRead,
-  type PaymentStatus,
   type RefundRead,
   type StripeEventEnvelope,
 } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { bookDepositEvent, settleDepositIfComplete } from "./deposit-booking";
+import { applySettlement, type SettlementOrder } from "./payment-settlement";
 
 /** Nazwa dostawcy w rejestrze zdarzeń — lustro CHECK-a z migracji 0030. */
 export const WEBHOOK_PROVIDER = "stripe";
@@ -96,13 +96,10 @@ export interface StripeWebhookDeps {
 /** Co się realnie stało — lustro `webhook_events.status` z 0030. */
 export type WebhookOutcome = "processed" | "failed";
 
-interface OrderRow {
-  id: string;
-  tenant_id: string;
-  payment_status: PaymentStatus;
+/** Rozszerza `SettlementOrder` o pola, z których liczymy sumę oczekiwaną. */
+interface OrderRow extends SettlementOrder {
   payment_provider: string;
   total_rental_grosze: number;
-  total_deposit_grosze: number;
   delivery_grosze: number;
   /** Waluta UTRWALONA na zamówieniu (0049, ADR-103) — z niej powstał intent. */
   currency: string;
@@ -493,105 +490,41 @@ export async function handleStripeWebhook(
     return json(200, { status: "noop", eventId: event.id });
   }
 
-  // --- KAUCJA POBRANA: z tego samego POTWIERDZONEGO odczytu co `paid` ---
+  // --- ZAPIS ROZLICZENIA: wspólna ścieżka, ta sama co job i akcja panelu ---
   //
-  // Kaucja jedzie w tym samym intencie co najem i dostawa (D1/D4, 0029),
-  // więc chwila, w której dostawca potwierdza opłacenie zamówienia, JEST
-  // chwilą, w której kaucja została pobrana. Nie ma tu osobnego zdarzenia
-  // do odczytania i nie ma na co czekać.
-  //
-  // KSIĘGOWANIE STOI PRZED ZMIANĄ STATUSU, i to nie z powodu bramki
-  // (`paid` żadnej spójności z rejestrem nie wymaga), tylko z powodu
-  // PONOWIEŃ. Gdyby szło po statusie i padło, kolejna dostawa zastałaby
-  // zamówienie już w `paid`, uznała to za `noop` i wyszła — a kaucja
-  // zostałaby pobrana od klienta i NIEOBECNA w rejestrze, czyli nie do
-  // zwrócenia. W tej kolejności każda ponowna dostawa naprawia brak:
-  // wstawienie jest idempotentne (unikat odnośnika, 0031), a zmiana
-  // statusu i tak jest warunkowa.
-  //
-  // Sprawdzenie stoi też PRZED „jesteśmy już w tym statusie" — właśnie po
-  // to, żeby dostawa naprawcza miała gdzie zadziałać.
-  if (verdict.status === "paid" && order.total_deposit_grosze > 0) {
-    const booked = await bookDepositEvent(deps.db, {
-      tenantId: order.tenant_id,
-      orderId: order.id,
-      kind: "collected",
-      // Kwota kaucji z UTRWALONYCH danych zamówienia — nie z ciała zdarzenia
-      // i nie z odczytu płatności, bo tamten niesie sumę całego zamówienia.
-      // Rozjazd sumy z oczekiwaną odciął już `settlementVerdict` wyżej.
-      amountGrosze: order.total_deposit_grosze,
-      providerReference: event.objectId,
-    });
+  // Sekwencja (kaucja → compare-and-set → odczyt po zapisie) mieszka
+  // w `lib/payment-settlement.ts` od L11 (ADR-104), bo mają ją wykonywać
+  // TRZY wejścia z werdyktem z odczytu: to zdarzenie, pętla rekoncyliacji
+  // i przycisk operatora. Druga kopia rozjechałaby się przy pierwszej
+  // poprawce, a rozjazd byłby rozjazdem w księgowaniu pieniędzy.
+  const applied = await applySettlement(deps.db, {
+    order,
+    targetStatus: verdict.status,
+    providerReference: event.objectId,
+  });
 
-    if (!booked.ok) {
-      if (booked.retryable) {
-        await release(deps.db, eventRowId);
-        return json(500, { error: booked.reason });
-      }
-      // Rejestr odmówił deterministycznie — status `paid` NIE zostaje
-      // ustawiony, bo zamówienie z pobraną, a niezaksięgowaną kaucją jest
-      // gorsze niż zamówienie czekające na człowieka.
-      await finish(deps.db, eventRowId, "failed", booked.reason);
-      return json(200, { status: "rejected", eventId: event.id });
+  if (!applied.ok) {
+    if (applied.retryable) {
+      // Awaria przejściowa (baza, rejestr kaucji) — ponowienie ma sens.
+      await release(deps.db, eventRowId);
+      return json(500, { error: applied.reason });
     }
-  }
-
-  if (verdict.status === order.payment_status) {
-    await finish(
-      deps.db,
-      eventRowId,
-      "processed",
-      `Zamówienie jest już w statusie ${verdict.status} — bez zapisu.`,
-    );
-    return json(200, { status: "noop", eventId: event.id });
-  }
-
-  // --- Zapis warunkowy: compare-and-set na statusie, który widzieliśmy ---
-  //
-  // Filtr po STARYM statusie zamienia „nadpisz" w „zmień, jeśli nikt mnie
-  // nie wyprzedził". Równoległa dostawa (inne `event_id`, ta sama płatność)
-  // przechodzi ten sam odczyt i tę samą decyzję; bez tego filtru druga
-  // z nich nadpisywałaby stan ustawiony przez pierwszą na podstawie
-  // WCZEŚNIEJSZEGO odczytu.
-  const update = await deps.db
-    .from("orders")
-    .update({ payment_status: verdict.status })
-    .eq("id", order.id)
-    .eq("payment_status", order.payment_status);
-
-  // --- ODCZYT PO ZAPISIE: jedyne, co rozstrzyga o werdykcie ---
-  //
-  // Odpowiedź na UPDATE świadomie NIE decyduje. Jej brak błędu znaczy tylko
-  // „żądanie przyjęto" — także wtedy, gdy nie trafiło w żaden wiersz. Błąd
-  // z tej odpowiedzi wchodzi wyłącznie do UZASADNIENIA, bo niesie czytelny
-  // powód odmowy bramki (23514).
-  const after = await deps.db
-    .from("orders")
-    .select("payment_status")
-    .eq("id", order.id)
-    .maybeSingle();
-
-  if (after.error || !after.data) {
-    await release(deps.db, eventRowId);
-    return json(500, {
-      error: `Nie udało się potwierdzić zapisu odczytem: ${after.error?.message ?? "brak wiersza"}`,
-    });
-  }
-
-  const confirmed = (after.data as { payment_status: PaymentStatus }).payment_status;
-  if (confirmed !== verdict.status) {
-    const detail = update.error ? ` Baza odmówiła: ${update.error.message}` : "";
-    await finish(
-      deps.db,
-      eventRowId,
-      "failed",
-      `Zamierzano ustawić ${verdict.status}, po zapisie w bazie jest ${confirmed}.${detail}`,
-    );
-    // 2xx MIMO PORAŻKI: odmowa bramki statusów jest deterministyczna —
-    // dziesiąte ponowienie skończy się tak samo. Ślad zostaje w rejestrze.
+    // 2xx MIMO PORAŻKI: odmowa bramki (statusów albo salda kaucji) jest
+    // deterministyczna — dziesiąte ponowienie skończy się tak samo. Ślad
+    // zostaje w rejestrze jako ODMOWA, nie jako przetworzenie.
+    await finish(deps.db, eventRowId, "failed", applied.reason);
     return json(200, { status: "rejected", eventId: event.id });
   }
 
+  if (!applied.changed) {
+    await finish(deps.db, eventRowId, "processed", applied.reason);
+    return json(200, { status: "noop", eventId: event.id });
+  }
+
   await finish(deps.db, eventRowId, "processed", null);
-  return json(200, { status: "processed", eventId: event.id, paymentStatus: confirmed });
+  return json(200, {
+    status: "processed",
+    eventId: event.id,
+    paymentStatus: applied.paymentStatus,
+  });
 }

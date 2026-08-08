@@ -29,7 +29,10 @@ import type { CreateIntentParams, IntentHandle, IntentRead } from "./types";
  * kontraktu dostawcy podstawiają `fetchFn`, nie klienta.
  */
 export interface PaymentIntentDeps extends StripeConnectClientOptions {
-  client?: Pick<StripeConnectClient, "createPaymentIntent" | "readPaymentIntent">;
+  client?: Pick<
+    StripeConnectClient,
+    "createPaymentIntent" | "readPaymentIntent" | "cancelPaymentIntent"
+  >;
 }
 
 function resolveClient(deps: PaymentIntentDeps): PaymentIntentDeps["client"] & object {
@@ -137,4 +140,28 @@ export function isIntentSettled(
     read.currency.toUpperCase() === expectedCurrency.toUpperCase() &&
     read.amountReceivedGrosze >= expectedGrosze
   );
+}
+
+/**
+ * Wygasza porzuconą płatność u dostawcy (L11, ADR-104) — i NIC nie zwraca.
+ *
+ * Funkcja jest CZASOWNIKIEM WYSYŁANYM DO DOSTAWCY, a nie źródłem stanu:
+ * o tym, co się z pieniędzmi stało po tej próbie, mówi wyłącznie kolejny
+ * `readPaymentIntent`. Zwracanie stąd czegokolwiek o statusie wpuściłoby
+ * do systemu drugą, równoległą podstawę zdania o pieniądzach — a jest
+ * dokładnie jedna (ADR-049).
+ *
+ * Anulowanie jest OPERACJĄ NA KONCIE NAJEMCY, więc konto jest parametrem
+ * wymaganym: wywołanie bez niego poszłoby na konto platformy, gdzie tej
+ * płatności nie ma, i zakończyłoby się błędem „nie znaleziono" — czyli
+ * objawem, który nie wskazuje przyczyny.
+ */
+export async function cancelPaymentIntent(
+  intentId: string,
+  deps: PaymentIntentDeps & { connectedAccountId: string },
+): Promise<void> {
+  if (!deps.connectedAccountId) {
+    throw new Error("Wygaszenie płatności wymaga konta najemcy u dostawcy.");
+  }
+  await resolveClient(deps).cancelPaymentIntent(intentId, deps.connectedAccountId);
 }

@@ -110,6 +110,9 @@ const intentRead = (overrides: Partial<IntentRead> = {}): IntentRead => ({
   amountReceivedGrosze: AMOUNT_GROSZE,
   amountGrosze: AMOUNT_GROSZE,
   currency: "pln",
+  // Czas powstania płatności u dostawcy — w tej suicie bez znaczenia
+  // (progu porzucenia pilnuje L11), ale pole jest wymagane od ADR-104.
+  createdAtSeconds: Math.floor(Date.now() / 1000),
   ...overrides,
 });
 
