@@ -16,6 +16,19 @@ z `admin-ajax.php` własnej instalacji.
 
 ## Instalacja
 
+Najprościej: w panelu Avably wejdź w **Integracje** (grupa KANAŁY) i kliknij
+**„Pobierz wtyczkę (.zip)"**, a potem w WordPressie **Wtyczki → Dodaj wtyczkę →
+Wyślij wtyczkę na serwer**, wgraj plik, kliknij „Zainstaluj teraz" i **„Włącz
+wtyczkę"**.
+
+Paczkę można też zbudować ze źródeł repo:
+
+```sh
+node scripts/build-wp-plugin-zip.mjs
+```
+
+Ręcznie, z katalogu źródeł:
+
 1. Skopiuj katalog `avably-booking/` do `wp-content/plugins/`.
 2. Aktywuj wtyczkę **Avably Booking** w wp-admin.
 3. Wejdź w **Ustawienia → Avably Booking**:

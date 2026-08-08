@@ -3,9 +3,10 @@
  * zamówienia, klienci, katalog jako CSV (zaufanie/anty-lock-in + fundament
  * pod przenoszalność z RODO).
  *
- * Trasa POZA PANEL_NAV_GROUPS — jak /ustawienia-api (struktura grup nawigacji
- * jest kontraktem 1:1 z artefaktem Fazy 2): wejście linkiem z ekranu
- * organizacji, tytuł belki przez PANEL_ROUTE_TITLE_OVERRIDES.
+ * Trasa POZA PANEL_NAV_GROUPS (struktura grup jest kontraktem 1:1 z
+ * artefaktem Fazy 2): wejście linkiem z ekranu organizacji, tytuł belki przez
+ * PANEL_ROUTE_TITLE_OVERRIDES. Uwaga: /ustawienia-api NIE jest już takim
+ * przypadkiem — od M2 (ADR-110) ma pozycję „Integracje" w grupie KANAŁY.
  */
 import { getLocale, getTranslations } from "next-intl/server";
 

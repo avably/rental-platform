@@ -1,4 +1,5 @@
 import {
+  Blocks,
   Building2,
   CreditCard,
   Globe,
@@ -43,6 +44,9 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   delivery: Truck,
   contracts: ScrollText,
   payments: CreditCard,
+  // Integracje = klocki doklejane do cudzej strony (wtyczka WP, embed),
+  // a nie gniazdko (Plug), ktore w tym kontekscie czytaloby sie jak zasilanie.
+  integrations: Blocks,
   team: Users,
   organization: Building2,
   security: ShieldCheck,

@@ -81,6 +81,13 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
       // W grupie SPRZEDAŻ stałyby wśród ekranów, na których się PRACUJE
       // (zamówienia, katalog), a tu się nie pracuje, tylko podłącza raz.
       { id: "payments", href: "/ustawienia-platnosci", labelKey: "payments" },
+      // Integracje (M2, ADR-110) — wejście do kluczy API i instrukcji
+      // podłączenia WordPressa. Grupa KANAŁY, bo to kolejna DROGA, którą
+      // przychodzi zamówienie: obok własnego sklepu (domeny) i poczty stoi
+      // cudza strona najemcy. Nazwa rodzajowa, nie „WordPress i API":
+      // ekran obejmuje klucze dla dowolnego konsumenta maszynowego, a embed
+      // (M3) dołoży tu kolejne wejście bez zmiany etykiety.
+      { id: "integrations", href: "/ustawienia-api", labelKey: "integrations" },
     ],
   },
   {
@@ -138,10 +145,9 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/historia-emaili", labelKey: "emailHistory" },
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
   { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
-  // Klucze API (M1, ADR-108) — CELOWO poza PANEL_NAV_GROUPS: struktura grup
-  // jest kontraktem 1:1 z artefaktem Fazy 2 (panel-nav-contract), a ekran
-  // kluczy nie ma tam pozycji. Wejście: link z ekranu organizacji.
-  { path: "/ustawienia-api", labelKey: "apiKeys" },
+  // /ustawienia-api NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma
+  // własną pozycję w grupie KANAŁY, więc tytuł bierze się z niej przez
+  // matchNavItem — jedna nazwa w menu i w nagłówku, zero rozjazdu.
   // Eksport danych (C2, ADR-111) — jak klucze API: ekran spoza grup
   // nawigacji, wejście z ekranu organizacji.
   { path: "/eksport-danych", labelKey: "dataExport" },

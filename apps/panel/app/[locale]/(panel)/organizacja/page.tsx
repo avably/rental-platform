@@ -79,10 +79,10 @@ export default async function OrganizationPage() {
     <FormMeasure className="flex flex-col gap-4">
       <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
 
-      {/* Klucze publicznego API (M1, ADR-108) — wejście do ekranu spoza
-          głównej nawigacji (grupy nav są kontraktem z artefaktem Fazy 2).
-          Ekran organizacji jest naturalnym miejscem: klucz API to
-          poświadczenie CAŁEJ organizacji, jak członkostwo. */}
+      {/* Klucze publicznego API (M1, ADR-108). Od M2 (ADR-110) ekran ma
+          własną pozycję „Integracje" w grupie KANAŁY — ten link ZOSTAJE jako
+          drugie wejście, bo klucz API to poświadczenie CAŁEJ organizacji,
+          jak członkostwo, i operator szuka go także tutaj. */}
       <ScreenSection title={t("apiKeysTitle")} description={t("apiKeysDescription")}>
         <Link href="/ustawienia-api" className="text-sm font-medium underline underline-offset-[3px]">
           {t("apiKeysLink")}
