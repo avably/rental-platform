@@ -89,9 +89,9 @@ export default async function OrganizationPage() {
         </Link>
       </ScreenSection>
 
-      {/* Eksport danych (C2, ADR-111) — ten sam wzorzec wejścia co klucze
-          API: ekran spoza grup nawigacji, a organizacja to naturalny dom
-          („zabierz SWOJE dane" dotyczy całej organizacji). */}
+      {/* Eksport danych (C2, ADR-111). Od M2 (ADR-110) ekran ma pozycję
+          „Eksport danych" w grupie ORGANIZACJA; ten link ZOSTAJE jako drugie
+          wejście, bo „zabierz SWOJE dane" dotyczy całej organizacji. */}
       <ScreenSection title={t("dataExportTitle")} description={t("dataExportDescription")}>
         <Link href="/eksport-danych" className="text-sm font-medium underline underline-offset-[3px]">
           {t("dataExportLink")}

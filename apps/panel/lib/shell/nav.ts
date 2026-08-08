@@ -101,6 +101,14 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
       // więc kontrakt struktury z artefaktem zostaje zielony.
       // `/organizacja/nowa` (onboarding) pozostaje osiągalna własnym adresem.
       { id: "organization", href: "/organizacja", labelKey: "organization" },
+      // Eksport danych (C2, ADR-111) w ORGANIZACJI, nie w SPRZEDAŻY ani
+      // KANAŁACH — rozstrzygnięcie spisane w ADR-110 (decyzja 14), żeby
+      // pozycja nie wędrowała między grupami przy każdej sesji: SPRZEDAŻ to
+      // ekrany, na których się PRACUJE codziennie; KANAŁY to drogi
+      // podłączane RAZ; ORGANIZACJA to sprawy firmy i konta — „zabierz
+      // swoje dane" należy tam (a eksport klientów jest owner-only, jak
+      // reszta tej grupy).
+      { id: "dataExport", href: "/eksport-danych", labelKey: "dataExport" },
       { id: "security", href: "/bezpieczenstwo", labelKey: "security" },
     ],
   },
@@ -148,9 +156,9 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   // /ustawienia-api NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma
   // własną pozycję w grupie KANAŁY, więc tytuł bierze się z niej przez
   // matchNavItem — jedna nazwa w menu i w nagłówku, zero rozjazdu.
-  // Eksport danych (C2, ADR-111) — jak klucze API: ekran spoza grup
-  // nawigacji, wejście z ekranu organizacji.
-  { path: "/eksport-danych", labelKey: "dataExport" },
+  // /eksport-danych NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma
+  // własną pozycję w grupie ORGANIZACJA, więc tytuł bierze się z niej przez
+  // matchNavItem — jak /ustawienia-api.
 ] as const;
 
 /**
