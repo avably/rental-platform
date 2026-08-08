@@ -86,13 +86,17 @@ function liveReservationDeps(
 
 const createdTenantIds: string[] = [];
 
-async function seedTenant(admin: SupabaseClient, label: string): Promise<string> {
+async function seedTenant(
+  admin: SupabaseClient,
+  label: string,
+  status = "active",
+): Promise<string> {
   const { data, error } = await admin
     .from("tenants")
     .insert({
       slug: `apiv1-${label}-${randomUUID().slice(0, 8)}`.slice(0, 39),
       name: `API v1 test ${label}`,
-      status: "active",
+      status,
       locale: "pl",
     })
     .select("id")
@@ -321,6 +325,36 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
       .eq("tenant_id", tenantB);
     expect(ordersB).toBe(0);
     expect(emailCalls).toEqual([{ tenantId: tenantA }]);
+  });
+
+  it("status tenanta bramkuje API na ŻYWEJ ścieżce: suspended → 403, po odwieszeniu ten sam klucz → 200", async () => {
+    // Luka z recenzji PM: 403 store_unavailable było przypięte wyłącznie na
+    // stubie weryfikacji (unit) — mutant `t.status → 'active'::text` w żywej
+    // funkcji app.verify_api_key przechodził całą suitę. Ten test dowodzi
+    // SPRZĘŻENIA handlera z PRAWDZIWĄ kolumną tenants.status przez RPC.
+    const tenantC = await seedTenant(admin, "c", "suspended");
+    const rawKeyC = await seedApiKey(admin, tenantC);
+
+    const denied = await handleCatalogRequest(
+      new Request("https://x.avably.io/api/v1/catalog", {
+        headers: { authorization: `Bearer ${rawKeyC}` },
+      }),
+      catalogDeps(),
+    );
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toEqual({ error: { code: "store_unavailable" } });
+
+    // Kontrola pozytywna na TYM SAMYM tenancie i kluczu — bez niej bramka
+    // „wszystkim odmawiaj" też byłaby zielona.
+    const { error } = await admin.from("tenants").update({ status: "active" }).eq("id", tenantC);
+    expect(error).toBeNull();
+    const allowed = await handleCatalogRequest(
+      new Request("https://x.avably.io/api/v1/catalog", {
+        headers: { authorization: `Bearer ${rawKeyC}` },
+      }),
+      catalogDeps(),
+    );
+    expect(allowed.status).toBe(200);
   });
 
   it("klucz odwołany przestaje działać END-TO-END (401 na żywej ścieżce)", async () => {
