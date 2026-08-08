@@ -74,6 +74,8 @@ interface FakeIntent {
   status: string;
   amountReceivedGrosze: number;
   amountGrosze: number;
+  /** Waluta księgowania u dostawcy (K3/ADR-103) — małe litery jak w odpowiedzi. */
+  currency: string;
   createdAtSeconds: number;
 }
 
@@ -335,6 +337,9 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
     status: "succeeded",
     amountReceivedGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
     amountGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
+    // Seedy nie podają waluty, więc trigger 0049 utrwala 'PLN' — odczyt
+    // z konta dostawcy mówi małymi literami; konwersję robi werdykt.
+    currency: "pln",
     createdAtSeconds: nowSeconds - 30 * 60,
     ...overrides,
   });
@@ -457,6 +462,21 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
       expect(await paymentStatusOf(orderId)).toBe("pending");
     });
 
+    it("succeeded w CUDZEJ walucie → stan nietknięty (K3/ADR-103)", async () => {
+      // Mina, którą K3 zamknął w webhooku: intent na 32 000 CENTÓW EUR to
+      // nie 32 000 GROSZY PLN, choć liczba się zgadza. Pętla nie może jej
+      // otworzyć z powrotem — werdykt porównuje walutę Z ZAMÓWIENIA.
+      const tenant = await seedTenant("cudza-waluta");
+      const { orderId, intentId } = await seedOrder(tenant);
+      provider.read = readsOf({ [intentId]: intent({ intentId, currency: "eur" }) });
+
+      const result = await reconcilePayments({ db: admin, now: NOW });
+
+      expect(entryFor(result, orderId)).toMatchObject({ outcome: "skipped" });
+      expect(entryFor(result, orderId)!.reason).toContain("walucie");
+      expect(await paymentStatusOf(orderId)).toBe("pending");
+    });
+
     it("processing → stan nietknięty", async () => {
       const tenant = await seedTenant("w-toku");
       const { orderId, intentId } = await seedOrder(tenant);
@@ -556,6 +576,7 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
         status: cancelled ? "canceled" : "requires_payment_method",
         amountReceivedGrosze: 0,
         amountGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
+        currency: "pln",
         createdAtSeconds: nowSeconds - 25 * 60 * 60,
       }));
       provider.cancel = cancelOnly(intentId, async () => {
@@ -587,6 +608,7 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
               status: "succeeded",
               amountReceivedGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
               amountGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
+              currency: "pln",
               createdAtSeconds: nowSeconds - 25 * 60 * 60,
             }
           : {
@@ -594,6 +616,7 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
               status: "requires_payment_method",
               amountReceivedGrosze: 0,
               amountGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
+              currency: "pln",
               createdAtSeconds: nowSeconds - 25 * 60 * 60,
             },
       );
@@ -620,6 +643,7 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
         status: "requires_payment_method",
         amountReceivedGrosze: 0,
         amountGrosze: RENTAL_GROSZE + DELIVERY_GROSZE,
+        currency: "pln",
         createdAtSeconds: nowSeconds - 25 * 60 * 60,
       }));
       provider.cancel = cancelOnly(intentId, async () => {
