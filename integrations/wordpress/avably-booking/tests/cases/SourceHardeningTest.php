@@ -130,6 +130,35 @@ final class SourceHardeningTest extends TestCase {
 		}
 	}
 
+	/**
+	 * W1 (kontrakt ŹRÓDŁA): transport HTTP MUSI iść przez wariant walidujący
+	 * adres (`wp_safe_remote_request`, czyli reject_unsafe_urls) i z wyłączonym
+	 * podążaniem za przekierowaniami (`redirection => 0`).
+	 *
+	 * Test behawioralny (TransportRedirectTest) sprawdza skutek na modelu; ten
+	 * kontrakt pilnuje kształtu wywołania, bo cała luka siedziała w DOMYŚLNYCH
+	 * zachowaniach `wp_remote_request` — powrót do surowego wariantu albo
+	 * usunięcie `redirection` musi palić TU, niezależnie od modelu transportu.
+	 */
+	public function test_http_transport_uses_safe_request_without_redirects(): void {
+		$code = self::stripComments( self::phpSources()['class-avably-booking-plugin.php'] );
+		$this->assertStringContainsString(
+			'wp_safe_remote_request(',
+			$code,
+			'http_transport nie używa wp_safe_remote_request (brak reject_unsafe_urls)'
+		);
+		$this->assertStringNotContainsString(
+			'wp_remote_request(',
+			$code,
+			'http_transport używa surowego wp_remote_request — podąża za 302 i wynosi Authorization'
+		);
+		$this->assertMatchesRegularExpression(
+			"/'redirection'\s*=>\s*0/",
+			$code,
+			'transport nie wyłącza podążania za przekierowaniami (redirection => 0)'
+		);
+	}
+
 	/** Nagłówek wtyczki deklaruje minima środowiska (ADR-110). */
 	public function test_plugin_header_declares_minimums(): void {
 		$code = self::phpSources()['avably-booking.php'];

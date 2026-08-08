@@ -157,6 +157,73 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 'http://host.docker.internal:3340', $result['settings']['api_url'] );
 	}
 
+	/**
+	 * W4: `http://` wysyła klucz API otwartym tekstem (nagłówek Authorization
+	 * bez TLS) i otwiera wstrzyknięcie 302 na ścieżce sieciowej. Produkcja
+	 * przyjmuje WYŁĄCZNIE `https://`; komunikat po ludzku, bez nazw zmiennych
+	 * ani kluczy ustawień (bramka U1).
+	 */
+	public function test_http_scheme_is_rejected_in_production(): void {
+		$current = $this->current();
+		$result  = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'http://sklep.example.com' ),
+			$current,
+			false
+		);
+		$this->assertNotNull( $result['error'], 'http:// przeszło' );
+		$this->assertSame( $current['api_url'], $result['settings']['api_url'], 'http:// podmieniło zapisany URL' );
+
+		// Bramka U1: żadnych nazw zmiennych/kluczy ustawień w komunikacie.
+		foreach ( array( 'api_url', 'api_key', 'key_prefix', 'avably_booking_settings', '$' ) as $forbidden ) {
+			$this->assertStringNotContainsString( $forbidden, (string) $result['error'], "komunikat zawiera: {$forbidden}" );
+		}
+	}
+
+	/** `https://` przechodzi bez zmian (kontrola fałszywego alarmu W4). */
+	public function test_https_scheme_is_accepted(): void {
+		$result = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'https://sklep.example.com' ),
+			$this->current(),
+			false
+		);
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 'https://sklep.example.com', $result['settings']['api_url'] );
+	}
+
+	/**
+	 * Wyjątek dev PRZYPIĘTY: `http://` na host lokalny przechodzi WYŁĄCZNIE w
+	 * trybie deweloperskim (ten sam jawny przełącznik, co adresy prywatne).
+	 * Bez trybu dev — odrzucone, żeby wyjątek nie stał się furtką produkcyjną.
+	 */
+	public function test_http_localhost_allowed_only_in_dev_mode(): void {
+		$dev = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'http://localhost:3340' ),
+			$this->current(),
+			true
+		);
+		$this->assertNull( $dev['error'], 'tryb dev odrzucił http://localhost' );
+		$this->assertSame( 'http://localhost:3340', $dev['settings']['api_url'] );
+
+		$prod = Avably_Booking_Settings::sanitize_input(
+			array( 'api_url' => 'http://localhost:3340' ),
+			$this->current(),
+			false
+		);
+		$this->assertNotNull( $prod['error'], 'produkcja przyjęła http://localhost' );
+		$this->assertSame( $this->current()['api_url'], $prod['settings']['api_url'] );
+	}
+
+	/**
+	 * Klucz API nie może być autoloadowany (jechać w pamięci z KAŻDYM żądaniem
+	 * frontu). register_settings wymusza wyłączenie autoloadu opcji.
+	 */
+	public function test_settings_option_autoload_is_disabled(): void {
+		AvablyTestState::reset();
+		Avably_Booking_Settings::register_settings();
+		$this->assertArrayHasKey( Avably_Booking_Settings::OPTION_NAME, AvablyTestState::$autoloadCalls );
+		$this->assertFalse( AvablyTestState::$autoloadCalls[ Avably_Booking_Settings::OPTION_NAME ] );
+	}
+
 	/** Adresy publiczne nie mogą wpaść w bramkę anty-SSRF. */
 	public function test_public_hosts_pass(): void {
 		foreach ( [ 'https://www.avably.io', 'https://sklep.example.com:8443', 'https://203.0.113.10' ] as $url ) {

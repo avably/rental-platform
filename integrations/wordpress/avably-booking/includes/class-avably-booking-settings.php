@@ -65,6 +65,12 @@ class Avably_Booking_Settings {
 				'autoload'          => false,
 			)
 		);
+		// register_setting NIE egzekwuje autoloadu dla opcji już istniejącej
+		// (zostaje `auto`, więc klucz i tak jedzie z każdym żądaniem frontu) —
+		// wymuszamy wyłączenie wprost. Idempotentne: WP pisze tylko przy zmianie.
+		if ( function_exists( 'wp_set_option_autoload' ) ) {
+			wp_set_option_autoload( self::OPTION_NAME, false );
+		}
 	}
 
 	/**
@@ -111,6 +117,14 @@ class Avably_Booking_Settings {
 			$api_url = self::DEFAULT_API_URL;
 		} elseif ( ! preg_match( '#^https?://[^\s]+$#i', $api_url ) ) {
 			$error   = __( 'API URL must start with http:// or https://.', 'avably-booking' );
+			$api_url = $current['api_url'];
+		} elseif ( preg_match( '#^http://#i', $api_url ) && ! $allow_private ) {
+			// W4: po http nagłówek Authorization (klucz API) jedzie otwartym
+			// tekstem, a napastnik na ścieżce sieciowej może wstrzyknąć 302.
+			// Produkcja wymaga TLS; http dopuszcza WYŁĄCZNIE jawny tryb dev
+			// (ta sama stała, co adresy prywatne) — przypięte testem, żeby nie
+			// stało się furtką produkcyjną.
+			$error   = __( 'The store address must use a secure connection (https://).', 'avably-booking' );
 			$api_url = $current['api_url'];
 		} elseif ( self::is_private_host( self::host_of( $api_url ) ) && ! $allow_private ) {
 			// SSRF: pole zapisuje admin, ale przejęte konto admina nie ma
