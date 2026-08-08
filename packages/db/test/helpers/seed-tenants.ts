@@ -732,6 +732,20 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     domain: `rls-${randomUUID().slice(0, 12)}.example.com`,
   }),
 
+  // Klucz publicznego API (0053, ADR-108). key_hash ma UNIQUE globalny i CHECK
+  // 64-hex — unikalny hash per wywołanie (pułapka 23505 opisana przy
+  // usage_counters), budowany z dwóch uuid-ów, żeby nie ciągnąć node:crypto
+  // do tego helpera. key_prefix spełnia CHECK ^avbl_[0-9a-f]{8}$.
+  api_keys: async (_ctx, tenantId) => {
+    const hex = (randomUUID() + randomUUID()).replace(/-/g, "").slice(0, 64);
+    return {
+      tenant_id: tenantId,
+      name: `RLS test key ${randomUUID().slice(0, 8)}`,
+      key_hash: hex,
+      key_prefix: `avbl_${hex.slice(0, 8)}`,
+    };
+  },
+
   // Konto najemcy u dostawcy płatności (0028, ADR-065). PK = tenant_id, więc
   // sonda INSERT cross-tenant koliduje kluczem tak samo jak przy
   // subscriptions — i tak samo dostaje 42501, bo WITH CHECK jest egzekwowane
@@ -872,6 +886,12 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   sites: { template: "bold" },
   site_sections: { position: 999_999 },
   domains: { verified: true },
+
+  // name: bez indeksu unikalnego, CHECK tylko na długość btrim 1..80 —
+  // „rls-test-hacked" go spełnia, więc goła mutacja nie wywoła ani 23505,
+  // ani 23514 (pułapki opisane wyżej nie dotyczą). key_hash byłby pułapką:
+  // UNIQUE globalny + CHECK 64-hex.
+  api_keys: { name: "rls-test-hacked" },
 
   // charges_enabled, a NIE provider_account_id: bramka zapisu 0028 czyni
   // identyfikator konta niezmiennym (23514), więc goła mutacja na tamtej
