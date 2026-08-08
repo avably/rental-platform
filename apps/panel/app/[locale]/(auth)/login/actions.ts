@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { clientIpFromHeaders } from "@avably/security/client-ip";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 import { verifyTurnstile } from "@avably/security/turnstile";
 
@@ -31,23 +32,35 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   // bez konta). Sanityzowana przeciw open-redirect (patrz safeNextPath).
   const next = safeNextPath(formData.get("next"));
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
+  // IP z zaufanego źródła (x-real-ip platformy / ostatni hop XFF) — goły
+  // x-forwarded-for był podrabialny nagłówkiem klienta (L2, ADR-106).
+  // Drugi wymiar: znormalizowany e-mail (loginSchema robi trim+lowercase),
+  // żeby atak rozproszony po wielu IP nie dostawał świeżego licznika na konto.
+  // Progi: ADR-106. Komunikat JEDNOLITY dla obu wymiarów — odpowiedź nie może
+  // zdradzać, który limit strzelił (enumeracja kont).
+  const ip = clientIpFromHeaders(await headers());
   const rateLimitIp = await checkRateLimit(`login:ip:${ip}`, {
-    limit: 20,
-    windowSeconds: 60,
-    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
-  });
-  const rateLimitEmail = await checkRateLimit(`login:email:${parsed.data.email}`, {
     limit: 10,
     windowSeconds: 60,
     prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
   });
+  const rateLimitEmail = await checkRateLimit(`login:email:${parsed.data.email}`, {
+    limit: 5,
+    windowSeconds: 60,
+    prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,
+  });
   if (!rateLimitIp.success || !rateLimitEmail.success) {
-    return { error: "Zbyt wiele prób logowania. Spróbuj ponownie za chwilę." };
+    const t = await getTranslations("authError");
+    return { error: t("tooManyRequests") };
   }
 
+  // FAIL-OPEN przy AWARII dostawcy CAPTCHA (providerError) — świadoma
+  // decyzja ADR-106 tylko dla logowania: awaria Cloudflare nie może odcinać
+  // operatorów od ich firm, a rate-limit powyżej dalej stoi. Odmowa
+  // weryfikacji (zły/zużyty token przy sprawnym dostawcy) blokuje normalnie.
+  // Register/reset zostają fail-closed.
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken);
-  if (!turnstile.ok) {
+  if (!turnstile.ok && !turnstile.providerError) {
     const t = await getTranslations("login");
     return { error: t("captchaFailed") };
   }

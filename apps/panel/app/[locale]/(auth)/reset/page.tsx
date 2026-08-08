@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { AuthCaptchaField } from "../captcha-field";
 import { resetRequestAction, type ResetRequestState } from "./actions";
 
 const initialState: ResetRequestState = {};
@@ -26,6 +27,9 @@ export default function ResetRequestPage() {
             className="rounded border px-3 py-2"
           />
         </label>
+        {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
+            (semantyka włączenia — L2/ADR-106). */}
+        <AuthCaptchaField resetSignal={state} />
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
         {state.success ? <p className="text-sm text-green-700">{state.success}</p> : null}
         <button

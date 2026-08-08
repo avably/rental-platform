@@ -14,6 +14,10 @@
       "types": "./src/rate-limit.ts",
       "default": "./src/rate-limit.ts"
     },
+    "./client-ip": {
+      "types": "./src/client-ip.ts",
+      "default": "./src/client-ip.ts"
+    },
     "./turnstile": {
       "types": "./src/turnstile.ts",
       "default": "./src/turnstile.ts"
@@ -23,10 +27,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint ."
-  },
-  "dependencies": {
-    "@upstash/ratelimit": "^2.0.5",
-    "@upstash/redis": "^1.38.1"
   },
   "peerDependencies": {
     "next": "16.2.11"

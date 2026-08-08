@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "^2.110.5"
   },
   "devDependencies": {
+    "@avably/security": "workspace:*",
     "@types/node": "^20",
     "@types/ws": "^8.18.1",
     "postgres": "^3.4.9",
