@@ -67,8 +67,11 @@ function GenerateKeyForm() {
         <div className="flex flex-col gap-2" data-api-key-generated>
           <p className="text-status-positive-fg text-sm">{t("generatedOk", { name: state.success ?? "" })}</p>
           {/* Jedyne miejsce, w którym surowy klucz istnieje na ekranie —
-              zaznaczalny do skopiowania, łamany, żeby nie uciekał poza miarę. */}
-          <code className="bg-muted rounded-md p-3 text-sm break-all select-all">
+              zaznaczalny do skopiowania, łamany, żeby nie uciekał poza miarę.
+              font-sans JAWNIE: kontrakt typografii (gallery-contract) nie
+              pozwala elementowi code bez klasy spaść na Preflightowy
+              ui-monospace — wzorzec sekretu TOTP z ekranu bezpieczeństwa. */}
+          <code className="bg-muted rounded-md p-3 font-sans text-sm break-all select-all">
             {state.generatedKey}
           </code>
           <p role="status" className="text-status-attention-fg text-sm">
@@ -112,7 +115,7 @@ function ApiKeyCard({ apiKey, isOwner }: { apiKey: ApiKeyRow; isOwner: boolean }
     <ScreenSection
       data-api-key-state={revoked ? "revoked" : "active"}
       title={apiKey.name}
-      description={<code className="text-[13px]">{apiKey.keyPrefix}…</code>}
+      description={<code className="font-sans text-[13px]">{apiKey.keyPrefix}…</code>}
     >
       <dl className="text-muted-foreground grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
         <div className="flex flex-col">
@@ -159,7 +162,7 @@ export function ApiKeysPanel({
             {apiBaseUrl && (
               <>
                 {" "}
-                {t("baseUrlLabel")} <code className="text-[13px]">{apiBaseUrl}</code>
+                {t("baseUrlLabel")} <code className="font-sans text-[13px]">{apiBaseUrl}</code>
               </>
             )}
           </>
