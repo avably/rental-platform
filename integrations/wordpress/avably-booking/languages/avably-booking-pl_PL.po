@@ -1,0 +1,306 @@
+# Polskie tłumaczenie wtyczki Avably Booking.
+msgid ""
+msgstr ""
+"Project-Id-Version: Avably Booking 0.1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pl_PL\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Domain: avably-booking\n"
+
+msgid "Online booking is temporarily unavailable. Please contact us directly."
+msgstr "Rezerwacja online jest chwilowo niedostępna. Skontaktuj się z nami bezpośrednio."
+
+msgid "The store is currently unavailable. Please try again later."
+msgstr "Sklep jest w tej chwili niedostępny. Spróbuj ponownie później."
+
+msgid "Too many requests. Please wait a moment and try again."
+msgstr "Zbyt wiele żądań. Odczekaj chwilę i spróbuj ponownie."
+
+msgid "Please check the highlighted fields and try again."
+msgstr "Sprawdź zaznaczone pola i spróbuj ponownie."
+
+msgid "This product is no longer available."
+msgstr "Ten produkt nie jest już dostępny."
+
+msgid "The selected dates have just been taken. Please refresh availability and pick different dates."
+msgstr "Wybrane terminy zostały właśnie zajęte. Odśwież dostępność i wybierz inne daty."
+
+msgid "The reservation could not be processed. Please verify your details and try again."
+msgstr "Nie udało się przetworzyć rezerwacji. Sprawdź dane i spróbuj ponownie."
+
+msgid "Online payment is currently unavailable. Please choose a different payment method."
+msgstr "Płatność online jest w tej chwili niedostępna. Wybierz inną metodę płatności."
+
+msgid "Something went wrong. Please try again later."
+msgstr "Coś poszło nie tak. Spróbuj ponownie później."
+
+msgid "E-mail address"
+msgstr "Adres e-mail"
+
+msgid "Full name"
+msgstr "Imię i nazwisko"
+
+msgid "Start date"
+msgstr "Data rozpoczęcia"
+
+msgid "End date"
+msgstr "Data zakończenia"
+
+msgid "Delivery method"
+msgstr "Sposób dostawy"
+
+msgid "Pickup location"
+msgstr "Punkt odbioru"
+
+msgid "Payment method"
+msgstr "Metoda płatności"
+
+msgid "Selected products"
+msgstr "Wybrane produkty"
+
+msgid "Terms acceptance"
+msgstr "Akceptacja regulaminu"
+
+msgid "Phone number"
+msgstr "Numer telefonu"
+
+msgid "Company name"
+msgstr "Nazwa firmy"
+
+msgid "Tax ID"
+msgstr "NIP"
+
+msgid "Street address"
+msgstr "Ulica i numer"
+
+msgid "Postal code"
+msgstr "Kod pocztowy"
+
+msgid "City"
+msgstr "Miejscowość"
+
+msgid "Language"
+msgstr "Język"
+
+#. translators: %s: form field label.
+msgid "%s is required."
+msgstr "%s: pole jest wymagane."
+
+#. translators: %s: form field label.
+msgid "%s is too long."
+msgstr "%s: wartość jest za długa."
+
+#. translators: %s: form field label.
+msgid "%s is not allowed here."
+msgstr "%s: pole nie jest tu dozwolone."
+
+#. translators: %s: form field label.
+msgid "%s is invalid."
+msgstr "%s: wartość jest nieprawidłowa."
+
+msgid "Personal pickup"
+msgstr "Odbiór osobisty"
+
+msgid "Courier delivery"
+msgstr "Dostawa kurierem"
+
+msgid "Parcel locker"
+msgstr "Paczkomat"
+
+msgid "Store delivery"
+msgstr "Dowóz wypożyczalni"
+
+msgid "Bank transfer"
+msgstr "Przelew bankowy"
+
+msgid "Payment on pickup/delivery"
+msgstr "Płatność przy odbiorze"
+
+msgid "No products are currently available."
+msgstr "Obecnie żaden produkt nie jest dostępny."
+
+msgid "per day"
+msgstr "za dobę"
+
+msgid "Deposit:"
+msgstr "Kaucja:"
+
+msgid "Book now"
+msgstr "Zarezerwuj"
+
+msgid "Back to catalog"
+msgstr "Wróć do katalogu"
+
+msgid "Enable JavaScript to see the availability calendar."
+msgstr "Włącz JavaScript, aby zobaczyć kalendarz dostępności."
+
+msgid "Reservation"
+msgstr "Rezerwacja"
+
+msgid "Quantity"
+msgstr "Ilość"
+
+msgid "Phone (optional)"
+msgstr "Telefon (opcjonalnie)"
+
+msgid "Choose…"
+msgstr "Wybierz…"
+
+msgid "free"
+msgstr "bezpłatnie"
+
+msgid "Notes (optional)"
+msgstr "Uwagi (opcjonalnie)"
+
+msgid "I accept the rental terms and conditions."
+msgstr "Akceptuję regulamin wypożyczalni."
+
+msgid "Avably Booking is not configured yet. Set the API URL and API key in Settings → Avably Booking."
+msgstr "Avably Booking nie jest jeszcze skonfigurowany. Ustaw URL API i klucz API w Ustawienia → Avably Booking."
+
+msgid "Available"
+msgstr "Dostępne"
+
+msgid "Unavailable"
+msgstr "Niedostępne"
+
+msgid "Checking availability…"
+msgstr "Sprawdzanie dostępności…"
+
+msgid "Selected dates are available."
+msgstr "Wybrane terminy są dostępne."
+
+msgid "Selected dates are not available. Please pick different dates."
+msgstr "Wybrane terminy są niedostępne. Wybierz inne daty."
+
+msgid "units available"
+msgstr "szt. dostępnych"
+
+msgid "Submitting reservation…"
+msgstr "Wysyłanie rezerwacji…"
+
+msgid "Reservation confirmed"
+msgstr "Rezerwacja przyjęta"
+
+msgid "Order number"
+msgstr "Numer zamówienia"
+
+msgid "Rental dates"
+msgstr "Termin wynajmu"
+
+msgid "Payment"
+msgstr "Płatność"
+
+msgid "Bank transfer — the store will contact you with payment details."
+msgstr "Przelew bankowy — wypożyczalnia skontaktuje się z danymi do płatności."
+
+msgid "Payment on pickup/delivery."
+msgstr "Płatność przy odbiorze."
+
+msgid "Rental total"
+msgstr "Koszt wynajmu"
+
+msgid "Deposit"
+msgstr "Kaucja"
+
+msgid "Delivery"
+msgstr "Dostawa"
+
+msgid "January"
+msgstr "Styczeń"
+
+msgid "February"
+msgstr "Luty"
+
+msgid "March"
+msgstr "Marzec"
+
+msgid "April"
+msgstr "Kwiecień"
+
+msgid "May"
+msgstr "Maj"
+
+msgid "June"
+msgstr "Czerwiec"
+
+msgid "July"
+msgstr "Lipiec"
+
+msgid "August"
+msgstr "Sierpień"
+
+msgid "September"
+msgstr "Wrzesień"
+
+msgid "October"
+msgstr "Październik"
+
+msgid "November"
+msgstr "Listopad"
+
+msgid "December"
+msgstr "Grudzień"
+
+msgid "Mo"
+msgstr "Pn"
+
+msgid "Tu"
+msgstr "Wt"
+
+msgid "We"
+msgstr "Śr"
+
+msgid "Th"
+msgstr "Cz"
+
+msgid "Fr"
+msgstr "Pt"
+
+msgid "Sa"
+msgstr "So"
+
+msgid "Su"
+msgstr "Nd"
+
+msgid "Avably Booking"
+msgstr "Avably Booking"
+
+msgid "API URL must start with http:// or https://."
+msgstr "URL API musi zaczynać się od http:// lub https://."
+
+msgid "The API key has an invalid format. Copy the full key from the Avably panel (avbl_…)."
+msgstr "Klucz API ma nieprawidłowy format. Skopiuj pełny klucz z panelu Avably (avbl_…)."
+
+msgid "Connect your WordPress site to your Avably rental store. Generate an API key in the Avably panel (Organization → API settings)."
+msgstr "Połącz swoją stronę WordPress ze sklepem Avably. Wygeneruj klucz API w panelu Avably (Organizacja → Ustawienia API)."
+
+msgid "API URL"
+msgstr "URL API"
+
+msgid "Leave the default unless Avably support tells you otherwise."
+msgstr "Zostaw wartość domyślną, chyba że wsparcie Avably zaleci inaczej."
+
+msgid "API key"
+msgstr "Klucz API"
+
+#. translators: %s: masked API key prefix.
+msgid "Key saved: %s…"
+msgstr "Zapisany klucz: %s…"
+
+msgid "No API key saved yet."
+msgstr "Nie zapisano jeszcze klucza API."
+
+msgid "Paste a new key to replace the saved one. Leave empty to keep it."
+msgstr "Wklej nowy klucz, aby podmienić zapisany. Zostaw puste, aby zachować obecny."
+
+msgid "Usage"
+msgstr "Użycie"
+
+msgid "Add the [avably_booking] shortcode or the “Avably Booking” block to any page to embed the booking flow."
+msgstr "Dodaj shortcode [avably_booking] lub blok „Avably Booking” na dowolnej stronie, aby osadzić proces rezerwacji."
+
+msgid "The booking flow (catalog, calendar, reservation form) will appear here on the published page."
+msgstr "Proces rezerwacji (katalog, kalendarz, formularz) pojawi się tutaj na opublikowanej stronie."

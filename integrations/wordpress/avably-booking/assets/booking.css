@@ -1,0 +1,206 @@
+/**
+ * Avably Booking — style frontowe (neutralne, dziedziczą typografię motywu).
+ */
+
+.avably-booking {
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.avably-booking__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 1.25rem;
+}
+
+.avably-booking__card {
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	border-radius: 8px;
+	padding: 1rem 1.25rem;
+	display: flex;
+	flex-direction: column;
+}
+
+.avably-booking__card-title {
+	margin: 0 0 0.5rem;
+	font-size: 1.1rem;
+}
+
+.avably-booking__card-desc {
+	flex: 1;
+	font-size: 0.9rem;
+	opacity: 0.8;
+}
+
+.avably-booking__card-deposit {
+	font-size: 0.85rem;
+	opacity: 0.7;
+}
+
+.avably-booking__button {
+	display: inline-block;
+	padding: 0.5rem 1.25rem;
+	border-radius: 6px;
+	border: 1px solid currentColor;
+	text-decoration: none;
+	cursor: pointer;
+	background: transparent;
+	font: inherit;
+}
+
+.avably-booking__button:hover {
+	text-decoration: none;
+	opacity: 0.75;
+}
+
+.avably-booking__back {
+	font-size: 0.9rem;
+}
+
+.avably-booking__field {
+	margin: 0 0 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	max-width: 420px;
+}
+
+.avably-booking__field input,
+.avably-booking__field select,
+.avably-booking__field textarea {
+	padding: 0.45rem 0.6rem;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.avably-booking__field-error {
+	color: #b32d2e;
+	font-size: 0.85rem;
+}
+
+.avably-booking__notice {
+	padding: 0.75rem 1rem;
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.05);
+	margin-bottom: 1rem;
+}
+
+.avably-booking__notice--error {
+	background: rgba(179, 45, 46, 0.1);
+	color: #b32d2e;
+}
+
+.avably-booking__availability {
+	font-size: 0.95rem;
+	min-height: 1.4em;
+}
+
+.avably-booking__availability--ok {
+	color: #1e7e34;
+}
+
+.avably-booking__availability--none {
+	color: #b32d2e;
+}
+
+/* Kalendarz */
+
+.avably-cal__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 1rem 0 0.5rem;
+	max-width: 420px;
+}
+
+.avably-cal__nav {
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	background: transparent;
+	border-radius: 6px;
+	padding: 0.15rem 0.7rem;
+	font-size: 1.1rem;
+	cursor: pointer;
+}
+
+.avably-cal__title {
+	font-weight: 600;
+}
+
+.avably-cal__grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 4px;
+	max-width: 420px;
+}
+
+.avably-cal__dow {
+	text-align: center;
+	font-size: 0.75rem;
+	opacity: 0.6;
+	padding: 0.25rem 0;
+}
+
+.avably-cal__day {
+	aspect-ratio: 1;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 6px;
+	background: transparent;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.avably-cal__day--empty {
+	border: none;
+	cursor: default;
+}
+
+.avably-cal__day--past,
+.avably-cal__day--taken {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.avably-cal__day--taken {
+	background: rgba(179, 45, 46, 0.15);
+}
+
+.avably-cal__day--free {
+	background: rgba(30, 126, 52, 0.12);
+}
+
+.avably-cal__day--selected {
+	outline: 2px solid #1e7e34;
+	outline-offset: -2px;
+}
+
+.avably-cal__status {
+	font-size: 0.85rem;
+	opacity: 0.7;
+	max-width: 420px;
+}
+
+/* Potwierdzenie */
+
+.avably-booking__confirmation {
+	border: 1px solid rgba(30, 126, 52, 0.4);
+	background: rgba(30, 126, 52, 0.06);
+	border-radius: 8px;
+	padding: 1.25rem 1.5rem;
+}
+
+.avably-booking__summary {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0.35rem 1.25rem;
+	margin: 0;
+}
+
+.avably-booking__summary dt {
+	font-weight: 600;
+}
+
+.avably-booking__summary dd {
+	margin: 0;
+}

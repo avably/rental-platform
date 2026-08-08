@@ -1,0 +1,17 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "avably/booking",
+	"version": "0.1.0",
+	"title": "Avably Booking",
+	"category": "widgets",
+	"icon": "calendar-alt",
+	"description": "Embeds the Avably booking flow: catalog, availability calendar and reservation form.",
+	"textdomain": "avably-booking",
+	"supports": {
+		"html": false,
+		"multiple": false
+	},
+	"editorScript": "file:./editor.js",
+	"render": "file:./render.php"
+}
