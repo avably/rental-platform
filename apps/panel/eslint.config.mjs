@@ -31,7 +31,14 @@ const restrictDbServiceImport = {
 };
 
 const allowDbServiceImport = {
-  files: ["app/api/webhooks/**/*.{ts,tsx}", "src/jobs/**/*.{ts,tsx}"],
+  // app/api/review/ingest/**: przyjmuje uwagi przeglądu od relaya storefrontu
+  // (ADR-099/ADR-115) — zapis service_rolem wykonuje się w panelu, jedynym
+  // runtime z kluczem; bramka w lib/review-ingest-guard.ts.
+  files: [
+    "app/api/webhooks/**/*.{ts,tsx}",
+    "app/api/review/ingest/**/*.{ts,tsx}",
+    "src/jobs/**/*.{ts,tsx}",
+  ],
   rules: {
     "no-restricted-imports": "off",
   },

@@ -31,9 +31,10 @@ const restrictDbServiceImport = {
 };
 
 const allowDbServiceImport = {
-  // app/api/review/**: narzędzie przeglądu (ADR-071) — wyjątek uzasadniony
-  // w nagłówku route'u i w scripts/audit-service-role.sh.
-  files: ["app/api/webhooks/**/*.{ts,tsx}", "app/api/review/**/*.{ts,tsx}", "src/jobs/**/*.{ts,tsx}"],
+  // UWAGA (ADR-099/ADR-115): app/api/review/** CELOWO nie ma tu wpisu —
+  // storefront jest aplikacją publiczną i nie wolno mu ODROSNĄĆ w klienta
+  // service-role; trasy przeglądu są relayem do ingest panelu.
+  files: ["app/api/webhooks/**/*.{ts,tsx}", "src/jobs/**/*.{ts,tsx}"],
   rules: {
     "no-restricted-imports": "off",
   },

@@ -222,6 +222,25 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "poza trybem przeglądu endpoint odpowiada 404.",
   ],
   [
+    "/api/review/ingest/comments",
+    "Ingest uwag przeglądu od relaya storefrontu (ADR-099/ADR-115) — endpoint " +
+      "nie używa sesji operatora, bo woła go serwer storefrontu (aplikacja " +
+      "publiczna bez sekretu bazy). Chroni go Authorization: Bearer " +
+      "porównywany stałoczasowo z REVIEW_INGEST_TOKEN (brak sekretu → 503, " +
+      "zły/brak nagłówka → 401) ORAZ bramka REVIEW_MODE po stronie panelu " +
+      "(tryb wyłączony → 404 nawet z poprawnym tokenem). Każdy przypadek " +
+      "negatywny dowiedziony BRAKIEM WYWOŁANIA warstwy zapisu " +
+      "(review-ingest-route.test.ts). Payload przechodzi schemat @avably/review " +
+      "(zamknięta lista powierzchni, obce pola wycięte), tabele 0033 są " +
+      "platformowe bez tenant_id — token nie daje drogi do danych najemców.",
+  ],
+  [
+    "/api/review/ingest/comments/[id]",
+    "Zmiana uwagi przeglądu od relaya storefrontu (ADR-099/ADR-115) — ta sama " +
+      "bramka co /api/review/ingest/comments: REVIEW_MODE po stronie panelu + " +
+      "wspólny sekret stałoczasowo; poza trybem przeglądu 404.",
+  ],
+  [
     "/zamowienia/[id]/contract/[documentId]",
     "Prywatny PDF umowy (ADR-061) — handler wymaga sesji członka, filtruje " +
       "metadane po tenant_id, order_id i document_id, a RLS tabeli i Storage " +

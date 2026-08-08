@@ -19,6 +19,13 @@ cd "$(dirname "$0")/../../.."
 export NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_LOCAL_API_URL"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_LOCAL_ANON_KEY"
 
+# Narzędzie przeglądu (ADR-071/ADR-099): layouty czytają REVIEW_MODE przy
+# PRERENDERZE stron statycznych, więc sama zmienna runtime w playwright.config
+# nie wystarczy — bramka montażu nakładki musi być w env builda. Nakładka
+# i tak nie tworzy DOM bez `?review=1` w URL, więc pozostałe specy tego
+# nie widzą.
+export REVIEW_MODE=1
+
 # Lokalnie wołaj z PNPM_CMD="corepack pnpm" (goły pnpm 8.x psuje lockfile);
 # w CI pnpm/action-setup daje właściwą wersję pod nazwą `pnpm`.
 PNPM_CMD="${PNPM_CMD:-pnpm}"

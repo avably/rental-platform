@@ -33,6 +33,14 @@ export const E2E_STRIPE_WEBHOOK_SECRET = "whsec_e2e_stub_wspolny_sekret";
 export const PANEL_URL = `http://localhost:${PANEL_PORT}`;
 export const STRIPE_STUB_URL = `http://127.0.0.1:${STRIPE_STUB_PORT}`;
 
+/**
+ * Wspólny sekret relaya uwag przeglądu (ADR-099/ADR-115): storefront
+ * uwierzytelnia się nim do ingest panelu. Fikcyjna wartość testowa —
+ * kontrakt jak na hostingu: TA SAMA wartość w env obu serwerów, porównanie
+ * stałoczasowe po stronie panelu.
+ */
+export const E2E_REVIEW_INGEST_TOKEN = "rit_e2e_wspolny_sekret_relaya";
+
 /** Adres sklepu tenanta: wzorzec hosta `{slug}.localhost` działa lokalnie —
  * klasyfikacja hosta w proxy storefrontu strippuje port i mapuje subdomenę
  * `.localhost` na slug tenanta. Chromium dostaje dodatkowo twarde
