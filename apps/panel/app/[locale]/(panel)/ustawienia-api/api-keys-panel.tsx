@@ -25,6 +25,7 @@ import { ScreenSection } from "@/components/screens/screen-header";
 import type { FormState } from "@/lib/form-state";
 
 import { generateApiKeyAction, revokeApiKeyAction, type GeneratedKeyState } from "./api-keys-actions";
+import { WordPressGuide } from "./wordpress-guide";
 
 const initialState: FormState = {};
 const initialGeneratedState: GeneratedKeyState = {};
@@ -186,6 +187,10 @@ export function ApiKeysPanel({
         // mutacje należą do właściciela (RLS 0053).
         <ScreenSection description={t("ownerOnly")} />
       )}
+
+      {/* Instrukcja stoi POD generowaniem: krok 1 odsyła do formularza wyżej,
+          a operator czyta ekran w kolejności, w jakiej ma działać. */}
+      <WordPressGuide hasActiveKey={apiKeys.some((key) => key.revokedAt === null)} />
     </>
   );
 }

@@ -1847,7 +1847,28 @@
     "revokeQuestion": "Integrations using this key will stop working immediately.",
     "revokeConfirm": "Revoke",
     "revokeCancel": "Keep",
-    "ownerOnly": "API keys are generated and revoked by the organization owner. You can browse the list and check when a key was last used."
+    "ownerOnly": "API keys are generated and revoked by the organization owner. You can browse the list and check when a key was last used.",
+    "wordpress": {
+      "title": "Connect WordPress",
+      "intro": "Running your site on WordPress? The Avably Booking plugin adds your catalog, an availability calendar and a reservation form to it. Orders land right here, in the panel.",
+      "step1Title": "Generate an API key",
+      "step1Body": "Use the form above — name the key so you know where it runs (e.g. “WordPress — company site”). We show the key exactly once, so copy it straight away.",
+      "step1DoneBody": "You already have an active key. If you did not save it, generate a new one above — the old one cannot be read again, and you can revoke whichever you no longer need.",
+      "step2Title": "Install the plugin on your site",
+      "step2Body": "In your WordPress admin go to Plugins → Add Plugin → Upload Plugin, upload the Avably Booking package and activate it. The plugin requires WordPress 6.5 or newer and PHP 8.1 or newer.",
+      "step3Title": "Paste the key and place booking on a page",
+      "step3Body": "In WordPress open Settings → Avably Booking and paste the key into the “API key” field (leave the API URL as it is). Then add the “Avably Booking” block to a page, or this shortcode:",
+      "step3Hint": "That's it — open that page as a customer and check that your equipment shows up. The first reservation will appear under Orders.",
+      "copyCta": "Copy",
+      "copied": "Copied",
+      "troubleTitle": "If something doesn't work",
+      "troubleKeyTitle": "“Online booking is temporarily unavailable”",
+      "troubleKeyBody": "The key is invalid or has been revoked. Generate a new one above and paste it again in the plugin settings — make sure you copy the whole value, including the “avbl_” prefix.",
+      "troubleSuspendedTitle": "“The store is currently unavailable”",
+      "troubleSuspendedBody": "Your account is not accepting new reservations right now — usually a billing matter. Check the Organization tab; the store resumes as soon as it is settled.",
+      "troubleCacheTitle": "The page shows stale data or an empty catalog",
+      "troubleCacheBody": "That is usually the WordPress cache. Clear it in your caching plugin and reload the page. The plugin disables caching on booking pages by itself, but catalog changes can take up to a minute."
+    }
   },
   "organization": {
     "title": "Organization",
