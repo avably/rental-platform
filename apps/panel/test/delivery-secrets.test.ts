@@ -230,6 +230,9 @@ describe.skipIf(!hasEnv)("sekret dostawcy: zapis → odczyt → port kurierski (
 
     const loaded = await loadCourierApi(ownerClient, tenantId);
     expect(loaded.api).toBeUndefined();
-    expect(loaded.configError).toContain("hasła");
+    // U1 (audyt W3): brak hasła zgłaszany w języku najemcy — jako brak w
+    // koncie integracji kuriera (tam mieszka pole hasła), bez nazw kluczy.
+    expect(loaded.configError).toContain("konto integracji kuriera");
+    expect(loaded.configError).not.toContain(GLOBKURIER_PASSWORD_SECRET_KEY);
   });
 });

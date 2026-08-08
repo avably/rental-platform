@@ -26,6 +26,8 @@ import { ScreenSection } from "@/components/screens/screen-header";
 import type { FormState } from "@/lib/form-state";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 
+import { isPlatformConfigNote } from "./domains-validation";
+
 import {
   addCustomDomainAction,
   checkDomainAction,
@@ -64,19 +66,33 @@ export function domainState(domain: DomainRow): "live" | "pending" | "registrati
 }
 
 /**
+ * Stan POKAZYWANY najemcy (U1, audyt UX W3/6.6). Nieudana rejestracja
+ * subdomeny z powodu braku konfiguracji PLATFORMY (rejestracja wyłączona
+ * teraz albo `last_error` będący zapisem takiej awarii) nie jest porażką
+ * najemcy — chip mówi „czekamy na konfigurację platformy" zamiast
+ * „Rejestracja nieudana". Oś stanu FAKTYCZNEGO (`domainState`) zostaje
+ * nietknięta: to wyłącznie warstwa prezentacji tej samej sytuacji.
+ */
+export function displayedDomainState(
+  domain: DomainRow,
+  registrationAvailable: boolean,
+): "live" | "pending" | "registration_failed" | "awaiting_platform" {
+  const state = domainState(domain);
+  if (state !== "registration_failed") return state;
+  if (!registrationAvailable || isPlatformConfigNote(domain.lastError)) {
+    return "awaiting_platform";
+  }
+  return state;
+}
+
+/**
  * Przycisk ponowienia rejestracji subdomeny (Zadanie 2.6b).
  *
  * Dwa stany wyłączenia i OBA muszą mówić dlaczego. Brak konfiguracji dostawcy
  * gasi przycisk z powodem — cicho nieklikalna kontrolka jest gorsza od jej
  * braku, bo najemca próbuje w kółko i uznaje panel za zepsuty.
  */
-function RetrySubdomainButton({
-  available,
-  blockedReason,
-}: {
-  available: boolean;
-  blockedReason: string | null;
-}) {
+function RetrySubdomainButton({ available }: { available: boolean }) {
   const t = useTranslations("domainSettings");
   const [state, formAction, pending] = useActionState(retrySubdomainAction, initialState);
 
@@ -88,9 +104,11 @@ function RetrySubdomainButton({
         </Button>
       </form>
 
+      {/* Bez powodu z serwera (U1, audyt W3): brak konfiguracji rejestracji
+          to sprawa platformy — najemca dostaje neutralne zdanie ze słownika. */}
       {!available && (
         <p role="status" className="text-status-attention-fg">
-          {t("retryUnavailable")} {blockedReason}
+          {t("retryUnavailable")}
         </p>
       )}
       {state.success && <p className="text-status-positive-fg">{t("retryOk")}</p>}
@@ -203,40 +221,44 @@ function DomainCard({
   domain,
   cnameTarget,
   registrationAvailable,
-  registrationBlockedReason,
 }: {
   domain: DomainRow;
   cnameTarget: string;
   registrationAvailable: boolean;
-  registrationBlockedReason: string | null;
 }) {
   const t = useTranslations("domainSettings");
-  const state = domainState(domain);
+  const shown = displayedDomainState(domain, registrationAvailable);
 
   return (
     <ScreenSection
       data-domain-kind={domain.kind}
       title={domain.domain}
-      status={<SecondaryStatusChip axis="domain" value={state} />}
+      status={<SecondaryStatusChip axis="domain" value={shown} />}
       description={domain.kind === "subdomain" ? t("kindSubdomain") : t("kindCustom")}
     >
       {/* Powód ostatniego niepowodzenia — bez niego porażka rejestracji byłaby
-          ciszą: wiersz jest, sklep nie odpowiada, najemca nie wie dlaczego. */}
-      {domain.lastError && (
-        <p role="alert" className="text-status-attention-fg text-sm">
-          {t("lastErrorLabel")} {domain.lastError}
+          ciszą: wiersz jest, sklep nie odpowiada, najemca nie wie dlaczego.
+          WYJĄTEK (U1, audyt W3/6.6): zapis awarii konfiguracji PLATFORMY nie
+          schodzi na ekran — najemca dostaje neutralne „czekamy na
+          konfigurację po naszej stronie", bo nie ma tu jego zadania. */}
+      {shown === "awaiting_platform" ? (
+        <p role="status" className="text-status-attention-fg text-sm">
+          {t("platformPending")}
         </p>
+      ) : (
+        domain.lastError && (
+          <p role="alert" className="text-status-attention-fg text-sm">
+            {t("lastErrorLabel")} {domain.lastError}
+          </p>
+        )
       )}
 
       {domain.kind === "custom" && !domain.verified && (
         <CnameInstruction host={domain.domain} target={cnameTarget} />
       )}
 
-      {state === "registration_failed" && (
-        <RetrySubdomainButton
-          available={registrationAvailable}
-          blockedReason={registrationBlockedReason}
-        />
+      {domainState(domain) === "registration_failed" && (
+        <RetrySubdomainButton available={registrationAvailable} />
       )}
 
       <DomainActions domain={domain} />
@@ -248,12 +270,10 @@ export function DomainsPanel({
   domains,
   cnameTarget,
   registrationAvailable,
-  registrationBlockedReason,
 }: {
   domains: DomainRow[];
   cnameTarget: string;
   registrationAvailable: boolean;
-  registrationBlockedReason: string | null;
 }) {
   const t = useTranslations("domainSettings");
 
@@ -269,9 +289,9 @@ export function DomainsPanel({
           />
         }
         description={
-          registrationAvailable
-            ? t("providerAvailable")
-            : `${t("registrationUnavailable")} ${registrationBlockedReason ?? ""}`
+          // Bez powodu z serwera (U1, audyt W3): nazwy brakujących zmiennych
+          // to sprawa platformy — słownik mówi, co to znaczy dla najemcy.
+          registrationAvailable ? t("providerAvailable") : t("registrationUnavailable")
         }
       />
 
@@ -281,10 +301,7 @@ export function DomainsPanel({
         // i zarejestruje. Odsyłanie najemcy do kontaktu było opisem problemu
         // zamiast wyjścia z niego.
         <ScreenSection data-domain-list title={t("listHeading")} description={t("emptyState")}>
-          <RetrySubdomainButton
-            available={registrationAvailable}
-            blockedReason={registrationBlockedReason}
-          />
+          <RetrySubdomainButton available={registrationAvailable} />
         </ScreenSection>
       ) : (
         <div data-domain-list className="flex flex-col gap-4">
@@ -294,7 +311,6 @@ export function DomainsPanel({
               domain={domain}
               cnameTarget={cnameTarget}
               registrationAvailable={registrationAvailable}
-              registrationBlockedReason={registrationBlockedReason}
             />
           ))}
         </div>

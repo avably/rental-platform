@@ -63,9 +63,10 @@ export default async function EmailSettingsPage() {
           />
         }
         description={
-          availability.available
-            ? t("transportAvailable")
-            : `${t("transportUnavailable")} ${availability.reason ?? ""}`
+          // Powód z serwera ŚWIADOMIE nie schodzi na ekran (U1, audyt W3):
+          // brak transportu to sprawa platformy — najemca dostaje neutralne
+          // zdanie ze słownika, bez nazw zmiennych i bez fałszywego zadania.
+          availability.available ? t("transportAvailable") : t("transportUnavailable")
         }
       />
 

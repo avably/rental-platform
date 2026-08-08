@@ -54,12 +54,10 @@ export type PaymentAccountStage = "missing" | "pending" | "payouts_blocked" | "r
  */
 function OnboardingButton({
   available,
-  blockedReason,
   isOwner,
   resume,
 }: {
   available: boolean;
-  blockedReason: string | null;
   isOwner: boolean;
   resume: boolean;
 }) {
@@ -75,9 +73,11 @@ function OnboardingButton({
         </Button>
       </form>
 
+      {/* Bez powodu z serwera (U1, audyt W3): brak kluczy dostawcy to sprawa
+          platformy — najemca dostaje neutralne zdanie ze słownika. */}
       {!available && (
         <p role="status" className="text-status-attention-fg" data-payment-blocked="config">
-          {t("unavailable")} {blockedReason}
+          {t("unavailable")}
         </p>
       )}
       {available && !isOwner && (
@@ -143,13 +143,11 @@ export function PaymentsPanel({
   stage,
   isOwner,
   configAvailable,
-  configBlockedReason,
 }: {
   account: PaymentAccountView | null;
   stage: PaymentAccountStage;
   isOwner: boolean;
   configAvailable: boolean;
-  configBlockedReason: string | null;
 }) {
   const t = useTranslations("paymentSettings");
   const format = useFormatter();
@@ -224,21 +222,11 @@ export function PaymentsPanel({
           <AccountActions isOwner={isOwner} />
 
           {stage !== "ready" && (
-            <OnboardingButton
-              available={configAvailable}
-              blockedReason={configBlockedReason}
-              isOwner={isOwner}
-              resume
-            />
+            <OnboardingButton available={configAvailable} isOwner={isOwner} resume />
           )}
         </>
       ) : (
-        <OnboardingButton
-          available={configAvailable}
-          blockedReason={configBlockedReason}
-          isOwner={isOwner}
-          resume={false}
-        />
+        <OnboardingButton available={configAvailable} isOwner={isOwner} resume={false} />
       )}
     </ScreenSection>
   );

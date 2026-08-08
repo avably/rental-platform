@@ -79,7 +79,7 @@ export default async function InvitationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <FormMeasure className="flex flex-col gap-4">
-        <InviteMemberForm emailUnavailableReason={emailAvailability().reason} />
+        <InviteMemberForm emailUnavailable={!emailAvailability().available} />
       </FormMeasure>
 
       <section data-team-list className="flex flex-col gap-3">

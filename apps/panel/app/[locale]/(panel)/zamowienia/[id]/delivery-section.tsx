@@ -33,6 +33,7 @@ import { Link } from "@/i18n/navigation";
 import { StatusChip } from "@/lib/orders/status-chip";
 import { requireMember } from "@/lib/supabase-server";
 
+import { courierConfigItems } from "./courier-config-copy";
 import {
   cancelShipmentAction,
   createShipmentAction,
@@ -146,8 +147,10 @@ export async function DeliverySection({
 
   const eligible = canCreateShipments(deliveryMethod);
   // Dostępność wysyłki e-maili rozstrzyga się JAWNIE (ADR-033): przy braku
-  // klucza przyciski zwrotów są zablokowane z widocznym powodem.
-  const emailStatus = emailAvailability();
+  // klucza przyciski zwrotów są zablokowane z komunikatem. Do klienta idzie
+  // SAM boolean (U1, audyt W3) — powód to wnętrzności platformy, treść
+  // komunikatu daje słownik.
+  const emailStatus = { available: emailAvailability().available };
 
   return (
     <section className="flex flex-col gap-3">
@@ -289,11 +292,15 @@ export async function DeliverySection({
           <p className="text-muted-foreground text-sm">{t("notCourier")}</p>
         )
       ) : configProblems ? (
+        // Braki w JĘZYKU NAJEMCY (U1, audyt W3): lista wiader do
+        // uzupełnienia zamiast nazw kluczy ustawień, z linkiem prowadzącym
+        // dokładnie tam, gdzie się je uzupełnia. Surowe problemy zostają
+        // w silniku — tu jest ekran, nie log.
         <div className="border-destructive rounded-md border p-3 text-sm">
           <p className="text-destructive">{t("configMissing")}</p>
           <ul className="text-destructive list-disc pl-5">
-            {configProblems.map((problem) => (
-              <li key={problem}>{problem}</li>
+            {courierConfigItems(configProblems).map((item) => (
+              <li key={item}>{t(`configItems.${item}`)}</li>
             ))}
           </ul>
           <Link className="underline" href="/ustawienia-dostaw">

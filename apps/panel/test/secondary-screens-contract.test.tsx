@@ -163,7 +163,6 @@ describe("ekran domen — sekwencja stanów rejestracji i DNS", () => {
       domains={domains}
       cnameTarget="shops.example.invalid"
       registrationAvailable
-      registrationBlockedReason={null}
     />,
   );
 
@@ -190,12 +189,53 @@ describe("ekran domen — sekwencja stanów rejestracji i DNS", () => {
         domains={domains}
         cnameTarget="shops.example.invalid"
         registrationAvailable={false}
-        registrationBlockedReason="brak zmiennej"
       />,
     );
     expect(chips(blocked)).toContain("domain-provider/unavailable");
-    expect(blocked).toContain("brak zmiennej");
+    // U1 (audyt W3): zamiast surowego powodu (nazwy zmiennych) — neutralne
+    // zdanie ze słownika, bez zadania dla najemcy.
+    expect(blocked).toContain(messages.domainSettings.registrationUnavailable);
+    expect(blocked).toContain(messages.domainSettings.retryUnavailable);
     expect(blocked).toContain("data-domain-add-form");
+  });
+
+  it("awaria platformy nie jest porażką subdomeny najemcy (U1, audyt 6.6)", () => {
+    const blocked = render(
+      <DomainsPanel
+        domains={domains}
+        cnameTarget="shops.example.invalid"
+        registrationAvailable={false}
+      />,
+    );
+    // Subdomena w stanie faktycznym registration_failed pokazuje się jako
+    // „czekamy na konfigurację platformy" — chip problemu znika z ekranu…
+    expect(chips(blocked)).toContain("domain/awaiting_platform");
+    expect(chips(blocked)).not.toContain("domain/registration_failed");
+    expect(blocked).toContain(messages.domainSettings.platformPending);
+    // …a razem z nim surowy last_error, bo nie ma w nim zadania najemcy.
+    expect(blocked).not.toContain("nie udało się zarejestrować hosta");
+  });
+
+  it("zapis awarii konfiguracji platformy w last_error nie schodzi na ekran", () => {
+    // Rejestracja już DZIAŁA (platforma naprawiona), ale wiersz subdomeny
+    // trzyma jeszcze zapis z czasu awarii — w brzmieniu technicznym.
+    const stale = render(
+      <DomainsPanel
+        domains={[
+          {
+            ...domains[0]!,
+            lastError: "Rejestracja domen jest niedostępna: brak AVABLY_VERCEL_API_TOKEN",
+          },
+        ]}
+        cnameTarget="shops.example.invalid"
+        registrationAvailable
+      />,
+    );
+    expect(chips(stale)).toContain("domain/awaiting_platform");
+    expect(stale).not.toContain("AVABLY_VERCEL_API_TOKEN");
+    expect(stale).toContain(messages.domainSettings.platformPending);
+    // Ponowienie jest dostępne — przycisk zostaje aktywny.
+    expect(stale).not.toContain(messages.domainSettings.retryUnavailable);
   });
 
   it("instrukcja DNS stoi przy niezweryfikowanej domenie własnej", () => {
@@ -384,9 +424,11 @@ describe("ekran umów — edycja właściciela i odczyt członka", () => {
 
 describe("ekran zespołu — krótki formularz nad historią", () => {
   it("ostrzeżenie o wysyłce stoi przed formularzem tylko wtedy, gdy dotyczy", () => {
-    const warned = render(<InviteMemberForm emailUnavailableReason="brak klucza" />);
+    const warned = render(<InviteMemberForm emailUnavailable />);
     expect(warned).toContain("data-email-warning");
-    expect(warned).toContain("brak klucza");
+    // U1 (audyt W3): treść w całości ze słownika — bez powodu z serwera.
+    expect(warned).toContain(messages.invitations.emailUnavailable);
+    expect(warned).toContain(messages.invitations.emailUnavailableConsequence);
     expect(warned.indexOf("data-email-warning")).toBeLessThan(
       warned.indexOf("data-invitation-form"),
     );
@@ -760,7 +802,6 @@ describe("chipy stanu nigdy nie są samym kolorem", () => {
         domains={domains}
         cnameTarget="shops.example.invalid"
         registrationAvailable
-        registrationBlockedReason={null}
       />,
     );
     const rendered = [...html.matchAll(/<span[^>]*data-slot="status-badge"[^>]*>([^<]*)<\/span>/g)];
@@ -793,7 +834,6 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="payouts_blocked"
         isOwner
         configAvailable
-        configBlockedReason={null}
       />,
     );
 
@@ -811,7 +851,6 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="payouts_blocked"
         isOwner
         configAvailable
-        configBlockedReason={null}
       />,
     );
 
@@ -821,18 +860,14 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
 
   it("bez konfiguracji przycisk onboardingu jest wyłączony Z POWODEM", () => {
     const html = render(
-      <PaymentsPanel
-        account={null}
-        stage="missing"
-        isOwner
-        configAvailable={false}
-        configBlockedReason="brak AVABLY_STRIPE_SECRET_KEY"
-      />,
+      <PaymentsPanel account={null} stage="missing" isOwner configAvailable={false} />,
     );
 
     expect(chips(html)).toContain("payment-account/missing");
     expect(html).toContain('data-payment-blocked="config"');
-    expect(html).toContain("brak AVABLY_STRIPE_SECRET_KEY");
+    // U1 (audyt W3): powód jest neutralny i ze słownika — bez nazw zmiennych.
+    expect(html).toContain(messages.paymentSettings.unavailable);
+    expect(html).not.toContain("AVABLY_STRIPE_SECRET_KEY");
     // Cicho nieklikalna kontrolka jest gorsza od jej braku.
     expect(html).toMatch(/<button[^>]*disabled/);
   });
@@ -844,7 +879,6 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="missing"
         isOwner={false}
         configAvailable
-        configBlockedReason={null}
       />,
     );
 
@@ -859,7 +893,6 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="ready"
         isOwner
         configAvailable
-        configBlockedReason={null}
       />,
     );
 

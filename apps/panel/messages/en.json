@@ -56,7 +56,7 @@
     "intro": "The sender of messages to customers and invitees, plus delivery status. The sending address is shared across the platform — you personalize the display name and reply-to address.",
     "statusHeading": "Delivery status",
     "transportAvailable": "The system can send transactional messages.",
-    "transportUnavailable": "Email transport: unavailable.",
+    "transportUnavailable": "Email sending is temporarily unavailable on the platform side — we are working on restoring it. No changes are needed on your side; messages will resume once it is back.",
     "senderMissing": "Sender: not set — rental lifecycle messages will not go out until a name is set.",
     "formTitle": "Sender",
     "nameLabel": "Sender name (shown in the From field)",
@@ -234,7 +234,7 @@
     "roleOwner": "Owner",
     "submit": "Send invitation",
     "submitPending": "Sending…",
-    "emailUnavailable": "Email delivery is unavailable:",
+    "emailUnavailable": "Email sending is temporarily unavailable on the platform side.",
     "emailUnavailableConsequence": "You can still create the invitation, but the link has to be passed on manually.",
     "columnEmail": "Email",
     "columnRole": "Role",
@@ -448,7 +448,7 @@
         "type": "The invoice must be a PDF file.",
         "size": "The invoice may be at most {limit} MB.",
         "noCustomerEmail": "This order has no customer email address — the invoice was not sent.",
-        "unavailable": "Email sending is unavailable.",
+        "unavailable": "Email sending is temporarily unavailable on the platform side — try again later.",
         "send": "Could not send the invoice: {reason}"
       }
     },
@@ -661,8 +661,8 @@
         },
         "deliveryCost": "Delivery cost",
         "deliveryCostFree": "free",
-        "configMissing": "Courier configuration is incomplete:",
-        "settingsLink": "Delivery settings",
+        "configMissing": "Before you create a shipment, complete the following in delivery settings:",
+        "settingsLink": "Go to delivery settings",
         "notCourier": "This order is not delivered by courier — shipments unavailable.",
         "typeLabel": "Shipment type",
         "lengthLabel": "Length (cm)",
@@ -680,7 +680,7 @@
         "pickupReminderHint": "Send the customer a reminder to return the equipment at the pickup location.",
         "sendPickupReminderCta": "Send return reminder",
         "pickupReminderSentOk": "Return reminder sent to the customer.",
-        "emailUnavailable": "Email sending is unavailable — configure it to send messages.",
+        "emailUnavailable": "Email sending is temporarily unavailable on the platform side — the button will work once we restore it.",
         "modalTitle": "Confirm shipping label",
         "modalDescription": "Review the details, pick a carrier and create the shipment.",
         "sizeSection": "Parcel size",
@@ -730,7 +730,13 @@
         "cancelShipmentQuestion": "Shipment {number} will be cancelled with the carrier. This cannot be undone.",
         "cancelShipmentConfirm": "Yes, cancel with carrier",
         "cancelShipmentAbort": "No, keep it",
-        "shipmentCancelledOk": "Shipment cancelled with the carrier."
+        "shipmentCancelledOk": "Shipment cancelled with the carrier.",
+        "configItems": {
+          "integrationAccount": "the courier integration account (email, password and environment)",
+          "sender": "the shipment sender details",
+          "parcel": "the default parcel dimensions and weight",
+          "other": "the remaining delivery settings"
+        }
       },
       "settings": {
         "title": "Delivery settings",
@@ -821,7 +827,7 @@
       "changeStatusPlaceholder": "Change status…",
       "statusChanging": "Changing status…",
       "cancelBlockedHint": "Cancellation blocked — the payment must be settled (refunded) before cancelling.",
-      "sendEmailUnavailable": "Email sending is not configured — the customer will not be notified.",
+      "sendEmailUnavailable": "Email sending is temporarily unavailable on the platform side — the customer will not be notified right now.",
       "emailPromptTitle": "Notify the customer?",
       "emailPromptBody": "The order status has been changed to “{status}”. Send the customer a message about this change?",
       "emailPromptUndoNote": "The message goes out only after {seconds} s — you can cancel the send during that time.",
@@ -1794,14 +1800,14 @@
   "domainSettings": {
     "title": "Store domains",
     "intro": "The addresses your store runs on. A subdomain on our domain is created automatically with your organisation. You can add your own domain below — it requires one DNS record at your registrar.",
-    "registrationUnavailable": "Added addresses will not start working until the configuration is completed.",
+    "registrationUnavailable": "Address registration is temporarily unavailable on the platform side. We are working on it — no action is needed from you; added addresses will start working once it is restored.",
     "listHeading": "Store addresses",
     "emptyState": "You do not have a store address yet. A subdomain is created together with your organisation — if it is missing, create and register it below.",
     "retryCta": "Retry address registration",
     "retryOk": "Address registered — your store is live at it.",
     "retryFailed": "The retry failed:",
     "retryContactFallback": "If it happens again on the next attempt, get in touch.",
-    "retryUnavailable": "Address registration is currently unavailable:",
+    "retryUnavailable": "Retrying will be possible once we restore address registration on our side — no action is needed from you.",
     "kindSubdomain": "Platform subdomain — works immediately, no DNS setup needed.",
     "kindCustom": "Custom domain — works once the DNS record is confirmed.",
     "lastErrorLabel": "Last error:",
@@ -1822,7 +1828,8 @@
     "addedOk": "Domain added. Add the DNS record, then click “Check verification”.",
     "backLink": "Dashboard",
     "providerTitle": "Host registration",
-    "providerAvailable": "Store addresses can be registered and retried."
+    "providerAvailable": "Store addresses can be registered and retried.",
+    "platformPending": "Waiting for configuration on the platform side — your address will be registered automatically once we finish."
   },
   "apiSettings": {
     "backLink": "Panel",
@@ -1909,7 +1916,8 @@
     "domain": {
       "live": "Active",
       "pending": "Awaiting DNS",
-      "registration_failed": "Registration failed"
+      "registration_failed": "Registration failed",
+      "awaiting_platform": "Awaiting platform configuration"
     },
     "domain-provider": {
       "available": "Available",
@@ -1976,7 +1984,7 @@
     "refreshOk": "Account state read from the provider.",
     "refreshFailed": "Could not read the account state:",
     "disconnectCta": "Disconnect account",
-    "unavailable": "Online payments are unavailable right now:",
+    "unavailable": "Online payments are temporarily unavailable on the platform side. We are working on it — no action is needed from you.",
     "ownerOnly": "Only the organisation owner can connect a payment account.",
     "chargesLabel": "Accepting payments",
     "payoutsLabel": "Payouts to your account",

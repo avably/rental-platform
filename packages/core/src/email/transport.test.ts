@@ -24,7 +24,10 @@ describe("emailAvailability", () => {
   it("brak klucza → niedostępna z czytelnym powodem", () => {
     const result = emailAvailability({ apiKey: undefined });
     expect(result.available).toBe(false);
-    expect(result.reason).toContain("RESEND_API_KEY");
+    // U1 (audyt UX W3): powód czyta NAJEMCA — neutralne zdanie o stronie
+    // platformy, bez nazwy zmiennej środowiskowej.
+    expect(result.reason).toContain("niedostępna po stronie platformy");
+    expect(result.reason).not.toContain("RESEND_API_KEY");
   });
 
   it("pusty klucz traktujemy jak brak", () => {

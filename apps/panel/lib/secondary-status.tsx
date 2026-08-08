@@ -19,7 +19,19 @@ import { useTranslations } from "next-intl";
  * chipa jest `SecondaryStatusChip`.
  */
 export const secondaryStatusSemantics = {
-  domain: { live: "positive", pending: "attention", registration_failed: "problem" },
+  /**
+   * `awaiting_platform` (U1, audyt UX W3/6.6): subdomena niezarejestrowana
+   * Z POWODU braku konfiguracji PLATFORMY. To nie jest porażka najemcy —
+   * ton `attention`, nie `problem`: „Rejestracja nieudana" na adresie,
+   * którego rejestrację blokujemy my, brzmiała jak jego wina i kazała mu
+   * szukać naprawy, której nie może wykonać.
+   */
+  domain: {
+    live: "positive",
+    pending: "attention",
+    registration_failed: "problem",
+    awaiting_platform: "attention",
+  },
   "domain-provider": { available: "positive", unavailable: "attention" },
   "email-transport": { available: "positive", unavailable: "attention" },
   "email-sender": { configured: "positive", missing: "attention" },

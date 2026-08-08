@@ -79,7 +79,9 @@ export function StatusSelect({
   orderId: string;
   currentStatus: OrderStatus;
   paymentStatus: PaymentStatus;
-  emailAvailability: { available: boolean; reason?: string | undefined };
+  // Sam boolean (U1, audyt W3): powód niedostępności to wnętrzności
+  // platformy — nie schodzi do klienta; treść komunikatu daje słownik.
+  emailAvailability: { available: boolean };
 }) {
   const t = useTranslations("orders.detail");
   const tStatus = useTranslations("orders.statusLabels.order");
@@ -233,7 +235,7 @@ export function StatusSelect({
 
       {!emailAvailability.available && targets.some((status) => TEMPLATE_FOR_STATUS[status]) ? (
         <p className="text-status-attention-fg text-xs">
-          {emailAvailability.reason ?? t("sendEmailUnavailable")}
+          {t("sendEmailUnavailable")}
         </p>
       ) : null}
 
