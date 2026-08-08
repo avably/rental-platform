@@ -59,7 +59,9 @@ export type CatalogImportIssueCode =
   | "emptyName"
   | "nameTooLong"
   | "tierIncomplete"
-  | "duplicateTierDays";
+  | "duplicateTierDays"
+  /** Warstwa planu (import-catalog.ts): id spoza katalogu najemcy z sesji. */
+  | "unknownProduct";
 
 export interface CatalogImportIssue {
   /** Numer rekordu: nagłówek = 1, pierwszy wiersz danych = 2. */
