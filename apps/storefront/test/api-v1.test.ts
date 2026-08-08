@@ -139,6 +139,19 @@ describe("api v1 — autoryzacja kluczem", () => {
     expect(c.rateLimit).toEqual([]);
   });
 
+  it("do weryfikacji idzie sha256 CAŁEGO klucza, nie prefiksu (dowód mutacyjny M1)", async () => {
+    // Pin na CALL SITE: mutant hashujący tylko prefiks (albo obcinający
+    // klucz przed hashem) wysłałby inny skrót — ta asercja płonie dokładnie
+    // wtedy. Skrót oczekiwany liczony niezależnie od hashApiKey.
+    const { authenticateApiRequest } = await import("../lib/api/auth");
+    const received: string[] = [];
+    await authenticateApiRequest(`Bearer ${RAW_KEY_A}`, async (keyHash) => {
+      received.push(keyHash);
+      return null;
+    });
+    expect(received).toEqual([sha256(RAW_KEY_A)]);
+  });
+
   it("fałszywka o wspólnym prefiksie z kluczem A → 401 (dowód mutacyjny M1)", async () => {
     const c = counters();
     const response = await handleCatalogRequest(
