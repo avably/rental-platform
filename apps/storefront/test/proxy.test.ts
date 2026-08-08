@@ -183,6 +183,58 @@ describe("proxy storefrontu — route handlery /api (ADR-071)", () => {
   });
 });
 
+/**
+ * Publiczne API maszynowe /api/v1 (M1, ADR-108): wycinka z bramki
+ * SITE_PASSWORD jest WĄSKA (dosłowny prefiks /api/v1/) i nie znosi
+ * anty-spoofingu.
+ *
+ * DOWODY MUTACYJNE M4 (obie strony bramki przypięte):
+ *   * usunięcie wycinki w proxy.ts → pierwszy test niżej pali się (401
+ *     zamiast przejścia do handlera),
+ *   * poszerzenie wycinki (np. na całe /api albo cały storefront) → palą
+ *     się „/api bez hasła → 401" (blok wyżej) i „bez nagłówka Authorization
+ *     → 401" (blok bramki hasła).
+ */
+describe("proxy storefrontu — publiczne API /api/v1 (M1, ADR-108)", () => {
+  it("/api/v1/* jest osiągalne BEZ hasła site'u (konsument maszynowy), z CSP", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/api/v1/catalog"));
+
+    // Brak Basic Auth nie kończy się 401 z bramki hasła — żądanie przechodzi
+    // do route handlera (to ON odmawia 401 przy braku klucza API).
+    expect(response.status).toBe(200);
+    expect(response.headers.get("WWW-Authenticate")).toBeNull();
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/'nonce-[^']+'/);
+  });
+
+  it("wycinka obejmuje też subdomeny/hosty tenanckie (ta sama gałąź, przed rozwiązaniem hosta)", async () => {
+    const response = await runProxy(
+      new NextRequest("https://acme.avably.io/api/v1/reservations", { method: "POST" }),
+      fakeDeps,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("WWW-Authenticate")).toBeNull();
+  });
+
+  it("goły /api/v1 (bez końcowego ukośnika) NIE wchodzi w wycinkę — zostaje za hasłem", async () => {
+    const response = await proxy(new NextRequest("https://www.avably.io/api/v1"));
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("WWW-Authenticate")).toContain("Basic");
+  });
+
+  it("przychodzący x-tenant-id NIE przeżywa na gałęzi /api/v1 (anty-spoofing przed wycinką)", async () => {
+    const request = new NextRequest("https://www.avably.io/api/v1/catalog", {
+      headers: { "x-tenant-id": "11111111-1111-4111-8111-111111111111" },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id"), "podrobiony x-tenant-id przeżył middleware").toBeNull();
+  });
+});
+
 describe("proxy storefrontu — routing locale (gałąź marketingowa)", () => {
   it("goły / przekierowuje na prefiks locale", async () => {
     const response = await proxy(req("https://www.avably.io/"));

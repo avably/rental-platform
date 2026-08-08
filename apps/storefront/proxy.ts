@@ -188,6 +188,20 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
 
+  // PUBLICZNE API MASZYNOWE (M1, ADR-108): /api/v1/** jest ŚWIADOMIE i WĄSKO
+  // wycięte z bramki SITE_PASSWORD — konsumentem jest SERWER najemcy
+  // (wtyczka WordPress), który nie ma jak przejść Basic Auth przeznaczonego
+  // dla ludzi przed ogłoszeniem produktu. Autoryzacją tych tras jest klucz
+  // API per najemca w route handlerach (401 bez klucza), więc wyjątek nie
+  // otwiera niczego anonimowi. Wycinka celowo NIE obejmuje /api/review ani
+  // żadnej innej ścieżki — tylko dosłowny prefiks /api/v1/. Anty-spoofing
+  // (stripInboundTenantHeaders) już się wykonał — przychodzący x-tenant-id
+  // nie przetrwał także na tej gałęzi.
+  if (request.nextUrl.pathname.startsWith("/api/v1/")) {
+    const response = NextResponse.next({ request: { headers: request.headers } });
+    return applySecurityHeaders(response, nonce, csp);
+  }
+
   // HASŁO CAŁEGO SITE'U — patrz nagłówek pliku. Przed jakimkolwiek
   // rozwiązaniem tenanta (żadnego zapytania do bazy dla nieautoryzowanego
   // ruchu). Ta sama odpowiedź dla marketingu, sklepów najemców i domen
