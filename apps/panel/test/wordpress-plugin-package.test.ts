@@ -13,8 +13,8 @@
  *      `avably-booking/`, której wymaga instalator WP.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -25,7 +25,41 @@ import {
   wordpressPluginZip,
 } from "@/lib/wordpress/plugin-package";
 
+// Manifest doboru plików — TO SAMO źródło, którego używa recepta budowy.
+// Test kompletności niżej odtwarza inwariant niezależnie od recepty.
+import {
+  DEV_EXCLUSIONS,
+  matchesAny,
+} from "../../../scripts/wp-plugin-manifest.mjs";
+
 const repositoryRoot = resolve(process.cwd(), "../..");
+const pluginDirectory = resolve(repositoryRoot, "integrations/wordpress/avably-booking");
+
+/** Nazwy wpisów czytane wprost z nagłówków lokalnych archiwum (nie ze stałej). */
+function zipEntryNames(zip: Buffer): string[] {
+  const names: string[] = [];
+  let offset = 0;
+  while (offset < zip.length && zip.readUInt32LE(offset) === 0x04034b50) {
+    const compressedSize = zip.readUInt32LE(offset + 18);
+    const nameLength = zip.readUInt16LE(offset + 26);
+    const extraLength = zip.readUInt16LE(offset + 28);
+    names.push(zip.subarray(offset + 30, offset + 30 + nameLength).toString("utf8"));
+    offset += 30 + nameLength + extraLength + compressedSize;
+  }
+  return names;
+}
+
+/** Wszystkie pliki katalogu wtyczki jako ścieżki względne (posortowane). */
+function walkPluginFiles(dir: string, prefix = ""): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const absolute = join(dir, entry);
+    const relativePath = prefix ? `${prefix}/${entry}` : entry;
+    if (statSync(absolute).isDirectory()) out.push(...walkPluginFiles(absolute, relativePath));
+    else out.push(relativePath);
+  }
+  return out;
+}
 
 describe("paczka wtyczki WordPress — zawartość", () => {
   it("wszystkie wpisy leżą w katalogu avably-booking/ (wymóg instalatora WP)", () => {
@@ -87,16 +121,83 @@ describe("paczka wtyczki WordPress — poprawność archiwum", () => {
   it("nazwy wpisów w archiwum zgadzają się z deklarowaną listą", () => {
     // Odczyt nazw wprost z nagłówków lokalnych — dowód, że stała nie jest
     // ozdobą, tylko opisuje zawartość binarną.
-    const names: string[] = [];
+    expect([...zipEntryNames(zip)].sort()).toEqual([...WORDPRESS_PLUGIN_ENTRIES].sort());
+  });
+
+  it("wpisy są STORED (metoda 0) — bajty archiwum nie zależą od zlib", () => {
+    // Wyjście deflate różni się między implementacjami zlib (Homebrew vs
+    // oficjalny build Node), więc archiwum kompresowane nie jest odtwarzalne
+    // bajt w bajt między maszynami — bramka zgodności zapalałaby się na CI
+    // przy zerowej zmianie w kodzie. STORED czyni bajty funkcją wyłącznie
+    // treści plików i nagłówków (ADR-110).
     let offset = 0;
+    let entries = 0;
     while (offset < zip.length && zip.readUInt32LE(offset) === 0x04034b50) {
-      const compressedSize = zip.readUInt32LE(offset + 18);
+      expect(zip.readUInt16LE(offset + 8), `metoda wpisu #${entries}`).toBe(0);
+      // Przy STORED rozmiar „skompresowany" musi równać się oryginalnemu.
+      expect(zip.readUInt32LE(offset + 18)).toBe(zip.readUInt32LE(offset + 22));
       const nameLength = zip.readUInt16LE(offset + 26);
       const extraLength = zip.readUInt16LE(offset + 28);
-      names.push(zip.subarray(offset + 30, offset + 30 + nameLength).toString("utf8"));
-      offset += 30 + nameLength + extraLength + compressedSize;
+      offset += 30 + nameLength + extraLength + zip.readUInt32LE(offset + 18);
+      entries += 1;
     }
-    expect([...names].sort()).toEqual([...WORDPRESS_PLUGIN_ENTRIES].sort());
+    expect(entries).toBe(WORDPRESS_PLUGIN_ENTRIES.length);
+  });
+});
+
+describe("paczka wtyczki WordPress — dobór plików LISTĄ DOZWOLONYCH", () => {
+  it("plik nieznany recepcie NIE wjeżdża do paczki — budowa odmawia głośno", () => {
+    // Blacklista przepuszczała wszystko, czego wzorzec nie znał: podłożony
+    // `.env` z kluczem API wjeżdżał do archiwum przy zielonej suicie i jechał
+    // na serwer WordPressa każdego najemcy (recenzja PM #212, dowiedzione
+    // odczytem sekretów z rozpakowanych bajtów). Od tej pory dobór jest listą
+    // dozwolonych, a plik spoza niej ma PALIĆ budowę, nie cicho wjechać.
+    const planted = [
+      { absolute: join(pluginDirectory, ".env"), content: "AVABLY_API_KEY=avbl_podlozony\n" },
+      { absolute: join(pluginDirectory, "tajne-dane.xyz"), content: "haslo=podlozone\n" },
+    ];
+    const modulePath = resolve(repositoryRoot, "apps/panel/lib/wordpress/plugin-package.ts");
+    const moduleBefore = readFileSync(modulePath);
+
+    try {
+      for (const file of planted) writeFileSync(file.absolute, file.content);
+
+      // Budowa MUSI odmówić (kod != 0) — nie „pominąć po cichu”.
+      expect(() =>
+        execFileSync("node", ["scripts/build-wp-plugin-zip.mjs"], {
+          cwd: repositoryRoot,
+          stdio: "pipe",
+        }),
+      ).toThrow();
+
+      // Moduł w repo pozostaje nietknięty…
+      expect(readFileSync(modulePath).equals(moduleBefore)).toBe(true);
+
+      // …a dowód idzie z BAJTÓW archiwum (nagłówki lokalne), nie z samej stałej.
+      const names = zipEntryNames(wordpressPluginZip());
+      for (const suspicious of [".env", "tajne-dane.xyz"]) {
+        expect(names.filter((name) => name.endsWith(suspicious))).toEqual([]);
+        expect(WORDPRESS_PLUGIN_ENTRIES.filter((entry) => entry.endsWith(suspicious))).toEqual([]);
+      }
+    } finally {
+      // Sprzątanie także przy błędzie: podłożone pliki i ewentualnie nadpisany moduł.
+      for (const file of planted) rmSync(file.absolute, { force: true });
+      writeFileSync(modulePath, moduleBefore);
+    }
+  });
+
+  it("nic potrzebnego nie ginie po cichu: każdy plik wtyczki jest w paczce ALBO na jawnej liście wykluczeń", () => {
+    // Druga strona kija: lista dozwolonych zbyt wąska zgubiłaby nowy plik
+    // runtime (np. blocks/foo/render.php) bez śladu. Inwariant liczony
+    // NIEZALEŻNIE od recepty: pełny spacer po katalogu wtyczki kontra wpisy
+    // paczki i nazwana lista wykluczeń dev — trzeciej kategorii nie ma.
+    const packaged = new Set(
+      WORDPRESS_PLUGIN_ENTRIES.map((entry) => entry.replace(/^avably-booking\//, "")),
+    );
+    const orphans = walkPluginFiles(pluginDirectory).filter(
+      (file) => !packaged.has(file) && !matchesAny(file, DEV_EXCLUSIONS),
+    );
+    expect(orphans).toEqual([]);
   });
 });
 

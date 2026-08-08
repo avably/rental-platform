@@ -22,10 +22,12 @@
  *   --check  nie zapisuje, tylko zwraca kod 1 przy rozjeździe z repo.
  */
 import { createHash } from "node:crypto";
-import { deflateRawSync, inflateRawSync } from "node:zlib";
+import { inflateRawSync } from "node:zlib";
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { DEV_EXCLUSIONS, RUNTIME_ALLOWLIST, matchesAny } from "./wp-plugin-manifest.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
@@ -36,36 +38,37 @@ const outputFile = resolve(repoRoot, "apps/panel/lib/wordpress/plugin-package.ts
 const ARCHIVE_ROOT = "avably-booking";
 
 /**
- * Do paczki idzie WYŁĄCZNIE runtime. Rusztowanie deweloperskie (testy,
- * konfiguracja phpunit, docker-compose, zrzuty dowodowe) nie ma prawa
- * wylądować na serwerze najemcy: to i zbędny bagaż, i powierzchnia ataku.
+ * Dobór plików LISTĄ DOZWOLONYCH z manifestu (wp-plugin-manifest.mjs):
+ * do paczki wjeżdża wyłącznie plik pasujący do RUNTIME_ALLOWLIST, rusztowanie
+ * dev odsiewa nazwana lista DEV_EXCLUSIONS, a plik nieznany ŻADNEJ z list
+ * pali budowę. Blacklista przepuszczała wszystko, czego wzorzec nie znał —
+ * podłożony `.env` jechał na serwer każdego najemcy (recenzja PM #212).
  */
-const EXCLUDED_DIRS = new Set(["dev", "tests", "node_modules", ".git"]);
-const EXCLUDED_FILES = new Set([
-  "phpunit.xml.dist",
-  ".gitignore",
-  ".phpunit.result.cache",
-  ".DS_Store",
-]);
-
 function collectFiles(dir, prefix = "") {
-  const out = [];
+  const out = { files: [], unknown: [] };
   for (const entry of readdirSync(dir).sort()) {
     const absolute = join(dir, entry);
     const relativePath = prefix ? `${prefix}/${entry}` : entry;
-    const stats = statSync(absolute);
-    if (stats.isDirectory()) {
-      if (EXCLUDED_DIRS.has(entry)) continue;
-      out.push(...collectFiles(absolute, relativePath));
+    if (statSync(absolute).isDirectory()) {
+      // Katalog w całości na liście wykluczeń (wzorzec `katalog/**`) — nie
+      // schodzimy w głąb; inaczej rozstrzygają pojedyncze pliki.
+      if (matchesAny(`${relativePath}/x`, DEV_EXCLUSIONS)) continue;
+      const nested = collectFiles(absolute, relativePath);
+      out.files.push(...nested.files);
+      out.unknown.push(...nested.unknown);
       continue;
     }
-    if (EXCLUDED_FILES.has(entry)) continue;
-    out.push({ path: relativePath, absolute });
+    if (matchesAny(relativePath, DEV_EXCLUSIONS)) continue;
+    if (matchesAny(relativePath, RUNTIME_ALLOWLIST)) {
+      out.files.push({ path: relativePath, absolute });
+      continue;
+    }
+    out.unknown.push(relativePath);
   }
   return out;
 }
 
-// --- Minimalny, deterministyczny writer ZIP (deflate) ---
+// --- Minimalny, deterministyczny writer ZIP (STORED) ---
 
 const CRC_TABLE = (() => {
   const table = new Int32Array(256);
@@ -90,6 +93,13 @@ function crc32(buffer) {
 const DOS_TIME = 0;
 const DOS_DATE = 0x0021;
 
+// Metoda STORED (0), świadomie bez kompresji: wyjście deflate zależy od
+// implementacji zlib (Homebrew vs oficjalny build Node linkują różne), więc
+// archiwum kompresowane nie jest odtwarzalne bajt w bajt między maszynami —
+// bramka zgodności czerwieniła CI przy zerowej zmianie w kodzie (recenzja PM
+// #212). STORED czyni bajty funkcją WYŁĄCZNIE treści plików i nagłówków;
+// cena to ~150 kB zamiast ~44 kB dla 18 plików — bez znaczenia, a instalator
+// WP przyjmuje ZIP-y STORED wprost.
 function buildZip(files) {
   const chunks = [];
   const central = [];
@@ -98,33 +108,32 @@ function buildZip(files) {
   for (const file of files) {
     const name = Buffer.from(`${ARCHIVE_ROOT}/${file.path}`, "utf8");
     const content = readFileSync(file.absolute);
-    const compressed = deflateRawSync(content, { level: 9 });
     const crc = crc32(content);
 
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4); // wersja wymagana
     local.writeUInt16LE(0, 6); // flagi
-    local.writeUInt16LE(8, 8); // metoda: deflate
+    local.writeUInt16LE(0, 8); // metoda: STORED (determinizm między środowiskami)
     local.writeUInt16LE(DOS_TIME, 10);
     local.writeUInt16LE(DOS_DATE, 12);
     local.writeUInt32LE(crc, 14);
-    local.writeUInt32LE(compressed.length, 18);
+    local.writeUInt32LE(content.length, 18);
     local.writeUInt32LE(content.length, 22);
     local.writeUInt16LE(name.length, 26);
     local.writeUInt16LE(0, 28);
-    chunks.push(local, name, compressed);
+    chunks.push(local, name, content);
 
     const entry = Buffer.alloc(46);
     entry.writeUInt32LE(0x02014b50, 0);
     entry.writeUInt16LE(20, 4); // wersja twórcy
     entry.writeUInt16LE(20, 6); // wersja wymagana
     entry.writeUInt16LE(0, 8);
-    entry.writeUInt16LE(8, 10);
+    entry.writeUInt16LE(0, 10); // metoda: STORED (jak w nagłówku lokalnym)
     entry.writeUInt16LE(DOS_TIME, 12);
     entry.writeUInt16LE(DOS_DATE, 14);
     entry.writeUInt32LE(crc, 16);
-    entry.writeUInt32LE(compressed.length, 20);
+    entry.writeUInt32LE(content.length, 20);
     entry.writeUInt32LE(content.length, 24);
     entry.writeUInt16LE(name.length, 28);
     entry.writeUInt16LE(0, 30); // extra
@@ -137,7 +146,7 @@ function buildZip(files) {
     entry.writeUInt32LE(offset, 42);
     central.push(Buffer.concat([entry, name]));
 
-    offset += local.length + name.length + compressed.length;
+    offset += local.length + name.length + content.length;
   }
 
   const centralBuffer = Buffer.concat(central);
@@ -160,7 +169,20 @@ const pluginHeader = readFileSync(join(pluginDir, "avably-booking.php"), "utf8")
 const version = pluginHeader.match(/^\s*\*\s*Version:\s*(.+)$/m)?.[1].trim();
 if (!version) throw new Error("Nie znaleziono wersji w nagłówku wtyczki");
 
-const files = collectFiles(pluginDir);
+const { files, unknown } = collectFiles(pluginDir);
+if (unknown.length > 0) {
+  // GŁOŚNA BRAMKA listy dozwolonych: plik nieznany manifestowi nie ma prawa
+  // ani wjechać do paczki (tak ginęły sekrety — blacklista przepuszczała
+  // wszystko), ani zniknąć po cichu (tak ginąłby nowy plik runtime).
+  console.error(
+    "ODMOWA BUDOWY: pliki nieznane manifestowi paczki (scripts/wp-plugin-manifest.mjs):\n" +
+      unknown.map((path) => `  - ${path}`).join("\n") +
+      "\nPlik runtime → dopisz wzorzec do RUNTIME_ALLOWLIST (pojedzie do najemców)." +
+      "\nRusztowanie dev → dopisz do DEV_EXCLUSIONS (świadome wykluczenie)." +
+      "\nPlik podłożony/lokalny (.env, config) → usuń z katalogu wtyczki.",
+  );
+  process.exit(1);
+}
 if (files.length === 0) throw new Error("Zero plików do spakowania");
 
 const zip = buildZip(files);
@@ -223,12 +245,16 @@ function digestsFromModule(source) {
   const digests = new Map();
   let cursor = 0;
   while (cursor < archive.length && archive.readUInt32LE(cursor) === 0x04034b50) {
+    const method = archive.readUInt16LE(cursor + 8);
     const compressedSize = archive.readUInt32LE(cursor + 18);
     const nameLength = archive.readUInt16LE(cursor + 26);
     const extraLength = archive.readUInt16LE(cursor + 28);
     const name = archive.subarray(cursor + 30, cursor + 30 + nameLength).toString("utf8");
     const dataStart = cursor + 30 + nameLength + extraLength;
-    const content = inflateRawSync(archive.subarray(dataStart, dataStart + compressedSize));
+    const data = archive.subarray(dataStart, dataStart + compressedSize);
+    // STORED = bajty wprost; deflate obsługiwany dla zgodności wstecz
+    // (moduł sprzed przejścia na STORED też ma się dać sprawdzić).
+    const content = method === 0 ? data : inflateRawSync(data);
     digests.set(name, createHash("sha256").update(content).digest("hex"));
     cursor = dataStart + compressedSize;
   }
