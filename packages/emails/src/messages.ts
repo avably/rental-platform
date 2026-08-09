@@ -33,6 +33,20 @@ export interface PasswordResetMessages {
   ignore: string;
 }
 
+/**
+ * Powiadomienie o ZMIANIE hasła (R14/M-01, ADR-122) — wysyłane po fakcie,
+ * bez żadnego tokenu w treści: jedyny link prowadzi na formularz prośby
+ * o reset, bo jeśli zmiany nie wykonał właściciel konta, natychmiastowy
+ * reset (unieważniający sesje) jest jego drogą odzyskania kontroli.
+ */
+export interface PasswordChangedMessages {
+  heading: string;
+  cta: string;
+  preview: string;
+  changed: string;
+  notYou: string;
+}
+
 export interface OrganizationInvitationMessages {
   heading: string;
   cta: string;
@@ -127,6 +141,7 @@ export interface EmailMessages {
   layout: EmailLayoutMessages;
   emailConfirmation: EmailConfirmationMessages;
   passwordReset: PasswordResetMessages;
+  passwordChanged: PasswordChangedMessages;
   organizationInvitation: OrganizationInvitationMessages;
   newOrderNotification: NewOrderNotificationMessages;
   rentalLifecycle: RentalLifecycleMessages;
@@ -155,6 +170,15 @@ const pl: EmailMessages = {
     preview: "Ustaw nowe hasło do konta w Avably.",
     requested: "Otrzymaliśmy prośbę o ustawienie nowego hasła do Twojego konta.",
     ignore: "Jeśli to nie Ty, zignoruj tę wiadomość. Twoje hasło się nie zmieni.",
+  },
+  passwordChanged: {
+    heading: "Twoje hasło zostało zmienione",
+    cta: "Poproś o reset hasła",
+    preview: "Hasło do Twojego konta w Avably zostało właśnie zmienione.",
+    changed:
+      "Hasło do Twojego konta zostało właśnie zmienione, a pozostałe sesje wylogowane.",
+    notYou:
+      "Jeśli to nie Ty, natychmiast poproś o reset hasła przyciskiem poniżej — ustawienie nowego hasła odetnie osobę, która zna obecne.",
   },
   organizationInvitation: {
     heading: "Zaproszenie do organizacji",
@@ -271,6 +295,14 @@ const en: EmailMessages = {
     preview: "Set a new password for your Avably account.",
     requested: "We received a request to set a new password for your account.",
     ignore: "If this was not you, ignore this message. Your password will not change.",
+  },
+  passwordChanged: {
+    heading: "Your password was changed",
+    cta: "Request a password reset",
+    preview: "The password for your Avably account was just changed.",
+    changed: "The password for your account was just changed and your other sessions were signed out.",
+    notYou:
+      "If this was not you, request a password reset immediately using the button below — setting a new password will cut off whoever knows the current one.",
   },
   organizationInvitation: {
     heading: "Invitation to an organization",
