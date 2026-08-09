@@ -23,6 +23,19 @@ class Avably_Booking_Validator {
 	/** Metody dostawy kontraktu (lustro CHECK orders.delivery_method). */
 	public const DELIVERY_METHODS = array( 'pickup', 'courier', 'parcel_locker', 'own_delivery' );
 
+	/** Prefiks pól własnych w formularzu — ten sam klucz, którym API odsyła błędy. */
+	public const CUSTOM_FIELD_PREFIX = 'cf_';
+
+	/**
+	 * Sufit liczby pól własnych w jednym żądaniu.
+	 *
+	 * Nie jest lustrem żadnej reguły serwera (tam granicą jest ROZMIAR mapy,
+	 * 8 kB kolumny) — jest tarczą wtyczki: bez niego skrypt mógłby wysłać
+	 * dziesiątki tysięcy kluczy `cf_*` i zamienić bramkę walidacji w koszt.
+	 * Żaden realny najemca nie ma 60 pól w zamawianiu.
+	 */
+	public const CUSTOM_FIELDS_MAX = 60;
+
 	/**
 	 * Waliduje surowe wejście formularza i buduje body rezerwacji.
 	 *
@@ -110,6 +123,42 @@ class Avably_Booking_Validator {
 			$errors['notes'] = 'too_long';
 		}
 
+		// --- POLA WŁASNE (C6-A3, ADR-121) ---
+		//
+		// Wtyczka NIE ZNA definicji w tym miejscu (walidator dostaje surowe
+		// wejście, nie katalog), więc sprawdza wyłącznie KSZTAŁT: klucz musi
+		// być identyfikatorem, wartość skalarem o rozsądnej długości.
+		// O tym, czy pole istnieje u tego najemcy, jest polem ZAMAWIANIA
+		// i czy wartość pasuje do typu, rozstrzyga serwer — i to jest właściwy
+		// podział: wtyczka stoi na cudzej stronie i nie jest bramką.
+		$custom_fields = array();
+		foreach ( $input as $key => $value ) {
+			if ( ! is_string( $key ) || 0 !== strpos( $key, self::CUSTOM_FIELD_PREFIX ) ) {
+				continue;
+			}
+			$definition_id = substr( $key, strlen( self::CUSTOM_FIELD_PREFIX ) );
+			if ( ! preg_match( Avably_Booking_Api_Client::UUID_PATTERN, $definition_id ) ) {
+				// Klucz z prefiksem, ale bez identyfikatora — nie pochodzi
+				// z naszego formularza. Milczące pominięcie wystarcza: nie ma
+				// pola, pod którym dałoby się pokazać komunikat.
+				continue;
+			}
+			if ( ! is_scalar( $value ) ) {
+				$errors[ $key ] = 'invalid';
+				continue;
+			}
+			$text = trim( (string) $value );
+			if ( mb_strlen( $text ) > 2000 ) {
+				$errors[ $key ] = 'too_long';
+				continue;
+			}
+			if ( count( $custom_fields ) >= self::CUSTOM_FIELDS_MAX ) {
+				$errors[ $key ] = 'not_allowed';
+				continue;
+			}
+			$custom_fields[ strtolower( $definition_id ) ] = $text;
+		}
+
 		if ( array() !== $errors ) {
 			return array(
 				'ok'     => false,
@@ -145,6 +194,12 @@ class Avably_Booking_Validator {
 		}
 		if ( '' !== $notes ) {
 			$body['notes'] = $notes;
+		}
+		// Mapa idzie tylko wtedy, gdy formularz coś niósł. Pole WYMAGANE,
+		// którego klient nie wypełnił, i tak wychwyci serwer — on iteruje po
+		// definicjach najemcy, a nie po tym, co przyszło w żądaniu.
+		if ( array() !== $custom_fields ) {
+			$body['customFields'] = $custom_fields;
 		}
 
 		return array(

@@ -105,8 +105,19 @@ class Avably_Booking_Contract {
 			'locale'           => __( 'Language', 'avably-booking' ),
 			'notes'            => __( 'Notes', 'avably-booking' ),
 		);
+		// Pole własne najemcy (C6-A3): etykiety nie znamy — zna ją formularz,
+		// a komunikat i tak ląduje PRZY polu. Surowy `cf_<uuid>` w zdaniu dla
+		// klienta końcowego byłby gorszy niż nazwa ogólna.
+		if ( 0 === strpos( $field, 'cf_' ) ) {
+			return self::field_message_for_label( __( 'This field', 'avably-booking' ), $type );
+		}
 		$label = isset( $labels[ $field ] ) ? $labels[ $field ] : $field;
 
+		return self::field_message_for_label( $label, $type );
+	}
+
+	/** Zdanie dla klienta końcowego z gotowej etykiety pola. */
+	private static function field_message_for_label( string $label, string $type ): string {
 		switch ( $type ) {
 			case 'required':
 				/* translators: %s: form field label. */

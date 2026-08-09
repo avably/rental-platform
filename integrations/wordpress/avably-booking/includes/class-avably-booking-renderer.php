@@ -259,6 +259,12 @@ class Avably_Booking_Renderer {
 				. '</select>'
 		);
 
+		// Pola własne najemcy (C6-A3, ADR-121) — definicje przychodzą Z KATALOGU,
+		// który wtyczka i tak już pobrała. Osobne żądanie po definicje byłoby
+		// drugim wywołaniem API na każde wyświetlenie produktu (patrz bramka
+		// amplifikacji w class-avably-booking-ajax.php).
+		$html .= self::render_custom_fields( $catalog );
+
 		$html .= self::field_row(
 			'avably-notes',
 			__( 'Notes (optional)', 'avably-booking' ),
@@ -278,6 +284,112 @@ class Avably_Booking_Renderer {
 		// dla danych z API).
 		$html .= '<div class="avably-booking__confirmation" data-avably-confirmation hidden></div>';
 		$html .= '</div>';
+		return $html;
+	}
+
+	/**
+	 * Pola własne do wypełnienia przez klienta (C6-A3, ADR-121).
+	 *
+	 * API zwraca WYŁĄCZNIE definicje oznaczone „zamawianie" i niezarchiwizowane,
+	 * więc wtyczka nie filtruje widoczności — filtruje ENCJĘ: `product` opisuje
+	 * sprzęt i wypełnia go operator, a nie kupujący. To samo zawężenie robi
+	 * serwer przy zapisie, więc pole podrzucone do formularza ręcznie i tak
+	 * odbije się o API.
+	 *
+	 * Nazwa pola to `cf_<id>` — ten sam klucz, którym API odsyła błędy, więc
+	 * `showFieldErrors` w booking.js trafia komunikatem pod właściwe pole bez
+	 * żadnej dodatkowej mapy.
+	 */
+	private static function render_custom_fields( array $catalog ): string {
+		$definitions = isset( $catalog['custom_fields'] ) && is_array( $catalog['custom_fields'] )
+			? $catalog['custom_fields']
+			: array();
+
+		$html = '';
+		foreach ( $definitions as $definition ) {
+			if ( ! is_array( $definition ) || ! isset( $definition['id'], $definition['field_type'], $definition['label'] ) ) {
+				continue;
+			}
+			$definition_id = (string) $definition['id'];
+			if ( ! preg_match( Avably_Booking_Api_Client::UUID_PATTERN, $definition_id ) ) {
+				continue;
+			}
+			$entity = isset( $definition['entity'] ) ? (string) $definition['entity'] : '';
+			if ( ! in_array( $entity, array( 'customer', 'order' ), true ) ) {
+				continue;
+			}
+
+			$type     = (string) $definition['field_type'];
+			$label    = (string) $definition['label'];
+			$required = ! empty( $definition['required'] );
+			$help     = isset( $definition['help_text'] ) && is_string( $definition['help_text'] ) ? $definition['help_text'] : '';
+			$name     = 'cf_' . $definition_id;
+			$field_id = 'avably-cf-' . $definition_id;
+
+			$attrs = ' id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $name ) . '"'
+				. ' data-avably-field="' . esc_attr( $name ) . '"'
+				. ( $required ? ' required' : '' );
+
+			switch ( $type ) {
+				case 'textarea':
+					$control = '<textarea' . $attrs . ' maxlength="2000" rows="3"></textarea>';
+					break;
+				case 'select':
+					$options = '<option value="">' . esc_html__( 'Choose…', 'avably-booking' ) . '</option>';
+					$list    = isset( $definition['options'] ) && is_array( $definition['options'] ) ? $definition['options'] : array();
+					foreach ( $list as $option ) {
+						if ( ! is_scalar( $option ) ) {
+							continue;
+						}
+						$options .= '<option value="' . esc_attr( (string) $option ) . '">' . esc_html( (string) $option ) . '</option>';
+					}
+					$control = '<select' . $attrs . '>' . $options . '</select>';
+					break;
+				case 'checkbox':
+					// Wartość „1" i BRAK klucza przy niezaznaczonym polu —
+					// serwer czyta brak jako `false`, tak samo jak formularz sklepu.
+					$control = '<input type="checkbox" value="1"' . $attrs . '>';
+					break;
+				case 'date':
+					$control = '<input type="date"' . $attrs . '>';
+					break;
+				case 'phone':
+					$control = '<input type="tel" maxlength="30"' . $attrs . '>';
+					break;
+				case 'number':
+					// `inputmode` zamiast type="number": polski klient pisze
+					// przecinek dziesiętny, którego type="number" odrzuca po cichu.
+					$control = '<input type="text" inputmode="decimal"' . $attrs . '>';
+					break;
+				case 'text':
+					$control = '<input type="text" maxlength="200"' . $attrs . '>';
+					break;
+				default:
+					// Typ spoza zamkniętej listy = wtyczka starsza od schematu.
+					// Pomijamy pole zamiast zgadywać kontrolkę: zgadnięta kontrolka
+					// wysyłałaby wartość, której serwer i tak nie przyjmie.
+					continue 2;
+			}
+
+			if ( 'checkbox' === $type ) {
+				$html .= '<div class="avably-booking__field avably-booking__field--check">'
+					. '<label for="' . esc_attr( $field_id ) . '">' . $control . ' ' . esc_html( $label ) . '</label>'
+					. ( '' !== $help ? '<span class="avably-booking__field-help">' . esc_html( $help ) . '</span>' : '' )
+					. '<span class="avably-booking__field-error" data-avably-error-for="' . esc_attr( $field_id ) . '" hidden></span>'
+					. '</div>';
+				continue;
+			}
+
+			$html .= '<div class="avably-booking__field">'
+				. '<label for="' . esc_attr( $field_id ) . '">' . esc_html( $label )
+				. ( $required ? '' : ' <span class="avably-booking__field-optional">(' . esc_html__( 'optional', 'avably-booking' ) . ')</span>' )
+				. '</label>'
+				. $control
+				. ( '' !== $help ? '<span class="avably-booking__field-help">' . esc_html( $help ) . '</span>' : '' )
+				. '<span class="avably-booking__field-error" data-avably-error-for="' . esc_attr( $field_id ) . '" hidden></span>'
+				. '</div>';
+		}
+
 		return $html;
 	}
 
