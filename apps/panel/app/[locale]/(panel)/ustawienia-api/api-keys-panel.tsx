@@ -26,6 +26,7 @@ import type { FormState } from "@/lib/form-state";
 import { API_CONTRACT_PATH } from "@/lib/wordpress/api-base-url";
 
 import { generateApiKeyAction, revokeApiKeyAction, type GeneratedKeyState } from "./api-keys-actions";
+import { EmbedGuide } from "./embed-guide";
 import { WordPressGuide } from "./wordpress-guide";
 
 const initialState: FormState = {};
@@ -148,6 +149,8 @@ export function ApiKeysPanel({
   pluginDownloadHref,
   pluginFilename,
   pluginVersion,
+  embedSnippet,
+  embedPreviewUrl,
 }: {
   apiKeys: ApiKeyRow[];
   isOwner: boolean;
@@ -157,6 +160,12 @@ export function ApiKeysPanel({
   pluginDownloadHref: string;
   pluginFilename: string;
   pluginVersion: string;
+  /**
+   * Fragment do wklejenia i podgląd widgetu (M3, ADR-120). `null`, gdy nie da
+   * się złożyć hosta sklepu — sekcja embedu wtedy nie ma czego pokazać.
+   */
+  embedSnippet: string | null;
+  embedPreviewUrl: string | null;
 }) {
   const t = useTranslations("apiSettings");
 
@@ -208,6 +217,13 @@ export function ApiKeysPanel({
         pluginFilename={pluginFilename}
         pluginVersion={pluginVersion}
       />
+
+      {/* Embed stoi POD wtyczką: najemca z WordPressem znajdzie swoją drogę
+          wcześniej, a ten, kto jej nie ma, czyta dalej i trafia na wariant
+          uniwersalny — zamiast wybierać między dwoma równorzędnymi kartami. */}
+      {embedSnippet !== null ? (
+        <EmbedGuide snippet={embedSnippet} previewUrl={embedPreviewUrl} />
+      ) : null}
     </>
   );
 }

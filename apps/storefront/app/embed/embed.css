@@ -1,0 +1,243 @@
+/*
+ * Style widgetu embedu (M3, ADR-120).
+ *
+ * Świadomie ZWYKŁY CSS z własnym prefiksem klas, a nie tokeny design systemu
+ * sklepu: dokument w ramce ma wyglądać neutralnie i przewidywalnie na cudzej
+ * stronie, a nie dziedziczyć stylowania szablonu sklepu. Ramka izoluje style
+ * w obie strony — CSS gospodarza tu nie wchodzi, nasz nie wychodzi — więc ten
+ * plik nie potrzebuje ani `!important`, ani warstw specyficzności.
+ */
+
+.avably-embed {
+  --embed-bg: #ffffff;
+  --embed-fg: #111827;
+  --embed-muted: #6b7280;
+  --embed-line: #d1d5db;
+  --embed-accent: #111827;
+  --embed-free: #ffffff;
+  --embed-busy: #f3f4f6;
+  --embed-busy-fg: #9ca3af;
+
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--embed-bg);
+  color: var(--embed-fg);
+  font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.avably-embed[data-embed-theme="dark"] {
+  --embed-bg: #0b0f19;
+  --embed-fg: #f3f4f6;
+  --embed-muted: #9ca3af;
+  --embed-line: #374151;
+  --embed-accent: #f3f4f6;
+  --embed-free: #111827;
+  --embed-busy: #1f2937;
+  --embed-busy-fg: #4b5563;
+}
+
+.avably-embed *,
+.avably-embed *::before,
+.avably-embed *::after {
+  box-sizing: inherit;
+}
+
+.avably-embed__title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.avably-embed h3 {
+  margin: 16px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.avably-embed__product {
+  margin: 0 0 12px;
+  color: var(--embed-muted);
+}
+
+.avably-embed__field {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.avably-embed__field > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--embed-muted);
+}
+
+.avably-embed input[type="text"],
+.avably-embed input[type="email"],
+.avably-embed input[type="tel"],
+.avably-embed input:not([type]),
+.avably-embed select,
+.avably-embed textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--embed-line);
+  border-radius: 8px;
+  background: var(--embed-bg);
+  color: var(--embed-fg);
+  font: inherit;
+}
+
+.avably-embed__field em {
+  display: block;
+  margin-top: 4px;
+  color: #b91c1c;
+  font-size: 13px;
+  font-style: normal;
+}
+
+.avably-embed__calendar header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.avably-embed__calendar header strong {
+  font-size: 15px;
+  text-transform: capitalize;
+}
+
+.avably-embed__calendar header button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--embed-line);
+  border-radius: 8px;
+  background: var(--embed-bg);
+  color: var(--embed-fg);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.avably-embed__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.avably-embed__grid button {
+  aspect-ratio: 1;
+  border: 1px solid var(--embed-line);
+  border-radius: 8px;
+  background: var(--embed-free);
+  color: var(--embed-fg);
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.avably-embed__grid button[data-embed-day-state="busy"] {
+  background: var(--embed-busy);
+  color: var(--embed-busy-fg);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/*
+ * Dzień NIEROZSTRZYGNIĘTY (ADR-114, decyzja 2b) — obramowanie przerywane,
+ * wygląd neutralny, WIZUALNIE INNY niż „zajęte". Degradacja nie udaje wyniku.
+ */
+.avably-embed__grid button[data-embed-day-state="unknown"] {
+  border-style: dashed;
+  color: var(--embed-muted);
+  cursor: progress;
+}
+
+.avably-embed__grid button[data-embed-day-state="past"] {
+  border-color: transparent;
+  color: var(--embed-busy-fg);
+  cursor: default;
+}
+
+.avably-embed__grid button[data-embed-selected="true"] {
+  background: var(--embed-accent);
+  border-color: var(--embed-accent);
+  color: var(--embed-bg);
+}
+
+.avably-embed__note,
+.avably-embed__hint {
+  margin: 8px 0 0;
+  color: var(--embed-muted);
+  font-size: 13px;
+}
+
+.avably-embed__link {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--embed-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.avably-embed__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.avably-embed__choices label,
+.avably-embed__terms {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avably-embed__terms {
+  margin: 12px 0;
+  align-items: flex-start;
+}
+
+.avably-embed__error {
+  margin: 12px 0;
+  padding: 8px 10px;
+  border: 1px solid #b91c1c;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.avably-embed button[type="submit"],
+.avably-embed__done button {
+  width: 100%;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--embed-accent);
+  color: var(--embed-bg);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.avably-embed button[type="submit"][disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.avably-embed__footer {
+  margin: 16px 0 0;
+  color: var(--embed-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.avably-embed__done h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}

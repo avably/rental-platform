@@ -43,7 +43,9 @@ function renderPanel(locale: "pl" | "en", apiBaseUrl: string) {
         apiBaseUrl={apiBaseUrl}
         pluginDownloadHref={`/${locale}/ustawienia-api/wtyczka`}
         pluginFilename="avably-booking-0.1.0.zip"
-        pluginVersion="0.1.0"
+        embedSnippet={null}
+      embedPreviewUrl={null}
+      pluginVersion="0.1.0"
       />
     </NextIntlClientProvider>,
   );

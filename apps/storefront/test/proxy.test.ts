@@ -438,3 +438,110 @@ describe("proxy storefrontu — anty-spoofing tenanta (bramka izolacji)", () => 
     expect(request.headers.get("x-tenant-id")).toBeNull();
   });
 });
+
+/**
+ * EMBED REZERWACJI (M3, ADR-120). Bramka ma DWIE strony i obie muszą być
+ * przypięte, dokładnie jak przy wycince /api/v1/ z M1: usunięcie wycinki
+ * zabija embed u każdego najemcy, a jej poszerzenie otwiera site przed
+ * premierą. Do tego dochodzi polityka ramkowania, która dla embedu MUSI być
+ * inna niż dla reszty site'u — i tylko dla niego.
+ */
+describe("proxy storefrontu — embed rezerwacji (M3, ADR-120)", () => {
+  const embedPaths = [
+    "https://acme.avably.io/embed/loader",
+    "https://acme.avably.io/embed/widget",
+    "https://acme.avably.io/embed/api/month?product=x&month=2026-09",
+    "https://acme.avably.io/embed/api/reservations",
+  ];
+
+  for (const url of embedPaths) {
+    it(`${new URL(url).pathname} jest osiągalne BEZ hasła site'u`, async () => {
+      const response = await runProxy(new NextRequest(url), fakeDeps);
+
+      expect(response.status).not.toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBeNull();
+    });
+  }
+
+  it("embed nadal przechodzi przez rozwiązanie tenanta (nagłówek wstrzyknięty)", async () => {
+    const request = new NextRequest("https://acme.avably.io/embed/widget");
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id")).toBe(ACME_ID);
+  });
+
+  it("embed NIE omija anty-spoofingu — podrobiony x-tenant-id nie przeżywa", async () => {
+    const request = new NextRequest("https://acme.avably.io/embed/widget", {
+      headers: { "x-tenant-id": "99999999-9999-4999-8999-999999999999" },
+    });
+
+    await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id")).toBe(ACME_ID);
+  });
+
+  it("na nieznanej subdomenie embed dostaje neutralne 404, nie cudzy sklep", async () => {
+    const response = await runProxy(
+      new NextRequest("https://nieznany.avably.io/embed/widget"),
+      fakeDeps,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("WYCINKA JEST WĄSKA — /embed bez ukośnika zostaje za hasłem", async () => {
+    const response = await runProxy(new NextRequest("https://acme.avably.io/embed"), fakeDeps);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("WYCINKA JEST WĄSKA — reszta sklepu dalej za hasłem", async () => {
+    for (const url of [
+      "https://acme.avably.io/",
+      "https://acme.avably.io/cart",
+      "https://acme.avably.io/checkout",
+      "https://www.avably.io/",
+    ]) {
+      const response = await runProxy(new NextRequest(url), fakeDeps);
+      expect(response.status, `${url} wyszło zza bramki hasła`).toBe(401);
+    }
+  });
+
+  it("embed WOLNO ramkować: frame-ancestors bez 'none' i BEZ X-Frame-Options", async () => {
+    const response = await runProxy(
+      new NextRequest("https://acme.avably.io/embed/widget"),
+      fakeDeps,
+    );
+    const csp = response.headers.get("Content-Security-Policy") ?? "";
+
+    expect(csp).toMatch(/frame-ancestors [^;]*'self'/);
+    expect(csp).toMatch(/frame-ancestors [^;]*https:/);
+    expect(csp).not.toMatch(/frame-ancestors [^;]*'none'/);
+    // X-Frame-Options nie zna list — zostawiony obok CSP zablokowałby ramkę,
+    // którą polityka właśnie wpuściła (cicha awaria u najemcy).
+    expect(response.headers.get("X-Frame-Options")).toBeNull();
+    // Gwiazdka jest szersza niż potrzeba i nie wchodzi nawet tutaj.
+    expect(csp).not.toMatch(/frame-ancestors [^;]*\*/);
+  });
+
+  it("POZA embedem polityka ramkowania jest NIETKNIĘTA (nadal 'none' + DENY)", async () => {
+    for (const url of ["https://www.avably.io/", "https://acme.avably.io/", "https://acme.avably.io/api/v1/catalog"]) {
+      const response = await runProxy(req(url), fakeDeps);
+      const csp = response.headers.get("Content-Security-Policy") ?? "";
+
+      expect(csp, `${url} rozluźnił ramkowanie`).toMatch(/frame-ancestors 'none'/);
+      expect(response.headers.get("X-Frame-Options"), url).toBe("DENY");
+    }
+  });
+
+  it("embed nie traci reszty nagłówków bezpieczeństwa", async () => {
+    const response = await runProxy(
+      new NextRequest("https://acme.avably.io/embed/widget"),
+      fakeDeps,
+    );
+
+    expect(response.headers.get("Strict-Transport-Security")).toContain("max-age=31536000");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Content-Security-Policy")).toMatch(/script-src [^;]*'nonce-/);
+  });
+});

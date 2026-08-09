@@ -161,3 +161,65 @@ describe("applySecurityHeaders / securityHeadersResponse", () => {
     expect(response.headers.get("Content-Security-Policy")).toContain(`'nonce-${nonce}'`);
   });
 });
+
+/**
+ * RAMKOWANIE PER TRASA (M3, ADR-120). Domyślnie nikt nas nie ramkuje i to się
+ * nie zmieniło. Embed rezerwacji jest jedynym wyjątkiem — i musi być wyjątkiem
+ * SZCZELNYM: wpuszczenie źródeł bez zdjęcia X-Frame-Options dałoby politykę,
+ * która wygląda na otwartą, a w przeglądarce honorującej XFO nadal blokuje
+ * ramkę. To jest dokładnie ten rodzaj cichej awarii, którą widać dopiero
+ * u najemcy na cudzej stronie.
+ */
+describe("polityka ramkowania — domyślnie zamknięta, embed jako jedyny wyjątek", () => {
+  const nonce = generateNonce();
+
+  it("bez opcji: frame-ancestors 'none' ORAZ X-Frame-Options: DENY", () => {
+    expect(directive(buildCsp(nonce), "frame-ancestors")).toBe("frame-ancestors 'none'");
+
+    const response = applySecurityHeaders(NextResponse.next(), nonce);
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("PUSTA lista źródeł domyka się w stronę ZAMKNIĘTĄ, nie otwartą", () => {
+    expect(directive(buildCsp(nonce, { frameAncestors: [] }), "frame-ancestors")).toBe(
+      "frame-ancestors 'none'",
+    );
+
+    const response = applySecurityHeaders(NextResponse.next(), nonce, { frameAncestors: [] });
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("niepusta lista wchodzi do polityki I ZDEJMUJE X-Frame-Options", () => {
+    const options = { frameAncestors: ["'self'", "https:"] };
+
+    expect(directive(buildCsp(nonce, options), "frame-ancestors")).toBe(
+      "frame-ancestors 'self' https:",
+    );
+
+    const response = applySecurityHeaders(NextResponse.next(), nonce, options);
+    expect(
+      response.headers.get("X-Frame-Options"),
+      "XFO nie zna list — zostawiony obok CSP zablokuje wpuszczoną ramkę",
+    ).toBeNull();
+  });
+
+  it("XFO zostaje ZDJĘTY także wtedy, gdy odpowiedź już go niosła", () => {
+    const response = NextResponse.next();
+    response.headers.set("X-Frame-Options", "DENY");
+
+    applySecurityHeaders(response, nonce, { frameAncestors: ["'self'"] });
+
+    expect(response.headers.get("X-Frame-Options")).toBeNull();
+  });
+
+  it("wpuszczenie źródeł do ramki nie rusza żadnej innej dyrektywy", () => {
+    const base = buildCsp(nonce);
+    const embed = buildCsp(nonce, { frameAncestors: ["'self'", "https:"] });
+
+    for (const name of ["default-src", "script-src", "style-src", "connect-src", "form-action", "base-uri", "object-src"]) {
+      expect(directive(embed, name), `${name} rozjechał się przy wpuszczeniu ramki`).toBe(
+        directive(base, name),
+      );
+    }
+  });
+});
