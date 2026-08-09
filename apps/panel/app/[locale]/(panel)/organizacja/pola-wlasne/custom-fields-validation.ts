@@ -29,6 +29,16 @@ const checkboxSchema = z
   .nullish()
   .transform((raw) => raw === "on" || raw === "true" || raw === "1");
 
+/**
+ * Nazwa i podpowiedź idą na KAŻDY formularz i — w części 2 — na umowę PDF,
+ * czyli dalej niż jakakolwiek wartość. Guard 0057 odrzuca w nich znaki
+ * sterujące; tu odrzucamy je wcześniej, żeby operator dostał zdanie o polu,
+ * a nie odmowę bazy o całym formularzu.
+ */
+// eslint-disable-next-line no-control-regex
+const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F]/;
+const noControlChars = (message: string) => (value: string) => !CONTROL_RE.test(value) || message;
+
 export const customFieldDefinitionSchema = z
   .object({
     entity: z.enum(CUSTOM_FIELD_ENTITIES, { message: "Wybierz, czego pole dotyczy." }),
@@ -37,14 +47,16 @@ export const customFieldDefinitionSchema = z
       .string()
       .trim()
       .min(1, "Podaj nazwę pola.")
-      .max(CUSTOM_FIELD_LIMITS.labelMax, `Nazwa może mieć najwyżej ${CUSTOM_FIELD_LIMITS.labelMax} znaków.`),
+      .max(CUSTOM_FIELD_LIMITS.labelMax, `Nazwa może mieć najwyżej ${CUSTOM_FIELD_LIMITS.labelMax} znaków.`)
+      .refine(noControlChars("Nazwa pola zawiera niedozwolone znaki.")),
     helpText: z
       .string()
       .trim()
       .max(
         CUSTOM_FIELD_LIMITS.helpTextMax,
         `Podpowiedź może mieć najwyżej ${CUSTOM_FIELD_LIMITS.helpTextMax} znaków.`,
-      ),
+      )
+      .refine(noControlChars("Podpowiedź zawiera niedozwolone znaki.")),
     optionsText: z.string(),
     required: checkboxSchema,
     showInPanel: checkboxSchema,

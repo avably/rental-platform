@@ -14,6 +14,7 @@ import {
   type CustomFieldDefinition,
   type CustomFieldType,
 } from "./index";
+import { CUSTOM_FIELD_PARITY_VECTORS } from "./vectors";
 
 const ID = {
   text: "11111111-1111-4111-8111-111111111111",
@@ -42,6 +43,7 @@ function def(
     showInCheckout: false,
     showInContract: false,
     archivedAt: null,
+    createdAt: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }
@@ -204,9 +206,20 @@ describe("widoczność i kolejność", () => {
     expect(visibleCustomFields([live, archived], "panel").map((d) => d.id)).toEqual([live.id]);
   });
 
-  it("sortuje po pozycji, a remis rozstrzyga deterministycznie", () => {
-    const a = def("text", { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", position: 5 });
-    const b = def("number", { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", position: 5 });
+  it("sortuje po pozycji, a remis rozstrzyga czas utworzenia — jak indeks w bazie", () => {
+    // Remis MUSI iść tak samo jak `(tenant_id, entity, position, created_at)`
+    // i jak zapytanie ekranu ustawień. Rozstrzyganie po `id` dawałoby inną
+    // kolejność na ekranie, a inną na formularzu i na umowie.
+    const a = def("text", {
+      id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      position: 5,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const b = def("number", {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      position: 5,
+      createdAt: "2026-02-01T00:00:00Z",
+    });
     const c = def("date", { id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", position: 1 });
     expect(visibleCustomFields([b, a, c], "panel").map((d) => d.id)).toEqual([c.id, a.id, b.id]);
   });
@@ -323,4 +336,29 @@ describe("pozycja nowego pola", () => {
       CUSTOM_FIELD_LIMITS.positionMax,
     );
   });
+});
+
+describe("parytet ze wspólnymi wektorami (te same przechodzą przez trigger 0057)", () => {
+  // Zestaw jest JEDEN i mieszka w @avably/core/custom-fields/vectors — ta sama
+  // tablica jedzie przez PRAWDZIWY trigger w packages/db/test/custom-fields.test.ts.
+  // Dwie kopie wektorów byłyby tą samą pułapką co dwie kopie reguły.
+  it("zestaw nie jest pusty (asercja anty-pustkowa)", () => {
+    expect(CUSTOM_FIELD_PARITY_VECTORS.length).toBeGreaterThanOrEqual(30);
+    expect(CUSTOM_FIELD_PARITY_VECTORS.some((v) => v.valid)).toBe(true);
+    expect(CUSTOM_FIELD_PARITY_VECTORS.some((v) => !v.valid)).toBe(true);
+  });
+
+  for (const vector of CUSTOM_FIELD_PARITY_VECTORS) {
+    it(`${vector.name} → ${vector.valid ? "przyjęta" : "odrzucona"}`, () => {
+      const definition = def(vector.type, {
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        options: vector.options ? [...vector.options] : [],
+      });
+      const result = validateCustomFieldValues([definition], {
+        [definition.id]: vector.value as never,
+      });
+      const rejected = Boolean(result.issues[definition.id]);
+      expect(rejected, `${vector.name}: rdzeń rozstrzygnął inaczej niż kontrakt`).toBe(!vector.valid);
+    });
+  }
 });

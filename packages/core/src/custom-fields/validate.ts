@@ -10,6 +10,12 @@
  * — z JEDNYM świadomym rozszerzeniem: `required`. Wymagalność jest regułą
  * formularza, nie reprezentowalności wiersza (uzasadnienie w nagłówku 0057
  * i w ADR-118), więc egzekwuje ją wyłącznie ta funkcja.
+ *
+ * Parytetu obu kopii pilnuje WSPÓLNY zestaw wektorów
+ * (`CUSTOM_FIELD_PARITY_VECTORS` w `./vectors`), przepuszczany przez tę
+ * funkcję w suicie rdzenia i przez PRAWDZIWY trigger w suicie
+ * `packages/db/test/custom-fields.test.ts`. Zestaw jest jeden, więc nie da się
+ * poprawić jednej strony i zapomnieć o drugiej.
  */
 
 import {
@@ -28,13 +34,22 @@ import {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ISO_DATE_RE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 const PHONE_SHAPE_RE = /^[0-9 ()+-]{6,30}$/;
-// Klasa [[:cntrl:]] Postgresa to U+0000..U+001F oraz U+007F. Zapis przez
-// escape'y, a nie dosłowne znaki sterujące w źródle — te drugie są
-// niewidoczne w diffie i giną przy kopiowaniu pliku.
+
+/**
+ * Klasa `[[:cntrl:]]` Postgresa.
+ *
+ * U+0000..U+001F i U+007F to wersja minimalna (strategia „C"), ale na bazie
+ * UTF-8 z lokalizacją libc — czyli w naszej konfiguracji — silnik regexpów woła
+ * `iswcntrl`, które w glibc obejmuje TAKŻE U+0080..U+009F. Bierzemy zakres
+ * SZERSZY: rozjazd w tę stronę znaczy „formularz odrzucił coś, co baza by
+ * przyjęła" (komunikat), a w drugą — „formularz przyjął śmieć, baza wywaliła
+ * surowy błąd" (awaria).
+ */
 // eslint-disable-next-line no-control-regex
-const CONTROL_RE = /[\u0000-\u001F\u007F]/;
+const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F]/;
+/** To samo, ale z przepustką dla tabulatora i łamania wiersza (tekst długi). */
 // eslint-disable-next-line no-control-regex
-const CONTROL_EXCEPT_WS_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+const CONTROL_EXCEPT_WS_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/;
 
 /** Wiersz `public.custom_field_definitions` tak, jak oddaje go PostgREST. */
 export interface CustomFieldDefinitionRow {
@@ -50,6 +65,7 @@ export interface CustomFieldDefinitionRow {
   show_in_checkout: boolean;
   show_in_contract: boolean;
   archived_at: string | null;
+  created_at?: string | null;
 }
 
 /**
@@ -78,6 +94,7 @@ export function customFieldDefinitionFromRow(row: CustomFieldDefinitionRow): Cus
     showInCheckout: row.show_in_checkout,
     showInContract: row.show_in_contract,
     archivedAt: row.archived_at,
+    createdAt: row.created_at ?? null,
   };
 }
 
@@ -87,27 +104,24 @@ function surfaceFlag(definition: CustomFieldDefinition, surface: CustomFieldSurf
   return definition.showInContract;
 }
 
+/** Długość w ZNAKACH, jak `length()` w Postgresie — nie w jednostkach UTF-16. */
+function charLength(text: string): number {
+  return [...text].length;
+}
+
 /**
- * Pola do wyrenderowania na danej powierzchni, w kolejności z definicji.
+ * Liczba miejsc po przecinku, ODPORNA na notację wykładniczą.
  *
- * Zarchiwizowane NIE WCHODZĄ — to jest cała mechanika „pole znika
- * z formularzy, wartości zostają". Sortowanie po `position`, remis rozstrzyga
- * `id`, żeby kolejność była deterministyczna także dla pól z tą samą pozycją
- * (inaczej umowa PDF w części 2 drukowałaby je raz tak, raz tak).
+ * `(0.0000001).toString()` to `"1e-7"`, więc naiwne `split(".")[1]` widziało
+ * ZERO miejsc po przecinku i przepuszczało liczbę, którą baza odrzuca
+ * (`scale() = 7`). Wykładnik trzeba doliczyć.
  */
-export function visibleCustomFields(
-  definitions: readonly CustomFieldDefinition[],
-  surface: CustomFieldSurface,
-  entity?: CustomFieldEntity,
-): CustomFieldDefinition[] {
-  return definitions
-    .filter(
-      (definition) =>
-        definition.archivedAt === null &&
-        surfaceFlag(definition, surface) &&
-        (entity === undefined || definition.entity === entity),
-    )
-    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+function decimalPlaces(value: number): number {
+  const match = /^-?\d+(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(value.toString());
+  if (!match) return 0;
+  const fraction = (match[1] ?? "").length;
+  const exponent = match[2] ? Number(match[2]) : 0;
+  return Math.max(0, fraction - exponent);
 }
 
 function checkTypedValue(
@@ -117,18 +131,21 @@ function checkTypedValue(
   switch (definition.type) {
     case "text": {
       if (typeof value !== "string") return "type";
-      if (value.length > CUSTOM_FIELD_LIMITS.textMax) return "tooLong";
+      if (charLength(value) > CUSTOM_FIELD_LIMITS.textMax) return "tooLong";
       if (CONTROL_RE.test(value)) return "controlChars";
       return null;
     }
     case "textarea": {
       if (typeof value !== "string") return "type";
-      if (value.length > CUSTOM_FIELD_LIMITS.textareaMax) return "tooLong";
+      if (charLength(value) > CUSTOM_FIELD_LIMITS.textareaMax) return "tooLong";
       if (CONTROL_EXCEPT_WS_RE.test(value)) return "controlChars";
       return null;
     }
     case "phone": {
       if (typeof value !== "string") return "type";
+      // SUROWE cyfry — dokładnie tak liczy trigger. Kanonizacja numeru
+      // (zdejmowanie „00" i kodu kraju) należy do dopasowywania banów,
+      // a nie do pytania „czy to wygląda na telefon".
       const digits = value.replace(/[^0-9]/g, "");
       if (
         !PHONE_SHAPE_RE.test(value) ||
@@ -146,7 +163,12 @@ function checkTypedValue(
       // ale nie jest dniem — a od tego zależy, czy sortowanie po tym polu
       // będzie w części 2 uczciwe.
       const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
-      const parsed = new Date(Date.UTC(year, month - 1, day));
+      const parsed = new Date(0);
+      // `new Date(Date.UTC(50, …))` mapuje lata 0..99 na 1900+rok, więc data
+      // „0050-01-01" wypadała z porównania jako nieistniejąca, choć Postgres
+      // przyjmuje ją bez zastrzeżeń. setUTCFullYear tej pułapki nie ma.
+      parsed.setUTCFullYear(year, month - 1, day);
+      parsed.setUTCHours(0, 0, 0, 0);
       if (
         parsed.getUTCFullYear() !== year ||
         parsed.getUTCMonth() !== month - 1 ||
@@ -163,8 +185,7 @@ function checkTypedValue(
     case "number": {
       if (typeof value !== "number" || !Number.isFinite(value)) return "type";
       if (Math.abs(value) > CUSTOM_FIELD_LIMITS.numberAbsMax) return "range";
-      const decimals = (value.toString().split(".")[1] ?? "").length;
-      if (decimals > CUSTOM_FIELD_LIMITS.numberScaleMax) return "range";
+      if (decimalPlaces(value) > CUSTOM_FIELD_LIMITS.numberScaleMax) return "range";
       return null;
     }
     case "checkbox": {
@@ -177,9 +198,78 @@ function checkTypedValue(
   }
 }
 
+/**
+ * Pola do wyrenderowania na danej powierzchni, w kolejności z definicji.
+ *
+ * Zarchiwizowane NIE WCHODZĄ — to jest cała mechanika „pole znika
+ * z formularzy, wartości zostają". Sortowanie po `position`, a remis
+ * rozstrzyga `createdAt` — DOKŁADNIE tak, jak indeks
+ * `(tenant_id, entity, position, created_at)` i zapytanie ekranu ustawień.
+ * Gdyby remis rozstrzygało tu cokolwiek innego (np. `id`), lista w ustawieniach
+ * i kolejność na formularzu oraz na umowie PDF rozjechałyby się przy pierwszym
+ * remisie pozycji.
+ */
+export function visibleCustomFields(
+  definitions: readonly CustomFieldDefinition[],
+  surface: CustomFieldSurface,
+  entity?: CustomFieldEntity,
+): CustomFieldDefinition[] {
+  return definitions
+    .filter(
+      (definition) =>
+        definition.archivedAt === null &&
+        surfaceFlag(definition, surface) &&
+        (entity === undefined || definition.entity === entity),
+    )
+    .sort(
+      (a, b) =>
+        a.position - b.position ||
+        (a.createdAt ?? "").localeCompare(b.createdAt ?? "") ||
+        a.id.localeCompare(b.id),
+    );
+}
+
+/**
+ * Oszacowanie rozmiaru mapy W REPREZENTACJI BAZY (`pg_column_size` na jsonb),
+ * a nie długości JSON-a.
+ *
+ * jsonb to nie tekst: nagłówek varlena, nagłówek kontenera i DWA czterobajtowe
+ * wpisy JEntry na każdą parę. Przy 36-znakowych kluczach różnica idzie w setki
+ * bajtów, więc mierzenie `JSON.stringify().length` dawało formularz, który
+ * mówi „mieści się", i bazę, która odmawia. Szacunek jest świadomie
+ * KONSERWATYWNY (nigdy nie zaniża).
+ */
+function estimateJsonbSize(values: CustomFieldValues): number {
+  let size = 8;
+  for (const [key, value] of Object.entries(values)) {
+    size += 8 + byteLength(key);
+    if (typeof value === "string") size += byteLength(value);
+    else if (typeof value === "number") size += 16;
+    else size += 1;
+  }
+  return size;
+}
+
+function byteLength(text: string): number {
+  return typeof TextEncoder === "undefined" ? text.length : new TextEncoder().encode(text).length;
+}
+
 export interface ValidateCustomFieldsResult {
   values: CustomFieldValues;
   issues: CustomFieldIssues;
+}
+
+export interface ValidateCustomFieldsOptions {
+  requireRequired?: boolean;
+  surface?: CustomFieldSurface;
+  /** Encja, do której należy zapisywany wiersz — lustro filtra encji w triggerze. */
+  entity?: CustomFieldEntity;
+  /**
+   * Wartości JUŻ ZAPISANE na wierszu. Wartość pod definicją zarchiwizowaną
+   * jest przepisywana bez zmian (baza na to pozwala i tylko na to), zamiast
+   * zniknąć przy zapisie formularza.
+   */
+  existing?: CustomFieldValues;
 }
 
 /**
@@ -193,12 +283,24 @@ export interface ValidateCustomFieldsResult {
 export function validateCustomFieldValues(
   definitions: readonly CustomFieldDefinition[],
   values: CustomFieldValues,
-  options: { requireRequired?: boolean; surface?: CustomFieldSurface } = {},
+  options: ValidateCustomFieldsOptions = {},
 ): ValidateCustomFieldsResult {
-  const { requireRequired = true, surface } = options;
-  const byId = new Map(definitions.map((definition) => [definition.id, definition]));
+  const { requireRequired = true, surface, entity, existing } = options;
+  const scoped = definitions.filter(
+    (definition) => entity === undefined || definition.entity === entity,
+  );
+  const byId = new Map(scoped.map((definition) => [definition.id, definition]));
   const issues: CustomFieldIssues = {};
   const clean: CustomFieldValues = {};
+
+  // Wartości pod definicjami ZARCHIWIZOWANYMI przechodzą przez zapis
+  // NIETKNIĘTE. Bez tego pierwszy zapis formularza kasowałby historię, którą
+  // archiwizacja miała właśnie ochronić.
+  if (existing) {
+    for (const [key, value] of Object.entries(existing)) {
+      if (byId.get(key)?.archivedAt) clean[key] = value;
+    }
+  }
 
   for (const [key, value] of Object.entries(values)) {
     const definition = byId.get(key);
@@ -207,6 +309,10 @@ export function validateCustomFieldValues(
       continue;
     }
     if (definition.archivedAt !== null) {
+      // Przepisanie tej samej wartości to nie zmiana — baza je przepuszcza,
+      // więc formularz też musi (inaczej edycja klienta z zarchiwizowanym
+      // polem byłaby niemożliwa z panelu, a możliwa surowym API).
+      if (existing && Object.hasOwn(existing, key) && existing[key] === value) continue;
       issues[key] = "archived";
       continue;
     }
@@ -219,7 +325,7 @@ export function validateCustomFieldValues(
   }
 
   if (requireRequired) {
-    for (const definition of definitions) {
+    for (const definition of scoped) {
       if (!definition.required || definition.archivedAt !== null) continue;
       if (surface !== undefined && !surfaceFlag(definition, surface)) continue;
       if (issues[definition.id]) continue;
@@ -232,15 +338,11 @@ export function validateCustomFieldValues(
     }
   }
 
-  if (byteLength(JSON.stringify(clean)) > CUSTOM_FIELD_LIMITS.valuesBytesMax) {
+  if (estimateJsonbSize(clean) > CUSTOM_FIELD_LIMITS.valuesBytesMax) {
     issues["*"] = "tooLarge";
   }
 
   return { values: clean, issues };
-}
-
-function byteLength(text: string): number {
-  return typeof TextEncoder === "undefined" ? text.length : new TextEncoder().encode(text).length;
 }
 
 /**
@@ -268,6 +370,11 @@ export function parseCustomFieldInput(
     if (!/^-?[0-9]+(\.[0-9]+)?$/.test(normalized)) return { issue: "number" };
     const value = Number(normalized);
     if (!Number.isFinite(value)) return { issue: "number" };
+    // Miejsca po przecinku liczymy z TEKSTU, nie z liczby: `Number` gubi
+    // nadmiarowe zera, a to one decydują o `scale()` w bazie.
+    if ((normalized.split(".")[1] ?? "").length > CUSTOM_FIELD_LIMITS.numberScaleMax) {
+      return { issue: "range" };
+    }
     const issue = checkTypedValue(definition, value);
     return issue ? { issue } : { value };
   }
@@ -276,17 +383,28 @@ export function parseCustomFieldInput(
   return issue ? { issue } : { value: text };
 }
 
+export interface ReadCustomFieldValuesOptions extends ValidateCustomFieldsOptions {
+  prefix?: string;
+}
+
 /**
  * Odczyt kompletu wartości z formularza. Nazwy pól to `<prefix><id>` — id,
  * nigdy etykieta, bo etykieta zmienia się w ustawieniach i zerwałaby wiązanie.
+ *
+ * Wynik jest mapą do ZAPISANIA W CAŁOŚCI, więc niesie też wartości pod
+ * definicjami zarchiwizowanymi (przekazane w `existing`) — patrz
+ * `validateCustomFieldValues`.
  */
 export function readCustomFieldValues(
   definitions: readonly CustomFieldDefinition[],
   read: (name: string) => string | null | undefined,
-  options: { prefix?: string; surface?: CustomFieldSurface } = {},
+  options: ReadCustomFieldValuesOptions = {},
 ): ValidateCustomFieldsResult {
-  const { prefix = "cf_", surface } = options;
-  const active = definitions.filter((definition) => definition.archivedAt === null);
+  const { prefix = "cf_", surface, entity, existing, requireRequired } = options;
+  const scoped = definitions.filter(
+    (definition) => entity === undefined || definition.entity === entity,
+  );
+  const active = scoped.filter((definition) => definition.archivedAt === null);
   const values: CustomFieldValues = {};
   const issues: CustomFieldIssues = {};
 
@@ -300,6 +418,11 @@ export function readCustomFieldValues(
     if (value !== undefined) values[definition.id] = value;
   }
 
-  const validated = validateCustomFieldValues(active, values, { surface });
+  const validated = validateCustomFieldValues(scoped, values, {
+    surface,
+    entity,
+    existing,
+    requireRequired,
+  });
   return { values: validated.values, issues: { ...issues, ...validated.issues } };
 }

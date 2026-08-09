@@ -23,6 +23,8 @@ export {
   validateCustomFieldValues,
   visibleCustomFields,
   type CustomFieldDefinitionRow,
+  type ReadCustomFieldValuesOptions,
+  type ValidateCustomFieldsOptions,
   type ValidateCustomFieldsResult,
 } from "./validate";
 
@@ -34,3 +36,8 @@ export {
   type SelectOptionsIssue,
   type SelectOptionsResult,
 } from "./definition";
+
+export {
+  CUSTOM_FIELD_PARITY_VECTORS,
+  type CustomFieldParityVector,
+} from "./vectors";

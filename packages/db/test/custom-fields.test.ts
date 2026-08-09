@@ -26,6 +26,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { CUSTOM_FIELD_PARITY_VECTORS } from "@avably/core";
+
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -341,6 +343,46 @@ describe.skipIf(!hasEnv)("pola własne (0057, ADR-118)", () => {
         .eq("tenant_id", tenantA)
         .eq("full_name", "Ścieżka bez RLS");
       expect(count, "wiersz powstał mimo odmowy").toBe(0);
+    });
+
+    it("nie jest wyrocznią o danych sąsiada, gdy wiersz NIESIE cudzy tenant_id", async () => {
+      // Wyzwalacze BEFORE ROW wykonują się PRZED sprawdzeniem WITH CHECK
+      // polityki RLS, a `new.tenant_id` to na tym etapie WCIĄŻ wartość od
+      // wołającego. Bez bramki najemcy w triggerze członek A mógł wysłać
+      // wiersz z `tenant_id` najemcy B i — mimo że zapis i tak kończył się
+      // odmową — ODCZYTAĆ z kodu i treści odmowy, czy definicja u B istnieje,
+      // jakiego jest typu i (opcja po opcji) co ma na liście. Zapis był
+      // niemożliwy, ODCZYT przez kanał błędu jak najbardziej.
+      const probes = [
+        { label: "cudza definicja, wartość poprawna", key: defB, value: "cokolwiek" },
+        { label: "cudza definicja, wartość złego typu", key: defB, value: 12345 },
+        { label: "identyfikator nieistniejący", key: randomUUID(), value: "cokolwiek" },
+      ];
+
+      const codes = new Set<string | undefined>();
+      for (const probe of probes) {
+        const { error } = await ownerA.from("customers").insert({
+          tenant_id: tenantB,
+          email: `wyrocznia-${randomUUID()}@test.local`,
+          full_name: "Sonda",
+          custom_fields: { [probe.key]: probe.value },
+        });
+        expect(error, `${probe.label}: zapis przeszedł`).not.toBeNull();
+        codes.add(error?.code);
+      }
+
+      // Wszystkie trzy sondy muszą dać JEDNĄ odpowiedź, i to tę samą, którą
+      // odda RLS — inaczej różnica sama w sobie jest odczytem.
+      expect([...codes], "odmowy się różnią — kanał błędu jest wyrocznią").toEqual([
+        PG_INSUFFICIENT_PRIVILEGE,
+      ]);
+
+      const { count } = await admin
+        .from("customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantB)
+        .eq("full_name", "Sonda");
+      expect(count, "u sąsiada powstał wiersz").toBe(0);
     });
 
     it("odmawia zapisu pod definicją INNEJ ENCJI tego samego najemcy", async () => {
@@ -714,5 +756,63 @@ describe.skipIf(!hasEnv)("pola własne (0057, ADR-118)", () => {
       expect(error, `lada nie mogła zapisać wartości: ${error?.message}`).toBeNull();
       await admin.from("customers").delete().eq("id", (data as { id: string }).id);
     });
+  });
+
+  // -------------------------------------------------------------------
+  // 7. Parytet z rdzeniem — TE SAME wektory, PRAWDZIWY trigger
+  // -------------------------------------------------------------------
+
+  describe("parytet ze wspólnymi wektorami (lustro @avably/core)", () => {
+    // Zestaw jest JEDEN (@avably/core/custom-fields/vectors) i jedzie tu przez
+    // trigger 0057, a w suicie rdzenia przez validateCustomFieldValues.
+    // Wcześniej obie strony miały WŁASNE wektory — i to właśnie ta duplikacja
+    // przepuściła telefon bez cyfr („+()-()") oraz liczbę 1e-7: każda strona
+    // testowała to, co sama umiała.
+    const definitions = new Map<string, string>();
+
+    async function definitionFor(
+      type: string,
+      options: readonly string[] | undefined,
+    ): Promise<string> {
+      const key = `${type}:${JSON.stringify(options ?? [])}`;
+      const known = definitions.get(key);
+      if (known) return known;
+      const id = await insertDefinition(ownerA, tenantA, {
+        field_type: type,
+        options: options ? [...options] : [],
+      });
+      definitions.set(key, id);
+      return id;
+    }
+
+    it("zestaw nie jest pusty (asercja anty-pustkowa)", () => {
+      expect(CUSTOM_FIELD_PARITY_VECTORS.length).toBeGreaterThanOrEqual(30);
+      expect(CUSTOM_FIELD_PARITY_VECTORS.some((v) => v.valid)).toBe(true);
+      expect(CUSTOM_FIELD_PARITY_VECTORS.some((v) => !v.valid)).toBe(true);
+    });
+
+    for (const vector of CUSTOM_FIELD_PARITY_VECTORS) {
+      it(`${vector.name} → ${vector.valid ? "przyjęta" : "odrzucona"}`, async () => {
+        const definitionId = await definitionFor(vector.type, vector.options);
+        const { data, error } = await ownerA
+          .from("customers")
+          .insert({
+            tenant_id: tenantA,
+            email: `parytet-${randomUUID()}@test.local`,
+            full_name: "Parytet",
+            custom_fields: { [definitionId]: vector.value },
+          })
+          .select("id");
+
+        if (vector.valid) {
+          expect(error, `${vector.name}: baza odrzuciła wartość uznaną za poprawną`).toBeNull();
+          await admin.from("customers").delete().eq("id", (data as { id: string }[])[0]!.id);
+        } else {
+          expect(error?.code, `${vector.name}: baza przyjęła wartość uznaną za błędną`).toBe(
+            PG_CHECK_VIOLATION,
+          );
+        }
+      });
+    }
   });
 });

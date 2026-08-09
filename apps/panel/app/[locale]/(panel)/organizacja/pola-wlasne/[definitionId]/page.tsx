@@ -30,7 +30,7 @@ export default async function EditCustomFieldPage({
   const { data: row } = await ctx.supabase
     .from("custom_field_definitions")
     .select(
-      "id, entity, field_type, label, help_text, required, options, position, show_in_panel, show_in_checkout, show_in_contract, archived_at",
+      "id, entity, field_type, label, help_text, required, options, position, show_in_panel, show_in_checkout, show_in_contract, archived_at, created_at",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", definitionId)

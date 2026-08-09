@@ -223,10 +223,18 @@ declare
   v_value  jsonb;
   v_text   text;
   v_num    numeric;
+  v_claim  uuid;
   v_def    record;
 begin
   if new.custom_fields is null then
     new.custom_fields := '{}'::jsonb;
+  end if;
+
+  -- Kontener musi być obiektem, zanim cokolwiek go rozłoży. CHECK kolumny
+  -- mówi to samo, ale CHECK-i wykonują się PO wyzwalaczach BEFORE, więc bez
+  -- tej linii jsonb_each na tablicy oddawałby surowy błąd Postgresa.
+  if jsonb_typeof(new.custom_fields) <> 'object' then
+    raise exception 'Pola własne muszą być obiektem.' using errcode = '23514';
   end if;
 
   if tg_op = 'UPDATE' then
@@ -237,6 +245,34 @@ begin
     if new.custom_fields = v_old then
       return new;
     end if;
+  end if;
+
+  -- Brak pól własnych = nie ma czego sprawdzać. Wyjście TUTAJ, przed bramką
+  -- najemcy niżej, jest świadome: wiersz bez pól własnych ma dostać odmowę
+  -- z RLS (42501 z polityki), a nie z tego triggera — inaczej trigger
+  -- maskowałby prawdziwe źródło odmowy w macierzy izolacji.
+  if new.custom_fields = '{}'::jsonb then
+    return new;
+  end if;
+
+  -- ---------------------------------------------------------------
+  -- BRAMKA NAJEMCY — zamyka wyrocznię o danych sąsiada.
+  -- ---------------------------------------------------------------
+  -- Wyzwalacze BEFORE ROW wykonują się PRZED sprawdzeniem WITH CHECK polityki
+  -- RLS, a `new.tenant_id` na tym etapie to WCIĄŻ wartość od wołającego. Bez
+  -- tej bramki członek najemcy A mógł wysłać wiersz z `tenant_id` najemcy B
+  -- i — mimo że zapis i tak skończyłby się odmową RLS — ODCZYTAĆ z KODU
+  -- I TREŚCI odmowy triggera, czy dana definicja u B istnieje, jakiego jest
+  -- typu i (opcja po opcji) jakie ma pozycje listy. Zapis był niemożliwy,
+  -- ale ODCZYT przez kanał błędu — jak najbardziej.
+  --
+  -- Odpowiedź jest teraz TA SAMA, którą i tak odda RLS (42501), i pada ZANIM
+  -- trigger dotknie tabeli definicji. Warunek `v_claim is not null` zostawia
+  -- ścieżki bez claimu (service_role, SECURITY DEFINER storefrontu) tam, gdzie
+  -- broni ich jawny filtr `tenant_id = new.tenant_id` przy szukaniu definicji.
+  v_claim := app.tenant_id();
+  if v_claim is not null and v_claim is distinct from new.tenant_id then
+    raise exception 'Brak dostępu do danych tej organizacji.' using errcode = '42501';
   end if;
 
   -- Górna granica rozmiaru. Kolumna jest workiem na dane, których nie
@@ -327,7 +363,14 @@ begin
         end if;
 
       when 'phone' then
-        if v_text !~ '^[0-9 ()+-]{6,30}$' or length(app.normalize_phone(v_text)) not between 6 and 15 then
+        -- Liczymy SUROWE cyfry, ŚWIADOMIE nie app.normalize_phone: tamta
+        -- funkcja jest kanonizatorem klucza BANU (zdejmuje „00" i kod kraju
+        -- „48"), więc jako miara długości kłamała w obie strony — „0012345"
+        -- odrzucała, a 17-cyfrowy numer z prefiksem przyjmowała. Do tego
+        -- zwraca NULL dla wejścia bez cyfr, a `NULL not between …` daje NULL,
+        -- czyli `if` się NIE wykonywał: „+()-()" przechodziło jako telefon.
+        if v_text !~ '^[0-9 ()+-]{6,30}$'
+           or length(regexp_replace(v_text, '[^0-9]', '', 'g')) not between 6 and 15 then
           raise exception 'Wartość pola własnego nie jest numerem telefonu.'
             using errcode = '23514';
         end if;
@@ -384,6 +427,8 @@ $$;
 comment on function app.custom_fields_validate() is
   'Bramka zgodności wartości pól własnych z definicją (C6-A1, ADR-118). Trigger BEFORE INSERT OR UPDATE na customers/orders/products; encja przychodzi argumentem triggera. Sprawdza: postać klucza (ID definicji), PRZYNALEŻNOŚĆ definicji do TEGO najemcy i TEJ encji (jawny filtr — jedyna ochrona przed zapisem pod cudzym ID, bo klucz JSONB nie ma klucza obcego), zamrożenie wartości pod definicją zarchiwizowaną, zgodność typu i zakresu. NIE sprawdza wymagalności (to reguła formularza — patrz nagłówek 0057). Odmowy: 22023 (zły klucz, nieistniejąca lub cudza definicja), 23514 (wszystko pozostałe).';
 
+revoke all on function app.custom_fields_validate() from public, anon, authenticated;
+
 drop trigger if exists customers_custom_fields_validate on public.customers;
 create trigger customers_custom_fields_validate
   before insert or update on public.customers
@@ -425,9 +470,24 @@ begin
   new.label := btrim(new.label);
   new.help_text := nullif(btrim(coalesce(new.help_text, '')), '');
 
+  -- Etykieta i podpowiedź idą na KAŻDY formularz i — w części 2 — na umowę
+  -- PDF, czyli dalej niż jakakolwiek wartość. Wartości i opcje odsiewamy
+  -- ze znaków sterujących od początku; pominięcie tu etykiety byłoby dziurą
+  -- dokładnie w tym miejscu, w którym najbardziej widać.
+  if new.label ~ '[[:cntrl:]]' or coalesce(new.help_text, '') ~ '[[:cntrl:]]' then
+    raise exception 'Nazwa i podpowiedź pola nie mogą zawierać znaków sterujących.'
+      using errcode = '23514';
+  end if;
+
   -- Kształt opcji selecta. Nie da się tego zrobić CHECK-iem: walidacja
   -- elementów tablicy wymaga podzapytania, a CHECK podzapytań nie przyjmuje.
   if new.field_type = 'select' then
+    -- Typ kontenera PRZED długością: CHECK kolumny mówi to samo, ale wykonuje
+    -- się PO wyzwalaczu, więc jsonb_array_length na obiekcie oddawałoby surowy
+    -- angielski błąd Postgresa wprost na ekran operatora.
+    if jsonb_typeof(new.options) <> 'array' then
+      raise exception 'Lista wyboru musi być listą pozycji.' using errcode = '23514';
+    end if;
     if jsonb_array_length(new.options) not between 1 and 50 then
       raise exception 'Lista wyboru musi mieć od 1 do 50 opcji.' using errcode = '23514';
     end if;
@@ -505,6 +565,8 @@ $$;
 comment on function app.custom_field_definitions_guard() is
   'Reguły twarde definicji pól własnych (C6-A1, ADR-118): kształt opcji selecta (CHECK nie przyjmuje podzapytań), niezmienność encji i tożsamości, ZAMROŻENIE typu po pierwszej zapisanej wartości, zakaz zwężania listy opcji będącej w użyciu. SECURITY DEFINER wyłącznie po to, by pytanie „czy istnieje jakakolwiek wartość" nie zamieniło się w „czy widzę jakąś wartość"; probe czyta tabelę encji z jawnym filtrem tenant_id i zwraca wyłącznie wartość logiczną. Odmowa: 23514.';
 
+revoke all on function app.custom_field_definitions_guard() from public, anon, authenticated;
+
 drop trigger if exists custom_field_definitions_guard on public.custom_field_definitions;
 create trigger custom_field_definitions_guard
   before insert or update on public.custom_field_definitions
@@ -528,11 +590,18 @@ stable
 security invoker
 set search_path = pg_catalog, public, app
 as $$
+  -- Filtr `<> '{}'` odsiewa wiersze BEZ pól własnych, zanim dojdzie do
+  -- rozkładania kluczy — a to jest typowo większość tabeli. Bez niego każde
+  -- wejście na ekran ustawień rozkładałoby na klucze cały katalog i całą
+  -- historię zamówień najemcy.
   select k::uuid from public.customers c, lateral jsonb_object_keys(c.custom_fields) k
+   where c.custom_fields <> '{}'::jsonb
   union
   select k::uuid from public.orders o, lateral jsonb_object_keys(o.custom_fields) k
+   where o.custom_fields <> '{}'::jsonb
   union
   select k::uuid from public.products p, lateral jsonb_object_keys(p.custom_fields) k
+   where p.custom_fields <> '{}'::jsonb
 $$;
 
 comment on function app.custom_fields_in_use() is
@@ -618,11 +687,52 @@ begin
    where d.tenant_id = v_tenant
      and d.order_id = any (v_order_ids);
 
+  -- POLA WŁASNE CZYŚCIMY PRZED ścieżką powtórki, nie po niej (C6-A1).
+  -- W 0056 wszystkie redagowane kolumny były związane schematem, więc wiersz
+  -- raz zanonimizowany nie mógł ponownie nabrać danych osobowych i powtórka
+  -- mogła być czystym no-opem. 0057 dokłada do TYCH SAMYCH wierszy kolumnę na
+  -- dowolną treść operatora, a nic nie zabrania wpisać do niej czegokolwiek
+  -- PO anonimizacji. Gdyby czyszczenie zostało za wczesnym wyjściem, taka
+  -- treść byłaby nieusuwalna z panelu — ponowienie odpowiadałoby
+  -- „already_anonymized" i zostawiało ją w miejscu.
+  update public.orders o
+     set custom_fields = '{}'::jsonb
+   where o.tenant_id = v_tenant
+     and o.customer_id = p_customer_id
+     and o.custom_fields <> '{}'::jsonb;
+  get diagnostics v_custom = row_count;
+
+  -- Licznik obejmuje TAKŻE profil klienta. Wcześniej liczył same zamówienia,
+  -- więc klient z polami własnymi na profilu i bez pól na zamówieniach dawał
+  -- w dzienniku `pola_wlasne: 0` przy faktycznie wykonanej redakcji — a wpis
+  -- w dzienniku jest dowodem wobec organu, więc licznik, który zaniża, jest
+  -- gorszy niż brak licznika.
+  update public.customers c
+     set custom_fields = '{}'::jsonb
+   where c.tenant_id = v_tenant
+     and c.id = p_customer_id
+     and c.custom_fields <> '{}'::jsonb;
+  if found then
+    v_custom := v_custom + 1;
+  end if;
+
   if v_anonymized is not null then
+    -- Powtórka bez pracy zostaje bez wpisu w dzienniku (dziennik notuje
+    -- ZMIANY — reguła z 0056). Jeśli jednak było co wyczyścić, zmiana
+    -- zaszła i MUSI zostawić ślad.
+    if v_custom > 0 then
+      insert into public.audit_log (tenant_id, actor_user_id, action, subject, details)
+      values (
+        v_tenant, auth.uid(), 'customer.erased.anonymized', p_customer_id::text,
+        jsonb_build_object('pola_wlasne', v_custom)
+      );
+    end if;
+
     return jsonb_build_object(
       'mode', 'already_anonymized',
       'contract_paths', to_jsonb(v_paths),
-      'orders', cardinality(v_order_ids)
+      'orders', cardinality(v_order_ids),
+      'custom_fields', v_custom
     );
   end if;
 
@@ -660,17 +770,6 @@ begin
           or o.delivery_address_city is not null
           or o.delivery_address_phone is not null);
   get diagnostics v_addresses = row_count;
-
-  -- Pola własne zamówienia (C6-A1). Czyszczenie jest CAŁOŚCIOWE, jak przy
-  -- notatkach: redakcja selektywna po polach byłaby zgadywaniem, które z nich
-  -- operator wypełnił danymi osoby. Trigger walidacji przepuszcza to zawsze —
-  -- USUNIĘCIE klucza jest dozwolone także pod definicją zarchiwizowaną.
-  update public.orders o
-     set custom_fields = '{}'::jsonb
-   where o.tenant_id = v_tenant
-     and o.customer_id = p_customer_id
-     and o.custom_fields <> '{}'::jsonb;
-  get diagnostics v_custom = row_count;
 
   delete from public.order_notes n
    where n.tenant_id = v_tenant

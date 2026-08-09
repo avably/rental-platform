@@ -190,15 +190,28 @@ describe("updateDefinitionAction", () => {
     expect(calls.eqs).toContainEqual(["id", DEFINITION]);
   });
 
-  it("bramkę zamrożenia typu tłumaczy na wskazówkę, co zrobić zamiast tego", async () => {
-    const { supabase } = makeSupabase([
-      { data: null, error: { code: "23514", message: "check constraint" } },
+  it("oddaje POWÓD odmowy z bazy, a nie jeden komunikat na wszystkie", async () => {
+    // 23514 ma w 0057 co najmniej osiem przyczyn, każdą z własnym zdaniem po
+    // polsku. Podstawianie w to miejsce stałej o „zamrożonym typie" znaczyło,
+    // że operator zmieniający encję pola BEZ wartości dostawał komunikat
+    // o zapisanych wartościach — nieprawdziwy.
+    const entityChange = makeSupabase([
+      {
+        data: null,
+        error: { code: "23514", message: "Pole własne zostaje przy encji, dla której powstało." },
+      },
     ]);
-    requireMember.mockResolvedValue({ supabase, tenantId: TENANT });
+    requireMember.mockResolvedValue({ supabase: entityChange.supabase, tenantId: TENANT });
+    const first = await updateDefinitionAction(DEFINITION, {}, form(VALID));
+    expect(first.formError).toContain("encji");
+    expect(first.formError).not.toContain("Zarchiwizuj");
+    expect(first.success).toBeUndefined();
 
-    const state = await updateDefinitionAction(DEFINITION, {}, form(VALID));
-    expect(state.formError).toContain("Zarchiwizuj");
-    expect(state.success).toBeUndefined();
+    // Odmowa BEZ treści nadal dostaje sensowne zdanie zamiast pustki.
+    const empty = makeSupabase([{ data: null, error: { code: "23514", message: "  " } }]);
+    requireMember.mockResolvedValue({ supabase: empty.supabase, tenantId: TENANT });
+    const second = await updateDefinitionAction(DEFINITION, {}, form(VALID));
+    expect(second.formError).toContain("Zarchiwizuj");
   });
 
   it("pusty wynik zapisu NIE JEST sukcesem", async () => {
@@ -243,8 +256,10 @@ describe("toggleArchiveAction", () => {
     // Archiwizacja zamiast usunięcia jest regułą, nie zwyczajem: gdyby ktoś
     // dopisał tu akcję kasującą, wartości na wierszach straciłyby etykietę
     // i typ. Grant DELETE dla `authenticated` w 0057 też nie istnieje.
-    const module = await import("@/app/[locale]/(panel)/organizacja/pola-wlasne/actions");
-    expect(Object.keys(module).filter((name) => /delete|usu/i.test(name))).toEqual([]);
+    const actionsModule = await import(
+      "@/app/[locale]/(panel)/organizacja/pola-wlasne/actions"
+    );
+    expect(Object.keys(actionsModule).filter((name) => /delete|usu/i.test(name))).toEqual([]);
   });
 });
 
@@ -269,6 +284,33 @@ describe("moveDefinitionAction", () => {
     expect(state.success).toBe("moved");
     expect(calls.updates).toEqual([{ position: 0 }, { position: 1 }]);
     expect(calls.eqs.filter(([column]) => column === "tenant_id")).toHaveLength(4);
+  });
+
+  it("przy REMISIE pozycji naprawdę przestawia (przenumerowanie, nie zamiana)", async () => {
+    // Dwa pola z position = 0 (import, surowy PATCH, dwóch właścicieli naraz).
+    // Zamiana wpisywała obu te same wartości co przedtem i meldowała
+    // „przesunięto", nie przesuwając niczego. Przenumerowanie gęste remis
+    // usuwa, więc kolejność realnie się zmienia.
+    const { supabase, calls } = makeSupabase([
+      { data: { id: DEFINITION, entity: "customer", position: 0 }, error: null },
+      {
+        data: [
+          { id: NEIGHBOUR, position: 0 },
+          { id: DEFINITION, position: 0 },
+        ],
+        error: null,
+      },
+      { data: [{ id: DEFINITION }], error: null },
+      { data: [{ id: NEIGHBOUR }], error: null },
+    ]);
+    requireMember.mockResolvedValue({ supabase, tenantId: TENANT });
+
+    const state = await moveDefinitionAction(DEFINITION, "up", {}, new FormData());
+
+    expect(state.success).toBe("moved");
+    // Przesuwane pole zostaje na 0 (już tam jest), a sąsiad schodzi na 1 —
+    // czyli zapis jest DOKŁADNIE jeden i kolejność się zmienia.
+    expect(calls.updates).toEqual([{ position: 1 }]);
   });
 
   it("na skraju listy nie robi nic (i nie kłamie o błędzie)", async () => {

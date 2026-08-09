@@ -41,7 +41,15 @@ const NOT_FOUND = "Nie znaleziono pola własnego.";
 function databaseError(code: string | undefined, message: string): FormState {
   if (code === PG_INSUFFICIENT_PRIVILEGE) return { formError: NOT_OWNER };
   if (code === PG_UNIQUE_VIOLATION) return { formError: DUPLICATE_LABEL };
-  if (code === PG_CHECK_VIOLATION) return { formError: TYPE_FROZEN };
+  // 23514 ma w 0057 co najmniej OSIEM różnych przyczyn, każdą z własnym
+  // zdaniem po polsku (zła lista opcji, zmiana encji, zwężenie listy w użyciu,
+  // znaki sterujące w nazwie, długość, zakres pozycji, zamrożony typ).
+  // Podstawianie w to miejsce jednego komunikatu o zamrożeniu znaczyło, że
+  // operator zmieniający encję pola BEZ wartości dostawał zdanie o zapisanych
+  // wartościach — nieprawdziwe i mylące. Komunikaty z bazy są pisane dla
+  // operatora, więc idą wprost; stała zostaje wyłącznie jako zabezpieczenie
+  // na wypadek odmowy bez treści.
+  if (code === PG_CHECK_VIOLATION) return { formError: message.trim() || TYPE_FROZEN };
   return { formError: message };
 }
 
@@ -72,11 +80,16 @@ export async function createDefinitionAction(
 
   // Nowe pole ląduje NA KOŃCU listy swojej encji — dodanie pola nie
   // przestawia kolejności tych, które operator już opisał.
-  const { data: siblings } = await ctx.supabase
+  //
+  // Błąd odczytu NIE JEST tu pomijalny: pusty wynik daje pozycję 0, czyli pole
+  // na GÓRZE listy — dokładnie odwrotnie niż obiecuje reguła wyżej. Cicha
+  // zamiana „nie wiem" na „na początek" jest gorsza niż odmowa.
+  const { data: siblings, error: siblingsError } = await ctx.supabase
     .from("custom_field_definitions")
     .select("position")
     .eq("tenant_id", ctx.tenantId)
     .eq("entity", parsed.data.entity);
+  if (siblingsError) return databaseError(siblingsError.code, siblingsError.message);
 
   const { error } = await ctx.supabase.from("custom_field_definitions").insert({
     tenant_id: ctx.tenantId,
@@ -168,9 +181,20 @@ export async function toggleArchiveAction(
 }
 
 /**
- * Przesunięcie o jedno miejsce. Zamiana pozycji z sąsiadem, a nie
- * przenumerowanie całej listy: dwa zapisy zamiast N, i żadnego okna, w którym
- * lista ma tymczasowo połamaną kolejność.
+ * Przesunięcie o jedno miejsce.
+ *
+ * PRZENUMEROWANIE GĘSTE (0, 1, 2, …) docelowej kolejności, a nie zamiana
+ * dwóch pozycji. Zamiana wygląda taniej, ale ma dziurę: przy REMISIE pozycji
+ * (dwa pola z `position = 0` — po imporcie, po surowym PATCH-u albo po zapisie
+ * dwóch właścicieli naraz) zamiana wpisuje obu te same wartości co przedtem,
+ * a ekran melduje „przesunięto" i nie przesuwa niczego. Przenumerowanie
+ * remisy USUWA, więc każde kolejne kliknięcie działa.
+ *
+ * Zapisów jest tyle, ile wierszy realnie zmieniło pozycję (typowo dwa).
+ * Nie jest to jedna transakcja — a to jest świadoma granica: pozycja jest
+ * porządkiem prezentacji, nie danymi rozliczeniowymi, a przerwanie w połowie
+ * daje kolejność nieoczekiwaną, nigdy niespójną (i naprawia się samo przy
+ * następnym kliknięciu, bo numeracja jest gęsta).
  */
 export async function moveDefinitionAction(
   definitionId: string,
@@ -209,18 +233,19 @@ export async function moveDefinitionAction(
   // wywołana wprost (surowo) ma po prostu nic nie zrobić.
   if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return { success: "moved" };
 
-  const neighbour = ordered[targetIndex]!;
-  const swap: Array<[string, number]> = [
-    [current.id as string, neighbour.position as number],
-    [neighbour.id as string, current.position as number],
-  ];
-  // Równe pozycje (import, ręczna edycja) dałyby zamianę bez skutku —
-  // wtedy przesuwamy o jeden krok w bok, żeby porządek realnie się zmienił.
-  if (swap[0]![1] === swap[1]![1]) {
-    swap[0]![1] = direction === "up" ? Math.max(0, swap[0]![1] - 1) : swap[0]![1] + 1;
-  }
+  const reordered = [...ordered];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved!);
 
-  for (const [rowId, position] of swap) {
+  // Piszemy WYŁĄCZNIE wiersze, których pozycja realnie się zmienia.
+  const writes: Array<[string, number]> = reordered
+    .map((row, target): [string, number] => [row.id as string, target])
+    .filter(([rowId, target]) => {
+      const before = ordered.find((row) => row.id === rowId);
+      return (before?.position as number) !== target;
+    });
+
+  for (const [rowId, position] of writes) {
     const { data: moved, error } = await ctx.supabase
       .from("custom_field_definitions")
       .update({ position })

@@ -75,6 +75,13 @@ export interface CustomFieldDefinition {
   showInContract: boolean;
   /** Niepuste = pole zarchiwizowane: znika z formularzy, wartości zostają. */
   archivedAt: string | null;
+  /**
+   * Rozstrzyga REMIS pozycji — dokładnie jak indeks
+   * `(tenant_id, entity, position, created_at)`. Bez tego lista w ustawieniach
+   * i kolejność na formularzu (oraz na umowie PDF) rozjeżdżałyby się przy
+   * pierwszych dwóch polach o tej samej pozycji.
+   */
+  createdAt: string | null;
 }
 
 /** Wartość TYPOWANA — nie string. Na tym stoi cała przewaga modelu. */

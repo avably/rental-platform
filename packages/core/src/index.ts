@@ -275,6 +275,7 @@ export {
 export {
   CUSTOM_FIELD_ENTITIES,
   CUSTOM_FIELD_LIMITS,
+  CUSTOM_FIELD_PARITY_VECTORS,
   CUSTOM_FIELD_SURFACES,
   CUSTOM_FIELD_TYPES,
   customFieldDefinitionFromRow,
@@ -294,11 +295,14 @@ export {
   type CustomFieldEntity,
   type CustomFieldIssue,
   type CustomFieldIssues,
+  type CustomFieldParityVector,
   type CustomFieldSurface,
   type CustomFieldType,
   type CustomFieldValue,
   type CustomFieldValues,
   type SelectOptionsIssue,
   type SelectOptionsResult,
+  type ReadCustomFieldValuesOptions,
+  type ValidateCustomFieldsOptions,
   type ValidateCustomFieldsResult,
 } from "./custom-fields";
