@@ -683,6 +683,57 @@ describe.skipIf(!hasEnv)("pola własne (0057, ADR-118)", () => {
       await admin.from("custom_field_definitions").delete().eq("id", id);
     });
 
+    it("powtórka usunięcia czyści pola własne dopisane PO anonimizacji", async () => {
+      // W 0056 wszystkie redagowane kolumny były związane schematem, więc
+      // wiersz raz zanonimizowany nie mógł ponownie nabrać danych osobowych
+      // i powtórka mogła być czystym no-opem. 0057 dokłada do TYCH SAMYCH
+      // wierszy kolumnę na dowolną treść operatora — gdyby czyszczenie
+      // zostało za wczesnym wyjściem, treść wpisana po anonimizacji byłaby
+      // z panelu nieusuwalna.
+      const definition = await insertDefinition(ownerA, tenantA, { field_type: "text" });
+      const customerId = await insertCustomer(ownerA, tenantA);
+      const { error: orderError } = await ownerA.from("orders").insert({
+        tenant_id: tenantA,
+        customer_id: customerId,
+        start_date: "2026-08-01",
+        end_date: "2026-08-03",
+        delivery_method: "courier",
+      });
+      expect(orderError).toBeNull();
+
+      // Pierwsze usunięcie → anonimizacja (klient ma zamówienie).
+      const first = await ownerA.schema("app").rpc("erase_customer", {
+        p_customer_id: customerId,
+      });
+      expect(first.error).toBeNull();
+      expect((first.data as { mode: string }).mode).toBe("anonymized");
+
+      // Operator wpisuje dane osobowe do pola własnego JUŻ PO anonimizacji.
+      const { error: writeError } = await ownerA
+        .from("customers")
+        .update({ custom_fields: { [definition]: "numer telefonu wpisany po fakcie" } })
+        .eq("id", customerId);
+      expect(writeError, "zapis po anonimizacji jest możliwy — i o to chodzi w tym teście").toBeNull();
+
+      // Powtórka MUSI to zabrać (i policzyć profil, nie tylko zamówienia).
+      const second = await ownerA.schema("app").rpc("erase_customer", {
+        p_customer_id: customerId,
+      });
+      expect(second.error).toBeNull();
+      expect((second.data as { mode: string }).mode).toBe("already_anonymized");
+      expect((second.data as { custom_fields: number }).custom_fields).toBe(1);
+
+      const { data: after } = await admin
+        .from("customers")
+        .select("custom_fields")
+        .eq("id", customerId)
+        .single();
+      expect(after?.custom_fields, "dane osobowe zostały w polu własnym").toEqual({});
+
+      await admin.from("customers").delete().eq("id", customerId);
+      await admin.from("custom_field_definitions").delete().eq("id", definition);
+    });
+
     it("usunięcie danych klienta czyści też pola własne (art. 17, ADR-116)", async () => {
       const definition = await insertDefinition(ownerA, tenantA, { field_type: "text" });
       const customerId = await insertCustomer(ownerA, tenantA, {
