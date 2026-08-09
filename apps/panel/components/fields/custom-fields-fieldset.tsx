@@ -21,6 +21,30 @@ import { useLocale, useTranslations } from "next-intl";
 import { PanelSelect } from "@/components/fields/panel-select";
 import { customFieldName } from "@/lib/custom-fields";
 
+/**
+ * Styl nagłówka grupy jest własnością POWIERZCHNI, nie tego komponentu.
+ *
+ * Ten sam fieldset stoi na trzech ekranach o trzech różnych konwencjach
+ * nagłówka: karta klienta prowadzi grupy kapitalikami („DANE DO FAKTURY",
+ * „ADRES"), kreator zamówienia — dużymi nagłówkami sekcji („Klient",
+ * „Pozycje"), a formularz produktu w ogóle nie ma grup, tylko etykiety pól.
+ * Twardy `uppercase` w komponencie ujednoliciłby pola własne z JEDNĄ z tych
+ * konwencji i poróżnił z dwiema pozostałymi — więc wybór należy do ekranu,
+ * a tutaj mieszka wyłącznie mapa wariant → tokeny (jedno miejsce na zmianę,
+ * gdy zmieni się system).
+ */
+export type CustomFieldsLegendVariant = "label" | "eyebrow" | "section";
+
+const LEGEND_CLASS: Record<CustomFieldsLegendVariant, string> = {
+  /** Etykieta pola — domyślna, do formularzy bez grup (produkt). */
+  label: "mb-2 text-sm font-medium",
+  /** Kapitaliki grupy — karta klienta i inne karty prowadzone `Eyebrow`. */
+  eyebrow:
+    "text-muted-foreground mb-3 text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase",
+  /** Nagłówek sekcji kreatora — rodzeństwo „Klient", „Pozycje", „Termin". */
+  section: "mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]",
+};
+
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
@@ -57,6 +81,7 @@ export function CustomFieldsFieldset({
   errors,
   idPrefix = "cf",
   labelledBy,
+  legendVariant = "label",
 }: {
   /** Definicje JUŻ przefiltrowane po fladze „panel" i posortowane (serwer). */
   fields: readonly CustomFieldDefinition[];
@@ -71,6 +96,12 @@ export function CustomFieldsFieldset({
    * nazwę grupy przez `aria-labelledby`.
    */
   labelledBy?: string;
+  /**
+   * Konwencja nagłówka TEJ powierzchni — patrz `LEGEND_CLASS`. Domyślna
+   * („etykieta") pasuje do formularzy bez grup; karty prowadzone kapitalikami
+   * podają „eyebrow", kreator — „section".
+   */
+  legendVariant?: CustomFieldsLegendVariant;
 }) {
   const t = useTranslations("customFields");
   const locale = useLocale();
@@ -89,7 +120,7 @@ export function CustomFieldsFieldset({
           układem pudełka, więc `gap` go nie dotyczy i bez własnego marginesu
           skleja się z pierwszą etykietą. */}
       {labelledBy ? null : (
-        <legend className="mb-2 text-sm font-medium">{t("values.section")}</legend>
+        <legend className={LEGEND_CLASS[legendVariant]}>{t("values.section")}</legend>
       )}
 
       {fields.map((definition) => {

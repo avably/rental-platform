@@ -123,12 +123,15 @@ export function CustomerEditForm({
         </div>
       </div>
 
-      {/* Pola własne najemcy — czwarta grupa karty, poniżej adresu. */}
+      {/* Pola własne najemcy — czwarta grupa karty, poniżej adresu. Karta
+          prowadzi grupy kapitalikami (`Eyebrow`), więc legenda dostaje tę
+          samą konwencję: nagłówek należy do EKRANU, nie do komponentu. */}
       <CustomFieldsFieldset
         fields={customFields}
         values={customFieldValues}
         errors={state.fieldErrors}
         idPrefix="customer-cf"
+        legendVariant="eyebrow"
       />
 
       {state.formError ? (

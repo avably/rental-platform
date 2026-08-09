@@ -306,11 +306,15 @@ export function OrderWizard({
             <Textarea id="order-notes" name="notes" rows={3} maxLength={2000} />
           </div>
 
+          {/* Rodzeństwem są fieldsety „Klient", „Pozycje" i „Termin
+              i dostawa" z dużymi nagłówkami — pola własne są czwartą taką
+              grupą, więc biorą tę samą konwencję (nie kapitaliki karty). */}
           <CustomFieldsFieldset
             fields={customFields}
             values={{}}
             errors={state.fieldErrors}
             idPrefix="order-cf"
+            legendVariant="section"
           />
         </div>
 

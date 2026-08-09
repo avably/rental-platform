@@ -200,6 +200,40 @@ describe("render pól własnych", () => {
     expect((screen.getByLabelText("Stan licznika") as HTMLInputElement).value).toBe("1234,5");
   });
 
+  it("konwencję nagłówka wybiera POWIERZCHNIA, nie komponent", () => {
+    // Ten sam fieldset stoi na karcie prowadzonej kapitalikami, w kreatorze
+    // z dużymi nagłówkami sekcji i na formularzu bez grup. Twardy `uppercase`
+    // w komponencie zgodziłby pola własne z jedną konwencją i poróżnił
+    // z dwiema — więc wariant przychodzi z ekranu.
+    const legend = () => document.querySelector("[data-custom-fields] legend")!;
+
+    renderFieldset({ fields: [definition(ID.panelText)], values: {}, legendVariant: "eyebrow" });
+    expect(legend().className).toContain("uppercase");
+    cleanup();
+
+    renderFieldset({ fields: [definition(ID.panelText)], values: {}, legendVariant: "label" });
+    expect(legend().className).not.toContain("uppercase");
+    cleanup();
+
+    renderFieldset({ fields: [definition(ID.panelText)], values: {}, legendVariant: "section" });
+    expect(legend().className).not.toContain("uppercase");
+    expect(legend().className).toContain("text-xl");
+  });
+
+  it("gdy grupę nazywa nagłówek ekranu, legendy nie ma wcale", () => {
+    // Karta zamówienia ma własny `<h2>` — druga „Pola własne" pod spodem
+    // czytałaby się jak usterka. Nazwa grupy idzie wtedy przez aria.
+    const { container } = renderFieldset({
+      fields: [definition(ID.panelText)],
+      values: {},
+      labelledBy: "order-custom-fields-heading",
+    });
+    expect(container.querySelector("legend")).toBeNull();
+    expect(
+      container.querySelector("[data-custom-fields]")?.getAttribute("aria-labelledby"),
+    ).toBe("order-custom-fields-heading");
+  });
+
   it("pokazuje odmowę POD polem, którego dotyczy, i oznacza je maszynowo", () => {
     renderFieldset({
       fields: [definition(ID.panelText)],

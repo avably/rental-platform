@@ -219,11 +219,16 @@ export function ProductForm({
         <Label htmlFor="product-active">{t("active")}</Label>
       </div>
 
+      {/* Formularz produktu nie ma grup — sąsiadami są same etykiety pól,
+          więc legenda zostaje etykietą. Wariant jest podany JAWNIE, choć
+          zgadza się z domyślnym: wybór konwencji ma być widoczny w miejscu,
+          w którym zapadł, a nie domyślany z braku propa. */}
       <CustomFieldsFieldset
         fields={customFields}
         values={customFieldValues}
         errors={state.fieldErrors}
         idPrefix="product-cf"
+        legendVariant="label"
       />
 
       {state.formError ? (
