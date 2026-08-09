@@ -302,8 +302,10 @@ describe("embed — bramka origin (CORS jako kontrakt)", () => {
       expect(response.headers.get("access-control-allow-origin")).toBeNull();
       expect(response.headers.get("access-control-allow-credentials")).toBeNull();
       expect(response.headers.get("access-control-allow-methods")).toBeNull();
-      // Odpowiedź zależy od Origin — pośrednik nie ma prawa jej współdzielić.
-      expect(response.headers.get("vary")).toBe("Origin");
+      // Odpowiedź zależy od TEGO, KTO pyta — pośrednik nie ma prawa jej
+      // współdzielić, a klucz musi obejmować OBA nagłówki bramki.
+      expect(response.headers.get("vary")).toBe("Origin, Sec-Fetch-Site");
+      expect(response.headers.get("cache-control")).toBe("no-store");
     }
   });
 });

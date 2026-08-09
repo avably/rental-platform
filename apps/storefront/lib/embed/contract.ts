@@ -72,34 +72,32 @@ export interface EmbedMonthPayload {
 }
 
 /**
- * Jednolita odpowiedź błędu. Bez `Access-Control-Allow-Origin` — patrz docblock
- * pliku; `no-store`, bo odpowiedzi embedu zależą od origin żądania i nie mogą
- * wylądować we wspólnym cache'u pośrednika.
+ * Nagłówki wspólne wszystkim odpowiedziom tras danych embedu.
+ *
+ * BEZ `Access-Control-Allow-Origin` — patrz docblock pliku. `no-store`, bo
+ * odpowiedź zależy od tego, KTO pyta, i nie ma prawa wylądować we wspólnym
+ * cache'u pośrednika. `Vary` wymienia OBA nagłówki, po których rozstrzyga
+ * bramka (origin.ts): sam `Origin` nie wystarczy, bo przy same-origin GET
+ * przeglądarka go nie wysyła i o wpuszczeniu decyduje `Sec-Fetch-Site` —
+ * pośrednik kluczujący wyłącznie po `Origin` skleiłby te dwa przypadki.
  */
+const EMBED_RESPONSE_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "cache-control": "no-store",
+  vary: "Origin, Sec-Fetch-Site",
+} as const;
+
+/** Jednolita odpowiedź błędu — kody świadomie ubogie, bez diagnostyki. */
 export function embedError(
   status: number,
   code: EmbedErrorCode,
   fields?: Record<string, string>,
 ): Response {
   const body: EmbedErrorBody = { error: { code, ...(fields ? { fields } : {}) } };
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      vary: "Origin",
-    },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...EMBED_RESPONSE_HEADERS } });
 }
 
 /** Odpowiedź sukcesu tras danych embedu — ta sama polityka nagłówków co błąd. */
 export function embedJson(status: number, payload: unknown): Response {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      vary: "Origin",
-    },
-  });
+  return new Response(JSON.stringify(payload), { status, headers: { ...EMBED_RESPONSE_HEADERS } });
 }
