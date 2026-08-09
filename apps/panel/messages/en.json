@@ -419,6 +419,7 @@
     "summaryNote": "Products missing from the file stay untouched. Tiers of products present in the file are replaced with the set from the file.",
     "issuesTitle": "Errors in the file — import on hold",
     "issueRow": "Row {row}",
+    "issueFile": "Whole file",
     "done": {
       "title": "Import finished",
       "created": "Products created: {count}",
@@ -445,7 +446,9 @@
       "nameTooLong": "product name exceeds 200 characters",
       "tierIncomplete": "incomplete pricing tier: missing value in column {column}",
       "duplicateTierDays": "duplicate {value}-day tier for the same product",
-      "unknownProduct": "product with identifier {value} does not exist in your catalog"
+      "unknownProduct": "product with identifier {value} does not exist in your catalog",
+      "badCustomField": "custom field value is invalid or exceeds the allowed size ({value})",
+      "unknownCustomField": "column {column} refers to a custom field that does not exist in this organization"
     }
   },
   "orders": {

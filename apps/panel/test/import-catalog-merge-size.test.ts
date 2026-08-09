@@ -52,6 +52,19 @@ describe("runCatalogImport — rozmiar po scaleniu", () => {
     expect(outcome.issues.some((issue) => issue.code === "badCustomField")).toBe(true);
   });
 
+  it("23514 NIE niesie `row` — problem jest PLIKOWY, nie wiersza nagłówka (round-3, #B)", async () => {
+    // Rewert do `row: 1` renderowałby w wizardzie "Wiersz 1: …" — a wiersz 1 to
+    // NAGŁÓWEK (catalog-csv.ts:85), w którym tego błędu nie ma: 23514 pochodzi
+    // ze SCALENIA po stronie bazy, gdzie numer wiersza jest nieosiągalny
+    // (partia jest jedną transakcją). Brak `row` → wizard pokazuje "Cały plik".
+    const ctx = ctxWithRpcError({ code: "23514", message: "value too long for type jsonb" });
+
+    const outcome = await runCatalogImport(ctx, csvNewProduct());
+
+    const issue = outcome.issues.find((candidate) => candidate.code === "badCustomField");
+    expect(issue?.row, "row:1 sugerowałby błąd w nagłówku, którego nie ma").toBeUndefined();
+  });
+
   it("inny błąd zapisu nadal rzuca (bez maskowania nieznanych awarii)", async () => {
     const ctx = ctxWithRpcError({ code: "40001", message: "serialization failure" });
 
