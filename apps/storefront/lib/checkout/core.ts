@@ -9,7 +9,10 @@
  * captchy w ogóle ruszą. Captcha stoi ZA walidacją (jak w waitliście): token
  * jest jednorazowy, więc nie palimy go na wejściu, które i tak odrzuci parser.
  */
+import type { CustomFieldDefinition, CustomFieldValues } from "@avably/core";
+
 import { checkoutSchema, toCheckoutFieldErrors } from "./validation";
+import { readCheckoutCustomFields } from "./custom-fields";
 import { isPaymentMethodAllowed, type OnlinePaymentAvailability } from "./payment-options";
 import type { CheckoutInput, CheckoutPaymentMethod, CheckoutResult } from "./contract";
 
@@ -34,6 +37,13 @@ export interface CheckoutRpcArgs {
   p_notes: string | null;
   /** Wybór klienta (0029) — zapisywany na zamówieniu, nie trzymany w sesji. */
   p_payment_method: CheckoutPaymentMethod;
+  /**
+   * Pola własne (0058) w DWÓCH mapach, bo w bazie są dwie kolumny. Rozdziału
+   * dokonuje rdzeń po ENCJI DEFINICJI — wołający kontraktu podaje jedną mapę
+   * płaską i nie wybiera, gdzie wartość wyląduje.
+   */
+  p_order_custom_fields: CustomFieldValues;
+  p_customer_custom_fields: CustomFieldValues;
 }
 
 /**
@@ -120,6 +130,16 @@ export interface CheckoutDeps {
    * przenoszenia tokenu przez adres URL.
    */
   rememberCheckout: (handle: { orderId: string; token: string }) => Promise<void>;
+  /**
+   * Definicje pól własnych WIDOCZNYCH W ZAMAWIANIU (0058,
+   * `app.get_public_custom_fields`).
+   *
+   * Odczyt jest BEZWARUNKOWY, także gdy wejście nie niesie ani jednej
+   * wartości: bez definicji nie da się stwierdzić, że najemca ma pole
+   * WYMAGANE, którego klient nie wypełnił. Warunkowy odczyt oszczędzałby
+   * zapytanie dokładnie w tym żądaniu, które trzeba odrzucić.
+   */
+  readCustomFields: () => Promise<CustomFieldDefinition[]>;
 }
 
 /**
@@ -192,6 +212,21 @@ export async function submitCheckoutCore(
 
   // Captcha po walidacji, przed zapisem (ADR-032). Fail-closed: odmowa
   // weryfikatora znaczy, że dane nie schodzą głębiej (RPC nie jest wołane).
+  // --- POLA WŁASNE: przed captchą, razem z resztą walidacji pól ---
+  //
+  // Tu, a nie tuż przed RPC, z tego samego powodu, dla którego captcha stoi
+  // za parserem: klient ma zobaczyć KOMPLET odmów w jednej odpowiedzi, a nie
+  // poprawiać formularz dwa razy, paląc token przy pierwszym podejściu.
+  //
+  // To jest bramka KOMUNIKATÓW. Bramką prawdziwą są `app.assert_checkout_custom_fields`
+  // (widoczność) i trigger 0057 (zgodność) — surowe żądanie do API v1
+  // z wartością niezgodną z definicją odbija się o bazę także wtedy, gdyby
+  // tej linijki tu nie było.
+  const customFields = readCheckoutCustomFields(await deps.readCustomFields(), data.customFields);
+  if (Object.keys(customFields.fields).length > 0) {
+    return { status: "validation_error", fields: customFields.fields };
+  }
+
   const captcha = await deps.verifyCaptcha(data.captchaToken);
   if (!captcha.ok) return { status: "captcha_failed" };
 
@@ -242,6 +277,8 @@ export async function submitCheckoutCore(
       p_address_city: data.addressCity ?? null,
       p_notes: data.notes ?? null,
       p_payment_method: data.paymentMethod,
+      p_order_custom_fields: customFields.order,
+      p_customer_custom_fields: customFields.customer,
     });
   } catch (error) {
     const code = (error as CheckoutRpcError).code;
