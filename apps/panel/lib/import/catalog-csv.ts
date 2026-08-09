@@ -82,8 +82,13 @@ export type CatalogImportIssueCode =
   | "badCustomField";
 
 export interface CatalogImportIssue {
-  /** Numer rekordu: nagłówek = 1, pierwszy wiersz danych = 2. */
-  row: number;
+  /**
+   * Numer rekordu: nagłówek = 1, pierwszy wiersz danych = 2. NIEOBECNY dla
+   * problemów PLIKOWYCH bez konkretnego wiersza (np. odmowa bazy PO SCALENIU
+   * mapy pól własnych — `import-catalog.ts`, 23514) — wizard wtedy pokazuje
+   * etykietę "cały plik" zamiast zmyślonego numeru (round-3, #B).
+   */
+  row?: number;
   code: CatalogImportIssueCode;
   column?: string;
   value?: string;

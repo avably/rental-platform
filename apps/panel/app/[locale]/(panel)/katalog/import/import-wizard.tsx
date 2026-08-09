@@ -24,7 +24,12 @@ import type { CatalogImportIssue } from "@/lib/import/catalog-csv";
 
 import { catalogImportAction } from "./actions";
 
-function issueMessage(
+/**
+ * Eksportowana WYŁĄCZNIE dla testu renderowalności (round-3, #B) — pozwala
+ * dowieść, że `codes.<code>` daje zdanie, a nie surową ścieżkę klucza, wołając
+ * DOKŁADNIE tę samą funkcję co render, bez powielania jej logiki w teście.
+ */
+export function issueMessage(
   t: ReturnType<typeof useTranslations<"catalogImport">>,
   issue: CatalogImportIssue,
 ): string {
@@ -108,8 +113,9 @@ export function ImportWizard() {
           <h2 className="text-sm font-semibold">{t("issuesTitle")}</h2>
           <ul className="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto text-sm">
             {issues.map((issue, index) => (
-              <li key={`${issue.row}-${issue.code}-${index}`}>
-                {t("issueRow", { row: issue.row })}: {issueMessage(t, issue)}
+              <li key={`${issue.row ?? "file"}-${issue.code}-${index}`}>
+                {issue.row !== undefined ? t("issueRow", { row: issue.row }) : t("issueFile")}:{" "}
+                {issueMessage(t, issue)}
               </li>
             ))}
           </ul>

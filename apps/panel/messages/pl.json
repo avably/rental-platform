@@ -419,6 +419,7 @@
     "summaryNote": "Produkty nieobecne w pliku pozostaną bez zmian. Progi produktów z pliku zostaną zastąpione kompletem z pliku.",
     "issuesTitle": "Błędy w pliku — import wstrzymany",
     "issueRow": "Wiersz {row}",
+    "issueFile": "Cały plik",
     "done": {
       "title": "Import zakończony",
       "created": "Utworzone produkty: {count}",
@@ -445,7 +446,9 @@
       "nameTooLong": "nazwa produktu przekracza 200 znaków",
       "tierIncomplete": "niekompletny próg cenowy: brak wartości w kolumnie {column}",
       "duplicateTierDays": "powtórzony próg {value} dni dla tego samego produktu",
-      "unknownProduct": "produkt o identyfikatorze {value} nie istnieje w Twoim katalogu"
+      "unknownProduct": "produkt o identyfikatorze {value} nie istnieje w Twoim katalogu",
+      "badCustomField": "wartość pola własnego jest nieprawidłowa albo przekracza dozwolony rozmiar ({value})",
+      "unknownCustomField": "kolumna {column} wskazuje pole własne, którego nie ma w tej organizacji"
     }
   },
   "orders": {

@@ -184,12 +184,13 @@ export async function runCatalogImport(
     // kolumn pliku). Podgląd liczy rozmiar TYLKO na mapie z pliku (mode:"create"),
     // więc świeci zielono, a baza egzekwuje na całości i cofa import (atomowo —
     // bez utraty danych). Zamiast surowego błędu 500 oddajemy zdanie dla
-    // operatora; numer wiersza jest nieosiągalny (partia jest jedną transakcją).
+    // operatora. BEZ `row`: partia jest jedną transakcją, więc numer wiersza
+    // jest nieosiągalny — problem jest PLIKOWY, nie wierszowy (round-3, #B;
+    // podanie zmyślonego `row: 1` sugerowałoby błąd w nagłówku, którego nie ma).
     if (error.code === "23514") {
       return {
         issues: [
           {
-            row: 1,
             code: "badCustomField",
             value: `>${CUSTOM_FIELD_LIMITS.valuesBytesMax}B po scaleniu z zapisanymi wartościami`,
           },
