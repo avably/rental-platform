@@ -26,7 +26,7 @@ import { catalogImportAction } from "./actions";
 
 /**
  * Eksportowana WYŁĄCZNIE dla testu renderowalności (round-3, #B) — pozwala
- * dowieść, że `codes.<code>` daje zdanie, a nie surową ścieżkę klucza, wołając
+ * dowieść, że `codes.<kod>` daje zdanie, a nie surową ścieżkę klucza, wołając
  * DOKŁADNIE tę samą funkcję co render, bez powielania jej logiki w teście.
  */
 export function issueMessage(
