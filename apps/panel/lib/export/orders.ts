@@ -9,6 +9,8 @@
  * Filtr zakresu dat działa na `start_date` (oś „kiedy najem się zaczyna"),
  * obustronnie INCLUSIVE — spójnie z dobową semantyką zakresów w ADR-022.
  */
+import { customFieldValuesFromColumn } from "@avably/core";
+
 import { buildCsv, type CsvValue } from "./csv";
 import {
   exportFilename,
@@ -16,6 +18,12 @@ import {
   type ExportContext,
   type ExportFile,
 } from "./common";
+
+import {
+  customFieldCells,
+  customFieldHeader,
+  loadExportCustomFields,
+} from "./custom-fields";
 
 export const ORDERS_CSV_HEADER = [
   "order_number",
@@ -43,6 +51,7 @@ export interface OrdersExportRange {
 }
 
 interface OrderExportRow {
+  custom_fields: unknown;
   order_number: string;
   order_status: string;
   payment_status: string;
@@ -69,11 +78,19 @@ export async function exportOrdersCsv(
   ctx: ExportContext,
   range: OrdersExportRange = {},
 ): Promise<ExportFile> {
+  // Definicje PRZED odczytem wierszy: kolejność kolumn dynamicznych jest
+  // kontraktem pliku, a nie kolejnością, w jakiej klucze trafiły do jsonb.
+  // Zamówienia nie mają importu, więc niosą też definicje ZARCHIWIZOWANE —
+  // zrzut ma być kompletny (patrz nagłówek lib/export/custom-fields.ts).
+  const customFields = await loadExportCustomFields(ctx.supabase, ctx.tenantId, "order", {
+    includeArchived: true,
+  });
+
   const rows = await fetchAllPages<OrderExportRow>(async (from, to) => {
     let query = ctx.supabase
       .from("orders")
       .select(
-        "order_number, order_status, payment_status, start_date, end_date, delivery_method, payment_method, payment_provider, total_rental_grosze, total_deposit_grosze, delivery_grosze, currency, created_at, customers(full_name, email)",
+        "order_number, order_status, payment_status, start_date, end_date, delivery_method, payment_method, payment_provider, total_rental_grosze, total_deposit_grosze, delivery_grosze, currency, created_at, custom_fields, customers(full_name, email)",
       )
       // Filtr tenanta jest tu ŚWIADOMIE mimo RLS: rdzeń ma nie zależeć od
       // mocy klienta, którym go zawołano (dowód mutacyjny M1 w ADR-111).
@@ -107,8 +124,12 @@ export async function exportOrdersCsv(
       row.payment_method,
       row.payment_provider,
       row.created_at,
+      ...customFieldCells(customFields, customFieldValuesFromColumn(row.custom_fields)),
     ];
   });
 
-  return { filename: exportFilename("orders"), csv: buildCsv(ORDERS_CSV_HEADER, csvRows) };
+  return {
+    filename: exportFilename("orders"),
+    csv: buildCsv([...ORDERS_CSV_HEADER, ...customFieldHeader(customFields)], csvRows),
+  };
 }

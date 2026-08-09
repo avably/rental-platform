@@ -14,6 +14,8 @@
  * ceny i dzielenie jej z powrotem przy imporcie wprowadzałoby błąd
  * zaokrągleń. Kropka dziesiętna (format maszynowy, nie prezentacja).
  */
+import { customFieldValuesFromColumn } from "@avably/core";
+
 import { buildCsv, type CsvValue } from "./csv";
 import {
   exportFilename,
@@ -23,6 +25,11 @@ import {
   type ExportContext,
   type ExportFile,
 } from "./common";
+import {
+  customFieldCells,
+  customFieldHeader,
+  loadExportCustomFields,
+} from "./custom-fields";
 
 export const CATALOG_CSV_HEADER = [
   "product_id",
@@ -48,6 +55,7 @@ interface CatalogTierRow {
 }
 
 interface CatalogProductRow {
+  custom_fields: unknown;
   id: string;
   name: string;
   description: string | null;
@@ -61,11 +69,18 @@ interface CatalogProductRow {
 }
 
 export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> {
+  // WYŁĄCZNIE definicje ŻYWE: ten plik wraca importem, a kolumna pod
+  // definicją zarchiwizowaną byłaby kolumną, której nie wolno edytować
+  // (patrz nagłówek lib/export/custom-fields.ts).
+  const customFields = await loadExportCustomFields(ctx.supabase, ctx.tenantId, "product", {
+    includeArchived: false,
+  });
+
   const products = await fetchAllPages<CatalogProductRow>(async (from, to) => {
     const { data, error } = await ctx.supabase
       .from("products")
       .select(
-        "id, name, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, active, pricing_tiers(tier_days, multiplier, label, sort_order)",
+        "id, name, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, active, custom_fields, pricing_tiers(tier_days, multiplier, label, sort_order)",
       )
       .eq("tenant_id", ctx.tenantId)
       .order("created_at", { ascending: true })
@@ -88,12 +103,16 @@ export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> 
       product.buffer_after_days,
       product.active,
     ];
+    // Kolumny dynamiczne powtarzają się w KAŻDYM wierszu grupy — kształt
+    // płaski (produkt × próg) powiela pola produktu, a pole własne jest
+    // polem produktu. Import bierze je z PIERWSZEGO wiersza grupy.
+    const cells = customFieldCells(customFields, customFieldValuesFromColumn(product.custom_fields));
     const tiers = [...(product.pricing_tiers ?? [])].sort((a, b) => a.tier_days - b.tier_days);
     if (tiers.length === 0) {
-      csvRows.push([...base, null, null, null, null]);
+      csvRows.push([...base, null, null, null, null, ...cells]);
     } else {
       for (const tier of tiers) {
-        csvRows.push([...base, tier.tier_days, tier.multiplier, tier.label, tier.sort_order]);
+        csvRows.push([...base, tier.tier_days, tier.multiplier, tier.label, tier.sort_order, ...cells]);
       }
     }
     // Limit dotyczy WIERSZY CSV (produkt × próg), nie liczby produktów —
@@ -101,5 +120,8 @@ export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> 
     if (csvRows.length > EXPORT_ROW_LIMIT) throw new ExportLimitError();
   }
 
-  return { filename: exportFilename("catalog"), csv: buildCsv(CATALOG_CSV_HEADER, csvRows) };
+  return {
+    filename: exportFilename("catalog"),
+    csv: buildCsv([...CATALOG_CSV_HEADER, ...customFieldHeader(customFields)], csvRows),
+  };
 }

@@ -28,7 +28,16 @@
  * NUMERACJA BŁĘDÓW: rekord nagłówka = wiersz 1, pierwszy rekord danych = 2
  * (w plikach bez nowych linii w polach pokrywa się z numerem linii arkusza).
  */
+import {
+  CUSTOM_FIELD_LIMITS,
+  parseCustomFieldInput,
+  validateCustomFieldValues,
+  type CustomFieldDefinition,
+  type CustomFieldValues,
+} from "@avably/core";
+
 import { CATALOG_CSV_HEADER } from "../export/catalog";
+import { CSV_CUSTOM_FIELD_PREFIX } from "../export/custom-fields";
 import { CSV_BOM } from "../export/csv";
 
 /** Limit wierszy DANYCH — siostra EXPORT_ROW_LIMIT (ADR-111/112). */
@@ -61,7 +70,16 @@ export type CatalogImportIssueCode =
   | "tierIncomplete"
   | "duplicateTierDays"
   /** Warstwa planu (import-catalog.ts): id spoza katalogu najemcy z sesji. */
-  | "unknownProduct";
+  | "unknownProduct"
+  /**
+   * Kolumna `cf_<id>` bez odpowiadającej ŻYWEJ definicji produktu tego
+   * najemcy: cudza, zmyślona albo zarchiwizowana. Odrzuca CAŁY plik
+   * (spójnie z ADR-112 i z traktowaniem cudzego `product_id`) — patrz
+   * komentarz przy rozpoznawaniu nagłówka.
+   */
+  | "unknownCustomField"
+  /** Wartość pola własnego niezgodna z definicją (typ, opcja, długość). */
+  | "badCustomField";
 
 export interface CatalogImportIssue {
   /** Numer rekordu: nagłówek = 1, pierwszy wiersz danych = 2. */
@@ -92,6 +110,8 @@ export interface CatalogImportProduct {
   bufferAfterDays: number;
   active: boolean;
   tiers: CatalogImportTier[];
+  /** Wartości pól własnych z PIERWSZEGO wiersza grupy (pole własne jest polem produktu). */
+  customFields: CustomFieldValues;
   /** Numery rekordów źródłowych (do komunikatów podglądu). */
   rows: number[];
 }
@@ -101,6 +121,16 @@ export interface CatalogImportParseResult {
   issues: CatalogImportIssue[];
   /** Liczba rekordów danych w pliku (przed grupowaniem). */
   rowCount: number;
+  /**
+   * ID definicji, które plik OBEJMUJE swoimi kolumnami — czyli te, dla których
+   * plik jest autorytatywny (także pustką: pusta komórka = wartość usunięta).
+   *
+   * Bez tej listy zapis nie umiałby odróżnić „operator wyczyścił pole" od
+   * „tej kolumny w ogóle nie było w pliku", a to są dwie różne intencje.
+   * Klucze POZA tą listą (np. pod definicją zarchiwizowaną, której eksport
+   * katalogu nie niesie) zostają na wierszu nietknięte.
+   */
+  customFieldColumns: string[];
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -189,17 +219,47 @@ interface ParsedRow {
   bufferAfterDays: number;
   active: boolean;
   tier: CatalogImportTier | null;
+  customFields: CustomFieldValues;
 }
 
-export function parseCatalogCsv(text: string): CatalogImportParseResult {
+/**
+ * @param definitions ŻYWE definicje pól własnych PRODUKTU tego najemcy —
+ *   dokładnie ten zbiór, który wystawia eksport katalogu. Argument jest
+ *   WYMAGANY: pusta lista znaczy „najemca nie ma pól własnych", a wtedy każda
+ *   kolumna `cf_*` w pliku jest kolumną nieznaną i plik leci w całości.
+ *   Wartości domyślnej nie ma świadomie — cichy `[]` zamieniałby błąd
+ *   podłączenia w ignorowanie danych operatora.
+ */
+/**
+ * Same NAZWY KOLUMN z linii nagłówka — bez parsowania danych.
+ *
+ * Istnieje po to, żeby warstwa planu mogła odpowiedzieć na jedno pytanie
+ * PRZED dotknięciem bazy: „czy ten plik w ogóle mówi coś o polach własnych".
+ * Plik bez kolumn `cf_*` nie wymaga odczytu definicji — a to nie jest
+ * oszczędność, tylko SEMANTYKA: taki plik (np. eksport sprzed dodania pola)
+ * niczego o polach własnych nie twierdzi, więc nie ma prawa niczego skasować.
+ */
+export function catalogCsvHeaderColumns(text: string): string[] {
+  const body = text.startsWith(CSV_BOM) ? text.slice(CSV_BOM.length) : text;
+  const end = body.search(/\r|\n/);
+  const headerLine = end === -1 ? body : body.slice(0, end);
+  const records = readRecords(headerLine, detectSeparator(body));
+  return (records[0] ?? []).map((name) => stripFormulaApostrophe(name).trim());
+}
+
+export function parseCatalogCsv(
+  text: string,
+  definitions: readonly CustomFieldDefinition[],
+): CatalogImportParseResult {
   const body = text.startsWith(CSV_BOM) ? text.slice(CSV_BOM.length) : text;
   const separator = detectSeparator(body);
   const records = readRecords(body, separator);
 
   const issues: CatalogImportIssue[] = [];
+  const definitionById = new Map(definitions.map((definition) => [definition.id, definition]));
   if (records.length === 0) {
     for (const column of CATALOG_CSV_HEADER) issues.push({ row: 1, code: "missingColumn", column });
-    return { products: [], issues, rowCount: 0 };
+    return { products: [], issues, rowCount: 0, customFieldColumns: [] };
   }
 
   const header = records[0].map((name) => stripFormulaApostrophe(name).trim());
@@ -210,7 +270,30 @@ export function parseCatalogCsv(text: string): CatalogImportParseResult {
   for (const column of CATALOG_CSV_HEADER) {
     if (!columnIndex.has(column)) issues.push({ row: 1, code: "missingColumn", column });
   }
-  if (issues.length > 0) return { products: [], issues, rowCount: 0 };
+
+  // --- Kolumny dynamiczne `cf_<id>` (C6-A3, ADR-121) ---
+  //
+  // Kolumny nadmiarowe są w tym formacie IGNOROWANE (ADR-112) — ale prefiks
+  // `cf_` jest ZAREZERWOWANY, więc kolumna z tym prefiksem bez żywej definicji
+  // tego najemcy nie jest „nadmiarowa", tylko BŁĘDNA. Ignorowanie jej byłoby
+  // najgorszym z wyjść: operator, który wkleił arkusz z cudzego konta albo
+  // z pliku sprzed archiwizacji pola, dostałby import „udany" i po cichu
+  // pozbawiony jednej kolumny danych. Cudza, zmyślona i zarchiwizowana
+  // definicja dają JEDNĄ odmowę — rozróżnienie zdradzałoby konfigurację
+  // sąsiada.
+  const customFieldColumns: { column: string; definition: CustomFieldDefinition }[] = [];
+  for (const column of header) {
+    if (!column.startsWith(CSV_CUSTOM_FIELD_PREFIX)) continue;
+    const definition = definitionById.get(column.slice(CSV_CUSTOM_FIELD_PREFIX.length));
+    if (!definition) {
+      issues.push({ row: 1, code: "unknownCustomField", column });
+      continue;
+    }
+    customFieldColumns.push({ column, definition });
+  }
+
+  const coveredIds = customFieldColumns.map((entry) => entry.definition.id);
+  if (issues.length > 0) return { products: [], issues, rowCount: 0, customFieldColumns: [] };
 
   const dataRecords = records.slice(1);
   if (dataRecords.length > IMPORT_ROW_LIMIT) throw new ImportLimitError();
@@ -317,12 +400,43 @@ export function parseCatalogCsv(text: string): CatalogImportParseResult {
       }
     }
 
+    // Wartości pól własnych: ten sam parser, którym czyta je formularz panelu
+    // i checkout sklepu (`parseCustomFieldInput` z rdzenia) — arkusz nie jest
+    // furtką do wartości, których nie przyjęłaby żadna inna powierzchnia.
+    const customFields: CustomFieldValues = {};
+    for (const { column, definition } of customFieldColumns) {
+      const parsed = parseCustomFieldInput(definition, raw(column));
+      if (parsed.issue) {
+        rowIssues.push({ row: rowNumber, code: "badCustomField", column, value: raw(column).trim() });
+        continue;
+      }
+      if (parsed.value !== undefined) customFields[definition.id] = parsed.value;
+    }
+    // Granica ROZMIARU CAŁEJ MAPY (8 kB kolumny) — pojedyncze wartości mogą się
+    // mieścić, a ich suma nie. Bez tego odmowa przyszłaby dopiero z bazy,
+    // surowym błędem i bez numeru wiersza.
+    if (
+      rowIssues.length === 0 &&
+      validateCustomFieldValues(definitions, customFields, {
+        mode: "create",
+        entity: "product",
+        requireRequired: false,
+      }).issues["*"] !== undefined
+    ) {
+      rowIssues.push({
+        row: rowNumber,
+        code: "badCustomField",
+        value: `>${CUSTOM_FIELD_LIMITS.valuesBytesMax}B`,
+      });
+    }
+
     if (rowIssues.length > 0) {
       issues.push(...rowIssues);
       continue;
     }
 
     rows.push({
+      customFields,
       row: rowNumber,
       productId,
       name,
@@ -355,6 +469,9 @@ export function parseCatalogCsv(text: string): CatalogImportParseResult {
       bufferAfterDays: row.bufferAfterDays,
       active: row.active,
       tiers: [],
+      // Pola produktu bierzemy z PIERWSZEGO wiersza grupy — pole własne jest
+      // polem produktu, więc obowiązuje ta sama reguła co dla nazwy i ceny.
+      customFields: row.customFields,
       rows: [],
     };
     products.push(product);
@@ -398,6 +515,8 @@ export function parseCatalogCsv(text: string): CatalogImportParseResult {
     lastRowNumber = row.row;
   }
 
-  if (issues.length > 0) return { products: [], issues, rowCount: dataRecords.length };
-  return { products, issues, rowCount: dataRecords.length };
+  if (issues.length > 0) {
+    return { products: [], issues, rowCount: dataRecords.length, customFieldColumns: [] };
+  }
+  return { products, issues, rowCount: dataRecords.length, customFieldColumns: coveredIds };
 }

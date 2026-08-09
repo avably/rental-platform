@@ -19,7 +19,9 @@
  * zamiast zbiorczej odmowy z bazy.
  */
 import type { ExportContext } from "../export/common";
+import { CSV_CUSTOM_FIELD_PREFIX, loadExportCustomFields } from "../export/custom-fields";
 import {
+  catalogCsvHeaderColumns,
   parseCatalogCsv,
   type CatalogImportIssue,
   type CatalogImportProduct,
@@ -30,6 +32,8 @@ const ID_CHECK_PAGE_SIZE = 500;
 
 export interface CatalogImportPlan {
   products: CatalogImportProduct[];
+  /** ID definicji objętych kolumnami pliku — patrz CatalogImportParseResult. */
+  customFieldColumns: string[];
   issues: CatalogImportIssue[];
   /** Liczba wierszy danych w pliku (przed grupowaniem). */
   rowCount: number;
@@ -52,7 +56,23 @@ export async function planCatalogImport(
   ctx: ExportContext,
   text: string,
 ): Promise<CatalogImportPlan> {
-  const parsed = parseCatalogCsv(text);
+  // Definicje czytamy TYLKO gdy plik w ogóle mówi coś o polach własnych.
+  // Plik bez kolumn `cf_*` (np. eksport sprzed dodania pola albo arkusz
+  // operatora sprzed C6) niczego o nich nie twierdzi — i ma zostawić
+  // zapisane wartości nietknięte, a nie skasować je pustką.
+  //
+  // Definicje pochodzą z BAZY, nigdy z pliku: to one rozstrzygają, czy
+  // kolumna `cf_<id>` jest kolumną tego najemcy. Żywe (bez zarchiwizowanych)
+  // — dokładnie ten zbiór, który wystawił eksport katalogu.
+  const carriesCustomFields = catalogCsvHeaderColumns(text).some((column) =>
+    column.startsWith(CSV_CUSTOM_FIELD_PREFIX),
+  );
+  const definitions = carriesCustomFields
+    ? await loadExportCustomFields(ctx.supabase, ctx.tenantId, "product", {
+        includeArchived: false,
+      })
+    : [];
+  const parsed = parseCatalogCsv(text, definitions);
   const issues = [...parsed.issues];
   let created = 0;
   let updated = 0;
@@ -95,6 +115,7 @@ export async function planCatalogImport(
 
   return {
     products: issues.length === 0 ? parsed.products : [],
+    customFieldColumns: issues.length === 0 ? parsed.customFieldColumns : [],
     issues,
     rowCount: parsed.rowCount,
     created,
@@ -103,8 +124,18 @@ export async function planCatalogImport(
   };
 }
 
-/** Kształt wiersza p_rows funkcji app.import_catalog (migracja 0055). */
-function toRpcRows(products: CatalogImportProduct[]): Record<string, unknown>[] {
+/**
+ * Kształt wiersza p_rows funkcji app.import_catalog (0055, rozszerzona w 0058).
+ *
+ * `custom_field_columns` powtarza się w każdym wierszu, choć jest wspólne dla
+ * pliku — świadomie: sygnatura funkcji zostaje NIETKNIĘTA (jeden parametr
+ * `p_rows jsonb`), więc nie ma drugiej, przeterminowanej wersji funkcji do
+ * utrzymania ani grantów do odtwarzania. Koszt to kilkanaście bajtów na wiersz.
+ */
+function toRpcRows(
+  products: CatalogImportProduct[],
+  customFieldColumns: string[],
+): Record<string, unknown>[] {
   return products.map((product) => ({
     product_id: product.productId,
     name: product.name,
@@ -122,6 +153,8 @@ function toRpcRows(products: CatalogImportProduct[]): Record<string, unknown>[] 
       label: tier.label,
       sort_order: tier.sortOrder,
     })),
+    custom_fields: product.customFields,
+    custom_field_columns: customFieldColumns,
   }));
 }
 
@@ -140,7 +173,9 @@ export async function runCatalogImport(
 
   const { data, error } = await ctx.supabase
     .schema("app")
-    .rpc("import_catalog", { p_rows: toRpcRows(plan.products) });
+    .rpc("import_catalog", {
+      p_rows: toRpcRows(plan.products, plan.customFieldColumns),
+    });
   if (error) {
     throw new Error(`Import katalogu: zapis nie powiódł się (${error.code ?? "?"}).`);
   }
