@@ -85,19 +85,35 @@ vi.mock("@/lib/post-auth-next", () => ({ setPostAuthNext: () => {} }));
 
 /** Błąd, który zwróci Supabase Auth — sterowany per przypadek testowy. */
 let providerError: unknown = null;
-/** Kontekst sesji resetu; `null` = link wygasł (nasza ścieżka, nie dostawcy). */
-let resetSession: { userId: string } | null = { userId: "u1" };
+/**
+ * Kontekst sesji resetu; `null` = link wygasł (nasza ścieżka, nie dostawcy).
+ * Kształt ze ŚWIEŻYM dowodem recovery w `amr` (R14/ADR-122): bramka
+ * `hasRecentRecoveryProof` jest tu PRAWDZIWA (importActual) i stoi PRZED
+ * `updateUser`, a przedmiotem tej suity jest mapowanie błędów DOSTAWCY —
+ * kontekst musi więc bramkę przechodzić.
+ */
+let resetSession: { user: { id: string; email: string | null }; amr: unknown } | null = {
+  user: { id: "u1", email: null },
+  amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }],
+};
 
 vi.mock("@/lib/supabase-server", () => ({
   createSupabaseServerClient: async () => ({
     auth: {
       signUp: async () => ({ error: providerError }),
       updateUser: async () => ({ error: providerError }),
+      signOut: async () => ({ error: null }),
     },
   }),
 }));
-vi.mock("@/lib/auth", () => ({
-  getAuthContext: async () => resetSession,
+vi.mock("@/lib/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>();
+  return { ...actual, getAuthContext: async () => resetSession };
+});
+// Powiadomienie o zmianie hasła (R14) — atrapa: suita testuje komunikaty
+// błędów, a realny moduł ciągnąłby transport zależny od env dewelopera.
+vi.mock("@/lib/password-changed-email", () => ({
+  sendPasswordChangedEmail: async () => undefined,
 }));
 
 const { registerAction } = await import("@/app/[locale]/(auth)/register/actions");
@@ -130,7 +146,10 @@ async function resetConfirm(): Promise<string | undefined> {
 beforeEach(() => {
   currentLocale = "pl";
   providerError = null;
-  resetSession = { userId: "u1" };
+  resetSession = {
+    user: { id: "u1", email: null },
+    amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }],
+  };
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
