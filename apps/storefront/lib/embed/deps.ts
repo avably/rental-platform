@@ -46,6 +46,7 @@ export function embedMonthDeps(request: Request): EmbedMonthDeps {
  * wyłącznie przedsionek (tam klucz API, tu same-origin).
  */
 export function embedReservationDeps(request: Request): EmbedReservationDeps {
-  const { callRpc, sendEmails, readOnlineAvailability } = reservationDeps(request);
-  return { ...baseDeps(request), callRpc, sendEmails, readOnlineAvailability };
+  const { callRpc, sendEmails, readOnlineAvailability, readCustomFields } =
+    reservationDeps(request);
+  return { ...baseDeps(request), callRpc, sendEmails, readOnlineAvailability, readCustomFields };
 }

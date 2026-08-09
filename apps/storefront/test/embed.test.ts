@@ -117,6 +117,8 @@ function reservationDeps(c: Counters, overrides: Partial<EmbedReservationDeps> =
       c.rpc += 1;
       return ORDER;
     },
+    // Najemca bez pól własnych — przypadki tej suity opisują embed sprzed C6-A3.
+    readCustomFields: async () => [],
     sendEmails: async () => [],
     readOnlineAvailability: async () => ({ available: false }) as never,
     ...overrides,
