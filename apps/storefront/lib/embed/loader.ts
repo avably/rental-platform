@@ -67,7 +67,14 @@ export function embedLoaderSource(): string {
   frame.style.height = "720px";
   frame.style.colorScheme = "normal";
 
-  script.parentNode.insertBefore(frame, script.nextSibling);
+  // Kreatory stron potrafią wstrzyknąć wklejony fragment do <head>, a ramka
+  // w <head> nie renderuje się wcale. Wtedy jedynym sensownym miejscem jest
+  // koniec <body> — lepiej pokazać widget nie tam, gdzie wklejono, niż nigdzie.
+  if (script.parentNode && script.parentNode.nodeName !== "HEAD") {
+    script.parentNode.insertBefore(frame, script.nextSibling);
+  } else {
+    document.body.appendChild(frame);
+  }
 
   window.addEventListener("message", function (event) {
     // Wiadomość liczy się WYŁĄCZNIE z naszego origin i WYŁĄCZNIE z tej ramki.
