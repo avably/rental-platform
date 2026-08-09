@@ -27,6 +27,8 @@
  *     (order_id/log_token zostają po stronie serwera, jak w kontrakcie
  *     CheckoutResult).
  */
+import type { CustomFieldDefinition } from "@avably/core";
+
 import {
   submitCheckoutCore,
   type CheckoutRpcArgs,
@@ -69,6 +71,8 @@ export interface AvailabilityDeps extends ApiV1Deps {
 
 export interface ReservationDeps extends ApiV1Deps {
   callRpc: (args: CheckoutRpcArgs) => Promise<CheckoutRpcResult>;
+  /** Definicje pól własnych zamawiania (0058) — patrz lib/checkout/custom-fields.ts. */
+  readCustomFields: (tenantId: string) => Promise<CustomFieldDefinition[]>;
   sendEmails: (tenantId: string, ctx: CheckoutRpcResult) => Promise<string[]>;
   readOnlineAvailability: (tenantId: string) => Promise<OnlinePaymentAvailability>;
 }
@@ -189,6 +193,7 @@ export async function handleReservationRequest(
     callRpc: deps.callRpc,
     sendEmails: (ctx) => deps.sendEmails(admitted.tenantId, ctx),
     readOnlineAvailability: () => deps.readOnlineAvailability(admitted.tenantId),
+    readCustomFields: () => deps.readCustomFields(admitted.tenantId),
   });
 
   switch (result.status) {

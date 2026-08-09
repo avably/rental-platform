@@ -12,7 +12,11 @@ import {
 import { clientIpFromHeaders } from "@avably/security/client-ip";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getPublicAvailability, getPublicCatalog } from "@/lib/checkout/catalog";
+import {
+  getPublicAvailability,
+  getPublicCatalog,
+  readCheckoutCustomFieldDefinitions,
+} from "@/lib/checkout/catalog";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
@@ -99,5 +103,8 @@ export function reservationDeps(request: Request): ReservationDeps {
         ),
       }),
     readOnlineAvailability: (tenantId) => readOnlinePaymentAvailability(tenantId),
+    // Ta sama lista definicji co w sklepie (0058) — konsument maszynowy nie
+    // dostaje ani szerszego zbioru pól, ani luźniejszej walidacji.
+    readCustomFields: (tenantId) => readCheckoutCustomFieldDefinitions(tenantId),
   };
 }

@@ -24,7 +24,7 @@
  * Zamiana kosztuje kilka klas układu; nic z dostępności (etykiety, `aria-*`,
  * natywny `<select>`, natywny checkbox) nie znika.
  */
-import { formatMoney, type CurrencyCode } from "@avably/core";
+import { formatMoney, type CurrencyCode, type CustomFieldDefinition } from "@avably/core";
 import { useEffect, useState, type FormEvent } from "react";
 
 import Link from "next/link";
@@ -53,6 +53,8 @@ import {
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 import { STOREFRONT_TERMS_VERSION } from "@/lib/storefront/constants";
+import { CheckoutCustomFields } from "@/components/storefront/checkout-custom-fields";
+import { checkoutCustomFieldKey } from "@/lib/checkout/custom-fields";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 
@@ -74,6 +76,13 @@ interface CheckoutFormProps {
    * w rdzeniu akcji, po stronie serwera, i pyta o stan konta jeszcze raz.
    */
   paymentMethods: CheckoutPaymentMethod[];
+  /**
+   * Pola własne DO WYPEŁNIENIA w zamawianiu (C6-A3, ADR-121) — już zawężone
+   * na SERWERZE (`checkoutCustomFields`: flaga „zamawianie" ORAZ encja
+   * klient/zamówienie). Filtr w komponencie dawałby pole niewidoczne, ale
+   * zapisywalne — a serwer i tak liczy ten sam zbiór jeszcze raz przy zapisie.
+   */
+  customFields: CustomFieldDefinition[];
 }
 
 function deliveryLabel(copy: StorefrontCopy, method: CheckoutDeliveryMethod): string {
@@ -126,6 +135,11 @@ interface Values {
   paymentMethod: CheckoutPaymentMethod;
   terms: boolean;
   honeypot: string;
+  /**
+   * Wartości pól własnych, kluczowane ID DEFINICJI i trzymane STRINGAMI —
+   * dokładnie tak, jak wychodzą z kontrolek HTML. Typowanie robi serwer.
+   */
+  custom: Record<string, string>;
 }
 
 const EMPTY_VALUES: Omit<Values, "paymentMethod"> = {
@@ -142,6 +156,7 @@ const EMPTY_VALUES: Omit<Values, "paymentMethod"> = {
   pickupLocationId: "",
   terms: false,
   honeypot: "",
+  custom: {},
 };
 
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
@@ -161,6 +176,7 @@ export function CheckoutForm({
   copy,
   turnstileSiteKey,
   paymentMethods,
+  customFields,
 }: CheckoutFormProps) {
   const router = useRouter();
   const { cart, hydrated, clear } = useCart();
@@ -197,6 +213,28 @@ export function CheckoutForm({
 
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+    if (view.kind === "validation") setView({ kind: "idle" });
+  }
+
+  /** Komunikat pod polem własnym — klucz kontraktu to `cf_<id>`. */
+  function customFieldMessage(definitionId: string): string | undefined {
+    const error = fields[checkoutCustomFieldKey(definitionId)];
+    if (!error) return undefined;
+    const messages = copy.checkout.errors.customField;
+    switch (error) {
+      case "required":
+        return messages.required;
+      case "too_long":
+        return messages.tooLong;
+      case "not_allowed":
+        return messages.notAllowed;
+      default:
+        return messages.invalid;
+    }
+  }
+
+  function setCustomField(definitionId: string, value: string) {
+    setValues((current) => ({ ...current, custom: { ...current.custom, [definitionId]: value } }));
     if (view.kind === "validation") setView({ kind: "idle" });
   }
 
@@ -352,6 +390,11 @@ export function CheckoutForm({
       addressCity: values.addressCity || undefined,
       locale,
       notes: values.notes || undefined,
+      // Mapa idzie ZAWSZE, także pusta: to serwer rozstrzyga, czy najemca ma
+      // pole wymagane, którego klient nie wypełnił. Pominięcie klucza przy
+      // pustym formularzu zamieniałoby „nic nie wpisałem" w „nie ma o co
+      // pytać" — a to są dwa różne zdania.
+      customFields: values.custom,
       captchaToken: captchaToken ?? undefined,
       honeypot: values.honeypot,
     };
@@ -638,6 +681,21 @@ export function CheckoutForm({
             <p className="site-text-muted text-sm">{copy.checkout.paymentOfflineNote}</p>
           )}
         </fieldset>
+
+        {/* Pola własne najemcy (C6-A3) — sekcja znika, gdy najemca ich nie ma. */}
+        <CheckoutCustomFields
+          definitions={customFields}
+          values={values.custom}
+          onChange={setCustomField}
+          errors={Object.fromEntries(
+            customFields.map((definition) => [definition.id, customFieldMessage(definition.id)]),
+          )}
+          heading={copy.checkout.customFieldsHeading}
+          requiredLabel={copy.common.required}
+          optionalLabel={copy.common.optional}
+          choosePlaceholder={copy.checkout.customFieldChoose}
+          disabled={submitting}
+        />
 
         {/* Uwagi */}
         <fieldset className="grid gap-2" disabled={submitting}>

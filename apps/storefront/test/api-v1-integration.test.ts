@@ -26,6 +26,7 @@ import {
   handleReservationRequest,
   type ReservationDeps,
 } from "@/lib/api/handlers";
+import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
 import type { VerifiedApiKey } from "@/lib/api/auth";
 
 import { integrationEnv } from "./helpers/integration-env";
@@ -66,6 +67,11 @@ function liveReservationDeps(
     verifyKeyHash: liveVerify,
     checkRateLimit: async () => ({ success: true }),
     ip: `test-${randomUUID()}`,
+    // PRAWDZIWY odczyt definicji kluczem anon — dokładnie ta ścieżka, którą
+    // buduje deps.ts. Zaślepka pustą listą kłamałaby o powierzchni, na której
+    // ta suita ma dowodzić izolacji.
+    readCustomFields: async (tenantId) =>
+      readCheckoutCustomFieldDefinitions(tenantId, anonClient()),
     callRpc: async (args) => {
       const { data, error } = await anonClient().schema("app").rpc("public_checkout", args);
       if (error) {
@@ -208,6 +214,10 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     // Kształt zamknięty: dokładnie kontrakt PublicCatalog z 0020 — bez
     // sekretów nadawcy, bez kont płatności, bez danych innych najemców.
     expect(Object.keys(body).sort()).toEqual([
+      // [C6-A3] Definicje pól własnych zamawiania są w kontrakcie ŚWIADOMIE:
+      // bez nich integrator nie ma jak wyrenderować pól, których najemca
+      // wymaga. Kształt pojedynczej definicji pilnuje osobny przypadek niżej.
+      "custom_fields",
       "delivery_methods",
       "pickup_locations",
       "products",
