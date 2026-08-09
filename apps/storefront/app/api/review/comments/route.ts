@@ -10,9 +10,9 @@
 import { relayReviewRequest } from "@/lib/review-relay";
 
 export async function GET(request: Request): Promise<Response> {
-  return relayReviewRequest(request, "/comments");
+  return relayReviewRequest(request, { resource: "comments" });
 }
 
 export async function POST(request: Request): Promise<Response> {
-  return relayReviewRequest(request, "/comments");
+  return relayReviewRequest(request, { resource: "comments" });
 }

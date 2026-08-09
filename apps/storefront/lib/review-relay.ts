@@ -13,12 +13,40 @@
  * nigdy w odpowiedzi ani w HTML-u. Z odpowiedzi panelu wraca wyłącznie
  * status i ciało (content-type) — żadnych nagłówków sesyjnych panelu.
  * Komunikaty błędów nie nazywają zmiennych środowiskowych (dyscyplina U1).
+ *
+ * ŚCIEŻKA CELU NIE POCHODZI OD WOŁAJĄCEGO. Trasa wybiera KSZTAŁT adresu
+ * z zamkniętego zbioru (lista uwag / pojedyncza uwaga), a identyfikator
+ * wchodzi POJEDYNCZYM segmentem przez `encodeURIComponent` — nigdy jako
+ * kawałek sklejanego napisu. Sklejanie oddawało sterowanie ścieżką
+ * wołającemu: segment `../../jobs/wysylka` wyprowadzał żądanie
+ * (z nagłówkiem `Authorization`) poza segment ingest, czyli sekret relaya
+ * wychodził poza swoją powierzchnię i dawał server-side sondowanie panelu.
+ * Czyszczenia napisu tu NIE MA świadomie — czarna lista `..` przegrywa
+ * z kodowaniem. Zamiast niej stoi asercja na WYNIKU: `pathname` musi być
+ * dokładnie tym, co zbudowaliśmy (normalizacja URL niczego nie przesunęła)
+ * i musi leżeć pod `/api/review/ingest/`. Rozjazd = 400 i ZERO ruchu
+ * wychodzącego (fail-closed).
  */
 import { PANEL_URL } from "@avably/core";
 
 const INGEST_BASE = "/api/review/ingest";
 
-export async function relayReviewRequest(request: Request, path: string): Promise<Response> {
+/**
+ * Zamknięty zbiór kształtów adresu ingest. Wołający WYBIERA kształt,
+ * nie pisze ścieżki — dlatego to unia wariantów, a nie napis.
+ */
+export type ReviewRelayTarget =
+  | { readonly resource: "comments" }
+  | { readonly resource: "comment"; readonly id: string };
+
+function ingestSegments(target: ReviewRelayTarget): readonly string[] {
+  return target.resource === "comments" ? ["comments"] : ["comments", target.id];
+}
+
+export async function relayReviewRequest(
+  request: Request,
+  target: ReviewRelayTarget,
+): Promise<Response> {
   if (process.env.REVIEW_MODE !== "1") return new Response("Not Found", { status: 404 });
 
   const token = process.env.REVIEW_INGEST_TOKEN;
@@ -32,7 +60,14 @@ export async function relayReviewRequest(request: Request, path: string): Promis
   // Lokalne uruchomienia wskazują panel jawnie (REVIEW_INGEST_URL);
   // na hostingu wystarcza kanoniczny adres panelu.
   const base = process.env.REVIEW_INGEST_URL || PANEL_URL;
-  const target = new URL(`${INGEST_BASE}${path}${new URL(request.url).search}`, base);
+  const pathname = `${INGEST_BASE}/${ingestSegments(target).map(encodeURIComponent).join("/")}`;
+  const url = new URL(`${pathname}${new URL(request.url).search}`, base);
+  if (url.pathname !== pathname || !url.pathname.startsWith(`${INGEST_BASE}/`)) {
+    // Obrona w głąb: gdyby kiedykolwiek dało się przemycić separator lub
+    // segment `..`, normalizacja URL zmieniłaby ścieżkę — wtedy nie wychodzi
+    // ŻADNE żądanie, więc token nie ma jak polecieć pod cudzy adres.
+    return Response.json({ error: "Nieprawidłowe żądanie uwag przeglądu." }, { status: 400 });
+  }
 
   const headers = new Headers({ authorization: `Bearer ${token}` });
   const contentType = request.headers.get("content-type");
@@ -43,7 +78,7 @@ export async function relayReviewRequest(request: Request, path: string): Promis
 
   let upstream: Response;
   try {
-    upstream = await fetch(target, { method: request.method, headers, body, cache: "no-store" });
+    upstream = await fetch(url, { method: request.method, headers, body, cache: "no-store" });
   } catch {
     // Szczegóły awarii (adresy, porty) zostają w logach serwera, nie w
     // odpowiedzi dla przeglądarki.

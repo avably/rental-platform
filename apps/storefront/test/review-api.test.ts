@@ -12,6 +12,11 @@
  *    nagłówku, metoda, query, content-type multipart z boundary i bajty
  *    ciała bez zmian; odpowiedź panelu wraca ze statusem i ciałem 1:1,
  *    bez przepuszczania nagłówków sesyjnych panelu.
+ * 4. ŚCIEŻKA CELU JEST ZAMKNIĘTA: identyfikator z segmentu dynamicznego nie
+ *    steruje adresem w panelu. Asercje idą na ADRES, pod który poszedł
+ *    podstawiony `fetch` — sam kod odpowiedzi niczego by nie dowiódł, bo
+ *    przy sklejaniu napisów żądanie leciało pod cudzy adres i wracało
+ *    z całkiem sensownym statusem.
  */
 import { randomUUID } from "node:crypto";
 
@@ -228,5 +233,97 @@ describe("relay do ingest panelu przy REVIEW_MODE=1", () => {
     const text = await response.text();
     expect(text).not.toContain("ECONNREFUSED");
     expect(text).not.toContain("4300");
+  });
+});
+
+/**
+ * Regresja po sondzie PM na #217: identyfikator uwagi był wklejany do
+ * ścieżki relaya, więc wołający sterował adresem w panelu, a token relaya
+ * jechał tam razem z nim (`/comments/../../jobs/wysylka` →
+ * `http://panel/api/review/jobs/wysylka`). Dowodem naprawy jest ADRES
+ * wychodzącego żądania, nie status odpowiedzi.
+ */
+describe("ścieżka relaya nie pochodzi od wołającego", () => {
+  const WROGIE = ["../../jobs/wysylka", "../../../../api/jobs/reconcile", "..%2F..%2Fjobs"];
+
+  function patchRequest(): Request {
+    return new Request("http://localhost/x", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "done" }),
+    });
+  }
+
+  beforeEach(() => {
+    vi.stubEnv("REVIEW_MODE", "1");
+    vi.stubEnv("REVIEW_INGEST_TOKEN", TOKEN);
+    vi.stubEnv("REVIEW_INGEST_URL", INGEST_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([...WROGIE, ".."])(
+    "trasa odrzuca identyfikator %j → 404 i ZERO żądań wychodzących",
+    async (id) => {
+      const outbound = vi.fn(async () => Response.json({ ok: true }));
+      vi.stubGlobal("fetch", outbound);
+
+      const { PATCH } = await import("../app/api/review/comments/[id]/route");
+      const response = await PATCH(patchRequest(), { params: Promise.resolve({ id }) });
+
+      expect(response.status).toBe(404);
+      expect(outbound).not.toHaveBeenCalled();
+    },
+  );
+
+  it("trasa z UUID-em trafia dokładnie pod ingest uwagi", async () => {
+    const outbound = vi.fn(async () => Response.json({ comment: { id: "abc" } }));
+    vi.stubGlobal("fetch", outbound);
+
+    const id = randomUUID();
+    const { PATCH } = await import("../app/api/review/comments/[id]/route");
+    await PATCH(patchRequest(), { params: Promise.resolve({ id }) });
+
+    expect(outbound).toHaveBeenCalledTimes(1);
+    const [target] = outbound.mock.calls[0] as unknown as [URL | string];
+    expect(String(target)).toBe(`${INGEST_URL}/api/review/ingest/comments/${id}`);
+  });
+
+  it.each(WROGIE)(
+    "sam relay (z pominięciem walidacji trasy) nie wyprowadza tokenu poza ingest — %j",
+    async (id) => {
+      const outbound = vi.fn(async () => Response.json({ ok: true }));
+      vi.stubGlobal("fetch", outbound);
+
+      const { relayReviewRequest } = await import("../lib/review-relay");
+      await relayReviewRequest(patchRequest(), { resource: "comment", id });
+
+      // Identyfikator zostaje JEDNYM segmentem: separatory są zakodowane,
+      // więc adres nie może wyjść poza /api/review/ingest/.
+      for (const [target] of outbound.mock.calls as unknown as [URL | string][]) {
+        expect(String(target)).toBe(
+          `${INGEST_URL}/api/review/ingest/comments/${encodeURIComponent(id)}`,
+        );
+        expect(new URL(String(target)).pathname.startsWith("/api/review/ingest/")).toBe(true);
+      }
+      expect(outbound).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("sam relay przy segmencie `..` → 400 fail-closed i ZERO żądań", async () => {
+    const outbound = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", outbound);
+
+    const { relayReviewRequest } = await import("../lib/review-relay");
+    const response = await relayReviewRequest(patchRequest(), { resource: "comment", id: ".." });
+
+    expect(response.status).toBe(400);
+    expect(outbound).not.toHaveBeenCalled();
+    // Odmowa nie nazywa zmiennych środowiskowych (dyscyplina U1).
+    const body = await response.text();
+    expect(body).not.toContain("REVIEW_INGEST");
   });
 });
