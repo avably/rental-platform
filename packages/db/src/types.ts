@@ -247,3 +247,38 @@ export interface ReviewCommentAttachment {
   sort: number;
   created_at: string;
 }
+
+// --- Pola własne (0057_custom_fields.sql, ADR-118) ---
+//
+// Wartości pól własnych NIE MAJĄ tu własnego typu wiersza: siedzą w kolumnie
+// `custom_fields` na customers/orders/products jako mapa ID definicji →
+// wartość. Kształt tej mapy definiuje WYŁĄCZNIE @avably/core/custom-fields
+// (jedno źródło reguły dla panelu, checkoutu i API v1), a baza jej nie
+// interpretuje poza bramką zgodności — dlatego tutaj jest `Json`.
+
+export type CustomFieldEntityColumn = "customer" | "order" | "product";
+
+export type CustomFieldTypeColumn = import("@avably/core").CustomFieldType;
+
+export interface CustomFieldDefinitionRecord {
+  id: string;
+  tenant_id: string;
+  /** Encja, do której pole jest przypięte. Niezmienna (guard, 23514). */
+  entity: CustomFieldEntityColumn;
+  /** Typ ZAMROŻONY po pierwszej zapisanej wartości (guard, 23514). */
+  field_type: CustomFieldTypeColumn;
+  label: string;
+  help_text: string | null;
+  /** Wymagalność jest regułą FORMULARZA — baza jej nie egzekwuje (patrz 0057). */
+  required: boolean;
+  /** Tablica stringów; niepusta wyłącznie dla `select`. */
+  options: Json;
+  position: number;
+  show_in_panel: boolean;
+  show_in_checkout: boolean;
+  show_in_contract: boolean;
+  /** Niepuste = zarchiwizowane: pole znika z formularzy, wartości zostają. */
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
