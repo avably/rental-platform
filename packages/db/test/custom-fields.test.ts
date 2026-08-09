@@ -318,6 +318,31 @@ describe.skipIf(!hasEnv)("pola własne (0057, ADR-118)", () => {
       }
     });
 
+    it("odmawia zapisu pod cudzym ID TAKŻE ścieżką z wyłączonym RLS", async () => {
+      // TO JEST właściwy dowód jawnego filtra `tenant_id = new.tenant_id`
+      // w triggerze. Dla sesji najemcy odmowę dałaby także RLS na tabeli
+      // definicji — czyli test wykonany wyłącznie sesją NIE dowodziłby
+      // niczego o filtrze (sprawdzone mutacją: zdjęcie filtra zostawiało
+      // taki test zielony). Ścieżki, które RLS mają wyłączone, to
+      // `service_role` ORAZ funkcje SECURITY DEFINER, którymi pisze
+      // storefront (app.public_checkout wpisze pola własne zamówienia
+      // w części 2) — tam filtr w triggerze jest JEDYNĄ ochroną.
+      const { error } = await admin.from("customers").insert({
+        tenant_id: tenantA,
+        email: `bypass-${randomUUID()}@test.local`,
+        full_name: "Ścieżka bez RLS",
+        custom_fields: { [defB]: "wartość pod cudzym kluczem" },
+      });
+      expect(error?.code).toBe(PG_INVALID_PARAMETER);
+
+      const { count } = await admin
+        .from("customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantA)
+        .eq("full_name", "Ścieżka bez RLS");
+      expect(count, "wiersz powstał mimo odmowy").toBe(0);
+    });
+
     it("odmawia zapisu pod definicją INNEJ ENCJI tego samego najemcy", async () => {
       // Definicja zamówienia nie może opisać wartości zapisanej na kliencie —
       // inaczej etykieta i typ pochodziłyby z formularza, którego ten wiersz

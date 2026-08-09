@@ -200,6 +200,14 @@ create index products_custom_fields_gin  on public.products  using gin (custom_f
 -- (BYPASSRLS) i dla wywołań z wnętrza funkcji SECURITY DEFINER
 -- (app.public_checkout, app.create_order), które RLS mają wyłączone.
 --
+-- GDZIE TEN FILTR REALNIE PRACUJE (znalezisko z dowodu mutacyjnego, nie
+-- teoria): dla sesji najemcy zapis pod cudzym ID odbija się także od RLS na
+-- tabeli definicji, więc test wykonany WYŁĄCZNIE sesją zostaje zielony nawet
+-- po zdjęciu tego filtra — czyli nie dowodzi niczego o nim. Dowodzi dopiero
+-- próba ścieżką z wyłączonym RLS (`service_role`, funkcja SECURITY DEFINER)
+-- i taka jest w suicie. To nie jest niuans testowy: pola własne zamówienia
+-- będzie w części 2 zapisywać app.public_checkout, czyli dokładnie ta ścieżka.
+--
 -- Argument triggera niesie encję — jedna funkcja obsługuje trzy tabele, więc
 -- reguła istnieje w JEDNYM egzemplarzu i nie da się jej rozjechać między
 -- klientem, zamówieniem a produktem.
