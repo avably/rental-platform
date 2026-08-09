@@ -13,7 +13,9 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { EmbedWidget } from "@/components/embed/embed-widget";
+import type { CustomFieldDefinition } from "@avably/core";
+
+import { EmbedCustomField, EmbedWidget } from "@/components/embed/embed-widget";
 import plMessages from "../messages/pl.json";
 import enMessages from "../messages/en.json";
 
@@ -62,6 +64,7 @@ function renderWidget(locale: "pl" | "en" = "pl", theme: "light" | "dark" = "lig
         products={KATALOG.products}
         pickupLocations={KATALOG.pickupLocations}
         deliveryMethods={KATALOG.deliveryMethods}
+        customFields={[]}
         initialProductId={PRODUCT}
         theme={theme}
       />,
@@ -159,5 +162,95 @@ describe("embed.css — układ zależny od GNIAZDA, nie od okna", () => {
 
   it("kontrolki formularza dorównują celom dotykowym kalendarza", () => {
     expect(cssBezKomentarzy).toMatch(/min-height:\s*40px/);
+  });
+});
+
+/**
+ * Pola własne w ramce (C6-A3, ADR-121).
+ *
+ * Regresja, przed którą to broni, jest konkretna: serwer embedu egzekwuje
+ * wymagalność po definicjach najemcy, więc formularz, który pola nie rysuje,
+ * daje najemcy z polem WYMAGANYM ramkę odrzucaną przy każdej próbie — i to
+ * bez żadnego błędu w kodzie, który dałoby się zobaczyć.
+ */
+describe("widget embedu — pola własne najemcy", () => {
+  const definition = (
+    type: CustomFieldDefinition["type"],
+    overrides: Partial<CustomFieldDefinition> = {},
+  ): CustomFieldDefinition => ({
+    id: "11111111-1111-4111-8111-111111111111",
+    entity: "order",
+    type,
+    label: "Numer uprawnień",
+    helpText: null,
+    required: false,
+    options: type === "select" ? ["Alfa", "Beta"] : [],
+    position: 0,
+    showInPanel: false,
+    showInCheckout: true,
+    showInContract: false,
+    archivedAt: null,
+    createdAt: null,
+    ...overrides,
+  });
+
+  const renderField = (d: CustomFieldDefinition) =>
+    load(
+      renderToStaticMarkup(
+        <EmbedCustomField
+          definition={d}
+          error={undefined}
+          invalidLabel="błąd"
+          chooseLabel="Wybierz…"
+        />,
+      ),
+    );
+
+  it("nazwa kontrolki to KLUCZ KONTRAKTU cf_<id> — tym samym, którym serwer odsyła błąd", () => {
+    const $ = renderField(definition("text"));
+    expect($('[name="cf_11111111-1111-4111-8111-111111111111"]').length).toBe(1);
+    expect($("span").first().text()).toBe("Numer uprawnień");
+  });
+
+  it("każdy z siedmiu rodzajów dostaje kontrolkę, nie pustkę", () => {
+    const rodzaje: CustomFieldDefinition["type"][] = [
+      "text", "textarea", "number", "date", "select", "checkbox", "phone",
+    ];
+    for (const type of rodzaje) {
+      const $ = renderField(definition(type));
+      expect(
+        $('[name="cf_11111111-1111-4111-8111-111111111111"]').length,
+        `rodzaj ${type} nie wyrenderował kontrolki`,
+      ).toBe(1);
+    }
+  });
+
+  it("lista wyboru niesie opcje z definicji i pustkę na starcie", () => {
+    const $ = renderField(definition("select"));
+    expect($("option").toArray().map((el) => $(el).attr("value"))).toEqual(["", "Alfa", "Beta"]);
+  });
+
+  it("pole wymagane dostaje atrybut required (wygoda przeglądarki, nie bramka)", () => {
+    const $ = renderField(definition("text", { required: true }));
+    expect($('[name="cf_11111111-1111-4111-8111-111111111111"]').attr("required")).toBeDefined();
+  });
+
+  it("podpowiedź najemcy trafia pod pole", () => {
+    const $ = renderField(definition("text", { helpText: "Numer z zaświadczenia UDT." }));
+    expect($("small").text()).toBe("Numer z zaświadczenia UDT.");
+  });
+
+  it("odmowa serwera ląduje przy polu", () => {
+    const $ = load(
+      renderToStaticMarkup(
+        <EmbedCustomField
+          definition={definition("text")}
+          error="not_allowed"
+          invalidLabel="Nieprawidłowa wartość."
+          chooseLabel="Wybierz…"
+        />,
+      ),
+    );
+    expect($("em").text()).toBe("Nieprawidłowa wartość.");
   });
 });

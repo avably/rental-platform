@@ -569,6 +569,8 @@
       "paymentTransfer": "Bank transfer",
       "paymentCod": "On collection",
       "notes": "Notes",
+      "customFieldsHeading": "Additional details",
+      "customFieldChoose": "Select…",
       "termsLabel": "I accept the rental terms",
       "submit": "Book now",
       "submitting": "Sending…",

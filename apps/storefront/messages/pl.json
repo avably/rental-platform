@@ -569,6 +569,8 @@
       "paymentTransfer": "Przelew",
       "paymentCod": "Przy odbiorze",
       "notes": "Uwagi",
+      "customFieldsHeading": "Dane dodatkowe",
+      "customFieldChoose": "Wybierz…",
       "termsLabel": "Akceptuję regulamin najmu",
       "submit": "Rezerwuję",
       "submitting": "Wysyłam…",
