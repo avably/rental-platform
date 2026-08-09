@@ -32,22 +32,35 @@ class Avably_Booking_Ajax {
 	public const MONTH_CACHE_TTL = 300;
 
 	/**
-	 * Krótki TTL dla wyniku ZDEGRADOWANEGO (budżet wywołań/czasu przerwał
-	 * rozstrzyganie — część dni ma zachowawcze 0): wynik dalej zbija falę
-	 * żądań współbieżnych, ale „wszystko zajęte" nie wisi pełnych 5 minut.
+	 * Krótki TTL dla wyniku CZĘŚCIOWEGO (budżet czasu przerwał rozstrzyganie —
+	 * część dni jest NIEROZSTRZYGNIĘTA, a nie „zajęta"): wynik dalej zbija falę
+	 * żądań współbieżnych, ale niepełny kalendarz nie wisi pełnych 5 minut.
 	 */
 	public const MONTH_DEGRADED_CACHE_TTL = 30;
 
 	/**
-	 * TWARDY sufit wywołań API na JEDNO żądanie month (R11, ADR-114).
+	 * ZAPAS wywołań SONDUJĄCYCH ponad linię bazową „jedno wywołanie na dzień"
+	 * (R11, delta recenzji PM #218 — ADR-114, decyzja 2a).
 	 *
-	 * Audyt 2026-08-08 (potwierdzony pomiarem w suicie): pętla per dzień
-	 * kosztowała do 31 wywołań API na żądanie, a 10 żądań współbieżnych —
-	 * ~300. Po naprawie miesiąc rozstrzygany jest ZAKRESAMI (patrz
-	 * resolve_month_days): w pełni dostępny miesiąc = 1 wywołanie, a budżet
-	 * ogranicza najgorszy przypadek (mocno pofragmentowana dostępność).
+	 * Rachunek kosztu jest ścisły. Niech n = liczba dni do rozstrzygnięcia.
+	 * Każde wywołanie kończy się jednym z trzech wyników:
+	 *   - zakres z dostępnością > 0 (L dni jednym wywołaniem) → OSZCZĘDNOŚĆ L-1,
+	 *   - pojedynczy dzień (dowolny wynik) → koszt dokładnie 1 dzień/1 wywołanie,
+	 *   - zakres wielodniowy z wynikiem 0 → nie rozstrzyga NICZEGO (STRATA 1).
+	 * Stąd: wywołania = n − oszczędności + straty. Rozstrzyganie startuje więc
+	 * z zapasem MONTH_SPLIT_SLACK i wolno mu wykonać sondę zakresową tylko
+	 * wtedy, gdy zapas jest dodatni; sonda z wynikiem 0 zapas zjada, zakres
+	 * wolny go odbudowuje. Gdy zapas się skończy, dalej pytamy o POJEDYNCZE
+	 * dni — a to zawsze domyka miesiąc.
+	 *
+	 * Wniosek z rachunku (zapisany w ADR-114): sufit twardszy niż n+zapas
+	 * NIE ISTNIEJE dla algorytmu, który w ogóle zadaje pierwsze pytanie
+	 * zakresowe — przy zapasie 0 pierwsza sonda całomiesięczna byłaby
+	 * zabroniona i każdy miesiąc z choćby jedną rezerwacją kosztowałby n
+	 * wywołań. Zapas 6 pokrywa najgłębsze zejście podziałami dla 31 dni
+	 * (31→16→8→4→2 to pięć sond) z jedną sondą rezerwy.
 	 */
-	public const MONTH_API_CALL_BUDGET = 12;
+	public const MONTH_SPLIT_SLACK = 6;
 
 	/**
 	 * Budżet CZASU (sekundy wall-clock) na rozstrzyganie miesiąca — po jego
@@ -359,6 +372,34 @@ class Avably_Booking_Ajax {
 	}
 
 	/**
+	 * Sufit wywołań API na JEDNO żądanie month: linia bazowa „jedno wywołanie
+	 * na dzień" (dokładnie tyle kosztowało żądanie PRZED naprawą R11) plus
+	 * zapas na sondy zakresowe. Sufit jest WYPROWADZONY z liczby dni, nie
+	 * zaklepany liczbą — polityka, nie magiczna stała (ADR-114, decyzja 2a).
+	 *
+	 * Sufit jest zabezpieczeniem, nie narzędziem: rachunek z MONTH_SPLIT_SLACK
+	 * gwarantuje, że rozstrzyganie domyka miesiąc POD nim. Gdyby kiedykolwiek
+	 * został dotknięty, dni bez odpowiedzi wychodzą jako NIEROZSTRZYGNIĘTE —
+	 * nigdy jako zajęte.
+	 */
+	public static function month_call_ceiling( int $day_count ): int {
+		if ( $day_count <= 0 ) {
+			return 0;
+		}
+		return $day_count + self::MONTH_SPLIT_SLACK;
+	}
+
+	/**
+	 * Zegar wall-clock rozstrzygania miesiąca — JEDYNE miejsce, w którym ta
+	 * ścieżka pyta o czas. Wołany przez `static::`, więc test może podstawić
+	 * własny bieg zegara podklasą i przepuścić przez PRODUKCYJNE ciało
+	 * handle_month scenariusz wolnego API (bez czekania 10 s naprawdę).
+	 */
+	public static function now(): float {
+		return microtime( true );
+	}
+
+	/**
 	 * Rozstrzyganie dostępności miesiąca ZAKRESAMI zamiast pętli per dzień
 	 * (R11, ADR-114). Publiczne API zwraca dla zakresu liczbę sztuk wolnych
 	 * przez CAŁY zakres — to DOLNE OGRANICZENIE dostępności każdego dnia
@@ -368,60 +409,72 @@ class Avably_Booking_Ajax {
 	 * Algorytm: zapytaj o cały zakres; wynik > 0 => wszystkie dni dostają tę
 	 * wartość; wynik 0 na zakresie wielodniowym => podziel na pół i zapytaj
 	 * o połówki (0 na zakresie NIE przesądza o żadnym dniu z osobna — inna
-	 * sztuka może być zajęta każdego dnia). W pełni dostępny miesiąc kosztuje
-	 * 1 wywołanie; przy silnej fragmentacji pętlę tną budżet wywołań
-	 * i budżet czasu, a dni nierozstrzygnięte dostają ZACHOWAWCZE 0 (kalendarz
-	 * pokaże „zajęte", a krótki TTL cache'u szybko pozwoli na nową próbę).
+	 * sztuka może być zajęta każdego dnia).
 	 *
-	 * @param Avably_Booking_Api_Client $client      Klient API.
-	 * @param string                    $product_id  Produkt (UUID, zwalidowany).
-	 * @param string[]                  $days        CIĄGŁA lista dat ISO (month_days()).
-	 * @param int                       $call_budget Twardy sufit wywołań API.
-	 * @param float                     $deadline    Chwila zegara, po której nie wolno wołać dalej.
-	 * @param callable|null             $clock       Zegar (wstrzykiwany w testach); null = microtime(true).
-	 * @return array{days:array<string,int>, complete:bool, calls:int, failure:?array}
+	 * KOREKTA PO RECENZJI PM #218 — kalendarz nie ma prawa kłamać. Wcześniejsza
+	 * wersja przycinała podziały twardym budżetem 12 wywołań i oddawała dni
+	 * nierozstrzygnięte jako zachowawcze `0`; przy DWÓCH rezerwacjach w miesiącu
+	 * kończyło się to czternastoma wolnymi dniami pokazanymi odwiedzającemu jako
+	 * zajęte. Teraz podziały mają ZAPAS (MONTH_SPLIT_SLACK), a po jego zjedzeniu
+	 * rozstrzyganie schodzi do pytań o POJEDYNCZE dni — każde takie wywołanie
+	 * rozstrzyga dokładnie jeden dzień, więc miesiąc zawsze się domyka, a łączny
+	 * koszt nie przekracza month_call_ceiling().
+	 *
+	 * Dzień, dla którego rozstrzyganie NIE dostało odpowiedzi (budżet czasu na
+	 * wolnym API), nie trafia do `days` w ogóle — wychodzi na liście
+	 * `unresolved`. Zajęte i nieznane to dwie różne rzeczy i front ma je
+	 * rozróżniać.
+	 *
+	 * @param Avably_Booking_Api_Client $client       Klient API.
+	 * @param string                    $product_id   Produkt (UUID, zwalidowany).
+	 * @param string[]                  $days         CIĄGŁA lista dat ISO (month_days()).
+	 * @param int                       $call_ceiling Sufit wywołań API (month_call_ceiling()).
+	 * @param float                     $deadline     Chwila zegara, po której nie wolno wołać dalej.
+	 * @param callable|null             $clock        Zegar (wstrzykiwany w testach); null = static::now().
+	 * @return array{days:array<string,int>, unresolved:string[], complete:bool, calls:int, failure:?array}
 	 */
-	public static function resolve_month_days( Avably_Booking_Api_Client $client, string $product_id, array $days, int $call_budget, float $deadline, ?callable $clock = null ): array {
+	public static function resolve_month_days( Avably_Booking_Api_Client $client, string $product_id, array $days, int $call_ceiling, float $deadline, ?callable $clock = null ): array {
 		if ( null === $clock ) {
-			$clock = static fn (): float => microtime( true );
+			$clock = array( static::class, 'now' );
 		}
-		// Zachowawczy punkt wyjścia: każdy dzień „zajęty", dopóki API nie
-		// powie inaczej. Dzień nierozstrzygnięty nigdy nie udaje wolnego.
-		$resolved = array_fill_keys( $days, 0 );
+		$days     = array_values( $days );
 		$count    = count( $days );
+		$resolved = array();
 		if ( 0 === $count ) {
-			return array(
-				'days'     => $resolved,
-				'complete' => true,
-				'calls'    => 0,
-				'failure'  => null,
-			);
+			return self::month_resolution( $days, $resolved, 0, null );
 		}
 
-		$calls    = 0;
-		$complete = true;
-		$stack    = array( array( 0, $count - 1 ) );
+		// Zapas sond zakresowych (patrz MONTH_SPLIT_SLACK): dodatni pozwala
+		// zadać pytanie, które MOŻE nie rozstrzygnąć żadnego dnia.
+		$slack = self::MONTH_SPLIT_SLACK;
+		$calls = 0;
+		$stack = array( array( 0, $count - 1 ) );
 
 		while ( array() !== $stack ) {
-			if ( $calls >= $call_budget || $clock() >= $deadline ) {
-				// Budżet wywołań albo czasu wyczerpany: oddaj to, co masz —
-				// reszta zakresów zostaje przy zachowawczym 0.
-				$complete = false;
+			if ( $calls >= $call_ceiling || $clock() >= $deadline ) {
+				// Budżet czasu (albo — teoretycznie — sufit wywołań) przerwał
+				// rozstrzyganie: dni bez odpowiedzi zostają NIEROZSTRZYGNIĘTE.
 				break;
 			}
 			list( $lo, $hi ) = array_pop( $stack );
+			$length          = $hi - $lo + 1;
+
+			if ( $length > 1 && $slack < 1 ) {
+				// Zapas zjedzony — dalej wyłącznie pytania o pojedyncze dni.
+				// Kosztują 1 wywołanie na 1 rozstrzygnięty dzień, więc od tego
+				// miejsca rachunek już nie rośnie ponad linię bazową.
+				for ( $i = $hi; $i >= $lo; $i-- ) {
+					$stack[] = array( $i, $i );
+				}
+				continue;
+			}
 
 			$result = $client->get_availability( $product_id, $days[ $lo ], $days[ $hi ] );
 			$calls++;
 			if ( ! $result['ok'] ) {
 				// Pierwszy błąd przerywa rozstrzyganie — komunikat ogólny
 				// zamiast palenia limitu żądań na martwym kluczu/produkcie.
-				return array(
-					'days'     => $resolved,
-					'complete' => false,
-					'calls'    => $calls,
-					'failure'  => $result,
-				);
+				return self::month_resolution( $days, $resolved, $calls, $result );
 			}
 			$picked = self::pick_availability( (array) $result['data'] );
 			$units  = $picked['available_units'];
@@ -430,24 +483,50 @@ class Avably_Booking_Ajax {
 				for ( $i = $lo; $i <= $hi; $i++ ) {
 					$resolved[ $days[ $i ] ] = $units;
 				}
+				$slack += $length - 1; // Zakres wolny odbudowuje zapas.
 				continue;
 			}
 			if ( $lo === $hi ) {
-				continue; // Pojedynczy dzień: 0 jest wynikiem dokładnym.
+				$resolved[ $days[ $lo ] ] = 0; // Pojedynczy dzień: 0 jest wynikiem dokładnym.
+				continue;
 			}
+			$slack--; // Sonda zakresowa bez rozstrzygnięcia — zapas w dół.
 			$mid = intdiv( $lo + $hi, 2 );
 			// Lewa połówka na wierzch stosu — rozstrzyganie idzie od początku
-			// miesiąca, więc przy odcięciu budżetem zachowawcze 0 zostają na
-			// końcówce, nie na dniach najbliższych.
+			// miesiąca, więc przy odcięciu budżetem czasu nierozstrzygnięte
+			// zostają dni najdalsze, nie najbliższe.
 			$stack[] = array( $mid + 1, $hi );
 			$stack[] = array( $lo, $mid );
 		}
 
+		return self::month_resolution( $days, $resolved, $calls, null );
+	}
+
+	/**
+	 * Wynik rozstrzygania w kolejności dni miesiąca + jawna lista dni bez
+	 * odpowiedzi. `complete` znaczy DOKŁADNIE „każdy dzień ma odpowiedź".
+	 *
+	 * @param string[]           $days     Wszystkie dni żądanego miesiąca.
+	 * @param array<string,int>  $resolved Dni z odpowiedzią (klucz => sztuki).
+	 * @param array|null         $failure  Odmowa API, jeśli przerwała przebieg.
+	 * @return array{days:array<string,int>, unresolved:string[], complete:bool, calls:int, failure:?array}
+	 */
+	private static function month_resolution( array $days, array $resolved, int $calls, ?array $failure ): array {
+		$ordered    = array();
+		$unresolved = array();
+		foreach ( $days as $day ) {
+			if ( array_key_exists( $day, $resolved ) ) {
+				$ordered[ $day ] = $resolved[ $day ];
+				continue;
+			}
+			$unresolved[] = $day;
+		}
 		return array(
-			'days'     => $resolved,
-			'complete' => $complete && array() === $stack,
-			'calls'    => $calls,
-			'failure'  => null,
+			'days'       => $ordered,
+			'unresolved' => $unresolved,
+			'complete'   => null === $failure && array() === $unresolved,
+			'calls'      => $calls,
+			'failure'    => $failure,
 		);
 	}
 
@@ -504,8 +583,13 @@ class Avably_Booking_Ajax {
 	 *   2. cache miesiąca + wpis-blokada zakładana PRZED rozstrzyganiem
 	 *      (żądania współbieżne dostają odmowę tymczasową `busy` zamiast
 	 *      własnego przebiegu — front ponawia po chwili i trafia w cache),
-	 *   3. rozstrzyganie zakresami z budżetem wywołań i czasu
-	 *      (resolve_month_days) zamiast pętli per dzień.
+	 *   3. rozstrzyganie zakresami (resolve_month_days) zamiast pętli per dzień
+	 *      — z sufitem wywołań wyprowadzonym z liczby dni i budżetem czasu.
+	 *
+	 * Sufit wywołań NIE JEST narzędziem obrony przed współbieżnością (od tego
+	 * są punkty 1 i 2) i dlatego nie wolno mu ciąć poprawności: miesiąc jest
+	 * rozstrzygany do końca, a dni bez odpowiedzi wychodzą jako
+	 * NIEROZSTRZYGNIĘTE, nie jako zajęte.
 	 *
 	 * SEMANTYKA BLOKADY: get/set_transient nie jest atomowe, więc dwa żądania
 	 * mogą minąć się między odczytem a zapisem blokady i oba ruszyć. Blokada
@@ -544,13 +628,14 @@ class Avably_Booking_Ajax {
 		}
 		set_transient( $lock_key, 1, self::MONTH_LOCK_TTL );
 
-		$client = Avably_Booking_Plugin::api_client();
-		$result = self::resolve_month_days(
+		$client     = Avably_Booking_Plugin::api_client();
+		$month_days = self::month_days( $params['month'], $today );
+		$result     = self::resolve_month_days(
 			$client,
 			$params['product_id'],
-			self::month_days( $params['month'], $today ),
-			self::MONTH_API_CALL_BUDGET,
-			microtime( true ) + self::MONTH_TIME_BUDGET
+			$month_days,
+			self::month_call_ceiling( count( $month_days ) ),
+			static::now() + self::MONTH_TIME_BUDGET
 		);
 
 		if ( null !== $result['failure'] ) {
@@ -558,9 +643,14 @@ class Avably_Booking_Ajax {
 			self::send_api_error( $result['failure'] );
 		}
 
+		// `days` niesie WYŁĄCZNIE dni z odpowiedzią API (0 = naprawdę zajęty).
+		// Dzień bez odpowiedzi jest w `unresolved` i front pokazuje go
+		// neutralnie — „zajęte" byłoby zmyśleniem, którego nikt nie zgłosi.
 		$payload = array(
-			'month' => $params['month'],
-			'days'  => $result['days'],
+			'month'      => $params['month'],
+			'days'       => $result['days'],
+			'unresolved' => $result['unresolved'],
+			'partial'    => ! $result['complete'],
 		);
 		set_transient(
 			$cache_key,

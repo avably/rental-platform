@@ -88,7 +88,7 @@ Lokalne API podłączysz ustawiając URL API na
 ## Bezpieczeństwo — model zagrożeń
 
 WordPress jest atakowany masowo i automatycznie, więc wtyczka zakłada wrogie
-otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
+otoczenie. Siedem punktów, które warto znać przed wdrożeniem:
 
 1. **Nonce chroni przed CSRF, nie przed odczytem.** Każda z trzech akcji
    ajaxowych (`availability`, `month`, `reserve`) wymaga poprawnego nonce'a
@@ -122,10 +122,19 @@ otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
    30/5 min, sprawdzenie zakresu dat 60/5 min), a nasze API dokłada limit per
    klucz (30 rezerwacji/h). Pierwszy stopień jest konieczny, bo dla API cały
    ruch z Twojej strony wygląda jak jeden adres IP — bez niego jeden bot
-   mógłby wyczerpać godzinny budżet całego sklepu. Kalendarz dodatkowo kosztuje
-   nasze API najwyżej kilkanaście wywołań na żądanie (zwykle jedno) i ma cache
-   oraz blokadę żądań równoległych — fala odwiedzających nie mnoży ruchu.
-6. **Sklep za CDN-em/reverse proxy: skonfiguruj zaufane proxy.** Limity per
+   mógłby wyczerpać godzinny budżet całego sklepu. Kalendarz ma dodatkowo cache
+   i blokadę żądań równoległych — fala odwiedzających nie mnoży ruchu.
+6. **Kalendarz nie zgaduje.** Miesiąc rozstrzygamy zakresami: miesiąc bez
+   rezerwacji kosztuje JEDNO wywołanie naszego API, a każda rezerwacja dokłada
+   kilka pytań o coraz węższe przedziały. Sufit wywołań na żądanie jest
+   wyprowadzony z liczby dni miesiąca (`liczba dni + MONTH_SPLIT_SLACK`), a nie
+   zaklepany liczbą — dzięki temu zawsze wystarcza na rozstrzygnięcie CAŁEGO
+   miesiąca. Wolny termin nigdy nie jest pokazywany jako zajęty; gdyby nasze API
+   odpowiadało tak wolno, że skończy się budżet czasu, dni bez odpowiedzi
+   zostają oznaczone jako sprawdzane (neutralnie), a nie jako zajęte, i wynik
+   siedzi w cache'u krótko. Uzasadnienie liczb: ADR-114 w dokumentacji
+   platformy.
+7. **Sklep za CDN-em/reverse proxy: skonfiguruj zaufane proxy.** Limity per
    odwiedzający liczą się domyślnie po adresie, z którego przyszło żądanie
    (`REMOTE_ADDR`) — nagłówkom w rodzaju `X-Forwarded-For` nie ufamy, bo każdy
    może je podrobić i dostawać świeży licznik na żądanie. Jeśli Twoja strona

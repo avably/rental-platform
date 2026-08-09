@@ -13,6 +13,7 @@
  * nie: chronimy budżet API najemcy i workerów PHP, nie kształt JSON-a.
  */
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -57,6 +58,80 @@ final class AvablyScriptedRangeClient extends Avably_Booking_Api_Client {
 			),
 			'error_code' => null,
 		);
+	}
+}
+
+/**
+ * Klient modelujący PRAWDZIWY kalendarz małego najemcy: produkt w JEDNYM
+ * egzemplarzu, kilka rezerwacji w miesiącu. Zakres zwraca 0, jeśli obejmuje
+ * choć jeden zajęty dzień — dokładnie tak zachowuje się `GET /availability`
+ * (liczba sztuk wolnych przez CAŁY zakres).
+ *
+ * To wcielona sonda recenzji PM #218: na tym modelu budżet 12 wywołań oddawał
+ * czternaście WOLNYCH dni jako zajęte przy dwóch rezerwacjach w miesiącu.
+ */
+final class AvablySingleUnitCalendarClient extends Avably_Booking_Api_Client {
+
+	public int $calls = 0;
+
+	/** @var array<int,bool> Numery dni miesiąca, które są zajęte. */
+	private array $taken;
+
+	public function __construct( array $taken_days ) {
+		parent::__construct(
+			'https://api.example.test',
+			AVABLY_TEST_API_KEY,
+			static fn (): array => array(
+				'code' => 200,
+				'body' => '{}',
+			)
+		);
+		$this->taken = array_fill_keys( $taken_days, true );
+	}
+
+	public function get_availability( string $product_id, string $start_date, string $end_date ): array {
+		$this->calls++;
+		$from = (int) substr( $start_date, 8, 2 );
+		$to   = (int) substr( $end_date, 8, 2 );
+		for ( $day = $from; $day <= $to; $day++ ) {
+			if ( isset( $this->taken[ $day ] ) ) {
+				return array(
+					'ok'         => true,
+					'data'       => array(
+						'available_units' => 0,
+						'total_units'     => 1,
+					),
+					'error_code' => null,
+				);
+			}
+		}
+		return array(
+			'ok'         => true,
+			'data'       => array(
+				'available_units' => 1,
+				'total_units'     => 1,
+			),
+			'error_code' => null,
+		);
+	}
+}
+
+/**
+ * Wtyczka z PODSTAWIONYM zegarem — jedyne miejsce, w którym ścieżka month pyta
+ * o czas, to `Avably_Booking_Ajax::now()`, wołane przez `static::`. Dzięki temu
+ * scenariusz WOLNEGO API przechodzi przez PRODUKCYJNE ciało `handle_month`
+ * (cache, blokada, wybór TTL, kształt payloadu), a nie przez jego kopię
+ * w teście — i nie kosztuje dziesięciu sekund czekania.
+ */
+final class AvablySlowClockAjax extends Avably_Booking_Ajax {
+
+	public static float $now  = 0.0;
+	public static float $step = 0.0;
+
+	public static function now(): float {
+		$value      = self::$now;
+		self::$now += self::$step;
+		return $value;
 	}
 }
 
@@ -134,22 +209,135 @@ final class AjaxAmplificationTest extends TestCase {
 	}
 
 	/**
-	 * TWARDY sufit wywołań API na jedno żądanie month — scenariusz najgorszy
-	 * (każdy zakres zajęty ⇒ maksymalna liczba podziałów). Przywrócenie pętli
-	 * per dzień (~30 wywołań) MUSI palić ten test; podniesienie samej stałej
-	 * też, stąd przypięta wartość.
+	 * Sufit wywołań API na żądanie month — test pilnuje POLITYKI (ADR-114,
+	 * decyzja 2a), nie zaklepanej liczby.
+	 *
+	 * Poprzednia wersja przypinała `MONTH_API_CALL_BUDGET <= 12` i przez to
+	 * BRONIŁA BŁĘDU: budżet 12 nie wystarczał na rozstrzygnięcie miesiąca
+	 * z dwiema rezerwacjami, a niedopytane dni szły do odwiedzającego jako
+	 * zajęte. Polityka, której pilnujemy teraz, ma cztery punkty:
+	 *   1. sufit ISTNIEJE i jest WYPROWADZONY z liczby dni (nie magiczna stała),
+	 *   2. nigdy nie schodzi poniżej liczby dni — sufit, pod którym miesiąca nie
+	 *      da się domknąć, kupuje oszczędność kłamstwem,
+	 *   3. nie rośnie w nieskończoność (gołe podziały binarne kosztują ~2n),
+	 *   4. najgorszy przypadek MIEŚCI SIĘ pod nim i jest KOMPLETNY — mierzone,
+	 *      nie deklarowane.
 	 */
 	public function test_month_api_calls_have_hard_ceiling(): void {
+		foreach ( array( 28, 29, 30, 31 ) as $day_count ) {
+			$ceiling = Avably_Booking_Ajax::month_call_ceiling( $day_count );
+			$this->assertSame(
+				$day_count + Avably_Booking_Ajax::MONTH_SPLIT_SLACK,
+				$ceiling,
+				'Sufit przestał być wyprowadzany z liczby dni'
+			);
+			$this->assertGreaterThanOrEqual( $day_count, $ceiling, 'Sufit poniżej liczby dni — miesiąca nie da się domknąć' );
+			$this->assertLessThan( 2 * $day_count, $ceiling, 'Sufit rośnie w stronę kosztu gołych podziałów (~2n)' );
+		}
+		$this->assertSame( 0, Avably_Booking_Ajax::month_call_ceiling( 0 ) );
+
+		// Polityka ma być ZAPISANA, nie tylko zaimplementowana. Sprawdzamy
+		// README wtyczki, bo tylko ono jest w zasięgu obu przebiegów suity
+		// (lokalny kontener montuje SAM katalog wtyczki, CI — całe repo);
+		// pełne uzasadnienie liczb siedzi w ADR-114, do którego README kieruje.
+		$readme = (string) file_get_contents( dirname( __DIR__, 2 ) . '/README.md' );
+		$this->assertStringContainsString( 'MONTH_SPLIT_SLACK', $readme, 'Polityka sufitu wywołań nieopisana w README wtyczki' );
+		$this->assertStringContainsString( 'ADR-114', $readme );
+
+		// Najgorszy przypadek: miesiąc w CAŁOŚCI zajęty (maksymalna liczba
+		// podziałów). Ma zmieścić się pod sufitem i rozstrzygnąć KAŻDY dzień.
 		$client                     = new AvablyScriptedRangeClient( static fn (): int => 0 );
 		AvablyTestState::$apiClient = $client;
-		$this->seedMonthRequest( $this->futureMonth() );
+		$month                      = $this->futureMonth();
+		$this->seedMonthRequest( $month );
 
-		$response = $this->runMonth();
+		$response      = $this->runMonth();
+		$days_in_month = (int) date( 't', strtotime( $month . '-01' ) );
 
-		$this->assertTrue( $response->success, 'Wyczerpanie budżetu nie jest błędem — oddajemy stan zachowawczy' );
-		$this->assertLessThanOrEqual( 12, Avably_Booking_Ajax::MONTH_API_CALL_BUDGET, 'Sufit budżetu wywołań podniesiony — to decyzja ADR-114, nie drobiazg' );
-		$this->assertLessThanOrEqual( Avably_Booking_Ajax::MONTH_API_CALL_BUDGET, $client->calls );
+		$this->assertTrue( $response->success );
 		$this->assertGreaterThan( 0, $client->calls );
+		$this->assertLessThanOrEqual(
+			Avably_Booking_Ajax::month_call_ceiling( $days_in_month ),
+			$client->calls,
+			'Rozstrzyganie przebiło własny sufit'
+		);
+		$this->assertSame( array(), $response->payload['unresolved'], 'Miesiąc nie domknął się pod sufitem' );
+		$this->assertFalse( $response->payload['partial'] );
+		$this->assertCount( $days_in_month, $response->payload['days'] );
+	}
+
+	/**
+	 * BRAMKA NADRZĘDNA (delta recenzji PM #218): żaden WOLNY dzień nie ma prawa
+	 * dotrzeć do odwiedzającego jako zajęty — przy dowolnym rozkładzie
+	 * rezerwacji, także wtedy, gdy rozstrzygnięcie kosztuje więcej wywołań.
+	 *
+	 * Scenariusze to wcielona sonda PM. Na HEAD-zie sprzed tej poprawki
+	 * (budżet 12 wywołań, dni niedopytane oddawane jako zachowawcze `0`)
+	 * wariant „2 rezerwacje" oddawał 14 wolnych dni jako zajęte, „3 rezerwacje"
+	 * 16, weekendy 15, co drugi dzień 13. Utrata rezerwacji jest CICHA: klient
+	 * po prostu nie rezerwuje i nikt tego nie zgłasza.
+	 *
+	 * @param int[] $taken Numery zajętych dni miesiąca.
+	 */
+	#[DataProvider( 'fragmentationScenarios' )]
+	public function test_fragmented_month_never_reports_a_free_day_as_taken( array $taken ): void {
+		$client                     = new AvablySingleUnitCalendarClient( $taken );
+		AvablyTestState::$apiClient = $client;
+		$month                      = $this->futureMonth();
+		$this->seedMonthRequest( $month );
+
+		$response      = $this->runMonth();
+		$days_in_month = (int) date( 't', strtotime( $month . '-01' ) );
+
+		$this->assertTrue( $response->success );
+		$this->assertSame( array(), $response->payload['unresolved'], 'Zdrowe API, a miesiąc nie został domknięty' );
+		$this->assertFalse( $response->payload['partial'] );
+		$this->assertCount( $days_in_month, $response->payload['days'], 'Nie każdy dzień miesiąca dostał odpowiedź' );
+
+		$falsely_taken = array();
+		$falsely_free  = array();
+		foreach ( $response->payload['days'] as $iso => $units ) {
+			$number = (int) substr( $iso, 8, 2 );
+			if ( in_array( $number, $taken, true ) ) {
+				if ( $units > 0 ) {
+					$falsely_free[] = $number;
+				}
+				continue;
+			}
+			if ( $units <= 0 ) {
+				$falsely_taken[] = $number;
+			}
+		}
+
+		$this->assertSame(
+			array(),
+			$falsely_taken,
+			'Dni WOLNE pokazane odwiedzającemu jako zajęte: ' . implode( ',', $falsely_taken )
+		);
+		$this->assertSame(
+			array(),
+			$falsely_free,
+			'Dni ZAJĘTE pokazane jako wolne: ' . implode( ',', $falsely_free )
+		);
+		$this->assertLessThanOrEqual(
+			Avably_Booking_Ajax::month_call_ceiling( $days_in_month ),
+			$client->calls,
+			'Poprawność opłacona przebiciem sufitu wywołań'
+		);
+	}
+
+	/** @return array<string,array{0:int[]}> Rozkłady rezerwacji z sondy PM. */
+	public static function fragmentationScenarios(): array {
+		return array(
+			'brak rezerwacji'       => array( array() ),
+			'1 rezerwacja'          => array( array( 15 ) ),
+			'2 rezerwacje'          => array( array( 8, 22 ) ),
+			'3 rezerwacje'          => array( array( 5, 14, 25 ) ),
+			'weekendy zajęte'       => array( array( 2, 3, 9, 10, 16, 17, 23, 24, 30 ) ),
+			'co drugi dzień zajęty' => array( range( 1, 31, 2 ) ),
+			'cały miesiąc zajęty'   => array( range( 1, 31 ) ),
+			'skrajne dni zajęte'    => array( array( 1, 28 ) ),
+		);
 	}
 
 	// ------------------------------------------------------------------
@@ -497,12 +685,13 @@ final class AjaxAmplificationTest extends TestCase {
 			}
 		);
 
-		$days   = Avably_Booking_Ajax::month_days( $this->futureMonth(), date( 'Y-m-d' ) );
-		$result = Avably_Booking_Ajax::resolve_month_days(
+		$days    = Avably_Booking_Ajax::month_days( $this->futureMonth(), date( 'Y-m-d' ) );
+		$ceiling = Avably_Booking_Ajax::month_call_ceiling( count( $days ) );
+		$result  = Avably_Booking_Ajax::resolve_month_days(
 			$client,
 			self::PRODUCT,
 			$days,
-			Avably_Booking_Ajax::MONTH_API_CALL_BUDGET,
+			$ceiling,
 			10.0,
 			static function () use ( &$elapsed ): float {
 				return $elapsed;
@@ -511,44 +700,182 @@ final class AjaxAmplificationTest extends TestCase {
 
 		// Zegar: 0 → 3 → 6 → 9 (wolno wołać) → 12 (deadline 10 przekroczony).
 		$this->assertSame( 4, $result['calls'], 'Budżet czasu nie zatrzymał pętli' );
-		$this->assertLessThan( Avably_Booking_Ajax::MONTH_API_CALL_BUDGET, $result['calls'], 'Zatrzymał budżet wywołań, nie czasu — test nic nie dowodzi' );
+		$this->assertLessThan( $ceiling, $result['calls'], 'Zatrzymał sufit wywołań, nie czas — test nic nie dowodzi' );
 		$this->assertFalse( $result['complete'] );
-		$this->assertCount( count( $days ), $result['days'], 'Dni nierozstrzygnięte mają dostać zachowawcze 0, nie zniknąć' );
+
+		// Dzień bez odpowiedzi NIE UDAJE wyniku: nie ma go w `days` (gdzie 0
+		// znaczy „naprawdę zajęty"), jest na jawnej liście `unresolved`.
+		$this->assertSame( array(), $result['days'], 'Nierozstrzygnięty dzień dostał wartość, choć API nic o nim nie powiedziało' );
+		$this->assertSame( $days, $result['unresolved'] );
+		$this->assertCount(
+			count( $days ),
+			array_merge( array_keys( $result['days'] ), $result['unresolved'] ),
+			'Dzień miesiąca zniknął — ma być albo rozstrzygnięty, albo jawnie nieznany'
+		);
 	}
 
 	/**
-	 * Wynik ZDEGRADOWANY (budżet/deadline przerwał rozstrzyganie) idzie do
-	 * cache'u na KRÓTKO — inaczej zachowawcze zera wisiałyby 5 minut jako
-	 * „wszystko zajęte". Wynik kompletny dostaje pełny TTL.
+	 * WOLNE API przez PRODUKCYJNE ciało handle_month (zegar podstawiony
+	 * podklasą): budżet czasu przerywa rozstrzyganie, a odwiedzający dostaje
+	 * odpowiedź, w której dzień NIEZNANY jest rozróżnialny od ZAJĘTEGO.
+	 *
+	 * To jest sedno delty recenzji PM #218: degradacja nie ma prawa udawać
+	 * wyniku. Wcześniej niedopytany dzień wyjeżdżał jako `0` — nie do odróżnienia
+	 * od dnia naprawdę zarezerwowanego.
 	 */
-	public function test_degraded_month_result_gets_short_cache_ttl(): void {
-		// Kompletny: pełny TTL.
-		$client                     = new AvablyScriptedRangeClient( static fn (): int => 2 );
+	public function test_time_budget_leaves_days_unresolved_not_taken(): void {
+		AvablySlowClockAjax::$now  = 0.0;
+		AvablySlowClockAjax::$step = 3.0; // Każde spojrzenie na zegar = 3 s.
+
+		// Pierwsza połowa miesiąca wolna, druga zajęta: podziały rozstrzygają
+		// lewą połówkę jednym wywołaniem, a na prawą kończy się czas — payload
+		// musi unieść OBA rodzaje dni naraz.
+		$client                     = new AvablySingleUnitCalendarClient( range( 16, 31 ) );
 		AvablyTestState::$apiClient = $client;
 		$month                      = $this->futureMonth();
 		$this->seedMonthRequest( $month );
-		$this->runMonth();
-		$ttl_complete = null;
-		foreach ( AvablyTestState::$transientTtls as $transient_key => $ttl ) {
+
+		$response = null;
+		try {
+			AvablySlowClockAjax::handle_month();
+		} catch ( AvablyTestJsonResponse $json ) {
+			$response = $json;
+		}
+
+		$this->assertInstanceOf( AvablyTestJsonResponse::class, $response );
+		$this->assertTrue( $response->success, 'Wynik częściowy nie jest błędem — jest częściowy' );
+		$this->assertTrue( $response->payload['partial'], 'Odpowiedź nie przyznaje się do niekompletności' );
+		$this->assertNotSame( array(), $response->payload['unresolved'], 'Budżet czasu nie odciął rozstrzygania — test nic nie dowodzi' );
+		$this->assertNotSame( array(), $response->payload['days'], 'Nic się nie rozstrzygnęło — test nie pokazuje MIESZANEGO wyniku' );
+
+		// Rozłączność: dzień jest albo rozstrzygnięty, albo nieznany.
+		$this->assertSame(
+			array(),
+			array_intersect( array_keys( $response->payload['days'] ), $response->payload['unresolved'] ),
+			'Ten sam dzień jest naraz rozstrzygnięty i nieznany'
+		);
+		// I nigdy nie wyjeżdża jako „zajęty" bez odpowiedzi API: wszystko, co
+		// jest w `days`, ma pokrycie w faktycznym wywołaniu (tu: wolne dni).
+		foreach ( $response->payload['days'] as $iso => $units ) {
+			$this->assertGreaterThan( 0, $units, "Dzień {$iso} oddany jako zajęty, choć API o niego nie zapytano" );
+		}
+
+		// Wynik częściowy siedzi w cache'u KRÓTKO.
+		$ttl = null;
+		foreach ( AvablyTestState::$transientTtls as $transient_key => $value ) {
 			if ( str_starts_with( $transient_key, 'avably_bk_m_' ) ) {
-				$ttl_complete = $ttl;
+				$ttl = $value;
 			}
 		}
-		$this->assertSame( Avably_Booking_Ajax::MONTH_CACHE_TTL, $ttl_complete );
+		$this->assertSame( Avably_Booking_Ajax::MONTH_DEGRADED_CACHE_TTL, $ttl );
 
-		// Zdegradowany: krótki TTL.
-		AvablyTestState::reset();
+		// Bramka U1: payload bez nazw zmiennych i kluczy ustawień.
+		$serialized = (string) json_encode( $response->payload );
+		foreach ( array( 'api_url', 'api_key', 'avbl_', 'MONTH_', 'transient', 'REMOTE_ADDR' ) as $forbidden ) {
+			$this->assertStringNotContainsString( $forbidden, $serialized );
+		}
+	}
+
+	/**
+	 * Podniesiony sufit wywołań NIE MOŻE rozluźnić dławienia: jeden odwiedzający
+	 * dalej nie przepuszcza więcej niż MONTH_RATE_LIMIT żądań w oknie, a łączny
+	 * ruch do API najemcy zostaje ograniczony iloczynem limitu i sufitu —
+	 * nie mnoży się przez liczbę żądań ponad limitem.
+	 */
+	public function test_raised_call_ceiling_does_not_relax_the_rate_limit(): void {
+		// Najgorszy klient: każdy zakres zajęty ⇒ maksymalna liczba wywołań.
 		$client                     = new AvablyScriptedRangeClient( static fn (): int => 0 );
 		AvablyTestState::$apiClient = $client;
-		$this->seedMonthRequest( $month );
-		$this->runMonth();
-		$ttl_degraded = null;
-		foreach ( AvablyTestState::$transientTtls as $transient_key => $ttl ) {
-			if ( str_starts_with( $transient_key, 'avably_bk_m_' ) ) {
-				$ttl_degraded = $ttl;
-			}
+		$month                      = $this->futureMonth();
+		$ceiling                    = Avably_Booking_Ajax::month_call_ceiling(
+			(int) date( 't', strtotime( $month . '-01' ) )
+		);
+
+		for ( $i = 1; $i <= Avably_Booking_Ajax::MONTH_RATE_LIMIT; $i++ ) {
+			$this->seedMonthRequest( $month, sprintf( '2a2a2a2a-1111-4222-8333-%012d', $i ) );
+			$this->assertTrue( $this->runMonth()->success, "Żądanie {$i} odrzucone przed limitem" );
 		}
-		$this->assertSame( Avably_Booking_Ajax::MONTH_DEGRADED_CACHE_TTL, $ttl_degraded );
+		$calls_at_limit = $client->calls;
+		$this->assertLessThanOrEqual(
+			Avably_Booking_Ajax::MONTH_RATE_LIMIT * $ceiling,
+			$calls_at_limit,
+			'Ruch do API przekroczył iloczyn limitu żądań i sufitu wywołań'
+		);
+
+		// Dziesięć kolejnych żądań ponad limit: ZERO nowych wywołań API.
+		for ( $i = 1; $i <= 10; $i++ ) {
+			$this->seedMonthRequest( $month, sprintf( '2a2a2a2a-1111-4222-8333-%012d', 900 + $i ) );
+			$over = $this->runMonth();
+			$this->assertFalse( $over->success );
+			$this->assertSame( 429, $over->status );
+		}
+		$this->assertSame( $calls_at_limit, $client->calls, 'Żądania ponad limitem dotknęły API mimo dławienia' );
+	}
+
+	/**
+	 * Wpis-blokada nie może zablokować kalendarza NA STAŁE. Proces, który go
+	 * założył, może paść przed usunięciem wpisu — wtedy jedyną drogą powrotu
+	 * jest wygaśnięcie TTL.
+	 */
+	public function test_month_lock_expires_and_calendar_comes_back(): void {
+		$client                     = new AvablyScriptedRangeClient( static fn (): int => 3 );
+		AvablyTestState::$apiClient = $client;
+		$month                      = $this->futureMonth();
+		$lock_key                   = Avably_Booking_Ajax::month_lock_key( self::PRODUCT, $month, date( 'Y-m-d' ) );
+
+		// Stan po padzie procesu: blokada wisi, wyniku w cache'u nie ma.
+		set_transient( $lock_key, 1, Avably_Booking_Ajax::MONTH_LOCK_TTL );
+		$this->seedMonthRequest( $month );
+		$busy = $this->runMonth();
+		$this->assertFalse( $busy->success );
+		$this->assertSame( 'busy', $busy->payload['code'] );
+		$this->assertSame( 0, $client->calls );
+
+		// TTL wygasa — shim WP nie mierzy czasu, więc wygaśnięcie modelujemy
+		// zniknięciem wpisu, czyli dokładnie tym, co robi transient w WP.
+		delete_transient( $lock_key );
+		$this->seedMonthRequest( $month );
+		$back = $this->runMonth();
+		$this->assertTrue( $back->success, 'Kalendarz nie wrócił po wygaśnięciu blokady' );
+		$this->assertGreaterThan( 0, $client->calls );
+
+		// TTL musi być SKOŃCZONY i pokrywać najgorszy przebieg: krótszy
+		// zdejmowałby blokadę w trakcie rozstrzygania (wraca amplifikacja),
+		// dłuższy trzymałby kalendarz zamknięty po padzie procesu.
+		$this->assertGreaterThanOrEqual(
+			Avably_Booking_Ajax::MONTH_TIME_BUDGET + Avably_Booking_Api_Client::TIMEOUT_READ,
+			Avably_Booking_Ajax::MONTH_LOCK_TTL
+		);
+		$this->assertLessThanOrEqual( 60, Avably_Booking_Ajax::MONTH_LOCK_TTL );
+	}
+
+	/**
+	 * Wynik KOMPLETNY dostaje pełny TTL — także wtedy, gdy miesiąc jest
+	 * w całości zajęty. To rozróżnienie było wcześniej zepsute: „wszystko
+	 * zajęte" brało krótki TTL, bo algorytm nie odróżniał miesiąca naprawdę
+	 * zarezerwowanego od miesiąca, którego nie zdążył dopytać.
+	 *
+	 * Krótki TTL wyniku CZĘŚCIOWEGO pilnuje test budżetu czasu wyżej.
+	 */
+	public function test_complete_month_result_gets_full_cache_ttl(): void {
+		foreach ( array( 2, 0 ) as $units ) {
+			AvablyTestState::reset();
+			$client                     = new AvablyScriptedRangeClient( static fn (): int => $units );
+			AvablyTestState::$apiClient = $client;
+			$month                      = $this->futureMonth();
+			$this->seedMonthRequest( $month );
+
+			$response = $this->runMonth();
+			$this->assertFalse( $response->payload['partial'], "Miesiąc (dostępność {$units}) uznany za niekompletny" );
+
+			$ttl = null;
+			foreach ( AvablyTestState::$transientTtls as $transient_key => $value ) {
+				if ( str_starts_with( $transient_key, 'avably_bk_m_' ) ) {
+					$ttl = $value;
+				}
+			}
+			$this->assertSame( Avably_Booking_Ajax::MONTH_CACHE_TTL, $ttl, "Kompletny wynik (dostępność {$units}) dostał krótki TTL" );
+		}
 		$this->assertLessThan( Avably_Booking_Ajax::MONTH_CACHE_TTL, Avably_Booking_Ajax::MONTH_DEGRADED_CACHE_TTL );
 	}
 
@@ -581,22 +908,46 @@ final class AjaxAmplificationTest extends TestCase {
 		foreach ( $open as $day => $units ) {
 			$this->assertGreaterThan( 0, $units, "Dzień {$day} błędnie oznaczony jako zajęty" );
 		}
-		$this->assertLessThanOrEqual( Avably_Booking_Ajax::MONTH_API_CALL_BUDGET, $client->calls );
+		$this->assertSame( array(), $response->payload['unresolved'] );
+		$this->assertLessThanOrEqual(
+			Avably_Booking_Ajax::month_call_ceiling( (int) date( 't', strtotime( $month . '-01' ) ) ),
+			$client->calls
+		);
 	}
 
-	/** Żaden transient (klucze i wartości) nie niesie klucza API najemcy. */
+	/**
+	 * Żaden transient (klucze i wartości) nie niesie klucza API najemcy —
+	 * na OBU ścieżkach: kompletnej i częściowej (ta druga zapisuje do cache'u
+	 * inny payload, więc nie jest objęta przez pierwszą).
+	 */
 	public function test_transient_state_carries_no_api_key(): void {
-		$client                     = new AvablyScriptedRangeClient( static fn (): int => 1 );
-		AvablyTestState::$apiClient = $client;
-		$this->seedMonthRequest( $this->futureMonth() );
-		$this->runMonth();
+		AvablySlowClockAjax::$now  = 0.0;
+		AvablySlowClockAjax::$step = 3.0;
 
-		$serialized = (string) json_encode(
-			array(
-				'keys'   => array_keys( AvablyTestState::$transients ),
-				'values' => array_values( array_diff_key( AvablyTestState::$transients, array( 'avably_booking_settings' => 1 ) ) ),
-			)
-		);
-		$this->assertStringNotContainsString( AVABLY_TEST_API_KEY, $serialized );
+		foreach ( array( 'kompletna', 'czesciowa' ) as $path ) {
+			AvablyTestState::reset();
+			$client                     = new AvablyScriptedRangeClient( static fn (): int => 1 );
+			AvablyTestState::$apiClient = $client;
+			$this->seedMonthRequest( $this->futureMonth() );
+			if ( 'kompletna' === $path ) {
+				$this->runMonth();
+			} else {
+				try {
+					AvablySlowClockAjax::handle_month();
+				} catch ( AvablyTestJsonResponse $ignored ) {
+					unset( $ignored );
+				}
+			}
+
+			$serialized = (string) json_encode(
+				array(
+					'keys'   => array_keys( AvablyTestState::$transients ),
+					'values' => array_values( array_diff_key( AvablyTestState::$transients, array( 'avably_booking_settings' => 1 ) ) ),
+				)
+			);
+			$this->assertStringNotContainsString( AVABLY_TEST_API_KEY, $serialized, "Ścieżka {$path}: transient niesie klucz API" );
+			$this->assertStringNotContainsString( 'avbl_', $serialized, "Ścieżka {$path}: transient niesie prefiks klucza" );
+			$this->assertStringNotContainsString( 'api.example.test', $serialized, "Ścieżka {$path}: transient niesie adres API" );
+		}
 	}
 }

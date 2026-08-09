@@ -200,12 +200,20 @@
 				shell.status.textContent = (json && json.data && json.data.message) || i18n.genericError || '';
 				return;
 			}
-			shell.status.textContent = '';
-			paintMonth(shell.grid, json.data.days || {});
+			// Wynik CZĘŚCIOWY: część dni nie dostała odpowiedzi z API (budżet
+			// czasu). Takie dni nie są „zajęte" — pokazujemy je neutralnie
+			// i mówimy wprost, że dostępność jest jeszcze sprawdzana.
+			var unresolved = json.data.unresolved || [];
+			shell.status.textContent = unresolved.length ? (i18n.checking || '') : '';
+			paintMonth(shell.grid, json.data.days || {}, unresolved);
 		});
 	}
 
-	function paintMonth(grid, days) {
+	function paintMonth(grid, days, unresolved) {
+		var pending = {};
+		(unresolved || []).forEach(function (iso) {
+			pending[iso] = true;
+		});
 		var first = new Date(viewYear, viewMonth, 1);
 		var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 		var offset = (first.getDay() + 6) % 7; // Poniedziałek pierwszy.
@@ -223,7 +231,16 @@
 			cell.type = 'button';
 			cell.className = 'avably-cal__day';
 			cell.textContent = String(day);
-			if (iso < todayIso || !(iso in days)) {
+			if (iso < todayIso) {
+				cell.disabled = true;
+				cell.classList.add('avably-cal__day--past');
+			} else if (pending[iso]) {
+				// Nieznane ≠ zajęte. Dzień nie jest klikalny (nie wiemy, czy
+				// jest wolny), ale nie udaje wyniku — wygląd neutralny.
+				cell.disabled = true;
+				cell.classList.add('avably-cal__day--unknown');
+				cell.title = i18n.checking || '';
+			} else if (!(iso in days)) {
 				cell.disabled = true;
 				cell.classList.add('avably-cal__day--past');
 			} else if (days[iso] > 0) {

@@ -166,6 +166,14 @@
 	background: rgba(179, 45, 46, 0.15);
 }
 
+/* Dzień bez odpowiedzi z API: neutralny, nieklikalny, WIZUALNIE INNY niż
+   zajęty (czerwony) — kalendarz nie zgaduje za odwiedzającego. */
+.avably-cal__day--unknown {
+	border-style: dashed;
+	opacity: 0.55;
+	cursor: progress;
+}
+
 .avably-cal__day--free {
 	background: rgba(30, 126, 52, 0.12);
 }
