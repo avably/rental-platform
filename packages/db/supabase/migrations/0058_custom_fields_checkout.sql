@@ -111,6 +111,17 @@ grant execute on function app.get_public_custom_fields(uuid) to anon, authentica
 -- (jako właściciel). Wystawienie jej anonowi zamieniłoby ją w dokładnie tę
 -- wyrocznię, przed którą broni — pytanie „czy id X jest u was polem
 -- zamawiania" dostawałoby odpowiedź TAK/NIE.
+--
+-- CO W TEJ BRAMCE JEST NOŚNE, A CO POWTÓRZONE (znalezisko dowodu mutacyjnego).
+-- Nośny jest WYŁĄCZNIE warunek `show_in_checkout`: powierzchni nie zna żaden
+-- inny mechanizm, więc jego zdjęcie natychmiast otwiera zapis do pól
+-- oznaczonych tylko „panel" (dowód: mutacja pali sondę „pole BEZ flagi
+-- zamawianie"). Warunki `tenant_id`, `entity` i `archived_at` są POWTÓRZENIEM
+-- filtrów triggera 0057 — ich zdjęcie NIE pali żadnego testu, bo trigger i tak
+-- odrzuca zapis. Zostają świadomie, z dwóch powodów: odmowa pada ZANIM
+-- funkcja tknie klienta i wycenę (taniej i bez pracy do wycofania), a wszystkie
+-- cztery przyczyny dają wtedy JEDEN komunikat zamiast dwóch różnych z dwóch
+-- warstw. To jest defence-in-depth, nie druga bramka — i tak ma być czytane.
 
 create or replace function app.assert_checkout_custom_fields(
   p_tenant_id uuid,
