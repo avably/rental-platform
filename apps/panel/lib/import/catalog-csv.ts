@@ -138,13 +138,28 @@ const INT_RE = /^[0-9]+$/;
 const DECIMAL_RE = /^[0-9]+(\.[0-9]+)?$/;
 
 /**
+ * Czy wartość to CIĄG apostrofów (≥1) zakończony znakiem formuły — `'=x`,
+ * `''=x`, … Lustrzane do hasFormulaPrefix() eksportu, ale z wymogiem ≥1
+ * apostrofa: goły trigger bez apostrofa (plik spoza eksportu) NIE jest
+ * neutralizacją i nie wolno mu niczego zdejmować.
+ */
+function hasNeutralizedFormulaPrefix(value: string): boolean {
+  if (value.length < 2 || value[0] !== "'") return false;
+  let i = 0;
+  while (i < value.length && value[i] === "'") i += 1;
+  return i < value.length && FORMULA_TRIGGERS.has(value[i]!);
+}
+
+/**
  * Zdejmuje DOKŁADNIE jeden wiodący apostrof neutralizacji formuł.
  * Lustrzane do neutralizeFormula() eksportu; nic poza tym nie zmienia.
+ *
+ * Zdejmujemy tylko apostrof z CIĄGU apostrofów przed triggerem — więc `''=x`
+ * (eksport wartości `'=x`) wraca do `'=x`, a `'zwykły apostrof` zostaje
+ * nietknięty (po apostrofie nie ma triggera).
  */
 function stripFormulaApostrophe(value: string): string {
-  return value.length > 1 && value[0] === "'" && FORMULA_TRIGGERS.has(value[1])
-    ? value.slice(1)
-    : value;
+  return hasNeutralizedFormulaPrefix(value) ? value.slice(1) : value;
 }
 
 /**
@@ -403,9 +418,13 @@ export function parseCatalogCsv(
     // Wartości pól własnych: ten sam parser, którym czyta je formularz panelu
     // i checkout sklepu (`parseCustomFieldInput` z rdzenia) — arkusz nie jest
     // furtką do wartości, których nie przyjęłaby żadna inna powierzchnia.
+    //
+    // Checkbox w trybie LITERAL: komórka jest jawnym napisem, więc `TRUE`
+    // z Excela EN daje `true`, a śmieć — błąd wiersza (badCustomField), zamiast
+    // cichego `false` na round-tripie eksport→import.
     const customFields: CustomFieldValues = {};
     for (const { column, definition } of customFieldColumns) {
-      const parsed = parseCustomFieldInput(definition, raw(column));
+      const parsed = parseCustomFieldInput(definition, raw(column), { checkbox: "literal" });
       if (parsed.issue) {
         rowIssues.push({ row: rowNumber, code: "badCustomField", column, value: raw(column).trim() });
         continue;

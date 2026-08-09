@@ -138,20 +138,39 @@ export function readCheckoutCustomFields(
   const raw = input ?? {};
 
   for (const definition of fillable) {
-    const value = Object.hasOwn(raw, definition.id) ? raw[definition.id] : undefined;
+    // KLUCZ NIEOBECNY = wartość nie dostarczona. NIC z tego nie syntetyzujemy —
+    // w szczególności checkbox bez klucza NIE jest deklaracją `false`. Baza
+    // scala mapę KLIENTA (0058, operator `||`), więc `false` spoza żądania
+    // zerowałby checkbox stałego klienta ustawiony w panelu przy KAŻDEJ jego
+    // rezerwacji, wbrew własnej deklaracji kontraktu „scala, nie nadpisuje".
+    if (!Object.hasOwn(raw, definition.id)) continue;
+    const value = raw[definition.id];
 
     // Wartość TYPOWANA (konsument JSON-owy) idzie dalej bez tłumaczenia —
     // sprawdzi ją `validateCustomFieldValues` niżej, tą samą regułą co trigger.
+    // Także jawne `false` z maszyny: konsument, który CHCE zapisać `false`,
+    // wysyła boolean, a nie pomija klucz.
     if (typeof value === "number" || typeof value === "boolean") {
       values[definition.id] = value;
       continue;
     }
 
-    // Wartość STRINGOWA (formularz, wtyczka WordPress) i BRAK wartości idą
-    // przez parser rdzenia: on wie, że pusty wpis znaczy „brak klucza",
-    // a brak checkboksa znaczy `false`, a nie „pole pominięte".
-    if (typeof value === "string" || value === undefined || value === null) {
-      const parsed = parseCustomFieldInput(definition, typeof value === "string" ? value : null);
+    // JSON `null` = brak wartości, jak brak klucza.
+    if (value === null) continue;
+
+    if (typeof value === "string") {
+      if (definition.type === "checkbox") {
+        // Checkbox ze STRINGA (formularz sklepu, embed, wtyczka) zapisujemy
+        // TYLKO przy afirmatywnym zaznaczeniu. Pusty string albo „off" to
+        // niezaznaczone pole HTML — nie deklaracja `false` (patrz komentarz
+        // o scalaniu wyżej). Embed wysyła KAŻDY klucz jako "", więc bez tej
+        // gałęzi zerowałby checkbox klienta tak samo jak API v1.
+        if (parseCustomFieldInput(definition, value).value === true) {
+          values[definition.id] = true;
+        }
+        continue;
+      }
+      const parsed = parseCustomFieldInput(definition, value);
       if (parsed.issue) {
         issues[definition.id] = parsed.issue;
         continue;

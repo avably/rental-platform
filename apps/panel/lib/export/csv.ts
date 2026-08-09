@@ -35,9 +35,29 @@ const FORMULA_TRIGGERS = new Set(["=", "+", "-", "@", "\t", "\r"]);
 
 export type CsvValue = string | number | boolean | null | undefined;
 
-/** Pole zaczynające się znakiem formuły dostaje apostrof — Excel pokaże tekst. */
+/**
+ * Czy wartość zaczyna się od CIĄGU apostrofów (0+) zakończonego znakiem formuły
+ * — czyli `=x`, `'=x`, `''=x`, … (ale nie `'zwykły`, gdzie po apostrofie nie ma
+ * triggera). To jest dokładnie zbiór, który import (`stripFormulaApostrophe`)
+ * odneutralizuje, więc eskapując go symetrycznie trzymamy round-trip bajt
+ * w bajt.
+ */
+function hasFormulaPrefix(value: string): boolean {
+  let i = 0;
+  while (i < value.length && value[i] === "'") i += 1;
+  return i < value.length && FORMULA_TRIGGERS.has(value[i]!);
+}
+
+/**
+ * Pole zaczynające się znakiem formuły dostaje apostrof — Excel pokaże tekst.
+ *
+ * Apostrof dokładamy TAKŻE wartości `'=x`: import zdejmuje jeden apostrof
+ * stojący przed triggerem, więc bez podwojenia (`'=x` → `''=x`) round-trip
+ * zjadał wiodący apostrof danych (`'=stan` wracał jako `=stan`). Podwojenie jest
+ * ściśle odwrotne do zdejmowania.
+ */
 export function neutralizeFormula(value: string): string {
-  return value.length > 0 && FORMULA_TRIGGERS.has(value[0]) ? `'${value}` : value;
+  return hasFormulaPrefix(value) ? `'${value}` : value;
 }
 
 function encodeField(value: CsvValue): string {

@@ -23,6 +23,8 @@
  */
 import { describe, expect, it } from "vitest";
 
+import type { CustomFieldDefinition } from "@avably/core";
+
 import { buildCsv, CSV_BOM } from "@/lib/export/csv";
 import { CATALOG_CSV_HEADER } from "@/lib/export/catalog";
 import {
@@ -167,14 +169,97 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
       expect(result.products[0].name).toBe("'zwykły apostrof");
     });
 
-    it("podwójny apostrof zostaje nietknięty — zdejmujemy TYLKO apostrof stojący bezpośrednio przed znakiem formuły (odwrotność eksportu)", () => {
-      // Eksport wartości `''=formuła` niczego nie dokleja (pierwszy znak to
-      // apostrof, nie trigger) — więc import też nie ma czego zdejmować.
+    it("wiodący apostrof PRZED triggerem round-tripuje bez utraty (#9)", () => {
+      // Wartość zapisana `'=stan` była zjadana: eksport nic nie doklejał, a import
+      // zdejmował apostrof → wracało `=stan`. Teraz eksport podwaja apostrof
+      // (`'=stan` → `''=stan`), a import zdejmuje DOKŁADNIE jeden — bajt w bajt.
+      const name = "'=stan";
+      const csv = buildCsv(CATALOG_CSV_HEADER, [
+        [UUID_A, name, null, 10000, 5000, 1, 1, 1, true, null, null, null, null],
+      ]);
+      // Eksport podwoił apostrof stojący przed triggerem.
+      expect(csv).toContain("''=stan");
+      const result = parseCatalogCsv(csv, []);
+      expect(result.issues).toEqual([]);
+      expect(result.products[0].name).toBe(name);
+    });
+
+    it("apostrof przed NIE-triggerem zostaje nietknięty (bez nadmiarowego escape)", () => {
+      // `'zwykły` (apostrof + litera) nie jest neutralizacją: eksport nic nie
+      // dokleja, import nic nie zdejmuje.
       const result = parseCatalogCsv(
-        csvOf(row({ ...BASE_FIELDS, name: "''=formuła", product_id: UUID_A })),
+        csvOf(row({ ...BASE_FIELDS, name: "'zwykły apostrof", product_id: UUID_A })),
         [],
       );
-      expect(result.products[0].name).toBe("''=formuła");
+      expect(result.products[0].name).toBe("'zwykły apostrof");
+    });
+  });
+
+  describe("pola własne: checkbox z komórki CSV (#1)", () => {
+    const CF_CHECK = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+    function checkboxDefinition(): CustomFieldDefinition {
+      return {
+        id: CF_CHECK,
+        entity: "product",
+        type: "checkbox",
+        label: "Dostępny",
+        helpText: null,
+        required: false,
+        options: [],
+        position: 0,
+        showInPanel: true,
+        showInCheckout: false,
+        showInContract: false,
+        archivedAt: null,
+        createdAt: "2026-01-01T00:00:00Z",
+      };
+    }
+
+    function csvWithCheckbox(cell: string): string {
+      const header = `${HEADER};cf_${CF_CHECK}`;
+      const dataRow = `${row({ ...BASE_FIELDS, product_id: UUID_A })};${cell}`;
+      return `${CSV_BOM}${[header, dataRow].join("\r\n")}\r\n`;
+    }
+
+    it("`TRUE` z Excela EN daje `true`, NIE ciche `false` (dowód a)", () => {
+      // Round-trip eksport→otwarcie w Excelu EN→zapis zamienia `true` na `TRUE`.
+      // Case-sensitive porównanie odwracało to na `false` bez jednego błędu.
+      const result = parseCatalogCsv(csvWithCheckbox("TRUE"), [checkboxDefinition()]);
+      expect(result.issues).toEqual([]);
+      expect(result.products[0].customFields[CF_CHECK]).toBe(true);
+    });
+
+    it("`FALSE`/`0`/`nie` dają `false`, `1`/`tak` dają `true` (case-insensitive)", () => {
+      for (const [cell, expected] of [
+        ["FALSE", false],
+        ["0", false],
+        ["nie", false],
+        ["1", true],
+        ["tak", true],
+        ["True", true],
+      ] as const) {
+        const result = parseCatalogCsv(csvWithCheckbox(cell), [checkboxDefinition()]);
+        expect(result.issues, `komórka ${cell}`).toEqual([]);
+        expect(result.products[0].customFields[CF_CHECK], `komórka ${cell}`).toBe(expected);
+      }
+    });
+
+    it("nierozpoznana wartość to BŁĄD WIERSZA, nie ciche `false`", () => {
+      const result = parseCatalogCsv(csvWithCheckbox("moze"), [checkboxDefinition()]);
+      expect(result.products).toEqual([]);
+      expect(result.issues).toContainEqual({
+        row: 2,
+        code: "badCustomField",
+        column: `cf_${CF_CHECK}`,
+        value: "moze",
+      });
+    });
+
+    it("pusta komórka checkboxa = brak klucza (jak każdy inny typ), nie `false`", () => {
+      const result = parseCatalogCsv(csvWithCheckbox(""), [checkboxDefinition()]);
+      expect(result.issues).toEqual([]);
+      expect(Object.hasOwn(result.products[0].customFields, CF_CHECK)).toBe(false);
     });
   });
 

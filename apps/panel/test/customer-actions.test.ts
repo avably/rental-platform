@@ -32,7 +32,12 @@ interface BuilderCalls {
  */
 function makeSupabase(
   result: { data: unknown; error: unknown },
-  options: { definitions?: unknown[]; existing?: Record<string, unknown> | null } = {},
+  options: {
+    definitions?: unknown[];
+    existing?: Record<string, unknown> | null;
+    /** Symuluje błąd transportu przy ODCZYCIE wiersza (maybeSingle). */
+    readError?: unknown;
+  } = {},
 ) {
   const calls: BuilderCalls = { from: null, update: null, eqs: [], select: null };
 
@@ -54,6 +59,7 @@ function makeSupabase(
         return builder;
       },
       maybeSingle() {
+        if (options.readError) return Promise.resolve({ data: null, error: options.readError });
         return Promise.resolve({ data: { custom_fields: options.existing ?? null }, error: null });
       },
       then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
@@ -228,6 +234,23 @@ describe("updateCustomerAction", () => {
     expect(calls.update).toMatchObject({
       custom_fields: { [PANEL_FIELD]: "UP/2026/1", [CHECKOUT_ONLY]: "z plakatu" },
     });
+  });
+
+  it("błąd odczytu custom_fields ZAMYKA ścieżkę — nie zapisuje mapy spoza wiersza (#4)", async () => {
+    // Chwilowy błąd odczytu + udany UPDATE dałby `existing={}` i wyzerował
+    // wartości checkoutowe/zarchiwizowane — cicho, z „zapisano". Bramka
+    // `if (error || !current)` musi zamknąć ścieżkę PRZED zapisem.
+    const { supabase, calls } = makeSupabase(
+      { data: [{ id: CUSTOMER }], error: null },
+      { readError: { code: "57014", message: "canceling statement due to statement timeout" } },
+    );
+    requireMember.mockResolvedValue({ supabase, tenantId: TENANT });
+
+    const state = await updateCustomerAction(CUSTOMER, {}, form(VALID));
+
+    expect(state.success).toBeUndefined();
+    expect(state.formError).toBeTruthy();
+    expect(calls.update, "UPDATE ruszył mimo błędu odczytu — ryzyko wyzerowania").toBeNull();
   });
 
   it("niepoprawny identyfikator klienta jest odrzucony przed autoryzacją", async () => {

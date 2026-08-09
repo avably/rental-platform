@@ -268,11 +268,37 @@ describe("mapowanie SQLSTATE na status", () => {
     expect(result).toEqual({ status: "rejected" });
   });
 
+  it("23514 (naruszenie CHECK-a pól własnych po scaleniu) → rejected, nie server_error (#7)", async () => {
+    // Osiągalne przez scalenie mapy klienta w app.public_checkout: zła wartość,
+    // za długa, opcja spoza listy albo 8192 B na mapie. To odmowa DANYCH klienta
+    // (422), nie awaria serwera (500).
+    const result = await submitCheckoutCore(VALID_INPUT, deps({ callRpc: rpcThrowing("23514") }));
+    expect(result).toEqual({ status: "rejected" });
+  });
+
   it("nieznany błąd → server_error, bez wycieku treści błędu bazy", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await submitCheckoutCore(VALID_INPUT, deps({ callRpc: rpcThrowing() }));
     expect(result).toEqual({ status: "server_error" });
     expect(JSON.stringify(result)).not.toContain("klient@example.com");
+    consoleError.mockRestore();
+  });
+});
+
+describe("odczyt definicji pól własnych — fail-closed (#3)", () => {
+  it("błąd odczytu definicji ZAMYKA ścieżkę (server_error), a RPC NIE jest wołane", async () => {
+    // getPublicCustomFields RZUCA na błąd transportu (0058): błąd ≠ „brak pól".
+    // Bez tego chwilowy blip zdejmowałby wymagalność i przepuszczał zamówienie
+    // bez pola oznaczonego jako WYMAGANE. Fail-closed: odmowa, nie ciche {}.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const callRpc = vi.fn(async () => RPC_RESULT);
+    const readCustomFields = vi.fn(async () => {
+      throw new Error("Odczyt definicji pól własnych nie powiódł się (57014).");
+    });
+    const result = await submitCheckoutCore(VALID_INPUT, deps({ callRpc, readCustomFields }));
+
+    expect(result).toEqual({ status: "server_error" });
+    expect(callRpc, "zamówienie dotarło do bazy mimo nieznanej wymagalności").not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 });

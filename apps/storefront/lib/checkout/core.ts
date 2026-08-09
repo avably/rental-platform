@@ -222,7 +222,19 @@ export async function submitCheckoutCore(
   // (widoczność) i trigger 0057 (zgodność) — surowe żądanie do API v1
   // z wartością niezgodną z definicją odbija się o bazę także wtedy, gdyby
   // tej linijki tu nie było.
-  const customFields = readCheckoutCustomFields(await deps.readCustomFields(), data.customFields);
+  // Odczyt definicji MUSI się udać, żeby stwierdzić, czy najemca ma pole
+  // WYMAGANE. Błąd transportu (getPublicCustomFields RZUCA na błąd, 0058) to
+  // NIE „brak pól" — to niewiedza. Fail-closed: zamykamy ścieżkę (server_error),
+  // zamiast przepuścić zamówienie, które być może łamie wymagalność. RPC nie
+  // jest wołane.
+  let definitions: CustomFieldDefinition[];
+  try {
+    definitions = await deps.readCustomFields();
+  } catch (error) {
+    console.error("[checkout] odczyt definicji pól własnych nie powiódł się", error);
+    return { status: "server_error" };
+  }
+  const customFields = readCheckoutCustomFields(definitions, data.customFields);
   if (Object.keys(customFields.fields).length > 0) {
     return { status: "validation_error", fields: customFields.fields };
   }
@@ -284,10 +296,13 @@ export async function submitCheckoutCore(
     const code = (error as CheckoutRpcError).code;
     // 23P01 = egzemplarz zajęty (wyścig / nieaktualny koszyk) → LP odświeża
     // dostępność. 22023 = odmowa walidacyjna serwera (tenant nieaktywny, zła
-    // metoda dostawy, produkt zniknął) → ogólny błąd. Reszta → server_error.
+    // metoda dostawy, produkt zniknął). 23514 = naruszenie CHECK-a przy zapisie
+    // pól własnych PO SCALENIU mapy klienta (zły typ, za długa wartość, opcja
+    // spoza listy, 8192 B na mapie) — to odmowa danych klienta, nie awaria
+    // serwera, więc jak 22023 → rejected (422 w API v1). Reszta → server_error.
     // Treść błędu bazy zostaje w logu serwera; do klienta idzie sam status.
     if (code === "23P01") return { status: "unavailable" };
-    if (code === "22023") return { status: "rejected" };
+    if (code === "22023" || code === "23514") return { status: "rejected" };
     console.error("[checkout] RPC nie powiódł się", error);
     return { status: "server_error" };
   }

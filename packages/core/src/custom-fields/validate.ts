@@ -457,6 +457,26 @@ export function validateCustomFieldValues(
   return { values: clean, issues };
 }
 
+/** Rozpoznane napisy checkboxa w źródle LITERALNYM (komórka CSV). */
+const CHECKBOX_LITERAL_TRUE = new Set(["true", "1", "on", "yes", "tak"]);
+const CHECKBOX_LITERAL_FALSE = new Set(["false", "0", "off", "no", "nie"]);
+
+/** Skąd pochodzi surowa wartość — decyduje o interpretacji checkboxa. */
+export interface ParseCustomFieldInputOptions {
+  /**
+   * `formData` (domyślnie): źródło FORMULARZOWE (checkout, panel, wtyczka).
+   * Niezaznaczony checkbox nie przychodzi w `FormData` w ogóle, więc brak wpisu
+   * i każda wartość spoza `on/true/1` znaczy `false`.
+   *
+   * `literal`: źródło LITERALNE (komórka CSV). Wartość jest JAWNYM napisem, nie
+   * obecnością/brakiem kontrolki — więc `TRUE` z Excela EN musi zostać `true`,
+   * a nierozpoznany śmieć BŁĘDEM WIERSZA (jak kolumna `active`), nie cichym
+   * `false`. Inaczej round-trip eksport→otwarcie w Excelu→import odwracał
+   * `true→false` bez jednego błędu.
+   */
+  checkbox?: "formData" | "literal";
+}
+
 /**
  * Zamiana surowego wejścia formularza (zawsze string albo brak) na wartość
  * TYPOWANĄ. Pusty wpis daje `undefined` — czyli klucz NIE TRAFIA do mapy.
@@ -466,8 +486,19 @@ export function validateCustomFieldValues(
 export function parseCustomFieldInput(
   definition: CustomFieldDefinition,
   raw: string | null | undefined,
+  options: ParseCustomFieldInputOptions = {},
 ): { value?: CustomFieldValue; issue?: CustomFieldIssue } {
   if (definition.type === "checkbox") {
+    if (options.checkbox === "literal") {
+      // Komórka CSV: trim+lowercase, rozpoznaj kanoniczny zbiór, a nieznane
+      // odrzuć jako błąd wiersza. Pustka = brak klucza (jak każdy inny typ),
+      // nie `false`.
+      const text = (raw ?? "").trim().toLowerCase();
+      if (text === "") return {};
+      if (CHECKBOX_LITERAL_TRUE.has(text)) return { value: true };
+      if (CHECKBOX_LITERAL_FALSE.has(text)) return { value: false };
+      return { issue: "type" };
+    }
     // Niezaznaczony checkbox nie przychodzi w `FormData` w ogóle — brak wpisu
     // znaczy `false`, a nie „pole pominięte".
     return { value: raw === "on" || raw === "true" || raw === "1" };
