@@ -159,12 +159,63 @@ beforeEach(() => {
 /* ------------------------------------------------------------------ */
 
 describe("embed — bramka origin (CORS jako kontrakt)", () => {
-  it("rozstrzygnięcie: swój origin przechodzi, obcy nie, brak nagłówka to ODMOWA", () => {
+  it("rozstrzygnięcie: swój origin przechodzi, obcy nie, brak obu sygnałów to ODMOWA", () => {
     expect(decideEmbedOrigin(SAME_ORIGIN, HOST)).toEqual({ allowed: true });
     expect(decideEmbedOrigin(FOREIGN_ORIGIN, HOST)).toEqual({ allowed: false, reason: "foreign" });
     expect(decideEmbedOrigin(null, HOST)).toEqual({ allowed: false, reason: "missing" });
     expect(decideEmbedOrigin("null", HOST)).toEqual({ allowed: false, reason: "malformed" });
     expect(decideEmbedOrigin("nie-jest-adresem", HOST)).toEqual({ allowed: false, reason: "malformed" });
+  });
+
+  /**
+   * Ta grupa istnieje przez BŁĄD ZŁAPANY NA ŻYWEJ STRONIE-GOSPODARZU:
+   * przeglądarka pomija `Origin` przy same-origin GET, więc reguła „brak
+   * Origin = odmowa" odbijała odczyty naszej własnej ramki (403 w logu
+   * serwera, kalendarz stojący na „sprawdzanie dostępności").
+   */
+  it("same-origin GET NIE MA nagłówka Origin — rozstrzyga Sec-Fetch-Site", () => {
+    expect(decideEmbedOrigin(null, HOST, "same-origin")).toEqual({ allowed: true });
+    expect(decideEmbedOrigin(null, HOST, "cross-site")).toEqual({ allowed: false, reason: "missing" });
+    expect(decideEmbedOrigin(null, HOST, "same-site")).toEqual({ allowed: false, reason: "missing" });
+    expect(decideEmbedOrigin(null, HOST, "none")).toEqual({ allowed: false, reason: "missing" });
+    expect(decideEmbedOrigin(null, HOST, null)).toEqual({ allowed: false, reason: "missing" });
+  });
+
+  it("Sec-Fetch-Site NIE RATUJE obcego Origin — pierwszy sygnał rozstrzyga", () => {
+    expect(decideEmbedOrigin(FOREIGN_ORIGIN, HOST, "same-origin")).toEqual({
+      allowed: false,
+      reason: "foreign",
+    });
+    expect(decideEmbedOrigin("nie-jest-adresem", HOST, "same-origin")).toEqual({
+      allowed: false,
+      reason: "malformed",
+    });
+  });
+
+  it("ODCZYT z naszej ramki (GET bez Origin, Sec-Fetch-Site: same-origin) przechodzi", async () => {
+    const c = counters();
+    const response = await handleEmbedMonthRequest(
+      monthReq(`product=${PRODUCT_A}&month=2026-09`, { "sec-fetch-site": "same-origin" }),
+      monthDeps(c),
+    );
+
+    expect(response.status).toBe(200);
+    expect(c.probe).toBeGreaterThan(0);
+  });
+
+  it("ODCZYT cross-site (GET z Sec-Fetch-Site: cross-site) → 403, zero pracy", async () => {
+    const c = counters();
+    const response = await handleEmbedMonthRequest(
+      monthReq(`product=${PRODUCT_A}&month=2026-09`, {
+        origin: FOREIGN_ORIGIN,
+        "sec-fetch-site": "cross-site",
+      }),
+      monthDeps(c),
+    );
+
+    expect(response.status).toBe(403);
+    expect(c.probe).toBe(0);
+    expect(c.rateLimit).toEqual([]);
   });
 
   it("origin z DOKLEJONĄ ścieżką nie udaje swojego (Origin nigdy nie ma ścieżki)", () => {

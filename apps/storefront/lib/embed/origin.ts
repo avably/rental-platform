@@ -23,10 +23,24 @@
  * warstwą higieny przeglądarkowej i deklaracją kontraktu, nie uwierzytelnieniem —
  * i tak jest opisana w ADR.
  *
- * DENY-BY-DEFAULT: brak nagłówka `Origin` to ODMOWA, nie przepustka. `fetch`
- * z metodą POST wysyła `Origin` zawsze (także same-origin), a nasz front woła
- * obie trasy przez `fetch` — więc „bez origin" nie jest przypadkiem naszego
- * klienta i nie ma powodu go wpuszczać.
+ * DWA SYGNAŁY, BO `Origin` NIE WYSTARCZA — i to jest lekcja z żywej strony,
+ * nie teoria. Przeglądarka wysyła `Origin` na KAŻDYM żądaniu cross-origin
+ * (także GET) oraz na każdym POST, ale POMIJA go przy same-origin GET. Sama
+ * reguła „brak Origin = odmowa" odbijała więc odczyty NASZEJ WŁASNEJ ramki —
+ * kalendarz stał na „sprawdzanie dostępności", a serwer logował 403.
+ *
+ * Rozstrzygnięcie:
+ *   1. `Origin` obecny  → MUSI zgadzać się z hostem. Obcy = odmowa, koniec.
+ *      (Ten warunek jest pierwszy, więc obce źródło nie prześlizgnie się,
+ *      dokładając sobie `Sec-Fetch-Site`.)
+ *   2. `Origin` nieobecny → `Sec-Fetch-Site` MUSI brzmieć `same-origin`.
+ *      Ten nagłówek ustawia wyłącznie przeglądarka i kod strony nie ma jak go
+ *      podrobić (`Origin` i `Sec-Fetch-*` są na liście nagłówków zabronionych).
+ *   3. Żaden z dwóch → ODMOWA. Deny-by-default zostaje.
+ *
+ * Koszt: klient bez `Sec-Fetch-*` i bez `Origin` (przeglądarki sprzed ~2020,
+ * Safari sprzed 16.4) nie obsłuży embedu. Przyjęte świadomie — alternatywą
+ * było wpuszczanie żądań, o których nie wiemy nic.
  */
 
 /** Wynik rozstrzygnięcia — rozdzielony od odpowiedzi HTTP, żeby dało się go testować bez Response. */
@@ -61,23 +75,28 @@ function authorityOfOrigin(rawOrigin: string): string | null {
 export function decideEmbedOrigin(
   originHeader: string | null,
   hostHeader: string | null,
+  fetchSiteHeader: string | null = null,
 ): OriginDecision {
-  if (originHeader === null || originHeader === "") {
-    return { allowed: false, reason: "missing" };
-  }
-  const origin = authorityOfOrigin(originHeader);
-  if (origin === null) return { allowed: false, reason: "malformed" };
-
   const host = (hostHeader ?? "").trim().toLowerCase();
-  if (host === "") return { allowed: false, reason: "foreign" };
 
-  return origin === host ? { allowed: true } : { allowed: false, reason: "foreign" };
+  if (originHeader !== null && originHeader !== "") {
+    const origin = authorityOfOrigin(originHeader);
+    if (origin === null) return { allowed: false, reason: "malformed" };
+    if (host === "") return { allowed: false, reason: "foreign" };
+    return origin === host ? { allowed: true } : { allowed: false, reason: "foreign" };
+  }
+
+  // Brak Origin — jedyny legalny przypadek to same-origin GET z naszej ramki.
+  if (fetchSiteHeader === "same-origin") return { allowed: true };
+
+  return { allowed: false, reason: "missing" };
 }
 
-/** Skrót dla route handlerów — czyta oba nagłówki z żądania. */
+/** Skrót dla route handlerów — czyta komplet nagłówków rozstrzygających. */
 export function embedOriginAllowed(request: Request): boolean {
   return decideEmbedOrigin(
     request.headers.get("origin"),
     request.headers.get("host"),
+    request.headers.get("sec-fetch-site"),
   ).allowed;
 }
