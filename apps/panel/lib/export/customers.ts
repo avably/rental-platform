@@ -12,6 +12,8 @@
  * `orders_count` liczy baza (agregat osadzony PostgREST `orders(count)`) —
  * zero dociągania wierszy zamówień tylko po to, żeby je policzyć w pamięci.
  */
+import { customFieldValuesFromColumn } from "@avably/core";
+
 import { AuthError } from "@/lib/auth";
 
 import { buildCsv, type CsvValue } from "./csv";
@@ -21,6 +23,11 @@ import {
   type ExportContext,
   type ExportFile,
 } from "./common";
+import {
+  customFieldCells,
+  customFieldHeader,
+  loadExportCustomFields,
+} from "./custom-fields";
 
 export const CUSTOMERS_CSV_HEADER = [
   "email",
@@ -37,6 +44,7 @@ export const CUSTOMERS_CSV_HEADER = [
 ] as const;
 
 interface CustomerExportRow {
+  custom_fields: unknown;
   email: string;
   full_name: string | null;
   phone: string | null;
@@ -57,11 +65,17 @@ export async function exportCustomersCsv(ctx: ExportContext): Promise<ExportFile
     throw new AuthError(403, "Eksport klientów jest dostępny wyłącznie dla właściciela.");
   }
 
+  // Klienci nie mają importu — zrzut jest kompletny, także o definicje
+  // zarchiwizowane (patrz nagłówek lib/export/custom-fields.ts).
+  const customFields = await loadExportCustomFields(ctx.supabase, ctx.tenantId, "customer", {
+    includeArchived: true,
+  });
+
   const rows = await fetchAllPages<CustomerExportRow>(async (from, to) => {
     const { data, error } = await ctx.supabase
       .from("customers")
       .select(
-        "email, full_name, phone, company_name, nip, address_street, address_zip, address_city, locale, created_at, orders(count)",
+        "email, full_name, phone, company_name, nip, address_street, address_zip, address_city, locale, created_at, custom_fields, orders(count)",
       )
       .eq("tenant_id", ctx.tenantId)
       .order("created_at", { ascending: true })
@@ -83,7 +97,11 @@ export async function exportCustomersCsv(ctx: ExportContext): Promise<ExportFile
     row.locale,
     row.orders?.[0]?.count ?? 0,
     row.created_at,
+    ...customFieldCells(customFields, customFieldValuesFromColumn(row.custom_fields)),
   ]);
 
-  return { filename: exportFilename("customers"), csv: buildCsv(CUSTOMERS_CSV_HEADER, csvRows) };
+  return {
+    filename: exportFilename("customers"),
+    csv: buildCsv([...CUSTOMERS_CSV_HEADER, ...customFieldHeader(customFields)], csvRows),
+  };
 }

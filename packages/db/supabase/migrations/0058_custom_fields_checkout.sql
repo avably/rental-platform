@@ -909,4 +909,156 @@ grant execute on function app.public_checkout(uuid, text, text, text, date, date
 comment on function app.public_checkout(uuid, text, text, text, date, date, text, uuid, jsonb, text, text, text, text, text, text, text, text, text, jsonb, jsonb) is
   'Jedyna publiczna ścieżka powstania zamówienia (ADR-042): wycena SERWEROWA, przypisanie wolnych egzemplarzy, throttle w bazie, ban-lista (ADR-080), wybór metody płatności (0029) i waluta z wiersza zamówienia (0049). [0058] Przyjmuje wartości pól własnych w DWÓCH mapach (zamówienie, klient) — encję wybiera definicja, nie wołający. Widoczności („zamawianie") pilnuje app.assert_checkout_custom_fields PRZED jakimkolwiek zapisem; zgodności z definicją — trigger 0057, ten sam co dla panelu. Mapa klienta jest SCALANA operatorem ||, nie nadpisywana: stały klient panelu ma na wierszu wartości pod polami, których sklep nie pokazuje. SECURITY DEFINER, grant anon.';
 
+-- ---------------------------------------------------------------------
+-- 5. app.import_catalog — redefinicja: pola własne w formacie wymiany
+-- ---------------------------------------------------------------------
+--
+-- create or replace W CAŁOŚCI (kopia 0055). SYGNATURA NIETKNIĘTA — dane pól
+-- własnych jadą WEWNĄTRZ wiersza (`custom_fields`, `custom_field_columns`),
+-- więc nie ma drugiego wariantu funkcji do usunięcia ani grantów do
+-- odtwarzania. Różnice merytoryczne oznaczone [0058].
+
+create or replace function app.import_catalog(p_rows jsonb)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = pg_catalog, public, app
+as $$
+declare
+  v_tenant uuid := app.tenant_id();
+  v_created int := 0;
+  v_updated int := 0;
+  v_tiers int := 0;
+  v_row jsonb;
+  v_tier jsonb;
+  v_product_id uuid;
+  v_existing uuid;
+  -- [0058] Pola własne produktu: wartości z pliku oraz LISTA KOLUMN, które
+  -- plik obejmuje. Dwie rzeczy, nie jedna — patrz komentarz przy zapisie.
+  v_cf jsonb;
+  v_cf_cols text[];
+begin
+  if v_tenant is null then
+    raise exception 'Brak kontekstu najemcy.' using errcode = '42501';
+  end if;
+
+  if p_rows is null or jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) = 0 then
+    raise exception 'Import wymaga co najmniej jednego produktu.' using errcode = '22023';
+  end if;
+
+  -- Siostra limitu eksportu (ADR-111/112): jawna odmowa, nigdy cichy obcinek.
+  if jsonb_array_length(p_rows) > 10000 then
+    raise exception 'Import przekracza limit 10000 wierszy.' using errcode = '22023';
+  end if;
+
+  for v_row in select value from jsonb_array_elements(p_rows) loop
+    v_product_id := nullif(v_row ->> 'product_id', '')::uuid;
+
+    if v_row -> 'tiers' is not null and jsonb_typeof(v_row -> 'tiers') <> 'array' then
+      raise exception 'Pole tiers musi być tablicą.' using errcode = '22023';
+    end if;
+
+    -- [0058] --- POLA WŁASNE PRODUKTU (C6-A3, ADR-121) ---
+    --
+    -- `custom_fields` to wartości z pliku; `custom_field_columns` to zbiór
+    -- definicji, dla których plik JEST AUTORYTATYWNY. Rozdzielenie ich jest
+    -- konieczne, bo pusta komórka i brak kolumny znaczą co innego: pierwsze
+    -- to „operator wyczyścił pole", drugie to „plik o tym polu nic nie mówi".
+    -- Bez tej różnicy import katalogu wyeksportowanego przed dodaniem pola
+    -- kasowałby wartości, których nawet nie widział.
+    v_cf := coalesce(v_row -> 'custom_fields', '{}'::jsonb);
+    if jsonb_typeof(v_cf) <> 'object' then
+      raise exception 'Pole custom_fields musi być obiektem.' using errcode = '22023';
+    end if;
+    if v_row -> 'custom_field_columns' is not null
+       and jsonb_typeof(v_row -> 'custom_field_columns') <> 'array' then
+      raise exception 'Pole custom_field_columns musi być tablicą.' using errcode = '22023';
+    end if;
+    v_cf_cols := coalesce(
+      (select array_agg(value #>> '{}')
+         from jsonb_array_elements(coalesce(v_row -> 'custom_field_columns', '[]'::jsonb))),
+      array[]::text[]
+    );
+
+    if v_product_id is not null then
+      -- Jawny filtr tenanta OBOK RLS — patrz nagłówek (dwie warstwy).
+      select p.id into v_existing
+        from public.products p
+       where p.id = v_product_id
+         and p.tenant_id = v_tenant;
+      if v_existing is null then
+        raise exception 'Produkt % nie istnieje w katalogu tego najemcy.', v_product_id
+          using errcode = '22023';
+      end if;
+
+      update public.products set
+        name = v_row ->> 'name',
+        description = v_row ->> 'description',
+        base_price_day_grosze = (v_row ->> 'base_price_day_grosze')::int,
+        deposit_grosze = (v_row ->> 'deposit_grosze')::int,
+        auto_increment_multiplier = (v_row ->> 'auto_increment_multiplier')::numeric,
+        buffer_before_days = (v_row ->> 'buffer_before_days')::int,
+        buffer_after_days = (v_row ->> 'buffer_after_days')::int,
+        active = (v_row ->> 'active')::boolean,
+        -- [0058] Klucze OBJĘTE plikiem zdejmujemy i wstawiamy na nowo; klucze
+        -- poza nim zostają nietknięte. Zgodność wartości z definicją sprawdza
+        -- trigger 0057 — ta funkcja nie powtarza jego reguł i nie ma prawa
+        -- ich osłabić.
+        custom_fields = (coalesce(custom_fields, '{}'::jsonb) - v_cf_cols) || v_cf
+      where id = v_product_id
+        and tenant_id = v_tenant;
+
+      -- Progi ZASTĄPIONE kompletem z pliku (kontrakt ADR-112).
+      delete from public.pricing_tiers
+       where product_id = v_product_id
+         and tenant_id = v_tenant;
+
+      v_updated := v_updated + 1;
+    else
+      insert into public.products (
+        tenant_id, name, description, base_price_day_grosze, deposit_grosze,
+        auto_increment_multiplier, buffer_before_days, buffer_after_days, active,
+        -- Produkt POWSTAJE tutaj, więc nie ma czego scalać.
+        custom_fields
+      ) values (
+        v_tenant,
+        v_row ->> 'name',
+        v_row ->> 'description',
+        (v_row ->> 'base_price_day_grosze')::int,
+        (v_row ->> 'deposit_grosze')::int,
+        (v_row ->> 'auto_increment_multiplier')::numeric,
+        (v_row ->> 'buffer_before_days')::int,
+        (v_row ->> 'buffer_after_days')::int,
+        (v_row ->> 'active')::boolean,
+        v_cf
+      )
+      returning id into v_product_id;
+      v_created := v_created + 1;
+    end if;
+
+    for v_tier in
+      select value from jsonb_array_elements(coalesce(v_row -> 'tiers', '[]'::jsonb))
+      order by (value ->> 'tier_days')::int
+    loop
+      insert into public.pricing_tiers (
+        tenant_id, product_id, tier_days, multiplier, label, sort_order
+      ) values (
+        v_tenant,
+        v_product_id,
+        (v_tier ->> 'tier_days')::int,
+        (v_tier ->> 'multiplier')::numeric,
+        v_tier ->> 'label',
+        coalesce((v_tier ->> 'sort_order')::int, 0)
+      );
+      v_tiers := v_tiers + 1;
+    end loop;
+  end loop;
+
+  return jsonb_build_object('created', v_created, 'updated', v_updated, 'tiers', v_tiers);
+end;
+$$;
+
+comment on function app.import_catalog(jsonb) is
+  'Atomowy import katalogu z CSV (C3, ADR-112): nowe produkty + aktualizacje + wymiana progów w JEDNEJ transakcji. [0058] Dodatkowo pola własne produktu z dynamicznych kolumn cf_<id>: klucze OBJĘTE kolumnami pliku są zastępowane (także pustką), klucze poza nimi zostają nietknięte — plik sprzed dodania pola nie kasuje danych, których nie widział. SECURITY INVOKER — RLS 0007 obowiązuje wewnątrz; tenant wyłącznie z claimu (app.tenant_id()), jawny filtr tenant_id w każdym zapytaniu (dwie warstwy, wzorzec 0054). Odmowy: 22023 (walidacja/cudzy id), 42501 (brak kontekstu najemcy).';
+
 -- === END PROD MIGRATION 0058 ===

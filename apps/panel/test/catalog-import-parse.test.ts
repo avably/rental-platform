@@ -58,7 +58,7 @@ function csvOf(...lines: string[]): string {
 describe("parser importu katalogu (C3, ADR-112)", () => {
   describe("tolerancja transportu: BOM, separator, końce linii", () => {
     it("czyta plik eksportu 1:1 (BOM, średnik, CRLF)", () => {
-      const result = parseCatalogCsv(csvOf(row({ ...BASE_FIELDS, product_id: UUID_A })));
+      const result = parseCatalogCsv(csvOf(row({ ...BASE_FIELDS, product_id: UUID_A })), []);
       expect(result.issues).toEqual([]);
       expect(result.products).toHaveLength(1);
       expect(result.products[0]).toMatchObject({
@@ -76,7 +76,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
 
     it("czyta plik BEZ BOM i z końcami linii LF", () => {
       const text = [HEADER, row({ ...BASE_FIELDS, product_id: UUID_A })].join("\n");
-      const result = parseCatalogCsv(text);
+      const result = parseCatalogCsv(text, []);
       expect(result.issues).toEqual([]);
       expect(result.products).toHaveLength(1);
     });
@@ -86,21 +86,21 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
         CATALOG_CSV_HEADER.join(","),
         `${UUID_A},Agregat,,10000,5000,1.0,1,1,true,,,,`,
       ].join("\r\n");
-      const result = parseCatalogCsv(text);
+      const result = parseCatalogCsv(text, []);
       expect(result.issues).toEqual([]);
       expect(result.products[0]).toMatchObject({ productId: UUID_A, name: "Agregat" });
     });
 
     it("brak ostatniego CRLF nie gubi ostatniego wiersza", () => {
       const text = `${HEADER}\r\n${row({ ...BASE_FIELDS, product_id: UUID_A })}`;
-      expect(parseCatalogCsv(text).products).toHaveLength(1);
+      expect(parseCatalogCsv(text, []).products).toHaveLength(1);
     });
   });
 
   describe("nagłówek: kolumny po nazwie", () => {
     it("odrzuca plik bez wymaganej kolumny — jawny błąd z jej nazwą", () => {
       const withoutName = CATALOG_CSV_HEADER.filter((c) => c !== "name").join(";");
-      const result = parseCatalogCsv(`${withoutName}\r\n`);
+      const result = parseCatalogCsv(`${withoutName}\r\n`, []);
       expect(result.products).toEqual([]);
       expect(result.issues).toEqual([
         { row: 1, code: "missingColumn", column: "name" },
@@ -114,7 +114,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
           name === "product_id" ? UUID_A : (BASE_FIELDS as Record<string, string>)[name] ?? "",
         )
         .join(";");
-      const result = parseCatalogCsv(`${shuffled.join(";")}\r\n${line}\r\n`);
+      const result = parseCatalogCsv(`${shuffled.join(";")}\r\n${line}\r\n`, []);
       expect(result.issues).toEqual([]);
       expect(result.products[0]).toMatchObject({ productId: UUID_A, name: "Agregat" });
     });
@@ -122,7 +122,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("IGNORUJE kolumny nadmiarowe — w tym podrzucone tenant_id (izolacja: najemca TYLKO z sesji)", () => {
       const header = [...CATALOG_CSV_HEADER, "tenant_id"].join(";");
       const line = `${row({ ...BASE_FIELDS, product_id: UUID_A })};99999999-9999-4999-8999-999999999999`;
-      const result = parseCatalogCsv(`${header}\r\n${line}\r\n`);
+      const result = parseCatalogCsv(`${header}\r\n${line}\r\n`, []);
       expect(result.issues).toEqual([]);
       expect(result.products).toHaveLength(1);
       // Podrzucona wartość nie przecieka do żadnego pola wyniku.
@@ -136,7 +136,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
       const csv = buildCsv(CATALOG_CSV_HEADER, [
         [UUID_A, name, null, 10000, 5000, 1, 1, 1, true, null, null, null, null],
       ]);
-      const result = parseCatalogCsv(csv);
+      const result = parseCatalogCsv(csv, []);
       expect(result.issues).toEqual([]);
       expect(result.products[0].name).toBe(name);
     });
@@ -153,7 +153,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
         // Eksport dopisał apostrof…
         expect(csv).toContain(`'${trigger}HYPERLINK`);
         // …a import go zdjął — i NICZEGO nie interpretuje.
-        const result = parseCatalogCsv(csv);
+        const result = parseCatalogCsv(csv, []);
         expect(result.issues).toEqual([]);
         expect(result.products[0].name).toBe(name);
       },
@@ -162,6 +162,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("apostrof NIE-neutralizujący (zwykły tekst) zostaje nietknięty", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, name: "'zwykły apostrof", product_id: UUID_A })),
+        [],
       );
       expect(result.products[0].name).toBe("'zwykły apostrof");
     });
@@ -171,6 +172,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
       // apostrof, nie trigger) — więc import też nie ma czego zdejmować.
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, name: "''=formuła", product_id: UUID_A })),
+        [],
       );
       expect(result.products[0].name).toBe("''=formuła");
     });
@@ -180,6 +182,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("grosze z kropką to BŁĄD WIERSZA, nie zaokrąglenie", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, base_price_day_grosze: "100.50", product_id: UUID_A })),
+        [],
       );
       expect(result.products).toEqual([]);
       expect(result.issues).toEqual([
@@ -190,6 +193,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("grosze z przecinkiem również płoną błędem wiersza", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, deposit_grosze: "100,50", product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 2, code: "badInteger", column: "deposit_grosze", value: "100,50" },
@@ -207,6 +211,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
             tier_sort_order: "1",
           }),
         ),
+        [],
       );
       expect(result.issues).toEqual([]);
       expect(result.products[0].tiers).toEqual([
@@ -217,6 +222,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("mnożnik zostaje STRINGIEM — zero arytmetyki zmiennoprzecinkowej", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, auto_increment_multiplier: "1.1000000000000001", product_id: UUID_A })),
+        [],
       );
       expect(result.products[0].autoIncrementMultiplier).toBe("1.1000000000000001");
     });
@@ -224,6 +230,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("cena bazowa 0 odpada (CHECK > 0 w schemacie — darmowa pozycja to pomyłka importu)", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, base_price_day_grosze: "0", product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 2, code: "notPositive", column: "base_price_day_grosze", value: "0" },
@@ -233,6 +240,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("wartość spoza zakresu int4 to błąd wiersza, nie błąd bazy", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, deposit_grosze: "2147483648", product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 2, code: "badInteger", column: "deposit_grosze", value: "2147483648" },
@@ -249,6 +257,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     ])("przyjmuje %j → %j", (raw, expected) => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, active: raw, product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([]);
       expect(result.products[0].active).toBe(expected);
@@ -257,6 +266,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("inna wartość to błąd wiersza", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, active: "tak", product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 2, code: "badBoolean", column: "active", value: "tak" },
@@ -268,6 +278,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("product_id nie-UUID to błąd wiersza (nigdy „nowy produkt z dziwnym id')", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, product_id: "abc-123" })),
+        [],
       );
       expect(result.products).toEqual([]);
       expect(result.issues).toEqual([
@@ -296,6 +307,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
           }),
           row({ ...BASE_FIELDS, name: "Drugi produkt", product_id: UUID_B }),
         ),
+        [],
       );
       expect(result.issues).toEqual([]);
       expect(result.products).toHaveLength(2);
@@ -314,6 +326,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
           row({ ...BASE_FIELDS, name: "Nowy A", tier_days: "7", tier_multiplier: "6.5" }),
           row({ ...BASE_FIELDS, name: "Nowy B" }),
         ),
+        [],
       );
       expect(result.issues).toEqual([]);
       expect(result.products).toHaveLength(2);
@@ -328,6 +341,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
           row({ ...BASE_FIELDS, product_id: UUID_A, tier_days: "7", tier_multiplier: "6.5" }),
           row({ ...BASE_FIELDS, product_id: UUID_A, tier_days: "7", tier_multiplier: "6.0" }),
         ),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 3, code: "duplicateTierDays", column: "tier_days", value: "7" },
@@ -337,12 +351,14 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("tier_multiplier bez tier_days (i odwrotnie) to błąd wiersza — próg jest kompletny albo go nie ma", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, product_id: UUID_A, tier_multiplier: "2.8" })),
+        [],
       );
       expect(result.issues).toEqual([
         { row: 2, code: "tierIncomplete", column: "tier_days" },
       ]);
       const result2 = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, product_id: UUID_A, tier_days: "7" })),
+        [],
       );
       expect(result2.issues).toEqual([
         { row: 2, code: "tierIncomplete", column: "tier_multiplier" },
@@ -352,6 +368,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("pusta nazwa to błąd wiersza (CHECK 1..200 po btrim)", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, name: "   ", product_id: UUID_A })),
+        [],
       );
       expect(result.issues).toEqual([{ row: 2, code: "emptyName", column: "name" }]);
     });
@@ -359,6 +376,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
     it("puste tier_sort_order dostaje domyślne 0 (wiersz dopisany ręcznie w arkuszu)", () => {
       const result = parseCatalogCsv(
         csvOf(row({ ...BASE_FIELDS, product_id: UUID_A, tier_days: "3", tier_multiplier: "2.8" })),
+        [],
       );
       expect(result.issues).toEqual([]);
       expect(result.products[0].tiers[0].sortOrder).toBe(0);
@@ -367,20 +385,20 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
 
   describe("granice pliku", () => {
     it("plik z samym nagłówkiem = zero produktów, zero błędów", () => {
-      const result = parseCatalogCsv(`${HEADER}\r\n`);
+      const result = parseCatalogCsv(`${HEADER}\r\n`, []);
       expect(result.products).toEqual([]);
       expect(result.issues).toEqual([]);
     });
 
     it("wiersz o złej liczbie pól to błąd z numerem wiersza", () => {
-      const result = parseCatalogCsv(`${HEADER}\r\nAgregat;10000\r\n`);
+      const result = parseCatalogCsv(`${HEADER}\r\nAgregat;10000\r\n`, []);
       expect(result.issues).toEqual([{ row: 2, code: "columnCount" }]);
     });
 
     it(`ponad ${IMPORT_ROW_LIMIT} wierszy danych rzuca ImportLimitError — nigdy cichy obcinek`, () => {
       const line = row({ ...BASE_FIELDS, product_id: UUID_A, tier_days: "7", tier_multiplier: "6.5" });
       const lines = Array.from({ length: IMPORT_ROW_LIMIT + 1 }, () => line);
-      expect(() => parseCatalogCsv(csvOf(...lines))).toThrow(ImportLimitError);
+      expect(() => parseCatalogCsv(csvOf(...lines), [])).toThrow(ImportLimitError);
     });
 
     it("błędy z wielu wierszy wracają WSZYSTKIE naraz, z numerami wierszy", () => {
@@ -390,6 +408,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
           row({ ...BASE_FIELDS, product_id: UUID_B }),
           row({ ...BASE_FIELDS, active: "yes", product_id: UUID_B }),
         ),
+        [],
       );
       expect(result.issues.map((i) => i.row)).toEqual([2, 4]);
     });
@@ -402,7 +421,7 @@ describe("parser importu katalogu (C3, ADR-112)", () => {
       const csv = buildCsv(CATALOG_CSV_HEADER, [
         [UUID_A, name, description, 10000, 5000, 1.5, 2, 3, false, 7, 6.5, "-Tydzień", 1],
       ]);
-      const result = parseCatalogCsv(csv);
+      const result = parseCatalogCsv(csv, []);
       expect(result.issues).toEqual([]);
       const product = result.products[0];
       expect(product.name).toBe(name);
