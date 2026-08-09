@@ -92,3 +92,22 @@ ze swojego pasa (minimalizacja konfliktów w jednym pliku HTML).
   efemerycznym Supabase) muszą być zielone przed merge.
 - Branch protection: włączona dopiero w fazie 4 (GitHub Pro). Do tego czasu
   obowiązuje dyscyplina PR + zielone CI.
+
+## Merge a deploy na Vercelu (plan Hobby) — pułapka autorstwa
+
+Projekty Vercela należą do konta **avably**, a plan Hobby **nie wspiera
+współpracy przy repozytoriach prywatnych**. Skutek: deploy PRODUKCYJNY jest
+blokowany, gdy autorem commita na `main` jest ktokolwiek inny niż właściciel
+projektu — komunikat brzmi „The deployment was blocked because the commit
+author did not have contributing access to the project on Vercel".
+
+`gh pr merge --squash` przypisuje commit scalający **kontu, którym mergujesz**.
+Merge wykonany innym kontem (np. `starkit-rental`) daje commit, którego Vercel
+nie wpuszcza — PR jest zmergowany, CI zielone, a **produkcja po cichu zostaje
+na starym buildzie**. Podglądy z gałęzi (Preview) działają dalej, więc brak
+deployu łatwo przeoczyć.
+
+**Zasada:** merge do `main` wykonuje konto właściciela projektu Vercela
+(`gh auth switch --user avably` przed merge), albo właściciel klika merge
+w interfejsie GitHuba. Po merge sprawdź, że deployment PRODUKCYJNY faktycznie
+wystartował — sam zielony CI tego nie dowodzi.
