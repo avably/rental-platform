@@ -12,8 +12,10 @@ import {
   parseCustomFieldInput,
   parseSelectOptions,
   readCustomFieldValues,
+  splitCustomFieldValuesByEntity,
   validateCustomFieldValues,
   visibleCustomFields,
+  checkoutCustomFields,
   type CustomFieldDefinition,
   type CustomFieldType,
 } from "./index";
@@ -489,4 +491,98 @@ describe("parytet ze wspólnymi wektorami (te same przechodzą przez trigger 005
       expect(rejected, `${vector.name}: rdzeń rozstrzygnął inaczej niż kontrakt`).toBe(!vector.valid);
     });
   }
+});
+
+describe("tryb zapisu: TWORZENIE vs AKTUALIZACJA (C6-A3, ADR-121)", () => {
+  const panelField = def("text");
+  const checkoutOnly = def("textarea", { showInPanel: false, showInCheckout: true });
+  const definitions = [panelField, checkoutOnly];
+  const existing = { [ID.textarea]: "wpisane przez klienta w sklepie" };
+
+  /**
+   * DOWÓD WYMAGALNOŚCI `existing` — sprawdzany przez KOMPILATOR, nie przez
+   * asercję w czasie wykonania.
+   *
+   * `@ts-expect-error` jest tu bramką dwustronną: dopóki pominięcie `existing`
+   * przy `mode: "update"` jest błędem typu, dyrektywa go pochłania i suita
+   * przechodzi. W chwili, gdy ktoś przywróci `existing?:` — błąd znika,
+   * dyrektywa staje się NIEUŻYTA i `tsc --noEmit` pada na
+   * „Unused '@ts-expect-error' directive".
+   *
+   * Innymi słowy: tego długu nie da się już cicho odtworzyć. Wróci jako
+   * czerwone CI, a nie jako skasowana odpowiedź klienta.
+   */
+  it("pominięcie `existing` przy AKTUALIZACJI nie kompiluje się", () => {
+    const withExisting = validateCustomFieldValues(
+      definitions,
+      {},
+      { mode: "update", surface: "panel", existing },
+    );
+    expect(withExisting.values[ID.textarea]).toBe("wpisane przez klienta w sklepie");
+
+    const withoutExisting = validateCustomFieldValues(
+      definitions,
+      {},
+      // @ts-expect-error — `existing` jest przy `mode: "update"` WYMAGANY
+      { mode: "update", surface: "panel" },
+    );
+    // Gdyby typ przepuścił, zachowanie byłoby DOKŁADNIE tym, przed czym
+    // broni decyzja: wartość klienta znika z mapy do zapisania.
+    expect(withoutExisting.values[ID.textarea]).toBeUndefined();
+  });
+
+  it("`existing` przy TWORZENIU jest niereprezentowalne", () => {
+    validateCustomFieldValues(
+      definitions,
+      {},
+      // @ts-expect-error — przy `mode: "create"` nie ma czego przepisywać
+      { mode: "create", surface: "panel", existing },
+    );
+  });
+
+  it("tryb jest OBOWIĄZKOWY — brak opcji nie znaczy „tworzę”", () => {
+    // Bramka jest w typie, ale i w czasie wykonania nie ma cichej domyślki:
+    // wołający bez trybu dostaje wyjątek, a nie milczące „tworzę”.
+    expect(() =>
+      // @ts-expect-error — opcje nie mają wartości domyślnej
+      validateCustomFieldValues(definitions, {}),
+    ).toThrow();
+  });
+});
+
+describe("pola zamawiania: widoczność ORAZ encja (C6-A3, ADR-121)", () => {
+  it("bierze pola klienta i zamówienia, odrzuca produkt mimo flagi zamawiania", () => {
+    const order = def("text", { entity: "order", showInCheckout: true });
+    const customer = def("phone", { entity: "customer", showInCheckout: true });
+    // Pole PRODUKTU z flagą zamawiania jest w katalogu DO CZYTANIA — kupujący
+    // nie ma czego o sprzęcie deklarować, więc nie wchodzi do formularza.
+    const product = def("number", { entity: "product", showInCheckout: true });
+    const panelOnly = def("date", { entity: "order", showInCheckout: false });
+
+    const result = checkoutCustomFields([order, customer, product, panelOnly]);
+    expect(result.map((d) => d.id).sort()).toEqual([customer.id, order.id].sort());
+  });
+
+  it("zarchiwizowane pole zamawiania nie wchodzi do formularza", () => {
+    const archived = def("text", {
+      entity: "order",
+      showInCheckout: true,
+      archivedAt: "2026-08-01T00:00:00Z",
+    });
+    expect(checkoutCustomFields([archived])).toEqual([]);
+  });
+
+  it("płaska mapa rozdziela się po ENCJI DEFINICJI, nie po deklaracji wołającego", () => {
+    const order = def("text", { entity: "order" });
+    const customer = def("phone", { entity: "customer" });
+    const split = splitCustomFieldValuesByEntity([order, customer], {
+      [order.id]: "zamówienie",
+      [customer.id]: "123456789",
+      "99999999-9999-4999-8999-999999999999": "klucz bez definicji",
+    });
+
+    expect(split.order).toEqual({ [order.id]: "zamówienie" });
+    expect(split.customer).toEqual({ [customer.id]: "123456789" });
+    expect(split.product).toEqual({});
+  });
 });

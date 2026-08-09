@@ -337,6 +337,152 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     expect(emailCalls).toEqual([{ tenantId: tenantA }]);
   });
 
+  // -------------------------------------------------------------------
+  // POLA WŁASNE W API v1 (C6-A3, ADR-121) — sondy izolacji tej powierzchni
+  // -------------------------------------------------------------------
+
+  async function seedDefinition(
+    tenantId: string,
+    overrides: Record<string, unknown> = {},
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("custom_field_definitions")
+      .insert({
+        tenant_id: tenantId,
+        entity: "order",
+        field_type: "text",
+        label: `Pole ${randomUUID().slice(0, 8)}`,
+        options: [],
+        show_in_panel: true,
+        show_in_checkout: true,
+        ...overrides,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seedDefinition: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function reserveWithCustomFields(
+    customFields: Record<string, unknown> | null,
+  ): Promise<Response> {
+    return handleReservationRequest(
+      new Request("https://x.avably.io/api/v1/reservations", {
+        method: "POST",
+        headers: { ...auth(), "content-type": "application/json" },
+        // Inny termin niż pozostałe przypadki tej suity: produkt ma JEDEN
+        // egzemplarz, a wcześniejsza rezerwacja zajęła go na wrzesień.
+        body: JSON.stringify({
+          ...reservationBody(productA),
+          startDate: "2026-12-01",
+          endDate: "2026-12-02",
+          ...(customFields === null ? {} : { customFields }),
+        }),
+      }),
+      liveReservationDeps([]),
+    );
+  }
+
+  it("katalog v1 niesie definicje pól zamawiania i tylko wąski kształt", async () => {
+    const definitionId = await seedDefinition(tenantA, { required: true });
+    await seedDefinition(tenantA, { show_in_checkout: false });
+
+    const response = await handleCatalogRequest(
+      new Request("https://x.avably.io/api/v1/catalog", { headers: auth() }),
+      catalogDeps(),
+    );
+    const body = (await response.json()) as { custom_fields: Record<string, unknown>[] };
+
+    const row = body.custom_fields.find((entry) => entry.id === definitionId);
+    expect(row).toBeDefined();
+    expect(Object.keys(row!).sort()).toEqual([
+      "entity",
+      "field_type",
+      "help_text",
+      "id",
+      "label",
+      "options",
+      "required",
+    ]);
+    // Pole bez flagi zamawiania nie wychodzi do integratora w ogóle.
+    expect(body.custom_fields).toHaveLength(1);
+
+    await admin.from("custom_field_definitions").delete().eq("tenant_id", tenantA);
+  });
+
+  it("wartość pod definicją CUDZEGO najemcy → 422, zero zapisu", async () => {
+    const foreign = await seedDefinition(tenantB);
+    const ordersBefore = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantA);
+
+    const response = await reserveWithCustomFields({ [foreign]: "wartość" });
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { error: { code: string; fields: Record<string, string> } };
+    expect(body.error.code).toBe("validation_failed");
+    expect(body.error.fields[`cf_${foreign}`]).toBe("not_allowed");
+
+    const ordersAfter = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantA);
+    expect(ordersAfter.count).toBe(ordersBefore.count);
+
+    await admin.from("custom_field_definitions").delete().eq("tenant_id", tenantB);
+  });
+
+  it("pole BEZ flagi „zamawianie” podane WPROST przez API → 422 not_allowed", async () => {
+    // Najciekawszy wektor tej powierzchni: integrator zna identyfikator
+    // (widzi go w panelu albo w eksporcie CSV) i próbuje go użyć maszynowo.
+    const panelOnly = await seedDefinition(tenantA, { show_in_checkout: false });
+
+    const response = await reserveWithCustomFields({ [panelOnly]: "z curl-a" });
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { error: { fields: Record<string, string> } };
+    expect(body.error.fields[`cf_${panelOnly}`]).toBe("not_allowed");
+
+    await admin.from("custom_field_definitions").delete().eq("tenant_id", tenantA);
+  });
+
+  it("pole WYMAGANE pominięte przez konsumenta maszynowego → 422 required", async () => {
+    const required = await seedDefinition(tenantA, { required: true });
+
+    const response = await handleReservationRequest(
+      new Request("https://x.avably.io/api/v1/reservations", {
+        method: "POST",
+        headers: { ...auth(), "content-type": "application/json" },
+        // BEZ klucza customFields w ogóle — wymagalność liczy się po
+        // definicjach najemcy, a nie po tym, co przyszło w żądaniu.
+        body: JSON.stringify(reservationBody(productA)),
+      }),
+      liveReservationDeps([]),
+    );
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { error: { fields: Record<string, string> } };
+    expect(body.error.fields[`cf_${required}`]).toBe("required");
+
+    await admin.from("custom_field_definitions").delete().eq("tenant_id", tenantA);
+  });
+
+  it("wartość poprawna → 201 i mapa ląduje na zamówieniu tenanta klucza", async () => {
+    const definitionId = await seedDefinition(tenantA);
+
+    const response = await reserveWithCustomFields({ [definitionId]: "ABC-123" });
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { order: { orderNumber: string } };
+
+    const { data: order } = await admin
+      .from("orders")
+      .select("custom_fields")
+      .eq("tenant_id", tenantA)
+      .eq("order_number", body.order.orderNumber)
+      .single();
+    expect(order?.custom_fields).toEqual({ [definitionId]: "ABC-123" });
+
+    await admin.from("custom_field_definitions").delete().eq("tenant_id", tenantA);
+  });
+
   it("status tenanta bramkuje API na ŻYWEJ ścieżce: suspended → 403, po odwieszeniu ten sam klucz → 200", async () => {
     // Luka z recenzji PM: 403 store_unavailable było przypięte wyłącznie na
     // stubie weryfikacji (unit) — mutant `t.status → 'active'::text` w żywej
