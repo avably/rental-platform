@@ -90,6 +90,10 @@
 .avably-embed input[type="text"],
 .avably-embed input[type="email"],
 .avably-embed input[type="tel"],
+/* [C6-A3] Pole daty pola własnego: bez tego selektora kontrolka zostaje
+   w rozmiarze narzuconym przez przeglądarkę i wygląda na obcą wśród
+   pozostałych, a podpowiedź oblewa ją z boku. */
+.avably-embed input[type="date"],
 .avably-embed input:not([type]),
 .avably-embed select,
 .avably-embed textarea {
@@ -103,6 +107,16 @@
   background: var(--embed-bg);
   color: var(--embed-fg);
   font: inherit;
+}
+
+/* [C6-A3] Podpowiedź najemcy pod polem własnym — BLOK, nie tekst inline:
+   przy wąskiej ramce inline oblewa kontrolkę i czyta się jak jej część. */
+.avably-embed__field > small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--embed-muted);
 }
 
 .avably-embed__field em {
