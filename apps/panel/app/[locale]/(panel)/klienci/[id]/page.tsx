@@ -8,9 +8,10 @@ import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
 
-import { setCustomerBanAction, updateCustomerAction } from "./actions";
+import { eraseCustomerAction, setCustomerBanAction, updateCustomerAction } from "./actions";
 import { CustomerBanToggle } from "./customer-ban-toggle";
 import { CustomerEditForm } from "./customer-edit-form";
+import { CustomerErasure } from "./customer-erasure";
 import { CustomerOrders, type CustomerOrderRow } from "./customer-orders";
 
 /**
@@ -37,6 +38,7 @@ interface CustomerDetailRow {
   address_zip: string | null;
   address_city: string | null;
   created_at: string;
+  anonymized_at: string | null;
 }
 
 interface OrderHistoryRow {
@@ -62,7 +64,7 @@ export default async function CustomerDetailPage({
   const { data: customer } = await ctx.supabase
     .from("customers")
     .select(
-      "id, email, full_name, phone, company_name, nip, address_street, address_zip, address_city, created_at",
+      "id, email, full_name, phone, company_name, nip, address_street, address_zip, address_city, created_at, anonymized_at",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -104,13 +106,23 @@ export default async function CustomerDetailPage({
     orderStatus: order.order_status,
   }));
 
-  const displayName = row.full_name?.trim() || row.email;
-  const since = new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "Europe/Warsaw",
-  }).format(new Date(row.created_at));
+  // Klient po realizacji żądania usunięcia danych (C2b, ADR-116): wiersz żyje
+  // dalej, bo trzyma go historia rozliczeniowa, ale nie ma już czego edytować
+  // ani blokować — i nie ma czego usuwać drugi raz.
+  const anonymized = row.anonymized_at != null;
+  const displayName = anonymized ? t("erasure.anonymizedName") : row.full_name?.trim() || row.email;
+  const canErase = ctx.role === "owner";
+  const eraseAction = eraseCustomerAction.bind(null, row.id);
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Europe/Warsaw",
+    }).format(new Date(value));
+
+  const since = formatDate(row.created_at);
+  const erasedOn = row.anonymized_at ? formatDate(row.anonymized_at) : null;
 
   const updateAction = updateCustomerAction.bind(null, row.id);
   // Akcja ustawia stan PRZECIWNY do widzianego — intencja nie jedzie z klienta.
@@ -130,7 +142,12 @@ export default async function CustomerDetailPage({
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.01em]">{displayName}</h2>
-            {banned ? (
+            {anonymized ? (
+              <Badge data-customer-header-anonymized-badge variant="secondary">
+                {t("erasure.statusAnonymized")}
+              </Badge>
+            ) : null}
+            {banned && !anonymized ? (
               <Badge data-customer-header-ban-badge variant="destructive">
                 {t("ban.statusBanned")}
               </Badge>
@@ -140,23 +157,43 @@ export default async function CustomerDetailPage({
         </div>
       </div>
 
-      <CustomerBanToggle banned={banned} action={banAction} />
+      {anonymized ? (
+        <section
+          data-customer-anonymized-notice
+          className="border-border bg-card flex flex-col gap-1.5 rounded-md border p-5"
+        >
+          <h2 className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
+            {t("erasure.heading")}
+          </h2>
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("erasure.anonymizedNotice", { date: erasedOn ?? "" })}
+          </p>
+        </section>
+      ) : (
+        <>
+          <CustomerBanToggle banned={banned} action={banAction} />
 
-      <CustomerEditForm
-        action={updateAction}
-        defaults={{
-          email: row.email,
-          fullName: row.full_name ?? "",
-          phone: row.phone ?? "",
-          companyName: row.company_name ?? "",
-          nip: row.nip ?? "",
-          addressStreet: row.address_street ?? "",
-          addressZip: row.address_zip ?? "",
-          addressCity: row.address_city ?? "",
-        }}
-      />
+          <CustomerEditForm
+            action={updateAction}
+            defaults={{
+              email: row.email,
+              fullName: row.full_name ?? "",
+              phone: row.phone ?? "",
+              companyName: row.company_name ?? "",
+              nip: row.nip ?? "",
+              addressStreet: row.address_street ?? "",
+              addressZip: row.address_zip ?? "",
+              addressCity: row.address_city ?? "",
+            }}
+          />
+        </>
+      )}
 
       <CustomerOrders orders={orders} locale={locale} />
+
+      {canErase && !anonymized ? (
+        <CustomerErasure email={row.email} action={eraseAction} />
+      ) : null}
     </div>
   );
 }

@@ -542,4 +542,7 @@ export const CUSTOMER_DETAIL_SCREEN_PARTS: readonly string[] = [
 ] as const;
 
 /** Lokalne komponenty karty klienta BEZ własnego regionu — każdy z powodem. */
-export const CUSTOMER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {};
+export const CUSTOMER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
+  CustomerErasure:
+    "sekcja usunięcia danych klienta (C2b, ADR-116) jest PODWÓJNIE warunkowa — widzi ją wyłącznie właściciel organizacji i wyłącznie na kliencie, którego danych jeszcze nie usunięto. Rezerwa geometrii pod element, którego większość sesji nigdy nie zobaczy, kłamałaby o wysokości ekranu ładowania, a po dojściu treści dawała skok układu u każdego zwykłego członka.",
+};

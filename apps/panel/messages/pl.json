@@ -1131,6 +1131,21 @@
         "cancel": "Anuluj",
         "blockedNotice": "Klient zablokowany.",
         "unblockedNotice": "Klient odblokowany."
+      },
+      "erasure": {
+        "heading": "Usunięcie danych klienta",
+        "description": "Realizacja żądania usunięcia danych osobowych. Operacji nie da się cofnąć.",
+        "scope": "Znikają: dane kontaktowe i adresowe, adres dostawy zapisany na zamówieniach, treści wysłanych wiadomości, pliki umów oraz notatki do zamówień tego klienta. Zostają: historia zamówień i kwoty rozliczeń, których wymaga prawo podatkowe.",
+        "cta": "Usuń dane klienta",
+        "confirmTitle": "Usunąć dane tego klienta?",
+        "confirmBody": "Tej operacji nie można cofnąć. Jeśli klient nie ma żadnych zamówień, jego karta zniknie w całości. Jeśli ma zamówienia, zostanie po nich pusta karta bez danych osobowych.",
+        "confirmLabel": "Aby potwierdzić, przepisz adres e-mail klienta: {email}",
+        "confirm": "Usuń dane",
+        "cancel": "Anuluj",
+        "done": "Dane klienta zostały usunięte.",
+        "statusAnonymized": "Dane usunięte",
+        "anonymizedName": "Klient bez danych",
+        "anonymizedNotice": "Dane osobowe tego klienta usunięto {date}. Karta została, bo wiążą ją zamówienia i rozliczenia."
       }
     }
   },
