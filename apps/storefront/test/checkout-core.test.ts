@@ -75,6 +75,9 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     // (ADR-066), więc istniejące przypadki tej suity nic nie tracą.
     readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: false, chargesEnabled: false })),
     rememberCheckout: vi.fn(async () => {}),
+    // Domyślnie najemca BEZ pól własnych — istniejące przypadki tej suity
+    // opisują checkout sprzed C6-A3 i mają się zachowywać identycznie.
+    readCustomFields: vi.fn(async () => []),
     ...overrides,
   };
 }

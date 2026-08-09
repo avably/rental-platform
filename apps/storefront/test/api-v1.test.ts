@@ -62,6 +62,7 @@ function makeVerify(counters: Counters, status = "active") {
 
 const CATALOG_A: PublicCatalog = {
   tenant: { name: "Wypożyczalnia A", locale: "pl", currency: "PLN" },
+  custom_fields: [],
   products: [],
   pickup_locations: [],
   delivery_methods: [],
@@ -391,6 +392,8 @@ function makeReservationDeps(
       return { success: true };
     },
     ip: "203.0.113.7",
+    // Najemca bez pól własnych, o ile przypadek nie mówi inaczej.
+    readCustomFields: async () => [],
     callRpc: async (args) => {
       c.rpcArgs.push(args);
       return RPC_RESULT;

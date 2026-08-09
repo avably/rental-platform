@@ -459,6 +459,8 @@
       "paymentCod": "Płatność przy odbiorze",
       "paymentCodHint": "Rozliczasz się z wypożyczalnią, kiedy odbierasz sprzęt.",
       "paymentOfflineNote": "Ta wypożyczalnia rozlicza rezerwacje przelewem lub przy odbiorze.",
+      "customFieldsHeading": "Dane dodatkowe",
+      "customFieldChoose": "Wybierz…",
       "termsHeading": "Regulamin",
       "termsLabel": "Akceptuję regulamin wypożyczalni i zasady najmu.",
       "summaryHeading": "Podsumowanie",
@@ -487,7 +489,13 @@
         "connection": "Problem z połączeniem. Spróbuj ponownie.",
         "paymentMethod": "Wybierz sposób płatności.",
         "paymentUnavailable": "Płatność online jest teraz niedostępna w tej wypożyczalni. Wybierz przelew albo płatność przy odbiorze — rezerwacja będzie taka sama.",
-        "server": "Coś poszło nie tak. Spróbuj ponownie za chwilę."
+        "server": "Coś poszło nie tak. Spróbuj ponownie za chwilę.",
+        "customField": {
+          "required": "To pole jest wymagane.",
+          "invalid": "Nieprawidłowa wartość.",
+          "tooLong": "Wartość jest za długa.",
+          "notAllowed": "Tego pola nie da się tu wypełnić."
+        }
       }
     },
     "payment": {

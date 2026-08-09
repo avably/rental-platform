@@ -14,6 +14,9 @@ import { notFound } from "next/navigation";
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
+import { checkoutCustomFields } from "@avably/core";
+
+import { customFieldsFromPublicRows } from "@/lib/checkout/custom-fields";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
 import { availablePaymentMethods } from "@/lib/checkout/payment-options";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -53,6 +56,12 @@ export default async function TenantCheckoutPage() {
   // a nie po następnym wdrożeniu.
   const paymentMethods = availablePaymentMethods(await readOnlinePaymentAvailability(tenantId));
 
+  // Zawężenie do pól WYPEŁNIALNYCH liczymy TU, na serwerze — tą samą funkcją,
+  // którą stosuje zapis w rdzeniu checkoutu. Gdyby filtr żył w komponencie,
+  // pole spoza zamawiania byłoby niewidoczne, ale wciąż zapisywalne żądaniem
+  // z pominięciem formularza.
+  const customFields = checkoutCustomFields(customFieldsFromPublicRows(catalog.custom_fields));
+
   return (
     <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
@@ -66,6 +75,7 @@ export default async function TenantCheckoutPage() {
           copy={copy}
           turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
           paymentMethods={paymentMethods}
+          customFields={customFields}
         />
       </div>
     </PageShell>

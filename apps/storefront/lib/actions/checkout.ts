@@ -25,6 +25,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
+import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
 import {
   CHECKOUT_COOKIE,
@@ -55,6 +56,10 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
     ip,
     // Świeży ODCZYT stanu konta u dostawcy (ADR-049) — nie kolumna z bazy.
     readOnlineAvailability: () => readOnlinePaymentAvailability(tenantId),
+    // Definicje pól własnych zamawiania (0058) — ta sama lista, którą strona
+    // checkoutu wyrenderowała; czytana PONOWNIE po stronie akcji, bo to, co
+    // przyszło z przeglądarki, nie jest dowodem na konfigurację najemcy.
+    readCustomFields: () => readCheckoutCustomFieldDefinitions(tenantId),
     // Uchwyt do własnego checkoutu: httpOnly, więc niewidoczny dla skryptów
     // strony; `lax`, bo powrót od dostawcy to nawigacja z obcej witryny.
     // `secure` zależnie od schematu — lokalny dev stoi na http i ciasteczko

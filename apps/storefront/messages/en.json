@@ -459,6 +459,8 @@
       "paymentCod": "Pay on collection",
       "paymentCodHint": "You settle with the rental store when you pick the equipment up.",
       "paymentOfflineNote": "This rental store settles bookings by bank transfer or on collection.",
+      "customFieldsHeading": "Additional details",
+      "customFieldChoose": "Select…",
       "termsHeading": "Terms",
       "termsLabel": "I accept the rental terms and conditions.",
       "summaryHeading": "Summary",
@@ -487,7 +489,13 @@
         "connection": "Connection problem. Please try again.",
         "paymentMethod": "Choose a payment method.",
         "paymentUnavailable": "Online payment isn't available in this rental store right now. Choose a bank transfer or payment on collection — the booking is exactly the same.",
-        "server": "Something went wrong. Please try again in a moment."
+        "server": "Something went wrong. Please try again in a moment.",
+        "customField": {
+          "required": "This field is required.",
+          "invalid": "Invalid value.",
+          "tooLong": "The value is too long.",
+          "notAllowed": "This field cannot be filled in here."
+        }
       }
     },
     "payment": {

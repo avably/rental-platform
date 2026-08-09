@@ -14,7 +14,38 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-import type { PublicAvailability, PublicCatalog } from "./contract";
+import { customFieldsFromPublicRows } from "./custom-fields";
+import type { PublicAvailability, PublicCatalog, PublicCustomField } from "./contract";
+
+/**
+ * Definicje pól własnych ZAMAWIANIA (C6-A3, 0058) — osobno od katalogu, bo
+ * ścieżka ZAPISU (rdzeń checkoutu) potrzebuje ich przy każdym żądaniu, a nie
+ * potrzebuje przy tym całego katalogu z cennikiem i zdjęciami. Strona
+ * checkoutu bierze te same definicje z katalogu, który i tak już czyta.
+ *
+ * Fail-closed jak reszta modułu: błąd transportu daje PUSTĄ listę, czyli
+ * „żadnego pola nie da się wypełnić" — a nie „wypełniaj co chcesz".
+ */
+export async function getPublicCustomFields(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<PublicCustomField[]> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase
+    .schema("app")
+    .rpc("get_public_custom_fields", { p_tenant_id: tenantId });
+
+  if (error || !Array.isArray(data)) return [];
+  return data as PublicCustomField[];
+}
+
+/** To samo, ale w kształcie domenowym — tak, jak chce rdzeń pól własnych. */
+export async function readCheckoutCustomFieldDefinitions(
+  tenantId: string,
+  client?: SupabaseClient,
+) {
+  return customFieldsFromPublicRows(await getPublicCustomFields(tenantId, client));
+}
 
 export async function getPublicCatalog(
   tenantId: string,

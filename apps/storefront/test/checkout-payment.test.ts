@@ -143,6 +143,7 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     sendEmails: vi.fn(async () => []),
     readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: true, chargesEnabled: true })),
     rememberCheckout: vi.fn(async () => {}),
+    readCustomFields: vi.fn(async () => []),
     ...overrides,
   };
 }
