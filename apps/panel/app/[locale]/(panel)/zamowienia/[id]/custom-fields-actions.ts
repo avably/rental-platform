@@ -17,7 +17,7 @@ import { revalidatePath } from "next/cache";
 
 import { AuthError } from "@/lib/auth";
 import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
-import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
+import { readCustomFieldsForUpdate } from "@/lib/custom-fields-server";
 import { type FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
@@ -52,7 +52,7 @@ export async function updateOrderCustomFieldsAction(
     .maybeSingle();
   if (!current) return { formError: NOT_FOUND };
 
-  const custom = await readCustomFieldsForWrite(
+  const custom = await readCustomFieldsForUpdate(
     ctx.supabase,
     tenantId,
     "order",

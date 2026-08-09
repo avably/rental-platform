@@ -65,7 +65,7 @@ describe("zamknięta lista typów", () => {
     for (const definition of ALL) {
       const rubbish = validateCustomFieldValues([definition], {
         [definition.id]: { nie: "wartość" } as never,
-      });
+      }, { mode: "create" });
       expect(rubbish.issues[definition.id], `typ ${definition.type} bez gałęzi`).toBe("type");
     }
   });
@@ -82,7 +82,7 @@ describe("walidacja wartości względem definicji", () => {
       [ID.checkbox]: true,
       [ID.phone]: "+48 501 234 567",
     };
-    const result = validateCustomFieldValues(ALL, values);
+    const result = validateCustomFieldValues(ALL, values, { mode: "create" });
     expect(result.issues).toEqual({});
     expect(result.values).toEqual(values);
   });
@@ -90,62 +90,62 @@ describe("walidacja wartości względem definicji", () => {
   it("odrzuca wartość pod nieznanym identyfikatorem (lustro odmowy 22023)", () => {
     const result = validateCustomFieldValues(ALL, {
       "99999999-9999-4999-8999-999999999999": "cokolwiek",
-    });
+    }, { mode: "create" });
     expect(result.issues["99999999-9999-4999-8999-999999999999"]).toBe("unknownDefinition");
     expect(result.values).toEqual({});
   });
 
   it("odrzuca klucz, który nie jest identyfikatorem definicji", () => {
-    const result = validateCustomFieldValues(ALL, { "numer uprawnien": "X" });
+    const result = validateCustomFieldValues(ALL, { "numer uprawnien": "X" }, { mode: "create" });
     expect(result.issues["numer uprawnien"]).toBe("unknownDefinition");
   });
 
   it("odrzuca wartość pod definicją zarchiwizowaną", () => {
     const archived = def("text", { archivedAt: "2026-08-01T00:00:00Z" });
-    const result = validateCustomFieldValues([archived], { [archived.id]: "nowa" });
+    const result = validateCustomFieldValues([archived], { [archived.id]: "nowa" }, { mode: "create" });
     expect(result.issues[archived.id]).toBe("archived");
   });
 
   it("odrzuca stringa tam, gdzie definicja mówi liczba (a nie zamienia go po cichu)", () => {
-    const result = validateCustomFieldValues(ALL, { [ID.number]: "1234" as never });
+    const result = validateCustomFieldValues(ALL, { [ID.number]: "1234" as never }, { mode: "create" });
     expect(result.issues[ID.number]).toBe("type");
     expect(result.values[ID.number]).toBeUndefined();
   });
 
   it("odrzuca wartość spoza listy opcji", () => {
-    expect(validateCustomFieldValues(ALL, { [ID.select]: "Gamma" }).issues[ID.select]).toBe("option");
+    expect(validateCustomFieldValues(ALL, { [ID.select]: "Gamma" }, { mode: "create" }).issues[ID.select]).toBe("option");
   });
 
   it("odrzuca datę o poprawnym kształcie, ale nieistniejącą", () => {
-    expect(validateCustomFieldValues(ALL, { [ID.date]: "2026-02-31" }).issues[ID.date]).toBe("date");
-    expect(validateCustomFieldValues(ALL, { [ID.date]: "09.08.2026" }).issues[ID.date]).toBe("date");
+    expect(validateCustomFieldValues(ALL, { [ID.date]: "2026-02-31" }, { mode: "create" }).issues[ID.date]).toBe("date");
+    expect(validateCustomFieldValues(ALL, { [ID.date]: "09.08.2026" }, { mode: "create" }).issues[ID.date]).toBe("date");
   });
 
   it("odrzuca znaki sterujące w tekście, ale nie łamanie wiersza w tekście długim", () => {
-    expect(validateCustomFieldValues(ALL, { [ID.text]: "a\u0001b" }).issues[ID.text]).toBe(
+    expect(validateCustomFieldValues(ALL, { [ID.text]: "a\u0001b" }, { mode: "create" }).issues[ID.text]).toBe(
       "controlChars",
     );
-    expect(validateCustomFieldValues(ALL, { [ID.text]: "a\nb" }).issues[ID.text]).toBe(
+    expect(validateCustomFieldValues(ALL, { [ID.text]: "a\nb" }, { mode: "create" }).issues[ID.text]).toBe(
       "controlChars",
     );
-    expect(validateCustomFieldValues(ALL, { [ID.textarea]: "a\nb" }).issues[ID.textarea]).toBeUndefined();
-    expect(validateCustomFieldValues(ALL, { [ID.textarea]: "a\u0001b" }).issues[ID.textarea]).toBe(
+    expect(validateCustomFieldValues(ALL, { [ID.textarea]: "a\nb" }, { mode: "create" }).issues[ID.textarea]).toBeUndefined();
+    expect(validateCustomFieldValues(ALL, { [ID.textarea]: "a\u0001b" }, { mode: "create" }).issues[ID.textarea]).toBe(
       "controlChars",
     );
   });
 
   it("pilnuje długości i zakresu", () => {
     expect(
-      validateCustomFieldValues(ALL, { [ID.text]: "x".repeat(CUSTOM_FIELD_LIMITS.textMax + 1) })
+      validateCustomFieldValues(ALL, { [ID.text]: "x".repeat(CUSTOM_FIELD_LIMITS.textMax + 1) }, { mode: "create" })
         .issues[ID.text],
     ).toBe("tooLong");
-    expect(validateCustomFieldValues(ALL, { [ID.number]: 1e13 }).issues[ID.number]).toBe("range");
-    expect(validateCustomFieldValues(ALL, { [ID.number]: 1.1234567 }).issues[ID.number]).toBe("range");
+    expect(validateCustomFieldValues(ALL, { [ID.number]: 1e13 }, { mode: "create" }).issues[ID.number]).toBe("range");
+    expect(validateCustomFieldValues(ALL, { [ID.number]: 1.1234567 }, { mode: "create" }).issues[ID.number]).toBe("range");
   });
 
   it("odrzuca telefon bez sensownej liczby cyfr", () => {
-    expect(validateCustomFieldValues(ALL, { [ID.phone]: "12345" }).issues[ID.phone]).toBe("phone");
-    expect(validateCustomFieldValues(ALL, { [ID.phone]: "nie-telefon" }).issues[ID.phone]).toBe(
+    expect(validateCustomFieldValues(ALL, { [ID.phone]: "12345" }, { mode: "create" }).issues[ID.phone]).toBe("phone");
+    expect(validateCustomFieldValues(ALL, { [ID.phone]: "nie-telefon" }, { mode: "create" }).issues[ID.phone]).toBe(
       "phone",
     );
   });
@@ -161,9 +161,9 @@ describe("walidacja wartości względem definicji", () => {
     const long = "ą".repeat(CUSTOM_FIELD_LIMITS.textareaMax);
     const definitions = ids.map((id) => def("textarea", { id }));
     const values = Object.fromEntries(ids.map((id) => [id, long]));
-    expect(validateCustomFieldValues(definitions, values).issues["*"]).toBe("tooLarge");
+    expect(validateCustomFieldValues(definitions, values, { mode: "create" }).issues["*"]).toBe("tooLarge");
     expect(
-      validateCustomFieldValues([def("textarea", { id: ids[0] })], { [ids[0]]: long }).issues,
+      validateCustomFieldValues([def("textarea", { id: ids[0] })], { [ids[0]]: long }, { mode: "create" }).issues,
     ).toEqual({});
   });
 });
@@ -171,12 +171,12 @@ describe("walidacja wartości względem definicji", () => {
 describe("wymagalność — reguła WYŁĄCZNIE formularza", () => {
   it("zgłasza brak wartości pola wymaganego", () => {
     const required = def("text", { required: true });
-    expect(validateCustomFieldValues([required], {}).issues[required.id]).toBe("required");
+    expect(validateCustomFieldValues([required], {}, { mode: "create" }).issues[required.id]).toBe("required");
   });
 
   it("niezaznaczony checkbox nie spełnia wymogu", () => {
     const required = def("checkbox", { required: true });
-    expect(validateCustomFieldValues([required], { [required.id]: false }).issues[required.id]).toBe(
+    expect(validateCustomFieldValues([required], { [required.id]: false }, { mode: "create" }).issues[required.id]).toBe(
       "required",
     );
   });
@@ -184,19 +184,19 @@ describe("wymagalność — reguła WYŁĄCZNIE formularza", () => {
   it("nie zgłasza braku, gdy wymagalności nie egzekwujemy (zapis częściowy)", () => {
     const required = def("text", { required: true });
     expect(
-      validateCustomFieldValues([required], {}, { requireRequired: false }).issues,
+      validateCustomFieldValues([required], {}, { mode: "create", requireRequired: false }).issues,
     ).toEqual({});
   });
 
   it("pole zarchiwizowane nie jest już wymagane", () => {
     const required = def("text", { required: true, archivedAt: "2026-08-01T00:00:00Z" });
-    expect(validateCustomFieldValues([required], {}).issues).toEqual({});
+    expect(validateCustomFieldValues([required], {}, { mode: "create" }).issues).toEqual({});
   });
 
   it("wymagalność liczy się tylko na powierzchni, na której pole jest widoczne", () => {
     const required = def("text", { required: true, showInCheckout: false });
-    expect(validateCustomFieldValues([required], {}, { surface: "checkout" }).issues).toEqual({});
-    expect(validateCustomFieldValues([required], {}, { surface: "panel" }).issues[required.id]).toBe(
+    expect(validateCustomFieldValues([required], {}, { mode: "create", surface: "checkout" }).issues).toEqual({});
+    expect(validateCustomFieldValues([required], {}, { mode: "create", surface: "panel" }).issues[required.id]).toBe(
       "required",
     );
   });
@@ -249,7 +249,7 @@ describe("odczyt z formularza", () => {
   ]);
 
   it("typuje wartości i przycina tekst", () => {
-    const result = readCustomFieldValues(ALL, (name) => form.get(name) ?? null);
+    const result = readCustomFieldValues(ALL, (name) => form.get(name) ?? null, { mode: "create" });
     expect(result.issues).toEqual({});
     expect(result.values[ID.text]).toBe("Numer 7");
     expect(result.values[ID.number]).toBe(1234.5);
@@ -260,13 +260,13 @@ describe("odczyt z formularza", () => {
 
   it("nie wpuszcza wartości pola zarchiwizowanego, nawet gdy przyszła w formularzu", () => {
     const archived = def("text", { archivedAt: "2026-08-01T00:00:00Z" });
-    const result = readCustomFieldValues([archived], () => "podrzucone");
+    const result = readCustomFieldValues([archived], () => "podrzucone", { mode: "create" });
     expect(result.values).toEqual({});
     expect(result.issues).toEqual({});
   });
 
   it("zgłasza liczbę, która liczbą nie jest", () => {
-    const result = readCustomFieldValues([def("number")], () => "dwa i pół");
+    const result = readCustomFieldValues([def("number")], () => "dwa i pół", { mode: "create" });
     expect(result.issues[ID.number]).toBe("number");
   });
 
@@ -291,6 +291,7 @@ describe("zapis nie kasuje tego, czego formularz nie widzi", () => {
     // zniknąłby z bazy przy pierwszym zapisie karty w panelu — cicho i bez
     // błędu, czyli w sposób nie do zauważenia dla operatora.
     const result = readCustomFieldValues(defs, () => "z panelu", {
+      mode: "update",
       surface: "panel",
       existing,
     });
@@ -301,7 +302,7 @@ describe("zapis nie kasuje tego, czego formularz nie widzi", () => {
   });
 
   it("bez wartości zapisanych nie wymyśla kluczy", () => {
-    const result = readCustomFieldValues(defs, () => "z panelu", { surface: "panel" });
+    const result = readCustomFieldValues(defs, () => "z panelu", { mode: "create", surface: "panel" });
     expect(Object.keys(result.values)).toEqual([ID.text]);
   });
 
@@ -311,6 +312,7 @@ describe("zapis nie kasuje tego, czego formularz nie widzi", () => {
     // więc podmiana ma się odbić — a odmowa ma mówić prawdę: pole ISTNIEJE,
     // tylko nie tędy.
     const result = validateCustomFieldValues(defs, { [ID.textarea]: "podmienione" }, {
+      mode: "update",
       surface: "panel",
       existing,
     });
@@ -322,7 +324,7 @@ describe("zapis nie kasuje tego, czego formularz nie widzi", () => {
     const result = validateCustomFieldValues(
       defs,
       { [ID.textarea]: existing[ID.textarea]!, [ID.select]: existing[ID.select]! },
-      { surface: "panel", existing },
+      { mode: "update", surface: "panel", existing },
     );
     expect(result.issues).toEqual({});
   });
@@ -482,7 +484,7 @@ describe("parytet ze wspólnymi wektorami (te same przechodzą przez trigger 005
       });
       const result = validateCustomFieldValues([definition], {
         [definition.id]: vector.value as never,
-      });
+      }, { mode: "create" });
       const rejected = Boolean(result.issues[definition.id]);
       expect(rejected, `${vector.name}: rdzeń rozstrzygnął inaczej niż kontrakt`).toBe(!vector.valid);
     });

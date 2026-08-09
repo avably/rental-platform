@@ -17,15 +17,20 @@ export {
 } from "./types";
 
 export {
+  CUSTOM_FIELD_CHECKOUT_ENTITIES,
+  checkoutCustomFields,
   customFieldDefinitionFromRow,
   parseCustomFieldInput,
   readCustomFieldValues,
+  splitCustomFieldValuesByEntity,
   validateCustomFieldValues,
   visibleCustomFields,
   type CustomFieldDefinitionRow,
   type ReadCustomFieldValuesOptions,
+  type ValidateCustomFieldsCreateOptions,
   type ValidateCustomFieldsOptions,
   type ValidateCustomFieldsResult,
+  type ValidateCustomFieldsUpdateOptions,
 } from "./validate";
 
 export {

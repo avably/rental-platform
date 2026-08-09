@@ -114,30 +114,45 @@ export interface CustomFieldFormResult {
 }
 
 /**
- * Odczyt pól własnych z FormData i przełożenie odmów na stan formularza.
+ * Wejście odczytu formularza — TRYB JEST OBOWIĄZKOWY.
  *
- * `existing` jest OBOWIĄZKOWY przy aktualizacji: kolumna zapisuje się
- * w całości, więc bez niego zapis skasowałby wartości pod polami, których ten
- * formularz nie pokazuje (zarchiwizowane i checkoutowe).
+ * Przy `"update"` mapa `existing` jest wymagana w typie: kolumna
+ * `custom_fields` zapisuje się w CAŁOŚCI, więc jej pominięcie kasowałoby
+ * wartości pod polami, których ten formularz nie pokazuje (zarchiwizowane
+ * oraz oznaczone wyłącznie „zamawianie" — czyli te, które wpisał KLIENT
+ * w sklepie). Dopóki `existing` było opcjonalne, ta pomyłka przechodziła
+ * kompilację.
  */
+export type CustomFieldsFormMode =
+  | { mode: "create" }
+  | { mode: "update"; existing: CustomFieldValues };
+
+export type ReadCustomFieldsFromFormOptions = CustomFieldsFormMode & {
+  entity: CustomFieldEntity;
+  surface?: CustomFieldSurface;
+};
+
+/** Odczyt pól własnych z FormData i przełożenie odmów na stan formularza. */
 export function readCustomFieldsFromForm(
   definitions: readonly CustomFieldDefinition[],
   formData: FormData,
   t: CustomFieldIssueTranslator,
-  options: { entity: CustomFieldEntity; surface?: CustomFieldSurface; existing?: CustomFieldValues },
+  options: ReadCustomFieldsFromFormOptions,
 ): CustomFieldFormResult {
+  const shared = {
+    prefix: CUSTOM_FIELD_PREFIX,
+    surface: options.surface ?? ("panel" as CustomFieldSurface),
+    entity: options.entity,
+  };
   const { values, issues } = readCustomFieldValues(
     definitions,
     (name) => {
       const value = formData.get(name);
       return typeof value === "string" ? value : null;
     },
-    {
-      prefix: CUSTOM_FIELD_PREFIX,
-      surface: options.surface ?? "panel",
-      entity: options.entity,
-      ...(options.existing ? { existing: options.existing } : {}),
-    },
+    options.mode === "update"
+      ? { ...shared, mode: "update", existing: options.existing }
+      : { ...shared, mode: "create" },
   );
 
   const fieldErrors: Record<string, string> = {};

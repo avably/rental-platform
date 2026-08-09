@@ -270,7 +270,7 @@ describe("odczyt formularza", () => {
       [definition(ID.date, { type: "date" })],
       form,
       t as never,
-      { entity: "customer" },
+      { mode: "create", entity: "customer" },
     );
 
     expect(result.fieldErrors[customFieldName(ID.date)]).toBe("issue.date");
@@ -288,7 +288,7 @@ describe("odczyt formularza", () => {
       [definition(ID.checkoutOnly, { showInPanel: false, showInCheckout: true })],
       form,
       t as never,
-      { entity: "customer", existing: { [ID.checkoutOnly]: "z plakatu" } },
+      { mode: "update", entity: "customer", existing: { [ID.checkoutOnly]: "z plakatu" } },
     );
 
     expect(result.fieldErrors).toEqual({});
