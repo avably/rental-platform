@@ -23,8 +23,14 @@ import type { PublicAvailability, PublicCatalog, PublicCustomField } from "./con
  * potrzebuje przy tym całego katalogu z cennikiem i zdjęciami. Strona
  * checkoutu bierze te same definicje z katalogu, który i tak już czyta.
  *
- * Fail-closed jak reszta modułu: błąd transportu daje PUSTĄ listę, czyli
- * „żadnego pola nie da się wypełnić" — a nie „wypełniaj co chcesz".
+ * BŁĄD ODCZYTU ≠ BRAK PÓL. Odwrotnie niż `get_public_catalog`/`_availability`
+ * (gdzie null = „online niedostępne", tor offline działa dalej), TA lista
+ * bramkuje egzekwowanie pól WYMAGANYCH przy zapisie. Gdyby błąd transportu
+ * dawał pustą listę, chwilowy blip zdejmowałby wymagalność — 201 i zamówienie
+ * bez pola, które najemca oznaczył jako obowiązkowe. Dlatego RZUCAMY na błąd:
+ * rdzeń checkoutu łapie to i ZAMYKA ścieżkę (odmowa), zamiast przepuścić.
+ * Ścieżka RENDEROWANIA definicji nie wchodzi tędy — bierze je z katalogu
+ * (`get_public_catalog`), więc odmowa dotyka wyłącznie ZAPISU.
  */
 export async function getPublicCustomFields(
   tenantId: string,
@@ -35,7 +41,14 @@ export async function getPublicCustomFields(
     .schema("app")
     .rpc("get_public_custom_fields", { p_tenant_id: tenantId });
 
-  if (error || !Array.isArray(data)) return [];
+  if (error) {
+    throw new Error(
+      `Odczyt definicji pól własnych nie powiódł się (${error.code ?? error.message}).`,
+    );
+  }
+  // Brak błędu, ale nie-tablica (np. najemca nieaktywny → null): PRAWDZIWY brak
+  // pól, a nie awaria — pusta lista jest tu poprawną odpowiedzią.
+  if (!Array.isArray(data)) return [];
   return data as PublicCustomField[];
 }
 

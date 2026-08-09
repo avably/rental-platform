@@ -76,6 +76,11 @@ final class CustomFieldsTest extends TestCase {
 		// błędy — bez tego showFieldErrors nie znajdzie pola i komunikat
 		// przepadłby po cichu.
 		$this->assertStringContainsString( 'data-avably-field="cf_' . self::CF_TEXT . '"', $html );
+		// SLOT BŁĘDU obok kontrolki: showFieldErrors szuka `[data-avably-error-for]`
+		// przez `closest('.avably-booking__field')`. Bez slotu komunikat per pole
+		// nie ma się gdzie pokazać — asercja pilnuje DRUGIEJ połowy inwariantu
+		// doręczenia (pierwsza to `data-avably-field` wyżej).
+		$this->assertStringContainsString( 'data-avably-error-for="avably-cf-' . self::CF_TEXT . '"', $html );
 		$this->assertStringContainsString( 'Numer uprawnień', $html );
 	}
 

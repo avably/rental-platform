@@ -67,8 +67,9 @@ describe("odczyt wartości z wejścia zamawiania", () => {
     });
 
     expect(result.fields).toEqual({});
-    // Checkbox bez wpisu jest `false`, nie brakiem klucza — patrz przypadek niżej.
-    expect(result.order).toEqual({ [ID.text]: "ABC-123", [ID.checkbox]: false });
+    // Checkbox bez klucza w wejściu NIE trafia do mapy jako `false` — brak
+    // klucza to „wartość nie dostarczona", nie deklaracja `false` (patrz niżej).
+    expect(result.order).toEqual({ [ID.text]: "ABC-123" });
     expect(result.customer).toEqual({ [ID.customer]: "123456789" });
   });
 
@@ -91,8 +92,49 @@ describe("odczyt wartości z wejścia zamawiania", () => {
     expect(stringy.order[ID.checkbox]).toBe(true);
   });
 
-  it("brak checkboksa w wejściu znaczy `false`, a nie „pole pominięte”", () => {
+  it("brak klucza checkboksa NIE zapisuje `false` — nie tyka wartości stałego klienta (#2)", () => {
+    // Baza SCALA mapę klienta (0058, `||`). Gdyby brak klucza dawał `false`,
+    // każda rezerwacja zerowałaby checkbox klienta ustawiony w panelu. Brak
+    // klucza = wartość nie dostarczona, więc mapa go NIE NIESIE.
     const result = readCheckoutCustomFields(DEFINITIONS, {});
+    expect(result.order[ID.checkbox]).toBeUndefined();
+    expect(Object.hasOwn(result.order, ID.checkbox)).toBe(false);
+  });
+
+  it("checkbox stałego klienta BEZ klucza w API v1 zostaje NIETKNIĘTY (#2, dowód b)", () => {
+    // Definicja checkboxa na encji KLIENTA. Konsument API v1 wysyła rezerwację
+    // z innym polem, ale bez klucza checkboxa — jego wartość nie może wejść do
+    // mapy klienta, bo scalenie w bazie zerowałoby ją przy każdym zamówieniu.
+    const defs = customFieldsFromPublicRows([
+      row({ id: ID.customer, entity: "customer", field_type: "phone" }),
+      row({ id: ID.checkbox, entity: "customer", field_type: "checkbox" }),
+    ]);
+    const result = readCheckoutCustomFields(defs, { [ID.customer]: "123456789" });
+    expect(result.customer).toEqual({ [ID.customer]: "123456789" });
+    expect(Object.hasOwn(result.customer, ID.checkbox)).toBe(false);
+  });
+
+  it("embed wysyła KAŻDY klucz jako '' — niezaznaczony checkbox nadal NIE zeruje klienta (#2)", () => {
+    // Widget embeda buduje payload przez `Object.fromEntries(defs.map(d => [d.id,
+    // String(data.get(...) ?? "")]))`, więc checkbox przychodzi jako "" (klucz
+    // OBECNY). Pusty string to niezaznaczone pole HTML, nie deklaracja `false`.
+    const defs = customFieldsFromPublicRows([
+      row({ id: ID.customer, entity: "customer", field_type: "phone" }),
+      row({ id: ID.checkbox, entity: "customer", field_type: "checkbox" }),
+    ]);
+    const embedShaped = { [ID.customer]: "123456789", [ID.checkbox]: "" };
+    const result = readCheckoutCustomFields(defs, embedShaped);
+    expect(Object.hasOwn(result.customer, ID.checkbox)).toBe(false);
+  });
+
+  it("checkbox afirmatywnie zaznaczony (on) trafia do mapy jako `true`", () => {
+    const result = readCheckoutCustomFields(DEFINITIONS, { [ID.checkbox]: "on" });
+    expect(result.order[ID.checkbox]).toBe(true);
+  });
+
+  it("jawne boolean `false` z maszyny (JSON) JEST zapisem — konsument deklaruje wprost", () => {
+    // Rozróżnienie: pominięcie klucza = „nie tykaj"; jawne `false` = „ustaw false".
+    const result = readCheckoutCustomFields(DEFINITIONS, { [ID.checkbox]: false });
     expect(result.order[ID.checkbox]).toBe(false);
   });
 

@@ -19,6 +19,9 @@ import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
 
+/** Produkt nieosiągalny (błąd odczytu, brak wiersza, cudzy tenant) — jeden komunikat. */
+const PRODUCT_NOT_FOUND = "Nie znaleziono produktu.";
+
 function productPayload(input: ReturnType<typeof productSchema.parse>) {
   return {
     name: input.name,
@@ -98,12 +101,17 @@ export async function updateProductAction(
   // idzie do bazy W CAŁOŚCI, więc bez nich zapis formularza skasowałby to, co
   // stoi pod polami zarchiwizowanymi i checkoutowymi. Odczyt jest pod RLS
   // i zawężony do najemcy — nie ma jak przynieść cudzej mapy.
-  const { data: current } = await ctx.supabase
+  const { data: current, error: currentError } = await ctx.supabase
     .from("products")
     .select("custom_fields")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id.data)
     .maybeSingle();
+  // BŁĄD ODCZYTU ≠ PUSTY WIERSZ. Chwilowy błąd + udany UPDATE dałby `existing={}`
+  // i wyzerował wartości pól niewidocznych w panelu (zarchiwizowane oraz
+  // serwowane publicznie przez get_public_catalog) — cicho, z „zapisano".
+  // Zamykamy ścieżkę zamiast zapisać mapę spoza wiersza.
+  if (currentError || !current) return { formError: PRODUCT_NOT_FOUND };
 
   const custom = await readCustomFieldsForUpdate(
     ctx.supabase,
@@ -126,7 +134,7 @@ export async function updateProductAction(
     .eq("id", id.data)
     .select("id");
   if (error) return { formError: error.message };
-  if (!data || data.length === 0) return { formError: "Nie znaleziono produktu." };
+  if (!data || data.length === 0) return { formError: PRODUCT_NOT_FOUND };
 
   return { success: "saved" };
 }

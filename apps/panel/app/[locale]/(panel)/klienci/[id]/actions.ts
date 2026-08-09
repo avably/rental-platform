@@ -35,6 +35,10 @@ const UNIQUE_VIOLATION = "23505";
  */
 const NOT_FOUND_CODES = new Set(["23503", "23502"]);
 
+/** Wiersz nieosiągalny (błąd odczytu, brak wiersza, cudzy tenant) — jeden komunikat. */
+const CUSTOMER_NOT_FOUND =
+  "Nie udało się zapisać zmian — klient nie istnieje albo nie masz do niego dostępu.";
+
 export async function updateCustomerAction(
   customerId: string,
   _prevState: FormState,
@@ -66,12 +70,17 @@ export async function updateCustomerAction(
   // co klient wpisał w sklepie, a formularz karty takiego pola nie pokazuje.
   // Bez tego odczytu pierwsza edycja danych kontaktowych kasowałaby tamte
   // odpowiedzi — cicho, bez błędu i bez śladu.
-  const { data: current } = await ctx.supabase
+  const { data: current, error: currentError } = await ctx.supabase
     .from("customers")
     .select("custom_fields")
     .eq("tenant_id", tenantId)
     .eq("id", id.data)
     .maybeSingle();
+  // BŁĄD ODCZYTU ≠ PUSTY WIERSZ. Chwilowy błąd czytania + udany UPDATE dałby
+  // `existing={}` (mapa spoza wiersza), a zapis w całości SKASOWAŁBY wartości
+  // checkoutowe/zarchiwizowane — cicho, z „zapisano". Zamykamy ścieżkę (wzorzec
+  // z zamowienia/[id]/custom-fields-actions.ts).
+  if (currentError || !current) return { formError: CUSTOMER_NOT_FOUND };
 
   const custom = await readCustomFieldsForUpdate(
     ctx.supabase,
@@ -110,9 +119,7 @@ export async function updateCustomerAction(
     return { formError: error.message };
   }
   if (!data || data.length === 0) {
-    return {
-      formError: "Nie udało się zapisać zmian — klient nie istnieje albo nie masz do niego dostępu.",
-    };
+    return { formError: CUSTOMER_NOT_FOUND };
   }
 
   // Odśwież RSC: po zapisie karta (i lista) mają pokazać NOWE dane, a nie stan

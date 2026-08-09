@@ -18,6 +18,8 @@
  * = wyjątek 22023 i rollback), plan daje operatorowi błąd z numerem wiersza
  * zamiast zbiorczej odmowy z bazy.
  */
+import { CUSTOM_FIELD_LIMITS } from "@avably/core";
+
 import type { ExportContext } from "../export/common";
 import { CSV_CUSTOM_FIELD_PREFIX, loadExportCustomFields } from "../export/custom-fields";
 import {
@@ -177,6 +179,23 @@ export async function runCatalogImport(
       p_rows: toRpcRows(plan.products, plan.customFieldColumns),
     });
   if (error) {
+    // 23514 = naruszenie CHECK-a rozmiaru `custom_fields` PO SCALENIU mapy pliku
+    // z wartościami już zapisanymi (pod definicjami zarchiwizowanymi/spoza
+    // kolumn pliku). Podgląd liczy rozmiar TYLKO na mapie z pliku (mode:"create"),
+    // więc świeci zielono, a baza egzekwuje na całości i cofa import (atomowo —
+    // bez utraty danych). Zamiast surowego błędu 500 oddajemy zdanie dla
+    // operatora; numer wiersza jest nieosiągalny (partia jest jedną transakcją).
+    if (error.code === "23514") {
+      return {
+        issues: [
+          {
+            row: 1,
+            code: "badCustomField",
+            value: `>${CUSTOM_FIELD_LIMITS.valuesBytesMax}B po scaleniu z zapisanymi wartościami`,
+          },
+        ],
+      };
+    }
     throw new Error(`Import katalogu: zapis nie powiódł się (${error.code ?? "?"}).`);
   }
   return {

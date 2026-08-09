@@ -100,19 +100,26 @@
 		});
 	}
 
+	// Rozmieszcza komunikaty pod polami po `data-avably-field`. ZWRACA listę
+	// komunikatów, których nie dało się zakotwiczyć w DOM — klucz zbiorczy
+	// `customFields` (bramka rozmiaru całej mapy) albo `cf_<id>` pola pominiętego
+	// przez renderer (typ spoza schematu). Bez tego komunikat przepadał, a baner
+	// mówił „sprawdź podświetlone pola", których nie było — checkout ślepym zaułkiem.
 	function showFieldErrors(fields) {
+		var orphaned = [];
 		Object.keys(fields || {}).forEach(function (fieldKey) {
+			var message = fields[fieldKey];
 			var input = root.querySelector('[data-avably-field="' + fieldKey + '"]');
-			if (!input) {
-				return;
-			}
-			var row = input.closest('.avably-booking__field') || input.closest('p');
+			var row = input ? (input.closest('.avably-booking__field') || input.closest('p')) : null;
 			var slot = row ? row.querySelector('[data-avably-error-for]') : null;
 			if (slot) {
 				slot.hidden = false;
-				slot.textContent = fields[fieldKey];
+				slot.textContent = message;
+			} else if (message) {
+				orphaned.push(message);
 			}
 		});
+		return orphaned;
 	}
 
 	// ------------------------------------------------------------------
@@ -403,10 +410,14 @@
 				return;
 			}
 			var payload = json.data || {};
-			showNotice(payload.message || i18n.genericError || '', true);
-			if (payload.fields) {
-				showFieldErrors(payload.fields);
-			}
+			var orphaned = payload.fields ? showFieldErrors(payload.fields) : [];
+			// Komunikaty bez kotwicy dopisujemy do banera ogólnego — inaczej
+			// przepadłyby, a klient nie wiedziałby, co poprawić.
+			var message = [payload.message || i18n.genericError || '']
+				.concat(orphaned)
+				.filter(Boolean)
+				.join(' ');
+			showNotice(message, true);
 		});
 	}
 
