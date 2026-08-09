@@ -11,6 +11,8 @@
  * wnioskowane z kodu odpowiedzi — tak jak przy M1.
  */
 
+import type { CustomFieldDefinition } from "@avably/core";
+
 import { CHECKOUT_RATE_LIMIT, submitCheckoutCore, type CheckoutRpcArgs, type CheckoutRpcResult } from "@/lib/checkout/core";
 import type { OnlinePaymentAvailability } from "@/lib/checkout/payment-options";
 import { embedError, embedJson, type EmbedMonthPayload } from "./contract";
@@ -49,6 +51,13 @@ export interface EmbedMonthDeps extends EmbedDeps {
 
 export interface EmbedReservationDeps extends EmbedDeps {
   callRpc: (args: CheckoutRpcArgs) => Promise<CheckoutRpcResult>;
+  /**
+   * Definicje pól własnych zamawiania (C6-A3, 0058). Embed jest TRZECIĄ
+   * powierzchnią na tym samym rdzeniu, więc dostaje je tą samą drogą co sklep
+   * i API v1 — inaczej najemca z polem WYMAGANYM miałby w ramce formularz,
+   * którego serwer nigdy nie przyjmie.
+   */
+  readCustomFields: (tenantId: string) => Promise<CustomFieldDefinition[]>;
   sendEmails: (tenantId: string, ctx: CheckoutRpcResult) => Promise<string[]>;
   readOnlineAvailability: (tenantId: string) => Promise<OnlinePaymentAvailability>;
 }
@@ -146,6 +155,7 @@ export async function handleEmbedReservationRequest(
     callRpc: deps.callRpc,
     sendEmails: (ctx) => deps.sendEmails(tenantId, ctx),
     readOnlineAvailability: () => deps.readOnlineAvailability(tenantId),
+    readCustomFields: () => deps.readCustomFields(tenantId),
     // Uchwyt zamówienia jest server-only w kontrakcie storefrontu; w ramce na
     // cudzej stronie tym bardziej nie ma go gdzie zapamiętać.
     rememberCheckout: async () => {},
