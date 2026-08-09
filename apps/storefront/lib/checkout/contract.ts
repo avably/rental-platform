@@ -70,13 +70,41 @@ export interface CheckoutInput {
   addressCity?: string | undefined;
   locale?: "pl" | "en" | undefined;
   notes?: string | undefined;
+  /**
+   * Pola własne najemcy (C6-A3, ADR-121) — JEDNA PŁASKA MAPA `id definicji →
+   * wartość`, dokładnie taka, jaką wystawia `custom_fields` w katalogu.
+   *
+   * Płaska, choć w bazie kolumny są dwie (`orders` i `customers`): encję
+   * wybiera DEFINICJA, nie wołający. Gdyby przysyłał ją klient, wystarczyłoby
+   * podać cudzą encję, żeby ominąć filtr encji w triggerze 0057 — a konsument
+   * API i tak nie ma powodu wiedzieć, w której tabeli wartość wyląduje.
+   *
+   * Wartości wolno przysłać TYPOWANE (liczba jako liczba, checkbox jako bool
+   * — tak robi konsument JSON-owy) albo STRINGIEM (tak robi formularz
+   * i wtyczka WordPress, gdzie wszystko przychodzi z `$_POST`). Obie drogi
+   * kończą się tą samą walidacją.
+   */
+  customFields?: Record<string, string | number | boolean> | undefined;
   captchaToken?: string | undefined;
   /** Pole-pułapka: wypełnione = bot. Musi zostać puste. */
   honeypot?: string | undefined;
 }
 
+/**
+ * Klucz błędu pola własnego. Ten sam prefiks co nazwy pól formularza w panelu
+ * (`cf_<id>`) — konsument nie musi znać dwóch konwencji, a prefiks gwarantuje
+ * brak kolizji z zamkniętą listą pól kontraktu.
+ */
+export type CheckoutCustomFieldKey = `cf_${string}`;
+
 /** Pola formularza — klucze mapy błędów walidacji. */
 export type CheckoutField =
+  | CheckoutCustomFieldKey
+  /**
+   * Odmowa dotycząca CAŁEJ mapy pól własnych (przekroczony rozmiar kolumny)
+   * — nie ma pojedynczego pola, pod które mogłaby trafić.
+   */
+  | "customFields"
   | "email"
   | "fullName"
   | "startDate"
@@ -200,6 +228,30 @@ export interface PublicProductImage {
   sort_order: number;
 }
 
+/**
+ * Definicja pola własnego w kształcie PUBLICZNYM (C6-A3, ADR-121) — ściśle
+ * węższym od wiersza `custom_field_definitions`.
+ *
+ * Czego tu NIE MA i dlaczego: flag widoczności (funkcja `get_public_custom_fields`
+ * zwraca wyłącznie pola oznaczone „zamawianie", więc flaga byłaby stałą),
+ * `archived_at` (zarchiwizowane nie wychodzą w ogóle) i `created_at` (moment
+ * konfiguracji sklepu nie jest sprawą kupującego). KOLEJNOŚĆ niesie sama
+ * tablica — baza sortuje ją tak samo jak panel i umowa PDF.
+ */
+export interface PublicCustomField {
+  id: string;
+  /** `customer` / `order` do wypełnienia, `product` do opisania wartości w katalogu. */
+  entity: string;
+  field_type: string;
+  label: string;
+  help_text: string | null;
+  required: boolean;
+  options: unknown;
+}
+
+/** Mapa `id definicji → wartość` — kształt kolumny `custom_fields`. */
+export type PublicCustomFieldValues = Record<string, string | number | boolean>;
+
 export interface PublicCatalogProduct {
   id: string;
   name: string;
@@ -209,6 +261,8 @@ export interface PublicCatalogProduct {
   auto_increment_multiplier: number;
   buffer_before_days: number;
   buffer_after_days: number;
+  /** Wartości pól własnych PRODUKTU oznaczonych „zamawianie" (odczyt). */
+  custom_fields: PublicCustomFieldValues;
   pricing_tiers: PublicPricingTier[];
   images: PublicProductImage[];
 }
@@ -229,6 +283,8 @@ export interface PublicDeliveryMethod {
 
 export interface PublicCatalog {
   tenant: { name: string; locale: "pl" | "en"; currency: CheckoutCurrency };
+  /** Pola własne widoczne w zamawianiu — wszystkie trzy encje (patrz `entity`). */
+  custom_fields: PublicCustomField[];
   products: PublicCatalogProduct[];
   pickup_locations: PublicPickupLocation[];
   delivery_methods: PublicDeliveryMethod[];

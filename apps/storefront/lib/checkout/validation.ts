@@ -89,6 +89,20 @@ export const checkoutSchema = z
     addressCity: optionalText(120),
     locale: z.enum(LOCALES).optional(),
     notes: optionalText(2000),
+    /**
+     * Pola własne (C6-A3, ADR-121): tu sprawdzamy WYŁĄCZNIE KSZTAŁT — mapa
+     * stringów o wartościach skalarnych. O tym, czy klucz jest żywym polem
+     * zamawiania tego najemcy i czy wartość pasuje do typu, rozstrzyga rdzeń
+     * pól własnych (lustro triggera 0057), bo tamta odpowiedź wymaga definicji
+     * z bazy, a schemat ich nie zna.
+     *
+     * `passthrough` na wartościach byłby błędem: obiekt zagnieżdżony pod
+     * kluczem pola nie jest wartością żadnego z siedmiu typów, a przepuszczony
+     * dotarłby do jsonb i wywrócił trigger surowym błędem zamiast komunikatem.
+     */
+    customFields: z
+      .record(z.string().max(64), z.union([z.string().max(4096), z.number(), z.boolean()]))
+      .optional(),
     captchaToken: z.string().max(4096).optional(),
     honeypot: z.string().max(200).optional(),
   })
@@ -125,6 +139,10 @@ const FIELDS = new Set<string>([
   "addressZip",
   "addressCity",
   "locale",
+  // Odmowa dotycząca CAŁEJ mapy pól własnych — zły kształt tutaj, przekroczony
+  // rozmiar kolumny w rdzeniu pól własnych. Bez tego klucza błąd kształtu
+  // ginąłby po cichu i konsument dostawałby 422 z pustą mapą pól.
+  "customFields",
 ]);
 
 function toFieldError(zodIssue: z.ZodIssue): CheckoutFieldError {
