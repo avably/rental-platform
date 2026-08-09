@@ -369,3 +369,212 @@ describe.skipIf(!hasEnv)("import katalogu CSV na żywej bazie (C3, ADR-112)", ()
     expect(await snapshotCatalog(admin, tenantA.tenantId)).toEqual(before);
   });
 });
+
+/**
+ * Pola własne w FORMACIE WYMIANY (C6-A3, ADR-121) — round-trip na żywej bazie.
+ *
+ * Dowodzimy trzech rzeczy, których nie da się dowieść parserem w izolacji:
+ *   1. eksport → edycja → import nie gubi wartości (i nie gubi ich w drugą
+ *      stronę: drugi eksport jest identyczny z pierwszym),
+ *   2. kolumna `cf_<id>` wskazująca CUDZĄ albo ZARCHIWIZOWANĄ definicję
+ *      odrzuca CAŁY plik, spójnie z traktowaniem cudzego `product_id`,
+ *   3. plik BEZ kolumn `cf_*` (eksport sprzed dodania pola) nie kasuje
+ *      wartości, o których nic nie mówi.
+ */
+describe.skipIf(!hasEnv)("pola własne w CSV katalogu (C6-A3, ADR-121)", () => {
+  let admin: SupabaseClient;
+  let tenantA: { client: SupabaseClient; tenantId: string };
+  let tenantB: { client: SupabaseClient; tenantId: string };
+
+  async function definition(
+    tenantId: string,
+    overrides: Record<string, unknown> = {},
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("custom_field_definitions")
+      .insert({
+        tenant_id: tenantId,
+        entity: "product",
+        field_type: "text",
+        label: `Pole ${randomUUID().slice(0, 8)}`,
+        options: [],
+        position: 0,
+        ...overrides,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`definition: ${error?.message}`);
+    return data.id as string;
+  }
+
+  async function product(
+    tenantId: string,
+    customFields: Record<string, unknown> = {},
+  ): Promise<string> {
+    const { data, error } = await admin
+      .from("products")
+      .insert({
+        tenant_id: tenantId,
+        name: `Produkt ${randomUUID().slice(0, 8)}`,
+        base_price_day_grosze: 10_000,
+        deposit_grosze: 5_000,
+        custom_fields: customFields,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`product: ${error?.message}`);
+    return data.id as string;
+  }
+
+  const readCustomFields = async (productId: string): Promise<Record<string, unknown>> => {
+    const { data } = await admin
+      .from("products")
+      .select("custom_fields")
+      .eq("id", productId)
+      .single();
+    return (data?.custom_fields ?? {}) as Record<string, unknown>;
+  };
+
+  beforeAll(async () => {
+    admin = adminClient();
+    tenantA = await createTenantOwner(admin, "cf-a");
+    tenantB = await createTenantOwner(admin, "cf-b");
+  }, 120_000);
+
+  afterAll(async () => {
+    for (const id of createdTenantIds) await admin.from("tenants").delete().eq("id", id);
+    for (const id of createdUserIds) await admin.auth.admin.deleteUser(id);
+  }, 60_000);
+
+  it("eksport dokleja kolumnę cf_<id> na KOŃCU, za stałym prefiksem kontraktu", async () => {
+    const definitionId = await definition(tenantA.tenantId);
+    await product(tenantA.tenantId, { [definitionId]: "rocznik 2024" });
+
+    const file = await exportCatalogCsv(ctxOf(tenantA.client, tenantA.tenantId, "owner"));
+    const header = file.csv.split("\r\n")[0]!.replace(/^\uFEFF/, "");
+
+    expect(header.startsWith(CATALOG_CSV_HEADER.join(";"))).toBe(true);
+    expect(header.endsWith(`;cf_${definitionId}`)).toBe(true);
+    expect(file.csv).toContain("rocznik 2024");
+  });
+
+  it("ROUND-TRIP: eksport → edycja wartości → import → wartość zmieniona, reszta bez zmian", async () => {
+    const definitionId = await definition(tenantA.tenantId);
+    const productId = await product(tenantA.tenantId, { [definitionId]: "przed" });
+
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const exported = await exportCatalogCsv(ctx);
+    const edited = exported.csv.replace("przed", "po edycji w arkuszu");
+
+    const outcome = await runCatalogImport(ctx, edited);
+    expect(outcome.issues).toEqual([]);
+    expect(await readCustomFields(productId)).toEqual({ [definitionId]: "po edycji w arkuszu" });
+
+    // Round-trip jest STABILNY: drugi eksport różni się od pierwszego
+    // dokładnie tą jedną edycją i niczym więcej.
+    const again = await exportCatalogCsv(ctx);
+    expect(again.csv).toBe(edited);
+  });
+
+  it("pusta komórka KASUJE wartość (plik jest autorytatywny dla swoich kolumn)", async () => {
+    const definitionId = await definition(tenantA.tenantId);
+    const productId = await product(tenantA.tenantId, { [definitionId]: "do skasowania" });
+
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const exported = await exportCatalogCsv(ctx);
+    const cleared = exported.csv.replace("do skasowania", "");
+
+    const outcome = await runCatalogImport(ctx, cleared);
+    expect(outcome.issues).toEqual([]);
+    expect(await readCustomFields(productId)).toEqual({});
+  });
+
+  it("plik BEZ kolumn cf_* nie rusza wartości, o których nic nie mówi", async () => {
+    const definitionId = await definition(tenantA.tenantId);
+    const productId = await product(tenantA.tenantId, { [definitionId]: "zapisane w panelu" });
+
+    // Arkusz operatora sprzed C6: stałe kolumny i ani jednej dynamicznej.
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const legacy = [
+      CATALOG_CSV_HEADER.join(";"),
+      `${productId};Nazwa po edycji;;10000;5000;1.0;1;1;true;;;;`,
+    ].join("\r\n");
+
+    const outcome = await runCatalogImport(ctx, legacy);
+    expect(outcome.issues).toEqual([]);
+    expect(await readCustomFields(productId)).toEqual({ [definitionId]: "zapisane w panelu" });
+  });
+
+  it("kolumna cf_<id> CUDZEJ definicji odrzuca CAŁY plik i nie zapisuje nic", async () => {
+    const foreign = await definition(tenantB.tenantId);
+    const productId = await product(tenantA.tenantId);
+
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const file = [
+      `${CATALOG_CSV_HEADER.join(";")};cf_${foreign}`,
+      `${productId};Nazwa;;10000;5000;1.0;1;1;true;;;;;podszyta wartość`,
+    ].join("\r\n");
+
+    const plan = await planCatalogImport(ctx, file);
+    expect(plan.issues.map((issue) => issue.code)).toEqual(["unknownCustomField"]);
+    expect(plan.products).toEqual([]);
+
+    const outcome = await runCatalogImport(ctx, file);
+    expect(outcome.result).toBeUndefined();
+    expect(await readCustomFields(productId)).toEqual({});
+  });
+
+  it("kolumna cf_<id> definicji ZARCHIWIZOWANEJ odrzuca CAŁY plik", async () => {
+    const archived = await definition(tenantA.tenantId, {
+      archived_at: new Date().toISOString(),
+    });
+    const productId = await product(tenantA.tenantId);
+
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const file = [
+      `${CATALOG_CSV_HEADER.join(";")};cf_${archived}`,
+      `${productId};Nazwa;;10000;5000;1.0;1;1;true;;;;;wartość`,
+    ].join("\r\n");
+
+    const plan = await planCatalogImport(ctx, file);
+    expect(plan.issues.map((issue) => issue.code)).toEqual(["unknownCustomField"]);
+  });
+
+  it("wartość niezgodna z definicją pada w WIERSZU, z numerem — nie w bazie", async () => {
+    const numberField = await definition(tenantA.tenantId, { field_type: "number" });
+    const productId = await product(tenantA.tenantId);
+
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const file = [
+      `${CATALOG_CSV_HEADER.join(";")};cf_${numberField}`,
+      `${productId};Nazwa;;10000;5000;1.0;1;1;true;;;;;nie-liczba`,
+    ].join("\r\n");
+
+    const plan = await planCatalogImport(ctx, file);
+    expect(plan.issues).toEqual([
+      { row: 2, code: "badCustomField", column: `cf_${numberField}`, value: "nie-liczba" },
+    ]);
+  });
+
+  it("nowy produkt (pusty product_id) zakłada się od razu z wartością pola własnego", async () => {
+    const definitionId = await definition(tenantA.tenantId);
+    const ctx = ctxOf(tenantA.client, tenantA.tenantId, "owner");
+    const name = `Nowy ${randomUUID().slice(0, 8)}`;
+    const file = [
+      `${CATALOG_CSV_HEADER.join(";")};cf_${definitionId}`,
+      `;${name};;10000;5000;1.0;1;1;true;;;;;od razu z wartością`,
+    ].join("\r\n");
+
+    const outcome = await runCatalogImport(ctx, file);
+    expect(outcome.issues).toEqual([]);
+    expect(outcome.result?.created).toBe(1);
+
+    const { data } = await admin
+      .from("products")
+      .select("custom_fields")
+      .eq("tenant_id", tenantA.tenantId)
+      .eq("name", name)
+      .single();
+    expect(data?.custom_fields).toEqual({ [definitionId]: "od razu z wartością" });
+  });
+});
