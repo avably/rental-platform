@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 
 import {
+  E2E_REVIEW_INGEST_TOKEN,
   E2E_STRIPE_PUBLISHABLE_KEY,
   E2E_STRIPE_SECRET_KEY,
   E2E_STRIPE_WEBHOOK_SECRET,
@@ -44,6 +45,11 @@ const nextEnv = {
   AVABLY_STRIPE_WEBHOOK_SECRET: E2E_STRIPE_WEBHOOK_SECRET,
   E2E_STRIPE_STUB_PORT: String(STRIPE_STUB_PORT),
   NODE_OPTIONS: `--import ${STRIPE_PRELOAD}`,
+  /* Narzędzie przeglądu (ADR-071) po ADR-099: storefront relayuje uwagi do
+   * ingest panelu za wspólnym sekretem. REVIEW_MODE=1 jest też w env BUILDU
+   * (build-apps.sh) — layouty czytają go przy prerenderze stron statycznych. */
+  REVIEW_MODE: "1",
+  REVIEW_INGEST_TOKEN: E2E_REVIEW_INGEST_TOKEN,
 };
 
 export default defineConfig({
@@ -97,7 +103,13 @@ export default defineConfig({
       port: STOREFRONT_PORT,
       reuseExistingServer: false,
       timeout: 90_000,
-      env: { ...nextEnv, PORT: String(STOREFRONT_PORT) },
+      env: {
+        ...nextEnv,
+        PORT: String(STOREFRONT_PORT),
+        // Relay uwag przeglądu celuje w lokalny panel suity (ADR-099/115);
+        // storefront nie dostaje ŻADNEGO klucza Supabase poza publicznym anon.
+        REVIEW_INGEST_URL: `http://localhost:${PANEL_PORT}`,
+      },
     },
     {
       command: `bash scripts/start-panel.sh`,
