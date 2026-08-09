@@ -1973,7 +1973,10 @@
     "apiKeysLink": "Zarządzaj kluczami API",
     "dataExportTitle": "Eksport danych",
     "dataExportDescription": "Pobierz zamówienia, klientów i katalog jako pliki CSV — Twoje dane należą do Ciebie.",
-    "dataExportLink": "Eksport danych (CSV) →"
+    "dataExportLink": "Eksport danych (CSV) →",
+    "customFieldsTitle": "Pola własne",
+    "customFieldsDescription": "Dodatkowe dane na kliencie, zamówieniu i produkcie — te, których nie ma w standardowym formularzu.",
+    "customFieldsLink": "Ustaw pola własne →"
   },
   "secondaryStatus": {
     "domain": {
@@ -2087,6 +2090,66 @@
       "title": "Katalog",
       "description": "Produkty z cenami, kaucjami i progami cenowymi. Jeden wiersz to produkt z jednym progiem — format przygotowany pod przyszły import.",
       "submit": "Pobierz CSV katalogu"
+    }
+  },
+  "customFields": {
+    "title": "Pola własne",
+    "intro": "Dołóż do klientów, zamówień i produktów te dane, których nie ma w standardowym formularzu — numer uprawnień, stan licznika, cokolwiek prowadzisz dziś w arkuszu.",
+    "readOnly": "Polami własnymi zarządza właściciel organizacji. Tutaj widzisz, jak są ustawione.",
+    "backToOrganization": "← Organizacja",
+    "backToList": "← Pola własne",
+    "newField": "Dodaj pole",
+    "emptyEntity": "Brak pól dla tego rodzaju danych.",
+    "entity": {
+      "customer": "Klient",
+      "order": "Zamówienie",
+      "product": "Produkt"
+    },
+    "type": {
+      "text": "Tekst",
+      "textarea": "Tekst długi",
+      "number": "Liczba",
+      "date": "Data",
+      "select": "Lista wyboru",
+      "checkbox": "Pole zaznaczane",
+      "phone": "Telefon"
+    },
+    "surface": {
+      "panel": "Panel",
+      "checkout": "Zamawianie",
+      "contract": "Umowa"
+    },
+    "table": {
+      "name": "Nazwa",
+      "type": "Rodzaj",
+      "visibility": "Widoczne w",
+      "state": "Stan",
+      "actions": "Akcje",
+      "required": "(wymagane)",
+      "active": "Aktywne",
+      "archived": "Zarchiwizowane",
+      "inUse": "ma zapisane dane",
+      "moveUp": "Wyżej",
+      "moveDown": "Niżej",
+      "archive": "Archiwizuj",
+      "restore": "Przywróć"
+    },
+    "form": {
+      "section": "Ustawienia pola",
+      "label": "Nazwa pola",
+      "entity": "Czego dotyczy",
+      "type": "Rodzaj",
+      "options": "Pozycje listy",
+      "optionsHint": "Jedna pozycja w wierszu.",
+      "helpText": "Podpowiedź pod polem",
+      "visibility": "Gdzie pole ma być widoczne",
+      "showInPanel": "W panelu",
+      "showInCheckout": "Przy zamawianiu w sklepie",
+      "showInContract": "Na umowie",
+      "required": "Wypełnienie obowiązkowe",
+      "lockedHint": "To pole ma już zapisane dane, więc rodzaju i przypisania nie da się zmienić. Zarchiwizuj je i załóż nowe, jeśli potrzebujesz innego rodzaju.",
+      "save": "Zapisz",
+      "saved": "Zapisano."
     }
   }
 }

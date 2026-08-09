@@ -516,6 +516,20 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     subject: "rls-isolation-test",
   }),
 
+  // --- pola własne (0057_custom_fields.sql) ---
+  //
+  // Najprostszy poprawny wiersz: typ `text` nie wymaga opcji (CHECK wiąże
+  // niepustą tablicę wyłącznie z `select`). Etykieta ŚWIEŻA przy każdym
+  // wywołaniu, bo obejmuje ją częściowy unikat
+  // (tenant_id, entity, lower(btrim(label))) where archived_at is null —
+  // kolizja dawałaby 23505 zamiast 42501 i fałszywą zieleń w macierzy.
+  custom_field_definitions: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    entity: "customer",
+    field_type: "text",
+    label: `RLS test field ${randomUUID().slice(0, 8)}`,
+  }),
+
   // --- rdzeń wynajmu (0007_rental_core.sql) ---
   products: async (_ctx, tenantId) => ({
     tenant_id: tenantId,
@@ -899,6 +913,14 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // wyglądałby na „mutacja zatrzymana" i maskował zepsutą politykę UPDATE.
   // Wiersz zasiewany z domyślnym `false`, więc patch jest widoczną zmianą.
   payment_accounts: { charges_enabled: true },
+
+  // position, a NIE label/field_type/entity/options: etykietę obejmuje
+  // częściowy unikat (23505 zamiast odmowy), a pozostałe trzy kolumny są pod
+  // bramką `custom_field_definitions_guard` — jej 23514 wyglądałby na
+  // „mutacja zatrzymana" i maskował zepsutą politykę UPDATE. `position` jest
+  // poza unikatem, spełnia CHECK (0..9999) i różni się od zasianego domyślnego
+  // 0, więc skuteczna goła mutacja byłaby WIDOCZNĄ zmianą stanu.
+  custom_field_definitions: { position: 999 },
 };
 
 export function mutationPatch(table: string): Record<string, unknown> {

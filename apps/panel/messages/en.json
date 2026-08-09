@@ -1973,7 +1973,10 @@
     "apiKeysLink": "Manage API keys",
     "dataExportTitle": "Data export",
     "dataExportDescription": "Download orders, customers and the catalog as CSV files — your data belongs to you.",
-    "dataExportLink": "Data export (CSV) →"
+    "dataExportLink": "Data export (CSV) →",
+    "customFieldsTitle": "Custom fields",
+    "customFieldsDescription": "Extra data on customers, orders and products — the fields the standard form does not cover.",
+    "customFieldsLink": "Set up custom fields →"
   },
   "secondaryStatus": {
     "domain": {
@@ -2087,6 +2090,66 @@
       "title": "Catalog",
       "description": "Products with prices, deposits and pricing tiers. Each row is a product with one tier — a format prepared for future import.",
       "submit": "Download catalog CSV"
+    }
+  },
+  "customFields": {
+    "title": "Custom fields",
+    "intro": "Add the data that the standard form does not cover — licence number, meter reading, whatever you keep in a spreadsheet today — to customers, orders and products.",
+    "readOnly": "Custom fields are managed by the organisation owner. Here you can see how they are set up.",
+    "backToOrganization": "← Organisation",
+    "backToList": "← Custom fields",
+    "newField": "Add field",
+    "emptyEntity": "No fields for this kind of data yet.",
+    "entity": {
+      "customer": "Customer",
+      "order": "Order",
+      "product": "Product"
+    },
+    "type": {
+      "text": "Text",
+      "textarea": "Long text",
+      "number": "Number",
+      "date": "Date",
+      "select": "Choice list",
+      "checkbox": "Checkbox",
+      "phone": "Phone"
+    },
+    "surface": {
+      "panel": "Panel",
+      "checkout": "Checkout",
+      "contract": "Contract"
+    },
+    "table": {
+      "name": "Name",
+      "type": "Kind",
+      "visibility": "Visible in",
+      "state": "State",
+      "actions": "Actions",
+      "required": "(required)",
+      "active": "Active",
+      "archived": "Archived",
+      "inUse": "has saved data",
+      "moveUp": "Up",
+      "moveDown": "Down",
+      "archive": "Archive",
+      "restore": "Restore"
+    },
+    "form": {
+      "section": "Field settings",
+      "label": "Field name",
+      "entity": "Applies to",
+      "type": "Kind",
+      "options": "List entries",
+      "optionsHint": "One entry per line.",
+      "helpText": "Hint below the field",
+      "visibility": "Where the field should appear",
+      "showInPanel": "In the panel",
+      "showInCheckout": "During checkout in the store",
+      "showInContract": "On the contract",
+      "required": "Filling in is mandatory",
+      "lockedHint": "This field already has saved data, so its kind and assignment cannot be changed. Archive it and create a new one if you need a different kind.",
+      "save": "Save",
+      "saved": "Saved."
     }
   }
 }

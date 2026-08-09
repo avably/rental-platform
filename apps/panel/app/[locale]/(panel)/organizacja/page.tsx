@@ -89,6 +89,20 @@ export default async function OrganizationPage() {
         </Link>
       </ScreenSection>
 
+      {/* Pola własne (C6-A1, ADR-118). Bez własnej pozycji w menu — struktura
+          nawigacji jest kontraktem z artefaktem Fazy 2, a pola własne opisują
+          kształt danych CAŁEJ organizacji (klient, zamówienie i produkt
+          naraz), więc nie należą do żadnego pojedynczego ekranu operacyjnego.
+          Wejście jest stąd, wzorcem `punkty-odbioru` i `katalog/import`. */}
+      <ScreenSection title={t("customFieldsTitle")} description={t("customFieldsDescription")}>
+        <Link
+          href="/organizacja/pola-wlasne"
+          className="text-sm font-medium underline underline-offset-[3px]"
+        >
+          {t("customFieldsLink")}
+        </Link>
+      </ScreenSection>
+
       {/* Eksport danych (C2, ADR-111). Od M2 (ADR-110) ekran ma pozycję
           „Eksport danych" w grupie ORGANIZACJA; ten link ZOSTAJE jako drugie
           wejście, bo „zabierz SWOJE dane" dotyczy całej organizacji. */}
