@@ -43,6 +43,8 @@ final class AvablyTestState {
 	public static array $options = array();
 	/** @var array<string,mixed> */
 	public static array $transients = array();
+	/** @var array<string,int> TTL ostatniego zapisu per klucz (dowód R11: zdegradowany wynik = krótki TTL). */
+	public static array $transientTtls = array();
 	/** Poprawny nonce oczekiwany przez shim check_ajax_referer. */
 	public static string $validNonce = 'poprawny-nonce';
 	/** Liczba wywołań nocache_headers() w bieżącym żądaniu. */
@@ -65,6 +67,7 @@ final class AvablyTestState {
 			),
 		);
 		self::$transients       = array();
+		self::$transientTtls    = array();
 		self::$nocacheCalls     = 0;
 		self::$canManageOptions = true;
 		self::$apiClient        = null;
@@ -172,7 +175,8 @@ function get_transient( $key ) {
 }
 
 function set_transient( $key, $value, $ttl = 0 ) {
-	AvablyTestState::$transients[ $key ] = $value;
+	AvablyTestState::$transients[ $key ]    = $value;
+	AvablyTestState::$transientTtls[ $key ] = (int) $ttl;
 	return true;
 }
 

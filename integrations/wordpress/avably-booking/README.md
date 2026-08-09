@@ -88,7 +88,7 @@ Lokalne API podłączysz ustawiając URL API na
 ## Bezpieczeństwo — model zagrożeń
 
 WordPress jest atakowany masowo i automatycznie, więc wtyczka zakłada wrogie
-otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
+otoczenie. Siedem punktów, które warto znać przed wdrożeniem:
 
 1. **Nonce chroni przed CSRF, nie przed odczytem.** Każda z trzech akcji
    ajaxowych (`availability`, `month`, `reserve`) wymaga poprawnego nonce'a
@@ -117,11 +117,43 @@ otoczenie. Pięć punktów, które warto znać przed wdrożeniem:
    do API Avably. Wtyczka nie zapisuje ich w bazie WordPressa ani w logach —
    wyciek z bazy WP nie ujawni danych Twoich klientów, bo ich tam nie ma.
    Odinstalowanie usuwa zapisany klucz.
-5. **Nadużycia formularza są dławione dwustopniowo.** Wtyczka odcina
-   nadmiarowe rezerwacje per odwiedzający (10/h), a nasze API dokłada limit per
+5. **Nadużycia są dławione dwustopniowo — na każdej akcji.** Wtyczka odcina
+   nadmiarowy ruch per odwiedzający (rezerwacje 10/h, kalendarz miesiąca
+   30/5 min, sprawdzenie zakresu dat 60/5 min), a nasze API dokłada limit per
    klucz (30 rezerwacji/h). Pierwszy stopień jest konieczny, bo dla API cały
    ruch z Twojej strony wygląda jak jeden adres IP — bez niego jeden bot
-   mógłby wyczerpać godzinny budżet całego sklepu.
+   mógłby wyczerpać godzinny budżet całego sklepu. Kalendarz ma dodatkowo cache
+   i blokadę żądań równoległych — fala odwiedzających nie mnoży ruchu.
+6. **Kalendarz nie zgaduje.** Miesiąc rozstrzygamy zakresami: miesiąc bez
+   rezerwacji kosztuje JEDNO wywołanie naszego API, a każda rezerwacja dokłada
+   kilka pytań o coraz węższe przedziały. Sufit wywołań na żądanie jest
+   wyprowadzony z liczby dni miesiąca (`liczba dni + MONTH_SPLIT_SLACK`), a nie
+   zaklepany liczbą — dzięki temu zawsze wystarcza na rozstrzygnięcie CAŁEGO
+   miesiąca. Wolny termin nigdy nie jest pokazywany jako zajęty; gdyby nasze API
+   odpowiadało tak wolno, że skończy się budżet czasu, dni bez odpowiedzi
+   zostają oznaczone jako sprawdzane (neutralnie), a nie jako zajęte, i wynik
+   siedzi w cache'u krótko. Uzasadnienie liczb: ADR-114 w dokumentacji
+   platformy.
+7. **Sklep za CDN-em/reverse proxy: skonfiguruj zaufane proxy.** Limity per
+   odwiedzający liczą się domyślnie po adresie, z którego przyszło żądanie
+   (`REMOTE_ADDR`) — nagłówkom w rodzaju `X-Forwarded-For` nie ufamy, bo każdy
+   może je podrobić i dostawać świeży licznik na żądanie. Jeśli Twoja strona
+   stoi za CDN-em lub reverse proxy, wszyscy odwiedzający wyglądają jak jeden
+   adres i dzielą limity (pierwszy bot może tymczasowo wyłączyć kalendarz
+   wszystkim — do końca okna limitu). Wskaż wtedy zaufane proxy jawnie
+   w `wp-config.php`:
+
+   ```php
+   // Adresy Twojego proxy/CDN-a: pojedyncze IP lub prefiksy CIDR, po przecinku.
+   define( 'AVABLY_BOOKING_TRUSTED_PROXIES', '203.0.113.9, 173.245.48.0/20' );
+   // Opcjonalnie: nagłówek z adresem klienta (domyślnie X-Forwarded-For).
+   define( 'AVABLY_BOOKING_TRUSTED_PROXY_HEADER', 'CF-Connecting-IP' );
+   ```
+
+   Nagłówek jest honorowany WYŁĄCZNIE dla żądań przychodzących z adresów
+   z listy (i tylko jego ostatni wpis — ten dopisany przez Twoje proxy);
+   żądanie z pominięciem proxy wraca do `REMOTE_ADDR`. Upewnij się, że origin
+   przyjmuje ruch tylko od CDN-a — inaczej napastnik może go ominąć.
 
 ## Bezpieczeństwo (warunki zamknięcia M2 §5)
 

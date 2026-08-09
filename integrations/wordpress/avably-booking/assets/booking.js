@@ -180,20 +180,40 @@
 		return { grid: grid, status: status };
 	}
 
-	function loadMonth() {
+	function loadMonth(attempt) {
 		var shell = renderCalendarShell();
 		var monthStr = viewYear + '-' + pad(viewMonth + 1);
 		ajax('avably_booking_month', { product_id: productId, month: monthStr }, 'GET', function (err, json) {
 			if (err || !json || !json.success) {
+				// `busy`: serwer właśnie rozstrzyga ten miesiąc dla innego
+				// żądania (wpis-blokada) — wynik za chwilę będzie w cache'u.
+				// Ponawiamy cicho, zamiast pokazywać drugiemu odwiedzającemu
+				// komunikat błędu, na który nic nie poradzi.
+				var code = json && json.data && json.data.code;
+				if (code === 'busy' && (attempt || 0) < 2) {
+					shell.status.textContent = i18n.checking || '';
+					window.setTimeout(function () {
+						loadMonth((attempt || 0) + 1);
+					}, 1800);
+					return;
+				}
 				shell.status.textContent = (json && json.data && json.data.message) || i18n.genericError || '';
 				return;
 			}
-			shell.status.textContent = '';
-			paintMonth(shell.grid, json.data.days || {});
+			// Wynik CZĘŚCIOWY: część dni nie dostała odpowiedzi z API (budżet
+			// czasu). Takie dni nie są „zajęte" — pokazujemy je neutralnie
+			// i mówimy wprost, że dostępność jest jeszcze sprawdzana.
+			var unresolved = json.data.unresolved || [];
+			shell.status.textContent = unresolved.length ? (i18n.checking || '') : '';
+			paintMonth(shell.grid, json.data.days || {}, unresolved);
 		});
 	}
 
-	function paintMonth(grid, days) {
+	function paintMonth(grid, days, unresolved) {
+		var pending = {};
+		(unresolved || []).forEach(function (iso) {
+			pending[iso] = true;
+		});
 		var first = new Date(viewYear, viewMonth, 1);
 		var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 		var offset = (first.getDay() + 6) % 7; // Poniedziałek pierwszy.
@@ -211,7 +231,16 @@
 			cell.type = 'button';
 			cell.className = 'avably-cal__day';
 			cell.textContent = String(day);
-			if (iso < todayIso || !(iso in days)) {
+			if (iso < todayIso) {
+				cell.disabled = true;
+				cell.classList.add('avably-cal__day--past');
+			} else if (pending[iso]) {
+				// Nieznane ≠ zajęte. Dzień nie jest klikalny (nie wiemy, czy
+				// jest wolny), ale nie udaje wyniku — wygląd neutralny.
+				cell.disabled = true;
+				cell.classList.add('avably-cal__day--unknown');
+				cell.title = i18n.checking || '';
+			} else if (!(iso in days)) {
 				cell.disabled = true;
 				cell.classList.add('avably-cal__day--past');
 			} else if (days[iso] > 0) {

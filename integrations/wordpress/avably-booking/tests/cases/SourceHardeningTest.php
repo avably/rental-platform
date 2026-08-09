@@ -159,6 +159,29 @@ final class SourceHardeningTest extends TestCase {
 		);
 	}
 
+	/**
+	 * JS (kontrakt ŹRÓDŁA — suita wtyczki nie ma runtime'u przeglądarki):
+	 * siatka kalendarza MUSI mieć osobny stan dla dnia NIEROZSTRZYGNIĘTEGO
+	 * i nie wolno jej wyprowadzać go z tej samej gałęzi, co dzień zajęty.
+	 *
+	 * Delta recenzji PM #218: serwer przestał oddawać niedopytane dni jako `0`
+	 * i wypisuje je w `unresolved`. Gdyby front tego nie czytał, dni bez
+	 * odpowiedzi wpadłyby do gałęzi „poza miesiącem" — znowu nieklikalne
+	 * i znowu bez śladu, że to nie jest wynik.
+	 */
+	public function test_frontend_js_distinguishes_unresolved_days_from_taken(): void {
+		$code = self::stripComments( (string) file_get_contents( self::pluginDir() . '/assets/booking.js' ) );
+		$this->assertStringContainsString( 'unresolved', $code, 'booking.js nie czyta listy dni nierozstrzygniętych' );
+		$this->assertStringContainsString( 'avably-cal__day--unknown', $code, 'brak osobnego stanu dnia nierozstrzygniętego' );
+		$this->assertMatchesRegularExpression(
+			'/avably-cal__day--unknown[\s\S]{0,400}avably-cal__day--taken/',
+			$code,
+			'stan „nieznany" nie jest rozstrzygany PRZED stanem „zajęty" — dzień bez odpowiedzi trafi do zajętych'
+		);
+		$css = (string) file_get_contents( self::pluginDir() . '/assets/booking.css' );
+		$this->assertStringContainsString( '.avably-cal__day--unknown', $css, 'stan nierozstrzygnięty bez własnego wyglądu' );
+	}
+
 	/** Nagłówek wtyczki deklaruje minima środowiska (ADR-110). */
 	public function test_plugin_header_declares_minimums(): void {
 		$code = self::phpSources()['avably-booking.php'];
