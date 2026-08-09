@@ -18,6 +18,20 @@
   --embed-busy: #f3f4f6;
   --embed-busy-fg: #9ca3af;
 
+  /*
+   * KONTENER ZAPYTAŃ, nie okno. Embed ląduje w gnieździe o nieznanej
+   * szerokości na cudzej stronie — `@media` mierzyłoby okno przeglądarki,
+   * czyli wielkość, która o naszym gnieździe nie mówi NIC (wąska kolumna na
+   * szerokim monitorze to przypadek typowy, nie brzegowy). Dlatego wszystkie
+   * progi niżej to `@container`.
+   *
+   * Skalowania (`transform: scale`) świadomie NIE używamy: nie przyjmuje
+   * jednostek kontenerowych (`calc(100cqw/…)` pada po cichu), a poza tym
+   * rozmywa tekst i psuje cele dotykowe. Układ robimy SIATKĄ i ROZMIARAMI.
+   */
+  container-type: inline-size;
+  container-name: embed;
+
   box-sizing: border-box;
   padding: 16px;
   background: var(--embed-bg);
@@ -80,7 +94,10 @@
 .avably-embed select,
 .avably-embed textarea {
   width: 100%;
-  padding: 8px 10px;
+  /* min-height zrównuje kontrolkę z celem dotykowym dnia (48 px sufitu) —
+     to była druga połowa reklamacji: „kalendarz duży, inputy małe". */
+  min-height: 40px;
+  padding: 9px 12px;
   border: 1px solid var(--embed-line);
   border-radius: 8px;
   background: var(--embed-bg);
@@ -97,6 +114,7 @@
 }
 
 .avably-embed__calendar header {
+  max-width: 360px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -120,10 +138,37 @@
   line-height: 1;
 }
 
+/*
+ * SUFIT KALENDARZA. `aspect-ratio: 1` na kolumnach `1fr` sprawiał, że komórka
+ * rosła LINIOWO z szerokością gniazda i bez żadnego ograniczenia: przy gnieździe
+ * 1200 px dzień miał ~165 px, kalendarz zjadał ~1000 px wysokości i formularz
+ * pod nim wyglądał jak dodatek. Kalendarz miesięczny nie zyskuje NIC na
+ * byciu większym — potrzebuje czytelnej cyfry i celu dotykowego, nie powierzchni.
+ *
+ * Sufit stawiamy na SIATCE (7 × 48 px + odstępy), a nie na komórce: przy
+ * ograniczeniu wysokości komórka przestałaby być kwadratem i zrobiłaby się
+ * szerokim prostokątem. Poniżej sufitu kolumny `1fr` kurczą się płynnie, więc
+ * w wąskim gnieździe kalendarz dalej mieści się w całości.
+ */
+.avably-embed__weekdays,
 .avably-embed__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+  max-width: 360px;
+}
+
+.avably-embed__weekdays {
+  margin-bottom: 4px;
+}
+
+.avably-embed__weekdays span {
+  padding-bottom: 2px;
+  color: var(--embed-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: lowercase;
 }
 
 .avably-embed__grid button {
@@ -230,14 +275,94 @@
   cursor: progress;
 }
 
+/*
+ * Podpis marki — DYSKRETNY, nie reklamowy: wysokość znaku to 14 px, czyli
+ * mniej niż wiersz tekstu obok, i lekkie przygaszenie. Wyrównanie do prawego
+ * dolnego rogu, jak prosił właściciel.
+ */
 .avably-embed__footer {
+  display: flex;
+  justify-content: flex-end;
   margin: 16px 0 0;
-  color: var(--embed-muted);
-  font-size: 12px;
-  text-align: right;
+}
+
+.avably-embed__footer img {
+  width: auto;
+  height: 14px;
+  opacity: 0.55;
 }
 
 .avably-embed__done h2 {
   margin: 0 0 8px;
   font-size: 18px;
+}
+
+/* ==========================================================================
+   UKŁAD ZALEŻNY OD GNIAZDA (M3, ADR-120)
+
+   Trzy progi, wszystkie liczone od KONTENERA (patrz docblock `.avably-embed`).
+   Zasada nadrzędna: widżet ma czytać się jako JEDNA CAŁOŚĆ, a nie jako
+   kalendarz z doklejonym formularzem — dlatego przy szerokim gnieździe
+   kalendarz i formularz stają obok siebie, zamiast rosnąć w pionie.
+   ========================================================================== */
+
+/*
+ * Widżet nie rozlewa się w nieskończoność. Formularz rezerwacji nie zyskuje
+ * na szerokości 1200 px — pola robią się nieczytelnie długie, a oko traci
+ * związek etykiety z kontrolką. Powyżej sufitu widżet po prostu się centruje,
+ * co w szerokim gnieździe wygląda na decyzję, a nie na niedokończony układ.
+ */
+.avably-embed {
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+.avably-embed__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Gniazdo wąskie (telefon, wąska kolumna sidebara) — oddajemy pikselom marginesu. */
+@container embed (max-width: 400px) {
+  .avably-embed {
+    padding: 12px;
+  }
+
+  .avably-embed__weekdays,
+  .avably-embed__grid {
+    gap: 3px;
+  }
+
+  .avably-embed__grid button {
+    border-radius: 6px;
+    font-size: 14px;
+  }
+}
+
+/*
+ * Gniazdo szerokie — kalendarz i formularz OBOK SIEBIE. Kalendarz dostaje
+ * dokładnie swój sufit (360 px), formularz resztę; `minmax(0, 1fr)` zamiast
+ * `1fr`, żeby długie etykiety nie rozpychały kolumny ponad gniazdo.
+ * `align-items: start` trzyma kalendarz przy górnej krawędzi, gdy formularz
+ * jest wyższy — inaczej pływałby w pionie i para wyglądałaby na przypadkową.
+ *
+ * PRÓG 600, NIE 680: zapytanie kontenerowe mierzy BOKS TREŚCI, a nie pełną
+ * szerokość elementu. Przy suficie widżetu 720 px i wyściółce 16 px z każdej
+ * strony do dyspozycji zostaje ~666 px — próg 680 nie zapalał się NIGDY
+ * (zmierzone: „2 kolumny: nie" przy gnieździe 768 i 1200). Klasyczna pułapka
+ * progu ustawionego na szerokość ZEWNĘTRZNĄ.
+ */
+@container embed (min-width: 600px) {
+  .avably-embed__layout {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+  }
+
+  /* Pierwszy nagłówek formularza nie odjeżdża od góry kolumny. */
+  .avably-embed__form > h3:first-child {
+    margin-top: 0;
+  }
 }
