@@ -11,7 +11,10 @@ import { redirect } from "next/navigation";
 import { AuthError } from "@/lib/auth";
 import { productSchema, uuidSchema } from "@/lib/catalog-validation";
 import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
-import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
+import {
+  readCustomFieldsForCreate,
+  readCustomFieldsForUpdate,
+} from "@/lib/custom-fields-server";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
@@ -59,7 +62,7 @@ export async function createProductAction(
 
   // Pola własne PRZED zapisem: rdzeń oddaje czytelny powód przy właściwym
   // polu, zanim trigger 0057 odda swój surowy. Bramką pozostaje baza.
-  const custom = await readCustomFieldsForWrite(ctx.supabase, ctx.tenantId!, "product", formData);
+  const custom = await readCustomFieldsForCreate(ctx.supabase, ctx.tenantId!, "product", formData);
   if (hasCustomFieldErrors(custom)) {
     return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
   }
@@ -102,7 +105,7 @@ export async function updateProductAction(
     .eq("id", id.data)
     .maybeSingle();
 
-  const custom = await readCustomFieldsForWrite(
+  const custom = await readCustomFieldsForUpdate(
     ctx.supabase,
     ctx.tenantId!,
     "product",

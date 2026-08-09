@@ -21,22 +21,52 @@ import {
  * Komplet: definicje najemcy z bazy + odczyt wartości z formularza + odmowy
  * przetłumaczone na język operatora.
  *
- * `existing` przekazuje KAŻDA akcja aktualizująca istniejący wiersz. Pominięcie
- * go nie jest błędem typu — jest cichym skasowaniem wartości pod polami,
- * których ten formularz nie pokazuje.
+ * DWIE FUNKCJE, NIE JEDNA Z OPCJĄ (C6-A3, ADR-121). Jedno wejście z
+ * `existing?: CustomFieldValues` znaczyło, że akcja aktualizująca wiersz mogła
+ * pominąć mapę BEZ BŁĘDU KOMPILACJI — a pominięcie jej kasuje wartości pod
+ * polami, których panel nie pokazuje: przede wszystkim te oznaczone wyłącznie
+ * „zamawianie", czyli wpisane przez KLIENTA w sklepie. Od C6-A3 taka wartość
+ * realnie istnieje, więc pomyłka przestała być teoretyczna. Rozdzielenie
+ * czyni ją błędem typu: `readCustomFieldsForUpdate` nie da się zawołać bez
+ * `existing`, a wybór funkcji jest widoczny w miejscu wywołania.
  */
-export async function readCustomFieldsForWrite(
+async function readForPanel(
   supabase: SupabaseClient,
   tenantId: string,
   entity: CustomFieldEntity,
   formData: FormData,
-  existing?: CustomFieldValues,
+  mode: { mode: "create" } | { mode: "update"; existing: CustomFieldValues },
 ): Promise<CustomFieldFormResult> {
   const definitions = await loadCustomFieldDefinitions(supabase, tenantId, entity);
   const t = await getTranslations("customFields");
   return readCustomFieldsFromForm(definitions, formData, t, {
+    ...mode,
     entity,
     surface: "panel",
-    ...(existing ? { existing } : {}),
   });
+}
+
+/** TWORZENIE wiersza — nie ma czego przepisywać, bo wiersza jeszcze nie ma. */
+export async function readCustomFieldsForCreate(
+  supabase: SupabaseClient,
+  tenantId: string,
+  entity: CustomFieldEntity,
+  formData: FormData,
+): Promise<CustomFieldFormResult> {
+  return readForPanel(supabase, tenantId, entity, formData, { mode: "create" });
+}
+
+/**
+ * AKTUALIZACJA wiersza — `existing` jest argumentem WYMAGANYM (pominięcie =
+ * błąd kompilacji). Mapa musi pochodzić z ODCZYTU TEGO wiersza tuż przed
+ * zapisem, nie ze stanu formularza.
+ */
+export async function readCustomFieldsForUpdate(
+  supabase: SupabaseClient,
+  tenantId: string,
+  entity: CustomFieldEntity,
+  formData: FormData,
+  existing: CustomFieldValues,
+): Promise<CustomFieldFormResult> {
+  return readForPanel(supabase, tenantId, entity, formData, { mode: "update", existing });
 }

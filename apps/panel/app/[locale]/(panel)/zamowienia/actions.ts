@@ -34,7 +34,7 @@ import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
 import { hasCustomFieldErrors } from "@/lib/custom-fields";
-import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
+import { readCustomFieldsForCreate } from "@/lib/custom-fields-server";
 import {
   bulkStatusChangeFromFormData,
   bulkStatusChangeSchema,
@@ -123,7 +123,7 @@ export async function createOrderAction(
   // Pola własne sprawdzamy PRZED pierwszym zapisem — czyli przed założeniem
   // klienta i przed `app.create_order`. Zła wartość ma odbić się o formularz,
   // a nie zostawić po sobie klienta i zamówienie do posprzątania.
-  const custom = await readCustomFieldsForWrite(ctx.supabase, ctx.tenantId!, "order", formData);
+  const custom = await readCustomFieldsForCreate(ctx.supabase, ctx.tenantId!, "order", formData);
   if (hasCustomFieldErrors(custom)) {
     return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
   }

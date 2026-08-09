@@ -268,22 +268,101 @@ export interface ValidateCustomFieldsResult {
   issues: CustomFieldIssues;
 }
 
-export interface ValidateCustomFieldsOptions {
+/**
+ * Encje, które WYPEŁNIA KLIENT najemcy w zamawianiu (C6-A3, ADR-121).
+ *
+ * Produktu na tej liście nie ma i to jest decyzja, nie przeoczenie: pole
+ * własne produktu opisuje SPRZĘT (numer seryjny, rocznik, stan licznika) i
+ * wpisuje je operator. Klient wybiera produkt z katalogu — nie ma czego o nim
+ * deklarować, a droga zapisu byłaby drogą do edycji cudzego katalogu z sklepu.
+ * Wartości produktu jadą w drugą stronę: do ODCZYTU w publicznym katalogu.
+ */
+export const CUSTOM_FIELD_CHECKOUT_ENTITIES = ["customer", "order"] as const;
+
+/**
+ * Definicje do wypełnienia w zamawianiu — jedno źródło dla sklepu, API v1
+ * i wtyczki WordPress.
+ *
+ * Filtr jest podwójny: powierzchnia („zamawianie") ORAZ encja. Sam
+ * `visibleCustomFields(defs, "checkout")` wpuściłby pole PRODUKTU oznaczone
+ * flagą zamawiania — a to jest dokładnie ten wektor, którego pilnują sondy
+ * izolacji: podanie `id` wprost nie może otworzyć drogi, której formularz nie
+ * pokazuje.
+ */
+export function checkoutCustomFields(
+  definitions: readonly CustomFieldDefinition[],
+): CustomFieldDefinition[] {
+  const entities = new Set<string>(CUSTOM_FIELD_CHECKOUT_ENTITIES);
+  return visibleCustomFields(definitions.filter((d) => entities.has(d.entity)), "checkout");
+}
+
+/**
+ * Rozdziela jedną PŁASKĄ mapę (kontrakt v1 i wtyczki) na mapy per encja —
+ * tak, jak wyglądają kolumny `custom_fields` na `orders` i `customers`.
+ *
+ * Encję wybiera DEFINICJA, nigdy wołający: gdyby przysyłał ją klient, wystarczyłoby
+ * podać `entity: "product"` przy wartości klienta, żeby ominąć filtr encji
+ * w triggerze 0057.
+ */
+export function splitCustomFieldValuesByEntity(
+  definitions: readonly CustomFieldDefinition[],
+  values: CustomFieldValues,
+): Record<CustomFieldEntity, CustomFieldValues> {
+  const byId = new Map(definitions.map((definition) => [definition.id, definition]));
+  const split: Record<CustomFieldEntity, CustomFieldValues> = {
+    customer: {},
+    order: {},
+    product: {},
+  };
+  for (const [key, value] of Object.entries(values)) {
+    const definition = byId.get(key);
+    if (definition) split[definition.entity][key] = value;
+  }
+  return split;
+}
+
+/** Część wspólna obu trybów zapisu. */
+interface CustomFieldsOptionsBase {
   requireRequired?: boolean;
   surface?: CustomFieldSurface;
   /** Encja, do której należy zapisywany wiersz — lustro filtra encji w triggerze. */
   entity?: CustomFieldEntity;
-  /**
-   * Wartości JUŻ ZAPISANE na wierszu. Przepisywane bez zmian wszędzie tam,
-   * gdzie TEN zapis pola nie widzi: pod definicją zarchiwizowaną oraz pod
-   * definicją spoza `surface`. Bez tego zapis formularza kasowałby dane, do
-   * których ten formularz nie ma nawet pola.
-   *
-   * Podanie `existing` jest OBOWIĄZKOWE przy każdej AKTUALIZACJI wiersza —
-   * pominięcie go nie jest błędem typu, tylko cichą utratą danych.
-   */
-  existing?: CustomFieldValues;
 }
+
+/**
+ * TWORZENIE nowego wiersza. `existing` jest tu NIEREPREZENTOWALNE (`never`):
+ * wiersza jeszcze nie ma, więc nie ma czego przepisywać, a podanie mapy
+ * znaczyłoby, że wołający pomylił tryb.
+ */
+export interface ValidateCustomFieldsCreateOptions extends CustomFieldsOptionsBase {
+  mode: "create";
+  existing?: never;
+}
+
+/**
+ * AKTUALIZACJA istniejącego wiersza. `existing` jest WYMAGANY — i to jest cała
+ * treść tej decyzji.
+ *
+ * `custom_fields` to JEDNA kolumna jsonb, więc zapis idzie CAŁĄ MAPĄ. Wynik tej
+ * funkcji nadpisuje kolumnę w całości, a każdy klucz, którego w nim nie ma,
+ * ZNIKA z bazy. Wartości pod definicjami, których dana powierzchnia nie
+ * pokazuje (zarchiwizowane oraz oznaczone wyłącznie „zamawianie"), przepisuje
+ * nietknięte wyłącznie `existing`.
+ *
+ * Dopóki `existing` było opcjonalne, jego pominięcie nie było błędem
+ * kompilacji — było CICHYM SKASOWANIEM tego, co klient wpisał w sklepie,
+ * przy pierwszej edycji zamówienia w panelu. Rozdzielenie trybów zamienia tę
+ * pomyłkę w błąd typu: `mode` jest obowiązkowy, a przy `"update"` mapy nie da
+ * się pominąć.
+ */
+export interface ValidateCustomFieldsUpdateOptions extends CustomFieldsOptionsBase {
+  mode: "update";
+  existing: CustomFieldValues;
+}
+
+export type ValidateCustomFieldsOptions =
+  | ValidateCustomFieldsCreateOptions
+  | ValidateCustomFieldsUpdateOptions;
 
 /**
  * Sprawdza mapę wartości względem definicji.
@@ -296,9 +375,15 @@ export interface ValidateCustomFieldsOptions {
 export function validateCustomFieldValues(
   definitions: readonly CustomFieldDefinition[],
   values: CustomFieldValues,
-  options: ValidateCustomFieldsOptions = {},
+  /**
+   * BEZ wartości domyślnej: tryb ma być DEKLARACJĄ wołającego. Domyślka
+   * cofnęłaby całą decyzję — „nie podałem nic" znaczyłoby znów „tworzę",
+   * także w akcji, która aktualizuje.
+   */
+  options: ValidateCustomFieldsOptions,
 ): ValidateCustomFieldsResult {
-  const { requireRequired = true, surface, entity, existing } = options;
+  const { requireRequired = true, surface, entity } = options;
+  const existing = options.mode === "update" ? options.existing : undefined;
   const scoped = definitions.filter(
     (definition) => entity === undefined || definition.entity === entity,
   );
@@ -410,9 +495,10 @@ export function parseCustomFieldInput(
   return issue ? { issue } : { value: text };
 }
 
-export interface ReadCustomFieldValuesOptions extends ValidateCustomFieldsOptions {
-  prefix?: string;
-}
+/** Nazwy pól: `<prefix><id>`. Tryb dziedziczy dyscyplinę `ValidateCustomFieldsOptions`. */
+export type ReadCustomFieldValuesOptions =
+  | (ValidateCustomFieldsCreateOptions & { prefix?: string })
+  | (ValidateCustomFieldsUpdateOptions & { prefix?: string });
 
 /**
  * Odczyt kompletu wartości z formularza. Nazwy pól to `<prefix><id>` — id,
@@ -425,9 +511,9 @@ export interface ReadCustomFieldValuesOptions extends ValidateCustomFieldsOption
 export function readCustomFieldValues(
   definitions: readonly CustomFieldDefinition[],
   read: (name: string) => string | null | undefined,
-  options: ReadCustomFieldValuesOptions = {},
+  options: ReadCustomFieldValuesOptions,
 ): ValidateCustomFieldsResult {
-  const { prefix = "cf_", surface, entity, existing, requireRequired } = options;
+  const { prefix = "cf_", surface, entity, requireRequired } = options;
   const scoped = definitions.filter(
     (definition) => entity === undefined || definition.entity === entity,
   );
@@ -445,11 +531,14 @@ export function readCustomFieldValues(
     if (value !== undefined) values[definition.id] = value;
   }
 
-  const validated = validateCustomFieldValues(scoped, values, {
-    surface,
-    entity,
-    existing,
-    requireRequired,
-  });
+  // Tryb przechodzi DALEJ w całości — rozpakowanie go na `existing?:` w tym
+  // miejscu przywróciłoby dokładnie tę opcjonalność, którą znosi decyzja.
+  const validated = validateCustomFieldValues(
+    scoped,
+    values,
+    options.mode === "update"
+      ? { mode: "update", existing: options.existing, surface, entity, requireRequired }
+      : { mode: "create", surface, entity, requireRequired },
+  );
   return { values: validated.values, issues: { ...issues, ...validated.issues } };
 }

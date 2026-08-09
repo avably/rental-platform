@@ -273,11 +273,13 @@ export {
 } from "./stripe";
 
 export {
+  CUSTOM_FIELD_CHECKOUT_ENTITIES,
   CUSTOM_FIELD_ENTITIES,
   CUSTOM_FIELD_LIMITS,
   CUSTOM_FIELD_PARITY_VECTORS,
   CUSTOM_FIELD_SURFACES,
   CUSTOM_FIELD_TYPES,
+  checkoutCustomFields,
   customFieldDefinitionFromRow,
   customFieldDisplayRows,
   customFieldValuesFromColumn,
@@ -291,6 +293,7 @@ export {
   parseSelectOptions,
   readCustomFieldValues,
   selectOptionsToText,
+  splitCustomFieldValuesByEntity,
   validateCustomFieldValues,
   visibleCustomFields,
   type CustomFieldDefinition,
@@ -308,6 +311,8 @@ export {
   type SelectOptionsIssue,
   type SelectOptionsResult,
   type ReadCustomFieldValuesOptions,
+  type ValidateCustomFieldsCreateOptions,
   type ValidateCustomFieldsOptions,
   type ValidateCustomFieldsResult,
+  type ValidateCustomFieldsUpdateOptions,
 } from "./custom-fields";

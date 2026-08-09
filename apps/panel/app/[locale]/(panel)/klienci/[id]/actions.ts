@@ -18,7 +18,7 @@ import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
 import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
-import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
+import { readCustomFieldsForUpdate } from "@/lib/custom-fields-server";
 import { customerEditFromFormData, customerEditSchema } from "@/lib/customer-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
@@ -73,7 +73,7 @@ export async function updateCustomerAction(
     .eq("id", id.data)
     .maybeSingle();
 
-  const custom = await readCustomFieldsForWrite(
+  const custom = await readCustomFieldsForUpdate(
     ctx.supabase,
     tenantId,
     "customer",
