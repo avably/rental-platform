@@ -21,6 +21,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { CUSTOM_FIELD_LIMITS, type CustomFieldDefinition } from "@avably/core";
+
 import { EMBED_MONTH_PATH, EMBED_RESERVATION_PATH, type EmbedMonthPayload, type EmbedTheme } from "@/lib/embed/contract";
 import { EMBED_RESIZE_MESSAGE } from "@/lib/embed/loader";
 import { format } from "@/lib/storefront/copy";
@@ -35,6 +37,74 @@ import type {
 
 type DayState = "free" | "busy" | "unknown" | "past";
 
+/**
+ * Pole własne najemcy w ramce embedu (C6-A3, ADR-121).
+ *
+ * Kontrolka NIEKONTROLOWANA (bez stanu Reacta): cały formularz embedu czyta
+ * się `new FormData(form)` przy wysyłce, więc pole własne wpina się tą samą
+ * drogą co `notes` czy `phone` — bez dokładania stanu, którego reszta
+ * formularza nie ma.
+ *
+ * `required` jest tu WYŁĄCZNIE wygodą przeglądarki. Wymagalność rozstrzyga
+ * serwer po definicjach najemcy (atrybut w cudzej ramce da się usunąć
+ * inspektorem), a jego odmowa wraca kluczem `cf_<id>` i ląduje pod polem.
+ */
+export function EmbedCustomField({
+  definition,
+  error,
+  invalidLabel,
+  chooseLabel,
+}: {
+  definition: CustomFieldDefinition;
+  error: string | undefined;
+  invalidLabel: string;
+  chooseLabel: string;
+}) {
+  const name = `cf_${definition.id}`;
+  const message = error ? <em>{invalidLabel}</em> : null;
+
+  if (definition.type === "checkbox") {
+    return (
+      <label className="avably-embed__terms">
+        <input type="checkbox" name={name} required={definition.required} />
+        <span>{definition.label}</span>
+        {message}
+      </label>
+    );
+  }
+
+  return (
+    <label className="avably-embed__field">
+      <span>{definition.label}</span>
+      {definition.type === "textarea" ? (
+        <textarea name={name} required={definition.required} maxLength={CUSTOM_FIELD_LIMITS.textareaMax} rows={2} />
+      ) : definition.type === "select" ? (
+        <select name={name} required={definition.required} defaultValue="">
+          <option value="">{chooseLabel}</option>
+          {definition.options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          name={name}
+          required={definition.required}
+          // `number` jedzie tekstem z klawiaturą numeryczną: type="number"
+          // odrzuca przecinek dziesiętny po cichu, a parser rdzenia go zna.
+          type={definition.type === "date" ? "date" : definition.type === "phone" ? "tel" : "text"}
+          {...(definition.type === "number" ? { inputMode: "decimal" as const } : {})}
+          {...(definition.type === "text" ? { maxLength: CUSTOM_FIELD_LIMITS.textMax } : {})}
+          {...(definition.type === "phone" ? { maxLength: 30 } : {})}
+        />
+      )}
+      {definition.helpText ? <small>{definition.helpText}</small> : null}
+      {message}
+    </label>
+  );
+}
+
 interface Props {
   copy: StorefrontCopy;
   locale: StorefrontLocale;
@@ -44,6 +114,13 @@ interface Props {
   deliveryMethods: PublicDeliveryMethod[];
   initialProductId: string | null;
   theme: EmbedTheme;
+  /**
+   * Pola własne DO WYPEŁNIENIA (C6-A3, ADR-121), zawężone na SERWERZE tą samą
+   * funkcją, którą stosuje zapis. Embed jest trzecią powierzchnią na tym samym
+   * rdzeniu, więc musi je renderować — inaczej najemca z polem WYMAGANYM
+   * miałby w ramce formularz, który serwer zawsze odrzuca.
+   */
+  customFields: CustomFieldDefinition[];
 }
 
 function isoToday(): string {
@@ -115,7 +192,7 @@ function Stopka({ theme, label }: { theme: EmbedTheme; label: string }) {
 }
 
 export function EmbedWidget(props: Props) {
-  const { copy, locale, products, pickupLocations, deliveryMethods, theme } = props;
+  const { copy, locale, products, pickupLocations, deliveryMethods, theme, customFields } = props;
   const t = copy.embed;
 
   const [productId, setProductId] = useState<string | null>(props.initialProductId);
@@ -258,6 +335,14 @@ export function EmbedWidget(props: Props) {
       termsVersion: STOREFRONT_TERMS_VERSION,
       locale,
       notes: String(data.get("notes") ?? ""),
+      // Wartości trzymamy STRINGAMI, jak wychodzą z kontrolek — typowanie robi
+      // serwer tym samym parserem, którym czyta je sklep i wtyczka WordPress.
+      customFields: Object.fromEntries(
+        customFields.map((definition) => [
+          definition.id,
+          String(data.get(`cf_${definition.id}`) ?? ""),
+        ]),
+      ),
     };
     if (deliveryMethod === "pickup") {
       body.pickupLocationId = String(data.get("pickupLocationId") ?? "");
@@ -520,6 +605,21 @@ export function EmbedWidget(props: Props) {
               <span>{t.paymentCod}</span>
             </label>
           </div>
+
+          {customFields.length > 0 ? (
+            <>
+              <h3>{t.customFieldsHeading}</h3>
+              {customFields.map((definition) => (
+                <EmbedCustomField
+                  key={definition.id}
+                  definition={definition}
+                  error={fieldErrors[`cf_${definition.id}`]}
+                  invalidLabel={t.invalidField}
+                  chooseLabel={t.customFieldChoose}
+                />
+              ))}
+            </>
+          ) : null}
 
           <label className="avably-embed__field">
             <span>{t.notes}</span>

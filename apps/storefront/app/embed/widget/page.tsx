@@ -12,6 +12,9 @@
  */
 import { notFound } from "next/navigation";
 
+import { checkoutCustomFields } from "@avably/core";
+
+import { customFieldsFromPublicRows } from "@/lib/checkout/custom-fields";
 import { loadEmbedContext } from "@/lib/embed/context";
 import { EMBED_THEMES, type EmbedTheme } from "@/lib/embed/contract";
 import { EmbedWidget } from "@/components/embed/embed-widget";
@@ -60,6 +63,7 @@ export default async function EmbedWidgetPage({ searchParams }: PageProps) {
       deliveryMethods={ctx.catalog.delivery_methods}
       initialProductId={initialProductId}
       theme={theme}
+      customFields={checkoutCustomFields(customFieldsFromPublicRows(ctx.catalog.custom_fields))}
     />
   );
 }
