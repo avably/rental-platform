@@ -171,7 +171,7 @@
 .avably-cal__day--unknown {
 	border-style: dashed;
 	opacity: 0.55;
-	cursor: progress;
+	cursor: default;
 }
 
 .avably-cal__day--free {
