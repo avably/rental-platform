@@ -78,6 +78,14 @@ export const CUSTOM_FIELD_PARITY_VECTORS: readonly CustomFieldParityVector[] = [
   { name: "data z czasem", type: "date", value: "2026-08-09T10:00:00Z", valid: false },
   { name: "data przestępna", type: "date", value: "2028-02-29", valid: true },
   { name: "data nieprzestępna", type: "date", value: "2027-02-29", valid: false },
+  // GRANICE, nie środek przedziału. PostgreSQL nie ma roku zerowego
+  // (1 p.n.e. → 1 n.e.), więc `'0000-01-01'::date` wywala się na zakresie,
+  // a JavaScript rok 0 zna i round-trip przez setUTCFullYear go przepuszczał.
+  // Ten rozjazd znalazła sonda PM, nie ten zestaw — bo zestaw sprawdzał
+  // środek przedziału. Stąd trzy wektory graniczne zamiast jednego.
+  { name: "rok zerowy (Postgres go nie ma)", type: "date", value: "0000-01-01", valid: false },
+  { name: "pierwszy rok kalendarza", type: "date", value: "0001-01-01", valid: true },
+  { name: "górna granica formatu czterocyfrowego", type: "date", value: "9999-12-31", valid: true },
 
   // --- lista wyboru ---
   { name: "opcja z listy", type: "select", options: ["Alfa", "Beta"], value: "Beta", valid: true },

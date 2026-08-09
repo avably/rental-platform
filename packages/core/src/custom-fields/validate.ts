@@ -163,6 +163,15 @@ function checkTypedValue(
       // ale nie jest dniem — a od tego zależy, czy sortowanie po tym polu
       // będzie w części 2 uczciwe.
       const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
+      // PostgreSQL NIE MA ROKU ZEROWEGO — kalendarz idzie 1 p.n.e. → 1 n.e.,
+      // więc `'0000-01-01'::date` kończy się „date/time field value out of
+      // range". JavaScript rok 0 zna i round-trip przez setUTCFullYear
+      // przechodził, więc formularz przyjmował datę, której baza nie zapisze.
+      // Zrównanie idzie po stronie SUROWSZEJ: ostatnią bramką jest baza i to
+      // JEJ odmowa dociera do użytkownika, więc rdzeń nie ma prawa być
+      // luźniejszy. Górnej granicy nie dokładamy: format czterocyfrowy kończy
+      // się na 9999, a `'9999-12-31'::date` Postgres przyjmuje (sprawdzone).
+      if (year < 1) return "date";
       const parsed = new Date(0);
       // `new Date(Date.UTC(50, …))` mapuje lata 0..99 na 1900+rok, więc data
       // „0050-01-01" wypadała z porównania jako nieistniejąca, choć Postgres
