@@ -1,9 +1,11 @@
 "use client";
 
+import type { CustomFieldDefinition, CustomFieldValues } from "@avably/core";
 import { Button, Checkbox, Input, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { CustomFieldsFieldset } from "@/components/fields/custom-fields-fieldset";
 import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
@@ -60,11 +62,16 @@ export function ProductForm({
   action,
   defaults,
   currencyCode,
+  customFields = [],
+  customFieldValues = {},
   initialState: initial = initialState,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   defaults: ProductFormValues;
   currencyCode: string;
+  /** Pola własne produktu z flagą „panel", w kolejności z definicji (serwer). */
+  customFields?: readonly CustomFieldDefinition[];
+  customFieldValues?: CustomFieldValues;
   /**
    * Stan startowy formularza. W produkcie ZAWSZE pusty — prop istnieje po to,
    * by kontrakt renderu (`catalog-screen-contract`) mógł obejrzeć formularz
@@ -211,6 +218,18 @@ export function ProductForm({
         <Checkbox id="product-active" name="active" defaultChecked={defaults.active} />
         <Label htmlFor="product-active">{t("active")}</Label>
       </div>
+
+      {/* Formularz produktu nie ma grup — sąsiadami są same etykiety pól,
+          więc legenda zostaje etykietą. Wariant jest podany JAWNIE, choć
+          zgadza się z domyślnym: wybór konwencji ma być widoczny w miejscu,
+          w którym zapadł, a nie domyślany z braku propa. */}
+      <CustomFieldsFieldset
+        fields={customFields}
+        values={customFieldValues}
+        errors={state.fieldErrors}
+        idPrefix="product-cf"
+        legendVariant="label"
+      />
 
       {state.formError ? (
         <p role="alert" className="text-destructive text-sm">

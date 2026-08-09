@@ -9,6 +9,7 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
@@ -48,6 +49,7 @@ interface BookedRow {
 
 export default async function NewOrderPage() {
   const ctx = await requireMemberPage("/zamowienia/nowe");
+  const customFields = await loadPanelCustomFields(ctx.supabase, ctx.tenantId!, "order");
 
   const [
     { data: customers },
@@ -189,6 +191,7 @@ export default async function NewOrderPage() {
           locale={locale}
           deliveryPricing={deliveryPricing}
           paymentAccountConnected={(paymentAccounts ?? []).length > 0}
+          customFields={customFields}
         />
       )}
     </div>

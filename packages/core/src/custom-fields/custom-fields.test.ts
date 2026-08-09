@@ -4,6 +4,9 @@ import {
   CUSTOM_FIELD_LIMITS,
   CUSTOM_FIELD_TYPES,
   customFieldDefinitionFromRow,
+  customFieldDisplayRows,
+  customFieldValuesFromColumn,
+  formatCustomFieldValue,
   nextCustomFieldPosition,
   optionsForType,
   parseCustomFieldInput,
@@ -269,6 +272,129 @@ describe("odczyt z formularza", () => {
 
   it("niezaznaczony checkbox to false, nie brak pola", () => {
     expect(parseCustomFieldInput(def("checkbox"), null)).toEqual({ value: false });
+  });
+});
+
+describe("zapis nie kasuje tego, czego formularz nie widzi", () => {
+  const panelField = def("text");
+  const checkoutOnly = def("textarea", { showInPanel: false, showInCheckout: true });
+  const archived = def("select", { archivedAt: "2026-08-01T00:00:00Z" });
+  const defs = [panelField, checkoutOnly, archived];
+  const existing = {
+    [ID.text]: "stara wartość",
+    [ID.textarea]: "wpisane przez klienta w sklepie",
+    [ID.select]: "Alfa",
+  };
+
+  it("przepisuje wartość pola widocznego tylko przy zamawianiu (wpisaną przez klienta)", () => {
+    // Kolumna `custom_fields` zapisuje się W CAŁOŚCI. Bez przepisania klucz
+    // zniknąłby z bazy przy pierwszym zapisie karty w panelu — cicho i bez
+    // błędu, czyli w sposób nie do zauważenia dla operatora.
+    const result = readCustomFieldValues(defs, () => "z panelu", {
+      surface: "panel",
+      existing,
+    });
+    expect(result.issues).toEqual({});
+    expect(result.values[ID.text]).toBe("z panelu");
+    expect(result.values[ID.textarea]).toBe("wpisane przez klienta w sklepie");
+    expect(result.values[ID.select]).toBe("Alfa");
+  });
+
+  it("bez wartości zapisanych nie wymyśla kluczy", () => {
+    const result = readCustomFieldValues(defs, () => "z panelu", { surface: "panel" });
+    expect(Object.keys(result.values)).toEqual([ID.text]);
+  });
+
+  it("odmawia PODMIANY wartości pola spoza powierzchni — i nazywa to inaczej niż brak pola", () => {
+    // Wektor wrogi: operator dokłada do formularza panelu pole `cf_<id>`
+    // definicji oznaczonej wyłącznie „zamawianie". Widoczność jest kontraktem,
+    // więc podmiana ma się odbić — a odmowa ma mówić prawdę: pole ISTNIEJE,
+    // tylko nie tędy.
+    const result = validateCustomFieldValues(defs, { [ID.textarea]: "podmienione" }, {
+      surface: "panel",
+      existing,
+    });
+    expect(result.issues[ID.textarea]).toBe("hidden");
+    expect(result.values[ID.textarea]).toBe("wpisane przez klienta w sklepie");
+  });
+
+  it("przepisanie tej samej wartości nie jest zmianą (jak przy zarchiwizowanym)", () => {
+    const result = validateCustomFieldValues(
+      defs,
+      { [ID.textarea]: existing[ID.textarea]!, [ID.select]: existing[ID.select]! },
+      { surface: "panel", existing },
+    );
+    expect(result.issues).toEqual({});
+  });
+});
+
+describe("prezentacja wartości", () => {
+  it("formatuje po ludzku wg typu i języka", () => {
+    expect(formatCustomFieldValue(def("date"), "2026-03-05", "pl")).toBe("5 marca 2026");
+    expect(formatCustomFieldValue(def("date"), "2026-03-05", "en")).toBe("March 5, 2026");
+    expect(formatCustomFieldValue(def("checkbox"), true, "pl")).toBe("Tak");
+    expect(formatCustomFieldValue(def("checkbox"), false, "pl")).toBe("Nie");
+    expect(formatCustomFieldValue(def("checkbox"), false, "en")).toBe("No");
+  });
+
+  it("nie zaokrągla liczby wpisanej z pełną dokładnością kolumny", () => {
+    // scale 6 w 0057 — domyślne `maximumFractionDigits: 3` zamieniłoby stan
+    // licznika na inną liczbę niż ta w bazie.
+    expect(formatCustomFieldValue(def("number"), 1234.567891, "pl")).toBe("1234,567891");
+  });
+
+  it("pusta wartość daje pusty string, a nie sierocą etykietę", () => {
+    expect(formatCustomFieldValue(def("text"), undefined, "pl")).toBe("");
+    expect(formatCustomFieldValue(def("text"), "   ", "pl")).toBe("");
+  });
+
+  it("wartość nie-datę pokazuje jak leży, zamiast „Invalid Date” na dokumencie", () => {
+    expect(formatCustomFieldValue(def("date"), "nie-data", "pl")).toBe("nie-data");
+  });
+
+  it("wiersze biorą TYLKO pola z flagą powierzchni, w kolejności definicji", () => {
+    const onContract = def("text", { showInContract: true, position: 1, label: "Uprawnienia" });
+    const notOnContract = def("textarea", { showInContract: false, position: 0, label: "Notatka" });
+    const rows = customFieldDisplayRows(
+      [onContract, notOnContract],
+      { [ID.text]: "AB-123", [ID.textarea]: "wewnętrzna" },
+      { surface: "contract", locale: "pl" },
+    );
+    expect(rows).toEqual([{ id: ID.text, label: "Uprawnienia", value: "AB-123" }]);
+  });
+
+  it("pole bez wartości NIE TWORZY WIERSZA — sieroca etykieta to dziura w dokumencie", () => {
+    // Asercja stoi TU, przy funkcji, która o tym decyduje. Trzymanie jej
+    // wyłącznie w teście budującym propsy umowy znaczyłoby, że wycięcie
+    // filtra pali warstwę wyżej, a warstwa, w której mieszka reguła, zostaje
+    // zielona — czyli dokładnie odwrotnie, niż powinno.
+    const filled = def("text", { showInContract: true, position: 0, label: "Uprawnienia" });
+    const blank = def("textarea", { showInContract: true, position: 1, label: "Uwagi" });
+    const missing = def("phone", { showInContract: true, position: 2, label: "Telefon serwisu" });
+
+    const rows = customFieldDisplayRows(
+      [filled, blank, missing],
+      { [ID.text]: "AB-123", [ID.textarea]: "   " },
+      { surface: "contract", locale: "pl" },
+    );
+    expect(rows.map((row) => row.label)).toEqual(["Uprawnienia"]);
+  });
+
+  it("pole zarchiwizowane nie wraca na dokument tylnymi drzwiami", () => {
+    const archived = def("text", { showInContract: true, archivedAt: "2026-08-01T00:00:00Z" });
+    expect(
+      customFieldDisplayRows([archived], { [ID.text]: "stare" }, { surface: "contract", locale: "pl" }),
+    ).toEqual([]);
+  });
+
+  it("czyta kolumnę jsonb, pomijając wartości spoza typów pola", () => {
+    expect(customFieldValuesFromColumn({ a: "x", b: 2, c: true, d: null, e: { f: 1 } })).toEqual({
+      a: "x",
+      b: 2,
+      c: true,
+    });
+    expect(customFieldValuesFromColumn(null)).toEqual({});
+    expect(customFieldValuesFromColumn(["x"])).toEqual({});
   });
 });
 

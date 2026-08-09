@@ -2150,6 +2150,29 @@
       "lockedHint": "To pole ma już zapisane dane, więc rodzaju i przypisania nie da się zmienić. Zarchiwizuj je i załóż nowe, jeśli potrzebujesz innego rodzaju.",
       "save": "Zapisz",
       "saved": "Zapisano."
+    },
+    "values": {
+      "section": "Pola własne",
+      "notSelected": "Nie wybrano",
+      "empty": "Nie uzupełniono.",
+      "save": "Zapisz",
+      "saved": "Zapisano.",
+      "notSaved": "Zamówienie zostało utworzone, ale pól własnych nie udało się zapisać. Uzupełnij je poniżej."
+    },
+    "issue": {
+      "unknownDefinition": "Tego pola nie ma wśród pól własnych tych danych.",
+      "archived": "To pole jest zarchiwizowane — zapisanej wartości nie da się już zmienić.",
+      "hidden": "To pole nie jest widoczne w panelu, więc nie da się go stąd zmienić.",
+      "required": "Wypełnij to pole.",
+      "type": "Wartość nie pasuje do rodzaju tego pola.",
+      "tooLong": "Wartość jest za długa.",
+      "controlChars": "Wartość zawiera znaki, których nie da się zapisać.",
+      "option": "Wybierz jedną z pozycji listy.",
+      "date": "Podaj datę, która istnieje.",
+      "phone": "Podaj numer telefonu — od 6 do 15 cyfr.",
+      "number": "Podaj liczbę.",
+      "range": "Liczba jest spoza dopuszczalnego zakresu.",
+      "tooLarge": "Pola własne zajmują razem za dużo miejsca — skróć wpisy."
     }
   }
 }

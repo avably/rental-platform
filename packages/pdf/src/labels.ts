@@ -33,6 +33,10 @@ export interface ContractLabels {
   terms: string;
   termsVersion: string;
   generatedNote: string;
+  /** Sekcja pól własnych najemcy (C6-A2). */
+  additionalDetails: string;
+  customerDetails: string;
+  orderDetails: string;
 }
 
 export const CONTRACT_LABELS: Record<ContractLocale, ContractLabels> = {
@@ -62,6 +66,9 @@ export const CONTRACT_LABELS: Record<ContractLocale, ContractLabels> = {
     terms: "Regulamin najmu",
     termsVersion: "Wersja",
     generatedNote: "Dokument wygenerowany automatycznie",
+    additionalDetails: "Dane dodatkowe",
+    customerDetails: "Klient",
+    orderDetails: "Zamówienie",
   },
   en: {
     documentTitle: "RENTAL AGREEMENT",
@@ -89,5 +96,8 @@ export const CONTRACT_LABELS: Record<ContractLocale, ContractLabels> = {
     terms: "Rental terms",
     termsVersion: "Version",
     generatedNote: "Document generated automatically",
+    additionalDetails: "Additional details",
+    customerDetails: "Customer",
+    orderDetails: "Order",
   },
 };

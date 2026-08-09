@@ -39,6 +39,7 @@ import {
   formatMoney,
   resolveDeliveryCost,
   type CurrencyCode,
+  type CustomFieldDefinition,
   type DeliveryMethod,
   type DeliveryPricing,
 } from "@avably/core";
@@ -46,6 +47,7 @@ import { Button, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState, useMemo, useState } from "react";
 
+import { CustomFieldsFieldset } from "@/components/fields/custom-fields-fieldset";
 import type { FormState } from "@/lib/form-state";
 import { parseMajorToGrosze } from "@/lib/money-input";
 
@@ -101,6 +103,7 @@ export function OrderWizard({
   locale,
   deliveryPricing,
   paymentAccountConnected,
+  customFields = [],
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   customers: WizardCustomer[];
@@ -115,6 +118,8 @@ export function OrderWizard({
   deliveryPricing: DeliveryPricing | null;
   /** Czy tenant ma konto rozliczeniowe — bramka wyboru płatności online. */
   paymentAccountConnected: boolean;
+  /** Pola własne zamówienia z flagą „panel", w kolejności z definicji (serwer). */
+  customFields?: readonly CustomFieldDefinition[];
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.form");
@@ -300,6 +305,17 @@ export function OrderWizard({
             <Label htmlFor="order-notes">{t("notes")}</Label>
             <Textarea id="order-notes" name="notes" rows={3} maxLength={2000} />
           </div>
+
+          {/* Rodzeństwem są fieldsety „Klient", „Pozycje" i „Termin
+              i dostawa" z dużymi nagłówkami — pola własne są czwartą taką
+              grupą, więc biorą tę samą konwencję (nie kapitaliki karty). */}
+          <CustomFieldsFieldset
+            fields={customFields}
+            values={{}}
+            errors={state.fieldErrors}
+            idPrefix="order-cf"
+            legendVariant="section"
+          />
         </div>
 
         {/* ================= KOLUMNA PRAWA — termin i wycena ================= */}

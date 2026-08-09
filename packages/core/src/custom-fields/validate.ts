@@ -274,9 +274,13 @@ export interface ValidateCustomFieldsOptions {
   /** Encja, do której należy zapisywany wiersz — lustro filtra encji w triggerze. */
   entity?: CustomFieldEntity;
   /**
-   * Wartości JUŻ ZAPISANE na wierszu. Wartość pod definicją zarchiwizowaną
-   * jest przepisywana bez zmian (baza na to pozwala i tylko na to), zamiast
-   * zniknąć przy zapisie formularza.
+   * Wartości JUŻ ZAPISANE na wierszu. Przepisywane bez zmian wszędzie tam,
+   * gdzie TEN zapis pola nie widzi: pod definicją zarchiwizowaną oraz pod
+   * definicją spoza `surface`. Bez tego zapis formularza kasowałby dane, do
+   * których ten formularz nie ma nawet pola.
+   *
+   * Podanie `existing` jest OBOWIĄZKOWE przy każdej AKTUALIZACJI wiersza —
+   * pominięcie go nie jest błędem typu, tylko cichą utratą danych.
    */
   existing?: CustomFieldValues;
 }
@@ -302,12 +306,26 @@ export function validateCustomFieldValues(
   const issues: CustomFieldIssues = {};
   const clean: CustomFieldValues = {};
 
-  // Wartości pod definicjami ZARCHIWIZOWANYMI przechodzą przez zapis
-  // NIETKNIĘTE. Bez tego pierwszy zapis formularza kasowałby historię, którą
-  // archiwizacja miała właśnie ochronić.
+  /**
+   * Pole, którego TEN zapis nie widzi — a więc i nie ma prawa nadpisać.
+   *
+   * Dwa powody, jeden skutek. Zarchiwizowane znika ze WSZYSTKICH formularzy
+   * (D4 z ADR-118). Niewidoczne na powierzchni znika z JEDNEJ: pole oznaczone
+   * wyłącznie „zamawianie" nie renderuje się w panelu, więc formularz panelu
+   * nie przynosi dla niego żadnej wartości.
+   *
+   * Wynik jest MAPĄ DO ZAPISANIA W CAŁOŚCI (`custom_fields` to jedna kolumna,
+   * nie zbiór wierszy), więc każdy klucz pominięty tutaj ZNIKA z bazy. Bez tej
+   * gałęzi pierwszy zapis karty klienta kasowałby to, co klient wpisał
+   * w sklepie — cicho, bez błędu i bez śladu.
+   */
+  const invisibleHere = (definition: CustomFieldDefinition): boolean =>
+    definition.archivedAt !== null || (surface !== undefined && !surfaceFlag(definition, surface));
+
   if (existing) {
     for (const [key, value] of Object.entries(existing)) {
-      if (byId.get(key)?.archivedAt) clean[key] = value;
+      const definition = byId.get(key);
+      if (definition && invisibleHere(definition)) clean[key] = value;
     }
   }
 
@@ -317,12 +335,12 @@ export function validateCustomFieldValues(
       issues[key] = "unknownDefinition";
       continue;
     }
-    if (definition.archivedAt !== null) {
+    if (invisibleHere(definition)) {
       // Przepisanie tej samej wartości to nie zmiana — baza je przepuszcza,
       // więc formularz też musi (inaczej edycja klienta z zarchiwizowanym
       // polem byłaby niemożliwa z panelu, a możliwa surowym API).
       if (existing && Object.hasOwn(existing, key) && existing[key] === value) continue;
-      issues[key] = "archived";
+      issues[key] = definition.archivedAt !== null ? "archived" : "hidden";
       continue;
     }
     const issue = checkTypedValue(definition, value);

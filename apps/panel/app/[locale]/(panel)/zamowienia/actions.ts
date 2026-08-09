@@ -33,6 +33,8 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
+import { hasCustomFieldErrors } from "@/lib/custom-fields";
+import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
 import {
   bulkStatusChangeFromFormData,
   bulkStatusChangeSchema,
@@ -116,6 +118,14 @@ export async function createOrderAction(
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
+  }
+
+  // Pola własne sprawdzamy PRZED pierwszym zapisem — czyli przed założeniem
+  // klienta i przed `app.create_order`. Zła wartość ma odbić się o formularz,
+  // a nie zostawić po sobie klienta i zamówienie do posprzątania.
+  const custom = await readCustomFieldsForWrite(ctx.supabase, ctx.tenantId!, "order", formData);
+  if (hasCustomFieldErrors(custom)) {
+    return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
   }
 
   // Klient: istniejący albo utworzony w locie (dokładnie jeden — schemat).
@@ -302,8 +312,39 @@ export async function createOrderAction(
     return { formError: createError.message };
   }
 
+  const createdOrderId = orderId as string;
+
+  // Pola własne dopisujemy OSOBNYM zapisem, po utworzeniu zamówienia.
+  //
+  // DLACZEGO NIE ATOMOWO: `app.create_order` przyjmuje dziś 21 argumentów
+  // i dołożenie dwudziestego drugiego znaczyłoby migrację zmieniającą sygnaturę
+  // funkcji, którą D1 (godzinówki) i tak przepisze. Kolejność zadań mówi wprost,
+  // żeby nie przepisywać tej funkcji trzy razy w kwartał.
+  //
+  // CZYM PŁACIMY: zapis nie jest częścią transakcji tworzącej zamówienie.
+  // Wartości są już sprawdzone rdzeniem (wyżej), więc realną przyczyną
+  // niepowodzenia jest awaria łącza — i wtedy zamówienie ISTNIEJE, a pola są
+  // puste. Tego nie wolno przemilczeć ani zamienić w błąd formularza (operator
+  // ponowiłby wysyłkę i założył zamówienie DRUGI RAZ), więc idziemy na kartę
+  // zamówienia z jawnym ostrzeżeniem — tam pola dają się uzupełnić jednym
+  // zapisem, bez zakładania czegokolwiek na nowo.
+  let customFieldsSaved = true;
+  if (Object.keys(custom.values).length > 0) {
+    const { data: written, error: customError } = await ctx.supabase
+      .from("orders")
+      .update({ custom_fields: custom.values })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", createdOrderId)
+      .select("id");
+    customFieldsSaved = !customError && (written?.length ?? 0) > 0;
+  }
+
   revalidatePath("/", "layout");
-  redirect(await localePath(`/zamowienia/${orderId as string}`));
+  redirect(
+    await localePath(
+      `/zamowienia/${createdOrderId}${customFieldsSaved ? "" : "?polaWlasne=niezapisane"}`,
+    ),
+  );
 }
 
 export async function changeOrderStatusAction(

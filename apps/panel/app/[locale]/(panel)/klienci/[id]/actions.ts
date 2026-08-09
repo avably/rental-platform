@@ -17,6 +17,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
+import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
+import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
 import { customerEditFromFormData, customerEditSchema } from "@/lib/customer-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
@@ -59,9 +61,33 @@ export async function updateCustomerAction(
   const { email, fullName, phone, companyName, nip, addressStreet, addressZip, addressCity } =
     parsed.data;
 
+  // Kolumna `custom_fields` zapisuje się W CAŁOŚCI, więc stan sprzed edycji
+  // jest częścią zapisu: pod polem oznaczonym wyłącznie „zamawianie" stoi to,
+  // co klient wpisał w sklepie, a formularz karty takiego pola nie pokazuje.
+  // Bez tego odczytu pierwsza edycja danych kontaktowych kasowałaby tamte
+  // odpowiedzi — cicho, bez błędu i bez śladu.
+  const { data: current } = await ctx.supabase
+    .from("customers")
+    .select("custom_fields")
+    .eq("tenant_id", tenantId)
+    .eq("id", id.data)
+    .maybeSingle();
+
+  const custom = await readCustomFieldsForWrite(
+    ctx.supabase,
+    tenantId,
+    "customer",
+    formData,
+    customFieldValuesFromRow(current),
+  );
+  if (hasCustomFieldErrors(custom)) {
+    return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
+  }
+
   const { data, error } = await ctx.supabase
     .from("customers")
     .update({
+      custom_fields: custom.values,
       email,
       full_name: fullName,
       phone,

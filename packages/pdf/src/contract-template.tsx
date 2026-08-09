@@ -4,7 +4,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { HtmlContent, looksLikeHtml } from "./html-to-pdf";
 import { CONTRACT_LABELS } from "./labels";
 import { formatMoney } from "./money";
-import type { ContractPdfProps } from "./types";
+import type { ContractCustomField, ContractPdfProps } from "./types";
 
 // Finalna paleta Avably — wartości z sekcji 01 artefaktu Fazy 2.
 const INK = "#0B1017";
@@ -102,6 +102,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: { fontSize: 7, color: MUTED },
+  customGroup: { marginBottom: 6 },
+  customGroupLabel: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    color: SIGNAL_STRONG,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  itemCustomRow: { flexDirection: "row", marginBottom: 2, paddingLeft: 8 },
+  itemCustomLabel: { width: "35%", fontSize: 7.5, color: MUTED },
+  itemCustomValue: { width: "65%", fontSize: 7.5 },
 });
 
 function LabeledRow({ label, value }: { label: string; value: string }): React.ReactElement {
@@ -109,6 +121,32 @@ function LabeledRow({ label, value }: { label: string; value: string }): React.R
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+}
+
+/**
+ * Grupa pól własnych: nagłówek + pary etykieta→wartość.
+ *
+ * Wartość idzie do `<Text>` JAKO DZIECKO, nigdy przez `HtmlContent` i nigdy
+ * przez sklejanie znacznika ze stringa. To jest cała ochrona tej powierzchni
+ * i jest ona strukturalna: `<Text>{value}</Text>` nie ma drogi, którą treść
+ * mogłaby stać się instrukcją — ani formatu PDF, ani HTML-a. Regulamin
+ * (`terms.body`) jedzie parserem HTML świadomie, bo pisze go WŁAŚCICIEL
+ * w edytorze; pole własne wypełnia lada, a przy polach checkoutowych — klient
+ * końcowy, więc te dwie ścieżki nie mogą się zejść.
+ */
+function CustomFieldGroup({ heading, rows }: {
+  heading: string;
+  rows: readonly ContractCustomField[];
+}): React.ReactElement | null {
+  if (rows.length === 0) return null;
+  return (
+    <View style={styles.customGroup}>
+      <Text style={styles.customGroupLabel}>{heading}</Text>
+      {rows.map((row, idx) => (
+        <LabeledRow key={idx} label={row.label} value={row.value} />
+      ))}
     </View>
   );
 }
@@ -136,6 +174,15 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
   const t = CONTRACT_LABELS[locale];
   const currency = totals.currency;
   const money = (grosze: number): string => formatMoney(grosze, currency, locale);
+
+  const customerFields = props.customFields?.customer ?? [];
+  const orderFields = props.customFields?.order ?? [];
+  // Sekcja dodatkowa istnieje TYLKO wtedy, gdy ma co pokazać — a numeracja
+  // paragrafów idzie za nią. Najemca bez pól własnych dostaje umowę
+  // NIEODRÓŻNIALNĄ od tej sprzed C6-A2 (regulamin zostaje §5), więc nowa
+  // powierzchnia nie przestawia dokumentów, do których nikt jej nie zamówił.
+  const hasExtras = customerFields.length > 0 || orderFields.length > 0;
+  const termsNumber = hasExtras ? 6 : 5;
 
   return (
     <Document>
@@ -179,13 +226,22 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
           {items.length > 0 ? (
             <View style={styles.tableContainer}>
               {items.map((item, idx) => (
-                <View key={idx} style={styles.itemRow}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemSerial}>
-                    {item.serialNumber ? `${t.serialNumber}: ${item.serialNumber}` : ""}
-                  </Text>
-                  <Text style={styles.itemRental}>{`${t.itemRental}: ${money(item.rentalGrosze)}`}</Text>
-                  <Text style={styles.itemDeposit}>{`${t.itemDeposit}: ${money(item.depositGrosze)}`}</Text>
+                <View key={idx}>
+                  <View style={styles.itemRow}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <Text style={styles.itemSerial}>
+                      {item.serialNumber ? `${t.serialNumber}: ${item.serialNumber}` : ""}
+                    </Text>
+                    <Text style={styles.itemRental}>{`${t.itemRental}: ${money(item.rentalGrosze)}`}</Text>
+                    <Text style={styles.itemDeposit}>{`${t.itemDeposit}: ${money(item.depositGrosze)}`}</Text>
+                  </View>
+                  {/* Pola własne produktu — pod pozycją, której dotyczą. */}
+                  {(item.customFields ?? []).map((field, fieldIdx) => (
+                    <View key={fieldIdx} style={styles.itemCustomRow}>
+                      <Text style={styles.itemCustomLabel}>{field.label}</Text>
+                      <Text style={styles.itemCustomValue}>{field.value}</Text>
+                    </View>
+                  ))}
                 </View>
               ))}
             </View>
@@ -223,6 +279,17 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
           </View>
         </View>
 
+        {/* ── §5 Dane dodatkowe (pola własne najemcy) — tylko gdy są ── */}
+        {hasExtras ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{`§5 ${t.additionalDetails}`}</Text>
+            <View style={styles.tableContainer}>
+              <CustomFieldGroup heading={t.customerDetails} rows={customerFields} />
+              <CustomFieldGroup heading={t.orderDetails} rows={orderFields} />
+            </View>
+          </View>
+        ) : null}
+
         {/* ── Podpisy ── */}
         <View style={styles.signaturesRow}>
           <View style={styles.signatureBox}>
@@ -240,10 +307,12 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
         <Footer tenantName={tenant.name} orderNumber={order.number} note={t.generatedNote} />
       </Page>
 
-      {/* ── §5 Regulamin — osobna strona ── */}
+      {/* ── Regulamin — osobna strona ── */}
       <Page size="A4" style={styles.legalPage}>
         <View style={{ marginBottom: 8 }}>
-          <Text style={styles.sectionTitle}>{`§5 ${t.terms} — ${t.termsVersion} ${terms.version}`}</Text>
+          <Text style={styles.sectionTitle}>
+            {`§${termsNumber} ${t.terms} — ${t.termsVersion} ${terms.version}`}
+          </Text>
         </View>
 
         {looksLikeHtml(terms.body) ? (

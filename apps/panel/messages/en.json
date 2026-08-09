@@ -2150,6 +2150,29 @@
       "lockedHint": "This field already has saved data, so its kind and assignment cannot be changed. Archive it and create a new one if you need a different kind.",
       "save": "Save",
       "saved": "Saved."
+    },
+    "values": {
+      "section": "Custom fields",
+      "notSelected": "Not selected",
+      "empty": "Not filled in.",
+      "save": "Save",
+      "saved": "Saved.",
+      "notSaved": "The order was created, but its custom fields were not saved. Fill them in below."
+    },
+    "issue": {
+      "unknownDefinition": "This field is not among the custom fields for this data.",
+      "archived": "This field is archived — its saved value can no longer be changed.",
+      "hidden": "This field is not shown in the panel, so it cannot be changed here.",
+      "required": "Fill in this field.",
+      "type": "The value does not match the type of this field.",
+      "tooLong": "The value is too long.",
+      "controlChars": "The value contains characters that cannot be saved.",
+      "option": "Choose one of the list entries.",
+      "date": "Enter a date that exists.",
+      "phone": "Enter a phone number — 6 to 15 digits.",
+      "number": "Enter a number.",
+      "range": "The number is outside the allowed range.",
+      "tooLarge": "The custom fields together take up too much space — shorten the entries."
     }
   }
 }

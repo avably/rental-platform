@@ -20,6 +20,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Link } from "@/i18n/navigation";
+import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
 import { CHECKABLE_PAYMENT_STATUSES } from "@/lib/payment-settlement";
@@ -27,6 +28,8 @@ import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction, sendTransitionEmailAction } from "../actions";
 import { ContractSection } from "./contract-section";
+import { updateOrderCustomFieldsAction } from "./custom-fields-actions";
+import { OrderCustomFieldsSection } from "./custom-fields-section";
 import {
   depositTotals,
   isDepositSettled,
@@ -103,10 +106,13 @@ function SectionHeading({ id, children }: { id?: string; children: string }) {
 
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const query = (await searchParams) ?? {};
   const ctx = await requireMemberPage(`/zamowienia/${id}`);
 
   if (!uuidSchema.safeParse(id).success) notFound();
@@ -114,7 +120,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, currency, created_at, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, currency, created_at, custom_fields, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -198,6 +204,7 @@ export default async function OrderDetailPage({
   // ustawienie najemcy: po zmianie ustawienia ten ekran ma dalej mówić
   // walutą, w której zamówienie POWSTAŁO (kwoty, kaucje, zwroty, oś czasu).
   const currency = orderCurrencyCode(row.currency);
+  const orderCustomFields = await loadPanelCustomFields(ctx.supabase, ctx.tenantId!, "order");
   const locale = await getLocale();
   const t = await getTranslations("orders.detail");
   const tDelivery = await getTranslations("orders.delivery");
@@ -347,6 +354,13 @@ export default async function OrderDetailPage({
               deleteAction={deleteOrderNoteAction}
             />
           </section>
+
+          <OrderCustomFieldsSection
+            action={updateOrderCustomFieldsAction.bind(null, row.id)}
+            fields={orderCustomFields}
+            values={customFieldValuesFromRow(order)}
+            notSaved={query.polaWlasne === "niezapisane"}
+          />
 
           <ContractSection orderId={row.id} />
 

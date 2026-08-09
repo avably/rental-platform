@@ -29,6 +29,14 @@ export {
 } from "./validate";
 
 export {
+  customFieldDisplayRows,
+  customFieldValuesFromColumn,
+  formatCustomFieldValue,
+  type CustomFieldDisplayOptions,
+  type CustomFieldDisplayRow,
+} from "./format";
+
+export {
   nextCustomFieldPosition,
   optionsForType,
   parseSelectOptions,

@@ -1,9 +1,11 @@
 "use client";
 
+import type { CustomFieldDefinition, CustomFieldValues } from "@avably/core";
 import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState, type ReactNode } from "react";
 
+import { CustomFieldsFieldset } from "@/components/fields/custom-fields-fieldset";
 import type { FormState } from "@/lib/form-state";
 
 /**
@@ -51,9 +53,14 @@ function Eyebrow({ children }: { children: ReactNode }) {
 export function CustomerEditForm({
   action,
   defaults,
+  customFields = [],
+  customFieldValues = {},
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   defaults: CustomerEditValues;
+  /** Pola własne klienta z flagą „panel", w kolejności z definicji (serwer). */
+  customFields?: readonly CustomFieldDefinition[];
+  customFieldValues?: CustomFieldValues;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("customers.card");
@@ -115,6 +122,17 @@ export function CustomerEditForm({
           {field("addressCity", t("addressCity"), { maxLength: 120 })}
         </div>
       </div>
+
+      {/* Pola własne najemcy — czwarta grupa karty, poniżej adresu. Karta
+          prowadzi grupy kapitalikami (`Eyebrow`), więc legenda dostaje tę
+          samą konwencję: nagłówek należy do EKRANU, nie do komponentu. */}
+      <CustomFieldsFieldset
+        fields={customFields}
+        values={customFieldValues}
+        errors={state.fieldErrors}
+        idPrefix="customer-cf"
+        legendVariant="eyebrow"
+      />
 
       {state.formError ? (
         <p role="alert" className="text-destructive text-sm">
