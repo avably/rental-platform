@@ -575,7 +575,14 @@
       "errorRateLimited": "Za dużo prób. Spróbuj ponownie za chwilę.",
       "errorValidation": "Popraw zaznaczone pola.",
       "errorUnavailable": "Rezerwacja jest chwilowo niedostępna.",
-      "poweredBy": "Rezerwacje obsługuje Avably"
+      "poweredBy": "Rezerwacje obsługuje Avably",
+      "weekdayMon": "pn",
+      "weekdayTue": "wt",
+      "weekdayWed": "śr",
+      "weekdayThu": "cz",
+      "weekdayFri": "pt",
+      "weekdaySat": "so",
+      "weekdaySun": "nd"
     }
   }
 }

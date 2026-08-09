@@ -575,7 +575,14 @@
       "errorRateLimited": "Too many attempts. Please try again shortly.",
       "errorValidation": "Please correct the highlighted fields.",
       "errorUnavailable": "Booking is temporarily unavailable.",
-      "poweredBy": "Bookings powered by Avably"
+      "poweredBy": "Bookings powered by Avably",
+      "weekdayMon": "Mon",
+      "weekdayTue": "Tue",
+      "weekdayWed": "Wed",
+      "weekdayThu": "Thu",
+      "weekdayFri": "Fri",
+      "weekdaySat": "Sat",
+      "weekdaySun": "Sun"
     }
   }
 }

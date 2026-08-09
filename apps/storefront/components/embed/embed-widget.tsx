@@ -83,6 +83,37 @@ function daysBetweenInclusive(from: string, to: string): number {
   return Math.round((b - a) / 86_400_000) + 1;
 }
 
+/**
+ * Dyskretny podpis „Powered by Avably" (M3, ADR-120).
+ *
+ * Logo bierzemy z JEDYNEGO miejsca, w którym znak marki żyje w repo —
+ * `/forerunner/images/avably-logo-{dark,light}.svg`, tych samych plików, co
+ * nawigacja i stopka stron marketingowych. Świadomie `<img>` do pliku, a nie
+ * wklejone inline ścieżki SVG: wklejenie zrobiłoby DRUGĄ kopię znaku, która
+ * po zmianie brandingu cicho by się rozjechała.
+ *
+ * Wariant wybiera MOTYW, nie preferencja systemu: znak z ciemnym tuszem na
+ * jasnym tle i odwrotnie (to samo przyporządkowanie, co w nawigacji LP).
+ *
+ * Ścieżka bez prefiksu tenanta i z kropką w nazwie — więc omija proxy, a tym
+ * samym bramkę hasła; inaczej na cudzej stronie logo wracałoby jako 401.
+ */
+function Stopka({ theme, label }: { theme: EmbedTheme; label: string }) {
+  return (
+    <p className="avably-embed__footer" data-embed-footer>
+      <img
+        src={`/forerunner/images/avably-logo-${theme === "dark" ? "light" : "dark"}.svg`}
+        alt={label}
+        width={348}
+        height={93}
+        loading="lazy"
+        decoding="async"
+        data-embed-logo
+      />
+    </p>
+  );
+}
+
 export function EmbedWidget(props: Props) {
   const { copy, locale, products, pickupLocations, deliveryMethods, theme } = props;
   const t = copy.embed;
@@ -277,6 +308,14 @@ export function EmbedWidget(props: Props) {
     }
   };
 
+  // Nagłówki dni tygodnia. Bez nich kolumny trzeba liczyć palcem, a wybór
+  // terminu jest w tym widgecie JEDYNĄ czynnością. Kolejność od poniedziałku —
+  // zgodna z `weekdayIndex` wyżej, w obu językach.
+  const weekdayLabels = [
+    t.weekdayMon, t.weekdayTue, t.weekdayWed,
+    t.weekdayThu, t.weekdayFri, t.weekdaySat, t.weekdaySun,
+  ];
+
   const grid = daysOfMonth(month);
   const leadingBlanks = grid.length > 0 ? weekdayIndex(grid[0]!) : 0;
   const monthLabel = new Intl.DateTimeFormat(locale, {
@@ -296,6 +335,7 @@ export function EmbedWidget(props: Props) {
             {t.newReservation}
           </button>
         </div>
+        <Stopka theme={theme} label={t.poweredBy} />
       </div>
     );
   }
@@ -329,6 +369,7 @@ export function EmbedWidget(props: Props) {
         </p>
       ) : null}
 
+      <div className="avably-embed__layout">
       <section className="avably-embed__calendar" data-embed-calendar>
         <header>
           <button type="button" aria-label={t.prevMonth} onClick={() => setMonth(shiftMonth(month, -1))}>
@@ -339,6 +380,12 @@ export function EmbedWidget(props: Props) {
             ›
           </button>
         </header>
+
+        <div className="avably-embed__weekdays" aria-hidden>
+          {weekdayLabels.map((label, index) => (
+            <span key={index}>{label}</span>
+          ))}
+        </div>
 
         <div className="avably-embed__grid" role="grid">
           {Array.from({ length: leadingBlanks }, (_, index) => (
@@ -495,8 +542,9 @@ export function EmbedWidget(props: Props) {
           </button>
         </form>
       ) : null}
+      </div>
 
-      <p className="avably-embed__footer">{t.poweredBy}</p>
+      <Stopka theme={theme} label={t.poweredBy} />
     </div>
   );
 }
