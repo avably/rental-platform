@@ -14,12 +14,15 @@
  * taka, jaka była w chwili zamówienia. Tu edytujemy WYŁĄCZNIE profil klienta.
  */
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
 import { customerEditFromFormData, customerEditSchema } from "@/lib/customer-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
+import { localePath } from "@/lib/navigation";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
+import { removeContractDocuments } from "@/src/jobs/erase-customer-documents";
 
 /** Kod unikatu Postgresa — kolizja customers_tenant_email_key (0007). */
 const UNIQUE_VIOLATION = "23505";
@@ -173,4 +176,106 @@ export async function setCustomerBanAction(
   // Brak wiersza do usunięcia = już odblokowany (idempotencja) — sukces.
   revalidatePath("/", "layout");
   return { success: "unbanned" };
+}
+
+/**
+ * Realizacja żądania usunięcia danych klienta — art. 17 RODO (C2b, ADR-116).
+ *
+ * BRAMKĄ NIE JEST TU RLS, TYLKO FUNKCJA. `app.erase_customer` (0056) jest
+ * SECURITY DEFINER, bo dwie z trzech operacji są pod RLS niewykonalne
+ * z założenia: historia wysyłki jest append-only, a dziennik przyjmuje wpisy
+ * wyłącznie od superadmina. Cała izolacja siedzi więc WEWNĄTRZ funkcji
+ * (najemca z claimu, bramka właściciela, jawny filtr najemcy w każdym
+ * zapytaniu), a ta akcja nie ma prawa jej osłabić: identyfikator klienta idzie
+ * do bazy jako JEDYNY argument, najemca nigdy nie jedzie z formularza.
+ *
+ * KOLEJNOŚĆ JEST ISTOTĄ POPRAWNOŚCI: najpierw baza, potem pliki. Odwrotna
+ * kasowałaby PDF-y umów przy nietkniętych danych osobowych — czyli traciła
+ * dowody, nie usuwała danych. Funkcja oddaje ścieżki przy KAŻDYM wywołaniu,
+ * także powtórnym, więc przerwane sprzątanie Storage domyka się ponowieniem.
+ *
+ * POTWIERDZENIE JEST ŚWIADOME: operator przepisuje adres e-mail klienta,
+ * a wzorzec do porównania bierzemy Z BAZY (odczyt pod RLS), nie z ukrytego
+ * pola formularza — inaczej „potwierdzenie" potwierdzałoby to, co przysłał
+ * klient przeglądarki.
+ */
+export async function eraseCustomerAction(
+  customerId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const id = uuidSchema.safeParse(customerId);
+  if (!id.success) return { formError: id.error.issues[0]!.message };
+
+  // Sesja PRZED czymkolwiek innym: rola rozstrzyga się zanim dotkniemy danych
+  // klienta (wzorzec importu katalogu — auth-first).
+  let ctx;
+  try {
+    ctx = await requireMember("owner");
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+  const tenantId = ctx.tenantId;
+  if (!tenantId) {
+    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+  }
+
+  const { data: customer } = await ctx.supabase
+    .from("customers")
+    .select("email")
+    .eq("tenant_id", tenantId)
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!customer) {
+    return { formError: "Klient nie istnieje albo nie masz do niego dostępu." };
+  }
+
+  const typed = String(formData.get("confirmation") ?? "").trim().toLowerCase();
+  if (typed !== String((customer as { email: string }).email).trim().toLowerCase()) {
+    return {
+      fieldErrors: {
+        confirmation: "Wpisz dokładnie adres e-mail tego klienta, aby potwierdzić operację.",
+      },
+    };
+  }
+
+  const { data, error } = await ctx.supabase
+    .schema("app")
+    .rpc("erase_customer", { p_customer_id: id.data });
+
+  if (error) {
+    if (error.code === "42501") {
+      return { formError: "Usunięcie danych klienta jest zastrzeżone dla właściciela organizacji." };
+    }
+    if (error.code === "22023") {
+      return { formError: "Klient nie istnieje albo nie masz do niego dostępu." };
+    }
+    return { formError: error.message };
+  }
+
+  const result = (data ?? {}) as { mode?: string; contract_paths?: string[] };
+  const paths = Array.isArray(result.contract_paths) ? result.contract_paths : [];
+
+  try {
+    await removeContractDocuments(paths);
+  } catch {
+    // Dane w bazie są już usunięte — nierozwiązany jest wyłącznie los plików.
+    // Mówimy to wprost i zapraszamy do ponowienia: operacja jest idempotentna,
+    // a druga próba dostanie te same ścieżki.
+    revalidatePath("/", "layout");
+    return {
+      formError:
+        "Dane klienta zostały usunięte, ale nie udało się skasować plików umów. Powtórz operację, aby dokończyć.",
+    };
+  }
+
+  revalidatePath("/", "layout");
+
+  // Klient bez zamówień znika w całości — nie ma dokąd wracać na jego kartę.
+  if (result.mode === "deleted") {
+    redirect(await localePath("/klienci"));
+  }
+
+  return { success: "erased" };
 }

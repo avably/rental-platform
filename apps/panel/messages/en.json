@@ -1131,6 +1131,21 @@
         "cancel": "Cancel",
         "blockedNotice": "Customer blocked.",
         "unblockedNotice": "Customer unblocked."
+      },
+      "erasure": {
+        "heading": "Customer data erasure",
+        "description": "Fulfils a request to erase personal data. This cannot be undone.",
+        "scope": "Removed: contact and address details, the delivery address stored on orders, the content of sent messages, contract files and the notes on this customer’s orders. Kept: order history and settlement amounts required by tax law.",
+        "cta": "Erase customer data",
+        "confirmTitle": "Erase this customer’s data?",
+        "confirmBody": "This cannot be undone. If the customer has no orders, their record disappears entirely. If they have orders, an empty record stays behind without any personal data.",
+        "confirmLabel": "To confirm, retype the customer’s e-mail address: {email}",
+        "confirm": "Erase data",
+        "cancel": "Cancel",
+        "done": "Customer data erased.",
+        "statusAnonymized": "Data erased",
+        "anonymizedName": "Customer without data",
+        "anonymizedNotice": "This customer’s personal data was erased on {date}. The record remains because orders and settlements depend on it."
       }
     }
   },

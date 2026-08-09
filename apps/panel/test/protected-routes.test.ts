@@ -171,6 +171,18 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "kontem connected właściciela zamówienia.",
   ],
   [
+    "/api/jobs/email-log-retention",
+    "Retencja treści wysłanych wiadomości (C2b/R3, ADR-116) — endpoint nie " +
+      "używa sesji operatora, bo przebieg z natury przekracza granicę najemcy " +
+      "(czyści email_logs.body wszystkich naraz). Chroni go Authorization: " +
+      "Bearer porównywany stałoczasowo z CRON_SECRET (brak sekretu → 503, " +
+      "zły/brak nagłówka → 401), a przypadki negatywne są dowiedzione BRAKIEM " +
+      "WYWOŁANIA rdzenia, nie samym kodem odpowiedzi " +
+      "(email-log-retention-route.test.ts). Klient service_role pozostaje " +
+      "wyłącznie w src/jobs/**, a sama funkcja SQL ma grant tylko dla " +
+      "service_role — sesja najemcy nie dosięga jej nawet z poprawnym tokenem.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +
