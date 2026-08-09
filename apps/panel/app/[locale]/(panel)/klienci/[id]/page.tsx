@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Link } from "@/i18n/navigation";
+import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
@@ -64,7 +65,7 @@ export default async function CustomerDetailPage({
   const { data: customer } = await ctx.supabase
     .from("customers")
     .select(
-      "id, email, full_name, phone, company_name, nip, address_street, address_zip, address_city, created_at, anonymized_at",
+      "id, email, full_name, phone, company_name, nip, address_street, address_zip, address_city, created_at, anonymized_at, custom_fields",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -90,6 +91,8 @@ export default async function CustomerDetailPage({
     .eq("customer_id", id)
     .maybeSingle();
   const banned = ban != null;
+
+  const customFields = await loadPanelCustomFields(ctx.supabase, ctx.tenantId!, "customer");
 
   const locale = await getLocale();
   const t = await getTranslations("customers.card");
@@ -175,6 +178,8 @@ export default async function CustomerDetailPage({
 
           <CustomerEditForm
             action={updateAction}
+            customFields={customFields}
+            customFieldValues={customFieldValuesFromRow(customer)}
             defaults={{
               email: row.email,
               fullName: row.full_name ?? "",

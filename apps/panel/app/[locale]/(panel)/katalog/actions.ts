@@ -10,6 +10,8 @@ import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
 import { productSchema, uuidSchema } from "@/lib/catalog-validation";
+import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
+import { readCustomFieldsForWrite } from "@/lib/custom-fields-server";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
@@ -55,9 +57,16 @@ export async function createProductAction(
     throw err;
   }
 
+  // Pola własne PRZED zapisem: rdzeń oddaje czytelny powód przy właściwym
+  // polu, zanim trigger 0057 odda swój surowy. Bramką pozostaje baza.
+  const custom = await readCustomFieldsForWrite(ctx.supabase, ctx.tenantId!, "product", formData);
+  if (hasCustomFieldErrors(custom)) {
+    return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
+  }
+
   const { error } = await ctx.supabase
     .from("products")
-    .insert({ tenant_id: ctx.tenantId, ...productPayload(parsed.data) });
+    .insert({ tenant_id: ctx.tenantId, ...productPayload(parsed.data), custom_fields: custom.values });
   if (error) return { formError: error.message };
 
   redirect(await localePath("/katalog"));
@@ -82,12 +91,34 @@ export async function updateProductAction(
     throw err;
   }
 
+  // Wartości JUŻ ZAPISANE są częścią zapisu, nie tłem: kolumna `custom_fields`
+  // idzie do bazy W CAŁOŚCI, więc bez nich zapis formularza skasowałby to, co
+  // stoi pod polami zarchiwizowanymi i checkoutowymi. Odczyt jest pod RLS
+  // i zawężony do najemcy — nie ma jak przynieść cudzej mapy.
+  const { data: current } = await ctx.supabase
+    .from("products")
+    .select("custom_fields")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", id.data)
+    .maybeSingle();
+
+  const custom = await readCustomFieldsForWrite(
+    ctx.supabase,
+    ctx.tenantId!,
+    "product",
+    formData,
+    customFieldValuesFromRow(current),
+  );
+  if (hasCustomFieldErrors(custom)) {
+    return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
+  }
+
   // .select("id") po mutacji: RLS nie zgłasza błędu przy UPDATE, który nie
   // dosięgnął żadnego wiersza (cudzy tenant / zły id) — pusty wynik to jedyny
   // sygnał, że nic się nie stało, i musi być błędem, nie cichym sukcesem.
   const { data, error } = await ctx.supabase
     .from("products")
-    .update(productPayload(parsed.data))
+    .update({ ...productPayload(parsed.data), custom_fields: custom.values })
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id.data)
     .select("id");

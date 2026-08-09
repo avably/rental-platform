@@ -131,3 +131,150 @@ describe("renderContractPdf", () => {
     expect(first).toBe(second);
   });
 });
+
+/**
+ * Sekcja pól własnych (C6-A2, ADR-119).
+ *
+ * Ekstrakcja tekstu z PDF-a rozbija wiersze i wstawia spacje między fragmenty
+ * układu, więc asercje na dłuższych ciągach idą po tekście ZNORMALIZOWANYM
+ * (ciąg białych znaków → jedna spacja). Bez tego test przechodziłby albo padał
+ * zależnie od tego, gdzie akurat złamał się wiersz — czyli mierzyłby układ,
+ * a nie treść.
+ */
+function normalize(text: string): string {
+  return text.replace(/\s+/g, " ");
+}
+
+describe("pola własne na umowie", () => {
+  const withFields: ContractPdfProps = {
+    ...plProps,
+    customFields: {
+      customer: [
+        { label: "Numer uprawnień", value: "UP/2026/8841" },
+        { label: "Zgoda marketingowa", value: "Nie" },
+      ],
+      order: [{ label: "Stan licznika", value: "12 480,5" }],
+    },
+  };
+
+  it("drukuje pary etykieta→wartość w sekcji dodatkowej", async () => {
+    const text = normalize(await pdfToText(await renderContractPdf(withFields)));
+    expect(text).toContain("DANE DODATKOWE");
+    expect(text).toContain("Numer uprawnień");
+    expect(text).toContain("UP/2026/8841");
+    expect(text).toContain("Stan licznika");
+    expect(text).toContain("12 480,5");
+  });
+
+  it("„Nie” jest ODPOWIEDZIĄ i musi być widoczne, nie pominięte jako pustka", async () => {
+    const text = normalize(await pdfToText(await renderContractPdf(withFields)));
+    expect(text).toContain("Zgoda marketingowa");
+  });
+
+  it("EN: nagłówki sekcji po angielsku", async () => {
+    const text = normalize(
+      await pdfToText(
+        await renderContractPdf({
+          ...enProps,
+          customFields: { order: [{ label: "Odometer", value: "12,480.5" }] },
+        }),
+      ),
+    );
+    expect(text).toContain("ADDITIONAL DETAILS");
+    expect(text).toContain("ORDER");
+    expect(text).not.toContain("DANE DODATKOWE");
+  });
+
+  // ── DRUGA STRONA KONTRAKTU WIDOCZNOŚCI, przypięta tu, a nie tylko w panelu:
+  // brak pól = brak sekcji, i numeracja paragrafów tego nie zauważa.
+  it("bez pól nie ma ani sekcji, ani przesunięcia numeracji", async () => {
+    const text = normalize(await pdfToText(await renderContractPdf(plProps)));
+    expect(text).not.toContain("DANE DODATKOWE");
+    expect(text).toContain("§5 REGULAMIN NAJMU");
+    expect(text).not.toContain("§6");
+  });
+
+  it("puste listy są tym samym co brak pól (zero pustych sekcji)", async () => {
+    const text = normalize(
+      await pdfToText(await renderContractPdf({ ...plProps, customFields: { customer: [], order: [] } })),
+    );
+    expect(text).not.toContain("DANE DODATKOWE");
+    expect(text).toContain("§5 REGULAMIN NAJMU");
+  });
+
+  it("z polami regulamin przesuwa się na §6, a §5 to dane dodatkowe", async () => {
+    const text = normalize(await pdfToText(await renderContractPdf(withFields)));
+    expect(text).toContain("§5 DANE DODATKOWE");
+    expect(text).toContain("§6 REGULAMIN NAJMU");
+  });
+
+  it("pola produktu drukują się pod pozycją, której dotyczą", async () => {
+    const text = normalize(
+      await pdfToText(
+        await renderContractPdf({
+          ...plProps,
+          items: [
+            { ...plProps.items[0]!, customFields: [{ label: "Stan licznika", value: "988" }] },
+            plProps.items[1]!,
+          ],
+        }),
+      ),
+    );
+    expect(text).toContain("Kamera Sony FX3");
+    expect(text).toContain("Stan licznika");
+    expect(text).toContain("988");
+    // Pozycja bez pól własnych nie dostaje pustego wiersza z etykietą.
+    expect(text.match(/Stan licznika/g)).toHaveLength(1);
+  });
+
+  // ── WEKTOR WROGI. Wartość pola własnego wpisuje operator (a przy polach
+  // checkoutowych — klient końcowy) i ląduje w dokumencie najemcy. Test pyta
+  // o jedno: czy treść zostaje TREŚCIĄ.
+  it("treść wyglądająca na znaczniki HTML zostaje tekstem, nie jest parsowana", async () => {
+    const hostile = "<b>WYTŁUSZCZONE</b><script>alert(1)</script>";
+    const text = normalize(
+      await pdfToText(
+        await renderContractPdf({
+          ...plProps,
+          customFields: { order: [{ label: "Uwagi", value: hostile }] },
+        }),
+      ),
+    );
+    // Znaczniki są WIDOCZNE — czyli nie zostały zinterpretowane. Gdyby
+    // wartość poszła przez `HtmlContent` (drogę regulaminu), zobaczylibyśmy
+    // samo „WYTŁUSZCZONE", a `<script>` zniknąłby bez śladu.
+    expect(text).toContain("<b>WYTŁUSZCZONE</b>");
+    expect(text).toContain("<script>alert(1)</script>");
+  });
+
+  it("treść wyglądająca na składnię PDF nie rozbija dokumentu", async () => {
+    // Klasyczna próba wyjścia ze stringa strumienia treści PDF-a: domknięcie
+    // nawiasu, własny operator tekstu, zmiana fontu. Jeżeli generator nie
+    // escape'uje nawiasów, plik przestaje być parsowalnym PDF-em — i wtedy
+    // `pdfToText` rzuci, zamiast oddać tekst.
+    const hostile = ") Tj ET Q q BT /F1 40 Tf (WSTRZYKNIETE) Tj (";
+    const bytes = await renderContractPdf({
+      ...plProps,
+      customFields: { customer: [{ label: "Uwaga \\(nawias\\)", value: hostile }] },
+    });
+    expect(new TextDecoder().decode(bytes.subarray(0, 5))).toBe("%PDF-");
+
+    const text = normalize(await pdfToText(bytes));
+    // Wartość jest w dokumencie DOSŁOWNIE, a reszta umowy nietknięta.
+    expect(text).toContain(") Tj ET Q q BT /F1 40 Tf (WSTRZYKNIETE) Tj (");
+    expect(text).toContain("UMOWA NAJMU");
+    expect(text).toContain("§6 REGULAMIN NAJMU");
+  });
+
+  it("etykieta pola też jest treścią — bierze się od najemcy, nie z kodu", async () => {
+    const text = normalize(
+      await pdfToText(
+        await renderContractPdf({
+          ...plProps,
+          customFields: { order: [{ label: "<i>Etykieta</i>", value: "wartość" }] },
+        }),
+      ),
+    );
+    expect(text).toContain("<i>Etykieta</i>");
+  });
+});

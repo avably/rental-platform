@@ -1,2 +1,2 @@
-export type { ContractPdfProps, ContractLocale } from "./types";
+export type { ContractCustomField, ContractPdfProps, ContractLocale } from "./types";
 export { renderContractPdf } from "./render";

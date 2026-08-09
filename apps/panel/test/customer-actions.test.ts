@@ -24,26 +24,53 @@ interface BuilderCalls {
   select: string | null;
 }
 
-function makeSupabase(result: { data: unknown; error: unknown }) {
+/**
+ * Szpieg query-buildera. Od C6-A2 akcja robi TRZY rundy do bazy — odczyt
+ * zapisanych pól własnych, odczyt definicji najemcy i dopiero zapis — więc
+ * atrapa jest ŚWIADOMA TABELI i „thenable": ta sama ścieżka `.eq().eq()`
+ * kończy się raz `.maybeSingle()`, a raz `.select("id")`.
+ */
+function makeSupabase(
+  result: { data: unknown; error: unknown },
+  options: { definitions?: unknown[]; existing?: Record<string, unknown> | null } = {},
+) {
   const calls: BuilderCalls = { from: null, update: null, eqs: [], select: null };
-  const builder: Record<string, unknown> = {
-    update(payload: Record<string, unknown>) {
-      calls.update = payload;
-      return builder;
-    },
-    eq(column: string, value: unknown) {
-      calls.eqs.push([column, value]);
-      return builder;
-    },
-    select(columns: string) {
-      calls.select = columns;
-      return Promise.resolve(result);
-    },
-  };
+
+  function builderFor(table: string) {
+    const builder: Record<string, unknown> = {
+      update(payload: Record<string, unknown>) {
+        calls.update = payload;
+        return builder;
+      },
+      eq(column: string, value: unknown) {
+        calls.eqs.push([column, value]);
+        return builder;
+      },
+      order() {
+        return builder;
+      },
+      select(columns: string) {
+        calls.select = columns;
+        return builder;
+      },
+      maybeSingle() {
+        return Promise.resolve({ data: { custom_fields: options.existing ?? null }, error: null });
+      },
+      then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
+        const value =
+          table === "custom_field_definitions"
+            ? { data: options.definitions ?? [], error: null }
+            : result;
+        return Promise.resolve(value).then(resolve, reject);
+      },
+    };
+    return builder;
+  }
+
   const supabase = {
     from(table: string) {
       calls.from = table;
-      return builder;
+      return builderFor(table);
     },
   };
   return { supabase, calls };
@@ -53,6 +80,9 @@ const requireMember = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
 // Akcja odświeża RSC po zapisie — poza kontekstem żądania to no-op w teście.
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// Tłumaczenia odmów pól własnych: poza żądaniem oddajemy sam klucz — testy
+// pytają o TREŚĆ ŻĄDANIA do bazy, nie o brzmienie komunikatu.
+vi.mock("next-intl/server", () => ({ getTranslations: async () => (key: string) => key }));
 
 const { updateCustomerAction } = await import(
   "@/app/[locale]/(panel)/klienci/[id]/actions"
@@ -107,6 +137,9 @@ describe("updateCustomerAction", () => {
       address_street: "Polna 4",
       address_zip: "00-001",
       address_city: "Warszawa",
+      // Pola własne idą TĄ SAMĄ mutacją: najemca bez definicji zapisuje pustą
+      // mapę, a nie `null` (kolumna jest `not null default '{}'`).
+      custom_fields: {},
     });
     // DOWÓD IZOLACJI: zapis jest zawężony i tenantem, i identyfikatorem wiersza.
     expect(calls.eqs).toContainEqual(["tenant_id", TENANT]);
@@ -148,6 +181,53 @@ describe("updateCustomerAction", () => {
     const state = await updateCustomerAction(CUSTOMER, {}, form(VALID));
 
     expect(state.fieldErrors?.email).toBeTruthy();
+  });
+
+  it("zapis karty NIE kasuje wartości pod polem, którego karta nie pokazuje", async () => {
+    // Kolumna `custom_fields` idzie do bazy W CAŁOŚCI, więc akcja MUSI wczytać
+    // stan sprzed edycji. Bez tego pierwsza zmiana telefonu kasowałaby to, co
+    // klient wpisał w sklepie — cicho, bez błędu i bez śladu w dzienniku.
+    const PANEL_FIELD = "33333333-3333-4333-8333-333333333333";
+    const CHECKOUT_ONLY = "44444444-4444-4444-8444-444444444444";
+    const row = (id: string, overrides: Record<string, unknown>) => ({
+      id,
+      entity: "customer",
+      field_type: "text",
+      label: "Pole",
+      help_text: null,
+      required: false,
+      options: [],
+      position: 0,
+      show_in_panel: true,
+      show_in_checkout: false,
+      show_in_contract: false,
+      archived_at: null,
+      created_at: "2026-01-01T00:00:00Z",
+      ...overrides,
+    });
+
+    const { supabase, calls } = makeSupabase(
+      { data: [{ id: CUSTOMER }], error: null },
+      {
+        definitions: [
+          row(PANEL_FIELD, { label: "Numer uprawnień" }),
+          row(CHECKOUT_ONLY, { label: "Skąd o nas wiesz", show_in_panel: false, show_in_checkout: true }),
+        ],
+        existing: { [CHECKOUT_ONLY]: "z plakatu" },
+      },
+    );
+    requireMember.mockResolvedValue({ supabase, tenantId: TENANT });
+
+    const state = await updateCustomerAction(
+      CUSTOMER,
+      {},
+      form({ ...VALID, [`cf_${PANEL_FIELD}`]: "UP/2026/1" }),
+    );
+
+    expect(state.success).toBe("saved");
+    expect(calls.update).toMatchObject({
+      custom_fields: { [PANEL_FIELD]: "UP/2026/1", [CHECKOUT_ONLY]: "z plakatu" },
+    });
   });
 
   it("niepoprawny identyfikator klienta jest odrzucony przed autoryzacją", async () => {

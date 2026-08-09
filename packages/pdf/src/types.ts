@@ -8,6 +8,24 @@
  * a kwoty jako liczby groszy do sformatowania (jedyny kontakt pakietu
  * z groszami to ich reprezentacja, patrz `money.ts`).
  */
+/**
+ * Para etykieta→wartość pola własnego najemcy (C6-A2, ADR-119).
+ *
+ * OBIE STRONY SĄ GOTOWYM TEKSTEM i obie są TREŚCIĄ, nigdy instrukcją. Etykietę
+ * i wartość wpisuje operator (a przy polach checkoutowych — klient końcowy),
+ * więc szablon renderuje je WYŁĄCZNIE w `<Text>`: żadnego parsera HTML, którym
+ * idzie `terms.body`, i żadnego składania znaczników ze stringów. Formatowanie
+ * (data po polsku, „Tak"/„Nie", separator tysięcy) należy do wołającego —
+ * dokładnie jak daty zamówienia, wzorzec 8a.
+ *
+ * Wołający podaje WYŁĄCZNIE pola z flagą „umowa" i WYŁĄCZNIE niepuste: pusta
+ * wartość ma nie zostawić sierocej etykiety, a pusty zestaw — pustej sekcji.
+ */
+export interface ContractCustomField {
+  label: string;
+  value: string;
+}
+
 export interface ContractPdfProps {
   locale: "en" | "pl";
   tenant: { name: string; address: string; nip: string | null; email: string };
@@ -18,6 +36,8 @@ export interface ContractPdfProps {
     serialNumber: string | null;
     rentalGrosze: number;
     depositGrosze: number;
+    /** Pola własne PRODUKTU — drukowane pod pozycją, której dotyczą. */
+    customFields?: ContractCustomField[];
   }[];
   totals: {
     rentalGrosze: number;
@@ -25,6 +45,15 @@ export interface ContractPdfProps {
     deliveryGrosze: number;
     currency: string;
   };
+  /**
+   * Pola własne klienta i zamówienia z flagą „umowa".
+   *
+   * Pominięcie (albo dwie puste listy) znaczy: sekcji dodatkowej NIE MA
+   * w dokumencie w ogóle — i numeracja paragrafów tego nie zauważa. Umowa
+   * najemcy, który pól własnych nie założył, wygląda co do znaku tak samo jak
+   * przed tą zmianą.
+   */
+  customFields?: { customer?: ContractCustomField[]; order?: ContractCustomField[] };
   terms: { version: string; body: string };
 }
 

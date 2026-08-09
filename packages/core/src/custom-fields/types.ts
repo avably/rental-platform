@@ -97,6 +97,13 @@ export type CustomFieldValues = Record<string, CustomFieldValue>;
 export type CustomFieldIssue =
   | "unknownDefinition"
   | "archived"
+  /**
+   * Pole ISTNIEJE i jest żywe, ale nie należy do powierzchni, z której przyszedł
+   * zapis (np. pole oznaczone wyłącznie „zamawianie", wysłane formularzem
+   * panelu). Odmowa jest osobna od `unknownDefinition`, bo znaczy co innego:
+   * tam pola nie ma, tu jest — tylko nie tędy.
+   */
+  | "hidden"
   | "required"
   | "type"
   | "tooLong"
