@@ -41,6 +41,14 @@ export const STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX = "storefront-public-rl";
  * (ani odwrotnie), bo to inne populacje klientów o innych profilach ruchu.
  */
 export const STOREFRONT_API_RATE_LIMIT_PREFIX = "storefront-api-rl";
+/**
+ * Embed rezerwacji na cudzej stronie (M3, ADR-120) — trzecia, osobna
+ * przestrzeń. Za jednym IP stoi tu POJEDYNCZY odwiedzający strony najemcy
+ * (inaczej niż w /api/v1, gdzie za jednym IP stoi cały serwer WordPressa),
+ * więc progi są z innego rzędu i nie mogą dzielić kubełka ani z API
+ * maszynowym, ani z formularzami storefrontu.
+ */
+export const STOREFRONT_EMBED_RATE_LIMIT_PREFIX = "storefront-embed-rl";
 
 export interface RateLimitResult {
   success: boolean;

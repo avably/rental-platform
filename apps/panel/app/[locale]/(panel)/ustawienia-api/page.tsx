@@ -14,6 +14,7 @@ import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
+import { embedPreviewUrlForSlug, embedSnippetForSlug } from "@/lib/embed/snippet";
 import { apiBaseUrlForSlug } from "@/lib/wordpress/api-base-url";
 import {
   WORDPRESS_PLUGIN_FILENAME,
@@ -65,6 +66,13 @@ export default async function ApiSettingsPage() {
     .maybeSingle();
   const apiBaseUrl = tenant?.slug ? apiBaseUrlForSlug(tenant.slug as string) : null;
 
+  // Fragment embedu (M3, ADR-120) niesie najemcę WYŁĄCZNIE w hoście adresu
+  // skryptu — dlatego bez slugu nie ma czego pokazać, i dlatego nie ma tu
+  // żadnego atrybutu z identyfikatorem najemcy do podmiany na cudzej stronie.
+  const slug = (tenant?.slug as string | undefined) ?? null;
+  const embedSnippet = slug ? embedSnippetForSlug(slug) : null;
+  const embedPreviewUrl = slug ? embedPreviewUrlForSlug(slug) : null;
+
   return (
     <FormMeasure className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
@@ -77,6 +85,8 @@ export default async function ApiSettingsPage() {
         pluginDownloadHref={`/${locale}/ustawienia-api/wtyczka`}
         pluginFilename={WORDPRESS_PLUGIN_FILENAME}
         pluginVersion={WORDPRESS_PLUGIN_VERSION}
+        embedSnippet={embedSnippet}
+        embedPreviewUrl={embedPreviewUrl}
       />
     </FormMeasure>
   );

@@ -1942,6 +1942,26 @@
       "troubleSuspendedBody": "Your account is not accepting new reservations right now — usually a billing matter. Check the Organization tab; the store resumes as soon as it is settled.",
       "troubleCacheTitle": "The page shows stale data or an empty catalog",
       "troubleCacheBody": "That is usually the WordPress cache. Clear it in your caching plugin and reload the page. The plugin disables caching on booking pages by itself, but catalog changes can take up to a minute."
+    },
+    "embed": {
+      "title": "Embed bookings on your website",
+      "intro": "One snippet to paste on any website — Wix, Squarespace, WordPress without the plugin, or a hand-written page. The availability calendar and booking form work straight away, with no configuration.",
+      "step1Title": "Copy the snippet",
+      "step1Body": "This is the whole configuration. The snippet points at your store address, so there is nothing to fill in.",
+      "copyCta": "Copy snippet",
+      "copied": "Copied",
+      "step2Title": "Paste it into your website",
+      "step2Body": "Paste the snippet where the booking form should appear. In website builders look for a block called “HTML code” or “Embed”.",
+      "step2Hint": "The booking form appears exactly where you paste it and adjusts its height to the content.",
+      "step3Title": "Check how it looks",
+      "step3Body": "The preview shows exactly the same view your customer will see.",
+      "previewCta": "Open preview",
+      "optionsTitle": "Snippet options",
+      "optionProduct": "Pins the widget to a single item (its catalogue identifier). Without it the customer picks an item from the list.",
+      "optionLang": "Forces the widget language: pl or en. Without it the widget uses the store language.",
+      "optionTheme": "Light or dark theme. Without it the widget is light.",
+      "safetyTitle": "Security",
+      "safetyBody": "The snippet contains no key and no password — you can paste it on any page and show it to anyone. The booking form runs in a separate frame on our server, so the data your customer enters is not accessible to the page hosting the widget."
     }
   },
   "organization": {

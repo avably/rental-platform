@@ -1942,6 +1942,26 @@
       "troubleSuspendedBody": "Twoje konto nie przyjmuje w tej chwili nowych rezerwacji — najczęściej to sprawa rozliczeń. Sprawdź zakładkę Organizacja; po uregulowaniu sklep rusza od razu.",
       "troubleCacheTitle": "Strona pokazuje stare dane albo pusty katalog",
       "troubleCacheBody": "To zwykle cache WordPressa. Wyczyść go w swojej wtyczce cache i odśwież stronę. Wtyczka sama wyłącza cache na stronach z rezerwacjami, ale zmiany w katalogu widać do minuty."
+    },
+    "embed": {
+      "title": "Osadź rezerwacje na swojej stronie",
+      "intro": "Jeden fragment do wklejenia na dowolnej stronie — Wix, Squarespace, WordPress bez wtyczki albo strona pisana ręcznie. Kalendarz dostępności i formularz rezerwacji działają od razu, bez konfiguracji.",
+      "step1Title": "Skopiuj fragment",
+      "step1Body": "To jest cała konfiguracja. Fragment wskazuje na adres Twojego sklepu, więc nie ma w nim nic do uzupełnienia.",
+      "copyCta": "Kopiuj fragment",
+      "copied": "Skopiowano",
+      "step2Title": "Wklej go w swoją stronę",
+      "step2Body": "Wklej fragment tam, gdzie ma pojawić się rezerwacja. W kreatorach stron szukaj bloku typu „Kod HTML” albo „Element osadzony”.",
+      "step2Hint": "Rezerwacja pojawi się dokładnie w miejscu wklejenia i sama dopasuje wysokość do treści.",
+      "step3Title": "Sprawdź, jak to wygląda",
+      "step3Body": "Podgląd pokazuje dokładnie ten sam widok, który zobaczy Twój klient.",
+      "previewCta": "Otwórz podgląd",
+      "optionsTitle": "Opcje fragmentu",
+      "optionProduct": "Przypina widget do jednego sprzętu (identyfikator z katalogu). Bez tej opcji klient wybiera sprzęt z listy.",
+      "optionLang": "Wymusza język widgetu: pl albo en. Bez tej opcji widget bierze język sklepu.",
+      "optionTheme": "Motyw jasny (light) albo ciemny (dark). Bez tej opcji widget jest jasny.",
+      "safetyTitle": "Bezpieczeństwo",
+      "safetyBody": "Fragment nie zawiera żadnego klucza ani hasła — możesz go wkleić na dowolnej stronie i pokazać komukolwiek. Rezerwacja działa w osobnej ramce na naszym serwerze, więc dane, które wpisuje Twój klient, nie są dostępne dla strony, na której osadzasz widget."
     }
   },
   "organization": {

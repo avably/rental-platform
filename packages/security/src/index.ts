@@ -74,6 +74,31 @@ export interface CspOptions {
    * edycyjna z zalogowaną sesją najemcy nie jest miejscem na obce ramki.
    */
   maps?: boolean;
+  /**
+   * Kto może osadzić tę odpowiedź w ramce (M3, ADR-120). Domyślnie NIKT —
+   * `frame-ancestors 'none'` + `X-Frame-Options: DENY` — i tak zostaje dla
+   * każdej trasy poza embedem. Podanie NIEPUSTEJ listy przełącza politykę na
+   * te źródła, bo embed rezerwacji z definicji żyje na cudzej stronie.
+   *
+   * DWIE KONSEKWENCJE, obie celowe:
+   *   * lista wchodzi DOSŁOWNIE do dyrektywy, więc wołający odpowiada za to,
+   *     by nie było w niej `*` — pilnuje tego test polityki, nie ta funkcja;
+   *   * `X-Frame-Options` przy niepustej liście NIE JEST WYSYŁANY. Ten nagłówek
+   *     nie zna pojęcia listy (ma tylko DENY/SAMEORIGIN), a wysłany obok CSP
+   *     wygrałby w przeglądarkach, które go honorują — czyli zablokowałby
+   *     ramkę, którą polityka właśnie wpuściła. Zostawienie obu byłoby cichą
+   *     awarią widoczną dopiero u najemcy.
+   *
+   * Pusta tablica jest równoważna brakowi opcji (`'none'` + DENY), żeby
+   * „nie udało się wyliczyć dozwolonego źródła" domykało się w stronę zamkniętą.
+   */
+  frameAncestors?: readonly string[] | undefined;
+}
+
+/** Czy CSP ma wpuścić kogokolwiek do ramki — jedno rozstrzygnięcie dla obu nagłówków. */
+function resolvedFrameAncestors(options: CspOptions): readonly string[] {
+  const declared = options.frameAncestors ?? [];
+  return declared.length > 0 ? declared : ["'none'"];
 }
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
@@ -167,7 +192,7 @@ export function buildCsp(nonce: string, options: CspOptions = {}): string {
     // frame-src istnieje TYLKO dla osadzanych, których jawnie włączono
     // (widget captchy, pola płatności); bez nich ramki tnie default-src 'self'.
     ...(frameSrc.length > 0 ? { "frame-src": frameSrc } : {}),
-    "frame-ancestors": ["'none'"],
+    "frame-ancestors": [...resolvedFrameAncestors(options)],
     "form-action": ["'self'"],
     "base-uri": ["'self'"],
     "object-src": ["'none'"],
@@ -204,7 +229,13 @@ export function applySecurityHeaders(
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
   );
-  response.headers.set("X-Frame-Options", "DENY");
+  // Patrz CspOptions.frameAncestors: przy jawnie wpuszczonych źródłach ten
+  // nagłówek musi ZNIKNĄĆ, bo nie umie ich wyrazić i zablokowałby ramkę.
+  if (resolvedFrameAncestors(options)[0] === "'none'") {
+    response.headers.set("X-Frame-Options", "DENY");
+  } else {
+    response.headers.delete("X-Frame-Options");
+  }
   return response;
 }
 

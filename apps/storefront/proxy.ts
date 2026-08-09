@@ -40,6 +40,7 @@ import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { routing } from "@/i18n/routing";
+import { EMBED_PATH_PREFIX } from "@/lib/embed/contract";
 import { getCachedTenant, setCachedTenant } from "@/lib/tenant/cache";
 import { classifyHost } from "@/lib/tenant/host";
 import { setResolvedTenant, stripInboundTenantHeaders } from "@/lib/tenant/headers";
@@ -54,6 +55,37 @@ const handleI18n = createIntlMiddleware(routing);
  * sekretu). Repo jest prywatne.
  */
 const SITE_PASSWORD = "notavably";
+
+/**
+ * Kto może osadzić dokument embedu w ramce (M3, ADR-120). Reszta site'u
+ * zostaje przy `frame-ancestors 'none'` — ta lista dotyczy WYŁĄCZNIE
+ * `/embed/**`.
+ *
+ * DLACZEGO NIE LISTA DOMEN ZADEKLAROWANYCH PRZEZ NAJEMCĘ. Rozważona i
+ * odrzucona w tej iteracji z dwóch powodów, oba zapisane w ADR-120:
+ *   1. Nie ma jej gdzie trzymać bez migracji. `tenant_settings` jest jedynym
+ *      zerowo-DDL-owym miejscem, ale anon go NIE CZYTA (brak grantu), a
+ *      storefront chodzi wyłącznie na anonie — odczyt wymagałby nowego RPC
+ *      SECURITY DEFINER, czyli migracji, której to zadanie nie ma.
+ *   2. Nawet gdyby była, nie broniłaby niczego, czego nie broni już zapis.
+ *      Osadzenie tego dokumentu nie daje osadzającemu ŻADNEGO dostępu:
+ *      treść to dane, które publiczny sklep najemcy i tak pokazuje anonimowi;
+ *      pola formularza są za granicą pochodzenia, więc strona gospodarza ich
+ *      nie odczyta; a zapis przyjmujemy WYŁĄCZNIE same-origin (lib/embed/
+ *      origin.ts), więc obca strona nie zarezerwuje niczego nawet z ramką.
+ *
+ * RYZYKO SZCZĄTKOWE, przyjęte świadomie: obcy serwis może wyświetlić cudzy
+ * widget rezerwacji u siebie (podszycie się pod najemcę). To jest ryzyko
+ * TREŚCIOWE, nie techniczne — rezerwacje i tak trafiają do właściwego
+ * najemcy — i nie da się go domknąć ramką, skoro ten sam formularz stoi
+ * publicznie pod adresem sklepu.
+ *
+ * `https:` zamiast `*`: schemat jest zawężeniem, które nic nie kosztuje —
+ * osadzenie ze strony po http i tak zostałoby zablokowane jako mieszana
+ * treść. `http:` dochodzi TYLKO w dev, gdzie strona-gospodarz stoi lokalnie.
+ */
+const EMBED_FRAME_ANCESTORS: readonly string[] =
+  process.env.NODE_ENV === "production" ? ["'self'", "https:"] : ["'self'", "https:", "http:"];
 
 /**
  * Basic Auth ręcznie, bez `node:crypto` — proxy działa na Edge Runtime
@@ -184,7 +216,10 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
   stripInboundTenantHeaders(request.headers);
 
   const nonce = generateNonce();
-  const csp = cspOptions();
+  const isEmbedPath = request.nextUrl.pathname.startsWith(EMBED_PATH_PREFIX);
+  const csp = isEmbedPath
+    ? { ...cspOptions(), frameAncestors: EMBED_FRAME_ANCESTORS }
+    : cspOptions();
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
 
@@ -202,11 +237,23 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
     return applySecurityHeaders(response, nonce, csp);
   }
 
+  // EMBED REZERWACJI (M3, ADR-120): /embed/** jest — tak jak /api/v1/ —
+  // ŚWIADOMIE i WĄSKO wycięte z bramki SITE_PASSWORD. Konsumentem jest
+  // przeglądarka KLIENTA NAJEMCY na CUDZEJ stronie: nikt jej nie poda hasła
+  // przedpremierowego, a bez tej wycinki fragment do wklejenia pokazywałby
+  // okienko logowania zamiast kalendarza.
+  //
+  // CZEGO WYCINKA NIE OTWIERA: nie omija anty-spoofingu (ten wykonał się
+  // wyżej, na każdej gałęzi), nie omija rozwiązania tenanta (embed idzie
+  // DALEJ, w gałąź tenancką — dlatego to jest FLAGA, a nie wcześniejszy
+  // return jak przy /api/v1/) i nie otwiera żadnej innej trasy: prefiks jest
+  // dosłowny, więc samo `/embed` bez ukośnika zostaje za hasłem.
+  //
   // HASŁO CAŁEGO SITE'U — patrz nagłówek pliku. Przed jakimkolwiek
   // rozwiązaniem tenanta (żadnego zapytania do bazy dla nieautoryzowanego
   // ruchu). Ta sama odpowiedź dla marketingu, sklepów najemców i domen
   // obcych — nieautoryzowany nie dowiaduje się, na którą gałąź trafił.
-  if (!siteAuthorized(request.headers.get("authorization"))) {
+  if (!isEmbedPath && !siteAuthorized(request.headers.get("authorization"))) {
     const response = new NextResponse("Wymagane hasło.", {
       status: 401,
       headers: { "WWW-Authenticate": 'Basic realm="avably", charset="UTF-8"' },
