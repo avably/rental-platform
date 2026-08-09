@@ -2,8 +2,76 @@ name: ci
 on:
   pull_request:
   push: { branches: [main] }
+
+# Koszt minut Actions (ADR-117). Jeden komplet ciężkich jobów to ~26 minut
+# maszyn, a pakiet 2000 minut wyczerpał się w połowie miesiąca — wtedy GitHub
+# przestaje TWORZYĆ przebiegi i nie da się nic zmergować. Bramek to nie
+# osłabia: zmienia się KIEDY joby biegną, nie CO sprawdzają.
+concurrency:
+  # Grupa per workflow + ref. Dla `push` doklejamy SHA, więc każdy merge na
+  # `main` ma WŁASNĄ grupę: przebiegi z main ani się nie ubijają, ani nie
+  # czekają w kolejce jeden na drugiego (ślad o stanie `main` musi zostać po
+  # KAŻDYM merge'u — to jedyny zapis, że ta wersja main przeszła bramki).
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && github.sha || 'pr' }}
+  # Ubijanie w locie WYŁĄCZNIE dla PR-ów: kolejny push (typowo rebase przy
+  # odbiorze) unieważnia poprzedni przebieg tej samej gałęzi.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  zakres:
+    # Tani job wstępny (ADR-117): ustala listę zmienionych plików i oddaje
+    # werdykt KLASYFIKATOROWI `scripts/ci-zakres-zmian.mjs`. Warunków nie ma
+    # w YAML-u celowo — logika bramki musi dać się przetestować lokalnie,
+    # bez palenia minut, i jest przypięta suitą
+    # `apps/panel/test/ci-zakres-zmian.test.ts`.
+    runs-on: ubuntu-latest
+    outputs:
+      pomin: ${{ steps.ocena.outputs.pomin }}
+    steps:
+      # Pełna historia: bez bazy nie ma z czym porównać, a „nie wiem" musi
+      # znaczyć pełne CI, nie pominięcie.
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: ocena
+        env:
+          ZDARZENIE: ${{ github.event_name }}
+          BAZA_PR: ${{ github.event.pull_request.base.sha }}
+          BAZA_PUSH: ${{ github.event.before }}
+          WYMUSZONY_PUSH: ${{ github.event.forced }}
+        run: |
+          # ŚWIADOMIE bez `set -e`: każde potknięcie ma dać pełne CI, a nie
+          # czerwony przebieg. Bramka kosztowa nie może blokować odbioru PR-a.
+          set -uo pipefail
+          pelne_ci() {
+            echo "pomin=false" >> "$GITHUB_OUTPUT"
+            echo "Pełne CI: $1"
+            exit 0
+          }
+          case "$ZDARZENIE" in
+            pull_request) BAZA="$BAZA_PR" ;;
+            push)
+              if [ "$WYMUSZONY_PUSH" = "true" ]; then
+                pelne_ci "push wymuszony — poprzedni stan gałęzi nie do odtworzenia"
+              fi
+              BAZA="$BAZA_PUSH"
+              ;;
+            *) pelne_ci "zdarzenie $ZDARZENIE nie ma zdefiniowanej bazy" ;;
+          esac
+          case "$BAZA" in
+            "" | 0000000000000000000000000000000000000000) pelne_ci "brak SHA bazy" ;;
+          esac
+          git cat-file -e "$BAZA^{commit}" 2>/dev/null || pelne_ci "SHA bazy $BAZA niedostępny w klonie"
+          ZMIANY="$RUNNER_TEMP/zakres-zmian.txt"
+          git diff --name-only --no-renames -z "$BAZA...HEAD" >"$ZMIANY" || pelne_ci "git diff nie policzył zakresu"
+          node scripts/ci-zakres-zmian.mjs --zero <"$ZMIANY" || pelne_ci "klasyfikator nie oddał werdyktu"
+
   ci:
+    # Pominięcie dla zmian wyłącznie dokumentacyjnych (ADR-117). `!cancelled()`
+    # zamiast domyślnego warunku: gdy job `zakres` PADNIE, wyjście jest puste,
+    # więc `!= 'true'` przepuszcza pełne CI — awaria klasyfikatora kosztuje
+    # minuty, nigdy bramkę.
+    needs: zakres
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +117,9 @@ jobs:
     # najważniejsza bramka bezpieczeństwa Fazy 0. Osobny, równoległy job:
     # potrzebuje działającego lokalnego Supabase (Postgres + Auth + PostgREST
     # w kontenerach), którego job `ci` nie uruchamia.
+    # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
+    needs: zakres
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,6 +159,9 @@ jobs:
     # jak w jobie `rls`. Noga płatności biegnie torem stubowanym — podpis
     # webhooka i werdykt z odczytu są prawdziwe, API dostawcy udaje lokalny
     # stub (granica zaufania: ADR-101). Sekrety dostawcy nie są potrzebne.
+    # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
+    needs: zakres
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
