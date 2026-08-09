@@ -64,6 +64,7 @@ export function OrderCustomFieldsSection({
           values={values}
           errors={state.fieldErrors}
           idPrefix="order-detail-cf"
+          labelledBy="order-custom-fields-heading"
         />
 
         {state.formError ? (

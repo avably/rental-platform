@@ -56,6 +56,7 @@ export function CustomFieldsFieldset({
   values,
   errors,
   idPrefix = "cf",
+  labelledBy,
 }: {
   /** Definicje JUŻ przefiltrowane po fladze „panel" i posortowane (serwer). */
   fields: readonly CustomFieldDefinition[];
@@ -63,6 +64,13 @@ export function CustomFieldsFieldset({
   errors?: Record<string, string>;
   /** Rozróżnia identyfikatory DOM, gdy na jednym ekranie stoi więcej formularzy. */
   idPrefix?: string;
+  /**
+   * Identyfikator nagłówka, który JUŻ nazywa tę grupę (karta zamówienia ma
+   * własny `<h2>`). Wtedy nie renderujemy legendy — dwa razy „Pola własne"
+   * jedno pod drugim czyta się jak usterka, a czytnik ekranu i tak dostaje
+   * nazwę grupy przez `aria-labelledby`.
+   */
+  labelledBy?: string;
 }) {
   const t = useTranslations("customFields");
   const locale = useLocale();
@@ -72,8 +80,17 @@ export function CustomFieldsFieldset({
   if (fields.length === 0) return null;
 
   return (
-    <fieldset data-custom-fields className="flex flex-col gap-5">
-      <legend className="text-sm font-medium">{t("values.section")}</legend>
+    <fieldset
+      data-custom-fields
+      className="flex flex-col gap-5"
+      aria-labelledby={labelledBy}
+    >
+      {/* `<legend>` NIE jest elementem flex — przeglądarka renderuje je poza
+          układem pudełka, więc `gap` go nie dotyczy i bez własnego marginesu
+          skleja się z pierwszą etykietą. */}
+      {labelledBy ? null : (
+        <legend className="mb-2 text-sm font-medium">{t("values.section")}</legend>
+      )}
 
       {fields.map((definition) => {
         const name = customFieldName(definition.id);

@@ -363,6 +363,23 @@ describe("prezentacja wartości", () => {
     expect(rows).toEqual([{ id: ID.text, label: "Uprawnienia", value: "AB-123" }]);
   });
 
+  it("pole bez wartości NIE TWORZY WIERSZA — sieroca etykieta to dziura w dokumencie", () => {
+    // Asercja stoi TU, przy funkcji, która o tym decyduje. Trzymanie jej
+    // wyłącznie w teście budującym propsy umowy znaczyłoby, że wycięcie
+    // filtra pali warstwę wyżej, a warstwa, w której mieszka reguła, zostaje
+    // zielona — czyli dokładnie odwrotnie, niż powinno.
+    const filled = def("text", { showInContract: true, position: 0, label: "Uprawnienia" });
+    const blank = def("textarea", { showInContract: true, position: 1, label: "Uwagi" });
+    const missing = def("phone", { showInContract: true, position: 2, label: "Telefon serwisu" });
+
+    const rows = customFieldDisplayRows(
+      [filled, blank, missing],
+      { [ID.text]: "AB-123", [ID.textarea]: "   " },
+      { surface: "contract", locale: "pl" },
+    );
+    expect(rows.map((row) => row.label)).toEqual(["Uprawnienia"]);
+  });
+
   it("pole zarchiwizowane nie wraca na dokument tylnymi drzwiami", () => {
     const archived = def("text", { showInContract: true, archivedAt: "2026-08-01T00:00:00Z" });
     expect(
