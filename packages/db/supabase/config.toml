@@ -232,7 +232,12 @@ double_confirm_changes = true
 # app.create_tenant (patrz 0003_auth.sql) i musi też blokować logowanie.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
-secure_password_change = false
+# Włączone w R14/M-01 (ADR-122): warstwa dostawcy pod naszą bramką recovery
+# (reset/confirm/actions.ts). GoTrue v2.192.0 żąda nonce'u reauthentication
+# tylko dla sesji starszych niż 24 h — świeża sesja recovery przechodzi.
+# Na HOSTOWANYM Supabase to ustawienie włącza się w dashboardzie (ręka
+# właściciela) — patrz sekcja OPS w raporcie R14 i ADR-122.
+secure_password_change = true
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.

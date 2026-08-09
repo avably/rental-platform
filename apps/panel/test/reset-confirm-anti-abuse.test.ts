@@ -103,15 +103,38 @@ vi.mock("@avably/security/turnstile", () => ({
 
 const updateUser = vi.fn(async () => ({ error: null }));
 const resetPasswordForEmail = vi.fn(async () => ({ error: null }));
+const signOut = vi.fn(async () => ({ error: null }));
 
 vi.mock("@/lib/supabase-server", () => ({
-  createSupabaseServerClient: async () => ({ auth: { updateUser, resetPasswordForEmail } }),
+  createSupabaseServerClient: async () => ({
+    auth: { updateUser, resetPasswordForEmail, signOut },
+  }),
 }));
 
-/** Sesja recovery — sterowana per przypadek (jest / wygasła). */
-let authContext: unknown = { user: { id: "u1", email: "kto@test.local" } };
+// Powiadomienie o zmianie hasła (R14) — atrapa, żeby suita anti-abuse nie
+// zależała od env transportu (RESEND_API_KEY w środowisku dewelopera nie może
+// zamienić testu limitów w realną wysyłkę). Sama bramka recovery i wysyłka
+// mają własną suitę: reset-confirm-recovery-gate.test.ts.
+vi.mock("@/lib/password-changed-email", () => ({
+  sendPasswordChangedEmail: vi.fn(async () => undefined),
+}));
+
+/**
+ * Sesja recovery — sterowana per przypadek (jest / wygasła). Kształt niesie
+ * ŚWIEŻY dowód recovery w `amr` (R14): bramka `hasRecentRecoveryProof` jest tu
+ * PRAWDZIWA (importActual), więc szczęśliwa ścieżka musi przez nią przejść —
+ * przedmiotem tej suity pozostaje kolejność limiter → sesja → dostawca.
+ */
+const recoveryContext = () => ({
+  user: { id: "u1", email: "kto@test.local" },
+  amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }],
+});
+let authContext: unknown = recoveryContext();
 const getAuthContext = vi.fn(async () => authContext);
-vi.mock("@/lib/auth", () => ({ getAuthContext: () => getAuthContext() }));
+vi.mock("@/lib/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth")>();
+  return { ...actual, getAuthContext: () => getAuthContext() };
+});
 
 const { resetConfirmAction } = await import("@/app/[locale]/(auth)/reset/confirm/actions");
 const { resetRequestAction } = await import("@/app/[locale]/(auth)/reset/actions");
@@ -142,7 +165,7 @@ beforeEach(() => {
   rateLimitCalls = [];
   rateLimitFailFor = null;
   currentHeaders = new Map([["x-forwarded-for", "203.0.113.7"]]);
-  authContext = { user: { id: "u1", email: "kto@test.local" } };
+  authContext = recoveryContext();
   updateUser.mockClear();
   resetPasswordForEmail.mockClear();
   getAuthContext.mockClear();

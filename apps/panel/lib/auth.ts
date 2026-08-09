@@ -74,6 +74,18 @@ export class AuthError extends Error {
   }
 }
 
+/**
+ * Wpis claimu `amr` (Authentication Methods References) z JWT GoTrue —
+ * metoda, którą ustanowiono sesję, i unix-sekundy jej użycia. Claim żyje
+ * w ZWERYFIKOWANYM tokenie (getClaims), utrwalany przez GoTrue w
+ * auth.amr_claims per sesja: refresh tokenu NIE zmienia ani metody, ani
+ * znacznika czasu (zmierzone na GoTrue v2.192.0 — patrz ADR-122).
+ */
+export interface AmrEntry {
+  method: string;
+  timestamp: number;
+}
+
 export interface AuthContext {
   user: { id: string; email: string | null };
   tenantId: string | null;
@@ -82,6 +94,12 @@ export interface AuthContext {
   /** Authentication Assurance Level — "aal2" = po weryfikacji MFA. */
   aal: string;
   /**
+   * Metody uwierzytelnienia sesji (claim `amr`) — wyłącznie wpisy poprawnego
+   * kształtu; wpis zdeformowany jest POMIJANY (fail-closed: nie da się nim
+   * niczego udowodnić). Puste, gdy dostawca claimu nie wystawił.
+   */
+  amr: AmrEntry[];
+  /**
    * Status organizacji odczytany z bazy przez requireMemberWithClient
    * (ADR-107) — zawsze spoza PANEL_CLOSED_STATUSES, bo statusy zamykające
    * kończą się odmową. `null` w kontekstach bez odczytu (getAuthContext,
@@ -89,6 +107,28 @@ export interface AuthContext {
    */
   tenantStatus: TenantStatus | null;
   supabase: SupabaseClient;
+}
+
+/**
+ * Wpisy `amr` z claimów — tylko elementy poprawnego kształtu. Wartość
+ * przychodzi ze ZWERYFIKOWANEGO JWT, ale kształtu i tak nie bierzemy na
+ * wiarę: element bez `method`/liczbowego `timestamp` odpada (odpadnięcie
+ * jest fail-closed — brak wpisu to brak dowodu, nigdy dowód).
+ */
+function amrFromClaims(claims: Record<string, unknown>): AmrEntry[] {
+  const raw = claims.amr;
+  if (!Array.isArray(raw)) return [];
+  const entries: AmrEntry[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const method = (item as Record<string, unknown>).method;
+    const timestamp = (item as Record<string, unknown>).timestamp;
+    if (typeof method !== "string" || typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+      continue;
+    }
+    entries.push({ method, timestamp });
+  }
+  return entries;
 }
 
 /** Zwraca kontekst auth albo `null`, jeśli brak ważnej sesji. Nie rzuca. */
@@ -108,9 +148,50 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     role: (appMetadata.role as Role | null | undefined) ?? null,
     superadmin: Boolean(appMetadata.superadmin),
     aal: (claims.aal as string | undefined) ?? "aal1",
+    amr: amrFromClaims(claims),
     tenantStatus: null,
     supabase,
   };
+}
+
+/**
+ * Okno świeżości dowodu recovery (R14/M-01, ADR-122): 30 minut od
+ * skonsumowania jednorazowego tokenu z e-maila. Link recovery żyje godzinę
+ * (config `otp_expiry`), a po jego zużyciu użytkownik stoi już na formularzu
+ * — pół godziny na wpisanie hasła jest hojne, a ogranicza okno, w którym
+ * skradzione COOKIE sesji recovery (nie link!) pozwala ustawić hasło.
+ * Znacznik pochodzi z amr_claims dostawcy i NIE przesuwa się przy refreshu
+ * tokenu, więc okna nie da się podtrzymywać w nieskończoność.
+ */
+export const RECOVERY_PROOF_MAX_AGE_SECONDS = 30 * 60;
+
+/** Tolerancja rozjazdu zegarów app ↔ dostawca auth (znacznik z przyszłości). */
+const RECOVERY_PROOF_CLOCK_SKEW_SECONDS = 120;
+
+/**
+ * Czy sesja ma świeży dowód posiadania skrzynki e-mail (R14/M-01)?
+ *
+ * ŹRÓDŁO PRAWDY: claim `amr` ze ZWERYFIKOWANEGO JWT (getClaims), nigdy stan
+ * aplikacyjny — cookie własnego pomysłu, nagłówek czy parametr dałyby się
+ * spreparować, podpisanego tokenu dostawcy nie. GoTrue v2.192.0 zapisuje
+ * `method: "otp"` dla sesji ustanowionej PRZEZ JEDNORAZOWY TOKEN Z E-MAILA
+ * (verifyOtp type=recovery ORAZ potwierdzenie rejestracji — obie ścieżki
+ * dowodzą kontroli nad skrzynką, zmierzone; ADR-122). `"recovery"`
+ * akceptujemy na wyrost: stała istnieje w GoTrue i zmiana nazewnictwa w
+ * przyszłej wersji nie może po cichu zamknąć legalnego przepływu resetu.
+ * Sesja hasłowa (`"password"`), OAuth czy sam TOTP dowodu NIE niosą —
+ * dokładnie te sesje napastnik może mieć z przejęcia.
+ */
+export function hasRecentRecoveryProof(
+  amr: readonly AmrEntry[],
+  nowMs: number = Date.now(),
+): boolean {
+  const nowSeconds = Math.floor(nowMs / 1000);
+  return amr.some((entry) => {
+    if (entry.method !== "otp" && entry.method !== "recovery") return false;
+    const age = nowSeconds - entry.timestamp;
+    return age >= -RECOVERY_PROOF_CLOCK_SKEW_SECONDS && age <= RECOVERY_PROOF_MAX_AGE_SECONDS;
+  });
 }
 
 /**

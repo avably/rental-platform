@@ -3,6 +3,10 @@ export {
   type EmailConfirmationProps,
 } from "./templates/email-confirmation";
 export {
+  PasswordChanged,
+  type PasswordChangedProps,
+} from "./templates/password-changed";
+export {
   PasswordReset,
   type PasswordResetProps,
 } from "./templates/password-reset";
@@ -43,6 +47,7 @@ export {
   renderEmailConfirmation,
   renderNewOrderNotification,
   renderOrganizationInvitation,
+  renderPasswordChanged,
   renderPasswordReset,
   renderRentalCancelled,
   renderRentalConfirmed,

@@ -6,6 +6,10 @@ import {
   type EmailConfirmationProps,
 } from "./templates/email-confirmation";
 import {
+  PasswordChanged,
+  type PasswordChangedProps,
+} from "./templates/password-changed";
+import {
   PasswordReset,
   type PasswordResetProps,
 } from "./templates/password-reset";
@@ -64,6 +68,12 @@ export function renderPasswordReset(
   props: PasswordResetProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(PasswordReset, props));
+}
+
+export function renderPasswordChanged(
+  props: PasswordChangedProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(PasswordChanged, props));
 }
 
 export function renderOrganizationInvitation(
