@@ -577,10 +577,6 @@
       "archivedNotice": "Oglądasz archiwalną wersję tego dokumentu — obowiązywała w chwili, gdy została zaakceptowana.",
       "currentVersionLink": "Zobacz wersję obowiązującą"
     },
-    "notFound": {
-      "title": "Nie znaleziono strony",
-      "body": "Ten adres nie istnieje w tym sklepie albo strona została usunięta."
-    },
     "payment": {
       "title": "Płatność",
       "summaryHeading": "Do zapłaty",

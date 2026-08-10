@@ -577,10 +577,6 @@
       "archivedNotice": "You are viewing an archived version of this document — the one in force when it was accepted.",
       "currentVersionLink": "View the version currently in force"
     },
-    "notFound": {
-      "title": "Page not found",
-      "body": "This address does not exist in this store, or the page has been removed."
-    },
     "payment": {
       "title": "Payment",
       "summaryHeading": "Amount due",
