@@ -174,6 +174,31 @@ describe("treść przeniesionych stron", () => {
     }
   });
 
+  /**
+   * DWIE PUBLICZNE STRONY NIE MOGĄ BYĆ SWOJĄ KOPIĄ. `/contact` renderowało
+   * nagłówek i lead listy oczekujących („Zostaw adres, jeśli wolisz
+   * poczekać"), więc pozycja „Kontakt" w nawigacji prowadziła do duplikatu
+   * `/waitlist` — z tą różnicą, że bez formularza. Klucze `contactPage.*`
+   * istniały w treści i nie były podstawiane NIGDZIE, a bramka pokrycia
+   * tokenów tego nie widzi: ona pilnuje, żeby każdy TOKEN miał treść, nie
+   * żeby każda TREŚĆ miała token.
+   */
+  it("kontakt i lista oczekujących to dwie różne strony, nie jedna w dwóch adresach", () => {
+    const contact = read("marketing/contact.html");
+    const waitlist = read("marketing/waitlist.html");
+
+    expect(contact).toContain("{{contactPage.title}}");
+    expect(contact).toContain("{{contactPage.intro}}");
+    expect(contact, "kontakt niesie nagłówek listy oczekujących").not.toContain(
+      "{{waitlistPage.title}}",
+    );
+    expect(waitlist).toContain("{{waitlistPage.title}}");
+
+    for (const messages of [pl, en]) {
+      expect(messages.marketing.contactPage.title).not.toBe(messages.marketing.waitlistPage.title);
+    }
+  });
+
   it("kieruje CTA do rejestracji, a listę oczekujących trzyma jako drugą drogę", () => {
     const home = read("marketing/home.html");
     const registerLinks = home.match(/\{\{link\.register\}\}/g) ?? [];
