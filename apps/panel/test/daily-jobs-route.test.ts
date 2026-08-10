@@ -299,9 +299,14 @@ describe("seria dzienna — budżet czasu", () => {
   });
 
   it("porzucone zadanie NIE wywraca przebiegu późnym odrzuceniem", async () => {
-    // Obietnica, która odrzuca JUŻ PO przegranej z limitem czasu. Bez zdjęcia
-    // jej z toru odrzuceń byłoby to nieobsłużone odrzucenie — w Node zabija
-    // proces, czyli awaria jednego zadania zabiera całą serię.
+    // Obietnica, która odrzuca JUŻ PO przegranej z limitem czasu.
+    //
+    // UCZCIWIE O SILE TEGO TESTU: nie da się go zapalić przez uproszczenie
+    // `withTimeout`, bo `Promise.race` subskrybuje każde wejście i spóźnione
+    // odrzucenie ma odbiorcę z samej konstrukcji — sprawdzone osobno
+    // (`unhandledRejection` nie pada). Test zostaje jako zabezpieczenie
+    // REGRESJI: gdyby ktoś kiedyś zastąpił `race` własną pętlą oczekiwania,
+    // ta własność przestałaby być darmowa i wtedy ten przypadek ją złapie.
     const report = await runDailyJobs({
       budgetMs: 10_000,
       jobs: [
