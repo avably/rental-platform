@@ -109,6 +109,13 @@ function reservationDeps(c: Counters, overrides: Partial<EmbedReservationDeps> =
     tenantId: TENANT_A,
     ip: "203.0.113.7",
     now: () => 1_000_000,
+    // Bilet zaufanej granicy (0059) — atrapa znakująca tenanta: embed jest
+    // TRZECIĄ powierzchnią na tym samym rdzeniu i też musi bilet wystawić.
+    issueTicket: (tenantId) => ({
+      exp: 2_000_000_000,
+      nonce: `nonce-${tenantId}`,
+      sig: `sig-${tenantId}`,
+    }),
     checkRateLimit: async (key) => {
       c.rateLimit.push(key);
       return { success: true };

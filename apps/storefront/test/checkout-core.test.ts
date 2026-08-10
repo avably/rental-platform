@@ -69,6 +69,10 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     ip: "203.0.113.7",
     checkRateLimit: vi.fn(async () => ({ success: true })),
     verifyCaptcha: vi.fn(async () => ({ ok: true })),
+    // Bilet zaufanej granicy (0059) — atrapa o stałej wartości. Rdzeń go nie
+    // interpretuje, tylko PRZEKAZUJE do RPC; że powstaje dopiero za captchą,
+    // dowodzi osobny przypadek niżej.
+    issueTicket: vi.fn(() => ({ exp: 2_000_000_000, nonce: "nonce-testowy", sig: "sig-testowy" })),
     callRpc: vi.fn(async () => RPC_RESULT),
     sendEmails: vi.fn(async () => []),
     // Domyślnie sklep BEZ płatności online — tor offline i tak działa
@@ -216,6 +220,79 @@ describe("bramka captcha (Turnstile)", () => {
     const verifyCaptcha = vi.fn(async () => ({ ok: true }));
     await submitCheckoutCore({ ...VALID_INPUT, captchaToken: "tok-42" }, deps({ verifyCaptcha }));
     expect(verifyCaptcha).toHaveBeenCalledWith("tok-42");
+  });
+});
+
+describe("bilet zaufanej granicy (0059, ADR-125)", () => {
+  it("bilet powstaje DOPIERO po zaliczonej captchy — odmowa nie wystawia biletu", async () => {
+    // SEDNO BRAMKI. Bilet jest zaświadczeniem o zaliczonych bramkach, więc
+    // wystawiony przed nimi nie zaświadcza niczego. Ten assert jest jedynym
+    // miejscem, które pilnuje KOLEJNOŚCI — przesunięcie `deps.issueTicket()`
+    // ponad `verifyCaptcha` nie zepsułoby żadnego innego testu w repo.
+    const d = deps({ verifyCaptcha: vi.fn(async () => ({ ok: false })) });
+    const result = await submitCheckoutCore({ ...VALID_INPUT, captchaToken: "zly" }, d);
+
+    expect(result).toEqual({ status: "captcha_failed" });
+    expect(d.issueTicket, "bilet wystawiony mimo odrzuconej captchy").not.toHaveBeenCalled();
+  });
+
+  it("bilet nie powstaje, gdy odbiją go wcześniejsze bramki (honeypot, limit, walidacja)", async () => {
+    const honeypot = deps();
+    await submitCheckoutCore({ ...VALID_INPUT, honeypot: "bot" }, honeypot);
+    expect(honeypot.issueTicket).not.toHaveBeenCalled();
+
+    const limit = deps({ checkRateLimit: vi.fn(async () => ({ success: false })) });
+    await submitCheckoutCore(VALID_INPUT, limit);
+    expect(limit.issueTicket).not.toHaveBeenCalled();
+
+    const walidacja = deps();
+    await submitCheckoutCore({ email: "nie-email" }, walidacja);
+    expect(walidacja.issueTicket).not.toHaveBeenCalled();
+  });
+
+  it("trzy pola biletu jadą do RPC bez zmian", async () => {
+    const callRpc = vi.fn(async (_args: CheckoutRpcArgs) => RPC_RESULT);
+    await submitCheckoutCore(
+      VALID_INPUT,
+      deps({
+        callRpc,
+        issueTicket: vi.fn(() => ({ exp: 1_899_000_000, nonce: "n-abc", sig: "s-xyz" })),
+      }),
+    );
+
+    // DOWÓD MUTACYJNY: usunięcie któregokolwiek z tych trzech pól z argumentów
+    // RPC pali ten assert. W produkcji objawiłoby się odrzuceniem KAŻDEGO
+    // checkoutu przez bramkę biletu — ale dopiero po zasianiu sekretu, bo
+    // lokalnie i w CI baza stoi na dev-skipie.
+    const args = callRpc.mock.calls[0]?.[0] as CheckoutRpcArgs;
+    expect(args.p_ticket_exp).toBe(1_899_000_000);
+    expect(args.p_ticket_nonce).toBe("n-abc");
+    expect(args.p_ticket_sig).toBe("s-xyz");
+  });
+
+  it("bilet pusty (dev-skip wystawcy) przechodzi przez rdzeń jako trzy null-e", async () => {
+    // Rdzeń NIE interpretuje biletu i nie ma prawa go blokować: o dev-skipie
+    // decyduje wyłącznie baza (brak aktywnego klucza). Gdyby rdzeń odrzucał
+    // pusty bilet, dev i CI straciłyby działający checkout.
+    const callRpc = vi.fn(async (_args: CheckoutRpcArgs) => RPC_RESULT);
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc, issueTicket: vi.fn(() => ({ exp: null, nonce: null, sig: null })) }),
+    );
+
+    expect(result.status).toBe("success");
+    const args = callRpc.mock.calls[0]?.[0] as CheckoutRpcArgs;
+    expect([args.p_ticket_exp, args.p_ticket_nonce, args.p_ticket_sig]).toEqual([null, null, null]);
+  });
+
+  it("odmowa biletu z bazy (22023) → rejected, bez zdradzania, że to bramka biletu", async () => {
+    const error = new Error("Sesja zamawiania wygasła") as CheckoutRpcError;
+    error.code = "22023";
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc: vi.fn(async () => { throw error; }) }),
+    );
+    expect(result).toEqual({ status: "rejected" });
   });
 });
 

@@ -27,6 +27,7 @@ import {
   type ReservationDeps,
 } from "@/lib/api/handlers";
 import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
+import { issueCheckoutTicket } from "@/lib/checkout/ticket";
 import type { VerifiedApiKey } from "@/lib/api/auth";
 
 import { integrationEnv } from "./helpers/integration-env";
@@ -66,6 +67,12 @@ function liveReservationDeps(
   return {
     verifyKeyHash: liveVerify,
     checkRateLimit: async () => ({ success: true }),
+    // PRAWDZIWY wystawca biletu (0059) — nie atrapa. Ta suita jedzie po żywej
+    // bazie, więc ma jechać tą samą drogą co produkcja: bez sekretu w env
+    // wystawia bilet pusty, a baza bez zasianego klucza go nie bada (dev-skip
+    // po obu stronach). Gdyby na tej bazie zasiano klucz bez ustawienia
+    // sekretu w env, ta suita zapali się jako pierwsza — i o to chodzi.
+    issueTicket: (tenantId) => issueCheckoutTicket(tenantId),
     ip: `test-${randomUUID()}`,
     // PRAWDZIWY odczyt definicji kluczem anon — dokładnie ta ścieżka, którą
     // buduje deps.ts. Zaślepka pustą listą kłamałaby o powierzchni, na której

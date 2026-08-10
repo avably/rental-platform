@@ -12,6 +12,7 @@
 import type { CustomFieldDefinition, CustomFieldValues } from "@avably/core";
 
 import { checkoutSchema, toCheckoutFieldErrors } from "./validation";
+import type { CheckoutTicket } from "./ticket";
 import { readCheckoutCustomFields } from "./custom-fields";
 import { isPaymentMethodAllowed, type OnlinePaymentAvailability } from "./payment-options";
 import type { CheckoutInput, CheckoutPaymentMethod, CheckoutResult } from "./contract";
@@ -44,6 +45,19 @@ export interface CheckoutRpcArgs {
    */
   p_order_custom_fields: CustomFieldValues;
   p_customer_custom_fields: CustomFieldValues;
+  /**
+   * BILET ZAUFANEJ GRANICY (0059, ADR-125) — dowód dla bazy, że to wywołanie
+   * przeszło bramki serwera, a nie przyszło wprost z anon keya (H-02).
+   *
+   * Pola są WYMAGANE, choć w bazie mają domyślki. To celowe: gdyby były
+   * opcjonalne, nowa ścieżka wywołania mogłaby je pominąć i przejść
+   * typecheck — a odkryłaby to dopiero PRODUKCJA, bo lokalnie i w CI bramka
+   * stoi na dev-skipie i przepuszcza wszystko. Wymagalność zamienia ten błąd
+   * w błąd kompilacji.
+   */
+  p_ticket_exp: number | null;
+  p_ticket_nonce: string | null;
+  p_ticket_sig: string | null;
 }
 
 /**
@@ -105,6 +119,18 @@ export interface CheckoutDeps {
   ) => Promise<{ success: boolean }>;
   /** Weryfikacja Turnstile (ADR-032) — rdzeń zna tylko wynik. */
   verifyCaptcha: (token: string | undefined) => Promise<{ ok: boolean }>;
+  /**
+   * Wystawienie biletu zaufanej granicy (0059, ADR-125). Port, nie import:
+   * rdzeń nie zna ani sekretu, ani `node:crypto` — zna wyłącznie MOMENT,
+   * w którym bilet wolno wystawić.
+   *
+   * Ten moment jest całą treścią bramki. Bilet powstaje DOPIERO za bramką
+   * powierzchni (Turnstile w sklepie, klucz API w v1, przedsionek same-origin
+   * w embedzie), więc jego posiadanie DOWODZI jej zaliczenia. Przesunięcie
+   * tego wywołania wyżej — przed captchę — nie zepsułoby ani jednego testu
+   * jednostkowego, a zdjęłoby dokładnie tę własność, dla której bilet istnieje.
+   */
+  issueTicket: () => CheckoutTicket;
   /** Wywołanie app.public_checkout. Rzuca CheckoutRpcError z `code` (SQLSTATE). */
   callRpc: (args: CheckoutRpcArgs) => Promise<CheckoutRpcResult>;
   /**
@@ -242,6 +268,19 @@ export async function submitCheckoutCore(
   const captcha = await deps.verifyCaptcha(data.captchaToken);
   if (!captcha.ok) return { status: "captcha_failed" };
 
+  // --- BILET ZAUFANEJ GRANICY (0059, ADR-125) — DOKŁADNIE TUTAJ ---
+  //
+  // Bezpośrednio za bramką powierzchni i za żadną inną: to sąsiedztwo JEST
+  // treścią bramki. Bilet nie jest kolejnym sprawdzeniem, tylko ZAŚWIADCZENIEM
+  // o sprawdzeniach, które już się odbyły — a zaświadczenie wystawione przed
+  // nimi nie zaświadcza niczego.
+  //
+  // Baza nie rozróżnia powierzchni i nie ma jak: dla niej sklep, API v1
+  // i embed są tym samym wołającym z tym samym kluczem anon. Rozróżnia
+  // wyłącznie WAŻNOŚĆ biletu — dlatego każda powierzchnia musi mieć własną
+  // bramkę PRZED tym miejscem (i ma: captcha, klucz API, przedsionek embedu).
+  const ticket = deps.issueTicket();
+
   // BRAMKA WYBORU METODY — przed zapisem, bo zamówienie założone w reżimie
   // ścisłym bez możliwości zapłaty nie ma jak z niego wyjść. Odczyt jest
   // ŚWIEŻY: między wyrenderowaniem formularza a wysłaniem go dostawca mógł
@@ -291,6 +330,9 @@ export async function submitCheckoutCore(
       p_payment_method: data.paymentMethod,
       p_order_custom_fields: customFields.order,
       p_customer_custom_fields: customFields.customer,
+      p_ticket_exp: ticket.exp,
+      p_ticket_nonce: ticket.nonce,
+      p_ticket_sig: ticket.sig,
     });
   } catch (error) {
     const code = (error as CheckoutRpcError).code;
@@ -301,6 +343,11 @@ export async function submitCheckoutCore(
     // spoza listy, 8192 B na mapie) — to odmowa danych klienta, nie awaria
     // serwera, więc jak 22023 → rejected (422 w API v1). Reszta → server_error.
     // Treść błędu bazy zostaje w logu serwera; do klienta idzie sam status.
+    //
+    // [0059] Odmowa BILETU też przychodzi jako 22023 → `rejected`, i tak ma
+    // być: dla klienta końcowego to jedna klasa „nie przyjęliśmy zamówienia",
+    // a osobny status byłby sygnałem zwrotnym dla bota, że trafił w bramkę
+    // biletu, a nie w walidację danych.
     if (code === "23P01") return { status: "unavailable" };
     if (code === "22023" || code === "23514") return { status: "rejected" };
     console.error("[checkout] RPC nie powiódł się", error);

@@ -20,6 +20,7 @@ import {
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
+import { issueCheckoutTicket } from "@/lib/checkout/ticket";
 import type { CheckoutRpcArgs, CheckoutRpcError, CheckoutRpcResult } from "@/lib/checkout/core";
 
 import type { VerifiedApiKey } from "./auth";
@@ -76,6 +77,12 @@ export function availabilityDeps(request: Request): AvailabilityDeps {
 export function reservationDeps(request: Request): ReservationDeps {
   return {
     ...baseDeps(request),
+    // TEN SAM mint co w Server Action (0059, ADR-125) — baza nie rozróżnia
+    // powierzchni, tylko ważność biletu, więc pominięcie tego portu nie
+    // popsułoby ani jednego testu (bramka stoi na dev-skipie), a na prodzie
+    // wywróciłoby CAŁE /api/v1/reservations i embed naraz. Rolę Turnstile
+    // pełni tu klucz API, zweryfikowany w przedsionku przed rdzeniem.
+    issueTicket: (tenantId) => issueCheckoutTicket(tenantId),
     callRpc: async (args: CheckoutRpcArgs): Promise<CheckoutRpcResult> => {
       const supabase = await createSupabaseServerClient();
       const { data, error } = await supabase.schema("app").rpc("public_checkout", args);
