@@ -10,7 +10,6 @@ import {
   E2E_STRIPE_WEBHOOK_SECRET,
   PANEL_PORT,
   STOREFRONT_PORT,
-  STOREFRONT_SITE_PASSWORD,
   STRIPE_STUB_PORT,
   requiredEnv,
 } from "./lib/env";
@@ -66,9 +65,9 @@ export default defineConfig({
   globalSetup: "./global-setup",
 
   use: {
-    /* Basic Auth storefrontu; panel nie wysyła challenge'u, więc poświadczenia
-     * nie wchodzą mu w drogę. */
-    httpCredentials: { username: "e2e", password: STOREFRONT_SITE_PASSWORD },
+    /* Bez `httpCredentials` — storefront nie ma już bramki Basic Auth (ADR-128).
+     * Poświadczenia zostawione „na wszelki wypadek" maskowałyby regres: gdyby
+     * bramka kiedykolwiek wróciła, e2e przeszłoby ją po cichu zamiast upaść. */
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     locale: "pl-PL",

@@ -12,13 +12,6 @@ export const STOREFRONT_PORT = 4301;
 export const STRIPE_STUB_PORT = 4302;
 
 /**
- * Basic Auth całego storefrontu — bramka przedsprzedażowa zaszyta w
- * `apps/storefront/proxy.ts` (stała w kodzie, nie env). Nazwa użytkownika
- * jest dowolna, liczy się wyłącznie hasło.
- */
-export const STOREFRONT_SITE_PASSWORD = "notavably";
-
-/**
  * Fikcyjne klucze Stripe dla toru stubowanego. Prefiksy `sk_test_`/`pk_test_`
  * przechodzą bramki kształtu `resolveStripeConfig` (obecność, brak zamiany
  * kluczy, zgodny tryb test/test). Sekret webhooka jest współdzielony między

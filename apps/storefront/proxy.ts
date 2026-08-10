@@ -1,23 +1,9 @@
 /**
- * Middleware storefrontu. Cztery zadania, w kolejności:
+ * Middleware storefrontu. Trzy zadania, w kolejności:
  *
- * -1. HASŁO CAŁEGO SITE'U (decyzja właściciela, 2026-07-22, TYMCZASOWE —
- *    do momentu ściągnięcia). Przed każdą inną gałęzią, przed jakimkolwiek
- *    rozwiązaniem tenanta: storefront (marketing WWW i sklepy najemców pod
- *    subdomeną/własną domeną) nie jest jeszcze ogłoszony publicznie, więc
- *    CAŁY ruch przez tę appkę pyta o hasło zanim cokolwiek innego się wykona
- *    — łącznie z zapytaniem do bazy o tenanta (oszczędność, mniejsza
- *    powierzchnia dla przypadkowego ruchu). Panel (app.avably.io) NIE jest
- *    objęty — ma własne logowanie, dodatkowe hasło byłoby podwójną bramką
- *    bez treści.
- *
- *    ==================== JAK ZDJĄĆ HASŁO ====================
- *    Usuń blok `if (!siteAuthorized(...))` niżej (i funkcję
- *    `siteAuthorized` oraz `SITE_PASSWORD`, jeśli nieużywane gdzie indziej)
- *    — middleware wraca do zachowania sprzed tej zmiany. Test
- *    `apps/storefront/test/proxy.test.ts` ma przypadek pilnujący tej bramki;
- *    usuń go razem z kodem albo test padnie na czerwono, tłumacząc dlaczego.
- *    =========================================================
+ * (Bramka Basic Auth całego site'u — TYMCZASOWA, 2026-07-22 → 2026-08-10 —
+ * została zdjęta przy odsłonięciu LP: ADR-128, checklista I-03 audytu
+ * 2026-08-09. Site jest publiczny; żadna gałąź nie pyta o hasło.)
  *
  * 0. ROZGAŁĘZIENIE PO HOŚCIE (Zadanie 2.1, ADR-039): kanon marketingowy →
  *    istniejąca ścieżka LP; `<slug>.avably.io` → rozwiązanie tenanta i rewrite
@@ -50,13 +36,6 @@ import { resolveTenant, resolveTenantByDomain } from "@/lib/tenant/resolve";
 const handleI18n = createIntlMiddleware(routing);
 
 /**
- * Hasło całego site'u — stała w kodzie, nie sekret w env (patrz nagłówek
- * pliku: bramka jest tymczasowa i jej zdjęcie to usunięcie kodu, nie obrót
- * sekretu). Repo jest prywatne.
- */
-const SITE_PASSWORD = "notavably";
-
-/**
  * Kto może osadzić dokument embedu w ramce (M3, ADR-120). Reszta site'u
  * zostaje przy `frame-ancestors 'none'` — ta lista dotyczy WYŁĄCZNIE
  * `/embed/**`.
@@ -86,36 +65,6 @@ const SITE_PASSWORD = "notavably";
  */
 const EMBED_FRAME_ANCESTORS: readonly string[] =
   process.env.NODE_ENV === "production" ? ["'self'", "https:"] : ["'self'", "https:", "http:"];
-
-/**
- * Basic Auth ręcznie, bez `node:crypto` — proxy działa na Edge Runtime
- * (`generateNonce` wyżej używa Web Crypto z tego samego powodu), a
- * `timingSafeEqual` nie jest tam dostępne. Porównanie znak-po-znaku bez
- * wczesnego wyjścia z pętli jest odpornikiem na atak czasowy w praktycznie
- * istotnym zakresie (długość hasła nie jest tu sekretem chronionym).
- */
-function timingSafeStringEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
-/** Liczy się wyłącznie hasło — nazwa użytkownika w Basic Auth jest dowolna. */
-function siteAuthorized(header: string | null): boolean {
-  if (!header || !header.startsWith("Basic ")) return false;
-  let decoded: string;
-  try {
-    decoded = atob(header.slice(6).trim());
-  } catch {
-    return false;
-  }
-  const separator = decoded.indexOf(":");
-  if (separator < 0) return false;
-  return timingSafeStringEqual(decoded.slice(separator + 1), SITE_PASSWORD);
-}
 
 /**
  * Korzeń storefrontu tenanta = katalog (`/store`, grupa tras (tenant)). Goły `/`
@@ -223,53 +172,28 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", buildCsp(nonce, csp));
 
-  // PUBLICZNE API MASZYNOWE (M1, ADR-108): /api/v1/** jest ŚWIADOMIE i WĄSKO
-  // wycięte z bramki SITE_PASSWORD — konsumentem jest SERWER najemcy
-  // (wtyczka WordPress), który nie ma jak przejść Basic Auth przeznaczonego
-  // dla ludzi przed ogłoszeniem produktu. Autoryzacją tych tras jest klucz
-  // API per najemca w route handlerach (401 bez klucza), więc wyjątek nie
-  // otwiera niczego anonimowi. Wycinka celowo NIE obejmuje /api/review ani
-  // żadnej innej ścieżki — tylko dosłowny prefiks /api/v1/. Anty-spoofing
-  // (stripInboundTenantHeaders) już się wykonał — przychodzący x-tenant-id
-  // nie przetrwał także na tej gałęzi.
-  if (request.nextUrl.pathname.startsWith("/api/v1/")) {
-    const response = NextResponse.next({ request: { headers: request.headers } });
-    return applySecurityHeaders(response, nonce, csp);
-  }
-
-  // EMBED REZERWACJI (M3, ADR-120): /embed/** jest — tak jak /api/v1/ —
-  // ŚWIADOMIE i WĄSKO wycięte z bramki SITE_PASSWORD. Konsumentem jest
-  // przeglądarka KLIENTA NAJEMCY na CUDZEJ stronie: nikt jej nie poda hasła
-  // przedpremierowego, a bez tej wycinki fragment do wklejenia pokazywałby
-  // okienko logowania zamiast kalendarza.
-  //
-  // CZEGO WYCINKA NIE OTWIERA: nie omija anty-spoofingu (ten wykonał się
-  // wyżej, na każdej gałęzi), nie omija rozwiązania tenanta (embed idzie
-  // DALEJ, w gałąź tenancką — dlatego to jest FLAGA, a nie wcześniejszy
-  // return jak przy /api/v1/) i nie otwiera żadnej innej trasy: prefiks jest
-  // dosłowny, więc samo `/embed` bez ukośnika zostaje za hasłem.
-  //
-  // HASŁO CAŁEGO SITE'U — patrz nagłówek pliku. Przed jakimkolwiek
-  // rozwiązaniem tenanta (żadnego zapytania do bazy dla nieautoryzowanego
-  // ruchu). Ta sama odpowiedź dla marketingu, sklepów najemców i domen
-  // obcych — nieautoryzowany nie dowiaduje się, na którą gałąź trafił.
-  if (!isEmbedPath && !siteAuthorized(request.headers.get("authorization"))) {
-    const response = new NextResponse("Wymagane hasło.", {
-      status: 401,
-      headers: { "WWW-Authenticate": 'Basic realm="avably", charset="UTF-8"' },
-    });
-    return applySecurityHeaders(response, nonce, csp);
-  }
-
-  // ROUTE HANDLERY (dziś wyłącznie /api/review — ADR-071, narzędzie
-  // przeglądu) nie mają wersji językowych i prefiks locale by je zepsuł —
-  // ten sam wzorzec co isNonLocalizedPath w proxy panelu. Gałąź świadomie
-  // siedzi ZA bramką hasła: endpoint przeglądu ma być dostępny wyłącznie po
-  // przejściu Basic Auth, na każdym hoście tak samo.
+  // ROUTE HANDLERY /api/** nie mają wersji językowych i prefiks locale by je
+  // zepsuł — ten sam wzorzec co isNonLocalizedPath w proxy panelu. Obejmuje:
+  //   * /api/v1/** — publiczne API maszynowe (M1, ADR-108); autoryzacją jest
+  //     klucz API per najemca w route handlerach (jednolite 401 bez klucza),
+  //     więc przejście przez middleware nie otwiera niczego anonimowi,
+  //   * /api/review — narzędzie przeglądu (ADR-071); kill-switch REVIEW_MODE
+  //     w handlerze odpowiada 404, jakby endpointu nie było (I-03).
+  // Anty-spoofing (stripInboundTenantHeaders) już się wykonał — przychodzący
+  // x-tenant-id nie przetrwał także na tej gałęzi. Gałąź świadomie stoi PRZED
+  // rozwiązaniem tenanta: handlery API rozwiązują tenanta same (z klucza),
+  // więc zapytanie do bazy o hosta byłoby kosztem bez konsumenta.
   if (request.nextUrl.pathname.startsWith("/api")) {
     const response = NextResponse.next({ request: { headers: request.headers } });
     return applySecurityHeaders(response, nonce, csp);
   }
+
+  // EMBED REZERWACJI (M3, ADR-120): `isEmbedPath` (dosłowny prefiks /embed/,
+  // policzony wyżej dla CSP) NIE zmienia routingu — embed idzie DALEJ, w gałąź
+  // tenancką, jak każda strona sklepu: przechodzi anty-spoofing i rozwiązanie
+  // tenanta. Wyjątkowa jest wyłącznie polityka ramkowania (EMBED_FRAME_ANCESTORS
+  // zamiast 'none'), i tylko dla tego prefiksu — samo `/embed` bez ukośnika
+  // dostaje domyślne, pełne ramkowanie 'none'.
 
   /**
    * Gałąź tenancka — JEDNO miejsce dla obu osi hostów (subdomena i własna
