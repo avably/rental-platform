@@ -188,47 +188,58 @@
           <div class="label-small">{{nav.pricing}}</div>
         </div>
         <h1>{{pricingPage.title}}</h1>
+        <div class="text-dark-64">{{pricingPage.intro}}</div>
       </div>
       <div data-current="Tab 1" data-easing="ease" data-duration-in="300" data-duration-out="100" class="tabs-pricing w-tabs">
-        
+
         <div class="tabs-content-pricing w-tab-content">
           <div data-w-tab="Tab 1" class="tab-pane-pricing w-tab-pane w--tab-active">
             <div class="w-layout-grid product-thirds">
 <div class="pricing-card">
-  <div class="label-master dark"><div class="label-small">{{pricingPage.planLabel}}</div></div>
-  <div class="text-h3 no-margins">{{pricingPage.price}}</div>
-  <div class="text-dark-64">{{pricingPage.priceNote}}</div>
-  <div class="text-medium">{{pricingPage.includesTitle}}</div>
-  <div class="text-dark-64">{{pricingPage.include1}}</div>
-  <div class="text-dark-64">{{pricingPage.include2}}</div>
-  <div class="text-dark-64">{{pricingPage.include3}}</div>
-  <div class="text-dark-64">{{pricingPage.include4}}</div>
-  <div class="text-dark-64">{{pricingPage.include5}}</div>
+  <div class="label-master dark"><div class="label-small">{{pricingPage.standardLabel}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.standardPrice}}</div>
+  <div class="text-dark-64">{{pricingPage.standardYearly}}</div>
+  <div class="text-medium">{{pricingPage.standardNote}}</div>
+  <div class="text-dark-64">{{pricingPage.s1}}</div>
+  <div class="text-dark-64">{{pricingPage.s2}}</div>
+  <div class="text-dark-64">{{pricingPage.s3}}</div>
+  <div class="text-dark-64">{{pricingPage.s4}}</div>
+  <div class="text-dark-64">{{pricingPage.s5}}</div>
+  <div class="text-dark-64">{{pricingPage.s6}}</div>
+  <div class="text-dark-64">{{pricingPage.s7}}</div>
   <a href="{{link.register}}" class="cta-main accent w-inline-block">
     <div class="button-text-mask"><div class="button-text _1">{{nav.cta}}</div><div class="button-text _2">{{nav.cta}}</div></div>
     <div class="button-bg accent"></div>
   </a>
 </div>
+<!-- Karta ciemna (.pricing-card.last-plan ma tło color--dark): tekst poboczny
+     jedzie na `text-light-64`, nie `text-dark-64`. Ta druga klasa ustawia
+     dokładnie kolor tła karty — lista funkcji stawała się niewidoczna przy
+     kontraście 1:1, a strona wyglądała, jakby Premium nic nie zawierał. -->
 <div class="pricing-card last-plan">
-  <div class="label-master"><div class="label-small">{{pricingPage.foundersLabel}}</div></div>
-  <div class="text-h3 no-margins">{{pricingPage.foundersPrice}}</div>
-  <div>{{pricingPage.foundersNote}}</div>
+  <div class="label-master"><div class="label-small">{{pricingPage.premiumLabel}} — {{pricingPage.premiumBadge}}</div></div>
+  <div class="text-h3 no-margins">{{pricingPage.premiumPrice}}</div>
+  <div class="text-light-64">{{pricingPage.premiumYearly}}</div>
+  <div class="text-medium">{{pricingPage.premiumNote}}</div>
+  <div class="text-light-64">{{pricingPage.p1}}</div>
+  <div class="text-light-64">{{pricingPage.p2}}</div>
+  <div class="text-light-64">{{pricingPage.p3}}</div>
+  <div class="text-light-64">{{pricingPage.p4}}</div>
+  <div class="text-light-64">{{pricingPage.p5}}</div>
+  <div class="text-light-64">{{pricingPage.p6}}</div>
+  <div class="text-light-64">{{pricingPage.p7}}</div>
+</div></div>
+            <div class="w-layout-grid product-thirds">
+<div class="pricing-card">
   <div class="text-medium">{{pricingPage.honestTitle}}</div>
-  <div>{{pricingPage.honest1}}</div>
-  <div>{{pricingPage.honest2}}</div>
-  <div>{{pricingPage.buildingTitle}}</div>
-  <div>{{pricingPage.building1}}</div>
-  <div>{{pricingPage.building2}}</div>
-  <a href="{{link.waitlist}}" class="cta-main dark-outlined w-inline-block">
-    <div class="button-text-mask"><div class="button-text _1">{{nav.waitlist}}</div><div class="button-text _2">{{nav.waitlist}}</div></div>
-    <div class="button-bg dark-outlined"></div>
-  </a>
+  <div class="text-dark-64">{{pricingPage.honest1}}</div>
+  <div class="text-dark-64">{{pricingPage.honest2}}</div>
 </div></div>
           </div>
-          
+
         </div>
       </div>
-      
+
     </div>
   </section>
   <section class="section pricing-faq-section">
@@ -286,7 +297,7 @@
               </div>
             </div>
             <div class="expandable-bottom">
-              <p class="faq-paragraph"><span class="text-medium">{{faq.a4Lead}}</span> Every purchase comes with access to detailed documentation, a support contact, and updates. If you run into issues, you can reach out via email or check the included guide for quick answers.</p>
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a4Lead}}</span> {{faq.a4}}</p>
             </div>
           </div>
           <div class="expandable-single">
@@ -298,7 +309,7 @@
               </div>
             </div>
             <div class="expandable-bottom">
-              <p class="faq-paragraph"><span class="text-medium">{{faq.a2Lead}}</span> {{faq.a5}}</p>
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a5Lead}}</span> {{faq.a5}}</p>
             </div>
           </div>
           <div class="expandable-single">
