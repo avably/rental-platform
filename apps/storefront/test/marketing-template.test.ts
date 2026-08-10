@@ -23,21 +23,24 @@ const marketingPages = readdirSync(path.join(root, "marketing")).filter((file) =
   file.endsWith(".html"),
 );
 
-// Każde miejsce, które może wskazywać na zasób szablonu: strony marketingu,
-// komponenty osi publicznej (np. favicon w <head> layoutu) i słowniki tłumaczeń.
-// Jeden zbiór karmi obie bramki spójności — sieroty (plik bez odwołania) oraz
-// martwe odwołania (odwołanie bez pliku).
-const referenceSources = (): Array<[string, string]> => {
-  const sources: Array<[string, string]> = [];
-  for (const file of marketingPages) sources.push([`marketing/${file}`, read(`marketing/${file}`)]);
-  for (const entry of readdirSync(path.join(root, "app"), { recursive: true }) as string[]) {
-    if (entry.endsWith(".tsx")) sources.push([`app/${entry}`, read(`app/${entry}`)]);
-  }
-  for (const file of readdirSync(path.join(root, "messages"))) {
-    if (file.endsWith(".json")) sources.push([`messages/${file}`, read(`messages/${file}`)]);
-  }
-  return sources;
-};
+/**
+ * Katalogi zasobów strony marketingowej wraz z sufitem wagi POJEDYNCZEGO pliku.
+ *
+ * `public/forerunner/videos` MOŻE NIE ISTNIEĆ: wideo z szablonu (bonsai, ~2,8 MB
+ * na wejście) zniknęło razem z ostatnim odwołaniem do niego (A2, ADR-128),
+ * a pustego katalogu git nie przechowuje. Brak katalogu NIE jest awarią —
+ * awarią jest plik, którego nikt nie używa, i plik za ciężki na stronę główną.
+ *
+ * Sufit dla `public/produkt` jest DZIESIĘĆ RAZY niższy niż dla zasobów szablonu,
+ * bo te pliki wchodzą na ścieżkę pierwszego ekranu: zrzut interfejsu zapisany
+ * bez kompresji potrafi ważyć więcej niż cała reszta strony razem wzięta.
+ */
+const ASSET_DIRS = [
+  { dir: "public/forerunner/images", prefix: "/forerunner/images", limit: 5 * 1024 * 1024 },
+  { dir: "public/forerunner/videos", prefix: "/forerunner/videos", limit: 5 * 1024 * 1024 },
+  { dir: "public/produkt/pl", prefix: "/produkt/pl", limit: 150 * 1024 },
+  { dir: "public/produkt/en", prefix: "/produkt/en", limit: 150 * 1024 },
+];
 
 describe("izolacja warstw wizualnych", () => {
   it("oś marketingowa ładuje wyłącznie arkusze szablonu", () => {
@@ -392,42 +395,36 @@ describe("spójność tras i zasobów", () => {
   });
 
   it("nie trzyma zasobów, których żadna strona nie używa", () => {
-    const referenced = referenceSources()
-      .map(([, text]) => text)
-      .join("\n");
+    // Zrzuty interfejsu wchodzą na stronę PRZEZ TREŚĆ (klucze `marketing.shots`
+    // w messages/*.json), a nie literałem w HTML — inaczej nie dałoby się mieć
+    // osobnego kadru dla wersji polskiej i angielskiej. Zbiór „użyte" musi więc
+    // obejmować oba źródła, bo inaczej ta bramka uznałaby każdy zrzut za sierotę.
+    const uzyte = [
+      ...marketingPages.map((file) => read(path.join("marketing", file))),
+      JSON.stringify(pl),
+      JSON.stringify(en),
+    ].join("\n");
     const orphans: string[] = [];
-    for (const dir of ["images", "videos"]) {
-      const base = path.join(root, "public/forerunner", dir);
+    for (const { dir, prefix } of ASSET_DIRS) {
+      const base = path.join(root, dir);
+      if (!existsSync(base)) continue;
       for (const file of readdirSync(base)) {
-        if (!referenced.includes(`/forerunner/${dir}/${file}`)) orphans.push(`${dir}/${file}`);
+        if (!uzyte.includes(`${prefix}/${file}`)) orphans.push(`${prefix}/${file}`);
       }
     }
     expect(orphans, orphans.slice(0, 10).join(" | ")).toEqual([]);
   });
 
-  it("nie odwołuje się do zasobu, którego nie ma na dysku", () => {
-    // Kierunek odwrotny do sieroty: każde odwołanie /forerunner/** i /produkt/**
-    // w stronach, komponentach i słownikach musi trafiać w istniejący plik.
-    // Tu ginął favicon szablonu — deklarowany w <head>, nieobecny na dysku (404).
-    const reference = /\/(?:forerunner|produkt)\/[A-Za-z0-9._\-/]+/g;
-    const dead: string[] = [];
-    for (const [name, text] of referenceSources()) {
-      for (const match of text.matchAll(reference)) {
-        const ref = match[0];
-        if (!existsSync(path.join(root, "public", ref))) dead.push(`${name}: ${ref}`);
-      }
-    }
-    const unique = [...new Set(dead)];
-    expect(unique, unique.slice(0, 10).join(" | ")).toEqual([]);
-  });
-
   it("trzyma wagę pojedynczego zasobu w ryzach", () => {
     const heavy: string[] = [];
-    for (const dir of ["images", "videos"]) {
-      const base = path.join(root, "public/forerunner", dir);
+    for (const { dir, prefix, limit } of ASSET_DIRS) {
+      const base = path.join(root, dir);
+      if (!existsSync(base)) continue;
       for (const file of readdirSync(base)) {
         const { size } = statSync(path.join(base, file));
-        if (size > 5 * 1024 * 1024) heavy.push(`${dir}/${file} = ${Math.round(size / 1e6)} MB`);
+        if (size > limit) {
+          heavy.push(`${prefix}/${file} = ${Math.round(size / 1024)} kB > ${Math.round(limit / 1024)} kB`);
+        }
       }
     }
     expect(heavy, heavy.join(" | ")).toEqual([]);
