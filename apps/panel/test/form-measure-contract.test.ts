@@ -57,6 +57,9 @@ const SCREENS_UNDER_MEASURE = [
   "app/[locale]/(panel)/historia-emaili/page.tsx",
   "app/[locale]/(panel)/ustawienia-dostaw/page.tsx",
   "app/[locale]/(panel)/ustawienia-umow/page.tsx",
+  // B4 (ADR-129) — dokumenty prawne sklepu: dwa formularze długiego tekstu,
+  // więc miara wiersza obowiązuje je tak samo jak ustawienia umów.
+  "app/[locale]/(panel)/dokumenty-prawne/page.tsx",
   "app/[locale]/(panel)/ustawienia-platnosci/page.tsx",
   "app/[locale]/(panel)/zaproszenia/page.tsx",
   "app/[locale]/(panel)/organizacja/page.tsx",
@@ -115,7 +118,7 @@ describe("kontrakt miary formularza — artefakt ↔ arkusz panelu", () => {
 
 describe("użycie wspólnej miary przez ekrany", () => {
   it("skan obejmuje realny zbiór ekranów", () => {
-    expect(SCREENS_UNDER_MEASURE.length).toBe(16);
+    expect(SCREENS_UNDER_MEASURE.length).toBe(17);
   });
 
   it.each(SCREENS_UNDER_MEASURE)("%s stoi pod wspólną miarą", (path) => {

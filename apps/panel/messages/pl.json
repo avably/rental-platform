@@ -139,6 +139,7 @@
     "emails": "E-maile",
     "delivery": "Dostawy",
     "contracts": "Umowy",
+    "legal": "Dokumenty prawne",
     "team": "Zespół",
     "organization": "Organizacja",
     "security": "Bezpieczeństwo",
@@ -169,14 +170,48 @@
     "missing": "Ustawienia umów nie zostały jeszcze skonfigurowane.",
     "backLink": "Panel"
   },
-  "login": {
-    "title": "Zaloguj się",
-    "submit": "Zaloguj się",
-    "submitPending": "Loguję…",
-    "register": "Załóż konto",
-    "forgotPassword": "Nie pamiętam hasła",
-    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
+  "legalDocuments": {
+    "title": "Dokumenty prawne",
+    "intro": "Regulamin i polityka prywatności Twojego sklepu. Klient widzi wyłącznie opublikowaną wersję — szkic zostaje w panelu, dopóki go nie opublikujesz.",
+    "kind": {
+      "terms": "Regulamin",
+      "privacy": "Polityka prywatności"
+    },
+    "documentTitle": "Tytuł dokumentu",
+    "body": "Treść dokumentu",
+    "locale": "Język dokumentu",
+    "localePl": "Polski",
+    "localeEn": "Angielski",
+    "save": "Zapisz szkic",
+    "saved": "Szkic zapisany.",
+    "publish": "Opublikuj",
+    "publishTitle": "Opublikować: {document}?",
+    "publishBodyFirst": "Od tej chwili klienci sklepu zobaczą ten dokument, a zamówienia będą wskazywać jego wersję v1. Opublikowanej wersji nie da się już zmienić ani usunąć.",
+    "publishBodyReplace": "Klienci sklepu zobaczą nową wersję, a nowe zamówienia będą wskazywać właśnie ją. Dotychczasowa wersja zostaje w historii — zamówienia złożone wcześniej nadal wskazują tekst, na który przystali ich klienci.",
+    "publishNote": "Szkic zostaje w panelu i możesz go dalej zmieniać — klient zobaczy zmiany dopiero po kolejnej publikacji.",
+    "publishNeedsDraft": "Najpierw zapisz szkic — publikacja przenosi do rejestru zapisaną treść.",
+    "publishCreated": "Opublikowano wersję {version}.",
+    "publishUnchanged": "Treść jest identyczna z opublikowaną — nowa wersja nie powstała. To nie jest błąd: rejestr nie dostaje wpisu bez zmiany treści.",
+    "cancel": "Anuluj",
+    "statusPublished": "W sklepie: wersja {version}, opublikowana {date}.",
+    "statusUnpublished": "Dokument nie jest opublikowany — klienci sklepu go nie widzą.",
+    "historyTitle": "Historia wersji",
+    "historyEmpty": "Żadna wersja nie została jeszcze opublikowana.",
+    "historyChecksum": "skrót {checksum}",
+    "readOnly": "Dokumenty prawne pisze i publikuje właściciel organizacji.",
+    "missing": "Dokument nie został jeszcze utworzony.",
+    "warningTitle": "Sklep sprzedaje bez opublikowanego regulaminu",
+    "warningBody": "Sklep przyjmuje zamówienia, a klient zaznacza zgodę na regulamin, którego nie ma jak przeczytać — pod adresem /regulamin nie ma żadnej treści.",
+    "warningConsequence": "Opublikuj regulamin, żeby zgoda przy zamówieniu wskazywała konkretną, niezmienną wersję. Do tego czasu sprzedaż działa dalej — nic nie jest zablokowane."
   },
+"login": {
+  "title": "Zaloguj się",
+  "submit": "Zaloguj się",
+  "submitPending": "Loguję…",
+  "register": "Załóż konto",
+  "forgotPassword": "Nie pamiętam hasła",
+  "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
+},
   "register": {
     "title": "Załóż konto",
     "submit": "Zarejestruj się",

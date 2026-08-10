@@ -139,6 +139,7 @@
     "emails": "E-mails",
     "delivery": "Deliveries",
     "contracts": "Agreements",
+    "legal": "Legal documents",
     "team": "Team",
     "organization": "Organization",
     "security": "Security",
@@ -169,14 +170,48 @@
     "missing": "Agreement settings have not been configured yet.",
     "backLink": "Panel"
   },
-  "login": {
-    "title": "Sign in",
-    "submit": "Sign in",
-    "submitPending": "Signing in…",
-    "register": "Create an account",
-    "forgotPassword": "Forgot your password?",
-    "captchaFailed": "CAPTCHA verification failed."
+  "legalDocuments": {
+    "title": "Legal documents",
+    "intro": "Terms and privacy policy for your store. Customers only ever see the published version — the draft stays in the panel until you publish it.",
+    "kind": {
+      "terms": "Terms and conditions",
+      "privacy": "Privacy policy"
+    },
+    "documentTitle": "Document title",
+    "body": "Document content",
+    "locale": "Document language",
+    "localePl": "Polish",
+    "localeEn": "English",
+    "save": "Save draft",
+    "saved": "Draft saved.",
+    "publish": "Publish",
+    "publishTitle": "Publish: {document}?",
+    "publishBodyFirst": "From now on store customers will see this document, and orders will point at its v1 version. A published version can no longer be edited or deleted.",
+    "publishBodyReplace": "Store customers will see the new version and new orders will point at it. The current version stays in the history — earlier orders keep pointing at the text their customers agreed to.",
+    "publishNote": "The draft stays in the panel and you can keep editing it — customers only see the changes after the next publication.",
+    "publishNeedsDraft": "Save the draft first — publishing moves the saved content into the registry.",
+    "publishCreated": "Published version {version}.",
+    "publishUnchanged": "The content is identical to the published version, so no new version was created. This is not an error: the registry does not record an entry without a content change.",
+    "cancel": "Cancel",
+    "statusPublished": "Live in store: version {version}, published {date}.",
+    "statusUnpublished": "This document is not published — store customers cannot see it.",
+    "historyTitle": "Version history",
+    "historyEmpty": "No version has been published yet.",
+    "historyChecksum": "checksum {checksum}",
+    "readOnly": "Legal documents are written and published by the organization owner.",
+    "missing": "This document has not been created yet.",
+    "warningTitle": "The store is selling without a published terms document",
+    "warningBody": "The store accepts orders and the customer ticks a box agreeing to terms they have no way to read — there is no content at /regulamin.",
+    "warningConsequence": "Publish the terms so that the consent recorded with each order points at a specific, immutable version. Until then selling continues — nothing is blocked."
   },
+"login": {
+  "title": "Sign in",
+  "submit": "Sign in",
+  "submitPending": "Signing in…",
+  "register": "Create an account",
+  "forgotPassword": "Forgot your password?",
+  "captchaFailed": "CAPTCHA verification failed."
+},
   "register": {
     "title": "Create an account",
     "submit": "Sign up",

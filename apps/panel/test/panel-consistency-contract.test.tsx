@@ -66,6 +66,9 @@ const emailDocumentFiles = ["zamowienia/[id]/invoice-email.ts"] as const;
 
 const topbarOwnedTitleFiles = [
   "bezpieczenstwo/page.tsx",
+  // B4 (ADR-129) — dokumenty prawne: trasa jest pozycją nawigacji, więc tytuł
+  // rozwiązuje się z niej przez matchNavItem i belka jest jego jedynym miejscem.
+  "dokumenty-prawne/page.tsx",
   "bezpieczenstwo/wyzwanie/page.tsx",
   "historia-emaili/page.tsx",
   "katalog/page.tsx",

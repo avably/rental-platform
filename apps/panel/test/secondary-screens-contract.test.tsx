@@ -47,6 +47,10 @@ vi.mock("@/app/[locale]/(panel)/ustawienia-emaili/email-settings-actions", () =>
 vi.mock("@/app/[locale]/(panel)/ustawienia-umow/actions", () => ({
   saveContractSettingsAction: noopAction,
 }));
+vi.mock("@/app/[locale]/(panel)/dokumenty-prawne/actions", () => ({
+  saveLegalDocumentDraftAction: noopAction,
+  publishLegalDocumentAction: noopAction,
+}));
 vi.mock("@/app/[locale]/(panel)/zaproszenia/actions", () => ({
   inviteMemberAction: noopAction,
 }));
@@ -91,6 +95,15 @@ const { ContractSettingsForm } = await import(
 );
 const { ContractReadOnly } = await import(
   "@/app/[locale]/(panel)/ustawienia-umow/contract-read-only"
+);
+const { LegalDocumentForm } = await import(
+  "@/app/[locale]/(panel)/dokumenty-prawne/legal-document-form"
+);
+const { LegalDocumentReadOnly } = await import(
+  "@/app/[locale]/(panel)/dokumenty-prawne/legal-document-read-only"
+);
+const { MissingTermsWarning } = await import(
+  "@/app/[locale]/(panel)/dokumenty-prawne/missing-terms-warning"
 );
 const { InviteMemberForm } = await import("@/app/[locale]/(panel)/zaproszenia/form");
 const { OrganizationCard } = await import("@/app/[locale]/(panel)/organizacja/organization-card");
@@ -417,6 +430,98 @@ describe("ekran umów — edycja właściciela i odczyt członka", () => {
   it("brak konfiguracji jest stanem, nie pustą listą", () => {
     const html = render(<ContractReadOnly settings={null} />);
     expect(html).toContain(messages.contractSettings.missing);
+  });
+});
+
+// ===== 5b. Dokumenty prawne (B4, ADR-129) =====
+
+describe("ekran dokumentów prawnych — edycja właściciela i odczyt personelu", () => {
+  const terms = {
+    kind: "terms" as const,
+    title: "Regulamin",
+    bodyDraft: "Fikcyjna treść regulaminu.",
+    locale: "pl" as const,
+    currentVersionLabel: "v2",
+    currentPublishedAtLabel: "08.08.2026, 10:30",
+    versions: [
+      {
+        id: "ver-2",
+        versionNo: 2,
+        versionLabel: "v2",
+        publishedAtLabel: "08.08.2026, 10:30",
+        checksum: "0123456789ab",
+      },
+      {
+        id: "ver-1",
+        versionNo: 1,
+        versionLabel: "v1",
+        publishedAtLabel: "01.08.2026, 09:00",
+        checksum: "ba9876543210",
+      },
+    ],
+  };
+
+  it("właściciel dostaje formularz szkicu, wejście publikacji i rejestr wersji", () => {
+    const html = render(<LegalDocumentForm kind="terms" document={terms} />);
+    expect(html).toContain('data-legal-mode="owner"');
+    for (const field of ["kind", "title", "body_draft", "locale"]) {
+      expect(html, `brak pola ${field}`).toContain(`name="${field}"`);
+    }
+    expect(html).toContain("data-legal-publish");
+    expect(html).toContain("data-legal-history");
+    expect(html).toContain('data-legal-version="v1"');
+    // Etykieta ŻYWEJ wersji stoi na ekranie — inaczej „opublikowany" nie
+    // mówiłoby, CO właściwie widzi klient.
+    expect(html).toContain("v2");
+  });
+
+  it("personel dostaje te same dane BEZ atrapy zapisu i publikacji", () => {
+    const html = render(<LegalDocumentReadOnly kind="terms" document={terms} />);
+    expect(html).toContain('data-legal-mode="read-only"');
+    expect(html).toContain(terms.bodyDraft);
+    expect(html).toContain("data-legal-history");
+    for (const control of ["<form", "<button", "<input", "<textarea"]) {
+      expect(html, `atrapa edycji: ${control}`).not.toContain(control);
+    }
+  });
+
+  it("dokument bez szkicu jest STANEM, nie pustą kartą", () => {
+    const html = render(<LegalDocumentReadOnly kind="privacy" document={null} />);
+    expect(html).toContain(messages.legalDocuments.missing);
+    expect(html).toContain(messages.legalDocuments.statusUnpublished);
+  });
+
+  it("ostrzeżenie o sprzedaży bez regulaminu nazywa SKUTEK, nie brak pola", () => {
+    const html = render(<MissingTermsWarning />);
+    expect(html).toContain("data-legal-terms-warning");
+    expect(html).toContain(messages.legalDocuments.warningTitle);
+    expect(html).toContain(messages.legalDocuments.warningBody);
+    expect(html).toContain(messages.legalDocuments.warningConsequence);
+  });
+
+  it("treść dokumentu nie idzie ani razu przez wstrzyknięcie HTML", () => {
+    // Tekst pisze najemca, a trafia na publiczną stronę sklepu — skan ŹRÓDEŁ,
+    // bo render z bezpiecznym fixture'em niczego by nie dowiódł.
+    //
+    // Skan patrzy na KOD: komentarze tych plików cytują nazwę zakazanego
+    // propa, żeby wyjaśnić regułę (wzorzec `form-measure-contract`).
+    const stripComments = (source: string) =>
+      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+    const forbidden = /dangerously/i;
+
+    // Kontrola pozytywna: wzorzec NAPRAWDĘ łapie zapis, którego zakazuje.
+    expect(forbidden.test('<p dangerouslySetInnerHTML={{ __html: body }} />')).toBe(true);
+
+    for (const file of [
+      "app/[locale]/(panel)/dokumenty-prawne/legal-document-form.tsx",
+      "app/[locale]/(panel)/dokumenty-prawne/legal-document-read-only.tsx",
+      "app/[locale]/(panel)/dokumenty-prawne/legal-version-history.tsx",
+      "app/[locale]/(panel)/dokumenty-prawne/page.tsx",
+    ]) {
+      const code = stripComments(readFileSync(resolve(process.cwd(), file), "utf8"));
+      expect(code.length, `pusty plik ${file}`).toBeGreaterThan(200);
+      expect(code, `wstrzyknięcie HTML w ${file}`).not.toMatch(forbidden);
+    }
   });
 });
 
