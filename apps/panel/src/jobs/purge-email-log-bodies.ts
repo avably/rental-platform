@@ -17,8 +17,9 @@ import { createServiceClient } from "@avably/db/service";
  * ten moduł mieszka w `src/jobs/**`, jedynym miejscu w panelu, gdzie klucz
  * omijający RLS jest dopuszczony (ADR-067/ADR-115).
  *
- * HARMONOGRAMU CELOWO NIE MA — patrz trasa `/api/jobs/email-log-retention`
- * i nota o limicie planu hostingu (ADR-116, wzorzec L11/ADR-104).
+ * HARMONOGRAM: seria dzienna `/api/jobs/daily` (ADR-130) — to zadanie idzie
+ * w niej pierwsze. Nota o „celowym braku harmonogramu" z powodu limitu planu
+ * hostingu jest nieaktualna; patrz ADR-130.
  */
 
 /** Domyślny okres retencji treści wiadomości (ADR-116). */

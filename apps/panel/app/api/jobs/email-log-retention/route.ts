@@ -5,13 +5,15 @@ import { purgeEmailLogBodies } from "@/src/jobs/purge-email-log-bodies";
 /**
  * Retencja treści wysłanych wiadomości (C2b/R3, ADR-116).
  *
- * HARMONOGRAMU W `vercel.json` NIE MA i to jest decyzja, nie przeoczenie —
- * dokładnie ta sama bramka planu hostingu, która zatrzymała rekoncyliację
- * płatności (L11/ADR-104): plan dopuszcza DWA zadania cron, oba sloty zajmuje
- * sprzątanie uploadów zdjęć. Trzeci wpis wywróciłby wdrożenie. Trasa jest
- * gotowa i zabezpieczona, wywołanie jest natychmiastowe z zewnątrz, a test
- * `email-log-retention-route.test.ts` pilnuje, żeby dopisanie crona bez zmiany
- * planu paliło CI, a nie produkcję.
+ * HARMONOGRAM: woła ją SERIA DZIENNA `/api/jobs/daily` (ADR-130), w której
+ * idzie pierwsza, bo jest najtańsza — jedno wywołanie funkcji bazy. Ta trasa
+ * zostaje do wywołania RĘCZNEGO (diagnostyka, ponowienie po awarii serii).
+ *
+ * Stała tu wcześniej nota, że harmonogramu nie ma świadomie, bo plan hostingu
+ * dopuszcza dwa zadania cron i oba zajmuje sprzątanie uploadów. Ten limit
+ * dawno nie obowiązuje, a skutkiem noty było to, że kasowanie DRUGIEJ KOPII
+ * danych osobowych klienta nie wykonało się ani razu. Uzasadnienie i lekcja:
+ * ADR-130.
  */
 export const runtime = "nodejs";
 

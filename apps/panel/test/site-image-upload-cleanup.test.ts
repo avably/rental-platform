@@ -204,14 +204,17 @@ async function routeRequest(authorization?: string) {
 }
 
 describe("cron site-image-uploads", () => {
-  it("ma dzienny harmonogram (Vercel Hobby) obok crona zdjęć produktów", () => {
+  // Od ADR-130 własnego wpisu crona już nie ma — sieroty zdjęć sekcji sprząta
+  // seria dzienna `/api/jobs/daily` (to zadanie idzie w niej drugie).
+  it("jest wołane przez serię dzienną, a ta ma dzienny harmonogram", async () => {
     const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as {
       crons: Array<{ path: string; schedule: string }>;
     };
-    expect(config.crons).toContainEqual({ path: "/api/jobs/site-image-uploads", schedule: "37 3 * * *" });
-    // Dzienny (raz na dobę) — zgodnie z ograniczeniem Hobby.
-    const site = config.crons.find((c) => c.path === "/api/jobs/site-image-uploads");
-    expect(site?.schedule).toMatch(/^\d+ \d+ \* \* \*$/);
+    const { DAILY_JOBS } = await import("@/src/jobs/daily-run");
+
+    expect(DAILY_JOBS.map((job) => job.path)).toContain("/api/jobs/site-image-uploads");
+    const daily = config.crons.find((cron) => cron.path === "/api/jobs/daily");
+    expect(daily?.schedule).toMatch(/^\d+ \d+ \* \* \*$/);
   });
 
   beforeEach(() => {

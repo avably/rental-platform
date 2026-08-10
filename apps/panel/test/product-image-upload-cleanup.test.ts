@@ -231,18 +231,18 @@ async function routeRequest(authorization?: string) {
 }
 
 describe("cron product-image-uploads", () => {
-  it("ma dzienny harmonogram zgodny z ograniczeniem Vercel Hobby", () => {
-    const config = JSON.parse(
-      readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
-    ) as { crons: Array<{ path: string; schedule: string }> };
+  // Od ADR-130 sprzątanie sierot nie ma WŁASNEGO wpisu crona: woła je seria
+  // dzienna `/api/jobs/daily`, która mieści wszystkie cztery zadania w jednym
+  // przebiegu. Trasa pojedyncza zostaje do wywołania ręcznego.
+  it("jest wołane przez serię dzienną, a ta ma dzienny harmonogram", async () => {
+    const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as {
+      crons: Array<{ path: string; schedule: string }>;
+    };
+    const { DAILY_JOBS } = await import("@/src/jobs/daily-run");
 
-    expect(config.crons).toContainEqual({
-      path: "/api/jobs/product-image-uploads",
-      schedule: "17 3 * * *",
-    });
-    // Hobby dopuszcza do 2 zadań cron (dziennych); drugie to sieroty zdjęć
-    // sekcji (0043) — patrz site-image-upload-cleanup.test.ts.
-    expect(config.crons).toHaveLength(2);
+    expect(DAILY_JOBS.map((job) => job.path)).toContain("/api/jobs/product-image-uploads");
+    const daily = config.crons.find((cron) => cron.path === "/api/jobs/daily");
+    expect(daily?.schedule).toMatch(/^\d+ \d+ \* \* \*$/);
   });
 
   beforeEach(() => {
