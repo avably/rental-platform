@@ -171,19 +171,18 @@ class JobTimeoutError extends Error {}
 /**
  * Czeka na `promise` najwyżej `ms`.
  *
- * Obietnicę zadania najpierw ZDEJMUJEMY Z TORU ODRZUCEŃ (`then` z dwiema
- * gałęziami zwraca wynik opakowany i nigdy nie odrzuca). Bez tego przegrana
- * w wyścigu z limitem czasu zostawiałaby odrzucenie bez odbiorcy —
- * a nieobsłużone odrzucenie w Node kończy się zabiciem procesu, czyli
- * awarią JEDNEGO zadania zabierającą całą serię. Dokładnie temu ta funkcja
- * ma zapobiegać.
+ * ODRZUCENIE PO TERMINIE NIE JEST TU PROBLEMEM — i warto wiedzieć dlaczego,
+ * bo stała w tym miejscu owijka „chroniąca" przed czymś, co nie zachodzi.
+ * `Promise.race` SUBSKRYBUJE KAŻDE wejście, więc obietnica zadania ma
+ * odbiorcę niezależnie od tego, czy wygrała wyścig. Gdy przegra, a potem
+ * odrzuci, odrzucenie jest już OBSERWOWANE: nie staje się `unhandledRejection`
+ * i nie ma jak zabić procesu. Przegrany wyścig pozostaje przegrany —
+ * spóźnione odrzucenie nie zmienia wyniku `race`.
+ *
+ * `clearTimeout` w `finally` jest natomiast konieczny: zwisający timer trzyma
+ * pętlę zdarzeń i potrafi przedłużyć życie funkcji po zwróceniu odpowiedzi.
  */
 function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
-  const settled = promise.then(
-    (value) => ({ ok: true as const, value }),
-    (error: unknown) => ({ ok: false as const, error }),
-  );
-
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expiry = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -191,14 +190,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<
     }, ms);
   });
 
-  return Promise.race([settled, expiry])
-    .then((outcome) => {
-      if (outcome.ok) return outcome.value;
-      throw outcome.error;
-    })
-    .finally(() => {
-      if (timer) clearTimeout(timer);
-    });
+  return Promise.race([promise, expiry]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 export interface RunDailyJobsOptions {
