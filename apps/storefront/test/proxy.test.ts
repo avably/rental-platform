@@ -5,12 +5,15 @@
  *
  * Rozszerzone o rozgałęzienie host→tenant (Zadanie 2.1, ADR-039): routing
  * subdomeny na trasę tenancką, neutralne 404 i bramkę anty-spoofingu.
+ *
+ * Od ADR-131 pilnuje też, że odmowa jest JEDNA dla obu osi hostów i
+ * nierozróżnialna między stanami tenanta — patrz ostatni blok pliku.
  */
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { proxy, runProxy, type ProxyDeps } from "../proxy";
+import { config, proxy, runProxy, type ProxyDeps } from "../proxy";
 
 const ACME_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
@@ -361,12 +364,13 @@ describe("proxy storefrontu — własne domeny najemców (Zadanie 2.6, ADR-046)"
     expect(request.headers.get("x-tenant-slug")).toBeNull();
   });
 
-  // ZACHOWANIE Z 2.1 NIETKNIĘTE: nierozwiązany obcy host to nadal marketing,
-  // nie 404 (zmiana na 404 zepsułaby hosty operacyjne wskazane na deployment).
-  it("nierozwiązany obcy host → gałąź marketingowa, nie 404", async () => {
+  // ODWRÓCONE W ADR-131. Do 2026-08-10 nierozwiązany host obcy spadał na
+  // marketing — czyli domena zawieszonego najemcy serwowała jego klientom
+  // landing page Avably. Pełny blok dowodowy: „nierozwiązany host obcy" niżej.
+  it("nierozwiązany obcy host → neutralne 404, NIE gałąź marketingowa", async () => {
     const response = await runProxy(new NextRequest("https://obcy.example/"), fakeDeps);
 
-    expect(response.status, "obcy host nierozwiązany nie może dawać 404").not.toBe(404);
+    expect(response.status, "obcy host nierozwiązany musi dostać odmowę").toBe(404);
     expect(response.headers.get("x-middleware-rewrite") ?? "").not.toContain("/store");
   });
 
@@ -560,5 +564,251 @@ describe("proxy storefrontu — embed rezerwacji (M3, ADR-120)", () => {
     expect(response.headers.get("Strict-Transport-Security")).toContain("max-age=31536000");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(response.headers.get("Content-Security-Policy")).toMatch(/script-src [^;]*'nonce-/);
+  });
+});
+
+/**
+ * NIEROZWIĄZANY HOST OBCY (ADR-131) — bramka „nie jesteśmy wyrocznią".
+ *
+ * Do 2026-08-10 host, którego nie dało się rozwiązać na tenanta, spadał na
+ * gałąź marketingową. Kosztowało to dwie rzeczy naraz: domena zawieszonego
+ * albo usuniętego najemcy serwowała JEGO klientom landing page Avably, a
+ * dowolny obcy host wycelowany w nasz deployment hostował u siebie nasz
+ * marketing. Dziś kończy tym samym neutralnym 404 co nieznana subdomena.
+ *
+ * CZEGO TU PILNUJEMY I DLACZEGO AKURAT TEGO. Sama zamiana „marketing → 404"
+ * jest jednolinijkowa i łatwa do przypięcia jednym `expect`. Trudna i wartość
+ * mająca jest część druga: odmowa musi być NIEROZRÓŻNIALNA dla czterech
+ * stanów, które w bazie są różne — hosta, który nigdy nie był klientem;
+ * domeny tenanta ZAWIESZONEGO; domeny tenanta USUNIĘTEGO; domeny dodanej, ale
+ * jeszcze NIEZWERYFIKOWANEJ. Gdyby którykolwiek dawał inny kod, inną treść
+ * albo inny nagłówek, każdy z ulicy sprawdzałby dowolną domeną, czy dana firma
+ * jest klientem Avably i w jakim jest stanie — bez logowania i bez śladu.
+ *
+ * MODEL STANÓW JEST WIERNY. Wszystkie cztery różnią się WYŁĄCZNIE w bazie:
+ * `app.resolve_tenant_by_domain` (0022) wymaga `verified` ORAZ statusu tenanta
+ * w (`trialing`,`active`), więc każdy z nich wraca do middleware'u jako to samo
+ * `null` — i to jest jedyne, co proxy o nich wie. Bramki po stronie bazy mają
+ * własne dowody mutacyjne w `packages/db/test/domain-resolve.test.ts`; tutaj
+ * dowodzimy, że middleware tej jednej informacji nie rozmnaża.
+ */
+describe("proxy storefrontu — nierozwiązany host obcy (ADR-131)", () => {
+  const STANY_NIEROZWIAZANE = [
+    ["host, który nigdy nie był naszym klientem", "https://nigdy-nie-nasz.example"],
+    ["domena tenanta ZAWIESZONEGO", "https://sklep.zawieszony.example"],
+    ["domena tenanta USUNIĘTEGO", "https://sklep.usuniety.example"],
+    ["domena dodana, ale NIEZWERYFIKOWANA", "https://sklep.swiezo-dodany.example"],
+  ] as const;
+
+  /**
+   * Kanoniczny odcisk odpowiedzi: status + WSZYSTKIE nagłówki (posortowane) +
+   * treść. Normalizowany jest wyłącznie nonce, bo z definicji jest inny w
+   * każdym żądaniu — i to na tej samej gałęzi, więc niczego nie różnicuje.
+   *
+   * Porównanie całych odcisków, a nie wybranych pól, jest tu istotne: lista
+   * „co sprawdzić" starzeje się przy każdym nowym nagłówku, a równość odcisków
+   * łapie także to, czego autor testu nie przewidział.
+   */
+  async function odcisk(response: Response): Promise<string> {
+    const naglowki = [...response.headers.entries()]
+      .map(([nazwa, wartosc]) => `${nazwa}: ${wartosc.replace(/'nonce-[^']+'/g, "'nonce-<N>'")}`)
+      .sort()
+      .join("\n");
+
+    return `${response.status}\n${naglowki}\n\n${await response.text()}`;
+  }
+
+  it.each(STANY_NIEROZWIAZANE)("%s → 404 text/plain bez brandingu", async (_stan, url) => {
+    const response = await runProxy(new NextRequest(`${url}/`), fakeDeps);
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(await response.text()).toBe("Not Found");
+  });
+
+  it.each(STANY_NIEROZWIAZANE)("%s nie dostaje ŚLADU gałęzi marketingowej", async (_stan, url) => {
+    const response = await runProxy(new NextRequest(`${url}/`), fakeDeps);
+
+    // Trzy odciski gałęzi marketingowej: redirect na prefiks locale, nagłówek
+    // Link z hreflang i rewrite. Żaden nie ma prawa wyjść z odmowy.
+    expect(response.headers.get("location"), "odmowa przekierowuje na locale").toBeNull();
+    expect(response.headers.get("Link"), "odmowa niesie hreflang LP").toBeNull();
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+
+    // Treść nie może zdradzać ani marki, ani samego hosta (echo hosta bywa
+    // pierwszym krokiem do „pomocnego" komunikatu, a jest już wyciekiem).
+    const tresc = (await response.text()).toLowerCase();
+    for (const zakazane of ["avably", "wypożyczaln", "rental", new URL(url).hostname]) {
+      expect(tresc, `odmowa zdradza „${zakazane}"`).not.toContain(zakazane.toLowerCase());
+    }
+  });
+
+  it("CZTERY STANY SĄ NIEROZRÓŻNIALNE co do bajtu (poza nonce)", async () => {
+    const odciski = await Promise.all(
+      STANY_NIEROZWIAZANE.map(async ([stan, url]) => ({
+        stan,
+        odcisk: await odcisk(await runProxy(new NextRequest(`${url}/`), fakeDeps)),
+      })),
+    );
+
+    const [wzorzec, ...reszta] = odciski;
+    for (const { stan, odcisk: inny } of reszta) {
+      expect(inny, `„${stan}" odpowiada inaczej niż „${wzorzec!.stan}" — to jest wyrocznia`).toBe(
+        wzorzec!.odcisk,
+      );
+    }
+  });
+
+  it("odmowa na własnej domenie to TA SAMA odmowa co na nieznanej subdomenie", async () => {
+    // Jedna odpowiedź dla obu osi hostów. Gdyby były dwie „prawie takie same",
+    // rozjechałyby się przy pierwszej zmianie po jednej stronie.
+    const subdomena = await odcisk(
+      await runProxy(new NextRequest("https://ghost.avably.io/"), fakeDeps),
+    );
+    const wlasnaDomena = await odcisk(
+      await runProxy(new NextRequest("https://nigdy-nie-nasz.example/"), fakeDeps),
+    );
+
+    expect(wlasnaDomena).toBe(subdomena);
+  });
+
+  it("odmowa nie zależy od ŚCIEŻKI — sklep, koszyk i checkout wyglądają tak samo", async () => {
+    const odciski = await Promise.all(
+      ["/", "/product/abc", "/cart", "/checkout", "/pl/regulamin"].map(async (sciezka) =>
+        odcisk(await runProxy(new NextRequest(`https://sklep.zawieszony.example${sciezka}`), fakeDeps)),
+      ),
+    );
+
+    for (const inny of odciski.slice(1)) expect(inny).toBe(odciski[0]);
+  });
+
+  it("odmowa niesie KOMPLET nagłówków bezpieczeństwa (ADR-124/L-01)", async () => {
+    const response = await runProxy(new NextRequest("https://sklep.usuniety.example/"), fakeDeps);
+    const csp = response.headers.get("Content-Security-Policy") ?? "";
+
+    expect(csp, "odmowa bez CSP").toMatch(/script-src [^;]*'nonce-[^']+'/);
+    expect(csp).not.toMatch(/script-src [^;]*'unsafe-inline'/);
+    expect(csp).toMatch(/frame-ancestors 'none'/);
+    expect(response.headers.get("Strict-Transport-Security")).toContain("max-age=31536000");
+    expect(response.headers.get("Strict-Transport-Security")).toContain("preload");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(response.headers.get("Permissions-Policy")).toContain("camera=()");
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("anty-spoofing wykonuje się PRZED odmową (podrobiony x-tenant-id nie przeżywa)", async () => {
+    const request = new NextRequest("https://sklep.zawieszony.example/", {
+      headers: {
+        "x-tenant-id": "11111111-1111-4111-8111-111111111111",
+        "x-tenant-slug": "attacker",
+      },
+    });
+
+    const response = await runProxy(request, fakeDeps);
+
+    expect(request.headers.get("x-tenant-id")).toBeNull();
+    expect(request.headers.get("x-tenant-slug")).toBeNull();
+    // Odmowa też nie może oddać tenanta z powrotem w odpowiedzi.
+    expect(response.headers.get("x-tenant-id")).toBeNull();
+  });
+
+  it("host rozwiązuje się DOKŁADNIE RAZ — odmowa nie dokłada drugiej ścieżki", async () => {
+    const domainSpy = vi.fn(async () => null);
+    await runProxy(new NextRequest("https://sklep.zawieszony.example/"), {
+      ...fakeDeps,
+      resolveTenantByDomain: domainSpy,
+    });
+
+    expect(domainSpy).toHaveBeenCalledTimes(1);
+    expect(domainSpy).toHaveBeenCalledWith("sklep.zawieszony.example");
+  });
+
+  it("embed na NIEROZWIĄZANYM hoście też jest odmową (obcy host nie hostuje widgetu)", async () => {
+    const response = await runProxy(
+      new NextRequest("https://sklep.zawieszony.example/embed/widget"),
+      fakeDeps,
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  /*
+   * TO, CZEGO ZMIANA NIE RUSZA. Trzy powierzchnie, na których 404 byłoby
+   * regresją, a nie naprawą — każda przypięta osobno, bo każda ma inny powód.
+   */
+  it("embed U NAJEMCY (obie osie hostów) działa bez zmian — nie zaczyna dostawać 404", async () => {
+    for (const url of [
+      "https://acme.avably.io/embed/widget",
+      "https://sklep.najemca.example/embed/widget",
+      "https://sklep.najemca.example/embed/api/month?product=x&month=2026-09",
+    ]) {
+      const response = await runProxy(new NextRequest(url), fakeDeps);
+      const csp = response.headers.get("Content-Security-Policy") ?? "";
+
+      expect(response.status, `${url} dostał odmowę`).not.toBe(404);
+      expect(csp, `${url} stracił politykę ramkowania embedu`).toMatch(
+        /frame-ancestors [^;]*'self'/,
+      );
+    }
+  });
+
+  it("/api/v1/** przechodzi jak dotąd, także na nierozwiązanym hoście", async () => {
+    // Gałąź /api stoi PRZED klasyfikacją hosta i tak zostaje: autoryzacją jest
+    // klucz API per najemca w handlerze, nie host żądania. Odmowa po hoście
+    // zamieniłaby jednolite 401 na 404 zależne od DNS-u konsumenta.
+    const response = await runProxy(
+      new NextRequest("https://sklep.zawieszony.example/api/v1/catalog"),
+      fakeDeps,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("`.well-known/security.txt` w ogóle nie wchodzi do middleware'u", () => {
+    // Matcher wycina każdą ścieżkę z rozszerzeniem, więc security.txt (ADR-124)
+    // omija proxy i nagłówki dokłada mu next.config.ts. Odmowa nie ma jak go
+    // dotknąć — przypięte, bo to jedyny plik, którego zniknięcie byłoby cichą
+    // regresją zgłoszeń bezpieczeństwa.
+    const wzorzec = new RegExp(`^${config.matcher[0]}$`);
+
+    expect(wzorzec.test("/.well-known/security.txt")).toBe(false);
+    expect(wzorzec.test("/"), "matcher przestał obejmować korzeń").toBe(true);
+  });
+
+  /*
+   * HOSTY PLATFORMY — jedyna rzecz, którą wolno rozróżniać. Gdyby ta bramka
+   * puściła, naprawa wygasiłaby własny landing page, czyli zamieniła wyciek
+   * na awarię.
+   */
+  it.each([
+    "https://www.avably.io/",
+    "https://avably.io/",
+    "https://x-preview.vercel.app/",
+    "http://localhost:3000/",
+    "https://avably.pl/",
+    "https://www.avably.app/",
+  ])("host platformy (%s) dostaje LP bez zmian i NIE odpytuje bazy", async (url) => {
+    const domainSpy = vi.fn(async () => null);
+    const response = await runProxy(new NextRequest(url), {
+      ...fakeDeps,
+      resolveTenantByDomain: domainSpy,
+    });
+
+    expect(response.status, `${url} dostał odmowę zamiast LP`).not.toBe(404);
+    expect(response.headers.get("location") ?? "", `${url} nie poszedł w routing locale`).toMatch(
+      /\/(en|pl)$/,
+    );
+    expect(domainSpy, `${url} poszedł do rozwiązywania po domenie`).not.toHaveBeenCalled();
+  });
+
+  it("subdomena tenanta i rozwiązana własna domena nadal trafiają do sklepu", async () => {
+    for (const url of ["https://acme.avably.io/", "https://sklep.najemca.example/"]) {
+      const response = await runProxy(new NextRequest(url), fakeDeps);
+
+      expect(response.status, `${url} dostał odmowę`).not.toBe(404);
+      expect(response.headers.get("x-middleware-rewrite") ?? "", url).toContain("/store");
+    }
   });
 });

@@ -17,17 +17,25 @@
  *     HOŚCIE (Zadanie 2.6, ADR-046).
  *
  * ZMIANA W 2.6 WZGLĘDEM ADR-039 (decyzja 3). Do 2.1 host spoza `*.avably.io`
- * wpadał WPROST w `marketing`, bo własne domeny najemców nie istniały. Teraz
- * dostaje własny wynik: wołający próbuje rozwiązać go przez
- * `app.resolve_tenant_by_domain`, a przy BRAKU trafienia wraca do
- * DOTYCHCZASOWEGO zachowania (marketing). Semantyka kanonu, dev i preview jest
+ * wpadał WPROST w `marketing`, bo własne domeny najemców nie istniały. Od 2.6
+ * dostaje własny wynik `foreign` i wołający próbuje rozwiązać go przez
+ * `app.resolve_tenant_by_domain`. Semantyka kanonu, dev i preview jest
  * nietknięta — te hosty nadal klasyfikują się jako `marketing` i nigdy nie
  * ruszają bazy.
  *
- * Neutralne 404 z ADR-039 zostaje bez zmian: chroni przed ujawnieniem istnienia
- * tenanta na osi `*.avably.io`, gdzie nieistniejący i zawieszony slug dają
- * identyczną odpowiedź. Obcy host nierozwiązany nadal nie jest 404 — pokazanie
- * 404 zamiast LP niczego by nie ochroniło, a zepsułoby hosty operacyjne.
+ * CO ROBI WOŁAJĄCY Z `foreign` BEZ TRAFIENIA — ZMIANA W ADR-131. Do 2026-08-10
+ * wracał na gałąź marketingową, przez co domena zawieszonego albo usuniętego
+ * najemcy serwowała jego klientom landing page Avably. Dziś kończy tym samym
+ * neutralnym 404 co nieznana subdomena (`apps/storefront/proxy.ts`), więc obie
+ * osie hostów mają JEDNĄ odmowę i żadna nie zdradza stanu tenanta.
+ *
+ * TA FUNKCJA JEST WOBEC TEGO BRAMKĄ HOSTÓW PLATFORMY: co zwróci `marketing`,
+ * zobaczy LP. Nowy host operacyjny (druga domena marketingowa, inny host
+ * podglądu) trzeba dopisać TUTAJ — pominięcie wpisu daje 404, nie wyciek.
+ *
+ * Neutralne 404 z ADR-039 zostaje bez zmian tam, gdzie już było: chroni przed
+ * ujawnieniem istnienia tenanta na osi `*.avably.io`, gdzie nieistniejący
+ * i zawieszony slug dają identyczną odpowiedź.
  */
 import { ROOT_DOMAIN, RESERVED_SUBDOMAINS } from "@avably/core";
 
@@ -47,6 +55,24 @@ export type HostClassification =
  */
 const LOOPBACK_HOSTS = ["127.0.0.1", "[::1]", "::1", "0.0.0.0"];
 const PREVIEW_SUFFIX = ".vercel.app";
+
+/**
+ * Pozostałe domeny NASZEGO portfela wskazane na ten sam deployment
+ * (`docs/dokumentacja/hub.html`: `avably.pl`, `avably.app` — marka/redirect).
+ * Apex i `www.`, bez subdomen: nie są tenant-rootami i nikt nie dostanie pod
+ * nimi sklepu.
+ *
+ * DLACZEGO DOPISANE DOPIERO PRZY ADR-131. Dopóki nierozwiązany host obcy
+ * spadał na marketing, te domeny działały PRZYPADKIEM — przez tę samą dziurę,
+ * którą ADR-131 zamyka. Zamknięcie jej bez tego wpisu wygasiłoby je na 404,
+ * gdyby którakolwiek była aliasem projektu, a nie redirectem na brzegu. Wpis
+ * jest więc zachowaniem stanu istniejącego, nie nową funkcją: jeśli redirect
+ * siedzi w DNS/Vercelu, żądanie i tak tu nie dociera i lista jest martwa.
+ *
+ * To NIE jest furtka dla obcych hostów — wyliczenie jest zamknięte i dotyczy
+ * wyłącznie domen, których właścicielem jesteśmy.
+ */
+const PLATFORM_MARKETING_DOMAINS = ["avably.pl", "avably.app"] as const;
 
 /**
  * Lustro CHECK-u `tenants.slug` z 0001_core.sql. Zgodność jest istotna: slug,
@@ -90,7 +116,12 @@ export function classifyHost(rawHost: string | null | undefined): HostClassifica
     return { kind: "marketing" };
   }
 
+  // Pozostałe domeny naszego portfela (apex i www) — patrz docblock listy.
+  if (PLATFORM_MARKETING_DOMAINS.some((own) => host === own || host === `www.${own}`)) {
+    return { kind: "marketing" };
+  }
+
   // Każdy inny host: kandydat na WŁASNĄ domenę najemcy (2.6). Rozstrzyga baza;
-  // brak trafienia → wołający wraca na gałąź marketingową (zachowanie z 2.1).
+  // brak trafienia → wołający odmawia neutralnym 404 (ADR-131).
   return { kind: "foreign", host };
 }
