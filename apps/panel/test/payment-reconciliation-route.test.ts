@@ -116,33 +116,33 @@ describe("trasa joba rekoncyliacji — autoryzacja", () => {
 });
 
 /**
- * HARMONOGRAM: DLACZEGO TEJ TRASY NIE MA W `vercel.json` (ADR-104).
+ * HARMONOGRAM: REKONCYLIACJA WRESZCIE CHODZI (ADR-130).
  *
- * Rekomendacja zadania brzmiała „co 15 minut". Plan hostingu na to nie
- * pozwala i nie jest to kwestia gęstości, tylko LICZBY: dopuszcza DWA
- * zadania cron, wyłącznie dzienne — a oba sloty są zajęte przez sprzątanie
- * uploadów zdjęć (produktów i sekcji). Trzeci wpis nie „chodziłby rzadziej",
- * tylko wywracałby wdrożenie, a wpis dzienny nie miałby dokąd wejść.
+ * Do odwołania jest nota, która stała tu wcześniej: że plan hostingu dopuszcza
+ * DWA zadania cron, oba sloty zajmuje sprzątanie uploadów, więc rekoncyliacja
+ * zostaje niepodpięta „świadomie". Limit liczby zadań dawno nie wynosi dwóch
+ * (dziś 100 na projekt); wiążące są tylko częstotliwość — raz na dobę —
+ * i precyzja ±59 min. Rekomendowane „co 15 minut" nadal jest poza zasięgiem
+ * tego planu, ale RAZ DZIENNIE było w zasięgu przez cały czas.
  *
- * Dlatego trasa jest gotowa i zabezpieczona, ale NIEPODPIĘTA pod harmonogram,
- * a operator ma dziś ścieżkę natychmiastową (przycisk „sprawdź status
- * płatności"), która rozwiązuje właściwy problem: brak wyjścia z zakleszczenia.
+ * Skutek starej noty: pętla, która jest jedynym wyjściem z zakleszczenia
+ * `payment_status='pending'` przy zgubionym webhooku, nie wykonała się ani
+ * razu. Przycisk operatora („sprawdź status płatności") rozwiązuje przypadek
+ * ZAUWAŻONY — a siatka bezpieczeństwa jest po to, żeby łapać niezauważone.
  *
- * Ten test pilnuje, żeby powyższe pozostało DECYZJĄ, a nie przeoczeniem:
- * dopisanie crona bez zmiany planu pali go razem z wdrożeniem, a nie po nim.
- * Po przejściu na plan bez tego limitu należy dopisać do `vercel.json` wpis
- * ze ścieżką `/api/jobs/payment-reconciliation` i harmonogramem co 15 minut,
- * a potem poprawić ten test wraz z bliźniaczym w product-image-upload-cleanup.
+ * Dziś rekoncyliację woła seria dzienna `/api/jobs/daily`, w której idzie
+ * OSTATNIA: jest najdroższa (do stu odczytów u dostawcy przez sieć)
+ * i najbardziej wznawialna, więc ucięcie budżetu boli ją najmniej.
+ * Osiągalności każdego zadania pilnuje `daily-jobs-route.test.ts`.
  */
-describe("harmonogram rekoncyliacji — bramka planu hostingu", () => {
+describe("harmonogram rekoncyliacji — przez serię dzienną", () => {
   const crons = (
     JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as {
       crons: { path: string; schedule: string }[];
     }
   ).crons;
 
-  it("konfiguracja mieści się w limicie: najwyżej dwa zadania, wszystkie dzienne", () => {
-    expect(crons.length).toBeLessThanOrEqual(2);
+  it("wszystkie wpisy są dzienne — częstszy wywraca wdrożenie, nie CI", () => {
     for (const cron of crons) {
       // Dzienny harmonogram ma konkretną minutę i godzinę — `*` albo `*/n`
       // na tych polach oznacza częstotliwość, której plan nie dopuszcza.
@@ -150,7 +150,10 @@ describe("harmonogram rekoncyliacji — bramka planu hostingu", () => {
     }
   });
 
-  it("rekoncyliacja NIE jest podpięta pod harmonogram — świadomie, nie przez pomyłkę", () => {
-    expect(crons.map((cron) => cron.path)).not.toContain("/api/jobs/payment-reconciliation");
+  it("rekoncyliacja JEST w serii dziennej, i to na końcu", async () => {
+    const { DAILY_JOBS } = await import("@/src/jobs/daily-run");
+
+    expect(DAILY_JOBS.at(-1)?.path).toBe("/api/jobs/payment-reconciliation");
+    expect(crons.map((cron) => cron.path)).toContain("/api/jobs/daily");
   });
 });

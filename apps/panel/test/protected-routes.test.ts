@@ -144,6 +144,21 @@ function paramsOf(routePath: string): Record<string, string> {
  */
 const API_ROUTE_PROTECTION = new Map<string, string>([
   [
+    "/api/jobs/daily",
+    "Seria dzienna — dyspozytor wszystkich czterech zadań cyklicznych " +
+      "(ADR-130). Endpoint nie używa sesji operatora, bo wywołuje go " +
+      "harmonogram Vercel. Chroni go Authorization: Bearer porównywany " +
+      "stałoczasowo z CRON_SECRET — DOKŁADNIE ten sam wzorzec co w trasach " +
+      "pojedynczych, bez drugiego mechanizmu: brak sekretu → 503, zły lub " +
+      "brakujący nagłówek → 401, odmowa jednolita i bez wyroczni. Każdy " +
+      "przypadek negatywny jest dowiedziony BRAKIEM WYWOŁANIA któregokolwiek " +
+      "rdzenia, nie samym kodem odpowiedzi (daily-jobs-route.test.ts). " +
+      "Powierzchnia uprawnień NIE ROŚNIE: dyspozytor woła te same rdzenie co " +
+      "trasy pojedyncze, a klient service_role pozostaje wyłącznie " +
+      "w src/jobs/**. Ta trasa jest przy tym najbardziej łakomym celem " +
+      "w app/api/jobs/, bo jedno wywołanie uruchamia wszystkie zadania naraz.",
+  ],
+  [
     "/api/jobs/product-image-uploads",
     "Cykliczne sprzątanie uploadów zdjęć (ADR-078) — endpoint nie używa " +
       "sesji operatora, bo wywołuje go harmonogram Vercel. Chroni go " +

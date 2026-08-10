@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/jobs/product-image-uploads",
-      "schedule": "17 3 * * *"
-    },
-    {
-      "path": "/api/jobs/site-image-uploads",
-      "schedule": "37 3 * * *"
+      "path": "/api/jobs/daily",
+      "schedule": "17 1 * * *"
     }
   ]
 }

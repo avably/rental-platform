@@ -105,36 +105,43 @@ describe("trasa retencji treści wiadomości — autoryzacja", () => {
 });
 
 /**
- * HARMONOGRAM: DLACZEGO TEJ TRASY NIE MA W `vercel.json` (ADR-116).
+ * HARMONOGRAM: TA TRASA JUŻ CHODZI — przez dyspozytora (ADR-130).
  *
- * Ta sama bramka planu hostingu, która zatrzymała rekoncyliację płatności
- * (L11/ADR-104): plan dopuszcza DWA zadania cron, wyłącznie dzienne, a oba
- * sloty zajmuje sprzątanie uploadów zdjęć. Trzeci wpis nie „chodziłby
- * rzadziej", tylko wywracałby wdrożenie.
+ * DO ODWOŁANIA JEST NOTA, KTÓRA STAŁA TU WCZEŚNIEJ. Twierdziła, że plan
+ * hostingu dopuszcza DWA zadania cron, oba zajęte przez sprzątanie uploadów,
+ * więc retencja czeka na zmianę planu. Konsekwencja była taka, że retencja
+ * treści wiadomości — czyli kasowanie DRUGIEJ KOPII danych osobowych klienta
+ * — nie wykonała się ANI RAZU, a test pilnował, żeby tak zostało.
  *
- * Retencja znosi to lepiej niż rekoncyliacja: jest z natury okresowa i nic
- * nie traci na tym, że przebieg spóźni się o dzień — czyści to samo, tylko
- * później. Do czasu zmiany planu wywołuje ją harmonogram zewnętrzny albo
- * ręczne wywołanie trasy z sekretem.
+ * Dwie rzeczy okazały się nieprawdą. Po pierwsze, limit liczby zadań dawno
+ * nie wynosi dwóch (dziś 100 na projekt); wiążące są tylko częstotliwość
+ * (raz na dobę) i precyzja (±59 min). Po drugie — i to jest lekcja
+ * właściwa — „zadanie świadomie bez harmonogramu" po kilku miesiącach nie
+ * różni się niczym od zadania zapomnianego.
  *
- * Ten test pilnuje, żeby powyższe pozostało DECYZJĄ, a nie przeoczeniem:
- * dopisanie crona bez zmiany planu pali CI, a nie produkcję.
+ * Dziś retencji NIE MA we wpisach crona nadal, ale z innego powodu: woła ją
+ * seria dzienna `/api/jobs/daily`, w której jest pierwsza (najtańsza).
+ * Osiągalności KAŻDEGO zadania z harmonogramu pilnuje test kompletności
+ * w `daily-jobs-route.test.ts` — tu sprawdzamy tylko, że retencja jest
+ * w serii i że nikt jej z niej po cichu nie wyjął.
  */
-describe("harmonogram retencji — bramka planu hostingu", () => {
+describe("harmonogram retencji — przez serię dzienną", () => {
   const crons = (
     JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")) as {
       crons: { path: string; schedule: string }[];
     }
   ).crons;
 
-  it("konfiguracja mieści się w limicie: najwyżej dwa zadania, wszystkie dzienne", () => {
-    expect(crons.length).toBeLessThanOrEqual(2);
+  it("wszystkie wpisy są dzienne — częstsze wywraca wdrożenie", () => {
     for (const cron of crons) {
       expect(cron.schedule).toMatch(/^\d+ \d+ \* \* \*$/);
     }
   });
 
-  it("retencja NIE jest podpięta pod harmonogram — świadomie, nie przez pomyłkę", () => {
-    expect(crons.map((cron) => cron.path)).not.toContain("/api/jobs/email-log-retention");
+  it("retencja JEST w serii dziennej — i to jest jej jedyny wyzwalacz", async () => {
+    const { DAILY_JOBS } = await import("@/src/jobs/daily-run");
+
+    expect(DAILY_JOBS.map((job) => job.path)).toContain("/api/jobs/email-log-retention");
+    expect(crons.map((cron) => cron.path)).toContain("/api/jobs/daily");
   });
 });
