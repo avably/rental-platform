@@ -48,11 +48,18 @@ export const CODE_READ_DIRECTORIES = ["docs/branding/"];
 /**
  * Pojedyncze pliki dokumentacji wymienione w kodzie (nie w komentarzu).
  * `hub.html` czytają skrypty weryfikacji brandingu; `konwencje-migracji.md`
- * pojawia się w treści komunikatów błędu strażników testów integracyjnych.
- * Skan nie odróżnia taniej odczytu od wzmianki, a przy wątpliwości obowiązuje
- * fail-closed — więc obie pozycje kosztują pełne CI.
+ * pojawia się w treści komunikatów błędu strażników testów integracyjnych;
+ * `audyt-env-rate-limit.md` (aneks ADR-039/ADR-106, 2026-08-10) pojawia się
+ * w treści `console.warn` w `packages/security/src/rate-limit.ts` — ten sam
+ * wzorzec co `konwencje-migracji.md`. Skan nie odróżnia taniej odczytu od
+ * wzmianki, a przy wątpliwości obowiązuje fail-closed — więc wszystkie trzy
+ * pozycje kosztują pełne CI.
  */
-export const CODE_READ_FILES = ["docs/dokumentacja/hub.html", "docs/konwencje-migracji.md"];
+export const CODE_READ_FILES = [
+  "docs/dokumentacja/hub.html",
+  "docs/konwencje-migracji.md",
+  "docs/audyty/2026-08-10-audyt-env-rate-limit.md",
+];
 
 /**
  * Czy ścieżka jest składniowo bezpieczna do klasyfikacji.

@@ -25,6 +25,19 @@
  * licznik in-memory. To świadomie miękka zapora (per instancja), ale lepsza
  * niż fail-open na czas awarii i jedyna opcja w dev/CI bez bazy. Decyzja i
  * konsekwencje: ADR-106.
+ *
+ * NIECICHY SYGNAŁ (aneks ADR-039/ADR-106, 2026-08-10): degradacja BEZ
+ * konfiguracji bazy (env kompletnie brak, nie tylko chwilowa awaria) była
+ * do tej pory całkowicie cicha — łącznie z uruchomieniem na Vercelu, gdzie
+ * per-instancyjny licznik NIE chroni globalnie i NIKT tego nie widział.
+ * Rozróżniamy „świadomie in-memory (dev/test/lokalny build)" od „produkcja
+ * bez bazy = cichy brak ochrony": przy braku env NA VERCELU (`isVercelRuntime`)
+ * leci jednorazowy `console.warn`, dev/CI zostaje ciche jak dotąd. Ten sam
+ * wzorzec i to samo ograniczenie dotyczy `@upstash/redis` w
+ * apps/storefront/lib/tenant/cache.ts (cache host→tenant, ADR-039) — TAM
+ * degradacja jest poprawnościowo bezpieczna (tylko mniej skuteczna), więc
+ * świadomie zostaje cicha; nie zmieniamy tego pliku. Zobacz
+ * docs/audyty/2026-08-10-audyt-env-rate-limit.md.
  */
 
 /**
@@ -110,7 +123,24 @@ function getDbConfig(): DbRateLimitConfig | null {
   return { url, anonKey };
 }
 
+/**
+ * Rozróżnia „dev/test/lokalny build" od „uruchomienie NA platformie Vercel"
+ * — czyli DOKŁADNIE środowisko wielo-instancyjne/wieloregionowe, w którym
+ * licznik in-memory przestaje realnie chronić.
+ *
+ * ŚWIADOMIE NIE `NODE_ENV`: `next start` ustawia `NODE_ENV=production` także
+ * przy uruchomieniu LOKALNYM (ten sam błąd znaleziony wcześniej empirycznie
+ * w apps/panel/.../payments-config.ts — `NODE_ENV` odpowiada „jak zbudowano",
+ * nie „gdzie to działa"). `VERCEL` to zmienna WYSTAWIANA PRZEZ PLATFORMĘ
+ * (build i runtime), więc nie da się jej ustawić przez pomyłkę lokalnym
+ * `next build && next start`.
+ */
+function isVercelRuntime(): boolean {
+  return process.env.VERCEL === "1";
+}
+
 let warnedDbFallback = false;
+let warnedNoDbConfigOnVercel = false;
 
 /**
  * Wywołanie app.check_rate_limit przez PostgREST. Zwraca null przy KAŻDYM
@@ -186,6 +216,21 @@ export async function checkRateLimit(
       );
       warnedDbFallback = true;
     }
+  } else if (isVercelRuntime() && !warnedNoDbConfigOnVercel) {
+    // Brak KOMPLETNEJ konfiguracji bazy na Vercelu — w odróżnieniu od gałęzi
+    // wyżej (baza skonfigurowana, ale chwilowo niedostępna) to nie jest
+    // przejściowa awaria: nikt nie ustawił env, więc licznik będzie in-memory
+    // (per instancja) NA STAŁE, dopóki ktoś tego nie zauważy. Na Vercelu to
+    // realnie oznacza brak globalnej ochrony (ADR-039/ADR-106, aneks
+    // 2026-08-10) — sygnał raz na proces, nie per żądanie, żeby nie zalać
+    // logów na gorącej ścieżce auth/checkout.
+    console.warn(
+      "[rate-limit] Brak konfiguracji bazy rate-limitu (NEXT_PUBLIC_SUPABASE_URL / " +
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY) na Vercelu — licznik in-memory jest PER INSTANCJA " +
+        "i na wielo-instancyjnym/wieloregionowym hostingu NIE chroni globalnie. Ustaw zmienne " +
+        "środowiskowe bazy. Patrz docs/audyty/2026-08-10-audyt-env-rate-limit.md.",
+    );
+    warnedNoDbConfigOnVercel = true;
   }
   return memoryRateLimit(bucketKey, opts.limit, opts.windowSeconds * 1000);
 }
@@ -194,4 +239,5 @@ export async function checkRateLimit(
 export function __resetMemoryRateLimitForTests(): void {
   memoryStore.clear();
   warnedDbFallback = false;
+  warnedNoDbConfigOnVercel = false;
 }
