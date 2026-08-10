@@ -6,6 +6,9 @@
  * mechanika progu/segmentacji jedzie po fallbacku (env bazy wyczyszczony).
  * Dowód WSPÓŁDZIELENIA licznika między instancjami żyje w teście
  * integracyjnym packages/db/test/auth-rate-limit.test.ts (żywa baza).
+ *
+ * Niecichy sygnał braku konfiguracji NA VERCELU (aneks ADR-039/ADR-106,
+ * 2026-08-10) ma własny opisany niżej.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,6 +33,10 @@ beforeEach(() => {
   // Izolacja od env procesu (lokalny Supabase, CI job rls): testy jednostkowe
   // mechaniki fallbacku nie mogą po cichu bić w prawdziwą bazę.
   for (const key of DB_ENV_KEYS) vi.stubEnv(key, "");
+  // Izolacja od platformy: bez tego dowolny test tego pliku uruchomiony
+  // PRZYPADKIEM z VERCEL=1 w środowisku (np. lokalny `vercel dev`) zacząłby
+  // po cichu zaliczać gałąź "produkcja bez bazy" i psuć niepowiązane testy.
+  vi.stubEnv("VERCEL", "");
 });
 
 afterEach(() => {
@@ -183,6 +190,64 @@ describe("fallback in-memory: segmentacja", () => {
     // Ten sam klucz i prefiks przy innym limicie dalej widzi ten sam licznik —
     // limit jest własnością wywołania, a nie osobną przestrzenią kluczy.
     expect((await checkRateLimit("ip:203.0.113.11", { ...OPTS, limit: 10 })).success).toBe(true);
+  });
+});
+
+describe("niecichy sygnał: produkcja (Vercel) bez konfiguracji bazy (aneks ADR-039/ADR-106)", () => {
+  it("VERCEL=1 + brak env bazy → jeden console.warn, mimo wielu wywołań", async () => {
+    vi.stubEnv("VERCEL", "1");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await checkRateLimit("ip:198.51.100.20", OPTS);
+    await checkRateLimit("ip:198.51.100.21", OPTS);
+    await checkRateLimit("ip:198.51.100.22", OPTS);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toMatch(/Vercel|in-memory|nie chroni globalnie/i);
+    warn.mockRestore();
+  });
+
+  it("VERCEL=1 + brak env bazy → limit dalej realnie działa (in-memory, nie fail-open)", async () => {
+    vi.stubEnv("VERCEL", "1");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const results = [];
+    for (let i = 0; i < 5; i += 1) {
+      results.push(await checkRateLimit("ip:198.51.100.23", OPTS));
+    }
+
+    expect(results.map((r) => r.success)).toEqual([true, true, true, false, false]);
+    warn.mockRestore();
+  });
+
+  it("VERCEL=1 + baza SKONFIGUROWANA → brak ostrzeżenia, używa bazy", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://db.example.test");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key-x");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = vi.fn(
+      async () => new Response(JSON.stringify([{ success: true, remaining: 2 }]), { status: 200 }),
+    );
+
+    const result = await checkRateLimit("ip:198.51.100.24", { ...OPTS, fetchFn });
+
+    expect(result).toEqual({ success: true, remaining: 2 });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("kontrola pozytywna — BEZ VERCEL (dev/test/lokalny build): brak env bazy zostaje CICHY", async () => {
+    // VERCEL już wyczyszczony w globalnym beforeEach — jawne powtórzenie dla
+    // czytelności intencji tego testu.
+    vi.stubEnv("VERCEL", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await checkRateLimit("ip:198.51.100.25", OPTS);
+
+    expect(result).toEqual({ success: true, remaining: 2 });
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 
