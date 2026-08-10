@@ -21,6 +21,7 @@ import type { Metadata } from "next";
 import { ReviewOverlayGate } from "@avably/review/overlay";
 
 import { fontVariables } from "@/app/fonts";
+import { isReviewSurfaceEnabled } from "@/lib/review-gate";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
@@ -63,8 +64,12 @@ export default async function TenantLayout({ children }: { children: ReactNode }
       <body className="min-h-full">
         {children}
         {/* Nakładka przeglądu (ADR-071) — warunki jak na osi marketingowej:
-            REVIEW_MODE + hasło site'u (proxy) + ?review=1 po stronie klienta. */}
-        {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="storefront" /> : null}
+            REVIEW_MODE=1 ORAZ środowisko inne niż produkcyjne (bramka
+            `isReviewSurfaceEnabled`), a trzeci warunek — `?review=1` — domyka
+            klient. Po zdjęciu Basic Auth (ADR-128) sklepy najemców są realnie
+            publiczne, więc sama flaga nie może być jedyną bramką: to jest
+            powierzchnia oglądana przez KLIENTÓW najemcy, nie przez nas. */}
+        {isReviewSurfaceEnabled() ? <ReviewOverlayGate surface="storefront" /> : null}
       </body>
     </html>
   );

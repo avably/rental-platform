@@ -210,7 +210,10 @@ export interface PaymentAccount {
 //
 // NARZĘDZIE WEWNĘTRZNE na czas przeglądu przed startem: tabele platformowe
 // (bez tenant_id), dostęp wyłącznie superadmin (RLS) lub service_role przez
-// podwójnie bramkowany endpoint storefrontu (REVIEW_MODE + hasło site'u).
+// podwójnie bramkowany endpoint storefrontu. Po ADR-128 (zdjęcie Basic Auth)
+// tymi dwiema bramkami są REVIEW_MODE=1 ORAZ środowisko inne niż produkcyjne
+// (`VERCEL_ENV`) — hasła całego site'u już nie ma, więc flaga wystawiona
+// przez pomyłkę na produkcji nie otwiera tej drogi sama z siebie.
 
 export type ReviewSurface = "panel" | "marketing" | "storefront";
 export type ReviewKind = "point" | "area";
