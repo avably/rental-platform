@@ -4,6 +4,44 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+/**
+ * Nagłówki bezpieczeństwa dla odpowiedzi, których `proxy.ts` NIE dotyka
+ * (L-01, audyt bezpieczeństwa 2026-08-09; ADR-124). Matcher proxy.ts
+ * (`"/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)"`) wyklucza
+ * `_next/static`, `_next/image`, favicon i KAŻDĄ ścieżkę z rozszerzeniem —
+ * te odpowiedzi (404 i zasoby statyczne) omijają `applySecurityHeaders` z
+ * `@avably/security`. `headers()` configu Next.js jest PODŁOGĄ pod całym
+ * ruchem — framework ją stosuje niezależnie od tego, czy proxy w ogóle się
+ * wykonało.
+ *
+ * Panel — w odróżnieniu od storefrontu — nie ma żadnej trasy embedowalnej
+ * (ADR-120 dotyczy wyłącznie `apps/storefront`), więc `X-Frame-Options: DENY`
+ * wchodzi tu GLOBALNIE, bez wyjątków ścieżkowych.
+ *
+ * WARTOŚCI MUSZĄ zostać zsynchronizowane z `applySecurityHeaders`
+ * (`packages/security/src/index.ts`) — pilnuje tego
+ * `test/next-config-headers.test.ts`. Nie importujemy stamtąd wprost: ten
+ * plik ładuje Node BEZPOŚREDNIO, zanim zadziała `transpilePackages` (ta
+ * działa dopiero w bundlu aplikacji, nie w loaderze configu).
+ *
+ * CSP NIE wchodzi tutaj — zostaje WYŁĄCZNIE w proxy.ts, gdzie dostaje
+ * świeży nonce per żądanie (statyczny CSP bez nonce na surowych zasobach
+ * byłby iluzją polityki, nie polityką).
+ */
+const STATIC_SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains; preload",
+  },
+  { key: "X-Frame-Options", value: "DENY" },
+];
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@avably/core", "@avably/db",
     "@avably/review", "@avably/security", "@avably/ui"],
@@ -73,6 +111,15 @@ const nextConfig: NextConfig = {
         source: "/:locale(pl|en)/katalog/punkty-odbioru/:rest*",
         destination: "/:locale/ustawienia-dostaw/punkty-odbioru/:rest*",
         permanent: true,
+      },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: STATIC_SECURITY_HEADERS,
       },
     ];
   },
