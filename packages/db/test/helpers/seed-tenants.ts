@@ -474,6 +474,29 @@ async function ensureSite(ctx: SeedCtx, tenantId: string): Promise<string> {
   return insertReturningId(ctx, "sites", { tenant_id: tenantId, template: "classic" });
 }
 
+/**
+ * Szkic dokumentu prawnego (0063) — GET-OR-CREATE z tego samego powodu co
+ * ensureSite: legal_documents ma UNIQUE(tenant_id, kind), a `kind` przyjmuje
+ * dokładnie dwie wartości, więc „świeży rodzic per wywołanie" kolidowałby
+ * 23505 przy drugim użyciu. Fabryka legal_document_versions reużywa szkic.
+ */
+async function ensureLegalDocument(ctx: SeedCtx, tenantId: string): Promise<string> {
+  const { data } = await ctx.admin
+    .from("legal_documents")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("kind", "terms")
+    .maybeSingle();
+  if (data) return data.id as string;
+  return insertReturningId(ctx, "legal_documents", {
+    tenant_id: tenantId,
+    kind: "terms",
+    title: "RLS test terms",
+    body_draft: "RLS test terms body",
+    locale: "pl",
+  });
+}
+
 type SampleRowFactory = (ctx: SeedCtx, tenantId: string) => Promise<Record<string, unknown>>;
 
 /**
@@ -615,6 +638,40 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     height_cm: 30,
     weight_kg: 10,
   }),
+  // Szkic dokumentu prawnego (0063). Rodzaj 'privacy', a NIE 'terms', i to nie
+  // jest kosmetyka: introspekcja zwraca legal_document_versions PRZED
+  // legal_documents, więc rodzic tworzony przez ensureLegalDocument ('terms')
+  // zajmuje już unikat (tenant_id, kind) w chwili zasiewu tej tabeli.
+  // Rozdzielenie rodzajów zdejmuje kolizję zasiewu, nie osłabiając testu:
+  // INSERT cross-tenant i tak odbija się 42501, bo RLS WITH CHECK jest
+  // egzekwowane przed unikalnością (patrz komentarz przy subscriptions).
+  legal_documents: async (_ctx, tenantId) => ({
+    tenant_id: tenantId,
+    kind: "privacy",
+    title: "RLS test privacy",
+    body_draft: "RLS test privacy body",
+    locale: "pl",
+  }),
+  // Wersja dokumentu (0063). Rodzic przez ensureLegalDocument (FK złożony
+  // wymaga szkicu TEGO SAMEGO tenanta), a version_no świeży per wywołanie —
+  // obejmuje go unikat (tenant_id, kind, version_no), więc powtórka dałaby
+  // 23505 zamiast 42501. sha256 podajemy poprawny kształtem, ale i tak
+  // nadpisze go trigger legal_document_versions_stamp.
+  legal_document_versions: async (ctx, tenantId) => {
+    const versionNo = 100_000 + Math.floor(Math.random() * 800_000);
+    return {
+      tenant_id: tenantId,
+      document_id: await ensureLegalDocument(ctx, tenantId),
+      kind: "terms",
+      version_no: versionNo,
+      version_label: `rls-test-v${versionNo}`,
+      title: "RLS test terms",
+      body: `RLS test terms body ${randomUUID()}`,
+      sha256: randomUUID().replace(/-/g, "").padEnd(64, "0"),
+      locale: "pl",
+      published_by: await createAuxMemberUser(ctx, tenantId),
+    };
+  },
   // Unikalny klucz per wywołanie — PK to (tenant_id, key), a kolizja dałaby
   // 23505 zamiast 42501 w teście INSERT-u cross-tenant (patrz usage_counters).
   tenant_settings: async (_ctx, tenantId) => ({
@@ -886,6 +943,15 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // Append-only tabela 0026 nie ma polityki UPDATE, ale macierz nadal wymaga
   // poprawnego patcha, żeby brak polityki był testowany, a nie pomijany.
   contract_documents: { terms_version: "rls-test-hacked" },
+  // title, a nie version_label ani body: etykietę obejmuje unikat
+  // (tenant_id, kind, version_label), a `body` jest źródłem sha256
+  // stemplowanego triggerem — patch na którejkolwiek z nich mieszałby odmowę
+  // RLS z błędem integralności. title jest poza unikatem i spełnia CHECK
+  // długości (0063). Rejestr wersji nie ma grantu UPDATE, ale macierz wymaga
+  // patcha, żeby brak polityki był testowany, a nie pomijany.
+  legal_document_versions: { title: "rls-test-hacked" },
+  // body_draft: poza unikatem, CHECK tylko na długość btrim 1..50000 (0063).
+  legal_documents: { body_draft: "rls-test-hacked" },
   // subject: bez indeksu unikalnego i poza CHECK-iem email_logs_result_shape
   // (ten wiąże wyłącznie status z provider_message_id/error), więc goła
   // mutacja na wszystkich widocznych wierszach nie wywoła ani 23505, ani
