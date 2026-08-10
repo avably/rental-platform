@@ -115,6 +115,12 @@ interface Props {
   initialProductId: string | null;
   theme: EmbedTheme;
   /**
+   * Opublikowany regulamin najemcy (B4/R18) — etykieta wersji z BAZY
+   * i adres do jego przeczytania. `undefined` = najemca nie opublikował
+   * regulaminu; wtedy widget zachowuje się dokładnie jak przed B4.
+   */
+  terms?: { href: string; versionLabel: string } | undefined;
+  /**
    * Pola własne DO WYPEŁNIENIA (C6-A3, ADR-121), zawężone na SERWERZE tą samą
    * funkcją, którą stosuje zapis. Embed jest trzecią powierzchnią na tym samym
    * rdzeniu, więc musi je renderować — inaczej najemca z polem WYMAGANYM
@@ -192,7 +198,8 @@ function Stopka({ theme, label }: { theme: EmbedTheme; label: string }) {
 }
 
 export function EmbedWidget(props: Props) {
-  const { copy, locale, products, pickupLocations, deliveryMethods, theme, customFields } = props;
+  const { copy, locale, products, pickupLocations, deliveryMethods, theme, customFields, terms } =
+    props;
   const t = copy.embed;
 
   const [productId, setProductId] = useState<string | null>(props.initialProductId);
@@ -332,7 +339,9 @@ export function EmbedWidget(props: Props) {
       paymentMethod: String(data.get("paymentMethod") ?? "transfer"),
       items: [{ productId, quantity: 1 }],
       termsAccepted: data.get("termsAccepted") === "on",
-      termsVersion: STOREFRONT_TERMS_VERSION,
+      // Etykieta z opublikowanego dokumentu; stała TYLKO gdy najemca
+      // żadnego nie opublikował (B4/R18).
+      termsVersion: terms?.versionLabel ?? STOREFRONT_TERMS_VERSION,
       locale,
       notes: String(data.get("notes") ?? ""),
       // Wartości trzymamy STRINGAMI, jak wychodzą z kontrolek — typowanie robi
@@ -628,7 +637,23 @@ export function EmbedWidget(props: Props) {
 
           <label className="avably-embed__terms">
             <input type="checkbox" name="termsAccepted" required />
-            <span>{t.termsLabel}</span>
+            {/*
+              Link otwiera się w NOWEJ karcie i celowo bez `opener`: ramka stoi
+              na cudzej stronie, więc nawigacja w miejscu zabrałaby klientowi
+              wypełniony formularz, a `noreferrer` odcina uchwyt do okna.
+            */}
+            <span>
+              {t.termsLabel}
+              {terms ? (
+                <>
+                  {" "}
+                  <a href={terms.href} target="_blank" rel="noreferrer" data-embed-terms-link>
+                    {copy.checkout.termsLinkText}
+                  </a>{" "}
+                  ({terms.versionLabel})
+                </>
+              ) : null}
+            </span>
           </label>
 
           {formError !== null ? (

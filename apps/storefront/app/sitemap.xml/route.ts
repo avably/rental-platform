@@ -18,6 +18,7 @@
 import { routing } from "@/i18n/routing";
 import { PUBLIC_PAGES } from "@/lib/marketing/template";
 import { getPublicCatalog } from "@/lib/checkout/catalog";
+import { getPublishedLegalDocuments, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
 import { resolveHostBranch } from "@/lib/seo/host-branch";
 import { marketingOrigin, originFromHost } from "@/lib/seo/origin";
 import { renderSitemap, type SitemapEntry } from "@/lib/seo/sitemap";
@@ -62,9 +63,10 @@ export async function GET(request: Request): Promise<Response> {
   const origin = originFromHost(host, proto);
   if (!origin) return notFound();
 
-  const [catalog, site] = await Promise.all([
+  const [catalog, site, legalDocuments] = await Promise.all([
     getPublicCatalog(branch.tenantId),
     getPublishedSite(branch.tenantId),
+    getPublishedLegalDocuments(branch.tenantId),
   ]);
 
   // Brak katalogu = tenant nieosiągalny publicznie (fail-closed jak kontekst
@@ -74,6 +76,17 @@ export async function GET(request: Request): Promise<Response> {
   const entries: SitemapEntry[] = [
     { loc: `${origin}/store`, lastmod: site.publishedAt },
     ...catalog.products.map((product) => ({ loc: `${origin}/product/${product.id}` })),
+    // Dokumenty prawne WARUNKOWO (B4, ADR-129) — tylko te faktycznie
+    // opublikowane, z `lastmod` z chwili publikacji. Wpis bezwarunkowy
+    // zgłaszałby wyszukiwarce adres, który sam oddaje 404, a najemca bez
+    // regulaminu jest po tej migracji stanem NORMALNYM, nie awarią.
+    // Permalinki wersji archiwalnych do sitemapy NIE wchodzą: mają służyć
+    // konkretnemu klientowi z konkretnym zamówieniem, a nie konkurować
+    // w wynikach z wersją obowiązującą (stąd też ich `noindex`).
+    ...legalDocuments.map((document) => ({
+      loc: `${origin}${LEGAL_DOCUMENT_PATHS[document.kind]}`,
+      lastmod: document.published_at,
+    })),
   ];
 
   return new Response(renderSitemap(entries), { headers: XML_HEADERS });

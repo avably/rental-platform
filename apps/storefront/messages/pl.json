@@ -566,7 +566,20 @@
           "tooLong": "Wartość jest za długa.",
           "notAllowed": "Tego pola nie da się tu wypełnić."
         }
-      }
+      },
+      "termsLabelLinked": "Akceptuję {link} wypożyczalni i zasady najmu.",
+      "termsLinkText": "regulamin"
+    },
+    "legal": {
+      "version": "Wersja {version}",
+      "publishedAt": "opublikowano {date}",
+      "checksum": "Suma kontrolna",
+      "archivedNotice": "Oglądasz archiwalną wersję tego dokumentu — obowiązywała w chwili, gdy została zaakceptowana.",
+      "currentVersionLink": "Zobacz wersję obowiązującą"
+    },
+    "notFound": {
+      "title": "Nie znaleziono strony",
+      "body": "Ten adres nie istnieje w tym sklepie albo strona została usunięta."
     },
     "payment": {
       "title": "Płatność",

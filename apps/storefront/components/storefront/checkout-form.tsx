@@ -58,6 +58,22 @@ import { checkoutCustomFieldKey } from "@/lib/checkout/custom-fields";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 
+/**
+ * OPUBLIKOWANY REGULAMIN — z serwera, nie ze stałej w przeglądarce (B4, R18).
+ *
+ * `versionLabel` nadała BAZA przy publikacji. Wysyłamy ją z powrotem jako
+ * DEKLARACJĘ, na którą wersję patrzył klient; baza konfrontuje ją z rejestrem
+ * i sama rozstrzyga, który wiersz przypiąć do zamówienia. Podmiana tej
+ * wartości w przeglądarce nie przypnie ani cudzej, ani nieistniejącej wersji.
+ *
+ * `undefined` = najemca nie opublikował regulaminu. Wtedy checkout zachowuje
+ * się dokładnie jak przed B4: etykieta bez linku i stała wersja.
+ */
+export interface CheckoutTerms {
+  href: string;
+  versionLabel: string;
+}
+
 interface CheckoutFormProps {
   products: PublicCatalogProduct[];
   deliveryMethods: PublicDeliveryMethod[];
@@ -66,6 +82,7 @@ interface CheckoutFormProps {
   locale: StorefrontLocale;
   copy: StorefrontCopy;
   turnstileSiteKey?: string | undefined;
+  terms?: CheckoutTerms | undefined;
   /**
    * Metody płatności policzone NA SERWERZE (ADR-066) — z odczytu stanu konta
    * najemcy u dostawcy, nie z kolumny w bazie. Tor offline jest w tej liście
@@ -107,6 +124,48 @@ function paymentLabel(copy: StorefrontCopy, method: CheckoutPaymentMethod): stri
     case "cod":
       return copy.checkout.paymentCod;
   }
+}
+
+/**
+ * TREŚĆ ZGODY — z linkiem, gdy jest dokąd linkować (B4).
+ *
+ * Do B4 etykieta była gołym tekstem: klient przyjmował regulamin, którego nie
+ * mógł przeczytać, bo sklep nie miał trasy /regulamin. Gdy dokument jest
+ * opublikowany, etykieta niesie link i numer wersji — czyli dokładnie to, co
+ * zapisze się na zamówieniu.
+ *
+ * Link wstawiamy przez PODZIAŁ SZABLONU na `{link}`, a nie przez sklejanie
+ * zdania z kawałków: tłumacz musi mieć wpływ na to, gdzie w zdaniu stoi
+ * odnośnik, bo w angielskim i polskim stoi gdzie indziej.
+ */
+function TermsConsentText({
+  copy,
+  terms,
+}: {
+  copy: StorefrontCopy;
+  terms?: CheckoutTerms | undefined;
+}) {
+  if (!terms) return <>{copy.checkout.termsLabel}</>;
+
+  const [before, after = ""] = copy.checkout.termsLabelLinked.split("{link}");
+  return (
+    <>
+      {before}
+      <a
+        className="underline underline-offset-4"
+        href={terms.href}
+        target="_blank"
+        rel="noreferrer"
+        data-checkout-terms-link="true"
+      >
+        {copy.checkout.termsLinkText}
+      </a>
+      {after}{" "}
+      <span className="opacity-70" data-checkout-terms-version="true">
+        ({terms.versionLabel})
+      </span>
+    </>
+  );
 }
 
 function paymentHint(copy: StorefrontCopy, method: CheckoutPaymentMethod): string {
@@ -177,6 +236,7 @@ export function CheckoutForm({
   turnstileSiteKey,
   paymentMethods,
   customFields,
+  terms,
 }: CheckoutFormProps) {
   const router = useRouter();
   const { cart, hydrated, clear } = useCart();
@@ -381,7 +441,10 @@ export function CheckoutForm({
         values.deliveryMethod === "pickup" ? values.pickupLocationId || undefined : undefined,
       items: toCheckoutItems(cart),
       termsAccepted: values.terms,
-      termsVersion: STOREFRONT_TERMS_VERSION,
+      // Etykieta z opublikowanego dokumentu, a stała TYLKO wtedy, gdy najemca
+      // żadnego nie opublikował (B4/R18). Stała nigdy nie była wersją niczego
+      // — była wartością domyślną czekającą na rejestr.
+      termsVersion: terms?.versionLabel ?? STOREFRONT_TERMS_VERSION,
       phone: values.phone || undefined,
       companyName: values.companyName || undefined,
       nip: values.nip || undefined,
@@ -771,7 +834,7 @@ export function CheckoutForm({
           />
           {/* Zgoda to tekst ciągły, nie etykieta pola — stąd bez `site-label`. */}
           <label htmlFor="co-terms" className="text-sm leading-6">
-            {copy.checkout.termsLabel}
+            <TermsConsentText copy={copy} terms={terms} />
           </label>
         </div>
         <FieldError id="co-terms-error" message={fields.terms ? copy.checkout.errors.terms : undefined} />

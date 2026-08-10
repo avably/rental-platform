@@ -17,6 +17,10 @@ import { headers } from "next/headers";
 
 import { getPublicCatalog } from "@/lib/checkout/catalog";
 import type { PublicCatalog } from "@/lib/checkout/contract";
+import {
+  getPublishedLegalDocuments,
+  type PublishedLegalDocumentSummary,
+} from "@/lib/legal/published";
 import { getPublishedSite, publishedSiteStyle, type PublishedSite } from "@/lib/site/published";
 import { getStorefrontCopy, type StorefrontCopy } from "@/lib/storefront/copy";
 import { normalizeStorefrontLocale, type StorefrontLocale } from "@/lib/storefront/locale";
@@ -36,6 +40,15 @@ export interface StorefrontContext {
   style: ResolvedSiteStyle;
   /** Pełna opublikowana strona (sekcje) — null gdy brak/nieopublikowana. */
   site: PublishedSite | null;
+  /**
+   * SPIS opublikowanych dokumentów prawnych — BEZ treści (B4, ADR-129).
+   * Siedzi w kontekście, a nie w stronie checkoutu, bo odpowiada na pytanie
+   * zadawane w kilku miejscach naraz („czy jest do czego linkować i pod jaką
+   * etykietą"), a jako czwarty człon Promise.all nie kosztuje ani jednej
+   * dodatkowej podróży w czasie odpowiedzi. Pusta tablica = stan każdego
+   * najemcy tuż po migracji: sklep działa dokładnie jak wcześniej.
+   */
+  legalDocuments: PublishedLegalDocumentSummary[];
   supabaseUrl: string;
 }
 
@@ -50,9 +63,10 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
   if (!tenantId) return null;
 
-  const [catalog, site] = await Promise.all([
+  const [catalog, site, legalDocuments] = await Promise.all([
     getPublicCatalog(tenantId),
     getPublishedSite(tenantId),
+    getPublishedLegalDocuments(tenantId),
   ]);
   if (!catalog) return null;
 
@@ -72,6 +86,7 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     copy,
     style,
     site,
+    legalDocuments,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   };
 }
