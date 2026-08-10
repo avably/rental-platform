@@ -20,7 +20,9 @@
 --     w app.superadmins,
 -- wpięte w komplet 125 polityk (152 wyrażenia USING/WITH CHECK) na
 -- 34 tabelach `public`, `storage.objects` i `app.superadmins`, plus w dwie
--- funkcje bramkujące upload do Storage. Cofnięcie uprawnień działa od
+-- funkcje bramkujące upload do Storage. Dodatkowo `app.is_tenant_owner()`
+-- awansuje na SECURITY DEFINER i wchodzi w miejsce 16 kopii inline'owego
+-- EXISTS (uzasadnienie niżej, przy rekurencji). Cofnięcie uprawnień działa od
 -- następnego zapytania, bez odświeżania tokenu i bez unieważniania sesji.
 --
 -- DLACZEGO BEZPARAMETROWE, A NIE `is_current_tenant_member(p_tenant_id)`
@@ -34,30 +36,44 @@
 -- jest owinięta w `(select …)`, więc planer robi z niej InitPlan — JEDNO
 -- wykonanie na całe zapytanie, niezależnie od liczby wierszy.
 --
--- DLACZEGO SECURITY DEFINER JEST OBOWIĄZKOWY, A NIE KOSMETYCZNY. Obie funkcje
--- czytają tabele, które SAME są chronione politykami zbudowanymi na
--- `app.tenant_id()`/`app.is_superadmin()`. Wariant INVOKER zapętliłby się:
--- polityka `public.members.tenant_select` wywołałaby predykat, ten czytałby
--- `public.members`, co znów odpaliłoby politykę — Postgres przerywa to
--- błędem 42P17 (infinite recursion detected in policy). DEFINER rozbraja
--- pętlę, bo funkcja działa z uprawnieniami właściciela (`postgres`), a ten
--- jest właścicielem obu tabel i ma `rolbypassrls`; repo NIGDZIE nie używa
--- `force row level security`, więc RLS na tabelach źródłowych nie jest
--- stosowane. Ten sam wzorzec chroni już `app.custom_access_token` (0003)
--- i `app.verify_api_key` (0053).
+-- DLACZEGO SECURITY DEFINER JEST OBOWIĄZKOWY — I CO SIĘ NAPRAWDĘ DZIEJE BEZ
+-- NIEGO (zmierzone, bo zalecenie audytu przewidywało co innego). Audyt i
+-- rekomendacja zakładały, że wariant INVOKER skończy się błędem 42P17
+-- („infinite recursion detected in policy"). Pomiar na lokalnym Postgresie
+-- 17.6 pokazał inny, GORSZY przebieg:
+--   * dla użytkownika BEZ członkostwa predykat po prostu zwraca false — cicho,
+--     bez żadnego błędu;
+--   * dla PRAWDZIWEGO członka zapytanie wywala się na `54001 stack depth limit
+--     exceeded` po ~766 ramkach rekurencji, co na zewnątrz wygląda jak HTTP 500
+--     na każdym żądaniu panelu i Storage.
+-- Powód rozbieżności: funkcja z przypiętym `search_path` NIE PODLEGA
+-- inliningowi, więc pętla domyka się dopiero w RUNTIME (wywołanie funkcji →
+-- polityka → wywołanie funkcji), a nie przy planowaniu — a detektor 42P17
+-- działa na etapie rozwijania planu. SECURITY DEFINER przecina to u źródła:
+-- funkcja działa z uprawnieniami właściciela (`postgres`), który jest
+-- właścicielem obu tabel i ma `rolbypassrls`, a repo NIGDZIE nie używa
+-- `force row level security`. Ten sam wzorzec chroni już
+-- `app.custom_access_token` (0003) i `app.verify_api_key` (0053).
 --
--- ODPOWIEDŹ NA RYZYKO „PREDYKAT CZYTAJĄCY MEMBERS W POLITYCE NA MEMBERS":
--- to jest dokładnie przypadek wyżej i jest rozbrojony świadomie, nie
--- przypadkiem. Polityka `public.members.tenant_select` dostaje predykat,
--- który czyta `public.members` — i to jest bezpieczne WYŁĄCZNIE dlatego, że
--- funkcja jest DEFINER. Gdyby ktoś kiedyś zmienił ją na INVOKER albo włączył
--- `force row level security` na `public.members`, panel padnie natychmiast
--- i głośno (42P17), a nie po cichu.
+-- SKĄD ZATEM BIERZE SIĘ 42P17 (i dlaczego ta migracja rusza owner-checki).
+-- Prawdziwe 42P17 nie ma źródła w predykacie, tylko w konstrukcji z 0001:
+-- polityki NA `public.members` zawierały inline `exists (select 1 from
+-- public.members m … role = 'owner')`, czyli odwołanie do members wewnątrz
+-- polityki na members. Na `main` to nie rekurencjowało. Zaczyna, gdy polityka
+-- SELECT na members dostaje PODZAPYTANIE `(select …)` — czyli dokładnie wtedy,
+-- gdy wpinamy tam predykat live. Zmierzona macierz (INSERT do members jako
+-- członek):
+--   inline EXISTS + stara polityka SELECT      → OK
+--   inline EXISTS + nowa polityka SELECT       → 42P17
+--   bez inline EXISTS + nowa polityka SELECT   → OK
+-- Dlatego 0060 USUWA inline EXISTS z polityk i nazywa go istniejącą bramką
+-- `app.is_tenant_owner()` — a tę awansuje na SECURITY DEFINER, żeby wywołanie
+-- z polityki na members nie wchodziło ponownie w RLS members.
 --
 -- GDZIE PREDYKAT ŚWIADOMIE NIE TRAFIA:
---   1. Do wnętrza inline'owego `exists (select 1 from public.members m …)`
---      sprawdzającego rolę ownera (16 wyrażeń). Ten EXISTS JEST już odczytem
---      members na żywo — dokładanie tam predykatu to szum, nie ochrona.
+--   1. Do wnętrza `app.is_tenant_owner()`. Ta bramka SAMA czyta members na
+--      żywo, więc poziom ownera nigdy nie był dziurawy — predykat członkostwa
+--      stoi obok niej, nie w niej.
 --   2. Do atomu `d.tenant_id = app.tenant_id()` wewnątrz `not exists`
 --      w polityce `storage.objects.rental_contracts_own_orphan_delete`.
 --      Dodanie go TAM odwróciłoby sens warunku: przy braku członkostwa
@@ -78,6 +94,24 @@
 -- zapytaniem do pg_policies, bez czytania 125 polityk okiem. Blok kontrolny
 -- na końcu tej migracji ten inwariant egzekwuje i wywraca migrację, gdyby
 -- rewrite był niekompletny.
+--
+-- CO SIĘ ZMIENIA W `app.is_tenant_owner()` I DLACZEGO TO BEZPIECZNE:
+--   * SECURITY INVOKER → SECURITY DEFINER. Wymuszone przez powyższą analizę
+--     rekurencji: bramka jest teraz wołana także z polityk NA `public.members`.
+--     Uzasadnienie bezpieczeństwa z 0007 zostaje w mocy — funkcja jest
+--     BEZPARAMETROWA i na sztywno przypięta do `app.tenant_id()` oraz
+--     `auth.uid()`, więc wywołana wprost nie mówi nic o cudzych tenantach,
+--     odpowiada wyłącznie na pytanie „czy JA jestem właścicielem SWOJEGO
+--     tenanta z claimu". Jedyny jej konsument poza politykami,
+--     `app.erase_customer` (0056), jest sam SECURITY DEFINER i wołał ją już
+--     dotąd z podniesionymi prawami — tam nie zmienia się nic.
+--   * Wywołania w politykach owinięte w `(select …)`. Dotąd stało tam gołe
+--     `app.is_tenant_owner()`, liczone PER WIERSZ (funkcja ma przypięty
+--     search_path, więc nie podlega inliningowi). Po zmianie to InitPlan —
+--     19 polityk przestaje wołać ją raz na wiersz.
+--   * 16 kopii inline'owego EXISTS znika na rzecz jednej nazwanej bramki.
+--     To jest dokładnie ten sam argument, którym 0007 uzasadniało powstanie
+--     `app.is_tenant_owner()`: „rozjazd między kopiami to cicha dziura".
 --
 -- ZNANY, ZAMIERZONY SKUTEK — UŻYTKOWNIK W DWÓCH ORGANIZACJACH. Hook wybiera
 -- do claimu NAJSTARSZE członkostwo. Użytkownik należący do A i B, usunięty
@@ -147,6 +181,38 @@ revoke all on function app.is_current_tenant_member() from public, anon;
 revoke all on function app.is_current_superadmin() from public, anon;
 grant execute on function app.is_current_tenant_member() to authenticated, service_role;
 grant execute on function app.is_current_superadmin() to authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- 1b. app.is_tenant_owner() — awans na SECURITY DEFINER
+-- ---------------------------------------------------------------------
+-- Ciało bez zmian (0007). Zmienia się WYŁĄCZNIE tryb wykonania, bo od tej
+-- migracji bramka jest wołana także z polityk NA `public.members`, gdzie
+-- wariant INVOKER wchodziłby ponownie w RLS tej samej tabeli. Uzasadnienie
+-- bezpieczeństwa i brak nowej powierzchni — patrz nagłówek.
+
+create or replace function app.is_tenant_owner() returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, app
+as $$
+  select exists (
+    select 1
+    from public.members m
+    where m.tenant_id = app.tenant_id()
+      and m.user_id = auth.uid()
+      and m.role = 'owner'
+  )
+$$;
+
+comment on function app.is_tenant_owner() is
+  'Czy auth.uid() jest właścicielem tenanta z claimu JWT. Od 0060 SECURITY '
+  'DEFINER: bramka jest wołana z polityk na public.members, gdzie INVOKER '
+  'wchodziłby ponownie w RLS tej samej tabeli. W politykach WYŁĄCZNIE jako '
+  '(select app.is_tenant_owner()) — bez owijki liczy się per wiersz.';
+
+revoke all on function app.is_tenant_owner() from public, anon;
+grant execute on function app.is_tenant_owner() to authenticated, service_role;
 
 -- ---------------------------------------------------------------------
 -- 2. Bramki uploadu do Storage — predykat wchodzi DO WNĘTRZA funkcji
@@ -238,13 +304,7 @@ alter policy tenant_insert on public.api_keys
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.api_keys
   using (
@@ -255,24 +315,12 @@ alter policy tenant_update on public.api_keys
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 
 -- public.audit_log
@@ -305,7 +353,7 @@ alter policy tenant_delete on public.courier_shipments
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.courier_shipments
   with check (
@@ -332,7 +380,7 @@ alter policy tenant_insert on public.custom_field_definitions
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.custom_field_definitions
   using (
@@ -343,12 +391,12 @@ alter policy tenant_update on public.custom_field_definitions
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 
 -- public.customer_bans
@@ -373,7 +421,7 @@ alter policy tenant_delete on public.customers
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.customers
   with check (
@@ -471,25 +519,13 @@ alter policy tenant_delete on public.invitations
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.invitations
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.invitations
   using (
@@ -500,24 +536,12 @@ alter policy tenant_update on public.invitations
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 
 -- public.members
@@ -525,25 +549,13 @@ alter policy tenant_delete on public.members
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.members
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.members
   using (
@@ -554,24 +566,12 @@ alter policy tenant_update on public.members
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 
 -- public.order_items
@@ -631,7 +631,7 @@ alter policy tenant_delete on public.orders
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.orders
   with check (
@@ -658,13 +658,13 @@ alter policy owner_delete on public.payment_accounts
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy owner_insert on public.payment_accounts
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.payment_accounts
   using (
@@ -686,7 +686,7 @@ alter policy tenant_delete on public.pickup_locations
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.pickup_locations
   with check (
@@ -765,7 +765,7 @@ alter policy tenant_delete on public.product_units
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.product_units
   with check (
@@ -792,7 +792,7 @@ alter policy tenant_delete on public.products
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.products
   with check (
@@ -924,25 +924,13 @@ alter policy tenant_delete on public.subscriptions
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.subscriptions
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.subscriptions
   using (
@@ -953,24 +941,12 @@ alter policy tenant_update on public.subscriptions
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 
 -- public.tenant_secrets
@@ -978,24 +954,24 @@ alter policy owner_delete on public.tenant_secrets
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy owner_insert on public.tenant_secrets
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy owner_update on public.tenant_secrets
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.tenant_secrets
   using (
@@ -1008,24 +984,24 @@ alter policy owner_insert on public.tenant_settings
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy owner_update on public.tenant_settings
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   )
   with check (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_delete on public.tenant_settings
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and app.is_tenant_owner()
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_select on public.tenant_settings
   using (
@@ -1060,13 +1036,7 @@ alter policy tenant_delete on public.usage_counters
   using (
     tenant_id = app.tenant_id()
     and (select app.is_current_tenant_member())
-    and exists (
-      select 1
-      from public.members m
-      where m.tenant_id = app.tenant_id()
-        and m.user_id = auth.uid()
-        and m.role = 'owner'
-    )
+    and (select app.is_tenant_owner())
   );
 alter policy tenant_insert on public.usage_counters
   with check (
@@ -1208,24 +1178,75 @@ begin
     raise exception 'R12a/H-01: bramki uploadu Storage bez predykatu live (znaleziono %/2)', v_count;
   end if;
 
-  -- 4d. Oba predykaty MUSZĄ być SECURITY DEFINER i STABLE. INVOKER zapętli
-  --     RLS (42P17) na members/superadmins, VOLATILE zabije InitPlan.
+  -- 4d. Wszystkie trzy bramki MUSZĄ być SECURITY DEFINER i STABLE. INVOKER
+  --     kończy się rekurencją (54001 albo 42P17, zależnie od ścieżki),
+  --     VOLATILE zabiłoby InitPlan.
   select count(*)
     into v_count
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'app'
-    and p.proname in ('is_current_tenant_member', 'is_current_superadmin')
+    and p.proname in ('is_current_tenant_member', 'is_current_superadmin', 'is_tenant_owner')
     and p.prosecdef
     and p.provolatile = 's';
-  if v_count <> 2 then
-    raise exception 'R12a/H-01: predykaty live nie są SECURITY DEFINER + STABLE (znaleziono %/2)', v_count;
+  if v_count <> 3 then
+    raise exception 'R12a/H-01: bramki nie są SECURITY DEFINER + STABLE (znaleziono %/3)', v_count;
   end if;
 
-  -- 4e. Predykaty nie mogą być wykonywalne przez anon ani PUBLIC.
+  -- 4e. Bramki nie mogą być wykonywalne przez anon ani PUBLIC.
   if has_function_privilege('anon', 'app.is_current_tenant_member()', 'execute')
-     or has_function_privilege('anon', 'app.is_current_superadmin()', 'execute') then
-    raise exception 'R12a/H-01: rola anon ma EXECUTE na predykatach live';
+     or has_function_privilege('anon', 'app.is_current_superadmin()', 'execute')
+     or has_function_privilege('anon', 'app.is_tenant_owner()', 'execute') then
+    raise exception 'R12a/H-01: rola anon ma EXECUTE na bramkach RLS';
+  end if;
+
+  -- 4f. ŻADNA polityka nie może odwoływać się do public.members inline.
+  --     To jest źródło 42P17 opisane w nagłówku: odwołanie do members
+  --     wewnątrz polityki, w parze z podzapytaniem w polityce SELECT na
+  --     members, domyka pętlę rozwijania polityk.
+  select count(*), coalesce(string_agg(schemaname || '.' || tablename || '.' || policyname, ', '), '')
+    into v_count, v_detail
+  from pg_policies
+  where schemaname in ('public', 'app', 'storage')
+    and (coalesce(qual, '') || ' ' || coalesce(with_check, '')) like '%FROM members%';
+  if v_count > 0 then
+    raise exception 'R12a/H-01: % polityk odwołuje się inline do public.members (ryzyko 42P17): %',
+      v_count, v_detail;
+  end if;
+
+  -- 4g. Każde wywołanie bramki w polityce musi być owinięte w (select …),
+  --     inaczej liczy się PER WIERSZ. Katalog zapisuje owinięte wywołanie
+  --     zawsze jako "( SELECT app.…", więc porównujemy liczniki (Postgres
+  --     nie ma lookbehind).
+  select count(*), coalesce(string_agg(what, ', '), '')
+    into v_count, v_detail
+  from (
+    select what from (
+      select schemaname || '.' || tablename || '.' || policyname as what,
+             (length(x) - length(replace(x, 'app.is_current_tenant_member()', '')))
+               / length('app.is_current_tenant_member()')
+             + (length(x) - length(replace(x, 'app.is_current_superadmin()', '')))
+               / length('app.is_current_superadmin()')
+             + (length(x) - length(replace(x, 'app.is_tenant_owner()', '')))
+               / length('app.is_tenant_owner()') as total,
+             (length(x) - length(replace(x, '( SELECT app.is_current_tenant_member()', '')))
+               / length('( SELECT app.is_current_tenant_member()')
+             + (length(x) - length(replace(x, '( SELECT app.is_current_superadmin()', '')))
+               / length('( SELECT app.is_current_superadmin()')
+             + (length(x) - length(replace(x, '( SELECT app.is_tenant_owner()', '')))
+               / length('( SELECT app.is_tenant_owner()') as wrapped
+      from (
+        select schemaname, tablename, policyname,
+               coalesce(qual, '') || ' ' || coalesce(with_check, '') as x
+        from pg_policies
+        where schemaname in ('public', 'app', 'storage')
+      ) e
+    ) c
+    where total <> wrapped
+  ) t;
+  if v_count > 0 then
+    raise exception 'R12a/H-01: % polityk woła bramkę BEZ owijki (select …) — liczenie per wiersz: %',
+      v_count, v_detail;
   end if;
 
   select count(*)
