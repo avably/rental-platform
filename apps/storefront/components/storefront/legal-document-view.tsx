@@ -82,7 +82,6 @@ export function LegalDocumentView({
         {paragraphs(body).map((paragraph, index) => (
           // Kolejność akapitów jest stała w obrębie renderu niezmiennej wersji
           // — indeks jest tu poprawnym kluczem, bo lista nie ma jak się zmienić.
-          // eslint-disable-next-line react/no-array-index-key
           <p key={index} className="whitespace-pre-line">
             {paragraph}
           </p>
