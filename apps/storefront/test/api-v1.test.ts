@@ -391,6 +391,14 @@ function makeReservationDeps(
       c.rateLimit.push(key);
       return { success: true };
     },
+    // Bilet zaufanej granicy (0059) — atrapa znakująca tenanta, żeby dało się
+    // sprawdzić, KTÓRYM tenantem bilet został związany (patrz przypadek
+    // „bilet wiąże tenanta z klucza, nie z ciała żądania").
+    issueTicket: (tenantId) => ({
+      exp: 2_000_000_000,
+      nonce: `nonce-${tenantId}`,
+      sig: `sig-${tenantId}`,
+    }),
     ip: "203.0.113.7",
     // Najemca bez pól własnych, o ile przypadek nie mówi inaczej.
     readCustomFields: async () => [],

@@ -139,6 +139,8 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     ip: "203.0.113.7",
     checkRateLimit: vi.fn(async () => ({ success: true })),
     verifyCaptcha: vi.fn(async () => ({ ok: true })),
+    // Bilet zaufanej granicy (0059) — atrapa; ta suita bada oś płatności.
+    issueTicket: vi.fn(() => ({ exp: 2_000_000_000, nonce: "nonce-testowy", sig: "sig-testowy" })),
     callRpc: vi.fn(async () => rpcResult()),
     sendEmails: vi.fn(async () => []),
     readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: true, chargesEnabled: true })),

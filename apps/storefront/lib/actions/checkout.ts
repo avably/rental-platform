@@ -27,6 +27,7 @@ import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
+import { issueCheckoutTicket } from "@/lib/checkout/ticket";
 import {
   CHECKOUT_COOKIE,
   CHECKOUT_COOKIE_MAX_AGE_SECONDS,
@@ -77,6 +78,12 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
     checkRateLimit: (key, opts) =>
       checkRateLimit(key, { ...opts, prefix: STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX }),
     verifyCaptcha: (token) => verifyTurnstile(token),
+    // Bilet zaufanej granicy (0059, ADR-125). Sekret bierze się z env procesu
+    // (serwerowy, bez NEXT_PUBLIC_) wewnątrz issueCheckoutTicket — akcja
+    // podaje tylko tenanta, którego bilet ma wiązać. Tenant pochodzi
+    // z nagłówka middleware'u, nie od klienta: bilet dla cudzego sklepu
+    // byłby dokładnie tym, przed czym broni wiązanie tenanta w bazie.
+    issueTicket: () => issueCheckoutTicket(tenantId),
     callRpc: async (args: CheckoutRpcArgs): Promise<CheckoutRpcResult> => {
       const supabase = await createSupabaseServerClient();
       const { data, error } = await supabase.schema("app").rpc("public_checkout", args);

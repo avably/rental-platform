@@ -14,6 +14,7 @@
 import type { CustomFieldDefinition } from "@avably/core";
 
 import { CHECKOUT_RATE_LIMIT, submitCheckoutCore, type CheckoutRpcArgs, type CheckoutRpcResult } from "@/lib/checkout/core";
+import type { CheckoutTicket } from "@/lib/checkout/ticket";
 import type { OnlinePaymentAvailability } from "@/lib/checkout/payment-options";
 import { embedError, embedJson, type EmbedMonthPayload } from "./contract";
 import { embedOriginAllowed } from "./origin";
@@ -51,6 +52,14 @@ export interface EmbedMonthDeps extends EmbedDeps {
 
 export interface EmbedReservationDeps extends EmbedDeps {
   callRpc: (args: CheckoutRpcArgs) => Promise<CheckoutRpcResult>;
+  /**
+   * Bilet zaufanej granicy (0059, ADR-125) — ten sam port co w sklepie i v1,
+   * bo baza nie zna powierzchni, tylko ważność biletu. Embed nie ma captchy
+   * (widget w cudzej ramce to wektor UX, nie bezpieczeństwa), więc bramką
+   * poprzedzającą bilet jest tu przedsionek: sprawdzenie pochodzenia
+   * i dławienie po IP odwiedzającego.
+   */
+  issueTicket: (tenantId: string) => CheckoutTicket;
   /**
    * Definicje pól własnych zamawiania (C6-A3, 0058). Embed jest TRZECIĄ
    * powierzchnią na tym samym rdzeniu, więc dostaje je tą samą drogą co sklep
@@ -152,6 +161,7 @@ export async function handleEmbedReservationRequest(
     // widget captchy w cudzej ramce jest wektorem UX, nie bezpieczeństwa, a
     // zaporą jest dławienie po IP odwiedzającego (to samo, co na storefroncie).
     verifyCaptcha: async () => ({ ok: true }),
+    issueTicket: () => deps.issueTicket(tenantId),
     callRpc: deps.callRpc,
     sendEmails: (ctx) => deps.sendEmails(tenantId, ctx),
     readOnlineAvailability: () => deps.readOnlineAvailability(tenantId),

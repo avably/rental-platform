@@ -34,6 +34,7 @@ import {
   type CheckoutRpcArgs,
   type CheckoutRpcResult,
 } from "@/lib/checkout/core";
+import type { CheckoutTicket } from "@/lib/checkout/ticket";
 import type { OnlinePaymentAvailability } from "@/lib/checkout/payment-options";
 import type { PublicAvailability, PublicCatalog } from "@/lib/checkout/contract";
 
@@ -71,6 +72,13 @@ export interface AvailabilityDeps extends ApiV1Deps {
 
 export interface ReservationDeps extends ApiV1Deps {
   callRpc: (args: CheckoutRpcArgs) => Promise<CheckoutRpcResult>;
+  /**
+   * Bilet zaufanej granicy (0059, ADR-125) — port, nie import, jak w rdzeniu.
+   * Tenant przychodzi z ZWERYFIKOWANEGO klucza, nie z żądania (patrz nagłówek
+   * modułu): bilet wiąże tenanta, więc wzięcie go z ciała żądania oddałoby
+   * wołającemu prawo wskazania, dla czyjego sklepu bilet ma być ważny.
+   */
+  issueTicket: (tenantId: string) => CheckoutTicket;
   /** Definicje pól własnych zamawiania (0058) — patrz lib/checkout/custom-fields.ts. */
   readCustomFields: (tenantId: string) => Promise<CustomFieldDefinition[]>;
   sendEmails: (tenantId: string, ctx: CheckoutRpcResult) => Promise<string[]>;
@@ -189,6 +197,10 @@ export async function handleReservationRequest(
       checkApiRateLimits("reservation", admitted.keyId, deps.ip, deps.checkRateLimit),
     // Bramkę captchy zastąpił klucz API (server-to-server) — patrz nagłówek.
     verifyCaptcha: async () => ({ ok: true }),
+    // Bilet wiąże tenanta Z KLUCZA — tego samego, którym przedsionek wpuścił
+    // to żądanie. Rdzeń wystawia go zaraz za `verifyCaptcha`, więc tutaj
+    // „zaliczoną bramką" jest weryfikacja klucza, nie łamigłówka.
+    issueTicket: () => deps.issueTicket(admitted.tenantId),
     rememberCheckout: async () => {},
     callRpc: deps.callRpc,
     sendEmails: (ctx) => deps.sendEmails(admitted.tenantId, ctx),

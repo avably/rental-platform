@@ -46,7 +46,17 @@ export function embedMonthDeps(request: Request): EmbedMonthDeps {
  * wyłącznie przedsionek (tam klucz API, tu same-origin).
  */
 export function embedReservationDeps(request: Request): EmbedReservationDeps {
-  const { callRpc, sendEmails, readOnlineAvailability, readCustomFields } =
+  // [0059] `issueTicket` jedzie w tym samym pakiecie portów co reszta — embed
+  // dziedziczy mint razem z RPC, więc nie może powstać powierzchnia, która
+  // woła checkout bez biletu (ADR-125).
+  const { callRpc, sendEmails, readOnlineAvailability, readCustomFields, issueTicket } =
     reservationDeps(request);
-  return { ...baseDeps(request), callRpc, sendEmails, readOnlineAvailability, readCustomFields };
+  return {
+    ...baseDeps(request),
+    callRpc,
+    sendEmails,
+    readOnlineAvailability,
+    readCustomFields,
+    issueTicket,
+  };
 }
