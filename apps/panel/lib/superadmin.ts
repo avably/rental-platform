@@ -40,6 +40,11 @@ export async function requireSuperadminPage(nextPath: string = SUPERADMIN_HOME):
     if (error.code === "unauthenticated") redirect(await localePath("/login", next));
     if (error.code === "mfa_required") redirect(await localePath("/bezpieczenstwo/wyzwanie", next));
     if (error.code === "mfa_enrollment_required") redirect(await localePath("/bezpieczenstwo", next));
+    // Cofnięty superadmin (R12b/H-01): wpis app.superadmins zniknął, a claim
+    // wciąż mówi superadmin=true. NIE notFound() — to zamaskowałoby /admin jako
+    // 404 i zostawiło usera z martwym claimem; kierujemy na /dostep-cofniety,
+    // który wylogowuje i odsyła na /login (jak dla cofniętego członka).
+    if (error.code === "membership_revoked") redirect(await localePath("/dostep-cofniety"));
     notFound();
   }
 }

@@ -2092,6 +2092,11 @@
     "description": "Dostęp do panelu został wstrzymany. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
     "logout": "Wyloguj się"
   },
+  "accessRevoked": {
+    "title": "Dostęp został cofnięty",
+    "description": "Nie masz już dostępu do tej organizacji. Zaloguj się ponownie, aby kontynuować — jeśli należysz do innej organizacji, zostanie wybrana automatycznie.",
+    "logout": "Zaloguj się ponownie"
+  },
   "dataExport": {
     "backLink": "Organizacja",
     "intro": "Pobierz swoje dane jako pliki CSV (UTF-8, separator średnika — otwierają się wprost w Excelu). Kwoty są zapisane w groszach, z walutą zamówienia w osobnej kolumnie.",

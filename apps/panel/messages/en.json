@@ -2092,6 +2092,11 @@
     "description": "Access to the panel has been put on hold. Contact Avably support to restore access.",
     "logout": "Sign out"
   },
+  "accessRevoked": {
+    "title": "Access revoked",
+    "description": "You no longer have access to this organization. Sign in again to continue — if you belong to another organization, it will be selected automatically.",
+    "logout": "Sign in again"
+  },
   "dataExport": {
     "backLink": "Organization",
     "intro": "Download your data as CSV files (UTF-8, semicolon separator — they open directly in Excel). Amounts are stored in grosze, with the order currency in a separate column.",
