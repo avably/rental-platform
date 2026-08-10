@@ -49,8 +49,9 @@ export default async function LocaleLayout({
         <link href="/forerunner/css/webflow.css" rel="stylesheet" />
         <link href="/forerunner/css/forerunner-template.webflow.css" rel="stylesheet" />
         <link href="/forerunner/css/avably-marketing.css" rel="stylesheet" />
-        <link href="/forerunner/images/avably-favicon.svg" rel="shortcut icon" type="image/x-icon" />
-        <link href="/forerunner/images/avably-favicon.svg" rel="apple-touch-icon" />
+        {/* Ikona SVG marki dla przeglądarek; starsze wracają do app/favicon.ico
+            (konwencja Next). Bez apple-touch-icon — iOS wymaga tam PNG, a nie SVG. */}
+        <link href="/forerunner/images/avably-favicon.svg" rel="icon" type="image/svg+xml" />
         {/* Bez JS interakcje szablonu nie odsłonią elementów startujących od
             opacity:0 — reguła awaryjna pokazuje treść zamiast pustej strony. */}
         <noscript>
