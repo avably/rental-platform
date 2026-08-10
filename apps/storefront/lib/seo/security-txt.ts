@@ -13,15 +13,23 @@
  * raportu zadania I-01. Bez tego plik w końcu przekroczy termin ważności i
  * przestanie być zgodny z RFC (choć nadal będzie zwracał 200).
  *
- * `Contact` wskazuje na `admin@avably.io`. W repo/DNS nie ma w chwili pisania
- * (2026-08-09) dowodu na istnienie dedykowanego aliasu `security@avably.io`
- * — patrz ADR-123. Gdy właściciel założy alias, wystarczy podmienić stałą
- * `SECURITY_TXT_CONTACT` poniżej.
+ * `Contact` wskazuje na `security@avably.io` — dedykowany alias, którego
+ * RFC 9116 oczekuje. Alias istnieje od 2026-08-10 jako PRZEKIEROWANIE w OVH
+ * (MX Plan → Zarządzanie przekierowaniami), założone przez właściciela; nie
+ * jest osobną skrzynką, więc dowodu na jego istnienie nie widać ani w repo,
+ * ani w rekordach DNS — patrz ADR-123. Do 2026-08-10 pole wskazywało
+ * `admin@avably.io`, bo wymyślanie adresu, który odbije się błędem
+ * doręczenia, jest gorsze niż brak specjalizacji; uzasadnienie zostaje
+ * aktualne na wypadek, gdyby przekierowanie kiedyś zniknęło.
+ *
+ * `admin@avably.io` NIE jest tu zamiennikiem: w politykach prywatności
+ * (`messages/*.json`) występuje jako adres administratora danych (RODO) i to
+ * inny kanał niż zgłaszanie podatności.
  */
 import { CANONICAL_SITE_URL } from "@avably/core";
 
 /** Patrz docblock modułu — wymaga ręcznej weryfikacji przy odświeżaniu. */
-export const SECURITY_TXT_CONTACT = "admin@avably.io";
+export const SECURITY_TXT_CONTACT = "security@avably.io";
 
 /**
  * ISODATE (RFC 3339) w przyszłości, ok. 12 miesięcy od publikacji

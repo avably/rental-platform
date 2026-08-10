@@ -7,11 +7,20 @@
  * `Canonical` i tego, że `Expires` jest realną datą w przyszłości (nie
  * literałem, który przypadkiem wygląda jak ISODATE, ale wskazuje w
  * przeszłość — patrz docblock `lib/seo/security-txt.ts` o stałej dacie).
+ *
+ * Adres kontaktowy jest PRZYPIĘTY do literału (2026-08-10): sam regex domeny
+ * przepuszcza każdy adres `@avably.io`, więc literówka w stałej trafiłaby na
+ * produkcję bez czerwonego testu.
  */
 import { describe, expect, it } from "vitest";
 
 import { GET } from "../app/.well-known/security.txt/route";
-import { renderSecurityTxt, SECURITY_TXT_CANONICAL, SECURITY_TXT_EXPIRES } from "../lib/seo/security-txt";
+import {
+  renderSecurityTxt,
+  SECURITY_TXT_CANONICAL,
+  SECURITY_TXT_CONTACT,
+  SECURITY_TXT_EXPIRES,
+} from "../lib/seo/security-txt";
 
 describe("GET /.well-known/security.txt", () => {
   it("zwraca 200 z text/plain; charset=utf-8", async () => {
@@ -25,6 +34,17 @@ describe("GET /.well-known/security.txt", () => {
     const body = await response.text();
     expect(body).toMatch(/^Contact: mailto:[^\s@]+@avably\.io$/m);
     expect(body).toMatch(/^Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+  });
+
+  it("Contact wskazuje DOKŁADNIE na alias zgłoszeniowy, a nie na dowolny adres @avably.io", async () => {
+    // Dwie asercje, bo każda broni czego innego. Pierwsza PRZYPINA literał:
+    // regex wyżej przepuszcza każdy adres w domenie, więc literówka w stałej
+    // (`secuirty@`) albo cofnięcie na `admin@` przeszłyby niezauważone.
+    expect(SECURITY_TXT_CONTACT).toBe("security@avably.io");
+    // Druga sprawdza, że renderer NAPRAWDĘ wstawia tę stałą do odpowiedzi
+    // trasy — czyta z `GET()`, tak jak czyta produkcja, nie z samego modułu.
+    const body = await (await GET()).text();
+    expect(body).toContain(`Contact: mailto:${SECURITY_TXT_CONTACT}`);
   });
 
   it("Preferred-Languages i Canonical zgodne z kontraktem zadania", () => {
