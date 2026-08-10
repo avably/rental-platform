@@ -183,9 +183,21 @@
   
   <section class="section hero-home-a">
     <!-- A2/delta wizualna: wideo z szablonu (bonsai na cokole, ~2,8 MB na wejście)
-         USUNIĘTE. Nie mówiło nic o wynajmie sprzętu, a pierwszy ekran nie ma
-         czego animować — tło niesie kolor marki, treść niesie zdanie. -->
+         USUNIĘTE. Na jego miejsce wchodzi materiał o wynajmie sprzętu — magazyn
+         z ponumerowanymi miejscami — i to BEZ JEDNEJ LINII JAVASCRIPTU.
+         Powód jest twardy: `buildCsp` daje `script-src 'self' 'nonce-…'
+         'strict-dynamic'`, a przy `strict-dynamic` liczy się WYŁĄCZNIE nonce.
+         Pliki `marketing/*.html` są statyczne i nonce'a nie dostaną nigdy, więc
+         skrypt wstawiony tutaj nie wykonałby się PO CICHU. Bramki ruchu i
+         urządzenia są w CSS (`avably-marketing.css`), gdzie naprawdę działają. -->
     <div class="home-a-video tlo-marki">
+      <img src="/marketing/hero-poster-1600.webp" srcset="/marketing/hero-poster-750.webp 750w, /marketing/hero-poster-1600.webp 1600w" sizes="100vw" alt="{{hero.posterAlt}}" width="1600" height="900" fetchpriority="high" decoding="async" class="hero-media-obraz">
+      <video class="hero-media-wideo" poster="/marketing/hero-poster-1600.webp" width="1280" height="720" autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+        <source src="/marketing/hero-magazyn-720.av1.mp4" type='video/mp4; codecs="av01.0.05M.08"'>
+        <source src="/marketing/hero-magazyn-720.vp9.webm" type='video/webm; codecs="vp9"'>
+        <source src="/marketing/hero-magazyn-720.h264.mp4" type='video/mp4; codecs="avc1.64001f"'>
+      </video>
+      <div class="hero-media-scrim"></div>
       <div class="w-layout-blockcontainer main-container w-container">
         <div class="home-a-hero-maser">
           <div class="home-a-hero-left">
@@ -326,7 +338,48 @@
       </div>
     </div>
   </section>
-  <section class="section home-a-tabs-section">
+  <!-- Pas branż. Zdjęcia są stockowe i pokazują SPRZĘT, nie ludzi: licencja
+       autorska nie jest zgodą modela, więc w całym doborze nie ma ani jednej
+       twarzy. Podpisy nazywają rodzaj wynajmu, a nie obiecują szablonu na
+       każdą z pięciu pozycji — gotowych szablonów sklepu jest sześć i mówi
+       o tym nota pod siatką. -->
+  <section class="section home-a-branze-section">
+    <div class="w-layout-blockcontainer main-container w-container">
+      <div class="headline-home-a-features">
+        <div class="label-master dark">
+          <div class="label-small">{{branze.eyebrow}}</div>
+        </div>
+        <h2 class="no-margins">{{branze.title}}</h2>
+      </div>
+      <div class="branze-siatka">
+        <div class="branze-kafel">
+          <img src="/marketing/kafel-budowlana-560.webp" alt="{{branze.item1Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
+          <div class="text-h6">{{branze.item1Title}}</div>
+        </div>
+        <div class="branze-kafel">
+          <img src="/marketing/kafel-narzedziowa-560.webp" alt="{{branze.item2Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
+          <div class="text-h6">{{branze.item2Title}}</div>
+        </div>
+        <div class="branze-kafel">
+          <img src="/marketing/kafel-eventowa-560.webp" alt="{{branze.item3Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
+          <div class="text-h6">{{branze.item3Title}}</div>
+        </div>
+        <div class="branze-kafel">
+          <img src="/marketing/kafel-fotovideo-560.webp" alt="{{branze.item4Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
+          <div class="text-h6">{{branze.item4Title}}</div>
+        </div>
+        <div class="branze-kafel">
+          <img src="/marketing/kafel-rowerowa-560.webp" alt="{{branze.item5Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
+          <div class="text-h6">{{branze.item5Title}}</div>
+        </div>
+      </div>
+      <div class="text-dark-64 branze-nota">{{branze.note}}</div>
+    </div>
+  </section>
+  <!-- Kotwica „Zobacz, co działa dziś" z pierwszego ekranu celuje w tę sekcję.
+       Do A2 `href="#features"` nie miało po drugiej stronie żadnego `id`, więc
+       przycisk nie robił nic. -->
+  <section id="features" class="section home-a-tabs-section">
     <div class="w-layout-blockcontainer main-container w-container">
       <div class="headline-home-a-tabs">
         <div class="label-master dark">
@@ -622,7 +675,7 @@
           <div class="label-small">{{momentum.eyebrow}}</div>
         </div>
         <h2 class="no-margins">{{momentum.title}}</h2>
-        <a href="{{link.home}}" data-wf--cta-with-icon--variant="accent" class="cta-with-icon w-variant-efda6085-5a78-5371-a9fa-ad9d2b532869 w-inline-block">
+        <a href="{{link.register}}" data-wf--cta-with-icon--variant="accent" class="cta-with-icon w-variant-efda6085-5a78-5371-a9fa-ad9d2b532869 w-inline-block">
           <div class="button-text-mask">
             <div class="button-text _1">{{nav.cta}}</div>
             <div class="button-text _2">{{nav.cta}}</div>

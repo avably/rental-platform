@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 
 import { MarketingPageView } from "@/components/marketing/marketing-page-view";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { marketingLinks } from "@/lib/marketing/template";
 import { routing } from "@/i18n/routing";
 import enMessages from "@/messages/en.json";
 
@@ -41,6 +42,11 @@ export default async function WaitlistPage({ params }: { params: Promise<{ local
       copy={{ ...messages.marketing, form: messages.landing.form }}
       island={
         <WaitlistForm
+          alt={{
+            cta: messages.landing.waitlistPage.altCta,
+            href: marketingLinks(locale as Locale).link.register,
+            lead: messages.landing.waitlistPage.altLead,
+          }}
           copy={messages.landing.form}
           enabled={process.env.WAITLIST_ENABLED === "true"}
           locale={locale as Locale}
