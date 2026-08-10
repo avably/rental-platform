@@ -1,7 +1,7 @@
 /**
  * Wspólna warstwa HTTP endpointów przeglądu (ADR-071). Appki różnią się
  * WYŁĄCZNIE bramką i klientem (panel: sesja superadmina/RLS; storefront:
- * service_role za REVIEW_MODE + hasłem site'u) — parsowanie żądań i kody
+ * relay do ingest panelu za `isReviewSurfaceEnabled`, ADR-099/128) — kody
  * odpowiedzi są jedną implementacją, więc obie drogi zachowują się
  * identycznie z perspektywy nakładki.
  */

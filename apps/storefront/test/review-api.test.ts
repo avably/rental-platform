@@ -67,6 +67,50 @@ describe("kill-switch REVIEW_MODE", () => {
     expect(outbound).not.toHaveBeenCalled();
   });
 
+  /**
+   * DRUGI ZAMEK, WPROWADZONY PRZY ODSŁONIĘCIU LP (ADR-128). Do 2026-08-10
+   * przegląd miał na storefroncie dwie bramki serwerowe: REVIEW_MODE oraz
+   * hasło całego site'u. Po zdjęciu hasła sama flaga wystawiona przez pomyłkę
+   * w produkcji otwierałaby nakładkę i zapis uwag każdemu z `?review=1`.
+   * `VERCEL_ENV` (zmienna SYSTEMOWA platformy) domyka produkcję niezależnie
+   * od flagi — preview i lokalne uruchomienia zostają nietknięte, bo na nich
+   * ta zmienna ma inną wartość albo nie istnieje.
+   */
+  it("REVIEW_MODE=1, ale VERCEL_ENV=production → 404, zero żądań", async () => {
+    vi.stubEnv("REVIEW_MODE", "1");
+    vi.stubEnv("REVIEW_INGEST_TOKEN", TOKEN);
+    vi.stubEnv("VERCEL_ENV", "production");
+    const outbound = vi.fn();
+    vi.stubGlobal("fetch", outbound);
+
+    const { GET, POST } = await import("../app/api/review/comments/route");
+    expect((await GET(new Request("http://localhost/api/review/comments"))).status).toBe(404);
+    expect((await POST(createRequest(payload()))).status).toBe(404);
+    expect(outbound, "produkcja nie może wypuścić żądania z sekretem relaya").not.toHaveBeenCalled();
+  });
+
+  it.each(["preview", "development", ""])(
+    "REVIEW_MODE=1 przy VERCEL_ENV=%s zostawia przegląd otwarty (podgląd i e2e działają)",
+    async (env) => {
+      const { isReviewSurfaceEnabled } = await import("../lib/review-gate");
+
+      expect(isReviewSurfaceEnabled({ REVIEW_MODE: "1", VERCEL_ENV: env })).toBe(true);
+      expect(isReviewSurfaceEnabled({ REVIEW_MODE: "1" }), "brak zmiennej = lokalnie/e2e").toBe(true);
+    },
+  );
+
+  it("bramka jest fail-closed na kształcie flagi, nie tylko na jej braku", async () => {
+    const { isReviewSurfaceEnabled } = await import("../lib/review-gate");
+
+    for (const flaga of [undefined, "", "0", "true", "TRUE", "1 ", " 1", "yes"]) {
+      expect(
+        isReviewSurfaceEnabled(flaga === undefined ? {} : { REVIEW_MODE: flaga }),
+        `REVIEW_MODE=${JSON.stringify(flaga)} otworzyło bramkę`,
+      ).toBe(false);
+    }
+    expect(isReviewSurfaceEnabled({ REVIEW_MODE: "1" })).toBe(true);
+  });
+
   it("REVIEW_MODE off → 404 na PATCH", async () => {
     vi.stubEnv("REVIEW_MODE", "0");
     const outbound = vi.fn();

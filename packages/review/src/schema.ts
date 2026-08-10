@@ -1,7 +1,7 @@
 /**
  * Kontrakt danych narzędzia przeglądu (ADR-071) — wspólny dla nakładki
  * i OBU endpointów zapisu (panel: sesja superadmina przez RLS; storefront:
- * service_role za podwójną bramką REVIEW_MODE + hasło site'u).
+ * relay do ingest panelu za `isReviewSurfaceEnabled`, ADR-099/128).
  *
  * Walidacja lustrzana wobec CHECK-ów migracji 0033 — endpoint odrzuca to
  * samo, co odrzuciłaby baza, tylko z czytelnym komunikatem i bez rundy.

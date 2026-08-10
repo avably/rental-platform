@@ -6,8 +6,12 @@
  * przekazują żądanie server-side do endpointu ingest panelu
  * (apps/panel/app/api/review/ingest/**), gdzie klucz service_role
  * prawowicie mieszka. Nakładka przeglądu nic o tym nie wie: dalej POST-uje
- * same-origin na /api/review, a bramka REVIEW_MODE trzyma z obu stron
- * (tu 404 zanim wyjdzie jakiekolwiek żądanie, w panelu 404 niezależnie).
+ * same-origin na /api/review, a bramka trzyma z obu stron (tu 404 zanim
+ * wyjdzie jakiekolwiek żądanie, w panelu 404 niezależnie).
+ *
+ * BRAMKA JEST W `lib/review-gate.ts`, nie tutaj — po zdjęciu Basic Auth
+ * (ADR-128) samo `REVIEW_MODE` przestało wystarczać: „publiczny" znaczy
+ * teraz publiczny naprawdę. Patrz komentarz w tamtym pliku.
  *
  * Sekret relaya żyje wyłącznie w env serwera i nagłówku wychodzącym —
  * nigdy w odpowiedzi ani w HTML-u. Z odpowiedzi panelu wraca wyłącznie
@@ -29,6 +33,8 @@
  */
 import { PANEL_URL } from "@avably/core";
 
+import { isReviewSurfaceEnabled } from "@/lib/review-gate";
+
 const INGEST_BASE = "/api/review/ingest";
 
 /**
@@ -47,7 +53,7 @@ export async function relayReviewRequest(
   request: Request,
   target: ReviewRelayTarget,
 ): Promise<Response> {
-  if (process.env.REVIEW_MODE !== "1") return new Response("Not Found", { status: 404 });
+  if (!isReviewSurfaceEnabled()) return new Response("Not Found", { status: 404 });
 
   const token = process.env.REVIEW_INGEST_TOKEN;
   if (!token) {

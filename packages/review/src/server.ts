@@ -1,8 +1,8 @@
 /**
  * Rdzeń serwerowy narzędzia przeglądu — WSPÓLNY dla obu dróg zapisu:
  * panel podaje klienta z sesją superadmina (bramką jest RLS 0033),
- * storefront podaje klienta service_role (bramką jest REVIEW_MODE + hasło
- * site'u w proxy). Rdzeń nie wie, którym klientem jedzie — i nie musi:
+ * a storefront relayuje żądanie do ingest panelu za bramką
+ * `isReviewSurfaceEnabled` (ADR-099/128). Rdzeń nie wie, którym klientem jedzie:
  * to samo zapytanie przechodzi lub odbija się na bazie.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
