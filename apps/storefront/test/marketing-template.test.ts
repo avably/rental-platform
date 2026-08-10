@@ -6,7 +6,7 @@
  * (żaden token nie może dojechać do przeglądarki) i braku fabrykowanego
  * dowodu społecznego, który szablon niesie w standardzie.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -21,6 +21,22 @@ const read = (relative: string) => readFileSync(path.join(root, relative), "utf8
 const marketingPages = readdirSync(path.join(root, "marketing")).filter((file) =>
   file.endsWith(".html"),
 );
+
+// Każde miejsce, które może wskazywać na zasób szablonu: strony marketingu,
+// komponenty osi publicznej (np. favicon w <head> layoutu) i słowniki tłumaczeń.
+// Jeden zbiór karmi obie bramki spójności — sieroty (plik bez odwołania) oraz
+// martwe odwołania (odwołanie bez pliku).
+const referenceSources = (): Array<[string, string]> => {
+  const sources: Array<[string, string]> = [];
+  for (const file of marketingPages) sources.push([`marketing/${file}`, read(`marketing/${file}`)]);
+  for (const entry of readdirSync(path.join(root, "app"), { recursive: true }) as string[]) {
+    if (entry.endsWith(".tsx")) sources.push([`app/${entry}`, read(`app/${entry}`)]);
+  }
+  for (const file of readdirSync(path.join(root, "messages"))) {
+    if (file.endsWith(".json")) sources.push([`messages/${file}`, read(`messages/${file}`)]);
+  }
+  return sources;
+};
 
 describe("izolacja warstw wizualnych", () => {
   it("oś marketingowa ładuje wyłącznie arkusze szablonu", () => {
@@ -173,15 +189,33 @@ describe("spójność tras i zasobów", () => {
   });
 
   it("nie trzyma zasobów, których żadna strona nie używa", () => {
-    const html = marketingPages.map((file) => read(path.join("marketing", file))).join("\n");
+    const referenced = referenceSources()
+      .map(([, text]) => text)
+      .join("\n");
     const orphans: string[] = [];
     for (const dir of ["images", "videos"]) {
       const base = path.join(root, "public/forerunner", dir);
       for (const file of readdirSync(base)) {
-        if (!html.includes(`/forerunner/${dir}/${file}`)) orphans.push(`${dir}/${file}`);
+        if (!referenced.includes(`/forerunner/${dir}/${file}`)) orphans.push(`${dir}/${file}`);
       }
     }
     expect(orphans, orphans.slice(0, 10).join(" | ")).toEqual([]);
+  });
+
+  it("nie odwołuje się do zasobu, którego nie ma na dysku", () => {
+    // Kierunek odwrotny do sieroty: każde odwołanie /forerunner/** i /produkt/**
+    // w stronach, komponentach i słownikach musi trafiać w istniejący plik.
+    // Tu ginął favicon szablonu — deklarowany w <head>, nieobecny na dysku (404).
+    const reference = /\/(?:forerunner|produkt)\/[A-Za-z0-9._\-/]+/g;
+    const dead: string[] = [];
+    for (const [name, text] of referenceSources()) {
+      for (const match of text.matchAll(reference)) {
+        const ref = match[0];
+        if (!existsSync(path.join(root, "public", ref))) dead.push(`${name}: ${ref}`);
+      }
+    }
+    const unique = [...new Set(dead)];
+    expect(unique, unique.slice(0, 10).join(" | ")).toEqual([]);
   });
 
   it("trzyma wagę pojedynczego zasobu w ryzach", () => {
