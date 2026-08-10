@@ -7,7 +7,10 @@
  *
  * 0. ROZGAŁĘZIENIE PO HOŚCIE (Zadanie 2.1, ADR-039): kanon marketingowy →
  *    istniejąca ścieżka LP; `<slug>.avably.io` → rozwiązanie tenanta i rewrite
- *    na trasę tenancką; nieznana/nieaktywna subdomena → neutralne 404.
+ *    na trasę tenancką; własna domena najemcy (2.6, ADR-046) → rozwiązanie po
+ *    hoście i ta sama trasa tenancka. Cokolwiek się NIE rozwiąże — nieznana
+ *    subdomena i nierozwiązany host obcy — dostaje jedno neutralne 404
+ *    (ADR-131). Gałąź marketingowa należy WYŁĄCZNIE do hostów platformy.
  * 1. Routing locale (next-intl) — WYŁĄCZNIE na gałęzi marketingowej (storefront
  *    tenanta ma własną oś języka z tenants.locale, nie z przeglądarki).
  * 2. CSP z nonce + HSTS/nosniff/… (@avably/security), na KAŻDEJ gałęzi.
@@ -132,8 +135,19 @@ function cspOptions(): CspOptions {
 }
 
 /**
- * Neutralne 404 — nie ujawnia, czy tenant istnieje (ta sama odpowiedź dla
- * nieistniejącego, zawieszonego i o niepoprawnym slugu), z nagłówkami bezp.
+ * JEDYNA odmowa storefrontu — neutralne 404 z nagłówkami bezpieczeństwa.
+ *
+ * Nie ujawnia, czy tenant istnieje: identyczna dla nieistniejącego,
+ * zawieszonego, usuniętego i dla niepoprawnego slugu — a od ADR-131 również
+ * dla NIEROZWIĄZANEJ DOMENY WŁASNEJ (host nieznany, tenant zawieszony/usunięty,
+ * domena jeszcze niezweryfikowana). Obie osie hostów wołają tę funkcję, więc
+ * nierozróżnialność wynika z BUDOWY, a nie z pilnowania dwóch kopii.
+ *
+ * Co widzi człowiek: `404 Not Found`, `text/plain`, treść `Not Found` —
+ * ani znaku Avably, ani i18n, ani śladu, że pod adresem cokolwiek kiedyś było.
+ * Rozważone i odrzucone: 403 (mówi „istnieje, ale nie dla ciebie"), 410 (mówi
+ * „było i zniknęło") i strona HTML z brandingiem (każdy z nich jest wyrocznią
+ * albo reklamą pod cudzym adresem). Uzasadnienie pełne: ADR-131.
  */
 function neutralNotFound(nonce: string, csp: CspOptions): NextResponse {
   const response = new NextResponse("Not Found", {
@@ -223,18 +237,49 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
     return neutralNotFound(nonce, csp);
   }
 
-  // WŁASNA DOMENA NAJEMCY (Zadanie 2.6, ADR-046). Host spoza naszych domen
-  // próbuje rozwiązać się przez app.resolve_tenant_by_domain — bramki `verified`
-  // i statusu tenanta siedzą w bazie. Trafienie → gałąź tenancka; BRAK trafienia
-  // → DOKŁADNIE dotychczasowe zachowanie z 2.1 (marketing), nie 404: obcy host
-  // nierozwiązany nie ujawnia niczego o tenantach, a 404 zepsułoby hosty
-  // operacyjne wskazane na ten deployment.
+  /*
+   * WŁASNA DOMENA NAJEMCY (Zadanie 2.6, ADR-046). Host spoza naszych domen
+   * próbuje rozwiązać się przez `app.resolve_tenant_by_domain` — bramki
+   * `verified` i statusu tenanta siedzą w BAZIE, więc tutaj widać wyłącznie
+   * „trafienie albo nic". Trafienie → gałąź tenancka. Brak trafienia →
+   * `neutralNotFound`, DOKŁADNIE ta sama odmowa co na nieznanej subdomenie.
+   *
+   * DO ADR-131 BRAK TRAFIENIA SPADAŁ NA GAŁĄŹ MARKETINGOWĄ, a to był błąd o
+   * dwóch twarzach. Po pierwsze: domena zawieszonego albo usuniętego najemcy
+   * przestawała być jego sklepem, ale nie przestawała odpowiadać — jego
+   * klientom serwowała LANDING PAGE AVABLY, czyli ofertę naszego SaaS-u pod
+   * adresem, który znają jako sklep. Po drugie: dowolny obcy host wycelowany
+   * w nasz deployment hostował u siebie nasz marketing.
+   *
+   * DLACZEGO TO JEDNA LINIA, A NIE NOWA ŚCIEŻKA. Rozwiązywanie hosta zostaje
+   * jedno (wywołanie wyżej); zmienia się wyłącznie to, co robimy z `null`.
+   * Odmowa jest TĄ SAMĄ funkcją, której używa oś subdomen — nie kopią o
+   * zbliżonym kształcie. I to jest cały mechanizm nierozróżnialności: host
+   * nieistniejący, tenant zawieszony, tenant usunięty i domena
+   * niezweryfikowana schodzą się w `resolveTenantByDomain` → `null`, a stąd
+   * wychodzi JEDEN `return`, którego nie ma czym sparametryzować, bo stan
+   * tenanta nigdy tu nie dociera. Gdyby odmowa cokolwiek różnicowała, bylibyśmy
+   * publiczną wyrocznią „czy ta firma jest klientem Avably i w jakim stanie" —
+   * dla dowolnej domeny, bez logowania (ADR-131).
+   *
+   * ARGUMENT „404 ZEPSUJE HOSTY OPERACYJNE" (powód pierwotnej decyzji z 2.6)
+   * NIE OBRONIŁ SIĘ: hosty operacyjne tu nie docierają. Kanon, apex,
+   * `localhost`, pętla zwrotna i `*.vercel.app` klasyfikują się WYŻEJ jako
+   * `marketing` (lib/tenant/host.ts) i nie ruszają bazy. Do tej gałęzi wchodzi
+   * wyłącznie host, którego nikt u nas nie zadeklarował — a taki ma prawo
+   * dostać odmowę. Nowy host platformy (np. druga domena marketingowa) dopisuje
+   * się do `classifyHost` i to jest właściwe miejsce: pominięcie wpisu daje
+   * awarię głośną, jednoznaczną i po bezpiecznej stronie, zamiast cichego
+   * serwowania marketingu pod cudzym adresem.
+   */
   if (classification.kind === "foreign") {
     const resolved = await deps.resolveTenantByDomain(classification.host);
-    if (resolved) return tenantBranch(resolved.tenantId);
+    if (!resolved) return neutralNotFound(nonce, csp);
+
+    return tenantBranch(resolved.tenantId);
   }
 
-  // Gałąź marketingowa (kanon, dev, preview + nierozwiązany host obcy) — bez zmian.
+  // Gałąź marketingowa: WYŁĄCZNIE hosty platformy (kanon, apex, dev, preview).
   return applySecurityHeaders(handleI18n(request), nonce, csp);
 }
 
