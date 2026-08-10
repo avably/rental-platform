@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 
 import { routing } from "@/i18n/routing";
 import { wfBootstrapScript } from "@/lib/marketing/template";
+import { isReviewSurfaceEnabled } from "@/lib/review-gate";
 
 /**
  * Root layout OSI MARKETINGOWEJ (www.avably.io).
@@ -68,12 +69,12 @@ export default async function LocaleLayout({
             później nie ma już czego złapać. */}
         <script defer nonce={nonce} src="/forerunner/js/jquery.min.js" />
         <script defer nonce={nonce} src="/forerunner/js/webflow.js" />
-        {/* Nakładka przeglądu (ADR-071): tylko przy REVIEW_MODE=1 — całość
-            storefrontu siedzi już za hasłem site'u (proxy.ts), więc bramka
-            sesji nie istnieje; trzeci warunek (?review=1) domyka klient.
-            Chrome nakładki jedzie na tokenach Fazy 2 niezależnie od arkuszy
-            szablonu (izolacja ADR-068 nietknięta). */}
-        {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="marketing" /> : null}
+        {/* Nakładka przeglądu (ADR-071): REVIEW_MODE=1 ORAZ środowisko inne niż
+            produkcyjne — po zdjęciu Basic Auth (ADR-128) marketing jest realnie
+            publiczny, więc sama flaga nie może być jedyną bramką. Trzeci warunek
+            (?review=1) domyka klient. Chrome nakładki jedzie na tokenach Fazy 2
+            niezależnie od arkuszy szablonu (izolacja ADR-068 nietknięta). */}
+        {isReviewSurfaceEnabled() ? <ReviewOverlayGate surface="marketing" /> : null}
       </body>
     </html>
   );
