@@ -37,3 +37,7 @@ next-env.d.ts
 # testing
 coverage/
 .superpowers/
+
+# artefakty przebiegów (zrzuty do weta wizualnego, raporty Playwrighta) —
+# dowód dla właściciela, nie treść repo
+.artefakty/
