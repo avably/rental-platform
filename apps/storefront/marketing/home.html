@@ -473,9 +473,9 @@
     </div>
   </section>
   <section class="section video-section">
-    <div data-poster-url="videos/576889ea7aa0897a362ad036dd02de93c9247cd3-poster-00001.jpg" data-video-urls="/forerunner/videos/576889ea7aa0897a362ad036dd02de93c9247cd3-transcode.mp4, /forerunner/videos/576889ea7aa0897a362ad036dd02de93c9247cd3-transcode.webm" data-autoplay="true" data-loop="true" data-wf-ignore="true" class="video-large w-background-video w-background-video-atom"><video id="0a81bf76-e40d-b5fc-146b-5392ac3fe602-video" autoplay="" loop="" style="background-image:url(&quot;videos/576889ea7aa0897a362ad036dd02de93c9247cd3-poster-00001.jpg&quot;)" muted="" playsinline="" data-wf-ignore="true" data-object-fit="cover">
-        <source src="/forerunner/videos/576889ea7aa0897a362ad036dd02de93c9247cd3-transcode.mp4" data-wf-ignore="true">
-        <source src="/forerunner/videos/576889ea7aa0897a362ad036dd02de93c9247cd3-transcode.webm" data-wf-ignore="true">
+    <div data-poster-url="videos/11904091_3840_2160_24fps-poster-00001.jpg" data-video-urls="/forerunner/videos/11904091_3840_2160_24fps-transcode.mp4, /forerunner/videos/11904091_3840_2160_24fps-transcode.webm" data-autoplay="true" data-loop="true" data-wf-ignore="true" class="video-large w-background-video w-background-video-atom"><video id="0a81bf76-e40d-b5fc-146b-5392ac3fe602-video" autoplay="" loop="" style="background-image:url(&quot;videos/11904091_3840_2160_24fps-poster-00001.jpg&quot;)" muted="" playsinline="" data-wf-ignore="true" data-object-fit="cover">
+        <source src="/forerunner/videos/11904091_3840_2160_24fps-transcode.mp4" data-wf-ignore="true">
+        <source src="/forerunner/videos/11904091_3840_2160_24fps-transcode.webm" data-wf-ignore="true">
       </video>
       <div class="w-layout-blockcontainer main-container w-container">
         <div class="headline-video">
@@ -589,7 +589,6 @@
       <div class="section-divider home-a-cta-divider"></div>
       <div class="w-layout-grid cta-halves">
         <div data-w-id="a2f3c014-d910-5b59-5e29-40325efecb6c" class="cta-block-image"><img src="/forerunner/images/Article-Thumbnail-3_1.webp" loading="lazy" sizes="(max-width: 767px) 100vw, (max-width: 991px) 727.984375px, 939.984375px" srcset="/forerunner/images/Article-Thumbnail-3_1.webp 1905w" alt="" class="image-cover horizontal parallax">
-          <div class="overlay-image-centered"><img src="/forerunner/images/Featured-SVG.svg" loading="lazy" alt="" class="featured-designed-image"></div>
         </div>
         <div id="w-node-_9adf65f4-0df7-2c7c-5f0c-e24236dc31a0-5e82f706" class="cta-content-block">
           <div class="cta-block-top-tile">
@@ -668,6 +667,56 @@
     </div><img src="/forerunner/images/Dots.svg" loading="lazy" alt="" class="home-a-momentum-dots">
   </section>
   
+  <!-- Sekcja bezpieczeństwa (A2, ADR-128): dopisana do eksportu na klasach
+       sekcji features. ŚWIADOMIE bez data-w-id i inline opacity:0 — IX2 nie zna
+       tych węzłów, więc animacja wejścia nie ma prawa ich ukryć na stałe. -->
+  <section class="section home-a-features-section security-section">
+    <div class="w-layout-blockcontainer main-container w-container">
+      <div class="headline-home-a-features">
+        <div class="label-master dark">
+          <div class="label-small">{{security.eyebrow}}</div>
+        </div>
+        <h2 class="no-margins">{{security.title}}</h2>
+      </div>
+      <div class="w-layout-grid features-thirds">
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-h6">{{security.card1Title}}</div>
+            <div class="text-dark-64">{{security.card1Body}}</div>
+          </div>
+        </div>
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-h6">{{security.card2Title}}</div>
+            <div class="text-dark-64">{{security.card2Body}}</div>
+          </div>
+        </div>
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-h6">{{security.card3Title}}</div>
+            <div class="text-dark-64">{{security.card3Body}}</div>
+          </div>
+        </div>
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-h6">{{security.card4Title}}</div>
+            <div class="text-dark-64">{{security.card4Body}}</div>
+          </div>
+        </div>
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-h6">{{security.card5Title}}</div>
+            <div class="text-dark-64">{{security.card5Body}}</div>
+          </div>
+        </div>
+        <div class="features-card">
+          <div class="feature-card-text-wrap">
+            <div class="text-dark-64">{{security.note}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
   <section class="section home-a-faq-section">
     <div class="w-layout-blockcontainer main-container w-container">
       <div class="w-layout-grid faq-halves">
@@ -735,7 +784,7 @@
               </div>
             </div>
             <div class="expandable-bottom">
-              <p class="faq-paragraph"><span class="text-medium">{{faq.a2Lead}}</span> {{faq.a5}}</p>
+              <p class="faq-paragraph"><span class="text-medium">{{faq.a5Lead}}</span> {{faq.a5}}</p>
             </div>
           </div>
           <div class="expandable-single">

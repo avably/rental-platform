@@ -47,8 +47,9 @@ export async function GET(request: Request): Promise<Response> {
 
   if (branch.kind === "marketing") {
     const origin = marketingOrigin(host, proto);
-    // Wyłącznie strony PUBLICZNE (ADR-068): warianty przeglądowe mają noindex
-    // i istnieją tylko po to, żeby właściciel wybrał układ.
+    // Wyłącznie strony PUBLICZNE (ADR-068). Wariantów przeglądowych układu już
+    // nie ma — zniknęły z repo przy odsłonięciu LP (ADR-128), więc `PUBLIC_PAGES`
+    // i zbiór stron marketingowych to dziś ten sam zbiór.
     const entries: SitemapEntry[] = routing.locales.flatMap((locale) =>
       PUBLIC_PAGES.map((page) => ({
         loc: page === "home" ? `${origin}/${locale}` : `${origin}/${locale}/${page}`,

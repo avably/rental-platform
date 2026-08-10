@@ -1,7 +1,7 @@
 {
   "app": {
     "storefrontTitle": "Avably",
-    "storefrontDescription": "A planned system for running an equipment rental business online."
+    "storefrontDescription": "The system for running an equipment rental business online."
   },
   "privacy": {
     "title": "Privacy Policy",
@@ -96,26 +96,26 @@
       "langAlternate": "PL"
     },
     "banner": {
-      "text": "PLN 199 per month during the trial period — the first 20 rental businesses pay half.",
+      "text": "14-day trial, no card. No transaction fees, no per-user limits.",
       "cta": "Open your store"
     },
     "hero": {
       "eyebrow": "The system for equipment rental businesses",
       "titleTop": "Replace the phone, the notebook",
       "titleBottom": "and the transfers with one system.",
-      "body": "Bookings, unit availability, deposits, courier shipping and your own store website — in one place. You open the account yourself, by email, and start working the same day.",
+      "body": "Bookings, unit availability, deposits, online payments, courier shipping and your own store website — in one subscription, with no transaction fees. You open the account yourself, by email, and start working the same day.",
       "cta": "Open your store",
       "ctaSecondary": "See what works today",
       "feature1": "Bookings without collisions",
-      "feature2": "Deposits on the record",
-      "feature3": "A store at your own address"
+      "feature2": "Deposits collected and refunded online",
+      "feature3": "A store under your own domain"
     },
     "premise": {
       "eyebrow": "The starting point",
-      "statement": "A sold item leaves the business. A rented one has to come back — on time and ready for the next booking. Tools built for selling never close that cycle.",
+      "statement": "“Booking” tools stop working at the exact moment the rental actually begins. A sold item leaves the business — a rented one has to come back: on time, ready for the next booking, with the deposit settled. Avably runs that whole cycle, not just the calendar.",
       "feature1": "The whole rental cycle",
       "feature2": "One unit, one booking",
-      "feature3": "Your own store website"
+      "feature3": "Store, back office and payments in one"
     },
     "tabs": {
       "eyebrow": "What works today",
@@ -123,13 +123,13 @@
       "item1Title": "Track availability per unit",
       "item1Body": "The availability calendar covers individual units together with their service windows. Even when two people click in the same second, only one booking goes through.",
       "item2Title": "Settle deposits and returns",
-      "item2Body": "The register keeps every deduction together with its reason, and you record the equipment condition at check-in. The balance cannot drift.",
+      "item2Body": "The register keeps every deduction together with its reason. With an online payment the deposit is collected automatically, and the refund takes one button — the money genuinely returns to the customer’s card.",
       "item3Title": "Ship and receive by courier",
       "item3Body": "Shipments and returns through a courier broker, PDF labels straight from the back office, and your own delivery pricing calculated into the order.",
       "item4Title": "Launch your own store website",
-      "item4Body": "A yourname.avably.io address is ready right after sign-up. You arrange the sections in the editor, the draft stays private, and publishing takes one button.",
-      "item5Title": "Take bookings online",
-      "item5Body": "Customers pick equipment and dates while seeing live availability. The server calculates the price, the order lands in the back office, and both sides get an email."
+      "item4Body": "A yourname.avably.io address is ready right after sign-up. You build the page from ready-made sections in a full-screen editor, the draft stays private, and publishing takes one button. Your own domain connects with a single DNS record.",
+      "item5Title": "Take bookings and payments online",
+      "item5Body": "Customers pick equipment and dates while seeing live availability, and pay by card at checkout — with the deposit collected automatically. The server always calculates the price, the order lands in the back office, and both sides get an email."
     },
     "video": {
       "quote": "I run an equipment rental business. I know the weekend with two bookings against one unit and the hunt for who is holding the deposit — Avably came out of that work, not out of a pitch deck.",
@@ -142,8 +142,8 @@
       "cta": "Open your store",
       "card1Title": "Availability and pricing",
       "card1Body": "Calendars for products and units, service windows, tiered price lists with a live quote preview, and extensions with the surcharge added automatically.",
-      "card2Title": "Deposits without disputes",
-      "card2Body": "A register of deposits collected and returned, every deduction with its reason, condition recorded at check-in, and a full event history on the order.",
+      "card2Title": "Payments and deposits online",
+      "card2Body": "Card payment at checkout with the deposit collected automatically and refunded to the card in one click. Avably adds no transaction fees. BLIK and Przelewy24 — being built.",
       "card3Title": "Courier in the back office",
       "card3Body": "Shipments and returns through a broker, PDF labels, your own delivery price list and the cost calculated into the order.",
       "card4Title": "Lifecycle emails",
@@ -153,7 +153,7 @@
     },
     "cta": {
       "title": "Move bookings off the phone and into a system",
-      "body": "The customer books online, you see the order in the back office, and the equipment returns to stock with its inspection recorded. No spreadsheet only one person understands.",
+      "body": "The customer books and pays online, you see the order in the back office, and the equipment returns to stock with its inspection recorded. No spreadsheet only one person understands.",
       "cta": "Open your store"
     },
     "momentum": {
@@ -169,24 +169,45 @@
     "faq": {
       "eyebrowTop": "Common",
       "eyebrowBottom": "questions",
-      "q1": "Can I take online payments?",
-      "a1Lead": "Not yet.",
-      "a1": "Customers book online and pay on pickup or by bank transfer — the order reaches the back office either way. Online payments (BLIK, cards, Przelewy24) and online deposits are being built, and we are not giving dates for them.",
-      "q2": "Do I need a website already?",
-      "a2Lead": "No.",
-      "a2": "Your store gets a yourname.avably.io address when you sign up. If you have your own domain, the back office shows the single record to add at your domain provider and checks by itself whether it works.",
-      "q3": "How long does setup take?",
-      "a3Lead": "The account — minutes.",
-      "a3": "The store address works immediately after sign-up. Time to the first booking depends on how large a catalogue you enter — that part we will not promise in hours.",
-      "q4": "What exactly does the Founding 50% mean?",
-      "a4Lead": "Half price for as long as the subscription runs.",
-      "a4": "The first 20 rental businesses that move to a paid subscription pay half the current price for as long as that subscription stays active. No annual contract and no onboarding fee.",
+      "q1": "Can my customers pay online?",
+      "a1Lead": "Yes, by card.",
+      "a1": "Card payment at checkout works — with the deposit collected automatically and refunded to the card from the back office. Customers can also choose a bank transfer or payment on pickup. BLIK and Przelewy24 are being built, and we are not giving dates for them.",
+      "q2": "I run my bookings in a spreadsheet. How do I move the data?",
+      "a2Lead": "By CSV import.",
+      "a2": "You load the catalogue from a CSV file, and export works the other way too — your data is never locked in. You can also enter products and units by hand in the back office: with a small catalogue that is an hour of work.",
+      "q3": "Can the store run under my own domain?",
+      "a3Lead": "Yes.",
+      "a3": "You get a yourname.avably.io address the moment you sign up. Your own domain connects with a single record at your domain provider — the back office shows what to add and checks by itself whether it works.",
+      "q4": "How much commission do you take per booking?",
+      "a4Lead": "Zero.",
+      "a4": "You pay a flat subscription and that is all — we add no transaction fees and no per-user charges. Your agreement with the online payment provider is your own, so you know its rates first-hand.",
       "q5": "Is my data separated from other businesses?",
-      "a5Lead": "Yes.",
-      "a5": "Each rental business’s data is separated at the database level, and an automated test verifies that separation on every change to the system. Access to the platform admin panel is protected by a second factor.",
-      "q6": "What data do you collect on this site?",
-      "a6Lead": "Only what you leave yourself.",
-      "a6": "We collect an email address and form answers only when you sign up for the waitlist. The purpose, the retention period and your rights are described in the Privacy Policy."
+      "a5Lead": "Yes, at the database level.",
+      "a5": "Each rental business’s data is separated in the database rather than on screen, and automated tests verify that separation on every change to the system. Administrative access to the platform is protected by a second factor.",
+      "q6": "What happens after the 14-day trial?",
+      "a6Lead": "Nothing by itself.",
+      "a6": "The trial needs no card, so nothing gets charged automatically. After 14 days you pick a plan — Standard PLN 199 or Premium PLN 399 net per month — with no annual contract and no onboarding fee. You cancel whenever you want.",
+      "q7": "Where do you keep the data, and what about GDPR?",
+      "a7Lead": "In the European Union.",
+      "a7": "The database, hosting and email run with providers in EU regions. We store ordinary contact details of your customers — no national ID numbers and no document scans. The full GDPR paperwork for rental businesses (data processing agreement) is in preparation — we say so plainly.",
+      "q8": "How long does setup take?",
+      "a8Lead": "The account — minutes.",
+      "a8": "The store address works immediately after sign-up, with no sales call and no installation. Time to the first booking depends on how large a catalogue you enter — that part we will not promise in hours."
+    },
+    "security": {
+      "eyebrow": "Security and compliance",
+      "title": "See how we guard the data",
+      "card1Title": "Hard data isolation",
+      "card1Body": "Each rental business’s data is separated at the database level (Row Level Security), and automated tests verify the isolation on every change to the system.",
+      "card2Title": "A strict browser policy",
+      "card2Body": "Every response ships with a Content-Security-Policy generated per request (with a one-time nonce), HSTS and a full set of security headers.",
+      "card3Title": "Hosted in the European Union",
+      "card3Body": "The database, hosting and email run with providers in EU regions. Payments are handled by Stripe — card data never passes through our servers.",
+      "card4Title": "Integration secrets encrypted",
+      "card4Body": "Integration keys (for example courier credentials) are encrypted separately for each rental business, and the encryption key does not live in the database.",
+      "card5Title": "An open reporting channel",
+      "card5Body": "We publish security.txt (RFC 9116) with a contact for vulnerability reports — we would rather hear about a problem first.",
+      "note": "We hold no external certifications and claim none. We describe only what runs in the code and is verified automatically."
     },
     "closing": {
       "eyebrow": "Start today",
@@ -194,7 +215,7 @@
       "cta": "Open your store"
     },
     "footer": {
-      "description": "Avably — the system for equipment rental businesses: a rental back office and your own store website with online booking.",
+      "description": "Avably — the system for equipment rental businesses: a rental back office, online payments and your own store website with booking.",
       "columnProduct": "Product",
       "columnCompany": "Company",
       "waitlistLead": "Would rather watch first?",
@@ -216,34 +237,47 @@
       "eyebrow": "Documents",
       "title": "Privacy Policy"
     },
+    "contactPage": {
+      "title": "Write to us",
+      "intro": "Questions about the product, your data or working together — we answer by email, usually the same business day."
+    },
     "pricingPage": {
-      "title": "One plan, no commitment",
-      "planLabel": "Avably plan",
-      "price": "PLN 199 / month",
-      "priceNote": "A trial-period price — we are testing it with the first rental businesses.",
-      "includesTitle": "Included",
-      "include1": "The rental back office: catalogue, bookings, deposits, returns",
-      "include2": "Your own store website with online booking",
-      "include3": "A yourname.avably.io address and your own domain",
-      "include4": "Customer emails sent under your business name",
-      "include5": "Courier shipments, returns and labels",
-      "foundersLabel": "Founding 50% off",
-      "foundersPrice": "PLN 99.50 / month",
-      "foundersNote": "The first 20 rental businesses pay half the current price for as long as the subscription stays active.",
+      "title": "Pay for the system, not commissions",
+      "intro": "Prices are net (23% VAT applies). 14-day trial, no card. Pay yearly and you pay for 10 months. No limits on users, orders or products — on either plan.",
+      "standardLabel": "Standard",
+      "standardPrice": "PLN 199 net / month",
+      "standardYearly": "Yearly PLN 1,990 net — a year for the price of 10 months.",
+      "standardNote": "The full toolkit for running a rental — everything below works today.",
+      "s1": "The rental back office: catalogue, bookings, deposits, courier, emails",
+      "s2": "Your own store website with the editor and your own domain",
+      "s3": "Online card payments with the deposit collected automatically, 0% commission (BLIK and Przelewy24 — being built)",
+      "s4": "No limits on users, orders or products",
+      "s5": "CSV import and export, dashboard, PDF rental agreement",
+      "s6": "Public API and the WordPress plugin",
+      "s7": "14-day trial without a card",
+      "premiumLabel": "Premium",
+      "premiumBadge": "Coming soon",
+      "premiumPrice": "PLN 399 net / month",
+      "premiumYearly": "Yearly PLN 3,990 net — a year for the price of 10 months.",
+      "premiumNote": "Everything in Standard plus the features that earn money and prevent disputes. We open sales when the first of them are live — no dates promised.",
+      "p1": "Check-out and check-in protocols with photos",
+      "p2": "E-signature for the rental agreement",
+      "p3": "Invoices issued automatically after payment (with KSeF)",
+      "p4": "Seasonal and weekend price lists",
+      "p5": "Damage waiver — extra revenue for the rental",
+      "p6": "Emails from your own domain, higher API limits, advanced reports",
+      "p7": "Priority support",
       "honestTitle": "Plainly",
-      "honest1": "No annual contract and no onboarding fee.",
-      "honest2": "You cancel whenever you want. You open the account by email, without entering a card.",
-      "buildingTitle": "Being built",
-      "building1": "Online payments (BLIK, cards, Przelewy24) and online deposits",
-      "building2": "PDF agreements and invoices issued automatically"
+      "honest1": "No annual contract and no onboarding fee. You cancel whenever you want — the account opens by email, without entering a card.",
+      "honest2": "The features on the Premium list are being built — we do not sell them until they work. We show them from day one so you know where the product is headed."
     }
   },
   "landing": {
     "metadata": {
       "title": "Avably — the system for equipment rental businesses",
-      "description": "Bookings, unit availability, deposits, courier shipping and your own store website in one system. Open your store and take bookings online.",
+      "description": "A rental back office, online payments with deposits and your own store website with booking — no transaction fees. Standard PLN 199, Premium PLN 399 net per month, 14-day trial without a card.",
       "ogTitle": "Avably — run your rental business in one system",
-      "ogDescription": "A rental back office and your own store website with online booking. PLN 199 per month during the trial period, 50% off for the first 20 rental businesses."
+      "ogDescription": "Bookings, deposits, courier, online payments and your own store website in one subscription. 0% transaction fees, 14-day trial without a card."
     },
     "form": {
       "eyebrow": "4 short fields · about a minute",

@@ -11,33 +11,15 @@ export type MarketingPage = keyof typeof pages;
 
 /**
  * Strony PUBLICZNE: linkowane z nawigacji i stopki, indeksowane, w sitemap.
- * Reszta to warianty PRZEGLĄDOWE — właściciel ogląda je, żeby wybrać, który
- * układ zostaje per typ strony. Mają `noindex` i nie wchodzą do sitemap.
+ * Warianty PRZEGLĄDOWE układów (home-b/c, about-a/b/c, contact-b/c, stories)
+ * zostały USUNIĘTE z repo przy odsłonięciu LP (ADR-128): wybór układu jest
+ * dokonany, a strona bez własnej treści nie ma prawa być osiągalna publicznie
+ * (checklista I-03 audytu 2026-08-09).
  */
 export const PUBLIC_PAGES = ["home", "pricing", "faq", "contact", "waitlist", "privacy"] as const;
 
-export const REVIEW_PAGES = [
-  "contact-b",
-  "contact-c",
-  "about",
-  "about-b",
-  "about-c",
-  "stories",
-  "home-b",
-  "home-c",
-] as const;
-
 /** Trasy obsługiwane przez wspólny segment `[page]` (bez wysp Reacta). */
-export const TEMPLATE_ROUTES = [
-  "pricing",
-  "faq",
-  "contact",
-  ...REVIEW_PAGES,
-] as const;
-
-export function isReviewPage(page: string): boolean {
-  return (REVIEW_PAGES as readonly string[]).includes(page);
-}
+export const TEMPLATE_ROUTES = ["pricing", "faq", "contact"] as const;
 
 /** Identyfikator witryny z eksportu — wspólny dla wszystkich stron szablonu. */
 export const WF_SITE = "6800e0d30d7466dc5e82f732";
@@ -111,15 +93,6 @@ export function marketingLinks(locale: Locale) {
       register: `${PANEL_URL}/${locale}/register`,
       login: `${PANEL_URL}/${locale}/login`,
       langAlternate: `/${other}`,
-      stories: `/${locale}/stories`,
-      about: `/${locale}/about`,
-      aboutB: `/${locale}/about-b`,
-      aboutC: `/${locale}/about-c`,
-      contactB: `/${locale}/contact-b`,
-      contactC: `/${locale}/contact-c`,
-      homeB: `/${locale}/home-b`,
-      homeC: `/${locale}/home-c`,
-      review: `/${locale}/przeglad`,
     },
     lang: { alternate: other },
   };

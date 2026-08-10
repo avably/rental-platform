@@ -1,7 +1,7 @@
 {
   "app": {
     "storefrontTitle": "Avably",
-    "storefrontDescription": "Planowany system do prowadzenia wypożyczalni sprzętu online."
+    "storefrontDescription": "System do prowadzenia wypożyczalni sprzętu online."
   },
   "privacy": {
     "title": "Polityka prywatności",
@@ -96,26 +96,26 @@
       "langAlternate": "EN"
     },
     "banner": {
-      "text": "199 zł/msc w okresie testowym — pierwsze 20 wypożyczalni płaci połowę.",
+      "text": "Trial 14 dni bez karty. Bez prowizji od transakcji, bez limitu użytkowników.",
       "cta": "Załóż sklep"
     },
     "hero": {
       "eyebrow": "System dla wypożyczalni sprzętu",
       "titleTop": "Zamień telefon, zeszyt",
       "titleBottom": "i przelewy na jeden system.",
-      "body": "Rezerwacje, dostępność egzemplarzy, kaucje, kurier i własna strona sklepu — w jednym miejscu. Konto zakładasz sam, e-mailem, i pracujesz tego samego dnia.",
+      "body": "Rezerwacje, dostępność egzemplarzy, kaucje, płatności online, kurier i własna strona sklepu — w jednym abonamencie, bez prowizji od transakcji. Konto zakładasz sam, e-mailem, i pracujesz tego samego dnia.",
       "cta": "Załóż sklep",
       "ctaSecondary": "Zobacz, co działa dziś",
       "feature1": "Rezerwacje bez kolizji",
-      "feature2": "Kaucje z rejestrem",
-      "feature3": "Sklep pod własnym adresem"
+      "feature2": "Kaucje pobierane i zwracane online",
+      "feature3": "Sklep pod własną domeną"
     },
     "premise": {
       "eyebrow": "Punkt wyjścia",
-      "statement": "Sprzedany towar wychodzi z firmy. Wynajęty musi wrócić — na czas i w stanie do kolejnego najmu. Narzędzia zbudowane pod sprzedaż nie domykają tego cyklu.",
+      "statement": "Narzędzia „do rezerwacji” kończą pracę w chwili, w której wynajem dopiero się zaczyna. Sprzedany towar wychodzi z firmy — wynajęty musi wrócić: na czas, w stanie do kolejnego najmu, z rozliczoną kaucją. Avably prowadzi cały ten cykl, nie sam kalendarz.",
       "feature1": "Cały cykl wynajmu",
       "feature2": "Jeden egzemplarz, jedna rezerwacja",
-      "feature3": "Własna strona sklepu"
+      "feature3": "Sklep, panel i płatności w jednym"
     },
     "tabs": {
       "eyebrow": "Co działa dziś",
@@ -123,13 +123,13 @@
       "item1Title": "Pilnuj dostępności egzemplarzy",
       "item1Body": "Kalendarz dostępności obejmuje pojedyncze egzemplarze razem z oknami serwisowymi. Nawet gdy dwie osoby klikną w tej samej sekundzie, rezerwację dostanie jedna.",
       "item2Title": "Rozliczaj kaucje i zwroty",
-      "item2Body": "Rejestr pobrań i zwrotów trzyma kwotę potrącenia razem z jego powodem, a stan sprzętu odnotowujesz przy przyjęciu. Saldo nie ma jak się rozjechać.",
+      "item2Body": "Rejestr pobrań i zwrotów trzyma kwotę potrącenia razem z jego powodem. Przy płatności online kaucja pobiera się automatycznie, a zwrot robisz jednym przyciskiem — pieniądze realnie wracają na kartę klienta.",
       "item3Title": "Nadawaj i odbieraj kurierem",
       "item3Body": "Nadania i zwroty przez brokera kurierskiego, etykiety w PDF prosto z panelu i własny cennik dostawy policzony w zamówieniu.",
       "item4Title": "Uruchom własną stronę sklepu",
-      "item4Body": "Adres twojanazwa.avably.io jest gotowy zaraz po założeniu konta. Sekcje układasz w edytorze, wersja robocza zostaje prywatna, a publikacja to jeden przycisk.",
-      "item5Title": "Przyjmuj rezerwacje online",
-      "item5Body": "Klient wybiera sprzęt i termin, widząc dostępność na żywo. Cenę liczy serwer, zamówienie ląduje w panelu, a obie strony dostają e-mail."
+      "item4Body": "Adres twojanazwa.avably.io jest gotowy zaraz po założeniu konta. Stronę składasz z gotowych sekcji w pełnoekranowym kreatorze, wersja robocza zostaje prywatna, a publikacja to jeden przycisk. Własną domenę podpinasz jednym wpisem DNS.",
+      "item5Title": "Przyjmuj rezerwacje i płatności online",
+      "item5Body": "Klient wybiera sprzęt i termin, widząc dostępność na żywo, i płaci kartą w checkoucie — z automatycznym pobraniem kaucji. Cenę zawsze liczy serwer, zamówienie ląduje w panelu, a obie strony dostają e-mail."
     },
     "video": {
       "quote": "Prowadzę wypożyczalnię. Znam weekend z dwiema rezerwacjami na ten sam egzemplarz i szukanie, kto właściwie ma kaucję — Avably powstało z tej pracy, nie z prezentacji.",
@@ -142,8 +142,8 @@
       "cta": "Załóż sklep",
       "card1Title": "Dostępność i wycena",
       "card1Body": "Kalendarze produktów i egzemplarzy, okna serwisowe, cenniki progowe z podglądem wyceny na żywo i przedłużenia z automatyczną dopłatą.",
-      "card2Title": "Kaucje bez sporu",
-      "card2Body": "Rejestr pobrań i zwrotów, potrącenie zawsze z powodem, stan sprzętu przy przyjęciu i pełna historia zdarzeń w zamówieniu.",
+      "card2Title": "Płatności i kaucje online",
+      "card2Body": "Płatność kartą w checkoucie z automatycznym pobraniem kaucji i zwrotem na kartę jednym przyciskiem. Avably nie dolicza prowizji od transakcji. BLIK i Przelewy24 — w budowie.",
       "card3Title": "Kurier w panelu",
       "card3Body": "Nadania i zwroty przez brokera, etykiety w PDF, własny cennik dostawy i koszt policzony w zamówieniu.",
       "card4Title": "E-maile cyklu",
@@ -153,7 +153,7 @@
     },
     "cta": {
       "title": "Przenieś rezerwacje z telefonu do systemu",
-      "body": "Klient rezerwuje online, Ty widzisz zamówienie w panelu, a sprzęt wraca na stan z odnotowanym przeglądem. Bez arkusza, który zna tylko jedna osoba.",
+      "body": "Klient rezerwuje i płaci online, Ty widzisz zamówienie w panelu, a sprzęt wraca na stan z odnotowanym przeglądem. Bez arkusza, który zna tylko jedna osoba.",
       "cta": "Załóż sklep"
     },
     "momentum": {
@@ -169,24 +169,45 @@
     "faq": {
       "eyebrowTop": "Częste",
       "eyebrowBottom": "pytania",
-      "q1": "Czy mogę przyjmować płatności online?",
-      "a1Lead": "Jeszcze nie.",
-      "a1": "Klient rezerwuje online, a płaci przy odbiorze albo przelewem — zamówienie i tak trafia do panelu. Płatności online (BLIK, karty, Przelewy24) i kaucje online są w budowie i nie podajemy ich dat.",
-      "q2": "Czy muszę mieć własną stronę?",
-      "a2Lead": "Nie.",
-      "a2": "Sklep dostaje adres twojanazwa.avably.io przy zakładaniu konta. Jeśli masz własną domenę, panel pokazuje jeden wpis do dodania u dostawcy domeny i sam sprawdza, czy już działa.",
-      "q3": "Ile trwa uruchomienie?",
-      "a3Lead": "Konto — kilka minut.",
-      "a3": "Adres sklepu działa od razu po założeniu. Czas do pierwszej rezerwacji zależy od tego, jak duży katalog wprowadzasz — tego nie obiecujemy w godzinach.",
-      "q4": "Co dokładnie znaczy founders −50%?",
-      "a4Lead": "Połowa ceny, dopóki abonament trwa.",
-      "a4": "Pierwsze 20 wypożyczalni, które przejdą na płatny abonament, płaci połowę bieżącej ceny tak długo, jak abonament pozostaje aktywny. Bez umowy na rok i bez opłaty wdrożeniowej.",
+      "q1": "Czy klienci mogą płacić online?",
+      "a1Lead": "Tak, kartą.",
+      "a1": "Płatność kartą w checkoucie działa — z automatycznym pobraniem kaucji i zwrotem na kartę z panelu. Klient może też wybrać przelew albo płatność przy odbiorze. BLIK i Przelewy24 są w budowie i nie podajemy ich dat.",
+      "q2": "Prowadzę rezerwacje w Excelu. Jak przeniosę dane?",
+      "a2Lead": "Importem CSV.",
+      "a2": "Katalog wczytasz z pliku CSV, a eksport działa w drugą stronę — Twoje dane nie są u nas uwięzione. Produkty i egzemplarze możesz też wprowadzić ręcznie w panelu: przy małym katalogu to godzina pracy.",
+      "q3": "Czy sklep może działać pod moją domeną?",
+      "a3Lead": "Tak.",
+      "a3": "Adres twojanazwa.avably.io dostajesz od razu przy założeniu konta. Własną domenę podpinasz jednym wpisem u jej dostawcy — panel pokazuje, co dodać, i sam sprawdza, czy już działa.",
+      "q4": "Ile prowizji pobieracie od rezerwacji?",
+      "a4Lead": "Zero.",
+      "a4": "Płacisz stały abonament i to wszystko — nie doliczamy prowizji od transakcji ani opłat za kolejnych użytkowników. Umowę z dostawcą płatności online masz własną, więc jego stawki znasz z pierwszej ręki.",
       "q5": "Czy moje dane są oddzielone od innych firm?",
-      "a5Lead": "Tak.",
-      "a5": "Dane każdej wypożyczalni są odseparowane na poziomie bazy danych, a separacja jest sprawdzana automatycznym testem przy każdej zmianie systemu. Dostęp do panelu administracyjnego platformy chroni drugi składnik.",
-      "q6": "Jakie dane zbieracie na tej stronie?",
-      "a6Lead": "Tylko to, co sam zostawisz.",
-      "a6": "Adres e-mail i odpowiedzi z formularza zbieramy wyłącznie wtedy, gdy zapiszesz się na listę oczekujących. Cel, okres przechowywania i Twoje prawa opisuje Polityka prywatności."
+      "a5Lead": "Tak, na poziomie bazy.",
+      "a5": "Separacja danych każdej wypożyczalni działa w bazie danych, nie na ekranie, i jest sprawdzana automatycznymi testami przy każdej zmianie systemu. Dostęp administracyjny do platformy chroni drugi składnik logowania.",
+      "q6": "Co się dzieje po 14 dniach triala?",
+      "a6Lead": "Nic samo.",
+      "a6": "Trial nie wymaga karty, więc niczego nie naliczymy automatycznie. Po 14 dniach wybierasz plan — Standard 199 zł albo Premium 399 zł netto/msc — bez umowy na rok i bez opłaty wdrożeniowej. Rezygnujesz, kiedy chcesz.",
+      "q7": "Gdzie trzymacie dane i co z RODO?",
+      "a7Lead": "W Unii Europejskiej.",
+      "a7": "Baza danych, hosting i poczta stoją u dostawców w regionach UE. Przechowujemy zwykłe dane kontaktowe klientów wypożyczalni — bez numerów PESEL i skanów dokumentów. Komplet dokumentów RODO dla wypożyczalni (umowa powierzenia) jest w przygotowaniu — mówimy o tym wprost.",
+      "q8": "Ile trwa uruchomienie?",
+      "a8Lead": "Konto — kilka minut.",
+      "a8": "Adres sklepu działa od razu po założeniu konta, bez rozmowy z handlowcem i bez instalacji. Czas do pierwszej rezerwacji zależy od tego, jak duży katalog wprowadzasz — tego nie obiecujemy w godzinach."
+    },
+    "security": {
+      "eyebrow": "Bezpieczeństwo i zgodność",
+      "title": "Zobacz, jak pilnujemy danych",
+      "card1Title": "Twarda izolacja danych",
+      "card1Body": "Dane każdej wypożyczalni są odseparowane na poziomie bazy danych (Row Level Security), a izolacja jest sprawdzana automatycznymi testami przy każdej zmianie systemu.",
+      "card2Title": "Restrykcyjna polityka przeglądarki",
+      "card2Body": "Każda odpowiedź wychodzi z Content-Security-Policy generowaną per żądanie (z jednorazowym nonce), HSTS i kompletem nagłówków bezpieczeństwa.",
+      "card3Title": "Hosting w Unii Europejskiej",
+      "card3Body": "Baza danych, hosting i poczta stoją u dostawców w regionach UE. Płatności obsługuje Stripe — dane kart nigdy nie przechodzą przez nasze serwery.",
+      "card4Title": "Sekrety integracji szyfrowane",
+      "card4Body": "Klucze integracji (np. kurierskich) każda wypożyczalnia ma szyfrowane osobno, a klucz szyfrujący nie leży w bazie danych.",
+      "card5Title": "Jawny kanał zgłoszeń",
+      "card5Body": "Publikujemy security.txt (RFC 9116) z kontaktem do zgłaszania podatności — wolimy usłyszeć o problemie pierwsi.",
+      "note": "Nie mamy zewnętrznych certyfikacji i nie twierdzimy inaczej. Piszemy wyłącznie o tym, co działa w kodzie i jest sprawdzane automatycznie."
     },
     "closing": {
       "eyebrow": "Zacznij dziś",
@@ -194,7 +215,7 @@
       "cta": "Załóż sklep"
     },
     "footer": {
-      "description": "Avably — system dla wypożyczalni sprzętu: panel wynajmu i własna strona sklepu z rezerwacją online.",
+      "description": "Avably — system dla wypożyczalni sprzętu: panel wynajmu, płatności online i własna strona sklepu z rezerwacją.",
       "columnProduct": "Produkt",
       "columnCompany": "Firma",
       "waitlistLead": "Wolisz najpierw obserwować?",
@@ -216,34 +237,47 @@
       "eyebrow": "Dokumenty",
       "title": "Polityka prywatności"
     },
+    "contactPage": {
+      "title": "Napisz do nas",
+      "intro": "Pytania o produkt, dane albo współpracę — odpowiadamy na e-mail, zwykle tego samego dnia roboczego."
+    },
     "pricingPage": {
-      "title": "Jeden plan, bez zobowiązania",
-      "planLabel": "Plan Avably",
-      "price": "199 zł/msc",
-      "priceNote": "Cena okresu testowego — sprawdzamy ją z pierwszymi wypożyczalniami.",
-      "includesTitle": "W cenie",
-      "include1": "Panel wynajmu: katalog, rezerwacje, kaucje, zwroty",
-      "include2": "Własna strona sklepu z rezerwacją online",
-      "include3": "Adres twojanazwa.avably.io i podpięcie własnej domeny",
-      "include4": "E-maile do klientów w nazwie Twojej firmy",
-      "include5": "Kurier: nadania, zwroty i etykiety",
-      "foundersLabel": "Founders −50%",
-      "foundersPrice": "99,50 zł/msc",
-      "foundersNote": "Pierwsze 20 wypożyczalni płaci połowę bieżącej ceny tak długo, jak abonament pozostaje aktywny.",
+      "title": "Płać za system, nie prowizje",
+      "intro": "Ceny netto (doliczamy 23% VAT). Trial 14 dni bez karty. Rocznie płacisz za 10 miesięcy. Bez limitu użytkowników, zamówień i produktów — w obu planach.",
+      "standardLabel": "Standard",
+      "standardPrice": "199 zł netto/msc",
+      "standardYearly": "Rocznie 1 990 zł netto — rok w cenie 10 miesięcy.",
+      "standardNote": "Komplet do prowadzenia wynajmu — wszystko poniżej działa dziś.",
+      "s1": "Panel wynajmu: katalog, rezerwacje, kaucje, kurier, e-maile",
+      "s2": "Własna strona sklepu z kreatorem i własną domeną",
+      "s3": "Płatności online kartą z automatycznym pobraniem kaucji, 0% prowizji (BLIK i Przelewy24 — w budowie)",
+      "s4": "Bez limitu użytkowników, zamówień i produktów",
+      "s5": "Import i eksport CSV, dashboard, umowa najmu PDF",
+      "s6": "Publiczne API i wtyczka WordPress",
+      "s7": "Trial 14 dni bez karty",
+      "premiumLabel": "Premium",
+      "premiumBadge": "Wkrótce",
+      "premiumPrice": "399 zł netto/msc",
+      "premiumYearly": "Rocznie 3 990 zł netto — rok w cenie 10 miesięcy.",
+      "premiumNote": "Wszystko ze Standardu plus funkcje, które zarabiają i oszczędzają spory. Sprzedaż otworzymy, gdy pierwsze z nich będą działać — dat nie podajemy.",
+      "p1": "Protokoły wydania i zwrotu ze zdjęciami",
+      "p2": "E-podpis umowy najmu",
+      "p3": "Automatyczne faktury po opłaceniu (z KSeF)",
+      "p4": "Cenniki sezonowe i weekendowe",
+      "p5": "Damage waiver — dodatkowy przychód wypożyczalni",
+      "p6": "E-maile z Twojej domeny, wyższe limity API, raporty zaawansowane",
+      "p7": "Priorytetowy support",
       "honestTitle": "Uczciwie",
-      "honest1": "Bez umowy na rok i bez opłaty wdrożeniowej.",
-      "honest2": "Rezygnujesz, kiedy chcesz. Konto zakładasz e-mailem, bez podawania karty.",
-      "buildingTitle": "W budowie",
-      "building1": "Płatności online (BLIK, karty, Przelewy24) i kaucje online",
-      "building2": "Umowy PDF i faktury wystawiane automatycznie"
+      "honest1": "Bez umowy na rok i bez opłaty wdrożeniowej. Rezygnujesz, kiedy chcesz — konto zakładasz e-mailem, bez podawania karty.",
+      "honest2": "Funkcje z listy Premium są w budowie — nie sprzedajemy ich, dopóki nie działają. Pokazujemy je od pierwszego dnia, żebyś wiedział, dokąd zmierza produkt."
     }
   },
   "landing": {
     "metadata": {
       "title": "Avably — system dla wypożyczalni sprzętu",
-      "description": "Rezerwacje, dostępność egzemplarzy, kaucje, kurier i własna strona sklepu w jednym systemie. Załóż sklep i przyjmuj rezerwacje online.",
+      "description": "Panel wynajmu, płatności online z kaucją i własna strona sklepu z rezerwacją — bez prowizji od transakcji. Standard 199 zł, Premium 399 zł netto/msc, trial 14 dni bez karty.",
       "ogTitle": "Avably — prowadź wypożyczalnię w jednym systemie",
-      "ogDescription": "Panel wynajmu i własna strona sklepu z rezerwacją online. 199 zł/msc w okresie testowym, −50% dla pierwszych 20 wypożyczalni."
+      "ogDescription": "Rezerwacje, kaucje, kurier, płatności online i własna strona sklepu w jednym abonamencie. 0% prowizji od transakcji, trial 14 dni bez karty."
     },
     "form": {
       "eyebrow": "4 krótkie pola · około minuty",

@@ -7,11 +7,7 @@ import { notFound } from "next/navigation";
 import { MarketingPageView } from "@/components/marketing/marketing-page-view";
 import { routing } from "@/i18n/routing";
 import enMessages from "@/messages/en.json";
-import {
-  isReviewPage,
-  TEMPLATE_ROUTES,
-  type MarketingPage,
-} from "@/lib/marketing/template";
+import { TEMPLATE_ROUTES, type MarketingPage } from "@/lib/marketing/template";
 
 type AppMessages = typeof enMessages;
 
@@ -32,12 +28,6 @@ export async function generateMetadata({
   if (!hasLocale(routing.locales, locale)) notFound();
   const resolved = resolvePage(page);
   const messages = (await getMessages({ locale })) as AppMessages;
-
-  // Warianty przeglądowe istnieją WYŁĄCZNIE po to, żeby właściciel wybrał układ.
-  // Nie mają być znajdowane w wyszukiwarce ani dublować treści stron publicznych.
-  if (isReviewPage(resolved)) {
-    return { title: `${resolved} · podgląd układu`, robots: { index: false, follow: false } };
-  }
 
   const copy = messages.marketing;
   const title = resolved === "pricing" ? copy.pricingPage.title : copy.nav[resolved === "faq" ? "faq" : "contact"];
