@@ -25,11 +25,29 @@ import type { MarketingCopy } from "./marketing/types";
 import { TurnstileWidget } from "./turnstile-widget";
 
 interface WaitlistFormProps {
+  /**
+   * Druga droga: „nie musisz czekać, załóż konto od razu". Klucze
+   * `landing.waitlistPage.altLead`/`altCta` istniały w treści i nie były
+   * podstawiane nigdzie — a ekran „zapisy stoją" i ekran po zapisie były
+   * bez nich ślepą uliczką.
+   */
+  alt: { cta: string; href: string; lead: string };
   copy: MarketingCopy["form"];
   enabled: boolean;
   locale: "en" | "pl";
   /** Site key Turnstile; brak = widget i weryfikacja jawnie wyłączone (dev). */
   turnstileSiteKey?: string | undefined;
+}
+
+function AltDroga({ alt }: { alt: WaitlistFormProps["alt"] }) {
+  return (
+    <p className="text-dark-64">
+      {alt.lead}{" "}
+      <a href={alt.href} rel="noreferrer">
+        {alt.cta}
+      </a>
+    </p>
+  );
 }
 
 interface FormValues {
@@ -82,7 +100,7 @@ function FieldError({ id, message }: { id: string; message: string | undefined }
  * arkusza, logika i kontrakt danych zostają nasze. Identyfikatory pól oraz
  * `aria-describedby` są częścią kontraktu testów dostępności.
  */
-export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: WaitlistFormProps) {
+export function WaitlistForm({ alt, copy, enabled, locale, turnstileSiteKey }: WaitlistFormProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [view, setView] = useState<WaitlistViewState>(
     enabled ? { kind: "idle" } : { kind: "disabled" },
@@ -208,6 +226,7 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           {copy.success.bodyAfterEmail}
         </p>
         {submittedPilot ? <p className="text-dark-64">{copy.success.pilot}</p> : null}
+        <AltDroga alt={alt} />
         <button
           className="cta-main dark-outlined w-button"
           onClick={() => setView({ kind: "idle" })}
@@ -248,6 +267,7 @@ export function WaitlistForm({ copy, enabled, locale, turnstileSiteKey }: Waitli
           <>
             <div className="text-h6">{copy.disabled.title}</div>
             <p className="text-dark-64">{copy.disabled.body}</p>
+            <AltDroga alt={alt} />
           </>
         ) : null}
         {messageKey === "duplicate" ? copy.errors.duplicate : null}

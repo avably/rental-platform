@@ -40,6 +40,11 @@ const ASSET_DIRS = [
   { dir: "public/forerunner/videos", prefix: "/forerunner/videos", limit: 5 * 1024 * 1024 },
   { dir: "public/produkt/pl", prefix: "/produkt/pl", limit: 150 * 1024 },
   { dir: "public/produkt/en", prefix: "/produkt/en", limit: 150 * 1024 },
+  // LP 2.0: fotografia stockowa i wideo hero. Bez tego wpisu katalog wypadał
+  // i z bramki wagi, i z bramki sieroctwa — wideo mogłoby urosnąć do 4 MB
+  // i przejść bez mrugnięcia. Sufit pojedynczego pliku jest sufitem WIDEO;
+  // obrazy mają własny, dziesięciokrotnie niższy, w bramce niżej.
+  { dir: "public/marketing", prefix: "/marketing", limit: 480 * 1024 },
 ];
 
 describe("izolacja warstw wizualnych", () => {
@@ -413,6 +418,135 @@ describe("spójność tras i zasobów", () => {
       }
     }
     expect(orphans, orphans.slice(0, 10).join(" | ")).toEqual([]);
+  });
+
+  /**
+   * MARTWE ODWOŁANIE DO PLIKU. Bramka sieroctwa patrzy w jedną stronę: czy
+   * każdy PLIK ma odwołanie. Nie widzi odwrotności — literówki w `src`, pliku
+   * przeniesionego albo zapomnianego przy commicie. Taki obraz nie rzuca
+   * błędu, tylko cicho nie wchodzi: zostaje pusta ramka i tekst alternatywny.
+   * Ta bramka idzie w drugą stronę: każdy lokalny `src`/`srcset`/`poster`
+   * w przeniesionych stronach musi wskazywać plik, który naprawdę leży w `public/`.
+   */
+  it("żadne odwołanie do pliku w przeniesionych stronach nie wisi w próżni", () => {
+    const brakujace: string[] = [];
+    for (const file of marketingPages) {
+      const html = read(path.join("marketing", file));
+      const sciezki = new Set<string>();
+      for (const match of html.matchAll(/(?:src|poster)="(\/[^"{}]+)"/g)) sciezki.add(match[1]);
+      for (const match of html.matchAll(/srcset="([^"]+)"/g)) {
+        for (const kandydat of match[1].split(",")) {
+          const url = kandydat.trim().split(/\s+/)[0];
+          if (url.startsWith("/")) sciezki.add(url);
+        }
+      }
+      for (const sciezka of sciezki) {
+        if (!existsSync(path.join(root, "public", sciezka.replace(/^\//, "")))) {
+          brakujace.push(`${file}: ${sciezka}`);
+        }
+      }
+    }
+    // Zrzuty interfejsu wchodzą przez treść, nie literałem — sprawdzamy je z JSON-a.
+    for (const [locale, messages] of [
+      ["pl", pl],
+      ["en", en],
+    ] as const) {
+      for (const [klucz, wartosc] of Object.entries(messages.marketing.shots)) {
+        if (typeof wartosc !== "string" || !wartosc.startsWith("/")) continue;
+        if (!existsSync(path.join(root, "public", wartosc.replace(/^\//, "")))) {
+          brakujace.push(`${locale}/shots.${klucz}: ${wartosc}`);
+        }
+      }
+    }
+    expect(brakujace, brakujace.join(" | ")).toEqual([]);
+  });
+
+  /**
+   * TEKST ALTERNATYWNY BIERZE SIĘ Z TREŚCI, NIE Z HTML-a. Każdy `<img>` na osi
+   * marketingowej ma `alt` podstawiany per locale — inaczej polska i angielska
+   * wersja opisywałyby ten sam obraz tym samym zdaniem po polsku. Wyjątkiem są
+   * elementy czysto dekoracyjne (logo z własną nazwą, siatka kropek), które
+   * mają `alt` pusty albo dosłowny. Bramka pilnuje, żeby nowy obraz nie wszedł
+   * z `alt=""` „na chwilę".
+   */
+  it("każdy obraz treściowy niesie tekst alternatywny z i18n", () => {
+    const bezOpisu: string[] = [];
+    for (const file of marketingPages) {
+      const html = read(path.join("marketing", file));
+      for (const match of html.matchAll(/<img\b[^>]*>/g)) {
+        const tag = match[0];
+        const alt = tag.match(/\salt="([^"]*)"/);
+        if (!alt) {
+          bezOpisu.push(`${file}: <img> bez atrybutu alt`);
+          continue;
+        }
+        // Dekoracja: pusty alt jest tu POPRAWNY (Dots.svg), logo niesie nazwę marki.
+        if (alt[1] === "" || alt[1] === "Avably") continue;
+        if (!/^\{\{[a-zA-Z0-9_.]+Alt\}\}$/.test(alt[1])) {
+          bezOpisu.push(`${file}: alt="${alt[1]}" nie jest tokenem treści`);
+        }
+      }
+    }
+    expect(bezOpisu, bezOpisu.join(" | ")).toEqual([]);
+  });
+
+  /**
+   * WIDEO HERO NIE MOŻE ZALEŻEĆ OD JAVASCRIPTU. `buildCsp` daje
+   * `script-src 'self' 'nonce-…' 'strict-dynamic'`; przy `strict-dynamic`
+   * przeglądarka ignoruje także `'self'`, więc liczy się wyłącznie nonce.
+   * Statyczne `marketing/*.html` nonce'a nie dostaną nigdy — skrypt wstawiony
+   * tam nie wykonałby się PO CICHU, razem z bramką ruchu, którą miałby nieść.
+   * Stąd trzy warunki: zero `<script>` w tych plikach, atrybuty odtwarzania
+   * na samym elemencie i bramka `prefers-reduced-motion` w arkuszu.
+   */
+  it("wideo hero odtwarza się bez skryptu, a bramka ruchu stoi w CSS", () => {
+    for (const file of marketingPages) {
+      expect(read(path.join("marketing", file)), `${file} wstawia <script>`).not.toMatch(/<script\b/);
+    }
+
+    const home = read("marketing/home.html");
+    const video = home.match(/<video\b[^>]*>/)?.[0];
+    expect(video, "home.html zgubiło element <video>").toBeTruthy();
+    for (const atrybut of ["autoplay", "muted", "loop", "playsinline", 'preload="none"']) {
+      expect(video, `<video> bez ${atrybut} nie odtworzy się bez skryptu`).toContain(atrybut);
+    }
+
+    const css = read("public/forerunner/css/avably-marketing.css");
+    const bramka = css.match(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^}]*\.hero-media-wideo\s*\{[^}]*\}/,
+    );
+    expect(
+      bramka,
+      "brak bramki prefers-reduced-motion dla wideo — deklaracja bez pokrycia",
+    ).toBeTruthy();
+    expect(bramka?.[0]).toMatch(/display:\s*none/);
+  });
+
+  /**
+   * Suma katalogu, nie tylko pojedynczy plik: dziesięć plików po 400 kB
+   * przechodzi bramkę „per plik" i topi stronę. Obrazy mają tu sufit
+   * ośmiokrotnie niższy niż wideo, bo wchodzą na ścieżkę pierwszego ekranu.
+   */
+  it("katalog marketingowy nie rośnie po cichu", () => {
+    const base = path.join(root, "public/marketing");
+    if (!existsSync(base)) return;
+    let obrazy = 0;
+    let wideo = 0;
+    const zaciezkie: string[] = [];
+    for (const file of readdirSync(base)) {
+      const { size } = statSync(path.join(base, file));
+      const jestWideo = /\.(mp4|webm)$/.test(file);
+      if (jestWideo) wideo += size;
+      else {
+        obrazy += size;
+        if (size > 60 * 1024) zaciezkie.push(`/marketing/${file} = ${Math.round(size / 1024)} kB > 60 kB`);
+      }
+    }
+    expect(zaciezkie, zaciezkie.join(" | ")).toEqual([]);
+    // Dziś 164 kB (poster 45 + 19, pięć kafli 103). Zapas jest wąski celowo:
+    // szóstego kafla nie da się dołożyć „przy okazji", bez decyzji o wadze.
+    expect(Math.round(obrazy / 1024), "suma obrazów marketingowych").toBeLessThanOrEqual(175);
+    expect(Math.round(wideo / 1024), "suma wideo marketingowego").toBeLessThanOrEqual(1000);
   });
 
   it("trzyma wagę pojedynczego zasobu w ryzach", () => {

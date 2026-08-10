@@ -158,6 +158,114 @@ select.text-field {
   aspect-ratio: 3 / 2;
 }
 
+/* ══════════ LP 2.0: wideo hero i pas branż ══════════
+ *
+ * WIDEO BEZ JAVASCRIPTU. `buildCsp` (packages/security) daje
+ * `script-src 'self' 'nonce-…' 'strict-dynamic'`, a przy `strict-dynamic`
+ * przeglądarka ignoruje także `'self'` — liczy się WYŁĄCZNIE nonce. Statyczne
+ * `marketing/*.html` nonce'a nie dostaną nigdy, więc skrypt wstawiony tam nie
+ * wykona się i NIKT tego nie zauważy. Dlatego `<video autoplay muted loop
+ * playsinline>` odtwarza się sam, a obie bramki — ruchu i urządzenia — stoją
+ * niżej w CSS, gdzie nie zależą od skryptu.
+ *
+ * Poster jest osobnym `<img>` (nie `background-image`): dostaje `srcset`,
+ * jawne `width`/`height` i `fetchpriority="high"`, a `loading="lazy"` jest tu
+ * ZAKAZANE — to ścieżka LCP. Wszystkie 15 pozostałych `<img>` na tej stronie
+ * ma `lazy` i implementer kopiujący wzorzec zabiłby pierwszy ekran. */
+.hero-media-obraz,
+.hero-media-wideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+
+/* Nakładka liczona, nie oszacowana. Oś `to right` (90°), więc procent stopu =
+ * procent SZEROKOŚCI; przy 100° procenty biegłyby wzdłuż osi gradientu i
+ * deklarowany kontrast obowiązywałby do ~38% szerokości. Barwa to `color--dark`
+ * (#181E25) — ta sama, na której stoi sekcja, więc na krawędzi wygaszenia nie
+ * ma szwu. Strefa nagłówka to 0–58% szerokości: biały tekst ma tam ≥10,4:1
+ * nawet przeciw czysto białemu pikselowi, czyli AAA z zapasem. */
+.hero-media-scrim {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    to right,
+    rgba(24, 30, 37, 0.9) 0%,
+    rgba(24, 30, 37, 0.86) 45%,
+    rgba(24, 30, 37, 0.78) 60%,
+    rgba(24, 30, 37, 0.3) 85%,
+    rgba(24, 30, 37, 0.12) 100%
+  );
+}
+
+/* BRAMKA RUCHU. Przy ustawieniu systemowym „ogranicz ruch" wideo znika i
+ * zostaje sam poster — a `preload="none"` sprawia, że plik nie jest wtedy
+ * pobierany w ogóle. To jedyna reguła `prefers-reduced-motion` na osi
+ * marketingowej: w obu arkuszach szablonu nie ma jej ani razu. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-media-wideo {
+    display: none;
+  }
+}
+
+/* BRAMKA URZĄDZENIA. Poniżej 1024 px nagłówek zajmuje całą szerokość, więc
+ * gradient poziomy przestaje mieć sens — scrim robi się równomierny, a wideo
+ * schodzi z drogi (telefon zostaje przy posterze 750w, 19 kB). */
+@media screen and (max-width: 1023px) {
+  .hero-media-wideo {
+    display: none;
+  }
+
+  .hero-media-scrim {
+    background-image: linear-gradient(to bottom, rgba(24, 30, 37, 0.86) 0%, rgba(24, 30, 37, 0.94) 100%);
+  }
+}
+
+/* Pas branż: pięć kafli w rzędzie, po dwa na telefonie. Proporcja pudełka jest
+ * DOKŁADNIE proporcją pliku (560×373), więc `cover` nie ma czego przyciąć,
+ * a miejsce jest zarezerwowane przed wczytaniem obrazu. */
+.branze-siatka {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.branze-kafel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.branze-obraz {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 560 / 373;
+  object-fit: cover;
+  border-radius: var(--radius--8, 8px);
+}
+
+.branze-nota {
+  max-width: 636px;
+  margin: var(--_spacing---divider--32, 32px) auto 0;
+  text-align: center;
+}
+
+@media screen and (max-width: 991px) {
+  .branze-siatka {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .branze-siatka {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* Poniżej progu „tablet" zakładki układają się w kolumnę: harmonijka na górze,
  * podgląd pod nią. Szablon dawał podglądowi stałą wysokość (400/250 px) pod
  * zdjęcie kadrowane `cover`; zrzut 2:1 jest niższy, więc zostawała martwa
