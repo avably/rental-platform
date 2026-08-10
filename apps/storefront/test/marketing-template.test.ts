@@ -411,8 +411,16 @@ describe("spójność tras i zasobów", () => {
     // w messages/*.json), a nie literałem w HTML — inaczej nie dałoby się mieć
     // osobnego kadru dla wersji polskiej i angielskiej. Zbiór „użyte" musi więc
     // obejmować oba źródła, bo inaczej ta bramka uznałaby każdy zrzut za sierotę.
+    // Trzecie źródło to komponenty osi publicznej (favicon w <head> layoutu).
+    // Bez nich ta bramka uznałaby favicon za sierotę, a bramka odwrotna nie
+    // zauważyłaby jego zniknięcia — oba kierunki MUSZĄ karmić się tym samym
+    // zbiorem źródeł, inaczej jeden zaczyna kłamać o drugim.
+    const komponentyTsx = (readdirSync(path.join(root, "app"), { recursive: true }) as string[])
+      .filter((entry) => entry.endsWith(".tsx"))
+      .map((entry) => read(path.join("app", entry)));
     const uzyte = [
       ...marketingPages.map((file) => read(path.join("marketing", file))),
+      ...komponentyTsx,
       JSON.stringify(pl),
       JSON.stringify(en),
     ].join("\n");
@@ -453,6 +461,22 @@ describe("spójność tras i zasobów", () => {
         }
       }
     }
+    // Komponenty osi publicznej też wskazują zasoby. Favicon w <head> layoutu żył
+    // jako martwe odwołanie właśnie dlatego, że bramka czytała wyłącznie szablony
+    // HTML — naprawione osobnym PR-em i utrzymane tutaj przy scalaniu gałęzi.
+    const komponenty = (readdirSync(path.join(root, "app"), { recursive: true }) as string[]).filter(
+      (entry) => entry.endsWith(".tsx"),
+    );
+    for (const entry of komponenty) {
+      const zrodlo = read(path.join("app", entry));
+      const wzorzec = /(?:href|src|poster)="(\/(?:forerunner|produkt|marketing)\/[^"]+)"/g;
+      for (const match of zrodlo.matchAll(wzorzec)) {
+        if (!existsSync(path.join(root, "public", match[1].replace(/^\//, "")))) {
+          brakujace.push(`app/${entry}: ${match[1]}`);
+        }
+      }
+    }
+
     // Zrzuty interfejsu wchodzą przez treść, nie literałem — sprawdzamy je z JSON-a.
     for (const [locale, messages] of [
       ["pl", pl],
