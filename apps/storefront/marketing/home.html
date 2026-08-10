@@ -188,14 +188,26 @@
          Powód jest twardy: `buildCsp` daje `script-src 'self' 'nonce-…'
          'strict-dynamic'`, a przy `strict-dynamic` liczy się WYŁĄCZNIE nonce.
          Pliki `marketing/*.html` są statyczne i nonce'a nie dostaną nigdy, więc
-         skrypt wstawiony tutaj nie wykonałby się PO CICHU. Bramki ruchu i
-         urządzenia są w CSS (`avably-marketing.css`), gdzie naprawdę działają. -->
+         skrypt wstawiony tutaj nie wykonałby się PO CICHU.
+
+         Bramki są DWIE i pilnują dwóch różnych rzeczy:
+         · `media` na `<source>` decyduje, czy plik zostanie POBRANY (zmierzone
+           w Chrome: przy 375 px i przy „ogranicz ruch" transfer wideo = 0 B).
+           Samo `display: none` pobierania NIE zatrzymuje — `autoplay` uruchamia
+           wybór zasobu niezależnie od widoczności, zmierzone: 211,7 kB mimo
+           ukrytego elementu;
+         · `display: none` w `avably-marketing.css` decyduje, czy element jest
+           WIDOCZNY — i to jest gwarancja wizualna także tam, gdzie atrybut
+           `media` bywa ignorowany.
+         `<video>` nie dostaje atrybutu `poster`: poster leży pod spodem jako
+         `<img>`, a duplikat pobierałby ten sam plik drugi raz na telefonie,
+         gdzie wideo i tak nie leci (zmierzone: +45,9 kB). -->
     <div class="home-a-video tlo-marki">
       <img src="/marketing/hero-poster-1600.webp" srcset="/marketing/hero-poster-750.webp 750w, /marketing/hero-poster-1600.webp 1600w" sizes="100vw" alt="{{hero.posterAlt}}" width="1600" height="900" fetchpriority="high" decoding="async" class="hero-media-obraz">
-      <video class="hero-media-wideo" poster="/marketing/hero-poster-1600.webp" width="1280" height="720" autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
-        <source src="/marketing/hero-magazyn-720.av1.mp4" type='video/mp4; codecs="av01.0.05M.08"'>
-        <source src="/marketing/hero-magazyn-720.vp9.webm" type='video/webm; codecs="vp9"'>
-        <source src="/marketing/hero-magazyn-720.h264.mp4" type='video/mp4; codecs="avc1.64001f"'>
+      <video class="hero-media-wideo" width="1280" height="720" autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
+        <source src="/marketing/hero-magazyn-720.av1.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="av01.0.05M.08"'>
+        <source src="/marketing/hero-magazyn-720.vp9.webm" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/webm; codecs="vp9"'>
+        <source src="/marketing/hero-magazyn-720.h264.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="avc1.64001f"'>
       </video>
       <div class="hero-media-scrim"></div>
       <div class="w-layout-blockcontainer main-container w-container">
@@ -354,23 +366,23 @@
       <div class="branze-siatka">
         <div class="branze-kafel">
           <img src="/marketing/kafel-budowlana-560.webp" alt="{{branze.item1Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
-          <div class="text-h6">{{branze.item1Title}}</div>
+          <div class="text-medium">{{branze.item1Title}}</div>
         </div>
         <div class="branze-kafel">
           <img src="/marketing/kafel-narzedziowa-560.webp" alt="{{branze.item2Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
-          <div class="text-h6">{{branze.item2Title}}</div>
+          <div class="text-medium">{{branze.item2Title}}</div>
         </div>
         <div class="branze-kafel">
           <img src="/marketing/kafel-eventowa-560.webp" alt="{{branze.item3Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
-          <div class="text-h6">{{branze.item3Title}}</div>
+          <div class="text-medium">{{branze.item3Title}}</div>
         </div>
         <div class="branze-kafel">
           <img src="/marketing/kafel-fotovideo-560.webp" alt="{{branze.item4Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
-          <div class="text-h6">{{branze.item4Title}}</div>
+          <div class="text-medium">{{branze.item4Title}}</div>
         </div>
         <div class="branze-kafel">
           <img src="/marketing/kafel-rowerowa-560.webp" alt="{{branze.item5Alt}}" loading="lazy" width="560" height="373" class="branze-obraz">
-          <div class="text-h6">{{branze.item5Title}}</div>
+          <div class="text-medium">{{branze.item5Title}}</div>
         </div>
       </div>
       <div class="text-dark-64 branze-nota">{{branze.note}}</div>

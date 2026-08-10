@@ -201,10 +201,14 @@ select.text-field {
   );
 }
 
-/* BRAMKA RUCHU. Przy ustawieniu systemowym „ogranicz ruch" wideo znika i
- * zostaje sam poster — a `preload="none"` sprawia, że plik nie jest wtedy
- * pobierany w ogóle. To jedyna reguła `prefers-reduced-motion` na osi
- * marketingowej: w obu arkuszach szablonu nie ma jej ani razu. */
+/* BRAMKA RUCHU — WARSTWA WIDOCZNOŚCI. Przy ustawieniu systemowym „ogranicz
+ * ruch" wideo znika i zostaje sam poster. UWAGA: `display: none` NIE
+ * zatrzymuje pobierania — `autoplay` uruchamia wybór zasobu niezależnie od
+ * widoczności (zmierzone: 211,7 kB mimo ukrytego elementu). Za brak pobrania
+ * odpowiada `media` na `<source>` w `home.html`; ta reguła odpowiada za to,
+ * co widać, i broni się także tam, gdzie `media` bywa ignorowane.
+ * To jedyna reguła `prefers-reduced-motion` na osi marketingowej — w obu
+ * arkuszach szablonu nie ma jej ani razu. */
 @media (prefers-reduced-motion: reduce) {
   .hero-media-wideo {
     display: none;
@@ -229,7 +233,10 @@ select.text-field {
  * a miejsce jest zarezerwowane przed wczytaniem obrazu. */
 .branze-siatka {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* `minmax(0, 1fr)`, nie `1fr`: domyślne `minmax(auto, 1fr)` pozwala długiemu
+     tytułowi rozepchnąć kolumnę i wyjść na sąsiada — widać to dopiero na
+     zrzucie, bo tekst nie jest przycinany, tylko nachodzi. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -256,13 +263,13 @@ select.text-field {
 
 @media screen and (max-width: 991px) {
   .branze-siatka {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media screen and (max-width: 767px) {
   .branze-siatka {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

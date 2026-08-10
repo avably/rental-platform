@@ -19,6 +19,13 @@ import pl from "../messages/pl.json";
 
 const root = path.resolve(__dirname, "..");
 const read = (relative: string) => readFileSync(path.join(root, relative), "utf8");
+/**
+ * Bramki patrzące na MARKUP muszą najpierw zdjąć komentarze. Inaczej zdanie
+ * w komentarzu („<video> nie dostaje atrybutu poster") jest dla wyrażenia
+ * regularnego nieodróżnialne od elementu — i bramka pada na własnej
+ * dokumentacji zamiast na kodzie.
+ */
+const bezKomentarzy = (html: string) => html.replace(/<!--[\s\S]*?-->/g, "");
 const marketingPages = readdirSync(path.join(root, "marketing")).filter((file) =>
   file.endsWith(".html"),
 );
@@ -431,7 +438,7 @@ describe("spójność tras i zasobów", () => {
   it("żadne odwołanie do pliku w przeniesionych stronach nie wisi w próżni", () => {
     const brakujace: string[] = [];
     for (const file of marketingPages) {
-      const html = read(path.join("marketing", file));
+      const html = bezKomentarzy(read(path.join("marketing", file)));
       const sciezki = new Set<string>();
       for (const match of html.matchAll(/(?:src|poster)="(\/[^"{}]+)"/g)) sciezki.add(match[1]);
       for (const match of html.matchAll(/srcset="([^"]+)"/g)) {
@@ -472,7 +479,7 @@ describe("spójność tras i zasobów", () => {
   it("każdy obraz treściowy niesie tekst alternatywny z i18n", () => {
     const bezOpisu: string[] = [];
     for (const file of marketingPages) {
-      const html = read(path.join("marketing", file));
+      const html = bezKomentarzy(read(path.join("marketing", file)));
       for (const match of html.matchAll(/<img\b[^>]*>/g)) {
         const tag = match[0];
         const alt = tag.match(/\salt="([^"]*)"/);
@@ -501,15 +508,37 @@ describe("spójność tras i zasobów", () => {
    */
   it("wideo hero odtwarza się bez skryptu, a bramka ruchu stoi w CSS", () => {
     for (const file of marketingPages) {
-      expect(read(path.join("marketing", file)), `${file} wstawia <script>`).not.toMatch(/<script\b/);
+      expect(bezKomentarzy(read(path.join("marketing", file))), `${file} wstawia <script>`).not.toMatch(
+        /<script\b/,
+      );
     }
 
-    const home = read("marketing/home.html");
+    const home = bezKomentarzy(read("marketing/home.html"));
     const video = home.match(/<video\b[^>]*>/)?.[0];
     expect(video, "home.html zgubiło element <video>").toBeTruthy();
     for (const atrybut of ["autoplay", "muted", "loop", "playsinline", 'preload="none"']) {
       expect(video, `<video> bez ${atrybut} nie odtworzy się bez skryptu`).toContain(atrybut);
     }
+
+    // BRAMKA POBRANIA, nie tylko widoczności. `display: none` ukrywa element,
+    // ale `autoplay` i tak uruchamia wybór zasobu — zmierzone w Chrome:
+    // 211,7 kB wideo schodziło na telefon mimo ukrytego elementu. Dopiero
+    // `media` na `<source>` daje transfer 0 B przy 375 px i przy „ogranicz ruch".
+    const zrodla = [...home.matchAll(/<source\b[^>]*>/g)].map((m) => m[0]);
+    expect(zrodla.length, "wideo hero bez żadnego <source>").toBeGreaterThanOrEqual(3);
+    for (const zrodlo of zrodla) {
+      expect(zrodlo, "<source> bez bramki min-width — telefon pobierze wideo").toContain(
+        "(min-width: 1024px)",
+      );
+      expect(zrodlo, "<source> bez bramki ruchu — plik zejdzie mimo „ogranicz ruch”").toContain(
+        "prefers-reduced-motion: no-preference",
+      );
+    }
+    // Poster tylko raz: duplikat na `<video poster>` pobierał ten sam plik
+    // drugi raz na telefonie, gdzie wideo i tak nie leci (+45,9 kB).
+    expect(video, "<video> znowu ma własny poster — to drugi transfer tego samego pliku").not.toContain(
+      "poster=",
+    );
 
     const css = read("public/forerunner/css/avably-marketing.css");
     const bramka = css.match(
