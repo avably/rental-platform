@@ -82,6 +82,26 @@
     ]
   },
   "marketing": {
+    "shots": {
+      "kalendarz": "/produkt/en/kalendarz.webp",
+      "kalendarzAlt": "The availability calendar in the Avably back office: days taken by other rentals marked in red, next to the order line and the delivery choice (demonstration data).",
+      "kaucje": "/produkt/en/kaucje.webp",
+      "kaucjeAlt": "The deposit section in the Avably back office: the balance, the refund button and the register with the collection, a cleaning deduction and the refund (demonstration data).",
+      "kurier": "/produkt/en/kurier.webp",
+      "kurierAlt": "The delivery section in the Avably back office: the shipment table with status, broker reference, tracking number and shipping cost (demonstration data).",
+      "kreator": "/produkt/en/kreator.webp",
+      "kreatorAlt": "The store page editor in Avably: the section palette on the left, the canvas with the store's first screen on the right, the publish button on top (demonstration data).",
+      "koszyk": "/produkt/en/koszyk.webp",
+      "koszykAlt": "The cart in a rental store: the chosen rental period, the line with rental and deposit amounts, and the summary to pay (demonstration data).",
+      "rejestracja": "/produkt/en/rejestracja.webp",
+      "rejestracjaAlt": "The sign-up screen in Avably: the email and password fields and the “Sign up” button.",
+      "katalog": "/produkt/en/katalog.webp",
+      "katalogAlt": "The catalogue in the Avably back office: the equipment list with the daily price, the deposit and the number of units (demonstration data).",
+      "zamowienia": "/produkt/en/zamowienia.webp",
+      "zamowieniaAlt": "The order list in the Avably back office: tiles with the number and value of orders, and a table with customer, equipment and dates (demonstration data).",
+      "pulpit": "/produkt/en/pulpit.webp",
+      "pulpitAlt": "The dashboard in the Avably back office: revenue for the current and previous month, the twelve-month trend, equipment utilisation and top customers (demonstration data)."
+    },
     "nav": {
       "pricing": "Pricing",
       "faq": "Questions",

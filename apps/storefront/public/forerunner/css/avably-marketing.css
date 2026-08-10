@@ -95,3 +95,75 @@ select.text-field {
 .section.home-a-faq-section {
   padding-top: var(--_spacing---section-spacing--80, 80px);
 }
+
+/* ══════════ A2 / delta wizualna: zrzuty interfejsu i miejsca po wideo ══════════
+ *
+ * Interfejs pokazujemy jako OBRAZ — zrzut działającego produktu w `<img>`,
+ * nigdy jako odtworzony w HTML/CSS kalendarz, tabelę czy wykres. To decyzja
+ * właściciela (ADR-128): atrapa UI na stronie sprzedażowej obiecuje ekran,
+ * którego nikt nie zbudował, i starzeje się niezależnie od produktu.
+ */
+
+/* Miejsca po usuniętym wideo z szablonu. Pierwszy ekran ma ciemne tło
+ * z arkusza szablonu (`.section.hero-home-a`), ale sekcja cytatu miała je
+ * WYŁĄCZNIE od wideo — bez tego zdania jasny tekst leżałby na jasnym.
+ * `position` i `overflow` odtwarzają to, co dawała klasa `w-background-video`:
+ * nakładki i siatka kropek są pozycjonowane względem tego pudełka. */
+.home-a-video.tlo-marki,
+.video-large.tlo-marki {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--_colors---color--dark, #181e25);
+}
+
+/* Zrzut interfejsu: pudełko trzyma DOKŁADNIE proporcję pliku, więc `cover`
+ * nie ma czego przyciąć ani czym uzupełnić — obraz nie jest ani kadrowany,
+ * ani zniekształcony, ani obramowany paskami. Wysokość liczona z proporcji
+ * (nie ze stałej), więc rezerwacja miejsca jest poprawna przed wczytaniem
+ * pliku i układ nie skacze przy dociąganiu obrazu. */
+.zrzut-ui {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: var(--radius--8, 8px);
+}
+
+.zrzut-ui-2-1 {
+  aspect-ratio: 2 / 1;
+}
+
+.zrzut-ui-4-3 {
+  aspect-ratio: 4 / 3;
+}
+
+.zrzut-ui-3-2 {
+  aspect-ratio: 3 / 2;
+}
+
+/* Pudełka szablonu miały STAŁE wysokości pod zdjęcia dekoracyjne (396 px
+ * w „trzech krokach", 720 px w bloku CTA, mniej na węższych ekranach).
+ * Zrzut interfejsu w takim pudełku byłby przycięty w pionie — i to akurat
+ * na wierszu z liczbami. Selektory są DWUKLASOWE, więc wygrywają swoistością
+ * z jednoklasowymi regułami szablonu w każdym progu, bez `!important`
+ * i bez zależności od kolejności arkuszy. */
+.momonetum-image.zrzut-ramka-4-3 {
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.cta-block-image.zrzut-ramka-3-2 {
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 3 / 2;
+}
+
+/* Poniżej progu „tablet" zakładki układają się w kolumnę: harmonijka na górze,
+ * podgląd pod nią. Szablon dawał podglądowi stałą wysokość (400/250 px) pod
+ * zdjęcie kadrowane `cover`; zrzut 2:1 jest niższy, więc zostawała martwa
+ * przestrzeń pod obrazem. Wysokość idzie za treścią. */
+@media screen and (max-width: 991px) {
+  .tabs-content-features .tab-pane-features {
+    height: auto;
+  }
+}

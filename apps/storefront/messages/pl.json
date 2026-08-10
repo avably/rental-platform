@@ -82,6 +82,26 @@
     ]
   },
   "marketing": {
+    "shots": {
+      "kalendarz": "/produkt/pl/kalendarz.webp",
+      "kalendarzAlt": "Kalendarz dostępności w panelu Avably: dni zajęte przez inne najmy zaznaczone na czerwono, obok pozycja zamówienia i wybór dostawy (dane demonstracyjne).",
+      "kaucje": "/produkt/pl/kaucje.webp",
+      "kaucjeAlt": "Sekcja kaucji w panelu Avably: saldo, przycisk zwrotu i rejestr z pobraniem, potrąceniem za czyszczenie i zwrotem (dane demonstracyjne).",
+      "kurier": "/produkt/pl/kurier.webp",
+      "kurierAlt": "Sekcja dostawy w panelu Avably: tabela przesyłek ze statusem, numerem u brokera, numerem śledzenia i kosztem nadania (dane demonstracyjne).",
+      "kreator": "/produkt/pl/kreator.webp",
+      "kreatorAlt": "Kreator strony sklepu w Avably: paleta sekcji po lewej, płótno z pierwszym ekranem sklepu po prawej, przycisk publikacji na górze (dane demonstracyjne).",
+      "koszyk": "/produkt/pl/koszyk.webp",
+      "koszykAlt": "Koszyk w sklepie wypożyczalni: wybrany termin najmu, pozycja z kwotą najmu i kaucji oraz podsumowanie do zapłaty (dane demonstracyjne).",
+      "rejestracja": "/produkt/pl/rejestracja.webp",
+      "rejestracjaAlt": "Ekran zakładania konta w Avably: pola e-mail i hasło oraz przycisk „Zarejestruj się”.",
+      "katalog": "/produkt/pl/katalog.webp",
+      "katalogAlt": "Katalog w panelu Avably: lista sprzętu z ceną za dobę, kaucją i liczbą egzemplarzy (dane demonstracyjne).",
+      "zamowienia": "/produkt/pl/zamowienia.webp",
+      "zamowieniaAlt": "Lista zamówień w panelu Avably: kafle z liczbą i wartością zamówień oraz tabela z klientem, sprzętem i terminem (dane demonstracyjne).",
+      "pulpit": "/produkt/pl/pulpit.webp",
+      "pulpitAlt": "Pulpit w panelu Avably: przychód bieżącego i poprzedniego miesiąca, trend dwunastu miesięcy, wykorzystanie sprzętu i najlepsi klienci (dane demonstracyjne)."
+    },
     "nav": {
       "pricing": "Cennik",
       "faq": "Pytania",
