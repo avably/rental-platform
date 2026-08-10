@@ -829,8 +829,15 @@ begin
       -- najemca zdążył zmienić. Osobny, rozróżnialny komunikat — warstwa
       -- sklepu mapuje go na „odśwież i zaakceptuj ponownie", a nie na ogólne
       -- „zamówienie odrzucone".
+      --
+      -- DETAIL niesie znacznik MASZYNOWY, a nie ozdobę: warstwa sklepu mapuje
+      -- dziś 22023 na jedno „nie przyjęliśmy zamówienia" (świadomie — patrz
+      -- lib/checkout/core.ts), a jego rada „sprawdź dane i spróbuj ponownie"
+      -- jest tu akurat lekarstwem, bo odświeżona strona pobiera już nową
+      -- etykietę. Znacznik stoi po to, żeby osobny status dało się kiedyś
+      -- dołożyć BEZ ruszania migracji i bez dopasowywania komunikatu regexem.
       raise exception 'Regulamin zmienił się w trakcie składania zamówienia — zapoznaj się z nim i zaakceptuj ponownie.'
-        using errcode = '22023';
+        using errcode = '22023', detail = 'terms_outdated';
     end if;
     -- (d) Napis, który nigdy nie był naszą etykietą — zostaje jak przyszedł,
     -- bez przypięcia. Patrz nagłówek sekcji 10.

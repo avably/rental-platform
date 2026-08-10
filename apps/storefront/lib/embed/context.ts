@@ -14,6 +14,10 @@ import { cache } from "react";
 import { headers } from "next/headers";
 
 import { getPublicCatalog } from "@/lib/checkout/catalog";
+import {
+  getPublishedLegalDocuments,
+  type PublishedLegalDocumentSummary,
+} from "@/lib/legal/published";
 import { getStorefrontCopy, type StorefrontCopy } from "@/lib/storefront/copy";
 import { normalizeStorefrontLocale, type StorefrontLocale } from "@/lib/storefront/locale";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
@@ -25,13 +29,27 @@ export interface EmbedContext {
   locale: StorefrontLocale;
   currency: string;
   copy: StorefrontCopy;
+  /**
+   * Spis opublikowanych dokumentów prawnych (B4, ADR-129) — BEZ treści.
+   *
+   * To jest świadome odstępstwo od zasady „ramka czyta jak najmniej": widget
+   * zakłada ZAMÓWIENIA, więc jego zgoda musi wskazywać tę samą wersję
+   * regulaminu co zgoda w sklepie. Gdyby embed dalej wysyłał stałą, dowód
+   * zgody byłby domknięty tylko na części powierzchni, które sami renderujemy
+   * — a to gorsze niż brak domknięcia, bo wygląda na domknięte.
+   * Koszt: jedno odpytanie, wykonywane RÓWNOLEGLE z katalogiem.
+   */
+  legalDocuments: PublishedLegalDocumentSummary[];
 }
 
 async function _loadEmbedContext(langOverride?: string): Promise<EmbedContext | null> {
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
   if (!tenantId) return null;
 
-  const catalog = await getPublicCatalog(tenantId);
+  const [catalog, legalDocuments] = await Promise.all([
+    getPublicCatalog(tenantId),
+    getPublishedLegalDocuments(tenantId),
+  ]);
   if (catalog === null) return null;
 
   // `lang` z fragmentu to JAWNIE zaprojektowany parametr PREZENTACJI — najemca
@@ -40,7 +58,7 @@ async function _loadEmbedContext(langOverride?: string): Promise<EmbedContext | 
   const locale = normalizeStorefrontLocale(langOverride ?? catalog.tenant.locale);
   const copy = await getStorefrontCopy(locale);
 
-  return { tenantId, catalog, locale, currency: catalog.tenant.currency, copy };
+  return { tenantId, catalog, locale, currency: catalog.tenant.currency, copy, legalDocuments };
 }
 
 /** `cache()` — layout i strona czytają to samo żądanie, nie dwa. */

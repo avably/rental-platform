@@ -566,7 +566,20 @@
           "tooLong": "The value is too long.",
           "notAllowed": "This field cannot be filled in here."
         }
-      }
+      },
+      "termsLabelLinked": "I accept the rental {link} and rental conditions.",
+      "termsLinkText": "terms and conditions"
+    },
+    "legal": {
+      "version": "Version {version}",
+      "publishedAt": "published {date}",
+      "checksum": "Checksum",
+      "archivedNotice": "You are viewing an archived version of this document — the one in force when it was accepted.",
+      "currentVersionLink": "View the version currently in force"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "This address does not exist in this store, or the page has been removed."
     },
     "payment": {
       "title": "Payment",

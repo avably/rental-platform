@@ -19,6 +19,7 @@ import { checkoutCustomFields } from "@avably/core";
 import { customFieldsFromPublicRows } from "@/lib/checkout/custom-fields";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
 import { availablePaymentMethods } from "@/lib/checkout/payment-options";
+import { findLegalDocument, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { loadStorefrontContext } from "@/lib/storefront/context";
@@ -62,6 +63,11 @@ export default async function TenantCheckoutPage() {
   // z pominięciem formularza.
   const customFields = checkoutCustomFields(customFieldsFromPublicRows(catalog.custom_fields));
 
+  // Regulamin i jego etykieta wersji — z SERWERA (B4/R18). Brak dokumentu
+  // zostawia `undefined`, czyli etykietę zgody bez linku i stałą wersję,
+  // dokładnie jak przed tym zadaniem: najemca bez regulaminu sprzedaje dalej.
+  const publishedTerms = findLegalDocument(ctx.legalDocuments, "terms");
+
   return (
     <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
@@ -76,6 +82,14 @@ export default async function TenantCheckoutPage() {
           turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
           paymentMethods={paymentMethods}
           customFields={customFields}
+          terms={
+            publishedTerms
+              ? {
+                  href: LEGAL_DOCUMENT_PATHS.terms,
+                  versionLabel: publishedTerms.version_label,
+                }
+              : undefined
+          }
         />
       </div>
     </PageShell>
