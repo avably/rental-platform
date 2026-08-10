@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   Package,
   ReceiptText,
+  Scale,
   ScrollText,
   ShieldCheck,
   Store,
@@ -44,6 +45,10 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   emails: Mail,
   delivery: Truck,
   contracts: ScrollText,
+  // Dokumenty prawne = waga (Scale), swiadomie inna niz zwoj umowy
+  // (ScrollText): umowa to dokument dwoch stron, regulamin i polityka
+  // prywatnosci to obowiazek wobec prawa.
+  legal: Scale,
   payments: CreditCard,
   // Integracje = klocki doklejane do cudzej strony (wtyczka WP, embed),
   // a nie gniazdko (Plug), ktore w tym kontekscie czytaloby sie jak zasilanie.

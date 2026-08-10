@@ -137,6 +137,12 @@ describe("zakaz literałów tonu na ekranach drugorzędnych", () => {
     "historia-emaili",
     "ustawienia-dostaw",
     "ustawienia-umow",
+    // B4 (ADR-129) — dokumenty prawne. Ekran świadomie NIE zakłada nowej osi
+    // statusu: stan publikacji jest ZDANIEM („W sklepie: wersja v2…"), bo
+    // niesie dwie zmienne (etykietę i datę), których chip nie zmieści.
+    // Wpis stoi tu po to, żeby zakaz literału tonu obejmował go od pierwszego
+    // dnia — chip dołożony tu kiedykolwiek musi przyjść z mapy.
+    "dokumenty-prawne",
     "ustawienia-platnosci",
     "zaproszenia",
     "organizacja",

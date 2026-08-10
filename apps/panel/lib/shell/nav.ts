@@ -76,6 +76,13 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
       { id: "emails", href: "/ustawienia-emaili", labelKey: "emails" },
       { id: "delivery", href: "/ustawienia-dostaw", labelKey: "delivery" },
       { id: "contracts", href: "/ustawienia-umow", labelKey: "contracts" },
+      // Dokumenty prawne (B4, ADR-129) w KANAŁACH, tuż za Umowami — bo to ta
+      // sama rodzina spraw: tekst, na który przystaje klient. Umowy dotyczą
+      // PDF-a podpisywanego przy wydaniu sprzętu, dokumenty prawne — stron
+      // /regulamin i /prywatnosc w sklepie. Sąsiedztwo jest celowe: dopóki
+      // PDF czyta własną kopię treści (dług nazwany w ADR-129), operator musi
+      // widzieć oba miejsca obok siebie.
+      { id: "legal", href: "/dokumenty-prawne", labelKey: "legal" },
       // Płatności są KANAŁEM, nie sprzedażą: to konfiguracja drogi, którą
       // pieniądze wchodzą do najemcy — obok domen, poczty, dostaw i umów.
       // W grupie SPRZEDAŻ stałyby wśród ekranów, na których się PRACUJE
