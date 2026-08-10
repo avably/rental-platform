@@ -5,11 +5,11 @@
  * TRASA PLIKOWA — matcher proxy wyklucza KAŻDĄ ścieżkę z rozszerzeniem
  * (`/((?!_next\/static|_next\/image|favicon.ico|.*\.[\w]+$).*)/`, patrz
  * `proxy.ts`), więc to żądanie NIE przechodzi przez middleware, dokładnie
- * jak `/robots.txt` i `/sitemap.xml` (ADR-044). Skutek: żadna gałąź
- * middleware'u — w tym bramka SITE_PASSWORD (Basic Auth) — nie widzi tego
- * żądania. To WŁAŚCIWE zachowanie, nie luka: RFC 9116 wymaga, żeby kontakt
- * bezpieczeństwa był dostępny BEZ logowania (to kanał awaryjny), a bramka
- * hasła jest i tak tymczasowa (etap przed ogłoszeniem produktu).
+ * jak `/robots.txt` i `/sitemap.xml` (ADR-044). Nagłówki bezpieczeństwa
+ * dokłada wtedy podłoga z `next.config.headers()` (L-01) — trasa nie zostaje
+ * bez nich. RFC 9116 wymaga, żeby kontakt bezpieczeństwa był dostępny BEZ
+ * logowania, bo to kanał awaryjny; ominięcie middleware'u jest tu WŁAŚCIWYM
+ * zachowaniem, nie luką.
  *
  * BEZ kontekstu hosta i tenanta: w przeciwieństwie do `sitemap.xml`/
  * `robots.txt` ta trasa nie czyta `Host`, nie rozwiązuje tenanta i nie łączy
