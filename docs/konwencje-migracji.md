@@ -25,8 +25,26 @@ Migracja, która tworzy nową tabelę, musi w tym samym pliku:
 
 1. Włączyć RLS: `alter table public.<tabela> enable row level security;`.
 2. Dodać komplet polityk (`select`/`insert`/`update`/`delete` odpowiednie
-   do charakteru tabeli) opartych o `app.tenant_id()` /
-   `app.is_superadmin()` — patrz wzorzec w `0001_core.sql`.
+   do charakteru tabeli) opartych o `app.tenant_id()` — patrz wzorzec
+   w `0001_core.sql` **z poprawką 0060 (ADR-126)**:
+   - każdy człon `tenant_id = app.tenant_id()` MUSI nieść obok siebie
+     `and (select app.is_current_tenant_member())`. Sam claim z JWT nie jest
+     dowodem dostępu: po usunięciu członkostwa token żyje jeszcze do godziny;
+   - zamiast `app.is_superadmin()` (claim) używać
+     `(select app.is_current_superadmin())`;
+   - rolę ownera sprawdzać WYŁĄCZNIE przez `(select app.is_tenant_owner())`.
+     **Nie wpisywać inline `exists (select 1 from public.members …)`** —
+     odwołanie do `members` wewnątrz polityki daje `42P17` w parze
+     z podzapytaniem w polityce SELECT na members;
+   - owijka `(select …)` jest OBOWIĄZKOWA: robi z bramki InitPlan (jedno
+     wykonanie na zapytanie). Gołe wywołanie liczy się PER WIERSZ, bo te
+     funkcje mają przypięty `search_path` i nie podlegają inliningowi;
+   - predykat wieszać przy CZŁONIE TENANTOWYM, nie na całości wyrażenia:
+     przy `… OR superadmin` doklejenie go na końcu odcięłoby superadmina.
+
+   Bramka `packages/db/test/live-membership-predicates.test.ts` sprawdza ten
+   inwariant automatycznie dla wszystkich polityk — nowa polityka bez
+   predykatu to czerwony build, nie przeoczenie recenzenta.
 3. Nadać jawne `GRANT`y na tabelę dla ról `authenticated` /
    `service_role` (i `anon`, jeśli dotyczy). CLI Supabase 2.109+ **nie**
    eksponuje nowych tabel w schemacie `public` automatycznie dla ról API —
