@@ -149,7 +149,19 @@ async function probe(
   sql: Sql,
   seed: Seed,
   tickets: Ticket[],
-  opts: { seedKey: boolean; tenantOverride?: string } = { seedKey: true },
+  opts: {
+    seedKey: boolean;
+    tenantOverride?: string;
+    /**
+     * Indeks (0-based) w `tickets`, PO którym ten sam klucz (KEY_VERSION)
+     * dostaje `active = false` — w tej samej transakcji, więc kolejne
+     * wywołanie widzi bazę w stanie „był aktywny klucz, teraz go nie ma"
+     * (rotacja/dezaktywacja), a nie „nigdy nie było klucza" (brak seeda).
+     * Używane do pinowania kontraktu: dezaktywacja JEDYNEGO klucza otwiera
+     * bramkę (dev-skip), nie zamyka checkoutu.
+     */
+    deactivateKeyAfterIndex?: number;
+  } = { seedKey: true },
 ): Promise<ProbeResult[]> {
   const results: ProbeResult[] = [];
   try {
@@ -161,7 +173,7 @@ async function probe(
         `;
       }
 
-      for (const ticket of tickets) {
+      for (const [index, ticket] of tickets.entries()) {
         let ok = true;
         let code: string | undefined;
         try {
@@ -203,6 +215,12 @@ async function probe(
           select count(*)::int as items from public.order_items where tenant_id = ${seed.tenantId}
         `;
         results.push({ ok, code, orders, customers, items });
+
+        if (opts.deactivateKeyAfterIndex === index) {
+          await tx`
+            update app.checkout_ticket_keys set active = false where key_version = ${KEY_VERSION}
+          `;
+        }
       }
 
       throw new Rollback();
@@ -304,6 +322,56 @@ describe.skipIf(!hasEnv)("app.assert_checkout_ticket / app.public_checkout — b
     expect(devSkip.orders).toBe(1);
     expect(devSkip.customers).toBe(1);
     expect(devSkip.items).toBe(1);
+  });
+
+  it("ROTACJA: dezaktywacja JEDYNEGO klucza (active=false) OTWIERA bramkę, nie ZAMYKA checkoutu", async () => {
+    // Sonda wyżej pokrywa dev-skip w wariancie „nigdy nie było klucza".
+    // Ten test pokrywa DRUGIE wejście w ten sam stan bramki: klucz ISTNIAŁ
+    // i BLOKOWAŁ, potem ktoś zrobił `update ... set active = false` — czyli
+    // dokładnie krok drugi klasycznej (błędnej) rotacji.
+    //
+    // KONTRAKT, NIE PRZYPADEK. `active=false` na jedynym kluczu nie wyłącza
+    // checkoutu — otwiera H-02 na oścież, cicho: jedynym sygnałem jest
+    // `raise warning` w logach bazy (app.assert_checkout_ticket, 0059), a nie
+    // błąd czy odmowa, których ktokolwiek by pilnował. Dlatego POPRAWNA
+    // rotacja (nagłówek 0059, komentarz „Rotacja") idzie w kolejności
+    // „najpierw wstaw NOWY aktywny klucz, POTEM dezaktywuj STARY" — w każdej
+    // chwili istnieje przynajmniej jeden aktywny wiersz. Odwrotna kolejność
+    // (dezaktywacja przed wstawieniem nowego) przechodzi przez dokładnie ten
+    // stan, który ten test pinuje jako świadomy, przetestowany kontrakt —
+    // żeby regres w tym zachowaniu (np. gdyby ktoś kiedyś zmienił bramkę na
+    // fail-closed przy braku klucza) zapalił czerwony test, a nie czekał na
+    // audyt.
+    const seed = await seedAll(admin);
+
+    // Jedna transakcja, dwa wywołania tym samym pustym biletem: pierwsze przy
+    // active=true (kontrola pozytywna — bramka MUSI blokować, inaczej wynik
+    // drugiego wywołania nic by nie dowodził), drugie PO `update ... set
+    // active = false` na tym samym kluczu (wykonanym przez `probe` między
+    // wywołaniami — patrz opts.deactivateKeyAfterIndex).
+    const [zAktywnymKluczem, poDezaktywacji] = await probe(sql, seed, [PUSTY, PUSTY], {
+      seedKey: true,
+      deactivateKeyAfterIndex: 0,
+    });
+
+    // A) Kontrola pozytywna: klucz active=true blokuje pusty bilet jak
+    // w sondzie H-02 wyżej.
+    expect(
+      zAktywnymKluczem.ok,
+      "klucz active=true nie zablokował pustego biletu — kontrola pozytywna sondy nie działa",
+    ).toBe(false);
+    expect(zAktywnymKluczem.code).toBe("22023");
+    expect(zAktywnymKluczem.orders).toBe(0);
+
+    // B) Ten sam klucz, `active=false`: bramka wraca w dev-skip i PRZEPUSZCZA
+    // dokładnie ten sam (pusty) bilet, który przed chwilą blokowała.
+    expect(
+      poDezaktywacji.ok,
+      "active=false na jedynym kluczu NIE otworzyło bramki — kontrakt się zmienił: " +
+        "zaktualizuj nagłówek 0059 („DEV-SKIP I JEGO CENA”) i notę w ADR-125, bo opis " +
+        "ryzyka rotacji przestał być prawdziwy",
+    ).toBe(true);
+    expect(poDezaktywacji.orders, "dev-skip po dezaktywacji nie utworzył zamówienia").toBe(1);
   });
 
   it("KONTROLA POZYTYWNA: bilet WAŻNY przy włączonej bramce tworzy zamówienie", async () => {
