@@ -40,6 +40,14 @@ export async function requireMemberPage(nextPath: string): Promise<AuthContext> 
     if (error.code === "tenant_suspended") {
       redirect(await localePath("/organizacja-zawieszona"));
     }
+    // Cofnięte członkostwo (R12b/H-01) → ekran /dostep-cofniety, który
+    // WYLOGOWUJE i odsyła na /login. NIGDY goły 403: na trasie tenanckiej
+    // claim wciąż niesie stary tenant_id, więc każdy kolejny guard odmówiłby
+    // tak samo (pętla), a user wielotenantowy dopiero po przelogowaniu
+    // dostanie claim wskazujący jego drugą, wciąż ważną organizację.
+    if (error.code === "membership_revoked") {
+      redirect(await localePath("/dostep-cofniety"));
+    }
     // Zwykły zalogowany bez organizacji (albo inna odmowa) → strona główna
     // panelu, która pokieruje dalej (założenie organizacji).
     redirect(await localePath("/"));

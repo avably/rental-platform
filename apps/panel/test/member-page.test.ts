@@ -50,8 +50,10 @@ const { requireMemberPage } = await import("@/lib/member-page");
 
 /**
  * Atrapa klienta Supabase: getClaims zwraca podane claimy (albo brak sesji).
- * Od L3 (ADR-107) rdzeń czyta też `tenants.status` — atrapa oddaje organizację
- * DZIAŁAJĄCĄ; scenariusze statusów zamykających mieszkają w
+ * Od R12b (ADR-127) rdzeń czyta żywy wiersz `members` z zagnieżdżonym
+ * `tenants(status)` (dwa filtry .eq: tenant_id, user_id) — atrapa oddaje
+ * członkostwo AKTYWNE (rola owner, organizacja działająca); scenariusze
+ * cofnięcia i statusów zamykających mieszkają w membership-revocation-guard /
  * tenant-status-guard.test.ts.
  */
 function fakeClient(claims: Record<string, unknown> | null) {
@@ -62,7 +64,12 @@ function fakeClient(claims: Record<string, unknown> | null) {
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: { status: "active" }, error: null }),
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { role: "owner", tenants: { status: "active" } },
+              error: null,
+            }),
+          }),
         }),
       }),
     }),

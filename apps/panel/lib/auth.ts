@@ -38,6 +38,14 @@ import type { Role, TenantStatus } from "@avably/db";
  *   prostu odmawiają. Jeden kod dla wszystkich trzech statusów: operator nie
  *   dostaje szczegółów rozliczeniowych, a superadmin i tak widzi prawdę
  *   w /admin/tenants.
+ * - `membership_revoked` → 403, ale znaczy „claim JWT jest nieaktualny":
+ *   żywy odczyt bazy nie znalazł już członkostwa (albo wpisu superadmina),
+ *   a claim wciąż niesie stary tenant_id/superadmin (R12b/H-01, ADR-127).
+ *   Guard strony NIE odmawia gołym 403 (na /admin zmapowałby się na 404, na
+ *   trasach tenanckich groziłby pętlą przekierowań), tylko kieruje na
+ *   /dostep-cofniety → wylogowanie + /login. To JEDYNA droga dla usera
+ *   wielotenantowego: dopiero ponowne logowanie każe hookowi przeliczyć claim
+ *   na inną, wciąż ważną organizację.
  */
 export type AuthErrorCode =
   | "unauthenticated"
@@ -45,7 +53,8 @@ export type AuthErrorCode =
   | "superadmin_without_org"
   | "mfa_required"
   | "mfa_enrollment_required"
-  | "tenant_suspended";
+  | "tenant_suspended"
+  | "membership_revoked";
 
 /**
  * Statusy tenanta zamykające panel (ADR-107). `past_due` ŚWIADOMIE
@@ -200,17 +209,32 @@ export function hasRecentRecoveryProof(
  * - 403 `superadmin_without_org`, jeśli sesja jest superadminem bez organizacji
  *   (kierowanie do panelu superadmina należy do wołającego — patrz member-page),
  * - 403 `forbidden`, jeśli zwykły user nie ma przypisanej organizacji,
+ * - 403 `membership_revoked`, jeśli claim niesie tenant_id, ale żywy odczyt
+ *   bazy nie znajduje już członkostwa (odebrane albo tenant/konto skasowane
+ *   kaskadą) — patrz niżej,
  * - 403 `tenant_suspended`, jeśli organizacja ma status zamykający panel
  *   (ADR-107) — sprawdzane PRZED rolą: zawieszenie dotyczy całej organizacji,
  *   więc odmowa nazywa zawieszenie, nie przypadkowy brak roli,
- * - 403, jeśli podano `role` i nie zgadza się z rolą usera w tenancie.
+ * - 403, jeśli podano `role` i nie zgadza się z ŻYWĄ rolą usera w tenancie.
  *
- * Odczyt statusu (ADR-107) to JEDYNE zapytanie guardu do bazy: klientem SESJI
- * (RLS `own_select` z 0001 ogranicza wiersz do własnego tenanta — guard nie ma
- * jak odczytać cudzego statusu), bez cache'u między żądaniami (zawieszenie
- * działa od NASTĘPNEGO żądania, stale-while-suspended nie istnieje).
- * Fail-closed: błąd odczytu rzuca (500 strony), brak wiersza przy poprawnym
- * claimie — anomalia (tenant usunięty przy żywej sesji) — daje 403.
+ * ŻYWY ODCZYT CZŁONKOSTWA (R12b/H-01, ADR-127). Do L3 guard pytał tylko o
+ * `tenants.status`, a członkostwo i rolę brał z claimu JWT — cofnięty członek
+ * wchodził do panelu do wygaśnięcia tokenu. Teraz to samo JEDNO zapytanie
+ * (NET ZERO round-tripów wobec ADR-107) czyta WIERSZ `members` żywcem:
+ *   * jego OBECNOŚĆ dowodzi członkostwa — brak wiersza = cofnięte,
+ *   * `role` z BAZY zamyka cichy downgrade owner→staff (claim go nie widzi),
+ *   * zagnieżdżony `tenants(status)` daje status bez drugiego zapytania.
+ * Klientem SESJI (RLS `own` z 0001/0007 ogranicza wiersze do własnego tenanta
+ * i własnego user_id), bez cache'u między żądaniami. To warstwa APLIKACJI —
+ * twardą izolacją danych jest RLS z predykatami live (R12a); guard domyka UX
+ * (czyste wylogowanie zamiast cichego 403) i rolę z bazy.
+ *
+ * Fail-closed z rozróżnieniem przyczyny (kluczowe — inaczej czkawka bazy
+ * wylogowuje wszystkich, albo revocation cicho przestaje działać):
+ *   * błąd ODCZYTU → `throw Error` (500 strony), nie AuthError: to awaria
+ *     infrastruktury, nie decyzja autoryzacyjna,
+ *   * brak wiersza → `membership_revoked`: claim jest nieaktualny, wołający
+ *     ma wylogować i odesłać na /login (member-page), nie odmawiać na głucho.
  */
 export async function requireMemberWithClient(
   supabase: SupabaseClient,
@@ -234,20 +258,43 @@ export async function requireMemberWithClient(
     throw new AuthError(403, "Brak przypisanej organizacji.");
   }
 
-  const { data: tenantRow, error: statusError } = await supabase
-    .from("tenants")
-    .select("status")
-    .eq("id", ctx.tenantId)
+  // Jedno zapytanie na obie potrzeby: żywe członkostwo (obecność wiersza + rola
+  // z bazy) i status organizacji (zagnieżdżony tenants). Piggyback na odczycie
+  // z ADR-107 — nie dokładamy round-tripu.
+  const { data: memberRow, error: memberError } = await supabase
+    .from("members")
+    .select("role, tenants(status)")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("user_id", ctx.user.id)
     .maybeSingle();
-  if (statusError) {
+  if (memberError) {
     // NIE AuthError: to awaria infrastruktury, nie decyzja autoryzacyjna —
-    // maskowanie jej kodem 403 wysyłałoby operatora na ekran „organizacja
-    // zawieszona" przy zwykłej czkawce bazy. Rzut kończy żądanie błędem 500,
-    // czyli i tak fail-closed.
-    throw new Error(`Nie udało się zweryfikować statusu organizacji: ${statusError.message}`);
+    // maskowanie jej kodem 403 wylogowywałoby operatora przy zwykłej czkawce
+    // bazy. Rzut kończy żądanie błędem 500, czyli i tak fail-closed.
+    throw new Error(`Nie udało się zweryfikować członkostwa w organizacji: ${memberError.message}`);
   }
-  if (!tenantRow) throw new AuthError(403, "Brak przypisanej organizacji.");
-  const tenantStatus = (tenantRow as { status: TenantStatus }).status;
+  if (!memberRow) {
+    // Brak wiersza = członkostwo cofnięte (albo tenant/konto skasowane
+    // kaskadą). Claim JWT wciąż niesie stary tenant_id — jedynym poprawnym
+    // wyjściem jest wylogowanie i ponowne logowanie: hook przeliczy claim
+    // (user wielotenantowy dostanie drugą org), a user bez żadnej org trafi
+    // na /login. Kierowanie tym kodem należy do wołającego (member-page).
+    throw new AuthError(403, "Członkostwo w organizacji zostało cofnięte.", "membership_revoked");
+  }
+
+  // tenants(status) to relacja to-one; PostgREST zwraca obiekt, ale bierzemy
+  // pod uwagę też kształt tablicowy (higiena, jak flattenTenant w superadmin.ts).
+  const row = memberRow as {
+    role: Role;
+    tenants: { status: TenantStatus } | { status: TenantStatus }[] | null;
+  };
+  const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants;
+  if (!tenant) {
+    // FK members→tenants gwarantuje rodzica; brak = anomalia infrastruktury,
+    // nie decyzja autoryzacyjna → fail-closed przez rzut (500), nie 403.
+    throw new Error("Nie udało się zweryfikować statusu organizacji: brak powiązanej organizacji.");
+  }
+  const tenantStatus = tenant.status;
   if (PANEL_CLOSED_STATUSES.includes(tenantStatus)) {
     throw new AuthError(
       403,
@@ -255,6 +302,11 @@ export async function requireMemberWithClient(
       "tenant_suspended",
     );
   }
+
+  // Rola z BAZY nadpisuje rolę z claimu — to ona zamyka cichy downgrade
+  // owner→staff (claim, żywy do exp, dalej mówiłby „owner"). Downstream widzi
+  // prawdę, a sprawdzenie `role` niżej liczy się względem stanu bazy.
+  ctx.role = row.role;
   ctx.tenantStatus = tenantStatus;
 
   if (role && ctx.role !== role) {
@@ -276,11 +328,35 @@ export async function requireMemberWithClient(
  *   go wysłać na wyzwanie MFA, żeby podbił sesję aal1 → aal2,
  * - superadmin nie ma żadnego czynnika → zwykły `forbidden`: musi najpierw
  *   włączyć 2FA (/bezpieczenstwo).
+ *
+ * ŻYWY ODCZYT SUPERADMINA (R12b/H-01, ADR-127). Dotąd guard ufał WYŁĄCZNIE
+ * claimowi `superadmin`, żywemu do wygaśnięcia tokenu — odebrany superadmin
+ * zachowywał panel /admin ≤1 h. Teraz po sprawdzeniu claimu dokładamy JEDEN
+ * odczyt `app.superadmins` po własnym user_id (RLS `own_or_superadmin_select`
+ * z 0003 pozwala widzieć własny wiersz): brak wiersza → `membership_revoked`
+ * (wylogowanie, nie 404 maskujące /admin i nie MFA — sprawdzane PRZED aal2,
+ * żeby odebranego superadmina nie ciągnąć na wyzwanie 2FA). Błąd odczytu →
+ * `throw` (500), fail-closed. Twardą izolacją danych platformy jest i tak RLS
+ * z predykatami live (R12a); tu domykamy warstwę aplikacji.
  */
 export async function requireSuperadminWithClient(supabase: SupabaseClient): Promise<AuthContext> {
   const ctx = await getAuthContext(supabase);
   if (!ctx) throw new AuthError(401, "Wymagane zalogowanie.");
   if (!ctx.superadmin) throw new AuthError(403, "Wymagane uprawnienia superadmina.");
+
+  // Żywy odczyt wpisu superadmina — obecność wiersza zamiast wiary w claim.
+  const { data: superadminRow, error: superadminError } = await supabase
+    .schema("app")
+    .from("superadmins")
+    .select("user_id")
+    .eq("user_id", ctx.user.id)
+    .maybeSingle();
+  if (superadminError) {
+    throw new Error(`Nie udało się zweryfikować uprawnień superadmina: ${superadminError.message}`);
+  }
+  if (!superadminRow) {
+    throw new AuthError(403, "Uprawnienia superadmina zostały cofnięte.", "membership_revoked");
+  }
 
   if (ctx.aal !== "aal2") {
     // getAuthenticatorAssuranceLevel() czyta poziomy z sesji (bez round-tripu

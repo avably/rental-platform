@@ -2,19 +2,18 @@
  * Egzekwowanie statusu tenanta w guardzie panelu (L3, ADR-107) — testy bez
  * Supabase (job `ci`), klient podstawiony atrapą.
  *
- * Trzy własności rdzenia:
- *   1. `requireMemberWithClient` czyta `tenants.status` KLIENTEM SESJI (RLS
- *      `own_select` ogranicza odczyt do własnego wiersza) i odmawia kodem
- *      `tenant_suspended` dla statusów zamykających panel
- *      (suspended / cancelled / superadmin_locked). `past_due` przepuszcza —
- *      operator musi mieć wejście, żeby uregulować płatność (świadoma różnica
- *      wobec storefrontu, który wpuszcza wyłącznie trialing|active — ADR-107).
- *   2. Odczyt statusu biegnie DOPIERO po walidacji sesji i claimu tenant_id:
- *      anonim dostaje 401, a superadmin bez organizacji swój dotychczasowy kod
- *      `superadmin_without_org` — obie ścieżki bez JEDNEGO zapytania do bazy.
- *   3. Fail-closed: błąd odczytu statusu NIE przepuszcza (rzuca, strona kończy
- *      się 500), a brak wiersza przy poprawnym claimie (anomalia — RLS nie
- *      widzi tenanta z claimu) daje odmowę 403.
+ * Od R12b (ADR-127) rdzeń czyta status z JEDNEGO zapytania o żywy wiersz
+ * `members` (zagnieżdżony `tenants(status)`) — patrz też
+ * membership-revocation-guard.test.ts po scenariusze samego cofnięcia
+ * członkostwa i roli z bazy. Tu pilnujemy trzech własności statusu:
+ *   1. `requireMemberWithClient` odmawia kodem `tenant_suspended` dla statusów
+ *      zamykających panel (suspended / cancelled / superadmin_locked).
+ *      `past_due` przepuszcza — operator musi mieć wejście, żeby uregulować
+ *      płatność (świadoma różnica wobec storefrontu — ADR-107).
+ *   2. Odczyt biegnie DOPIERO po walidacji sesji i claimu tenant_id: anonim
+ *      dostaje 401, a superadmin bez organizacji swój `superadmin_without_org` —
+ *      obie ścieżki bez JEDNEGO zapytania do bazy.
+ *   3. Fail-closed: błąd odczytu NIE przepuszcza (rzuca, strona kończy się 500).
  *
  * Asercje blokady mierzą ZDANIE BRAMKI (kod `tenant_suspended`), nie „error
  * truthy" — lekcja z L4, gdzie RLS maskowała bramkę roli.
@@ -59,33 +58,53 @@ vi.mock("@/lib/supabase-server", () => ({
 // Import po zamockowaniu supabase-server, żeby member-page dostał atrapę.
 const { requireMemberPage } = await import("@/lib/member-page");
 
-interface FakeTenantRead {
-  /** Wiersz zwracany przez maybeSingle(); brak pola = brak wiersza (null). */
+interface FakeMemberRead {
+  /** Rola w zwróconym wierszu members (domyślnie "owner"). */
+  role?: string;
+  /** Status zagnieżdżonego tenanta (domyślnie "active"). */
   status?: string;
+  /** Brak wiersza members (cofnięte członkostwo). */
+  missing?: boolean;
   /** Błąd odczytu (PostgrestError w uproszczeniu). */
   error?: { message: string };
 }
 
 /**
  * Atrapa klienta Supabase: getClaims zwraca podane claimy, a
- * from("tenants")…maybeSingle() — skonfigurowany wiersz statusu. Każdy odczyt
- * ląduje w `reads`, żeby testy mogły dowieść, że guard NIE pyta bazy na
- * ścieżkach 401/403-przed-statusem (własność 2).
+ * from("members")…eq(tenant_id)…eq(user_id)…maybeSingle() — skonfigurowany
+ * wiersz `{ role, tenants: { status } }`. Każdy odczyt ląduje w `reads`, żeby
+ * testy mogły dowieść, że guard NIE pyta bazy na ścieżkach 401/403-przed-
+ * odczytem (własność 2) i że pyta DOKŁADNIE jednym zapytaniem po obu kluczach.
  */
-function fakeClient(claims: Record<string, unknown> | null, tenants: FakeTenantRead = {}) {
-  const reads: Array<{ table: string; column: string; value: unknown }> = [];
+function fakeClient(claims: Record<string, unknown> | null, member: FakeMemberRead = {}) {
+  const reads: Array<{ table: string; filters: Array<{ column: string; value: unknown }> }> = [];
   const client = {
     auth: {
       getClaims: async () => ({ data: claims ? { claims } : null, error: null }),
     },
     from: (table: string) => ({
       select: () => ({
-        eq: (column: string, value: unknown) => ({
-          maybeSingle: async () => {
-            reads.push({ table, column, value });
-            if (tenants.error) return { data: null, error: tenants.error };
-            return { data: tenants.status ? { status: tenants.status } : null, error: null };
-          },
+        eq: (c1: string, v1: unknown) => ({
+          eq: (c2: string, v2: unknown) => ({
+            maybeSingle: async () => {
+              reads.push({
+                table,
+                filters: [
+                  { column: c1, value: v1 },
+                  { column: c2, value: v2 },
+                ],
+              });
+              if (member.error) return { data: null, error: member.error };
+              if (member.missing) return { data: null, error: null };
+              return {
+                data: {
+                  role: member.role ?? "owner",
+                  tenants: { status: member.status ?? "active" },
+                },
+                error: null,
+              };
+            },
+          }),
         }),
       }),
     }),
@@ -117,13 +136,21 @@ describe("requireMemberWithClient — statusy zamykające panel", () => {
       const ctx = await requireMemberWithClient(client);
       expect(ctx.tenantId).toBe("t1");
       expect(ctx.tenantStatus).toBe(status);
-      // Dokładnie JEDEN odczyt, po własnym tenancie z claimu (koszt ADR-107).
-      expect(reads).toEqual([{ table: "tenants", column: "id", value: "t1" }]);
+      // Dokładnie JEDEN odczyt: wiersz members po (tenant_id, user_id) z claimu.
+      expect(reads).toEqual([
+        {
+          table: "members",
+          filters: [
+            { column: "tenant_id", value: "t1" },
+            { column: "user_id", value: "u1" },
+          ],
+        },
+      ]);
     },
   );
 
   it("status zamykający wygrywa z niezgodną rolą — odmowa mówi o zawieszeniu", async () => {
-    const { client } = fakeClient(memberClaims({ role: "staff" }), { status: "suspended" });
+    const { client } = fakeClient(memberClaims({ role: "staff" }), { role: "staff", status: "suspended" });
     await expect(requireMemberWithClient(client, "owner")).rejects.toMatchObject({
       code: "tenant_suspended",
     });
@@ -138,7 +165,7 @@ describe("requireMemberWithClient — statusy zamykające panel", () => {
   });
 });
 
-describe("requireMemberWithClient — kolejność bramek (zero odczytów przed statusem)", () => {
+describe("requireMemberWithClient — kolejność bramek (zero odczytów przed członkostwem)", () => {
   it("anonim → 401 bez odczytu czegokolwiek z bazy", async () => {
     const { client, reads } = fakeClient(null, { status: "active" });
     await expect(requireMemberWithClient(client)).rejects.toMatchObject({ status: 401 });
@@ -168,18 +195,18 @@ describe("requireMemberWithClient — kolejność bramek (zero odczytów przed s
 });
 
 describe("requireMemberWithClient — fail-closed na anomaliach odczytu", () => {
-  it("błąd odczytu statusu NIE przepuszcza (rzuca, nie AuthError-em)", async () => {
+  it("błąd odczytu członkostwa NIE przepuszcza (rzuca, nie AuthError-em)", async () => {
     const { client } = fakeClient(memberClaims(), { error: { message: "connection refused" } });
     const attempt = requireMemberWithClient(client);
-    await expect(attempt).rejects.toThrow(/statusu organizacji/);
+    await expect(attempt).rejects.toThrow(/członkostwa w organizacji/);
     await expect(attempt).rejects.not.toBeInstanceOf(AuthError);
   });
 
-  it("brak wiersza przy poprawnym claimie → 403 (anomalia, nie przepustka)", async () => {
-    const { client } = fakeClient(memberClaims(), {});
+  it("brak wiersza przy poprawnym claimie → membership_revoked (nie forbidden, nie przepustka)", async () => {
+    const { client } = fakeClient(memberClaims(), { missing: true });
     await expect(requireMemberWithClient(client)).rejects.toMatchObject({
       status: 403,
-      code: "forbidden",
+      code: "membership_revoked",
     });
   });
 });

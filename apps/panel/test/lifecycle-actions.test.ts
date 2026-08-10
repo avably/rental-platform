@@ -239,6 +239,33 @@ describe.skipIf(!hasEnv)("ścieżki wygaszania — akcje panelu (ADR-105)", () =
     expect(data ?? []).toHaveLength(0);
   });
 
+  it("SAMOUSUNIĘCIE ownera (jest drugi) → sukces + selfRemoved, nie 403/pętla (R12b)", async () => {
+    // Regresja R12b: żywy live-check w guardzie NIE może zamienić ekranu
+    // sukcesu w odmowę. requireMember("owner") biegnie PRZED usunięciem — w tym
+    // momencie usuwający JEST jeszcze ownerem, więc przechodzi; dopiero po
+    // usunięciu wyzwalacz 0061 unieważnia jego sesję (dowód DB-level w
+    // packages/db/test/session-revocation.test.ts). Świeży tenant z drugim
+    // ownerem, żeby guard ostatniego ownera (0051) nie zablokował.
+    const soloExit = await createTenantOwner(admin, "self-remove");
+    await addMember(admin, soloExit.tenantId, "self-remove-coowner", "owner");
+    actAs(soloExit);
+
+    const form = new FormData();
+    form.set("userId", soloExit.userId);
+    const state = await removeMemberAction({}, form);
+
+    expect(state.error, `samousunięcie ownera: ${state.error}`).toBeUndefined();
+    expect(state.success).toBeTruthy();
+    expect(state.selfRemoved, "samousunięcie musi oznaczyć selfRemoved").toBe(true);
+
+    const { data } = await admin
+      .from("members")
+      .select("user_id")
+      .eq("tenant_id", soloExit.tenantId)
+      .eq("user_id", soloExit.userId);
+    expect(data ?? [], "wiersz usuwającego siebie powinien zniknąć").toHaveLength(0);
+  });
+
   it("staff NIE usuwa nikogo — odbija się o BRAMKĘ ROLI, nie o pusty wynik", async () => {
     const victim = await addMember(admin, owner.tenantId, "staff-victim", "staff");
     actAs(staff);
