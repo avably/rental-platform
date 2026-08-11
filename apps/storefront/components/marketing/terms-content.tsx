@@ -64,7 +64,12 @@ export function TermsContent({
         </p>
       ))}
       <p data-platform-terms-sha>
-        {copy.shaLabel} <code>{localized.sha256.slice(0, 16)}</code> · {copy.permalinkLabel}{" "}
+        {/* font-sans: kontrakt typografii (gallery-contract) — każdy element
+            code/pre/kbd w apkach niesie jawną klasę zamiast monospace-fallbacku
+            Preflight; na osi marketingowej (arkusze szablonu, bez Tailwinda)
+            klasa jest bierna wizualnie, ale kontrakt skanuje źródło statycznie. */}
+        {copy.shaLabel} <code className="font-sans">{localized.sha256.slice(0, 16)}</code> ·{" "}
+        {copy.permalinkLabel}{" "}
         <a href={permalink}>{permalink}</a>
       </p>
     </div>
