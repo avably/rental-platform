@@ -17,7 +17,7 @@
     "@avably/review": "workspace:*",
     "@avably/security": "workspace:*",
     "@avably/ui": "workspace:*",
-    "@stripe/stripe-js": "^9.12.0",
+    "@stripe/stripe-js": "^9.13.0",
     "@upstash/redis": "^1.38.1",
     "jquery": "3.5.1",
     "next": "16.2.11",
