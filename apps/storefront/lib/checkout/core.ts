@@ -1,6 +1,7 @@
 /**
  * Rdzeń akcji checkoutu — bez `next/headers` i bez tworzenia klienta Supabase,
- * więc testowalny wprost (wzorzec lib/waitlist/core.ts). Owijka „use server"
+ * więc testowalny wprost (wzorzec przejęty po rdzeniu waitlisty, zdjętym
+ * razem z backendem w 0071). Owijka „use server"
  * (lib/actions/checkout.ts) dostarcza tu tenant_id z nagłówka, IP, wywołanie RPC,
  * weryfikację captchy, rate-limit i wysyłkę e-maili.
  *
@@ -169,7 +170,7 @@ export interface CheckoutDeps {
 }
 
 /**
- * Limit ciasny, ale luźniejszy niż waitlista: checkout bywa poprawiany
+ * Limit ciasny, ale luźniejszy niż dawna waitlista (5/h): checkout bywa poprawiany
  * (zła data, ponowna próba po captchy), ale to nadal jedno zdarzenie na osobę.
  * 10/godzinę per IP zostawia zapas na współdzielone NAT-y, a odcina masowe
  * składanie zamówień skryptem.

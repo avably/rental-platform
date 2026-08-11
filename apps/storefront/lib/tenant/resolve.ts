@@ -2,7 +2,7 @@
  * Orkiestracja rozwiązywania host→tenant_id (Zadanie 2.1, ADR-039): cache →
  * miss → baza, z cache'em POZYTYWNYM i NEGATYWNYM. Logika czysta, zależności
  * (cache, odczyt z bazy) wstrzykiwane — testowalna bez sieci (wzorzec:
- * lib/waitlist/core.ts).
+ * lib/checkout/core.ts).
  *
  * Cache negatywny (zapamiętanie „ten host NIE rozwiązuje się na tenanta") jest
  * bramką przeciw dobijaniu Postgresa: bez niego skrypt walący w losowe

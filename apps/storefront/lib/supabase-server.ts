@@ -2,8 +2,8 @@
  * Klient Supabase server-side dla storefrontu (RSC/Server Actions) — anon key
  * osadzony w cookies żądania (wzorzec: apps/panel/lib/supabase-server.ts).
  *
- * Storefront nie ma dziś sesji użytkownika: ścieżka waitlisty jest w pełni
- * anonimowa. Adapter cookies jest tu mimo to, bo klient `@supabase/ssr` go
+ * Storefront nie ma dziś sesji użytkownika: ścieżki publiczne (checkout,
+ * kontakt) są w pełni anonimowe. Adapter cookies jest tu mimo to, bo klient `@supabase/ssr` go
  * wymaga, a przyszłe ścieżki z sesją (koszyk najemcy) nie będą przez to
  * musiały przepisywać tego pliku.
  *
@@ -27,7 +27,7 @@ export async function createSupabaseServerClient() {
         }
       } catch {
         // Wywołane z Server Component (odczyt) — zapis cookies jest tam
-        // no-opem. Ścieżka waitlisty i tak nie ustawia żadnych cookies.
+        // no-opem. Publiczne ścieżki storefrontu i tak nie ustawiają cookies.
       }
     },
   });

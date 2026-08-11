@@ -1,7 +1,7 @@
 /**
  * Bramki rejestru kaucji (packages/db/supabase/migrations/0011_deposit_settlement.sql)
  * — dowody dla ADR-026 (strukturalny powód potrącenia + niezmiennik salda
- * w bazie) oraz spłaty długu kodów z 0006.
+ * w bazie).
  *
  * Zakres:
  *   1. kształt strukturalnego powodu: `deducted` wymaga kodu z listy,
@@ -16,10 +16,11 @@
  *      i bez dotykania orders/order_items: lekcja ADR-024 — cudze locki
  *      (numeracja 0007, bramka egzemplarza 0010) potrafią zserializować
  *      transakcje wcześniej i MASKOWAĆ dowód. Jedyna serializacja na tej
- *      ścieżce to advisory lock bramki kaucji,
- *   4. join_waitlist zgłasza odmowy standardowymi SQLSTATE (22023) —
- *      P0012/P0013 były dekoracją, bo PostgREST zjada kody P0xxx do gołego
- *      500 bez kodu (nagłówek 0010).
+ *      ścieżce to advisory lock bramki kaucji.
+ *
+ * Historycznie sekcja 4 dowodziła tu spłaty długu kodów z 0006 (join_waitlist
+ * na 22023 zamiast P0xxx) — zdjęta w 0071 razem z funkcją; nieobecności RPC
+ * pilnuje waitlist-decommission.test.ts.
  *
  * Wymaga uruchomionego lokalnego Supabase i zmiennych SUPABASE_LOCAL_*
  * (patrz docs/konwencje-migracji.md). Bez nich cały plik jest pomijany.
@@ -44,8 +45,6 @@ const hasEnv = integrationEnv([
 
 /** 23514 = check_violation: kształt powodu i niezmiennik salda (ADR-026). */
 const PG_CHECK_VIOLATION = "23514";
-/** 22023 = invalid_parameter_value: walidacje join_waitlist po spłacie długu. */
-const PG_INVALID_PARAMETER = "22023";
 
 interface EventInput {
   kind: "collected" | "refunded" | "deducted";
@@ -475,55 +474,6 @@ describe.skipIf(!hasEnv)("bramki kaucji — 0011_deposit_settlement.sql", () => 
         .filter((event) => event.kind !== "collected")
         .reduce((sum, event) => sum + (event.amount_grosze as number), 0);
       expect(settled, "rozliczenia przekroczyły pobrania").toBeLessThanOrEqual(collected);
-    });
-  });
-
-  // -------------------------------------------------------------------
-  // 4. Spłata długu 0006: join_waitlist odmawia standardowymi SQLSTATE
-  // -------------------------------------------------------------------
-  //
-  // P0012/P0013 były dekoracją: PostgREST zjada kody P0xxx do gołego 500
-  // bez kodu w odpowiedzi (odkryte w Zadaniu 4, nagłówek 0010), więc ani
-  // test, ani wywołujący nie mieli po czym rozpoznać odmowy. 0011 podmienia
-  // je na 22023 (invalid_parameter_value, klasa 22xxx → 400).
-
-  describe("join_waitlist — odmowy niosą kod 22023 przez PostgREST", () => {
-    function createWaitlistAnonClient(): SupabaseClient {
-      const env = (name: string): string => {
-        const value = process.env[name];
-        if (!value) throw new Error(`Brak zmiennej środowiskowej ${name}`);
-        return value;
-      };
-      return createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_ANON_KEY"), {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-        realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
-      });
-    }
-
-    it("brak zgody i błędny e-mail wracają jako 22023, nie gołe 500 bez kodu", async () => {
-      const anon = createWaitlistAnonClient();
-
-      const noConsent = await anon.schema("app").rpc("join_waitlist", {
-        p_email: `waitlist-${randomUUID()}@test.local`,
-        p_rental_type: "event",
-        p_inventory_range: "r1_20",
-        p_current_process: "none",
-        p_consent: false,
-      });
-      expect(noConsent.error?.code, `odmowa zgody bez kodu: ${noConsent.error?.message}`).toBe(
-        PG_INVALID_PARAMETER,
-      );
-
-      const badEmail = await anon.schema("app").rpc("join_waitlist", {
-        p_email: "to-nie-jest-email",
-        p_rental_type: "event",
-        p_inventory_range: "r1_20",
-        p_current_process: "none",
-        p_consent: true,
-      });
-      expect(badEmail.error?.code, `odmowa e-maila bez kodu: ${badEmail.error?.message}`).toBe(
-        PG_INVALID_PARAMETER,
-      );
     });
   });
 });

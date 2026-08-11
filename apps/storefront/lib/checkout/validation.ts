@@ -1,5 +1,6 @@
 /**
- * Walidacja serwerowa wejścia checkoutu (wzorzec lib/waitlist/validation.ts).
+ * Walidacja serwerowa wejścia checkoutu (wzorzec przejęty po walidacji
+ * waitlisty, zdjętej razem z backendem w 0071).
  *
  * Waliduje KAŻDE pole — wejście Server Action pochodzi od klienta i nic nie
  * gwarantuje, że przeszło przez nasz formularz. Ta walidacja jest niezależna od

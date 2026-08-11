@@ -320,10 +320,12 @@ describe("tripwire: analityka/czat nie wejdzie bez zgody i polityk (storefront +
     expect(source, "analytics.ts nie ma prawa wstrzykiwać skryptów").not.toContain("createElement");
     expect(source.toLowerCase()).not.toContain("<script");
 
-    // Jedyny import: typy kontraktu waitlisty — pojawienie się importu SDK
-    // zmienia moduł z konsumenta w ładowacz i MUSI tu zapłonąć.
+    // ZERO importów (typy historycznych zdarzeń waitlisty są od 0071 inline —
+    // kontrakt lib/waitlist/contract.ts zniknął z repo) — pojawienie się
+    // JAKIEGOKOLWIEK importu, zwłaszcza SDK, zmienia moduł z konsumenta
+    // w ładowacz i MUSI tu zapłonąć.
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
-    expect(imports).toEqual(["@/lib/waitlist/contract"]);
+    expect(imports).toEqual([]);
   });
 
   it("wywołanie eventu bez snippetu niczego nie instaluje (dowód behawioralny pasywności)", () => {

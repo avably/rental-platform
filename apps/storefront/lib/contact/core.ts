@@ -11,7 +11,7 @@ import type { ContactTicketVerdict } from "./ticket";
 /**
  * RDZEŃ AKCJI KONTAKTU (E4, ADR-095) — bez `next/headers`, bez sieci i bez
  * klienta Supabase, więc cała KOLEJNOŚĆ BRAMEK jest testowalna wprost
- * (wzorzec: lib/checkout/core.ts, lib/waitlist/core.ts).
+ * (wzorzec: lib/checkout/core.ts).
  *
  * ==================== CZTERY WARSTWY, JEDNA KOLEJNOŚĆ ====================
  *
