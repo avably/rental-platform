@@ -50,8 +50,13 @@ const ASSET_DIRS = [
   // LP 2.0: fotografia stockowa i wideo hero. Bez tego wpisu katalog wypadał
   // i z bramki wagi, i z bramki sieroctwa — wideo mogłoby urosnąć do 4 MB
   // i przejść bez mrugnięcia. Sufit pojedynczego pliku jest sufitem WIDEO;
-  // obrazy mają własny, dziesięciokrotnie niższy, w bramce niżej.
-  { dir: "public/marketing", prefix: "/marketing", limit: 480 * 1024 },
+  // obrazy mają własny, wielokrotnie niższy, w bramce niżej.
+  // 2026-08-11: 480 kB → 1050 kB ŚWIADOMIE. Pętla cyklu wynajmu (zestaw B)
+  // trwa 14,5 s wobec 6 s magazynu; najcięższy jest fallback H.264 (990 kB),
+  // którego nie da się docisnąć bez widocznej degradacji. Przeglądarka pobiera
+  // JEDEN kodek: nowoczesne biorą AV1 (677 kB), H.264 schodzi tylko tam,
+  // gdzie AV1/VP9 nie grają. Margines wąski celowo — kolejny wzrost ma boleć.
+  { dir: "public/marketing", prefix: "/marketing", limit: 1050 * 1024 },
 ];
 
 describe("izolacja warstw wizualnych", () => {
@@ -596,10 +601,14 @@ describe("spójność tras i zasobów", () => {
       }
     }
     expect(zaciezkie, zaciezkie.join(" | ")).toEqual([]);
-    // Dziś 164 kB (poster 45 + 19, pięć kafli 103). Zapas jest wąski celowo:
-    // szóstego kafla nie da się dołożyć „przy okazji", bez decyzji o wadze.
+    // Dziś 128 kB (postery pętli 21 + 7, pięć kafli 103). Zapas jest wąski
+    // celowo: szóstego kafla nie da się dołożyć „przy okazji", bez decyzji
+    // o wadze. Ciemny poster bramy waży mniej niż jasny magazyn — sufit zostaje.
     expect(Math.round(obrazy / 1024), "suma obrazów marketingowych").toBeLessThanOrEqual(175);
-    expect(Math.round(wideo / 1024), "suma wideo marketingowego").toBeLessThanOrEqual(1000);
+    // 2026-08-11: 1000 → 2400 ŚWIADOMIE, razem z sufitem pojedynczego pliku
+    // wyżej: pętla 14,5 s w trzech kodekach sumuje się do 2302 kB w repo,
+    // ale na łącze schodzi zawsze JEDEN z nich (AV1 677 / VP9 635 / H.264 990).
+    expect(Math.round(wideo / 1024), "suma wideo marketingowego").toBeLessThanOrEqual(2400);
   });
 
   it("trzyma wagę pojedynczego zasobu w ryzach", () => {
