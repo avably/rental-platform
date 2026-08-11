@@ -10,9 +10,11 @@
  * (apps/panel/test/plan-billing-section.test.tsx).
  *
  * LP (apps/storefront/messages/{pl,en}.json, marketing.pricingPage) trzyma
- * dziś te same kwoty jako literały treści przypięte własnym testem
- * (marketing-template.test.ts). Przepięcie LP na tę stałą to OSOBNE zadanie
- * w pasie storefrontu — do tego czasu obie strony pilnują własnych bramek.
+ * te same kwoty jako literały treści, ale przypina je do tej stałej
+ * dwukierunkowy test parytetu
+ * (apps/storefront/test/saas-pricing-parity.test.ts). Bramka
+ * marketing-template.test.ts także liczy kwoty ze stałej, więc dziś obie
+ * strony wynikają z SAAS_PLAN_PRICING, nie z osobnych literałów.
  *
  * Tabela `public.plans` (seed 0004: start/pro/max) to PLACEHOLDER sprzed
  * cennika i NIE jest źródłem tych kwot — jej wymiana na standard/premium
