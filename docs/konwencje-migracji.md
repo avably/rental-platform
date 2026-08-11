@@ -58,6 +58,35 @@ Migracja, która tworzy nową tabelę, musi w tym samym pliku:
 
 Migracja bez RLS na nowej tabeli nie przechodzi review.
 
+## Funkcje w schemacie `app` = `revoke all ... from public` w tej samej migracji
+
+`create function` nadaje w PostgreSQL EXECUTE roli PUBLIC **domyślnie**, a
+schemat `app` jest wystawiony przez PostgREST — każda nowa funkcja bez
+jawnego revoke jest więc od urodzenia wołalna publicznym kluczem anon
+z przeglądarki. Dlatego każda migracja tworząca lub podmieniająca funkcję
+`app.*` MUSI w tym samym pliku:
+
+1. `revoke all on function app.<fn>(...) from public;`
+2. nadać jawne granty wyłącznie rolom, które funkcji potrzebują
+   (`anon` / `authenticated` / `service_role`) — z uzasadnieniem
+   w komentarzu, dlaczego dana rola dostaje EXECUTE.
+
+Stan zastany wyczyściła migracja `0064` (zdjęcie PUBLIC ze wszystkich
+istniejących funkcji `app.*`; regrant wyłącznie tam, gdzie rola wykonuje
+funkcję bezpośrednio — np. helper CHECK-a `app.delivery_pricing_valid`
+dla piszących ról API). Konwencji pilnuje introspekcyjna bramka
+`packages/db/test/function-acls.test.ts`: czyta ACL-e wprost z `pg_proc`
+(z `acldefault`, więc funkcję bez jawnego ACL klasyfikuje tak, jak robi
+to silnik — jako PUBLIC), a EXECUTE dla PUBLIC/anon poza jawną allowlistą
+publicznych RPC pali build. **Nowa funkcja wchodzi do bramki
+automatycznie** — funkcja dla roli anon wymaga wpisu do allowlisty
+w teście wraz z uzasadnieniem; dla PUBLIC wyjątków nie ma.
+
+Uwaga praktyczna: funkcje wyzwalaczy nie potrzebują EXECUTE dla ról API
+(uprawnienie sprawdza się przy `create trigger` względem właściciela
+tabeli), ale funkcje wołane w CHECK-ach tabel wykonuje ROLA PISZĄCA
+wiersz — zdjęcie PUBLIC bez regrantu wywraca INSERT/UPDATE tej tabeli.
+
 ## Lokalny Supabase — standard dev
 
 - Uruchomienie stacku: `supabase start` (z katalogu `packages/db`).
