@@ -28,6 +28,9 @@
     "test": "vitest run",
     "lint": "eslint ."
   },
+  "dependencies": {
+    "@avably/core": "workspace:*"
+  },
   "peerDependencies": {
     "next": "16.2.11"
   },

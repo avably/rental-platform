@@ -16,11 +16,21 @@
  * braku wiersza — dla 2.1 to akceptowalne (cache negatywny ma krótki TTL, więc
  * przejściowa awaria bazy nie zamraża sklepu na długo).
  */
+import {
+  SUPABASE_PUBLISHABLE_KEY_ENV,
+  readSupabasePublishableKey,
+} from "@avably/core/supabase-env";
+
 async function callResolveRpc(fn: string, body: Record<string, string>): Promise<string | null> {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Warstwa ADR-142: nowa nazwa sb_publishable_… z fallbackiem legacy; ten
+  // moduł biega w middleware'u, więc odczyt MUSI być statyczny (wmurowanie
+  // build-time) — warstwa trzyma ten kontrakt u siebie.
+  const anonKey = readSupabasePublishableKey();
   if (!baseUrl || !anonKey) {
-    console.error("[tenant] brak NEXT_PUBLIC_SUPABASE_URL/ANON_KEY — nie mogę rozwiązać tenanta");
+    console.error(
+      `[tenant] brak NEXT_PUBLIC_SUPABASE_URL/${SUPABASE_PUBLISHABLE_KEY_ENV} — nie mogę rozwiązać tenanta`,
+    );
     return null;
   }
 

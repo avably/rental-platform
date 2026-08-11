@@ -23,6 +23,8 @@ const OPTS = { limit: 3, windowSeconds: 60, prefix: "test-rl" };
 
 const DB_ENV_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
+  // Warstwa ADR-142: nowa nazwa przed legacy — obie muszą być wyczyszczone.
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_LOCAL_API_URL",
   "SUPABASE_LOCAL_ANON_KEY",
