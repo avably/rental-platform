@@ -837,6 +837,9 @@ describe.skipIf(!hasEnv)("agregaty dashboardu operatora (0054, ADR-109)", () => 
         `;
         expect(rows.map((row) => row.proname).sort()).toEqual([
           "dashboard_attention",
+          // Widok dnia (0069, ADR-140) — piąta siostra; pin Europe/Warsaw
+          // obejmuje ją tak samo jak funkcje 0054.
+          "dashboard_day",
           "dashboard_revenue",
           "dashboard_top_customers",
           "dashboard_utilization",
