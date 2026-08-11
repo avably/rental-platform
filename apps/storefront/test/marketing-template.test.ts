@@ -9,6 +9,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { SAAS_PLAN_PRICING } from "@avably/core";
 import { describe, expect, it } from "vitest";
 
 import { PUBLIC_PAGES, TEMPLATE_ROUTES } from "@/lib/marketing/template";
@@ -228,16 +229,28 @@ describe("treść przeniesionych stron", () => {
   });
 
   /**
-   * Cennik jest DECYZJĄ WŁAŚCICIELA (wariant B, 2026-08-08), nie propozycją
-   * copywritera: Standard 199 / Premium 399 zł netto/msc, trial 14 dni bez
-   * karty, rok w cenie 10 miesięcy, ZERO founders. Kwota zmieniona w treści
-   * bez zmiany decyzji to zmiana ceny produktu po cichu — stąd bramka.
+   * Cennik jest DECYZJĄ WŁAŚCICIELA (wariant B, 2026-08-08) i ma JEDNO
+   * źródło: `SAAS_PLAN_PRICING` w @avably/core (ADR-135) — kwoty w tej bramce
+   * są z niego POLICZONE, nie wpisane, więc zmiana stałej bez zmiany treści
+   * (i odwrotnie) pali test. Ta bramka pilnuje PREZENTACJI ceny na cenniku:
+   * waluta przy właściwym planie, „netto" wprost, grupowanie tysięcy per
+   * locale. Zupełność — każde wystąpienie każdej kwoty w OBU plikach treści,
+   * z przynętą na kwoty dopisane bez pokrycia — pilnuje dwukierunkowo
+   * saas-pricing-parity.test.ts.
    */
   it("trzyma cennik zgodny z decyzją właściciela (wariant B, zero founders)", () => {
-    expect(pl.marketing.pricingPage.standardPrice).toContain("199 zł");
-    expect(pl.marketing.pricingPage.premiumPrice).toContain("399 zł");
-    expect(en.marketing.pricingPage.standardPrice).toContain("PLN 199");
-    expect(en.marketing.pricingPage.premiumPrice).toContain("PLN 399");
+    const cennik = Object.fromEntries(SAAS_PLAN_PRICING.map((plan) => [plan.id, plan]));
+    const zlote = (grosze: number) => grosze / 100;
+    // PL grupuje tysiące spacją („1 990"), EN przecinkiem („1,990").
+    const grupuj = (kwota: number, separator: string) =>
+      String(kwota).replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+    const standardMies = zlote(cennik.standard.monthlyNetGrosze);
+    const premiumMies = zlote(cennik.premium.monthlyNetGrosze);
+
+    expect(pl.marketing.pricingPage.standardPrice).toContain(`${grupuj(standardMies, " ")} zł`);
+    expect(pl.marketing.pricingPage.premiumPrice).toContain(`${grupuj(premiumMies, " ")} zł`);
+    expect(en.marketing.pricingPage.standardPrice).toContain(`PLN ${grupuj(standardMies, ",")}`);
+    expect(en.marketing.pricingPage.premiumPrice).toContain(`PLN ${grupuj(premiumMies, ",")}`);
 
     // Netto musi paść wprost — inaczej 199 czyta się jak cena brutto.
     expect(pl.marketing.pricingPage.standardPrice).toMatch(/netto/i);
@@ -245,9 +258,15 @@ describe("treść przeniesionych stron", () => {
     expect(en.marketing.pricingPage.intro).toMatch(/\bnet\b/i);
 
     // Rocznie = rok w cenie 10 miesięcy (1 990 / 3 990), a nie rabat procentowy.
-    expect(pl.marketing.pricingPage.standardYearly).toContain("1 990");
-    expect(pl.marketing.pricingPage.premiumYearly).toContain("3 990");
-    expect(en.marketing.pricingPage.standardYearly).toContain("1,990");
+    expect(pl.marketing.pricingPage.standardYearly).toContain(
+      grupuj(zlote(cennik.standard.yearlyNetGrosze), " "),
+    );
+    expect(pl.marketing.pricingPage.premiumYearly).toContain(
+      grupuj(zlote(cennik.premium.yearlyNetGrosze), " "),
+    );
+    expect(en.marketing.pricingPage.standardYearly).toContain(
+      grupuj(zlote(cennik.standard.yearlyNetGrosze), ","),
+    );
 
     // Trial 14 dni BEZ KARTY — obie wersje językowe, na banerze i na cenniku.
     for (const [name, text] of [
