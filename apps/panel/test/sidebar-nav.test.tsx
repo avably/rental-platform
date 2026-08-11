@@ -85,14 +85,26 @@ describe("sidebar panelu", () => {
     expect(renderNav("/historia-emaili")).not.toContain('aria-current="page"');
   });
 
-  it("zapowiedź dashboardu nie jest linkiem i niesie badge", () => {
+  it("dashboard jest LINKIEM do `/` bez badge „Wkrótce” (UX1, ADR-140) i dostaje aria-current na stronie głównej", () => {
     const html = renderNav("/");
-    const placeholder = html.match(/<(\w+)[^>]*data-nav-placeholder="dashboard"/);
+    const placeholder = html.match(/<(\w+)[^>]*data-nav-placeholder="dashboard"[^>]*>/);
 
     expect(placeholder).not.toBeNull();
-    expect(placeholder?.[1]).not.toBe("a");
-    expect(html).toContain('data-future="true"');
-    expect(html).toContain(messages.nav.comingSoon);
+    // Ekran istnieje i jest stroną startową — pozycja jest klikalna.
+    expect(placeholder?.[1]).toBe("a");
+    expect(placeholder?.[0]).toContain('href="/"');
+    expect(placeholder?.[0]).toContain('aria-current="page"');
+    // Zapowiedź zdjęta w całości: ani flagi, ani badge.
+    expect(html).not.toContain('data-future');
+    expect(html).not.toContain("data-nav-badge");
+  });
+
+  it("dashboard NIE świeci na innych trasach (równość ścieżki, nie prefiks)", () => {
+    const html = renderNav("/zamowienia");
+    const placeholder = html.match(/<a[^>]*data-nav-placeholder="dashboard"[^>]*>/);
+
+    expect(placeholder).not.toBeNull();
+    expect(placeholder?.[0]).not.toContain("aria-current");
   });
 
   it("ikony są dekoracyjne i mają jeden ciężar kreski w całym shellu", () => {

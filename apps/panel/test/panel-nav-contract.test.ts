@@ -114,15 +114,18 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
     expect(PANEL_NAV_GROUPS).toHaveLength(3);
   });
 
-  it("placeholder dashboardu: id, flaga data-future i zapowiedź", () => {
+  it("pozycja dashboardu: id, BEZ flagi data-future (ekran istnieje — UX1, ADR-140)", () => {
     const placeholder = artifactNav.find((e) => e.kind === "placeholder");
     expect(placeholder).toBeDefined();
     expect(placeholder).toMatchObject({
       id: PANEL_NAV_PLACEHOLDER.id,
-      future: true,
+      // Zapowiedź „Wkrótce" zdjęta zgodną edycją artefaktu (UX1/ADR-140):
+      // dashboard to działająca strona startowa, pozycja jest klikalna.
+      future: false,
     });
 
-    // Placeholder NIE jest pozycją klikalną — nie wolno mu wejść na listę tras.
+    // Pozycja dashboardu NIE wchodzi na listę tras grup: prowadzi do `/`,
+    // a matchNavItem (dopasowanie prefiksowe) łapałby na `/` każdą trasę.
     expect(PANEL_NAV_ITEMS.map((item) => item.id)).not.toContain(
       PANEL_NAV_PLACEHOLDER.id,
     );
@@ -133,7 +136,7 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
       {
         kind: "placeholder",
         id: PANEL_NAV_PLACEHOLDER.id,
-        future: true,
+        future: false,
         label: artifactNav[0].kind === "placeholder" ? artifactNav[0].label : "",
       },
       ...PANEL_NAV_GROUPS.flatMap((group): ArtifactEntry[] => [

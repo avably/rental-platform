@@ -39,7 +39,7 @@
       "emptyWindow": "No data in this window.",
       "utilizationTitle": "Equipment utilisation",
       "utilizationCaption": "Last 30 days",
-      "utilizationEmpty": "Nothing to measure yet — add products and units.",
+      "utilizationEmpty": "Nothing to measure yet — <link>add products and units</link>.",
       "utilizationNoUnits": "no units",
       "utilizationValue": "{pct}% utilised",
       "utilizationDetail": "{busy, plural, one {# day} other {# days}} busy · {units, plural, one {# unit} other {# units}} · {days}-day window",
@@ -47,12 +47,70 @@
       "customersCaption": "Top 10 by revenue, 12 months",
       "customerDetail": "{count, plural, one {# order} other {# orders}} · last {date}",
       "customerShare": "{pct}% of revenue",
-      "attentionTitle": "Needs attention",
-      "attentionCount": "{count, plural, one {# item} other {# items}}",
-      "attentionEmpty": "Nothing needs attention.",
-      "attentionOverdue": "Overdue",
-      "attentionPaymentFailed": "Payment failed",
-      "attentionDeposit": "Deposit unsettled"
+      "day": {
+        "title": "Today, {date}",
+        "pickupTitle": "Pickups today",
+        "returnTitle": "Returns today",
+        "overdueTitle": "Overdue",
+        "prepareTitle": "Prepare for tomorrow",
+        "moneyTitle": "Money alerts",
+        "seeAll": "See all ({count})",
+        "pickupEmpty": "Nothing to hand out today.",
+        "returnEmpty": "Nothing due back today.",
+        "overdueEmpty": "Nothing overdue.",
+        "prepareEmpty": "Nothing to prepare for tomorrow.",
+        "moneyEmpty": "No alerts.",
+        "depositToSettle": "deposit to settle {amount}",
+        "overdueDays": "{days, plural, one {# day} other {# days}} overdue",
+        "unitMissing": "Unit not assigned",
+        "alarmPaymentFailed": "Payment failed",
+        "alarmDeposit": "Deposit unsettled"
+      },
+      "start": {
+        "title": "Start here",
+        "caption": "This list disappears once everything is ready",
+        "progress": "{done} of {total} done",
+        "done": "Done",
+        "productDetail": "{name}, {count, plural, one {# unit} other {# units}}",
+        "steps": {
+          "product": {
+            "title": "Add your first product and unit",
+            "body": "The catalogue is the foundation — without it we can't price or check availability.",
+            "cta": "Add product",
+            "link": "Catalogue"
+          },
+          "store": {
+            "title": "Publish your store page",
+            "body": "A ready template with your catalogue — customers book online.",
+            "cta": "Publish page",
+            "link": "Store page"
+          },
+          "contract": {
+            "title": "Fill in company details for contracts",
+            "body": "Without them we can't generate a rental contract for an order.",
+            "cta": "Fill in details",
+            "link": "Contracts"
+          },
+          "emails": {
+            "title": "Set the e-mail sender",
+            "body": "Until the name is set, rental-cycle messages won't go out.",
+            "cta": "Set sender",
+            "link": "E-mails"
+          },
+          "payments": {
+            "title": "Connect online payments",
+            "body": "Money from bookings goes straight to your account.",
+            "cta": "Connect payments",
+            "link": "Payments"
+          },
+          "firstOrder": {
+            "title": "Take your first order",
+            "body": "It can be a test one, on yourself — it runs the full, configured cycle: booking, contract, e-mails, payment.",
+            "cta": "New order",
+            "link": "New order"
+          }
+        }
+      }
     }
   },
   "emailSettings": {
@@ -131,7 +189,6 @@
     "newOrganization": "New organization",
     "securityChallenge": "Two-factor verification",
     "dashboard": "Dashboard",
-    "comingSoon": "Coming soon",
     "groupSales": "SALES",
     "groupChannels": "CHANNELS",
     "groupOrganization": "ORGANIZATION",
@@ -208,14 +265,14 @@
     "warningBody": "The store accepts orders and the customer ticks a box agreeing to terms they have no way to read — there is no content at /regulamin.",
     "warningConsequence": "Publish the terms so that the consent recorded with each order points at a specific, immutable version. Until then selling continues — nothing is blocked."
   },
-"login": {
-  "title": "Sign in",
-  "submit": "Sign in",
-  "submitPending": "Signing in…",
-  "register": "Create an account",
-  "forgotPassword": "Forgot your password?",
-  "captchaFailed": "CAPTCHA verification failed."
-},
+  "login": {
+    "title": "Sign in",
+    "submit": "Sign in",
+    "submitPending": "Signing in…",
+    "register": "Create an account",
+    "forgotPassword": "Forgot your password?",
+    "captchaFailed": "CAPTCHA verification failed."
+  },
   "register": {
     "title": "Create an account",
     "submit": "Sign up",
@@ -636,7 +693,12 @@
       "bulkReasonClosingWindow": "rejected: during the closing window statuses move forward only, and only for rentals paid before the suspension",
       "bulkReasonUnknown": "rejected: {detail}",
       "closingSubtitle": "Closing window: the list shows only rentals paid before the suspension — hand out, take back and settle deposits.",
-      "closingEmpty": "No rentals left to close out. Panel access ends with the closing window — paying the subscription restores it in full."
+      "closingEmpty": "No rentals left to close out. Panel access ends with the closing window — paying the subscription restores it in full.",
+      "dayWydaniaDzis": "Pickups today",
+      "dayZwrotyDzis": "Returns today",
+      "dayPoTerminie": "Overdue",
+      "dayJutro": "Prepare for tomorrow",
+      "dayAlarmy": "Money alerts"
     },
     "emptyState": {
       "title": "Suspiciously quiet. Add your first order.",
@@ -2019,7 +2081,6 @@
     "createdAt": "Created on",
     "locale": "Storefront language",
     "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
-    "newOrganization": "Create organization",
     "billing": {
       "title": "Plan and billing",
       "description": "Current account state and subscription pricing — the same as on the Avably website.",

@@ -7,6 +7,8 @@ import { PanelSelect } from "@/components/fields/panel-select";
 import { DATE_PRESETS, type DatePreset } from "@/lib/orders/date-presets";
 import type { OrdersFilter } from "@/lib/order-validation";
 
+import { ORDER_DAY_FILTERS, type OrderDayFilter } from "@/lib/orders/day-filters";
+
 import { OrdersColumnsMenu } from "./orders-columns";
 import { OrdersDateFilter } from "./orders-date-filter";
 
@@ -32,6 +34,15 @@ const PRESET_LABEL_KEY: Record<DatePreset, string> = {
   "najblizsze-14-dni": "presetNext14",
 };
 
+/** Chipy filtra dnia (UX1, ADR-140) — te same zbiory co kafle pulpitu. */
+const DAY_FILTER_LABEL_KEY: Record<OrderDayFilter, string> = {
+  "wydania-dzis": "dayWydaniaDzis",
+  "zwroty-dzis": "dayZwrotyDzis",
+  "po-terminie": "dayPoTerminie",
+  jutro: "dayJutro",
+  alarmy: "dayAlarmy",
+};
+
 type CommittedParams = {
   q?: string;
   status?: string;
@@ -39,6 +50,7 @@ type CommittedParams = {
   do?: string;
   klient?: string;
   preset?: string;
+  dzien?: string;
   sort?: string;
   dir?: string;
 };
@@ -62,6 +74,7 @@ export function OrdersToolbar({
     do: filter.do,
     klient: filter.klient,
     preset: filter.preset,
+    dzien: filter.dzien,
     sort: filter.sort,
     dir: filter.dir,
   };
@@ -130,8 +143,25 @@ export function OrdersToolbar({
           którego pozycjonowanie Safari traktuje po swojemu (lekcja #117). */}
       <div data-orders-filter-row className="flex flex-wrap items-start gap-2">
         {/* Szybkie zakresy terminu — chip aktywny przełącza się z powrotem na
-            brak zakresu (drugi klik zdejmuje filtr). */}
+            brak zakresu (drugi klik zdejmuje filtr). Przed nimi chipy DNIA
+            (UX1, ADR-140): te same zbiory co kafle pulpitu, więc liczby
+            między ekranami się zgadzają; wejście linkiem „Zobacz wszystkie"
+            z kafla zapala tu widoczny, zdejmowalny chip. */}
         <div className="flex flex-1 flex-wrap gap-2">
+          {ORDER_DAY_FILTERS.map((dayFilter) => {
+            const active = filter.dzien === dayFilter;
+            return (
+              <Link
+                key={dayFilter}
+                href={hrefFor(active ? { dzien: undefined } : { dzien: dayFilter })}
+                aria-pressed={active}
+                data-orders-day-filter={dayFilter}
+                className={chipClass}
+              >
+                {t(DAY_FILTER_LABEL_KEY[dayFilter])}
+              </Link>
+            );
+          })}
           {DATE_PRESETS.map((preset) => {
             const active = filter.preset === preset;
             return (

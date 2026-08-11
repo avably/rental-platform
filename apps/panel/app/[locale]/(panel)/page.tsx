@@ -149,7 +149,9 @@ export default async function Home() {
           {t("ordersCta")}
         </Link>
       </div>
-      <DashboardSections supabase={memberCtx.supabase} />
+      {/* memberCtx przechodzi przez requireMemberWithClient, więc tenant
+          ISTNIEJE — `!` odzwierciedla gwarancję guardu, nie nadzieję. */}
+      <DashboardSections supabase={memberCtx.supabase} tenantId={memberCtx.tenantId!} />
       {superadminEntry}
     </div>
   );
