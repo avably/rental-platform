@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
 import type {
-  DashboardAttentionRow,
   DashboardTopCustomerRow,
   DashboardUtilizationRow,
 } from "@/lib/dashboard/queries";
@@ -25,8 +24,6 @@ import { orderCurrencyCode } from "@/lib/tenant-currency";
  *    pozostałe własne, osobne wiersze;
  *  • puste stany mówią „brak danych w tym oknie" wprost — zero placeholderów
  *    udających dane (reguła „bez zmyślonych KPI" zostaje, dane są realne);
- *  • pozycje „wymaga uwagi" linkują po `order_id` (UUID) — żadnych danych
- *    osobowych w URL;
  *  • każda sekcja i kafel niosą `data-dashboard-*` — uchwyty dla kontraktu
  *    renderu i weryfikacji w przeglądarce (obecność, nie piksele).
  */
@@ -277,7 +274,21 @@ export function DashboardUtilizationSection({
       caption={t("utilizationCaption")}
     >
       {shown.length === 0 ? (
-        <EmptyWindow label={t("utilizationEmpty")} />
+        /* Pusty stan Z AKCJĄ (UX1): wskazówka jest linkiem do dodania
+           produktu, nie gołym tekstem — audyt W1 nazwał to wprost. */
+        <p data-dashboard-empty="true" className="text-muted-foreground text-sm">
+          {t.rich("utilizationEmpty", {
+            link: (chunks) => (
+              <Link
+                href="/katalog/nowy"
+                data-dashboard-utilization-cta
+                className="font-medium underline underline-offset-[3px]"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {shown.map((row) => (
@@ -426,70 +437,7 @@ export function DashboardCustomersSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Wymaga uwagi
-// ---------------------------------------------------------------------------
-
-const ATTENTION_LABEL_KEYS = {
-  overdue_return: "attentionOverdue",
-  payment_failed: "attentionPaymentFailed",
-  deposit_unsettled: "attentionDeposit",
-} as const;
-
-export function DashboardAttentionSection({
-  rows,
-  locale,
-}: {
-  rows: DashboardAttentionRow[];
-  locale: string;
-}) {
-  const t = useTranslations("home.dashboard");
-
-  return (
-    <SectionCard
-      section="attention"
-      title={t("attentionTitle")}
-      caption={rows.length > 0 ? t("attentionCount", { count: rows.length }) : undefined}
-    >
-      {rows.length === 0 ? (
-        <p data-dashboard-empty="true" className="text-muted-foreground text-sm">
-          {t("attentionEmpty")}
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {rows.map((row) => (
-            <li key={`${row.kind}:${row.order_id}`}>
-              <Link
-                href={`/zamowienia/${row.order_id}`}
-                data-dashboard-attention={row.kind}
-                className="border-border hover:bg-muted/50 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-md border px-3 py-2 text-sm transition-colors"
-              >
-                <span className="flex min-w-0 items-baseline gap-2">
-                  <span className="text-status-attention-fg shrink-0 text-xs font-semibold tracking-[0.02em] uppercase">
-                    {t(ATTENTION_LABEL_KEYS[row.kind])}
-                  </span>
-                  <span className="truncate font-medium">{row.order_number}</span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {row.customer_name}
-                  </span>
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="font-medium tabular-nums">
-                    {formatMoney(
-                      row.amount_grosze,
-                      orderCurrencyCode(row.currency_code),
-                      locale,
-                    )}
-                  </span>
-                  <span className="text-muted-foreground ml-2 text-xs tabular-nums">
-                    {dateLabel(row.end_date, locale)}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </SectionCard>
-  );
-}
+// Sekcji „Wymaga uwagi" JUŻ NIE MA (UX1, ADR-140): jej treść (nieudana
+// płatność, kaucja nierozliczona) mieszka w kaflu „Alarmy pieniężne" widoku
+// dnia (dashboard-day.tsx), a zaległy zwrot — w kaflu „Po terminie". Jedno
+// źródło prawdy zamiast dwóch miejsc z tą samą kaucją.

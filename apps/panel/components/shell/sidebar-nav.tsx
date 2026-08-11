@@ -24,8 +24,7 @@ export const PANEL_NAV_ID = "panel-nav";
  * z `href` z definicji jest wprost (patrz `matchNavItem`).
  *
  * DWA STANY (uwaga przeglądu 2026-07-23):
- *  • ROZWINIĘTY — ikona + etykieta tekstowa (`data-nav-label`), nagłówki grup,
- *    badge zapowiedzi.
+ *  • ROZWINIĘTY — ikona + etykieta tekstowa (`data-nav-label`), nagłówki grup.
  *  • ZWINIĘTY — sam pasek ikon. Etykieta znika z przepływu, ale NIE
  *    z dostępności: nazwę niesie `aria-label` linku (stały, niezależny od
  *    stanu) oraz wizualny tooltip (`role="tooltip"`, `data-nav-tooltip`)
@@ -88,37 +87,39 @@ export function SidebarNav({
       aria-label={t("panelNavigation")}
       className="flex flex-col gap-0.5 p-3"
     >
-      {/* Dashboard zapowiadamy, ale go NIE MA — więc nie jest linkiem.
-          `span` zamiast wyłączonego `<a>`: element bez `href` i tak nie
-          wchodzi w kolejność tabulacji, a czytnik nie obieca nawigacji,
-          której nie da się wykonać. W stanie zwiniętym badge „Wkrótce"
-          ustępuje (nie mieści się w pasku ikon), a zapowiedź zostaje samą
-          ikoną z tooltipem — o wyborze decyduje CSS, nie render. */}
-      <span
+      {/* Dashboard ISTNIEJE i jest stroną startową (UX1, ADR-140) — pozycja
+          jest linkiem do `/`, bez badge „Wkrótce". Stoi poza grupami (jak w
+          artefakcie po zgodnej edycji) i poza matchNavItem: dopasowanie
+          prefiksowe na `/` łapałoby każdą trasę, więc stan aktywny to
+          RÓWNOŚĆ ścieżki. W oknie domykania pozycja ZOSTAJE — spójnie z
+          dolnym paskiem mobilnym (PANEL_BOTTOM_NAV_HOME w trybie closing):
+          trasa `/` istnieje i pokazuje wejście do huba domykania. */}
+      <Link
+        href="/"
         data-nav-placeholder={PANEL_NAV_PLACEHOLDER.id}
-        data-future="true"
-        aria-disabled="true"
+        aria-current={pathname === "/" ? "page" : undefined}
         aria-label={placeholderLabel}
-        className="text-muted-foreground group relative flex min-h-10 items-center justify-between gap-2.5 rounded-md border-l-2 border-transparent px-3 py-2.5 text-sm font-medium rail-collapsed:justify-center"
+        onClick={onNavigate}
+        className={[
+          "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm font-medium",
+          "rail-collapsed:justify-center",
+          "text-sidebar-foreground border-transparent",
+          "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
+          "hover:underline hover:underline-offset-[3px]",
+          "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
+          pathname === "/" ? "bg-accent text-foreground dark:text-accent-foreground" : "",
+        ].join(" ")}
       >
-        <span className="flex items-center gap-2.5">
-          <PlaceholderIcon
-            aria-hidden="true"
-            className="size-4 shrink-0"
-            strokeWidth={NAV_ICON_STROKE_WIDTH}
-          />
-          <span data-nav-label className="rail-collapsed:hidden">
-            {placeholderLabel}
-          </span>
-        </span>
-        <span
-          data-nav-badge
-          className="border-border rounded-full border px-2 py-0.5 text-[11px] tracking-[0.04em] rail-collapsed:hidden"
-        >
-          {t(PANEL_NAV_PLACEHOLDER.badgeKey)}
+        <PlaceholderIcon
+          aria-hidden="true"
+          className="size-4 shrink-0"
+          strokeWidth={NAV_ICON_STROKE_WIDTH}
+        />
+        <span data-nav-label className="rail-collapsed:hidden">
+          {placeholderLabel}
         </span>
         <NavTooltip label={placeholderLabel} />
-      </span>
+      </Link>
 
       {groups.map((group, index) => (
         <div key={group.id} className="contents">

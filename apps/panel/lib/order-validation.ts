@@ -24,6 +24,7 @@ import { z } from "zod";
 
 import { parseMajorToGrosze } from "./money-input";
 import { DATE_PRESETS } from "./orders/date-presets";
+import { ORDER_DAY_FILTERS } from "./orders/day-filters";
 
 export const uuidSchema = z.string().uuid("Nieprawidłowy identyfikator.");
 
@@ -498,6 +499,17 @@ export const ordersFilterSchema = z.object({
     .catch(undefined),
   preset: z
     .enum(DATE_PRESETS as unknown as [(typeof DATE_PRESETS)[number], ...(typeof DATE_PRESETS)[number][]])
+    .optional()
+    .catch(undefined),
+  // Filtr dnia (UX1, ADR-140) — cel linków „Zobacz wszystkie (N)" z kafli
+  // pulpitu; definicje zbiorów lustrzane wobec app.dashboard_day (0069).
+  dzien: z
+    .enum(
+      ORDER_DAY_FILTERS as unknown as [
+        (typeof ORDER_DAY_FILTERS)[number],
+        ...(typeof ORDER_DAY_FILTERS)[number][],
+      ],
+    )
     .optional()
     .catch(undefined),
 });

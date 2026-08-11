@@ -262,8 +262,8 @@ header[data-phase2-section="opening"] [data-opening-carrier-rule] { font: 500 15
 .sidebar-nav a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 10px 12px; border-radius: var(--radius-md); border-left: 2px solid transparent; color: var(--sidebar-foreground); text-decoration: none; font: 500 14px/20px "Geist Sans", sans-serif; }
 .sidebar-nav a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sidebar-nav .nav-group { margin: 16px 0 4px; padding: 0 12px; font: 600 11px/14px "Geist Sans", sans-serif; letter-spacing: 0.08em; color: var(--muted-foreground); }
-.sidebar-nav [data-nav-placeholder="dashboard"] { color: var(--muted-foreground); }
-.sidebar-nav [data-nav-placeholder="dashboard"] span { font-size: 11px; letter-spacing: 0.04em; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; }
+/* Dashboard: od UX1 (ADR-140) zwykła pozycja klikalna — ekran istnieje i jest
+   stroną startową; badge „Wkrótce" i wyszarzenie zdjęte (zgodna edycja z nav.ts). */
 /* Aktywna pozycja: SAMO zakreślenie, bez krawędzi (decyzja właściciela 2026-07-21).
    `border-left: 2px solid transparent` z reguły bazowej zostaje — trzyma geometrię. */
 .sidebar-nav [aria-current="page"] { background: var(--accent); color: var(--foreground); }
@@ -849,7 +849,7 @@ color-scheme: light dark;
         <h2>Ekran rozstrzygający.</h2>
         <div class="panel-shell">
           <nav class="sidebar-nav" data-panel-nav="true" aria-label="Nawigacja panelu">
-  <a data-nav-placeholder="dashboard" data-future="true" href="#dashboard">Dashboard <span>Wkrótce</span></a>
+  <a data-nav-placeholder="dashboard" href="#dashboard">Dashboard</a>
   <p class="nav-group">SPRZEDAŻ</p>
   <a data-nav-item="orders" aria-current="page" href="#orders-light">Zamówienia</a>
   <a data-nav-item="customers" href="#">Klienci</a>
@@ -1360,7 +1360,7 @@ color-scheme: light dark;
         <h2>Ten sam system w trybie ciemnym.</h2>
         <div class="panel-shell">
           <nav class="sidebar-nav" data-panel-nav="true" aria-label="Nawigacja panelu">
-  <a data-nav-placeholder="dashboard" data-future="true" href="#dashboard">Dashboard <span>Wkrótce</span></a>
+  <a data-nav-placeholder="dashboard" href="#dashboard">Dashboard</a>
   <p class="nav-group">SPRZEDAŻ</p>
   <a data-nav-item="orders" aria-current="page" href="#orders-light">Zamówienia</a>
   <a data-nav-item="customers" href="#">Klienci</a>

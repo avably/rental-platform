@@ -39,7 +39,7 @@
       "emptyWindow": "Brak danych w tym oknie.",
       "utilizationTitle": "Wykorzystanie sprzętu",
       "utilizationCaption": "Ostatnie 30 dni",
-      "utilizationEmpty": "Brak produktów do policzenia — dodaj katalog i egzemplarze.",
+      "utilizationEmpty": "Brak produktów do policzenia — <link>dodaj katalog i egzemplarze</link>.",
       "utilizationNoUnits": "brak egzemplarzy",
       "utilizationValue": "{pct}% zajętości",
       "utilizationDetail": "{busy, plural, one {# dzień} other {# dni}} zajętości · {units, plural, one {# egzemplarz} few {# egzemplarze} many {# egzemplarzy} other {# egzemplarza}} · okno {days} dni",
@@ -47,12 +47,70 @@
       "customersCaption": "Top 10 wg przychodu, 12 miesięcy",
       "customerDetail": "{count, plural, one {# zamówienie} few {# zamówienia} many {# zamówień} other {# zamówienia}} · ostatnie {date}",
       "customerShare": "{pct}% przychodu",
-      "attentionTitle": "Wymaga uwagi",
-      "attentionCount": "{count, plural, one {# pozycja} few {# pozycje} many {# pozycji} other {# pozycji}}",
-      "attentionEmpty": "Nic nie wymaga uwagi.",
-      "attentionOverdue": "Po terminie",
-      "attentionPaymentFailed": "Nieudana płatność",
-      "attentionDeposit": "Kaucja nierozliczona"
+      "day": {
+        "title": "Dzisiaj, {date}",
+        "pickupTitle": "Wydania dziś",
+        "returnTitle": "Zwroty dziś",
+        "overdueTitle": "Po terminie",
+        "prepareTitle": "Jutro do przygotowania",
+        "moneyTitle": "Alarmy pieniężne",
+        "seeAll": "Zobacz wszystkie ({count})",
+        "pickupEmpty": "Nic do wydania dziś.",
+        "returnEmpty": "Nic do zwrotu dziś.",
+        "overdueEmpty": "Nic po terminie.",
+        "prepareEmpty": "Nic do przygotowania na jutro.",
+        "moneyEmpty": "Brak alarmów.",
+        "depositToSettle": "kaucja do rozliczenia {amount}",
+        "overdueDays": "{days, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}} po terminie",
+        "unitMissing": "Egzemplarz nieprzypisany",
+        "alarmPaymentFailed": "Nieudana płatność",
+        "alarmDeposit": "Kaucja nierozliczona"
+      },
+      "start": {
+        "title": "Zacznij tutaj",
+        "caption": "Ta lista zniknie, gdy wszystko będzie gotowe",
+        "progress": "{done} z {total} zrobione",
+        "done": "Zrobione",
+        "productDetail": "{name}, {count, plural, one {# egzemplarz} few {# egzemplarze} many {# egzemplarzy} other {# egzemplarza}}",
+        "steps": {
+          "product": {
+            "title": "Dodaj pierwszy produkt i egzemplarz",
+            "body": "Katalog to podstawa — bez niego nie policzymy dostępności ani ceny.",
+            "cta": "Dodaj produkt",
+            "link": "Katalog"
+          },
+          "store": {
+            "title": "Opublikuj stronę sklepu",
+            "body": "Gotowy szablon z Twoim katalogiem — klienci rezerwują online.",
+            "cta": "Opublikuj stronę",
+            "link": "Strona sklepu"
+          },
+          "contract": {
+            "title": "Uzupełnij dane firmy do umów",
+            "body": "Bez nich nie wygenerujemy umowy najmu do zamówienia.",
+            "cta": "Uzupełnij dane",
+            "link": "Umowy"
+          },
+          "emails": {
+            "title": "Ustaw nadawcę e-maili",
+            "body": "Do czasu ustawienia nazwy wiadomości cyklu najmu nie wyjdą.",
+            "cta": "Ustaw nadawcę",
+            "link": "E-maile"
+          },
+          "payments": {
+            "title": "Podłącz płatności online",
+            "body": "Pieniądze z rezerwacji wpływają bezpośrednio na Twoje konto.",
+            "cta": "Podłącz płatności",
+            "link": "Płatności"
+          },
+          "firstOrder": {
+            "title": "Przyjmij pierwsze zamówienie",
+            "body": "Może być testowe, na Ciebie — przejdzie pełny, skonfigurowany cykl: rezerwacja, umowa, e-maile, płatność.",
+            "cta": "Nowe zamówienie",
+            "link": "Nowe zamówienie"
+          }
+        }
+      }
     }
   },
   "emailSettings": {
@@ -131,7 +189,6 @@
     "newOrganization": "Nowa organizacja",
     "securityChallenge": "Weryfikacja dwuetapowa",
     "dashboard": "Dashboard",
-    "comingSoon": "Wkrótce",
     "groupSales": "SPRZEDAŻ",
     "groupChannels": "KANAŁY",
     "groupOrganization": "ORGANIZACJA",
@@ -208,14 +265,14 @@
     "warningBody": "Sklep przyjmuje zamówienia, a klient zaznacza zgodę na regulamin, którego nie ma jak przeczytać — pod adresem /regulamin nie ma żadnej treści.",
     "warningConsequence": "Opublikuj regulamin, żeby zgoda przy zamówieniu wskazywała konkretną, niezmienną wersję. Do tego czasu sprzedaż działa dalej — nic nie jest zablokowane."
   },
-"login": {
-  "title": "Zaloguj się",
-  "submit": "Zaloguj się",
-  "submitPending": "Loguję…",
-  "register": "Załóż konto",
-  "forgotPassword": "Nie pamiętam hasła",
-  "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
-},
+  "login": {
+    "title": "Zaloguj się",
+    "submit": "Zaloguj się",
+    "submitPending": "Loguję…",
+    "register": "Załóż konto",
+    "forgotPassword": "Nie pamiętam hasła",
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
+  },
   "register": {
     "title": "Załóż konto",
     "submit": "Zarejestruj się",
@@ -636,7 +693,12 @@
       "bulkReasonClosingWindow": "odrzucone: w oknie domykania statusy idą wyłącznie do przodu i tylko dla najmów opłaconych przed zawieszeniem",
       "bulkReasonUnknown": "odrzucone: {detail}",
       "closingSubtitle": "Okno domykania: lista pokazuje wyłącznie najmy opłacone przed zawieszeniem — wydaj, przyjmij i rozlicz kaucje.",
-      "closingEmpty": "Brak najmów do domknięcia. Dostęp do panelu kończy się wraz z oknem domykania — opłacenie abonamentu przywraca go w całości."
+      "closingEmpty": "Brak najmów do domknięcia. Dostęp do panelu kończy się wraz z oknem domykania — opłacenie abonamentu przywraca go w całości.",
+      "dayWydaniaDzis": "Wydania dziś",
+      "dayZwrotyDzis": "Zwroty dziś",
+      "dayPoTerminie": "Po terminie",
+      "dayJutro": "Jutro do przygotowania",
+      "dayAlarmy": "Alarmy pieniężne"
     },
     "emptyState": {
       "title": "Podejrzanie spokojnie. Dodaj pierwsze zamówienie.",
@@ -2019,7 +2081,6 @@
     "createdAt": "Data założenia",
     "locale": "Język sklepu",
     "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
-    "newOrganization": "Załóż organizację",
     "billing": {
       "title": "Plan i rozliczenia",
       "description": "Aktualny stan konta i cennik abonamentu — ten sam, co na stronie Avably.",

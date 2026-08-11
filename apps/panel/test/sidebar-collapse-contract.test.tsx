@@ -90,17 +90,17 @@ function tagsWith(html: string, marker: string): string[] {
 describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
   const html = renderNav();
 
-  it("markup niesie OBA warianty naraz: etykiety i dymki, nagłówki grup i separatory, badge", () => {
+  it("markup niesie OBA warianty naraz: etykiety i dymki, nagłówki grup i separatory", () => {
     expect(PANEL_NAV_ITEMS.length).toBeGreaterThan(5); // podłoga: pusta lista nie chroni pętli
     for (const item of PANEL_NAV_ITEMS) {
       anchorFor(html, item.id);
     }
-    // Wariant rozwinięty.
+    // Wariant rozwinięty. (+1 = pozycja dashboardu poza grupami; badge
+    // „Wkrótce" zdjęty w UX1/ADR-140 — dashboard jest zwykłym linkiem.)
     expect(tagsWith(html, "data-nav-label")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
     expect(tagsWith(html, "data-nav-group-label")).toHaveLength(PANEL_NAV_GROUPS.length);
-    expect(tagsWith(html, "data-nav-badge")).toHaveLength(1);
+    expect(tagsWith(html, "data-nav-badge")).toHaveLength(0);
     expect(html).toContain(messages.nav.groupSales);
-    expect(html).toContain(messages.nav.comingSoon);
     // Wariant zwinięty — W TYM SAMYM renderze.
     expect(tagsWith(html, "data-nav-tooltip")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
     expect(tagsWith(html, "data-nav-separator")).toHaveLength(PANEL_NAV_GROUPS.length - 1);
@@ -112,7 +112,6 @@ describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
     for (const tag of [
       ...tagsWith(html, "data-nav-label"),
       ...tagsWith(html, "data-nav-group-label"),
-      ...tagsWith(html, "data-nav-badge"),
     ]) {
       expect(tag, `element bez wariantu zwinięcia: ${tag}`).toContain(
         "rail-collapsed:hidden",

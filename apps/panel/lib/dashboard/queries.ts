@@ -1,8 +1,8 @@
 /**
  * Odczyty dashboardu operatora (C1, ADR-109).
  *
- * WSZYSTKIE liczby liczą się W BAZIE — cztery funkcje `app.dashboard_*`
- * (migracja 0054, SECURITY INVOKER + RLS + jawny filtr tenanta). Panel
+ * WSZYSTKIE liczby liczą się W BAZIE — funkcje `app.dashboard_*`
+ * (migracje 0054 i 0069, SECURITY INVOKER + RLS + jawny filtr tenanta). Panel
  * niczego nie sumuje po pobranych wierszach: dostaje gotowe agregaty
  * i wyłącznie je prezentuje. Kwoty przychodzą per WALUTA WIERSZA
  * (ADR-103) — warstwa widoku nigdy nie dodaje groszy różnych walut.
@@ -11,6 +11,8 @@
  * dokładnie ten rodzaj zmyślonego KPI, którego ta strona ma nie mieć.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { PaymentStatus } from "@avably/core";
 
 export interface DashboardRevenueRow {
   month_start: string;
@@ -40,26 +42,39 @@ export interface DashboardTopCustomerRow {
   share_pct: number | null;
 }
 
-export type DashboardAttentionKind =
-  | "overdue_return"
-  | "payment_failed"
-  | "deposit_unsettled";
+/** Rodzaje kafli widoku dnia (0069, ADR-140) — lustro `app.dashboard_day`. */
+export type DashboardDayKind =
+  | "pickup_today"
+  | "return_today"
+  | "overdue"
+  | "prepare_tomorrow"
+  | "money_alert";
 
-export interface DashboardAttentionRow {
-  kind: DashboardAttentionKind;
+/** Podtyp pozycji kafla alarmów pieniężnych (dawna sekcja „Wymaga uwagi"). */
+export type DashboardMoneyAlertKind = "payment_failed" | "deposit_unsettled";
+
+export interface DashboardDayRow {
+  kind: DashboardDayKind;
+  /** Licznik CAŁEGO zbioru rodzaju (nie liczby zwróconych pozycji). */
+  kind_total: number;
+  item_position: number;
   order_id: string;
   order_number: string;
   customer_name: string;
+  start_date: string;
   end_date: string;
   amount_grosze: number;
   currency_code: string;
+  payment_status: PaymentStatus;
+  unit_missing: boolean;
+  item_kind: DashboardMoneyAlertKind | null;
 }
 
 export interface DashboardData {
   revenue: DashboardRevenueRow[];
   utilization: DashboardUtilizationRow[];
   topCustomers: DashboardTopCustomerRow[];
-  attention: DashboardAttentionRow[];
+  day: DashboardDayRow[];
 }
 
 /** Okna dashboardu — jedna stała, żeby nagłówki sekcji mówiły prawdę. */
@@ -67,7 +82,8 @@ export const DASHBOARD_WINDOWS = {
   revenueMonths: 12,
   utilizationDays: 30,
   topCustomersLimit: 10,
-  attentionLimitPerKind: 20,
+  /** Maks. pozycji w kaflu dnia (reguła zawartości kafla, spec UX1). */
+  dayItemsPerTile: 3,
 } as const;
 
 async function rpcRows<T>(
@@ -85,7 +101,7 @@ async function rpcRows<T>(
 export async function fetchDashboardData(
   supabase: SupabaseClient,
 ): Promise<DashboardData> {
-  const [revenue, utilization, topCustomers, attention] = await Promise.all([
+  const [revenue, utilization, topCustomers, day] = await Promise.all([
     rpcRows<DashboardRevenueRow>(supabase, "dashboard_revenue", {
       p_months: DASHBOARD_WINDOWS.revenueMonths,
     }),
@@ -96,10 +112,12 @@ export async function fetchDashboardData(
       p_months: DASHBOARD_WINDOWS.revenueMonths,
       p_limit: DASHBOARD_WINDOWS.topCustomersLimit,
     }),
-    rpcRows<DashboardAttentionRow>(supabase, "dashboard_attention", {
-      p_limit: DASHBOARD_WINDOWS.attentionLimitPerKind,
+    // Widok dnia (0069, ADR-140): komplet pięciu kafli JEDNYM wywołaniem —
+    // liczniki i najpilniejsze pozycje policzone w bazie, panel prezentuje.
+    rpcRows<DashboardDayRow>(supabase, "dashboard_day", {
+      p_limit: DASHBOARD_WINDOWS.dayItemsPerTile,
     }),
   ]);
 
-  return { revenue, utilization, topCustomers, attention };
+  return { revenue, utilization, topCustomers, day };
 }

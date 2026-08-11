@@ -6,12 +6,14 @@
  *  1. Kwoty formatowane WALUTĄ WIERSZA (ADR-103) — sekcja przychodu pokazuje
  *     kafle dominującej waluty i OSOBNY wiersz pozostałych; nigdzie nie
  *     pojawia się suma groszy dwóch walut.
- *  2. Pozycje „wymaga uwagi” linkują do /zamowienia/{UUID} — URL nie niesie
- *     nazwiska ani e-maila klienta (dane osobowe zostają w treści strony).
- *  3. Puste stany mówią wprost „brak danych” (data-dashboard-empty), zamiast
+ *  2. Puste stany mówią wprost „brak danych” (data-dashboard-empty), zamiast
  *     zer udających metryki.
- *  4. Utilization: produkt bez egzemplarzy dostaje „brak egzemplarzy”,
- *     nie 0% (zero i „nie da się policzyć” to różne zdania).
+ *  3. Utilization: produkt bez egzemplarzy dostaje „brak egzemplarzy”,
+ *     nie 0% (zero i „nie da się policzyć” to różne zdania); pusty stan
+ *     niesie AKCJĘ (link do /katalog/nowy — UX1, ADR-140).
+ *
+ * Sekcja „Wymaga uwagi” zniknęła w UX1 (ADR-140) — jej treść przejął kafel
+ * „Alarmy pieniężne” widoku dnia; kontrakt kafli: dashboard-day-view.test.tsx.
  */
 import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
@@ -26,7 +28,7 @@ vi.mock("@/i18n/navigation", () => ({
     createElement("a", { href, ...props }, children),
 }));
 
-const { DashboardRevenueSection, DashboardUtilizationSection, DashboardAttentionSection, DashboardCustomersSection } =
+const { DashboardRevenueSection, DashboardUtilizationSection, DashboardCustomersSection } =
   await import("@/app/[locale]/(panel)/dashboard-view");
 const { buildRevenueSummaries } = await import("@/lib/dashboard/revenue-model");
 
@@ -166,33 +168,15 @@ describe("sekcja złotych klientów", () => {
   });
 });
 
-describe("sekcja „wymaga uwagi”", () => {
-  const rows = [
-    {
-      kind: "overdue_return" as const,
-      order_id: "00000000-0000-4000-8000-000000000301",
-      order_number: "AV-2026-001",
-      customer_name: "Anna Alfa",
-      end_date: "2026-08-01",
-      amount_grosze: 20_000,
-      currency_code: "PLN",
-    },
-  ];
+describe("pusty stan wykorzystania sprzętu (UX1: wskazówka z akcją)", () => {
+  it("„dodaj katalog i egzemplarze” jest LINKIEM do /katalog/nowy, nie gołym tekstem", () => {
+    const html = renderPl(<DashboardUtilizationSection locale="pl" rows={[]} />);
 
-  it("pozycja linkuje po UUID zamówienia — URL bez danych osobowych", () => {
-    const html = renderPl(<DashboardAttentionSection rows={rows} locale="pl" />);
-
-    expect(html).toContain('href="/zamowienia/00000000-0000-4000-8000-000000000301"');
-    expect(html).toContain('data-dashboard-attention="overdue_return"');
-    // Nazwisko jest w TREŚCI, nie w URL.
-    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-    expect(hrefs.every((href) => !href.includes("Anna") && !href.includes("Alfa"))).toBe(
-      true,
-    );
-  });
-
-  it("pusty stan jest pozytywny („nic nie wymaga uwagi”), nie udaje danych", () => {
-    const html = renderPl(<DashboardAttentionSection rows={[]} locale="pl" />);
-    expect(html).toContain("Nic nie wymaga uwagi.");
+    expect(html).toContain('data-dashboard-empty="true"');
+    expect(html).toContain("Brak produktów do policzenia");
+    const cta = html.match(/<a[^>]*data-dashboard-utilization-cta[^>]*>/);
+    expect(cta).not.toBeNull();
+    expect(cta?.[0]).toContain('href="/katalog/nowy"');
+    expect(html).toContain("dodaj katalog i egzemplarze");
   });
 });

@@ -38,19 +38,22 @@ export type PanelNavGroup = {
 };
 
 /**
- * Pozycja zapowiadająca ekran, którego NIE MA. Nieklikalna, z badge „Wkrótce".
- * Artefakt trzyma ją poza grupami, na samej górze.
+ * Pozycja dashboardu — poza grupami, na samej górze (artefakt trzyma ją jako
+ * osobny wpis). Od UX1 (ADR-140) ekran ISTNIEJE i jest stroną startową,
+ * więc pozycja jest klikalnym linkiem do `/` BEZ badge „Wkrótce" (zgodna
+ * edycja artefaktu Fazy 2 — zdjęte `data-future` i `<span>` zapowiedzi).
+ * Celowo NIE wchodzi do PANEL_NAV_GROUPS/PANEL_NAV_ITEMS: artefakt trzyma ją
+ * poza grupami, a `matchNavItem` (dopasowanie prefiksowe) na `/` łapałby
+ * każdą trasę.
  */
 export type PanelNavPlaceholder = {
   id: string;
   labelKey: string;
-  badgeKey: string;
 };
 
 export const PANEL_NAV_PLACEHOLDER: PanelNavPlaceholder = {
   id: "dashboard",
   labelKey: "dashboard",
-  badgeKey: "comingSoon",
 };
 
 export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
@@ -156,12 +159,11 @@ export const CLOSING_NAV_HREFS: readonly string[] = [
  * 2026-07-22).
  *
  * NIE przechodzi przez `resolvePanelNavItem`, bo dashboard nie jest pozycją
- * nawigacji: artefakt trzyma go jako ZAPOWIEDŹ poza grupami, a sidebar dalej
- * pokazuje go jako nieklikalny, z badge „Wkrótce". Na wąskim ekranie nie ma
- * jednak znaku marki, który na desktopie prowadzi do `/`, więc pasek jest
- * jedynym miejscem, z którego wraca się na stronę główną jednym kciukiem.
- * Etykieta idzie z tej samej zapowiedzi, żeby oba miejsca nie rozjechały się
- * w nazwie.
+ * GRUP nawigacji: artefakt trzyma go poza grupami (od UX1/ADR-140 jako
+ * klikalny link, wcześniej jako zapowiedź). Na wąskim ekranie nie ma znaku
+ * marki, który na desktopie prowadzi do `/`, więc pasek jest jedynym
+ * miejscem, z którego wraca się na stronę główną jednym kciukiem. Etykieta
+ * idzie z tej samej pozycji, żeby oba miejsca nie rozjechały się w nazwie.
  */
 export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
   id: PANEL_NAV_PLACEHOLDER.id,

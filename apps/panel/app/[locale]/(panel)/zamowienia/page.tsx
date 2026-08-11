@@ -16,7 +16,8 @@ import { requireMemberPage } from "@/lib/member-page";
 import { ordersFilterSchema } from "@/lib/order-validation";
 import { getTenantCurrency, orderCurrencyCode } from "@/lib/tenant-currency";
 import { datePresetRange } from "@/lib/orders/date-presets";
-import { warsawToday } from "@/lib/orders/order-dates";
+import { DAY_PICKUP_ORDER_STATUSES } from "@/lib/orders/day-filters";
+import { addIsoDays, warsawToday } from "@/lib/orders/order-dates";
 import { computeOrderStats, type OrderStatRow } from "@/lib/orders/order-stats";
 import { filterBySearch, type OrderSearchable } from "@/lib/orders/order-search";
 import { ORDER_SORT_COLUMNS, resolveOrderSort } from "@/lib/orders/order-sort";
@@ -64,6 +65,7 @@ export default async function OrdersPage({
     sort: single(params.sort),
     dir: single(params.dir),
     preset: single(params.preset),
+    dzien: single(params.dzien),
   });
 
   const today = warsawToday();
@@ -112,6 +114,36 @@ export default async function OrdersPage({
       // start <= do AND end >= od.
       if (range.od) query = query.gte("end_date", range.od);
       if (range.do) query = query.lte("start_date", range.do);
+      // Filtr dnia (UX1, ADR-140): definicje zbiorów są LUSTREM gałęzi
+      // app.dashboard_day (0069) — licznik kafla „Zobacz wszystkie (N)"
+      // i wynik tej listy muszą się zgadzać. `alarmy` ma czwarty warunek
+      // (saldo kaucji przy `returned`) doliczany z rejestru po odczycie,
+      // tym samym zabiegiem co zamrożony zbiór okna domykania.
+      switch (filter.dzien) {
+        case "wydania-dzis":
+          query = query
+            .eq("start_date", today)
+            .in("order_status", [...DAY_PICKUP_ORDER_STATUSES]);
+          break;
+        case "zwroty-dzis":
+          query = query.eq("end_date", today).eq("order_status", "picked_up");
+          break;
+        case "po-terminie":
+          query = query.lt("end_date", today).eq("order_status", "picked_up");
+          break;
+        case "jutro":
+          query = query
+            .eq("start_date", addIsoDays(today, 1))
+            .in("order_status", [...DAY_PICKUP_ORDER_STATUSES]);
+          break;
+        case "alarmy":
+          query = query.or(
+            "and(payment_status.eq.payment_failed,order_status.neq.cancelled),order_status.eq.returned",
+          );
+          break;
+        case undefined:
+          break;
+      }
       // Sort bazy dla kolumn własnych; dla „Klient" bierzemy stabilny
       // created_at desc i dosortowujemy stronę niżej.
       if (sortInDb) {
@@ -191,6 +223,43 @@ export default async function OrdersPage({
     }
   }
 
+  // Czwarty warunek filtra `dzien=alarmy` (lustro gałęzi kaucyjnej 0069):
+  // `returned` zostaje WYŁĄCZNIE z otwartym saldem kaucji; zamówienia
+  // payment_failed zostają niezależnie od salda (to ich gałąź licznika).
+  // Ten sam zabieg co przy zamrożonym zbiorze okna domykania — saldo liczy
+  // depositTotals z rejestru, bo baza nie trzyma go w kolumnie.
+  if (!closing && filter.dzien === "alarmy") {
+    const returnedIds = orders
+      .filter(
+        (order) =>
+          order.order_status === "returned" && order.payment_status !== "payment_failed",
+      )
+      .map((order) => order.id);
+    if (returnedIds.length > 0) {
+      const { data: eventRows } = await ctx.supabase
+        .from("deposit_events")
+        .select("order_id, kind, amount_grosze")
+        .eq("tenant_id", ctx.tenantId)
+        .in("order_id", returnedIds);
+      const eventsByOrder = new Map<string, Pick<DepositEventRow, "kind" | "amount_grosze">[]>();
+      for (const row of (eventRows ?? []) as {
+        order_id: string;
+        kind: DepositEventRow["kind"];
+        amount_grosze: number;
+      }[]) {
+        const list = eventsByOrder.get(row.order_id) ?? [];
+        list.push({ kind: row.kind, amount_grosze: row.amount_grosze });
+        eventsByOrder.set(row.order_id, list);
+      }
+      orders = orders.filter(
+        (order) =>
+          order.order_status !== "returned" ||
+          order.payment_status === "payment_failed" ||
+          depositTotals(eventsByOrder.get(order.id) ?? []).balanceGrosze > 0,
+      );
+    }
+  }
+
   const rows: OrdersTableRow[] = orders.map((order) => ({
     id: order.id,
     orderNumber: order.order_number,
@@ -235,6 +304,7 @@ export default async function OrdersPage({
     do: filter.do,
     klient: filter.klient,
     preset: filter.preset,
+    dzien: filter.dzien,
     sort: filter.sort,
     dir: filter.dir,
   };
