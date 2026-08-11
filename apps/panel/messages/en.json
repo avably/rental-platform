@@ -2013,9 +2013,33 @@
     "status": "Status",
     "createdAt": "Created on",
     "locale": "Storefront language",
-    "planMissing": "No plan assigned.",
     "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
     "newOrganization": "Create organization",
+    "billing": {
+      "title": "Plan and billing",
+      "description": "Current account state and subscription pricing — the same as on the Avably website.",
+      "stateLabel": "Account state",
+      "currentPlan": "Plan {plan} — {status}",
+      "trialActive": "Trial — runs until {date}.",
+      "trialEnded": "Trial — ended {date}.",
+      "trialNoDate": "Trial.",
+      "nothingHappens": "Your account was created without a card, so after the trial nothing happens and nothing gets charged on its own.",
+      "pricingHeading": "Subscription pricing",
+      "monthly": "PLN {price} net a month",
+      "yearly": "PLN {price} net for a year — a year for the price of {months} months.",
+      "noStrings": "No annual contract and no setup fee.",
+      "vatNote": "Prices are net — 23% VAT is added on the invoice.",
+      "activationNotice": "We will enable subscription payments before the commercial launch — we will email you before anything starts to cost.",
+      "plans": {
+        "standard": {
+          "name": "Standard"
+        },
+        "premium": {
+          "name": "Premium",
+          "badge": "Coming soon"
+        }
+      }
+    },
     "statusValue": {
       "trialing": "Trial",
       "active": "Active",

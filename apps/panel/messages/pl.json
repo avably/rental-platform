@@ -2013,9 +2013,33 @@
     "status": "Status",
     "createdAt": "Data założenia",
     "locale": "Język sklepu",
-    "planMissing": "Brak przypisanego planu.",
     "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
     "newOrganization": "Załóż organizację",
+    "billing": {
+      "title": "Plan i rozliczenia",
+      "description": "Aktualny stan konta i cennik abonamentu — ten sam, co na stronie Avably.",
+      "stateLabel": "Stan konta",
+      "currentPlan": "Plan {plan} — {status}",
+      "trialActive": "Okres próbny — trwa do {date}.",
+      "trialEnded": "Okres próbny — minął {date}.",
+      "trialNoDate": "Okres próbny.",
+      "nothingHappens": "Konto jest założone bez karty, więc po okresie próbnym nic się samo nie zdarzy i nic się samo nie naliczy.",
+      "pricingHeading": "Cennik abonamentu",
+      "monthly": "{price} zł netto/mies.",
+      "yearly": "Rocznie {price} zł netto — rok w cenie {months} miesięcy.",
+      "noStrings": "Bez umowy na rok i bez opłaty wdrożeniowej.",
+      "vatNote": "Ceny netto — 23% VAT dochodzi na fakturze.",
+      "activationNotice": "Płatność abonamentu włączymy przed startem komercyjnym — odezwiemy się mailem, zanim cokolwiek zacznie kosztować.",
+      "plans": {
+        "standard": {
+          "name": "Standard"
+        },
+        "premium": {
+          "name": "Premium",
+          "badge": "Wkrótce"
+        }
+      }
+    },
     "statusValue": {
       "trialing": "Okres próbny",
       "active": "Aktywny",

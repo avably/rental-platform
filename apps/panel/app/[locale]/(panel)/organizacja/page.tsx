@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { OrganizationCard } from "./organization-card";
+import { PlanBillingSection } from "./plan-billing-section";
 
 /**
  * Ekran organizacji (ADR-059) — TYLKO DO ODCZYTU.
@@ -31,7 +32,7 @@ export default async function OrganizationPage() {
 
   const { data: tenant } = await ctx.supabase
     .from("tenants")
-    .select("id, name, slug, status, locale, created_at, subscriptions(plan_id, status)")
+    .select("id, name, slug, status, locale, created_at, trial_ends_at, subscriptions(plan_id, status)")
     .eq("id", ctx.tenantId)
     .maybeSingle();
 
@@ -47,7 +48,7 @@ export default async function OrganizationPage() {
   // w `lib/superadmin.ts`.
   const subscriptionRaw = (tenant as { subscriptions?: unknown }).subscriptions;
   const subscription = (Array.isArray(subscriptionRaw) ? subscriptionRaw[0] : subscriptionRaw) as
-    | { plan_id: string | null }
+    | { plan_id: string | null; status: string | null }
     | null
     | undefined;
 
@@ -69,7 +70,9 @@ export default async function OrganizationPage() {
   const rows: { label: string; value: string; numeric?: boolean }[] = [
     { label: t("name"), value: tenant.name },
     { label: t("slug"), value: tenant.slug },
-    { label: t("plan"), value: subscription?.plan_id ?? t("planMissing") },
+    // Brak wiersza subscriptions = TRIAL (stan pierwszej klasy, nie brak
+    // danych — ADR-135); szczegóły z datą pokazuje sekcja „Plan i rozliczenia".
+    { label: t("plan"), value: subscription?.plan_id ?? t("statusValue.trialing") },
     { label: t("status"), value: label("statusValue", tenant.status) },
     { label: t("createdAt"), value: createdAt, numeric: true },
     { label: t("locale"), value: label("localeValue", tenant.locale) },
@@ -78,6 +81,15 @@ export default async function OrganizationPage() {
   return (
     <FormMeasure className="flex flex-col gap-4">
       <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
+
+      {/* Plan i rozliczenia (J2 faza 1, ADR-135) — stan konta + cennik ze
+          stałej @avably/core, ZERO akcji płatniczych (checkout = faza 2). */}
+      <PlanBillingSection
+        subscription={
+          subscription ? { planId: subscription.plan_id, status: subscription.status } : null
+        }
+        trialEndsAt={tenant.trial_ends_at}
+      />
 
       {/* Klucze publicznego API (M1, ADR-108). Od M2 (ADR-110) ekran ma
           własną pozycję „Integracje" w grupie KANAŁY — ten link ZOSTAJE jako

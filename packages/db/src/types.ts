@@ -39,6 +39,12 @@ export interface Tenant {
    */
   locale: Locale;
   created_at: string;
+  /**
+   * Koniec 14-dniowego triala (0066, ADR-135). W fazie 1 J2 zegar wyłącznie
+   * INFORMACYJNY — niczego nie egzekwuje; od fazy 2 projekcja stanu
+   * subskrypcji Stripe. NULL = bez terminu (wiersz spoza app.create_tenant).
+   */
+  trial_ends_at: string | null;
 }
 
 export interface Member {
