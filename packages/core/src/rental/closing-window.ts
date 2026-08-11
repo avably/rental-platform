@@ -117,6 +117,17 @@ export interface ClosableOrderShape {
  * czyta statusu tenanta) — to domyka najcięższe znalezisko przeciw pełnej
  * blokadzie.
  *
+ * GRANICA JEST OSTRA (decyzja świadoma, spec Zasady 8: „utworzone PRZED
+ * zawieszeniem"): `created_at == suspended_at` stoi POZA zbiorem. Równość
+ * jest osiągalna głównie przez obcięcie `Date.parse` do milisekund
+ * (timestamptz niesie mikrosekundy) — ta sub-milisekundowa drzazga wypada
+ * ze zbioru, czyli fail-closed, zgodnie ze spec-em. Produkcyjnie OBA
+ * stemple składa jeden zegar bazy (`created_at`: default now();
+ * `suspended_at`: now() w RPC 0067) — porównanie międzyzegarowe nie
+ * istnieje. Seed testu, który stempluje `suspended_at` zegarem klienta,
+ * porównuje DWA zegary (host vs kontener Postgresa) i flakuje przy dryfie
+ * VM Dockera — znaczniki seeduj z `created_at` wiersza, nie z `new Date()`.
+ *
  * FAIL-CLOSED jak w zegarze: brak/nieparsowalny `suspended_at` albo
  * nieparsowalny `created_at` → zamówienie POZA zbiorem.
  */
