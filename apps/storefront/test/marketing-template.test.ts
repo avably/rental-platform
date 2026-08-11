@@ -58,6 +58,13 @@ const ASSET_DIRS = [
   // JEDEN kodek: nowoczesne biorą AV1 (677 kB), H.264 schodzi tylko tam,
   // gdzie AV1/VP9 nie grają. Margines wąski celowo — kolejny wzrost ma boleć.
   { dir: "public/marketing", prefix: "/marketing", limit: 1050 * 1024 },
+  // SKRYPTY SZABLONU (spike webflow.js, krok 1). `webflow.js` żyje w repo
+  // jako minifikat esbuild (1546 kB raw → ~350 kB na drucie); oryginalny
+  // eksport szablonu waży 5,5 MB raw i wraca jednym niewinnym „przywróćmy
+  // plik z eksportu". Sufit leży TUŻ nad minifikatem — podmiana na wersję
+  // niezminifikowaną (albo doklejenie kolejnej biblioteki) ma palić build,
+  // nie przechodzić recenzję na oko.
+  { dir: "public/forerunner/js", prefix: "/forerunner/js", limit: 1600 * 1024 },
 ];
 
 describe("izolacja warstw wizualnych", () => {

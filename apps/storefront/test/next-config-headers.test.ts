@@ -33,9 +33,9 @@ function referenceHeaders() {
 }
 
 describe("storefront next.config headers() — podłoga L-01 pod proxy.ts", () => {
-  it("zwraca dokładnie dwa bloki: bazowy (wszystkie ścieżki) i XFO (bez /embed/**)", async () => {
+  it("zwraca dokładnie trzy bloki: bazowy (wszystkie ścieżki), XFO (bez /embed/**) i cache statyków szablonu", async () => {
     const rules = await headerRules();
-    expect(rules).toHaveLength(2);
+    expect(rules).toHaveLength(3);
     expect(rules[0]?.source).toBe("/:path*");
   });
 
@@ -86,5 +86,30 @@ describe("storefront next.config headers() — podłoga L-01 pod proxy.ts", () =
       expect(rules[1]!.source).toContain("embed/");
       expect(rules[1]!.source).toContain("(?!");
     });
+  });
+
+  /**
+   * CACHE STATYKÓW SZABLONU (spike webflow.js, krok 1). Bez tego bloku Vercel
+   * serwuje `public/` z `max-age=0, must-revalidate` — każda wizyta
+   * rewaliduje ~1,5 MB minifikatu. Nazwy plików nie niosą hasha, więc
+   * `immutable` byłoby kłamstwem: po deployu przeglądarka NIGDY nie
+   * zapytałaby o nową wersję. Ostrożny kompromis: doba świeżości + tydzień
+   * stale-while-revalidate.
+   */
+  it("trzeci blok: /forerunner/** dostaje długi cache BEZ immutable (nazwy bez hasha)", async () => {
+    const rules = await headerRules();
+    expect(rules[2]!.source).toBe("/forerunner/:path*");
+    const cache = rules[2]!.headers.find((h) => h.key === "Cache-Control");
+    expect(cache?.value).toBe("public, max-age=86400, stale-while-revalidate=604800");
+    expect(cache?.value).not.toContain("immutable");
+    expect(rules[2]!.headers).toHaveLength(1);
+  });
+
+  it("blok cache nie dotyka niczego poza /forerunner/** — HTML stron dalej rewaliduje", async () => {
+    const rules = await headerRules();
+    // Tylko blok [2] niesie Cache-Control; bazowy i XFO zostają bez cache.
+    for (const index of [0, 1]) {
+      expect(rules[index]!.headers.map((h) => h.key)).not.toContain("Cache-Control");
+    }
   });
 });

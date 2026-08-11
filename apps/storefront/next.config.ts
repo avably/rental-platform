@@ -68,6 +68,24 @@ const nextConfig: NextConfig = {
         source: "/:path((?!embed/).*)",
         headers: [{ key: "X-Frame-Options", value: "DENY" }],
       },
+      {
+        // Statyki szablonu marketingowego (skrypty, arkusze, fonty, obrazy).
+        // Domyślnie Vercel serwuje pliki z `public/` z `max-age=0,
+        // must-revalidate` — każda wizyta rewaliduje ~1,5 MB skryptu.
+        // Nazwy NIE niosą hasha (eksport szablonu, ścieżki wpisane w HTML
+        // i layout), więc ŻADNEGO `immutable`: doba świeżości + tydzień
+        // stale-while-revalidate oznacza, że po deployu zmiana statyku
+        // dojeżdża do powracających najpóźniej po dobie, a strona nigdy
+        // nie czeka na rewalidację. Wersjonowanie nazw = przebudowa potoku
+        // assetów — świadomie poza zakresem (spike webflow.js, krok 1).
+        source: "/forerunner/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
     ];
   },
 };
