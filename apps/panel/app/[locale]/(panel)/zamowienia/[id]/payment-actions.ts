@@ -39,6 +39,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
@@ -58,9 +59,14 @@ export async function checkPaymentStatusAction(
   const parsed = paymentCheckSchema.safeParse({ orderId: str(formData.get("orderId")) });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138): rekoncyliacja dotyczy WYŁĄCZNIE
+  // istniejących intentów — nowego nie da się w `suspended` utworzyć
+  // (publiczne RPC płatnicze zamknięte), więc to odczyt prawdy, nie kanał
+  // przyjmowania pieniędzy. Zbiór pilnowany predykatem.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

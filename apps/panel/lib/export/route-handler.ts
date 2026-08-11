@@ -87,9 +87,12 @@ export async function handleExportRequest(
   const locale = panelLocale(rawLocale);
 
   // Odmowa przed jakąkolwiek pracą — guard stoi przed odczytem formularza.
+  // Opt-in okna domykania (ADR-138): „zabierz swoje dane" MUSI działać w
+  // oknie (RODO) — role bez zmian (klienci wyłącznie owner), zero zrzutów
+  // z retencją: eksport pozostaje żądaniem uwierzytelnionej sesji.
   let ctx: AuthContext;
   try {
-    ctx = await requireMember(EXPORT_REQUIRED_ROLE[kind]);
+    ctx = await requireMember(EXPORT_REQUIRED_ROLE[kind], { closing: true });
   } catch (err) {
     if (err instanceof AuthError) return new Response(null, { status: err.status });
     throw err;

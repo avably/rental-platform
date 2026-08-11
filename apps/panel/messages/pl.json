@@ -24,6 +24,8 @@
     "dashboardIntro": "Liczby liczone z zamówień Twojej organizacji — bez szacunków.",
     "suspendedTitle": "Organizacja jest zawieszona",
     "suspendedBody": "Pulpit ze statystykami jest wstrzymany, dopóki organizacja pozostaje zawieszona. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+    "closingBody": "Sklep jest wyłączony, a pulpit wstrzymany. W oknie domykania możesz dokończyć trwające najmy: wydać i przyjąć sprzęt oraz rozliczyć kaucje. Opłacenie abonamentu przywraca pełny dostęp od razu.",
+    "closingOrdersCta": "Przejdź do domykania najmów",
     "dashboard": {
       "revenueTitle": "Przychód",
       "revenueCaption": "Zrealizowany (opłacone i rozliczone), bez kaucji",
@@ -631,7 +633,10 @@
       "bulkReasonAlreadyInTarget": "pominięte: zamówienie już ma status „{to}”",
       "bulkReasonChangedMeanwhile": "pominięte: status zmienił się w międzyczasie (odśwież listę)",
       "bulkReasonNotFound": "pominięte: zamówienia nie ma już na liście",
-      "bulkReasonUnknown": "odrzucone: {detail}"
+      "bulkReasonClosingWindow": "odrzucone: w oknie domykania statusy idą wyłącznie do przodu i tylko dla najmów opłaconych przed zawieszeniem",
+      "bulkReasonUnknown": "odrzucone: {detail}",
+      "closingSubtitle": "Okno domykania: lista pokazuje wyłącznie najmy opłacone przed zawieszeniem — wydaj, przyjmij i rozlicz kaucje.",
+      "closingEmpty": "Brak najmów do domknięcia. Dostęp do panelu kończy się wraz z oknem domykania — opłacenie abonamentu przywraca go w całości."
     },
     "emptyState": {
       "title": "Podejrzanie spokojnie. Dodaj pierwsze zamówienie.",
@@ -2165,6 +2170,7 @@
   "billingBanner": {
     "pastDue": "Płatność za abonament nie powiodła się — dostawca ponowi próbę automatycznie. Sklep i zamówienia działają normalnie.",
     "suspended": "Organizacja jest zawieszona z powodu nieopłaconego abonamentu. Opłacenie przywraca dostęp od razu.",
+    "suspendedClosing": "Konto zawieszone — sklep wyłączony. Do domknięcia najmów {days, plural, one {został # dzień} few {zostały # dni} many {zostało # dni} other {zostało # dnia}}.",
     "cta": "Przejdź do rozliczeń"
   },
   "accessRevoked": {

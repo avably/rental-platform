@@ -42,7 +42,8 @@ export async function InvoiceSection({
   orderId: string;
   customerEmail: string | null;
 }) {
-  const ctx = await requireMember();
+  // Opt-in okna domykania (ADR-138): wysyłka faktury jest na allowliście.
+  const ctx = await requireMember(undefined, { closing: true });
   const locale = await getLocale();
   const t = await getTranslations("orders.invoice");
 

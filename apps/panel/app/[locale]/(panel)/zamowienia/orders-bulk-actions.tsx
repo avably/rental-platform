@@ -44,6 +44,7 @@ const REASON_LABEL_KEY: Record<BulkRejectReason, string> = {
   "already-in-target": "bulkReasonAlreadyInTarget",
   "changed-meanwhile": "bulkReasonChangedMeanwhile",
   "not-found": "bulkReasonNotFound",
+  "closing-window": "bulkReasonClosingWindow",
   unknown: "bulkReasonUnknown",
 };
 

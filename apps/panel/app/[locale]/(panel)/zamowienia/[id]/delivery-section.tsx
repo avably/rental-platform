@@ -82,7 +82,8 @@ export async function DeliverySection({
    */
   currency: CurrencyCode;
 }) {
-  const ctx = await requireMember();
+  // Opt-in okna domykania (ADR-138): logistyka kurierska jest na allowliście.
+  const ctx = await requireMember(undefined, { closing: true });
   const t = await getTranslations("orders.delivery.section");
   const locale = await getLocale();
 

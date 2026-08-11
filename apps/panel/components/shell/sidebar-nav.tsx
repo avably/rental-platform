@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import {
+  CLOSING_NAV_HREFS,
   PANEL_NAV_GROUPS,
   PANEL_NAV_PLACEHOLDER,
   matchNavItem,
@@ -54,13 +55,31 @@ export const PANEL_NAV_ID = "panel-nav";
  * border-transparent` ZOSTAJE na wszystkich pozycjach dla stałej geometrii.
  * Zakazu krawędzi pilnuje `sidebar-active-contract.test.tsx`.
  */
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({
+  onNavigate,
+  closing = false,
+}: {
+  onNavigate?: () => void;
+  /**
+   * Okno domykania (ADR-138): true = pokazujemy WYŁĄCZNIE pozycje
+   * z CLOSING_NAV_HREFS. Bramką dostępu pozostaje guard (odmowa domyślna) —
+   * filtr nie pokazuje drzwi, które są zamknięte. Grupy bez pozycji znikają.
+   */
+  closing?: boolean;
+}) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const active = matchNavItem(pathname);
 
   const PlaceholderIcon = NAV_ICONS[PANEL_NAV_PLACEHOLDER.id];
   const placeholderLabel = t(PANEL_NAV_PLACEHOLDER.labelKey);
+
+  const groups = closing
+    ? PANEL_NAV_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
+      })).filter((group) => group.items.length > 0)
+    : PANEL_NAV_GROUPS;
 
   return (
     <nav
@@ -101,7 +120,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <NavTooltip label={placeholderLabel} />
       </span>
 
-      {PANEL_NAV_GROUPS.map((group, index) => (
+      {groups.map((group, index) => (
         <div key={group.id} className="contents">
           {/* Zwinięty pasek nie ma miejsca na nagłówek grupy — grupowanie
               niesie wtedy cienka linia (poza pierwszą grupą, nad którą jest

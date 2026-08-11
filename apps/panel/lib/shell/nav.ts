@@ -138,6 +138,20 @@ export const PANEL_BOTTOM_NAV_ITEMS = [
 ] as const;
 
 /**
+ * Trasy nawigacji dostępne W OKNIE DOMYKANIA (Zasada 8, ADR-138) — lustro
+ * allowlisty guardów dla warstwy nawigacji. Pozycja spoza tej listy i tak
+ * skończyłaby się odmową guardu (odmowa domyślna), więc filtr jest UX-em,
+ * nie bramką: nie pokazujemy drzwi, które są zamknięte.
+ */
+export const CLOSING_NAV_HREFS: readonly string[] = [
+  "/zamowienia",
+  "/klienci",
+  "/eksport-danych",
+  "/organizacja",
+  "/bezpieczenstwo",
+];
+
+/**
  * Skrót do strony głównej panelu na dolnym pasku (decyzja właściciela
  * 2026-07-22).
  *

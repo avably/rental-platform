@@ -79,10 +79,12 @@ export async function requireBillingOwnerWithClient(
   }
 
   if (BILLING_CLOSED_STATUSES.includes(tenant.status)) {
+    // Kody rozdzielone (ADR-138): blokada platformowa ≠ organizacja
+    // zamknięta. `suspended` tu NIE odmawia — po to ten guard istnieje.
     throw new AuthError(
       403,
       "Rozliczenia tej organizacji są zamknięte. Skontaktuj się ze wsparciem Avably.",
-      "tenant_suspended",
+      tenant.status === "superadmin_locked" ? "tenant_locked" : "tenant_cancelled",
     );
   }
   if (row.role !== "owner") {

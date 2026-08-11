@@ -241,10 +241,12 @@ export async function eraseCustomerAction(
   if (!id.success) return { formError: id.error.issues[0]!.message };
 
   // Sesja PRZED czymkolwiek innym: rola rozstrzyga się zanim dotkniemy danych
-  // klienta (wzorzec importu katalogu — auth-first).
+  // klienta (wzorzec importu katalogu — auth-first). Opt-in okna domykania
+  // (ADR-138): prawo RODO nie wygasa z fakturą najemcy — usunięcie danych
+  // działa w oknie BEZ ZMIAN (owner-only), bez zawężenia do zbioru zamówień.
   let ctx;
   try {
-    ctx = await requireMember("owner");
+    ctx = await requireMember("owner", { closing: true });
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

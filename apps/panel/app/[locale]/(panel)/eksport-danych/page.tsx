@@ -22,7 +22,9 @@ export default async function DataExportPage({
 }: {
   searchParams: Promise<{ blad?: string }>;
 }) {
-  const ctx = await requireMemberPage("/eksport-danych");
+  // Opt-in okna domykania (ADR-138): eksport danych (RODO) działa w oknie
+  // bez zmian — handlery route mają ten sam opt-in (lib/export/route-handler).
+  const ctx = await requireMemberPage("/eksport-danych", { closing: true });
   const t = await getTranslations("dataExport");
   const locale = await getLocale();
 

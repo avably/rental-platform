@@ -41,6 +41,7 @@ import { createDepositRefund, readDepositRefund } from "@avably/core";
 import { revalidatePath } from "next/cache";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { settleDepositIfComplete } from "@/lib/deposit-booking";
 import { requestDepositRefund } from "@/lib/deposit-refund";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
@@ -113,9 +114,13 @@ async function insertDepositEvents(
   orderId: string,
   events: readonly DepositEventInput[],
 ): Promise<FormState> {
+  // Opt-in okna domykania (ADR-138): pobranie ręczne i rozliczenie kaucji
+  // to SEDNO całego trybu — cudzych pieniędzy nie wolno zamrozić
+  // bezterminowo. Zbiór pilnowany predykatem na argumencie.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -236,9 +241,12 @@ export async function settleDepositAction(
   if (!parsed.success) return zodErrorToState(parsed.error);
   const { orderId, balanceGrosze, refundGrosze, deduction, refundNote } = parsed.data;
 
+  // Opt-in okna domykania (ADR-138) — jak w insertDepositEvents: rozliczenie
+  // kaucji (także zwrot u dostawcy) MUSI działać w oknie, na zamrożonym zbiorze.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

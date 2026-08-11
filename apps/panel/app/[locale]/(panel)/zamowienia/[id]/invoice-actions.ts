@@ -39,6 +39,7 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { panelEmailLogRecorder } from "@/lib/email-log";
 import type { FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
@@ -92,9 +93,12 @@ export async function sendInvoiceAction(
     return { formError: t("errors.unavailable") };
   }
 
+  // Opt-in okna domykania (ADR-138): faktura przychodzi z zewnątrz, my ją
+  // tylko doręczamy klientowi — należy do domykania. Zbiór predykatem.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

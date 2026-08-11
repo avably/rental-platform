@@ -119,7 +119,9 @@ describe("bramka roli na guardzie", () => {
     const response = await postCustomers(request, params());
 
     expect(response.status).toBe(403);
-    expect(requireMemberMock).toHaveBeenCalledWith("owner");
+    // Drugi argument to opt-in okna domykania (ADR-138): eksport RODO musi
+    // działać u zawieszonego najemcy w oknie — rola pozostaje bez zmian.
+    expect(requireMemberMock).toHaveBeenCalledWith("owner", { closing: true });
     expect(exportCustomersMock).not.toHaveBeenCalled();
   });
 
@@ -127,8 +129,8 @@ describe("bramka roli na guardzie", () => {
     requireMemberMock.mockResolvedValue(memberCtx("staff"));
     await postOrders(trackedRequest().request, params());
     await postCatalog(trackedRequest().request, params());
-    expect(requireMemberMock).toHaveBeenNthCalledWith(1, undefined);
-    expect(requireMemberMock).toHaveBeenNthCalledWith(2, undefined);
+    expect(requireMemberMock).toHaveBeenNthCalledWith(1, undefined, { closing: true });
+    expect(requireMemberMock).toHaveBeenNthCalledWith(2, undefined, { closing: true });
   });
 });
 

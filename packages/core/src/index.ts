@@ -76,6 +76,13 @@ export {
   quoteExtension,
   AVAILABILITY_BLOCKING_ORDER_STATUSES,
   BLOCKING_PAYMENT_STATUSES,
+  CLOSING_OBLIGATION_PAYMENT_STATUSES,
+  CLOSING_OPEN_ORDER_STATUSES,
+  CLOSING_WINDOW_DAYS,
+  closingWindowDaysLeft,
+  isClosingForwardTransition,
+  isClosingWindowOpen,
+  isOpenObligation,
   canPaymentTransition,
   canTransition,
   ORDER_STATUSES,
@@ -95,6 +102,7 @@ export {
   type PriceResult,
   type PricingTier,
   type ExtensionQuote,
+  type ClosableOrderShape,
 } from "./rental";
 
 export {

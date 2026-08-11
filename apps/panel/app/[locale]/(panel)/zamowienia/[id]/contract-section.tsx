@@ -26,7 +26,9 @@ interface AttemptRow {
 }
 
 export async function ContractSection({ orderId }: { orderId: string }) {
-  const context = await requireMember();
+  // Opt-in okna domykania (ADR-138): umowa jest na allowliście — sekcja
+  // renderuje się w oknie; zbiór pilnują akcje (assertClosableOrder).
+  const context = await requireMember(undefined, { closing: true });
   const locale = await getLocale();
   const t = await getTranslations("orders.contract");
   const [settingsResult, documentsResult, attemptsResult] = await Promise.all([

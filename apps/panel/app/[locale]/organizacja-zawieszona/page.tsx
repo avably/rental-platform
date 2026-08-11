@@ -34,9 +34,14 @@ export default async function SuspendedOrganizationPage() {
     if (error.code === "unauthenticated") {
       redirect(await localePath("/login", { next: "/organizacja-zawieszona" }));
     }
-    if (error.code !== "tenant_suspended") {
-      // Brak organizacji, superadmin bez organizacji itd. — nie ma tu czego
-      // oglądać; strona główna panelu pokieruje właściwie (jak w member-page).
+    if (
+      error.code !== "tenant_suspended" &&
+      error.code !== "tenant_locked" &&
+      error.code !== "tenant_cancelled"
+    ) {
+      // Brak organizacji, superadmin bez organizacji, OKNO DOMYKANIA
+      // (`tenant_suspended_closing` — panel częściowo otwarty, nie ma tu
+      // czego „obozować") itd. — strona główna pokieruje właściwie.
       redirect(await localePath("/"));
     }
     suspended = true;

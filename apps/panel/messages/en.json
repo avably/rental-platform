@@ -24,6 +24,8 @@
     "dashboardIntro": "Numbers computed from your organisation's orders — no estimates.",
     "suspendedTitle": "Organisation suspended",
     "suspendedBody": "The dashboard and its numbers are on hold while the organisation is suspended. Contact Avably support to restore access.",
+    "closingBody": "The store is offline and the dashboard is on hold. During the closing window you can finish ongoing rentals: hand out and take back equipment and settle deposits. Paying the subscription restores full access immediately.",
+    "closingOrdersCta": "Go to rental close-out",
     "dashboard": {
       "revenueTitle": "Revenue",
       "revenueCaption": "Realised (paid and settled), deposits excluded",
@@ -631,7 +633,10 @@
       "bulkReasonAlreadyInTarget": "skipped: the order is already “{to}”",
       "bulkReasonChangedMeanwhile": "skipped: the status changed in the meantime (reload the list)",
       "bulkReasonNotFound": "skipped: the order is no longer on the list",
-      "bulkReasonUnknown": "rejected: {detail}"
+      "bulkReasonClosingWindow": "rejected: during the closing window statuses move forward only, and only for rentals paid before the suspension",
+      "bulkReasonUnknown": "rejected: {detail}",
+      "closingSubtitle": "Closing window: the list shows only rentals paid before the suspension — hand out, take back and settle deposits.",
+      "closingEmpty": "No rentals left to close out. Panel access ends with the closing window — paying the subscription restores it in full."
     },
     "emptyState": {
       "title": "Suspiciously quiet. Add your first order.",
@@ -2165,6 +2170,7 @@
   "billingBanner": {
     "pastDue": "The subscription payment failed — the payment provider will retry automatically. Your store and orders keep working as usual.",
     "suspended": "The organization is suspended over an unpaid subscription. Paying restores access right away.",
+    "suspendedClosing": "Account suspended — the store is offline. {days, plural, one {# day} other {# days}} left to close out ongoing rentals.",
     "cta": "Go to billing"
   },
   "accessRevoked": {
