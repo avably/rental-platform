@@ -45,6 +45,12 @@ const hasEnv = integrationEnv(REQUIRED_ENV);
 const PG_INSUFFICIENT_PRIVILEGE = "42501";
 const PG_INVALID_PARAMETER = "22023";
 
+// Klasa-sygnał do wymuszenia ROLLBACK sondy strażnika: cały dowód biegnie
+// w jednej transakcji, którą na końcu odwijamy, żeby zdjęte warstwy (grant,
+// polityka) nie przeciekły do żadnej innej sesji (wzorzec z checkout-ticket
+// i account-email-logs).
+class Rollback extends Error {}
+
 function env(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Brak zmiennej środowiskowej ${name}`);
@@ -363,54 +369,128 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
   it("strażnik odbija UPDATE po zdjęciu OBU wcześniejszych warstw", async () => {
     // Warstwa trzecia niezmienności (sekcja 4 migracji). Dowód wymaga zdjęcia
     // dwóch warstw stojących wyżej, bo inaczej milczą one, a nie strażnik:
-    // bez GRANT-u odmowa przychodzi z uprawnień, a z GRANT-em, ale bez
-    // polityki UPDATE, RLS po prostu nie pokazuje wiersza i PostgREST kończy
-    // bez błędu (zmierzone — pierwsza wersja tego testu przechodziła na
-    // ciszy, nie na strażniku). Dopiero grant + polityka permisywna zostawiają
-    // strażnika samego, a wtedy MUSI odmówić.
+    // bez GRANT-u odmowa przychodzi z uprawnień, a bez zdjęcia RLS zapytanie po
+    // prostu nie widzi wiersza i kończy bez błędu (zmierzone — pierwsza wersja
+    // tego testu przechodziła na ciszy, nie na strażniku). Dopiero grant + brak
+    // RLS zostawiają strażnika samego, a wtedy MUSI odmówić.
+    //
+    // CAŁY DOWÓD BIEGNIE W JEDNEJ TRANSAKCJI ZAMKNIĘTEJ ROLLBACK-iem. Wcześniej
+    // dowód robił globalny `grant ... to authenticated` z odwołaniem w `finally`;
+    // grant otwierał OKNO widoczne dla każdej równoległej sesji, a że baza
+    // lokalna bywa współdzielona, w tym oknie sąsiedni test niezmienności
+    // widział wersję jako usuwalną i wywracał się (zmierzone 1×: 792/793). GRANT
+    // i CREATE POLICY to zmiany katalogu widoczne tylko dla własnej transakcji
+    // aż do COMMIT-u — my nie komitujemy, więc żadna inna sesja ich nie zobaczy,
+    // a proces ubity w połowie sondy nie zostawia śladu (ROLLBACK robi za nas
+    // serwer, bez `finally`). Rolę i claimy stawiamy dokładnie jak PostgREST:
+    // `set local role authenticated` + `request.jwt.claims` właściciela — więc
+    // strażnik widzi NIE-serwisowego wołającego, a nie sztuczną rolę.
+    //
+    // DLACZEGO PĘTLA I `deadlock_timeout`. CREATE POLICY zakłada AccessExclusive
+    // na tabeli i pod współbieżnością wchodzi w cykl zamków z sąsiednim testem
+    // zakładającym konto (wstawki do auth.users/identities) — zmierzone
+    // zakleszczenie. Nie da się go usunąć samą kolejnością zamków (partnerem są
+    // katalogi auth, nie ta tabela), więc zamiast tego: (1) skrajnie krótki
+    // `deadlock_timeout` sprawia, że to TA transakcja pierwsza uruchamia detektor
+    // i to JĄ serwer zrywa — sąsiad nie pada zamiast niej; (2) zerwaną próbę
+    // (40P01) po prostu ponawiamy. Zasiew jest POZA pętlą; ponawiamy wyłącznie
+    // błyskawiczną transakcję-sondę, więc koszt jest znikomy, a dowód pewny.
     const tenantId = await seedTenant(admin);
     const owner = await seedActor(admin, tenantId, "owner");
     await seedDraft(admin, tenantId, "terms", "Treść chroniona strażnikiem.");
     const version = await publish(owner, "terms");
 
+    const ownerClaims = JSON.stringify({
+      sub: owner.userId,
+      role: "authenticated",
+      app_metadata: { tenant_id: tenantId, role: "owner" },
+    });
+
+    const PG_DEADLOCK = "40P01";
+    const MAX_ATTEMPTS = 10;
+    let controlRows = -1;
+    let guardCode: string | undefined;
+    let storedTitle: string | undefined;
+    let proven = false;
+
     const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
     try {
-      await sql`grant update, delete on public.legal_document_versions to authenticated`;
-      await sql`
-        create policy probe_update on public.legal_document_versions
-          for update using (true) with check (true)
-      `;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS && !proven; attempt++) {
+        // Każda próba jest niezależna — zerwana (deadlock) nie zostawia stanu.
+        controlRows = -1;
+        guardCode = undefined;
+        storedTitle = undefined;
+        try {
+          await sql.begin(async (tx) => {
+            // Ta transakcja ma być OFIARĄ ewentualnego zakleszczenia.
+            await tx`set local deadlock_timeout = '20ms'`;
 
-      // KONTROLA POZYTYWNA sondy: z tymi samymi dwiema warstwami zdjętymi
-      // szkic (bez strażnika) daje się zmienić — więc gdy wersja się nie da,
-      // to zasługa strażnika, a nie ciszy po drodze.
-      const { error: draftError } = await owner.client
-        .from("legal_documents")
-        .update({ title: "Kontrola pozytywna" })
-        .eq("tenant_id", tenantId)
-        .eq("kind", "terms");
-      expect(draftError, "kontrola pozytywna nie przeszła — sonda nic nie dowodzi").toBeNull();
+            // Zdjęcie OBU warstw — tylko wewnątrz transakcji, znika w ROLLBACK-u.
+            await tx`grant update on public.legal_document_versions to authenticated`;
+            await tx`
+              create policy probe_update on public.legal_document_versions
+                for update using (true) with check (true)
+            `;
+            await tx`select set_config('request.jwt.claims', ${ownerClaims}, true)`;
+            await tx`set local role authenticated`;
 
-      const { error } = await owner.client
-        .from("legal_document_versions")
-        .update({ title: "Tytuł podmieniony" })
-        .eq("id", version.version_id);
-      expect(
-        error?.code,
-        "z grantem i polityką permisywną wersję dało się zmienić — strażnik nie działa",
-      ).toBe(PG_INSUFFICIENT_PRIVILEGE);
+            // KONTROLA POZYTYWNA sondy: ta sama rola i te same claimy, a szkic
+            // (bez strażnika) daje się zmienić — więc gdy wersji zmienić się NIE
+            // da, to zasługa strażnika, a nie ciszy RLS ani martwej sondy z JWT.
+            const control = await tx<{ id: string }[]>`
+              update public.legal_documents set title = 'Kontrola pozytywna'
+              where tenant_id = ${tenantId} and kind = 'terms'
+              returning id
+            `;
+            controlRows = control.length;
 
-      const { data: stored } = await admin
-        .from("legal_document_versions")
-        .select("title")
-        .eq("id", version.version_id)
-        .single();
-      expect(stored?.title).toBe("Regulamin");
+            // STRAŻNIK: z grantem i polityką permisywną wersja MUSI odbić UPDATE
+            // wyjątkiem 42501 — nie ciszą (using(true) pokazuje wiersz), nie
+            // odmową RLS (with check(true) nigdy nie pęka), nie brakiem prawa
+            // (grant jest), tylko wyjątkiem z triggera. Savepoint, bo wyjątek
+            // wprowadza transakcję w stan „aborted".
+            try {
+              await tx.savepoint(async (sp) => {
+                await sp`
+                  update public.legal_document_versions set title = 'Tytuł podmieniony'
+                  where id = ${version.version_id}
+                `;
+              });
+            } catch (error) {
+              // Zakleszczenie zrywa CAŁĄ transakcję — nie jest odpowiedzią
+              // strażnika, więc wypuszczamy je do pętli ponawiającej.
+              if ((error as { code?: string }).code === PG_DEADLOCK) throw error;
+              guardCode = (error as { code?: string }).code;
+            }
+
+            // Weryfikacja w tej samej transakcji (znów superuser, RLS omijane):
+            // wiersz nietknięty, bo strażnik odbił zapis PRZED nim.
+            await tx`reset role`;
+            const [row] = await tx<{ title: string }[]>`
+              select title from public.legal_document_versions where id = ${version.version_id}
+            `;
+            storedTitle = row?.title;
+
+            proven = true;
+            throw new Rollback();
+          });
+        } catch (error) {
+          if (error instanceof Rollback) break; // sonda skończona — ROLLBACK
+          if ((error as { code?: string }).code === PG_DEADLOCK) continue; // ponów
+          throw error;
+        }
+      }
     } finally {
-      await sql`drop policy if exists probe_update on public.legal_document_versions`;
-      await sql`revoke update, delete on public.legal_document_versions from authenticated`;
       await sql.end({ timeout: 5 });
     }
+
+    expect(proven, `sonda strażnika zakleszczała się w każdej z ${MAX_ATTEMPTS} prób`).toBe(true);
+    expect(controlRows, "kontrola pozytywna nie przeszła — sonda nic nie dowodzi").toBe(1);
+    expect(
+      guardCode,
+      "z grantem i polityką permisywną wersję dało się zmienić — strażnik nie działa",
+    ).toBe(PG_INSUFFICIENT_PRIVILEGE);
+    expect(storedTitle).toBe("Regulamin");
   });
 
   // -------------------------------------------------------------------
