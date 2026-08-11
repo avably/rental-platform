@@ -183,7 +183,14 @@ describe.skipIf(!hasEnv)("panel superadmina (RLS + audyt)", () => {
     expect(ctx.superadmin).toBe(true);
     expect(ctx.aal).toBe("aal2");
 
-    const { data, error } = await superadminClient.from("tenants").select("id");
+    // Istotą jest to, że RLS wpuszcza superadmina do CUDZEJ organizacji: tenant
+    // należy do tenantOwner, nie do superadmina (ten nie ma własnego tenanta).
+    // Filtrujemy po id zasianego tenanta zamiast pobierać całą tabelę — dzięki
+    // temu test sprawdza WIDOCZNOŚĆ wiersza, a nie przypadkową własność "wszystko
+    // mieści się na jednej stronie" PostgREST (domyślny limit 1000 wierszy, przez
+    // który przy zapełnionej lokalnej bazie świeży tenant wypadał poza pierwszą
+    // stronę i test był deterministycznie czerwony).
+    const { data, error } = await superadminClient.from("tenants").select("id").eq("id", tenantId);
     expect(error).toBeNull();
     expect((data ?? []).map((row) => row.id as string)).toContain(tenantId);
   });
