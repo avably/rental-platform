@@ -229,7 +229,9 @@ const NON_SUBMIT_ACTION_REGISTRY: {
   },
   {
     file: "zamowienia/[id]/status-select.tsx",
-    anchor: 'placeholder={pending ? t("statusChanging")',
+    // Kotwica po U3: select pokazuje wartość bieżącą (bez placeholdera),
+    // sygnał zajętości bez zmian — aria-busy na triggerze.
+    anchor: "onValueChange={applyStatus}",
     signal: /busy=\{pending\}/,
     note: "zmiana statusu przez PanelSelect — aria-busy na triggerze",
   },

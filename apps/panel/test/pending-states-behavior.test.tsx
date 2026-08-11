@@ -197,6 +197,13 @@ describe("ItemsEditor (R1) — przycisk „Dodaj pozycję” wchodzi w aria-busy
       </NextIntlClientProvider>,
     );
 
+    // Formularz dodawania jest ZWINIĘTY (U3, audyt 2.5) — otwieramy go tak,
+    // jak operator: przyciskiem „Dodaj pozycję".
+    await act(async () => {
+      fireEvent.click(container.querySelector("[data-items-add-trigger]")!);
+      await Promise.resolve();
+    });
+
     const form = container.querySelector<HTMLFormElement>("[data-items-add]")!;
     const submit = within(form).getByRole("button", { name: messages.orders.items.addCta });
     expect(submit.getAttribute("aria-busy")).toBeNull();

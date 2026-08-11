@@ -97,6 +97,7 @@ export function DepositForms({
   locale,
   online,
   refundInFlight,
+  collectAllowed,
   actions,
 }: {
   orderId: string;
@@ -110,6 +111,12 @@ export function DepositForms({
   online: boolean;
   /** Jest już zwrot zlecony i niepotwierdzony — drugi byłby drugą wypłatą. */
   refundInFlight: boolean;
+  /**
+   * Zamówienie anulowane NIE pobiera kaucji (U3, audyt W4): formularz
+   * pobrania znika, rozliczenie/zwrot trzymanego salda ZOSTAJE. Bramka stoi
+   * też w akcji (collectDepositAction) — to jest lustro UI, nie zapora.
+   */
+  collectAllowed: boolean;
   actions: {
     collect: DepositAction;
     settle: DepositAction;
@@ -156,7 +163,7 @@ export function DepositForms({
         </p>
       ) : null}
 
-      {!online ? (
+      {!online && collectAllowed ? (
         <ManualCollectForm
           orderId={orderId}
           suggestedCollectGrosze={suggestedCollectGrosze}

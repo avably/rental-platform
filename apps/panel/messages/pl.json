@@ -979,8 +979,6 @@
       "totalDeposit": "Razem kaucja",
       "statusSection": "Status zamówienia",
       "paymentLabel": "Status płatności",
-      "changeStatusPlaceholder": "Zmień status…",
-      "statusChanging": "Zmieniam status…",
       "cancelBlockedHint": "Anulowanie zablokowane — płatność wymaga rozliczenia (zwrotu) przed anulowaniem.",
       "sendEmailUnavailable": "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — klient nie dostanie teraz powiadomienia.",
       "emailPromptTitle": "Powiadomić klienta?",
@@ -1003,6 +1001,9 @@
       "value": "Wartość",
       "depositLabel": "Kaucja",
       "deliveryLabel": "Dostawa",
+      "deliveryAddress": "Adres dostawy",
+      "deliveryAddressFromCustomer": "adres z kartoteki klienta",
+      "deliveryPoint": "Punkt dostawy",
       "trackingNumber": "Numer przesyłki",
       "trackingMissing": "Jeszcze nie nadano",
       "history": "Oś zdarzeń",
@@ -1030,6 +1031,7 @@
       "unassignedNoFree": "brak wolnej sztuki",
       "unassignedHasFree": "do przypisania: {count}",
       "assignUnit": "Przypisz egzemplarz",
+      "unassignedWarning": "{count, plural, one {# pozycja jest bez przypisanego egzemplarza} few {# pozycje są bez przypisanego egzemplarza} many {# pozycji jest bez przypisanego egzemplarza} other {# pozycji jest bez przypisanego egzemplarza}} — przypisz sztukę przed wydaniem.",
       "addTitle": "Dodaj pozycję",
       "addProduct": "Produkt",
       "addCta": "Dodaj do zamówienia",
@@ -1066,7 +1068,8 @@
         "returned": "Zwrócono",
         "noDeposit": "Bez kaucji",
         "depositSettled": "Rozliczona",
-        "depositDue": "Do pobrania"
+        "depositDue": "Do pobrania",
+        "notApplicable": "Nie dotyczy"
       }
     },
     "customer": {

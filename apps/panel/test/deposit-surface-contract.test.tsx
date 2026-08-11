@@ -32,7 +32,11 @@ import type { FormState } from "@/lib/form-state";
 
 const noop = async (): Promise<FormState> => ({});
 
-function renderDeposit(overrides: { online: boolean; refundInFlight?: boolean } ): string {
+function renderDeposit(overrides: {
+  online: boolean;
+  refundInFlight?: boolean;
+  collectAllowed?: boolean;
+}): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
       <DepositForms
@@ -44,6 +48,7 @@ function renderDeposit(overrides: { online: boolean; refundInFlight?: boolean } 
         locale="pl"
         online={overrides.online}
         refundInFlight={overrides.refundInFlight ?? false}
+        collectAllowed={overrides.collectAllowed ?? true}
         actions={{ collect: noop, settle: noop }}
       />
     </NextIntlClientProvider>,
@@ -81,6 +86,17 @@ describe("powierzchnia kaucji — jeden przycisk, szczegóły w modalu (D7/N5)",
     expect(html).not.toContain(messages.orders.deposit.trackOnline);
     // Zwrot idzie tym samym jednym przyciskiem co online — różni się skutek,
     // nie liczba rzeczy do kliknięcia.
+    expect(html).toContain(messages.orders.deposit.refundCta);
+  });
+
+  it("zamówienie anulowane: formularz pobrania ZNIKA, rozliczenie zostaje (U3, audyt W4)", () => {
+    // Audyt: „formularz «Zarejestruj pobranie» kaucji jest aktywny — na
+    // anulowanym najmie". Pobranie na anulowanym produkowałoby saldo, którego
+    // jedynym losem jest zwrot; zwrot TRZYMANEGO salda musi zostać możliwy.
+    const html = renderDeposit({ online: false, collectAllowed: false });
+
+    expect(html).not.toContain(messages.orders.deposit.collectCta);
+    expect(html).not.toContain('name="amount"');
     expect(html).toContain(messages.orders.deposit.refundCta);
   });
 

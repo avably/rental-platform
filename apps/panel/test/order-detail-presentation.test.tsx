@@ -16,6 +16,11 @@ import { describe, expect, it } from "vitest";
 import messages from "../messages/pl.json";
 
 import {
+  formatAddressLine,
+  orderDeliveryDestination,
+  type DeliveryDestinationColumns,
+} from "@/app/[locale]/(panel)/zamowienia/[id]/delivery-destination";
+import {
   deriveOrderTimeline,
   OrderTimeline,
   type OrderTimelineInput,
@@ -161,6 +166,47 @@ describe("oś czasu zamówienia (D5) — wyliczanie stanów", () => {
     expect(Object.values(states)).not.toContain("current");
   });
 
+  it("anulowane NIE obiecuje przyszłości: kroki, które się nie wydarzą, są anulowane z podpisem „Nie dotyczy” (U3)", () => {
+    // Audyt W4: na anulowanym pasek kroków „dalej obiecuje «Zwrot do
+    // 20.08.2026» i «Kaucja: do pobrania»". Krok, który się nie wydarzy,
+    // przestaje mówić terminem i zachętą.
+    const derived = deriveOrderTimeline(
+      input({
+        orderStatus: "cancelled",
+        paymentStatus: "unpaid",
+        deposit: { required: true, collectedGrosze: 0, balanceGrosze: 0, settled: false },
+      }),
+    );
+    const byKey = Object.fromEntries(derived.map((step) => [step.key, step]));
+
+    for (const key of ["shipment", "return", "deposit"] as const) {
+      expect(byKey[key]!.state, `stan kroku ${key}`).toBe("cancelled");
+      expect(byKey[key]!.caption, `podpis kroku ${key}`).toEqual({
+        kind: "text",
+        id: "notApplicable",
+      });
+    }
+    // Płatność: stan anulowany, ale podpis zostaje FAKTEM osi płatności
+    // („Nieopłacone" to stan, nie obietnica).
+    expect(byKey.payment!.state).toBe("cancelled");
+    expect(byKey.payment!.caption).toEqual({ kind: "payment", value: "unpaid" });
+  });
+
+  it("anulowane z TRZYMANĄ kaucją: krok kaucji zostaje otwarty z kwotą (cudze pieniądze)", () => {
+    // Pobrana, nierozliczona kaucja na anulowanym najmie to nie obietnica,
+    // tylko zobowiązanie — krok nie może dostać „Nie dotyczy".
+    const derived = deriveOrderTimeline(
+      input({
+        orderStatus: "cancelled",
+        paymentStatus: "cancelled",
+        deposit: { required: true, collectedGrosze: 40_000, balanceGrosze: 40_000, settled: false },
+      }),
+    );
+    const deposit = derived.find((step) => step.key === "deposit")!;
+    expect(deposit.state).toBe("upcoming");
+    expect(deposit.caption).toEqual({ kind: "money", grosze: 40_000 });
+  });
+
   it("cały iloczyn stanów: stałe klucze, dozwolone stany, co najwyżej jeden bieżący", () => {
     const shipmentValues: (ShipmentStatus | null)[] = [null, ...SHIPMENT_STATUSES];
     const depositVariants: OrderTimelineInput["deposit"][] = [
@@ -233,6 +279,22 @@ describe("oś czasu zamówienia (D5) — render", () => {
     // color-only-status).
     expect(html).toContain(messages.orders.timeline.states.done);
     expect(html).toContain(messages.orders.timeline.states.current);
+  });
+
+  it("render anulowanego: zero terminów i zachęt w przyszłość, jest „Nie dotyczy” (U3)", () => {
+    const html = renderTimeline(
+      input({
+        orderStatus: "cancelled",
+        paymentStatus: "unpaid",
+        endDate: "2026-08-20",
+        deposit: { required: true, collectedGrosze: 0, balanceGrosze: 0, settled: false },
+      }),
+    );
+    // Dokładnie te dwie obietnice wytknął audyt W4.
+    expect(html).not.toContain("20.08.2026");
+    expect(html).not.toContain(messages.orders.timeline.captions.depositDue);
+    expect(html).not.toContain(messages.orders.timeline.captions.awaiting);
+    expect(html).toContain(messages.orders.timeline.captions.notApplicable);
   });
 });
 
@@ -341,5 +403,115 @@ describe("odchudzony nagłówek (D4) — skan źródła strony", () => {
     expect(source).not.toContain('t("equipment")');
     expect(source).not.toContain('t("quantity")');
     expect(source).not.toContain('t("value")');
+  });
+});
+
+const DESTINATION_NONE: DeliveryDestinationColumns = {
+  delivery_point_provider: null,
+  delivery_point_code: null,
+  delivery_point_address: null,
+  delivery_address_source: null,
+  delivery_address_name: null,
+  delivery_address_street: null,
+  delivery_address_zip: null,
+  delivery_address_city: null,
+  delivery_address_phone: null,
+};
+
+describe("cel dostarczenia zamówienia (U3, audyt 2.5) — wyliczanie", () => {
+  it("migawka „inny adres” zamówienia wraca w całości", () => {
+    expect(
+      orderDeliveryDestination(
+        {
+          ...DESTINATION_NONE,
+          delivery_address_source: "custom",
+          delivery_address_name: "Hotel — recepcja",
+          delivery_address_street: "Nadmorska 12",
+          delivery_address_zip: "84-360",
+          delivery_address_city: "Łeba",
+          delivery_address_phone: "+48 600 300 400",
+        },
+        { address_street: "Kartotekowa 7", address_zip: "80-001", address_city: "Gdańsk" },
+      ),
+    ).toEqual({
+      kind: "custom",
+      name: "Hotel — recepcja",
+      street: "Nadmorska 12",
+      zip: "84-360",
+      city: "Łeba",
+      phone: "+48 600 300 400",
+    });
+  });
+
+  it("wskaźnik na kartotekę zwraca pola KLIENTA (adres zamówienia jest pusty z konstrukcji)", () => {
+    expect(
+      orderDeliveryDestination(
+        { ...DESTINATION_NONE, delivery_address_source: "customer" },
+        { address_street: "Kartotekowa 7", address_zip: "80-001", address_city: "Gdańsk" },
+      ),
+    ).toEqual({ kind: "customer", street: "Kartotekowa 7", zip: "80-001", city: "Gdańsk" });
+  });
+
+  it("punkt przewoźnika wraca kodem i adresem punktu", () => {
+    expect(
+      orderDeliveryDestination(
+        {
+          ...DESTINATION_NONE,
+          delivery_point_provider: "inpost",
+          delivery_point_code: "GDA01M",
+          delivery_point_address: "Gdańsk, ul. Długa 1",
+        },
+        null,
+      ),
+    ).toEqual({ kind: "point", code: "GDA01M", address: "Gdańsk, ul. Długa 1" });
+  });
+
+  it("zamówienie bez celu (odbiór osobisty / sprzed 0044) NIE zgaduje adresu", () => {
+    expect(orderDeliveryDestination(DESTINATION_NONE, { address_street: "Kartotekowa 7", address_zip: "80-001", address_city: "Gdańsk" })).toBeNull();
+    // Migawka bez kompletu ulica+kod+miasto jest spoza kontraktu bazy
+    // (CHECK orders_delivery_address_shape) — nie maskujemy jej połową adresu.
+    expect(
+      orderDeliveryDestination(
+        { ...DESTINATION_NONE, delivery_address_source: "custom", delivery_address_street: "Sama ulica" },
+        null,
+      ),
+    ).toBeNull();
+  });
+
+  it("formatAddressLine skleja tylko obecne części, bez osieroconych przecinków", () => {
+    expect(formatAddressLine("Nadmorska 12", "84-360", "Łeba")).toBe("Nadmorska 12, 84-360 Łeba");
+    expect(formatAddressLine(null, null, "Łeba")).toBe("Łeba");
+    expect(formatAddressLine("Nadmorska 12", null, null)).toBe("Nadmorska 12");
+    expect(formatAddressLine(null, null, null)).toBeNull();
+  });
+});
+
+describe("U3 — okablowanie szczegółu (skan źródła strony)", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "app/[locale]/(panel)/zamowienia/[id]/page.tsx"),
+    "utf8",
+  );
+
+  it("stan zamówienia stoi słowem przy numerze (StatusChip osi order)", () => {
+    // Nagłówek jest w asynchronicznym RSC — chip pinujemy skanem, a jego
+    // render (etykieta + ton ze statusSemantics) broni suita StatusChip.
+    expect(source).toContain('<StatusChip axis="order" value={row.order_status} />');
+  });
+
+  it("sekcja statusu bez treści znika, zamiast zostawiać pusty nagłówek", () => {
+    expect(source).toContain("statusTargets.length > 0 || showPaymentCheck ? (");
+    // Przejścia liczy TO SAMO źródło, którego użyje dropdown.
+    expect(source).toContain("isClosingForwardTransition(row.order_status, status)");
+    expect(source).toContain("canTransition(row.order_status, status)");
+  });
+
+  it("cel dostarczenia zamówienia jest na ekranie (adres/punkt z kolumn 0044)", () => {
+    expect(source).toContain("orderDeliveryDestination(row, row.customers)");
+    expect(source).toContain("data-delivery-destination={destination.kind}");
+    expect(source).toContain('t("deliveryAddressFromCustomer")');
+  });
+
+  it("pobranie kaucji gaśnie na zamówieniu anulowanym (prop collectAllowed)", () => {
+    expect(source).toContain('collectAllowed={row.order_status !== "cancelled"}');
   });
 });

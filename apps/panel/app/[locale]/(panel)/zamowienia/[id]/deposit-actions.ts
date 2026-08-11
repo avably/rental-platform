@@ -113,6 +113,17 @@ function gateMessage(code: string | undefined, fallback: string): string {
 async function insertDepositEvents(
   orderId: string,
   events: readonly DepositEventInput[],
+  options?: {
+    /**
+     * Odmowa POBRANIA na zamówieniu anulowanym (U3, audyt W4): anulowany
+     * najem nie ma z czego brać kaucji — pobranie „na zapas" produkowałoby
+     * saldo, którego jedynym dalszym losem jest zwrot. Dotyczy WYŁĄCZNIE
+     * pobrania; rozliczenie (zwrot/potrącenie trzymanego salda) na
+     * anulowanym zamówieniu jest legalne i konieczne — cudze pieniądze
+     * nie znają statusu zamówienia.
+     */
+    refuseCancelledOrder?: boolean;
+  },
 ): Promise<FormState> {
   // Opt-in okna domykania (ADR-138): pobranie ręczne i rozliczenie kaucji
   // to SEDNO całego trybu — cudzych pieniędzy nie wolno zamrozić
@@ -128,6 +139,23 @@ async function insertDepositEvents(
   const tenantId = ctx.tenantId;
   if (!tenantId) {
     return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+  }
+
+  if (options?.refuseCancelledOrder) {
+    const { data: statusRow } = await ctx.supabase
+      .from("orders")
+      .select("order_status")
+      .eq("tenant_id", tenantId)
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!statusRow) {
+      return { formError: "Zamówienie nie istnieje albo zostało usunięte." };
+    }
+    if ((statusRow as { order_status: string }).order_status === "cancelled") {
+      return {
+        formError: "Zamówienie jest anulowane — pobranie kaucji nie jest już możliwe.",
+      };
+    }
   }
 
   // `.select("id")` po mutacji: RLS nie zgłasza odmowy, dosięga zero wierszy
@@ -200,9 +228,12 @@ export async function collectDepositAction(
     amount: str(formData.get("amount")),
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
-  return insertDepositEvents(parsed.data.orderId, [
-    { kind: "collected", amountGrosze: parsed.data.amountGrosze },
-  ]);
+  return insertDepositEvents(
+    parsed.data.orderId,
+    [{ kind: "collected", amountGrosze: parsed.data.amountGrosze }],
+    // U3 (audyt W4): anulowany najem nie pobiera kaucji — patrz opcja.
+    { refuseCancelledOrder: true },
+  );
 }
 
 /**

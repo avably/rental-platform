@@ -979,8 +979,6 @@
       "totalDeposit": "Deposit total",
       "statusSection": "Order status",
       "paymentLabel": "Payment status",
-      "changeStatusPlaceholder": "Change status…",
-      "statusChanging": "Changing status…",
       "cancelBlockedHint": "Cancellation blocked — the payment must be settled (refunded) before cancelling.",
       "sendEmailUnavailable": "Email sending is temporarily unavailable on the platform side — the customer will not be notified right now.",
       "emailPromptTitle": "Notify the customer?",
@@ -1003,6 +1001,9 @@
       "value": "Value",
       "depositLabel": "Deposit",
       "deliveryLabel": "Delivery",
+      "deliveryAddress": "Delivery address",
+      "deliveryAddressFromCustomer": "address from the customer record",
+      "deliveryPoint": "Delivery point",
       "trackingNumber": "Tracking number",
       "trackingMissing": "Not dispatched yet",
       "history": "Event timeline",
@@ -1030,6 +1031,7 @@
       "unassignedNoFree": "no free unit",
       "unassignedHasFree": "free to assign: {count}",
       "assignUnit": "Assign unit",
+      "unassignedWarning": "{count, plural, one {# item has no assigned unit} other {# items have no assigned unit}} — assign a unit before handover.",
       "addTitle": "Add item",
       "addProduct": "Product",
       "addCta": "Add to order",
@@ -1066,7 +1068,8 @@
         "returned": "Returned",
         "noDeposit": "No deposit",
         "depositSettled": "Settled",
-        "depositDue": "To collect"
+        "depositDue": "To collect",
+        "notApplicable": "Not applicable"
       }
     },
     "customer": {
