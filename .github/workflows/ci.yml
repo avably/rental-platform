@@ -237,3 +237,10 @@ jobs:
           name: e2e-artefakty
           path: packages/e2e/.artefakty/
           retention-days: 7
+          # Katalog artefaktów zaczyna się kropką, a upload-artifact domyślnie
+          # POMIJA pliki ukryte (include-hidden-files: false od v4.4) — bez tej
+          # flagi krok kończy się zielono z ostrzeżeniem „No files were found"
+          # i nie wgrywa NICZEGO. Ukryta wada istniała już na v4; wyszła dopiero
+          # przy wymuszonej porażce e2e (run 31492243755), bo krok stoi pod
+          # if: failure() i zielone CI nigdy go nie wykonuje.
+          include-hidden-files: true
