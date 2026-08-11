@@ -134,6 +134,7 @@ describe("bramka sekretu harmonogramu — kontrakt źródła", () => {
     // dysku: pętla po pustej albo niepełnej liście przeszłaby na zielono,
     // nie sprawdziwszy niczego.
     const handlers: Record<string, Promise<{ GET: (request: Request) => Promise<Response> }>> = {
+      "billing-reconciliation": import("@/app/api/jobs/billing-reconciliation/route"),
       daily: import("@/app/api/jobs/daily/route"),
       "email-log-retention": import("@/app/api/jobs/email-log-retention/route"),
       "payment-reconciliation": import("@/app/api/jobs/payment-reconciliation/route"),

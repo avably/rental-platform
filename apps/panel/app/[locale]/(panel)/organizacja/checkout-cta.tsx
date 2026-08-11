@@ -59,7 +59,7 @@ export function SaasCheckoutCta() {
       <div className="flex flex-col gap-2">
         {SAAS_PLAN_PRICING.map((plan) => (
           <div key={plan.id} className="flex flex-wrap items-center gap-2" data-checkout-plan={plan.id}>
-            <span className="min-w-[6rem] text-sm leading-5 font-medium">
+            <span className="text-sm leading-5 font-medium">
               {tBilling(`plans.${plan.id}.name` as Parameters<typeof tBilling>[0])}
             </span>
             {SAAS_BILLING_INTERVALS.map((interval) => (

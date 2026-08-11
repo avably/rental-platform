@@ -198,11 +198,34 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "service_role — sesja najemcy nie dosięga jej nawet z poprawnym tokenem.",
   ],
   [
+    "/api/jobs/billing-reconciliation",
+    "Rekoncyliacja subskrypcji SaaS (J2 faza 2a, ADR-136) — siatka na zgubiony " +
+      "webhook billingu, nie drugi zegar (zasada 1 dunningu). Endpoint nie " +
+      "używa sesji operatora, bo wywołuje go seria dzienna (ADR-130); chroni " +
+      "go Authorization: Bearer porównywany stałoczasowo z CRON_SECRET (brak " +
+      "sekretu → 503, zły/brak nagłówka → 401). Klient service_role pozostaje " +
+      "wyłącznie w src/jobs/**; stan zapisywany wyłącznie z ODCZYTU subskrypcji " +
+      "u dostawcy na koncie PLATFORMY, przez app.apply_saas_subscription_state.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +
       "(Standard Webhooks) w trybie fail-closed: brak albo zły podpis = odmowa " +
       "bez wysyłki, brak skonfigurowanego sekretu = endpoint nie działa wcale.",
+  ],
+  [
+    "/api/webhooks/stripe-billing",
+    "Webhook BILLINGU SaaS (J2 faza 2a, ADR-136) — woła go dostawca płatności " +
+      "(zdarzenia account-level konta PLATFORMY), nie zalogowany operator, " +
+      "więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +
+      "(Stripe-Signature, HMAC-SHA256) z WŁASNYM sekretem " +
+      "AVABLY_STRIPE_BILLING_WEBHOOK_SECRET w trybie fail-closed: brak/zły " +
+      "podpis = 400 i ZERO zapisu; brak konfiguracji = endpoint nie działa " +
+      "wcale. Stan wyłącznie z ODCZYTU subskrypcji u dostawcy; jedyny pisarz " +
+      "projekcji i przejść tenants.status to app.apply_saas_subscription_state " +
+      "(EXECUTE tylko service_role, 0067); idempotencja przez claim " +
+      "webhook_events z provider='stripe-billing'.",
   ],
   [
     "/api/webhooks/stripe",
