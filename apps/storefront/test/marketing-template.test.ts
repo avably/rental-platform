@@ -122,7 +122,6 @@ describe("treść przeniesionych stron", () => {
       ] as const) {
         const html = renderMarketingPage(page, {
           ...messages.marketing,
-          form: messages.landing.form,
           ...marketingLinks(locale),
         });
         expect(html, `${file} / ${locale}`).not.toMatch(/\{\{[a-zA-Z0-9_.]+\}\}/);
@@ -203,36 +202,55 @@ describe("treść przeniesionych stron", () => {
   });
 
   /**
-   * DWIE PUBLICZNE STRONY NIE MOGĄ BYĆ SWOJĄ KOPIĄ. `/contact` renderowało
-   * nagłówek i lead listy oczekujących („Zostaw adres, jeśli wolisz
-   * poczekać"), więc pozycja „Kontakt" w nawigacji prowadziła do duplikatu
-   * `/waitlist` — z tą różnicą, że bez formularza. Klucze `contactPage.*`
-   * istniały w treści i nie były podstawiane NIGDZIE, a bramka pokrycia
-   * tokenów tego nie widzi: ona pilnuje, żeby każdy TOKEN miał treść, nie
-   * żeby każda TREŚĆ miała token.
+   * KONTAKT NIESIE WŁASNĄ TREŚĆ. Historycznie `/contact` renderował nagłówek
+   * listy oczekujących, a dane firmy (e-mail, adres) jechały na kluczach
+   * `waitlistPage.*` — po zdjęciu waitlisty te dane przeszły pod
+   * `contactPage.*`. Bramka pokrycia tokenów tego nie widzi: ona pilnuje,
+   * żeby każdy TOKEN miał treść, nie żeby każda TREŚĆ miała token.
    */
-  it("kontakt i lista oczekujących to dwie różne strony, nie jedna w dwóch adresach", () => {
+  it("kontakt niesie własny nagłówek i dane firmy z kluczy contactPage", () => {
     const contact = read("marketing/contact.html");
-    const waitlist = read("marketing/waitlist.html");
 
-    expect(contact).toContain("{{contactPage.title}}");
-    expect(contact).toContain("{{contactPage.intro}}");
-    expect(contact, "kontakt niesie nagłówek listy oczekujących").not.toContain(
-      "{{waitlistPage.title}}",
-    );
-    expect(waitlist).toContain("{{waitlistPage.title}}");
-
-    for (const messages of [pl, en]) {
-      expect(messages.marketing.contactPage.title).not.toBe(messages.marketing.waitlistPage.title);
+    for (const token of [
+      "{{contactPage.title}}",
+      "{{contactPage.intro}}",
+      "{{contactPage.email}}",
+      "{{contactPage.addressLine1}}",
+    ]) {
+      expect(contact, `kontakt zgubił ${token}`).toContain(token);
     }
   });
 
-  it("kieruje CTA do rejestracji, a listę oczekujących trzyma jako drugą drogę", () => {
+  /**
+   * LISTA OCZEKUJĄCYCH ZNIKŁA W CAŁOŚCI (decyzja właściciela 2026-08-12):
+   * LP prowadzi wprost do samodzielnej rejestracji panelu. Każde CTA, które
+   * kiedyś zbierało adresy, prowadzi teraz do `{{link.register}}`, a treść
+   * nie zna ani listy oczekujących, ani jej kluczy. Backend zapisu
+   * (app.join_waitlist) zostaje w bazie NIEODLINKOWANY — o jego wyłączeniu
+   * zdecyduje osobna migracja.
+   */
+  it("kieruje każde CTA do rejestracji — lista oczekujących zniknęła z treści", () => {
+    for (const file of marketingPages) {
+      const html = read(path.join("marketing", file));
+      expect(html, `${file} wciąż linkuje listę oczekujących`).not.toContain("{{link.waitlist}}");
+      expect(html, `${file} wciąż zna klucze waitlisty`).not.toMatch(/\{\{[a-zA-Z0-9_.]*waitlist/i);
+      expect(html).not.toContain("webflow.com/templates");
+    }
+
     const home = read("marketing/home.html");
     const registerLinks = home.match(/\{\{link\.register\}\}/g) ?? [];
-    expect(registerLinks.length).toBeGreaterThanOrEqual(4);
-    expect(home).toContain("{{link.waitlist}}");
-    expect(home).not.toContain("webflow.com/templates");
+    expect(registerLinks.length).toBeGreaterThanOrEqual(6);
+
+    // Treść marketingowa bez śladu listy oczekujących — w OBU locale.
+    for (const [name, messages] of [
+      ["pl", pl],
+      ["en", en],
+    ] as const) {
+      expect(
+        JSON.stringify(messages.marketing),
+        `${name}: treść marketingowa wciąż zna listę oczekujących`,
+      ).not.toMatch(/waitlist|oczekując/i);
+    }
   });
 
   /**
@@ -389,7 +407,10 @@ describe("spójność tras i zasobów", () => {
    * lista tras (routing), zbiór plików (treść) i mapa `pages.json` (identyfikatory).
    */
   it("nie ma już wariantów przeglądowych — ani trasy, ani pliku, ani wpisu", () => {
-    const warianty = ["home-b", "home-c", "about", "about-b", "about-c", "contact-b", "contact-c", "stories"];
+    // `waitlist` dopisany tym samym trybem: strona zniknęła razem z listą
+    // oczekujących (decyzja właściciela 2026-08-12) i nie ma prawa wrócić
+    // ani trasą, ani plikiem, ani wpisem w pages.json.
+    const warianty = ["home-b", "home-c", "about", "about-b", "about-c", "contact-b", "contact-c", "stories", "waitlist"];
 
     for (const wariant of warianty) {
       expect([...routes], `trasa ${wariant} wciąż istnieje`).not.toContain(wariant);
@@ -652,18 +673,5 @@ describe("spójność tras i zasobów", () => {
       }
     }
     expect(heavy, heavy.join(" | ")).toEqual([]);
-  });
-});
-
-describe("kontrakt dostępności formularza", () => {
-  it("zachowuje przenoszenie fokusu na wynik i opisy pól", () => {
-    const form = read("components/waitlist-form.tsx");
-    expect(form).toContain("resultFocusArmedRef.current = true");
-    expect(form).toContain("if (!resultFocusArmedRef.current");
-    expect(form).toContain('aria-describedby="waitlist-email-help waitlist-email-error"');
-    expect(form).toContain('aria-describedby="waitlist-consent-help waitlist-consent-error"');
-    // Formularz jedzie na klasach szablonu, nie na Tailwindzie.
-    expect(form).toContain("text-field w-input");
-    expect(form).not.toMatch(/className="[^"]*\b(?:mt-|px-|grid|flex-col)\b/);
   });
 });
