@@ -303,6 +303,21 @@ describe("transportRetryFetchForGateway — zasięg tylko na bramkę Supabase", 
   });
 });
 
+describe("okablowanie setupFiles — retry realnie zainstalowany w tej suicie", () => {
+  // Pilnuje WPISU w vitest.config.ts (test.setupFiles), nie samego helpera:
+  // zdjęcie setup-transport-retry.ts z konfiguracji gasi retry w całej suicie,
+  // a wszystkie pozostałe testy tego pliku dalej świecą na zielono, bo wołają
+  // helper bezpośrednio. Gated po env jak testy integracyjne: bez lokalnego
+  // Supabase setup jest świadomym no-opem i nie ma czego pilnować.
+  it.skipIf(!process.env.SUPABASE_LOCAL_API_URL)(
+    "globalThis.fetch niesie znacznik instalacji retry",
+    () => {
+      const marker = Symbol.for("avably.testTransportRetryInstalled");
+      expect((globalThis.fetch as { [key: symbol]: unknown })[marker]).toBe(true);
+    },
+  );
+});
+
 describe("installTransportRetry — instalacja na globalThis.fetch", () => {
   const originalFetch = globalThis.fetch;
 
