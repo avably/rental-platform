@@ -22,6 +22,8 @@
     "placeholderBody": "Dashboard czeka na dane. Do tego czasu najwięcej dzieje się w zamówieniach.",
     "ordersCta": "Przejdź do zamówień",
     "dashboardIntro": "Liczby liczone z zamówień Twojej organizacji — bez szacunków.",
+    "suspendedTitle": "Organizacja jest zawieszona",
+    "suspendedBody": "Pulpit ze statystykami jest wstrzymany, dopóki organizacja pozostaje zawieszona. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
     "dashboard": {
       "revenueTitle": "Przychód",
       "revenueCaption": "Zrealizowany (opłacone i rozliczone), bez kaucji",

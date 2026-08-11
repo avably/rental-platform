@@ -22,6 +22,8 @@
     "placeholderBody": "The dashboard is waiting for data. Until then, most of the action is in orders.",
     "ordersCta": "Go to orders",
     "dashboardIntro": "Numbers computed from your organisation's orders — no estimates.",
+    "suspendedTitle": "Organisation suspended",
+    "suspendedBody": "The dashboard and its numbers are on hold while the organisation is suspended. Contact Avably support to restore access.",
     "dashboard": {
       "revenueTitle": "Revenue",
       "revenueCaption": "Realised (paid and settled), deposits excluded",
