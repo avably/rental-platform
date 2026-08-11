@@ -13,6 +13,15 @@
  * przekierowuje przeglądarkę na naszą stronę powrotu, która pyta o stan
  * WŁASNY serwer.
  *
+ * [F1/ADR-137] METODY ASYNCHRONICZNE NIC TU NIE ZMIENIAJĄ — i to jest
+ * własność tej architektury, nie przypadek. Element płatności dostawcy sam
+ * rysuje zakładki metod (karta/BLIK/P24 — lista ze zdolności i konfiguracji
+ * KONTA NAJEMCY, nie z naszego kodu), sam zbiera kod BLIK i sam prowadzi
+ * przekierowanie P24; wszystkie trzy drogi kończą się na `return_url`,
+ * gdzie strona statusu mówi „sprawdzamy", dopóki webhook nie napisze
+ * `paid` z ODCZYTU. Ścieżka po `await` poniżej pozostaje ścieżką WYŁĄCZNIE
+ * błędu dla każdej metody.
+ *
  * WŁASNE WIĄZANIE ZAMIAST OFICJALNEJ OWIJKI REACTOWEJ: potrzebujemy dwóch
  * rzeczy — załadować bibliotekę dostawcy i zamontować jeden element. Owijka
  * przyniosłaby własny cykl życia i drugą zależność sprzężoną z wersją Reacta,
