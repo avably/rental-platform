@@ -104,6 +104,11 @@ describe("isOpenObligation — zamrożony zbiór", () => {
     ).toBe(false);
   });
 
+  it("GRANICA OSTRA: created_at == suspended_at → poza zbiorem " +
+    "(spec Zasady 8 mówi „utworzone PRZED zawieszeniem”)", () => {
+    expect(isOpenObligation(order({ createdAt: SUSPENDED_AT }), SUSPENDED_AT)).toBe(false);
+  });
+
   it("utworzone przed zawieszeniem, OPŁACONE WEBHOOKIEM PO zawieszeniu → w zbiorze " +
     "(predykat pyta o created_at, nie o chwilę zaksięgowania)", () => {
     // Webhook nie czyta statusu tenanta — płatność wpada także po

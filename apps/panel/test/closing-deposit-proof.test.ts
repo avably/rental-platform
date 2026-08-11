@@ -230,6 +230,34 @@ describe.skipIf(!hasEnv)("okno domykania — dowód kaucji (e)5", () => {
     return { orderId, intentId };
   }
 
+  /**
+   * Zawieszenie tenanta z zegarem przypiętym DO DANYCH: `suspended_at` to
+   * `orders.created_at` zamówienia (odczytane z bazy) przesunięte o
+   * `offsetMs` — NIGDY zegar ścienny klienta. `created_at` stempluje
+   * Postgres (na macOS: kontener w VM Dockera), `new Date()` — host; te
+   * zegary rozjeżdżają się o dziesiątki–setki ms i przy ścisłym predykacie
+   * zbioru (`created_at < suspended_at`) odwracały kolejność znaczników,
+   * wyrzucając świeżo posiane zamówienie ze zbioru (flake CI 2026-08-11).
+   * Produkcyjnie porównania międzyzegarowego nie ma — oba stemple składa
+   * zegar bazy (created_at: default now(); suspended_at: now() w RPC 0067).
+   */
+  async function suspendTenantRelativeTo(orderId: string, offsetMs: number): Promise<void> {
+    const { data, error } = await admin
+      .from("orders")
+      .select("created_at")
+      .eq("id", orderId)
+      .single();
+    if (error || !data) throw new Error(`created_at: ${error?.message}`);
+    const suspendedAt = new Date(
+      Date.parse((data as { created_at: string }).created_at) + offsetMs,
+    ).toISOString();
+    const { error: suspendError } = await admin
+      .from("tenants")
+      .update({ status: "suspended", suspended_at: suspendedAt })
+      .eq("id", member.tenantId);
+    if (suspendError) throw new Error(`suspend: ${suspendError.message}`);
+  }
+
   function settleForm(orderId: string): FormData {
     const fd = new FormData();
     fd.set("orderId", orderId);
@@ -246,13 +274,10 @@ describe.skipIf(!hasEnv)("okno domykania — dowód kaucji (e)5", () => {
   it("zwrot z okna domykania idzie DO DOSTAWCY i domyka rozliczenie przez bramki bazy", async () => {
     const { orderId } = await seedReturnedOrder();
 
-    // ZAWIESZENIE PO utworzeniu zamówienia — świeży zegar, okno otwarte,
-    // zamówienie w zamrożonym zbiorze (returned + saldo 50 000 ≠ 0).
-    const { error: suspendError } = await admin
-      .from("tenants")
-      .update({ status: "suspended", suspended_at: new Date().toISOString() })
-      .eq("id", member.tenantId);
-    if (suspendError) throw new Error(`suspend: ${suspendError.message}`);
+    // ZAWIESZENIE deterministycznie PO utworzeniu zamówienia (+1 s od
+    // created_at Z BAZY, nie z zegara hosta) — okno otwarte, zamówienie
+    // w zamrożonym zbiorze (returned + saldo 50 000 ≠ 0).
+    await suspendTenantRelativeTo(orderId, 1000);
 
     const refundId = `re_${randomUUID().slice(0, 16)}`;
     createRefundSpy.mockResolvedValueOnce(refundId);
@@ -299,9 +324,11 @@ describe.skipIf(!hasEnv)("okno domykania — dowód kaucji (e)5", () => {
   }, 60_000);
 
   it("zamówienie utworzone PO zawieszeniu: odmowa zbioru, dostawca NIETKNIĘTY", async () => {
-    // Tenant jest już suspended (poprzedni test) — nowe zamówienie ma
-    // created_at > suspended_at, więc stoi POZA zamrożonym zbiorem.
+    // Zegar przypięty do danych, kierunek odwrotny niż w teście 1:
+    // suspended_at = created_at − 1 s, więc zamówienie powstało ŚCIŚLE PO
+    // zawieszeniu i stoi POZA zamrożonym zbiorem (okno wciąż otwarte).
     const { orderId } = await seedReturnedOrder();
+    await suspendTenantRelativeTo(orderId, -1000);
     createRefundSpy.mockClear();
     wireGuard();
 
