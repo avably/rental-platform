@@ -30,10 +30,14 @@ const cores = vi.hoisted(() => ({
   cleanupSiteImageUploads: vi.fn(),
   cleanupProductImageUploads: vi.fn(),
   reconcilePayments: vi.fn(),
+  reconcileBilling: vi.fn(),
 }));
 
 vi.mock("@/src/jobs/purge-email-log-bodies", () => ({
   purgeEmailLogBodies: cores.purgeEmailLogBodies,
+}));
+vi.mock("@/src/jobs/reconcile-billing", () => ({
+  reconcileBilling: cores.reconcileBilling,
 }));
 vi.mock("@/src/jobs/cleanup-site-image-uploads", () => ({
   cleanupSiteImageUploads: cores.cleanupSiteImageUploads,
@@ -173,8 +177,9 @@ describe("seria dzienna — odporność", () => {
     const response = await GET(request(`Bearer ${SECRET}`));
     const body = (await response.json()) as { ok: boolean; jobs: { name: string; status: string }[] };
 
-    // Trzy pozostałe rdzenie WYKONANE mimo awarii drugiego w kolejności.
+    // Pozostałe rdzenie WYKONANE mimo awarii jednego w środku kolejki.
     expect(cores.purgeEmailLogBodies).toHaveBeenCalledTimes(1);
+    expect(cores.reconcileBilling).toHaveBeenCalledTimes(1);
     expect(cores.cleanupProductImageUploads).toHaveBeenCalledTimes(1);
     expect(cores.reconcilePayments).toHaveBeenCalledTimes(1);
 
@@ -182,7 +187,9 @@ describe("seria dzienna — odporność", () => {
     expect(body.ok).toBe(false);
     const failed = body.jobs.find((entry) => entry.name === "site-image-uploads");
     expect(failed?.status).toBe("failed");
-    expect(body.jobs.filter((entry) => entry.status === "ok")).toHaveLength(3);
+    expect(body.jobs.filter((entry) => entry.status === "ok")).toHaveLength(
+      DAILY_JOBS.length - 1,
+    );
     expect(body.jobs).toHaveLength(DAILY_JOBS.length);
   });
 
@@ -194,7 +201,7 @@ describe("seria dzienna — odporność", () => {
     expect(response.status).toBe(500);
   });
 
-  it("awaria KAŻDEGO zadania z osobna zostawia pozostałe trzy wykonane", async () => {
+  it("awaria KAŻDEGO zadania z osobna zostawia pozostałe wykonane", async () => {
     for (const target of Object.keys(cores) as (keyof typeof cores)[]) {
       for (const core of Object.values(cores)) {
         core.mockReset();
@@ -208,7 +215,9 @@ describe("seria dzienna — odporność", () => {
       for (const [name, core] of Object.entries(cores)) {
         expect(core, `${target} padło, a ${name} nie ruszyło`).toHaveBeenCalledTimes(1);
       }
-      expect(body.jobs.filter((entry) => entry.status === "ok"), `padło ${target}`).toHaveLength(3);
+      expect(body.jobs.filter((entry) => entry.status === "ok"), `padło ${target}`).toHaveLength(
+        DAILY_JOBS.length - 1,
+      );
     }
   });
 

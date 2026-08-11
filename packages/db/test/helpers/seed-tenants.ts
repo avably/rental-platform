@@ -883,7 +883,12 @@ export async function seedSampleRow(
 const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   members: { role: "owner" },
   invitations: { email: "hacked@test.local" },
-  subscriptions: { status: "rls-test-hacked" },
+  // Wartość MUSI przechodzić CHECK subscriptions_status_check (0067):
+  // patch spoza słownika dawałby 23514 zamiast zastosowania — przeciekająca
+  // polityka NIE zmieniłaby wiersza i snapshot świeciłby fałszywą zielenią
+  // (ta sama pułapka co 23505 przy kolumnach unikalnych, opis wyżej).
+  // 'unpaid' ≠ 'active' z fabryki, więc skuteczny zapis jest widoczny.
+  subscriptions: { status: "unpaid" },
   usage_counters: { value: 999_999 },
   audit_log: { action: "rls-test-hacked" },
 

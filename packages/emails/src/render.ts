@@ -43,6 +43,10 @@ import {
   ContactMessageEmail,
   type ContactMessageEmailProps,
 } from "./templates/contact-message";
+import {
+  SaasPaymentFailed,
+  type SaasPaymentFailedProps,
+} from "./templates/saas-payment-failed";
 
 export interface RenderedEmail {
   html: string;
@@ -141,4 +145,11 @@ export function renderContactMessage(
   props: ContactMessageEmailProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(ContactMessageEmail, props));
+}
+
+/** Mail dunningowy do najemcy po invoice.payment_failed (J2 faza 2a, ADR-136). */
+export function renderSaasPaymentFailed(
+  props: SaasPaymentFailedProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(SaasPaymentFailed, props));
 }

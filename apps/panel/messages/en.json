@@ -2038,6 +2038,14 @@
           "name": "Premium",
           "badge": "Coming soon"
         }
+      },
+      "checkout": {
+        "heading": "Choose a plan",
+        "description": "Payment is handled by our payment provider — we will redirect you to a secure checkout page.",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "redirecting": "Redirecting to the payment page…",
+        "unknownError": "Starting the payment did not succeed. Try again in a moment."
       }
     },
     "statusValue": {
@@ -2151,7 +2159,13 @@
   "suspendedOrganization": {
     "title": "Organization suspended",
     "description": "Access to the panel has been put on hold. Contact Avably support to restore access.",
+    "payHeading": "Paying the subscription restores access right away.",
     "logout": "Sign out"
+  },
+  "billingBanner": {
+    "pastDue": "The subscription payment failed — the payment provider will retry automatically. Your store and orders keep working as usual.",
+    "suspended": "The organization is suspended over an unpaid subscription. Paying restores access right away.",
+    "cta": "Go to billing"
   },
   "accessRevoked": {
     "title": "Access revoked",

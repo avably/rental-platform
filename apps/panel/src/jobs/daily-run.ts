@@ -68,6 +68,7 @@
 import { cleanupProductImageUploads } from "@/src/jobs/cleanup-product-image-uploads";
 import { cleanupSiteImageUploads } from "@/src/jobs/cleanup-site-image-uploads";
 import { purgeEmailLogBodies } from "@/src/jobs/purge-email-log-bodies";
+import { reconcileBilling } from "@/src/jobs/reconcile-billing";
 import { reconcilePayments } from "@/src/jobs/reconcile-payments";
 
 /**
@@ -141,6 +142,16 @@ export const DAILY_JOBS: readonly DailyJob[] = [
     run: () => purgeEmailLogBodies(),
   },
   {
+    // Rekoncyliacja subskrypcji SaaS (ADR-136) — siatka bezpieczeństwa na
+    // zgubiony webhook billingu, nie drugi zegar (zasada 1 dunningu).
+    // Garść tenantów z subskrypcją × jeden odczyt u dostawcy — tania;
+    // budżet wykrojony z rekoncyliacji płatności (patrz komentarz tam).
+    name: "billing-reconciliation",
+    path: "/api/jobs/billing-reconciliation",
+    budgetMs: 30_000,
+    run: () => reconcileBilling(),
+  },
+  {
     // Kilka round-tripów + kasowanie obiektów Storage, porcja ograniczona.
     name: "site-image-uploads",
     path: "/api/jobs/site-image-uploads",
@@ -157,10 +168,13 @@ export const DAILY_JOBS: readonly DailyJob[] = [
     // NAJDROŻSZE I OSTATNIE: do stu zamówień, każde z odczytem u dostawcy
     // przez sieć. Zarazem najbardziej wznawialne — każde zamówienie jest
     // zatwierdzane osobno, więc ucięcie zostawia resztę w `pending`, czyli
-    // w stanie, w którym i tak była.
+    // w stanie, w którym i tak była. Budżet zszedł ze 150 s na 120 s, żeby
+    // rekoncyliacja billingu zmieściła się w budżecie przebiegu (suma
+    // limitów ≤ DAILY_RUN_BUDGET_MS — pilnuje test): 100 zamówień × ~1 s
+    // odczytu wciąż mieści się z zapasem.
     name: "payment-reconciliation",
     path: "/api/jobs/payment-reconciliation",
-    budgetMs: 150_000,
+    budgetMs: 120_000,
     run: () => reconcilePayments(),
   },
 ];

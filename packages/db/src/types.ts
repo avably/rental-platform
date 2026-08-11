@@ -45,6 +45,14 @@ export interface Tenant {
    * subskrypcji Stripe. NULL = bez terminu (wiersz spoza app.create_tenant).
    */
   trial_ends_at: string | null;
+  /**
+   * Chwila wejścia w status `suspended` (0067, ADR-136). Pisze WYŁĄCZNIE
+   * app.apply_saas_subscription_state: ustawiane przy pierwszym przejściu
+   * w suspended, czyszczone przy powrocie do active; superadmin_lock/unlock
+   * nie dotyka. Fundament 30-dniowego okna domykania (faza 2b) — w fazie 2a
+   * NIC tej kolumny nie czyta w decyzjach dostępu.
+   */
+  suspended_at: string | null;
 }
 
 export interface Member {
@@ -80,10 +88,21 @@ export interface Plan {
 export interface Subscription {
   tenant_id: string;
   plan_id: string;
+  /** Customer na koncie PLATFORMY (0067: unikat częściowy — jeden na tenanta). */
   stripe_customer_id: string | null;
+  /** Subskrypcja u dostawcy (0067: unikat częściowy). NULL = comp superadmina. */
   stripe_subscription_id: string | null;
+  /**
+   * SUROWY status subskrypcji u dostawcy — od 0067 pod CHECK-iem z pełnym
+   * słownikiem Stripe (w tym 'paused', W9/ADR-136). Tłumaczenie na
+   * tenants.status żyje w app.apply_saas_subscription_state.
+   */
   status: string;
+  /** Początek bieżącego okresu — z ODCZYTU u dostawcy (0067). */
+  current_period_start: string | null;
   current_period_end: string | null;
+  /** Flaga „anuluj z końcem okresu" z odczytu u dostawcy (0067) — projekcja. */
+  cancel_at_period_end: boolean;
   updated_at: string;
 }
 

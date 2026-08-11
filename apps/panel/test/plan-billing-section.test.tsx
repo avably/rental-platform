@@ -126,17 +126,37 @@ describe("trial jako stan pierwszej klasy (brak wiersza subscriptions)", () => {
   });
 });
 
-describe("zero ścieżek płatności (twarda granica fazy 1)", () => {
+/**
+ * Od fazy 2a (ADR-136) ścieżka płatności istnieje, ale WYŁĄCZNIE przez
+ * wstrzyknięty `checkoutCta` — stronie wolno go podać tylko dla ownera.
+ * Kontrakt fazy 1 zostaje dla renderu BEZ propa (staff, tor niedostępny,
+ * żywa subskrypcja): markup czysto odczytowy, zero ścieżek płatności.
+ */
+describe("ścieżka płatności wyłącznie przez wstrzyknięty checkoutCta (ADR-136)", () => {
   it.each([
     ["trial w toku", { trialEndsAt: FUTURE }],
     ["trial miniony", { trialEndsAt: PAST }],
     ["subskrypcja", { subscription: { planId: "pro", status: "active" }, trialEndsAt: PAST }],
-  ] as const)("%s: żadnego <button>/<a>/<form> ani checkoutu w markupie", (_name, props) => {
+  ] as const)("%s BEZ propa: żadnego <button>/<a>/<form> ani checkoutu w markupie", (_name, props) => {
     const html = render(props);
     expect(html).not.toMatch(/<button\b/i);
     expect(html).not.toMatch(/<a\b/i);
     expect(html).not.toMatch(/<form\b/i);
     expect(html.toLowerCase()).not.toContain("checkout");
     expect(html.toLowerCase()).not.toContain("stripe");
+  });
+
+  it("z propem: wstrzyknięty węzeł jest w markupie sekcji (slot działa)", () => {
+    const html = renderToStaticMarkup(
+      <NextIntlClientProvider locale="pl" messages={plMessages} timeZone="Europe/Warsaw">
+        <PlanBillingSection
+          subscription={null}
+          trialEndsAt={FUTURE}
+          now={NOW}
+          checkoutCta={<button type="button" data-checkout-cta-stub />}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(html).toContain("data-checkout-cta-stub");
   });
 });

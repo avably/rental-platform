@@ -136,6 +136,21 @@ export interface ContactMessageMessages {
   fields: { name: string; email: string; phone: string };
 }
 
+/**
+ * Mail dunningowy do NAJEMCY (J2 faza 2a, ADR-136) — jeden szablon na
+ * `invoice.payment_failed`. Ton rzeczowy, BEZ odliczania dni: zegar ponowień
+ * należy do dostawcy płatności (zasada 1 okna dunningowego), a „ton rosnący"
+ * i maile przedostatni/ostatni to faza 2b.
+ */
+export interface SaasPaymentFailedMessages {
+  heading: string;
+  cta: string;
+  preview: (organizationName: string) => string;
+  intro: (organizationName: string) => string;
+  retry: string;
+  action: string;
+}
+
 export interface EmailMessages {
   greeting: (recipientName?: string) => string;
   layout: EmailLayoutMessages;
@@ -149,6 +164,7 @@ export interface EmailMessages {
   pickupReturnReminder: PickupReturnReminderMessages;
   rentalContract: RentalContractMessages;
   contactMessage: ContactMessageMessages;
+  saasPaymentFailed: SaasPaymentFailedMessages;
 }
 
 const pl: EmailMessages = {
@@ -274,6 +290,18 @@ const pl: EmailMessages = {
     subject: (senderName) => `Wiadomość ze strony: ${senderName}`,
     fields: { name: "Imię", email: "E-mail", phone: "Telefon" },
   },
+  saasPaymentFailed: {
+    heading: "Płatność za abonament nie powiodła się",
+    cta: "Przejdź do rozliczeń",
+    preview: (organizationName) =>
+      `Płatność za abonament Avably organizacji ${organizationName} nie powiodła się.`,
+    intro: (organizationName) =>
+      `Ostatnia płatność za abonament Avably organizacji ${organizationName} nie doszła do skutku.`,
+    retry:
+      "Dostawca płatności ponowi próbę automatycznie. Najczęstszy powód to wygasła albo zablokowana karta.",
+    action:
+      "Sprawdź metodę płatności w sekcji „Plan i rozliczenia” w panelu — po udanej płatności konto wraca do pełnej sprawności od razu.",
+  },
 };
 
 const en: EmailMessages = {
@@ -397,6 +425,18 @@ const en: EmailMessages = {
     footer: "Sent through the contact form on your website. Just hit Reply — it goes straight to the sender.",
     subject: (senderName) => `Website message: ${senderName}`,
     fields: { name: "Name", email: "Email", phone: "Phone" },
+  },
+  saasPaymentFailed: {
+    heading: "Subscription payment failed",
+    cta: "Go to billing",
+    preview: (organizationName) =>
+      `The Avably subscription payment for ${organizationName} failed.`,
+    intro: (organizationName) =>
+      `The latest payment for the Avably subscription of ${organizationName} did not go through.`,
+    retry:
+      "The payment provider will retry automatically. The most common cause is an expired or blocked card.",
+    action:
+      "Check your payment method in the “Plan & billing” section of the panel — once a payment succeeds, your account is fully restored right away.",
   },
 };
 

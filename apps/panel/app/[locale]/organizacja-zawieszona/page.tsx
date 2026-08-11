@@ -1,8 +1,11 @@
+import { stripeBillingAvailability } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { SaasCheckoutCta } from "@/app/[locale]/(panel)/organizacja/checkout-cta";
 import { logoutAction } from "@/lib/actions/logout";
 import { AuthError } from "@/lib/auth";
+import { requireBillingOwner } from "@/lib/billing-guard";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
 
@@ -41,12 +44,32 @@ export default async function SuspendedOrganizationPage() {
   // Guard przepuścił = organizacja działa. Wracamy do panelu.
   if (!suspended) redirect(await localePath("/"));
 
+  // ŚCIEŻKA ZAPŁATY DLA ZAWIESZONEGO OWNERA (K1/ADR-136). Ten sam guard,
+  // który bramkuje akcję checkoutu (requireBillingOwner), decyduje też
+  // o widoczności CTA: przepuszcza `suspended` (właśnie po to istnieje),
+  // odrzuca `cancelled`/`superadmin_locked` i rolę staff — więc CTA widzi
+  // dokładnie ten, komu akcja odpowie. Zapłata wraca do `active`
+  // NATYCHMIAST, ze zdarzenia dostawcy (zasada 5 okna dunningowego).
+  let canPay = false;
+  try {
+    const billingCtx = await requireBillingOwner();
+    canPay = billingCtx.tenantStatus === "suspended" && stripeBillingAvailability().available;
+  } catch (error) {
+    if (!(error instanceof AuthError)) throw error;
+  }
+
   const t = await getTranslations("suspendedOrganization");
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6 text-center">
       <h1 className="text-xl font-semibold">{t("title")}</h1>
       <p className="text-muted-foreground text-sm">{t("description")}</p>
+      {canPay ? (
+        <div className="border-border rounded-md border p-4 text-left" data-suspended-billing>
+          <p className="mb-3 text-sm font-medium">{t("payHeading")}</p>
+          <SaasCheckoutCta />
+        </div>
+      ) : null}
       <form action={logoutAction}>
         <button
           type="submit"

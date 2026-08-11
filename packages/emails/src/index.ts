@@ -41,6 +41,10 @@ export {
   ContactMessageEmail,
   type ContactMessageEmailProps,
 } from "./templates/contact-message";
+export {
+  SaasPaymentFailed,
+  type SaasPaymentFailedProps,
+} from "./templates/saas-payment-failed";
 export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
   renderContactMessage,
@@ -57,5 +61,6 @@ export {
   renderReturnLabel,
   renderPickupReturnReminder,
   renderRentalContractEmail,
+  renderSaasPaymentFailed,
   type RenderedEmail,
 } from "./render";

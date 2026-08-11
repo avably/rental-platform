@@ -7,6 +7,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BOOTSTRAP_API_VERSION,
+  SAAS_BOOTSTRAP_PLANS,
+} from "../../../../scripts/stripe-billing-bootstrap.mjs";
+import { STRIPE_BILLING_API_VERSION } from "../stripe/billing";
+import {
   SAAS_PLAN_PRICING,
   SAAS_TRIAL_DAYS,
   SAAS_YEARLY_MONTHS_CHARGED,
@@ -36,5 +41,23 @@ describe("cennik SaaS — decyzja właściciela", () => {
       expect(Number.isInteger(plan.monthlyNetGrosze), plan.id).toBe(true);
       expect(Number.isInteger(plan.yearlyNetGrosze), plan.id).toBe(true);
     }
+  });
+});
+
+/**
+ * PARYTET BOOTSTRAPU (ADR-136): skrypt scripts/stripe-billing-bootstrap.mjs
+ * tworzy ceny NA KONCIE dostawcy — to one realnie obciążają kartę. Skrypt
+ * jest .mjs (Node bez transpilacji), więc nie może importować tej stałej;
+ * rozjazd kwot łapie ten test, nie klient przy checkoutcie.
+ */
+describe("parytet bootstrapu Stripe ze stałą cennika", () => {
+  it("plany i kwoty bootstrapu = SAAS_PLAN_PRICING co do grosza", () => {
+    expect(
+      SAAS_BOOTSTRAP_PLANS.map((p) => [p.id, p.monthlyNetGrosze, p.yearlyNetGrosze]),
+    ).toEqual(SAAS_PLAN_PRICING.map((p) => [p.id, p.monthlyNetGrosze, p.yearlyNetGrosze]));
+  });
+
+  it("bootstrap przypina tę samą wersję API co port billingu (W8)", () => {
+    expect(BOOTSTRAP_API_VERSION).toBe(STRIPE_BILLING_API_VERSION);
   });
 });
