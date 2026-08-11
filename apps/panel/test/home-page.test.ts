@@ -55,6 +55,22 @@ vi.mock("@/lib/supabase-server", () => ({
     auth: {
       getClaims: async () => (claims ? { data: { claims }, error: null } : { data: null, error: null }),
     },
+    // Bramka statusu treści pulpitu (ADR-133) pyta realny rdzeń
+    // requireMemberWithClient o żywy wiersz members — tu zawsze aktywny,
+    // bo ten plik pilnuje NAWIGACJI (login/superadmin), nie bramki statusu
+    // (ona ma własny test: home-status-gate.test.ts).
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { role: "owner", tenants: { status: "active" } },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    }),
   }),
 }));
 

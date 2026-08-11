@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
-import { getAuthContext } from "@/lib/auth";
+import {
+  AuthError,
+  getAuthContext,
+  requireMemberWithClient,
+  type AuthContext,
+} from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { SUPERADMIN_HOME } from "@/lib/superadmin";
@@ -25,6 +30,17 @@ import { DashboardSections } from "./dashboard-sections";
  * odsyła taką sesję właśnie tutaj (byłaby pętla przekierowań). Sesja bez
  * tenanta dostaje dotychczasową zapowiedź, nie dashboard — nie ma czego
  * liczyć bez organizacji.
+ *
+ * BRAMKA STATUSU TREŚCI (ADR-133). Gdy sesja MA organizację, o rendering
+ * metryk pyta TEN SAM rdzeń co każda trasa tenancka (`requireMemberWithClient`,
+ * ADR-107/127) — strona nie utrzymuje własnej listy statusów ani drugiego
+ * zapytania. Status zamykający (`PANEL_CLOSED_STATUSES`) gasi WYŁĄCZNIE treść
+ * pulpitu: trasa zostaje (patrz wyżej — pętla przekierowań), a zamiast liczb
+ * operator dostaje komunikat o stanie konta. `past_due` renderuje dashboard
+ * bez zmian — okno dunningowe to normalna praca operatora (presja przyjdzie
+ * banerem w J2, nie blokadą treści). Cofnięte członkostwo kierujemy na
+ * /dostep-cofniety (spójnie z member-page), a błąd odczytu rzuca (500) —
+ * nigdy przepustka i nigdy fałszywy komunikat o zawieszeniu.
  *
  * ANONIM idzie na logowanie (1.5.7), przez `localePath` — gołe
  * `redirect("/login")` zgubiłoby prefiks języka i wyrzuciło polskiego
@@ -71,6 +87,32 @@ export default async function Home() {
     );
   }
 
+  let memberCtx: AuthContext;
+  try {
+    memberCtx = await requireMemberWithClient(ctx.supabase);
+  } catch (error) {
+    if (error instanceof AuthError && error.code === "tenant_suspended") {
+      // Treść gaśnie, trasa zostaje: zero metryk, zero RPC dashboardu.
+      // Komunikat bez rozróżnienia suspended/cancelled/superadmin_locked
+      // (decyzja 2 ADR-107) i bez CTA do tras, które i tak odmówią.
+      return (
+        <div>
+          <h2 className="text-2xl font-semibold tracking-[-0.02em]">
+            {t("suspendedTitle")}
+          </h2>
+          <p className="text-muted-foreground mt-3 text-sm">{t("suspendedBody")}</p>
+          {superadminEntry}
+        </div>
+      );
+    }
+    if (error instanceof AuthError && error.code === "membership_revoked") {
+      redirect(await localePath("/dostep-cofniety"));
+    }
+    // Pozostałe anomalie (w tym błąd odczytu członkostwa) — fail-closed: 500,
+    // nigdy render metryk.
+    throw error;
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-baseline justify-between gap-2">
@@ -82,7 +124,7 @@ export default async function Home() {
           {t("ordersCta")}
         </Link>
       </div>
-      <DashboardSections supabase={ctx.supabase} />
+      <DashboardSections supabase={memberCtx.supabase} />
       {superadminEntry}
     </div>
   );
