@@ -119,9 +119,42 @@ beforeEach(() => {
   remove = vi.fn(async () => ({}));
 });
 
+/** Formularz dodawania jest ZWINIĘTY (U3, audyt 2.5) — testy otwierają go
+    tą samą drogą, którą idzie operator: przyciskiem „Dodaj pozycję". */
+async function openAddForm() {
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: items.addTitle }));
+    await Promise.resolve();
+  });
+}
+
 describe("dodawanie pozycji jednym krokiem (R1)", () => {
-  it("wstępnie wypełnia kwoty PROPOZYCJĄ z dat (prop proposed*Grosze)", () => {
+  it("formularz jest domyślnie ZWINIĘTY do przycisku (U3, audyt 2.5)", async () => {
     const { container } = mount();
+
+    // Stale rozwinięty blok z wypełnionymi kwotami wyglądał jak niedokończona
+    // edycja na każdym zamówieniu — wniosek audytu 2.5.
+    expect(container.querySelector("[data-items-add]")).toBeNull();
+    expect(container.querySelector("[data-items-add-trigger]")).not.toBeNull();
+
+    await openAddForm();
+    expect(container.querySelector("[data-items-add]")).not.toBeNull();
+
+    // „Anuluj" zwija formularz z powrotem do przycisku.
+    const form = container.querySelector("[data-items-add]")!;
+    const cancel = Array.from(form.querySelectorAll("button")).find(
+      (button) => button.textContent === items.cancel,
+    )!;
+    await act(async () => {
+      fireEvent.click(cancel);
+      await Promise.resolve();
+    });
+    expect(container.querySelector("[data-items-add]")).toBeNull();
+  });
+
+  it("wstępnie wypełnia kwoty PROPOZYCJĄ z dat (prop proposed*Grosze)", async () => {
+    const { container } = mount();
+    await openAddForm();
     const rental = container.querySelector<HTMLInputElement>("#add-item-rental")!;
     const deposit = container.querySelector<HTMLInputElement>("#add-item-deposit")!;
 
@@ -131,6 +164,7 @@ describe("dodawanie pozycji jednym krokiem (R1)", () => {
 
   it("submit niesie do akcji egzemplarz i OBIE kwoty (ręczna korekta nadpisuje propozycję)", async () => {
     const { container } = mount();
+    await openAddForm();
 
     // Ręczna korekta najmu — nadpisuje propozycję; kaucja zostaje z propozycji.
     const rental = container.querySelector<HTMLInputElement>("#add-item-rental")!;
@@ -156,12 +190,14 @@ describe("dodawanie pozycji jednym krokiem (R1)", () => {
 
 describe("odkrywalność przypisania (R1)", () => {
   it("klik w plakietkę »nieprzypisany« otwiera edycję z fokusem na egzemplarzu", async () => {
-    mount();
+    const { container } = mount();
 
     // Przed kliknięciem panelu edycji nie ma.
     expect(screen.queryByText(items.editTitle.replace("{name}", UNASSIGNED_ITEM.productName))).toBeNull();
 
-    const trigger = screen.getByRole("button", { name: items.assignUnit });
+    // Wejście Z WIERSZA tabeli (obok akcji z banera ostrzeżenia — U3).
+    const table = container.querySelector("[data-items-table]")!;
+    const trigger = table.querySelector<HTMLButtonElement>("[data-items-assign-trigger]")!;
     await act(async () => {
       fireEvent.click(trigger);
       await Promise.resolve();
@@ -181,5 +217,42 @@ describe("odkrywalność przypisania (R1)", () => {
     expect(screen.queryByRole("button", { name: items.assignUnit })).toBeNull();
     // Powód, dla którego pozycji nie da się zmienić, jest widoczny przy pozycjach.
     expect(screen.getByText(items.lockedClosed)).toBeTruthy();
+  });
+});
+
+describe("ostrzeżenie o brakującym przypisaniu (U3, audyt 2.5)", () => {
+  it("pozycja bez egzemplarza na ŻYWYM zamówieniu ma ostrzeżenie z akcją", async () => {
+    const { container } = mount();
+
+    // Ostrzeżenie jest widocznym blokiem, nie tylko plakietką w komórce —
+    // audyt: „nie jest w żaden sposób oznaczony jako brakujący krok".
+    const warning = container.querySelector("[data-items-unassigned-warning]")!;
+    expect(warning).not.toBeNull();
+    expect(warning.textContent).toContain("bez przypisanego egzemplarza");
+
+    // Akcja z ostrzeżenia otwiera edycję PIERWSZEJ nieprzypisanej pozycji
+    // z fokusem na wyborze egzemplarza — ta sama ścieżka co plakietka.
+    const action = warning.querySelector<HTMLButtonElement>("[data-items-assign-first]")!;
+    await act(async () => {
+      fireEvent.click(action);
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByText(items.editTitle.replace("{name}", UNASSIGNED_ITEM.productName)),
+    ).toBeTruthy();
+    expect(document.activeElement?.id).toBe(`item-unit-${UNASSIGNED_ITEM.id}`);
+  });
+
+  it("bez pozycji nieprzypisanych ostrzeżenia NIE ma", () => {
+    const assigned: EditorItem = { ...UNASSIGNED_ITEM, unitId: UNIT_FREE, unitLabel: "NG-001" };
+    const { container } = mount({ items: [assigned] });
+    expect(container.querySelector("[data-items-unassigned-warning]")).toBeNull();
+  });
+
+  it("na zamówieniu zamkniętym ostrzeżenie NIE obiecuje przyszłości", () => {
+    // Anulowane/zwrócone zamówienie nie ma „kroku przed wydaniem" — ostrzeżenie
+    // z akcją przypisania byłoby obietnicą, której edycja i tak odmówi.
+    const { container } = mount({ editable: false, orderStatus: "cancelled" });
+    expect(container.querySelector("[data-items-unassigned-warning]")).toBeNull();
   });
 });

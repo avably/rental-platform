@@ -8,8 +8,11 @@ import {
   TableRow,
 } from "@avably/ui";
 import {
+  ORDER_STATUSES,
+  canTransition,
   emailAvailability,
   formatMoney,
+  isClosingForwardTransition,
   rentalDaysInclusive,
   type DeliveryPriceSource,
   type OrderStatus,
@@ -24,11 +27,13 @@ import { isOrderInFrozenSet } from "@/lib/closing";
 import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
+import { StatusChip } from "@/lib/orders/status-chip";
 import { CHECKABLE_PAYMENT_STATUSES } from "@/lib/payment-settlement";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { changeOrderStatusAction, sendTransitionEmailAction } from "../actions";
 import { ContractSection } from "./contract-section";
+import { formatAddressLine, orderDeliveryDestination } from "./delivery-destination";
 import { updateOrderCustomFieldsAction } from "./custom-fields-actions";
 import { OrderCustomFieldsSection } from "./custom-fields-section";
 import {
@@ -67,6 +72,16 @@ interface OrderDetailRow {
   delivery_grosze: number;
   /** Skąd ta kwota — cennik czy ustalenie ręczne operatora (0044). */
   delivery_price_source: DeliveryPriceSource;
+  /** Cel dostarczenia (0044, ADR-089): punkt przewoźnika ALBO adres. */
+  delivery_point_provider: string | null;
+  delivery_point_code: string | null;
+  delivery_point_address: string | null;
+  delivery_address_source: string | null;
+  delivery_address_name: string | null;
+  delivery_address_street: string | null;
+  delivery_address_zip: string | null;
+  delivery_address_city: string | null;
+  delivery_address_phone: string | null;
   total_rental_grosze: number;
   total_deposit_grosze: number;
   /** Waluta UTRWALONA na zamówieniu (0049, ADR-103) — wszystkie kwoty ekranu. */
@@ -126,7 +141,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, total_rental_grosze, total_deposit_grosze, currency, created_at, custom_fields, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, delivery_point_provider, delivery_point_code, delivery_point_address, delivery_address_source, delivery_address_name, delivery_address_street, delivery_address_zip, delivery_address_city, delivery_address_phone, total_rental_grosze, total_deposit_grosze, currency, created_at, custom_fields, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -296,6 +311,22 @@ export default async function OrderDetailPage({
   // Długość najmu liczy silnik — jedyne źródło arytmetyki dat.
   const days = rentalDaysInclusive(row.start_date, row.end_date);
 
+  // Dozwolone przejścia liczone NA SERWERZE tym samym źródłem, którego użyje
+  // StatusSelect (U3, audyt W4): zamówienie w stanie terminalnym nie renderuje
+  // sekcji „Status zamówienia" z samym nagłówkiem — sekcja bez treści znika,
+  // a stan czyta się z etykiety przy numerze.
+  const statusTargets = ORDER_STATUSES.filter((status) =>
+    closing
+      ? isClosingForwardTransition(row.order_status, status)
+      : canTransition(row.order_status, status),
+  );
+  const showPaymentCheck =
+    isOnlineOrder && CHECKABLE_PAYMENT_STATUSES.includes(row.payment_status);
+
+  // Cel dostarczenia TEGO zamówienia (U3, audyt 2.5): kolumny 0044 — adres
+  // własny zamówienia, wskazanie na kartotekę albo punkt przewoźnika.
+  const destination = orderDeliveryDestination(row, row.customers);
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -303,9 +334,15 @@ export default async function OrderDetailPage({
           <p className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
             {t("orderKicker")}
           </p>
-          <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em] tabular-nums">
-            {row.order_number}
-          </h2>
+          {/* Stan zamówienia stoi SŁOWEM przy numerze (U3, audyt W4): ta sama
+              etykieta i ton co na liście (StatusChip/statusSemantics) —
+              operator z linku nie wraca na listę, żeby przeczytać status. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em] tabular-nums">
+              {row.order_number}
+            </h2>
+            <StatusChip axis="order" value={row.order_status} />
+          </div>
         </div>
         <Link className="text-sm underline underline-offset-[3px]" href="/zamowienia">
           {t("backToList")}
@@ -391,6 +428,48 @@ export default async function OrderDetailPage({
               {tDelivery(row.delivery_method)}
               {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
             </DetailField>
+            {/* Adres/punkt dostarczenia TEGO zamówienia (U3, audyt 2.5):
+                karta klienta pokazuje adres z kartoteki, ale zamówienie mogło
+                pojechać pod „Inny adres" — cel zamówienia stoi przy metodzie
+                dostawy, nie w domyśle. */}
+            {destination ? (
+              <DetailField
+                label={destination.kind === "point" ? t("deliveryPoint") : t("deliveryAddress")}
+              >
+                <span data-delivery-destination={destination.kind} className="font-medium">
+                  {destination.kind === "point" ? (
+                    <>
+                      {destination.code}
+                      {destination.address ? (
+                        <span className="text-muted-foreground block font-normal">
+                          {destination.address}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : destination.kind === "custom" ? (
+                    <>
+                      {destination.name ? (
+                        <span className="block">{destination.name}</span>
+                      ) : null}
+                      {formatAddressLine(destination.street, destination.zip, destination.city)}
+                      {destination.phone ? (
+                        <span className="text-muted-foreground block font-normal">
+                          {destination.phone}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      {formatAddressLine(destination.street, destination.zip, destination.city) ??
+                        "—"}
+                      <span className="text-muted-foreground block font-normal">
+                        {t("deliveryAddressFromCustomer")}
+                      </span>
+                    </>
+                  )}
+                </span>
+              </DetailField>
+            ) : null}
           </section>
 
           {/* Notatki to LISTA WPISÓW (uwaga właściciela, runda 2026-07-28):
@@ -467,38 +546,46 @@ export default async function OrderDetailPage({
 
         <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">
 
-      {/* Sekcja statusu jest celem pozycji „Zmień status" z menu wiersza. */}
-      <section id="status" className="flex scroll-mt-6 flex-col gap-3">
-        <SectionHeading>{t("statusSection")}</SectionHeading>
-        {/* Dwie akcje, nie jedna (N3, ADR-075): tranzycja utrwala się od
-            razu, a wysyłkę zleca osobna akcja dopiero po oknie na cofnięcie.
-            Wcześniej jedna akcja robiła oba kroki naraz. */}
-        <StatusSelect
-          changeStatus={changeOrderStatusAction}
-          sendEmail={sendTransitionEmailAction}
-          orderId={row.id}
-          currentStatus={row.order_status}
-          paymentStatus={row.payment_status}
-          // Liczone na serwerze: klucz transportu nie może trafić do klienta,
-          // a od U1 (audyt W3) nie schodzi też POWÓD — komponent dostaje samą
-          // odpowiedź „czy", treść komunikatu daje słownik.
-          emailAvailability={{ available: emailAvailability().available }}
-          // Okno domykania (ADR-138): dropdown pokazuje wyłącznie przejścia
-          // do przodu — bramką jest predykat w akcji, to tylko lustro UI.
-          closing={closing}
-        />
+      {/* Sekcja statusu jest celem pozycji „Zmień status" z menu wiersza.
+          SEKCJA BEZ TREŚCI ZNIKA (U3, audyt W4): na zamówieniu terminalnym
+          (returned/cancelled bez rekoncyliacji) nie ma ani przejść, ani
+          sprawdzenia płatności — nagłówek nad niczym uczyłby, że nagłówki
+          bywają puste. Stan i tak stoi słowem przy numerze. */}
+      {statusTargets.length > 0 || showPaymentCheck ? (
+        <section id="status" className="flex scroll-mt-6 flex-col gap-3">
+          <SectionHeading>{t("statusSection")}</SectionHeading>
+          {/* Dwie akcje, nie jedna (N3, ADR-075): tranzycja utrwala się od
+              razu, a wysyłkę zleca osobna akcja dopiero po oknie na cofnięcie.
+              Wcześniej jedna akcja robiła oba kroki naraz. */}
+          {statusTargets.length > 0 ? (
+            <StatusSelect
+              changeStatus={changeOrderStatusAction}
+              sendEmail={sendTransitionEmailAction}
+              orderId={row.id}
+              currentStatus={row.order_status}
+              paymentStatus={row.payment_status}
+              // Liczone na serwerze: klucz transportu nie może trafić do klienta,
+              // a od U1 (audyt W3) nie schodzi też POWÓD — komponent dostaje samą
+              // odpowiedź „czy", treść komunikatu daje słownik.
+              emailAvailability={{ available: emailAvailability().available }}
+              // Okno domykania (ADR-138): dropdown pokazuje wyłącznie przejścia
+              // do przodu — bramką jest predykat w akcji, to tylko lustro UI.
+              closing={closing}
+            />
+          ) : null}
 
-        {/* Ręczne wejście w rekoncyliację (L11, ADR-104). Widoczne WYŁĄCZNIE
-            tam, gdzie ma co robić: obieg online i płatność, o którą jest
-            jeszcze sens pytać dostawcę. Przy zamówieniu opłaconym przycisk
-            byłby zaproszeniem do regresu, którego bramka 0027 i tak nie
-            wpuści — a komunikat o odmowie bramki jest szumem, nie
-            odpowiedzią. Tu operator zamyka rozmowę „zapłaciłem, a u was nie
-            widać" bez czekania na kolejny przebieg pętli. */}
-        {isOnlineOrder && CHECKABLE_PAYMENT_STATUSES.includes(row.payment_status) ? (
-          <PaymentCheck orderId={row.id} action={checkPaymentStatusAction} />
-        ) : null}
-      </section>
+          {/* Ręczne wejście w rekoncyliację (L11, ADR-104). Widoczne WYŁĄCZNIE
+              tam, gdzie ma co robić: obieg online i płatność, o którą jest
+              jeszcze sens pytać dostawcę. Przy zamówieniu opłaconym przycisk
+              byłby zaproszeniem do regresu, którego bramka 0027 i tak nie
+              wpuści — a komunikat o odmowie bramki jest szumem, nie
+              odpowiedzią. Tu operator zamyka rozmowę „zapłaciłem, a u was nie
+              widać" bez czekania na kolejny przebieg pętli. */}
+          {showPaymentCheck ? (
+            <PaymentCheck orderId={row.id} action={checkPaymentStatusAction} />
+          ) : null}
+        </section>
+      ) : null}
 
       {/* Pozycje są EDYTOWALNE (uwagi przeglądu D6/N4): wybór egzemplarza,
           ręczna cena i kaucja, dodawanie (także produktów bez wolnej sztuki,
@@ -568,6 +655,9 @@ export default async function OrderDetailPage({
           locale={locale}
           online={isOnlineOrder}
           refundInFlight={refundInFlight}
+          // Anulowany najem nie pobiera kaucji (U3, audyt W4) — formularz
+          // pobrania znika; rozliczenie trzymanego salda zostaje.
+          collectAllowed={row.order_status !== "cancelled"}
           actions={{
             collect: collectDepositAction,
             settle: settleDepositAction,

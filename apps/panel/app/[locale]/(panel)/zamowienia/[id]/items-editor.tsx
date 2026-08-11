@@ -252,10 +252,13 @@ function AddItemForm({
   orderId,
   products,
   action,
+  onCancel,
 }: {
   orderId: string;
   products: readonly EditorProduct[];
   action: ItemsAction;
+  /** Zamknięcie rozwiniętego formularza (U3: formularz nie stoi na stałe). */
+  onCancel: () => void;
 }) {
   const t = useTranslations("orders.items");
   const tDetail = useTranslations("orders.detail");
@@ -367,6 +370,9 @@ function AddItemForm({
         <Button type="submit" variant="outline" loading={pending} disabled={pending}>
           {t("addCta")}
         </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+          {t("cancel")}
+        </Button>
       </div>
       {/* Ostrzeżenie PRZED kliknięciem, nie po: operator ma wiedzieć, że kupuje
           pozycję bez przypisania, zanim ją doda (uwaga N4). */}
@@ -411,6 +417,10 @@ export function ItemsEditor({
   // Czy edycję otwarto przez plakietkę „nieprzypisany" — wtedy fokus ma iść
   // od razu na wybór egzemplarza. Zwykłe „Edytuj" tego nie robi.
   const [focusUnit, setFocusUnit] = useState(false);
+  // Formularz dodawania jest ZWINIĘTY do przycisku (U3, audyt 2.5): stale
+  // rozwinięty blok z kwotami wyglądał jak niedokończona edycja na KAŻDYM
+  // zamówieniu, także tam, gdzie nikt nic nie dodaje.
+  const [adding, setAdding] = useState(false);
 
   const editing = editable ? (items.find((item) => item.id === editingId) ?? null) : null;
 
@@ -436,8 +446,35 @@ export function ItemsEditor({
     "text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase";
   const headRightClass = `${headClass} text-right`;
 
+  // Pozycje bez egzemplarza (U3, audyt 2.5): na ŻYWYM zamówieniu to brakujący
+  // krok przed wydaniem — ma własne ostrzeżenie z akcją, nie tylko plakietkę
+  // w komórce. Na zamówieniu zamkniętym ostrzeżenie by obiecywało przyszłość,
+  // której nie ma — stąd warunek `editable`.
+  const unassigned = items.filter((item) => item.unitId === null);
+
   return (
     <div className="flex flex-col gap-3">
+      {editable && unassigned.length > 0 ? (
+        <div
+          data-items-unassigned-warning
+          role="status"
+          className="border-status-attention-border bg-status-attention-bg flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+        >
+          <p className="text-status-attention-fg text-sm font-medium">
+            {t("unassignedWarning", { count: unassigned.length })}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-items-assign-first
+            onClick={() => openAssign(unassigned[0]!.id)}
+          >
+            {t("assignUnit")}
+          </Button>
+        </div>
+      ) : null}
+
       <div
         data-items-table
         className="border-border bg-card overflow-x-auto rounded-lg border"
@@ -569,7 +606,25 @@ export function ItemsEditor({
       ) : null}
 
       {editable ? (
-        <AddItemForm orderId={orderId} products={products} action={actions.add} />
+        adding ? (
+          <AddItemForm
+            orderId={orderId}
+            products={products}
+            action={actions.add}
+            onCancel={() => setAdding(false)}
+          />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            data-items-add-trigger
+            aria-expanded={false}
+            onClick={() => setAdding(true)}
+            className="self-start"
+          >
+            {t("addTitle")}
+          </Button>
+        )
       ) : (
         <p data-items-locked className="text-muted-foreground text-sm">
           {orderStatus === "picked_up" ? t("lockedPickedUp") : t("lockedClosed")}

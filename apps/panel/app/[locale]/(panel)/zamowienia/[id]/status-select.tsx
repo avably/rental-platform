@@ -136,16 +136,24 @@ export function StatusSelect({
       ? isClosingForwardTransition(currentStatus, status)
       : canTransition(currentStatus, status),
   );
-  const options = targets.map((status) => ({
-    value: status,
-    label: tStatus(status),
-    disabled: status === "cancelled" && cancelBlocked,
-  }));
+  // Pierwsza pozycja to STAN BIEŻĄCY (U3, audyt W4): select pokazuje wartość,
+  // a nie placeholder zachęty — operator, który wszedł z linku, czyta status
+  // z tego pola bez wracania na listę. Pozycja jest wygaszona, bo przejście
+  // tożsamościowe nie jest przejściem (canTransition zwraca false — lustro
+  // triggera 0010).
+  const options = [
+    { value: currentStatus, label: tStatus(currentStatus), disabled: true },
+    ...targets.map((status) => ({
+      value: status,
+      label: tStatus(status),
+      disabled: status === "cancelled" && cancelBlocked,
+    })),
+  ];
 
   if (targets.length === 0) return null;
 
   function applyStatus(target: string) {
-    if (target === "") return;
+    if (target === "" || target === currentStatus) return;
     const to = target as OrderStatus;
 
     // Nowa decyzja zaczyna od czystego ekranu — ale NIE zdejmuje trwającego
@@ -226,13 +234,13 @@ export function StatusSelect({
     <div className="flex flex-col gap-2">
       <PanelSelect
         id="status-change"
-        // Sterowany PUSTĄ wartością: to nie jest pole pokazujące stan, tylko
-        // wybór CZYNNOŚCI — po każdym wyborze wraca do etykiety zachęty,
-        // a bieżący status widać w osi zdarzeń i w nagłówku zamówienia.
-        value=""
+        // Sterowany WARTOŚCIĄ BIEŻĄCĄ (U3, audyt W4): zamknięty select mówi
+        // słowem, gdzie jest zamówienie, a wybór innej pozycji jest zmianą.
+        // Po udanej tranzycji rewalidacja RSC podmienia prop — pole samo
+        // pokazuje nowy stan; na czas akcji trigger niesie aria-busy.
+        value={currentStatus}
         onValueChange={applyStatus}
         options={options}
-        placeholder={pending ? t("statusChanging") : t("changeStatusPlaceholder")}
         busy={pending}
         disabled={pending}
         className="sm:w-72"

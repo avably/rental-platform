@@ -175,6 +175,25 @@ export function deriveOrderTimeline(input: OrderTimelineInput): DerivedTimelineS
     },
   ];
 
+  // ZAMÓWIENIE ANULOWANE NIE OBIECUJE PRZYSZŁOŚCI (U3, audyt W4): krok,
+  // który już się nie wydarzy, przestaje mówić „Oczekuje" / „do 20.08" /
+  // „Do pobrania" — dostaje stan `cancelled` i podpis „Nie dotyczy".
+  // Wyjątki są faktami, nie obietnicami:
+  //   - krok DONE zostaje (zdarzył się, zanim zamówienie umarło),
+  //   - płatność zachowuje swój podpis (status osi płatności to stan, nie
+  //     zapowiedź — „Nieopłacone" na anulowanym jest prawdą),
+  //   - kaucja z realnie trzymanym saldem (pobrana, nierozliczona) ZOSTAJE
+  //     otwartym krokiem z kwotą: cudze pieniądze trzeba zwrócić także na
+  //     anulowanym najmie.
+  if (orderCancelled) {
+    for (const step of steps) {
+      if (step.key === "order" || step.done || step.cancelled) continue;
+      if (step.key === "deposit" && depositHeld) continue;
+      step.cancelled = true;
+      if (step.key !== "payment") step.caption = { kind: "text", id: "notApplicable" };
+    }
+  }
+
   const frontier = orderCancelled
     ? -1
     : steps.findIndex((step) => !step.done && !step.cancelled);

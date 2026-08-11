@@ -121,19 +121,33 @@ afterEach(() => {
 });
 
 describe("dropdown statusu — lista przejść i bramki (N3)", () => {
-  it("pokazuje WYŁĄCZNIE przejścia legalne wg canTransition", async () => {
+  it("pokazuje stan bieżący jako wartość ORAZ wyłącznie przejścia legalne wg canTransition (U3)", async () => {
     mount({ currentStatus: "reserved" });
+
+    // Zamknięty select mówi SŁOWEM, gdzie jest zamówienie (U3, audyt W4) —
+    // placeholder „Zmień status…" zamiast wartości bieżącej był wnioskiem
+    // audytu o zgadywaniu stanu.
+    expect(screen.getByRole("combobox").textContent).toContain(statusLabels.reserved);
+
     const listbox = await openDropdown();
+    const options = within(listbox).getAllByRole("option");
+    const labels = options.map((option) => option.textContent);
 
-    const labels = within(listbox)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
+    // Stan bieżący jest na liście JAKO WYGASZONY (przejście tożsamościowe nie
+    // jest przejściem — lustro canTransition/triggera 0010)…
+    const current = within(listbox).getByRole("option", { name: statusLabels.reserved });
+    expect(current.getAttribute("data-disabled")).not.toBeNull();
 
-    // Z `reserved` maszyna stanów pozwala na trzy przejścia — i na nic więcej.
-    // Gdyby dropdown wypisywał wszystkie statusy „bo to tylko lista”, operator
-    // dostawałby pozycje kończące się odmową bazy.
+    // …a poza nim WYŁĄCZNIE przejścia legalne z `reserved`. Gdyby dropdown
+    // wypisywał wszystkie statusy „bo to tylko lista”, operator dostawałby
+    // pozycje kończące się odmową bazy.
     expect(labels.sort()).toEqual(
-      [statusLabels.ready_for_pickup, statusLabels.pending, statusLabels.cancelled].sort(),
+      [
+        statusLabels.reserved,
+        statusLabels.ready_for_pickup,
+        statusLabels.pending,
+        statusLabels.cancelled,
+      ].sort(),
     );
     expect(labels).not.toContain(statusLabels.returned);
     expect(labels).not.toContain(statusLabels.picked_up);
