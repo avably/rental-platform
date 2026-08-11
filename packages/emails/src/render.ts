@@ -47,6 +47,10 @@ import {
   SaasPaymentFailed,
   type SaasPaymentFailedProps,
 } from "./templates/saas-payment-failed";
+import {
+  PaymentConfirmedEmail,
+  type PaymentConfirmedEmailProps,
+} from "./templates/payment-confirmed";
 
 export interface RenderedEmail {
   html: string;
@@ -152,4 +156,11 @@ export function renderSaasPaymentFailed(
   props: SaasPaymentFailedProps,
 ): Promise<RenderedEmail> {
   return renderVariants(createElement(SaasPaymentFailed, props));
+}
+
+/** Potwierdzenie zaksięgowania płatności dla klienta końcowego (ADR-139). */
+export function renderPaymentConfirmed(
+  props: PaymentConfirmedEmailProps,
+): Promise<RenderedEmail> {
+  return renderVariants(createElement(PaymentConfirmedEmail, props));
 }

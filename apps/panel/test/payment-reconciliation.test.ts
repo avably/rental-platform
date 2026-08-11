@@ -104,6 +104,13 @@ vi.mock("@avably/core", async (importOriginal) => {
       if (!provider.cancel) throw new Error("Test nie ustawił wygaszania u dostawcy.");
       return provider.cancel(intentId, deps.connectedAccountId);
     },
+    // Transport maila „płatność zaksięgowana" (ADR-139) — granica sieci pod
+    // kontrolą testu, jak odczyt u dostawcy wyżej. Bez tego suita zależałaby
+    // od RESEND_API_KEY w env (z kluczem wysyłałaby PRAWDZIWE maile przy
+    // każdym przejściu w `paid`). Zachowanie samej wysyłki bada
+    // payment-confirmed-email.test.ts — tu ma być deterministycznie cicho.
+    emailAvailability: () => ({ available: true }),
+    resendTransport: () => ({ send: async () => ({ id: "msg_test_l11" }) }),
   };
 });
 

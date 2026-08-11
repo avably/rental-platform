@@ -236,6 +236,12 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
   // Odczyt zwrotu (Z5) RZUCA: ta suita dotyczy wyłącznie gałęzi płatności,
   // a atrapa oddająca cokolwiek udawałaby, że gałąź zwrotów jest tu badana.
   // Jej wywołanie ma być głośnym błędem, nie cichym zerem.
+  //
+  // Transport maila „płatność zaksięgowana" (ADR-139) jest wstrzykiwany jak
+  // każda inna granica sieci: bez tego happy path zależałby od RESEND_API_KEY
+  // w env (z kluczem suita wysyłałaby PRAWDZIWE maile, bez klucza rejestr
+  // zdarzeń niósłby powód niewysłania zamiast NULL-a). Zachowanie samego
+  // maila bada payment-confirmed-email.test.ts — tu ma być deterministyczne.
   const deps = (readIntent: StripeReadIntent) => ({
     db: adminClient(),
     readIntent,
@@ -243,6 +249,10 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       throw new Error("Ta suita nie dotyka gałęzi zwrotów — patrz deposit-refund.test.ts");
     },
     secret: SECRET,
+    paymentEmail: {
+      transport: { send: async () => ({ id: "msg_test_z4" }) },
+      availability: { available: true },
+    },
   });
   type StripeReadIntent = (intentId: string, connectedAccountId: string) => Promise<IntentRead>;
 
