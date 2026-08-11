@@ -1,11 +1,14 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
+import { isLiveSaasSubscriptionStatus, stripeBillingAvailability } from "@avably/core";
+
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenSection } from "@/components/screens/screen-header";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 
+import { SaasCheckoutCta } from "./checkout-cta";
 import { OrganizationCard } from "./organization-card";
 import { PlanBillingSection } from "./plan-billing-section";
 
@@ -82,13 +85,23 @@ export default async function OrganizationPage() {
     <FormMeasure className="flex flex-col gap-4">
       <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
 
-      {/* Plan i rozliczenia (J2 faza 1, ADR-135) — stan konta + cennik ze
-          stałej @avably/core, ZERO akcji płatniczych (checkout = faza 2). */}
+      {/* Plan i rozliczenia (J2 faza 1: ADR-135; CTA checkoutu: faza 2a,
+          ADR-136) — stan konta + cennik ze stałej @avably/core. CTA
+          WYŁĄCZNIE dla ownera, przy dostępnym torze płatności i braku
+          żywej subskrypcji; guardem akcji jest requireBillingOwner (K1),
+          widoczność tutaj to UX, nie bramka. */}
       <PlanBillingSection
         subscription={
           subscription ? { planId: subscription.plan_id, status: subscription.status } : null
         }
         trialEndsAt={tenant.trial_ends_at}
+        checkoutCta={
+          ctx.role === "owner" &&
+          stripeBillingAvailability().available &&
+          !(subscription?.status && isLiveSaasSubscriptionStatus(subscription.status)) ? (
+            <SaasCheckoutCta />
+          ) : undefined
+        }
       />
 
       {/* Klucze publicznego API (M1, ADR-108). Od M2 (ADR-110) ekran ma

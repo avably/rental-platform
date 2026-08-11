@@ -2,6 +2,7 @@ import { ReviewOverlayGate } from "@avably/review/overlay";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 
+import { BillingStatusBanner } from "@/components/shell/billing-banner";
 import { BrandLogo, BrandSymbol } from "@/components/shell/brand-mark";
 import { PanelTopbar } from "@/components/shell/panel-topbar";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -122,6 +123,9 @@ export default async function PanelLayout({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <PanelTopbar userEmail={ctx?.user.email ?? ""} />
+        {/* Baner rozliczeń (ADR-136): past_due/suspended — presja na najemcę
+            zostaje w panelu (zasada 3), sklep działa. Fail-silent, nie guard. */}
+        <BillingStatusBanner />
         {/*
           `tabIndex={-1}` czyni <main> celem programowego fokusu: bez tego
           skok „Przejdź do treści" przewija stronę, ale zostawia fokus przy

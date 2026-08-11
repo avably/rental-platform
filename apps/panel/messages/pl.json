@@ -2038,6 +2038,14 @@
           "name": "Premium",
           "badge": "Wkrótce"
         }
+      },
+      "checkout": {
+        "heading": "Wybór planu",
+        "description": "Płatność obsługuje dostawca płatności — przekierujemy Cię na bezpieczną stronę płatności.",
+        "monthly": "Miesięcznie",
+        "yearly": "Rocznie",
+        "redirecting": "Przekierowujemy na stronę płatności…",
+        "unknownError": "Uruchomienie płatności nie powiodło się. Spróbuj ponownie za chwilę."
       }
     },
     "statusValue": {
@@ -2151,7 +2159,13 @@
   "suspendedOrganization": {
     "title": "Organizacja jest zawieszona",
     "description": "Dostęp do panelu został wstrzymany. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+    "payHeading": "Opłacenie abonamentu przywraca dostęp od razu.",
     "logout": "Wyloguj się"
+  },
+  "billingBanner": {
+    "pastDue": "Płatność za abonament nie powiodła się — dostawca ponowi próbę automatycznie. Sklep i zamówienia działają normalnie.",
+    "suspended": "Organizacja jest zawieszona z powodu nieopłaconego abonamentu. Opłacenie przywraca dostęp od razu.",
+    "cta": "Przejdź do rozliczeń"
   },
   "accessRevoked": {
     "title": "Dostęp został cofnięty",

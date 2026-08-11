@@ -5,31 +5,35 @@ import { SAAS_PLAN_PRICING, SAAS_YEARLY_MONTHS_CHARGED } from "@avably/core";
 import { ScreenSection } from "@/components/screens/screen-header";
 
 /**
- * Sekcja „Plan i rozliczenia" na /organizacja (J2 faza 1, ADR-135) —
- * WYŁĄCZNIE ODCZYT, jak cały ekran (ADR-059 D5).
+ * Sekcja „Plan i rozliczenia" na /organizacja (J2 faza 1: ADR-135;
+ * CTA checkoutu od fazy 2a: ADR-136).
  *
  * TRZY TWARDE REGUŁY tej sekcji:
  *   1. Kwoty pochodzą WYŁĄCZNIE ze stałej SAAS_PLAN_PRICING (@avably/core) —
  *      cyfra zaszyta tutaj albo w messages to rozjazd z obietnicą LP, który
  *      pali test parytetu (test/plan-billing-section.test.tsx). Tabela
- *      public.plans (placeholder start/pro/max z 0004) NIE jest źródłem cen.
+ *      public.plans (od 0067 standard/premium) NIE jest źródłem cen.
  *   2. Brak wiersza subscriptions = TRIAL — stan pierwszej klasy, nie błąd.
  *      Data z tenants.trial_ends_at, stan „trwa do / minął". Trial, który
  *      minął, NICZEGO nie zmienia (obietnica LP: „po czternastu dniach nic
  *      się samo nie zdarzy") — sekcja mówi to wprost.
- *   3. ZERO przycisków, CTA i ścieżek płatności — checkout to faza 2.
- *      Pilnuje tego test (żadnego <button>/<a>/<form> w markupie sekcji).
+ *   3. Ścieżka płatności WYŁĄCZNIE przez wstrzyknięty `checkoutCta`
+ *      (J2 faza 2a): stronie serwerowej wolno go podać tylko dla OWNERA
+ *      przy dostępnym torze płatności, a guardem akcji jest
+ *      requireBillingOwner (K1). Bez propa sekcja pozostaje czystym
+ *      odczytem — markup bez <button>/<a>/<form>, jak w fazie 1
+ *      (pilnuje test: staff nie dostaje żadnej ścieżki płatności).
  *
  * Widoczność: sekcja idzie konwencją /organizacja — ekran nie różnicuje ról
  * (requireMemberPage bez argumentu roli; RLS i tak pokazuje członkowi plan
  * przez tenant_select z 0001). Stan konta i publiczny cennik nie są
- * tajemnicą rozliczeniową — sekcje z akcjami płatniczymi (faza 2) dostaną
- * własny guard ownera.
+ * tajemnicą rozliczeniową — akcją płatniczą rządzi guard ownera.
  */
 export function PlanBillingSection({
   subscription,
   trialEndsAt,
   now = new Date(),
+  checkoutCta,
 }: {
   /** Wiersz subscriptions tenanta albo null (null = trial — stan pierwszej klasy). */
   subscription: { planId: string | null; status: string | null } | null;
@@ -37,6 +41,11 @@ export function PlanBillingSection({
   trialEndsAt: string | null;
   /** Zegar porównania „trwa/minął" — parametr dla testowalności. */
   now?: Date;
+  /**
+   * CTA checkoutu (ADR-136) — wstrzykiwane przez stronę WYŁĄCZNIE dla
+   * ownera przy dostępnym torze płatności. Brak = sekcja czysto odczytowa.
+   */
+  checkoutCta?: React.ReactNode;
 }) {
   const t = useTranslations("organization.billing");
   const tOrg = useTranslations("organization");
@@ -125,6 +134,8 @@ export function PlanBillingSection({
           {t("noStrings")} {t("vatNote")}
         </p>
       </div>
+
+      {checkoutCta ?? null}
 
       <p className="text-[13px] leading-[18px] font-medium" data-billing-activation-notice>
         {t("activationNotice")}
