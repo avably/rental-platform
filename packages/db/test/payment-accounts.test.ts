@@ -23,6 +23,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -97,9 +98,7 @@ describe.skipIf(!hasEnv)("konto płatności najemcy (0028, ADR-065)", () => {
 
     const owner = await createUser(admin, "owner");
     const bootstrap = await signIn(owner.email);
-    const { data: newTenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `pay-${randomUUID()}`.slice(0, 39),
         p_name: "Organizacja płatności",
       });
@@ -111,9 +110,7 @@ describe.skipIf(!hasEnv)("konto płatności najemcy (0028, ADR-065)", () => {
     // Drugi najemca — potrzebny wyłącznie do dowodu unikatu konta u dostawcy.
     const otherOwner = await createUser(admin, "owner2");
     const otherBootstrap = await signIn(otherOwner.email);
-    const { data: otherId, error: otherError } = await otherBootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: otherId, error: otherError } = await rpcCreateTenant(otherBootstrap, {
         p_slug: `pay2-${randomUUID()}`.slice(0, 39),
         p_name: "Druga organizacja płatności",
       });

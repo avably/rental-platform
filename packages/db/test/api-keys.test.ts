@@ -23,6 +23,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -98,7 +99,7 @@ async function createTenantWithOwner(
 ): Promise<{ tenantId: string; ownerClient: SupabaseClient }> {
   const ownerEmail = await createUser(admin, `owner-${label}`);
   const bootstrap = await signIn(ownerEmail);
-  const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
     p_slug: `apikeys-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja kluczy ${label}`,
   });

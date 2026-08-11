@@ -34,6 +34,7 @@ import WebSocket from "ws";
 
 import { RESERVED_SUBDOMAINS } from "@avably/core";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -139,7 +140,7 @@ describe.skipIf(!hasEnv)("slugi zarezerwowane — app.create_tenant (0023)", () 
       async (slug) => {
         const client = await signedInUser(admin);
 
-        const { error } = await client.schema("app").rpc("create_tenant", {
+        const { error } = await rpcCreateTenant(client, {
           p_slug: slug,
           p_name: `Próba ${slug}`,
         });
@@ -160,7 +161,7 @@ describe.skipIf(!hasEnv)("slugi zarezerwowane — app.create_tenant (0023)", () 
         select count(*)::int as c from public.domains where domain = 'api.avably.io'
       `;
 
-      await client.schema("app").rpc("create_tenant", { p_slug: "api", p_name: "Próba api" });
+      await rpcCreateTenant(client, { p_slug: "api", p_name: "Próba api" });
 
       const members = await sql!`select tenant_id from public.members where user_id = ${userId}`;
       const after = await sql!<{ c: number }[]>`
@@ -188,7 +189,7 @@ describe.skipIf(!hasEnv)("slugi zarezerwowane — app.create_tenant (0023)", () 
       const client = await signedInUser(admin);
       const slug = `wolny-${randomUUID()}`.slice(0, 39);
 
-      const { data: tenantId, error } = await client.schema("app").rpc("create_tenant", {
+      const { data: tenantId, error } = await rpcCreateTenant(client, {
         p_slug: slug,
         p_name: "Wypożyczalnia testowa",
       });
@@ -208,7 +209,7 @@ describe.skipIf(!hasEnv)("slugi zarezerwowane — app.create_tenant (0023)", () 
       const client = await signedInUser(admin);
       const slug = `app-serwis-${randomUUID()}`.slice(0, 39);
 
-      const { data: tenantId, error } = await client.schema("app").rpc("create_tenant", {
+      const { data: tenantId, error } = await rpcCreateTenant(client, {
         p_slug: slug,
         p_name: "Serwis aplikacji",
       });

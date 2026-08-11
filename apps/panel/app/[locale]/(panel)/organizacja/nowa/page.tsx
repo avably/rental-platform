@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
+import { readCurrentPlatformTerms } from "@/lib/platform-terms";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { CreateTenantForm } from "./form";
@@ -15,10 +16,15 @@ import { CreateTenantForm } from "./form";
  * z tenantem NA PULPIT. Powód: hook tokenów wybiera najstarsze członkostwo,
  * więc druga organizacja byłaby po utworzeniu NIEOSIĄGALNA (przełącznika nie
  * ma w UI ani w schemacie — audyt IA-4); ekran zapraszający do jej założenia
- * to pułapka, nie funkcja. RPC `create_tenant` (limit 2) celowo BEZ ZMIAN —
- * domknięcie po stronie bazy to osobny punkt backlogu przy najbliższej
- * migracji (ADR-140); C2/C3 (wybór organizacji / przełącznik) dopiero przy
- * realnym popycie.
+ * to pułapka, nie funkcja. C2/C3 (wybór organizacji / przełącznik) dopiero
+ * przy realnym popycie.
+ *
+ * REGULAMIN PLATFORMY (0070, ADR-141): serwer rozwiązuje bieżącą
+ * OBOWIĄZUJĄCĄ wersję i podaje ją formularzowi — checkbox renderuje się
+ * WYŁĄCZNIE, gdy jakaś wersja faktycznie obowiązuje (D2: umowa zawiera się
+ * przy zakładaniu organizacji; przed treścią od prawnika formularz wygląda
+ * i działa jak dotychczas). Twarde wymuszenie i tak siedzi w
+ * `app.create_tenant` (D5) — ten ekran tylko zbiera świadomy klik.
  */
 export default async function NewTenantPage() {
   const supabase = await createSupabaseServerClient();
@@ -26,12 +32,16 @@ export default async function NewTenantPage() {
   if (!ctx) redirect(await localePath("/login"));
   if (ctx.tenantId) redirect(await localePath("/"));
 
+  const terms = await readCurrentPlatformTerms(supabase);
+
   return (
     <div className="flex flex-col justify-center gap-4">
       <p className="text-sm text-muted-foreground">
         Zostaniesz właścicielem (owner) nowej organizacji.
       </p>
-      <CreateTenantForm />
+      <CreateTenantForm
+        terms={terms ? { versionId: terms.version_id, versionLabel: terms.version_label } : null}
+      />
     </div>
   );
 }

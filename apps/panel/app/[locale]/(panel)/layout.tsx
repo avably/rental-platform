@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { BillingStatusBanner } from "@/components/shell/billing-banner";
 import { BrandLogo, BrandSymbol } from "@/components/shell/brand-mark";
 import { PanelTopbar } from "@/components/shell/panel-topbar";
+import { PlatformTermsOverlay } from "@/components/shell/platform-terms-overlay";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
 import { SidebarToggle } from "@/components/shell/sidebar-toggle";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
@@ -13,6 +14,7 @@ import { SuperadminEntry } from "@/components/shell/superadmin-entry";
 import { Link } from "@/i18n/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { readTenantBillingState } from "@/lib/closing";
+import { readPlatformTermsGate } from "@/lib/platform-terms";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -47,6 +49,15 @@ export default async function PanelLayout({
   // twardą bramką pozostaje requireMember na każdym ekranie i akcji.
   const billing = ctx?.tenantId ? await readTenantBillingState(supabase, ctx.tenantId) : null;
   const closing = billing?.status === "suspended" && isClosingWindowOpen(billing.suspendedAt);
+
+  // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
+  // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
+  // — gasimy TREŚĆ, nie trasę (wzorzec ADR-133; zero redirectów = zero
+  // ryzyka pętli onboardingu: sesja bez organizacji i personel przechodzą
+  // bez pytania, decyzja w readPlatformTermsGate). Layout dalej NIE jest
+  // guardem: dopóki żadna wersja nie obowiązuje (stan przed treścią od
+  // prawnika), bramka nie kosztuje nic poza jednym odczytem RPC.
+  const termsGate = await readPlatformTermsGate(supabase, ctx);
 
   // Nonce żądania (ADR-012) — bez niego CSP `strict-dynamic` odmówi wykonania
   // skryptu startowego sidebara i pasek wracałby do rozwiniętego przy każdym
@@ -150,7 +161,15 @@ export default async function PanelLayout({
             data-panel-container="true"
             className="mx-auto w-full max-w-6xl px-4 py-4 md:px-6 md:py-6"
           >
-            {children}
+            {termsGate ? (
+              <PlatformTermsOverlay
+                versionId={termsGate.versionId}
+                versionLabel={termsGate.versionLabel}
+                effectiveFrom={termsGate.effectiveFrom}
+              />
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>

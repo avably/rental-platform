@@ -18,6 +18,7 @@
 import { routing } from "@/i18n/routing";
 import { PUBLIC_PAGES } from "@/lib/marketing/template";
 import { getPublicCatalog } from "@/lib/checkout/catalog";
+import { getPlatformTerms } from "@/lib/legal/platform-terms";
 import { getPublishedLegalDocuments, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
 import { resolveHostBranch } from "@/lib/seo/host-branch";
 import { marketingOrigin, originFromHost } from "@/lib/seo/origin";
@@ -50,9 +51,16 @@ export async function GET(request: Request): Promise<Response> {
     const origin = marketingOrigin(host, proto);
     // Wyłącznie strony PUBLICZNE (ADR-068). Wariantów przeglądowych układu już
     // nie ma — zniknęły z repo przy odsłonięciu LP (ADR-128), więc `PUBLIC_PAGES`
-    // i zbiór stron marketingowych to dziś ten sam zbiór.
+    // i zbiór stron marketingowych to dziś ten sam zbiór — z JEDNYM wyjątkiem:
+    // `terms` (0070, ADR-141) wchodzi do sitemapy dopiero, gdy jakaś wersja
+    // regulaminu platformy faktycznie OBOWIĄZUJE. Do migracji-seedu z treścią
+    // od prawnika trasa odpowiada 404, a sitemapa wskazująca 404 byłaby
+    // kłamstwem wobec robotów (ta sama zasada co „strona bez treści nie ma
+    // prawa być osiągalna", I-03).
+    const platformTerms = await getPlatformTerms();
+    const pages = PUBLIC_PAGES.filter((page) => page !== "terms" || platformTerms !== null);
     const entries: SitemapEntry[] = routing.locales.flatMap((locale) =>
-      PUBLIC_PAGES.map((page) => ({
+      pages.map((page) => ({
         loc: page === "home" ? `${origin}/${locale}` : `${origin}/${locale}/${page}`,
       })),
     );

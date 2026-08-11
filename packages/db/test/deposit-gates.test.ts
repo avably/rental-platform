@@ -31,6 +31,7 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 import { createAdminClient } from "./helpers/seed-tenants";
 
@@ -416,9 +417,7 @@ describe.skipIf(!hasEnv)("bramki kaucji — 0011_deposit_settlement.sql", () => 
       // Operator A zakłada organizację (realna ścieżka onboardingu)…
       const userA = await createUser("op-a");
       const bootstrap = await signIn(userA.email);
-      const { data: newTenantId, error: tenantError } = await bootstrap
-        .schema("app")
-        .rpc("create_tenant", {
+      const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
           p_slug: `dep-race-${randomUUID()}`.slice(0, 39),
           p_name: "Wypożyczalnia rozliczeniowa",
         });

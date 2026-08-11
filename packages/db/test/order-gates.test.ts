@@ -46,6 +46,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const hasEnv = integrationEnv([
@@ -679,9 +680,7 @@ describe.skipIf(!hasEnv)("bramki zamówień — 0010_order_gates.sql", () => {
       const userA = await createUser("op-a");
       memberAUserId = userA.id;
       const bootstrap = await signIn(userA.email);
-      const { data: newTenantId, error: tenantError } = await bootstrap
-        .schema("app")
-        .rpc("create_tenant", {
+      const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
           p_slug: `gate-race-${randomUUID()}`.slice(0, 39),
           p_name: "Wypożyczalnia wyścigowa",
         });

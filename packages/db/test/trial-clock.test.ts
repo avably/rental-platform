@@ -41,6 +41,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -123,7 +124,7 @@ describe.skipIf(!hasEnv)("zegar triala — app.create_tenant (0066, ADR-135)", (
 
   async function createTenant(client: SupabaseClient): Promise<string> {
     const slug = `trialclock-${randomUUID()}`.slice(0, 39);
-    const { data, error } = await client.schema("app").rpc("create_tenant", {
+    const { data, error } = await rpcCreateTenant(client, {
       p_slug: slug,
       p_name: "Trial clock test",
     });

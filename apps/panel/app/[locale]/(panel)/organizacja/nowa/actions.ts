@@ -6,8 +6,9 @@ import { registerDomainSafely, tenantSubdomainHost } from "@avably/core";
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
+import { readCurrentPlatformTerms } from "@/lib/platform-terms";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { createTenantSchema } from "@/lib/validation";
+import { createTenantSchema, platformTermsFieldsSchema } from "@/lib/validation";
 
 export interface CreateTenantState {
   error?: string;
@@ -25,16 +26,43 @@ export async function createTenantAction(
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
   }
 
+  const termsFields = platformTermsFieldsSchema.safeParse({
+    termsAccepted: formData.get("termsAccepted"),
+    termsVersionId: formData.get("termsVersionId"),
+  });
+  if (!termsFields.success) {
+    return { error: "Nieprawidłowe wskazanie wersji regulaminu — odśwież stronę." };
+  }
+
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
   if (!ctx) {
     redirect(await localePath("/login"));
   }
 
-  const { error } = await supabase.schema("app").rpc("create_tenant", {
-    p_slug: parsed.data.slug,
-    p_name: parsed.data.name,
-  });
+  // WALIDACJA SERWEROWA AKCEPTACJI (0070, ADR-141). Gdy jakakolwiek wersja
+  // OBOWIĄZUJE, żądanie bez zaznaczonego checkboxa i wskazanej wersji kończy
+  // się TUTAJ — bez wywołania RPC (atrybut `required` w przeglądarce to
+  // uprzejmość, nie bramka). Twarde wymuszenie i tak stoi w app.create_tenant
+  // (D5): payload z wersją inną niż obowiązująca odbije się od bazy.
+  const currentTerms = await readCurrentPlatformTerms(supabase);
+  if (currentTerms && (!termsFields.data.termsAccepted || !termsFields.data.termsVersionId)) {
+    return { error: "Do założenia organizacji wymagana jest akceptacja regulaminu." };
+  }
+
+  const { error } = await supabase.schema("app").rpc(
+    "create_tenant",
+    currentTerms && termsFields.data.termsVersionId
+      ? {
+          p_slug: parsed.data.slug,
+          p_name: parsed.data.name,
+          // Wersja, którą użytkownik WIDZIAŁ (ukryte pole formularza) — nie
+          // „aktualna w chwili submitu": jeśli między renderem a submitem
+          // weszła nowa wersja, baza odmówi 22023 i user przeczyta nową.
+          p_terms_version_id: termsFields.data.termsVersionId,
+        }
+      : { p_slug: parsed.data.slug, p_name: parsed.data.name },
+  );
   if (error) {
     // Komunikaty RAISE EXCEPTION z app.create_tenant (0003_auth.sql) są już
     // po polsku i bezpieczne do pokazania userowi wprost.

@@ -30,6 +30,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -109,9 +110,7 @@ describe.skipIf(!hasEnv)("sekrety tenanta i bramka właściciela (0024, ADR-052)
     // Owner zakłada organizację (app.create_tenant dopisuje go jako owner).
     const ownerEmail = await createUser(admin, "owner");
     const bootstrap = await signIn(ownerEmail);
-    const { data: newTenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `sec-${randomUUID()}`.slice(0, 39),
         p_name: "Organizacja sekretów",
       });

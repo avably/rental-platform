@@ -318,7 +318,16 @@
     "name": "Organization name",
     "slug": "Slug (address, e.g. my-company)",
     "submit": "Create organization",
-    "submitPending": "Creating…"
+    "submitPending": "Creating…",
+    "termsLabel": "I accept the",
+    "termsLinkLabel": "Avably Terms of Service ({version})"
+  },
+  "platformTerms": {
+    "title": "New terms of service ({version})",
+    "description": "A new version of the Avably Terms of Service is in force since {date}. To keep using the panel, the organization owner needs to accept it.",
+    "linkLabel": "Read the terms ({version})",
+    "acceptCta": "I accept the terms ({version})",
+    "acceptPending": "Saving…"
   },
   "invitations": {
     "title": "Member invitations",

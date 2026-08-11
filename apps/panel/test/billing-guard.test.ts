@@ -32,6 +32,7 @@ import {
 } from "@/lib/billing-checkout";
 import { BILLING_CLOSED_STATUSES, requireBillingOwnerWithClient } from "@/lib/billing-guard";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const REQUIRED_ENV = [
@@ -110,7 +111,7 @@ describe.skipIf(!hasEnv)("guard rozliczeń + rdzeń checkoutu — ADR-136", () =
     const { email } = await createUser(label);
     const bootstrap = await signIn(email);
     const slug = `billg${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
       p_slug: slug,
       p_name: `Billing guard (${label})`,
     });

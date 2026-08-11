@@ -21,6 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
@@ -78,7 +79,7 @@ async function createTenantMember(
   createdUserIds.push(data.user.id);
 
   const bootstrap = await signIn(email);
-  const { data: tenantId, error: tenantError } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
     p_slug: `cust-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja klientów ${label}`,
   });

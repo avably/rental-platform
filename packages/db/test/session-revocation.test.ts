@@ -33,6 +33,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -100,7 +101,7 @@ async function createTenantWithOwner(
 ): Promise<{ tenantId: string; owner: { id: string; email: string } }> {
   const owner = await createConfirmedUser(admin, label);
   const bootstrap = await signIn(owner.email);
-  const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
     p_slug: `sessrev-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Sesje ${label}`,
   });

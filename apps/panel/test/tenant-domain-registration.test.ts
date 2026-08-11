@@ -54,6 +54,10 @@ vi.mock("@/lib/supabase-server", () => ({
     schema: () => ({
       rpc: async (fn: string, args: unknown) => {
         rpcCalls.push({ fn, args });
+        // Od 0070 akcja NAJPIERW rozwiązuje bieżącą wersję regulaminu
+        // platformy — NULL = nic nie obowiązuje, czyli droga sprzed 0070.
+        // Kontrakt akceptacji ma własny test (organizacja-nowa-terms).
+        if (fn === "get_platform_terms") return { data: null, error: null };
         return { data: TENANT_ID, error: null };
       },
     }),
@@ -113,7 +117,10 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
 
     const redirect = await runCreateTenant();
 
-    expect(rpcCalls[0]?.fn, "create_tenant nie został zawołany").toBe("create_tenant");
+    expect(
+      rpcCalls.map((call) => call.fn),
+      "create_tenant nie został zawołany",
+    ).toContain("create_tenant");
     expect(redirect.url, "onboarding nie dokończył się mimo awarii dostawcy").toBe("/pl/");
 
     // Uczciwa CZĘŚCIOWA porażka: powód zapisany, nie połknięty w ciszy.

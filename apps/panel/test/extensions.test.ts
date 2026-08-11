@@ -49,6 +49,7 @@ import {
   quoteOrderExtension,
 } from "@/app/[locale]/(panel)/zamowienia/[id]/extension-pricing";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -110,7 +111,7 @@ async function createTenantMember(
   createdUserIds.push(data.user.id);
 
   const bootstrap = await signIn(email);
-  const { data: tenantId, error: tenantError } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
     p_slug: `ext-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja przedłużeń ${label}`,
   });

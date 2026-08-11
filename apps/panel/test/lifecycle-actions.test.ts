@@ -30,6 +30,7 @@ import WebSocket from "ws";
 
 import { AuthError } from "@/lib/auth";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -96,7 +97,7 @@ async function createUser(
 async function createTenantOwner(admin: SupabaseClient, label: string): Promise<Actor> {
   const user = await createUser(admin, label);
   const bootstrap = await signIn(user.email);
-  const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
     p_slug: `lifeact-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja cyklu ${label}`,
   });

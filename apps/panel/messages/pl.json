@@ -318,7 +318,16 @@
     "name": "Nazwa organizacji",
     "slug": "Slug (adres, np. moja-firma)",
     "submit": "Utwórz organizację",
-    "submitPending": "Tworzę…"
+    "submitPending": "Tworzę…",
+    "termsLabel": "Akceptuję",
+    "termsLinkLabel": "Regulamin świadczenia usługi Avably ({version})"
+  },
+  "platformTerms": {
+    "title": "Nowa wersja regulaminu ({version})",
+    "description": "Od {date} obowiązuje nowa wersja Regulaminu świadczenia usługi Avably. Żeby dalej korzystać z panelu, właściciel organizacji musi ją zaakceptować.",
+    "linkLabel": "Przeczytaj regulamin ({version})",
+    "acceptCta": "Akceptuję regulamin ({version})",
+    "acceptPending": "Zapisuję…"
   },
   "invitations": {
     "title": "Zaproszenia członków",

@@ -40,6 +40,8 @@ const ANON_EXECUTE_ALLOWLIST = [
   "attach_payment_intent", // 0029 — checkout: przypięcie intencji płatności (bramka: checkout_token)
   "check_rate_limit", // 0052 — licznik anti-abuse, sam jest mechanizmem obronnym
   "get_legal_document_version", // 0063 — permalink opublikowanej wersji dokumentu
+  "get_platform_terms", // 0070 — żywa wersja regulaminu platformy (LP pokazuje umowę przed rejestracją)
+  "get_platform_terms_version", // 0070 — permalink wersji regulaminu platformy (szkic nie wychodzi)
   "get_public_availability", // 0020 — publiczna dostępność produktu
   "get_public_catalog", // 0020 — publiczny katalog aktywnego tenanta
   "get_public_custom_fields", // 0058 — publiczne definicje pól checkoutu
