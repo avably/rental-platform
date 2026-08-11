@@ -15,6 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isClosingWindowOpen } from "@avably/core";
 import type { Role, TenantStatus } from "@avably/db";
 
 /**
@@ -32,12 +33,24 @@ import type { Role, TenantStatus } from "@avably/db";
  *   a nie odmawiać na głucho,
  * - `mfa_enrollment_required` → 403: superadmin bez ŻADNEGO czynnika 2FA —
  *   musi go najpierw włączyć (/bezpieczenstwo).
- * - `tenant_suspended` → 403: organizacja ma status zamykający panel
- *   (PANEL_CLOSED_STATUSES — ADR-107). Guard strony kieruje operatora na
- *   /organizacja-zawieszona (komunikat + wylogowanie), akcje i handlery po
- *   prostu odmawiają. Jeden kod dla wszystkich trzech statusów: operator nie
- *   dostaje szczegółów rozliczeniowych, a superadmin i tak widzi prawdę
- *   w /admin/tenants.
+ * - `tenant_suspended` → 403: organizacja jest `suspended`, a okno domykania
+ *   (Zasada 8, ADR-138) już się ZAMKNĘŁO (albo zegara nie ma — fail-closed).
+ *   Guard strony kieruje operatora na /organizacja-zawieszona (komunikat +
+ *   wylogowanie), akcje i handlery po prostu odmawiają.
+ * - `tenant_suspended_closing` → 403: organizacja jest `suspended`, okno
+ *   domykania JEST otwarte, ale wywołanie NIE ma opt-in `{ closing: true }`
+ *   — czyli akcja/strona jest poza allowlistą okna (odmowa domyślna: brak
+ *   wpisu = brak dostępu). Guard strony kieruje na /zamowienia (hub
+ *   domykania), akcje odmawiają komunikatem o oknie.
+ * - `tenant_locked` → 403: blokada platformowa `superadmin_locked`
+ *   (antyfraudowa) — zamknięta natychmiast i w całości, okno domykania jej
+ *   NIE dotyczy.
+ * - `tenant_cancelled` → 403: organizacja zamknięta (`cancelled`) — jak
+ *   wyżej, bez okna.
+ *   (Do ADR-138 wszystkie trzy statusy szły jednym kodem `tenant_suspended`;
+ *   rozdzielenie jest warunkiem okna domykania — wołający musi odróżnić
+ *   „domknij najmy" od „koniec". Operator nadal nie dostaje szczegółów
+ *   rozliczeniowych, a superadmin widzi prawdę w /admin/tenants.)
  * - `membership_revoked` → 403, ale znaczy „claim JWT jest nieaktualny":
  *   żywy odczyt bazy nie znalazł już członkostwa (albo wpisu superadmina),
  *   a claim wciąż niesie stary tenant_id/superadmin (R12b/H-01, ADR-127).
@@ -54,7 +67,22 @@ export type AuthErrorCode =
   | "mfa_required"
   | "mfa_enrollment_required"
   | "tenant_suspended"
+  | "tenant_suspended_closing"
+  | "tenant_locked"
+  | "tenant_cancelled"
   | "membership_revoked";
+
+/**
+ * Kody odmowy statusowej — wszystkie znaczą „organizacja ma status zamykający
+ * tę powierzchnię". Wołający, który dotąd porównywał z `tenant_suspended`,
+ * po rozdzieleniu kodów (ADR-138) pyta o CAŁĄ rodzinę.
+ */
+export const TENANT_STATUS_ERROR_CODES: readonly AuthErrorCode[] = [
+  "tenant_suspended",
+  "tenant_suspended_closing",
+  "tenant_locked",
+  "tenant_cancelled",
+];
 
 /**
  * Statusy tenanta zamykające panel (ADR-107). `past_due` ŚWIADOMIE
@@ -64,6 +92,10 @@ export type AuthErrorCode =
  * najemcy nie przyjmuje zamówień, ale panel zostaje otwarty. Nadzbiór
  * LOCKED_STATUS superadmina (lib/superadmin.ts) — blokada platformy zamyka
  * panel tak samo jak zawieszenie rozliczeniowe.
+ *
+ * OD ADR-138 z jednym wyjątkiem: `suspended` w otwartym oknie domykania
+ * (Zasada 8) przepuszcza wywołania z opt-in `{ closing: true }` — rdzeń niżej
+ * rozstrzyga per status, a stała zostaje kontraktem zbioru „zamykających".
  */
 export const PANEL_CLOSED_STATUSES: readonly TenantStatus[] = [
   "suspended",
@@ -115,7 +147,32 @@ export interface AuthContext {
    * requireSuperadminWithClient): claim JWT statusu NIE niesie.
    */
   tenantStatus: TenantStatus | null;
+  /**
+   * Okno domykania (Zasada 8, ADR-138): `true` WYŁĄCZNIE gdy organizacja
+   * jest `suspended`, okno jeszcze otwarte, a wywołanie weszło z opt-in
+   * `{ closing: true }`. Downstream zawęża wtedy działanie do zamrożonego
+   * zbioru (assertClosableOrder) i trybu read-only na ekranach.
+   */
+  closing: boolean;
+  /**
+   * `tenants.suspended_at` z tego samego odczytu co status (0067) — punkt
+   * zaczepienia zegara okna i licznika banera. `null` poza `suspended`
+   * i w kontekstach bez odczytu.
+   */
+  suspendedAt: string | null;
   supabase: SupabaseClient;
+}
+
+/** Opcje guardu członka — opt-in okna domykania (ADR-138). */
+export interface RequireMemberOptions {
+  /**
+   * Wywołanie należy do allowlisty okna domykania: przy `suspended`
+   * z otwartym oknem guard PRZEPUSZCZA (ctx.closing = true) zamiast rzucać.
+   * Poza `suspended` flaga nie zmienia niczego. Każde użycie jest przypięte
+   * inwentarzem-snapshotem (closing-optin-inventory.test.ts) — dopisanie
+   * wpisu bez aktualizacji inwentarza pali build.
+   */
+  closing?: boolean;
 }
 
 /**
@@ -159,6 +216,8 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     aal: (claims.aal as string | undefined) ?? "aal1",
     amr: amrFromClaims(claims),
     tenantStatus: null,
+    closing: false,
+    suspendedAt: null,
     supabase,
   };
 }
@@ -212,9 +271,13 @@ export function hasRecentRecoveryProof(
  * - 403 `membership_revoked`, jeśli claim niesie tenant_id, ale żywy odczyt
  *   bazy nie znajduje już członkostwa (odebrane albo tenant/konto skasowane
  *   kaskadą) — patrz niżej,
- * - 403 `tenant_suspended`, jeśli organizacja ma status zamykający panel
- *   (ADR-107) — sprawdzane PRZED rolą: zawieszenie dotyczy całej organizacji,
- *   więc odmowa nazywa zawieszenie, nie przypadkowy brak roli,
+ * - 403 `tenant_suspended` / `tenant_suspended_closing` / `tenant_locked` /
+ *   `tenant_cancelled`, jeśli organizacja ma status zamykający panel
+ *   (ADR-107, rozdzielenie kodów: ADR-138) — sprawdzane PRZED rolą:
+ *   zawieszenie dotyczy całej organizacji, więc odmowa nazywa zawieszenie,
+ *   nie przypadkowy brak roli. WYJĄTEK (okno domykania, Zasada 8):
+ *   `suspended` z otwartym oknem (`now() < suspended_at + 30 dni`)
+ *   PRZEPUSZCZA wywołania z opt-in `{ closing: true }` — i tylko je,
  * - 403, jeśli podano `role` i nie zgadza się z ŻYWĄ rolą usera w tenancie.
  *
  * ŻYWY ODCZYT CZŁONKOSTWA (R12b/H-01, ADR-127). Do L3 guard pytał tylko o
@@ -239,6 +302,7 @@ export function hasRecentRecoveryProof(
 export async function requireMemberWithClient(
   supabase: SupabaseClient,
   role?: Role,
+  options?: RequireMemberOptions,
 ): Promise<AuthContext> {
   const ctx = await getAuthContext(supabase);
   if (!ctx) throw new AuthError(401, "Wymagane zalogowanie.");
@@ -261,9 +325,11 @@ export async function requireMemberWithClient(
   // Jedno zapytanie na obie potrzeby: żywe członkostwo (obecność wiersza + rola
   // z bazy) i status organizacji (zagnieżdżony tenants). Piggyback na odczycie
   // z ADR-107 — nie dokładamy round-tripu.
+  // `suspended_at` jedzie TYM SAMYM zapytaniem (ADR-138) — zegar okna
+  // domykania nie kosztuje round-tripu.
   const { data: memberRow, error: memberError } = await supabase
     .from("members")
-    .select("role, tenants(status)")
+    .select("role, tenants(status, suspended_at)")
     .eq("tenant_id", ctx.tenantId)
     .eq("user_id", ctx.user.id)
     .maybeSingle();
@@ -284,9 +350,10 @@ export async function requireMemberWithClient(
 
   // tenants(status) to relacja to-one; PostgREST zwraca obiekt, ale bierzemy
   // pod uwagę też kształt tablicowy (higiena, jak flattenTenant w superadmin.ts).
+  type TenantRead = { status: TenantStatus; suspended_at?: string | null };
   const row = memberRow as {
     role: Role;
-    tenants: { status: TenantStatus } | { status: TenantStatus }[] | null;
+    tenants: TenantRead | TenantRead[] | null;
   };
   const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants;
   if (!tenant) {
@@ -295,12 +362,47 @@ export async function requireMemberWithClient(
     throw new Error("Nie udało się zweryfikować statusu organizacji: brak powiązanej organizacji.");
   }
   const tenantStatus = tenant.status;
-  if (PANEL_CLOSED_STATUSES.includes(tenantStatus)) {
+  const suspendedAt = tenant.suspended_at ?? null;
+
+  // Statusy zamykające panel — rozdzielone kody odmowy (ADR-138).
+  // `superadmin_locked` i `cancelled` są zamknięte natychmiast i w całości;
+  // okno domykania (Zasada 8) dotyczy WYŁĄCZNIE `suspended`.
+  if (tenantStatus === "superadmin_locked") {
     throw new AuthError(
       403,
-      "Organizacja jest zawieszona. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
-      "tenant_suspended",
+      "Organizacja jest zablokowana. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+      "tenant_locked",
     );
+  }
+  if (tenantStatus === "cancelled") {
+    throw new AuthError(
+      403,
+      "Organizacja została zamknięta. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+      "tenant_cancelled",
+    );
+  }
+  let closing = false;
+  if (tenantStatus === "suspended") {
+    // Zegar liczony LENIWIE w guardzie (zero crona): otwarte okno to
+    // `now() < suspended_at + 30 dni`, fail-closed przy braku zegara.
+    if (!isClosingWindowOpen(suspendedAt)) {
+      throw new AuthError(
+        403,
+        "Organizacja jest zawieszona. Skontaktuj się ze wsparciem Avably, aby przywrócić dostęp.",
+        "tenant_suspended",
+      );
+    }
+    if (!options?.closing) {
+      // Okno otwarte, ale wywołanie POZA allowlistą domykania — odmowa
+      // domyślna (brak wpisu = brak dostępu). Osobny kod, żeby strona mogła
+      // odesłać do huba domykania zamiast na ekran „panel zamknięty".
+      throw new AuthError(
+        403,
+        "Organizacja jest zawieszona — w oknie domykania dostępne jest wyłącznie domykanie trwających najmów.",
+        "tenant_suspended_closing",
+      );
+    }
+    closing = true;
   }
 
   // Rola z BAZY nadpisuje rolę z claimu — to ona zamyka cichy downgrade
@@ -308,6 +410,8 @@ export async function requireMemberWithClient(
   // prawdę, a sprawdzenie `role` niżej liczy się względem stanu bazy.
   ctx.role = row.role;
   ctx.tenantStatus = tenantStatus;
+  ctx.closing = closing;
+  ctx.suspendedAt = tenantStatus === "suspended" ? suspendedAt : null;
 
   if (role && ctx.role !== role) {
     throw new AuthError(403, `Wymagana rola „${role}".`);

@@ -43,7 +43,10 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const ctx = await requireMemberPage("/klienci");
+  // Opt-in okna domykania (ADR-138): odczyt klientów jest w oknie PEŁNY —
+  // dane kontaktowe są potrzebne do domknięcia najmów. Mutacje klientów NIE
+  // mają opt-in (odmowa domyślna), z wyjątkiem RODO-erase.
+  const ctx = await requireMemberPage("/klienci", { closing: true });
 
   const params = await searchParams;
   const single = (value: string | string[] | undefined) =>

@@ -26,14 +26,21 @@ import { ThemeToggle } from "./theme-toggle";
  * P7 (ADR-060) upraszcza wariant mobilny do hamburgera, H1 i motywu.
  * Język, e-mail i wylogowanie są wtedy dostępne w tej samej szufladzie.
  */
-export function PanelTopbar({ userEmail }: { userEmail: string }) {
+export function PanelTopbar({
+  userEmail,
+  closing = false,
+}: {
+  userEmail: string;
+  /** Okno domykania (ADR-138) — schodzi do nawigacji mobilnej. */
+  closing?: boolean;
+}) {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
 
   return (
     <header className="border-border bg-background flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
-      <MobileNav userEmail={userEmail} />
+      <MobileNav userEmail={userEmail} closing={closing} />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}
       </h1>

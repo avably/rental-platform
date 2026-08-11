@@ -12,7 +12,8 @@
  */
 import { revalidatePath } from "next/cache";
 
-import { AuthError } from "@/lib/auth";
+import { AuthError, type AuthContext } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
@@ -29,6 +30,30 @@ const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? v
 
 const NO_TENANT = "Sesja nie wskazuje najemcy — zaloguj się ponownie.";
 
+/**
+ * Predykat zamrożonego zbioru dla akcji PO IDENTYFIKATORZE NOTATKI (edycja,
+ * usunięcie): zamówienie znamy dopiero z wiersza notatki. Poza trybem
+ * domykania — no-op bez zapytań (jak assertClosableOrder).
+ */
+async function assertClosableNote(ctx: AuthContext, noteId: string): Promise<void> {
+  if (!ctx.closing) return;
+  const { data: note, error } = await ctx.supabase
+    .from("order_notes")
+    .select("order_id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", noteId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Nie udało się zweryfikować notatki w oknie domykania: ${error.message}`);
+  }
+  if (!note) {
+    // Nie ma czego pilnować — rdzeń i tak odmówi na braku wiersza; nie
+    // robimy z predykatu drugiej wyroczni istnienia.
+    return;
+  }
+  await assertClosableOrder(ctx, (note as { order_id: string }).order_id);
+}
+
 export async function addOrderNoteAction(
   _prevState: FormState,
   formData: FormData,
@@ -39,9 +64,12 @@ export async function addOrderNoteAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138): notatki dokumentują spory przy
+  // wydaniu/zwrocie — zawężone do zamrożonego zbioru.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -65,9 +93,11 @@ export async function editOrderNoteAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138) — zbiór po zamówieniu wskazanym notatką.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableNote(ctx, parsed.data.noteId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -90,9 +120,11 @@ export async function deleteOrderNoteAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138) — jak w edycji.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableNote(ctx, parsed.data.noteId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

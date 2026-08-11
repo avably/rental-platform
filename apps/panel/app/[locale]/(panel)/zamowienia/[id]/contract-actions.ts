@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { emailSenderFromSettings, resendTransport, type TenantSettingRow } from "@avably/core";
 
+import { assertClosableOrder } from "@/lib/closing";
 import { contractDocumentSettingsFromRows } from "@/lib/contract-settings";
 import { loadCustomFieldDefinitions } from "@/lib/custom-fields";
 import { panelEmailLogRecorder } from "@/lib/email-log";
@@ -22,7 +23,12 @@ function field(formData: FormData, name: string): string {
 }
 
 async function loadGenerationContext(orderId: string) {
-  const context = await requireMember();
+  // Opt-in okna domykania (ADR-138): umowa (generowanie, wysyłka) jest na
+  // allowliście — klient najemcy dostaje dokument jak przy niezawieszonym
+  // najemcy. Zbiór pilnowany predykatem na argumencie; obie akcje niżej
+  // wchodzą przez ten wspólny kontekst.
+  const context = await requireMember(undefined, { closing: true });
+  await assertClosableOrder(context, orderId);
   const tenantId = context.tenantId!;
   // Waluta idzie z WIERSZA ZAMÓWIENIA (orders.currency, 0049/ADR-103) —
   // umowa opisuje kwoty w walucie, w której zamówienie POWSTAŁO, a nie

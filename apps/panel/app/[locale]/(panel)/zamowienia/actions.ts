@@ -16,6 +16,7 @@ import {
   EMAIL_SENDER_KEY,
   ORDER_STATUSES,
   canTransition,
+  isClosingForwardTransition,
   deliveryPricingFromSettings,
   destinationColumns,
   emailAvailability,
@@ -33,6 +34,7 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { hasCustomFieldErrors } from "@/lib/custom-fields";
 import { readCustomFieldsForCreate } from "@/lib/custom-fields-server";
 import {
@@ -355,9 +357,12 @@ export async function changeOrderStatusAction(
   if (!parsed.success) return zodErrorToState(parsed.error);
   const { orderId, to, expectedFrom } = parsed.data;
 
+  // Opt-in okna domykania (ADR-138): wydanie/zwrot to sedno trybu — ale
+  // WYŁĄCZNIE do przodu i wyłącznie na zamrożonym zbiorze (predykaty niżej).
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -366,6 +371,16 @@ export async function changeOrderStatusAction(
   // Wygoda UI: czytelna odmowa bez rundy do bazy. Bramką jest trigger 0010.
   if (!canTransition(expectedFrom as OrderStatus, to as OrderStatus)) {
     return { formError: "To przejście statusu nie jest dozwolone." };
+  }
+
+  // FORWARD-ONLY w oknie domykania (Zasada 8): cofnięcia, `pending→reserved`
+  // i anulowanie ZABLOKOWANE predykatem na argumencie — mapa zdolności
+  // (canTransition) zostaje nietknięta dla normalnej pracy.
+  if (ctx.closing && !isClosingForwardTransition(expectedFrom as OrderStatus, to as OrderStatus)) {
+    return {
+      formError:
+        "W oknie domykania statusy idą wyłącznie do przodu (wydanie i zwrot) — cofnięcia i anulowanie są niedostępne.",
+    };
   }
 
   // Optymistyczna współbieżność: UPDATE trafia wyłącznie wiersz, który
@@ -454,9 +469,13 @@ export async function sendTransitionEmailAction(input: {
   if (!parsed.success) return { problem: "Nieprawidłowe dane wysyłki wiadomości." };
   const { orderId, status } = parsed.data;
 
+  // Opt-in okna domykania (ADR-138): mail o zmianie statusu jedzie razem
+  // z wydaniem/zwrotem — klient najemcy ma dostać powiadomienie jak przy
+  // niezawieszonym najemcy (Zasada 3). Zbiór pilnowany predykatem.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
     if (err instanceof AuthError) return { problem: err.message };
     throw err;
@@ -558,9 +577,13 @@ export async function changeOrderStatusBulkAction(
   }
   const { orderIds, to } = parsed.data;
 
+  // Opt-in okna domykania (ADR-138): wersja zbiorcza wydania/zwrotu jest
+  // na allowliście, ale KAŻDE zamówienie przechodzi te same predykaty co
+  // pojedyncze (forward-only + zamrożony zbiór) — odmowy per wiersz w
+  // raporcie, nie jedną blokadą całości.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -594,6 +617,21 @@ export async function changeOrderStatusBulkAction(
   });
 
   const report = await runBulkStatusChange(targets, to as OrderStatus, async (target) => {
+    // Predykaty okna domykania PRZED mutacją (te same, co w akcji
+    // pojedynczej): forward-only na parze (from, to) i zamrożony zbiór na
+    // argumencie. Odmowa jest wierszem raportu — operator widzi, KTÓRE
+    // zamówienia okno odrzuciło i dlaczego.
+    if (ctx.closing) {
+      if (!target.from || !isClosingForwardTransition(target.from, to as OrderStatus)) {
+        return { ok: false, reason: "closing-window" };
+      }
+      try {
+        await assertClosableOrder(ctx, target.orderId);
+      } catch (err) {
+        if (err instanceof AuthError) return { ok: false, reason: "closing-window" };
+        throw err;
+      }
+    }
     // Ten sam UPDATE co w akcji pojedynczej, łącznie z optymistyczną
     // współbieżnością (`.eq("order_status", from)`): zero wierszy znaczy, że
     // ktoś zdążył zmienić status — to odmowa, nie cichy sukces.

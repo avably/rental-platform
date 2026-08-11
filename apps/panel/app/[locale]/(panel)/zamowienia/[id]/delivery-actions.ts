@@ -34,6 +34,7 @@ import {
 } from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
@@ -112,9 +113,12 @@ export async function searchCarriersAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138): komplet kurierski jest na allowliście —
+  // bez niego klient, który dostał sprzęt kurierem, nie ma jak go odesłać.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -198,9 +202,11 @@ export async function createShipmentAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138) — jak w searchCarriersAction.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -334,9 +340,11 @@ export async function refreshShipmentStatusAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138); zamówienie przesyłki znamy dopiero
+  // z wiersza — predykat zbioru stoi ZA odczytem, przed dostawcą.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -344,11 +352,17 @@ export async function refreshShipmentStatusAction(
 
   const { data: shipment } = await ctx.supabase
     .from("courier_shipments")
-    .select("id, provider_order_number")
+    .select("id, order_id, provider_order_number")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.shipmentId)
     .maybeSingle();
   if (!shipment) return { formError: "Przesyłka nie istnieje albo została usunięta." };
+  try {
+    await assertClosableOrder(ctx, shipment.order_id as string);
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
 
   const courier = await loadCourierApi(ctx.supabase, ctx.tenantId!);
   if (courier.configError !== undefined) return { formError: courier.configError };
@@ -414,9 +428,12 @@ export async function cancelShipmentAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138): anulowanie PRZESYŁKI (nie zamówienia!)
+  // jest na allowliście — błędnie nadaną etykietę trzeba móc wycofać, zanim
+  // przewoźnik naliczy koszt. Predykat zbioru za odczytem wiersza.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -424,11 +441,17 @@ export async function cancelShipmentAction(
 
   const { data: shipment } = await ctx.supabase
     .from("courier_shipments")
-    .select("id, status, provider_order_number")
+    .select("id, order_id, status, provider_order_number")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.shipmentId)
     .maybeSingle();
   if (!shipment) return { formError: "Przesyłka nie istnieje albo została usunięta." };
+  try {
+    await assertClosableOrder(ctx, shipment.order_id as string);
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
 
   // Odmowa PRZED dotknięciem dostawcy: żądanie anulowania przesyłki w drodze
   // albo doręczonej to koszt bez skutku (a przy niektórych przewoźnikach —
@@ -492,9 +515,11 @@ export async function refreshOrderShipmentsAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138) — jak w searchCarriersAction.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -649,9 +674,12 @@ export async function sendReturnLabelEmailAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138): etykieta zwrotna to JEDYNY mechanizm
+  // odesłania sprzętu przy dostawie kurierem — musi działać w oknie.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;
@@ -735,9 +763,11 @@ export async function sendPickupReturnReminderAction(
   });
   if (!parsed.success) return zodErrorToState(parsed.error);
 
+  // Opt-in okna domykania (ADR-138) — przypomnienie o zwrocie domyka najem.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { formError: err.message };
     throw err;

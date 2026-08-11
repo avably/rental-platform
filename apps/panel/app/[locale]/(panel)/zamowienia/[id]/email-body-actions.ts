@@ -25,6 +25,7 @@
 import { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { requireMember } from "@/lib/supabase-server";
 
 const inputSchema = z.object({
@@ -49,9 +50,12 @@ export async function loadEmailBodyAction(input: {
     return { status: "error", message: "Nieprawidłowy identyfikator wiadomości." };
   }
 
+  // Opt-in okna domykania (ADR-138): podgląd treści maila to ODCZYT dowodu
+  // komunikacji z klientem — potrzebny w sporach przy zwrocie.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, parsed.data.orderId);
   } catch (err) {
     if (err instanceof AuthError) return { status: "error", message: err.message };
     throw err;

@@ -20,6 +20,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 import { Link } from "@/i18n/navigation";
+import { isOrderInFrozenSet } from "@/lib/closing";
 import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { uuidSchema } from "@/lib/order-validation";
@@ -113,7 +114,12 @@ export default async function OrderDetailPage({
 }) {
   const { id } = await params;
   const query = (await searchParams) ?? {};
-  const ctx = await requireMemberPage(`/zamowienia/${id}`);
+  // Opt-in okna domykania (ADR-138): szczegół działa w oknie WYŁĄCZNIE dla
+  // zamrożonego zbioru (bramka niżej, po odczycie salda kaucji); sekcje
+  // przesuwające wartość zobowiązania (przedłużenie, pozycje, pola własne)
+  // renderują się wtedy read-only.
+  const ctx = await requireMemberPage(`/zamowienia/${id}`, { closing: true });
+  const closing = ctx.closing;
 
   if (!uuidSchema.safeParse(id).success) notFound();
 
@@ -140,6 +146,24 @@ export default async function OrderDetailPage({
   const depositEvents = (depositRows ?? []) as unknown as DepositEventRow[];
   const totals = depositTotals(depositEvents);
   const balances = runningBalances(depositEvents);
+
+  // BRAMKA ZAMROŻONEGO ZBIORU (ADR-138): w oknie domykania zamówienie spoza
+  // zbioru nie istnieje dla tego ekranu — notFound, ta sama odpowiedź co dla
+  // obcego id (nie robimy z bramki wyroczni). Saldo z odczytu wyżej.
+  if (
+    closing &&
+    !isOrderInFrozenSet(
+      {
+        created_at: row.created_at,
+        payment_status: row.payment_status,
+        order_status: row.order_status,
+      },
+      totals.balanceGrosze,
+      ctx.suspendedAt,
+    )
+  ) {
+    notFound();
+  }
 
   // Rejestr ŻĄDAŃ zwrotu (0031) — osobny od rejestru ZDARZEŃ i celowo NIE
   // wchodzący do salda. Trzyma to, czego rejestr zdarzeń nie ma prawa
@@ -209,6 +233,39 @@ export default async function OrderDetailPage({
   const t = await getTranslations("orders.detail");
   const tDelivery = await getTranslations("orders.delivery");
   const tDeposit = await getTranslations("orders.deposit");
+  const tCustomFields = await getTranslations("customFields");
+  const tItems = await getTranslations("orders.items");
+
+  // Pozycje READ-ONLY dla okna domykania (ADR-138): edytor pozycji przesuwa
+  // wartość zobowiązania, więc w oknie zamiast interaktywnego ItemsSection
+  // (którego guard i tak odmówi) idzie zwykła lista z własnym odczytem.
+  let closingItems: {
+    id: string;
+    rentalGrosze: number;
+    depositGrosze: number;
+    productName: string | null;
+    serialNumber: string | null;
+  }[] = [];
+  if (closing) {
+    const { data: itemRows } = await ctx.supabase
+      .from("order_items")
+      .select("id, rental_grosze, deposit_grosze, products(name), product_units(serial_number)")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("order_id", row.id);
+    closingItems = ((itemRows ?? []) as unknown as {
+      id: string;
+      rental_grosze: number;
+      deposit_grosze: number;
+      products: { name: string } | null;
+      product_units: { serial_number: string | null } | null;
+    }[]).map((item) => ({
+      id: item.id,
+      rentalGrosze: item.rental_grosze,
+      depositGrosze: item.deposit_grosze,
+      productName: item.products?.name ?? null,
+      serialNumber: item.product_units?.serial_number ?? null,
+    }));
+  }
 
   const depositTimestamp = new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
@@ -316,16 +373,20 @@ export default async function OrderDetailPage({
             {/* Wejście w przedłużenie stoi PRZY TERMINIE (R4, uwaga właściciela):
                 przycisk „Przedłuż" pod datami odsłania wybór nowej daty końca
                 z dopłatą na żywo. Osobna sekcja przedłużenia zniknęła; RSC dokłada
-                tu jedną linię, tak jak przy pozycjach i logistyce. */}
-            <ExtensionSection
-              order={{
-                id: row.id,
-                startDate: row.start_date,
-                endDate: row.end_date,
-                status: row.order_status,
-                currency,
-              }}
-            />
+                tu jedną linię, tak jak przy pozycjach i logistyce.
+                W OKNIE DOMYKANIA przedłużenia NIE MA (ADR-138): przesuwa
+                horyzont zobowiązania — sekcja znika, termin zostaje wyżej. */}
+            {closing ? null : (
+              <ExtensionSection
+                order={{
+                  id: row.id,
+                  startDate: row.start_date,
+                  endDate: row.end_date,
+                  status: row.order_status,
+                  currency,
+                }}
+              />
+            )}
             <DetailField label={t("deliveryLabel")}>
               {tDelivery(row.delivery_method)}
               {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
@@ -355,12 +416,43 @@ export default async function OrderDetailPage({
             />
           </section>
 
-          <OrderCustomFieldsSection
-            action={updateOrderCustomFieldsAction.bind(null, row.id)}
-            fields={orderCustomFields}
-            values={customFieldValuesFromRow(order)}
-            notSaved={query.polaWlasne === "niezapisane"}
-          />
+          {/* W oknie domykania pola własne są READ-ONLY (wzorzec
+              contract-read-only: te same dane, jawnie bez akcji — atrapa
+              formularza, którego akcja i tak odmówi, uczyłaby ignorować
+              błędy). Poza oknem — edytowalna sekcja jak dotąd. */}
+          {closing ? (
+            orderCustomFields.length > 0 ? (
+              <section
+                aria-labelledby="order-custom-fields-heading"
+                data-order-custom-fields-readonly
+                className="border-border bg-card flex flex-col gap-3 rounded-md border p-5"
+              >
+                <h2
+                  id="order-custom-fields-heading"
+                  className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase"
+                >
+                  {tCustomFields("values.section")}
+                </h2>
+                {orderCustomFields.map((field) => {
+                  const value = customFieldValuesFromRow(order)[field.id];
+                  return (
+                    <DetailField key={field.id} label={field.label}>
+                      {value === undefined || value === null || value === ""
+                        ? "—"
+                        : String(value)}
+                    </DetailField>
+                  );
+                })}
+              </section>
+            ) : null
+          ) : (
+            <OrderCustomFieldsSection
+              action={updateOrderCustomFieldsAction.bind(null, row.id)}
+              fields={orderCustomFields}
+              values={customFieldValuesFromRow(order)}
+              notSaved={query.polaWlasne === "niezapisane"}
+            />
+          )}
 
           <ContractSection orderId={row.id} />
 
@@ -391,6 +483,9 @@ export default async function OrderDetailPage({
           // a od U1 (audyt W3) nie schodzi też POWÓD — komponent dostaje samą
           // odpowiedź „czy", treść komunikatu daje słownik.
           emailAvailability={{ available: emailAvailability().available }}
+          // Okno domykania (ADR-138): dropdown pokazuje wyłącznie przejścia
+          // do przodu — bramką jest predykat w akcji, to tylko lustro UI.
+          closing={closing}
         />
 
         {/* Ręczne wejście w rekoncyliację (L11, ADR-104). Widoczne WYŁĄCZNIE
@@ -409,18 +504,52 @@ export default async function OrderDetailPage({
           ręczna cena i kaucja, dodawanie (także produktów bez wolnej sztuki,
           jawnie oznaczonych) i usuwanie. Sekcja jest samowystarczalnym RSC
           z własnym odczytem katalogu i dostępności — `page.tsx` dokłada jedną
-          linię, tak jak przy przedłużeniu i logistyce. */}
-      <ItemsSection
-        order={{
-          id: row.id,
-          startDate: row.start_date,
-          endDate: row.end_date,
-          status: row.order_status,
-          totalRentalGrosze: row.total_rental_grosze,
-          totalDepositGrosze: row.total_deposit_grosze,
-          currency,
-        }}
-      />
+          linię, tak jak przy przedłużeniu i logistyce.
+          W OKNIE DOMYKANIA edycji pozycji NIE MA (ADR-138) — operator widzi
+          read-only listę sprzętu do odebrania, bez cen z formularza. */}
+      {closing ? (
+        <section id="pozycje" className="flex scroll-mt-6 flex-col gap-3" data-items-readonly>
+          <SectionHeading>{t("items")}</SectionHeading>
+          {closingItems.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{tItems("empty")}</p>
+          ) : (
+            <ul className="flex flex-col gap-2 text-sm">
+              {closingItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="border-border bg-card flex flex-wrap items-center justify-between gap-2 rounded-md border px-3.5 py-3"
+                >
+                  <span className="font-medium">
+                    {item.productName ?? "—"}
+                    {item.serialNumber ? (
+                      <span className="text-muted-foreground ml-2 font-normal">
+                        {item.serialNumber}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-muted-foreground tabular-nums tracking-[0.01em]">
+                    {tItems("fieldRental")}: {formatMoney(item.rentalGrosze, currency, locale)}
+                    {" · "}
+                    {tItems("fieldDeposit")}: {formatMoney(item.depositGrosze, currency, locale)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <ItemsSection
+          order={{
+            id: row.id,
+            startDate: row.start_date,
+            endDate: row.end_date,
+            status: row.order_status,
+            totalRentalGrosze: row.total_rental_grosze,
+            totalDepositGrosze: row.total_deposit_grosze,
+            currency,
+          }}
+        />
+      )}
 
       <section id="kaucja" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading>{tDeposit("title")}</SectionHeading>

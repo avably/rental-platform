@@ -46,6 +46,11 @@ export const BULK_REJECT_REASONS = [
   "changed-meanwhile",
   /** Zamówienia nie ma w zbiorze tenanta (usunięte albo obce id). */
   "not-found",
+  /**
+   * Okno domykania (ADR-138): przejście nie jest „do przodu" albo zamówienie
+   * stoi poza zamrożonym zbiorem — odmowa predykatu, zanim baza zobaczy UPDATE.
+   */
+  "closing-window",
   /** Odmowa, której nie umiemy nazwać — `detail` niesie surowy komunikat. */
   "unknown",
 ] as const;

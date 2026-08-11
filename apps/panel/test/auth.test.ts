@@ -245,16 +245,22 @@ describe.skipIf(!hasEnv)("egzekwowanie statusu tenanta (L3, ADR-107)", () => {
     if (error) throw new Error(`update tenants.status=${status}: ${error.message}`);
   }
 
-  it.each(["suspended", "cancelled", "superadmin_locked"] as const)(
-    "status %s: strona → tenant_suspended, tor akcji → mutacja NIE wchodzi",
-    async (status) => {
+  it.each([
+    // Kody rozdzielone w ADR-138: suspended BEZ zegara (tu suspended_at jest
+    // NULL — nikt go nie ustawił) to zamknięte okno → tenant_suspended.
+    ["suspended", "tenant_suspended"],
+    ["cancelled", "tenant_cancelled"],
+    ["superadmin_locked", "tenant_locked"],
+  ] as const)(
+    "status %s: strona → %s, tor akcji → mutacja NIE wchodzi",
+    async (status, code) => {
       const member = await createMemberWithTenant(`closed-${status}`);
       await setTenantStatus(member.tenantId, status);
 
       // Tor strony/rdzenia: odmowa nazwanym kodem, nie przypadkowym brakiem danych.
       await expect(requireMemberWithClient(member.client)).rejects.toMatchObject({
         status: 403,
-        code: "tenant_suspended",
+        code,
       });
 
       // Tor akcji: KAŻDA server action panelu zaczyna od requireMember()
@@ -267,7 +273,7 @@ describe.skipIf(!hasEnv)("egzekwowanie statusu tenanta (L3, ADR-107)", () => {
           email: "proba@test.local",
         });
       })();
-      await expect(actionAttempt).rejects.toMatchObject({ code: "tenant_suspended" });
+      await expect(actionAttempt).rejects.toMatchObject({ code });
 
       // Stan po próbie: zero wierszy — mutacja nie weszła.
       const { count, error: countError } = await admin

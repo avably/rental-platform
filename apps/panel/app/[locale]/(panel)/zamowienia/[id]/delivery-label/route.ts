@@ -10,6 +10,7 @@
 import { GlobKurierAPIError } from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
 
@@ -25,11 +26,16 @@ export async function GET(
     return new Response("Nieprawidłowy identyfikator.", { status: 400 });
   }
 
+  // Opt-in okna domykania (ADR-138): etykieta PDF należy do kompletu
+  // kurierskiego z allowlisty; zbiór pilnowany predykatem na argumencie.
   let ctx;
   try {
-    ctx = await requireMember();
+    ctx = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(ctx, orderId);
   } catch (err) {
-    if (err instanceof AuthError) return new Response(null, { status: 401 });
+    // Status z AuthError (401/403) — jak w route umowy; wcześniejsze gołe 401
+    // maskowałoby odmowę okna domykania jako brak sesji.
+    if (err instanceof AuthError) return new Response(null, { status: err.status });
     throw err;
   }
 

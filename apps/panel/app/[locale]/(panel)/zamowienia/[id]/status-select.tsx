@@ -4,6 +4,7 @@ import {
   BLOCKING_PAYMENT_STATUSES,
   ORDER_STATUSES,
   canTransition,
+  isClosingForwardTransition,
   type OrderStatus,
   type PaymentStatus,
 } from "@avably/core";
@@ -73,6 +74,7 @@ export function StatusSelect({
   currentStatus,
   paymentStatus,
   emailAvailability,
+  closing = false,
 }: {
   changeStatus: (prevState: FormState, formData: FormData) => Promise<FormState>;
   sendEmail: (input: { orderId: string; status: OrderStatus }) => Promise<TransitionEmailState>;
@@ -82,6 +84,9 @@ export function StatusSelect({
   // Sam boolean (U1, audyt W3): powód niedostępności to wnętrzności
   // platformy — nie schodzi do klienta; treść komunikatu daje słownik.
   emailAvailability: { available: boolean };
+  // Okno domykania (ADR-138): true = dropdown zawęża się do przejść
+  // forward-only. Bramką jest predykat w akcji — to wyłącznie lustro UI.
+  closing?: boolean;
 }) {
   const t = useTranslations("orders.detail");
   const tStatus = useTranslations("orders.statusLabels.order");
@@ -126,7 +131,11 @@ export function StatusSelect({
    * równoległa zmiana kończy się czytelnym błędem, nie ślepym nadpisem).
    */
   const cancelBlocked = BLOCKING_PAYMENT_STATUSES.includes(paymentStatus);
-  const targets = ORDER_STATUSES.filter((status) => canTransition(currentStatus, status));
+  const targets = ORDER_STATUSES.filter((status) =>
+    closing
+      ? isClosingForwardTransition(currentStatus, status)
+      : canTransition(currentStatus, status),
+  );
   const options = targets.map((status) => ({
     value: status,
     label: tStatus(status),

@@ -51,7 +51,8 @@ export interface OrderEmailLogRow extends EmailLogRow {
 }
 
 export async function EmailLogSection({ orderId }: { orderId: string }) {
-  const ctx = await requireMember();
+  // Opt-in okna domykania (ADR-138): historia maili to odczyt dowodów.
+  const ctx = await requireMember(undefined, { closing: true });
   const locale = await getLocale();
   const t = await getTranslations("emailLog");
 

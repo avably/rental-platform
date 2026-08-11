@@ -1,8 +1,17 @@
 import { Button } from "@avably/ui";
-import { type OrderStatus, type PaymentStatus } from "@avably/core";
+import {
+  CLOSING_OBLIGATION_PAYMENT_STATUSES,
+  CLOSING_OPEN_ORDER_STATUSES,
+  type OrderStatus,
+  type PaymentStatus,
+} from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import {
+  depositTotals,
+  type DepositEventRow,
+} from "@/app/[locale]/(panel)/zamowienia/[id]/deposit";
 import { requireMemberPage } from "@/lib/member-page";
 import { ordersFilterSchema } from "@/lib/order-validation";
 import { getTenantCurrency, orderCurrencyCode } from "@/lib/tenant-currency";
@@ -36,7 +45,11 @@ export default async function OrdersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const ctx = await requireMemberPage("/zamowienia");
+  // Opt-in okna domykania (ADR-138): lista jest HUBEM domykania — w trybie
+  // `ctx.closing` zawężona do zamrożonego zbioru, bez statystyk i bez
+  // tworzenia nowych zamówień.
+  const ctx = await requireMemberPage("/zamowienia", { closing: true });
+  const closing = ctx.closing;
 
   const params = await searchParams;
   const single = (value: string | string[] | undefined) =>
@@ -68,11 +81,15 @@ export default async function OrdersPage({
 
   // Kafle liczą się z CAŁEGO zbioru tenanta (nie ze strony ani z filtra) —
   // lekki odczyt czterech kolumn. Gdy wolumen urośnie, zastąpić agregatem SQL.
+  // W OKNIE DOMYKANIA statystyk nie ma (spec Zasady 8: „bez statystyk") —
+  // zapytanie o kafle w ogóle nie wychodzi.
   const [{ data: statOrders }, tableResult, { data: customers }] = await Promise.all([
-    ctx.supabase
-      .from("orders")
-      .select("start_date, order_status, payment_status, total_rental_grosze")
-      .eq("tenant_id", ctx.tenantId),
+    closing
+      ? Promise.resolve({ data: [] as never[] })
+      : ctx.supabase
+          .from("orders")
+          .select("start_date, order_status, payment_status, total_rental_grosze")
+          .eq("tenant_id", ctx.tenantId),
     (() => {
       let query = ctx.supabase
         .from("orders")
@@ -80,6 +97,15 @@ export default async function OrdersPage({
           "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, currency, customers(full_name, email), order_items(products(name))",
         )
         .eq("tenant_id", ctx.tenantId);
+      // ZAMROŻONY ZBIÓR (ADR-138): trzy warunki predykatu schodzą do bazy;
+      // czwarty (saldo kaucji przy `returned`) dofiltrowuje się niżej,
+      // po odczycie rejestru — baza nie trzyma salda w kolumnie.
+      if (closing) {
+        query = query
+          .lt("created_at", ctx.suspendedAt!)
+          .in("payment_status", [...CLOSING_OBLIGATION_PAYMENT_STATUSES])
+          .in("order_status", [...CLOSING_OPEN_ORDER_STATUSES, "returned"]);
+      }
       if (filter.status) query = query.eq("order_status", filter.status);
       if (filter.klient) query = query.eq("customer_id", filter.klient);
       // Filtr terminu to NACHODZENIE zakresów inclusive (konwencja 0007):
@@ -131,7 +157,40 @@ export default async function OrdersPage({
   }));
   const stats = computeOrderStats(statRows, today);
 
-  const orders = (tableResult.data ?? []) as unknown as OrderRow[];
+  let orders = (tableResult.data ?? []) as unknown as OrderRow[];
+
+  // Czwarty warunek zamrożonego zbioru: `returned` zostaje WYŁĄCZNIE
+  // z niezerowym saldem kaucji (klient czeka na zwrot). Jeden odczyt
+  // rejestru dla kandydatów, salda liczone tym samym silnikiem co ekran
+  // kaucji (depositTotals).
+  if (closing) {
+    const returnedIds = orders
+      .filter((order) => order.order_status === "returned")
+      .map((order) => order.id);
+    if (returnedIds.length > 0) {
+      const { data: eventRows } = await ctx.supabase
+        .from("deposit_events")
+        .select("order_id, kind, amount_grosze")
+        .eq("tenant_id", ctx.tenantId)
+        .in("order_id", returnedIds);
+      const eventsByOrder = new Map<string, Pick<DepositEventRow, "kind" | "amount_grosze">[]>();
+      for (const row of (eventRows ?? []) as {
+        order_id: string;
+        kind: DepositEventRow["kind"];
+        amount_grosze: number;
+      }[]) {
+        const list = eventsByOrder.get(row.order_id) ?? [];
+        list.push({ kind: row.kind, amount_grosze: row.amount_grosze });
+        eventsByOrder.set(row.order_id, list);
+      }
+      orders = orders.filter(
+        (order) =>
+          order.order_status !== "returned" ||
+          depositTotals(eventsByOrder.get(order.id) ?? []).balanceGrosze !== 0,
+      );
+    }
+  }
+
   const rows: OrdersTableRow[] = orders.map((order) => ({
     id: order.id,
     orderNumber: order.order_number,
@@ -180,25 +239,34 @@ export default async function OrdersPage({
     dir: filter.dir,
   };
 
-  const hasAnyOrders = stats.all.count > 0;
+  // W oknie domykania kafli nie ma, więc „czy są zamówienia" mówi zamrożony
+  // zbiór — a pusty zbiór NIE pokazuje zaproszenia do tworzenia (tworzenie
+  // jest OFF), tylko komunikat okna. Wyjścia po pustym zbiorze NIE MA —
+  // okno kończy wyłącznie zegar (spec (d): perwersyjny bodziec).
+  const hasAnyOrders = closing ? orders.length > 0 : stats.all.count > 0;
 
   return (
     <div className="flex flex-col gap-4">
       {/* Tytuł „Zamówienia" należy do belki (ADR-060: topbar jest jedynym
           właścicielem widocznego tytułu), więc tu zostaje sam PODTYTUŁ jako
-          copy kontekstowe i akcja „Nowe zamówienie". */}
+          copy kontekstowe i akcja „Nowe zamówienie" (w oknie domykania —
+          bez akcji: nowe zamówienie to nowe zobowiązanie, nie domykanie). */}
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
-        <Button asChild>
-          <Link href="/zamowienia/nowe">{t("newOrder")}</Link>
-        </Button>
+        <p className="text-muted-foreground text-sm">
+          {closing ? t("closingSubtitle") : t("subtitle")}
+        </p>
+        {closing ? null : (
+          <Button asChild>
+            <Link href="/zamowienia/nowe">{t("newOrder")}</Link>
+          </Button>
+        )}
       </header>
 
       {/* Tenant BEZ ani jednego zamówienia dostaje zaproszenie, nie kafle zer
           i pustą belkę filtrów — nie ma czego liczyć ani filtrować. */}
       {hasAnyOrders ? (
         <>
-          <OrdersStats stats={stats} currency={currency} locale={locale} />
+          {closing ? null : <OrdersStats stats={stats} currency={currency} locale={locale} />}
           <OrdersToolbar filter={filter} customers={customers ?? []} resultCount={visibleRows.length} />
           {visibleRows.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("empty")}</p>
@@ -209,6 +277,8 @@ export default async function OrdersPage({
             <OrdersList rows={visibleRows} locale={locale} sort={sort} baseParams={baseParams} />
           )}
         </>
+      ) : closing ? (
+        <p className="text-muted-foreground text-sm">{t("closingEmpty")}</p>
       ) : (
         <OrdersEmptyState />
       )}

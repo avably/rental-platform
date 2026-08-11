@@ -91,7 +91,32 @@ export default async function Home() {
   try {
     memberCtx = await requireMemberWithClient(ctx.supabase);
   } catch (error) {
-    if (error instanceof AuthError && error.code === "tenant_suspended") {
+    // Okno domykania (Zasada 8, ADR-138): pulpit NIE jest na allowliście —
+    // treść gaśnie tak samo (zero liczb biznesowych), ale operator w oknie
+    // dostaje wejście do huba domykania zamiast ślepej ściany.
+    if (error instanceof AuthError && error.code === "tenant_suspended_closing") {
+      return (
+        <div>
+          <h2 className="text-2xl font-semibold tracking-[-0.02em]">
+            {t("suspendedTitle")}
+          </h2>
+          <p className="text-muted-foreground mt-3 text-sm">{t("closingBody")}</p>
+          <Link
+            href="/zamowienia"
+            className="mt-6 inline-flex text-sm font-medium underline underline-offset-[3px]"
+          >
+            {t("closingOrdersCta")}
+          </Link>
+          {superadminEntry}
+        </div>
+      );
+    }
+    if (
+      error instanceof AuthError &&
+      (error.code === "tenant_suspended" ||
+        error.code === "tenant_locked" ||
+        error.code === "tenant_cancelled")
+    ) {
       // Treść gaśnie, trasa zostaje: zero metryk, zero RPC dashboardu.
       // Komunikat bez rozróżnienia suspended/cancelled/superadmin_locked
       // (decyzja 2 ADR-107) i bez CTA do tras, które i tak odmówią.

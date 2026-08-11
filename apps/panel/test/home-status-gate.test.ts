@@ -57,6 +57,8 @@ vi.mock("next-intl/server", () => ({
 
 interface FakeMemberRead {
   status?: string;
+  /** Zegar okna domykania (ADR-138); brak pola = null (okno zamknięte). */
+  suspendedAt?: string | null;
   missing?: boolean;
   error?: { message: string };
 }
@@ -97,7 +99,13 @@ function fakeClient() {
               if (memberRead.error) return { data: null, error: memberRead.error };
               if (memberRead.missing) return { data: null, error: null };
               return {
-                data: { role: "owner", tenants: { status: memberRead.status ?? "active" } },
+                data: {
+                  role: "owner",
+                  tenants: {
+                    status: memberRead.status ?? "active",
+                    suspended_at: memberRead.suspendedAt ?? null,
+                  },
+                },
                 error: null,
               };
             },
@@ -182,6 +190,24 @@ describe("pulpit `/` — statusy zamykające gaszą TREŚĆ, nie trasę (ADR-133
       expect(texts).not.toContain("suspendedTitle");
     },
   );
+
+  it("OKNO DOMYKANIA (ADR-138): suspended w oknie → dalej ZERO liczb, ale wejście do huba domykania", async () => {
+    // Spec (e)8: członek zawieszonego tenanta nie dostaje na `/` ani jednej
+    // liczby biznesowej — TAKŻE gdy okno domykania jest otwarte. Zmienia się
+    // wyłącznie copy: zamiast ślepej ściany operator widzi CTA do /zamowienia.
+    setSession(memberClaims, {
+      status: "suspended",
+      suspendedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    const { types, texts } = analyze(await Home());
+
+    expect(types).not.toContain(DashboardSections);
+    expect(texts).not.toContain("dashboardIntro");
+    expect(texts).toContain("suspendedTitle");
+    expect(texts).toContain("closingBody");
+    expect(texts).toContain("closingOrdersCta");
+  });
 
   it("izolacja: jedyny odczyt bramki idzie o WŁASNY wiersz members (klucze z claimu)", async () => {
     setSession(memberClaims, { status: "suspended" });

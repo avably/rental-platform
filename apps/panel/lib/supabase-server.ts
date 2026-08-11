@@ -8,7 +8,12 @@ import { cookies } from "next/headers";
 
 import { createServerClient, type Role } from "@avably/db";
 
-import { requireMemberWithClient, requireSuperadminWithClient, type AuthContext } from "./auth";
+import {
+  requireMemberWithClient,
+  requireSuperadminWithClient,
+  type AuthContext,
+  type RequireMemberOptions,
+} from "./auth";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -28,10 +33,17 @@ export async function createSupabaseServerClient() {
   });
 }
 
-/** Guard dla Server Components/Actions/Route Handlers panelu. */
-export async function requireMember(role?: Role): Promise<AuthContext> {
+/**
+ * Guard dla Server Components/Actions/Route Handlers panelu.
+ * `options.closing` = opt-in okna domykania (ADR-138) — wyłącznie dla
+ * wywołań z allowlisty Zasady 8, przypiętych inwentarzem-snapshotem.
+ */
+export async function requireMember(
+  role?: Role,
+  options?: RequireMemberOptions,
+): Promise<AuthContext> {
   const supabase = await createSupabaseServerClient();
-  return requireMemberWithClient(supabase, role);
+  return requireMemberWithClient(supabase, role, options);
 }
 
 /** Guard superadmina (claim superadmin + aal2) dla panelu. */

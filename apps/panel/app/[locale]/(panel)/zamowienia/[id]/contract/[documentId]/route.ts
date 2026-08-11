@@ -1,4 +1,5 @@
 import { AuthError } from "@/lib/auth";
+import { assertClosableOrder } from "@/lib/closing";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
 
@@ -13,9 +14,12 @@ export async function GET(
   if (!uuidSchema.safeParse(orderId).success || !uuidSchema.safeParse(documentId).success) {
     return new Response("Nieprawidłowy identyfikator.", { status: 400 });
   }
+  // Opt-in okna domykania (ADR-138): PDF umowy jest częścią kompletu
+  // umownego z allowlisty; zbiór pilnowany predykatem na argumencie.
   let context;
   try {
-    context = await requireMember();
+    context = await requireMember(undefined, { closing: true });
+    await assertClosableOrder(context, orderId);
   } catch (error) {
     if (error instanceof AuthError) return new Response(null, { status: error.status });
     throw error;

@@ -58,7 +58,9 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const ctx = await requireMemberPage(`/klienci/${id}`);
+  // Opt-in okna domykania (ADR-138) — jak lista klientów: odczyt pełny,
+  // mutacje bez opt-in odmawiają same.
+  const ctx = await requireMemberPage(`/klienci/${id}`, { closing: true });
 
   if (!uuidSchema.safeParse(id).success) notFound();
 

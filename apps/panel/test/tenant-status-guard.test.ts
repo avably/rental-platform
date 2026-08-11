@@ -63,6 +63,8 @@ interface FakeMemberRead {
   role?: string;
   /** Status zagnieżdżonego tenanta (domyślnie "active"). */
   status?: string;
+  /** Zegar okna domykania (ADR-138); brak pola = null (fail-closed). */
+  suspendedAt?: string | null;
   /** Brak wiersza members (cofnięte członkostwo). */
   missing?: boolean;
   /** Błąd odczytu (PostgrestError w uproszczeniu). */
@@ -99,7 +101,10 @@ function fakeClient(claims: Record<string, unknown> | null, member: FakeMemberRe
               return {
                 data: {
                   role: member.role ?? "owner",
-                  tenants: { status: member.status ?? "active" },
+                  tenants: {
+                    status: member.status ?? "active",
+                    suspended_at: member.suspendedAt ?? null,
+                  },
                 },
                 error: null,
               };
@@ -117,17 +122,19 @@ const memberClaims = (extra: Record<string, unknown> = {}) => ({
   app_metadata: { tenant_id: "t1", role: "owner", ...extra },
 });
 
-describe("requireMemberWithClient — statusy zamykające panel", () => {
-  it.each(["suspended", "cancelled", "superadmin_locked"] as const)(
-    "status %s → 403 tenant_suspended",
-    async (status) => {
-      const { client } = fakeClient(memberClaims(), { status });
-      await expect(requireMemberWithClient(client)).rejects.toMatchObject({
-        status: 403,
-        code: "tenant_suspended",
-      });
-    },
-  );
+describe("requireMemberWithClient — statusy zamykające panel (kody rozdzielone, ADR-138)", () => {
+  it.each([
+    // suspended BEZ zegara (sprzed 0067 / anomalia) — fail-closed, okno zamknięte.
+    ["suspended", "tenant_suspended"],
+    ["cancelled", "tenant_cancelled"],
+    ["superadmin_locked", "tenant_locked"],
+  ] as const)("status %s → 403 %s", async (status, code) => {
+    const { client } = fakeClient(memberClaims(), { status });
+    await expect(requireMemberWithClient(client)).rejects.toMatchObject({
+      status: 403,
+      code,
+    });
+  });
 
   it.each(["trialing", "active", "past_due"] as const)(
     "status %s przepuszcza i trafia do kontekstu",
@@ -237,4 +244,127 @@ describe("requireMemberPage — dokąd trafia odmowa tenant_suspended", () => {
     expect(ctx.tenantId).toBe("t1");
     expect(ctx.tenantStatus).toBe("active");
   });
+});
+
+/**
+ * OKNO DOMYKANIA (Zasada 8, ADR-138) — zegar graniczny po OBU stronach progu
+ * i macierz opt-in. Arytmetykę zegara dowodzi closing-window.test.ts w core;
+ * tu pilnujemy, że GUARD faktycznie od niej zależy (mutacja zdejmująca
+ * warunek okna z rdzenia pali graniczne testy niżej).
+ */
+describe("requireMemberWithClient — okno domykania (ADR-138)", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  /** suspended_at N dni (i epsilon) temu, względem realnego zegara guardu. */
+  const suspendedAgo = (ms: number) => new Date(Date.now() - ms).toISOString();
+  const INSIDE_WINDOW = () => suspendedAgo(29 * DAY_MS); // dzień zapasu
+  const EDGE_STILL_OPEN = () => suspendedAgo(30 * DAY_MS - 60_000); // minuta przed progiem
+  const EDGE_CLOSED = () => suspendedAgo(30 * DAY_MS + 60_000); // minuta po progu
+
+  it("suspended w oknie + opt-in { closing: true } → PRZEPUSZCZA z ctx.closing i zegarem", async () => {
+    const suspendedAt = INSIDE_WINDOW();
+    const { client } = fakeClient(memberClaims(), { status: "suspended", suspendedAt });
+    const ctx = await requireMemberWithClient(client, undefined, { closing: true });
+    expect(ctx.closing).toBe(true);
+    expect(ctx.tenantStatus).toBe("suspended");
+    expect(ctx.suspendedAt).toBe(suspendedAt);
+  });
+
+  it("suspended w oknie BEZ opt-in → 403 tenant_suspended_closing (odmowa domyślna)", async () => {
+    const { client } = fakeClient(memberClaims(), {
+      status: "suspended",
+      suspendedAt: INSIDE_WINDOW(),
+    });
+    await expect(requireMemberWithClient(client)).rejects.toMatchObject({
+      status: 403,
+      code: "tenant_suspended_closing",
+    });
+  });
+
+  it("ZEGAR GRANICZNY: minutę PRZED progiem okno otwarte (opt-in przechodzi)", async () => {
+    const { client } = fakeClient(memberClaims(), {
+      status: "suspended",
+      suspendedAt: EDGE_STILL_OPEN(),
+    });
+    const ctx = await requireMemberWithClient(client, undefined, { closing: true });
+    expect(ctx.closing).toBe(true);
+  });
+
+  it("ZEGAR GRANICZNY: minutę PO progu odmowa KAŻDEJ akcji, także z opt-in → tenant_suspended", async () => {
+    const { client } = fakeClient(memberClaims(), {
+      status: "suspended",
+      suspendedAt: EDGE_CLOSED(),
+    });
+    await expect(
+      requireMemberWithClient(client, undefined, { closing: true }),
+    ).rejects.toMatchObject({ status: 403, code: "tenant_suspended" });
+  });
+
+  it("suspended BEZ zegara (null) + opt-in → tenant_suspended (fail-closed)", async () => {
+    const { client } = fakeClient(memberClaims(), { status: "suspended", suspendedAt: null });
+    await expect(
+      requireMemberWithClient(client, undefined, { closing: true }),
+    ).rejects.toMatchObject({ code: "tenant_suspended" });
+  });
+
+  it.each([
+    ["cancelled", "tenant_cancelled"],
+    ["superadmin_locked", "tenant_locked"],
+  ] as const)("opt-in NIE otwiera statusu %s (świeży zegar bez znaczenia) → %s", async (status, code) => {
+    const { client } = fakeClient(memberClaims(), { status, suspendedAt: INSIDE_WINDOW() });
+    await expect(
+      requireMemberWithClient(client, undefined, { closing: true }),
+    ).rejects.toMatchObject({ status: 403, code });
+  });
+
+  it("poza suspended ctx.closing zostaje false i suspendedAt null — opt-in bez skutku", async () => {
+    const { client } = fakeClient(memberClaims(), { status: "active" });
+    const ctx = await requireMemberWithClient(client, undefined, { closing: true });
+    expect(ctx.closing).toBe(false);
+    expect(ctx.suspendedAt).toBeNull();
+  });
+});
+
+describe("requireMemberPage — okno domykania: dokąd trafiają odmowy (przez REALNY rdzeń)", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    currentLocale = "pl";
+    requireMemberMock.mockReset();
+  });
+
+  it("strona POZA allowlistą przy otwartym oknie → /zamowienia (hub domykania), nie ekran zamknięcia", async () => {
+    const { client } = fakeClient(memberClaims(), {
+      status: "suspended",
+      suspendedAt: new Date(Date.now() - DAY_MS).toISOString(),
+    });
+    requireMemberMock.mockImplementation(() => requireMemberWithClient(client));
+
+    await expect(requireMemberPage("/katalog")).rejects.toMatchObject({
+      url: "/pl/zamowienia",
+    });
+  });
+
+  it("po zamknięciu okna KAŻDA strona → /organizacja-zawieszona (jak dotąd)", async () => {
+    const { client } = fakeClient(memberClaims(), {
+      status: "suspended",
+      suspendedAt: new Date(Date.now() - 31 * DAY_MS).toISOString(),
+    });
+    requireMemberMock.mockImplementation(() => requireMemberWithClient(client));
+
+    await expect(requireMemberPage("/zamowienia")).rejects.toMatchObject({
+      url: "/pl/organizacja-zawieszona",
+    });
+  });
+
+  it.each(["cancelled", "superadmin_locked"] as const)(
+    "status %s → /organizacja-zawieszona (rozdzielone kody nie zgubiły przekierowania)",
+    async (status) => {
+      const { client } = fakeClient(memberClaims(), { status });
+      requireMemberMock.mockImplementation(() => requireMemberWithClient(client));
+
+      await expect(requireMemberPage("/zamowienia")).rejects.toMatchObject({
+        url: "/pl/organizacja-zawieszona",
+      });
+    },
+  );
 });

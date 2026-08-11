@@ -31,7 +31,9 @@ import { PlanBillingSection } from "./plan-billing-section";
  * app.tenant_id()`). Żadnych nowych uprawnień, żadnego service-role.
  */
 export default async function OrganizationPage() {
-  const ctx = await requireMemberPage("/organizacja");
+  // Opt-in okna domykania (ADR-138): /organizacja jest i tak read-only,
+  // a sekcja rozliczeń (2a) to jedyna droga zapłaty przywracającej dostęp.
+  const ctx = await requireMemberPage("/organizacja", { closing: true });
 
   const { data: tenant } = await ctx.supabase
     .from("tenants")

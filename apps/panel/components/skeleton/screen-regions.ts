@@ -390,8 +390,15 @@ export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>>
  * ta liczba urosła z 4 na 5 po #118 (karta notatek) i SPADŁA z powrotem na 4
  * po D6/N4: pozycje przestały być tabelą inline i wyszły do `<ItemsSection`,
  * bo edycja potrzebuje własnego odczytu katalogu i dostępności.
+ *
+ * OD ADR-138 znowu 6 — ale to NIE są nowe regiony szkieletu: dwie sekcje
+ * read-only okna domykania (pozycje `data-items-readonly`, pola własne
+ * `data-order-custom-fields-readonly`) to ALTERNATYWY renderowane wyłącznie
+ * przy `ctx.closing` W MIEJSCE `<ItemsSection>` i `<OrderCustomFieldsSection>`
+ * — zajmują dokładnie te same regiony (section-items, order-custom-fields),
+ * które szkielet już rezerwuje dla wariantu edytowalnego.
  */
-export const ORDER_DETAIL_INLINE_SECTIONS = 4;
+export const ORDER_DETAIL_INLINE_SECTIONS = 6;
 
 /* ── Lista klientów (R6a) ──────────────────────────────────────────────── */
 

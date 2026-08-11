@@ -1,4 +1,5 @@
 import { ReviewOverlayGate } from "@avably/review/overlay";
+import { isClosingWindowOpen } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 
@@ -11,6 +12,7 @@ import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
 import { SuperadminEntry } from "@/components/shell/superadmin-entry";
 import { Link } from "@/i18n/navigation";
 import { getAuthContext } from "@/lib/auth";
+import { readTenantBillingState } from "@/lib/closing";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -35,8 +37,16 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 export default async function PanelLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const ctx = await getAuthContext(await createSupabaseServerClient());
+  const supabase = await createSupabaseServerClient();
+  const ctx = await getAuthContext(supabase);
   const t = await getTranslations("nav");
+
+  // JEDEN fail-silent odczyt stanu rozliczeń na żądanie shella (ADR-138):
+  // karmi baner (licznik dni okna) i filtr nawigacji. Layout dalej NIE jest
+  // guardem — `closing` tu to wyłącznie decyzja „czego nie pokazywać";
+  // twardą bramką pozostaje requireMember na każdym ekranie i akcji.
+  const billing = ctx?.tenantId ? await readTenantBillingState(supabase, ctx.tenantId) : null;
+  const closing = billing?.status === "suspended" && isClosingWindowOpen(billing.suspendedAt);
 
   // Nonce żądania (ADR-012) — bez niego CSP `strict-dynamic` odmówi wykonania
   // skryptu startowego sidebara i pasek wracałby do rozwiniętego przy każdym
@@ -118,14 +128,15 @@ export default async function PanelLayout({
             <SidebarToggle />
           </div>
         </div>
-        <SidebarNav />
+        <SidebarNav closing={closing} />
         <SuperadminEntry superadmin={Boolean(ctx?.superadmin)} label={t("superadminPanel")} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <PanelTopbar userEmail={ctx?.user.email ?? ""} />
-        {/* Baner rozliczeń (ADR-136): past_due/suspended — presja na najemcę
-            zostaje w panelu (zasada 3), sklep działa. Fail-silent, nie guard. */}
-        <BillingStatusBanner />
+        <PanelTopbar userEmail={ctx?.user.email ?? ""} closing={closing} />
+        {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
+            najemcę zostaje w panelu (zasada 3), sklep działa; w oknie
+            domykania baner niesie licznik dni. Fail-silent, nie guard. */}
+        <BillingStatusBanner state={billing} />
         {/*
           `tabIndex={-1}` czyni <main> celem programowego fokusu: bez tego
           skok „Przejdź do treści" przewija stronę, ale zostawia fokus przy
