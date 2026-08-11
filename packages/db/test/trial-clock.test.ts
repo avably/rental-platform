@@ -15,17 +15,26 @@
  *   3. kolumna jest nullable Z KONSTRUKCJI: wiersz spoza app.create_tenant
  *      (service-role, np. fabryki RLS) nie ma zegara i to jest legalne,
  *   4. status świeżego tenanta to wciąż default 'trialing' — 0066 nie rusza
- *      statusów ani CHECK-ów (twarda granica fazy 1).
+ *      statusów ani CHECK-ów (twarda granica fazy 1),
+ *   5. PARYTET SQL↔STAŁA (wzorzec introspekcji z ADR-134,
+ *      commercial-active-predicate.test.ts): interwał zegara w definicji
+ *      app.create_tenant na ŻYWEJ bazie odpowiada `SAAS_TRIAL_DAYS`
+ *      z @avably/core — tej samej stałej, którą parytet treści LP przypina
+ *      test apps/storefront/test/saas-trial-days-parity.test.ts. Punkt 1
+ *      liczy oczekiwany interwał TAKŻE ze stałej (make_interval), więc
+ *      zmiana stałej bez migracji pali i introspekcję, i zachowanie.
  *
  * DOWÓD MUTACYJNY (a): zdjęcie trial_ends_at z INSERT-u w create_tenant
  * (redefinicja funkcji bez zegara) pali punkt 1. Restore = aplikacja bloku
- * z PLIKU 0066.
+ * z PLIKU 0066. DOWÓD (b): SAAS_TRIAL_DAYS±1 pali punkty 1 i 5 bez
+ * dotykania bazy.
  *
  * Wymaga lokalnego Supabase (SUPABASE_LOCAL_*); bez nich pomijany JAWNIE
  * (helpers/integration-env.ts).
  */
 import { randomUUID } from "node:crypto";
 
+import { SAAS_TRIAL_DAYS } from "@avably/core";
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, describe, expect, it } from "vitest";
@@ -124,22 +133,46 @@ describe.skipIf(!hasEnv)("zegar triala — app.create_tenant (0066, ADR-135)", (
     return tenantId;
   }
 
-  it("świeży tenant: trial_ends_at = created_at + DOKŁADNIE 14 dni, status default 'trialing'", async () => {
+  it(`świeży tenant: trial_ends_at = created_at + DOKŁADNIE ${SAAS_TRIAL_DAYS} dni (stała), status default 'trialing'`, async () => {
     const client = await signedInUser(admin);
     const tenantId = await createTenant(client);
 
+    // Oczekiwany interwał liczony ze STAŁEJ, nie z literału — zmiana
+    // SAAS_TRIAL_DAYS bez migracji zegara pali ten test zachowaniem.
     const rows = await sql!<
-      { status: string; exact_14: boolean; trial_ends_at: string | null }[]
+      { status: string; exact_trial: boolean; trial_ends_at: string | null }[]
     >`
       select status,
-             trial_ends_at = created_at + interval '14 days' as exact_14,
+             trial_ends_at = created_at + make_interval(days => ${SAAS_TRIAL_DAYS}) as exact_trial,
              trial_ends_at
       from public.tenants where id = ${tenantId}
     `;
     expect(rows).toHaveLength(1);
     expect(rows[0]!.trial_ends_at).not.toBeNull();
-    expect(rows[0]!.exact_14).toBe(true);
+    expect(rows[0]!.exact_trial).toBe(true);
     expect(rows[0]!.status).toBe("trialing");
+  });
+
+  it("parytet SQL↔stała: interwał zegara w definicji app.create_tenant = SAAS_TRIAL_DAYS", async () => {
+    // Introspekcja wprost z silnika (wzorzec ADR-134): łapie także
+    // redefinicję funkcji spoza plików tego repo. Obie strony parytetu:
+    // dokładnie JEDEN interwał dniowy w definicji i ma on wartość stałej.
+    const rows = await sql!<{ definition: string }[]>`
+      select pg_get_functiondef(p.oid) as definition
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'app' and p.proname = 'create_tenant'
+    `;
+    expect(rows, "app.create_tenant nie istnieje na żywej bazie").toHaveLength(1);
+    const znormalizowana = rows[0]!.definition.toLowerCase().replace(/\s+/g, " ");
+    const interwaly = [...znormalizowana.matchAll(/interval '(\d+) days?'/g)].map((m) =>
+      Number(m[1]),
+    );
+    expect(
+      interwaly,
+      "definicja app.create_tenant ma liczyć zegar triala z JEDNEGO interwału " +
+        `dniowego o wartości SAAS_TRIAL_DAYS (${SAAS_TRIAL_DAYS})`,
+    ).toEqual([SAAS_TRIAL_DAYS]);
   });
 
   it("zegar w przeszłości NIE zmienia decyzji komercyjnej (predykat ADR-134 czyta status, nie datę)", async () => {

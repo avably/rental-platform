@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { SAAS_PLAN_PRICING } from "@avably/core";
+import { SAAS_PLAN_PRICING, SAAS_TRIAL_DAYS } from "@avably/core";
 import { describe, expect, it } from "vitest";
 
 import { PUBLIC_PAGES, TEMPLATE_ROUTES } from "@/lib/marketing/template";
@@ -268,14 +268,16 @@ describe("treść przeniesionych stron", () => {
       grupuj(zlote(cennik.standard.yearlyNetGrosze), ","),
     );
 
-    // Trial 14 dni BEZ KARTY — obie wersje językowe, na banerze i na cenniku.
+    // Trial BEZ KARTY — obie wersje językowe, na banerze i na cenniku.
+    // Długość ze stałej (SAAS_TRIAL_DAYS, ADR-135) — pełny parytet
+    // dwukierunkowy pilnuje saas-trial-days-parity.test.ts.
     for (const [name, text] of [
       ["pl.banner", pl.marketing.banner.text],
       ["en.banner", en.marketing.banner.text],
       ["pl.intro", pl.marketing.pricingPage.intro],
       ["en.intro", en.marketing.pricingPage.intro],
     ] as const) {
-      expect(text, name).toMatch(/14/);
+      expect(text, name).toContain(String(SAAS_TRIAL_DAYS));
       expect(text, `${name}: trial musi być opisany jako bez karty`).toMatch(
         /bez karty|no card/i,
       );
