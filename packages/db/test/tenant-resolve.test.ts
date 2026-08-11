@@ -4,8 +4,9 @@
  * To jest bramka izolacji routingu storefrontu: middleware zamienia slug z
  * subdomeny na tenant_id TĄ funkcją, anonimowo (odwiedzający sklep nie ma
  * sesji). Test dowodzi trzech rzeczy:
- *   1. anon dostaje id dla tenanta OSIĄGALNEGO (status trialing|active),
- *   2. tenant NIEAKTYWNY (suspended/cancelled/past_due/superadmin_locked) jest
+ *   1. anon dostaje id dla tenanta KOMERCYJNIE AKTYWNEGO (trialing|active|
+ *      past_due — predykat app.tenant_commercially_active, 0065/ADR-134),
+ *   2. tenant NIEAKTYWNY (suspended/cancelled/superadmin_locked) jest
  *      dla anona nieodróżnialny od nieistniejącego — funkcja zwraca NULL,
  *   3. funkcja zwraca WYŁĄCZNIE uuid, a bezpośredni SELECT z tenants dla anona
  *      nadal nic nie zwraca (RPC to jedyna ścieżka, nie wyłom w RLS).
@@ -106,10 +107,27 @@ describe.skipIf(!hasEnv)("app.resolve_tenant_by_slug — 0017", () => {
     expect(data).toBe(tenant.id);
   });
 
-  // DOWÓD MUTACYJNY (izolacja): rozluźnienie filtra statusu w funkcji (np.
+  // OKNO DUNNINGOWE (0065, ADR-134): `past_due` to normalna praca dla KLIENTÓW
+  // najemcy — sklep MUSI się rozwiązywać. To jest delta tej migracji: przed
+  // 0065 ten test widziałby NULL. DOWÓD MUTACYJNY: usunięcie 'past_due' ze
+  // zbioru w app.tenant_commercially_active pali ten test.
+  it("anon dostaje id dla tenanta ze statusem 'past_due' (okno dunningowe)", async () => {
+    const tenant = await seedTenant(admin, "past_due");
+    const { data, error } = await anon
+      .schema("app")
+      .rpc("resolve_tenant_by_slug", { p_slug: tenant.slug });
+
+    expect(error, `RPC jako anon zawiodło: ${error?.message}`).toBeNull();
+    expect(
+      data,
+      "tenant w oknie dunningowym (past_due) nie rozwiązuje się — sklep najemcy zgaszony wbrew zasadzie 2",
+    ).toBe(tenant.id);
+  });
+
+  // DOWÓD MUTACYJNY (izolacja): rozluźnienie zbioru w predykacie (np.
   // dopuszczenie 'suspended') sprawi, że ten test przestanie widzieć NULL i
   // spali się — nieaktywny sklep stałby się osiągalny.
-  it.each(["suspended", "cancelled", "past_due", "superadmin_locked"])(
+  it.each(["suspended", "cancelled", "superadmin_locked"])(
     "tenant '%s' jest dla anona nieodróżnialny od nieistniejącego (NULL)",
     async (status) => {
       const tenant = await seedTenant(admin, status);

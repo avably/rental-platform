@@ -62,8 +62,17 @@ export async function authenticateApiRequest(
 
 /**
  * Statusy tenanta, dla których publiczna powierzchnia przyjmuje ruch —
- * LUSTRO bramek `status in ('trialing','active')` w RPC publicznych (0020).
+ * LUSTRO predykatu SQL `app.tenant_commercially_active(status)` (migracja
+ * 0065, ADR-134): zbiór komercyjnie aktywny = trialing | active | past_due.
+ * `past_due` przepuszcza ŚWIADOMIE (okno dunningowe, zasada 2 — decyzja
+ * właściciela 2026-08-10): zaległość najemcy wobec platformy nie może gasić
+ * zakupów JEGO klientów; nacisk idzie na najemcę banerem/mailem w panelu.
  * Rozjazd tych zbiorów dawałby klucz działający na katalogu, ale nie na
- * rezerwacji (albo odwrotnie).
+ * rezerwacji (albo odwrotnie) — parytet SQL↔TS pilnowany testem
+ * integracyjnym (test/tenant-status-parity.test.ts), nie pamięcią autora.
  */
-export const API_ACTIVE_TENANT_STATUSES: readonly string[] = ["trialing", "active"];
+export const API_ACTIVE_TENANT_STATUSES: readonly string[] = [
+  "trialing",
+  "active",
+  "past_due",
+];
