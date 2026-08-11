@@ -232,7 +232,7 @@ jobs:
       # zdiagnozowania (przebieg dzieje się w headless przeglądarce).
       - name: Artefakty diagnostyczne po porażce
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-artefakty
           path: packages/e2e/.artefakty/
