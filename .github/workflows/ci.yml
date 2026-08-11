@@ -7,6 +7,23 @@ on:
 # maszyn, a pakiet 2000 minut wyczerpał się w połowie miesiąca — wtedy GitHub
 # przestaje TWORZYĆ przebiegi i nie da się nic zmergować. Bramek to nie
 # osłabia: zmienia się KIEDY joby biegną, nie CO sprawdzają.
+#
+# 2026-08-11: CI przeniesione NA STAŁE na self-hosted runner `mac-pm`
+# (macOS ARM64, Mac PM-a) — decyzja właściciela: limit wydatków Actions
+# zostaje na zerze, a hosted runy stanęły na billing blocku (~18:41Z GitHub
+# przestał wykonywać joby). Minuty self-hosted są DARMOWE; koszt przenosi
+# się z portfela na obciążenie maszyny. Konsekwencje:
+#   * jeden runner = joby biegną SZEREGOWO (wall-time przebiegu to SUMA
+#     jobów, nie maksimum) — `concurrency.cancel-in-progress` dla PR-ów
+#     jest przez to jeszcze ważniejsze niż na hosted;
+#   * na tym samym Macu działa WSPÓŁDZIELONY deweloperski Supabase
+#     (project_id "db", porty 543xx) — joby `rls`/`e2e` MUSZĄ izolować swój
+#     efemeryczny stack (łatka + sonda: .github/scripts/supabase-ci-*.sh);
+#   * `actions/cache` nie ma sensu (sieciowa wycieczka do magazynu GitHuba):
+#     magazyn pnpm (~/Library/pnpm/store) i przeglądarki Playwrighta
+#     (~/Library/Caches/ms-playwright) żyją na dysku runnera między
+#     przebiegami; workspace runnera czyści `actions/checkout` (clean:true),
+#     a kontenery/wolumeny CI sprząta krok `always()` po każdym jobie.
 concurrency:
   # Grupa per workflow + ref. Dla `push` doklejamy SHA, więc każdy merge na
   # `main` ma WŁASNĄ grupę: przebiegi z main ani się nie ubijają, ani nie
@@ -24,7 +41,16 @@ jobs:
     # w YAML-u celowo — logika bramki musi dać się przetestować lokalnie,
     # bez palenia minut, i jest przypięta suitą
     # `apps/panel/test/ci-zakres-zmian.test.ts`.
-    runs-on: ubuntu-latest
+    #
+    # DLACZEGO klasyfikator, a nie `paths:`/`paths-ignore:` na workflow:
+    # filtr ścieżek na poziomie workflow w ogóle NIE TWORZY przebiegu, więc
+    # wymagane checki wiszą jako „Expected" w nieskończoność i PR nie jest
+    # mergowalny. Tu `zakres` biegnie ZAWSZE, a ciężkie joby dostają zawsze
+    # KONKLUZJĘ: `success`/`failure` albo `skipped` — `skipped` spełnia
+    # wymagane checki. Merge-gate PM: na PR docs-only zielony jest sam
+    # `zakres`, pozostałe joby mają stan „skipped" (to wynik bramki, nie
+    # awaria); „pending" nie występuje z konstrukcji.
+    runs-on: [self-hosted, macOS, ARM64]
     outputs:
       pomin: ${{ steps.ocena.outputs.pomin }}
     steps:
@@ -32,6 +58,11 @@ jobs:
       # znaczyć pełne CI, nie pominięcie.
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      # Self-hosted: nie polegamy na Node z PATH maszyny (brew trzyma tam
+      # Node 20) — klasyfikator ma biec na wersji przypiętej w repo (22).
+      # Po pierwszym pobraniu binarka siedzi w tool-cache runnera (~2 s).
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
       - id: ocena
         env:
           ZDARZENIE: ${{ github.event_name }}
@@ -72,12 +103,18 @@ jobs:
     # minuty, nigdy bramkę.
     needs: zakres
     if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6.0.10
+      # Bez `cache: pnpm` (self-hosted): cache akcji to sieciowa wycieczka do
+      # magazynu GitHuba, a magazyn pnpm (~/Library/pnpm/store) leży na dysku
+      # runnera i przeżywa między przebiegami — instalacja idzie twardymi
+      # dowiązaniami z lokalnego store (checkout czyści node_modules, store
+      # zostaje). Wzrost store jest ograniczony treścią (content-addressable);
+      # higiena ręczna: `pnpm store prune` przy okazji porządków na maszynie.
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 22 }
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
@@ -86,6 +123,9 @@ jobs:
       # strażnik (test/helpers/integration-env.ts) zamienia ciche pominięcie
       # w czerwony wynik. Job `rls` biegnie BEZ flagi — tam zniknięcie
       # zmiennych ma być błędem, nie pominięciem.
+      # Self-hosted: środowisko runnera NIE ma zmiennych SUPABASE_LOCAL_*
+      # (zweryfikowane na mac-pm) — testy integracyjne w tym jobie się
+      # pomijają i NIE dotykają współdzielonego deweloperskiego Supabase.
       - run: pnpm test
         env: { ALLOW_INTEGRATION_SKIP: "1" }
       # Smoke-test nagłówków bezpieczeństwa (Zadanie 7): CSP z nonce (bez
@@ -106,6 +146,9 @@ jobs:
       # konfiguracji ESLinta (ADR-067).
       - name: Bramka service-role (wyłącznie webhooki i joby)
         run: bash scripts/audit-service-role.sh
+      # Wartości env są tu MARKERAMI do grepa po zbudowanym bundlu (bramka
+      # szuka wmurowanej WARTOŚCI) — nic się z nimi nie łączy, więc adres
+      # 127.0.0.1:54321 nie dotyka współdzielonego Supabase na mac-pm.
       - name: Bramka wmurowania NEXT_PUBLIC_* w bundlu klienckim panelu
         run: bash scripts/audit-browser-env-inlining.sh
         env:
@@ -118,22 +161,27 @@ jobs:
     # 120+ testów wtyczki odpalało się WYŁĄCZNIE ręcznie
     # (dev/run-tests.sh) — trzy pozostałe joby nie mówią o nich nic, więc
     # bramka degradowała się przy pierwszym refaktorze (recenzja PM #216).
-    # Job biegnie na KAŻDYM PR (jest tani, < 1 min): warunkowanie po
-    # ścieżkach tworzyłoby martwe pole przy zmianach zależności
-    # współdzielonych ze skryptem paczki.
-    runs-on: ubuntu-latest
+    #
+    # Od 2026-08-11 (self-hosted) job przechodzi przez bramkę `zakres`, jak
+    # pozostałe. To NIE jest odrzucone w #216 warunkowanie po wzorcach
+    # ścieżek: klasyfikator to fail-closed BIAŁA LISTA dokumentacji (każda
+    # nieznana ścieżka = pełny przebieg), a zmiana docs-only nie może dotknąć
+    # źródeł wtyczki. Na własnym sprzęcie oszczędzamy nie minuty, a obciążenie
+    # Maca PM-a. Merge-gate: na PR docs-only job ma stan `skipped` (patrz
+    # komentarz przy jobie `zakres`).
+    needs: zakres
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          # Ta sama wersja, co lokalny kontener dev (php:8.1-cli) — wtyczka
-          # deklaruje zgodność od PHP 8.1, więc testujemy dolną granicę.
-          php-version: "8.1"
-          coverage: none
-      - name: Pobierz PHPUnit (wersja z dev/run-tests.sh)
-        run: curl -fsSL -o /tmp/phpunit.phar https://phar.phpunit.de/phpunit-10.5.38.phar
-      - name: Testy jednostkowe wtyczki
-        run: php /tmp/phpunit.phar -c integrations/wordpress/avably-booking/phpunit.xml.dist
+      # macOS bez PHP na hoście: testy biegną w kontenerze php:8.1-cli przez
+      # TEN SAM skrypt co lokalny dev (dev/run-tests.sh) — dolna granica
+      # zgodności wtyczki (PHP 8.1), zero mutowania maszyny runnera.
+      # PHPUnit (phar, ~7 MB) skrypt pobiera do dev/.cache w workspace —
+      # checkout czyści workspace, więc pobranie powtarza się per przebieg;
+      # świadomie akceptowane (mały plik, deterministyczna wersja).
+      - name: Testy jednostkowe wtyczki (kontener php:8.1-cli)
+        run: sh integrations/wordpress/avably-booking/dev/run-tests.sh
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       # Paczka w repo MUSI odpowiadać źródłom wtyczki bajt w bajt — inaczej
@@ -144,22 +192,43 @@ jobs:
 
   rls:
     # Macierz testów izolacji RLS (packages/db/test/rls-isolation.test.ts) —
-    # najważniejsza bramka bezpieczeństwa Fazy 0. Osobny, równoległy job:
-    # potrzebuje działającego lokalnego Supabase (Postgres + Auth + PostgREST
-    # w kontenerach), którego job `ci` nie uruchamia.
+    # najważniejsza bramka bezpieczeństwa Fazy 0. Osobny job: potrzebuje
+    # działającego lokalnego Supabase (Postgres + Auth + PostgREST w
+    # kontenerach), którego job `ci` nie uruchamia.
     # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
     needs: zakres
     if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6.0.10
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 22 }
       - run: pnpm install --frozen-lockfile
+      # Wersja CLI PRZYPIĘTA (nie `latest`): obrazy Dockera są dobierane per
+      # wersja CLI — 2.109.1 to wersja używana lokalnie na mac-pm, więc jej
+      # obrazy już są na dysku i start nic nie pobiera. Podbijaj ŚWIADOMIE:
+      # pierwszy przebieg po podbiciu ściąga nowe obrazy (rzędu GB).
       - uses: supabase/setup-cli@v3
-        with: { version: latest }
-      - run: supabase start
+        with: { version: 2.109.1 }
+      # KRYTYCZNE (self-hosted): na tym Macu działa WSPÓŁDZIELONY deweloperski
+      # Supabase o TEJ SAMEJ konfiguracji (project_id "db", porty 543xx) —
+      # identyfikator projektu pochodzi z config.toml, NIE z katalogu
+      # roboczego. Bez łatki `supabase db reset` niżej zaorałby bazę
+      # deweloperską. Łatka: project_id "db-ci", porty 563xx.
+      - name: Izolacja efemerycznego Supabase od instancji współdzielonej
+        run: bash .github/scripts/supabase-ci-izolacja.sh
+      # Sonda pali job, ZANIM cokolwiek dotknie Dockera, jeśli config nadal
+      # wskazuje instancję współdzieloną (mutacja „zdjęto łatkę" = czerwień).
+      - name: Sonda izolacji portów
+        run: bash .github/scripts/supabase-ci-sonda-izolacji.sh
+      # `-x`: colima ma 4 GiB na WSZYSTKIE kontenery (stack współdzielony,
+      # WordPressy dev i ten stack CI naraz) — stawiamy tylko to, czego suity
+      # używają: db, kong, auth (niewyłączalny), rest, storage. Wykluczone
+      # studio/meta/inbucket/realtime/edge-runtime/imgproxy/vector/analytics
+      # nie są dotykane przez żadną suitę (realtime w testach to wyłącznie
+      # transport WebSocket w konstruktorze klienta, bez subskrypcji).
+      - run: supabase start -x studio,meta,inbucket,realtime,edge-runtime,functions,imgproxy,vector,analytics
         working-directory: packages/db
       - run: supabase db reset
         working-directory: packages/db
@@ -181,6 +250,12 @@ jobs:
       # pomija się sam (brak zmiennych SUPABASE_LOCAL_*), więc bez tego kroku
       # dowód „zapis naprawdę tworzy wiersz" nie wykonywałby się w CI nigdy.
       - run: pnpm --filter storefront test
+      # Efemeryczny stack nie może przeżyć joba ani zostawić wolumenów
+      # (własny sprzęt). Skrypt ma GUARD: nie tknie instancji współdzielonej,
+      # nawet gdyby łatka izolacji nie doszła do skutku.
+      - name: Sprzątanie efemerycznego Supabase
+        if: always()
+        run: bash .github/scripts/supabase-ci-sprzatanie.sh
 
   e2e:
     # Testy end-to-end ścieżki krytycznej (packages/e2e): przeglądarkowy
@@ -189,19 +264,27 @@ jobs:
     # jak w jobie `rls`. Noga płatności biegnie torem stubowanym — podpis
     # webhooka i werdykt z odczytu są prawdziwe, API dostawcy udaje lokalny
     # stub (granica zaufania: ADR-101). Sekrety dostawcy nie są potrzebne.
+    # Porty aplikacji (4300-4302) są poza zakresami używanymi na mac-pm
+    # (dev-serwery 3000+, Supabase 543xx/563xx, WordPressy 8090/8099).
     # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
     needs: zakres
     if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6.0.10
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version: 22 }
       - run: pnpm install --frozen-lockfile
+      # Wersja przypięta — uzasadnienie przy jobie `rls`.
       - uses: supabase/setup-cli@v3
-        with: { version: latest }
-      - run: supabase start
+        with: { version: 2.109.1 }
+      # Izolacja od współdzielonego Supabase — uzasadnienie przy jobie `rls`.
+      - name: Izolacja efemerycznego Supabase od instancji współdzielonej
+        run: bash .github/scripts/supabase-ci-izolacja.sh
+      - name: Sonda izolacji portów
+        run: bash .github/scripts/supabase-ci-sonda-izolacji.sh
+      - run: supabase start -x studio,meta,inbucket,realtime,edge-runtime,functions,imgproxy,vector,analytics
         working-directory: packages/db
       - run: supabase db reset
         working-directory: packages/db
@@ -216,12 +299,13 @@ jobs:
             echo "SUPABASE_LOCAL_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
-      - name: Cache przeglądarek Playwright
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm --filter @avably/e2e exec playwright install chromium --with-deps
+      # Bez `--with-deps` (to apt-get na Linuksie; macOS nie ma zależności
+      # systemowych do doinstalowania) i bez `actions/cache`: przeglądarki
+      # lądują w ~/Library/Caches/ms-playwright na dysku runnera i przeżywają
+      # między przebiegami — krok jest no-opem, dopóki nie zmieni się wersja
+      # Playwrighta. Higiena ręczna przy porządkach: stare wersje przeglądarek
+      # usuwa `pnpm --filter @avably/e2e exec playwright uninstall --all`.
+      - run: pnpm --filter @avably/e2e exec playwright install chromium
       # NEXT_PUBLIC_* to stałe build-time — build MUSI iść po eksporcie
       # zmiennych lokalnego Supabase, inaczej bundle wmuruje puste wartości.
       - name: Produkcyjny build obu aplikacji
@@ -244,3 +328,6 @@ jobs:
           # przy wymuszonej porażce e2e (run 31492243755), bo krok stoi pod
           # if: failure() i zielone CI nigdy go nie wykonuje.
           include-hidden-files: true
+      - name: Sprzątanie efemerycznego Supabase
+        if: always()
+        run: bash .github/scripts/supabase-ci-sprzatanie.sh
