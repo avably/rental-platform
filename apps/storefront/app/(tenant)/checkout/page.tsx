@@ -5,8 +5,7 @@
  * koszyka i woła submitCheckout (rdzeń 2.4a).
  *
  * Site key Turnstile z NEXT_PUBLIC_TURNSTILE_SITE_KEY (stała build-time; brak =
- * widget i weryfikacja jawnie wyłączone — dev). Ten sam warunek co proxy CSP i
- * waitlist-form.
+ * widget i weryfikacja jawnie wyłączone — dev). Ten sam warunek co proxy CSP.
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";

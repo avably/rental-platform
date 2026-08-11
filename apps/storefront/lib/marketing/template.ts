@@ -14,9 +14,11 @@ export type MarketingPage = keyof typeof pages;
  * Warianty PRZEGLĄDOWE układów (home-b/c, about-a/b/c, contact-b/c, stories)
  * zostały USUNIĘTE z repo przy odsłonięciu LP (ADR-128): wybór układu jest
  * dokonany, a strona bez własnej treści nie ma prawa być osiągalna publicznie
- * (checklista I-03 audytu 2026-08-09).
+ * (checklista I-03 audytu 2026-08-09). Strona `waitlist` zniknęła tym samym
+ * trybem (decyzja właściciela 2026-08-12): LP prowadzi wprost do rejestracji
+ * panelu, lista oczekujących nie ma już ani trasy, ani treści.
  */
-export const PUBLIC_PAGES = ["home", "pricing", "faq", "contact", "waitlist", "privacy"] as const;
+export const PUBLIC_PAGES = ["home", "pricing", "faq", "contact", "privacy"] as const;
 
 /** Trasy obsługiwane przez wspólny segment `[page]` (bez wysp Reacta). */
 export const TEMPLATE_ROUTES = ["pricing", "faq", "contact"] as const;
@@ -89,7 +91,6 @@ export function marketingLinks(locale: Locale) {
       faq: `/${locale}/faq`,
       contact: `/${locale}/contact`,
       privacy: `/${locale}/privacy`,
-      waitlist: `/${locale}/waitlist`,
       register: `${PANEL_URL}/${locale}/register`,
       login: `${PANEL_URL}/${locale}/login`,
       langAlternate: `/${other}`,

@@ -106,7 +106,6 @@
       "pricing": "Cennik",
       "faq": "Pytania",
       "contact": "Kontakt",
-      "waitlist": "Lista oczekujących",
       "login": "Zaloguj się",
       "cta": "Załóż sklep",
       "menuLabel": "Nawigacja",
@@ -252,26 +251,18 @@
     "closing": {
       "eyebrow": "Zacznij dziś",
       "title": "Załóż konto i sprawdź to na własnym katalogu",
-      "cta": "Załóż sklep"
+      "cta": "Załóż sklep",
+      "ctaSecondary": "Wypróbuj 14 dni bez karty"
     },
     "footer": {
       "description": "Avably — system dla wypożyczalni sprzętu: panel wynajmu, płatności online i własna strona sklepu z rezerwacją.",
       "columnProduct": "Produkt",
       "columnCompany": "Firma",
-      "waitlistLead": "Wolisz najpierw obserwować?",
-      "waitlistCta": "Zapisz się na listę oczekujących",
-      "waitlistNote": "Piszemy tylko przy większych zmianach. Adresu nie sprzedajemy i nie oddajemy nikomu do marketingu.",
+      "trialLead": "Wolisz najpierw sprawdzić?",
+      "trialCta": "Załóż konto — 14 dni bez karty",
+      "trialNote": "Konto zakładasz bez karty, więc nic się samo nie nalicza. Płatność abonamentu włączamy przed startem komercyjnym — uprzedzimy mailem.",
       "privacy": "Polityka prywatności",
       "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
-    },
-    "waitlistPage": {
-      "title": "Zostaw adres, jeśli na razie za wcześnie",
-      "intro": "Rejestracja jest otwarta: konto zakładasz sam, bez rozmowy z nami i bez karty. Jeśli mimo to wolisz najpierw obserwować, zostaw adres. Pytamy jeszcze o trzy rzeczy — co wynajmujesz, ile masz egzemplarzy i jak dziś pilnujesz rezerwacji — bo od tego zależy, co dokładamy najpierw. Adresu nie sprzedajemy i nie oddajemy nikomu do marketingu.",
-      "emailLabel": "E-mail",
-      "email": "admin@avably.io",
-      "addressLabel": "Dane firmy",
-      "addressLine1": "Zakład Graficzny Maciej Godek, NIP 7831780263",
-      "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań"
     },
     "privacyPage": {
       "eyebrow": "Dokumenty",
@@ -279,7 +270,12 @@
     },
     "contactPage": {
       "title": "Napisz na jeden adres",
-      "intro": "Pytania o produkt, RODO, pilotaż i zgłoszenia bezpieczeństwa trafiają do jednej skrzynki. Odpowiadamy zwykle tego samego dnia roboczego. Infolinii nie mamy. Napisz od razu, co wynajmujesz i ile masz egzemplarzy — pierwsza odpowiedź będzie wtedy o Twoim sprzęcie, a nie prośbą o dane. Konta i tak nie musisz z nami umawiać: zakładasz je sam — e-mail, hasło, link potwierdzający ze skrzynki."
+      "intro": "Pytania o produkt, RODO, pilotaż i zgłoszenia bezpieczeństwa trafiają do jednej skrzynki. Odpowiadamy zwykle tego samego dnia roboczego. Infolinii nie mamy. Napisz od razu, co wynajmujesz i ile masz egzemplarzy — pierwsza odpowiedź będzie wtedy o Twoim sprzęcie, a nie prośbą o dane. Konta i tak nie musisz z nami umawiać: zakładasz je sam — e-mail, hasło, link potwierdzający ze skrzynki.",
+      "emailLabel": "E-mail",
+      "email": "admin@avably.io",
+      "addressLabel": "Dane firmy",
+      "addressLine1": "Zakład Graficzny Maciej Godek, NIP 7831780263",
+      "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań"
     },
     "pricingPage": {
       "title": "Płać abonament, nie procent od rezerwacji",
@@ -318,76 +314,6 @@
       "description": "Panel wynajmu, płatności online z kaucją i własna strona sklepu z rezerwacją. Prowizji od transakcji u nas nie ma. Standard 199 zł netto/mies., trial 14 dni bez karty.",
       "ogTitle": "Avably — prowadź wypożyczalnię w jednym systemie",
       "ogDescription": "Rezerwacje, kaucje, kurier, płatności online i własna strona sklepu w jednym abonamencie. My nie bierzemy prowizji od transakcji, trial 14 dni bez karty."
-    },
-    "form": {
-      "emailLabel": "E-mail służbowy*",
-      "emailPlaceholder": "ty@firma.pl",
-      "emailHelp": "Na ten adres wyślemy informacje o pilotażu i starcie produktu.",
-      "rentalTypeLabel": "Co wynajmujesz?*",
-      "selectPlaceholder": "Wybierz jedną odpowiedź",
-      "rentalTypes": {
-        "tools_construction": "Narzędzia i sprzęt budowlany",
-        "event": "Sprzęt eventowy",
-        "sports_outdoor": "Sprzęt sportowy i rekreacyjny",
-        "machinery": "Maszyny i urządzenia",
-        "other": "Inny sprzęt"
-      },
-      "otherEquipmentLabel": "Jaki sprzęt?*",
-      "otherEquipmentPlaceholder": "Napisz krótko",
-      "inventoryLabel": "Ile pozycji lub egzemplarzy obsługujesz?*",
-      "inventoryRanges": {
-        "r1_20": "1–20",
-        "r21_100": "21–100",
-        "r101_500": "101–500",
-        "r500_plus": "Ponad 500",
-        "launching": "Dopiero uruchamiam wypożyczalnię"
-      },
-      "processLabel": "Jak dziś pilnujesz rezerwacji?*",
-      "currentProcesses": {
-        "calendar_spreadsheet": "Kalendarz lub arkusz",
-        "messages_phone": "Wiadomości, telefon i notatki",
-        "internal_tool": "Własny proces lub wewnętrzne narzędzie",
-        "none": "Nie mam jeszcze ustalonego procesu"
-      },
-      "pilotHeading": "Pilotaż — opcjonalnie",
-      "pilotLabel": "Chcę porozmawiać o udziale w pilotażu i przetestować Avably na rzeczywistym procesie mojej wypożyczalni.",
-      "phoneLabel": "Telefon — opcjonalnie",
-      "phonePlaceholder": "+48 000 000 000",
-      "phoneHelp": "Jeśli zostawisz numer, możemy zadzwonić. Bez numeru skontaktujemy się e-mailem.",
-      "consentLabel": "Chcę otrzymywać informacje o budowie i uruchomieniu Avably. Wiem, że mogę zrezygnować w każdej chwili.",
-      "privacyLeadIn": "Co robimy z tymi danymi, opisuje",
-      "privacyLabel": "Polityka prywatności",
-      "privacyAfter": ".",
-      "cta": "Dołącz do waitlisty",
-      "submitting": "Zapisuję…",
-      "microcopy": "Bez płatności i bez zobowiązań. Użyjemy odpowiedzi tylko do kwalifikacji waitlisty i rozmów o Avably.",
-      "errors": {
-        "required": "Uzupełnij to pole.",
-        "invalidEmail": "Wpisz poprawny adres e-mail.",
-        "selection": "Wybierz jedną odpowiedź.",
-        "consent": "Zaznacz zgodę, aby dołączyć do waitlisty.",
-        "duplicate": "Ten adres jest już na waitliście. Nie musisz zapisywać się ponownie.",
-        "connection": "Nie udało się wysłać formularza. Sprawdź połączenie i spróbuj ponownie.",
-        "captcha": "Nie udało się potwierdzić, że nie jesteś robotem. Ukończ weryfikację poniżej i spróbuj ponownie.",
-        "server": "Nie udało się przyjąć zapisu. Spróbuj ponownie za chwilę. Twoje odpowiedzi nie zostały zapisane."
-      },
-      "success": {
-        "title": "Masz miejsce na liście",
-        "bodyBeforeEmail": "Dziękujemy. Zapisaliśmy Twój adres i odpowiedzi. Napiszemy na",
-        "bodyAfterEmail": ". Napiszemy, kiedy dołożymy funkcję, której dziś w Avably nie ma.",
-        "pilot": "Zapisaliśmy też Twoją deklarację pilotażu. Skontaktujemy się e-mailem, żeby poznać proces Twojej wypożyczalni.",
-        "edit": "Popraw odpowiedzi"
-      },
-      "disabled": {
-        "title": "Zapisy jeszcze nie ruszyły",
-        "body": "Formularz działa, ale zapisy chwilowo stoją. Nie dotyczy to zakładania konta: rejestracja jest otwarta, a trial trwa 14 dni i nie wymaga karty."
-      }
-    },
-    "waitlistPage": {
-      "metadataTitle": "Lista oczekujących — Avably",
-      "metadataDescription": "Zostaw adres, a napiszemy przy większych zmianach w Avably. Konto założysz od razu, bez karty.",
-      "altLead": "Nie musisz czekać.",
-      "altCta": "Załóż sklep od razu"
     }
   },
   "storefront": {

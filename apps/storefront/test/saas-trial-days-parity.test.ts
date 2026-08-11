@@ -68,11 +68,14 @@ function zbierzDni(drzewo: unknown, sciezka: string, wynik: Record<string, numbe
 const INWENTARZ: Record<string, number[]> = {
   "marketing.banner.text": [SAAS_TRIAL_DAYS],
   "marketing.faq.q3": [SAAS_TRIAL_DAYS],
+  // CTA po zdjęciu listy oczekujących (2026-08-12): drugi przycisk sekcji
+  // domykającej i przycisk bloku stopki niosą obietnicę triala wprost.
+  "marketing.closing.ctaSecondary": [SAAS_TRIAL_DAYS],
+  "marketing.footer.trialCta": [SAAS_TRIAL_DAYS],
   "marketing.pricingPage.intro": [SAAS_TRIAL_DAYS],
   "marketing.pricingPage.honest1": [SAAS_TRIAL_DAYS],
   "landing.metadata.description": [SAAS_TRIAL_DAYS],
   "landing.metadata.ogDescription": [SAAS_TRIAL_DAYS],
-  "landing.form.disabled.body": [SAAS_TRIAL_DAYS],
 };
 
 /**

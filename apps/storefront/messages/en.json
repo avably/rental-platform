@@ -106,7 +106,6 @@
       "pricing": "Pricing",
       "faq": "Questions",
       "contact": "Contact",
-      "waitlist": "Waitlist",
       "login": "Sign in",
       "cta": "Open your store",
       "menuLabel": "Navigation",
@@ -252,26 +251,18 @@
     "closing": {
       "eyebrow": "Start today",
       "title": "Open an account and try it on your own catalogue",
-      "cta": "Open your store"
+      "cta": "Open your store",
+      "ctaSecondary": "Start your 14-day trial — no card"
     },
     "footer": {
       "description": "Avably — the system for equipment rental businesses: a rental back office, online payments and your own store website with booking.",
       "columnProduct": "Product",
       "columnCompany": "Company",
-      "waitlistLead": "Prefer to watch first?",
-      "waitlistCta": "Join the waitlist",
-      "waitlistNote": "We only write when something substantial changes. We do not sell your address and we do not hand it to anyone for marketing.",
+      "trialLead": "Prefer to try it first?",
+      "trialCta": "Create an account — 14 days, no card",
+      "trialNote": "You sign up without a card, so nothing gets charged by itself. Subscription payment goes live before the commercial launch — we will email you first.",
       "privacy": "Privacy Policy",
       "copyright": "© Avably 2026. All rights reserved."
-    },
-    "waitlistPage": {
-      "title": "Leave your address if it is too early",
-      "intro": "Sign-up is already open: you create the account yourself, with no call and no card. If you would still rather watch first, leave your address. We ask three more things — what you rent, how many units you keep and how you track bookings today — because that tells us what to build next. We do not sell your address and we do not hand it to anyone for marketing.",
-      "emailLabel": "Email",
-      "email": "admin@avably.io",
-      "addressLabel": "Company details",
-      "addressLine1": "Zakład Graficzny Maciej Godek, NIP (Polish tax ID) 7831780263",
-      "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań, Poland"
     },
     "privacyPage": {
       "eyebrow": "Documents",
@@ -279,7 +270,12 @@
     },
     "contactPage": {
       "title": "Write to one address",
-      "intro": "Product questions, GDPR, the pilot and security reports all land in one inbox. We usually answer the same business day. There is no phone line. Tell us up front what you rent and how many units you keep, and the first reply will be about your equipment rather than a request for details. You do not need us to open an account either: you do that yourself — email, password, one confirmation link."
+      "intro": "Product questions, GDPR, the pilot and security reports all land in one inbox. We usually answer the same business day. There is no phone line. Tell us up front what you rent and how many units you keep, and the first reply will be about your equipment rather than a request for details. You do not need us to open an account either: you do that yourself — email, password, one confirmation link.",
+      "emailLabel": "Email",
+      "email": "admin@avably.io",
+      "addressLabel": "Company details",
+      "addressLine1": "Zakład Graficzny Maciej Godek, NIP (Polish tax ID) 7831780263",
+      "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań, Poland"
     },
     "pricingPage": {
       "title": "Pay a subscription, not a cut of every booking",
@@ -318,76 +314,6 @@
       "description": "A rental back office, online payments with deposits and your own store website with booking. We take no cut of transactions. Standard PLN 199 net a month, 14-day trial, no card.",
       "ogTitle": "Avably — run your rental business in one system",
       "ogDescription": "Bookings, deposits, courier, online payments and your own store website in one subscription. We take no cut of transactions, 14-day trial, no card."
-    },
-    "form": {
-      "emailLabel": "Work email*",
-      "emailPlaceholder": "you@company.com",
-      "emailHelp": "We will use this address for pilot and launch updates.",
-      "rentalTypeLabel": "What do you rent?*",
-      "selectPlaceholder": "Choose one option",
-      "rentalTypes": {
-        "tools_construction": "Tools and construction equipment",
-        "event": "Event equipment",
-        "sports_outdoor": "Sports and outdoor equipment",
-        "machinery": "Machinery and specialist equipment",
-        "other": "Other equipment"
-      },
-      "otherEquipmentLabel": "What kind of equipment?*",
-      "otherEquipmentPlaceholder": "Add a short description",
-      "inventoryLabel": "How many products or individual units do you manage?*",
-      "inventoryRanges": {
-        "r1_20": "1–20",
-        "r21_100": "21–100",
-        "r101_500": "101–500",
-        "r500_plus": "More than 500",
-        "launching": "I am preparing to launch a rental business"
-      },
-      "processLabel": "How do you manage bookings today?*",
-      "currentProcesses": {
-        "calendar_spreadsheet": "Calendar or spreadsheet",
-        "messages_phone": "Messages, phone calls and notes",
-        "internal_tool": "An internal process or tool",
-        "none": "I do not have a defined process yet"
-      },
-      "pilotHeading": "Pilot — optional",
-      "pilotLabel": "I would like to discuss joining the pilot and test Avably with a real workflow from my rental business.",
-      "phoneLabel": "Phone — optional",
-      "phonePlaceholder": "+00 000 000 000",
-      "phoneHelp": "Leave a number if you are happy for us to call. Otherwise, we will contact you by email.",
-      "consentLabel": "I would like to receive updates about the development and launch of Avably. I know I can unsubscribe at any time.",
-      "privacyLeadIn": "What we do with this data is set out in the",
-      "privacyLabel": "Privacy Policy",
-      "privacyAfter": ".",
-      "cta": "Join the waitlist",
-      "submitting": "Joining…",
-      "microcopy": "No payment and no commitment. We will use your answers only to qualify the waitlist and discuss Avably with you.",
-      "errors": {
-        "required": "Complete this field.",
-        "invalidEmail": "Enter a valid email address.",
-        "selection": "Choose one option.",
-        "consent": "Confirm your consent to join the waitlist.",
-        "duplicate": "This email is already on the waitlist. You do not need to join again.",
-        "connection": "We could not send the form. Check your connection and try again.",
-        "captcha": "We could not confirm you are human. Complete the verification below and try again.",
-        "server": "We could not save your submission. Try again in a moment. Your answers were not saved."
-      },
-      "success": {
-        "title": "You’re on the waitlist",
-        "bodyBeforeEmail": "Thank you. We have saved your email and answers. We will write to",
-        "bodyAfterEmail": ". We will write when we add something that is not in Avably today.",
-        "pilot": "We have also recorded your interest in the pilot. We will contact you by email to learn about your rental workflow.",
-        "edit": "Update my answers"
-      },
-      "disabled": {
-        "title": "The waitlist isn’t open yet",
-        "body": "The form works, but sign-ups are paused for now. That does not affect opening an account: registration is open, and the 14-day trial needs no card."
-      }
-    },
-    "waitlistPage": {
-      "metadataTitle": "Waitlist — Avably",
-      "metadataDescription": "Leave your address and we will write when something substantial changes in Avably. You can open an account right away, with no card.",
-      "altLead": "You do not have to wait.",
-      "altCta": "Open your store now"
     }
   },
   "storefront": {
