@@ -276,8 +276,21 @@ export class StripeConnectClient {
    * Zdolności (`card_payments`, `transfers`) prosimy od razu: bez nich konto
    * powstaje, ale nie ma jak przyjąć płatności ani przekazać środków najemcy,
    * a formularz KYC nie wie, o co pytać.
+   *
+   * [F1/ADR-137] Dla kont POLSKICH prosimy od razu także o `blik_payments`
+   * i `p24_payments`. To nie jest lista metod w checkoucie (tę rozstrzyga
+   * konfiguracja metod u dostawcy — patrz `createPaymentIntent`), tylko
+   * ZDOLNOŚCI konta, bez których metoda nie ma prawa się pojawić. Różnica
+   * jest widoczna w formularzu KYC: P24 wymaga `business_profile.url`
+   * i `company.vat_id`, a dostawca pyta o nie WYŁĄCZNIE wtedy, gdy zdolność
+   * jest zamówiona przy zakładaniu — doproszenie jej po fakcie na koncie
+   * Express oznacza dla najemcy DRUGĄ rundę onboardingu (sprawdzone w
+   * sandboksie: platforma nie może uzupełnić pól `company.*` przez API).
+   * Zdolności są krajowe (BLIK/P24 istnieją tylko w PL), więc wniosek jest
+   * warunkowy — konto z innego kraju dostaje komplet bazowy, nie odmowę.
    */
   async createAccount(input: CreateConnectAccountInput): Promise<string> {
+    const polish = input.country.toUpperCase() === "PL";
     const { status, body } = await this.request("/v1/accounts", {
       method: "POST",
       ...(input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : {}),
@@ -288,6 +301,12 @@ export class StripeConnectClient {
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
+          ...(polish
+            ? {
+                blik_payments: { requested: true },
+                p24_payments: { requested: true },
+              }
+            : {}),
         },
       }),
     });
@@ -370,9 +389,13 @@ export class StripeConnectClient {
         // w tym pliku dotyczy WIELKOŚCI LITER, nie liczby.
         currency: input.currency.toLowerCase(),
         application_fee_amount: input.applicationFeeGrosze,
-        // Metody płatności (BLIK/P24/karta) włącza najemca w panelu dostawcy —
-        // lista NIE jest zaszyta u nas. Dopisanie nowej metody w kraju najemcy
-        // ma być jego decyzją, nie naszym wdrożeniem.
+        // Metody płatności (karta/BLIK/P24) rozstrzyga DOSTAWCA z dwóch
+        // źródeł: zdolności konta najemcy (`blik_payments`, `p24_payments` —
+        // zamawiane przy zakładaniu konta, patrz `createAccount`) i jego
+        // konfiguracji metod. Lista NIE jest zaszyta u nas i to jest treść
+        // kontraktu [F1/ADR-137]: `payment_method_types` nie występuje w tym
+        // żądaniu ANI RAZU — wpisanie go tutaj zamieniłoby decyzję konta
+        // najemcy na nasze wdrożenie i zdjęło metodę wszystkim naraz.
         automatic_payment_methods: { enabled: true },
         // Po tym polu Z4 odnajduje zamówienie, gdy webhook przyniesie sam
         // identyfikator intentu. Metadane są DODATKIEM do wiązania w bazie

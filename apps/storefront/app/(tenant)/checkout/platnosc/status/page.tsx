@@ -26,6 +26,7 @@ import {
 } from "@avably/core";
 
 import { PageShell } from "@/components/storefront/page-shell";
+import { PaymentStatusRefresh } from "@/components/storefront/payment-status-refresh";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { readTenantAccountId } from "@/lib/checkout/online-availability";
 import { loadCheckoutOrder } from "@/lib/checkout/payment-session";
@@ -124,6 +125,12 @@ export default async function TenantPaymentStatusPage() {
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
       <div className="site-card mt-6 p-6" role="status">
         <p className="text-lg leading-7">{headline}</p>
+
+        {/* [F1/ADR-137] Zegar tylko w stanie `checking`: BLIK/P24 domykają
+            się webhookiem poza przeglądarką klienta, więc strona prosi
+            serwer o świeży render, zamiast kazać klientowi wciskać F5.
+            Werdykt dalej powstaje wyłącznie na serwerze (ADR-049). */}
+        {view.kind === "checking" ? <PaymentStatusRefresh /> : null}
 
         {view.kind === "checking" && view.providerSettled ? (
           <p className="site-text-muted mt-3 leading-7">{copy.payment.statusProviderConfirmed}</p>

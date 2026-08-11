@@ -130,6 +130,41 @@ describe("createAccount — odpowiedź na POST nie jest dowodem gotowości", () 
     expect(body).toContain(encodeURIComponent("capabilities[transfers][requested]"));
   });
 
+  it("konto polskie zamawia BLIK i P24 przy zakładaniu (F1/ADR-137)", async () => {
+    // Doproszenie zdolności PO fakcie na koncie Express to dla najemcy druga
+    // runda onboardingu (P24 wymaga business_profile.url + company.vat_id,
+    // których platforma nie może uzupełnić przez API) — dlatego wniosek
+    // stoi w ciele ŻĄDANIA ZAŁOŻENIA, a ten test pilnuje jego bajtów.
+    const { calls, fetchFn } = transport([{ status: 200, body: { id: "acct_1" } }]);
+    await client(fetchFn).createAccount({ country: "PL" });
+
+    const body = String(calls[0]!.init.body);
+    expect(body).toContain(encodeURIComponent("capabilities[blik_payments][requested]"));
+    expect(body).toContain(encodeURIComponent("capabilities[p24_payments][requested]"));
+  });
+
+  it("mała litera kraju nie gubi zdolności krajowych", async () => {
+    const { calls, fetchFn } = transport([{ status: 200, body: { id: "acct_1" } }]);
+    await client(fetchFn).createAccount({ country: "pl" });
+
+    const body = String(calls[0]!.init.body);
+    expect(body).toContain(encodeURIComponent("capabilities[blik_payments][requested]"));
+    expect(body).toContain(encodeURIComponent("capabilities[p24_payments][requested]"));
+  });
+
+  it("konto spoza PL NIE zamawia zdolności krajowych — dostawca odrzuciłby całe konto", async () => {
+    const { calls, fetchFn } = transport([{ status: 200, body: { id: "acct_1" } }]);
+    await client(fetchFn).createAccount({ country: "DE" });
+
+    const body = String(calls[0]!.init.body);
+    // Komplet bazowy zostaje…
+    expect(body).toContain(encodeURIComponent("capabilities[card_payments][requested]"));
+    expect(body).toContain(encodeURIComponent("capabilities[transfers][requested]"));
+    // …a krajowych metod PL nie ma w żądaniu ani razu.
+    expect(body).not.toContain("blik_payments");
+    expect(body).not.toContain("p24_payments");
+  });
+
   it("przypina wersję API i klucz idempotencji", async () => {
     const { calls, fetchFn } = transport([{ status: 200, body: { id: "acct_1" } }]);
     await client(fetchFn).createAccount({ country: "PL", idempotencyKey: "tenant-1" });

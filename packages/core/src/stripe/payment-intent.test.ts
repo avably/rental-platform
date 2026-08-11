@@ -188,6 +188,33 @@ describe("prowizja platformy", () => {
   });
 });
 
+describe("metody płatności na intencie (F1/ADR-137)", () => {
+  it("żądanie włącza metody automatyczne dostawcy", async () => {
+    // To jest cały mechanizm, dzięki któremu BLIK i P24 pojawiają się
+    // w checkoucie: dostawca dobiera metody ze zdolności i konfiguracji
+    // KONTA NAJEMCY. Zdjęcie tego pola gasi wszystkie metody poza domyślną
+    // kartą — po cichu, bo intent nadal powstaje, a strona nadal działa.
+    const { calls, fetchFn } = transport([{ status: 200, body: INTENT_OK }]);
+
+    await createPaymentIntent(params(), deps(fetchFn));
+
+    expect(form(calls[0]!).get("automatic_payment_methods[enabled]")).toBe("true");
+  });
+
+  it("lista metod NIE jest zaszyta w żądaniu (payment_method_types nie występuje)", async () => {
+    // Kontrola negatywna kontraktu: wpisanie `payment_method_types` u nas
+    // zamieniłoby decyzję konta najemcy na nasze wdrożenie — usunięcie
+    // BLIK-a z takiej listy zdejmowałoby metodę wszystkim najemcom naraz
+    // i żaden inny test by tego nie zobaczył.
+    const { calls, fetchFn } = transport([{ status: 200, body: INTENT_OK }]);
+
+    await createPaymentIntent(params(), deps(fetchFn));
+
+    const body = String(calls[0]!.init.body ?? "");
+    expect(body).not.toContain("payment_method_types");
+  });
+});
+
 describe("waluta i metadane", () => {
   it("waluta idzie z zamówienia (małymi literami), nie zaszyta", async () => {
     const { calls, fetchFn } = transport([{ status: 200, body: INTENT_OK }]);
