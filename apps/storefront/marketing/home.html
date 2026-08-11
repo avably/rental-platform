@@ -183,8 +183,13 @@
   
   <section class="section hero-home-a">
     <!-- A2/delta wizualna: wideo z szablonu (bonsai na cokole, ~2,8 MB na wejście)
-         USUNIĘTE. Na jego miejsce wchodzi materiał o wynajmie sprzętu — magazyn
-         z ponumerowanymi miejscami — i to BEZ JEDNEJ LINII JAVASCRIPTU.
+         USUNIĘTE. Na jego miejsce wchodzi pętla cyklu wynajmu (2026-08-11,
+         zestaw B): brama w górę → podpis przy ladzie → podpięcie przyczepki →
+         domknięcie skrzyni po zwrocie, z mgnieniem do #181E25 na szwie pętli —
+         i to BEZ JEDNEJ LINII JAVASCRIPTU.
+         Źródła (Pexels License, bez atrybucji, self-host po zmianach):
+         klipy 6685041, 5138025, 34308330, 8987010 — przycięte, zgradowane
+         do wspólnej chłodnej tonacji i przekodowane lokalnie.
          Powód jest twardy: `buildCsp` daje `script-src 'self' 'nonce-…'
          'strict-dynamic'`, a przy `strict-dynamic` liczy się WYŁĄCZNIE nonce.
          Pliki `marketing/*.html` są statyczne i nonce'a nie dostaną nigdy, więc
@@ -203,11 +208,11 @@
          `<img>`, a duplikat pobierałby ten sam plik drugi raz na telefonie,
          gdzie wideo i tak nie leci (zmierzone: +45,9 kB). -->
     <div class="home-a-video tlo-marki">
-      <img src="/marketing/hero-poster-1600.webp" srcset="/marketing/hero-poster-750.webp 750w, /marketing/hero-poster-1600.webp 1600w" sizes="100vw" alt="{{hero.posterAlt}}" width="1600" height="900" fetchpriority="high" decoding="async" class="hero-media-obraz">
+      <img src="/marketing/hero-cykl-poster-1600.webp" srcset="/marketing/hero-cykl-poster-750.webp 750w, /marketing/hero-cykl-poster-1600.webp 1600w" sizes="100vw" alt="{{hero.posterAlt}}" width="1600" height="900" fetchpriority="high" decoding="async" class="hero-media-obraz">
       <video class="hero-media-wideo" width="1280" height="720" autoplay muted loop playsinline preload="none" aria-hidden="true" tabindex="-1">
-        <source src="/marketing/hero-magazyn-720.av1.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="av01.0.05M.08"'>
-        <source src="/marketing/hero-magazyn-720.vp9.webm" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/webm; codecs="vp9"'>
-        <source src="/marketing/hero-magazyn-720.h264.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="avc1.64001f"'>
+        <source src="/marketing/hero-cykl-720.av1.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="av01.0.05M.08"'>
+        <source src="/marketing/hero-cykl-720.vp9.webm" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/webm; codecs="vp9"'>
+        <source src="/marketing/hero-cykl-720.h264.mp4" media="(min-width: 1024px) and (prefers-reduced-motion: no-preference)" type='video/mp4; codecs="avc1.64001f"'>
       </video>
       <div class="hero-media-scrim"></div>
       <div class="w-layout-blockcontainer main-container w-container">
