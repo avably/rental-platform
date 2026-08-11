@@ -151,6 +151,22 @@ export interface SaasPaymentFailedMessages {
   action: string;
 }
 
+/**
+ * Potwierdzenie ZAKSIĘGOWANIA płatności dla klienta końcowego (ADR-139) —
+ * mail obiecany przez stronę statusu checkoutu w stanie „sprawdzamy".
+ * Ton rzeczowy, ZERO obietnic ponad stan: potwierdzamy wyłącznie fakt
+ * zaksięgowania kwoty; o wydaniu sprzętu mówią maile cyklu najmu.
+ */
+export interface PaymentConfirmedMessages {
+  heading: string;
+  preview: (orderNumber: string) => string;
+  body: string;
+  fields: {
+    orderNumber: string;
+    amountPaid: string;
+  };
+}
+
 export interface EmailMessages {
   greeting: (recipientName?: string) => string;
   layout: EmailLayoutMessages;
@@ -165,6 +181,7 @@ export interface EmailMessages {
   rentalContract: RentalContractMessages;
   contactMessage: ContactMessageMessages;
   saasPaymentFailed: SaasPaymentFailedMessages;
+  paymentConfirmed: PaymentConfirmedMessages;
 }
 
 const pl: EmailMessages = {
@@ -302,6 +319,15 @@ const pl: EmailMessages = {
     action:
       "Sprawdź metodę płatności w sekcji „Plan i rozliczenia” w panelu — po udanej płatności konto wraca do pełnej sprawności od razu.",
   },
+  paymentConfirmed: {
+    heading: "Płatność zaksięgowana",
+    preview: (orderNumber) => `Płatność za zamówienie ${orderNumber} została zaksięgowana.`,
+    body: "Potwierdzamy zaksięgowanie płatności za Twoje zamówienie. Szczegóły znajdziesz poniżej.",
+    fields: {
+      orderNumber: "Numer zamówienia",
+      amountPaid: "Opłacona kwota",
+    },
+  },
 };
 
 const en: EmailMessages = {
@@ -437,6 +463,15 @@ const en: EmailMessages = {
       "The payment provider will retry automatically. The most common cause is an expired or blocked card.",
     action:
       "Check your payment method in the “Plan & billing” section of the panel — once a payment succeeds, your account is fully restored right away.",
+  },
+  paymentConfirmed: {
+    heading: "Payment confirmed",
+    preview: (orderNumber) => `The payment for order ${orderNumber} has been confirmed.`,
+    body: "We confirm that the payment for your order has been received. The details are below.",
+    fields: {
+      orderNumber: "Order number",
+      amountPaid: "Amount paid",
+    },
   },
 };
 

@@ -56,6 +56,10 @@ import { createServiceClient } from "@avably/db/service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  sendPaymentConfirmedEmail,
+  type PaymentConfirmedEmailOverrides,
+} from "@/lib/payment-confirmed-email";
+import {
   CHECKABLE_PAYMENT_STATUSES,
   applySettlement,
   type SettlementOrder,
@@ -137,6 +141,11 @@ export interface ReconcilePaymentsDeps {
   /** Zegar; wstrzykiwany, żeby test nie czekał doby. */
   now?: Date;
   batchSize?: number;
+  /**
+   * Nadpisania transportu maila „płatność zaksięgowana" (ADR-139) — wyłącznie
+   * dla testów; produkcyjne wejścia nie podają nic (transport z env).
+   */
+  paymentEmail?: PaymentConfirmedEmailOverrides;
 }
 
 function errorMessage(error: unknown): string {
@@ -201,7 +210,8 @@ async function reconcileOne(
   db: SupabaseClient,
   order: OrderRow,
   connectedAccountId: string,
-  deps: Required<Pick<ReconcilePaymentsDeps, "readIntent" | "cancelIntent" | "now">>,
+  deps: Required<Pick<ReconcilePaymentsDeps, "readIntent" | "cancelIntent" | "now">> &
+    Pick<ReconcilePaymentsDeps, "paymentEmail">,
 ): Promise<ReconciliationEntry> {
   const base = { orderId: order.id, tenantId: order.tenant_id };
   const intentId = order.provider_payment_intent_id;
@@ -304,11 +314,28 @@ async function reconcileOne(
     };
   }
 
+  // --- MAIL „PŁATNOŚĆ ZAKSIĘGOWANA" — KROK PO utrwalonym przejściu (ADR-139)
+  //
+  // Rozstrzygnięcie ADR-139: przejście wykryte rekoncyliacją (i przyciskiem
+  // operatora — ta sama ścieżka) TEŻ wysyła potwierdzenie. Klient zapłacił
+  // tak samo; kanał wykrycia jest naszą sprawą, nie jego. Idempotencję
+  // trzyma to samo `changed: true` co w webhooku — przy wyścigu z webhookiem
+  // dokładnie jedno wejście je dostaje. Problem z pocztą NIE zmienia wyniku
+  // rekoncyliacji: przejście jest utrwalone, powód dokleja się do śladu.
+  let emailIssue: string | undefined;
+  if (applied.paymentStatus === "paid") {
+    emailIssue = await sendPaymentConfirmedEmail(db, {
+      tenantId: order.tenant_id,
+      orderId: order.id,
+      ...(deps.paymentEmail ?? {}),
+    });
+  }
+
   return {
     ...base,
     outcome: expired ? "expired" : "settled",
     paymentStatus: applied.paymentStatus,
-    reason: decision.reason,
+    reason: emailIssue ? `${decision.reason} ${emailIssue}`.trim() : decision.reason,
   };
 }
 
@@ -331,6 +358,7 @@ function resolveDeps(deps: ReconcilePaymentsDeps) {
     readIntent: deps.readIntent ?? defaultReadIntent,
     cancelIntent: deps.cancelIntent ?? defaultCancelIntent,
     now: deps.now ?? new Date(),
+    ...(deps.paymentEmail ? { paymentEmail: deps.paymentEmail } : {}),
   };
 }
 

@@ -62,6 +62,10 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { bookDepositEvent, settleDepositIfComplete } from "./deposit-booking";
+import {
+  sendPaymentConfirmedEmail,
+  type PaymentConfirmedEmailOverrides,
+} from "./payment-confirmed-email";
 import { applySettlement, type SettlementOrder } from "./payment-settlement";
 
 /** Nazwa dostawcy w rejestrze zdarzeń — lustro CHECK-a z migracji 0030. */
@@ -91,6 +95,11 @@ export interface StripeWebhookDeps {
   secret: string | undefined;
   /** Zegar do okna tolerancji podpisu. */
   now?: Date;
+  /**
+   * Nadpisania transportu maila „płatność zaksięgowana" (ADR-139) — wyłącznie
+   * dla testów; produkcyjna trasa nie podaje nic i transport powstaje z env.
+   */
+  paymentEmail?: PaymentConfirmedEmailOverrides;
 }
 
 /** Co się realnie stało — lustro `webhook_events.status` z 0030. */
@@ -521,7 +530,24 @@ export async function handleStripeWebhook(
     return json(200, { status: "noop", eventId: event.id });
   }
 
-  await finish(deps.db, eventRowId, "processed", null);
+  // --- MAIL „PŁATNOŚĆ ZAKSIĘGOWANA" — KROK PO utrwalonym przejściu (ADR-139)
+  //
+  // Warunkiem jest `changed: true` z odczytem po zapisie + `paid`: dokładnie
+  // jedno wejście na przejście go dostaje (compare-and-set), a regresu
+  // z `paid` bramka 0027 nie wpuszcza, więc drugiego przejścia nie ma.
+  // Problem z pocztą NIE cofa stanu i NIE robi 5xx (retry dostawcy nic tu
+  // nie naprawi — stan już zapisany); powód ląduje w rejestrze zdarzeń
+  // jako uzasadnienie PRZETWORZONEGO wiersza (wzorzec 8b/ADR-046).
+  let emailIssue: string | undefined;
+  if (applied.paymentStatus === "paid") {
+    emailIssue = await sendPaymentConfirmedEmail(deps.db, {
+      tenantId: order.tenant_id,
+      orderId: order.id,
+      ...(deps.paymentEmail ?? {}),
+    });
+  }
+
+  await finish(deps.db, eventRowId, "processed", emailIssue ?? null);
   return json(200, {
     status: "processed",
     eventId: event.id,

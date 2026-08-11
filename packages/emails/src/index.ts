@@ -45,6 +45,10 @@ export {
   SaasPaymentFailed,
   type SaasPaymentFailedProps,
 } from "./templates/saas-payment-failed";
+export {
+  PaymentConfirmedEmail,
+  type PaymentConfirmedEmailProps,
+} from "./templates/payment-confirmed";
 export { EMAIL_MESSAGES, emailMessages, type EmailMessages } from "./messages";
 export {
   renderContactMessage,
@@ -62,5 +66,6 @@ export {
   renderPickupReturnReminder,
   renderRentalContractEmail,
   renderSaasPaymentFailed,
+  renderPaymentConfirmed,
   type RenderedEmail,
 } from "./render";
