@@ -17,8 +17,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  DEFAULT_ATTEMPTS,
-  DEFAULT_BACKOFF_MS,
   installTransportRetry,
   isTransportError,
   RETRYABLE_STATUSES,
@@ -127,7 +125,7 @@ describe("withTransportRetry — czkawki transportowe SĄ ponawiane", () => {
     const response = await fetchWithRetry(`${GATEWAY}/rest/v1/orders`);
 
     expect(response.status).toBe(502);
-    expect(base).toHaveBeenCalledTimes(DEFAULT_ATTEMPTS);
+    expect(base).toHaveBeenCalledTimes(3); // literal, nie stala — patrz komentarz przy backoffie
   });
 
   it("trwały rzut sieciowy → po 3 podejściach leci ORYGINALNY błąd", async () => {
@@ -135,7 +133,7 @@ describe("withTransportRetry — czkawki transportowe SĄ ponawiane", () => {
     const fetchWithRetry = withTransportRetry(base, { sleep: noSleep });
 
     await expect(fetchWithRetry(`${GATEWAY}/rest/v1/orders`)).rejects.toThrow("fetch failed");
-    expect(base).toHaveBeenCalledTimes(DEFAULT_ATTEMPTS);
+    expect(base).toHaveBeenCalledTimes(3); // literal, nie stala — patrz komentarz przy backoffie
   });
 
   it("backoff: odstępy 250/750 ms w tej kolejności", async () => {
@@ -149,7 +147,9 @@ describe("withTransportRetry — czkawki transportowe SĄ ponawiane", () => {
 
     await fetchWithRetry(`${GATEWAY}/rest/v1/orders`);
 
-    expect(waits).toEqual([...DEFAULT_BACKOFF_MS]);
+    // LITERAŁY, nie DEFAULT_BACKOFF_MS: asercja przez stałą mutowałaby się
+    // razem z kodem i mutant backoffu przechodziłby na zielono (wakat dowodu).
+    expect(waits).toEqual([250, 750]);
   });
 });
 
