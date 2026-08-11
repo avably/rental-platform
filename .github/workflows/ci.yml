@@ -154,6 +154,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+          # Marker klucza nowego typu (ADR-142) — bramka wymusza wmurowanie
+          # OBU nazw (fallback dwu-nazwowy musi przetrwać do bundla).
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_marker_wmurowania_2026"
 
   wp-plugin:
     # Suita PHP wtyczki WordPress (kontrakt źródła R10, bramki amplifikacji

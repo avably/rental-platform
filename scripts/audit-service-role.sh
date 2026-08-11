@@ -44,10 +44,15 @@ set -euo pipefail
 # `eslint.config.mjs` musi NAZWAĆ zakazany moduł, żeby go zakazać — to
 # definicja reguły, nie jej złamanie. Wpis jest wąski (dokładnie ten plik),
 # więc nie da się pod nim przemycić kodu.
-ALLOWED='^(packages/db/src/service\.ts|apps/[^/]+/app/api/webhooks/|apps/panel/app/api/review/ingest/|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
+# `supabase-key-env.test.ts` to test WŁASNY fabryki (ADR-142): dowodzi
+# fallbacku dwu-nazwowego i twardego błędu, więc musi nazywać sekret
+# i wołać createServiceClient — dopuszczony dokładnie ten jeden plik.
+ALLOWED='^(packages/db/src/service\.ts|packages/db/test/supabase-key-env\.test\.ts|apps/[^/]+/app/api/webhooks/|apps/panel/app/api/review/ingest/|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
 
 # Wzorce, z których każdy oznacza „ta ścieżka może omijać RLS".
-PATTERNS='SUPABASE_SERVICE_ROLE_KEY|@avably/db/service|createServiceClient'
+# SUPABASE_SECRET_KEY = nazwa klucza sekretnego nowego typu (sb_secret_…,
+# ADR-142) — daje tę samą władzę co stara nazwa, więc podlega tej samej bramce.
+PATTERNS='SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY|@avably/db/service|createServiceClient'
 
 HITS=$(
   grep -rnE "$PATTERNS" apps packages \

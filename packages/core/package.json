@@ -13,6 +13,10 @@
     "./site": {
       "types": "./src/site/index.ts",
       "default": "./src/site/index.ts"
+    },
+    "./supabase-env": {
+      "types": "./src/supabase-env.ts",
+      "default": "./src/supabase-env.ts"
     }
   },
   "scripts": {

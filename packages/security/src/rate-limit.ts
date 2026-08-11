@@ -39,6 +39,10 @@
  * świadomie zostaje cicha; nie zmieniamy tego pliku. Zobacz
  * docs/audyty/2026-08-10-audyt-env-rate-limit.md.
  */
+import {
+  SUPABASE_PUBLISHABLE_KEY_ENV,
+  readSupabasePublishableKey,
+} from "@avably/core/supabase-env";
 
 /**
  * Prefiksy przestrzeni kluczy. Limity publiczne i limity auth panelu NIE mogą
@@ -118,7 +122,10 @@ function firstNonEmptyEnv(names: readonly string[]): string | undefined {
 
 function getDbConfig(): DbRateLimitConfig | null {
   const url = firstNonEmptyEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_LOCAL_API_URL"]);
-  const anonKey = firstNonEmptyEnv(["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_LOCAL_ANON_KEY"]);
+  // Klucz publikowalny z warstwy ADR-142 (nowa nazwa sb_publishable_… →
+  // fallback legacy, statyczne odczyty pod wmurowanie build-time), a dopiero
+  // za nią harness testów integracyjnych (SUPABASE_LOCAL_*, CI job `rls`).
+  const anonKey = readSupabasePublishableKey() ?? firstNonEmptyEnv(["SUPABASE_LOCAL_ANON_KEY"]);
   if (!url || !anonKey) return null;
   return { url, anonKey };
 }
@@ -226,7 +233,7 @@ export async function checkRateLimit(
     // logów na gorącej ścieżce auth/checkout.
     console.warn(
       "[rate-limit] Brak konfiguracji bazy rate-limitu (NEXT_PUBLIC_SUPABASE_URL / " +
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY) na Vercelu — licznik in-memory jest PER INSTANCJA " +
+        `${SUPABASE_PUBLISHABLE_KEY_ENV}) na Vercelu — licznik in-memory jest PER INSTANCJA ` +
         "i na wielo-instancyjnym/wieloregionowym hostingu NIE chroni globalnie. Ustaw zmienne " +
         "środowiskowe bazy. Patrz docs/audyty/2026-08-10-audyt-env-rate-limit.md.",
     );

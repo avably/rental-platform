@@ -25,8 +25,15 @@ const APP_ROOT = join(__dirname, "..");
 const SKIP_DIRS = new Set(["node_modules", ".next", ".turbo", "public"]);
 const EXTENSIONS = /\.(ts|tsx|mjs|cjs|js|jsx|json|sh|env|example|md)$/;
 
-// Składane z kawałków — patrz nagłówek.
-const FORBIDDEN = ["SUPABASE", "SERVICE_ROLE_KEY"].join("_");
+// Składane z kawałków — patrz nagłówek. Od ADR-142 zakaz obejmuje TAKŻE
+// nową nazwę klucza sekretnego ORAZ prefiks samej wartości klucza nowego
+// typu (trzeci wpis niżej) — nowa nazwa daje tę samą władzę co stara,
+// a wklejona WARTOŚĆ jest gorsza od nazwy.
+const FORBIDDEN_NAMES = [
+  ["SUPABASE", "SERVICE_ROLE_KEY"].join("_"),
+  ["SUPABASE", "SECRET_KEY"].join("_"),
+  ["sb", "secret"].join("_"),
+];
 
 function walk(dir: string, hits: string[]): void {
   for (const entry of readdirSync(dir)) {
@@ -38,7 +45,7 @@ function walk(dir: string, hits: string[]): void {
     if (!EXTENSIONS.test(entry) && !entry.startsWith(".env")) continue;
     const lines = readFileSync(path, "utf8").split("\n");
     for (const [index, line] of lines.entries()) {
-      if (line.includes(FORBIDDEN)) {
+      if (FORBIDDEN_NAMES.some((name) => line.includes(name))) {
         hits.push(`${relative(APP_ROOT, path)}:${index + 1}: ${line.trim()}`);
       }
     }

@@ -32,7 +32,8 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Sink dziennika budowany LENIWIE i BEZPIECZNIE. Brak SUPABASE_SERVICE_ROLE_KEY
+ * Sink dziennika budowany LENIWIE i BEZPIECZNIE. Brak klucza sekretnego
+ * Supabase (SUPABASE_SECRET_KEY, legacy SUPABASE_SERVICE_ROLE_KEY — ADR-142)
  * nie może wywrócić webhooka (mail leci mimo braku dziennika — ADR-054 D4):
  * createServiceClient rzuca przy braku klucza, więc łapiemy to i zwracamy
  * undefined (wysyłka bez logu), zostawiając ślad w logach serwera. Rozwiązanie

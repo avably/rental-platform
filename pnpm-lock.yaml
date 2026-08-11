@@ -372,6 +372,10 @@ importers:
         version: 4.1.10(@types/node@20.19.43)(jsdom@30.0.1(@noble/hashes@1.8.0))(vite@8.1.4(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/security:
+    dependencies:
+      '@avably/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       next:
         specifier: ^16.2.11

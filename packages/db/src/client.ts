@@ -1,3 +1,4 @@
+import { requireSupabasePublishableKey } from "@avably/core/supabase-env";
 import {
   createBrowserClient as createSsrBrowserClient,
   createServerClient as createSsrServerClient,
@@ -8,28 +9,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireEnv } from "./env";
 
 /**
- * Klient przeglądarkowy — zawsze anon key + sesja użytkownika.
+ * Klient przeglądarkowy — zawsze klucz publikowalny + sesja użytkownika.
  * Izolację tenantów wymusza RLS (app.tenant_id() z custom claim w JWT).
  *
- * Odczyt musi być statyczny (process.env.NEXT_PUBLIC_SUPABASE_URL, nie
+ * Odczyt URL musi być statyczny (process.env.NEXT_PUBLIC_SUPABASE_URL, nie
  * process.env[name]) — Turbopack inlinuje zmienne publiczne do bundla
  * klienta tylko przy dostępie statycznym; dynamiczny odczyt kompiluje się
- * do pustego shima w przeglądarce.
+ * do pustego shima w przeglądarce. Klucz idzie z warstwy
+ * @avably/core/supabase-env (ADR-142: nowa nazwa sb_publishable_… z
+ * fallbackiem legacy), która trzyma ten sam statyczny kontrakt odczytu.
  */
 export function createBrowserClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url) {
     throw new Error(
       "Brak zmiennej środowiskowej NEXT_PUBLIC_SUPABASE_URL — uzupełnij .env.local (patrz README).",
     );
   }
-  if (!anonKey) {
-    throw new Error(
-      "Brak zmiennej środowiskowej NEXT_PUBLIC_SUPABASE_ANON_KEY — uzupełnij .env.local (patrz README).",
-    );
-  }
-  return createSsrBrowserClient(url, anonKey);
+  return createSsrBrowserClient(url, requireSupabasePublishableKey());
 }
 
 /**
@@ -41,7 +38,7 @@ export function createBrowserClient(): SupabaseClient {
 export function createServerClient(cookies: CookieMethodsServer): SupabaseClient {
   return createSsrServerClient(
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    requireSupabasePublishableKey(),
     { cookies },
   );
 }
