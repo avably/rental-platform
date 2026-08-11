@@ -62,6 +62,19 @@ export const createTenantSchema = z.object({
   name: z.string().trim().min(2, "Nazwa organizacji jest za krótka.").max(200),
 });
 
+/**
+ * Pola akceptacji regulaminu platformy z formularza organizacji (0070,
+ * ADR-141). Oba OPCJONALNE na poziomie kształtu — czy są WYMAGANE, decyduje
+ * akcja po rozwiązaniu bieżącej wersji (przed treścią od prawnika formularz
+ * ich nie renderuje). Checkbox HTML wysyła "on" albo nie wysyła nic.
+ */
+export const platformTermsFieldsSchema = z.object({
+  termsAccepted: z
+    .union([z.literal("on"), z.null()])
+    .transform((value) => value === "on"),
+  termsVersionId: z.union([z.string().uuid(), z.null()]),
+});
+
 export const inviteSchema = z.object({
   email: emailSchema,
   role: z.enum(["owner", "staff"]),

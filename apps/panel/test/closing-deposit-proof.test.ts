@@ -29,6 +29,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { requireMemberWithClient } from "@/lib/auth";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const REQUIRED_ENV = [
@@ -119,9 +120,7 @@ describe.skipIf(!hasEnv)("okno domykania — dowód kaucji (e)5", () => {
     };
 
     const bootstrap = await signIn();
-    const { data: tenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `cw5-${randomUUID()}`.slice(0, 39),
         p_name: "Domykanie kaucji",
       });

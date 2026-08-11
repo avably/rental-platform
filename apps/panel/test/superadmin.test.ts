@@ -23,6 +23,7 @@ import WebSocket from "ws";
 
 import { AuthError, requireSuperadminWithClient } from "@/lib/auth";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
@@ -146,7 +147,7 @@ describe.skipIf(!hasEnv)("panel superadmina (RLS + audyt)", () => {
     // Zwykły user z własną organizacją — obiekt akcji superadmina.
     tenantOwner = await createUser(admin, "owner");
     const ownerClient = await signIn(tenantOwner.email);
-    const { data, error } = await ownerClient.schema("app").rpc("create_tenant", {
+    const { data, error } = await rpcCreateTenant(ownerClient, {
       p_slug: `sa-test-${randomUUID()}`.slice(0, 39),
       p_name: "Organizacja testowa superadmina",
     });

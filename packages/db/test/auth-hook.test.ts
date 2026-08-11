@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
@@ -99,7 +100,7 @@ describe.skipIf(!hasEnv)("custom access token hook + RPC onboardingowe (0003_aut
     const { client } = await signIn(user.email);
 
     const slug = `hooktest-${randomUUID()}`.slice(0, 39);
-    const { data: tenantId, error } = await client.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error } = await rpcCreateTenant(client, {
       p_slug: slug,
       p_name: "Hook test tenant",
     });
@@ -143,14 +144,14 @@ describe.skipIf(!hasEnv)("custom access token hook + RPC onboardingowe (0003_aut
     const { client } = await signIn(user.email);
 
     for (let i = 0; i < 2; i++) {
-      const { error } = await client.schema("app").rpc("create_tenant", {
+      const { error } = await rpcCreateTenant(client, {
         p_slug: `hooktest-limit-${i}-${randomUUID()}`.slice(0, 39),
         p_name: `Tenant limit ${i}`,
       });
       expect(error, `create_tenant #${i} powinno się powieść: ${error?.message}`).toBeNull();
     }
 
-    const { error: thirdError } = await client.schema("app").rpc("create_tenant", {
+    const { error: thirdError } = await rpcCreateTenant(client, {
       p_slug: `hooktest-limit-3-${randomUUID()}`.slice(0, 39),
       p_name: "Tenant limit 3",
     });
@@ -184,7 +185,7 @@ describe.skipIf(!hasEnv)("custom access token hook + RPC onboardingowe (0003_aut
     const { client: ownerClient } = await signIn(owner.email);
 
     const slug = `hooktest-invite-${randomUUID()}`.slice(0, 39);
-    const { data: tenantId, error: tenantError } = await ownerClient.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error: tenantError } = await rpcCreateTenant(ownerClient, {
       p_slug: slug,
       p_name: "Invite test tenant",
     });

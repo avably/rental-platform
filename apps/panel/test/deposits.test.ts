@@ -35,6 +35,7 @@ import {
   type DepositEventRow,
 } from "@/app/[locale]/(panel)/zamowienia/[id]/deposit";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
@@ -96,7 +97,7 @@ async function createTenantMember(
   createdUserIds.push(data.user.id);
 
   const bootstrap = await signIn(email);
-  const { data: tenantId, error: tenantError } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
     p_slug: `dep-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja kaucji ${label}`,
   });

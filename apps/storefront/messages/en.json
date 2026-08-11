@@ -81,6 +81,15 @@
       }
     ]
   },
+  "terms": {
+    "versionLabel": "Version:",
+    "effectiveLabel": "in force since",
+    "bindingNote": "The Polish version of these terms is the binding one; this translation is provided for information.",
+    "archivedNote": "This is an archived version of the terms.",
+    "currentLinkLabel": "See the version currently in force",
+    "shaLabel": "Checksum (SHA-256, prefix):",
+    "permalinkLabel": "permanent address of this version:"
+  },
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/en/kalendarz.webp",
@@ -262,11 +271,16 @@
       "trialCta": "Create an account — 14 days, no card",
       "trialNote": "You sign up without a card, so nothing gets charged by itself. Subscription payment goes live before the commercial launch — we will email you first.",
       "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
       "copyright": "© Avably 2026. All rights reserved."
     },
     "privacyPage": {
       "eyebrow": "Documents",
       "title": "Privacy Policy"
+    },
+    "termsPage": {
+      "eyebrow": "Legal",
+      "title": "Avably Terms of Service"
     },
     "contactPage": {
       "title": "Write to one address",

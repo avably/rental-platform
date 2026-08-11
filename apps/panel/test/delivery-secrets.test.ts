@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
 import { loadCourierApi } from "../app/[locale]/(panel)/zamowienia/[id]/delivery";
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -128,9 +129,7 @@ describe.skipIf(!hasEnv)("sekret dostawcy: zapis → odczyt → port kurierski (
     createdUserIds.push(data.user.id);
 
     const bootstrap = await signIn(email);
-    const { data: newTenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `dsec-${randomUUID()}`.slice(0, 39),
         p_name: "Organizacja dostaw",
       });

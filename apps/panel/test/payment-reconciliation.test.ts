@@ -35,6 +35,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const REQUIRED_ENV = [
@@ -212,9 +213,7 @@ describe.skipIf(!hasEnv)("rekoncyliacja płatności — L11", () => {
     createdUserIds.push(user.user.id);
 
     const bootstrap = await signIn(email);
-    const { data: tenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `l11-${label}-${randomUUID()}`.slice(0, 39),
         p_name: `Sklep L11 ${label}`,
       });

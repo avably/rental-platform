@@ -81,6 +81,15 @@
       }
     ]
   },
+  "terms": {
+    "versionLabel": "Wersja:",
+    "effectiveLabel": "obowiązuje od",
+    "bindingNote": "",
+    "archivedNote": "To jest wersja archiwalna regulaminu.",
+    "currentLinkLabel": "Zobacz wersję obowiązującą",
+    "shaLabel": "Suma kontrolna (SHA-256, skrót):",
+    "permalinkLabel": "stały adres tej wersji:"
+  },
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/pl/kalendarz.webp",
@@ -262,11 +271,16 @@
       "trialCta": "Załóż konto — 14 dni bez karty",
       "trialNote": "Konto zakładasz bez karty, więc nic się samo nie nalicza. Płatność abonamentu włączamy przed startem komercyjnym — uprzedzimy mailem.",
       "privacy": "Polityka prywatności",
+      "terms": "Regulamin",
       "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
     },
     "privacyPage": {
       "eyebrow": "Dokumenty",
       "title": "Polityka prywatności"
+    },
+    "termsPage": {
+      "eyebrow": "Dokumenty",
+      "title": "Regulamin świadczenia usługi Avably"
     },
     "contactPage": {
       "title": "Napisz na jeden adres",

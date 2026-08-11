@@ -24,6 +24,7 @@ import {
   requireSuperadminWithClient,
 } from "@/lib/auth";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = { realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket } };
@@ -145,7 +146,7 @@ describe.skipIf(!hasEnv)("guardy auth panelu (lib/auth.ts)", () => {
     const client = await signIn(user.email);
 
     const slug = `panelauth-${randomUUID()}`.slice(0, 39);
-    const { data: tenantId, error } = await client.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error } = await rpcCreateTenant(client, {
       p_slug: slug,
       p_name: "Panel auth test tenant",
     });
@@ -232,7 +233,7 @@ describe.skipIf(!hasEnv)("egzekwowanie statusu tenanta (L3, ADR-107)", () => {
     const user = await createConfirmedUser(admin, label);
     const bootstrap = await signIn(user.email);
     const slug = `panelauth-${randomUUID()}`.slice(0, 39);
-    const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
       p_slug: slug,
       p_name: `Tenant statusowy (${label})`,
     });

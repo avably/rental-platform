@@ -30,6 +30,7 @@ import WebSocket from "ws";
 
 import { requireMemberWithClient } from "@/lib/auth";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -100,7 +101,7 @@ describe.skipIf(!hasEnv)("zero egzekwowania triala (J2 faza 1, ADR-135)", () => 
 
     const bootstrap = await signIn(email);
     const slug = `trialzero-${randomUUID()}`.slice(0, 39);
-    const { data: tenantId, error: rpcError } = await bootstrap.schema("app").rpc("create_tenant", {
+    const { data: tenantId, error: rpcError } = await rpcCreateTenant(bootstrap, {
       p_slug: slug,
       p_name: `Trial zero (${label})`,
     });

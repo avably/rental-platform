@@ -28,6 +28,7 @@ import WebSocket from "ws";
 
 import { CUSTOM_FIELD_PARITY_VECTORS } from "@avably/core";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -97,7 +98,7 @@ async function createTenantWithOwner(
 ): Promise<{ tenantId: string; ownerClient: SupabaseClient }> {
   const owner = await createUser(admin, `owner-${label}`);
   const bootstrap = await signIn(owner.email);
-  const { data: tenantId, error } = await bootstrap.schema("app").rpc("create_tenant", {
+  const { data: tenantId, error } = await rpcCreateTenant(bootstrap, {
     p_slug: `cfields-${label}-${randomUUID()}`.slice(0, 39),
     p_name: `Organizacja pól własnych ${label}`,
   });

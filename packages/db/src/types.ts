@@ -276,6 +276,50 @@ export interface ReviewCommentAttachment {
   created_at: string;
 }
 
+// --- Regulamin platformy (0070_platform_terms.sql, ADR-141) ---
+//
+// Platformowe lustro wzorca B4/ADR-129: rejestr wersji BEZ tenant_id (umowa
+// jest jedna dla całej platformy), dowód akceptacji = FK do wiersza wersji.
+// Odczyt publiczny wyłącznie przez RPC `app.get_platform_terms` /
+// `app.get_platform_terms_version` — typy wierszy służą warstwie serwisowej
+// i testom, role API nie mają grantów SELECT na rejestrze.
+
+export type PlatformTermsAcceptanceContext = "tenant_creation" | "terms_update";
+
+export interface PlatformTermsVersion {
+  id: string;
+  /** Nadaje baza (trigger: max+1, start od 0). v0 = placeholder-szkic z 0070. */
+  version_no: number;
+  /** Kolumna generowana: 'v' + version_no — nie da się jej podać z wejścia. */
+  version_label: string;
+  /** Wersja wiążąca umowy (§15 ust. 3 projektu regulaminu). */
+  title_pl: string;
+  body_pl: string;
+  /** Tłumaczenie informacyjne — wymagane (parytet PL↔EN to własność wersji, D1). */
+  title_en: string;
+  body_en: string;
+  /** Stempluje trigger z bajtów body_* — wartość z wejścia jest ignorowana. */
+  sha256_pl: string;
+  sha256_en: string;
+  published_at: string;
+  /**
+   * NULL = SZKIC (niewidoczny publicznie, niczego nie wymusza); przyszłość =
+   * ogłoszona (permalink działa, jeszcze nie wiąże — §14); <= now() =
+   * obowiązująca.
+   */
+  effective_from: string | null;
+}
+
+export interface PlatformTermsAcceptance {
+  id: string;
+  tenant_id: string;
+  /** Snapshot ręki, która kliknęła — bez FK (dowód przeżywa usunięcie konta). */
+  user_id: string;
+  version_id: string;
+  context: PlatformTermsAcceptanceContext;
+  accepted_at: string;
+}
+
 // --- Pola własne (0057_custom_fields.sql, ADR-118) ---
 //
 // Wartości pól własnych NIE MAJĄ tu własnego typu wiersza: siedzą w kolumnie

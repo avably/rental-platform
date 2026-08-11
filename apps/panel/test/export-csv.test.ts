@@ -34,6 +34,7 @@ import { exportOrdersCsv, ORDERS_CSV_HEADER } from "@/lib/export/orders";
 import { CSV_BOM } from "@/lib/export/csv";
 import type { ExportContext } from "@/lib/export/common";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -89,9 +90,7 @@ async function createTenantOwner(
   createdUserIds.push(data.user.id);
 
   const bootstrap = await signIn(email);
-  const { data: tenantId, error: tenantError } = await bootstrap
-    .schema("app")
-    .rpc("create_tenant", {
+  const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
       p_slug: `exp-${label}-${randomUUID()}`.slice(0, 39),
       p_name: `Organizacja eksportu ${label}`,
     });

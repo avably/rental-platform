@@ -18,7 +18,7 @@ export type MarketingPage = keyof typeof pages;
  * trybem (decyzja właściciela 2026-08-12): LP prowadzi wprost do rejestracji
  * panelu, lista oczekujących nie ma już ani trasy, ani treści.
  */
-export const PUBLIC_PAGES = ["home", "pricing", "faq", "contact", "privacy"] as const;
+export const PUBLIC_PAGES = ["home", "pricing", "faq", "contact", "privacy", "terms"] as const;
 
 /** Trasy obsługiwane przez wspólny segment `[page]` (bez wysp Reacta). */
 export const TEMPLATE_ROUTES = ["pricing", "faq", "contact"] as const;
@@ -91,6 +91,7 @@ export function marketingLinks(locale: Locale) {
       faq: `/${locale}/faq`,
       contact: `/${locale}/contact`,
       privacy: `/${locale}/privacy`,
+      terms: `/${locale}/terms`,
       register: `${PANEL_URL}/${locale}/register`,
       login: `${PANEL_URL}/${locale}/login`,
       langAlternate: `/${other}`,

@@ -36,6 +36,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { requestDepositRefund } from "@/lib/deposit-refund";
 import { handleStripeWebhook } from "@/lib/stripe-webhook";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const REQUIRED_ENV = [
@@ -160,9 +161,7 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     };
 
     const bootstrap = await signIn();
-    const { data: tenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `z5-${randomUUID()}`.slice(0, 39),
         p_name: "Sklep kaucji online",
       });

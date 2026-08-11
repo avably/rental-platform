@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const realtimeTransport = {
@@ -216,7 +217,7 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
     // Tenant A powstaje realną ścieżką onboardingu (owner → claim tenant_id).
     const owner = await createUser(admin, "owner-a");
     const bootstrap = await signIn(owner.email);
-    const { data: newTenant, error: tErr } = await bootstrap.schema("app").rpc("create_tenant", {
+    const { data: newTenant, error: tErr } = await rpcCreateTenant(bootstrap, {
       p_slug: `ban-a-${randomUUID()}`.slice(0, 39),
       p_name: "Wypożyczalnia A",
     });

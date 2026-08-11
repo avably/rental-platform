@@ -497,6 +497,39 @@ async function ensureLegalDocument(ctx: SeedCtx, tenantId: string): Promise<stri
   });
 }
 
+/**
+ * Wiersz wersji regulaminu PLATFORMY (0070) — GET-OR-CREATE placeholder-szkicu
+ * v0 (seed migracji 0070; get-or-create na wypadek świeżo zresetowanej bazy
+ * w połowie suity). Bezpośrednim połączeniem Postgres jak ensureTestPlanId:
+ * rejestr wersji celowo nie ma grantów dla ról API.
+ *
+ * ZAWSZE wiersz-SZKIC (effective_from IS NULL) — fabryka NIE MOŻE opublikować
+ * wersji obowiązującej: baza lokalna jest współdzielona, a obowiązująca wersja
+ * uzbroiłaby twarde wymuszenie w app.create_tenant dla WSZYSTKICH równoległych
+ * suit. FK dowodu akceptacji nie rozróżnia stanów wersji, więc szkic wystarcza.
+ */
+async function ensurePlatformTermsVersionId(): Promise<string> {
+  const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+  try {
+    const existing = await sql<{ id: string }[]>`
+      select id from public.platform_terms_versions
+      where effective_from is null
+      order by version_no asc
+      limit 1
+    `;
+    if (existing.length > 0) return existing[0].id;
+    const inserted = await sql<{ id: string }[]>`
+      insert into public.platform_terms_versions (title_pl, body_pl, title_en, body_en, effective_from)
+      values ('Regulamin świadczenia usługi Avably', '[treść po weryfikacji prawnika]',
+              'Avably Terms of Service', '[content pending legal review]', null)
+      returning id
+    `;
+    return inserted[0].id;
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
 type SampleRowFactory = (ctx: SeedCtx, tenantId: string) => Promise<Record<string, unknown>>;
 
 /**
@@ -817,6 +850,22 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     };
   },
 
+  // Dowód akceptacji regulaminu platformy (0070, ADR-141). version_id wskazuje
+  // placeholder-szkic v0 (FK wymaga istnienia wiersza, nie jego stanu) —
+  // fabryka NIE publikuje wersji obowiązującej (patrz ensurePlatformTermsVersionId).
+  // user_id świeży per wywołanie: snapshot bez FK, ale unikat
+  // (tenant_id, version_id) jest wspólny dla obu tenantów macierzy dopiero
+  // per-tenant, więc kolizji 23505 nie ma. INSERT idzie service-rolem (role
+  // API celowo bez grantu INSERT — zapis produkcyjny wyłącznie przez funkcje
+  // DEFINER), a INSERT cross-tenant w macierzy odbija się na braku grantu
+  // tym samym SQLSTATE 42501 co odmowa RLS.
+  platform_terms_acceptances: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    user_id: await createAuxMemberUser(ctx, tenantId),
+    version_id: await ensurePlatformTermsVersionId(),
+    context: "tenant_creation",
+  }),
+
   // Konto najemcy u dostawcy płatności (0028, ADR-065). PK = tenant_id, więc
   // sonda INSERT cross-tenant koliduje kluczem tak samo jak przy
   // subscriptions — i tak samo dostaje 42501, bo WITH CHECK jest egzekwowane
@@ -977,6 +1026,15 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // ani 23514 (pułapki opisane wyżej nie dotyczą). key_hash byłby pułapką:
   // UNIQUE globalny + CHECK 64-hex.
   api_keys: { name: "rls-test-hacked" },
+
+  // context, a NIE version_id/tenant_id: context ma CHECK dwuwartościowy
+  // ('terms_update' ≠ zasianego 'tenant_creation', więc skuteczna mutacja
+  // byłaby widoczną zmianą stanu), a version_id obejmuje unikat
+  // (tenant_id, version_id) — patch na nim mieszałby 23505 z odmową.
+  // Tabela nie ma grantu UPDATE dla ról API, a strażnik append-only (0070)
+  // odpowiada tym samym 42501 co RLS — macierz i tak wymaga patcha, żeby
+  // brak UPDATE był testowany, a nie pomijany (wzorzec legal_document_versions).
+  platform_terms_acceptances: { context: "terms_update" },
 
   // charges_enabled, a NIE provider_account_id: bramka zapisu 0028 czyni
   // identyfikator konta niezmiennym (23514), więc goła mutacja na tamtej

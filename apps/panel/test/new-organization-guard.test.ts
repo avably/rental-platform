@@ -44,6 +44,11 @@ vi.mock("@/lib/supabase-server", () => ({
       getClaims: async () =>
         claims ? { data: { claims }, error: null } : { data: null, error: null },
     },
+    // Od 0070 ekran rozwiązuje bieżącą wersję regulaminu platformy
+    // (readCurrentPlatformTerms). NULL = nic nie obowiązuje — formularz ma
+    // wyglądać jak przed 0070; kontrakt checkboxa ma własny test
+    // (organizacja-nowa-terms.test.tsx).
+    schema: () => ({ rpc: async () => ({ data: null, error: null }) }),
   }),
 }));
 

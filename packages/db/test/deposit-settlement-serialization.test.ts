@@ -34,6 +34,7 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 import { createAdminClient } from "./helpers/seed-tenants";
 
@@ -148,9 +149,7 @@ describe.skipIf(!hasEnv)("serializacja rozliczenia kaucji — 0034", () => {
     // Operator A zakłada organizację realną ścieżką onboardingu…
     const userA = await createUser("op-a");
     const bootstrap = await signIn(userA.email);
-    const { data: newTenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: newTenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `s34-${randomUUID()}`.slice(0, 39),
         p_name: "Wypożyczalnia rozliczeniowa 0034",
       });

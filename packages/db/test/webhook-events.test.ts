@@ -32,6 +32,7 @@ import postgres from "postgres";
 import WebSocket from "ws";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
 
 const REQUIRED_ENV = [
@@ -467,9 +468,7 @@ describe.skipIf(!hasEnv)("webhook_events + bramka writera rozliczeń — 0030", 
     const signIn = await bootstrap.auth.signInWithPassword({ email, password: TEST_PASSWORD });
     if (signIn.error) throw new Error(`signIn: ${signIn.error.message}`);
 
-    const { data: tenantId, error: tenantError } = await bootstrap
-      .schema("app")
-      .rpc("create_tenant", {
+    const { data: tenantId, error: tenantError } = await rpcCreateTenant(bootstrap, {
         p_slug: `z4-${randomUUID()}`.slice(0, 39),
         p_name: "Sklep Z4",
       });
