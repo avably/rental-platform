@@ -23,7 +23,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "jsdom": "^29",
+    "jsdom": "^30",
     "postcss": "^8.5.25",
     "react": "19.2.8",
     "react-dom": "19.2.8",
