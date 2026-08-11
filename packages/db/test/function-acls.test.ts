@@ -52,7 +52,10 @@ const ANON_EXECUTE_ALLOWLIST = [
   "get_published_site", // 0019 — opublikowana strona sklepu
   "is_settlement_writer", // 0032 — predykat polityk rozliczeń kaucji
   "is_superadmin", // 0001 — czytnik claimu używany w politykach RLS
-  "join_waitlist", // 0006 — publiczny zapis na listę oczekujących
+  // join_waitlist (0006) ZDJĘTA w 0071 — waitlista nie wraca (decyzja
+  // właściciela 2026-08-12); nieobecności funkcji pilnuje
+  // waitlist-decommission.test.ts, a bramka „wpisy martwe" niżej broni
+  // przed cichym powrotem wpisu bez grantu.
   "log_public_checkout_email", // 0021 — dziennik wysyłek checkoutu (bramka: log_token)
   "public_checkout", // 0020/0059 — publiczne zamówienie (bramka: bilet HMAC)
   "reserved_subdomains", // 0023 — lista slugów zarezerwowanych (jawna z definicji)

@@ -81,7 +81,7 @@ const TENANT_STORE_PATHNAME = "/store";
 
 /**
  * Rozwiązywanie tenanta jest wstrzykiwane, żeby proxy dało się testować bez
- * sieci (wzorzec: rdzeń waitlisty przyjmuje `callRpc`). Domyślnie: cache
+ * sieci (wzorzec: rdzeń checkoutu przyjmuje `callRpc`). Domyślnie: cache
  * Upstash/in-memory → miss → baza (0017).
  */
 export interface ProxyDeps {
@@ -113,7 +113,7 @@ function cspOptions(): CspOptions {
     dev: process.env.NODE_ENV !== "production",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     // Dyrektywy Cloudflare tylko gdy widget faktycznie się renderuje (ten sam
-    // warunek co w components/waitlist-form).
+    // warunek co w app/(tenant)/checkout/page.tsx).
     turnstile: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
     // Dyrektywy dostawcy płatności tylko gdy integracja jest skonfigurowana
     // (Z3, ADR-066). Warunek patrzy na klucz SEKRETNY, nie publikowalny: to

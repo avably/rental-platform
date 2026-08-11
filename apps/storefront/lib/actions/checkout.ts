@@ -3,7 +3,8 @@
 /**
  * Server Action checkoutu — jedyne publiczne wejście do składania zamówienia.
  *
- * Ten plik jest CIENKI z rozmysłem (wzorzec lib/actions/waitlist.ts): dostarcza
+ * Ten plik jest CIENKI z rozmysłem (wzorzec przejęty po akcji waitlisty,
+ * zdjętej razem z backendem w 0071): dostarcza
  * rdzeniowi (lib/checkout/core.ts) to, czego nie umie zdobyć bez Next.js i bez
  * sieci — tenant_id z nagłówka, IP, wywołanie RPC, weryfikację captchy,
  * rate-limit i wysyłkę e-maili. Cała logika decyzyjna (kolejność bramek,

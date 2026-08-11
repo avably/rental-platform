@@ -1,8 +1,8 @@
 /**
  * Warstwa PREZENTACJI checkoutu (2.4b) — czyste odwzorowanie wyniku serwera
  * (CheckoutResult, kontrakt 2.4a) na stan widoku i klucz komunikatu. Wzorzec
- * lib/waitlist-form-ui.ts: logika „który komunikat i kiedy" jest tu, testowalna
- * bez Reacta i bez sieci.
+ * przejęty po form-ui waitlisty (zdjętym razem z backendem w 0071): logika
+ * „który komunikat i kiedy" jest tu, testowalna bez Reacta i bez sieci.
  *
  * ZASADA KWOT: stan `success` niesie `order` PROSTO Z SERWERA (CheckoutResult.
  * order). Ekran potwierdzenia liczy podsumowanie WYŁĄCZNIE z tego obiektu

@@ -6,8 +6,8 @@
  * konfiguracja nadawcy e-maili) ani szczegółów błędu bazy — wyłącznie status i
  * PODSUMOWANIE zamówienia klienta (to jego własne dane). Kontekst wysyłki
  * e-maili z RPC (notify_email, email_sender) jest konsumowany po stronie serwera
- * i nie przekracza tej granicy — jak w kontrakcie waitlisty, to bramka, nie
- * konwencja nazewnicza.
+ * i nie przekracza tej granicy — jak w dawnym kontrakcie waitlisty, to bramka,
+ * nie konwencja nazewnicza.
  */
 
 /** Metody dostawy — lustro CHECK orders.delivery_method (0007) i DeliveryMethod z @avably/core. */

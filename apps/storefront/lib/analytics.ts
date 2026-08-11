@@ -1,10 +1,26 @@
-import type {
-  CurrentProcess,
-  InventoryRange,
-  RentalType,
-  WaitlistField,
-  WaitlistFieldError,
-} from "@/lib/waitlist/contract";
+/**
+ * Typy kategoryczne zdarzeń HISTORYCZNYCH waitlisty. Formularz i rdzeń
+ * (lib/waitlist/*) zniknęły z repo (backend zdjęty migracją 0071, strony
+ * w #270), ale definicje zdarzeń zostają — nazw historycznych nie
+ * przemianowujemy, żeby nie rozerwać serii pomiarowych, a typy właściwości
+ * muszą pokrywać każdą nazwę z listy. Wartości przepisane 1:1 z dawnego
+ * kontraktu (lib/waitlist/contract.ts): to słownik zdarzeń już zebranych
+ * w PostHog, nie żywy kontrakt formularza.
+ */
+type RentalType = "tools_construction" | "event" | "sports_outdoor" | "machinery" | "other";
+type InventoryRange = "r1_20" | "r21_100" | "r101_500" | "r500_plus" | "launching";
+type CurrentProcess = "calendar_spreadsheet" | "messages_phone" | "internal_tool" | "none";
+type WaitlistField =
+  | "email"
+  | "rentalType"
+  | "otherEquipment"
+  | "inventoryRange"
+  | "currentProcess"
+  | "pilotInterest"
+  | "phone"
+  | "consent"
+  | "locale";
+type WaitlistFieldError = "required" | "invalid" | "too_long" | "not_allowed";
 
 export const LANDING_EVENT_NAMES = [
   "waitlist_page_view",

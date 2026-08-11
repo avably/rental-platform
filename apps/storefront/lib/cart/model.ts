@@ -1,7 +1,7 @@
 /**
  * Model koszyka storefrontu — CZYSTE funkcje nad stanem klienta (localStorage
  * to warstwa transportu, patrz lib/cart/storage.ts). Rdzeń jest tu, żeby dało
- * się go testować bez przeglądarki (wzorzec lib/waitlist-form-ui.ts).
+ * się go testować bez przeglądarki (wzorzec lib/checkout-form-ui.ts).
  *
  * KONTRAKT AGREGACJI (ADR-042, backend 2.4a): jedna linia per produkt. Druga
  * pozycja tego samego produktu w wejściu public_checkout jest ODRZUCANA przez

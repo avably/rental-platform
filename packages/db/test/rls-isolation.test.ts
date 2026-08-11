@@ -723,8 +723,9 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
     }, 60_000);
 
     beforeEach(async () => {
-      // Zasiew service-rolem (jedyna rola z grantem INSERT na tabeli obok
-      // SECURITY DEFINER RPC) — dane DO testu, nie obiekt testu.
+      // Zasiew service-rolem (po 0071 — DROP app.join_waitlist — jedyna rola
+      // z prawem INSERT na tej tabeli w ogóle) — dane DO testu, nie obiekt
+      // testu. Tabela żyje wyłącznie jako archiwum historycznych zapisów.
       seededEmail = `seeded-${randomUUID()}@test.local`;
       await sql`
         insert into public.waitlist_signups
@@ -754,7 +755,7 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
       );
     });
 
-    it("anon nie wstawi wiersza wprost do tabeli (tylko przez RPC)", async () => {
+    it("anon nie wstawi wiersza wprost do tabeli (po 0071 nie ma też RPC)", async () => {
       const { error } = await anonClient.from("waitlist_signups").insert({
         email: `direct-${randomUUID()}@test.local`,
         rental_type: "event",
@@ -863,30 +864,11 @@ describe.skipIf(!hasEnv)("izolacja tenantów (RLS)", () => {
       },
     );
 
-    it("anon zapisuje się WYŁĄCZNIE przez RPC, a deduplikacja jest case-insensitive", async () => {
-      const email = `rpc-${randomUUID()}@test.local`;
-      const args = {
-        p_email: email.toUpperCase(),
-        p_rental_type: "event",
-        p_inventory_range: "r1_20",
-        p_current_process: "none",
-        p_consent: true,
-      };
-
-      const first = await anonClient.schema("app").rpc("join_waitlist", args);
-      expect(first.error, `RPC join_waitlist jako anon: ${first.error?.message}`).toBeNull();
-      expect(first.data, "anon nie zapisał się przez RPC — ścieżka publiczna zepsuta").toBe("success");
-
-      const second = await anonClient.schema("app").rpc("join_waitlist", { ...args, p_email: email });
-      expect(second.data, "ten sam e-mail innym casingiem nie został zdeduplikowany").toBe("duplicate");
-
-      const rows = await sql<{ email: string }[]>`
-        select email from public.waitlist_signups where lower(email) = ${email.toLowerCase()}
-      `;
-      expect(rows, "deduplikacja przepuściła drugi wiersz").toHaveLength(1);
-      expect(rows[0]?.email, "e-mail nie został znormalizowany do lower-case").toBe(email.toLowerCase());
-
-      await sql`delete from public.waitlist_signups where lower(email) = ${email.toLowerCase()}`;
-    });
+    // Historycznie stał tu test „anon zapisuje się WYŁĄCZNIE przez RPC"
+    // (join_waitlist + deduplikacja case-insensitive). RPC znikła w 0071 —
+    // po niej anon nie ma ŻADNEJ ścieżki zapisu do tej tabeli, a nieobecności
+    // funkcji (introspekcja + odmowa PostgREST) pilnuje
+    // waitlist-decommission.test.ts. Testy wyżej zostają: tabela żyje
+    // z historycznymi danymi osobowymi, więc wciąż ma czego bronić.
   });
 });

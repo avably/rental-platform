@@ -245,10 +245,11 @@ jobs:
           } >> "$GITHUB_ENV"
       - run: pnpm --filter @avably/db test
       - run: pnpm --filter panel test
-      # Storefront ma test uruchomieniowy waitlisty na żywym Supabase
-      # (apps/storefront/test/waitlist-integration.test.ts). W jobie `ci`
-      # pomija się sam (brak zmiennych SUPABASE_LOCAL_*), więc bez tego kroku
-      # dowód „zapis naprawdę tworzy wiersz" nie wykonywałby się w CI nigdy.
+      # Storefront ma testy uruchomieniowe na żywym Supabase (m.in.
+      # apps/storefront/test/api-v1-integration.test.ts — API v1 prawdziwymi
+      # RPC kluczem anon). W jobie `ci` pomijają się same (brak zmiennych
+      # SUPABASE_LOCAL_*), więc bez tego kroku dowody „naprawdę pisze/czyta
+      # bazę" nie wykonywałyby się w CI nigdy.
       - run: pnpm --filter storefront test
       # Efemeryczny stack nie może przeżyć joba ani zostawić wolumenów
       # (własny sprzęt). Skrypt ma GUARD: nie tknie instancji współdzielonej,

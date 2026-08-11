@@ -226,8 +226,8 @@ describe("treść przeniesionych stron", () => {
    * LP prowadzi wprost do samodzielnej rejestracji panelu. Każde CTA, które
    * kiedyś zbierało adresy, prowadzi teraz do `{{link.register}}`, a treść
    * nie zna ani listy oczekujących, ani jej kluczy. Backend zapisu
-   * (app.join_waitlist) zostaje w bazie NIEODLINKOWANY — o jego wyłączeniu
-   * zdecyduje osobna migracja.
+   * (app.join_waitlist) został zdjęty migracją 0071 (revoke + DROP);
+   * nieobecności RPC pilnuje packages/db/test/waitlist-decommission.test.ts.
    */
   it("kieruje każde CTA do rejestracji — lista oczekujących zniknęła z treści", () => {
     for (const file of marketingPages) {
