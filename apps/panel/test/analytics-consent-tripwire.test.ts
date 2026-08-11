@@ -3,7 +3,7 @@
  *
  * Bliźniacza suita apps/storefront/test/analytics-consent-tripwire.test.ts —
  * tam pełne uzasadnienie (decyzja właściciela 2026-08-11, notatka-cookies.md
- * w starkit-system docs/prawne/, warunek #33) oraz skan powierzchni
+ * w starkit-system/docs/prawne/, warunek #33) oraz skan powierzchni
  * WSPÓLNYCH: packages/security (jedyne źródło CSP obu apek — panel woła ten
  * sam `buildCsp`, więc host dopisany tam wszedłby także do panelu),
  * manifesty workspace, lockfile, .github, scripts/, integrations/.
@@ -84,13 +84,13 @@ const CONSENT_ALLOWLIST: ReadonlyArray<{ fragment: string; pr: string }> = [];
 
 const INSTRUKCJA = [
   "TRIPWIRE ZGODNOŚCI (decyzja właściciela 2026-08-11, notatka-cookies.md",
-  "w starkit-system docs/prawne/, warunek #33): wykryto ślad analityki/czatu.",
+  "w starkit-system/docs/prawne/, warunek #33): wykryto ślad analityki/czatu.",
   "Jeżeli INTEGRUJESZ analitykę lub czat — to jest właściwy moment, ale",
   "komplet wchodzi w TYM SAMYM PR:",
   "  1. baner zgody (opt-in PRZED załadowaniem jakiegokolwiek skryptu dostawcy),",
   "  2. aktualizacja polityki cookies i polityki prywatności,",
   "  3. aktualizacja załącznika sub-procesorów",
-  "     (starkit-system docs/prawne/zalacznik-subprocesorzy.md),",
+  "     (starkit-system/docs/prawne/zalacznik-subprocesorzy.md),",
   "  4. świadomy wpis do CONSENT_ALLOWLIST w tym teście (fragment + nr PR).",
   "Bez kompletu każde wystąpienie hosta/pakietu/env-a dostawcy jest defektem",
   "zgodności. Nie wyłączaj testu i nie zwężaj wzorców — rozszerz allowlistę.",
