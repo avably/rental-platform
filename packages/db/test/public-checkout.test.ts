@@ -383,6 +383,55 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
     expect(error?.code).toBe("22023");
   });
 
+  // OKNO DUNNINGOWE (0065, ADR-134, zasada 2): tenant `past_due` przyjmuje
+  // zamówienia NORMALNIE — zaległość najemcy wobec platformy nie może psuć
+  // zakupów JEGO klientom. To jest delta migracji 0065: przed nią ten checkout
+  // kończył się 22023. DOWÓD MUTACYJNY: usunięcie 'past_due' ze zbioru
+  // w app.tenant_commercially_active pali ten test.
+  it("checkout na tenancie 'past_due' PRZECHODZI i utrwala zamówienie (okno dunningowe)", async () => {
+    const pastDue = await seedTenant(admin, "past_due");
+    const productId = await seedProduct(admin, pastDue);
+    const pickupId = await seedPickupLocation(admin, pastDue);
+    await seedUnits(admin, pastDue, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(pastDue, productId, pickupId),
+    );
+
+    expect(
+      error,
+      `checkout w oknie dunningowym odrzucony (${error?.code}: ${error?.message}) — sklep past_due zgaszony wbrew zasadzie 2`,
+    ).toBeNull();
+    const orderId = (data as { order_id: string }).order_id;
+    expect(orderId).toBeTruthy();
+
+    // Zamówienie NAPRAWDĘ powstało (odczyt service-role, nie sama odpowiedź RPC).
+    const { data: orderRow } = await admin
+      .from("orders")
+      .select("id, tenant_id")
+      .eq("id", orderId)
+      .single();
+    expect(orderRow?.tenant_id, "zamówienie z checkoutu past_due nie istnieje w bazie").toBe(pastDue);
+  });
+
+  it("get_public_catalog tenanta 'past_due' ODPOWIADA katalogiem (okno dunningowe)", async () => {
+    const pastDue = await seedTenant(admin, "past_due");
+    await seedProduct(admin, pastDue, { name: "WIDOCZNY_PAST_DUE" });
+
+    const { data, error } = await anon
+      .schema("app")
+      .rpc("get_public_catalog", { p_tenant_id: pastDue });
+
+    expect(error, `get_public_catalog jako anon zawiódł: ${error?.message}`).toBeNull();
+    const catalog = data as { products: { name: string }[] } | null;
+    expect(
+      catalog,
+      "katalog tenanta past_due zwrócił NULL — sklep w oknie dunningowym zgaszony",
+    ).not.toBeNull();
+    expect(catalog?.products.map((p) => p.name)).toContain("WIDOCZNY_PAST_DUE");
+  });
+
   it("get_public_catalog: NULL dla nieaktywnego, tylko własne aktywne produkty, ZERO credentiali", async () => {
     const active = await seedTenant(admin, "active");
     const otherTenant = await seedTenant(admin, "active");

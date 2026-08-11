@@ -167,7 +167,7 @@ describe("api v1 — autoryzacja kluczem", () => {
     expect(c.work).toBe(0);
   });
 
-  it("status tenanta poza {trialing,active} → 403 store_unavailable, zero odczytu", async () => {
+  it("status tenanta poza zbiorem komercyjnie aktywnym → 403 store_unavailable, zero odczytu", async () => {
     const c = counters();
     const deps = makeCatalogDeps(c, { verifyKeyHash: makeVerify(c, "suspended") });
     const response = await handleCatalogRequest(
@@ -177,6 +177,21 @@ describe("api v1 — autoryzacja kluczem", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: { code: "store_unavailable" } });
     expect(c.work).toBe(0);
+  });
+
+  // OKNO DUNNINGOWE (ADR-134): `past_due` jest w zbiorze komercyjnie aktywnym
+  // (lustro app.tenant_commercially_active, 0065) — API v1 obsługuje ruch
+  // normalnie. Delta: przed ADR-134 ten status dostawał 403. DOWÓD MUTACYJNY:
+  // usunięcie "past_due" z API_ACTIVE_TENANT_STATUSES pali ten test.
+  it("status tenanta 'past_due' → 200 (okno dunningowe: klienci najemcy kupują normalnie)", async () => {
+    const c = counters();
+    const deps = makeCatalogDeps(c, { verifyKeyHash: makeVerify(c, "past_due") });
+    const response = await handleCatalogRequest(
+      reqGet("https://acme.avably.io/api/v1/catalog", AUTH_A),
+      deps,
+    );
+    expect(response.status).toBe(200);
+    expect(c.work).toBe(1);
   });
 });
 

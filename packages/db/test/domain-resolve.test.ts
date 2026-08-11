@@ -102,7 +102,9 @@ describe.skipIf(!hasEnv)("app.resolve_tenant_by_domain — 0022", () => {
     }
   });
 
-  it.each(["trialing", "active"])(
+  // `past_due` w zbiorze od 0065 (ADR-134, okno dunningowe — zasada 2):
+  // zaległość najemcy wobec platformy nie gasi sklepu pod jego domeną.
+  it.each(["trialing", "active", "past_due"])(
     "anon rozwiązuje zweryfikowaną domenę tenanta '%s'",
     async (status) => {
       const tenantId = await seedTenant(admin, status);
@@ -142,11 +144,11 @@ describe.skipIf(!hasEnv)("app.resolve_tenant_by_domain — 0022", () => {
 
   /**
    * DOWÓD MUTACYJNY (b) — BRAMKA STATUSU TENANTA (lustro 0017). Rozluźnienie
-   * filtra `t.status in ('trialing','active')` sprawia, że ten test przestaje
-   * widzieć NULL: sklep zawieszony/anulowany stałby się osiągalny przez własną
-   * domenę, omijając bramkę, którą 2.1 postawiło na subdomenach.
+   * predykatu `app.tenant_commercially_active` (0065) sprawia, że ten test
+   * przestaje widzieć NULL: sklep zawieszony/anulowany stałby się osiągalny
+   * przez własną domenę, omijając bramkę, którą 2.1 postawiło na subdomenach.
    */
-  it.each(["suspended", "cancelled", "past_due", "superadmin_locked"])(
+  it.each(["suspended", "cancelled", "superadmin_locked"])(
     "zweryfikowana domena tenanta '%s' → NULL (nieodróżnialne od nieistnienia)",
     async (status) => {
       const tenantId = await seedTenant(admin, status);
