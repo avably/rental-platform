@@ -23,6 +23,7 @@
  */
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -54,6 +55,8 @@ export interface SitePageRow {
   slug: string;
   /** ADRES OPUBLIKOWANY; null = strona nigdy nie opublikowana. */
   slugPublished: string | null;
+  /** Czy stary adres dostanie 308 przy najbliższej publikacji (0075). */
+  redirectOldSlug: boolean;
   publishedAtLabel: string | null;
   createdAtLabel: string | null;
 }
@@ -180,9 +183,16 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                   disabled={pending}
                   current={row.name}
                   currentSlug={row.slug}
-                  onRename={(name, slug) =>
+                  publishedSlug={row.slugPublished}
+                  redirectOldSlug={row.redirectOldSlug}
+                  onRename={(name, slug, redirect) =>
                     run(() =>
-                      renameSite({ siteId: row.id, name, ...(slug === undefined ? {} : { slug }) }),
+                      renameSite({
+                        siteId: row.id,
+                        name,
+                        ...(slug === undefined ? {} : { slug }),
+                        ...(redirect === undefined ? {} : { redirectOldSlug: redirect }),
+                      }),
                     )
                   }
                 />
@@ -362,18 +372,32 @@ function RenameDialog({
   disabled,
   current,
   currentSlug,
+  publishedSlug,
+  redirectOldSlug,
   onRename,
 }: {
   disabled: boolean;
   current: string;
   currentSlug: string;
-  onRename: (name: string, slug: string | undefined) => void;
+  publishedSlug: string | null;
+  redirectOldSlug: boolean;
+  onRename: (name: string, slug: string | undefined, redirect: boolean | undefined) => void;
 }) {
   const t = useTranslations("site");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(current);
   const [slug, setSlug] = useState(currentSlug);
+  const [redirect, setRedirect] = useState(redirectOldSlug);
   const isHome = currentSlug === HOME_PAGE_SLUG;
+
+  /*
+    PYTANIE O STARY ADRES PADA TAM, GDZIE ZMIENIA SIĘ ADRES (ADR-159).
+    Widoczne wyłącznie wtedy, gdy stary adres NAPRAWDĘ istnieje — strona nigdy
+    nieopublikowana nie ma czego przekierowywać, a checkbox bez konsekwencji
+    uczy operatora, że opcje w tym oknie nic nie znaczą.
+  */
+  const zmienionyAdres =
+    !isHome && publishedSlug !== null && publishedSlug !== "" && slug.trim() !== publishedSlug;
 
   const blocked = name.trim().length === 0 || (!isHome && pageSlugIssue(slug) !== null);
 
@@ -409,6 +433,19 @@ function RenameDialog({
           hint={isHome ? t("pages.slugHome") : t("pages.slugChangeHint")}
           onChange={setSlug}
         />
+        {zmienionyAdres ? (
+          <label className="flex items-start gap-2 text-[13px] leading-[18px]">
+            <Checkbox
+              checked={redirect}
+              data-redirect-old-slug
+              onCheckedChange={(next) => setRedirect(next === true)}
+            />
+            <span>
+              {t("pages.redirectOld", { old: pagePathFromSlug(publishedSlug ?? "") })}
+              <span className="text-muted-foreground block">{t("pages.redirectOldHint")}</span>
+            </span>
+          </label>
+        ) : null}
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
@@ -420,7 +457,11 @@ function RenameDialog({
             data-rename-site-confirm
             disabled={blocked}
             onClick={() => {
-              onRename(name.trim(), isHome ? undefined : slug.trim());
+              onRename(
+                name.trim(),
+                isHome ? undefined : slug.trim(),
+                zmienionyAdres ? redirect : undefined,
+              );
               setOpen(false);
             }}
           >
