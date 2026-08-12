@@ -34,9 +34,23 @@
  * silnika, które policzą zamówienie po stronie serwera. Wynik podglądu jest
  * informacyjny — autorytatywna wycena, przypisanie egzemplarzy i koszt
  * dostawy dzieją się w akcji serwerowej na świeżo odczytanym cenniku.
+ *
+ * ============ CO DOKŁADA U7 (audyt 2.6) ============
+ *
+ * 1. PODSUMOWANIE STOI ZAWSZE (`order-summary.tsx`). Do U7 karta wyceny
+ *    pojawiała się dopiero z kompletem „pozycje + termin"; wcześniej prawa
+ *    kolumna milczała, więc ekran nie odróżniał „jeszcze nie policzyliśmy" od
+ *    „ten ekran kwot nie pokazuje".
+ * 2. KROKI SĄ PONUMEROWANE w układzie (1. Klient → 2. Pozycje → 3. Dostawa),
+ *    a nie wyprowadzane z rozproszonych podpowiedzi. Kalendarz i kwota stoją
+ *    w przyklejonej kolumnie obok jako PANEL, do którego wraca się w każdym
+ *    kroku — numeru nie dostają świadomie: operator przy telefonie zmienia
+ *    termin w dowolnej chwili, a numer sugerowałby moment.
+ * 3. ZAPIS JEST WYGASZONY, GDY BRAKUJE DANYCH — z listą braków WIDOCZNĄ
+ *    ZANIM operator kliknie (`readiness.ts`, wzorzec ekranu płatności:
+ *    kontrolka nieczynna zawsze mówi, dlaczego).
  */
 import {
-  formatMoney,
   resolveDeliveryCost,
   type CurrencyCode,
   type CustomFieldDefinition,
@@ -58,16 +72,20 @@ import {
 } from "../pricing";
 import { blockedDays, mergeDayMaps } from "./basket-availability";
 import { sumLineAmounts } from "./basket-lines";
-import { CustomerPicker, type CustomerPickerState } from "./customer-picker";
+import {
+  CustomerPicker,
+  EMPTY_CUSTOMER_STATE,
+  type CustomerPickerState,
+} from "./customer-picker";
 import { DeliveryFields, EMPTY_DELIVERY_STATE, type DeliveryState } from "./delivery-fields";
 import { FIELD_CLASS } from "./field-class";
 import { ItemPicker } from "./item-picker";
+import { OrderSummary, READINESS_LIST_ID } from "./order-summary";
+import { hasValidTerm, orderBlockers } from "./readiness";
 import { TermCalendar } from "./term-calendar";
 import type { WizardCustomer, WizardLocation, WizardProduct } from "./wizard-data";
 
 const initialState: FormState = {};
-
-const ISO_DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export type {
   WizardBooked,
@@ -124,7 +142,7 @@ export function OrderWizard({
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("orders.form");
 
-  const [customer, setCustomer] = useState<CustomerPickerState>({ selected: null, creating: false });
+  const [customer, setCustomer] = useState<CustomerPickerState>(EMPTY_CUSTOMER_STATE);
   const [itemProductIds, setItemProductIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -142,8 +160,10 @@ export function OrderWizard({
     [products],
   );
 
-  const hasValidRange =
-    ISO_DAY_PATTERN.test(startDate) && ISO_DAY_PATTERN.test(endDate) && endDate >= startDate;
+  // Ta sama reguła terminu, którą stosuje schemat akcji serwerowej —
+  // `readiness.ts` woła `assertIsoDate` silnika, więc podgląd i lista braków
+  // nie mogą różnić się zdaniem o tym, czy termin jest już wybrany.
+  const hasValidRange = hasValidTerm(startDate, endDate);
 
   /**
    * Mapa dostępności KOSZYKA — koniunkcja map produktów (patrz
@@ -217,24 +237,30 @@ export function OrderWizard({
    * która policzy autorytatywny koszt po stronie serwera: cennik albo cena
    * ustalona ręcznie. Metoda płatna bez cennika i bez ceny własnej rzuca
    * (ADR-030: zero cichych zer) — łapiemy to jako `problem` i pokazujemy
-   * podpowiedź zamiast wywracać podgląd.
+   * powód zamiast wywracać podgląd.
+   *
+   * OD U7 liczy się TAKŻE BEZ WYCENY NAJMU (przed pozycjami i terminem), bo
+   * tak samo liczą się ceny na kartach metod — dopiero wtedy „kurier bez
+   * cennika" jest widoczny w chwili wyboru metody, a nie po skompletowaniu
+   * całego zamówienia. Suma najmu wchodzi wyłącznie do progu darmowej dostawy,
+   * więc przed wyceną jest zerem: próg jeszcze nie jest osiągnięty i karta
+   * pokazuje pełną cenę — dokładnie to, co zobaczy klient w tym stanie.
    */
   const deliveryPreview = useMemo(() => {
-    if (!preview) return null;
     // Niedokończona kwota („19,") daje `null` — dla PODGLĄDU znaczy to
     // „jeszcze nie ma czego pokazać", nie błąd. Regułę parsowania niesie ta
     // sama funkcja co schemat, żeby podgląd i walidacja nie rozjechały się.
     const overrideGrosze =
       delivery.priceSource === "manual" ? parseMajorToGrosze(delivery.price) : null;
     // Deklaracja ceny własnej bez wpisanej kwoty to jeszcze nie błąd —
-    // operator jest w trakcie wpisywania. Podgląd milczy, a odmowę (jeśli
-    // trzeba) wystawi schemat przy wysyłce.
+    // operator jest w trakcie wpisywania. Podgląd milczy, a powód („podaj
+    // kwotę dostawy") niesie lista braków.
     if (delivery.priceSource === "manual" && overrideGrosze === null) return null;
     try {
       const resolved = resolveDeliveryCost({
         method: delivery.method as DeliveryMethod,
         pricing: deliveryPricing,
-        rentalTotalGrosze: preview.pricing.totalRentalGrosze,
+        rentalTotalGrosze: preview?.pricing.totalRentalGrosze ?? 0,
         overrideGrosze,
       });
       return { ...resolved, problem: false as const };
@@ -243,9 +269,40 @@ export function OrderWizard({
     }
   }, [preview, delivery.method, delivery.priceSource, delivery.price, deliveryPricing]);
 
+  /**
+   * CZEGO JESZCZE BRAKUJE — jedna lista, z której korzysta i podsumowanie,
+   * i przycisk zapisu. Reguły siedzą w `readiness.ts` i są przypięte testem
+   * do `orderFormSchema`, więc wygaszony przycisk zawsze znaczy „schemat i tak
+   * by odmówił", a czynny — „schemat przyjmie".
+   */
+  const blockers = useMemo(
+    () =>
+      orderBlockers({
+        hasCustomer: customer.selected !== null || customer.newEmail.trim() !== "",
+        itemCount: itemProductIds.length,
+        startDate,
+        endDate,
+        method: delivery.method,
+        pickupLocationId: delivery.pickupLocationId,
+        pointCode: delivery.pointCode,
+        addressSource: delivery.addressSource,
+        addressStreet: delivery.addressStreet,
+        addressZip: delivery.addressZip,
+        addressCity: delivery.addressCity,
+        priceSource: delivery.priceSource,
+        price: delivery.price,
+        deliveryPricingProblem: deliveryPreview?.problem ?? false,
+        shortageCount: preview?.shortages.length ?? 0,
+      }),
+    [customer, itemProductIds.length, startDate, endDate, delivery, deliveryPreview, preview],
+  );
+
   const errorSlot = (field: string) => (
     <FieldError id={`order-${field}-error`} message={state.fieldErrors?.[field]} />
   );
+
+  /** Nagłówek kroku: numer stoi w TREŚCI, więc czyta go też czytnik ekranu. */
+  const stepTitle = (step: number, title: string) => t("stepTitle", { step, title });
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -253,8 +310,11 @@ export function OrderWizard({
         {/* ================= KOLUMNA LEWA — treść zamówienia ================= */}
         <div data-form-line-measure className="flex flex-col gap-6">
           <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-              {t("customerSection")}
+            <legend
+              className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]"
+              data-step="1"
+            >
+              {stepTitle(1, t("customerSection"))}
             </legend>
             <CustomerPicker
               customers={customers}
@@ -267,8 +327,11 @@ export function OrderWizard({
           </fieldset>
 
           <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-              {t("itemsSection")}
+            <legend
+              className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]"
+              data-step="2"
+            >
+              {stepTitle(2, t("itemsSection"))}
             </legend>
             <ItemPicker
               products={products}
@@ -283,8 +346,11 @@ export function OrderWizard({
           </fieldset>
 
           <fieldset className="flex flex-col gap-3">
-            <legend className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-              {t("deliverySection")}
+            <legend
+              className="mb-3 text-xl leading-[26px] font-semibold tracking-[-0.01em]"
+              data-step="3"
+            >
+              {stepTitle(3, t("deliverySection"))}
             </legend>
             <DeliveryFields
               state={delivery}
@@ -301,9 +367,26 @@ export function OrderWizard({
             />
           </fieldset>
 
+          {/* NOTATKA JEST WEWNĘTRZNA — i to jest sprawdzone w kodzie, nie
+              założone (U7, audyt 2.6 §5). Treść z tego pola jedzie jako
+              `p_notes` do `app.create_order`, a ta od migracji 0041 zakłada
+              WPIS W `order_notes` — listę czytaną wyłącznie przez szczegół
+              zamówienia w panelu. Szablony e-maili (`packages/emails`) i umowa
+              PDF (`packages/pdf`) nie mają do notatek ani jednego odwołania,
+              więc zdanie „klient tego nie zobaczy" jest prawdą o systemie,
+              a nie obietnicą. */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="order-notes">{t("notes")}</Label>
-            <Textarea id="order-notes" name="notes" rows={3} maxLength={2000} />
+            <Textarea
+              id="order-notes"
+              name="notes"
+              rows={3}
+              maxLength={2000}
+              aria-describedby="order-notes-hint"
+            />
+            <p id="order-notes-hint" className="text-muted-foreground text-xs" data-notes-hint>
+              {t("notesHint")}
+            </p>
           </div>
 
           {/* Rodzeństwem są fieldsety „Klient", „Pozycje" i „Termin
@@ -336,72 +419,15 @@ export function OrderWizard({
             />
           </section>
 
-          {preview ? (
-            <section
-              className="border-border bg-card flex flex-col gap-2 rounded-lg border p-4"
-              role="status"
-              data-order-preview
-            >
-              <p className="text-sm font-semibold">{t("previewTitle", { days: preview.pricing.days })}</p>
-              <ul className="flex flex-col gap-1 text-sm">
-                {preview.pricing.items.map((item, index) => (
-                  <li key={index} className="flex justify-between gap-4">
-                    <span>{productById.get(item.productId)?.name ?? item.productId}</span>
-                    <span>
-                      {formatMoney(item.rentalGrosze, currency, locale)}
-                      {item.depositGrosze > 0
-                        ? ` (+ ${t("deposit")}: ${formatMoney(item.depositGrosze, currency, locale)})`
-                        : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
-                <span>{t("totalRental")}</span>
-                <span>{formatMoney(preview.pricing.totalRentalGrosze, currency, locale)}</span>
-              </p>
-              {preview.pricing.totalDepositGrosze > 0 ? (
-                <p className="flex justify-between gap-4 text-sm">
-                  <span>{t("totalDeposit")}</span>
-                  <span>{formatMoney(preview.pricing.totalDepositGrosze, currency, locale)}</span>
-                </p>
-              ) : null}
-              {deliveryPreview?.problem ? (
-                <p role="alert" className="text-destructive text-sm">
-                  {t("deliveryPricingMissing")}
-                </p>
-              ) : deliveryPreview && deliveryPreview.grosze !== null ? (
-                <>
-                  <p className="flex justify-between gap-4 text-sm">
-                    <span>
-                      {t("deliveryCost")}
-                      {deliveryPreview.source === "manual" ? ` · ${t("deliveryPriceManualTag")}` : null}
-                    </span>
-                    <span>{formatMoney(deliveryPreview.grosze, currency, locale)}</span>
-                  </p>
-                  <p className="border-border flex justify-between gap-4 border-t pt-2 text-sm font-semibold">
-                    <span>{t("totalWithDelivery")}</span>
-                    <span>
-                      {formatMoney(
-                        preview.pricing.totalRentalGrosze + deliveryPreview.grosze,
-                        currency,
-                        locale,
-                      )}
-                    </span>
-                  </p>
-                </>
-              ) : null}
-              {preview.shortages.map((shortage) => (
-                <p key={shortage.productId} role="alert" className="text-destructive text-sm">
-                  {t("shortage", {
-                    product: productById.get(shortage.productId)?.name ?? shortage.productId,
-                    needed: shortage.needed,
-                    free: shortage.free,
-                  })}
-                </p>
-              ))}
-            </section>
-          ) : null}
+          <OrderSummary
+            pricing={preview?.pricing ?? null}
+            delivery={deliveryPreview}
+            blockers={blockers}
+            shortages={preview?.shortages ?? []}
+            productName={(productId) => productById.get(productId)?.name ?? productId}
+            currency={currency}
+            locale={locale}
+          />
         </aside>
       </div>
 
@@ -411,14 +437,25 @@ export function OrderWizard({
         </p>
       ) : null}
 
-      <div>
+      {/* Przycisk wygaszony ZAWSZE mówi, dlaczego — wzorzec ekranu płatności
+          (`ustawienia-platnosci/payments-panel.tsx`). Powód wskazuje listę
+          braków w podsumowaniu (`aria-describedby`), a zdanie obok kieruje do
+          niej wzrok: przycisk nieczynny bez wyjaśnienia jest gorszy niż
+          czynny, bo operator nie wie, co ma zrobić. */}
+      <div className="flex flex-col gap-2">
         <Button
           type="submit"
           loading={pending}
-          disabled={pending || (preview !== null && preview.shortages.length > 0)}
+          disabled={pending || blockers.length > 0}
+          aria-describedby={blockers.length > 0 ? READINESS_LIST_ID : undefined}
         >
           {t("save")}
         </Button>
+        {blockers.length > 0 ? (
+          <p role="status" className="text-status-attention-fg text-sm" data-save-blocked>
+            {t("saveBlocked")}
+          </p>
+        ) : null}
       </div>
     </form>
   );

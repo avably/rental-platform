@@ -112,14 +112,29 @@ export interface DeliveryState {
   paymentMethod: "" | "cod" | "transfer" | "online";
 }
 
+/**
+ * STAN POCZĄTKOWY DOSTAWY — odbiór osobisty (U7, audyt 2.6 §2).
+ *
+ * Do U7 domyślną metodą był KURIER: karta stawała się od razu wybrana (limonka
+ * stanu wybranego panelu), a pod nią stało „brak cennika" — czyli ekran
+ * ZALECAŁ metodę, której najemca nie skonfigurował, i przy okazji wywracał
+ * własny podgląd kwoty (metoda płatna bez cennika nie ma ceny, ADR-030).
+ * Odbiór osobisty jest bezpłatny z definicji i nie wymaga ani cennika, ani
+ * kuriera — to jedyna metoda, która działa u KAŻDEGO najemcy od pierwszej
+ * minuty, więc to ona jest domyślną.
+ *
+ * `addressSource` startuje pusty, bo odbiór osobisty adresu nie ma i schemat
+ * (`orderFormSchema`) żąda tu pustki dla metod bez adresu; wybór kuriera
+ * ustawia „z kartoteki" w tym samym `onChange`, w którym zmienia metodę.
+ */
 export const EMPTY_DELIVERY_STATE: DeliveryState = {
-  method: "courier",
+  method: "pickup",
   pickupLocationId: "",
   priceSource: "pricing",
   price: "",
   pointCode: "",
   pointAddress: "",
-  addressSource: "customer",
+  addressSource: "",
   addressName: "",
   addressStreet: "",
   addressZip: "",
