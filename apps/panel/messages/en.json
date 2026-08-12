@@ -447,6 +447,35 @@
       "tabTiers": "Pricing tiers",
       "tabImages": "Photos"
     },
+    "categories": {
+      "entry": "Categories",
+      "title": "Catalog categories",
+      "backToCatalog": "← Product catalog",
+      "backToList": "← Catalog categories",
+      "newCategory": "New category",
+      "createTitle": "New category",
+      "intro": "Categories organise your offer: a product can belong to several at once, and the order on this list is the order your customers will see.",
+      "empty": "You have no categories yet. Create the first one, then assign products to it from their product pages.",
+      "form": {
+        "name": "Name",
+        "slug": "Address",
+        "slugHint": "The address fragment of the category page. Leave it empty and we will build it from the name. Lowercase letters, digits and hyphens.",
+        "description": "Description",
+        "descriptionHint": "A short sentence for your customers. You can leave it empty.",
+        "create": "Create category",
+        "save": "Save",
+        "saved": "Saved."
+      },
+      "table": {
+        "name": "Name",
+        "slug": "Address",
+        "products": "Products",
+        "actions": "Actions",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "delete": "Delete"
+      }
+    },
     "card": {
       "overviewHeading": "Product status",
       "photoManage": "Manage photos",
@@ -485,7 +514,9 @@
       "bufferAfter": "Service buffer after rental (days)",
       "active": "Product active",
       "save": "Save",
-      "saved": "Changes saved."
+      "saved": "Changes saved.",
+      "categoriesLegend": "Categories",
+      "categoriesEmpty": "You have no categories yet. Create them in the catalog, under “Categories”, and they will show up here as checkboxes."
     },
     "units": {
       "heading": "Units",
@@ -582,6 +613,7 @@
     "summaryCreated": "New products: {count}",
     "summaryUpdated": "Updated products: {count}",
     "summaryTiers": "Pricing tiers after import: {count}",
+    "summaryCategories": "Category assignments after import: {count}",
     "summaryNote": "Products missing from the file stay untouched. Tiers of products present in the file are replaced with the set from the file.",
     "issuesTitle": "Errors in the file — import on hold",
     "issueRow": "Row {row}",
@@ -590,7 +622,8 @@
       "title": "Import finished",
       "created": "Products created: {count}",
       "updated": "Products updated: {count}",
-      "tiers": "Pricing tiers saved: {count}"
+      "tiers": "Pricing tiers saved: {count}",
+      "categories": "Saved category assignments: {count}"
     },
     "errors": {
       "noFile": "Choose a CSV file.",
@@ -614,7 +647,9 @@
       "duplicateTierDays": "duplicate {value}-day tier for the same product",
       "unknownProduct": "product with identifier {value} does not exist in your catalog",
       "badCustomField": "custom field value is invalid or exceeds the allowed size ({value})",
-      "unknownCustomField": "column {column} refers to a custom field that does not exist in this organization"
+      "unknownCustomField": "column {column} refers to a custom field that does not exist in this organization",
+      "badCategorySlug": "column {column}: “{value}” is not a valid category address (lowercase letters, digits and hyphens)",
+      "unknownCategory": "category with address “{value}” does not exist in your catalog — create it first under Categories"
     }
   },
   "orders": {

@@ -151,6 +151,27 @@ async function seedApiKey(admin: SupabaseClient, tenantId: string): Promise<stri
   return raw;
 }
 
+/** Kategoria katalogu najemcy (0072, ADR-155) — slug świeży per przebieg. */
+async function seedCategory(
+  admin: SupabaseClient,
+  tenantId: string,
+  name: string,
+  position: number,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("catalog_categories")
+    .insert({
+      tenant_id: tenantId,
+      name: `${name} ${randomUUID().slice(0, 8)}`,
+      slug: `apiv1-${randomUUID().slice(0, 8)}`,
+      position,
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`seedCategory: ${error?.message}`);
+  return data.id as string;
+}
+
 const reservationBody = (productId: string) => ({
   email: `apiv1-${randomUUID().slice(0, 8)}@test.local`,
   fullName: "Klient Integracyjny",
@@ -169,6 +190,8 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
   let tenantB: string;
   let productA: string;
   let productB: string;
+  let categoryA: string;
+  let categoryB: string;
   let rawKeyA: string;
 
   const catalogDeps = () => ({
@@ -202,6 +225,15 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
       value: { courier: { price_grosze: 2_000 } },
     });
     if (pricingError) throw new Error(`seed delivery_pricing: ${pricingError.message}`);
+
+    // Taksonomia katalogu (ADR-155): kategoria u OBU najemców, przypisanie
+    // wyłącznie u A — bez kategorii u B test izolacji nie miałby czego bronić.
+    categoryA = await seedCategory(admin, tenantA, "KATEGORIA_A", 5);
+    categoryB = await seedCategory(admin, tenantB, "KATEGORIA_B", 0);
+    const { error: linkError } = await admin
+      .from("product_categories")
+      .insert({ tenant_id: tenantA, product_id: productA, category_id: categoryA });
+    if (linkError) throw new Error(`seed product_categories: ${linkError.message}`);
   }, 60_000);
 
   afterAll(async () => {
@@ -221,6 +253,11 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     // Kształt zamknięty: dokładnie kontrakt PublicCatalog z 0020 — bez
     // sekretów nadawcy, bez kont płatności, bez danych innych najemców.
     expect(Object.keys(body).sort()).toEqual([
+      // [ADR-155] Kategorie katalogu — pełne obiekty RAZ, na górze koperty;
+      // produkt niesie `category_ids`. Klucz dołożony ŚWIADOMIE: bez niego
+      // integrator ma identyfikatory, których nie umie nazwać. Kształt
+      // pojedynczej kategorii pilnuje osobny przypadek niżej.
+      "categories",
       // [C6-A3] Definicje pól własnych zamawiania są w kontrakcie ŚWIADOMIE:
       // bez nich integrator nie ma jak wyrenderować pól, których najemca
       // wymaga. Kształt pojedynczej definicji pilnuje osobny przypadek niżej.
@@ -236,6 +273,34 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     expect(ids).toContain(productA);
     expect(ids).not.toContain(productB);
     expect(JSON.stringify(body)).not.toContain(tenantB);
+  });
+
+  it("katalog niesie kategorie WŁASNE i przypisania produktu, nie niesie cudzych (ADR-155)", async () => {
+    const response = await handleCatalogRequest(
+      new Request("https://x.avably.io/api/v1/catalog", { headers: auth() }),
+      catalogDeps(),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      categories: Record<string, unknown>[];
+      products: { id: string; category_ids: string[] }[];
+    };
+
+    // KONTROLA POZYTYWNA NAJPIERW: „nie zawiera cudzej" przeszłoby też przy
+    // pustej liście, czyli przy kategoriach, które w ogóle nie wyszły.
+    const own = body.categories.find((c) => c.id === categoryA);
+    expect(own, "kategoria najemcy A nie doszła do koperty").toBeDefined();
+    expect(Object.keys(own!).sort()).toEqual(["description", "id", "name", "position", "slug"]);
+    expect(own!.position).toBe(5);
+
+    expect(body.categories.map((c) => c.id)).not.toContain(categoryB);
+
+    const product = body.products.find((p) => p.id === productA)!;
+    expect(product.category_ids, "przypisanie produktu A nie doszło").toEqual([categoryA]);
+    expect(
+      body.products.every((p) => p.category_ids.every((id) => id !== categoryB)),
+      "identyfikator cudzej kategorii przy produkcie",
+    ).toBe(true);
   });
 
   it("dostępność kluczem A: produkt A → liczby; produkt B → 404 jak nieistniejący (§6.1)", async () => {

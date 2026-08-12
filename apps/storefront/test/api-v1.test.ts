@@ -63,6 +63,7 @@ function makeVerify(counters: Counters, status = "active") {
 const CATALOG_A: PublicCatalog = {
   tenant: { name: "Wypożyczalnia A", locale: "pl", currency: "PLN" },
   custom_fields: [],
+  categories: [],
   products: [],
   pickup_locations: [],
   delivery_methods: [],

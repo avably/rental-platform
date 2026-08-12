@@ -70,6 +70,7 @@ export function ImportWizard() {
             <li>{t("done.created", { count: state.result.created })}</li>
             <li>{t("done.updated", { count: state.result.updated })}</li>
             <li>{t("done.tiers", { count: state.result.tiers })}</li>
+            <li>{t("done.categories", { count: state.result.categories })}</li>
           </ul>
         </div>
         <div>
@@ -130,6 +131,7 @@ export function ImportWizard() {
             <li>{t("summaryCreated", { count: preview.created })}</li>
             <li>{t("summaryUpdated", { count: preview.updated })}</li>
             <li>{t("summaryTiers", { count: preview.tiers })}</li>
+            <li>{t("summaryCategories", { count: preview.categories })}</li>
           </ul>
           <p className="mt-2 text-sm text-muted-foreground">{t("summaryNote")}</p>
         </div>

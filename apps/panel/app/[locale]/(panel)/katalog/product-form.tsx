@@ -10,6 +10,12 @@ import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
 
+/** Kategoria do wyboru na karcie produktu (ADR-155). */
+export interface ProductCategoryOption {
+  id: string;
+  name: string;
+}
+
 /** Wartości pól jako STRINGI — konwersję grosze↔pole robi wyłącznie strona
  * serwerowa (lib/money-input.ts), formularz niczego nie przelicza. */
 export interface ProductFormValues {
@@ -64,6 +70,8 @@ export function ProductForm({
   currencyCode,
   customFields = [],
   customFieldValues = {},
+  categories = [],
+  selectedCategoryIds = [],
   initialState: initial = initialState,
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
@@ -72,6 +80,10 @@ export function ProductForm({
   /** Pola własne produktu z flagą „panel", w kolejności z definicji (serwer). */
   customFields?: readonly CustomFieldDefinition[];
   customFieldValues?: CustomFieldValues;
+  /** Kategorie najemcy w kolejności prezentacji (serwer). */
+  categories?: readonly ProductCategoryOption[];
+  /** Kategorie już przypięte do produktu. */
+  selectedCategoryIds?: readonly string[];
   /**
    * Stan startowy formularza. W produkcie ZAWSZE pusty — prop istnieje po to,
    * by kontrakt renderu (`catalog-screen-contract`) mógł obejrzeć formularz
@@ -218,6 +230,41 @@ export function ProductForm({
         <Checkbox id="product-active" name="active" defaultChecked={defaults.active} />
         <Label htmlFor="product-active">{t("active")}</Label>
       </div>
+
+      {/* KATEGORIE (ADR-155). Zaznaczenia idą jako POWTÓRZONE pole `categoryIds`
+          (jedna nazwa, wiele wartości) — serwer czyta je `formData.getAll`,
+          tym samym mechanizmem, którym czyta `active`. Produkt bez ani jednej
+          kategorii jest stanem NORMALNYM, nie błędem walidacji: taksonomia jest
+          porządkiem oferty, a nie warunkiem jej istnienia.
+
+          Gdy najemca nie ma jeszcze żadnej kategorii, sekcja pokazuje ZDANIE
+          z drogą dalej zamiast pustej ramki: ekran ma uczyć w trakcie pracy
+          (wzorzec „Progi cenowe"), a pusty fieldset niczego nie mówi. */}
+      <fieldset className="flex flex-col gap-2 border-0 p-0">
+        <legend className="text-foreground mb-1 text-sm leading-[18px] font-medium">
+          {t("categoriesLegend")}
+        </legend>
+        {categories.length === 0 ? (
+          <p className="text-muted-foreground text-[13px] leading-[18px]" data-product-categories-empty>
+            {t("categoriesEmpty")}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2" data-product-categories>
+            {categories.map((category) => (
+              <div key={category.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={`product-category-${category.id}`}
+                  name="categoryIds"
+                  value={category.id}
+                  defaultChecked={selectedCategoryIds.includes(category.id)}
+                />
+                <Label htmlFor={`product-category-${category.id}`}>{category.name}</Label>
+              </div>
+            ))}
+          </div>
+        )}
+        <FieldError id="product-categoryIds-error" message={state.fieldErrors?.categoryIds} />
+      </fieldset>
 
       {/* Formularz produktu nie ma grup — sąsiadami są same etykiety pól,
           więc legenda zostaje etykietą. Wariant jest podany JAWNIE, choć

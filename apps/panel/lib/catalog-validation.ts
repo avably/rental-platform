@@ -7,6 +7,14 @@
  * Konwersja kwot: wyłącznie przez lib/money-input.ts (jedno miejsce).
  * Komunikaty po polsku — wzorzec repo (lib/validation.ts).
  */
+import {
+  CATEGORY_DESCRIPTION_MAX_LENGTH,
+  CATEGORY_NAME_MAX_LENGTH,
+  CATEGORY_SLUG_MAX_LENGTH,
+  CATEGORY_SLUG_PATTERN,
+  isReservedCategorySlug,
+  suggestCategorySlug,
+} from "@avably/core";
 import { z } from "zod";
 
 import { parseMajorToGrosze, parseMultiplier } from "./money-input";
@@ -250,6 +258,78 @@ export type TiersInput = z.infer<typeof tiersSchema>;
 export const sortOrderSchema = nonNegativeIntSchema(
   "Kolejność: podaj liczbę całkowitą 0 lub większą.",
 ).refine((value) => value <= 9999, { message: "Kolejność: maksymalnie 9999." });
+
+// ---------------------------------------------------------------------
+// Kategorie katalogu (ADR-155)
+// ---------------------------------------------------------------------
+
+/**
+ * Formularz kategorii. Bramką ostateczną jest baza (CHECK kształtu, unikaty,
+ * trigger slugów zarezerwowanych z 0072) — tu powstaje ZDANIE, które operator
+ * jest w stanie przeczytać, zanim tam trafi.
+ *
+ * SLUG PUSTY = WYPROWADZONY Z NAZWY, nie błąd. Operator zakładający „Namioty"
+ * nie ma powodu myśleć o adresie; podpowiedź z rdzenia (`suggestCategorySlug`)
+ * daje `namioty` i sprawa jest zamknięta. Pole zostaje edytowalne, bo adres,
+ * który raz poszedł w świat, bywa ważniejszy niż nazwa.
+ *
+ * Kolejność sprawdzeń jest celowa: najpierw KSZTAŁT (bo „Namioty Duże" nie
+ * jest slugiem i zdanie o rezerwacji byłoby tu bez sensu), potem REZERWACJA.
+ */
+const categoryFieldsSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Podaj nazwę kategorii.")
+    .max(CATEGORY_NAME_MAX_LENGTH, `Nazwa może mieć najwyżej ${CATEGORY_NAME_MAX_LENGTH} znaków.`),
+  slug: z
+    .string()
+    .trim()
+    .transform((value) => value.toLowerCase()),
+  description: optionalTextSchema(CATEGORY_DESCRIPTION_MAX_LENGTH),
+});
+
+export const categorySchema = categoryFieldsSchema.transform((input, ctx) => {
+  const slug = input.slug === "" ? suggestCategorySlug(input.name) : input.slug;
+
+  const reject = (message: string) => {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ["slug"] });
+    return z.NEVER;
+  };
+
+  if (slug === "") {
+    // Nazwa złożona wyłącznie ze znaków, których adres nie uniesie (np. same
+    // emoji). Wtedy podpowiedź nie ma z czego powstać i adres musi paść ręcznie.
+    return reject("Podaj adres kategorii — z tej nazwy nie da się go wyprowadzić.");
+  }
+  if (slug.length > CATEGORY_SLUG_MAX_LENGTH) {
+    return reject(`Adres może mieć najwyżej ${CATEGORY_SLUG_MAX_LENGTH} znaków.`);
+  }
+  if (!CATEGORY_SLUG_PATTERN.test(slug)) {
+    return reject(
+      "Adres może zawierać wyłącznie małe litery bez ogonków, cyfry i myślniki (np. namioty-rodzinne).",
+    );
+  }
+  if (isReservedCategorySlug(slug)) {
+    return reject(`Adres „${slug}” jest zarezerwowany przez sklep — wybierz inny.`);
+  }
+
+  return { ...input, slug };
+});
+
+export type CategoryInput = Exclude<z.infer<typeof categorySchema>, never>;
+
+/**
+ * Zaznaczone kategorie produktu — surowe wartości z `formData.getAll`.
+ *
+ * Limit 50: przy płaskiej taksonomii produkt w pięćdziesięciu kategoriach nie
+ * jest już klasyfikacją, tylko przypadkiem hurtowego zaznaczenia „wszystko".
+ * Wartość spoza UUID odrzucamy TU, bo `.eq` na kolumnie uuid oddałoby 22P02
+ * („invalid input syntax"), czyli komunikat, który operatorowi nic nie mówi.
+ */
+export const productCategoryIdsSchema = z
+  .array(uuidSchema)
+  .max(50, "Zbyt wiele kategorii na jednym produkcie (maksymalnie 50).");
 
 // ---------------------------------------------------------------------
 // Punkty odbioru

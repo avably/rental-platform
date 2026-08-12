@@ -42,12 +42,14 @@ export interface CatalogImportPlan {
   created: number;
   updated: number;
   tiers: number;
+  /** Przypisania kategorii po imporcie (ADR-155); 0 dla pliku bez kolumny. */
+  categories: number;
 }
 
 export interface CatalogImportOutcome {
   issues: CatalogImportIssue[];
   /** Obecne wyłącznie przy udanym zapisie. */
-  result?: { created: number; updated: number; tiers: number };
+  result?: { created: number; updated: number; tiers: number; categories: number };
 }
 
 /**
@@ -79,6 +81,7 @@ export async function planCatalogImport(
   let created = 0;
   let updated = 0;
   let tiers = 0;
+  let categories = 0;
 
   if (issues.length === 0) {
     const withId = parsed.products.filter((product) => product.productId !== null);
@@ -108,10 +111,45 @@ export async function planCatalogImport(
         });
       }
     }
+    // KATEGORIE (ADR-155). Slugi sprawdzamy w PLANIE, choć autorytatywną
+    // bramką jest `app.import_catalog` (nieznany slug = 22023 i rollback
+    // całości): funkcja SQL odmawia PARTII, więc oddaje jeden komunikat bez
+    // numeru wiersza — a operator z arkuszem na 300 pozycji potrzebuje
+    // wiedzieć, w którym wierszu siedzi literówka. Odczyt idzie z JAWNYM
+    // filtrem tenanta obok RLS (dwie warstwy, wzorzec M1).
+    const wantedSlugs = new Set(
+      parsed.products.flatMap((product) => product.categories ?? []),
+    );
+    if (issues.length === 0 && wantedSlugs.size > 0) {
+      const { data, error } = await ctx.supabase
+        .from("catalog_categories")
+        .select("slug")
+        .eq("tenant_id", ctx.tenantId);
+      if (error) {
+        throw new Error(`Import katalogu: odczyt kategorii nie powiódł się (${error.code}).`);
+      }
+      const known = new Set((data ?? []).map((row) => (row as { slug: string }).slug));
+      for (const product of parsed.products) {
+        for (const slug of product.categories ?? []) {
+          if (known.has(slug)) continue;
+          issues.push({
+            row: product.rows[0],
+            code: "unknownCategory",
+            column: "categories",
+            value: slug,
+          });
+        }
+      }
+    }
+
     if (issues.length === 0) {
       created = parsed.products.filter((product) => product.productId === null).length;
       updated = parsed.products.length - created;
       tiers = parsed.products.reduce((sum, product) => sum + product.tiers.length, 0);
+      categories = parsed.products.reduce(
+        (sum, product) => sum + (product.categories?.length ?? 0),
+        0,
+      );
     }
   }
 
@@ -123,6 +161,7 @@ export async function planCatalogImport(
     created,
     updated,
     tiers,
+    categories,
   };
 }
 
@@ -157,6 +196,11 @@ function toRpcRows(
     })),
     custom_fields: product.customFields,
     custom_field_columns: customFieldColumns,
+    // Klucz OBECNY tylko wtedy, gdy plik niósł kolumnę — `app.import_catalog`
+    // rozróżnia „brak klucza" (zostaw przypisania) od „pusta tablica" (zdejmij
+    // wszystkie), a `undefined` znika z JSON-a i daje dokładnie ten pierwszy
+    // przypadek (ADR-155).
+    ...(product.categories === null ? {} : { categories: product.categories }),
   }));
 }
 
@@ -201,6 +245,6 @@ export async function runCatalogImport(
   }
   return {
     issues: [],
-    result: data as { created: number; updated: number; tiers: number },
+    result: data as { created: number; updated: number; tiers: number; categories: number },
   };
 }

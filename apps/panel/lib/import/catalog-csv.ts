@@ -29,6 +29,8 @@
  * (w plikach bez nowych linii w polach pokrywa się z numerem linii arkusza).
  */
 import {
+  CATEGORY_SLUG_MAX_LENGTH,
+  CATEGORY_SLUG_PATTERN,
   CUSTOM_FIELD_LIMITS,
   parseCustomFieldInput,
   validateCustomFieldValues,
@@ -36,7 +38,11 @@ import {
   type CustomFieldValues,
 } from "@avably/core";
 
-import { CATALOG_CSV_HEADER } from "../export/catalog";
+import {
+  CATALOG_CSV_CATEGORIES_COLUMN,
+  CATALOG_CSV_CATEGORIES_SEPARATOR,
+  CATALOG_CSV_HEADER,
+} from "../export/catalog";
 import { CSV_CUSTOM_FIELD_PREFIX } from "../export/custom-fields";
 import { CSV_BOM } from "../export/csv";
 
@@ -79,7 +85,15 @@ export type CatalogImportIssueCode =
    */
   | "unknownCustomField"
   /** Wartość pola własnego niezgodna z definicją (typ, opcja, długość). */
-  | "badCustomField";
+  | "badCustomField"
+  /** Slug w kolumnie `categories` o kształcie, którego adres nie uniesie. */
+  | "badCategorySlug"
+  /**
+   * Warstwa planu (import-catalog.ts): slug spoza katalogu kategorii najemcy.
+   * Import NIE zakłada kategorii z pliku — literówka w arkuszu tworzyłaby
+   * kategorię-widmo z własnym adresem w sklepie (ADR-155).
+   */
+  | "unknownCategory";
 
 export interface CatalogImportIssue {
   /**
@@ -117,6 +131,15 @@ export interface CatalogImportProduct {
   tiers: CatalogImportTier[];
   /** Wartości pól własnych z PIERWSZEGO wiersza grupy (pole własne jest polem produktu). */
   customFields: CustomFieldValues;
+  /**
+   * Slugi kategorii z PIERWSZEGO wiersza grupy albo `null`, gdy pliku w ogóle
+   * nie ma kolumny `categories`.
+   *
+   * NULL ≠ PUSTA TABLICA i to jest cała semantyka tego pola: brak kolumny
+   * znaczy „ten plik nic nie mówi o kategoriach" (zostaw przypisania w spokoju),
+   * pusta komórka znaczy „ten produkt ma być bez kategorii".
+   */
+  categories: string[] | null;
   /** Numery rekordów źródłowych (do komunikatów podglądu). */
   rows: number[];
 }
@@ -240,6 +263,7 @@ interface ParsedRow {
   active: boolean;
   tier: CatalogImportTier | null;
   customFields: CustomFieldValues;
+  categories: string[] | null;
 }
 
 /**
@@ -290,6 +314,9 @@ export function parseCatalogCsv(
   for (const column of CATALOG_CSV_HEADER) {
     if (!columnIndex.has(column)) issues.push({ row: 1, code: "missingColumn", column });
   }
+  // Kolumna kategorii jest OPCJONALNA — jej brak nie jest błędem pliku (patrz
+  // CATALOG_CSV_CATEGORIES_COLUMN w lib/export/catalog.ts).
+  const carriesCategories = columnIndex.has(CATALOG_CSV_CATEGORIES_COLUMN);
 
   // --- Kolumny dynamiczne `cf_<id>` (C6-A3, ADR-121) ---
   //
@@ -420,6 +447,34 @@ export function parseCatalogCsv(
       }
     }
 
+    // KATEGORIE (ADR-155): kolumna OPCJONALNA — jej brak zostawia przypisania
+    // nietknięte, więc pliki sprzed tej zmiany wczytują się bez skutków
+    // ubocznych. Kształt sluga sprawdzamy TU, bo błąd wiersza z numerem jest
+    // dla operatora czymś innym niż zbiorcza odmowa bazy; istnienie kategorii
+    // sprawdza warstwa planu, która ma dostęp do katalogu najemcy.
+    let categories: string[] | null = null;
+    if (carriesCategories) {
+      const cell = raw(CATALOG_CSV_CATEGORIES_COLUMN).trim();
+      const slugs: string[] = [];
+      for (const part of cell.split(CATALOG_CSV_CATEGORIES_SEPARATOR)) {
+        const slug = part.trim().toLowerCase();
+        // Pusta komórka i nadmiarowy rozdzielnik („a||b", „a|") to pomyłka
+        // arkusza, nie treść — pomijamy zamiast wywracać wiersz.
+        if (slug === "") continue;
+        if (!CATEGORY_SLUG_PATTERN.test(slug) || slug.length > CATEGORY_SLUG_MAX_LENGTH) {
+          rowIssues.push({
+            row: rowNumber,
+            code: "badCategorySlug",
+            column: CATALOG_CSV_CATEGORIES_COLUMN,
+            value: part.trim(),
+          });
+          continue;
+        }
+        if (!slugs.includes(slug)) slugs.push(slug);
+      }
+      categories = slugs;
+    }
+
     // Wartości pól własnych: ten sam parser, którym czyta je formularz panelu
     // i checkout sklepu (`parseCustomFieldInput` z rdzenia) — arkusz nie jest
     // furtką do wartości, których nie przyjęłaby żadna inna powierzchnia.
@@ -472,6 +527,7 @@ export function parseCatalogCsv(
       bufferAfterDays: bufferAfter!,
       active: active!,
       tier,
+      categories,
     });
   }
 
@@ -496,6 +552,10 @@ export function parseCatalogCsv(
       // Pola produktu bierzemy z PIERWSZEGO wiersza grupy — pole własne jest
       // polem produktu, więc obowiązuje ta sama reguła co dla nazwy i ceny.
       customFields: row.customFields,
+      // Kategorie tak samo: przynależność opisuje PRODUKT, a nie jego próg
+      // cenowy, więc powtórzone komórki w kolejnych wierszach grupy nie mają
+      // prawa niczego dokładać ani zdejmować.
+      categories: row.categories,
       rows: [],
     };
     products.push(product);

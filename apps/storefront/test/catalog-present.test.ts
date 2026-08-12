@@ -24,6 +24,7 @@ function product(overrides: Partial<PublicCatalogProduct> = {}): PublicCatalogPr
     base_price_day_grosze: 12_000,
     deposit_grosze: 30_000,
     custom_fields: {},
+    category_ids: [],
     auto_increment_multiplier: 1,
     buffer_before_days: 0,
     buffer_after_days: 0,
