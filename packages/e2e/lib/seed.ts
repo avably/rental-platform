@@ -110,6 +110,11 @@ export async function seedTenant(): Promise<SeedState> {
     tenant_id: state.tenantId,
     template: "classic",
     template_published: "classic",
+    // Strona GŁÓWNA sklepu = slug pusty (0073, ADR-157). CHECK
+    // sites_published_slug_complete nie przepuszcza strony opublikowanej
+    // bez opublikowanego adresu.
+    slug: "",
+    slug_published: "",
     published_at: new Date().toISOString(),
     name: "Strona sklepu E2E",
   });
