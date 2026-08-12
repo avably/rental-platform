@@ -7,7 +7,9 @@ export default defineConfig({
     environment: "node",
     passWithNoTests: true,
     // Wąski retry transportowy dla testów integracyjnych na współdzielonym
-    // runnerze (czkawki Kong/PostgREST) — patrz test/helpers/transport-retry.ts.
+    // runnerze (czkawki Kong/PostgREST). Mechanizm jest JEDEN dla wszystkich
+    // suit i mieszka w packages/db/test/helpers/transport-retry.ts; plik niżej
+    // tylko go tutaj wpina.
     setupFiles: ["test/setup-transport-retry.ts"],
     // CO JEST MIERZONE — w panelu DWIE różne przyczyny, nie jedna:
     //
@@ -28,10 +30,10 @@ export default defineConfig({
     //     nie ma prawa dotknąć; jego jedynym lekarstwem jest budżet czasu.
     //
     // DLACZEGO TO NIE JEST PRZYKRYCIE OBJAWU: przyczynę (1) naprawia retry
-    // w test/helpers/transport-retry.ts, nie ten budżet — budżet ma tylko nie
-    // ucinać ponowienia w połowie. Przyczyna (2) to realny koszt zasobowy
-    // współdzielonego runnera, a nie usterka w kodzie: domyślne 5 s mierzyło
-    // dostępność procesora, nie zachowanie panelu. Czasy przypadków vitest
+    // (packages/db/test/helpers/transport-retry.ts), nie ten budżet — budżet
+    // ma tylko nie ucinać ponowienia w połowie. Przyczyna (2) to realny koszt
+    // zasobowy współdzielonego runnera, a nie usterka w kodzie: domyślne 5 s
+    // mierzyło dostępność procesora, nie zachowanie panelu. Czasy vitest
     // nadal raportuje, więc spowolnienie zostaje widoczne, a nie schowane.
     // Wartości trzymane RÓWNO z packages/db/vitest.config.ts.
     testTimeout: 20_000,
