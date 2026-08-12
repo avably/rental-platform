@@ -106,6 +106,47 @@ describe("catalogImport.codes — badCustomField/unknownCustomField renderują s
     },
   );
 
+  // KATEGORIE (ADR-155) — dwa kody dołożone razem z kolumną `categories`.
+  // Ta sama pułapka co wyżej: brak klucza w messages nie rzuca w runtime,
+  // tylko wypisuje operatorowi ścieżkę „catalogImport.codes.unknownCategory".
+  it.each(Object.keys(CATALOGS) as (keyof typeof CATALOGS)[])(
+    "%s: badCategorySlug (kształt slugu z pliku) renderuje zdanie z adresem",
+    (locale) => {
+      const t = strictTranslator(locale);
+      const issue: CatalogImportIssue = {
+        row: 3,
+        code: "badCategorySlug",
+        column: "categories",
+        value: "Namioty Duże",
+      };
+
+      const rendered = issueMessage(t, issue);
+
+      expect(rendered.startsWith(RAW_PATH_PREFIX)).toBe(false);
+      // Wartość MUSI dojść do zdania: bez niej operator z arkuszem na 300
+      // pozycji nie wie, którą komórkę poprawić.
+      expect(rendered).toContain("Namioty Duże");
+    },
+  );
+
+  it.each(Object.keys(CATALOGS) as (keyof typeof CATALOGS)[])(
+    "%s: unknownCategory (slug spoza katalogu najemcy) renderuje zdanie z adresem",
+    (locale) => {
+      const t = strictTranslator(locale);
+      const issue: CatalogImportIssue = {
+        row: 7,
+        code: "unknownCategory",
+        column: "categories",
+        value: "namioty-rodzinne",
+      };
+
+      const rendered = issueMessage(t, issue);
+
+      expect(rendered.startsWith(RAW_PATH_PREFIX)).toBe(false);
+      expect(rendered).toContain("namioty-rodzinne");
+    },
+  );
+
   it.each(Object.keys(CATALOGS) as (keyof typeof CATALOGS)[])(
     "%s: issueFile (etykieta problemu plikowego, zastępuje mylący 'Wiersz 1') istnieje i jest niepusta",
     (locale) => {
