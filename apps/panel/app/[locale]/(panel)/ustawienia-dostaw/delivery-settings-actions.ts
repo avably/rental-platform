@@ -25,7 +25,7 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
-import { zodErrorToState, type FormState } from "@/lib/form-state";
+import { withFormEcho, zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
 import {
@@ -182,26 +182,29 @@ export async function saveCourierCredentialsAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const result = parseWith(deliverySettingsCredentialsSchema, {
+  const input = {
     email: str(formData.get("email")),
     password: str(formData.get("password")),
     environment: str(formData.get("environment")),
-  });
-  if ("state" in result) return result.state;
+  };
+  const result = parseWith(deliverySettingsCredentialsSchema, input);
+  // Echo odsiewa `password` w `formEcho` — hasło jest write-only (ADR-052)
+  // i nie wraca do formularza nawet wtedy, gdy operator właśnie je wpisał.
+  if ("state" in result) return withFormEcho(result.state, input);
 
   const { password, ...publicPart } = result.value;
 
   const secretState = await upsertSecret(GLOBKURIER_PASSWORD_SECRET_KEY, password);
-  if (!secretState.success) return secretState;
+  if (!secretState.success) return withFormEcho(secretState, input);
 
-  return upsertSetting("globkurier_credentials", publicPart);
+  return withFormEcho(await upsertSetting("globkurier_credentials", publicPart), input);
 }
 
 export async function saveCourierSenderAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const result = parseWith(deliverySettingsSenderSchema, {
+  const input = {
     name: str(formData.get("name")),
     street: str(formData.get("street")),
     houseNumber: str(formData.get("houseNumber")),
@@ -210,37 +213,40 @@ export async function saveCourierSenderAction(
     city: str(formData.get("city")),
     phone: str(formData.get("phone")),
     email: str(formData.get("email")),
-  });
-  if ("state" in result) return result.state;
-  return upsertSetting("courier_sender", result.value);
+  };
+  const result = parseWith(deliverySettingsSenderSchema, input);
+  if ("state" in result) return withFormEcho(result.state, input);
+  return withFormEcho(await upsertSetting("courier_sender", result.value), input);
 }
 
 export async function saveCourierParcelAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const result = parseWith(deliverySettingsParcelSchema, {
+  const input = {
     lengthCm: str(formData.get("lengthCm")),
     widthCm: str(formData.get("widthCm")),
     heightCm: str(formData.get("heightCm")),
     weightKg: str(formData.get("weightKg")),
-  });
-  if ("state" in result) return result.state;
-  return upsertSetting("courier_parcel", result.value);
+  };
+  const result = parseWith(deliverySettingsParcelSchema, input);
+  if ("state" in result) return withFormEcho(result.state, input);
+  return withFormEcho(await upsertSetting("courier_parcel", result.value), input);
 }
 
 export async function saveDeliveryPricingAction(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const result = parseWith(deliverySettingsPricingSchema, {
+  const input = {
     courierPrice: str(formData.get("courierPrice")),
     courierFreeAbove: str(formData.get("courierFreeAbove")),
     parcelLockerPrice: str(formData.get("parcelLockerPrice")),
     parcelLockerFreeAbove: str(formData.get("parcelLockerFreeAbove")),
     ownDeliveryPrice: str(formData.get("ownDeliveryPrice")),
     ownDeliveryFreeAbove: str(formData.get("ownDeliveryFreeAbove")),
-  });
-  if ("state" in result) return result.state;
-  return upsertSetting("delivery_pricing", result.value);
+  };
+  const result = parseWith(deliverySettingsPricingSchema, input);
+  if ("state" in result) return withFormEcho(result.state, input);
+  return withFormEcho(await upsertSetting("delivery_pricing", result.value), input);
 }

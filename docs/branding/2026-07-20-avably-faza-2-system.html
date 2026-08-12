@@ -1044,6 +1044,7 @@ color-scheme: light dark;
   &quot;email-sender&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
   &quot;email-log&quot;: { &quot;sent&quot;: &quot;positive&quot;, &quot;failed&quot;: &quot;problem&quot; },
   &quot;delivery-secret&quot;: { &quot;configured&quot;: &quot;positive&quot;, &quot;missing&quot;: &quot;attention&quot; },
+  &quot;delivery-section&quot;: { &quot;complete&quot;: &quot;positive&quot;, &quot;incomplete&quot;: &quot;attention&quot; },
   &quot;invitation&quot;: { &quot;accepted&quot;: &quot;positive&quot;, &quot;pending&quot;: &quot;attention&quot;, &quot;revoked&quot;: &quot;neutral&quot;, &quot;expired&quot;: &quot;problem&quot; },
   &quot;organization&quot;: { &quot;active&quot;: &quot;positive&quot; },
   &quot;security&quot;: { &quot;not_configured&quot;: &quot;attention&quot;, &quot;configured&quot;: &quot;positive&quot; },
@@ -1184,15 +1185,16 @@ color-scheme: light dark;
               <div class="secondary-actions"><button class="button-primary" data-action="save-credentials" type="button">Zapisz konto integracji</button></div>
             </form>
             <form class="secondary-form secondary-card" data-settings-form="sender">
-              <div class="secondary-card-title"><strong>Dane nadawcy przesyłki</strong></div>
+              <div class="secondary-card-title"><strong>Dane nadawcy przesyłki</strong><span class="chip chip-positive" data-secondary-status-axis="delivery-section" data-secondary-status-value="complete" data-tone="positive">Gotowe</span></div>
+              <p class="secondary-help">Wszystkie pola są wymagane, chyba że opisano inaczej. · Ostatnio zapisano 12.08.2026, 09:41</p>
               <div class="secondary-inline-fields"><div><label for="sender-company">Nazwa</label><input id="sender-company" name="name" value="Fikcyjna Wypożyczalnia"></div><div><label for="sender-street">Ulica</label><input id="sender-street" name="street" value="Przykładowa"></div></div>
-              <div class="secondary-inline-fields"><div><label for="sender-house">Numer budynku</label><input id="sender-house" name="houseNumber" value="10"></div><div><label for="sender-apartment">Numer lokalu</label><input id="sender-apartment" name="apartmentNumber" value="2"></div></div>
+              <div class="secondary-inline-fields"><div><label for="sender-house">Numer budynku</label><input id="sender-house" name="houseNumber" value="10"></div><div><label for="sender-apartment">Numer lokalu (opcjonalnie)</label><input id="sender-apartment" name="apartmentNumber" value="2"></div></div>
               <div class="secondary-inline-fields"><div><label for="sender-postcode">Kod pocztowy</label><input id="sender-postcode" name="postCode" value="00-001"></div><div><label for="sender-city">Miasto</label><input id="sender-city" name="city" value="Przykładowo"></div></div>
               <div class="secondary-inline-fields"><div><label for="sender-phone">Telefon</label><input id="sender-phone" name="phone" value="+48 000 000 000"></div><div><label for="sender-contact-email">E-mail</label><input id="sender-contact-email" name="email" type="email" value="wysylka@example.invalid"></div></div>
               <div class="secondary-actions"><button class="button-primary" data-action="save-sender" type="button">Zapisz nadawcę</button></div>
             </form>
             <form class="secondary-form secondary-card" data-settings-form="parcel">
-              <div class="secondary-card-title"><strong>Domyślna paczka</strong></div>
+              <div class="secondary-card-title"><strong>Domyślna paczka</strong><span class="chip chip-attention" data-secondary-status-axis="delivery-section" data-secondary-status-value="incomplete" data-tone="attention">Niekompletne</span></div>
               <div class="secondary-inline-fields"><div><label for="parcel-length">Długość (cm)</label><input id="parcel-length" name="lengthCm" type="number" value="40"></div><div><label for="parcel-width">Szerokość (cm)</label><input id="parcel-width" name="widthCm" type="number" value="30"></div></div>
               <div class="secondary-inline-fields"><div><label for="parcel-height">Wysokość (cm)</label><input id="parcel-height" name="heightCm" type="number" value="20"></div><div><label for="parcel-weight">Waga (kg)</label><input id="parcel-weight" name="weightKg" type="number" value="5"></div></div>
               <div class="secondary-actions"><button class="button-primary" data-action="save-parcel" type="button">Zapisz paczkę</button></div>

@@ -38,6 +38,22 @@ export const secondaryStatusSemantics = {
   "email-log": { sent: "positive", failed: "problem" },
   "delivery-secret": { configured: "positive", missing: "attention" },
   /**
+   * Gotowość SEKCJI ustawień dostaw (U9, audyt UX 6.1). Osobna oś od
+   * `delivery-secret`, bo odpowiada na inne pytanie: tamta mówi o jednym polu
+   * (hasło zapisane albo nie), ta o kompletności całej karty.
+   *
+   * DWIE wartości, nie trzy: „nietknięte" i „zaczęte, ale niepełne" znaczą dla
+   * operatora dokładnie to samo — sekcja jeszcze nie działa. Trzeci stan
+   * kazałby mu rozróżniać rzecz bez konsekwencji. Ton `attention`, nie
+   * `problem`: brak konfiguracji na ekranie konfiguracji jest punktem wyjścia,
+   * a nie awarią.
+   *
+   * Data ostatniego zapisu świadomie NIE JEST wartością tej osi — chip niesie
+   * jedno słowo, a „ostatnio zapisano 12.08.2026" to zdanie z drugą zmienną
+   * (ten sam wybór co przy dokumentach prawnych, ADR-129).
+   */
+  "delivery-section": { complete: "positive", incomplete: "attention" },
+  /**
    * Zaproszenie (L4, ADR-105). Cztery wartości, bo cztery różne powody, dla
    * których link działa albo nie działa. `expired` ma ton `problem`, a nie
    * `neutral`: to JEDYNY stan, w którym ktoś czeka na dostęp, którego nigdy
@@ -100,6 +116,7 @@ export const SECONDARY_LABELLED_AXES = [
   "email-sender",
   "email-log",
   "delivery-secret",
+  "delivery-section",
   "invitation",
   "organization",
   "security",

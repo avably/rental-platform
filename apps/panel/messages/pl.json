@@ -934,6 +934,12 @@
         "methodOwnDelivery": "Dostawa własna",
         "saveCta": "Zapisz",
         "savedOk": "Zapisano.",
+        "optionalMark": "(opcjonalnie)",
+        "requiredHint": "Wszystkie pola są wymagane, chyba że opisano inaczej.",
+        "pricingOptionalHint": "Wszystkie pola tej sekcji są opcjonalne.",
+        "savedAt": "Ostatnio zapisano {when}",
+        "neverSaved": "Jeszcze nie zapisano",
+        "fixFieldsHint": "Popraw zaznaczone pola — wpisane wartości zostały zachowane.",
         "secretWriteOnly": "Sekret jest polem tylko do zapisu. Zapisanej wartości nie pokazujemy ponownie.",
         "accessRuleOwner": "Każdy członek zespołu widzi dane operacyjne. Przyciski zapisu i pole nowego hasła są dostępne wyłącznie właścicielowi.",
         "accessRuleMember": "Widzisz dane operacyjne w trybie odczytu. Zmiany ustawień dostaw wprowadza właściciel organizacji.",
@@ -945,7 +951,7 @@
       "locations": {
         "title": "Punkty odbioru",
         "backToDelivery": "← Dostawy",
-        "cardDescription": "Adresy, pod które klient przyjeżdża po sprzęt i pod które go oddaje. Punkt nieaktywny znika z wyboru w nowym zamówieniu, ale zostaje na zamówieniach już wystawionych.",
+        "cardDescription": "Adresy, pod które klient przyjeżdża po sprzęt i pod które go oddaje.",
         "cardCta": "Zarządzaj punktami odbioru",
         "backToList": "← Punkty odbioru",
         "newLocation": "Nowy punkt",
@@ -958,8 +964,9 @@
         "colActions": "Akcje",
         "activeYes": "Aktywny",
         "activeNo": "Nieaktywny",
-        "activate": "Przywróć",
-        "deactivate": "Wygaś",
+        "activate": "Włącz",
+        "deactivate": "Wyłącz",
+        "toggleEffect": "Wyłączony punkt znika z wyboru w nowych zamówieniach, ale zostaje na zamówieniach już wystawionych. Włączenie przywraca go do wyboru.",
         "name": "Nazwa",
         "street": "Ulica i numer",
         "zip": "Kod pocztowy",
@@ -2174,6 +2181,10 @@
     "delivery-secret": {
       "configured": "Hasło zapisane",
       "missing": "Brak hasła"
+    },
+    "delivery-section": {
+      "complete": "Gotowe",
+      "incomplete": "Niekompletne"
     },
     "invitation": {
       "accepted": "Przyjęte",
