@@ -111,7 +111,7 @@ describe("izolacja warstw wizualnych", () => {
 });
 
 describe("treść przeniesionych stron", () => {
-  it("każdy token szablonu ma pokrycie w obu locale", async () => {
+  it("każdy token szablonu ma pokrycie w obu locale i w obu stanach sekcji", async () => {
     const { marketingLinks, renderMarketingPage } = await import("@/lib/marketing/template");
 
     for (const file of marketingPages) {
@@ -120,11 +120,23 @@ describe("treść przeniesionych stron", () => {
         ["en", en],
         ["pl", pl],
       ] as const) {
-        const html = renderMarketingPage(page, {
-          ...messages.marketing,
-          ...marketingLinks(locale),
-        });
-        expect(html, `${file} / ${locale}`).not.toMatch(/\{\{[a-zA-Z0-9_.]+\}\}/);
+        // OBA stany sekcji warunkowych: strona z regulaminem i bez niego musi
+        // wyjść bez ani jednego nierozwiniętego tokenu. Jeden stan przepuściłby
+        // token, który żyje wyłącznie w drugim.
+        for (const terms of [true, false]) {
+          const html = renderMarketingPage(
+            page,
+            { ...messages.marketing, ...marketingLinks(locale) },
+            { terms },
+          );
+          expect(html, `${file} / ${locale} / terms=${terms}`).not.toMatch(
+            /\{\{[a-zA-Z0-9_.]+\}\}/,
+          );
+          // Znacznik sekcji też jest tokenem — nie ma prawa dojechać do przeglądarki.
+          expect(html, `${file} / ${locale} / terms=${terms}`).not.toMatch(
+            /\{\{[#/][a-zA-Z0-9_]+\}\}/,
+          );
+        }
       }
     }
   });

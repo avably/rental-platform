@@ -371,7 +371,7 @@
               <div class="label">{{footer.columnCompany}}</div>
               <div class="footer-links-column">
                 <a href="{{link.privacy}}" class="footer-link">{{footer.privacy}}</a>
-                <a href="{{link.terms}}" class="footer-link">{{footer.terms}}</a>
+                {{#terms}}<a href="{{link.terms}}" class="footer-link">{{footer.terms}}</a>{{/terms}}
                 <a href="{{link.login}}" aria-current="page" class="footer-link w--current">{{nav.login}}</a>
                 
               </div>
