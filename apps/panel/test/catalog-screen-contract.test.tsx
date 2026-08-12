@@ -188,6 +188,24 @@ describe("kontrakt renderu ekranów katalogu", () => {
     expect(placeholders).toHaveLength(1);
   });
 
+  it("miniatura ma MINIMALNĄ szerokość — inaczej kolumna zapada się w pasek", () => {
+    // Zmierzone w przeglądarce PRZED poprawką: preflight daje
+    // `img { max-width: 100% }`, więc w auto-layoucie tabeli minimalna
+    // szerokość obrazu wychodzi 0 — kolumna zapada się do 28 px, a miniatura
+    // do 13 px paska. Objaw jest CICHY: nic nie wybucha, zdjęcie po prostu
+    // przestaje być rozpoznawalne, czyli traci jedyny powód, dla którego tu
+    // jest. Samo `w-14` na nagłówku NIE wystarcza (sprawdzone: komórka nadal
+    // 28 px) — `min-width` na obrazie wygrywa nad `max-width` w kaskadzie
+    // i dopiero ono przywraca kolumnie realne minimum.
+    const head = tableHtml.match(/<th[^>]*>(?=<span class="sr-only">Zdjęcie)/)?.[0];
+    expect(head, "brak nagłówka kolumny miniatury").toBeDefined();
+    expect(head).toContain("w-14");
+
+    const image = tableHtml.match(/<img[^>]*data-product-thumbnail="image"[^>]*>/)?.[0];
+    expect(image).toContain("size-10");
+    expect(image, "obraz bez min-width zapada się razem z kolumną").toContain("min-w-10");
+  });
+
   it("nagłówki sortowalne niosą aria-sort, a nie samą strzałkę", () => {
     // Domyślny sort to „nazwa" rosnąco — dokładnie jeden nagłówek jest aktywny.
     const ascending = [...tableHtml.matchAll(/aria-sort="ascending"/g)];
