@@ -327,6 +327,20 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "panelu (zero anonimowych pobrań z naszego hostingu), nie granicą " +
       "izolacji — dlatego handler nie potrzebuje roli ani filtra tenant_id.",
   ],
+  [
+    "/ustawienia-umow/podglad",
+    "Podgląd umowy na danych przykładowych (U10, ADR-151) — CHRONIONY SESJĄ: " +
+      "requireMember() PRZED jakimkolwiek odczytem (anonim dostaje status " +
+      "z AuthError i zero bajtów). Dokument niesie dane firmy i warunki " +
+      "WYŁĄCZNIE tego najemcy: oba odczyty filtrują po tenant_id/id JAWNIE " +
+      "i kończą się maybeSingle(), więc zdjęcie filtra daje BŁĄD, nie cudze " +
+      "dane (sonda service-role: contract-preview-isolation.test.ts). Rola " +
+      "nie jest zawężana świadomie — trasa oddaje dokładnie to, co ekran " +
+      "/ustawienia-umow i tak pokazuje obu rolom. Klient, sprzęt i kwoty są " +
+      "przykładowe (żadnych danych osobowych), a handler NICZEGO NIE ZAPISUJE: " +
+      "bez wiersza w contract_documents, bez pliku w koszyku, bez numeracji " +
+      "(contract-preview.test.ts).",
+  ],
 ]);
 
 const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");

@@ -81,12 +81,22 @@ const ENV_NAME_PATTERN = new RegExp(
  *   - PL: SPRZEDAŻ, KANAŁY, ORGANIZACJA (nagłówki grup nawigacji),
  *     CAŁKOWITA, WYŁĄCZNIE, ŁĄCZNIE (akcenty w podpowiedziach).
  *   - EN: SALES, CHANNELS, ORGANIZATION, TOTAL, WITHOUT, INTENDED (j.w.).
+ *
+ * Oznaczenie dokumentu przykładowego (U10, ADR-151):
+ *   - PRZYKŁAD / SAMPLE — słowo, którym podgląd umowy oznacza SAM DOKUMENT
+ *     (numer zamówienia w plakietce nagłówka i w stopce każdej strony, nazwa
+ *     najemcy, nazwy pozycji). Wersaliki są tu funkcją, nie stylem: to jedyna
+ *     rzecz, która na wydruku odróżnia przymiarkę od prawdziwej umowy.
+ *     Nie jest to nazwa zmiennej ani klucza ustawienia — jest to treść dla
+ *     człowieka, dokładnie ta, której ta bramka broni.
  */
 const ALLOWED_UPPERCASE_TOKENS = new Set([
   "CNAME",
   "CAPTCHA",
   "DOCTYPE",
   "POZ08M",
+  "PRZYKŁAD",
+  "SAMPLE",
   "SPRZEDAŻ",
   "KANAŁY",
   "ORGANIZACJA",
