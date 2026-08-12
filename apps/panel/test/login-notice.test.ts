@@ -38,10 +38,21 @@ const LoginPage = (await import("@/app/[locale]/(auth)/login/page")).default;
 
 interface Walked {
   texts: string[];
+  /** Tony komunikatów — tylko wartości poprawne (string). */
   noticeTones: string[];
+  /**
+   * OBECNOŚĆ bloku komunikatu, niezależna od wartości tonu.
+   *
+   * Liczona przez `"data-login-notice" in props`, a NIE przez `typeof tone
+   * === "string"` — i to jest cała różnica. Przy dziurze prototypowej strona
+   * renderowała blok komunikatu z tonem `undefined`; detektor po typie
+   * wartości takiego bloku NIE WIDZIAŁ, więc test „nie ma komunikatu"
+   * przechodził nad zepsutym renderem. Obecność łapie jedno i drugie.
+   */
+  noticeBlocks: number;
 }
 
-/** Teksty i tony komunikatów z drzewa elementów Server Componentu. */
+/** Teksty i komunikaty z drzewa elementów Server Componentu. */
 function walk(node: unknown, out: Walked): void {
   if (Array.isArray(node)) {
     for (const child of node) walk(child, out);
@@ -54,13 +65,16 @@ function walk(node: unknown, out: Walked): void {
   if (!node || typeof node !== "object") return;
   const el = node as { props?: Record<string, unknown> };
   if (!el.props) return;
-  const tone = el.props["data-login-notice"];
-  if (typeof tone === "string") out.noticeTones.push(tone);
+  if ("data-login-notice" in el.props) {
+    out.noticeBlocks += 1;
+    const tone = el.props["data-login-notice"];
+    if (typeof tone === "string") out.noticeTones.push(tone);
+  }
   walk(el.props.children, out);
 }
 
 async function renderLogin(params: Record<string, string | string[]>): Promise<Walked> {
-  const out: Walked = { texts: [], noticeTones: [] };
+  const out: Walked = { texts: [], noticeTones: [], noticeBlocks: 0 };
   walk(await LoginPage({ searchParams: Promise.resolve(params) }), out);
   return out;
 }
@@ -165,8 +179,9 @@ describe("ekran logowania WYŚWIETLA komunikat (a nie tylko go zna)", () => {
   });
 
   it("gołe /login nie pokazuje żadnego komunikatu (kontrola negatywna)", async () => {
-    const { texts, noticeTones } = await renderLogin({});
+    const { texts, noticeTones, noticeBlocks } = await renderLogin({});
 
+    expect(noticeBlocks).toBe(0);
     expect(noticeTones).toEqual([]);
     expect(texts).not.toContain("authError.linkExpired");
     expect(texts).not.toContain("login.resetDone");
@@ -182,21 +197,25 @@ describe("ekran logowania WYŚWIETLA komunikat (a nie tylko go zna)", () => {
   it.each(["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"])(
     "`?error=%s` nie tworzy komunikatu i nie wywraca renderu strony",
     async (key) => {
-      const { noticeTones, texts } = await renderLogin({ error: key });
+      const { noticeBlocks, noticeTones, texts } = await renderLogin({ error: key });
 
-      expect(noticeTones, `klucz z prototypu wyprodukował komunikat: ${key}`).toEqual([]);
-      expect(texts.join(" ")).not.toContain(key);
       // Kontrola, że strona w ogóle się wyrenderowała — inaczej „brak
       // komunikatu" byłby prawdą również dla wyjątku w renderze.
       expect(texts).toContain("title");
+      // OBECNOŚĆ bloku, nie wartość tonu: przy dziurze prototypowej blok
+      // powstawał z tonem `undefined`, więc detektor po typie go nie widział.
+      expect(noticeBlocks, `klucz z prototypu wyprodukował blok komunikatu: ${key}`).toBe(0);
+      expect(noticeTones).toEqual([]);
+      expect(texts.join(" ")).not.toContain(key);
     },
   );
 
   it("wartość spoza allowlisty NIE trafia na ekran — zero odbicia parametru", async () => {
     const injected = "KONTO-NIE-ISTNIEJE-<script>";
-    const { texts, noticeTones } = await renderLogin({ error: injected });
+    const { texts, noticeTones, noticeBlocks } = await renderLogin({ error: injected });
 
-    expect(noticeTones, "nieznany kod błędu wyprodukował komunikat").toEqual([]);
+    expect(noticeBlocks, "nieznany kod błędu wyprodukował blok komunikatu").toBe(0);
+    expect(noticeTones).toEqual([]);
     expect(
       texts.join(" "),
       "treść parametru adresu wyciekła na ekran logowania",
