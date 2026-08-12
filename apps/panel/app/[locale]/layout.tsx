@@ -2,7 +2,7 @@ import { PRODUCT_NAME, bcp47, type Locale } from "@avably/core";
 import type { Metadata } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Geist } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
@@ -11,11 +11,27 @@ import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme";
 
 import "../globals.css";
 
-// Sygnał operacyjny (ADR-053): panel w całości w Geist Sans, bez Geist Mono.
-const geistSans = Geist({
+/*
+ * Sygnał operacyjny (ADR-053): panel w całości w Geist Sans, bez Geist Mono.
+ *
+ * KRÓJ Z REPOZYTORIUM, NIE Z SIECI (dziennik 2026-08-12). `next/font/google`
+ * pobierał plik w czasie BUDOWANIA: 2026-08-12 `fonts.gstatic.com` przez
+ * kilkanaście minut oddawał 404 na wycofywaną rodzinę adresów i wywrócił CI
+ * dwa razy (`Module not found: … /internal/font/google/font`), po czym ten sam
+ * commit zbudował się bez żadnej zmiany. Build zależny od cudzego CDN-u nie
+ * jest odtwarzalny, więc plik leży u nas — tak samo jak kroje stron najemców
+ * (ADR-090), w packages/ui/fonts razem z treścią licencji OFL.
+ *
+ * `weight: "400 600"` odwzorowuje POPRZEDNI stan co do joty: Google serwowało
+ * ten sam plik zmienny w trzech deklaracjach (400/500/600), więc `font-bold`
+ * (700) rozstrzygał się do najbliższej dostępnej, czyli 600. Pełny zakres
+ * „100 900" pogrubiłby te miejsca — to byłaby zmiana wyglądu.
+ */
+const geistSans = localFont({
+  src: "../../../../packages/ui/fonts/geist-variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
+  weight: "400 600",
+  style: "normal",
   display: "swap",
 });
 
