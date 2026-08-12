@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { SaasCheckoutCta } from "@/app/[locale]/(panel)/organizacja/checkout-cta";
+import { BillingPortalButton } from "@/components/billing/billing-portal-button";
 import { logoutAction } from "@/lib/actions/logout";
 import { AuthError } from "@/lib/auth";
 import { requireBillingOwner } from "@/lib/billing-guard";
@@ -55,10 +56,28 @@ export default async function SuspendedOrganizationPage() {
   // odrzuca `cancelled`/`superadmin_locked` i rolę staff — więc CTA widzi
   // dokładnie ten, komu akcja odpowie. Zapłata wraca do `active`
   // NATYCHMIAST, ze zdarzenia dostawcy (zasada 5 okna dunningowego).
+  //
+  // J2 faza 3 (ADR-152) — DRUGA ścieżka na tym samym ekranie, i to ona jest
+  // tu właściwa najczęściej. Zawieszenie bierze się z subskrypcji `unpaid`,
+  // a `unpaid` jest subskrypcją ŻYWĄ: bramka W6 checkoutu odmówi („organizacja
+  // ma już aktywną subskrypcję"), więc sam CTA checkoutu prowadzi zawieszonego
+  // właściciela w ślepy zaułek. Portal klienta jest drogą, którą wymienia się
+  // kartę i opłaca zaległą fakturę — pokazujemy go, gdy projekcja zna klienta
+  // u dostawcy (czyli po pierwszej płatności; wcześniej nie ma czym płacić
+  // i zostaje sam checkout).
   let canPay = false;
+  let canManage = false;
   try {
     const billingCtx = await requireBillingOwner();
     canPay = billingCtx.tenantStatus === "suspended" && stripeBillingAvailability().available;
+    if (canPay) {
+      const { data } = await billingCtx.supabase
+        .from("subscriptions")
+        .select("stripe_customer_id")
+        .eq("tenant_id", billingCtx.tenantId)
+        .maybeSingle();
+      canManage = Boolean((data as { stripe_customer_id: string | null } | null)?.stripe_customer_id);
+    }
   } catch (error) {
     if (!(error instanceof AuthError)) throw error;
   }
@@ -72,6 +91,7 @@ export default async function SuspendedOrganizationPage() {
       {canPay ? (
         <div className="border-border rounded-md border p-4 text-left" data-suspended-billing>
           <p className="mb-3 text-sm font-medium">{t("payHeading")}</p>
+          {canManage ? <BillingPortalButton /> : null}
           <SaasCheckoutCta />
         </div>
       ) : null}

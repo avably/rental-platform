@@ -218,6 +218,7 @@ export {
 export {
   CONNECT_ACCOUNT_TYPE,
   LIVE_SAAS_SUBSCRIPTION_STATUSES,
+  MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES,
   OBSERVED_INTENT_EVENTS,
   OBSERVED_REFUND_EVENTS,
   OBSERVED_SAAS_BILLING_EVENTS,
@@ -253,6 +254,7 @@ export {
   isCustomerActionPending,
   isIntentSettled,
   isLiveSaasSubscriptionStatus,
+  isManageableSaasSubscriptionStatus,
   isObservedIntentEvent,
   isObservedRefundEvent,
   isObservedSaasBillingEvent,

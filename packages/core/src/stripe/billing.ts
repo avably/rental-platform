@@ -144,6 +144,14 @@ export interface SaasSubscriptionRead {
   tenantIdFromMetadata: string | null;
   /** lookup_key ceny pierwszej pozycji — z niego wynika plan (billing-state). */
   priceLookupKey: string | null;
+  /**
+   * Identyfikator PIERWSZEJ pozycji subskrypcji (`si_…`) — adres, pod który
+   * zmiana planu podmienia cenę (J2 faza 3, ADR-152). Świadomie NULLOWALNY:
+   * odczyt subskrypcji służy przede wszystkim projekcji webhooka, a ta pozycji
+   * nie potrzebuje — brak pozycji nie może wywrócić toru, który działa.
+   * Ścieżka zmiany planu odmawia GŁOŚNO przy `null` (patrz billing-subscription).
+   */
+  itemId: string | null;
   currentPeriodStart: string;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
@@ -157,7 +165,7 @@ interface StripeSubscriptionBody {
   current_period_start?: number;
   current_period_end?: number;
   cancel_at_period_end?: boolean;
-  items?: { data?: { price?: { lookup_key?: string | null } }[] } | null;
+  items?: { data?: { id?: string; price?: { lookup_key?: string | null } }[] } | null;
 }
 
 interface StripeCheckoutSessionBody {
@@ -442,7 +450,8 @@ export class StripeBillingClient {
     }
 
     const metadataTenant = parsed.metadata?.["tenant_id"];
-    const lookupKey = parsed.items?.data?.[0]?.price?.lookup_key;
+    const firstItem = parsed.items?.data?.[0];
+    const lookupKey = firstItem?.price?.lookup_key;
 
     return {
       subscriptionId: id,
@@ -450,6 +459,7 @@ export class StripeBillingClient {
       status: subStatus,
       tenantIdFromMetadata: typeof metadataTenant === "string" && metadataTenant ? metadataTenant : null,
       priceLookupKey: typeof lookupKey === "string" && lookupKey ? lookupKey : null,
+      itemId: typeof firstItem?.id === "string" && firstItem.id ? firstItem.id : null,
       currentPeriodStart: epochToIso(parsed.current_period_start),
       currentPeriodEnd: epochToIso(parsed.current_period_end),
       cancelAtPeriodEnd: parsed.cancel_at_period_end === true,
@@ -478,5 +488,120 @@ export class StripeBillingClient {
     });
     if (status < 200 || status >= 300) throw this.fail(status, body);
     return idOf((body as StripeInvoiceBody | null)?.subscription);
+  }
+
+  // ==================== J2 faza 3 (ADR-152) ====================
+
+  /**
+   * `metadata.tenant_id` Z ODCZYTU KLIENTA u dostawcy — jedyny dowód, że
+   * `cus_…` należy do TEGO najemcy (ADR-049: werdykt z odczytu, nigdy
+   * z tego, co przyszło w żądaniu). Klient usunięty w dashboardzie oddaje
+   * `{ deleted: true }` bez metadanych — traktujemy jak brak przypisania,
+   * czyli odmowę, nie jak dopasowanie do `null`.
+   */
+  async readCustomerTenantId(customerId: string): Promise<string | null> {
+    const { status, body } = await this.request(`/v1/customers/${encodeURIComponent(customerId)}`, {
+      method: "GET",
+    });
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+    const parsed = (body ?? {}) as { deleted?: boolean; metadata?: Record<string, string> | null };
+    if (parsed.deleted === true) return null;
+    const tenantId = parsed.metadata?.["tenant_id"];
+    return typeof tenantId === "string" && tenantId ? tenantId : null;
+  }
+
+  /**
+   * Sesja Portalu klienta — wymiana karty, faktury, historia płatności,
+   * anulowanie. `customer` jest JEDYNYM parametrem tożsamości i pochodzi
+   * z projekcji TEGO tenanta zweryfikowanej odczytem (patrz
+   * `apps/panel/lib/billing-portal.ts`); metoda nie zna pojęcia „czyj".
+   *
+   * Adres sesji jest jednorazowy i krótkoterminowy — nie trafia do bazy,
+   * do logów ani do żadnego echa; wraca do przeglądarki ownera i tyle.
+   */
+  async createBillingPortalSession(input: {
+    customerId: string;
+    returnUrl: string;
+    /** Locale panelu — Portal mówi językiem operatora ('pl' | 'en'). */
+    locale?: string | undefined;
+  }): Promise<{ url: string }> {
+    const { status, body } = await this.request("/v1/billing_portal/sessions", {
+      method: "POST",
+      body: encodeStripeForm({
+        customer: input.customerId,
+        return_url: input.returnUrl,
+        ...(input.locale ? { locale: input.locale } : {}),
+      }),
+    });
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+    const url = (body as { url?: string } | null)?.url;
+    if (typeof url !== "string" || !url) {
+      throw new StripeApiError("API rozliczeń nie zwróciło adresu sesji Portalu.");
+    }
+    return { url };
+  }
+
+  /**
+   * PODMIANA CENY na istniejącej pozycji subskrypcji — zmiana planu bez
+   * drugiej subskrypcji i bez drugiego toru zdarzeń: dostawca odpowiada
+   * `customer.subscription.updated`, a projekcję zapisuje TEN SAM webhook
+   * co dotąd (ADR-136).
+   *
+   * ŚWIADOMIE BEZ `Idempotency-Key`. Żądanie opisuje STAN DOCELOWY pozycji,
+   * więc powtórka po zerwanym połączeniu ustawia tę samą cenę i nie tworzy
+   * drugiej proraty. Klucz z zamiaru byłby tu wręcz szkodliwy: powrót na plan,
+   * z którego się wyszło w tej samej dobie (A→B→A→B), trafiłby w zapamiętaną
+   * odpowiedź dostawcy i CICHO nie zostałby wykonany.
+   *
+   * ŚWIADOMIE BEZ POLA TRIALU. `trial_end`/`trial_period_days` w tym żądaniu
+   * przesuwałyby zegar okresu próbnego — zmiana planu w dół i z powrotem
+   * byłaby wtedy fabryką darmowych czternastek. Ich BRAK jest bramką
+   * (sonda: `zmiana planu nie resetuje zegara triala`).
+   */
+  async updateSubscriptionPrice(input: {
+    subscriptionId: string;
+    itemId: string;
+    priceId: string;
+  }): Promise<{ subscriptionId: string }> {
+    const { status, body } = await this.request(
+      `/v1/subscriptions/${encodeURIComponent(input.subscriptionId)}`,
+      {
+        method: "POST",
+        body: encodeStripeForm({
+          items: { "0": { id: input.itemId, price: input.priceId } },
+          // Różnicę za rozpoczęty okres dostawca rozlicza sam — inaczej
+          // przejście w górę byłoby darmowe do końca okresu.
+          proration_behavior: "create_prorations",
+        }),
+      },
+    );
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+    const id = (body as StripeSubscriptionBody | null)?.id;
+    if (typeof id !== "string") {
+      throw new StripeApiError("API rozliczeń nie potwierdziło zmiany planu subskrypcji.");
+    }
+    return { subscriptionId: id };
+  }
+
+  /**
+   * COFNIĘCIE anulowania na koniec okresu — reaktywacja subskrypcji, która
+   * jeszcze żyje. Nie tworzy nic nowego i nie dotyka ceny: zdejmuje wyłącznie
+   * `cancel_at_period_end`. Stan tenanta przestawi (albo nie) webhook
+   * z ODCZYTU — ta metoda nie ma o nim pojęcia.
+   *
+   * Bez `Idempotency-Key` z tego samego powodu co wyżej: to zapis stanu
+   * docelowego flagi, więc powtórka jest bezskutkowa z konstrukcji.
+   */
+  async resumeSubscription(input: { subscriptionId: string }): Promise<{ subscriptionId: string }> {
+    const { status, body } = await this.request(
+      `/v1/subscriptions/${encodeURIComponent(input.subscriptionId)}`,
+      { method: "POST", body: encodeStripeForm({ cancel_at_period_end: false }) },
+    );
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+    const id = (body as StripeSubscriptionBody | null)?.id;
+    if (typeof id !== "string") {
+      throw new StripeApiError("API rozliczeń nie potwierdziło wznowienia subskrypcji.");
+    }
+    return { subscriptionId: id };
   }
 }

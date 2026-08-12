@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { isLiveSaasSubscriptionStatus, stripeBillingAvailability } from "@avably/core";
 
+import { ManageBillingSection } from "@/components/billing/manage-billing-section";
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenSection } from "@/components/screens/screen-header";
 import { Link } from "@/i18n/navigation";
@@ -105,6 +106,12 @@ export default async function OrganizationPage() {
           ) : undefined
         }
       />
+
+      {/* Zarządzanie abonamentem (J2 faza 3, ADR-152) — Portal klienta,
+          zmiana planu, reaktywacja. Karta bramkuje się SAMA (requireBillingOwner
+          + stan projekcji) i przy braku czegokolwiek do zrobienia nie renderuje
+          nic, więc ekran organizacji zostaje czystym odczytem tam, gdzie był. */}
+      <ManageBillingSection />
 
       {/* Klucze publicznego API (M1, ADR-108). Od M2 (ADR-110) ekran ma
           własną pozycję „Integracje" w grupie KANAŁY — ten link ZOSTAJE jako

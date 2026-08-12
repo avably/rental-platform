@@ -374,19 +374,34 @@ interface SeedCtx {
 // globalny, celowo zarządzany poza ścieżkami API — patrz 0001_core.sql).
 // Zasiew testowego planu idzie więc bezpośrednim połączeniem Postgres,
 // tak samo jak introspekcja w `listTenantTables`.
+//
+// PLAN JEST WŁASNOŚCIĄ PRZEBIEGU, NIE WSPÓLNY. Wcześniej wszystkie pliki
+// testowe dzieliły JEDEN wiersz o stałym id `rls-test-plan`, a teardown
+// kasował go „jeśli nikt nie trzyma". Pliki biegną RÓWNOLEGLE w jednej bazie,
+// więc między sprawdzeniem a wstawieniem subskrypcji mieściło się całe okno:
+// plik A widzi plan, teardown pliku B nie widzi ani jednej subskrypcji i
+// kasuje wiersz, plik A wstawia subskrypcję i dostaje 23503 na
+// `subscriptions_plan_id_fkey` — w CI objawem było
+// „Nie udało się zasiać przykładowego wiersza w subscriptions”.
+// Własny wiersz per proces zamyka to z konstrukcji: nikt inny go nie widzi
+// w swoim teardownie, więc nie ma kogo wyprzedzić.
+const TEST_PLAN_ID = `rls-test-plan-${randomUUID()}`;
+let testPlanSeeded = false;
+
 async function ensureTestPlanId(): Promise<string> {
-  const planId = "rls-test-plan";
+  if (testPlanSeeded) return TEST_PLAN_ID;
   const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
   try {
     await sql`
       insert into public.plans (id, name, price_grosze)
-      values (${planId}, 'RLS test plan', 0)
+      values (${TEST_PLAN_ID}, 'RLS test plan', 0)
       on conflict (id) do nothing
     `;
   } finally {
     await sql.end({ timeout: 5 });
   }
-  return planId;
+  testPlanSeeded = true;
+  return TEST_PLAN_ID;
 }
 
 async function createAuxMemberUser(ctx: SeedCtx, tenantId: string): Promise<string> {
@@ -1094,20 +1109,15 @@ export async function cleanupSeeded(admin: SupabaseClient): Promise<void> {
 
   const sql = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
   try {
-    // Plan testowy jest WSPÓLNY dla wszystkich suit (ensureTestPlanId robi
-    // upsert jednego wiersza), a pliki testowe biegną RÓWNOLEGLE w jednej
-    // bazie. Goły DELETE wywracał więc teardown suity, która skończyła
-    // pierwsza, o subskrypcje suity wciąż pracującej (23503 na
-    // subscriptions_plan_id_fkey) — czerwony wynik bez ani jednego
-    // czerwonego testu. Kasuje ten, kto wychodzi jako ostatni; jeśli nikt,
-    // wiersz zostaje i następny przebieg go po prostu reużyje (upsert).
-    await sql`
-      delete from public.plans
-      where id = 'rls-test-plan'
-        and not exists (
-          select 1 from public.subscriptions where plan_id = 'rls-test-plan'
-        )
-    `;
+    // WYŁĄCZNIE WŁASNY wiersz planu (id z randomUUID per proces). Warunek
+    // „nikt nie trzyma" zniknął razem ze współdzieleniem: subskrypcje na tym
+    // planie należały do tenantów skasowanych linijkę wyżej (kaskada), a
+    // cudzych wierszy ten DELETE nie widzi — więc nie ma jak wyprzedzić
+    // równoległej suity w połowie jej zasiewu. Wiersz zasiany, ale nieusunięty
+    // (proces ubity w połowie) zostaje w LOKALNEJ bazie jako sierota, na którą
+    // nic nie liczy — żaden test nie asertuje zawartości katalogu planów poza
+    // wierszami nazwanymi wprost (saas-billing-transitions).
+    await sql`delete from public.plans where id = ${TEST_PLAN_ID}`;
     await sql`delete from public.audit_log where subject = 'rls-isolation-test'`;
   } finally {
     await sql.end({ timeout: 5 });

@@ -80,6 +80,28 @@ export function isLiveSaasSubscriptionStatus(status: string): boolean {
   return (LIVE_SAAS_SUBSCRIPTION_STATUSES as readonly string[]).includes(status);
 }
 
+/**
+ * Statusy subskrypcji, w których najemca może SAM przestawić abonament —
+ * zmienić plan albo cofnąć anulowanie (J2 faza 3, ADR-152).
+ *
+ * Zbiór jest WĘŻSZY od „żywej" subskrypcji i to jest jego jedyne zadanie.
+ * `past_due` i `unpaid` żyją (blokują drugi checkout), ale w nich najemca
+ * jest WINIEN pieniądze: zmiana planu byłaby wtedy handlem na kredyt
+ * z prorata-korektą zaległej faktury, a cofnięcie anulowania — obejściem
+ * zawieszenia za nieopłacenie (okno domykania, ADR-138). Droga z obu tych
+ * stanów prowadzi przez zapłatę, nie przez zmianę planu. `paused`,
+ * `canceled` i `incomplete*` nie mają czego przestawiać: powrót z nich to
+ * nowy Checkout, którego bramka W6 już nie zamyka.
+ */
+export const MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES = [
+  "trialing",
+  "active",
+] as const satisfies readonly SaasSubscriptionStatus[];
+
+export function isManageableSaasSubscriptionStatus(status: string): boolean {
+  return (MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES as readonly string[]).includes(status);
+}
+
 /** Statusy tenanta, które przejścia billingowe mają prawo USTAWIĆ. */
 export type BillingTenantStatus = "active" | "past_due" | "suspended";
 
