@@ -22,9 +22,11 @@ import plMessages from "../messages/pl.json";
 
 vi.mock("@/i18n/navigation", () => ({
   usePathname: () => "/ustawienia-umow",
-  Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
-    // eslint-disable-next-line @next/next/no-html-link-for-pages
-    <a href={href} {...props}>{children}</a>,
+  Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 // Akcja serwerowa ciągnie klienta Supabase — render jej nie potrzebuje.
 vi.mock("@/app/[locale]/(panel)/ustawienia-umow/actions", () => ({
