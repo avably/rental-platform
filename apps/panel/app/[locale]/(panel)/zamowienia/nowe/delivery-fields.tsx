@@ -262,13 +262,25 @@ export function DeliveryFields({
         </div>
       </fieldset>
 
-      {/* --- Punkt odbioru najemcy (odbiór osobisty) --- */}
+      {/* --- Punkt odbioru najemcy (odbiór osobisty) ---
+          PUNKT JEDZIE WŁASNYM POLEM UKRYTYM, NIE MOSTKIEM WIDŻETU (U7).
+          Znalezione w PRZEGLĄDARCE, nie w teście: `PanelSelect` z propem `name`
+          oddaje wartość wbudowanym mostkiem Radiksa, a ten rejestruje opcje
+          dopiero przy MONTOWANIU listy — czyli po pierwszym otwarciu. Wartość
+          ustawiona programowo (a od U7 odbiór osobisty jest metodą domyślną,
+          więc punkt jest wskazany od pierwszej sekundy) NIE trafiała do
+          `FormData` w ogóle: `formData.get("pickupLocationId")` zwracało
+          `null`, schemat odmawiał „Odbiór osobisty wymaga wskazania punktu
+          odbioru", a ekran do ostatniej chwili twierdził, że komplet jest.
+          jsdom montuje listę inaczej niż przeglądarka, więc test renderowy tego
+          NIE łapał — dowodem był zrzut z panelu na żywo.
+          Pole ukryte jest teraz jedynym transportem w OBU gałęziach; kontrakt
+          `PanelSelect` zostaje nietknięty (prop `name` jest opcjonalny). */}
       {state.method === "pickup" ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="order-location">{t("pickupLocation")}</Label>
           <PanelSelect
             id="order-location"
-            name="pickupLocationId"
             value={state.pickupLocationId}
             onValueChange={(value) => onChange({ pickupLocationId: value })}
             className={FIELD_CLASS}
@@ -276,6 +288,7 @@ export function DeliveryFields({
             describedBy={fieldErrors?.pickupLocationId ? "order-pickupLocationId-error" : undefined}
             options={locations.map((location) => ({ value: location.id, label: location.name }))}
           />
+          <input type="hidden" name="pickupLocationId" value={state.pickupLocationId} />
           {errorSlot("pickupLocationId")}
         </div>
       ) : (
