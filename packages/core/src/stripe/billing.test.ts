@@ -75,7 +75,7 @@ function subscriptionBody(overrides: Record<string, unknown> = {}): Record<strin
     current_period_start: 1_754_900_000,
     current_period_end: 1_757_578_400,
     cancel_at_period_end: false,
-    items: { data: [{ price: { id: "price_1", lookup_key: "saas_standard_monthly" } }] },
+    items: { data: [{ id: "si_test_1", price: { id: "price_1", lookup_key: "saas_standard_monthly" } }] },
     ...overrides,
   };
 }
@@ -218,6 +218,7 @@ describe("StripeBillingClient — tor PLATFORMY", () => {
       status: "active",
       tenantIdFromMetadata: "11111111-2222-3333-4444-555555555555",
       priceLookupKey: "saas_standard_monthly",
+      itemId: "si_test_1",
       currentPeriodStart: new Date(1_754_900_000 * 1000).toISOString(),
       currentPeriodEnd: new Date(1_757_578_400 * 1000).toISOString(),
       cancelAtPeriodEnd: false,
@@ -271,5 +272,125 @@ describe("StripeBillingClient — tor PLATFORMY", () => {
       { status: 400, body: { error: { message: `Invalid key ${SECRET_KEY} used` } } },
     ]);
     await expect(billing.findCustomerByTenant("t-1")).rejects.toThrowError(/\[usunięto\]/);
+  });
+});
+
+/**
+ * J2 faza 3 (ADR-152) — Portal klienta, zmiana planu, reaktywacja.
+ *
+ * Testy patrzą na CIAŁO ŻĄDANIA, nie na to, co metoda zwraca: sednem obu
+ * ścieżek subskrypcyjnych jest to, czego w żądaniu NIE MA (pola trialu,
+ * klucza idempotencji z zamiaru), a tego nie widać po wyniku.
+ */
+describe("StripeBillingClient — zarządzanie abonamentem (ADR-152)", () => {
+  it("Portal: sesja dla podanego klienta, z adresem powrotu i językiem", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "bps_1", url: "https://billing.stripe.com/p/session/x" } },
+    ]);
+    const session = await billing.createBillingPortalSession({
+      customerId: "cus_1",
+      returnUrl: "https://panel.test/pl/organizacja?portal=powrot",
+      locale: "pl",
+    });
+    expect(session.url).toBe("https://billing.stripe.com/p/session/x");
+    expect(requests[0]!.url).toContain("/v1/billing_portal/sessions");
+    expect(requests[0]!.method).toBe("POST");
+    const body = decodeURIComponent(requests[0]!.body!.replace(/\+/g, "%20"));
+    expect(body).toContain("customer=cus_1");
+    expect(body).toContain("return_url=https://panel.test/pl/organizacja?portal=powrot");
+    expect(body).toContain("locale=pl");
+  });
+
+  it("Portal: odpowiedź bez adresu = głośny błąd, nie pusty redirect", async () => {
+    const { billing } = client([{ status: 200, body: { id: "bps_2" } }]);
+    await expect(
+      billing.createBillingPortalSession({ customerId: "cus_1", returnUrl: "https://panel.test" }),
+    ).rejects.toThrowError(/adresu sesji Portalu/);
+  });
+
+  it("readCustomerTenantId: metadata z ODCZYTU; klient usunięty i brak metadanych → null", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "cus_1", metadata: { tenant_id: "t-1" } } },
+      { status: 200, body: { id: "cus_2", deleted: true, metadata: { tenant_id: "t-2" } } },
+      { status: 200, body: { id: "cus_3", metadata: {} } },
+    ]);
+    expect(await billing.readCustomerTenantId("cus_1")).toBe("t-1");
+    // Klient usunięty w dashboardzie nie „należy" już do nikogo — nawet gdy
+    // dostawca odda w odpowiedzi resztki metadanych.
+    expect(await billing.readCustomerTenantId("cus_2")).toBeNull();
+    expect(await billing.readCustomerTenantId("cus_3")).toBeNull();
+    expect(requests[0]!.url).toContain("/v1/customers/cus_1");
+    expect(requests[0]!.method).toBe("GET");
+  });
+
+  it("odczyt subskrypcji niesie identyfikator POZYCJI (adres podmiany ceny)", async () => {
+    const { billing } = client([{ status: 200, body: subscriptionBody() }]);
+    const read = await billing.readSaasSubscription("sub_test_1");
+    expect(read.itemId).toBe("si_test_1");
+  });
+
+  it("odczyt bez pozycji: itemId null, a reszta projekcji BEZ USZCZERBKU", async () => {
+    const { billing } = client([{ status: 200, body: subscriptionBody({ items: { data: [] } }) }]);
+    const read = await billing.readSaasSubscription("sub_test_1");
+    expect(read.itemId).toBeNull();
+    expect(read.status).toBe("active");
+    expect(read.priceLookupKey).toBeNull();
+  });
+
+  it("zmiana planu: POST na subskrypcję z pozycją, ceną i proratą — ZERO pól trialu", async () => {
+    const { billing, requests } = client([{ status: 200, body: { id: "sub_test_1" } }]);
+    await billing.updateSubscriptionPrice({
+      subscriptionId: "sub_test_1",
+      itemId: "si_test_1",
+      priceId: "price_2",
+    });
+    const request = requests[0]!;
+    expect(request.url).toContain("/v1/subscriptions/sub_test_1");
+    expect(request.method).toBe("POST");
+    const body = decodeURIComponent(request.body!);
+    // Kontrola po pustym zbiorze: najpierw dowód, że żądanie NIESIE podmianę,
+    // dopiero potem asercja o tym, czego w nim nie ma.
+    expect(body).toContain("items[0][id]=si_test_1");
+    expect(body).toContain("items[0][price]=price_2");
+    expect(body).toContain("proration_behavior=create_prorations");
+    // SONDA: pole trialu w tym żądaniu przesuwałoby zegar okresu próbnego —
+    // zmiana planu w dół i z powrotem byłaby fabryką darmowych czternastek.
+    expect(body).not.toMatch(/trial/i);
+    // Klucz z zamiaru cofnąłby powrót na poprzedni plan w tej samej dobie.
+    expect(request.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("reaktywacja: POST zdejmujący cancel_at_period_end i NIC WIĘCEJ", async () => {
+    const { billing, requests } = client([{ status: 200, body: { id: "sub_test_1" } }]);
+    await billing.resumeSubscription({ subscriptionId: "sub_test_1" });
+    const request = requests[0]!;
+    expect(request.url).toContain("/v1/subscriptions/sub_test_1");
+    expect(request.method).toBe("POST");
+    expect(request.body).toBe("cancel_at_period_end=false");
+    expect(request.headers["Idempotency-Key"]).toBeUndefined();
+  });
+
+  it("zmiana planu bez potwierdzenia identyfikatora = błąd, nie cichy sukces", async () => {
+    const { billing } = client([{ status: 200, body: {} }]);
+    await expect(
+      billing.updateSubscriptionPrice({
+        subscriptionId: "sub_test_1",
+        itemId: "si_test_1",
+        priceId: "price_2",
+      }),
+    ).rejects.toThrowError(/nie potwierdziło zmiany planu/);
+  });
+
+  it("Portal i zmiana planu idą na konto PLATFORMY — bez nagłówka konta połączonego", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "bps_1", url: "https://billing.stripe.com/p/s/x" } },
+      { status: 200, body: { id: "sub_test_1" } },
+    ]);
+    await billing.createBillingPortalSession({ customerId: "cus_1", returnUrl: "https://p.test" });
+    await billing.resumeSubscription({ subscriptionId: "sub_test_1" });
+    for (const request of requests) {
+      expect(Object.keys(request.headers)).not.toContain("Stripe-Account");
+      expect(request.headers["Stripe-Version"]).toBe(STRIPE_BILLING_API_VERSION);
+    }
   });
 });

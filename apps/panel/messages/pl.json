@@ -2207,6 +2207,21 @@
         "yearly": "Rocznie",
         "redirecting": "Przekierowujemy na stronę płatności…",
         "unknownError": "Uruchomienie płatności nie powiodło się. Spróbuj ponownie za chwilę."
+      },
+      "manage": {
+        "title": "Zarządzanie abonamentem",
+        "description": "Wymiana karty, faktury i historia płatności, zmiana planu oraz wznowienie abonamentu.",
+        "portalDescription": "Kartę, dane do faktury i historię płatności prowadzi dostawca płatności — przeniesiemy Cię na jego bezpieczną stronę i wrócisz tutaj.",
+        "portalCta": "Zarządzaj płatnościami",
+        "portalRedirecting": "Przekierowujemy do zarządzania płatnościami…",
+        "reactivateHeading": "Wznowienie abonamentu",
+        "reactivateDescription": "Abonament jest ustawiony na zakończenie z końcem opłaconego okresu. Wznowienie cofa tę decyzję — nic nie naliczamy dodatkowo.",
+        "reactivateCta": "Wznów abonament",
+        "planChangeHeading": "Zmiana planu",
+        "planChangeDescription": "Zmiana działa od razu, a różnicę za rozpoczęty okres dostawca płatności rozliczy na najbliższej fakturze. Okres próbny biegnie dalej bez zmian.",
+        "planCurrent": "obecny plan",
+        "accepted": "Zmiana przyjęta — stan konta odświeży się za chwilę.",
+        "unknownError": "Operacja nie powiodła się. Spróbuj ponownie za chwilę."
       }
     },
     "statusValue": {

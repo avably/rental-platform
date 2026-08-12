@@ -2207,6 +2207,21 @@
         "yearly": "Yearly",
         "redirecting": "Redirecting to the payment page…",
         "unknownError": "Starting the payment did not succeed. Try again in a moment."
+      },
+      "manage": {
+        "title": "Subscription management",
+        "description": "Card changes, invoices and payment history, plan changes and resuming your subscription.",
+        "portalDescription": "Your card, billing details and payment history are handled by our payment provider — we will take you to their secure page and bring you back here.",
+        "portalCta": "Manage payments",
+        "portalRedirecting": "Redirecting to payment management…",
+        "reactivateHeading": "Resume the subscription",
+        "reactivateDescription": "The subscription is set to end when the paid period runs out. Resuming undoes that decision — nothing extra is charged.",
+        "reactivateCta": "Resume subscription",
+        "planChangeHeading": "Change plan",
+        "planChangeDescription": "The change takes effect immediately and the payment provider settles the difference for the started period on the next invoice. Your trial keeps running unchanged.",
+        "planCurrent": "current plan",
+        "accepted": "Change accepted — the account state will refresh in a moment.",
+        "unknownError": "The operation did not succeed. Try again in a moment."
       }
     },
     "statusValue": {

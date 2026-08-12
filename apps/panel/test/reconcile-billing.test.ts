@@ -52,6 +52,7 @@ function read(overrides: Partial<SaasSubscriptionRead>): SaasSubscriptionRead {
     status: "active",
     tenantIdFromMetadata: null,
     priceLookupKey: "saas_standard_monthly",
+    itemId: "si_x",
     currentPeriodStart: new Date(Date.now() - 86_400_000).toISOString(),
     currentPeriodEnd: new Date(Date.now() + 29 * 86_400_000).toISOString(),
     cancelAtPeriodEnd: false,

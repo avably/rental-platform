@@ -41,10 +41,12 @@ export {
 
 export {
   LIVE_SAAS_SUBSCRIPTION_STATUSES,
+  MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES,
   OBSERVED_SAAS_BILLING_EVENTS,
   SAAS_BILLING_INTERVALS,
   SAAS_SUBSCRIPTION_STATUSES,
   isLiveSaasSubscriptionStatus,
+  isManageableSaasSubscriptionStatus,
   isObservedSaasBillingEvent,
   mapSaasSubscriptionToTenantStatus,
   planFromPriceLookupKey,

@@ -115,6 +115,62 @@ async function ensurePrice(key, productId, lookupKey, unitAmount, interval) {
   return { lookupKey, priceId: created.body.id, action: current ? "podmieniona" : "utworzona" };
 }
 
+/**
+ * Konfiguracja PORTALU KLIENTA (J2 faza 3, ADR-152) — bez niej
+ * `POST /v1/billing_portal/sessions` odbija się o brak domyślnej
+ * konfiguracji na koncie.
+ *
+ * ZAKRES PORTALU JEST DECYZJĄ ARCHITEKTONICZNĄ, NIE DOMYŚLNĄ:
+ *   * karta, dane do faktury, historia płatności, anulowanie na koniec
+ *     okresu — TAK: tych ekranów świadomie nie odtwarzamy u siebie;
+ *   * `subscription_update` — NIE. Zmiana planu ma w tym produkcie DOKŁADNIE
+ *     JEDNĄ drogę (własna akcja `changeSaasPlanAction` z bramkami stanu
+ *     i tenanta). Włączenie jej także w Portalu dałoby drugi tor zmiany
+ *     abonamentu, omijający te bramki — i sprzedawałoby plan Premium, który
+ *     na LP jest zapowiedziany jako „wkrótce".
+ *
+ * Konfiguracja jest domyślną konta (`is_default`), więc sesja Portalu nie
+ * musi nieść żadnego identyfikatora konfiguracji — panel nie zna price-idów
+ * ani configuration-idów, tak samo jak przy cenach (lookup_key).
+ */
+async function ensurePortalConfiguration(key) {
+  const params = {
+    "business_profile[headline]": "Avably — abonament",
+    "features[customer_update][enabled]": "true",
+    "features[customer_update][allowed_updates][0]": "email",
+    "features[customer_update][allowed_updates][1]": "address",
+    "features[customer_update][allowed_updates][2]": "tax_id",
+    "features[invoice_history][enabled]": "true",
+    "features[payment_method_update][enabled]": "true",
+    "features[subscription_cancel][enabled]": "true",
+    "features[subscription_cancel][mode]": "at_period_end",
+    "features[subscription_update][enabled]": "false",
+  };
+
+  const existing = await stripe(key, "GET", "/v1/billing_portal/configurations?is_default=true&limit=1");
+  if (existing.status !== 200) {
+    throw new Error(`Odczyt konfiguracji Portalu: HTTP ${existing.status}`);
+  }
+  const current = existing.body?.data?.[0];
+  if (current) {
+    const updated = await stripe(key, "POST", `/v1/billing_portal/configurations/${current.id}`, params);
+    if (updated.status < 200 || updated.status >= 300) {
+      throw new Error(
+        `Aktualizacja konfiguracji Portalu: HTTP ${updated.status} ${updated.body?.error?.message ?? ""}`,
+      );
+    }
+    return { obiekt: `portal:${current.id}`, akcja: "zaktualizowana" };
+  }
+
+  const created = await stripe(key, "POST", "/v1/billing_portal/configurations", params);
+  if (created.status < 200 || created.status >= 300) {
+    throw new Error(
+      `Utworzenie konfiguracji Portalu: HTTP ${created.status} ${created.body?.error?.message ?? ""}`,
+    );
+  }
+  return { obiekt: `portal:${created.body.id}`, akcja: "utworzona" };
+}
+
 async function main() {
   const key = process.env.AVABLY_STRIPE_SECRET_KEY;
   if (!key) {
@@ -140,6 +196,7 @@ async function main() {
       await ensurePrice(key, productId, `saas_${plan.id}_yearly`, plan.yearlyNetGrosze, "year"),
     );
   }
+  report.push(await ensurePortalConfiguration(key));
   console.table(report);
 }
 
