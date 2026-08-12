@@ -1,12 +1,24 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { ScreenHeader } from "@/components/screens/screen-header";
+import { ScreenSection } from "@/components/screens/screen-header";
+import { fetchProductUnits } from "@/lib/catalog/card-query";
+import { deploymentCellProps } from "@/lib/catalog/deployed-today";
 import { requireMemberPage } from "@/lib/member-page";
+import { warsawToday } from "@/lib/orders/order-dates";
 
-import { addUnitAction, updateUnitAction } from "./actions";
-import { AddUnitForm, UnitRowForm } from "./unit-forms";
+import { saveUnitsAction } from "./actions";
+import { UnitsEditor } from "./units-editor";
 
+/**
+ * Zakładka „Egzemplarze" karty produktu (U8b, ADR-146).
+ *
+ * Powrót do produktu i nazwa rekordu niesie `../layout.tsx` — tu zostaje sama
+ * treść. Stan egzemplarzy (na którym zamówieniu wisi sztuka i kiedy wraca)
+ * czytamy TĄ SAMĄ funkcją, która liczy dostępność na karcie
+ * (`lib/catalog/card-query.ts`), żeby liczba „X z N" i kolumna stanu nie
+ * mogły się rozjechać.
+ */
 export default async function ProductUnitsPage({
   params,
 }: {
@@ -17,56 +29,44 @@ export default async function ProductUnitsPage({
 
   const { data: product } = await ctx.supabase
     .from("products")
-    .select("id, name")
+    .select("id")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
     .maybeSingle();
 
   if (!product) notFound();
 
-  const { data: units } = await ctx.supabase
-    .from("product_units")
-    .select("id, serial_number, unavailable_from, unavailable_to, unavailable_reason")
-    .eq("tenant_id", ctx.tenantId)
-    .eq("product_id", id)
-    .order("created_at", { ascending: true });
+  const { units, unitCount, deployedToday } = await fetchProductUnits(
+    ctx.supabase,
+    ctx.tenantId!,
+    product.id,
+    { today: warsawToday() },
+  );
 
+  const locale = await getLocale();
   const t = await getTranslations("catalog.units");
 
   return (
-    <div className="flex flex-col gap-4">
-      <ScreenHeader
-        back={{
-          href: `/katalog/${product.id}`,
-          label: t("backToProduct", { name: product.name }),
-        }}
-        title={t("title", { name: product.name })}
+    <ScreenSection
+      data-product-units
+      title={t("heading")}
+      status={
+        unitCount === 0 ? null : (
+          <span
+            {...deploymentCellProps(deployedToday, unitCount)}
+            className="text-muted-foreground text-sm tabular-nums"
+          >
+            {t("deployedOf", { deployed: deployedToday, total: unitCount })}
+          </span>
+        )
+      }
+      description={t("intro")}
+    >
+      <UnitsEditor
+        action={saveUnitsAction.bind(null, product.id)}
+        initialRows={units}
+        locale={locale}
       />
-
-      <AddUnitForm action={addUnitAction.bind(null, product.id)} />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-          {t("listHeading", { count: (units ?? []).length })}
-        </h2>
-        {(units ?? []).length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("empty")}</p>
-        ) : (
-          (units ?? []).map((unit) => (
-            <UnitRowForm
-              key={unit.id}
-              action={updateUnitAction.bind(null, product.id)}
-              unit={{
-                id: unit.id,
-                serialNumber: unit.serial_number ?? "",
-                unavailableFrom: unit.unavailable_from ?? "",
-                unavailableTo: unit.unavailable_to ?? "",
-                unavailableReason: unit.unavailable_reason ?? "",
-              }}
-            />
-          ))
-        )}
-      </section>
-    </div>
+    </ScreenSection>
   );
 }

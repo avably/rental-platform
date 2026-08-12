@@ -70,12 +70,26 @@ export async function createProductAction(
     return { fieldErrors: custom.fieldErrors, ...(custom.formError ? { formError: custom.formError } : {}) };
   }
 
-  const { error } = await ctx.supabase
+  // PO UTWORZENIU PROWADZIMY DALEJ, NIE Z POWROTEM (U8b, ADR-146).
+  //
+  // Dotąd akcja kończyła się na liście katalogu, a produkt świeżo utworzony
+  // NIE DZIAŁA W SKLEPIE: nie ma egzemplarzy (nie ma czego wydać), progów
+  // (cennik jest pusty) ani zdjęć (klient nie zobaczy, co kupuje). Lista
+  // pokazywała nowy wiersz jako gotowy i zostawiała operatora bez wskazówki,
+  // czego brakuje. Kierujemy więc na KARTĘ nowego produktu, gdzie sekcje
+  // zdjęcia i dostępności mówią wprost, czego nie ma, a zakładki są drogą do
+  // uzupełnienia — dlatego insert musi oddać identyfikator.
+  const { data: created, error } = await ctx.supabase
     .from("products")
-    .insert({ tenant_id: ctx.tenantId, ...productPayload(parsed.data), custom_fields: custom.values });
+    .insert({ tenant_id: ctx.tenantId, ...productPayload(parsed.data), custom_fields: custom.values })
+    .select("id")
+    .single();
   if (error) return { formError: error.message };
+  // Wiersz bez identyfikatora nie jest błędem zapisu (produkt POWSTAŁ), więc
+  // nie udajemy porażki — wracamy na listę, jak przed U8b.
+  if (!created?.id) redirect(await localePath("/katalog"));
 
-  redirect(await localePath("/katalog"));
+  redirect(await localePath(`/katalog/${created.id}`));
 }
 
 export async function updateProductAction(
