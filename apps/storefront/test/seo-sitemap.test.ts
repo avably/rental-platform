@@ -95,8 +95,23 @@ describe("resolveHostBranch — ta sama granica co middleware, bez nagłówka te
     });
   });
 
-  it("nierozwiązany obcy host → marketing (zachowanie z 2.1), nie 404", async () => {
-    await expect(resolveHostBranch("obcy.example", deps)).resolves.toEqual({ kind: "marketing" });
+  it("nierozwiązany obcy host → not-found, TA SAMA granica co w proxy (ADR-131)", async () => {
+    /*
+     * TEN TEST ZMIENIŁ STRONĘ W FAZIE 2 — świadomie i u źródła.
+     *
+     * Do tej pory brzmiał „→ marketing (zachowanie z 2.1), nie 404" i był
+     * zielony, więc wyglądał na bramkę. Pilnował WADY: proxy od ADR-131 oddaje
+     * na tej gałęzi neutralne 404, a `resolveHostBranch` dalej oddawał gałąź
+     * marketingową. Skutek był mierzalny: dowolny obcy host wycelowany w nasz
+     * deployment dostawał 404 na `/`, ale pełną sitemapę kanonu Avably pod
+     * `/sitemap.xml` — czyli tę samą wyrocznię „czyj to host", tylko wystawioną
+     * plikiem, którego roboty szukają same, bez klikania.
+     *
+     * Kontrapunkt, który cały czas mówił prawdę: `test/proxy.test.ts`,
+     * „nierozwiązany obcy host → neutralne 404, NIE gałąź marketingowa".
+     * Dwa testy, dwie sprzeczne prawdy o jednej granicy, obie zielone.
+     */
+    await expect(resolveHostBranch("obcy.example", deps)).resolves.toEqual({ kind: "not-found" });
   });
 
   it("slug niepoprawny → not-found BEZ odpytania bazy", async () => {

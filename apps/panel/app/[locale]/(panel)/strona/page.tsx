@@ -46,6 +46,11 @@ export default async function SitePage() {
     // ŻYWOŚĆ to jedyna prawda o tym, co widzi klient (ADR-093 D1) — lista
     // czyta ją z tej samej kolumny, z której czyta ją sklep.
     live: site.published_at !== null,
+    // ADRES: szkic i bliźniak osobno (0073, ADR-157). Lista pokazuje adres
+    // SZKICU, bo to on jest przedmiotem edycji, ale musi umieć powiedzieć, że
+    // klienci mają jeszcze stary — dlatego bliźniak jedzie obok.
+    slug: site.slug,
+    slugPublished: site.slug_published,
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
   }));

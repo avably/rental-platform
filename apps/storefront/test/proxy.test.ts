@@ -112,6 +112,12 @@ const fakeDeps: ProxyDeps = {
   resolveTenant: async (_host, slug) => (slug === "acme" ? { tenantId: ACME_ID } : null),
   resolveTenantByDomain: async (host) =>
     host === "sklep.najemca.example" ? { tenantId: CUSTOM_ID } : null,
+  // Rejestr adresów stron (Faza 2, ADR-158): najemca `acme` ma stronę główną
+  // i `kontakt`; najemca własnej domeny — samą stronę główną.
+  resolveTenantPages: async (tenantId) =>
+    tenantId === ACME_ID
+      ? { pages: ["", "kontakt"], redirects: [] }
+      : { pages: [""], redirects: [] },
 };
 
 describe("proxy storefrontu — nagłówki bezpieczeństwa", () => {

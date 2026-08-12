@@ -9,9 +9,14 @@
 import { z } from "zod";
 
 import {
+  HOME_PAGE_SLUG,
+  PAGE_SLUG_MAX_LENGTH,
+  PAGE_SLUG_PATTERN,
   STARTER_TEMPLATES,
+  isReservedPageSlug,
   sectionInputSchema,
   siteStyleSchema,
+  suggestPageSlug,
 } from "@avably/core/site";
 
 import { uuidSchema } from "./catalog-validation";
@@ -46,11 +51,111 @@ const siteNameSchema = z
   .min(1, "Nazwa strony nie może być pusta.")
   .max(80, "Nazwa strony może mieć najwyżej 80 znaków.");
 
-export const createSiteInputSchema = z.object({ name: siteNameSchema });
+/**
+ * ADRES STRONY (Faza 2, 0073, ADR-157) — walidacja z UZASADNIENIEM.
+ *
+ * Trzy odmowy, każda z własnym zdaniem, bo operator ma usłyszeć, CO poprawić:
+ * kształt, długość i rezerwacja. Kolejność sprawdzeń jest celowa (kształt →
+ * rezerwacja): „adres zarezerwowany" o wejściu `Moja Strona` byłoby myleniem.
+ *
+ * BRAMKĄ JEST BAZA, nie ten schemat. CHECK `sites_slug_shape` i trigger
+ * `sites_slug_guard` stoją niżej i widzą także zapis surowym PostgREST-em.
+ * Ten schemat istnieje po to, żeby operator dostał zdanie zamiast 23514 —
+ * i żeby dostał je W POLU, zanim cokolwiek wyśle.
+ *
+ * PUSTY SLUG PRZECHODZI TYLKO JAKO JAWNA STRONA GŁÓWNA. `suggestPageSlug`
+ * zwraca pustkę dla nazwy bez ani jednego znaku ASCII („???"), więc bez tej
+ * gałęzi operator wyprodukowałby DRUGĄ stronę główną, nie zauważając niczego.
+ */
+export const pageSlugSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.toLowerCase())
+  .superRefine((slug, ctx) => {
+    if (slug === HOME_PAGE_SLUG) return;
+    if (slug.length > PAGE_SLUG_MAX_LENGTH) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Adres może mieć najwyżej ${PAGE_SLUG_MAX_LENGTH} znaków.`,
+      });
+      return;
+    }
+    if (!PAGE_SLUG_PATTERN.test(slug)) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Adres może zawierać wyłącznie małe litery bez ogonków, cyfry i myślniki (np. jak-dziala-wynajem).",
+      });
+      return;
+    }
+    if (isReservedPageSlug(slug)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Adres „${slug}" jest zarezerwowany przez sklep — wybierz inny.`,
+      });
+    }
+  });
+
+/**
+ * Slug WYMAGANY (strona treściowa): pusty przechodzi tylko przez jawną gałąź
+ * strony głównej wyżej, a tu jest błędem z własnym zdaniem — pusty adres
+ * z formularza znaczy „nie dało się wyprowadzić go z nazwy", nie „to strona
+ * główna".
+ */
+const contentPageSlugSchema = pageSlugSchema.superRefine((slug, ctx) => {
+  if (slug === HOME_PAGE_SLUG) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Podaj adres strony — z tej nazwy nie da się go wyprowadzić.",
+    });
+  }
+});
+
+export const createSiteInputSchema = z.object({
+  name: siteNameSchema,
+  /**
+   * Pominięty slug = wyprowadzony z nazwy. Panel i tak podaje go jawnie, ale
+   * bez tej gałęzi wywołanie z kodu sprzed Fazy 2 zakładałoby drugą stronę
+   * główną — a to jest stan, którego publikacja i tak by nie przyjęła (23505),
+   * tylko już po tym, jak operator zbudował na niej treść.
+   */
+  slug: contentPageSlugSchema.optional(),
+});
 export type CreateSiteInput = z.infer<typeof createSiteInputSchema>;
 
-export const renameSiteInputSchema = z.object({ siteId: uuidSchema, name: siteNameSchema });
+export const renameSiteInputSchema = z.object({
+  siteId: uuidSchema,
+  name: siteNameSchema,
+  /**
+   * Adres jest opcjonalny, bo strona GŁÓWNA go nie zmienia — jej adresem jest
+   * `/` i nie ma tam czego edytować. Nieobecność znaczy „nie ruszaj adresu",
+   * a nie „ustaw pusty".
+   */
+  slug: contentPageSlugSchema.optional(),
+});
 export type RenameSiteInput = z.infer<typeof renameSiteInputSchema>;
+
+/**
+ * Odmowa adresu jako ZDANIE, albo `null` gdy adres jest dobry.
+ *
+ * Formularz woła TO SAMO, co akcja serwerowa — inaczej pole mówiłoby „ok",
+ * a zapis wracał z błędem, którego operator nie umie powiązać z tym, co wpisał.
+ * Bramką i tak jest baza; ta funkcja istnieje po to, żeby odmowa padła W POLU,
+ * z uzasadnieniem, zanim cokolwiek zostanie wysłane.
+ */
+export function pageSlugIssue(value: string): string | null {
+  const parsed = contentPageSlugSchema.safeParse(value);
+  return parsed.success ? null : (parsed.error.issues[0]?.message ?? "Nieprawidłowy adres strony.");
+}
+
+/**
+ * Adres proponowany z nazwy — TA SAMA funkcja, której używa formularz do
+ * podpowiedzi. Druga kopia rozjechałaby się z pierwszą przy pierwszej zmianie
+ * transliteracji, a operator zobaczyłby wtedy inny adres, niż dostał zapisany.
+ */
+export function suggestSiteSlug(name: string): string {
+  return suggestPageSlug(name);
+}
 
 const positionSchema = z.number().int().min(0).max(1_000_000);
 

@@ -20,6 +20,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
+  HOME_PAGE_SLUG,
   normalizeSectionOrder,
   orderWithSectionBefore,
   starterPhoto,
@@ -108,11 +109,19 @@ export async function createSite(
 
   const { data: created, error } = await ctx.supabase
     .from("sites")
-    .insert({ tenant_id: ctx.tenantId, name: parsed.data.name })
+    .insert({
+      tenant_id: ctx.tenantId,
+      name: parsed.data.name,
+      // ADRES od razu przy zakładaniu (Faza 2, 0073): strona bez podanego
+      // adresu jest kolejnym szkicem strony GŁÓWNEJ — to samo, czym wiersz
+      // `sites` był do 0072. Panel podaje go jawnie, więc ta gałąź obsługuje
+      // wyłącznie wywołania spoza formularza.
+      slug: parsed.data.slug ?? HOME_PAGE_SLUG,
+    })
     .select("id")
     .single();
   if (error || !created) {
-    return { ok: false, error: error?.message ?? "Nie udało się utworzyć strony." };
+    return { ok: false, error: siteWriteError(error, "Nie udało się utworzyć strony.") };
   }
 
   // BEZ revalidateTag: nowa wersja jest nieżywa, więc sklep się nie zmienił.
@@ -120,7 +129,16 @@ export async function createSite(
   return { ok: true, siteId: created.id as string };
 }
 
-/** Zmiana nazwy wersji — dana wyłącznie szkicowa, sklep jej nie widzi. */
+/**
+ * Zmiana NAZWY i ADRESU strony.
+ *
+ * Nazwa jest daną wyłącznie szkicową (sklep jej nie widzi). Adres NIE JEST:
+ * jest tym, co klient ma w pasku. Dlatego zapis idzie do kolumny SZKICU
+ * (`slug`), a żywy adres zmienia się dopiero publikacją — bliźniak
+ * `slug_published` pisze wyłącznie `app.publish_site` (0073, ADR-091/157).
+ * Operator ma więc dokładnie jedno miejsce, w którym adres wchodzi do sklepu,
+ * i dokładnie jeden moment, w którym trzeba wystawić przekierowanie.
+ */
 export async function renameSite(input: RenameSiteInput): Promise<SiteActionResult> {
   const parsed = renameSiteInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -132,15 +150,39 @@ export async function renameSite(input: RenameSiteInput): Promise<SiteActionResu
 
   const { data, error } = await ctx.supabase
     .from("sites")
-    .update({ name: parsed.data.name })
+    .update({
+      name: parsed.data.name,
+      // Brak sluga w wejściu = „nie ruszaj adresu" (strona główna nie ma
+      // adresu do zmiany). `undefined` nie trafia do zapytania PostgREST.
+      ...(parsed.data.slug === undefined ? {} : { slug: parsed.data.slug }),
+    })
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.siteId)
     .select("id");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: siteWriteError(error, error.message) };
   if ((data ?? []).length === 0) return { ok: false, error: "Nie znaleziono strony." };
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/**
+ * Tłumaczenie odmów BAZY na zdania dla operatora (Faza 2, 0073/0074).
+ *
+ * 22023 przychodzi z triggera `sites_slug_guard` i NIESIE ADRES, o który
+ * chodzi — dlatego idzie wprost, bez przepisywania. 23505 to unikat żywego
+ * adresu: publikacja pod adresem, który ma już inna żywa strona.
+ */
+function siteWriteError(
+  error: { code?: string; message: string } | null,
+  fallback: string,
+): string {
+  if (!error) return fallback;
+  if (error.code === "22023") return error.message;
+  if (error.code === "23505") {
+    return "Inna opublikowana strona ma już ten adres. Zmień adres jednej z nich.";
+  }
+  return error.message || fallback;
 }
 
 /**
@@ -871,6 +913,12 @@ export async function publishSite(
     .rpc("publish_site", { p_site_id: parsed.data });
   if (error || !data) {
     // 22023 = site_not_found (nieistniejąca ALBO cudza strona — celowo nieodróżnialne).
+    // 23505 = unikat ŻYWEGO ADRESU (0073): od 0074 publikacja nikogo nie gasi,
+    // więc druga strona pod zajętym adresem jest ODMAWIANA, a nie po cichu
+    // przełączana. Operator musi usłyszeć, co poprawić.
+    if (error?.code === "23505") {
+      return { ok: false, error: siteWriteError(error, "Publikacja nie powiodła się.") };
+    }
     return {
       ok: false,
       error: error?.code === "22023" ? "Nie znaleziono strony." : (error?.message ?? "Publikacja nie powiodła się."),

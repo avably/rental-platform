@@ -15,6 +15,8 @@
  * Koszyk i checkout NIE wchodzą do sitemapy — to strony transakcyjne bez
  * treści (robots.txt wyklucza je jawnie).
  */
+import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
+
 import { routing } from "@/i18n/routing";
 import { PUBLIC_PAGES } from "@/lib/marketing/template";
 import { getPublicCatalog } from "@/lib/checkout/catalog";
@@ -24,6 +26,8 @@ import { resolveHostBranch } from "@/lib/seo/host-branch";
 import { marketingOrigin, originFromHost } from "@/lib/seo/origin";
 import { renderSitemap, type SitemapEntry } from "@/lib/seo/sitemap";
 import { getPublishedSite } from "@/lib/site/published";
+import { getCachedTenantPages, lookupTenantPages, resolveTenantPages } from "@/lib/tenant/pages";
+import { setCachedTenantPages } from "@/lib/tenant/pages";
 
 export const dynamic = "force-dynamic";
 
@@ -71,18 +75,43 @@ export async function GET(request: Request): Promise<Response> {
   const origin = originFromHost(host, proto);
   if (!origin) return notFound();
 
-  const [catalog, site, legalDocuments] = await Promise.all([
+  const [catalog, site, legalDocuments, pages] = await Promise.all([
     getPublicCatalog(branch.tenantId),
     getPublishedSite(branch.tenantId),
     getPublishedLegalDocuments(branch.tenantId),
+    resolveTenantPages(branch.tenantId, {
+      getCache: getCachedTenantPages,
+      setCache: setCachedTenantPages,
+      lookup: lookupTenantPages,
+    }),
   ]);
 
   // Brak katalogu = tenant nieosiągalny publicznie (fail-closed jak kontekst
   // renderu). Brak opublikowanej strony = sklep w budowie — nie indeksujemy.
   if (!catalog || !site) return notFound();
 
+  /*
+   * STRONY NAJEMCY (Faza 2, ADR-158) — z REJESTRU ADRESÓW, nie z listy
+   * wyliczonej w kodzie. Adres liczy `pagePathFromSlug`, czyli ta sama funkcja,
+   * którą liczą kanon i przycisk „zobacz stronę" w panelu: sitemapa wskazująca
+   * `/store` zamiast `/` zgłaszałaby wyszukiwarce adres WEWNĘTRZNY, spod
+   * którego kanon i tak odsyła gdzie indziej.
+   *
+   * Strona główna wchodzi ZAWSZE (`site` niżej jest warunkiem wejścia
+   * w tę gałąź), a rejestr dokłada resztę. Brak rejestru (awaria odczytu) nie
+   * może zdjąć sklepu z indeksu, więc degraduje się do samej strony głównej.
+   */
+  const pageSlugs =
+    pages?.pages && pages.pages.length > 0 ? pages.pages : [HOME_PAGE_SLUG];
+
   const entries: SitemapEntry[] = [
-    { loc: `${origin}/store`, lastmod: site.publishedAt },
+    ...pageSlugs.map((slug) => ({
+      loc: `${origin}${pagePathFromSlug(slug)}`,
+      // `lastmod` z publikacji mamy dla strony GŁÓWNEJ; podstrony wchodzą bez
+      // niego, bo rejestr celowo nie niesie identyfikatorów ani dat — to jest
+      // koperta dla proxy, a nie drugi odczyt strony.
+      ...(slug === HOME_PAGE_SLUG ? { lastmod: site.publishedAt } : {}),
+    })),
     ...catalog.products.map((product) => ({ loc: `${origin}/product/${product.id}` })),
     // Dokumenty prawne WARUNKOWO (B4, ADR-129) — tylko te faktycznie
     // opublikowane, z `lastmod` z chwili publikacji. Wpis bezwarunkowy
