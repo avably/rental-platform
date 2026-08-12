@@ -503,11 +503,24 @@ describe("okablowanie setupFiles — retry realnie zainstalowany w tej suicie", 
   // Pilnuje WPISU w vitest.config.ts (test.setupFiles), nie samego helpera:
   // zdjęcie setup-transport-retry.ts z konfiguracji gasi retry w całej suicie,
   // a wszystkie pozostałe testy tego pliku dalej świecą na zielono, bo wołają
-  // helper bezpośrednio. Gated po env jak testy integracyjne: bez lokalnego
-  // Supabase setup jest świadomym no-opem i nie ma czego pilnować.
+  // helper bezpośrednio.
+  //
+  // DWA znaczniki, bo bronią DWÓCH różnych rzeczy — i tylko jeden z nich
+  // działa bez lokalnego Supabase:
+  it("plik setup został ZAŁADOWANY przez konfigurację tej suity", () => {
+    // Bezwarunkowo: ten znacznik stawia sam plik setup, niezależnie od env.
+    // To jedyna asercja łapiąca „helper leży w pakiecie, ale nikt go nie
+    // ładuje" — czyli bliźniaczą kopię wpiętą tylko z nazwy. Bez tego
+    // przebieg z ALLOW_INTEGRATION_SKIP=1 nie pilnowałby okablowania wcale.
+    const marker = Symbol.for("avably.testTransportRetrySetupLoaded");
+    expect((globalThis as unknown as { [key: symbol]: unknown })[marker]).toBe(true);
+  });
+
   it.skipIf(!process.env.SUPABASE_LOCAL_API_URL)(
     "globalThis.fetch niesie znacznik instalacji retry",
     () => {
+      // Gated po env: bez lokalnego Supabase instalacja jest świadomym
+      // no-opem i nie ma czego pilnować.
       const marker = Symbol.for("avably.testTransportRetryInstalled");
       expect((globalThis.fetch as unknown as { [key: symbol]: unknown })[marker]).toBe(true);
     },
