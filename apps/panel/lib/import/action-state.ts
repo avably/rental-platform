@@ -10,6 +10,8 @@ export interface CatalogImportPreviewInfo {
   created: number;
   updated: number;
   tiers: number;
+  /** Przypisania kategorii po imporcie (ADR-155); 0 dla pliku bez kolumny. */
+  categories: number;
   rowCount: number;
   fileName: string;
 }
@@ -23,7 +25,7 @@ export interface CatalogImportActionState {
   /** Podsumowanie do zatwierdzenia — obecne tylko przy braku błędów. */
   preview?: CatalogImportPreviewInfo;
   /** Wynik udanego zapisu. */
-  result?: { created: number; updated: number; tiers: number };
+  result?: { created: number; updated: number; tiers: number; categories: number };
 }
 
 export const CATALOG_IMPORT_INITIAL_STATE: CatalogImportActionState = { phase: "idle" };

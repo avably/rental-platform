@@ -25,7 +25,13 @@ interface BuilderCalls {
  */
 function makeSupabase(
   updateResult: { data: unknown; error: unknown },
-  options: { readError?: unknown; existing?: Record<string, unknown> | null; definitions?: unknown[] } = {},
+  options: {
+    readError?: unknown;
+    existing?: Record<string, unknown> | null;
+    definitions?: unknown[];
+    /** Wiersze `product_categories` widziane przez akcję (ADR-155). */
+    assignedCategories?: { category_id: string }[];
+  } = {},
 ) {
   const calls: BuilderCalls = { update: null, eqs: [] };
 
@@ -48,15 +54,28 @@ function makeSupabase(
       select() {
         return builder;
       },
+      // Przypisania kategorii (ADR-155): akcja po udanym UPDATE doprowadza je
+      // różnicą. Ta suita pyta o TREŚĆ ŻĄDANIA edycji produktu, więc tabela
+      // łącząca dostaje najprostszą prawdę — „brak przypisań, zapis przechodzi"
+      // — a jej własny kontrakt (co dokłada, co zdejmuje, kiedy milczy) ma
+      // osobne dowody w test/catalog-categories.test.ts.
+      delete() {
+        return builder;
+      },
+      insert() {
+        return Promise.resolve({ error: null });
+      },
       maybeSingle() {
         if (options.readError) return Promise.resolve({ data: null, error: options.readError });
         return Promise.resolve({ data: { custom_fields: options.existing ?? null }, error: null });
       },
       then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
-        const value =
-          table === "custom_field_definitions"
-            ? { data: options.definitions ?? [], error: null }
-            : updateResult;
+        let value: unknown = updateResult;
+        if (table === "custom_field_definitions") {
+          value = { data: options.definitions ?? [], error: null };
+        } else if (table === "product_categories") {
+          value = { data: options.assignedCategories ?? [], error: null };
+        }
         return Promise.resolve(value).then(resolve, reject);
       },
     };

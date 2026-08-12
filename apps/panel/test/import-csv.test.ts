@@ -207,7 +207,10 @@ describe.skipIf(!hasEnv)("import katalogu CSV na żywej bazie (C3, ADR-112)", ()
 
     const result = await runCatalogImport(ctx, csv);
     expect(result.issues).toEqual([]);
-    expect(result.result).toEqual({ created: 1, updated: 1, tiers: 2 });
+    // `categories: 0` — licznik przypisań dołożony w 0072 (ADR-155). Plik tego
+    // testu nie niesie kolumny `categories`, więc funkcja nie tyka przypisań;
+    // kontrakt kolumny ma własne dowody w packages/db/test/import-catalog.test.ts.
+    expect(result.result).toEqual({ created: 1, updated: 1, tiers: 2, categories: 0 });
 
     const { data: updated } = await admin
       .from("products")
@@ -270,7 +273,7 @@ describe.skipIf(!hasEnv)("import katalogu CSV na żywej bazie (C3, ADR-112)", ()
 
     const result = await runCatalogImport(ctx, csv);
     expect(result.issues).toEqual([]);
-    expect(result.result).toEqual({ created: 1, updated: 0, tiers: 0 });
+    expect(result.result).toEqual({ created: 1, updated: 0, tiers: 0, categories: 0 });
 
     // Produkt jest u A…
     const { data: atA } = await admin
@@ -313,7 +316,7 @@ describe.skipIf(!hasEnv)("import katalogu CSV na żywej bazie (C3, ADR-112)", ()
     const ctx = ctxOf(staffAClient, tenantA.tenantId, "staff");
     const result = await runCatalogImport(ctx, [HEADER, newProductLine(importedName)].join("\r\n"));
     expect(result.issues).toEqual([]);
-    expect(result.result).toEqual({ created: 1, updated: 0, tiers: 0 });
+    expect(result.result).toEqual({ created: 1, updated: 0, tiers: 0, categories: 0 });
   });
 
   it("SONDA 6 — wstrzyknięcie: round-trip eksport → import → eksport BAJT W BAJT, wartości w bazie bez zmian", async () => {
