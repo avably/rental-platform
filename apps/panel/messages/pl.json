@@ -1941,7 +1941,20 @@
           "elsewhere": "Katalog jest pusty, więc sekcja nie ma czego pokazać. Dodaj sprzęt w module Katalog — pojawi się tutaj sam."
         },
         "fields": {
-          "productId": "Pozycja katalogu"
+          "productId": "Pozycja katalogu",
+          "subtitleField": "Podtytuł na kaflu",
+          "featureFields": "Cechy na kaflu",
+          "ctaLabel": "Napis na przycisku"
+        },
+        "fieldNone": {
+          "subtitleField": "Bez podtytułu"
+        },
+        "fieldEmpty": {
+          "subtitleField": "Podtytuł bierze się z pola własnego sprzętu. Załóż je w Organizacja → Pola własne i zaznacz „zamawianie”.",
+          "featureFields": "Cechy biorą się z pól własnych sprzętu. Załóż je w Organizacja → Pola własne i zaznacz „zamawianie”."
+        },
+        "hints": {
+          "ctaLabel": "Puste = kafel bez przycisku. Cały kafel i tak prowadzi do strony sprzętu."
         },
         "choices": {
           "source": "Skąd brać sprzęt",

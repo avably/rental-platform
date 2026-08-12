@@ -44,7 +44,13 @@ export function StructuredProductsGrid({
       ) : (
         <ul data-products-grid className={cn(styles.productGrid, PRODUCT_GRID_CLASS, "list-none p-0")}>
           {visible.map((product, index) => (
-            <ProductTile key={product.id} product={product} eager={index === 0} styles={styles} />
+            <ProductTile
+              key={product.id}
+              content={content}
+              product={product}
+              eager={index === 0}
+              styles={styles}
+            />
           ))}
         </ul>
       )}

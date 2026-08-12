@@ -118,6 +118,30 @@ export type RenderSection = {
  * nie zależał od `formatMoney`. Publiczny odczyt katalogu ze storefrontu to
  * seam 2.4 — dziś render dostaje produkty tylko w podglądzie panelu.
  */
+/**
+ * WARTOŚĆ POLA WŁASNEGO SPRZĘTU gotowa do pokazania (faza 1b, ADR-154).
+ *
+ * Trzy pola i ani jednego więcej. `id` jest identyfikatorem DEFINICJI — to nim
+ * treść sekcji WSKAZUJE, co pokazać na kaflu (podtytuł, cechy), więc bez niego
+ * wskazania nie miałyby w co trafić. `label` i `value` przychodzą GOTOWE
+ * z warstwy odczytu, dokładnie z tego samego powodu, co `priceLabel`: wartość
+ * jest typowana (liczba, data, pole zaznaczane), a zamiana typu na tekst dla
+ * człowieka ma w produkcie JEDNO miejsce (`formatCustomFieldValue` w rdzeniu) —
+ * inaczej kafel pokazywałby datę inaczej niż umowa PDF.
+ *
+ * CZEGO TU NIE MA: flag widoczności. Do sklepu docierają WYŁĄCZNIE pola
+ * oznaczone jako widoczne publicznie (zawężenie robi `app.get_public_catalog`,
+ * migracja 0058), więc flaga byłaby tu stałą — a stała w kontrakcie zachęca do
+ * wysłania kiedyś tej drugiej wartości.
+ */
+export interface StorefrontProductField {
+  /** Identyfikator DEFINICJI pola własnego — klucz wskazania z treści sekcji. */
+  id: string;
+  label: string;
+  /** Wartość sformatowana przez warstwę odczytu (jak `priceLabel`). */
+  value: string;
+}
+
 export interface StorefrontProduct {
   id: string;
   name: string;
@@ -126,6 +150,12 @@ export interface StorefrontProduct {
   priceLabel: string;
   imageUrl: string | null;
   imageAlt: string;
+  /**
+   * Publiczne pola własne pozycji (faza 1b) — w kolejności z panelu ustawień.
+   * Brak = warstwa danych ich nie podała (podgląd bez katalogu pól), co dla
+   * kafla znaczy dokładnie tyle, co pusta lista: bez podtytułu i bez cech.
+   */
+  fields?: readonly StorefrontProductField[];
   /**
    * Link do podstrony produktu (storefront publiczny 2.4b). Gdy podany, karta
    * jest klikalna. Podgląd w panelu go NIE podaje — karta zostaje statyczna

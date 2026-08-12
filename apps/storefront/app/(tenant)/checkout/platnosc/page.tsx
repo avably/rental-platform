@@ -68,7 +68,7 @@ export default async function TenantPaymentPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, style, tenantId } = ctx;
+  const { catalog, copy, locale, style, site, tenantId } = ctx;
 
   const order = await loadCheckoutOrder();
   // Brak uchwytu to stan NORMALNY (wygasłe ciasteczko, wejście z zakładki),
@@ -104,7 +104,7 @@ export default async function TenantPaymentPage() {
   });
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.title}</h1>
       <div className="mt-6">
         <PaymentStep

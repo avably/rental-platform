@@ -405,6 +405,7 @@
     "product": {
       "galleryAlt": "Photo of {name}",
       "descriptionHeading": "Description",
+      "specsHeading": "Specification",
       "depositLabel": "Deposit",
       "perDayPrice": "{price} / day",
       "chooseDates": "Choose rental dates",

@@ -69,6 +69,20 @@ function keysFor(type: (typeof STRUCTURED_SECTION_TYPES)[number]): string[] {
      * jej brak w jednym języku ma palić tak samo, jak brak etykiety.
      */
     if (field.kind === "money") keys.push(`${base}.hints.${field.key}`);
+    /*
+     * POLE WSKAZUJĄCE ENCJĘ (faza 1b, ADR-154) — dwa zdania, których żadna
+     * etykieta nie zastąpi, bo mówią o STANIE, a nie o polu:
+     *   • `fieldNone` — pozycja „bez wskazania" na liście `pick`. Bez niej
+     *     operator dostałby pustą opcję i musiałby zgadywać, czy to brak
+     *     wyboru, czy pole bez nazwy;
+     *   • `fieldEmpty` — zdanie stojące ZAMIAST kontrolki, gdy host nie ma ani
+     *     jednej encji do wskazania. Pusta lista wygląda jak awaria szuflady,
+     *     a operator ma się dowiedzieć, GDZIE te encje założyć.
+     */
+    if (field.kind === "pick") keys.push(`${base}.fieldNone.${field.key}`);
+    if (field.kind === "pick" || field.kind === "pickMany") {
+      keys.push(`${base}.fieldEmpty.${field.key}`);
+    }
     // Lista o zamkniętym zbiorze: etykieta na każdą wartość z rejestru.
     for (const option of field.values ?? []) keys.push(`${base}.fieldValues.${field.key}.${option}`);
   }

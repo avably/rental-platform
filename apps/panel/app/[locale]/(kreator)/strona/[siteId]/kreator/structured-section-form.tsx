@@ -301,27 +301,52 @@ export function StructuredSectionForm({
         Pustka znaczy to, co deklaruje rejestr (`empty`) — ta sama reguła, co
         w polach wpisu, i ta sama funkcja, która ją stosuje.
       */}
-      {(spec.fields ?? []).map((field) => (
-        <Field
-          key={field.key}
-          label={t(`structured.${type}.fields.${field.key}`)}
-          htmlFor={`${id}-${field.key}`}
-        >
-          <Input
-            id={`${id}-${field.key}`}
-            data-cms-section-field={field.key}
-            value={
-              typeof (content as unknown as Record<string, unknown>)[field.key] === "string"
-                ? ((content as unknown as Record<string, unknown>)[field.key] as string)
-                : ""
-            }
-            onChange={(event) => {
-              const raw = event.target.value;
-              onChange((current) => writeField(current, field, raw));
-            }}
-          />
-        </Field>
-      ))}
+      {(spec.fields ?? []).map((field) => {
+        /*
+          POLE WSKAZUJĄCE ENCJĘ (faza 1b, ADR-154) — inna kontrolka, ta sama
+          droga zapisu. Rozgałęzienie idzie po RODZAJU z rejestru, nie po
+          nazwie pola ani nazwie typu sekcji: framework dalej nie wie, co to
+          jest „podtytuł", i kolejny typ z takim polem dostanie tę kontrolkę
+          bez ani jednej linii tutaj.
+        */
+        if (field.kind === "pick" || field.kind === "pickMany") {
+          return (
+            <PickField
+              key={field.key}
+              id={`${id}-${field.key}`}
+              type={type}
+              field={field}
+              content={content}
+              entries={
+                (field.source ? (importSources?.[field.source] ?? []) : []) as
+                  readonly StructuredPickEntry[]
+              }
+              onChange={onChange}
+            />
+          );
+        }
+        return (
+          <Field
+            key={field.key}
+            label={t(`structured.${type}.fields.${field.key}`)}
+            htmlFor={`${id}-${field.key}`}
+          >
+            <Input
+              id={`${id}-${field.key}`}
+              data-cms-section-field={field.key}
+              value={
+                typeof (content as unknown as Record<string, unknown>)[field.key] === "string"
+                  ? ((content as unknown as Record<string, unknown>)[field.key] as string)
+                  : ""
+              }
+              onChange={(event) => {
+                const raw = event.target.value;
+                onChange((current) => writeField(current, field, raw));
+              }}
+            />
+          </Field>
+        );
+      })}
 
       {/*
         WYBORY WYGLĄDU pokazujemy WYŁĄCZNIE przy układach, w których coś znaczą
@@ -930,6 +955,153 @@ function MoneyField({
         }}
       />
     </Field>
+  );
+}
+
+/**
+ * POLE SEKCJI WSKAZUJĄCE ENCJĘ PANELU (faza 1b, ADR-154) — `pick` i `pickMany`.
+ *
+ * ==================== CO TO ROZWIĄZUJE ====================
+ *
+ * Podtytuł i cechy na kaflu sprzętu są zdaniami o KONKRETNEJ pozycji, a treść
+ * sekcji jest jedna na wszystkie kafle. Pole tekstowe dałoby więc albo ten sam
+ * podtytuł pod każdym sprzętem, albo drugie źródło prawdy o ofercie. Operator
+ * WSKAZUJE zatem pole własne sprzętu, a wartość czyta się z katalogu przy
+ * renderze — tak samo, jak nazwę i cenę.
+ *
+ * ==================== DLACZEGO KONTROLKA, A NIE POLE Z IDENTYFIKATOREM ====================
+ *
+ * Ta sama zasada, co przy `reference` we wpisie listy: identyfikator jest
+ * szczegółem technicznym, którego operator nie ma po co widzieć ani móc
+ * zepsuć. Widzi ETYKIETY pól z ustawień — i wyłącznie te, które naprawdę
+ * docierają do sklepu (odsiew w `productFieldEntries`).
+ *
+ * ==================== PUSTY ZBIÓR MÓWI, CO ZROBIĆ ====================
+ *
+ * Najemca bez ani jednego pola widocznego w zamawianiu dostaje ZDANIE zamiast
+ * pustej listy — bo pusta lista wygląda jak awaria szuflady, a nie jak „nie
+ * masz jeszcze czego wskazać".
+ */
+function PickField({
+  id,
+  type,
+  field,
+  content,
+  entries,
+  onChange,
+}: {
+  id: string;
+  type: StructuredSectionType;
+  field: StructuredFieldSpec;
+  content: StructuredSectionContent;
+  entries: readonly StructuredPickEntry[];
+  onChange: (update: Update) => void;
+}) {
+  const t = useTranslations("site");
+  const label = t(`structured.${type}.fields.${field.key}`);
+  const raw = (content as unknown as Record<string, unknown>)[field.key];
+
+  /*
+   * ZBIÓR PUSTY — ZDANIE ZAMIAST KONTROLKI.
+   *
+   * Etykieta stoi tu jako `<Label>` BEZ `htmlFor`, bo nie ma czego etykietować:
+   * `<p>` nie jest kontrolką, a `for` wskazujące na akapit jest w HTML-u
+   * nieważne (czytnik ekranu nie zapowie go przy niczym). To samo dotyczy
+   * grupy pól niżej — dlatego oba przypadki mają własną obudowę, a nie `Field`.
+   */
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label>{label}</Label>
+        <p data-cms-pick-field-empty={field.key} className="text-muted-foreground text-sm">
+          {t(`structured.${type}.fieldEmpty.${field.key}`)}
+        </p>
+      </div>
+    );
+  }
+
+  if (field.kind === "pick") {
+    const value = typeof raw === "string" ? raw : "";
+    return (
+      <Field label={label} htmlFor={id}>
+        <div data-cms-pick-field={field.key}>
+        <PanelSelect
+          id={id}
+          value={value}
+          onValueChange={(picked) =>
+            /*
+              PUSTY WYBÓR ZDEJMUJE POLE, a nie zapisuje pusty napis: schemat
+              trzyma tam identyfikator albo nic, więc „bez podtytułu" musi
+              znaczyć BRAK klucza w treści.
+            */
+            onChange((current) =>
+              patchStructuredField(current, field.key, picked === "" ? undefined : picked),
+            )
+          }
+          options={[
+            { value: "", label: t(`structured.${type}.fieldNone.${field.key}`) },
+            ...entries.map((entry) => ({ value: entry.value, label: entry.label })),
+          ]}
+        />
+        </div>
+      </Field>
+    );
+  }
+
+  const chosen = Array.isArray(raw) ? (raw as string[]) : [];
+  const max = field.max ?? entries.length;
+  return (
+    /*
+      GRUPA POL WYBORU, nie pojedyncza kontrolka. `<div>` nie da się
+      zaetykietować przez `for`, więc nazwę niesie `role="group"` +
+      `aria-labelledby` — inaczej czytnik ekranu zapowiedziałby same etykiety
+      pól własnych, bez informacji, czego dotyczy ta lista.
+    */
+    <div className="flex flex-col gap-1.5">
+      <Label id={`${id}-label`}>{label}</Label>
+      <div
+        id={id}
+        role="group"
+        aria-labelledby={`${id}-label`}
+        data-cms-pick-many={field.key}
+        className="flex flex-col gap-2"
+      >
+        {entries.map((entry) => {
+          const checked = chosen.includes(entry.value);
+          return (
+            <label key={entry.value} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4"
+                data-cms-pick-option={entry.value}
+                checked={checked}
+                // Sufit liczony na ODZNACZONYCH: zaznaczone zostają klikalne,
+                // inaczej po osiągnięciu limitu nie dałoby się już nic zdjąć.
+                disabled={!checked && chosen.length >= max}
+                onChange={() =>
+                  onChange((current) =>
+                    patchStructuredField(
+                      current,
+                      field.key,
+                      /*
+                        KOLEJNOŚĆ WSKAZAŃ JEST DECYZJĄ: świeże wskazanie dokleja
+                        się na KOŃCU listy, a odznaczenie wyjmuje jedno bez
+                        ruszania reszty. Przebudowa listy „po kolejności pól
+                        w ustawieniach" skasowałaby tę pracę bez słowa.
+                      */
+                      checked
+                        ? chosen.filter((value) => value !== entry.value)
+                        : [...chosen, entry.value],
+                    ),
+                  )
+                }
+              />
+              {entry.label}
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -1941,7 +1941,20 @@
           "elsewhere": "Your catalog is empty, so the section has nothing to show. Add equipment in the Catalog module — it will appear here on its own."
         },
         "fields": {
-          "productId": "Catalog item"
+          "productId": "Catalog item",
+          "subtitleField": "Tile subtitle",
+          "featureFields": "Tile highlights",
+          "ctaLabel": "Button text"
+        },
+        "fieldNone": {
+          "subtitleField": "No subtitle"
+        },
+        "fieldEmpty": {
+          "subtitleField": "The subtitle comes from an equipment custom field. Create one in Organisation → Custom fields and tick “ordering”.",
+          "featureFields": "Highlights come from equipment custom fields. Create them in Organisation → Custom fields and tick “ordering”."
+        },
+        "hints": {
+          "ctaLabel": "Empty = a tile with no button. The whole tile still leads to the equipment page."
         },
         "choices": {
           "source": "Where equipment comes from",

@@ -60,7 +60,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, style, supabaseUrl } = ctx;
+  const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
   const raw = catalog.products.find((product) => product.id === id);
   if (!raw) notFound();
 
@@ -69,6 +69,13 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
     currency,
     locale,
     words: { from: copy.common.from, perDay: copy.common.perDay },
+    /*
+      SPECYFIKACJA TECHNICZNA (faza 1a, ADR-154). Dane DOCHODZIŁY tu od 0058
+      (`custom_fields` w kopercie katalogu) i nikt ich nie rysował — cała
+      zmiana na tej trasie to podanie definicji do warstwy prezentacji.
+    */
+    customFields: catalog.custom_fields,
+    fieldLocale: locale,
   });
 
   // Product + Offer wyłącznie z publicznego katalogu; cena „od” = stawka za
@@ -86,7 +93,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
     : null;
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
       {productLd ? <JsonLd data={productLd} /> : null}
       <Link href="/store" className="site-link text-sm">
         {copy.common.backToCatalog}

@@ -7,11 +7,12 @@
  * `StorefrontProduct`, który dostaje sklep, więc płótno i strona publiczna
  * rysują sekcję produktów z jednego rodzaju danych.
  */
-import { formatMoney } from "@avably/core";
+import { customFieldDisplayRows, customFieldValuesFromColumn, formatMoney } from "@avably/core";
 import type { StorefrontProduct } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import type { AuthContext } from "./auth";
+import { loadCustomFieldDefinitions } from "./custom-fields";
 import { getTenantCurrency } from "./tenant-currency";
 
 /**
@@ -42,21 +43,31 @@ export async function previewProductsFor(
    */
   labelLocale?: string,
 ): Promise<StorefrontProduct[]> {
-  const [t, currency, locale] = await Promise.all([
+  const [t, currency, locale, definitions] = await Promise.all([
     labelLocale
       ? getTranslations({ locale: labelLocale, namespace: "site" })
       : getTranslations("site"),
     getTenantCurrency(ctx.supabase, tenantId),
     labelLocale ?? getLocale(),
+    /*
+     * DEFINICJE PÓL WŁASNYCH SPRZĘTU (faza 1b, ADR-154) — bez nich płótno
+     * rysowałoby kafel BEZ podtytułu i cech, mimo że sklep je pokazuje.
+     * Płótno przestałoby wtedy być dowodem na to, co zobaczy klient (ADR-083),
+     * a operator ustawiałby wskazania na ślepo.
+     */
+    loadCustomFieldDefinitions(ctx.supabase, tenantId, "product"),
   ]);
 
   const { data: products } = await ctx.supabase
     .from("products")
-    .select("id, name, description, base_price_day_grosze")
+    .select("id, name, description, base_price_day_grosze, custom_fields")
     .eq("tenant_id", tenantId)
     .eq("active", true)
     .order("name", { ascending: true })
     .limit(CANVAS_PRODUCTS_LIMIT);
+
+  // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
+  const valueLocale = locale === "en" ? "en" : "pl";
 
   return (products ?? []).map((product) => ({
     id: product.id,
@@ -67,5 +78,18 @@ export async function previewProductsFor(
     }),
     imageUrl: null,
     imageAlt: product.name,
+    /*
+      GRANICA PUBLICZNA POWTÓRZONA W PODGLĄDZIE. Panel czyta tabelę wprost
+      (RLS, nie RPC katalogu), więc zawężenie „tylko pola widoczne w zamawianiu"
+      musi zrobić on sam — robi je `customFieldDisplayRows` powierzchnią
+      `checkout`, czyli TĄ SAMĄ funkcją, której lustrem jest warunek
+      `show_in_checkout` w `app.get_public_catalog` (0058). Bez tego płótno
+      pokazywałoby operatorowi pola lady jako gotowe do wystawienia klientowi.
+    */
+    fields: customFieldDisplayRows(definitions, customFieldValuesFromColumn(product.custom_fields), {
+      surface: "checkout",
+      entity: "product",
+      locale: valueLocale,
+    }),
   }));
 }

@@ -23,6 +23,7 @@ import { issueContactTicket } from "@/lib/contact/ticket";
 import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
+import { pageSections } from "@/lib/site/page-sections";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
@@ -147,6 +148,13 @@ export default async function TenantStorePage() {
     locale,
     words: { from: copy.common.from, perDay: copy.common.perDay },
     hrefBase: "/product/",
+    /*
+      PUBLICZNE POLA WŁASNE SPRZĘTU (faza 1b, ADR-154) — z tej samej koperty
+      katalogu, co produkty. Kafel czyta z nich podtytuł i cechy WSKAZANE
+      w treści sekcji; wartości nie ma w treści i nie ma jak jej tam wpisać.
+    */
+    customFields: catalog.custom_fields,
+    fieldLocale: locale,
   });
 
   // LocalBusiness: nazwa sklepu + opis z hero + adres PIERWSZEGO punktu odbioru,
@@ -176,10 +184,18 @@ export default async function TenantStorePage() {
    */
   const faqJsonLd = site ? faqPageJsonLd(site.sections) : null;
 
+  /*
+   * SEKCJE STRONY — bez przypiętych do końca dokumentu (faza 0, ADR-154).
+   * Stopkę rysuje POWŁOKA, więc lista tutaj jest o nią krótsza. To zmienia też
+   * odpowiedź na pytanie „czy strona jest pusta": strona z samą stopką nie ma
+   * do pokazania NIC i ma dostać ekran „sklep w budowie", a nie pusty `<main>`.
+   */
+  const bodySections = pageSections(site);
+
   // Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). Sekcja hero go
   // niesie; układ bez hero zostawiłby stronę bez nagłówka pierwszego poziomu,
   // więc dokładamy go dla czytników ekranu (wizualnie bez zmian).
-  const hasHero = site?.sections.some((section) => section.type === "hero") ?? false;
+  const hasHero = bodySections.some((section) => section.type === "hero");
 
   return (
     /*
@@ -193,11 +209,19 @@ export default async function TenantStorePage() {
       style={style}
       copy={copy}
       storeName={catalog.tenant.name}
+      /*
+        STOPKA JEST WŁASNOŚCIĄ POWŁOKI, NIE STRONY (faza 0, ADR-154). Trasa
+        rysuje niżej WYŁĄCZNIE sekcje strony (`pageSections`), a sekcje
+        przypięte dokłada powłoka — tym samym rendererem, tą samą treścią, na
+        każdej trasie sklepu. Bez `footerAnchorBase`: cele kotwic stopki
+        (`#kontakt`, `#produkty`) stoją właśnie na tej stronie.
+      */
+      site={site}
       revealNonce={revealNonce}
     >
       {origin ? <JsonLd data={businessJsonLd} /> : null}
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
-      {!site || site.sections.length === 0 ? (
+      {bodySections.length === 0 ? (
         <main className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-3 px-6 text-center">
           <h1 className={`text-2xl ${SITE_HEADING}`}>{catalog.tenant.name}</h1>
           <p className="site-text-muted">{copy.siteLabels.productsEmpty}</p>
@@ -219,7 +243,7 @@ export default async function TenantStorePage() {
             liczoną szerokość, na której stoi responsywność sekcji (ADR-085).
           */}
           <SiteRenderer
-            sections={site.sections}
+            sections={bodySections}
             style={style}
             asRoot={false}
             products={products}

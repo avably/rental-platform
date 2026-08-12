@@ -24,8 +24,13 @@ import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
+import { loadCustomFieldDefinitions } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
-import { catalogProductEntries, pickupLocationEntries } from "@/lib/site-import-sources";
+import {
+  catalogProductEntries,
+  pickupLocationEntries,
+  productFieldEntries,
+} from "@/lib/site-import-sources";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -94,6 +99,21 @@ export default async function SiteBuilderPage({
 
   const pickupEntries = pickupLocationEntries(pickupLocations ?? []);
 
+  /*
+   * POLA WŁASNE SPRZĘTU DO WSKAZANIA NA KAFLU (faza 1b, ADR-154).
+   *
+   * Trasa CZYTA komplet definicji encji `product` — także zarchiwizowane
+   * i te widoczne wyłącznie w panelu. O tym, które z nich wolno WSKAZAĆ,
+   * rozstrzyga czysta `productFieldEntries`, i to jest decyzja świadoma:
+   * odsiew w warunku SQL byłby niewidoczny dla każdego testu jednostkowego,
+   * więc jego wycięcie przechodziłoby całą siatkę na zielono (lekcja PR #186,
+   * ta sama, co przy punktach odbioru wyżej) — a tutaj wycięcie oznaczałoby
+   * proponowanie operatorowi pól, których sklep nigdy nie dostaje.
+   */
+  const productFields = productFieldEntries(
+    await loadCustomFieldDefinitions(ctx.supabase, ctx.tenantId!, "product"),
+  );
+
   return (
     <SiteBuilder
       siteId={data.site.id}
@@ -123,6 +143,7 @@ export default async function SiteBuilderPage({
       importSources={{
         pickupLocations: pickupEntries,
         catalogProducts: catalogProductEntries(products),
+        productFields,
       }}
     />
   );

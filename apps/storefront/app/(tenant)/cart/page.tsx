@@ -38,10 +38,10 @@ export default async function TenantCartPage() {
   const ctx = await loadStorefrontContext();
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, style, supabaseUrl } = ctx;
+  const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.cart.title}</h1>
       <div className="mt-6">
         <CartView
