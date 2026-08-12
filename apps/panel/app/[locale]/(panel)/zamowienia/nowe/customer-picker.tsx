@@ -36,7 +36,22 @@ export interface CustomerPickerState {
   selected: WizardCustomer | null;
   /** Czy operator zakłada nowego klienta w locie. */
   creating: boolean;
+  /**
+   * E-mail zakładanego klienta. Pole jest STEROWANE (U7) nie dla samego
+   * sterowania, tylko dlatego, że lista „czego jeszcze brakuje" musi wiedzieć,
+   * czy klient jest już wskazany — a w trybie „nowy" jedynym wskazaniem jest
+   * właśnie ten adres. Niesterowane pole trzymałoby tę wiedzę wyłącznie w DOM,
+   * gdzie React o niej nie wie i podsumowanie nie ma jak się przeliczyć.
+   */
+  newEmail: string;
 }
+
+/** Pusty wybór klienta — jedno miejsce na „nic jeszcze nie wskazano". */
+export const EMPTY_CUSTOMER_STATE: CustomerPickerState = {
+  selected: null,
+  creating: false,
+  newEmail: "",
+};
 
 export function CustomerPicker({
   customers,
@@ -87,7 +102,7 @@ export function CustomerPicker({
           variant="outline"
           onClick={() => {
             setQuery("");
-            onChange({ selected: null, creating: false });
+            onChange(EMPTY_CUSTOMER_STATE);
           }}
         >
           {t("changeCustomer")}
@@ -111,6 +126,8 @@ export function CustomerPicker({
               type="email"
               required
               autoFocus
+              value={state.newEmail}
+              onChange={(event) => onChange({ ...state, newEmail: event.target.value })}
               aria-invalid={fieldErrors?.newCustomerEmail ? true : undefined}
               aria-describedby={fieldErrors?.newCustomerEmail ? "order-newCustomerEmail-error" : undefined}
             />
@@ -126,7 +143,7 @@ export function CustomerPicker({
           </div>
         </div>
         <div>
-          <Button type="button" variant="outline" onClick={() => onChange({ selected: null, creating: false })}>
+          <Button type="button" variant="outline" onClick={() => onChange(EMPTY_CUSTOMER_STATE)}>
             {t("cancelNewCustomer")}
           </Button>
         </div>
@@ -166,7 +183,7 @@ export function CustomerPicker({
                 <li key={customer.id}>
                   <button
                     type="button"
-                    onClick={() => onChange({ selected: customer, creating: false })}
+                    onClick={() => onChange({ selected: customer, creating: false, newEmail: "" })}
                     className="hover:bg-secondary focus-visible:outline-accent dark:focus-visible:outline-ring flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:-outline-offset-2"
                   >
                     <span className="font-medium">{customer.full_name ?? customer.email}</span>
@@ -190,7 +207,11 @@ export function CustomerPicker({
       ) : null}
 
       <div>
-        <Button type="button" variant="outline" onClick={() => onChange({ selected: null, creating: true })}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onChange({ selected: null, creating: true, newEmail: "" })}
+        >
           {t("quickAddCustomer")}
         </Button>
       </div>

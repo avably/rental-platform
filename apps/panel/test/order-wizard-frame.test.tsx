@@ -122,15 +122,17 @@ describe("karty metody dostawy — trzy stany, jedna geometria", () => {
 
   it("karta wybrana niesie stan wybrany panelu (limonka + obrys treści)", () => {
     mount();
-    // Domyślną metodą kreatora jest kurier.
-    expect(card("courier").getAttribute("data-selected")).toBe("true");
-    expect(card("courier").className).toContain("bg-accent");
-    expect(card("courier").className).toContain("border-foreground");
+    // Domyślną metodą kreatora jest ODBIÓR OSOBISTY (U7, audyt 2.6 §2):
+    // jedyna metoda bezpłatna z definicji, więc jedyna, która nie zaleca
+    // najemcy czegoś, czego nie ma jeszcze skonfigurowanego.
+    expect(card("pickup").getAttribute("data-selected")).toBe("true");
+    expect(card("pickup").className).toContain("bg-accent");
+    expect(card("pickup").className).toContain("border-foreground");
   });
 
   it("karta niewybrana ma stan NAJECHANIA — czego przed R3-1c nie miała", () => {
     mount();
-    for (const method of ["pickup", "parcel_locker", "own_delivery"]) {
+    for (const method of ["courier", "parcel_locker", "own_delivery"]) {
       expect(card(method).className, `karta bez hoveru: ${method}`).toMatch(/hover:/);
     }
   });
@@ -140,8 +142,8 @@ describe("karty metody dostawy — trzy stany, jedna geometria", () => {
     // decydowałaby kolejność reguł w arkuszu — najechanie na kartę wybraną
     // potrafiłoby zdjąć z niej limonkę.
     mount();
-    expect(card("courier").className).not.toMatch(/hover:bg-secondary/);
-    expect(card("pickup").className).not.toContain("bg-accent");
+    expect(card("pickup").className).not.toMatch(/hover:bg-secondary/);
+    expect(card("courier").className).not.toContain("bg-accent");
   });
 
   it("wybór PRZENOSI stan, a nie dokłada drugiego zaznaczenia", () => {
@@ -150,7 +152,7 @@ describe("karty metody dostawy — trzy stany, jedna geometria", () => {
 
     expect(document.querySelectorAll("[data-delivery-method][data-selected]")).toHaveLength(1);
     expect(card("parcel_locker").getAttribute("data-selected")).toBe("true");
-    expect(card("courier").hasAttribute("data-selected")).toBe(false);
+    expect(card("pickup").hasAttribute("data-selected")).toBe(false);
   });
 
   it("geometria jest STAŁA we wszystkich stanach — obrys nigdy nie skacze", () => {
@@ -165,11 +167,11 @@ describe("karty metody dostawy — trzy stany, jedna geometria", () => {
         .sort()
         .join(" ");
 
-    const selected = geometry(card("courier"));
-    for (const method of ["pickup", "parcel_locker", "own_delivery"]) {
+    const selected = geometry(card("pickup"));
+    for (const method of ["courier", "parcel_locker", "own_delivery"]) {
       expect(geometry(card(method)), `inna geometria niż karta wybrana: ${method}`).toBe(selected);
     }
     // Wyróżnienie fokusa idzie `outline`, który nie zajmuje miejsca w układzie.
-    expect(card("courier").className).toContain("has-[:focus-visible]:outline");
+    expect(card("pickup").className).toContain("has-[:focus-visible]:outline");
   });
 });

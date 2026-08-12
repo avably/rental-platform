@@ -334,6 +334,9 @@ describe("nowe zamówienie — dostawa: ceny z cennika i cena własna (pinezka 3
 
   it("cena własna odsłania pole kwoty i wysyła je jako deliveryPrice", () => {
     mount();
+    // Cena własna dotyczy metod PŁATNYCH — od U7 kreator startuje na odbiorze
+    // osobistym, który z definicji ceny nie ma (ADR-030).
+    fireEvent.click(radio("deliveryMethod", "courier"));
     expect(document.querySelector("[data-delivery-price-input]")).toBeNull();
 
     fireEvent.click(document.querySelector("[data-delivery-price-manual]")!);
@@ -400,6 +403,7 @@ describe("nowe zamówienie — punkt odbioru i adres (pinezki ff2dfefc, e2aef3f6
       target: { value: "kowalski" },
     });
     fireEvent.click(screen.getByText("Jan Kowalski"));
+    fireEvent.click(radio("deliveryMethod", "courier"));
 
     expect(radio("deliveryAddressSource", "customer").checked).toBe(true);
     expect(document.querySelector("[data-customer-address]")!.textContent).toBe(
@@ -413,6 +417,7 @@ describe("nowe zamówienie — punkt odbioru i adres (pinezki ff2dfefc, e2aef3f6
       target: { value: "nowak" },
     });
     fireEvent.click(screen.getByText("Anna Nowak"));
+    fireEvent.click(radio("deliveryMethod", "courier"));
 
     expect(document.querySelector("[data-customer-address]")!.textContent).toBe(
       form.deliveryAddressCustomerEmpty,
@@ -421,6 +426,7 @@ describe("nowe zamówienie — punkt odbioru i adres (pinezki ff2dfefc, e2aef3f6
 
   it("„inny adres” odsłania formularz w miejscu, bez modalu", () => {
     mount();
+    fireEvent.click(radio("deliveryMethod", "courier"));
     expect(document.querySelector("[data-delivery-address-street]")).toBeNull();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
 
@@ -433,6 +439,7 @@ describe("nowe zamówienie — punkt odbioru i adres (pinezki ff2dfefc, e2aef3f6
 
   it("powrót do adresu z kartoteki zeruje wpisane pola — jeden adres, nie dwa", () => {
     mount();
+    fireEvent.click(radio("deliveryMethod", "courier"));
     fireEvent.click(radio("deliveryAddressSource", "custom"));
     fireEvent.change(document.querySelector("[data-delivery-address-street]")!, {
       target: { value: "ul. Inna 1" },
