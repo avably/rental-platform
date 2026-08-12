@@ -207,3 +207,62 @@ export const pickupLocationSchema = z.object({
 });
 
 export type PickupLocationInput = z.infer<typeof pickupLocationSchema>;
+
+// ---------------------------------------------------------------------
+// Lista katalogu — parametry z URL (U8a)
+// ---------------------------------------------------------------------
+
+/**
+ * Kolumny sortowalne listy katalogu. Whitelist trzyma ekran w ryzach:
+ * nieznany klucz sortu spada na `undefined` (sort domyślny), nie na błąd
+ * strony. Odwzorowanie kluczy na porządek żyje w `lib/catalog/product-sort.ts`
+ * — tu jest wyłącznie zbiór dozwolonych wartości.
+ *
+ * `teren` to kolumna „dziś w terenie" (U8a) — OSOBNA oś od `active`
+ * („Status"): tamta mówi, czy produkt jest opublikowany, ta — czy sprzęt
+ * fizycznie wyjechał.
+ */
+export const PRODUCT_SORT_KEYS = ["nazwa", "cena", "egzemplarze", "teren"] as const;
+export type ProductSortKey = (typeof PRODUCT_SORT_KEYS)[number];
+
+export const PRODUCT_SORT_DIRECTIONS = ["asc", "desc"] as const;
+export type ProductSortDirection = (typeof PRODUCT_SORT_DIRECTIONS)[number];
+
+/**
+ * Filtr publikacji. Brak parametru = wszystkie produkty (stan wyjściowy
+ * listy) — dlatego nie ma wartości „wszystkie": pusty parametr znaczy to
+ * samo, a jedna reprezentacja mniej to jeden rozjazd mniej w linkach chipów.
+ */
+export const PRODUCT_STATUS_FILTERS = ["aktywne", "nieaktywne"] as const;
+export type ProductStatusFilter = (typeof PRODUCT_STATUS_FILTERS)[number];
+
+/**
+ * Filtry listy katalogu z `searchParams`. Błędna wartość jest IGNOROWANA
+ * (`catch(undefined)`), nie jest błędem strony: `q` przycinamy do rozsądnej
+ * długości, nieznany status/sort/dir pomijamy. `q` NIE trafia do zapytania
+ * PostgREST — filtrowanie po frazie robi `lib/catalog/product-search.ts` nad
+ * odczytaną stroną.
+ */
+export const productsFilterSchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((value) => (value === "" ? undefined : value))
+    .optional()
+    .catch(undefined),
+  status: z
+    .enum(PRODUCT_STATUS_FILTERS as unknown as [ProductStatusFilter, ...ProductStatusFilter[]])
+    .optional()
+    .catch(undefined),
+  sort: z
+    .enum(PRODUCT_SORT_KEYS as unknown as [ProductSortKey, ...ProductSortKey[]])
+    .optional()
+    .catch(undefined),
+  dir: z
+    .enum(PRODUCT_SORT_DIRECTIONS as unknown as [ProductSortDirection, ...ProductSortDirection[]])
+    .optional()
+    .catch(undefined),
+});
+
+export type ProductsFilter = z.infer<typeof productsFilterSchema>;

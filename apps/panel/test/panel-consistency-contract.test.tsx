@@ -154,7 +154,12 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
   const INLINE_WIDTH_PATTERN = /style=\{\{[^}]*\b(?:max-?[Ww]idth|width)\b/g;
   const allowedArbitraryWidth = new Map<string, readonly string[]>([
     ["katalog/[id]/zdjecia/photo-forms.tsx", ["w-[120px]", "w-[10rem]"]],
-    ["katalog/products-table.tsx", ["min-w-[720px]"]],
+    // U8a dołożyło do listy katalogu miniaturę i kolumnę „Dziś w terenie",
+    // więc minimalna szerokość tabeli przewijanej w poziomie urosła z 720 na
+    // 860 px. Miniatura SAMA nie potrzebuje wyjątku: jej rozmiar idzie ze
+    // skali (`size-10`), nie z wartości arbitralnej — dlatego przypięta
+    // liczba wyjątków niżej zostaje na 4.
+    ["katalog/products-table.tsx", ["min-w-[860px]"]],
     ["ustawienia-dostaw/punkty-odbioru/locations-table.tsx", ["min-w-[640px]"]],
     ["zamowienia/orders-date-filter.tsx", ["w-[248px]"]],
     // `zamowienia/nowe/order-wizard.tsx` wypadło z listy przy R3: termin

@@ -419,6 +419,18 @@
       "colActive": "Status",
       "colUnits": "Units",
       "colActions": "Actions",
+      "colThumbnail": "Photo",
+      "colDeployed": "Out today",
+      "deployedOf": "{deployed} of {total}",
+      "deployedNone": "—",
+      "searchLabel": "Search products",
+      "searchPlaceholder": "Search by product name…",
+      "results": "{count, plural, one {# item} other {# items}}",
+      "cap": "Showing the first {count} products. Narrow with search to find the rest.",
+      "sortBy": "Sort by: {column}",
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterInactive": "Inactive",
       "activeYes": "Active",
       "activeNo": "Inactive",
       "unitsLink": "Units",
@@ -520,7 +532,10 @@
       "previewAppliedTier": "tier: {days} days"
     },
     "emptyState": {
-      "title": "Empty warehouse. Add your first product."
+      "title": "Empty warehouse. Add your first product.",
+      "noResultsTitle": "No product matches the current filters.",
+      "noResultsBody": "Your catalog is not empty — the phrase or the selected status covers nothing.",
+      "clearFilters": "Clear filters"
     }
   },
   "catalogImport": {
