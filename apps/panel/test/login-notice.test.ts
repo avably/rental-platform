@@ -95,6 +95,50 @@ describe("loginNotice — allowlista parametrów, nie odbicie", () => {
     expect(loginNotice({ error: "link_expired", reset: "ok" })?.tone).toBe("success");
   });
 
+  /**
+   * KLUCZE Z ŁAŃCUCHA PROTOTYPÓW (recenzja PM, ADR-153).
+   *
+   * Pierwsza wersja odpytywała allowlistę przez `NOTICES[error]` na zwykłym
+   * literale obiektu. Taki odczyt schodzi po prototypie, więc przechodziło
+   * pięć nazw, których nikt na listę nie wpisał — `/login?error=constructor`
+   * dostawało funkcję `Object` udającą komunikat, a strona robiła na niej
+   * `notice.tone` i `t(notice.messageKey)`, czyli tłumaczenie z kluczem
+   * `undefined`. Sterowane WPROST adresem URL, na publicznej stronie.
+   *
+   * Rejestry są dziś `Map`, więc dziura jest zamknięta KONSTRUKCYJNIE. Ten
+   * test istnieje, żeby powrót do literału obiektu spalił bramkę, a nie żeby
+   * przypominać o strażniku.
+   */
+  const PROTOTYPE_KEYS = [
+    "constructor",
+    "toString",
+    "valueOf",
+    "hasOwnProperty",
+    "__proto__",
+  ] as const;
+
+  it.each(PROTOTYPE_KEYS)("klucz prototypu „%s” w ?error= NIE przechodzi allowlisty", (key) => {
+    expect(
+      loginNotice({ error: key }),
+      `allowlista przepuściła klucz z prototypu: ${key}`,
+    ).toBeNull();
+  });
+
+  it.each(PROTOTYPE_KEYS)("klucz prototypu „%s” w ?reset= NIE przechodzi allowlisty", (key) => {
+    expect(
+      loginNotice({ reset: key }),
+      `allowlista przepuściła klucz z prototypu: ${key}`,
+    ).toBeNull();
+  });
+
+  it("KONTROLA POZYTYWNA: prawdziwe kody dalej działają (allowlista nie jest głucha)", () => {
+    // Bez tego asercje wyżej byłyby zielone także dla funkcji, która ZAWSZE
+    // zwraca null — czyli dowód po pustym zbiorze.
+    expect(loginNotice({ error: "link_expired" })?.messageKey).toBe("authError.linkExpired");
+    expect(loginNotice({ error: "invalid_link" })?.messageKey).toBe("authError.linkExpired");
+    expect(loginNotice({ reset: "ok" })?.messageKey).toBe("login.resetDone");
+  });
+
   it("powtórzony parametr (tablica) czytany jest po pierwszej wartości", () => {
     expect(loginNotice({ error: ["link_expired", "cokolwiek"] })?.messageKey).toBe(
       "authError.linkExpired",
@@ -127,6 +171,26 @@ describe("ekran logowania WYŚWIETLA komunikat (a nie tylko go zna)", () => {
     expect(texts).not.toContain("authError.linkExpired");
     expect(texts).not.toContain("login.resetDone");
   });
+
+  /**
+   * To jest miejsce, w którym dziura prototypowa naprawdę bolała: strona robi
+   * `notice.tone` i `tRoot(notice.messageKey)`. Dla funkcji `Object` oba są
+   * `undefined`, więc na publicznym ekranie logowania leciało tłumaczenie
+   * z pustym kluczem. Mierzymy więc SKUTEK na ekranie, nie tylko wynik
+   * funkcji — i to na wszystkich pięciu nazwach.
+   */
+  it.each(["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"])(
+    "`?error=%s` nie tworzy komunikatu i nie wywraca renderu strony",
+    async (key) => {
+      const { noticeTones, texts } = await renderLogin({ error: key });
+
+      expect(noticeTones, `klucz z prototypu wyprodukował komunikat: ${key}`).toEqual([]);
+      expect(texts.join(" ")).not.toContain(key);
+      // Kontrola, że strona w ogóle się wyrenderowała — inaczej „brak
+      // komunikatu" byłby prawdą również dla wyjątku w renderze.
+      expect(texts).toContain("title");
+    },
+  );
 
   it("wartość spoza allowlisty NIE trafia na ekran — zero odbicia parametru", async () => {
     const injected = "KONTO-NIE-ISTNIEJE-<script>";

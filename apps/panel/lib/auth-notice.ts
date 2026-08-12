@@ -29,21 +29,39 @@ export interface LoginNotice {
 }
 
 /**
+ * DLACZEGO `Map`, A NIE LITERAŁ OBIEKTU (recenzja PM, ADR-153).
+ *
+ * Pierwsza wersja trzymała allowlisty w zwykłych obiektach i odpytywała je
+ * przez `NOTICES[error]`. Taki odczyt schodzi po ŁAŃCUCHU PROTOTYPÓW, więc
+ * allowlistę przechodziło pięć nazw, których nikt na nią nie wpisał:
+ * `constructor`, `toString`, `valueOf`, `hasOwnProperty` i `__proto__`.
+ * `/login?error=constructor` dostawało wtedy funkcję `Object` udającą
+ * komunikat — a strona robi na tym `notice.tone` i `t(notice.messageKey)`,
+ * czyli tłumaczenie z kluczem `undefined`, na najważniejszej publicznej
+ * stronie produktu, w ścieżce sterowanej wprost adresem URL.
+ *
+ * `Map` nie ma prototypowych kluczy: `map.get("constructor")` to `undefined`
+ * i kropka. Wybór jest świadomie KONSTRUKCYJNY, a nie „pamiętajmy o
+ * `Object.hasOwn`" — strażnika da się przy kolejnej edycji zgubić i nic
+ * o tym nie powie ani typ, ani lint.
+ */
+
+/**
  * Kody `?error=` emitowane przez `app/auth/confirm/route.ts`.
  *
  * `invalid_link` i `link_expired` dostają TEN SAM komunikat świadomie:
  * dla człowieka to jeden przypadek („link z maila nie zadziałał, poproś
  * o nowy"), a rozróżnianie ich niczego mu nie ułatwia.
  */
-const ERROR_NOTICES: Readonly<Record<string, LoginNotice>> = {
-  link_expired: { tone: "error", messageKey: "authError.linkExpired" },
-  invalid_link: { tone: "error", messageKey: "authError.linkExpired" },
-};
+const ERROR_NOTICES: ReadonlyMap<string, LoginNotice> = new Map([
+  ["link_expired", { tone: "error", messageKey: "authError.linkExpired" }],
+  ["invalid_link", { tone: "error", messageKey: "authError.linkExpired" }],
+]);
 
 /** Wartości `?reset=` — dziś jedna, ustawiana po udanej zmianie hasła. */
-const RESET_NOTICES: Readonly<Record<string, LoginNotice>> = {
-  ok: { tone: "success", messageKey: "login.resetDone" },
-};
+const RESET_NOTICES: ReadonlyMap<string, LoginNotice> = new Map([
+  ["ok", { tone: "success", messageKey: "login.resetDone" }],
+]);
 
 /**
  * Komunikat dla parametrów adresu ekranu logowania albo `null`.
@@ -57,10 +75,12 @@ export function loginNotice(params: {
   reset?: string | string[] | undefined;
 }): LoginNotice | null {
   const reset = single(params.reset);
-  if (reset && RESET_NOTICES[reset]) return RESET_NOTICES[reset];
+  const resetNotice = reset === undefined ? undefined : RESET_NOTICES.get(reset);
+  if (resetNotice) return resetNotice;
 
   const error = single(params.error);
-  if (error && ERROR_NOTICES[error]) return ERROR_NOTICES[error];
+  const errorNotice = error === undefined ? undefined : ERROR_NOTICES.get(error);
+  if (errorNotice) return errorNotice;
 
   return null;
 }
