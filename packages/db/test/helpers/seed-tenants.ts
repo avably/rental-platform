@@ -883,6 +883,17 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     type: "hero",
     content_draft: { heading: "RLS test heading" },
   }),
+  // --- historia adresów stron (0075_site_slug_history.sql, ADR-159) ---
+  //
+  // Slug UNIKALNY per wywołanie: (tenant_id, slug) ma unikat, a kolizja dawałaby
+  // 23505 zamiast 42501 (pułapka opisana przy usage_counters). Prefiks
+  // `rls-test-` spełnia jednocześnie CHECK kształtu i mija listę adresów
+  // zarezerwowanych — tak samo jak przy kategoriach (0072).
+  site_slug_history: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    site_id: await ensureSite(ctx, tenantId),
+    slug: `rls-test-adres-${randomUUID().slice(0, 8)}`,
+  }),
   // Unikalna domena per wywołanie — kolumna domain ma UNIQUE globalny, a
   // kolizja dawałaby 23505 zamiast 42501 (pułapka opisana przy usage_counters).
   domains: async (_ctx, tenantId) => ({
@@ -1085,6 +1096,11 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // default 0 i default false, więc każdy patch byłby widoczną zmianą stanu.
   sites: { template: "bold" },
   site_sections: { position: 999_999 },
+  // created_at, a NIE slug: slug obejmuje unikat (tenant_id, slug), więc patch
+  // na nim mieszałby 23505 z odmową uprawnienia. Tabela NIE MA grantu UPDATE
+  // dla ról API (zapis robi wyłącznie trigger SECURITY DEFINER, 0075) — patch
+  // i tak jest potrzebny, żeby brak UPDATE-u był TESTOWANY, a nie pomijany.
+  site_slug_history: { created_at: "2000-01-01T00:00:00.000Z" },
   domains: { verified: true },
 
   // name: bez indeksu unikalnego, CHECK tylko na długość btrim 1..80 —

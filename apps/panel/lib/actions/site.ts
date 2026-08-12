@@ -155,6 +155,9 @@ export async function renameSite(input: RenameSiteInput): Promise<SiteActionResu
       // Brak sluga w wejściu = „nie ruszaj adresu" (strona główna nie ma
       // adresu do zmiany). `undefined` nie trafia do zapytania PostgREST.
       ...(parsed.data.slug === undefined ? {} : { slug: parsed.data.slug }),
+      ...(parsed.data.redirectOldSlug === undefined
+        ? {}
+        : { redirect_old_slug: parsed.data.redirectOldSlug }),
     })
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.siteId)

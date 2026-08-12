@@ -156,6 +156,13 @@ export interface Site {
    */
   slug_published: string | null;
   /**
+   * Czy przy NAJBLIŻSZEJ publikacji stary adres tej strony ma dostać
+   * przekierowanie 308 (0075, ADR-159). Kolumna SZKICU — odpowiedź operatora
+   * z chwili zmiany adresu; stanem publicznym jest wiersz
+   * `site_slug_history`, nie ta flaga, więc bliźniaka nie ma.
+   */
+  redirect_old_slug: boolean;
+  /**
    * ZASTANE (przed ADR-090): szablon graficzny sprzed wprowadzenia stylu strony.
    * Kolumna SZKICU w rozumieniu ADR-091 (bliźniak `template_published` niżej),
    * ale panel już do niej nie pisze — nowy zapis idzie w `style_draft.theme`.

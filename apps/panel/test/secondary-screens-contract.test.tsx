@@ -821,6 +821,7 @@ function renderLauncher(publishedAtLabel: string | null = "22.07.2026, 10:30"): 
           // Strona GŁÓWNA sklepu (0073, ADR-157): adres pusty = `/`.
           slug: "",
           slugPublished: publishedAtLabel !== null ? "" : null,
+          redirectOldSlug: true,
           publishedAtLabel,
           createdAtLabel: "22.07.2026, 10:00",
         },

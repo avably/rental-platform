@@ -132,6 +132,13 @@ export const renameSiteInputSchema = z.object({
    * a nie „ustaw pusty".
    */
   slug: contentPageSlugSchema.optional(),
+  /**
+   * Czy stary adres ma dostać 308 przy najbliższej publikacji (0075, ADR-159).
+   * Pytanie zadawane W TYM SAMYM oknie, w którym zmienia się adres — bo to
+   * jedyny moment, w którym operator wie, czy stary adres gdzieś już żyje.
+   * Nieobecność znaczy „nie ruszaj ustawienia", nie „wyłącz".
+   */
+  redirectOldSlug: z.boolean().optional(),
 });
 export type RenameSiteInput = z.infer<typeof renameSiteInputSchema>;
 

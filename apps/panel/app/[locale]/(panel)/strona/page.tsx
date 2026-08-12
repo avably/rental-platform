@@ -51,6 +51,7 @@ export default async function SitePage() {
     // klienci mają jeszcze stary — dlatego bliźniak jedzie obok.
     slug: site.slug,
     slugPublished: site.slug_published,
+    redirectOldSlug: site.redirect_old_slug,
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
   }));
