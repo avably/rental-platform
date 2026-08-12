@@ -293,15 +293,22 @@
     "resendConfirmation": "Wyślij link potwierdzający ponownie",
     "signInFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło. Jeśli konto jest nowe — najpierw potwierdź adres z wiadomości, którą wysłaliśmy.",
     "resetDone": "Hasło zostało zmienione. Zaloguj się nowym hasłem.",
-    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
+    "subtitle": "Panel wypożyczalni — rezerwacje, zamówienia i sklep.",
+    "noAccount": "Nie masz konta?",
+    "noConfirmationMail": "Nie dostałeś maila potwierdzającego?"
   },
   "register": {
-    "title": "Załóż konto",
-    "submit": "Zarejestruj się",
+    "title": "Uruchom swoją wypożyczalnię",
+    "submit": "Załóż konto",
     "submitPending": "Rejestruję…",
     "haveAccount": "Masz już konto?",
     "login": "Zaloguj się",
-    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
+    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
+    "subtitle": "14 dni za darmo, bez karty. Nic się samo nie naliczy.",
+    "passwordHint": "Co najmniej 8 znaków. Nie wymagamy cyfr ani znaków specjalnych.",
+    "afterCta": "Potwierdzisz adres e-mailem, potem założysz organizację.",
+    "noConfirmationMail": "Nie dostałeś maila potwierdzającego?"
   },
   "checkInbox": {
     "title": "Sprawdź skrzynkę",
@@ -311,15 +318,21 @@
     "resendCta": "Wyślij ponownie",
     "resendPending": "Wysyłam…",
     "resendDone": "Jeśli ten adres wymaga potwierdzenia, wiadomość została wysłana. Sprawdź też folder ze spamem.",
-    "resendThrottled": "Zbyt wiele prób. Spróbuj ponownie za chwilę."
+    "resendThrottled": "Zbyt wiele prób. Spróbuj ponownie za chwilę.",
+    "factLinkLabel": "Link potwierdzający",
+    "factLinkValue": "Jednorazowy — po kliknięciu przestaje działać",
+    "factMissingLabel": "Nie widzisz wiadomości?",
+    "factMissingValue": "Zajrzyj do spamu i do zakładki Oferty",
+    "backToLogin": "Wróć do logowania"
   },
   "resetRequest": {
-    "title": "Reset hasła",
+    "title": "Nie pamiętasz hasła?",
     "submit": "Wyślij link do resetu",
     "submitPending": "Wysyłam…",
     "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
     "backToLogin": "Wróć do logowania",
-    "successNeutral": "Jeśli konto z tym adresem istnieje, wysłaliśmy e-mail z linkiem do resetu hasła."
+    "successNeutral": "Jeśli konto z tym adresem istnieje, wysłaliśmy e-mail z linkiem do resetu hasła.",
+    "subtitle": "Podaj adres e-mail, a wyślemy link do ustawienia nowego hasła."
   },
   "resetConfirm": {
     "title": "Ustaw nowe hasło",
@@ -329,7 +342,9 @@
     "expiredTitle": "Ten link już nie działa",
     "expiredBody": "Link do zmiany hasła jest jednorazowy i ważny godzinę. Poproś o nowy — przyjdzie na ten sam adres e-mail.",
     "requestNewLink": "Poproś o nowy link",
-    "backToLogin": "Wróć do logowania"
+    "backToLogin": "Wróć do logowania",
+    "subtitle": "Po zapisaniu zalogujesz się nowym hasłem.",
+    "passwordHint": "Co najmniej 8 znaków. Nie wymagamy cyfr ani znaków specjalnych."
   },
   "authError": {
     "emailRateLimit": "Wysłaliśmy już maksymalną liczbę wiadomości na ten adres. Spróbuj ponownie za godzinę.",
@@ -340,6 +355,30 @@
     "samePassword": "Nowe hasło musi różnić się od dotychczasowego.",
     "providerUnavailable": "Usługa logowania chwilowo nie odpowiada. Spróbuj ponownie za kilka minut.",
     "generic": "Nie udało się dokończyć operacji. Spróbuj ponownie za chwilę."
+  },
+  "authShell": {
+    "brandHome": "Strona Avably",
+    "emailPlaceholder": "ty@twojafirma.pl",
+    "signupClaim": "Panel wynajmu dla wypożyczalni sprzętu.",
+    "signinClaim": "Panel Twojej wypożyczalni.",
+    "safetyTitle": "Nigdy nie prosimy o hasło",
+    "safetyBody": "mailem ani przez telefon. Sprawdź, czy w pasku adresu jest {host}.",
+    "signals": {
+      "trialTitle": "14 dni za darmo — bez karty",
+      "trialNote": "Nic się samo nie naliczy.",
+      "noCommissionTitle": "Bez prowizji od transakcji",
+      "noCommissionNote": "Płacisz abonament, nie procent.",
+      "seatsTitle": "Bez limitu użytkowników",
+      "seatsNote": "Cały zespół w tej samej cenie.",
+      "euDataTitle": "Dane w Unii Europejskiej",
+      "euDataNote": "Hosting i baza w regionie EU.",
+      "noLockInTitle": "Bez umowy na rok",
+      "noLockInNote": "Nie ma też opłaty wdrożeniowej."
+    },
+    "terms": "Regulamin",
+    "privacy": "Polityka prywatności",
+    "passwordShow": "Pokaż",
+    "passwordHide": "Ukryj"
   },
   "newOrganization": {
     "intro": "Zostaniesz właścicielem nowej organizacji.",

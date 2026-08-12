@@ -5,6 +5,8 @@ import { useActionState } from "react";
 
 import { Link } from "@/i18n/navigation";
 
+import { AuthNotice, AuthSubmit } from "../../auth-ui";
+import { AuthPasswordField } from "../../password-field";
 import { resetConfirmAction, type ResetConfirmState } from "./actions";
 
 const initialState: ResetConfirmState = {};
@@ -21,44 +23,38 @@ const initialState: ResetConfirmState = {};
  * odmowa akcji zostaje w mocy, a tutaj dostaje to, czego jej brakowało —
  * DZIAŁAJĄCY odnośnik po nowy link. „Poproś o nowy link" było dotąd zdaniem
  * w komunikacie, a nie drogą wyjścia.
+ *
+ * BEZ BŁĘDU NIE MA TU ANI JEDNEGO ODNOŚNIKA i tak ma zostać: wyjścia ekranu
+ * („wróć do logowania") niesie strona, a nie formularz — inaczej wyglądałyby
+ * jak część kroku, który człowiek właśnie wykonuje.
  */
 export function ResetConfirmForm() {
   const [state, formAction, pending] = useActionState(resetConfirmAction, initialState);
   const t = useTranslations("resetConfirm");
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        {t("newPassword")}
-        <input
-          type="password"
-          name="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="rounded border px-3 py-2"
-        />
-      </label>
+    <form action={formAction} className="flex flex-col gap-4">
+      <AuthPasswordField
+        id="reset-confirm-password"
+        label={t("newPassword")}
+        hint={t("passwordHint")}
+        minLength={8}
+      />
       {state.error ? (
-        <div data-reset-confirm-error className="flex flex-col gap-1">
-          <p role="alert" className="text-destructive text-sm">
-            {state.error}
-          </p>
-          <p className="text-sm">
-            <Link href="/reset" className="underline">
+        <AuthNotice
+          data-reset-confirm-error
+          tone="problem"
+          role="alert"
+          actions={
+            <Link href="/reset" className="underline underline-offset-[3px]">
               {t("requestNewLink")}
             </Link>
-          </p>
-        </div>
+          }
+        >
+          {state.error}
+        </AuthNotice>
       ) : null}
-      <button
-        type="submit"
-        aria-busy={pending || undefined}
-        disabled={pending}
-        className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-      >
-        {pending ? t("submitPending") : t("submit")}
-      </button>
+      <AuthSubmit pending={pending}>{pending ? t("submitPending") : t("submit")}</AuthSubmit>
     </form>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { AuthField, AuthInput, AuthNotice, AuthSubmit } from "../../auth-ui";
 import { resendConfirmationAction, type ResendConfirmationState } from "./actions";
 
 const initialState: ResendConfirmationState = {};
@@ -26,29 +26,30 @@ export function ResendConfirmationForm() {
   const [state, formAction, pending] = useActionState(resendConfirmationAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 text-left text-sm">
-      <Label htmlFor="resend-email">{t("resendEmailLabel")}</Label>
-      <Input
-        id="resend-email"
-        type="email"
-        name="email"
-        autoComplete="email"
-        required
-        disabled={pending}
-      />
-      <Button type="submit" variant="outline" loading={pending} disabled={pending}>
+    <form action={formAction} className="flex flex-col gap-4">
+      <AuthField id="resend-email" label={t("resendEmailLabel")}>
+        <AuthInput
+          id="resend-email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          disabled={pending}
+        />
+      </AuthField>
+      <AuthSubmit pending={pending} variant="outline">
         {pending ? t("resendPending") : t("resendCta")}
-      </Button>
+      </AuthSubmit>
 
       {state.error ? (
-        <p role="alert" className="text-destructive">
+        <AuthNotice tone="problem" role="alert">
           {state.error}
-        </p>
+        </AuthNotice>
       ) : null}
       {state.success ? (
-        <p role="status" data-resend-confirmation-done className="text-status-positive-fg">
+        <AuthNotice tone="positive" role="status" data-resend-confirmation-done>
           {state.success}
-        </p>
+        </AuthNotice>
       ) : null}
     </form>
   );

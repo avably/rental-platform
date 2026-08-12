@@ -5,6 +5,15 @@ import { useActionState } from "react";
 
 import { Link } from "@/i18n/navigation";
 
+import { AuthShell } from "../auth-shell";
+import {
+  AuthCaptchaSlot,
+  AuthField,
+  AuthHeading,
+  AuthInput,
+  AuthNotice,
+  AuthSubmit,
+} from "../auth-ui";
 import { AuthCaptchaField } from "../captcha-field";
 import { resetRequestAction, type ResetRequestState } from "./actions";
 
@@ -14,51 +23,56 @@ export default function ResetRequestPage() {
   const [state, formAction, pending] = useActionState(resetRequestAction, initialState);
   const t = useTranslations("resetRequest");
   const tCommon = useTranslations("common");
+  const tShell = useTranslations("authShell");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
-      <form action={formAction} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          {tCommon("email")}
-          <input
+    <AuthShell band="signin">
+      <AuthHeading subtitle={t("subtitle")}>{t("title")}</AuthHeading>
+      <form action={formAction} className="flex flex-col gap-4">
+        <AuthField id="reset-email" label={tCommon("email")}>
+          <AuthInput
+            id="reset-email"
             type="email"
             name="email"
             required
             autoComplete="email"
-            className="rounded border px-3 py-2"
+            placeholder={tShell("emailPlaceholder")}
           />
-        </label>
+        </AuthField>
         {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
-            (semantyka włączenia — L2/ADR-106). */}
-        <AuthCaptchaField resetSignal={state} />
+            (semantyka włączenia — L2/ADR-106). Miejsce trzyma SLOT, nie
+            widżet: patrz komentarz przy AuthCaptchaSlot. */}
+        <AuthCaptchaSlot>
+          <AuthCaptchaField resetSignal={state} />
+        </AuthCaptchaSlot>
         {state.error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <AuthNotice tone="problem" role="alert">
             {state.error}
-          </p>
+          </AuthNotice>
         ) : null}
+        {/*
+          ODPOWIEDŹ NEUTRALNA. Ten komunikat brzmi tak samo niezależnie od
+          tego, czy konto istnieje — dlatego jest „positive", a nie
+          „potwierdzenie wysyłki": mówi o warunku, nie o fakcie.
+        */}
         {state.success ? (
-          <p role="status" className="text-status-positive-fg text-sm">
+          <AuthNotice tone="positive" role="status">
             {state.success}
-          </p>
+          </AuthNotice>
         ) : null}
-        <button
-          type="submit"
-          aria-busy={pending || undefined}
-          disabled={pending}
-          className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-        >
-          {pending ? t("submitPending") : t("submit")}
-        </button>
+        <AuthSubmit pending={pending}>{pending ? t("submitPending") : t("submit")}</AuthSubmit>
       </form>
       {/* WYJŚCIE Z EKRANU (ADR-153, N7): trasa resetu nie miała ANI JEDNEGO
           odnośnika — kto tu trafił przez pomyłkę albo kto przypomniał sobie
           hasło, zostawał z samym przyciskiem „wstecz" przeglądarki. */}
       <p className="text-sm">
-        <Link href="/login" className="underline">
+        <Link
+          href="/login"
+          className="text-foreground font-medium underline underline-offset-[3px]"
+        >
           {t("backToLogin")}
         </Link>
       </p>
-    </main>
+    </AuthShell>
   );
 }

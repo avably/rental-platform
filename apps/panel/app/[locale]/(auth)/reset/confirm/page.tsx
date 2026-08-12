@@ -4,6 +4,8 @@ import { Link } from "@/i18n/navigation";
 import { getAuthContext, hasRecentRecoveryProof } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+import { AuthShell } from "../../auth-shell";
+import { AuthHeading, AuthNotice } from "../../auth-ui";
 import { ResetConfirmForm } from "./form";
 
 /**
@@ -24,7 +26,8 @@ import { ResetConfirmForm } from "./form";
  *
  * ODMOWA JEDNOLITA zostaje: „brak sesji" i „sesja bez dowodu recovery"
  * dostają identyczny ekran, więc bramki nie widać z zewnątrz. Ekran nie
- * ujawnia też, czy w ogóle jesteś zalogowany.
+ * ujawnia też, czy w ogóle jesteś zalogowany. Restyling (ADR-156) tego nie
+ * rusza: oba stany dalej wychodzą z JEDNEJ gałęzi warunku.
  *
  * `force-dynamic`: layout `[locale]` ma `generateStaticParams`, a treść
  * zależy od cookies sesji — bez pinu Next wciągnąłby trasę w statyczny
@@ -42,29 +45,35 @@ export default async function ResetConfirmPage() {
 
   if (!recoveryProven) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
-        <h1 className="text-xl font-semibold">{t("expiredTitle")}</h1>
-        <p role="alert" data-reset-confirm-blocked className="text-muted-foreground text-sm">
+      <AuthShell band="signin">
+        <AuthHeading>{t("expiredTitle")}</AuthHeading>
+        <AuthNotice tone="attention" role="alert" data-reset-confirm-blocked>
           {t("expiredBody")}
-        </p>
+        </AuthNotice>
         <p className="text-sm">
-          <Link href="/reset" className="underline">
+          <Link
+            href="/reset"
+            className="text-foreground font-medium underline underline-offset-[3px]"
+          >
             {t("requestNewLink")}
           </Link>
         </p>
         <p className="text-sm">
-          <Link href="/login" className="underline">
+          <Link
+            href="/login"
+            className="text-foreground font-medium underline underline-offset-[3px]"
+          >
             {t("backToLogin")}
           </Link>
         </p>
-      </main>
+      </AuthShell>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <AuthShell band="signin">
+      <AuthHeading subtitle={t("subtitle")}>{t("title")}</AuthHeading>
       <ResetConfirmForm />
-    </main>
+    </AuthShell>
   );
 }

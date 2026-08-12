@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { loginNotice } from "@/lib/auth-notice";
 import { safeNextPath } from "@/lib/validation";
 
+import { AuthShell } from "../auth-shell";
+import { AuthHeading, AuthNotice } from "../auth-ui";
 import { LoginForm } from "./form";
 
 /**
@@ -15,6 +17,9 @@ import { LoginForm } from "./form";
  *
  * Na ekran trafia WYŁĄCZNIE tekst z allowlisty `loginNotice` — nigdy wartość
  * parametru. Parametr przychodzi z linku, który może podesłać ktokolwiek.
+ *
+ * Restyling (ADR-156) nie rusza ani jednego z tych rozstrzygnięć: zmienia się
+ * pudełko, w którym komunikat stoi, i nic poza nim.
  */
 export default async function LoginPage({
   searchParams,
@@ -29,25 +34,21 @@ export default async function LoginPage({
   const notice = loginNotice({ error, reset });
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
-      <h1 className="text-xl font-semibold">{t("title")}</h1>
+    <AuthShell band="signin">
+      <AuthHeading subtitle={t("subtitle")}>{t("title")}</AuthHeading>
       {notice ? (
-        <p
+        <AuthNotice
           data-login-notice={notice.tone}
+          tone={notice.tone === "error" ? "attention" : "positive"}
           // `alert` przerywa czytnikowi bieżącą wypowiedź (coś poszło nie
           // tak), `status` czeka na przerwę (potwierdzenie). Rozróżnienie
           // jest tu istotne: oba komunikaty pojawiają się od razu po wejściu.
           role={notice.tone === "error" ? "alert" : "status"}
-          className={
-            notice.tone === "error"
-              ? "text-destructive text-sm"
-              : "text-status-positive-fg text-sm"
-          }
         >
           {tRoot(notice.messageKey)}
-        </p>
+        </AuthNotice>
       ) : null}
       <LoginForm next={safeNext} />
-    </main>
+    </AuthShell>
   );
 }
