@@ -514,8 +514,10 @@ grant execute on function app.get_public_catalog(uuid) to anon, authenticated;
 -- 7. app.import_catalog — kategorie w imporcie CSV (ADDYTYWNIE)
 -- ---------------------------------------------------------------------
 --
--- Ciało przepisane w całości z 0055. JEDYNA zmiana merytoryczna: obsługa
--- klucza `categories` (tablica SLUGÓW) w wierszu.
+-- Ciało przepisane w całości z 0058 (OSTATNIA definicja tej funkcji — 0055 jest
+-- jej wersją SPRZED pól własnych i przepisanie z niej po cichu zdjęłoby
+-- scalanie kolumny `custom_fields`; złapała to suita import-csv).
+-- JEDYNA zmiana merytoryczna: obsługa klucza `categories` (tablica SLUGÓW).
 --
 -- KONTRAKT, KTÓRY RÓŻNI SIĘ OD PROGÓW — i to jest świadome:
 --   * klucz `categories` NIEOBECNY → przypisania produktu zostają NIETKNIĘTE,
@@ -542,6 +544,7 @@ declare
   v_created int := 0;
   v_updated int := 0;
   v_tiers int := 0;
+  -- [0072] Licznik zapisanych przypisań kategorii (ADR-155).
   v_categories int := 0;
   v_row jsonb;
   v_tier jsonb;
@@ -549,6 +552,10 @@ declare
   v_category_id uuid;
   v_product_id uuid;
   v_existing uuid;
+  -- [0058] Pola własne produktu: wartości z pliku oraz LISTA KOLUMN, które
+  -- plik obejmuje. Dwie rzeczy, nie jedna — patrz komentarz przy zapisie.
+  v_cf jsonb;
+  v_cf_cols text[];
 begin
   if v_tenant is null then
     raise exception 'Brak kontekstu najemcy.' using errcode = '42501';
@@ -570,9 +577,32 @@ begin
       raise exception 'Pole tiers musi być tablicą.' using errcode = '22023';
     end if;
 
+    -- [0072] Kategorie: klucz OPCJONALNY (patrz nagłówek sekcji).
     if v_row ? 'categories' and jsonb_typeof(v_row -> 'categories') <> 'array' then
       raise exception 'Pole categories musi być tablicą.' using errcode = '22023';
     end if;
+
+    -- [0058] --- POLA WŁASNE PRODUKTU (C6-A3, ADR-121) ---
+    --
+    -- `custom_fields` to wartości z pliku; `custom_field_columns` to zbiór
+    -- definicji, dla których plik JEST AUTORYTATYWNY. Rozdzielenie ich jest
+    -- konieczne, bo pusta komórka i brak kolumny znaczą co innego: pierwsze
+    -- to „operator wyczyścił pole", drugie to „plik o tym polu nic nie mówi".
+    -- Bez tej różnicy import katalogu wyeksportowanego przed dodaniem pola
+    -- kasowałby wartości, których nawet nie widział.
+    v_cf := coalesce(v_row -> 'custom_fields', '{}'::jsonb);
+    if jsonb_typeof(v_cf) <> 'object' then
+      raise exception 'Pole custom_fields musi być obiektem.' using errcode = '22023';
+    end if;
+    if v_row -> 'custom_field_columns' is not null
+       and jsonb_typeof(v_row -> 'custom_field_columns') <> 'array' then
+      raise exception 'Pole custom_field_columns musi być tablicą.' using errcode = '22023';
+    end if;
+    v_cf_cols := coalesce(
+      (select array_agg(value #>> '{}')
+         from jsonb_array_elements(coalesce(v_row -> 'custom_field_columns', '[]'::jsonb))),
+      array[]::text[]
+    );
 
     if v_product_id is not null then
       -- Jawny filtr tenanta OBOK RLS — patrz nagłówek (dwie warstwy).
@@ -593,7 +623,12 @@ begin
         auto_increment_multiplier = (v_row ->> 'auto_increment_multiplier')::numeric,
         buffer_before_days = (v_row ->> 'buffer_before_days')::int,
         buffer_after_days = (v_row ->> 'buffer_after_days')::int,
-        active = (v_row ->> 'active')::boolean
+        active = (v_row ->> 'active')::boolean,
+        -- [0058] Klucze OBJĘTE plikiem zdejmujemy i wstawiamy na nowo; klucze
+        -- poza nim zostają nietknięte. Zgodność wartości z definicją sprawdza
+        -- trigger 0057 — ta funkcja nie powtarza jego reguł i nie ma prawa
+        -- ich osłabić.
+        custom_fields = (coalesce(custom_fields, '{}'::jsonb) - v_cf_cols) || v_cf
       where id = v_product_id
         and tenant_id = v_tenant;
 
@@ -606,7 +641,9 @@ begin
     else
       insert into public.products (
         tenant_id, name, description, base_price_day_grosze, deposit_grosze,
-        auto_increment_multiplier, buffer_before_days, buffer_after_days, active
+        auto_increment_multiplier, buffer_before_days, buffer_after_days, active,
+        -- Produkt POWSTAJE tutaj, więc nie ma czego scalać.
+        custom_fields
       ) values (
         v_tenant,
         v_row ->> 'name',
@@ -616,7 +653,8 @@ begin
         (v_row ->> 'auto_increment_multiplier')::numeric,
         (v_row ->> 'buffer_before_days')::int,
         (v_row ->> 'buffer_after_days')::int,
-        (v_row ->> 'active')::boolean
+        (v_row ->> 'active')::boolean,
+        v_cf
       )
       returning id into v_product_id;
       v_created := v_created + 1;
@@ -639,7 +677,7 @@ begin
       v_tiers := v_tiers + 1;
     end loop;
 
-    -- [0072] Kategorie: wyłącznie gdy kolumna jest w pliku (patrz nagłówek).
+    -- [0072] Kategorie: WYŁĄCZNIE gdy plik niesie kolumnę (patrz nagłówek).
     if v_row ? 'categories' then
       delete from public.product_categories
        where tenant_id = v_tenant

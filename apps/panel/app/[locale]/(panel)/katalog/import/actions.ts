@@ -65,6 +65,7 @@ export async function catalogImportAction(
           created: plan.created,
           updated: plan.updated,
           tiers: plan.tiers,
+          categories: plan.categories,
           rowCount: plan.rowCount,
           fileName: (file as File).name,
         },
