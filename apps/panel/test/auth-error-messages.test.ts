@@ -292,6 +292,38 @@ describe("kontrola pozytywna: nasze polskie komunikaty przechodzą bez zmiany", 
     expect(state.error).toBe("Hasło musi mieć co najmniej 8 znaków.");
   });
 
+  /**
+   * KLUCZE Z ŁAŃCUCHA PROTOTYPÓW (ADR-153, higiena konstrukcyjna).
+   *
+   * `CODE_MAP` był literałem obiektu odpytywanym przez `CODE_MAP[code]`, więc
+   * `code` równy `constructor` czy `toString` zwracał funkcję z
+   * `Object.prototype` — wartość prawdziwą, którą mapper oddawał dalej jako
+   * rzekomy klucz komunikatu, zamiast spaść na `generic`.
+   *
+   * TO NIE BYŁA PODATNOŚĆ: `code` pochodzi z odpowiedzi DOSTAWCY AUTH, nie
+   * z adresu URL ani z formularza, więc nikt z zewnątrz go nie podstawi.
+   * Rejestr jest dziś `Map` po to, żeby obie allowlisty tej rodziny miały tę
+   * samą konstrukcję — a ten test pilnuje, żeby ktoś nie „uprościł" jej
+   * z powrotem do literału.
+   */
+  it.each(["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"])(
+    "kod „%s” z łańcucha prototypów spada na generic, nie udaje klucza komunikatu",
+    (code) => {
+      expect(
+        authErrorKey({ message: "cokolwiek", code }),
+        `mapper oddał klucz z prototypu dla code=${code}`,
+      ).toBe("generic");
+    },
+  );
+
+  it("KONTROLA POZYTYWNA: prawdziwe kody dostawcy dalej mapują się poprawnie", () => {
+    // Bez tego asercje wyżej byłyby zielone także dla mappera, który ZAWSZE
+    // zwraca „generic" — czyli dowód po pustym zbiorze.
+    expect(authErrorKey({ code: "otp_expired" })).toBe("linkExpired");
+    expect(authErrorKey({ code: "over_email_send_rate_limit" })).toBe("emailRateLimit");
+    expect(authErrorKey({ code: "weak_password" })).toBe("weakPassword");
+  });
+
   it("mapper NIE reaguje na polski komunikat naszej bazy udający limit", () => {
     // Błąd z `RAISE EXCEPTION` (PostgREST): kod P0001, nie kod GoTrue.
     // Gdyby mapowanie szło po treści zamiast po kodzie, słowo „limit"
