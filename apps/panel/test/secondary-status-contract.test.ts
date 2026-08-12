@@ -64,6 +64,11 @@ describe("mapa statusów drugorzędnych (secondary-status-map → kod)", () => {
     // po cichu (lekcja ADR-053 D2).
     expect(Object.keys(surface).sort()).toEqual([
       "delivery-secret",
+      // U9: gotowość SEKCJI ustawień dostaw. Oś weszła razem z chipami na
+      // kartach ekranu — tą samą drogą co `payment-account` razem z ekranem
+      // płatności: lista rośnie wtedy i tylko wtedy, gdy powstaje ekran,
+      // który daną oś czyta.
+      "delivery-section",
       "domain",
       "domain-provider",
       "email-log",

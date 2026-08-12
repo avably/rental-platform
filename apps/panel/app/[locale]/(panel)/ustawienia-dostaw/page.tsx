@@ -28,7 +28,7 @@ import {
   deliveryPricingFromSettings,
 } from "@avably/core";
 import { Button } from "@avably/ui";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { FormMeasure } from "@/components/screens/form-measure";
 import { ScreenBackLink, ScreenSection } from "@/components/screens/screen-header";
@@ -49,6 +49,7 @@ import {
   type PricingDefaults,
   type SenderDefaults,
 } from "./delivery-settings-forms";
+import { deliverySectionStates } from "./delivery-settings-status";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -67,7 +68,7 @@ export default async function DeliverySettingsPage() {
 
   const { data: rows } = await ctx.supabase
     .from("tenant_settings")
-    .select("key, value")
+    .select("key, value, updated_at")
     .eq("tenant_id", ctx.tenantId)
     .in("key", [...COURIER_CONFIG_KEYS, DELIVERY_PRICING_KEY]);
   const settings = rows ?? [];
@@ -124,14 +125,57 @@ export default async function DeliverySettingsPage() {
   }
 
   // Zapis należy do właściciela (RLS 0024), odczyt do każdego członka. Ekran
-  // mówi to WPROST kartą reguły dostępu, zamiast zostawiać członkowi zespołu
-  // przyciski, po których dostanie odmowę z bazy.
+  // mówi to WPROST, zamiast zostawiać członkowi zespołu przyciski, po których
+  // dostanie odmowę z bazy — od U9 zdanie stoi PRZY KAŻDEJ stopce zapisu
+  // (`SaveRow`), czyli tam, gdzie brakuje przycisku, a nie osobną kartą na
+  // górze ekranu, oderwaną od sekcji, których dotyczy (audyt UX 6.1).
   const canWrite = ctx.role === "owner";
+
+  /*
+    Gotowość sekcji liczy `deliverySectionStates` — JEDNA ocena kompletności
+    w całym repo (ta sama, którą dostaje nadanie przesyłki), patrz
+    `delivery-settings-status.ts`. Data ostatniego zapisu idzie z
+    `tenant_settings.updated_at` per klucz, więc żadna migracja nie jest
+    potrzebna: kolumnę ustawia każdy upsert w `delivery-settings-actions.ts`.
+  */
+  const sectionStates = deliverySectionStates(
+    settings as { key: string; value: unknown }[],
+    passwordSet === true,
+  );
+  const format = await getFormatter();
+  const savedAtByKey = new Map(
+    settings
+      .filter((row) => typeof row.updated_at === "string")
+      .map((row) => [
+        row.key as string,
+        format.dateTime(new Date(row.updated_at as string), {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+      ]),
+  );
+  const sectionStatus = (key: string, state: (typeof sectionStates)[keyof typeof sectionStates]) => ({
+    state,
+    savedAt: savedAtByKey.get(key) ?? null,
+  });
 
   return (
     <FormMeasure className="flex flex-col gap-4">
       <ScreenBackLink href="/zamowienia" label={`← ${tSection("title")}`} />
-      <p className="text-muted-foreground text-sm">{t("intro")}</p>
+      {/*
+        Wstęp niesie fakt CAŁEGO EKRANU („zespół widzi, właściciel zapisuje"),
+        bo dotyczy wszystkich czterech kart naraz. Fakt operacyjny — „tu nie ma
+        przycisku, bo nie jesteś właścicielem" — stoi niżej, przy każdej stopce
+        zapisu. Wcześniej oba mieszkały w jednej karcie na górze i żaden nie
+        stał tam, gdzie był potrzebny.
+      */}
+      <p
+        className="text-muted-foreground text-sm"
+        {...(canWrite ? { "data-delivery-access-rule": "owner-writes" } : {})}
+      >
+        {t("intro")}
+        {canWrite ? <> {t("accessRuleOwner")}</> : null}
+      </p>
 
       {/*
         Wejście w punkty odbioru stoi NAD kartą reguły dostępu i nad czterema
@@ -154,26 +198,33 @@ export default async function DeliverySettingsPage() {
         </div>
       </ScreenSection>
 
-      <ScreenSection
-        data-delivery-access-rule={canWrite ? "owner-writes" : "member-reads"}
-        description={canWrite ? t("accessRuleOwner") : t("accessRuleMember")}
-      />
-
       <CredentialsForm
         action={saveCourierCredentialsAction}
         configured={passwordSet === true}
         canWrite={canWrite}
+        status={sectionStatus(GLOBKURIER_CREDENTIALS_KEY, sectionStates.credentials)}
         defaults={
           credentials
             ? { email: s(credentials.email), environment: s(credentials.environment) || "test" }
             : null
         }
       />
-      <SenderForm action={saveCourierSenderAction} canWrite={canWrite} defaults={senderDefaults} />
-      <ParcelForm action={saveCourierParcelAction} canWrite={canWrite} defaults={parcelDefaults} />
+      <SenderForm
+        action={saveCourierSenderAction}
+        canWrite={canWrite}
+        status={sectionStatus(COURIER_SENDER_KEY, sectionStates.sender)}
+        defaults={senderDefaults}
+      />
+      <ParcelForm
+        action={saveCourierParcelAction}
+        canWrite={canWrite}
+        status={sectionStatus(COURIER_PARCEL_KEY, sectionStates.parcel)}
+        defaults={parcelDefaults}
+      />
       <PricingForm
         action={saveDeliveryPricingAction}
         canWrite={canWrite}
+        status={sectionStatus(DELIVERY_PRICING_KEY, sectionStates.pricing)}
         defaults={pricingDefaults}
       />
     </FormMeasure>

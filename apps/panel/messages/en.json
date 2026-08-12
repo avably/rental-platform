@@ -934,6 +934,12 @@
         "methodOwnDelivery": "Own delivery",
         "saveCta": "Save",
         "savedOk": "Saved.",
+        "optionalMark": "(optional)",
+        "requiredHint": "All fields are required unless marked otherwise.",
+        "pricingOptionalHint": "Every field in this section is optional.",
+        "savedAt": "Last saved {when}",
+        "neverSaved": "Not saved yet",
+        "fixFieldsHint": "Fix the highlighted fields — what you typed has been kept.",
         "secretWriteOnly": "The secret is a write-only field. We never show a saved value again.",
         "accessRuleOwner": "Every team member sees the operational data. Save buttons and the new password field belong to the owner only.",
         "accessRuleMember": "You see the operational data in read mode. Delivery settings are changed by the organization owner.",
@@ -945,7 +951,7 @@
       "locations": {
         "title": "Pickup locations",
         "backToDelivery": "← Deliveries",
-        "cardDescription": "Addresses where the customer collects the equipment and returns it. An inactive location disappears from the new-order picker but stays on orders already issued.",
+        "cardDescription": "Addresses where the customer collects the equipment and returns it.",
         "cardCta": "Manage pickup locations",
         "backToList": "← Pickup locations",
         "newLocation": "New location",
@@ -958,8 +964,9 @@
         "colActions": "Actions",
         "activeYes": "Active",
         "activeNo": "Inactive",
-        "activate": "Activate",
-        "deactivate": "Deactivate",
+        "activate": "Turn on",
+        "deactivate": "Turn off",
+        "toggleEffect": "A location that is turned off disappears from the picker in new orders but stays on orders already issued. Turning it on brings it back to the picker.",
         "name": "Name",
         "street": "Street and number",
         "zip": "Postal code",
@@ -2174,6 +2181,10 @@
     "delivery-secret": {
       "configured": "Password saved",
       "missing": "No password"
+    },
+    "delivery-section": {
+      "complete": "Complete",
+      "incomplete": "Incomplete"
     },
     "invitation": {
       "accepted": "Accepted",

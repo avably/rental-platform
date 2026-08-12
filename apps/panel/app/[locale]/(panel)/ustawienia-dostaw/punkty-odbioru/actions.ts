@@ -85,6 +85,10 @@ export async function updateLocationAction(
   if (error) return { formError: error.message };
   if (!data || data.length === 0) return { formError: "Nie znaleziono punktu odbioru." };
 
+  // Bez tego lista punktów pokazywała STARĄ nazwę aż do ręcznego odświeżenia:
+  // edycja i przełącznik aktywności piszą do tej samej tabeli, ale tylko
+  // przełącznik unieważniał cache trasy.
+  revalidatePath("/", "layout");
   return { success: "saved" };
 }
 

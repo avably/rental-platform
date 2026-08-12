@@ -340,17 +340,22 @@ describe("ekran historii e-maili — tabela na pełnej szerokości", () => {
 // ===== 4. Ustawienia dostaw (secondary-delivery) =====
 
 describe("ekran dostaw — cztery karty, cztery zapisy", () => {
+  /** U9: chip gotowości + data ostatniego zapisu, liczone na stronie. */
+  const READY = { state: "complete", savedAt: "12 sie 2026, 09:41" } as const;
+  const NOT_READY = { state: "incomplete", savedAt: null } as const;
+
   const owner = render(
     <>
       <CredentialsForm
         action={noAction}
         configured
         canWrite
+        status={READY}
         defaults={{ email: "a@example.invalid", environment: "test" }}
       />
-      <SenderForm action={noAction} canWrite defaults={null} />
-      <ParcelForm action={noAction} canWrite defaults={null} />
-      <PricingForm action={noAction} canWrite defaults={null} />
+      <SenderForm action={noAction} canWrite defaults={null} status={NOT_READY} />
+      <ParcelForm action={noAction} canWrite defaults={null} status={NOT_READY} />
+      <PricingForm action={noAction} canWrite defaults={null} status={NOT_READY} />
     </>,
   );
 
@@ -375,14 +380,37 @@ describe("ekran dostaw — cztery karty, cztery zapisy", () => {
   it("stan sekretu jest chipem, a wartości sekretu nie ma w renderze", () => {
     expect(chips(owner)).toContain("delivery-secret/configured");
     const missing = render(
-      <CredentialsForm action={noAction} configured={false} canWrite defaults={null} />,
+      <CredentialsForm
+        action={noAction}
+        configured={false}
+        canWrite
+        defaults={null}
+        status={NOT_READY}
+      />,
     );
     expect(chips(missing)).toContain("delivery-secret/missing");
     // Pole hasła zawsze startuje puste (ADR-052: pole tylko do zapisu).
+    // Odtworzenia hasła z ECHA po nieudanym zapisie (U9) pilnuje osobno
+    // `delivery-settings-render-echo` — pierwszy render przy stanie akcji już
+    // rozstrzygniętym. Tutaj stan jest pusty, więc „nie ma hasła" byłoby
+    // prawdą o pustym zbiorze i niczego by nie broniło.
     const passwordTag = missing.match(/<input[^>]*id="cred-password"[^>]*>/)?.[0];
     expect(passwordTag, "brak pola nowego hasła").toBeDefined();
     expect(passwordTag).toContain('type="password"');
     expect(passwordTag, "zapisany sekret wraca do formularza").not.toMatch(/value="[^"]+"/);
+  });
+
+  it("każda karta niesie stan gotowości sekcji i moment ostatniego zapisu (U9)", () => {
+    // Cztery karty = cztery chipy osi `delivery-section`, jeden na kartę.
+    const sectionChips = chips(owner).filter((chip) => chip.startsWith("delivery-section/"));
+    expect(sectionChips).toEqual([
+      "delivery-section/complete",
+      "delivery-section/incomplete",
+      "delivery-section/incomplete",
+      "delivery-section/incomplete",
+    ]);
+    expect(owner).toContain("12 sie 2026, 09:41");
+    expect(owner).toContain(messages.orders.delivery.settings.neverSaved);
   });
 
   it("członek zespołu widzi dane, ale nie dostaje ani zapisu, ani pola hasła", () => {
@@ -391,12 +419,16 @@ describe("ekran dostaw — cztery karty, cztery zapisy", () => {
         action={noAction}
         configured
         canWrite={false}
+        status={READY}
         defaults={{ email: "a@example.invalid", environment: "test" }}
       />,
     );
     expect(member).toContain("a@example.invalid");
     expect(member).not.toContain('type="submit"');
     expect(member).not.toContain('id="cred-password"');
+    // U9: zdanie o rolach stoi TAM, gdzie brakuje przycisku — nie osobną
+    // kartą na górze ekranu, oderwaną od sekcji, których dotyczy.
+    expect(member).toContain('data-delivery-access-rule="member-reads"');
   });
 });
 
