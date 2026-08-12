@@ -63,6 +63,7 @@ export default async function CatalogPage({
   const locale = await getLocale();
   const t = await getTranslations("catalog.list");
   const tImport = await getTranslations("catalogImport");
+  const tCategories = await getTranslations("catalog.categories");
 
   const sort = resolveProductSort(filter.sort, filter.dir);
   const visibleRows = sortProducts(
@@ -88,6 +89,11 @@ export default async function CatalogPage({
           w nawigacji utrzymuje kontrakt struktury grup z artefaktu Fazy 2. */}
       <header className="mb-2 flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-3">
+          {/* Kategorie stoją TU, a nie w menu: opisują katalog, więc mieszkają
+              przy katalogu — jak import CSV (ADR-155). */}
+          <Button asChild variant="secondary">
+            <Link href="/katalog/kategorie">{tCategories("entry")}</Link>
+          </Button>
           <Button asChild variant="secondary">
             <Link href="/katalog/import">{tImport("entry")}</Link>
           </Button>

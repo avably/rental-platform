@@ -9,7 +9,8 @@
 import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
-import { productSchema, uuidSchema } from "@/lib/catalog-validation";
+import { productCategoryIdsSchema, productSchema, uuidSchema } from "@/lib/catalog-validation";
+import { syncProductCategories } from "@/lib/catalog/categories";
 import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
 import {
   readCustomFieldsForCreate,
@@ -35,6 +36,19 @@ function productPayload(input: ReturnType<typeof productSchema.parse>) {
   };
 }
 
+/**
+ * Zaznaczone kategorie z formularza produktu (ADR-155).
+ *
+ * `getAll` zamiast `get`: pole jest POWTÓRZONE (jedna nazwa, wiele wartości).
+ * Brak zaznaczeń daje pustą tablicę i to jest poprawny stan — produkt bez
+ * kategorii jest normalny, a nie niekompletny.
+ */
+function parseCategoryIds(formData: FormData) {
+  return productCategoryIdsSchema.safeParse(
+    formData.getAll("categoryIds").map((value) => String(value)),
+  );
+}
+
 function parseProductForm(formData: FormData) {
   return productSchema.safeParse({
     name: formData.get("name"),
@@ -54,6 +68,9 @@ export async function createProductAction(
 ): Promise<FormState> {
   const parsed = parseProductForm(formData);
   if (!parsed.success) return zodErrorToState(parsed.error);
+
+  const categoryIds = parseCategoryIds(formData);
+  if (!categoryIds.success) return zodErrorToState(categoryIds.error);
 
   let ctx;
   try {
@@ -89,6 +106,19 @@ export async function createProductAction(
   // nie udajemy porażki — wracamy na listę, jak przed U8b.
   if (!created?.id) redirect(await localePath("/katalog"));
 
+  // Kategorie PO produkcie, bo przypisanie potrzebuje jego identyfikatora.
+  // Odmowa na tym kroku NIE cofa produktu (PostgREST nie daje transakcji
+  // obejmującej dwa żądania) — zostaje jednak przy formularzu, żeby operator
+  // wiedział, że przynależność się nie zapisała, zamiast zobaczyć kartę
+  // produktu z pustymi kategoriami i uznać to za swoją pomyłkę.
+  const categoriesError = await syncProductCategories(
+    ctx.supabase,
+    ctx.tenantId!,
+    created.id as string,
+    categoryIds.data,
+  );
+  if (categoriesError) return { formError: categoriesError };
+
   redirect(await localePath(`/katalog/${created.id}`));
 }
 
@@ -102,6 +132,9 @@ export async function updateProductAction(
 
   const parsed = parseProductForm(formData);
   if (!parsed.success) return zodErrorToState(parsed.error);
+
+  const categoryIds = parseCategoryIds(formData);
+  if (!categoryIds.success) return zodErrorToState(categoryIds.error);
 
   let ctx;
   try {
@@ -149,6 +182,17 @@ export async function updateProductAction(
     .select("id");
   if (error) return { formError: error.message };
   if (!data || data.length === 0) return { formError: PRODUCT_NOT_FOUND };
+
+  // Przypisania doprowadzamy RÓŻNICĄ, nie pełną wymianą — patrz
+  // lib/catalog/categories.ts (zapis, który nic nie zmienia w kategoriach,
+  // nie ma prawa przepisywać wierszy).
+  const categoriesError = await syncProductCategories(
+    ctx.supabase,
+    ctx.tenantId!,
+    id.data,
+    categoryIds.data,
+  );
+  if (categoriesError) return { formError: categoriesError };
 
   return { success: "saved" };
 }

@@ -31,6 +31,19 @@ import {
   loadExportCustomFields,
 } from "./custom-fields";
 
+/**
+ * Kolumna kategorii (ADR-155) — OSOBNO od CATALOG_CSV_HEADER, i to nie jest
+ * kosmetyka. `CATALOG_CSV_HEADER` jest zbiorem kolumn WYMAGANYCH: import
+ * odrzuca plik, w którym brakuje którejkolwiek. Gdyby kategorie tam trafiły,
+ * każdy plik wyeksportowany przed tą zmianą przestałby się wczytywać —
+ * a operator ma w szufladzie dokładnie takie pliki. Kolumna jest więc
+ * OPCJONALNA przy wczytywaniu i ZAWSZE obecna przy zapisie.
+ */
+export const CATALOG_CSV_CATEGORIES_COLUMN = "categories";
+
+/** Rozdzielnik slugów w jednej komórce — pionowa kreska nie koliduje z `;`/`,`. */
+export const CATALOG_CSV_CATEGORIES_SEPARATOR = "|";
+
 export const CATALOG_CSV_HEADER = [
   "product_id",
   "name",
@@ -54,6 +67,11 @@ interface CatalogTierRow {
   sort_order: number;
 }
 
+interface CatalogCategoryLink {
+  product_id: string;
+  category_id: string;
+}
+
 interface CatalogProductRow {
   custom_fields: unknown;
   id: string;
@@ -75,6 +93,47 @@ export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> 
   const customFields = await loadExportCustomFields(ctx.supabase, ctx.tenantId, "product", {
     includeArchived: false,
   });
+
+  // Kategorie i przypisania osobnymi odczytami: relacja produkt↔kategoria idzie
+  // przez klucz ZŁOŻONY (tenant_id, …), którego PostgREST nie umie wskazać
+  // jednoznacznie w zagnieżdżonym `select`. Dwa zapytania są tańsze niż widok
+  // pod jedną kolumnę pliku.
+  const slugByCategory = new Map<string, string>();
+  const { data: categoryRows, error: categoryError } = await ctx.supabase
+    .from("catalog_categories")
+    .select("id, slug")
+    .eq("tenant_id", ctx.tenantId);
+  if (categoryError) {
+    throw new Error(`Eksport katalogu: odczyt kategorii nie powiódł się (${categoryError.code}).`);
+  }
+  for (const row of (categoryRows ?? []) as { id: string; slug: string }[]) {
+    slugByCategory.set(row.id, row.slug);
+  }
+
+  const slugsByProduct = new Map<string, string[]>();
+  const links = await fetchAllPages<CatalogCategoryLink>(async (from, to) => {
+    const { data, error } = await ctx.supabase
+      .from("product_categories")
+      .select("product_id, category_id")
+      .eq("tenant_id", ctx.tenantId)
+      .order("product_id", { ascending: true })
+      .order("category_id", { ascending: true })
+      .range(from, to);
+    if (error) {
+      throw new Error(`Eksport katalogu: odczyt przypisań kategorii nie powiódł się (${error.code}).`);
+    }
+    return (data ?? []) as CatalogCategoryLink[];
+  });
+  for (const link of links) {
+    const slug = slugByCategory.get(link.category_id);
+    // Kategoria bez sluga w mapie znaczy wyścig z równoległym usunięciem —
+    // pomijamy przypisanie zamiast wpisywać do pliku pustą komórkę, której
+    // re-import nie umiałby odróżnić od „bez kategorii".
+    if (!slug) continue;
+    const current = slugsByProduct.get(link.product_id) ?? [];
+    current.push(slug);
+    slugsByProduct.set(link.product_id, current);
+  }
 
   const products = await fetchAllPages<CatalogProductRow>(async (from, to) => {
     const { data, error } = await ctx.supabase
@@ -103,16 +162,30 @@ export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> 
       product.buffer_after_days,
       product.active,
     ];
+    // Slugi posortowane: plik ma być STABILNY między eksportami, żeby diff
+    // dwóch zrzutów pokazywał zmiany danych, a nie kolejność odczytu. Komórka
+    // stoi PO kolumnach progu — dokładnie tam, gdzie nagłówek ją zapowiada.
+    const categoryCell: CsvValue = [...(slugsByProduct.get(product.id) ?? [])]
+      .sort()
+      .join(CATALOG_CSV_CATEGORIES_SEPARATOR);
     // Kolumny dynamiczne powtarzają się w KAŻDYM wierszu grupy — kształt
     // płaski (produkt × próg) powiela pola produktu, a pole własne jest
     // polem produktu. Import bierze je z PIERWSZEGO wiersza grupy.
     const cells = customFieldCells(customFields, customFieldValuesFromColumn(product.custom_fields));
     const tiers = [...(product.pricing_tiers ?? [])].sort((a, b) => a.tier_days - b.tier_days);
     if (tiers.length === 0) {
-      csvRows.push([...base, null, null, null, null, ...cells]);
+      csvRows.push([...base, null, null, null, null, categoryCell, ...cells]);
     } else {
       for (const tier of tiers) {
-        csvRows.push([...base, tier.tier_days, tier.multiplier, tier.label, tier.sort_order, ...cells]);
+        csvRows.push([
+          ...base,
+          tier.tier_days,
+          tier.multiplier,
+          tier.label,
+          tier.sort_order,
+          categoryCell,
+          ...cells,
+        ]);
       }
     }
     // Limit dotyczy WIERSZY CSV (produkt × próg), nie liczby produktów —
@@ -122,6 +195,9 @@ export async function exportCatalogCsv(ctx: ExportContext): Promise<ExportFile> 
 
   return {
     filename: exportFilename("catalog"),
-    csv: buildCsv([...CATALOG_CSV_HEADER, ...customFieldHeader(customFields)], csvRows),
+    csv: buildCsv(
+      [...CATALOG_CSV_HEADER, CATALOG_CSV_CATEGORIES_COLUMN, ...customFieldHeader(customFields)],
+      csvRows,
+    ),
   };
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { ScreenSection } from "@/components/screens/screen-header";
 import { fetchProductCard } from "@/lib/catalog/card-query";
+import { fetchCategories, fetchProductCategoryIds } from "@/lib/catalog/categories";
 import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { groszeToInputValue } from "@/lib/money-input";
 import { requireMemberPage } from "@/lib/member-page";
@@ -60,6 +61,8 @@ export default async function ProductDataPage({
 
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const customFields = await loadPanelCustomFields(ctx.supabase, ctx.tenantId!, "product");
+  const categories = await fetchCategories(ctx.supabase, ctx.tenantId!);
+  const selectedCategoryIds = await fetchProductCategoryIds(ctx.supabase, ctx.tenantId!, product.id);
   const locale = await getLocale();
   const t = await getTranslations("catalog.card");
 
@@ -79,6 +82,8 @@ export default async function ProductDataPage({
       <ScreenSection title={t("dataHeading")} description={t("dataHint")}>
         <ProductForm
           action={updateProductAction.bind(null, product.id)}
+          categories={categories}
+          selectedCategoryIds={selectedCategoryIds}
           currencyCode={currency}
           customFields={customFields}
           customFieldValues={customFieldValuesFromRow(product)}

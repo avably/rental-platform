@@ -447,6 +447,35 @@
       "tabTiers": "Progi cenowe",
       "tabImages": "Zdjęcia"
     },
+    "categories": {
+      "entry": "Kategorie",
+      "title": "Kategorie katalogu",
+      "backToCatalog": "← Katalog produktów",
+      "backToList": "← Kategorie katalogu",
+      "newCategory": "Nowa kategoria",
+      "createTitle": "Nowa kategoria",
+      "intro": "Kategorie porządkują ofertę: produkt może należeć do kilku naraz, a kolejność z tej listy jest kolejnością, w jakiej zobaczy je klient.",
+      "empty": "Nie masz jeszcze żadnej kategorii. Załóż pierwszą, a potem przypisz do niej produkty na ich kartach.",
+      "form": {
+        "name": "Nazwa",
+        "slug": "Adres",
+        "slugHint": "Fragment adresu strony kategorii. Zostaw puste, a wypełnimy go z nazwy. Małe litery bez ogonków, cyfry i myślniki.",
+        "description": "Opis",
+        "descriptionHint": "Krótkie zdanie dla klienta. Możesz je zostawić puste.",
+        "create": "Załóż kategorię",
+        "save": "Zapisz",
+        "saved": "Zapisano."
+      },
+      "table": {
+        "name": "Nazwa",
+        "slug": "Adres",
+        "products": "Produkty",
+        "actions": "Akcje",
+        "moveUp": "W górę",
+        "moveDown": "W dół",
+        "delete": "Usuń"
+      }
+    },
     "card": {
       "overviewHeading": "Stan produktu",
       "photoManage": "Zarządzaj zdjęciami",
@@ -485,7 +514,9 @@
       "bufferAfter": "Bufor serwisowy po najmie (dni)",
       "active": "Produkt aktywny",
       "save": "Zapisz",
-      "saved": "Zapisano zmiany."
+      "saved": "Zapisano zmiany.",
+      "categoriesLegend": "Kategorie",
+      "categoriesEmpty": "Nie masz jeszcze kategorii. Załóż je w katalogu, w sekcji „Kategorie”, a wrócą tu jako pola do zaznaczenia."
     },
     "units": {
       "heading": "Egzemplarze",
@@ -582,6 +613,7 @@
     "summaryCreated": "Nowe produkty: {count}",
     "summaryUpdated": "Aktualizowane produkty: {count}",
     "summaryTiers": "Progi cenowe po imporcie: {count}",
+    "summaryCategories": "Przypisania kategorii po imporcie: {count}",
     "summaryNote": "Produkty nieobecne w pliku pozostaną bez zmian. Progi produktów z pliku zostaną zastąpione kompletem z pliku.",
     "issuesTitle": "Błędy w pliku — import wstrzymany",
     "issueRow": "Wiersz {row}",
@@ -590,7 +622,8 @@
       "title": "Import zakończony",
       "created": "Utworzone produkty: {count}",
       "updated": "Zaktualizowane produkty: {count}",
-      "tiers": "Zapisane progi cenowe: {count}"
+      "tiers": "Zapisane progi cenowe: {count}",
+      "categories": "Zapisane przypisania kategorii: {count}"
     },
     "errors": {
       "noFile": "Wybierz plik CSV.",
@@ -614,7 +647,9 @@
       "duplicateTierDays": "powtórzony próg {value} dni dla tego samego produktu",
       "unknownProduct": "produkt o identyfikatorze {value} nie istnieje w Twoim katalogu",
       "badCustomField": "wartość pola własnego jest nieprawidłowa albo przekracza dozwolony rozmiar ({value})",
-      "unknownCustomField": "kolumna {column} wskazuje pole własne, którego nie ma w tej organizacji"
+      "unknownCustomField": "kolumna {column} wskazuje pole własne, którego nie ma w tej organizacji",
+      "badCategorySlug": "kolumna {column}: „{value}” nie jest poprawnym adresem kategorii (małe litery bez ogonków, cyfry i myślniki)",
+      "unknownCategory": "kategoria o adresie „{value}” nie istnieje w Twoim katalogu — załóż ją najpierw w sekcji Kategorie"
     }
   },
   "orders": {

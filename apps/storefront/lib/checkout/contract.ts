@@ -252,6 +252,23 @@ export interface PublicCustomField {
 /** Mapa `id definicji → wartość` — kształt kolumny `custom_fields`. */
 export type PublicCustomFieldValues = Record<string, string | number | boolean>;
 
+/**
+ * Kategoria katalogu w kształcie PUBLICZNYM (ADR-155) — węższym od wiersza
+ * `catalog_categories`: bez znaczników czasu, bo moment porządkowania oferty
+ * nie jest sprawą kupującego.
+ *
+ * `position` wychodzi mimo posortowanej tablicy ŚWIADOMIE: konsument API
+ * (wtyczka, integrator) scala kategorie z własnym menu i potrzebuje wagi, a
+ * nie tylko kolejności w tej jednej odpowiedzi.
+ */
+export interface PublicCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  position: number;
+}
+
 export interface PublicCatalogProduct {
   id: string;
   name: string;
@@ -263,6 +280,12 @@ export interface PublicCatalogProduct {
   buffer_after_days: number;
   /** Wartości pól własnych PRODUKTU oznaczonych „zamawianie" (odczyt). */
   custom_fields: PublicCustomFieldValues;
+  /**
+   * Identyfikatory kategorii produktu (ADR-155) w kolejności KATEGORII, nie
+   * przypisania — pierwsza pozycja jest tą najwyżej postawioną przez najemcę.
+   * Same identyfikatory, bo pełne obiekty stoją raz, w `PublicCatalog.categories`.
+   */
+  category_ids: string[];
   pricing_tiers: PublicPricingTier[];
   images: PublicProductImage[];
 }
@@ -285,6 +308,12 @@ export interface PublicCatalog {
   tenant: { name: string; locale: "pl" | "en"; currency: CheckoutCurrency };
   /** Pola własne widoczne w zamawianiu — wszystkie trzy encje (patrz `entity`). */
   custom_fields: PublicCustomField[];
+  /**
+   * Kategorie katalogu najemcy w JEGO kolejności (ADR-155). Kategoria bez
+   * produktów też tu jest — operator ją założył, a strona kategorii ma
+   * pokazać „pusto", nie 404.
+   */
+  categories: PublicCategory[];
   products: PublicCatalogProduct[];
   pickup_locations: PublicPickupLocation[];
   delivery_methods: PublicDeliveryMethod[];
