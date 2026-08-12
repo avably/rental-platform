@@ -27,6 +27,32 @@ export const TEMPLATE_ROUTES = ["pricing", "faq", "contact"] as const;
 export const WF_SITE = "6800e0d30d7466dc5e82f732";
 
 const TOKEN = /\{\{([a-zA-Z0-9_.]+)\}\}/g;
+
+/**
+ * Sekcje WARUNKOWE szablonu: `{{#klucz}}…{{/klucz}}`.
+ *
+ * Powstały dla przypadku, którego samym tokenem rozwiązać się nie da: pozycji
+ * „Regulamin" w stopce. Token wchodzi w ATRYBUT albo w napis, a tu zniknąć ma
+ * CAŁY element — dokładnie tak, jak `terms` znika z sitemapy, gdy żadna wersja
+ * regulaminu platformy nie obowiązuje (app/sitemap.xml/route.ts, 0070/ADR-141).
+ * Wyszarzenie ani „wkrótce" nie wchodzą w grę: adres, który oddaje 404, ma nie
+ * istnieć na powierzchni, a nie zapowiadać się.
+ */
+const SECTION = /\{\{#([a-zA-Z0-9_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g;
+
+/** Znacznik sekcji, którego nie zdjęła pierwsza faza — otwarcie bez domknięcia. */
+const SECTION_LEFTOVER = /\{\{[#/][a-zA-Z0-9_]+\}\}/;
+
+/**
+ * Rozstrzygnięcia sekcji warunkowych — po jednym kluczu na sekcję w `marketing/*.html`.
+ * Typ jest jawny (a nie `Record<string, boolean>`), żeby nowa sekcja wymusiła
+ * decyzję u KAŻDEGO wołającego już na typechecku, a nie dopiero na stronie.
+ */
+export interface MarketingSections {
+  /** Czy obowiązuje jakaś wersja regulaminu platformy (`/[locale]/terms` = 200). */
+  terms: boolean;
+}
+
 const cache = new Map<MarketingPage, string>();
 
 function readPage(page: MarketingPage): string {
@@ -103,15 +129,43 @@ export function marketingLinks(locale: Locale) {
 /**
  * Podstawia treść w HTML przeniesionym z szablonu. Nieznany token jest błędem,
  * a nie pustym miejscem na stronie — inaczej brakujące tłumaczenie wychodziłoby
- * dopiero u odwiedzającego.
+ * dopiero u odwiedzającego. Tą samą zasadą chodzą sekcje warunkowe: sekcja bez
+ * rozstrzygnięcia (i znacznik bez pary) pali render, zamiast po cichu zabrać
+ * albo zostawić kawałek strony.
+ *
+ * Sekcje schodzą PRZED tokenami — inaczej token z wnętrza sekcji ukrytej
+ * domagałby się treści, której nikt na tej stronie nie zobaczy.
  */
 export function renderMarketingPage(
   page: MarketingPage,
   values: Record<string, unknown>,
+  sections: MarketingSections,
 ): string {
   const flat = flatten(values);
   const missing = new Set<string>();
-  const html = readPage(page).replace(TOKEN, (match, key: string) => {
+  const unknownSections = new Set<string>();
+  const decided = sections as unknown as Record<string, boolean | undefined>;
+
+  const source = readPage(page).replace(SECTION, (_match, name: string, body: string) => {
+    const visible = decided[name];
+    if (visible === undefined) {
+      unknownSections.add(name);
+      return "";
+    }
+    return visible ? body : "";
+  });
+
+  if (unknownSections.size > 0) {
+    throw new Error(
+      `Brak rozstrzygnięcia dla sekcji warunkowych: ${[...unknownSections].sort().join(", ")}`,
+    );
+  }
+  const leftover = source.match(SECTION_LEFTOVER);
+  if (leftover) {
+    throw new Error(`Niedomknięta sekcja warunkowa szablonu: ${leftover[0]}`);
+  }
+
+  const html = source.replace(TOKEN, (match, key: string) => {
     const value = flat[key];
     if (value === undefined) {
       missing.add(key);
