@@ -119,6 +119,18 @@ export const AUTH_OPAQUE_STATUSES: ReadonlySet<number> = new Set([
 const AUTH_TRANSIENT_ERROR_CODE = "unexpected_failure";
 
 /**
+ * Pola, w których GoTrue niesie kod błędu — DWA kształty tej samej awarii:
+ *   - `{"code":500,"error_code":"unexpected_failure","msg":"…"}` — odpowiedź
+ *     bez negocjacji wersji (goły curl/fetch),
+ *   - `{"code":"unexpected_failure","message":"…"}` — odpowiedź dla klienta
+ *     wysyłającego `X-Supabase-Api-Version: 2024-01-01`, czyli dla KAŻDEGO
+ *     wywołania przez supabase-js.
+ * Klasyfikator patrzy na oba, bo produkcyjną ścieżką jest ta druga — sonda
+ * na gołym fetchu pokazuje pierwszą i łatwo na tym polec.
+ */
+const AUTH_ERROR_CODE_FIELDS = ["error_code", "code"] as const;
+
+/**
  * Statusy ponawialne = wyłącznie warstwa bramki (Kong/gateway). Kong oddaje
  * „An invalid response was received from the upstream server" jako 502.
  * ŻADNEGO 4xx i ŻADNEGO 500: odmowy PostgREST (42501/23xxx/PGRST1xx) jadą
@@ -250,16 +262,15 @@ function replayResponse(response: Response, body: string | null): Response {
 /** Czy ciało 5xx GoTrue niesie awarię przejściową (a nie trwały błąd)? */
 function isAuthTransientBody(body: string | null): boolean {
   if (!body) return false;
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(body);
-    return (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      (parsed as { error_code?: unknown }).error_code === AUTH_TRANSIENT_ERROR_CODE
-    );
+    parsed = JSON.parse(body);
   } catch {
     return false;
   }
+  if (typeof parsed !== "object" || parsed === null) return false;
+  const fields = parsed as Record<string, unknown>;
+  return AUTH_ERROR_CODE_FIELDS.some((field) => fields[field] === AUTH_TRANSIENT_ERROR_CODE);
 }
 
 function pathOf(url: string): string {
