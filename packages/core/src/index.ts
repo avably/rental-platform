@@ -361,3 +361,13 @@ export {
   type ValidateCustomFieldsResult,
   type ValidateCustomFieldsUpdateOptions,
 } from "./custom-fields";
+
+export {
+  CATEGORY_DESCRIPTION_MAX_LENGTH,
+  CATEGORY_NAME_MAX_LENGTH,
+  CATEGORY_SLUG_MAX_LENGTH,
+  CATEGORY_SLUG_PATTERN,
+  RESERVED_CATEGORY_SLUGS,
+  isReservedCategorySlug,
+  suggestCategorySlug,
+} from "./catalog/categories";

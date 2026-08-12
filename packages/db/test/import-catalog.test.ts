@@ -173,7 +173,10 @@ describe.skipIf(!hasEnv)("app.import_catalog (C3, migracja 0055)", () => {
     ]);
 
     expect(error).toBeNull();
-    expect(data).toEqual({ created: 1, updated: 1, tiers: 3 });
+    // `categories: 0` — licznik przypisań kategorii dołożony w 0072 (ADR-155).
+    // Wiersze tego testu nie niosą klucza `categories`, więc funkcja nie tyka
+    // przypisań i liczy zero; kontrakt kategorii ma własny opis niżej.
+    expect(data).toEqual({ created: 1, updated: 1, tiers: 3, categories: 0 });
 
     // Produkt zaktualizowany co do WSZYSTKICH pól.
     const { data: updated } = await admin
@@ -358,4 +361,104 @@ describe.skipIf(!hasEnv)("app.import_catalog (C3, migracja 0055)", () => {
     expect(error!.message).toMatch(/limit/i);
     expect(await snapshotCatalog(admin, a.tenantId)).toEqual(before);
   }, 60_000);
+
+  // -------------------------------------------------------------------
+  // KATEGORIE w imporcie (0072, ADR-155)
+  // -------------------------------------------------------------------
+  //
+  // Kontrakt różni się od progów i to jest sedno tych trzech testów:
+  // klucz NIEOBECNY zostawia przypisania w spokoju (pliki wyeksportowane
+  // przed 0072 nie mogą kasować taksonomii), klucz OBECNY zastępuje komplet,
+  // a slug spoza katalogu najemcy wywraca CAŁY plik.
+  describe("kategorie", () => {
+    /** Kategoria najemcy, zwraca slug (klucz dopasowania w pliku). */
+    async function seedCategory(tenantId: string): Promise<{ id: string; slug: string }> {
+      const unique = randomUUID().slice(0, 8);
+      const slug = `import-kat-${unique}`;
+      const { data, error } = await admin
+        .from("catalog_categories")
+        .insert({ tenant_id: tenantId, name: `Import kategoria ${unique}`, slug })
+        .select("id")
+        .single();
+      if (error || !data) throw new Error(`seedCategory: ${error?.message}`);
+      return { id: data.id as string, slug };
+    }
+
+    async function assignedCategoryIds(productId: string): Promise<string[]> {
+      const { data, error } = await admin
+        .from("product_categories")
+        .select("category_id")
+        .eq("product_id", productId)
+        .order("category_id");
+      if (error) throw new Error(`odczyt przypisań: ${error.message}`);
+      return (data ?? []).map((row) => row.category_id as string).sort();
+    }
+
+    it("klucz `categories` przypisuje po slugu i ZASTĘPUJE komplet przypisań", async () => {
+      const first = await seedCategory(a.tenantId);
+      const second = await seedCategory(a.tenantId);
+      const productId = await seedProduct(admin, a.tenantId, `Kat ${randomUUID().slice(0, 8)}`);
+
+      const { data, error } = await importCatalog(a.ownerClient, [
+        productRow({ product_id: productId, categories: [first.slug, second.slug] }),
+      ]);
+      expect(error, `import z kategoriami zawiódł: ${error?.message}`).toBeNull();
+      expect(data).toEqual({ created: 0, updated: 1, tiers: 0, categories: 2 });
+      expect(await assignedCategoryIds(productId)).toEqual([first.id, second.id].sort());
+
+      // Drugie wejście z JEDNYM slugiem: komplet zastąpiony, nie dołożony.
+      const { error: secondError } = await importCatalog(a.ownerClient, [
+        productRow({ product_id: productId, categories: [second.slug] }),
+      ]);
+      expect(secondError, `powtórny import zawiódł: ${secondError?.message}`).toBeNull();
+      expect(await assignedCategoryIds(productId)).toEqual([second.id]);
+
+      // Pusta tablica = przypisania usunięte (jawna decyzja pliku).
+      const { error: emptyError } = await importCatalog(a.ownerClient, [
+        productRow({ product_id: productId, categories: [] }),
+      ]);
+      expect(emptyError, `import z pustą listą zawiódł: ${emptyError?.message}`).toBeNull();
+      expect(await assignedCategoryIds(productId)).toEqual([]);
+    });
+
+    it("BRAK klucza `categories` zostawia przypisania NIETKNIĘTE (plik sprzed 0072)", async () => {
+      const category = await seedCategory(a.tenantId);
+      const productId = await seedProduct(admin, a.tenantId, `Stary ${randomUUID().slice(0, 8)}`);
+      const { error: linkError } = await admin
+        .from("product_categories")
+        .insert({ tenant_id: a.tenantId, product_id: productId, category_id: category.id });
+      if (linkError) throw new Error(`seed przypisania: ${linkError.message}`);
+
+      // productRow NIE ma klucza `categories` — dokładnie taki wiersz produkuje
+      // parser starszego pliku CSV.
+      const { error } = await importCatalog(a.ownerClient, [
+        productRow({ product_id: productId, name: "Nazwa po imporcie" }),
+      ]);
+      expect(error, `import bez kolumny kategorii zawiódł: ${error?.message}`).toBeNull();
+      expect(
+        await assignedCategoryIds(productId),
+        "import bez kolumny kategorii SKASOWAŁ przypisania",
+      ).toEqual([category.id]);
+    });
+
+    it("slug spoza katalogu najemcy → 22023 i ZERO zapisu (także produktów sprzed błędu)", async () => {
+      // Kategoria istnieje, ale u tenanta B — z punktu widzenia importu A jest
+      // nieistniejąca. To ta sama granica, co przy cudzym product_id.
+      const foreign = await seedCategory(b.tenantId);
+      const before = await snapshotCatalog(admin, a.tenantId);
+
+      const { error } = await importCatalog(a.ownerClient, [
+        productRow({ name: "Poprawny sprzed błędu" }),
+        productRow({ name: "Z cudzą kategorią", categories: [foreign.slug] }),
+      ]);
+
+      expect(error, "import z cudzą kategorią przeszedł").not.toBeNull();
+      expect(error!.code).toBe("22023");
+      expect(error!.message).toMatch(/Kategoria/i);
+      expect(
+        await snapshotCatalog(admin, a.tenantId),
+        "odmowa zostawiła po sobie produkt sprzed błędnego wiersza",
+      ).toEqual(before);
+    });
+  });
 });
