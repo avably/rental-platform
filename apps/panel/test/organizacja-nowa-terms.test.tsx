@@ -37,6 +37,15 @@ const SAMPLE_TERMS = {
   effective_from: "2026-09-01T00:00:00.000Z",
 };
 
+// Od ADR-153 akcja tłumaczy komunikaty błędów zakładania organizacji
+// (klasyfikacja po kodzie zamiast surowej treści bazy), więc potrzebuje
+// serwerowego `getTranslations`. Ten plik pilnuje akceptacji regulaminu,
+// nie brzmienia komunikatów — echo klucza w zupełności wystarcza.
+vi.mock("next-intl/server", () => ({
+  getLocale: async () => "pl",
+  getTranslations: async () => (key: string) => key,
+}));
+
 // --- atrapa klienta dla akcji -------------------------------------------
 
 let currentTerms: unknown = null;
