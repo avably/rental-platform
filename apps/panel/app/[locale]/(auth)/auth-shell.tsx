@@ -101,12 +101,18 @@ export function AuthShell({
           na `--secondary` — czarne na czarnym nie odcina niczego od tła. */}
       <aside className="bg-foreground text-background dark:bg-secondary dark:text-foreground lg:border-border flex flex-none flex-col justify-between gap-8 px-5 py-4 lg:w-[42%] lg:max-w-[32.5rem] lg:border-r lg:px-11 lg:py-10">
         <div className="flex w-full items-center justify-between gap-4 lg:w-auto">
+          {/* Nazwa dostępna idzie ATRYBUTEM na odnośniku, a nie tekstem dla
+              czytnika w środku: `BrandLogo` niesie własne `aria-label="Avably"`
+              (i nie da się go stąd wyłączyć — znak jest przypięty kontraktem),
+              więc dołożony `sr-only` dawałby odczyt „Avably Strona Avably".
+              Jawny `aria-label` na kotwicy zastępuje nazwę z treści, zamiast
+              się do niej dokładać. */}
           <a
             href={CANONICAL_SITE_URL}
+            aria-label={t("brandHome")}
             className="inline-flex rounded-sm outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
           >
             <BrandLogo className="h-auto w-[7.375rem] lg:w-[8.625rem]" />
-            <span className="sr-only">{t("brandHome")}</span>
           </a>
           <a
             href={CANONICAL_SITE_URL}
