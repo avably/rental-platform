@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
@@ -33,12 +34,14 @@ export default async function NewTenantPage() {
   if (ctx.tenantId) redirect(await localePath("/"));
 
   const terms = await readCurrentPlatformTerms(supabase);
+  const t = await getTranslations("newOrganization");
 
   return (
     <div className="flex flex-col justify-center gap-4">
-      <p className="text-sm text-muted-foreground">
-        Zostaniesz właścicielem (owner) nowej organizacji.
-      </p>
+      {/* Literał polski przeniesiony do i18n razem z resztą ekranu (ADR-153):
+          onboarding jest pierwszym ekranem produktu, a był jedynym miejscem
+          tej ścieżki, które nie mówiło po angielsku. */}
+      <p className="text-muted-foreground text-sm">{t("intro")}</p>
       <CreateTenantForm
         terms={terms ? { versionId: terms.version_id, versionLabel: terms.version_label } : null}
       />

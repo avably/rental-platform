@@ -32,17 +32,20 @@ import { MobileNav } from "./mobile-nav";
 export function PanelTopbar({
   userEmail,
   closing = false,
+  onboarding = false,
 }: {
   userEmail: string;
   /** Okno domykania (ADR-138) — schodzi do nawigacji mobilnej. */
   closing?: boolean;
+  /** Sesja bez organizacji (ADR-153) — schodzi do nawigacji mobilnej. */
+  onboarding?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
   return (
     <header className="border-border bg-background flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
-      <MobileNav closing={closing} />
+      <MobileNav closing={closing} onboarding={onboarding} />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}
       </h1>

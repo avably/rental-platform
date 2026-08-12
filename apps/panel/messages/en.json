@@ -21,8 +21,9 @@
   },
   "home": {
     "title": "Panel",
-    "placeholderTitle": "This will be your command centre.",
-    "placeholderBody": "The dashboard is waiting for data. Until then, most of the action is in orders.",
+    "onboardingTitle": "Create an organization to get started",
+    "onboardingBody": "An organization is your rental business: catalogue, orders and your own online store. It takes a minute — we need a name and a store address. Your 14-day trial starts then, no card required.",
+    "onboardingCta": "Create an organization",
     "ordersCta": "Go to orders",
     "dashboardIntro": "Numbers computed from your organisation's orders — no estimates.",
     "suspendedTitle": "Organisation suspended",
@@ -190,6 +191,7 @@
     "newOrderShort": "New",
     "emailHistory": "Message history",
     "newOrganization": "New organization",
+    "organizationCreated": "Organization ready",
     "securityChallenge": "Two-factor verification",
     "dashboard": "Dashboard",
     "groupSales": "SALES",
@@ -288,6 +290,9 @@
     "submitPending": "Signing in…",
     "register": "Create an account",
     "forgotPassword": "Forgot your password?",
+    "resendConfirmation": "Send the confirmation link again",
+    "signInFailed": "We could not sign you in. Check your email and password. If the account is new, confirm the address from the message we sent first.",
+    "resetDone": "Your password has been changed. Sign in with the new one.",
     "captchaFailed": "CAPTCHA verification failed."
   },
   "register": {
@@ -313,13 +318,18 @@
     "submit": "Send reset link",
     "submitPending": "Sending…",
     "captchaFailed": "CAPTCHA verification failed.",
+    "backToLogin": "Back to sign in",
     "successNeutral": "If an account with this address exists, we have sent an email with a password reset link."
   },
   "resetConfirm": {
     "title": "Set a new password",
     "newPassword": "New password",
     "submit": "Set password",
-    "submitPending": "Saving…"
+    "submitPending": "Saving…",
+    "expiredTitle": "This link no longer works",
+    "expiredBody": "The password link is single-use and valid for one hour. Request a new one — it will arrive at the same email address.",
+    "requestNewLink": "Request a new link",
+    "backToLogin": "Back to sign in"
   },
   "authError": {
     "emailRateLimit": "We have already sent the maximum number of messages to this address. Please try again in an hour.",
@@ -332,12 +342,29 @@
     "generic": "We could not complete this operation. Please try again in a moment."
   },
   "newOrganization": {
+    "intro": "You will become the owner of the new organization.",
     "name": "Organization name",
-    "slug": "Slug (address, e.g. my-company)",
+    "slug": "Your store address",
+    "slugPlaceholder": "my-rental",
+    "slugPreview": "Your store will live at {host}",
+    "slugPreviewEmpty": "Lower-case letters, digits and hyphens — 3 to 39 characters.",
+    "slugEditableNote": "You will be able to change this address later — the old one will redirect to the new one.",
+    "errorSlugTaken": "This address is already taken. Pick another one — adding your city usually helps.",
+    "errorGeneric": "We could not create the organization. Please try again in a moment.",
     "submit": "Create organization",
     "submitPending": "Creating…",
     "termsLabel": "I accept the",
     "termsLinkLabel": "Avably Terms of Service ({version})"
+  },
+  "organizationCreated": {
+    "title": "{name} — all set",
+    "body": "Your organization is created and you are its owner. Two things started just now:",
+    "storeAddressLabel": "Your store address",
+    "storeAddressNote": "The store is already public. You will be able to change this address later — the old one will redirect to the new one.",
+    "trialLabel": "Trial period",
+    "trialValue": "Runs until {date}",
+    "trialNote": "{days} days, no card. Nothing will be charged automatically.",
+    "cta": "Go to the panel"
   },
   "platformTerms": {
     "title": "New terms of service ({version})",

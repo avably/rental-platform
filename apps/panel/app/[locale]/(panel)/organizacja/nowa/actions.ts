@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { registerDomainSafely, tenantSubdomainHost } from "@avably/core";
 
@@ -12,6 +13,57 @@ import { createTenantSchema, platformTermsFieldsSchema } from "@/lib/validation"
 
 export interface CreateTenantState {
   error?: string;
+}
+
+/**
+ * Kody błędów `app.create_tenant`, których treść jest NASZA — pisana po
+ * polsku, pod wyświetlenie (patrz RAISE EXCEPTION w 0070/0066/0023):
+ *   P0001 — adres e-mail niezweryfikowany,
+ *   P0002 — limit 2 organizacji na użytkownika,
+ *   P0003 — brak akceptacji obowiązującego regulaminu,
+ *   22023 — slug zarezerwowany albo wersja regulaminu inna niż obowiązująca.
+ * Te idą na ekran wprost. Wszystko poza tą listą to komunikat DOSTAWCY —
+ * i tam była dziura N5a: kolizja sluga (23505) wracała surowym angielskim
+ * „duplicate key value violates unique constraint …", jako jedyne miejsce
+ * w panelu pokazujące człowiekowi wnętrzności Postgresa.
+ */
+const TENANT_ERROR_CODES_WITH_OWN_MESSAGE: readonly string[] = [
+  "P0001",
+  "P0002",
+  "P0003",
+  "22023",
+];
+
+/** Unikat naruszony — w tej transakcji realnie oznacza zajęty adres sklepu. */
+const UNIQUE_VIOLATION = "23505";
+
+/**
+ * Komunikat dla błędu RPC zakładania organizacji (ADR-153, N5a).
+ *
+ * Wołane PO stronie serwera, więc surowa treść dostawcy ląduje w logu
+ * (jedyne miejsce, gdzie wolno jej istnieć — ta sama zasada co ADR-051),
+ * a na ekran idzie zdanie po polsku, mówiące co zrobić.
+ */
+async function createTenantErrorMessage(error: {
+  code?: string | null;
+  message?: string | null;
+}): Promise<string> {
+  const code = typeof error.code === "string" ? error.code : null;
+
+  if (code && TENANT_ERROR_CODES_WITH_OWN_MESSAGE.includes(code)) {
+    return error.message ?? "";
+  }
+
+  const t = await getTranslations("newOrganization");
+  if (code === UNIQUE_VIOLATION) {
+    return t("errorSlugTaken");
+  }
+
+  console.error(
+    "[organizacja:nowa] nieznany błąd create_tenant",
+    JSON.stringify({ code, message: error.message ?? null }),
+  );
+  return t("errorGeneric");
 }
 
 export async function createTenantAction(
@@ -64,9 +116,11 @@ export async function createTenantAction(
       : { p_slug: parsed.data.slug, p_name: parsed.data.name },
   );
   if (error) {
-    // Komunikaty RAISE EXCEPTION z app.create_tenant (0003_auth.sql) są już
-    // po polsku i bezpieczne do pokazania userowi wprost.
-    return { error: error.message };
+    // NIE „error.message wprost" (stan sprzed ADR-153): wprost idą wyłącznie
+    // komunikaty RAISE EXCEPTION z app.create_tenant, które są nasze i po
+    // polsku. Reszta — w szczególności kolizja sluga (23505) — jest treścią
+    // dostawcy i na ekran nie trafia.
+    return { error: await createTenantErrorMessage(error) };
   }
 
   // JWT bieżącej sesji nie ma jeszcze świeżego claimu tenant_id (hook
@@ -85,7 +139,12 @@ export async function createTenantAction(
   // ponowienia.
   await registerSubdomainBestEffort(supabase, parsed.data.slug);
 
-  redirect(await localePath("/"));
+  // POTWIERDZENIE ZAMIAST NAGIEGO PRZEKIEROWANIA (ADR-153, N5c). W tej
+  // sekundzie dzieją się DWIE najmocniejsze obietnice produktu — rusza
+  // 14-dniowy okres próbny i rejestruje się publiczny adres sklepu — a do tej
+  // naprawy obie spełniały się wyłącznie w bazie: człowiek lądował na pulpicie
+  // i o żadnej się nie dowiadywał.
+  redirect(await localePath("/organizacja/nowa/gotowe"));
 }
 
 type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;

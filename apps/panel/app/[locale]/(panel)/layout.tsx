@@ -50,6 +50,14 @@ export default async function PanelLayout({
   const billing = ctx?.tenantId ? await readTenantBillingState(supabase, ctx.tenantId) : null;
   const closing = billing?.status === "suspended" && isClosingWindowOpen(billing.suspendedAt);
 
+  // ONBOARDING (ADR-153, N4): zalogowana sesja BEZ organizacji. Nawigacja
+  // zwija się wtedy do samego pulpitu — każda inna pozycja prowadzi na trasę
+  // tenancką, z której guard zawraca na pulpit (pętla widoczna w audycie UX).
+  // ANONIM (`ctx === null`) świadomie NIE jest onboardingiem: layout nie jest
+  // guardem, a każdy ekran i tak sam odsyła na logowanie — traktowanie braku
+  // sesji jak braku organizacji tylko zamazywałoby te dwa różne stany.
+  const onboarding = Boolean(ctx) && !ctx?.tenantId;
+
   // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
   // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
   // — gasimy TREŚĆ, nie trasę (wzorzec ADR-133; zero redirectów = zero
@@ -139,11 +147,11 @@ export default async function PanelLayout({
             <SidebarToggle />
           </div>
         </div>
-        <SidebarNav closing={closing} />
+        <SidebarNav closing={closing} onboarding={onboarding} />
         <SuperadminEntry superadmin={Boolean(ctx?.superadmin)} label={t("superadminPanel")} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <PanelTopbar userEmail={ctx?.user.email ?? ""} closing={closing} />
+        <PanelTopbar userEmail={ctx?.user.email ?? ""} closing={closing} onboarding={onboarding} />
         {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
             najemcę zostaje w panelu (zasada 3), sklep działa; w oknie
             domykania baner niesie licznik dni. Fail-silent, nie guard. */}

@@ -32,6 +32,7 @@
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { clientIpFromHeaders } from "@avably/security/client-ip";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
 
 import { logAuthProviderError } from "@/app/[locale]/(auth)/auth-error";
@@ -56,8 +57,16 @@ export async function resendConfirmationAction(
     return { error: parsed.error.issues[0]?.message ?? "Podaj poprawny adres e-mail." };
   }
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "unknown";
-  const rateLimit = await checkRateLimit(`resend-confirmation:${ip}`, {
+  // IP z ZAUFANEGO źródła (`x-real-ip` platformy / OSTATNI hop XFF), nie
+  // z gołego nagłówka. Goły `x-forwarded-for` jest deklaracją KLIENTA:
+  // dopisanie sobie dowolnego prefiksu dawało świeży kubełek przy każdym
+  // żądaniu, czyli limit istniał wyłącznie dla tych, którzy nie próbowali go
+  // obejść. Ta akcja WYSYŁA POCZTĘ na dowolny adres, więc obejście limitu to
+  // darmowa wyrzutnia wiadomości — jedyny taki endpoint w panelu (ADR-153).
+  // Reszta tras auth (login/register/reset/reset-confirm) przeszła na
+  // `clientIpFromHeaders` już w L2 (ADR-106); ta została pominięta.
+  const ip = clientIpFromHeaders(await headers());
+  const rateLimit = await checkRateLimit(`resend-confirmation:ip:${ip}`, {
     limit: 3,
     windowSeconds: 60,
     prefix: PANEL_AUTH_RATE_LIMIT_PREFIX,

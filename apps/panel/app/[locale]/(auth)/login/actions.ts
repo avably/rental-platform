@@ -71,7 +71,20 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     password: parsed.data.password,
   });
   if (error) {
-    return { error: "Nieprawidłowy e-mail lub hasło." };
+    // JEDEN KOMUNIKAT NA WSZYSTKIE ODMOWY DOSTAWCY (ADR-153, N3) — bez
+    // rozgałęzienia po `error.code`, celowo. `invalid_credentials` (zły adres
+    // albo złe hasło) i `email_not_confirmed` MUSZĄ brzmieć identycznie:
+    // osobny komunikat dla niepotwierdzonego adresu ujawniałby, że konto pod
+    // tym adresem ISTNIEJE, a przy okazji — że podane hasło było POPRAWNE
+    // (dostawca zwraca ten kod dopiero po sprawdzeniu hasła). To byłaby
+    // wyrocznia enumeracji kont i weryfikacji haseł w jednym.
+    //
+    // Zmieniło się BRZMIENIE, nie klasyfikacja: „nieprawidłowy e-mail lub
+    // hasło" było po prostu NIEPRAWDĄ dla człowieka z poprawnym hasłem
+    // i niepotwierdzonym adresem. Nowy tekst nazywa oba przypadki, a drogę
+    // wyjścia do obu dokłada formularz (ponowna wysyłka linku / reset hasła).
+    const t = await getTranslations("login");
+    return { error: t("signInFailed") };
   }
 
   if (next) {

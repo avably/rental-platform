@@ -161,6 +161,20 @@ function analyze(tree: unknown): { types: unknown[]; texts: string[] } {
   return out;
 }
 
+/** Wszystkie `href` z drzewa — dowód, DOKĄD ekran prowadzi (wzorzec home-page). */
+function collectHrefs(node: unknown, found: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const child of node) collectHrefs(child, found);
+    return found;
+  }
+  if (!node || typeof node !== "object") return found;
+  const props = (node as { props?: Record<string, unknown> }).props;
+  if (!props) return found;
+  if (typeof props.href === "string") found.push(props.href);
+  collectHrefs(props.children, found);
+  return found;
+}
+
 describe("pulpit `/` — statusy zamykające gaszą TREŚĆ, nie trasę (ADR-133)", () => {
   it.each([...PANEL_CLOSED_STATUSES])(
     "status %s → zero metryk (brak DashboardSections), komunikat o stanie konta",
@@ -227,15 +241,41 @@ describe("pulpit `/` — statusy zamykające gaszą TREŚĆ, nie trasę (ADR-133
 });
 
 describe("pulpit `/` — regresja onboardingu i anomalie (ADR-133)", () => {
-  it("sesja bez organizacji: placeholder, zero zapytań do bazy, zero przekierowań", async () => {
+  it("sesja bez organizacji: ekran onboardingu, zero zapytań do bazy, zero przekierowań", async () => {
     setSession({ sub: "u-bez-org", app_metadata: {} });
 
     const { types, texts } = analyze(await Home());
 
-    expect(texts).toContain("placeholderTitle");
+    expect(texts).toContain("onboardingTitle");
     expect(types).not.toContain(DashboardSections);
     expect(texts).not.toContain("suspendedTitle");
     expect(reads).toEqual([]);
+  });
+
+  /**
+   * KONIEC PĘTLI (ADR-153, N4). Pulpit odsyłał konto bez organizacji „do
+   * zamówień", a `requireMemberPage` odsyłało je z zamówień z powrotem tutaj.
+   * Ekran musi prowadzić do JEDYNEJ czynności, którą takie konto może
+   * wykonać — i do niczego innego.
+   */
+  it("sesja bez organizacji: CTA prowadzi na /organizacja/nowa, a NIE na /zamowienia", async () => {
+    setSession({ sub: "u-bez-org", app_metadata: {} });
+
+    const hrefs = collectHrefs(await Home());
+
+    expect(hrefs, "ekran onboardingu nie prowadzi do zakładania organizacji").toContain(
+      "/organizacja/nowa",
+    );
+    expect(hrefs, "pętla pulpit ↔ zamówienia wciąż żyje").not.toContain("/zamowienia");
+  });
+
+  it("kontrola pozytywna: sesja Z organizacją NIE dostaje CTA onboardingu", async () => {
+    setSession(memberClaims, { status: "active" });
+
+    const hrefs = collectHrefs(await Home());
+
+    expect(hrefs).toContain("/zamowienia");
+    expect(hrefs).not.toContain("/organizacja/nowa");
   });
 
   it("superadmin bez organizacji: placeholder z wejściem do /admin, zero zapytań", async () => {
@@ -243,7 +283,7 @@ describe("pulpit `/` — regresja onboardingu i anomalie (ADR-133)", () => {
 
     const { texts } = analyze(await Home());
 
-    expect(texts).toContain("placeholderTitle");
+    expect(texts).toContain("onboardingTitle");
     expect(reads).toEqual([]);
   });
 

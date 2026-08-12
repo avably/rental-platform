@@ -174,6 +174,9 @@ export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
 const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
+  // PRZED `/organizacja/nowa` — `panelTitleKey` bierze PIERWSZE dopasowanie,
+  // a dopasowanie jest prefiksowe, więc wpis ogólniejszy przykryłby ten.
+  { path: "/organizacja/nowa/gotowe", labelKey: "organizationCreated" },
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
   { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
   // /ustawienia-api NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma

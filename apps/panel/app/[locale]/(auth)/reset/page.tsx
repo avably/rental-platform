@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { Link } from "@/i18n/navigation";
+
 import { AuthCaptchaField } from "../captcha-field";
 import { resetRequestAction, type ResetRequestState } from "./actions";
 
@@ -30,8 +32,16 @@ export default function ResetRequestPage() {
         {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
             (semantyka włączenia — L2/ADR-106). */}
         <AuthCaptchaField resetSignal={state} />
-        {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
-        {state.success ? <p className="text-sm text-green-700">{state.success}</p> : null}
+        {state.error ? (
+          <p role="alert" className="text-destructive text-sm">
+            {state.error}
+          </p>
+        ) : null}
+        {state.success ? (
+          <p role="status" className="text-status-positive-fg text-sm">
+            {state.success}
+          </p>
+        ) : null}
         <button
           type="submit"
           aria-busy={pending || undefined}
@@ -41,6 +51,14 @@ export default function ResetRequestPage() {
           {pending ? t("submitPending") : t("submit")}
         </button>
       </form>
+      {/* WYJŚCIE Z EKRANU (ADR-153, N7): trasa resetu nie miała ANI JEDNEGO
+          odnośnika — kto tu trafił przez pomyłkę albo kto przypomniał sobie
+          hasło, zostawał z samym przyciskiem „wstecz" przeglądarki. */}
+      <p className="text-sm">
+        <Link href="/login" className="underline">
+          {t("backToLogin")}
+        </Link>
+      </p>
     </main>
   );
 }
