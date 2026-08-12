@@ -20,8 +20,12 @@
  *      kontaktu nie ma, staje się `/store#kontakt`. Odnośnik, który nie robi
  *      nic, jest awarią CICHĄ: bez błędu, bez zmiany adresu, bez śladu.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { DEFAULT_SITE_STYLE, presetContentFor } from "@avably/core/site";
 import type { PublishedSection, PublishedSite } from "@avably/core/site";
+import { SiteRenderer } from "@avably/ui";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -113,6 +117,51 @@ describe("powłoka podstrony rysuje stopkę", () => {
     expect(main, "render bez `<main>` — asercja niżej byłaby po pustym zbiorze").toBeTruthy();
     expect(main!).not.toContain("<footer");
     expect(main!).not.toContain(NAZWA_FIRMY);
+  });
+});
+
+describe("strona katalogu rysuje stopkę DOKŁADNIE RAZ", () => {
+  /**
+   * Przeniesienie stopki do powłoki miało jedno oczywiste ryzyko: trasa
+   * katalogu rysuje listę sekcji, a powłoka dokłada przypięte — więc gdyby
+   * trasa dalej podawała KOMPLET, klient dostałby dwie stopki i dwa landmarki
+   * `contentinfo`. Składamy tu dokument dokładnie tak, jak składa go trasa.
+   */
+  it("powłoka + sekcje strony dają jedną stopkę i jeden landmark", async () => {
+    const copy = await getStorefrontCopy("pl");
+    const site = strona();
+    const html = renderToStaticMarkup(
+      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site}>
+        <main>
+          <SiteRenderer sections={pageSections(site) as never} asRoot={false} anchors />
+        </main>
+      </StoreChrome>,
+    );
+    // Kontrola pozytywna: sekcje strony NAPRAWDĘ się wyrenderowały.
+    expect(html).toContain(NAZWA_FIRMY);
+    expect(html.match(/<section\b/g)?.length ?? 0).toBeGreaterThan(0);
+    expect(html.match(/<footer\b/g) ?? []).toHaveLength(1);
+    // Nazwa firmy występuje WYŁĄCZNIE w stopce (w niej dwa razy: jako napis
+    // i jako dostępna nazwa nawigacji) — poza nią nie ma jej ani razu.
+    const pozaStopka = html.replace(/<footer\b[\s\S]*<\/footer>/, "");
+    expect(pozaStopka).not.toContain(NAZWA_FIRMY);
+  });
+
+  it("trasa katalogu podaje rendererowi SEKCJE STRONY, a nie komplet", () => {
+    /*
+     * Domknięcie od strony ŹRÓDŁA: gdyby trasa wróciła do `site.sections`,
+     * asercja wyżej dalej byłaby zielona (składamy dokument sami), a klient
+     * dostałby dwie stopki. Kontrakt czyta WYWOŁANIE bez komentarzy — proza
+     * obok flagi spełniłaby skan po całym pliku także po zniknięciu kodu.
+     */
+    const trasa = readFileSync(resolve(process.cwd(), "app/(tenant)/store/page.tsx"), "utf8");
+    const kod = trasa.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/[^\n]*/g, "$1");
+    expect(kod, "trasa katalogu przestała wołać podział sekcji").toContain("pageSections(site)");
+    const wywolania = kod.match(/<SiteRenderer[\s\S]*?\/>/g) ?? [];
+    expect(wywolania).toHaveLength(1);
+    expect(wywolania[0], "renderer strony dostaje KOMPLET sekcji — stopka zdublowałaby się").not.toMatch(
+      /sections=\{site\.sections\}/,
+    );
   });
 });
 
