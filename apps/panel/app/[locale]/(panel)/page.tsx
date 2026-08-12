@@ -28,8 +28,8 @@ import { DashboardSections } from "./dashboard-sections";
  * `requireMemberPage` — strona musi zostać dostępna dla zalogowanego BEZ
  * organizacji, bo to ona kieruje go do zakładania firmy, a `requireMemberPage`
  * odsyła taką sesję właśnie tutaj (byłaby pętla przekierowań). Sesja bez
- * tenanta dostaje dotychczasową zapowiedź, nie dashboard — nie ma czego
- * liczyć bez organizacji.
+ * tenanta dostaje ekran onboardingu z wejściem na `/organizacja/nowa`
+ * (ADR-153, N4), nie dashboard — nie ma czego liczyć bez organizacji.
  *
  * BRAMKA STATUSU TREŚCI (ADR-133). Gdy sesja MA organizację, o rendering
  * metryk pyta TEN SAM rdzeń co każda trasa tenancka (`requireMemberWithClient`,
@@ -83,7 +83,7 @@ export default async function Home() {
     return (
       <div>
         <h2 className="text-2xl font-semibold tracking-[-0.02em]">{t("onboardingTitle")}</h2>
-        <p className="text-muted-foreground mt-3 max-w-prose text-sm">{t("onboardingBody")}</p>
+        <p className="text-muted-foreground mt-3 text-sm">{t("onboardingBody")}</p>
         <Link
           href="/organizacja/nowa"
           data-onboarding-cta

@@ -65,7 +65,7 @@ export default async function TenantCreatedPage() {
         <h2 className="text-2xl font-semibold tracking-[-0.02em]">
           {t("title", { name: tenant.name })}
         </h2>
-        <p className="text-muted-foreground mt-3 max-w-prose text-sm">{t("body")}</p>
+        <p className="text-muted-foreground mt-3 text-sm">{t("body")}</p>
       </div>
 
       <dl className="border-border flex flex-col gap-4 rounded-md border p-4">
