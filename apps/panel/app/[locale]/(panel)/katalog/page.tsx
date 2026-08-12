@@ -2,47 +2,81 @@ import { Button } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
+import { productsFilterSchema } from "@/lib/catalog-validation";
+import { CATALOG_PAGE_LIMIT, fetchCatalogList } from "@/lib/catalog/list-query";
+import { filterProductsByStatus, filterProductsBySearch } from "@/lib/catalog/product-search";
+import { resolveProductSort, sortProducts } from "@/lib/catalog/product-sort";
 import { requireMemberPage } from "@/lib/member-page";
+import { warsawToday } from "@/lib/orders/order-dates";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
-import { CatalogEmptyState } from "./catalog-empty-state";
-import { ProductsTable, type ProductsTableRow } from "./products-table";
+import { CatalogEmptyState, CatalogNoResultsState } from "./catalog-empty-state";
+import { CatalogToolbar } from "./catalog-toolbar";
+import { ProductsTable } from "./products-table";
 
-interface ProductRow {
-  id: string;
-  name: string;
-  base_price_day_grosze: number;
-  deposit_grosze: number;
-  active: boolean;
-  product_units: { count: number }[];
-}
-
-export default async function CatalogPage() {
+/**
+ * Lista katalogu (U8a, ADR-145).
+ *
+ * Ekran jest server componentem: czyta bazę pod RLS tenanta
+ * (`lib/catalog/list-query.ts` — jedyne miejsce z zapytaniami), a cała
+ * interaktywność (fraza, filtr publikacji, sort) żyje w URL. Produktów nie da
+ * się tu zaznaczać ani masowo przetwarzać, więc — jak lista klientów — ekran
+ * nie potrzebuje warstwy klienta.
+ *
+ * „DZIŚ W TERENIE" liczymy z pozycji zamówień w statusie `picked_up`, których
+ * zakres dat obejmuje dziś (definicja i uzasadnienie:
+ * `lib/catalog/deployed-today.ts`). „Dziś" to Europe/Warsaw, nie UTC — to jest
+ * pojęcie operatora stojącego za ladą, a północ UTC potrafi cofnąć dzień
+ * względem tego, co on widzi na zegarze.
+ */
+export default async function CatalogPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await requireMemberPage("/katalog");
 
-  // Zapytanie NIETKNIĘTE co do znaku względem stanu sprzed restylingu:
-  // te same kolumny, ten sam filtr tenanta, to samo sortowanie.
-  const { data: products } = await ctx.supabase
-    .from("products")
-    .select("id, name, base_price_day_grosze, deposit_grosze, active, product_units(count)")
-    .eq("tenant_id", ctx.tenantId)
-    .order("name", { ascending: true });
+  const params = await searchParams;
+  const single = (value: string | string[] | undefined) =>
+    typeof value === "string" ? value : undefined;
+  // Błędny filtr jest ignorowany (catch → undefined), nie błędem strony.
+  const filter = productsFilterSchema.parse({
+    q: single(params.q),
+    status: single(params.status),
+    sort: single(params.sort),
+    dir: single(params.dir),
+  });
+
+  const { rows: allRows, capped, hasAnyProducts } = await fetchCatalogList(
+    ctx.supabase,
+    ctx.tenantId!,
+    {
+      today: warsawToday(),
+      // Baza publicznych URL-i Storage. NEXT_PUBLIC_SUPABASE_URL jest
+      // wstrzykiwane build-time — miniatura to goły URL publiczny, bez
+      // transformacji zależnej od planu hostingu (ADR-145).
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    },
+  );
 
   const currency = await getTenantCurrency(ctx.supabase, ctx.tenantId!);
   const locale = await getLocale();
   const t = await getTranslations("catalog.list");
   const tImport = await getTranslations("catalogImport");
 
-  const rows = ((products ?? []) as ProductRow[]).map(
-    (product): ProductsTableRow => ({
-      id: product.id,
-      name: product.name,
-      basePriceDayGrosze: product.base_price_day_grosze,
-      depositGrosze: product.deposit_grosze,
-      active: product.active,
-      unitCount: product.product_units[0]?.count ?? 0,
-    }),
+  const sort = resolveProductSort(filter.sort, filter.dir);
+  const visibleRows = sortProducts(
+    filterProductsBySearch(filterProductsByStatus(allRows, filter.status), filter.q ?? ""),
+    sort,
+    locale,
   );
+
+  const baseParams: Record<string, string | undefined> = {
+    q: filter.q,
+    status: filter.status,
+    sort: filter.sort,
+    dir: filter.dir,
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,10 +97,28 @@ export default async function CatalogPage() {
         </div>
       </header>
 
-      {rows.length === 0 ? (
-        <CatalogEmptyState />
+      {hasAnyProducts ? (
+        <>
+          <CatalogToolbar filter={filter} resultCount={visibleRows.length} />
+          {capped ? (
+            <p className="text-muted-foreground text-sm" data-catalog-cap>
+              {t("cap", { count: CATALOG_PAGE_LIMIT })}
+            </p>
+          ) : null}
+          {visibleRows.length === 0 ? (
+            <CatalogNoResultsState />
+          ) : (
+            <ProductsTable
+              rows={visibleRows}
+              currency={currency}
+              locale={locale}
+              sort={sort}
+              baseParams={baseParams}
+            />
+          )}
+        </>
       ) : (
-        <ProductsTable rows={rows} currency={currency} locale={locale} />
+        <CatalogEmptyState />
       )}
     </div>
   );

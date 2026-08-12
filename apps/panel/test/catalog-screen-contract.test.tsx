@@ -25,6 +25,7 @@ vi.mock("@/i18n/navigation", () => ({
 
 const { ProductsTable } = await import("@/app/[locale]/(panel)/katalog/products-table");
 const { ProductForm } = await import("@/app/[locale]/(panel)/katalog/product-form");
+const { resolveProductSort } = await import("@/lib/catalog/product-sort");
 const { statusSemantics } = await import("@avably/ui");
 
 const rows = [
@@ -35,6 +36,11 @@ const rows = [
     depositGrosze: 120000,
     active: true,
     unitCount: 3,
+    deployedToday: 1,
+    thumbnail: {
+      url: "http://127.0.0.1:54321/storage/v1/object/public/product-images/t/p/a.jpg",
+      alt: "Nagrzewnica na stojaku",
+    },
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -43,12 +49,16 @@ const rows = [
     depositGrosze: 150000,
     active: false,
     unitCount: 0,
+    deployedToday: 0,
+    thumbnail: null,
   },
 ];
 
+const sort = resolveProductSort(undefined, undefined);
+
 const tableHtml = renderToStaticMarkup(
   <NextIntlClientProvider locale="pl" messages={messages}>
-    <ProductsTable rows={rows} currency="PLN" locale="pl" />
+    <ProductsTable rows={rows} currency="PLN" locale="pl" sort={sort} baseParams={{}} />
   </NextIntlClientProvider>,
 );
 
@@ -98,7 +108,7 @@ describe("kontrakt renderu ekranów katalogu", () => {
   it("kolumny liczbowe niosą cyfry tabelaryczne", () => {
     // Kwoty i liczniki muszą się układać w pion — bez `tabular-nums` kolumna
     // „chwieje się" między wierszami (ADR-053 D3).
-    for (const cell of ["price", "deposit", "units"]) {
+    for (const cell of ["price", "deposit", "units", "deployed"]) {
       const tags = cellTags(cell);
       expect(tags, `brak komórek ${cell}`).toHaveLength(rows.length);
       for (const tag of tags) {
@@ -134,6 +144,59 @@ describe("kontrakt renderu ekranów katalogu", () => {
   it("status zawsze niesie TEKST, nie sam kolor", () => {
     expect(tableHtml).toContain(messages.catalog.list.activeYes);
     expect(tableHtml).toContain(messages.catalog.list.activeNo);
+  });
+
+  it("„dziś w terenie” jest OSOBNĄ osią od publikacji, nie tą samą (U8a)", () => {
+    // Kontrola po pustym zbiorze: najpierw upewniamy się, że komórka
+    // W OGÓLE się wyrenderowała, potem asertujemy o jej treści.
+    const deployed = [...tableHtml.matchAll(/<span[^>]*data-catalog-axis="deployment"[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    expect(deployed, "brak komórek osi deployment").toHaveLength(rows.length);
+    // Produkt z 1 sztuką w terenie z 3 → „partial"; produkt bez wydań → „none".
+    expect(deployed[0]).toContain('data-catalog-value="partial"');
+    expect(deployed[1]).toContain('data-catalog-value="none"');
+    // Osie NIE dzielą wartości: gdyby ktoś oznaczył kolumnę „w terenie"
+    // istniejącą osią `availability`, w produkcie stanęłyby dwie różne liczby
+    // pod jedną nazwą (pułapka zamykana ADR-140).
+    for (const chip of deployed) {
+      expect(chip).not.toContain('data-catalog-axis="availability"');
+    }
+    expect(Object.keys(statusSemantics)).toEqual(["order", "payment", "shipment"]);
+  });
+
+  it("liczba w terenie jest zapisana WSPÓLNIE z mianownikiem („1 z 3”)", () => {
+    // Sama liczba „1" nie mówi nic — dopiero „1 z 3" odpowiada na pytanie
+    // operatora „ile z sześciu rowerów jest dziś w terenie".
+    expect(tableHtml).toContain("1 z 3");
+    // Produkt BEZ egzemplarzy nie udaje „0 z 0" — pokazuje myślnik.
+    expect(tableHtml).toContain(messages.catalog.list.deployedNone);
+    expect(tableHtml).not.toContain("0 z 0");
+  });
+
+  it("miniatura ma alt z opisu, a produkt bez zdjęcia dostaje PLACEHOLDER", () => {
+    const image = tableHtml.match(/<img[^>]*data-product-thumbnail="image"[^>]*>/)?.[0];
+    expect(image, "brak miniatury produktu ze zdjęciem").toBeDefined();
+    expect(image).toContain('alt="Nagrzewnica na stojaku"');
+    expect(image).toContain("/storage/v1/object/public/product-images/");
+    // Goły URL publiczny, NIE transformacja zależna od planu hostingu (ADR-145).
+    expect(image).not.toContain("/render/image/");
+    // Produkt bez zdjęcia: kafelek zastępczy, nie dziura w kolumnie.
+    const placeholders = [
+      ...tableHtml.matchAll(/<span[^>]*data-product-thumbnail="placeholder"[^>]*>/g),
+    ];
+    expect(placeholders).toHaveLength(1);
+  });
+
+  it("nagłówki sortowalne niosą aria-sort, a nie samą strzałkę", () => {
+    // Domyślny sort to „nazwa" rosnąco — dokładnie jeden nagłówek jest aktywny.
+    const ascending = [...tableHtml.matchAll(/aria-sort="ascending"/g)];
+    expect(ascending).toHaveLength(1);
+    const none = [...tableHtml.matchAll(/aria-sort="none"/g)];
+    expect(none, "sortowalne kolumny bez stanu aria-sort").toHaveLength(3);
+    for (const key of ["nazwa", "cena", "egzemplarze", "teren"]) {
+      expect(tableHtml, `brak nagłówka sortu ${key}`).toContain(`data-sort-key="${key}"`);
+    }
   });
 
   it("formularz produktu pokazuje KONKRETNY błąd pod polem, z powiązaniem aria", () => {

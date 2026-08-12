@@ -419,6 +419,18 @@
       "colActive": "Status",
       "colUnits": "Egzemplarze",
       "colActions": "Akcje",
+      "colThumbnail": "Zdjęcie",
+      "colDeployed": "Dziś w terenie",
+      "deployedOf": "{deployed} z {total}",
+      "deployedNone": "—",
+      "searchLabel": "Szukaj produktów",
+      "searchPlaceholder": "Szukaj po nazwie produktu…",
+      "results": "{count, plural, one {# pozycja} few {# pozycje} many {# pozycji} other {# pozycji}}",
+      "cap": "Pokazujemy pierwszych {count} produktów. Zawęź wyszukiwaniem, aby znaleźć pozostałe.",
+      "sortBy": "Sortuj po: {column}",
+      "filterAll": "Wszystkie",
+      "filterActive": "Aktywne",
+      "filterInactive": "Nieaktywne",
       "activeYes": "Aktywny",
       "activeNo": "Nieaktywny",
       "unitsLink": "Egzemplarze",
@@ -520,7 +532,10 @@
       "previewAppliedTier": "próg: {days} dni"
     },
     "emptyState": {
-      "title": "Pusty magazyn. Dodaj pierwszy produkt."
+      "title": "Pusty magazyn. Dodaj pierwszy produkt.",
+      "noResultsTitle": "Żaden produkt nie pasuje do zawężenia.",
+      "noResultsBody": "Katalog nie jest pusty — to fraza albo wybrany status nic nie obejmują.",
+      "clearFilters": "Wyczyść zawężenie"
     }
   },
   "catalogImport": {
