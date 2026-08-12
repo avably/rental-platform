@@ -2,13 +2,20 @@ import { formatMoney } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { ScreenHeader } from "@/components/screens/screen-header";
+import { ScreenSection } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { saveTiersAction } from "./actions";
 import { TiersEditor } from "./tiers-editor";
 
+/**
+ * Zakładka „Progi cenowe" karty produktu.
+ *
+ * Powrót do produktu i nazwa rekordu przeniosły się do `../layout.tsx` (U8b,
+ * ADR-146) — powtarzanie ich na każdej podstronie sprawiało, że cztery widoki
+ * jednego rekordu wyglądały na cztery osobne ekrany.
+ */
 export default async function ProductTiersPage({
   params,
 }: {
@@ -19,7 +26,7 @@ export default async function ProductTiersPage({
 
   const { data: product } = await ctx.supabase
     .from("products")
-    .select("id, name, base_price_day_grosze, deposit_grosze, auto_increment_multiplier")
+    .select("id, base_price_day_grosze, deposit_grosze, auto_increment_multiplier")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
     .maybeSingle();
@@ -38,14 +45,7 @@ export default async function ProductTiersPage({
   const t = await getTranslations("catalog.tiers");
 
   return (
-    <div className="flex flex-col gap-4">
-      <ScreenHeader
-        back={{
-          href: `/katalog/${product.id}`,
-          label: t("backToProduct", { name: product.name }),
-        }}
-        title={t("title", { name: product.name })}
-      />
+    <ScreenSection title={t("heading")}>
       <div className="flex flex-col gap-1.5">
         <p className="text-muted-foreground text-sm">
           {t("basePriceInfo", {
@@ -70,6 +70,6 @@ export default async function ProductTiersPage({
           sortOrder: String(tier.sort_order),
         }))}
       />
-    </div>
+    </ScreenSection>
   );
 }

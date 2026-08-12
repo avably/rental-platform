@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { ScreenHeader } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import { updateImageAction } from "./actions";
@@ -13,6 +12,14 @@ import {
 
 const BUCKET = "product-images";
 
+/**
+ * Zakładka „Zdjęcia" karty produktu.
+ *
+ * Powrót do produktu i nazwa rekordu przeniosły się do `../layout.tsx` (U8b,
+ * ADR-146). Miniatury zostają na TRANSFORMACJI obrazów Supabase — świadoma
+ * różnica wobec listy i karty (ADR-145): to ekran rzadki, na którym
+ * degradacja przy planie hostingu bez transformacji jest do przyjęcia.
+ */
 export default async function ProductImagesPage({
   params,
 }: {
@@ -23,7 +30,7 @@ export default async function ProductImagesPage({
 
   const { data: product } = await ctx.supabase
     .from("products")
-    .select("id, name")
+    .select("id")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
     .maybeSingle();
@@ -54,14 +61,8 @@ export default async function ProductImagesPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <ScreenHeader
-        back={{
-          href: `/katalog/${product.id}`,
-          label: t("backToProduct", { name: product.name }),
-        }}
-        title={t("title", { name: product.name })}
-      />
-
+      {/* Formularz wgrywania niesie WŁASNĄ kartę i własny nagłówek — drugie
+          opakowanie dałoby ramkę w ramce. */}
       <UploadImageForm
         prepare={prepareProductImageUploadAction.bind(null, product.id)}
         finalize={finalizeProductImageUploadAction}

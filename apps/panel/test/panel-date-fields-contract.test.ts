@@ -108,7 +108,10 @@ describe("kontrakt pól daty — wszystkie ekrany tenanta", () => {
       "extension-form.tsx",
       "orders-date-filter.tsx",
       "term-calendar.tsx",
-      "unit-forms.tsx",
+      // U8b: `unit-forms.tsx` (N formularzy, każdy z własnym oknem serwisowym)
+      // zastąpił `units-editor.tsx` — jedna tabela, jeden zapis. Konsument pól
+      // dat jest ten sam co do liczby: okno serwisowe egzemplarza.
+      "units-editor.tsx",
     ]);
   });
 

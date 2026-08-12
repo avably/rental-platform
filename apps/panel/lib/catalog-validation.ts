@@ -110,34 +110,95 @@ const optionalIsoDateSchema = z.string().transform((raw, ctx) => {
   return trimmed;
 });
 
-export const unitSchema = z
-  .object({
-    serialNumber: optionalTextSchema(100),
-    unavailableFrom: optionalIsoDateSchema,
-    unavailableTo: optionalIsoDateSchema,
-    unavailableReason: optionalTextSchema(500),
-  })
-  // Lustro CHECK-a product_units_unavailable_range_complete (0007): okno
-  // niedostępności jest albo pełne, albo nie ma go wcale.
-  .refine((unit) => (unit.unavailableFrom === null) === (unit.unavailableTo === null), {
-    message:
-      "Okno serwisowe wymaga OBU dat (od i do) albo żadnej — samo „od” lub samo „do” nie określa okna.",
-    path: ["unavailableTo"],
-  })
-  // Lustro product_units_unavailable_range_ordered: zakres inclusive,
-  // od = do (serwis jednodniowy) jest poprawne.
+const unitFieldsSchema = z.object({
+  serialNumber: optionalTextSchema(100),
+  unavailableFrom: optionalIsoDateSchema,
+  unavailableTo: optionalIsoDateSchema,
+  unavailableReason: optionalTextSchema(500),
+});
+
+/** Kształt, na którym pracują reguły okna serwisowego (wiersz i zbiorczy wiersz). */
+type ServiceWindow = { unavailableFrom: string | null; unavailableTo: string | null };
+
+const WINDOW_COMPLETE_MESSAGE =
+  "Okno serwisowe wymaga OBU dat (od i do) albo żadnej — samo „od” lub samo „do” nie określa okna.";
+const WINDOW_ORDERED_MESSAGE = "Koniec okna serwisowego nie może być wcześniejszy niż początek.";
+
+// Lustro CHECK-a product_units_unavailable_range_complete (0007): okno
+// niedostępności jest albo pełne, albo nie ma go wcale.
+const windowComplete = (unit: ServiceWindow) =>
+  (unit.unavailableFrom === null) === (unit.unavailableTo === null);
+
+// Lustro product_units_unavailable_range_ordered: zakres inclusive,
+// od = do (serwis jednodniowy) jest poprawne.
+const windowOrdered = (unit: ServiceWindow) =>
+  unit.unavailableFrom === null ||
+  unit.unavailableTo === null ||
+  unit.unavailableTo >= unit.unavailableFrom;
+
+export const unitSchema = unitFieldsSchema
+  .refine(windowComplete, { message: WINDOW_COMPLETE_MESSAGE, path: ["unavailableTo"] })
+  .refine(windowOrdered, { message: WINDOW_ORDERED_MESSAGE, path: ["unavailableTo"] });
+
+export type UnitInput = z.infer<typeof unitSchema>;
+
+/**
+ * Wiersz ZBIORCZEGO edytora egzemplarzy (U8b).
+ *
+ * `id` rozstrzyga los wiersza: UUID = egzemplarz istniejący (UPDATE), brak
+ * albo `null` = wiersz dołożony w edytorze (INSERT). Klient nie wysyła
+ * żadnej flagi „nowy/stary" — jedno źródło prawdy zamiast dwóch, które
+ * mogłyby się rozjechać.
+ */
+const unitRowSchema = unitFieldsSchema
+  .extend({ id: uuidSchema.nullish() })
+  .refine(windowComplete, { message: WINDOW_COMPLETE_MESSAGE, path: ["unavailableTo"] })
+  .refine(windowOrdered, { message: WINDOW_ORDERED_MESSAGE, path: ["unavailableTo"] });
+
+/** Wspólny parser JSON-a z ukrytego pola formularza (wzorzec `tiersSchema`). */
+const jsonFieldSchema = (message: string) =>
+  z.string().transform((raw, ctx) => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+
+/**
+ * KOMPLET egzemplarzy produktu z edytora zbiorczego (U8b).
+ *
+ * Duplikat numeru seryjnego łapiemy TU, przed bazą: częściowy unikat
+ * `product_units_serial_key` (0007) i tak by go odrzucił, ale jego 23505 nie
+ * mówi operatorowi, KTÓRY z dwunastu wierszy jest zdublowany. Egzemplarze bez
+ * numeru (sprzęt nieoznaczony) są normalne i musi ich być wiele — dlatego
+ * unikalność liczy się WYŁĄCZNIE dla numerów wpisanych, dokładnie jak indeks
+ * częściowy w bazie.
+ */
+export const unitsSchema = jsonFieldSchema("Nieprawidłowe dane egzemplarzy.")
+  .pipe(z.array(unitRowSchema).max(500, "Zbyt wiele egzemplarzy (maksymalnie 500)."))
   .refine(
-    (unit) =>
-      unit.unavailableFrom === null ||
-      unit.unavailableTo === null ||
-      unit.unavailableTo >= unit.unavailableFrom,
+    (rows) => {
+      const serials = rows
+        .map((row) => row.serialNumber)
+        .filter((serial): serial is string => serial !== null);
+      return new Set(serials).size === serials.length;
+    },
     {
-      message: "Koniec okna serwisowego nie może być wcześniejszy niż początek.",
-      path: ["unavailableTo"],
+      message:
+        "Dwa egzemplarze mają ten sam numer seryjny — numer musi być unikalny w obrębie produktu.",
     },
   );
 
-export type UnitInput = z.infer<typeof unitSchema>;
+export type UnitsInput = z.infer<typeof unitsSchema>;
+
+/** Identyfikatory egzemplarzy zdjętych w edytorze — do usunięcia przy zapisie. */
+export const unitIdsSchema = jsonFieldSchema("Nieprawidłowe dane usuwanych egzemplarzy.").pipe(
+  z.array(uuidSchema).max(500, "Zbyt wiele egzemplarzy do usunięcia (maksymalnie 500)."),
+);
 
 // ---------------------------------------------------------------------
 // Progi cenowe
