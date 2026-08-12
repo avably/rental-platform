@@ -313,7 +313,7 @@ describe("okablowanie setupFiles — retry realnie zainstalowany w tej suicie", 
     "globalThis.fetch niesie znacznik instalacji retry",
     () => {
       const marker = Symbol.for("avably.testTransportRetryInstalled");
-      expect((globalThis.fetch as { [key: symbol]: unknown })[marker]).toBe(true);
+      expect((globalThis.fetch as unknown as { [key: symbol]: unknown })[marker]).toBe(true);
     },
   );
 });
