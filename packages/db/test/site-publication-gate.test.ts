@@ -845,15 +845,21 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
       expect(count, "bliźniaki sekcji starej strony zniknęły").toBeGreaterThan(0);
     }, 60_000);
 
-    it("dwie ŻYWE strony są NIEREPREZENTOWALNE — nawet rolą serwisową (23505)", async () => {
+    it("dwie ŻYWE strony pod TYM SAMYM adresem są NIEREPREZENTOWALNE — nawet rolą serwisową (23505)", async () => {
       // Rola serwisowa omija strażnika bliźniaków, więc to jest dowód na
       // poziomie DANYCH: niezmiennik trzyma po obejściu całej aplikacji.
+      // Od 0073 (ADR-157) niezmiennik jest liczony PO ADRESIE; obie strony mają
+      // slug pusty (strona główna), więc tu znaczy dokładnie to, co w 0048.
       const { error } = await admin
         .from("sites")
-        .update({ published_at: new Date().toISOString(), template_published: "classic" })
+        .update({
+          published_at: new Date().toISOString(),
+          template_published: "classic",
+          slug_published: "",
+        })
         .eq("id", siteAId);
       expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(PG_UNIQUE_VIOLATION);
-      expect(error?.message).toContain("sites_one_live_per_tenant_idx");
+      expect(error?.message).toContain("sites_live_slug_unique_idx");
     });
 
     it("USUNIĘCIE strony nieżywej nie rusza koperty ani o bajt", async () => {

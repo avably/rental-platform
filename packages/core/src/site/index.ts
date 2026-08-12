@@ -993,3 +993,23 @@ export {
   type RichText,
   type TextRun,
 } from "./rich-text";
+
+/**
+ * ADRES STRONY NAJEMCY (Faza 2, ADR-157) — slug, rezerwacje, kanon.
+ *
+ * Eksport stoi w wejściu `./site`, bo adres jest własnością STRONY, a nie
+ * katalogu: te same reguły czyta formularz w panelu, proxy sklepu i test
+ * lustra w pakiecie bazy.
+ */
+export {
+  HOME_PAGE_SLUG,
+  INTERNAL_PAGE_PREFIX,
+  PAGE_SLUG_MAX_LENGTH,
+  PAGE_SLUG_PATTERN,
+  RESERVED_PAGE_SLUGS,
+  internalPagePathname,
+  isReservedPageSlug,
+  isValidPageSlug,
+  pagePathFromSlug,
+  suggestPageSlug,
+} from "./page-slug";

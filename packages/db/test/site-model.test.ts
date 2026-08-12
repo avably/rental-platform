@@ -148,14 +148,23 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
     await admin.from("sites").delete().eq("id", data!.id as string);
   });
 
-  it("druga ŻYWA strona tego samego tenanta → 23505 (unikat częściowy 0048)", async () => {
+  it("druga ŻYWA strona pod TYM SAMYM adresem → 23505 (unikat częściowy 0073)", async () => {
     // Test jest SAMODZIELNY: sam czyni stronę A żywą i sam ją zdejmuje, żeby
     // nie zależeć od kolejności bloków w tym pliku. Wszystko rolą serwisową,
     // czyli Z POMINIĘCIEM strażnika bliźniaków — dowód ma dotyczyć DANYCH,
     // a nie tego, że akcja panelu jest grzeczna.
+    //
+    // Od 0073 (ADR-157) niezmiennik brzmi „najwyżej jedna żywa strona pod danym
+    // ADRESEM", a nie „najwyżej jedna żywa strona". Obie strony poniżej mają
+    // slug pusty (strona główna), więc dla tego przypadku jest to DOKŁADNIE
+    // ten sam niezmiennik, co w 0048.
     const { error: liveError } = await admin
       .from("sites")
-      .update({ published_at: new Date().toISOString(), template_published: "classic" })
+      .update({
+        published_at: new Date().toISOString(),
+        template_published: "classic",
+        slug_published: "",
+      })
       .eq("id", siteAId);
     expect(liveError, `nie udało się uczynić strony A żywą: ${liveError?.message}`).toBeNull();
 
@@ -164,9 +173,12 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
       name: "Druga żywa",
       published_at: new Date().toISOString(),
       template_published: "classic",
+      slug_published: "",
     });
     expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(PG_UNIQUE_VIOLATION);
-    expect(error?.message, "odmowa spoza unikatu żywej strony").toContain("sites_one_live_per_tenant_idx");
+    expect(error?.message, "odmowa spoza unikatu żywego adresu").toContain(
+      "sites_live_slug_unique_idx",
+    );
 
     // Stan wejściowy z powrotem — kolejne bloki publikują stronę A same.
     await admin
@@ -369,6 +381,10 @@ describe.skipIf(!hasEnv)("model sekcyjny storefrontu (0019)", () => {
           tenant_id: suspendedTenantId,
           published_at: new Date().toISOString(),
           template_published: "classic",
+          // Od 0073 (ADR-157) strona opublikowana MA opublikowany adres —
+          // CHECK sites_published_slug_complete czyni stan bez niego
+          // niereprezentowalnym także dla service_role.
+          slug_published: "",
         })
         .select("id")
         .single();

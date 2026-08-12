@@ -137,11 +137,24 @@ export interface Site {
   id: string;
   tenant_id: string;
   /**
-   * Nazwa WERSJI strony, widoczna wyłącznie na liście stron w panelu (0048,
-   * ADR-093). Dana czysto szkicowa: `app.get_published_site` jej nie czyta,
-   * więc nie ma bliźniaka `*_published` i nie wchodzi na listę strażnika.
+   * Nazwa strony, widoczna wyłącznie na liście stron w panelu (0048, ADR-093).
+   * Dana czysto szkicowa: `app.get_published_site` jej nie czyta, więc nie ma
+   * bliźniaka `*_published` i nie wchodzi na listę strażnika.
    */
   name: string;
+  /**
+   * ADRES SZKICU (0073, ADR-157): pusty string = strona główna (`/`), inaczej
+   * `/{slug}`. Do 0072 wiersz `sites` był WERSJĄ jednej strony; od 0073 jest
+   * STRONĄ i ma własny adres. Kształt pilnuje CHECK `sites_slug_shape`, listę
+   * zarezerwowanych — trigger `sites_slug_guard`.
+   */
+  slug: string;
+  /**
+   * ADRES OPUBLIKOWANY; NULL = strona nigdy nie opublikowana (ADR-091/157).
+   * Jedyna wartość, po której odczyt publiczny wskazuje stronę — zmiana sluga
+   * w szkicu NIE przenosi żywej strony pod nowy adres.
+   */
+  slug_published: string | null;
   /**
    * ZASTANE (przed ADR-090): szablon graficzny sprzed wprowadzenia stylu strony.
    * Kolumna SZKICU w rozumieniu ADR-091 (bliźniak `template_published` niżej),
@@ -156,8 +169,10 @@ export interface Site {
   /**
    * NULL = strona NIE JEST widoczna w sklepie; stawia i zdejmuje ją WYŁĄCZNIE
    * app.publish_site. Od 0048 (ADR-093) jest to zarazem JEDYNA prawda o tym,
-   * która z wersji strony tenanta jest żywa — pilnuje tego unikat częściowy
-   * `sites_one_live_per_tenant_idx`.
+   * która strona najemcy jest żywa — od 0073 (ADR-157) pilnuje tego unikat
+   * częściowy `sites_live_slug_unique_idx` PO ADRESIE (najwyżej jedna żywa
+   * strona pod danym slugiem; dla sluga pustego to ten sam niezmiennik, co
+   * dawne `sites_one_live_per_tenant_idx`).
    */
   published_at: string | null;
   /** Szablon OPUBLIKOWANY; NULL = strona nigdy nie opublikowana (ADR-091). */
