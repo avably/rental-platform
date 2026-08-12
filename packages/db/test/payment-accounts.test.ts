@@ -285,28 +285,70 @@ describe.skipIf(!hasEnv)("konto płatności najemcy (0028, ADR-065)", () => {
     });
 
     it("updated_at pisze BAZA, nie wołający", async () => {
-      const { data: before } = await admin
-        .from("payment_accounts")
-        .select("updated_at")
-        .eq("tenant_id", tenantId)
-        .single();
+      /*
+       * CZEGO TEN TEST **NIE** MIERZY (poprawka 2026-08-12).
+       *
+       * Do tej pory obok asercji o kłamliwej dacie stała asercja
+       * o monotoniczności: `after >= before`. Padała losowo, np.
+       * „expected 1786535985132 to be greater than or equal to 1786535985210".
+       * To nie był dryf zegara — oba znaczniki pochodzą z bazy. Trigger stawia
+       * `now()`, a `now()` w Postgresie to czas ROZPOCZĘCIA TRANSAKCJI, nie
+       * zapisu. Wiersz nie jest wyłączną własnością tego przypadku (ta sama
+       * żywa instancja obsługuje równoległe pliki), więc transakcja rozpoczęta
+       * WCZEŚNIEJ potrafi dojść do zapisu PÓŹNIEJ i zostawić znacznik starszy
+       * od poprzednio odczytanego. Uporządkowanie dwóch niezależnych transakcji
+       * nie wynika z kontraktu triggera — asercja mierzyła zbieg okoliczności,
+       * więc znika, a nie „dostaje większy margines".
+       *
+       * CO WYNIKA Z KONTRAKTU (migracja 0028: `new.updated_at := now()`):
+       * data podana przez wołającego nigdy nie ląduje w wierszu, a KAŻDY zapis
+       * dostaje świeży stempel bazy. Jedno i drugie da się sprawdzić bez
+       * porównywania zegarów i bez zakładania wyłączności wiersza.
+       */
+      const KLAMSTWO = "2000-01-01T00:00:00.000Z";
+      const instant = (row: { updated_at: unknown } | null): number =>
+        new Date(row!.updated_at as string).getTime();
+
+      const stan = async () =>
+        (
+          await admin
+            .from("payment_accounts")
+            .select("updated_at, last_error")
+            .eq("tenant_id", tenantId)
+            .single()
+        ).data;
 
       // Wołający podaje kłamliwą datę; bramka i tak stawia własną.
-      await staffClient
+      const pierwszy = await staffClient
         .from("payment_accounts")
-        .update({ updated_at: "2000-01-01T00:00:00.000Z", last_error: "próba" })
+        .update({ updated_at: KLAMSTWO, last_error: "próba pierwsza" })
         .eq("tenant_id", tenantId);
+      expect(pierwszy.error?.message ?? null).toBeNull();
 
-      const { data: after } = await admin
-        .from("payment_accounts")
-        .select("updated_at")
-        .eq("tenant_id", tenantId)
-        .single();
-
-      expect(new Date(after!.updated_at as string).getTime()).toBeGreaterThanOrEqual(
-        new Date(before!.updated_at as string).getTime(),
+      const po = await stan();
+      // KONTROLA POZYTYWNA: zapis naprawdę doszedł. Bez niej „nie ma tam
+      // kłamliwej daty" byłoby prawdą również wtedy, gdyby UPDATE odbiła
+      // polityka RLS i w wierszu nie zmieniło się NIC.
+      expect(po!.last_error, "UPDATE w ogóle nie doszedł do wiersza").toBe("próba pierwsza");
+      // Porównanie CHWILI, nie napisu: ten sam moment zapisany w innej strefie
+      // („…+01:00") przeszedłby porównanie tekstowe, choć jest tym kłamstwem.
+      expect(instant(po), "w wierszu wylądowała data wołającego").not.toBe(
+        new Date(KLAMSTWO).getTime(),
       );
-      expect(after!.updated_at).not.toBe("2000-01-01T00:00:00+00:00");
+
+      // Drugi zapis z INNYM kłamstwem: baza stempluje przy każdym UPDATE.
+      // Zabija mutanta „ignoruj wołającego i nie ruszaj znacznika" — on
+      // przeszedłby asercję wyżej, bo kłamstwa też by nie zapisał.
+      const drugi = await staffClient
+        .from("payment_accounts")
+        .update({ updated_at: "1999-12-31T23:59:59.000Z", last_error: "próba druga" })
+        .eq("tenant_id", tenantId);
+      expect(drugi.error?.message ?? null).toBeNull();
+
+      const poDrugim = await stan();
+      expect(poDrugim!.last_error).toBe("próba druga");
+      expect(instant(poDrugim)).not.toBe(new Date("1999-12-31T23:59:59.000Z").getTime());
+      expect(instant(poDrugim), "znacznik nie drgnął przy drugim zapisie").not.toBe(instant(po));
     });
 
     it("requirements_due musi być tablicą (23514)", async () => {
