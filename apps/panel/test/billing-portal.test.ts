@@ -114,15 +114,24 @@ describe.skipIf(!hasEnv)("Portal klienta — sesja tylko dla własnego klienta (
     return { tenantId: tenantId as string, supabase: await signIn(email) };
   }
 
-  async function seedSubscription(tenantId: string, customerId: string): Promise<void> {
+  async function seedSubscription(
+    tenantId: string,
+    customerId: string,
+    status = "active",
+  ): Promise<void> {
     const { error } = await admin.from("subscriptions").insert({
       tenant_id: tenantId,
       plan_id: "standard",
-      status: "active",
+      status,
       stripe_customer_id: customerId,
       stripe_subscription_id: `sub_${randomUUID().replace(/-/g, "").slice(0, 14)}`,
     });
     if (error) throw new Error(`seedSubscription: ${error.message}`);
+  }
+
+  async function setTenantStatus(tenantId: string, status: string): Promise<void> {
+    const { error } = await admin.from("tenants").update({ status }).eq("id", tenantId);
+    if (error) throw new Error(`setTenantStatus: ${error.message}`);
   }
 
   interface FakePortal extends BillingPortalClient {
@@ -224,6 +233,71 @@ describe.skipIf(!hasEnv)("Portal klienta — sesja tylko dla własnego klienta (
 
     expect(outcome).toEqual({ error: PORTAL_FOREIGN_CUSTOMER });
     expect(billing.calls.map((c) => c.method)).not.toContain("createBillingPortalSession");
+  });
+
+  /**
+   * NAJDROŻSZE MIEJSCE W TEJ PACZCE — dlatego ma własny blok i własną nazwę.
+   *
+   * Portal CELOWO nie sprawdza `MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES`, choć
+   * obie ścieżki zmiany abonamentu stoją na tym zbiorze w całości. Powód jest
+   * odwrotnością tamtej reguły: `billing-subscription.ts` ZMIENIA abonament,
+   * więc odmawia zadłużonym, bo droga z długu prowadzi przez zapłatę — a
+   * Portal JEST tą drogą. Najemca zawieszony ma subskrypcję `unpaid`, czyli
+   * ŻYWĄ, więc bramka W6 odmawia mu checkoutu; Portal zostaje jedynym
+   * miejscem, w którym wymieni kartę i opłaci zaległą fakturę.
+   *
+   * Bez tego testu pięć linii „uzupełniających zapomniane sprawdzenie"
+   * zamyka odzyskiwanie przychodu i NIC nie świeci na czerwono.
+   *
+   * Sonda jedzie po stanie ZASTANYM W BAZIE (status tenanta i status wiersza
+   * projekcji), nie po atrapie: gdyby ktoś dołożył bramkę na którymkolwiek
+   * z tych dwóch statusów, ten test go złapie.
+   */
+  describe("DECYZJA, NIE PRZEOCZENIE: Portal NIE bramkuje statusu subskrypcji", () => {
+    it.each([
+      ["unpaid", "suspended", "zawieszony za nieopłacenie — checkout odmawia bramką W6"],
+      ["past_due", "past_due", "po nieudanej racie — sklep działa, karta do wymiany"],
+    ] as const)(
+      "subskrypcja %s (tenant %s): sesja Portalu POWSTAJE — %s",
+      async (subscriptionStatus, tenantStatus, powod) => {
+        const { tenantId, supabase } = await createOwnerWithTenant(`pay-${subscriptionStatus}`);
+        const customerId = `cus_pay_${randomUUID().replace(/-/g, "").slice(0, 10)}`;
+        await seedSubscription(tenantId, customerId, subscriptionStatus);
+        await setTenantStatus(tenantId, tenantStatus);
+
+        const billing = fakePortal({ [customerId]: tenantId });
+        const outcome = await openBillingPortal({ supabase, billing }, input(tenantId));
+
+        // Sesja MUSI powstać — to jest cała treść tego testu. Powód jedzie
+        // w komunikacie asercji, żeby czerwony wynik mówił, CO się zamyka,
+        // a nie tylko „brak własności url".
+        expect(outcome, powod).toHaveProperty("url");
+        expect(billing.calls.map((c) => c.method), powod).toContain("createBillingPortalSession");
+        expect(
+          billing.calls.find((c) => c.method === "createBillingPortalSession")!.args[0],
+        ).toMatchObject({ customerId });
+      },
+    );
+
+    it("stan zastany w bazie jest TAKI, jak zakłada sonda (kontrola po pustym zbiorze)", async () => {
+      // Bez tej kontroli oba testy wyżej przechodziłyby także wtedy, gdyby
+      // zasiew cicho zapisał `active` — czyli badałyby szczęśliwą ścieżkę
+      // pod nazwą sondy zawieszenia.
+      const { tenantId } = await createOwnerWithTenant("pay-control");
+      const customerId = `cus_ctrl_${randomUUID().replace(/-/g, "").slice(0, 10)}`;
+      await seedSubscription(tenantId, customerId, "unpaid");
+      await setTenantStatus(tenantId, "suspended");
+
+      const { data } = await admin
+        .from("subscriptions")
+        .select("status, tenants(status)")
+        .eq("tenant_id", tenantId)
+        .single();
+      const row = data as { status: string; tenants: { status: string } | { status: string }[] };
+      const tenant = Array.isArray(row.tenants) ? row.tenants[0] : row.tenants;
+      expect(row.status).toBe("unpaid");
+      expect(tenant!.status).toBe("suspended");
+    });
   });
 
   it("komunikat odmowy nie cytuje żadnego identyfikatora dostawcy", async () => {

@@ -22,6 +22,27 @@
  * działa, gdy prawda po naszej stronie jest już przekłamana. Zdjęcie
  * którejkolwiek z nich pali imienny test w `billing-portal.test.ts`.
  *
+ * ============ BRAK BRAMKI STATUSU JEST DECYZJĄ, NIE PRZEOCZENIEM ============
+ *
+ * Ten rdzeń CELOWO nie sprawdza `MANAGEABLE_SAAS_SUBSCRIPTION_STATUSES`, choć
+ * sąsiedni `billing-subscription.ts` opiera się na tym zbiorze w całości.
+ * Tamten moduł ZMIENIA abonament, więc odmawia zadłużonym (`past_due`,
+ * `unpaid`) — droga z długu prowadzi przez zapłatę. Portal JEST tą drogą.
+ *
+ * Najemca zawieszony za nieopłacenie ma subskrypcję `unpaid`, a `unpaid` jest
+ * subskrypcją ŻYWĄ — więc bramka W6 checkoutu odmawia mu („organizacja ma już
+ * aktywną subskrypcję"). Portal zostaje JEDYNYM miejscem, w którym wymieni
+ * kartę i opłaci zaległą fakturę. Dopisanie tu bramki statusu — pięć linii,
+ * które wyglądają na uzupełnienie zapomnianego sprawdzenia — zamyka
+ * odzyskiwanie przychodu i nie zapala niczego poza testem, który tego pilnuje:
+ * „DECYZJA, NIE PRZEOCZENIE: Portal NIE bramkuje statusu subskrypcji"
+ * w `billing-portal.test.ts`. Jeśli czytasz to z zamiarem „uporządkowania" —
+ * to jest ten komentarz, którego szukałeś.
+ *
+ * Rolą Portal bramkowany JEST: `requireBillingOwner` (owner-only, przepuszcza
+ * `suspended`, odrzuca `superadmin_locked`/`cancelled`). Bramka jest na
+ * dostępie, nie na stanie rozliczeń.
+ *
  * CZEGO TU NIE MA: zapisu stanu. Portal potrafi anulować subskrypcję i
  * wymienić kartę, ale `public.subscriptions` i `tenants.status` przestawia
  * WYŁĄCZNIE webhook z odczytu (ADR-136) — powrót z Portalu niczego nie
