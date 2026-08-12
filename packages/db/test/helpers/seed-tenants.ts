@@ -451,6 +451,23 @@ async function createProduct(ctx: SeedCtx, tenantId: string): Promise<string> {
   });
 }
 
+/**
+ * Kategoria katalogu (0072) — ŚWIEŻA przy każdym wywołaniu. Nazwę obejmuje
+ * unikat (tenant_id, lower(btrim(name))), a slug unikat (tenant_id, slug),
+ * więc stała wartość dawałaby 23505 zamiast 42501 i fałszywą zieleń w macierzy.
+ * Slug musi przy tym przejść CHECK kształtu (małe litery, cyfry, myślniki)
+ * i NIE MOŻE trafić w app.reserved_store_paths() — prefiks `rls-test-` zamyka
+ * oba warunki.
+ */
+async function createCategory(ctx: SeedCtx, tenantId: string): Promise<string> {
+  const unique = randomUUID().slice(0, 8);
+  return insertReturningId(ctx, "catalog_categories", {
+    tenant_id: tenantId,
+    name: `RLS test category ${unique}`,
+    slug: `rls-test-category-${unique}`,
+  });
+}
+
 async function createCustomer(ctx: SeedCtx, tenantId: string): Promise<string> {
   return insertReturningId(ctx, "customers", {
     tenant_id: tenantId,
@@ -623,6 +640,28 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     tenant_id: tenantId,
     name: `RLS test location ${randomUUID().slice(0, 8)}`,
     address_city: "Warszawa",
+  }),
+
+  // --- taksonomia katalogu (0072_catalog_categories.sql, ADR-155) ---
+  //
+  // Nazwa i slug ŚWIEŻE per wywołanie — patrz komentarz przy createCategory.
+  catalog_categories: async (_ctx, tenantId) => {
+    const unique = randomUUID().slice(0, 8);
+    return {
+      tenant_id: tenantId,
+      name: `RLS test category ${unique}`,
+      slug: `rls-test-category-${unique}`,
+    };
+  },
+  // Przypisanie produktu do kategorii. OBA rodzice świeże i z TEGO SAMEGO
+  // tenanta: FK są ZŁOŻONE po (tenant_id, …), więc wskazanie cudzego produktu
+  // albo cudzej kategorii jest niereprezentowalne. Świeżość jest tu bramką
+  // przed 23505 — klucz główny to komplet (tenant_id, product_id, category_id),
+  // a kolizja klucza maskowałaby brak odmowy RLS fałszywą zielenią.
+  product_categories: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    product_id: await createProduct(ctx, tenantId),
+    category_id: await createCategory(ctx, tenantId),
   }),
   customers: async (_ctx, tenantId) => ({
     tenant_id: tenantId,
@@ -968,6 +1007,18 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   product_units: { unavailable_reason: "rls-test-hacked" },
   pricing_tiers: { label: "rls-test-hacked" },
   pickup_locations: { name: "rls-test-hacked" },
+  // position, a NIE name/slug: obie te kolumny obejmują unikaty per tenant
+  // (23505 zamiast odmowy), a slug dodatkowo przechodzi przez CHECK kształtu
+  // i trigger slugów zarezerwowanych — ich 23514/22023 wyglądałyby na
+  // „mutacja zatrzymana" i maskowały zepsutą politykę UPDATE. position jest
+  // poza unikatem, spełnia CHECK (0..9999) i różni się od zasianego
+  // domyślnego 0, więc skuteczna goła mutacja byłaby WIDOCZNĄ zmianą stanu.
+  catalog_categories: { position: 999 },
+  // created_at, bo innej kolumny nie ma: wiersz to komplet kluczy plus
+  // znacznik czasu (patrz nagłówek tabeli w 0072). Tabela nie ma ani grantu,
+  // ani polityki UPDATE, ale macierz i tak wymaga patcha, żeby brak UPDATE był
+  // TESTOWANY, a nie pomijany (wzorzec contract_documents).
+  product_categories: { created_at: "2000-01-01T00:00:00.000Z" },
   customers: { full_name: "rls-test-hacked" },
   // orders.notes zdjęte w 0041 — patch na delivery_grosze (int, bez indeksu
   // unikalnego, CHECK >= 0 spełniony przez 999_999): goła mutacja nie wywoła
