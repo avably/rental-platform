@@ -185,6 +185,16 @@ describe("podgląd umowy — TEN SAM szablon co prawdziwa umowa", () => {
 });
 
 describe("dane przykładowe są OZNACZONE jako przykład", () => {
+  it("znacznik jest przypięty SŁOWEM, nie odczytem samego siebie", () => {
+    // Bez tego asercje niżej porównywałyby stałą ze sobą samą i przeszłyby
+    // także wtedy, gdyby ktoś ustawił numer wyglądający jak prawdziwy
+    // („AV-2026-08-001") — sprawdzone mutacją. Słowo jest kontraktem
+    // z operatorem: to jedyna rzecz, która na wydruku odróżnia przymiarkę
+    // od dokumentu, pod którym ktoś się podpisze.
+    expect(CONTRACT_PREVIEW_MARK.pl).toBe("PRZYKŁAD");
+    expect(CONTRACT_PREVIEW_MARK.en).toBe("SAMPLE");
+  });
+
   it.each([
     ["pl", CONTRACT_PREVIEW_MARK.pl],
     ["en", CONTRACT_PREVIEW_MARK.en],
