@@ -309,8 +309,23 @@ describe("transportRetryFetchForGateway — zasięg tylko na bramkę Supabase", 
   });
 });
 
-/** Dokładna odpowiedź GoTrue z sondy: pula połączeń do Postgresa wyczerpana. */
+/**
+ * Odpowiedź GoTrue 500 z sondy na ŻYWYM Supabase (pula połączeń do Postgresa
+ * wyczerpana). Dwa kształty tej samej awarii — supabase-js wysyła nagłówek
+ * `X-Supabase-Api-Version`, więc PRODUKCYJNIE przychodzi wariant „wersjonowany"
+ * (`code` jako tekst, `message`); goły fetch dostaje wariant „stary"
+ * (`code` numeryczny, `error_code`, `msg`). Klasyfikator musi znać oba:
+ * pierwsza wersja tej poprawki znała tylko stary i na żywym ruchu nie
+ * ponowiła NICZEGO.
+ */
 function gotrueDbFailure(msg = "Database error creating new user"): Response {
+  return new Response(JSON.stringify({ code: "unexpected_failure", message: msg }), {
+    status: 500,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function gotrueDbFailureStaryKsztalt(msg = "Database error creating new user"): Response {
   return new Response(
     JSON.stringify({
       code: 500,
@@ -323,8 +338,11 @@ function gotrueDbFailure(msg = "Database error creating new user"): Response {
 }
 
 describe("bramka uwierzytelniania — 500 od GoTrue pod presją", () => {
-  it("500 unexpected_failure raz → DRUGIE podejście przechodzi", async () => {
-    const base = fetchQueue({ response: () => gotrueDbFailure() });
+  it.each([
+    ["kształt wersjonowany (supabase-js)", gotrueDbFailure],
+    ["kształt stary (goły fetch)", gotrueDbFailureStaryKsztalt],
+  ])("500 unexpected_failure, %s → DRUGIE podejście przechodzi", async (_label, fixture) => {
+    const base = fetchQueue({ response: () => fixture() });
     const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
 
     const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
@@ -374,13 +392,13 @@ describe("bramka uwierzytelniania — 500 od GoTrue pod presją", () => {
     expect(message).toContain("Database error creating new user");
     expect(message).toContain("4 podejściach");
     // Ciało odczytaliśmy w warstwie retry — wołający MUSI móc je odczytać znów.
-    await expect(response.json()).resolves.toMatchObject({ error_code: "unexpected_failure" });
+    await expect(response.json()).resolves.toMatchObject({ code: "unexpected_failure" });
   });
 
-  it("500 od GoTrue z INNYM error_code → zero retry (bramka jest wąska)", async () => {
+  it("500 od GoTrue z INNYM kodem błędu → zero retry (bramka jest wąska)", async () => {
     const base = fetchQueue({
       response: () =>
-        new Response(JSON.stringify({ code: 500, error_code: "hook_timeout", msg: "hook padł" }), {
+        new Response(JSON.stringify({ code: "hook_timeout", message: "hook padł" }), {
           status: 500,
           headers: { "content-type": "application/json" },
         }),
