@@ -9,12 +9,18 @@
  *      NIGDY nie są ponawiane — ani jako odpowiedź, ani jako rzut
  *      [mutant: retry „na wszystko" → czerwień],
  *   3. liczba podejść jest skończona i przypięta (3), backoff 250/750 ms,
- *   4. retry obowiązuje WYŁĄCZNIE URL-e bramki lokalnego Supabase.
+ *   4. retry obowiązuje WYŁĄCZNIE URL-e bramki lokalnego Supabase,
+ *   5. bramka uwierzytelniania (`/auth/…`): 500 z `unexpected_failure` JEST
+ *      ponawiane, a wyczerpana odpowiedź niesie status i ciało zamiast `{}`
+ *      [mutanty: zdjęta klasa 500 → czerwień; zdjęte doklejenie `msg` →
+ *      czerwień na teście przez PRAWDZIWE supabase-js].
  *
  * Kopia żyje w packages/db/test i apps/panel/test (wzorzec integration-env.ts:
  * suity nie współdzielą kodu) — zmiany wprowadzać w obu.
  */
+import { createClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import WebSocket from "ws";
 
 import {
   installTransportRetry,
@@ -303,15 +309,218 @@ describe("transportRetryFetchForGateway — zasięg tylko na bramkę Supabase", 
   });
 });
 
+/**
+ * Odpowiedź GoTrue 500 z sondy na ŻYWYM Supabase (pula połączeń do Postgresa
+ * wyczerpana). Dwa kształty tej samej awarii — supabase-js wysyła nagłówek
+ * `X-Supabase-Api-Version`, więc PRODUKCYJNIE przychodzi wariant „wersjonowany"
+ * (`code` jako tekst, `message`); goły fetch dostaje wariant „stary"
+ * (`code` numeryczny, `error_code`, `msg`). Klasyfikator musi znać oba:
+ * pierwsza wersja tej poprawki znała tylko stary i na żywym ruchu nie
+ * ponowiła NICZEGO.
+ */
+function gotrueDbFailure(msg = "Database error creating new user"): Response {
+  return new Response(JSON.stringify({ code: "unexpected_failure", message: msg }), {
+    status: 500,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function gotrueDbFailureStaryKsztalt(msg = "Database error creating new user"): Response {
+  return new Response(
+    JSON.stringify({
+      code: 500,
+      error_code: "unexpected_failure",
+      msg,
+      error_id: "3fdf80fe-6cb9-4975-ab4f-73ba14455e61",
+    }),
+    { status: 500, headers: { "content-type": "application/json" } },
+  );
+}
+
+describe("bramka uwierzytelniania — 500 od GoTrue pod presją", () => {
+  it.each([
+    ["kształt wersjonowany (supabase-js)", gotrueDbFailure],
+    ["kształt stary (goły fetch)", gotrueDbFailureStaryKsztalt],
+  ])("500 unexpected_failure, %s → DRUGIE podejście przechodzi", async (_label, fixture) => {
+    const base = fetchQueue({ response: () => fixture() });
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
+
+    expect(response.status).toBe(200);
+    // Licznik podejść, nie „kod się wykonał": retry MUSIAŁ realnie zajść.
+    expect(base).toHaveBeenCalledTimes(2);
+  });
+
+  it("trwałe 500: dokładnie 4 podejścia, backoff 250/750/1500 ms", async () => {
+    const waits: number[] = [];
+    const base = fetchQueue(
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+    );
+    const routed = transportRetryFetchForGateway(base, GATEWAY, {
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+    });
+
+    const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
+
+    expect(response.status).toBe(500);
+    // LITERAŁY, nie stałe — asercja przez stałą mutowałaby się razem z kodem.
+    expect(base).toHaveBeenCalledTimes(4);
+    expect(waits).toEqual([250, 750, 1500]);
+  });
+
+  it("wyczerpana odpowiedź niesie status i CIAŁO w polu `msg`", async () => {
+    const base = fetchQueue(
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+      { response: () => gotrueDbFailure() },
+    );
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
+
+    const message = (response as Response & { msg?: string }).msg;
+    expect(message).toContain("500");
+    expect(message).toContain("POST /auth/v1/admin/users");
+    expect(message).toContain("Database error creating new user");
+    expect(message).toContain("4 podejściach");
+    // Ciało odczytaliśmy w warstwie retry — wołający MUSI móc je odczytać znów.
+    await expect(response.json()).resolves.toMatchObject({ code: "unexpected_failure" });
+  });
+
+  it("500 od GoTrue z INNYM kodem błędu → zero retry (bramka jest wąska)", async () => {
+    const base = fetchQueue({
+      response: () =>
+        new Response(JSON.stringify({ code: "hook_timeout", message: "hook padł" }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        }),
+    });
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
+
+    expect(response.status).toBe(500);
+    expect(base).toHaveBeenCalledTimes(1);
+    // …ale komunikat i tak przestaje być `{}` — diagnostyka nie zależy od retry.
+    expect((response as Response & { msg?: string }).msg).toContain("hook padł");
+  });
+
+  it("500 z /rest/ z TĄ SAMĄ treścią → nadal zero retry i zero doklejania", async () => {
+    // Rozdział idzie po URL-u: gdyby szedł po treści, sygnał testu z PostgREST
+    // dałoby się przykryć, podrzucając `error_code` w ciele.
+    const base = fetchQueue({ response: () => gotrueDbFailure() });
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const response = await routed(`${GATEWAY}/rest/v1/rpc/create_order`, { method: "POST" });
+
+    expect(response.status).toBe(500);
+    expect(base).toHaveBeenCalledTimes(1);
+    expect((response as Response & { msg?: string }).msg).toBeUndefined();
+  });
+
+  it("odmowa 4xx od GoTrue → jedno podejście, ciało nietknięte, bez doklejania", async () => {
+    const base = fetchQueue({
+      response: () =>
+        new Response(JSON.stringify({ code: 422, error_code: "email_exists", msg: "już jest" }), {
+          status: 422,
+          headers: { "content-type": "application/json" },
+        }),
+    });
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const response = await routed(`${GATEWAY}/auth/v1/admin/users`, { method: "POST" });
+
+    expect(base).toHaveBeenCalledTimes(1);
+    expect((response as Response & { msg?: string }).msg).toBeUndefined();
+    await expect(response.json()).resolves.toMatchObject({ error_code: "email_exists" });
+  });
+});
+
+describe("diagnostyka przez PRAWDZIWE supabase-js — koniec z `{}`", () => {
+  // Ten opis nie zakłada, jak auth-js buduje komunikat — sprawdza to na żywym
+  // kliencie. Bez tego doklejenie `msg` byłoby dowodem po pustym zbiorze:
+  // asercja na samym polu odpowiedzi nie mówi, czy TEST zobaczy prawdę.
+  function adminClient(fetchImpl: typeof fetch) {
+    return createClient(GATEWAY, "service-role-key-atrapa", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: fetchImpl },
+      realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+    });
+  }
+
+  it("PRZESŁANKA: bez naszej warstwy auth-js gubi ciało 5xx i daje dosłownie `{}`", async () => {
+    const base = fetchQueue({ response: () => gotrueDbFailure() });
+    const { error } = await adminClient(base as unknown as typeof fetch).auth.admin.createUser({
+      email: "seed@test.local",
+    });
+
+    expect(error?.message).toBe("{}");
+  });
+
+  it("z warstwą: komunikat niesie status HTTP i treść odpowiedzi GoTrue", async () => {
+    const base = fetchQueue(
+      { response: () => gotrueDbFailure("Database error checking email") },
+      { response: () => gotrueDbFailure("Database error checking email") },
+      { response: () => gotrueDbFailure("Database error checking email") },
+      { response: () => gotrueDbFailure("Database error checking email") },
+    );
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    const { error } = await adminClient(routed as unknown as typeof fetch).auth.admin.createUser({
+      email: "seed@test.local",
+    });
+
+    expect(error?.message).not.toBe("{}");
+    expect(error?.message).toContain("GoTrue 500");
+    expect(error?.message).toContain("Database error checking email");
+    expect(error?.status).toBe(500);
+  });
+
+  it("z warstwą: pojedyncza czkawka 500 nie dociera do testu w ogóle", async () => {
+    const base = fetchQueue({ response: () => gotrueDbFailure() });
+    const routed = transportRetryFetchForGateway(base, GATEWAY, { sleep: noSleep });
+
+    // Drugie podejście zwraca 200 z pustym ciałem — dla admin.createUser to
+    // nie jest poprawny user, ale liczy się to, że BŁĄD zniknął.
+    const { error } = await adminClient(routed as unknown as typeof fetch).auth.admin.createUser({
+      email: "seed@test.local",
+    });
+
+    expect(error).toBeNull();
+    expect(base).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("okablowanie setupFiles — retry realnie zainstalowany w tej suicie", () => {
   // Pilnuje WPISU w vitest.config.ts (test.setupFiles), nie samego helpera:
   // zdjęcie setup-transport-retry.ts z konfiguracji gasi retry w całej suicie,
   // a wszystkie pozostałe testy tego pliku dalej świecą na zielono, bo wołają
-  // helper bezpośrednio. Gated po env jak testy integracyjne: bez lokalnego
-  // Supabase setup jest świadomym no-opem i nie ma czego pilnować.
+  // helper bezpośrednio.
+  //
+  // DWA znaczniki, bo bronią DWÓCH różnych rzeczy — i tylko jeden z nich
+  // działa bez lokalnego Supabase:
+  it("plik setup został ZAŁADOWANY przez konfigurację tej suity", () => {
+    // Bezwarunkowo: ten znacznik stawia sam plik setup, niezależnie od env.
+    // To jedyna asercja łapiąca „helper leży w pakiecie, ale nikt go nie
+    // ładuje" — czyli bliźniaczą kopię wpiętą tylko z nazwy. Bez tego
+    // przebieg z ALLOW_INTEGRATION_SKIP=1 nie pilnowałby okablowania wcale.
+    const marker = Symbol.for("avably.testTransportRetrySetupLoaded");
+    expect((globalThis as unknown as { [key: symbol]: unknown })[marker]).toBe(true);
+  });
+
   it.skipIf(!process.env.SUPABASE_LOCAL_API_URL)(
     "globalThis.fetch niesie znacznik instalacji retry",
     () => {
+      // Gated po env: bez lokalnego Supabase instalacja jest świadomym
+      // no-opem i nie ma czego pilnować.
       const marker = Symbol.for("avably.testTransportRetryInstalled");
       expect((globalThis.fetch as unknown as { [key: symbol]: unknown })[marker]).toBe(true);
     },
