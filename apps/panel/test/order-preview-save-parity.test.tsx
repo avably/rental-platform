@@ -357,6 +357,35 @@ describe("kwota z podglądu zgadza się z kwotą ZAPISANĄ", () => {
     expect(rpc.p_total_deposit_grosze).toBe(expected.depositGrosze);
   });
 
+  it("punkt odbioru jedzie POLEM UKRYTYM formularza, nie mostkiem widżetu", async () => {
+    /*
+      Regresja znaleziona W PRZEGLĄDARCE (jsdom montuje listę Radiksa inaczej,
+      więc testy renderowe tego NIE łapały): `PanelSelect` z propem `name`
+      oddaje wartość mostkiem Radiksa, a ten rejestruje opcje dopiero przy
+      montowaniu listy — po pierwszym otwarciu. Wartość USTAWIONA PROGRAMOWO
+      (od U7 odbiór osobisty jest domyślny, więc punkt jest wskazany od razu)
+      nie trafiała do FormData w ogóle: `formData.get("pickupLocationId")`
+      zwracało `null`, schemat odmawiał, a lista braków twierdziła, że komplet
+      jest. Transportem jest teraz WYŁĄCZNIE własne pole ukryte.
+    */
+    mount();
+    fillOrder();
+
+    const hiddenField = document.querySelector<HTMLInputElement>(
+      'input[type="hidden"][name="pickupLocationId"]',
+    );
+    expect(hiddenField, "punkt odbioru bez własnego pola ukrytego").not.toBeNull();
+    expect(hiddenField!.value).toBe(LOCATION_ID);
+
+    // Dokładnie JEDNA wartość w ładunku — dwa transporty naraz dawałyby dwa
+    // wpisy i pytanie, który z nich czyta akcja.
+    const formData = new FormData(document.querySelector("form")!);
+    expect(formData.getAll("pickupLocationId")).toEqual([LOCATION_ID]);
+
+    const rpc = await saveRenderedForm();
+    expect(rpc.p_pickup_location_id).toBe(LOCATION_ID);
+  });
+
   it("kurier z cennika: koszt dostawy z ekranu == koszt zapisany", async () => {
     mount();
     fillOrder({ courier: true });
