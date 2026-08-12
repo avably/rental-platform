@@ -61,11 +61,20 @@
  * — a bez retry na mutacjach seed/walkTo czkawka wraca dokładnie tam, gdzie
  * ją widzieliśmy.
  *
- * Kopia żyje w packages/db/test/helpers i apps/panel/test/helpers — suity
- * testowe pakietów i apek nie współdzielą kodu (wzorzec integration-env.ts);
- * zmiany wprowadzać w OBU kopiach razem z ich testami przypinającymi
- * (test/transport-retry.test.ts). Storefront dostanie kopię, gdy jego suity
- * integracyjne zaczną łapać tę czkawkę.
+ * JEDNO ŹRÓDŁO DLA WSZYSTKICH SUIT (2026-08-12). Do tej pory helper istniał
+ * w dwóch kopiach — tutaj i w apps/panel/test/helpers — bo job `rls` uruchamia
+ * oba pakiety. Kopie były bajt w bajt identyczne i dokładnie to nas ugryzło
+ * przy PR #284: poprawka wylądowała w jednej, druga milczała, a przenosiny
+ * robiliśmy ręcznie. Teraz plik jest jeden i mieszka w pakiecie, który jest
+ * WŁAŚCICIELEM tej wiedzy: granice retry są opisane w kategoriach bramki
+ * lokalnego Supabase (Kong, PostgREST, GoTrue, SUPABASE_LOCAL_API_URL), a to
+ * powierzchnia @avably/db. Suity aplikacji są konsumentami tej samej żywej
+ * instancji i wskazują tutaj — nigdy odwrotnie. Storefront dopnie się tak
+ * samo, gdy jego suity integracyjne zaczną łapać tę czkawkę.
+ *
+ * Konsumenci: packages/db/test/setup-transport-retry.ts (i cienki plik panelu,
+ * który go importuje) oraz test/helpers/transport-retry-suite.ts z asercjami
+ * uruchamianymi w OBU pakietach.
  */
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
