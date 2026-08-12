@@ -48,36 +48,53 @@ function readProviderError(error: unknown): ProviderError {
  * Kody GoTrue → nasze klucze. Kilka kodów celowo wpada w jeden komunikat:
  * użytkownik i tak ma zrobić dokładnie to samo, a mnożenie wariantów tekstu
  * to tylko więcej do tłumaczenia.
+ *
+ * DLACZEGO `Map`, A NIE LITERAŁ OBIEKTU (ADR-153, higiena konstrukcyjna).
+ *
+ * Odczyt `CODE_MAP[code]` na literale obiektu schodzi po ŁAŃCUCHU PROTOTYPÓW,
+ * więc `code` równy `constructor`, `toString`, `valueOf`, `hasOwnProperty`
+ * albo `__proto__` zwracał funkcję z `Object.prototype` — wartość prawdziwą,
+ * którą `authErrorKey` oddawałby dalej jako rzekomy klucz komunikatu.
+ *
+ * TO NIE BYŁA PODATNOŚĆ i nie należy tak tego czytać. `code` pochodzi tu
+ * z ODPOWIEDZI DOSTAWCY AUTH, a nie z adresu URL ani z formularza — nikt
+ * z zewnątrz nie ustawi go na `constructor`. Różnica wobec allowlisty
+ * komunikatów logowania (`lib/auth-notice.ts`), gdzie klucz szedł WPROST
+ * z parametru adresu i realnie dawało się go podstawić, jest zasadnicza.
+ *
+ * Poprawka jest tu po to, żeby oba rejestry tej samej rodziny miały tę samą,
+ * bezpieczną konstrukcję — a następny czytelnik nie musiał zgadywać, czy
+ * literał obok `Map` jest decyzją, czy przeoczeniem.
  */
-const CODE_MAP: Record<string, AuthErrorKey> = {
+const CODE_MAP: ReadonlyMap<string, AuthErrorKey> = new Map([
   // Limit wysyłki e-maili — TA obserwacja z produkcji. Limit siedzi po
   // stronie dostawcy i nie znika od odświeżenia strony, więc komunikat MUSI
   // nieść jedyną rzecz, którą użytkownik może zrobić: poczekać.
-  over_email_send_rate_limit: "emailRateLimit",
-  over_request_rate_limit: "tooManyRequests",
+  ["over_email_send_rate_limit", "emailRateLimit"],
+  ["over_request_rate_limit", "tooManyRequests"],
 
-  user_already_exists: "emailTaken",
-  email_exists: "emailTaken",
-  identity_already_exists: "emailTaken",
+  ["user_already_exists", "emailTaken"],
+  ["email_exists", "emailTaken"],
+  ["identity_already_exists", "emailTaken"],
 
-  weak_password: "weakPassword",
+  ["weak_password", "weakPassword"],
 
   // Link z e-maila: wygasły, zużyty albo z innej przeglądarki niż ta, w
   // której zaczęła się rejestracja (PKCE).
-  otp_expired: "linkExpired",
-  flow_state_expired: "linkExpired",
-  flow_state_not_found: "linkExpired",
-  bad_code_verifier: "linkExpired",
+  ["otp_expired", "linkExpired"],
+  ["flow_state_expired", "linkExpired"],
+  ["flow_state_not_found", "linkExpired"],
+  ["bad_code_verifier", "linkExpired"],
 
-  same_password: "samePassword",
+  ["same_password", "samePassword"],
 
   // Awaria po stronie dostawcy — łącznie z naszym Send Email Hookiem
   // (ADR-048), którego timeout GoTrue raportuje jako błąd hooka.
-  unexpected_failure: "providerUnavailable",
-  request_timeout: "providerUnavailable",
-  hook_timeout: "providerUnavailable",
-  hook_timeout_after_retry: "providerUnavailable",
-};
+  ["unexpected_failure", "providerUnavailable"],
+  ["request_timeout", "providerUnavailable"],
+  ["hook_timeout", "providerUnavailable"],
+  ["hook_timeout_after_retry", "providerUnavailable"],
+] satisfies readonly (readonly [string, AuthErrorKey])[]);
 
 /**
  * Zwraca klucz komunikatu dla błędu dostawcy. Cokolwiek nierozpoznanego →
@@ -87,7 +104,7 @@ export function authErrorKey(error: unknown): AuthErrorKey {
   const { code, status } = readProviderError(error);
 
   if (typeof code === "string") {
-    const mapped = CODE_MAP[code];
+    const mapped = CODE_MAP.get(code);
     if (mapped) return mapped;
   }
 
