@@ -103,7 +103,12 @@ export function ProductsTable({
       <Table className="min-w-[860px] border-collapse">
         <TableHeader>
           <TableRow className="hover:border-b-border">
-            <TableHead className="h-auto px-3.5 py-3">
+            {/* Szerokość kolumny miniatury jest PRZYPIĘTA (w-14 = 56 px = 40 px
+                obrazu + padding). Bez tego auto-layout tabeli liczy minimalną
+                szerokość obrazu jako 0 (preflight daje `img { max-width: 100% }`),
+                kolumna zapada się do kilkunastu pikseli i miniatura wychodzi
+                paskiem — zmierzone w przeglądarce: komórka 28 px, obraz 13 px. */}
+            <TableHead className="h-auto w-14 px-3.5 py-3">
               <span className="sr-only">{t("colThumbnail")}</span>
             </TableHead>
             {sortableHead(t("colName"), "nazwa")}
@@ -222,7 +227,12 @@ function Thumbnail({ thumbnail }: { thumbnail: ProductThumbnail | null }) {
       height={40}
       loading="lazy"
       decoding="async"
-      className="border-border size-10 rounded-md border object-cover"
+      // `min-w-10` NIE jest ozdobnikiem: preflight daje `img { max-width:
+      // 100% }`, więc w auto-layoucie tabeli minimalna szerokość obrazu
+      // wychodzi 0, kolumna zapada się, a miniatura schodzi do paska
+      // (zmierzone: komórka 28 px, obraz 13 px). `min-width` wygrywa nad
+      // `max-width` w kaskadzie, więc przywraca kolumnie realne minimum.
+      className="border-border size-10 min-w-10 rounded-md border object-cover"
     />
   );
 }
