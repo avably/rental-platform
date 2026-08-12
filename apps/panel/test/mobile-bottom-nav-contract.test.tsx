@@ -27,7 +27,7 @@ function renderMobileNav(path: string): string {
   pathname.current = path;
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
-      <MobileNav userEmail="operator@example.test" />
+      <MobileNav />
     </NextIntlClientProvider>,
   );
 }

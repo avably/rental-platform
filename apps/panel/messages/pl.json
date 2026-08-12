@@ -11,6 +11,9 @@
     "email": "E-mail",
     "password": "Hasło",
     "logout": "Wyloguj",
+    "accountMenu": "Menu konta",
+    "language": "Język",
+    "theme": "Motyw",
     "dateField": {
       "placeholder": "Wybierz datę",
       "rangePlaceholder": "Wybierz zakres"
@@ -382,6 +385,21 @@
     "enrollTitle": "Weryfikacja dwuetapowa",
     "enrollBody": "Dodaj aplikację uwierzytelniającą, aby wymagać drugiego kroku logowania.",
     "enrollmentTitle": "Konfiguracja aplikacji uwierzytelniającej",
+    "passwordTitle": "Zmiana hasła",
+    "passwordBody": "Podaj obecne hasło i ustaw nowe. Po zmianie wylogujemy pozostałe urządzenia i wyślemy powiadomienie na Twój adres.",
+    "currentPasswordLabel": "Obecne hasło",
+    "newPasswordLabel": "Nowe hasło",
+    "confirmPasswordLabel": "Powtórz nowe hasło",
+    "passwordRule": "Co najmniej 8 znaków.",
+    "passwordSubmit": "Zmień hasło",
+    "passwordSuccess": "Hasło zmienione. Pozostałe urządzenia zostały wylogowane.",
+    "passwordChangedRelogin": "Hasło zmienione. Ta sesja wygasła — zaloguj się nowym hasłem.",
+    "passwordDenied": "Nie udało się zmienić hasła. Sprawdź obecne hasło i spróbuj ponownie.",
+    "revokeTitle": "Inne urządzenia",
+    "revokeBody": "Kończy sesje na wszystkich pozostałych urządzeniach i w innych przeglądarkach. Tutaj zostajesz zalogowany.",
+    "revokeSubmit": "Wyloguj mnie ze wszystkich urządzeń",
+    "revokeSuccess": "Pozostałe urządzenia zostały wylogowane.",
+    "revokeError": "Nie udało się wylogować pozostałych urządzeń. Spróbuj ponownie za chwilę.",
     "secretOnceHint": "Sekret pokazujemy tylko podczas konfiguracji. Zapisz go w bezpiecznym miejscu."
   },
   "mfaChallenge": {
