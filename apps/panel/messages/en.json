@@ -1817,7 +1817,12 @@
       "limitReached": "You reached the limit of {max} pages. Delete an unused version to add a new one.",
       "cancel": "Cancel",
       "switchBodySelf": "Your shop will show this page in its current version — including the changes you made in it.",
-      "notLive": "Not visible in the shop — you are working on it in the panel."
+      "notLive": "Not visible in the shop — you are working on it in the panel.",
+      "slugLabel": "Page address",
+      "slugHint": "Address in the store, e.g. how-renting-works. Lowercase letters, digits and hyphens.",
+      "slugChangeHint": "Customers will see the new address only after you publish this page.",
+      "slugHome": "The store home page lives at “/” and its address cannot be changed.",
+      "addressPending": "Customers still have {current} — the new address starts working after publishing."
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",

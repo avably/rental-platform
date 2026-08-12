@@ -37,17 +37,23 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
+import { HOME_PAGE_SLUG, pagePathFromSlug, suggestPageSlug } from "@avably/core/site";
+
 import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
 import { createSite, deleteSite, publishSite, renameSite } from "@/lib/actions/site";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
-import { MAX_SITES } from "@/lib/site-validation";
+import { MAX_SITES, pageSlugIssue } from "@/lib/site-validation";
 
 export interface SitePageRow {
   id: string;
   name: string;
-  /** Czy TĘ wersję widzi klient. Jedyna prawda o żywości (ADR-093 D1). */
+  /** Czy TĘ stronę widzi klient. Jedyna prawda o żywości (ADR-093 D1). */
   live: boolean;
+  /** ADRES SZKICU (0073): pusty = strona główna (`/`). */
+  slug: string;
+  /** ADRES OPUBLIKOWANY; null = strona nigdy nie opublikowana. */
+  slugPublished: string | null;
   publishedAtLabel: string | null;
   createdAtLabel: string | null;
 }
@@ -71,7 +77,10 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
     <div className="flex flex-col gap-6" data-site-pages>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-muted-foreground text-sm">{t("pages.subtitle")}</p>
-        <NewPageDialog disabled={pending || limitReached} onCreate={(name) => run(() => createSite({ name }))} />
+        <NewPageDialog
+          disabled={pending || limitReached}
+          onCreate={(name, slug) => run(() => createSite({ name, slug }))}
+        />
       </div>
 
       {limitReached ? (
@@ -111,6 +120,22 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                   </span>
                 )}
               </div>
+
+              <p className="text-muted-foreground font-mono text-[13px] leading-[18px]">
+                {pagePathFromSlug(row.slug)}
+              </p>
+
+              {/*
+                ADRES ZMIENIONY, ALE JESZCZE NIEOPUBLIKOWANY. Bez tego zdania
+                operator zmienia adres, widzi go na liście i jest przekonany,
+                że klienci już go mają — a żywy adres zmienia WYŁĄCZNIE
+                publikacja (bliźniak `slug_published`, 0073/ADR-091).
+              */}
+              {row.slugPublished !== null && row.slugPublished !== row.slug ? (
+                <p className="text-muted-foreground text-[13px] leading-[18px]">
+                  {t("pages.addressPending", { current: pagePathFromSlug(row.slugPublished) })}
+                </p>
+              ) : null}
 
               <p className="text-muted-foreground text-[13px] leading-[18px]">
                 {row.live && row.publishedAtLabel
@@ -154,7 +179,12 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                 <RenameDialog
                   disabled={pending}
                   current={row.name}
-                  onRename={(name) => run(() => renameSite({ siteId: row.id, name }))}
+                  currentSlug={row.slug}
+                  onRename={(name, slug) =>
+                    run(() =>
+                      renameSite({ siteId: row.id, name, ...(slug === undefined ? {} : { slug }) }),
+                    )
+                  }
                 />
 
                 {row.live ? (
@@ -183,18 +213,85 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
   );
 }
 
-/** Nowa wersja — nazwa jest wymagana od razu, bo lista bez etykiet jest nieużywalna. */
-function NewPageDialog({ disabled, onCreate }: { disabled: boolean; onCreate: (name: string) => void }) {
+/**
+ * POLE ADRESU — jedno miejsce na podpowiedź z nazwy, walidację i uzasadnienie.
+ *
+ * Odmowa pada W POLU, zanim cokolwiek zostanie wysłane, i mówi CO poprawić:
+ * strona o adresie `koszyk` czy `regulamin` nie wyświetliłaby się NIGDY —
+ * statyczna trasa zawsze wygrywa z dynamiczną — a operator widziałby ją
+ * w panelu jako opublikowaną i nie dostałby ani jednego sygnału.
+ */
+function SlugField({
+  value,
+  onChange,
+  disabled,
+  hint,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  hint: string;
+}) {
+  const t = useTranslations("site");
+  const issue = disabled ? null : pageSlugIssue(value);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground font-mono text-[13px] leading-[18px]">/</span>
+        <Input
+          value={value}
+          maxLength={60}
+          disabled={disabled}
+          className="font-mono"
+          aria-label={t("pages.slugLabel")}
+          aria-invalid={issue ? true : undefined}
+          data-site-slug-input
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </div>
+      <p className="text-muted-foreground text-[13px] leading-[18px]">{hint}</p>
+      {issue ? (
+        <p role="alert" data-site-slug-error className="text-destructive text-[13px] leading-[18px] font-medium">
+          {issue}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Nowa strona — nazwa I ADRES od razu (Faza 2, ADR-158).
+ *
+ * Adres podpowiada się z nazwy DOPÓKI operator go nie tknie (wzorzec formularza
+ * kategorii, ADR-155): dalsze przepisywanie po ręcznej zmianie kasowałoby jego
+ * pracę przy każdym znaku nazwy.
+ */
+function NewPageDialog({
+  disabled,
+  onCreate,
+}: {
+  disabled: boolean;
+  onCreate: (name: string, slug: string) => void;
+}) {
   const t = useTranslations("site");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+
+  const blocked = name.trim().length === 0 || pageSlugIssue(slug) !== null;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setName(t("pages.defaultName"));
+        if (next) {
+          setName("");
+          setSlug("");
+          setSlugTouched(false);
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -211,8 +308,20 @@ function NewPageDialog({ disabled, onCreate }: { disabled: boolean; onCreate: (n
         <Input
           value={name}
           maxLength={80}
+          placeholder={t("pages.defaultName")}
           aria-label={t("pages.nameLabel")}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            if (!slugTouched) setSlug(suggestPageSlug(event.target.value));
+          }}
+        />
+        <SlugField
+          value={slug}
+          hint={t("pages.slugHint")}
+          onChange={(next) => {
+            setSlugTouched(true);
+            setSlug(next);
+          }}
         />
         <DialogFooter>
           <DialogClose asChild>
@@ -223,9 +332,9 @@ function NewPageDialog({ disabled, onCreate }: { disabled: boolean; onCreate: (n
           <Button
             type="button"
             data-new-site-confirm
-            disabled={name.trim().length === 0}
+            disabled={blocked}
             onClick={() => {
-              onCreate(name.trim());
+              onCreate(name.trim(), slug.trim());
               setOpen(false);
             }}
           >
@@ -237,25 +346,46 @@ function NewPageDialog({ disabled, onCreate }: { disabled: boolean; onCreate: (n
   );
 }
 
+/**
+ * NAZWA I ADRES w JEDNYM oknie (Faza 2, ADR-158).
+ *
+ * Adres jest daną publiczną, więc zmienia się WYŁĄCZNIE publikacją — zapis
+ * z tego okna idzie do kolumny szkicu. To jest zarazem jedyne miejsce, w którym
+ * operator zmienia adres, czyli jedyne, w którym trzeba go zapytać o los
+ * starego adresu (ADR-159, checkbox przekierowania).
+ *
+ * STRONA GŁÓWNA MA POLE ADRESU WYŁĄCZONE, a nie ukryte: jej adresem jest `/`
+ * i to jest informacja, nie brak funkcji. Ukrycie pola kazałoby operatorowi
+ * zgadywać, czy strona główna w ogóle ma adres.
+ */
 function RenameDialog({
   disabled,
   current,
+  currentSlug,
   onRename,
 }: {
   disabled: boolean;
   current: string;
-  onRename: (name: string) => void;
+  currentSlug: string;
+  onRename: (name: string, slug: string | undefined) => void;
 }) {
   const t = useTranslations("site");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(current);
+  const [slug, setSlug] = useState(currentSlug);
+  const isHome = currentSlug === HOME_PAGE_SLUG;
+
+  const blocked = name.trim().length === 0 || (!isHome && pageSlugIssue(slug) !== null);
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setName(current);
+        if (next) {
+          setName(current);
+          setSlug(currentSlug);
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -273,6 +403,12 @@ function RenameDialog({
           aria-label={t("pages.nameLabel")}
           onChange={(event) => setName(event.target.value)}
         />
+        <SlugField
+          value={slug}
+          disabled={isHome}
+          hint={isHome ? t("pages.slugHome") : t("pages.slugChangeHint")}
+          onChange={setSlug}
+        />
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="secondary">
@@ -282,9 +418,9 @@ function RenameDialog({
           <Button
             type="button"
             data-rename-site-confirm
-            disabled={name.trim().length === 0}
+            disabled={blocked}
             onClick={() => {
-              onRename(name.trim());
+              onRename(name.trim(), isHome ? undefined : slug.trim());
               setOpen(false);
             }}
           >

@@ -606,10 +606,16 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
   // Strażnik strukturalny: publiczny odczyt nie zna kolumn szkicu
   // -------------------------------------------------------------------
 
-  it("app.get_published_site nie czyta ANI JEDNEJ kolumny szkicu", async () => {
+  it("odczyt publiczny nie czyta ANI JEDNEJ kolumny szkicu", async () => {
+    // Skan idzie po OBU definicjach naraz: od 0074 (ADR-158) rdzeń odczytu
+    // siedzi w app.get_published_page, a app.get_published_site jest jego
+    // wywołaniem dla strony głównej. Skan po samej sygnaturze zastanej
+    // przechodziłby przez pustkę i nie broniłby już niczego.
     const [row] = await sql!<{ def: string }[]>`
-      select pg_get_functiondef('app.get_published_site(uuid)'::regprocedure) as def
+      select pg_get_functiondef('app.get_published_site(uuid)'::regprocedure)
+        || pg_get_functiondef('app.get_published_page(uuid,text)'::regprocedure) as def
     `;
+    expect(row!.def.length, "puste definicje — czujnik po pustym zbiorze").toBeGreaterThan(500);
 
     // Bliźniaki znikają najpierw, żeby odwołanie `sec.enabled_published` nie
     // udawało `sec.enabled`. Szukamy ODWOŁAŃ DO KOLUMN (`alias.kolumna`), nie
@@ -621,9 +627,20 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
         .replaceAll("position_published", "")
         .replaceAll("enabled_published", "")
         .replaceAll("template_published", "")
+        // `slug_published` znika przed sprawdzeniem `.slug` z tego samego
+        // powodu, co bliźniaki wyżej: inaczej odwołanie do ADRESU
+        // OPUBLIKOWANEGO udawałoby odczyt sluga ze szkicu (0073, ADR-157).
+        .replaceAll("slug_published", "")
         .replaceAll("published_at", "");
 
-    const KOLUMNY_SZKICU = ['."position"', ".enabled", ".template", ".content_draft", ".deleted_in_draft"];
+    const KOLUMNY_SZKICU = [
+      '."position"',
+      ".enabled",
+      ".template",
+      ".slug",
+      ".content_draft",
+      ".deleted_in_draft",
+    ];
 
     const czysta = odchudzona(row!.def);
     for (const kolumna of KOLUMNY_SZKICU) {
@@ -719,7 +736,7 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
   // widzi sklep. Rozumowanie z ADR-093 („strona z published_at is null nie
   // wnosi do koperty ani bajtu") jest tu zamienione na pomiar.
 
-  describe("wiele wersji strony, najwyżej jedna żywa", () => {
+  describe("wiele STRON najemcy, najwyżej jedna żywa pod adresem", () => {
     let wersjaId: string;
 
     afterAll(async () => {
@@ -810,39 +827,70 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
       );
     });
 
-    it("PRZEŁĄCZENIE: publikacja wersji zmienia kopertę RAZ i bez miksu dwóch stron", async () => {
+    it("publikacja DRUGIEJ strony pod TYM SAMYM adresem jest ODMAWIANA (23505), koperta nietknięta", async () => {
+      // Do 0073 publikacja PRZEŁĄCZAŁA żywą wersję — gasiła poprzednią i stawiała
+      // nową. Od 0074 (ADR-158) strony współistnieją, więc gaszenie znika,
+      // a przed dwiema żywymi stronami pod jednym adresem broni unikat
+      // sites_live_slug_unique_idx. To jest ten sam niezmiennik co w 0048,
+      // tylko egzekwowany OGRANICZENIEM zamiast zdaniem w funkcji.
       const przed = await envelope(a.tenantId);
-      const sekcjeStarej = new Set((przed?.sections ?? []).map((s) => s.id));
-      expect(sekcjeStarej.size, "kontrola po pustym zbiorze: stara strona bez sekcji").toBeGreaterThan(0);
+      expect(przed, "strona A nie jest publiczna — nie ma czego bronić").not.toBeNull();
+
+      const { error } = await a.ownerClient
+        .schema("app")
+        .rpc("publish_site", { p_site_id: wersjaId });
+      expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(
+        PG_UNIQUE_VIOLATION,
+      );
+
+      // Werdykt z TRWAŁEGO stanu: odmowa wycofała CAŁĄ transakcję, więc sklep
+      // stoi na starej stronie, a wersja dalej jest szkicem.
+      expect(await envelope(a.tenantId), "odrzucona publikacja i tak ruszyła sklep").toEqual(przed);
+      const { data: wersja } = await admin
+        .from("sites")
+        .select("published_at")
+        .eq("id", wersjaId)
+        .single();
+      expect(wersja?.published_at, "odrzucona publikacja zostawiła stronę żywą").toBeNull();
+    }, 60_000);
+
+    it("publikacja pod INNYM adresem DOKŁADA stronę i NIE gasi strony głównej", async () => {
+      // To jest cała zmiana 0074 mierzona kopertą: dwie strony naraz, każda pod
+      // swoim adresem, bez ani jednego bajtu miksu między nimi.
+      const przed = await envelope(a.tenantId);
+      const sekcjeGlownej = new Set((przed?.sections ?? []).map((sekcja) => sekcja.id));
+      expect(sekcjeGlownej.size, "kontrola po pustym zbiorze: główna bez sekcji").toBeGreaterThan(0);
+
+      const { error: slugError } = await a.ownerClient
+        .from("sites")
+        .update({ slug: "kontakt" })
+        .eq("tenant_id", a.tenantId)
+        .eq("id", wersjaId);
+      expect(slugError, `zmiana adresu szkicu: ${slugError?.message}`).toBeNull();
 
       await publish(a, wersjaId);
 
-      const po = await envelope(a.tenantId);
-      expect(po, "po przełączeniu sklep nie ma strony").not.toBeNull();
+      // (1) STRONA GŁÓWNA NIETKNIĘTA — publikacja Kontaktu nie zdjęła sklepu.
+      expect(await envelope(a.tenantId), "publikacja podstrony zgasiła stronę główną").toEqual(przed);
 
-      // (1) Zmiana nastąpiła.
-      expect(po).not.toEqual(przed);
-      // (2) ANI JEDNEJ sekcji starej strony — to jest dowód braku miksu.
-      const wspolne = (po?.sections ?? []).filter((s) => sekcjeStarej.has(s.id));
-      expect(wspolne, `koperta niesie sekcje OBU stron: ${wspolne.map((s) => s.id).join(", ")}`).toEqual([]);
-      // (3) Treść jest treścią wersji.
-      expect(po?.sections.map((s) => s.type)).toEqual(["hero", "contact"]);
+      // (2) Nowy adres oddaje treść WERSJI, bez ani jednej sekcji głównej.
+      const { data: podstrona, error: readError } = await anon
+        .schema("app")
+        .rpc("get_published_page", { p_tenant_id: a.tenantId, p_slug: "kontakt" });
+      expect(readError, `odczyt strony pod adresem: ${readError?.message}`).toBeNull();
+      const strona = podstrona as PublishedSitePayload | null;
+      expect(strona, "adres /kontakt nie oddaje strony").not.toBeNull();
+      expect(strona?.sections.map((sekcja) => sekcja.type)).toEqual(["hero", "contact"]);
+      const wspolne = (strona?.sections ?? []).filter((sekcja) => sekcjeGlownej.has(sekcja.id));
+      expect(wspolne, `podstrona niesie sekcje strony głównej: ${wspolne.length}`).toEqual([]);
 
-      // (4) Stara strona przestała być żywa, ale ZACHOWAŁA bliźniaki (ADR-093 D2).
-      const { data: stara } = await admin
-        .from("sites")
-        .select("published_at, template_published, style_published")
-        .eq("id", siteAId)
-        .single();
-      expect(stara?.published_at, "stara strona dalej jest żywa — dwie żywe naraz").toBeNull();
-      expect(stara?.template_published, "bliźniak szablonu wyczyszczony przy zdejmowaniu").not.toBeNull();
-
+      // (3) Obie strony są żywe naraz — dowód na poziomie DANYCH.
       const { count } = await admin
-        .from("site_sections")
+        .from("sites")
         .select("id", { count: "exact", head: true })
-        .eq("site_id", siteAId)
-        .not("content_published", "is", null);
-      expect(count, "bliźniaki sekcji starej strony zniknęły").toBeGreaterThan(0);
+        .eq("tenant_id", a.tenantId)
+        .not("published_at", "is", null);
+      expect(count, "najemca nie ma dwóch żywych stron").toBe(2);
     }, 60_000);
 
     it("dwie ŻYWE strony pod TYM SAMYM adresem są NIEREPREZENTOWALNE — nawet rolą serwisową (23505)", async () => {
@@ -852,27 +900,33 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
       // slug pusty (strona główna), więc tu znaczy dokładnie to, co w 0048.
       const { error } = await admin
         .from("sites")
-        .update({
-          published_at: new Date().toISOString(),
-          template_published: "classic",
-          slug_published: "",
-        })
-        .eq("id", siteAId);
+        .update({ slug_published: "" })
+        .eq("id", wersjaId);
       expect(error?.code, `oczekiwano ${PG_UNIQUE_VIOLATION}: ${error?.message}`).toBe(PG_UNIQUE_VIOLATION);
       expect(error?.message).toContain("sites_live_slug_unique_idx");
     });
 
     it("USUNIĘCIE strony nieżywej nie rusza koperty ani o bajt", async () => {
+      // Od 0074 publikacja nikogo nie gasi, więc szkic do skasowania trzeba
+      // ZAŁOŻYĆ — inaczej test kasowałby jedną z dwóch żywych stron i mierzył
+      // co innego, niż ma w nazwie.
+      const szkicId = await createSite(a);
+      await addSection(a, szkicId, {
+        type: "hero",
+        position: 0,
+        content_draft: { heading: "Szkic do skasowania" },
+      });
       const baseline = await envelope(a.tenantId);
 
+      await admin.from("site_sections").delete().eq("site_id", szkicId);
       const { error } = await a.ownerClient
         .from("sites")
         .delete()
         .eq("tenant_id", a.tenantId)
-        .eq("id", siteAId);
+        .eq("id", szkicId);
       expect(error, `usunięcie nieżywej strony odrzucone: ${error?.message}`).toBeNull();
 
-      const { data: po } = await admin.from("sites").select("id").eq("id", siteAId).maybeSingle();
+      const { data: po } = await admin.from("sites").select("id").eq("id", szkicId).maybeSingle();
       expect(po, "strona nieżywa nie została usunięta").toBeNull();
       expect(await envelope(a.tenantId), "usunięcie NIEŻYWEJ strony zmieniło stronę klienta").toEqual(
         baseline,

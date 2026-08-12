@@ -24,6 +24,14 @@
  * rewrite przenoszą nagłówki żądania dalej, więc kolejność jest warunkiem
  * działania CSP (Next czyta nonce z nagłówka żądania dla własnych <script>).
  */
+import { LOCALES } from "@avably/core";
+import {
+  INTERNAL_PAGE_PREFIX,
+  internalPagePathname,
+  isReservedPageSlug,
+  isValidPageSlug,
+  pagePathFromSlug,
+} from "@avably/core/site";
 import { applySecurityHeaders, buildCsp, generateNonce, type CspOptions } from "@avably/security";
 import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse, type NextRequest } from "next/server";
@@ -34,6 +42,13 @@ import { getCachedTenant, setCachedTenant } from "@/lib/tenant/cache";
 import { classifyHost } from "@/lib/tenant/host";
 import { setResolvedTenant, stripInboundTenantHeaders } from "@/lib/tenant/headers";
 import { lookupTenantIdByDomain, lookupTenantIdBySlug } from "@/lib/tenant/lookup";
+import {
+  getCachedTenantPages,
+  lookupTenantPages,
+  resolveTenantPages,
+  setCachedTenantPages,
+  type TenantPageRegistry,
+} from "@/lib/tenant/pages";
 import { resolveTenant, resolveTenantByDomain } from "@/lib/tenant/resolve";
 
 const handleI18n = createIntlMiddleware(routing);
@@ -91,6 +106,12 @@ export interface ProxyDeps {
    * hostów, osobne RPC. Ten sam cache (klucz = host), te same TTL-e.
    */
   resolveTenantByDomain: (host: string) => Promise<{ tenantId: string } | null>;
+  /**
+   * REJESTR ADRESÓW STRON najemcy (Faza 2, ADR-158) — cache per NAJEMCA, nie
+   * per host: ten sam sklep bywa dostępny pod subdomeną i pod własną domeną,
+   * a listy jego stron nie ma powodu trzymać dwa razy.
+   */
+  resolveTenantPages: (tenantId: string) => Promise<TenantPageRegistry | null>;
 }
 
 const defaultDeps: ProxyDeps = {
@@ -105,6 +126,12 @@ const defaultDeps: ProxyDeps = {
       getCache: getCachedTenant,
       setCache: setCachedTenant,
       lookup: lookupTenantIdByDomain,
+    }),
+  resolveTenantPages: (tenantId) =>
+    resolveTenantPages(tenantId, {
+      getCache: getCachedTenantPages,
+      setCache: setCachedTenantPages,
+      lookup: lookupTenantPages,
     }),
 };
 
@@ -215,15 +242,85 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
    * rozjechać. `slug` bywa nieznany (własna domena rozwiązuje się po hoście
    * i zwraca sam uuid) — wtedy nagłówek slugu po prostu nie powstaje.
    */
-  const tenantBranch = (tenantId: string, slug?: string): NextResponse => {
+  const tenantBranch = async (tenantId: string, slug?: string): Promise<NextResponse> => {
     setResolvedTenant(request.headers, { id: tenantId, ...(slug ? { slug } : {}) });
 
-    // Korzeń → katalog; podstrony sklepu zachowują ścieżkę. Rewrite (nie next())
-    // niesie wstrzyknięte nagłówki tenanta na trasę docelową grupy (tenant).
+    // Rewrite (nie next()) niesie wstrzyknięte nagłówki tenanta na trasę
+    // docelową grupy (tenant).
     const url = request.nextUrl.clone();
-    if (url.pathname === "/") url.pathname = TENANT_STORE_PATHNAME;
-    const response = NextResponse.rewrite(url, { request: { headers: request.headers } });
-    return applySecurityHeaders(response, nonce, csp);
+    const rewriteTo = (pathname: string): NextResponse => {
+      url.pathname = pathname;
+      return applySecurityHeaders(
+        NextResponse.rewrite(url, { request: { headers: request.headers } }),
+        nonce,
+        csp,
+      );
+    };
+    const passThrough = (): NextResponse =>
+      applySecurityHeaders(
+        NextResponse.rewrite(url, { request: { headers: request.headers } }),
+        nonce,
+        csp,
+      );
+
+    const pathname = url.pathname;
+    const first = pathname.split("/")[1] ?? "";
+
+    // (1) KORZEŃ → strona GŁÓWNA sklepu.
+    if (first === "") return rewriteTo(TENANT_STORE_PATHNAME);
+
+    /*
+     * (2) OŚ MARKETINGOWA NIE NALEŻY DO HOSTA NAJEMCY (ADR-158).
+     *
+     * `<najemca>.avably.io/pl` renderowało do Fazy 2 LANDING PAGE AVABLY:
+     * segment `pl` nie ma odpowiednika w grupie (tenant), więc dopasowywał się
+     * dynamiczny `app/[locale]` osi marketingowej — a tam nie ma ani jednego
+     * sprawdzenia hosta. Skutek był tej samej klasy, co wyciek zamknięty przez
+     * ADR-131 na obcych domenach: pod adresem, który klienci znają jako sklep,
+     * stała oferta naszego SaaS-u. Lista jest DOKŁADNA, nie zachowawcza:
+     * `app/[locale]` renderuje się wyłącznie dla `hasLocale(LOCALES, …)`, więc
+     * odcięcie LOCALES odcina całą gałąź.
+     */
+    if ((LOCALES as readonly string[]).includes(first)) return neutralNotFound(nonce, csp);
+
+    /*
+     * (3) TRASA WEWNĘTRZNA NIE JEST ADRESEM PUBLICZNYM. Cel rewrite'u stron
+     * treściowych (`/store/{slug}`) siedzi pod segmentem `store`, bo trasy
+     * `app/(tenant)/[slug]` nie da się dodać obok `app/[locale]`. Wejście
+     * wprost pod adres wewnętrzny dałoby tę samą treść pod drugim adresem —
+     * duplikat kanoniczny, którego najemca nigdy sam nie zauważy.
+     */
+    if (first === INTERNAL_PAGE_PREFIX.slice(1)) {
+      const wewnetrzne = pathname !== TENANT_STORE_PATHNAME && pathname !== "/store/og";
+      return wewnetrzne ? neutralNotFound(nonce, csp) : passThrough();
+    }
+
+    // (4) Pozostałe trasy sklepu (koszyk, kasa, produkt, dokumenty, embed)
+    // zachowują ścieżkę — dokładnie jak przed Fazą 2. Katalogi prywatne Next
+    // (`_next/**`) też, żeby rozstrzyganie adresu nie stanęło im na drodze.
+    if (first.startsWith("_") || isReservedPageSlug(first)) return passThrough();
+
+    // (5) Kształt odrzucamy BEZ podróży do bazy. Ścieżka wielosegmentowa pod
+    // nieznanym korzeniem też: strony treściowe są w Fazie 2 jednopoziomowe.
+    if (!isValidPageSlug(first) || pathname !== `/${first}`) {
+      return neutralNotFound(nonce, csp);
+    }
+
+    // (6) REJESTR ADRESÓW — jedna podróż, z której wychodzi i strona, i
+    // przekierowanie (ADR-159: historia adresów jedzie TYM SAMYM torem).
+    const registry = await deps.resolveTenantPages(tenantId);
+    if (registry?.pages.includes(first)) return rewriteTo(internalPagePathname(first));
+
+    const redirect = registry?.redirects.find((entry) => entry.from === first);
+    if (redirect) {
+      const target = request.nextUrl.clone();
+      target.pathname = pagePathFromSlug(redirect.to);
+      // Parametry zapytania ZOSTAJĄ: adres w linku z Facebooka najemcy niesie
+      // zwykle `?fbclid=…`, a 308 bez nich gubiłby atrybucję kampanii.
+      return applySecurityHeaders(NextResponse.redirect(target, 308), nonce, csp);
+    }
+
+    return neutralNotFound(nonce, csp);
   };
 
   if (classification.kind === "tenant") {

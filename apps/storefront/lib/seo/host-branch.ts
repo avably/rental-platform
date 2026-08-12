@@ -65,13 +65,28 @@ export async function resolveHostBranch(
 ): Promise<HostBranch> {
   const classification = classifyHost(host);
 
-  // WŁASNA DOMENA NAJEMCY (2.6, ADR-046). Bez tej gałęzi sklep na własnej
-  // domenie serwowałby pod nią sitemapę i robots.txt OSI MARKETINGOWEJ — czyli
-  // wpuszczał kanon `www.avably.io` do indeksu z cudzego hosta. Brak trafienia
-  // → marketing, dokładnie jak w middleware (zachowanie z 2.1 dla obcych hostów).
+  /*
+   * WŁASNA DOMENA NAJEMCY (2.6, ADR-046). Bez tej gałęzi sklep na własnej
+   * domenie serwowałby pod nią sitemapę i robots.txt OSI MARKETINGOWEJ — czyli
+   * wpuszczał kanon `www.avably.io` do indeksu z cudzego hosta.
+   *
+   * BRAK TRAFIENIA → `not-found`, TAK JAK W PROXY (ADR-131, domknięte w Fazie 2).
+   *
+   * Do tej poprawki stał tu `{ kind: "marketing" }` z komentarzem „dokładnie jak
+   * w middleware" — a middleware od ADR-131 oddaje na tej gałęzi neutralne 404.
+   * Rozjazd był UTRWALONY TESTEM („nierozwiązany obcy host → marketing (…),
+   * nie 404"), więc zielona bramka pilnowała WADY: dowolny obcy host wycelowany
+   * w nasz deployment dostawał 404 na `/`, ale pełną sitemapę kanonu Avably pod
+   * `/sitemap.xml`. To jest ta sama wyrocznia, którą ADR-131 zamknął na osi
+   * dokumentów HTML, tylko wystawiona plikiem, którego roboty szukają same.
+   *
+   * Naprawa idzie U ŹRÓDŁA: zmienia się zachowanie, a test, który je utrwalał,
+   * zmienia stronę. Obejście (np. wyjątek w trasie sitemapy) zostawiłoby dwie
+   * sprzeczne prawdy o tej samej granicy — dokładnie stan, który tu naprawiamy.
+   */
   if (classification.kind === "foreign") {
     const resolved = await deps.resolveTenantByDomain(classification.host);
-    return resolved ? { kind: "tenant", tenantId: resolved.tenantId } : { kind: "marketing" };
+    return resolved ? { kind: "tenant", tenantId: resolved.tenantId } : { kind: "not-found" };
   }
 
   if (classification.kind !== "tenant") return classification;

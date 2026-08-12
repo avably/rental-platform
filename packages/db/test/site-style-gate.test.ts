@@ -204,11 +204,22 @@ describe.skipIf(!hasEnv)("styl strony wchodzi na żywo wyłącznie publikacją (
     expect(row!.style_published).toEqual(MOTYW);
   });
 
-  it("app.get_published_site nie czyta kolumny SZKICU stylu", async () => {
+  it("odczyt publiczny nie czyta kolumny SZKICU stylu", async () => {
     // Strażnik STRUKTURALNY: gdyby ktoś w przyszłości podmienił źródło koperty
     // na `style_draft`, wszystkie testy wyżej dalej by przeszły dla strony,
     // której szkic równa się publikacji — a wyciek byłby pełny.
-    const [row] = await sql!`select pg_get_functiondef('app.get_published_site(uuid)'::regprocedure) as def`;
+    //
+    // Skan idzie po OBU definicjach naraz, bo od 0074 (ADR-158) rdzeń odczytu
+    // siedzi w app.get_published_page, a app.get_published_site jest jego
+    // wywołaniem dla strony głównej. Skan po samej sygnaturze zastanej
+    // przechodziłby przez pustkę — dokładnie ta klasa fałszywej zieleni.
+    const [row] = await sql!`
+      select pg_get_functiondef('app.get_published_site(uuid)'::regprocedure)
+        || pg_get_functiondef('app.get_published_page(uuid,text)'::regprocedure) as def
+    `;
+    expect(String(row!.def).length, "puste definicje — czujnik po pustym zbiorze").toBeGreaterThan(
+      500,
+    );
     expect(String(row!.def)).not.toContain("style_draft");
     expect(String(row!.def)).toContain("style_published");
   });

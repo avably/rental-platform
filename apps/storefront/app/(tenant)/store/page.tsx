@@ -11,19 +11,16 @@
  * i18n: język i copy z osi tenanckiej (tenants.locale), nie z URL — patrz
  * lib/storefront/context.ts.
  */
-import { faqPageJsonLd } from "@avably/core/site";
-import { SiteRenderer, type SiteRenderLabels } from "@avably/ui";
+import { HOME_PAGE_SLUG, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
+import { SiteRenderer } from "@avably/ui";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { submitContactMessage } from "@/lib/actions/contact";
-import { toStorefrontProducts } from "@/lib/catalog/present";
-import { issueContactTicket } from "@/lib/contact/ticket";
-import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { pageSections } from "@/lib/site/page-sections";
+import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
@@ -52,7 +49,14 @@ export async function generateMetadata(): Promise<Metadata> {
     storeName,
     published: ctx.site !== null,
     origin: await tenantOrigin(),
-    pathname: "/store",
+    /*
+      KANON Z ADRESU, NIE ZE ŚCIEŻKI PLIKU (Faza 2, ADR-158). Strona główna
+      sklepu odpowiada pod `/` (proxy rewrite'uje ją na `/store`), więc kanonem
+      jest `/`. Do Fazy 2 każda trasa podawała ścieżkę z ręki i wskazywała
+      `/store` — czyli adres WEWNĘTRZNY, pod którym ta sama treść stoi po raz
+      drugi. Przy N stronach jedno takie przeoczenie mnoży się przez N.
+    */
+    pathname: pagePathFromSlug(HOME_PAGE_SLUG),
     locale: ctx.locale,
   });
 }
@@ -67,95 +71,16 @@ export default async function TenantStorePage() {
   const revealNonce = (await headers()).get("x-nonce") ?? undefined;
   if (!ctx) notFound();
 
-  const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
+  const { catalog, copy, locale, currency, style, site } = ctx;
   const origin = await tenantOrigin();
 
-  const labels: SiteRenderLabels = {
-    productsEmpty: copy.siteLabels.productsEmpty,
-    // Sprzęt strukturalny (E7): odnośnik pod sekcją mówi, że widać WYCINEK
-    // oferty — a zdanie o tym jest CHROME renderu, nie tekstem najemcy.
-    productsCatalog: copy.siteLabels.productsCatalog,
-    contactEmail: copy.siteLabels.contactEmail,
-    contactPhone: copy.siteLabels.contactPhone,
-    contactAddress: copy.siteLabels.contactAddress,
-    contactMap: copy.siteLabels.contactMap,
-    directionsAddress: copy.siteLabels.directionsAddress,
-    directionsHours: copy.siteLabels.directionsHours,
-    directionsMap: copy.siteLabels.directionsMap,
-    // Dojazd strukturalny (E5): przycisk „Pokaż mapę", wybór punktu i tytuł
-    // ramki są CHROME renderu — mówią językiem sklepu, a nie językiem, w którym
-    // akurat stoi kod. Notka o ładowaniu mapy z serwisu zewnętrznego jest tu
-    // z tego samego powodu: to informacja dla odwiedzającego, nie tekst najemcy.
-    directionsRoute: copy.siteLabels.directionsRoute,
-    directionsChoose: copy.siteLabels.directionsChoose,
-    directionsShowMap: copy.siteLabels.directionsShowMap,
-    directionsMapNotice: copy.siteLabels.directionsMapNotice,
-    directionsMapTitle: copy.siteLabels.directionsMapTitle,
-    directionsMapPreview: copy.siteLabels.directionsMapPreview,
-    // Galeria strukturalna (E3): przyciski powiększenia i pasa karuzeli mają
-    // w środku sam znak graficzny, więc ich dostępna nazwa jest jedynym, co
-    // słyszy czytnik ekranu — musi przyjść z języka strony.
-    galleryZoom: copy.siteLabels.galleryZoom,
-    galleryClose: copy.siteLabels.galleryClose,
-    galleryPrev: copy.siteLabels.galleryPrev,
-    galleryNext: copy.siteLabels.galleryNext,
-    galleryPosition: copy.siteLabels.galleryPosition,
-    // Kontakt strukturalny (E4): godziny otwarcia to nowy rodzaj wpisu, a cały
-    // formularz jest CHROME renderu — jego etykiety mówią językiem sklepu,
-    // a nie językiem, w którym akurat stoi kod.
-    contactHours: copy.siteLabels.contactHours,
-    contactForm: copy.siteLabels.contactForm,
-    // Cennik i opinie strukturalne (E6): przedrostek „od", nazwy jednostek
-    // rozliczeniowych, odnośnik do katalogu i strzałki pasa opinii mówią
-    // językiem SKLEPU. Jednostka jest tu szczególnie istotna: najemca wybiera
-    // ją ze słownika, więc sklep po angielsku nie ma prawa pokazać „doba".
-    pricingFrom: copy.siteLabels.pricingFrom,
-    pricingUnits: copy.siteLabels.pricingUnits,
-    pricingCatalog: copy.siteLabels.pricingCatalog,
-    testimonialsPrev: copy.siteLabels.testimonialsPrev,
-    testimonialsNext: copy.siteLabels.testimonialsNext,
-  };
-
   /*
-   * SZEW FORMULARZA KONTAKTU (E4, ADR-095). Trzy rzeczy, których pakiet UI mieć
-   * nie może: akcja serwerowa, BILET z chwili renderu (podpisany znacznik
-   * czasu — warstwa „minimalnego czasu od renderu") i widget CAPTCHY.
-   *
-   * Bilet powstaje TU, przy renderze strony, bo to jest moment, w którym
-   * odwiedzający zobaczył formularz. Trasa jest `force-dynamic`, więc każde
-   * wyświetlenie dostaje własny, świeży bilet.
-   *
-   * Klucz publiczny CAPTCHY jest zmienną `NEXT_PUBLIC_*` (wchodzi do bundla —
-   * i tak ma być). SEKRET nie pojawia się w tym pliku ani w żadnym innym
-   * pliku panelu: weryfikacja stoi w akcji serwerowej storefrontu.
-   */
-  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const contactForm = {
-    ticket: issueContactTicket(),
-    submit: submitContactMessage,
-    ...(turnstileSiteKey
-      ? { captcha: <ContactCaptchaField siteKey={turnstileSiteKey} locale={locale} /> }
-      : {}),
-  };
-
-  // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043) — hero
-  // i galeria budują z niego adres obrazu, jak katalog buduje URL zdjęć produktów.
-  const siteImageBase = `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/site-images`;
-
-  const products = toStorefrontProducts(catalog.products, {
-    supabaseUrl,
-    currency,
-    locale,
-    words: { from: copy.common.from, perDay: copy.common.perDay },
-    hrefBase: "/product/",
-    /*
-      PUBLICZNE POLA WŁASNE SPRZĘTU (faza 1b, ADR-154) — z tej samej koperty
-      katalogu, co produkty. Kafel czyta z nich podtytuł i cechy WSKAZANE
-      w treści sekcji; wartości nie ma w treści i nie ma jak jej tam wpisać.
-    */
-    customFields: catalog.custom_fields,
-    fieldLocale: locale,
-  });
+    SZEW RENDERU — etykiety chrome'u, kafle produktów, bilet formularza kontaktu
+    i prefiks zdjęć sekcji. Od Fazy 2 sekcje rysuje więcej niż jedna trasa, więc
+    szew stoi w jednym module (lib/site/render-seam) — rozkopiowany po trasach
+    rozjechałby się CICHO przy pierwszej zmianie etykiety.
+  */
+  const seam = buildSiteRenderSeam(ctx);
 
   // LocalBusiness: nazwa sklepu + opis z hero + adres PIERWSZEGO punktu odbioru,
   // jeśli tenant go ma. Wszystko z publicznego katalogu / opublikowanej strony.
@@ -163,7 +88,7 @@ export default async function TenantStorePage() {
   const hero = heroText(site);
   const businessJsonLd = localBusinessJsonLd({
     name: catalog.tenant.name,
-    url: `${origin ?? ""}/store`,
+    url: `${origin ?? ""}${pagePathFromSlug(HOME_PAGE_SLUG)}`,
     description: hero.subheading ?? hero.heading ?? null,
     address: pickup
       ? { street: pickup.address_street, zip: pickup.address_zip, city: pickup.address_city }
@@ -246,11 +171,11 @@ export default async function TenantStorePage() {
             sections={bodySections}
             style={style}
             asRoot={false}
-            products={products}
-            labels={labels}
+            products={seam.products}
+            labels={seam.labels}
             money={{ currency, locale }}
-            siteImageBase={siteImageBase}
-            contactForm={contactForm}
+            siteImageBase={seam.siteImageBase}
+            contactForm={seam.contactForm}
             /*
               ZGODA NA OSADZENIE MAPY (E5, ADR-096) — podaje ją WYŁĄCZNIE sklep,
               bo tylko jego polityka CSP wpuszcza źródło ramki dostawcy map

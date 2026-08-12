@@ -18,6 +18,7 @@ const ACME_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const fakeDeps: ProxyDeps = {
   resolveTenant: async (_host, slug) => (slug === "acme" ? { tenantId: ACME_ID } : null),
   resolveTenantByDomain: async () => null,
+  resolveTenantPages: async () => ({ pages: [""], redirects: [] }),
 };
 
 describe("routing /terms — dwie osie, jeden segment", () => {

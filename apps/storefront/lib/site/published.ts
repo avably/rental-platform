@@ -20,6 +20,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  HOME_PAGE_SLUG,
   parsePublishedSite,
   resolveSiteStyle,
   type PublishedSite,
@@ -39,11 +40,33 @@ export async function getPublishedSite(
   tenantId: string,
   client?: SupabaseClient,
 ): Promise<PublishedSite | null> {
+  return getPublishedPage(tenantId, HOME_PAGE_SLUG, client);
+}
+
+/**
+ * Opublikowana strona najemcy POD WSKAZANYM ADRESEM (Faza 2, 0074, ADR-158).
+ *
+ * Pusty slug to strona główna — i to jest jedyna różnica między tą funkcją
+ * a `getPublishedSite`, która od Fazy 2 jest właśnie jej wywołaniem. Jedna
+ * droga odczytu, jeden kształt parsowania: druga kopia tego ciała rozjechałaby
+ * się z pierwszą przy najbliższej zmianie koperty, a koperta jest `.strict()`.
+ *
+ * IZOLACJA. `app.get_published_page` jest SECURITY DEFINER, więc RLS jej nie
+ * dotyczy — bramką są jawne argumenty. `tenantId` przychodzi WYŁĄCZNIE
+ * z nagłówka wstrzykniętego przez proxy z rozwiązania server-side po hoście
+ * (lib/tenant/headers.ts zdejmuje przychodzące nagłówki bezwarunkowo), więc
+ * slug podany przez odwiedzającego nie ma jak dosięgnąć cudzego najemcy.
+ */
+export async function getPublishedPage(
+  tenantId: string,
+  slug: string,
+  client?: SupabaseClient,
+): Promise<PublishedSite | null> {
   const supabase = client ?? (await createSupabaseServerClient());
 
   const { data, error } = await supabase
     .schema("app")
-    .rpc("get_published_site", { p_tenant_id: tenantId });
+    .rpc("get_published_page", { p_tenant_id: tenantId, p_slug: slug });
 
   // Fail-closed: błąd transportu/API jest dla odwiedzającego tym samym, czym
   // brak strony — storefront pokaże 404/pustkę, nie stacktrace.

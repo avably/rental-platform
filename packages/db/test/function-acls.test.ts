@@ -49,7 +49,9 @@ const ANON_EXECUTE_ALLOWLIST = [
   "get_public_payment_account", // 0028 — publiczny identyfikator konta płatności
   "get_published_legal_document", // 0063 — żywa wersja dokumentu prawnego
   "get_published_legal_documents", // 0063 — spis opublikowanych dokumentów (bez treści)
-  "get_published_site", // 0019 — opublikowana strona sklepu
+  "get_published_page", // 0074 — opublikowana strona sklepu POD ADRESEM (rdzeń odczytu)
+  "get_published_site", // 0019 — opublikowana strona GŁÓWNA sklepu (wejście do 0074)
+  "get_tenant_pages", // 0074 — rejestr żywych adresów stron najemcy dla proxy sklepu
   "is_settlement_writer", // 0032 — predykat polityk rozliczeń kaucji
   "is_superadmin", // 0001 — czytnik claimu używany w politykach RLS
   // join_waitlist (0006) ZDJĘTA w 0071 — waitlista nie wraca (decyzja

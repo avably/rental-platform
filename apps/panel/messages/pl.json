@@ -1817,7 +1817,12 @@
       "limitReached": "Osiągnięto limit {max} stron. Usuń nieużywaną wersję, żeby dodać nową.",
       "cancel": "Anuluj",
       "switchBodySelf": "Sklep pokaże tę stronę w aktualnej wersji — razem ze zmianami, które w niej zrobiłeś.",
-      "notLive": "Nie jest widoczna w sklepie — pracujesz nad nią w panelu."
+      "notLive": "Nie jest widoczna w sklepie — pracujesz nad nią w panelu.",
+      "slugLabel": "Adres strony",
+      "slugHint": "Adres w sklepie, np. jak-dziala-wynajem. Małe litery bez ogonków, cyfry i myślniki.",
+      "slugChangeHint": "Nowy adres zobaczą klienci dopiero po opublikowaniu tej strony.",
+      "slugHome": "Strona główna sklepu ma adres „/” i nie da się go zmienić.",
+      "addressPending": "Klienci mają jeszcze adres {current} — nowy zacznie działać po publikacji."
     },
     "structured": {
       "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",

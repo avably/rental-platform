@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { getPublishedSite } from "../lib/site/published";
+import { getPublishedPage, getPublishedSite } from "../lib/site/published";
 
 const TENANT_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -43,7 +43,13 @@ describe("getPublishedSite", () => {
 
     const site = await getPublishedSite(TENANT_ID, client);
 
-    expect(calls).toEqual([{ fn: "get_published_site", args: { p_tenant_id: TENANT_ID } }]);
+    // Od Fazy 2 (ADR-158) `getPublishedSite` jest odczytem strony GŁÓWNEJ:
+    // woła rdzeń `app.get_published_page` z pustym slugiem. Jedno ciało, jeden
+    // kształt koperty — druga kopia rozjechałaby się przy pierwszej zmianie,
+    // a koperta jest `.strict()`.
+    expect(calls).toEqual([
+      { fn: "get_published_page", args: { p_tenant_id: TENANT_ID, p_slug: "" } },
+    ]);
     expect(site?.template).toBe("classic");
     expect(site?.sections).toHaveLength(1);
   });
@@ -61,5 +67,30 @@ describe("getPublishedSite", () => {
   it("odpowiedź w nieznanym kształcie → null (fail-closed)", async () => {
     const { client } = fakeClient({ data: { unexpected: true }, error: null });
     expect(await getPublishedSite(TENANT_ID, client)).toBeNull();
+  });
+});
+
+describe("getPublishedPage", () => {
+  it("przekazuje slug do rdzenia odczytu — adres wskazuje STRONĘ, nie najemcę", async () => {
+    const { client, calls } = fakeClient({
+      data: {
+        template: "classic",
+        published_at: "2026-08-13T10:00:00+00:00",
+        sections: [{ id: TENANT_ID, type: "hero", position: 0, content: { heading: "Kontakt" } }],
+      },
+      error: null,
+    });
+
+    const page = await getPublishedPage(TENANT_ID, "kontakt", client);
+
+    expect(calls).toEqual([
+      { fn: "get_published_page", args: { p_tenant_id: TENANT_ID, p_slug: "kontakt" } },
+    ]);
+    expect(page?.sections[0]?.content).toEqual({ heading: "Kontakt" });
+  });
+
+  it("nieznany adres → null (fail-closed, tak samo jak brak strony)", async () => {
+    const { client } = fakeClient({ data: null, error: null });
+    expect(await getPublishedPage(TENANT_ID, "nie-ma", client)).toBeNull();
   });
 });
