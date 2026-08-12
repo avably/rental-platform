@@ -6,10 +6,8 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Link, usePathname } from "@/i18n/navigation";
-import { logoutAction } from "@/lib/actions/logout";
 import { PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS, matchNavItem } from "@/lib/shell/nav";
 
-import { LocaleSwitcher } from "./locale-switcher";
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -19,6 +17,13 @@ import { SidebarNav } from "./sidebar-nav";
  * Szuflada zamyka się po kliknięciu pozycji (`onNavigate`) — bez tego po
  * przejściu do innego ekranu nakładka zostałaby otwarta nad nową treścią,
  * bo nawigacja klientem nie odmontowuje shella.
+ *
+ * U11a (ADR-144) zdjął ze stopki szuflady adres e-mail, przełącznik języka
+ * i „Wyloguj": te pozycje mieszkają dziś w MENU KONTA, które stoi w belce na
+ * KAŻDEJ szerokości. Trzymanie ich w obu miejscach dawało na telefonie dwa
+ * wylogowania i dwa przełączniki języka — czyli dokładnie ten rozjazd, który
+ * audyt UX wytyka w części o spójności akcji. Szuflada zostaje tym, czym
+ * jest: nawigacją.
  */
 /**
  * CTA paska jako zwykła pozycja (decyzja właściciela 2026-07-22: bez
@@ -35,15 +40,12 @@ const BOTTOM_ITEM_CLASS =
   "text-muted-foreground flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium outline-none transition-[color,background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent dark:focus-visible:outline-ring";
 
 export function MobileNav({
-  userEmail,
   closing = false,
 }: {
-  userEmail: string;
   /** Okno domykania (ADR-138) — filtruje szufladę i dolny pasek (jak sidebar). */
   closing?: boolean;
 }) {
   const t = useTranslations("nav");
-  const tCommon = useTranslations("common");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const active = matchNavItem(pathname);
@@ -78,18 +80,6 @@ export function MobileNav({
         <SheetTitle className="sr-only">{t("panelNavigation")}</SheetTitle>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <SidebarNav onNavigate={() => setOpen(false)} closing={closing} />
-        </div>
-        <div className="border-border flex flex-col gap-3 border-t p-4">
-          <span className="text-muted-foreground truncate text-xs">{userEmail}</span>
-          <LocaleSwitcher />
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="border-border text-foreground w-full cursor-pointer rounded-md border px-3 py-2 text-sm font-medium outline-none hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
-            >
-              {tCommon("logout")}
-            </button>
-          </form>
         </div>
       </SheetContent>
 

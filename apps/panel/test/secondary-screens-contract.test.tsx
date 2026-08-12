@@ -115,6 +115,9 @@ const { SiteLoadError } = await import("@/app/[locale]/(panel)/strona/site-load-
 const { PaymentsPanel } = await import(
   "@/app/[locale]/(panel)/ustawienia-platnosci/payments-panel"
 );
+const { ChangePasswordForm, SignOutOtherDevicesForm } = await import(
+  "@/app/[locale]/(panel)/bezpieczenstwo/password-form"
+);
 
 function render(node: React.ReactNode): string {
   return renderToStaticMarkup(
@@ -668,6 +671,77 @@ describe("ekran bezpieczeństwa — trzy stany 2FA", () => {
 
   it("wyzwanie przenosi bezpieczny adres powrotu ukrytym polem", () => {
     expect(challenge).toMatch(/type="hidden" name="next" value="\/zamowienia"/);
+  });
+});
+
+/**
+ * U11a (ADR-144): ekran przestał być samym 2FA. Dochodzą dwie karty konta —
+ * zmiana hasła ze znajomości hasła i odcięcie pozostałych urządzeń.
+ *
+ * Asercje są DWUSTRONNE tam, gdzie to coś znaczy: najpierw potwierdzamy, że
+ * badany fragment W OGÓLE jest na ekranie, a dopiero potem stwierdzamy, czego
+ * w nim nie ma — „HTML nie zawiera hasła" przeszłoby również dla komponentu,
+ * który się nie wyrenderował.
+ */
+describe("ekran bezpieczeństwa — konto: hasło i urządzenia", () => {
+  const passwordCard = render(<ChangePasswordForm />);
+  const revokeCard = render(<SignOutOtherDevicesForm />);
+
+  it("obie karty konta mają własne kotwice i NIE dokładają chipu stanu", () => {
+    expect(passwordCard).toContain("data-password-change");
+    expect(revokeCard).toContain("data-session-revoke");
+    // Chip opisuje STAN, który trwa; „hasło zmienione" to zdarzenie. Oś stanu
+    // ekranu zostaje wyłącznie przy 2FA.
+    expect(chips(passwordCard)).toEqual([]);
+    expect(chips(revokeCard)).toEqual([]);
+  });
+
+  it("trzy pola hasła są write-only: żadne nie niesie wartości w HTML-u", () => {
+    // Kontrola pozytywna NAJPIERW — inaczej asercja „bez wartości" broniłaby
+    // pustego zbioru.
+    const passwordInputs = [...passwordCard.matchAll(/<input[^>]*type="password"[^>]*>/g)].map(
+      (match) => match[0],
+    );
+    expect(passwordInputs).toHaveLength(3);
+    for (const input of passwordInputs) {
+      expect(input, `pole hasła z wartością w HTML: ${input}`).not.toMatch(/\bvalue=/);
+    }
+    // Bez podpowiedzi dla menedżera haseł operator zmieni hasło i zostanie
+    // z nieaktualnym w menedżerze. Dopasowanie bez oglądania na wielkość
+    // liter: nazwy atrybutów HTML są nieczułe na wielkość, a renderer
+    // Reacta wypisuje je tak, jak stoją w JSX.
+    expect(passwordCard).toMatch(/autocomplete="current-password"/i);
+    expect(passwordCard.match(/autocomplete="new-password"/gi)).toHaveLength(2);
+  });
+
+  it("stan sukcesu i stan błędu to DWA różne komunikaty, nie jeden szablon", () => {
+    const success = render(<ChangePasswordForm initialState={{ success: "Zmienione." }} />);
+    const failure = render(<ChangePasswordForm initialState={{ formError: "Odmowa." }} />);
+    const neutral = render(<ChangePasswordForm initialState={{ notice: "Zaloguj się ponownie." }} />);
+
+    expect(success).toContain('data-form-message="success"');
+    expect(success).toContain("Zmienione.");
+    expect(failure).toContain('data-form-message="error"');
+    expect(failure).toContain('role="alert"');
+    expect(neutral).toContain('data-form-message="notice"');
+    // Karta bez stanu nie rysuje pustej linii komunikatu.
+    expect(passwordCard).not.toContain("data-form-message");
+  });
+
+  it("błąd pola siada przy formularzu, a nie znika w ciszy", () => {
+    const html = render(
+      <ChangePasswordForm initialState={{ fieldErrors: { password: "Za krótkie." } }} />,
+    );
+    expect(html).toContain("Za krótkie.");
+    expect(html).toContain('data-form-message="error"');
+  });
+
+  it("karta urządzeń niesie akcję i zdanie o tym, co zostaje zalogowane", () => {
+    expect(revokeCard).toContain(messages.security.revokeSubmit);
+    expect(revokeCard).toContain(messages.security.revokeBody);
+    // Jedna akcja, jeden submit — to nie jest lista sesji przebrana za kartę.
+    expect(revokeCard.match(/type="submit"/g)).toHaveLength(1);
+    expect(revokeCard).not.toContain('type="password"');
   });
 });
 

@@ -11,6 +11,9 @@
     "email": "Email",
     "password": "Password",
     "logout": "Sign out",
+    "accountMenu": "Account menu",
+    "language": "Language",
+    "theme": "Theme",
     "dateField": {
       "placeholder": "Pick a date",
       "rangePlaceholder": "Pick a range"
@@ -382,6 +385,21 @@
     "enrollTitle": "Two-step verification",
     "enrollBody": "Add an authenticator app to require a second step at sign-in.",
     "enrollmentTitle": "Authenticator app setup",
+    "passwordTitle": "Change password",
+    "passwordBody": "Enter your current password and set a new one. We will sign out your other devices and send a notification to your address.",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "confirmPasswordLabel": "Repeat new password",
+    "passwordRule": "At least 8 characters.",
+    "passwordSubmit": "Change password",
+    "passwordSuccess": "Password changed. Your other devices have been signed out.",
+    "passwordChangedRelogin": "Password changed. This session has expired — sign in with the new password.",
+    "passwordDenied": "We could not change the password. Check your current password and try again.",
+    "revokeTitle": "Other devices",
+    "revokeBody": "Ends sessions on all other devices and browsers. You stay signed in here.",
+    "revokeSubmit": "Sign me out of all devices",
+    "revokeSuccess": "Your other devices have been signed out.",
+    "revokeError": "We could not sign out the other devices. Try again in a moment.",
     "secretOnceHint": "We show the secret only during setup. Save it somewhere safe."
   },
   "mfaChallenge": {
