@@ -46,6 +46,11 @@ function produkt(overrides: Partial<PublicCatalogProduct> = {}): PublicCatalogPr
     auto_increment_multiplier: 1,
     buffer_before_days: 0,
     buffer_after_days: 0,
+    // Doszło z taksonomią katalogu (ADR-155, migracja 0072) już PO tym, jak ta
+    // atrapa powstała: pole jest w `PublicCatalogProduct` WYMAGANE, więc bez
+    // wartości bazowej spread `Partial<…>` robi z niego `string[] | undefined`.
+    // Produkt bez ani jednej kategorii to stan normalny, stąd pusta lista.
+    category_ids: [],
     pricing_tiers: [],
     images: [],
     ...overrides,
