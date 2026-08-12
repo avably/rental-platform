@@ -390,6 +390,48 @@ describe.skipIf(!hasEnv)("zmiana planu i reaktywacja — ADR-152", () => {
     expect(billing.calls.map((c) => c.method)).not.toContain("resumeSubscription");
   });
 
+  it("SONDA BEZPIECZEŃSTWA: rozjazd W DRUGĄ STRONĘ — tenant active, subskrypcja unpaid", async () => {
+    // Bramka statusu TENANTA tego nie łapie: tenant jest otwarty (webhook
+    // zawieszający jeszcze nie wrócił albo superadmin właśnie odblokował).
+    // Zamyka WYŁĄCZNIE bramka statusu SUBSKRYPCJI — i ten test jest jedynym
+    // miejscem, w którym da się to zobaczyć osobno.
+    const { tenantId, supabase } = await createOwnerWithTenant("unpaid-open");
+    await setTenantStatus(tenantId, "active");
+    await seedSubscription(tenantId, { status: "unpaid", cancel_at_period_end: true });
+    const billing = fakeBilling((id) =>
+      subscriptionRead(id, {
+        tenantIdFromMetadata: tenantId,
+        status: "unpaid",
+        cancelAtPeriodEnd: true,
+      }),
+    );
+
+    const outcome = await reactivateSaasSubscription({ supabase, billing }, { tenantId });
+
+    expect(outcome).toEqual({ error: SUBSCRIPTION_NOT_MANAGEABLE });
+    // Odczyt PADŁ (dowód, że doszliśmy do bramki statusu subskrypcji),
+    // a wznowienia NIE BYŁO — bez tej pary asercja o braku wznowienia
+    // przechodziłaby też wtedy, gdyby odmowa padła wcześniej, z innego powodu.
+    expect(billing.calls.map((c) => c.method)).toEqual(["readSaasSubscription"]);
+  });
+
+  it("SONDA BEZPIECZEŃSTWA: zmiana planu przy subskrypcji past_due i OTWARTYM tenancie", async () => {
+    const { tenantId, supabase } = await createOwnerWithTenant("pastdue-open");
+    await setTenantStatus(tenantId, "active");
+    await seedSubscription(tenantId, { status: "past_due" });
+    const billing = fakeBilling((id) =>
+      subscriptionRead(id, { tenantIdFromMetadata: tenantId, status: "past_due" }),
+    );
+
+    const outcome = await changeSaasPlan(
+      { supabase, billing },
+      { tenantId, planId: "premium", interval: "monthly" },
+    );
+
+    expect(outcome).toEqual({ error: SUBSCRIPTION_NOT_MANAGEABLE });
+    expect(billing.calls.map((c) => c.method)).toEqual(["readSaasSubscription"]);
+  });
+
   it("SONDA BEZPIECZEŃSTWA: tenant suspended przy subskrypcji active (rozjazd) — droga też zamknięta", async () => {
     const { tenantId, supabase } = await createOwnerWithTenant("divergent");
     // Stan legalny: app.superadmin_set_plan pisze subskrypcję `active`,
