@@ -21,8 +21,9 @@
   },
   "home": {
     "title": "Panel",
-    "placeholderTitle": "Tu będzie centrum dowodzenia.",
-    "placeholderBody": "Dashboard czeka na dane. Do tego czasu najwięcej dzieje się w zamówieniach.",
+    "onboardingTitle": "Załóż organizację, żeby zacząć",
+    "onboardingBody": "Organizacja to Twoja wypożyczalnia: katalog, zamówienia i własny sklep internetowy. Zajmie to minutę — potrzebujemy nazwy i adresu sklepu. Wtedy ruszy 14-dniowy okres próbny, bez karty.",
+    "onboardingCta": "Załóż organizację",
     "ordersCta": "Przejdź do zamówień",
     "dashboardIntro": "Liczby liczone z zamówień Twojej organizacji — bez szacunków.",
     "suspendedTitle": "Organizacja jest zawieszona",
@@ -190,6 +191,7 @@
     "newOrderShort": "Nowe",
     "emailHistory": "Historia wiadomości",
     "newOrganization": "Nowa organizacja",
+    "organizationCreated": "Organizacja gotowa",
     "securityChallenge": "Weryfikacja dwuetapowa",
     "dashboard": "Dashboard",
     "groupSales": "SPRZEDAŻ",
@@ -288,6 +290,9 @@
     "submitPending": "Loguję…",
     "register": "Załóż konto",
     "forgotPassword": "Nie pamiętam hasła",
+    "resendConfirmation": "Wyślij link potwierdzający ponownie",
+    "signInFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło. Jeśli konto jest nowe — najpierw potwierdź adres z wiadomości, którą wysłaliśmy.",
+    "resetDone": "Hasło zostało zmienione. Zaloguj się nowym hasłem.",
     "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się."
   },
   "register": {
@@ -313,13 +318,18 @@
     "submit": "Wyślij link do resetu",
     "submitPending": "Wysyłam…",
     "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
+    "backToLogin": "Wróć do logowania",
     "successNeutral": "Jeśli konto z tym adresem istnieje, wysłaliśmy e-mail z linkiem do resetu hasła."
   },
   "resetConfirm": {
     "title": "Ustaw nowe hasło",
     "newPassword": "Nowe hasło",
     "submit": "Ustaw hasło",
-    "submitPending": "Zapisuję…"
+    "submitPending": "Zapisuję…",
+    "expiredTitle": "Ten link już nie działa",
+    "expiredBody": "Link do zmiany hasła jest jednorazowy i ważny godzinę. Poproś o nowy — przyjdzie na ten sam adres e-mail.",
+    "requestNewLink": "Poproś o nowy link",
+    "backToLogin": "Wróć do logowania"
   },
   "authError": {
     "emailRateLimit": "Wysłaliśmy już maksymalną liczbę wiadomości na ten adres. Spróbuj ponownie za godzinę.",
@@ -332,12 +342,29 @@
     "generic": "Nie udało się dokończyć operacji. Spróbuj ponownie za chwilę."
   },
   "newOrganization": {
+    "intro": "Zostaniesz właścicielem nowej organizacji.",
     "name": "Nazwa organizacji",
-    "slug": "Slug (adres, np. moja-firma)",
+    "slug": "Adres Twojego sklepu",
+    "slugPlaceholder": "moja-wypozyczalnia",
+    "slugPreview": "Twój sklep stanie pod adresem {host}",
+    "slugPreviewEmpty": "Małe litery, cyfry i myślnik — od 3 do 39 znaków.",
+    "slugEditableNote": "Adres będzie można później zmienić — stary zostanie przekierowany na nowy.",
+    "errorSlugTaken": "Ten adres jest już zajęty. Wybierz inny — na przykład z nazwą miasta.",
+    "errorGeneric": "Nie udało się założyć organizacji. Spróbuj ponownie za chwilę.",
     "submit": "Utwórz organizację",
     "submitPending": "Tworzę…",
     "termsLabel": "Akceptuję",
     "termsLinkLabel": "Regulamin świadczenia usługi Avably ({version})"
+  },
+  "organizationCreated": {
+    "title": "{name} — gotowe",
+    "body": "Organizacja jest założona, a Ty jesteś jej właścicielem. Dwie rzeczy zaczęły się w tej chwili:",
+    "storeAddressLabel": "Adres Twojego sklepu",
+    "storeAddressNote": "Sklep jest już publiczny. Adres będzie można później zmienić — stary zostanie przekierowany na nowy.",
+    "trialLabel": "Okres próbny",
+    "trialValue": "Trwa do {date}",
+    "trialNote": "{days} dni bez karty. Nic nie naliczy się samo.",
+    "cta": "Przejdź do panelu"
   },
   "platformTerms": {
     "title": "Nowa wersja regulaminu ({version})",

@@ -44,7 +44,30 @@ export function LoginForm({ next }: { next?: string }) {
         {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
             (semantyka włączenia — L2/ADR-106). */}
         <AuthCaptchaField resetSignal={state} />
-        {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+        {/*
+          DWA WYJŚCIA PRZY BŁĘDZIE (ADR-153, N3). Komunikat jest z konieczności
+          generyczny — nie wolno mu zdradzić, czy konto istnieje — więc sam
+          nie mówi, co dalej. Obie realne przyczyny („nie potwierdziłem
+          adresu" i „nie pamiętam hasła") dostają tu drogę wyjścia, bez
+          klasyfikowania czegokolwiek po stronie serwera. Do ADR-153 człowiek
+          z poprawnym hasłem i niepotwierdzonym adresem czytał „nieprawidłowe
+          hasło" i szedł w reset hasła, który nie pomaga.
+        */}
+        {state.error ? (
+          <div data-login-error className="flex flex-col gap-1">
+            <p role="alert" className="text-destructive text-sm">
+              {state.error}
+            </p>
+            <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <Link href="/register/sprawdz-skrzynke" className="underline">
+                {t("resendConfirmation")}
+              </Link>
+              <Link href="/reset" className="underline">
+                {t("forgotPassword")}
+              </Link>
+            </p>
+          </div>
+        ) : null}
         <button
           type="submit"
           aria-busy={pending || undefined}

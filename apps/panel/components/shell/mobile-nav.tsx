@@ -41,9 +41,16 @@ const BOTTOM_ITEM_CLASS =
 
 export function MobileNav({
   closing = false,
+  onboarding = false,
 }: {
   /** Okno domykania (ADR-138) — filtruje szufladę i dolny pasek (jak sidebar). */
   closing?: boolean;
+  /**
+   * Sesja bez organizacji (ADR-153, N4) — filtruje szufladę i dolny pasek
+   * tak samo jak sidebar. Bez tego pętla „pulpit ↔ zamówienia" żyłaby dalej
+   * na telefonie, gdzie pasek dolny jest główną nawigacją.
+   */
+  onboarding?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -52,11 +59,15 @@ export function MobileNav({
   const newOrderActive =
     pathname === "/zamowienia/nowe" || pathname.startsWith("/zamowienia/nowe/");
 
-  // W oknie domykania dolny pasek traci katalog i CTA nowego zamówienia —
+  // Bez organizacji dolny pasek to pulpit i menu — reszta pozycji jest
+  // trasami tenanckimi, z których guard i tak zawróciłby na pulpit.
+  // W oknie domykania pasek traci katalog i CTA nowego zamówienia —
   // zostaje strona główna, zamówienia i menu (guard i tak by odmówił).
-  const bottomItems = closing
-    ? [PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS[0]]
-    : [PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS[0], NEW_ORDER_BAR_ITEM, PANEL_BOTTOM_NAV_ITEMS[1]];
+  const bottomItems = onboarding
+    ? [PANEL_BOTTOM_NAV_HOME]
+    : closing
+      ? [PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS[0]]
+      : [PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS[0], NEW_ORDER_BAR_ITEM, PANEL_BOTTOM_NAV_ITEMS[1]];
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -79,14 +90,14 @@ export function MobileNav({
             czytników, bez dublowania nagłówka na ekranie. */}
         <SheetTitle className="sr-only">{t("panelNavigation")}</SheetTitle>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <SidebarNav onNavigate={() => setOpen(false)} closing={closing} />
+          <SidebarNav onNavigate={() => setOpen(false)} closing={closing} onboarding={onboarding} />
         </div>
       </SheetContent>
 
       <nav
         data-mobile-bottom-nav="true"
         aria-label={t("mobileNavigation")}
-        className={`border-border bg-background fixed inset-x-0 bottom-0 z-40 grid border-t pb-[env(safe-area-inset-bottom)] md:hidden ${closing ? "grid-cols-3" : "grid-cols-5"}`}
+        className={`border-border bg-background fixed inset-x-0 bottom-0 z-40 grid border-t pb-[env(safe-area-inset-bottom)] md:hidden ${onboarding ? "grid-cols-2" : closing ? "grid-cols-3" : "grid-cols-5"}`}
       >
         {/*
           Kolejność: Dashboard · Zamówienia · Nowe · Katalog · Menu (decyzja

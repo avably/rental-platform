@@ -8,6 +8,7 @@ import {
   PANEL_NAV_GROUPS,
   PANEL_NAV_PLACEHOLDER,
   matchNavItem,
+  type PanelNavGroup,
 } from "@/lib/shell/nav";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
@@ -57,6 +58,7 @@ export const PANEL_NAV_ID = "panel-nav";
 export function SidebarNav({
   onNavigate,
   closing = false,
+  onboarding = false,
 }: {
   onNavigate?: () => void;
   /**
@@ -65,6 +67,14 @@ export function SidebarNav({
    * filtr nie pokazuje drzwi, które są zamknięte. Grupy bez pozycji znikają.
    */
   closing?: boolean;
+  /**
+   * Sesja BEZ organizacji (ADR-153, N4): KAŻDA pozycja grup prowadzi na
+   * trasę tenancką, a `requireMemberPage` odsyła taką sesję z powrotem na
+   * pulpit — czyli pełne menu było listą dziesięciu linków robiących to samo
+   * kółko. Zostaje sam pulpit, bo tylko on niesie wejście do zakładania
+   * organizacji. Jak przy `closing`: to filtr WIDOKU, bramką pozostaje guard.
+   */
+  onboarding?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -73,12 +83,14 @@ export function SidebarNav({
   const PlaceholderIcon = NAV_ICONS[PANEL_NAV_PLACEHOLDER.id];
   const placeholderLabel = t(PANEL_NAV_PLACEHOLDER.labelKey);
 
-  const groups = closing
-    ? PANEL_NAV_GROUPS.map((group) => ({
-        ...group,
-        items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
-      })).filter((group) => group.items.length > 0)
-    : PANEL_NAV_GROUPS;
+  const groups: readonly PanelNavGroup[] = onboarding
+    ? []
+    : closing
+      ? PANEL_NAV_GROUPS.map((group) => ({
+          ...group,
+          items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
+        })).filter((group) => group.items.length > 0)
+      : PANEL_NAV_GROUPS;
 
   return (
     <nav

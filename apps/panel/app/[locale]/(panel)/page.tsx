@@ -70,17 +70,26 @@ export default async function Home() {
   ) : null;
 
   if (!ctx.tenantId) {
+    // KONIEC PĘTLI ONBOARDINGU (ADR-153, N4). Do tej naprawy pulpit odsyłał
+    // konto bez organizacji „do zamówień", a `requireMemberPage` odsyłało je
+    // z zamówień z powrotem na pulpit — dwa ekrany podające sobie człowieka
+    // w kółko. Do `/organizacja/nowa` nie prowadził ANI JEDEN link w panelu,
+    // choć to JEDYNA czynność, którą takie konto może wykonać.
+    //
+    // Nawigacja boczna i dolny pasek są w tym stanie ZWINIĘTE do samego
+    // pulpitu (layout → SidebarNav/MobileNav `onboarding`), więc ten ekran
+    // jest jedynym miejscem, z którego da się ruszyć dalej — i musi nieść
+    // wejście, a nie zapowiedź.
     return (
       <div>
-        <h2 className="text-2xl font-semibold tracking-[-0.02em]">
-          {t("placeholderTitle")}
-        </h2>
-        <p className="text-muted-foreground mt-3 text-sm">{t("placeholderBody")}</p>
+        <h2 className="text-2xl font-semibold tracking-[-0.02em]">{t("onboardingTitle")}</h2>
+        <p className="text-muted-foreground mt-3 max-w-prose text-sm">{t("onboardingBody")}</p>
         <Link
-          href="/zamowienia"
+          href="/organizacja/nowa"
+          data-onboarding-cta
           className="bg-primary text-primary-foreground mt-6 inline-flex cursor-pointer items-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
         >
-          {t("ordersCta")}
+          {t("onboardingCta")}
         </Link>
         {superadminEntry}
       </div>

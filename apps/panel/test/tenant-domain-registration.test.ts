@@ -121,7 +121,7 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
       rpcCalls.map((call) => call.fn),
       "create_tenant nie został zawołany",
     ).toContain("create_tenant");
-    expect(redirect.url, "onboarding nie dokończył się mimo awarii dostawcy").toBe("/pl/");
+    expect(redirect.url, "onboarding nie dokończył się mimo awarii dostawcy").toBe("/pl/organizacja/nowa/gotowe");
 
     // Uczciwa CZĘŚCIOWA porażka: powód zapisany, nie połknięty w ciszy.
     expect(domainUpdates).toHaveLength(1);
@@ -135,7 +135,7 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
 
     const redirect = await runCreateTenant();
 
-    expect(redirect.url).toBe("/pl/");
+    expect(redirect.url).toBe("/pl/organizacja/nowa/gotowe");
     expect(String(domainUpdates[0]?.last_error)).toContain(STOREFRONT_TOKEN_ENV);
   });
 
@@ -155,7 +155,7 @@ describe("zakładanie organizacji a rejestracja subdomeny (2.6)", () => {
 
     const redirect = await runCreateTenant();
 
-    expect(redirect.url).toBe("/pl/");
+    expect(redirect.url).toBe("/pl/organizacja/nowa/gotowe");
     expect(domainUpdates[0]).toEqual({
       provider_domain_id: "acme-2-6.avably.io",
       last_error: null,
