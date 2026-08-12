@@ -405,6 +405,7 @@
     "product": {
       "galleryAlt": "Zdjęcie produktu {name}",
       "descriptionHeading": "Opis",
+      "specsHeading": "Specyfikacja techniczna",
       "depositLabel": "Kaucja",
       "perDayPrice": "{price} / doba",
       "chooseDates": "Wybierz termin najmu",

@@ -175,6 +175,34 @@ export function ProductDetail({
           </div>
         ) : null}
 
+        {/*
+          SPECYFIKACJA TECHNICZNA (faza 1a, ADR-154) — publiczne pola własne
+          sprzętu. Tabela, a nie lista: para „etykieta — wartość" powtórzona
+          siedem razy JEST tabelą, a czytnik ekranu dostaje wtedy nagłówki
+          wierszy zamiast ciągu zdań. Brak ani jednej wypełnionej wartości
+          znaczy BRAK TABELI: pusta ramka z samym nagłówkiem czyta się jak
+          usterka, a nie jak „ten sprzęt nie ma specyfikacji".
+        */}
+        {product.specs.length > 0 ? (
+          <div>
+            <h2 className="site-text-muted text-sm font-semibold uppercase tracking-wide">
+              {copy.product.specsHeading}
+            </h2>
+            <table data-product-specs className="mt-2 w-full text-sm">
+              <tbody>
+                {product.specs.map((spec) => (
+                  <tr key={spec.id} data-product-spec={spec.id} className="site-rule-top">
+                    <th scope="row" className="site-text-muted py-2 pr-4 text-left font-normal align-top">
+                      {spec.label}
+                    </th>
+                    <td className="py-2 text-left align-top">{spec.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
         <div className="site-card p-4">
           <p className="font-medium">{copy.product.chooseDates}</p>
           <div className="mt-3 grid grid-cols-2 gap-3">

@@ -1430,6 +1430,26 @@ const PRODUCTS_MAX_ITEMS = 24;
 export const PRODUCTS_LIMITS = [2, 3, 4, 6, 8, 12, 16, 24] as const;
 export type ProductsLimit = (typeof PRODUCTS_LIMITS)[number];
 
+/**
+ * ILE CECH MIEŚCI SIĘ NA KAFLU (faza 1b, ADR-154).
+ *
+ * Cztery, i to nie jest liczba wzięta z sufitu: kafel w siatce trzykolumnowej
+ * ma pod nazwą i ceną miejsce na kilka wierszy, zanim zacznie rosnąć wyżej niż
+ * jego własne zdjęcie. Lista dłuższa niż zdjęcie zamienia siatkę sprzętu w
+ * tabelę specyfikacji — a od tego jest STRONA produktu (faza 1a), na której
+ * mieści się komplet pól bez sufitu.
+ */
+export const PRODUCTS_MAX_FEATURES = 4;
+
+/**
+ * ETYKIETA WŁASNEGO PRZYCISKU KAFLA (faza 1b, ADR-154).
+ *
+ * Krótka z konstrukcji: napis dłuższy niż „Sprawdź dostępność" nie mieści się
+ * w przycisku kafla na telefonie i łamie się na dwie linie, przesuwając dół
+ * kafla względem sąsiadów w tym samym rzędzie.
+ */
+const productsCtaLabel = z.string().trim().min(1).max(40);
+
 export const productsStructuredSchema = z
   .object({
     v: z.literal(STRUCTURED_SECTION_VERSION),
@@ -1471,6 +1491,44 @@ export const productsStructuredSchema = z
         z.literal(24),
       ])
       .default(8),
+    /**
+     * PODTYTUŁ KAFLA — WSKAZANIE POLA WŁASNEGO SPRZĘTU, nie napis (faza 1b).
+     *
+     * ==================== DLACZEGO IDENTYFIKATOR, A NIE TEKST ====================
+     *
+     * Podtytuł jest zdaniem O KONKRETNEJ pozycji („Internet satelitarny bez
+     * zasięgu komórkowego"), a treść sekcji jest JEDNA na wszystkie kafle.
+     * Pole tekstowe dałoby więc albo ten sam podtytuł pod każdym sprzętem, albo
+     * — gdyby usiąść do tego per pozycja — DRUGIE ŹRÓDŁO PRAWDY o sprzęcie,
+     * obok katalogu. Ta druga droga ma znany koszt i widać go na stronie
+     * wzorcowej: ta sama pozycja kosztuje tam 45 zł/dzień w jednym miejscu
+     * i 59 zł/dzień w drugim, bo cenę wpisano ręcznie dwa razy.
+     *
+     * Treść niesie więc WSKAZANIE definicji pola własnego, a wartość czyta się
+     * z katalogu przy renderze — tak samo, jak nazwę i cenę (patrz `items`).
+     *
+     * Wskazanie, do którego dany sprzęt nie ma wartości, po prostu NIE RYSUJE
+     * podtytułu na jego kaflu — sąsiedzi z wypełnionym polem mają go dalej.
+     */
+    subtitleField: z.string().uuid().optional(),
+    /**
+     * CECHY POD NAZWĄ — lista WSKAZAŃ pól własnych, w kolejności wskazania.
+     *
+     * Ten sam kontrakt, co przy podtytule: w treści zostają identyfikatory,
+     * etykieta i wartość mieszkają w katalogu. Pusta lista = kafel bez cech,
+     * czyli dokładnie to, co kafel rysował przed fazą 1b.
+     */
+    featureFields: z
+      .array(z.string().uuid())
+      .max(PRODUCTS_MAX_FEATURES)
+      .default([]),
+    /**
+     * ETYKIETA WŁASNEGO PRZYCISKU — JEDYNE nowe pole będące NAPISEM, i to
+     * świadomie: „Sprawdź dostępność" jest zdaniem o SEKCJI, a nie o sprzęcie,
+     * więc jedna wartość na wszystkie kafle jest tu stanem poprawnym, a nie
+     * kompromisem. Brak = kafel bez przycisku (stan sprzed fazy 1b).
+     */
+    ctaLabel: productsCtaLabel.optional(),
   })
   .strict();
 
@@ -2119,7 +2177,23 @@ export type StructuredFieldKind =
    * Nazwy encji podaje HOST szuflady (`itemsPick` w opisie typu): rdzeń nie ma
    * dostępu do bazy i nie zna kształtu wiersza.
    */
-  | "reference";
+  | "reference"
+  /**
+   * WSKAZANIE JEDNEJ ENCJI W POLU SEKCJI (faza 1b, ADR-154) — szósty rodzaj
+   * nie-tekstowy. Różnica wobec `reference` jest w MIEJSCU, a nie w naturze:
+   * `reference` opisuje pole WPISU listy (wpis JEST wskazaniem), a `pick`
+   * opisuje pole CAŁEJ SEKCJI, które wskazuje encję i wolno mu być puste.
+   *
+   * Zbiór encji podaje HOST (`source` niżej), tak samo jak przy `itemsPick` —
+   * rdzeń nie ma dostępu do bazy i nie zna kształtu wiersza.
+   */
+  | "pick"
+  /**
+   * WSKAZANIE KILKU ENCJI (faza 1b) — `pick` w liczbie mnogiej, z sufitem
+   * z `max`. W treści zostaje TABLICA identyfikatorów, więc kolejność jest
+   * decyzją operatora, a nie kolejnością zbioru hosta.
+   */
+  | "pickMany";
 
 /**
  * Co znaczy PUSTE pole. Brak deklaracji = pustki NIE ZAPISUJEMY w ogóle (E1:
@@ -2146,6 +2220,18 @@ export interface StructuredFieldSpec {
    * własny opis ({@link StructuredChoiceSpec}) i własną drogę zapisu.
    */
   values?: readonly string[];
+  /**
+   * ŹRÓDŁO ENCJI dla `pick` / `pickMany` (faza 1b, ADR-154) — NAZWA, nie funkcja.
+   *
+   * Ten sam kanał, co `itemsPick` i `itemsImport` w opisie typu (`importSources`
+   * hosta szuflady) i z tego samego powodu: rdzeń nie ma dostępu do bazy i nie
+   * zna kształtu wiersza. Rejestr mówi wyłącznie, KTÓRY zbiór jest dla tego
+   * pola sensowny — dzięki temu kontrolka bierze się z danych, a nie z `if`-a
+   * po nazwie typu sekcji.
+   */
+  source?: string;
+  /** Sufit liczby wskazań dla `pickMany`. */
+  max?: number;
 }
 
 /** Przełącznik logiczny w ustawieniach sekcji (np. „pozwól otworzyć wiele naraz"). */
@@ -2854,6 +2940,32 @@ export const STRUCTURED_SECTIONS = {
     // Jedno pole na wpis i nie jest nim napis: wpis sekcji sprzętu WSKAZUJE
     // pozycję katalogu, a nie opisuje ją (patrz `reference` w rodzajach pól).
     itemFields: [{ key: "productId", kind: "reference" }],
+    /*
+     * KSZTAŁT KAFLA (faza 1b, ADR-154) — trzy pola SEKCJI, bo wszystkie trzy
+     * dotyczą tego, jak wygląda KAŻDY kafel, a nie pojedyncza pozycja.
+     *
+     * Dwa pierwsze są WSKAZANIAMI pól własnych sprzętu, nie napisami: podtytuł
+     * i cechy są zdaniami o KONKRETNEJ pozycji, więc jedyne miejsce, w którym
+     * mogą mieszkać bez rozdwojenia prawdy o ofercie, to katalog. Trzecie jest
+     * napisem, i to też z uzasadnienia: etykieta przycisku mówi o SEKCJI
+     * („Sprawdź dostępność"), nie o sprzęcie, więc jedna wartość na wszystkie
+     * kafle jest tu stanem poprawnym.
+     *
+     * Źródłem wskazań jest `productFields` — a host podaje tam WYŁĄCZNIE
+     * definicje widoczne publicznie (patrz `productFieldEntries` w panelu).
+     * Pole widoczne tylko w panelu nie ma jak trafić na tę listę, więc operator
+     * nie może wskazać wartości, której sklep i tak nie dostaje.
+     */
+    fields: [
+      { key: "subtitleField", kind: "pick", source: "productFields", empty: "unset" },
+      {
+        key: "featureFields",
+        kind: "pickMany",
+        source: "productFields",
+        max: PRODUCTS_MAX_FEATURES,
+      },
+      { key: "ctaLabel", kind: "text", empty: "unset" },
+    ],
     toggles: [],
     choices: [
       { key: "source", values: PRODUCTS_SOURCES },
@@ -2868,11 +2980,12 @@ export const STRUCTURED_SECTIONS = {
     maxItems: PRODUCTS_MAX_ITEMS,
     itemsPick: "catalogProducts",
     itemsWhen: { key: "source", value: "picked" },
-    // Render sprzętu maluje: nagłówek sekcji i nazwę pozycji (ink), opis
-    // (inkMuted), obrys kafla i kreski wierszy (border) oraz cenę i odnośnik
-    // do katalogu pod kursorem (accentText). Zero wypełnienia akcentem: kolor
-    // ma nieść ZDJĘCIE sprzętu, a nie ramka wokół niego.
-    themeRoles: ["ink", "inkMuted", "border", "accentText"],
+    // Render sprzętu maluje: nagłówek sekcji i nazwę pozycji (ink), opis,
+    // podtytuł i cechy (inkMuted), obrys kafla i kreski wierszy (border) oraz
+    // cenę i odnośnik do katalogu pod kursorem (accentText). Od fazy 1b także
+    // WŁASNY PRZYCISK kafla (`site-cta`): wypełnienie akcentem (accentFill)
+    // i etykieta na nim (accentOnFill) w motywie z przyciskiem pełnym.
+    themeRoles: ["ink", "inkMuted", "border", "accentText", "accentFill", "accentOnFill"],
     preset: {
       pl: {
         v: STRUCTURED_SECTION_VERSION,
@@ -2883,6 +2996,13 @@ export const STRUCTURED_SECTIONS = {
         source: "catalog",
         items: [],
         limit: 8,
+        /*
+         * PRESET NIE WSKAZUJE ŻADNEGO POLA WŁASNEGO i nie może: treść startowa
+         * powstaje, zanim najemca założy pierwsze pole sprzętu, więc każdy
+         * wskazany identyfikator byłby wskazaniem w próżnię. Kafel presetu
+         * wygląda więc dokładnie tak, jak wyglądał przed fazą 1b.
+         */
+        featureFields: [],
       },
       en: {
         v: STRUCTURED_SECTION_VERSION,
@@ -2893,6 +3013,7 @@ export const STRUCTURED_SECTIONS = {
         source: "catalog",
         items: [],
         limit: 8,
+        featureFields: [],
       },
     },
     // Bez `newItem` ŚWIADOMIE: wpis rodzi się WYBOREM pozycji z katalogu, a nie
@@ -2910,6 +3031,7 @@ export const STRUCTURED_SECTIONS = {
         source: "catalog",
         items: [],
         limit: 8,
+        featureFields: [],
       };
     },
   },
@@ -3430,11 +3552,16 @@ export function patchStructuredItem<T extends StructuredSectionContent>(
  * Osobna funkcja zamiast spreadu u wołającego, bo skasowanie klucza i wpisanie
  * do niego `undefined` to w `jsonb` DWIE RÓŻNE treści — a kopia tej reguły
  * w szufladzie rozjechałaby się z regułą wpisów przy pierwszej poprawce.
+ *
+ * LISTA IDENTYFIKATORÓW jest drugim dopuszczalnym kształtem wartości (faza 1b,
+ * ADR-154): pole `pickMany` trzyma w treści tablicę wskazań. Reguła pustki jej
+ * NIE dotyczy — pusta tablica jest legalną treścią („nie wskazano żadnego
+ * pola"), a nie brakiem wartości, więc wołający nie ma powodu jej zdejmować.
  */
 export function patchStructuredField<T extends StructuredSectionContent>(
   content: T,
   key: string,
-  value: string | undefined,
+  value: string | readonly string[] | undefined,
 ): T {
   const next = { ...(content as unknown as Record<string, unknown>) };
   if (value === undefined) delete next[key];

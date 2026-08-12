@@ -860,6 +860,7 @@ export {
   PRODUCTS_CATALOG_HREF,
   PRODUCTS_LAYOUTS,
   PRODUCTS_LIMITS,
+  PRODUCTS_MAX_FEATURES,
   PRODUCTS_SOURCES,
   removeStructuredItem,
   structuredFromLegacy,

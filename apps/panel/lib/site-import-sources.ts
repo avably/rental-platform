@@ -15,6 +15,7 @@
  * Zapytanie w trasie NIE filtruje już samo — inaczej mielibyśmy dwa miejsca
  * decydujące o tym samym i mutacja jednego z nich znów byłaby niewidoczna.
  */
+import { visibleCustomFields, type CustomFieldDefinition } from "@avably/core";
 
 /**
  * Wiersz punktu odbioru w kształcie, w jakim czyta go trasa kreatora. Kolumny
@@ -113,5 +114,44 @@ export function catalogProductEntries(
 ): { value: string; label: string }[] {
   return rows
     .map((row) => ({ value: row.id, label: row.name.trim() }))
+    .filter((entry) => entry.value.length > 0 && entry.label.length > 0);
+}
+
+// -----------------------------------------------------------------------
+// Pola własne sprzętu do WSKAZANIA na kaflu (faza 1b, ADR-154)
+// -----------------------------------------------------------------------
+
+/**
+ * POLA WŁASNE SPRZĘTU, KTÓRE WOLNO POKAZAĆ KLIENTOWI.
+ *
+ * ==================== TO JEST BRAMKA, A NIE PODPOWIEDŹ ====================
+ *
+ * Kafel sprzętu czyta podtytuł i cechy z pól własnych POZYCJI, a wartości tych
+ * pól docierają do sklepu wyłącznie wtedy, gdy definicja jest oznaczona jako
+ * widoczna w zamawianiu — zawęża je `app.get_public_catalog` (0058). Lista
+ * wyboru w szufladzie MUSI więc być tym samym zbiorem, i to z dwóch powodów
+ * naraz:
+ *
+ *   1. UCZCIWOŚĆ WOBEC OPERATORA. Wskazanie pola widocznego tylko w panelu
+ *      dałoby kafel, na którym cecha po prostu się nie pojawia — bez błędu,
+ *      bez komunikatu, bez śladu. Operator sprawdzałby wtedy zdjęcia, motyw
+ *      i limit, zamiast dowiedzieć się, że wskazał pole spoza sklepu;
+ *   2. ZERO ZACHĘTY DO WYNOSZENIA DANYCH. Lista pokazująca „Koszt zakupu"
+ *      i „Numer w ewidencji" obok „Zasięgu" sugeruje, że wolno je wystawić.
+ *      Baza i tak by ich nie wypuściła, ale interfejs nie ma prawa proponować
+ *      operacji, która kończy się próbą pokazania klientowi danych lady.
+ *
+ * Filtr robi `visibleCustomFields` — DOKŁADNIE ta sama funkcja, którą panel
+ * stosuje do formularzy i której lustrem jest warunek `show_in_checkout`
+ * w bazie. Własny `if` po fladze byłby trzecią kopią tej samej reguły.
+ *
+ * POLE BEZ ETYKIETY WYPADA: schemat go nie dopuszcza, ale gdyby przeszło
+ * (import, migracja), operator dostałby na liście bezimienny wiersz.
+ */
+export function productFieldEntries(
+  definitions: readonly CustomFieldDefinition[],
+): { value: string; label: string }[] {
+  return visibleCustomFields(definitions, "checkout", "product")
+    .map((definition) => ({ value: definition.id, label: definition.label.trim() }))
     .filter((entry) => entry.value.length > 0 && entry.label.length > 0);
 }

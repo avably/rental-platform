@@ -78,7 +78,7 @@ export async function LegalDocumentPage({ kind }: { kind: LegalDocumentKind }) {
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name}>
+    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site}>
       <LegalDocumentView
         title={document.title}
         body={document.body}
@@ -115,7 +115,7 @@ export async function LegalDocumentVersionPage({
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name}>
+    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site}>
       <LegalDocumentView
         title={document.title}
         body={document.body}

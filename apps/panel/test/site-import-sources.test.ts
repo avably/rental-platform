@@ -22,9 +22,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import type { CustomFieldDefinition } from "@avably/core";
+
 import {
   catalogProductEntries,
   pickupLocationEntries,
+  productFieldEntries,
   type PickupLocationRow,
 } from "@/lib/site-import-sources";
 
@@ -193,5 +196,117 @@ describe("pozycje katalogu do WSKAZANIA w sekcji sprzętu (E7)", () => {
         { id: "aaaaaaaa-0002-4000-8000-000000000002", name: " Nagłośnienie " },
       ]),
     ).toEqual([{ value: "aaaaaaaa-0002-4000-8000-000000000002", label: "Nagłośnienie" }]);
+  });
+});
+
+/**
+ * POLA WŁASNE SPRZĘTU DO WSKAZANIA NA KAFLU (faza 1b, ADR-154).
+ *
+ * ==================== TO JEST SONDA BEZPIECZEŃSTWA, NIE TEST WYGLĄDU ====================
+ *
+ * Kafel sprzętu czyta podtytuł i cechy z pól własnych pozycji, a do sklepu
+ * docierają WYŁĄCZNIE pola oznaczone jako widoczne w zamawianiu (zawężenie
+ * w `app.get_public_catalog`, migracja 0058). Lista wyboru w szufladzie musi
+ * być tym samym zbiorem — inaczej interfejs proponowałby operatorowi wystawienie
+ * klientowi pól LADY (koszt zakupu, numer w ewidencji), czyli operację, którą
+ * baza i tak odrzuca, a której nikt nie powinien mu podsuwać.
+ */
+describe("pola własne sprzętu do WSKAZANIA na kaflu (faza 1b)", () => {
+  function definicja(patch: Partial<CustomFieldDefinition> = {}): CustomFieldDefinition {
+    return {
+      id: "bbbbbbbb-0001-4000-8000-000000000001",
+      entity: "product",
+      type: "text",
+      label: "Zasięg",
+      helpText: null,
+      required: false,
+      options: [],
+      position: 0,
+      showInPanel: true,
+      showInCheckout: true,
+      showInContract: false,
+      archivedAt: null,
+      createdAt: null,
+      ...patch,
+    };
+  }
+
+  it("pole sprzętu widoczne w zamawianiu wchodzi na listę wyboru", () => {
+    expect(productFieldEntries([definicja()])).toEqual([
+      { value: "bbbbbbbb-0001-4000-8000-000000000001", label: "Zasięg" },
+    ]);
+  });
+
+  it("pole widoczne WYŁĄCZNIE w panelu NIE wchodzi na listę", () => {
+    const wynik = productFieldEntries([
+      definicja(),
+      definicja({
+        id: "bbbbbbbb-0002-4000-8000-000000000002",
+        label: "Koszt zakupu",
+        showInCheckout: false,
+      }),
+    ]);
+    // Kontrola po pustym zbiorze: coś jednak wyszło, więc asercja niżej mierzy
+    // odsiew, a nie martwą funkcję.
+    expect(wynik).toHaveLength(1);
+    expect(wynik.map((wpis) => wpis.label)).not.toContain("Koszt zakupu");
+  });
+
+  it("pole ZARCHIWIZOWANE nie wraca tylnymi drzwiami", () => {
+    expect(
+      productFieldEntries([definicja({ archivedAt: "2026-01-01T00:00:00Z" })]),
+    ).toEqual([]);
+  });
+
+  it("pole INNEJ ENCJI nie jest polem sprzętu", () => {
+    expect(
+      productFieldEntries([
+        definicja({ entity: "order", label: "Numer zlecenia" }),
+        definicja({ id: "bbbbbbbb-0003-4000-8000-000000000003", entity: "customer", label: "Pesel" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("pole bez etykiety WYPADA — bezimienny wiersz nic operatorowi nie mówi", () => {
+    expect(productFieldEntries([definicja({ label: "   " })])).toEqual([]);
+  });
+
+  it("wynik niesie SAM identyfikator i etykietę — zero flag widoczności", () => {
+    /*
+     * Kształt wąski celowo: `label` żyje w szufladzie, a do treści sekcji jedzie
+     * `value`. Flaga widoczności byłaby tu stałą (odsiew już ją zastosował),
+     * a stała w kontrakcie zachęca do wysłania kiedyś tej drugiej wartości.
+     */
+    for (const wpis of productFieldEntries([definicja()])) {
+      expect(Object.keys(wpis).sort()).toEqual(["label", "value"]);
+    }
+  });
+});
+
+describe("trasa kreatora podaje pola własne przez czystą funkcję", () => {
+  const TRASA = join(
+    dirname(fileURLToPath(import.meta.url)),
+    "../app/[locale]/(kreator)/strona/[siteId]/kreator/page.tsx",
+  );
+  const zrodlo = readFileSync(TRASA, "utf8");
+
+  it("wpisy powstają przez `productFieldEntries`", () => {
+    expect(zrodlo).toContain("productFieldEntries(");
+    expect(zrodlo, "źródło nie trafia do szuflady — kontrolka byłaby pusta").toMatch(
+      /importSources=\{\{[\s\S]*productFields[\s\S]*\}\}/,
+    );
+  });
+
+  it("odsiew widoczności NIE wraca do zapytania — jedno miejsce decyzji", () => {
+    /*
+     * Ta sama lekcja, co przy punktach odbioru wyżej: warunek w SQL byłby
+     * niewidoczny dla testów jednostkowych, więc jego wycięcie przechodziłoby
+     * całą siatkę na zielono — a tutaj wycięcie znaczy podsuwanie operatorowi
+     * pól lady jako gotowych do pokazania klientowi.
+     */
+    expect(
+      zrodlo.includes('.eq("show_in_checkout"'),
+      "warunek widoczności wrócił do zapytania — mutacja czystej funkcji przestaje być widoczna",
+    ).toBe(false);
   });
 });

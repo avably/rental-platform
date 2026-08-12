@@ -2,7 +2,16 @@ import type { ProductsStructuredContent } from "@avably/core/site";
 
 import type { TemplateStyles } from "../template";
 import type { SiteRenderLabels, StorefrontProduct } from "../types";
-import { ProductsCatalogLink, ProductsEmpty, visibleProductsFor } from "./products-shared";
+import {
+  ProductCta,
+  ProductFeatures,
+  ProductSubtitle,
+  ProductsCatalogLink,
+  ProductsEmpty,
+  productFeaturesOf,
+  productFieldOf,
+  visibleProductsFor,
+} from "./products-shared";
 import { StructuredSectionShell } from "./shell";
 
 /**
@@ -43,6 +52,15 @@ export function StructuredProductsList({
       ) : (
         <ul data-products-list className="mt-8 flex list-none flex-col p-0">
           {visible.map((product, index) => {
+            /*
+              WSKAZANIA CZYTANE TAK SAMO, JAK W SIATCE (faza 1b, ADR-154).
+              Oba układy czytają TĘ SAMĄ treść — gdyby lista miała własną kopię
+              rozwiązywania wskazań, jedna z dwóch prędzej czy później zgubiłaby
+              regułę „wskazanie bez wartości wypada" i pokazałaby sierocą
+              etykietę bez wartości. Funkcje stoją więc raz, we wspólnym module.
+            */
+            const subtitle = productFieldOf(product, content.subtitleField);
+            const features = productFeaturesOf(product, content.featureFields);
             const body = (
               <>
                 {product.imageUrl ? (
@@ -61,9 +79,12 @@ export function StructuredProductsList({
                   <span data-products-name className={styles.cardTitle}>
                     {product.name}
                   </span>
+                  {subtitle ? <ProductSubtitle value={subtitle.value} /> : null}
                   {product.description ? (
                     <span className="site-text-muted line-clamp-2 text-sm">{product.description}</span>
                   ) : null}
+                  <ProductFeatures features={features} />
+                  {content.ctaLabel ? <ProductCta label={content.ctaLabel} styles={styles} /> : null}
                 </span>
                 <span
                   data-products-price

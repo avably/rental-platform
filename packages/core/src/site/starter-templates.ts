@@ -410,7 +410,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -624,7 +624,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -786,7 +786,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "muted",
-        content: { layout: "grid", heading: "Nasza flota", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Nasza flota", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -977,7 +977,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "muted",
-        content: { layout: "grid", heading: "Our fleet", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Our fleet", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -1568,7 +1568,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "list", heading: "Sprzęt w wypożyczalni", source: "catalog", items: [], limit: 8 },
+        content: { layout: "list", heading: "Sprzęt w wypożyczalni", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -1744,7 +1744,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "list", heading: "In the rental house", source: "catalog", items: [], limit: 8 },
+        content: { layout: "list", heading: "In the rental house", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "gallery",
@@ -1951,7 +1951,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "freeform",
@@ -2049,7 +2049,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "default",
-        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "freeform",
@@ -2128,7 +2128,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "muted",
-        content: { layout: "grid", heading: "Katalog sprzętu", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Katalog sprzętu", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "freeform",
@@ -2285,7 +2285,7 @@ const STARTER_SECTIONS: StarterTable = {
       {
         type: "products",
         background: "muted",
-        content: { layout: "grid", heading: "Equipment catalog", source: "catalog", items: [], limit: 8 },
+        content: { layout: "grid", heading: "Equipment catalog", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
         type: "freeform",

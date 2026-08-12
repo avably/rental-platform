@@ -6,7 +6,7 @@ import {
 
 import { cn } from "../../lib/cn";
 import type { TemplateStyles } from "../template";
-import type { SiteRenderLabels, StorefrontProduct } from "../types";
+import type { SiteRenderLabels, StorefrontProduct, StorefrontProductField } from "../types";
 
 /**
  * WSPÓLNE CZĘŚCI OBU UKŁADÓW SPRZĘTU (E7, aneks ADR-094).
@@ -96,6 +96,107 @@ export function ProductsEmpty({ labels }: { labels: SiteRenderLabels }) {
 }
 
 /**
+ * WSKAZANIE POLA WŁASNEGO → WARTOŚĆ TEJ POZYCJI (faza 1b, ADR-154).
+ *
+ * ==================== ZAWĘŻENIE, KTÓRE TU STOI ====================
+ *
+ * Treść sekcji niesie SAM IDENTYFIKATOR definicji, a wartości mieszkają przy
+ * POZYCJI KATALOGU. Rozwiązanie wskazania jest więc szukaniem w polach TEGO
+ * sprzętu — a nie w żadnym zbiorze globalnym. Konsekwencja jest ta, o którą
+ * chodzi: wskazanie pola, którego dany sprzęt nie wypełnił (albo którego
+ * najemca w ogóle nie ma), po prostu NIC nie rysuje. Nie ma tu drogi, którą
+ * mogłaby wjechać wartość spoza pozycji przekazanej do renderu.
+ *
+ * `undefined` zamiast pustego napisu, bo wołający rozgałęzia się na „jest
+ * wartość / nie ma" — pusty napis w podtytule dałby pusty wiersz o wysokości
+ * linii i rozjechałby dolne krawędzie kafli w rzędzie.
+ */
+export function productFieldOf(
+  product: StorefrontProduct,
+  fieldId: string | undefined,
+): StorefrontProductField | undefined {
+  if (!fieldId) return undefined;
+  return (product.fields ?? []).find((field) => field.id === fieldId);
+}
+
+/**
+ * CECHY KAFLA — wskazania rozwiązane W KOLEJNOŚCI OPERATORA.
+ *
+ * Kolejność bierze się z treści sekcji, a nie z kolejności pól w ustawieniach:
+ * operator, który wskazał najpierw „Zasięg", a potem „Waga", ułożył listę
+ * cech — i posortowanie jej z powrotem „po ustawieniach" skasowałoby tę pracę
+ * bez słowa. Wskazania bez wartości WYPADAJĄ (ta sama zasada, co przy pozycji
+ * usuniętej z katalogu): sierocą etykietę bez wartości widać na kaflu jak
+ * dziurę, a operator i tak nie ma jak zgadnąć, czego brakuje.
+ */
+export function productFeaturesOf(
+  product: StorefrontProduct,
+  fieldIds: readonly string[] | undefined,
+): StorefrontProductField[] {
+  const rows: StorefrontProductField[] = [];
+  for (const fieldId of fieldIds ?? []) {
+    const field = productFieldOf(product, fieldId);
+    if (field) rows.push(field);
+  }
+  return rows;
+}
+
+/**
+ * PODTYTUŁ KAFLA — jedno zdanie pod nazwą, WARTOŚĆ bez etykiety.
+ *
+ * Bez etykiety świadomie: podtytuł czyta się jak zdanie o sprzęcie („Internet
+ * satelitarny bez zasięgu komórkowego"), a „Rodzaj: internet satelitarny" jest
+ * wierszem tabeli. Wiersze tabeli są niżej, w cechach — i tam etykieta jest
+ * konieczna, bo „50 m" samo z siebie nie znaczy nic.
+ */
+export function ProductSubtitle({ value }: { value: string }) {
+  return (
+    <span data-products-subtitle className="site-text-muted text-sm">
+      {value}
+    </span>
+  );
+}
+
+/**
+ * CECHY POD NAZWĄ — punktory „etykieta: wartość".
+ *
+ * Etykieta JEST częścią wiersza, bo bez niej wartość bywa nieczytelna: „50 m"
+ * nie mówi, czy to zasięg, czy długość węża. Dwukropek jest interpunkcją, a nie
+ * tekstem interfejsu — nie ma go po co tłumaczyć i nie ma w nim czego rozjechać
+ * między językami sklepu.
+ */
+export function ProductFeatures({ features }: { features: readonly StorefrontProductField[] }) {
+  if (features.length === 0) return null;
+  return (
+    <ul data-products-features className="site-text-muted mt-2 flex list-disc flex-col gap-1 pl-5 text-sm">
+      {features.map((feature) => (
+        <li key={feature.id} data-products-feature={feature.id}>
+          {feature.label}: {feature.value}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * WŁASNY PRZYCISK KAFLA — `span`, nie `a`, i to jest decyzja, nie skrót.
+ *
+ * Kafel JEST już odnośnikiem do podstrony pozycji (patrz {@link ProductTile}).
+ * Odnośnik w odnośniku to niepoprawny HTML, którego przeglądarki „naprawiają"
+ * rozbijając drzewo — a wtedy pół kafla przestaje być klikalne i nie widać
+ * tego w żadnym teście renderu. Przycisk jest więc AFORDANCJĄ w środku
+ * jednego celu kliknięcia: wygląda jak przycisk, prowadzi tam, gdzie cały
+ * kafel, i nie dokłada drugiego przystanku dla klawiatury.
+ */
+export function ProductCta({ label, styles }: { label: string; styles: TemplateStyles }) {
+  return (
+    <span data-products-cta className={cn(styles.cta, "mt-4 self-start")}>
+      {label}
+    </span>
+  );
+}
+
+/**
  * KAFEL POZYCJI — zdjęcie, nazwa, cena, opis.
  *
  * Cena przychodzi GOTOWA (`StorefrontProduct.priceLabel`), bo pochodzi
@@ -108,16 +209,27 @@ export function ProductsEmpty({ labels }: { labels: SiteRenderLabels }) {
  * za pierwsze malowanie i psuje pomiar. Pozostałe zostają leniwe.
  */
 export function ProductTile({
+  content,
   product,
   eager,
   styles,
   className,
 }: {
+  /**
+   * TREŚĆ SEKCJI — potrzebna kaflowi WYŁĄCZNIE po to, żeby przeczytać
+   * WSKAZANIA (podtytuł, cechy) i etykietę przycisku. Ani jedna wartość
+   * pokazywana na kaflu z niej nie pochodzi: nazwa, cena i wartości pól
+   * własnych przychodzą z katalogu, w `product`.
+   */
+  content: ProductsStructuredContent;
   product: StorefrontProduct;
   eager: boolean;
   styles: TemplateStyles;
   className?: string;
 }) {
+  const subtitle = productFieldOf(product, content.subtitleField);
+  const features = productFeaturesOf(product, content.featureFields);
+
   const body = (
     <>
       {product.imageUrl ? (
@@ -137,12 +249,15 @@ export function ProductTile({
         <span data-products-name className={styles.cardTitle}>
           {product.name}
         </span>
+        {subtitle ? <ProductSubtitle value={subtitle.value} /> : null}
         <span data-products-price className={styles.cardPrice}>
           {product.priceLabel}
         </span>
         {product.description ? (
           <span className="site-text-muted mt-2 line-clamp-3 text-sm">{product.description}</span>
         ) : null}
+        <ProductFeatures features={features} />
+        {content.ctaLabel ? <ProductCta label={content.ctaLabel} styles={styles} /> : null}
       </div>
     </>
   );
