@@ -47,8 +47,15 @@ function makeSupabase(result: { data: unknown; error: unknown }) {
 }
 
 const requireMember = vi.fn();
+const revalidatePath = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
+vi.mock("next/navigation", () => ({
+  redirect: (path: string) => {
+    throw new Error(`REDIRECT:${path}`);
+  },
+}));
+vi.mock("@/lib/navigation", () => ({ localePath: async (path: string) => `/pl${path}` }));
 
 const {
   saveCourierCredentialsAction,
@@ -76,6 +83,79 @@ const VALID_SENDER = {
 
 beforeEach(() => {
   requireMember.mockReset();
+  revalidatePath.mockClear();
+});
+
+describe("edycja punktu odbioru unieważnia listę, tak jak przełącznik", () => {
+  const LOCATION = "44444444-4444-4444-8444-444444444444";
+
+  function makeLocationsSupabase(result: { data: unknown; error: unknown }) {
+    const builder: Record<string, unknown> = {
+      update() {
+        return builder;
+      },
+      eq() {
+        return builder;
+      },
+      select() {
+        return Promise.resolve(result);
+      },
+    };
+    return { from: () => builder };
+  }
+
+  it("udana edycja woła revalidatePath — inaczej lista trzyma starą nazwę", async () => {
+    const { updateLocationAction } = await import(
+      "@/app/[locale]/(panel)/ustawienia-dostaw/punkty-odbioru/actions"
+    );
+    requireMember.mockResolvedValue({
+      supabase: makeLocationsSupabase({ data: [{ id: LOCATION }], error: null }),
+      tenantId: TENANT,
+    });
+
+    const state = await updateLocationAction(
+      LOCATION,
+      {},
+      form({
+        name: "Nowa nazwa",
+        addressStreet: "ul. Przykładowa 1",
+        addressZip: "00-001",
+        addressCity: "Przykładowo",
+        active: "on",
+      }),
+    );
+
+    expect(state.success).toBe("saved");
+    expect(revalidatePath, "lista pokaże starą nazwę do odświeżenia").toHaveBeenCalledWith(
+      "/",
+      "layout",
+    );
+  });
+
+  it("nieudana edycja NIE unieważnia niczego", async () => {
+    const { updateLocationAction } = await import(
+      "@/app/[locale]/(panel)/ustawienia-dostaw/punkty-odbioru/actions"
+    );
+    requireMember.mockResolvedValue({
+      supabase: makeLocationsSupabase({ data: [], error: null }),
+      tenantId: TENANT,
+    });
+
+    const state = await updateLocationAction(
+      LOCATION,
+      {},
+      form({
+        name: "Nowa nazwa",
+        addressStreet: "ul. Przykładowa 1",
+        addressZip: "00-001",
+        addressCity: "Przykładowo",
+        active: "on",
+      }),
+    );
+
+    expect(state.formError).toBeTruthy();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
 });
 
 describe("echo po nieudanym zapisie — praca operatora wraca na ekran", () => {

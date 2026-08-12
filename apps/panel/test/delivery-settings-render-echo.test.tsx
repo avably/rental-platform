@@ -1,4 +1,5 @@
 import { NextIntlClientProvider } from "next-intl";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,8 +38,16 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
+vi.mock("@/i18n/navigation", () => ({
+  Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
+    createElement("a", { href, ...props }, children),
+}));
+
 const { CredentialsForm, ParcelForm, PricingForm, SenderForm } = await import(
   "@/app/[locale]/(panel)/ustawienia-dostaw/delivery-settings-forms"
+);
+const { LocationsTable } = await import(
+  "@/app/[locale]/(panel)/ustawienia-dostaw/punkty-odbioru/locations-table"
 );
 
 const noAction = async () => ({});
@@ -263,6 +272,42 @@ describe("chip „zapisano” zapala się WYŁĄCZNIE od sukcesu akcji", () => {
       <SenderForm action={noAction} canWrite defaults={SENDER_DEFAULTS} status={READY} />,
     );
     expect(html).toContain(messages.orders.delivery.settings.savedOk);
+  });
+});
+
+describe("skutek wyłączenia punktu odbioru stoi PRZY przycisku", () => {
+  const noop = async () => ({});
+  const rows = [
+    { id: "a", name: "Magazyn", address: "ul. Przykładowa 1", active: true, toggleAction: noop },
+    { id: "b", name: "Filia", address: "ul. Druga 2", active: false, toggleAction: noop },
+  ];
+
+  it("zdanie o skutku jest na TYM ekranie i wskazuje je każdy przycisk", () => {
+    const html = render(<LocationsTable rows={rows} />);
+
+    // Kontrola pozytywna: przyciski w ogóle się wyrenderowały.
+    expect(html).toContain(messages.orders.delivery.locations.deactivate);
+    expect(html).toContain(messages.orders.delivery.locations.activate);
+
+    // Do U9 to zdanie stało na ekranie RODZICA, gdzie nie ma żadnego przycisku.
+    expect(html).toContain(messages.orders.delivery.locations.toggleEffect);
+    expect(html).toContain('id="location-toggle-effect"');
+
+    const buttons = [...html.matchAll(/<button[^>]*type="submit"[^>]*>/g)].map(([tag]) => tag);
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect(button, "przycisk bez powiązania ze skutkiem").toContain(
+        'aria-describedby="location-toggle-effect"',
+      );
+    }
+  });
+
+  it("czasownik nazywa przejście między stanami kolumny „Status”", () => {
+    // „Wygaś”/„Przywróć” wprowadzało trzeci słownik obok „Aktywny/Nieaktywny”.
+    expect(messages.orders.delivery.locations.deactivate).toBe("Wyłącz");
+    expect(messages.orders.delivery.locations.activate).toBe("Włącz");
+    // Skutek zszedł z karty na ekranie rodzica — tam zostaje samo „po co”.
+    expect(messages.orders.delivery.locations.cardDescription).not.toContain("wystawionych");
   });
 });
 
