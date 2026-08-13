@@ -1593,6 +1593,12 @@
         "publish": "Nie udało się opublikować logo."
       }
     },
+    "appearance": {
+      "title": "Wygląd sklepu",
+      "scope": "Motyw, kolor akcentu i kroje pisma. Dotyczą wszystkich stron sklepu naraz.",
+      "pending": "Wygląd czeka na publikację — klienci widzą jeszcze poprzedni. Wyjdzie na żywo przy najbliższej publikacji dowolnej strony.",
+      "live": "Ten wygląd widzą klienci."
+    },
     "fields": {
       "heading": "Nagłówek",
       "heroHeading": "Nagłówek główny",
@@ -1919,7 +1925,9 @@
       "deleteBody": "Strona i jej sekcje znikną bez śladu. Klienci nigdy jej nie widzieli, więc w sklepie nic się nie zmieni.",
       "deleteConfirm": "Usuń stronę",
       "switchTitle": "Opublikować stronę „{name}”?",
-      "switchBodyNew": "Strona stanie się dostępna dla klientów pod adresem {address}. Pozostałe strony sklepu zostają bez zmian.",
+      "switchBodyNew": "Strona stanie się dostępna dla klientów pod adresem {address}.",
+      "switchAppearanceUnchanged": "Treść pozostałych stron i wygląd sklepu zostają bez zmian.",
+      "switchAppearanceChanges": "Razem ze stroną opublikujesz wygląd sklepu — motyw, kolor akcentu i kroje pisma zmienią się dla klientów na każdej stronie.",
       "switchDraftNote": "Opublikowane zostaną też zmiany, które w niej zrobiłeś.",
       "limitReached": "Osiągnięto limit {max} stron. Usuń nieużywaną stronę, żeby dodać nową.",
       "cancel": "Anuluj",

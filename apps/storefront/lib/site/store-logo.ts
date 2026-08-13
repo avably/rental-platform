@@ -2,17 +2,22 @@
  * ZNAK FIRMY NAJEMCY W SKLEPIE (ADR-160) — jedno miejsce, w którym z danych
  * robi się to, co dostaje render.
  *
- * Logo przyjeżdża w KOPERCIE opublikowanej strony (`app.get_published_page`,
- * migracja 0076), a nie własnym odczytem — i to jest decyzja bezpieczeństwa,
- * nie wygody. Koperta jest zawężona identyfikatorem najemcy i czytana bez
- * cache'u pośredniego (trasy tenanckie są `force-dynamic`). Osobny odczyt
- * znaczyłby drugi klucz do cache'owania, a klucz cache'u bez najemcy to
- * klasyczne miejsce, w którym znak najemcy A ląduje na sklepie najemcy B.
+ * Logo przyjeżdża TOREM NAJEMCY (`app.get_tenant_appearance`, ADR-171), a nie
+ * kopertą strony głównej, którą czytało do 0079. Powodem zmiany jest stan
+ * DOMYŚLNY nowego najemcy: przy nieopublikowanej stronie głównej koperta jest
+ * pusta, więc znak nie pojawiał się ani na opublikowanej podstronie, ani na
+ * koszyku, ani w kasie — a panel meldował „Ten znak widzą klienci".
+ *
+ * DECYZJA BEZPIECZEŃSTWA ZOSTAJE TA SAMA, co przy kopercie: odczyt jest
+ * zawężony identyfikatorem najemcy w CIELE funkcji i idzie bez cache'u
+ * pośredniego (trasy tenanckie są `force-dynamic`). Klucz cache'u bez najemcy
+ * to klasyczne miejsce, w którym znak najemcy A ląduje na sklepie najemcy B —
+ * i dlatego takiego klucza tu nie ma.
  *
  * Tu też zapada wybór tekstu zastępczego i decyzja o stopce — żeby nagłówek
  * i stopka nie mogły odpowiedzieć na te pytania inaczej.
  */
-import { siteLogoAlt, type PublishedSite } from "@avably/core/site";
+import { siteLogoAlt, type SiteLogo } from "@avably/core/site";
 import { siteImageUrl, type SiteLogoRender } from "@avably/ui";
 
 import { siteImageBaseUrl } from "@/lib/site/image-base";
@@ -29,11 +34,16 @@ export interface StoreLogo extends SiteLogoRender {
  * żadnego placeholdera „tu wstaw logo".
  */
 export function resolveStoreLogo(
-  site: PublishedSite | null,
+  /**
+   * Nośnik znaku — powłoka najemcy (ADR-171) albo koperta strony (ADR-160).
+   * Typ jest strukturalny, bo funkcja pyta o JEDNO pole i nie ma powodu
+   * wiedzieć, którędy przyjechało.
+   */
+  source: { logo: SiteLogo | null } | null,
   storeName: string,
   supabaseUrl: string,
 ): StoreLogo | null {
-  const logo = site?.logo;
+  const logo = source?.logo;
   if (!logo) return null;
 
   return {
@@ -48,7 +58,7 @@ export function resolveStoreLogo(
  * przepisywanych w ośmiu miejscach (i ośmiu okazji, żeby przepisać je inaczej).
  */
 export function storeLogo(
-  ctx: Pick<StorefrontContext, "site" | "catalog" | "supabaseUrl">,
+  ctx: Pick<StorefrontContext, "appearance" | "catalog" | "supabaseUrl">,
 ): StoreLogo | null {
-  return resolveStoreLogo(ctx.site, ctx.catalog.tenant.name, ctx.supabaseUrl);
+  return resolveStoreLogo(ctx.appearance, ctx.catalog.tenant.name, ctx.supabaseUrl);
 }

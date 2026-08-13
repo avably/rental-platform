@@ -51,6 +51,7 @@ const ANON_EXECUTE_ALLOWLIST = [
   "get_published_legal_documents", // 0063 — spis opublikowanych dokumentów (bez treści)
   "get_published_page", // 0074 — opublikowana strona sklepu POD ADRESEM (rdzeń odczytu)
   "get_published_site", // 0019 — opublikowana strona GŁÓWNA sklepu (wejście do 0074)
+  "get_tenant_appearance", // 0079 — znak firmy i wygląd sklepu (odczyt WYŁĄCZNIE kolumn *_published najemcy)
   "get_tenant_pages", // 0074 — rejestr żywych adresów stron najemcy dla proxy sklepu
   "is_settlement_writer", // 0032 — predykat polityk rozliczeń kaucji
   "is_superadmin", // 0001 — czytnik claimu używany w politykach RLS

@@ -71,7 +71,18 @@ export interface SitePageRow {
   createdAtLabel: string | null;
 }
 
-export function SitePages({ rows }: { rows: SitePageRow[] }) {
+export function SitePages({
+  rows,
+  appearancePending = null,
+}: {
+  rows: SitePageRow[];
+  /**
+   * CZY WYGLĄD SKLEPU CZEKA NA PUBLIKACJĘ (ADR-171) — `null` znaczy „nieudany
+   * odczyt", a nie „bez zmian". Jedzie do okna publikacji, bo publikacja
+   * DOWOLNEJ strony wypuszcza wygląd całego sklepu.
+   */
+  appearancePending?: boolean | null;
+}) {
   const t = useTranslations("site");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +271,7 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                   live={row.live}
                   name={row.name}
                   address={pagePathFromSlug(row.slug)}
+                  appearancePending={appearancePending}
                   onConfirm={() => run(() => publishSite(row.id))}
                 />
 

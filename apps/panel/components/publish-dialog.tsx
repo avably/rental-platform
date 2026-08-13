@@ -20,7 +20,27 @@
  *
  * Zostają DWA zdania, bo zostały dwa różne skutki:
  *   • strona ŻYWA — klienci ją już widzą, publikacja wypuszcza do nich zmiany;
- *   • strona ROBOCZA — pojawi się pod SWOIM adresem, reszta sklepu bez zmian.
+ *   • strona ROBOCZA — pojawi się pod SWOIM adresem.
+ *
+ * ============ ZASIĘG: PUBLIKACJA STRONY WYPUSZCZA TEŻ WYGLĄD (ADR-171) ============
+ *
+ * Do tej poprawki `switchBodyNew` kończył się zdaniem „Pozostałe strony sklepu
+ * zostają bez zmian." — nieprawdą za każdym razem, gdy operator ruszył motyw,
+ * akcent albo krój, bo `publishSite` po opublikowaniu TREŚCI woła bezargumentowe
+ * `app.publish_tenant_appearance()` i przenosi na żywo wygląd CAŁEGO sklepu
+ * (ADR-161). Zdanie zostało rozdzielone od zdania o adresie i jest odtąd
+ * WARUNKOWE — w obie strony:
+ *
+ *   • `appearancePending === true`  → okno mówi, że wyjdzie też nowy wygląd
+ *     i że dotyczy on wszystkich stron;
+ *   • `appearancePending === false` → okno uspokaja, że reszta sklepu zostaje
+ *     bez zmian; dopiero TERAZ to zdanie jest prawdziwe;
+ *   • `undefined` → okno NIE MÓWI NIC o zasięgu.
+ *
+ * Trzeci wariant nie jest luką, tylko jedynym uczciwym zachowaniem powierzchni,
+ * która stanu wyglądu nie zna (dziś: kreator). Zdanie o stanie sklepu ma
+ * pochodzić z odczytu, a nie z domysłu — a domyślne „bez zmian" jest właśnie
+ * tym domysłem, który wprowadził tę nieprawdę.
  */
 import {
   Button,
@@ -41,6 +61,7 @@ export function PublishDialog({
   live,
   name,
   address,
+  appearancePending,
   onConfirm,
   trigger,
 }: {
@@ -55,6 +76,15 @@ export function PublishDialog({
    * zobaczyć ZANIM kliknie: w kreatorze adresu nie widać nigdzie indziej.
    */
   address: string;
+  /**
+   * CZY SZKIC WYGLĄDU RÓŻNI SIĘ OD OPUBLIKOWANEGO (ADR-171).
+   *
+   * `undefined` = powierzchnia tego nie wie i okno o zasięgu MILCZY. Wartość
+   * liczy `appearancePending` na ekranie stron, z tego samego odczytu, z
+   * którego liczy się karta „Wygląd sklepu" — dwa wyliczenia znaczyłyby dwie
+   * odpowiedzi na to samo pytanie w odległości jednego kliknięcia.
+   */
+  appearancePending?: boolean | null;
   onConfirm: () => void;
   /**
    * Własny przycisk otwierający (asChild) — kreator podaje swój primary z
@@ -82,6 +112,20 @@ export function PublishDialog({
             {live ? t("pages.switchBodySelf") : t("pages.switchBodyNew", { address })}
           </DialogDescription>
         </DialogHeader>
+        {appearancePending === null || appearancePending === undefined ? null : (
+          <p
+            data-publish-appearance-scope={appearancePending ? "changes" : "unchanged"}
+            className={
+              appearancePending
+                ? "text-foreground text-[13px] leading-[18px]"
+                : "text-muted-foreground text-[13px] leading-[18px]"
+            }
+          >
+            {appearancePending
+              ? t("pages.switchAppearanceChanges")
+              : t("pages.switchAppearanceUnchanged")}
+          </p>
+        )}
         <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.switchDraftNote")}</p>
         <DialogFooter>
           <DialogClose asChild>

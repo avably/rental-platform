@@ -22,9 +22,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   HOME_PAGE_SLUG,
   parsePublishedSite,
+  parseSiteLogo,
   resolveSiteStyle,
+  siteStyleSchema,
+  siteTemplateSchema,
   type PublishedSite,
   type ResolvedSiteStyle,
+  type SiteLogo,
+  type SiteStyle,
+  type SiteTemplate,
 } from "@avably/core/site";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -97,4 +103,101 @@ export async function getPublishedPage(
  */
 export function publishedSiteStyle(site: PublishedSite | null): ResolvedSiteStyle {
   return resolveSiteStyle(site?.style, site?.template);
+}
+
+// -----------------------------------------------------------------------
+// POWŁOKA SKLEPU TOREM NAJEMCY (ADR-171, migracja 0079)
+// -----------------------------------------------------------------------
+
+/**
+ * ZNAK FIRMY I WYGLĄD SKLEPU — własność NAJEMCY, nie żadnej ze stron.
+ *
+ * Ten sam kształt, co odpowiadające klucze koperty strony, i to jest decyzja:
+ * jedno miejsce, w którym rozstrzyga się allowlista motywów i kształt znaku.
+ */
+export interface TenantAppearance {
+  template: SiteTemplate;
+  /** Styl w kształcie zapisanym; render uzupełnia braki `tenantAppearanceStyle`. */
+  style: SiteStyle;
+  /** Znak firmy albo `null` — brak znaku jest stanem NORMALNYM (ADR-160). */
+  logo: SiteLogo | null;
+}
+
+/**
+ * Powłoka najemcy, o którym nic nie wiadomo: motyw zastany, żadnego stylu,
+ * żadnego znaku. Dokładnie to, co sklep pokazywał przed ADR-090 i ADR-160 —
+ * więc nieudany odczyt nie zmienia wyglądu, tylko go NIE POPRAWIA.
+ */
+export const DEFAULT_TENANT_APPEARANCE: TenantAppearance = {
+  template: "classic",
+  style: {},
+  logo: null,
+};
+
+/**
+ * POWŁOKA SKLEPU CZYTANA TOREM NAJEMCY (ADR-171).
+ *
+ * DLACZEGO NIE KOPERTĄ STRONY GŁÓWNEJ, którą sklep czytał do tej pory. Znak
+ * i wygląd są od 0076/0077 własnością NAJEMCY, a koperta strony niosła je
+ * wyłącznie dlatego, że akurat tamtędy przechodził odczyt. Najemca
+ * z opublikowaną PODSTRONĄ i nieopublikowaną stroną główną nie dostawał ani
+ * znaku, ani motywu — na żadnej trasie, bo trasy bez wiersza `sites`
+ * (katalog, koszyk, kasa, dokumenty prawne) i tak sięgały po tę samą pustą
+ * kopertę. To jest stan DOMYŚLNY nowego najemcy, nie przypadek brzegowy.
+ *
+ * Stopka zostaje przy stronie głównej i dalej jedzie kopertą (ADR-154):
+ * powłoka ma po ADR-171 dwóch właścicieli i ta funkcja obsługuje wyłącznie
+ * tego, którym jest najemca.
+ *
+ * FAIL-SOFT, nie fail-closed — inaczej niż `getPublishedPage`. Nierozpoznana
+ * odpowiedź znaczy „sklep wygląda domyślnie", a nie „sklep nie wygląda wcale":
+ * powłoka nie jest bramką dostępu do niczego, a wywrócenie strony z powodu
+ * kolumny dekoracyjnej zabrałoby klientowi katalog.
+ *
+ * IZOLACJA. `app.get_tenant_appearance` jest SECURITY DEFINER, więc RLS jej
+ * nie dotyczy — bramką jest jawne zawężenie `t.id = p_tenant_id`, a sam
+ * `tenantId` przychodzi WYŁĄCZNIE z nagłówka wstrzykniętego przez proxy po
+ * rozwiązaniu hosta server-side (lib/tenant/headers.ts zdejmuje przychodzące
+ * nagłówki bezwarunkowo).
+ */
+export async function getTenantAppearance(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<TenantAppearance> {
+  const supabase = client ?? (await createSupabaseServerClient());
+
+  const { data, error } = await supabase
+    .schema("app")
+    .rpc("get_tenant_appearance", { p_tenant_id: tenantId });
+
+  if (error || data == null) return DEFAULT_TENANT_APPEARANCE;
+
+  return parseTenantAppearance(data);
+}
+
+/** Parsowanie koperty powłoki — wydzielone, bo mierzą je testy bez bazy. */
+export function parseTenantAppearance(payload: unknown): TenantAppearance {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return DEFAULT_TENANT_APPEARANCE;
+  }
+  const raw = payload as Record<string, unknown>;
+
+  const template = siteTemplateSchema.safeParse(raw.template);
+  const style = siteStyleSchema.safeParse(raw.style ?? {});
+
+  return {
+    template: template.success ? template.data : DEFAULT_TENANT_APPEARANCE.template,
+    style: style.success ? style.data : {},
+    logo: parseSiteLogo(raw.logo),
+  };
+}
+
+/**
+ * WYGLĄD POWŁOKI w postaci, w której posługuje się nim render — bliźniak
+ * `publishedSiteStyle` dla toru najemcy. Rozstrzygnięcie stoi tutaj z tego
+ * samego powodu: szablon i styl mają zejść się w JEDNYM miejscu, inaczej
+ * zmiana motywu w panelu rozjeżdża się z akcentem u klienta.
+ */
+export function tenantAppearanceStyle(appearance: TenantAppearance): ResolvedSiteStyle {
+  return resolveSiteStyle(appearance.style, appearance.template);
 }
