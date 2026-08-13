@@ -17,11 +17,13 @@
  * ==================== CO BIERZE Z KTÓREJ STRONY ====================
  *
  * TREŚĆ — z własnej strony (`getPublishedPage(tenantId, slug)`).
- * POWŁOKA I STYL — ze strony GŁÓWNEJ (`ctx.site`). Stopka jest warstwą ponad
- * stronami (faza 0, ADR-154), a styl jest wyglądem SKLEPU, nie dokumentu:
- * dwie podstrony w różnych motywach wyglądałyby jak dwa różne serwisy pod
- * jedną domeną. Koszt jest jawny: dwa odczyty publiczne na wyświetlenie
- * podstrony zamiast jednego.
+ * ZNAK I WYGLĄD — z wiersza NAJEMCY (`ctx.appearance`, ADR-171). Styl jest
+ * wyglądem SKLEPU, nie dokumentu: dwie podstrony w różnych motywach wyglądałyby
+ * jak dwa różne serwisy pod jedną domeną. Do 0079 jechały kopertą strony
+ * głównej i znikały razem z nią — najemca z opublikowaną podstroną i szkicem
+ * strony głównej dostawał sklep bez znaku i w motywie domyślnym.
+ * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
+ * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
  */
 import { PRODUCTS_CATALOG_HREF, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
 import { SiteRenderer } from "@avably/ui";
@@ -100,10 +102,13 @@ export default async function TenantContentPage({ params }: Params) {
       storeName={catalog.tenant.name}
       logo={storeLogo(ctx)}
       /*
-        POWŁOKA ZE STRONY GŁÓWNEJ, a kotwice stopki przepisane na jej adres:
+        STOPKA ZE STRONY GŁÓWNEJ, a jej kotwice przepisane na adres tej strony:
         `#kontakt` w stopce prowadzi do sekcji, która stoi na stronie głównej,
         więc na podstronie musi być adresem bezwzględnym. Bez tego klient klika
         i nie dzieje się NIC — bez błędu, bez zmiany adresu (faza 0, ADR-154).
+
+        `null` (strona główna nieopublikowana) znaczy odtąd „nie ma stopki",
+        a NIE „nie ma powłoki": znak i motyw jadą torem najemcy (ADR-171).
       */
       site={site}
       /* Prefiks zdjęć także dla stopki powłoki (ADR-172) — patrz `/store`. */

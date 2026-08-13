@@ -22,8 +22,10 @@ import { requireMemberPage } from "@/lib/member-page";
 import { listSites } from "@/lib/site-queries";
 import { tenantLogo } from "@/lib/tenant-logo-render";
 
+import { appearancePending } from "./appearance-state";
 import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
+import { StoreAppearanceCard } from "./store-appearance-card";
 import { StoreLogoCard } from "./store-logo-card";
 
 export default async function SitePage() {
@@ -40,16 +42,36 @@ export default async function SitePage() {
   }
 
   /*
-    ZNAK FIRMY (ADR-160) — własność NAJEMCY, więc czytany z `tenants`, a nie
-    z którejkolwiek ze stron. Nieudany odczyt NIE gasi ekranu: lista stron jest
-    tu ważniejsza niż karta znaku, a `own_select` i tak oddaje wyłącznie własny
-    wiersz najemcy.
+    ZNAK FIRMY (ADR-160) I WYGLĄD SKLEPU (ADR-161) — obie własności NAJEMCY,
+    więc czytane z `tenants`, a nie z którejkolwiek ze stron, i JEDNYM
+    zapytaniem: to ten sam wiersz i ta sama publikacja. Nieudany odczyt NIE gasi
+    ekranu: lista stron jest tu ważniejsza niż obie karty, a `own_select` i tak
+    oddaje wyłącznie własny wiersz najemcy.
+
+    Kolumny wyglądu doszły przy ADR-171: do tej poprawki `style_published`
+    i `template_published` nie czytał ani jeden ekran panelu, więc stan
+    „wygląd czeka na publikację" nie miał jak powstać.
   */
   const tenantRow = await ctx.supabase
     .from("tenants")
-    .select("logo_draft, logo_published")
+    .select("logo_draft, logo_published, template, template_published, style_draft, style_published")
     .eq("id", ctx.tenantId!)
     .maybeSingle();
+
+  /*
+    NIEUDANY ODCZYT ZNACZY „NIE WIADOMO", a nie „bez zmian" — karta wyglądu
+    znika wtedy w całości. Zdanie o tym, co widzą klienci, postawione na
+    domyśle, jest gorsze od jego braku (kanon ADR-171: napis o stanie sklepu
+    pochodzi z odczytu tego, co sklep naprawdę przeczyta).
+  */
+  const appearance = tenantRow.data
+    ? appearancePending({
+        template: (tenantRow.data.template as string | null) ?? null,
+        template_published: (tenantRow.data.template_published as string | null) ?? null,
+        style_draft: tenantRow.data.style_draft,
+        style_published: tenantRow.data.style_published,
+      })
+    : null;
 
   /*
     GDZIE ZNAK DO STOPKI NIE DOTRZE (ADR-167). Odczyt jest tu, a nie w karcie,
@@ -128,7 +150,15 @@ export default async function SitePage() {
           footerRows.data ?? [],
         )}
       />
-      <SitePages rows={rows} />
+      {appearance === null ? null : <StoreAppearanceCard pending={appearance} />}
+      {/*
+        ZASIĘG PUBLIKACJI JEDZIE DO OKNA (ADR-171). Okno potwierdzenia mówiło
+        bezwarunkowo „Pozostałe strony sklepu zostają bez zmian", a `publishSite`
+        wypuszcza przy okazji wygląd CAŁEGO sklepu. Zdanie jest odtąd warunkowe,
+        a warunek liczy się TUTAJ — z tego samego odczytu, z którego liczy się
+        karta wyżej, żeby ekran i okno nie mogły powiedzieć czegoś innego.
+      */}
+      <SitePages rows={rows} appearancePending={appearance} />
     </div>
   );
 }

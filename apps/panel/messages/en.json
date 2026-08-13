@@ -1593,6 +1593,12 @@
         "publish": "Could not publish the logo."
       }
     },
+    "appearance": {
+      "title": "Shop look",
+      "scope": "Theme, accent colour and typefaces. They apply to every page of your shop at once.",
+      "pending": "The look is waiting to be published — customers still see the previous one. It goes live with the next publication of any page.",
+      "live": "Customers see this look."
+    },
     "fields": {
       "heading": "Heading",
       "heroHeading": "Main heading",
@@ -1919,7 +1925,9 @@
       "deleteBody": "The page and its sections will be gone for good. Customers have never seen it, so nothing changes in the shop.",
       "deleteConfirm": "Delete page",
       "switchTitle": "Publish page “{name}”?",
-      "switchBodyNew": "The page becomes available to customers at {address}. The other pages in your shop stay as they are.",
+      "switchBodyNew": "The page becomes available to customers at {address}.",
+      "switchAppearanceUnchanged": "The content of your other pages and the look of your shop stay as they are.",
+      "switchAppearanceChanges": "Publishing this page also publishes the look of your shop — the theme, accent colour and typefaces change for customers on every page.",
       "switchDraftNote": "Any changes you made in it will be published too.",
       "limitReached": "You reached the limit of {max} pages. Delete an unused page to add a new one.",
       "cancel": "Cancel",

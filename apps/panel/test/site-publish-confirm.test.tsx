@@ -112,12 +112,24 @@ describe("publikacja z kreatora wymaga potwierdzenia (ten sam dialog, co lista s
     expect(await screen.findByText(/Opublikować stronę/)).toBeTruthy();
   });
 
-  it("strona ROBOCZA dostaje swój adres i zapewnienie, że reszta sklepu zostaje", async () => {
+  it("strona ROBOCZA dostaje swój adres, a o zasięgu wyglądu kreator MILCZY (ADR-171)", async () => {
     renderBuilder({ address: "/kontakt" });
     fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
 
     const body = await screen.findByText(/\/kontakt/);
-    expect(body.textContent).toContain("Pozostałe strony sklepu zostają bez zmian");
+    expect(body.textContent).toContain("/kontakt");
+
+    /*
+      Do ADR-171 stało tu zapewnienie „Pozostałe strony sklepu zostają bez
+      zmian" — nieprawda za każdym razem, gdy operator ruszył motyw, akcent
+      albo krój, bo publikacja wypuszcza wygląd CAŁEGO sklepu. Kreator stanu
+      wyglądu nie zna (nie podaje `appearancePending`), więc okno nie ma prawa
+      twierdzić ani jednego, ani drugiego. Zdanie warunkowe i jego dowód w obie
+      strony stoją na ekranie stron — `store-appearance-pending.test.tsx`.
+    */
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.querySelector("[data-publish-appearance-scope]")).toBeNull();
+    expect(dialog.textContent).not.toContain("Pozostałe strony sklepu zostają bez zmian");
   });
 
   it("edycja strony ŻYWEJ dostaje zdanie o odświeżeniu, nie o wystawieniu", async () => {
