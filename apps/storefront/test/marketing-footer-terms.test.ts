@@ -20,6 +20,7 @@
  * w niej nie ma.
  */
 import { renderToStaticMarkup } from "react-dom/server";
+import * as cheerio from "cheerio";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MarketingPageView } from "@/components/marketing/marketing-page-view";
@@ -130,5 +131,52 @@ describe("stopka marketingowa a regulamin platformy — okablowanie widoku", () 
 
     expect(html).toContain(pl.marketing.footer.columnCompany);
     expect(html).not.toContain("/pl/terms");
+  });
+
+  it("wydziela główną treść i zachowuje podstronę przy zmianie języka", async () => {
+    vi.mocked(getPlatformTerms).mockResolvedValue(null);
+
+    const html = renderToStaticMarkup(
+      await MarketingPageView({ copy: pl.marketing, locale: "pl", page: "pricing" }),
+    );
+    const $ = cheerio.load(html);
+
+    expect($("main#main-content")).toHaveLength(1);
+    expect($("main#main-content .navigation-master")).toHaveLength(0);
+    expect($("main#main-content .footer-component")).toHaveLength(0);
+    expect($("a[href='#main-content']").text()).toBe("Przejdź do treści");
+    expect($(".w-nav-button").first().attr("aria-label")).toBe("Nawigacja");
+
+    const maskowane = $("a:has(.button-text-mask)");
+    expect(maskowane.length).toBeGreaterThan(0);
+    maskowane.each((_, element) => {
+      const link = $(element);
+      expect(link.attr("aria-label")).toBe(link.find(".button-text").first().text().trim());
+    });
+
+    const linkiJezykowe = $("a[hreflang='en']")
+      .map((_, element) => $(element).attr("href"))
+      .get();
+    expect(linkiJezykowe.length).toBeGreaterThan(0);
+    expect(new Set(linkiJezykowe)).toEqual(new Set(["/en/pricing"]));
+  });
+
+  it("pozwala zachować numer archiwalnej wersji regulaminu przy zmianie języka", async () => {
+    vi.mocked(getPlatformTerms).mockResolvedValue(OBOWIAZUJACY);
+
+    const html = renderToStaticMarkup(
+      await MarketingPageView({
+        alternateHref: "/en/terms/w/7",
+        copy: pl.marketing,
+        locale: "pl",
+        page: "terms",
+      }),
+    );
+    const $ = cheerio.load(html);
+    const linkiJezykowe = $("a[hreflang='en']")
+      .map((_, element) => $(element).attr("href"))
+      .get();
+
+    expect(new Set(linkiJezykowe)).toEqual(new Set(["/en/terms/w/7"]));
   });
 });

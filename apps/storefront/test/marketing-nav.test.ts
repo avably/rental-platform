@@ -228,3 +228,19 @@ describe("kontrast pozycji nawigacji", () => {
     expect(jasnePozycjeNaJasnymTle(przezroczysta)).toEqual([]);
   });
 });
+
+describe("widoczny fokus i rozmiar celu", () => {
+  const layout = read("app/[locale]/layout.tsx");
+
+  it("osoba korzystająca z klawiatury widzi przejście do treści i obrys odnośników", () => {
+    expect(layout).toContain(".marketing-skip-link:focus-visible");
+    expect(layout).toMatch(/:where\([^)]*\.nav-link[^)]*\.footer-link[^)]*\):focus-visible/);
+    expect(layout).toMatch(/outline:\s*3px solid currentColor/);
+  });
+
+  it("główne wezwania i odnośniki stopki mają cel co najmniej 44 px", () => {
+    expect(layout).toMatch(
+      /:where\(\.cta-main,\s*\.footer-link\)[^{]*\{[^}]*min-height:\s*44px/,
+    );
+  });
+});

@@ -17,11 +17,14 @@ interface MarketingPageViewProps {
   copy: Record<string, unknown>;
   locale: Locale;
   page: MarketingPage;
+  /** Dokładny odpowiednik językowy, np. ta sama wersja opublikowanego regulaminu. */
+  alternateHref?: string;
   /** Treść wstawiana w miejsce wyspy (formularz, dokument) — patrz marketing/*.html. */
   island?: React.ReactNode;
 }
 
 const ISLAND_MARKER = "<!--avably-island-->";
+const FOOTER_MARKER = '<section class="footer-component">';
 
 /**
  * Etykieta przycisku menu dla czytnika ekranu — z treści, nie z literału.
@@ -36,6 +39,60 @@ function etykietaMenu(copy: Record<string, unknown>): string {
     throw new Error("Brak treści dla tokenu szablonu: nav.menuLabel");
   }
   return nav.menuLabel;
+}
+
+function etykietaPominTresc(copy: Record<string, unknown>): string {
+  const nav = copy.nav as { skipToContent?: unknown } | undefined;
+  if (typeof nav?.skipToContent !== "string") {
+    throw new Error("Brak treści dla tokenu szablonu: nav.skipToContent");
+  }
+  return nav.skipToContent;
+}
+
+function podzielPowierzchnie(html: string) {
+  const contentStart = html.indexOf("<section");
+  const footerStart = html.lastIndexOf(FOOTER_MARKER);
+
+  if (contentStart < 0 || footerStart <= contentStart) {
+    throw new Error("Szablon marketingowy nie ma rozdzielnych obszarów nawigacji, treści i stopki");
+  }
+
+  return {
+    navigation: html.slice(0, contentStart),
+    content: html.slice(contentStart, footerStart),
+    footer: html.slice(footerStart),
+  };
+}
+
+/**
+ * Dwie warstwy tekstu animowanego odnośnika są potrzebne wizualnie, ale bez
+ * jawnej nazwy czytnik składa je w „Cennik Cennik”. Nazwę dokładamy do HTML-u
+ * serwera, żeby poprawność nie zależała od hydratacji ani od biblioteki animacji.
+ */
+function nazwijMaskowaneOdnosnikiHtml(html: string): string {
+  return html.replace(
+    /<a\b([^>]*)>([\s\S]*?)<\/a>/g,
+    (anchor, attributes: string, body: string) => {
+      if (!body.includes("button-text-mask") || /\saria-label=/.test(attributes)) return anchor;
+      const label = body
+        .match(/<div class="button-text(?: [^"]*)?">([^<]+)<\/div>/)?.[1]
+        ?.trim();
+      if (!label) return anchor;
+      return `<a${attributes} aria-label="${label}">${body}</a>`;
+    },
+  );
+}
+
+function nazwijPrzyciskiMenuHtml(html: string, label: string): string {
+  const encodedLabel = label
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;");
+  return html.replace(
+    /<div([^>]*class="[^"]*\bw-nav-button\b[^"]*"[^>]*)>/g,
+    (_tag, attributes: string) =>
+      `<div${attributes.replace(/\saria-label="[^"]*"/, "")} aria-label="${encodedLabel}">`,
+  );
 }
 
 /**
@@ -81,39 +138,68 @@ async function platformTermsPublished(): Promise<boolean> {
  * nie odstatycznia. Na `/terms` to samo pytanie pada dwa razy — raz w trasie,
  * raz tutaj — i jest to świadoma cena za regułę trzymaną w JEDNYM miejscu.
  */
-export async function MarketingPageView({ copy, locale, page, island }: MarketingPageViewProps) {
-  const html = renderMarketingPage(
-    page,
-    { ...copy, ...marketingLinks(locale) },
-    { terms: await platformTermsPublished() },
+export async function MarketingPageView({
+  copy,
+  locale,
+  page,
+  alternateHref,
+  island,
+}: MarketingPageViewProps) {
+  const links = marketingLinks(locale);
+  const otherLocale: Locale = locale === "pl" ? "en" : "pl";
+  const matchingAlternateHref =
+    alternateHref ?? (page === "home" ? `/${otherLocale}` : `/${otherLocale}/${page}`);
+  const html = nazwijPrzyciskiMenuHtml(
+    nazwijMaskowaneOdnosnikiHtml(
+      renderMarketingPage(
+        page,
+        {
+          ...copy,
+          ...links,
+          link: { ...links.link, langAlternate: matchingAlternateHref },
+        },
+        { terms: await platformTermsPublished() },
+      ),
+    ),
+    etykietaMenu(copy),
   );
-  const [before, after] = html.split(ISLAND_MARKER);
+  const { navigation, content, footer } = podzielPowierzchnie(html);
+  const [beforeIsland, afterIsland] = content.split(ISLAND_MARKER);
 
   return (
     <>
       <LandingAnalytics locale={locale} />
       <MarketingRuntime wfPage={wfPageId(page)} wfSite={WF_SITE} />
       <MarketingNavA11y etykietaMenu={etykietaMenu(copy)} />
-      {island && after !== undefined ? (
-        // ZNANE OGRANICZENIE (do domknięcia): na stronach z wyspą interakcje
-        // odsłaniające nie startują — elementy eksportu zostają na inline
-        // `opacity:0`. Do czasu naprawy klasa wymusza widoczność, żeby strona
-        // niosła treść zamiast pustego tła. Landing biegnie bez tej klasy,
-        // z pełnymi animacjami szablonu.
-        //
-        // PODZIAŁ TNIE HTML NA ZNACZNIKU WYSPY, więc znacznik MUSI stać między
-        // rodzeństwem najwyższego poziomu — obie połówki jadą osobnym
-        // `dangerouslySetInnerHTML`, a połówka urwana w środku drzewa zostaje
-        // domknięta przez parser i wyrzuca wyspę poza kontener strony
-        // (ADR-162; bramka: `marketing-island.test.ts`).
-        <div className="marketing-static">
-          <div dangerouslySetInnerHTML={{ __html: before }} />
-          {island}
-          <div dangerouslySetInnerHTML={{ __html: after }} />
-        </div>
-      ) : (
-        <div dangerouslySetInnerHTML={{ __html: before }} />
-      )}
+      <div className={island ? "marketing-static" : undefined}>
+        <a className="marketing-skip-link" href="#main-content">
+          {etykietaPominTresc(copy)}
+        </a>
+        <div dangerouslySetInnerHTML={{ __html: navigation }} />
+        <main id="main-content">
+          {island && afterIsland !== undefined ? (
+            // ZNANE OGRANICZENIE (do domknięcia): na stronach z wyspą interakcje
+            // odsłaniające nie startują — elementy eksportu zostają na inline
+            // `opacity:0`. Do czasu naprawy klasa wymusza widoczność, żeby strona
+            // niosła treść zamiast pustego tła. Landing biegnie bez tej klasy,
+            // z pełnymi animacjami szablonu.
+            //
+            // PODZIAŁ TNIE HTML NA ZNACZNIKU WYSPY, więc znacznik MUSI stać między
+            // rodzeństwem najwyższego poziomu — obie połówki jadą osobnym
+            // `dangerouslySetInnerHTML`, a połówka urwana w środku drzewa zostaje
+            // domknięta przez parser i wyrzuca wyspę poza kontener strony
+            // (ADR-162; bramka: `marketing-island.test.ts`).
+            <>
+              <div dangerouslySetInnerHTML={{ __html: beforeIsland }} />
+              {island}
+              <div dangerouslySetInnerHTML={{ __html: afterIsland }} />
+            </>
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: content }} />
+          )}
+        </main>
+        <div dangerouslySetInnerHTML={{ __html: footer }} />
+      </div>
     </>
   );
 }

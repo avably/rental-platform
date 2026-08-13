@@ -44,9 +44,11 @@ export async function generateMetadata({
 
   const document = await getPlatformTermsVersion(Number(wersja));
   if (!document) return {};
+  const messages = (await getMessages({ locale })) as AppMessages;
 
   const metadata: Metadata = {
     title: `${platformTermsLocalized(document, locale).title} (${document.version_label})`,
+    description: messages.marketing.termsPage.metadataDescription,
     alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/terms/w/${document.version_no}` },
   };
   if (!document.current) metadata.robots = { index: false, follow: true };
@@ -65,6 +67,7 @@ export default async function TermsVersionPage({ params }: { params: Promise<Rou
 
   return (
     <MarketingPageView
+      alternateHref={`/${locale === "pl" ? "en" : "pl"}/terms/w/${document.version_no}`}
       copy={messages.marketing}
       island={<TermsContent document={document} copy={messages.terms} locale={locale} />}
       locale={locale as Locale}

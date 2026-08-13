@@ -30,9 +30,15 @@ export async function generateMetadata({
   const messages = (await getMessages({ locale })) as AppMessages;
 
   const copy = messages.marketing;
-  const title = resolved === "pricing" ? copy.pricingPage.title : copy.nav[resolved === "faq" ? "faq" : "contact"];
+  const pageCopy =
+    resolved === "pricing"
+      ? copy.pricingPage
+      : resolved === "faq"
+        ? copy.faqPage
+        : copy.contactPage;
   return {
-    title: `${title} — Avably`,
+    title: `${pageCopy.title} — Avably`,
+    description: pageCopy.metadataDescription,
     alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/${resolved}` },
   };
 }

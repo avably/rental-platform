@@ -118,6 +118,7 @@
       "login": "Zaloguj się",
       "cta": "Otwórz wypożyczalnię",
       "menuLabel": "Nawigacja",
+      "skipToContent": "Przejdź do treści",
       "languageLabel": "Zmień język",
       "polish": "PL",
       "english": "EN",
@@ -136,7 +137,7 @@
       "ctaSecondary": "Zobacz, co działa dziś",
       "feature1": "Dostępność na egzemplarz, nie na model",
       "feature2": "Kaucja z karty i z powrotem na kartę",
-      "feature3": "Sklep pod adresem twojafirma.pl",
+      "feature3": "Sklep pod twojanazwa.avably.io i własną domeną",
       "posterAlt": "Brama sekcyjna lokalu domknięta na moment przed otwarciem, pod nią wąski pas dziennego światła"
     },
     "premise": {
@@ -197,7 +198,7 @@
     },
     "cta": {
       "title": "Przestań zgadywać, jak wyszedł miesiąc",
-      "body": "Pulpit pokazuje przychód bieżącego i poprzedniego miesiąca, trend z dwunastu miesięcy, zajętość każdego produktu z ostatnich trzydziestu dni i dziesięciu klientów, którzy zostawili u Ciebie najwięcej. Osobna lista „Wymaga uwagi” zbiera spóźnione zwroty, nieudane płatności i nierozliczone kaucje. Bez arkusza, który otwiera tylko jedna osoba w firmie.",
+      "body": "Pulpit otwiera dzień pięcioma stałymi kaflami: wydania, zwroty, po terminie, przygotowanie na jutro i alarmy pieniężne. Niżej pokazuje przychód bieżącego i poprzedniego miesiąca, trend z dwunastu miesięcy, zajętość produktów z ostatnich trzydziestu dni i klientów o największym przychodzie. Każda sprawa prowadzi do konkretnego zamówienia — bez arkusza, który otwiera tylko jedna osoba w firmie.",
       "cta": "Otwórz wypożyczalnię"
     },
     "momentum": {
@@ -254,6 +255,7 @@
       "a8": "Baza, hosting i poczta stoją u dostawców z serwerami w UE. Trzymamy zwykłe dane kontaktowe Twoich klientów: imię, e-mail, telefon, adres, NIP do faktury. Nie zbieramy PESEL-i ani skanów dowodów. Administratorem tych danych jesteś Ty, my przetwarzamy je na Twoje zlecenie. Umowy powierzenia ani samoobsługowego usuwania danych klienta jeszcze nie ma — jedno i drugie wchodzi przed startem płatnych planów."
     },
     "faqPage": {
+      "metadataDescription": "Odpowiedzi o płatnościach, cenie, trialu, imporcie katalogu, własnej domenie, bezpieczeństwie i RODO.",
       "eyebrow": "Zanim zaczniesz",
       "title": "Sprawdź, czy to zagra u Ciebie"
     },
@@ -275,14 +277,17 @@
       "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
     },
     "privacyPage": {
+      "metadataDescription": "Zasady przetwarzania danych na stronie Avably i podczas kontaktu z nami.",
       "eyebrow": "Dokumenty",
       "title": "Polityka prywatności"
     },
     "termsPage": {
+      "metadataDescription": "Warunki korzystania z usługi Avably dla właścicieli wypożyczalni sprzętu.",
       "eyebrow": "Dokumenty",
       "title": "Regulamin świadczenia usługi Avably"
     },
     "contactPage": {
+      "metadataDescription": "Napisz do Avably w sprawie produktu, pilotażu, RODO albo bezpieczeństwa. Zwykle odpowiadamy tego samego dnia roboczego.",
       "title": "Napisz na jeden adres",
       "intro": "Pytania o produkt, RODO, pilotaż i zgłoszenia bezpieczeństwa trafiają do jednej skrzynki. Odpowiadamy zwykle tego samego dnia roboczego. Infolinii nie mamy. Napisz od razu, co wynajmujesz i ile masz egzemplarzy — pierwsza odpowiedź będzie wtedy o Twoim sprzęcie, a nie prośbą o dane. Konta i tak nie musisz z nami umawiać: zakładasz je sam — e-mail, hasło, link potwierdzający ze skrzynki.",
       "emailLabel": "E-mail",
@@ -292,6 +297,7 @@
       "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań"
     },
     "pricingPage": {
+      "metadataDescription": "Porównaj plany Avably: 14 dni bez karty, stały abonament i zero prowizji od rezerwacji.",
       "title": "Płać abonament, nie procent od rezerwacji",
       "intro": "Ceny netto, 23% VAT dochodzi na fakturze. Trial 14 dni, bez karty. Rok z góry kosztuje dziesięć rat zamiast dwunastu, w obu planach.",
       "standardLabel": "Standard",
