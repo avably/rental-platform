@@ -673,9 +673,17 @@ export function SiteBuilder({
           właśnie przeszła, przeszła naprawdę. To dokładnie ta podmiana gasiła
           ślad po zgubionej pracy.
         */}
+        {/*
+          STAN JEDZIE WARTOŚCIĄ TEGO SAMEGO ZNACZNIKA, nie drugim atrybutem.
+          Rejestr warstwy edycyjnej sklepu (`site-render-builder-leak`) pilnuje
+          RODZINY `data-builder-*` — nazwa spoza niej przestaje być pilnowana
+          w publicznym renderze. Jedna nazwa z wartością jest zarazem
+          uczciwszym zapisem: `[data-builder-save-state="unsaved"]` odpowiada
+          na pytanie o stan, a `[data-builder-save-state]` dalej odnajduje
+          wskaźnik tak, jak odnajdywał go do tej pory.
+        */}
         <p
-          data-builder-save-state
-          data-save-state={editor.unsaved > 0 ? "unsaved" : saveState}
+          data-builder-save-state={editor.unsaved > 0 ? "unsaved" : saveState}
           role="status"
           className={`ml-auto text-sm ${editor.unsaved > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}
         >
