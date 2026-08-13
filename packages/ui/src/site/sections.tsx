@@ -556,17 +556,20 @@ export function FooterSection({
  */
 export function FooterMark({ logo }: { logo: SiteLogoRender }) {
   return (
-    <div
-      data-footer-mark
-      className="mx-auto w-full pb-10"
-      style={{
-        maxWidth: CANVAS_DESIGN_WIDTH_PX,
-        paddingInline: `${(CANVAS_PAD_COLUMNS / CANVAS_COLUMNS) * 100}%`,
-      }}
-    >
-      {/* Pudełko o STAŁEJ wysokości (`.site-logo`) — plik o dowolnych
-          proporcjach nie rozpycha stopki i nie robi skoku układu. */}
-      <img className="site-logo" src={logo.src} alt={logo.alt} />
+    <div data-footer-mark className="mx-auto w-full pb-10" style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX }}>
+      {/*
+        DWA POZIOMY, A NIE JEDEN — i to jest warunek wyrównania, nie zdobienie.
+        Procentowy odstęp rozwiązuje się względem SZEROKOŚCI BLOKU ZAWIERAJĄCEGO,
+        a nie własnej. Postawiony na pudełku z `max-width` liczyłby się od
+        szerokości stopki (np. 1280 px), a nie od pasa płótna (1152 px) — i znak
+        stawał o kilkanaście pikseli na prawo od kolumny, w której stoi nazwa
+        firmy. Złapane na zrzucie, bo w drzewie tego nie widać.
+      */}
+      <div style={{ paddingInline: `${(CANVAS_PAD_COLUMNS / CANVAS_COLUMNS) * 100}%` }}>
+        {/* Pudełko o STAŁEJ wysokości (`.site-logo`) — plik o dowolnych
+            proporcjach nie rozpycha stopki i nie robi skoku układu. */}
+        <img className="site-logo" src={logo.src} alt={logo.alt} />
+      </div>
     </div>
   );
 }

@@ -99,6 +99,26 @@ describe("ADR-167 — przełącznik znaku działa na stopce, którą najemca ma"
     expect(mark).toHaveAttribute("alt", ZNAK.alt);
   });
 
+  it("pas znaku dzieli z płótnem SUFIT szerokości i PAS treści", () => {
+    /*
+      Wyrównanie znaku do kolumny stopki jest własnością UKŁADU, a nie drzewa:
+      procentowy odstęp rozwiązuje się względem bloku ZAWIERAJĄCEGO. Gdyby stał
+      na tym samym pudełku, co `max-width`, liczyłby się od szerokości stopki
+      i znak stawałby obok kolumny — bez błędu i bez śladu w markupie (złapane
+      dopiero na zrzucie z przeglądarki). Ta asercja przypina obie warstwy.
+    */
+    const { container } = render(
+      <SiteRenderer sections={[sekcja(stopkaNaPlotnie())]} footerLogo={ZNAK} />,
+    );
+    const pas = container.querySelector<HTMLElement>("[data-footer-mark]");
+    expect(pas).not.toBeNull();
+    expect(pas!.style.maxWidth).toBe("1152px");
+    expect(pas!.style.paddingInline).toBe("");
+    const kolumna = pas!.firstElementChild as HTMLElement;
+    expect(kolumna.style.paddingInline).not.toBe("");
+    expect(kolumna.querySelector("img")).not.toBeNull();
+  });
+
   it("STOPKA Z WŁASNYM OBRAZEM: znak NIE wchodzi — obraz zostaje jeden, operatora", () => {
     // `siteImageBase` jest tu WARUNKIEM DOWODU, a nie ozdobą: bez adresu bucketa
     // element obrazu rysuje kafel zastępczy i „jeden obraz zamiast dwóch"
