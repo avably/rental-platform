@@ -270,7 +270,21 @@ describe("żadna ścieżka płótna nie ma jak przepuścić ruchu", () => {
     const wywolania = wywolaniaRenderera(trasa);
     expect(wywolania.length, "podgląd przestał wołać wspólny renderer").toBe(1);
     expect(wywolania[0], "podgląd zatrzymał stronę tak, jak płótno").not.toContain('motion="off"');
-    expect(wywolania[0], "podgląd nie mówi wprost, że jest w ruchu").toContain('motion="auto"');
+    /*
+     * TRYB RUCHU NIESIE KORZEŃ, NIE RENDERER (od ADR-172). Podgląd owija się
+     * powłoką sklepu, więc renderer sekcji idzie `asRoot={false}` — a przy nim
+     * `motion` jest z konstrukcji IGNOROWANY (patrz JSDoc propsu). Zdanie
+     * o ruchu pilnujemy zatem tam, gdzie ono coś znaczy; zostawione przy
+     * rendererze byłoby atrapą pilnującą martwej linijki.
+     */
+    const kod = trasa.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, " ");
+    const korzen = /<SiteChrome[\s\S]*?>/.exec(kod)?.[0];
+    expect(korzen, "podgląd przestał wystawiać korzeń strony (powłokę)").toBeTruthy();
+    expect(korzen!, "podgląd zatrzymał stronę tak, jak płótno").not.toContain('motion="off"');
+    expect(korzen!, "podgląd nie mówi wprost, że jest w ruchu").toContain('motion="auto"');
+    expect(wywolania[0], "renderer podglądu wystawia DRUGI korzeń pod powłoką").toContain(
+      "asRoot={false}",
+    );
   });
 
   it("POWŁOKA SKLEPU nie zatrzymuje strony klienta", () => {

@@ -29,6 +29,7 @@ export function PageShell({
   storeName,
   site,
   logo,
+  siteImageBase,
   children,
   className,
 }: {
@@ -46,6 +47,12 @@ export function PageShell({
    * podstrona, która by go pominęła, gasiłaby logo dokładnie na sobie.
    */
   logo: StoreLogo | null;
+  /**
+   * Prefiks publicznego URL-a zdjęć sekcji (ADR-172) — wymagany z tego samego
+   * powodu, co `site` i `logo`: bez niego element obrazu w stopce rysuje się
+   * jako szary kafel zastępczy, na tej jednej podstronie i na żadnej innej.
+   */
+  siteImageBase: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -56,6 +63,7 @@ export function PageShell({
       storeName={storeName}
       site={site}
       logo={logo}
+      siteImageBase={siteImageBase}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ KATALOGU (faza 0). Użytkownicy tej
         powłoki to z definicji PODSTRONY — nie ma na nich sekcji, więc czysta

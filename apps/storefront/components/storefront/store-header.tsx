@@ -12,10 +12,15 @@
  * nagłówek stoi POD tym korzeniem — dlatego renderuje go `StoreChrome`, a nie
  * trasa obok powłoki (poza korzeniem zmienne nie istnieją i te klasy są
  * bezzębne).
+ *
+ * KSZTAŁT NAGŁÓWKA MIESZKA OD ADR-172 W PAKIECIE UI, bo składa go teraz także
+ * podgląd szkicu w panelu — a panel nie ma prawa importować z drugiej
+ * aplikacji. Tutaj zostaje wyłącznie to, czego pakiet mieć nie może: żywy
+ * licznik koszyka z `localStorage` i nawigacja `next/link`.
  */
+import { StoreShellHeader } from "@avably/ui";
 import Link from "next/link";
 
-import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { cartItemCount } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
 import type { StoreLogo } from "@/lib/site/store-logo";
@@ -41,34 +46,27 @@ export function StoreHeader({
   const count = cartItemCount(cart);
 
   return (
-    <header className="site-header">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
-        <Link
-          href="/store"
-          className={logo ? "flex items-center" : `text-lg tracking-tight ${SITE_HEADING}`}
-        >
-          {logo ? (
-            // Pudełko o STAŁEJ wysokości (`.site-logo`): plik 3000 × 200 zjedzie
-            // do wysokości paska i zatrzyma się na `max-width`, zamiast wypchnąć
-            // koszyk poza ekran. Bez wymiarów własnych pliku i bez skoku układu.
-            // eslint-disable-next-line @next/next/no-img-element -- goły URL publiczny bucketa najemcy (jak karta produktu, ADR-145), nie zasób lokalny next/image
-            <img className="site-logo" src={logo.src} alt={logo.alt} />
-          ) : (
-            storeName
-          )}
-        </Link>
-        <Link href="/cart" className="site-nav-link inline-flex items-center gap-2 text-sm font-medium">
-          <span>{copy.nav.cart}</span>
-          {hydrated && count > 0 ? (
-            <span
-              aria-label={format(copy.nav.cartCount, { count })}
-              className="site-badge inline-flex min-w-6 items-center justify-center px-2 text-xs font-semibold"
-            >
-              {count}
-            </span>
-          ) : null}
-        </Link>
-      </div>
-    </header>
+    <StoreShellHeader
+      storeName={storeName}
+      logo={logo}
+      cartLabel={copy.nav.cart}
+      /*
+        LICZNIK POJAWIA SIĘ PO HYDRATACJI (stan z `localStorage`), więc do tej
+        chwili nie ma go w drzewie — inaczej serwer i klient rozjechałyby się
+        na pierwszym renderze. To jest zarazem jedyny powód, dla którego ten
+        komponent w ogóle istnieje obok kształtu z pakietu.
+      */
+      cartBadge={
+        hydrated && count > 0 ? (
+          <span
+            aria-label={format(copy.nav.cartCount, { count })}
+            className="site-badge inline-flex min-w-6 items-center justify-center px-2 text-xs font-semibold"
+          >
+            {count}
+          </span>
+        ) : null
+      }
+      linkComponent={Link}
+    />
   );
 }

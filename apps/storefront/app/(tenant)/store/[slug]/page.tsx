@@ -106,6 +106,8 @@ export default async function TenantContentPage({ params }: Params) {
         i nie dzieje się NIC — bez błędu, bez zmiany adresu (faza 0, ADR-154).
       */
       site={site}
+      /* Prefiks zdjęć także dla stopki powłoki (ADR-172) — patrz `/store`. */
+      siteImageBase={seam.siteImageBase}
       footerAnchorBase={PRODUCTS_CATALOG_HREF}
       revealNonce={revealNonce}
     >
