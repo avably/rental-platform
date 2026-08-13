@@ -1562,6 +1562,36 @@
         "finalize": "Nie udało się zakończyć uploadu."
       }
     },
+    "logo": {
+      "title": "Logo sklepu",
+      "subtitle": "Jedno wgranie — znak stanie w nagłówku, a jeśli chcesz, także w stopce. Widoczny na wszystkich stronach sklepu.",
+      "prompt": "Wybierz plik logo",
+      "replace": "Wybierz nowy plik logo",
+      "uploading": "Wgrywanie…",
+      "hint": "JPEG, PNG, WebP lub AVIF, do 512 kB. Najlepiej wersja pozioma na przezroczystym tle.",
+      "fieldRemove": "Wyczyść wybór",
+      "remove": "Usuń logo",
+      "altLabel": "Tekst zastępczy",
+      "altPlaceholder": "Nazwa sklepu",
+      "altHint": "Czytają go osoby korzystające z czytnika ekranu i wyszukiwarki. Puste pole = nazwa sklepu.",
+      "inFooter": "Pokaż logo także w stopce",
+      "pending": "Znak czeka na publikację — klienci widzą jeszcze poprzedni stan.",
+      "publish": "Opublikuj logo",
+      "live": "Ten znak widzą klienci.",
+      "errors": {
+        "missing": "Wybierz plik.",
+        "empty": "Plik jest pusty.",
+        "size": "Plik przekracza 512 kB.",
+        "type": "Dozwolone formaty: JPEG, PNG, WebP, AVIF.",
+        "denied": "Nie masz uprawnień do tej zmiany.",
+        "upload": "Nie udało się wgrać pliku.",
+        "content": "Zawartość pliku nie jest obrazem zadeklarowanego typu.",
+        "finalize": "Nie udało się zakończyć uploadu.",
+        "shape": "Nie udało się zapisać logo — plik ma nieoczekiwaną ścieżkę.",
+        "save": "Nie udało się zapisać logo.",
+        "publish": "Nie udało się opublikować logo."
+      }
+    },
     "fields": {
       "heading": "Nagłówek",
       "heroHeading": "Nagłówek główny",
