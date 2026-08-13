@@ -1,17 +1,26 @@
 "use client";
 
 /**
- * POTWIERDZENIE PUBLIKACJI WERSJI STRONY (0048, ADR-093) — jeden dialog na obie
- * powierzchnie: listę wersji (`site-pages.tsx`) i kreator (`site-builder.tsx`).
+ * POTWIERDZENIE PUBLIKACJI STRONY (0048, ADR-093) — jeden dialog na obie
+ * powierzchnie: listę stron (`site-pages.tsx`) i kreator (`site-builder.tsx`).
  *
- * Wydzielony z listy wersji przy L6 (audyt E2E 2026-08-07): kreator publikował
- * BEZ potwierdzenia, więc operator gasił żywą wersję bez jednego zdania
- * ostrzeżenia — a z listy z pełnym. Dialog jest JEDEN, żeby treść ostrzeżenia
- * nie mogła się rozjechać między drogami do tej samej operacji.
+ * Wydzielony z listy przy L6 (audyt E2E 2026-08-07): kreator publikował BEZ
+ * potwierdzenia, a z listy szło pełne. Dialog jest JEDEN, żeby treść nie mogła
+ * się rozjechać między dwiema drogami do tej samej operacji.
  *
- * Treść mówi o SKUTKU dla sklepu, a nie o czynności: operator, który
- * przełącza wersję, musi wiedzieć, że dotychczasowa strona przestanie być
- * publiczna — i że nie znika z panelu.
+ * ================ CO PUBLIKACJA ROBI PO FAZIE 2 (ADR-165) ================
+ *
+ * Do 0073 wiersz `sites` był WERSJĄ jednej strony, więc publikacja PRZEŁĄCZAŁA
+ * sklep i gasiła dotychczasową żywą wersję — i dokładnie to zdanie stało tutaj.
+ * Od 0074 publikacja NIE GASI NIKOGO (ADR-158 D5): strony współistnieją, każda
+ * pod własnym adresem. Ostrzeżenie przed wygaszeniem opisywało więc skutek,
+ * który nie następuje, a wraz z nim zniknął props `liveName` — „którą stronę
+ * zgasi ta publikacja" jest pytaniem bez odpowiedzi i nie ma prawa wrócić jako
+ * pole, które ktoś kiedyś wypełni.
+ *
+ * Zostają DWA zdania, bo zostały dwa różne skutki:
+ *   • strona ŻYWA — klienci ją już widzą, publikacja wypuszcza do nich zmiany;
+ *   • strona ROBOCZA — pojawi się pod SWOIM adresem, reszta sklepu bez zmian.
  */
 import {
   Button,
@@ -31,15 +40,21 @@ export function PublishDialog({
   disabled,
   live,
   name,
-  liveName,
+  address,
   onConfirm,
   trigger,
 }: {
   disabled: boolean;
-  /** Czy TA wersja jest już w sklepie — wtedy publikacja jest odświeżeniem, nie przełączeniem. */
+  /** Czy TĘ stronę klienci już widzą — wtedy publikacja jest odświeżeniem. */
   live: boolean;
   name: string;
-  liveName: string | null;
+  /**
+   * ADRES, pod którym strona stanie w sklepie — gotowa ścieżka z
+   * `pagePathFromSlug` (`/` dla strony głównej). To jedyna rzecz, która po
+   * fazie 2 odróżnia jedną publikację od drugiej, więc operator musi ją
+   * zobaczyć ZANIM kliknie: w kreatorze adresu nie widać nigdzie indziej.
+   */
+  address: string;
   onConfirm: () => void;
   /**
    * Własny przycisk otwierający (asChild) — kreator podaje swój primary z
@@ -64,11 +79,7 @@ export function PublishDialog({
         <DialogHeader>
           <DialogTitle>{t("pages.switchTitle", { name })}</DialogTitle>
           <DialogDescription>
-            {live
-              ? t("pages.switchBodySelf")
-              : liveName
-                ? t("pages.switchBody", { previous: liveName })
-                : t("pages.switchBodyFirst")}
+            {live ? t("pages.switchBodySelf") : t("pages.switchBodyNew", { address })}
           </DialogDescription>
         </DialogHeader>
         <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.switchDraftNote")}</p>

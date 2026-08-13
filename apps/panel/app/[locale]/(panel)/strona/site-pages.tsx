@@ -1,25 +1,28 @@
 "use client";
 
 /**
- * LISTA WERSJI STRONY (0048, ADR-093) — ekran, który zastąpił launcher.
+ * LISTA STRON SKLEPU (0048, ADR-093; znaczenie po fazie 2 — 0073/ADR-157) —
+ * ekran, który zastąpił launcher.
  *
- * Ekran odpowiada na trzy pytania i na nic więcej: KTÓRĄ wersję widzi klient,
- * nad czym operator pracuje, i co można z każdą wersją zrobić. Formularzy tu
- * nie ma — treść składa się na płótnie kreatora.
+ * Do 0072 wiersz `sites` był WERSJĄ jednej strony i lista odpowiadała na
+ * pytanie „którą wersję widzi klient". Od 0073 wiersze są osobnymi STRONAMI,
+ * a od 0074 publikacja jednej NIE GASI pozostałych — więc lista odpowiada
+ * odtąd na pytanie „co stoi w sklepie i pod jakim adresem". Formularzy tu nie
+ * ma: treść składa się na płótnie kreatora.
  *
  * DWIE RZECZY, KTÓRE MUSZĄ BYĆ WIDOCZNE OD RAZU, bo bez nich lista kłamie:
  *
- *   1. Która wersja jest ŻYWA. Chip osi `site-publish` dostaje WYŁĄCZNIE ona;
- *      wersje robocze dostają zdanie, a nie chip udający stan spoza mapy (ta
- *      sama zasada, co w launcherze sprzed 0048).
- *   2. Że żywej wersji NIE DA SIĘ usunąć. Przycisk jest wyłączony i mówi, co
+ *   1. Które strony są ŻYWE. Chip osi `site-publish` dostaje KAŻDA z nich —
+ *      po fazie 2 może ich być wiele; strony robocze dostają zdanie, a nie
+ *      chip udający stan spoza mapy (zasada z launchera sprzed 0048).
+ *   2. Że żywej strony NIE DA SIĘ usunąć. Przycisk jest wyłączony i mówi, co
  *      zrobić — tym samym zdaniem, którym odmawia trigger w bazie. Interfejs,
  *      który pozwala kliknąć i dopiero potem tłumaczy odmowę, uczy operatora,
  *      że komunikaty błędów są normalną częścią pracy.
  *
  * Publikacja i usunięcie mają POTWIERDZENIE, bo obie zmieniają coś, czego
- * operator nie widzi z tego ekranu: publikacja przestawia sklep, usunięcie
- * kasuje treść bez kosza.
+ * operator nie widzi z tego ekranu: publikacja wystawia stronę klientom pod
+ * jej adresem, usunięcie kasuje treść bez kosza.
  */
 import {
   Button,
@@ -180,18 +183,22 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                 </Button>
 
                 {/*
-                  * Publikacja stoi przy KAŻDEJ wersji, także przy żywej, i to
-                  * nie jest przeoczenie: dla wersji roboczej znaczy „przełącz
-                  * na nią sklep", a dla żywej — „wypuść do klientów zmiany,
-                  * które w niej zrobiłem". To drugie jest podstawowym obiegiem
-                  * od K5a i zniknięcie go razem z listą byłoby regresem.
+                  * Publikacja stoi przy KAŻDEJ stronie, także przy żywej, i to
+                  * nie jest przeoczenie: dla roboczej znaczy „wystaw ją pod jej
+                  * adresem", a dla żywej — „wypuść do klientów zmiany, które
+                  * w niej zrobiłem". To drugie jest podstawowym obiegiem od K5a.
                   * Różnicę niesie treść potwierdzenia, nie obecność przycisku.
+                  *
+                  * Stało tu wyszukanie „która INNA strona jest żywa" (ADR-165):
+                  * dialog mówił z niego, że dotychczasowa strona przestanie być
+                  * publiczna. Od 0074 nie przestaje — więc wyszukanie zniknęło,
+                  * a jego miejsce zajął ADRES tej strony.
                   */}
                 <PublishDialog
                   disabled={pending}
                   live={row.live}
                   name={row.name}
-                  liveName={rows.find((other) => other.live && other.id !== row.id)?.name ?? null}
+                  address={pagePathFromSlug(row.slug)}
                   onConfirm={() => run(() => publishSite(row.id))}
                 />
 

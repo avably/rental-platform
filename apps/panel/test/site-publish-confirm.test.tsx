@@ -16,8 +16,15 @@ import { DEFAULT_SITE_STYLE } from "@avably/core/site";
  *      operacji, która właśnie przestawiła sklep.
  *
  * Kontrakt po naprawie: klik w „Publikuj" otwiera TEN SAM `PublishDialog`, co
- * lista wersji (reużycie, nie nowy UI); akcja idzie dopiero po potwierdzeniu;
+ * lista stron (reużycie, nie nowy UI); akcja idzie dopiero po potwierdzeniu;
  * sukces melduje „Opublikowano" osobnym stanem, nie „Zapisano".
+ *
+ * TREŚĆ OSTRZEŻENIA ZMIENIŁA STRONĘ RAZEM Z MODELEM (ADR-165). Zdanie
+ * „dotychczasowa strona przestanie być publiczna" opisywało świat sprzed 0074,
+ * w którym publikacja PRZEŁĄCZAŁA jedyną żywą wersję. Od 0074 strony
+ * współistnieją, więc przypadki opisują odtąd dwa skutki, które faktycznie
+ * zachodzą: odświeżenie strony żywej i wystawienie strony roboczej pod jej
+ * adresem. Przypadków nie usunięto — zmieniły zdanie, którego pilnują.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -95,40 +102,46 @@ beforeEach(() => {
 
 afterEach(() => cleanup());
 
-describe("publikacja z kreatora wymaga potwierdzenia (ten sam dialog, co lista wersji)", () => {
+describe("publikacja z kreatora wymaga potwierdzenia (ten sam dialog, co lista stron)", () => {
   it("sam klik w „Publikuj” NIE woła akcji — otwiera potwierdzenie", async () => {
-    const { container } = renderBuilder({ liveName: "Wersja wiosenna" });
+    const { container } = renderBuilder({ address: "/kontakt" });
     fireEvent.click(container.querySelector<HTMLElement>("[data-builder-publish]")!);
 
     expect(actions.publishSite, "publikacja poszła bez potwierdzenia").not.toHaveBeenCalled();
-    // Tytuł dialogu z listy wersji — reużycie wzorca, nie nowy UI.
+    // Tytuł dialogu z listy stron — reużycie wzorca, nie nowy UI.
     expect(await screen.findByText(/Opublikować stronę/)).toBeTruthy();
   });
 
-  it("ostrzega, że dotychczasowa ŻYWA wersja przestanie być publiczna", async () => {
-    renderBuilder({ liveName: "Wersja wiosenna" });
+  it("strona ROBOCZA dostaje swój adres i zapewnienie, że reszta sklepu zostaje", async () => {
+    renderBuilder({ address: "/kontakt" });
     fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
 
-    const body = await screen.findByText(/Wersja wiosenna/);
-    expect(body.textContent).toContain("przestanie być publiczna");
+    const body = await screen.findByText(/\/kontakt/);
+    expect(body.textContent).toContain("Pozostałe strony sklepu zostają bez zmian");
   });
 
-  it("edycja wersji ŻYWEJ dostaje zdanie o odświeżeniu, nie o przełączeniu", async () => {
+  it("edycja strony ŻYWEJ dostaje zdanie o odświeżeniu, nie o wystawieniu", async () => {
     renderBuilder({ live: true });
     fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
 
     expect(await screen.findByText(pages.switchBodySelf)).toBeTruthy();
   });
 
-  it("bez żadnej żywej wersji mówi o PIERWSZEJ publikacji", async () => {
-    renderBuilder();
-    fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
+  it("żaden wariant nie obiecuje, że inna strona przestanie być publiczna", async () => {
+    for (const props of [{ live: true }, { address: "/kontakt" }] as const) {
+      renderBuilder(props);
+      fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
 
-    expect(await screen.findByText(pages.switchBodyFirst)).toBeTruthy();
+      const dialog = await screen.findByRole("dialog");
+      expect(dialog.textContent, "wróciła obietnicą wygaszenia strony").not.toContain(
+        "przestanie być publiczna",
+      );
+      cleanup();
+    }
   });
 
-  it("potwierdzenie woła publishSite z id edytowanej wersji", async () => {
-    renderBuilder({ liveName: "Wersja wiosenna" });
+  it("potwierdzenie woła publishSite z id edytowanej strony", async () => {
+    renderBuilder({ address: "/kontakt" });
     fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
     fireEvent.click(await screen.findByRole("button", { name: /^Opublikuj/ }));
 
@@ -136,7 +149,7 @@ describe("publikacja z kreatora wymaga potwierdzenia (ten sam dialog, co lista w
   });
 
   it("anulowanie zamyka dialog i NIE publikuje", async () => {
-    renderBuilder({ liveName: "Wersja wiosenna" });
+    renderBuilder({ address: "/kontakt" });
     fireEvent.click(document.querySelector<HTMLElement>("[data-builder-publish]")!);
     fireEvent.click(await screen.findByRole("button", { name: pages.cancel }));
 
