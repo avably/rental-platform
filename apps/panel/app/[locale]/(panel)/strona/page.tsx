@@ -66,6 +66,30 @@ export default async function SitePage() {
     .eq("enabled_published", true)
     .not("content_published", "is", null);
 
+  /*
+    STARE ADRESY PROWADZĄCE DO STRON (0075, ADR-159) — potrzebne oknu zdjęcia
+    strony ze sklepu (ADR-170): 308 wychodzi wyłącznie dla strony, która dalej
+    jest żywa, więc zdjęcie gasi je razem z nią. `authenticated` ma na tej
+    tabeli SAM SELECT, a RLS zawęża ją do najemcy — jawny filtr jest tu
+    czytelnością zapytania, nie mechanizmem ochrony.
+
+    Nieudany odczyt gasi jedno ZDANIE w oknie, a nie ekran: lista stron jest
+    ważniejsza niż wyliczenie adresów, a brak zdania nie wprowadza w błąd
+    o kierunku operacji.
+  */
+  const historyRows = await ctx.supabase
+    .from("site_slug_history")
+    .select("site_id, slug")
+    .eq("tenant_id", ctx.tenantId!)
+    .order("slug", { ascending: true });
+
+  const redirectsBySite = new Map<string, string[]>();
+  for (const row of historyRows.data ?? []) {
+    const list = redirectsBySite.get(row.site_id as string) ?? [];
+    list.push(row.slug as string);
+    redirectsBySite.set(row.site_id as string, list);
+  }
+
   const format = await getFormatter();
   const stamp = (value: string | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
@@ -82,6 +106,7 @@ export default async function SitePage() {
     slug: site.slug,
     slugPublished: site.slug_published,
     redirectOldSlug: site.redirect_old_slug,
+    redirectedFrom: redirectsBySite.get(site.id) ?? [],
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
   }));

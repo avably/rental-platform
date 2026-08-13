@@ -95,7 +95,9 @@ const requireMember = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 
-const { createSite, renameSite, deleteSite, publishSite } = await import("@/lib/actions/site");
+const { createSite, renameSite, deleteSite, publishSite, unpublishSite } = await import(
+  "@/lib/actions/site"
+);
 const { MAX_SITES } = await import("@/lib/site-validation");
 
 describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
@@ -235,7 +237,76 @@ describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
     );
     expect(result.error).not.toContain("42501");
 
+    /*
+     * RADA MA WSKAZYWAĆ DROGĘ, KTÓRA ISTNIEJE (ADR-170). „Najpierw opublikuj
+     * inną" było prawdą do 0073, gdy publikacja PRZEŁĄCZAŁA żywą stronę — od
+     * 0074 strony współistnieją, więc operator wykonywał polecenie i wracał
+     * w to samo miejsce. Asercja negatywna stoi obok pozytywnej, bo sam fakt
+     * „jest jakieś zdanie" nie odróżnia rady dobrej od martwej.
+     */
+    expect(result.error, "panel dalej radzi czynność, która nic nie zmienia").not.toContain(
+      "opublikuj inną",
+    );
+    expect(result.error).toContain("zdejmij ją ze sklepu");
+
     expect(await sites(tenantA.tenantId), "żywa wersja zniknęła mimo odmowy").toHaveLength(1);
+  }, 60_000);
+
+  /* ============ ZDJĘCIE STRONY ZE SKLEPU (0078, ADR-170) ============ */
+
+  it("unpublishSite zdejmuje stronę ze sklepu — klient przestaje ją widzieć", async () => {
+    const created = await createSite({ name: "Strona główna" });
+    if (!created.ok) throw new Error(created.error);
+    const { error: sectionError } = await admin.from("site_sections").insert({
+      tenant_id: tenantA.tenantId,
+      site_id: created.siteId,
+      type: "hero",
+      position: 0,
+      content_draft: { heading: "Wypożyczalnia nad jeziorem" },
+    });
+    expect(sectionError, `zasiew sekcji: ${sectionError?.message}`).toBeNull();
+
+    const published = await publishSite(created.siteId);
+    expect(published.ok, published.ok ? "" : published.error).toBe(true);
+    expect(await storeRoot(tenantA.tenantId), "korzeń sklepu pusty PRZED zdjęciem").not.toBeNull();
+
+    const result = await unpublishSite(created.siteId);
+    expect(result.ok, result.ok ? "" : result.error).toBe(true);
+
+    // Werdykt z tego, co widzi klient — nie ze zwrotu akcji.
+    expect(await storeRoot(tenantA.tenantId), "klient dalej widzi zdjętą stronę").toBeNull();
+    expect((await sites(tenantA.tenantId))[0]!.published_at).toBeNull();
+  }, 60_000);
+
+  it("unpublishSite otwiera drogę do usunięcia strony opublikowanej przez pomyłkę", async () => {
+    const created = await createSite({ name: "Pomyłka" });
+    if (!created.ok) throw new Error(created.error);
+    await publishSite(created.siteId);
+
+    const odmowa = await deleteSite(created.siteId);
+    expect(odmowa.ok, "żywa strona dała się usunąć").toBe(false);
+
+    expect((await unpublishSite(created.siteId)).ok).toBe(true);
+    const usuniete = await deleteSite(created.siteId);
+    expect(usuniete.ok, usuniete.ok ? "" : usuniete.error).toBe(true);
+    expect(await sites(tenantA.tenantId)).toHaveLength(0);
+  }, 60_000);
+
+  it("IZOLACJA: cudzej strony nie da się zdjąć ze sklepu", async () => {
+    const created = await createSite({ name: "Strona najemcy A" });
+    if (!created.ok) throw new Error(created.error);
+    await publishSite(created.siteId);
+
+    actAs(tenantB);
+    const result = await unpublishSite(created.siteId);
+    expect(result.ok, "najemca B zdjął stronę najemcy A").toBe(false);
+    if (result.ok) throw new Error("cudza strona zdjęta ze sklepu");
+    // Odmowa jest ZDANIEM, a nie surowym kodem bazy — i nie zdradza, czy taka
+    // strona w ogóle istnieje.
+    expect(result.error).toBe("Nie znaleziono strony.");
+
+    actAs(tenantA);
+    expect((await sites(tenantA.tenantId))[0]!.published_at).not.toBeNull();
   }, 60_000);
 
   it("renameSite zmienia WYŁĄCZNIE nazwę, nie rusza żywości", async () => {
