@@ -259,13 +259,20 @@ export async function deleteSite(siteId: string): Promise<SiteActionResult> {
     .eq("id", parsed.data)
     .select("id");
   if (error) {
-    // 42501 = strażnik żywej strony. Odmowa dostaje własny komunikat, bo
-    // operator ma usłyszeć, CO zrobić, a nie „brak uprawnień".
+    /*
+     * 42501 = strażnik żywej strony. Odmowa dostaje własny komunikat, bo
+     * operator ma usłyszeć, CO zrobić, a nie „brak uprawnień".
+     *
+     * ZDANIE WSKAZUJE DROGĘ, KTÓRA ISTNIEJE (ADR-170). Do 0078 stało tu
+     * „Najpierw opublikuj inną" — rada prawdziwa do 0073, gdy publikacja
+     * PRZEŁĄCZAŁA żywą stronę. Od 0074 strony współistnieją, więc operator
+     * wykonywał polecenie i wracał dokładnie w to samo miejsce.
+     */
     return {
       ok: false,
       error:
         error.code === "42501"
-          ? "Tej strony nie można usunąć, bo widzą ją klienci. Najpierw opublikuj inną."
+          ? "Tej strony nie można usunąć, bo widzą ją klienci. Najpierw zdejmij ją ze sklepu."
           : error.message,
     };
   }
@@ -1018,4 +1025,50 @@ export async function publishSite(
   }
 
   return { ok: true, publishedAt: data as string };
+}
+
+/**
+ * ZDJĘCIE STRONY ZE SKLEPU (0078, ADR-170) — druga, po publikacji, jawna droga
+ * zmiany tego, co widzi klient.
+ *
+ * Do tej akcji takiej drogi NIE BYŁO: `published_at` zerowało wyłącznie zdanie
+ * gaszące w `app.publish_site`, a migracja 0074 to zdanie usunęła. Strona
+ * opublikowana przez pomyłkę zostawała w sklepie na zawsze — usunąć jej nie
+ * pozwalał (słusznie) trigger `sites_guard_live_delete`, a jego rada „najpierw
+ * opublikuj inną" od 0074 nie zmienia w statusie tej strony ani jednego bitu.
+ *
+ * ZAPIS IDZIE RPC, NIE Z PANELU. `published_at` jest na liście strażnika
+ * kolumn opublikowanych (0045), więc UPDATE stąd odbiłby się o 42501 — i tak
+ * ma być. Flagę transakcyjną podnosi `app.unpublish_site`, dokładnie jak
+ * publikacja.
+ *
+ * TAG CACHE LECI: w przeciwieństwie do utworzenia i usunięcia strony NIEŻYWEJ,
+ * ta operacja zmienia sklep — adres, który przed chwilą oddawał stronę, oddaje
+ * odtąd 404 (kontrakt ADR-041).
+ */
+export async function unpublishSite(siteId: string): Promise<SiteActionResult> {
+  const parsed = uuidSchema.safeParse(siteId);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+  const auth = await memberCtx();
+  if (!auth.ok) return auth;
+  const { ctx } = auth;
+
+  const { error } = await ctx.supabase
+    .schema("app")
+    .rpc("unpublish_site", { p_site_id: parsed.data });
+  if (error) {
+    // 22023 = site_not_found (nieistniejąca ALBO cudza strona ALBO wygasłe
+    // członkostwo — celowo nieodróżnialne, jak przy publikacji).
+    return {
+      ok: false,
+      error:
+        error.code === "22023"
+          ? "Nie znaleziono strony."
+          : (error.message ?? "Nie udało się zdjąć strony ze sklepu."),
+    };
+  }
+
+  revalidatePath("/", "layout");
+  revalidateTag(tenantCacheTag(auth.tenantId), "max");
+  return { ok: true };
 }

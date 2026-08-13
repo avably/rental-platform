@@ -45,7 +45,7 @@ import { HOME_PAGE_SLUG, pagePathFromSlug, suggestPageSlug } from "@avably/core/
 
 import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
-import { createSite, deleteSite, publishSite, renameSite } from "@/lib/actions/site";
+import { createSite, deleteSite, publishSite, renameSite, unpublishSite } from "@/lib/actions/site";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { MAX_SITES, hasHomePage, pageSlugIssue } from "@/lib/site-validation";
 
@@ -60,6 +60,13 @@ export interface SitePageRow {
   slugPublished: string | null;
   /** Czy stary adres dostanie 308 przy najbliższej publikacji (0075). */
   redirectOldSlug: boolean;
+  /**
+   * STARE ADRESY, które dziś prowadzą 308 do tej strony (0075, ADR-159).
+   * Potrzebne, bo zdjęcie strony ze sklepu gasi je razem z nią — przekierowanie
+   * pod adres oddający 404 byłoby gorsze niż jego brak — a operator ma o tym
+   * usłyszeć PRZED kliknięciem, a nie z reklamacji klienta.
+   */
+  redirectedFrom: string[];
   publishedAtLabel: string | null;
   createdAtLabel: string | null;
 }
@@ -86,6 +93,19 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
     nazywa skutek (co widzi klient), a nie brak wiersza w tabeli.
   */
   const homeMissing = !hasHomePage(rows);
+  /*
+    STRONA GŁÓWNA JEST, ALE NIE STOI W SKLEPIE (ADR-170). Stan powstaje na dwa
+    sposoby: świeżo utworzona strona główna czeka na publikację albo operator
+    właśnie zdjął ją ze sklepu. Jedno i drugie znaczy dla klienta TO SAMO —
+    pod `/` nie ma nic — a `homeMissing` tego nie widzi, bo pyta o ISTNIENIE
+    wiersza, nie o jego żywość.
+
+    Warunek pyta o `slugPublished`, nie o `slug`: pod `/` stoi ta strona, która
+    jest tam OPUBLIKOWANA. Strona z pustym szkicem adresu, opublikowana kiedyś
+    pod `/kontakt`, korzenia sklepu nie obsługuje.
+  */
+  const homeNotLive =
+    !homeMissing && !rows.some((row) => row.live && row.slugPublished === HOME_PAGE_SLUG);
 
   return (
     <div className="flex flex-col gap-6" data-site-pages>
@@ -125,6 +145,15 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
             onCreate={(name) => run(() => createSite({ name }))}
           />
         </div>
+      ) : null}
+
+      {homeNotLive ? (
+        <p
+          data-site-home-not-live
+          className="border-border text-muted-foreground rounded-lg border p-4 text-[13px] leading-[18px]"
+        >
+          {t("pages.homeNotLive")}
+        </p>
       ) : null}
 
       {rows.length === 0 ? (
@@ -251,6 +280,26 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                     )
                   }
                 />
+
+                {/*
+                  ZDJĘCIE ZE SKLEPU (ADR-170) — czasownik, którego do 0078 nie
+                  było w ogóle. Stoi PRZY przycisku usunięcia i tylko przy
+                  stronie żywej, bo to jest dokładnie ta para: usunięcia broni
+                  trigger, a jedyną drogą do niego jest wcześniejsze zdjęcie
+                  strony ze sklepu. Zdanie odmowy usunięcia wskazuje odtąd ten
+                  przycisk, a nie „opublikuj inną" — czynność, która od 0074
+                  nie zmienia w statusie tej strony niczego.
+                */}
+                {row.live ? (
+                  <UnpublishDialog
+                    disabled={pending}
+                    name={row.name}
+                    address={pagePathFromSlug(row.slugPublished ?? row.slug)}
+                    home={row.slugPublished === HOME_PAGE_SLUG}
+                    redirectedFrom={row.redirectedFrom}
+                    onConfirm={() => run(() => unpublishSite(row.id))}
+                  />
+                ) : null}
 
                 {row.live ? (
                   <Button type="button" size="sm" variant="ghost" disabled data-delete-site-blocked={row.id}>
@@ -546,6 +595,86 @@ function RenameDialog({
           >
             {t("pages.renameConfirm")}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * POTWIERDZENIE ZDJĘCIA STRONY ZE SKLEPU (0078, ADR-170).
+ *
+ * Okno mówi trzy rzeczy, z których każda jest osobnym powodem, żeby operator
+ * przerwał — i każda jest niewidoczna z listy:
+ *
+ *   1. CO ZOBACZY KLIENT POD TYM ADRESEM. Dla podstrony to strona błędu, dla
+ *      STRONY GŁÓWNEJ — korzeń sklepu bez treści, i to jest wyjątek, który
+ *      musi zostać nazwany. Zdjęcie strony głównej przywraca dokładnie ten stan,
+ *      który naprawił ADR-168; zakaz byłby jednak gorszy od ostrzeżenia, bo
+ *      stroną opublikowaną przez pomyłkę bywa właśnie ona, a wtedy operator
+ *      zostawałby z pomyłką w sklepie i bez żadnego wyjścia.
+ *   2. ŻE PRACA NIE GINIE. Bliźniaki `*_published` zostają (ADR-093 D2), więc
+ *      ponowna publikacja przywraca stronę — inaczej operator myliłby to
+ *      okno z usunięciem.
+ *   3. ŻE GASNĄ PRZEKIEROWANIA ZE STARYCH ADRESÓW. `app.get_tenant_pages`
+ *      wypuszcza 308 wyłącznie dla strony, która dalej jest żywa (0075), więc
+ *      zdjęcie strony gasi też każdy link, który do niej prowadził. Zdanie
+ *      pojawia się tylko wtedy, gdy takie adresy naprawdę są.
+ */
+function UnpublishDialog({
+  disabled,
+  name,
+  address,
+  home,
+  redirectedFrom,
+  onConfirm,
+}: {
+  disabled: boolean;
+  name: string;
+  address: string;
+  home: boolean;
+  redirectedFrom: string[];
+  onConfirm: () => void;
+}) {
+  const t = useTranslations("site");
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="ghost" disabled={disabled} data-unpublish-site>
+          {t("pages.unpublish")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("pages.unpublishTitle", { name })}</DialogTitle>
+          <DialogDescription data-unpublish-scope={home ? "home" : "page"}>
+            {home ? t("pages.unpublishBodyHome") : t("pages.unpublishBody", { address })}
+          </DialogDescription>
+        </DialogHeader>
+        {redirectedFrom.length > 0 ? (
+          <p data-unpublish-redirects className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("pages.unpublishRedirects", {
+              list: redirectedFrom.map((slug) => pagePathFromSlug(slug)).join(", "),
+            })}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              {t("pages.cancel")}
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="destructive"
+              data-unpublish-site-confirm
+              onClick={onConfirm}
+            >
+              {t("pages.unpublishConfirm")}
+            </Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

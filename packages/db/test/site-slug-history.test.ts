@@ -215,9 +215,18 @@ describe.skipIf(!hasEnv)("historia adresów stron — 0075 (ADR-159)", () => {
     });
 
     it("przekierowanie GAŚNIE razem ze stroną — 308 na 404 jest gorsze niż brak", async () => {
-      await sql!`update public.sites set published_at = null where id = ${siteId}::uuid`;
+      /*
+       * CZASOWNIKIEM, nie surowym UPDATE-em (0078, ADR-170). Do tej migracji
+       * ten przypadek musiał UDAWAĆ stan, którego nie dało się osiągnąć z żadnej
+       * ścieżki produktu — zdjęcia strony ze sklepu po prostu nie było. Teraz
+       * jedzie tą samą drogą, co operator, więc mierzy zachowanie, a nie
+       * hipotezę o nim.
+       */
+      const { error } = await owner.schema("app").rpc("unpublish_site", { p_site_id: siteId });
+      expect(error, `unpublish_site: ${error?.message}`).toBeNull();
+
       expect((await registry(tenantId))?.redirects).toEqual([]);
-      await sql!`update public.sites set published_at = now() where id = ${siteId}::uuid`;
+      await publish(owner, siteId);
     });
 
     it("strona MOŻE wrócić pod swój dawny adres — wtedy przestaje się na niego przekierowywać", async () => {

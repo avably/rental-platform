@@ -57,6 +57,7 @@ const actions = vi.hoisted(() => ({
   createSite: vi.fn(),
   deleteSite: vi.fn(),
   publishSite: vi.fn(),
+  unpublishSite: vi.fn(),
   renameSite: vi.fn(),
 }));
 vi.mock("@/lib/actions/site", () => actions);
@@ -80,6 +81,7 @@ const KONTAKT: Row = {
   slug: "kontakt",
   slugPublished: "kontakt",
   redirectOldSlug: true,
+  redirectedFrom: [],
   publishedAtLabel: "12.08.2026",
   createdAtLabel: "11.08.2026",
 };
@@ -91,6 +93,7 @@ const HOME: Row = {
   slug: "",
   slugPublished: null,
   redirectOldSlug: true,
+  redirectedFrom: [],
   publishedAtLabel: null,
   createdAtLabel: "10.08.2026",
 };

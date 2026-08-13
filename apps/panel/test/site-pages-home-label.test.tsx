@@ -30,6 +30,7 @@ vi.mock("@/lib/actions/site", () => ({
   createSite: vi.fn(),
   deleteSite: vi.fn(),
   publishSite: vi.fn(),
+  unpublishSite: vi.fn(),
   renameSite: vi.fn(),
 }));
 vi.mock("@/i18n/navigation", () => ({
@@ -51,6 +52,7 @@ const HOME: Row = {
   slug: "",
   slugPublished: "",
   redirectOldSlug: true,
+  redirectedFrom: [],
   publishedAtLabel: "12.08.2026",
   createdAtLabel: "10.08.2026",
 };
@@ -62,6 +64,7 @@ const KONTAKT: Row = {
   slug: "kontakt",
   slugPublished: null,
   redirectOldSlug: true,
+  redirectedFrom: [],
   publishedAtLabel: null,
   createdAtLabel: "11.08.2026",
 };
