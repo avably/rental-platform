@@ -1653,7 +1653,8 @@
       "draftTitle": "Podgląd wersji roboczej",
       "draftHint": "Tak strona wygląda po publikacji. Klienci widzą jeszcze poprzednią wersję.",
       "backToBuilder": "Wróć do kreatora",
-      "draftEmpty": "Wersja robocza nie ma jeszcze żadnej widocznej sekcji."
+      "draftEmpty": "Wersja robocza nie ma jeszcze żadnej widocznej sekcji.",
+      "logoUnreadable": "Nie udało się odczytać znaku firmy — podgląd pokazuje stronę bez niego. To nie znaczy, że znaku nie masz."
     },
     "publish": {
       "heading": "Wersja publiczna",

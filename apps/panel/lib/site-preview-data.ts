@@ -6,6 +6,20 @@
  * Odczyt uwierzytelniony, przez RLS (0007) — dokładnie ten sam kształt
  * `StorefrontProduct`, który dostaje sklep, więc płótno i strona publiczna
  * rysują sekcję produktów z jednego rodzaju danych.
+ *
+ * ============ NIEUDANY ODCZYT NIE UDAJE PUSTEGO KATALOGU (ADR-174) ============
+ *
+ * Oba zapytania czytały wyłącznie `data`, a `?? []` zamieniało awarię bazy
+ * w pustą listę. Skutek: sekcja „Produkty" rysowała się jako „nie masz sprzętu",
+ * a szuflada nie miała czego zaproponować do wskazania — operator dostawał
+ * odpowiedź o SWOIM katalogu tam, gdzie padła odpowiedź o odczycie. Przy
+ * zdjęciach było o krok gorzej: element związany ze zdjęciem rysuje się bez
+ * wartości jako WYCIĘTY (ADR-163), więc awaria odczytu obrazków pokazywała
+ * pustkę w miejscu, w którym klient zobaczy fotografię.
+ *
+ * PUSTY KATALOG ZOSTAJE STANEM CICHYM I POPRAWNYM: `data: []` bez błędu to
+ * najemca, który nie dodał jeszcze sprzętu, i sekcja ma o tym mówić po swojemu.
+ * Rzuca WYŁĄCZNIE `error`.
  */
 import { customFieldDisplayRows, customFieldValuesFromColumn, formatMoney } from "@avably/core";
 import type { StorefrontProduct } from "@avably/ui";
@@ -59,13 +73,16 @@ export async function previewProductsFor(
     loadCustomFieldDefinitions(ctx.supabase, tenantId, "product"),
   ]);
 
-  const { data: products } = await ctx.supabase
+  const { data: products, error: productsError } = await ctx.supabase
     .from("products")
     .select("id, name, description, base_price_day_grosze, custom_fields")
     .eq("tenant_id", tenantId)
     .eq("active", true)
     .order("name", { ascending: true })
     .limit(CANVAS_PRODUCTS_LIMIT);
+
+  if (productsError)
+    throw new Error(`Odczyt katalogu do podglądu nie powiódł się: ${productsError.message}`);
 
   // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
   const valueLocale = locale === "en" ? "en" : "pl";
@@ -84,12 +101,15 @@ export async function previewProductsFor(
    * listy katalogu — bucket jest publiczny, więc ścieżka MUSI pochodzić
    * z wiersza `product_images`, nigdy z parametru (patrz `product-thumbnail`).
    */
-  const { data: images } = await ctx.supabase
+  const { data: images, error: imagesError } = await ctx.supabase
     .from("product_images")
     .select("product_id, storage_path, alt_text")
     .eq("tenant_id", tenantId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
+
+  if (imagesError)
+    throw new Error(`Odczyt zdjęć sprzętu do podglądu nie powiódł się: ${imagesError.message}`);
 
   const thumbnails = pickProductThumbnails(
     images ?? [],

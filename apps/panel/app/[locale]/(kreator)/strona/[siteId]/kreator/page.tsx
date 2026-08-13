@@ -78,12 +78,22 @@ export default async function SiteBuilderPage({
    *
    * Sortowanie zostaje tutaj — kolejność to własność ODCZYTU (operator widzi
    * punkty po nazwie na ekranie Dostaw), a nie reguła produktowa.
+   *
+   * NIEUDANY ODCZYT RZUCA (ADR-174). Do tej pory `?? []` zamieniało awarię bazy
+   * w zdanie „nie masz punktów odbioru" — a operator, który je przed chwilą
+   * wpisał na ekranie Dostaw, dostawał w kreatorze odpowiedź o SWOICH danych
+   * tam, gdzie padła odpowiedź o odczycie. BRAK punktów zostaje przy tym stanem
+   * cichym i poprawnym: pusta tablica bez błędu to najemca, który ich jeszcze
+   * nie założył, i sekcja dojazdu ma wtedy po prostu nic do skopiowania.
    */
-  const { data: pickupLocations } = await ctx.supabase
+  const { data: pickupLocations, error: pickupError } = await ctx.supabase
     .from("pickup_locations")
     .select("name, address_street, address_zip, address_city, active")
     .eq("tenant_id", ctx.tenantId!)
     .order("name", { ascending: true });
+
+  if (pickupError)
+    throw new Error(`Odczyt punktów odbioru nie powiódł się: ${pickupError.message}`);
 
   const pickupEntries = pickupLocationEntries(pickupLocations ?? []);
 

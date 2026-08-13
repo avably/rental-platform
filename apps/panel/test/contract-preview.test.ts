@@ -59,6 +59,14 @@ interface FakeRows {
   currency?: unknown;
   tenant?: unknown;
   error?: { message: string; code?: string };
+  /**
+   * Który odczyt ma paść (ADR-174). Bez zawężenia awaria dotyka WSZYSTKICH
+   * trzech odczytów naraz, a `Promise.all` oddaje wtedy ten błąd, który
+   * przyszedł pierwszy — czyli test pilnowałby KOLEJNOŚCI zamiast obsługi.
+   * Odkąd `getTenantCurrency` też rzuca (zamiast po cichu oddawać PLN), każdy
+   * z tych odczytów ma własną, osobno psującą się asercję.
+   */
+  errorFor?: "contract_document" | "currency" | "tenants";
 }
 
 /**
@@ -90,7 +98,13 @@ function fakeSupabase(rows: FakeRows): { client: SupabaseClient; calls: Recorded
         in: mine("in-write"),
         maybeSingle() {
           call.terminal = "maybeSingle";
-          if (rows.error) return Promise.resolve({ data: null, error: rows.error });
+          const failing =
+            rows.errorFor === undefined
+              ? true
+              : rows.errorFor === "tenants"
+                ? table === "tenants"
+                : call.filters.some(([column, value]) => column === "key" && value === rows.errorFor);
+          if (rows.error && failing) return Promise.resolve({ data: null, error: rows.error });
           const key = call.filters.find(([column]) => column === "key")?.[1];
           if (table === "tenants") return Promise.resolve({ data: rows.tenant ?? null, error: null });
           if (key === "contract_document") {
@@ -274,16 +288,34 @@ describe("sonda: zawężenie po najemcy stoi W ZAPYTANIU", () => {
     }
   });
 
-  it("błąd odczytu nie zamienia się w cichy brak konfiguracji", async () => {
-    // PGRST116 to dokładnie ten błąd, który `maybeSingle()` oddaje, gdy
-    // zapytanie objęło więcej niż jednego najemcę. Cichy `catch` zamieniłby
-    // wyciek w pusty ekran, a pusty ekran nikogo nie alarmuje.
-    const { client } = fakeSupabase({
-      error: { message: "JSON object requested, multiple rows returned", code: "PGRST116" },
-    });
+  // PGRST116 to dokładnie ten błąd, który `maybeSingle()` oddaje, gdy
+  // zapytanie objęło więcej niż jednego najemcę. Cichy `catch` zamieniłby
+  // wyciek w pusty ekran, a pusty ekran nikogo nie alarmuje.
+  const PGRST116 = { message: "JSON object requested, multiple rows returned", code: "PGRST116" };
+
+  it("błąd odczytu USTAWIEŃ nie zamienia się w cichy brak konfiguracji", async () => {
+    const { client } = fakeSupabase({ error: PGRST116, errorFor: "contract_document" });
     await expect(
       loadContractPreviewProps(client, { tenantId: TENANT_ID, today: TODAY }),
     ).rejects.toThrow(/Nie udało się odczytać ustawień umów/);
+  });
+
+  it("błąd odczytu WALUTY też przewraca podgląd, zamiast podpisać go PLN-em (ADR-174)", async () => {
+    // Do ADR-174 `getTenantCurrency` połykał błąd i oddawał walutę domyślną,
+    // więc podgląd umowy najemcy rozliczającego się w EUR wychodził z „zł"
+    // w kwotach — a dokument z cudzą walutą wygląda dokładnie tak samo
+    // poprawnie, jak dokument z właściwą.
+    const { client } = fakeSupabase({ error: PGRST116, errorFor: "currency" });
+    await expect(
+      loadContractPreviewProps(client, { tenantId: TENANT_ID, today: TODAY }),
+    ).rejects.toThrow(/Odczyt waluty najemcy nie powiódł się/);
+  });
+
+  it("błąd odczytu ORGANIZACJI też przewraca podgląd", async () => {
+    const { client } = fakeSupabase({ error: PGRST116, errorFor: "tenants" });
+    await expect(
+      loadContractPreviewProps(client, { tenantId: TENANT_ID, today: TODAY }),
+    ).rejects.toThrow(/Nie udało się odczytać danych organizacji/);
   });
 
   it("propsy nie zawierają NICZEGO poza danymi tego najemcy i przykładem", async () => {

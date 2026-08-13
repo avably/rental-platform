@@ -1653,7 +1653,8 @@
       "draftTitle": "Draft preview",
       "draftHint": "This is how the page will look once published. Customers still see the previous version.",
       "backToBuilder": "Back to the builder",
-      "draftEmpty": "The draft has no visible sections yet."
+      "draftEmpty": "The draft has no visible sections yet.",
+      "logoUnreadable": "The store logo could not be read — the preview shows the page without it. It does not mean you have no logo."
     },
     "publish": {
       "heading": "Public version",

@@ -44,6 +44,20 @@
  * modalną nakładką każdej szuflady i każdego okna — a odmowa autozapisu
  * przychodzi najczęściej właśnie WTEDY, gdy operator coś w szufladzie wpisuje.
  * Komunikat niewidoczny jest w skutkach nie do odróżnienia od cichego zapisu.
+ *
+ * ================== CO ZMIENIŁ ADR-174 ==================
+ *
+ * WYJŚCIE „← Panel" CZEKA NA ODPOWIEDŹ ZAPISU. Do ADR-174 link odpalał
+ * `editor.flush()` i nawigował w tej samej instrukcji — a `flush()` nie zwracał
+ * obietnicy, więc nawigacja ruszała natychmiast. Kreator odmontowywał się,
+ * zanim serwer odpowiedział; odmowa nie miała już gdzie się pokazać, bo nie
+ * było komponentu, który rysuje komunikat. Ścieżka wyjścia była JEDYNĄ, której
+ * ADR-169 nie domknął, i zarazem tą, na której operator najczęściej traci
+ * pracę — bo wychodzi w przekonaniu, że skończył.
+ *
+ * ZAMKNIĘCIE KARTY OSTRZEGA, ALE TYLKO PO ODMOWIE (`beforeunload`). Bramka
+ * wisi na `editor.unsaved`, czyli na zbiorze sekcji, które serwer JUŻ odrzucił —
+ * nie na kolejce `dirty`. Uzasadnienie stoi przy samym efekcie niżej.
  */
 import {
   canvasMetrics,
@@ -205,6 +219,12 @@ export function SiteBuilder({
     onFail?: () => void;
     options?: RunOptions;
   } | null>(null);
+  /**
+   * WYJŚCIE W TOKU (ADR-174) — trwa zapis odpalony kliknięciem „← Panel".
+   * Stan istnieje po to, żeby drugie kliknięcie nie odpaliło drugiej wysyłki
+   * i żeby pasek nie wyglądał na martwy w czasie, w którym coś się dzieje.
+   */
+  const [leaving, setLeaving] = useState(false);
   const [viewport, setViewport] = useState<BuilderViewport>("desktop");
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [settingsId, setSettingsId] = useState<string | null>(null);
@@ -371,6 +391,83 @@ export function SiteBuilder({
       [run, siteId],
     ),
   });
+
+  /**
+   * WYJŚCIE Z KREATORA CZEKA NA ODPOWIEDŹ ZAPISU (ADR-174).
+   *
+   * Do ADR-174 stało tu `onClick={() => editor.flush()}` i nawigacja ruszała
+   * natychmiast — `flush()` nie zwracał obietnicy, więc nie było na co czekać.
+   * Kreator odmontowywał się w trakcie wysyłki, a `settle(id, false)` zapalał
+   * licznik w komponencie, którego już nie ma: komunikat wyprowadzony przez
+   * ADR-169 aż na `body` nie miał się gdzie pokazać. Operator wychodził
+   * przekonany, że zapisał.
+   *
+   * Odtąd klik NAJPIERW pyta o wynik, a nawiguje dopiero po `true`. Odmowa
+   * zostawia operatora na płótnie z komunikatem, przyciskiem „Zapisz ponownie"
+   * i treścią, której nie stracił — bo autozapis nie ma rollbacku.
+   *
+   * KLIK Z MODYFIKATOREM ZOSTAJE PRZEGLĄDARCE (⌘/Ctrl/Shift/Alt, środkowy
+   * przycisk): otwiera panel w nowej karcie, więc kreator zostaje otwarty i nie
+   * ma czego domykać. Przejęcie takiego kliknięcia zabrałoby operatorowi
+   * zachowanie, którego link nauczył go wszędzie indziej.
+   */
+  function leave(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    event.preventDefault();
+    // Drugie kliknięcie w trakcie wysyłki nie ma czego dołożyć — kolejka jest
+    // już pusta, a druga tura zapisu wysłałaby te same sekcje jeszcze raz.
+    if (leaving) return;
+    setLeaving(true);
+    void editor.flush().then(
+      (saved) => {
+        setLeaving(false);
+        if (saved) router.push("/strona");
+      },
+      () => setLeaving(false),
+    );
+  }
+
+  /**
+   * ZAMKNIĘCIE KARTY OSTRZEGA — ALE DOPIERO PO ODMOWIE SERWERA (ADR-174).
+   *
+   * Bramką jest `editor.unsaved`, czyli zbiór sekcji, które serwer JUŻ odrzucił,
+   * a NIE kolejka `dirty`. Ta różnica jest całą decyzją:
+   *
+   *   • `dirty` jest niepuste przez 700 ms po KAŻDYM poprawnym geście, więc
+   *     bramka na nim pytałaby przy prawie każdym zamknięciu karty. Dialog
+   *     `beforeunload` jest własnym, nietłumaczalnym oknem przeglądarki —
+   *     operator nauczyłby się klikać „Opuść" odruchowo i bramka przestałaby
+   *     działać dokładnie wtedy, gdy ma znaczenie. To jest ta uciążliwość,
+   *     przez którą ostrzeżenia przy zamykaniu mają złą sławę;
+   *   • `failed` jest niepuste WYŁĄCZNIE wtedy, gdy zapis został ODRZUCONY —
+   *     stan, którego żaden zegar nie naprawi, o którym operator już czyta na
+   *     ekranie i który przy zamknięciu karty ginie bezpowrotnie. Przy pracy,
+   *     która idzie dobrze, nasłuchu NIE MA W OGÓLE, więc w trybie
+   *     deweloperskim nie da się go zobaczyć bez wywołania odmowy.
+   *
+   * Krótkiego okna `dirty` ta bramka świadomie NIE pilnuje: cena (pytanie po
+   * każdym geście) jest wyższa niż strata (ostatnie 700 ms ruchu myszą,
+   * odtwarzalne jednym przeciągnięciem).
+   */
+  useEffect(() => {
+    if (editor.unsaved === 0) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Napis jest ignorowany od 2017 (przeglądarki pokazują własny), ale samo
+      // jego ustawienie jest w starszych silnikach warunkiem pojawienia się okna.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [editor.unsaved]);
 
   /**
    * WSTAWIENIE SEKCJI W MIEJSCU WSKAZANYM PRZEZ „+" (E2).
@@ -616,8 +713,20 @@ export function SiteBuilder({
         data-builder-topbar
         className="border-border bg-card flex shrink-0 flex-wrap items-center gap-3 border-b px-3 py-2"
       >
+        {/*
+          STAN WYJŚCIA JEDZIE WARTOŚCIĄ ZNACZNIKA z rodziny `data-builder-*`
+          (ta sama reguła, co przy wskaźniku zapisu w ADR-169: rejestr warstwy
+          edycyjnej sklepu pilnuje RODZINY, więc nazwa spoza niej przestaje być
+          pilnowana w publicznym renderze). `blocked` znaczy „klik nie wyprowadzi
+          stąd, dopóki serwer nie przyjmie pracy" — i jest tym, co mierzy sonda.
+        */}
         <Button asChild type="button" variant="ghost" size="sm">
-          <Link href="/strona" data-builder-back onClick={() => editor.flush()}>
+          <Link
+            href="/strona"
+            data-builder-back
+            data-builder-back-state={leaving ? "leaving" : editor.unsaved > 0 ? "blocked" : "idle"}
+            onClick={leave}
+          >
             <ArrowLeft className="size-4" aria-hidden />
             {t("builder.back")}
           </Link>
