@@ -22,7 +22,9 @@
  */
 import {
   CANVAS_COLUMNS,
+  CANVAS_CONTENT_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  CANVAS_PAD_COLUMNS,
   GEOMETRY_MAX_ROWS,
   GUIDE_TOLERANCE_UNITS,
   type CanvasBreakpoint,
@@ -331,6 +333,92 @@ export function nudgeGeometry(
   const dx = direction === "left" ? -step : direction === "right" ? step : 0;
   const dy = direction === "up" ? -step : direction === "down" ? step : 0;
   return clampGeometry({ ...base, x: base.x + dx, y: base.y + dy }, rows);
+}
+
+/**
+ * KROK ROZMIARU KLAWIATURĄ (ADR-173) — bliźniak {@link nudgeGeometry} dla drugiej
+ * pary liczb w geometrii.
+ *
+ * Do ADR-173 klawiatura umiała WYŁĄCZNIE przesuwać: osiem uchwytów rozmiaru było
+ * fokusowalnymi przyciskami, które na Enter i Spację nie robiły nic. Element
+ * fokusowalny bez skutku jest gorszy niż niefokusowalny — obiecuje obsługę,
+ * której nie ma, i każdy zaznaczony element wstawiał w kolejność Tab osiem
+ * martwych przystanków.
+ *
+ * Kotwicą jest LEWY GÓRNY RÓG, a ruszają się krawędzie prawa i dolna — czyli
+ * dokładnie to, co robi uchwyt `se`. Nie jest to podobieństwo, tylko TA SAMA
+ * funkcja ({@link snapResize}) z wyłączonym przyciąganiem: gdyby klawiatura
+ * liczyła sobie sama, powstałaby druga, „prawie taka sama" ścieżka rozmiaru,
+ * a różnice między nią a myszą wychodziłyby dopiero u operatora.
+ *
+ * Przyciąganie jest wyłączone z tego samego powodu, co przy {@link nudgeGeometry}:
+ * klawiatura służy do dostrojenia tego, czego mysz nie trafiła.
+ */
+export function nudgeSize(
+  base: Geometry,
+  direction: "left" | "right" | "up" | "down",
+  step: number,
+  rows: number,
+): Geometry {
+  const dx = direction === "left" ? -step : direction === "right" ? step : 0;
+  const dy = direction === "up" ? -step : direction === "down" ? step : 0;
+  return snapResize(base, "se", dx, dy, { rows, neighbours: [], snap: false }).geometry;
+}
+
+// -----------------------------------------------------------------------
+// Warstwa tła a warstwy elementów (ADR-173, aneks do ADR-088)
+// -----------------------------------------------------------------------
+
+/**
+ * CZY ELEMENT MALUJE SIĘ POD CAŁĄ TREŚCIĄ (ADR-173).
+ *
+ * Renderer trzyma elementy rozciągnięte do krawędzi w OSOBNEJ warstwie, dziecku
+ * sekcji, stojącym w drzewie przed siatką treści — tło hero ma sięgać krawędzi
+ * okna, a siatka ma sufit szerokości (kolumna czytelności). Warstwa ma własny
+ * kontekst składania (`isolation: isolate`), więc `z` jej elementów obowiązuje
+ * WEWNĄTRZ niej, a ona sama jako całość zostaje pod siatką.
+ *
+ * Konsekwencja, którą trzeba znać w każdej operacji na warstwach: dla takiego
+ * elementu „na wierzch" i „na spód" zmieniają zapisane `z` i nie zmieniają ani
+ * jednego piksela. Dlatego reguła stoi TUTAJ, w rdzeniu, a nie wyłącznie
+ * w rendererze: warstwami rządzi ten plik i to on musi wiedzieć, kiedy jego
+ * arytmetyka nie ma jak zadziałać.
+ *
+ * Kopia reguły w rendererze (`bleedsToEdges`) zostaje do czasu, aż weźmie ją
+ * stamtąd pas pakietu UI. Zgodności obu pilnuje test kontraktowy przez RENDER
+ * (`canvas-operacje-skutek.test.tsx`) — porównanie źródeł niczego by nie
+ * dowiodło, bo dowód ma pochodzić z tego, gdzie element naprawdę ląduje.
+ */
+export function paintsBehindContent(element: CanvasElement): boolean {
+  if (element.kind !== "image" && element.kind !== "shape") return false;
+  const box = element.layout.desktop;
+  return box.x === 0 && box.w === CANVAS_COLUMNS;
+}
+
+/**
+ * WYPROWADZENIE ELEMENTU Z WARSTWY TŁA (ADR-173) — wejście w PAS TREŚCI.
+ *
+ * Przynależność do warstwy tła jest w GEOMETRII, nie w osobnym polu treści, więc
+ * jedyną drogą wyjścia jest zmiana geometrii. To nie jest obejście: element
+ * pełnoekranowy i element leżący nad tekstem to dwie różne rzeczy i nie da się
+ * być obiema naraz — pas tła jest z definicji pod kolumną czytelności.
+ *
+ * Docelowe pudełko nie jest „o jednostkę węższe" (to wyglądałoby na usterkę),
+ * tylko dokładnie takie, jak pas treści, którym stoi cała reszta strony
+ * ({@link CANVAS_PAD_COLUMNS}, {@link CANVAS_CONTENT_COLUMNS}). Pion zostaje
+ * nietknięty — operator prosił o zmianę warstwy, a nie o przesunięcie.
+ *
+ * Droga POWROTNA istnieje i jest tą samą drogą, którą operator tu trafił:
+ * rozciągnięcie elementu z powrotem do obu krawędzi znów czyni z niego tło.
+ */
+export function liftIntoContentBand(element: CanvasElement): CanvasElement {
+  const box = element.layout.desktop;
+  if (box.x === CANVAS_PAD_COLUMNS && box.w === CANVAS_CONTENT_COLUMNS) return element;
+  return withGeometry(element, "desktop", {
+    ...box,
+    x: CANVAS_PAD_COLUMNS,
+    w: CANVAS_CONTENT_COLUMNS,
+  });
 }
 
 // -----------------------------------------------------------------------

@@ -341,7 +341,21 @@ describe("uchwyt rozmiaru zamienia wymiar Z TREŚCI na JAWNY", () => {
     });
   });
 
-  it("uchwyt w widoku TELEFONU nie rusza trybu wymiaru (opisuje projekt desktopowy)", async () => {
+  /*
+   * TEN TEST PILNOWAŁ WADY, ZAMIAST JEJ ZAPOBIEGAĆ (audyt W7, ADR-173).
+   *
+   * W poprzedniej wersji sprawdzał, że uchwyt na telefonie NIE rusza trybu
+   * wymiaru, i komentarzem twierdził, że „poprawka mobilna niesie za to
+   * KONKRETNE pudełko" — asercją było `toBeDefined()`. Renderer tego pudełka
+   * nigdy nie używał: tryb wymiaru jest jeden na element, więc `hug` zamieniał
+   * na `max-content` OBIE szerokości, także mobilną. Test świecił na zielono
+   * nad operacją bez skutku.
+   *
+   * Skutek jest odtąd mierzony tam, gdzie go widać — w WYRENDEROWANEJ zmiennej
+   * pudełka mobilnego (`canvas-operacje-skutek.test.tsx`); tu zostaje kontrakt
+   * modelu: uchwyt znaczy na telefonie to samo, co na komputerze.
+   */
+  it("uchwyt w widoku TELEFONU zamienia wymiar Z TREŚCI na JAWNY — tak samo jak na komputerze", async () => {
     const section = heroSection();
     const canvas = section.content as unknown as Canvas;
     const id = buttonId(canvas);
@@ -355,12 +369,13 @@ describe("uchwyt rozmiaru zamienia wymiar Z TREŚCI na JAWNY", () => {
     await flushAutosave();
 
     const zapisany = lastSavedCanvas()!.elements.find((element) => element.id === id)!;
-    expect(sizeOf(zapisany), "widok telefonu przestawił tryb wymiaru desktopu").toEqual({
-      w: "hug",
+    expect(sizeOf(zapisany), "uchwyt na telefonie nie odebrał szerokości treści").toEqual({
+      w: "fixed",
       h: "hug",
     });
-    // Poprawka mobilna niesie za to KONKRETNE pudełko — bo operator je narysował.
+    // Poprawka mobilna niesie KONKRETNE pudełko — i od ADR-173 render je bierze.
     expect(zapisany.layout.mobile).toBeDefined();
+    expect(zapisany.layout.mobile!.w).toBe(mobileLayoutOf(canvas).boxes[id]!.w + 10);
   });
 });
 

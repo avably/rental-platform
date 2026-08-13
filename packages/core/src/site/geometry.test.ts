@@ -15,7 +15,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   CANVAS_COLUMNS,
+  CANVAS_CONTENT_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  CANVAS_PAD_COLUMNS,
   type CanvasElement,
   type Geometry,
 } from "./elements";
@@ -29,9 +31,12 @@ import {
   commitMove,
   commitResize,
   geometryRect,
+  liftIntoContentBand,
   normalizeLayers,
   nudgeGeometry,
+  nudgeSize,
   paintOrder,
+  paintsBehindContent,
   rawMove,
   rawResize,
   sendToBack,
@@ -339,5 +344,92 @@ describe("pozycja w trakcie gestu: ułamkowa, ale w płótnie", () => {
     const raw = rawResize(box(40, 20, 10, 6), "se", 1.5, 2.25, ROWS);
     expect(raw.w).toBeCloseTo(11.5, 10);
     expect(raw.h).toBeCloseTo(8.25, 10);
+  });
+});
+
+/**
+ * KROK ROZMIARU KLAWIATURĄ (ADR-173, audyt W8).
+ *
+ * Klawiatura umiała do ADR-173 wyłącznie przesuwać, a osiem uchwytów rozmiaru
+ * było fokusowalnymi przyciskami bez skutku. Tu dowodzimy ARYTMETYKI: że krok
+ * klawiatury jest tym samym krokiem, co uchwyt `se` z wyłączonym przyciąganiem
+ * — bo obie drogi wołają tę samą funkcję.
+ */
+describe("rozmiar krokiem klawiatury", () => {
+  it("prawo i dół powiększają, lewo i góra zmniejszają — o zadany krok", () => {
+    const base = box(40, 20, 10, 6);
+    expect(nudgeSize(base, "right", NUDGE_STEP, ROWS).w).toBe(11);
+    expect(nudgeSize(base, "left", NUDGE_STEP, ROWS).w).toBe(9);
+    expect(nudgeSize(base, "down", NUDGE_STEP_LARGE, ROWS).h).toBe(16);
+    expect(nudgeSize(base, "up", NUDGE_STEP, ROWS).h).toBe(5);
+  });
+
+  it("KOTWICĄ jest lewy górny róg — pozycja nie drgnie ani o jednostkę", () => {
+    const next = nudgeSize(box(40, 20, 10, 6), "right", NUDGE_STEP_LARGE, ROWS);
+    expect(next.x).toBe(40);
+    expect(next.y).toBe(20);
+  });
+
+  it("krok klawiatury równa się temu, co robi uchwyt `se` bez przyciągania", () => {
+    // Gdyby klawiatura liczyła sobie sama, powstałaby druga ścieżka rozmiaru —
+    // a różnice między nią a myszą wychodziłyby dopiero u operatora.
+    const base = box(40, 20, 10, 6);
+    const uchwytem = snapResize(base, "se", 3, 0, { rows: ROWS, neighbours: [], snap: false });
+    let klawiatura = base;
+    for (let krok = 0; krok < 3; krok += 1) {
+      klawiatura = nudgeSize(klawiatura, "right", NUDGE_STEP, ROWS);
+    }
+    expect(klawiatura).toEqual(uchwytem.geometry);
+  });
+
+  it("rozmiar nie schodzi poniżej minimum ani nie wyjeżdża poza płótno", () => {
+    const base = box(40, 20, 10, 6);
+    expect(nudgeSize(base, "left", 1_000, ROWS).w).toBe(MIN_ELEMENT_UNITS);
+    expect(nudgeSize(base, "right", 1_000, ROWS).w).toBe(CANVAS_COLUMNS - 40);
+    expect(nudgeSize(base, "down", 1_000, ROWS).h).toBe(ROWS - 20);
+  });
+});
+
+/**
+ * WARSTWA TŁA A OPERACJE NA WARSTWACH (ADR-173, audyt W4).
+ *
+ * Element rozciągnięty do obu krawędzi maluje się pod całą siatką treści, więc
+ * „na wierzch" zmieniało mu `z` bez skutku na ekranie. Reguła musi być znana
+ * tam, gdzie mieszka arytmetyka warstw — czyli tutaj.
+ */
+describe("warstwa tła: kto maluje się pod treścią", () => {
+  function elementO(kind: "image" | "shape" | "heading", geometry: Geometry): CanvasElement {
+    const wspolne = { id: "x", layout: { desktop: geometry } };
+    if (kind === "image") return { ...wspolne, kind, alt: "Tło", fit: "cover" } as CanvasElement;
+    if (kind === "shape") return { ...wspolne, kind, shape: "box", fill: "paper" } as CanvasElement;
+    return { ...wspolne, kind, text: "Napis", level: 1, align: "left" } as CanvasElement;
+  }
+
+  it("zdjęcie i kształt od krawędzi do krawędzi — tak; cokolwiek węższego — nie", () => {
+    expect(paintsBehindContent(elementO("image", box(0, 0, CANVAS_COLUMNS, 6)))).toBe(true);
+    expect(paintsBehindContent(elementO("shape", box(0, 0, CANVAS_COLUMNS, 6)))).toBe(true);
+    expect(paintsBehindContent(elementO("image", box(0, 0, CANVAS_COLUMNS - 1, 6)))).toBe(false);
+    expect(paintsBehindContent(elementO("image", box(1, 0, CANVAS_COLUMNS - 1, 6)))).toBe(false);
+  });
+
+  it("tekst na pełną szerokość ZOSTAJE w kolumnie czytelności, więc tłem nie jest", () => {
+    expect(paintsBehindContent(elementO("heading", box(0, 0, CANVAS_COLUMNS, 6)))).toBe(false);
+  });
+
+  it("wyprowadzenie do pasa treści KOŃCZY przynależność do warstwy tła", () => {
+    const tlo = elementO("image", box(0, 4, CANVAS_COLUMNS, 12));
+    const wyprowadzone = liftIntoContentBand(tlo);
+    expect(paintsBehindContent(tlo), "kontrola pozytywna: wejście nie było tłem").toBe(true);
+    expect(paintsBehindContent(wyprowadzone)).toBe(false);
+    expect(wyprowadzone.layout.desktop.x).toBe(CANVAS_PAD_COLUMNS);
+    expect(wyprowadzone.layout.desktop.w).toBe(CANVAS_CONTENT_COLUMNS);
+    // Pion zostaje nietknięty — operator prosił o warstwę, nie o przesunięcie.
+    expect(wyprowadzone.layout.desktop.y).toBe(4);
+    expect(wyprowadzone.layout.desktop.h).toBe(12);
+  });
+
+  it("wyprowadzenie elementu, który już stoi w pasie treści, nie tworzy nowego obiektu", () => {
+    const wPasie = elementO("image", box(CANVAS_PAD_COLUMNS, 0, CANVAS_CONTENT_COLUMNS, 6));
+    expect(liftIntoContentBand(wPasie)).toBe(wPasie);
   });
 });

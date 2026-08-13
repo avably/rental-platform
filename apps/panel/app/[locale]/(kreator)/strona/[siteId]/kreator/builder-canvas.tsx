@@ -64,7 +64,9 @@ import {
   isBoundAttribute,
   isDetachedOnMobile,
   isPinnedLastType,
+  liftIntoContentBand,
   mobileLayoutOf,
+  paintsBehindContent,
   plainTextOf,
   sendToBack,
   sizeOf,
@@ -380,8 +382,24 @@ export function BuilderCanvas({
    * ruszająca źródło poprawiałaby jednocześnie samą siebie i cały desktop.
    *
    * Poprawka mobilna ma z definicji wymiar JAWNY — operator narysował pudełko
-   * i ma ono zostać takie, jak je narysował. Tryb `hug` opisuje projekt
-   * desktopowy i zostaje nietknięty; „wróć do auto" oddaje jedno i drugie.
+   * i ma ono zostać takie, jak je narysował.
+   *
+   * ========== UCHWYT ZNACZY TO SAMO NA OBU WIDOKACH (ADR-173) ==========
+   *
+   * Do ADR-173 gest uchwytem w widoku telefonu NIE przestawiał trybu wymiaru:
+   * `layout.mobile` dostawał konkretne pudełko, a tryb zostawał `hug`. Tryb
+   * wymiaru jest JEDEN na element (renderer czyta `sizeOf` raz i podaje go do
+   * obu kompletów zmiennych), więc `hug` zamieniał obie szerokości na
+   * `max-content` — także mobilną. Skutek: pudełko rosło pod palcem, po
+   * puszczeniu wracało do rozmiaru treści, zapis się udawał, a w bazie lądowała
+   * poprawka, której render nigdy nie użył. Dotyczyło to czterech z sześciu
+   * rodzajów (`HUG_KINDS`), czyli większości płótna.
+   *
+   * Odtąd uchwyt robi na telefonie DOKŁADNIE to, co na komputerze: oś, której
+   * dotknął, przestaje wynikać z treści. Cena jest nazwana i świadoma — projekt
+   * desktopowy tej osi też przestaje wynikać z treści, bo tryb jest jeden.
+   * Alternatywa („ukryjmy uchwyty na telefonie") zdejmowałaby operatorowi
+   * jedyną drogę do ręcznej poprawki wymiaru na najważniejszym widoku.
    */
   function commitGeometry(
     sectionId: string,
@@ -392,7 +410,7 @@ export function BuilderCanvas({
     editor.mutate(sectionId, (canvas) =>
       replaceElement(canvas, elementId, (element) => {
         const moved = withGeometry(element, breakpoint, geometry);
-        if (breakpoint === "mobile" || !fixed) return moved;
+        if (!fixed) return moved;
         // Pociągnięcie za uchwyt JEST decyzją „ma być tyle" — i dotyczy
         // wyłącznie osi, których uchwyt naprawdę dotknął.
         const size = sizeOf(element);
@@ -560,10 +578,38 @@ export function BuilderCanvas({
                                 ? () => resetMobile(editorSection.id, selected.id)
                                 : undefined
                             }
+                            /*
+                              „NA WIERZCH" WYPROWADZA TAKŻE Z WARSTWY TŁA
+                              (ADR-173, audyt W4).
+
+                              Element rozciągnięty do OBU krawędzi maluje się
+                              w osobnej warstwie pod całą siatką treści — a samo
+                              rozciągnięcie jest gestem, którym kreator ZALECA
+                              robienie tła pełnoekranowego. Do ADR-173 była to
+                              pułapka jednokierunkowa: „na wierzch" zmieniało `z`,
+                              zapisywało szkic i dokładało wpis do historii, nie
+                              zmieniając ani jednego piksela, bo warstwa tła jako
+                              całość stoi pod siatką (własny kontekst składania).
+                              Operator wpadał w stan, z którego żadna z dwóch
+                              kontrolek od warstw go nie wyprowadzała.
+
+                              Wyjście musi więc ruszyć to, co O TEJ WARSTWIE
+                              rozstrzyga, czyli geometrię: element wchodzi w pas
+                              treści i dopiero tam `z` cokolwiek znaczy. Jeden
+                              `mutate` = jeden wpis w historii, więc „cofnij"
+                              cofa całą operację, a nie jej połowę.
+                            */
                             onToFront={() =>
                               editor.mutate(editorSection.id, (current) => ({
                                 ...current,
-                                elements: bringToFront(current.elements, selected.id),
+                                elements: bringToFront(
+                                  current.elements.map((element) =>
+                                    element.id === selected.id && paintsBehindContent(element)
+                                      ? liftIntoContentBand(element)
+                                      : element,
+                                  ),
+                                  selected.id,
+                                ),
                               }))
                             }
                             onToBack={() =>
