@@ -9,7 +9,7 @@
  * przeglądarki — ADR-039), więc copy opisów też jest w locale tenanta.
  * Canonical wskazuje na HOST TENANTA (patrz lib/seo/origin.ts).
  */
-import { isSectionCanvas, paintOrder } from "@avably/core/site";
+import { isBoundAttribute, isSectionCanvas, paintOrder } from "@avably/core/site";
 import type { Metadata } from "next";
 
 import type { PublishedSite } from "@/lib/site/published";
@@ -35,7 +35,24 @@ export function heroText(site: PublishedSite | null): { heading?: string; subhea
   if (!hero || hero.type !== "hero") return {};
 
   if (isSectionCanvas(hero.content)) {
-    const ordered = paintOrder(hero.content.elements);
+    /*
+     * ELEMENT ZWIĄZANY Z KATALOGIEM NIE ODDAJE TU NICZEGO (faza 3, ADR-163).
+     *
+     * Metadane czytają TREŚĆ, a treść związanego elementu jest napisem
+     * PROJEKTOWYM — tym, do którego render wraca po zdjęciu wiązania, i którego
+     * odwiedzający nigdy nie widzi. Bez tego odsiewu opis strony w wynikach
+     * wyszukiwania pokazywałby zdanie, którego nie ma na stronie.
+     *
+     * Wartości z katalogu też tu NIE wchodzą, i to jest decyzja, a nie brak
+     * czasu: metadane powstają w `generateMetadata`, czyli osobnym przebiegu
+     * przed renderem, a podstawianie ich z katalogu jest zadaniem SZABLONU
+     * strony produktu (faza 5 — „meta title i meta description są polami
+     * szablonu z podstawieniem"). Do tego czasu strona z całkowicie związanym
+     * hero dostaje opis neutralny, a nie cudzy.
+     */
+    const ordered = paintOrder(hero.content.elements).filter(
+      (element) => !isBoundAttribute(element, "text"),
+    );
     const heading = ordered.find((element) => element.kind === "heading");
     if (!heading || heading.kind !== "heading") return {};
     const lead = ordered.find((element) => element.kind === "text");
