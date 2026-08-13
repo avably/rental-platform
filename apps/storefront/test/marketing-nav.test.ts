@@ -20,6 +20,9 @@ import path from "node:path";
 import * as cheerio from "cheerio";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import en from "../messages/en.json";
+import pl from "../messages/pl.json";
+
 const root = path.resolve(__dirname, "..");
 const read = (relative: string) => readFileSync(path.join(root, relative), "utf8");
 const strony = readdirSync(path.join(root, "marketing")).filter((plik) => plik.endsWith(".html"));
@@ -102,6 +105,23 @@ describe("menu mobilne: pozycje nawigacji", () => {
   it("napis pozycji nie zostaje biały na białym tle rozwiniętego menu", () => {
     const blok = blokMedia(delta, PROG).replace(/\s+/g, " ");
     expect(blok).toMatch(/\.nav-menu-inner \.nav-link\.light[^{]*\{[^}]*color:/);
+  });
+
+  /**
+   * Nazwa przycisku menu jest NIEWIDOCZNA na ekranie — istnieje tylko dla
+   * czytnika. `MarketingPageView` pali render przy jej braku (tak samo jak
+   * przy brakującym tokenie szablonu), ale bez tej bramki nikt by tego nie
+   * zauważył przed wejściem na stronę.
+   */
+  it("przycisk menu ma nazwę w treści obu locale", () => {
+    for (const [locale, messages] of [
+      ["pl", pl],
+      ["en", en],
+    ] as const) {
+      expect(typeof messages.marketing.nav.menuLabel, locale).toBe("string");
+      expect(messages.marketing.nav.menuLabel.trim().length, locale).toBeGreaterThan(0);
+    }
+    expect(pl.marketing.nav.menuLabel).not.toBe(en.marketing.nav.menuLabel);
   });
 });
 
