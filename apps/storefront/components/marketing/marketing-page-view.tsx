@@ -10,6 +10,7 @@ import {
 } from "@/lib/marketing/template";
 
 import { LandingAnalytics } from "../landing-analytics";
+import { MarketingNavA11y } from "./marketing-nav-a11y";
 import { MarketingRuntime } from "./marketing-runtime";
 
 interface MarketingPageViewProps {
@@ -21,6 +22,21 @@ interface MarketingPageViewProps {
 }
 
 const ISLAND_MARKER = "<!--avably-island-->";
+
+/**
+ * Etykieta przycisku menu dla czytnika ekranu — z treści, nie z literału.
+ *
+ * Brak klucza jest BŁĘDEM, dokładnie jak brak tokenu w `renderMarketingPage`:
+ * cicha wartość zastępcza znaczyłaby angielskie „menu" na polskiej stronie,
+ * i nikt by tego nie zobaczył, bo etykiety nie widać na ekranie.
+ */
+function etykietaMenu(copy: Record<string, unknown>): string {
+  const nav = copy.nav as { menuLabel?: unknown } | undefined;
+  if (typeof nav?.menuLabel !== "string") {
+    throw new Error("Brak treści dla tokenu szablonu: nav.menuLabel");
+  }
+  return nav.menuLabel;
+}
 
 /**
  * Czy powierzchnia marketingowa ma prawo linkować regulamin platformy.
@@ -77,12 +93,19 @@ export async function MarketingPageView({ copy, locale, page, island }: Marketin
     <>
       <LandingAnalytics locale={locale} />
       <MarketingRuntime wfPage={wfPageId(page)} wfSite={WF_SITE} />
+      <MarketingNavA11y etykietaMenu={etykietaMenu(copy)} />
       {island && after !== undefined ? (
         // ZNANE OGRANICZENIE (do domknięcia): na stronach z wyspą interakcje
         // odsłaniające nie startują — elementy eksportu zostają na inline
         // `opacity:0`. Do czasu naprawy klasa wymusza widoczność, żeby strona
         // niosła treść zamiast pustego tła. Landing biegnie bez tej klasy,
         // z pełnymi animacjami szablonu.
+        //
+        // PODZIAŁ TNIE HTML NA ZNACZNIKU WYSPY, więc znacznik MUSI stać między
+        // rodzeństwem najwyższego poziomu — obie połówki jadą osobnym
+        // `dangerouslySetInnerHTML`, a połówka urwana w środku drzewa zostaje
+        // domknięta przez parser i wyrzuca wyspę poza kontener strony
+        // (ADR-162; bramka: `marketing-island.test.ts`).
         <div className="marketing-static">
           <div dangerouslySetInnerHTML={{ __html: before }} />
           {island}

@@ -35,6 +35,7 @@
     "@types/react-dom": "^19",
     "cheerio": "^1.2.0",
     "eslint-config-next": "16.2.12",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

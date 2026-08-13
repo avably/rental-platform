@@ -326,12 +326,22 @@ function setButton($, el, token, href) {
   }
 }
 
-const LANG_SWITCH = `
+/**
+ * Pozycja nawigacji w kształcie szablonu (maska napisu z dwiema warstwami).
+ *
+ * `jasny` NIE JEST OZDOBĄ: wariant `.light` maluje napis kolorem `color--light`
+ * i ma sens wyłącznie na przezroczystej belce nad ciemnym hero (`navbar static
+ * blured`, tylko strona główna). Na każdej innej belce tło jest białe, więc
+ * jasna pozycja byłaby biała na białym — dokładnie tak przez pół roku znikał
+ * przełącznik języka, który wchodził tu ze sztywnym `light` (zmierzone na
+ * /pl/privacy: kolor #FFF na tle #FFF, kontrast 1:1, w OBU belkach).
+ */
+const navLink = (href, token, jasny, atrybuty = "") => `
 <div class="navigation-link-hover-wrap">
-  <a href="{{link.langAlternate}}" hreflang="{{lang.alternate}}" class="nav-link light w-inline-block">
+  <a href="${href}"${atrybuty} class="nav-link${jasny} w-inline-block">
     <div class="button-text-mask">
-      <div class="button-text _1">{{nav.langAlternate}}</div>
-      <div class="button-text _2">{{nav.langAlternate}}</div>
+      <div class="button-text _1">${token}</div>
+      <div class="button-text _2">${token}</div>
     </div>
   </a>
 </div>`;
@@ -358,10 +368,26 @@ function transformShell($) {
     );
   }
 
-  $(".nav-menu-inner").append(LANG_SWITCH);
+  // Logowanie i przełącznik języka wchodzą do KAŻDEGO menu (belka statyczna
+  // i wyskakująca), bo obie są tą samą nawigacją na dwóch etapach przewijania.
+  // Odnośnik do panelu jest jedyną drogą istniejącego najemcy ze strony
+  // sprzedażowej do produktu — w stopce był od początku, w nagłówku nie.
+  $(".nav-menu-inner").each((_, el) => {
+    const $inner = $(el);
+    const jasny = $inner.closest(".navbar").hasClass("blured") ? " light" : "";
+    $inner.append(navLink("{{link.login}}", "{{nav.login}}", jasny));
+    $inner.append(navLink("{{link.langAlternate}}", "{{nav.langAlternate}}", jasny, ' hreflang="{{lang.alternate}}"'));
+  });
 
   // Konta społecznościowe, których nie prowadzimy.
   $(".menu-socials, .footer-social-wrap").remove();
+
+  // Kafel pod pozycjami menu zostaje po tym PUSTY (jego napis wycina REMOVE,
+  // ikony społecznościowe linijkę wyżej), a na telefonie jest `display: flex`
+  // z odstępem — czyli 25 px przerwy w środku listy odnośników, bez treści.
+  $(".menu-bottom-tile")
+    .filter((_, el) => $(el).children().length === 0)
+    .remove();
 
   // CTA nawigacji i menu mobilnego → rejestracja w panelu.
   $(".nav-desktop-button a, .menu-cta-link-wrap a").each((_, el) =>
@@ -530,7 +556,15 @@ function transformPrivacy($) {
   transformShell($);
   $(".heading-legal .label-small").text("{{privacyPage.eyebrow}}");
   $(".heading-legal h1").text("{{privacyPage.title}}");
-  $(".body-legal").empty().append(ISLAND);
+  // ZNACZNIK WYSPY STOI MIĘDZY SEKCJAMI, NIE W ŚRODKU SIATKI (ADR-162).
+  // `MarketingPageView` tnie ten HTML na znaczniku i podaje obie połówki
+  // osobnym `dangerouslySetInnerHTML`; znacznik w środku drzewa dawał połówkę
+  // z niedomkniętymi elementami, którą parser zamykał sam — treść dokumentu
+  // lądowała wtedy jako rodzeństwo `.marketing-static`, poza `.main-container`
+  // (zmierzone przy 375 px: x = 0 px wobec x = 16 px nagłówka strony).
+  // Sekcję i kontener wnosi odtąd sama wyspa.
+  $(".body-legal").remove();
+  $("section.hero-legal").after(`\n  ${ISLAND}`);
 }
 
 const pages = [

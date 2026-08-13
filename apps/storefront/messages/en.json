@@ -116,7 +116,7 @@
       "faq": "Questions",
       "contact": "Contact",
       "login": "Sign in",
-      "cta": "Open your store",
+      "cta": "Open your rental store",
       "menuLabel": "Navigation",
       "languageLabel": "Change language",
       "polish": "PL",
@@ -125,14 +125,14 @@
     },
     "banner": {
       "text": "14-day trial, no card. We take no cut of transactions, and no per-user limits.",
-      "cta": "Open your store"
+      "cta": "Open your rental store"
     },
     "hero": {
       "eyebrow": "Software for equipment rental businesses",
       "titleTop": "Run the rental",
       "titleBottom": "from booking to refunded deposit.",
       "body": "A back office where you run the whole rental, plus your own store website where customers book for themselves. The calendar tracks individual units rather than models, and it knows when a saw is out for inspection. Pay by card and the deposit comes off with the order. You open the account by email, with no call to us.",
-      "cta": "Open your store",
+      "cta": "Open your rental store",
       "ctaSecondary": "See what works today",
       "feature1": "Availability per unit, not per model",
       "feature2": "Deposit off the card and back onto it",
@@ -183,7 +183,7 @@
     "features": {
       "eyebrow": "Scope",
       "title": "Pull rentals, money and paperwork into one back office",
-      "cta": "Open your store",
+      "cta": "Open your rental store",
       "card1Title": "Quote and extend without a calculator",
       "card1Body": "In a tiered price list a week costs less than seven separate days, and the quote recalculates every time you move the dates. When a customer keeps the gear two days longer, the extension reprices the order lines and adds the difference down to the grosz.",
       "card2Title": "Take payments online — we take nothing out of them",
@@ -198,7 +198,7 @@
     "cta": {
       "title": "Stop guessing how the month went",
       "body": "The dashboard shows revenue for this month and the last one, a twelve-month trend, how busy each product has been over the past thirty days, and the ten customers who have left you the most. A separate “Needs attention” list gathers overdue returns, failed payments and unsettled deposits. No spreadsheet that only one person in the company ever opens.",
-      "cta": "Open your store"
+      "cta": "Open your rental store"
     },
     "momentum": {
       "eyebrow": "Getting started",
@@ -260,7 +260,7 @@
     "closing": {
       "eyebrow": "Start today",
       "title": "Open an account and try it on your own catalogue",
-      "cta": "Open your store",
+      "cta": "Open your rental store",
       "ctaSecondary": "Start your 14-day trial — no card"
     },
     "footer": {

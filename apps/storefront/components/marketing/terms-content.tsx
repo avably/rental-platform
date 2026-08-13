@@ -19,6 +19,8 @@ type TermsCopy = typeof enMessages.terms;
  * pojedyncze złamania zachowuje `pre-line`. Etykieta wersji i skrót sha256
  * są CZĘŚCIĄ dokumentu, nie ozdobą — to po nich czytelnik pozna, że okazany
  * tekst jest tym, który zaakceptował przy zakładaniu organizacji.
+ *
+ * Sekcję i kontener wnosi WYSPA (ADR-162) — uzasadnienie w `privacy-content.tsx`.
  */
 export function TermsContent({
   document,
@@ -47,31 +49,35 @@ export function TermsContent({
   const permalink = `/${locale}/terms/w/${document.version_no}`;
 
   return (
-    <div className="body-legal w-richtext" data-platform-terms={document.version_label}>
-      <p>
-        {copy.versionLabel} {document.version_label} · {copy.effectiveLabel} {effectiveText}
-      </p>
-      {locale === "en" ? <p>{copy.bindingNote}</p> : null}
-      {archived ? (
-        <p data-platform-terms-archived>
-          {copy.archivedNote} <a href={currentHref}>{copy.currentLinkLabel}</a>
-        </p>
-      ) : null}
-      <h6>{localized.title}</h6>
-      {paragraphs.map((paragraph) => (
-        <p key={paragraph} style={{ whiteSpace: "pre-line" }}>
-          {paragraph}
-        </p>
-      ))}
-      <p data-platform-terms-sha>
-        {/* font-sans: kontrakt typografii (gallery-contract) — każdy element
-            code/pre/kbd w apkach niesie jawną klasę zamiast monospace-fallbacku
-            Preflight; na osi marketingowej (arkusze szablonu, bez Tailwinda)
-            klasa jest bierna wizualnie, ale kontrakt skanuje źródło statycznie. */}
-        {copy.shaLabel} <code className="font-sans">{localized.sha256.slice(0, 16)}</code> ·{" "}
-        {copy.permalinkLabel}{" "}
-        <a href={permalink}>{permalink}</a>
-      </p>
-    </div>
+    <section className="section legal-body-section">
+      <div className="w-layout-blockcontainer main-container w-container">
+        <div className="body-legal w-richtext" data-platform-terms={document.version_label}>
+          <p>
+            {copy.versionLabel} {document.version_label} · {copy.effectiveLabel} {effectiveText}
+          </p>
+          {locale === "en" ? <p>{copy.bindingNote}</p> : null}
+          {archived ? (
+            <p data-platform-terms-archived>
+              {copy.archivedNote} <a href={currentHref}>{copy.currentLinkLabel}</a>
+            </p>
+          ) : null}
+          <h6>{localized.title}</h6>
+          {paragraphs.map((paragraph) => (
+            <p key={paragraph} style={{ whiteSpace: "pre-line" }}>
+              {paragraph}
+            </p>
+          ))}
+          <p data-platform-terms-sha>
+            {/* font-sans: kontrakt typografii (gallery-contract) — każdy element
+                code/pre/kbd w apkach niesie jawną klasę zamiast monospace-fallbacku
+                Preflight; na osi marketingowej (arkusze szablonu, bez Tailwinda)
+                klasa jest bierna wizualnie, ale kontrakt skanuje źródło statycznie. */}
+            {copy.shaLabel} <code className="font-sans">{localized.sha256.slice(0, 16)}</code> ·{" "}
+            {copy.permalinkLabel}{" "}
+            <a href={permalink}>{permalink}</a>
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
