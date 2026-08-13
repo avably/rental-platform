@@ -1,8 +1,8 @@
 /**
- * CAPTCHA DALEJ BRONI — sonda bezpieczeństwa restylingu (ADR-156).
+ * CAPTCHA DALEJ BRONI — TAM, GDZIE MA BRONIĆ (ADR-156, zakres z ADR-164).
  *
  * Restyling przestawił widżet CAPTCHY w nowe miejsce w drzewie (slot
- * centrujący). Zmiana jest wyłącznie wizualna, ale dotyka DOKŁADNIE tego
+ * centrujący). Zmiana była wyłącznie wizualna, ale dotykała DOKŁADNIE tego
  * fragmentu, który niesie token do akcji — a najgorszy możliwy skutek takiej
  * pomyłki jest cichy: formularz wygląda tak samo, widżet stoi na ekranie,
  * a do serwera nie jedzie nic i bramka przepuszcza wszystko.
@@ -11,6 +11,11 @@
  *   • żądanie BEZ ważnego tokenu → odmowa i ZERO dotknięcia dostawcy auth,
  *   • żądanie z ważnym tokenem → przejście (bramka nie jest zamknięta na
  *     głucho, więc pierwsza połowa czegoś dowodzi).
+ *
+ * ZAKRES PO ADR-164: bramka dotyczy REJESTRACJI i RESETU. Logowanie CAPTCHY
+ * nie ma i nie pyta o nią dostawcy — to też jest tu mierzone (niżej), bo
+ * „usunięte" i „usunięte tylko z formularza" wyglądają na ekranie identycznie,
+ * a różnią się tym, czy da się je po cichu odwrócić.
  *
  * Zamockowana jest granica sieci: weryfikator CAPTCHY, limiter i klient
  * Supabase. Sama logika akcji jest prawdziwa.
@@ -115,13 +120,6 @@ beforeEach(() => {
 });
 
 describe("bez ważnego tokenu CAPTCHY akcje odmawiają", () => {
-  it("logowanie odmawia i nie pyta dostawcy auth o nic", async () => {
-    const state = await loginAction({}, form({ ...CREDENTIALS, turnstileToken: "" }));
-
-    expect(state.error, "logowanie przeszło bez CAPTCHY").toBe(pl.login.captchaFailed);
-    expect(providerCalls, "po odmowie CAPTCHY poszła sonda do dostawcy auth").toEqual([]);
-  });
-
   it("rejestracja odmawia i nie zakłada konta", async () => {
     const state = await registerAction({}, form({ ...CREDENTIALS, turnstileToken: "" }));
 
@@ -139,21 +137,61 @@ describe("bez ważnego tokenu CAPTCHY akcje odmawiają", () => {
   it("token W OGÓLE nieprzysłany (brak pola) też jest odmawiany", async () => {
     // Regresja, którą łatwo wprowadzić restylingiem: slot bez zawartości.
     // Formularz wygląda normalnie, a pole `turnstileToken` nie istnieje.
-    const state = await loginAction({}, form(CREDENTIALS));
+    const state = await registerAction({}, form(CREDENTIALS));
 
-    expect(state.error).toBe(pl.login.captchaFailed);
+    expect(state.error).toBe(pl.register.captchaFailed);
     expect(providerCalls).toEqual([]);
   });
 });
 
+/**
+ * LOGOWANIE JEST POZA TĄ BRAMKĄ — I MA BYĆ (ADR-164).
+ *
+ * Mierzone jest mocniejsze zdanie niż „nie odmawia": logowanie NIE PYTA
+ * weryfikatora w ogóle. Różnica jest istotna, bo `verifyTurnstile`
+ * przepuszcza przy `providerError`, więc akcja z fail-openem wyglądałaby
+ * dokładnie tak samo jak akcja bez CAPTCHY — aż do dnia, w którym dostawca
+ * odpowie „nie" zamiast paść. Pusta lista wywołań weryfikatora nie da się
+ * pomylić z fail-openem.
+ */
+describe("logowanie nie konsultuje CAPTCHY (ADR-164)", () => {
+  it("weryfikator NIE jest wołany, a logowanie dochodzi do dostawcy auth", async () => {
+    // Weryfikator ustawiony na ODMOWĘ (turnstileOk = false z beforeEach):
+    // gdyby akcja go pytała, żądanie zostałoby odrzucone.
+    await expect(loginAction({}, form(CREDENTIALS))).rejects.toBeInstanceOf(RedirectSignal);
+
+    expect(verifyCalls, "logowanie pyta dostawcę CAPTCHY, choć CAPTCHY nie ma").toEqual([]);
+    expect(providerCalls).toContain("signInWithPassword");
+  });
+
+  it("podrzucony `turnstileToken` niczego nie zmienia — pola po prostu nie ma", async () => {
+    // Ktoś mógłby zostawić weryfikację, a usunąć tylko widżet. Wtedy
+    // formularz wyglądałby jak teraz, a żądanie z ręcznie dorzuconym polem
+    // zachowywałoby się inaczej niż bez niego.
+    await expect(
+      loginAction({}, form({ ...CREDENTIALS, turnstileToken: "cokolwiek" })),
+    ).rejects.toBeInstanceOf(RedirectSignal);
+
+    expect(verifyCalls).toEqual([]);
+  });
+
+  it("KONTROLA POZYTYWNA: ten sam weryfikator JEST wołany przez rejestrację", async () => {
+    // Bez tego obie asercje wyżej byłyby zielone także wtedy, gdyby mock
+    // weryfikatora przestał być podpięty — czyli dowodziłyby zera.
+    await registerAction({}, form({ ...CREDENTIALS, turnstileToken: "jakis-token" }));
+
+    expect(verifyCalls).toEqual(["jakis-token"]);
+  });
+});
+
 describe("KONTROLA POZYTYWNA: z ważnym tokenem bramka przepuszcza", () => {
-  it("logowanie z ważnym tokenem dochodzi do dostawcy auth", async () => {
+  it("rejestracja z ważnym tokenem dochodzi do dostawcy auth", async () => {
     turnstileOk = true;
 
     await expect(
-      loginAction({}, form({ ...CREDENTIALS, turnstileToken: "ok-token" })),
+      registerAction({}, form({ ...CREDENTIALS, turnstileToken: "ok-token" })),
     ).rejects.toBeInstanceOf(RedirectSignal);
-    expect(providerCalls, "bramka jest zamknięta na głucho").toContain("signInWithPassword");
+    expect(providerCalls, "bramka jest zamknięta na głucho").toContain("signUp");
     expect(verifyCalls, "token z formularza nie dotarł do weryfikatora").toContain("ok-token");
   });
 

@@ -3,9 +3,10 @@
 /**
  * ROZSTRZYGNIĘCIE: reset/confirm NIE dostaje CAPTCHA (aneks ADR-106).
  *
- * `auth-captcha-contract.test.tsx` przybija trzy formularze, które widżet mieć
- * MUSZĄ (login, register, reset request). Ten test przybija drugą stronę tego
- * samego rozstrzygnięcia — jedyny formularz auth, który go świadomie nie ma.
+ * `auth-captcha-contract.test.tsx` przybija formularze, które widżet mieć
+ * MUSZĄ (register, reset request — logowanie wypadło z tej listy w ADR-164).
+ * Ten test przybija drugą stronę tego samego rozstrzygnięcia dla ekranu
+ * nowego hasła — z INNEGO powodu niż logowanie, i dlatego stoi osobno.
  *
  * Dlaczego nie: wejście na ten ekran wymaga sesji recovery z linku e-mail, a
  * te powstają wyłącznie za CAPTCHA i limitem reset requestu (3/h/IP + 3/h/adres)

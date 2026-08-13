@@ -36,10 +36,40 @@ describe("parytet kluczy i18n EN↔PL", () => {
     expect(onlyPl, `klucze tylko w PL: ${onlyPl.join(", ")}`).toEqual([]);
   });
 
-  it("komunikat CAPTCHA jest w kluczach obu locale (login + register)", () => {
+  /**
+   * KTÓRE EKRANY MAJĄ KOMUNIKAT CAPTCHY — w obie strony (ADR-164).
+   *
+   * Do ADR-164 logowanie też go miało. Po zdjęciu weryfikacji na logowaniu
+   * klucz stał się martwy, a martwy klucz w słowniku jest gorszy niż jego
+   * brak: następny czytelnik wnioskuje z niego, że CAPTCHA na logowaniu
+   * gdzieś tam jednak działa. Asercja negatywna trzyma go poza słownikiem.
+   */
+  it("komunikat CAPTCHY jest w kluczach obu locale — dla register i resetRequest", () => {
     for (const keys of [enKeys, plKeys]) {
-      expect(keys.has("login.captchaFailed")).toBe(true);
       expect(keys.has("register.captchaFailed")).toBe(true);
+      expect(keys.has("resetRequest.captchaFailed")).toBe(true);
+    }
+  });
+
+  it("logowanie NIE ma komunikatu CAPTCHY — nie ma czego nim opisać (ADR-164)", () => {
+    for (const keys of [enKeys, plKeys]) {
+      expect(
+        keys.has("login.captchaFailed"),
+        "wrócił komunikat CAPTCHY logowania — przywrócenie widżetu wymaga ADR",
+      ).toBe(false);
+      // Kontrola pozytywna tej samej klasy: przestrzeń `login.` istnieje
+      // i jest czytana poprawnie, więc asercja wyżej nie jest zielona przez
+      // literówkę w prefiksie.
+      expect(keys.has("login.signInFailed")).toBe(true);
+    }
+  });
+
+  it("logowanie NIE ma odnośnika o mailu potwierdzającym (ADR-164)", () => {
+    for (const keys of [enKeys, plKeys]) {
+      expect(keys.has("login.noConfirmationMail")).toBe(false);
+      // Ekran rejestracji ten sam odnośnik ma dalej — droga do „sprawdź
+      // skrzynkę" nie zniknęła, przeniósł się tylko punkt wejścia.
+      expect(keys.has("register.noConfirmationMail")).toBe(true);
     }
   });
 });

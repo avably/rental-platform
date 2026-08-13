@@ -6,7 +6,6 @@ import { getTranslations } from "next-intl/server";
 
 import { clientIpFromHeaders } from "@avably/security/client-ip";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
-import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { getAuthContext } from "@/lib/auth";
 import { localePath } from "@/lib/navigation";
@@ -22,7 +21,6 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    turnstileToken: formData.get("turnstileToken") ?? undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
@@ -32,6 +30,11 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   // bez konta). Sanityzowana przeciw open-redirect (patrz safeNextPath).
   const next = safeNextPath(formData.get("next"));
 
+  // JEDYNA OBRONA TEJ ŚCIEŻKI PRZED ZGADYWANIEM HASEŁ (ADR-164). Odkąd
+  // z logowania zszedł Turnstile, poniżej nie stoi już nic innego — i dlatego
+  // ma własną, zachowaniową bramkę (test/login-rate-limit-obrona.test.ts),
+  // która woła PRAWDZIWY licznik, a nie atrapę.
+  //
   // IP z zaufanego źródła (x-real-ip platformy / ostatni hop XFF) — goły
   // x-forwarded-for był podrabialny nagłówkiem klienta (L2, ADR-106).
   // Drugi wymiar: znormalizowany e-mail (loginSchema robi trim+lowercase),
@@ -54,17 +57,19 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     return { error: t("tooManyRequests") };
   }
 
-  // FAIL-OPEN przy AWARII dostawcy CAPTCHA (providerError) — świadoma
-  // decyzja ADR-106 tylko dla logowania: awaria Cloudflare nie może odcinać
-  // operatorów od ich firm, a rate-limit powyżej dalej stoi. Odmowa
-  // weryfikacji (zły/zużyty token przy sprawnym dostawcy) blokuje normalnie.
-  // Register/reset zostają fail-closed.
-  const turnstile = await verifyTurnstile(parsed.data.turnstileToken);
-  if (!turnstile.ok && !turnstile.providerError) {
-    const t = await getTranslations("login");
-    return { error: t("captchaFailed") };
-  }
-
+  // TU NIE MA WERYFIKACJI CAPTCHY I NIE JEST TO PRZEOCZENIE (ADR-164).
+  //
+  // Do tej zmiany stało tu `verifyTurnstile` z gałęzią FAIL-OPEN na awarię
+  // dostawcy (ADR-106): przy `providerError` żądanie szło dalej, żeby awaria
+  // Cloudflare nie odcinała operatorów od ich firm. Bramka, która sama się
+  // otwiera na żądanie atakującego (a zerwanie połączenia z dostawcą jest po
+  // stronie klienta wykonalne), bramką nie jest — kosztowała za to każdego
+  // logującego się człowieka wyzwanie i 72 px ekranu.
+  //
+  // Obroną tej ścieżki jest limit wyżej: 10/min na IP i 5/min na adres.
+  // Register i reset zostają FAIL-CLOSED i widżet mają dalej — tam koszt
+  // jednej próby jest po naszej stronie (mail, konto), a nie po stronie
+  // pytającego.
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,

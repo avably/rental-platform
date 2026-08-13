@@ -5,15 +5,7 @@ import { useActionState } from "react";
 
 import { Link } from "@/i18n/navigation";
 
-import { AuthCaptchaField } from "../captcha-field";
-import {
-  AuthCaptchaSlot,
-  AuthField,
-  AuthInput,
-  AuthLinks,
-  AuthNotice,
-  AuthSubmit,
-} from "../auth-ui";
+import { AuthField, AuthInput, AuthLinks, AuthNotice, AuthSubmit } from "../auth-ui";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -60,12 +52,11 @@ export function LoginForm({ next }: { next?: string }) {
             autoComplete="current-password"
           />
         </AuthField>
-        {/* Widżet + ukryty input turnstileToken; bez site key renderuje nic
-            (semantyka włączenia — L2/ADR-106). Miejsce trzyma SLOT, nie
-            widżet: patrz komentarz przy AuthCaptchaSlot. */}
-        <AuthCaptchaSlot>
-          <AuthCaptchaField resetSignal={state} />
-        </AuthCaptchaSlot>
+        {/* BEZ CAPTCHY I BEZ SLOTU NA NIĄ (ADR-164). Slot z ADR-156 trzymał
+            72 px zawsze — także bez site key — więc samo usunięcie widżetu
+            zostawiłoby na ekranie pustą lukę wysokości widżetu. Rezerwacja
+            schodzi razem z tym, co rezerwowała; rejestracja i reset trzymają
+            slot i widżet dalej. */}
         {/*
           DWA WYJŚCIA PRZY BŁĘDZIE (ADR-153, N3). Komunikat jest z konieczności
           generyczny — nie wolno mu zdradzić, czy konto istnieje — więc sam
@@ -101,6 +92,14 @@ export function LoginForm({ next }: { next?: string }) {
       </form>
       {/* TODO(Task 3 infra): przycisk „Zaloguj przez Google" — wymaga
           skonfigurowanego OAuth clienta (brak credentiali). */}
+      {/* JEDNO STAŁE WYJŚCIE, NIE DWA (ADR-164, decyzja właściciela). Stało tu
+          jeszcze „Nie dostałeś maila potwierdzającego?" — pytanie, które ma
+          sens po REJESTRACJI, a nie na ekranie, na który przychodzi się
+          wpisać hasło. Droga do `/register/sprawdz-skrzynke` nie zniknęła:
+          prowadzi tam ekran rejestracji (odnośnik stały), przekierowanie po
+          udanym założeniu konta oraz wyjście przy błędzie logowania wyżej
+          (ADR-153, N3) — czyli dokładnie te miejsca, w których człowiek
+          faktycznie czeka na maila. */}
       <AuthLinks>
         <span>
           {t("noAccount")}{" "}
@@ -111,12 +110,6 @@ export function LoginForm({ next }: { next?: string }) {
             {t("register")}
           </Link>
         </span>
-        <Link
-          href="/register/sprawdz-skrzynke"
-          className="text-foreground w-fit font-medium underline underline-offset-[3px]"
-        >
-          {t("noConfirmationMail")}
-        </Link>
       </AuthLinks>
     </>
   );
