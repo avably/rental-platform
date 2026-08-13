@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
