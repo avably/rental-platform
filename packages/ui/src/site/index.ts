@@ -27,6 +27,8 @@ export {
   DEFAULT_SITE_MONEY,
   type SiteMotionMode,
 } from "./site-renderer";
+// Powłoka sklepu jako JEDEN kształt dla sklepu i podglądu szkicu (ADR-172).
+export { SITE_HEADING, StoreShellFooter, StoreShellHeader } from "./store-shell";
 // Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
 export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).

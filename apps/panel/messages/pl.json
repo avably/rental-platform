@@ -1654,7 +1654,11 @@
       "draftHint": "Tak strona wygląda po publikacji. Klienci widzą jeszcze poprzednią wersję.",
       "backToBuilder": "Wróć do kreatora",
       "draftEmpty": "Wersja robocza nie ma jeszcze żadnej widocznej sekcji.",
-      "logoUnreadable": "Nie udało się odczytać znaku firmy — podgląd pokazuje stronę bez niego. To nie znaczy, że znaku nie masz."
+      "logoUnreadable": "Nie udało się odczytać znaku firmy — podgląd pokazuje stronę bez niego. To nie znaczy, że znaku nie masz.",
+      "footerShadowed": "Stopka z tej strony nie trafia do sklepu — klienci widzą stopkę strony głównej."
+    },
+    "shell": {
+      "cart": "Koszyk"
     },
     "publish": {
       "heading": "Wersja publiczna",

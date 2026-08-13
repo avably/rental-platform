@@ -44,6 +44,8 @@ const PATH = `${TENANT}/logo/${UPLOAD}.png`;
 const SUPABASE_URL = "https://przyklad.supabase.co";
 const EXPECTED_SRC = `${SUPABASE_URL}/storage/v1/object/public/site-images/${PATH}`;
 const STORE_NAME = "Wypożyczalnia Kontrolna";
+/** Prefiks zdjęć sekcji — powłoka podaje go stopce od ADR-172 (wymagany props). */
+const BAZA_ZDJEC = `${SUPABASE_URL}/storage/v1/object/public/site-images`;
 
 function stronaZeStopka(): PublishedSite {
   const footer = {
@@ -70,6 +72,7 @@ async function renderPowloki(logo: StoreLogo | null): Promise<string> {
       storeName={STORE_NAME}
       site={stronaZeStopka()}
       logo={logo}
+      siteImageBase={BAZA_ZDJEC}
     >
       <p>treść</p>
     </StoreChrome>,
@@ -85,6 +88,7 @@ async function renderPodstrony(logo: StoreLogo | null): Promise<string> {
       storeName={STORE_NAME}
       site={stronaZeStopka()}
       logo={logo}
+      siteImageBase={BAZA_ZDJEC}
     >
       <p>treść podstrony</p>
     </PageShell>,
@@ -137,6 +141,7 @@ async function renderPowlokiNaPlotnie(
       storeName={STORE_NAME}
       site={stronaZeStopkaNaPlotnie(obraz)}
       logo={logo}
+      siteImageBase={BAZA_ZDJEC}
     >
       <p>treść</p>
     </StoreChrome>,

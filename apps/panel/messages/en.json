@@ -1654,7 +1654,11 @@
       "draftHint": "This is how the page will look once published. Customers still see the previous version.",
       "backToBuilder": "Back to the builder",
       "draftEmpty": "The draft has no visible sections yet.",
-      "logoUnreadable": "The store logo could not be read — the preview shows the page without it. It does not mean you have no logo."
+      "logoUnreadable": "The store logo could not be read — the preview shows the page without it. It does not mean you have no logo.",
+      "footerShadowed": "The footer built on this page never reaches the store — customers see the home page footer."
+    },
+    "shell": {
+      "cart": "Cart"
     },
     "publish": {
       "heading": "Public version",

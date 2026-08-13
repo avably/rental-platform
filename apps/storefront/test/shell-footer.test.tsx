@@ -35,6 +35,8 @@ import { pageSections, shellSections, withAnchorBase } from "../lib/site/page-se
 import { getStorefrontCopy } from "../lib/storefront/copy";
 
 const NAZWA_FIRMY = "Wypożyczalnia Kontrolna sp. z o.o.";
+/** Prefiks zdjęć sekcji — powłoka podaje go stopce od ADR-172 (wymagany props). */
+const BAZA_ZDJEC = "https://storage.test/storage/v1/object/public/site-images";
 
 function sekcja(id: string, type: "hero" | "products" | "footer"): PublishedSection {
   return {
@@ -68,7 +70,14 @@ function strona(): PublishedSite {
 async function renderPodstrony(site: PublishedSite | null): Promise<string> {
   const copy = await getStorefrontCopy("pl");
   return renderToStaticMarkup(
-    <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site} logo={null}>
+    <PageShell
+      style={DEFAULT_SITE_STYLE}
+      copy={copy}
+      storeName="Sklep"
+      site={site}
+      logo={null}
+      siteImageBase={BAZA_ZDJEC}
+    >
       <p>treść podstrony</p>
     </PageShell>,
   );
@@ -132,7 +141,14 @@ describe("strona katalogu rysuje stopkę DOKŁADNIE RAZ", () => {
     const copy = await getStorefrontCopy("pl");
     const site = strona();
     const html = renderToStaticMarkup(
-      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site} logo={null}>
+      <StoreChrome
+        style={DEFAULT_SITE_STYLE}
+        copy={copy}
+        storeName="Sklep"
+        site={site}
+        logo={null}
+        siteImageBase={BAZA_ZDJEC}
+      >
         <main>
           <SiteRenderer sections={pageSections(site) as never} asRoot={false} anchors />
         </main>
@@ -213,7 +229,14 @@ describe("kotwice stopki poza stroną z sekcjami", () => {
     // Trasa katalogu woła powłokę BEZ `footerAnchorBase` — cele kotwic stoją
     // na niej, więc `/store#kontakt` byłoby przeładowaniem strony zamiast skoku.
     const html = renderToStaticMarkup(
-      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={strona()} logo={null}>
+      <StoreChrome
+        style={DEFAULT_SITE_STYLE}
+        copy={copy}
+        storeName="Sklep"
+        site={strona()}
+        logo={null}
+        siteImageBase={BAZA_ZDJEC}
+      >
         <main>treść katalogu</main>
       </StoreChrome>,
     );

@@ -26,6 +26,8 @@ const repositoryRoot = resolve(panelRoot, "../..");
 const read = (path: string) => readFileSync(resolve(repositoryRoot, path), "utf8");
 
 const TRASA = "apps/panel/app/[locale]/(kreator)/strona/[siteId]/podglad/page.tsx";
+/** Podział sekcji podglądu na STRONĘ i POWŁOKĘ (ADR-172) — lustro sklepu. */
+const PODZIAL = "apps/panel/app/[locale]/(kreator)/strona/[siteId]/podglad/shell-sections.ts";
 const PASEK = "apps/panel/app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx";
 
 /** Źródła sklepu, które dotykają danych strony najemcy. */
@@ -58,7 +60,36 @@ describe("podgląd szkicu: bramka i źródło danych", () => {
   });
 
   it("odsiewa dokładnie to, czego klient nie zobaczy po publikacji", () => {
-    expect(trasa).toMatch(/section\.enabled && !section\.deletedInDraft/);
+    /*
+     * Od ADR-172 odsiew stoi w module podziału sekcji, do którego trasa
+     * deleguje — bo podgląd bierze teraz sekcje z DWÓCH stron (własnej
+     * i głównej) i odsiew musi być dla obu ten sam. Kontrakt idzie za kodem:
+     * pilnujemy zdania TAM, GDZIE ONO JEST, plus tego, że trasa naprawdę
+     * przez ten moduł przechodzi. Zdanie zostawione w tym pliku po przenosinach
+     * badałoby prozę, a nie zachowanie.
+     */
+    const podzial = read(PODZIAL);
+    expect(podzial.length, "pusty moduł podziału — kontrola po pustym zbiorze").toBeGreaterThan(500);
+    expect(podzial).toMatch(/section\.enabled && !section\.deletedInDraft/);
+    expect(trasa, "trasa przestała wołać wspólny podział sekcji").toContain(
+      "previewShellSections(",
+    );
+  });
+
+  it("stopkę bierze z POWŁOKI (strona główna), nie z sekcji tej strony", () => {
+    /*
+     * ADR-154 uczynił stopkę sekcją POWŁOKI, a faza 2 dała najemcy wiele stron.
+     * Między tymi dwiema falami została luka: kreator pozwalał zbudować stopkę
+     * na podstronie, podgląd ją rysował, a sklep jej nigdy nie renderował.
+     * Kryterium jest REJESTREM z rdzenia (ten sam, którym dzieli je storefront),
+     * a nie porównaniem `type === "footer"` przepisanym po raz trzeci.
+     */
+    const podzial = read(PODZIAL);
+    expect(podzial).toContain("isPinnedLastType");
+    expect(podzial).toContain("HOME_PAGE_SLUG");
+    expect(podzial, "podział sekcji zna typ stopki z ręki, a nie z rejestru").not.toMatch(
+      /type === ["']footer["']/,
+    );
   });
 
   it("styl bierze ze SZKICU, nie z kolumny opublikowanej", () => {

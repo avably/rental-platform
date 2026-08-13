@@ -15,7 +15,7 @@
  * dwa kontenery zapytań `site` i podwójnie liczoną szerokość responsywności.
  */
 import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
-import { SiteChrome, SiteRenderer } from "@avably/ui";
+import { SiteChrome, StoreShellFooter } from "@avably/ui";
 import type { ReactNode } from "react";
 
 import { StoreHeader } from "@/components/storefront/store-header";
@@ -24,16 +24,12 @@ import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 
 /**
- * NAGŁÓWEK CHROME SKLEPU (h1/h2/legenda/nazwa sklepu).
- *
- * `.site-title` niesie w arkuszu samą WAGĘ — krój nagłówka arkusz nakłada
- * wyłącznie przez klasy skal sekcji (`.landing-*`, `.canvas-type-*`), bo tam
- * „nagłówek" jest już rozpoznany. Chrome sklepu żadnej z tych klas nie ma, więc
- * bez tej deklaracji „Koszyk" byłby pisany krojem tekstu ciągłego, a hero tuż
- * obok — krojem nagłówkowym z tej samej pary. Krój bierzemy ze ZMIENNEJ motywu,
- * nie z nazwy rodziny: para krojów zostaje wyborem najemcy.
+ * NAGŁÓWEK CHROME SKLEPU — stała mieszka od ADR-172 w pakiecie UI, razem
+ * z kształtem powłoki, którą składa teraz zarówno sklep, jak i podgląd szkicu
+ * w panelu. Re-eksport zostaje, bo trasy sklepu piszą nim nazwę najemcy na
+ * ekranie „sklep w budowie" — i nie mają powodu wiedzieć, gdzie ta klasa żyje.
  */
-export const SITE_HEADING = "site-title font-[family-name:var(--site-font-heading)]";
+export { SITE_HEADING } from "@avably/ui";
 
 export function StoreChrome({
   style,
@@ -41,6 +37,7 @@ export function StoreChrome({
   storeName,
   site,
   logo,
+  siteImageBase,
   footerAnchorBase,
   revealNonce,
   className,
@@ -74,6 +71,17 @@ export function StoreChrome({
    */
   logo: StoreLogo | null;
   /**
+   * PREFIKS PUBLICZNEGO URL-a ZDJĘĆ SEKCJI — WYMAGANY (ADR-172).
+   *
+   * Powłoka rysuje stopkę tym samym rendererem, co trasa katalogu, a element
+   * obrazu na płótnie bez tego prefiksu rysuje się jako SZARY KAFEL ZASTĘPCZY
+   * — na każdej trasie i bez jednego błędu w konsoli. Do ADR-172 powłoka
+   * propsu nie podawała wcale; wada była uśpiona wyłącznie dlatego, że żadna
+   * stopka najemcy nie miała jeszcze elementu obrazu. Wymagany props zamienia
+   * to przeoczenie w błąd typów — tak samo jak `site` i `logo` wyżej.
+   */
+  siteImageBase: string;
+  /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
    * których `#kontakt` nie ma celu. Trasa katalogu go NIE podaje, bo cele
@@ -100,32 +108,18 @@ export function StoreChrome({
       <StoreHeader copy={copy} storeName={storeName} logo={logo} />
       {children}
       {/*
-        STOPKA POWŁOKI (faza 0, ADR-154) — TEN SAM renderer i TA SAMA treść, co
-        na stronie katalogu, tylko wywołany o piętro wyżej. Drugi renderer
-        stopki znaczyłby drugie źródło prawdy o jej wyglądzie, a płótno kreatora
-        przestałoby być dowodem na to, co zobaczy klient (ADR-083).
-
-        `asRoot={false}`, bo korzeń wystawia `SiteChrome` wyżej — dwa korzenie
-        to dwa kontenery zapytań `site` i podwójnie liczona szerokość (ADR-085).
-
-        `anchors`, bo stopka niesie kotwicę `#stopka` z rejestru i jest w tym
-        dokumencie JEDNA — dokładnie warunek, pod którym kotwice wolno włączyć.
+        STOPKA POWŁOKI (faza 0, ADR-154) — od ADR-172 składa ją pakiet UI, ten
+        sam, który składa ją w podglądzie szkicu. Sklep rozstrzyga tu dwie
+        rzeczy, których pakiet znać nie ma prawa: PRZEŁĄCZNIK NAJEMCY „pokaż
+        znak także w stopce" (ADR-160 — drugiego wgrania pod stopkę nie ma)
+        i PREFIKS ZDJĘĆ, bez którego obraz w stopce byłby szarym kaflem.
       */}
-      {shellFooter.length > 0 ? (
-        <SiteRenderer
-          sections={shellFooter}
-          style={style}
-          asRoot={false}
-          anchors
-          /*
-            JEDNO WGRANIE, DWA MIEJSCA UŻYCIA (ADR-160). Stopka bierze TEN SAM
-            znak, co nagłówek — drugiego wgrania pod stopkę nie ma. Przełącznik
-            najemcy rozstrzyga się TU, a nie w rendererze: pakiet UI dostaje
-            albo gotowy znak, albo `null`.
-          */
-          footerLogo={logo?.inFooter ? logo : null}
-        />
-      ) : null}
+      <StoreShellFooter
+        sections={shellFooter}
+        style={style}
+        logo={logo?.inFooter ? logo : null}
+        siteImageBase={siteImageBase}
+      />
     </SiteChrome>
   );
 }

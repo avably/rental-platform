@@ -144,6 +144,12 @@ export default async function TenantStorePage() {
         (`#kontakt`, `#produkty`) stoją właśnie na tej stronie.
       */
       site={site}
+      /*
+        PREFIKS ZDJĘĆ TAKŻE DLA POWŁOKI (ADR-172). Ten sam szew, którym niżej
+        jadą zdjęcia sekcji strony — bo stopkę rysuje ten sam renderer, a jego
+        element obrazu bez prefiksu daje szary kafel zastępczy.
+      */
+      siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >
       {origin ? <JsonLd data={businessJsonLd} /> : null}

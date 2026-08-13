@@ -30,16 +30,40 @@
  * odpowiada na pytanie „co zobaczy klient po publikacji" — a klient ich nie
  * zobaczy.
  *
+ * ==================== POWŁOKA SKLEPU, NIE SAME SEKCJE (ADR-172) ====================
+ *
+ * Do ADR-172 trasa rysowała WYŁĄCZNIE sekcje strony, a pasek obiecywał przy tym
+ * wprost „Tak strona wygląda po publikacji". Sklep stawia nad sekcjami powłokę
+ * na KAŻDEJ trasie (znak firmy zamiast nazwy, koszyk) i dokłada pod nimi stopkę
+ * ze strony głównej — więc obietnica była fałszywa dokładnie tam, gdzie ma być
+ * wiarygodna, a w całym panelu nie istniała ani jedna powierzchnia pokazująca
+ * wgrany znak w NAGŁÓWKU, czyli w głównym miejscu jego użycia.
+ *
+ * Kształt powłoki mieszka od ADR-172 w pakiecie UI (`StoreShellHeader`,
+ * `StoreShellFooter`), bo panel nie ma prawa importować ze storefrontu, a dwa
+ * kształty powłoki znaczyłyby dwie prawdy o tym, co widzi klient.
+ *
+ * Nagłówek podglądu NIE PROWADZI donikąd (`interactive={false}`): trasa stoi
+ * w panelu, gdzie `/store` i `/cart` nie istnieją, a odnośnik wyprowadzający
+ * operatora z podglądu na 404 byłby gorszy niż jego brak. Licznika koszyka nie
+ * ma z tego samego powodu — koszyk jest stanem przeglądarki KLIENTA.
+ *
  * `force-dynamic` z tego samego powodu, co w kreatorze: bez pinu Next wciągnąłby
  * trasę w statyczny prerender, a CSP panelu (nonce per żądanie) odmówiłaby
  * wykonania skryptów wypieczonych z nonce'em z czasu builda.
  */
-import { SiteRenderer, type RenderSection } from "@avably/ui";
+import {
+  SiteChrome,
+  SiteRenderer,
+  StoreShellFooter,
+  StoreShellHeader,
+  type RenderSection,
+} from "@avably/ui";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
+import { previewShellSections } from "./shell-sections";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { previewProductsFor } from "@/lib/site-preview-data";
@@ -113,19 +137,30 @@ export default async function SiteDraftPreviewPage({
     .select("name, logo_draft")
     .eq("id", ctx.tenantId!)
     .maybeSingle();
+  const storeName = (tenantRow?.name as string | undefined) ?? "";
   const draftLogo = tenantError ? null : tenantLogo(tenantRow?.logo_draft);
-  const footerLogo = draftLogo?.inFooter
-    ? tenantLogoRender(draftLogo, (tenantRow?.name as string | undefined) ?? "")
-    : null;
+  const headerLogo = tenantLogoRender(draftLogo, storeName);
+  const footerLogo = draftLogo?.inFooter ? headerLogo : null;
 
-  const sections = toEditorSections(data.sections)
-    .filter((section) => section.enabled && !section.deletedInDraft)
-    .map((section) => ({
-      id: section.id,
-      position: section.position,
-      type: section.type,
-      content: section.content,
-    }));
+  /*
+    NAPIS KOSZYKA W JĘZYKU SKLEPU, nie panelu — powłoka jest tym, co zobaczy
+    klient, więc mówi osią tenancką (L6, ADR-102), tak samo jak `labels` wyżej.
+    Wartość jest LUSTREM `storefront.nav.cart`; równość przypina kontrakt
+    w `test/site-preview-shell.test.tsx`.
+  */
+  const shellCopy = await getTranslations({ locale: tenantLocale, namespace: "site.shell" });
+
+  /*
+    PODZIAŁ NA STRONĘ I POWŁOKĘ (ADR-172) — stopka podstrony nie renderuje się
+    w sklepie, więc nie renderuje się i tutaj; zamiast niej podgląd rysuje
+    stopkę strony GŁÓWNEJ, dokładnie jak `/store/[slug]`. Patrz `./shell-sections`.
+  */
+  const { page, shell, shadowedPinned } = await previewShellSections(
+    ctx.supabase,
+    ctx.tenantId!,
+    (data.site as { slug?: string | null }).slug,
+    data.sections,
+  );
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -161,6 +196,17 @@ export default async function SiteDraftPreviewPage({
               {t("preview.logoUnreadable")}
             </p>
           ) : null}
+          {/*
+            STOPKA TEJ STRONY NIE DOCIERA DO KLIENTA (ADR-172) — i operator ma
+            to usłyszeć TUTAJ, bo podgląd jest jedyną powierzchnią, na której
+            widzi, co naprawdę dostanie odwiedzający. Ciche pominięcie byłoby
+            drugą odmianą tej samej wady: praca dalej znika, tylko bez śladu.
+          */}
+          {shadowedPinned ? (
+            <p data-preview-footer-shadowed className="text-muted-foreground text-sm">
+              {t("preview.footerShadowed")}
+            </p>
+          ) : null}
           <p className="text-muted-foreground hidden text-sm sm:block">{t("preview.draftHint")}</p>
           <Link
             href={`/strona/${siteId}/kreator`}
@@ -172,60 +218,101 @@ export default async function SiteDraftPreviewPage({
         </div>
       </header>
 
-      {sections.length === 0 ? (
+      {page.length === 0 && shell.length === 0 ? (
         <p className="text-muted-foreground m-auto max-w-md px-6 text-center text-sm">
           {t("preview.draftEmpty")}
         </p>
       ) : (
-        <main className="min-h-0 flex-1">
-          <SiteRenderer
-            // Rzutowanie jak w płótnie kreatora: `RenderSection` jest unią
-            // dyskryminowaną po typie, a mapowanie wyżej gubi dla TS-a związek
-            // typu z treścią — w czasie wykonania para jest spójna, bo pochodzi
-            // z `toEditorSections`, które parsuje treść schematem TEGO typu.
-            sections={sections as unknown as RenderSection[]}
+        /*
+          KORZEŃ STRONY NAJEMCY WYSTAWIA POWŁOKA, NIE RENDERER (K6, ADR-092) —
+          tak samo, jak w sklepie: nagłówek stoi POD korzeniem i dzięki temu
+          bierze zmienne motywu, zamiast palety panelu. Do ADR-172 korzeń
+          wystawiał tu `SiteRenderer` (`asRoot` domyślnie), a nagłówka nie było
+          wcale.
+        */
+        <SiteChrome
+          style={style}
+          /*
+            PODGLĄD JEST W RUCHU (E8, przewód pod E9). Płótno kreatora stoi, bo
+            tam się stronę USTAWIA; tutaj się ją OGLĄDA, więc animacje wejścia
+            jadą tym samym torem, co na sklepie: liczby bierze preset ruchu
+            MOTYWU (ADR-090/K6), a ostatnie słowo ma `prefers-reduced-motion`
+            czytelnika (bramka w arkuszu). Wartość stoi JAWNIE, choć jest
+            domyślna — inaczej różnica między podglądem a płótnem byłaby brakiem
+            linijki. Od ADR-172 niesie ją KORZEŃ, bo to on rozstrzyga o ruchu.
+          */
+          motion="auto"
+          /*
+           * NONCE POD SKRYPT UZBRAJAJĄCY (ADR-097). Podgląd ma pokazywać to
+           * samo, co sklep — także ruch. Płótno kreatora nonce'a NIE dostaje
+           * i to jest drugi zamek obok `motion="off"`: warstwa edycyjna nie ma
+           * jak się uzbroić, nawet gdyby ktoś zdjął tamten atrybut.
+           */
+          revealNonce={revealNonce}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <StoreShellHeader
+            storeName={storeName}
+            logo={headerLogo}
+            cartLabel={shellCopy("cart")}
+            /*
+              NAGŁÓWEK STOI, ALE NIE PROWADZI. Trasa jest w panelu — `/store`
+              i `/cart` nie istnieją pod tym adresem, więc żywy odnośnik
+              wyprowadzałby operatora z podglądu na 404.
+            */
+            interactive={false}
+          />
+          <main className="min-h-0 flex-1">
+            <SiteRenderer
+              // Rzutowanie jak w płótnie kreatora: `RenderSection` jest unią
+              // dyskryminowaną po typie, a mapowanie wyżej gubi dla TS-a związek
+              // typu z treścią — w czasie wykonania para jest spójna, bo pochodzi
+              // z `toEditorSections`, które parsuje treść schematem TEGO typu.
+              sections={page as unknown as RenderSection[]}
+              style={style}
+              /*
+                `asRoot={false}` — korzeń wystawia powłoka wyżej, tym SAMYM
+                stylem. Dwa korzenie znaczyłyby dwa kontenery zapytań `site`
+                i podwójnie liczoną szerokość, na której stoi responsywność
+                sekcji (ADR-085). Lustro trasy sklepu.
+              */
+              asRoot={false}
+              /*
+                KOTWICE SEKCJI: podgląd odpowiada na pytanie „co dostanie
+                klient", a klient dostaje stronę, na której przycisk hero
+                prowadzi na `#produkty`. Podgląd jest — obok sklepu — jedyną
+                powierzchnią, która jest CAŁĄ stroną i występuje w dokumencie
+                raz, więc `id` mogą tu stanąć bez ryzyka duplikatu (płótno
+                i galeria szablonów kotwic nie dostają).
+              */
+              anchors
+              products={products}
+              /*
+                ETYKIETY CHROME RENDERU w locale TENANTA (L6, ADR-102) — lustro
+                sklepu: bez tego propsu render spada na `DEFAULT_SITE_LABELS`
+                (polskie) i najemca EN ogląda podgląd, który kłamie o języku
+                jego strony.
+              */
+              labels={labels}
+              money={money}
+              siteImageBase={siteImagePublicBase()}
+            />
+          </main>
+          {/*
+            STOPKA POWŁOKI ZE STRONY GŁÓWNEJ (ADR-154/172) — ten sam kształt,
+            co w sklepie, z tym samym prefiksem zdjęć i tym samym znakiem.
+            `footerLogo` rozstrzyga się WYŻEJ (przełącznik najemcy), a nie
+            w pakiecie UI.
+          */}
+          <StoreShellFooter
+            sections={shell as unknown as RenderSection[]}
             style={style}
-            /*
-             * NONCE POD SKRYPT UZBRAJAJĄCY (ADR-097). Podgląd ma pokazywać to
-             * samo, co sklep — także ruch. Płótno kreatora nonce'a NIE dostaje
-             * i to jest drugi zamek obok `motion="off"`: warstwa edycyjna nie
-             * ma jak się uzbroić, nawet gdyby ktoś zdjął tamten atrybut.
-             */
-            revealNonce={revealNonce}
-            /*
-              PODGLĄD JEST W RUCHU (E8, przewód pod E9). Płótno kreatora stoi,
-              bo tam się stronę USTAWIA; tutaj się ją OGLĄDA, więc animacje
-              wejścia jadą tym samym torem, co na sklepie: liczby bierze preset
-              ruchu MOTYWU (ADR-090/K6), a ostatnie słowo ma
-              `prefers-reduced-motion` czytelnika (bramka w arkuszu).
-
-              Wartość stoi tu JAWNIE, choć jest domyślna — inaczej różnica
-              między podglądem a płótnem byłaby brakiem linijki, a kontrakt
-              „warstwa edycyjna stoi" nie miałby czego pilnować po tej stronie.
-            */
-            motion="auto"
-            /*
-              KOTWICE SEKCJI z tego samego powodu, co ruch: podgląd odpowiada
-              na pytanie „co dostanie klient", a klient dostaje stronę, na
-              której przycisk hero prowadzi na `#produkty`. Podgląd jest —
-              obok sklepu — jedyną powierzchnią, która jest CAŁĄ stroną i
-              występuje w dokumencie raz, więc `id` mogą tu stanąć bez ryzyka
-              duplikatu (płótno i galeria szablonów kotwic nie dostają).
-            */
-            anchors
-            products={products}
-            /*
-              ETYKIETY CHROME RENDERU w locale TENANTA (L6, ADR-102) — lustro
-              sklepu: bez tego propsu render spada na `DEFAULT_SITE_LABELS`
-              (polskie) i najemca EN ogląda podgląd, który kłamie o języku
-              jego strony.
-            */
+            logo={footerLogo}
+            siteImageBase={siteImagePublicBase()}
             labels={labels}
             money={money}
-            siteImageBase={siteImagePublicBase()}
-            footerLogo={footerLogo}
           />
-        </main>
+        </SiteChrome>
       )}
     </div>
   );
