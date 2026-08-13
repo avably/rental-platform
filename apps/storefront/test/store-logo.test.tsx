@@ -15,11 +15,20 @@
  *      nagłówek, więc podstrona nie ma jak go zgubić;
  *   6. PUDEŁKO ZNAKU JEST OGRANICZONE — plik 3000 × 200 nie ma jak rozepchnąć
  *      paska, bo wysokość i górna granica szerokości są w ROLI, nie w pliku.
+ *
+ * ==================== ANEKS ADR-167: NA JAKIEJ STOPCE TO MIERZYMY ====================
+ *
+ * Punkty 2 i 3 były do ADR-167 mierzone WYŁĄCZNIE na stopce v1
+ * (`presetContentFor("footer")`) — kształcie, którego kreator nie produkuje
+ * i którego nie ma ani jeden najemca. Suita była zielona, a przełącznik martwy
+ * dla 100 % realnych stopek. Odtąd każdy z tych punktów ma bliźniaczy przypadek
+ * na stopce z KREATORA (`sectionCanvasFrom` → płótno v2), a przypadki v1
+ * zostają jako zgodność wstecz i są tak nazwane.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { DEFAULT_SITE_STYLE, presetContentFor } from "@avably/core/site";
+import { DEFAULT_SITE_STYLE, presetContentFor, sectionCanvasFrom } from "@avably/core/site";
 import type { PublishedSection, PublishedSite } from "@avably/core/site";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -82,8 +91,67 @@ async function renderPodstrony(logo: StoreLogo | null): Promise<string> {
   );
 }
 
+/**
+ * Strona ze stopką W TYM KSZTAŁCIE, KTÓRY ZAPISUJE KREATOR (ADR-167): treść
+ * presetu przepuszczona przez `sectionCanvasFrom`, czyli płótno v2.
+ */
+function stronaZeStopkaNaPlotnie(obraz?: "wlasny"): PublishedSite {
+  const canvas = sectionCanvasFrom("footer", presetContentFor("footer", "pl"));
+  const elements = obraz
+    ? [
+        ...canvas.elements,
+        {
+          id: "footer-image-1",
+          kind: "image",
+          source: { kind: "storage", path: `${TENANT}/site/wlasny.png` },
+          alt: "Znak wstawiony ręcznie",
+          fit: "contain",
+          layout: { desktop: { x: 100, y: 12, w: 30, h: 8, z: 1 } },
+        },
+      ]
+    : canvas.elements;
+  const footer = {
+    id: "s-footer",
+    position: 0,
+    type: "footer",
+    content: { ...canvas, elements },
+  } as unknown as PublishedSection;
+  return {
+    template: "classic",
+    publishedAt: "2026-08-13T00:00:00Z",
+    style: {},
+    logo: null,
+    sections: [footer],
+  } as PublishedSite;
+}
+
+async function renderPowlokiNaPlotnie(
+  logo: StoreLogo | null,
+  obraz?: "wlasny",
+): Promise<string> {
+  const copy = await getStorefrontCopy("pl");
+  return renderToStaticMarkup(
+    <StoreChrome
+      style={DEFAULT_SITE_STYLE}
+      copy={copy}
+      storeName={STORE_NAME}
+      site={stronaZeStopkaNaPlotnie(obraz)}
+      logo={logo}
+    >
+      <p>treść</p>
+    </StoreChrome>,
+  );
+}
+
 function obrazyZnaku(markup: string): string[] {
   return [...markup.matchAll(/<img[^>]*class="[^"]*site-logo[^"]*"[^>]*>/g)].map(([tag]) => tag);
+}
+
+/** Wycinek dokumentu od `<footer` do końca — stopka jest ostatnia w powłoce. */
+function stopkaZ(markup: string): string {
+  const start = markup.indexOf("<footer");
+  expect(start, "w dokumencie nie ma stopki — dowód liczyłby po pustym zbiorze").toBeGreaterThan(-1);
+  return markup.slice(start);
 }
 
 describe("resolveStoreLogo — z koperty na render", () => {
@@ -149,6 +217,74 @@ describe("render znaku w powłoce sklepu", () => {
     const markup = await renderPodstrony({ src: EXPECTED_SRC, alt: "Znak", inFooter: true });
     const main = markup.slice(markup.indexOf("<main"), markup.indexOf("</main>"));
     expect(obrazyZnaku(main)).toEqual([]);
+  });
+});
+
+describe("ADR-167 — stopka W KSZTAŁCIE Z KREATORA (płótno v2)", () => {
+  it("ZE ZNAKIEM: nagłówek i stopka na płótnie niosą TEN SAM adres", async () => {
+    const markup = await renderPowlokiNaPlotnie({
+      src: EXPECTED_SRC,
+      alt: "Znak",
+      inFooter: true,
+    });
+    expect(obrazyZnaku(markup)).toHaveLength(2);
+    const stopka = stopkaZ(markup);
+    expect(obrazyZnaku(stopka)).toHaveLength(1);
+    expect(obrazyZnaku(stopka)[0]).toContain(`src="${EXPECTED_SRC}"`);
+  });
+
+  it("PRZEŁĄCZNIK WYŁĄCZONY: ta sama stopka nie ma znaku, nagłówek go ma", async () => {
+    // Druga noga. Jednostronna asercja przepuściłaby render, który rysuje znak
+    // ZAWSZE — czyli przełącznik odwrotnie martwy.
+    const markup = await renderPowlokiNaPlotnie({
+      src: EXPECTED_SRC,
+      alt: "Znak",
+      inFooter: false,
+    });
+    expect(obrazyZnaku(markup)).toHaveLength(1);
+    expect(obrazyZnaku(stopkaZ(markup))).toEqual([]);
+  });
+
+  it("BEZ ZNAKU: stopka na płótnie wygląda tak, jak wyglądała", async () => {
+    const markup = await renderPowlokiNaPlotnie(null);
+    expect(obrazyZnaku(markup)).toEqual([]);
+    expect(markup).toContain("<footer");
+  });
+
+  it("STOPKA Z WŁASNYM OBRAZEM: znak do niej NIE wchodzi (bez dwóch znaków)", async () => {
+    const markup = await renderPowlokiNaPlotnie(
+      { src: EXPECTED_SRC, alt: "Znak", inFooter: true },
+      "wlasny",
+    );
+    const stopka = stopkaZ(markup);
+    expect(stopka).not.toContain("data-footer-mark");
+    expect(obrazyZnaku(stopka)).toEqual([]);
+    /*
+      Kontrola pozytywna: element obrazu operatora w tej stopce JEST — brak
+      znaku nie wynika z tego, że stopka jest pusta.
+
+      Sprawdzamy ELEMENT, a nie jego adres, i to nie jest osłabienie asercji,
+      tylko zapis stanu faktycznego: powłoka sklepu nie podaje stopce
+      `siteImageBase` (podają go WYŁĄCZNIE dwie trasy z sekcjami strony), więc
+      obraz w stopce rysuje się dziś jako kafel zastępczy. To osobna wada
+      z ADR-154 — opisana w ADR-167 jako znalezisko, nie naprawiana tutaj.
+      Asercja na adres byłaby więc czerwona z POWODU tamtej wady i maskowałaby
+      to, o czym jest ten test.
+    */
+    expect(stopka).toContain('data-element-kind="image"');
+    // W nagłówku znak zostaje: reguła dotyczy stopki, a nie całego sklepu.
+    expect(obrazyZnaku(markup)).toHaveLength(1);
+  });
+
+  it("znak stoi WEWNĄTRZ `<footer>`, poza `<main>`", async () => {
+    const markup = await renderPowlokiNaPlotnie({
+      src: EXPECTED_SRC,
+      alt: "Znak",
+      inFooter: true,
+    });
+    const stopka = stopkaZ(markup);
+    expect(stopka).toContain("data-footer-mark");
+    expect(stopka.slice(stopka.indexOf("data-footer-mark"))).toContain("</footer>");
   });
 });
 

@@ -17,6 +17,7 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { ScreenBackLink } from "@/components/screens/screen-header";
+import { footerMarkGaps } from "@/lib/footer-mark-reach";
 import { requireMemberPage } from "@/lib/member-page";
 import { listSites } from "@/lib/site-queries";
 import { tenantLogo } from "@/lib/tenant-logo-render";
@@ -50,6 +51,21 @@ export default async function SitePage() {
     .eq("id", ctx.tenantId!)
     .maybeSingle();
 
+  /*
+    GDZIE ZNAK DO STOPKI NIE DOTRZE (ADR-167). Odczyt jest tu, a nie w karcie,
+    bo karta jest komponentem KLIENCKIM — i dotyczy stanu OPUBLIKOWANEGO,
+    czyli tego samego zbioru sekcji, który wypuszcza `app.get_published_page`.
+    Nieudany odczyt gasi samo zdanie, a nie ekran: brak ostrzeżenia jest gorszy
+    od ostrzeżenia, ale pusta lista stron byłaby gorsza od obu.
+  */
+  const footerRows = await ctx.supabase
+    .from("site_sections")
+    .select("site_id, content_published")
+    .eq("tenant_id", ctx.tenantId!)
+    .eq("type", "footer")
+    .eq("enabled_published", true)
+    .not("content_published", "is", null);
+
   const format = await getFormatter();
   const stamp = (value: string | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
@@ -78,6 +94,14 @@ export default async function SitePage() {
           draft: tenantLogo(tenantRow.data?.logo_draft),
           published: tenantLogo(tenantRow.data?.logo_published),
         }}
+        footerGaps={footerMarkGaps(
+          sites.map((site) => ({
+            id: site.id,
+            name: site.name,
+            live: site.published_at !== null,
+          })),
+          footerRows.data ?? [],
+        )}
       />
       <SitePages rows={rows} />
     </div>

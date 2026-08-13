@@ -1,3 +1,8 @@
+import {
+  CANVAS_COLUMNS,
+  CANVAS_DESIGN_WIDTH_PX,
+  CANVAS_PAD_COLUMNS,
+} from "@avably/core/site";
 import * as React from "react";
 
 import { cn } from "../lib/cn";
@@ -527,6 +532,42 @@ export function FooterSection({
         </div>
       </div>
     </footer>
+  );
+}
+
+/**
+ * PAS ZNAKU FIRMY POD PŁÓTNEM STOPKI (ADR-167).
+ *
+ * Stopka v1 ma dla znaku miejsce z projektu (wyżej, nad nazwą firmy). Stopka na
+ * PŁÓTNIE go nie ma i mieć nie może: jej geometria jest ABSOLUTNA, więc każdy
+ * prostokąt wskazany wewnątrz siatki albo przykrywa cudzy element, albo zostaje
+ * w pustce, którą operator zaprojektował jako pustkę. Dlatego znak dostaje pas
+ * w PRZEPŁYWIE, poza siatką — jedyne miejsce w tej sekcji, które nie należy do
+ * niczyjego układu.
+ *
+ * POD siatką, a nie nad nią. Nad siatką znak stanąłby przed KRESKĄ, którą
+ * stopka odcina się od poprzedniej sekcji (`footerCanvas` stawia `divider` jako
+ * pierwszy element) — czyli wizualnie po stronie treści strony, a nie stopki.
+ * Pod siatką jest ostatnią rzeczą w dokumencie i czyta się jako podpis.
+ *
+ * Pas dzieli z płótnem SUFIT SZEROKOŚCI i PAS TREŚCI, i bierze obie liczby
+ * z tych samych stałych rdzenia, z których liczy je siatka — znak wyrównany
+ * „na oko" rozjeżdżałby się z kolumną stopki przy każdej zmianie marginesu.
+ */
+export function FooterMark({ logo }: { logo: SiteLogoRender }) {
+  return (
+    <div
+      data-footer-mark
+      className="mx-auto w-full pb-10"
+      style={{
+        maxWidth: CANVAS_DESIGN_WIDTH_PX,
+        paddingInline: `${(CANVAS_PAD_COLUMNS / CANVAS_COLUMNS) * 100}%`,
+      }}
+    >
+      {/* Pudełko o STAŁEJ wysokości (`.site-logo`) — plik o dowolnych
+          proporcjach nie rozpycha stopki i nie robi skoku układu. */}
+      <img className="site-logo" src={logo.src} alt={logo.alt} />
+    </div>
   );
 }
 
