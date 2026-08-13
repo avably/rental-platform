@@ -30,10 +30,12 @@ import {
   type FinalizeSiteImageUploadResult,
   type PrepareSiteImageUploadResult,
 } from "@/lib/site-image-upload";
-import { MAX_SITE_LOGO_BYTES, prepareTenantLogoUpload } from "@/lib/tenant-logo-upload";
+import {
+  MAX_SITE_LOGO_BYTES,
+  prepareTenantLogoUpload,
+  type TenantLogoActionResult,
+} from "@/lib/tenant-logo-upload";
 import { requireMember } from "@/lib/supabase-server";
-
-export type TenantLogoActionResult = { ok: true } | { ok: false; error: string };
 
 type Translator = (key: string) => string;
 

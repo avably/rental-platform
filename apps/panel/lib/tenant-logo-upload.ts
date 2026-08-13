@@ -23,6 +23,9 @@ export interface PrepareTenantLogoUploadDependencies {
 
 export { MAX_SITE_LOGO_BYTES };
 
+/** Wynik czasowników znaku (zapis szkicu, publikacja, zdjęcie znaku). */
+export type TenantLogoActionResult = { ok: true } | { ok: false; error: string };
+
 export async function prepareTenantLogoUpload(
   input: { mime: string; size: number },
   deps: PrepareTenantLogoUploadDependencies,
