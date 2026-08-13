@@ -25,7 +25,7 @@
  * Testowane bez Supabase (klient zamockowany na „brak sesji"), więc bramka
  * działa w jobie `ci`.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthError } from "@/lib/auth";
 
@@ -428,6 +428,27 @@ describe("route handlery — klasyfikacja ochrony", () => {
 });
 
 describe.each(["pl", "en"])("chronione trasy — anonim, locale %s", (locale) => {
+  /*
+   * ROZGRZEWKA GRAFU MODUŁÓW — hook istnieje po to, żeby JEDNORAZOWY koszt nie
+   * wchodził do budżetu POJEDYNCZEGO przypadku. NIE USUWAĆ jako „pustego".
+   *
+   * Strony ładują się leniwie (`import.meta.glob` wyżej), więc PIERWSZY
+   * przypadek `it.each` płacił za zaimportowanie całego łańcucha modułów
+   * (@avably/ui i dalej), a każdy następny szedł z cache'u rejestru modułów
+   * vitest. Zmierzone przed tą zmianą: pierwszy przypadek 2146 ms, kolejne
+   * 4–10 ms. Na współdzielonym runnerze ten sam pierwszy przypadek dobijał
+   * 15 913 ms i przekraczał własny budżet 15 s — cztery razy jednej nocy,
+   * za każdym razem w teście, którego treść nie miała nic wspólnego z tym,
+   * co go wywróciło.
+   *
+   * Podniesienie budżetu byłoby przesunięciem progu i zamaskowaniem prawdziwych
+   * spowolnień. Rozgrzewka wyjmuje koszt z pomiaru, więc budżet przypadku może
+   * zejść CIASNO (patrz niżej) i znowu coś znaczyć.
+   */
+  beforeAll(async () => {
+    await PROTECTED_ROUTES[0]?.load();
+  }, 60_000);
+
   beforeEach(() => {
     currentLocale = locale;
   });
@@ -452,8 +473,13 @@ describe.each(["pl", "en"])("chronione trasy — anonim, locale %s", (locale) =>
       expect(target, "trasa nie przekierowała anonima — brak guarda?").not.toBeNull();
       expect(target).toMatch(new RegExp(`^/${locale}/login(\\?|$)`));
     },
-    // Pierwszy import strony ciągnie za sobą cały łańcuch modułów
-    // (@avably/ui itd.) — na runnerze CI potrafi przekroczyć domyślne 5 s.
-    15_000,
+    /*
+     * Budżet CIASNY, bo po rozgrzewce (beforeAll wyżej) przypadek robi już samą
+     * pracę testu: wywołuje stronę i sprawdza przekierowanie. Zmierzone po
+     * zmianie: pierwszy przypadek 1 ms, kolejne 3–12 ms. 5 s zostawia
+     * dwa rzędy wielkości zapasu na wolny runner i nadal pali się, gdy strona
+     * naprawdę zwolni.
+     */
+    5_000,
   );
 });
