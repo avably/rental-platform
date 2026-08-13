@@ -81,8 +81,71 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
   Wartość jest kopią artefaktu i pilnuje jej dwukierunkowo
   `test/form-measure-contract.test.ts` (mutacja liczby w artefakcie pali suitę).
 */
+/*
+  KIERUNEK PANELU ZBUDOWANY Z SEKCJI LP (ADR-177).
+
+  Panel zachowuje wspólny Geist i publiczny interfejs `@avably/ui`, ale jego
+  płótno nie dziedziczy już ciężkiego, stalowego obrysu z artefaktu Fazy 2.
+  Nadpisania stoją TUTAJ, po imporcie pakietu, więc nie przemalowują storefrontu
+  ani renderera stron najemców. `:root:not(.dark)` jest celowe: jasna paleta
+  nie może wygrać kolejnością arkusza z tokenami `.dark` zaimportowanymi wyżej.
+
+  Obrys strukturalny i obrys pola są dwoma tokenami. Sekcja może mieć bardzo
+  lekką granicę #ECEEEB, ale kontrolka formularza potrzebuje mocniejszego
+  #8F958D, żeby jej kształt nie zniknął na białej powierzchni i zachował
+  kontrast co najmniej 3:1. Limonka zostaje
+  akcją i znacznikiem bieżącego kontekstu, nie kolorem każdej ramki.
+*/
+:root:not(.dark) {
+  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #181b20;
+  --card: #ffffff;
+  --card-foreground: #181b20;
+  --popover: #ffffff;
+  --popover-foreground: #181b20;
+  --primary: #d7ff5f;
+  --primary-foreground: #151a12;
+  --secondary: #f1f2f0;
+  --secondary-foreground: #181b20;
+  --muted: #f4f5f3;
+  --muted-foreground: #6f737a;
+  --accent: #eaffa4;
+  --accent-foreground: #181b20;
+  --destructive: #8b3029;
+  --destructive-foreground: #ffffff;
+  --border: #eceeeb;
+  --input: #8f958d;
+  --ring: #181b20;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #181b20;
+  --sidebar-primary: #d7ff5f;
+  --sidebar-primary-foreground: #151a12;
+  --sidebar-accent: #eaffa4;
+  --sidebar-accent-foreground: #181b20;
+  --sidebar-border: #eceeeb;
+  --sidebar-ring: #181b20;
+  --status-neutral-bg: #f4f5f3;
+  --status-neutral-fg: #4b535a;
+  --status-neutral-border: #d7dbd6;
+  --status-attention-bg: #fff8e8;
+  --status-attention-fg: #755100;
+  --status-attention-border: #f0dfc0;
+  --status-positive-bg: #f0f8f2;
+  --status-positive-fg: #25613d;
+  --status-positive-border: #cfe4d5;
+  --status-problem-bg: #fff1ef;
+  --status-problem-fg: #8b3029;
+  --status-problem-border: #e9cfca;
+}
+
 :root {
   --form-line-measure: 42rem;
+  --radius: 0.375rem;
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.3125rem;
+  --radius-xl: 0.375rem;
 }
 
 [data-form-line-measure] {

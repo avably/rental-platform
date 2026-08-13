@@ -21,10 +21,11 @@
  * Archiwum dokumentów finansowych to osobna decyzja (bucket, izolacja,
  * retencja), a nie skutek uboczny wysyłki maila.
  */
-import { Badge } from "@avably/ui";
+import { StatusBadge } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { formatLogTimestamp } from "@/lib/email-log-view";
+import { secondaryStatusProps } from "@/lib/secondary-status";
 import { requireMember } from "@/lib/supabase-server";
 
 import { sendInvoiceAction } from "./invoice-actions";
@@ -78,7 +79,9 @@ export async function InvoiceSection({
         >
           {t("title")}
         </h2>
-        {lastSent ? <Badge variant="default">{t("sentBadge")}</Badge> : null}
+        {lastSent ? (
+          <StatusBadge {...secondaryStatusProps("email-log", "sent")}>{t("sentBadge")}</StatusBadge>
+        ) : null}
       </div>
 
       {customerEmail ? (

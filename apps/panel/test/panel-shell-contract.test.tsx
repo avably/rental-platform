@@ -203,3 +203,15 @@ describe("kontrakt shella — skok do treści", () => {
     expect(html).not.toContain("aria-hidden");
   });
 });
+
+describe("kontrakt shella — sekcyjna belka ADR-177", () => {
+  it("belka jest białą powierzchnią nad neutralnym płótnem", () => {
+    const topbar = readFileSync(
+      resolve(process.cwd(), "components/shell/panel-topbar.tsx"),
+      "utf8",
+    );
+
+    expect(topbar).toContain("bg-card");
+    expect(topbar).not.toContain("bg-background");
+  });
+});

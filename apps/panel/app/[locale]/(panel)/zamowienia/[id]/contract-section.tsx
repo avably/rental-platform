@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { Badge } from "@avably/ui";
+import { StatusBadge } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
 import { CONTRACT_DOCUMENT_SETTINGS_KEY } from "@/lib/contract-settings";
+import { secondaryStatusProps } from "@/lib/secondary-status";
 import { requireMember } from "@/lib/supabase-server";
 
 import { GenerateContractForm, SendContractForm } from "./contract-forms";
@@ -117,9 +118,9 @@ export async function ContractSection({ orderId }: { orderId: string }) {
 
                 <div className="flex flex-wrap items-center gap-2">
                   {attempt ? (
-                    <Badge variant={attempt.status === "sent" ? "default" : "outline"}>
+                    <StatusBadge {...secondaryStatusProps("email-log", attempt.status)}>
                       {t(attempt.status)}
-                    </Badge>
+                    </StatusBadge>
                   ) : (
                     <span className="text-muted-foreground text-xs">{t("notSent")}</span>
                   )}
