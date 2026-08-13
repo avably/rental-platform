@@ -672,8 +672,13 @@ as $$
        else jsonb_build_object('style', s.style_published)
      end
   -- Znak firmy najemcy (ADR-160) — ten sam warunek i z tego samego powodu.
-  -- Czyta się WYŁĄCZNIE kolumnę opublikowaną: `logo_draft` nie występuje w tym
-  -- zapytaniu tak samo, jak nie występuje `content_draft`.
+  -- Czyta się WYŁĄCZNIE kolumnę opublikowaną; kolumna szkicu nie występuje
+  -- w tym zapytaniu tak samo, jak nie występuje treść szkicu sekcji.
+  --
+  -- Nazwy kolumny szkicu NIE MA też w komentarzu, i to nie jest kosmetyka:
+  -- strażnik strukturalny (packages/db/test/tenant-logo.test.ts) skanuje
+  -- pg_get_functiondef, a ten oddaje ciało RAZEM z komentarzami. Wzmianka
+  -- w komentarzu paliłaby bramkę, która ma pilnować ZAPYTANIA.
   || case
        when t.logo_published = '{}'::jsonb then '{}'::jsonb
        else jsonb_build_object('logo', t.logo_published)
