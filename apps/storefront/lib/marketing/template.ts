@@ -3,8 +3,9 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { PANEL_URL, type Locale } from "@avably/core";
+import { type Locale } from "@avably/core";
 
+import { loginUrl, registerUrl } from "@/lib/marketing/links";
 import pages from "@/marketing/pages.json";
 
 export type MarketingPage = keyof typeof pages;
@@ -118,8 +119,11 @@ export function marketingLinks(locale: Locale) {
       contact: `/${locale}/contact`,
       privacy: `/${locale}/privacy`,
       terms: `/${locale}/terms`,
-      register: `${PANEL_URL}/${locale}/register`,
-      login: `${PANEL_URL}/${locale}/login`,
+      // Adresy panelu MAJĄ jedno źródło (lib/marketing/links.ts) — panel stoi
+      // pod innym origin niż marketing i jego domena jest konfiguracją, nie
+      // literałem w szablonie.
+      register: registerUrl(locale),
+      login: loginUrl(locale),
       langAlternate: `/${other}`,
     },
     lang: { alternate: other },

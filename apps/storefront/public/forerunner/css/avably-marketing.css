@@ -282,3 +282,113 @@ select.text-field {
     height: auto;
   }
 }
+
+/* ══════════ MENU MOBILNE: pozycje nawigacji wracają na ekran (ADR-162) ══════════
+ *
+ * PRZYCZYNA, NIE OBJAW. Arkusz szablonu chowa `.nav-link` poniżej 991 px
+ * (`display: none` w `@media screen and (max-width: 991px)`), bo w oryginale
+ * nawigację na telefonie prowadziło MEGA-MENU: w tym samym progu szablon daje
+ * `.nav-dropdown { display: block }`, a proste pozycje gasi jako duplikaty.
+ * Nasze przeniesienie usuwa rozwijane pozycje w całości (`transformShell`
+ * w `scripts/build-marketing-html.mjs` kasuje każdy `.navigation-link-hover-wrap`
+ * zawierający `.nav-dropdown`), więc zostają wyłącznie pozycje proste — i
+ * wszystkie były schowane. Odnośniki BYŁY w DOM: zmierzone przy 375 px cztery
+ * sztuki, każda `display: none` i prostokąt 0 × 0 px. Rozwinięte menu pokazywało
+ * pole CTA i biały prostokąt po `padding-top: 115px` wewnętrznej owijki.
+ *
+ * Lekarstwo jest czystym CSS-em, więc nie zależy od silnika przeglądarki
+ * (właściciel testuje w Safari, narzędzia w repo mają Chromium). Selektor jest
+ * DWUKLASOWY i wygrywa swoistością (0,2,0) z jednoklasową regułą szablonu
+ * (0,1,0) — bez `!important` i bez zależności od kolejności arkuszy.
+ */
+@media screen and (max-width: 991px) {
+  /* Pole zachęty (`.menu-cta-mobile`) jest pozycjonowane BEZWZGLĘDNIE na górze
+     menu, więc miejsce pod nie robi górny odstęp owijki. Szablon rezerwował
+     115–130 px pod kafel z obrazkiem, którego nasza wersja nie ma: przy polu
+     wysokim na 54 px zostawało 61 px pustej bieli między zachętą a pierwszą
+     pozycją. `min-height` pilnuje, żeby dłuższe tłumaczenie nie weszło pod
+     pierwszy odnośnik — rezerwacja i zawartość zmieniają się razem. */
+  .nav-menu-inner {
+    padding-top: 80px;
+  }
+
+  .nav-menu-inner .menu-cta-mobile {
+    min-height: 56px;
+  }
+
+  .nav-menu-inner .nav-link {
+    display: flex;
+    align-items: center;
+    /* Cel dotykowy: 48 px to wysokość pozycji, nie samego napisu (maska
+       napisu szablonu ma sztywne 22 px i sama w sobie byłaby za niska). */
+    min-height: 48px;
+    padding: 0;
+  }
+
+  /* Wariant `.light` maluje napis kolorem `color--light`. Na desktopie leży on
+     na przezroczystej belce nad ciemnym hero; rozwinięte menu stoi natomiast na
+     WŁASNYM białym tle (`.nav-menu-inner { background-color: color--light }`),
+     więc ten sam napis byłby biały na białym. Kolor przejmuje też maska napisu,
+     bo `.button-text` dziedziczy go po odnośniku. */
+  .nav-menu-inner .nav-link.light,
+  .nav-menu-inner .nav-link.light .button-text {
+    color: var(--_colors---color--dark);
+  }
+
+  /* Pozycje idą w kolumnę na pełną szerokość, rozdzielone włoskową linią —
+     bez niej trzy napisy pod sobą czytają się jak jeden akapit. */
+  .nav-menu-inner .navigation-link-hover-wrap {
+    width: 100%;
+    border-bottom: 1px solid var(--_colors---color--dark-8, rgba(0, 0, 0, 0.08));
+  }
+
+  .nav-menu-inner .navigation-link-hover-wrap:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* ══════════ DOKUMENTY PRAWNE: układ i typografia (ADR-162) ══════════
+ *
+ * Treść dokumentu wnosi wyspa Reacta (`privacy-content.tsx`, `terms-content.tsx`)
+ * razem z własną sekcją i kontenerem — powód w komentarzu tych komponentów.
+ * Tutaj zostaje rytm: nagłówek strony przestaje odbijać pełny odstęp sekcji od
+ * treści, która jest jego ciągiem dalszym, a sam dokument dostaje hierarchię.
+ */
+.section.hero-legal {
+  padding-bottom: var(--_spacing---title-margin-bottom--xs, 40px);
+}
+
+.section.legal-body-section {
+  padding-top: 0;
+  padding-bottom: var(--_spacing---section-spacing--120, 120px);
+}
+
+/* CZYTELNA DŁUGOŚĆ WIERSZA. Sufit siedzi na TREŚCI, nie na kontenerze: kontener
+   jest ten sam, co pod nagłówkiem strony, więc dokument trzyma jedną lewą
+   krawędź na każdej szerokości okna (kontener węższy i wyśrodkowany rozjeżdżał
+   się z nagłówkiem o 360 px przy oknie 1440 px). 720 px to szerokość, którą
+   szablon przewiduje dla tekstu ciągłego (`article-container`). */
+.body-legal {
+  max-width: 720px;
+}
+
+/* Numerowany nagłówek sekcji ma należeć do tekstu POD sobą, a nie stać
+   w połowie drogi między dwoma akapitami — szablon dawał mu symetryczne
+   10 px z obu stron. */
+.body-legal h6 {
+  margin-top: var(--_spacing---divider--32, 32px);
+  margin-bottom: 8px;
+}
+
+.body-legal > p:first-child {
+  margin-bottom: var(--_spacing---divider--32, 32px);
+}
+
+.body-legal p {
+  /* Akapit dokumentu prawnego bywa długi; 10 px szablonu zlepia je w blok. */
+  margin-bottom: 16px;
+}
+
+.body-legal a {
+  text-decoration: underline;
+}

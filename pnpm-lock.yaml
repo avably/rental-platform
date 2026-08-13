@@ -206,6 +206,9 @@ importers:
       eslint-config-next:
         specifier: 16.2.12
         version: 16.2.12(@typescript-eslint/parser@8.65.0(eslint@10.8.1(jiti@2.7.0))(typescript@5.9.3))(eslint@10.8.1(jiti@2.7.0))(typescript@5.9.3)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1(@noble/hashes@1.8.0)
       tailwindcss:
         specifier: ^4
         version: 4.3.3

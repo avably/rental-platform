@@ -116,7 +116,7 @@
       "faq": "Pytania",
       "contact": "Kontakt",
       "login": "Zaloguj się",
-      "cta": "Załóż sklep",
+      "cta": "Otwórz wypożyczalnię",
       "menuLabel": "Nawigacja",
       "languageLabel": "Zmień język",
       "polish": "PL",
@@ -125,14 +125,14 @@
     },
     "banner": {
       "text": "Trial 14 dni bez karty. Prowizji od transakcji u nas nie ma, limitu użytkowników też.",
-      "cta": "Załóż sklep"
+      "cta": "Otwórz wypożyczalnię"
     },
     "hero": {
       "eyebrow": "System dla wypożyczalni sprzętu",
       "titleTop": "Prowadź wynajem",
       "titleBottom": "od rezerwacji po zwrot kaucji.",
       "body": "Panel, w którym prowadzisz cały wynajem, i własna strona sklepu, na której klient rezerwuje sam. Kalendarz pilnuje pojedynczych egzemplarzy, nie modeli, i wie, że piła jest na przeglądzie. Przy płatności kartą kaucja schodzi razem z zamówieniem. Konto zakładasz e-mailem, bez rozmowy z nami.",
-      "cta": "Załóż sklep",
+      "cta": "Otwórz wypożyczalnię",
       "ctaSecondary": "Zobacz, co działa dziś",
       "feature1": "Dostępność na egzemplarz, nie na model",
       "feature2": "Kaucja z karty i z powrotem na kartę",
@@ -183,7 +183,7 @@
     "features": {
       "eyebrow": "Zakres",
       "title": "Zamknij w jednym panelu wynajem, pieniądze i papiery",
-      "cta": "Załóż sklep",
+      "cta": "Otwórz wypożyczalnię",
       "card1Title": "Wyceniaj i przedłużaj bez kalkulatora",
       "card1Body": "W cenniku progowym tydzień kosztuje mniej niż siedem osobnych dób, a wycena przelicza się przy każdej zmianie dat. Gdy klient trzyma sprzęt dwa dni dłużej, przedłużenie przelicza pozycje zamówienia i dopisuje dopłatę co do grosza.",
       "card2Title": "Przyjmuj płatności online — my nie bierzemy z nich nic",
@@ -198,7 +198,7 @@
     "cta": {
       "title": "Przestań zgadywać, jak wyszedł miesiąc",
       "body": "Pulpit pokazuje przychód bieżącego i poprzedniego miesiąca, trend z dwunastu miesięcy, zajętość każdego produktu z ostatnich trzydziestu dni i dziesięciu klientów, którzy zostawili u Ciebie najwięcej. Osobna lista „Wymaga uwagi” zbiera spóźnione zwroty, nieudane płatności i nierozliczone kaucje. Bez arkusza, który otwiera tylko jedna osoba w firmie.",
-      "cta": "Załóż sklep"
+      "cta": "Otwórz wypożyczalnię"
     },
     "momentum": {
       "eyebrow": "Start",
@@ -260,7 +260,7 @@
     "closing": {
       "eyebrow": "Zacznij dziś",
       "title": "Załóż konto i sprawdź to na własnym katalogu",
-      "cta": "Załóż sklep",
+      "cta": "Otwórz wypożyczalnię",
       "ctaSecondary": "Wypróbuj 14 dni bez karty"
     },
     "footer": {
