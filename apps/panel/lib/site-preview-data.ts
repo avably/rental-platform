@@ -12,6 +12,7 @@ import type { StorefrontProduct } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import type { AuthContext } from "./auth";
+import { pickProductThumbnails } from "./catalog/product-thumbnail";
 import { loadCustomFieldDefinitions } from "./custom-fields";
 import { getTenantCurrency } from "./tenant-currency";
 
@@ -69,6 +70,32 @@ export async function previewProductsFor(
   // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
   const valueLocale = locale === "en" ? "en" : "pl";
 
+  /*
+   * ZDJĘCIA SPRZĘTU W PODGLĄDZIE (faza 3, ADR-163).
+   *
+   * Do tej pory płótno rysowało kafle BEZ zdjęć (`imageUrl: null`), choć sklep
+   * je pokazuje — różnica była do przyjęcia, dopóki zdjęcie było tłem kafla.
+   * Od fazy 3 zdjęcie sprzętu jest WARTOŚCIĄ, którą operator wiąże z elementem
+   * płótna: podgląd bez zdjęć pokazywałby wtedy element WYCIĘTY (tak zachowuje
+   * się wiązanie bez wartości), czyli kłamałby o stronie w najgorszy możliwy
+   * sposób — pokazując pustkę tam, gdzie klient zobaczy fotografię.
+   *
+   * Odczyt idzie przez RLS tenanta, a URL składa ta sama funkcja, co miniatury
+   * listy katalogu — bucket jest publiczny, więc ścieżka MUSI pochodzić
+   * z wiersza `product_images`, nigdy z parametru (patrz `product-thumbnail`).
+   */
+  const { data: images } = await ctx.supabase
+    .from("product_images")
+    .select("product_id, storage_path, alt_text")
+    .eq("tenant_id", tenantId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  const thumbnails = pickProductThumbnails(
+    images ?? [],
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  );
+
   return (products ?? []).map((product) => ({
     id: product.id,
     name: product.name,
@@ -76,8 +103,14 @@ export async function previewProductsFor(
     priceLabel: t("preview.priceFrom", {
       price: formatMoney(product.base_price_day_grosze, currency, locale),
     }),
-    imageUrl: null,
-    imageAlt: product.name,
+    imageUrl: thumbnails.get(product.id)?.url ?? null,
+    /*
+      Opis alternatywny PUSTY znaczy zdjęcie dekoracyjne (tak stanowi
+      `pickProductThumbnails`), a kafel i wiązanie potrzebują zdania o TYM
+      sprzęcie — nazwa pozycji jest jedynym, co je niesie. To ta sama reguła,
+      co w sklepie (`alt_text ?? product.name`).
+    */
+    imageAlt: thumbnails.get(product.id)?.alt || product.name,
     /*
       GRANICA PUBLICZNA POWTÓRZONA W PODGLĄDZIE. Panel czyta tabelę wprost
       (RLS, nie RPC katalogu), więc zawężenie „tylko pola widoczne w zamawianiu"

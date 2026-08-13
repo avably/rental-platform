@@ -67,6 +67,7 @@ import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { sectionBandClass } from "./bands";
+import { elementBindings, type ElementBindingResult, type SiteRecordContext } from "./binding-render";
 import { externalLinkRel } from "./links";
 import { ProductCards, siteImageUrl } from "./sections";
 import { siteIconComponent } from "./site-icons";
@@ -261,6 +262,24 @@ function typeClass(element: CanvasElement): string {
   }
 }
 
+/**
+ * NAPIS ATRYBUTU — Z KATALOGU, GDY ZWIĄZANY; z treści, gdy nie (faza 3, ADR-163).
+ *
+ * Sformatowane runy WYPADAJĄ razem z podstawieniem, i to nie jest uproszczenie:
+ * `runs` opisują pogrubienia i linki W KONKRETNYM NAPISIE operatora, więc
+ * przyłożone do wartości z katalogu wskazywałyby zakresy znaków, których w niej
+ * nie ma (a przy krótszej wartości — po prostu inny fragment słowa).
+ */
+function boundText(
+  bindings: ElementBindingResult,
+  attribute: string,
+  fallback: { text: string; runs?: readonly TextRun[] },
+): { text: string; runs?: readonly TextRun[] } {
+  const value = bindings.values[attribute];
+  if (value?.kind === "text") return { text: value.text };
+  return fallback;
+}
+
 function ElementBody({
   element,
   size,
@@ -268,6 +287,7 @@ function ElementBody({
   products,
   labels,
   siteImageBase,
+  bindings,
 }: {
   element: CanvasElement;
   size: ElementSize;
@@ -275,6 +295,8 @@ function ElementBody({
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   siteImageBase?: string;
+  /** Wiązania rozwiązane PRZED zbudowaniem węzła — patrz `SectionCanvasRenderer`. */
+  bindings: ElementBindingResult;
 }) {
   const fill = fillClass(size);
   const type = typeClass(element);
@@ -289,7 +311,8 @@ function ElementBody({
             : styles.cardTitle,
         cn(type, ALIGN_CLASS[element.align], colorClass(element.color)),
       );
-      const body = <FormattedText text={element.text} runs={element.runs} />;
+      const shown = boundText(bindings, "text", element);
+      const body = <FormattedText text={shown.text} runs={shown.runs} />;
       if (element.level === 1) return <h1 className={className}>{body}</h1>;
       if (element.level === 2) return <h2 className={className}>{body}</h2>;
       return <h3 className={className}>{body}</h3>;
@@ -301,6 +324,7 @@ function ElementBody({
           : element.variant === "small"
             ? "site-text-muted"
             : undefined;
+      const shown = boundText(bindings, "text", element);
       return (
         // Rola koloru idzie OSTATNIA, żeby wygrała z przygaszeniem, które
         // wariant `small` dokłada z definicji (tailwind-merge zostawia
@@ -311,7 +335,7 @@ function ElementBody({
             cn("whitespace-pre-line", ALIGN_CLASS[element.align], colorClass(element.color)),
           )}
         >
-          <FormattedText text={element.text} runs={element.runs} />
+          <FormattedText text={shown.text} runs={shown.runs} />
         </p>
       );
     }
@@ -330,7 +354,7 @@ function ElementBody({
             type,
           )}
         >
-          {element.label}
+          {boundText(bindings, "label", { text: element.label }).text}
         </a>
       );
       // Pudełko OBEJMUJĄCE treść nie ma czego w sobie wyrównywać — jest
@@ -343,6 +367,29 @@ function ElementBody({
     case "image": {
       const source = normalizeImageSource(element);
       const objectFit = element.fit === "contain" ? "object-contain" : "object-cover";
+      const bound = bindings.values.source;
+      if (bound?.kind === "image") {
+        /*
+         * ZDJĘCIE Z KATALOGU (faza 3, ADR-163). Adres jest PEŁNYM publicznym
+         * URL-em obiektu bucketa `product-images` — składa go warstwa odczytu,
+         * ta sama, która buduje miniaturę kafla. Nie idzie więc przez
+         * `siteImageUrl`: prefiks bucketa sekcji doklejony do gotowego adresu
+         * dałby ścieżkę, pod którą nie ma nic.
+         *
+         * Opis alternatywny jedzie RAZEM z adresem (patrz `bindings` w
+         * schemacie zdjęcia) — statyczny `alt` obok opisuje zdjęcie, którego
+         * na tym elemencie już nie ma.
+         */
+        return (
+          <img
+            data-element-bound="source"
+            src={bound.url}
+            alt={bound.alt}
+            className={cn("site-media size-full", objectFit)}
+            loading="lazy"
+          />
+        );
+      }
       if (source?.kind === "unsplash") {
         // ATRYBUCJA JEST WARUNKIEM LICENCJI, nie ozdobą — dlatego podpis stoi
         // w tym samym pudełku co zdjęcie i nie da się wystawić jednego bez
@@ -477,6 +524,7 @@ export function SectionCanvasRenderer({
   canvas,
   styles,
   products = [],
+  record,
   labels,
   siteImageBase,
   elementWrapper,
@@ -486,6 +534,12 @@ export function SectionCanvasRenderer({
   canvas: SectionCanvas;
   styles: TemplateStyles;
   products?: StorefrontProduct[];
+  /**
+   * REKORD, NA KTÓRYM STOI STRONA (faza 3, ADR-163) — wejście wiązań
+   * `pageProduct`. Podaje go szablon strony produktu (faza 5); powierzchnia bez
+   * rekordu strony po prostu go nie ma i takie wiązanie wycina węzeł.
+   */
+  record?: StorefrontProduct;
   labels: SiteRenderLabels;
   siteImageBase?: string;
   /**
@@ -512,7 +566,26 @@ export function SectionCanvasRenderer({
    */
   as?: "section" | "footer";
 }) {
-  const bleeding = paintOrder(canvas.elements).filter(bleedsToEdges);
+  /*
+   * WIĄZANIA ROZWIĄZANE RAZ, PRZED ZBUDOWANIEM DRZEWA (faza 3, ADR-163).
+   *
+   * Tu, a nie w `ElementBody`, z dwóch powodów. Pierwszy: WYCIĘCIE musi zdjąć
+   * cały węzeł, a nie jego wnętrze — element ma pudełko ze zmiennymi geometrii
+   * i tło, więc „pusty w środku" byłby dalej widoczny. Drugi: ta funkcja biegnie
+   * na SERWERZE (sklep jest `force-dynamic`), więc wycięty element nie jedzie do
+   * przeglądarki ani w kodzie strony, ani w danych hydracji.
+   */
+  const recordContext: SiteRecordContext = { products, record };
+  const bound = new Map(
+    canvas.elements.map((element) => [element.id, elementBindings(element, recordContext)] as const),
+  );
+  const isCut = (element: CanvasElement): boolean => bound.get(element.id)?.cut === true;
+  const bindingsOf = (element: CanvasElement): ElementBindingResult =>
+    bound.get(element.id) ?? { cut: false, values: {} };
+
+  const bleeding = paintOrder(canvas.elements).filter(
+    (element) => bleedsToEdges(element) && !isCut(element),
+  );
   const Shell = as;
 
   return (
@@ -556,6 +629,7 @@ export function SectionCanvasRenderer({
                 products={products}
                 labels={labels}
                 siteImageBase={siteImageBase}
+                bindings={bindingsOf(element)}
               />
             </div>
           ))}
@@ -619,9 +693,21 @@ export function SectionCanvasRenderer({
            * z jego własnej geometrii. Sklep, który owijki nie podaje, nie
            * dostaje w siatce nic — czyli dokładnie tyle, ile ma dostać.
            */
+          /*
+           * WĘZEŁ WYCIĘTY WIĄZANIEM ZOSTAJE W SIATCE JAKO MIEJSCE DLA WARSTWY
+           * EDYCYJNEJ — dokładnie tak, jak element pełnoekranowy niżej, i z tej
+           * samej lekcji (regres złapany przez PM przy PR #172).
+           *
+           * Gdyby wycięty element wypadał z siatki także w kreatorze, wiązanie
+           * do pozycji usuniętej z katalogu odbierałoby operatorowi dostęp do
+           * elementu NA ZAWSZE: nie dałoby się go zaznaczyć, odwiązać ani
+           * skasować. Sklep, który owijki nie podaje, nie dostaje tu nic —
+           * czyli dokładnie tyle, ile ma dostać.
+           */
+          const cut = isCut(element);
           const bleeds = bleedsToEdges(element);
-          if (bleeds && !elementWrapper) return null;
-          const body = bleeds ? null : (
+          if ((bleeds || cut) && !elementWrapper) return null;
+          const body = bleeds || cut ? null : (
             <div
               data-element-id={element.id}
               data-element-kind={element.kind}
@@ -645,6 +731,7 @@ export function SectionCanvasRenderer({
                 products={products}
                 labels={labels}
                 siteImageBase={siteImageBase}
+                bindings={bindingsOf(element)}
               />
             </div>
           );

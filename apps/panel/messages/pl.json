@@ -1764,7 +1764,35 @@
       "image": "Zdjęcie",
       "changeImage": "Zmień zdjęcie",
       "hugWidth": "Szerokość do treści",
-      "hugHeight": "Wysokość do treści"
+      "hugHeight": "Wysokość do treści",
+      "bindings": {
+        "attributes": {
+          "text": "Wartość: treść",
+          "label": "Wartość: etykieta przycisku",
+          "source": "Wartość: zdjęcie"
+        },
+        "source": "Skąd wartość",
+        "sources": {
+          "static": "Wpisana tutaj",
+          "product": "Z pola sprzętu"
+        },
+        "product": "Sprzęt",
+        "field": "Pole sprzętu",
+        "fields": {
+          "name": "Nazwa",
+          "price": "Cena",
+          "description": "Opis",
+          "image": "Zdjęcie"
+        },
+        "whenEmpty": "Gdy sprzęt nie ma tej wartości",
+        "emptyModes": {
+          "hide": "Nie pokazuj tego elementu",
+          "fallback": "Pokaż tekst zastępczy"
+        },
+        "fallback": "Tekst zastępczy",
+        "note": "Wartość czyta się z katalogu przy każdym wyświetleniu strony. Zmiana w katalogu zmienia stronę bez ponownej edycji.",
+        "noProducts": "Najpierw dodaj sprzęt w katalogu — nie ma czego wskazać."
+      }
     },
     "inline": {
       "bold": "Pogrubienie",

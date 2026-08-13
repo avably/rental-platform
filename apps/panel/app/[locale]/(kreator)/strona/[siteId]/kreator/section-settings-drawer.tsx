@@ -22,19 +22,29 @@
 import {
   isStructuredType,
   type StructuredSectionContent,
+  BINDING_EMPTY_MODES,
   ELEMENT_ALIGNMENTS,
   ELEMENT_COLORS,
   ELEMENT_ICONS,
   HEADING_LEVELS,
+  PRODUCT_BINDING_FIELDS,
   SECTION_BACKGROUNDS,
   SECTION_MAX_ROWS,
   SECTION_MIN_ROWS,
   TEXT_VARIANTS,
+  bindableAttributesOf,
+  bindingOf,
+  isBoundAttribute,
+  productBindingFieldsOf,
   sizeOf,
   supportsHug,
   withSize,
+  type BindingValueKind,
   type CanvasElement,
+  type ElementBinding,
+  type ProductBindingField,
   type SectionCanvas,
+  type StructuredPickEntry,
 } from "@avably/core/site";
 import type { CurrencyCode } from "@avably/core";
 import {
@@ -162,6 +172,15 @@ export function SectionSettingsDrawer({
                   selectedElementId={selectedElementId}
                   onChange={onCanvasChange}
                   onPickImage={onPickImage}
+                  /*
+                    KATALOG DO WSKAZANIA W WIĄZANIU (faza 3, ADR-163) — TA SAMA
+                    lista, którą szuflada sekcji sprzętu dostaje pod `itemsPick`
+                    i którą płótno rysuje w kaflach. Jedno źródło, więc pozycja
+                    wskazana w wiązaniu na pewno narysuje się na podglądzie.
+                  */
+                  catalogProducts={
+                    (importSources?.catalogProducts ?? []) as readonly StructuredPickEntry[]
+                  }
                   convert={
                     onConvert && isStructuredType(section.type) ? (
                       <ConvertToStructured type={section.type} onConvert={onConvert} />
@@ -198,12 +217,15 @@ function CanvasSettings({
   selectedElementId,
   onChange,
   onPickImage,
+  catalogProducts = [],
   convert,
 }: {
   canvas: SectionCanvas;
   selectedElementId: string | null;
   onChange: (update: (canvas: SectionCanvas) => SectionCanvas) => void;
   onPickImage?: () => void;
+  /** Pozycje katalogu do wskazania w wiązaniu (faza 3, ADR-163). */
+  catalogProducts?: readonly StructuredPickEntry[];
   /** Akcja „Przełącz na sekcję 2.0” albo `null` — patrz `ConvertToStructured`. */
   convert?: ReactNode;
 }) {
@@ -259,6 +281,7 @@ function CanvasSettings({
         <ElementSettings
           element={selected}
           onPickImage={onPickImage}
+          catalogProducts={catalogProducts}
           onChange={(update) => onChange((current) => replaceElement(current, selected.id, update))}
         />
       ) : (
@@ -326,10 +349,12 @@ function ElementSettings({
   element,
   onChange,
   onPickImage,
+  catalogProducts = [],
 }: {
   element: CanvasElement;
   onChange: (update: (element: CanvasElement) => CanvasElement) => void;
   onPickImage?: () => void;
+  catalogProducts?: readonly StructuredPickEntry[];
 }) {
   const t = useTranslations("site");
   const id = useId();
@@ -339,6 +364,16 @@ function ElementSettings({
   }
 
   const size = sizeOf(element);
+  /*
+   * WIĄZALNE ATRYBUTY BIORĄ SIĘ Z REJESTRU RDZENIA, nie z `if`-a po rodzaju
+   * elementu (faza 3, ADR-163). Dzięki temu poszerzenie zamkniętej listy jest
+   * jedną linią w `BINDABLE_ATTRIBUTES` i zero linii tutaj — a atrybut, którego
+   * na liście NIE MA, nie dostaje kontrolki, więc operator nie ma jak zapisać
+   * wiązania, którego schemat i tak by nie przyjął.
+   */
+  const bindable = bindableAttributesOf(element.kind);
+  /** Czy pole statyczne tego atrybutu jest zablokowane wartością z katalogu. */
+  const bound = (attribute: string) => isBoundAttribute(element, attribute);
 
   return (
     <div data-element-settings={element.kind} className="border-border flex flex-col gap-5 border-t pt-5">
@@ -384,6 +419,13 @@ function ElementSettings({
             id={`${id}-text`}
             rows={element.kind === "text" ? 5 : 2}
             value={element.text}
+            /*
+              POLE ZWIĄZANE JEST NIEEDYTOWALNE (faza 3, ADR-163). Kreator nie
+              jest panelem danych: gdyby napis dało się tu poprawić mimo
+              wiązania, operator zmieniałby treść, której render i tak nie
+              pokaże — i uczyłby się, że kreator czasem zapisuje w próżnię.
+            */
+            disabled={bound("text")}
             onChange={(event) => {
               // Pusty tekst nie przejdzie schematu — nie zapisujemy go w ogóle,
               // zamiast wyświetlać błąd przy każdym skasowanym znaku.
@@ -400,6 +442,7 @@ function ElementSettings({
             <Input
               id={`${id}-label`}
               value={element.label}
+              disabled={bound("label")}
               onChange={(event) => {
                 if (event.target.value.trim() === "") return;
                 patch({ label: event.target.value } as Partial<CanvasElement>);
@@ -425,6 +468,12 @@ function ElementSettings({
             <Input
               id={`${id}-alt`}
               value={element.alt}
+              /*
+                ZWIĄZANE ZDJĘCIE NIESIE WŁASNY OPIS. Wiązanie oddaje parę „adres
+                + opis alternatywny", więc opis wpisany tutaj opisywałby zdjęcie,
+                którego na tym elemencie już nie ma.
+              */
+              disabled={bound("source")}
               onChange={(event) => {
                 // Opis alternatywny jest WYMAGANY przez schemat (dostępność) —
                 // pustki nie zapisujemy, zamiast pokazywać błąd walidacji przy
@@ -434,13 +483,29 @@ function ElementSettings({
               }}
             />
           </Field>
-          {onPickImage ? (
+          {onPickImage && !bound("source") ? (
             <Button type="button" size="sm" variant="secondary" data-element-image-pick onClick={onPickImage}>
               {t("canvas.changeImage")}
             </Button>
           ) : null}
         </>
       ) : null}
+
+      {/*
+        WIĄZANIA ATRYBUTÓW (faza 3, ADR-163) — na dole szuflady, bo odpowiadają
+        na pytanie „skąd wartość", a nie „jak wygląda". Pytanie o wygląd zadaje
+        się przy każdej edycji, o źródło — raz.
+      */}
+      {bindable.map(({ attribute, value }) => (
+        <AttributeBinding
+          key={attribute}
+          attribute={attribute}
+          valueKind={value}
+          binding={bindingOf(element, attribute)}
+          catalogProducts={catalogProducts}
+          onChange={(next) => onChange((current) => withBinding(current, attribute, next))}
+        />
+      ))}
 
       {element.kind === "icon" ? (
         <Field label={t("canvas.icon")} htmlFor={`${id}-icon`}>
@@ -514,6 +579,206 @@ function ElementSettings({
             }))}
           />
         </Field>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * ZAPIS WIĄZANIA W ELEMENCIE — bez mutacji wejścia.
+ *
+ * Mapa `bindings` ZNIKA, gdy zostanie pusta: element bez wiązań ma być
+ * dokładnie tym, czym był przed fazą 3, także w bajtach zapisanej treści.
+ * Pusty obiekt `{}` przeszedłby schemat i wyglądałby w bazie jak „coś tu było",
+ * a różnicy nie widać ani w kreatorze, ani w sklepie.
+ */
+export function withBinding(
+  element: CanvasElement,
+  attribute: string,
+  binding: ElementBinding | undefined,
+): CanvasElement {
+  const current = { ...((element as { bindings?: Record<string, unknown> }).bindings ?? {}) };
+  if (binding) current[attribute] = binding;
+  else delete current[attribute];
+  const bindings = Object.keys(current).length > 0 ? current : undefined;
+  return { ...element, bindings } as CanvasElement;
+}
+
+/**
+ * ŹRÓDŁO WARTOŚCI JEDNEGO ATRYBUTU (faza 3, ADR-163).
+ *
+ * ==================== DLACZEGO LISTA PÓL JEST ZAWĘŻONA TYPEM ====================
+ *
+ * Operator wybiera pole sprzętu z listy, na której stoją WYŁĄCZNIE pola
+ * oddające wartość w typie, którego ten atrybut oczekuje — cena nie pojawia się
+ * przy źródle zdjęcia, a zdjęcie przy nagłówku. To nie jest wygoda: to jest
+ * lustro schematu (`bindingSchemaFor` w rdzeniu), który wiązania niezgodnego
+ * typem po prostu nie parsuje. Interfejs nie ma prawa proponować czegoś, czego
+ * serwer odmówi — pusty komunikat walidacji przy zapisie strony byłby dla
+ * operatora zagadką.
+ *
+ * ==================== DLACZEGO WARTOŚĆ ZASTĘPCZA BYWA NIEDOSTĘPNA ====================
+ *
+ * Bo pole, które w katalogu jest ZAWSZE wypełnione, nie ma stanu pustego —
+ * a napis „na wszelki wypadek" wpisany pod cenę byłby drugim źródłem prawdy
+ * o cenie, czyli dokładnie tą klasą błędu, którą ta faza zamyka.
+ */
+function AttributeBinding({
+  attribute,
+  valueKind,
+  binding,
+  catalogProducts,
+  onChange,
+}: {
+  attribute: string;
+  valueKind: BindingValueKind;
+  binding: ElementBinding | undefined;
+  catalogProducts: readonly StructuredPickEntry[];
+  onChange: (binding: ElementBinding | undefined) => void;
+}) {
+  const t = useTranslations("site");
+  const id = useId();
+  const fields = productBindingFieldsOf(valueKind);
+  const optionalField = binding ? PRODUCT_BINDING_FIELDS[binding.field].optional : false;
+
+  /*
+   * BEZ ANI JEDNEJ POZYCJI W KATALOGU nie ma czego wskazać — i to jest zdanie
+   * ZAMIAST kontrolki, a nie pusta lista. Pusta lista wygląda jak awaria
+   * szuflady, a operator ma się dowiedzieć, gdzie sprzęt założyć (ta sama
+   * zasada, co `fieldEmpty` w mini-CMS-ie, ADR-154).
+   */
+  if (catalogProducts.length === 0 && !binding) {
+    return (
+      <div data-element-binding={attribute} className="border-border flex flex-col gap-2 border-t pt-5">
+        <p className="text-sm font-medium">{t(`canvas.bindings.attributes.${attribute}`)}</p>
+        <p data-binding-empty className="text-muted-foreground text-[13px] leading-[18px]">
+          {t("canvas.bindings.noProducts")}
+        </p>
+      </div>
+    );
+  }
+
+  const firstProduct = catalogProducts[0]?.value;
+
+  return (
+    <div data-element-binding={attribute} className="border-border flex flex-col gap-3 border-t pt-5">
+      <p className="text-sm font-medium">{t(`canvas.bindings.attributes.${attribute}`)}</p>
+
+      <Field label={t("canvas.bindings.source")} htmlFor={`${id}-source`}>
+        <PanelSelect
+          id={`${id}-source`}
+          value={binding ? "product" : "static"}
+          onValueChange={(value) => {
+            if (value === "static") {
+              onChange(undefined);
+              return;
+            }
+            if (binding || !firstProduct) return;
+            /*
+              ŚWIEŻE WIĄZANIE CELUJE W PIERWSZĄ POZYCJĘ I PIERWSZE POLE ZGODNE
+              TYPEM — czyli w stan, który od razu coś pokazuje. Wiązanie
+              „puste" (bez pozycji) nie przeszłoby schematu, więc szuflada
+              musiałaby trzymać własny stan pośredni i pilnować, żeby nie
+              zapisał się do treści.
+            */
+            onChange({
+              record: { kind: "product", productId: firstProduct },
+              field: fields[0] as ProductBindingField,
+              whenEmpty: "hide",
+            });
+          }}
+          options={[
+            { value: "static", label: t("canvas.bindings.sources.static") },
+            { value: "product", label: t("canvas.bindings.sources.product") },
+          ]}
+        />
+      </Field>
+
+      {binding ? (
+        <>
+          <Field label={t("canvas.bindings.product")} htmlFor={`${id}-product`}>
+            <PanelSelect
+              id={`${id}-product`}
+              value={binding.record.kind === "product" ? binding.record.productId : ""}
+              onValueChange={(value) =>
+                onChange({ ...binding, record: { kind: "product", productId: value } })
+              }
+              options={catalogProducts.map((entry) => ({ value: entry.value, label: entry.label }))}
+            />
+          </Field>
+
+          <Field label={t("canvas.bindings.field")} htmlFor={`${id}-field`}>
+            <PanelSelect
+              id={`${id}-field`}
+              value={binding.field}
+              onValueChange={(value) => {
+                const field = value as ProductBindingField;
+                /*
+                  ZMIANA POLA ZDEJMUJE WARTOŚĆ ZASTĘPCZĄ, gdy nowe pole nie ma
+                  stanu pustego. Bez tego przełączenie „opis" → „cena"
+                  zostawiałoby w treści napis, którego schemat nie przyjmie —
+                  a operator zobaczyłby błąd zapisu strony bez związku z tym,
+                  co przed chwilą kliknął.
+                */
+                const keeps = PRODUCT_BINDING_FIELDS[field].optional;
+                onChange(
+                  keeps
+                    ? { ...binding, field }
+                    : { record: binding.record, field, whenEmpty: "hide" },
+                );
+              }}
+              options={fields.map((field) => ({
+                value: field,
+                label: t(`canvas.bindings.fields.${field}`),
+              }))}
+            />
+          </Field>
+
+          {/*
+            ZACHOWANIE PRZY PUSTCE pokazuje się WYŁĄCZNIE dla pól, które w
+            katalogu bywają puste — patrz nagłówek komponentu.
+          */}
+          {valueKind === "text" && optionalField ? (
+            <>
+              <Field label={t("canvas.bindings.whenEmpty")} htmlFor={`${id}-empty`}>
+                <PanelSelect
+                  id={`${id}-empty`}
+                  value={binding.whenEmpty}
+                  onValueChange={(value) =>
+                    onChange(
+                      value === "fallback"
+                        ? { ...binding, whenEmpty: "fallback", fallback: binding.fallback ?? "—" }
+                        : { record: binding.record, field: binding.field, whenEmpty: "hide" },
+                    )
+                  }
+                  options={BINDING_EMPTY_MODES.map((mode) => ({
+                    value: mode,
+                    label: t(`canvas.bindings.emptyModes.${mode}`),
+                  }))}
+                />
+              </Field>
+              {binding.whenEmpty === "fallback" ? (
+                <Field label={t("canvas.bindings.fallback")} htmlFor={`${id}-fallback`}>
+                  <Input
+                    id={`${id}-fallback`}
+                    value={binding.fallback ?? ""}
+                    onChange={(event) => {
+                      // Pusty napis nie przejdzie schematu przy tym zachowaniu —
+                      // nie zapisujemy go, zamiast pokazywać błąd przy każdym
+                      // skasowanym znaku (ta sama reguła, co przy treści).
+                      if (event.target.value.trim() === "") return;
+                      onChange({ ...binding, fallback: event.target.value });
+                    }}
+                  />
+                </Field>
+              ) : null}
+            </>
+          ) : null}
+
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("canvas.bindings.note")}
+          </p>
+        </>
       ) : null}
     </div>
   );

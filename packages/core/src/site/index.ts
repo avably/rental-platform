@@ -101,6 +101,47 @@ export { SECTION_ANCHORS, sectionAnchorHref, sectionAnchorIds } from "./section-
 export { USP_ICONS, uspIconSchema, type UspIcon } from "./icons";
 
 /**
+ * SILNIK PODPIĘCIA DANYCH (faza 3, ADR-163) mieszka w liściu `./binding`, bo
+ * czytają go trzy warstwy naraz: schemat elementu (`./elements` — co wolno
+ * zapisać), render (@avably/ui — skąd wziąć wartość i kiedy wyciąć węzeł)
+ * i szuflada kreatora (jakie pola w ogóle zaproponować operatorowi). Wspólny
+ * liść zamyka cykl wartości między tym plikiem a `./elements`.
+ */
+export {
+  BINDABLE_ATTRIBUTES,
+  BINDABLE_ELEMENT_KINDS,
+  BINDING_EMPTY_MODES,
+  BINDING_RECORD_KINDS,
+  BINDING_VALUE_KINDS,
+  PRODUCT_BINDING_FIELDS,
+  PRODUCT_BINDING_FIELD_KEYS,
+  bindableAttributeKind,
+  bindableAttributesOf,
+  bindingOf,
+  bindingRecordSchema,
+  bindingSchemaFor,
+  hasBindings,
+  imageBindingSchema,
+  isBindableKind,
+  isBoundAttribute,
+  productBindingFieldsOf,
+  resolveProductBinding,
+  textBindingSchema,
+  type BindableAttribute,
+  type BindableElement,
+  type BindableElementKind,
+  type BindingEmptyMode,
+  type BindingRecordKind,
+  type BindingRecordRef,
+  type BindingValueKind,
+  type BoundValue,
+  type ElementBinding,
+  type ProductBindingField,
+  type ProductBindingFieldSpec,
+  type ProductBindingValues,
+} from "./binding";
+
+/**
  * LOGO NAJEMCY (ADR-160) mieszka w liściu `./logo`, bo nie jest treścią żadnej
  * sekcji ani stylem żadnej strony — jest własnością NAJEMCY, a jego kształt
  * czytają trzy warstwy naraz (panel, baza przez lustro wzorca, sklep).

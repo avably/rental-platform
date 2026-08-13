@@ -61,6 +61,7 @@
 import {
   bringToFront,
   geometryAt,
+  isBoundAttribute,
   isDetachedOnMobile,
   isPinnedLastType,
   mobileLayoutOf,
@@ -607,7 +608,22 @@ export function BuilderCanvas({
                   const rows = activeRows(canvas, mobile);
                   const isSelected =
                     selection?.sectionId === section.id && selection.elementId === element.id;
-                  const editable = element.kind === "heading" || element.kind === "text";
+                  /*
+                   * TREŚĆ ZWIĄZANA Z KATALOGIEM NIE JEST EDYTOWALNA NA PŁÓTNIE
+                   * (faza 3, ADR-163).
+                   *
+                   * To jest ta jedna mina, którą narzędzia rynkowe ratują
+                   * ostrzeżeniem w dokumentacji: jedno płótno, na którym da się
+                   * edytować i szablon, i dane oglądanej pozycji, rozróżniane
+                   * wyłącznie kolorem obrysu. My rozstrzygamy to konstrukcyjnie:
+                   * kliknięcie w związany napis ZAZNACZA element (szuflada mówi,
+                   * skąd wartość pochodzi) i nie otwiera edytora tekstu — nie ma
+                   * więc stanu, w którym operator pisze w wartość, której render
+                   * i tak nie pokaże.
+                   */
+                  const editable =
+                    (element.kind === "heading" || element.kind === "text") &&
+                    !isBoundAttribute(element, "text");
                   const isEditing =
                     editing?.sectionId === section.id && editing.elementId === element.id;
 

@@ -1764,7 +1764,35 @@
       "image": "Photo",
       "changeImage": "Change photo",
       "hugWidth": "Width fits content",
-      "hugHeight": "Height fits content"
+      "hugHeight": "Height fits content",
+      "bindings": {
+        "attributes": {
+          "text": "Value: content",
+          "label": "Value: button label",
+          "source": "Value: photo"
+        },
+        "source": "Where the value comes from",
+        "sources": {
+          "static": "Typed here",
+          "product": "From an item field"
+        },
+        "product": "Item",
+        "field": "Item field",
+        "fields": {
+          "name": "Name",
+          "price": "Price",
+          "description": "Description",
+          "image": "Photo"
+        },
+        "whenEmpty": "When the item has no such value",
+        "emptyModes": {
+          "hide": "Do not show this element",
+          "fallback": "Show replacement text"
+        },
+        "fallback": "Replacement text",
+        "note": "The value is read from the catalogue on every page view. A change in the catalogue changes the page without editing it again.",
+        "noProducts": "Add items to the catalogue first — there is nothing to point at."
+      }
     },
     "inline": {
       "bold": "Bold",
