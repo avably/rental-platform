@@ -18,7 +18,9 @@
  *      `publishedAt` = moment publikacji żywej wersji;
  *   4. `payment_accounts`: sam wiersz konta ≠ podłączone; dopiero
  *      charges_enabled robi krok (odczyt pyta o ISTNIENIE konta zdolnego
- *      przyjmować płatności, nie o pojedynczość wiersza).
+ *      przyjmować płatności, nie o pojedynczość wiersza);
+ *   5. krok sklepu pyta o KORZEŃ (ADR-168): opublikowana PODSTRONA go nie
+ *      odhacza, bo pod `/` klient dalej nie ma czego oglądać.
  *
  * Dowód mutacyjny (procedura recenzji): przywrócenie w `start-card.ts`
  * odczytu `sites` bez filtra published_at i limitu (kształt sprzed hotfixu)
@@ -218,6 +220,48 @@ describe.skipIf(!hasEnv)("sygnały karty startowej (kształt odczytów, żywy Su
     expect(storeStep(steps).done).toBe(true);
     expect(renderCard(steps)).toContain("1 z 6 zrobione");
   });
+
+  it("krok sklepu pyta o KORZEŃ sklepu, a nie o dowolną stronę (ADR-168)", async () => {
+    /*
+     * Po fazie 2 (0073/0074) każda strona stoi pod SWOIM adresem, a krok
+     * obiecuje operatorowi „Opublikuj stronę sklepu" — czyli korzeń. Bez
+     * zawężenia do pustego `slug_published` opublikowany `/oferta` odhaczał
+     * krok sklepu, którego klienci nie mieli: pod `/` była pustka, a panel
+     * meldował „zrobione" i zabierał operatorowi jedyny sygnał o wadzie K1.
+     */
+    const { data: subpage, error } = await admin
+      .from("sites")
+      .insert({ tenant_id: tenant.tenantId, name: "Oferta", slug: "oferta" })
+      .select("id")
+      .single();
+    expect(error, `zasiew podstrony: ${error?.message}`).toBeNull();
+
+    const { error: publishError } = await tenant.client
+      .schema("app")
+      .rpc("publish_site", { p_site_id: subpage!.id });
+    expect(publishError, `publish_site: ${publishError?.message}`).toBeNull();
+
+    const signals = await fetchStartCardSignals(tenant.client, tenant.tenantId);
+    expect(signals.publishedAt, "opublikowana podstrona odhaczyła krok sklepu").toBeNull();
+    expect(storeStep(startSteps(signals)).done).toBe(false);
+
+    // KONTROLA POZYTYWNA: ta sama droga ze stroną GŁÓWNĄ krok odhacza —
+    // inaczej zieleń wyżej znaczyłaby tylko „krok nigdy się nie robi".
+    const { data: home, error: homeError } = await admin
+      .from("sites")
+      .insert({ tenant_id: tenant.tenantId, name: "Strona główna" })
+      .select("id")
+      .single();
+    expect(homeError, `zasiew strony głównej: ${homeError?.message}`).toBeNull();
+    const { error: homePublishError } = await tenant.client
+      .schema("app")
+      .rpc("publish_site", { p_site_id: home!.id });
+    expect(homePublishError, `publish_site (główna): ${homePublishError?.message}`).toBeNull();
+
+    const after = await fetchStartCardSignals(tenant.client, tenant.tenantId);
+    expect(after.publishedAt, "opublikowana strona główna NIE odhaczyła kroku").not.toBeNull();
+    expect(storeStep(startSteps(after)).done).toBe(true);
+  }, 60_000);
 
   it("payment_accounts: sam wiersz konta ≠ podłączone; charges_enabled robi krok", async () => {
     const { error } = await admin.from("payment_accounts").insert({

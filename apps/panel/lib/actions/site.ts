@@ -44,6 +44,7 @@ import {
   upsertSectionInputSchema,
   createSiteInputSchema,
   renameSiteInputSchema,
+  hasHomePage,
   MAX_SECTIONS,
   MAX_SITES,
   type ApplyStarterTemplateInput,
@@ -83,6 +84,12 @@ async function memberCtx(): Promise<
  * Wersja rodzi się NIEŻYWA: `published_at` zostaje NULL, bo jego zapis jest
  * zastrzeżony dla `app.publish_site` (strażnik 0045 odpowiada 42501). Czyli
  * nowa wersja nie ma jak urodzić się publiczna nawet przez pomyłkę.
+ *
+ * STRONA GŁÓWNA POWSTAJE TĄ SAMĄ DROGĄ (ADR-168), bez klucza `slug`. Onboarding
+ * jej NIE zasiewa (`app.create_tenant`, ostatnia definicja w 0070, tworzy
+ * najemcę, członkostwo, dowód akceptacji regulaminu i subdomenę — ani jednego
+ * wiersza `sites`), więc to jest jedyne miejsce w systemie, w którym korzeń
+ * sklepu w ogóle może się pojawić.
  */
 export async function createSite(
   input: CreateSiteInput,
@@ -107,16 +114,54 @@ export async function createSite(
     return { ok: false, error: `Sklep może mieć najwyżej ${MAX_SITES} stron.` };
   }
 
+  // ADRES od razu przy zakładaniu (Faza 2, 0073): strona bez podanego adresu
+  // jest STRONĄ GŁÓWNĄ — to samo, czym wiersz `sites` był do 0072.
+  const slug = parsed.data.slug ?? HOME_PAGE_SLUG;
+
+  /*
+   * STRONA GŁÓWNA MOŻE BYĆ JEDNA — ZAWĘŻENIE, NIE ZAKAZ (ADR-168).
+   *
+   * Do tej poprawki panel bronił się przed drugą stroną główną zakazem
+   * w schemacie: pusty adres nie przechodził NIGDY. Zakaz był po właściwej
+   * stronie ryzyka (druga strona główna pada dopiero na publikacji, przez
+   * 23505, już po zbudowaniu treści), ale bronił też przed PIERWSZĄ — a nowy
+   * najemca ma zero stron, więc korzeń jego sklepu zostawał pusty na zawsze.
+   *
+   * Warunek jest odtąd stanem BAZY, a nie kształtem wejścia, i dlatego stoi
+   * tutaj, a nie w Zodzie. Odczyt jest w tej samej roli co limit `MAX_SITES`:
+   * UPRZEDZA odmowę zdaniem, którym operator umie się posłużyć. Bramką
+   * zostaje unikat `sites_live_slug_unique_idx` — dwie żywe strony pod `/`
+   * są niereprezentowalne niezależnie od tego kodu, także dla surowego
+   * PostgREST-a, który tego odczytu nie wykona.
+   */
+  if (slug === HOME_PAGE_SLUG) {
+    const { data: pages, error: pagesError } = await ctx.supabase
+      .from("sites")
+      .select("slug, slug_published")
+      .eq("tenant_id", ctx.tenantId);
+    if (pagesError) return { ok: false, error: pagesError.message };
+    if (
+      hasHomePage(
+        (pages ?? []).map((page) => ({
+          slug: page.slug as string,
+          slugPublished: page.slug_published as string | null,
+        })),
+      )
+    ) {
+      return {
+        ok: false,
+        error:
+          "Sklep ma już stronę główną — pod adresem „/” może stać tylko jedna. Otwórz ją w kreatorze albo utwórz stronę pod własnym adresem.",
+      };
+    }
+  }
+
   const { data: created, error } = await ctx.supabase
     .from("sites")
     .insert({
       tenant_id: ctx.tenantId,
       name: parsed.data.name,
-      // ADRES od razu przy zakładaniu (Faza 2, 0073): strona bez podanego
-      // adresu jest kolejnym szkicem strony GŁÓWNEJ — to samo, czym wiersz
-      // `sites` był do 0072. Panel podaje go jawnie, więc ta gałąź obsługuje
-      // wyłącznie wywołania spoza formularza.
-      slug: parsed.data.slug ?? HOME_PAGE_SLUG,
+      slug,
     })
     .select("id")
     .single();

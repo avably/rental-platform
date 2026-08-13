@@ -6,8 +6,9 @@
  * Źródła stanów (wszystkie po RLS z sesji operatora, jak sekcje pulpitu):
  *   1. produkt + egzemplarz — `products` (pierwszy wiersz) i `product_units`
  *      (licznik); krok wymaga OBU, bo bez egzemplarza nie ma dostępności;
- *   2. strona sklepu — czy ISTNIEJE JAKAKOLWIEK strona z `published_at`
- *      (publikacja wyłącznie przez app.publish_site — ADR-041);
+ *   2. strona sklepu — czy klient widzi coś pod KORZENIEM sklepu, czyli czy
+ *      istnieje strona opublikowana pod adresem strony głównej (publikacja
+ *      wyłącznie przez app.publish_site — ADR-041; zawężenie z ADR-168);
  *   3. dane firmy do umów — `tenant_settings` klucz `contract_document`
  *      (CHECK z 0026 gwarantuje komplet pól, więc sama obecność wystarcza);
  *   4. nadawca e-maili — `tenant_settings` klucz `email_sender` (ADR-033);
@@ -22,6 +23,8 @@
  * karmi obie decyzje renderu.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { HOME_PAGE_SLUG } from "@avably/core/site";
 
 export const START_STEP_KEYS = [
   "product",
@@ -106,16 +109,23 @@ export async function fetchStartCardSignals(
     // `sites` NIE jest 0-lub-1 wierszem: od migracji 0048 (ADR-093, model
     // wersji stron) tenant ma 0..N wierszy — świeże konto ma ZERO (żaden
     // krok provisioningu nie zasiewa strony; wiersz powstaje dopiero przy
-    // „Nowa strona" w panelu), a operator z wersjami roboczymi ma ich WIELE.
-    // Unikat częściowy sites_one_live_per_tenant_idx gwarantuje najwyżej
-    // JEDNĄ żywą (published_at not null) — i o nią pyta ten krok; limit(1)
-    // zdejmuje jednak KAŻDE założenie o liczbie wierszy, także gdyby model
-    // znów się zmienił. (Incydent prod 2026-08-11: odczyt bez tego filtra
-    // zakładał pojedynczość i rzucał PGRST116 przy 0 lub >1 stronach.)
+    // „Nowa strona" w panelu), a operator z wieloma stronami ma ich WIELE.
+    // limit(1) zdejmuje KAŻDE założenie o liczbie wierszy. (Incydent prod
+    // 2026-08-11: odczyt bez tego filtra zakładał pojedynczość i rzucał
+    // PGRST116 przy 0 lub >1 stronach.)
+    //
+    // ZAWĘŻENIE DO STRONY GŁÓWNEJ (ADR-168). Do fazy 2 strona była jedna,
+    // więc „jakakolwiek opublikowana" znaczyło „sklep coś pokazuje". Po
+    // 0073/0074 stron jest wiele i każda stoi pod SWOIM adresem — a krok
+    // mówi operatorowi „Opublikuj stronę sklepu", czyli obiecuje korzeń.
+    // Bez `slug_published = ''` opublikowany `/kontakt` odhaczał krok
+    // sklepu, którego klienci nie mają: pod `/` dalej była pustka, a panel
+    // meldował „zrobione" i zabierał operatorowi jedyny sygnał o wadzie.
     supabase
       .from("sites")
       .select("published_at")
       .eq("tenant_id", tenantId)
+      .eq("slug_published", HOME_PAGE_SLUG)
       .not("published_at", "is", null)
       .limit(1)
       .maybeSingle(),

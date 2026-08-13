@@ -47,7 +47,7 @@ import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
 import { createSite, deleteSite, publishSite, renameSite } from "@/lib/actions/site";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
-import { MAX_SITES, pageSlugIssue } from "@/lib/site-validation";
+import { MAX_SITES, hasHomePage, pageSlugIssue } from "@/lib/site-validation";
 
 export interface SitePageRow {
   id: string;
@@ -78,6 +78,14 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
   }
 
   const limitReached = rows.length >= MAX_SITES;
+  /*
+    STRONY GŁÓWNEJ NIE MA — STAN, KTÓRY MA WŁASNE MIEJSCE NA EKRANIE (ADR-168).
+    Do tej poprawki był NIEWIDOCZNY i NIEWYCHODZALNY: okno „Nowa strona"
+    wymagało niepustego adresu, a adresem strony głównej jest pusty — więc
+    świeży najemca budował podstrony, a pod `/` klienci mieli pustkę. Zdanie
+    nazywa skutek (co widzi klient), a nie brak wiersza w tabeli.
+  */
+  const homeMissing = !hasHomePage(rows);
 
   return (
     <div className="flex flex-col gap-6" data-site-pages>
@@ -93,6 +101,30 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
         <p className="text-muted-foreground text-[13px] leading-[18px]">
           {t("pages.limitReached", { max: MAX_SITES })}
         </p>
+      ) : null}
+
+      {homeMissing ? (
+        <div
+          data-site-home-missing
+          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+        >
+          <p className="text-sm font-medium">{t("pages.homeMissingTitle")}</p>
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("pages.homeMissingBody")}
+          </p>
+          {/*
+            OSOBNY CZASOWNIK, a nie tryb w oknie „Nowa strona": strona główna
+            różni się od podstrony tym, czego operator NIE podaje (adresu), więc
+            przełącznik w jednym oknie kazałby mu wybierać między polem
+            wypełnionym a wygaszonym. Adres nie jedzie w wywołaniu w ogóle —
+            `createSite({ name })` trafia w gałąź `?? HOME_PAGE_SLUG`.
+          */}
+          <NewPageDialog
+            home
+            disabled={pending || limitReached}
+            onCreate={(name) => run(() => createSite({ name }))}
+          />
+        </div>
       ) : null}
 
       {rows.length === 0 ? (
@@ -299,13 +331,23 @@ function SlugField({
  * Adres podpowiada się z nazwy DOPÓKI operator go nie tknie (wzorzec formularza
  * kategorii, ADR-155): dalsze przepisywanie po ręcznej zmianie kasowałoby jego
  * pracę przy każdym znaku nazwy.
+ *
+ * WARIANT `home` (ADR-168) — TO SAMO OKNO, INNY CZASOWNIK. Strona główna nie
+ * ma adresu do podania: jej adresem jest `/`. Pole adresu jest więc WYGASZONE,
+ * a nie ukryte (ta sama zasada, co w oknie zmiany nazwy), a wywołanie idzie
+ * BEZ klucza `slug` — bo pusty adres wpisany w pole dalej jest błędem
+ * („z tej nazwy nie da się go wyprowadzić"), a pominięty znaczy stronę główną.
+ * Dwie kopie okna rozjechałyby się przy pierwszej zmianie w polu nazwy.
  */
 function NewPageDialog({
   disabled,
+  home = false,
   onCreate,
 }: {
   disabled: boolean;
-  onCreate: (name: string, slug: string) => void;
+  home?: boolean;
+  /** `slug === undefined` = strona główna (gałąź `?? HOME_PAGE_SLUG` w akcji). */
+  onCreate: (name: string, slug: string | undefined) => void;
 }) {
   const t = useTranslations("site");
   const [open, setOpen] = useState(false);
@@ -313,7 +355,11 @@ function NewPageDialog({
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
 
-  const blocked = name.trim().length === 0 || pageSlugIssue(slug) !== null;
+  // Nazwa strony głównej jest daną WYŁĄCZNIE panelową (sklep jej nie widzi),
+  // więc wariant `home` startuje z gotową propozycją: operator ma tu do
+  // podjęcia jedną decyzję, nie dwie.
+  const initialName = home ? t("pages.homeDefaultName") : "";
+  const blocked = name.trim().length === 0 || (!home && pageSlugIssue(slug) !== null);
 
   return (
     <Dialog
@@ -321,22 +367,29 @@ function NewPageDialog({
       onOpenChange={(next) => {
         setOpen(next);
         if (next) {
-          setName("");
+          setName(initialName);
           setSlug("");
           setSlugTouched(false);
         }
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" size="sm" disabled={disabled} data-new-site>
+        <Button
+          type="button"
+          size="sm"
+          disabled={disabled}
+          {...(home ? { "data-new-home-page": "" } : { "data-new-site": "" })}
+        >
           <Plus className="size-4" aria-hidden />
-          {t("pages.new")}
+          {home ? t("pages.newHome") : t("pages.new")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("pages.newTitle")}</DialogTitle>
-          <DialogDescription>{t("pages.newBody")}</DialogDescription>
+          <DialogTitle>{home ? t("pages.newHomeTitle") : t("pages.newTitle")}</DialogTitle>
+          <DialogDescription>
+            {home ? t("pages.newHomeBody") : t("pages.newBody")}
+          </DialogDescription>
         </DialogHeader>
         <Input
           value={name}
@@ -345,12 +398,13 @@ function NewPageDialog({
           aria-label={t("pages.nameLabel")}
           onChange={(event) => {
             setName(event.target.value);
-            if (!slugTouched) setSlug(suggestPageSlug(event.target.value));
+            if (!home && !slugTouched) setSlug(suggestPageSlug(event.target.value));
           }}
         />
         <SlugField
           value={slug}
-          hint={t("pages.slugHint")}
+          disabled={home}
+          hint={home ? t("pages.slugHome") : t("pages.slugHint")}
           onChange={(next) => {
             setSlugTouched(true);
             setSlug(next);
@@ -364,14 +418,16 @@ function NewPageDialog({
           </DialogClose>
           <Button
             type="button"
-            data-new-site-confirm
+            {...(home
+              ? { "data-new-home-page-confirm": "" }
+              : { "data-new-site-confirm": "" })}
             disabled={blocked}
             onClick={() => {
-              onCreate(name.trim(), slug.trim());
+              onCreate(name.trim(), home ? undefined : slug.trim());
               setOpen(false);
             }}
           >
-            {t("pages.newConfirm")}
+            {home ? t("pages.newHomeConfirm") : t("pages.newConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
