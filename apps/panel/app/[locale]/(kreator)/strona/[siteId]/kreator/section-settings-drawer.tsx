@@ -293,6 +293,81 @@ function LinkField({
   );
 }
 
+/**
+ * POLE TEKSTOWE, KTÓRE DAJE SIĘ OPRÓŻNIĆ (K3, ADR-169).
+ *
+ * Etykieta, opis zdjęcia i treść napisu pisały wprost do szkicu z bramką
+ * `if (trim() === "") return;` — czyli kasowanie ostatniego znaku było
+ * ODRZUCANE, a wartość wracała z modelu w tym samym renderze. Dla operatora
+ * wyglądało to na zamarłe pole: żeby przepisać treść od zera, trzeba było
+ * zaznaczyć całość i nadpisać jednym ruchem. Powód bramki był słuszny (schemat
+ * odrzuca pustkę), ale odpowiedzią na „tej wartości nie zapiszemy" nie może być
+ * CISZA — to ta sama wada, co reszta tego ADR-a, o dwa piętra niżej.
+ *
+ * Odtąd pole trzyma własny stan wpisywania (wzorzec `LinkField`): pustka jest
+ * dozwolonym stanem POŚREDNIM, do szkicu nie idzie, a operator czyta wprost, że
+ * tak zostawionej wartości nie zapiszemy.
+ */
+function DraftText({
+  id,
+  label,
+  value,
+  disabled,
+  rows,
+  field,
+  onCommit,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  disabled?: boolean;
+  /** Liczba wierszy = pole wielolinijkowe; brak = jednolinijkowy `Input`. */
+  rows?: number;
+  field?: string;
+  onCommit: (next: string) => void;
+}) {
+  const t = useTranslations("site");
+  const [draft, setDraft] = useState(value);
+  const [syncedFrom, setSyncedFrom] = useState(value);
+  if (syncedFrom !== value) {
+    setSyncedFrom(value);
+    setDraft(value);
+  }
+
+  const empty = draft.trim() === "";
+  const common = {
+    id,
+    value: draft,
+    disabled,
+    "data-element-field": field,
+    "aria-describedby": empty ? `${id}-empty` : undefined,
+    onChange: (event: { target: { value: string } }) => {
+      const next = event.target.value;
+      setDraft(next);
+      if (next.trim() === "") return;
+      setSyncedFrom(next);
+      onCommit(next);
+    },
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {rows ? <Textarea rows={rows} {...common} /> : <Input {...common} />}
+      {empty ? (
+        <p
+          id={`${id}-empty`}
+          role="alert"
+          data-element-empty-note
+          className="text-destructive text-[13px] leading-[18px]"
+        >
+          {t("canvas.emptyNotSaved")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function CanvasSettings({
   canvas,
   selectedElementId,
@@ -500,42 +575,32 @@ function ElementSettings({
       ) : null}
 
       {element.kind === "heading" || element.kind === "text" ? (
-        <Field label={t("canvas.text")} htmlFor={`${id}-text`}>
-          <Textarea
-            id={`${id}-text`}
-            rows={element.kind === "text" ? 5 : 2}
-            value={element.text}
-            /*
-              POLE ZWIĄZANE JEST NIEEDYTOWALNE (faza 3, ADR-163). Kreator nie
-              jest panelem danych: gdyby napis dało się tu poprawić mimo
-              wiązania, operator zmieniałby treść, której render i tak nie
-              pokaże — i uczyłby się, że kreator czasem zapisuje w próżnię.
-            */
-            disabled={bound("text")}
-            onChange={(event) => {
-              // Pusty tekst nie przejdzie schematu — nie zapisujemy go w ogóle,
-              // zamiast wyświetlać błąd przy każdym skasowanym znaku.
-              if (event.target.value.trim() === "") return;
-              patch({ text: event.target.value } as Partial<CanvasElement>);
-            }}
-          />
-        </Field>
+        <DraftText
+          id={`${id}-text`}
+          label={t("canvas.text")}
+          rows={element.kind === "text" ? 5 : 2}
+          value={element.text}
+          /*
+            POLE ZWIĄZANE JEST NIEEDYTOWALNE (faza 3, ADR-163). Kreator nie
+            jest panelem danych: gdyby napis dało się tu poprawić mimo
+            wiązania, operator zmieniałby treść, której render i tak nie
+            pokaże — i uczyłby się, że kreator czasem zapisuje w próżnię.
+          */
+          disabled={bound("text")}
+          onCommit={(text) => patch({ text } as Partial<CanvasElement>)}
+        />
       ) : null}
 
       {element.kind === "button" ? (
         <>
-          <Field label={t("canvas.label")} htmlFor={`${id}-label`}>
-            <Input
-              id={`${id}-label`}
-              data-element-field="label"
-              value={element.label}
-              disabled={bound("label")}
-              onChange={(event) => {
-                if (event.target.value.trim() === "") return;
-                patch({ label: event.target.value } as Partial<CanvasElement>);
-              }}
-            />
-          </Field>
+          <DraftText
+            id={`${id}-label`}
+            label={t("canvas.label")}
+            field="label"
+            value={element.label}
+            disabled={bound("label")}
+            onCommit={(label) => patch({ label } as Partial<CanvasElement>)}
+          />
           <LinkField
             id={`${id}-href`}
             value={element.href}
@@ -563,25 +628,20 @@ function ElementSettings({
 
       {element.kind === "image" ? (
         <>
-          <Field label={t("canvas.alt")} htmlFor={`${id}-alt`}>
-            <Input
-              id={`${id}-alt`}
-              value={element.alt}
-              /*
-                ZWIĄZANE ZDJĘCIE NIESIE WŁASNY OPIS. Wiązanie oddaje parę „adres
-                + opis alternatywny", więc opis wpisany tutaj opisywałby zdjęcie,
-                którego na tym elemencie już nie ma.
-              */
-              disabled={bound("source")}
-              onChange={(event) => {
-                // Opis alternatywny jest WYMAGANY przez schemat (dostępność) —
-                // pustki nie zapisujemy, zamiast pokazywać błąd walidacji przy
-                // każdym skasowanym znaku.
-                if (event.target.value.trim() === "") return;
-                patch({ alt: event.target.value } as Partial<CanvasElement>);
-              }}
-            />
-          </Field>
+          <DraftText
+            id={`${id}-alt`}
+            label={t("canvas.alt")}
+            value={element.alt}
+            /*
+              ZWIĄZANE ZDJĘCIE NIESIE WŁASNY OPIS. Wiązanie oddaje parę „adres
+              + opis alternatywny", więc opis wpisany tutaj opisywałby zdjęcie,
+              którego na tym elemencie już nie ma.
+            */
+            disabled={bound("source")}
+            /* Opis alternatywny jest WYMAGANY przez schemat (dostępność), więc
+               pustki nie zapisujemy — ale mówimy o tym wprost. */
+            onCommit={(alt) => patch({ alt } as Partial<CanvasElement>)}
+          />
           {/* KADROWANIE — pole modelu `IMAGE_FITS` bez kontrolki do ADR-166.
               Różnica jest widoczna od razu (przycięcie kontra całe zdjęcie
               w pudełku), więc jej brak zmuszał do dobierania geometrii pod

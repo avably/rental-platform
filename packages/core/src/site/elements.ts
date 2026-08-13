@@ -621,7 +621,19 @@ export const sectionCanvasSchema = z
     version: z.literal(SECTION_CANVAS_VERSION),
     rows: z.number().int().min(SECTION_MIN_ROWS).max(SECTION_MAX_ROWS),
     background: z.enum(SECTION_BACKGROUNDS).default("default"),
-    elements: z.array(canvasElementSchema).max(MAX_ELEMENTS_PER_SECTION),
+    /*
+     * Sufit dostaje WŁASNE ZDANIE (K3, ADR-169). Bez niego odmowa wracała do
+     * kreatora surowym komunikatem Zoda po angielsku („Too big: expected array
+     * to have <=60 items") — a od ADR-169 ten tekst jest tym, co operator
+     * czyta po słowach „Nie zapisano, bo". Przyczyna, której nie da się
+     * przeczytać, nie różni się w skutkach od braku przyczyny.
+     */
+    elements: z
+      .array(canvasElementSchema)
+      .max(
+        MAX_ELEMENTS_PER_SECTION,
+        `Sekcja mieści najwyżej ${MAX_ELEMENTS_PER_SECTION} elementów. Usuń jeden, żeby dodać nowy.`,
+      ),
   })
   .strict()
   .superRefine((canvas, ctx) => {
