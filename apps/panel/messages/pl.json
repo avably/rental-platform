@@ -1803,7 +1803,7 @@
     },
     "starter": {
       "title": "Wybierz punkt wyjścia",
-      "description": "Każdy szablon to gotowa strona z własną kolorystyką, typografią i zdjęciami. Wszystko zmienisz później.",
+      "description": "Każdy szablon to gotowa strona z układem i zdjęciami. Możesz też zacząć od pustej. Wygląd — kolory, typografia — jest wspólny dla całego sklepu i zmienisz go później.",
       "dismiss": "Wróć do kreatora",
       "startOver": "Zacznij od nowa",
       "confirmTitle": "Zastąpić stronę szablonem?",
@@ -1817,13 +1817,15 @@
         "photo-video": "Foto i wideo",
         "one-page-lean": "Jedna strona",
         "catalog-first": "Katalog na start"
-      }
+      },
+      "emptyName": "Pusta strona",
+      "emptyMood": "Zaczynasz od czystego płótna i sam dokładasz sekcje."
     },
     "pages": {
       "subtitle": "Sklep pokazuje jedną wersję strony. Pozostałe czekają w panelu — możesz je budować i przełączać, kiedy chcesz.",
       "new": "Nowa strona",
       "newTitle": "Nowa wersja strony",
-      "newBody": "Powstanie pusta strona — wybierzesz dla niej szablon startowy. Klienci zobaczą ją dopiero, gdy ją opublikujesz.",
+      "newBody": "Powstanie pusta strona — wybierzesz dla niej punkt wyjścia albo zaczniesz od zera. Klienci zobaczą ją dopiero, gdy ją opublikujesz.",
       "newConfirm": "Utwórz stronę",
       "defaultName": "Nowa wersja",
       "nameLabel": "Nazwa strony",
@@ -1854,7 +1856,8 @@
       "slugHome": "Strona główna sklepu ma adres „/” i nie da się go zmienić.",
       "addressPending": "Klienci mają jeszcze adres {current} — nowy zacznie działać po publikacji.",
       "redirectOld": "Przekieruj stary adres {old} na nowy",
-      "redirectOldHint": "Klienci z zapisanym linkiem i wyniki w wyszukiwarce trafią pod nowy adres zamiast na stronę błędu."
+      "redirectOldHint": "Klienci z zapisanym linkiem i wyniki w wyszukiwarce trafią pod nowy adres zamiast na stronę błędu.",
+      "homeBadge": "Strona główna"
     },
     "structured": {
       "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",

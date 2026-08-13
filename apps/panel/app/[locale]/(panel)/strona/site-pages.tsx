@@ -124,8 +124,24 @@ export function SitePages({ rows }: { rows: SitePageRow[] }) {
                 )}
               </div>
 
-              <p className="text-muted-foreground font-mono text-[13px] leading-[18px]">
-                {pagePathFromSlug(row.slug)}
+              {/*
+                STRONA GŁÓWNA JEST PODPISANA (ADR-161). Sam adres `/` jest
+                poprawny i jednocześnie nieczytelny: to jedyny wiersz listy,
+                którego adres nie mówi, czym ta strona jest — „kontakt"
+                i „o-nas" mówią to same. Podpis stoi OBOK adresu, a nie zamiast
+                niego, bo adres strony głównej też jest informacją (operator
+                pyta o niego przy przekierowaniach i w sitemapie).
+              */}
+              <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]">
+                <span className="font-mono">{pagePathFromSlug(row.slug)}</span>
+                {row.slug === HOME_PAGE_SLUG ? (
+                  <span
+                    data-site-page-home
+                    className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]"
+                  >
+                    {t("pages.homeBadge")}
+                  </span>
+                ) : null}
               </p>
 
               {/*

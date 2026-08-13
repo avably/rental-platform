@@ -19,7 +19,6 @@
  * Bramka wejścia jest ta sama, co na reszcie tras tenanta (`requireMemberPage`);
  * właściwą izolacją danych pozostaje RLS (0019), nie ten guard.
  */
-import { resolveSiteStyle } from "@avably/core/site";
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 
@@ -33,6 +32,7 @@ import {
 } from "@/lib/site-import-sources";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
+import { getTenantDraftStyle } from "@/lib/tenant-appearance";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { SiteBuilder } from "./site-builder";
@@ -121,11 +121,11 @@ export default async function SiteBuilderPage({
       live={liveSite?.id === data.site.id}
       liveName={liveSite && liveSite.id !== data.site.id ? liveSite.name : null}
       /*
-       * Styl SZKICU. Kolumna `sites.template` wchodzi tu jako FALLBACK stron
-       * sprzed ADR-090 — dzięki temu strona zastana renderuje się motywem
-       * zastanym, czyli dokładnie tak, jak wyglądała.
+       * Styl SZKICU — SKLEPU, nie tej strony (ADR-161). Kreator pokazuje
+       * wygląd, który po publikacji obowiązuje na WSZYSTKICH podstronach, więc
+       * zmiana akcentu w kreatorze „Kontaktu" jest zmianą całego sklepu.
        */
-      style={resolveSiteStyle(data.site.style_draft, data.site.template)}
+      style={await getTenantDraftStyle(ctx.supabase, ctx.tenantId!)}
       sections={toEditorSections(data.sections)}
       products={products}
       money={money}

@@ -43,7 +43,7 @@ const actions = vi.hoisted(() => ({
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
   restoreSection: vi.fn(),
-  updateSiteStyle: vi.fn(),
+  updateStoreStyle: vi.fn(),
   applyStarterTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));
@@ -135,7 +135,7 @@ describe("odrzucona akcja tła: stan błędu zamiast wiecznego „Zapisywanie…
   it("AUTOZAPIS (kanał quiet) po odrzuceniu też melduje błąd z ponowieniem", async () => {
     // Kanał quiet obsługuje autozapis geometrii i treści płótna (K2/K2c) —
     // dokładnie ta ścieżka, na której zguba edycji boli najbardziej.
-    actions.updateSiteStyle.mockRejectedValueOnce(new Error("fetch failed"));
+    actions.updateStoreStyle.mockRejectedValueOnce(new Error("fetch failed"));
     const { container } = renderBuilder();
 
     const accents = container.querySelectorAll<HTMLElement>("[data-style-accent]");
@@ -146,7 +146,7 @@ describe("odrzucona akcja tła: stan błędu zamiast wiecznego „Zapisywanie…
       expect(screen.getByRole("alert").textContent).toContain(builder.saveFailed),
     );
     fireEvent.click(screen.getByRole("button", { name: builder.retry }));
-    await waitFor(() => expect(actions.updateSiteStyle).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(actions.updateStoreStyle).toHaveBeenCalledTimes(2));
   });
 
   it("błąd BIZNESOWY (ok: false) zostaje przy starym kontrakcie — komunikat akcji, bez ponowienia", async () => {

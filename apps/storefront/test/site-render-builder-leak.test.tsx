@@ -102,6 +102,8 @@ const BUILDER_LAYER_MARKERS = [
   "data-template-gallery",
   "data-template-gallery-dismiss",
   "data-starter-template",
+  // Pusta strona jako punkt wyjścia (ADR-161) — kafel galerii, nie treść.
+  "data-starter-empty",
   "data-builder-style",
   "data-style-accent",
   "data-style-font-pair",

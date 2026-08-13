@@ -81,7 +81,7 @@ import {
   restoreSection,
   toggleSection,
   applyStarterTemplate,
-  updateSiteStyle,
+  updateStoreStyle,
   upsertSection,
 } from "@/lib/actions/site";
 
@@ -213,10 +213,19 @@ export function SiteBuilder({
   const [flashId, setFlashId] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
-   * GALERIA SZABLONÓW (K5 v2, ADR-090). Otwarta z automatu przy PIERWSZEJ
-   * wizycie, czyli wtedy, gdy strona nie ma ani jednej sekcji: pusty kreator
-   * jest gorszą odpowiedzią na „nie wiem, od czego zacząć" niż sześć gotowych
-   * stron. Później wraca przyciskiem „zacznij od nowa".
+   * GALERIA PUNKTÓW WYJŚCIA (K5 v2, ADR-090; pusta strona od ADR-161). Otwarta
+   * z automatu przy PIERWSZEJ wizycie, czyli wtedy, gdy strona nie ma ani
+   * jednej sekcji: pusty kreator jest gorszą odpowiedzią na „nie wiem, od czego
+   * zacząć" niż sześć gotowych stron. Później wraca przyciskiem
+   * „zacznij od nowa".
+   *
+   * WYBÓR „PUSTA STRONA" ZAMYKA GALERIĘ BEZ ZAPISU i nie zostawia po sobie
+   * śladu w bazie — bo nie ma czego zapisywać. Skutek jest jawny i świadomy:
+   * po przeładowaniu trasy strona dalej nie ma sekcji, więc galeria otworzy się
+   * znowu. Alternatywą byłaby kolumna trzymająca podpowiedź interfejsu („ten
+   * operator już wybrał"), czyli stan publiczny w rozumieniu ADR-091 — bliźniak,
+   * wpis u strażnika i test za jedno kliknięcie mniej. Pierwsza wstawiona sekcja
+   * kończy sprawę sama.
    */
   const [galleryOpen, setGalleryOpen] = useState(sections.length === 0);
 
@@ -712,8 +721,19 @@ export function SiteBuilder({
               }),
             )
           }
-          // Przy pierwszej wizycie nie ma do czego wracać — bez sekcji kreator
-          // pokazałby puste płótno, więc zamknięcie galerii byłoby ślepą uliczką.
+          /*
+            PUSTA STRONA JEST PUNKTEM WYJŚCIA, A NIE UCIECZKĄ (ADR-161).
+            Do tej pory zamknięcie galerii przy pierwszej wizycie było
+            niemożliwe: bez sekcji operator NIE MIAŁ jak dostać się do płótna,
+            więc każda nowa strona rodziła się z cudzej treści, którą trzeba
+            było wyczyścić. Puste płótno nie jest ślepą uliczką — ma paletę
+            i „+", czyli dokładnie te same drogi wstawienia sekcji, co strona
+            z treścią.
+          */
+          onEmpty={() => setGalleryOpen(false)}
+          // Zamknięcie BEZ wyboru zostaje przy stronie, która treść już ma:
+          // tam „wróć do kreatora" znaczy „zostaw wszystko, jak było", i to
+          // jest inna obietnica niż „zacznij od pustej".
           onDismiss={sections.length > 0 ? () => setGalleryOpen(false) : undefined}
         />
       ) : null}
@@ -736,7 +756,7 @@ export function SiteBuilder({
           onDropElement={dropElementAt}
           onDragElementOver={(pointer) => setElementDropSectionId(elementDropTargetAt(pointer))}
           onDragElementEnd={() => setElementDropSectionId(null)}
-          onSaveStyle={(next) => run(() => updateSiteStyle(siteId, next))}
+          onSaveStyle={(next) => run(() => updateStoreStyle(next))}
         />
 
         {/* Scena przewija się w OBU osiach (K4, ADR-088): płótno desktopowe ma

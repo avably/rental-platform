@@ -48,7 +48,7 @@ const actions = vi.hoisted(() => ({
   toggleSection: vi.fn(),
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
-  updateSiteStyle: vi.fn(),
+  updateStoreStyle: vi.fn(),
   applyStarterTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));

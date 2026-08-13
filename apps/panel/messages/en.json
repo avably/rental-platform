@@ -1803,7 +1803,7 @@
     },
     "starter": {
       "title": "Pick a starting point",
-      "description": "Every template is a finished page with its own colours, typography and photography. You can change all of it later.",
+      "description": "Every template is a finished page with a layout and photography. You can also start from an empty one. The look — colours and typography — is shared by the whole store and you can change it later.",
       "dismiss": "Back to the builder",
       "startOver": "Start over",
       "confirmTitle": "Replace the page with a template?",
@@ -1817,13 +1817,15 @@
         "photo-video": "Photo and video",
         "one-page-lean": "Single page",
         "catalog-first": "Catalogue first"
-      }
+      },
+      "emptyName": "Empty page",
+      "emptyMood": "Start from a blank canvas and add sections yourself."
     },
     "pages": {
       "subtitle": "Your shop shows one version of the page. The rest wait in the panel — build them and switch whenever you want.",
       "new": "New page",
       "newTitle": "New page version",
-      "newBody": "An empty page will be created — you will pick a starter template for it. Customers see it only once you publish it.",
+      "newBody": "An empty page will be created — you will pick a starting point for it, or start from scratch. Customers see it only once you publish it.",
       "newConfirm": "Create page",
       "defaultName": "New version",
       "nameLabel": "Page name",
@@ -1854,7 +1856,8 @@
       "slugHome": "The store home page lives at “/” and its address cannot be changed.",
       "addressPending": "Customers still have {current} — the new address starts working after publishing.",
       "redirectOld": "Redirect the old address {old} to the new one",
-      "redirectOldHint": "Customers with a saved link and search results will land on the new address instead of an error page."
+      "redirectOldHint": "Customers with a saved link and search results will land on the new address instead of an error page.",
+      "homeBadge": "Home page"
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",

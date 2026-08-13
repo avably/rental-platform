@@ -34,7 +34,6 @@
  * trasę w statyczny prerender, a CSP panelu (nonce per żądanie) odmówiłaby
  * wykonania skryptów wypieczonych z nonce'em z czasu builda.
  */
-import { resolveSiteStyle } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
@@ -45,6 +44,7 @@ import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { siteImagePublicBase } from "@/lib/site-image-base";
+import { getTenantDraftStyle } from "@/lib/tenant-appearance";
 import { tenantLogo, tenantLogoRender } from "@/lib/tenant-logo-render";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantSiteLocale, siteRenderLabels } from "@/lib/site-render-labels";
@@ -87,7 +87,9 @@ export default async function SiteDraftPreviewPage({
     currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!),
     locale: tenantLocale,
   };
-  const style = resolveSiteStyle(data.site.style_draft, data.site.template);
+  // Wygląd SZKICU jest własnością SKLEPU (ADR-161) — podgląd dowolnej strony
+  // pokazuje więc ten sam motyw, akcent i krój, co podgląd każdej innej.
+  const style = await getTenantDraftStyle(ctx.supabase, ctx.tenantId!);
 
   /*
     ZNAK FIRMY W PODGLĄDZIE — z kolumny SZKICU (ADR-160). To jest miejsce, dla

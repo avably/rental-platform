@@ -68,6 +68,30 @@ export interface Tenant {
    * 42501 (kanon ADR-091).
    */
   logo_published: Record<string, unknown>;
+  /**
+   * SZABLON ZASTANY sklepu — szkic (0077, ADR-161; przeniesiony z `sites`).
+   * Panel do niej NIE pisze: nowy wybór idzie w `style_draft.theme`. Zostaje
+   * jako fallback motywu dla najemcy bez zapisanego stylu.
+   */
+  template: SiteTemplate;
+  /**
+   * SZABLON ZASTANY — bliźniak opublikowany (0077, ADR-161). NULL = najemca
+   * nigdy nie publikował wyglądu; odczyt publiczny bierze wtedy `classic`.
+   */
+  template_published: SiteTemplate | null;
+  /**
+   * STYL SKLEPU — szkic (0077, ADR-161). Pusty obiekt = najemca nigdy nie
+   * zapisał stylu. Kształt wnętrza definiuje `siteStyleSchema`
+   * z @avably/core/site; baza pilnuje typu i granicy rozmiaru. Zapis wyłącznie
+   * przez app.set_tenant_style — członek nie ma UPDATE na `tenants`.
+   */
+  style_draft: Json;
+  /**
+   * STYL SKLEPU — bliźniak opublikowany (0077, ADR-161). Jedyne, co czyta
+   * app.get_published_page. Pisze WYŁĄCZNIE app.publish_tenant_appearance pod
+   * flagą `app.publishing`; poza nią strażnik odmawia 42501 (kanon ADR-091).
+   */
+  style_published: Json;
 }
 
 export interface Member {

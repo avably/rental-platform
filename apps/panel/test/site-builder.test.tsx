@@ -47,7 +47,7 @@ const actions = vi.hoisted(() => ({
   duplicateSection: vi.fn(),
   deleteSection: vi.fn(),
   restoreSection: vi.fn(),
-  updateSiteStyle: vi.fn(),
+  updateStoreStyle: vi.fn(),
   applyStarterTemplate: vi.fn(),
   publishSite: vi.fn(),
 }));
@@ -104,7 +104,7 @@ beforeEach(() => {
   actions.duplicateSection.mockResolvedValue({ ok: true });
   actions.deleteSection.mockResolvedValue({ ok: true, mode: "marked" });
   actions.restoreSection.mockResolvedValue({ ok: true });
-  actions.updateSiteStyle.mockResolvedValue({ ok: true });
+  actions.updateStoreStyle.mockResolvedValue({ ok: true });
   actions.applyStarterTemplate.mockResolvedValue({ ok: true, sectionIds: [] });
   actions.publishSite.mockResolvedValue({ ok: true, publishedAt: "2026-07-31T10:00:00Z" });
 });
@@ -297,9 +297,11 @@ describe("lewa paleta: wejście do pickera, elementy, szablon w stopce", () => {
 
     const inny = [...accents].find((node) => node.getAttribute("aria-pressed") !== "true")!;
     fireEvent.click(inny);
+    // BEZ ARGUMENTU ZE STRONĄ (ADR-161): styl jest własnością SKLEPU, więc
+    // akcja, która umiałaby wskazać stronę, obiecywałaby coś, czego model po
+    // przeniesieniu kolumn na najemcę nie potrafi.
     await waitFor(() =>
-      expect(actions.updateSiteStyle).toHaveBeenCalledWith(
-        SITE_ID,
+      expect(actions.updateStoreStyle).toHaveBeenCalledWith(
         expect.objectContaining({ accent: inny.getAttribute("data-style-accent") }),
       ),
     );
@@ -312,7 +314,7 @@ describe("lewa paleta: wejście do pickera, elementy, szablon w stopce", () => {
     // odczytu RSC. Test trzyma zdanie odwrotne: akcja, która nie kończy się
     // od razu, NIE wyłącza narzędzi kreatora.
     let rozstrzygnij: (value: { ok: true }) => void = () => {};
-    actions.updateSiteStyle.mockImplementation(
+    actions.updateStoreStyle.mockImplementation(
       () => new Promise((resolve) => { rozstrzygnij = resolve; }),
     );
 
@@ -321,7 +323,7 @@ describe("lewa paleta: wejście do pickera, elementy, szablon w stopce", () => {
     const inny = [...akcent].find((node) => node.getAttribute("aria-pressed") !== "true")!;
     fireEvent.click(inny);
 
-    await waitFor(() => expect(actions.updateSiteStyle).toHaveBeenCalled());
+    await waitFor(() => expect(actions.updateStoreStyle).toHaveBeenCalled());
 
     // Zapis JESZCZE trwa (obietnica nierozstrzygnięta) — a kreator ma żyć.
     const toolbar = selectSection(container, B.id);
