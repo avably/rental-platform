@@ -499,10 +499,18 @@ grant execute on function app.publish_tenant_logo()
 -- 6. app.can_upload_site_image — bilet bez strony też jest biletem
 -- ---------------------------------------------------------------------
 --
--- Ciało przepisane z 0043 (ostatnia definicja) z jedną zmianą: join na `sites`
--- przestaje być warunkiem BEZWZGLĘDNYM. Zostawiony bez zmian odciąłby upload
--- logo po cichu — bilet logo ma `site_id` NULL, więc INNER JOIN nie oddałby
--- ani jednego wiersza i polityka Storage odmawiałaby zawsze.
+-- Ciało przepisane z 0060 — OSTATNIEJ definicji tej funkcji w historii, nie
+-- z 0043, która ją utworzyła. Różnica jest jednym zdaniem i całą bramką:
+-- 0060 (ADR-126) dokleiło `and app.is_current_tenant_member()`, czyli warunek
+-- ŻYWEGO członkostwa. Przepisanie z 0043 cofnęłoby go po cichu i przez godzinę
+-- po usunięciu z zespołu były członek dalej wgrywałby pliki do sklepu.
+-- W diffie migracji tego nie widać — widać to dopiero w bramce
+-- packages/db/test/live-membership-predicates.test.ts, która ten regres złapała.
+--
+-- Zmiana merytoryczna jest jedna: join na `sites` przestaje być warunkiem
+-- BEZWZGLĘDNYM. Zostawiony bez zmian odciąłby upload logo po cichu — bilet
+-- logo ma `site_id` NULL, więc INNER JOIN nie oddałby ani jednego wiersza
+-- i polityka Storage odmawiałaby zawsze.
 --
 -- Spójność (tenant_id, site_id) dla biletu SEKCJI zostaje sprawdzana dokładnie
 -- tak, jak była; dla biletu logo rodzicem jest sam najemca i sprawdzać nie ma
@@ -534,11 +542,12 @@ as $$
             and s.id = u.site_id
         )
       )
-  );
+  )
+  and app.is_current_tenant_member();
 $$;
 
 comment on function app.can_upload_site_image(text) is
-  'Predykat polityki Storage INSERT dla bucketa site-images (0043, rozszerzony w ADR-160): obiekt można wgrać wyłącznie na ścieżkę OTWARTEGO biletu wołającego (pending, nieprzeterminowany). Bilet sekcji dodatkowo musi wskazywać istniejącą stronę tego samego tenanta; bilet logo strony nie ma z definicji.';
+  'Predykat polityki Storage INSERT dla bucketa site-images (0043, predykat żywego członkostwa z 0060/ADR-126, bilet bez strony w ADR-160): obiekt można wgrać wyłącznie na ścieżkę OTWARTEGO biletu wołającego (pending, nieprzeterminowany) i wyłącznie przez ŻYWEGO członka tenanta. Bilet sekcji dodatkowo musi wskazywać istniejącą stronę tego samego tenanta; bilet logo strony nie ma z definicji.';
 
 revoke all on function app.can_upload_site_image(text)
   from public, anon, authenticated;
