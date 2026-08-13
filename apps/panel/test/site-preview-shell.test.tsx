@@ -416,15 +416,17 @@ describe("obraz w stopce podglądu dostaje prawdziwy adres", () => {
 /* ============================ KONTRAKT LUSTRA ============================ */
 
 describe("napis koszyka w panelu jest LUSTREM sklepu", () => {
+  /*
+   * Dostęp BEZ rzutowania jest tu częścią kontraktu: klucz `site.shell.cart`
+   * usunięty z JSON-a panelu ma paść w TYPECHECKU, a nie dopiero na asercji.
+   * Rzutowanie na `Record<string, …>` zamieniłoby brak klucza w błąd czasu
+   * wykonania jednego testu — czyli w to samo, przed czym ten kontrakt broni.
+   */
   it("PL: site.shell.cart ≡ storefront.nav.cart", () => {
-    expect((panelPl.site as Record<string, { cart: string }>).shell.cart).toBe(
-      storefrontPl.storefront.nav.cart,
-    );
+    expect(panelPl.site.shell.cart).toBe(storefrontPl.storefront.nav.cart);
   });
 
   it("EN: site.shell.cart ≡ storefront.nav.cart", () => {
-    expect((panelEn.site as Record<string, { cart: string }>).shell.cart).toBe(
-      storefrontEn.storefront.nav.cart,
-    );
+    expect(panelEn.site.shell.cart).toBe(storefrontEn.storefront.nav.cart);
   });
 });
