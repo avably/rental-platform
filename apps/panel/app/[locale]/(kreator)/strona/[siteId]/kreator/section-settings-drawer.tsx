@@ -358,7 +358,7 @@ function DraftText({
         <p
           id={`${id}-empty`}
           role="alert"
-          data-element-empty-note
+          data-builder-empty-note
           className="text-destructive text-[13px] leading-[18px]"
         >
           {t("canvas.emptyNotSaved")}
