@@ -21,6 +21,7 @@ import { availablePaymentMethods } from "@/lib/checkout/payment-options";
 import { findLegalDocument, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +69,7 @@ export default async function TenantCheckoutPage() {
   const publishedTerms = findLegalDocument(ctx.legalDocuments, "terms");
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
       <div className="mt-6">
         <CheckoutForm

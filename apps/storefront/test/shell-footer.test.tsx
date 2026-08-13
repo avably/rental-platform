@@ -51,6 +51,7 @@ function strona(): PublishedSite {
   return {
     template: "classic",
     publishedAt: "2026-08-12T00:00:00Z",
+    logo: null,
     style: {},
     sections: [
       sekcja("s-hero", "hero"),
@@ -67,7 +68,7 @@ function strona(): PublishedSite {
 async function renderPodstrony(site: PublishedSite | null): Promise<string> {
   const copy = await getStorefrontCopy("pl");
   return renderToStaticMarkup(
-    <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site}>
+    <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site} logo={null}>
       <p>treść podstrony</p>
     </PageShell>,
   );
@@ -131,7 +132,7 @@ describe("strona katalogu rysuje stopkę DOKŁADNIE RAZ", () => {
     const copy = await getStorefrontCopy("pl");
     const site = strona();
     const html = renderToStaticMarkup(
-      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site}>
+      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={site} logo={null}>
         <main>
           <SiteRenderer sections={pageSections(site) as never} asRoot={false} anchors />
         </main>
@@ -212,7 +213,7 @@ describe("kotwice stopki poza stroną z sekcjami", () => {
     // Trasa katalogu woła powłokę BEZ `footerAnchorBase` — cele kotwic stoją
     // na niej, więc `/store#kontakt` byłoby przeładowaniem strony zamiast skoku.
     const html = renderToStaticMarkup(
-      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={strona()}>
+      <StoreChrome style={DEFAULT_SITE_STYLE} copy={copy} storeName="Sklep" site={strona()} logo={null}>
         <main>treść katalogu</main>
       </StoreChrome>,
     );

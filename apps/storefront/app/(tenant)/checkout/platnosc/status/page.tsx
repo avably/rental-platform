@@ -33,6 +33,7 @@ import { loadCheckoutOrder } from "@/lib/checkout/payment-session";
 import { paymentStatusView } from "@/lib/checkout/payment-status-view";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 import Link from "next/link";
 
@@ -121,7 +122,7 @@ export default async function TenantPaymentStatusPage() {
   }[view.kind];
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
       <div className="site-card mt-6 p-6" role="status">
         <p className="text-lg leading-7">{headline}</p>

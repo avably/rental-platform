@@ -12,6 +12,7 @@ import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ export default async function TenantCartPage() {
   const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.cart.title}</h1>
       <div className="mt-6">
         <CartView

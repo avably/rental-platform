@@ -24,6 +24,7 @@ import {
 } from "@/lib/legal/published";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 /**
@@ -78,7 +79,7 @@ export async function LegalDocumentPage({ kind }: { kind: LegalDocumentKind }) {
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site}>
+    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site} logo={storeLogo(ctx)}>
       <LegalDocumentView
         title={document.title}
         body={document.body}
@@ -115,7 +116,7 @@ export async function LegalDocumentVersionPage({
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site}>
+    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site} logo={storeLogo(ctx)}>
       <LegalDocumentView
         title={document.title}
         body={document.body}

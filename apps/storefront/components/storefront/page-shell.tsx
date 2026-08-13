@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 
 import { StoreChrome } from "@/components/storefront/store-chrome";
 import { PRODUCTS_CATALOG_HREF } from "@avably/core/site";
+import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 
 export function PageShell({
@@ -27,6 +28,7 @@ export function PageShell({
   copy,
   storeName,
   site,
+  logo,
   children,
   className,
 }: {
@@ -39,6 +41,11 @@ export function PageShell({
    * pominęła, wracałaby do stanu „stopka urywa się poza katalogiem".
    */
   site: PublishedSite | null;
+  /**
+   * Znak firmy najemcy (ADR-160) — wymagany z tego samego powodu, co `site`:
+   * podstrona, która by go pominęła, gasiłaby logo dokładnie na sobie.
+   */
+  logo: StoreLogo | null;
   children: ReactNode;
   className?: string;
 }) {
@@ -48,6 +55,7 @@ export function PageShell({
       copy={copy}
       storeName={storeName}
       site={site}
+      logo={logo}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ KATALOGU (faza 0). Użytkownicy tej
         powłoki to z definicji PODSTRONY — nie ma na nich sekcji, więc czysta

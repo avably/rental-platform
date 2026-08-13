@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 
 import { StoreHeader } from "@/components/storefront/store-header";
 import { shellSections, withAnchorBase } from "@/lib/site/page-sections";
+import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 
 /**
@@ -39,6 +40,7 @@ export function StoreChrome({
   copy,
   storeName,
   site,
+  logo,
   footerAnchorBase,
   revealNonce,
   className,
@@ -58,6 +60,19 @@ export function StoreChrome({
    * przeoczenie w błąd typów.
    */
   site: PublishedSite | null;
+  /**
+   * ZNAK FIRMY NAJEMCY — WYMAGANY z tego samego powodu, co `site` (ADR-160).
+   *
+   * `null` jest legalną wartością i znaczy „najemca nie ma znaku" (albo nie
+   * opublikował go jeszcze) — sklep wygląda wtedy dokładnie tak, jak wyglądał.
+   * Brak PROPSU legalny nie jest: nowa trasa sklepu, która by go pominęła,
+   * gasiłaby logo na jednej podstronie i na żadnej innej, bez ani jednego
+   * błędu w konsoli. Wymagany props zamienia to przeoczenie w błąd typów.
+   *
+   * Gotowy adres i gotowy `alt` liczy `storeLogo` — powłoka nie zna ani
+   * ścieżki w Storage, ani reguły wyboru tekstu zastępczego.
+   */
+  logo: StoreLogo | null;
   /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
@@ -82,7 +97,7 @@ export function StoreChrome({
       revealNonce={revealNonce}
       className={className ? `min-h-screen ${className}` : "min-h-screen"}
     >
-      <StoreHeader copy={copy} storeName={storeName} />
+      <StoreHeader copy={copy} storeName={storeName} logo={logo} />
       {children}
       {/*
         STOPKA POWŁOKI (faza 0, ADR-154) — TEN SAM renderer i TA SAMA treść, co
@@ -97,7 +112,19 @@ export function StoreChrome({
         dokumencie JEDNA — dokładnie warunek, pod którym kotwice wolno włączyć.
       */}
       {shellFooter.length > 0 ? (
-        <SiteRenderer sections={shellFooter} style={style} asRoot={false} anchors />
+        <SiteRenderer
+          sections={shellFooter}
+          style={style}
+          asRoot={false}
+          anchors
+          /*
+            JEDNO WGRANIE, DWA MIEJSCA UŻYCIA (ADR-160). Stopka bierze TEN SAM
+            znak, co nagłówek — drugiego wgrania pod stopkę nie ma. Przełącznik
+            najemcy rozstrzyga się TU, a nie w rendererze: pakiet UI dostaje
+            albo gotowy znak, albo `null`.
+          */
+          footerLogo={logo?.inFooter ? logo : null}
+        />
       ) : null}
     </SiteChrome>
   );

@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { sectionCanvasSchema, type SectionCanvas } from "./elements";
 import { uspIconSchema } from "./icons";
+import { parseSiteLogo, type SiteLogo } from "./logo";
 import { linkHrefSchema } from "./link-href";
 import {
   structuredSchemaFor,
@@ -98,6 +99,22 @@ export { SECTION_ANCHORS, sectionAnchorHref, sectionAnchorIds } from "./section-
  * między tym plikiem a `./elements`.
  */
 export { USP_ICONS, uspIconSchema, type UspIcon } from "./icons";
+
+/**
+ * LOGO NAJEMCY (ADR-160) mieszka w liściu `./logo`, bo nie jest treścią żadnej
+ * sekcji ani stylem żadnej strony — jest własnością NAJEMCY, a jego kształt
+ * czytają trzy warstwy naraz (panel, baza przez lustro wzorca, sklep).
+ */
+export {
+  MAX_SITE_LOGO_BYTES,
+  SITE_LOGO_MIME_TYPES,
+  SITE_LOGO_PATH_PATTERN,
+  parseSiteLogo,
+  siteLogoAlt,
+  siteLogoSchema,
+  type SiteLogo,
+  type SiteLogoMime,
+} from "./logo";
 
 // -----------------------------------------------------------------------
 // Cegiełki pól
@@ -540,6 +557,16 @@ export const publishedSiteEnvelopeSchema = z
      * allowlisty ma zdegradować się do domyślnego, a nie położyć całej strony.
      */
     style: z.unknown().optional(),
+    /**
+     * LOGO NAJEMCY (ADR-160) — klucz OPCJONALNY z tego samego powodu, co
+     * `style`: baza dokłada go wyłącznie dla najemcy z opublikowanym znakiem
+     * (0076), więc koperta bez niego jest stanem NORMALNYM (sklep bez logo
+     * wygląda dokładnie tak, jak wyglądał), a nie awarią.
+     *
+     * `unknown` i osobne parsowanie niżej — znak w kształcie sprzed zmiany
+     * schematu ma zniknąć z nagłówka, a nie położyć całej strony sklepu.
+     */
+    logo: z.unknown().optional(),
   })
   .strict();
 
@@ -549,6 +576,8 @@ export interface PublishedSite {
   sections: PublishedSection[];
   /** Styl w kształcie zapisanym; render uzupełnia braki `resolveSiteStyle`. */
   style: SiteStyle;
+  /** Znak firmy najemcy albo `null` — brak logo jest stanem normalnym (ADR-160). */
+  logo: SiteLogo | null;
 }
 
 /**
@@ -579,6 +608,9 @@ export function parsePublishedSite(payload: unknown): PublishedSite | null {
     publishedAt: envelope.data.published_at,
     sections,
     style: style.success ? style.data : {},
+    // Logo fail-SOFT z tego samego powodu, co styl: „sklep bez znaku" jest
+    // stanem normalnym, więc nierozpoznany kształt ma się do niego zdegradować.
+    logo: parseSiteLogo(envelope.data.logo),
   };
 }
 

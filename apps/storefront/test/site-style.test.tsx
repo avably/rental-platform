@@ -402,7 +402,7 @@ describe("nagłówek sklepu stoi POD korzeniem strony", () => {
   it("`.site-header` jest POTOMKIEM `.site-root`, a nie jego rodzeństwem", async () => {
     const copy = await getStorefrontCopy("pl");
     const html = renderToStaticMarkup(
-      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa" site={null}>
+      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa" site={null} logo={null}>
         <p>treść podstrony</p>
       </PageShell>,
     );
@@ -427,7 +427,7 @@ describe("nagłówek sklepu stoi POD korzeniem strony", () => {
   it("korzeń jest DOKŁADNIE JEDEN — dwa znaczyłyby dwa kontenery zapytań `site`", async () => {
     const copy = await getStorefrontCopy("pl");
     const html = renderToStaticMarkup(
-      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa" site={null}>
+      <PageShell style={DEFAULT_SITE_STYLE} copy={copy} storeName="Wypożyczalnia Testowa" site={null} logo={null}>
         <p>treść podstrony</p>
       </PageShell>,
     );

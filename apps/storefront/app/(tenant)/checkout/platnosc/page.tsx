@@ -41,6 +41,7 @@ import { preparePayment } from "@/lib/checkout/online-payment";
 import { loadCheckoutOrder } from "@/lib/checkout/payment-session";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -104,7 +105,7 @@ export default async function TenantPaymentPage() {
   });
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)}>
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.title}</h1>
       <div className="mt-6">
         <PaymentStep

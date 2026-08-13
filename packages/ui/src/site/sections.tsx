@@ -18,6 +18,7 @@ import type {
   HeroContent,
   PricingContent,
   ProductsContent,
+  SiteLogoRender,
   SiteRenderLabels,
   StorefrontProduct,
   TestimonialsContent,
@@ -463,9 +464,22 @@ export function DirectionsSection({
 export function FooterSection({
   content,
   styles,
+  logo,
 }: {
   content: FooterContent;
   styles: TemplateStyles;
+  /**
+   * ZNAK FIRMY NAJEMCY (ADR-160) — wchodzi SZWEM, a nie treścią stopki.
+   *
+   * Gdyby logo siedziało w `footerContentSchema`, byłoby polem SEKCJI, czyli
+   * osobną kopią na każdej stronie najemcy — a znak jest jeden. Dlatego wchodzi
+   * tą samą drogą, co `siteImageBase`: wstrzykuje go warstwa danych.
+   *
+   * `null` (albo brak) znaczy „najemca nie ma znaku ALBO zgasił go w stopce"
+   * — dwa różne powody, jeden render: stopka wygląda dokładnie tak, jak
+   * wyglądała. Placeholdera „tu wstaw logo" na żywym sklepie nie ma.
+   */
+  logo?: SiteLogoRender | null;
 }) {
   const details = [content.address, content.phone, content.email, content.hours].filter(
     (line): line is string => Boolean(line),
@@ -481,6 +495,11 @@ export function FooterSection({
         <div className={styles.footerInner}>
           <div className="grid gap-8 @min-[40rem]/site:grid-cols-2">
             <div>
+              {logo ? (
+                // Pudełko o STAŁEJ wysokości (`.site-logo`) — plik o dowolnych
+                // proporcjach nie rozpycha stopki i nie robi skoku układu.
+                <img className="site-logo mb-4" src={logo.src} alt={logo.alt} />
+              ) : null}
               <p className={styles.footerName}>{content.businessName}</p>
               {details.length > 0 ? (
                 <ul className="site-text-muted mt-3 list-none space-y-1 p-0 text-sm">

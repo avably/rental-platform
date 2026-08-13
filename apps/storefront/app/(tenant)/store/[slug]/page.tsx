@@ -37,6 +37,7 @@ import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { format } from "@/lib/storefront/copy";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,7 @@ export default async function TenantContentPage({ params }: Params) {
       style={style}
       copy={copy}
       storeName={catalog.tenant.name}
+      logo={storeLogo(ctx)}
       /*
         POWŁOKA ZE STRONY GŁÓWNEJ, a kotwice stopki przepisane na jej adres:
         `#kontakt` w stopce prowadzi do sekcji, która stoi na stronie głównej,

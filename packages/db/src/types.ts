@@ -53,6 +53,21 @@ export interface Tenant {
    * NIC tej kolumny nie czyta w decyzjach dostępu.
    */
   suspended_at: string | null;
+  /**
+   * LOGO SKLEPU — szkic (0076, ADR-160). Pusty obiekt = najemca nie ma znaku
+   * i jest to stan NORMALNY. Kształt wnętrza (`path`, `alt`, `inFooter`)
+   * definiuje `siteLogoSchema` z @avably/core/site; baza pilnuje typu, granicy
+   * rozmiaru i POCHODZENIA ścieżki. Zapis wyłącznie przez app.set_tenant_logo
+   * — członek nie ma UPDATE na `tenants`.
+   */
+  logo_draft: Record<string, unknown>;
+  /**
+   * LOGO SKLEPU — bliźniak opublikowany (0076, ADR-160). Jedyne, co czyta
+   * app.get_published_page. Pisze WYŁĄCZNIE app.publish_tenant_logo pod flagą
+   * `app.publishing`; poza nią strażnik app.guard_published_columns odmawia
+   * 42501 (kanon ADR-091).
+   */
+  logo_published: Record<string, unknown>;
 }
 
 export interface Member {
