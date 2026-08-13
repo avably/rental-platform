@@ -120,6 +120,7 @@ export const DEFAULT_SITE_MONEY: SiteMoney = { currency: "PLN", locale: "pl" };
 function SectionSwitch({
   section,
   products,
+  record,
   labels,
   money,
   siteImageBase,
@@ -130,6 +131,7 @@ function SectionSwitch({
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
+  record?: StorefrontProduct;
   labels: SiteRenderLabels;
   money: SiteMoney;
   siteImageBase?: string;
@@ -184,6 +186,7 @@ function SectionSwitch({
         as={section.type === "footer" ? "footer" : "section"}
         styles={styles}
         products={products}
+        record={record}
         labels={labels}
         siteImageBase={siteImageBase}
         elementWrapper={elementWrapper}
@@ -336,6 +339,7 @@ export function SiteRenderer({
   sections,
   style = DEFAULT_SITE_STYLE,
   products = [],
+  record,
   labels = DEFAULT_SITE_LABELS,
   money = DEFAULT_SITE_MONEY,
   className,
@@ -369,6 +373,19 @@ export function SiteRenderer({
    */
   style?: ResolvedSiteStyle;
   products?: StorefrontProduct[];
+  /**
+   * KONTEKST REKORDU (faza 3, ADR-163) — pozycja, NA KTÓREJ STOI ta strona.
+   *
+   * Piąty szew warstwy danych i jedyny, którego wartość zmienia się MIĘDZY
+   * WYŚWIETLENIAMI tej samej treści: szablon strony produktu (faza 5) rysuje
+   * jedną listę sekcji raz na sprzęt, a różnicę niesie ten props. Element
+   * związany z `pageProduct` czyta stąd wartość PRZY RENDERZE — w treści strony
+   * zostaje samo wskazanie.
+   *
+   * Brak = strona nie stoi na żadnym rekordzie (strona główna, treściowa).
+   * Wiązanie do rekordu strony wycina wtedy węzeł, zamiast pokazywać cokolwiek.
+   */
+  record?: StorefrontProduct;
   labels?: SiteRenderLabels;
   /**
    * WALUTA I ZAPIS KWOT (E6, aneks ADR-094) — sekcja cennika niesie kwoty
@@ -499,6 +516,7 @@ export function SiteRenderer({
       <SectionSwitch
         section={section}
         products={products}
+        record={record}
         labels={labels}
         money={money}
         siteImageBase={siteImageBase}

@@ -44,3 +44,12 @@ export {
 export { structuredEntryCount } from "./structured/entries";
 // Płótno z elementami (K2, ADR-084) — render treści v2 i przeliczenie geometrii.
 export { SectionCanvasRenderer, canvasBoxVariables, geometryStyle } from "./element-canvas";
+// Silnik podpięcia danych (faza 3, ADR-163) — wiązanie atrybutu z polem sprzętu.
+export {
+  bindingRecordOf,
+  elementBindings,
+  productBindingValues,
+  resolveElementBinding,
+  type ElementBindingResult,
+  type SiteRecordContext,
+} from "./binding-render";

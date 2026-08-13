@@ -48,6 +48,7 @@
  */
 import { z } from "zod";
 
+import { imageBindingSchema, textBindingSchema } from "./binding";
 import { USP_ICONS, uspIconSchema } from "./icons";
 import { linkHrefSchema } from "./link-href";
 import { plainTextOf, richTextSchema } from "./rich-text";
@@ -362,6 +363,16 @@ export const headingElementSchema = z
     align: alignment,
     color: z.enum(ELEMENT_COLORS).optional(),
     size: elementSizeSchema.optional(),
+    /**
+     * WIĄZANIE ATRYBUTU `text` Z POLEM SPRZĘTU (faza 3, ADR-163).
+     *
+     * Obecność klucza znaczy, że napis nagłówka POCHODZI Z KATALOGU i pole
+     * `text` obok przestaje być treścią strony — zostaje wartością projektową,
+     * do której render wraca po zdjęciu wiązania. Zbiór kluczy jest ZAMKNIĘTY
+     * (`.strict()`) i jest lustrem `BINDABLE_ATTRIBUTES` z `./binding`; klucz
+     * spoza listy nie parsuje się, więc nie ma jak dojść do renderu.
+     */
+    bindings: z.object({ text: textBindingSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -375,6 +386,8 @@ export const textElementSchema = z
     align: alignment,
     color: z.enum(ELEMENT_COLORS).optional(),
     size: elementSizeSchema.optional(),
+    /** Wiązanie akapitu z polem sprzętu — patrz `headingElementSchema`. */
+    bindings: z.object({ text: textBindingSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -387,6 +400,13 @@ export const buttonElementSchema = z
     variant: z.enum(BUTTON_VARIANTS).default("solid"),
     align: alignment,
     size: elementSizeSchema.optional(),
+    /**
+     * Wiązalna jest WYŁĄCZNIE etykieta. Adres (`href`) zostaje poza listą
+     * świadomie: przechodzi przez allowlistę schematów przy ZAPISIE, a wartość
+     * podstawiana przy RENDERZE weszłaby za tę bramkę (uzasadnienie przy
+     * `BINDABLE_ATTRIBUTES` w `./binding`).
+     */
+    bindings: z.object({ label: textBindingSchema.optional() }).strict().optional(),
   })
   .strict();
 
@@ -434,6 +454,15 @@ export const imageElementSchema = z
     imagePath: elementImagePath.optional(),
     alt: elementAlt,
     fit: z.enum(IMAGE_FITS).default("cover"),
+    /**
+     * WIĄZANIE ŹRÓDŁA ZDJĘCIA ZE ZDJĘCIEM SPRZĘTU (faza 3, ADR-163).
+     *
+     * Wiązanie oddaje PARĘ „adres + opis alternatywny", więc związane zdjęcie
+     * ignoruje także `alt` obok. Opis napisany przez operatora dwie podmiany
+     * temu opisuje zdjęcie, którego już nie ma — a czytnik ekranu nie ma jak
+     * tego rozpoznać.
+     */
+    bindings: z.object({ source: imageBindingSchema.optional() }).strict().optional(),
   })
   .strict();
 
