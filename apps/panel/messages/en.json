@@ -1696,7 +1696,10 @@
       "tabElementsHint": "Drag a tile onto a section, or click — the element lands below the content.",
       "published": "Published",
       "saveFailed": "Saving failed.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "unsaved": "Not saved",
+      "unsavedBody": "This change was rejected and is NOT on the server. You see it on the canvas, but the shop will not get it. Fix the cause and save again.",
+      "saveAgain": "Save again"
     },
     "elementKinds": {
       "heading": "Heading",
