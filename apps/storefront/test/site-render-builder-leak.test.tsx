@@ -67,6 +67,12 @@ const BUILDER_LAYER_MARKERS = [
   "data-element-actions",
   "data-canvas-settings",
   "data-element-settings",
+  // Pola szuflady właściwości elementu (ADR-166): znacznik pola i komunikat
+  // odmowy adresu. Oba żyją wyłącznie w panelu, ale rejestr jest listą
+  // WYLICZONĄ, nie prefiksem — nazwa spoza niego przestaje być pilnowana
+  // w publicznym renderze, więc dopisanie jest warunkiem, nie formalnością.
+  "data-element-field",
+  "data-element-href-error",
   // Źródło wartości elementu (faza 3, ADR-163): blok „skąd wartość" i zdanie
   // stojące zamiast kontrolki, gdy katalog jest pusty. Prefiks celowo INNY niż
   // `data-element-bound` renderu — tamten jest znacznikiem TREŚCI (zdjęcie
