@@ -6,7 +6,7 @@
  *
  * PUBLIKACJA JEST JEDYNĄ BRAMKĄ (ADR-091, migracja 0045). Każda akcja z tego
  * pliku poza `publishSite` pisze WYŁĄCZNIE do kolumn SZKICU
- * (`content_draft`, `position`, `enabled`, `sites.template`,
+ * (`content_draft`, `position`, `enabled`, `tenants.style_draft`,
  * `deleted_in_draft`). Publiczny odczyt `app.get_published_site` czyta wyłącznie
  * bliźniaki `*_published`, więc żadna z nich nie zmienia strony klienta — do
  * momentu publikacji. Gwarancji NIE niesie ten kod (można ją stąd obejść
@@ -40,7 +40,7 @@ import {
   reorderPlan,
   reorderSectionsInputSchema,
   toggleSectionInputSchema,
-  updateSiteStyleInputSchema,
+  updateStoreStyleInputSchema,
   upsertSectionInputSchema,
   createSiteInputSchema,
   renameSiteInputSchema,
@@ -712,36 +712,42 @@ export async function duplicateSection(
 }
 
 /**
- * ZAPIS STYLU STRONY — motyw, akcent i para fontów (K5, ADR-090).
+ * ZAPIS STYLU SKLEPU — motyw, akcent i para krojów (K5, ADR-090; poziom
+ * NAJEMCY od ADR-161).
  *
- * Pisze WYŁĄCZNIE do `style_draft`, dokładnie tak, jak edycja sekcji pisze
- * wyłącznie do `content_draft` (ADR-091: publikacja jedyną bramką). Publiczny
- * wygląd zmienia dopiero publikacja, która kopiuje styl tą samą transakcją co
- * treść (0046).
+ * ARGUMENTU ZE STRONĄ TU NIE MA I TO JEST CAŁA ZMIANA ADR-161. Do fazy 2
+ * wiersz `sites` był WERSJĄ jednej strony, więc „styl wersji" i „styl sklepu"
+ * znaczyły to samo. Odkąd wiersze są osobnymi STRONAMI, ten sam zapis znaczyłby
+ * „inny wygląd na każdej podstronie" — czyli nagłówek zmieniający krój przy
+ * przejściu z „O nas" na „Kontakt".
+ *
+ * Zapis idzie do kolumny SZKICU najemcy, dokładnie tak, jak edycja sekcji pisze
+ * wyłącznie do `content_draft` (ADR-091: publikacja jedyną bramką). Drogą jest
+ * RPC `app.set_tenant_style`, bo członek nie ma UPDATE na `tenants` (RLS
+ * przepuszcza tam wyłącznie superadmina) — zapis wprost skończyłby się CICHYM
+ * „zero wierszy", bez błędu i bez koloru.
  */
-export async function updateSiteStyle(
-  siteId: string,
-  style: unknown,
-): Promise<SiteActionResult> {
-  const parsed = updateSiteStyleInputSchema.safeParse({ siteId, style });
+export async function updateStoreStyle(style: unknown): Promise<SiteActionResult> {
+  const parsed = updateStoreStyleInputSchema.safeParse({ style });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowy styl strony." };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nieprawidłowy styl sklepu." };
   }
   const auth = await memberCtx();
   if (!auth.ok) return auth;
   const { ctx } = auth;
 
-  const { data, error } = await ctx.supabase
-    .from("sites")
-    .update({ style_draft: parsed.data.style })
-    .eq("tenant_id", ctx.tenantId)
-    .eq("id", parsed.data.siteId)
-    .select("id");
-  if (error) return { ok: false, error: error.message };
-  if (!data || data.length === 0) return { ok: false, error: "Nie znaleziono strony." };
+  const { error } = await ctx.supabase
+    .schema("app")
+    .rpc("set_tenant_style", { p_style: parsed.data.style });
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "22023" ? "Nie można zapisać wyglądu sklepu." : error.message,
+    };
+  }
 
   revalidatePath("/", "layout");
-  // BEZ revalidateTag: opublikowana strona się nie zmieniła, więc unieważnianie
+  // BEZ revalidateTag: opublikowany wygląd się nie zmienił, więc unieważnianie
   // cache storefrontu byłoby kłamstwem o zmianie (i jedynym miejscem w panelu,
   // które ruszałoby publiczny cache poza publikacją).
   return { ok: true };
@@ -863,12 +869,19 @@ export async function applyStarterTemplate(
     };
   }
 
-  // Motyw szablonu do SZKICU stylu — jedno wywołanie, ta sama operacja co treść.
+  /*
+   * Motyw szablonu do SZKICU stylu NAJEMCY (ADR-161) — jedno wywołanie, ta sama
+   * operacja co treść. Zapis jest CAŁKOWITY (`{ theme }`, bez akcentu i pary
+   * krojów), dokładnie jak przed ADR-161: wybór szablonu startowego JEST
+   * wyborem świata wizualnego, więc zastany akcent z innej palety zostawiony
+   * na miejscu byłby kolorem, którego nikt w nowym motywie nie policzył.
+   *
+   * Skutek jest odtąd SKLEPOWY, a nie stronowy, i to jest właśnie żądana
+   * zmiana: szablon wybrany na jednej stronie przemalowuje cały sklep.
+   */
   const { error: styleError } = await ctx.supabase
-    .from("sites")
-    .update({ style_draft: { theme: starterTemplateTheme(starterId) } })
-    .eq("tenant_id", ctx.tenantId)
-    .eq("id", siteId);
+    .schema("app")
+    .rpc("set_tenant_style", { p_style: { theme: starterTemplateTheme(starterId) } });
   if (styleError) return { ok: false, error: styleError.message };
 
   // Wyzwalacz pobrania per kadr — po zapisie, bez blokowania odpowiedzi.
@@ -901,6 +914,19 @@ export async function triggerStarterPhotoDownloads(starterId: StarterTemplate): 
  * sekcji + sites.published_at — w RPC app.publish_site (SECURITY INVOKER,
  * bramką jest RLS; PostgREST nie umie `set kolumna = kolumna`). Po sukcesie
  * unieważnia cache storefrontu tagiem tenanta (kontrakt ADR-041).
+ *
+ * WYGLĄD SKLEPU IDZIE DRUGIM WYWOŁANIEM (ADR-161). Od przeniesienia stylu na
+ * poziom najemcy publikacja ma dwa przedmioty: treść TEJ strony i wygląd
+ * CAŁEGO sklepu. Drugi jedzie osobnym czasownikiem, bo `app.publish_site` jest
+ * funkcją, którą w oknie wdrożeniowym woła STARY panel — dołożenie jej zdania
+ * o tabeli `tenants` byłoby zmianą kontraktu pod działającym kodem.
+ *
+ * Cena jest jawna: to NIE jest jedna transakcja. Nieudane drugie wywołanie
+ * zostawia stronę opublikowaną ze starym wyglądem — stan widoczny, opisany
+ * komunikatem i naprawialny ponowną publikacją (operacja jest idempotentna).
+ * Odwrotna kolejność byłaby gorsza: publikacja strony potrafi odmówić z powodu
+ * biznesowego (zajęty adres, 23505), a wtedy wygląd wszedłby na żywo dla
+ * operacji, która się nie odbyła.
  */
 export async function publishSite(
   siteId: string,
@@ -928,8 +954,23 @@ export async function publishSite(
     };
   }
 
+  const { error: appearanceError } = await ctx.supabase
+    .schema("app")
+    .rpc("publish_tenant_appearance");
+
   revalidatePath("/", "layout");
   // Kontrakt ADR-041: publikacja emituje tag tenanta ("max" = natychmiast).
+  // Tag leci TAKŻE przy nieudanym wyglądzie — treść strony weszła na żywo,
+  // więc cache sklepu jest nieaktualny niezależnie od drugiego wywołania.
   revalidateTag(tenantCacheTag(auth.tenantId), "max");
+
+  if (appearanceError) {
+    return {
+      ok: false,
+      error:
+        "Strona została opublikowana, ale wygląd sklepu nie — opublikuj jeszcze raz.",
+    };
+  }
+
   return { ok: true, publishedAt: data as string };
 }

@@ -35,6 +35,7 @@ import {
   type StarterTemplate,
 } from "@avably/core/site";
 import { SiteRenderer, type RenderSection } from "@avably/ui";
+import { Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
@@ -55,10 +56,19 @@ function styleOf(id: StarterTemplate): ResolvedSiteStyle {
 export function TemplateGallery({
   disabled,
   onPick,
+  onEmpty,
   onDismiss,
 }: {
   disabled: boolean;
   onPick: (id: StarterTemplate) => void;
+  /**
+   * START OD PUSTEJ STRONY (ADR-161) — pozycja na LIŚCIE punktów wyjścia,
+   * a nie osobne pytanie w oknie dodawania strony. Okno dodawania pyta
+   * o TOŻSAMOŚĆ strony (nazwa i adres), a nie o jej zawartość; ta lista jest
+   * jedynym miejscem, w którym pada pytanie „od czego zacząć" — i pada także
+   * przy „zacznij od nowa" na stronie, która treść już ma.
+   */
+  onEmpty: () => void;
   /** Zamknięcie bez wyboru — nieobecne przy pierwszej wizycie (nie ma do czego wracać). */
   onDismiss?: () => void;
 }) {
@@ -107,6 +117,37 @@ export function TemplateGallery({
         {/* Kafle mają szerokość STAŁĄ, bo taka jest skala miniatury (patrz
             `.starter-preview`); siatka je centruje, zamiast rozciągać. */}
         <ul className="grid grid-cols-[320px] justify-center gap-5 md:grid-cols-[repeat(2,480px)]">
+          {/*
+            PUSTA STRONA STOI PIERWSZA, bo jest jedynym punktem wyjścia bez
+            treści do skasowania — i jedynym, którego miniatura byłaby kłamstwem
+            (nie ma czego pokazać). Zamiast zmniejszonego renderu dostaje więc
+            pole o tej samej wysokości z podpisem: kafel ma wyglądać jak PUSTA
+            STRONA, a nie jak brakująca miniatura.
+          */}
+          <li>
+            <button
+              type="button"
+              data-starter-empty
+              disabled={disabled}
+              onClick={onEmpty}
+              className="border-border hover:border-foreground focus-visible:outline-accent flex w-full cursor-pointer flex-col overflow-hidden rounded-lg border text-left transition-colors [transition-duration:var(--motion-fast)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+            >
+              <span
+                className="bg-muted text-muted-foreground flex items-center justify-center border-b border-dashed"
+                style={{ height: TILE_HEIGHT }}
+                aria-hidden="true"
+              >
+                <Plus className="size-8" />
+              </span>
+              <span className="flex flex-col gap-1 p-4">
+                <span className="text-sm font-medium">{t("starter.emptyName")}</span>
+                <span className="text-muted-foreground text-[13px] leading-[18px]">
+                  {t("starter.emptyMood")}
+                </span>
+              </span>
+            </button>
+          </li>
+
           {previews.map((preview) => (
             <li key={preview.id}>
               <button

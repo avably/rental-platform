@@ -97,7 +97,7 @@ const {
   deleteSection,
   restoreSection,
   publishSite,
-  updateSiteStyle,
+  updateStoreStyle,
   applyStarterTemplate,
 } =
   await import("@/lib/actions/site");
@@ -337,15 +337,19 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
       // Do ADR-090 tym testem chodziła zmiana szablonu graficznego. Przełącznik
       // zniknął z kreatora (szablon jest odtąd światem wybieranym w galerii),
       // ale zdanie, którego test broni, zostaje to samo i jest MOCNIEJSZE:
-      // styl przemalowuje CAŁĄ stronę, więc tym bardziej nie ma prawa wejść na
-      // nią przed publikacją.
+      // styl przemalowuje CAŁY SKLEP (ADR-161), więc tym bardziej nie ma prawa
+      // wejść na żywą stronę przed publikacją.
       const before = await envelope();
       actAs(tenantA);
-      const result = await updateSiteStyle(siteAId, { theme: "noir-lux", accent: "champagne" });
+      const result = await updateStoreStyle({ theme: "noir-lux", accent: "champagne" });
       expect(result.ok, `zmiana stylu: ${result.ok ? "" : result.error}`).toBe(true);
 
-      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
-      expect(site?.style_draft, "styl nie zapisał się w szkicu").toEqual({
+      const { data: tenant } = await admin
+        .from("tenants")
+        .select("style_draft")
+        .eq("id", tenantA.tenantId)
+        .single();
+      expect(tenant?.style_draft, "styl nie zapisał się w szkicu najemcy").toEqual({
         theme: "noir-lux",
         accent: "champagne",
       });
@@ -409,9 +413,15 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
         "sekcja szablonu urodziła się opublikowana",
       ).toBe(true);
 
-      // Motyw szablonu wszedł do SZKICU stylu tą samą operacją.
-      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
-      expect((site?.style_draft as { theme?: string })?.theme).toBe("noir-lux");
+      // Motyw szablonu wszedł do SZKICU stylu tą samą operacją — od ADR-161
+      // do szkicu NAJEMCY, bo wybór szablonu jest wyborem wyglądu CAŁEGO
+      // sklepu, a nie tej jednej podstrony.
+      const { data: tenant } = await admin
+        .from("tenants")
+        .select("style_draft")
+        .eq("id", tenantA.tenantId)
+        .single();
+      expect((tenant?.style_draft as { theme?: string })?.theme).toBe("noir-lux");
     });
 
     it("dopiero publikacja zdejmuje sekcję z żywej strony i kasuje wiersz", async () => {
@@ -424,14 +434,26 @@ describe.skipIf(!hasEnv)("akcje sekcji strony (RLS, żywy Supabase)", () => {
 
       const after = await envelope();
       expect(after?.sections.some((s) => s.id === victimId), "sekcja przeżyła publikację").toBe(false);
-      // Publikacja przenosi TO, CO STOI W SZKICU — porównujemy z kolumną, a nie
-      // z literałem, bo testy wyżej zmieniają styl i test miałby wtedy dwie
-      // prawdy o tym samym stanie.
-      const { data: site } = await admin.from("sites").select("style_draft").eq("id", siteAId).single();
+      /*
+       * Publikacja przenosi TO, CO STOI W SZKICU — porównujemy z kolumną, a nie
+       * z literałem, bo testy wyżej zmieniają styl i test miałby wtedy dwie
+       * prawdy o tym samym stanie.
+       *
+       * Od ADR-161 szkicem wyglądu jest kolumna NAJEMCY, a akcja `publishSite`
+       * wykonuje DWA wywołania: treść strony i wygląd sklepu. Ta asercja jest
+       * jedynym miejscem, które pilnuje drugiego z nich od strony panelu —
+       * gdyby zniknęło, operator publikowałby stronę i nie dostawał koloru,
+       * który przed chwilą wybrał, bez ani jednego komunikatu.
+       */
+      const { data: tenant } = await admin
+        .from("tenants")
+        .select("style_draft")
+        .eq("id", tenantA.tenantId)
+        .single();
       expect(
         (after as unknown as { style?: unknown }).style,
         "styl nie wszedł razem z publikacją",
-      ).toEqual(site?.style_draft);
+      ).toEqual(tenant?.style_draft);
 
       const { data: gone } = await admin.from("site_sections").select("id").eq("id", victimId);
       expect(gone, "publikacja nie skasowała wiersza sekcji usuniętej w szkicu").toHaveLength(0);

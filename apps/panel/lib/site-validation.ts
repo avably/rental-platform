@@ -205,21 +205,25 @@ export const toggleSectionInputSchema = z.object({
 
 
 /**
- * Wejście zapisu STYLU STRONY (K5, ADR-090). Kształt samego stylu pochodzi
- * z @avably/core/site — tu jest tylko otoczka akcji, jak przy sekcjach.
+ * Wejście zapisu STYLU SKLEPU (K5, ADR-090; poziom najemcy od ADR-161).
+ * Kształt samego stylu pochodzi z @avably/core/site — tu jest tylko otoczka
+ * akcji, jak przy sekcjach.
+ *
+ * BEZ POLA `siteId` I TO JEST ASERCJA, NIE OSZCZĘDNOŚĆ: styl przestał być
+ * właściwością podstrony, więc wejście, które umiałoby wskazać stronę, byłoby
+ * wejściem obiecującym coś, czego model nie potrafi (ADR-161).
  *
  * Styl jedzie w CAŁOŚCI, a nie jako łatka pojedynczego pola. Scalanie po
  * stronie serwera („zmień sam akcent, resztę zostaw") wymagałoby odczytu przed
- * zapisem, a to jest wyścig: dwie karty kreatora otwarte na tej samej stronie
+ * zapisem, a to jest wyścig: dwie karty kreatora otwarte na tym samym sklepie
  * nadpisywałyby sobie nawzajem wybór, i to niedeterministycznie. Panel trzyma
  * pełny stan stylu i odsyła go w komplecie — ostatni zapis wygrywa, ale wygrywa
  * PRZEWIDYWALNIE.
  */
-export const updateSiteStyleInputSchema = z.object({
-  siteId: uuidSchema,
+export const updateStoreStyleInputSchema = z.object({
   style: siteStyleSchema,
 });
-export type UpdateSiteStyleInput = z.infer<typeof updateSiteStyleInputSchema>;
+export type UpdateStoreStyleInput = z.infer<typeof updateStoreStyleInputSchema>;
 
 /**
  * Wejście zastosowania SZABLONU STARTOWEGO (K5, ADR-090) — operacja

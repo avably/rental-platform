@@ -7,6 +7,12 @@
  * klientom pod ręką. Dlatego styl dostaje bliźniaka `style_published` i wchodzi
  * dokładnie tą samą bramką, co reszta stanu widocznego.
  *
+ * PO ADR-161 (migracja 0077) KOLUMNY STYLU NA `sites` SĄ MARTWE: wygląd jest
+ * własnością NAJEMCY, a te kolumny zostają wyłącznie na czas okna
+ * wdrożeniowego (stary panel dalej do nich pisze i dalej woła `app.publish_site`).
+ * Ten plik pilnuje więc odtąd KONTRAKTU OKNA, a nie wyglądu sklepu — tamten
+ * ma własny plik, `tenant-appearance.test.ts`.
+ *
  * Ten plik dowodzi PIĘCIU rzeczy, a każda psuje się inaczej:
  *
  *   1. OKNO WDROŻENIOWE — dla strony, która nigdy nie zapisała stylu, koperta
@@ -15,7 +21,9 @@
  *      odrzuca kopertę z nieznanym kluczem (`.strict()`) i gasi sklep;
  *   2. ZAPIS SZKICU NIE RUSZA ŻYWEJ STRONY — `style_draft` zmieniony w kreatorze
  *      nie zmienia koperty o bajt;
- *   3. PUBLIKACJA PRZENOSI STYL — i dopiero wtedy koperta dostaje klucz `style`;
+ *   3. PUBLIKACJA DALEJ PRZEPISUJE bliźniaka strony (kontrakt starego kodu),
+ *      a odczyt publiczny DALEJ go nie czyta (inaczej wróciłby wygląd per
+ *      podstrona — defekt zamknięty przez ADR-161);
  *   4. STRAŻNIK (ADR-091) OBEJMUJE NOWĄ KOLUMNĘ — bezpośredni zapis
  *      `style_published` przez członka tenanta to 42501, mimo GRANT UPDATE na
  *      tabelę. Bez tego bliźniak byłby bliźniakiem tylko z nazwy;
@@ -193,15 +201,34 @@ describe.skipIf(!hasEnv)("styl strony wchodzi na żywo wyłącznie publikacją (
     );
   });
 
-  it("PUBLIKACJA przenosi styl i dopiero wtedy koperta dostaje klucz `style`", async () => {
+  it("PUBLIKACJA przenosi styl do bliźniaka STRONY, ale koperta go już nie czyta", async () => {
+    /*
+     * TEST ZMIENIA STRONĘ RAZEM Z ZACHOWANIEM (ADR-161, migracja 0077).
+     *
+     * Do 0077 stało tu zdanie „koperta dostaje klucz `style`" i było prawdziwe.
+     * Faza 2 zamieniła jednak wiersze `sites` w osobne STRONY, więc styl na
+     * wierszu strony znaczył „inny wygląd na każdej podstronie" — defekt
+     * zgłoszony przez właściciela. Wygląd mieszka odtąd na najemcy.
+     *
+     * Zdanie po zmianie jest MOCNIEJSZE, a nie słabsze, i pilnuje dwóch rzeczy
+     * naraz: bliźniak strony DALEJ jest zapisywany przez publikację (kontrakt,
+     * na którym stoi stary panel w oknie wdrożeniowym), a odczyt publiczny
+     * DALEJ go nie czyta (inaczej wróciłby defekt). Publikacji WYGLĄDU dowodzi
+     * tenant-appearance.test.ts.
+     */
     await publish(a, siteAId);
 
-    const koperta = await envelope(a.tenantId);
-    expect(Object.keys(koperta!).sort()).toEqual(["published_at", "sections", "style", "template"]);
-    expect(koperta!.style).toEqual(MOTYW);
-
     const [row] = await sql!`select style_published from public.sites where id = ${siteAId}`;
-    expect(row!.style_published).toEqual(MOTYW);
+    expect(
+      row!.style_published,
+      "publikacja przestała przepisywać bliźniaka strony — stary panel na tym stoi",
+    ).toEqual(MOTYW);
+
+    const koperta = await envelope(a.tenantId);
+    expect(
+      Object.keys(koperta!).sort(),
+      "styl WIERSZA STRONY wrócił do koperty — wygląd znów jest per podstrona",
+    ).toEqual(["published_at", "sections", "template"]);
   });
 
   it("odczyt publiczny nie czyta kolumny SZKICU stylu", async () => {

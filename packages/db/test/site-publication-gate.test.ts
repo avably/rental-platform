@@ -218,7 +218,7 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
         },
       },
       {
-        nazwa: "updateTemplate (szablon strony)",
+        nazwa: "updateTemplate (szablon w wierszu strony)",
         run: async () => {
           const { error } = await a.ownerClient
             .from("sites")
@@ -243,11 +243,34 @@ describe.skipIf(!hasEnv)("publikacja jedyną bramką stanu publicznego (0045, AD
   // (b) Publikacja przenosi KOMPLET — w tym usunięcia
   // -------------------------------------------------------------------
 
-  it("publikacja przenosi treść, kolejność, wyłączenie, szablon ORAZ usunięcie sekcji", async () => {
+  it("publikacja przenosi treść, kolejność, wyłączenie ORAZ usunięcie sekcji", async () => {
     await publish(a, siteAId);
     const after = await envelope(a.tenantId);
 
-    expect(after?.template, "szablon nie wszedł razem z publikacją").toBe("bold");
+    /*
+     * SZABLON NIE JEST JUŻ WŁASNOŚCIĄ STRONY (ADR-161, migracja 0077).
+     *
+     * Do 0077 stało tu zdanie odwrotne: `sites.template` ustawiony wyżej na
+     * `bold` miał wejść do koperty razem z publikacją. Test zmienia stronę
+     * RAZEM z zachowaniem, bo zachowanie zmieniło się celowo — wygląd sklepu
+     * przeniósł się na wiersz najemcy, a `sites.template` jest odtąd kolumną
+     * martwą. Asercja zostaje FALSYFIKOWALNA i pilnuje przeciwnego kierunku:
+     * gdyby ktoś przywrócił odczyt wyglądu z wiersza strony, wróciłby też
+     * defekt zgłoszony przez właściciela — inny szablon na każdej podstronie.
+     * Że publikacja WYGLĄDU działa, dowodzi tenant-appearance.test.ts.
+     */
+    expect(
+      after?.template,
+      "szablon wrócił do koperty z wiersza STRONY — wygląd znów jest per podstrona",
+    ).toBe("classic");
+
+    const [wiersz] = await sql!<{ template_published: string | null }[]>`
+      select template_published from public.sites where id = ${siteAId}
+    `;
+    expect(
+      wiersz!.template_published,
+      "publikacja przestała przepisywać martwą kolumnę — stary panel w oknie wdrożeniowym na tym stoi",
+    ).toBe("bold");
 
     const ids = after?.sections.map((s) => s.id) ?? [];
     expect(ids, "sekcja usunięta w szkicu przeżyła publikację").not.toContain(faqId);

@@ -62,8 +62,21 @@ describe("podgląd szkicu: bramka i źródło danych", () => {
   });
 
   it("styl bierze ze SZKICU, nie z kolumny opublikowanej", () => {
-    expect(trasa).toContain("resolveSiteStyle(data.site.style_draft");
+    /*
+     * Od ADR-161 wygląd jest własnością NAJEMCY, więc trasa nie czyta już
+     * kolumny strony, tylko pyta o niego jedną funkcję. Bramka schodzi zatem
+     * piętro niżej — do tej funkcji — bo asercja po samej nazwie wywołania
+     * byłaby zielona także wtedy, gdyby ta funkcja czytała stan opublikowany.
+     */
+    expect(trasa).toContain("getTenantDraftStyle(ctx.supabase");
     expect(trasa, "podgląd sięgnął po stan opublikowany").not.toContain("style_published");
+
+    const zrodlo = read("apps/panel/lib/tenant-appearance.ts");
+    expect(zrodlo.length, "pusty moduł wyglądu — kontrola po pustym zbiorze").toBeGreaterThan(200);
+    expect(zrodlo).toContain("style_draft");
+    expect(zrodlo, "wspólny odczyt wyglądu sięga po stan opublikowany").not.toContain(
+      "style_published",
+    );
   });
 
   it("kotwice sekcji ma włączone tak samo, jak sklep", () => {
