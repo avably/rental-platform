@@ -261,6 +261,29 @@ describe.skipIf(!hasEnv)("wygląd sklepu jest własnością najemcy (0077, ADR-1
     // siedział na wierszu strony, więc „Kontakt" mógł mieć inny motyw niż
     // strona główna — nagłówek zmieniał krój i kolor przy przejściu między
     // podstronami TEGO SAMEGO sklepu.
+    //
+    // ROZBIEŻNOŚĆ SIEJEMY CELOWO: obie strony dostają RÓŻNY styl w martwych
+    // kolumnach `sites` i zostają z nim opublikowane. Bez tego kroku dowód
+    // byłby pusty — przy dwóch pustych stylach koperty byłyby równe także po
+    // cofnięciu odczytu do wiersza strony, czyli test przechodziłby również
+    // dla defektu, który ma łapać.
+    for (const [slug, styl] of [
+      ["", { theme: "classic" }],
+      ["kontakt", { theme: "bold-brutal", accent: "signal" }],
+    ] as const) {
+      await sql!`
+        update public.sites set style_draft = ${sql!.json(styl)}
+         where tenant_id = ${a.tenantId} and slug = ${slug}
+      `;
+      const [row] = await sql!<{ id: string }[]>`
+        select id from public.sites where tenant_id = ${a.tenantId} and slug = ${slug}
+      `;
+      const republished = await a.ownerClient
+        .schema("app")
+        .rpc("publish_site", { p_site_id: row!.id });
+      expect(republished.error, republished.error?.message).toBeNull();
+    }
+
     expect((await setStyle(a.ownerClient, { ...STYL })).error).toBeNull();
     expect((await publishAppearance(a.ownerClient)).error).toBeNull();
 
