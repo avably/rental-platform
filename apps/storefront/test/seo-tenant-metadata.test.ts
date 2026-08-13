@@ -40,6 +40,57 @@ describe("heroText — opis bierze się z tego, co najemca OPUBLIKOWAŁ", () => 
     expect(heroText(null)).toEqual({});
     expect(heroText({ ...site, sections: [] })).toEqual({});
   });
+
+  /**
+   * ELEMENT ZWIĄZANY Z KATALOGIEM (faza 3, ADR-163) niesie w treści napis
+   * PROJEKTOWY — ten, do którego render wraca po zdjęciu wiązania i którego
+   * odwiedzający nigdy nie widzi. Metadane czytają treść, więc bez odsiewu opis
+   * w wynikach wyszukiwania byłby zdaniem, którego na stronie NIE MA.
+   */
+  it("napis związany z katalogiem NIE staje się opisem strony", () => {
+    const canvasSite: PublishedSite = {
+      ...site,
+      sections: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          position: 0,
+          type: "hero",
+          content: {
+            version: 2,
+            rows: 20,
+            background: "default",
+            elements: [
+              {
+                id: "naglowek",
+                kind: "heading",
+                text: "Nagłówek strony",
+                level: 1,
+                align: "left",
+                layout: { desktop: { x: 0, y: 0, w: 48, h: 6, z: 0 } },
+              },
+              {
+                id: "podtytul",
+                kind: "text",
+                text: "TEKST PROJEKTOWY, NIGDY NIEWIDOCZNY",
+                variant: "lead",
+                align: "left",
+                layout: { desktop: { x: 0, y: 8, w: 48, h: 6, z: 0 } },
+                bindings: {
+                  text: {
+                    record: { kind: "product", productId: "33333333-3333-4333-8333-333333333333" },
+                    field: "description",
+                    whenEmpty: "hide",
+                  },
+                },
+              },
+            ],
+          },
+        } as unknown as PublishedSite["sections"][number],
+      ],
+    };
+
+    expect(heroText(canvasSite)).toEqual({ heading: "Nagłówek strony" });
+  });
 });
 
 describe("clampDescription", () => {
