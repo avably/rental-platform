@@ -38,6 +38,22 @@
  * 700 ms w nieskończoność, waląc w serwer i niczego nie naprawiając. Ponawia
  * NASTĘPNY autozapis (kolejna zmiana operatora), jawne „Zapisz ponownie"
  * i `flush()` przy wyjściu z trasy.
+ *
+ * ============== `flush()` ODPOWIADA, CZY WOLNO WYJŚĆ (ADR-174) ==============
+ *
+ * ADR-169 zostawił jedną ścieżkę bez odpowiedzi: `flush()` nie zwracał NICZEGO,
+ * więc wyjście „← Panel" odpalało zapis i nawigowało w tej samej instrukcji.
+ * Kreator odmontowywał się, zanim `settle(id, false)` zdążył zapalić licznik —
+ * a komunikat, który ADR-169 wyprowadził aż na `body`, nie miał się gdzie
+ * pokazać, bo nie było już komponentu, który go rysuje. Operator wychodził
+ * z przekonaniem, że zapisał, i widział brak przy następnym wejściu.
+ *
+ * `flush()` ma odtąd typ `Promise<boolean>`: `true` znaczy „kolejka pusta,
+ * WSZYSTKO weszło do bazy". Odpowiedzią jest rozmiar zbioru `failed`, czyli
+ * dokładnie ta sama wartość, którą wskaźnik pokazuje na pasku — dwa źródła
+ * prawdy o zapisie byłyby powtórzeniem tej samej wady piętro wyżej.
+ * Wołający, którym wynik jest niepotrzebny (zegar autozapisu, sprzątanie po
+ * odmontowaniu), ignorują go jak dotąd.
  */
 import {
   CANVAS_COLUMNS,
@@ -160,8 +176,15 @@ export interface CanvasEditor {
    * warunkiem, pod którym wskaźnik NIE MA PRAWA powiedzieć „Zapisano".
    */
   unsaved: number;
-  /** Natychmiastowy zapis wszystkiego, co czeka (wyjście z kreatora, publikacja). */
-  flush: () => void;
+  /**
+   * Natychmiastowy zapis wszystkiego, co czeka (wyjście z kreatora, publikacja).
+   *
+   * ODPOWIADA, CZY WOLNO WYJŚĆ (ADR-174): `true` znaczy „kolejka pusta, komplet
+   * w bazie". `false` znaczy, że co najmniej jedna sekcja została odrzucona —
+   * wołający, który nawiguje, MUSI na tę odpowiedź poczekać, inaczej odmontuje
+   * kreator razem z jedynym miejscem, w którym ta odmowa może się pokazać.
+   */
+  flush: () => Promise<boolean>;
 }
 
 export function useCanvasEditor({
@@ -246,28 +269,44 @@ export function useCanvasEditor({
     setUnsaved(failed.current.size);
   }, []);
 
-  const flush = useCallback(() => {
+  const flush = useCallback(async (): Promise<boolean> => {
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
     }
     const ids = [...dirty.current];
     dirty.current.clear();
-    for (const id of ids) {
-      const section = sectionsRef.current.get(id);
-      const content = historyRef.current.present[id];
-      if (!section || !content) {
-        // Sekcji już nie ma (usunięta, przeładowana z serwera) — nie ma czego
-        // zapisywać ani czego ponawiać. Zostawienie jej w liczniku trzymałoby
-        // wskaźnik na „nie zapisano" po sekcji, której operator sam się pozbył.
-        if (failed.current.delete(id)) setUnsaved(failed.current.size);
-        continue;
-      }
-      void persistRef.current(section, content).then(
-        (ok) => settle(id, ok),
-        () => settle(id, false),
-      );
-    }
+    /*
+     * Zapisy idą RÓWNOLEGLE, jak przed ADR-174 — sekcje są od siebie niezależne,
+     * a szeregowanie ich tylko po to, żeby doczekać odpowiedzi, przedłużałoby
+     * wyjście o sumę czasów zamiast o najdłuższy z nich. Czekamy natomiast na
+     * KOMPLET: bez tego `flush()` odpowiadałby, zanim serwer cokolwiek powie.
+     */
+    await Promise.all(
+      ids.map(async (id) => {
+        const section = sectionsRef.current.get(id);
+        const content = historyRef.current.present[id];
+        if (!section || !content) {
+          // Sekcji już nie ma (usunięta, przeładowana z serwera) — nie ma czego
+          // zapisywać ani czego ponawiać. Zostawienie jej w liczniku trzymałoby
+          // wskaźnik na „nie zapisano" po sekcji, której operator sam się pozbył.
+          if (failed.current.delete(id)) setUnsaved(failed.current.size);
+          return;
+        }
+        try {
+          settle(id, await persistRef.current(section, content));
+        } catch {
+          settle(id, false);
+        }
+      }),
+    );
+    /*
+     * Odpowiedź czyta zbiór `failed`, a nie wyniki TEJ tury: sekcja odrzucona
+     * wcześniej i nieruszona teraz dalej nie jest w bazie, a wyjście z kreatora
+     * pyta o stan CAŁEJ pracy, nie o ostatnią wysyłkę. To ta sama wartość,
+     * którą pokazuje wskaźnik — jedno źródło prawdy o zapisie.
+     */
+    return failed.current.size === 0;
   }, [settle]);
 
   const schedule = useCallback(
@@ -275,13 +314,14 @@ export function useCanvasEditor({
       for (const id of ids) dirty.current.add(id);
       if (dirty.current.size === 0) return;
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(flush, AUTOSAVE_DELAY_MS);
+      timer.current = setTimeout(() => void flush(), AUTOSAVE_DELAY_MS);
     },
     [flush],
   );
 
-  // Zamknięcie kreatora nie może zjeść ostatniego przeciągnięcia.
-  useEffect(() => () => flush(), [flush]);
+  // Zamknięcie kreatora nie może zjeść ostatniego przeciągnięcia. Odpowiedź jest
+  // tu bez adresata — komponentu, który mógłby pokazać odmowę, już nie ma.
+  useEffect(() => () => void flush(), [flush]);
 
   /**
    * Rdzeń obu mutacji: jeden wpis w historii i jeden zaplanowany zapis. Funkcja
