@@ -22,6 +22,8 @@
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 
+import { pagePathFromSlug } from "@avably/core/site";
+
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { loadCustomFieldDefinitions } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
@@ -66,20 +68,6 @@ export default async function SiteBuilderPage({
   const money = { currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!), locale };
 
   /*
-   * ŻYWA WERSJA TENANTA — wsad potwierdzenia publikacji (L6). Unikat częściowy
-   * `sites_one_live_per_tenant_idx` (0048) gwarantuje najwyżej jeden wiersz,
-   * więc `maybeSingle` jest tu twierdzeniem o modelu, nie optymizmem. Dialog
-   * dostaje dokładnie to, co lista wersji: czy edytowana wersja jest żywa,
-   * a jeśli nie — którą żywą stronę publikacja zgasi.
-   */
-  const { data: liveSite } = await ctx.supabase
-    .from("sites")
-    .select("id, name")
-    .eq("tenant_id", ctx.tenantId!)
-    .not("published_at", "is", null)
-    .maybeSingle();
-
-  /*
    * PUNKTY ODBIORU DO SKOPIOWANIA W SEKCJI DOJAZDU (E5, ADR-096).
    *
    * Trasa CZYTA wiersze, a o tym, które z nich stają się wpisami sekcji,
@@ -118,8 +106,28 @@ export default async function SiteBuilderPage({
     <SiteBuilder
       siteId={data.site.id}
       siteName={data.site.name}
-      live={liveSite?.id === data.site.id}
-      liveName={liveSite && liveSite.id !== data.site.id ? liveSite.name : null}
+      /*
+       * ŻYWOŚĆ CZYTANA Z WIERSZA TEJ STRONY (ADR-165) — jedno źródło prawdy,
+       * wspólne z listą stron (`(panel)/strona/page.tsx`).
+       *
+       * Stało tu osobne zapytanie „która strona najemcy jest żywa" z
+       * `.maybeSingle()`, powołane na unikat `sites_one_live_per_tenant_idx`,
+       * który ZDJĘŁA migracja 0073. Po 0074 żywych stron może być wiele, więc
+       * PostgREST oddawał BŁĄD — a kod czytał wyłącznie `data`, czyli po cichu
+       * `null`. Operator edytujący stronę, którą klienci widzą, dostawał w
+       * oknie publikacji wariant „pierwszej publikacji".
+       *
+       * Naprawa jest usunięciem pytania, a nie poprawieniem go: „czy TĘ stronę
+       * widzi klient" odpowiada kolumna TEGO wiersza, a `getSiteWithSections`
+       * już ją przywiozła — i w odróżnieniu od zapytania wyżej RZUCA przy
+       * błędzie odczytu, zamiast oddawać ciche `null`.
+       */
+      live={data.site.published_at !== null}
+      /*
+       * ADRES do potwierdzenia publikacji: adres SZKICU, bo to on wejdzie na
+       * żywo przy najbliższej publikacji (bliźniak `slug_published`, 0073).
+       */
+      address={pagePathFromSlug(data.site.slug)}
       /*
        * Styl SZKICU — SKLEPU, nie tej strony (ADR-161). Kreator pokazuje
        * wygląd, który po publikacji obowiązuje na WSZYSTKICH podstronach, więc

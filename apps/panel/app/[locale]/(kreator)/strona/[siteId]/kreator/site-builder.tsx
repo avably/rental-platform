@@ -124,7 +124,7 @@ export function SiteBuilder({
   siteId,
   siteName,
   live = false,
-  liveName = null,
+  address = "/",
   style,
   sections,
   products,
@@ -133,21 +133,19 @@ export function SiteBuilder({
 }: {
   siteId: string;
   /**
-   * Nazwa WERSJI, którą operator ma otwartą (0048, ADR-093). Przy wielu
-   * wersjach płótno bez etykiety nie odpowiada na pytanie „którą stronę
-   * właśnie edytuję" — a to jest pytanie, które przy przełączaniu wersji
-   * pada najczęściej.
+   * Nazwa STRONY, którą operator ma otwartą (0048, ADR-093). Przy wielu
+   * stronach płótno bez etykiety nie odpowiada na pytanie „którą stronę
+   * właśnie edytuję" — a to jest pytanie, które pada najczęściej.
    */
   siteName: string;
   /**
-   * Czy edytowana wersja jest ŻYWA i jak nazywa się żywa INNA wersja (L6) —
-   * wsad potwierdzenia publikacji, dokładnie ten, którym mówi lista wersji:
-   * publikacja wersji roboczej GASI dotychczasową żywą stronę, a dialog musi
-   * powiedzieć którą. Domyślne wartości opisują stronę bez żadnej żywej
-   * wersji, czyli pierwszą publikację.
+   * WSAD POTWIERDZENIA PUBLIKACJI (L6; kształt po ADR-165): czy TĘ stronę
+   * klienci już widzą i pod jakim adresem stanie po publikacji. Stał tu props
+   * `liveName` („którą żywą stronę zgasi ta publikacja") — od 0074 publikacja
+   * nie gasi żadnej, więc pytanie zniknęło razem z odpowiedzią.
    */
   live?: boolean;
-  liveName?: string | null;
+  address?: string;
   /** Styl SZKICU (motyw + akcent + para krojów) — jedyne wejście wyglądu (ADR-090). */
   style: ResolvedSiteStyle;
   sections: EditorSection[];
@@ -663,16 +661,16 @@ export function SiteBuilder({
 
         {/*
           PUBLIKACJA MA POTWIERDZENIE (L6) — ten sam `PublishDialog`, którym
-          ostrzega lista wersji: publikacja z kreatora tak samo GASI dotychczasową
-          żywą stronę, więc nie ma prawa mówić o tym mniej niż lista. Akcja idzie
-          dopiero po potwierdzeniu; jedynie ona blokuje kreator (patrz `run`)
-          i melduje sukces osobnym „Opublikowano".
+          potwierdza lista stron: obie drogi prowadzą do tej samej operacji,
+          więc nie mają prawa mówić o niej co innego. Akcja idzie dopiero po
+          potwierdzeniu; jedynie ona blokuje kreator (patrz `run`) i melduje
+          sukces osobnym „Opublikowano".
         */}
         <PublishDialog
           disabled={pending}
           live={live}
           name={siteName}
-          liveName={liveName}
+          address={address}
           onConfirm={() =>
             run(() => publishSite(siteId), undefined, { blocking: true, announce: "published" })
           }
