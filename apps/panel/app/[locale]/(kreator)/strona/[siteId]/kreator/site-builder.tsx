@@ -31,6 +31,19 @@
  * Zapis `quiet` wyszedł też POZA tranzycję — jego `pending` szarzył całe płótno
  * co 700 ms w środku pracy. Blokada zostaje przy operacjach struktury; edycja
  * płótna ma iść bez przerwy między jednym gestem a drugim.
+ *
+ * ================== CO ZMIENIŁ K3 AUDYTU (ADR-169) ==================
+ *
+ * WSKAŹNIK MA TRZY STANY, NIE DWA: „Zapisywanie…", „Zapisano" i „Nie zapisano".
+ * Do ADR-169 nieudany autozapis płótna gasł przy pierwszej udanej akcji obok,
+ * a wskaźnik wracał na „Zapisano" — nad sekcją, której w bazie nie ma. Odtąd
+ * `run` ZWRACA wynik, `persist` go czyta, a licznik `editor.unsaved` ma
+ * pierwszeństwo przed każdym meldunkiem sukcesu.
+ *
+ * KOMUNIKAT WYSZEDŁ Z BELKI DO WŁASNEJ WARSTWY. Stał pod paskiem, czyli pod
+ * modalną nakładką każdej szuflady i każdego okna — a odmowa autozapisu
+ * przychodzi najczęściej właśnie WTEDY, gdy operator coś w szufladzie wpisuje.
+ * Komunikat niewidoczny jest w skutkach nie do odróżnienia od cichego zapisu.
  */
 import {
   canvasMetrics,
@@ -66,9 +79,10 @@ import {
   type SiteMoney,
   type StorefrontProduct,
 } from "@avably/ui";
-import { ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 
 import { PublishDialog } from "@/components/publish-dialog";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -171,6 +185,14 @@ export function SiteBuilder({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   /**
+   * DLACZEGO praca nie weszła do bazy (K3, ADR-169). Osobno od `error`, bo
+   * `error` kasuje się na starcie KAŻDEJ następnej akcji — a przyczyna
+   * niezapisanej sekcji ma zostać na ekranie dokładnie tak długo, jak długo
+   * ta sekcja nie jest zapisana. Rysujemy ją wyłącznie przy `editor.unsaved`
+   * większym od zera, więc nie ma czego zerować przy sukcesie.
+   */
+  const [unsavedReason, setUnsavedReason] = useState<string | null>(null);
+  /**
    * AKCJA DO PONOWIENIA po ODRZUCONYM promise (L6). Trzymamy argumenty, nie
    * gotową funkcję: handler kliknięcia woła `run` z nich, więc ponowienie
    * przechodzi ten sam kanał (wskaźnik, błąd, odświeżenie) co pierwotny zapis.
@@ -234,12 +256,22 @@ export function SiteBuilder({
    * patrz nagłówek pliku (autozapis geometrii).
    */
   const run = useCallback(
-    (action: () => Promise<ActionResult>, onFail?: () => void, options?: RunOptions) => {
+    (
+      action: () => Promise<ActionResult>,
+      onFail?: () => void,
+      options?: RunOptions,
+      /*
+       * WYNIK WRACA DO WOŁAJĄCEGO (K3, ADR-169). Do tej pory `run` niczego nie
+       * zwracał, więc autozapis płótna nie miał jak się dowiedzieć, że zapis
+       * NIE wszedł — i kolejka kasowała sekcję tak samo po sukcesie, jak po
+       * odmowie. Wołający, którzy wyniku nie potrzebują, ignorują go jak dotąd.
+       */
+    ): Promise<ActionResult> => {
       setError(null);
       setRetryArgs(null);
       setSaveState("saving");
 
-      const settle = (result: ActionResult, refresh: boolean) => {
+      const settle = (result: ActionResult, refresh: boolean): ActionResult => {
         if (result.ok) {
           setSaveState(options?.announce ?? "saved");
           if (refresh) router.refresh();
@@ -248,6 +280,7 @@ export function SiteBuilder({
           setError(result.error);
           onFail?.();
         }
+        return result;
       };
 
       /*
@@ -262,11 +295,13 @@ export function SiteBuilder({
        * edycja treści NIE ginie — autozapis nie ma rollbacku (treść zostaje
        * w edytorze), a ponowienie wysyła dokładnie tę samą akcję jeszcze raz.
        */
-      const reject = () => {
+      const reject = (): ActionResult => {
+        const failure = { ok: false as const, error: t("builder.saveFailed") };
         setSaveState("idle");
-        setError(t("builder.saveFailed"));
+        setError(failure.error);
         setRetryArgs({ action, onFail, options });
         onFail?.();
+        return failure;
       };
 
       /*
@@ -293,28 +328,33 @@ export function SiteBuilder({
        * a nie stanem połowicznym; serwer i tak przelicza pozycje od zera.
        */
       if (options?.blocking) {
-        startTransition(async () => {
-          try {
-            settle(await action(), true);
-          } catch {
-            reject();
-          }
+        return new Promise<ActionResult>((resolve) => {
+          startTransition(async () => {
+            try {
+              resolve(settle(await action(), true));
+            } catch {
+              resolve(reject());
+            }
+          });
         });
-        return;
       }
 
-      void action()
-        .then((result) => settle(result, !options?.quiet))
-        .catch(reject);
+      return action().then((result) => settle(result, !options?.quiet), reject);
     },
     [router, t],
   );
 
   const editor = useCanvasEditor({
     sections,
+    /*
+     * AUTOZAPIS PŁÓTNA MELDUJE KOLEJCE, CZY WSZEDŁ (K3, ADR-169). Zwrócony
+     * `false` oznacza, że sekcja WRACA do kolejki i zapala licznik `unsaved` —
+     * a przyczynę zatrzymujemy osobno, bo `error` skasuje pierwsza następna
+     * akcja, choćby zupełnie niezwiązana.
+     */
     persist: useCallback(
-      (section: EditorSection, content: SectionContent) => {
-        run(
+      async (section: EditorSection, content: SectionContent) => {
+        const result = await run(
           () =>
             upsertSection({
               siteId,
@@ -325,6 +365,8 @@ export function SiteBuilder({
           undefined,
           { quiet: true },
         );
+        if (!result.ok) setUnsavedReason(result.error);
+        return result.ok;
       },
       [run, siteId],
     ),
@@ -624,14 +666,28 @@ export function SiteBuilder({
           />
         </div>
 
-        <p data-builder-save-state role="status" className="text-muted-foreground ml-auto text-sm">
-          {saveState === "saving"
-            ? t("builder.saving")
-            : saveState === "saved"
-              ? t("builder.saved")
-              : saveState === "published"
-                ? t("builder.published")
-                : null}
+        {/*
+          TRZY STANY, NIE DWA (K3, ADR-169). „Nie zapisano" ma PIERWSZEŃSTWO
+          przed każdym meldunkiem sukcesu: dopóki choć jedna sekcja nie weszła
+          do bazy, zdanie „Zapisano" jest fałszywe — nieważne, że akcja, która
+          właśnie przeszła, przeszła naprawdę. To dokładnie ta podmiana gasiła
+          ślad po zgubionej pracy.
+        */}
+        <p
+          data-builder-save-state
+          data-save-state={editor.unsaved > 0 ? "unsaved" : saveState}
+          role="status"
+          className={`ml-auto text-sm ${editor.unsaved > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}
+        >
+          {editor.unsaved > 0
+            ? t("builder.unsaved")
+            : saveState === "saving"
+              ? t("builder.saving")
+              : saveState === "saved"
+                ? t("builder.saved")
+                : saveState === "published"
+                  ? t("builder.published")
+                  : null}
         </p>
 
         {/*
@@ -682,29 +738,15 @@ export function SiteBuilder({
         />
       </header>
 
-      {error ? (
-        <div className="border-border flex flex-wrap items-center gap-3 border-b px-3 py-2">
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-          {/*
-            PONOWIENIE stoi wyłącznie po ODRZUCENIU (L6): ta sama akcja, ten sam
-            kanał. Przy porażce biznesowej przycisku nie ma — walidacja odrzuci
-            drugie podejście identycznie.
-          */}
-          {retryArgs ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              data-builder-retry
-              onClick={() => run(retryArgs.action, retryArgs.onFail, retryArgs.options)}
-            >
-              {t("builder.retry")}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+      <BuilderAlert
+        unsaved={editor.unsaved}
+        reason={unsavedReason}
+        error={error}
+        onSaveAgain={editor.flush}
+        onRetry={
+          retryArgs ? () => run(retryArgs.action, retryArgs.onFail, retryArgs.options) : undefined
+        }
+      />
 
       {galleryOpen ? (
         <TemplateGallery
@@ -913,6 +955,129 @@ export function SiteBuilder({
       />
     </div>
     </TooltipProvider>
+  );
+}
+
+/**
+ * KOMUNIKAT KREATORA PONAD WSZYSTKIM, CO OTWARTE (K3, ADR-169).
+ *
+ * Pasek błędu stał dotąd pod belką, w drzewie kreatora. Każda szuflada i każde
+ * okno stoi na Radix Dialogu, którego nakładka jest `fixed inset-0 z-50`, więc
+ * przykrywała komunikat OBRAZEM, a `hideOthers` z `aria-hidden` odbierało go
+ * czytnikowi ekranu. Odmowa autozapisu przychodzi najczęściej dokładnie wtedy,
+ * gdy operator coś w szufladzie wpisuje — więc jedyny moment, w którym ten
+ * komunikat jest naprawdę potrzebny, był jedynym, w którym go nie było.
+ *
+ * Dlatego warstwa:
+ *   • wisi na `body`, nie w drzewie kreatora — inaczej dowolny przodek
+ *     z własnym kontekstem układania mógłby ją uwięzić pod nakładką;
+ *   • ma z-index WYŻSZY niż nakładka okna (`z-50`), więc maluje się nad nią;
+ *   • ZDEJMUJE Z SIEBIE `aria-hidden`, który zakłada jej modal. To nie jest
+ *     obejście cudzej biblioteki, tylko jawna decyzja: stan „twoja praca nie
+ *     jest zapisana" musi dojść do operatora niezależnie od tego, co ma
+ *     otwarte, a nakładka wycisza wszystko poza sobą bez wyjątków;
+ *   • przepuszcza wskaźnik (`pointer-events-none`) poza samą kartą, żeby nie
+ *     odbierać kliknięć płótnu pod spodem.
+ */
+function BuilderAlert({
+  unsaved,
+  reason,
+  error,
+  onSaveAgain,
+  onRetry,
+}: {
+  /** Ile sekcji NIE weszło do bazy — patrz `CanvasEditor.unsaved`. */
+  unsaved: number;
+  /** Przyczyna odmowy, słowami serwera. */
+  reason: string | null;
+  /** Błąd ostatniej akcji struktury (kasowany przy następnej). */
+  error: string | null;
+  onSaveAgain: () => void;
+  onRetry?: () => void;
+}) {
+  const t = useTranslations("site");
+  /*
+   * Węzeł warstwy powstaje w INICJALIZATORZE stanu, a nie w efekcie: efekt
+   * wołający `setState` kaskaduje render (bramka `react-hooks/set-state-in-effect`),
+   * a zapis do referencji w renderze jest zapisem w trakcie renderu. Tu jest
+   * jedno wywołanie na instancję, a na serwerze nie ma `document`, więc
+   * komponent renderuje się do niczego i wchodzi dopiero u klienta.
+   */
+  const [layer] = useState<HTMLElement | null>(() => {
+    if (typeof document === "undefined") return null;
+    const node = document.createElement("div");
+    node.setAttribute("data-builder-alert-layer", "");
+    node.className = "pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-center p-4";
+    return node;
+  });
+
+  useEffect(() => {
+    if (!layer) return;
+    document.body.append(layer);
+
+    /*
+     * Modal zakłada `aria-hidden` na każde dziecko `body` poza swoim portalem
+     * (pakiet `aria-hidden`, wołany przez Radix przy otwarciu). Obserwator
+     * zdejmuje go z TEJ JEDNEJ warstwy — pętli nie ma, bo usunięcie atrybutu
+     * wywołuje kolejne zdarzenie, w którym nie ma już czego usuwać.
+     */
+    const observer = new MutationObserver(() => {
+      if (layer.hasAttribute("aria-hidden")) layer.removeAttribute("aria-hidden");
+    });
+    observer.observe(layer, { attributes: true, attributeFilter: ["aria-hidden"] });
+
+    return () => {
+      observer.disconnect();
+      layer.remove();
+    };
+  }, [layer]);
+
+  if (!layer) return null;
+  if (unsaved === 0 && !error) return null;
+
+  /*
+   * NIEZAPISANA PRACA BIJE ZWYKŁY BŁĄD. `error` gaśnie przy pierwszej
+   * następnej akcji, a sekcja poza bazą zostaje — więc gdy zachodzą oba,
+   * na wierzch idzie ten stan, który nie mija sam z siebie.
+   */
+  const lost = unsaved > 0;
+
+  return createPortal(
+    <div
+      data-builder-alert
+      data-builder-alert-kind={lost ? "unsaved" : "error"}
+      className="border-destructive bg-card pointer-events-auto flex max-w-2xl flex-wrap items-start gap-3 rounded-md border px-4 py-3"
+    >
+      <AlertTriangle className="text-destructive mt-0.5 size-5 shrink-0" aria-hidden />
+      <div className="flex min-w-0 flex-col gap-1">
+        <p role="alert" className="text-destructive text-sm font-medium">
+          {lost ? `${t("builder.unsaved")}: ${reason ?? t("builder.saveFailed")}` : error}
+        </p>
+        {lost ? (
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("builder.unsavedBody")}
+          </p>
+        ) : null}
+      </div>
+      <div className="ml-auto flex gap-2">
+        {lost ? (
+          <Button type="button" size="sm" variant="secondary" data-builder-save-again onClick={onSaveAgain}>
+            {t("builder.saveAgain")}
+          </Button>
+        ) : null}
+        {/*
+          PONOWIENIE stoi wyłącznie po ODRZUCENIU (L6): ta sama akcja, ten sam
+          kanał. Przy porażce biznesowej przycisku nie ma — walidacja odrzuci
+          drugie podejście identycznie.
+        */}
+        {onRetry ? (
+          <Button type="button" size="sm" variant="secondary" data-builder-retry onClick={onRetry}>
+            {t("builder.retry")}
+          </Button>
+        ) : null}
+      </div>
+    </div>,
+    layer,
   );
 }
 

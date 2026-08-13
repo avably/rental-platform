@@ -22,6 +22,22 @@
  * jedynym piszącym, więc dane z serwera są w najlepszym razie równe temu, co
  * trzymamy, a w najgorszym starsze o jedno przeciągnięcie w locie. Z propsów
  * dochodzą wyłącznie sekcje NOWE, a znikają te usunięte.
+ *
+ * ================== KOLEJKA PRZEŻYWA PORAŻKĘ (K3, ADR-169) ==================
+ *
+ * `flush()` czyścił `dirty` PRZED wysyłką i nie dopisywał sekcji z powrotem,
+ * gdy zapis padł. Sekcja wypadała z kolejki NA ZAWSZE: następny autozapis jej
+ * nie ponawiał, wyjście z kreatora widziało pusty zbiór, a wskaźnik przy
+ * najbliższej udanej akcji obok meldował „Zapisano". Operator dostawał
+ * potwierdzenie zapisu pracy, której w bazie nie ma.
+ *
+ * Odtąd `persist` ODPOWIADA, czy zapis wszedł, a porażka (`ok: false` tak samo
+ * jak odrzucona obietnica) wraca do kolejki i zapala licznik `unsaved`.
+ * Ponowienia NIE napędzamy własnym zegarem: odmowa merytoryczna — sufit
+ * elementów, geometria poza płótnem, odrzucony adres — powtarzałaby się co
+ * 700 ms w nieskończoność, waląc w serwer i niczego nie naprawiając. Ponawia
+ * NASTĘPNY autozapis (kolejna zmiana operatora), jawne „Zapisz ponownie"
+ * i `flush()` przy wyjściu z trasy.
  */
 import {
   CANVAS_COLUMNS,
@@ -137,6 +153,13 @@ export interface CanvasEditor {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  /**
+   * ILE SEKCJI NIE WESZŁO DO BAZY (K3, ADR-169) — sekcje, których ostatni
+   * zapis został ODRZUCONY i które czekają na ponowienie. Zero znaczy „wszystko,
+   * co operator zrobił, serwer potwierdził"; wszystko powyżej zera jest
+   * warunkiem, pod którym wskaźnik NIE MA PRAWA powiedzieć „Zapisano".
+   */
+  unsaved: number;
   /** Natychmiastowy zapis wszystkiego, co czeka (wyjście z kreatora, publikacja). */
   flush: () => void;
 }
@@ -146,7 +169,12 @@ export function useCanvasEditor({
   persist,
 }: {
   sections: EditorSection[];
-  persist: (section: EditorSection, content: SectionContent) => void;
+  /**
+   * Zapis sekcji, który MUSI ODPOWIEDZIEĆ, czy wszedł (K3, ADR-169). Zapis
+   * bez odpowiedzi nie daje się odróżnić od zapisu udanego — a to jest cała
+   * ta wada: kolejka nie wiedziała, że ma czego pilnować.
+   */
+  persist: (section: EditorSection, content: SectionContent) => Promise<boolean>;
 }): CanvasEditor {
   const [history, setHistory] = useState<HistoryState<CanvasDrafts>>(() =>
     initialHistory(draftsOf(sections)),
@@ -193,7 +221,30 @@ export function useCanvasEditor({
   }, [persist]);
 
   const dirty = useRef(new Set<string>());
+  /**
+   * Sekcje, których zapis SERWER ODRZUCIŁ — podzbiór tego, co czeka w kolejce.
+   * Osobny zbiór, a nie sam rozmiar `dirty`, bo `dirty` jest niepuste także
+   * przez zwykłe 700 ms zwłoki po każdym ruchu myszą: gdyby wskaźnik czytał
+   * jego rozmiar, migałby „nie zapisano" przy każdym poprawnym geście i uczył
+   * operatora ignorować dokładnie ten stan, który ma go ostrzec.
+   */
+  const failed = useRef(new Set<string>());
+  const [unsaved, setUnsaved] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Rozstrzygnięcie POJEDYNCZEGO zapisu. Porażka wraca do kolejki — to jest
+   * ta jedna linia, której brak kasował pracę operatora.
+   */
+  const settle = useCallback((id: string, ok: boolean) => {
+    if (ok) {
+      failed.current.delete(id);
+    } else {
+      dirty.current.add(id);
+      failed.current.add(id);
+    }
+    setUnsaved(failed.current.size);
+  }, []);
 
   const flush = useCallback(() => {
     if (timer.current) {
@@ -205,9 +256,19 @@ export function useCanvasEditor({
     for (const id of ids) {
       const section = sectionsRef.current.get(id);
       const content = historyRef.current.present[id];
-      if (section && content) persistRef.current(section, content);
+      if (!section || !content) {
+        // Sekcji już nie ma (usunięta, przeładowana z serwera) — nie ma czego
+        // zapisywać ani czego ponawiać. Zostawienie jej w liczniku trzymałoby
+        // wskaźnik na „nie zapisano" po sekcji, której operator sam się pozbył.
+        if (failed.current.delete(id)) setUnsaved(failed.current.size);
+        continue;
+      }
+      void persistRef.current(section, content).then(
+        (ok) => settle(id, ok),
+        () => settle(id, false),
+      );
     }
-  }, []);
+  }, [settle]);
 
   const schedule = useCallback(
     (ids: string[]) => {
@@ -292,6 +353,7 @@ export function useCanvasEditor({
     redo: useCallback(() => step(redoHistory), [step]),
     canUndo: canUndoOf(history),
     canRedo: canRedoOf(history),
+    unsaved,
     flush,
   };
 }

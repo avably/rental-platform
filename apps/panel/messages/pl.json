@@ -1696,7 +1696,10 @@
       "tabElementsHint": "Przeciągnij kafel na sekcję albo kliknij — element dopisze się pod treścią.",
       "published": "Opublikowano",
       "saveFailed": "Nie udało się zapisać zmian.",
-      "retry": "Spróbuj ponownie"
+      "retry": "Spróbuj ponownie",
+      "unsaved": "Nie zapisano",
+      "unsavedBody": "Ta zmiana została odrzucona i NIE jest na serwerze. Widzisz ją na płótnie, ale sklep jej nie dostanie. Popraw przyczynę i zapisz ponownie.",
+      "saveAgain": "Zapisz ponownie"
     },
     "elementKinds": {
       "heading": "Nagłówek",
