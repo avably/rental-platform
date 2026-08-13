@@ -171,7 +171,10 @@ describe("pasek elementu: ikony z etykietami", () => {
     expect(bar, "pasek akcji elementu nie wyszedł przy zaznaczeniu").not.toBeNull();
 
     const buttons = [...bar!.querySelectorAll("[data-toolbar-action]")];
-    expect(buttons.length, "pasek elementu bez akcji").toBe(4);
+    // Pięć od ADR-166: właściwości, warstwa w górę, warstwa w dół, kopia,
+    // usunięcie. Liczba jest tu twarda celowo — akcja dołożona bez etykiety
+    // ma zapalić TEN test, a nie prześlizgnąć się pod progiem „co najmniej".
+    expect(buttons.length, "pasek elementu bez akcji").toBe(5);
     for (const button of buttons) {
       expect(button.getAttribute("aria-label"), "akcja elementu bez etykiety").toBeTruthy();
       expect(button.textContent?.trim()).toBe("");
@@ -183,7 +186,7 @@ describe("pasek elementu: ikony z etykietami", () => {
     const { container } = renderBuilder();
     selectFirstElement(container);
     const bar = container.querySelector<HTMLElement>("[data-element-actions]")!;
-    for (const label of [els.toFront, els.toBack, els.duplicate, els.remove]) {
+    for (const label of [els.settings, els.toFront, els.toBack, els.duplicate, els.remove]) {
       expect(within(bar).getByRole("button", { name: label }), `brak akcji ${label}`).toBeTruthy();
     }
   });
@@ -202,6 +205,7 @@ describe("etykiety mają parytet PL/EN", () => {
       ["sections", "duplicate"],
       ["sections", "remove"],
       ["builder", "settings"],
+      ["elements", "settings"],
       ["elements", "toFront"],
       ["elements", "toBack"],
       ["elements", "duplicate"],

@@ -1708,6 +1708,7 @@
       "catalog": "Equipment catalog"
     },
     "elements": {
+      "settings": "Element properties",
       "toFront": "Bring to front",
       "toBack": "Send to back",
       "duplicate": "Duplicate element",
@@ -1737,7 +1738,36 @@
       "text": "Content",
       "label": "Button label",
       "href": "Button link",
+      "hrefInvalid": "Not saved — allowed: an http(s) address, your own path (/pricing), an anchor (#contact), an e-mail (mailto:…) or a phone number (tel:…).",
       "alt": "Image description (alt)",
+      "buttonStyle": "Button look",
+      "buttonStyles": {
+        "solid": "Filled",
+        "outline": "Outlined"
+      },
+      "fit": "Photo cropping",
+      "fits": {
+        "cover": "Fill the box (crop)",
+        "contain": "Fit the whole photo"
+      },
+      "tone": "Icon tone",
+      "tones": {
+        "accent": "Accent",
+        "muted": "Muted"
+      },
+      "shape": "Shape kind",
+      "shapes": {
+        "box": "Rectangle",
+        "divider": "Line"
+      },
+      "fill": "Fill",
+      "fills": {
+        "none": "Outline only",
+        "paper": "Card",
+        "accent": "Accent",
+        "ink": "Dark band",
+        "scrim": "Scrim under text"
+      },
       "variant": "Text size",
       "variants": {
         "lead": "Lead",
@@ -1755,7 +1785,8 @@
         "default": "Default",
         "muted": "Muted",
         "accent": "Accent",
-        "inverted": "On dark band"
+        "inverted": "On dark band",
+        "onScrim": "On scrim (photo)"
       },
       "level": "Heading size",
       "levels": {

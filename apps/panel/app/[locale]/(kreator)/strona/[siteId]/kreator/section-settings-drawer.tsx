@@ -23,19 +23,25 @@ import {
   isStructuredType,
   type StructuredSectionContent,
   BINDING_EMPTY_MODES,
+  BUTTON_VARIANTS,
   ELEMENT_ALIGNMENTS,
   ELEMENT_COLORS,
   ELEMENT_ICONS,
   HEADING_LEVELS,
   PRODUCT_BINDING_FIELDS,
+  ICON_TONES,
+  IMAGE_FITS,
   SECTION_BACKGROUNDS,
   SECTION_MAX_ROWS,
   SECTION_MIN_ROWS,
+  SHAPE_FILLS,
+  SHAPE_KINDS,
   TEXT_VARIANTS,
   bindableAttributesOf,
   bindingOf,
   isBoundAttribute,
   productBindingFieldsOf,
+  linkHrefSchema,
   sizeOf,
   supportsHug,
   withSize,
@@ -59,7 +65,7 @@ import {
   Textarea,
 } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import type { EditorSection } from "@/app/[locale]/(panel)/strona/content";
 import { SectionContentForm } from "@/app/[locale]/(panel)/strona/section-content-form";
@@ -212,6 +218,81 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
   );
 }
 
+/**
+ * ADRES PRZYCISKU — WALIDOWANY W MIEJSCU WPISANIA (ADR-166).
+ *
+ * Reszta pól szuflady pisze wprost do szkicu, bo każda ich wartość jest
+ * z definicji poprawna (wybór ze zbioru zamkniętego albo dowolny tekst). Adres
+ * jest jedynym polem elementu, którego wartość może schemat ODRZUCIĆ:
+ * `linkHrefSchema` przepuszcza wyłącznie http(s), ścieżkę własną, kotwicę,
+ * `mailto:` i `tel:` — bo ta wartość ląduje w atrybucie `href` na PUBLICZNEJ
+ * stronie (ADR-094).
+ *
+ * Bez tej bramki „javascript:…" wchodziło do szkicu, autozapis dostawał od
+ * serwera odmowę, a operator jej NIE WIDZIAŁ: komunikat błędu kreatora stoi pod
+ * belką, czyli POD modalną nakładką szuflady. Odmowa niewidoczna jest w skutkach
+ * nie do odróżnienia od cichego zapisu — dlatego komunikat stoi PRZY POLU
+ * i mówi wprost, że nie zapisano.
+ *
+ * To NIE jest druga walidacja: to TEN SAM schemat z `@avably/core/site`, wołany
+ * o krok wcześniej. Bramką pozostaje serwer (`sectionInputSchema` w akcji
+ * zapisu) i to on jest granicą bezpieczeństwa — tutaj jest komunikat.
+ *
+ * Pole trzyma WŁASNY stan wpisywania, bo bez niego odrzucony znak nie miałby
+ * się gdzie pojawić: wartość wracałaby z elementu, a operator widziałby
+ * zamarłe pole bez wyjaśnienia. Resynchronizacja idzie wzorcem płótna
+ * (porównanie w renderze, bez kaskady efektów) — dzięki temu „cofnij" i zmiana
+ * zaznaczenia przynoszą tu wartość z modelu.
+ */
+function LinkField({
+  id,
+  value,
+  onCommit,
+}: {
+  id: string;
+  value: string;
+  onCommit: (href: string) => void;
+}) {
+  const t = useTranslations("site");
+  const [draft, setDraft] = useState(value);
+  const [syncedFrom, setSyncedFrom] = useState(value);
+  if (syncedFrom !== value) {
+    setSyncedFrom(value);
+    setDraft(value);
+  }
+
+  const parsed = linkHrefSchema.safeParse(draft);
+  // Pole opróżnione do zera nie jest błędem, tylko połową ruchu „wpisz nowy
+  // adres" — tak samo, jak przy etykiecie i opisie zdjęcia.
+  const rejected = draft.trim() !== "" && !parsed.success;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{t("canvas.href")}</Label>
+      <Input
+        id={id}
+        data-element-field="href"
+        value={draft}
+        aria-invalid={rejected || undefined}
+        aria-describedby={rejected ? `${id}-error` : undefined}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
+          const check = linkHrefSchema.safeParse(next);
+          if (!check.success) return;
+          setSyncedFrom(check.data);
+          onCommit(check.data);
+        }}
+      />
+      {rejected ? (
+        <p id={`${id}-error`} role="alert" data-element-href-error className="text-destructive text-[13px] leading-[18px]">
+          {t("canvas.hrefInvalid")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function CanvasSettings({
   canvas,
   selectedElementId,
@@ -278,7 +359,12 @@ function CanvasSettings({
       </Field>
 
       {selected ? (
+        /* `key` na elemencie: pole adresu trzyma własny stan wpisywania
+           (patrz `LinkField`), więc bez remontu przełączenie zaznaczenia na
+           INNY przycisk pokazywałoby adres poprzedniego — ta sama pułapka, co
+           przy formularzu treści v1 wyżej. */
         <ElementSettings
+          key={selected.id}
           element={selected}
           onPickImage={onPickImage}
           catalogProducts={catalogProducts}
@@ -441,6 +527,7 @@ function ElementSettings({
           <Field label={t("canvas.label")} htmlFor={`${id}-label`}>
             <Input
               id={`${id}-label`}
+              data-element-field="label"
               value={element.label}
               disabled={bound("label")}
               onChange={(event) => {
@@ -449,14 +536,26 @@ function ElementSettings({
               }}
             />
           </Field>
-          <Field label={t("canvas.href")} htmlFor={`${id}-href`}>
-            <Input
-              id={`${id}-href`}
-              value={element.href}
-              onChange={(event) => {
-                if (event.target.value.trim() === "") return;
-                patch({ href: event.target.value } as Partial<CanvasElement>);
-              }}
+          <LinkField
+            id={`${id}-href`}
+            value={element.href}
+            onCommit={(href) => patch({ href } as Partial<CanvasElement>)}
+          />
+          {/* WYGLĄD PRZYCISKU — pole modelu od K2 (`BUTTON_VARIANTS`), które do
+              ADR-166 nie miało ani jednej kontrolki: każdy przycisk wstawiony
+              z palety zostawał wypełniony na zawsze, chociaż render zna też
+              wariant obrysowany. */}
+          <Field label={t("canvas.buttonStyle")} htmlFor={`${id}-button-style`}>
+            <PanelSelect
+              id={`${id}-button-style`}
+              value={element.variant}
+              onValueChange={(value) =>
+                patch({ variant: value as (typeof BUTTON_VARIANTS)[number] } as Partial<CanvasElement>)
+              }
+              options={BUTTON_VARIANTS.map((value) => ({
+                value,
+                label: t(`canvas.buttonStyles.${value}`),
+              }))}
             />
           </Field>
         </>
@@ -481,6 +580,20 @@ function ElementSettings({
                 if (event.target.value.trim() === "") return;
                 patch({ alt: event.target.value } as Partial<CanvasElement>);
               }}
+            />
+          </Field>
+          {/* KADROWANIE — pole modelu `IMAGE_FITS` bez kontrolki do ADR-166.
+              Różnica jest widoczna od razu (przycięcie kontra całe zdjęcie
+              w pudełku), więc jej brak zmuszał do dobierania geometrii pod
+              proporcje pliku. */}
+          <Field label={t("canvas.fit")} htmlFor={`${id}-fit`}>
+            <PanelSelect
+              id={`${id}-fit`}
+              value={element.fit}
+              onValueChange={(value) =>
+                patch({ fit: value as (typeof IMAGE_FITS)[number] } as Partial<CanvasElement>)
+              }
+              options={IMAGE_FITS.map((value) => ({ value, label: t(`canvas.fits.${value}`) }))}
             />
           </Field>
           {onPickImage && !bound("source") ? (
@@ -508,16 +621,69 @@ function ElementSettings({
       ))}
 
       {element.kind === "icon" ? (
-        <Field label={t("canvas.icon")} htmlFor={`${id}-icon`}>
-          {/* Wybór z ALLOWLISTY (ADR-082) — treść tenanta nie może wskazać
-              symbolu, którego render nie zna. */}
-          <PanelSelect
-            id={`${id}-icon`}
-            value={element.name}
-            onValueChange={(value) => patch({ name: value } as Partial<CanvasElement>)}
-            options={ELEMENT_ICONS.map((value) => ({ value, label: value }))}
-          />
-        </Field>
+        <>
+          <Field label={t("canvas.icon")} htmlFor={`${id}-icon`}>
+            {/* Wybór z ALLOWLISTY (ADR-082) — treść tenanta nie może wskazać
+                symbolu, którego render nie zna. */}
+            <PanelSelect
+              id={`${id}-icon`}
+              value={element.name}
+              onValueChange={(value) => patch({ name: value } as Partial<CanvasElement>)}
+              options={ELEMENT_ICONS.map((value) => ({ value, label: value }))}
+            />
+          </Field>
+          <Field label={t("canvas.tone")} htmlFor={`${id}-tone`}>
+            {/* Ton z MOTYWU, nie kolor — `ICON_TONES` istnieje w modelu od K3
+                i przechodzi ze zmianą motywu razem ze stroną. */}
+            <PanelSelect
+              id={`${id}-tone`}
+              value={element.tone}
+              onValueChange={(value) =>
+                patch({ tone: value as (typeof ICON_TONES)[number] } as Partial<CanvasElement>)
+              }
+              options={ICON_TONES.map((value) => ({ value, label: t(`canvas.tones.${value}`) }))}
+            />
+          </Field>
+        </>
+      ) : null}
+
+      {/*
+        KSZTAŁT (ADR-166) — jedyny rodzaj z palety, który do tej pory nie miał
+        w szufladzie ANI JEDNEGO pola, chociaż jego model niesie dwa: rodzaj
+        (`SHAPE_KINDS`) i wypełnienie (`SHAPE_FILLS`). Bez nich kształt wstawiony
+        z palety zostawał na zawsze jasnym prostokątem, a welon pod tekstem na
+        zdjęciu — ten, dla którego kontrast liczy bramka motywu (ADR-090) — był
+        nieosiągalny z interfejsu.
+
+        Wypełnienie pokazuje się WYŁĄCZNIE dla prostokąta, bo render linii go
+        nie czyta (patrz `element-canvas.tsx`): kontrolka bez skutku uczy, że
+        ustawienia kłamią.
+      */}
+      {element.kind === "shape" ? (
+        <>
+          <Field label={t("canvas.shape")} htmlFor={`${id}-shape`}>
+            <PanelSelect
+              id={`${id}-shape`}
+              value={element.shape}
+              onValueChange={(value) =>
+                patch({ shape: value as (typeof SHAPE_KINDS)[number] } as Partial<CanvasElement>)
+              }
+              options={SHAPE_KINDS.map((value) => ({ value, label: t(`canvas.shapes.${value}`) }))}
+            />
+          </Field>
+          {element.shape === "box" ? (
+            <Field label={t("canvas.fill")} htmlFor={`${id}-fill`}>
+              <PanelSelect
+                id={`${id}-fill`}
+                value={element.fill}
+                onValueChange={(value) =>
+                  patch({ fill: value as (typeof SHAPE_FILLS)[number] } as Partial<CanvasElement>)
+                }
+                options={SHAPE_FILLS.map((value) => ({ value, label: t(`canvas.fills.${value}`) }))}
+              />
+            </Field>
+          ) : null}
+        </>
       ) : null}
 
       {element.kind === "heading" ? (

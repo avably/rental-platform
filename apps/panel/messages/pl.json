@@ -1708,6 +1708,7 @@
       "catalog": "Katalog sprzętu"
     },
     "elements": {
+      "settings": "Właściwości elementu",
       "toFront": "Na wierzch",
       "toBack": "Na spód",
       "duplicate": "Kopiuj element",
@@ -1737,7 +1738,36 @@
       "text": "Treść",
       "label": "Etykieta przycisku",
       "href": "Adres przycisku",
+      "hrefInvalid": "Nie zapisano — dozwolone: adres http(s), ścieżka własna (/cennik), kotwica (#kontakt), e-mail (mailto:…) albo telefon (tel:…).",
       "alt": "Opis zdjęcia (alt)",
+      "buttonStyle": "Wygląd przycisku",
+      "buttonStyles": {
+        "solid": "Wypełniony",
+        "outline": "Obrysowany"
+      },
+      "fit": "Kadrowanie zdjęcia",
+      "fits": {
+        "cover": "Wypełnij pudełko (przytnij)",
+        "contain": "Zmieść całe zdjęcie"
+      },
+      "tone": "Ton ikony",
+      "tones": {
+        "accent": "Akcent",
+        "muted": "Przygaszony"
+      },
+      "shape": "Rodzaj kształtu",
+      "shapes": {
+        "box": "Prostokąt",
+        "divider": "Linia"
+      },
+      "fill": "Wypełnienie",
+      "fills": {
+        "none": "Sam obrys",
+        "paper": "Karta",
+        "accent": "Akcent",
+        "ink": "Ciemny pas",
+        "scrim": "Welon pod tekstem"
+      },
       "variant": "Wielkość tekstu",
       "variants": {
         "lead": "Wprowadzenie",
@@ -1755,7 +1785,8 @@
         "default": "Domyślny",
         "muted": "Przygaszony",
         "accent": "Akcent",
-        "inverted": "Na ciemnym tle"
+        "inverted": "Na ciemnym tle",
+        "onScrim": "Na welonie (zdjęcie)"
       },
       "level": "Wielkość nagłówka",
       "levels": {

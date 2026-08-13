@@ -187,8 +187,10 @@ export function ElementFrame({
   onSelect: () => void;
   /**
    * Wejście w EDYCJĘ TREŚCI elementu (K3): tekst edytuje się w miejscu, obraz
-   * otwiera picker. Elementy bez własnej treści (kształt, katalog) nie podają
-   * tego handlera i dwuklik nic dla nich nie znaczy.
+   * otwiera picker, a od ADR-166 KAŻDY pozostały rodzaj otwiera szufladę
+   * właściwości. Ramka nie wie, którą z tych dróg dostała — i nie musi; wie
+   * płótno. Parametr zostaje opcjonalny, bo ramka ma działać także wtedy, gdy
+   * wołający świadomie nie ma czego pod dwuklikiem otworzyć.
    */
   onEdit?: () => void;
   /**

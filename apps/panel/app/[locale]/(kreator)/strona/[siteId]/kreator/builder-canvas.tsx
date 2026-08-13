@@ -554,6 +554,7 @@ export function BuilderCanvas({
                         selected ? (
                           <ElementActions
                             locked={locked}
+                            onSettings={() => onOpenSettings(editorSection.id)}
                             onAutoMobile={
                               breakpoint === "mobile" && isDetachedOnMobile(selected)
                                 ? () => resetMobile(editorSection.id, selected.id)
@@ -686,12 +687,27 @@ export function BuilderCanvas({
                         selected={isSelected}
                         locked={locked}
                         onSelect={() => onSelect({ sectionId: section.id, elementId: element.id })}
+                        /*
+                          DWUKLIK OTWIERA TREŚĆ — ZAWSZE (ADR-166).
+
+                          Do ADR-166 handler był podawany WYŁĄCZNIE dla tekstu
+                          (edycja w miejscu) i zdjęcia (picker), więc dwuklik
+                          w przycisk, ikonę czy kształt nie robił nic — a to
+                          jest najgorsza z możliwych odpowiedzi, bo nie da się
+                          jej odróżnić od zepsutego interfejsu. Rodzaje bez
+                          edycji w miejscu dostają odtąd SZUFLADĘ: zaznaczamy
+                          element (dwuklik działa też na niezaznaczonym) i
+                          otwieramy jego właściwości.
+                        */
                         onEdit={
                           editable
                             ? () => setEditing({ sectionId: section.id, elementId: element.id })
                             : element.kind === "image"
                               ? () => onPickImage({ sectionId: section.id, elementId: element.id })
-                              : undefined
+                              : () => {
+                                  onSelect({ sectionId: section.id, elementId: element.id });
+                                  onOpenSettings(section.id);
+                                }
                         }
                         onCommit={(geometry, fixed) =>
                           commitGeometry(section.id, element.id, geometry, fixed)
@@ -1129,13 +1145,31 @@ function StructuredEmptyState({
 }
 
 /**
- * Akcje zaznaczonego elementu: warstwa, kopia, usunięcie. Usunięcie elementu
- * NIE pyta o potwierdzenie (w odróżnieniu od usunięcia sekcji), bo cofnij
- * przywraca je jednym kliknięciem — a sekcji cofnąć się nie da, jej usunięcie
- * kasuje wiersz w bazie.
+ * Akcje zaznaczonego elementu: WŁAŚCIWOŚCI, warstwa, kopia, usunięcie.
+ * Usunięcie elementu NIE pyta o potwierdzenie (w odróżnieniu od usunięcia
+ * sekcji), bo cofnij przywraca je jednym kliknięciem — a sekcji cofnąć się nie
+ * da, jej usunięcie kasuje wiersz w bazie.
+ *
+ * ============ WŁAŚCIWOŚCI STOJĄ PIERWSZE (ADR-166) ============
+ *
+ * Do ADR-166 pasek elementu miał wyłącznie akcje UKŁADU (warstwa, kopia,
+ * usunięcie) i ani jednego wejścia w TREŚĆ. Pola etykiety i adresu przycisku
+ * istniały w szufladzie od K3, ale jedyny przycisk, który ją otwierał, stał na
+ * pasku SEKCJI — a ten znika w chwili zaznaczenia elementu (narzędzia jednego
+ * poziomu, ADR-088/E2). Szuflada jest przy tym modalna, więc „otwórz przy
+ * sekcji, potem kliknij element" też nie jest drogą: nakładka przykrywa płótno.
+ * Skutek zgłoszony przez właściciela wprost: „ej a jak niby mam edytować
+ * przycisk?".
+ *
+ * Miejsce jest PIERWSZE w pasku, bo pasek sekcji otwierają akcje MIEJSCA
+ * (uchwyt, strzałki), a element miejsca w kolejności nie ma — więc slot otwarcia
+ * należy się temu, po co operator tu przyszedł. Ikona jest TA SAMA, co przy
+ * ustawieniach sekcji: to jest ta sama czynność o poziom niżej, a dwa symbole
+ * na jedno znaczenie kazałyby się uczyć różnicy, której nie ma.
  */
 function ElementActions({
   locked,
+  onSettings,
   onToFront,
   onToBack,
   onDuplicate,
@@ -1143,6 +1177,8 @@ function ElementActions({
   onAutoMobile,
 }: {
   locked: boolean;
+  /** Otwarcie szuflady na właściwościach TEGO elementu (ADR-166). */
+  onSettings: () => void;
   onToFront: () => void;
   onToBack: () => void;
   onDuplicate: () => void;
@@ -1160,6 +1196,14 @@ function ElementActions({
       data-element-actions
       className="border-border ml-1 flex items-center gap-1 border-l pl-2"
     >
+      <ToolbarButton
+        label={t("elements.settings")}
+        marker="element-settings"
+        icon={<Settings2 className="size-4" aria-hidden />}
+        disabled={locked}
+        loading={locked}
+        onClick={onSettings}
+      />
       {onAutoMobile ? (
         <ToolbarButton
           label={t("elements.autoMobile")}
