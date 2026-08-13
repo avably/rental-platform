@@ -365,6 +365,28 @@
   border-bottom: var(--site-border-width) solid var(--site-border);
 }
 
+/*
+ * ZNAK FIRMY NAJEMCY (ADR-160) — PUDEŁKO O STAŁEJ WYSOKOŚCI.
+ *
+ * Wysokość jest ustalona, a szerokość ograniczona z góry, więc plik o dowolnych
+ * proporcjach — także 3000 × 200 — nie ma jak rozepchnąć paska nawigacji ani
+ * przesunąć koszyka poza ekran. `object-fit: contain` dokłada drugą połowę
+ * tej gwarancji: przy szerokości ściętej przez `max-width` obraz zostaje
+ * wpisany w pudełko z zachowaniem proporcji, zamiast zostać spłaszczonym.
+ *
+ * Pudełko jest STAŁE także wtedy, gdy obraz jeszcze się nie wczytał — dlatego
+ * render nie potrzebuje znać wymiarów własnych pliku i nie ma tu skoku układu
+ * (CLS) do naprawiania.
+ */
+.site-logo {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+  max-width: 12rem;
+  object-fit: contain;
+  object-position: left center;
+}
+
 /* Link nawigacyjny i link w treści — podkreślenie z odstępem, kolor z pasa. */
 .site-link,
 .site-nav-link {

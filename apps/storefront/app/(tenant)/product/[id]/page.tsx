@@ -19,6 +19,7 @@ import { productJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { format } from "@/lib/storefront/copy";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -93,7 +94,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
     : null;
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site}>
+    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)}>
       {productLd ? <JsonLd data={productLd} /> : null}
       <Link href="/store" className="site-link text-sm">
         {copy.common.backToCatalog}

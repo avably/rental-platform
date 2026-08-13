@@ -25,6 +25,7 @@ import { localBusinessJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { format } from "@/lib/storefront/copy";
+import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
@@ -134,6 +135,7 @@ export default async function TenantStorePage() {
       style={style}
       copy={copy}
       storeName={catalog.tenant.name}
+      logo={storeLogo(ctx)}
       /*
         STOPKA JEST WŁASNOŚCIĄ POWŁOKI, NIE STRONY (faza 0, ADR-154). Trasa
         rysuje niżej WYŁĄCZNIE sekcje strony (`pageSections`), a sekcje

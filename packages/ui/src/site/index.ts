@@ -17,6 +17,9 @@ export {
   TestimonialsSection,
   UspSection,
 } from "./sections";
+// Sklejanie publicznego URL-a obiektu bucketa `site-images` — jedna zasada dla
+// zdjęć sekcji i dla logo najemcy (ADR-160), więc wychodzi z pakietu.
+export { siteImageUrl } from "./image-url";
 export {
   SiteRenderer,
   SiteChrome,

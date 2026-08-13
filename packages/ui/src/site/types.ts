@@ -134,6 +134,25 @@ export type RenderSection = {
  * migracja 0058), więc flaga byłaby tu stałą — a stała w kontrakcie zachęca do
  * wysłania kiedyś tej drugiej wartości.
  */
+/**
+ * ZNAK FIRMY NAJEMCY W RENDERZE (ADR-160).
+ *
+ * Pakiet UI dostaje GOTOWY adres i GOTOWY tekst zastępczy, a nie ścieżkę
+ * w Storage i regułę wyboru `alt` — z tego samego powodu, co przy
+ * `priceLabel`: sklejanie URL-a i wybór tekstu zastępczego (własny albo nazwa
+ * sklepu) mają JEDNO miejsce w warstwie danych, inaczej stopka pokazywałaby
+ * inny `alt` niż nagłówek.
+ *
+ * Znaku NIE MA w treści żadnej sekcji świadomie: treść sekcji to dana STRONY,
+ * a najemca ma wiele stron i dokładnie jeden znak.
+ */
+export interface SiteLogoRender {
+  /** Publiczny URL obiektu w buckecie `site-images`. */
+  src: string;
+  /** Tekst zastępczy — NIGDY pusty (patrz `siteLogoAlt` w rdzeniu). */
+  alt: string;
+}
+
 export interface StorefrontProductField {
   /** Identyfikator DEFINICJI pola własnego — klucz wskazania z treści sekcji. */
   id: string;

@@ -34,6 +34,7 @@ import type {
   ContactFormBinding,
   LegacyRenderSection,
   RenderSection,
+  SiteLogoRender,
   SiteMoney,
   SiteRenderLabels,
   StorefrontProduct,
@@ -122,6 +123,7 @@ function SectionSwitch({
   labels,
   money,
   siteImageBase,
+  footerLogo,
   contactForm,
   mapEmbed,
   elementWrapper,
@@ -131,6 +133,7 @@ function SectionSwitch({
   labels: SiteRenderLabels;
   money: SiteMoney;
   siteImageBase?: string;
+  footerLogo?: SiteLogoRender | null;
   contactForm?: ContactFormBinding;
   mapEmbed?: boolean;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
@@ -219,7 +222,7 @@ function SectionSwitch({
     case "delivery":
       return <DeliverySection content={legacy.content} styles={styles} />;
     case "footer":
-      return <FooterSection content={legacy.content} styles={styles} />;
+      return <FooterSection content={legacy.content} styles={styles} logo={footerLogo} />;
     default: {
       // Wyczerpanie unii — nowy typ sekcji bez gałęzi zapali się w typecheck.
       const _exhaustive: never = legacy;
@@ -337,6 +340,7 @@ export function SiteRenderer({
   money = DEFAULT_SITE_MONEY,
   className,
   siteImageBase,
+  footerLogo,
   contactForm,
   mapEmbed,
   sectionWrapper,
@@ -380,6 +384,15 @@ export function SiteRenderer({
    * budują z niego adres zdjęcia. Brak = zdjęcia jako placeholder (0043).
    */
   siteImageBase?: string;
+  /**
+   * ZNAK FIRMY NAJEMCY W STOPCE (ADR-160) — czwarty szew warstwy danych.
+   *
+   * Logo NIE jest treścią sekcji i celowo nie wchodzi przez `sections`: treść
+   * sekcji jest daną STRONY, a najemca ma po fazie 2 wiele stron i dokładnie
+   * jeden znak. Wołający decyduje też o przełączniku „pokaż w stopce" —
+   * renderer dostaje albo gotowy znak, albo `null`, i nie zna reguły wyboru.
+   */
+  footerLogo?: SiteLogoRender | null;
   /**
    * SZEW FORMULARZA KONTAKTU (E4, ADR-095) — akcja serwerowa, bilet z chwili
    * renderu i widget CAPTCHY.
@@ -489,6 +502,7 @@ export function SiteRenderer({
         labels={labels}
         money={money}
         siteImageBase={siteImageBase}
+        footerLogo={footerLogo}
         contactForm={contactForm}
         mapEmbed={mapEmbed}
         elementWrapper={

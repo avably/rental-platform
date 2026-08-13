@@ -18,6 +18,7 @@ import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { submitContactMessage } from "@/lib/actions/contact";
 import { toStorefrontProducts } from "@/lib/catalog/present";
 import { issueContactTicket } from "@/lib/contact/ticket";
+import { siteImageBaseUrl } from "@/lib/site/image-base";
 import type { StorefrontContext } from "@/lib/storefront/context";
 
 /** Etykiety CHROME'U renderu — mówią językiem SKLEPU, nie językiem kodu. */
@@ -89,7 +90,9 @@ export function buildSiteRenderSeam(ctx: StorefrontContext): SiteRenderSeam {
       fieldLocale: locale,
     }),
     // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043).
-    siteImageBase: `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/site-images`,
+    // Wyrażenie mieszka w `./image-base`, bo tego samego prefiksu potrzebuje
+    // znak firmy najemcy (ADR-160) — patrz nagłówek tamtego pliku.
+    siteImageBase: siteImageBaseUrl(supabaseUrl),
     contactForm: {
       ticket: issueContactTicket(),
       submit: submitContactMessage,
