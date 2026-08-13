@@ -201,7 +201,9 @@ export async function saveTenantLogoAction(
   const { error } = await ctx.supabase.schema("app").rpc("set_tenant_logo", { p_logo: payload });
   if (error) return { ok: false, error: t("errors.save") };
 
-  revalidatePath("/strona");
+  // Ścieżka rzeczywista niesie prefiks locale (`/pl/strona`), więc unieważniamy
+  // przez korzeń układu — tak, jak robi to reszta akcji strony sklepu.
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
