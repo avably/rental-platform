@@ -243,7 +243,14 @@ describe("zaznaczenie i uchwyty rozmiaru", () => {
     expect(
       frames(container).filter((frame) => frame.getAttribute("data-element-selected") === "on"),
     ).toHaveLength(1);
-    expect(within(first).getAllByRole("button")).toHaveLength(8);
+    /*
+     * Uchwytów jest osiem i są POZA drzewem dostępności (ADR-173): fokusowalny
+     * przycisk, który na Enter i Spację nic nie robi, obiecuje obsługę, której
+     * nie ma. Liczymy je więc po znaczniku osi, a nieobecność w rolach jest
+     * osobną, jawną asercją — inaczej cofnięcie ADR-173 przeszłoby tu bokiem.
+     */
+    expect(first.querySelectorAll("[data-resize-handle]")).toHaveLength(8);
+    expect(within(first).queryAllByRole("button")).toHaveLength(0);
   });
 
   it("zaznaczenie przenosi się na INNY element, a nie sumuje (multi-select poza zakresem)", () => {
@@ -265,7 +272,15 @@ describe("zaznaczenie i uchwyty rozmiaru", () => {
     // Zaznaczenie DOMKNIĘTYM kliknięciem: samo wciśnięcie zostawiłoby na ramce
     // gest w toku, a ruchy uchwytu przechodzą przez nią bąbelkiem.
     drag(frame, { dx: 0, dy: 0, steps: 1 });
-    const handle = within(frame).getByRole("button", { name: plMessages.site.resizeHandles.s });
+    /*
+     * Uchwyt NIE jest już rolą w drzewie dostępności (ADR-173): to powierzchnia
+     * myszy, a klawiaturowy odpowiednik gestu żyje na ramce. Sięgamy więc po
+     * znacznik osi, a etykietę — która ma zostać, bo opisuje uchwyt w narzędziach
+     * — sprawdzamy osobno.
+     */
+    const handle = frame.querySelector<HTMLElement>('[data-resize-handle="s"]')!;
+    expect(handle, "brak uchwytu dolnej krawędzi").not.toBeNull();
+    expect(handle.getAttribute("aria-label")).toBe(plMessages.site.resizeHandles.s);
 
     // Ciągnięcie dolnej krawędzi w dół o cztery jednostki siatki. `altKey`
     // zdejmuje przyciąganie do sąsiadów — tu mierzymy SAM ruch krawędzi, a nie

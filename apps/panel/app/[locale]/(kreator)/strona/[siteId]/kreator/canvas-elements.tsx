@@ -35,6 +35,7 @@ import {
   RESIZE_HANDLES,
   canvasMetrics,
   nudgeGeometry,
+  nudgeSize,
   sizeOf,
   type CanvasElement,
   type CanvasMetrics,
@@ -287,9 +288,27 @@ export function ElementFrame({
   }
 
   /**
-   * Strzałki przesuwają o jednostkę, z Shiftem o dziesięć. `preventDefault`
-   * jest konieczny: bez niego strzałka najpierw przewinęłaby płótno, a element
-   * uciekłby operatorowi z oczu przy pierwszym kroku.
+   * KLAWIATURA UMIE OBA GESTY (ADR-173, audyt W8).
+   *
+   * Strzałki PRZESUWAJĄ o jednostkę, z Shiftem o dziesięć. Strzałki z Ctrl
+   * (albo Cmd) ZMIENIAJĄ ROZMIAR tym samym krokiem — kotwicą jest lewy górny
+   * róg, więc prawo/dół powiększa, lewo/góra zmniejsza; to jest dokładnie
+   * uchwyt `se` bez myszy, przez tę samą funkcję czystą i ten sam `onCommit`,
+   * żeby tryb wymiaru przechodził na jawny identycznie jak po geście.
+   *
+   * Do ADR-173 rozmiaru NIE dało się zmienić klawiaturą w ogóle: osiem uchwytów
+   * było fokusowalnymi przyciskami z samym `onPointerDown`, więc Enter i Spacja
+   * na nich nie robiły nic. Uchwyty są odtąd poza kolejnością Tab i poza drzewem
+   * dostępności (patrz niżej) — obietnica obsługi, której nie ma, jest gorsza
+   * niż jej brak.
+   *
+   * MODYFIKATOREM JEST Ctrl/Cmd, A NIE Alt: Alt ma na płótnie zajęte znaczenie
+   * — w trakcie gestu wyłącza przyciąganie (canvas-gesture.ts). Jedno oznaczenie
+   * na dwie różne rzeczy uczyłoby operatora reguły, która raz działa, a raz nie.
+   *
+   * `preventDefault` jest konieczny w obu gałęziach: bez niego strzałka najpierw
+   * przewinęłaby płótno (a Cmd+strzałka cofnęłaby historię przeglądarki)
+   * i element uciekłby operatorowi z oczu przy pierwszym kroku.
    */
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (locked) return;
@@ -306,7 +325,15 @@ export function ElementFrame({
     if (!direction) return;
     event.preventDefault();
     event.stopPropagation();
-    onCommit(nudgeGeometry(box, direction, event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP, rows));
+    const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
+    if (event.ctrlKey || event.metaKey) {
+      // Oś bierze się z kierunku, tak samo jak przy uchwycie: pozioma strzałka
+      // rusza szerokość, pionowa — wysokość. `axesOf` jest jednym miejscem,
+      // w którym ta odpowiedniość mieszka.
+      onCommit(nudgeSize(box, direction, step, rows), axesOf(direction === "up" || direction === "down" ? "s" : "e"));
+      return;
+    }
+    onCommit(nudgeGeometry(box, direction, step, rows));
   }
 
   /**
@@ -364,6 +391,14 @@ export function ElementFrame({
         role="button"
         tabIndex={0}
         aria-pressed={selected}
+        /*
+         * SKRÓTY OGŁOSZONE TAM, GDZIE DZIAŁAJĄ (ADR-173). Ramka jest jedyną
+         * kontrolką warstwy edycyjnej, która przyjmuje klawiaturę, więc to ona
+         * ma powiedzieć, co przyjmuje. Atrybut jest maszynowy (a nie napis), bo
+         * napis przy każdym elementie na płótnie byłby szumem — a czytnik ekranu
+         * i tak przeczyta go z drzewa dostępności.
+         */
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Control+ArrowUp Control+ArrowDown Control+ArrowLeft Control+ArrowRight"
         aria-label={
           detached
             ? `${t(`elementKinds.${element.kind}`)} — ${t("elements.detached")}`
@@ -424,6 +459,17 @@ export function ElementFrame({
                 type="button"
                 data-resize-handle={handle}
                 aria-label={t(`resizeHandles.${handle}`)}
+                /*
+                 * UCHWYT JEST POWIERZCHNIĄ MYSZY, NIE PRZYSTANKIEM TABA
+                 * (ADR-173, audyt W8). Osiem uchwytów w kolejności Tab przy
+                 * KAŻDYM zaznaczonym elemencie było ośmioma obietnicami bez
+                 * pokrycia — mają wyłącznie `onPointerDown`, więc Enter i Spacja
+                 * nie robiły nic. Klawiaturowy odpowiednik gestu żyje odtąd na
+                 * ramce (Ctrl/Cmd + strzałki), więc uchwyt schodzi z drzewa
+                 * dostępności zamiast udawać kontrolkę.
+                 */
+                tabIndex={-1}
+                aria-hidden="true"
                 onPointerDown={(event) => {
                   // Bez tego wciśnięcie uchwytu uruchomiłoby TAKŻE przeciąganie
                   // ramki i pudełko zaczęłoby jechać zamiast się rozciągać.
