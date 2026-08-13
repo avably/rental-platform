@@ -30,7 +30,7 @@
  * dowodziłaby wyłącznie tego, że atrapa ma pole, które jej wpisano.
  */
 import { DEFAULT_SITE_STYLE } from "@avably/core/site";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const OBCY_TENANT = "22222222-2222-4222-8222-222222222222";
@@ -116,6 +116,19 @@ async function loadContext() {
   const { loadStorefrontContext } = await import("@/lib/storefront/context");
   return loadStorefrontContext();
 }
+
+// ROZGRZEWKA GRAFU MODUŁÓW — bez niej PIERWSZY przypadek płaci transformację
+// całego łańcucha importów (u nas ~5 s, na obciążonym runnerze ponad 20 s)
+// i przekracza domyślny budżet 5 s. Objaw jest mylący: pada zawsze ten sam,
+// pierwszy przypadek, a osiem pozostałych kończy się po ~30 ms — wygląda to
+// na wadę konkretnej asercji, a jest kosztem wejścia. Dwa czerwone przebiegi
+// CI z rzędu (11 s i 21 s) zanim to nazwaliśmy. Rozgrzewka przenosi koszt
+// poza budżet przypadku; `vi.resetModules()` w `loadContext` dalej gwarantuje
+// świeży moduł na KAŻDY przypadek, więc izolacja atrap zostaje nienaruszona.
+beforeAll(async () => {
+  await import("@/lib/storefront/context");
+  await import("@/lib/site/store-logo");
+});
 
 beforeEach(() => {
   rpcCalls = [];
