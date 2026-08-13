@@ -14,7 +14,10 @@
  *      w jednym miejscu i test pilnuje, że nie przecieka surowe;
  *   3. `createSite` nie ma jak urodzić wersji żywej — nawet gdyby ktoś dopisał
  *      `published_at` do wstawki, strażnik 0045 odpowiada 42501;
- *   4. izolacja: cudzej wersji nie da się ani przemianować, ani usunąć.
+ *   4. izolacja: cudzej wersji nie da się ani przemianować, ani usunąć;
+ *   5. KORZEŃ SKLEPU (ADR-168): najemca bez ani jednej strony dochodzi do
+ *      opublikowanej strony głównej, a druga strona główna dalej nie powstaje
+ *      — ani akcją panelu, ani z pominięciem panelu (surowy PostgREST).
  *
  * Werdykt zawsze z TRWAŁEGO stanu (odczyt service-rolem), nie ze zwrotu akcji.
  */
@@ -97,6 +100,8 @@ const { MAX_SITES } = await import("@/lib/site-validation");
 
 describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
   let admin: SupabaseClient;
+  /** Klient sklepu: klucz publikowalny, ZERO sesji — tak czyta klient najemcy. */
+  let anon: SupabaseClient;
   let tenantA: { client: SupabaseClient; tenantId: string };
   let tenantB: { client: SupabaseClient; tenantId: string };
 
@@ -107,14 +112,32 @@ describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
   async function sites(tenantId: string) {
     const { data } = await admin
       .from("sites")
-      .select("id, name, published_at")
+      .select("id, name, slug, slug_published, published_at")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: true });
     return data ?? [];
   }
 
+  /**
+   * KORZEŃ SKLEPU OCZAMI KLIENTA — nie stan tabeli, tylko to, co pod `/`
+   * oddaje odczyt publiczny. Klucz anona i `app.get_published_site` to
+   * dokładnie ta droga, którą chodzi storefront (0074: funkcja jest
+   * wywołaniem `get_published_page` dla pustego sluga).
+   */
+  async function storeRoot(tenantId: string): Promise<unknown> {
+    const { data, error } = await anon
+      .schema("app")
+      .rpc("get_published_site", { p_tenant_id: tenantId });
+    if (error) throw new Error(`get_published_site: ${error.message}`);
+    return data;
+  }
+
   beforeAll(async () => {
     admin = createAdminClient();
+    anon = createClient(env("SUPABASE_LOCAL_API_URL"), env("SUPABASE_LOCAL_ANON_KEY"), {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      ...realtimeTransport,
+    });
     tenantA = await createTenantMember(admin, "a");
     tenantB = await createTenantMember(admin, "b");
   }, 60_000);
@@ -226,6 +249,117 @@ describe.skipIf(!hasEnv)("akcje modelu stron (RLS, żywy Supabase)", () => {
     const rows = await sites(tenantA.tenantId);
     expect(rows[0]!.name).toBe("Po zmianie");
     expect(rows[0]!.published_at, "zmiana nazwy zdjęła stronę ze sklepu").not.toBeNull();
+  }, 60_000);
+
+  /* ================= KORZEŃ SKLEPU NOWEGO NAJEMCY (ADR-168) ================= */
+
+  it("najemca BEZ ANI JEDNEJ strony dochodzi do opublikowanej strony głównej", async () => {
+    /*
+     * Stan wyjściowy jest stanem konta założonego dziś: `app.create_tenant`
+     * (ostatnia definicja — 0070) nie zasiewa ani jednego wiersza `sites`.
+     * Test przechodzi CAŁĄ drogę operatora, aż do odczytu, którym storefront
+     * pyta o korzeń — bo werdyktem jest „klient coś widzi", a nie „wiersz
+     * istnieje".
+     */
+    expect(await sites(tenantA.tenantId), "test nie startuje ze stanu świeżego konta").toHaveLength(
+      0,
+    );
+    expect(await storeRoot(tenantA.tenantId), "korzeń sklepu miał treść PRZED publikacją").toBeNull();
+
+    // Wywołanie BEZ klucza `slug` — jedyna droga do strony głównej.
+    const created = await createSite({ name: "Strona główna" });
+    expect(created.ok, created.ok ? "" : created.error).toBe(true);
+    if (!created.ok) throw new Error(created.error);
+
+    const { error: sectionError } = await admin.from("site_sections").insert({
+      tenant_id: tenantA.tenantId,
+      site_id: created.siteId,
+      type: "hero",
+      position: 0,
+      content_draft: { heading: "Wypożyczalnia nad jeziorem" },
+    });
+    expect(sectionError, `zasiew sekcji: ${sectionError?.message}`).toBeNull();
+
+    const published = await publishSite(created.siteId);
+    expect(published.ok, published.ok ? "" : published.error).toBe(true);
+
+    const root = await storeRoot(tenantA.tenantId);
+    expect(root, "korzeń sklepu został pusty mimo publikacji").not.toBeNull();
+    expect(
+      JSON.stringify(root),
+      "koperta korzenia nie niesie treści opublikowanej strony",
+    ).toContain("Wypożyczalnia nad jeziorem");
+
+    const rows = await sites(tenantA.tenantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.slug, "szkic strony głównej dostał adres").toBe("");
+    expect(rows[0]!.slug_published, "publikacja nie wystawiła adresu strony głównej").toBe("");
+  }, 60_000);
+
+  it("DRUGA strona główna: akcja odmawia zdaniem, zanim cokolwiek wstawi", async () => {
+    const first = await createSite({ name: "Strona główna" });
+    expect(first.ok, first.ok ? "" : first.error).toBe(true);
+
+    const second = await createSite({ name: "Jeszcze jedna główna" });
+    expect(second.ok, "powstała DRUGA strona główna").toBe(false);
+    if (second.ok) throw new Error("druga strona główna przeszła");
+    expect(second.error).toContain("Sklep ma już stronę główną");
+
+    // Werdykt z trwałego stanu, nie ze zwrotu akcji.
+    expect(await sites(tenantA.tenantId), "odmowa i tak zostawiła drugi wiersz").toHaveLength(1);
+  }, 60_000);
+
+  it("pusty adres WPISANY W POLE dalej jest odmawiany — także przy zerze stron", async () => {
+    /*
+     * Zawężenie nie zdejmuje zakazu ze schematu: `slug: ""` znaczy „z tej
+     * nazwy nie dało się wyprowadzić adresu", a nie „to strona główna". Gdyby
+     * zakaz padł razem z poprawką, ta sama pomyłka („???" jako nazwa) znów
+     * produkowałaby stronę główną bez wiedzy operatora.
+     */
+    const result = await createSite({ name: "Bez adresu", slug: "" });
+    expect(result.ok, "pusty adres z pola przeszedł").toBe(false);
+    if (result.ok) throw new Error("pusty slug przeszedł walidację");
+    expect(result.error).toContain("Podaj adres strony");
+    expect(await sites(tenantA.tenantId)).toHaveLength(0);
+  }, 60_000);
+
+  it("SUROWY PostgREST: druga ŻYWA strona główna jest niereprezentowalna", async () => {
+    const first = await createSite({ name: "Strona główna" });
+    if (!first.ok) throw new Error(first.error);
+    const firstPublished = await publishSite(first.siteId);
+    expect(firstPublished.ok, firstPublished.ok ? "" : firstPublished.error).toBe(true);
+
+    /*
+     * Z POMINIĘCIEM PANELU: wiersz wstawia sam member przez PostgREST, więc
+     * odczyt „czy strona główna już jest" z akcji nie wykona się w ogóle.
+     * Wstawka SIĘ UDAJE i tak ma być — szkiców pod jednym adresem może być
+     * wiele (0073, sekcja 4), to są wersje robocze. Bramką jest publikacja.
+     */
+    const { data: smuggled, error: insertError } = await tenantA.client
+      .from("sites")
+      .insert({ tenant_id: tenantA.tenantId, name: "Podszywka", slug: "" })
+      .select("id")
+      .single();
+    expect(insertError, `wstawka szkicu: ${insertError?.message}`).toBeNull();
+
+    // Droga na skróty do żywości: strażnik 0045 odpowiada 42501.
+    const { error: guardError } = await tenantA.client
+      .from("sites")
+      .update({ published_at: new Date().toISOString(), slug_published: "" })
+      .eq("id", smuggled!.id as string);
+    expect(guardError?.code, "ręczny zapis kolumn opublikowanych przeszedł").toBe("42501");
+
+    // Jedyna prawdziwa droga publikacji pada na unikacie żywego adresu.
+    const secondPublished = await publishSite(smuggled!.id as string);
+    expect(secondPublished.ok, "druga strona główna weszła do sklepu").toBe(false);
+    if (secondPublished.ok) throw new Error("unikat żywego adresu nie zadziałał");
+    expect(secondPublished.error).toContain("Inna opublikowana strona ma już ten adres");
+
+    const live = (await sites(tenantA.tenantId)).filter(
+      (row) => row.published_at !== null && row.slug_published === "",
+    );
+    expect(live, "pod adresem „/” stoi więcej niż jedna żywa strona").toHaveLength(1);
+    expect(live[0]!.id).toBe(first.siteId);
   }, 60_000);
 
   it("IZOLACJA: obcy tenant nie przemianuje ani nie usunie cudzej wersji", async () => {

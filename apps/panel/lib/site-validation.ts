@@ -99,8 +99,10 @@ export const pageSlugSchema = z
 /**
  * Slug WYMAGANY (strona treściowa): pusty przechodzi tylko przez jawną gałąź
  * strony głównej wyżej, a tu jest błędem z własnym zdaniem — pusty adres
- * z formularza znaczy „nie dało się wyprowadzić go z nazwy", nie „to strona
- * główna".
+ * WPISANY W POLE znaczy „nie dało się wyprowadzić go z nazwy", nie „to strona
+ * główna". Intencję „zakładam stronę główną" niesie POMINIĘCIE klucza `slug`,
+ * a nie jego pusta wartość (patrz `createSiteInputSchema`), więc ten zakaz
+ * dotyczy wyłącznie adresu podanego wprost i zostaje nietknięty.
  */
 const contentPageSlugSchema = pageSlugSchema.superRefine((slug, ctx) => {
   if (slug === HOME_PAGE_SLUG) {
@@ -114,14 +116,38 @@ const contentPageSlugSchema = pageSlugSchema.superRefine((slug, ctx) => {
 export const createSiteInputSchema = z.object({
   name: siteNameSchema,
   /**
-   * Pominięty slug = wyprowadzony z nazwy. Panel i tak podaje go jawnie, ale
-   * bez tej gałęzi wywołanie z kodu sprzed Fazy 2 zakładałoby drugą stronę
-   * główną — a to jest stan, którego publikacja i tak by nie przyjęła (23505),
-   * tylko już po tym, jak operator zbudował na niej treść.
+   * POMINIĘTY SLUG = STRONA GŁÓWNA (`/`) — i to jest JEDYNA droga do jej
+   * założenia (ADR-168). Panel podaje adres jawnie dla podstron, a okno
+   * „Utwórz stronę główną" wysyła sam `name`.
+   *
+   * Czego ten schemat NIE potrafi i potrafić nie może: sprawdzić, czy najemca
+   * ma już stronę główną. To jest stan BAZY, nie kształt wejścia — więc
+   * zawężenie „pusty adres wolno wziąć, dopóki strona główna nie istnieje"
+   * stoi w `createSite` (odczyt przed wstawką), a ostateczną bramką zostaje
+   * unikat `sites_live_slug_unique_idx` (23505 przy publikacji drugiej żywej
+   * strony pod tym samym adresem).
    */
   slug: contentPageSlugSchema.optional(),
 });
 export type CreateSiteInput = z.infer<typeof createSiteInputSchema>;
+
+/**
+ * CZY TEN KOMPLET STRON MA STRONĘ GŁÓWNĄ — jedna definicja dla akcji i dla
+ * ekranu (ADR-168).
+ *
+ * Pytanie musi objąć OBA adresy wiersza, a nie sam szkic: strona, której szkic
+ * przeniesiono pod inny adres, DALEJ stoi w sklepie pod `/`, dopóki nie zostanie
+ * opublikowana ponownie (`slug_published` jest bliźniakiem, 0073/ADR-091).
+ * Sam `slug` odpowiadałby „strony głównej nie ma" o sklepie, w którym klienci
+ * właśnie ją oglądają — i zapraszał do założenia drugiej.
+ */
+export function hasHomePage(
+  pages: readonly { slug: string; slugPublished: string | null }[],
+): boolean {
+  return pages.some(
+    (page) => page.slug === HOME_PAGE_SLUG || page.slugPublished === HOME_PAGE_SLUG,
+  );
+}
 
 export const renameSiteInputSchema = z.object({
   siteId: uuidSchema,

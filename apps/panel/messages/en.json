@@ -1882,7 +1882,14 @@
       "addressPending": "Customers still have {current} — the new address starts working after publishing.",
       "redirectOld": "Redirect the old address {old} to the new one",
       "redirectOldHint": "Customers with a saved link and search results will land on the new address instead of an error page.",
-      "homeBadge": "Home page"
+      "homeBadge": "Home page",
+      "homeMissingTitle": "Your shop has no home page",
+      "homeMissingBody": "At “/” customers will see none of your pages — every other one lives at its own address. Create the home page and publish it.",
+      "newHome": "Create home page",
+      "newHomeTitle": "Store home page",
+      "newHomeBody": "This is what customers see at “/”. You do not give it an address — the home page has only this one. It starts empty; customers see it once you publish it.",
+      "newHomeConfirm": "Create home page",
+      "homeDefaultName": "Home page"
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",
