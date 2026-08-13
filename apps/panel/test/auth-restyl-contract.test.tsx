@@ -59,15 +59,14 @@ afterEach(() => {
   document.head.querySelectorAll("script").forEach((node) => node.remove());
 });
 
-/** Trzy formularze auth niosące CAPTCHĘ — ta sama reguła na każdym. */
+/**
+ * Formularze auth niosące CAPTCHĘ — ta sama reguła na każdym.
+ *
+ * Logowanie było tu trzecie do ADR-164; teraz ma własny przypadek niżej,
+ * pilnujący, że slotu NIE ma. Wykreślenie go z tej listy bez tamtego
+ * przypadku byłoby zdjęciem pokrycia, nie zmianą kontraktu.
+ */
 const CAPTCHA_SCREENS: Array<[string, () => Promise<React.ReactElement>]> = [
-  [
-    "logowanie",
-    async () => {
-      const { LoginForm } = await import("@/app/[locale]/(auth)/login/form");
-      return <LoginForm />;
-    },
-  ],
   [
     "rejestracja",
     async () => {
@@ -149,6 +148,44 @@ describe.each(CAPTCHA_SCREENS)("miejsce na CAPTCHĘ — %s", (_name, load) => {
   });
 });
 
+/**
+ * LOGOWANIE PO ADR-164: nie ma widżetu i NIE MA PO NIM LUKI.
+ *
+ * Rezerwacja `min-h-18` (72 px) z ADR-156 stała ZAWSZE, niezależnie od site
+ * key — to była jej cała zaleta. Po zdjęciu CAPTCHY z logowania ta sama
+ * właściwość staje się usterką: pusty pas między hasłem a przyciskiem,
+ * którego nic już nie tłumaczy. Dlatego mierzone jest jedno i drugie —
+ * brak kanału tokenu ORAZ brak rezerwacji miejsca.
+ */
+describe("ekran logowania: ani widżetu, ani luki po nim (ADR-164)", () => {
+  it("ze site key USTAWIONYM nie ma slotu, kanału tokenu ani skryptu dostawcy", async () => {
+    // Site key ustawiony celowo: bez niego widżet i tak renderuje `null`,
+    // więc asercja przechodziłaby także po cichym powrocie CAPTCHY.
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "test-site-key");
+    vi.resetModules();
+    const { LoginForm } = await import("@/app/[locale]/(auth)/login/form");
+    const { container } = wrap(<LoginForm />);
+
+    expect(
+      container.querySelector("[data-auth-captcha-slot]"),
+      "rezerwacja 72 px została po widżecie — na ekranie jest pusta luka",
+    ).toBeNull();
+    expect(container.querySelector('input[name="turnstileToken"]')).toBeNull();
+    expect(
+      document.head.querySelector('script[src^="https://challenges.cloudflare.com/"]'),
+    ).toBeNull();
+  });
+
+  it("KONTROLA POZYTYWNA: rejestracja w tym samym harnessie slot MA", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "test-site-key");
+    vi.resetModules();
+    const { RegisterForm } = await import("@/app/[locale]/(auth)/register/form");
+    const { container } = wrap(<RegisterForm />);
+
+    expect(container.querySelector("[data-auth-captcha-slot]")).not.toBeNull();
+  });
+});
+
 describe("ekran logowania: widok przepisuje odmowę, nie klasyfikuje jej", () => {
   async function submitLogin(error: string) {
     loginResult = { error };
@@ -177,9 +214,11 @@ describe("ekran logowania: widok przepisuje odmowę, nie klasyfikuje jej", () =>
 
     cleanup();
 
-    const second = await submitLogin(messages.login.captchaFailed);
+    // Drugi tekst to DRUGA REALNA odmowa tej akcji — odcięcie limitem.
+    // (Do ADR-164 stała tu odmowa CAPTCHY; logowanie już jej nie produkuje.)
+    const second = await submitLogin(messages.authError.tooManyRequests);
     const secondBlock = second.querySelector("[data-login-error]");
-    expect(secondBlock!.querySelector("p")!.textContent).toBe(messages.login.captchaFailed);
+    expect(secondBlock!.querySelector("p")!.textContent).toBe(messages.authError.tooManyRequests);
   });
 
   it("odmowa dalej jest ogłaszana czytnikowi (role=alert)", async () => {
@@ -203,8 +242,35 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
     expect(links!.className).toContain("flex-col");
     expect(links!.className).toMatch(/\bgap-\d/);
     expect(links!.className, "odnośniki wróciły do wiersza").not.toContain("justify-between");
-    // Kontrola pozytywna: w bloku naprawdę stoją dwa wyjścia, nie zero.
-    expect(links!.children.length).toBe(2);
+    // Kontrola pozytywna: w bloku naprawdę stoi wyjście, nie zero. JEDNO —
+    // „Nie dostałeś maila potwierdzającego?" zeszło stąd w ADR-164 i to jest
+    // liczba do świadomej zmiany, nie do dopasowania po czerwieni.
+    expect(links!.children.length).toBe(1);
+    expect(links!.textContent).toContain(messages.login.register);
+  });
+
+  it("logowanie: pytanie o mail potwierdzający zeszło ze STAŁYCH odnośników (ADR-164)", async () => {
+    vi.resetModules();
+    const { LoginForm } = await import("@/app/[locale]/(auth)/login/form");
+    const { container } = wrap(<LoginForm />);
+
+    const links = container.querySelector("[data-auth-links]")!;
+    const hrefs = [...links.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(
+      hrefs,
+      "stały odnośnik do skrzynki wrócił na ekran logowania (decyzja właściciela, ADR-164)",
+    ).not.toContain("/register/sprawdz-skrzynke");
+
+    // KONTROLA POZYTYWNA na tej samej powierzchni: rejestracja ten odnośnik
+    // ma dalej — czyli asercja wyżej mierzy decyzję, a nie martwy selektor.
+    cleanup();
+    vi.resetModules();
+    const { RegisterForm } = await import("@/app/[locale]/(auth)/register/form");
+    const { container: registerContainer } = wrap(<RegisterForm />);
+    const registerHrefs = [
+      ...registerContainer.querySelector("[data-auth-links]")!.querySelectorAll("a"),
+    ].map((a) => a.getAttribute("href"));
+    expect(registerHrefs).toContain("/register/sprawdz-skrzynke");
   });
 
   it("rejestracja: ten sam kontener, ta sama reguła", async () => {

@@ -35,10 +35,13 @@ export const registerSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
+// BEZ `turnstileToken` — świadomie (ADR-164). Logowanie nie ma CAPTCHY, więc
+// schemat nie ma po co przyjmować jej kanału: pole zostawione „na wszelki
+// wypadek" sugerowałoby czytelnikowi, że gdzieś dalej jest weryfikowane.
+// Rejestracja i reset (niżej) token dalej niosą.
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Podaj hasło."),
-  turnstileToken: z.string().optional(),
 });
 
 export const resetRequestSchema = z.object({

@@ -293,10 +293,8 @@
     "resendConfirmation": "Wyślij link potwierdzający ponownie",
     "signInFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło. Jeśli konto jest nowe — najpierw potwierdź adres z wiadomości, którą wysłaliśmy.",
     "resetDone": "Hasło zostało zmienione. Zaloguj się nowym hasłem.",
-    "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
     "subtitle": "Panel wypożyczalni — rezerwacje, zamówienia i sklep.",
-    "noAccount": "Nie masz konta?",
-    "noConfirmationMail": "Nie dostałeś maila potwierdzającego?"
+    "noAccount": "Nie masz konta?"
   },
   "register": {
     "title": "Uruchom swoją wypożyczalnię",

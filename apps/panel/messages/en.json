@@ -293,10 +293,8 @@
     "resendConfirmation": "Send the confirmation link again",
     "signInFailed": "We could not sign you in. Check your email and password. If the account is new, confirm the address from the message we sent first.",
     "resetDone": "Your password has been changed. Sign in with the new one.",
-    "captchaFailed": "CAPTCHA verification failed.",
     "subtitle": "Rental panel — reservations, orders and your store.",
-    "noAccount": "No account yet?",
-    "noConfirmationMail": "Confirmation email did not arrive?"
+    "noAccount": "No account yet?"
   },
   "register": {
     "title": "Launch your rental company",

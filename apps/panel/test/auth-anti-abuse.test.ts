@@ -9,8 +9,11 @@
  *  2. ODPOWIEDŹ PRZY LIMICIE JEDNOLITA: ten sam komunikat niezależnie od
  *     tego, który wymiar strzelił (IP vs konto) — i żadnego dotknięcia
  *     dostawcy auth po odcięciu (brak sondy istnienia konta).
- *  3. AWARIA DOSTAWCY CAPTCHA (providerError): login fail-open (rate-limit
- *     dalej stoi), register/reset fail-closed — rozstrzygnięcie ADR-106.
+ *  3. CAPTCHA: register/reset fail-closed także przy awarii dostawcy
+ *     (ADR-106). Logowanie jest poza tym rozstrzygnięciem — od ADR-164 nie
+ *     ma CAPTCHY i żaden werdykt weryfikatora nie zmienia jego zachowania;
+ *     jego jedyną obroną jest reguła 1, a pełny dowód progów stoi
+ *     w `login-rate-limit-obrona.test.ts`.
  *
  * `getTranslations` karmione PRAWDZIWYMI messages/{pl,en}.json — asercje
  * porównują tekst, który użytkownik naprawdę zobaczy.
@@ -302,19 +305,36 @@ describe("odpowiedź przy limicie: jednolita i bez sondy konta", () => {
   });
 });
 
-describe("awaria dostawcy CAPTCHA (providerError) — ADR-106", () => {
-  it("login: fail-open — logowanie przechodzi (rate-limit dalej stoi)", async () => {
+describe("werdykt CAPTCHY nie dotyczy logowania (ADR-164)", () => {
+  /**
+   * Do ADR-164 login miał tu FAIL-OPEN: przy awarii dostawcy żądanie szło
+   * dalej. Ta gałąź była powodem zdjęcia CAPTCHY z logowania — bramka, którą
+   * otwiera niedostępność zewnętrznej usługi, nie jest bramką. Teraz nie ma
+   * ani gałęzi, ani wywołania, i mierzymy to na OBU werdyktach: ani odmowa,
+   * ani awaria dostawcy nie zmieniają zachowania logowania.
+   */
+  it("odmowa CAPTCHY nie blokuje logowania (nie ma go kto zapytać)", async () => {
+    turnstileResult = { ok: false };
+    expect(await runLogin(authForm())).toBe("redirected");
+    expect(signInWithPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it("awaria dostawcy CAPTCHY też nie zmienia zachowania logowania", async () => {
     turnstileResult = { ok: false, providerError: true };
     expect(await runLogin(authForm())).toBe("redirected");
     expect(signInWithPassword).toHaveBeenCalledTimes(1);
   });
 
-  it("login: zwykła odmowa CAPTCHA (bez providerError) blokuje normalnie", async () => {
-    turnstileResult = { ok: false };
-    expect(await runLogin(authForm())).toEqual({ error: pl.login.captchaFailed });
+  it("limit dalej odcina logowanie — obrona nie zniknęła razem z CAPTCHĄ", async () => {
+    // Bez tego przypadku dwa wyżej czytałyby się jak „logowanie przepuszcza
+    // wszystko". Pełny dowód progów: login-rate-limit-obrona.test.ts.
+    rateLimitFailFor = "login:ip:";
+    expect(await runLogin(authForm())).toEqual({ error: TOO_MANY });
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
+});
 
+describe("awaria dostawcy CAPTCHA (providerError) — ADR-106", () => {
   it("register: fail-closed — odmowa i zero wywołań dostawcy auth", async () => {
     turnstileResult = { ok: false, providerError: true };
     expect(await registerAction({}, authForm())).toEqual({ error: pl.register.captchaFailed });
