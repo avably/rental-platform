@@ -125,10 +125,16 @@ async function loadContext() {
 // CI z rzędu (11 s i 21 s) zanim to nazwaliśmy. Rozgrzewka przenosi koszt
 // poza budżet przypadku; `vi.resetModules()` w `loadContext` dalej gwarantuje
 // świeży moduł na KAŻDY przypadek, więc izolacja atrap zostaje nienaruszona.
+// Jawny budżet haka, a nie domyślne 10 s: koszt rozgrzewki jest wejściem/
+// wyjściem i transformacją, więc zależy od obciążenia maszyny, a nie od kodu.
+// Przy pełnym, równoległym przebiegu (panel i sklep naraz na jednym runnerze)
+// domyślny limit potrafi go nie zmieścić i pada CAŁY plik — czyli objaw
+// gorszy niż ten, który rozgrzewka naprawia. Budżet PRZYPADKU zostaje
+// domyślny (5 s), bo to on pilnuje zachowania.
 beforeAll(async () => {
   await import("@/lib/storefront/context");
   await import("@/lib/site/store-logo");
-});
+}, 60_000);
 
 beforeEach(() => {
   rpcCalls = [];
