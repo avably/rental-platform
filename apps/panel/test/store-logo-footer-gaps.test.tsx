@@ -82,6 +82,25 @@ describe("footerMarkGaps — co ekran ma powiedzieć", () => {
     expect(gaps).toEqual([{ page: "O nas", reason: "ownImage" }]);
   });
 
+  it("SONDA IZOLACJI: stopka jednej strony nie ucisza luki na DRUGIEJ", () => {
+    /*
+      Dopasowanie idzie po `site_id`, a nie po kolejności ani po „jest jakaś
+      stopka w zbiorze". Gdyby szło inaczej, opublikowana stopka strony B
+      kasowałaby ostrzeżenie dla strony A — a operator dostałby ekran mówiący,
+      że wszystko gra, na sklepie, na którym znaku nie ma. Zbiór wejściowy jest
+      zawężony tenantem po stronie zapytania I przez RLS, więc cudzy najemca nie
+      ma jak się tu znaleźć; tu bronimy warstwy wyżej: cudzej STRONY.
+    */
+    const gaps = footerMarkGaps(
+      [
+        { id: "s1", name: "Strona główna", live: true },
+        { id: "s2", name: "Kontakt", live: true },
+      ],
+      [{ site_id: "s2", content_published: STOPKA }],
+    );
+    expect(gaps).toEqual([{ page: "Strona główna", reason: "noFooter" }]);
+  });
+
   it("strona NIEŻYWA nie jest luką — klient jej nie widzi", () => {
     // Ostrzeżenie na zapas o stronie, której nikt nie ogląda, uczy operatora
     // pomijać tę sekcję wzrokiem.
