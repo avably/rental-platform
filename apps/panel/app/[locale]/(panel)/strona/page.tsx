@@ -19,12 +19,14 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 import { listSites } from "@/lib/site-queries";
+import { tenantLogo } from "@/lib/tenant-logo-render";
 
 import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
+import { StoreLogoCard } from "./store-logo-card";
 
 export default async function SitePage() {
-  await requireMemberPage("/strona");
+  const ctx = await requireMemberPage("/strona");
   const t = await getTranslations("site");
 
   let sites;
@@ -35,6 +37,18 @@ export default async function SitePage() {
       <SiteLoadError backLabel={t("backHome")} title={t("loadErrorTitle")} message={t("loadError")} />
     );
   }
+
+  /*
+    ZNAK FIRMY (ADR-160) — własność NAJEMCY, więc czytany z `tenants`, a nie
+    z którejkolwiek ze stron. Nieudany odczyt NIE gasi ekranu: lista stron jest
+    tu ważniejsza niż karta znaku, a `own_select` i tak oddaje wyłącznie własny
+    wiersz najemcy.
+  */
+  const tenantRow = await ctx.supabase
+    .from("tenants")
+    .select("logo_draft, logo_published")
+    .eq("id", ctx.tenantId!)
+    .maybeSingle();
 
   const format = await getFormatter();
   const stamp = (value: string | null) =>
@@ -59,6 +73,12 @@ export default async function SitePage() {
   return (
     <div className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={t("backHome")} />
+      <StoreLogoCard
+        state={{
+          draft: tenantLogo(tenantRow.data?.logo_draft),
+          published: tenantLogo(tenantRow.data?.logo_published),
+        }}
+      />
       <SitePages rows={rows} />
     </div>
   );

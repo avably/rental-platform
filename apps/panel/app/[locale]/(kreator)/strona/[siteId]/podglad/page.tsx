@@ -45,6 +45,7 @@ import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
 import { previewProductsFor } from "@/lib/site-preview-data";
 import { siteImagePublicBase } from "@/lib/site-image-base";
+import { tenantLogo, tenantLogoRender } from "@/lib/tenant-logo-render";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantSiteLocale, siteRenderLabels } from "@/lib/site-render-labels";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -87,6 +88,23 @@ export default async function SiteDraftPreviewPage({
     locale: tenantLocale,
   };
   const style = resolveSiteStyle(data.site.style_draft, data.site.template);
+
+  /*
+    ZNAK FIRMY W PODGLĄDZIE — z kolumny SZKICU (ADR-160). To jest miejsce, dla
+    którego bliźniak w ogóle istnieje: najemca ma zobaczyć wgrany znak, ZANIM
+    zobaczy go klient. Sklep czyta wyłącznie `logo_published`, więc te dwie
+    powierzchnie mają prawo pokazywać co innego — i to nie jest rozjazd, tylko
+    cała różnica między szkicem a publikacją.
+  */
+  const tenantRow = await ctx.supabase
+    .from("tenants")
+    .select("name, logo_draft")
+    .eq("id", ctx.tenantId!)
+    .maybeSingle();
+  const draftLogo = tenantLogo(tenantRow.data?.logo_draft);
+  const footerLogo = draftLogo?.inFooter
+    ? tenantLogoRender(draftLogo, (tenantRow.data?.name as string | undefined) ?? "")
+    : null;
 
   const sections = toEditorSections(data.sections)
     .filter((section) => section.enabled && !section.deletedInDraft)
@@ -172,6 +190,7 @@ export default async function SiteDraftPreviewPage({
             labels={labels}
             money={money}
             siteImageBase={siteImagePublicBase()}
+            footerLogo={footerLogo}
           />
         </main>
       )}

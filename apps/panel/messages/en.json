@@ -1562,6 +1562,36 @@
         "finalize": "Could not finish the upload."
       }
     },
+    "logo": {
+      "title": "Store logo",
+      "subtitle": "Upload once — the mark appears in the header and, if you want, in the footer too. Visible on every page of the store.",
+      "prompt": "Choose a logo file",
+      "replace": "Choose a new logo file",
+      "uploading": "Uploading…",
+      "hint": "JPEG, PNG, WebP or AVIF, up to 512 kB. A horizontal version on a transparent background works best.",
+      "fieldRemove": "Clear selection",
+      "remove": "Remove logo",
+      "altLabel": "Alternative text",
+      "altPlaceholder": "Store name",
+      "altHint": "Read by screen readers and search engines. Leave empty to use the store name.",
+      "inFooter": "Show the logo in the footer as well",
+      "pending": "The mark is waiting to be published — customers still see the previous state.",
+      "publish": "Publish logo",
+      "live": "Customers see this mark.",
+      "errors": {
+        "missing": "Choose a file.",
+        "empty": "The file is empty.",
+        "size": "The file exceeds 512 kB.",
+        "type": "Allowed formats: JPEG, PNG, WebP, AVIF.",
+        "denied": "You are not allowed to make this change.",
+        "upload": "Could not upload the file.",
+        "content": "The file content is not the declared image type.",
+        "finalize": "Could not finish the upload.",
+        "shape": "Could not save the logo — the file has an unexpected path.",
+        "save": "Could not save the logo.",
+        "publish": "Could not publish the logo."
+      }
+    },
     "fields": {
       "heading": "Heading",
       "heroHeading": "Main heading",

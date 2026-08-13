@@ -34,7 +34,11 @@ export type FinalizeSiteImageUploadResult =
 export interface ClaimedSiteImageUpload {
   uploadId: string;
   tenantId: string;
-  siteId: string;
+  /**
+   * Strona-rodzic biletu albo `null` dla biletu LOGO najemcy (ADR-160): znak
+   * jest własnością najemcy, a nie którejkolwiek z jego stron.
+   */
+  siteId: string | null;
   storagePath: string;
   declaredMime: SiteImageMime;
   declaredSize: number;
@@ -127,7 +131,16 @@ async function removeAndReject(
 export async function finalizeSiteImageUpload(
   uploadId: string,
   deps: FinalizeSiteImageUploadDependencies,
+  /**
+   * SUFIT ROZMIARU dla TEGO biletu (ADR-160). Domyślnie sufit zdjęcia sekcji;
+   * bilet logo domyka się ostrzejszym (512 KiB), bo bucket przyjmuje 5 MiB
+   * i sam by tej różnicy nie wyłapał — bajty idą do Storage bez pośrednictwa
+   * Server Action, więc jedynym miejscem na porównanie deklaracji z faktem
+   * jest właśnie ta kontrola po fakcie.
+   */
+  options: { maxBytes?: number } = {},
 ): Promise<FinalizeSiteImageUploadResult> {
+  const maxBytes = options.maxBytes ?? MAX_SITE_IMAGE_BYTES;
   let claimed: ClaimedSiteImageUpload;
   try {
     claimed = await deps.claim(uploadId);
@@ -147,7 +160,7 @@ export async function finalizeSiteImageUpload(
     info.size !== claimed.declaredSize ||
     info.contentType !== claimed.declaredMime ||
     info.size <= 0 ||
-    info.size > MAX_SITE_IMAGE_BYTES
+    info.size > maxBytes
   ) {
     await removeAndReject(uploadId, claimed.storagePath, deps);
     return { ok: false, error: "metadata" };

@@ -51,6 +51,7 @@ export function StoreHeader({
             // Pudełko o STAŁEJ wysokości (`.site-logo`): plik 3000 × 200 zjedzie
             // do wysokości paska i zatrzyma się na `max-width`, zamiast wypchnąć
             // koszyk poza ekran. Bez wymiarów własnych pliku i bez skoku układu.
+            // eslint-disable-next-line @next/next/no-img-element -- goły URL publiczny bucketa najemcy (jak karta produktu, ADR-145), nie zasób lokalny next/image
             <img className="site-logo" src={logo.src} alt={logo.alt} />
           ) : (
             storeName
