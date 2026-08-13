@@ -67,6 +67,13 @@ const BUILDER_LAYER_MARKERS = [
   "data-element-actions",
   "data-canvas-settings",
   "data-element-settings",
+  // Źródło wartości elementu (faza 3, ADR-163): blok „skąd wartość" i zdanie
+  // stojące zamiast kontrolki, gdy katalog jest pusty. Prefiks celowo INNY niż
+  // `data-element-bound` renderu — tamten jest znacznikiem TREŚCI (zdjęcie
+  // wzięte z katalogu) i do sklepu wychodzi, te dwa są warstwą edycyjną
+  // i wyjść nie mogą.
+  "data-element-binding",
+  "data-binding-empty",
   // Warstwa podglądu gestu (K2c, ADR-087): obrys miejsca lądowania i pula linii
   // prowadnic. Rysuje je silnik gestów kreatora, sklep nie ma po nich śladu.
   "data-canvas-gesture-layer",
