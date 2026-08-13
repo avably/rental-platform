@@ -1,5 +1,6 @@
 import {
   DEFAULT_SITE_STYLE,
+  footerAcceptsMark,
   isSectionCanvas,
   isStructuredSection,
   sectionAnchorIds,
@@ -176,6 +177,23 @@ function SectionSwitch({
   }
 
   if (isSectionCanvas(section.content)) {
+    /*
+     * ZNAK FIRMY W STOPCE NA PŁÓTNIE (ADR-167) — naprawa wady ADR-160.
+     *
+     * Do tej linii `footerLogo` docierał WYŁĄCZNIE do gałęzi v1 niżej, przy
+     * założeniu, że stopka v1 jest jedyną, którą kreator produkuje. Jest
+     * odwrotnie: kreator konwertuje każdą dodawaną sekcję na płótno
+     * (`sectionCanvasFrom`), więc przełącznik „pokaż znak także w stopce" nie
+     * miał ani jednej stopki, na którą mógłby zadziałać.
+     *
+     * Reguła „czy ta stopka znak przyjmie" jest w RDZENIU, a nie tutaj, bo
+     * odpowiada na nią także ekran panelu — a ekran, który mówi co innego niż
+     * render, jest tą samą wadą co przełącznik bez skutku, tylko odwróconą.
+     */
+    const mark =
+      section.type === "footer" && footerLogo && footerAcceptsMark(section.content)
+        ? footerLogo
+        : null;
     // Płótno v2 (K2, ADR-084) — geometria absolutna zamiast układu z typu sekcji.
     return (
       <SectionCanvasRenderer
@@ -184,6 +202,7 @@ function SectionSwitch({
         // Bez tego landmark istniałby wyłącznie dla sekcji zapisanych przed K2,
         // czyli w praktyce dla żadnej.
         as={section.type === "footer" ? "footer" : "section"}
+        mark={mark}
         styles={styles}
         products={products}
         record={record}
@@ -402,12 +421,20 @@ export function SiteRenderer({
    */
   siteImageBase?: string;
   /**
-   * ZNAK FIRMY NAJEMCY W STOPCE (ADR-160) — czwarty szew warstwy danych.
+   * ZNAK FIRMY NAJEMCY W STOPCE (ADR-160; naprawa ADR-167) — czwarty szew
+   * warstwy danych.
    *
    * Logo NIE jest treścią sekcji i celowo nie wchodzi przez `sections`: treść
    * sekcji jest daną STRONY, a najemca ma po fazie 2 wiele stron i dokładnie
    * jeden znak. Wołający decyduje też o przełączniku „pokaż w stopce" —
    * renderer dostaje albo gotowy znak, albo `null`, i nie zna reguły wyboru.
+   *
+   * Znak dociera do OBU generacji stopki: v1 stawia go nad nazwą firmy, płótno
+   * v2 — pasem pod siatką (ADR-167). Do ADR-167 działała wyłącznie pierwsza
+   * droga, a produkuje się wyłącznie druga, więc przełącznik był martwy dla
+   * każdej realnej stopki. Jedyny kształt, do którego znak dalej NIE wchodzi,
+   * to płótno z WŁASNYM obrazem — i to jest jedyna rzecz, o której musi
+   * powiedzieć ekran panelu (`footerAcceptsMark` w rdzeniu).
    */
   footerLogo?: SiteLogoRender | null;
   /**

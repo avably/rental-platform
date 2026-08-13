@@ -157,6 +157,12 @@ export {
   type SiteLogoMime,
 } from "./logo";
 
+/**
+ * CZY ZNAK WEJDZIE DO STOPKI (ADR-167) — para do `./logo`, z tego samego
+ * powodu: reguła jest jedna, a czytają ją render sklepu i ekran panelu.
+ */
+export { footerAcceptsMark } from "./footer-mark";
+
 // -----------------------------------------------------------------------
 // Cegiełki pól
 // -----------------------------------------------------------------------

@@ -69,10 +69,10 @@ import { cn } from "../lib/cn";
 import { sectionBandClass } from "./bands";
 import { elementBindings, type ElementBindingResult, type SiteRecordContext } from "./binding-render";
 import { externalLinkRel } from "./links";
-import { ProductCards, siteImageUrl } from "./sections";
+import { FooterMark, ProductCards, siteImageUrl } from "./sections";
 import { siteIconComponent } from "./site-icons";
 import type { TemplateStyles } from "./template";
-import type { SiteRenderLabels, StorefrontProduct } from "./types";
+import type { SiteLogoRender, SiteRenderLabels, StorefrontProduct } from "./types";
 
 /**
  * Klasy szablonu opisują element W PRZEPŁYWIE (marginesy, sufit szerokości),
@@ -530,6 +530,7 @@ export function SectionCanvasRenderer({
   elementWrapper,
   mobile = mobileLayoutOf(canvas),
   as = "section",
+  mark = null,
 }: {
   canvas: SectionCanvas;
   styles: TemplateStyles;
@@ -565,6 +566,17 @@ export function SectionCanvasRenderer({
    * TYP sekcji, który zna wołający — płótno o typie nie wie i wiedzieć nie musi.
    */
   as?: "section" | "footer";
+  /**
+   * ZNAK FIRMY NAJEMCY POD SIATKĄ (ADR-167) — piąty szew warstwy danych, wnoszony
+   * tą samą drogą co `siteImageBase`: znak jest własnością NAJEMCY, więc nie ma
+   * go w treści żadnej sekcji.
+   *
+   * Płótno nie zna ani przełącznika najemcy, ani reguły „czy ta stopka znak
+   * przyjmie" — rozstrzyga je wołający (`SectionSwitch`), a tu przychodzi już
+   * albo gotowy znak, albo `null`. To jest ten sam podział, którym ADR-160
+   * rozdzielił `footerLogo`: pakiet UI dostaje decyzję, a nie dane do decyzji.
+   */
+  mark?: SiteLogoRender | null;
 }) {
   /*
    * WIĄZANIA ROZWIĄZANE RAZ, PRZED ZBUDOWANIEM DRZEWA (faza 3, ADR-163).
@@ -742,6 +754,7 @@ export function SectionCanvasRenderer({
           );
         })}
       </div>
+      {mark ? <FooterMark logo={mark} /> : null}
     </Shell>
   );
 }

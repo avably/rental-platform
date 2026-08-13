@@ -22,6 +22,7 @@ import { Button, Checkbox, FileField, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 
+import type { FooterMarkGap } from "@/lib/footer-mark-reach";
 import { siteImagePublicBase } from "@/lib/site-image-base";
 
 import {
@@ -44,7 +45,19 @@ function sameLogo(a: StoreLogoState["draft"], b: StoreLogoState["published"]): b
   return a.path === b.path && (a.alt ?? "") === (b.alt ?? "") && a.inFooter === b.inFooter;
 }
 
-export function StoreLogoCard({ state }: { state: StoreLogoState }) {
+export function StoreLogoCard({
+  state,
+  footerGaps = [],
+}: {
+  state: StoreLogoState;
+  /**
+   * STRONY, NA KTÓRYCH ZNAK DO STOPKI NIE DOTRZE (ADR-167) — liczy je serwer
+   * (`footerMarkGaps`) TĄ SAMĄ regułą, którą stosuje render sklepu. Karta ich
+   * nie wylicza i wyliczyć nie może: to jest pytanie o stan OPUBLIKOWANY
+   * wszystkich stron najemcy, a karta zna wyłącznie znak.
+   */
+  footerGaps?: readonly FooterMarkGap[];
+}) {
   const t = useTranslations("site.logo");
   const tErr = useTranslations("site.logo.errors");
   const base = siteImagePublicBase();
@@ -169,6 +182,29 @@ export function StoreLogoCard({ state }: { state: StoreLogoState }) {
             />
             {t("inFooter")}
           </Label>
+
+          {/*
+            PRZEŁĄCZNIK, KTÓRY GDZIEŚ NIE ZADZIAŁA, MÓWI O TYM WPROST (ADR-167).
+            Zdanie stoi PRZY przełączniku, a nie w pomocy ani w dzienniku, bo
+            odpowiada na pytanie zadawane dokładnie tutaj: „zaznaczyłem, więc
+            dlaczego nie widzę". Nie ma go, gdy nie ma o czym mówić — stała
+            adnotacja „może nie zadziałać" jest ostrzeżeniem, które przestaje
+            się czytać po drugim razie.
+          */}
+          {footerGaps.length > 0 ? (
+            <div data-store-logo-footer-gaps className="text-[13px] leading-[18px]">
+              <p className="text-foreground">{t("footerGapsTitle")}</p>
+              <ul className="text-muted-foreground mt-1 list-disc space-y-0.5 pl-5">
+                {footerGaps.map((gap, index) => (
+                  <li key={index}>
+                    {gap.reason === "noFooter"
+                      ? t("footerGapNoFooter", { page: gap.page })
+                      : t("footerGapOwnImage", { page: gap.page })}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
