@@ -170,6 +170,43 @@ describe("schemat treści przyjmuje DOKŁADNIE to, co mówi rejestr", () => {
     expect(canvasElementSchema.safeParse(heading({ href: wiazanie("name") })).success).toBe(false);
   });
 
+  /**
+   * DRUGI KIERUNEK TEGO SAMEGO KONTRAKTU. Test wyżej idzie REJESTR → SCHEMAT
+   * („co deklarujemy, to się parsuje"). Ten idzie SCHEMAT → REJESTR: dla
+   * KAŻDEGO rodzaju sondujemy komplet nazw atrybutów występujących gdziekolwiek
+   * w systemie i wymagamy, żeby schemat przyjął WYŁĄCZNIE te z jego wpisu.
+   * Bez tego poszerzenie schematu (bez ruszania rejestru) przechodziłoby cicho.
+   */
+  it("schemat NIE przyjmuje ani jednego atrybutu spoza wpisu swojego rodzaju", () => {
+    const wszystkie = new Set<string>([
+      ...Object.values(BINDABLE_ATTRIBUTES).flatMap((wpis) => Object.keys(wpis)),
+      "href",
+      "alt",
+      "level",
+      "variant",
+      "fit",
+      "name",
+      "runs",
+    ]);
+
+    for (const kind of BINDABLE_ELEMENT_KINDS) {
+      const wlasne = new Set(bindableAttributesOf(kind).map((entry) => entry.attribute));
+      for (const attribute of wszystkie) {
+        if (wlasne.has(attribute)) continue;
+        const bindings = { [attribute]: wiazanie("name") };
+        const element =
+          kind === "image"
+            ? image(bindings)
+            : kind === "button"
+              ? button(bindings)
+              : kind === "text"
+                ? { id: "t1", kind: "text", text: "Akapit projektowy", layout: LAYOUT, bindings }
+                : heading(bindings);
+        expect(SCHEMATY[kind].safeParse(element).success, `${kind}.${attribute}`).toBe(false);
+      }
+    }
+  });
+
   it("rodzaje bez wiązań nie przyjmują klucza `bindings` w ogóle", () => {
     const ikona = { id: "ic", kind: "icon", name: "truck", layout: LAYOUT, bindings: { name: wiazanie("name") } };
     const ksztalt = { id: "sh", kind: "shape", layout: LAYOUT, bindings: { fill: wiazanie("name") } };
