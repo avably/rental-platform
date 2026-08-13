@@ -1742,6 +1742,7 @@
       "label": "Etykieta przycisku",
       "href": "Adres przycisku",
       "hrefInvalid": "Nie zapisano — dozwolone: adres http(s), ścieżka własna (/cennik), kotwica (#kontakt), e-mail (mailto:…) albo telefon (tel:…).",
+      "emptyNotSaved": "Nie zapisano — puste pole nie przejdzie. Wpisz nową treść, a stara zniknie sama.",
       "alt": "Opis zdjęcia (alt)",
       "buttonStyle": "Wygląd przycisku",
       "buttonStyles": {

@@ -1742,6 +1742,7 @@
       "label": "Button label",
       "href": "Button link",
       "hrefInvalid": "Not saved — allowed: an http(s) address, your own path (/pricing), an anchor (#contact), an e-mail (mailto:…) or a phone number (tel:…).",
+      "emptyNotSaved": "Not saved — an empty field will not pass. Type the new text and the old one goes away on its own.",
       "alt": "Image description (alt)",
       "buttonStyle": "Button look",
       "buttonStyles": {
