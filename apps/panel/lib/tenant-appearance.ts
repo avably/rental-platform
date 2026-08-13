@@ -12,10 +12,33 @@
  * nie ma jak wejść do zapytania. Filtr `.eq("id", tenantId)` jest zawężeniem
  * i czytelnym błędem, a nie mechanizmem ochrony.
  *
- * FAIL-SOFT jest tu świadomy: nieudany odczyt albo brak wiersza dają wygląd
- * DOMYŚLNY, a nie wyjątek. Kreator bez wyglądu to i tak byłby kreator
- * domyślnego motywu; wywrócenie całej trasy z powodu jednej kolumny
- * dekoracyjnej zabrałoby operatorowi dostęp do treści, którą właśnie pisze.
+ * ============ NIEUDANY ODCZYT RZUCA, A NIE UDAJE DOMYŚLNEGO (ADR-174) ============
+ *
+ * Do ADR-174 stał tu FAIL-SOFT z uzasadnieniem „to tylko kolumna dekoracyjna,
+ * a kreator bez wyglądu to i tak kreator domyślnego motywu". To uzasadnienie
+ * BYŁO prawdziwe, dopóki wygląd był ustawieniem JEDNEJ podstrony. ADR-161
+ * przeniósł go na najemcę: `style_draft` opisuje odtąd wygląd CAŁEGO sklepu,
+ * a płótno jest jedynym miejscem, w którym operator go widzi i zmienia.
+ *
+ * Skutek połkniętego błędu przestał więc być kosmetyczny i stał się DROGĄ DO
+ * UTRATY DANYCH: po nieudanym odczycie płótno rysuje domyślny motyw, operator
+ * czyta to jako „straciłem wygląd sklepu" i naprawia jedynym dostępnym ruchem —
+ * ustawia motyw od nowa. `updateStoreStyle` NADPISUJE wtedy wartość, która
+ * w bazie stoi nietknięta. Awaria odczytu zamienia się w skasowanie pracy,
+ * i to ręką samego operatora.
+ *
+ * Wywrócenie trasy jest tu odpowiedzią WŁAŚCIWĄ, a nie surowszą: kreator, który
+ * nie wie, jak wygląda sklep, nie umie pokazać ani jednej rzeczy, po którą
+ * operator wszedł. Wzorzec jest w repo — `site-queries.ts` i `custom-fields.ts`
+ * rzucają dokładnie tak samo.
+ *
+ * BRAK WARTOŚCI ZOSTAJE STANEM CICHYM. Świeży najemca ma `style_draft` puste,
+ * a `template` bywa `null` — `resolveSiteStyle` odpowiada wtedy motywem
+ * domyślnym i to jest odpowiedź POPRAWNA, nie awaryjna. Rzuca wyłącznie odczyt,
+ * który się NIE UDAŁ (`error`) albo nie zastał wiersza najemcy: po
+ * `requireMemberPage` członkostwo jest ustalone, więc wiersz `tenants` o tym
+ * identyfikatorze istnieje i jest widoczny przez `own_select`. Jego brak nie
+ * jest legalną pustką — jest odczytem, który nie odpowiedział na pytanie.
  */
 import { resolveSiteStyle, type ResolvedSiteStyle } from "@avably/core/site";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,11 +53,14 @@ export async function getTenantDraftStyle(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<ResolvedSiteStyle> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tenants")
     .select("template, style_draft")
     .eq("id", tenantId)
     .maybeSingle();
 
-  return resolveSiteStyle(data?.style_draft, data?.template as string | undefined);
+  if (error) throw new Error(`Odczyt wyglądu sklepu nie powiódł się: ${error.message}`);
+  if (!data) throw new Error("Odczyt wyglądu sklepu nie powiódł się: brak wiersza najemcy.");
+
+  return resolveSiteStyle(data.style_draft, data.template as string | undefined);
 }

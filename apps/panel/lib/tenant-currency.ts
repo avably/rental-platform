@@ -20,16 +20,32 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { DEFAULT_CURRENCY, isCurrencyCode, type CurrencyCode } from "@avably/core";
 
+/**
+ * NIEUDANY ODCZYT RZUCA; BRAK USTAWIENIA DALEJ ZNACZY PLN (ADR-174).
+ *
+ * Do ADR-174 ta funkcja czytała wyłącznie `data`, więc awaria bazy była
+ * NIEODRÓŻNIALNA od najemcy, który waluty nigdy nie ustawił — i obie ścieżki
+ * kończyły się `DEFAULT_CURRENCY`. Najemca rozliczający się w EUR dostawał
+ * wtedy cały cennik podpisany „zł": kwoty w groszach są te same, więc nic nie
+ * wygląda na zepsute, a płótno kreatora i podgląd szkicu obiecują klientowi
+ * cenę w cudzej walucie.
+ *
+ * Rozróżnienie jest odtąd jawne: `error` = odczyt się NIE UDAŁ i trasa ma o tym
+ * powiedzieć; brak wiersza albo wartość w nieoczekiwanym kształcie = najemca
+ * nie ustawił waluty, a to jest stan LEGALNY z poprawną odpowiedzią PLN.
+ */
 export async function getTenantCurrency(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<CurrencyCode> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tenant_settings")
     .select("value")
     .eq("tenant_id", tenantId)
     .eq("key", "currency")
     .maybeSingle();
+
+  if (error) throw new Error(`Odczyt waluty najemcy nie powiódł się: ${error.message}`);
 
   // Skalar JSON (string) — inne kształty (obiekt, liczba, nieznany kod)
   // spadają na domyślną walutę zamiast wywracać render listy produktów.

@@ -97,15 +97,25 @@ export default async function SiteDraftPreviewPage({
     zobaczy go klient. Sklep czyta wyłącznie `logo_published`, więc te dwie
     powierzchnie mają prawo pokazywać co innego — i to nie jest rozjazd, tylko
     cała różnica między szkicem a publikacją.
+
+    NIEUDANY ODCZYT NIE JEST TU „BRAKIEM ZNAKU" (ADR-174), ale nie jest też
+    powodem do wywrócenia trasy — i dlatego ten odczyt kończy się INACZEJ niż
+    pozostałe z tej paczki. Znak jest opcjonalny: najemca, który go nie wgrał,
+    ogląda poprawny podgląd bez znaku i to jest stan LEGALNY. Wywrócenie
+    podglądu z powodu jednej kolumny zabrałoby operatorowi całą odpowiedź na
+    pytanie „co zobaczy klient" — a połknięcie błędu dawało odpowiedź FAŁSZYWĄ
+    („znaku nie ma"), na którą operator reaguje wgrywaniem znaku jeszcze raz.
+    Trzeci stan — „nie udało się odczytać" — jest jedynym, który mówi prawdę:
+    podgląd stoi, a operator wie, że o znaku ta strona akurat nic nie wie.
   */
-  const tenantRow = await ctx.supabase
+  const { data: tenantRow, error: tenantError } = await ctx.supabase
     .from("tenants")
     .select("name, logo_draft")
     .eq("id", ctx.tenantId!)
     .maybeSingle();
-  const draftLogo = tenantLogo(tenantRow.data?.logo_draft);
+  const draftLogo = tenantError ? null : tenantLogo(tenantRow?.logo_draft);
   const footerLogo = draftLogo?.inFooter
-    ? tenantLogoRender(draftLogo, (tenantRow.data?.name as string | undefined) ?? "")
+    ? tenantLogoRender(draftLogo, (tenantRow?.name as string | undefined) ?? "")
     : null;
 
   const sections = toEditorSections(data.sections)
@@ -130,6 +140,27 @@ export default async function SiteDraftPreviewPage({
       >
         <p className="text-sm font-medium">{t("preview.draftTitle")}</p>
         <div className="flex items-center gap-3">
+          {/*
+            TRZECI STAN ZNAKU — „nie udało się odczytać" (ADR-174). Stoi w PASKU
+            podglądu, bo pasek jest chrome PANELU i mówi językiem operatora,
+            a strona pod nim jest tym, co zobaczy klient — i klient o awarii
+            odczytu w panelu nic wiedzieć nie ma.
+
+            Znacznik zostaje w rodzinie `data-preview-*` tego paska (obok
+            `data-preview-bar` i `data-preview-back`), a nie w `data-builder-*`:
+            tamta rodzina istnieje po to, żeby rejestr warstwy edycyjnej sklepu
+            pilnował znaczników PŁÓTNA w publicznym renderze, a pasek podglądu
+            nie jest warstwą edycyjną i do renderu sklepu nie wchodzi.
+          */}
+          {tenantError ? (
+            <p
+              data-preview-logo-unreadable
+              role="status"
+              className="text-destructive text-sm font-medium"
+            >
+              {t("preview.logoUnreadable")}
+            </p>
+          ) : null}
           <p className="text-muted-foreground hidden text-sm sm:block">{t("preview.draftHint")}</p>
           <Link
             href={`/strona/${siteId}/kreator`}
