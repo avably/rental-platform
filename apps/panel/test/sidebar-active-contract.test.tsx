@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -9,28 +7,13 @@ import messages from "../messages/pl.json";
 
 /**
  * Aktywna pozycja nawigacji NIE NIESIE KRAWĘDZI (decyzja właściciela
- * 2026-07-21) — samo limonkowe zakreślenie, w dark samo wypełnienie
- * `--accent` (#263016).
+ * 2026-07-21). Od ADR-177 jasny panel ma neutralną powierzchnię aktywnego
+ * linku i małą limonkową kropkę; limonka nie zalewa już całego wiersza.
+ * W dark dotychczasowe wypełnienie `--accent` zostaje dla kontrastu.
  *
- * DWA niezależne dowody, wzorem ADR-057 D1 (skan i render osobno nie
- * wystarczają):
- *  (1) ARTEFAKT — reguły `.sidebar-nav [aria-current="page"]` w źródle prawdy
- *      nie mogą deklarować widocznej krawędzi. Bez tego dokumentacja
- *      pokazywałaby wersję, której produkt już nie ma.
- *  (2) RENDER — wyjściowy HTML sidebara nie może nieść klasy krawędzi w
- *      kolorze innym niż `transparent`. Sam artefakt nie broni kodu, a sam
- *      kod nie broni artefaktu.
+ * Render broni jednocześnie czterech nośników decyzji: neutralnego tła,
+ * limonkowego markera, jego geometrii i braku widocznej krawędzi.
  */
-
-const artifact = readFileSync(
-  resolve(process.cwd(), "../../docs/branding/2026-07-20-avably-faza-2-system.html"),
-  "utf8",
-);
-
-/** Ciała reguł `[aria-current="page"]` sidebara — wariant jasny i ciemny. */
-const activeRules = [
-  ...artifact.matchAll(/\.sidebar-nav \[aria-current="page"\]\s*\{([^}]*)\}/g),
-].map((match) => match[1]!);
 
 const pathname = vi.hoisted(() => ({ current: "/zamowienia" }));
 
@@ -78,18 +61,14 @@ function paintsBorderColor(cls: string): boolean {
 }
 
 describe("kontrakt aktywnej pozycji nawigacji", () => {
-  it("artefakt i render dostarczają realny materiał do sprawdzenia", () => {
-    // Kontrola po pustym zbiorze: bez tej podłogi obie asercje niżej byłyby
-    // zielone dlatego, że parser/render nic nie znalazł.
-    expect(activeRules).toHaveLength(2);
-    // Obie powierzchnie, nie tylko jasna: wariant `.dark` musi istnieć, inaczej
-    // kontrakt pilnowałby połowy artefaktu.
-    expect(artifact).toContain('.dark .sidebar-nav [aria-current="page"]');
+  it("render dostarcza realny aktywny link", () => {
     expect(activeClasses.length).toBeGreaterThan(5);
-    // Zakreślenie MUSI zostać — inaczej „brak krawędzi" spełniałby też
-    // wariant, w którym aktywna pozycja przestała się w ogóle wyróżniać.
-    expect(activeClasses).toContain("bg-accent");
-    expect(activeRules.every((rule) => /background:\s*var\(--accent\)/.test(rule))).toBe(true);
+    expect(activeClasses).toContain("bg-muted/60");
+    expect(activeClasses).toContain("before:bg-accent");
+    expect(activeClasses).toContain("before:rounded-full");
+    expect(activeClasses).toContain("rail-collapsed:before:hidden");
+    expect(activeClasses).not.toContain("bg-accent");
+    expect(activeClasses).toContain("dark:bg-accent");
   });
 
   it("predykat krawędzi widzi kreskę, którą właśnie zdjęto", () => {
@@ -101,15 +80,6 @@ describe("kontrakt aktywnej pozycji nawigacji", () => {
     expect(paintsBorderColor("border-l-2")).toBe(false);
     expect(paintsBorderColor("border-transparent")).toBe(false);
     expect(paintsBorderColor("focus-visible:border-foreground")).toBe(false);
-  });
-
-  it("artefakt nie maluje krawędzi przy aktywnej pozycji", () => {
-    const offenders = activeRules.filter((rule) => /border(-left)?\s*:/.test(rule));
-
-    expect(
-      offenders,
-      `reguła [aria-current] w artefakcie deklaruje krawędź: ${offenders.join(" | ")}`,
-    ).toEqual([]);
   });
 
   it("wyrenderowana aktywna pozycja nie niesie klasy koloru krawędzi", () => {

@@ -44,7 +44,7 @@ export function PanelTopbar({
   const pathname = usePathname();
 
   return (
-    <header className="border-border bg-background flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
+    <header className="border-border bg-card flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
       <MobileNav closing={closing} onboarding={onboarding} />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}

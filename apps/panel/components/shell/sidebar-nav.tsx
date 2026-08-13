@@ -31,8 +31,10 @@ export const PANEL_NAV_ID = "panel-nav";
  *    stanu) oraz wizualny tooltip (`role="tooltip"`, `data-nav-tooltip`)
  *    pokazywany na hover i focus. Świadomie NIE `title=""` — natywny dymek nie
  *    odpala z klawiatury i bywa niewidoczny dla czytnika.
- * W OBU stanach aktywna pozycja niesie `aria-current="page"` i tło `bg-accent`
- * — „tu stoisz" nie może zniknąć razem z etykietą.
+ * W OBU stanach aktywna pozycja niesie `aria-current="page"`. Od ADR-177
+ * jasny panel pokazuje ją neutralną powierzchnią i małą limonkową kropką —
+ * limonka nazywa kontekst, ale nie zalewa całego wiersza. W dark zostaje
+ * dotychczasowe wypełnienie `bg-accent`, bo tam daje właściwy kontrast.
  *
  * JEDEN RENDER NA OBA STANY (naprawa M2, uwaga przeglądu 2026-07-24).
  * Poprzednio nagłówki grup, separatory, badge i tooltipy wybierała GAŁĄŹ
@@ -49,11 +51,11 @@ export const PANEL_NAV_ID = "panel-nav";
  * Wariant jest zakotwiczony w pasku, nie w `<html>`, bo ta sama nawigacja
  * renderuje się w szufladzie mobilnej — a ta jest zawsze pełnej szerokości.
  *
- * Stany interakcji wg artefaktu: hover to WYŁĄCZNIE podkreślenie (żadnego
- * koloru ani tła), focus to obrys limonki. Aktywna pozycja dostaje SAMO tło
- * akcentu — bez krawędzi (decyzja właściciela 2026-07-21), `border-l-2
- * border-transparent` ZOSTAJE na wszystkich pozycjach dla stałej geometrii.
- * Zakazu krawędzi pilnuje `sidebar-active-contract.test.tsx`.
+ * Stany interakcji: hover to WYŁĄCZNIE podkreślenie (żadnego koloru ani tła),
+ * focus to obrys limonki. Aktywna pozycja nadal nie dostaje krawędzi (decyzja
+ * właściciela 2026-07-21), `border-l-2 border-transparent` ZOSTAJE na
+ * wszystkich pozycjach dla stałej geometrii. Zakazu krawędzi i nowego
+ * znacznika pilnuje `sidebar-active-contract.test.tsx`.
  */
 export function SidebarNav({
   onNavigate,
@@ -119,7 +121,9 @@ export function SidebarNav({
           "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
           "hover:underline hover:underline-offset-[3px]",
           "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-          pathname === "/" ? "bg-accent text-foreground dark:text-accent-foreground" : "",
+          pathname === "/"
+            ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
+            : "",
         ].join(" ")}
       >
         <PlaceholderIcon
@@ -176,7 +180,9 @@ export function SidebarNav({
                   "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
                   "hover:underline hover:underline-offset-[3px]",
                   "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-                  isActive ? "bg-accent text-foreground dark:text-accent-foreground" : "",
+                  isActive
+                    ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
+                    : "",
                 ].join(" ")}
               >
                 <Icon

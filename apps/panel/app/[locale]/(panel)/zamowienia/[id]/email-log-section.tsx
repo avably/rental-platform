@@ -20,7 +20,7 @@
  * „klient dostał pustą wiadomość", czyli jako nieprawdę o tym, co wyszło.
  */
 import {
-  Badge,
+  StatusBadge,
   Table,
   TableBody,
   TableCell,
@@ -33,6 +33,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { requireMember } from "@/lib/supabase-server";
 import { EMAIL_LOG_ROW_COLUMNS, formatLogTimestamp, type EmailLogRow } from "@/lib/email-log-view";
+import { secondaryStatusProps } from "@/lib/secondary-status";
 
 import { loadEmailBodyAction } from "./email-body-actions";
 import { EmailPreviewModal } from "./email-preview-modal";
@@ -120,11 +121,16 @@ export async function EmailLogSection({ orderId }: { orderId: string }) {
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    {/* div, nie p: Badge renderuje <div> (wzorzec z page.tsx) */}
+                    {/* Wrapper utrzymuje chip jako jeden blok w komórce tabeli. */}
                     <div>
-                      <Badge variant={row.status === "failed" ? "outline" : "default"}>
+                      <StatusBadge
+                        {...secondaryStatusProps(
+                          "email-log",
+                          row.status === "failed" ? "failed" : "sent",
+                        )}
+                      >
                         {t(`status.${row.status}`)}
-                      </Badge>
+                      </StatusBadge>
                     </div>
                   </TableCell>
                   <TableCell className="align-top whitespace-normal">
