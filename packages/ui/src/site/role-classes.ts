@@ -83,6 +83,12 @@ export const ROLE_CLASSES: Record<string, readonly StructuredThemeRole[]> = {
   // Przycisk drugorzędny na panelu akcentowym: obrys i etykieta w kolorze
   // etykiety na wypełnieniu.
   "site-cta-outline-on-accent": ["accentOnFill"],
+  // Kraniec zakresu w kalendarzu (faza 5, ADR-179) — ta sama para, co
+  // `.site-cta`: wypełnienie akcentem i etykieta na nim.
+  "site-day-edge": ["accentFill", "accentOnFill"],
+  // Środek zakresu: akcent ROZCIEŃCZONY jako tło, atrament karty jako tekst.
+  // Wnosi obie role, bo obie realnie maluje.
+  "site-day-middle": ["accentFill", "ink"],
   "site-badge": ["accentFill"],
   "site-icon-tile": ["accentFill"],
   "site-shape-accent": ["accentFill"],
@@ -104,6 +110,13 @@ export const NEUTRAL_CLASSES: readonly string[] = [
   // Kształt LICZBY, nie jej kolor: `font-variant-numeric` zrównuje szerokości
   // cyfr, żeby kolumna cen nie „tańczyła". Zero zmiennych motywu (E9).
   "site-numeric",
+  /*
+   * KOMÓRKA DNIA KALENDARZA (faza 5, ADR-179). Niesie WYŁĄCZNIE geometrię
+   * (promień, przezroczysty obrys, przejście) — kolor dnia zwykłego jest
+   * dziedziczonym atramentem karty, a stany wybrane malują `site-day-edge`
+   * i `site-day-middle`, które stoją wyżej z własnymi rolami.
+   */
+  "site-day",
   "site-root",
   "site-surface",
   "site-band-muted",

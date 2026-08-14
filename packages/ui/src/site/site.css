@@ -980,3 +980,53 @@
   border: var(--site-border-width) solid var(--site-accent-contrast);
   color: var(--site-accent-contrast);
 }
+
+/*
+ * =====================================================================
+ * KALENDARZ ZAKRESU (faza 5, ADR-179)
+ * =====================================================================
+ *
+ * Trzy klasy, bo dzień ma trzy WIZUALNIE rozłączne stany: zwykły, kraniec
+ * zakresu i środek zakresu. Rozstrzygnięcie „jak wygląda wybrany dzień" nie
+ * może siedzieć w komponencie jako kolor — sklep najemcy maluje się motywem,
+ * a nie paletą panelu (K6, ADR-092).
+ */
+
+/* Komórka dnia — GEOMETRIA i nic poza nią. Kolor dziedziczy z pasa karty. */
+.site-day {
+  border-radius: var(--site-radius);
+  border: var(--site-border-width) solid transparent;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.site-day:hover:not(:disabled) {
+  border-color: var(--site-border);
+}
+
+.site-day:focus-visible {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+/*
+ * KRANIEC ZAKRESU — pełne wypełnienie akcentem. Ta sama para, co `.site-cta`
+ * (`accent` kontra `accent-contrast`), więc kontrast etykiety liczy się raz
+ * dla obu.
+ */
+.site-day-edge {
+  background: var(--site-accent);
+  color: var(--site-accent-contrast);
+}
+
+/*
+ * ŚRODEK ZAKRESU — akcent ROZCIEŃCZONY, atrament pasa. Świadomie nie druga
+ * zmienna motywu: „między krańcami" to ten sam akcent w innej sile, a nie
+ * osobna rola, więc najemca nie ma tu czego wybierać. Atrament zostaje
+ * atramentem karty, bo rozcieńczone tło jest wciąż tłem karty.
+ */
+.site-day-middle {
+  background: color-mix(in srgb, var(--site-accent) 18%, transparent);
+  color: var(--site-ink);
+}

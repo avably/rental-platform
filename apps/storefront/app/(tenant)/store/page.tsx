@@ -145,6 +145,13 @@ export default async function TenantStorePage() {
       */
       site={site}
       /*
+        TERMIN NAJMU W POWŁOCE (faza 5, ADR-179) — ta trasa SPRZEDAJE, więc
+        pasek terminu na niej stoi. Katalog idzie do panelu konfliktu po nazwy
+        pozycji: lista „nie zmieści się w tym terminie" ma mówić o sprzęcie,
+        a nie o identyfikatorach.
+      */
+      term={{ products: catalog.products, locale }}
+      /*
         PREFIKS ZDJĘĆ TAKŻE DLA POWŁOKI (ADR-172). Ten sam szew, którym niżej
         jadą zdjęcia sekcji strony — bo stopkę rysuje ten sam renderer, a jego
         element obrazu bez prefiksu daje szary kafel zastępczy.

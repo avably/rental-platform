@@ -19,9 +19,34 @@ import { SiteChrome, StoreShellFooter } from "@avably/ui";
 import type { ReactNode } from "react";
 
 import { StoreHeader } from "@/components/storefront/store-header";
+import {
+  StoreTermBar,
+  StoreTermProvider,
+  type StoreTermProduct,
+} from "@/components/storefront/store-term";
 import { shellSections, withAnchorBase } from "@/lib/site/page-sections";
 import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
+import type { StorefrontLocale } from "@/lib/storefront/locale";
+
+/**
+ * KONTEKST TERMINU DLA POWŁOKI (faza 5, ADR-179).
+ *
+ * `null` jest legalną wartością i znaczy „ta trasa NIE SPRZEDAJE" — strona
+ * płatności, jej status, dokumenty prawne. Tam pasek terminu byłby
+ * kalendarzem nad zamówieniem, które już powstało: interfejs obiecywałby
+ * wybór, którego nie ma. To jest ta sama trójstanowość, co przy `site`
+ * i `logo` niżej: brak PROPSU legalny nie jest, brak TERMINU — jest.
+ */
+export interface StoreTermInput {
+  /** Katalog najemcy — panel konfliktu nazywa pozycje po imieniu, nie po uuid. */
+  products: StoreTermProduct[];
+  /**
+   * Język NAJEMCY (oś tenancka, nie URL). Na BCP-47 dla `Intl` przelicza go
+   * pasek — jedna zamiana w jednym miejscu, zamiast sześciu w trasach.
+   */
+  locale: StorefrontLocale;
+}
 
 /**
  * NAGŁÓWEK CHROME SKLEPU — stała mieszka od ADR-172 w pakiecie UI, razem
@@ -38,6 +63,7 @@ export function StoreChrome({
   site,
   logo,
   siteImageBase,
+  term,
   footerAnchorBase,
   revealNonce,
   className,
@@ -82,6 +108,21 @@ export function StoreChrome({
    */
   siteImageBase: string;
   /**
+   * TERMIN NAJMU W POWŁOCE — WYMAGANY, `null` legalny (faza 5, ADR-179).
+   *
+   * Powłoka rysuje z niego PASEK TERMINU: jedno miejsce w całym sklepie,
+   * w którym klient wybiera „kiedy", i jedno, w którym dowiaduje się, że
+   * zmiana terminu nie mieści już koszyka. Do ADR-179 kalendarz stał wyłącznie
+   * na stronie sprzętu i ustawiał przy tym termin CAŁEGO zamówienia — czyli
+   * mówił co innego, niż robił.
+   *
+   * `null` znaczy „ta trasa nie sprzedaje" (płatność, status, dokumenty).
+   * Brak PROPSU legalny nie jest z tego samego powodu, co przy `site`
+   * i `logo`: nowa trasa sklepu, która by go pominęła, gasiłaby wybór terminu
+   * na jednej podstronie i na żadnej innej, bez ani jednego błędu w konsoli.
+   */
+  term: StoreTermInput | null;
+  /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
    * których `#kontakt` nie ma celu. Trasa katalogu go NIE podaje, bo cele
@@ -105,8 +146,18 @@ export function StoreChrome({
       revealNonce={revealNonce}
       className={className ? `min-h-screen ${className}` : "min-h-screen"}
     >
-      <StoreHeader copy={copy} storeName={storeName} logo={logo} />
-      {children}
+      {/*
+        PROVIDER OBEJMUJE NAGŁÓWEK, PASEK I TREŚĆ (ADR-179). Pasek terminu
+        i widok koszyka muszą widzieć TEN SAM werdykt konfliktu — gdyby każdy
+        liczył go u siebie, kasa mogłaby być odblokowana w chwili, w której
+        pasek pokazuje konflikt. Jedno pytanie o dostępność na zmianę terminu,
+        jedna odpowiedź dla całej strony.
+      */}
+      <StoreTermProvider>
+        <StoreHeader copy={copy} storeName={storeName} logo={logo} />
+        {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}
+        {children}
+      </StoreTermProvider>
       {/*
         STOPKA POWŁOKI (faza 0, ADR-154) — od ADR-172 składa ją pakiet UI, ten
         sam, który składa ją w podglądzie szkicu. Sklep rozstrzyga tu dwie

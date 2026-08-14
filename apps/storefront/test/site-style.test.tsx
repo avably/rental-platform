@@ -409,6 +409,7 @@ describe("nagłówek sklepu stoi POD korzeniem strony", () => {
         site={null}
         logo={null}
         siteImageBase="https://storage.test/storage/v1/object/public/site-images"
+        term={null}
       >
         <p>treść podstrony</p>
       </PageShell>,
@@ -441,6 +442,7 @@ describe("nagłówek sklepu stoi POD korzeniem strony", () => {
         site={null}
         logo={null}
         siteImageBase="https://storage.test/storage/v1/object/public/site-images"
+        term={null}
       >
         <p>treść podstrony</p>
       </PageShell>,

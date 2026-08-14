@@ -123,7 +123,20 @@ export default async function TenantPaymentStatusPage() {
   }[view.kind];
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)} siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}>
+    <PageShell
+      style={style}
+      copy={copy}
+      storeName={catalog.tenant.name}
+      site={site}
+      logo={storeLogo(ctx)}
+      siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
+      /*
+        TERMIN: `null` — ta trasa NIE SPRZEDAJE (faza 5, ADR-179). Zamówienie
+        już powstało i ma zapisany termin; kalendarz nad nim obiecywałby wybór,
+        którego tu nie ma, a zmiana koszyka nie miałaby na nie żadnego wpływu.
+      */
+      term={null}
+    >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
       <div className="site-card mt-6 p-6" role="status">
         <p className="text-lg leading-7">{headline}</p>

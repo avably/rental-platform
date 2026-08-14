@@ -324,3 +324,27 @@ export interface PublicAvailability {
   available_units: number;
   total_units: number;
 }
+
+/**
+ * Dostępność JEDNEJ pozycji katalogu w zadanym terminie (0081, ADR-179).
+ * `product_id` jest ETYKIETĄ liczby — identyfikatory pozycji są publiczne od
+ * 0020 (`get_public_catalog`), a bez nich liczba nie trafiłaby na właściwy kafel.
+ */
+export interface PublicCatalogAvailabilityEntry extends PublicAvailability {
+  product_id: string;
+}
+
+/** Dostępność CAŁEGO katalogu w jednym odczycie (0081, ADR-179). */
+export interface PublicCatalogAvailability {
+  products: PublicCatalogAvailabilityEntry[];
+}
+
+/**
+ * Dostępność DZIENNA jednego sprzętu (0081, ADR-179): mapa `YYYY-MM-DD` →
+ * liczba wolnych sztuk. `total_units` stoi na zewnątrz mapy, bo liczba sztuk
+ * sprzętu nie zależy od dnia.
+ */
+export interface PublicAvailabilityDays {
+  total_units: number;
+  days: Record<string, number>;
+}

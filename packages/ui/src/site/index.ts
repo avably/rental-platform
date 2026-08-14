@@ -29,6 +29,24 @@ export {
 } from "./site-renderer";
 // Powłoka sklepu jako JEDEN kształt dla sklepu i podglądu szkicu (ADR-172).
 export { SITE_HEADING, StoreShellFooter, StoreShellHeader } from "./store-shell";
+// Kalendarz zakresu (faza 5, ADR-179) — jedna siatka dla powłoki sklepu
+// (sam wybór terminu) i dla strony sprzętu (z liczbą wolnych sztuk per dzień).
+export {
+  SiteDateRangeCalendar,
+  initialSiteCalendarMonth,
+  isSiteCalendarMonth,
+  nextSiteDateRange,
+  shiftSiteCalendarMonth,
+  siteCalendarDayState,
+  siteCalendarMonthDays,
+  siteCalendarMonthOf,
+  siteCalendarRangeDays,
+  siteCalendarWeekdayIndex,
+  type SiteCalendarDayState,
+  type SiteCalendarLabels,
+  type SiteDateRangeCalendarProps,
+  type SiteDateRangeSelection,
+} from "./date-range-calendar";
 // Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
 export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).

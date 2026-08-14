@@ -178,6 +178,8 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
         /* Stopka ze strony GŁÓWNEJ (ADR-154) — patrz nagłówek pliku. */
         site={site}
         siteImageBase={seam.siteImageBase}
+        /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
+        term={{ products: catalog.products, locale }}
         /*
           Kotwice stopki prowadzą na katalog: strona sprzętu nie ma sekcji, do
           których stopka z presetu odsyła, więc czyste `#kontakt` nie robiłoby
@@ -216,7 +218,16 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)} siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}>
+    <PageShell
+      style={style}
+      copy={copy}
+      storeName={catalog.tenant.name}
+      site={site}
+      logo={storeLogo(ctx)}
+      siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
+      /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
+      term={{ products: catalog.products, locale }}
+    >
       {productLd ? <JsonLd data={productLd} /> : null}
       <Link href="/store" className="site-link text-sm">
         {copy.common.backToCatalog}

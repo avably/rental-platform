@@ -408,6 +408,33 @@
       "optional": "optional",
       "required": "required"
     },
+    "term": {
+      "heading": "Rental dates",
+      "choose": "Pick dates",
+      "change": "Change dates",
+      "close": "Close calendar",
+      "noDates": "not selected",
+      "rangeSummary": "{start} → {end} · {days} days",
+      "checking": "Checking availability…",
+      "windowNote": "You can pick dates within the next {days} days.",
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "weekdayMon": "Mon",
+      "weekdayTue": "Tue",
+      "weekdayWed": "Wed",
+      "weekdayThu": "Thu",
+      "weekdayFri": "Fri",
+      "weekdaySat": "Sat",
+      "weekdaySun": "Sun",
+      "dayAvailable": "units available: {units}",
+      "dayUnavailable": "no units available",
+      "dayOutOfRange": "outside the selection window",
+      "conflictHeading": "These dates do not fit your whole cart",
+      "conflictLine": "{name} — in cart: {requested}, available for these dates: {available}",
+      "conflictBlocksCheckout": "You cannot go to checkout until this is resolved — remove these items or go back to the previous dates.",
+      "conflictRemove": "Remove these items from the cart",
+      "conflictRevert": "Back to the previous dates"
+    },
     "product": {
       "galleryAlt": "Photo of {name}",
       "descriptionHeading": "Description",
@@ -436,7 +463,7 @@
       "emptyCta": "Browse the catalog",
       "rentalPeriod": "Rental period",
       "noDates": "No dates selected",
-      "editInProduct": "Set dates and quantities on the product page.",
+      "editInProduct": "Set the dates in the bar at the top of the page — they apply to the whole order.",
       "quantity": "Quantity",
       "remove": "Remove",
       "lineRental": "Rental",
@@ -444,7 +471,8 @@
       "subtotalRental": "Rental subtotal",
       "subtotalDeposit": "Deposit subtotal",
       "goToCheckout": "Proceed to order",
-      "checkoutBlocked": "Choose rental dates (on the product page) to place your order."
+      "checkoutBlocked": "Choose rental dates (on the product page) to place your order.",
+      "checkoutBlockedConflict": "Checkout is blocked: the selected dates do not fit your whole cart."
     },
     "checkout": {
       "title": "Order details",
@@ -515,7 +543,8 @@
         }
       },
       "termsLabelLinked": "I accept the rental {link} and rental conditions.",
-      "termsLinkText": "terms and conditions"
+      "termsLinkText": "terms and conditions",
+      "conflictBlocked": "The selected dates do not fit your whole cart. Resolve it in the dates bar — otherwise the order will be rejected on submit."
     },
     "legal": {
       "version": "Version {version}",
