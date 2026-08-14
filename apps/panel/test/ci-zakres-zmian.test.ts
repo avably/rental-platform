@@ -263,6 +263,11 @@ describe("kontrakt workflow — pominięcie ciężkich jobów", () => {
     expect(ci).toContain("bash scripts/audit-browser-env-inlining.sh");
     expect(ci).toContain("pnpm audit --audit-level high");
     expect(ci).toContain('ALLOW_INTEGRATION_SKIP: "1"');
+    // Bramki designu (ADR-183). Wpis TUTAJ, a nie tylko w YAML-u, bo dokładnie
+    // ta wada zamknęła ADR-183: verifier brandingu nie biegł NIGDZIE i nikt
+    // nie dostawał sygnału, że rdzewieje. Krok skasowany albo przeniesiony do
+    // innego joba musi wywrócić suitę, nie zniknąć po cichu.
+    expect(ci).toContain("pnpm verify:branding");
 
     const rls = jobBlock("rls");
     expect(rls).toContain("pnpm --filter @avably/db test");

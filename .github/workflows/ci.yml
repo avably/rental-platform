@@ -136,6 +136,29 @@ jobs:
       - name: Smoke-test nagłówków (CSP/HSTS)
         run: pnpm --filter @avably/security --filter storefront test
         env: { ALLOW_INTEGRATION_SKIP: "1" }
+      # Bramki designu (ADR-183): kontrakty artefaktów brandingu Fazy 1
+      # i Fazy 2. Do dziś biegły WYŁĄCZNIE ręcznie — nie było ich ani w tym
+      # workflow, ani w skryptach `package.json` — więc `verify-branding-phase2`
+      # rdzewiał niezauważony przez kilka tygodni i wykrył to dopiero audyt.
+      # Bramka, która nie biegnie, nie jest bramką: to Definition of Done pracy
+      # wizualnej, o którym nikt nie dostaje sygnału.
+      #
+      # DLACZEGO TUTAJ, A NIE W TANIM JOBIE `zakres`: `verify-branding-phase2`
+      # liczy style rzeczywistego DOM-u w jsdom z workspace `@avably/ui`
+      # (kontrola kontrolek natywnych i linków UA), więc WYMAGA node_modules.
+      # `zakres` z założenia nie robi `pnpm install` i biegnie na samych
+      # modułach wbudowanych Node — verifier padłby tam na własnym strażniku
+      # „wymaga jsdom", a `zakres` musi być fail-open (jego czerwień zdejmuje
+      # klasyfikator kosztów, nie bramkę treści).
+      #
+      # POKRYCIE JEST DOKŁADNE mimo pominięcia joba dla zmian docs-only:
+      # verifiery czytają `docs/branding/**` i `docs/dokumentacja/hub.html`,
+      # a obie ścieżki są w klasyfikatorze WYJĘTE z białej listy dokumentacji
+      # (CODE_READ_DIRECTORIES / CODE_READ_FILES), więc ich edycja zawsze
+      # wymusza pełne CI. `scripts/**` nie jest dokumentacją, więc zmiana
+      # samego verifiera też wymusza pełny przebieg.
+      - name: Bramki designu (artefakty brandingu Fazy 1 i 2)
+        run: pnpm verify:branding
       - run: pnpm audit --audit-level high
       - run: bash scripts/audit-public-env.sh
       # Klient service-role omija RLS. Reguła ESLinta pilnuje IMPORTU
