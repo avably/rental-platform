@@ -24,8 +24,9 @@
  *   2. ręczna zmiana ceny i kaucji — obie kolumny i obie sumy,
  *   3. usunięcie pozycji — sumy przeliczone po usunięciu,
  *   4. przypisanie egzemplarza ZAJĘTEGO w tym terminie — odmowa bramki
- *      (23P01) wraca do operatora z numerem kolidującego zamówienia, a
- *      w bazie NIC się nie zmienia (ani pozycja, ani sumy),
+ *      (23P01) wraca do operatora jako powód RODZAJOWY, bez numeru
+ *      kolidującego zamówienia (ADR-181/0082), a w bazie NIC się nie
+ *      zmienia (ani pozycja, ani sumy),
  *   5. dodanie produktu BEZ wolnego egzemplarza — pozycja wchodzi z
  *      `unit_id = NULL` i akcja mówi o tym wprost,
  *   6. zmiana kaucji przy POBRANEJ kaucji — `deposit_events` nietknięte,
@@ -498,9 +499,14 @@ describe.skipIf(!hasEnv)("edycja pozycji zamówienia (akcje panelu, bramka 0010)
     );
 
     expect(state.success).toBeUndefined();
-    expect(state.formError).toContain("zajęty");
-    // Powód, nie samo „nie da się": numer kolidującego zamówienia z treści 23P01.
-    expect(state.formError).toContain(rival!.order_number as string);
+    expect(state.formError).toContain("niedostępny w terminie zamówienia");
+    // ADR-181 (0082): powód rodzajowy, BEZ numeru sąsiada. Ta sama funkcja
+    // bramki odmawia niezalogowanemu klientowi sklepu, więc numer nie może
+    // jechać jej komunikatem — asercja pilnuje, żeby nie wrócił tą drogą.
+    expect(
+      state.formError,
+      "komunikat operatora znów niesie numer kolidującego zamówienia (regres ADR-181)",
+    ).not.toContain(rival!.order_number as string);
 
     // W bazie NIC — ani przypisanie, ani kwoty, ani sumy zamówienia.
     const after = await itemRow(heaterItem.id);

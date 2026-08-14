@@ -6,7 +6,8 @@
  * autorytatywny re-odczyt cennika z bazy (dane z przeglądarki niczego nie
  * wyceniają), mutacja klientem z sesją. Bramką jest trigger 0010 — zmiana
  * end_date re-waliduje dostępność KAŻDEJ pozycji z wykluczeniem własnej;
- * odmowa 23P01 niesie w treści numer kolidującego zamówienia.
+ * odmowa wraca jako 23P01, a od ADR-181 (0082) jej treść nie niesie już
+ * numeru kolidującego zamówienia (ten sam komunikat dostaje klient sklepu).
  *
  * Atomowość (ADR-028): end_date i total_rental_grosze idą JEDNĄ instrukcją
  * UPDATE — trigger odpala się na tej samej instrukcji, odmowa wycofuje obie
@@ -32,8 +33,6 @@ import {
 
 /** Kod bramki 0010 — mapowany na komunikat dla operatora. */
 const PG_UNIT_CONFLICT = "23P01";
-/** Bramka podaje numer kolidującego zamówienia w treści błędu (0010). */
-const CONFLICT_ORDER_PATTERN = /kolizja z zamówieniem (.+)\)\./u;
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
@@ -138,11 +137,13 @@ export async function extendOrderAction(
     .select("id");
   if (error) {
     if (error.code === PG_UNIT_CONFLICT) {
-      const conflictNumber = CONFLICT_ORDER_PATTERN.exec(error.message)?.[1];
+      // Rozpoznanie po KODZIE, nie po treści: od ADR-181 (0082) komunikat
+      // bramki nie niesie numeru kolidującego zamówienia — ta sama funkcja
+      // odmawia niezalogowanemu klientowi sklepu, więc jej treść nie może
+      // być nośnikiem danych operacyjnych wypożyczalni.
       return {
-        formError: conflictNumber
-          ? `Nowy termin koliduje z zamówieniem ${conflictNumber} — wybierz wcześniejszą datę.`
-          : "Egzemplarz z tego zamówienia jest już zajęty w nowym terminie.",
+        formError:
+          "Egzemplarz z tego zamówienia jest już zajęty w nowym terminie — wybierz wcześniejszą datę.",
       };
     }
     return { formError: error.message };

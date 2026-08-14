@@ -11,8 +11,10 @@
  * 1. DOSTĘPNOŚĆ EGZEMPLARZA. Przypisanie idzie zwykłym INSERT/UPDATE na
  *    `order_items`, więc przechodzi przez trigger `order_items_assignment_gate`
  *    (0010) → `app.assert_unit_available` (ADR-024). Kolizja wraca jako 23P01
- *    i jest tu tłumaczona na zdanie dla operatora Z POWODEM (numer kolidującego
- *    zamówienia niesie treść wyjątku). Podgląd dostępności, który sekcja
+ *    i jest tu tłumaczona na zdanie dla operatora. Rozpoznajemy ją po KODZIE,
+ *    nie po treści: od ADR-181 (migracja 0082) komunikat bramki nie niesie
+ *    żadnych identyfikatorów, bo ta sama funkcja odmawia niezalogowanemu
+ *    klientowi sklepu. Podgląd dostępności, który sekcja
  *    pokazuje przy wyborze egzemplarza, jest WYGODĄ — autorytatywna odmowa
  *    przychodzi z bazy, bo między renderem a kliknięciem stan mógł się zmienić.
  *    Zero obejść: żadnego service-role w ścieżce mutacji, żadnego wyłączania
@@ -67,8 +69,6 @@ import {
 
 /** Kod bramki 0010 (assert_unit_available) — mapowany na zdanie dla operatora. */
 const PG_UNIT_CONFLICT = "23P01";
-/** Bramka podaje numer kolidującego zamówienia w treści błędu (0010). */
-const CONFLICT_ORDER_PATTERN = /kolizja z zamówieniem (.+)\)\./u;
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
@@ -88,17 +88,21 @@ interface AddProductRow extends ProductPricingRow {
 }
 
 /**
- * Odmowa bramki dostępności → zdanie z POWODEM. Numer kolidującego zamówienia
- * jest w treści wyjątku i jest jedyną informacją, która pozwala operatorowi
- * zrobić coś dalej (zadzwonić, przesunąć termin) zamiast klikać drugi raz.
- * Okno serwisowe rzuca tym samym kodem bez numeru — stąd dwa warianty.
+ * Odmowa bramki dostępności (23P01) → zdanie dla operatora.
+ *
+ * DO ADR-181 panel WYŁUSKIWAŁ z treści wyjątku numer kolidującego zamówienia
+ * i dopisywał go do tego zdania. Migracja 0082 zabrała numer z komunikatu, bo
+ * tę samą funkcję (`app.assert_unit_available`) wykonuje checkout publiczny,
+ * a jego wyjątek dociera bez żadnego filtra do NIEZALOGOWANEGO klienta sklepu
+ * — jeden komunikat obsługiwał więc dwie publiczności o różnych prawach.
+ *
+ * Skutek dla operatora jest świadomy i spisany: zostaje powód rodzajowy
+ * (kolizja albo okno serwisowe), a nie numer sąsiada. Przywrócenie numeru
+ * WYŁĄCZNIE dla zalogowanego członka wymaga własnej drogi (odczyt pod RLS
+ * członka, nie treść wyjątku) i jest osobną decyzją produktową.
  */
-function unitConflictMessage(message: string): string {
-  const conflictNumber = CONFLICT_ORDER_PATTERN.exec(message)?.[1];
-  return conflictNumber
-    ? `Ten egzemplarz jest już zajęty w terminie zamówienia — kolizja z zamówieniem ${conflictNumber}. Wybierz inny egzemplarz albo zostaw pozycję bez przypisania.`
-    : "Ten egzemplarz jest niedostępny w terminie zamówienia (kolizja albo okno serwisowe). Wybierz inny egzemplarz albo zostaw pozycję bez przypisania.";
-}
+const UNIT_CONFLICT_MESSAGE =
+  "Ten egzemplarz jest niedostępny w terminie zamówienia (kolizja albo okno serwisowe). Wybierz inny egzemplarz albo zostaw pozycję bez przypisania.";
 
 /**
  * Autorytatywny odczyt zamówienia + zapora statusu. Zwraca wiersz albo gotowy
@@ -329,7 +333,7 @@ export async function addOrderItemAction(
     deposit_grosze: depositGrosze,
   });
   if (insertError) {
-    if (insertError.code === PG_UNIT_CONFLICT) return { formError: unitConflictMessage(insertError.message) };
+    if (insertError.code === PG_UNIT_CONFLICT) return { formError: UNIT_CONFLICT_MESSAGE };
     return { formError: insertError.message };
   }
 
@@ -426,7 +430,7 @@ export async function updateOrderItemAction(
     .eq("id", input.itemId)
     .select("id");
   if (error) {
-    if (error.code === PG_UNIT_CONFLICT) return { formError: unitConflictMessage(error.message) };
+    if (error.code === PG_UNIT_CONFLICT) return { formError: UNIT_CONFLICT_MESSAGE };
     return { formError: error.message };
   }
   if (!data || data.length === 0) {

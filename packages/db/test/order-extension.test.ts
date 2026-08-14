@@ -8,9 +8,9 @@
  *      OBIE kolumny; własna pozycja nie koliduje sama ze sobą (wykluczenie
  *      p_exclude_item_id — bez niego stary termin zawsze nachodzi na nowy),
  *   2. przedłużenie w termin następnego najmu tego samego egzemplarza:
- *      23P01, treść błędu niesie numer kolidującego zamówienia (akcja
- *      panelu buduje z niego komunikat), a odmowa wycofuje OBIE kolumny
- *      (atomowość jednej instrukcji),
+ *      23P01, którego treść NIE niesie już numeru kolidującego zamówienia
+ *      (ADR-181/0082 — ta sama bramka odmawia klientowi sklepu), a odmowa
+ *      wycofuje OBIE kolumny (atomowość jednej instrukcji),
  *   3. zamówienie wieloproduktowe: bramka re-waliduje każdą pozycję
  *      z wykluczeniem jej samej — przedłużenie bez kolizji przechodzi,
  *   4. dokumentacja residuum ADR-028: edycja dat zamówienia TERMINALNEGO
@@ -189,7 +189,7 @@ describe.skipIf(!hasEnv)("przedłużenie najmu przez bramkę dat z 0010", () => 
     expect(data).toEqual([{ end_date: "2027-03-08", total_rental_grosze: 75_000 }]);
   });
 
-  it("przedłużenie w kolizję z NASTĘPNYM najmem: 23P01 z numerem zamówienia, obie kolumny wycofane", async () => {
+  it("przedłużenie w kolizję z NASTĘPNYM najmem: 23P01 BEZ identyfikatorów, obie kolumny wycofane", async () => {
     const productId = await createProduct();
     const unitId = await createUnit(productId);
     const { orderId } = await createOrder("2027-03-01", "2027-03-05", 50_000);
@@ -204,7 +204,15 @@ describe.skipIf(!hasEnv)("przedłużenie najmu przez bramkę dat z 0010", () => 
       .update({ end_date: "2027-03-09", total_rental_grosze: 85_000 })
       .eq("id", orderId);
     expect(error?.code).toBe(PG_UNIT_CONFLICT);
-    expect(error?.message).toContain(neighbour.orderNumber);
+    // ADR-181 (0082): odmowa bramki niesie KOD, nie dane. Numer sąsiada wyszedł
+    // z treści, bo ta sama funkcja odmawia też niezalogowanemu klientowi sklepu
+    // (`app.public_checkout` nie łapie wyjątku) — pełny dowód w
+    // public-checkout.test.ts. Tu pilnujemy, żeby nie wrócił tą drogą.
+    expect(
+      error?.message,
+      "treść odmowy znów niesie numer kolidującego zamówienia (regres ADR-181)",
+    ).not.toContain(neighbour.orderNumber);
+    expect(error?.message).toBe("Egzemplarz jest zajęty w wybranym terminie.");
 
     // Atomowość jednej instrukcji: odmowa bramki wycofała OBIE kolumny.
     const { data: after } = await admin

@@ -191,6 +191,47 @@ async function checkoutAsAnon(anon: SupabaseClient, args: Record<string, unknown
   return anon.schema("app").rpc("public_checkout", args);
 }
 
+/**
+ * SKAN ODPOWIEDZI DLA ANON (ADR-181). Dwie klasy igieł naraz i to jest
+ * świadome:
+ *
+ *   • KONKRETNE wartości z tej fikstury (numer zamówienia rywala, uuid
+ *     egzemplarza) — łapią wyciek nawet wtedy, gdy przyszła treść ubierze je
+ *     w inne zdanie niż dzisiejsze;
+ *   • KSZTAŁTY (format numeru zamówienia, dowolny uuid, data ISO) — łapią
+ *     wyciek CUDZYCH wartości, których ten test nie zna, bo nie on je zasiał.
+ *
+ * Sam skan po konkretnych wartościach byłby ślepy na drugi przypadek, a sam
+ * skan po kształtach nie odróżniłby wycieku od przypadkowego łańcucha.
+ */
+interface LeakNeedle {
+  name: string;
+  hit: (haystack: string) => boolean;
+}
+
+function leakNeedles(
+  orderNumber: string,
+  unitId: string,
+  startDate: string,
+  endDate: string,
+): LeakNeedle[] {
+  return [
+    { name: "numer cudzego zamówienia", hit: (h) => h.includes(orderNumber) },
+    { name: "uuid egzemplarza", hit: (h) => h.includes(unitId) },
+    { name: "format numeru zamówienia", hit: (h) => /\b[A-Z0-9]{2,10}-\d{4}-\d{3,}\b/u.test(h) },
+    {
+      name: "dowolny uuid",
+      hit: (h) => /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/iu.test(h),
+    },
+    { name: "terminy rezerwacji", hit: (h) => h.includes(startDate) && h.includes(endDate) },
+  ];
+}
+
+/** Nazwy igieł, które trafiły — pusta lista znaczy „nic nie wyciekło". */
+function leaksIn(haystack: string, needles: LeakNeedle[]): string[] {
+  return needles.filter((needle) => needle.hit(haystack)).map((needle) => needle.name);
+}
+
 const createdUserIds: string[] = [];
 
 /** Owner tenanta (auth user + wiersz members) — do testu PII notify_email. */
@@ -377,6 +418,154 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
       wolny.error,
       `kontrola pozytywna odrzucona (${wolny.error?.code}: ${wolny.error?.message}) — dowód wyżej nic nie znaczy`,
     ).toBeNull();
+  });
+
+  // -------------------------------------------------------------------
+  // 1c. ODMOWA BRAMKI ZAPASOWEJ NIE WYDAJE CUDZYCH DANYCH (ADR-181, 0082)
+  // -------------------------------------------------------------------
+  //
+  // CO TU JEST DOWODZONE: treść, którą `anon` DOSTAJE W ODPOWIEDZI, gdy
+  // odmawia bramka zapasowa (`app.assert_unit_available`, trigger 0010), nie
+  // niesie ani numeru cudzego zamówienia, ani uuid egzemplarza, ani terminów
+  // cudzej rezerwacji. Do 0082 niosła wszystkie trzy.
+  //
+  // DLACZEGO WYŚCIG JEST WYMUSZONY, A NIE LOSOWY: dwa równoległe checkouty
+  // (test 1a) potrafią rozstrzygnąć się już na DOBORZE KANDYDATÓW w samym
+  // `public_checkout` — wtedy przegrany dostaje neutralne „Brak wolnych
+  // egzemplarzy" i skan przechodzi po pustym zbiorze, nie dotknąwszy badanego
+  // zdania. Choreografia niżej odbiera tę losowość, używając DOKŁADNIE tego
+  // mechanizmu, który funkcja opisuje w swoim komentarzu (advisory lock +
+  // re-check na nowym snapshocie):
+  //
+  //   1. sesja RYWALA bierze ten sam advisory lock, co weźmie bramka, i w TEJ
+  //      SAMEJ transakcji zakłada zamówienie na egzemplarz (advisory lock jest
+  //      re-entrantny w obrębie sesji, więc bramka rywala nie zakleszcza się
+  //      na własnym locku, a wiersze zostają NIEZATWIERDZONE);
+  //   2. checkout `anon` startuje i przechodzi dobór kandydatów — wierszy
+  //      rywala nie widzi, bo nie są zatwierdzone, więc egzemplarz jest dla
+  //      niego wolny; zatrzymuje się dopiero na locku;
+  //   3. rywal zatwierdza; checkout `anon` wznawia się, robi re-check na NOWYM
+  //      snapshocie, widzi zamówienie rywala i odmawia — bramką ZAPASOWĄ.
+  //
+  // Który wariant odmowy padł, przypina asercja treści: zdanie bramki jest
+  // inne niż zdanie doboru kandydatów, więc test nie da się oszukać ścieżką,
+  // która badanego kodu nie wykonała.
+  it("odmowa bramki zapasowej dociera do anon BEZ identyfikatorów (wyścig wymuszony)", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    // Bufory zerowe: kolizja ma wynikać z terminu, nie z arytmetyki buforów.
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    const [unitId] = await seedUnits(admin, tenantId, productId, 1); // dokładnie jeden
+
+    const rival = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+    const watcher = postgres(env("SUPABASE_LOCAL_URL"), { max: 1 });
+    let rivalOrderNumber = "";
+    // Skrzynka na NIEDOKOŃCZONE wywołanie: odebranie wyniku musi nastąpić po
+    // COMMIT-cie rywala. Zaczekanie na nie WEWNĄTRZ transakcji byłoby
+    // zakleszczeniem — czekalibyśmy na lock, który zwalnia dopiero ten commit.
+    const przegrany: ReturnType<typeof checkoutAsAnon>[] = [];
+
+    try {
+      await rival.begin(async (tx) => {
+        // 1. TEN SAM klucz locka, co w app.assert_unit_available (0010/0082).
+        await tx`select pg_advisory_xact_lock(hashtextextended(${tenantId}::text || ':unit:' || ${unitId}::text, 0))`;
+
+        const [customer] = await tx`
+          insert into public.customers (tenant_id, email, full_name)
+          values (${tenantId}, ${`rywal-${randomUUID().slice(0, 8)}@test.local`}, 'Rywal o ostatnią sztukę')
+          returning id`;
+        const [order] = await tx`
+          insert into public.orders
+            (tenant_id, customer_id, start_date, end_date, order_status, delivery_method, pickup_location_id)
+          values (${tenantId}, ${customer!.id}, '2026-10-01', '2026-10-03', 'pending', 'pickup', ${pickupId})
+          returning id, order_number`;
+        rivalOrderNumber = order!.order_number as string;
+        // Bramka rywala przechodzi: jego własny lock jest re-entrantny,
+        // a kolizji jeszcze nie ma.
+        await tx`
+          insert into public.order_items (tenant_id, order_id, product_id, unit_id, rental_grosze, deposit_grosze)
+          values (${tenantId}, ${order!.id}, ${productId}, ${unitId}, 10000, 5000)`;
+
+        // 2. Checkout klienta sklepu — CELOWO bez await.
+        przegrany.push(checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId)));
+
+        // Czekamy na FAKT, nie na zegar: backend wykonujący NASZ checkout stoi
+        // na advisory locku. Filtr po treści zapytania jest istotny — sama
+        // obecność czekającego backendu nie dowodzi, że to nasz (baza lokalna
+        // bywa współdzielona), a przedwczesny commit rozstroiłby choreografię.
+        let waiting = false;
+        for (let attempt = 0; attempt < 200 && !waiting; attempt += 1) {
+          const [row] = await watcher`
+            select count(*)::int as n
+            from pg_stat_activity
+            where wait_event_type = 'Lock'
+              and wait_event = 'advisory'
+              and query ilike '%public_checkout%'`;
+          waiting = (row!.n as number) > 0;
+          if (!waiting) await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        expect(
+          waiting,
+          "checkout anon nie stanął na advisory locku — choreografia się nie zazębiła, " +
+            "więc odmowa (jeśli padła) NIE pochodzi z bramki zapasowej i nic nie dowodzi",
+        ).toBe(true);
+        // 3. Wyjście z callbacku = COMMIT rywala = zwolnienie locka.
+      });
+    } finally {
+      await rival.end({ timeout: 5 });
+      await watcher.end({ timeout: 5 });
+    }
+
+    const { data, error } = await przegrany[0]!;
+
+    // ODMÓWIŁA BRAMKA ZAPASOWA, nie dobór kandydatów. Ta asercja jest ANTY-
+    // PRÓŻNIOWA: gdyby choreografia się rozjechała i odmówił dobór kandydatów,
+    // skan niżej przeszedłby po zdaniu, którego ta migracja nie dotyczy.
+    // Celowo NIE jest to równość z docelową treścią — równość paliłaby się
+    // pierwsza przy każdej mutacji komunikatu i przykrywała sobą skan, czyli
+    // właściwy dowód. Treść docelową przypina osobna asercja NIŻEJ.
+    expect(error?.code, `oczekiwano 23P01, było ${error?.code}: ${error?.message}`).toBe("23P01");
+    expect(
+      error?.message,
+      "odmówił dobór kandydatów w public_checkout, a nie bramka zapasowa — " +
+        "choreografia wyścigu się nie zazębiła i skan niżej nic by nie dowodził",
+    ).not.toBe("Brak wolnych egzemplarzy w wybranym terminie.");
+    expect(data, "zamówienie przegranego zostało jednak zapisane").toBeNull();
+
+    // WŁAŚCIWY DOWÓD: cała surowa odpowiedź, nie wybrane pole — message,
+    // details, hint i code naraz, bo PostgREST przekazuje klientowi wszystkie.
+    const surowa = JSON.stringify({ data, error });
+    const nazwy = leakNeedles(rivalOrderNumber, unitId!, "2026-10-01", "2026-10-03");
+    expect(
+      leaksIn(surowa, nazwy),
+      `odpowiedź dla anon niesie dane, których klient sklepu znać nie może: ${surowa}`,
+    ).toEqual([]);
+
+    // Treść docelowa — przypięta PO skanie, żeby zmiana brzmienia (np. korekta
+    // stylistyczna) paliła się osobno i czytelnie, a nie jako „wyciek".
+    expect(error?.message, "zmieniło się brzmienie odmowy bramki egzemplarza").toBe(
+      "Egzemplarz jest zajęty w wybranym terminie.",
+    );
+
+    // KONTROLA POZYTYWNA SKANU: ten sam skan, te same igły, odpowiedź
+    // SPREPAROWANA w kształcie sprzed 0082. Bez niej „zero trafień" wyżej
+    // znaczyłoby tylko tyle, że skan niczego nie umie znaleźć.
+    const przed0082 = JSON.stringify({
+      data: null,
+      error: {
+        code: "23P01",
+        message: `Egzemplarz ${unitId} jest zajęty w terminie 2026-10-01 — 2026-10-03 (kolizja z zamówieniem ${rivalOrderNumber}).`,
+        details: null,
+        hint: null,
+      },
+    });
+    expect(
+      leaksIn(przed0082, nazwy),
+      "skan nie wykrył wycieku w odpowiedzi sprzed 0082 — jest dekoracją, nie bramką",
+    ).toEqual(nazwy.map((needle) => needle.name));
   });
 
   // -------------------------------------------------------------------
