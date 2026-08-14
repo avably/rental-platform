@@ -25,6 +25,7 @@ import { verifyTurnstile } from "@avably/security/turnstile";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
+import { checkoutEmailLogo } from "@/lib/checkout/tenant-logo";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
@@ -108,6 +109,10 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
         transport: resendTransport(),
         availability: emailAvailability(),
         panelBaseUrl: PANEL_URL,
+        // Znak najemcy, U KTÓREGO złożono zamówienie (ADR-175). Odczyt idzie
+        // tym samym identyfikatorem, którym powstało zamówienie, i tą samą
+        // drogą co powłoka sklepu — czyli z kolumny OPUBLIKOWANEJ.
+        ...(await checkoutEmailLogo(tenantId, ctx.tenant.name)),
         recorder: checkoutEmailLogRecorder(
           await createSupabaseServerClient(),
           tenantId,

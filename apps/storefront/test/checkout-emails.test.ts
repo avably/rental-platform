@@ -251,3 +251,48 @@ describe("sendCheckoutEmails — historia wysyłek (ADR-045)", () => {
     }
   });
 });
+
+/**
+ * ZNAK NAJEMCY W POTWIERDZENIU DLA KLIENTA (ADR-175).
+ *
+ * Granica jest tu ta sama, co w ADR-036 D2: klient dostaje wiadomość od
+ * WYPOŻYCZALNI, a operator — od systemu, którego używa. Znak wchodzi więc
+ * wyłącznie do pierwszej z dwóch wiadomości, i to jest sprawdzane z imienia,
+ * a nie „gdziekolwiek w wysyłce".
+ */
+describe("znak najemcy w mailach checkoutu", () => {
+  const ZNAK = {
+    src: "https://przyklad.supabase.co/storage/v1/object/public/site-images/8f7a1b2c-3d4e-4f50-9a1b-2c3d4e5f6071/logo/1a2b3c4d-5e6f-4071-8293-a4b5c6d7e8f9.png",
+    alt: "Wypożyczalnia",
+  };
+
+  const adresyObrazow = (html: string): string[] =>
+    Array.from(html.matchAll(/<img[^>]*\ssrc="([^"]*)"/g)).map((m) => m[1] ?? "");
+
+  it("potwierdzenie klienta niesie znak; powiadomienie najemcy zostaje przy marce platformy", async () => {
+    const { transport, sent } = capturingTransport();
+
+    await sendCheckoutEmails(rpcResult(), {
+      transport,
+      availability: AVAILABLE,
+      tenantLogo: ZNAK,
+      ...DEPS_BASE,
+    });
+
+    expect(sent).toHaveLength(2);
+    const [doKlienta, doNajemcy] = sent;
+    expect(adresyObrazow(doKlienta!.html)).toEqual([ZNAK.src]);
+    expect(adresyObrazow(doNajemcy!.html)).toEqual([]);
+  });
+
+  // ── KONTROLA NEGATYWNA: bez znaku obie wiadomości wyglądają dokładnie tak,
+  // jak wyglądały — nazwa wypożyczalni tekstem, zero pustych ramek.
+  it("najemca bez znaku: potwierdzenie pokazuje nazwę tekstem", async () => {
+    const { transport, sent } = capturingTransport();
+
+    await sendCheckoutEmails(rpcResult(), { transport, availability: AVAILABLE, ...DEPS_BASE });
+
+    expect(adresyObrazow(sent[0]!.html)).toEqual([]);
+    expect(sent[0]!.html).toContain("Wypożyczalnia");
+  });
+});

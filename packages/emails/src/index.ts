@@ -1,3 +1,5 @@
+/** Znak najemcy w korespondencji z jego klientem (ADR-175). */
+export type { EmailTenantLogo } from "./components/email-layout";
 export {
   EmailConfirmation,
   type EmailConfirmationProps,

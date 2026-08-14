@@ -9,8 +9,12 @@ import {
   type Locale,
   type OutgoingEmail,
 } from "@avably/core";
-import { emailMessages, renderRentalContractEmail } from "@avably/emails";
-import type { ContractCustomField, ContractPdfProps } from "@avably/pdf";
+import {
+  emailMessages,
+  renderRentalContractEmail,
+  type EmailTenantLogo,
+} from "@avably/emails";
+import type { ContractCustomField, ContractLogo, ContractPdfProps } from "@avably/pdf";
 
 import type { ContractDocumentSettings } from "@/lib/contract-settings";
 
@@ -44,6 +48,13 @@ export interface ContractOrderRow {
 
 export interface BuildContractPdfPropsInput {
   tenant: { name: string };
+  /**
+   * Znak najemcy JAKO BAJTY (ADR-175) — pobrany przez wołającego, bo render
+   * dokumentu nie może zależeć od sieci. Pominięcie znaczy „najemca nie ma
+   * znaku ALBO pliku nie udało się pobrać"; dla dokumentu to jedno i to samo,
+   * bo obie odpowiedzi kończą się nazwą najemcy w nagłówku.
+   */
+  tenantLogo?: ContractLogo;
   tenantLocale: Locale;
   currency: string;
   settings: ContractDocumentSettings;
@@ -108,6 +119,10 @@ export function buildContractPdfProps(input: BuildContractPdfPropsInput): Contra
       address: input.settings.address,
       nip: input.settings.nip,
       email: input.settings.email,
+      // Klucz pojawia się TYLKO ze znakiem — brak znaku ma zostawić dokument
+      // co do bajtu takim, jaki był przed ADR-175 (a przez to nie unieważnić
+      // hasha SHA-256 umów już wygenerowanych).
+      ...(input.tenantLogo ? { logo: input.tenantLogo } : {}),
     },
     customer: {
       fullName: customer.full_name?.trim() || customer.email,
@@ -179,6 +194,8 @@ export function verifySha256(bytes: Uint8Array, expected: string): void {
 export interface BuildContractEmailInput {
   locale: Locale;
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY umowa (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   customerName: string;
   customerEmail: string;
   orderNumber: string;
@@ -195,6 +212,7 @@ export async function buildContractEmail(input: BuildContractEmailInput): Promis
     tenantName: input.tenantName,
     customerName: input.customerName,
     orderNumber: input.orderNumber,
+    ...(input.tenantLogo ? { logo: input.tenantLogo } : {}),
   });
   return {
     from: platformFromAddress(

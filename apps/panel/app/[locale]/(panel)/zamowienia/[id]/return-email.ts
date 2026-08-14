@@ -21,6 +21,7 @@ import {
   emailMessages,
   renderPickupReturnReminder,
   renderReturnLabel,
+  type EmailTenantLogo,
 } from "@avably/emails";
 import {
   EmailConfigError,
@@ -146,6 +147,8 @@ export interface SendReturnLabelInput extends DispatchDeps {
   customer: ReturnEmailCustomer | null;
   settings: TenantSettingRow[];
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   /** Locale tenanta (już zsanityzowane); fallback, gdy klient nie ma preferencji. */
   tenantLocale: Locale;
   orderNumber: string;
@@ -179,6 +182,7 @@ export async function sendReturnLabelEmail(
       endDate: formatDate(input.endDate, locale),
       shipmentNumber: input.shipmentNumber,
       ...(input.carrierName ? { carrierName: input.carrierName } : {}),
+      ...(input.tenantLogo ? { logo: input.tenantLogo } : {}),
     });
 
     message = {
@@ -207,6 +211,8 @@ export interface SendPickupReturnReminderInput extends DispatchDeps {
   customer: ReturnEmailCustomer | null;
   settings: TenantSettingRow[];
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   tenantLocale: Locale;
   orderNumber: string;
   endDate: string;
@@ -242,6 +248,7 @@ export async function sendPickupReturnReminderEmail(
       locationAddress: input.locationAddress,
       ...(input.phone ? { phone: input.phone } : {}),
       ...(input.openingHours ? { openingHours: input.openingHours } : {}),
+      ...(input.tenantLogo ? { logo: input.tenantLogo } : {}),
     });
 
     message = {

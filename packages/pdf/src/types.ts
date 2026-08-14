@@ -8,6 +8,8 @@
  * a kwoty jako liczby groszy do sformatowania (jedyny kontakt pakietu
  * z groszami to ich reprezentacja, patrz `money.ts`).
  */
+import type { ContractLogo } from "./logo";
+
 /**
  * Para etykieta→wartość pola własnego najemcy (C6-A2, ADR-119).
  *
@@ -28,7 +30,22 @@ export interface ContractCustomField {
 
 export interface ContractPdfProps {
   locale: "en" | "pl";
-  tenant: { name: string; address: string; nip: string | null; email: string };
+  tenant: {
+    name: string;
+    address: string;
+    nip: string | null;
+    email: string;
+    /**
+     * ZNAK FIRMY NAJEMCY (ADR-175) — bajty, nigdy adres; szczegóły w `logo.ts`.
+     *
+     * Pominięcie jest stanem NORMALNYM i znaczy dokładnie tyle, co dziś:
+     * nagłówek pokazuje nazwę najemcy tekstem, a dokument jest co do znaku
+     * taki sam jak przed tą zmianą. Wołający pomija to pole zarówno wtedy, gdy
+     * najemca znaku nie ma, jak i wtedy, gdy pliku nie udało się pobrać —
+     * dla dokumentu obie odpowiedzi są tą samą odpowiedzią.
+     */
+    logo?: ContractLogo;
+  };
   customer: { fullName: string; address: string | null; email: string };
   order: { number: string; startDate: string; endDate: string; days: number };
   items: {

@@ -150,9 +150,11 @@ export {
   MAX_SITE_LOGO_BYTES,
   SITE_LOGO_MIME_TYPES,
   SITE_LOGO_PATH_PATTERN,
+  outgoingTenantMark,
   parseSiteLogo,
   siteLogoAlt,
   siteLogoSchema,
+  type OutgoingTenantMark,
   type SiteLogo,
   type SiteLogoMime,
 } from "./logo";

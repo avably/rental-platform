@@ -22,6 +22,7 @@ import {
   renderRentalPickedUp,
   renderRentalReadyForPickup,
   renderRentalReturned,
+  type EmailTenantLogo,
   type RentalLifecycleEmailProps,
   type RenderedEmail,
 } from "@avably/emails";
@@ -93,6 +94,8 @@ export interface RentalEmailInput {
   currency: CurrencyCode;
   sender: EmailSender;
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   customerEmail: string;
   customerName: string;
   orderNumber: string;
@@ -128,6 +131,7 @@ export async function buildRentalEmail(input: RentalEmailInput): Promise<Outgoin
     endDate: formatDate(input.endDate, input.locale),
     totalRentalFormatted: formatMoney(input.totalRentalGrosze, input.currency, input.locale),
     ...(input.pickupLocationName ? { pickupLocationName: input.pickupLocationName } : {}),
+    ...(input.tenantLogo ? { logo: input.tenantLogo } : {}),
   };
 
   const { html, text } = await RENDERERS[template](props);
@@ -166,6 +170,8 @@ export interface SendRentalEmailInput {
   /** Zamówienie, do którego przypina się wpis historii (0021/ADR-045). */
   orderId?: string;
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   locale: Locale;
   currency: CurrencyCode;
   settings: TenantSettingRow[];
@@ -223,6 +229,7 @@ export async function sendRentalEmailForTransition(
       currency: input.currency,
       sender,
       tenantName: input.tenantName,
+      ...(input.tenantLogo ? { tenantLogo: input.tenantLogo } : {}),
       customerEmail: email,
       // Brak nazwiska nie może dać powitania „Dzień dobry, !" — adres jest
       // brzydszy, ale prawdziwy.

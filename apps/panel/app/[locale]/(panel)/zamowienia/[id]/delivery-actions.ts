@@ -12,6 +12,7 @@
  */
 import { revalidatePath } from "next/cache";
 
+import type { EmailTenantLogo } from "@avably/emails";
 import {
   COUNTRY_IDS,
   DEFAULT_TENANT_LOCALE,
@@ -38,6 +39,7 @@ import { assertClosableOrder } from "@/lib/closing";
 import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
+import { tenantEmailLogo } from "@/lib/tenant-mark";
 
 import { loadCourierApi } from "./delivery";
 import {
@@ -623,6 +625,8 @@ async function loadReturnEmailContext(
       order: ReturnEmailOrderRow;
       settings: TenantSettingRow[];
       tenantName: string;
+      /** Znak najemcy, KTÓREGO DOTYCZY zamówienie (ADR-175); brak = nazwa tekstem. */
+      tenantLogo: EmailTenantLogo | undefined;
       tenantLocale: Locale;
     }
   | { error: string }
@@ -641,11 +645,14 @@ async function loadReturnEmailContext(
       .select("key, value")
       .eq("tenant_id", ctx.tenantId)
       .eq("key", EMAIL_SENDER_KEY),
-    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+    // Kolumna OPUBLIKOWANA, nigdy szkic: wiadomość wychodzi na zewnątrz (ADR-175).
+    ctx.supabase.from("tenants").select("name, locale, logo_published").eq("id", ctx.tenantId).maybeSingle(),
   ]);
 
   const order = orderResult.data as unknown as ReturnEmailOrderRow | null;
-  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+  const tenant = tenantResult.data as
+    | { name: string; locale: string | null; logo_published?: unknown }
+    | null;
   if (!order || !tenant) {
     return { error: "Nie udało się odczytać danych zamówienia — wiadomość nie została wysłana." };
   }
@@ -654,6 +661,8 @@ async function loadReturnEmailContext(
     order,
     settings: (settingsResult.data ?? []) as TenantSettingRow[],
     tenantName: tenant.name,
+    // Znak z WIERSZA tego najemcy (ADR-175); brak = nazwa tekstem.
+    tenantLogo: tenantEmailLogo(tenant),
     tenantLocale: tenantLocaleOrDefault(tenant.locale),
   };
 }
@@ -736,6 +745,7 @@ export async function sendReturnLabelEmailAction(
     customer: context.order.customers,
     settings: context.settings,
     tenantName: context.tenantName,
+    ...(context.tenantLogo ? { tenantLogo: context.tenantLogo } : {}),
     tenantLocale: context.tenantLocale,
     orderNumber: context.order.order_number,
     endDate: context.order.end_date,
@@ -810,6 +820,7 @@ export async function sendPickupReturnReminderAction(
     customer: context.order.customers,
     settings: context.settings,
     tenantName: context.tenantName,
+    ...(context.tenantLogo ? { tenantLogo: context.tenantLogo } : {}),
     tenantLocale: context.tenantLocale,
     orderNumber: context.order.order_number,
     endDate: context.order.end_date,

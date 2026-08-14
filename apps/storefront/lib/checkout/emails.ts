@@ -33,7 +33,12 @@ import {
   type EmailTransport,
   type Locale,
 } from "@avably/core";
-import { emailMessages, renderNewOrderNotification, renderRentalConfirmed } from "@avably/emails";
+import {
+  emailMessages,
+  renderNewOrderNotification,
+  renderRentalConfirmed,
+  type EmailTenantLogo,
+} from "@avably/emails";
 
 import type { CheckoutRpcResult } from "./core";
 
@@ -50,6 +55,18 @@ export interface CheckoutEmailDeps {
   recorder?: EmailLogRecorder;
   /** Nadpisanie adresu platformy (test); domyślnie env/stała z @avably/core. */
   fromEmail?: string;
+  /**
+   * ZNAK NAJEMCY, U KTÓREGO ZŁOŻONO ZAMÓWIENIE (ADR-175).
+   *
+   * Wchodzi WYŁĄCZNIE do potwierdzenia dla KLIENTA. Powiadomienie najemcy
+   * jedzie ramką platformy (marka Avably) i to jest ta sama granica, co
+   * w ADR-036 D2: klient dostaje wiadomość od wypożyczalni, a operator
+   * — od systemu, którego używa.
+   *
+   * Rozstrzyga go WOŁAJĄCY z powłoki najemcy (tor `get_tenant_appearance`,
+   * czyli kolumna OPUBLIKOWANA), bo tylko on zna adres publiczny bucketa.
+   */
+  tenantLogo?: EmailTenantLogo;
 }
 
 /**
@@ -106,6 +123,7 @@ export async function sendCheckoutEmails(
       startDate: formatDate(ctx.start_date, customerLocale),
       endDate: formatDate(ctx.end_date, customerLocale),
       totalRentalFormatted: formatMoney(ctx.total_rental_grosze, currency, customerLocale),
+      ...(deps.tenantLogo ? { logo: deps.tenantLogo } : {}),
     });
     const { sendError, logIssue } = await sendAndLog({
       transport: deps.transport,

@@ -1,4 +1,5 @@
 import type { EmailLogRecorder, EmailTransport, Locale } from "@avably/core";
+import type { EmailTenantLogo } from "@avably/emails";
 import { sendAndLog } from "@avably/core";
 import type { ContractPdfProps } from "@avably/pdf";
 
@@ -119,6 +120,8 @@ export async function downloadContract(deps: ContractServiceDeps, identity: Cont
 export interface SendContractInput extends ContractIdentity {
   attemptId: string;
   tenantName: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY umowa (ADR-175); brak = nazwa tekstem. */
+  tenantLogo?: EmailTenantLogo;
   customerName: string;
   orderNumber: string;
   replyTo?: string;
@@ -144,6 +147,7 @@ export async function sendContract(
   const email = await buildContractEmail({
     locale: downloaded.document.locale,
     tenantName: input.tenantName,
+    ...(input.tenantLogo ? { tenantLogo: input.tenantLogo } : {}),
     customerName: input.customerName,
     customerEmail: downloaded.document.recipient,
     orderNumber: input.orderNumber,

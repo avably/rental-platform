@@ -114,3 +114,48 @@ export function siteLogoAlt(logo: SiteLogo, storeName: string): string {
   const fallback = storeName.trim();
   return logo.alt ?? (fallback.length > 0 ? fallback : "Logo");
 }
+
+/**
+ * ZNAK NAJEMCY W KORESPONDENCJI WYCHODZĄCEJ (ADR-175) — e-mail i umowa PDF.
+ *
+ * Trzy stany, nazwane z imienia, bo drugi i trzeci znaczą co innego:
+ *   • `logo`  — najemca ma opublikowany znak; render pokazuje obraz,
+ *   • `name`  — najemcy znaku brak; render pokazuje NAZWĘ TEKSTEM.
+ *
+ * Pustego stanu nie ma i nie może być: pusta ramka w umowie wygląda jak
+ * dokument zepsuty, a nasz znak w miejscu cudzego podmienia właściciela
+ * relacji z klientem. To ten sam trzeci stan, który silnik wiązań kreatora
+ * nazywa `fallback` — brak danych ma powiedzieć „tego nie podano", a nie
+ * udawać treść.
+ */
+export type OutgoingTenantMark =
+  | { kind: "logo"; path: string; alt: string }
+  | { kind: "name"; name: string };
+
+/**
+ * Znak dla wiadomości i dokumentu — WYŁĄCZNIE ze stanu OPUBLIKOWANEGO.
+ *
+ * Argument to wartość kolumny `tenants.logo_published` NAJEMCY, KTÓREGO
+ * DOTYCZY dokument — nie kontekst sesji, nie nagłówek żądania, nie zmienna
+ * globalna. Umowy i przypomnienia powstają też w zadaniach w tle, gdzie
+ * „bieżący najemca" nie znaczy nic, a znak najemcy A w mailu najemcy B jest
+ * wyciekiem widocznym gołym okiem.
+ *
+ * Szkic (`logo_draft`) tu NIE WCHODZI i nie jest to przeoczenie: mail i umowa
+ * wychodzą na zewnątrz, więc wysłanie szkicu byłoby publikacją, której
+ * operator nie zamawiał — ta sama zasada, która trzyma `slug_published`
+ * i `style_published`.
+ *
+ * Kształt nierozpoznany degraduje do nazwy, bo `parseSiteLogo` odpowiada
+ * `null` na wszystko, co nie przeszło `siteLogoSchema` — a to znaczy, że
+ * ścieżka SVG (poza allowlistą wzorca) nie ma jak dojechać do renderu ani
+ * mailem, ani dokumentem. Reguła z nagłówka tego pliku obowiązuje wszędzie.
+ */
+export function outgoingTenantMark(
+  publishedLogo: unknown,
+  tenantName: string,
+): OutgoingTenantMark {
+  const logo = parseSiteLogo(publishedLogo);
+  if (!logo) return { kind: "name", name: tenantName };
+  return { kind: "logo", path: logo.path, alt: siteLogoAlt(logo, tenantName) };
+}

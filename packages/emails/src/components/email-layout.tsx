@@ -8,6 +8,7 @@ import {
   Heading,
   Hr,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -16,6 +17,23 @@ import {
 
 import { emailMessages } from "../messages";
 import { EMAIL_STYLES } from "../styles";
+
+/**
+ * ZNAK NAJEMCY W WIADOMOŚCI (ADR-175) — gotowy adres i gotowy tekst zastępczy.
+ *
+ * Kontrakt 8a bez wyjątku: pakiet nie zna ani bucketa, ani najemcy, ani tego,
+ * skąd wołający wziął ścieżkę. Dostaje ADRES PUBLICZNY — bo klient poczty
+ * pobiera obrazek sam, godziny po wysyłce, spoza naszej sesji, i żaden adres
+ * podpisany ani wewnętrzny nie miałby jak zadziałać.
+ *
+ * `undefined` znaczy „najemca nie ma znaku" i jest stanem NORMALNYM: ramka
+ * pokazuje wtedy jego NAZWĘ tekstem, dokładnie jak przed tą zmianą.
+ */
+export interface EmailTenantLogo {
+  src: string;
+  /** Nigdy pusty — wołający liczy go `siteLogoAlt` (ADR-160, decyzja 7). */
+  alt: string;
+}
 
 export interface EmailLayoutProps {
   children: ReactNode;
@@ -38,6 +56,12 @@ export interface RentalEmailLayoutProps {
   previewText: string;
   /** Nazwa wypożyczalni z danych tenanta. */
   tenantName: string;
+  /**
+   * Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175). Brak = nazwa tekstem.
+   * Prop jest opcjonalny, bo trzecim stanem jest właśnie jego nieobecność —
+   * a nie dlatego, że wolno o niego nie zadbać.
+   */
+  logo?: EmailTenantLogo;
 }
 
 export function EmailLayout({
@@ -96,6 +120,7 @@ export function RentalEmailLayout({
   footerText,
   heading,
   locale,
+  logo,
   previewText,
   tenantName,
 }: RentalEmailLayoutProps) {
@@ -108,7 +133,17 @@ export function RentalEmailLayout({
       <Body lang={lang} style={EMAIL_STYLES.body}>
         <Container style={EMAIL_STYLES.container}>
           <Section style={EMAIL_STYLES.card}>
-            <Text style={EMAIL_STYLES.brand}>{tenantName}</Text>
+            {/*
+              Znak ZASTĘPUJE napis z nazwą — ta sama reguła, co w nagłówku
+              sklepu (ADR-160, decyzja 7): dwie reprezentacje tej samej firmy
+              obok siebie czytają się jak dwie firmy. Nazwa nie znika
+              z wiadomości: stoi w stopce ramki, jak stała.
+            */}
+            {logo ? (
+              <Img alt={logo.alt} src={logo.src} style={EMAIL_STYLES.logo} />
+            ) : (
+              <Text style={EMAIL_STYLES.brand}>{tenantName}</Text>
+            )}
             <Heading as="h1" style={EMAIL_STYLES.heading}>
               {heading}
             </Heading>

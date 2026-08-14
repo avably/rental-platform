@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parsePublishedSite } from "./index";
 import {
   MAX_SITE_LOGO_BYTES,
+  outgoingTenantMark,
   parseSiteLogo,
   siteLogoAlt,
   siteLogoSchema,
@@ -107,5 +108,72 @@ describe("koperta opublikowanej strony", () => {
     // Bez tego przypadku „koperta jest .strict()" byłoby przekonaniem, a nie
     // faktem — a to na nim stoi warunek okna wdrożeniowego dla klucza `logo`.
     expect(parsePublishedSite(envelope({ znak: { path: PATH } }))).toBeNull();
+  });
+});
+
+/**
+ * ZNAK W KORESPONDENCJI WYCHODZĄCEJ (ADR-175) — trzeci stan zamiast pustki.
+ *
+ * Funkcja odpowiada na jedno pytanie: co postawić w mailu i w umowie w miejscu
+ * znaku. Odpowiedzi są dwie i obie są TREŚCIĄ — nigdy pustka, nigdy nasz znak.
+ */
+describe("outgoingTenantMark", () => {
+  it("opublikowany znak wchodzi jako obraz, z tekstem zastępczym najemcy", () => {
+    expect(outgoingTenantMark({ path: PATH, alt: "Znak Północy" }, "Wypożyczalnia Północ")).toEqual({
+      kind: "logo",
+      path: PATH,
+      alt: "Znak Północy",
+    });
+  });
+
+  it("znak bez `alt` bierze nazwę najemcy — pustego tekstu zastępczego nie ma", () => {
+    expect(outgoingTenantMark({ path: PATH }, "Wypożyczalnia Północ")).toEqual({
+      kind: "logo",
+      path: PATH,
+      alt: "Wypożyczalnia Północ",
+    });
+  });
+
+  it("najemca bez znaku dostaje NAZWĘ, a nie pustkę", () => {
+    // Pusty obiekt to wartość DOMYŚLNA kolumny (0076) — czyli stan każdego
+    // najemcy, który znaku nie wgrał. To jest ścieżka zwykła, nie awaryjna.
+    expect(outgoingTenantMark({}, "Wypożyczalnia Północ")).toEqual({
+      kind: "name",
+      name: "Wypożyczalnia Północ",
+    });
+    expect(outgoingTenantMark(null, "Wypożyczalnia Północ")).toEqual({
+      kind: "name",
+      name: "Wypożyczalnia Północ",
+    });
+  });
+
+  it("SVG nie ma jak dojechać do maila ani do umowy", () => {
+    // Reguła z nagłówka tego pliku (aktywny dokument z publicznego bucketa =
+    // składowany XSS) obowiązuje tak samo poza sklepem. Wiersz z taką ścieżką
+    // można w bazie tylko podrobić — i wtedy degraduje do nazwy.
+    expect(outgoingTenantMark({ path: `${TENANT}/logo/${UPLOAD}.svg` }, "Północ")).toEqual({
+      kind: "name",
+      name: "Północ",
+    });
+  });
+
+  it("kształt nierozpoznany degraduje do nazwy, a nie wywraca wysyłki", () => {
+    expect(outgoingTenantMark({ imagePath: PATH }, "Północ")).toEqual({
+      kind: "name",
+      name: "Północ",
+    });
+  });
+
+  it("znaki dwóch najemców nie mieszają się — każdy ze SWOJEGO wiersza", () => {
+    const a = { path: `${TENANT}/logo/${UPLOAD}.png` };
+    const innyTenant = "33333333-3333-4333-8333-333333333333";
+    const innyUpload = "44444444-4444-4444-8444-444444444444";
+    const b = { path: `${innyTenant}/logo/${innyUpload}.png` };
+
+    const markA = outgoingTenantMark(a, "Północ");
+    const markB = outgoingTenantMark(b, "Południe");
+
+    expect(markA).toEqual({ kind: "logo", path: a.path, alt: "Północ" });
+    expect(markB).toEqual({ kind: "logo", path: b.path, alt: "Południe" });
   });
 });
