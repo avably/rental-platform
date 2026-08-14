@@ -77,6 +77,7 @@ async function renderPodstrony(site: PublishedSite | null): Promise<string> {
       site={site}
       logo={null}
       siteImageBase={BAZA_ZDJEC}
+      term={null}
     >
       <p>treść podstrony</p>
     </PageShell>,
@@ -148,6 +149,7 @@ describe("strona katalogu rysuje stopkę DOKŁADNIE RAZ", () => {
         site={site}
         logo={null}
         siteImageBase={BAZA_ZDJEC}
+        term={null}
       >
         <main>
           <SiteRenderer sections={pageSections(site) as never} asRoot={false} anchors />
@@ -236,6 +238,7 @@ describe("kotwice stopki poza stroną z sekcjami", () => {
         site={strona()}
         logo={null}
         siteImageBase={BAZA_ZDJEC}
+        term={null}
       >
         <main>treść katalogu</main>
       </StoreChrome>,

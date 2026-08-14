@@ -10,8 +10,11 @@ import { z } from "zod";
 
 import {
   HOME_PAGE_SLUG,
+  PAGE_SITE_KIND,
   PAGE_SLUG_MAX_LENGTH,
   PAGE_SLUG_PATTERN,
+  PRODUCT_TEMPLATE_SITE_KIND,
+  SITE_KINDS,
   STARTER_TEMPLATES,
   isReservedPageSlug,
   sectionInputSchema,
@@ -128,8 +131,56 @@ export const createSiteInputSchema = z.object({
    * strony pod tym samym adresem).
    */
   slug: contentPageSlugSchema.optional(),
+  /**
+   * ROLA zakładanej strony (faza 5, 0080, ADR-178). Pominięta = `page`, czyli
+   * dokładnie to, czym był każdy wiersz przed fazą 5 — wywołania sprzed niej
+   * nie zmieniają znaczenia ani o jotę.
+   *
+   * Rola jest NIEZMIENNA (trigger `sites_kind_guard`), więc jest to jedyny
+   * moment w życiu wiersza, w którym da się ją podać. `renameSiteInputSchema`
+   * jej nie zna i znać nie może.
+   */
+  kind: z.enum(SITE_KINDS).optional(),
 });
 export type CreateSiteInput = z.infer<typeof createSiteInputSchema>;
+
+/**
+ * SZABLON NIE MA ADRESU — odmowa jako ZDANIE, albo `null`, gdy wejście jest
+ * spójne (faza 5, ADR-178).
+ *
+ * Reguła stoi TU, a nie w `superRefine` schematu, bo jest tą samą klasą
+ * rozstrzygnięcia, co „strona główna może być jedna": pyta o ZWIĄZEK dwóch
+ * pól wejścia, a odpowiedź musi być tym samym zdaniem dla akcji i dla testu.
+ * Bramką ostateczną i tak jest CHECK `sites_product_template_no_slug` — ta
+ * funkcja istnieje po to, żeby odmowa miała uzasadnienie zamiast surowego
+ * 23514.
+ */
+export function productTemplateSlugIssue(input: {
+  kind?: string;
+  slug?: string;
+}): string | null {
+  if (input.kind !== PRODUCT_TEMPLATE_SITE_KIND) return null;
+  if (input.slug === undefined) return null;
+  return "Szablon strony produktu nie ma własnego adresu — pokazuje się pod adresem każdego sprzętu.";
+}
+
+/**
+ * CZY TEN KOMPLET STRON MA JUŻ SZABLON STRONY PRODUKTU (ADR-178).
+ *
+ * Bliźniak `hasHomePage` i z tego samego powodu: pytanie o STAN BAZY, zadawane
+ * przez akcję (przed wstawką) i przez ekran (żeby nie proponować czasownika,
+ * który i tak odmówi). Bramką ostateczną jest unikat
+ * `sites_live_product_template_idx`, ale on pilnuje wyłącznie ŻYWEGO szablonu
+ * — dwa szkice to dla bazy stan legalny, a dla operatora dwie strony, z których
+ * jedna nigdy nie wejdzie do sklepu. Dlatego to pytanie obejmuje WSZYSTKIE
+ * wiersze roli, nie tylko żywe.
+ */
+export function hasProductTemplate(pages: readonly { kind: string }[]): boolean {
+  return pages.some((page) => page.kind === PRODUCT_TEMPLATE_SITE_KIND);
+}
+
+/** Rola wiersza zastanego — wejście mapowań, w których kolumny brak. */
+export const DEFAULT_SITE_KIND = PAGE_SITE_KIND;
 
 /**
  * CZY TEN KOMPLET STRON MA STRONĘ GŁÓWNĄ — jedna definicja dla akcji i dla
@@ -142,10 +193,24 @@ export type CreateSiteInput = z.infer<typeof createSiteInputSchema>;
  * właśnie ją oglądają — i zapraszał do założenia drugiej.
  */
 export function hasHomePage(
-  pages: readonly { slug: string; slugPublished: string | null }[],
+  pages: readonly { slug: string; slugPublished: string | null; kind?: string }[],
 ): boolean {
   return pages.some(
-    (page) => page.slug === HOME_PAGE_SLUG || page.slugPublished === HOME_PAGE_SLUG,
+    (page) =>
+      /*
+        ROLA WCHODZI DO WARUNKU (faza 5, ADR-178) — inaczej SZABLON STRONY
+        PRODUKTU udawałby stronę główną. Szablon nie ma adresu, więc jego slug
+        jest pusty; sam pusty slug przestał więc znaczyć „korzeń sklepu".
+        Bez tego członu najemca, który zbudował szablon i nie ma jeszcze strony
+        głównej, dostawałby na ekranie „strona główna jest" i odmowę przy
+        próbie jej założenia — czyli dokładnie tę wadę, którą zamknął ADR-168,
+        wpuszczoną z powrotem innymi drzwiami.
+
+        Domyślka `?? PAGE_SITE_KIND` obsługuje wołających sprzed fazy 5:
+        wiersze bez roli SĄ stronami, bo taka jest wartość zastana kolumny.
+      */
+      (page.kind ?? PAGE_SITE_KIND) === PAGE_SITE_KIND &&
+      (page.slug === HOME_PAGE_SLUG || page.slugPublished === HOME_PAGE_SLUG),
   );
 }
 

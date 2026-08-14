@@ -30,7 +30,13 @@
  * (`lib/site/page-sections.ts`). Drugi typ przypięty (pasek zgód?) wejdzie do
  * powłoki obu powierzchni bez dotykania żadnego z tych dwóch plików.
  */
-import { HOME_PAGE_SLUG, isPinnedLastType } from "@avably/core/site";
+import {
+  HOME_PAGE_SLUG,
+  PAGE_SITE_KIND,
+  isPinnedLastType,
+  isProductTemplateKind,
+  type SiteKind,
+} from "@avably/core/site";
 import type { SiteSection } from "@avably/db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -92,6 +98,17 @@ async function homePagePinned(
     .from("sites")
     .select("id")
     .eq("tenant_id", tenantId)
+    /*
+      ROLA W WARUNKU (faza 5, ADR-178) — bez niej to zapytanie PADA, i to
+      cicho. Szablon strony produktu ma slug PUSTY (adresu nie ma i mieć nie
+      może), więc najemca, który go założy, ma DWA wiersze pasujące do
+      warunku niżej — a `maybeSingle()` przy >1 wierszu oddaje błąd, nie
+      wiersz. `data` jest wtedy `null`, funkcja zwraca pustą listę i podgląd
+      KAŻDEJ strony traci stopkę, bez jednego komunikatu. To jest dokładnie
+      ta mina, którą 0048 rozbroiło w karcie startowej (ADR-165): pytanie
+      „czy istnieje" postawione zapytaniem zakładającym pojedynczość.
+    */
+    .eq("kind", PAGE_SITE_KIND)
     .eq("slug", HOME_PAGE_SLUG)
     .maybeSingle();
   const homeId = (home as { id?: string } | null)?.id;
@@ -115,29 +132,37 @@ async function homePagePinned(
 /**
  * Podział sekcji podglądu — patrz nagłówek pliku.
  *
- * `slug` przychodzi z wiersza strony: pusty string to strona GŁÓWNA (0073,
- * ADR-157). To jest ten „wsad, czy ta strona jest główna", którego brakowało
- * — bez niego `isPinnedLastType` odpowiada na pytanie o TYP sekcji, ale nikt
- * nie pyta o STRONĘ, na której ta sekcja stoi.
+ * `page.slug` przychodzi z wiersza strony: pusty string to strona GŁÓWNA
+ * (0073, ADR-157). To jest ten „wsad, czy ta strona jest główna", którego
+ * brakowało — bez niego `isPinnedLastType` odpowiada na pytanie o TYP sekcji,
+ * ale nikt nie pyta o STRONĘ, na której ta sekcja stoi.
+ *
+ * `page.kind` doszedł w fazie 5 (ADR-178) i NIE JEST ozdobą: szablon strony
+ * produktu ma slug PUSTY, bo adresu nie ma w ogóle. Sam slug wpuszczałby go
+ * więc w gałąź strony głównej — podgląd szablonu rysowałby jego WŁASNĄ stopkę,
+ * a sklep pokazałby stopkę strony głównej (ADR-154). Podgląd obiecujący coś
+ * innego, niż zobaczy klient, jest dokładnie tą wadą, którą zamknął ADR-172.
  */
 export async function previewShellSections(
   supabase: SupabaseClient,
   tenantId: string,
-  slug: string | null | undefined,
+  page: { slug: string | null | undefined; kind: SiteKind },
   sections: SiteSection[],
 ): Promise<PreviewShell> {
   const widoczne = visible(sections);
-  const page = forRender(widoczne.filter((section) => !isPinnedLastType(section.type)));
+  const strona = forRender(widoczne.filter((section) => !isPinnedLastType(section.type)));
   const wlasnePrzypiete = widoczne.filter((section) => isPinnedLastType(section.type));
 
   // Strona główna JEST powłoką — jej stopka renderuje się w sklepie wszędzie,
-  // więc podgląd bierze ją stąd i drugiego odczytu nie robi.
-  if ((slug ?? HOME_PAGE_SLUG) === HOME_PAGE_SLUG) {
-    return { page, shell: forRender(wlasnePrzypiete), shadowedPinned: false };
+  // więc podgląd bierze ją stąd i drugiego odczytu nie robi. SZABLON tą gałęzią
+  // nie idzie, mimo pustego sluga: powłoką nie jest i własnej stopki w sklepie
+  // nie pokaże.
+  if (!isProductTemplateKind(page.kind) && (page.slug ?? HOME_PAGE_SLUG) === HOME_PAGE_SLUG) {
+    return { page: strona, shell: forRender(wlasnePrzypiete), shadowedPinned: false };
   }
 
   return {
-    page,
+    page: strona,
     shell: await homePagePinned(supabase, tenantId),
     shadowedPinned: wlasnePrzypiete.length > 0,
   };

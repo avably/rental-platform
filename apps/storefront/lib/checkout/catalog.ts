@@ -15,7 +15,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { customFieldsFromPublicRows } from "./custom-fields";
-import type { PublicAvailability, PublicCatalog, PublicCustomField } from "./contract";
+import type {
+  PublicAvailability,
+  PublicAvailabilityDays,
+  PublicCatalog,
+  PublicCatalogAvailability,
+  PublicCustomField,
+} from "./contract";
 
 /**
  * Definicje pól własnych ZAMAWIANIA (C6-A3, 0058) — osobno od katalogu, bo
@@ -90,4 +96,54 @@ export async function getPublicAvailability(
 
   if (error || data == null) return null;
   return data as PublicAvailability;
+}
+
+/**
+ * Dostępność CAŁEGO katalogu jednym odczytem (0081, ADR-179).
+ *
+ * Istnieje po to, żeby katalog i wykrywanie konfliktu w koszyku nie robiły
+ * jednego zapytania NA POZYCJĘ. Fail-closed jak reszta warstwy: błąd transportu
+ * daje `null`, czyli „dostępności nie znamy" — nigdy pustej listy, bo pusta
+ * lista znaczyłaby „najemca nie ma ani jednej pozycji" i cicho zdejmowałaby
+ * blokadę kasy przy konflikcie.
+ */
+export async function getPublicCatalogAvailability(
+  tenantId: string,
+  startDate: string,
+  endDate: string,
+  client?: SupabaseClient,
+): Promise<PublicCatalogAvailability | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase.schema("app").rpc("get_public_catalog_availability", {
+    p_tenant_id: tenantId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+
+  if (error || data == null) return null;
+  return data as PublicCatalogAvailability;
+}
+
+/**
+ * Dostępność DZIENNA jednego sprzętu (0081, ADR-179) — dane dla siatki
+ * kalendarza na stronie sprzętu. Baza odmawia okna szerszego niż
+ * `AVAILABILITY_WINDOW_MAX_DAYS`, oddając `null`; ta warstwa go tylko przenosi.
+ */
+export async function getPublicAvailabilityDays(
+  tenantId: string,
+  productId: string,
+  startDate: string,
+  endDate: string,
+  client?: SupabaseClient,
+): Promise<PublicAvailabilityDays | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase.schema("app").rpc("get_public_availability_days", {
+    p_tenant_id: tenantId,
+    p_product_id: productId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+  });
+
+  if (error || data == null) return null;
+  return data as PublicAvailabilityDays;
 }

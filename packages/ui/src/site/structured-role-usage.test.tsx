@@ -75,6 +75,13 @@ const ALLOWED_FOREIGN_IMPORTS = [
   "../links",
   "../types",
   /*
+   * ADR-180 (dostępność na kaflu) — znacznik liczby wolnych sztuk. Wpuszczony
+   * na tę listę pod tym samym warunkiem, co `../links` i `../image-url`: plik
+   * NIE MA ANI JEDNEJ KLASY. Rolę tekstu podaje kafel przez props `className`,
+   * więc rola zostaje w pliku, który ten skan czyta.
+   */
+  "../product-availability",
+  /*
    * E7 (atuty) — mapa nazwa ikony → komponent `lucide`. Wyprowadzona
    * z `sections.tsx` dokładnie po to, żeby nie wpuszczać tu producenta klas:
    * `site-icons.ts` nie ma ANI JEDNEJ klasy, a rozmiar, kolor i kafelek pod
@@ -251,6 +258,28 @@ describe("źródła klas są zamknięte", () => {
     expect(
       obce,
       `import spoza allowlisty — nowy producent klas ominąłby skan ról:\n${obce.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  /*
+   * UZASADNIENIE Z ALLOWLISTY JAKO ZDANIE SPRAWDZALNE (ADR-180).
+   *
+   * Wpuszczenie modułu na listę wyżej opiera się na obietnicy „ten plik nie ma
+   * ani jednej klasy". Obietnica w komentarzu starzeje się po cichu: dopisanie
+   * `className="site-error"` do znacznika dostępności przeszłoby oba skany —
+   * ten w komponentach (bo klasa jest w innym pliku) i ten z allowlisty (bo
+   * import się nie zmienił) — a sekcja sprzętu malowałaby rolę, której nie
+   * deklaruje, czyli parę bez policzonego kontrastu.
+   */
+  it("znacznik dostępności NIE MALUJE — klasę podaje kafel (ADR-180)", () => {
+    const source = readFileSync(join(DIR, "..", "product-availability.tsx"), "utf8");
+    const bezKomentarzy = source
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const klasy = [...bezKomentarzy.matchAll(/"([^"]*\bsite-[a-z-]+[^"]*)"/g)].map((m) => m[1]);
+    expect(
+      klasy,
+      "moduł z allowlisty zaczął produkować klasy — rola wyjdzie spod skanu ról",
     ).toEqual([]);
   });
 

@@ -85,6 +85,7 @@ async function renderKatalogu(base: string): Promise<string> {
       site={stronaZeStopkaZObrazem()}
       logo={null}
       siteImageBase={base}
+      term={null}
     >
       <main>treść katalogu</main>
     </StoreChrome>,
@@ -101,6 +102,7 @@ async function renderPodstrony(base: string): Promise<string> {
       site={stronaZeStopkaZObrazem()}
       logo={null}
       siteImageBase={base}
+      term={null}
     >
       <p>treść podstrony</p>
     </PageShell>,

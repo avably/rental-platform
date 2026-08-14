@@ -40,6 +40,81 @@ import { RESERVED_CATEGORY_SLUGS } from "../catalog/categories";
  */
 export const HOME_PAGE_SLUG = "";
 
+// -----------------------------------------------------------------------
+// ROLA STRONY — czym wiersz JEST, obok tego, pod jakim adresem stoi
+// -----------------------------------------------------------------------
+
+/**
+ * ROLE WIERSZA `sites` — LUSTRO CHECK-a `sites_kind_check` z migracji 0080
+ * (faza 5, ADR-178).
+ *
+ * ==================== DLACZEGO SLUG TU NIE WYSTARCZA ====================
+ *
+ * Wszystko wyżej w tym pliku mówi o ADRESIE. Rola odpowiada na inne pytanie:
+ * czym wiersz JEST. Do fazy 5 te dwa pytania miały jedną odpowiedź, bo każdy
+ * wiersz był stroną pod jakimś adresem — a strona główna, jedyny wyjątek,
+ * mieściła się w sentinelu pustego sluga (patrz {@link HOME_PAGE_SLUG}).
+ *
+ * SZABLON STRONY PRODUKTU łamie to złożenie: nie ma adresu i mieć go nie może.
+ * Renderuje się RAZ NA POZYCJĘ KATALOGU pod `/product/{id}`, więc:
+ *   • slug `product` jest ZAREZERWOWANY ({@link RESERVED_PAGE_SLUGS}) i bramka
+ *     w bazie odrzuca go już przy wstawieniu — trasa sklepu wygrywa z każdym
+ *     adresem najemcy, więc rezerwacja jest tam po to, żeby operator nie
+ *     zbudował strony, której nikt nigdy nie zobaczy;
+ *   • każdy INNY slug dałby szablonowi publiczny adres, pod którym klient
+ *     zobaczyłby półprodukt z pustymi wiązaniami — szablon bez rekordu nie ma
+ *     czego pokazać, bo wszystkie jego wartości pochodzą z pozycji katalogu.
+ * Sentinel pustego sluga też odpada: tam siedzi strona główna.
+ *
+ * Stąd osobna dana. Zgodności obu zbiorów pilnuje
+ * `packages/db/test/site-product-template.test.ts`, tym samym wzorcem, którym
+ * `site-page-slugs.test.ts` pilnuje listy adresów zarezerwowanych.
+ */
+export const SITE_KINDS = ["page", "product"] as const;
+export type SiteKind = (typeof SITE_KINDS)[number];
+
+/**
+ * Rola wiersza zastanego i każdego nowego, dla którego nikt nie powiedział
+ * inaczej — lustro `default 'page'` z 0080. Zwykła strona sklepu pod własnym
+ * adresem: dokładnie to, czym był KAŻDY wiersz `sites` przed fazą 5.
+ */
+export const PAGE_SITE_KIND: SiteKind = "page";
+
+/**
+ * SZABLON STRONY POJEDYNCZEGO SPRZĘTU.
+ *
+ * Najemca ma go NAJWYŻEJ JEDNEGO żywego (unikat częściowy
+ * `sites_live_product_template_idx`, 0080) i to jest decyzja fazy 5, nie
+ * ograniczenie techniczne: szablony per kategoria wymagają najpierw kategorii,
+ * które są osobną fazą. Rozszerzenie pójdzie kolumną wskazującą zakres, a nie
+ * kolejną rolą — rola mówi, JAKĄ POWIERZCHNIĘ wiersz opisuje, a nie dla ilu
+ * pozycji obowiązuje.
+ */
+export const PRODUCT_TEMPLATE_SITE_KIND: SiteKind = "product";
+
+/** Czy rola pochodzi z zamkniętej listy — wejście parsowania wiersza z bazy. */
+export function isSiteKind(value: unknown): value is SiteKind {
+  return typeof value === "string" && (SITE_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * Czy wiersz jest SZABLONEM STRONY PRODUKTU.
+ *
+ * Pytanie zadaje panel (kontrolka wiązania do rekordu strony pojawia się
+ * WYŁĄCZNIE tutaj) i ekran stron (szablon nie ma adresu, więc nie wolno mu go
+ * pokazać). Funkcja zamiast gołego porównania, bo obie powierzchnie mają
+ * pytać dokładnie o to samo — a `kind === "product"` rozsiane po plikach
+ * rozjedzie się przy pierwszej kolejnej roli.
+ *
+ * Wejście jest `unknown`: wiersz `sites` przychodzi z bazy bez parsowania
+ * (`as Site`), więc pytanie musi znieść wartość spoza listy. Odpowiedź „nie
+ * jest szablonem" jest dla nieznanej roli WŁAŚCIWA — powierzchnia szablonu
+ * ma się pokazać tylko wtedy, gdy wiemy, że stoimy na szablonie.
+ */
+export function isProductTemplateKind(value: unknown): boolean {
+  return value === PRODUCT_TEMPLATE_SITE_KIND;
+}
+
 /** Maksymalna długość sluga — lustro CHECK-a `sites_slug_shape` (0073). */
 export const PAGE_SLUG_MAX_LENGTH = 60;
 

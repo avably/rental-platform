@@ -24,7 +24,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { HOME_PAGE_SLUG } from "@avably/core/site";
+import { HOME_PAGE_SLUG, PAGE_SITE_KIND } from "@avably/core/site";
 
 export const START_STEP_KEYS = [
   "product",
@@ -125,6 +125,14 @@ export async function fetchStartCardSignals(
       .from("sites")
       .select("published_at")
       .eq("tenant_id", tenantId)
+      // ROLA W WARUNKU (faza 5, ADR-178) — bez niej krok wraca do wady, którą
+      // zamknął ADR-168, tylko innymi drzwiami. SZABLON strony produktu ma
+      // `slug_published` PUSTY (adresu nie ma i mieć nie może), więc jego
+      // publikacja odhaczałaby „Opublikuj stronę sklepu" najemcy, u którego
+      // pod `/` dalej jest pustka — a panel zabierałby mu jedyny sygnał o tej
+      // wadzie. Pusty slug przestał znaczyć „korzeń sklepu" i każde pytanie
+      // o korzeń musi odtąd pytać także o rolę.
+      .eq("kind", PAGE_SITE_KIND)
       .eq("slug_published", HOME_PAGE_SLUG)
       .not("published_at", "is", null)
       .limit(1)

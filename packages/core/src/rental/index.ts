@@ -14,6 +14,12 @@ export {
 } from "./availability";
 
 export {
+  AVAILABILITY_WINDOW_MAX_DAYS,
+  availabilityWindowEnd,
+  isWithinAvailabilityWindow,
+} from "./availability-window";
+
+export {
   calculatePrice,
   type PriceParams,
   type PriceResult,

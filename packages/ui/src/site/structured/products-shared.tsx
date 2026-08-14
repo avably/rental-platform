@@ -5,6 +5,7 @@ import {
 } from "@avably/core/site";
 
 import { cn } from "../../lib/cn";
+import { SiteProductAvailabilityMark } from "../product-availability";
 import type { TemplateStyles } from "../template";
 import type { SiteRenderLabels, StorefrontProduct, StorefrontProductField } from "../types";
 
@@ -253,6 +254,15 @@ export function ProductTile({
         <span data-products-price className={styles.cardPrice}>
           {product.priceLabel}
         </span>
+        {/*
+          DOSTĘPNOŚĆ W WYBRANYM TERMINIE (faza 5, ADR-180) — pod ceną, bo to
+          jest druga liczba, po którą sięga klient przy wyborze. Bez terminu
+          znacznik nie rysuje NICZEGO (patrz product-availability.tsx).
+
+          KLASA STOI TUTAJ, nie w znaczniku: rolę motywu ma widzieć skan źródeł
+          komponentów sekcji, a on nie wychodzi poza ten katalog.
+        */}
+        <SiteProductAvailabilityMark productId={product.id} className="site-text-muted text-sm" />
         {product.description ? (
           <span className="site-text-muted mt-2 line-clamp-3 text-sm">{product.description}</span>
         ) : null}

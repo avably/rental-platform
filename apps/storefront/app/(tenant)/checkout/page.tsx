@@ -70,7 +70,16 @@ export default async function TenantCheckoutPage() {
   const publishedTerms = findLegalDocument(ctx.legalDocuments, "terms");
 
   return (
-    <PageShell style={style} copy={copy} storeName={catalog.tenant.name} site={site} logo={storeLogo(ctx)} siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}>
+    <PageShell
+      style={style}
+      copy={copy}
+      storeName={catalog.tenant.name}
+      site={site}
+      logo={storeLogo(ctx)}
+      siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
+      /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
+      term={{ products: catalog.products, locale }}
+    >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
       <div className="mt-6">
         <CheckoutForm

@@ -61,6 +61,7 @@ export function PublishDialog({
   live,
   name,
   address,
+  productTemplate = false,
   appearancePending,
   onConfirm,
   trigger,
@@ -76,6 +77,17 @@ export function PublishDialog({
    * zobaczyć ZANIM kliknie: w kreatorze adresu nie widać nigdzie indziej.
    */
   address: string;
+  /**
+   * CZY TA STRONA JEST SZABLONEM STRONY PRODUKTU (faza 5, ADR-178).
+   *
+   * Zdanie o zasięgu publikacji jest wtedy INNE, a nie ozdobnie inne: szablon
+   * nie staje w sklepie „pod adresem", tylko zaczyna obowiązywać na stronie
+   * KAŻDEGO sprzętu naraz. Podanie mu `address` byłoby podaniem `/` — czyli
+   * adresu strony głównej, pod którym szablonu nie ma i nie będzie. Operator
+   * ma usłyszeć prawdziwy zasięg PRZED kliknięciem, bo po nim zmieni się
+   * tyle stron, ile najemca ma pozycji w katalogu.
+   */
+  productTemplate?: boolean;
   /**
    * CZY SZKIC WYGLĄDU RÓŻNI SIĘ OD OPUBLIKOWANEGO (ADR-171).
    *
@@ -108,8 +120,14 @@ export function PublishDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("pages.switchTitle", { name })}</DialogTitle>
-          <DialogDescription>
-            {live ? t("pages.switchBodySelf") : t("pages.switchBodyNew", { address })}
+          <DialogDescription {...(productTemplate ? { "data-publish-template-scope": "" } : {})}>
+            {productTemplate
+              ? live
+                ? t("pages.switchBodyTemplateLive")
+                : t("pages.switchBodyTemplateNew")
+              : live
+                ? t("pages.switchBodySelf")
+                : t("pages.switchBodyNew", { address })}
           </DialogDescription>
         </DialogHeader>
         {appearancePending === null || appearancePending === undefined ? null : (

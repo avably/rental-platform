@@ -80,7 +80,19 @@ export async function LegalDocumentPage({ kind }: { kind: LegalDocumentKind }) {
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site} logo={storeLogo(ctx)} siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}>
+    <PageShell
+      style={ctx.style}
+      copy={ctx.copy}
+      storeName={ctx.catalog.tenant.name}
+      site={ctx.site}
+      logo={storeLogo(ctx)}
+      siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
+      /*
+        TERMIN: `null` — dokument prawny NIE SPRZEDAJE (faza 5, ADR-179).
+        Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
+      */
+      term={null}
+    >
       <LegalDocumentView
         title={document.title}
         body={document.body}
@@ -117,7 +129,19 @@ export async function LegalDocumentVersionPage({
   if (!document) notFound();
 
   return (
-    <PageShell style={ctx.style} copy={ctx.copy} storeName={ctx.catalog.tenant.name} site={ctx.site} logo={storeLogo(ctx)} siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}>
+    <PageShell
+      style={ctx.style}
+      copy={ctx.copy}
+      storeName={ctx.catalog.tenant.name}
+      site={ctx.site}
+      logo={storeLogo(ctx)}
+      siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
+      /*
+        TERMIN: `null` — dokument prawny NIE SPRZEDAJE (faza 5, ADR-179).
+        Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
+      */
+      term={null}
+    >
       <LegalDocumentView
         title={document.title}
         body={document.body}

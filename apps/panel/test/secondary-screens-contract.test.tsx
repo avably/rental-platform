@@ -819,6 +819,7 @@ function renderLauncher(publishedAtLabel: string | null = "22.07.2026, 10:30"): 
           id: "site-1",
           name: "Strona sklepu",
           live: publishedAtLabel !== null,
+          kind: "page",
           // Strona GŁÓWNA sklepu (0073, ADR-157): adres pusty = `/`.
           slug: "",
           slugPublished: publishedAtLabel !== null ? "" : null,

@@ -82,6 +82,57 @@ export async function getPublishedPage(
 }
 
 /**
+ * OPUBLIKOWANY SZABLON STRONY PRODUKTU najemcy (faza 5, 0080, ADR-178).
+ *
+ * ==================== `null` ZNACZY „ODDAJ WBUDOWANĄ STRONĘ" ====================
+ *
+ * I to jest jedyna rzecz, którą wołający musi o tej funkcji wiedzieć. Granica
+ * przebiega po PUBLIKACJI, nie po zawartości: najemca bez opublikowanego
+ * szablonu — czyli na dziś każdy — dostaje dokładnie tę stronę sprzętu, którą
+ * dostawał przed fazą 5. Wdrożenie nie ma prawa zabrać działającej funkcji.
+ *
+ * Odwrotna strona tej samej granicy jest równie ostra: szablon OPUBLIKOWANY
+ * obowiązuje także wtedy, gdy jest ubogi albo pusty. Podmienianie go z powrotem
+ * na wbudowaną stronę byłoby dokładnie tym kłamstwem interfejsu, które
+ * naprawiały ADR-171 i ADR-172 — „opublikowałem i widzę co innego".
+ *
+ * ==================== DLACZEGO OSOBNA FUNKCJA, A NIE `getPublishedPage` ====================
+ *
+ * Bo szablon NIE MA ADRESU, a tamta funkcja pyta adresem. Rozdział jest już
+ * w bazie (`app.get_published_product_template` kontra `app.get_published_page`,
+ * 0080) i tutaj tylko go odwzorowujemy. Parsowanie zostaje WSPÓLNE
+ * (`parsePublishedSite`), bo koperta jest identyczna co do klucza — druga kopia
+ * tego ciała rozjechałaby się z pierwszą przy najbliższej zmianie koperty,
+ * a koperta jest `.strict()`.
+ *
+ * FAIL-CLOSED, jak `getPublishedPage`: błąd transportu jest dla odwiedzającego
+ * tym samym, czym brak szablonu — zobaczy wbudowaną stronę sprzętu, a nie
+ * pustą ramkę. To jest właściwy kierunek degradacji, bo wbudowana strona ma
+ * komplet informacji o sprzęcie i przycisk rezerwacji.
+ *
+ * IZOLACJA. `app.get_published_product_template` jest SECURITY DEFINER, więc
+ * RLS jej nie dotyczy — bramką jest jawne zawężenie `s.tenant_id = p_tenant_id`
+ * w ciele, a `tenantId` przychodzi WYŁĄCZNIE z nagłówka wstrzykniętego przez
+ * proxy po rozwiązaniu hosta server-side (lib/tenant/headers.ts zdejmuje
+ * przychodzące nagłówki bezwarunkowo). Odwiedzający nie ma czym wskazać
+ * cudzego najemcy.
+ */
+export async function getPublishedProductTemplate(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<PublishedSite | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+
+  const { data, error } = await supabase
+    .schema("app")
+    .rpc("get_published_product_template", { p_tenant_id: tenantId });
+
+  if (error || data == null) return null;
+
+  return parsePublishedSite(data);
+}
+
+/**
  * STYL STRONY w postaci, w której posługuje się nim render (K5, ADR-090):
  * szablon, akcent i para fontów uzupełnione o wartości domyślne.
  *

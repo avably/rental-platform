@@ -111,6 +111,13 @@ export default async function TenantContentPage({ params }: Params) {
         a NIE „nie ma powłoki": znak i motyw jadą torem najemcy (ADR-171).
       */
       site={site}
+      /*
+        TERMIN NAJMU W POWŁOCE (faza 5, ADR-179) — ta trasa SPRZEDAJE, więc
+        pasek terminu na niej stoi. Katalog idzie do panelu konfliktu po nazwy
+        pozycji: lista „nie zmieści się w tym terminie" ma mówić o sprzęcie,
+        a nie o identyfikatorach.
+      */
+      term={{ products: catalog.products, locale }}
       /* Prefiks zdjęć także dla stopki powłoki (ADR-172) — patrz `/store`. */
       siteImageBase={seam.siteImageBase}
       footerAnchorBase={PRODUCTS_CATALOG_HREF}

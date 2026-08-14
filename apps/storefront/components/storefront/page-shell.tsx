@@ -18,7 +18,7 @@ import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
 import { cn } from "@avably/ui";
 import type { ReactNode } from "react";
 
-import { StoreChrome } from "@/components/storefront/store-chrome";
+import { StoreChrome, type StoreTermInput } from "@/components/storefront/store-chrome";
 import { PRODUCTS_CATALOG_HREF } from "@avably/core/site";
 import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
@@ -30,6 +30,7 @@ export function PageShell({
   site,
   logo,
   siteImageBase,
+  term,
   children,
   className,
 }: {
@@ -53,6 +54,14 @@ export function PageShell({
    * jako szary kafel zastępczy, na tej jednej podstronie i na żadnej innej.
    */
   siteImageBase: string;
+  /**
+   * TERMIN NAJMU (faza 5, ADR-179) — przekazywany dalej do powłoki. Wymagany
+   * z tego samego powodu, co `site`, `logo` i `siteImageBase` wyżej: podstrona,
+   * która by go pominęła, gasiłaby pasek terminu dokładnie na sobie.
+   *
+   * `null` na trasach, które NIE SPRZEDAJĄ: płatność, jej status, dokumenty.
+   */
+  term: StoreTermInput | null;
   children: ReactNode;
   className?: string;
 }) {
@@ -64,6 +73,7 @@ export function PageShell({
       site={site}
       logo={logo}
       siteImageBase={siteImageBase}
+      term={term}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ KATALOGU (faza 0). Użytkownicy tej
         powłoki to z definicji PODSTRONY — nie ma na nich sekcji, więc czysta

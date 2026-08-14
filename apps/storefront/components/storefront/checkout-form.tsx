@@ -56,6 +56,7 @@ import { STOREFRONT_TERMS_VERSION } from "@/lib/storefront/constants";
 import { CheckoutCustomFields } from "@/components/storefront/checkout-custom-fields";
 import { checkoutCustomFieldKey } from "@/lib/checkout/custom-fields";
 import { TurnstileWidget } from "@/components/turnstile-widget";
+import { useStoreTerm } from "@/components/storefront/store-term";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 
 /**
@@ -240,6 +241,10 @@ export function CheckoutForm({
 }: CheckoutFormProps) {
   const router = useRouter();
   const { cart, hydrated, clear } = useCart();
+  // Werdykt konfliktu terminu z POWŁOKI (ADR-179) — ten sam, który widzi pasek
+  // terminu i koszyk. Kasa jest ostatnim miejscem, w którym da się zatrzymać
+  // zamówienie, zanim padnie na serwerze przy przypisaniu egzemplarza.
+  const term = useStoreTerm();
   // Pierwsza metoda z listy serwera jest zaznaczona: gdy online jest
   // dostępne, klient chcący zapłacić od razu nie musi nic klikać, a reszta
   // ma wybór o jedno kliknięcie dalej.
@@ -429,6 +434,11 @@ export function CheckoutForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isCheckoutReady(cart)) return;
+    // KONFLIKT TERMINU ZATRZYMUJE ZAPIS (R4, ADR-179). Bramka jest tu, w
+    // ścieżce wysyłki, a nie tylko na przycisku: sam `disabled` znika przy
+    // pierwszym `requestSubmit` z klawiatury albo ze skryptu, a wtedy
+    // zamówienie idzie na serwer wyłącznie po to, żeby tam paść.
+    if (term.blocked) return;
 
     const input: CheckoutInput = {
       email: values.email,
@@ -848,10 +858,22 @@ export function CheckoutForm({
           />
         ) : null}
 
+        {/*
+          POWÓD BLOKADY MÓWIMY WPROST (ADR-171/172). Wyłączony przycisk bez
+          zdania obok jest interfejsem, który odmawia i nie tłumaczy — klient
+          widzi, że „nie działa", i nie ma jak się dowiedzieć, że rozstrzygnięcie
+          czeka na niego w pasku terminu nad formularzem.
+        */}
+        {term.blocked ? (
+          <p className="site-error-panel p-3 text-sm" role="alert" data-checkout-conflict-blocked>
+            {copy.checkout.conflictBlocked}
+          </p>
+        ) : null}
+
         <button
           type="submit"
           className="site-cta w-full cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={submitting}
+          disabled={submitting || term.blocked}
         >
           {submitting ? copy.checkout.submitting : copy.checkout.submit}
         </button>

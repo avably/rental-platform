@@ -1823,7 +1823,8 @@
         "source": "Skąd wartość",
         "sources": {
           "static": "Wpisana tutaj",
-          "product": "Z pola sprzętu"
+          "product": "Z pola sprzętu",
+          "pageProduct": "Z pola tego sprzętu"
         },
         "product": "Sprzęt",
         "field": "Pole sprzętu",
@@ -1840,7 +1841,8 @@
         },
         "fallback": "Tekst zastępczy",
         "note": "Wartość czyta się z katalogu przy każdym wyświetleniu strony. Zmiana w katalogu zmienia stronę bez ponownej edycji.",
-        "noProducts": "Najpierw dodaj sprzęt w katalogu — nie ma czego wskazać."
+        "noProducts": "Najpierw dodaj sprzęt w katalogu — nie ma czego wskazać.",
+        "pageProductNote": "Sprzęt, na którym stoi ta strona — szablon pokazuje każdą pozycję katalogu, a w podglądzie widzisz „{product}”."
       }
     },
     "inline": {
@@ -1926,6 +1928,8 @@
       "deleteConfirm": "Usuń stronę",
       "switchTitle": "Opublikować stronę „{name}”?",
       "switchBodyNew": "Strona stanie się dostępna dla klientów pod adresem {address}.",
+      "switchBodyTemplateNew": "Szablon zacznie obowiązywać na stronie każdego sprzętu — zastąpi układ wbudowany, który klienci widzą dzisiaj.",
+      "switchBodyTemplateLive": "Sklep pokaże szablon w aktualnej wersji na stronie każdego sprzętu — razem ze zmianami, które w nim zrobiłeś.",
       "switchAppearanceUnchanged": "Treść pozostałych stron i wygląd sklepu zostają bez zmian.",
       "switchAppearanceChanges": "Razem ze stroną opublikujesz wygląd sklepu — motyw, kolor akcentu i kroje pisma zmienią się dla klientów na każdej stronie.",
       "switchDraftNote": "Opublikowane zostaną też zmiany, które w niej zrobiłeś.",
@@ -1947,7 +1951,18 @@
       "newHomeTitle": "Strona główna sklepu",
       "newHomeBody": "To ją klienci zobaczą pod adresem „/”. Adresu nie podajesz — strona główna ma tylko ten jeden. Powstanie pusta; klienci zobaczą ją, gdy ją opublikujesz.",
       "newHomeConfirm": "Utwórz stronę główną",
-      "homeDefaultName": "Strona główna"
+      "homeDefaultName": "Strona główna",
+      "templateBadge": "Szablon strony produktu",
+      "templateAddress": "Pokazuje się pod adresem każdego sprzętu — nie ma własnego.",
+      "templateMissingTitle": "Strony sprzętu są wbudowane",
+      "templateMissingBody": "Klienci widzą je w układzie standardowym i to działa. Utwórz szablon, żeby zaprojektować je po swojemu — jeden szablon obowiązuje dla całego katalogu, a zmiany wejdą dopiero po publikacji.",
+      "newTemplate": "Utwórz szablon strony produktu",
+      "newTemplateTitle": "Szablon strony produktu",
+      "newTemplateBody": "Jeden układ dla wszystkich stron sprzętu. Adresu nie podajesz — szablon pokazuje się pod adresem każdej pozycji z katalogu. Powstanie pusty; wbudowaną stronę zastąpi dopiero po publikacji.",
+      "newTemplateConfirm": "Utwórz szablon",
+      "templateDefaultName": "Strona sprzętu",
+      "slugTemplate": "Szablon strony produktu nie ma własnego adresu — pokazuje się pod adresem każdego sprzętu.",
+      "unpublishBodyTemplate": "Szablon zniknie ze stron sprzętu — klienci zobaczą tam z powrotem układ wbudowany. Treść szablonu zostaje; możesz opublikować go ponownie."
     },
     "structured": {
       "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",

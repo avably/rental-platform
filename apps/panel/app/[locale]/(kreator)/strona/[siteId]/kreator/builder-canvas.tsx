@@ -210,6 +210,7 @@ export function BuilderCanvas({
   style,
   sections,
   products,
+  record,
   money,
   viewport,
   busy,
@@ -233,6 +234,17 @@ export function BuilderCanvas({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /**
+   * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178) — wypełniona wyłącznie
+   * na SZABLONIE STRONY PRODUKTU.
+   *
+   * Bez niej płótno szablonu rysowałoby SAME DZIURY: każde wiązanie do rekordu
+   * strony wycina węzeł, gdy rekordu nie ma (`resolveProductBinding` → `null`),
+   * więc operator projektowałby stronę, patrząc na to, czego na niej nie ma.
+   * Rekord jest prawdziwą pozycją z katalogu najemcy — nie atrapą — bo szablon
+   * ma być oceniany na tym, jak wygląda z DŁUGĄ nazwą i PRAWDZIWĄ ceną.
+   */
+  record?: StorefrontProduct;
   /** Waluta i zapis kwot najemcy (E6) — płótno rysuje cennik tak, jak sklep. */
   money: SiteMoney;
   viewport: BuilderViewport;
@@ -494,6 +506,7 @@ export function BuilderCanvas({
                  */
                 motion="off"
                 products={products}
+                record={record}
                 money={money}
                 siteImageBase={siteImagePublicBase()}
                 sectionWrapper={(section, children) => {

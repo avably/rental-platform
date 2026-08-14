@@ -4,7 +4,14 @@
  * Koszyk multi-produkt (2.4b). Stan z localStorage (useCart); pozycje łączą się
  * z katalogiem przekazanym z serwera po product_id. Jedna linia per produkt
  * (agregacja w modelu — patrz lib/cart/model.ts). Termin jest WSPÓLNY dla całego
- * zamówienia (edytowany na podstronie produktu).
+ * zamówienia i od ADR-179 edytuje się go w PASKU TERMINU powłoki, a nie na
+ * podstronie sprzętu — bo wspólny termin ustawiany w miejscu poświęconym
+ * jednej pozycji był interfejsem mówiącym co innego, niż robi.
+ *
+ * ODNOŚNIK DO KASY ZNIKA PRZY KONFLIKCIE (R4, ADR-179). Werdykt bierzemy
+ * z powłoki (`useStoreTerm`), a nie liczymy tu drugi raz: dwa niezależne
+ * odczyty dostępności mogłyby dać dwie odpowiedzi, a wtedy kasa bywałaby
+ * otwarta w chwili, w której pasek terminu pokazuje konflikt.
  *
  * Kwoty tu to PODGLĄD (calculatePrice) — informacyjny szacunek. Wiążącą kwotę
  * policzy serwer przy składaniu zamówienia (ADR-042).
@@ -19,6 +26,7 @@
 import { calculatePrice, formatMoney, type CurrencyCode } from "@avably/core";
 import Link from "next/link";
 
+import { useStoreTerm } from "@/components/storefront/store-term";
 import { isCheckoutReady, MAX_QUANTITY_PER_PRODUCT } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
 import { storagePublicUrl, toPriceParams } from "@/lib/catalog/present";
@@ -40,6 +48,10 @@ export function CartView({
   copy: StorefrontCopy;
 }) {
   const { cart, hydrated, setQty, remove } = useCart();
+  // Werdykt konfliktu z POWŁOKI, nie liczony tu jeszcze raz (ADR-179): dwa
+  // niezależne odczyty dostępności mogłyby dać dwie odpowiedzi, a wtedy kasa
+  // bywałaby odblokowana w chwili, w której pasek terminu pokazuje konflikt.
+  const term = useStoreTerm();
   const byId = new Map(products.map((product) => [product.id, product]));
 
   // Do hydratacji nie znamy koszyka (localStorage) — nie renderujemy treści,
@@ -74,7 +86,10 @@ export function CartView({
     deliveryMethod: null,
     deliveryMethods: [],
   });
-  const ready = isCheckoutReady(cart);
+  // KONFLIKT ZDEJMUJE ODNOŚNIK DO KASY, a nie tylko go przygasza (R4,
+  // ADR-179): przycisk „wyłączony" wizualnie wciąż jest linkiem i klawiatura
+  // przeprowadzi po nim klienta wprost na formularz, który i tak padnie.
+  const ready = isCheckoutReady(cart) && !term.blocked;
 
   return (
     <div className="grid gap-8">
@@ -175,7 +190,9 @@ export function CartView({
             {copy.cart.goToCheckout}
           </Link>
         ) : (
-          <p className="site-error text-sm">{copy.cart.checkoutBlocked}</p>
+          <p className="site-error text-sm" data-cart-checkout-blocked>
+            {term.blocked ? copy.cart.checkoutBlockedConflict : copy.cart.checkoutBlocked}
+          </p>
         )}
         <Link href="/store" className="site-link text-sm">
           {copy.common.continueShopping}

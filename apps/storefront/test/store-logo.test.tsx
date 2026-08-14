@@ -73,6 +73,7 @@ async function renderPowloki(logo: StoreLogo | null): Promise<string> {
       site={stronaZeStopka()}
       logo={logo}
       siteImageBase={BAZA_ZDJEC}
+      term={null}
     >
       <p>treść</p>
     </StoreChrome>,
@@ -89,6 +90,7 @@ async function renderPodstrony(logo: StoreLogo | null): Promise<string> {
       site={stronaZeStopka()}
       logo={logo}
       siteImageBase={BAZA_ZDJEC}
+      term={null}
     >
       <p>treść podstrony</p>
     </PageShell>,
@@ -142,6 +144,7 @@ async function renderPowlokiNaPlotnie(
       site={stronaZeStopkaNaPlotnie(obraz)}
       logo={logo}
       siteImageBase={BAZA_ZDJEC}
+      term={null}
     >
       <p>treść</p>
     </StoreChrome>,
