@@ -329,21 +329,38 @@ describe.skipIf(!hasEnv)(
         unavailable_from: "2027-05-12",
         unavailable_to: "2027-05-12",
       });
-      // Sztuki 2 i 3: sprawne. Zamówienie blokujące dostaje WSKAZANĄ (drugą),
+      // Sztuki 2–4: sprawne. Zamówienia blokujące dostają WSKAZANE sztuki,
       // żeby stan magazynu nie zależał od kolejności zwróconej przez bazę —
-      // trzy sztuki mają dać trzy RÓŻNE powody stanu, nie losowy rozkład.
-      const [busyUnit] = await seedUnits(admin, tenantId, productId, 2);
+      // cztery sztuki mają dać cztery RÓŻNE powody stanu, nie losowy rozkład.
+      const [pastUnit, , futureUnit] = await seedUnits(admin, tenantId, productId, 3);
 
-      // Najem KOŃCZY SIĘ przed zakresem, ale bufor po najmie (2 dni) sięga
-      // w zakres — to jest człon, który parafraza gubi najczęściej.
+      // DWA najmy, po jednym na KAŻDY człon buforowy. Jeden bufor bez drugiego
+      // to połowa reguły — a mutacja gubiąca tę drugą połowę przechodziła przez
+      // fikstury z jednym tylko najmem w przeszłości, bo warunek `start <= dzień`
+      // był dla nich prawdziwy niezależnie od bufora.
+      //
+      // (a) BUFOR PRZED: najem kończy się PRZED zakresem, a `buffer_before`
+      //     sięga wstecz z pytanego dnia i go dosięga.
       await seedBlockingOrder(
         admin,
         tenantId,
         productId,
-        busyUnit!,
+        pastUnit!,
         "2027-05-06",
         "2027-05-09",
-        "Zajmujący Sprzęt",
+        "Zajmujący Sprzęt Wcześniej",
+      );
+      // (b) BUFOR PO: najem zaczyna się PO zakresie, dokładnie na granicy
+      //     `koniec + buffer_after` (14 maja + 2 dni = 16 maja). Granica, a nie
+      //     środek: warunek nieostry (`<` zamiast `<=`) też ma tu spłonąć.
+      await seedBlockingOrder(
+        admin,
+        tenantId,
+        productId,
+        futureUnit!,
+        "2027-05-16",
+        "2027-05-20",
+        "Zajmujący Sprzęt Później",
       );
 
       const range = await rangeAvailability(anon, tenantId, productId, START, END);
@@ -382,8 +399,10 @@ describe.skipIf(!hasEnv)(
       // Kontrola pozytywna przypadku: gdyby wszystkie sztuki były wolne przez
       // cały czas, powyższe równości zachodziłyby TRYWIALNIE. Zakres musi
       // realnie różnić się od stanu „wszystko wolne".
-      expect(range!.total_units).toBe(3);
-      expect(range!.available_units).toBeLessThan(range!.total_units);
+      expect(range!.total_units).toBe(4);
+      // Trzy z czterech sztuk są zajęte trzema RÓŻNYMI członami reguły
+      // (serwis, bufor przed, bufor po) — dokładnie jedna zostaje wolna.
+      expect(range!.available_units).toBe(1);
       // Serwis stoi tylko 12 maja, więc mapa dzienna NIE jest stała —
       // dowód, że dni liczą się osobno, a nie jedną odpowiedzią zakresową.
       const distinct = new Set(daysBetween(START, END).map((day) => days!.days[day]));
