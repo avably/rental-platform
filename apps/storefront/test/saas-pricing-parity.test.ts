@@ -76,7 +76,7 @@ const PRZYKLAD_POTRACENIA = 57;
  */
 const INWENTARZ: Record<string, number[]> = {
   "marketing.premise.statement": [PRZYKLAD_POTRACENIA],
-  "marketing.tabs.item2Body": [PRZYKLAD_KAUCJI, PRZYKLAD_POTRACENIA, PRZYKLAD_POTRACENIA],
+  "marketing.tabs.item5Body": [PRZYKLAD_KAUCJI, PRZYKLAD_POTRACENIA, PRZYKLAD_POTRACENIA],
   "marketing.faq.a2Lead": [standardMies],
   "marketing.faq.a2": [premiumMies],
   "marketing.faq.a3": [standardMies, premiumMies],

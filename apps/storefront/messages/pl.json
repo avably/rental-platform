@@ -93,23 +93,23 @@
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/pl/kalendarz.webp",
-      "kalendarzAlt": "Kalendarz dostępności w panelu Avably: dni zajęte przez inne najmy zaznaczone na czerwono, obok pozycja zamówienia i wybór dostawy (dane demonstracyjne).",
+      "kalendarzAlt": "Lista zamówień w panelu Avably: dzisiejsze wydania i zwroty, sprawy po terminie oraz sprzęt z datami najmu (dane demonstracyjne).",
       "kaucje": "/produkt/pl/kaucje.webp",
-      "kaucjeAlt": "Sekcja kaucji w panelu Avably: saldo, przycisk zwrotu i rejestr z pobraniem, potrąceniem za czyszczenie i zwrotem (dane demonstracyjne).",
+      "kaucjeAlt": "Rozliczenie kaucji w panelu Avably: saldo zero, kwota pobrana i rozliczona oraz potwierdzenie zamknięcia kaucji (dane demonstracyjne).",
       "kurier": "/produkt/pl/kurier.webp",
       "kurierAlt": "Sekcja dostawy w panelu Avably: tabela przesyłek ze statusem, numerem u brokera, numerem śledzenia i kosztem nadania (dane demonstracyjne).",
       "kreator": "/produkt/pl/kreator.webp",
-      "kreatorAlt": "Kreator strony sklepu w Avably: paleta sekcji po lewej, płótno z pierwszym ekranem sklepu po prawej, przycisk publikacji na górze (dane demonstracyjne).",
+      "kreatorAlt": "Kreator strony sklepu w Avably: paleta sekcji i ustawienia stylu po lewej oraz edytowalna strona wypożyczalni po prawej (dane demonstracyjne).",
       "koszyk": "/produkt/pl/koszyk.webp",
       "koszykAlt": "Koszyk w sklepie wypożyczalni: wybrany termin najmu, pozycja z kwotą najmu i kaucji oraz podsumowanie do zapłaty (dane demonstracyjne).",
       "rejestracja": "/produkt/pl/rejestracja.webp",
-      "rejestracjaAlt": "Ekran zakładania konta w Avably: pola e-mail i hasło oraz przycisk „Zarejestruj się”.",
+      "rejestracjaAlt": "Ekran zakładania konta w Avably: korzyści okresu próbnego, pola e-mail i hasło oraz przycisk założenia konta (dane demonstracyjne).",
       "katalog": "/produkt/pl/katalog.webp",
       "katalogAlt": "Katalog w panelu Avably: lista sprzętu z ceną za dobę, kaucją i liczbą egzemplarzy (dane demonstracyjne).",
       "zamowienia": "/produkt/pl/zamowienia.webp",
       "zamowieniaAlt": "Lista zamówień w panelu Avably: kafle z liczbą i wartością zamówień oraz tabela z klientem, sprzętem i terminem (dane demonstracyjne).",
       "pulpit": "/produkt/pl/pulpit.webp",
-      "pulpitAlt": "Pulpit w panelu Avably: przychód bieżącego i poprzedniego miesiąca, trend dwunastu miesięcy, wykorzystanie sprzętu i najlepsi klienci (dane demonstracyjne)."
+      "pulpitAlt": "Pulpit dnia w panelu Avably: dzisiejsze wydania i zwroty, rezerwacja po terminie, przygotowanie na jutro i przychód (dane demonstracyjne)."
     },
     "nav": {
       "pricing": "Cennik",
@@ -125,32 +125,32 @@
       "langAlternate": "EN"
     },
     "banner": {
-      "text": "Trial 14 dni bez karty. Prowizji od transakcji u nas nie ma, limitu użytkowników też.",
+      "text": "14 dni na sprawdzenie, bez karty. Zero prowizji Avably od rezerwacji i zero limitu użytkowników.",
       "cta": "Otwórz wypożyczalnię"
     },
     "hero": {
       "eyebrow": "System dla wypożyczalni sprzętu",
-      "titleTop": "Prowadź wynajem",
-      "titleBottom": "od rezerwacji po zwrot kaucji.",
-      "body": "Panel, w którym prowadzisz cały wynajem, i własna strona sklepu, na której klient rezerwuje sam. Kalendarz pilnuje pojedynczych egzemplarzy, nie modeli, i wie, że piła jest na przeglądzie. Przy płatności kartą kaucja schodzi razem z zamówieniem. Konto zakładasz e-mailem, bez rozmowy z nami.",
+      "titleTop": "Klient rezerwuje online.",
+      "titleBottom": "Ty prowadzisz resztę w jednym miejscu.",
+      "body": "Avably łączy stronę wypożyczalni z panelem operacyjnym. Rezerwacja od razu trafia do kalendarza i zamówień; dalej ten sam zespół przygotowuje sprzęt, wydaje lub wysyła go, przyjmuje zwrot i zamyka kaucję. Bez przepisywania między formularzem, arkuszem i wiadomościami.",
       "cta": "Otwórz wypożyczalnię",
-      "ctaSecondary": "Zobacz, co działa dziś",
-      "feature1": "Dostępność na egzemplarz, nie na model",
-      "feature2": "Kaucja z karty i z powrotem na kartę",
-      "feature3": "Sklep pod twojanazwa.avably.io i własną domeną",
+      "ctaSecondary": "Zobacz cały proces",
+      "feature1": "Wolne sztuki liczone na konkretnych egzemplarzach",
+      "feature2": "Płatność i kaucja spięte z rezerwacją",
+      "feature3": "Sklep pod twojanazwa.avably.io lub własną domeną",
       "posterAlt": "Brama sekcyjna lokalu domknięta na moment przed otwarciem, pod nią wąski pas dziennego światła"
     },
     "premise": {
-      "eyebrow": "Punkt wyjścia",
-      "statement": "Kalendarz pokaże, że sprzęt jest wolny. Nie pobierze kaucji, nie policzy dopłaty za dwa dni przedłużenia, nie wydrukuje etykiety kurierskiej i nie zapamięta, komu potrąciłeś 57 zł za mycie po zwrocie. Sprzedany towar wychodzi z firmy i temat się kończy. Wynajęty musi wrócić: na czas, sprawny, z rozliczoną kaucją. Ostatni krok to nie wpis w kalendarzu, tylko saldo kaucji, które schodzi do zera.",
-      "feature1": "Od rezerwacji po rozliczoną kaucję",
-      "feature2": "Egzemplarze, nie tylko modele",
-      "feature3": "Sklep, panel i płatności bez przeklejania"
+      "eyebrow": "Więcej niż kalendarz",
+      "statement": "Rezerwacja jest początkiem, nie końcem pracy. Sprzęt trzeba przygotować, wydać albo wysłać, odebrać na czas i sprawdzić po zwrocie. Czasem doliczyć przedłużenie, czasem potrącić 57 zł za mycie, a na końcu zamknąć saldo kaucji. Avably trzyma te kroki przy jednym zamówieniu, żeby zespół zawsze wiedział, co wydarzyło się wcześniej i co ma zrobić teraz.",
+      "feature1": "Jedno zamówienie przez cały cykl",
+      "feature2": "Dostępność liczona na sztukach",
+      "feature3": "Sklep, płatność i panel w tym samym przepływie"
     },
     "branze": {
       "eyebrow": "Dla kogo",
-      "title": "Wynajmujesz sprzęt na doby — reszta to nazwy pozycji",
-      "note": "Branża zmienia nazwy w katalogu. Doba, egzemplarz i kaucja działają w każdej z nich tak samo, a stronę sklepu zaczynasz od jednego z sześciu gotowych szablonów.",
+      "title": "Ten sam proces, inny sprzęt",
+      "note": "Avably pasuje do wypożyczalni, które liczą najem w dobach i muszą pilnować konkretnych sztuk. Nazwy produktów się zmieniają; rezerwacja, wydanie, zwrot i kaucja zostają. Stronę zaczynasz od jednego z sześciu gotowych szablonów.",
       "item1Title": "Budowa i maszyny",
       "item1Alt": "Betoniarka i wiadra na budowie w remontowanym wnętrzu",
       "item2Title": "Narzędzia i elektronarzędzia",
@@ -163,53 +163,53 @@
       "item5Alt": "Rząd identycznych kół rowerowych z czerwonymi obręczami"
     },
     "tabs": {
-      "eyebrow": "Co działa dziś",
-      "title": "Zobacz panel na zrzutach, zanim założysz konto",
-      "item1Title": "Pilnuj dostępności egzemplarza, nie modelu",
-      "item1Body": "Kalendarz zaznacza dni zajęte przez cudze najmy i bufory między najmami, a dostępność liczy się na egzemplarzach: po wybraniu terminu widzisz, ile sztuk zostaje wolnych — przy trzech młotach zobaczysz, ile z nich jest jeszcze do wzięcia. Gdy dwie osoby sięgną po ten sam egzemplarz w tej samej sekundzie, przechodzi jedna rezerwacja — druga dostaje „Termin zajęty”, a nie cichy dubel.",
-      "item2Title": "Rozlicz kaucję i miej to na piśmie",
-      "item2Body": "Rejestr trzyma każde zdarzenie z kwotą, powodem i datą: pobranie 950 zł, potrącenie 57 zł za mycie po zwrocie, zwrot reszty, saldo zero. Przy telefonie „a za co mi zabraliście 57 zł” odpowiedź masz na ekranie. Gdy klient płacił kartą, kaucja schodzi razem z zamówieniem, a zwrot to jeden przycisk — pieniądze realnie wracają na jego kartę. Przy gotówce i przelewie pobranie i zwrot rejestrujesz sam.",
-      "item3Title": "Nadaj i odbierz kurierem z tego samego ekranu",
-      "item3Body": "Nadajesz i przyjmujesz zwrot przez brokera kurierskiego, etykieta wychodzi w PDF, a koszt dostawy z Twojego cennika wchodzi do kwoty zamówienia. Numer śledzenia stoi przy zamówieniu, obok statusu przesyłki — nie w czyjejś skrzynce pocztowej.",
-      "item4Title": "Złóż stronę sklepu bez informatyka",
-      "item4Body": "Zaraz po założeniu organizacji sklep stoi pod adresem twojanazwa.avably.io. Stronę składasz z trzynastu typów sekcji, a zaczynasz od jednego z sześciu szablonów — budowlanego, rowerowego, eventowego, foto-video, jednostronicowego albo katalogowego. Każdy przychodzi z gotową treścią do podmiany. Wersja robocza jest prywatna, dopóki nie klikniesz „Publikuj”.",
-      "item5Title": "Przyjmij rezerwację o 22:00, bez telefonu do Ciebie",
-      "item5Body": "Klient widzi dostępność na żywo, wybiera sprzęt i termin, a płatność kartą razem z kaucją idzie w kolejnym kroku. Cenę liczy serwer, więc nie da się jej podmienić po drodze. Zamówienie ląduje w panelu jako opłacone, a e-mail dostajecie oboje. Zostaje też przelew i płatność przy odbiorze."
+      "eyebrow": "Od oferty do zwrotu",
+      "title": "Zobacz, jak jedno zamówienie przechodzi przez Avably",
+      "item1Title": "Opublikuj ofertę, którą klient rozumie",
+      "item1Body": "Sklep powstaje pod adresem twojanazwa.avably.io, a własną domenę podepniesz później. W kreatorze układasz stronę z gotowych sekcji i jednego z sześciu szablonów. Szkic widzisz tylko Ty; klient dostaje dopiero wersję, którą świadomie opublikujesz.",
+      "item2Title": "Klient rezerwuje bez czekania na telefon",
+      "item2Body": "W sklepie klient wybiera sprzęt i termin, widzi cenę oraz kaucję, a potem płaci kartą, przelewem albo przy odbiorze. Kwotę i dostępność potwierdza serwer. Gotowe zamówienie wpada do panelu, a potwierdzenie dostajecie oboje.",
+      "item3Title": "Zaplanuj dzień na dostępnych egzemplarzach",
+      "item3Body": "Kalendarz liczy konkretne sztuki i uwzględnia trwające najmy, bufory oraz serwis. Widzisz, co wydać dzisiaj, co ma wrócić i co przygotować na jutro. Jeśli dwie osoby wybiorą ostatni wolny egzemplarz, przejdzie tylko jedna rezerwacja.",
+      "item4Title": "Wydaj na miejscu albo wyślij kurierem",
+      "item4Body": "Odbiór osobisty i dostawa są częścią tego samego zamówienia. Dla kuriera tworzysz przesyłkę, pobierasz etykietę PDF i trzymasz numer śledzenia obok sprzętu oraz terminu — nie w osobnej skrzynce pocztowej.",
+      "item5Title": "Przyjmij zwrot i rozlicz kaucję",
+      "item5Body": "Rejestr zapisuje pobranie 950 zł, potrącenie 57 zł za mycie, zwrot reszty i saldo zero — z datą oraz powodem. Po płatności kartą zwrot wraca na kartę jednym działaniem; przy gotówce lub przelewie zapisujesz rozliczenie ręcznie. Gdy klient pyta o 57 zł, odpowiedź jest przy zamówieniu."
     },
     "video": {
-      "quote": "Sam prowadzę wypożyczalnię. Pamiętam sobotę z dwiema osobami po ten sam agregat i szukanie w telefonie, kto właściwie trzyma kaucję. Avably powstało z takich sobót.",
+      "quote": "Sam prowadzę wypożyczalnię. Avably powstało z dni, w których dwie osoby przyjeżdżały po ten sam sprzęt, a informacji o kaucji trzeba było szukać w telefonie.",
       "authorName": "Maciej",
       "authorRole": "założyciel Avably, prowadzi wypożyczalnię"
     },
     "features": {
       "eyebrow": "Zakres",
-      "title": "Zamknij w jednym panelu wynajem, pieniądze i papiery",
+      "title": "Wszystko, co wspiera wynajem między tymi krokami",
       "cta": "Otwórz wypożyczalnię",
-      "card1Title": "Wyceniaj i przedłużaj bez kalkulatora",
-      "card1Body": "W cenniku progowym tydzień kosztuje mniej niż siedem osobnych dób, a wycena przelicza się przy każdej zmianie dat. Gdy klient trzyma sprzęt dwa dni dłużej, przedłużenie przelicza pozycje zamówienia i dopisuje dopłatę co do grosza.",
-      "card2Title": "Przyjmuj płatności online — my nie bierzemy z nich nic",
-      "card2Body": "Klient płaci kartą na Twojej stronie, kaucja schodzi razem z zamówieniem, a zwrot na kartę to jeden przycisk. Avably nie dolicza prowizji od transakcji: nam płacisz abonament, a stawki swojego operatora płatności płacisz bezpośrednio jemu, na własnej umowie. BLIK i Przelewy24 są w budowie — dat nie podajemy.",
-      "card3Title": "Trzymaj klientów i ich historię w jednym miejscu",
-      "card3Body": "Karta klienta zbiera zamówienia i dane do faktury z NIP-em. Notatka przy zamówieniu ma autora i datę, więc wiadomo, kto obiecał rabat. Klienta, który rozwalił sprzęt i nie zapłacił, blokujesz przełącznikiem — sklep dopasowuje blokadę po mailu i po numerze telefonu, więc nowy adres nie wystarczy, żeby wrócić.",
-      "card4Title": "Wyślij umowę, e-maile i fakturę z panelu",
-      "card4Body": "Umowa najmu wychodzi jako PDF złożony z danych zamówienia. Pięć e-maili cyklu — potwierdzenie, gotowe do odbioru, wydane, zwrócone, anulowane — idzie po polsku albo angielsku, w nazwie Twojej firmy. Przy każdym zamówieniu widzisz, co wyszło, a co nie i dlaczego. Fakturę wystawiasz u siebie i wysyłasz klientowi z panelu — historia zapisze, że poszła i na jaki adres. Automatycznego wystawiania faktur jeszcze nie ma; jest na liście Premium.",
-      "card5Title": "Wpuść rezerwacje na stronę, którą już masz",
-      "card5Body": "Nie chcesz zmieniać strony? Kalendarz rezerwacji wklejasz na nią jednym skryptem, a na WordPressie wtyczką z blokiem do edytora. W widgecie klient płaci przelewem albo przy odbiorze — karty nie wpuszczamy w cudzą ramkę. Jest też publiczne API na kluczach — katalog, dostępność, składanie rezerwacji i płatność kartą — więc zamówienie z Twojej strony ląduje w tym samym panelu."
+      "card1Title": "Cenniki progowe i przedłużenia bez kalkulatora",
+      "card1Body": "Ustalasz cenę dla doby, tygodnia lub dłuższego najmu. Zmiana dat przelicza całe zamówienie, a przedłużenie dopisuje różnicę bez ręcznego liczenia pozycji.",
+      "card2Title": "Płatności online bez prowizji Avably",
+      "card2Body": "Klient płaci kartą na Twojej stronie, a pieniądze trafiają na Twoje konto u operatora. Avably pobiera abonament, nie procent od rezerwacji. BLIK i Przelewy24 są w budowie — bez obietnicy daty.",
+      "card3Title": "Klient, historia i ustalenia przy zamówieniu",
+      "card3Body": "Karta klienta zbiera zamówienia i dane do faktury. Notatki mają autora oraz datę, więc zespół widzi ustalenia. Osobę, której nie chcesz ponownie obsługiwać, blokujesz po e-mailu i numerze telefonu.",
+      "card4Title": "Umowa, wiadomości i faktura w jednym śladzie",
+      "card4Body": "Z danych zamówienia powstaje umowa PDF. E-maile o kolejnych etapach wychodzą w języku klienta i zapisują wynik wysyłki. Fakturę wystawiasz poza Avably, ale możesz wysłać ją z panelu i zachować ten ślad. Automatyczne wystawianie faktur jest dopiero na liście Premium.",
+      "card5Title": "Rezerwacje także na stronie, którą już masz",
+      "card5Body": "Kalendarz osadzisz skryptem albo wtyczką WordPress. W tym wariancie klient płaci przelewem lub przy odbiorze. Publiczne API pozwala podłączyć własny interfejs, a zamówienia nadal trafiają do tego samego panelu."
     },
     "cta": {
-      "title": "Przestań zgadywać, jak wyszedł miesiąc",
-      "body": "Pulpit otwiera dzień pięcioma stałymi kaflami: wydania, zwroty, po terminie, przygotowanie na jutro i alarmy pieniężne. Niżej pokazuje przychód bieżącego i poprzedniego miesiąca, trend z dwunastu miesięcy, zajętość produktów z ostatnich trzydziestu dni i klientów o największym przychodzie. Każda sprawa prowadzi do konkretnego zamówienia — bez arkusza, który otwiera tylko jedna osoba w firmie.",
+      "title": "Zacznij od tego, co dzieje się dzisiaj",
+      "body": "Pulpit otwiera dzień pięcioma stałymi kaflami: wydania, zwroty, opóźnienia, przygotowanie na jutro i alarmy pieniężne. Każda sprawa prowadzi do konkretnego zamówienia. Niżej zostają przychód, trend i wykorzystanie sprzętu — kontekst do decyzji, nie kolejna lista do pilnowania.",
       "cta": "Otwórz wypożyczalnię"
     },
     "momentum": {
       "eyebrow": "Start",
-      "title": "Uruchom sklep w trzech krokach",
-      "card1Title": "Załóż konto e-mailem — 2 minuty",
-      "card1Body": "Podajesz adres, klikasz w link z potwierdzenia i jesteś w panelu. Bez instalacji, bez handlowca, bez karty. Zakładasz organizację, wybierasz nazwę — i sklep od razu stoi pod twojanazwa.avably.io.",
-      "card2Title": "Wprowadź sprzęt i ceny",
-      "card2Body": "Produkty razem z cennikami progowymi wczytasz z pliku CSV w naszym układzie kolumn; egzemplarze, punkty odbioru i zdjęcia dopisujesz w panelu. Przy małym katalogu to godzina pracy. Przy dużym zajmie tyle, ile masz sprzętu — i tego nie będziemy przeliczać na minuty.",
-      "card3Title": "Przyjmij pierwszą rezerwację",
-      "card3Body": "Publikujesz stronę, klient rezerwuje i płaci, zamówienie pojawia się na liście. Dalej prowadzisz je przez wydanie, zwrot i rozliczenie kaucji, bez przepisywania czegokolwiek do drugiego narzędzia. Pracownika, który ma to robić razem z Tobą, zapraszasz e-mailem."
+      "title": "Od pustego konta do pierwszej rezerwacji",
+      "card1Title": "Załóż konto i nazwij sklep",
+      "card1Body": "Potwierdzasz e-mail, tworzysz organizację i wybierasz adres sklepu. Bez instalacji, rozmowy handlowej i karty. Panel od razu pokazuje krótką listę rzeczy potrzebnych do startu.",
+      "card2Title": "Wprowadź prawdziwy katalog",
+      "card2Body": "Produkty i cenniki progowe wczytasz z CSV. Egzemplarze, punkty odbioru i zdjęcia uzupełniasz w panelu. Przy większym magazynie zajmie to realny czas — dlatego możesz pracować etapami i publikować gotową część oferty.",
+      "card3Title": "Opublikuj i obsłuż pierwszy wynajem",
+      "card3Body": "Klient rezerwuje na stronie, a zamówienie pojawia się na liście. Od tego momentu prowadzisz je przez przygotowanie, wydanie, zwrot i kaucję. Kolejne osoby z zespołu zapraszasz e-mailem."
     },
     "security": {
       "eyebrow": "Bezpieczeństwo i zgodność",
@@ -261,12 +261,12 @@
     },
     "closing": {
       "eyebrow": "Zacznij dziś",
-      "title": "Załóż konto i sprawdź to na własnym katalogu",
+      "title": "Sprawdź Avably na jednym prawdziwym wynajmie",
       "cta": "Otwórz wypożyczalnię",
       "ctaSecondary": "Wypróbuj 14 dni bez karty"
     },
     "footer": {
-      "description": "Avably — system dla wypożyczalni sprzętu: panel wynajmu, płatności online i własna strona sklepu z rezerwacją.",
+      "description": "Avably łączy stronę wypożyczalni z panelem, w którym zespół prowadzi zamówienie od rezerwacji po rozliczony zwrot.",
       "columnProduct": "Produkt",
       "columnCompany": "Firma",
       "trialLead": "Wolisz najpierw sprawdzić?",
