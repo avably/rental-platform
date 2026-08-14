@@ -10,8 +10,8 @@
  *   1. przedłużenie przechodzi, a total po mutacji == zapisany total +
  *      quoteExtension z silnika (co do grosza),
  *   2. przedłużenie w kolizję z następnym najmem: 23P01 z sesji członka,
- *      treść niesie numer kolidującego zamówienia (akcja buduje z niego
- *      komunikat), obie kolumny nietknięte,
+ *      którego treść NIE niesie numeru kolidującego zamówienia
+ *      (ADR-181/0082), obie kolumny nietknięte,
  *   3. chybione expectedEndDate → zero wierszy (błąd, nie cichy sukces),
  *   4. status terminalny (returned) → zero wierszy: filtr .in() w akcji
  *      jest jedyną zaporą — baza świadomie nie bramkuje dat zamówień
@@ -282,7 +282,7 @@ describe.skipIf(!hasEnv)("przedłużenia najmu (ścieżka panelu, bramki 0010)",
     expect(after).toEqual({ end_date: "2027-03-08", total_rental_grosze: 75_000 });
   });
 
-  it("przedłużenie w kolizję z następnym najmem: 23P01 z numerem zamówienia, dane nietknięte", async () => {
+  it("przedłużenie w kolizję z następnym najmem: 23P01 BEZ numeru zamówienia, dane nietknięte", async () => {
     const neighbour = await createOrderAsPanel("2027-03-10", "2027-03-12", unitId);
 
     // 03-08 → 03-09: rozszerzony koniec (bufor after 1) = 03-10 dotyka
@@ -296,7 +296,12 @@ describe.skipIf(!hasEnv)("przedłużenia najmu (ścieżka panelu, bramki 0010)",
       85_000,
     );
     expect(error?.code).toBe(PG_UNIT_CONFLICT);
-    expect(error?.message).toContain(neighbour.orderNumber);
+    // ADR-181 (0082): odmowa niesie KOD, nie dane. Numer sąsiada wyszedł
+    // z treści, bo ta sama bramka odmawia klientowi sklepu.
+    expect(
+      error?.message,
+      "treść odmowy znów niesie numer kolidującego zamówienia (regres ADR-181)",
+    ).not.toContain(neighbour.orderNumber);
 
     const { data: after } = await tenantA.client
       .from("orders")
