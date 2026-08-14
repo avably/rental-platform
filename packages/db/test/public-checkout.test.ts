@@ -492,18 +492,40 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
         // 2. Checkout klienta sklepu — CELOWO bez await.
         przegrany.push(checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId)));
 
-        // Czekamy na FAKT, nie na zegar: backend wykonujący NASZ checkout stoi
-        // na advisory locku. Filtr po treści zapytania jest istotny — sama
-        // obecność czekającego backendu nie dowodzi, że to nasz (baza lokalna
-        // bywa współdzielona), a przedwczesny commit rozstroiłby choreografię.
+        // Czekamy na FAKT, nie na zegar: ktoś stoi w kolejce po advisory lock,
+        // KTÓRY TRZYMA NASZ RYWAL. Warunek jest celowo postawiony wokół PID-u
+        // rywala, a nie wokół konkretnego klucza:
+        //
+        //   • po kluczu EGZEMPLARZA nie zadziała — rywal wstawił też własne
+        //     zamówienie, więc trzyma lock NUMERACJI (`generate_order_number`),
+        //     a checkout klienta zatrzymuje się już na nim, zanim dojdzie do
+        //     pozycji. Dla choreografii to bez różnicy (jedno i drugie zwalnia
+        //     ten sam COMMIT), ale sonda pytająca wyłącznie o klucz egzemplarza
+        //     nie zobaczyłaby nigdy nikogo;
+        //   • samo „jakikolwiek czekający backend" jest z kolei za szerokie:
+        //     baza (lokalna i w CI) obsługuje równolegle inne suity, a
+        //     przedwczesny commit rozstroiłby choreografię i test spaliłby się
+        //     z niewłaściwego powodu.
+        //
+        // Pytanie „kto stoi za MOIM lockiem" trafia dokładnie między te dwa.
+        const [{ pid: rivalPid }] = await tx<{ pid: number }[]>`select pg_backend_pid() as pid`;
         let waiting = false;
         for (let attempt = 0; attempt < 200 && !waiting; attempt += 1) {
           const [row] = await watcher`
             select count(*)::int as n
-            from pg_stat_activity
-            where wait_event_type = 'Lock'
-              and wait_event = 'advisory'
-              and query ilike '%public_checkout%'`;
+            from pg_locks czekajacy
+            where czekajacy.locktype = 'advisory'
+              and not czekajacy.granted
+              and exists (
+                select 1
+                from pg_locks trzymajacy
+                where trzymajacy.locktype = 'advisory'
+                  and trzymajacy.granted
+                  and trzymajacy.pid = ${rivalPid}
+                  and trzymajacy.classid = czekajacy.classid
+                  and trzymajacy.objid = czekajacy.objid
+                  and trzymajacy.objsubid = czekajacy.objsubid
+              )`;
           waiting = (row!.n as number) > 0;
           if (!waiting) await new Promise((resolve) => setTimeout(resolve, 50));
         }
