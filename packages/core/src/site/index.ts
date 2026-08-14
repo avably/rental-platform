@@ -1088,12 +1088,18 @@ export {
 export {
   HOME_PAGE_SLUG,
   INTERNAL_PAGE_PREFIX,
+  PAGE_SITE_KIND,
   PAGE_SLUG_MAX_LENGTH,
   PAGE_SLUG_PATTERN,
+  PRODUCT_TEMPLATE_SITE_KIND,
   RESERVED_PAGE_SLUGS,
+  SITE_KINDS,
   internalPagePathname,
+  isProductTemplateKind,
   isReservedPageSlug,
+  isSiteKind,
   isValidPageSlug,
   pagePathFromSlug,
   suggestPageSlug,
+  type SiteKind,
 } from "./page-slug";

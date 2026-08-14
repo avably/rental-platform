@@ -122,6 +122,10 @@ export default async function SitePage() {
     // ŻYWOŚĆ to jedyna prawda o tym, co widzi klient (ADR-093 D1) — lista
     // czyta ją z tej samej kolumny, z której czyta ją sklep.
     live: site.published_at !== null,
+    // ROLA (0080, ADR-178): rozstrzyga, czy wiersz w ogóle MA adres. Bez niej
+    // szablon pokazywałby ścieżkę `/`, pod którą nie stoi, i liczyłby się do
+    // strony głównej.
+    kind: site.kind,
     // ADRES: szkic i bliźniak osobno (0073, ADR-157). Lista pokazuje adres
     // SZKICU, bo to on jest przedmiotem edycji, ale musi umieć powiedzieć, że
     // klienci mają jeszcze stary — dlatego bliźniak jedzie obok.

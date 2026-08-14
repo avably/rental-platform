@@ -170,6 +170,9 @@ export interface AuditLogEntry {
 
 export type SiteTemplate = import("@avably/core/site").SiteTemplate;
 
+/** ROLA wiersza `sites` (0080, ADR-178) — lustro CHECK-a `sites_kind_check`. */
+export type SiteKind = import("@avably/core/site").SiteKind;
+
 export type SiteSectionType = import("@avably/core/site").SectionType;
 
 export interface Site {
@@ -182,10 +185,29 @@ export interface Site {
    */
   name: string;
   /**
+   * ROLA wiersza (0080, ADR-178) — czym ta strona JEST, obok tego, pod jakim
+   * adresem stoi:
+   *   • `page` — zwykła strona sklepu pod własnym adresem (`slug`). Wartość
+   *     zastana KAŻDEGO wiersza sprzed fazy 5 i domyślna każdego nowego;
+   *   • `product` — SZABLON strony pojedynczego sprzętu. Nie ma adresu (CHECK
+   *     `sites_product_template_no_slug` wymusza pusty slug) i renderuje się
+   *     raz na pozycję katalogu pod `/product/{id}`.
+   *
+   * Rola jest TOŻSAMOŚCIĄ wiersza: ustala się przy utworzeniu i nie zmienia
+   * (trigger `sites_kind_guard`, 42501). Dlatego — jako jedyna dana wpływająca
+   * na to, co widzi klient — NIE MA bliźniaka `*_published`: nie ma czego
+   * publikować, bo nie ma czego zmieniać. Do koperty odczytu publicznego nie
+   * wchodzi; bierze udział wyłącznie w warunku WHERE.
+   */
+  kind: SiteKind;
+  /**
    * ADRES SZKICU (0073, ADR-157): pusty string = strona główna (`/`), inaczej
    * `/{slug}`. Do 0072 wiersz `sites` był WERSJĄ jednej strony; od 0073 jest
    * STRONĄ i ma własny adres. Kształt pilnuje CHECK `sites_slug_shape`, listę
    * zarezerwowanych — trigger `sites_slug_guard`.
+   *
+   * Dla roli `product` jest ZAWSZE pusty i nie znaczy „strona główna": szablon
+   * nie ma adresu w ogóle. Rozstrzyga `kind`, nie ta kolumna.
    */
   slug: string;
   /**

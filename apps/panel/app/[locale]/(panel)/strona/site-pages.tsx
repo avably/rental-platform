@@ -41,20 +41,33 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
-import { HOME_PAGE_SLUG, pagePathFromSlug, suggestPageSlug } from "@avably/core/site";
+import {
+  HOME_PAGE_SLUG,
+  PRODUCT_TEMPLATE_SITE_KIND,
+  isProductTemplateKind,
+  pagePathFromSlug,
+  suggestPageSlug,
+  type SiteKind,
+} from "@avably/core/site";
 
 import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
 import { createSite, deleteSite, publishSite, renameSite, unpublishSite } from "@/lib/actions/site";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
-import { MAX_SITES, hasHomePage, pageSlugIssue } from "@/lib/site-validation";
+import { MAX_SITES, hasHomePage, hasProductTemplate, pageSlugIssue } from "@/lib/site-validation";
 
 export interface SitePageRow {
   id: string;
   name: string;
   /** Czy TĘ stronę widzi klient. Jedyna prawda o żywości (ADR-093 D1). */
   live: boolean;
-  /** ADRES SZKICU (0073): pusty = strona główna (`/`). */
+  /**
+   * ROLA wiersza (0080, ADR-178). `product` = SZABLON strony produktu: nie ma
+   * adresu, więc wiersz nie pokazuje ścieżki, nie liczy się do strony głównej
+   * i nie dostaje przekierowań.
+   */
+  kind: SiteKind;
+  /** ADRES SZKICU (0073): pusty = strona główna (`/`). Szablon ma go pustego. */
   slug: string;
   /** ADRES OPUBLIKOWANY; null = strona nigdy nie opublikowana. */
   slugPublished: string | null;
@@ -116,7 +129,22 @@ export function SitePages({
     pod `/kontakt`, korzenia sklepu nie obsługuje.
   */
   const homeNotLive =
-    !homeMissing && !rows.some((row) => row.live && row.slugPublished === HOME_PAGE_SLUG);
+    !homeMissing &&
+    !rows.some(
+      (row) => row.live && !isProductTemplateKind(row.kind) && row.slugPublished === HOME_PAGE_SLUG,
+    );
+  /*
+    SZABLON STRONY PRODUKTU (faza 5, ADR-178) — stan „najemca go nie ma" ma
+    własne miejsce na ekranie z tego samego powodu, co brak strony głównej:
+    jest NIEWIDOCZNY i NIEWYCHODZALNY z okna „Nowa strona". Tamto okno wymaga
+    adresu, a szablon adresu nie ma i mieć nie może — więc bez osobnego
+    czasownika operator nie ma jak go założyć.
+
+    Zdanie nazywa SKUTEK (co widzi klient na stronie sprzętu), a nie brak
+    wiersza w tabeli: dopóki szablonu nie ma, strona sprzętu jest wbudowana
+    i działa — to jest informacja, nie ostrzeżenie.
+  */
+  const templateMissing = !hasProductTemplate(rows);
 
   return (
     <div className="flex flex-col gap-6" data-site-pages>
@@ -151,9 +179,33 @@ export function SitePages({
             `createSite({ name })` trafia w gałąź `?? HOME_PAGE_SLUG`.
           */}
           <NewPageDialog
-            home
+            variant="home"
             disabled={pending || limitReached}
             onCreate={(name) => run(() => createSite({ name }))}
+          />
+        </div>
+      ) : null}
+
+      {templateMissing ? (
+        <div
+          data-site-template-missing
+          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+        >
+          <p className="text-sm font-medium">{t("pages.templateMissingTitle")}</p>
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("pages.templateMissingBody")}
+          </p>
+          {/*
+            OSOBNY CZASOWNIK, dokładnie jak przy stronie głównej: szablon
+            różni się od podstrony tym, czego operator NIE podaje (adresu),
+            więc przełącznik w oknie „Nowa strona" kazałby mu wybierać między
+            polem wypełnionym a wygaszonym. Adres nie jedzie w wywołaniu
+            w ogóle — akcja dostaje samą nazwę i rolę.
+          */}
+          <NewPageDialog
+            variant="template"
+            disabled={pending || limitReached}
+            onCreate={(name) => run(() => createSite({ name, kind: PRODUCT_TEMPLATE_SITE_KIND }))}
           />
         </div>
       ) : null}
@@ -207,17 +259,38 @@ export function SitePages({
                 niego, bo adres strony głównej też jest informacją (operator
                 pyta o niego przy przekierowaniach i w sitemapie).
               */}
-              <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]">
-                <span className="font-mono">{pagePathFromSlug(row.slug)}</span>
-                {row.slug === HOME_PAGE_SLUG ? (
-                  <span
-                    data-site-page-home
-                    className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]"
-                  >
-                    {t("pages.homeBadge")}
+              {/*
+                SZABLON NIE UDAJE STRONY Z ADRESEM (faza 5, ADR-178). Jego
+                `slug` jest pusty, więc `pagePathFromSlug` dałoby `/` — czyli
+                ścieżkę STRONY GŁÓWNEJ, pod którą szablon nie stoi i stać nie
+                może. Pokazany adres, którego nie ma, jest tą samą klasą
+                cichego kłamstwa interfejsu, co podgląd obiecujący powłokę,
+                której nie rysuje (ADR-172). Zamiast ścieżki idzie zdanie
+                o tym, GDZIE ten szablon naprawdę się pokazuje.
+              */}
+              {isProductTemplateKind(row.kind) ? (
+                <p
+                  data-site-page-template
+                  className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]"
+                >
+                  <span className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]">
+                    {t("pages.templateBadge")}
                   </span>
-                ) : null}
-              </p>
+                  <span>{t("pages.templateAddress")}</span>
+                </p>
+              ) : (
+                <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]">
+                  <span className="font-mono">{pagePathFromSlug(row.slug)}</span>
+                  {row.slug === HOME_PAGE_SLUG ? (
+                    <span
+                      data-site-page-home
+                      className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]"
+                    >
+                      {t("pages.homeBadge")}
+                    </span>
+                  ) : null}
+                </p>
+              )}
 
               {/*
                 ADRES ZMIENIONY, ALE JESZCZE NIEOPUBLIKOWANY. Bez tego zdania
@@ -271,6 +344,7 @@ export function SitePages({
                   live={row.live}
                   name={row.name}
                   address={pagePathFromSlug(row.slug)}
+                  productTemplate={isProductTemplateKind(row.kind)}
                   appearancePending={appearancePending}
                   onConfirm={() => run(() => publishSite(row.id))}
                 />
@@ -278,6 +352,7 @@ export function SitePages({
                 <RenameDialog
                   disabled={pending}
                   current={row.name}
+                  kind={row.kind}
                   currentSlug={row.slug}
                   publishedSlug={row.slugPublished}
                   redirectOldSlug={row.redirectOldSlug}
@@ -400,14 +475,29 @@ function SlugField({
  * („z tej nazwy nie da się go wyprowadzić"), a pominięty znaczy stronę główną.
  * Dwie kopie okna rozjechałyby się przy pierwszej zmianie w polu nazwy.
  */
+/**
+ * OKNO ZAKŁADANIA STRONY — trzy warianty, jedna różnica (faza 5, ADR-178).
+ *
+ * Warianty dzieli dokładnie jedno: czy operator PODAJE ADRES.
+ *   • `page` — podaje; adres jest treścią decyzji;
+ *   • `home` — nie podaje, bo adresem strony głównej jest `/`;
+ *   • `template` — nie podaje, bo szablon nie ma adresu W OGÓLE.
+ *
+ * Dwa ostatnie różnią się między sobą wyłącznie tekstem i rolą wysyłaną do
+ * akcji — dlatego wariant jest SŁOWNIKIEM, a nie parą flag boolowskich:
+ * `home && template` nie jest stanem, który cokolwiek znaczy, a para flag
+ * pozwalałaby go zapisać.
+ */
+type NewPageVariant = "page" | "home" | "template";
+
 function NewPageDialog({
   disabled,
-  home = false,
+  variant = "page",
   onCreate,
 }: {
   disabled: boolean;
-  home?: boolean;
-  /** `slug === undefined` = strona główna (gałąź `?? HOME_PAGE_SLUG` w akcji). */
+  variant?: NewPageVariant;
+  /** `slug === undefined` = adres z gałęzi domyślnej akcji (strona główna / szablon). */
   onCreate: (name: string, slug: string | undefined) => void;
 }) {
   const t = useTranslations("site");
@@ -416,11 +506,18 @@ function NewPageDialog({
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
 
-  // Nazwa strony głównej jest daną WYŁĄCZNIE panelową (sklep jej nie widzi),
-  // więc wariant `home` startuje z gotową propozycją: operator ma tu do
-  // podjęcia jedną decyzję, nie dwie.
-  const initialName = home ? t("pages.homeDefaultName") : "";
-  const blocked = name.trim().length === 0 || (!home && pageSlugIssue(slug) !== null);
+  const addressless = variant !== "page";
+
+  // Nazwa jest daną WYŁĄCZNIE panelową (sklep jej nie widzi), więc warianty
+  // bez adresu startują z gotową propozycją: operator ma tu do podjęcia jedną
+  // decyzję, nie dwie.
+  const initialName =
+    variant === "home"
+      ? t("pages.homeDefaultName")
+      : variant === "template"
+        ? t("pages.templateDefaultName")
+        : "";
+  const blocked = name.trim().length === 0 || (!addressless && pageSlugIssue(slug) !== null);
 
   return (
     <Dialog
@@ -439,17 +536,35 @@ function NewPageDialog({
           type="button"
           size="sm"
           disabled={disabled}
-          {...(home ? { "data-new-home-page": "" } : { "data-new-site": "" })}
+          {...(variant === "home"
+            ? { "data-new-home-page": "" }
+            : variant === "template"
+              ? { "data-new-product-template": "" }
+              : { "data-new-site": "" })}
         >
           <Plus className="size-4" aria-hidden />
-          {home ? t("pages.newHome") : t("pages.new")}
+          {variant === "home"
+            ? t("pages.newHome")
+            : variant === "template"
+              ? t("pages.newTemplate")
+              : t("pages.new")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{home ? t("pages.newHomeTitle") : t("pages.newTitle")}</DialogTitle>
+          <DialogTitle>
+            {variant === "home"
+              ? t("pages.newHomeTitle")
+              : variant === "template"
+                ? t("pages.newTemplateTitle")
+                : t("pages.newTitle")}
+          </DialogTitle>
           <DialogDescription>
-            {home ? t("pages.newHomeBody") : t("pages.newBody")}
+            {variant === "home"
+              ? t("pages.newHomeBody")
+              : variant === "template"
+                ? t("pages.newTemplateBody")
+                : t("pages.newBody")}
           </DialogDescription>
         </DialogHeader>
         <Input
@@ -459,13 +574,19 @@ function NewPageDialog({
           aria-label={t("pages.nameLabel")}
           onChange={(event) => {
             setName(event.target.value);
-            if (!home && !slugTouched) setSlug(suggestPageSlug(event.target.value));
+            if (!addressless && !slugTouched) setSlug(suggestPageSlug(event.target.value));
           }}
         />
         <SlugField
           value={slug}
-          disabled={home}
-          hint={home ? t("pages.slugHome") : t("pages.slugHint")}
+          disabled={addressless}
+          hint={
+            variant === "home"
+              ? t("pages.slugHome")
+              : variant === "template"
+                ? t("pages.slugTemplate")
+                : t("pages.slugHint")
+          }
           onChange={(next) => {
             setSlugTouched(true);
             setSlug(next);
@@ -479,16 +600,22 @@ function NewPageDialog({
           </DialogClose>
           <Button
             type="button"
-            {...(home
+            {...(variant === "home"
               ? { "data-new-home-page-confirm": "" }
-              : { "data-new-site-confirm": "" })}
+              : variant === "template"
+                ? { "data-new-product-template-confirm": "" }
+                : { "data-new-site-confirm": "" })}
             disabled={blocked}
             onClick={() => {
-              onCreate(name.trim(), home ? undefined : slug.trim());
+              onCreate(name.trim(), addressless ? undefined : slug.trim());
               setOpen(false);
             }}
           >
-            {home ? t("pages.newHomeConfirm") : t("pages.newConfirm")}
+            {variant === "home"
+              ? t("pages.newHomeConfirm")
+              : variant === "template"
+                ? t("pages.newTemplateConfirm")
+                : t("pages.newConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -511,6 +638,7 @@ function NewPageDialog({
 function RenameDialog({
   disabled,
   current,
+  kind,
   currentSlug,
   publishedSlug,
   redirectOldSlug,
@@ -518,6 +646,8 @@ function RenameDialog({
 }: {
   disabled: boolean;
   current: string;
+  /** ROLA wiersza (ADR-178) — rozstrzyga zdanie przy wygaszonym polu adresu. */
+  kind: SiteKind;
   currentSlug: string;
   publishedSlug: string | null;
   redirectOldSlug: boolean;
@@ -528,7 +658,17 @@ function RenameDialog({
   const [name, setName] = useState(current);
   const [slug, setSlug] = useState(currentSlug);
   const [redirect, setRedirect] = useState(redirectOldSlug);
-  const isHome = currentSlug === HOME_PAGE_SLUG;
+  const isTemplate = isProductTemplateKind(kind);
+  /*
+    SZABLON MA PUSTY SLUG, więc bez rozróżnienia po roli wpadałby w gałąź
+    strony głównej i dostawał zdanie „Strona główna sklepu ma adres „/”…" —
+    zdanie PRAWDZIWE o innym wierszu i FAŁSZYWE o tym. Zachowanie pola
+    (wygaszone, adres nie jedzie w wywołaniu) jest w obu przypadkach to samo
+    i to jest właściwe: ani strona główna, ani szablon adresu nie zmieniają.
+    Różni je wyłącznie POWÓD — a powód jest tym, co operator czyta.
+  */
+  const isHome = !isTemplate && currentSlug === HOME_PAGE_SLUG;
+  const addressless = isHome || isTemplate;
 
   /*
     PYTANIE O STARY ADRES PADA TAM, GDZIE ZMIENIA SIĘ ADRES (ADR-159).
@@ -537,9 +677,9 @@ function RenameDialog({
     uczy operatora, że opcje w tym oknie nic nie znaczą.
   */
   const zmienionyAdres =
-    !isHome && publishedSlug !== null && publishedSlug !== "" && slug.trim() !== publishedSlug;
+    !addressless && publishedSlug !== null && publishedSlug !== "" && slug.trim() !== publishedSlug;
 
-  const blocked = name.trim().length === 0 || (!isHome && pageSlugIssue(slug) !== null);
+  const blocked = name.trim().length === 0 || (!addressless && pageSlugIssue(slug) !== null);
 
   return (
     <Dialog
@@ -569,8 +709,14 @@ function RenameDialog({
         />
         <SlugField
           value={slug}
-          disabled={isHome}
-          hint={isHome ? t("pages.slugHome") : t("pages.slugChangeHint")}
+          disabled={addressless}
+          hint={
+            isTemplate
+              ? t("pages.slugTemplate")
+              : isHome
+                ? t("pages.slugHome")
+                : t("pages.slugChangeHint")
+          }
           onChange={setSlug}
         />
         {zmienionyAdres ? (
@@ -599,7 +745,7 @@ function RenameDialog({
             onClick={() => {
               onRename(
                 name.trim(),
-                isHome ? undefined : slug.trim(),
+                addressless ? undefined : slug.trim(),
                 zmienionyAdres ? redirect : undefined,
               );
               setOpen(false);

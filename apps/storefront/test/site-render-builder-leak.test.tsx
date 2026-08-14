@@ -62,6 +62,11 @@ const BUILDER_LAYER_MARKERS = [
   // rozmiaru, prowadnice przyciągania i akcje warstw.
   "data-element-frame",
   "data-element-selected",
+  // Zdanie szuflady o pozycji, na której stoi szablon strony produktu (faza 5,
+  // ADR-178). Stoi w PANELU i wymienia z nazwy sprzęt podstawiony do podglądu
+  // — na publicznej stronie byłoby ujawnieniem, którą pozycję operator ma
+  // pierwszą w katalogu, i to na stronie każdej innej.
+  "data-binding-page-record",
   "data-resize-handle",
   "data-canvas-guide",
   "data-element-actions",

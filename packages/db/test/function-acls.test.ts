@@ -50,6 +50,14 @@ const ANON_EXECUTE_ALLOWLIST = [
   "get_published_legal_document", // 0063 — żywa wersja dokumentu prawnego
   "get_published_legal_documents", // 0063 — spis opublikowanych dokumentów (bez treści)
   "get_published_page", // 0074 — opublikowana strona sklepu POD ADRESEM (rdzeń odczytu)
+  // 0080 — opublikowany SZABLON strony produktu (ADR-178). anon, bo to JEST
+  // publiczny odczyt sklepu: treść strony każdego sprzętu idzie tą funkcją do
+  // przeglądarki klienta najemcy, tak samo jak treść strony pod adresem idzie
+  // przez get_published_page. Czyta wyłącznie kolumny *_published i wyłącznie
+  // dla najemcy w oknie handlowym; izolacja stoi na jawnym zawężeniu
+  // tenant_id/kind w ciele (SECURITY DEFINER), pilnowanym przez
+  // site-product-template.test.ts.
+  "get_published_product_template",
   "get_published_site", // 0019 — opublikowana strona GŁÓWNA sklepu (wejście do 0074)
   "get_tenant_appearance", // 0079 — znak firmy i wygląd sklepu (odczyt WYŁĄCZNIE kolumn *_published najemcy)
   "get_tenant_pages", // 0074 — rejestr żywych adresów stron najemcy dla proxy sklepu

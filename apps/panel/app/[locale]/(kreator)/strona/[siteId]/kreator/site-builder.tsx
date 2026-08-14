@@ -156,6 +156,7 @@ export function SiteBuilder({
   style,
   sections,
   products,
+  pageRecord,
   money,
   importSources,
 }: {
@@ -178,6 +179,25 @@ export function SiteBuilder({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /**
+   * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178) — `undefined` na
+   * każdej powierzchni, która rekordu strony nie ma (strona główna, treściowa).
+   *
+   * JEDEN PROPS, DWA SKUTKI, I TO JEST DECYZJA. Jego OBECNOŚĆ znaczy „ta
+   * powierzchnia ma rekord strony", więc szuflada pokazuje wtedy — i tylko
+   * wtedy — wiązanie do rekordu strony; jego WARTOŚĆ jedzie do podglądu, żeby
+   * płótno rysowało prawdziwą nazwę i prawdziwą cenę zamiast powycinanych
+   * węzłów. Osobna flaga boolowska obok wartości pozwalałaby im się rozjechać:
+   * kontrolka obiecywałaby wiązanie, a podgląd pokazywałby pustkę — czyli
+   * dokładnie ten stan, przed którym ostrzega komentarz przy
+   * `BINDING_RECORD_KINDS` („kontrolka bez skutku uczy operatora, że
+   * ustawienia bywają ozdobą").
+   *
+   * `undefined` NA SZABLONIE Z PUSTYM KATALOGIEM jest stanem legalnym i tak
+   * ma wyglądać: nie ma pozycji, na której szablon mógłby stanąć, więc nie ma
+   * czego pokazać ani do czego się wiązać.
+   */
+  pageRecord?: StorefrontProduct;
   /**
    * WPISY Z INNYCH MODUŁÓW PANELU do skopiowania w mini-CMS (E5, ADR-096) —
    * po nazwie źródła z rejestru typów. Trasa czyta je z bazy i mapuje na
@@ -926,6 +946,7 @@ export function SiteBuilder({
             style={style}
             sections={sections}
             products={products}
+            record={pageRecord}
             viewport={viewport}
             busy={pending}
             dropSectionId={elementDropSectionId}
@@ -1001,6 +1022,7 @@ export function SiteBuilder({
         siteId={siteId}
         currency={money.currency}
         importSources={importSources}
+        pageRecord={pageRecord}
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
         structured={openSection ? editor.structuredOf(openSection.id) : undefined}

@@ -21,6 +21,8 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import {
   HOME_PAGE_SLUG,
+  PAGE_SITE_KIND,
+  PRODUCT_TEMPLATE_SITE_KIND,
   normalizeSectionOrder,
   orderWithSectionBefore,
   starterPhoto,
@@ -45,6 +47,9 @@ import {
   createSiteInputSchema,
   renameSiteInputSchema,
   hasHomePage,
+  hasProductTemplate,
+  productTemplateSlugIssue,
+  DEFAULT_SITE_KIND,
   MAX_SECTIONS,
   MAX_SITES,
   type ApplyStarterTemplateInput,
@@ -117,6 +122,39 @@ export async function createSite(
   // ADRES od razu przy zakładaniu (Faza 2, 0073): strona bez podanego adresu
   // jest STRONĄ GŁÓWNĄ — to samo, czym wiersz `sites` był do 0072.
   const slug = parsed.data.slug ?? HOME_PAGE_SLUG;
+  const kind = parsed.data.kind ?? DEFAULT_SITE_KIND;
+
+  /*
+   * SZABLON STRONY PRODUKTU — DWA ZAWĘŻENIA, OBA ZE STANU WEJŚCIA I BAZY
+   * (faza 5, ADR-178).
+   *
+   * Pierwsze: szablon NIE MA ADRESU. Podany adres znaczy, że wołający pomylił
+   * role — cichy `slug = ''` byłby tu gorszy niż odmowa, bo operator zobaczyłby
+   * na liście stronę pod adresem, którego nie ma.
+   *
+   * Drugie: szablon jest JEDEN. Unikat w bazie pilnuje wyłącznie ŻYWEGO
+   * szablonu, więc bez tego odczytu operator mógłby zbudować DRUGI szkic
+   * i dowiedzieć się o kolizji dopiero przy publikacji — po całej pracy.
+   * To ta sama rola i ten sam rachunek, co przy `hasHomePage`: UPRZEDZIĆ
+   * odmowę zdaniem, którym operator umie się posłużyć.
+   */
+  if (kind === PRODUCT_TEMPLATE_SITE_KIND) {
+    const slugIssue = productTemplateSlugIssue({ kind, slug: parsed.data.slug });
+    if (slugIssue) return { ok: false, error: slugIssue };
+
+    const { data: kinds, error: kindsError } = await ctx.supabase
+      .from("sites")
+      .select("kind")
+      .eq("tenant_id", ctx.tenantId);
+    if (kindsError) return { ok: false, error: kindsError.message };
+    if (hasProductTemplate((kinds ?? []).map((page) => ({ kind: page.kind as string })))) {
+      return {
+        ok: false,
+        error:
+          "Sklep ma już szablon strony produktu — obowiązuje jeden dla całego sklepu. Otwórz go w kreatorze.",
+      };
+    }
+  }
 
   /*
    * STRONA GŁÓWNA MOŻE BYĆ JEDNA — ZAWĘŻENIE, NIE ZAKAZ (ADR-168).
@@ -134,10 +172,12 @@ export async function createSite(
    * są niereprezentowalne niezależnie od tego kodu, także dla surowego
    * PostgREST-a, który tego odczytu nie wykona.
    */
-  if (slug === HOME_PAGE_SLUG) {
+  // Zawężenie dotyczy WYŁĄCZNIE roli `page`: pusty slug szablonu nie znaczy
+  // „strona główna", więc szablon nie ma prawa zająć korzenia ani go zablokować.
+  if (kind === PAGE_SITE_KIND && slug === HOME_PAGE_SLUG) {
     const { data: pages, error: pagesError } = await ctx.supabase
       .from("sites")
-      .select("slug, slug_published")
+      .select("slug, slug_published, kind")
       .eq("tenant_id", ctx.tenantId);
     if (pagesError) return { ok: false, error: pagesError.message };
     if (
@@ -145,6 +185,7 @@ export async function createSite(
         (pages ?? []).map((page) => ({
           slug: page.slug as string,
           slugPublished: page.slug_published as string | null,
+          kind: page.kind as string,
         })),
       )
     ) {
@@ -162,6 +203,7 @@ export async function createSite(
       tenant_id: ctx.tenantId,
       name: parsed.data.name,
       slug,
+      kind,
     })
     .select("id")
     .single();

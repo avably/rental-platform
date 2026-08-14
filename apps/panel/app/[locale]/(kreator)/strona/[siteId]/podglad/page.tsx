@@ -59,6 +59,7 @@ import {
   StoreShellHeader,
   type RenderSection,
 } from "@avably/ui";
+import { isProductTemplateKind } from "@avably/core/site";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -287,6 +288,14 @@ export default async function SiteDraftPreviewPage({
               */
               anchors
               products={products}
+              /*
+                POZYCJA, NA KTÓREJ STOI SZABLON (faza 5, ADR-178) — lustro
+                kreatora i lustro sklepu. Bez niej podgląd szablonu pokazywałby
+                stronę z powycinanymi węzłami i obiecywał przy tym „Tak strona
+                wygląda po publikacji" — czyli dokładnie to kłamstwo podglądu,
+                które zamknął ADR-172.
+              */
+              record={isProductTemplateKind(data.site.kind) ? products[0] : undefined}
               /*
                 ETYKIETY CHROME RENDERU w locale TENANTA (L6, ADR-102) — lustro
                 sklepu: bez tego propsu render spada na `DEFAULT_SITE_LABELS`

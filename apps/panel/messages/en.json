@@ -1823,7 +1823,8 @@
         "source": "Where the value comes from",
         "sources": {
           "static": "Typed here",
-          "product": "From an item field"
+          "product": "From an item field",
+          "pageProduct": "From this item’s field"
         },
         "product": "Item",
         "field": "Item field",
@@ -1840,7 +1841,8 @@
         },
         "fallback": "Replacement text",
         "note": "The value is read from the catalogue on every page view. A change in the catalogue changes the page without editing it again.",
-        "noProducts": "Add items to the catalogue first — there is nothing to point at."
+        "noProducts": "Add items to the catalogue first — there is nothing to point at.",
+        "pageProductNote": "The item this page stands on — the template renders every catalogue entry, and the preview shows “{product}”."
       }
     },
     "inline": {
@@ -1926,6 +1928,8 @@
       "deleteConfirm": "Delete page",
       "switchTitle": "Publish page “{name}”?",
       "switchBodyNew": "The page becomes available to customers at {address}.",
+      "switchBodyTemplateNew": "The template takes effect on every equipment page — it replaces the built-in layout customers see today.",
+      "switchBodyTemplateLive": "Your shop will show the template in its current version on every equipment page — including the changes you made in it.",
       "switchAppearanceUnchanged": "The content of your other pages and the look of your shop stay as they are.",
       "switchAppearanceChanges": "Publishing this page also publishes the look of your shop — the theme, accent colour and typefaces change for customers on every page.",
       "switchDraftNote": "Any changes you made in it will be published too.",
@@ -1947,7 +1951,17 @@
       "newHomeTitle": "Store home page",
       "newHomeBody": "This is what customers see at “/”. You do not give it an address — the home page has only this one. It starts empty; customers see it once you publish it.",
       "newHomeConfirm": "Create home page",
-      "homeDefaultName": "Home page"
+      "homeDefaultName": "Home page",
+      "templateBadge": "Product page template",
+      "templateAddress": "Shown at every piece of equipment’s address — it has none of its own.",
+      "templateMissingTitle": "Equipment pages are built in",
+      "templateMissingBody": "Customers see them in the standard layout and that works. Create a template to design them your way — one template covers the whole catalogue, and changes go live only once you publish.",
+      "newTemplate": "Create product page template",
+      "newTemplateTitle": "Product page template",
+      "newTemplateBody": "One layout for every equipment page. You do not give it an address — the template appears at the address of each catalogue item. It starts empty; it replaces the built-in page only once you publish it.",
+      "newTemplateConfirm": "Create template",
+      "templateDefaultName": "Equipment page",
+      "slugTemplate": "A product page template has no address of its own — it is shown at every piece of equipment’s address."
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",

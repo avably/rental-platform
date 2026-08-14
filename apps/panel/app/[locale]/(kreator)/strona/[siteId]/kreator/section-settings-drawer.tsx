@@ -63,6 +63,7 @@ import {
   SheetHeader,
   SheetTitle,
   Textarea,
+  type StorefrontProduct,
 } from "@avably/ui";
 import { useTranslations } from "next-intl";
 import { useId, useState, type ReactNode } from "react";
@@ -84,6 +85,7 @@ export function SectionSettingsDrawer({
   structured,
   structuredTab,
   selectedElementId,
+  pageRecord,
   onCanvasChange,
   onStructuredChange,
   onConvert,
@@ -113,6 +115,21 @@ export function SectionSettingsDrawer({
    */
   structuredTab?: StructuredFormTab;
   selectedElementId: string | null;
+  /**
+   * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178).
+   *
+   * Podana WYŁĄCZNIE na szablonie strony produktu — i to jej obecność, a nie
+   * osobna flaga, włącza w kontrolce źródła wariant „pozycja tej strony".
+   * Na stronie głównej i treściowej propsu nie ma, więc wariantu też nie ma:
+   * wiązanie do rekordu strony na powierzchni bez rekordu wycinałoby węzeł
+   * przy każdym renderze, czyli byłoby ustawieniem bez skutku.
+   *
+   * Szuflada tego rekordu NIE RYSUJE — jest jej potrzebny wyłącznie jako
+   * odpowiedź na pytanie „czy ta powierzchnia ma rekord strony". Podgląd
+   * dostaje tę samą wartość osobną drogą (`BuilderCanvas`), z tego samego
+   * źródła, więc kontrolka i płótno nie mają jak powiedzieć czegoś innego.
+   */
+  pageRecord?: StorefrontProduct;
   onCanvasChange: (update: (canvas: SectionCanvas) => SectionCanvas) => void;
   onStructuredChange: (
     update: (content: StructuredSectionContent) => StructuredSectionContent,
@@ -178,6 +195,15 @@ export function SectionSettingsDrawer({
                   selectedElementId={selectedElementId}
                   onChange={onCanvasChange}
                   onPickImage={onPickImage}
+                  /*
+                    REKORD STRONY (faza 5, ADR-178) — obecność tego propsu jest
+                    JEDYNYM warunkiem, pod którym pojawia się wiązanie do
+                    pozycji, na której stoi strona. Powierzchnia bez rekordu go
+                    nie podaje, więc kontrolki nie ma; komentarz przy
+                    `BINDING_RECORD_KINDS` w rdzeniu zapowiada dokładnie ten
+                    warunek i tę nazwę.
+                  */
+                  pageRecord={pageRecord}
                   /*
                     KATALOG DO WSKAZANIA W WIĄZANIU (faza 3, ADR-163) — TA SAMA
                     lista, którą szuflada sekcji sprzętu dostaje pod `itemsPick`
@@ -374,6 +400,7 @@ function CanvasSettings({
   onChange,
   onPickImage,
   catalogProducts = [],
+  pageRecord,
   convert,
 }: {
   canvas: SectionCanvas;
@@ -382,6 +409,8 @@ function CanvasSettings({
   onPickImage?: () => void;
   /** Pozycje katalogu do wskazania w wiązaniu (faza 3, ADR-163). */
   catalogProducts?: readonly StructuredPickEntry[];
+  /** Pozycja, na której stoi ta strona (faza 5, ADR-178) — patrz szuflada. */
+  pageRecord?: StorefrontProduct;
   /** Akcja „Przełącz na sekcję 2.0” albo `null` — patrz `ConvertToStructured`. */
   convert?: ReactNode;
 }) {
@@ -443,6 +472,7 @@ function CanvasSettings({
           element={selected}
           onPickImage={onPickImage}
           catalogProducts={catalogProducts}
+          pageRecord={pageRecord}
           onChange={(update) => onChange((current) => replaceElement(current, selected.id, update))}
         />
       ) : (
@@ -511,11 +541,14 @@ function ElementSettings({
   onChange,
   onPickImage,
   catalogProducts = [],
+  pageRecord,
 }: {
   element: CanvasElement;
   onChange: (update: (element: CanvasElement) => CanvasElement) => void;
   onPickImage?: () => void;
   catalogProducts?: readonly StructuredPickEntry[];
+  /** Pozycja, na której stoi ta strona (faza 5, ADR-178) — patrz szuflada. */
+  pageRecord?: StorefrontProduct;
 }) {
   const t = useTranslations("site");
   const id = useId();
@@ -676,6 +709,7 @@ function ElementSettings({
           valueKind={value}
           binding={bindingOf(element, attribute)}
           catalogProducts={catalogProducts}
+          pageRecord={pageRecord}
           onChange={(next) => onChange((current) => withBinding(current, attribute, next))}
         />
       ))}
@@ -854,12 +888,24 @@ function AttributeBinding({
   valueKind,
   binding,
   catalogProducts,
+  pageRecord,
   onChange,
 }: {
   attribute: string;
   valueKind: BindingValueKind;
   binding: ElementBinding | undefined;
   catalogProducts: readonly StructuredPickEntry[];
+  /**
+   * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178) — obecność WŁĄCZA
+   * trzeci wariant źródła („pozycja tej strony"), brak go usuwa.
+   *
+   * Wariant `pageProduct` istnieje w rdzeniu od fazy 3 i był tam świadomie
+   * BEZ kontrolki: rekord strony ma dziś dokładnie jedna powierzchnia, więc
+   * wcześniej kontrolka byłaby ustawieniem, które na każdej stronie wycina
+   * węzeł. Ta faza powierzchnię tworzy, więc kontrolka wchodzi razem z nią —
+   * i razem z nią znika tam, gdzie powierzchni nie ma.
+   */
+  pageRecord?: StorefrontProduct;
   onChange: (binding: ElementBinding | undefined) => void;
 }) {
   const t = useTranslations("site");
@@ -873,7 +919,7 @@ function AttributeBinding({
    * szuflady, a operator ma się dowiedzieć, gdzie sprzęt założyć (ta sama
    * zasada, co `fieldEmpty` w mini-CMS-ie, ADR-154).
    */
-  if (catalogProducts.length === 0 && !binding) {
+  if (catalogProducts.length === 0 && !pageRecord && !binding) {
     return (
       <div data-element-binding={attribute} className="border-border flex flex-col gap-2 border-t pt-5">
         <p className="text-sm font-medium">{t(`canvas.bindings.attributes.${attribute}`)}</p>
@@ -893,13 +939,45 @@ function AttributeBinding({
       <Field label={t("canvas.bindings.source")} htmlFor={`${id}-source`}>
         <PanelSelect
           id={`${id}-source`}
-          value={binding ? "product" : "static"}
+          /*
+            WARTOŚĆ KONTROLKI CZYTA SIĘ Z TREŚCI, a nie ze stanu komponentu:
+            wariant źródła JEST rodzajem wskazania rekordu (`binding.record.kind`),
+            więc druga reprezentacja tej samej informacji nie ma jak się z nią
+            rozjechać.
+          */
+          value={binding ? binding.record.kind : "static"}
           onValueChange={(value) => {
             if (value === "static") {
               onChange(undefined);
               return;
             }
-            if (binding || !firstProduct) return;
+
+            /*
+              POZYCJA TEJ STRONY (faza 5, ADR-178) — wskazanie BEZ identyfikatora.
+              Rekord podaje trasa przy renderze, więc w treści zostaje sam
+              rodzaj wskazania: ten sam szablon obsługuje cały katalog i nie
+              niesie w sobie ani jednego uuid-a sprzętu.
+
+              Przełączenie z wiązania do KONKRETNEJ pozycji zachowuje pole
+              i zachowanie przy pustce — zmienia się wyłącznie to, SKĄD bierze
+              się rekord. Odbudowywanie wiązania od zera kasowałoby operatorowi
+              wartość zastępczą, którą przed chwilą wpisał.
+            */
+            if (value === "pageProduct") {
+              if (!pageRecord) return;
+              onChange(
+                binding
+                  ? { ...binding, record: { kind: "pageProduct" } }
+                  : {
+                      record: { kind: "pageProduct" },
+                      field: fields[0] as ProductBindingField,
+                      whenEmpty: "hide",
+                    },
+              );
+              return;
+            }
+
+            if (!firstProduct) return;
             /*
               ŚWIEŻE WIĄZANIE CELUJE W PIERWSZĄ POZYCJĘ I PIERWSZE POLE ZGODNE
               TYPEM — czyli w stan, który od razu coś pokazuje. Wiązanie
@@ -907,21 +985,48 @@ function AttributeBinding({
               musiałaby trzymać własny stan pośredni i pilnować, żeby nie
               zapisał się do treści.
             */
-            onChange({
-              record: { kind: "product", productId: firstProduct },
-              field: fields[0] as ProductBindingField,
-              whenEmpty: "hide",
-            });
+            onChange(
+              binding
+                ? { ...binding, record: { kind: "product", productId: firstProduct } }
+                : {
+                    record: { kind: "product", productId: firstProduct },
+                    field: fields[0] as ProductBindingField,
+                    whenEmpty: "hide",
+                  },
+            );
           }}
           options={[
             { value: "static", label: t("canvas.bindings.sources.static") },
+            /*
+              WARIANT „POZYCJA TEJ STRONY" WYŁĄCZNIE NA SZABLONIE. Na stronie
+              głównej i treściowej opcji NIE MA — nie jest wygaszona, tylko
+              nieobecna: wygaszona pozycja listy każe operatorowi zgadywać,
+              czego mu brakuje, a tutaj odpowiedź brzmi „ta strona nie stoi na
+              żadnym sprzęcie" i jest własnością powierzchni, nie ustawienia.
+            */
+            ...(pageRecord
+              ? [{ value: "pageProduct", label: t("canvas.bindings.sources.pageProduct") }]
+              : []),
             { value: "product", label: t("canvas.bindings.sources.product") },
           ]}
         />
       </Field>
 
+      {binding?.record.kind === "pageProduct" ? (
+        <p data-binding-page-record className="text-muted-foreground text-[13px] leading-[18px]">
+          {t("canvas.bindings.pageProductNote", { product: pageRecord?.name ?? "" })}
+        </p>
+      ) : null}
+
       {binding ? (
         <>
+          {/*
+            WYBÓR POZYCJI ZNIKA PRZY WIĄZANIU DO REKORDU STRONY — nie ma czego
+            wskazywać, bo pozycję podaje trasa. Lista pozostawiona „na wszelki
+            wypadek" zapisywałaby do treści identyfikator, którego render przy
+            tym rodzaju wskazania nigdy nie czyta.
+          */}
+          {binding.record.kind === "pageProduct" ? null : (
           <Field label={t("canvas.bindings.product")} htmlFor={`${id}-product`}>
             <PanelSelect
               id={`${id}-product`}
@@ -932,6 +1037,7 @@ function AttributeBinding({
               options={catalogProducts.map((entry) => ({ value: entry.value, label: entry.label }))}
             />
           </Field>
+          )}
 
           <Field label={t("canvas.bindings.field")} htmlFor={`${id}-field`}>
             <PanelSelect

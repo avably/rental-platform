@@ -22,7 +22,7 @@
 import { notFound } from "next/navigation";
 import { getLocale } from "next-intl/server";
 
-import { pagePathFromSlug } from "@avably/core/site";
+import { isProductTemplateKind, pagePathFromSlug } from "@avably/core/site";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
 import { loadCustomFieldDefinitions } from "@/lib/custom-fields";
@@ -146,6 +146,22 @@ export default async function SiteBuilderPage({
       style={await getTenantDraftStyle(ctx.supabase, ctx.tenantId!)}
       sections={toEditorSections(data.sections)}
       products={products}
+      /*
+       * POZYCJA, NA KTÓREJ STOI SZABLON (faza 5, ADR-178).
+       *
+       * Szablon strony produktu renderuje się raz na sprzęt, a w kreatorze
+       * trzeba go na CZYMŚ pokazać — inaczej każde wiązanie do rekordu strony
+       * wycina węzeł i operator projektuje stronę, patrząc na dziury po niej.
+       * Podstawiamy PIERWSZĄ pozycję katalogu, tę samą, którą płótno rysuje
+       * w kaflach: prawdziwa nazwa i prawdziwa cena mówią o układzie prawdę,
+       * której atrapa („Nazwa sprzętu", „99,00 zł") powiedzieć nie może.
+       *
+       * `undefined` w dwóch przypadkach, oba poprawne: strona NIE JEST
+       * szablonem (nie stoi na żadnej pozycji) albo katalog jest pusty (nie
+       * ma na czym jej postawić). Wtedy nie ma też wariantu wiązania — bo nie
+       * miałby czego pokazać.
+       */
+      pageRecord={isProductTemplateKind(data.site.kind) ? products[0] : undefined}
       money={money}
       /*
        * Nazwa źródła jest LUSTREM `itemsImport` / `itemsPick` z rejestru typów
