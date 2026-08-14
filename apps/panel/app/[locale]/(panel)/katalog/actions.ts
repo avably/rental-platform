@@ -9,6 +9,7 @@
 import { redirect } from "next/navigation";
 
 import { AuthError } from "@/lib/auth";
+import { invalidateStorefrontCatalog } from "@/lib/catalog-cache";
 import { productCategoryIdsSchema, productSchema, uuidSchema } from "@/lib/catalog-validation";
 import { syncProductCategories } from "@/lib/catalog/categories";
 import { customFieldValuesFromRow, hasCustomFieldErrors } from "@/lib/custom-fields";
@@ -135,6 +136,18 @@ export async function createProductAction(
     .select("id")
     .single();
   if (error) return slugFieldError(error) ?? { formError: error.message };
+  /*
+    CACHE KATALOGU W SKLEPIE — UNIEWAŻNIAMY TU, A NIE PO KATEGORIACH
+    (faza 4a, ADR-185). Pozycja jest już w bazie, więc od tej chwili koperta
+    katalogu w cache'u jest nieaktualna — niezależnie od tego, czy uda się
+    jeszcze przypisać kategorie i czy wiersz oddał identyfikator. `redirect`
+    niżej rzuca, więc unieważnienie postawione po nim nie wykonałoby się nigdy.
+
+    Do ADR-185 ta akcja nie wołała ŻADNEGO `revalidate*` — nie było czego
+    unieważniać, bo sklep czytał katalog świeżo na każdą odsłonę.
+  */
+  await invalidateStorefrontCatalog(ctx.tenantId!);
+
   // Wiersz bez identyfikatora nie jest błędem zapisu (produkt POWSTAŁ), więc
   // nie udajemy porażki — wracamy na listę, jak przed U8b.
   if (!created?.id) redirect(await localePath("/katalog"));
@@ -226,6 +239,10 @@ export async function updateProductAction(
     categoryIds.data,
   );
   if (categoriesError) return { formError: categoriesError };
+
+  // Cache katalogu w SKLEPIE (ADR-185) — nazwa, cena, kaucja, bufory, pola
+  // własne i `active` tej pozycji zmieniły się w kopercie publicznej.
+  await invalidateStorefrontCatalog(ctx.tenantId!);
 
   return { success: "saved" };
 }

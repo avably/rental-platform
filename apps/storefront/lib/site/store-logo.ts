@@ -58,7 +58,16 @@ export function resolveStoreLogo(
  * przepisywanych w ośmiu miejscach (i ośmiu okazji, żeby przepisać je inaczej).
  */
 export function storeLogo(
-  ctx: Pick<StorefrontContext, "appearance" | "catalog" | "supabaseUrl">,
+  /*
+    KSZTAŁT STRUKTURALNY, nie `Pick<StorefrontContext, …>` (faza 4a, ADR-185).
+    Od tej fazy strona sprzętu ma własny, węższy kontekst (bez punktów odbioru
+    i metod dostawy), a znak firmy potrzebuje z niego DOKŁADNIE nazwy najemcy.
+    Zawężenie do tego, co funkcja naprawdę czyta, wpuszcza oba konteksty bez
+    ani jednej zmiany w ośmiu miejscach wywołania.
+  */
+  ctx: Pick<StorefrontContext, "appearance" | "supabaseUrl"> & {
+    catalog: { tenant: { name: string } };
+  },
 ): StoreLogo | null {
   return resolveStoreLogo(ctx.appearance, ctx.catalog.tenant.name, ctx.supabaseUrl);
 }

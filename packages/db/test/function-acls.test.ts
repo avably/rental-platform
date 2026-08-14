@@ -55,6 +55,13 @@ const ANON_EXECUTE_ALLOWLIST = [
   // kafel katalogu pyta o dostępność tą samą drogą, co o sam katalog.
   "get_public_catalog_availability",
   "get_public_custom_fields", // 0058 — publiczne definicje pól checkoutu
+  // 0084 — wąski odczyt JEDNEJ pozycji dla strony sprzętu (ADR-185). anon
+  // z dokładnie tego samego powodu, co get_public_catalog, i o WĘŻSZYM
+  // zakresie: oddaje tę samą pozycję i te same kolumny, które katalog
+  // publiczny pokazuje anonimowemu odwiedzającemu, tylko jedną zamiast
+  // wszystkich. Izolacja stoi na jawnym zawężeniu tenant_id w każdym
+  // podzapytaniu (SECURITY DEFINER) — pilnuje tego public-product.test.ts.
+  "get_public_product",
   // 0083 — rejestr ADRESÓW sprzętu (ADR-182). anon z tego samego powodu, co
   // get_public_catalog: kafel katalogu buduje link do strony sprzętu tą samą
   // drogą, którą bierze sam katalog, a trasa /produkt/{slug} musi rozstrzygnąć

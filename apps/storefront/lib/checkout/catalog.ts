@@ -23,6 +23,7 @@ import type {
   PublicCatalog,
   PublicCatalogAvailability,
   PublicCustomField,
+  PublicProductEnvelope,
 } from "./contract";
 
 /**
@@ -79,6 +80,45 @@ export async function getPublicCatalog(
 
   if (error || data == null) return null;
   return data as PublicCatalog;
+}
+
+/**
+ * WĄSKI ODCZYT JEDNEJ POZYCJI dla strony sprzętu (0084, ADR-185).
+ *
+ * ==================== CO ZASTĘPUJE ====================
+ *
+ * DWA odczyty O(N) naraz: pełny katalog (`get_public_catalog`) i rejestr
+ * adresów (`get_public_product_slugs`). Do ADR-185 strona sprzętu ciągnęła oba
+ * — pierwszy po to, żeby znaleźć w nim jeden wiersz, drugi po to, żeby
+ * rozstrzygnąć adres. Zmierzone na katalogu 200 pozycji: 227 019 + 15 440
+ * bajtów na odsłonę wobec ~1 300 bajtów tej koperty.
+ *
+ * ==================== DLACZEGO WSKAZANIE JEST SUMĄ, A NIE DWIEMA FUNKCJAMI ====================
+ *
+ * Trasa kanoniczna wskazuje slugiem, trasa zastana identyfikatorem, ale obie
+ * potrzebują DOKŁADNIE tej samej odpowiedzi. Dwie funkcje warstwy danych
+ * znaczyłyby dwa zbiory pozycji osiągalnych publicznie — a rozjazd między nimi
+ * byłby cichy i widoczny dopiero jako 404 pod jednym z dwóch adresów tej samej
+ * pozycji.
+ *
+ * FAIL-CLOSED jak katalog: błąd transportu / najemca poza oknem handlowym →
+ * `null`, czyli dla trasy to samo, co „nie ma takiej pozycji". Odwrotny wybór
+ * (renderuj mimo nieudanego odczytu) nie ma czego renderować.
+ */
+export async function getPublicProduct(
+  tenantId: string,
+  target: { slug: string } | { productId: string },
+  client?: SupabaseClient,
+): Promise<PublicProductEnvelope | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase.schema("app").rpc("get_public_product", {
+    p_tenant_id: tenantId,
+    p_slug: "slug" in target ? target.slug : null,
+    p_product_id: "productId" in target ? target.productId : null,
+  });
+
+  if (error || data == null) return null;
+  return data as PublicProductEnvelope;
 }
 
 export async function getPublicAvailability(

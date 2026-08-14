@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
+import { invalidateStorefrontCatalog } from "@/lib/catalog-cache";
 import { type FormState } from "@/lib/form-state";
 import { PRODUCT_IMAGE_BUCKET, type ProductImageMime } from "@/lib/product-image-file";
 import {
@@ -184,5 +185,8 @@ export async function finalizeProductImageUploadAction(uploadId: string): Promis
   if (!result.ok) return { formError: finalizeErrorMessage(result.error, t) };
 
   revalidatePath("/", "layout");
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
+  // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
+  await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "added" };
 }

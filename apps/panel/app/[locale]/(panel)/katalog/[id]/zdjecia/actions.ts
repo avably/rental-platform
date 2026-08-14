@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 
 import { AuthError } from "@/lib/auth";
+import { invalidateStorefrontCatalog } from "@/lib/catalog-cache";
 import { sortOrderSchema, uuidSchema } from "@/lib/catalog-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
@@ -54,6 +55,9 @@ export async function updateImageAction(
     await ctx.supabase.storage.from(BUCKET).remove([data[0]!.storage_path]);
 
     revalidatePath("/", "layout");
+    // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
+    // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
+    await invalidateStorefrontCatalog(ctx.tenantId!);
     return { success: "deleted" };
   }
 
@@ -71,5 +75,8 @@ export async function updateImageAction(
   if (!data || data.length === 0) return { formError: "Nie znaleziono zdjęcia." };
 
   revalidatePath("/", "layout");
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
+  // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
+  await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "saved" };
 }

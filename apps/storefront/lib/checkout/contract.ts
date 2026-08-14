@@ -319,6 +319,30 @@ export interface PublicCatalog {
   delivery_methods: PublicDeliveryMethod[];
 }
 
+/**
+ * KOPERTA WĄSKIEGO ODCZYTU JEDNEJ POZYCJI (0084, ADR-185) — kształt lustrzany
+ * do `app.get_public_product`.
+ *
+ * Niesie ROZSTRZYGNIĘCIE ADRESU razem z pozycją, bo trasa sprzętu musi umieć
+ * trzy odpowiedzi naraz (ADR-182): adres bieżący → render, adres stary → 308,
+ * adres nieznany → 404. Rozdzielenie tego na dwa odczyty przywróciłoby drugą
+ * podróż do bazy, czyli dokładnie ten koszt, który ADR-185 znosi.
+ *
+ * `product` jest niepuste WYŁĄCZNIE przy `match === "current"` — i to jest
+ * jedyny stan, w którym wolno cokolwiek wyrenderować.
+ */
+export type PublicProductMatch = "current" | "redirect" | "none";
+
+export interface PublicProductEnvelope {
+  match: PublicProductMatch;
+  /** Adres BIEŻĄCY pozycji: kanon przy `current`, cel 308 przy `redirect`. */
+  slug: string | null;
+  tenant: { name: string; locale: "pl" | "en"; currency: CheckoutCurrency };
+  /** Definicje pól własnych — te same, co w kopercie katalogu. */
+  custom_fields: PublicCustomField[];
+  product: PublicCatalogProduct | null;
+}
+
 /** Kształt dostępności: WYŁĄCZNIE liczby — bez numerów seryjnych / cudzych zamówień. */
 export interface PublicAvailability {
   available_units: number;
