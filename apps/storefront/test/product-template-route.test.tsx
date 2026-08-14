@@ -154,6 +154,19 @@ vi.mock("@/lib/site/published", () => ({
   getPublishedProductTemplate: async () => stan.szablon,
 }));
 
+/**
+ * Katalog najemcy po stronie ATRAPY — dwie pozycje pod dwoma adresami.
+ *
+ * Sklep od ADR-184 nie czyta go w całości na stronie sprzętu: kontekst tej
+ * trasy niesie DOKŁADNIE jedną pozycję (`ProductPageContext`). Atrapa trzyma
+ * obie, bo przypadek „ten sam szablon pod INNYM adresem" musi umieć oddać
+ * inną — ale każde pojedyncze wywołanie oddaje jedną, tak jak baza.
+ */
+const KATALOG_ATRAPY: Record<string, { id: string; nazwa: string }> = {
+  [SLUG]: { id: SPRZET_ID, nazwa: NAZWA },
+  [SLUG_INNEGO]: { id: INNY_ID, nazwa: NAZWA_INNEGO },
+};
+
 vi.mock("@/lib/storefront/context", () => ({
   /*
     KONTEKST SKŁADANY Z PRAWDZIWYM SŁOWNIKIEM I PRAWDZIWYM STYLEM.
@@ -165,35 +178,35 @@ vi.mock("@/lib/storefront/context", () => ({
     atrapy, a nie kształt produkcji. Słownik ładujemy więc TĄ SAMĄ funkcją,
     którą ładuje go sklep, a styl liczymy TĄ SAMĄ, którą liczy go `ctx.style`.
   */
-  loadStorefrontContext: async () => {
+  loadProductPageContext: async (target: { slug?: string; productId?: string }) => {
     const { getStorefrontCopy } = await import("@/lib/storefront/copy");
+    const wpis = target.slug
+      ? KATALOG_ATRAPY[target.slug]
+      : Object.entries(KATALOG_ATRAPY).find(([, v]) => v.id === target.productId)?.[1];
+    if (!wpis) return { kind: "none" };
+    const slug = target.slug ?? SLUG;
+
     return {
-      tenantId: TENANT,
-      catalog: {
-        tenant: { name: "Wypożyczalnia Testowa", locale: "pl", currency: "PLN" },
-        products: [katalogowySprzet(SPRZET_ID, NAZWA), katalogowySprzet(INNY_ID, NAZWA_INNEGO)],
-        custom_fields: [],
-        categories: [],
-        pickup_locations: [],
-        delivery_methods: [],
+      kind: "product",
+      ctx: {
+        tenantId: TENANT,
+        catalog: {
+          tenant: { name: "Wypożyczalnia Testowa", locale: "pl", currency: "PLN" },
+          // JEDNA pozycja — ta spod adresu (ADR-184).
+          products: [katalogowySprzet(wpis.id, wpis.nazwa)],
+          custom_fields: [],
+        },
+        locale: "pl",
+        currency: "PLN",
+        copy: await getStorefrontCopy("pl"),
+        style: resolveSiteStyle({}, "classic"),
+        appearance: { template: "classic", style: {}, logo: null },
+        site: null,
+        legalDocuments: [],
+        // Rejestr adresów ma JEDEN wpis — adres tej pozycji (ADR-182/184).
+        productSlugs: { products: [{ id: wpis.id, slug }], redirects: [] },
+        supabaseUrl: "https://sklep.supabase.co",
       },
-      locale: "pl",
-      currency: "PLN",
-      copy: await getStorefrontCopy("pl"),
-      style: resolveSiteStyle({}, "classic"),
-      appearance: { template: "classic", style: {}, logo: null },
-      site: null,
-      legalDocuments: [],
-      // Rejestr adresów (0083, ADR-182) — trasa `/produkt/{slug}` rozstrzyga
-      // adres WYŁĄCZNIE nim, więc bez tych wpisów nie miałaby czego renderować.
-      productSlugs: {
-        products: [
-          { id: SPRZET_ID, slug: SLUG },
-          { id: INNY_ID, slug: SLUG_INNEGO },
-        ],
-        redirects: [],
-      },
-      supabaseUrl: "https://sklep.supabase.co",
     };
   },
 }));

@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
 import { AuthError } from "@/lib/auth";
+import { invalidateStorefrontCatalog } from "@/lib/catalog-cache";
 import type { CatalogImportActionState } from "@/lib/import/action-state";
 import { ImportLimitError, IMPORT_ROW_LIMIT } from "@/lib/import/catalog-csv";
 import { checkCatalogCsvFile, IMPORT_MAX_MB } from "@/lib/import/file-check";
@@ -76,6 +77,9 @@ export async function catalogImportAction(
     if (outcome.issues.length > 0) return { phase: "preview", issues: outcome.issues };
     if (!outcome.result) return { phase: "idle", formError: t("errors.empty") };
     revalidatePath("/", "layout");
+    // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+    // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
+    await invalidateStorefrontCatalog(ctx.tenantId!);
     return { phase: "done", result: outcome.result };
   } catch (err) {
     if (err instanceof ImportLimitError) {

@@ -5,10 +5,7 @@
  *
  * Od ADR-182 strona sprzętu ma adres `/produkt/{slug}`, a adres zastany
  * `/product/{uuid}` zostaje jako źródło 308 — bo stoi w indeksie wyszukiwarki
- * i w linkach, które klienci najemcy wkleili na Facebooku. Trasa zastana MUSI
- * jednak umieć jeszcze coś: wyrenderować stronę, gdy rejestru adresów akurat
- * nie ma (chwilowy błąd odczytu). Bez tego blip zamieniałby cały katalog
- * w zbiór linków prowadzących na 404.
+ * i w linkach, które klienci najemcy wkleili na Facebooku.
  *
  * Dwie trasy, jeden render. Kopia treści w dwóch plikach znaczyłaby, że
  * poprawka widgetu rezerwacji trafia w jeden z nich, a klient najemcy widzi
@@ -42,11 +39,19 @@
  * rozjechać się z kaflem obok, i dzięki temu wiązanie nie ma gdzie sięgnąć po
  * pozycję spoza katalogu publicznego TEGO najemcy.
  *
+ * OD FAZY 4a WARUNEK ADR-180 JEST SPEŁNIONY MOCNIEJ, nie słabiej: ta lista ma
+ * dokładnie JEDEN element — pozycję spod adresu (`ProductPageContext`,
+ * ADR-184). Na stronie sprzętu nie ma już DRUGIEJ listy tych samych danych,
+ * z którą cokolwiek mogłoby się rozjechać, bo cały katalog przestał tu
+ * przyjeżdżać.
+ *
  * ==================== CO BIERZE Z KTÓREJ STRONY ====================
  *
  * TREŚĆ — z szablonu (`getPublishedProductTemplate`).
- * DANE POZYCJI — z katalogu publicznego (`ctx.catalog`), nigdy z szablonu.
- * ADRES — z rejestru adresów (`ctx.productSlugs`), nigdy z katalogu.
+ * DANE POZYCJI I ADRES — z JEDNEJ koperty wąskiego odczytu
+ * (`app.get_public_product`, 0084), nigdy z szablonu. Do fazy 4a były to dwa
+ * niezależne odczyty (katalog i rejestr adresów), więc stan „znam pozycję, nie
+ * znam jej adresu" był reprezentowalny; od ADR-184 nie jest.
  * ZNAK I WYGLĄD — z wiersza NAJEMCY (`ctx.style`, `storeLogo`, ADR-171).
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
@@ -90,7 +95,7 @@ import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { storeLogo } from "@/lib/site/store-logo";
 import { format } from "@/lib/storefront/copy";
-import type { StorefrontContext } from "@/lib/storefront/context";
+import type { ProductPageContext } from "@/lib/storefront/context";
 
 /**
  * Tytuł = nazwa produktu + nazwa sklepu; opis = opis produktu z katalogu
@@ -106,7 +111,7 @@ import type { StorefrontContext } from "@/lib/storefront/context";
  * i tak nie ma wpływu.
  */
 export async function productPageMetadata(
-  ctx: StorefrontContext,
+  ctx: ProductPageContext,
   product: PublicCatalogProduct,
 ): Promise<Metadata> {
   const storeName = ctx.catalog.tenant.name;
@@ -140,7 +145,7 @@ export async function renderProductPage({
   ctx,
   raw,
 }: {
-  ctx: StorefrontContext;
+  ctx: ProductPageContext;
   raw: PublicCatalogProduct;
 }) {
   const { catalog, copy, locale, currency, style, site, supabaseUrl } = ctx;

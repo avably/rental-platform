@@ -37,6 +37,38 @@ export function tenantCacheTag(tenantId: string): string {
 }
 
 /**
+ * KLUCZ WSPÓŁDZIELONEGO WPISU CACHE KATALOGU PUBLICZNEGO (faza 4a, ADR-184).
+ *
+ * ==================== DLACZEGO NIE `revalidateTag` ====================
+ *
+ * `tenantCacheTag` wyżej opisuje tag cache'u Next.js — i to jest mechanizm
+ * WEWNĄTRZ jednej aplikacji. Panel i sklep to dwie OSOBNE aplikacje Next,
+ * budowane i wdrażane niezależnie, bez wspólnego `cacheHandler`: wszystkie
+ * wywołania `revalidatePath`/`revalidateTag` w panelu unieważniają cache
+ * PANELU i nie mają żadnej drogi do sklepu. Tag zostaje tam, gdzie działa
+ * (odświeżanie ekranów panelu), a treść sklepu unieważniamy przez wpis
+ * w magazynie, do którego SIĘGAJĄ OBIE aplikacje.
+ *
+ * ==================== DLACZEGO KLUCZ MIESZKA W RDZENIU ====================
+ *
+ * Bo ma DWIE strony kontraktu: sklep pod tym kluczem zapisuje, panel spod tego
+ * klucza kasuje. Wyrażenie wklejone w dwóch miejscach rozjeżdża się przy
+ * pierwszej poprawce i rozjeżdża się CICHO — panel kasowałby klucz, którego
+ * nikt nie zapisuje, a sklep serwowałby nieaktualny katalog do wygaśnięcia
+ * TTL, bez ani jednego błędu.
+ *
+ * `tenantId` W KLUCZU JEST BRAMKĄ IZOLACJI, nie kosmetyką. Wpis cache trafiany
+ * kluczem bez tożsamości najemcy oddaje CUDZY katalog — a RLS tego nie złapie,
+ * bo katalog czyta funkcja SECURITY DEFINER, poza RLS-em, i wyciek dzieje się
+ * w warstwie, do której baza nie sięga. To ta sama pułapka i to samo
+ * rozstrzygnięcie, co przy rejestrze adresów stron
+ * (`apps/storefront/lib/tenant/pages.ts`).
+ */
+export function publicCatalogCacheKey(tenantId: string): string {
+  return `public-catalog:tenant:${tenantId}`;
+}
+
+/**
  * Szablony strony — lustro CHECK-a sites.template (0019). Definicja mieszka
  * w liściu `./templates`, bo od K5 czyta ją także `./style` (patrz komentarz
  * tam: cykl przez `z.enum` w chwili ładowania modułu).

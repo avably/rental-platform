@@ -15,8 +15,13 @@ import type { CurrencyCode, ProductSlugRegistry } from "@avably/core";
 import type { ResolvedSiteStyle } from "@avably/core/site";
 import { headers } from "next/headers";
 
-import { getPublicCatalog, getPublicProductSlugs } from "@/lib/checkout/catalog";
-import type { PublicCatalog } from "@/lib/checkout/contract";
+import {
+  getCachedCatalog,
+  resolvePublicCatalog,
+  setCachedCatalog,
+} from "@/lib/catalog/catalog-cache";
+import { getPublicCatalog, getPublicProduct, getPublicProductSlugs } from "@/lib/checkout/catalog";
+import type { PublicCatalog, PublicCatalogProduct } from "@/lib/checkout/contract";
 import {
   getPublishedLegalDocuments,
   type PublishedLegalDocumentSummary,
@@ -84,11 +89,127 @@ export interface StorefrontContext {
 }
 
 /**
+ * KATALOG STRONY SPRZĘTU — DOKŁADNIE JEDNA POZYCJA (faza 4a, ADR-184).
+ *
+ * To NIE jest zawężony `PublicCatalog`, tylko własny typ — i to jest cała
+ * różnica. Gdyby strona sprzętu dostawała `PublicCatalog` z jednoelementową
+ * listą, każdy przyszły odczyt `ctx.catalog.pickup_locations` na tej trasie
+ * oddawałby po cichu pustą listę: punkty odbioru zniknęłyby z ekranu bez ani
+ * jednego błędu. Typ mający TRZY klucze zamienia to przeoczenie w błąd
+ * kompilacji — ta sama technika, co wymagane propsy powłoki (ADR-154/160/172).
+ */
+export interface ProductPageCatalog {
+  tenant: PublicCatalog["tenant"];
+  custom_fields: PublicCatalog["custom_fields"];
+  /** Pozycja spod adresu — jedna. Nie „katalog najemcy". */
+  products: [PublicCatalogProduct];
+}
+
+/**
+ * KONTEKST STRONY SPRZĘTU (faza 4a, ADR-184) — powłoka najemcy plus JEDNA
+ * pozycja, bez katalogu i bez rejestru adresów.
+ *
+ * ==================== JEDNO ŹRÓDŁO POZYCJI, NIE DWA ====================
+ *
+ * ADR-180 postawił warunek: rekord, z którego renderuje się strona sprzętu,
+ * ma pochodzić z TEJ SAMEJ listy, z której rysują się kafle — inaczej nazwa
+ * i cena na stronie mogą rozjechać się z kaflem obok. Ten kontekst spełnia go
+ * MOCNIEJ niż stan zastany: na stronie sprzętu nie ma już DRUGIEJ listy, z którą
+ * cokolwiek mogłoby się rozjechać. `seam.products`, pasek terminu i rekord
+ * wiązań czytają jedną i tę samą tablicę jednoelementową, która przyjechała
+ * jedną koperta z bazy.
+ *
+ * Że koperta wąska niesie pozycję W TYM SAMYM KSZTAŁCIE, co katalog, nie jest
+ * deklaracją: pilnuje tego test porównujący obie koperty na prawdziwej bazie
+ * (`packages/db/test/public-product.test.ts`).
+ *
+ * ==================== REJESTR ADRESÓW MA JEDEN WPIS ====================
+ *
+ * `productSlugs` zostaje w kształcie rejestru, bo `productPath` jest jednym
+ * wyrażeniem dla kafla, koszyka, sitemapy i kanonu (ADR-182) i nie ma powodu
+ * uczyć go drugiej reprezentacji. Wpis jest jeden, bo strona sprzętu buduje
+ * adres DOKŁADNIE jednej pozycji — swojej.
+ */
+export interface ProductPageContext extends Omit<StorefrontContext, "catalog"> {
+  catalog: ProductPageCatalog;
+}
+
+/**
  * `cache` (per-żądanie): layout czyta z tego locale na `<html lang>`, a strona
  * ten sam kontekst na treść — bez dublowania odpytań katalogu/site w jednym
  * żądaniu.
  */
 export const loadStorefrontContext = cache(_loadStorefrontContext);
+
+/**
+ * Kontekst strony sprzętu: cztery odczyty równolegle, ani jeden O(N).
+ *
+ * `cache` per-żądanie z TEGO SAMEGO powodu, co wyżej — trasa woła to raz
+ * z `generateMetadata` i raz z renderu, a Next liczy oba równolegle.
+ */
+export const loadProductPageContext = cache(_loadProductPageContext);
+
+/**
+ * Wynik rozstrzygnięcia adresu sprzętu. Rozdzielony od kontekstu, bo trasa
+ * musi rozróżnić „nie ma takiego adresu" (404) od „adres się wyprowadził"
+ * (308) ZANIM cokolwiek wyrenderuje.
+ */
+export type ProductPageResolution =
+  | { kind: "product"; ctx: ProductPageContext }
+  | { kind: "redirect"; slug: string }
+  | { kind: "none" };
+
+async function _loadProductPageContext(
+  target: { slug: string } | { productId: string },
+): Promise<ProductPageResolution> {
+  const tenantId = (await headers()).get(TENANT_ID_HEADER);
+  if (!tenantId) return { kind: "none" };
+
+  const [envelope, appearance, site, legalDocuments] = await Promise.all([
+    getPublicProduct(tenantId, target),
+    getTenantAppearance(tenantId),
+    getPublishedSite(tenantId),
+    getPublishedLegalDocuments(tenantId),
+  ]);
+
+  // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
+  if (!envelope) return { kind: "none" };
+
+  if (envelope.match === "redirect" && envelope.slug) {
+    return { kind: "redirect", slug: envelope.slug };
+  }
+  if (envelope.match !== "current" || !envelope.product || !envelope.slug) {
+    return { kind: "none" };
+  }
+
+  const locale = normalizeStorefrontLocale(envelope.tenant.locale);
+  const copy = await getStorefrontCopy(locale);
+  const style = tenantAppearanceStyle(appearance);
+
+  return {
+    kind: "product",
+    ctx: {
+      tenantId,
+      catalog: {
+        tenant: envelope.tenant,
+        custom_fields: envelope.custom_fields,
+        products: [envelope.product],
+      },
+      locale,
+      currency: envelope.tenant.currency,
+      copy,
+      style,
+      appearance,
+      site,
+      legalDocuments,
+      productSlugs: {
+        products: [{ id: envelope.product.id, slug: envelope.slug }],
+        redirects: [],
+      },
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    },
+  };
+}
 
 async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
@@ -102,7 +223,18 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     czy najemca zdążył opublikować akurat stronę główną.
   */
   const [catalog, appearance, site, legalDocuments, productSlugs] = await Promise.all([
-    getPublicCatalog(tenantId),
+    /*
+      KATALOG PRZEZ CACHE MIĘDZYŻĄDANIOWY (faza 4a, ADR-184). `cache` z Reacta
+      na całej tej funkcji deduplikuje odczyty w obrębie JEDNEGO żądania;
+      dopiero ten wpis sprawia, że drugi odwiedzający nie płaci za katalog od
+      nowa. Unieważnia go JAWNIE panel przy zmianie katalogu — patrz nagłówek
+      `lib/catalog/catalog-cache.ts`.
+    */
+    resolvePublicCatalog(tenantId, {
+      getCache: getCachedCatalog,
+      setCache: setCachedCatalog,
+      lookup: (id) => getPublicCatalog(id),
+    }),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),

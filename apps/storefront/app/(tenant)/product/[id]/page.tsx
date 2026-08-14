@@ -31,7 +31,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { productPathFromSlug, productSlugById } from "@avably/core";
 
 import { productPageMetadata, renderProductPage } from "@/lib/catalog/product-page";
-import { loadStorefrontContext } from "@/lib/storefront/context";
+import { loadProductPageContext } from "@/lib/storefront/context";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +46,10 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const ctx = await loadStorefrontContext();
-  if (!ctx) return {};
+  const resolved = await loadProductPageContext({ productId: id });
+  if (resolved.kind !== "product") return {};
 
-  const product = ctx.catalog.products.find((item) => item.id === id);
-  return product ? productPageMetadata(ctx, product) : {};
+  return productPageMetadata(resolved.ctx, resolved.ctx.catalog.products[0]);
 }
 
 export default async function TenantLegacyProductPage({
@@ -59,14 +58,24 @@ export default async function TenantLegacyProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const ctx = await loadStorefrontContext();
-  if (!ctx) notFound();
+  const resolved = await loadProductPageContext({ productId: id });
+  if (resolved.kind !== "product") notFound();
 
-  const raw = ctx.catalog.products.find((product) => product.id === id);
-  if (!raw) notFound();
+  const { ctx } = resolved;
+  const raw = ctx.catalog.products[0];
 
-  // ADRES ZNANY → 308. Rzut `permanentRedirect` przerywa render, więc niżej
-  // schodzi wyłącznie gałąź „adresu nie znamy".
+  /*
+    ADRES ZNANY → 308. Rzut `permanentRedirect` przerywa render, więc niżej
+    schodzi wyłącznie gałąź „adresu nie znamy".
+
+    OD ADR-184 TA GAŁĄŹ JEST NIEOSIĄGALNA I TO JEST POPRAWA, nie regres.
+    Do fazy 4a adres brał się z osobnego odczytu rejestru, który mógł zawieść
+    NIEZALEŻNIE od katalogu — stan „znam pozycję, nie znam jej adresu" był
+    realny i ta trasa musiała go umieć obsłużyć renderem. Wąski odczyt niesie
+    pozycję i jej adres JEDNĄ kopertą, więc rozjazd tych dwóch stanów nie ma
+    już gdzie powstać. Warunek zostaje, bo `productSlugById` dalej jest funkcją
+    totalną — a nie dlatego, że spodziewamy się tu wejść.
+  */
   const slug = productSlugById(ctx.productSlugs, raw.id);
   if (slug) permanentRedirect(productPathFromSlug(slug));
 

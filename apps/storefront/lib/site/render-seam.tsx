@@ -74,7 +74,20 @@ export interface SiteRenderSeam {
  * Każda trasa sklepu jest `force-dynamic`, więc każde wyświetlenie dostaje
  * własny, świeży bilet — także wtedy, gdy formularz stoi na podstronie.
  */
-export function buildSiteRenderSeam(ctx: StorefrontContext): SiteRenderSeam {
+/**
+ * WEJŚCIE SZWU — kształt STRUKTURALNY, nie `StorefrontContext` (faza 4a,
+ * ADR-184). Od tej fazy strona sprzętu ma własny, węższy kontekst: jedną
+ * pozycję zamiast katalogu. Szew czyta z kontekstu dokładnie sześć rzeczy
+ * i nazwanie ich wprost wpuszcza oba konteksty bez zmiany w wywołaniach.
+ */
+export type SiteRenderSeamInput = Pick<
+  StorefrontContext,
+  "copy" | "locale" | "currency" | "supabaseUrl" | "productSlugs"
+> & {
+  catalog: Pick<StorefrontContext["catalog"], "custom_fields" | "products">;
+};
+
+export function buildSiteRenderSeam(ctx: SiteRenderSeamInput): SiteRenderSeam {
   const { catalog, copy, locale, currency, supabaseUrl } = ctx;
 
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
