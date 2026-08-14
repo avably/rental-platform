@@ -53,11 +53,11 @@ Zachowujemy obecne miejsca i proporcje kontenerów. Podmieniamy obrazy na ujęci
 
 ### Zakładki procesu (2:1)
 
-1. **Dzień / dostępność:** aktualny widok tworzenia zamówienia z terminem i dostępnymi egzemplarzami.
-2. **Kaucja:** aktualny szczegół rozliczenia kaucji z saldem i historią zdarzeń.
-3. **Dostawa:** aktualny ekran przesyłki powiązanej z zamówieniem.
-4. **Strona sklepu:** aktualny kreator z płótnem i narzędziami publikacji.
-5. **Rezerwacja klienta:** aktualny sklep lub koszyk z terminem i podsumowaniem.
+1. **Przygotowanie oferty:** aktualny kreator z płótnem i narzędziami publikacji.
+2. **Rezerwacja klienta:** aktualny sklep lub koszyk z terminem i podsumowaniem.
+3. **Dzień / dostępność:** aktualny widok tworzenia zamówienia z terminem i dostępnymi egzemplarzami.
+4. **Wydanie lub dostawa:** aktualny ekran przesyłki powiązanej z zamówieniem.
+5. **Zwrot i kaucja:** aktualny szczegół rozliczenia kaucji z saldem i historią zdarzeń.
 
 ### Pulpit (3:2)
 
@@ -98,4 +98,3 @@ PL i EN dostają osobne ujęcia, jeśli interfejs niesie tekst. Pliki mają zach
 - Typecheck, lint i produkcyjny build storefrontu.
 - Przegląd PL/EN na desktopie, tablecie i telefonie, łącznie z rozwinięciem zakładek i menu.
 - Porównanie screenów strony po zmianie; brak redesignu potwierdzamy przez niezmienioną strukturę sekcji i klasy szablonu.
-

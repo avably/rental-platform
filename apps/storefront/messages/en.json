@@ -93,23 +93,23 @@
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/en/kalendarz.webp",
-      "kalendarzAlt": "The availability calendar in the Avably back office: days taken by other rentals marked in red, next to the order line and the delivery choice (demonstration data).",
+      "kalendarzAlt": "A new order in the Avably back office: customer, item and delivery choices next to the rental date and availability calendar (demonstration data).",
       "kaucje": "/produkt/en/kaucje.webp",
-      "kaucjeAlt": "The deposit section in the Avably back office: the balance, the refund button and the register with the collection, a cleaning deduction and the refund (demonstration data).",
+      "kaucjeAlt": "Deposit settlement in the Avably back office: a zero balance, collected and settled totals, and confirmation that the deposit is closed (demonstration data).",
       "kurier": "/produkt/en/kurier.webp",
       "kurierAlt": "The delivery section in the Avably back office: the shipment table with status, broker reference, tracking number and shipping cost (demonstration data).",
       "kreator": "/produkt/en/kreator.webp",
-      "kreatorAlt": "The store page editor in Avably: the section palette on the left, the canvas with the store's first screen on the right, the publish button on top (demonstration data).",
+      "kreatorAlt": "The store page editor in Avably: the section palette and style controls on the left, with the editable rental website on the right (demonstration data).",
       "koszyk": "/produkt/en/koszyk.webp",
       "koszykAlt": "The cart in a rental store: the chosen rental period, the line with rental and deposit amounts, and the summary to pay (demonstration data).",
       "rejestracja": "/produkt/en/rejestracja.webp",
-      "rejestracjaAlt": "The sign-up screen in Avably: the email and password fields and the “Sign up” button.",
+      "rejestracjaAlt": "The Avably sign-up screen: trial benefits, email and password fields, and the account creation button (demonstration data).",
       "katalog": "/produkt/en/katalog.webp",
       "katalogAlt": "The catalogue in the Avably back office: the equipment list with the daily price, the deposit and the number of units (demonstration data).",
       "zamowienia": "/produkt/en/zamowienia.webp",
       "zamowieniaAlt": "The order list in the Avably back office: tiles with the number and value of orders, and a table with customer, equipment and dates (demonstration data).",
       "pulpit": "/produkt/en/pulpit.webp",
-      "pulpitAlt": "The dashboard in the Avably back office: revenue for the current and previous month, the twelve-month trend, equipment utilisation and top customers (demonstration data)."
+      "pulpitAlt": "The daily dashboard in the Avably back office: today's pickups and returns, an overdue rental, tomorrow's preparation and revenue (demonstration data)."
     },
     "nav": {
       "pricing": "Pricing",
@@ -125,32 +125,32 @@
       "langAlternate": "PL"
     },
     "banner": {
-      "text": "14-day trial, no card. We take no cut of transactions, and no per-user limits.",
+      "text": "14 days to try it, no card. No Avably cut on bookings and no per-user limits.",
       "cta": "Open your rental store"
     },
     "hero": {
       "eyebrow": "Software for equipment rental businesses",
-      "titleTop": "Run the rental",
-      "titleBottom": "from booking to refunded deposit.",
-      "body": "A back office where you run the whole rental, plus your own store website where customers book for themselves. The calendar tracks individual units rather than models, and it knows when a saw is out for inspection. Pay by card and the deposit comes off with the order. You open the account by email, with no call to us.",
+      "titleTop": "Customers book online.",
+      "titleBottom": "You run everything else in one place.",
+      "body": "Avably connects your rental website to an operations back office. A booking goes straight into the calendar and order list; from there, the same team prepares the equipment, hands it over or ships it, takes the return and settles the deposit. No retyping between forms, spreadsheets and messages.",
       "cta": "Open your rental store",
-      "ctaSecondary": "See what works today",
-      "feature1": "Availability per unit, not per model",
-      "feature2": "Deposit off the card and back onto it",
-      "feature3": "A store at yourname.avably.io and on your own domain",
+      "ctaSecondary": "See the workflow",
+      "feature1": "Free stock counted on individual units",
+      "feature2": "Payment and deposit tied to the booking",
+      "feature3": "yourname.avably.io or your own domain",
       "posterAlt": "A sectional door pulled down moments before opening, a narrow strip of daylight underneath"
     },
     "premise": {
-      "eyebrow": "The starting point",
-      "statement": "A calendar can tell you the gear is free. It will not take the deposit, price the two extra days someone kept it, print the courier label, or remember who was charged PLN 57 for cleaning after the return. Sell an item and it leaves the business for good. Rent it out and it has to come back: on time, working, with the deposit settled. The last step is not a line in a calendar — it is a deposit balance back at zero.",
-      "feature1": "From booking to a settled deposit",
-      "feature2": "Units, not just models",
-      "feature3": "Store, back office and payments with no retyping"
+      "eyebrow": "More than a calendar",
+      "statement": "A booking starts the work; it does not finish it. The equipment still has to be prepared, handed over or shipped, returned on time and checked. Sometimes you price an extension, sometimes you deduct PLN 57 for cleaning, and every deposit must end at zero. Avably keeps those steps on one order, so the team can see what happened and what comes next.",
+      "feature1": "One order through the full rental cycle",
+      "feature2": "Availability counted on individual units",
+      "feature3": "Store, payment and back office in one workflow"
     },
     "branze": {
       "eyebrow": "Who this is for",
-      "title": "You rent equipment by the day — the rest is just item names",
-      "note": "The trade changes the names in your catalogue. The day, the unit and the deposit work the same way in all of them, and you start your store page from one of six ready templates.",
+      "title": "The same workflow, different equipment",
+      "note": "Avably fits rental businesses that charge by the day and need to track specific units. Product names change; booking, handover, return and deposit do not. You start the website from one of six ready-made templates.",
       "item1Title": "Construction and machinery",
       "item1Alt": "A concrete mixer and buckets on a site in a room under renovation",
       "item2Title": "Tools and power tools",
@@ -163,53 +163,53 @@
       "item5Alt": "A row of identical bicycle wheels with red rims"
     },
     "tabs": {
-      "eyebrow": "What works today",
-      "title": "See the back office in screenshots before you sign up",
-      "item1Title": "Track availability per unit, not per model",
-      "item1Body": "The calendar flags the days taken by other rentals and by the buffers between them, and availability is counted per unit: once you pick the dates you see how many are left free — with three breakers you see how many of them are still going. If two people reach for the same unit in the same second, one booking goes through — the other gets “Dates taken”, not a silent double booking.",
-      "item2Title": "Settle the deposit and keep the receipt",
-      "item2Body": "The register keeps every event with its amount, its reason and its date: PLN 950 taken, PLN 57 deducted for cleaning after the return, the rest refunded, balance zero. When the phone rings with “what did you take PLN 57 for?”, the answer is on the screen. If the customer paid by card, the deposit comes off with the order and the refund is one button — the money genuinely goes back onto their card. With cash or a bank transfer you record the collection and the refund yourself.",
-      "item3Title": "Ship it out and get it back from one screen",
-      "item3Body": "You send and receive through a courier broker, the label comes out as a PDF, and the delivery charge from your own price list goes into the order total. The tracking number sits on the order next to the shipment status, not in somebody's inbox.",
-      "item4Title": "Build the store page without a developer",
-      "item4Body": "The moment your organisation exists, the store runs at yourname.avably.io. You assemble the page from thirteen section types, starting from one of six templates — construction, bike, event, photo and video, one-pager or catalogue. Each arrives filled with copy you swap out. The draft stays private until you press Publish.",
-      "item5Title": "Take a booking at 10 p.m. without picking up the phone",
-      "item5Body": "The customer sees live availability, picks the gear and the dates, and the card payment with the deposit follows in the next step. The server calculates the price, so nobody edits it on the way. The order lands in the back office marked paid, and you both get an email. Bank transfer and payment on pickup stay available."
+      "eyebrow": "From offer to return",
+      "title": "See one order move through Avably",
+      "item1Title": "Publish an offer customers understand",
+      "item1Body": "Your store starts at yourname.avably.io, and you can add your own domain later. Build the page from ready-made sections and one of six templates. The draft is visible only to you; customers get the version you deliberately publish.",
+      "item2Title": "Customers book without waiting for a call",
+      "item2Body": "In the store, a customer picks the equipment and dates, sees the rental price and deposit, then pays by card, bank transfer or on pickup. The server confirms both price and availability. The finished order lands in the back office and you both receive a confirmation.",
+      "item3Title": "Plan the day around available units",
+      "item3Body": "The calendar counts individual units and includes live rentals, buffers and servicing. You can see what goes out today, what should return and what needs preparing for tomorrow. If two people choose the last free unit, only one booking can go through.",
+      "item4Title": "Hand it over or ship it",
+      "item4Body": "Pickup and delivery stay on the same order. For a courier shipment, create the parcel, download the PDF label and keep the tracking number next to the equipment and dates — not in a separate inbox.",
+      "item5Title": "Take the return and settle the deposit",
+      "item5Body": "The register records PLN 950 collected, PLN 57 deducted for cleaning, the remainder refunded and a zero balance — each with its date and reason. After a card payment, one action sends the refund back to the card; for cash or bank transfer, you record the settlement yourself. If the customer asks about PLN 57, the answer sits on the order."
     },
     "video": {
-      "quote": "I run a rental business myself. I remember the Saturday when two customers turned up for the same generator, and the phone hunt for whoever was holding the deposit. Avably came out of Saturdays like that.",
+      "quote": "I run a rental business myself. Avably grew out of the days when two people arrived for the same piece of equipment and the deposit trail lived somewhere in the phone.",
       "authorName": "Maciej",
       "authorRole": "founder of Avably, runs a rental business"
     },
     "features": {
       "eyebrow": "Scope",
-      "title": "Pull rentals, money and paperwork into one back office",
+      "title": "Everything supporting the rental between those steps",
       "cta": "Open your rental store",
-      "card1Title": "Quote and extend without a calculator",
-      "card1Body": "In a tiered price list a week costs less than seven separate days, and the quote recalculates every time you move the dates. When a customer keeps the gear two days longer, the extension reprices the order lines and adds the difference down to the grosz.",
-      "card2Title": "Take payments online — we take nothing out of them",
-      "card2Body": "The customer pays by card on your own site, the deposit comes off with the order, and the refund to the card is one button. Avably adds no transaction fee: you pay us the subscription, and your payment provider's rates go straight to your payment provider, on your own contract. BLIK and Przelewy24 are being built — we are not giving dates.",
-      "card3Title": "Keep customers and their history in one place",
-      "card3Body": "A customer card gathers their orders and their invoice details, tax number included. Notes on an order carry an author and a date, so you know who promised the discount. The customer who wrecked a machine and never paid goes off with one switch — the store matches the block on both email and phone number, so a new address is not enough to get back in.",
-      "card4Title": "Send the agreement, the emails and the invoice from here",
-      "card4Body": "The rental agreement comes out as a PDF built from the order itself. Five lifecycle emails — confirmed, ready for pickup, checked out, returned, cancelled — go out in Polish or English under your business name. Each order shows what went out, what did not, and why. You issue the invoice on your own side and send it to the customer from the back office — the history records that it went and to which address. Issuing invoices automatically does not exist yet; it is on the Premium list.",
-      "card5Title": "Put bookings on the website you already have",
-      "card5Body": "Not changing your website? You paste the booking calendar onto it with one script, or drop it into WordPress with a plugin and its editor block. In the widget the customer pays by bank transfer or on pickup — we do not let card payment into somebody else's frame. There is also a public API on keys — catalogue, availability, placing reservations and card payment — so an order from your own site lands in the same back office."
+      "card1Title": "Tiered pricing and extensions without a calculator",
+      "card1Body": "Set a price for a day, a week or a longer rental. Moving the dates reprices the full order, while an extension adds the difference without manually rebuilding each line.",
+      "card2Title": "Online payments with no Avably cut",
+      "card2Body": "Customers pay by card on your website and the money reaches your own account with the payment provider. Avably charges a subscription, not a percentage of bookings. BLIK and Przelewy24 are being built, with no promised date.",
+      "card3Title": "Customer, history and decisions on the order",
+      "card3Body": "The customer record gathers orders and invoice details. Notes carry an author and a date, so the team sees what was agreed. Block someone you do not want to serve again by both email address and phone number.",
+      "card4Title": "Agreement, messages and invoice in one trail",
+      "card4Body": "Order data becomes a PDF rental agreement. Lifecycle emails go out in the customer's language and keep their delivery result. You still issue the invoice outside Avably, but you can send it from the back office and keep that trail. Automatic invoicing is still only on the Premium list.",
+      "card5Title": "Bookings on the website you already have",
+      "card5Body": "Embed the calendar with a script or the WordPress plugin. In that setup, customers pay by bank transfer or on pickup. A public API can power your own interface while every order still lands in the same back office."
     },
     "cta": {
-      "title": "Stop guessing how the month went",
-      "body": "The dashboard opens the day with five fixed tiles: check-outs, returns, overdue orders, preparation for tomorrow and money alerts. Below, it shows revenue for this month and the last, a twelve-month trend, product utilisation over the last thirty days and the customers bringing in the most revenue. Every item leads to the relevant order — no spreadsheet that only one person in the company can open.",
+      "title": "Start with what is happening today",
+      "body": "The dashboard puts check-outs, returns, overdue orders, tomorrow's preparation and money alerts into five fixed tiles. Every item opens the relevant order. Revenue, trends and equipment utilisation stay below as context for a decision, not another list to maintain.",
       "cta": "Open your rental store"
     },
     "momentum": {
       "eyebrow": "Getting started",
-      "title": "Open your store in three steps",
-      "card1Title": "Open an account by email — 2 minutes",
-      "card1Body": "You give us an address, click the link in the confirmation and you are in. No install, no sales call, no card. You create the organisation, pick a name — and the store is already answering at yourname.avably.io.",
-      "card2Title": "Add your equipment and prices",
-      "card2Body": "Products with their tiered price lists come in from a CSV file in our column layout; units, pickup points and photos you add in the back office. With a small catalogue that is an hour of work. With a big one it takes as long as it takes — and that we will not put a number on.",
-      "card3Title": "Take the first booking",
-      "card3Body": "You publish the page, the customer books and pays, and the order shows up on the list. From there you run it through check-out, return and the deposit, without retyping anything into a second tool. The member of staff who is meant to do this with you gets an email invite."
+      "title": "From an empty account to the first booking",
+      "card1Title": "Open an account and name the store",
+      "card1Body": "Confirm your email, create the organisation and choose the store address. No installation, sales call or card. The back office immediately gives you a short checklist of what is needed to open.",
+      "card2Title": "Add the real catalogue",
+      "card2Body": "Products and tiered prices come in from a CSV file. Add units, pickup points and photos in the back office. A larger inventory takes real time, so you can work in stages and publish the part of the offer that is ready.",
+      "card3Title": "Publish and run the first rental",
+      "card3Body": "A customer books on the website and the order appears on the list. From there, run it through preparation, handover, return and deposit. Invite the next members of the team by email."
     },
     "security": {
       "eyebrow": "Security and compliance",
@@ -261,12 +261,12 @@
     },
     "closing": {
       "eyebrow": "Start today",
-      "title": "Open an account and try it on your own catalogue",
+      "title": "Try Avably on one real rental",
       "cta": "Open your rental store",
       "ctaSecondary": "Start your 14-day trial — no card"
     },
     "footer": {
-      "description": "Avably — the system for equipment rental businesses: a rental back office, online payments and your own store website with booking.",
+      "description": "Avably connects the rental website to the back office where the team runs an order from booking to settled return.",
       "columnProduct": "Product",
       "columnCompany": "Company",
       "trialLead": "Prefer to try it first?",
