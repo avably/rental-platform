@@ -43,7 +43,17 @@ const ANON_EXECUTE_ALLOWLIST = [
   "get_platform_terms", // 0070 — żywa wersja regulaminu platformy (LP pokazuje umowę przed rejestracją)
   "get_platform_terms_version", // 0070 — permalink wersji regulaminu platformy (szkic nie wychodzi)
   "get_public_availability", // 0020 — publiczna dostępność produktu
+  // 0081 — dostępność DZIENNA jednego sprzętu (ADR-179). anon z tego samego
+  // powodu, co get_public_availability: siatka kalendarza maluje się
+  // w przeglądarce klienta najemcy. Oddaje WYŁĄCZNIE liczby, izolacja stoi na
+  // jawnym zawężeniu tenant_id w ciele (SECURITY DEFINER), a szerokość okna
+  // ogranicza sufit w samej funkcji — pilnuje tego
+  // public-availability-calendar.test.ts.
+  "get_public_availability_days",
   "get_public_catalog", // 0020 — publiczny katalog aktywnego tenanta
+  // 0081 — dostępność CAŁEGO katalogu w jednym wywołaniu (ADR-179). anon, bo
+  // kafel katalogu pyta o dostępność tą samą drogą, co o sam katalog.
+  "get_public_catalog_availability",
   "get_public_custom_fields", // 0058 — publiczne definicje pól checkoutu
   "get_public_order_payment", // 0029 — status płatności zamówienia (bramka: checkout_token)
   "get_public_payment_account", // 0028 — publiczny identyfikator konta płatności
