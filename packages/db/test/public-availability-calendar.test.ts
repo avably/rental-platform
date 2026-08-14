@@ -525,6 +525,71 @@ describe.skipIf(!hasEnv)(
     });
 
     // -----------------------------------------------------------------
+    // 3b. ZERO JEST ODPOWIEDZIĄ, NIE BRAKIEM ODPOWIEDZI (ADR-180)
+    // -----------------------------------------------------------------
+    //
+    // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby dzień BEZ ANI JEDNEJ wolnej sztuki
+    // WYPADAŁ z mapy (albo pozycja bez wolnych sztuk wypadała z odpowiedzi
+    // katalogowej), interfejs przeczytałby to jako „nie wiem" — bo brak klucza
+    // znaczy w obu jego siatkach dokładnie tyle. Skutek jest sprzedażowy
+    // i cichy: dzień w pełni zajęty ZNOWU staje się wybieralny, a kafel
+    // pozycji bez sztuk milknie zamiast powiedzieć „brak w tym terminie".
+    // Klient wybiera termin, w którym nie ma czego wynająć, i dowiaduje się
+    // o tym dopiero przy składaniu zamówienia.
+    //
+    // NIC INNEGO TEGO NIE PRZYKRYWA. Trzy istniejące osie tego pliku pytają
+    // o RÓWNOŚĆ liczb i o KOMPLET kluczy przy fiksturach, w których wolne
+    // sztuki NIGDY nie schodzą do zera — mutacja gubiąca zera przechodziła
+    // przez nie na zielono, bo nie miała gdzie się objawić. Fikstura musi więc
+    // realnie dobić do zera i mieć obok dzień, który do zera nie dobił.
+    it("dzień BEZ wolnych sztuk zostaje w mapie z zerem, a pozycja bez sztuk — w katalogu", async () => {
+      const tenantId = await seedTenant(admin);
+      const productId = await seedProduct(admin, tenantId, {
+        buffer_before_days: 0,
+        buffer_after_days: 0,
+      });
+      const [pierwsza, druga] = await seedUnits(admin, tenantId, productId, 2);
+
+      // Dzień PEŁNEJ zajętości (obie sztuki) i dzień zajętości CZĘŚCIOWEJ
+      // (jedna sztuka) — mapa ma pokazać trzy różne liczby: 2, 1 i 0.
+      const pelny = "2027-05-12";
+      const czesciowy = "2027-05-13";
+      await seedBlockingOrder(admin, tenantId, productId, pierwsza!, pelny, czesciowy, "Zajmujący Obie");
+      await seedBlockingOrder(admin, tenantId, productId, druga!, pelny, pelny, "Zajmujący Jedną");
+
+      const days = await dayAvailability(anon, tenantId, productId, START, END);
+      expect(days).not.toBeNull();
+
+      // WŁAŚCIWY DOWÓD: klucz JEST i niesie zero. `toHaveProperty` pyta
+      // o OBECNOŚĆ — `days[pelny] === 0` przechodziłoby dla `undefined`
+      // dopiero po rzutowaniu, a `?? 0` w teście zamalowałby całą wadę.
+      expect(days!.days, `dzień ${pelny} wypadł z mapy zamiast dostać zero`).toHaveProperty(pelny);
+      expect(days!.days[pelny]).toBe(0);
+      expect(Object.keys(days!.days).sort()).toEqual(daysBetween(START, END));
+
+      // KONTROLA POZYTYWNA: mapa nie jest wyzerowana w całości, więc zero
+      // wyżej jest odpowiedzią o TYM dniu, a nie stanem całej fikstury.
+      expect(days!.days[czesciowy]).toBe(1);
+      expect(days!.days[START]).toBe(2);
+
+      // Odpowiedź KATALOGOWA na okno zawierające dzień pełnej zajętości: sprzęt
+      // ZOSTAJE na liście z zerem wolnych sztuk. Wypadnięcie stąd znaczy dla
+      // kafla „nie wiem" (ADR-180), a nie „brak" — czyli kafel milczy o tym,
+      // czego akurat nie ma.
+      const catalog = await catalogAvailability(anon, tenantId, START, END);
+      const entry = catalog!.products.find((row) => row.product_id === productId);
+      expect(entry, "pozycja bez wolnych sztuk wypadła z odpowiedzi katalogowej").toBeDefined();
+      expect(entry!.available_units).toBe(0);
+      expect(entry!.total_units).toBe(2);
+
+      // ...i kontrola pozytywna dla katalogu: to samo zapytanie o okno SPRZED
+      // zajętości oddaje obie sztuki. Bez niej zero wyżej mogłoby pochodzić
+      // z zepsutej fikstury, a nie z reguły kolizji.
+      const wolne = await catalogAvailability(anon, tenantId, START, "2027-05-11");
+      expect(wolne!.products.find((row) => row.product_id === productId)!.available_units).toBe(2);
+    });
+
+    // -----------------------------------------------------------------
     // 4. SUFIT OKNA — egzekwowany przez BAZĘ, nie przez interfejs
     // -----------------------------------------------------------------
     //

@@ -107,14 +107,83 @@ async function seedPickupLocation(admin: SupabaseClient, tenantId: string): Prom
   return data.id as string;
 }
 
-async function seedUnits(admin: SupabaseClient, tenantId: string, productId: string, count: number) {
+async function seedUnits(
+  admin: SupabaseClient,
+  tenantId: string,
+  productId: string,
+  count: number,
+): Promise<string[]> {
   const rows = Array.from({ length: count }, () => ({
     tenant_id: tenantId,
     product_id: productId,
     serial_number: `SN-${randomUUID().slice(0, 8)}`,
   }));
-  const { error } = await admin.from("product_units").insert(rows);
-  if (error) throw new Error(`Nie udało się zasiać egzemplarzy: ${error.message}`);
+  const { data, error } = await admin.from("product_units").insert(rows).select("id");
+  if (error || !data) throw new Error(`Nie udało się zasiać egzemplarzy: ${error?.message}`);
+  return data.map((row) => row.id as string);
+}
+
+/**
+ * ZAMÓWIENIE, KTÓRE JUŻ ZAJMUJE EGZEMPLARZ — w kształcie produkcyjnym.
+ *
+ * Wiersze pisze rola serwisowa, a nie `app.public_checkout`: tor panelu
+ * (rezerwacja zakładana przez najemcę w back office) pisze DOKŁADNIE te
+ * kolumny, a wejście przez checkout publiczny wymagałoby biletu HMAC (0059),
+ * którego rola serwisowa nie ma jak wydać. Kolizję i tak liczy się z wierszy,
+ * a nie z drogi, którą powstały.
+ *
+ * `unit_id` NIE JEST szczegółem fikstury: bez przypisanego egzemplarza reguła
+ * kolizji nie ma czego znaleźć i cały dowód „drugi checkout został odrzucony"
+ * byłby dowodem na nic.
+ */
+async function seedBlockingOrder(
+  admin: SupabaseClient,
+  tenantId: string,
+  productId: string,
+  unitId: string,
+  pickupId: string,
+  startDate: string,
+  endDate: string,
+): Promise<string> {
+  const { data: customer, error: customerError } = await admin
+    .from("customers")
+    .insert({
+      tenant_id: tenantId,
+      email: `zajete-${randomUUID().slice(0, 8)}@test.local`,
+      full_name: "Klient sprzed tygodnia",
+    })
+    .select("id")
+    .single();
+  if (customerError || !customer) {
+    throw new Error(`Nie udało się zasiać klienta: ${customerError?.message}`);
+  }
+
+  const { data: order, error: orderError } = await admin
+    .from("orders")
+    .insert({
+      tenant_id: tenantId,
+      customer_id: customer.id,
+      start_date: startDate,
+      end_date: endDate,
+      order_status: "pending",
+      delivery_method: "pickup",
+      pickup_location_id: pickupId,
+    })
+    .select("id")
+    .single();
+  if (orderError || !order) throw new Error(`Nie udało się zasiać zamówienia: ${orderError?.message}`);
+
+  const { error: itemError } = await admin.from("order_items").insert({
+    tenant_id: tenantId,
+    order_id: order.id,
+    product_id: productId,
+    unit_id: unitId,
+    rental_grosze: 10_000,
+    deposit_grosze: 5_000,
+  });
+  if (itemError) throw new Error(`Nie udało się zasiać pozycji zamówienia: ${itemError.message}`);
+
+  return order.id as string;
 }
 
 /** Wywołanie RPC jako ANON (bramka grantu + realna ścieżka publiczna). */
@@ -228,6 +297,86 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
       await sqlA.end({ timeout: 5 });
       await sqlB.end({ timeout: 5 });
     }
+  });
+
+  // -------------------------------------------------------------------
+  // 1b. SPRZĘT ZAJĘTY ISTNIEJĄCYM ZAMÓWIENIEM (ADR-180)
+  // -------------------------------------------------------------------
+  //
+  // PRZYPADEK PROSTSZY I O RZĄD CZĘSTSZY NIŻ WYŚCIG: sprzęt jest zajęty od
+  // tygodnia, a klient próbuje zamówić go na ten sam termin. Wyścig o ostatni
+  // egzemplarz (test wyżej) zdarza się rzadko i mierzy INNĄ bramkę — advisory
+  // lock plus re-check w `app.assert_unit_available`. Tutaj chodzi o dobór
+  // KANDYDATÓW w `app.public_checkout`: warunek kolizji z najmem blokującym
+  // i odmowę `Brak wolnych egzemplarzy w wybranym terminie` (23P01).
+  //
+  // DLACZEGO TO MA WŁASNĄ BRAMKĘ: interfejs sklepu ŚWIADOMIE nie zamyka kasy,
+  // dopóki nie zna dostępności (werdykt `unknown` w ADR-179, przycisk „dodaj
+  // do koszyka" czynny przy nieudanym odczycie w ADR-180) — i opiera to
+  // wprost na tej odmowie serwerowej. Skoro jest OSTATNIĄ linią obrony, nie
+  // może być pilnowana wyłącznie przy okazji testu wyścigu.
+  //
+  // NIC INNEGO TEGO NIE PRZYKRYWA: suity dostępności pytają funkcji ODCZYTU
+  // (`get_public_availability*`), a te z założenia są orientacyjne w chwili
+  // odczytu i niczego nie zapisują. Odmowa ZAPISU jest osobnym zdaniem.
+  it("checkout na sprzęt zajęty ISTNIEJĄCYM zamówieniem → 23P01 i ZERO nowych zamówień", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId, {
+      buffer_before_days: 0,
+      buffer_after_days: 0,
+    });
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    const [unitId] = await seedUnits(admin, tenantId, productId, 1);
+
+    // Najem, który stoi w bazie od dawna — dokładnie na termin, o który
+    // poprosi za chwilę klient sklepu.
+    const blokujace = await seedBlockingOrder(
+      admin,
+      tenantId,
+      productId,
+      unitId!,
+      pickupId,
+      "2026-10-01",
+      "2026-10-03",
+    );
+
+    const { data, error } = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId),
+    );
+
+    // DOWÓD MUTACYJNY: zdjęcie warunku kolizji z doboru egzemplarzy (albo
+    // przepuszczenie pustego zbioru kandydatów zamiast `raise`) sprawia, że
+    // checkout PRZECHODZI — `error` robi się `null` i ten assert pali się na
+    // pierwszej linii, bez czekania na timeout.
+    expect(data, "zamówienie na zajęty sprzęt zostało przyjęte").toBeNull();
+    expect(error?.code, `oczekiwano 23P01, było ${error?.code}: ${error?.message}`).toBe("23P01");
+    expect(error?.message).toContain("Brak wolnych egzemplarzy");
+
+    // ODMOWA JEST PEŁNA, nie połowiczna: w bazie zostaje WYŁĄCZNIE zamówienie
+    // zasiane. Sam kod błędu nie wystarcza — transakcja, która zapisałaby
+    // zamówienie i dopiero potem padła na pozycji, oddałaby ten sam kod.
+    const { data: orders } = await admin
+      .from("orders")
+      .select("id")
+      .eq("tenant_id", tenantId);
+    expect(orders?.map((row) => row.id)).toEqual([blokujace]);
+
+    // KONTROLA POZYTYWNA: ten sam sprzęt, ten sam sklep, TERMIN WOLNY →
+    // checkout przechodzi. Bez niej test wyżej byłby zielony także wtedy,
+    // gdyby checkout odrzucał wszystko (np. na zepsutej fiksturze punktu
+    // odbioru albo na wygasłym regulaminie).
+    const wolny = await checkoutAsAnon(
+      anon,
+      checkoutArgs(tenantId, productId, pickupId, {
+        p_start_date: "2026-11-10",
+        p_end_date: "2026-11-12",
+      }),
+    );
+    expect(
+      wolny.error,
+      `kontrola pozytywna odrzucona (${wolny.error?.code}: ${wolny.error?.message}) — dowód wyżej nic nie znaczy`,
+    ).toBeNull();
   });
 
   // -------------------------------------------------------------------
