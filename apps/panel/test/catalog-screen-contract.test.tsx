@@ -83,6 +83,7 @@ function renderFormWithError(fieldErrors: Record<string, string>): string {
         currencyCode="PLN"
         defaults={{
           name: "Na",
+          slug: "",
           description: "",
           basePriceDay: "540,00",
           deposit: "1200,00",

@@ -26,6 +26,9 @@ export default async function NewProductPage() {
         customFields={customFields}
         defaults={{
           name: "",
+          // Adres pusty = „nadaj z nazwy" (ADR-182). Podpowiadanie go tutaj
+          // byłoby drugą regułą obok tej, którą i tak wykona baza.
+          slug: "",
           description: "",
           basePriceDay: "",
           deposit: "",

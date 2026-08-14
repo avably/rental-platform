@@ -12,6 +12,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { ProductSlugRegistry } from "@avably/core";
+
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 import { customFieldsFromPublicRows } from "./custom-fields";
@@ -146,4 +148,35 @@ export async function getPublicAvailabilityDays(
 
   if (error || data == null) return null;
   return data as PublicAvailabilityDays;
+}
+
+/**
+ * REJESTR ADRESÓW SPRZĘTU (0083, ADR-182) — adresy bieżące i stare, jednym
+ * odczytem.
+ *
+ * DLACZEGO OSOBNE WYWOŁANIE, A NIE KLUCZ W KATALOGU. Migracje jadą na produkcję
+ * PRZED kodem, a koperta katalogu jest po stronie sklepu parsowana schematem,
+ * który nowego klucza nie zna — bezwarunkowy `slug` przy pozycji położyłby sklep
+ * KAŻDEGO najemcy na czas okna wdrożeniowego. Nowa funkcja nie ma jak niczego
+ * zepsuć, bo w oknie NIKT jej nie woła (ten sam argument, co ADR-171 dla
+ * wyglądu). Koszt jest jawny i policzony: jedno wywołanie RÓWNOLEGLE
+ * z pozostałymi w `loadStorefrontContext`, więc zero dodatkowych podróży
+ * w czasie odpowiedzi.
+ *
+ * FAIL-SOFT, NIE FAIL-CLOSED — i to jest świadoma różnica względem katalogu.
+ * `null` znaczy „adresów nie znamy", a wtedy sklep linkuje pozycje adresem
+ * ZASTANYM (`/product/{id}`), który dalej działa. Gdyby ten odczyt gasił całą
+ * stronę jak katalog, chwilowy blip zamieniałby brak ADRESU w brak SKLEPU.
+ */
+export async function getPublicProductSlugs(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<ProductSlugRegistry | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase
+    .schema("app")
+    .rpc("get_public_product_slugs", { p_tenant_id: tenantId });
+
+  if (error || data == null) return null;
+  return data as ProductSlugRegistry;
 }

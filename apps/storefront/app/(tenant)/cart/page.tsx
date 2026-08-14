@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CartView } from "@/components/storefront/cart-view";
+import { productPaths } from "@/lib/catalog/product-path";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -57,6 +58,16 @@ export default async function TenantCartPage() {
       <div className="mt-6">
         <CartView
           products={catalog.products}
+          /*
+            ADRESY POZYCJI liczone NA SERWERZE (ADR-182). Koszyk jest
+            komponentem klienckim, więc nie dostanie funkcji przez granicę —
+            dostaje gotową mapę `id → ścieżka`, żeby reguła degradacji przy
+            braku rejestru adresów została w JEDNYM miejscu.
+          */
+          productPaths={productPaths(
+            ctx.productSlugs,
+            catalog.products.map((product) => product.id),
+          )}
           supabaseUrl={supabaseUrl}
           currency={currency}
           locale={locale}

@@ -20,6 +20,12 @@ export interface ProductCategoryOption {
  * serwerowa (lib/money-input.ts), formularz niczego nie przelicza. */
 export interface ProductFormValues {
   name: string;
+  /**
+   * ADRES STRONY SPRZĘTU (ADR-182) — fragment `/produkt/{slug}`. Pusty przy
+   * nowym sprzęcie: adres nada baza z nazwy, więc formularz nie musi (i nie
+   * powinien) go wymyślać drugą regułą.
+   */
+  slug: string;
   description: string;
   basePriceDay: string;
   deposit: string;
@@ -113,6 +119,20 @@ export function ProductForm({
           aria-describedby={errorId("name")}
         />
         <FieldError id="product-name-error" message={state.fieldErrors?.name} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="product-slug">{t("slug")}</Label>
+        <Input
+          id="product-slug"
+          name="slug"
+          maxLength={60}
+          defaultValue={defaults.slug}
+          aria-invalid={state.fieldErrors?.slug ? true : undefined}
+          aria-describedby={errorId("slug") ?? "product-slug-hint"}
+        />
+        <FieldHint id="product-slug-hint">{t("slugHint")}</FieldHint>
+        <FieldError id="product-slug-error" message={state.fieldErrors?.slug} />
       </div>
 
       <div className="flex flex-col gap-1.5">

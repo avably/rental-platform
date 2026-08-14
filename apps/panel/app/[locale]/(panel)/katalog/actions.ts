@@ -23,9 +23,41 @@ import { requireMember } from "@/lib/supabase-server";
 /** Produkt nieosiągalny (błąd odczytu, brak wiersza, cudzy tenant) — jeden komunikat. */
 const PRODUCT_NOT_FOUND = "Nie znaleziono produktu.";
 
+/**
+ * ODMOWY ADRESU SPRZĘTU WRACAJĄ DO POLA (ADR-182), nie na górę formularza.
+ *
+ * Baza mówi o adresie dwiema różnymi rzeczami i to są dwie różne sytuacje
+ * naprawcze, więc nie wolno ich zlepiać w jeden komunikat:
+ *   • 23505 na `products_slug_unique_idx` — adres stoi przy INNYM sprzęcie;
+ *   • 22023 z bramki `products_slug_guard` — adres PRZEKIEROWUJE do innego
+ *     sprzętu, czyli trzeba najpierw zdjąć tamto przekierowanie. Zdanie z bazy
+ *     jest już po polsku i mówi dokładnie to, więc przenosimy je bez zmian.
+ *
+ * Surowy komunikat PostgREST-a („duplicate key value violates unique
+ * constraint…") pod polem adresu byłby dla operatora szumem.
+ */
+function slugFieldError(error: { code?: string; message: string }): FormState | null {
+  if (error.code === "23505" && error.message.includes("products_slug_unique_idx")) {
+    return {
+      fieldErrors: { slug: "Ten adres jest już zajęty przez inny sprzęt — wybierz inny." },
+    };
+  }
+  if (error.code === "22023" && error.message.includes("przekierowuje")) {
+    return { fieldErrors: { slug: error.message } };
+  }
+  return null;
+}
+
 function productPayload(input: ReturnType<typeof productSchema.parse>) {
   return {
     name: input.name,
+    /*
+      ADRES JEDZIE DO BAZY TAKŻE PUSTY (ADR-182) — i to jest cała treść reguły
+      „adres rodzi się z nazwy": pusta wartość znaczy dla triggera 0083
+      „wygeneruj", a nie „zostaw jak było". Dzięki temu operator, który
+      wyczyści pole, dostaje adres z aktualnej nazwy, a nie sierotę po starej.
+    */
+    slug: input.slug,
     description: input.description,
     base_price_day_grosze: input.basePriceDayGrosze,
     deposit_grosze: input.depositGrosze,
@@ -53,6 +85,7 @@ function parseProductForm(formData: FormData) {
   return productSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
+    slug: formData.get("slug") ?? "",
     basePriceDayGrosze: formData.get("basePriceDayGrosze"),
     depositGrosze: formData.get("depositGrosze"),
     autoIncrementMultiplier: formData.get("autoIncrementMultiplier"),
@@ -101,7 +134,7 @@ export async function createProductAction(
     .insert({ tenant_id: ctx.tenantId, ...productPayload(parsed.data), custom_fields: custom.values })
     .select("id")
     .single();
-  if (error) return { formError: error.message };
+  if (error) return slugFieldError(error) ?? { formError: error.message };
   // Wiersz bez identyfikatora nie jest błędem zapisu (produkt POWSTAŁ), więc
   // nie udajemy porażki — wracamy na listę, jak przed U8b.
   if (!created?.id) redirect(await localePath("/katalog"));
@@ -180,7 +213,7 @@ export async function updateProductAction(
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id.data)
     .select("id");
-  if (error) return { formError: error.message };
+  if (error) return slugFieldError(error) ?? { formError: error.message };
   if (!data || data.length === 0) return { formError: PRODUCT_NOT_FOUND };
 
   // Przypisania doprowadzamy RÓŻNICĄ, nie pełną wymianą — patrz

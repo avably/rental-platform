@@ -172,7 +172,7 @@ describe("dwa ekrany, jedno wyjście", () => {
       currency: "PLN",
       locale: "pl",
       words: WORDS,
-      hrefBase: "/product/",
+      productHref: (id) => `/produkt/${id}`,
       customFields: definicje,
       fieldLocale: "pl",
     });
@@ -193,7 +193,7 @@ describe("dwa ekrany, jedno wyjście", () => {
       currency: "PLN",
       locale: "pl",
       words: WORDS,
-      hrefBase: "/product/",
+      productHref: (id) => `/produkt/${id}`,
     });
     expect(detail.specs).toEqual([]);
     expect(card?.fields).toEqual([]);

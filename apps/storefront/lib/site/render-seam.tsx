@@ -18,6 +18,7 @@ import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { submitContactMessage } from "@/lib/actions/contact";
 import { toStorefrontProducts } from "@/lib/catalog/present";
 import { issueContactTicket } from "@/lib/contact/ticket";
+import { productPath } from "@/lib/catalog/product-path";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import type { StorefrontContext } from "@/lib/storefront/context";
 
@@ -85,7 +86,7 @@ export function buildSiteRenderSeam(ctx: StorefrontContext): SiteRenderSeam {
       currency,
       locale,
       words: { from: copy.common.from, perDay: copy.common.perDay },
-      hrefBase: "/product/",
+      productHref: (productId) => productPath(ctx.productSlugs, productId),
       customFields: catalog.custom_fields,
       fieldLocale: locale,
     }),

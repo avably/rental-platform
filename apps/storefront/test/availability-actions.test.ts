@@ -26,6 +26,11 @@ const getPublicCatalogAvailability = vi.fn();
 const getPublicAvailabilityDays = vi.fn();
 
 vi.mock("@/lib/checkout/catalog", () => ({
+  // Rejestr adresów sprzętu (0083) — pusty: ten plik nie mierzy adresów,
+  // a `null` z tego odczytu jest stanem LEGALNYM (linki spadają wtedy na
+  // adres zastany), więc atrapa nie może go po prostu pominąć.
+  getPublicProductSlugs: () => Promise.resolve({ products: [], redirects: [] }),
+
   getPublicAvailability: (...args: unknown[]) => getPublicAvailability(...args),
   getPublicCatalogAvailability: (...args: unknown[]) => getPublicCatalogAvailability(...args),
   getPublicAvailabilityDays: (...args: unknown[]) => getPublicAvailabilityDays(...args),

@@ -11,11 +11,11 @@
  */
 import { cache } from "react";
 
-import type { CurrencyCode } from "@avably/core";
+import type { CurrencyCode, ProductSlugRegistry } from "@avably/core";
 import type { ResolvedSiteStyle } from "@avably/core/site";
 import { headers } from "next/headers";
 
-import { getPublicCatalog } from "@/lib/checkout/catalog";
+import { getPublicCatalog, getPublicProductSlugs } from "@/lib/checkout/catalog";
 import type { PublicCatalog } from "@/lib/checkout/contract";
 import {
   getPublishedLegalDocuments,
@@ -68,6 +68,18 @@ export interface StorefrontContext {
    * najemcy tuż po migracji: sklep działa dokładnie jak wcześniej.
    */
   legalDocuments: PublishedLegalDocumentSummary[];
+  /**
+   * ADRESY SPRZĘTU — bieżące i stare (0083, ADR-182). Siedzi w kontekście,
+   * a nie w trasie sprzętu, bo pytanie „pod jakim adresem stoi ta pozycja"
+   * zadaje KAŻDA powierzchnia budująca link do sprzętu: kafle katalogu, kafle
+   * sekcji na stronie treściowej, koszyk, sitemapa i kanon.
+   *
+   * `null` = adresów nie znamy (błąd odczytu albo najemca poza oknem
+   * handlowym). To NIE gasi sklepu: linki spadają wtedy na adres ZASTANY
+   * (`/product/{id}`), który dalej renderuje stronę sprzętu — patrz
+   * `productPath`.
+   */
+  productSlugs: ProductSlugRegistry | null;
   supabaseUrl: string;
 }
 
@@ -89,11 +101,12 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     w czasie odpowiedzi. Cena za to, że znak i motyw przestają zależeć od tego,
     czy najemca zdążył opublikować akurat stronę główną.
   */
-  const [catalog, appearance, site, legalDocuments] = await Promise.all([
+  const [catalog, appearance, site, legalDocuments, productSlugs] = await Promise.all([
     getPublicCatalog(tenantId),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
+    getPublicProductSlugs(tenantId),
   ]);
   if (!catalog) return null;
 
@@ -115,6 +128,7 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     appearance,
     site,
     legalDocuments,
+    productSlugs,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   };
 }

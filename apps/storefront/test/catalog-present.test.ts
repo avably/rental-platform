@@ -63,12 +63,13 @@ describe("toStorefrontProducts", () => {
       currency: "PLN",
       locale: "pl",
       words: WORDS,
-      hrefBase: "/product/",
+      productHref: (id) => `/produkt/${id}`,
     });
     expect(card).toMatchObject({
       id: "11111111-1111-1111-1111-111111111111",
       name: "Wiertarka",
-      href: "/product/11111111-1111-1111-1111-111111111111",
+      // Adres liczy WOŁAJĄCY (ADR-182) — prezenter go już nie skleja z id.
+      href: "/produkt/11111111-1111-1111-1111-111111111111",
       imageAlt: "Zdjęcie",
     });
     expect(card!.imageUrl).toContain("/product-images/tenant/prod/a.jpg");
@@ -80,7 +81,7 @@ describe("toStorefrontProducts", () => {
       currency: "PLN",
       locale: "pl",
       words: WORDS,
-      hrefBase: "/product/",
+      productHref: (id) => `/produkt/${id}`,
     });
     expect(card!.imageUrl).toBeNull();
     expect(card!.imageAlt).toBe("Wiertarka");
@@ -92,7 +93,7 @@ describe("toStorefrontProducts", () => {
   it("zdjęcie z alt_text = null: imageAlt spada na nazwę produktu", () => {
     const [card] = toStorefrontProducts(
       [product({ images: [{ storage_path: "tenant/prod/a.jpg", alt_text: null, sort_order: 0 }] })],
-      { supabaseUrl: "http://h", currency: "PLN", locale: "pl", words: WORDS, hrefBase: "/product/" },
+      { supabaseUrl: "http://h", currency: "PLN", locale: "pl", words: WORDS, productHref: (id) => `/produkt/${id}` },
     );
     expect(card!.imageUrl).toContain("/product-images/tenant/prod/a.jpg");
     expect(card!.imageAlt).toBe("Wiertarka");

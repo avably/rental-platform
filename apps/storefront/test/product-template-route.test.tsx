@@ -41,6 +41,8 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const SPRZET_ID = "22222222-2222-4222-8222-222222222222";
 const INNY_ID = "33333333-3333-4333-8333-333333333333";
 
+const SLUG = "wiertarka-udarowa-sds";
+const SLUG_INNEGO = "zageszczarka-plytowa";
 const NAZWA = "Wiertarka udarowa SDS";
 const NAZWA_INNEGO = "Zageszczarka plytowa";
 const NAPIS_PROJEKTOWY = "TEKST-Z-KREATORA-NIE-Z-KATALOGU";
@@ -137,6 +139,11 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("notFound");
   },
+  // 308 przerywa render rzutem, dokładnie jak w produkcji — atrapa musi to
+  // odwzorować, inaczej trasa renderowałaby się DALEJ po przekierowaniu.
+  permanentRedirect: (to: string) => {
+    throw new Error(`permanentRedirect:${to}`);
+  },
 }));
 
 vi.mock("@/lib/seo/request-origin", () => ({
@@ -177,6 +184,15 @@ vi.mock("@/lib/storefront/context", () => ({
       appearance: { template: "classic", style: {}, logo: null },
       site: null,
       legalDocuments: [],
+      // Rejestr adresów (0083, ADR-182) — trasa `/produkt/{slug}` rozstrzyga
+      // adres WYŁĄCZNIE nim, więc bez tych wpisów nie miałaby czego renderować.
+      productSlugs: {
+        products: [
+          { id: SPRZET_ID, slug: SLUG },
+          { id: INNY_ID, slug: SLUG_INNEGO },
+        ],
+        redirects: [],
+      },
       supabaseUrl: "https://sklep.supabase.co",
     };
   },
@@ -196,9 +212,13 @@ function bezJsonLd(markup: string): string {
   return markup.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
 }
 
-async function renderProductPage(id = SPRZET_ID): Promise<string> {
-  const { default: TenantProductPage } = await import("../app/(tenant)/product/[id]/page");
-  const tree = (await TenantProductPage({ params: Promise.resolve({ id }) })) as ReactNode;
+/**
+ * Render idzie przez trasę KANONICZNĄ `/produkt/{slug}` (ADR-182) — od tej
+ * migracji to ona renderuje stronę sprzętu, a `/product/{uuid}` oddaje 308.
+ */
+async function renderProductPage(slug = SLUG): Promise<string> {
+  const { default: TenantProductPage } = await import("../app/(tenant)/produkt/[slug]/page");
+  const tree = (await TenantProductPage({ params: Promise.resolve({ slug }) })) as ReactNode;
   return renderToStaticMarkup(tree);
 }
 
@@ -220,7 +240,7 @@ const BUDZET_RENDERU = 30_000;
 
 describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   beforeAll(async () => {
-    await import("../app/(tenant)/product/[id]/page");
+    await import("../app/(tenant)/produkt/[slug]/page");
     await import("@/lib/storefront/copy");
   }, 120_000);
 
@@ -274,7 +294,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     // pozycją katalogu: bez tej nogi wiązanie celujące na stałe w `products[0]`
     // przeszłoby poprzedni przypadek.
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
-    const markup = await renderProductPage(INNY_ID);
+    const markup = await renderProductPage(SLUG_INNEGO);
 
     expect(bezJsonLd(markup)).toContain(NAZWA_INNEGO);
     expect(markup, "szablon pokazał sprzęt spod innego adresu").not.toContain(NAZWA);
@@ -369,7 +389,13 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
       expect(markup, `${etykieta}: brak JSON-LD`).toContain('"@type":"Product"');
       // Ta noga pyta o SKRYPT, więc czyta pełny znacznik świadomie.
       expect(markup, `${etykieta}: JSON-LD nie opisuje sprzętu`).toContain(NAZWA);
+      // ADRES KANONICZNY, nie zastany (ADR-182): robot dostaje `/produkt/{slug}`,
+      // czyli ten sam URL, który stoi w sitemapie i w `<link rel="canonical">`.
+      // Adres z identyfikatorem prowadziłby go pod 308.
       expect(markup, `${etykieta}: kanon nie wskazuje adresu sprzętu`).toContain(
+        `/produkt/${SLUG}`,
+      );
+      expect(markup, `${etykieta}: JSON-LD dalej niesie adres z identyfikatorem`).not.toContain(
         `/product/${SPRZET_ID}`,
       );
     }
@@ -392,7 +418,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     // pozycji, której najemca nie ma w katalogu publicznym.
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     await expect(
-      renderProductPage("44444444-4444-4444-8444-444444444444"),
+      renderProductPage("czego-tu-nie-ma"),
     ).rejects.toThrow("notFound");
   }, BUDZET_RENDERU);
 });

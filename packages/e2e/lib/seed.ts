@@ -37,6 +37,7 @@ export async function seedTenant(): Promise<SeedState> {
     ownerPassword: "E2eTest!12345678",
     productId: "",
     productName: "Młot wyburzeniowy E2E",
+    productSlug: "",
     priceDayGrosze: 5_000,
     unitCount: 2,
     pickupLocationName: "Magazyn E2E",
@@ -83,6 +84,21 @@ export async function seedTenant(): Promise<SeedState> {
     buffer_after_days: 0,
     active: true,
   });
+
+  // 4a. ADRES sprzętu — ODCZYTANY, nie policzony (ADR-182). Nadaje go trigger
+  //     `products_slug_guard` z nazwy, więc seed pyta bazę o wynik zamiast
+  //     powtarzać regułę normalizacji u siebie.
+  {
+    const { data, error } = await admin
+      .from("products")
+      .select("slug")
+      .eq("id", state.productId)
+      .single();
+    if (error || !data?.slug) {
+      throw new Error(`Seed: nie mogę odczytać adresu sprzętu: ${error?.message}`);
+    }
+    state.productSlug = data.slug as string;
+  }
 
   // 5. Egzemplarze — bez wierszy w product_units dostępność wynosi 0
   //    i checkout zawsze pada.

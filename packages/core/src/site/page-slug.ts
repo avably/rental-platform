@@ -21,6 +21,7 @@
  * zbiorów pilnuje `packages/db/test/site-page-slugs.test.ts`.
  */
 import { RESERVED_CATEGORY_SLUGS } from "../catalog/categories";
+import { slugifyName } from "../slug";
 
 /**
  * Slug STRONY GŁÓWNEJ sklepu — pusty string, bo jej adresem jest goły `/`.
@@ -172,26 +173,18 @@ export function isValidPageSlug(slug: string): boolean {
 /**
  * Propozycja sluga z nazwy strony — NORMALIZUJE, nie odrzuca.
  *
- * „Rowery górskie" → `rowery-gorskie`. Diakrytyki rozkładamy przez NFD
- * i zdejmujemy znaki łączące (`ą` → `a`), bo `toLowerCase()` sam z siebie
- * zostawia je nietknięte. „ł" nie ma postaci rozłożonej i wymaga jawnego
- * podstawienia — inaczej „łódki" dałoby „dki".
+ * „Rowery górskie" → `rowery-gorskie`. Regułę niesie `slugifyName`
+ * (packages/core/src/slug.ts) — WSPÓLNA z adresem kategorii i sprzętu od
+ * ADR-182, bo trzy kopie jednego wyrażenia rozjeżdżają się przy pierwszej
+ * poprawce diakrytyków. Ta funkcja zostaje jako nazwa czytelna w miejscu
+ * wywołania i jako miejsce, w którym stoi limit długości ADRESU STRONY.
  *
  * Wynikiem może być pusty string (nazwa złożona wyłącznie ze znaków, które
  * odpadają — np. „???"). Wołający MUSI to sprawdzić: pusty slug znaczy stronę
  * główną, a nie „dowolny adres".
  */
 export function suggestPageSlug(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ł/g, "l")
-    .replace(/Ł/g, "L")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, PAGE_SLUG_MAX_LENGTH)
-    .replace(/-+$/g, "");
+  return slugifyName(name, PAGE_SLUG_MAX_LENGTH);
 }
 
 /**

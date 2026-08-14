@@ -36,12 +36,21 @@ import type { StorefrontCopy } from "@/lib/storefront/copy";
 
 export function CartView({
   products,
+  productPaths,
   supabaseUrl,
   currency,
   locale,
   copy,
 }: {
   products: PublicCatalogProduct[];
+  /**
+   * ADRESY STRON SPRZĘTU, `id → ścieżka` (ADR-182). Policzone na serwerze:
+   * adres liczy się ze SLUGA pozycji, a ten przychodzi rejestrem, którego
+   * komponent kliencki nie czyta — i nie ma go czytać, bo wtedy reguła
+   * degradacji („bez rejestru linkuj adresem zastanym") stałaby w dwóch
+   * miejscach.
+   */
+  productPaths: Record<string, string>;
   supabaseUrl: string;
   currency: CurrencyCode;
   locale: string;
@@ -127,7 +136,10 @@ export function CartView({
                 <div className="site-placeholder h-16 w-16" aria-hidden="true" />
               )}
               <div className="min-w-40 flex-1">
-                <Link href={`/product/${product.id}`} className="site-link font-medium">
+                <Link
+                  href={productPaths[product.id] ?? `/product/${product.id}`}
+                  className="site-link font-medium"
+                >
                   {product.name}
                 </Link>
                 {linePreview ? (

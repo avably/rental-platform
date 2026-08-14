@@ -31,6 +31,7 @@
  * bez wpisu tutaj też pali CI, więc lista nie gnije w miarę rozrostu sklepu.
  */
 import { LOCALES } from "../locale";
+import { slugifyName } from "../slug";
 
 /**
  * Pierwsze segmenty ścieżki, których slug kategorii nie może przejąć.
@@ -46,6 +47,9 @@ export const RESERVED_CATEGORY_SLUGS: readonly string[] = [
   "kategoria",
   "privacy",
   "product",
+  // [ADR-182] `/produkt/{slug}` — adres strony sprzętu. Angielskie `product`
+  // ZOSTAJE: stare adresy dostają 308, więc ta trasa dalej istnieje.
+  "produkt",
   "prywatnosc",
   "regulamin",
   "store",
@@ -83,19 +87,10 @@ export function isReservedCategorySlug(slug: string): boolean {
  * Propozycja sluga z nazwy kategorii — WYŁĄCZNIE podpowiedź dla formularza.
  * Operator może ją nadpisać, a bramką i tak jest baza.
  *
- * Diakrytyki rozkładamy przez NFD i zdejmujemy znaki łączące (`ą` → `a`),
- * bo `toLowerCase()` sam z siebie zostawia je nietknięte. „ł" nie ma postaci
- * rozłożonej i wymaga jawnego podstawienia — inaczej „łódki" dałoby „dki".
+ * Regułę normalizacji niesie `slugifyName` (packages/core/src/slug.ts) —
+ * WSPÓLNA z adresem strony i sprzętu od ADR-182. Ta funkcja zostaje jako
+ * miejsce, w którym stoi limit długości sluga KATEGORII.
  */
 export function suggestCategorySlug(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ł/g, "l")
-    .replace(/Ł/g, "L")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, CATEGORY_SLUG_MAX_LENGTH)
-    .replace(/-+$/g, "");
+  return slugifyName(name, CATEGORY_SLUG_MAX_LENGTH);
 }

@@ -883,6 +883,22 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
     type: "hero",
     content_draft: { heading: "RLS test heading" },
   }),
+  // --- historia adresów sprzętu (0083_product_slug.sql, ADR-182) ---
+  //
+  // Slug UNIKALNY per wywołanie: (tenant_id, slug) ma unikat, a kolizja dawałaby
+  // 23505 zamiast 42501 (pułapka opisana przy usage_counters). Prefiks
+  // `rls-test-` spełnia CHECK kształtu — listy adresów zarezerwowanych ta
+  // tabela nie dotyka, bo adres sprzętu jest DRUGIM segmentem ścieżki.
+  //
+  // ŚWIEŻY rodzic per wywołanie (createProduct), jak przy product_images:
+  // wiersz historii nie ma unikatu po product_id, ale i tak potrzebuje sprzętu
+  // TEGO tenanta — FK jest złożony (tenant_id, product_id), więc rodzic
+  // z cudzego najemcy odbiłby się 23503 zamiast oczekiwanego 42501.
+  product_slug_history: async (ctx, tenantId) => ({
+    tenant_id: tenantId,
+    product_id: await createProduct(ctx, tenantId),
+    slug: `rls-test-adres-sprzetu-${randomUUID().slice(0, 8)}`,
+  }),
   // --- historia adresów stron (0075_site_slug_history.sql, ADR-159) ---
   //
   // Slug UNIKALNY per wywołanie: (tenant_id, slug) ma unikat, a kolizja dawałaby
@@ -1101,6 +1117,9 @@ const MUTATION_PATCHES: Record<string, Record<string, unknown>> = {
   // dla ról API (zapis robi wyłącznie trigger SECURITY DEFINER, 0075) — patch
   // i tak jest potrzebny, żeby brak UPDATE-u był TESTOWANY, a nie pomijany.
   site_slug_history: { created_at: "2000-01-01T00:00:00.000Z" },
+  // Lustro site_slug_history (0083): ta sama pułapka unikatu na slugu, ten sam
+  // brak grantu UPDATE (zapis robi wyłącznie trigger SECURITY DEFINER).
+  product_slug_history: { created_at: "2000-01-01T00:00:00.000Z" },
   domains: { verified: true },
 
   // name: bez indeksu unikalnego, CHECK tylko na długość btrim 1..80 —

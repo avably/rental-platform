@@ -16,6 +16,9 @@ import { getTenantCurrency } from "@/lib/tenant-currency";
 describe("productSchema", () => {
   const valid = {
     name: "Agregat prądotwórczy",
+    // Adres pusty = „nadaj z nazwy" (ADR-182) — to jest stan NORMALNY, także
+    // przy zapisie z panelu sprzed tej zmiany.
+    slug: "",
     description: "",
     basePriceDayGrosze: "100,50",
     depositGrosze: "500",
@@ -41,6 +44,29 @@ describe("productSchema", () => {
   it("checkbox nieobecny w FormData → false", () => {
     expect(productSchema.parse({ ...valid, active: undefined }).active).toBe(false);
   });
+
+  // -------------------------------------------------------------------
+  // Adres sprzętu (ADR-182) — lustro CHECK-a products_slug_shape
+  // -------------------------------------------------------------------
+  it("PUSTY adres przechodzi — nadaje go baza z nazwy, nie formularz", () => {
+    // To jest warunek działania panelu SPRZED tej zmiany i importu CSV:
+    // gdyby pusty adres był błędem, zapis bez tego pola nie miałby jak przejść.
+    expect(productSchema.parse({ ...valid, slug: "" }).slug).toBe("");
+  });
+
+  it("KONTROLA POZYTYWNA: poprawny adres przechodzi bez zmian", () => {
+    expect(productSchema.parse({ ...valid, slug: "rower-gorski" }).slug).toBe("rower-gorski");
+  });
+
+  it.each(["Rower", "rower gorski", "rower_2", "rowerą", "-rower", "rower-", "a".repeat(61)])(
+    "adres `%s` odrzucony PRZED bazą, z komunikatem przy polu",
+    (slug) => {
+      const result = productSchema.safeParse({ ...valid, slug });
+      expect(result.success, `adres ${slug} przeszedł`).toBe(false);
+      const issue = result.error!.issues.find((entry) => entry.path[0] === "slug");
+      expect(issue, "komunikat nie trafił do pola adresu").toBeDefined();
+    },
+  );
 });
 
 describe("unitSchema — okno serwisowe (lustro CHECK-ów product_units)", () => {

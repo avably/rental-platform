@@ -19,7 +19,8 @@ import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 
 import { routing } from "@/i18n/routing";
 import { PUBLIC_PAGES } from "@/lib/marketing/template";
-import { getPublicCatalog } from "@/lib/checkout/catalog";
+import { productPath } from "@/lib/catalog/product-path";
+import { getPublicCatalog, getPublicProductSlugs } from "@/lib/checkout/catalog";
 import { getPlatformTerms } from "@/lib/legal/platform-terms";
 import { getPublishedLegalDocuments, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
 import { resolveHostBranch } from "@/lib/seo/host-branch";
@@ -75,7 +76,7 @@ export async function GET(request: Request): Promise<Response> {
   const origin = originFromHost(host, proto);
   if (!origin) return notFound();
 
-  const [catalog, site, legalDocuments, pages] = await Promise.all([
+  const [catalog, site, legalDocuments, pages, productSlugs] = await Promise.all([
     getPublicCatalog(branch.tenantId),
     getPublishedSite(branch.tenantId),
     getPublishedLegalDocuments(branch.tenantId),
@@ -84,6 +85,7 @@ export async function GET(request: Request): Promise<Response> {
       setCache: setCachedTenantPages,
       lookup: lookupTenantPages,
     }),
+    getPublicProductSlugs(branch.tenantId),
   ]);
 
   // Brak katalogu = tenant nieosiągalny publicznie (fail-closed jak kontekst
@@ -112,7 +114,20 @@ export async function GET(request: Request): Promise<Response> {
       // koperta dla proxy, a nie drugi odczyt strony.
       ...(slug === HOME_PAGE_SLUG ? { lastmod: site.publishedAt } : {}),
     })),
-    ...catalog.products.map((product) => ({ loc: `${origin}/product/${product.id}` })),
+    /*
+     * STRONY SPRZĘTU POD ADRESEM KANONICZNYM (ADR-182) — `/produkt/{slug}`,
+     * liczonym tą samą funkcją, którą liczy kanon strony i link na kaflu.
+     * Sitemapa wskazująca `/product/{uuid}` zgłaszałaby wyszukiwarce adres,
+     * spod którego sama trasa odsyła 308 gdzie indziej — czyli prosiłaby
+     * o zaindeksowanie przekierowania zamiast strony.
+     *
+     * Brak rejestru (awaria odczytu) degraduje do adresu ZASTANEGO, a nie do
+     * pustej sekcji: sklep bez pozycji w mapie strony jest gorszy niż sklep
+     * z adresami, spod których stoi 308.
+     */
+    ...catalog.products.map((product) => ({
+      loc: `${origin}${productPath(productSlugs, product.id)}`,
+    })),
     // Dokumenty prawne WARUNKOWO (B4, ADR-129) — tylko te faktycznie
     // opublikowane, z `lastmod` z chwili publikacji. Wpis bezwarunkowy
     // zgłaszałby wyszukiwarce adres, który sam oddaje 404, a najemca bez
