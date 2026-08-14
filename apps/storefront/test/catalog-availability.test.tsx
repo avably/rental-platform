@@ -181,6 +181,40 @@ describe("kafel katalogu mówi, ile jest wolne w wybranym terminie", () => {
     expect(naKaflu(NAMIOT)).toContain("7");
   });
 
+  // KAFEL RYSUJE SIĘ W DWÓCH POKOLENIACH TREŚCI, nie w jednym: sekcja
+  // strukturalna v3 (wyżej) i karta v1, której używa też element katalogu na
+  // płótnie v2. Najemcy mają dziś jedne i drugie.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: dołożenie liczby tylko do nowszego kafla. Połowa
+  // najemców miałaby katalog z dostępnością, a połowa bez — bez jednego błędu
+  // i bez sposobu, żeby to zauważyć poza obejrzeniem obu sklepów.
+  it("kafel w kształcie v1 (element katalogu płótna) też niesie liczbę", async () => {
+    const sekcjaV1 = {
+      id: "sekcja-v1",
+      position: 0,
+      type: "products",
+      content: { heading: "Nasz sprzęt" },
+    } as unknown as RenderSection;
+
+    render(
+      <StoreTermProvider>
+        <StoreCatalogAvailability copy={copy}>
+          <SiteRenderer sections={[sekcjaV1]} products={KATALOG} labels={DEFAULT_SITE_LABELS} />
+        </StoreCatalogAvailability>
+      </StoreTermProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.querySelector(`[data-products-availability="${ROWER}"]`)).not.toBeNull();
+    });
+    expect(
+      document.querySelector(`[data-products-availability="${ROWER}"]`)!.textContent,
+    ).toContain("2");
+    expect(
+      document.querySelector(`[data-products-availability="${KAJAK}"]`)!.textContent,
+    ).toBe(copy.term.unitsNone);
+  });
+
   // Odmowa bazy (najemca poza oknem handlowym, awaria transportu) gasi liczby
   // W CAŁOŚCI. Kafel z ostatnią znaną liczbą byłby gorszy niż kafel bez niej.
   it("odmowa odczytu gasi liczby na wszystkich kaflach", async () => {
