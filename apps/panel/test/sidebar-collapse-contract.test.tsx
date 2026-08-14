@@ -87,6 +87,20 @@ function tagsWith(html: string, marker: string): string[] {
   );
 }
 
+/**
+ * Klasy znacznika jako TOKENY, nie jako podciąg (ADR-183).
+ *
+ * `expect(tag).toContain("bg-accent")` przechodziło przez `before:bg-accent`
+ * i `dark:bg-accent`, więc asercja nazwana „wyróżnienie widoczne w obu stanach"
+ * była zielona także wtedy, gdy jasny wariant tracił CAŁE wypełnienie. Podział
+ * na tokeny odbiera podciągowi tę władzę: `bg-accent` znaczy klasę `bg-accent`,
+ * a nie jej wariant.
+ */
+function classesOf(tag: string): string[] {
+  const raw = tag.match(/\sclass="([^"]*)"/)?.[1] ?? "";
+  return raw.split(/\s+/).filter(Boolean);
+}
+
 describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
   const html = renderNav();
 
@@ -150,11 +164,35 @@ describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
     }
   });
 
-  it("aktywna pozycja niesie aria-current i bg-accent (widoczne w obu stanach)", () => {
+  it("aktywna pozycja wyróżnia się POWIERZCHNIĄ — jedynym nośnikiem, który przeżywa zwinięcie", () => {
     expect([...html.matchAll(/aria-current="page"/g)]).toHaveLength(1);
     const orders = anchorFor(html, "orders");
     expect(orders).toContain('aria-current="page"');
-    expect(orders).toContain("bg-accent");
+
+    const classes = classesOf(orders);
+    // Kontrola po pustym zbiorze i kontrola NARZĘDZIA: zepsuty `classesOf`
+    // dawałby pustą listę, a wtedy każde `not.toContain` niżej byłoby zielone
+    // z powodu, który nie ma nic wspólnego z produktem.
+    expect(classes.length).toBeGreaterThan(5);
+    expect(classes).toContain("text-foreground");
+
+    // TO JEST SEDNO TEGO PLIKU. Po ADR-177 jasny wariant wyróżnia pozycję
+    // dwoma nośnikami: neutralną powierzchnią `bg-muted/60` i limonkową
+    // kropką `::before`. Kropka CHOWA SIĘ w zwiniętym pasku
+    // (`rail-collapsed:before:hidden`), więc w zwiniętym jasnym pasku
+    // powierzchnia zostaje jedynym śladem „tu jesteś". Jej utrata to nie
+    // kosmetyka — to zwinięty pasek bez oznaczenia trasy bieżącej.
+    expect(classes).toContain("bg-muted/60");
+    expect(classes).toContain("before:bg-accent");
+    expect(classes).toContain("rail-collapsed:before:hidden");
+
+    // Ciemny wariant niesie wypełnienie akcentem i NIE MA wariantu zwinięcia,
+    // więc działa w obu stanach paska. Gołe `bg-accent` (limonka zalewająca
+    // jasny wiersz) zostało zdjęte w ADR-177 — porównanie po tokenach, bo po
+    // podciągu ta para asercji jest sprzeczna sama ze sobą.
+    expect(classes).toContain("dark:bg-accent");
+    expect(classes).not.toContain("bg-accent");
+
     expect(anchorFor(html, "catalog")).not.toContain("aria-current");
   });
 });
