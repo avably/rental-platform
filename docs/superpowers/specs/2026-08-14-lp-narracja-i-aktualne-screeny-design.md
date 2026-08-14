@@ -1,7 +1,7 @@
 # LP: narracja dnia pracy i aktualne screeny — specyfikacja
 
-**Data:** 2026-08-14  
-**Zakres:** marketing Avably (`apps/storefront`)  
+**Data:** 2026-08-14
+**Zakres:** marketing Avably (`apps/storefront`)
 **Poza zakresem:** redesign, zmiana komponentów produktu, funkcje panelu i sklepu, analityka, dokumenty prawne
 
 ## Problem
