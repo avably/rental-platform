@@ -11,6 +11,7 @@ import { panelEmailLogRecorder } from "@/lib/email-log";
 import type { FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
+import { tenantContractLogo, tenantEmailLogo } from "@/lib/tenant-mark";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import { contractServiceDeps } from "./contract-adapters";
@@ -38,7 +39,9 @@ async function loadGenerationContext(orderId: string) {
       "order_number,start_date,end_date,total_rental_grosze,total_deposit_grosze,delivery_grosze,currency,custom_fields,customers(full_name,email,locale,address_street,address_zip,address_city,custom_fields),order_items(rental_grosze,deposit_grosze,products(name,custom_fields),product_units(serial_number))",
     ).eq("tenant_id", tenantId).eq("id", orderId).maybeSingle(),
     context.supabase.from("tenant_settings").select("key,value").eq("tenant_id", tenantId).in("key", ["contract_document", "email_sender"]),
-    context.supabase.from("tenants").select("name,locale").eq("id", tenantId).maybeSingle(),
+    // Kolumna OPUBLIKOWANA, nigdy szkic: umowa i mail z nią wychodzą na
+    // zewnątrz, więc wysłanie szkicu byłoby publikacją bez zamówienia (ADR-175).
+    context.supabase.from("tenants").select("name,locale,logo_published").eq("id", tenantId).maybeSingle(),
     // Definicje WSZYSTKICH encji — filtr „umowa" stosuje rdzeń przy budowie
     // propsów, nie to zapytanie.
     loadCustomFieldDefinitions(context.supabase, tenantId),
@@ -54,7 +57,7 @@ async function loadGenerationContext(orderId: string) {
   if (!order.order_items.length || order.order_items.some((item) => !item.products)) {
     throw new Error("Zamówienie nie ma kompletnych pozycji.");
   }
-  return { context, tenantId, tenant: tenantResult.data as { name: string; locale: "pl" | "en" }, settings, settingRows, order, definitions, currency: orderCurrencyCode(order.currency) };
+  return { context, tenantId, tenant: tenantResult.data as { name: string; locale: "pl" | "en"; logo_published?: unknown }, settings, settingRows, order, definitions, currency: orderCurrencyCode(order.currency) };
 }
 
 export async function generateContractAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -62,8 +65,13 @@ export async function generateContractAction(_previous: FormState, formData: For
   if (!uuidSchema.safeParse(orderId).success) return { formError: "Nieprawidłowe zamówienie." };
   try {
     const loaded = await loadGenerationContext(orderId);
+    // Bajty znaku pobiera AKCJA, nie render: dokument nie może zależeć od
+    // sieci w chwili powstawania (ADR-175). Porażka pobrania nie jest tu
+    // błędem — tenantContractLogo nie rzuca, a umowa powstaje z nazwą.
+    const tenantLogo = await tenantContractLogo(loaded.tenant);
     const props = buildContractPdfProps({
       tenant: loaded.tenant,
+      ...(tenantLogo ? { tenantLogo } : {}),
       tenantLocale: loaded.tenant.locale,
       currency: loaded.currency,
       settings: loaded.settings,
@@ -96,6 +104,7 @@ export async function sendContractAction(_previous: FormState, formData: FormDat
   try {
     const loaded = await loadGenerationContext(orderId);
     const sender = emailSenderFromSettings(loaded.settingRows);
+    const tenantLogo = tenantEmailLogo(loaded.tenant);
     const result = await sendContract(
       contractServiceDeps(loaded.context.supabase, {
         transport: resendTransport(),
@@ -107,6 +116,7 @@ export async function sendContractAction(_previous: FormState, formData: FormDat
         documentId,
         attemptId,
         tenantName: loaded.tenant.name,
+        ...(tenantLogo ? { tenantLogo } : {}),
         customerName: loaded.order.customers!.full_name ?? loaded.order.customers!.email,
         orderNumber: loaded.order.order_number,
         ...(sender.replyTo ? { replyTo: sender.replyTo } : {}),

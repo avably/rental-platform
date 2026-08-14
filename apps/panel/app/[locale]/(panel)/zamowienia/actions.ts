@@ -55,6 +55,7 @@ import { panelEmailLogRecorder } from "@/lib/email-log";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
 import { requireMember } from "@/lib/supabase-server";
+import { tenantEmailLogo } from "@/lib/tenant-mark";
 import { orderCurrencyCode } from "@/lib/tenant-currency";
 
 import {
@@ -498,11 +499,14 @@ export async function sendTransitionEmailAction(input: {
       .select("key, value")
       .eq("tenant_id", ctx.tenantId)
       .eq("key", EMAIL_SENDER_KEY),
-    ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
+    // Kolumna OPUBLIKOWANA, nigdy szkic: wiadomość wychodzi na zewnątrz (ADR-175).
+    ctx.supabase.from("tenants").select("name, locale, logo_published").eq("id", ctx.tenantId).maybeSingle(),
   ]);
 
   const order = orderResult.data as (RentalEmailOrderRow & { order_status: OrderStatus }) | null;
-  const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+  const tenant = tenantResult.data as
+    | { name: string; locale: string | null; logo_published?: unknown }
+    | null;
   if (!order || !tenant) {
     return {
       problem:
@@ -521,6 +525,8 @@ export async function sendTransitionEmailAction(input: {
     order,
     orderId,
     tenantName: tenant.name,
+    // Znak z WIERSZA tego najemcy — nie z sesji i nie z nagłówka (ADR-175).
+    ...(tenantEmailLogo(tenant) ? { tenantLogo: tenantEmailLogo(tenant)! } : {}),
     // tenants.locale jest not null (0005), ale nieznana wartość nie może
     // wywrócić wysyłki — spada na domyślne locale tenanta.
     locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,

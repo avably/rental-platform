@@ -67,6 +67,7 @@ import { emailMessages, renderPaymentConfirmed } from "@avably/emails";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { panelEmailLogRecorder } from "./email-log";
+import { tenantEmailLogo } from "./tenant-mark";
 
 /**
  * Nadpisania transportu — wyłącznie dla testów i wejść, które chcą wstrzyknąć
@@ -126,7 +127,10 @@ export async function sendPaymentConfirmedEmail(
         .eq("tenant_id", input.tenantId)
         .eq("id", input.orderId)
         .maybeSingle(),
-      db.from("tenants").select("name, locale").eq("id", input.tenantId).maybeSingle(),
+      // Kolumna OPUBLIKOWANA, nigdy szkic (ADR-175). Znak bierze się z wiersza
+      // najemcy, którego dotyczy zamówienie — ta ścieżka biegnie z webhooka,
+      // gdzie „bieżący najemca" nie znaczy nic.
+      db.from("tenants").select("name, locale, logo_published").eq("id", input.tenantId).maybeSingle(),
       db
         .from("tenant_settings")
         .select("key, value")
@@ -135,7 +139,9 @@ export async function sendPaymentConfirmedEmail(
     ]);
 
     const order = orderResult.data as OrderEmailRow | null;
-    const tenant = tenantResult.data as { name: string; locale: string | null } | null;
+    const tenant = tenantResult.data as
+      | { name: string; locale: string | null; logo_published?: unknown }
+      | null;
     if (orderResult.error || tenantResult.error || !order || !tenant) {
       return (
         "Nie udało się odczytać danych do potwierdzenia płatności — " +
@@ -193,6 +199,7 @@ export async function sendPaymentConfirmedEmail(
       // brzydszy, ale prawdziwy (wzorzec maili cyklu najmu).
       customerName: order.customers?.full_name ?? customerEmail,
       amountPaidFormatted: formatMoney(amountGrosze, currency, locale),
+      ...(tenantEmailLogo(tenant) ? { logo: tenantEmailLogo(tenant)! } : {}),
     });
 
     const { sendError, logIssue } = await sendAndLog({
