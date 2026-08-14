@@ -185,7 +185,7 @@ export async function finalizeProductImageUploadAction(uploadId: string): Promis
   if (!result.ok) return { formError: finalizeErrorMessage(result.error, t) };
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "added" };

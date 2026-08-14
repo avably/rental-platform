@@ -69,7 +69,7 @@ export async function saveTiersAction(
   if (deleteError) return { formError: deleteError.message };
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "saved" };

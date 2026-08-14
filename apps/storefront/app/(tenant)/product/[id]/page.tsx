@@ -68,7 +68,7 @@ export default async function TenantLegacyProductPage({
     ADRES ZNANY → 308. Rzut `permanentRedirect` przerywa render, więc niżej
     schodzi wyłącznie gałąź „adresu nie znamy".
 
-    OD ADR-184 TA GAŁĄŹ JEST NIEOSIĄGALNA I TO JEST POPRAWA, nie regres.
+    OD ADR-185 TA GAŁĄŹ JEST NIEOSIĄGALNA I TO JEST POPRAWA, nie regres.
     Do fazy 4a adres brał się z osobnego odczytu rejestru, który mógł zawieść
     NIEZALEŻNIE od katalogu — stan „znam pozycję, nie znam jej adresu" był
     realny i ta trasa musiała go umieć obsłużyć renderem. Wąski odczyt niesie

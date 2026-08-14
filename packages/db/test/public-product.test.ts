@@ -1,5 +1,5 @@
 /**
- * WĄSKI ODCZYT JEDNEJ POZYCJI KATALOGU — migracja 0084, ADR-184.
+ * WĄSKI ODCZYT JEDNEJ POZYCJI KATALOGU — migracja 0084, ADR-185.
  *
  * Pięć osi, każda mierząca SKUTEK, nie obecność funkcji:
  *
@@ -10,7 +10,7 @@
  *      przekierowań.
  *
  *   2. RÓWNOŚĆ PROJEKCJI Z KATALOGIEM — i to jest warunek, od którego zależy
- *      cały ADR-184. Strona sprzętu przestała czytać katalog, więc gdyby wąska
+ *      cały ADR-185. Strona sprzętu przestała czytać katalog, więc gdyby wąska
  *      koperta opisywała pozycję choćby o jeden klucz inaczej, klient
  *      zobaczyłby na stronie sprzętu inną cenę niż na kaflu katalogu obok.
  *      Porównujemy CAŁE obiekty na prawdziwej bazie, a nie wybrane pola:
@@ -83,7 +83,7 @@ function anonClient(): SupabaseClient {
 
 const createdTenantIds: string[] = [];
 
-describe.skipIf(!hasEnv)("wąski odczyt pozycji — 0084 (ADR-184)", () => {
+describe.skipIf(!hasEnv)("wąski odczyt pozycji — 0084 (ADR-185)", () => {
   const admin = hasEnv ? adminClient() : (null as unknown as SupabaseClient);
   const anon = hasEnv ? anonClient() : (null as unknown as SupabaseClient);
 
@@ -232,7 +232,7 @@ describe.skipIf(!hasEnv)("wąski odczyt pozycji — 0084 (ADR-184)", () => {
   });
 
   // -------------------------------------------------------------------
-  // 2. RÓWNOŚĆ PROJEKCJI — fundament ADR-184
+  // 2. RÓWNOŚĆ PROJEKCJI — fundament ADR-185
   // -------------------------------------------------------------------
   it("pozycja z wąskiej koperty jest IDENTYCZNA z wpisem w katalogu", async () => {
     const tenantId = await seedTenant("rownosc");

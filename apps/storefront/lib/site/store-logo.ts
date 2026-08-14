@@ -59,7 +59,7 @@ export function resolveStoreLogo(
  */
 export function storeLogo(
   /*
-    KSZTAŁT STRUKTURALNY, nie `Pick<StorefrontContext, …>` (faza 4a, ADR-184).
+    KSZTAŁT STRUKTURALNY, nie `Pick<StorefrontContext, …>` (faza 4a, ADR-185).
     Od tej fazy strona sprzętu ma własny, węższy kontekst (bez punktów odbioru
     i metod dostawy), a znak firmy potrzebuje z niego DOKŁADNIE nazwy najemcy.
     Zawężenie do tego, co funkcja naprawdę czyta, wpuszcza oba konteksty bez

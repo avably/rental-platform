@@ -320,13 +320,13 @@ export interface PublicCatalog {
 }
 
 /**
- * KOPERTA WĄSKIEGO ODCZYTU JEDNEJ POZYCJI (0084, ADR-184) — kształt lustrzany
+ * KOPERTA WĄSKIEGO ODCZYTU JEDNEJ POZYCJI (0084, ADR-185) — kształt lustrzany
  * do `app.get_public_product`.
  *
  * Niesie ROZSTRZYGNIĘCIE ADRESU razem z pozycją, bo trasa sprzętu musi umieć
  * trzy odpowiedzi naraz (ADR-182): adres bieżący → render, adres stary → 308,
  * adres nieznany → 404. Rozdzielenie tego na dwa odczyty przywróciłoby drugą
- * podróż do bazy, czyli dokładnie ten koszt, który ADR-184 znosi.
+ * podróż do bazy, czyli dokładnie ten koszt, który ADR-185 znosi.
  *
  * `product` jest niepuste WYŁĄCZNIE przy `match === "current"` — i to jest
  * jedyny stan, w którym wolno cokolwiek wyrenderować.

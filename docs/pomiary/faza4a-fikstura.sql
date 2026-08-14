@@ -1,4 +1,4 @@
--- FIKSTURA ADR-184 DO OGLĘDZIN RĘCZNYCH — dwa najemcy, po 200 pozycji katalogu.
+-- FIKSTURA ADR-185 DO OGLĘDZIN RĘCZNYCH — dwa najemcy, po 200 pozycji katalogu.
 --
 -- POMIAR JEJ NIE POTRZEBUJE. Suita `apps/storefront/test/koszt-odslony.integration.test.ts`
 -- zakłada sobie własną fiksturę (o losowych identyfikatorach, żeby nie kasować

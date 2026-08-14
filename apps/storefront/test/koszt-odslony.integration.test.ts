@@ -1,5 +1,5 @@
 /**
- * KOSZT ODSŁONY SKLEPU — ILE ZAPYTAŃ I ILE BAJTÓW (faza 4a, ADR-184).
+ * KOSZT ODSŁONY SKLEPU — ILE ZAPYTAŃ I ILE BAJTÓW (faza 4a, ADR-185).
  *
  * ==================== CO TEN PLIK MIERZY ====================
  *
@@ -278,7 +278,7 @@ async function zalozNajemce(etykieta: string): Promise<string> {
 
 const BUDZET_RENDERU = 60_000;
 
-describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-184)", () => {
+describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-185)", () => {
   beforeAll(async () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.SUPABASE_LOCAL_API_URL;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.SUPABASE_LOCAL_ANON_KEY;
@@ -337,7 +337,7 @@ describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-184
 
   it("katalog: DRUGA odsłona nie idzie po katalog do bazy", async () => {
     /*
-      KONTROLA POZYTYWNA CACHE'U NA POZIOMIE TRASY (ADR-184). Suita
+      KONTROLA POZYTYWNA CACHE'U NA POZIOMIE TRASY (ADR-185). Suita
       `catalog-cache.test.ts` dowodzi tego samego na warstwie danych; tutaj
       pytamy o RENDER, bo między jednym a drugim stoi `loadStorefrontContext`
       i to on decyduje, czy katalog w ogóle przechodzi przez cache.

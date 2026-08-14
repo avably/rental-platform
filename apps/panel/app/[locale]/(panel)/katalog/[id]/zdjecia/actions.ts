@@ -55,7 +55,7 @@ export async function updateImageAction(
     await ctx.supabase.storage.from(BUCKET).remove([data[0]!.storage_path]);
 
     revalidatePath("/", "layout");
-    // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+    // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
     // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
     await invalidateStorefrontCatalog(ctx.tenantId!);
     return { success: "deleted" };
@@ -75,7 +75,7 @@ export async function updateImageAction(
   if (!data || data.length === 0) return { formError: "Nie znaleziono zdjęcia." };
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "saved" };

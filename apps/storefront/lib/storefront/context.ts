@@ -89,7 +89,7 @@ export interface StorefrontContext {
 }
 
 /**
- * KATALOG STRONY SPRZĘTU — DOKŁADNIE JEDNA POZYCJA (faza 4a, ADR-184).
+ * KATALOG STRONY SPRZĘTU — DOKŁADNIE JEDNA POZYCJA (faza 4a, ADR-185).
  *
  * To NIE jest zawężony `PublicCatalog`, tylko własny typ — i to jest cała
  * różnica. Gdyby strona sprzętu dostawała `PublicCatalog` z jednoelementową
@@ -106,7 +106,7 @@ export interface ProductPageCatalog {
 }
 
 /**
- * KONTEKST STRONY SPRZĘTU (faza 4a, ADR-184) — powłoka najemcy plus JEDNA
+ * KONTEKST STRONY SPRZĘTU (faza 4a, ADR-185) — powłoka najemcy plus JEDNA
  * pozycja, bez katalogu i bez rejestru adresów.
  *
  * ==================== JEDNO ŹRÓDŁO POZYCJI, NIE DWA ====================
@@ -224,7 +224,7 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
   */
   const [catalog, appearance, site, legalDocuments, productSlugs] = await Promise.all([
     /*
-      KATALOG PRZEZ CACHE MIĘDZYŻĄDANIOWY (faza 4a, ADR-184). `cache` z Reacta
+      KATALOG PRZEZ CACHE MIĘDZYŻĄDANIOWY (faza 4a, ADR-185). `cache` z Reacta
       na całej tej funkcji deduplikuje odczyty w obrębie JEDNEGO żądania;
       dopiero ten wpis sprawia, że drugi odwiedzający nie płaci za katalog od
       nowa. Unieważnia go JAWNIE panel przy zmianie katalogu — patrz nagłówek

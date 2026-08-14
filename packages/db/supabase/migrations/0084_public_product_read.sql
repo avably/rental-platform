@@ -1,4 +1,4 @@
--- ===== 0084 — WĄSKI ODCZYT JEDNEJ POZYCJI KATALOGU (ADR-184) =====
+-- ===== 0084 — WĄSKI ODCZYT JEDNEJ POZYCJI KATALOGU (ADR-185) =====
 --
 -- Do tej migracji strona sprzętu nie miała jak zapytać o SWOJĄ pozycję. Trasa
 -- `/produkt/{slug}` wołała `app.get_public_catalog`, czyli CAŁY katalog
@@ -45,7 +45,7 @@
 -- Blok `jsonb_build_object` opisujący pozycję jest przepisany co do znaku
 -- z NAJŚWIEŻSZEJ definicji `app.get_public_catalog` (0072, linie 425–470;
 -- md5(pg_get_functiondef) tej definicji na bazie po komplecie migracji do 0083
--- zanotowane w ADR-184). To jest świadome powtórzenie, nie przeoczenie:
+-- zanotowane w ADR-185). To jest świadome powtórzenie, nie przeoczenie:
 -- cienka owijka wyprowadzałaby zapytanie spod strażników strukturalnych, które
 -- skanują `pg_get_functiondef` (ten sam argument, co ADR-178 dla
 -- `get_published_product_template`). Rozjazd projekcji pilnuje test
@@ -191,7 +191,7 @@ as $$
 $$;
 
 comment on function app.get_public_product(uuid, text, uuid) is
-  'Wąski odczyt JEDNEJ pozycji katalogu publicznego dla strony sprzętu (0084, ADR-184): rozstrzygnięcie adresu (bieżący/stary/nieznany, ADR-182), adres bieżący, najemca, definicje pól własnych i pozycja w kształcie IDENTYCZNYM z wpisem w app.get_public_catalog. Wskazanie slugiem (trasa kanoniczna) albo identyfikatorem (trasa zastana). Zastępuje na tej trasie DWA odczyty O(N): pełny katalog i rejestr adresów. SECURITY DEFINER: bramką izolacji jest jawny filtr tenant_id w każdym podzapytaniu, a nie RLS. NULL dla najemcy poza oknem handlowym. Osobna funkcja, a nie klucz w kopercie katalogu — koperty czytane w oknie wdrożeniowym nie mogą zmieniać kształtu (ADR-158/171/182).';
+  'Wąski odczyt JEDNEJ pozycji katalogu publicznego dla strony sprzętu (0084, ADR-185): rozstrzygnięcie adresu (bieżący/stary/nieznany, ADR-182), adres bieżący, najemca, definicje pól własnych i pozycja w kształcie IDENTYCZNYM z wpisem w app.get_public_catalog. Wskazanie slugiem (trasa kanoniczna) albo identyfikatorem (trasa zastana). Zastępuje na tej trasie DWA odczyty O(N): pełny katalog i rejestr adresów. SECURITY DEFINER: bramką izolacji jest jawny filtr tenant_id w każdym podzapytaniu, a nie RLS. NULL dla najemcy poza oknem handlowym. Osobna funkcja, a nie klucz w kopercie katalogu — koperty czytane w oknie wdrożeniowym nie mogą zmieniać kształtu (ADR-158/171/182).';
 
 revoke all on function app.get_public_product(uuid, text, uuid) from public;
 -- anon: to JEST odczyt publiczny sklepu — oddaje WYŁĄCZNIE tę samą pozycję

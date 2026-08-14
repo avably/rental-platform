@@ -1,5 +1,5 @@
 /**
- * UNIEWAŻNIANIE CACHE KATALOGU W SKLEPIE — strona PANELU (faza 4a, ADR-184).
+ * UNIEWAŻNIANIE CACHE KATALOGU W SKLEPIE — strona PANELU (faza 4a, ADR-185).
  *
  * ==================== CO TU JEST NAPRAWDĘ BADANE ====================
  *
@@ -47,7 +47,7 @@ vi.mock("@upstash/redis", () => ({
   },
 }));
 
-describe("unieważnianie cache katalogu w sklepie (ADR-184)", () => {
+describe("unieważnianie cache katalogu w sklepie (ADR-185)", () => {
   beforeEach(async () => {
     skasowane.length = 0;
     bledy.length = 0;
@@ -170,7 +170,7 @@ describe("unieważnianie cache katalogu w sklepie (ADR-184)", () => {
     //
     // Poza zbiorem świadomie:
     //   • `saveUnitsAction` — zmienia DOSTĘPNOŚĆ, a dostępność nie przechodzi
-    //     przez cache i nie ma prawa przejść (ADR-184);
+    //     przez cache i nie ma prawa przejść (ADR-185);
     //   • `prepareProductImageUploadAction` — wydaje bilet uploadu, nie dotyka
     //     ani jednego wiersza koperty publicznej.
     const POZA_ZBIOREM = ["saveUnitsAction", "prepareProductImageUploadAction"];

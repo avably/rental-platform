@@ -157,7 +157,7 @@ vi.mock("@/lib/site/published", () => ({
 /**
  * Katalog najemcy po stronie ATRAPY — dwie pozycje pod dwoma adresami.
  *
- * Sklep od ADR-184 nie czyta go w całości na stronie sprzętu: kontekst tej
+ * Sklep od ADR-185 nie czyta go w całości na stronie sprzętu: kontekst tej
  * trasy niesie DOKŁADNIE jedną pozycję (`ProductPageContext`). Atrapa trzyma
  * obie, bo przypadek „ten sam szablon pod INNYM adresem" musi umieć oddać
  * inną — ale każde pojedyncze wywołanie oddaje jedną, tak jak baza.
@@ -192,7 +192,7 @@ vi.mock("@/lib/storefront/context", () => ({
         tenantId: TENANT,
         catalog: {
           tenant: { name: "Wypożyczalnia Testowa", locale: "pl", currency: "PLN" },
-          // JEDNA pozycja — ta spod adresu (ADR-184).
+          // JEDNA pozycja — ta spod adresu (ADR-185).
           products: [katalogowySprzet(wpis.id, wpis.nazwa)],
           custom_fields: [],
         },

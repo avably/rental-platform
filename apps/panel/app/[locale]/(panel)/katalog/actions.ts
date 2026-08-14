@@ -138,12 +138,12 @@ export async function createProductAction(
   if (error) return slugFieldError(error) ?? { formError: error.message };
   /*
     CACHE KATALOGU W SKLEPIE — UNIEWAŻNIAMY TU, A NIE PO KATEGORIACH
-    (faza 4a, ADR-184). Pozycja jest już w bazie, więc od tej chwili koperta
+    (faza 4a, ADR-185). Pozycja jest już w bazie, więc od tej chwili koperta
     katalogu w cache'u jest nieaktualna — niezależnie od tego, czy uda się
     jeszcze przypisać kategorie i czy wiersz oddał identyfikator. `redirect`
     niżej rzuca, więc unieważnienie postawione po nim nie wykonałoby się nigdy.
 
-    Do ADR-184 ta akcja nie wołała ŻADNEGO `revalidate*` — nie było czego
+    Do ADR-185 ta akcja nie wołała ŻADNEGO `revalidate*` — nie było czego
     unieważniać, bo sklep czytał katalog świeżo na każdą odsłonę.
   */
   await invalidateStorefrontCatalog(ctx.tenantId!);
@@ -240,7 +240,7 @@ export async function updateProductAction(
   );
   if (categoriesError) return { formError: categoriesError };
 
-  // Cache katalogu w SKLEPIE (ADR-184) — nazwa, cena, kaucja, bufory, pola
+  // Cache katalogu w SKLEPIE (ADR-185) — nazwa, cena, kaucja, bufory, pola
   // własne i `active` tej pozycji zmieniły się w kopercie publicznej.
   await invalidateStorefrontCatalog(ctx.tenantId!);
 

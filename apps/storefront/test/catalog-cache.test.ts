@@ -1,5 +1,5 @@
 /**
- * CACHE KATALOGU — IZOLACJA MIĘDZY NAJEMCAMI (faza 4a, ADR-184).
+ * CACHE KATALOGU — IZOLACJA MIĘDZY NAJEMCAMI (faza 4a, ADR-185).
  *
  * ==================== DLACZEGO TO JEST NAJGROŹNIEJSZY PLIK W TEJ FAZIE ====================
  *
@@ -67,7 +67,7 @@ const deps = (lookup: (t: string) => Promise<PublicCatalog | null>) => ({
   lookup,
 });
 
-describe("cache katalogu publicznego (ADR-184)", () => {
+describe("cache katalogu publicznego (ADR-185)", () => {
   beforeEach(() => {
     __resetCatalogCacheForTests();
     delete process.env.UPSTASH_REDIS_REST_URL;

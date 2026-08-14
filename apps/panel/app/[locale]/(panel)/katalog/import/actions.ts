@@ -77,7 +77,7 @@ export async function catalogImportAction(
     if (outcome.issues.length > 0) return { phase: "preview", issues: outcome.issues };
     if (!outcome.result) return { phase: "idle", formError: t("errors.empty") };
     revalidatePath("/", "layout");
-    // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+    // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
     // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
     await invalidateStorefrontCatalog(ctx.tenantId!);
     return { phase: "done", result: outcome.result };

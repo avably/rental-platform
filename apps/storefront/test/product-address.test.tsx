@@ -11,14 +11,14 @@
  * w sprzęt najemcy B wszędzie tam, gdzie obaj nazwali sprzęt tak samo — a nazwy
  * sprzętu do wypożyczenia powtarzają się między wypożyczalniami niemal zawsze.
  *
- * ==================== CO ZMIENIŁA FAZA 4a (ADR-184) ====================
+ * ==================== CO ZMIENIŁA FAZA 4a (ADR-185) ====================
  *
  * Do fazy 4a rozstrzygnięcie szło przez REJESTR adresów całego najemcy
  * (`ctx.productSlugs`), czytany NIEZALEŻNIE od katalogu. Dwa niezależne odczyty
  * znaczyły, że stan „znam pozycję, nie znam jej adresu" był reprezentowalny,
  * i trasa zastana musiała go umieć obsłużyć renderem.
  *
- * Od ADR-184 pozycja i jej adres przyjeżdżają JEDNĄ kopertą
+ * Od ADR-185 pozycja i jej adres przyjeżdżają JEDNĄ kopertą
  * (`app.get_public_product`), więc ten stan nie ma już gdzie powstać. Testy
  * mockują tu WARSTWĘ DANYCH, a nie kontekst — dzięki temu pod pomiarem stoi
  * prawdziwa logika `loadProductPageContext`, w tym mapowanie trzech odpowiedzi
@@ -221,7 +221,7 @@ describe("adres strony sprzętu (ADR-182)", () => {
     /*
      * FAIL-CLOSED. Do fazy 4a rejestr adresów degradował się MIĘKKO (`null` =
      * „adresów nie znamy", kafle linkują pod adres zastany), bo był odczytem
-     * OSOBNYM od katalogu. Od ADR-184 adres jedzie tą samą kopertą, co pozycja:
+     * OSOBNYM od katalogu. Od ADR-185 adres jedzie tą samą kopertą, co pozycja:
      * nieudany odczyt znaczy, że nie znamy ANI pozycji, ANI adresu — a wtedy
      * nie ma czego wyrenderować. Cicha degradacja do „jakiejś" strony byłaby tu
      * gorsza od 404.

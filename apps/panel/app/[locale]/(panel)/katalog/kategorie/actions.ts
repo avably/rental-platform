@@ -114,7 +114,7 @@ export async function createCategoryAction(
   if (error) return withFormEcho(databaseError(error.code, error.message), echo);
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   redirect(await localePath(LIST_PATH));
@@ -152,7 +152,7 @@ export async function updateCategoryAction(
   if (!data || data.length === 0) return withFormEcho({ formError: NOT_FOUND }, echo);
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "saved" };
@@ -187,7 +187,7 @@ export async function deleteCategoryAction(
   if (!data || data.length === 0) return { formError: NOT_OWNER };
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "deleted" };
@@ -256,7 +256,7 @@ export async function moveCategoryAction(
   }
 
   revalidatePath("/", "layout");
-  // Cache katalogu w SKLEPIE (ADR-184) — panelowy `revalidatePath` go nie
+  // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
   return { success: "moved" };

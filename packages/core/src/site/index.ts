@@ -37,7 +37,7 @@ export function tenantCacheTag(tenantId: string): string {
 }
 
 /**
- * KLUCZ WSPÓŁDZIELONEGO WPISU CACHE KATALOGU PUBLICZNEGO (faza 4a, ADR-184).
+ * KLUCZ WSPÓŁDZIELONEGO WPISU CACHE KATALOGU PUBLICZNEGO (faza 4a, ADR-185).
  *
  * ==================== DLACZEGO NIE `revalidateTag` ====================
  *

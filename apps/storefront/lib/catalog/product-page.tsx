@@ -41,7 +41,7 @@
  *
  * OD FAZY 4a WARUNEK ADR-180 JEST SPEŁNIONY MOCNIEJ, nie słabiej: ta lista ma
  * dokładnie JEDEN element — pozycję spod adresu (`ProductPageContext`,
- * ADR-184). Na stronie sprzętu nie ma już DRUGIEJ listy tych samych danych,
+ * ADR-185). Na stronie sprzętu nie ma już DRUGIEJ listy tych samych danych,
  * z którą cokolwiek mogłoby się rozjechać, bo cały katalog przestał tu
  * przyjeżdżać.
  *
@@ -51,7 +51,7 @@
  * DANE POZYCJI I ADRES — z JEDNEJ koperty wąskiego odczytu
  * (`app.get_public_product`, 0084), nigdy z szablonu. Do fazy 4a były to dwa
  * niezależne odczyty (katalog i rejestr adresów), więc stan „znam pozycję, nie
- * znam jej adresu" był reprezentowalny; od ADR-184 nie jest.
+ * znam jej adresu" był reprezentowalny; od ADR-185 nie jest.
  * ZNAK I WYGLĄD — z wiersza NAJEMCY (`ctx.style`, `storeLogo`, ADR-171).
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.

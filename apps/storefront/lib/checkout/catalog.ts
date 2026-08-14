@@ -83,12 +83,12 @@ export async function getPublicCatalog(
 }
 
 /**
- * WĄSKI ODCZYT JEDNEJ POZYCJI dla strony sprzętu (0084, ADR-184).
+ * WĄSKI ODCZYT JEDNEJ POZYCJI dla strony sprzętu (0084, ADR-185).
  *
  * ==================== CO ZASTĘPUJE ====================
  *
  * DWA odczyty O(N) naraz: pełny katalog (`get_public_catalog`) i rejestr
- * adresów (`get_public_product_slugs`). Do ADR-184 strona sprzętu ciągnęła oba
+ * adresów (`get_public_product_slugs`). Do ADR-185 strona sprzętu ciągnęła oba
  * — pierwszy po to, żeby znaleźć w nim jeden wiersz, drugi po to, żeby
  * rozstrzygnąć adres. Zmierzone na katalogu 200 pozycji: 227 019 + 15 440
  * bajtów na odsłonę wobec ~1 300 bajtów tej koperty.

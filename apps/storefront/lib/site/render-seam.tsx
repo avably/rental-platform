@@ -76,7 +76,7 @@ export interface SiteRenderSeam {
  */
 /**
  * WEJŚCIE SZWU — kształt STRUKTURALNY, nie `StorefrontContext` (faza 4a,
- * ADR-184). Od tej fazy strona sprzętu ma własny, węższy kontekst: jedną
+ * ADR-185). Od tej fazy strona sprzętu ma własny, węższy kontekst: jedną
  * pozycję zamiast katalogu. Szew czyta z kontekstu dokładnie sześć rzeczy
  * i nazwanie ich wprost wpuszcza oba konteksty bez zmiany w wywołaniach.
  */

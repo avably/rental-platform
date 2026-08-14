@@ -1,5 +1,5 @@
 /**
- * UNIEWAŻNIANIE CACHE KATALOGU W SKLEPIE (faza 4a, ADR-184).
+ * UNIEWAŻNIANIE CACHE KATALOGU W SKLEPIE (faza 4a, ADR-185).
  *
  * ==================== DLACZEGO TO NIE JEST `revalidateTag` ====================
  *
@@ -8,7 +8,7 @@
  * "layout")` i `revalidateTag(tenantCacheTag(...))` w tym pakiecie odświeżają
  * EKRANY PANELU — do cache'u sklepu nie mają żadnej drogi i nigdy nie miały.
  * Do fazy 4a nie miało to znaczenia, bo sklep nie buforował niczego między
- * żądaniami. Od ADR-184 buforuje kopertę katalogu, więc potrzebny jest kanał,
+ * żądaniami. Od ADR-185 buforuje kopertę katalogu, więc potrzebny jest kanał,
  * którym operator mówi sklepowi „to, co masz, jest już nieaktualne".
  *
  * Kanałem jest MAGAZYN WSPÓŁDZIELONY (Upstash), do którego sięgają obie
