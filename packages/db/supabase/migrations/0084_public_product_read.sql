@@ -3,8 +3,8 @@
 -- Do tej migracji strona sprzętu nie miała jak zapytać o SWOJĄ pozycję. Trasa
 -- `/produkt/{slug}` wołała `app.get_public_catalog`, czyli CAŁY katalog
 -- najemcy, i wyszukiwała w nim jeden wiersz w pamięci procesu. Zmierzone na
--- fiksturze 200 pozycji (3 zdjęcia i 2 progi na pozycję): 243 109 bajtów
--- koperty katalogu plus 15 037 bajtów rejestru adresów na KAŻDĄ odsłonę
+-- fiksturze 200 pozycji (3 zdjęcia i 2 progi na pozycję): 227 019 bajtów
+-- koperty katalogu plus 15 440 bajtów rejestru adresów na KAŻDĄ odsłonę
 -- KAŻDEJ strony sprzętu. Faza 5 zamieniła każdą pozycję katalogu w osobny,
 -- indeksowalny adres, więc liczba takich odsłon rośnie z katalogiem.
 --

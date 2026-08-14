@@ -24,7 +24,7 @@
  *
  * Do fazy 4a rozstrzygał to REJESTR adresów całego najemcy
  * (`app.get_public_product_slugs`, 0083) — jedną podróżą, ale w rozmiarze
- * O(N): 15 037 bajtów przy 200 pozycjach, na każdą odsłonę. Od ADR-184 te same
+ * O(N): 15 440 bajtów przy 200 pozycjach, na każdą odsłonę. Od ADR-184 te same
  * trzy odpowiedzi (razem z historią adresów, więc dalej BEZ drugiej podróży)
  * niesie wąski odczyt `app.get_public_product` — w rozmiarze O(1). Rejestru ta
  * trasa nie czyta już wcale, tak samo jak katalogu.

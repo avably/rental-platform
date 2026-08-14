@@ -1,7 +1,14 @@
--- FIKSTURA POMIAROWA ADR-184 — dwa najemcy, po 200 pozycji katalogu.
+-- FIKSTURA ADR-184 DO OGLĘDZIN RĘCZNYCH — dwa najemcy, po 200 pozycji katalogu.
 --
--- Dwa najemcy z TYM SAMYM slugiem sprzętu na pozycji nr 1 — to jest fikstura
--- testu izolacji cache'u: żądanie do B nie ma prawa dostać pozycji A.
+-- POMIAR JEJ NIE POTRZEBUJE. Suita `apps/storefront/test/koszt-odslony.integration.test.ts`
+-- zakłada sobie własną fiksturę (o losowych identyfikatorach, żeby nie kasować
+-- cudzej na współdzielonej bazie lokalnej) i po sobie sprząta — dzięki temu
+-- rachunek odsłony jest bramką CI, a nie jednorazowym pomiarem.
+--
+-- Ten plik zostaje do OGLĘDZIN W PRZEGLĄDARCE: katalog 200 pozycji ze stałymi
+-- adresami, pod którym da się kliknąć sklep i zobaczyć te same liczby
+-- w zakładce sieci. Dwaj najemcy mają TEN SAM slug sprzętu na pozycji nr 1 —
+-- to jest fikstura izolacji: żądanie do B nie ma prawa dostać pozycji A.
 --
 -- Idempotentna: kasuje najemców po slugu i zakłada od nowa.
 

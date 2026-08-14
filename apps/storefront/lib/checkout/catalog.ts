@@ -90,8 +90,8 @@ export async function getPublicCatalog(
  * DWA odczyty O(N) naraz: pełny katalog (`get_public_catalog`) i rejestr
  * adresów (`get_public_product_slugs`). Do ADR-184 strona sprzętu ciągnęła oba
  * — pierwszy po to, żeby znaleźć w nim jeden wiersz, drugi po to, żeby
- * rozstrzygnąć adres. Zmierzone na katalogu 200 pozycji: 243 109 + 15 037
- * bajtów na odsłonę wobec ~1 375 bajtów tej koperty.
+ * rozstrzygnąć adres. Zmierzone na katalogu 200 pozycji: 227 019 + 15 440
+ * bajtów na odsłonę wobec ~1 300 bajtów tej koperty.
  *
  * ==================== DLACZEGO WSKAZANIE JEST SUMĄ, A NIE DWIEMA FUNKCJAMI ====================
  *

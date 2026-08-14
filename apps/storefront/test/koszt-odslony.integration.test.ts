@@ -20,15 +20,28 @@
  * ==================== JAK TO POWTÓRZYĆ ====================
  *
  *   1. `supabase start` w `packages/db`
- *   2. fikstura: `docs/pomiary/faza4a-fikstura.sql` przez psql na lokalnej bazie
- *   3. `SUPABASE_LOCAL_API_URL=… SUPABASE_LOCAL_ANON_KEY=… \
- *       corepack pnpm --filter @avably/storefront exec vitest run test/koszt-odslony.integration.test.ts`
+ *   2. `SUPABASE_LOCAL_API_URL=… SUPABASE_LOCAL_ANON_KEY=… SUPABASE_LOCAL_SERVICE_ROLE_KEY=… \
+ *       FAZA4A_RAPORT=/tmp/raport.txt \
+ *       corepack pnpm --filter storefront exec vitest run test/koszt-odslony.integration.test.ts`
  *
- * Bez tych zmiennych plik jest POMIJANY (jak reszta suit integracyjnych),
+ * FIKSTURA ZAKŁADA SIĘ SAMA i po sobie sprząta. Pierwsza wersja tego pliku
+ * wymagała wgrania `docs/pomiary/faza4a-fikstura.sql` ręcznie — i przez to
+ * padła w CI, gdzie zmienne `SUPABASE_LOCAL_*` SĄ, a fikstury nie ma. Skoro
+ * suita i tak ma bazę, ma też obowiązek przygotować sobie dane: dzięki temu
+ * rachunek odsłony jest BRAMKĄ CI, a nie jednorazowym pomiarem. Ten sam plik
+ * SQL zostaje w repo do ręcznych oględzin w przeglądarce.
+ *
+ * Identyfikatory najemców są losowe per przebieg — lokalna baza bywa
+ * współdzielona między równoległymi sesjami i stała fikstura kasowałaby cudzą.
+ *
+ * Bez zmiennych plik jest POMIJANY (jak reszta suit integracyjnych),
  * a nie zielony — pominięcie widać w podsumowaniu vitest.
  */
 import { appendFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { ReactNode } from "react";
+
+import { createClient } from "@supabase/supabase-js";
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -37,13 +50,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
  * Fikstura — lustro docs/pomiary/faza4a-fikstura.sql
  * ---------------------------------------------------------------------- */
 
-const NAJEMCA_A = "aaaaaaaa-0000-4000-8000-000000000001";
-const NAJEMCA_B = "bbbbbbbb-0000-4000-8000-000000000002";
+/** Ile pozycji ma katalog pomiarowy. Dokument liczy koszt fazy 4 na tej skali. */
+const POZYCJI = 200;
+
+/** Znacznik przebiegu — izoluje fiksturę od równoległych sesji na tej samej bazie. */
+const BIEG = randomUUID().slice(0, 8);
 
 /** Pozycja nr 1 — TEN SAM slug u obu najemców (fikstura izolacji). */
-const SLUG_WSPOLNY = "wiertarka-udarowa-sds";
-const NAZWA_A_1 = "Alfa sprzet 001";
-const NAZWA_B_1 = "Beta sprzet 001";
+const SLUG_WSPOLNY = `wiertarka-udarowa-${BIEG}`;
+const NAZWA_A_1 = `Alfa ${BIEG} sprzet 001`;
+const NAZWA_B_1 = `Beta ${BIEG} sprzet 001`;
 
 /**
  * Pozycja, której strona sprzętu NIE POKAZUJE. Nazwa jest unikatowa w całej
@@ -52,10 +68,16 @@ const NAZWA_B_1 = "Beta sprzet 001";
  * WYŁĄCZNIE dlatego, że ta wartość nie ma prawa stać tam z żadnego innego
  * powodu — inaczej byłaby to bramka, która przechodzi przypadkiem.
  */
-const NAZWA_CUDZEJ_POZYCJI = "Alfa sprzet 200";
+const NAZWA_CUDZEJ_POZYCJI = `Alfa ${BIEG} sprzet ${POZYCJI}`;
 
-const WYMAGANE_ENV = ["SUPABASE_LOCAL_API_URL", "SUPABASE_LOCAL_ANON_KEY"] as const;
+const WYMAGANE_ENV = [
+  "SUPABASE_LOCAL_API_URL",
+  "SUPABASE_LOCAL_ANON_KEY",
+  "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
+] as const;
 const maBaze = WYMAGANE_ENV.every((name) => Boolean(process.env[name]));
+
+const najemcy = { a: "", b: "" };
 
 /* -------------------------------------------------------------------------
  * Przyrząd — licznik na granicy procesu
@@ -128,7 +150,7 @@ function raport(etykieta: string): void {
  * Atrapy krawędzi Next — nagłówki żądania i cookies
  * ---------------------------------------------------------------------- */
 
-const stanZadania = { tenantId: NAJEMCA_A };
+const stanZadania = { tenantId: "" };
 
 vi.mock("next/headers", () => ({
   headers: () =>
@@ -168,6 +190,88 @@ async function renderKatalogu(): Promise<string> {
   return renderToStaticMarkup(drzewo);
 }
 
+
+/* -------------------------------------------------------------------------
+ * Fikstura zakładana przez suitę — patrz nagłówek pliku
+ * ---------------------------------------------------------------------- */
+
+function admin() {
+  return createClient(
+    process.env.SUPABASE_LOCAL_API_URL as string,
+    process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY as string,
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } },
+  );
+}
+
+/**
+ * Katalog jednego najemcy: `POZYCJI` pozycji, po 3 zdjęcia i 2 progi cenowe.
+ *
+ * BOGATY, NIE MINIMALNY — i to jest cały sens tej fikstury. Pomiar na
+ * pozycjach bez zdjęć i progów pokazałby kopertę kilkukrotnie mniejszą od
+ * produkcyjnej, więc różnica przed/po wyglądałaby na mniejszą, niż jest.
+ */
+async function zalozNajemce(etykieta: string): Promise<string> {
+  const db = admin();
+  const { data: tenant, error } = await db
+    .from("tenants")
+    .insert({
+      // CHECK tenants_slug_check: same małe litery, cyfry i myślnik.
+      slug: `k4a-${etykieta.toLowerCase()}-${BIEG}`,
+      name: `Pomiar ${etykieta} ${BIEG}`,
+      status: "active",
+      locale: "pl",
+    })
+    .select("id")
+    .single();
+  if (error || !tenant) throw new Error(`fikstura najemcy: ${error?.message}`);
+  const tenantId = tenant.id as string;
+
+  await db.from("tenant_settings").insert({ tenant_id: tenantId, key: "currency", value: "PLN" });
+
+  const wiersze = Array.from({ length: POZYCJI }, (_, k) => {
+    const nr = String(k + 1).padStart(3, "0");
+    return {
+      tenant_id: tenantId,
+      name: `${etykieta} ${BIEG} sprzet ${k + 1 === POZYCJI ? String(POZYCJI) : nr}`,
+      // Pozycja nr 1 dostaje adres WSPÓLNY dla obu najemców — fikstura izolacji.
+      slug: k === 0 ? SLUG_WSPOLNY : `${etykieta.toLowerCase()}-${BIEG}-${nr}`,
+      description:
+        "Opis pozycji o dlugosci zblizonej do produkcyjnej, zeby pomiar rozmiaru koperty nie stal na pustych polach. Sprzet budowlany do wynajmu krotko- i dlugoterminowego.",
+      base_price_day_grosze: 10_000 + k * 37,
+      deposit_grosze: 20_000 + k * 11,
+    };
+  });
+
+  const { data: pozycje, error: bladPozycji } = await db
+    .from("products")
+    .insert(wiersze)
+    .select("id");
+  if (bladPozycji || !pozycje) throw new Error(`fikstura pozycji: ${bladPozycji?.message}`);
+
+  const zdjecia = pozycje.flatMap((poz) =>
+    [0, 1, 2].map((n) => ({
+      tenant_id: tenantId,
+      product_id: poz.id as string,
+      storage_path: `${tenantId}/${poz.id}/${randomUUID()}.webp`,
+      sort_order: n,
+      alt_text: `Zdjecie ${n}`,
+    })),
+  );
+  const progi = pozycje.flatMap((poz) => [
+    { tenant_id: tenantId, product_id: poz.id as string, tier_days: 3, multiplier: 0.9, label: "Od 3 dni" },
+    { tenant_id: tenantId, product_id: poz.id as string, tier_days: 7, multiplier: 0.8, label: "Od tygodnia" },
+  ]);
+
+  const [{ error: bladZdjec }, { error: bladProgow }] = await Promise.all([
+    db.from("product_images").insert(zdjecia),
+    db.from("pricing_tiers").insert(progi),
+  ]);
+  if (bladZdjec) throw new Error(`fikstura zdjec: ${bladZdjec.message}`);
+  if (bladProgow) throw new Error(`fikstura progow: ${bladProgow.message}`);
+
+  return tenantId;
+}
+
 /* -------------------------------------------------------------------------
  * Suita
  * ---------------------------------------------------------------------- */
@@ -178,22 +282,30 @@ describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-184
   beforeAll(async () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.SUPABASE_LOCAL_API_URL;
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.SUPABASE_LOCAL_ANON_KEY;
+    najemcy.a = await zalozNajemce("Alfa");
+    najemcy.b = await zalozNajemce("Beta");
+    stanZadania.tenantId = najemcy.a;
+
     zalozLicznik();
     // Rozgrzewka grafu modułów — patrz product-template-route.test.tsx.
     await import("../app/(tenant)/produkt/[slug]/page");
     await import("../app/(tenant)/store/page");
     ruch.length = 0;
-  }, 180_000);
+  }, 300_000);
 
   afterEach(() => {
     ruch.length = 0;
-    stanZadania.tenantId = NAJEMCA_A;
+    stanZadania.tenantId = najemcy.a;
     vi.resetModules();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     globalThis.fetch = oryginalnyFetch;
-  });
+    const db = admin();
+    for (const id of [najemcy.a, najemcy.b]) {
+      if (id) await db.from("tenants").delete().eq("id", id);
+    }
+  }, 120_000);
 
   it("strona sprzętu: rachunek odsłony", async () => {
     const markup = await renderStronySprzetu(SLUG_WSPOLNY);
@@ -265,12 +377,10 @@ describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-184
 
     vi.resetModules();
     ruch.length = 0;
-    stanZadania.tenantId = NAJEMCA_B;
+    stanZadania.tenantId = najemcy.b;
     const markupB = await renderStronySprzetu(SLUG_WSPOLNY);
 
     expect(markupB, "najemca B nie dostał swojej pozycji").toContain(NAZWA_B_1);
     expect(markupB, "WYCIEK: najemca B zobaczył pozycję najemcy A").not.toContain(NAZWA_A_1);
   }, BUDZET_RENDERU);
 });
-
-export { NAZWA_CUDZEJ_POZYCJI };

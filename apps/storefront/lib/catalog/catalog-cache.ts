@@ -5,7 +5,7 @@
  *
  * `loadStorefrontContext` woła `getPublicCatalog` przez `cache` z Reacta, czyli
  * DEDUPLIKACJĘ W OBRĘBIE JEDNEGO ŻĄDANIA. Drugi odwiedzający płaci od nowa,
- * i trzeci, i każdy kolejny. Zmierzone na katalogu 200 pozycji: 243 109 bajtów
+ * i trzeci, i każdy kolejny. Zmierzone na katalogu 200 pozycji: 227 019 bajtów
  * na każdą odsłonę każdej trasy, która czyta katalog (`/store`, strona
  * treściowa, koszyk, kasa, widget, sitemapa).
  *
@@ -23,8 +23,10 @@
  *      wtedy sklep trzyma wpis w pamięci INSTANCJI, a panel nie ma czym w nią
  *      trafić;
  *   2. skasowanie się nie powiodło (błąd sieci do magazynu).
- * Oba przypadki panel wypisuje głośno do logu — cicha nieskuteczność
- * unieważniania jest tu groźniejsza niż sam brak cache'u.
+ * Błąd sieci panel wypisuje do logu zawsze, brak konfiguracji — wyłącznie na
+ * produkcji, gdzie jest wadą wdrożenia (w dev i CI to stan normalny, a log przy
+ * każdej mutacji uczyłby zespół przewijać błędy). Patrz nagłówek
+ * `apps/panel/lib/catalog-cache.ts`.
  *
  * ==================== CZEGO TEN CACHE NIE OBEJMUJE ====================
  *
