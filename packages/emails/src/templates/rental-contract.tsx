@@ -1,7 +1,7 @@
 import type { Locale } from "@avably/core";
 import { Section, Text } from "react-email";
 
-import { RentalEmailLayout } from "../components/email-layout";
+import { RentalEmailLayout, type EmailTenantLogo } from "../components/email-layout";
 import { emailMessages } from "../messages";
 import { EMAIL_COLORS, EMAIL_STYLES } from "../styles";
 
@@ -10,11 +10,14 @@ export interface RentalContractEmailProps {
   tenantName: string;
   customerName: string;
   orderNumber: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  logo?: EmailTenantLogo;
 }
 
 /** Treść wariantu 8a; dokładne bajty PDF dokłada transport na granicy I/O. */
 export function RentalContractEmail({
   locale,
+  logo,
   tenantName,
   customerName,
   orderNumber,
@@ -27,6 +30,7 @@ export function RentalContractEmail({
       footerText={messages.rentalLifecycle.footerAutomated}
       heading={t.heading}
       locale={locale}
+      logo={logo}
       previewText={t.preview(orderNumber)}
       tenantName={tenantName}
     >

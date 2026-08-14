@@ -1,8 +1,9 @@
 import React from "react";
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 import { HtmlContent, looksLikeHtml } from "./html-to-pdf";
 import { CONTRACT_LABELS } from "./labels";
+import { contractLogoImage } from "./logo";
 import { formatMoney } from "./money";
 import type { ContractCustomField, ContractPdfProps } from "./types";
 
@@ -33,6 +34,13 @@ const styles = StyleSheet.create({
     borderBottom: `2 solid ${SIGNAL_STRONG}`,
   },
   title: { fontSize: 14, fontWeight: 700, color: INK, letterSpacing: 0.5 },
+  /**
+   * Pudełko znaku najemcy (ADR-175) — lustro roli `.site-logo` ze sklepu
+   * (ADR-160, decyzja 6), przeliczone na punkty PDF: 27 pt ≈ 36 px, 144 pt
+   * ≈ 192 px. `objectFit: "contain"` trzyma proporcje, więc plik 3000 × 200
+   * mieści się w tej samej ramce co kwadratowy i nie rozpycha nagłówka.
+   */
+  headerLogo: { height: 27, maxWidth: 144, objectFit: "contain", marginBottom: 6 },
   headerMeta: { fontSize: 8, color: MUTED, marginTop: 2 },
   headerRight: { alignItems: "flex-end" },
   orderBadge: {
@@ -183,6 +191,11 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
   // powierzchnia nie przestawia dokumentów, do których nikt jej nie zamówił.
   const hasExtras = customerFields.length > 0 || orderFields.length > 0;
   const termsNumber = hasExtras ? 6 : 5;
+  // ZNAK NAJEMCY (ADR-175). Decyzja o obrazie zapada TUTAJ, z propsów, a nie
+  // wewnątrz `<Image>`: renderer połyka nieczytelny plik ostrzeżeniem na
+  // konsoli i rysuje stronę bez obrazu, więc zdanie się na niego znaczyłoby
+  // dziurę w nagłówku zamiast fallbacku (patrz `logo.ts`).
+  const mark = contractLogoImage(tenant.logo);
 
   return (
     <Document>
@@ -190,6 +203,14 @@ export function ContractDocument(props: ContractPdfProps): React.JSX.Element {
         {/* ── Nagłówek ── */}
         <View style={styles.headerBar}>
           <View>
+            {/*
+              Znak stoi NAD tytułem i niczego nie zastępuje. To jest różnica
+              wobec e-maila, gdzie zajmuje miejsce napisu z nazwą: tam nazwa
+              jest MARKĄ nadawcy, a tutaj TREŚCIĄ umowy — wynajmującym. Nazwa
+              wynajmującego nie znika z dokumentu nigdy, więc najemca bez znaku
+              dostaje nagłówek co do znaku taki sam jak przed tą zmianą.
+            */}
+            {mark ? <Image src={mark} style={styles.headerLogo} /> : null}
             <Text style={styles.title}>{t.documentTitle}</Text>
             <Text style={styles.headerMeta}>{`${tenant.name} · ${tenant.email}`}</Text>
           </View>

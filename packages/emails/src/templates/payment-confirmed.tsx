@@ -15,7 +15,7 @@
 import type { Locale } from "@avably/core";
 import { Section, Text } from "react-email";
 
-import { RentalEmailLayout } from "../components/email-layout";
+import { RentalEmailLayout, type EmailTenantLogo } from "../components/email-layout";
 import { emailMessages } from "../messages";
 import { EMAIL_COLORS, EMAIL_STYLES } from "../styles";
 
@@ -26,12 +26,15 @@ export interface PaymentConfirmedEmailProps {
   customerName: string;
   /** Kwota zaksięgowana, SFORMATOWANA przez wołającego (kontrakt 8a). */
   amountPaidFormatted: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  logo?: EmailTenantLogo;
 }
 
 export function PaymentConfirmedEmail({
   amountPaidFormatted,
   customerName,
   locale,
+  logo,
   orderNumber,
   tenantName,
 }: PaymentConfirmedEmailProps) {
@@ -47,6 +50,7 @@ export function PaymentConfirmedEmail({
       footerText={t.rentalLifecycle.footerAutomated}
       heading={message.heading}
       locale={locale}
+      logo={logo}
       previewText={message.preview(orderNumber)}
       tenantName={tenantName}
     >

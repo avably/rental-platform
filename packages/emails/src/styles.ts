@@ -40,6 +40,25 @@ export const EMAIL_STYLES = {
     letterSpacing: "-0.01em",
     margin: "0 0 28px",
   },
+  /**
+   * Znak najemcy w miejscu napisu z nazwą (ADR-175). Pudełko jest LUSTREM roli
+   * `.site-logo` ze sklepu (ADR-160, decyzja 6): 36 px wysokości, 192 px
+   * szerokości, proporcje zachowane. Plik 3000 × 200 zmieści się w tych samych
+   * 192 × 36 px, a klient poczty nie ma jak rozepchnąć ramki wiadomości.
+   *
+   * Wymiary idą ATRYBUTAMI stylu, nie `width`/`height` znacznika: część
+   * klientów poczty (Outlook) czyta wyłącznie style inline, a nie znamy
+   * proporcji pliku — narzucenie obu wymiarów zniekształciłoby każdy znak
+   * o innych proporcjach niż 16:3.
+   */
+  logo: {
+    display: "block",
+    height: "auto",
+    margin: "0 0 28px",
+    maxHeight: "36px",
+    maxWidth: "192px",
+    width: "auto",
+  },
   heading: {
     color: EMAIL_COLORS.foreground,
     fontSize: "24px",

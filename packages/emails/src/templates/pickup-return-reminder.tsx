@@ -1,7 +1,7 @@
 import type { Locale } from "@avably/core";
 import { Section, Text } from "react-email";
 
-import { RentalEmailLayout } from "../components/email-layout";
+import { RentalEmailLayout, type EmailTenantLogo } from "../components/email-layout";
 import { emailMessages } from "../messages";
 import { EMAIL_COLORS, EMAIL_STYLES } from "../styles";
 
@@ -24,12 +24,15 @@ export interface PickupReturnReminderEmailProps {
   locationAddress: string;
   phone?: string;
   openingHours?: string;
+  /** Znak najemcy, KTÓREGO DOTYCZY wiadomość (ADR-175); brak = nazwa tekstem. */
+  logo?: EmailTenantLogo;
 }
 
 export function PickupReturnReminderEmail({
   customerName,
   endDate,
   locale,
+  logo,
   locationAddress,
   locationName,
   openingHours,
@@ -52,6 +55,7 @@ export function PickupReturnReminderEmail({
       footerText={messages.rentalLifecycle.footerAutomated}
       heading={t.heading}
       locale={locale}
+      logo={logo}
       previewText={t.preview(orderNumber)}
       tenantName={tenantName}
     >
