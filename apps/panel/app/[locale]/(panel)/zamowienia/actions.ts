@@ -520,13 +520,15 @@ export async function sendTransitionEmailAction(input: {
     };
   }
 
+  // Znak z WIERSZA tego najemcy — nie z sesji i nie z nagłówka (ADR-175).
+  const tenantLogo = tenantEmailLogo(tenant);
+
   const problem = await sendRentalEmailForTransition({
     status,
     order,
     orderId,
     tenantName: tenant.name,
-    // Znak z WIERSZA tego najemcy — nie z sesji i nie z nagłówka (ADR-175).
-    ...(tenantEmailLogo(tenant) ? { tenantLogo: tenantEmailLogo(tenant)! } : {}),
+    ...(tenantLogo ? { tenantLogo } : {}),
     // tenants.locale jest not null (0005), ale nieznana wartość nie może
     // wywrócić wysyłki — spada na domyślne locale tenanta.
     locale: isLocale(tenant.locale ?? "") ? (tenant.locale as Locale) : DEFAULT_TENANT_LOCALE,

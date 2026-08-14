@@ -23,9 +23,9 @@ import {
 import { verifyTurnstile } from "@avably/security/turnstile";
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { checkoutEmailLogo } from "@/lib/checkout/tenant-logo";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
+import { checkoutEmailLogo } from "@/lib/checkout/tenant-logo";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readCheckoutCustomFieldDefinitions } from "@/lib/checkout/catalog";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
