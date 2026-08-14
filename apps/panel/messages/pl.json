@@ -1961,7 +1961,8 @@
       "newTemplateBody": "Jeden układ dla wszystkich stron sprzętu. Adresu nie podajesz — szablon pokazuje się pod adresem każdej pozycji z katalogu. Powstanie pusty; wbudowaną stronę zastąpi dopiero po publikacji.",
       "newTemplateConfirm": "Utwórz szablon",
       "templateDefaultName": "Strona sprzętu",
-      "slugTemplate": "Szablon strony produktu nie ma własnego adresu — pokazuje się pod adresem każdego sprzętu."
+      "slugTemplate": "Szablon strony produktu nie ma własnego adresu — pokazuje się pod adresem każdego sprzętu.",
+      "unpublishBodyTemplate": "Szablon zniknie ze stron sprzętu — klienci zobaczą tam z powrotem układ wbudowany. Treść szablonu zostaje; możesz opublikować go ponownie."
     },
     "structured": {
       "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",

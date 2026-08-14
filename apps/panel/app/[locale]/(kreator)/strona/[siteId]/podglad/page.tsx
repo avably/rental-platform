@@ -159,7 +159,7 @@ export default async function SiteDraftPreviewPage({
   const { page, shell, shadowedPinned } = await previewShellSections(
     ctx.supabase,
     ctx.tenantId!,
-    (data.site as { slug?: string | null }).slug,
+    { slug: data.site.slug, kind: data.site.kind },
     data.sections,
   );
 

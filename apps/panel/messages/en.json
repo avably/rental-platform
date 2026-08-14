@@ -1961,7 +1961,8 @@
       "newTemplateBody": "One layout for every equipment page. You do not give it an address — the template appears at the address of each catalogue item. It starts empty; it replaces the built-in page only once you publish it.",
       "newTemplateConfirm": "Create template",
       "templateDefaultName": "Equipment page",
-      "slugTemplate": "A product page template has no address of its own — it is shown at every piece of equipment’s address."
+      "slugTemplate": "A product page template has no address of its own — it is shown at every piece of equipment’s address.",
+      "unpublishBodyTemplate": "The template disappears from equipment pages — customers will see the built-in layout there again. Its content stays; you can publish it again."
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",

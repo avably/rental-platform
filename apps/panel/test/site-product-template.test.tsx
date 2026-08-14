@@ -76,6 +76,9 @@ const { SitePages } = await import("@/app/[locale]/(panel)/strona/site-pages");
 const { hasHomePage, hasProductTemplate, productTemplateSlugIssue } = await import(
   "@/lib/site-validation"
 );
+const { previewShellSections } = await import(
+  "@/app/[locale]/(kreator)/strona/[siteId]/podglad/shell-sections"
+);
 
 const SITE_ID = "99999999-9999-4999-8999-999999999999";
 const SECTION_ID = "aaaaaaaa-1111-4111-8111-111111111111";
@@ -315,6 +318,143 @@ describe("ekran stron nie pokazuje szablonowi adresu, którego nie ma", () => {
   it("z szablonem karta zachęty znika", () => {
     const { container } = renderujListe([STRONA_GLOWNA, SZABLON]);
     expect(container.querySelector("[data-site-template-missing]")).toBeNull();
+  });
+});
+
+describe("okno zdjęcia ze sklepu mówi o skutku, który naprawdę nastąpi", () => {
+  it("SZABLON dostaje własne zdanie, a nie zdanie o korzeniu sklepu", () => {
+    /*
+      Szablon ma pusty `slug_published`, więc bez członu o roli wpadałby
+      w gałąź STRONY GŁÓWNEJ i obiecywał, że po zdjęciu „korzeń sklepu będzie
+      pusty" — zdanie prawdziwe o innym wierszu i fałszywe o tym.
+    */
+    const { container } = renderujListe([{ ...SZABLON, live: true, slugPublished: "" }]);
+    fireEvent.click(screen.getByText(pages.unpublish));
+
+    const zakres = container.ownerDocument.body.querySelector("[data-unpublish-scope]");
+    expect(zakres?.getAttribute("data-unpublish-scope")).toBe("template");
+    expect(zakres?.textContent).toBe(pages.unpublishBodyTemplate);
+  });
+
+  it("KONTROLA POZYTYWNA: STRONA GŁÓWNA dalej dostaje zdanie o korzeniu", () => {
+    const { container } = renderujListe([STRONA_GLOWNA]);
+    fireEvent.click(screen.getByText(pages.unpublish));
+
+    const zakres = container.ownerDocument.body.querySelector("[data-unpublish-scope]");
+    expect(zakres?.getAttribute("data-unpublish-scope")).toBe("home");
+    expect(zakres?.textContent).toBe(pages.unpublishBodyHome);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Podgląd szkicu: szablon nie jest powłoką, mimo pustego sluga
+// -----------------------------------------------------------------------
+describe("podział sekcji podglądu pyta o ROLĘ, nie o sam slug", () => {
+  const STOPKA = { id: "sek-stopka", type: "footer", position: 9, enabled: true, deleted_in_draft: false, content_draft: { heading: "STOPKA-TEJ-STRONY" } };
+  const HERO = { id: "sek-hero", type: "hero", position: 0, enabled: true, deleted_in_draft: false, content_draft: { heading: "Hero" } };
+
+  /**
+   * Klient, który ZAPISUJE zadane mu filtry i oddaje stopkę strony głównej.
+   * Dzięki temu test mierzy dwie rzeczy naraz: KTÓRĄ gałąź wybrał podział
+   * i CZY zapytanie o stronę główną pyta także o rolę.
+   */
+  function stubClient() {
+    const filtry: Record<string, unknown>[] = [];
+    const builder: Record<string, unknown> = {};
+    const chain = {
+      select: () => chain,
+      eq: (kolumna: string, wartosc: unknown) => {
+        filtry.push({ kolumna, wartosc });
+        return chain;
+      },
+      order: () => chain,
+      maybeSingle: async () => ({ data: { id: "home-id" }, error: null }),
+      then: undefined,
+    } as unknown as Record<string, unknown>;
+    const client = {
+      from: (tabela: string) => {
+        filtry.push({ kolumna: "__from", wartosc: tabela });
+        if (tabela === "site_sections") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => {
+                  const wynik = {
+                    data: [
+                      {
+                        ...STOPKA,
+                        id: "stopka-glownej",
+                        content_draft: { heading: "STOPKA-STRONY-GLOWNEJ" },
+                      },
+                    ],
+                    error: null,
+                  };
+                  // `.order()` woła się DWA razy (position, id) i dopiero drugie
+                  // wywołanie jest awaitowane — stub musi być thenable po obu.
+                  const ogniwo: Record<string, unknown> = {
+                    order: () => ogniwo,
+                    then: (rozwiaz: (v: unknown) => unknown) => Promise.resolve(wynik).then(rozwiaz),
+                  };
+                  return ogniwo;
+                },
+              }),
+            }),
+          };
+        }
+        return chain;
+      },
+    };
+    void builder;
+    return { client: client as never, filtry };
+  }
+
+  it("SZABLON bierze stopkę ze STRONY GŁÓWNEJ, a nie własną", async () => {
+    /*
+      Bez członu o roli szablon (slug pusty) wpadłby w gałąź strony głównej
+      i podgląd narysowałby jego WŁASNĄ stopkę — a sklep pokazuje stopkę
+      strony głównej (ADR-154). Podgląd obiecujący co innego niż sklep to
+      dokładnie wada zamknięta przez ADR-172.
+    */
+    const { client } = stubClient();
+    const wynik = await previewShellSections(client, "tenant-1", { slug: "", kind: "product" }, [
+      HERO,
+      STOPKA,
+    ] as never);
+
+    /*
+      Asercja idzie po IDENTYFIKATORZE wiersza, a nie po treści: `forRender`
+      normalizuje treść sekcji do kształtu renderu, więc porównanie napisów
+      mierzyłoby normalizację, a nie to, KTÓREJ STRONY stopka wróciła.
+    */
+    expect(wynik.shell.map((sekcja) => sekcja.id)).toEqual(["stopka-glownej"]);
+    // Operator ma usłyszeć, że jego stopka nie wejdzie do sklepu.
+    expect(wynik.shadowedPinned).toBe(true);
+  });
+
+  it("KONTROLA POZYTYWNA: STRONA GŁÓWNA dalej rysuje WŁASNĄ stopkę", async () => {
+    const { client } = stubClient();
+    const wynik = await previewShellSections(client, "tenant-1", { slug: "", kind: "page" }, [
+      HERO,
+      STOPKA,
+    ] as never);
+
+    expect(wynik.shell.map((sekcja) => sekcja.id)).toEqual(["sek-stopka"]);
+    expect(wynik.shadowedPinned).toBe(false);
+  });
+
+  it("odczyt strony głównej pyta o ROLĘ — inaczej `maybeSingle` pada na dwóch wierszach", async () => {
+    /*
+      Szablon i strona główna mają OBA pusty slug, więc bez filtra po roli
+      zapytanie dopasowuje dwa wiersze, a `maybeSingle()` oddaje wtedy BŁĄD,
+      nie wiersz. `data` jest `null`, stopka znika z podglądu KAŻDEJ podstrony
+      i nie pada ani jeden komunikat. To ta sama mina, co w incydencie ADR-165.
+    */
+    const { client, filtry } = stubClient();
+    await previewShellSections(client, "tenant-1", { slug: "kontakt", kind: "page" }, [HERO] as never);
+
+    const kolumny = filtry.filter((f) => f.kolumna !== "__from").map((f) => f.kolumna);
+    expect(kolumny, `filtry odczytu strony głównej: ${kolumny.join(", ")}`).toContain("kind");
+    expect(kolumny).toContain("slug");
   });
 });
 

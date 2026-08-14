@@ -382,7 +382,16 @@ export function SitePages({
                     disabled={pending}
                     name={row.name}
                     address={pagePathFromSlug(row.slugPublished ?? row.slug)}
-                    home={row.slugPublished === HOME_PAGE_SLUG}
+                    /*
+                      SZABLON MA PUSTY `slug_published`, więc bez członu o roli
+                      wpadałby w gałąź STRONY GŁÓWNEJ i obiecywał operatorowi,
+                      że po zdjęciu „korzeń sklepu będzie pusty" — zdanie
+                      prawdziwe o innym wierszu i fałszywe o tym. Zdjęcie
+                      szablonu przywraca stronę WBUDOWANĄ, a korzenia nie
+                      dotyka w ogóle.
+                    */
+                    kind={row.kind}
+                    home={!isProductTemplateKind(row.kind) && row.slugPublished === HOME_PAGE_SLUG}
                     redirectedFrom={row.redirectedFrom}
                     onConfirm={() => run(() => unpublishSite(row.id))}
                   />
@@ -783,6 +792,7 @@ function UnpublishDialog({
   disabled,
   name,
   address,
+  kind,
   home,
   redirectedFrom,
   onConfirm,
@@ -790,11 +800,14 @@ function UnpublishDialog({
   disabled: boolean;
   name: string;
   address: string;
+  /** ROLA wiersza (ADR-178) — rozstrzyga, o czym mówi zdanie o skutku. */
+  kind: SiteKind;
   home: boolean;
   redirectedFrom: string[];
   onConfirm: () => void;
 }) {
   const t = useTranslations("site");
+  const isTemplate = isProductTemplateKind(kind);
 
   return (
     <Dialog>
@@ -806,8 +819,14 @@ function UnpublishDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("pages.unpublishTitle", { name })}</DialogTitle>
-          <DialogDescription data-unpublish-scope={home ? "home" : "page"}>
-            {home ? t("pages.unpublishBodyHome") : t("pages.unpublishBody", { address })}
+          <DialogDescription
+            data-unpublish-scope={isTemplate ? "template" : home ? "home" : "page"}
+          >
+            {isTemplate
+              ? t("pages.unpublishBodyTemplate")
+              : home
+                ? t("pages.unpublishBodyHome")
+                : t("pages.unpublishBody", { address })}
           </DialogDescription>
         </DialogHeader>
         {redirectedFrom.length > 0 ? (

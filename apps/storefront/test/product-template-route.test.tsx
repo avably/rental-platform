@@ -35,7 +35,7 @@ import type { ReactNode } from "react";
 
 import { resolveSiteStyle } from "@avably/core/site";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const SPRZET_ID = "22222222-2222-4222-8222-222222222222";
@@ -202,7 +202,28 @@ async function renderProductPage(id = SPRZET_ID): Promise<string> {
   return renderToStaticMarkup(tree);
 }
 
+/**
+ * BUDŻET CZASU MA WŁASNY HAK, a hak ma własny, JAWNY limit.
+ *
+ * Ten plik renderuje PRAWDZIWY komponent trasy, więc pierwsze wywołanie
+ * pociąga transformację całego grafu modułów Next — na obciążonym runnerze
+ * (self-hosted Mac dzieli maszynę z wykonawcami) przekracza to domyślne 5 s
+ * i pali PIERWSZY przypadek pliku, udając regres. Zmierzone: 13,7 s w jobie
+ * `ci`, przy kilkuset ms lokalnie na ciepłym cache.
+ *
+ * Rozgrzewka przenosi ten koszt do haka, a hak dostaje limit JAWNY — bo
+ * przekroczony budżet haka wywraca CAŁY plik, nie jeden przypadek.
+ * `vi.resetModules()` w `beforeEach` czyści rejestr modułów, ale NIE cache
+ * transformacji, więc rozgrzewka nie traci ważności między przypadkami.
+ */
+const BUDZET_RENDERU = 30_000;
+
 describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
+  beforeAll(async () => {
+    await import("../app/(tenant)/product/[id]/page");
+    await import("@/lib/storefront/copy");
+  }, 120_000);
+
   beforeEach(() => {
     stan.szablon = null;
     vi.resetModules();
@@ -220,7 +241,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     expect(bezJsonLd(markup)).toContain(NAZWA);
     // ...i ANI JEDNEGO węzła szablonu.
     expect(markup).not.toContain(NAPIS_SZABLONU);
-  });
+  }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
   // 2. Szablon wygrywa — obie połowy
@@ -233,7 +254,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     expect(markup, "strona wbudowana renderuje się RAZEM z szablonem").not.toContain(
       "Wróć do katalogu",
     );
-  });
+  }, BUDZET_RENDERU);
 
   it("nagłówek związany z REKORDEM STRONY pokazuje nazwę TEGO sprzętu", async () => {
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
@@ -246,7 +267,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     expect(markup, "wiązanie pageProduct nie zadziałało — wyszła treść projektowa").not.toContain(
       NAPIS_PROJEKTOWY,
     );
-  });
+  }, BUDZET_RENDERU);
 
   it("ten sam szablon pod INNYM adresem pokazuje INNY sprzęt", async () => {
     // Dowód, że rekord jedzie z ADRESU, a nie jest przypadkiem pierwszą
@@ -257,7 +278,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
 
     expect(bezJsonLd(markup)).toContain(NAZWA_INNEGO);
     expect(markup, "szablon pokazał sprzęt spod innego adresu").not.toContain(NAZWA);
-  });
+  }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
   // 3. Pusty szablon też wygrywa
@@ -272,7 +293,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     // Nazwa sprzętu zostaje w dokumencie jako nagłówek dla czytnika ekranu —
     // strona bez `h1` byłaby regresem dostępności wywołanym samym wdrożeniem.
     expect(bezJsonLd(markup)).toContain(NAZWA);
-  });
+  }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
   // 4. Metadane i JSON-LD opisują SPRZĘT w obu gałęziach
@@ -294,7 +315,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
         `/product/${SPRZET_ID}`,
       );
     }
-  });
+  }, BUDZET_RENDERU);
 
   it("metadane biorą tytuł z KATALOGU, a nie z treści szablonu", async () => {
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
@@ -303,7 +324,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
 
     expect(String(meta.title)).toContain(NAZWA);
     expect(JSON.stringify(meta)).not.toContain(NAPIS_SZABLONU);
-  });
+  }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
   // Bramka wejścia bez zmian
@@ -315,5 +336,5 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     await expect(
       renderProductPage("44444444-4444-4444-8444-444444444444"),
     ).rejects.toThrow("notFound");
-  });
+  }, BUDZET_RENDERU);
 });
