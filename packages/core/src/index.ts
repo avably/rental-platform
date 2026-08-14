@@ -374,3 +374,20 @@ export {
   isReservedCategorySlug,
   suggestCategorySlug,
 } from "./catalog/categories";
+
+export { slugifyName } from "./slug";
+
+export {
+  LEGACY_PRODUCT_PATH_SEGMENT,
+  PRODUCT_PATH_SEGMENT,
+  PRODUCT_SLUG_MAX_LENGTH,
+  PRODUCT_SLUG_PATTERN,
+  isValidProductSlug,
+  legacyProductPath,
+  productPathFromSlug,
+  productSlugById,
+  resolveProductSlug,
+  suggestProductSlug,
+  type ProductSlugRegistry,
+  type ProductSlugResolution,
+} from "./catalog/product-slug";

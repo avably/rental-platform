@@ -108,6 +108,7 @@ function cartView() {
   return (
     <CartView
       products={PRODUCTS as never}
+      productPaths={{}}
       supabaseUrl="https://storage.test"
       currency="PLN"
       locale="pl"

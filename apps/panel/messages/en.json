@@ -582,6 +582,8 @@
     "productForm": {
       "createTitle": "New product",
       "name": "Name",
+      "slug": "Item page address",
+      "slugHint": "Part of the address: /produkt/your-address. Leave it empty and we will fill it in from the name. Changing the address leaves a redirect from the old one, so customer links keep working.",
       "description": "Description",
       "basePriceDay": "Base price per day ({currency})",
       "deposit": "Deposit ({currency})",

@@ -64,8 +64,16 @@ export interface PresentProductsOptions {
   currency: CurrencyCode;
   locale: string;
   words: PriceLabelWords;
-  /** Prefiks linku podstrony produktu, np. „/product/”. */
-  hrefBase: string;
+  /**
+   * ŚCIEŻKA strony sprzętu dla danej pozycji (ADR-182).
+   *
+   * Funkcja, a nie prefiks: od 0083 adres liczy się ze SLUGA pozycji, a nie
+   * z jej identyfikatora, więc `prefiks + id` przestało być wyrażeniem, które
+   * da się złożyć w tym pliku. Regułę (i degradację przy braku rejestru
+   * adresów) niesie `lib/catalog/product-path.ts` — jedno miejsce dla kafla
+   * katalogu, kafla sekcji, koszyka, sitemapy i kanonu.
+   */
+  productHref: (productId: string) => string;
   /**
    * DEFINICJE PÓL WŁASNYCH ZE SKLEPU (faza 1b) — komplet z katalogu publicznego,
    * wszystkie trzy encje. Zawężenie do encji `product` robi `productFieldRows`,
@@ -155,7 +163,7 @@ export function toStorefrontProducts(
     priceLabel: productPriceLabel(product, options.currency, options.locale, options.words),
     imageUrl: firstImageUrl(product, options.supabaseUrl),
     imageAlt: product.images[0]?.alt_text ?? product.name,
-    href: `${options.hrefBase}${product.id}`,
+    href: options.productHref(product.id),
     /*
       POLA WŁASNE JADĄ Z POZYCJĄ, a nie obok niej (faza 1b, ADR-154). Sekcja
       wskazuje w treści identyfikator DEFINICJI, a wartość musi pochodzić od

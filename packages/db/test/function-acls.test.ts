@@ -55,6 +55,14 @@ const ANON_EXECUTE_ALLOWLIST = [
   // kafel katalogu pyta o dostępność tą samą drogą, co o sam katalog.
   "get_public_catalog_availability",
   "get_public_custom_fields", // 0058 — publiczne definicje pól checkoutu
+  // 0083 — rejestr ADRESÓW sprzętu (ADR-182). anon z tego samego powodu, co
+  // get_public_catalog: kafel katalogu buduje link do strony sprzętu tą samą
+  // drogą, którą bierze sam katalog, a trasa /produkt/{slug} musi rozstrzygnąć
+  // adres, zanim cokolwiek wyrenderuje. Oddaje WYŁĄCZNIE identyfikatory
+  // i adresy pozycji, które katalog publiczny i tak pokazuje; izolacja stoi na
+  // jawnym zawężeniu tenant_id w ciele (SECURITY DEFINER) — pilnuje tego
+  // product-slug.test.ts.
+  "get_public_product_slugs",
   "get_public_order_payment", // 0029 — status płatności zamówienia (bramka: checkout_token)
   "get_public_payment_account", // 0028 — publiczny identyfikator konta płatności
   "get_published_legal_document", // 0063 — żywa wersja dokumentu prawnego

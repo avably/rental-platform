@@ -582,6 +582,8 @@
     "productForm": {
       "createTitle": "Nowy produkt",
       "name": "Nazwa",
+      "slug": "Adres strony sprzętu",
+      "slugHint": "Fragment adresu: /produkt/twoj-adres. Zostaw puste, a wypełnimy go z nazwy. Zmiana adresu zostawia przekierowanie ze starego, więc linki klientów dalej działają.",
       "description": "Opis",
       "basePriceDay": "Cena bazowa za dobę ({currency})",
       "deposit": "Kaucja ({currency})",

@@ -43,7 +43,7 @@ export default async function ProductDataPage({
   const { data: product } = await ctx.supabase
     .from("products")
     .select(
-      "id, name, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, active, custom_fields",
+      "id, name, slug, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, active, custom_fields",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -89,6 +89,7 @@ export default async function ProductDataPage({
           customFieldValues={customFieldValuesFromRow(product)}
           defaults={{
             name: product.name,
+            slug: product.slug,
             description: product.description ?? "",
             basePriceDay: groszeToInputValue(product.base_price_day_grosze),
             deposit: groszeToInputValue(product.deposit_grosze),

@@ -72,6 +72,11 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 vi.mock("@/lib/checkout/catalog", () => ({
+  // Rejestr adresów sprzętu (0083) — pusty: ten plik nie mierzy adresów,
+  // a `null` z tego odczytu jest stanem LEGALNYM (linki spadają wtedy na
+  // adres zastany), więc atrapa nie może go po prostu pominąć.
+  getPublicProductSlugs: () => Promise.resolve({ products: [], redirects: [] }),
+
   getPublicCatalog: () =>
     Promise.resolve({
       tenant: { name: "Wypożyczalnia Kontrolna", locale: "pl", currency: "PLN" },

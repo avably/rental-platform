@@ -8,6 +8,8 @@
  * Komunikaty po polsku — wzorzec repo (lib/validation.ts).
  */
 import {
+  PRODUCT_SLUG_MAX_LENGTH,
+  PRODUCT_SLUG_PATTERN,
   CATEGORY_DESCRIPTION_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   CATEGORY_SLUG_MAX_LENGTH,
@@ -82,12 +84,50 @@ const checkboxSchema = z.preprocess((value) => value != null, z.boolean());
 // Produkty
 // ---------------------------------------------------------------------
 
+/**
+ * ADRES SPRZĘTU (ADR-182) — pole, w którym PUSTE znaczy „wygeneruj", a nie
+ * „błąd".
+ *
+ * To jest różnica względem kategorii, gdzie pusty adres jest odrzucany, jeśli
+ * nie da się go wyprowadzić z nazwy. Adres sprzętu nadaje BAZA (trigger
+ * `products_slug_guard`, 0083) — i musi to robić także wtedy, gdy zapis
+ * przychodzi z panelu SPRZED tej zmiany albo z importu CSV. Wyprowadzanie
+ * podpowiedzi tutaj byłoby drugą regułą obok tamtej, a dwie reguły nadawania
+ * adresu rozjadą się przy pierwszej poprawce normalizacji.
+ *
+ * Sprawdzamy więc wyłącznie to, co ma sens sprawdzić PRZED bazą: kształt
+ * wartości, którą operator wpisał sam. Reszta odmów (adres zajęty,
+ * adres przekierowujący gdzie indziej) pada w bazie i wraca do pola —
+ * patrz `katalog/actions.ts`.
+ */
+const productSlugSchema = z
+  .string()
+  .trim()
+  .superRefine((slug, ctx) => {
+    if (slug === "") return;
+    if (slug.length > PRODUCT_SLUG_MAX_LENGTH) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Adres może mieć najwyżej ${PRODUCT_SLUG_MAX_LENGTH} znaków.`,
+      });
+      return;
+    }
+    if (!PRODUCT_SLUG_PATTERN.test(slug)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Adres może zawierać wyłącznie małe litery bez ogonków, cyfry i myślniki (np. rower-gorski).",
+      });
+    }
+  });
+
 export const productSchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, "Podaj nazwę produktu.")
     .max(200, "Nazwa może mieć najwyżej 200 znaków."),
+  slug: productSlugSchema,
   description: optionalTextSchema(5000),
   basePriceDayGrosze: moneySchema.refine((grosze) => grosze > 0, {
     message: "Cena za dobę musi być większa od zera.",
