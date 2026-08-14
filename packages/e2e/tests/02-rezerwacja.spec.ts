@@ -45,7 +45,9 @@ test("klient wybiera termin, widzi dostępność i dodaje produkt do koszyka", a
   await expect(page.locator("[data-products-availability]")).toHaveCount(0);
 
   await page.getByRole("link", { name: new RegExp(seed.productName) }).click();
-  await expect(page).toHaveURL(new RegExp(`/product/${seed.productId}`));
+  // ADRES CZYTELNY, nie identyfikator (ADR-182): kafel katalogu prowadzi pod
+  // `/produkt/{slug}`, a `/product/{uuid}` zostaje wyłącznie jako źródło 308.
+  await expect(page).toHaveURL(new RegExp(`/produkt/${seed.productSlug}$`));
 
   // Widget rezerwacji stoi na stronie sprzętu i jest JEDEN (ADR-180).
   const widget = page.locator(`[data-product-booking="${seed.productId}"]`);

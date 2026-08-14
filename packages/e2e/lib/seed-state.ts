@@ -17,6 +17,14 @@ export type SeedState = {
   ownerPassword: string;
   productId: string;
   productName: string;
+  /**
+   * ADRES strony sprzętu (ADR-182) — czytany Z BAZY po wstawieniu pozycji,
+   * a nie liczony tu drugi raz z nazwy. Adres nadaje trigger `products_slug_guard`
+   * (0083) i to on jest źródłem prawdy; kopia reguły w seedzie rozjechałaby się
+   * przy pierwszej poprawce normalizacji i test szedłby wtedy pod adres, którego
+   * sklep nie zna.
+   */
+  productSlug: string;
   priceDayGrosze: number;
   unitCount: number;
   pickupLocationName: string;
