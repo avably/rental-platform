@@ -20,7 +20,9 @@
  *      charges_enabled robi krok (odczyt pyta o ISTNIENIE konta zdolnego
  *      przyjmować płatności, nie o pojedynczość wiersza);
  *   5. krok sklepu pyta o KORZEŃ (ADR-168): opublikowana PODSTRONA go nie
- *      odhacza, bo pod `/` klient dalej nie ma czego oglądać.
+ *      odhacza, bo pod `/` klient dalej nie ma czego oglądać;
+ *   6. ani SZABLON strony produktu (ADR-178), który ma pusty slug, bo adresu
+ *      nie ma w ogóle — pusty slug przestał być dowodem na korzeń sklepu.
  *
  * Dowód mutacyjny (procedura recenzji): przywrócenie w `start-card.ts`
  * odczytu `sites` bez filtra published_at i limitu (kształt sprzed hotfixu)
@@ -260,6 +262,51 @@ describe.skipIf(!hasEnv)("sygnały karty startowej (kształt odczytów, żywy Su
 
     const after = await fetchStartCardSignals(tenant.client, tenant.tenantId);
     expect(after.publishedAt, "opublikowana strona główna NIE odhaczyła kroku").not.toBeNull();
+    expect(storeStep(startSteps(after)).done).toBe(true);
+  }, 60_000);
+
+  it("krok sklepu pyta o KORZEŃ, a nie o pusty slug: SZABLON strony produktu go NIE odhacza", async () => {
+    /*
+     * Faza 5 (ADR-178) odebrała pustemu slugowi monopol na znaczenie „korzeń
+     * sklepu": szablon strony produktu ADRESU NIE MA, więc jego `slug` i
+     * `slug_published` są puste — dokładnie jak u strony głównej. Bez członu
+     * o ROLI w zapytaniu publikacja szablonu odhaczałaby krok „Opublikuj
+     * stronę sklepu" najemcy, u którego pod `/` dalej jest pustka. To jest
+     * wada K1 (ADR-168) wracająca innymi drzwiami — a ten test jest jedynym
+     * miejscem, w którym widać ją na KSZTAŁCIE ZAPYTANIA wobec żywej bazy.
+     */
+    const { data: template, error } = await admin
+      .from("sites")
+      .insert({ tenant_id: tenant.tenantId, name: "Strona sprzętu", kind: "product" })
+      .select("id")
+      .single();
+    expect(error, `zasiew szablonu: ${error?.message}`).toBeNull();
+
+    const { error: publishError } = await tenant.client
+      .schema("app")
+      .rpc("publish_site", { p_site_id: template!.id });
+    expect(publishError, `publish_site (szablon): ${publishError?.message}`).toBeNull();
+
+    const signals = await fetchStartCardSignals(tenant.client, tenant.tenantId);
+    expect(signals.publishedAt, "opublikowany szablon odhaczył krok sklepu").toBeNull();
+    expect(storeStep(startSteps(signals)).done).toBe(false);
+
+    // KONTROLA POZYTYWNA: strona GŁÓWNA obok szablonu krok odhacza — inaczej
+    // zieleń wyżej znaczyłaby tylko „krok nigdy się nie robi". Przy okazji
+    // dowód, że oba wiersze WSPÓŁISTNIEJĄ żywe (unikat z 0073 ustąpił w 0080).
+    const { data: home, error: homeError } = await admin
+      .from("sites")
+      .insert({ tenant_id: tenant.tenantId, name: "Strona główna" })
+      .select("id")
+      .single();
+    expect(homeError, `zasiew strony głównej: ${homeError?.message}`).toBeNull();
+    const { error: homePublishError } = await tenant.client
+      .schema("app")
+      .rpc("publish_site", { p_site_id: home!.id });
+    expect(homePublishError, `publish_site (główna obok szablonu): ${homePublishError?.message}`).toBeNull();
+
+    const after = await fetchStartCardSignals(tenant.client, tenant.tenantId);
+    expect(after.publishedAt, "strona główna NIE odhaczyła kroku").not.toBeNull();
     expect(storeStep(startSteps(after)).done).toBe(true);
   }, 60_000);
 
