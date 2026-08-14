@@ -14,15 +14,15 @@ import pl from "../messages/pl.json";
 const root = path.resolve(__dirname, "..");
 
 const UJECIA = {
-  kalendarz: { ratio: 2 },
-  kaucje: { ratio: 2 },
-  kurier: { ratio: 2 },
-  kreator: { ratio: 2 },
-  koszyk: { ratio: 2 },
-  pulpit: { ratio: 1.5 },
-  rejestracja: { ratio: 4 / 3 },
-  katalog: { ratio: 4 / 3 },
-  zamowienia: { ratio: 4 / 3 },
+  kalendarz: { width: 1528, height: 764 },
+  kaucje: { width: 1528, height: 764 },
+  kurier: { width: 1528, height: 764 },
+  kreator: { width: 1528, height: 764 },
+  koszyk: { width: 1528, height: 764 },
+  pulpit: { width: 1312, height: 874 },
+  rejestracja: { width: 906, height: 679 },
+  katalog: { width: 906, height: 679 },
+  zamowienia: { width: 906, height: 679 },
 } as const;
 
 const STARE_SUMY = new Set([
@@ -90,9 +90,8 @@ describe("aktualne screeny produktu na LP", () => {
         expect(STARE_SUMY.has(suma), `${locale}/${nazwa} nadal jest starym screenem`).toBe(false);
 
         const { width, height } = wymiaryWebp(buffer);
-        expect(width, `${locale}/${nazwa}: szerokość`).toBeGreaterThanOrEqual(900);
-        expect(height, `${locale}/${nazwa}: wysokość`).toBeGreaterThanOrEqual(600);
-        expect(width / height, `${locale}/${nazwa}: proporcja`).toBeCloseTo(kontrakt.ratio, 1);
+        expect(width, `${locale}/${nazwa}: szerokość`).toBe(kontrakt.width);
+        expect(height, `${locale}/${nazwa}: wysokość`).toBe(kontrakt.height);
       });
     }
   }
@@ -104,5 +103,22 @@ describe("aktualne screeny produktu na LP", () => {
     expect(html.match(/class="tab-accordion-image"/g)).toHaveLength(5);
     expect(html.match(/class="momonetum-image zrzut-ramka-4-3"/g)).toHaveLength(3);
     expect(html.match(/class="cta-block-image zrzut-ramka-3-2"/g)).toHaveLength(1);
+  });
+
+  it("pięć zakładek mapuje grafiki dokładnie na etapy procesu", () => {
+    const html = readFileSync(path.join(root, "marketing/home.html"), "utf8");
+    const mapa = ["kreator", "koszyk", "kalendarz", "kurier", "kaucje"];
+
+    for (const [index, nazwa] of mapa.entries()) {
+      const tab = `Tab ${index + 1}`;
+      const start = html.indexOf(`data-w-tab="${tab}"`, html.indexOf('class="tabs-content-features'));
+      const end = html.indexOf(`data-w-tab="Tab ${index + 2}"`, start);
+      const fragment = html.slice(start, end === -1 ? html.indexOf("</div>\n        </div>", start) : end);
+
+      expect(start, `${tab}: brak panelu`).toBeGreaterThan(-1);
+      expect(fragment).toContain(
+        `<img src="{{shots.${nazwa}}}" alt="{{shots.${nazwa}Alt}}" loading="lazy" width="1528" height="764" class="zrzut-ui zrzut-ui-2-1">`,
+      );
+    }
   });
 });

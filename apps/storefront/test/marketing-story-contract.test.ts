@@ -62,9 +62,9 @@ describe("LP opowiada jeden proces wynajmu", () => {
     expect(en.marketing.cta.title).toMatch(/today|day/i);
 
     for (const [locale, marketing] of locales) {
-      const copy = `${marketing.cta.title} ${marketing.cta.body}`;
+      const copy = JSON.stringify(marketing);
       expect(copy, locale).not.toMatch(/Złoci klienci|Golden customers/i);
-      expect(copy, locale).not.toMatch(/Osobna lista .?Wymaga uwagi|A separate .?Needs attention/i);
+      expect(copy, locale).not.toMatch(/Wymaga uwagi|Needs attention/i);
     }
   });
 

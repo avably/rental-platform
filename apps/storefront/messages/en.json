@@ -93,7 +93,7 @@
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/en/kalendarz.webp",
-      "kalendarzAlt": "A new order in the Avably back office: customer, item and delivery choices next to the rental date and availability calendar (demonstration data).",
+      "kalendarzAlt": "The order list in the Avably back office: today's pickups and returns, overdue work, equipment and rental dates (demonstration data).",
       "kaucje": "/produkt/en/kaucje.webp",
       "kaucjeAlt": "Deposit settlement in the Avably back office: a zero balance, collected and settled totals, and confirmation that the deposit is closed (demonstration data).",
       "kurier": "/produkt/en/kurier.webp",
@@ -135,7 +135,7 @@
       "body": "Avably connects your rental website to an operations back office. A booking goes straight into the calendar and order list; from there, the same team prepares the equipment, hands it over or ships it, takes the return and settles the deposit. No retyping between forms, spreadsheets and messages.",
       "cta": "Open your rental store",
       "ctaSecondary": "See the workflow",
-      "feature1": "Free stock counted on individual units",
+      "feature1": "Availability tracked per individual unit",
       "feature2": "Payment and deposit tied to the booking",
       "feature3": "yourname.avably.io or your own domain",
       "posterAlt": "A sectional door pulled down moments before opening, a narrow strip of daylight underneath"

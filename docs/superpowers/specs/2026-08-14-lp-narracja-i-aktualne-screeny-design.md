@@ -55,7 +55,7 @@ Zachowujemy obecne miejsca i proporcje kontenerów. Podmieniamy obrazy na ujęci
 
 1. **Przygotowanie oferty:** aktualny kreator z płótnem i narzędziami publikacji.
 2. **Rezerwacja klienta:** aktualny sklep lub koszyk z terminem i podsumowaniem.
-3. **Dzień / dostępność:** aktualny widok tworzenia zamówienia z terminem i dostępnymi egzemplarzami.
+3. **Dzień / dostępność:** aktualna lista zamówień z filtrami dnia, sprzętem i terminami najmu.
 4. **Wydanie lub dostawa:** aktualny ekran przesyłki powiązanej z zamówieniem.
 5. **Zwrot i kaucja:** aktualny szczegół rozliczenia kaucji z saldem i historią zdarzeń.
 

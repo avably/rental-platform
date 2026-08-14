@@ -93,7 +93,7 @@
   "marketing": {
     "shots": {
       "kalendarz": "/produkt/pl/kalendarz.webp",
-      "kalendarzAlt": "Nowe zamówienie w panelu Avably: wybór klienta, pozycji i dostawy obok kalendarza terminu oraz dostępności (dane demonstracyjne).",
+      "kalendarzAlt": "Lista zamówień w panelu Avably: dzisiejsze wydania i zwroty, sprawy po terminie oraz sprzęt z datami najmu (dane demonstracyjne).",
       "kaucje": "/produkt/pl/kaucje.webp",
       "kaucjeAlt": "Rozliczenie kaucji w panelu Avably: saldo zero, kwota pobrana i rozliczona oraz potwierdzenie zamknięcia kaucji (dane demonstracyjne).",
       "kurier": "/produkt/pl/kurier.webp",
