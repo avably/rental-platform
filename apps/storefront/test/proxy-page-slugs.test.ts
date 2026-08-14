@@ -92,6 +92,24 @@ describe("adres strony → trasa wewnętrzna", () => {
       expect(rewrittenTo(response), `trasa ${path} została przepisana`).toBe(path);
     }
   });
+
+  it("`/produkt/{slug}` przechodzi do trasy sklepu, a nie w rozstrzyganie adresu stron", async () => {
+    /*
+     * TO JEST CICHA AWARIA, KTÓREJ NIKT NIE ZOBACZY BEZ TEJ ASERCJI (ADR-182).
+     *
+     * Proxy przepuszcza ścieżkę WIELOSEGMENTOWĄ wyłącznie pod korzeniem
+     * zarezerwowanym (krok 4). Gdyby `produkt` wypadł z RESERVED_PAGE_SLUGS,
+     * `/produkt/rower-gorski` wpadłby w krok 5 („strony są jednopoziomowe")
+     * i dostał neutralne 404 — ZANIM Next zobaczyłby trasę strony sprzętu.
+     * Cały katalog przestałby być klikalny, a w kodzie trasy nie byłoby ani
+     * jednej linijki do poprawienia.
+     */
+    const response = await runProxy(request("https://alfa.avably.io/produkt/rower-gorski"), deps);
+    expect(response.status, "adres strony sprzętu dostał odmowę w proxy").toBe(200);
+    expect(rewrittenTo(response), "adres strony sprzętu został przepisany").toBe(
+      "/produkt/rower-gorski",
+    );
+  });
 });
 
 describe("izolacja: adres najemcy A na hoście najemcy B", () => {
