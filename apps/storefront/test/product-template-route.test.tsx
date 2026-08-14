@@ -182,6 +182,20 @@ vi.mock("@/lib/storefront/context", () => ({
   },
 }));
 
+/**
+ * WYJŚCIE BEZ JSON-LD — asercje o TREŚCI WIDZIALNEJ muszą pytać o nią, a nie
+ * o cokolwiek w dokumencie.
+ *
+ * Znaleziona mutacją, nie recenzją: przy `record={undefined}` nagłówek związany
+ * z rekordem strony jest WYCINANY (`whenEmpty: "hide"`), więc nazwa sprzętu
+ * znika z treści — ale zostaje w JSON-LD, bo ten liczy się z katalogu. Asercja
+ * `markup.toContain(NAZWA)` przechodziła więc nad stroną, na której nazwy nie
+ * widać. Skrypt danych strukturalnych ma własny przypadek i tam jest mierzony.
+ */
+function bezJsonLd(markup: string): string {
+  return markup.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
+}
+
 async function renderProductPage(id = SPRZET_ID): Promise<string> {
   const { default: TenantProductPage } = await import("../app/(tenant)/product/[id]/page");
   const tree = (await TenantProductPage({ params: Promise.resolve({ id }) })) as ReactNode;
@@ -203,7 +217,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     // Marker strony wbudowanej: odnośnik powrotu do katalogu rysuje WYŁĄCZNIE
     // ona (gałąź szablonu nie ma go w ogóle — nawigację niesie powłoka).
     expect(markup).toContain("Wróć do katalogu");
-    expect(markup).toContain(NAZWA);
+    expect(bezJsonLd(markup)).toContain(NAZWA);
     // ...i ANI JEDNEGO węzła szablonu.
     expect(markup).not.toContain(NAPIS_SZABLONU);
   });
@@ -225,7 +239,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     const markup = await renderProductPage();
 
-    expect(markup).toContain(NAZWA);
+    expect(bezJsonLd(markup), "nazwa sprzętu nie doszła do TREŚCI strony").toContain(NAZWA);
     // Napis projektowy z kreatora NIE MOŻE wyjść do klienta — gdyby wyszedł,
     // znaczyłoby to, że wiązanie się nie rozwiązało i render spadł na wartość
     // statyczną. To jest ta sama granica, którą pilnuje faza 3.
@@ -241,7 +255,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     const markup = await renderProductPage(INNY_ID);
 
-    expect(markup).toContain(NAZWA_INNEGO);
+    expect(bezJsonLd(markup)).toContain(NAZWA_INNEGO);
     expect(markup, "szablon pokazał sprzęt spod innego adresu").not.toContain(NAZWA);
   });
 
@@ -257,7 +271,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     );
     // Nazwa sprzętu zostaje w dokumencie jako nagłówek dla czytnika ekranu —
     // strona bez `h1` byłaby regresem dostępności wywołanym samym wdrożeniem.
-    expect(markup).toContain(NAZWA);
+    expect(bezJsonLd(markup)).toContain(NAZWA);
   });
 
   // -------------------------------------------------------------------
@@ -274,6 +288,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
       ["ze szablonem", zeSzablonem],
     ] as const) {
       expect(markup, `${etykieta}: brak JSON-LD`).toContain('"@type":"Product"');
+      // Ta noga pyta o SKRYPT, więc czyta pełny znacznik świadomie.
       expect(markup, `${etykieta}: JSON-LD nie opisuje sprzętu`).toContain(NAZWA);
       expect(markup, `${etykieta}: kanon nie wskazuje adresu sprzętu`).toContain(
         `/product/${SPRZET_ID}`,
