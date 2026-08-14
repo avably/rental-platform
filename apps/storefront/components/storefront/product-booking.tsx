@@ -122,6 +122,24 @@ export function ProductBooking({
     initialSiteCalendarMonth(term.startDate, today, today, horizon),
   );
   /**
+   * SIATKA WRACA NA TERMIN, KTÓRY KLIENT JUŻ MA.
+   *
+   * Koszyk jest znany dopiero PO hydratacji, więc pierwszy render zna termin
+   * `null` i ustawia miesiąc na bieżący. Wracający klient z terminem w lipcu
+   * zobaczyłby więc maj i musiał przewijać do miejsca, w którym już był — ta
+   * sama wada, którą pasek powłoki rozwiązuje re-kotwiczeniem przy otwarciu
+   * (widget jest otwarty zawsze, więc kotwicą jest sama ZMIANA terminu).
+   *
+   * Poprawka stanu W RENDERZE, a nie w efekcie: efekt przemalowałby siatkę po
+   * pierwszym pokazaniu jej na złym miesiącu. Nawigacji klienta to nie rusza —
+   * przewinięcie miesiąca nie zmienia terminu, więc nie przechodzi tym warunkiem.
+   */
+  const [anchor, setAnchor] = useState(term.startDate);
+  if (anchor !== term.startDate) {
+    setAnchor(term.startDate);
+    setMonth(initialSiteCalendarMonth(term.startDate, today, today, horizon));
+  }
+  /**
    * ODPOWIEDŹ RAZEM Z MIESIĄCEM, KTÓREGO DOTYCZY — ten sam idiom, co przy
    * dostępności terminu w powłoce. Bez klucza siatka czerwca przez chwilę
    * malowałaby liczby maja, czyli pokazywałaby dowód, którego nie ma.

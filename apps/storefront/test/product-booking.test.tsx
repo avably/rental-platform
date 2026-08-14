@@ -155,7 +155,65 @@ describe("liczba wolnych sztuk w wybranym terminie", () => {
   });
 });
 
+describe("okno zapytania o dni", () => {
+  // Funkcja czysta, więc jej granice sprawdzamy wprost: przycięcie do okna
+  // wyboru jest tym, co dzieli zapytanie legalne od odrzuconego przez bazę
+  // (sufit 90 dni) i od pytania o przeszłość, której siatka i tak nie da wybrać.
+  it("przycina miesiąc do okna wyboru z OBU stron", async () => {
+    const { bookingMonthWindow } = await import("@/components/storefront/product-booking");
+
+    // Miesiąc w środku okna — pełny zakres miesiąca.
+    expect(bookingMonthWindow("2027-06", "2027-05-10", "2027-08-07")).toEqual({
+      from: "2027-06-01",
+      to: "2027-06-30",
+    });
+    // Miesiąc, w którym okno się ZACZYNA — dolna granica podciągnięta.
+    expect(bookingMonthWindow("2027-05", "2027-05-10", "2027-08-07")).toEqual({
+      from: "2027-05-10",
+      to: "2027-05-31",
+    });
+    // Miesiąc, w którym okno się KOŃCZY — górna granica ucięta.
+    expect(bookingMonthWindow("2027-08", "2027-05-10", "2027-08-07")).toEqual({
+      from: "2027-08-01",
+      to: "2027-08-07",
+    });
+    // Miesiąc w całości poza oknem — nie ma o co pytać.
+    expect(bookingMonthWindow("2027-09", "2027-05-10", "2027-08-07")).toBeNull();
+    expect(bookingMonthWindow("2027-04", "2027-05-10", "2027-08-07")).toBeNull();
+  });
+});
+
 describe("siatka dni maluje dostępność TEGO sprzętu", () => {
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: miesiąc siatki ustawiony RAZ, przy pierwszym
+  // renderze. Termin przychodzi z koszyka, czyli spoza drzewa — jest znany
+  // dopiero po hydratacji, a klient może go zmienić paskiem powłoki, stojąc na
+  // tej samej stronie. W obu przypadkach siatka zamarłaby na miesiącu
+  // bieżącym, a klient musiałby przewijać do miejsca, w którym już był.
+  //
+  // TEST MUSI ODTWORZYĆ TĘ KOLEJNOŚĆ, a nie tylko stan końcowy: koszyk zapisany
+  // PRZED renderem jest znany już pierwszemu renderowi, więc mutacja
+  // wyłączająca re-kotwiczenie przechodziłaby przez taki test na zielono
+  // (sprawdzone mutacją — pierwsza wersja tego przypadku była pusta).
+  it("siatka przeskakuje na miesiąc terminu, który przyszedł PO renderze", async () => {
+    render(widget());
+    await waitFor(() => expect(checkAvailabilityDays).toHaveBeenCalled());
+
+    const zaDwaMiesiace = dayFromToday(60);
+    expect(
+      document.querySelector(`[data-calendar-day="${zaDwaMiesiace}"]`),
+      "kontrola wyjściowa: dzień za dwa miesiące NIE MOŻE być w siatce przed zmianą terminu",
+    ).toBeNull();
+
+    writeCart({ ...EMPTY_CART, startDate: zaDwaMiesiace, endDate: dayFromToday(62) });
+
+    await waitFor(() => {
+      expect(
+        document.querySelector(`[data-calendar-day="${zaDwaMiesiace}"]`),
+        "siatka została na starym miesiącu mimo zmiany terminu",
+      ).not.toBeNull();
+    });
+  });
+
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby widget nie podawał `dayUnits`, siatka
   // wyglądałaby jak ta z powłoki — sam wybór terminu, bez ani jednej liczby.
   // Klient wybierałby dni w ciemno i dowiadywał się o zajętości po fakcie.
