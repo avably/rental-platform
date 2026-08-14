@@ -118,6 +118,7 @@
       "login": "Sign in",
       "cta": "Open your rental store",
       "menuLabel": "Navigation",
+      "skipToContent": "Skip to content",
       "languageLabel": "Change language",
       "polish": "PL",
       "english": "EN",
@@ -136,7 +137,7 @@
       "ctaSecondary": "See what works today",
       "feature1": "Availability per unit, not per model",
       "feature2": "Deposit off the card and back onto it",
-      "feature3": "Your store on yourcompany.com",
+      "feature3": "A store at yourname.avably.io and on your own domain",
       "posterAlt": "A sectional door pulled down moments before opening, a narrow strip of daylight underneath"
     },
     "premise": {
@@ -197,7 +198,7 @@
     },
     "cta": {
       "title": "Stop guessing how the month went",
-      "body": "The dashboard shows revenue for this month and the last one, a twelve-month trend, how busy each product has been over the past thirty days, and the ten customers who have left you the most. A separate “Needs attention” list gathers overdue returns, failed payments and unsettled deposits. No spreadsheet that only one person in the company ever opens.",
+      "body": "The dashboard opens the day with five fixed tiles: check-outs, returns, overdue orders, preparation for tomorrow and money alerts. Below, it shows revenue for this month and the last, a twelve-month trend, product utilisation over the last thirty days and the customers bringing in the most revenue. Every item leads to the relevant order — no spreadsheet that only one person in the company can open.",
       "cta": "Open your rental store"
     },
     "momentum": {
@@ -254,6 +255,7 @@
       "a8": "The database, the hosting and the email run with providers whose servers are in the EU. We keep ordinary contact details of your customers: name, email, phone, address, tax number for the invoice. We do not collect national ID numbers or scans of ID documents. You are the controller of that data; we process it on your instruction. The data processing agreement and self-service deletion of a customer record do not exist yet — both land before the paid plans start."
     },
     "faqPage": {
+      "metadataDescription": "Answers about payments, pricing, the trial, catalogue imports, your own domain, security and GDPR.",
       "eyebrow": "Before you start",
       "title": "Check whether this fits how you rent"
     },
@@ -275,14 +277,17 @@
       "copyright": "© Avably 2026. All rights reserved."
     },
     "privacyPage": {
+      "metadataDescription": "How Avably processes data on this website and when you contact us.",
       "eyebrow": "Documents",
       "title": "Privacy Policy"
     },
     "termsPage": {
+      "metadataDescription": "The terms for using Avably as the owner of an equipment rental business.",
       "eyebrow": "Legal",
       "title": "Avably Terms of Service"
     },
     "contactPage": {
+      "metadataDescription": "Contact Avably about the product, the pilot, GDPR or security. We usually reply on the same business day.",
       "title": "Write to one address",
       "intro": "Product questions, GDPR, the pilot and security reports all land in one inbox. We usually answer the same business day. There is no phone line. Tell us up front what you rent and how many units you keep, and the first reply will be about your equipment rather than a request for details. You do not need us to open an account either: you do that yourself — email, password, one confirmation link.",
       "emailLabel": "Email",
@@ -292,6 +297,7 @@
       "addressLine2": "ul. Cumownicza 1a/2, 60-480 Poznań, Poland"
     },
     "pricingPage": {
+      "metadataDescription": "Compare Avably plans: 14 days without a card, a flat subscription and no cut of your bookings.",
       "title": "Pay a subscription, not a cut of every booking",
       "intro": "Prices are net; 23% VAT is added on the invoice. 14-day trial, no card. A year up front costs ten instalments instead of twelve, on either plan.",
       "standardLabel": "Standard",

@@ -9,6 +9,28 @@ import { routing } from "@/i18n/routing";
 import { wfBootstrapScript } from "@/lib/marketing/template";
 import { isReviewSurfaceEnabled } from "@/lib/review-gate";
 
+const MARKETING_A11Y_CSS = `
+.marketing-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 16px;
+  z-index: 10000;
+  padding: 10px 14px;
+  transform: translateY(-200%);
+  border: 2px solid currentColor;
+  background: #fff;
+  color: #0b1017;
+  font: 600 16px/1.25 Arial, sans-serif;
+}
+.marketing-skip-link:focus-visible { transform: none; }
+:where(.nav-link, .cta-main, .footer-link, .text-underline, .marketing-skip-link):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+:where(.cta-main, .footer-link) { min-height: 44px; }
+.footer-link { display: inline-flex; align-items: center; }
+`;
+
 /**
  * Root layout OSI MARKETINGOWEJ (www.avably.io).
  *
@@ -50,6 +72,7 @@ export default async function LocaleLayout({
         <link href="/forerunner/css/webflow.css" rel="stylesheet" />
         <link href="/forerunner/css/forerunner-template.webflow.css" rel="stylesheet" />
         <link href="/forerunner/css/avably-marketing.css" rel="stylesheet" />
+        <style dangerouslySetInnerHTML={{ __html: MARKETING_A11Y_CSS }} nonce={nonce} />
         {/* Ikona SVG marki dla przeglądarek; starsze wracają do app/favicon.ico
             (konwencja Next). Bez apple-touch-icon — iOS wymaga tam PNG, a nie SVG. */}
         <link href="/forerunner/images/avably-favicon.svg" rel="icon" type="image/svg+xml" />

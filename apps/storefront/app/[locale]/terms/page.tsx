@@ -36,9 +36,11 @@ export async function generateMetadata({
 
   const document = await getPlatformTerms();
   if (!document) return {};
+  const messages = (await getMessages({ locale })) as AppMessages;
 
   return {
     title: platformTermsLocalized(document, locale).title,
+    description: messages.marketing.termsPage.metadataDescription,
     alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/terms` },
   };
 }

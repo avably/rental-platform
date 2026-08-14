@@ -31,6 +31,46 @@ const marketingPages = readdirSync(path.join(root, "marketing")).filter((file) =
   file.endsWith(".html"),
 );
 
+describe("treść zgodna z produktem i kompletne metadane", () => {
+  it("nie obiecuje osobnej listy, której nie ma już na pulpicie", () => {
+    expect(pl.marketing.cta.body).not.toContain("Osobna lista");
+    expect(en.marketing.cta.body).not.toContain("A separate");
+    expect(pl.marketing.cta.body).toContain("pięcioma stałymi kaflami");
+    expect(en.marketing.cta.body).toContain("five fixed tiles");
+  });
+
+  it("wyjaśnia adres startowy i opcjonalną własną domenę", () => {
+    expect(pl.marketing.hero.feature3).toContain("twojanazwa.avably.io");
+    expect(en.marketing.hero.feature3).toContain("yourname.avably.io");
+    expect(pl.marketing.hero.feature3).toContain("własną domeną");
+    expect(en.marketing.hero.feature3).toContain("own domain");
+  });
+
+  it("każda indeksowana podstrona ma opis w obu językach", () => {
+    for (const key of ["pricingPage", "contactPage", "faqPage", "privacyPage", "termsPage"] as const) {
+      for (const [locale, messages] of [
+        ["pl", pl],
+        ["en", en],
+      ] as const) {
+        const section = messages.marketing[key] as Record<string, unknown>;
+        expect(typeof section.metadataDescription, `${locale}.${key}`).toBe("string");
+        expect(String(section.metadataDescription ?? "").trim().length, `${locale}.${key}`).toBeGreaterThan(40);
+      }
+    }
+
+    for (const route of [
+      "app/[locale]/[page]/page.tsx",
+      "app/[locale]/privacy/page.tsx",
+      "app/[locale]/terms/page.tsx",
+      "app/[locale]/terms/w/[wersja]/page.tsx",
+    ]) {
+      expect(read(route), `${route}: opis istnieje, ale nie trafia do metadanych`).toContain(
+        "metadataDescription",
+      );
+    }
+  });
+});
+
 /**
  * Katalogi zasobów strony marketingowej wraz z sufitem wagi POJEDYNCZEGO pliku.
  *

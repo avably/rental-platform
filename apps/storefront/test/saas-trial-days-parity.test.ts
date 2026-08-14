@@ -73,6 +73,7 @@ const INWENTARZ: Record<string, number[]> = {
   "marketing.closing.ctaSecondary": [SAAS_TRIAL_DAYS],
   "marketing.footer.trialCta": [SAAS_TRIAL_DAYS],
   "marketing.pricingPage.intro": [SAAS_TRIAL_DAYS],
+  "marketing.pricingPage.metadataDescription": [SAAS_TRIAL_DAYS],
   "marketing.pricingPage.honest1": [SAAS_TRIAL_DAYS],
   "landing.metadata.description": [SAAS_TRIAL_DAYS],
   "landing.metadata.ogDescription": [SAAS_TRIAL_DAYS],

@@ -25,6 +25,7 @@ export async function generateMetadata({
 
   return {
     title: messages.privacy.title,
+    description: messages.marketing.privacyPage.metadataDescription,
     alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/privacy` },
   };
 }
