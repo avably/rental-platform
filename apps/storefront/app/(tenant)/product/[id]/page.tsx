@@ -6,11 +6,11 @@
  * Trasa oddaje jedną z dwóch rzeczy, a granica przebiega po PUBLIKACJI
  * SZABLONU — nie po jego zawartości:
  *
- *   • BRAK opublikowanego szablonu → STRONA WBUDOWANA. Dokładnie ta, którą
- *     trasa oddawała od 2.4b: `ProductDetail` z wyborem terminu, dostępnością
- *     i dodaniem do koszyka. To jest stan KAŻDEGO dzisiejszego najemcy, więc
- *     wdrożenie fazy 5 nie zmienia ani jednego piksela, dopóki operator sam
- *     nie zbuduje i nie opublikuje szablonu.
+ *   • BRAK opublikowanego szablonu → STRONA WBUDOWANA: `ProductDetail`
+ *     (galeria, opis, specyfikacja) plus widget rezerwacji. To jest stan
+ *     KAŻDEGO dzisiejszego najemcy, więc wdrożenie fazy 5 nie zabiera mu ani
+ *     jednej funkcji, dopóki operator sam nie zbuduje i nie opublikuje
+ *     szablonu.
  *   • OPUBLIKOWANY szablon → SZABLON, także gdy jest ubogi albo pusty. Pusty
  *     opublikowany szablon jest świadomą decyzją operatora; podmienianie go
  *     z powrotem na stronę wbudowaną byłoby dokładnie tym kłamstwem
@@ -37,6 +37,16 @@
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
  *
+ * ==================== REZERWACJA JEST W OBU GAŁĘZIACH ====================
+ *
+ * Część transakcyjna (kalendarz z dostępnością, ilość, koszyk) to JEDEN
+ * nierozmontowywalny widget (`ProductBooking`, faza 5, ADR-180), który trasa
+ * wstawia w OBU gałęziach. Do ADR-180 szablon był powierzchnią wyłącznie
+ * prezentacyjną: najemca, który go opublikował, tracił na swojej stronie
+ * sprzętu przycisk rezerwacji — czyli publikacja szablonu kosztowała go
+ * sprzedaż. Widget stoi w miejscu STAŁYM; przesuwanie wymaga własnego typu
+ * sekcji i jest osobną pracą.
+ *
  * METADANE I JSON-LD OPISUJĄ SPRZĘT W OBU GAŁĘZIACH. Szablon jest sposobem
  * pokazania pozycji, a nie osobnym dokumentem: tytuł, opis i `Product` +
  * `Offer` liczą się z katalogu, tak samo jak przed fazą 5. Gdyby szły
@@ -56,6 +66,7 @@ import { SiteRenderer } from "@avably/ui";
 
 import { toProductDetail } from "@/lib/catalog/present";
 import { JsonLd } from "@/components/storefront/json-ld";
+import { ProductBooking } from "@/components/storefront/product-booking";
 import { ProductDetail } from "@/components/storefront/product-detail";
 import { PageShell } from "@/components/storefront/page-shell";
 import { StoreChrome } from "@/components/storefront/store-chrome";
@@ -151,6 +162,28 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
       })
     : null;
 
+  /*
+    WIDGET REZERWACJI — JEDEN, DLA OBU GAŁĘZI (faza 5, ADR-180).
+
+    Liczony PRZED rozgałęzieniem i przekazywany w dół, a nie wołany dwa razy
+    w dwóch miejscach: „strona sprzętu ma czym rezerwować" ma być zdaniem
+    o TRASIE. Dwa wywołania obok siebie znaczyłyby, że gałąź szablonu może
+    kiedyś dostać inne parametry niż wbudowana — albo nie dostać żadnych, bo
+    ktoś dodał trzecią gałąź i nie zauważył.
+
+    To jest cały powód, dla którego PR #314 czekał: do tej zmiany najemca,
+    który opublikował szablon strony sprzętu, tracił przycisk rezerwacji.
+  */
+  const booking = (
+    <ProductBooking
+      productId={product.id}
+      priceParams={product.priceParams}
+      copy={copy}
+      locale={locale}
+      currency={currency}
+    />
+  );
+
   const template = await getPublishedProductTemplate(ctx.tenantId);
 
   if (template) {
@@ -212,6 +245,21 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
             mapEmbed
             anchors
           />
+          {/*
+            REZERWACJA POD TREŚCIĄ SZABLONU — MIEJSCE STAŁE (ADR-180).
+
+            Pod, a nie nad: szablon jest tym, czym najemca sprzedaje (zdjęcia,
+            opis, argumenty), a widget jest tym, czym klient kupuje po podjęciu
+            decyzji. Nad treścią zabierałby operatorowi hero, które sam
+            zaprojektował, i robił z jego strony formularz z ozdobnikiem.
+
+            Przesuwania NIE MA i to jest świadome zawężenie tego etapu:
+            wymagałoby własnego typu sekcji, a więc i miejsca w kreatorze,
+            w walidacji treści i w publikacji. Widget natomiast jest jeden
+            i nierozmontowywalny — najemca nie ma jak zdjąć ze swojej strony
+            przycisku rezerwacji.
+          */}
+          <div className="mx-auto w-full max-w-5xl px-6 py-10">{booking}</div>
         </main>
       </StoreChrome>
     );
@@ -233,7 +281,7 @@ export default async function TenantProductPage({ params }: { params: Promise<{ 
         {copy.common.backToCatalog}
       </Link>
       <div className="mt-6">
-        <ProductDetail product={product} copy={copy} locale={locale} currency={currency} />
+        <ProductDetail product={product} copy={copy} booking={booking} />
       </div>
     </PageShell>
   );

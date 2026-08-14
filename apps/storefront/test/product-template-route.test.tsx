@@ -296,6 +296,64 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------
+  // 3b. REZERWACJA W OBU GAŁĘZIACH (faza 5, ADR-180)
+  // -------------------------------------------------------------------
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie widgetu z KTÓREJKOLWIEK gałęzi. Do
+  // ADR-180 gałąź szablonu nie miała go wcale — najemca, który opublikował
+  // szablon strony sprzętu, tracił przycisk rezerwacji i nie widział tego
+  // w żadnym błędzie. Dlatego obie gałęzie mierzy JEDNA pętla po tej samej
+  // liście asercji: przypadek osobny dla każdej z nich prędzej czy później
+  // rozjechałby się o jedną asercję i znowu przestałby pilnować drugiej.
+  //
+  // NIC INNEGO TEGO NIE PRZYKRYWA: suita widgetu (`product-booking.test.tsx`)
+  // bada jego zachowanie, ale montuje go SAMA — przechodzi więc także wtedy,
+  // gdy trasa nie renderuje go nigdzie.
+  it("OBIE gałęzie oddają widget rezerwacji: przycisk do koszyka, ilość i siatkę terminu", async () => {
+    const bezSzablonu = await renderProductPage();
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
+    vi.resetModules();
+    const zeSzablonem = await renderProductPage();
+    // Trzecia gałąź kontrolna: szablon PUSTY. Operator, który opublikował
+    // stronę bez ani jednej sekcji, też musi mieć czym sprzedawać.
+    stan.szablon = opublikowanySzablon([]);
+    vi.resetModules();
+    const pustySzablon = await renderProductPage();
+
+    for (const [etykieta, markup] of [
+      ["bez szablonu", bezSzablonu],
+      ["ze szablonem", zeSzablonem],
+      ["pusty szablon", pustySzablon],
+    ] as const) {
+      expect(markup, `${etykieta}: brak widgetu rezerwacji`).toContain(
+        `data-product-booking="${SPRZET_ID}"`,
+      );
+      expect(markup, `${etykieta}: brak przycisku dodania do koszyka`).toContain(
+        "data-product-booking-add",
+      );
+      expect(markup, `${etykieta}: brak siatki wyboru terminu w widgecie`).toContain(
+        "data-calendar-day=",
+      );
+      expect(markup, `${etykieta}: brak pola ilości`).toContain('id="booking-qty"');
+      expect(markup, `${etykieta}: brak etykiety przycisku koszyka`).toContain("Dodaj do koszyka");
+    }
+  }, BUDZET_RENDERU);
+
+  it("widget rezerwacji jest DOKŁADNIE JEDEN na stronie wbudowanej", async () => {
+    // Strona wbudowana miała do ADR-180 własną parę pól daty obok paska
+    // powłoki. Zostawienie ich RAZEM z widgetem dałoby dwa wyboru terminu na
+    // jednym ekranie — czyli tę samą wadę, którą naprawiał ADR-179, tylko
+    // w drugą stronę. Liczymy WYSTĄPIENIA, bo „jest widget" przeszłoby też
+    // wtedy, gdyby stary blok został obok.
+    const markup = await renderProductPage();
+    const widgety = markup.match(/data-product-booking="/g) ?? [];
+    expect(widgety, "widget rezerwacji nie jest jeden").toHaveLength(1);
+    expect(markup, "została stara para pól daty ze strony wbudowanej").not.toContain(
+      'id="rent-start"',
+    );
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
   // 4. Metadane i JSON-LD opisują SPRZĘT w obu gałęziach
   // -------------------------------------------------------------------
   it("JSON-LD opisuje SPRZĘT niezależnie od tego, która gałąź renderuje", async () => {

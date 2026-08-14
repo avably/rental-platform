@@ -433,7 +433,11 @@
       "conflictLine": "{name} — w koszyku: {requested}, wolne w tym terminie: {available}",
       "conflictBlocksCheckout": "Dopóki to trwa, nie przejdziesz do kasy — usuń te pozycje albo wróć do poprzedniego terminu.",
       "conflictRemove": "Usuń te pozycje z koszyka",
-      "conflictRevert": "Wróć do poprzedniego terminu"
+      "conflictRevert": "Wróć do poprzedniego terminu",
+      "unitsFree": "wolne w tym terminie: {units} szt.",
+      "unitsNone": "brak w tym terminie",
+      "bookingHeading": "Rezerwacja",
+      "bookingUnknown": "Dostępności nie udało się sprawdzić — możesz dodać do koszyka, wolne sztuki potwierdzimy przy składaniu zamówienia."
     },
     "product": {
       "galleryAlt": "Zdjęcie produktu {name}",
@@ -441,15 +445,7 @@
       "specsHeading": "Specyfikacja techniczna",
       "depositLabel": "Kaucja",
       "perDayPrice": "{price} / doba",
-      "chooseDates": "Wybierz termin najmu",
-      "startDate": "Od",
-      "endDate": "Do",
-      "checkAvailability": "Sprawdź dostępność",
-      "availabilityChecking": "Sprawdzam…",
-      "available": "Dostępne w tym terminie: {available} z {total} szt.",
       "unavailable": "Brak wolnych sztuk w wybranym terminie — wybierz inny.",
-      "availabilityError": "Nie udało się sprawdzić dostępności. Spróbuj ponownie.",
-      "dateRangeInvalid": "Data zakończenia nie może być wcześniejsza niż rozpoczęcia.",
       "dateRequired": "Wybierz termin najmu, aby dodać do koszyka.",
       "quantity": "Ilość",
       "addToCart": "Dodaj do koszyka",

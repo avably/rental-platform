@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 
 import { StoreHeader } from "@/components/storefront/store-header";
 import {
+  StoreCatalogAvailability,
   StoreTermBar,
   StoreTermProvider,
   type StoreTermProduct,
@@ -156,7 +157,13 @@ export function StoreChrome({
       <StoreTermProvider>
         <StoreHeader copy={copy} storeName={storeName} logo={logo} />
         {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}
-        {children}
+        {/*
+          LICZBY NA KAFLE KATALOGU (faza 5, ADR-180) — z tej samej, jednej
+          odpowiedzi o dostępność, z której liczy się konflikt koszyka. Most
+          stoi w powłoce, bo sekcja sprzętu rysuje się na każdej stronie
+          najemcy, a nie tylko na katalogu.
+        */}
+        <StoreCatalogAvailability copy={copy}>{children}</StoreCatalogAvailability>
       </StoreTermProvider>
       {/*
         STOPKA POWŁOKI (faza 0, ADR-154) — od ADR-172 składa ją pakiet UI, ten

@@ -433,7 +433,11 @@
       "conflictLine": "{name} — in cart: {requested}, available for these dates: {available}",
       "conflictBlocksCheckout": "You cannot go to checkout until this is resolved — remove these items or go back to the previous dates.",
       "conflictRemove": "Remove these items from the cart",
-      "conflictRevert": "Back to the previous dates"
+      "conflictRevert": "Back to the previous dates",
+      "unitsFree": "available for these dates: {units} pcs",
+      "unitsNone": "unavailable for these dates",
+      "bookingHeading": "Booking",
+      "bookingUnknown": "We could not check availability — you can add to cart and we will confirm free units when the order is placed."
     },
     "product": {
       "galleryAlt": "Photo of {name}",
@@ -441,15 +445,7 @@
       "specsHeading": "Specification",
       "depositLabel": "Deposit",
       "perDayPrice": "{price} / day",
-      "chooseDates": "Choose rental dates",
-      "startDate": "From",
-      "endDate": "To",
-      "checkAvailability": "Check availability",
-      "availabilityChecking": "Checking…",
-      "available": "Available for these dates: {available} of {total} pcs",
       "unavailable": "No units available for the selected dates — please pick another range.",
-      "availabilityError": "Could not check availability. Please try again.",
-      "dateRangeInvalid": "The end date cannot be earlier than the start date.",
       "dateRequired": "Choose rental dates to add to cart.",
       "quantity": "Quantity",
       "addToCart": "Add to cart",

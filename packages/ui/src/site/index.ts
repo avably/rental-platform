@@ -47,6 +47,13 @@ export {
   type SiteDateRangeCalendarProps,
   type SiteDateRangeSelection,
 } from "./date-range-calendar";
+// Dostępność na kaflu katalogu (faza 5, ADR-180) — kafel PYTA o liczbę wolnych
+// sztuk, odpowiada powierzchnia, która zna termin. Brak dostawcy = kafel milczy.
+export {
+  SiteProductAvailabilityMark,
+  SiteProductAvailabilityProvider,
+  type SiteProductAvailability,
+} from "./product-availability";
 // Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
 export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).

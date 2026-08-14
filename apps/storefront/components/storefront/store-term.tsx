@@ -31,6 +31,24 @@
  * Liczba wolnych sztuk pojawia się tam, gdzie kontekst jest: na kaflu katalogu
  * i w widgecie sprzętu.
  *
+ * ==================== JEDNO PYTANIE NA TERMIN (ADR-180) ====================
+ *
+ * Odpowiedź `app.get_public_catalog_availability` niesie liczby dla CAŁEGO
+ * katalogu, więc odpowiada naraz na trzy pytania zadawane w trzech miejscach:
+ * „co się nie mieści w koszyku" (panel konfliktu), „ile wolnych sztuk TEGO
+ * sprzętu" (widget rezerwacji) i „co jest wolne" (kafle katalogu). Provider
+ * pyta o nią RAZ NA TERMIN i rozdaje wszystkim trzem.
+ *
+ * Klucz zapytania nie niesie już podpisu koszyka i to jest zmiana ADR-180:
+ * do etapu A pytanie leciało na każdą zmianę pozycji, choć odpowiedź o KATALOG
+ * od koszyka nie zależy. Konflikt liczy się z tej samej odpowiedzi funkcją
+ * czystą (`cartConflicts`), więc dołożenie sprzętu do koszyka nie kosztuje
+ * dziś ani jednej podróży do bazy.
+ *
+ * Pytanie leci też przy PUSTYM koszyku — inaczej niż w etapie A. Powód jest
+ * sprzedażowy: klient, który wybrał termin i przegląda katalog, ma zobaczyć na
+ * kaflach, co jest wolne, ZANIM cokolwiek doda.
+ *
  * ==================== KONFLIKT: POKAZUJEMY (R4) ====================
  *
  * Zmiana terminu przy pełnym koszyku bywa zawężeniem dostępności. Rdzeń reguły
@@ -50,6 +68,7 @@ import {
 } from "@avably/core";
 import {
   SiteDateRangeCalendar,
+  SiteProductAvailabilityProvider,
   initialSiteCalendarMonth,
   type SiteCalendarLabels,
 } from "@avably/ui";
@@ -71,6 +90,7 @@ import {
   type CartConflictVerdict,
 } from "@/lib/cart/conflicts";
 import { useCart } from "@/lib/cart/use-cart";
+import type { PublicCatalogAvailability } from "@/lib/checkout/contract";
 import { format, type StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 
@@ -93,6 +113,22 @@ export interface StoreTermValue {
   /** Zdejmuje z koszyka WSZYSTKIE pozycje w konflikcie — na jawne kliknięcie. */
   dropConflicting: () => void;
   blocked: boolean;
+  /**
+   * ILE SZTUK KTÓREJ POZYCJI JEST WOLNYCH w wybranym terminie (ADR-180).
+   *
+   * `null` (cała mapa) znaczy „nie wiem" i ma DOKŁADNIE trzy powody: nie ma
+   * terminu, odpowiedź jeszcze nie wróciła albo odczyt się nie udał. Klucz
+   * NIEOBECNY w mapie znaczy to samo o jednej pozycji. Zero znaczy „nic nie
+   * zostało" i jest odpowiedzią, nie brakiem odpowiedzi — dlatego te dwa stany
+   * nie dzielą jednej wartości: kafel i widget rysują je inaczej, a pomylenie
+   * ich albo obiecuje sprzęt, którego nie ma, albo gasi sprzedaż sprzętu,
+   * który jest.
+   *
+   * MAPA, A NIE FUNKCJA PYTAJĄCA: ta sama wartość jedzie wprost do dostawcy
+   * kontekstu kafli w pakiecie UI. Funkcja wymagałaby przy nim drugiej
+   * reprezentacji tej samej wiedzy.
+   */
+  units: Readonly<Record<string, number>> | null;
 }
 
 /**
@@ -110,6 +146,7 @@ const INERT: StoreTermValue = {
   checking: false,
   dropConflicting: () => {},
   blocked: false,
+  units: null,
 };
 
 const StoreTermContext = createContext<StoreTermValue>(INERT);
@@ -131,54 +168,90 @@ export function StoreTermProvider({ children }: { children: ReactNode }) {
   /**
    * ODPOWIEDŹ RAZEM Z PYTANIEM, NA KTÓRE ODPOWIADA.
    *
-   * Werdykt nie jest samodzielnym stanem — jest odpowiedzią na konkretne
-   * pytanie „czy TEN koszyk mieści się w TYM terminie". Trzymanie go bez
-   * pytania kończy się nieaktualnym konfliktem na ekranie: klient zmienia
-   * termin, a przez chwilę widzi werdykt dla poprzedniego, bo odpowiedź
-   * jeszcze nie wróciła. Sklejenie odpowiedzi z kluczem zapytania robi ten
-   * stan NIEREPREZENTOWALNYM — nieaktualna odpowiedź po prostu nie pasuje
-   * do bieżącego klucza i nie zostaje pokazana.
+   * Dostępność nie jest samodzielnym stanem — jest odpowiedzią na konkretne
+   * pytanie „co jest wolne w TYM terminie". Trzymanie jej bez pytania kończy
+   * się nieaktualnymi liczbami na ekranie: klient zmienia termin, a przez
+   * chwilę widzi odpowiedź dla poprzedniego, bo nowa jeszcze nie wróciła.
+   * Sklejenie odpowiedzi z kluczem zapytania robi ten stan NIEREPREZENTOWALNYM
+   * — nieaktualna odpowiedź po prostu nie pasuje do bieżącego klucza i nie
+   * zostaje pokazana.
+   *
+   * `availability: null` W ODPOWIEDZI jest stanem osobnym od braku odpowiedzi:
+   * znaczy „baza odmówiła" (najemca poza oknem, zakres odwrócony, awaria
+   * transportu) i też jest wiedzą — mianowicie wiedzą, że nie wiemy.
    */
-  const [answer, setAnswer] = useState<{ key: string; verdict: CartConflictVerdict } | null>(null);
+  const [answer, setAnswer] = useState<{
+    key: string;
+    availability: PublicCatalogAvailability | null;
+  } | null>(null);
 
   const { startDate, endDate, items } = cart;
   // Podpis pozycji, a nie sama tablica: `items` jest nową referencją przy
-  // każdej migawce koszyka, więc tablica w kluczu odpytywałaby serwer w kółko.
+  // każdej migawce koszyka, więc tablica w zależnościach przeliczałaby werdykt
+  // na każdy render dowolnego stanu w drzewie sklepu.
   const itemsKey = items.map((line) => `${line.productId}:${line.quantity}`).join(",");
   const rangeReady = startDate !== null && endDate !== null && endDate >= startDate;
-  /** `null` = nie ma o co pytać: pusty koszyk albo niekompletny termin. */
-  const queryKey = rangeReady && itemsKey !== "" ? `${startDate}|${endDate}|${itemsKey}` : null;
+  /**
+   * `null` = nie ma o co pytać, czyli WYŁĄCZNIE brak kompletnego terminu.
+   * Koszyk w kluczu nie siedzi (ADR-180) — patrz nagłówek pliku.
+   */
+  const queryKey = rangeReady ? `${startDate}|${endDate}` : null;
 
   useEffect(() => {
     if (!hydrated || queryKey === null) return;
     let cancelled = false;
     void checkCatalogAvailability(startDate!, endDate!)
       .then((availability) => {
-        if (!cancelled) setAnswer({ key: queryKey, verdict: cartConflicts(items, availability) });
+        if (!cancelled) setAnswer({ key: queryKey, availability });
       })
       .catch(() => {
         // Błąd transportu to „nie wiem", a nie „wszystko wolne".
-        if (!cancelled) setAnswer({ key: queryKey, verdict: { conflicts: [], unknown: true } });
+        if (!cancelled) setAnswer({ key: queryKey, availability: null });
       });
     return () => {
       cancelled = true;
     };
-    // `items`, `startDate` i `endDate` są w całości zakodowane w `queryKey`.
+    // `startDate` i `endDate` są w całości zakodowane w `queryKey`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, queryKey]);
+
+  /** Odpowiedź NA BIEŻĄCE pytanie albo `null` — jedno miejsce, w którym się to rozstrzyga. */
+  const availability = useMemo<PublicCatalogAvailability | null>(
+    () => (answer !== null && answer.key === queryKey ? answer.availability : null),
+    [answer, queryKey],
+  );
+  const checking = queryKey !== null && (answer === null || answer.key !== queryKey);
 
   // `useMemo`, a nie goła stała: werdykt wchodzi w zależności `dropConflicting`
   // i wartości kontekstu, więc nowa referencja przy każdym renderze
   // przeliczałaby oba na każdy ruch dowolnego stanu w drzewie sklepu.
   const verdict = useMemo<CartConflictVerdict>(() => {
     if (queryKey === null) return NO_CONFLICTS;
-    if (answer !== null && answer.key === queryKey) return answer.verdict;
-    // Pytanie zadane, odpowiedzi jeszcze nie ma — to jest „nie wiem", a nie
-    // „nie ma konfliktu". Kasa zostaje otwarta (patrz
+    // Pytanie zadane, odpowiedzi jeszcze nie ma (albo baza odmówiła) — to jest
+    // „nie wiem", a nie „nie ma konfliktu". Kasa zostaje otwarta (patrz
     // isCheckoutBlockedByConflict), ale nikt nie twierdzi, że sprawdził.
-    return { conflicts: [], unknown: true };
-  }, [queryKey, answer]);
-  const checking = queryKey !== null && (answer === null || answer.key !== queryKey);
+    // Rozstrzyga o tym `cartConflicts`, dla którego `null` JEST tym stanem.
+    return cartConflicts(items, availability);
+    // `items` przez podpis — patrz `itemsKey` wyżej.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryKey, availability, itemsKey]);
+
+  /**
+   * Mapa `product_id → wolne sztuki` liczona RAZ na odpowiedź.
+   *
+   * POZYCJA NIEOBECNA W ODPOWIEDZI TO „NIE WIEM", A NIE ZERO — i to jest
+   * celowo INNA odpowiedź niż w `cartConflicts`, gdzie brak pozycji liczy się
+   * jako zero. Różnica bierze się z pytania: tam pytamy „czy wolno puścić do
+   * kasy sprzęt, którego katalog już nie zna" (nie wolno), tutaj „co napisać
+   * na kaflu" — a kafel pozycji spoza odpowiedzi ma milczeć, nie ogłaszać
+   * braku.
+   */
+  const units = useMemo<Readonly<Record<string, number>> | null>(() => {
+    if (availability === null) return null;
+    const map: Record<string, number> = {};
+    for (const row of availability.products) map[row.product_id] = row.available_units;
+    return map;
+  }, [availability]);
 
   const setTerm = useCallback(
     (start: string | null, end: string | null) => {
@@ -221,15 +294,56 @@ export function StoreTermProvider({ children }: { children: ReactNode }) {
       checking,
       dropConflicting,
       blocked: isCheckoutBlockedByConflict(verdict),
+      units,
     }),
-    [startDate, endDate, setTerm, revertTerm, previous, verdict, checking, dropConflicting],
+    [startDate, endDate, setTerm, revertTerm, previous, verdict, checking, dropConflicting, units],
   );
 
   return <StoreTermContext.Provider value={value}>{children}</StoreTermContext.Provider>;
 }
 
-/** Etykiety kalendarza z copy najemcy — pakiet UI nie zna `StorefrontCopy`. */
-function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
+/**
+ * DOSTĘPNOŚĆ DLA KAFLI KATALOGU (faza 5, ADR-180) — most między terminem
+ * a rendererem sekcji.
+ *
+ * Kafle rysuje pakiet UI, który nie zna ani koszyka, ani akcji serwera, ani
+ * słownika najemcy. Ten komponent jest jedynym miejscem, w którym te trzy
+ * rzeczy spotykają się z rendererem: bierze liczby z JEDNEJ odpowiedzi
+ * providera i podaje je razem z etykietami.
+ *
+ * Stoi w powłoce, a nie w trasie katalogu, bo sekcja sprzętu rysuje się dziś na
+ * KAŻDEJ stronie najemcy (strona główna, podstrona treściowa, szablon strony
+ * sprzętu). Most w jednej trasie znaczyłby kafle z liczbami na stronie głównej
+ * i kafle bez liczb na podstronie — bez jednego błędu w konsoli.
+ */
+export function StoreCatalogAvailability({
+  copy,
+  children,
+}: {
+  copy: StorefrontCopy;
+  children: ReactNode;
+}) {
+  const { units } = useStoreTerm();
+  const value = useMemo(
+    () =>
+      units === null
+        ? null
+        : { units, available: copy.term.unitsFree, unavailable: copy.term.unitsNone },
+    [units, copy.term.unitsFree, copy.term.unitsNone],
+  );
+
+  return <SiteProductAvailabilityProvider value={value}>{children}</SiteProductAvailabilityProvider>;
+}
+
+/**
+ * Etykiety kalendarza z copy najemcy — pakiet UI nie zna `StorefrontCopy`.
+ *
+ * Eksportowane, bo kalendarzy w sklepie są DWA (pasek powłoki i widget
+ * rezerwacji na stronie sprzętu, ADR-180) i mają mówić tym samym językiem.
+ * Druga kopia tego mapowania rozjechałaby nazwy dni tygodnia między jedną
+ * siatką a drugą — w tym samym dokumencie.
+ */
+export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
   return {
     previousMonth: copy.term.previousMonth,
     nextMonth: copy.term.nextMonth,

@@ -216,8 +216,53 @@ describe("wybór terminu w powłoce", () => {
 
     await waitFor(() => expect(readCart().startDate).toBe(start));
     expect(readCart().items).toHaveLength(0);
-    // Pusty koszyk nie ma z czym kolidować, więc nie pytamy bazy o nic.
+    // Termin NIEKOMPLETNY (sam początek) nie jest pytaniem: nie ma zakresu,
+    // o który można zapytać. Kompletny — jest, także przy pustym koszyku
+    // (patrz przypadek niżej).
     expect(checkCatalogAvailability).not.toHaveBeenCalled();
+  });
+
+  // ZMIANA ADR-180: do etapu A pytanie leciało WYŁĄCZNIE przy niepustym
+  // koszyku, bo służyło jednej rzeczy — konfliktowi. Odkąd ta sama odpowiedź
+  // maluje kafle katalogu, musi lecieć także przy koszyku pustym: klient
+  // najpierw mówi „kiedy", a potem PATRZY, co jest wolne.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót warunku „pytaj tylko przy niepustym
+  // koszyku". Katalog milczałby wtedy dla każdego, kto jeszcze niczego nie
+  // dodał — czyli dla każdego, kto dopiero wybiera.
+  it("KOMPLETNY termin przy pustym koszyku PYTA o dostępność — katalog jej potrzebuje", async () => {
+    render(shell());
+    const start = dayFromToday(2);
+    const end = dayFromToday(4);
+
+    openCalendar();
+    clickDay(start);
+    clickDay(end);
+
+    await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledWith(start, end));
+    expect(readCart().items).toHaveLength(0);
+    expect(checkCatalogAvailability).toHaveBeenCalledTimes(1);
+  });
+
+  // JEDNO PYTANIE NA TERMIN, a nie na każdą zmianę koszyka: odpowiedź
+  // o dostępność KATALOGU od zawartości koszyka nie zależy, a konflikt liczy
+  // się z niej funkcją czystą (`cartConflicts`).
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót podpisu pozycji do klucza zapytania —
+  // każde dołożenie sprzętu byłoby wtedy podróżą do bazy po tę samą odpowiedź.
+  it("dołożenie pozycji do koszyka NIE dokłada drugiego pytania", async () => {
+    render(shell(cartView()));
+    const start = dayFromToday(2);
+    const end = dayFromToday(4);
+
+    openCalendar();
+    clickDay(start);
+    clickDay(end);
+    await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledTimes(1));
+
+    writeCart({ items: [{ productId: ROWER, quantity: 1 }], startDate: start, endDate: end });
+    await waitFor(() => expect(screen.getByText(/Rower górski/)).toBeTruthy());
+    expect(checkCatalogAvailability).toHaveBeenCalledTimes(1);
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ (R2): gdyby powłoka zaczęła malować dostępność,

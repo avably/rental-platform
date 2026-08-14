@@ -8,6 +8,7 @@ import * as React from "react";
 import { cn } from "../lib/cn";
 import { siteImageUrl } from "./image-url";
 import { externalLinkRel } from "./links";
+import { SiteProductAvailabilityMark } from "./product-availability";
 import { siteIconComponent } from "./site-icons";
 import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
@@ -183,6 +184,16 @@ export function ProductCards({
                 <div className="flex flex-col gap-1 p-3 @min-[40rem]/site:p-4">
                   <h3 className={styles.cardTitle}>{product.name}</h3>
                   <p className={styles.cardPrice}>{product.priceLabel}</p>
+                  {/*
+                    DOSTĘPNOŚĆ W WYBRANYM TERMINIE (faza 5, ADR-180) — ta sama
+                    linia, co na kaflu sekcji strukturalnej. Karta v1 rysuje się
+                    dziś w elemencie katalogu płótna v2, więc pominięcie jej
+                    tutaj gasiłoby liczby POŁOWIE najemców, bez jednego błędu.
+                  */}
+                  <SiteProductAvailabilityMark
+                    productId={product.id}
+                    className="site-text-muted text-sm"
+                  />
                   {product.description ? (
                     <p className="mt-2 line-clamp-3 text-sm site-text-muted">
                       {product.description}

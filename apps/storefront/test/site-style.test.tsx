@@ -303,6 +303,11 @@ const CHROME_SKLEPU = [
   "components/storefront/store-chrome.tsx",
   "components/storefront/cart-view.tsx",
   "components/storefront/product-detail.tsx",
+  // Widget rezerwacji (faza 5, ADR-180) — od tej zmiany to ON niesie kalendarz,
+  // ilość i przycisk koszyka na stronie sprzętu, czyli całą powierzchnię, którą
+  // wcześniej rysowała podstrona produktu. Bez wpisu skan pilnowałby pliku,
+  // z którego transakcja się wyprowadziła.
+  "components/storefront/product-booking.tsx",
   "components/storefront/checkout-form.tsx",
   "components/storefront/payment-step.tsx",
 ];
