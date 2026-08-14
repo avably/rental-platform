@@ -748,14 +748,50 @@ const rowSignature = (row) => ({
   })),
 });
 assert.deepEqual(darkRows.map(rowSignature), lightRows.map(rowSignature));
+// Nawigacja panelu (ADR-183). INWENTARZ pozycji NIE jest tu zaszyty — jego
+// właścicielem jest `apps/panel/test/panel-nav-contract.test.ts`, który parsuje
+// TEN SAM `<nav data-panel-nav>` i porównuje go 1:1 z `PANEL_NAV_ITEMS`, czyli
+// ze strukturą, z której renderuje się produkt (tam też stoi twarda liczność
+// `{ placeholder: 1, item: 15, group: 3 }`). Lista zaszyta tutaj była TRZECIĄ
+// kopią, nie miała czego pilnować i zardzewiała po czterech kolejnych
+// pozycjach (`customers`, `legal`, `integrations`, `dataExport`).
+//
+// Zostaje to, czego tamten kontrakt nie dotyka, a co jest DECYZJĄ artefaktu:
+// shell występuje w dwóch motywach i obie kopie muszą pokazywać to samo menu,
+// dokładnie jedna pozycja jest bieżąca i jest nią `orders`, a zapowiedź
+// dashboardu stoi poza grupami.
 const panelNavs = findAll(tree, (node) => node.tag === "nav" && node.attributes["data-panel-nav"] === "true");
 assert.ok(panelNavs.length >= 2, "Pokaż nawigację w jasnym i ciemnym shellu");
+const navItemsOf = (nav) => directChildren(nav, (node) => "data-nav-item" in node.attributes);
+const navItemIds = (nav) => navItemsOf(nav).map((node) => node.attributes["data-nav-item"]);
+const referenceNavItemIds = navItemIds(panelNavs[0]);
+// Podłoga po pustym zbiorze: bez niej porównanie kopii byłoby zielone na dwóch
+// PUSTYCH tablicach, gdyby parser przestał widzieć pozycje. 11 to stan menu
+// z dnia powstania artefaktu — to podłoga, a nie inwentarz: menu rośnie razem
+// z produktem i wzrost nie ma prawa palić bramki designu.
+assert.ok(
+  referenceNavItemIds.length >= 11,
+  `Nawigacja artefaktu ma ${referenceNavItemIds.length} pozycji — poniżej podłogi 11`,
+);
+assert.equal(
+  new Set(referenceNavItemIds).size,
+  referenceNavItemIds.length,
+  "Identyfikatory pozycji nawigacji muszą być unikalne",
+);
 for (const nav of panelNavs) {
-  const items = directChildren(nav, (node) => "data-nav-item" in node.attributes);
-  assert.deepEqual(items.map((node) => node.attributes["data-nav-item"]), [
-    "orders", "catalog", "store", "domains", "emails", "delivery", "contracts", "payments",
-    "team", "organization", "security",
-  ]);
+  const items = navItemsOf(nav);
+  assert.deepEqual(
+    navItemIds(nav),
+    referenceNavItemIds,
+    "Kopie shella (jasny/ciemny) pokazują różne menu",
+  );
+  for (const item of items) {
+    assert.equal(item.tag, "a", "Pozycja nawigacji musi być linkiem");
+    assert.ok(
+      textContent(item).replace(/\s+/g, " ").trim(),
+      `Pozycja ${item.attributes["data-nav-item"]} bez widocznej etykiety`,
+    );
+  }
   assert.equal(directChildren(nav, (node) => node.attributes["data-nav-placeholder"] === "dashboard").length, 1);
   assert.equal(items.filter((node) => node.attributes["aria-current"] === "page").length, 1);
   assert.equal(items.find((node) => node.attributes["aria-current"] === "page").attributes["data-nav-item"], "orders");
@@ -1130,28 +1166,42 @@ assert.equal(codeSurfaceText("form-measure"), expectedFormMeasureSurface);
 assert.match(css, /\[data-brand-system="avably-phase-2"\]\s*\{\s*--form-line-measure:\s*42rem;\s*\}/);
 assert.match(css, /\[data-form-line-measure\]\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*var\(--form-line-measure\);[^}]*\}/);
 
+// Mapa statusów drugorzędnych (ADR-183). Źródłem jest POWIERZCHNIA HANDOFFU
+// artefaktu — kopia zaszyta tu wcześniej była TRZECIĄ (po produkcie:
+// `apps/panel/lib/secondary-status.tsx`, pilnowanym 1:1 przez
+// `apps/panel/test/secondary-status-contract.test.ts`) i zardzewiała o całą oś
+// `delivery-section` oraz cztery wartości dołożone do osi istniejących.
+//
+// Wyprowadzenie NIE jest wolne od treści: mapa wraca niżej jako oczekiwanie dla
+// KAŻDEGO chipa w mockupach (oś, wartość, ton, klasa) i w drugą stronę — każdy
+// wpis mapy musi wystąpić w mockupie. To jest realny dowód, bo obie strony
+// porównania są zapisane w artefakcie niezależnie od siebie.
 const secondaryStatusMap = JSON.parse(codeSurfaceText("secondary-status-map"));
-assert.deepEqual(secondaryStatusMap, {
-  domain: { live: "positive", pending: "attention", registration_failed: "problem" },
-  "domain-provider": { available: "positive", unavailable: "attention" },
-  "email-transport": { available: "positive", unavailable: "attention" },
-  "email-sender": { configured: "positive", missing: "attention" },
-  "email-log": { sent: "positive", failed: "problem" },
-  "delivery-secret": { configured: "positive", missing: "attention" },
-  invitation: { accepted: "positive", pending: "attention" },
-  organization: { active: "positive" },
-  security: { not_configured: "attention", configured: "positive" },
-  "site-section": { enabled: "positive", disabled: "neutral" },
-  "site-publish": { published: "positive" },
-  // Oś fazy 3 (Z2, ADR-065). Cztery wartości: konto potrafi przyjmować wpłaty
-  // i jednocześnie wstrzymywać wypłaty, a ten stan wygląda jak sukces.
-  "payment-account": {
-    missing: "attention",
-    pending: "attention",
-    payouts_blocked: "problem",
-    ready: "positive",
-  },
-});
+// KSZTAŁT zostaje zaszyty, bo to decyzja, której artefakt nie może o sobie
+// orzec: słownik tonów jest ZAMKNIĘTY. Wykaz tonów bierzemy z kontraktu
+// kontrastu wyżej (`status-light-<ton>`), więc nowy ton bez udowodnionej pary
+// kontrastu jest z definicji nielegalny — i nie powstaje przy tym kolejna
+// lista do pamiętania.
+const allowedTones = Object.keys(requiredContrasts)
+  .map((name) => name.match(/^status-light-(\w+)$/)?.[1])
+  .filter(Boolean);
+assert.ok(allowedTones.length >= 4, "Kontrakt kontrastu nie oddał słownika tonów");
+// Podłoga po pustym zbiorze: `JSON.parse("{}")` przeszedłby każdą pętlę niżej.
+assert.ok(
+  Object.keys(secondaryStatusMap).length >= 13,
+  `Mapa statusów drugorzędnych ma ${Object.keys(secondaryStatusMap).length} osi — poniżej podłogi 13`,
+);
+for (const [axis, values] of Object.entries(secondaryStatusMap)) {
+  assert.match(axis, /^[a-z][a-z-]*$/, `Nazwa osi spoza konwencji: ${axis}`);
+  assert.ok(Object.keys(values).length >= 1, `Oś ${axis} bez wartości`);
+  for (const [value, tone] of Object.entries(values)) {
+    assert.match(value, /^[a-z][a-z_]*$/, `Wartość spoza konwencji: ${axis}.${value}`);
+    assert.ok(
+      allowedTones.includes(tone),
+      `${axis}.${value}: ton "${tone}" spoza słownika (${allowedTones.join(", ")})`,
+    );
+  }
+}
 const activeTokenCopy = (theme) => {
   const matches = findAll(tree, (node) => node.attributes["data-token-code"] === theme);
   assert.equal(matches.length, 1, `Brak jednej aktywnej kopii tokenów ${theme}`);
@@ -1208,7 +1258,17 @@ for (const screen of secondaryScreenNames) {
   );
 }
 
-const expectedActions = {
+// Akcje ekranów drugorzędnych (ADR-183). To ZBIÓR WYMAGANY, nie inwentarz:
+// każda wymieniona akcja musi w mockupie być, ale akcja DOŁOŻONA nie pali
+// bramki. Równość mieliśmy wcześniej i to ona zardzewiała — `restore-section`
+// (K5a, ADR-091) doszedł do edytora strony legalnie, razem z sekcją usuniętą
+// w szkicu, a bramka designu nazwała to „rozjazdem".
+//
+// Kierunek pilnowania jest asymetryczny CELOWO: mockup, który GUBI nogę
+// (regres z PR #313), musi zapalić czerwień, bo dokumentacja zaczyna wtedy
+// pokazywać ekran, którego produkt nie ma. Mockup, który dostaje nową nogę,
+// nadąża za produktem i nie jest awarią designu.
+const requiredActions = {
   "secondary-domains": ["back-to-panel", "retry-registration", "check-domain", "remove-domain", "add-domain"],
   "secondary-email-settings": ["back-to-panel", "save-email-sender"],
   "secondary-email-history": ["filter-email-history", "order-link", "previous-page", "next-page"],
@@ -1222,13 +1282,26 @@ const expectedActions = {
     "move-down", "toggle-section", "delete-section", "save-section", "faq-remove", "faq-add",
   ],
 };
-for (const [screen, expected] of Object.entries(expectedActions)) {
+for (const [screen, required] of Object.entries(requiredActions)) {
   const node = findAll(tree, (candidate) => candidate.attributes["data-screen"] === screen)[0];
-  const actual = [...new Set(
-    findAll(node, (candidate) => "data-action" in candidate.attributes)
-      .map((candidate) => candidate.attributes["data-action"]),
-  )];
-  assert.deepEqual(actual, expected, `${screen}: rozjazd akcji`);
+  const carriers = findAll(node, (candidate) => "data-action" in candidate.attributes);
+  const actual = [...new Set(carriers.map((candidate) => candidate.attributes["data-action"]))];
+  const missing = required.filter((action) => !actual.includes(action));
+  assert.deepEqual(missing, [], `${screen}: mockup zgubił akcje`);
+  // Każda akcja — także dołożona po tej liście — musi być NOŚNIKIEM decyzji,
+  // a nie samym atrybutem: klikalna kontrolka z widoczną etykietą.
+  for (const carrier of carriers) {
+    const action = carrier.attributes["data-action"];
+    assert.match(action, /^[a-z][a-z0-9-]*$/, `${screen}: akcja spoza konwencji: ${action}`);
+    assert.ok(
+      ["button", "a"].includes(carrier.tag),
+      `${screen}: akcja ${action} na <${carrier.tag}>, nie na kontrolce`,
+    );
+    assert.ok(
+      textContent(carrier).replace(/\s+/g, " ").trim(),
+      `${screen}: akcja ${action} bez widocznej etykiety`,
+    );
+  }
 }
 
 const expectedNamedFields = {
