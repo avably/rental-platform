@@ -71,11 +71,36 @@ function niesieObraz(bytes: Uint8Array): boolean {
   return /\/Subtype\s*\/Image/.test(Buffer.from(bytes).toString("latin1"));
 }
 
+/**
+ * Parser pdf.js PRZEJMUJE bufor wejściowy (odczepia go od naszej tablicy),
+ * więc każdy odczyt dostaje własną KOPIĘ. Bez tego drugie pytanie o ten sam
+ * dokument pada na „DataCloneError" — i wyglądałoby to na wadę renderu.
+ */
 async function tekst(bytes: Uint8Array): Promise<string> {
   const { extractText } = await import("unpdf");
-  const pdf = await getDocumentProxy(bytes);
+  const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { text } = await extractText(pdf, { mergePages: true });
   return Array.isArray(text) ? text.join("\n") : text;
+}
+
+/**
+ * Pionowa pozycja tytułu dokumentu — miara PUSTEJ RAMKI.
+ *
+ * Sama nieobecność obrazu nie odróżnia „znaku nie ma" od „znak miał być, ale
+ * się nie narysował": pudełko znaku ma stałą wysokość, więc gdyby nieczytelny
+ * plik wszedł do `<Image>`, renderer zarezerwowałby na niego miejsce i zsunął
+ * tytuł w dół — zostawiając w nagłówku dziurę, której zabrania rozstrzygnięcie
+ * o fallbacku. Tytuł stojący DOKŁADNIE tam, gdzie w umowie bez znaku, jest
+ * dowodem, że dziury nie ma.
+ */
+async function yTytulu(bytes: Uint8Array): Promise<number> {
+  const pdf = await getDocumentProxy(new Uint8Array(bytes));
+  const page = await pdf.getPage(1);
+  const content = await page.getTextContent();
+  const items = content.items as Array<{ str: string; transform: number[] }>;
+  const title = items.find((item) => item.str.includes("UMOWA"));
+  if (!title) throw new Error("Nie znaleziono tytułu umowy w warstwie tekstu.");
+  return title.transform[5]!;
 }
 
 afterEach(() => {
@@ -112,10 +137,14 @@ describe("znak najemcy w umowie", () => {
   it("ucięty plik nie wywraca umowy i nie zostawia pustej ramki", async () => {
     // Kształt awarii po zerwanym transferze: nienaganny nagłówek, brak końca.
     const bytes = await renderContractPdf(props({ data: PNG_UCIETY, format: "png" }));
+    const bezZnaku = await renderContractPdf(props());
 
     expect(new TextDecoder().decode(bytes.subarray(0, 5))).toBe("%PDF-");
     expect(niesieObraz(bytes)).toBe(false);
     expect(await tekst(bytes)).toContain(TENANT);
+    // Nagłówek jest CO DO PUNKTU taki, jak w umowie bez znaku — zarezerwowane
+    // pudełko po niezdekodowanym pliku zsunęłoby tytuł niżej.
+    expect(await yTytulu(bytes)).toBe(await yTytulu(bezZnaku));
   });
 
   it("format spoza możliwości renderera degraduje do nazwy, a nie do dziury", async () => {
@@ -125,6 +154,17 @@ describe("znak najemcy w umowie", () => {
 
     expect(niesieObraz(bytes)).toBe(false);
     expect(await tekst(bytes)).toContain(TENANT);
+    expect(await yTytulu(bytes)).toBe(await yTytulu(await renderContractPdf(props())));
+  });
+
+  // ── KONTROLA POZYTYWNA dla miary „pustej ramki": znak, który WCHODZI,
+  // przesuwa tytuł w dół. Bez tego przypadku równość pozycji byłaby zielona
+  // także wtedy, gdyby pudełko znaku nie zajmowało miejsca nigdy.
+  it("czytelny znak przesuwa tytuł w dół — pudełko naprawdę zajmuje miejsce", async () => {
+    const zeZnakiem = await renderContractPdf(props({ data: PNG_1x1, format: "png" }));
+    const bezZnaku = await renderContractPdf(props());
+
+    expect(await yTytulu(zeZnakiem)).toBeLessThan(await yTytulu(bezZnaku));
   });
 
   /**
