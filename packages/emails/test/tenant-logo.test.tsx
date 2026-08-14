@@ -54,12 +54,33 @@ function adresyObrazow(html: string): string[] {
   return Array.from(html.matchAll(/<img[^>]*\ssrc="([^"]*)"/g)).map((m) => m[1] ?? "");
 }
 
+/**
+ * Czy tekst stoi W MIEJSCU ZNAKU, czyli nad nagłówkiem wiadomości.
+ *
+ * Sama obecność nazwy w kodzie wiadomości NICZEGO nie dowodzi: nazwa najemcy
+ * stoi też w stopce ramki i stała tam zawsze. Rozstrzygnięcie o fallbacku
+ * mówi o MIEJSCU, w którym stałby znak — a to jest miejsce nad nagłówkiem.
+ * Bez tego rozróżnienia asercja przechodziłaby także dla ramki, która w tym
+ * miejscu nie stawia nic (pusta ramka, czyli dokładnie to, czego zakazano).
+ */
+function nadNaglowkiem(html: string, fragment: string): boolean {
+  const naglowek = html.indexOf("<h1");
+  const szukane = html.indexOf(fragment);
+  return szukane >= 0 && naglowek >= 0 && szukane < naglowek;
+}
+
 describe("znak najemcy w potwierdzeniu rezerwacji", () => {
   it("wchodzi do wiadomości jako obraz z tekstem zastępczym", async () => {
-    const { html } = await renderRentalConfirmed(props(NAJEMCA_A, znak(NAJEMCA_A)));
+    const { html, text } = await renderRentalConfirmed(props(NAJEMCA_A, znak(NAJEMCA_A)));
 
     expect(adresyObrazow(html)).toContain(`${BAZA}/${NAJEMCA_A.sciezka}`);
     expect(html).toContain(`alt="${NAJEMCA_A.nazwa}"`);
+    // Znak stoi tam, gdzie stał napis z nazwą — NAD nagłówkiem.
+    expect(nadNaglowkiem(html, `${BAZA}/${NAJEMCA_A.sciezka}`)).toBe(true);
+    // …i go ZASTĘPUJE: wariant tekstowy, w którym obrazu nie ma, nie otwiera
+    // się już nazwą. Dwie reprezentacje tej samej firmy obok siebie czytają
+    // się jak dwie firmy (ta sama reguła co w nagłówku sklepu, ADR-160 D7).
+    expect(text.trimStart().startsWith(NAJEMCA_A.nazwa)).toBe(false);
   });
 
   // ── KONTROLA NEGATYWNA: bez znaku nie ma ani obrazu, ani pustej ramki —
@@ -68,8 +89,11 @@ describe("znak najemcy w potwierdzeniu rezerwacji", () => {
     const { html, text } = await renderRentalConfirmed(props(NAJEMCA_A));
 
     expect(adresyObrazow(html)).toEqual([]);
-    expect(html).toContain(NAJEMCA_A.nazwa);
-    expect(text).toContain(NAJEMCA_A.nazwa);
+    // NAD nagłówkiem, czyli tam, gdzie stałby znak — nie „gdziekolwiek
+    // w wiadomości", bo w stopce nazwa stoi tak czy owak.
+    expect(nadNaglowkiem(html, NAJEMCA_A.nazwa)).toBe(true);
+    // Wariant tekstowy wiadomości otwiera się tą samą nazwą.
+    expect(text.trimStart().startsWith(NAJEMCA_A.nazwa)).toBe(true);
   });
 
   /**
@@ -177,8 +201,8 @@ describe("znak najemcy w pozostałej korespondencji z klientem", () => {
 
     for (const { html, text } of rendery) {
       expect(adresyObrazow(html)).toEqual([]);
-      expect(html).toContain(NAJEMCA_A.nazwa);
-      expect(text).toContain(NAJEMCA_A.nazwa);
+      expect(nadNaglowkiem(html, NAJEMCA_A.nazwa)).toBe(true);
+      expect(text.trimStart().startsWith(NAJEMCA_A.nazwa)).toBe(true);
     }
   });
 });
