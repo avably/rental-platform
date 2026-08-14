@@ -29,8 +29,21 @@ vi.mock("@/lib/actions/availability", () => ({
   checkAvailabilityDays: vi.fn(),
 }));
 
+const submitCheckout = vi.fn();
+vi.mock("@/lib/actions/checkout", () => ({
+  submitCheckout: (...args: unknown[]) => submitCheckout(...args),
+}));
+
+// Formularz kasy woła `useRouter` (przekierowanie po sukcesie). Poza aplikacją
+// Next router nie istnieje — podmieniamy go na atrapę, bo nawigacja nie jest
+// przedmiotem tych testów; przedmiotem jest to, CZY zamówienie w ogóle wyszło.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+}));
+
 const { StoreTermBar, StoreTermProvider } = await import("@/components/storefront/store-term");
 const { CartView } = await import("@/components/storefront/cart-view");
+const { CheckoutForm } = await import("@/components/storefront/checkout-form");
 const { readCart, writeCart } = await import("@/lib/cart/storage");
 const { EMPTY_CART } = await import("@/lib/cart/model");
 const { getStorefrontCopy } = await import("@/lib/storefront/copy");
@@ -103,6 +116,31 @@ function cartView() {
   );
 }
 
+function checkoutForm() {
+  return (
+    <CheckoutForm
+      products={PRODUCTS as never}
+      deliveryMethods={[{ method: "pickup", price_grosze: 0 }] as never}
+      pickupLocations={
+        [
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Magazyn",
+            address_street: null,
+            address_zip: null,
+            address_city: "Warszawa",
+          },
+        ] as never
+      }
+      currency="PLN"
+      locale="pl"
+      copy={copy}
+      paymentMethods={["transfer"] as never}
+      customFields={[]}
+    />
+  );
+}
+
 /** Dzień z bieżącego okna wyboru: `offset` dni od dziś (okno zaczyna się dziś). */
 function dayFromToday(offset: number): string {
   const now = new Date();
@@ -137,6 +175,12 @@ beforeEach(() => {
   writeCart(EMPTY_CART);
   checkCatalogAvailability.mockReset();
   checkCatalogAvailability.mockResolvedValue(allFree());
+  submitCheckout.mockReset();
+  // Odpowiedź celowo NIE-sukcesowa: te testy pytają WYŁĄCZNIE o to, czy
+  // zamówienie w ogóle wyszło z formularza. Ścieżka sukcesu prowadzi dalej
+  // (przekierowanie na krok płatności) i ma własne bramki — ciągnięcie jej tu
+  // dokładałoby do tego testu zależności, o których on nie mówi.
+  submitCheckout.mockResolvedValue({ status: "rate_limited" });
 });
 
 // jsdom trzyma dokument między przypadkami — bez tego selektory trafiają
@@ -341,6 +385,52 @@ describe("konflikt terminu z koszykiem (R4)", () => {
       expect(readCart().startDate).toBe(stary.start);
       expect(readCart().endDate).toBe(stary.end);
     });
+  });
+
+  // ZAPIS ZATRZYMANY U ŹRÓDŁA, nie tylko na wyglądzie przycisku.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie warunku z `handleSubmit`. NIC INNEGO TEGO
+  // NIE PRZYKRYWA — `disabled` na przycisku nie zatrzymuje `requestSubmit()`
+  // ani wysyłki z klawiatury, a bramka koszyka stoi na innej stronie i klient
+  // może wejść w kasę adresem.
+  it("konflikt zatrzymuje WYSYŁKĘ zamówienia, nie tylko gasi przycisk", async () => {
+    checkCatalogAvailability.mockResolvedValue(rowerBrak());
+    writeCart({
+      items: [{ productId: ROWER, quantity: 2 }],
+      startDate: dayFromToday(10),
+      endDate: dayFromToday(12),
+    });
+    render(shell(checkoutForm()));
+
+    await waitFor(() => {
+      expect(document.querySelector("[data-checkout-conflict-blocked]")).not.toBeNull();
+    });
+
+    // Wysyłka POMIJA przycisk — dokładnie tak, jak zrobiłaby to klawiatura
+    // albo skrypt. Gdyby bramka siedziała wyłącznie w atrybucie `disabled`,
+    // zamówienie poszłoby na serwer po to, żeby tam paść.
+    fireEvent.submit(document.querySelector("form")!);
+    await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalled());
+    expect(submitCheckout).not.toHaveBeenCalled();
+  });
+
+  // KONTROLA POZYTYWNA: ten sam formularz, ten sam sposób wysyłki, brak
+  // konfliktu → zamówienie WYCHODZI. Bez tego test wyżej przechodziłby także
+  // wtedy, gdyby formularz nie wysyłał niczego nigdy.
+  it("bez konfliktu ten sam formularz wysyła zamówienie", async () => {
+    checkCatalogAvailability.mockResolvedValue(allFree());
+    writeCart({
+      items: [{ productId: ROWER, quantity: 2 }],
+      startDate: dayFromToday(10),
+      endDate: dayFromToday(12),
+    });
+    render(shell(checkoutForm()));
+
+    await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalled());
+    expect(document.querySelector("[data-checkout-conflict-blocked]")).toBeNull();
+
+    fireEvent.submit(document.querySelector("form")!);
+    await waitFor(() => expect(submitCheckout).toHaveBeenCalledTimes(1));
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby błąd odczytu dostępności był traktowany jak

@@ -4,7 +4,14 @@
  * Koszyk multi-produkt (2.4b). Stan z localStorage (useCart); pozycje łączą się
  * z katalogiem przekazanym z serwera po product_id. Jedna linia per produkt
  * (agregacja w modelu — patrz lib/cart/model.ts). Termin jest WSPÓLNY dla całego
- * zamówienia (edytowany na podstronie produktu).
+ * zamówienia i od ADR-179 edytuje się go w PASKU TERMINU powłoki, a nie na
+ * podstronie sprzętu — bo wspólny termin ustawiany w miejscu poświęconym
+ * jednej pozycji był interfejsem mówiącym co innego, niż robi.
+ *
+ * ODNOŚNIK DO KASY ZNIKA PRZY KONFLIKCIE (R4, ADR-179). Werdykt bierzemy
+ * z powłoki (`useStoreTerm`), a nie liczymy tu drugi raz: dwa niezależne
+ * odczyty dostępności mogłyby dać dwie odpowiedzi, a wtedy kasa bywałaby
+ * otwarta w chwili, w której pasek terminu pokazuje konflikt.
  *
  * Kwoty tu to PODGLĄD (calculatePrice) — informacyjny szacunek. Wiążącą kwotę
  * policzy serwer przy składaniu zamówienia (ADR-042).
