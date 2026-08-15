@@ -38,7 +38,6 @@ import { randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import postgres from "postgres";
 import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -50,8 +49,13 @@ const realtimeTransport = {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
 };
 
+/*
+  BEZ `SUPABASE_LOCAL_URL`: ten plik pyta WYŁĄCZNIE przez PostgREST — rolą anon
+  o kopertę publiczną i rolą serwisową o zasiew. Połączenie wprost do Postgresa
+  byłoby tu drogą, której odwiedzający sklepu nie ma, więc dowód szedłby inną
+  ścieżką niż produkcja.
+*/
 const REQUIRED_ENV = [
-  "SUPABASE_LOCAL_URL",
   "SUPABASE_LOCAL_API_URL",
   "SUPABASE_LOCAL_ANON_KEY",
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
@@ -86,7 +90,6 @@ function anonClient(): SupabaseClient {
   });
 }
 
-const sql = hasEnv ? postgres(env("SUPABASE_LOCAL_URL"), { max: 1 }) : null;
 const createdTenantIds: string[] = [];
 
 /** Znacznik przebiegu — lokalna baza bywa współdzielona z równoległymi sesjami. */
@@ -180,7 +183,6 @@ describe.skipIf(!hasEnv)("strona katalogu — 0085 (ADR-186)", () => {
   afterAll(async () => {
     if (!hasEnv) return;
     for (const id of createdTenantIds) await admin.from("tenants").delete().eq("id", id);
-    await sql?.end({ timeout: 5 });
   }, 60_000);
 
   // -------------------------------------------------------------------
@@ -333,27 +335,29 @@ describe.skipIf(!hasEnv)("strona katalogu — 0085 (ADR-186)", () => {
   // 5. Zaciski wejścia
   // -------------------------------------------------------------------
   describe("zaciski wejścia", () => {
-    it("`p_limit` ponad sufit nie zamienia stronicowania w pełny odczyt", async () => {
+    it("sufit `p_limit` DZIAŁA i jest co do sztuki LUSTREM CATALOG_PAGE_MAX_SIZE", async () => {
+      /*
+        JEDEN przypadek na oba pytania, i to jest wybór: zacisk sprawdzony
+        SKUTKIEM (ile pozycji naprawdę wróciło), a nie skanem
+        `pg_get_functiondef` po liczbie. Skan tekstu przechodzi po przesunięciu
+        literału w inne miejsce ciała i pada po niewinnej zmianie formatowania
+        — a to jest bramka odwrotna do potrzebnej. Rozjazd z rdzeniem znaczyłby
+        stronę wyników krótszą, niż liczy sklep: pozycje, do których nawigacja
+        prowadzi, a których strona nie pokazuje.
+      */
       const tenantId = await seedTenant("sufit");
       await seedCatalog(tenantId, "Sufit", CATALOG_PAGE_MAX_SIZE + 5);
 
       const okno = await readPage(tenantId, 0, 100_000);
-      expect(okno!.total).toBe(CATALOG_PAGE_MAX_SIZE + 5);
+      expect(okno!.total, "kontrola: katalog jest większy od sufitu").toBe(
+        CATALOG_PAGE_MAX_SIZE + 5,
+      );
       expect(
         okno!.products.length,
-        "zacisk p_limit zdjęty — jedno wywołanie ciągnie cały katalog",
+        "zacisk p_limit rozjechał się z CATALOG_PAGE_MAX_SIZE z @avably/core " +
+          "(albo zniknął, a jedno wywołanie ciągnie cały katalog)",
       ).toBe(CATALOG_PAGE_MAX_SIZE);
     }, 60_000);
-
-    it("sufit w bazie jest LUSTREM CATALOG_PAGE_MAX_SIZE z rdzenia", async () => {
-      // Rozjazd znaczyłby stronę wyników krótszą, niż liczy sklep — czyli
-      // pozycje, do których nawigacja prowadzi, a których strona nie pokazuje.
-      const rows = await sql!<{ definicja: string }[]>`
-        select pg_get_functiondef('app.get_public_catalog_page(uuid,integer,integer)'::regprocedure)
-          as definicja
-      `;
-      expect(rows[0]!.definicja).toContain(`), ${CATALOG_PAGE_MAX_SIZE})`);
-    });
 
     it("`p_offset` UJEMNY nie wywraca odczytu — zaciska się do zera", async () => {
       // OFFSET < 0 to w Postgresie błąd 2201X, czyli 500 na trasie sklepu za
