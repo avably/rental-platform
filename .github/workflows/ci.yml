@@ -95,6 +95,30 @@ jobs:
           ZMIANY="$RUNNER_TEMP/zakres-zmian.txt"
           git diff --name-only --no-renames -z "$BAZA...HEAD" >"$ZMIANY" || pelne_ci "git diff nie policzył zakresu"
           node scripts/ci-zakres-zmian.mjs --zero <"$ZMIANY" || pelne_ci "klasyfikator nie oddał werdyktu"
+      # Bramka numeracji ADR (ADR-187). Dwie równoległe prace potrafią dostać
+      # ten sam numer decyzji, a git tego NIE POKAZUJE: gdy oba bloki trafiają
+      # w różne miejsca `docs/dokumentacja/index.html`, konfliktu przy rebase
+      # nie ma. Kolizja wychodzi wyłącznie z policzenia bloków — 2026-08-14
+      # kosztowała przenumerowanie 27 plików i dodatkową rundę CI, bo wyszła
+      # dopiero po merge'u pierwszej gałęzi.
+      #
+      # DLACZEGO W `zakres`, A NIE W `ci` JAK BRAMKI DESIGNU (ADR-183): `ci`
+      # jest POMIJANY dla zmian docs-only, a `docs/dokumentacja/index.html`
+      # jest na białej liście dokumentacji klasyfikatora — bramka nie biegłaby
+      # dokładnie na tych PR-ach, które zmieniają WYŁĄCZNIE pilnowany przez nią
+      # plik. Techniczna przeszkoda z ADR-183 tu nie występuje: skrypt czyta
+      # jeden plik na samych modułach wbudowanych Node, bez `pnpm install`,
+      # którego ten job z założenia nie robi (koszt: ułamek sekundy, a jeden
+      # runner znaczy, że osobny job kosztowałby własny checkout w KAŻDYM
+      # przebiegu).
+      #
+      # FAIL-OPEN KLASYFIKATORA ZOSTAJE NIETKNIĘTY: to własność kroku `ocena`
+      # (każda jego ścieżka kończy się `exit 0`), nie całego joba. Ten krok
+      # jest fail-closed i stoi PO `ocenie`, więc jego czerwień nie zabiera
+      # werdyktu kosztowego — wyjścia joba są dostarczane także wtedy, gdy job
+      # padnie, a ciężkie joby wchodzą po `!cancelled()`.
+      - name: Bramka numeracji ADR (duplikat numeru w dzienniku decyzji)
+        run: node scripts/audit-adr-duplikaty.mjs
 
   ci:
     # Pominięcie dla zmian wyłącznie dokumentacyjnych (ADR-117). `!cancelled()`

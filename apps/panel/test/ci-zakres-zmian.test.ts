@@ -37,6 +37,48 @@ const workflow = readFileSync(workflowPath, "utf8");
 /** Ten plik nazywa ścieżki `docs/` jako DANE TESTOWE, nie jako odczyt. */
 const SCAN_SELF = "apps/panel/test/ci-zakres-zmian.test.ts";
 
+/**
+ * Czytelnicy `docs/` WYJĘCI ze skanu — każdy z własnym powodem, nie kategorią.
+ *
+ * Martwe pole, przed którym broni ten skan, wygląda tak: czerwony TEST
+ * przechodzi jako `skipped`, bo jego źródło prawdy wpadło pod białą listę
+ * dokumentacji. Bramka numeracji ADR (ADR-187) tego pola nie tworzy, bo nie
+ * mieszka w żadnym pomijalnym jobie — stoi w `zakres`, który biegnie
+ * bezwarunkowo, więc jej odczyt nie ma jak zostać pominięty.
+ *
+ * Odpowiedź alternatywna — dopisanie `docs/dokumentacja/index.html` do
+ * `CODE_READ_FILES` — wymuszałaby pełne CI na KAŻDYM PR-ze, bo każdy dokłada
+ * do tego pliku wpis ADR i wpis dziennika. To byłaby bramka kupiona za cenę
+ * CAŁEJ bramki kosztowej ADR-117.
+ *
+ * Wyjątek jest prawdziwy dokładnie tak długo, jak długo bramka stoi w
+ * `zakres` — i dokładnie to jest pilnowane osobno:
+ * `apps/panel/test/adr-numeracja-bramka.test.ts` sprawdza BLOK tego joba
+ * i jego bezwarunkowość. Przeniesienie kroku do `ci` pali tamtą suitę, czyli
+ * w tej samej chwili, w której ten wyjątek przestaje obowiązywać.
+ */
+const SCAN_EXEMPT = new Map<string, string>([
+  ["scripts/audit-adr-duplikaty.mjs", "bramka numeracji ADR w jobie `zakres` (ADR-187)"],
+]);
+
+/** Ścieżki `docs/` wymienione w pliku poza komentarzami (rdzeń skanu repo). */
+function docsPathsIn(file: string): Map<string, string> {
+  const found = new Map<string, string>();
+  readFileSync(resolve(repositoryRoot, file), "utf8")
+    .split("\n")
+    .forEach((line, index) => {
+      // Komentarze pomijamy: wzmianka „patrz docs/…" nie jest odczytem.
+      if (/^\s*(\/\/|\*|\/\*|#)/.test(line)) return;
+      // Lookbehind odcina adresy URL (…/en-US/docs/Web/…), gdzie przed
+      // „docs/" stoi ukośnik — to cudza dokumentacja, nie nasze repo.
+      for (const match of line.matchAll(/(?<![\w/.-])(?:\.\.\/)*docs\/[A-Za-z0-9._/-]+/g)) {
+        const candidate = match[0].replace(/^(\.\.\/)+/, "").replace(/[.,;:]+$/, "");
+        if (!found.has(candidate)) found.set(candidate, `${file}:${index + 1}`);
+      }
+    });
+  return found;
+}
+
 /** Ciężkie joby, które wolno pominąć — wymienione z nazwy, nie zgadywane. */
 const HEAVY_JOBS = ["ci", "rls", "e2e"] as const;
 
@@ -181,21 +223,14 @@ describe("dokumentacja czytana przez kod nie jest „tylko dokumentacją”", ()
       .split("\n")
       .filter(Boolean)
       .filter((file) => !file.startsWith("docs/") && file !== SCAN_SELF)
+      .filter((file) => !SCAN_EXEMPT.has(file))
       .filter((file) => /\.(ts|tsx|mjs|mts|cjs|js|json|sh|php|ya?ml)$/.test(file));
 
     const found = new Map<string, string>();
     for (const file of tracked) {
-      const content = readFileSync(resolve(repositoryRoot, file), "utf8");
-      content.split("\n").forEach((line, index) => {
-        // Komentarze pomijamy: wzmianka „patrz docs/…" nie jest odczytem.
-        if (/^\s*(\/\/|\*|\/\*|#)/.test(line)) return;
-        // Lookbehind odcina adresy URL (…/en-US/docs/Web/…), gdzie przed
-        // „docs/" stoi ukośnik — to cudza dokumentacja, nie nasze repo.
-        for (const match of line.matchAll(/(?<![\w/.-])(?:\.\.\/)*docs\/[A-Za-z0-9._/-]+/g)) {
-          const candidate = match[0].replace(/^(\.\.\/)+/, "").replace(/[.,;:]+$/, "");
-          if (!found.has(candidate)) found.set(candidate, `${file}:${index + 1}`);
-        }
-      });
+      for (const [candidate, where] of docsPathsIn(file)) {
+        if (!found.has(candidate)) found.set(candidate, where);
+      }
     }
 
     // Anty-pustka: skan po pustym zbiorze niczego nie broni. Artefakt handoffu
@@ -207,6 +242,21 @@ describe("dokumentacja czytana przez kod nie jest „tylko dokumentacją”", ()
       deadSpots.map(([path, where]) => `${path} (${where})`),
       "ścieżka docs/ czytana przez kod, a klasyfikowana jako pomijalna — dopisz ją do CODE_READ_FILES/CODE_READ_DIRECTORIES",
     ).toEqual([]);
+  });
+
+  it("wyjątki skanu są ŻYWE — martwy wyjątek tylko poszerzałby ślepą plamę", () => {
+    // Wyjątek, który niczego już nie osłania, jest gorszy niż jego brak:
+    // wygląda na uzasadniony, a wyłącza plik ze skanu na zawsze. Każdy wpis
+    // musi więc wskazywać istniejący plik i faktycznie wnosić ścieżkę, którą
+    // skan bez niego zgłosiłby jako martwe pole.
+    expect(SCAN_EXEMPT.size).toBeGreaterThan(0);
+    for (const [file, powod] of SCAN_EXEMPT) {
+      expect(powod.trim().length, file).toBeGreaterThan(0);
+      const oslaniane = [...docsPathsIn(file).keys()].filter((path) =>
+        isDocumentationOnlyPath(path),
+      );
+      expect(oslaniane, `${file}: wyjątek nie osłania już żadnej ścieżki`).not.toEqual([]);
+    }
   });
 });
 
