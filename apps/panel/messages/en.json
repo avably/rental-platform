@@ -1000,13 +1000,10 @@
       "section": {
         "title": "Delivery",
         "empty": "No shipments for this order.",
-        "colType": "Type",
-        "colStatus": "Status",
         "colNumber": "Carrier no.",
         "colTracking": "Tracking",
         "colPrice": "Shipping cost",
         "colCreated": "Created",
-        "colLabel": "Label",
         "labelLink": "Label (PDF)",
         "labelMissing": "—",
         "refreshCta": "Refresh status",
