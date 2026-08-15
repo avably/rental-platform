@@ -87,6 +87,7 @@ import { starterPhoto, type StarterPhotoSlot } from "./starter-photos";
 import { headingMetricRatio } from "./fonts";
 import {
   isStructuredType,
+  PRICING_CATALOG_HREF,
   STRUCTURED_SECTION_VERSION,
   type GalleryStructuredContent,
   type StructuredContentOf,
@@ -528,7 +529,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Sprawdź dostępność w kalendarzu i zarezerwuj online — potwierdzenie przyjdzie od razu na maila.",
           items: [
             { label: "Zarezerwuj sprzęt", href: "#produkty" },
-            { label: "Zobacz cały katalog", href: "/store" },
+            { label: "Zobacz cały katalog", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -742,7 +743,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Check the calendar and book online — the confirmation lands in your inbox straight away.",
           items: [
             { label: "Book equipment", href: "#produkty" },
-            { label: "Browse the full catalog", href: "/store" },
+            { label: "Browse the full catalog", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -1331,7 +1332,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Sezon weselny rezerwuje się z półrocznym wyprzedzeniem. Napisz, sprawdzimy dostępność na Twój termin.",
           items: [
             { label: "Napisz do nas", href: "#kontakt" },
-            { label: "Zobacz sprzęt", href: "/store" },
+            { label: "Zobacz sprzęt", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -1525,7 +1526,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "The wedding season books six months ahead. Write to us and we will check availability for your date.",
           items: [
             { label: "Write to us", href: "#kontakt" },
-            { label: "See the gear", href: "/store" },
+            { label: "See the gear", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -1707,7 +1708,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Napisz, jaki masz plan zdjęciowy — dobierzemy zestaw i zarezerwujemy go na Twój termin.",
           items: [
             { label: "Zapytaj o zestaw", href: "#kontakt" },
-            { label: "Przeglądaj katalog", href: "/store" },
+            { label: "Przeglądaj katalog", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -1883,7 +1884,7 @@ const STARTER_SECTIONS: StarterTable = {
           text: "Tell us about the shoot — we will put a package together and hold it for your dates.",
           items: [
             { label: "Ask about a package", href: "#kontakt" },
-            { label: "Browse the catalog", href: "/store" },
+            { label: "Browse the catalog", href: PRICING_CATALOG_HREF },
           ],
         },
       },
@@ -2241,7 +2242,7 @@ const STARTER_SECTIONS: StarterTable = {
           heading: "Wiesz, czego potrzebujesz?",
           text: "Wejdź do katalogu, wybierz termin i zarezerwuj. Potwierdzenie dostaniesz od razu.",
           items: [
-            { label: "Otwórz katalog", href: "/store" },
+            { label: "Otwórz katalog", href: PRICING_CATALOG_HREF },
             { label: "Warunki najmu", href: "/regulamin" },
           ],
         },
@@ -2398,7 +2399,7 @@ const STARTER_SECTIONS: StarterTable = {
           heading: "Know what you need?",
           text: "Open the catalog, pick your dates and book. The confirmation arrives straight away.",
           items: [
-            { label: "Open the catalog", href: "/store" },
+            { label: "Open the catalog", href: PRICING_CATALOG_HREF },
             { label: "Rental terms", href: "/regulamin" },
           ],
         },

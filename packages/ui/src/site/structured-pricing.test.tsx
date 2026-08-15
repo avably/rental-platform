@@ -17,6 +17,7 @@
  *      lekcja z E3.
  */
 import {
+  PRICING_CATALOG_HREF,
   PRICING_UNITS,
   structuredPresetFor,
   withStructuredLayout,
@@ -140,7 +141,10 @@ describe("ODNOŚNIK DO KATALOGU — istnieje, prowadzi pod właściwy adres i da
   it("włączony: odnośnik z NAZWĄ prowadzi do katalogu", () => {
     pokaz(cennik({ showCatalogLink: true }));
     const link = screen.getByRole("link", { name: L.pricingCatalog });
-    expect(link.getAttribute("href")).toBe("/store");
+    // Patrz `structured-products.test.tsx`: adres ze stałej rdzenia (ADR-186),
+    // a nie z literału, który przeżyłby przeniesienie katalogu na własną stronę.
+    expect(link.getAttribute("href")).toBe(PRICING_CATALOG_HREF);
+    expect(PRICING_CATALOG_HREF, "odnośnik znów prowadzi na stronę główną").not.toBe("/store");
   });
 
   it("wyłączony: odnośnika NIE MA (przełącznik nie jest ozdobą)", () => {

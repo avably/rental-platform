@@ -25,6 +25,10 @@ import { describe, expect, it } from "vitest";
 const SECTION_ROUTES = [
   "app/(tenant)/store/page.tsx",
   "app/(tenant)/store/[slug]/page.tsx",
+  // [ADR-186] Strona katalogu rysuje kafle sekcji sprzętu i powłokę najemcy,
+  // więc obowiązuje ją ten sam pin: bez niego dokument wypiekłby się z nonce'em
+  // z czasu builda i przestał hydratować, bez jednego błędu w konsoli.
+  "app/(tenant)/katalog/page.tsx",
 ] as const;
 
 function source(relative: string): string {

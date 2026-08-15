@@ -75,7 +75,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 
-import { PRODUCTS_CATALOG_HREF } from "@avably/core/site";
+import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import { SiteRenderer } from "@avably/ui";
 
 import { JsonLd } from "@/components/storefront/json-ld";
@@ -237,11 +237,13 @@ export async function renderProductPage({
         /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
         term={{ products: catalog.products, locale }}
         /*
-          Kotwice stopki prowadzą na katalog: strona sprzętu nie ma sekcji, do
-          których stopka z presetu odsyła, więc czyste `#kontakt` nie robiłoby
-          NIC — bez błędu i bez zmiany adresu (faza 0, ADR-154).
+          Kotwice stopki prowadzą na stronę GŁÓWNĄ: strona sprzętu nie ma sekcji,
+          do których stopka z presetu odsyła, więc czyste `#kontakt` nie robiłoby
+          NIC — bez błędu i bez zmiany adresu (faza 0, ADR-154). Cel poprawiony
+          w ADR-186: kotwica ma wskazywać stronę, na której sekcja NAPRAWDĘ stoi,
+          a nie stałą adresu katalogu, która od fazy 4b prowadzi gdzie indziej.
         */
-        footerAnchorBase={PRODUCTS_CATALOG_HREF}
+        footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
         revealNonce={revealNonce}
       >
         {productLd ? <JsonLd data={productLd} /> : null}

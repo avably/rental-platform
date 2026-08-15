@@ -54,6 +54,17 @@ export {
   SiteProductAvailabilityProvider,
   type SiteProductAvailability,
 } from "./product-availability";
+/*
+ * KAFEL SPRZĘTU I STAN PUSTY — wychodzą z pakietu od ADR-186.
+ *
+ * Strona `/katalog` (faza 4b) rysuje TE SAME kafle, co sekcja sprzętu, ale bez
+ * klasy `site-product-grid`: reguła „utnij ostatni, niepełny rząd" jest tam
+ * uczciwa, bo pod spodem stoi odnośnik do katalogu — a na SAMYM katalogu
+ * ucięłaby pozycje, po które klient właśnie przyszedł. Kafel musi być więc ten
+ * sam co do znaku (druga kopia rozjechałaby się przy pierwszej poprawce
+ * wyglądu), a siatka wokół niego — inna.
+ */
+export { ProductTile, ProductsEmpty } from "./structured/products-shared";
 // Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
 export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).
