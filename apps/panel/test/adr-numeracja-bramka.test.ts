@@ -23,7 +23,6 @@ import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(process.cwd(), "../..");
 const bramka = resolve(repositoryRoot, "scripts/audit-adr-duplikaty.mjs");
-const zywaDokumentacja = resolve(repositoryRoot, "docs/dokumentacja/index.html");
 const workflow = readFileSync(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8");
 
 /** Blok dziennika decyzji w kształcie, którego pilnuje wzorzec liczenia. */
@@ -76,15 +75,15 @@ function blokJoba(nazwa: string): string {
   return (koniec === -1 ? reszta : reszta.slice(0, koniec)).join("\n");
 }
 
+// KONTROLI POZYTYWNEJ NA ŻYWYM `docs/dokumentacja/index.html` TU CELOWO NIE MA.
+// Ta suita biegnie w jobach `ci`/`rls`, które są POMIJANE dla zmian docs-only —
+// asercja czytająca ten plik byłaby dokładnie tym martwym polem, przed którym
+// broni skan repo w `ci-zakres-zmian.test.ts` (czerwony test przechodzący jako
+// `skipped`). Rolę kontroli pozytywnej na prawdziwych danych pełni sama bramka
+// w jobie `zakres`: biegnie bezwarunkowo przy KAŻDYM przebiegu i pada, gdy
+// wzorzec przestanie pasować do pliku. Fikstury poniżej dowodzą LOGIKI, kształt
+// prawdziwego pliku dowodzi się co przebieg — i nie da się go pominąć.
 describe("bramka numeracji ADR — dowód behawioralny", () => {
-  it("żywa dokumentacja repo przechodzi (kontrola pozytywna)", () => {
-    const { status, stdout } = uruchomNa(zywaDokumentacja);
-    expect(stdout).toMatch(/bloków: \d+/);
-    // Zero bloków oznaczałoby, że kontrola pozytywna niczego nie dowodzi.
-    expect(stdout).not.toMatch(/bloków: 0,/);
-    expect(status).toBe(0);
-  });
-
   it("czysta numeracja przechodzi", () => {
     const { status } = uruchom(fikstura(blok("ADR-186"), blok("ADR-187")));
     expect(status).toBe(0);
@@ -136,7 +135,9 @@ describe("bramka numeracji ADR — dowód behawioralny", () => {
   });
 
   it("brak pliku to porażka, nie cisza — bramka jest fail-closed", () => {
-    const { status } = uruchomNa(join(tmpdir(), "avably-adr-nie-ma-takiego-pliku.html"));
+    // Ścieżka w ŚWIEŻYM katalogu tymczasowym: nazwa w gołym `tmpdir()` mogłaby
+    // kiedyś istnieć i test przechodziłby z niewłaściwego powodu.
+    const { status } = uruchomNa(join(mkdtempSync(join(tmpdir(), "avably-adr-")), "nie-ma.html"));
     expect(status).toBe(1);
   });
 });
