@@ -224,7 +224,10 @@ test("blok przesyłek nie przekracza szerokości swojej kolumny (ADR-188)", asyn
 
   await loginToPanel(page, PANEL_URL, seed);
   await page.goto(`${PANEL_URL}/pl/zamowienia/${orderId}`);
-  await expect(page.locator("[data-shipments]")).toBeVisible();
+  // Jawny, hojny budżet: szczegół zamówienia robi kilka odczytów na żądanie,
+  // a runner bywa dzielony z innymi przebiegami. Domyślne 10 s mierzyłoby
+  // dostępność procesora, nie zachowanie ekranu.
+  await expect(page.locator("[data-shipments]")).toBeVisible({ timeout: 30_000 });
 
   const pomiary: Pomiar[] = [];
   for (const okno of OKNA) {
