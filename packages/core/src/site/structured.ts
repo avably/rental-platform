@@ -41,6 +41,7 @@
  */
 import { z } from "zod";
 
+import { catalogPagePath } from "../catalog/catalog-page";
 import { formatMoney, type CurrencyCode } from "../money";
 import {
   imageSourceSchema,
@@ -1039,17 +1040,26 @@ export type PricingStructuredContent = z.infer<typeof pricingStructuredSchema>;
 export type PricingStructuredItem = PricingStructuredContent["items"][number];
 
 /**
- * ADRES KATALOGU. Jedno miejsce, bo dziś jest jeden: publiczny sklep najemcy
- * stoi pod `/store` i to tam mieszka pełna lista sprzętu z dostępnością.
+ * ADRES KATALOGU — od ADR-186 `/katalog`, czyli STRONA, na której naprawdę
+ * stoi pełna lista sprzętu.
  *
- * ŚWIADOMY DZISIEJSZY KOSZT: sekcje strony renderują się na TEJ SAMEJ trasie,
- * więc odnośnik prowadzi na górę bieżącej strony, a nie na inną. Zostaje mimo
- * to — bo `/store` jest jedyną trasą, pod którą katalog istnieje, a przełącznik
- * `showCatalogLink` daje operatorowi wyjście tam, gdzie sekcja i tak stoi obok
- * katalogu. Gdy model strony dostanie podstrony, odnośnik zacznie przechodzić
- * między nimi bez ani jednej zmiany w renderze.
+ * ==================== CO TU BYŁO ZEPSUTE ====================
+ *
+ * Do fazy 4b stała wskazywała `/store`, czyli WEWNĘTRZNY adres strony głównej.
+ * Odnośnik „zobacz cały katalog" pod sekcją sprzętu i pod cennikiem prowadził
+ * więc na tę samą stronę, z której odwiedzający właśnie kliknął — a sekcja
+ * pokazująca 24 pozycje z dwustu obiecywała resztę, której nie miała gdzie
+ * pokazać. Komentarz w tym miejscu nazywał to „świadomym dzisiejszym kosztem"
+ * i odkładał do czasu, aż model strony dostanie podstrony. Dostał.
+ *
+ * Adres liczy `catalogPagePath` (@avably/core) — jedno wyrażenie dla kanonu
+ * trasy, nawigacji stron, mapy strony i tego odnośnika.
+ *
+ * PRZEŁĄCZNIK `showCatalogLink` ZOSTAJE i zyskuje właściwe znaczenie: wyłącza
+ * się go na stronie, która sama JEST katalogiem, a nie dlatego, że odnośnik
+ * prowadzi donikąd.
  */
-export const PRICING_CATALOG_HREF = "/store";
+export const PRICING_CATALOG_HREF = catalogPagePath();
 
 /**
  * POZYCJE STARTOWE CENNIKA — osobna stała, bo czyta je DWÓCH wołających:

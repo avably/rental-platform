@@ -375,6 +375,17 @@ export {
   suggestCategorySlug,
 } from "./catalog/categories";
 
+export {
+  CATALOG_PAGE_MAX_SIZE,
+  CATALOG_PAGE_PARAM,
+  CATALOG_PAGE_SIZE,
+  CATALOG_PATH_SEGMENT,
+  catalogPageCount,
+  catalogPageOffset,
+  catalogPagePath,
+  parseCatalogPageParam,
+} from "./catalog/catalog-page";
+
 export { slugifyName } from "./slug";
 
 export {

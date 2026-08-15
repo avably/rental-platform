@@ -19,7 +19,11 @@
  * Fikstury są RÓŻNICUJĄCE: produkty mają rozróżnialne nazwy i ceny, więc
  * „pokazano trzy" znaczy tu „pokazano TE trzy", a nie „coś się narysowało".
  */
-import { structuredPresetFor, type ProductsStructuredContent } from "@avably/core/site";
+import {
+  PRODUCTS_CATALOG_HREF,
+  structuredPresetFor,
+  type ProductsStructuredContent,
+} from "@avably/core/site";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -127,10 +131,14 @@ describe("odnośnik „Zobacz cały sprzęt” — próg zmierzony po OBU strona
     ).toBeNull();
   });
 
-  it("katalog WIĘKSZY o jeden → odnośnik JEST i prowadzi do /store", () => {
+  it("katalog WIĘKSZY o jeden → odnośnik JEST i prowadzi na STRONĘ KATALOGU", () => {
     narysuj(tresc({ source: "catalog", limit: 8 }), katalog(9));
     const link = screen.getByRole("link", { name: L.productsCatalog });
-    expect(link.getAttribute("href")).toBe("/store");
+    // Adres bierze się ze STAŁEJ RDZENIA, nie z literału: do ADR-186 odnośnik
+    // wskazywał `/store`, czyli tę samą stronę, z której klient klikał. Literał
+    // w teście przeżyłby tę poprawkę i pilnowałby wady zamiast kontraktu.
+    expect(link.getAttribute("href")).toBe(PRODUCTS_CATALOG_HREF);
+    expect(PRODUCTS_CATALOG_HREF, "odnośnik znów prowadzi na stronę główną").not.toBe("/store");
   });
 
   it("wybór ręczny pokazujący wycinek katalogu też odsyła po resztę", () => {

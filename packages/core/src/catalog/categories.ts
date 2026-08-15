@@ -44,6 +44,10 @@ export const RESERVED_CATEGORY_SLUGS: readonly string[] = [
   "category",
   "checkout",
   "embed",
+  // [ADR-186] `/katalog` — pełna lista sprzętu ze stronicowaniem. Bez tego
+  // wpisu kategoria (a przez nadzbiór także STRONA) o slugu `katalog` przejęłaby
+  // trasę, której routing Next i tak rozstrzyga na korzyść segmentu statycznego.
+  "katalog",
   "kategoria",
   "privacy",
   "product",

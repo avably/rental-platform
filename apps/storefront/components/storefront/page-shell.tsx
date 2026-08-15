@@ -19,7 +19,7 @@ import { cn } from "@avably/ui";
 import type { ReactNode } from "react";
 
 import { StoreChrome, type StoreTermInput } from "@/components/storefront/store-chrome";
-import { PRODUCTS_CATALOG_HREF } from "@avably/core/site";
+import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 
@@ -75,13 +75,17 @@ export function PageShell({
       siteImageBase={siteImageBase}
       term={term}
       /*
-        KOTWICE STOPKI PROWADZĄ NA STRONĘ KATALOGU (faza 0). Użytkownicy tej
-        powłoki to z definicji PODSTRONY — nie ma na nich sekcji, więc czysta
-        kotwica `#kontakt` byłaby odnośnikiem, który nie robi nic. Adres jest tą
-        samą stałą, do której odsyłają sekcje sprzętu i cennika: jedna trasa,
-        jedna stała.
+        KOTWICE STOPKI PROWADZĄ NA STRONĘ GŁÓWNĄ (faza 0; poprawione w ADR-186).
+        Użytkownicy tej powłoki to z definicji PODSTRONY — nie ma na nich sekcji,
+        więc czysta kotwica `#kontakt` byłaby odnośnikiem, który nie robi nic.
+        Celem jest strona GŁÓWNA, bo to na niej stoją sekcje, do których stopka
+        odsyła (`#kontakt`, `#produkty`). Do ADR-186 stała katalogu wskazywała
+        `/store`, czyli wewnętrzny adres tej samej strony głównej, więc oba
+        znaczenia mieściły się przypadkiem w jednej wartości; od chwili, w której
+        katalog dostał WŁASNĄ stronę, kotwica musi wskazywać kanon strony
+        głównej — inaczej `#kontakt` prowadziłby tam, gdzie kontaktu nie ma.
       */
-      footerAnchorBase={PRODUCTS_CATALOG_HREF}
+      footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
     >
       <main className={cn("mx-auto w-full max-w-5xl px-6 py-10", className)}>{children}</main>
     </StoreChrome>

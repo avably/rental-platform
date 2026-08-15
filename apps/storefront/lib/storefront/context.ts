@@ -11,7 +11,13 @@
  */
 import { cache } from "react";
 
-import type { CurrencyCode, ProductSlugRegistry } from "@avably/core";
+import {
+  CATALOG_PAGE_SIZE,
+  catalogPageCount,
+  catalogPageOffset,
+  type CurrencyCode,
+  type ProductSlugRegistry,
+} from "@avably/core";
 import type { ResolvedSiteStyle } from "@avably/core/site";
 import { headers } from "next/headers";
 
@@ -20,7 +26,12 @@ import {
   resolvePublicCatalog,
   setCachedCatalog,
 } from "@/lib/catalog/catalog-cache";
-import { getPublicCatalog, getPublicProduct, getPublicProductSlugs } from "@/lib/checkout/catalog";
+import {
+  getPublicCatalog,
+  getPublicCatalogPage,
+  getPublicProduct,
+  getPublicProductSlugs,
+} from "@/lib/checkout/catalog";
 import type { PublicCatalog, PublicCatalogProduct } from "@/lib/checkout/contract";
 import {
   getPublishedLegalDocuments,
@@ -135,6 +146,54 @@ export interface ProductPageContext extends Omit<StorefrontContext, "catalog"> {
 }
 
 /**
+ * KATALOG STRONY `/katalog` — JEDNA STRONA WYNIKÓW (faza 4b, ADR-186).
+ *
+ * Ten sam wzorzec, co `ProductPageCatalog` z ADR-185 i z tego samego powodu:
+ * własny typ o TRZECH kluczach zamienia przyszły odczyt
+ * `ctx.catalog.pickup_locations` na tej trasie w błąd kompilacji, zamiast
+ * w cichą pustą listę na ekranie.
+ */
+export interface CatalogPageCatalog {
+  tenant: PublicCatalog["tenant"];
+  custom_fields: PublicCatalog["custom_fields"];
+  /** Pozycje TEJ strony wyników — nie „katalog najemcy". */
+  products: PublicCatalogProduct[];
+}
+
+/**
+ * KONTEKST STRONY KATALOGU (faza 4b, ADR-186) — powłoka najemcy plus JEDNA
+ * strona wyników i jej rachunek.
+ *
+ * ==================== CENA PRZYJĘTA ŚWIADOMIE ====================
+ *
+ * Pasek terminu dostaje pozycje TEJ STRONY, a nie cały katalog, więc panel
+ * konfliktu koszyka nazywa po imieniu pozycje widoczne na ekranie, a pozostałe
+ * — identyfikatorem (`byId.get(id) ?? id`). To jest DOKŁADNIE ta sama cena,
+ * którą ADR-185 przyjął na stronie sprzętu, i płaci się ją za to samo: odsłona
+ * przestaje kosztować cały katalog. Naprawa bez powrotu do odczytu O(N) wymaga,
+ * żeby koszyk niósł nazwy pozycji, i jest osobną pracą.
+ */
+export interface CatalogPageContext extends Omit<StorefrontContext, "catalog"> {
+  catalog: CatalogPageCatalog;
+  /** Numer strony wyników (1-based) — ten, który stoi w adresie. */
+  page: number;
+  /** Ile stron ma katalog przy bieżącym rozmiarze strony; zawsze ≥ 1. */
+  pageCount: number;
+  /** Liczba WSZYSTKICH pozycji katalogu — nagłówek mówi klientowi, ile jest oferty. */
+  total: number;
+}
+
+/**
+ * Wynik rozstrzygnięcia adresu strony katalogu. Rozdzielony od kontekstu z tego
+ * samego powodu, co przy stronie sprzętu: trasa musi odróżnić „najemca poza
+ * oknem handlowym" od „numer strony spoza zakresu" ZANIM cokolwiek wyrenderuje,
+ * a obie odpowiedzi są 404 o różnym uzasadnieniu.
+ */
+export type CatalogPageResolution =
+  | { kind: "page"; ctx: CatalogPageContext }
+  | { kind: "none" };
+
+/**
  * `cache` (per-żądanie): layout czyta z tego locale na `<html lang>`, a strona
  * ten sam kontekst na treść — bez dublowania odpytań katalogu/site w jednym
  * żądaniu.
@@ -148,6 +207,16 @@ export const loadStorefrontContext = cache(_loadStorefrontContext);
  * z `generateMetadata` i raz z renderu, a Next liczy oba równolegle.
  */
 export const loadProductPageContext = cache(_loadProductPageContext);
+
+/**
+ * Kontekst strony katalogu: cztery odczyty równolegle, ani jeden O(katalogu).
+ *
+ * `cache` per-żądanie z tego samego powodu, co wyżej — trasa woła to raz
+ * z `generateMetadata` i raz z renderu. Argument WCHODZI do klucza memoizacji
+ * `cache` Reacta, więc dwa różne numery strony w jednym żądaniu (stan
+ * nieosiągalny w trasie, ale osiągalny w teście) nie zjadłyby sobie wyniku.
+ */
+export const loadCatalogPageContext = cache(_loadCatalogPageContext);
 
 /**
  * Wynik rozstrzygnięcia adresu sprzętu. Rozdzielony od kontekstu, bo trasa
@@ -206,6 +275,69 @@ async function _loadProductPageContext(
         products: [{ id: envelope.product.id, slug: envelope.slug }],
         redirects: [],
       },
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    },
+  };
+}
+
+async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolution> {
+  const tenantId = (await headers()).get(TENANT_ID_HEADER);
+  if (!tenantId) return { kind: "none" };
+
+  const [envelope, appearance, site, legalDocuments] = await Promise.all([
+    getPublicCatalogPage(tenantId, catalogPageOffset(page), CATALOG_PAGE_SIZE),
+    getTenantAppearance(tenantId),
+    getPublishedSite(tenantId),
+    getPublishedLegalDocuments(tenantId),
+  ]);
+
+  // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
+  if (!envelope) return { kind: "none" };
+
+  /*
+    NUMER STRONY SPOZA ZAKRESU TO 404, NIE PUSTA SIATKA (ADR-186).
+
+    Pusta siatka pod `?strona=99` byłaby stroną bez treści, którą wyszukiwarka
+    ma prawo zaindeksować — a katalog o dwóch stronach produkowałby wtedy
+    nieskończenie wiele adresów z tym samym, pustym ekranem. Wyjątkiem jest
+    strona PIERWSZA: „katalog w przygotowaniu" jest treścią, którą trzeba
+    pokazać pod adresem, do którego prowadzą linki najemcy.
+  */
+  const pageCount = catalogPageCount(envelope.total, CATALOG_PAGE_SIZE);
+  if (page > pageCount) return { kind: "none" };
+
+  const locale = normalizeStorefrontLocale(envelope.tenant.locale);
+  const copy = await getStorefrontCopy(locale);
+  const style = tenantAppearanceStyle(appearance);
+
+  return {
+    kind: "page",
+    ctx: {
+      tenantId,
+      catalog: {
+        tenant: envelope.tenant,
+        custom_fields: envelope.custom_fields,
+        products: envelope.products,
+      },
+      page,
+      pageCount,
+      total: envelope.total,
+      locale,
+      currency: envelope.tenant.currency,
+      copy,
+      style,
+      appearance,
+      site,
+      legalDocuments,
+      /*
+        REJESTR ADRESÓW MA WPISY TEJ STRONY. `productPath` jest jednym
+        wyrażeniem dla kafla, koszyka, mapy strony i kanonu (ADR-182) i nie ma
+        powodu uczyć go drugiej reprezentacji — a adresu potrzebują wyłącznie
+        pozycje, które ta strona naprawdę rysuje. `redirects` jest tu pusta
+        z konstrukcji: kafel buduje link do adresu BIEŻĄCEGO, a przekierowania
+        rozstrzyga trasa sprzętu.
+      */
+      productSlugs: { products: envelope.slugs, redirects: [] },
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
     },
   };

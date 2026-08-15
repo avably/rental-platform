@@ -25,7 +25,7 @@
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
  */
-import { PRODUCTS_CATALOG_HREF, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
+import { HOME_PAGE_SLUG, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
 import { SiteRenderer } from "@avably/ui";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -120,7 +120,13 @@ export default async function TenantContentPage({ params }: Params) {
       term={{ products: catalog.products, locale }}
       /* Prefiks zdjęć także dla stopki powłoki (ADR-172) — patrz `/store`. */
       siteImageBase={seam.siteImageBase}
-      footerAnchorBase={PRODUCTS_CATALOG_HREF}
+      /*
+        Cel kotwic poprawiony w ADR-186: `#kontakt` w stopce ma prowadzić na
+        stronę GŁÓWNĄ, gdzie ta sekcja stoi. Do fazy 4b stała adresu katalogu
+        wskazywała `/store`, czyli wewnętrzny adres strony głównej, więc oba
+        znaczenia mieściły się w jednej wartości przypadkiem.
+      */
+      footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
       revealNonce={revealNonce}
     >
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}

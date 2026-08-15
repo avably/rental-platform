@@ -22,6 +22,7 @@ import type {
   PublicAvailabilityDays,
   PublicCatalog,
   PublicCatalogAvailability,
+  PublicCatalogPage,
   PublicCustomField,
   PublicProductEnvelope,
 } from "./contract";
@@ -119,6 +120,46 @@ export async function getPublicProduct(
 
   if (error || data == null) return null;
   return data as PublicProductEnvelope;
+}
+
+/**
+ * JEDNA STRONA KATALOGU dla trasy `/katalog` (0085, ADR-186).
+ *
+ * ==================== DLACZEGO NIE WYCINEK Z PEŁNEJ KOPERTY ====================
+ *
+ * Odczyt całego katalogu i pokazanie z niego 24 pozycji kosztuje przy 200
+ * pozycjach 227 019 bajtów na odsłonę (zmierzone, ADR-185) — czyli dokładnie
+ * ten koszt, który faza 4a właśnie zdjęła ze strony sprzętu. Okno wyników
+ * liczy BAZA, więc koszt odsłony jest O(strony) i nie rośnie razem z ofertą
+ * najemcy.
+ *
+ * ==================== DLACZEGO TA KOPERTA NIE IDZIE PRZEZ CACHE ====================
+ *
+ * Cache katalogu (ADR-185) stoi na JEDNYM kluczu na najemcę i na tym, że panel
+ * ten klucz KASUJE przy każdej mutacji koperty publicznej. Strony wyników to
+ * rodzina kluczy, której panel nie kasuje — a cache, którego nie ma jak
+ * unieważnić, to nie jest cache, tylko obietnica pokazywania nieaktualnej ceny
+ * przez TTL. Powód, dla którego cache w ogóle powstał (227 KB na odsłonę),
+ * w tym odczycie nie występuje.
+ *
+ * FAIL-CLOSED jak katalog: błąd transportu / najemca poza oknem handlowym →
+ * `null`, czyli dla trasy to samo, co „nie ma czego pokazać".
+ */
+export async function getPublicCatalogPage(
+  tenantId: string,
+  offset: number,
+  limit: number,
+  client?: SupabaseClient,
+): Promise<PublicCatalogPage | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase.schema("app").rpc("get_public_catalog_page", {
+    p_tenant_id: tenantId,
+    p_offset: offset,
+    p_limit: limit,
+  });
+
+  if (error || data == null) return null;
+  return data as PublicCatalogPage;
 }
 
 export async function getPublicAvailability(

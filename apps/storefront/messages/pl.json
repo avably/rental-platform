@@ -398,6 +398,17 @@
         }
       }
     },
+    "catalog": {
+      "title": "Katalog",
+      "heading": "Cały sprzęt",
+      "total": "Pozycji w ofercie: {total}",
+      "pageOf": "Strona {page} z {pages}",
+      "pagerLabel": "Strony katalogu",
+      "prev": "Poprzednia strona",
+      "next": "Następna strona",
+      "goToPage": "Strona {page}",
+      "description": "Pełna lista sprzętu do wynajęcia — {store}. Sprawdź ceny za dobę i dostępność w swoim terminie."
+    },
     "common": {
       "from": "od",
       "perDay": "doba",

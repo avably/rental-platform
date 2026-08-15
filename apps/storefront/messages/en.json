@@ -398,6 +398,17 @@
         }
       }
     },
+    "catalog": {
+      "title": "Catalog",
+      "heading": "All equipment",
+      "total": "Items in the catalog: {total}",
+      "pageOf": "Page {page} of {pages}",
+      "pagerLabel": "Catalog pages",
+      "prev": "Previous page",
+      "next": "Next page",
+      "goToPage": "Page {page}",
+      "description": "The full list of equipment for hire — {store}. Check daily rates and availability for your dates."
+    },
     "common": {
       "from": "from",
       "perDay": "day",

@@ -190,6 +190,15 @@ async function renderKatalogu(): Promise<string> {
   return renderToStaticMarkup(drzewo);
 }
 
+/** Strona `/katalog` (faza 4b, ADR-186) — JEDNA strona wyników z bazy. */
+async function renderStronyKatalogu(strona?: number): Promise<string> {
+  const { default: Trasa } = await import("../app/(tenant)/katalog/page");
+  const drzewo = (await Trasa({
+    searchParams: Promise.resolve(strona ? { strona: String(strona) } : {}),
+  })) as ReactNode;
+  return renderToStaticMarkup(drzewo);
+}
+
 
 /* -------------------------------------------------------------------------
  * Fikstura zakładana przez suitę — patrz nagłówek pliku
@@ -290,6 +299,7 @@ describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-185
     // Rozgrzewka grafu modułów — patrz product-template-route.test.tsx.
     await import("../app/(tenant)/produkt/[slug]/page");
     await import("../app/(tenant)/store/page");
+    await import("../app/(tenant)/katalog/page");
     ruch.length = 0;
   }, 300_000);
 
@@ -382,5 +392,58 @@ describe.skipIf(!maBaze)("koszt odsłony sklepu na katalogu 200 pozycji (ADR-185
 
     expect(markupB, "najemca B nie dostał swojej pozycji").toContain(NAZWA_B_1);
     expect(markupB, "WYCIEK: najemca B zobaczył pozycję najemcy A").not.toContain(NAZWA_A_1);
+  }, BUDZET_RENDERU);
+
+  /* -----------------------------------------------------------------------
+   * STRONA KATALOGU `/katalog` (faza 4b, ADR-186)
+   * -------------------------------------------------------------------- */
+
+  it("katalog `/katalog`: rachunek odsłony", async () => {
+    const markup = await renderStronyKatalogu();
+    raport("STRONA KATALOGU /katalog");
+
+    expect(markup, "render nie pokazał pierwszej pozycji katalogu").toContain(NAZWA_A_1);
+    expect(rachunek().zapytania, "odsłona bez zapytania = przyrząd nie mierzy").toBeGreaterThan(0);
+  }, BUDZET_RENDERU);
+
+  it("`/katalog` NIE POBIERA pozycji spoza swojej strony wyników", async () => {
+    // To jest różnica między STRONICOWANIEM a UKRYWANIEM: gdyby trasa czytała
+    // cały katalog i pokazywała z niego wycinek, pozycja nr 200 przyjechałaby
+    // do procesu mimo że nie ma jej na ekranie — czyli koszt zdjęty przez
+    // ADR-185 wróciłby tylnymi drzwiami, tyle że na innej trasie.
+    await renderStronyKatalogu();
+    const dane = pobraneDane();
+
+    expect(dane, "przyrząd nie widzi nawet pierwszej pozycji").toContain(NAZWA_A_1);
+    expect(dane, "strona katalogu ciągnie pozycje, których nie pokazuje").not.toContain(
+      NAZWA_CUDZEJ_POZYCJI,
+    );
+  }, BUDZET_RENDERU);
+
+  it("`/katalog`: DRUGA strona wyników pokazuje INNE pozycje niż pierwsza", async () => {
+    const pierwsza = await renderStronyKatalogu();
+    vi.resetModules();
+    ruch.length = 0;
+    const druga = await renderStronyKatalogu(2);
+
+    expect(pierwsza, "pierwsza strona pusta — nie ma czego porównywać").toContain(NAZWA_A_1);
+    expect(druga, "pozycja z pierwszej strony wyciekła na drugą").not.toContain(NAZWA_A_1);
+    expect(druga.length, "druga strona nic nie wyrenderowała").toBeGreaterThan(500);
+  }, BUDZET_RENDERU);
+
+  it("`/katalog` IZOLACJA: najemca B nie widzi ani jednej pozycji najemcy A", async () => {
+    const markupA = await renderStronyKatalogu();
+    expect(markupA, "najemca A nie dostał swojego katalogu").toContain(NAZWA_A_1);
+
+    vi.resetModules();
+    ruch.length = 0;
+    stanZadania.tenantId = najemcy.b;
+    const markupB = await renderStronyKatalogu();
+
+    expect(markupB, "najemca B nie dostał swojego katalogu").toContain(NAZWA_B_1);
+    expect(markupB, "WYCIEK: najemca B zobaczył katalog najemcy A").not.toContain(NAZWA_A_1);
+    expect(pobraneDane(), "pozycja najemcy A przyjechała do procesu najemcy B").not.toContain(
+      NAZWA_A_1,
+    );
   }, BUDZET_RENDERU);
 });

@@ -343,6 +343,34 @@ export interface PublicProductEnvelope {
   product: PublicCatalogProduct | null;
 }
 
+/**
+ * KOPERTA JEDNEJ STRONY KATALOGU (0085, ADR-186) — kształt lustrzany do
+ * `app.get_public_catalog_page`.
+ *
+ * `total` jest tu daną PIERWSZORZĘDNĄ, a nie metryką: bez niej nawigacja nie
+ * wie, ile jest stron, a trasa nie wie, czy numer strony wypada poza zakres
+ * (czyli kiedy oddać 404 zamiast pustej siatki).
+ *
+ * `slugs` to adresy DOKŁADNIE tych pozycji, które strona rysuje. Rejestr
+ * `app.get_public_product_slugs` jest O(katalogu), więc użycie go do zbudowania
+ * 24 odnośników wracałoby do kosztu, który ta koperta znosi — ta sama zasada,
+ * co przy wąskim odczycie pozycji w ADR-185.
+ *
+ * CZEGO TU NIE MA: kategorii, punktów odbioru i metod dostawy. Strona katalogu
+ * ich nie rysuje, a wąski odczyt, który wozi dane „na wszelki wypadek",
+ * przestaje być wąski.
+ */
+export interface PublicCatalogPage {
+  /** Liczba WSZYSTKICH pozycji katalogu, nie tylko tej strony. */
+  total: number;
+  tenant: { name: string; locale: "pl" | "en"; currency: CheckoutCurrency };
+  /** Definicje pól własnych — te same, co w kopercie katalogu. */
+  custom_fields: PublicCustomField[];
+  products: PublicCatalogProduct[];
+  /** Adresy pozycji TEJ strony (0083, ADR-182). */
+  slugs: { id: string; slug: string }[];
+}
+
 /** Kształt dostępności: WYŁĄCZNIE liczby — bez numerów seryjnych / cudzych zamówień. */
 export interface PublicAvailability {
   available_units: number;

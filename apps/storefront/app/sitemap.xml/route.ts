@@ -15,6 +15,7 @@
  * Koszyk i checkout NIE wchodzą do sitemapy — to strony transakcyjne bez
  * treści (robots.txt wyklucza je jawnie).
  */
+import { catalogPageCount, catalogPagePath } from "@avably/core";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 
 import { routing } from "@/i18n/routing";
@@ -106,7 +107,25 @@ export async function GET(request: Request): Promise<Response> {
   const pageSlugs =
     pages?.pages && pages.pages.length > 0 ? pages.pages : [HOME_PAGE_SLUG];
 
+  /*
+   * STRONA KATALOGU I KAŻDA JEJ STRONA WYNIKÓW (faza 4b, ADR-186).
+   *
+   * Wszystkie, nie tylko pierwsza: kanon strony N wskazuje SAM SIEBIE, więc
+   * zgłoszenie samego `/katalog` mówiłoby wyszukiwarce, że reszty stron nie ma
+   * po co odwiedzać — a to jest jedyna nawigacja, którą robot dochodzi do
+   * pozycji dalszych niż pierwsze 24.
+   *
+   * Liczba stron liczy się z `catalog.products.length`, czyli z tego samego
+   * zbioru, który stronicuje `app.get_public_catalog_page` (aktywne pozycje
+   * najemcy w oknie handlowym). Mapa strony i tak czyta pełny katalog, żeby
+   * wypisać adresy pozycji, więc rachunek nie kosztuje ani jednego odczytu.
+   */
+  const catalogPages = catalogPageCount(catalog.products.length);
+
   const entries: SitemapEntry[] = [
+    ...Array.from({ length: catalogPages }, (_, index) => ({
+      loc: `${origin}${catalogPagePath(index + 1)}`,
+    })),
     ...pageSlugs.map((slug) => ({
       loc: `${origin}${pagePathFromSlug(slug)}`,
       // `lastmod` z publikacji mamy dla strony GŁÓWNEJ; podstrony wchodzą bez
