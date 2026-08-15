@@ -10,27 +10,15 @@
  * ustawień, zamiast ukrywać funkcję bez wyjaśnienia.
  */
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
-import {
   COURIER_CONFIG_KEYS,
   CourierConfigError,
   emailAvailability,
-  formatMoney,
-  isShipmentCancellable,
-  mapProviderStatus,
   type CurrencyCode,
   type DeliveryPriceSource,
 } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/navigation";
-import { StatusChip } from "@/lib/orders/status-chip";
 import { requireMember } from "@/lib/supabase-server";
 
 import { courierConfigItems } from "./courier-config-copy";
@@ -53,14 +41,11 @@ import {
   type ShipmentRow,
 } from "./delivery";
 import {
-  CancelShipmentButton,
   RefreshAllShipmentsButton,
-  RefreshStatusButton,
   SendPickupReminderButton,
-  SendReturnLabelButton,
-  TrackingCopyButton,
 } from "./delivery-forms";
 import { ShipmentModalLauncher } from "./shipment-modal";
+import { ShipmentsList } from "./shipments-list";
 
 export async function DeliverySection({
   orderId,
@@ -169,114 +154,30 @@ export async function DeliverySection({
       {shipments.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div data-shipments className="flex min-w-0 flex-col gap-2">
           <div className="flex justify-end">
             <RefreshAllShipmentsButton
               orderId={orderId}
               action={refreshOrderShipmentsAction}
             />
           </div>
-          <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("colType")}</TableHead>
-              <TableHead>{t("colStatus")}</TableHead>
-              <TableHead>{t("colNumber")}</TableHead>
-              <TableHead>{t("colTracking")}</TableHead>
-              <TableHead>{t("colPrice")}</TableHead>
-              <TableHead>{t("colCreated")}</TableHead>
-              <TableHead>{t("colLabel")}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shipments.map((shipment) => (
-              <TableRow key={shipment.id}>
-                <TableCell>{t(`types.${shipment.shipment_type}`)}</TableCell>
-                <TableCell>
-                  <StatusChip axis="shipment" value={shipment.status} />
-                  {/* Surowy status dostawcy pokazywany, gdy NIE odpowiada
-                      naszemu (nieznany albo rozjechany po dryfie API) — bez
-                      tego badge twierdziłby coś, czego dostawca nie potwierdza,
-                      a właśnie po to provider_status jest zapisywany (ADR-031). */}
-                  {shipment.provider_status &&
-                  mapProviderStatus(shipment.provider_status) !== shipment.status ? (
-                    <span className="text-muted-foreground mt-1 block text-xs">
-                      {t("providerStatus", { status: shipment.provider_status })}
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell>{shipment.provider_order_number}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {shipment.tracking_url ? (
-                      <a
-                        className="underline"
-                        href={shipment.tracking_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {shipment.tracking_number ?? shipment.tracking_url}
-                      </a>
-                    ) : (
-                      <span>{shipment.tracking_number ?? "—"}</span>
-                    )}
-                    {shipment.tracking_number ? (
-                      <TrackingCopyButton value={shipment.tracking_number} />
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {shipment.price_grosze !== null
-                    ? formatMoney(shipment.price_grosze, currency, locale)
-                    : "—"}
-                </TableCell>
-                <TableCell>{timestamp.format(new Date(shipment.created_at))}</TableCell>
-                <TableCell>
-                  {/* Zwykły <a> z jawnym locale: to route handler (PDF), nie
-                      strona — Link z i18n/navigation nie ma tu zastosowania. */}
-                  <a
-                    className="underline"
-                    href={`/${locale}/zamowienia/${orderId}/delivery-label?shipment=${shipment.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {t("labelLink")}
-                  </a>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-2">
-                    <RefreshStatusButton
-                      shipmentId={shipment.id}
-                      action={refreshShipmentStatusAction}
-                    />
-                    {/* Etykietę zwrotną e-mailem można wysłać tylko dla
-                        przesyłki ZWROTNEJ i tylko gdy dostawca wydał już
-                        etykietę (jest hash) — inaczej akcja i tak odmówi. */}
-                    {shipment.shipment_type === "return" ? (
-                      <SendReturnLabelButton
-                        orderId={orderId}
-                        shipmentId={shipment.id}
-                        emailAvailability={emailStatus}
-                        action={sendReturnLabelEmailAction}
-                      />
-                    ) : null}
-                    {/* Anulowanie tylko tam, gdzie ma jeszcze skutek (ADR-105):
-                        przy przesyłce w drodze przycisk nie istnieje, zamiast
-                        obiecywać operację, którą dostawca i tak odrzuci. */}
-                    {isShipmentCancellable(shipment.status) ? (
-                      <CancelShipmentButton
-                        shipmentId={shipment.id}
-                        shipmentNumber={shipment.provider_order_number}
-                        action={cancelShipmentAction}
-                      />
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            </TableBody>
-          </Table>
+          {/* Karty zamiast tabeli ośmiu kolumn (ADR-188): kolumna treści ma
+              sufit 752 px i NIE ROŚNIE z oknem, więc układ musi być płynny
+              z konstrukcji, a nie dostrajany progami. Uzasadnienie i pomiar —
+              `shipments-list.tsx`. */}
+          <ShipmentsList
+            shipments={shipments}
+            orderId={orderId}
+            locale={locale}
+            currency={currency}
+            emailAvailability={emailStatus}
+            timestamp={timestamp}
+            actions={{
+              refreshStatus: refreshShipmentStatusAction,
+              cancelShipment: cancelShipmentAction,
+              sendReturnLabel: sendReturnLabelEmailAction,
+            }}
+          />
         </div>
       )}
 

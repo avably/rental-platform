@@ -1000,13 +1000,10 @@
       "section": {
         "title": "Dostawa",
         "empty": "Brak przesyłek dla tego zamówienia.",
-        "colType": "Typ",
-        "colStatus": "Status",
         "colNumber": "Nr u dostawcy",
         "colTracking": "Śledzenie",
         "colPrice": "Koszt nadania",
         "colCreated": "Utworzono",
-        "colLabel": "Etykieta",
         "labelLink": "Etykieta (PDF)",
         "labelMissing": "—",
         "refreshCta": "Odśwież status",

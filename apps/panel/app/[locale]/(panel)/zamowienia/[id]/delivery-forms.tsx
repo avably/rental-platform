@@ -9,6 +9,17 @@ import type { FormState } from "@/lib/form-state";
 
 const initialState: FormState = {};
 
+/**
+ * Konwencja formularzy tej sekcji: `flex flex-col items-start` (ADR-188).
+ *
+ * Komunikat pod przyciskiem bywa zdaniem („Wysyłka e-maili jest chwilowo
+ * niedostępna…"), a w kolumnie flex bez `items-start` przycisk STRETCHUJE się
+ * do szerokości najszerszego dziecka — czyli do szerokości tego zdania.
+ * W tabeli komórka to maskowała; w karcie przesyłki było to widać jako
+ * przycisk na całą szerokość karty. `items-start` zostawia przyciskowi jego
+ * własną szerokość, niezależnie od tego, co akcja wypisze pod nim.
+ */
+
 type DeliveryAction = (prevState: FormState, formData: FormData) => Promise<FormState>;
 
 function FormMessages({ state, successText }: { state: FormState; successText?: string }) {
@@ -101,7 +112,7 @@ export function RefreshStatusButton({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-1">
+    <form action={formAction} className="flex flex-col items-start gap-1">
       <input type="hidden" name="shipmentId" value={shipmentId} />
       <Button type="submit" variant="outline" loading={pending} disabled={pending}>
         {t("refreshCta")}
@@ -133,7 +144,7 @@ export function CancelShipmentButton({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-1">
+    <form action={formAction} className="flex flex-col items-start gap-1">
       <input type="hidden" name="shipmentId" value={shipmentId} />
       <ConfirmSubmit
         marker={`cancel-shipment-${shipmentId}`}
@@ -176,7 +187,7 @@ export function SendReturnLabelButton({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-1">
+    <form action={formAction} className="flex flex-col items-start gap-1">
       <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="shipmentId" value={shipmentId} />
       <Button type="submit" variant="outline" loading={pending} disabled={pending || !emailAvailability.available}>
