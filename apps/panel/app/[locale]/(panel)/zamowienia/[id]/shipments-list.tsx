@@ -4,7 +4,7 @@
  * ================== DLACZEGO TO NIE JEST TABELA ==================
  *
  * Tabela ośmiu kolumn (typ, status, numer u dostawcy, śledzenie, koszt, data,
- * etykieta, akcje) miała szerokość WŁASNĄ ~1,9 tys. px przy 752 px, które
+ * etykieta, akcje) miała szerokość WŁASNĄ 1952 px przy 752 px, które
  * kolumna treści szczegółu zamówienia oferuje w NAJSZERSZYM oknie. Sufit
  * bierze się z systemu, nie z tego ekranu: kontener panelu ma `max-w-6xl`,
  * a 320 px zabiera kolumna boczna — więc kolumna główna NIE ROŚNIE wraz
@@ -14,8 +14,9 @@
  *
  * 1. Progi `md:`/`lg:` są tu bezużyteczne — reagują na szerokość OKNA, a
  *    problemem jest szerokość KOLUMNY, która od okna prawie nie zależy.
- *    Układ musi być płynny z konstrukcji: zawijanie, `min-w-0` i miękkie
- *    bazy zamiast progów i wartości arbitralnych.
+ *    Układ musi być płynny z konstrukcji: siatka licząca liczbę torów
+ *    z faktycznej szerokości rodzica, zawijanie i `min-w-0` — zamiast
+ *    progów i zamiast szerokości przypiętych liczbą.
  * 2. Komórka tabeli nie ma jak zawinąć bez rozjechania sąsiednich wierszy,
  *    a `table-layout: auto` liczy szerokość od TREŚCI — czyli od danych
  *    dostawcy, na które nie mamy wpływu (numer śledzenia bywa 23-znakowy,
