@@ -9,7 +9,27 @@
     // Celowo `env`, nie `passThroughEnv`: wartości wchodzą do hasha cache,
     // więc zielony wynik przebiegu „pominięte" nie zostanie odtworzony
     // z cache w przebiegu, który zmienne ma (i odwrotnie).
-    "test": { "dependsOn": ["^build"], "env": ["SUPABASE_LOCAL_*", "ALLOW_INTEGRATION_SKIP"] },
+    // Artefakty brandingu są WEJŚCIEM testów, nie dokumentacją obok nich:
+    // trzynaście suit (`packages/ui`, `packages/pdf`, `apps/panel`) parsuje
+    // `docs/branding/**` jako źródło prawdy o tokenach, statusach i kopii.
+    // Bez tego wpisu edycja artefaktu nie ruszała hasha zadania `test`, więc
+    // lokalne `pnpm test` odtwarzało z cache ZIELONY wynik, który nowej
+    // wersji artefaktu w ogóle nie widział. (Czysty checkout w CI kasuje
+    // `.turbo/`, więc wada dotykała wyłącznie stanowiska programisty — to ta
+    // sama rodzina co bramka, która nie biegnie, z ADR-183.)
+    //
+    // Oba tokeny są konieczne i każdy z innego powodu:
+    //   * `$TURBO_ROOT$` — ścieżki w `inputs` są względne do PAKIETU, więc
+    //     gołe `docs/branding/**` szukałoby `apps/panel/docs/branding`
+    //     (sprawdzone: hash nie drgnął);
+    //   * `$TURBO_DEFAULT$` — własna lista `inputs` ZASTĘPUJE zbiór domyślny,
+    //     więc bez niego z hasha wypadłyby źródła pakietu i test przestałby
+    //     się przeliczać po zmianie kodu, który sprawdza.
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/branding/**"],
+      "env": ["SUPABASE_LOCAL_*", "ALLOW_INTEGRATION_SKIP"]
+    },
     "lint": {},
     "typecheck": { "dependsOn": ["^build"] }
   }
