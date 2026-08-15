@@ -92,15 +92,19 @@ export async function generateMetadata({ searchParams }: Params): Promise<Metada
     description: opis,
     storeName,
     /*
-      INDEKSUJEMY MIMO BRAKU OPUBLIKOWANEJ STRONY GŁÓWNEJ — i to jest różnica
-      względem `/store`. Tam `noindex` broni przed wpuszczeniem do indeksu
-      neutralnej zapowiedzi, identycznej dla każdego najemcy. Tutaj treścią jest
-      KATALOG, czyli dane, które najemca sam wprowadził; katalog z pozycjami
-      jest stroną o własnej treści niezależnie od tego, czy operator zdążył
-      złożyć stronę główną w kreatorze. Katalog PUSTY takiej treści nie ma
-      i zostaje poza indeksem.
+      DWA WARUNKI, OBA KONIECZNE — i drugi jest tu po to, żeby metadane nie
+      obiecywały czegoś, czemu zaprzecza `robots.txt` TEGO SAMEGO hosta.
+
+      (a) KATALOG PUSTY nie ma treści do zaindeksowania: „katalog
+          w przygotowaniu" jest identyczne u każdego najemcy, czyli dokładnie ta
+          treść cienka i zdublowana, przed którą broni ADR-044.
+      (b) SKLEP BEZ OPUBLIKOWANEJ STRONY GŁÓWNEJ jest dla robota zamknięty
+          W CAŁOŚCI: `app/robots.txt` oddaje wtedy `Disallow: /`, a mapa strony
+          — 404. `index` w metadanych byłby w tym stanie obietnicą bez pokrycia,
+          a rozjazd między dwiema deklaracjami tej samej rzeczy to defekt, który
+          się później ściga.
     */
-    published: ctx.total > 0,
+    published: ctx.site !== null && ctx.total > 0,
     origin: await tenantOrigin(),
     /*
       KANON WSKAZUJE TĘ SAMĄ STRONĘ WYNIKÓW, a nie `/katalog`. Kanon strony 2

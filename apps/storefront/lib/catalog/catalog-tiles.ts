@@ -66,8 +66,13 @@ export function catalogTileContent(
 
   return {
     ...tresc,
-    // Układ kafla zostaje z sekcji (siatka albo lista), tło i nagłówek — nie:
-    // nagłówek strony katalogu jest jej własny, a pas motywu rysuje trasa.
+    // UKŁAD JEST ZAWSZE SIATKĄ, choćby sekcja najemcy była listą: strona
+    // katalogu rysuje własną siatkę kafli (`CatalogList`), a nie komponent
+    // sekcji, więc `layout` z sekcji nie zmieniłby tu NICZEGO poza obietnicą
+    // w danych, której render nie spełnia.
+    layout: PRODUCTS_LAYOUTS[0],
+    // Tło i nagłówek też nie: nagłówek strony katalogu jest jej własny,
+    // a pas motywu rysuje trasa.
     background: "default",
     source: "catalog",
     items: [],

@@ -55,7 +55,20 @@ function pozycja(nr: number) {
   };
 }
 
-const stan = { tenantId: TENANT as string | null, total: POZYCJI, wywolania: [] as unknown[] };
+const stan = {
+  tenantId: TENANT as string | null,
+  total: POZYCJI,
+  /** Czy najemca ma OPUBLIKOWANĄ stronę główną — od tego zależy `robots.txt`. */
+  stronaGlowna: true,
+  wywolania: [] as unknown[],
+};
+
+/** Minimalna koperta `app.get_published_page` — pusta strona, ale opublikowana. */
+const STRONA_GLOWNA = {
+  published_at: "2026-08-01T10:00:00.000Z",
+  template: "classic",
+  sections: [],
+};
 
 vi.mock("next/headers", () => ({
   headers: () =>
@@ -97,7 +110,9 @@ vi.mock("@/lib/supabase-server", () => ({
           };
         }
         if (fn === "get_tenant_appearance") return { data: null, error: null };
-        if (fn === "get_published_page") return { data: null, error: null };
+        if (fn === "get_published_page") {
+          return { data: stan.stronaGlowna ? STRONA_GLOWNA : null, error: null };
+        }
         if (fn === "get_published_legal_documents") return { data: [], error: null };
         return { data: null, error: null };
       },
@@ -303,6 +318,15 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
 
   it("pusty katalog zostaje POZA indeksem (nie ma tam treści)", async () => {
     stan.total = 0;
+    const meta = await metadane({});
+    expect(meta.robots).toMatchObject({ index: false });
+  });
+
+  it("sklep bez opublikowanej strony głównej też zostaje poza indeksem — spójnie z robots.txt", async () => {
+    // `app/robots.txt` oddaje wtedy `Disallow: /`, a mapa strony 404. `index`
+    // w metadanych byłby obietnicą, której druga deklaracja tej samej rzeczy
+    // wprost zaprzecza — a rozjazd między nimi to defekt, który się później ściga.
+    stan.stronaGlowna = false;
     const meta = await metadane({});
     expect(meta.robots).toMatchObject({ index: false });
   });
