@@ -157,6 +157,55 @@ async function seedProductWithUnit(
 }
 
 /**
+ * Komplet OPUBLIKOWANYCH dokumentów prawnych najemcy (0063) — wprost
+ * service_rolem: szkic + wiersz rejestru + wskaźnik żywej wersji. Od 0086
+ * (ADR-191) `app.public_checkout` odmawia najemcy bez opublikowanego
+ * regulaminu i polityki prywatności, więc seed każdego tenanta, który w tej
+ * suicie składa zamówienie, musi ją mieć. Wzorzec 1:1 z
+ * `packages/db/test/helpers/publish-legal-documents.ts` (osobny pakiet —
+ * stąd kopia, nie import). `sha256` nadpisze trigger stemplowy z 0063.
+ */
+async function publishLegalDocuments(admin: SupabaseClient, tenantId: string): Promise<void> {
+  for (const kind of ["terms", "privacy"] as const) {
+    const title = kind === "terms" ? "Regulamin" : "Polityka prywatności";
+    const body = `Treść (${kind}) opublikowana przez seed testowy.`;
+    const { data: doc, error } = await admin
+      .from("legal_documents")
+      .insert({ tenant_id: tenantId, kind, title, body_draft: body, locale: "pl" })
+      .select("id")
+      .single();
+    if (error || !doc) throw new Error(`publishLegalDocuments(${kind}/szkic): ${error?.message}`);
+    const { data: version, error: versionError } = await admin
+      .from("legal_document_versions")
+      .insert({
+        tenant_id: tenantId,
+        document_id: doc.id,
+        kind,
+        version_no: 1,
+        version_label: "v1",
+        title,
+        body,
+        sha256: "0".repeat(64),
+        locale: "pl",
+        published_by: randomUUID(),
+      })
+      .select("id")
+      .single();
+    if (versionError || !version) {
+      throw new Error(`publishLegalDocuments(${kind}/wersja): ${versionError?.message}`);
+    }
+    const { error: pointerError } = await admin
+      .from("legal_documents")
+      .update({ current_version_id: version.id })
+      .eq("tenant_id", tenantId)
+      .eq("id", doc.id);
+    if (pointerError) {
+      throw new Error(`publishLegalDocuments(${kind}/wskaźnik): ${pointerError.message}`);
+    }
+  }
+}
+
+/**
  * PUBLICZNA ścieżka checkoutu: anon → app.public_checkout — dokładnie ta RPC,
  * którą wołają storefront (lib/actions/checkout.ts) i API v1. Dowód, że
  * wektor injection jest osiągalny Z ZEWNĄTRZ, bez żadnego konta.
@@ -253,7 +302,9 @@ describe.skipIf(!hasEnv)("eksporty CSV na żywej bazie (C2, ADR-111)", () => {
     tenantB = await createTenantOwner(admin, "b");
     staffAClient = await createStaffMember(admin, tenantA.tenantId);
 
-    // Metoda courier wymaga cennika dostaw (bramka 22023 w public_checkout).
+    // Metoda courier wymaga cennika dostaw (bramka 22023 w public_checkout),
+    // a od 0086 (ADR-191) checkout wymaga też opublikowanego kompletu
+    // dokumentów prawnych — oba tenanty tej suity składają zamówienia.
     for (const tenantId of [tenantA.tenantId, tenantB.tenantId]) {
       const { error } = await admin.from("tenant_settings").insert({
         tenant_id: tenantId,
@@ -261,6 +312,7 @@ describe.skipIf(!hasEnv)("eksporty CSV na żywej bazie (C2, ADR-111)", () => {
         value: { courier: { price_grosze: 2_000 } },
       });
       if (error) throw new Error(`seed delivery_pricing: ${error.message}`);
+      await publishLegalDocuments(admin, tenantId);
     }
 
     productA1 = await seedProductWithUnit(admin, tenantA.tenantId, "Agregat A1", [

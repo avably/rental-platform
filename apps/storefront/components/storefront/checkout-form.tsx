@@ -52,7 +52,6 @@ import {
 } from "@/lib/checkout-form-ui";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
-import { STOREFRONT_TERMS_VERSION } from "@/lib/storefront/constants";
 import { CheckoutCustomFields } from "@/components/storefront/checkout-custom-fields";
 import { checkoutCustomFieldKey } from "@/lib/checkout/custom-fields";
 import { TurnstileWidget } from "@/components/turnstile-widget";
@@ -67,8 +66,16 @@ import { SITE_HEADING } from "@/components/storefront/store-chrome";
  * i sama rozstrzyga, który wiersz przypiąć do zamówienia. Podmiana tej
  * wartości w przeglądarce nie przypnie ani cudzej, ani nieistniejącej wersji.
  *
- * `undefined` = najemca nie opublikował regulaminu. Wtedy checkout zachowuje
- * się dokładnie jak przed B4: etykieta bez linku i stała wersja.
+ * `href` to PERMALINK KONKRETNEJ WERSJI (/regulamin/w/{n}), nie żywy adres
+ * (ADR-191): najemca może jutro opublikować nową wersję i /regulamin pokaże
+ * wtedy inny tekst — a dowód zgody musi wskazywać dokładnie ten, który klient
+ * widział przy akceptacji.
+ *
+ * `undefined` = najemca nie ma KOMPLETU opublikowanych dokumentów (regulamin
+ * ORAZ polityka prywatności). Od ADR-191 (H-COMP-01) checkout jest wtedy
+ * ZABLOKOWANY: zamiast checkboxa stoi komunikat, przycisk jest niedostępny,
+ * a wysyłka ma twardą bramkę — martwa zgoda na dokument, którego nie ma,
+ * była zapisem bez wartości dowodowej.
  */
 export interface CheckoutTerms {
   href: string;
@@ -144,10 +151,14 @@ function TermsConsentText({
   terms,
 }: {
   copy: StorefrontCopy;
-  terms?: CheckoutTerms | undefined;
+  /**
+   * Wymagany, nie opcjonalny (ADR-191): przy braku dokumentów ten komponent
+   * w ogóle nie powstaje — formularz pokazuje blokadę zamiast checkboxa.
+   * Dawny cichy fallback na nielinkowaną etykietę sugerował, że jest co
+   * akceptować, gdy nie było niczego.
+   */
+  terms: CheckoutTerms;
 }) {
-  if (!terms) return <>{copy.checkout.termsLabel}</>;
-
   const [before, after = ""] = copy.checkout.termsLabelLinked.split("{link}");
   return (
     <>
@@ -439,6 +450,10 @@ export function CheckoutForm({
     // pierwszym `requestSubmit` z klawiatury albo ze skryptu, a wtedy
     // zamówienie idzie na serwer wyłącznie po to, żeby tam paść.
     if (term.blocked) return;
+    // BRAK KOMPLETU DOKUMENTÓW ZATRZYMUJE WYSYŁKĘ (ADR-191) — ta sama zasada
+    // co przy konflikcie terminu: `disabled` na przycisku znika przy pierwszym
+    // `requestSubmit` ze skryptu, a bramka w ścieżce wysyłki nie.
+    if (!terms) return;
 
     const input: CheckoutInput = {
       email: values.email,
@@ -451,10 +466,11 @@ export function CheckoutForm({
         values.deliveryMethod === "pickup" ? values.pickupLocationId || undefined : undefined,
       items: toCheckoutItems(cart),
       termsAccepted: values.terms,
-      // Etykieta z opublikowanego dokumentu, a stała TYLKO wtedy, gdy najemca
-      // żadnego nie opublikował (B4/R18). Stała nigdy nie była wersją niczego
-      // — była wartością domyślną czekającą na rejestr.
-      termsVersion: terms?.versionLabel ?? STOREFRONT_TERMS_VERSION,
+      // WYŁĄCZNIE etykieta z opublikowanego dokumentu (B4/R18, ADR-191).
+      // Fallback na stałą „1.0" zniknął razem ze stałą: utrwalał na
+      // zamówieniu zgodę wskazującą dokument, którego nie ma. Bez dokumentów
+      // wysyłka nie startuje (bramka wyżej), a serwer i baza odmawiają same.
+      termsVersion: terms.versionLabel,
       phone: values.phone || undefined,
       companyName: values.companyName || undefined,
       nip: values.nip || undefined,
@@ -503,6 +519,9 @@ export function CheckoutForm({
             {messageKey === "captcha" ? copy.checkout.errors.captcha : null}
             {messageKey === "connection" ? copy.checkout.errors.connection : null}
             {messageKey === "payment_unavailable" ? copy.checkout.errors.paymentUnavailable : null}
+            {messageKey === "legal_documents_missing"
+              ? copy.checkout.errors.legalDocumentsMissing
+              : null}
             {messageKey === "server" ? copy.checkout.errors.server : null}
           </div>
         ) : null}
@@ -825,29 +844,47 @@ export function CheckoutForm({
         <p className="site-text-muted text-xs">{copy.common.estimateNote}</p>
 
         {/* Regulamin */}
-        <div className="site-rule-top flex items-start gap-3 pt-4">
-          {/*
-            Natywny checkbox zamiast komponentu panelu: znacznik akceptacji ma
-            być w AKCENCIE najemcy (`accent-color`), a nie w kolorze aplikacji.
-            Kontrakt zdarzeń wraca do natywnego `onChange` — `checked` dalej
-            steruje stanem formularza, więc pole zostaje kontrolowane.
-          */}
-          <input
-            id="co-terms"
-            type="checkbox"
-            className="mt-1 size-4 accent-[color:var(--site-accent)]"
-            aria-invalid={Boolean(fields.terms)}
-            aria-describedby={describedBy("terms", "co-terms-error")}
-            checked={values.terms}
-            onChange={(event) => set("terms", event.target.checked)}
-            disabled={submitting}
-          />
-          {/* Zgoda to tekst ciągły, nie etykieta pola — stąd bez `site-label`. */}
-          <label htmlFor="co-terms" className="text-sm leading-6">
-            <TermsConsentText copy={copy} terms={terms} />
-          </label>
-        </div>
-        <FieldError id="co-terms-error" message={fields.terms ? copy.checkout.errors.terms : undefined} />
+        {terms ? (
+          <>
+            <div className="site-rule-top flex items-start gap-3 pt-4">
+              {/*
+                Natywny checkbox zamiast komponentu panelu: znacznik akceptacji ma
+                być w AKCENCIE najemcy (`accent-color`), a nie w kolorze aplikacji.
+                Kontrakt zdarzeń wraca do natywnego `onChange` — `checked` dalej
+                steruje stanem formularza, więc pole zostaje kontrolowane.
+              */}
+              <input
+                id="co-terms"
+                type="checkbox"
+                className="mt-1 size-4 accent-[color:var(--site-accent)]"
+                aria-invalid={Boolean(fields.terms)}
+                aria-describedby={describedBy("terms", "co-terms-error")}
+                checked={values.terms}
+                onChange={(event) => set("terms", event.target.checked)}
+                disabled={submitting}
+              />
+              {/* Zgoda to tekst ciągły, nie etykieta pola — stąd bez `site-label`. */}
+              <label htmlFor="co-terms" className="text-sm leading-6">
+                <TermsConsentText copy={copy} terms={terms} />
+              </label>
+            </div>
+            <FieldError id="co-terms-error" message={fields.terms ? copy.checkout.errors.terms : undefined} />
+          </>
+        ) : (
+          /*
+            BEZ CHECKBOXA (ADR-191): martwy checkbox sugerowałby, że jest co
+            zaakceptować. Zamiast niego zdanie mówiące wprost, dlaczego nie da
+            się złożyć zamówienia — wzorzec „powód blokady mówimy wprost"
+            (ADR-171/172), ten sam co przy konflikcie terminu niżej.
+          */
+          <p
+            className="site-error-panel site-rule-top mt-4 p-3 text-sm"
+            role="alert"
+            data-checkout-terms-missing
+          >
+            {copy.checkout.termsMissingNotice}
+          </p>
+        )}
 
         {turnstileSiteKey ? (
           <TurnstileWidget
@@ -873,7 +910,7 @@ export function CheckoutForm({
         <button
           type="submit"
           className="site-cta w-full cursor-pointer text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={submitting || term.blocked}
+          disabled={submitting || term.blocked || !terms}
         >
           {submitting ? copy.checkout.submitting : copy.checkout.submit}
         </button>

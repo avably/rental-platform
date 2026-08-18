@@ -143,6 +143,13 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     issueTicket: vi.fn(() => ({ exp: 2_000_000_000, nonce: "nonce-testowy", sig: "sig-testowy" })),
     callRpc: vi.fn(async () => rpcResult()),
     sendEmails: vi.fn(async () => []),
+    // Komplet dokumentów + tryb integracji (deklaracja "1.0" z INPUT):
+    // bramka ADR-191 ma tu przepuszczać — suita bada oś płatności.
+    readLegalDocuments: vi.fn(async () => [
+      { kind: "terms" as const, version_label: "v1" },
+      { kind: "privacy" as const, version_label: "v1" },
+    ]),
+    termsFromRegistry: false,
     readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: true, chargesEnabled: true })),
     rememberCheckout: vi.fn(async () => {}),
     readCustomFields: vi.fn(async () => []),

@@ -28,6 +28,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { calculatePrice } from "@avably/core";
 
 import { integrationEnv } from "./helpers/integration-env";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const realtimeTransport = {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
@@ -63,7 +64,11 @@ function anonClient(): SupabaseClient {
 
 const createdTenantIds: string[] = [];
 
-async function seedTenant(admin: SupabaseClient, status: string): Promise<string> {
+async function seedTenant(
+  admin: SupabaseClient,
+  status: string,
+  opts: { withLegalDocuments?: boolean } = {},
+): Promise<string> {
   const slug = `checkout-${randomUUID().slice(0, 12)}`.slice(0, 39);
   const { data, error } = await admin
     .from("tenants")
@@ -72,6 +77,12 @@ async function seedTenant(admin: SupabaseClient, status: string): Promise<string
     .single();
   if (error || !data) throw new Error(`Nie udało się zasiać tenanta (${status}): ${error?.message}`);
   createdTenantIds.push(data.id as string);
+  // Domyślnie KOMPLET dokumentów — bramka 0086 nie jest przedmiotem
+  // istniejących przypadków tej suity; bada ją osobny describe niżej,
+  // zasiewając tenanta jawnie bez publikacji.
+  if (opts.withLegalDocuments !== false) {
+    await publishLegalDocuments(admin, data.id as string);
+  }
   return data.id as string;
 }
 
@@ -999,6 +1010,87 @@ describe.skipIf(!hasEnv)("app.public_checkout / get_public_catalog / get_public_
   // funkcji. Produkt z buforami 0 i najmy jednodniowe w różnych dniach: ta sama
   // sztuka obsługuje kolejne zamówienia bez kolizji dostępności, więc jedyną
   // bramką, która może odmówić, jest throttle (23P01 nie maskuje 22023).
+  // -------------------------------------------------------------------
+  // BRAMKA PUBLIKACJI DOKUMENTÓW (0086, ADR-191 / H-COMP-01)
+  // -------------------------------------------------------------------
+
+  it("checkout bez opublikowanych dokumentów → 22023 legal_documents_missing, zero śladu zapisu", async () => {
+    // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie bramki [0086] z app.public_checkout
+    // przywraca dawną gałąź (a) — zamówienie powstaje z terms_version "v1"
+    // i terms_version_id NULL. Lock numeracji z 0007 nie maskuje tej odmowy:
+    // bramka stoi PRZED wstawieniem klienta i zamówienia, więc dowodem braku
+    // maskowania jest detail znacznika ORAZ zerowy stan obu tabel.
+    const tenantId = await seedTenant(admin, "active", { withLegalDocuments: false });
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId));
+    expect(data).toBeNull();
+    expect(error?.code, "checkout bez dokumentów przeszedł").toBe("22023");
+    expect(error?.details, "odmowa nie niesie znacznika kategorii").toBe(
+      "legal_documents_missing",
+    );
+
+    const { count: orders } = await admin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    const { count: customers } = await admin
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+    expect(orders, "odmowa zostawiła zamówienie").toBe(0);
+    expect(customers, "odmowa zostawiła klienta").toBe(0);
+  });
+
+  it("odmowa bramki dokumentów dociera do anon BEZ identyfikatorów (ADR-181)", async () => {
+    const tenantId = await seedTenant(admin, "active", { withLegalDocuments: false });
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { error } = await checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId));
+    expect(error).not.toBeNull();
+    const answer = JSON.stringify(error);
+    // Te same igły-kształty co przy bramce egzemplarza: uuid czegokolwiek
+    // i format numeru zamówienia. Odmowa ma być zdaniem stałym.
+    expect(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/iu.test(answer)).toBe(
+      false,
+    );
+    expect(/\b[A-Z0-9]{2,10}-\d{4}-\d{3,}\b/u.test(answer)).toBe(false);
+  });
+
+  it("komplet dokumentów → checkout przechodzi i PRZYPINA wiersz żywej wersji (kontrola pozytywna)", async () => {
+    const tenantId = await seedTenant(admin, "active");
+    const productId = await seedProduct(admin, tenantId);
+    const pickupId = await seedPickupLocation(admin, tenantId);
+    await seedUnits(admin, tenantId, productId, 1);
+
+    const { data, error } = await checkoutAsAnon(anon, checkoutArgs(tenantId, productId, pickupId));
+    expect(error, `checkout z kompletem odrzucony: ${error?.message}`).toBeNull();
+
+    const { data: order } = await admin
+      .from("orders")
+      .select("terms_version, terms_version_id, terms_accepted_at")
+      .eq("tenant_id", tenantId)
+      .eq("order_number", (data as { order_number: string }).order_number)
+      .single();
+    expect(order?.terms_version).toBe("v1");
+    expect(order?.terms_version_id, "zgoda nie wskazuje wiersza rejestru").not.toBeNull();
+    expect(order?.terms_accepted_at).not.toBeNull();
+
+    const { data: live } = await admin
+      .from("legal_documents")
+      .select("current_version_id")
+      .eq("tenant_id", tenantId)
+      .eq("kind", "terms")
+      .single();
+    expect(order?.terms_version_id, "przypięty wiersz nie jest ŻYWĄ wersją").toBe(
+      live?.current_version_id,
+    );
+  });
+
   it("per klient: 3 publiczne pending/24h przechodzą (kontrola pozytywna), 4. → 22023", async () => {
     const tenantId = await seedTenant(admin, "active");
     const productId = await seedProduct(admin, tenantId, {

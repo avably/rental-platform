@@ -28,7 +28,6 @@ import { EMBED_RESIZE_MESSAGE } from "@/lib/embed/loader";
 import { format } from "@/lib/storefront/copy";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
-import { STOREFRONT_TERMS_VERSION } from "@/lib/storefront/constants";
 import type {
   PublicCatalogProduct,
   PublicDeliveryMethod,
@@ -115,9 +114,12 @@ interface Props {
   initialProductId: string | null;
   theme: EmbedTheme;
   /**
-   * Opublikowany regulamin najemcy (B4/R18) — etykieta wersji z BAZY
-   * i adres do jego przeczytania. `undefined` = najemca nie opublikował
-   * regulaminu; wtedy widget zachowuje się dokładnie jak przed B4.
+   * Opublikowany regulamin najemcy (B4/R18) — etykieta wersji z BAZY i
+   * PERMALINK konkretnej wersji do jego przeczytania (ADR-191).
+   * `undefined` = najemca nie ma KOMPLETU opublikowanych dokumentów
+   * (regulamin ORAZ polityka prywatności) — widget renderuje wtedy blokadę
+   * zamiast checkboxa zgody, a przycisk wysyłki jest niedostępny; tę samą
+   * odmowę trzymają rdzeń checkoutu i baza (0086).
    */
   terms?: { href: string; versionLabel: string } | undefined;
   /**
@@ -323,6 +325,10 @@ export function EmbedWidget(props: Props) {
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (productId === null || from === null || to === null || submitting) return;
+    // BRAK KOMPLETU DOKUMENTÓW ZATRZYMUJE WYSYŁKĘ (ADR-191): `disabled` na
+    // przycisku znika przy `requestSubmit` ze skryptu strony-gospodarza,
+    // bramka w ścieżce wysyłki nie. Serwer i baza odmawiają niezależnie.
+    if (terms === undefined) return;
 
     setSubmitting(true);
     setFormError(null);
@@ -339,9 +345,10 @@ export function EmbedWidget(props: Props) {
       paymentMethod: String(data.get("paymentMethod") ?? "transfer"),
       items: [{ productId, quantity: 1 }],
       termsAccepted: data.get("termsAccepted") === "on",
-      // Etykieta z opublikowanego dokumentu; stała TYLKO gdy najemca
-      // żadnego nie opublikował (B4/R18).
-      termsVersion: terms?.versionLabel ?? STOREFRONT_TERMS_VERSION,
+      // WYŁĄCZNIE etykieta z opublikowanego dokumentu (B4/R18, ADR-191) —
+      // fallback na stałą „1.0" zniknął razem ze stałą: utrwalał zgodę
+      // wskazującą dokument, którego nie ma.
+      termsVersion: terms.versionLabel,
       locale,
       notes: String(data.get("notes") ?? ""),
       // Wartości trzymamy STRINGAMI, jak wychodzą z kontrolek — typowanie robi
@@ -393,7 +400,9 @@ export function EmbedWidget(props: Props) {
               ? t.errorValidation
               : code === "store_unavailable" || code === "forbidden_origin"
                 ? t.errorUnavailable
-                : t.errorGeneric,
+                : code === "legal_documents_missing"
+                  ? t.termsMissingNotice
+                  : t.errorGeneric,
       );
     } catch {
       setFormError(t.errorGeneric);
@@ -635,26 +644,32 @@ export function EmbedWidget(props: Props) {
             <textarea name="notes" maxLength={2000} rows={2} />
           </label>
 
-          <label className="avably-embed__terms">
-            <input type="checkbox" name="termsAccepted" required />
-            {/*
-              Link otwiera się w NOWEJ karcie i celowo bez `opener`: ramka stoi
-              na cudzej stronie, więc nawigacja w miejscu zabrałaby klientowi
-              wypełniony formularz, a `noreferrer` odcina uchwyt do okna.
-            */}
-            <span>
-              {t.termsLabel}
-              {terms ? (
-                <>
-                  {" "}
-                  <a href={terms.href} target="_blank" rel="noreferrer" data-embed-terms-link>
-                    {copy.checkout.termsLinkText}
-                  </a>{" "}
-                  ({terms.versionLabel})
-                </>
-              ) : null}
-            </span>
-          </label>
+          {terms ? (
+            <label className="avably-embed__terms">
+              <input type="checkbox" name="termsAccepted" required />
+              {/*
+                Link otwiera się w NOWEJ karcie i celowo bez `opener`: ramka stoi
+                na cudzej stronie, więc nawigacja w miejscu zabrałaby klientowi
+                wypełniony formularz, a `noreferrer` odcina uchwyt do okna.
+                Adres to PERMALINK konkretnej wersji (ADR-191).
+              */}
+              <span>
+                {t.termsLabel}{" "}
+                <a href={terms.href} target="_blank" rel="noreferrer" data-embed-terms-link>
+                  {copy.checkout.termsLinkText}
+                </a>{" "}
+                ({terms.versionLabel})
+              </span>
+            </label>
+          ) : (
+            /*
+              BEZ CHECKBOXA (ADR-191): martwy checkbox sugerowałby, że jest co
+              zaakceptować. Zamiast niego zdanie o wstrzymanej sprzedaży.
+            */
+            <p className="avably-embed__error" role="alert" data-embed-terms-missing>
+              {t.termsMissingNotice}
+            </p>
+          )}
 
           {formError !== null ? (
             <p className="avably-embed__error" data-embed-error role="alert">
@@ -662,7 +677,7 @@ export function EmbedWidget(props: Props) {
             </p>
           ) : null}
 
-          <button type="submit" disabled={submitting} data-embed-submit>
+          <button type="submit" disabled={submitting || terms === undefined} data-embed-submit>
             {submitting ? t.submitting : t.submit}
           </button>
         </form>

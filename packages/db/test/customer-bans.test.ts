@@ -28,6 +28,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { rpcCreateTenant } from "./helpers/create-tenant";
 import { integrationEnv } from "./helpers/integration-env";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const realtimeTransport = {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
@@ -93,6 +94,8 @@ async function seedTenant(admin: SupabaseClient, status: string): Promise<string
     .single();
   if (error || !data) throw new Error(`seedTenant(${status}): ${error?.message}`);
   createdTenantIds.push(data.id as string);
+  // Komplet dokumentów prawnych (0086/ADR-191) — bez nich checkout odmawia.
+  await publishLegalDocuments(admin, data.id as string);
   return data.id as string;
 }
 
@@ -224,6 +227,8 @@ describe.skipIf(!hasEnv)("app.public_checkout — ban-lista klientów (R6b / 004
     if (tErr) throw new Error(`create_tenant A: ${tErr.message}`);
     tenantA = newTenant as string;
     createdTenantIds.push(tenantA);
+    // Komplet dokumentów prawnych (0086/ADR-191) — bez nich checkout odmawia.
+    await publishLegalDocuments(admin, tenantA);
     memberA = await signIn(owner.email); // świeża sesja z claimem tenant_id
 
     productA = await seedProduct(admin, tenantA);

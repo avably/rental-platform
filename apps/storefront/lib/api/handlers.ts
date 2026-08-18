@@ -33,6 +33,7 @@ import {
   submitCheckoutCore,
   type CheckoutRpcArgs,
   type CheckoutRpcResult,
+  type PublishedLegalDocumentRef,
 } from "@/lib/checkout/core";
 import type { CheckoutTicket } from "@/lib/checkout/ticket";
 import type { OnlinePaymentAvailability } from "@/lib/checkout/payment-options";
@@ -81,6 +82,8 @@ export interface ReservationDeps extends ApiV1Deps {
   issueTicket: (tenantId: string) => CheckoutTicket;
   /** Definicje pól własnych zamawiania (0058) — patrz lib/checkout/custom-fields.ts. */
   readCustomFields: (tenantId: string) => Promise<CustomFieldDefinition[]>;
+  /** Spis opublikowanych dokumentów prawnych (0063) — bramka ADR-191 w rdzeniu. */
+  readLegalDocuments: (tenantId: string) => Promise<PublishedLegalDocumentRef[]>;
   sendEmails: (tenantId: string, ctx: CheckoutRpcResult) => Promise<string[]>;
   readOnlineAvailability: (tenantId: string) => Promise<OnlinePaymentAvailability>;
 }
@@ -206,6 +209,12 @@ export async function handleReservationRequest(
     sendEmails: (ctx) => deps.sendEmails(admitted.tenantId, ctx),
     readOnlineAvailability: () => deps.readOnlineAvailability(admitted.tenantId),
     readCustomFields: () => deps.readCustomFields(admitted.tenantId),
+    readLegalDocuments: () => deps.readLegalDocuments(admitted.tenantId),
+    // Konsument API v1 renderuje WŁASNĄ zgodę i niesie własną stałą wersji —
+    // jego deklaracja przechodzi gałęzią (d) rozstrzygnięcia 0063 (zapis
+    // napisu bez przypięcia; nazwany dług ADR-129, domknięcie w API v2).
+    // Bramka publikacji dokumentów obowiązuje go jednak tak samo jak sklep.
+    termsFromRegistry: false,
   });
 
   switch (result.status) {
@@ -228,6 +237,11 @@ export async function handleReservationRequest(
       return apiV1Error(429, "rate_limited");
     case "payment_unavailable":
       return apiV1Error(409, "payment_unavailable");
+    // 422, nie 403: to nie jest wina wywołania ani klucza — najemca nie
+    // opublikował wymaganych dokumentów. Osobny kod, żeby integrator wiedział,
+    // że naprawą jest publikacja w panelu, a nie poprawka payloadu.
+    case "legal_documents_missing":
+      return apiV1Error(422, "legal_documents_missing");
     // captcha_failed jest w tym torze niereprezentowalne (weryfikator zawsze
     // przepuszcza) — gdyby jednak wróciło, to błąd naszej konstrukcji.
     case "captcha_failed":

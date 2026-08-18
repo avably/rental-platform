@@ -18,7 +18,7 @@ import { checkoutCustomFields } from "@avably/core";
 import { customFieldsFromPublicRows } from "@/lib/checkout/custom-fields";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
 import { availablePaymentMethods } from "@/lib/checkout/payment-options";
-import { findLegalDocument, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
+import { findLegalDocument, legalVersionPath } from "@/lib/legal/published";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
@@ -64,10 +64,16 @@ export default async function TenantCheckoutPage() {
   // z pominięciem formularza.
   const customFields = checkoutCustomFields(customFieldsFromPublicRows(catalog.custom_fields));
 
-  // Regulamin i jego etykieta wersji — z SERWERA (B4/R18). Brak dokumentu
-  // zostawia `undefined`, czyli etykietę zgody bez linku i stałą wersję,
-  // dokładnie jak przed tym zadaniem: najemca bez regulaminu sprzedaje dalej.
+  // Regulamin i jego etykieta wersji — z SERWERA (B4/R18). Od ADR-191
+  // (H-COMP-01) sprzedaż wymaga KOMPLETU opublikowanych dokumentów: regulaminu
+  // ORAZ polityki prywatności (checkbox dotyczy regulaminu, ale nota o
+  // przetwarzaniu danych nie jest opcjonalna przy formularzu, który te dane
+  // zbiera). Brak któregokolwiek → `terms` zostaje `undefined` i formularz
+  // renderuje blokadę zamiast checkboxa; tę samą odmowę trzymają server
+  // action (rdzeń checkoutu) i baza (0086), więc ominięcie strony nic nie da.
   const publishedTerms = findLegalDocument(ctx.legalDocuments, "terms");
+  const publishedPrivacy = findLegalDocument(ctx.legalDocuments, "privacy");
+  const legalGateOpen = publishedTerms !== null && publishedPrivacy !== null;
 
   return (
     <PageShell
@@ -93,9 +99,15 @@ export default async function TenantCheckoutPage() {
           paymentMethods={paymentMethods}
           customFields={customFields}
           terms={
-            publishedTerms
+            legalGateOpen && publishedTerms
               ? {
-                  href: LEGAL_DOCUMENT_PATHS.terms,
+                  /*
+                    PERMALINK KONKRETNEJ WERSJI, nie żywy /regulamin (ADR-191):
+                    klient klika dokładnie ten tekst, na który za chwilę
+                    przystanie — także wtedy, gdy najemca jutro opublikuje
+                    nową wersję i żywy adres zacznie pokazywać inną treść.
+                  */
+                  href: legalVersionPath("terms", publishedTerms.version_no),
                   versionLabel: publishedTerms.version_label,
                 }
               : undefined

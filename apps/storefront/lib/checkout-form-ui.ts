@@ -37,6 +37,12 @@ export type CheckoutViewState =
    * a klient wybiera tor offline (ADR-066).
    */
   | { kind: "payment_unavailable" }
+  /**
+   * Najemca nie ma opublikowanych wymaganych dokumentów prawnych (ADR-191).
+   * Zamówienie NIE powstało. Normalnie formularz jest zablokowany już na
+   * renderze; ten stan łapie wyścig cofnięcia publikacji i żądania spoza UI.
+   */
+  | { kind: "legal_documents_missing" }
   | { kind: "server_error" };
 
 /**
@@ -51,6 +57,7 @@ export type CheckoutMessageKey =
   | "captcha"
   | "connection"
   | "payment_unavailable"
+  | "legal_documents_missing"
   | "server";
 
 export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
@@ -74,6 +81,8 @@ export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
       return { kind: "captcha_error" };
     case "payment_unavailable":
       return { kind: "payment_unavailable" };
+    case "legal_documents_missing":
+      return { kind: "legal_documents_missing" };
     case "server_error":
       return { kind: "server_error" };
   }
@@ -93,6 +102,8 @@ export function getCheckoutMessageKey(view: CheckoutViewState): CheckoutMessageK
       return "connection";
     case "payment_unavailable":
       return "payment_unavailable";
+    case "legal_documents_missing":
+      return "legal_documents_missing";
     case "server_error":
       return "server";
     case "idle":

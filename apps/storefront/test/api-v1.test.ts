@@ -403,6 +403,13 @@ function makeReservationDeps(
 ): ReservationDeps {
   return {
     verifyKeyHash: makeVerify(c),
+    // Komplet opublikowanych dokumentów (ADR-191): konsument v1 niesie własną
+    // stałą wersji (tryb integracji), ale bramka publikacji obowiązuje go tak
+    // samo — bez tego portu każdy przypadek tej suity kończyłby się odmową.
+    readLegalDocuments: async () => [
+      { kind: "terms" as const, version_label: "v1" },
+      { kind: "privacy" as const, version_label: "v1" },
+    ],
     checkRateLimit: async (key) => {
       c.rateLimit.push(key);
       return { success: true };
@@ -543,6 +550,29 @@ describe("api v1 — rezerwacje", () => {
     );
     expect(rejected.status).toBe(422);
     expect(await rejected.json()).toEqual({ error: { code: "rejected" } });
+
+    // [ADR-191] Najemca bez opublikowanych dokumentów: osobny kod 422 —
+    // naprawa leży w panelu (publikacja), nie w payloadzie integratora.
+    // Bramka pali się w RDZENIU (port readLegalDocuments), zanim RPC ruszy.
+    const gateCounters = reservationCounters();
+    const missingDocs = await handleReservationRequest(
+      reqPost(VALID_BODY),
+      makeReservationDeps(gateCounters, { readLegalDocuments: async () => [] }),
+    );
+    expect(missingDocs.status).toBe(422);
+    expect(await missingDocs.json()).toEqual({ error: { code: "legal_documents_missing" } });
+    expect(gateCounters.rpcArgs, "odmowa bramki dotarła do bazy").toEqual([]);
+
+    // Konsument v1 z WŁASNĄ stałą wersji przechodzi przy komplecie dokumentów
+    // (tryb integracji — nazwany dług ADR-129 gałąź d, domknięcie w API v2).
+    const ownLabel = reservationCounters();
+    const integration = await handleReservationRequest(
+      reqPost({ ...VALID_BODY, termsVersion: "1.0" }),
+      makeReservationDeps(ownLabel),
+    );
+    expect(integration.status).toBe(201);
+    expect(ownLabel.rpcArgs.length).toBe(1);
+    expect(ownLabel.rpcArgs[0].p_terms_version).toBe("1.0");
 
     const c = reservationCounters();
     const invalid = await handleReservationRequest(

@@ -51,6 +51,8 @@ export type EmbedErrorCode =
   | "not_found"
   | "conflict"
   | "rejected"
+  /** Najemca nie opublikował wymaganych dokumentów prawnych (ADR-191). */
+  | "legal_documents_missing"
   | "server_error";
 
 export interface EmbedErrorBody {

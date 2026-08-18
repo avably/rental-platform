@@ -35,6 +35,12 @@ export type ApiV1ErrorCode =
   | "rejected"
   /** Wybrano płatność online, a sklep nie może jej dziś przyjąć. */
   | "payment_unavailable"
+  /**
+   * Najemca nie opublikował wymaganych dokumentów prawnych (regulamin +
+   * polityka prywatności) — sprzedaż wstrzymana (ADR-191). Naprawa leży
+   * w panelu najemcy, nie w payloadzie wołającego.
+   */
+  | "legal_documents_missing"
   | "server_error";
 
 export interface ApiV1ErrorBody {

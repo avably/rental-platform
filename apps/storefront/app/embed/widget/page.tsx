@@ -16,7 +16,7 @@ import { checkoutCustomFields } from "@avably/core";
 
 import { customFieldsFromPublicRows } from "@/lib/checkout/custom-fields";
 import { loadEmbedContext } from "@/lib/embed/context";
-import { findLegalDocument, LEGAL_DOCUMENT_PATHS } from "@/lib/legal/published";
+import { findLegalDocument, legalVersionPath } from "@/lib/legal/published";
 import { EMBED_THEMES, type EmbedTheme } from "@/lib/embed/contract";
 import { EmbedWidget } from "@/components/embed/embed-widget";
 
@@ -55,8 +55,12 @@ export default async function EmbedWidgetPage({ searchParams }: PageProps) {
       : (products[0]?.id ?? null);
 
   // Regulamin najemcy — adres jest RELATYWNY, więc rozwiązuje się do domeny
-  // sklepu, na której stoi ta ramka, a nie do strony gospodarza.
+  // sklepu, na której stoi ta ramka, a nie do strony gospodarza. Od ADR-191
+  // sprzedaż wymaga KOMPLETU dokumentów (regulamin + polityka prywatności):
+  // brak któregokolwiek zostawia `terms` puste i widget renderuje blokadę.
   const publishedTerms = findLegalDocument(ctx.legalDocuments, "terms");
+  const publishedPrivacy = findLegalDocument(ctx.legalDocuments, "privacy");
+  const legalGateOpen = publishedTerms !== null && publishedPrivacy !== null;
 
   return (
     <EmbedWidget
@@ -70,8 +74,12 @@ export default async function EmbedWidgetPage({ searchParams }: PageProps) {
       theme={theme}
       customFields={checkoutCustomFields(customFieldsFromPublicRows(ctx.catalog.custom_fields))}
       terms={
-        publishedTerms
-          ? { href: LEGAL_DOCUMENT_PATHS.terms, versionLabel: publishedTerms.version_label }
+        legalGateOpen && publishedTerms
+          ? {
+              /* PERMALINK konkretnej wersji, nie żywy adres (ADR-191). */
+              href: legalVersionPath("terms", publishedTerms.version_no),
+              versionLabel: publishedTerms.version_label,
+            }
           : undefined
       }
     />

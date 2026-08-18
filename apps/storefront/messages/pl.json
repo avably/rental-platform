@@ -547,11 +547,13 @@
           "invalid": "Nieprawidłowa wartość.",
           "tooLong": "Wartość jest za długa.",
           "notAllowed": "Tego pola nie da się tu wypełnić."
-        }
+        },
+        "legalDocumentsMissing": "Wypożyczalnia nie opublikowała jeszcze wymaganych dokumentów (regulaminu i polityki prywatności) — zamówienie nie mogło zostać przyjęte."
       },
       "termsLabelLinked": "Akceptuję {link} wypożyczalni i zasady najmu.",
       "termsLinkText": "regulamin",
-      "conflictBlocked": "Wybrany termin nie mieści całego koszyka. Rozstrzygnij to w pasku terminu — inaczej zamówienie zostanie odrzucone przy zapisie."
+      "conflictBlocked": "Wybrany termin nie mieści całego koszyka. Rozstrzygnij to w pasku terminu — inaczej zamówienie zostanie odrzucone przy zapisie.",
+      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności — zamówienie nie może zostać złożone. Skontaktuj się z wypożyczalnią."
     },
     "legal": {
       "version": "Wersja {version}",
@@ -654,7 +656,8 @@
       "weekdayThu": "cz",
       "weekdayFri": "pt",
       "weekdaySat": "so",
-      "weekdaySun": "nd"
+      "weekdaySun": "nd",
+      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności — rezerwacja online jest wstrzymana."
     }
   }
 }
