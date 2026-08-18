@@ -1,5 +1,75 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`renderContractPdf > EN: snapshot wyrenderowanej treści 1`] = `"RENTAL AGREEMENT Wypożyczalnia Północ · kontakt@polnoc.example AV-2026-07-001 §1 PARTIES LESSOR Company Wypożyczalnia Północ Tax ID 8522334455 Address ul. Portowa 4, 70-001 Szczecin Email kontakt@polnoc.example LESSEE Full name Anna Kowalska Address ul. Morska 12/3, 70-002 Szczecin Email anna.kowalska@example.com §2 RENTED ITEMS Kamera Sony FX3 Serial no.: SN-FX3-0001 Rental: 300.00 PLN Deposit: 1000.00 PLN Statyw Manfrotto 190 Rental: 150.00 PLN Deposit: 200.00 PLN §3 RENTAL PERIOD Start 20 July 2026 End 23 July 2026 Days 3 §4 CHARGES AND DEPOSIT Rental fee 450.00 PLN Refundable deposit 1200.00 PLN Delivery 15.00 PLN Wypożyczalnia Północ Lessor Anna Kowalska Lessee Wypożyczalnia Północ · Document generated automatically AV-2026-07-001 §5 RENTAL TERMS — VERSION 1.0 §1. The Lessee shall return the equipment in undamaged condition. • No subletting to third parties. • Deposit refunded after inspection. Wypożyczalnia Północ · Document generated automatically AV-2026-07-001"`;
+exports[`renderContractPdf > EN: snapshot wyrenderowanej treści 1`] = `
+"RENTAL AGREEMENT
+Wypożyczalnia Północ · kontakt@polnoc.example
+AV-2026-07-001
+§1 PARTIES
+LESSOR
+Company Wypożyczalnia Północ
+Tax ID 8522334455
+Address ul. Portowa 4, 70-001 Szczecin
+Email kontakt@polnoc.example
+LESSEE
+Full name Anna Kowalska
+Address ul. Morska 12/3, 70-002 Szczecin
+Email anna.kowalska@example.com
+§2 RENTED ITEMS
+Kamera Sony FX3 Serial no.: SN-FX3-0001 Rental: 300.00 PLN Deposit: 1000.00 PLN
+Statyw Manfrotto 190 Rental: 150.00 PLN Deposit: 200.00 PLN
+§3 RENTAL PERIOD
+Start 20 July 2026
+End 23 July 2026
+Days 3
+§4 CHARGES AND DEPOSIT
+Rental fee 450.00 PLN
+Refundable deposit 1200.00 PLN
+Delivery 15.00 PLN
+Wypożyczalnia Północ
+Lessor
+Anna Kowalska
+Lessee
+Wypożyczalnia Północ · Document generated automatically AV-2026-07-001
+§5 RENTAL TERMS — VERSION 1.0
+§1. The Lessee shall return the equipment in undamaged condition.
+• No subletting to third parties.
+• Deposit refunded after inspection.
+Wypożyczalnia Północ · Document generated automatically AV-2026-07-001"
+`;
 
-exports[`renderContractPdf > PL: snapshot wyrenderowanej treści 1`] = `"UMOWA NAJMU Wypożyczalnia Północ · kontakt@polnoc.example AV-2026-07-001 §1 STRONY UMOWY WYNAJMUJĄCY Firma Wypożyczalnia Północ NIP 8522334455 Adres ul. Portowa 4, 70-001 Szczecin E-mail kontakt@polnoc.example NAJEMCA Imię i nazwisko Anna Kowalska Adres ul. Morska 12/3, 70-002 Szczecin E-mail anna.kowalska@example.com §2 PRZEDMIOT NAJMU Kamera Sony FX3 Nr seryjny: SN-FX3-0001 Najem: 300,00 PLN Kaucja: 1000,00 PLN Statyw Manfrotto 190 Najem: 150,00 PLN Kaucja: 200,00 PLN §3 OKRES NAJMU Rozpoczęcie 20.07.2026 Zakończenie 23.07.2026 Liczba dni 3 §4 WYNAGRODZENIE I KAUCJA Opłata za najem 450,00 PLN Kaucja zwrotna 1200,00 PLN Dostawa 15,00 PLN Wypożyczalnia Północ Wynajmujący Anna Kowalska Najemca Wypożyczalnia Północ · Dokument wygenerowany automatycznie AV-2026-07-001 §5 REGULAMIN NAJMU — WERSJA 1.0 §1. Najemca zobowiązuje się zwrócić sprzęt w stanie niepogorszonym. • Zakaz podnajmu sprzętu osobom trzecim. • Kaucja zwracana po weryfikacji zestawu. Wypożyczalnia Północ · Dokument wygenerowany automatycznie AV-2026-07-001"`;
+exports[`renderContractPdf > PL: snapshot wyrenderowanej treści 1`] = `
+"UMOWA NAJMU
+Wypożyczalnia Północ · kontakt@polnoc.example
+AV-2026-07-001
+§1 STRONY UMOWY
+WYNAJMUJĄCY
+Firma Wypożyczalnia Północ
+NIP 8522334455
+Adres ul. Portowa 4, 70-001 Szczecin
+E-mail kontakt@polnoc.example
+NAJEMCA
+Imię i nazwisko Anna Kowalska
+Adres ul. Morska 12/3, 70-002 Szczecin
+E-mail anna.kowalska@example.com
+§2 PRZEDMIOT NAJMU
+Kamera Sony FX3 Nr seryjny: SN-FX3-0001 Najem: 300,00 PLN Kaucja: 1000,00 PLN
+Statyw Manfrotto 190 Najem: 150,00 PLN Kaucja: 200,00 PLN
+§3 OKRES NAJMU
+Rozpoczęcie 20.07.2026
+Zakończenie 23.07.2026
+Liczba dni 3
+§4 WYNAGRODZENIE I KAUCJA
+Opłata za najem 450,00 PLN
+Kaucja zwrotna 1200,00 PLN
+Dostawa 15,00 PLN
+Wypożyczalnia Północ
+Wynajmujący
+Anna Kowalska
+Najemca
+Wypożyczalnia Północ · Dokument wygenerowany automatycznie AV-2026-07-001
+§5 REGULAMIN NAJMU — WERSJA 1.0
+§1. Najemca zobowiązuje się zwrócić sprzęt w stanie niepogorszonym.
+• Zakaz podnajmu sprzętu osobom trzecim.
+• Kaucja zwracana po weryfikacji zestawu.
+Wypożyczalnia Północ · Dokument wygenerowany automatycznie AV-2026-07-001"
+`;
