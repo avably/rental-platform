@@ -18,13 +18,25 @@
  * `scale()` zmniejsza obraz, nie zmienia szerokości mierzonej przez zapytania
  * kontenera, i miniatura zostaje wierna.
  *
- * ================== DLACZEGO KAFEL NIE JEST INTERAKTYWNY W ŚRODKU ==================
+ * ================== MINIATURA JEST BRATEM PRZYCISKU, NIE JEGO DZIECKIEM ==================
  *
- * Miniatura zawiera odnośniki i przyciski strony (CTA, link autora zdjęcia).
- * W kaflu wyboru byłyby pułapką: kliknięcie „Zarezerwuj" w miniaturze miałoby
- * wybrać szablon, a nie otworzyć cudzy adres. Dlatego cała miniatura ma
- * wyłączone zdarzenia wskaźnika i jest schowana przed czytnikiem ekranu
- * (`aria-hidden`), a klikalny i opisany jest KAFEL — jeden cel, jedna intencja.
+ * (M-A11Y-02, ADR-195.) Miniatura zawiera przyciski i odnośniki strony
+ * (przycisk powiększenia w galerii, CTA hero, formularz kontaktu), a kafel
+ * był `<button>` — czyli `<button>` w `<button>`. To nie jest „brzydki HTML,
+ * który jakoś działa": parser przy pierwszym wewnętrznym `<button>` DOMYKA
+ * zewnętrzny (reguła „button in button scope"), więc DOM po sparsowaniu SSR
+ * różni się od drzewa Reacta i hydracja pada twardo („Hydration failed"),
+ * a React przemalowuje cały ekran od zera. Zasłony `pointer-events: none`
+ * i `aria-hidden` tego nie leczą — struktury nie zmieniają, a fokus klawiatury
+ * dalej wchodził w elementy schowane przed czytnikiem.
+ *
+ * Dlatego wzorzec „card action": kafel jest NIEinteraktywnym `<li>`, miniatura
+ * martwym pudełkiem (`inert` — poza wskaźnikiem, tab-orderem i drzewem
+ * dostępności), a jedynym elementem interaktywnym jest BRAT miniatury —
+ * `<button>` z nazwą szablonu, którego strefę kliku rozciąga na cały kafel
+ * pseudo-element (`after:absolute after:inset-0`). Jeden cel, jedna intencja,
+ * zero interaktywnych potomków w interaktywnym przodku — czego pilnuje bramka
+ * `kreator-miniatury-struktura.test.tsx`.
  */
 import {
   STARTER_TEMPLATES,
@@ -149,29 +161,49 @@ export function TemplateGallery({
           </li>
 
           {previews.map((preview) => (
-            <li key={preview.id}>
+            /*
+              KAFEL NIE JEST PRZYCISKIEM (ADR-195) — patrz nagłówek pliku.
+              Interaktywny jest wyłącznie pasek z nazwą; jego `::after` pokrywa
+              cały kafel, więc klik działa wszędzie tak, jak działał. Obrys
+              fokusa idzie na tym samym `::after` DO WEWNĄTRZ kafla (ujemny
+              offset): dodatni wystawałby poza `overflow-hidden` rodzica
+              i zostałby ucięty w pionie.
+            */
+            <li
+              key={preview.id}
+              className="border-border hover:border-foreground relative flex flex-col overflow-hidden rounded-lg border transition-colors [transition-duration:var(--motion-fast)]"
+            >
+              {/*
+                `inert` robi CAŁĄ robotę zasłon naraz i strukturalnie: zdejmuje
+                miniaturę ze wskaźnika, z tab-orderu i z drzewa dostępności.
+                `aria-hidden` zostaje dla czytników sprzed inert; klasa
+                `pointer-events-none` na skali — dla kompletu. Fokus NIE ma już
+                jak wejść w treść miniatury, bo martwe jest całe pudełko.
+              */}
+              <span
+                aria-hidden="true"
+                inert
+                data-starter-miniatura={preview.id}
+                className="bg-muted block overflow-hidden"
+                style={{ height: TILE_HEIGHT }}
+              >
+                {/* Skala i szerokość projektowa siedzą w arkuszu panelu
+                    (`.starter-preview`) — patrz komentarz tam. */}
+                <span className="starter-preview pointer-events-none block">
+                  <SiteRenderer sections={preview.sections} style={preview.style} motion="off" />
+                </span>
+              </span>
               <button
                 type="button"
                 data-starter-template={preview.id}
                 disabled={disabled}
                 onClick={() => onPick(preview.id)}
-                className="border-border hover:border-foreground focus-visible:outline-accent group flex w-full cursor-pointer flex-col overflow-hidden rounded-lg border text-left transition-colors [transition-duration:var(--motion-fast)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+                className="focus-visible:after:outline-accent flex cursor-pointer flex-col gap-1 p-4 text-left outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-solid focus-visible:after:outline-[3px] focus-visible:after:-outline-offset-2 disabled:cursor-not-allowed"
               >
-                <span
-                  className="bg-muted block overflow-hidden"
-                  style={{ height: TILE_HEIGHT }}
-                  aria-hidden="true"
-                >
-                  {/* Skala i szerokość projektowa siedzą w arkuszu panelu
-                      (`.starter-preview`) — patrz komentarz tam. */}
-                  <span className="starter-preview pointer-events-none block">
-                    <SiteRenderer sections={preview.sections} style={preview.style} motion="off" />
-                  </span>
-                </span>
-                <span className="flex flex-col gap-1 p-4">
-                  <span className="text-sm font-medium">{t(`starter.names.${preview.id}`)}</span>
-                  <span className="text-muted-foreground text-[13px] leading-[18px]">{preview.mood}</span>
-                </span>
+                {/* Dostępna nazwa kafla = widoczna nazwa szablonu (plus nastrój)
+                    — czytnik ogłasza to, co widać, bez osobnego aria-label. */}
+                <span className="text-sm font-medium">{t(`starter.names.${preview.id}`)}</span>
+                <span className="text-muted-foreground text-[13px] leading-[18px]">{preview.mood}</span>
               </button>
             </li>
           ))}
