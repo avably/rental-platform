@@ -212,6 +212,20 @@ describe("galeria szablonów: ekran kreatora bez zagnieżdżonej interaktywnośc
       const nazwa = (kafel.getAttribute("aria-label") ?? kafel.textContent ?? "").trim();
       expect(nazwa.length, "kafel bez dostępnej nazwy").toBeGreaterThan(0);
     }
+    // Geometria pseudo-elementu jest poza zasięgiem jsdom, więc pilnujemy
+    // DEKLARACJI strefy kliku, a zachowanie kryje przebieg przeglądarkowy
+    // (ADR-195). Dotyczy kafli z miniaturą — pusty kafel jest przyciskiem
+    // w całości i nakładki nie potrzebuje.
+    for (const kafel of container.querySelectorAll<HTMLElement>("[data-starter-template]")) {
+      expect(
+        kafel.className,
+        "przycisk kafla bez nakładki after:absolute — klik skurczy się do paska podpisu",
+      ).toContain("after:absolute");
+      expect(
+        kafel.className,
+        "przycisk kafla bez after:inset-0 — nakładka nie pokrywa kafla",
+      ).toContain("after:inset-0");
+    }
     // Nazwa kafla to nazwa strony-szablonu, nie techniczny identyfikator.
     const pierwszy = container.querySelector<HTMLElement>("[data-starter-template]")!;
     const nazwy = Object.values(plMessages.site.starter.names) as string[];
@@ -263,6 +277,17 @@ describe("picker sekcji: podglądy każdego typu bez zagnieżdżonej interaktywn
           (przycisk?.getAttribute("aria-label") ?? "").trim().length,
           `typ ${typ}: przycisk wstawienia bez dostępnej nazwy`,
         ).toBeGreaterThan(0);
+        // Geometria pseudo-elementu jest poza zasięgiem jsdom, więc pilnujemy
+        // DEKLARACJI strefy kliku, a zachowanie kryje przebieg przeglądarkowy
+        // (ADR-195).
+        expect(
+          przycisk?.className ?? "",
+          `typ ${typ}: przycisk bez nakładki after:absolute — klik skurczy się do paska akcji`,
+        ).toContain("after:absolute");
+        expect(
+          przycisk?.className ?? "",
+          `typ ${typ}: przycisk bez after:inset-0 — nakładka nie pokrywa kafla`,
+        ).toContain("after:inset-0");
       }
     }
     expect(
