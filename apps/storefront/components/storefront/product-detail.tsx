@@ -1,7 +1,19 @@
 "use client";
 
 /**
- * Podstrona produktu (2.4b): galeria + opis + specyfikacja.
+ * STAŁY BLOK GÓRY STRONY SPRZĘTU: galeria + dane + rezerwacja (ADR-189).
+ *
+ * JEDEN KOMPONENT DLA OBU GAŁĘZI TRASY. Od ADR-189 ten blok otwiera stronę
+ * sprzętu także wtedy, gdy najemca opublikował własny szablon — treść
+ * z kreatora idzie POD nim. Drugi, „chudszy" wariant tego bloku na potrzeby
+ * gałęzi szablonu byłby drugim źródłem prawdy o tym, jak wygląda góra strony
+ * sprzętu, i rozjechałby się z pierwszym przy najbliższej poprawce galerii.
+ *
+ * NAGŁÓWEK DOKUMENTU JEST TUTAJ. Widoczny `<h1>` z nazwą pozycji wnosi ten
+ * blok, w obu gałęziach — dokumentem jest sprzęt, nie sekcja, którą operator
+ * postawił pod spodem. Nagłówki pierwszego poziomu z treści szablonu schodzą
+ * na tej trasie o poziom (`withDemotedHeadings`), żeby dokument miał jeden
+ * tytuł.
  *
  * CZĘŚĆ TRANSAKCYJNA STOI OBOK, W JEDNYM WIDGECIE (faza 5, ADR-180). Do tej
  * zmiany ta podstrona miała własną parę pól daty, własny przycisk „sprawdź
@@ -42,9 +54,16 @@ export function ProductDetail({
   const [activeImage, setActiveImage] = useState(0);
 
   return (
-    <div className="grid gap-10 md:grid-cols-2">
+    /*
+      ZNACZNIKI `data-product-detail` I `data-product-gallery` — podmiot bramki
+      KOLEJNOŚCI w dokumencie (ADR-189). Bez nazwy dla tego bloku test gałęzi
+      szablonu mógłby pytać najwyżej „czy widget rezerwacji gdzieś jest", a
+      dokładnie tak sformułowana asercja przeżyła regres, który ADR-189 naprawia:
+      blok stał POD treścią szablonu i pytanie o obecność wychodziło zielone.
+    */
+    <div data-product-detail={product.id} className="grid gap-10 md:grid-cols-2">
       {/* Galeria */}
-      <div className="flex flex-col gap-4">
+      <div data-product-gallery className="flex flex-col gap-4">
         {product.images.length > 0 ? (
           <>
             {/* Zdjęcia z publicznego Storage — zwykły <img> jak sekcja products

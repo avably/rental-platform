@@ -8,15 +8,16 @@
  * „Trasa importuje `SiteRenderer`" przechodziłoby dla trasy, która renderera
  * nigdy nie woła.
  *
- * Cztery osie:
+ * Pięć osi:
  *
  *   1. FALLBACK. Bez opublikowanego szablonu klient dostaje DZISIEJSZĄ stronę
  *      wbudowaną. To jest stan każdego istniejącego najemcy, więc wdrożenie
  *      fazy 5 nie ma prawa zmienić mu ani jednego węzła.
  *
- *   2. SZABLON WYGRYWA. Z opublikowanym szablonem klient dostaje jego treść,
- *      a strony wbudowanej NIE MA. Obie połowy są konieczne: sama obecność
- *      treści szablonu przeszłaby też wtedy, gdyby trasa renderowała OBIE.
+ *   2. SZABLON WYGRYWA POD STAŁYM BLOKIEM. Z opublikowanym szablonem klient
+ *      dostaje jego treść, a POWŁOKI strony wbudowanej (odnośnik powrotu do
+ *      katalogu) NIE MA. Obie połowy są konieczne: sama obecność treści
+ *      szablonu przeszłaby też wtedy, gdyby trasa renderowała DWIE powłoki.
  *
  *   3. PUSTY SZABLON TEŻ WYGRYWA. Granica biegnie po PUBLIKACJI, nie po
  *      zawartości (ADR-178 R2) — inaczej operator publikuje pustą stronę
@@ -24,6 +25,12 @@
  *
  *   4. REKORD STRONY TO TEN SPRZĘT. Wiązanie `pageProduct` rozwiązuje się na
  *      pozycji, której dotyczy adres — a nie na pierwszej z brzegu.
+ *
+ *   5. GÓRA STRONY JEST STAŁA I PIERWSZA (ADR-189). Stały blok (galeria + dane
+ *      + widget rezerwacji) stoi w OBU gałęziach, a w gałęzi szablonu PRZED
+ *      pierwszą sekcją najemcy. Ta oś mierzy KOLEJNOŚĆ w dokumencie, bo pytanie
+ *      o samą obecność widgetu przeżyło regres, który ADR-189 naprawia:
+ *      blok stał POD treścią szablonu i asercja obecności świeciła na zielono.
  *
  * ==================== FIKSTURY W KSZTAŁCIE PRODUKCJI ====================
  *
@@ -279,12 +286,15 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   // -------------------------------------------------------------------
   // 2. Szablon wygrywa — obie połowy
   // -------------------------------------------------------------------
-  it("Z opublikowanym szablonem klient dostaje SZABLON, a strony wbudowanej NIE MA", async () => {
+  it("Z opublikowanym szablonem klient dostaje SZABLON, a POWŁOKI strony wbudowanej NIE MA", async () => {
+    // Od ADR-189 stały blok (galeria + dane + rezerwacja) stoi w OBU gałęziach,
+    // więc markerem strony wbudowanej nie jest już jej treść — jest nim
+    // odnośnik powrotu do katalogu, który rysuje WYŁĄCZNIE ona.
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     const markup = await renderProductPage();
 
     expect(markup, "treść szablonu nie doszła do wyjścia").toContain(NAPIS_SZABLONU);
-    expect(markup, "strona wbudowana renderuje się RAZEM z szablonem").not.toContain(
+    expect(markup, "powłoka strony wbudowanej renderuje się RAZEM z szablonem").not.toContain(
       "Wróć do katalogu",
     );
   }, BUDZET_RENDERU);
@@ -323,8 +333,8 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     expect(markup, "pusty szablon podmieniony na stronę wbudowaną").not.toContain(
       "Wróć do katalogu",
     );
-    // Nazwa sprzętu zostaje w dokumencie jako nagłówek dla czytnika ekranu —
-    // strona bez `h1` byłaby regresem dostępności wywołanym samym wdrożeniem.
+    // Nazwa sprzętu zostaje w dokumencie jako WIDOCZNY nagłówek stałego bloku
+    // (ADR-189) — pusty szablon znaczy „nic POD blokiem", nigdy „nic w ogóle".
     expect(bezJsonLd(markup)).toContain(NAZWA);
   }, BUDZET_RENDERU);
 
@@ -372,18 +382,111 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     }
   }, BUDZET_RENDERU);
 
-  it("widget rezerwacji jest DOKŁADNIE JEDEN na stronie wbudowanej", async () => {
+  it("stały blok i widget rezerwacji są DOKŁADNIE PO JEDNYM w każdej gałęzi", async () => {
     // Strona wbudowana miała do ADR-180 własną parę pól daty obok paska
     // powłoki. Zostawienie ich RAZEM z widgetem dałoby dwa wyboru terminu na
     // jednym ekranie — czyli tę samą wadę, którą naprawiał ADR-179, tylko
     // w drugą stronę. Liczymy WYSTĄPIENIA, bo „jest widget" przeszłoby też
     // wtedy, gdyby stary blok został obok.
+    //
+    // Od ADR-189 to samo pytanie dotyczy STAŁEGO BLOKU we wszystkich trzech
+    // gałęziach: gdyby gałąź szablonu dostała blok i RAZEM z nim starą stronę
+    // wbudowaną (albo pusty szablon dorysował blok dwa razy), klient miałby
+    // dwie galerie i dwa widgety — a asercja o samej obecności by to przełknęła.
+    const bezSzablonu = await renderProductPage();
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
+    vi.resetModules();
+    const zeSzablonem = await renderProductPage();
+    stan.szablon = opublikowanySzablon([]);
+    vi.resetModules();
+    const pustySzablon = await renderProductPage();
+
+    for (const [etykieta, markup] of [
+      ["bez szablonu", bezSzablonu],
+      ["ze szablonem", zeSzablonem],
+      ["pusty szablon", pustySzablon],
+    ] as const) {
+      expect(
+        markup.match(/data-product-booking="/g) ?? [],
+        `${etykieta}: widget rezerwacji nie jest dokładnie jeden`,
+      ).toHaveLength(1);
+      expect(
+        markup.match(/data-product-detail="/g) ?? [],
+        `${etykieta}: stały blok nie jest dokładnie jeden`,
+      ).toHaveLength(1);
+      expect(markup, `${etykieta}: została stara para pól daty ze strony wbudowanej`).not.toContain(
+        'id="rent-start"',
+      );
+    }
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
+  // 5. GÓRA STRONY JEST STAŁA I PIERWSZA (ADR-189)
+  // -------------------------------------------------------------------
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: przeniesienie stałego bloku POD treść szablonu —
+  // czyli dokładnie regres, który ADR-189 naprawia. Oś 3b pyta o OBECNOŚĆ
+  // widgetu i regres przeżyła: widget POD sekcjami też „jest na stronie".
+  // Dlatego ta oś pyta o KOLEJNOŚĆ w dokumencie, przez pozycje znaczników
+  // w wyjściu renderu — a nie o to, czy coś „gdzieś" się wyrenderowało.
+  it("gałąź szablonu ZACZYNA się stałym blokiem: galeria i widget PRZED pierwszą sekcją najemcy", async () => {
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     const markup = await renderProductPage();
-    const widgety = markup.match(/data-product-booking="/g) ?? [];
-    expect(widgety, "widget rezerwacji nie jest jeden").toHaveLength(1);
-    expect(markup, "została stara para pól daty ze strony wbudowanej").not.toContain(
-      'id="rent-start"',
-    );
+
+    const blok = markup.indexOf(`data-product-detail="${SPRZET_ID}"`);
+    const galeria = markup.indexOf("data-product-gallery");
+    const widget = markup.indexOf(`data-product-booking="${SPRZET_ID}"`);
+    const sekcja = markup.indexOf(NAPIS_SZABLONU);
+
+    // Kontrola, że mutant w ogóle wchodzi w badaną ścieżkę: wszystkie cztery
+    // znaczniki MUSZĄ być w wyjściu. `indexOf` oddaje -1 dla nieobecnego,
+    // a -1 < cokolwiek, więc bez tych czterech nóg asercje kolejności byłyby
+    // zielone nad stroną, na której połowy rzeczy nie ma.
+    expect(blok, "brak stałego bloku w gałęzi szablonu").toBeGreaterThanOrEqual(0);
+    expect(galeria, "brak galerii w gałęzi szablonu").toBeGreaterThanOrEqual(0);
+    expect(widget, "brak widgetu rezerwacji w gałęzi szablonu").toBeGreaterThanOrEqual(0);
+    expect(sekcja, "brak sekcji szablonu — to nie jest gałąź szablonu").toBeGreaterThanOrEqual(0);
+
+    expect(blok, "stały blok stoi POD treścią szablonu").toBeLessThan(sekcja);
+    expect(galeria, "galeria stoi POD treścią szablonu").toBeLessThan(sekcja);
+    expect(widget, "widget rezerwacji stoi POD treścią szablonu").toBeLessThan(sekcja);
+    // Widget siedzi WEWNĄTRZ stałego bloku, więc otwiera się PO nim.
+    expect(blok, "widget rezerwacji wyprowadził się PRZED stały blok").toBeLessThan(widget);
+  }, BUDZET_RENDERU);
+
+  it("dokument ma DOKŁADNIE JEDEN `h1` w każdej gałęzi — nagłówek szablonu schodzi na `h2`", async () => {
+    // Nagłówek dokumentu wnosi stały blok (nazwa pozycji). Hero szablonu ma
+    // w fiksturze nagłówek POZIOMU 1 — na tej trasie musi zejść na `h2`
+    // (`withDemotedHeadings`), inaczej ekran sprzętu ma dwa konkurujące tytuły
+    // (zgłoszenie L-UX-01 z audytu właściciela). Gałęzie bez sekcji dowodzą
+    // drugiej połowy: jedyny `h1` pochodzi ze stałego bloku, więc jest ZAWSZE,
+    // także nad pustym szablonem.
+    const bezSzablonu = await renderProductPage();
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
+    vi.resetModules();
+    const zeSzablonem = await renderProductPage();
+    stan.szablon = opublikowanySzablon([]);
+    vi.resetModules();
+    const pustySzablon = await renderProductPage();
+
+    for (const [etykieta, markup] of [
+      ["bez szablonu", bezSzablonu],
+      ["ze szablonem", zeSzablonem],
+      ["pusty szablon", pustySzablon],
+    ] as const) {
+      expect(
+        markup.match(/<h1[\s>]/g) ?? [],
+        `${etykieta}: dokument nie ma dokładnie jednego h1`,
+      ).toHaveLength(1);
+    }
+
+    // KONTROLA POZYTYWNA zejścia: nagłówek szablonu nie ZNIKNĄŁ — stoi jako
+    // `h2` i dalej niesie nazwę pozycji z wiązania. Bez tej nogi „jeden h1"
+    // przechodziłoby też wtedy, gdyby zejście poziomu WYCINAŁO nagłówek.
+    expect(
+      zeSzablonem,
+      "nagłówek szablonu nie zszedł na h2 z rozwiązanym wiązaniem",
+    ).toMatch(new RegExp(`<h2[^>]*>${NAZWA}</h2>`));
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------

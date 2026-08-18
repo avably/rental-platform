@@ -13,20 +13,21 @@
  *
  * ==================== DWIE STRONY POD JEDNYM ADRESEM ====================
  *
- * Render oddaje jedną z dwóch rzeczy, a granica przebiega po PUBLIKACJI
- * SZABLONU — nie po jego zawartości:
+ * OBIE GAŁĘZIE ZACZYNAJĄ SIĘ TYM SAMYM (ADR-189) — stałym blokiem góry strony
+ * (`ProductDetail`: galeria, nazwa, cena, opis, specyfikacja, widget
+ * rezerwacji). Granica między gałęziami przebiega po PUBLIKACJI SZABLONU — nie
+ * po jego zawartości — i dotyczy tego, co jest POD tym blokiem:
  *
- *   • BRAK opublikowanego szablonu → STRONA WBUDOWANA: `ProductDetail`
- *     (galeria, opis, specyfikacja) plus widget rezerwacji. To jest stan
- *     KAŻDEGO dzisiejszego najemcy, więc wdrożenie fazy 5 nie zabiera mu ani
- *     jednej funkcji, dopóki operator sam nie zbuduje i nie opublikuje
- *     szablonu.
- *   • OPUBLIKOWANY szablon → SZABLON, także gdy jest ubogi albo pusty. Pusty
- *     opublikowany szablon jest świadomą decyzją operatora; podmienianie go
- *     z powrotem na stronę wbudowaną byłoby dokładnie tym kłamstwem
- *     interfejsu, które naprawiały ADR-171 i ADR-172 („opublikowałem i widzę
- *     co innego"). Dlatego warunkiem jest `template !== null`, a NIE
- *     `template.sections.length > 0`.
+ *   • BRAK opublikowanego szablonu → STRONA WBUDOWANA: stały blok i nic pod
+ *     nim. To jest stan KAŻDEGO dzisiejszego najemcy, więc wdrożenie fazy 5 nie
+ *     zabiera mu ani jednej funkcji, dopóki operator sam nie zbuduje i nie
+ *     opublikuje szablonu.
+ *   • OPUBLIKOWANY szablon → stały blok, a POD nim treść z kreatora; także gdy
+ *     jest uboga albo pusta. Pusty opublikowany szablon jest świadomą decyzją
+ *     operatora; podmienianie go z powrotem na inną stronę byłoby dokładnie tym
+ *     kłamstwem interfejsu, które naprawiały ADR-171 i ADR-172
+ *     („opublikowałem i widzę co innego"). Dlatego warunkiem jest
+ *     `template !== null`, a NIE `template.sections.length > 0`.
  *
  * ==================== CO CZYNI SZABLON STRONĄ TEGO SPRZĘTU ====================
  *
@@ -56,15 +57,36 @@
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
  *
- * ==================== REZERWACJA JEST W OBU GAŁĘZIACH ====================
+ * ==================== GÓRA STRONY JEST STAŁA I NIEUSUWALNA (ADR-189) ====================
  *
- * Część transakcyjna (kalendarz z dostępnością, ilość, koszyk) to JEDEN
- * nierozmontowywalny widget (`ProductBooking`, faza 5, ADR-180), który render
- * wstawia w OBU gałęziach. Do ADR-180 szablon był powierzchnią wyłącznie
- * prezentacyjną: najemca, który go opublikował, tracił na swojej stronie
- * sprzętu przycisk rezerwacji — czyli publikacja szablonu kosztowała go
- * sprzedaż. Widget stoi w miejscu STAŁYM; przesuwanie wymaga własnego typu
- * sekcji i jest osobną pracą.
+ * Sekcja „above the fold" — galeria, dane sprzętu i część transakcyjna — jest
+ * w obu gałęziach TYM SAMYM komponentem (`ProductDetail`) i stoi PIERWSZA.
+ * Treść z kreatora renderuje się POD nią.
+ *
+ * Do ADR-189 gałąź szablonu zaczynała się od treści najemcy, a widget
+ * rezerwacji dostawała pod spodem (ADR-180, decyzja 2). Uzasadnienie brzmiało:
+ * szablon jest tym, czym najemca sprzedaje, widget tym, czym klient kupuje po
+ * decyzji. Było SPRZECZNE z ustaleniem właściciela sprzed fazy 5 — góra strony
+ * sprzętu ma być nieusuwalna i wyglądać jak dotąd, czyli galeria, dane i część
+ * transakcyjna widoczne bez przewijania. Publikacja szablonu przestawała więc
+ * być zmianą wyglądu strony i stawała się zmianą tego, CO klient najemcy widzi
+ * jako pierwsze; na produkcji wyszło to jako utrata układu, nie jako nowa
+ * funkcja. Wymóg ADR-180 („rezerwacja jest w obu gałęziach") zostaje w mocy
+ * i jest po tej zmianie spełniony MOCNIEJ: widget siedzi WEWNĄTRZ bloku,
+ * którego gałąź szablonu nie omija.
+ *
+ * Część transakcyjna (kalendarz z dostępnością, ilość, koszyk) pozostaje JEDNYM
+ * nierozmontowywalnym widgetem (`ProductBooking`, faza 5, ADR-180). Miejsce
+ * jest STAŁE — przesuwanie widgetu przez najemcę wymagałoby własnego typu
+ * sekcji i jest świadomie POZA tym etapem (ADR-189, decyzja właściciela
+ * z 2026-08-17 zawężająca rekomendację „przesuwalna jako całość").
+ *
+ * POWTÓRZENIE TREŚCI JEST DOPUSZCZALNE I ŚWIADOME. Najemca, który pod stałym
+ * blokiem zbuduje sekcję z opisem pozycji, zobaczy opis dwa razy. Logiki
+ * wygaszającej opis albo specyfikację w stałym bloku „gdy szablon je ma" tu
+ * NIE MA: byłaby ukrytym nadpisaniem per instancja, a poza alternatywnym
+ * szablonem architektura per-instancji świadomie nie dopuszcza. Najemca
+ * projektuje to, co poniżej, i sam decyduje, czy powtarza.
  *
  * METADANE I JSON-LD OPISUJĄ SPRZĘT W OBU GAŁĘZIACH. Szablon jest sposobem
  * pokazania pozycji, a nie osobnym dokumentem: tytuł, opis i `Product` +
@@ -89,7 +111,7 @@ import type { PublicCatalogProduct } from "@/lib/checkout/contract";
 import { productJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
-import { pageSections } from "@/lib/site/page-sections";
+import { pageSections, withDemotedHeadings } from "@/lib/site/page-sections";
 import { getPublishedProductTemplate } from "@/lib/site/published";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
@@ -223,7 +245,6 @@ export async function renderProductPage({
       cudze dane.
     */
     const record = seam.products.find((item) => item.id === raw.id);
-    const hasHero = bodySections.some((section) => section.type === "hero");
 
     return (
       <StoreChrome
@@ -249,16 +270,34 @@ export async function renderProductPage({
         {productLd ? <JsonLd data={productLd} /> : null}
         <main>
           {/*
-            NAGŁÓWEK DOKUMENTU TO NAZWA SPRZĘTU, nie nazwa sklepu: to jest
-            strona TEJ pozycji. Widoczny `h1` wnosi hero szablonu (najczęściej
-            z wiązaniem do nazwy pozycji); gdy szablon hero nie ma — także gdy
-            nie ma NICZEGO, bo operator opublikował go pustym — zostaje sam
-            nagłówek dla czytnika ekranu. Zdania „ta strona jest pusta" tu nie
-            ma świadomie: byłoby treścią, której operator nie opublikował.
+            STAŁY BLOK GÓRY STRONY — PIERWSZY W DOKUMENCIE (ADR-189).
+
+            Ten sam komponent i ta sama szerokość kontenera, co na stronie
+            wbudowanej (`PageShell` owija treść dokładnie tymi klasami), więc
+            „jak poprzednio" znaczy dosłownie: ten sam blok w tym samym miejscu,
+            niezależnie od tego, czy najemca opublikował szablon.
+
+            NAGŁÓWEK DOKUMENTU JEST W TYM BLOKU. Widoczny `h1` z nazwą pozycji
+            wnosi `ProductDetail`, więc atrapa dla czytnika ekranu
+            (`<h1 className="sr-only">`), którą gałąź szablonu wystawiała, gdy
+            szablon nie miał hero, straciła sens i ZNIKA — dokument ma tytuł
+            zawsze, także przy szablonie opublikowanym pustym.
           */}
-          {hasHero ? null : <h1 className="sr-only">{raw.name}</h1>}
+          <div className="mx-auto w-full max-w-5xl px-6 py-10">
+            <ProductDetail product={product} copy={copy} booking={booking} />
+          </div>
+          {/*
+            TREŚĆ Z KREATORA — POD stałym blokiem (ADR-189).
+
+            `withDemotedHeadings` zdejmuje nagłówkom szablonu pierwszy poziom:
+            tytuł dokumentu jest już wydany wyżej, a dwa `h1` na jednym ekranie
+            to dwa konkurujące tytuły (zgłoszenie L-UX-01 z audytu właściciela).
+            Przekształcenie jest CZYSTE i dotyczy WYŁĄCZNIE tej trasy — na
+            stronie treściowej ta sama lista sekcji jest całym dokumentem i `h1`
+            jest tam poprawny.
+          */}
           <SiteRenderer
-            sections={bodySections}
+            sections={withDemotedHeadings(bodySections)}
             style={style}
             asRoot={false}
             products={seam.products}
@@ -270,21 +309,6 @@ export async function renderProductPage({
             mapEmbed
             anchors
           />
-          {/*
-            REZERWACJA POD TREŚCIĄ SZABLONU — MIEJSCE STAŁE (ADR-180).
-
-            Pod, a nie nad: szablon jest tym, czym najemca sprzedaje (zdjęcia,
-            opis, argumenty), a widget jest tym, czym klient kupuje po podjęciu
-            decyzji. Nad treścią zabierałby operatorowi hero, które sam
-            zaprojektował, i robił z jego strony formularz z ozdobnikiem.
-
-            Przesuwania NIE MA i to jest świadome zawężenie tego etapu:
-            wymagałoby własnego typu sekcji, a więc i miejsca w kreatorze,
-            w walidacji treści i w publikacji. Widget natomiast jest jeden
-            i nierozmontowywalny — najemca nie ma jak zdjąć ze swojej strony
-            przycisku rezerwacji.
-          */}
-          <div className="mx-auto w-full max-w-5xl px-6 py-10">{booking}</div>
         </main>
       </StoreChrome>
     );

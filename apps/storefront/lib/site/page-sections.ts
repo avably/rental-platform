@@ -31,7 +31,12 @@
  * punktem nawigacji dla czytnika ekranu. Po przeniesieniu do powłoki stoi obok
  * `<main>`, czyli tam, gdzie należy.
  */
-import { isPinnedLastType, type PublishedSection, type PublishedSite } from "@avably/core/site";
+import {
+  isSectionCanvas,
+  isPinnedLastType,
+  type PublishedSection,
+  type PublishedSite,
+} from "@avably/core/site";
 
 /**
  * Sekcje należące do STRONY — wszystko poza przypiętymi do końca dokumentu.
@@ -98,4 +103,49 @@ function rebaseAnchors(node: unknown, base: string): unknown {
         : rebaseAnchors(value, base);
   }
   return out;
+}
+
+/**
+ * NAGŁÓWEK DOKUMENTU JEST JUŻ ZAJĘTY — nagłówki pierwszego poziomu z treści
+ * najemcy schodzą na drugi (ADR-189).
+ *
+ * ==================== PO CO TO ISTNIEJE ====================
+ *
+ * Strona sprzętu zaczyna się od STAŁEGO BLOKU (`ProductDetail`), a ten wnosi
+ * WIDOCZNY `<h1>` z nazwą pozycji — bo dokumentem jest ta pozycja, nie sekcja,
+ * którą operator postawił pod spodem. Treść z kreatora idzie POD blokiem i jest
+ * dalszą częścią tego samego dokumentu, więc jej hero nie ma prawa wydać
+ * DRUGIEGO `h1`: dwa nagłówki pierwszego poziomu to dwa konkurujące tytuły
+ * jednego dokumentu, a czytnik ekranu nie ma czym ich rozstrzygnąć. Tę właśnie
+ * wadę zgłosił audyt właściciela („ekran produktu ma dwa `h1`").
+ *
+ * ==================== DLACZEGO PRZEKSZTAŁCENIE TREŚCI, A NIE PROPS ====================
+ *
+ * Poziom nagłówka jest w treści (`level` elementu płótna), a nie w wyglądzie,
+ * więc rozstrzygnięcie „który dokument ma tytuł" należy do WOŁAJĄCEGO: ta sama
+ * lista sekcji na stronie treściowej jest całym dokumentem i tam `h1` jest
+ * poprawny. Renderer zostaje bez nowego propsu i bez wiedzy o tym, kto go woła
+ * — dokładnie jak przy `withAnchorBase` wyżej, które z tego samego powodu
+ * przepisuje kotwice w treści, a nie w rendererze.
+ *
+ * ZMIANA JEST TYLKO SEMANTYCZNA. Klasa wyglądu nagłówka na płótnie idzie
+ * z `level`, więc zejście na 2 zmienia też krój — i to jest świadome: nagłówek
+ * sekcji POD tytułem strony ma wyglądać jak nagłówek sekcji. Geometria elementu
+ * (`layout`) jest absolutna i nie zależy od poziomu, więc układ płótna zostaje
+ * co do piksela.
+ *
+ * ZASIĘG: płótno v2, czyli JEDYNY kształt, w którym kreator zapisuje sekcję
+ * nagłówkową (`sectionCanvasFrom` konwertuje każdą dodawaną sekcję, a szablon
+ * strony sprzętu istnieje dopiero od fazy 5 — długo po K2). Sekcja
+ * strukturalna v3 nie wydaje `h1` w żadnym układzie, a treść v1 nie ma jak
+ * trafić do szablonu sprzętu.
+ */
+export function withDemotedHeadings(sections: PublishedSection[]): PublishedSection[] {
+  return sections.map((section) => {
+    if (!isSectionCanvas(section.content)) return section;
+    const elements = section.content.elements.map((element) =>
+      element.kind === "heading" && element.level === 1 ? { ...element, level: 2 as const } : element,
+    );
+    return { ...section, content: { ...section.content, elements } } as PublishedSection;
+  });
 }
