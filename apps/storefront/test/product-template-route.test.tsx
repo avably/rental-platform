@@ -352,7 +352,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   // NIC INNEGO TEGO NIE PRZYKRYWA: suita widgetu (`product-booking.test.tsx`)
   // bada jego zachowanie, ale montuje go SAMA — przechodzi więc także wtedy,
   // gdy trasa nie renderuje go nigdzie.
-  it("OBIE gałęzie oddają widget rezerwacji: przycisk do koszyka, ilość i siatkę terminu", async () => {
+  it("OBIE gałęzie oddają widget rezerwacji: przycisk do koszyka, ilość i pole terminu", async () => {
     const bezSzablonu = await renderProductPage();
     stan.szablon = opublikowanySzablon(sekcjaSzablonu());
     vi.resetModules();
@@ -374,11 +374,53 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
       expect(markup, `${etykieta}: brak przycisku dodania do koszyka`).toContain(
         "data-product-booking-add",
       );
-      expect(markup, `${etykieta}: brak siatki wyboru terminu w widgecie`).toContain(
-        "data-calendar-day=",
+      // FORMA ZWARTA (ADR-194): wejściem do wyboru terminu jest POLE
+      // z zachętą — siatka dat otwiera się dopiero po interakcji.
+      expect(markup, `${etykieta}: brak pola terminu w widgecie`).toContain(
+        "data-product-booking-field",
+      );
+      expect(markup, `${etykieta}: pole terminu bez zachęty wyboru dat`).toContain(
+        "Kliknij, aby wybrać daty",
       );
       expect(markup, `${etykieta}: brak pola ilości`).toContain('id="booking-qty"');
       expect(markup, `${etykieta}: brak etykiety przycisku koszyka`).toContain("Dodaj do koszyka");
+    }
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
+  // 3c. BRAK STALE ROZWINIĘTEJ SIATKI (ADR-194)
+  // -------------------------------------------------------------------
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót zawsze rozwiniętego kalendarza miesiąca
+  // w treści strony — czyli formy, którą właściciel kazał zdjąć: siatka
+  // zjadała pół pierwszego ekranu i spychała opis oraz specyfikację pod
+  // zwijkę. Bramka pyta o SSR KAŻDEJ gałęzi trasy, bo tylko SSR mówi, co
+  // klient dostaje PRZED interakcją; suita widgetu montuje go sama i mierzy
+  // dopiero zachowanie po kliknięciach.
+  it("SSR żadnej gałęzi NIE niesie siatki dni — kalendarz otwiera dopiero interakcja", async () => {
+    const bezSzablonu = await renderProductPage();
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
+    vi.resetModules();
+    const zeSzablonem = await renderProductPage();
+    stan.szablon = opublikowanySzablon([]);
+    vi.resetModules();
+    const pustySzablon = await renderProductPage();
+
+    for (const [etykieta, markup] of [
+      ["bez szablonu", bezSzablonu],
+      ["ze szablonem", zeSzablonem],
+      ["pusty szablon", pustySzablon],
+    ] as const) {
+      // Kontrola, że mierzymy właściwą stronę: widget rezerwacji JEST.
+      expect(markup, `${etykieta}: brak widgetu — bramka mierzy pustkę`).toContain(
+        `data-product-booking="${SPRZET_ID}"`,
+      );
+      expect(markup, `${etykieta}: stale rozwinięta siatka dni wróciła do SSR`).not.toContain(
+        "data-calendar-day=",
+      );
+      expect(markup, `${etykieta}: otwarte okno wyboru terminu w SSR`).not.toContain(
+        "data-store-term-modal",
+      );
     }
   }, BUDZET_RENDERU);
 

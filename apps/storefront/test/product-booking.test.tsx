@@ -7,12 +7,14 @@
  * dzień bez ani jednej sztuki da się kliknąć, czy „dodaj do koszyka" naprawdę
  * dokłada pozycję i czy termin po tym wszystkim jest jeden.
  *
- * Cztery osie, przy każdej zapisane, co musiałoby się zepsuć:
+ * Pięć osi, przy każdej zapisane, co musiałoby się zepsuć:
  *
+ *   0. FORMA ZWARTA (ADR-194). Karta bez interakcji nie niesie siatki dni —
+ *      siatkę otwiera POLE terminu, a jedynym zapisem jest „Zastosuj" w oknie.
  *   1. LICZBA Z TEJ SAMEJ ODPOWIEDZI, CO KAFEL. Widget nie pyta bazy o zakres
  *      po raz drugi — bierze liczbę z jednego wywołania katalogowego powłoki.
  *   2. SIATKA MALUJE DNI. `dayUnits` przychodzą z `checkAvailabilityDays` dla
- *      WIDOCZNEGO miesiąca, a dzień z zerem przestaje być wybieralny.
+ *      WIDOCZNEGO widoku okna wyboru, a dzień z zerem przestaje być wybieralny.
  *   3. KOSZYK. Dodanie pisze pozycję i NIE rusza terminu (jedno źródło prawdy).
  *   4. ZERO ZATRZYMUJE. Przy zerowej dostępności przycisk jest wyłączony —
  *      z kontrolą pozytywną na tych samych danych z liczbą dodatnią.
@@ -102,6 +104,24 @@ function clickDay(iso: string): void {
   throw new Error(`Brak dnia ${iso} w siatce po przewinięciu okna`);
 }
 
+/** POLE terminu w karcie otwiera OKNO wyboru (ADR-194) — siatka nie wisi na stałe. */
+function openField(): void {
+  fireEvent.click(document.querySelector<HTMLButtonElement>("[data-product-booking-field]")!);
+}
+
+/** Jedyny zapis terminu: „Zastosuj" w oknie wyboru (ADR-194). */
+function applyTerm(): void {
+  fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-apply]")!);
+}
+
+/** Pełna droga klienta: pole → dwa dni → „Zastosuj" (okno zamyka się samo). */
+function pickRange(start: string, end: string): void {
+  openField();
+  clickDay(start);
+  clickDay(end);
+  applyTerm();
+}
+
 function addButton(): HTMLButtonElement {
   return document.querySelector<HTMLButtonElement>("[data-product-booking-add]")!;
 }
@@ -115,6 +135,71 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+describe("forma zwarta karty (ADR-194)", () => {
+  // BRAMKA: KARTA NIE ROZKŁADA SIATKI NA STAŁE. Wzorzec właściciela: pole
+  // z zachętą, siatka dopiero po kliknięciu — w oknie wyboru.
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót stale rozwiniętego kalendarza (stara
+  // forma). Siatka zjadała pół pierwszego ekranu i spychała opis pod zwijkę —
+  // dokładnie to, co właściciel kazał zdjąć.
+  it("bez interakcji nie ma siatki dni — jest pole z zachętą (kontrola: po kliknięciu jest)", () => {
+    render(widget());
+
+    expect(
+      document.querySelector("[data-calendar-day]"),
+      "siatka dni wisi rozwinięta bez interakcji",
+    ).toBeNull();
+    const field = document.querySelector<HTMLButtonElement>("[data-product-booking-field]");
+    expect(field, "karta nie ma pola terminu").not.toBeNull();
+    expect(field!.textContent).toContain(copy.term.fieldPrompt);
+
+    // KONTROLA POZYTYWNA: pole naprawdę otwiera siatkę — bez niej ta bramka
+    // przechodziłaby też nad kartą, w której nie da się wybrać niczego.
+    openField();
+    expect(document.querySelector("[data-calendar-day]")).not.toBeNull();
+  });
+
+  // BRAMKA: ZASTOSUJ = JEDYNY ZAPIS (to samo prawo, którego pilnuje suita
+  // powłoki — tu od strony wejścia z karty sprzętu).
+  it("wybór dat w oknie BEZ „Zastosuj\" nie zmienia koszyka; z „Zastosuj\" — zmienia", async () => {
+    render(widget());
+    const start = dayFromToday(3);
+    const end = dayFromToday(5);
+
+    openField();
+    clickDay(start);
+    clickDay(end);
+    expect(readCart().startDate, "klik w dzień zapisał termin bez „Zastosuj\"").toBeNull();
+    expect(readCart().endDate).toBeNull();
+
+    applyTerm();
+    await waitFor(() => expect(readCart().startDate).toBe(start));
+    expect(readCart().endDate).toBe(end);
+    // Okno zamyka się po zapisie — karta wraca do formy zwartej.
+    expect(document.querySelector("[data-store-term-modal]")).toBeNull();
+  });
+
+  // POLE POKAZUJE TERMIN Z KOSZYKA — ten sam stan, który widzi pigułka paska
+  // i kasa. Bez terminu zachęta; z terminem zakres.
+  it("pole niesie wybrany zakres z CartState, a bez terminu zachętę", async () => {
+    render(widget());
+    const start = dayFromToday(3);
+    const end = dayFromToday(5);
+
+    expect(
+      document.querySelector("[data-product-booking-field]")!.textContent,
+    ).toContain(copy.term.fieldPrompt);
+
+    pickRange(start, end);
+    await waitFor(() => {
+      expect(
+        document.querySelector("[data-product-booking-field]")!.textContent,
+        "pole nie pokazało zakresu z koszyka",
+      ).toContain(start);
+    });
+  });
+});
+
 describe("liczba wolnych sztuk w wybranym terminie", () => {
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby widget czytał dostępność z własnego,
   // drugiego wywołania (albo w ogóle jej nie czytał), na ekranie nie byłoby
@@ -123,8 +208,7 @@ describe("liczba wolnych sztuk w wybranym terminie", () => {
     checkCatalogAvailability.mockResolvedValue(catalog(2));
     render(widget());
 
-    clickDay(dayFromToday(3));
-    clickDay(dayFromToday(5));
+    pickRange(dayFromToday(3), dayFromToday(5));
 
     await waitFor(() => {
       expect(document.querySelector('[data-product-booking-units="2"]')).not.toBeNull();
@@ -138,8 +222,7 @@ describe("liczba wolnych sztuk w wybranym terminie", () => {
   // prawdy (i drugim miejscem, w którym mogłaby się rozjechać).
   it("nie pyta bazy o dostępność ZAKRESU po raz drugi", async () => {
     render(widget());
-    clickDay(dayFromToday(3));
-    clickDay(dayFromToday(5));
+    pickRange(dayFromToday(3), dayFromToday(5));
 
     await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledTimes(1));
     expect(checkCatalogAvailability).toHaveBeenCalledWith(dayFromToday(3), dayFromToday(5));
@@ -147,11 +230,12 @@ describe("liczba wolnych sztuk w wybranym terminie", () => {
 
   it("bez kompletnego terminu widget prosi o termin, zamiast zmyślać dostępność", async () => {
     render(widget());
-    await waitFor(() => expect(checkAvailabilityDays).toHaveBeenCalled());
 
     expect(screen.getByText(copy.product.dateRequired)).toBeTruthy();
     expect(document.querySelector("[data-product-booking-units]")).toBeNull();
     expect(addButton().disabled).toBe(true);
+    // Zwinięta karta nie pyta o nic — o dni pyta dopiero OTWARTE okno wyboru.
+    expect(checkAvailabilityDays).not.toHaveBeenCalled();
   });
 });
 
@@ -183,43 +267,50 @@ describe("okno zapytania o dni", () => {
   });
 });
 
-describe("siatka dni maluje dostępność TEGO sprzętu", () => {
-  // CO MUSIAŁOBY SIĘ ZEPSUĆ: miesiąc siatki ustawiony RAZ, przy pierwszym
-  // renderze. Termin przychodzi z koszyka, czyli spoza drzewa — jest znany
-  // dopiero po hydratacji, a klient może go zmienić paskiem powłoki, stojąc na
-  // tej samej stronie. W obu przypadkach siatka zamarłaby na miesiącu
-  // bieżącym, a klient musiałby przewijać do miejsca, w którym już był.
+describe("siatka dni w oknie wyboru maluje dostępność TEGO sprzętu", () => {
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: kotwica miesiąca policzona RAZ, przy pierwszym
+  // renderze karty (a nie przy OTWARCIU okna). Termin przychodzi z koszyka,
+  // czyli spoza drzewa — wracający klient z terminem w lipcu otworzyłby siatkę
+  // na maju i musiał przewijać do miejsca, w którym już był.
   //
-  // TEST MUSI ODTWORZYĆ TĘ KOLEJNOŚĆ, a nie tylko stan końcowy: koszyk zapisany
-  // PRZED renderem jest znany już pierwszemu renderowi, więc mutacja
-  // wyłączająca re-kotwiczenie przechodziłaby przez taki test na zielono
-  // (sprawdzone mutacją — pierwsza wersja tego przypadku była pusta).
-  it("siatka przeskakuje na miesiąc terminu, który przyszedł PO renderze", async () => {
+  // TEST MUSI ODTWORZYĆ TĘ KOLEJNOŚĆ, a nie tylko stan końcowy: termin
+  // zapisuje się PO renderze karty, a PRZED otwarciem okna — dokładnie okno
+  // czasowe, w którym kotwica ze stanu początkowego byłaby przeterminowana.
+  it("okno otwiera się na miesiącu terminu, który przyszedł PO renderze karty", async () => {
     render(widget());
-    await waitFor(() => expect(checkAvailabilityDays).toHaveBeenCalled());
 
     const zaDwaMiesiace = dayFromToday(60);
+    // Kontrola wyjściowa: świeżo otwarte okno BEZ terminu staje na bieżącym
+    // miesiącu — dnia za dwa miesiące w siatce nie ma.
+    openField();
     expect(
       document.querySelector(`[data-calendar-day="${zaDwaMiesiace}"]`),
-      "kontrola wyjściowa: dzień za dwa miesiące NIE MOŻE być w siatce przed zmianą terminu",
+      "kontrola wyjściowa: dzień za dwa miesiące NIE MOŻE być w siatce bez terminu",
     ).toBeNull();
+    fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-modal-close]")!);
 
     writeCart({ ...EMPTY_CART, startDate: zaDwaMiesiace, endDate: dayFromToday(62) });
-
     await waitFor(() => {
       expect(
-        document.querySelector(`[data-calendar-day="${zaDwaMiesiace}"]`),
-        "siatka została na starym miesiącu mimo zmiany terminu",
-      ).not.toBeNull();
+        document.querySelector("[data-product-booking-field]")!.textContent,
+      ).toContain(zaDwaMiesiace);
     });
+
+    openField();
+    expect(
+      document.querySelector(`[data-calendar-day="${zaDwaMiesiace}"]`),
+      "okno stanęło na starym miesiącu mimo terminu z koszyka",
+    ).not.toBeNull();
   });
 
-  // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby widget nie podawał `dayUnits`, siatka
-  // wyglądałaby jak ta z powłoki — sam wybór terminu, bez ani jednej liczby.
-  // Klient wybierałby dni w ciemno i dowiadywał się o zajętości po fakcie.
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby okno otwarte z karty nie podawało
+  // `dayUnits`, siatka wyglądałaby jak ta z pigułki — sam wybór terminu, bez
+  // ani jednej liczby. Klient wybierałby dni w ciemno i dowiadywał się
+  // o zajętości po fakcie.
   it("dzień niesie liczbę wolnych sztuk z odpowiedzi dziennej", async () => {
     checkAvailabilityDays.mockResolvedValue(days(4));
     render(widget());
+    openField();
 
     await waitFor(() => {
       const dzien = document.querySelector<HTMLButtonElement>(
@@ -238,6 +329,7 @@ describe("siatka dni maluje dostępność TEGO sprzętu", () => {
     const wolny = dayFromToday(5);
     checkAvailabilityDays.mockResolvedValue(days(3, { [zajety]: 0 }));
     render(widget());
+    openField();
 
     await waitFor(() => {
       const dzien = document.querySelector<HTMLButtonElement>(`[data-calendar-day="${zajety}"]`)!;
@@ -248,10 +340,12 @@ describe("siatka dni maluje dostępność TEGO sprzętu", () => {
     expect(sasiad.disabled, "kontrola pozytywna: sąsiedni dzień musi być wybieralny").toBe(false);
   });
 
-  // Pytanie o dni jest PER MIESIĄC, a nie per dzień ani per render: siatka ma
-  // trzydzieści komórek i pętla po nich byłaby trzydziestoma żądaniami.
-  it("o dni pyta RAZ na widoczny miesiąc, oknem przyciętym do okna wyboru", async () => {
+  // Pytanie o dni jest PER WIDOK (para miesięcy naraz), a nie per dzień ani
+  // per render: siatka ma sześćdziesiąt komórek i pętla po nich byłaby
+  // sześćdziesięcioma żądaniami.
+  it("o dni pyta RAZ na widoczny widok, oknem przyciętym do okna wyboru", async () => {
     render(widget());
+    openField();
 
     await waitFor(() => expect(checkAvailabilityDays).toHaveBeenCalledTimes(1));
     const [productId, from, to] = checkAvailabilityDays.mock.calls[0]!;
@@ -273,8 +367,7 @@ describe("dodanie do koszyka", () => {
     render(widget());
     const start = dayFromToday(3);
     const end = dayFromToday(6);
-    clickDay(start);
-    clickDay(end);
+    pickRange(start, end);
 
     await waitFor(() => expect(addButton().disabled).toBe(false));
     fireEvent.change(document.querySelector<HTMLInputElement>("#booking-qty")!, {
@@ -296,8 +389,7 @@ describe("dodanie do koszyka", () => {
   it("przy ZEROWEJ dostępności przycisk jest wyłączony", async () => {
     checkCatalogAvailability.mockResolvedValue(catalog(0));
     render(widget());
-    clickDay(dayFromToday(3));
-    clickDay(dayFromToday(6));
+    pickRange(dayFromToday(3), dayFromToday(6));
 
     await waitFor(() => {
       expect(document.querySelector('[data-product-booking-units="0"]')).not.toBeNull();
@@ -312,8 +404,7 @@ describe("dodanie do koszyka", () => {
   it("przy dostępności dodatniej ten sam przycisk jest czynny", async () => {
     checkCatalogAvailability.mockResolvedValue(catalog(1));
     render(widget());
-    clickDay(dayFromToday(3));
-    clickDay(dayFromToday(6));
+    pickRange(dayFromToday(3), dayFromToday(6));
 
     await waitFor(() => expect(addButton().disabled).toBe(false));
   });
@@ -324,8 +415,7 @@ describe("dodanie do koszyka", () => {
   it("odmowa odczytu dostępności NIE zamyka koszyka", async () => {
     checkCatalogAvailability.mockResolvedValue(null);
     render(widget());
-    clickDay(dayFromToday(3));
-    clickDay(dayFromToday(6));
+    pickRange(dayFromToday(3), dayFromToday(6));
 
     await waitFor(() => expect(addButton().disabled).toBe(false));
     expect(screen.getByText(copy.term.bookingUnknown)).toBeTruthy();

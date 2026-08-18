@@ -421,10 +421,11 @@
     },
     "term": {
       "heading": "Rental dates",
-      "choose": "Pick dates",
+      "choose": "Pick your rental dates",
       "change": "Change dates",
       "close": "Close calendar",
-      "noDates": "not selected",
+      "apply": "Apply",
+      "clear": "Clear",
       "rangeSummary": "{start} → {end} · {days} days",
       "checking": "Checking availability…",
       "windowNote": "You can pick dates within the next {days} days.",
@@ -447,7 +448,10 @@
       "conflictRevert": "Back to the previous dates",
       "unitsFree": "available for these dates: {units} pcs",
       "unitsNone": "unavailable for these dates",
-      "bookingHeading": "Booking",
+      "bookingHeading": "Book your dates",
+      "bookingSubtitle": "Pick your dates and check the rental price",
+      "fieldLabel": "Rental dates",
+      "fieldPrompt": "Click to select dates",
       "bookingUnknown": "We could not check availability — you can add to cart and we will confirm free units when the order is placed."
     },
     "product": {

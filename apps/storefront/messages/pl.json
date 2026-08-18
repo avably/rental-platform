@@ -421,10 +421,11 @@
     },
     "term": {
       "heading": "Termin najmu",
-      "choose": "Wybierz termin",
+      "choose": "Wybierz termin najmu",
       "change": "Zmień termin",
       "close": "Zamknij kalendarz",
-      "noDates": "nie wybrano",
+      "apply": "Zastosuj",
+      "clear": "Wyczyść",
       "rangeSummary": "{start} → {end} · {days} dni",
       "checking": "Sprawdzamy dostępność…",
       "windowNote": "Termin można wybrać na najbliższe {days} dni.",
@@ -447,7 +448,10 @@
       "conflictRevert": "Wróć do poprzedniego terminu",
       "unitsFree": "wolne w tym terminie: {units} szt.",
       "unitsNone": "brak w tym terminie",
-      "bookingHeading": "Rezerwacja",
+      "bookingHeading": "Zarezerwuj termin",
+      "bookingSubtitle": "Wybierz daty i sprawdź cenę wynajmu",
+      "fieldLabel": "Termin najmu",
+      "fieldPrompt": "Kliknij, aby wybrać daty",
       "bookingUnknown": "Dostępności nie udało się sprawdzić — możesz dodać do koszyka, wolne sztuki potwierdzimy przy składaniu zamówienia."
     },
     "product": {
