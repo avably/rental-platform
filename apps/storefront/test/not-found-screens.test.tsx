@@ -146,7 +146,7 @@ vi.mock("next-intl/server", () => ({
 
 describe("404 osi marketingowej — szablon, język trasy, wyjście na stronę główną", () => {
   it.each(["pl", "en"] as const)(
-    "locale %s: jeden h1 z szablonu i CTA na /%s",
+    "locale %s: jeden h1 z szablonu i CTA na stronę główną tego locale",
     async (locale) => {
       const html = await renderMarketingNotFound(locale);
 
