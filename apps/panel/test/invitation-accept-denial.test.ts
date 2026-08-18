@@ -8,12 +8,15 @@
  * przepisywała ten tekst 1:1 do stanu formularza, więc zapraszany dostawał
  * angielski komunikat infrastruktury zamiast powodu odmowy.
  *
- * KONTRAKT: przy odmowie RPC akcja zwraca PRZETŁUMACZONY komunikat
- * (`invitationAccept.denied`, PL/EN wg locale żądania), który nazywa możliwe
- * powody i następny krok — i który NIE niesie ani surowego tekstu stacku,
- * ani tokenu, ani żadnego adresu e-mail (izolacja: komunikat jest STAŁĄ
- * słownika). Uszkodzony token = osobny komunikat o uszkodzonym linku.
- * Ścieżka sukcesu (refresh sesji + redirect) zostaje nietknięta.
+ * KONTRAKT (ADR-193, rozszerzony w ADR-196): przy odmowie RPC akcja
+ * klasyfikuje stan PO ODCZYCIE — woła `app.invitation_state` (0087) i zwraca
+ * PRZETŁUMACZONY komunikat PER STAN (`invitationAccept.state*`, PL/EN wg
+ * locale żądania) dla każdej z sześciu etykiet zamkniętego zbioru. FAIL-CLOSED:
+ * etykieta spoza zbioru albo błąd odczytu → ogólny `invitationAccept.denied`.
+ * Żaden komunikat NIE niesie surowego tekstu stacku, tokenu ani adresu
+ * e-mail (izolacja: komunikaty są STAŁYMI słownika). Uszkodzony token =
+ * osobny komunikat o uszkodzonym linku, bez pytania bazy. Ścieżka sukcesu
+ * (refresh sesji + redirect) zostaje nietknięta i NIE czyta stanu.
  *
  * Tłumaczenia idą przez `createTranslator` nad REALNYMI słownikami — asercje
  * porównują ze słownikiem, nie z literałem w teście, więc redakcja treści
@@ -59,8 +62,13 @@ vi.mock("@/lib/navigation", () => ({
 }));
 
 // Sterowalna granica Supabase: RPC i sesja — dokładnie to, co widzi akcja.
+// `stateResult` startuje jako BŁĄD odczytu: to jest domyślna, fail-closed
+// gałąź (ogólny `denied`), a testy per-stan jawnie podstawiają etykietę.
 const supabaseState = vi.hoisted(() => ({
   rpcError: null as { message: string } | null,
+  stateResult: { data: null as unknown, error: { message: "state read failed" } as {
+    message: string;
+  } | null },
   rpcCalls: [] as { fn: string; args: unknown }[],
   refreshCalls: 0,
   session: true,
@@ -71,6 +79,11 @@ vi.mock("@/lib/supabase-server", () => ({
     schema: (name: string) => ({
       rpc: async (fn: string, args: unknown) => {
         supabaseState.rpcCalls.push({ fn: `${name}.${fn}`, args });
+        if (fn === "invitation_state") {
+          return supabaseState.stateResult.error
+            ? { data: null, error: supabaseState.stateResult.error }
+            : { data: supabaseState.stateResult.data, error: null };
+        }
         return supabaseState.rpcError ? { error: supabaseState.rpcError } : { data: null, error: null };
       },
     }),
@@ -103,6 +116,7 @@ function formData(token: string | null): FormData {
 beforeEach(() => {
   activeLocale.current = "pl";
   supabaseState.rpcError = null;
+  supabaseState.stateResult = { data: null, error: { message: "state read failed" } };
   supabaseState.rpcCalls = [];
   supabaseState.refreshCalls = 0;
   supabaseState.session = true;
@@ -147,6 +161,84 @@ describe("odmowa RPC → ludzki komunikat, nie surowy tekst stacku", () => {
 
     expect(state.error).toBe(plMessages.invitationAccept.denied);
     expect(state.error).not.toContain("PODSTAWIONY-TEKST-STACKU-123");
+  });
+});
+
+/**
+ * Klasyfikacja PO ODCZYCIE (ADR-196): sześć stanów zamkniętego zbioru z
+ * `app.invitation_state` (0087) → sześć komunikatów słownika, w OBU locale.
+ * Oczekiwania idą ze słowników (nie z literałów w teście) — redakcja treści
+ * nie wywraca suity, a brak klucza w którymkolwiek języku tak (fallback
+ * next-intl = pełna ścieżka klucza, którą łapie porównanie ze stałą).
+ */
+describe("odmowa RPC → komunikat PER STAN z odczytu invitation_state (ADR-196)", () => {
+  const STATE_TO_KEY = [
+    ["not_found", "stateNotFound"],
+    ["used", "stateUsed"],
+    ["revoked", "stateRevoked"],
+    ["expired", "stateExpired"],
+    ["email_mismatch", "stateEmailMismatch"],
+    ["open", "stateOpen"],
+  ] as const;
+
+  for (const locale of ["pl", "en"] as const) {
+    for (const [state, key] of STATE_TO_KEY) {
+      it(`${locale}: stan '${state}' → komunikat ${key} ze słownika`, async () => {
+        activeLocale.current = locale;
+        supabaseState.rpcError = { message: "Something went wrong" };
+        supabaseState.stateResult = { data: state, error: null };
+
+        const result = await acceptInvitationAction({}, formData(TOKEN));
+
+        expect(result.error).toBe(MESSAGES[locale].invitationAccept[key]);
+        expect(result.error).not.toBe(MESSAGES[locale].invitationAccept.denied);
+        expect(result.error).not.toContain("Something went wrong");
+      });
+    }
+  }
+
+  it("stan czyta się DOPIERO po odmowie akceptu i tym samym tokenem", async () => {
+    supabaseState.rpcError = { message: "Something went wrong" };
+    supabaseState.stateResult = { data: "expired", error: null };
+
+    await acceptInvitationAction({}, formData(TOKEN));
+
+    expect(supabaseState.rpcCalls).toEqual([
+      { fn: "app.accept_invitation", args: { p_token: TOKEN } },
+      { fn: "app.invitation_state", args: { p_token: TOKEN } },
+    ]);
+  });
+
+  it("fail-closed: etykieta SPOZA zamkniętego zbioru → ogólny denied", async () => {
+    supabaseState.rpcError = { message: "Something went wrong" };
+    supabaseState.stateResult = { data: "nowy-nieznany-stan", error: null };
+
+    const result = await acceptInvitationAction({}, formData(TOKEN));
+
+    expect(result.error).toBe(plMessages.invitationAccept.denied);
+  });
+
+  it("fail-closed: błąd odczytu stanu → ogólny denied (bez wyjątku na ścieżce)", async () => {
+    supabaseState.rpcError = { message: "Something went wrong" };
+    supabaseState.stateResult = { data: null, error: { message: "read exploded" } };
+
+    const result = await acceptInvitationAction({}, formData(TOKEN));
+
+    expect(result.error).toBe(plMessages.invitationAccept.denied);
+    expect(result.error).not.toContain("read exploded");
+  });
+
+  it("izolacja: ŻADEN z sześciu komunikatów per stan (PL i EN) nie niesie tokenu ani adresu e-mail", async () => {
+    // Asercja na STAŁYCH słownika — dokładnie to, co widzi człowiek; komunikat
+    // z adresem albo tokenem byłby regresem ADR-181 niezależnie od kodu akcji.
+    for (const locale of ["pl", "en"] as const) {
+      for (const [, key] of STATE_TO_KEY) {
+        const message = MESSAGES[locale].invitationAccept[key];
+        expect(message, `${locale}.${key} istnieje w słowniku`).toBeTruthy();
+        expect(message).not.toContain(TOKEN);
+        expect(message).not.toMatch(/[^\s@]+@[^\s@]+\.[^\s@]+/);
+      }
+    }
   });
 });
 
