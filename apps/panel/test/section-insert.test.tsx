@@ -243,8 +243,11 @@ describe("picker: typy po lewej, PODGLĄDY po prawej", () => {
     const dialog = openPicker(container, 0);
     fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="faq"]')!);
 
-    const accordion = dialog.querySelector<HTMLElement>('[data-picker-add="accordion"]')!;
-    const lista = dialog.querySelector<HTMLElement>('[data-picker-add="open-list"]')!;
+    // Podglądy żyją w KAFLU (`data-picker-tile`), nie w przycisku dodania —
+    // przycisk jest bratem podglądu, bo interaktywny rodzic nie może nieść
+    // interaktywnych dzieci (ADR-195).
+    const accordion = dialog.querySelector<HTMLElement>('[data-picker-tile="accordion"]')!;
+    const lista = dialog.querySelector<HTMLElement>('[data-picker-tile="open-list"]')!;
     expect(
       accordion.querySelectorAll("[aria-expanded]").length,
       "podgląd wariantu „rozwijane odpowiedzi” nie zmontował accordionu",
@@ -266,7 +269,7 @@ describe("picker: typy po lewej, PODGLĄDY po prawej", () => {
     const dialog = openPicker(container, 0);
     fireEvent.click(dialog.querySelector<HTMLElement>('[data-picker-type="faq"]')!);
 
-    const podglad = dialog.querySelector<HTMLElement>('[data-picker-add="accordion"]')!;
+    const podglad = dialog.querySelector<HTMLElement>('[data-picker-tile="accordion"]')!;
     expect(podglad.querySelector(".site-root"), "podgląd bez korzenia strony").not.toBeNull();
     expect(
       podglad.textContent,

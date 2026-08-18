@@ -264,35 +264,32 @@ export function SectionPicker({
               // operator (i czytnik ekranu) poznaje, że to jest wstawienie,
               // a nie podpis pod obrazkiem.
               const label = wariant ? t("sectionPicker.addLayout", { layout: wariant }) : t("sectionPicker.add");
+              const dead = disabled || blocked !== null;
               return (
-                <button
+                /*
+                  KAFEL NIE JEST PRZYCISKIEM (M-A11Y-02, ADR-195; wzorzec
+                  galerii szablonów). Podgląd zawiera przyciski i odnośniki
+                  strony (akordeon FAQ, powiększenie w galerii, formularz
+                  kontaktu), więc kafel-`<button>` dawał `<button>` w
+                  `<button>` — parser HTML domyka wtedy zewnętrzny element
+                  i drzewo po SSR rozjeżdża się z drzewem Reacta (błąd
+                  hydratacji). Interaktywny jest wyłącznie pasek akcji NIŻEJ —
+                  brat podglądu; jego `::after` rozciąga klik na cały kafel.
+                */
+                <div
                   key={preview.key}
-                  type="button"
-                  data-picker-add={preview.key}
-                  data-picker-add-type={selected}
-                  disabled={disabled || blocked !== null}
-                  aria-label={
-                    wariant
-                      ? t("sectionPicker.addLayoutAria", {
-                          type: t(`sectionTypes.${selected}`),
-                          layout: wariant,
-                        })
-                      : t("sectionPicker.addAria", { type: t(`sectionTypes.${selected}`) })
-                  }
-                  onClick={() => {
-                    if (!target) return;
-                    onAdd(selected, preview.layout, target);
-                    onClose();
-                    setSelected(SECTION_TYPES[0]!);
-                  }}
-                  className="border-border hover:border-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex cursor-pointer flex-col overflow-hidden rounded-lg border text-left outline-none transition-colors [transition-duration:var(--motion-fast)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-picker-tile={preview.key}
+                  className={`border-border hover:border-foreground relative flex flex-col overflow-hidden rounded-lg border transition-colors [transition-duration:var(--motion-fast)] ${
+                    dead ? "opacity-50" : ""
+                  }`}
                 >
                   {/*
-                    PODGLĄD JEST NIEKLIKALNY W ŚRODKU (wzorzec galerii szablonów):
-                    zawiera przyciski i odnośniki strony, a w oknie wyboru każdy
-                    z nich byłby pułapką — klik ma dodać sekcję, a nie otworzyć
-                    cudzy adres. Skala siedzi w arkuszu (`.section-preview`),
-                    bo zwężenie kontenera pokazałoby układ TELEFONU (ADR-085).
+                    PODGLĄD JEST MARTWY W CAŁOŚCI (`inert`): poza wskaźnikiem,
+                    poza tab-orderem i poza drzewem dostępności — w oknie wyboru
+                    każdy jego element byłby pułapką, bo klik ma dodać sekcję,
+                    a nie otworzyć cudzy adres. Skala siedzi w arkuszu
+                    (`.section-preview`), bo zwężenie kontenera pokazałoby
+                    układ TELEFONU (ADR-085).
                   */}
                   {/*
                     WYSOKOŚĆ WYCINKA (px po przeskalowaniu). Kafel pokazuje GÓRĘ
@@ -304,9 +301,10 @@ export function SectionPicker({
                     a dzielenie jednostki kontenerowej przez liczbę daje długość.
                   */}
                   <span
+                    aria-hidden="true"
+                    inert
                     className="section-preview-frame bg-muted block w-[320px] overflow-hidden md:w-[480px]"
                     style={{ height: 260 }}
-                    aria-hidden="true"
                   >
                     <span className="section-preview pointer-events-none block">
                       <SiteRenderer
@@ -319,16 +317,37 @@ export function SectionPicker({
                     </span>
                   </span>
                   {/*
-                    PASEK AKCJI WYGLĄDA JAK AKCJA, a nie jak podpis: bierze
-                    kolor przycisku głównego panelu. Nie jest osobnym
-                    `<button>`, bo przycisk w przycisku to nieprawidłowe
-                    drzewo — klikalny jest CAŁY kafel, a pasek nazywa skutek.
+                    PASEK AKCJI JEST AKCJĄ dosłownie: to `<button>` kafla —
+                    jedyny element interaktywny, brat podglądu, z klikiem
+                    rozciągniętym na cały kafel przez `::after`. Obrys fokusa
+                    na tym samym `::after`, ujemnym offsetem, bo dodatni
+                    wystawałby poza `overflow-hidden` kafla i byłby ucięty.
                   */}
-                  <span className="bg-primary text-primary-foreground border-border flex items-center gap-2 border-t px-3 py-2 text-sm font-medium">
+                  <button
+                    type="button"
+                    data-picker-add={preview.key}
+                    data-picker-add-type={selected}
+                    disabled={dead}
+                    aria-label={
+                      wariant
+                        ? t("sectionPicker.addLayoutAria", {
+                            type: t(`sectionTypes.${selected}`),
+                            layout: wariant,
+                          })
+                        : t("sectionPicker.addAria", { type: t(`sectionTypes.${selected}`) })
+                    }
+                    onClick={() => {
+                      if (!target) return;
+                      onAdd(selected, preview.layout, target);
+                      onClose();
+                      setSelected(SECTION_TYPES[0]!);
+                    }}
+                    className="bg-primary text-primary-foreground border-border focus-visible:after:outline-accent dark:focus-visible:after:outline-ring flex cursor-pointer items-center gap-2 border-t px-3 py-2 text-left text-sm font-medium outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-solid focus-visible:after:outline-[3px] focus-visible:after:-outline-offset-2 disabled:cursor-not-allowed"
+                  >
                     <Plus className="size-4 shrink-0" aria-hidden />
                     {label}
-                  </span>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>

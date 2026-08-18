@@ -55,6 +55,9 @@ const BUILDER_LAYER_MARKERS = [
   "data-picker-type",
   "data-picker-previews",
   "data-picker-add",
+  // Kafel podglądu pickera (ADR-195): kontener-brat przycisku wstawienia —
+  // struktura „card action" bez interaktywnych potomków w interaktywnym przodku.
+  "data-picker-tile",
   "data-picker-blocked",
   "data-picker-hint",
   "data-picker-target",
@@ -120,6 +123,9 @@ const BUILDER_LAYER_MARKERS = [
   "data-template-gallery",
   "data-template-gallery-dismiss",
   "data-starter-template",
+  // Pudełko miniatury kafla (ADR-195): martwy (inert) brat przycisku wyboru
+  // szablonu — czysto edycyjny, publiczny render ma go pilnować.
+  "data-starter-miniatura",
   // Pusta strona jako punkt wyjścia (ADR-161) — kafel galerii, nie treść.
   "data-starter-empty",
   "data-builder-style",
