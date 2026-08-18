@@ -104,9 +104,27 @@ export interface CheckoutRpcResult {
   log_token: string;
 }
 
-/** Błąd RPC nosi standardowy SQLSTATE z PostgREST (patrz mapowanie niżej). */
+/**
+ * Błąd RPC nosi standardowy SQLSTATE z PostgREST (patrz mapowanie niżej).
+ * `detail` to DETAIL Postgresa — w publicznym checkoucie występuje wyłącznie
+ * jako znacznik MASZYNOWY kategorii odmowy (dziś: 'terms_outdated' z 0063
+ * i 'legal_documents_missing' z 0086), nigdy jako nośnik danych (ADR-181).
+ */
 export interface CheckoutRpcError extends Error {
   code?: string;
+  detail?: string;
+}
+
+/**
+ * Opublikowany dokument prawny najemcy w kształcie potrzebnym bramce rdzenia
+ * (ADR-191). Strukturalny podzbiór `PublishedLegalDocumentSummary`
+ * (lib/legal/published.ts) — rdzeń nie importuje warstwy odczytu, bo ta wisi
+ * na kliencie serwerowym Next (ten sam powód, dla którego rate-limit i RPC
+ * są portami).
+ */
+export interface PublishedLegalDocumentRef {
+  kind: "terms" | "privacy";
+  version_label: string;
 }
 
 export interface CheckoutDeps {
@@ -167,6 +185,35 @@ export interface CheckoutDeps {
    * zapytanie dokładnie w tym żądaniu, które trzeba odrzucić.
    */
   readCustomFields: () => Promise<CustomFieldDefinition[]>;
+  /**
+   * Spis OPUBLIKOWANYCH dokumentów prawnych najemcy (0063,
+   * `app.get_published_legal_documents` — bez treści). Bramka H-COMP-01
+   * (ADR-191): sprzedaż wymaga opublikowanego regulaminu ORAZ polityki
+   * prywatności, więc rdzeń odmawia, zanim w ogóle dojdzie do RPC — także
+   * żądaniu złożonemu z pominięciem formularza.
+   *
+   * Implementacja produkcyjna (`getPublishedLegalDocuments`) jest fail-closed
+   * i błąd transportu oddaje jako PUSTY SPIS — dla bramki to to samo, co brak
+   * publikacji: odmowa. Port, który RZUCI, kończy się `server_error` (niewiedza
+   * to nie jest brak dokumentów — wzorzec `readCustomFields`).
+   */
+  readLegalDocuments: () => Promise<PublishedLegalDocumentRef[]>;
+  /**
+   * Czy deklaracja `termsVersion` tego wołania pochodzi z NASZEGO UI, które
+   * wyrenderowało zgodę z rejestru 0063 (storefront, embed) — wtedy deklaracja
+   * MUSI być etykietą żywej wersji regulaminu i rdzeń odmawia każdej innej,
+   * zanim baza w ogóle ją zobaczy.
+   *
+   * `false` WYŁĄCZNIE dla integracji renderujących własną zgodę (API v1,
+   * a przez nie wtyczka WordPress): ich stała wersji nigdy nie była naszą
+   * etykietą i przechodzi gałęzią (d) rozstrzygnięcia 0063 — zapis napisu bez
+   * przypięcia wiersza. To NAZWANY DŁUG ADR-129 (domknięcie: API v2), nie
+   * furtka: bramka publikacji wyżej obowiązuje te powierzchnie tak samo.
+   *
+   * Pole jest WYMAGANE z tego samego powodu co pola biletu (0059): opcjonalne
+   * dałoby nowej powierzchni tryb integracji przez samo przemilczenie.
+   */
+  termsFromRegistry: boolean;
 }
 
 /**
@@ -236,6 +283,42 @@ export async function submitCheckoutCore(
     return { status: "validation_error", fields: toCheckoutFieldErrors(parsed.error) };
   }
   const data = parsed.data;
+
+  // --- BRAMKA DOKUMENTÓW PRAWNYCH (H-COMP-01, ADR-191) — PRZED resztą ---
+  //
+  // Tu, zaraz za parserem, a nie tuż przed RPC: gdy sprzedaż jest wstrzymana,
+  // komplet odmów pól nie ma odbiorcy, a każdy dalszy krok (odczyt definicji
+  // pól własnych, palenie tokenu captchy) to praca wykonana dla żądania,
+  // które i tak musi zostać odrzucone.
+  //
+  // To jest bramka WARSTWY AKCJI — działa niezależnie od tego, co przyszło
+  // z formularza. Bramką ostateczną jest baza (0086): odmawia tego samego
+  // stanu w jedynym miejscu, którego nie omija żadna powierzchnia.
+  let legalDocuments: PublishedLegalDocumentRef[];
+  try {
+    legalDocuments = await deps.readLegalDocuments();
+  } catch (error) {
+    // Wyjątek portu to NIEWIEDZA, nie „brak dokumentów" (wzorzec
+    // readCustomFields): zamykamy ścieżkę, zamiast orzekać o stanie, którego
+    // nie znamy. Implementacja produkcyjna i tak nie rzuca (fail-closed do
+    // pustego spisu) — ta gałąź broni przyszłych implementacji portu.
+    console.error("[checkout] odczyt dokumentów prawnych nie powiódł się", error);
+    return { status: "server_error" };
+  }
+  const publishedTerms = legalDocuments.find((doc) => doc.kind === "terms") ?? null;
+  const publishedPrivacy = legalDocuments.find((doc) => doc.kind === "privacy") ?? null;
+  if (publishedTerms === null || publishedPrivacy === null) {
+    return { status: "legal_documents_missing" };
+  }
+  // Deklaracja wersji z NASZEGO UI musi być etykietą ŻYWEJ wersji regulaminu.
+  // Etykieta archiwalna i obcy napis kończą się tak samo — `rejected` — bo
+  // dla klienta to jedna klasa („odśwież stronę i zaakceptuj ponownie"),
+  // a rozróżnienie zrobiłby dopiero rejestr, który tu widzi tylko baza (0063:
+  // archiwalna → 22023 terms_outdated, obca → gałąź (d)). Integracje
+  // (termsFromRegistry=false) niosą własną stałą — patrz komentarz w deps.
+  if (deps.termsFromRegistry && data.termsVersion !== publishedTerms.version_label) {
+    return { status: "rejected" };
+  }
 
   // Captcha po walidacji, przed zapisem (ADR-032). Fail-closed: odmowa
   // weryfikatora znaczy, że dane nie schodzą głębiej (RPC nie jest wołane).
@@ -337,6 +420,7 @@ export async function submitCheckoutCore(
     });
   } catch (error) {
     const code = (error as CheckoutRpcError).code;
+    const detail = (error as CheckoutRpcError).detail;
     // 23P01 = egzemplarz zajęty (wyścig / nieaktualny koszyk) → LP odświeża
     // dostępność. 22023 = odmowa walidacyjna serwera (tenant nieaktywny, zła
     // metoda dostawy, produkt zniknął). 23514 = naruszenie CHECK-a przy zapisie
@@ -345,11 +429,22 @@ export async function submitCheckoutCore(
     // serwera, więc jak 22023 → rejected (422 w API v1). Reszta → server_error.
     // Treść błędu bazy zostaje w logu serwera; do klienta idzie sam status.
     //
+    // [0086] Wyjątek od jednej klasy 22023: odmowa bramki publikacji niesie
+    // znacznik `legal_documents_missing` w DETAIL (jedyny obok
+    // `terms_outdated` — ADR-181) i dostaje własny status, żeby klient
+    // złapany na wyścigu „najemca cofnął publikację po wyrenderowaniu
+    // formularza" przeczytał zdanie o dokumentach, nie ogólną odmowę.
+    // Bezpieczeństwa to nie osłabia: stan „sklep bez dokumentów" jest jawny
+    // na każdej stronie tego sklepu, więc nie ma tu wyroczni dla bota.
+    //
     // [0059] Odmowa BILETU też przychodzi jako 22023 → `rejected`, i tak ma
     // być: dla klienta końcowego to jedna klasa „nie przyjęliśmy zamówienia",
     // a osobny status byłby sygnałem zwrotnym dla bota, że trafił w bramkę
     // biletu, a nie w walidację danych.
     if (code === "23P01") return { status: "unavailable" };
+    if (code === "22023" && detail === "legal_documents_missing") {
+      return { status: "legal_documents_missing" };
+    }
     if (code === "22023" || code === "23514") return { status: "rejected" };
     console.error("[checkout] RPC nie powiódł się", error);
     return { status: "server_error" };

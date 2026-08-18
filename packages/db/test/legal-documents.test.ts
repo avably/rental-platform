@@ -29,6 +29,7 @@ import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { integrationEnv } from "./helpers/integration-env";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const realtimeTransport = {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
@@ -639,6 +640,9 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
     const owner = await seedActor(admin, shop.tenantId, "owner");
     await seedDraft(admin, shop.tenantId, "terms", "Regulamin sprzedażowy v1.");
     const version = await publish(owner, "terms");
+    // Od 0086 sprzedaż wymaga KOMPLETU — polityka prywatności obok regulaminu.
+    await seedDraft(admin, shop.tenantId, "privacy", "Polityka prywatności v1.");
+    await publish(owner, "privacy");
 
     const { data, error } = await anon
       .schema("app")
@@ -658,20 +662,31 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
     expect(order?.terms_accepted_at).not.toBeNull();
   });
 
-  it("spreparowana etykieta nie przypnie ani cudzej, ani nieistniejącej wersji", async () => {
+  it("żywa etykieta najemcy A deklarowana w sklepie B nie przypina wersji A (izolacja)", async () => {
+    // Sklep B ma KOMPLET własnych dokumentów (v1). Najemca A opublikował
+    // regulamin DWA razy — jego żywa etykieta to v2, czyli napis, który w
+    // rejestrze B nie istnieje. Deklaracja v2 w sklepie B musi przejść
+    // gałęzią (d): zapis napisu, ZERO przypięcia — a nie wierszem najemcy A.
     const shop = await seedSellableTenant(admin);
+    await publishLegalDocuments(admin, shop.tenantId);
+
     const foreign = await seedTenant(admin);
     const foreignOwner = await seedActor(admin, foreign, "owner");
-    await seedDraft(admin, foreign, "terms", "Regulamin obcego najemcy.");
-    const foreignVersion = await publish(foreignOwner, "terms");
+    await seedDraft(admin, foreign, "terms", "Regulamin obcego najemcy v1.");
+    await publish(foreignOwner, "terms");
+    await foreignOwner.client
+      .from("legal_documents")
+      .update({ body_draft: "Regulamin obcego najemcy v2." })
+      .eq("tenant_id", foreign)
+      .eq("kind", "terms");
+    const foreignLive = await publish(foreignOwner, "terms");
+    expect(foreignLive.version_label, "fikstura: obcy ma mieć żywe v2").toBe("v2");
 
-    // Sklep kupującego NIE MA opublikowanego regulaminu, a wołający podaje
-    // etykietę, która u obcego najemcy jest prawdziwa.
     const { data, error } = await anon
       .schema("app")
       .rpc(
         "public_checkout",
-        checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, foreignVersion.version_label),
+        checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, foreignLive.version_label),
       );
     expect(error, `checkout odrzucony: ${error?.message}`).toBeNull();
 
@@ -685,11 +700,42 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
       order?.terms_version_id,
       "payload przypiął wersję, której najemca nigdy nie opublikował",
     ).toBeNull();
-    expect(order?.terms_version).toBe(foreignVersion.version_label);
+    expect(order?.terms_version).toBe(foreignLive.version_label);
+  });
+
+  it("id SZKICU nie da się przypiąć nawet service_rolem — rejestr wersji to jedyny cel FK", async () => {
+    // Szkic żyje w legal_documents i NIE MA reprezentacji w rejestrze wersji,
+    // więc zgoda „na szkic" jest niereprezentowalna z konstrukcji. FK celuje
+    // w legal_document_versions — id szkicu musi się odbić, choć jest
+    // poprawnym uuid istniejącego wiersza (tyle że w INNEJ tabeli).
+    const shop = await seedSellableTenant(admin);
+    await publishLegalDocuments(admin, shop.tenantId);
+    // Szkic regulaminu tego najemcy — wiersz legal_documents, utworzony
+    // przez publishBothDirect. Jego id jest „prawdziwym" uuid, tylko z
+    // niewłaściwej tabeli.
+    const { data: draft } = await admin
+      .from("legal_documents")
+      .select("id")
+      .eq("tenant_id", shop.tenantId)
+      .eq("kind", "terms")
+      .single();
+
+    const { data, error } = await anon
+      .schema("app")
+      .rpc("public_checkout", checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, "v1"));
+    expect(error, `checkout odrzucony: ${error?.message}`).toBeNull();
+
+    const { error: pinError } = await admin
+      .from("orders")
+      .update({ terms_version_id: draft!.id })
+      .eq("tenant_id", shop.tenantId)
+      .eq("order_number", (data as { order_number: string }).order_number);
+    expect(pinError?.code, "id szkicu przeszło przez FK rejestru wersji").toBe("23503");
   });
 
   it("FK broni granicy najemca po najemcy także przy zapisie wprost", async () => {
     const shop = await seedSellableTenant(admin);
+    await publishLegalDocuments(admin, shop.tenantId);
     const foreign = await seedTenant(admin);
     const foreignOwner = await seedActor(admin, foreign, "owner");
     await seedDraft(admin, foreign, "terms", "Regulamin obcego najemcy.");
@@ -714,6 +760,8 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
     const owner = await seedActor(admin, shop.tenantId, "owner");
     await seedDraft(admin, shop.tenantId, "terms", "Regulamin v1.");
     await publish(owner, "terms");
+    await seedDraft(admin, shop.tenantId, "privacy", "Polityka prywatności v1.");
+    await publish(owner, "privacy");
     await owner.client
       .from("legal_documents")
       .update({ body_draft: "Regulamin v2 — zmieniony w trakcie." })
@@ -728,23 +776,54 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
     expect(error?.message).toContain("Regulamin zmienił się");
   });
 
-  it("najemca bez opublikowanego regulaminu sprzedaje jak przed migracją", async () => {
-    // Kontrola negatywna broniąca wszystkich dzisiejszych najemców: brak
-    // dokumentu NIE MOŻE zatrzymać sprzedaży.
+  it("najemca bez opublikowanych dokumentów NIE sprzedaje — 0086 odwraca dawną gałąź (a)", async () => {
+    // Do 0086 ta sytuacja przechodziła „jak przed migracją" i utrwalała napis
+    // "1.0" bez przypięcia — zapis wyglądający na dowód zgody na dokument,
+    // którego nie ma (H-COMP-01). Teraz jedyną uczciwą odpowiedzią jest
+    // odmowa: 22023 ze znacznikiem maszynowym, zero zamówienia, zero klienta.
     const shop = await seedSellableTenant(admin);
-    const { data, error } = await anon
+    const { error } = await anon
       .schema("app")
       .rpc("public_checkout", checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, "1.0"));
-    expect(error, `checkout bez regulaminu odrzucony: ${error?.message}`).toBeNull();
+    expect(error?.code, "checkout bez dokumentów przeszedł").toBe(PG_INVALID_PARAMETER);
+    expect(error?.details).toBe("legal_documents_missing");
 
-    const { data: order } = await admin
+    const { count: orders } = await admin
       .from("orders")
-      .select("terms_version,terms_version_id")
-      .eq("tenant_id", shop.tenantId)
-      .eq("order_number", (data as { order_number: string }).order_number)
-      .single();
-    expect(order?.terms_version).toBe("1.0");
-    expect(order?.terms_version_id).toBeNull();
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", shop.tenantId);
+    const { count: customers } = await admin
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", shop.tenantId);
+    expect(orders, "odmowa zostawiła zamówienie").toBe(0);
+    expect(customers, "odmowa zostawiła klienta-sierotę").toBe(0);
+  });
+
+  it("sam regulamin bez polityki prywatności NIE wystarcza (komplet, nie połowa)", async () => {
+    const shop = await seedSellableTenant(admin);
+    const owner = await seedActor(admin, shop.tenantId, "owner");
+    await seedDraft(admin, shop.tenantId, "terms", "Regulamin bez polityki.");
+    await publish(owner, "terms");
+
+    const { error } = await anon
+      .schema("app")
+      .rpc("public_checkout", checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, "v1"));
+    expect(error?.code, "sprzedaż ruszyła bez polityki prywatności").toBe(PG_INVALID_PARAMETER);
+    expect(error?.details).toBe("legal_documents_missing");
+  });
+
+  it("sama polityka prywatności bez regulaminu NIE wystarcza", async () => {
+    const shop = await seedSellableTenant(admin);
+    const owner = await seedActor(admin, shop.tenantId, "owner");
+    await seedDraft(admin, shop.tenantId, "privacy", "Polityka bez regulaminu.");
+    await publish(owner, "privacy");
+
+    const { error } = await anon
+      .schema("app")
+      .rpc("public_checkout", checkoutArgs(shop.tenantId, shop.productId, shop.pickupId, "1.0"));
+    expect(error?.code, "sprzedaż ruszyła bez regulaminu").toBe(PG_INVALID_PARAMETER);
+    expect(error?.details).toBe("legal_documents_missing");
   });
 
   it("integracja z własną etykietą sprzedaje dalej, bez przypięcia", async () => {
@@ -755,6 +834,8 @@ describe.skipIf(!hasEnv)("dokumenty prawne najemcy — 0063 / ADR-129", () => {
     const owner = await seedActor(admin, shop.tenantId, "owner");
     await seedDraft(admin, shop.tenantId, "terms", "Regulamin sklepu z wtyczką.");
     await publish(owner, "terms");
+    await seedDraft(admin, shop.tenantId, "privacy", "Polityka sklepu z wtyczką.");
+    await publish(owner, "privacy");
 
     const { data, error } = await anon
       .schema("app")

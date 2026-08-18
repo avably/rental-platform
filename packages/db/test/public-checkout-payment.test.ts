@@ -29,6 +29,7 @@ import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { integrationEnv } from "./helpers/integration-env";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const realtimeTransport = {
   realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
@@ -82,6 +83,8 @@ async function seedShop(admin: SupabaseClient, withAccount: boolean): Promise<Sh
   if (tenantError || !tenant) throw new Error(`Tenant: ${tenantError?.message}`);
   const tenantId = tenant.id as string;
   createdTenantIds.push(tenantId);
+  // Komplet dokumentów prawnych (0086/ADR-191) — bez nich checkout odmawia.
+  await publishLegalDocuments(admin, tenantId);
 
   const { data: product, error: productError } = await admin
     .from("products")

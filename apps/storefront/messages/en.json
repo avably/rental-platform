@@ -547,11 +547,13 @@
           "invalid": "Invalid value.",
           "tooLong": "The value is too long.",
           "notAllowed": "This field cannot be filled in here."
-        }
+        },
+        "legalDocumentsMissing": "The rental shop has not published its required documents yet (terms and privacy policy) — the order could not be accepted."
       },
       "termsLabelLinked": "I accept the rental {link} and rental conditions.",
       "termsLinkText": "terms and conditions",
-      "conflictBlocked": "The selected dates do not fit your whole cart. Resolve it in the dates bar — otherwise the order will be rejected on submit."
+      "conflictBlocked": "The selected dates do not fit your whole cart. Resolve it in the dates bar — otherwise the order will be rejected on submit.",
+      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet — orders cannot be placed. Please contact the rental shop."
     },
     "legal": {
       "version": "Version {version}",
@@ -654,7 +656,8 @@
       "weekdayThu": "Thu",
       "weekdayFri": "Fri",
       "weekdaySat": "Sat",
-      "weekdaySun": "Sun"
+      "weekdaySun": "Sun",
+      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet — online booking is paused."
     }
   }
 }

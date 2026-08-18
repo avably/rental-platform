@@ -28,6 +28,13 @@ export type SeedState = {
   priceDayGrosze: number;
   unitCount: number;
   pickupLocationName: string;
+  /**
+   * Id ŻYWEJ wersji regulaminu (0063), opublikowanej przy zasiewie — checkout
+   * z kompletem dokumentów ma utrwalać na zamówieniu DOKŁADNIE ten wiersz
+   * (orders.terms_version_id, ADR-191). Pusty string, gdy tenant zasiany
+   * bez dokumentów (scenariusz odmowy).
+   */
+  termsVersionId: string;
   /** Identyfikator konta Connect w `payment_accounts` — stub API płatności
    * odpowiada dla niego stanem „gotowe do obciążeń". */
   providerAccountId: string;

@@ -13,7 +13,13 @@
 
 import type { CustomFieldDefinition } from "@avably/core";
 
-import { CHECKOUT_RATE_LIMIT, submitCheckoutCore, type CheckoutRpcArgs, type CheckoutRpcResult } from "@/lib/checkout/core";
+import {
+  CHECKOUT_RATE_LIMIT,
+  submitCheckoutCore,
+  type CheckoutRpcArgs,
+  type CheckoutRpcResult,
+  type PublishedLegalDocumentRef,
+} from "@/lib/checkout/core";
 import type { CheckoutTicket } from "@/lib/checkout/ticket";
 import type { OnlinePaymentAvailability } from "@/lib/checkout/payment-options";
 import { embedError, embedJson, type EmbedMonthPayload } from "./contract";
@@ -67,6 +73,8 @@ export interface EmbedReservationDeps extends EmbedDeps {
    * którego serwer nigdy nie przyjmie.
    */
   readCustomFields: (tenantId: string) => Promise<CustomFieldDefinition[]>;
+  /** Spis opublikowanych dokumentów prawnych (0063) — bramka ADR-191 w rdzeniu. */
+  readLegalDocuments: (tenantId: string) => Promise<PublishedLegalDocumentRef[]>;
   sendEmails: (tenantId: string, ctx: CheckoutRpcResult) => Promise<string[]>;
   readOnlineAvailability: (tenantId: string) => Promise<OnlinePaymentAvailability>;
 }
@@ -166,6 +174,12 @@ export async function handleEmbedReservationRequest(
     sendEmails: (ctx) => deps.sendEmails(tenantId, ctx),
     readOnlineAvailability: () => deps.readOnlineAvailability(tenantId),
     readCustomFields: () => deps.readCustomFields(tenantId),
+    readLegalDocuments: () => deps.readLegalDocuments(tenantId),
+    // Ramka embedu renderuje zgodę z rejestru (etykieta+permalink z serwera
+    // strony widgetu) — deklaracja MUSI być etykietą żywej wersji, jak w
+    // sklepie. To jest DRUGA droga do tej samej funkcji i dostaje tę samą
+    // dyscyplinę (ADR-191).
+    termsFromRegistry: true,
     // Uchwyt zamówienia jest server-only w kontrakcie storefrontu; w ramce na
     // cudzej stronie tym bardziej nie ma go gdzie zapamiętać.
     rememberCheckout: async () => {},
@@ -188,6 +202,11 @@ export async function handleEmbedReservationRequest(
       return embedError(429, "rate_limited");
     case "payment_unavailable":
       return embedError(409, "conflict");
+    // Widget pokazuje wtedy zdanie o dokumentach zamiast ogólnej odmowy —
+    // stan jest jawny na stronie sklepu najemcy, więc to nie jest diagnostyka
+    // ponad to, co każdy i tak widzi (ADR-191).
+    case "legal_documents_missing":
+      return embedError(422, "legal_documents_missing");
     default:
       return embedError(500, "server_error");
   }

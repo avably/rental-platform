@@ -49,14 +49,21 @@ export function embedReservationDeps(request: Request): EmbedReservationDeps {
   // [0059] `issueTicket` jedzie w tym samym pakiecie portów co reszta — embed
   // dziedziczy mint razem z RPC, więc nie może powstać powierzchnia, która
   // woła checkout bez biletu (ADR-125).
-  const { callRpc, sendEmails, readOnlineAvailability, readCustomFields, issueTicket } =
-    reservationDeps(request);
+  const {
+    callRpc,
+    sendEmails,
+    readOnlineAvailability,
+    readCustomFields,
+    readLegalDocuments,
+    issueTicket,
+  } = reservationDeps(request);
   return {
     ...baseDeps(request),
     callRpc,
     sendEmails,
     readOnlineAvailability,
     readCustomFields,
+    readLegalDocuments,
     issueTicket,
   };
 }

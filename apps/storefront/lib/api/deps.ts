@@ -17,6 +17,7 @@ import {
   getPublicCatalog,
   readCheckoutCustomFieldDefinitions,
 } from "@/lib/checkout/catalog";
+import { getPublishedLegalDocuments } from "@/lib/legal/published";
 import { checkoutEmailLogRecorder } from "@/lib/checkout/email-log";
 import { sendCheckoutEmails } from "@/lib/checkout/emails";
 import { readOnlinePaymentAvailability } from "@/lib/checkout/online-availability";
@@ -88,9 +89,11 @@ export function reservationDeps(request: Request): ReservationDeps {
       const { data, error } = await supabase.schema("app").rpc("public_checkout", args);
       if (error) {
         // SQLSTATE przechodzi do rdzenia (23P01 → conflict, 22023 → rejected)
-        // — mapowanie siedzi w rdzeniu, jak przy Server Action.
+        // — mapowanie siedzi w rdzeniu, jak przy Server Action. DETAIL to
+        // wyłącznie znacznik kategorii odmowy (ADR-181/191), nigdy dane.
         const wrapped = new Error(error.message) as CheckoutRpcError;
         wrapped.code = error.code;
+        if (typeof error.details === "string") wrapped.detail = error.details;
         throw wrapped;
       }
       return data as CheckoutRpcResult;
@@ -113,5 +116,9 @@ export function reservationDeps(request: Request): ReservationDeps {
     // Ta sama lista definicji co w sklepie (0058) — konsument maszynowy nie
     // dostaje ani szerszego zbioru pól, ani luźniejszej walidacji.
     readCustomFields: (tenantId) => readCheckoutCustomFieldDefinitions(tenantId),
+    // Ten sam spis opublikowanych dokumentów co w sklepie (0063) — bramka
+    // publikacji H-COMP-01 (ADR-191) obowiązuje konsumenta maszynowego tak
+    // samo: bez dokumentów nie ma sprzedaży żadną powierzchnią.
+    readLegalDocuments: (tenantId) => getPublishedLegalDocuments(tenantId),
   };
 }

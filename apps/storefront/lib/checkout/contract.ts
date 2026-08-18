@@ -192,6 +192,13 @@ export interface CheckoutOrderSummary {
  *                      Zamówienie NIE POWSTAŁO. To nie jest awaria: klient
  *                      wraca do formularza z torem offline (ADR-066), który
  *                      jest pełnoprawną drogą do tej samej rezerwacji.
+ *   legal_documents_missing → najemca nie ma OPUBLIKOWANEGO regulaminu i
+ *                      polityki prywatności (H-COMP-01, ADR-191) — sprzedaż
+ *                      jest wstrzymana, zamówienie NIE POWSTAŁO. Formularz
+ *                      normalnie w ogóle się nie renderuje (bramka na
+ *                      serwerze strony); ten status łapie wyścig „najemca
+ *                      cofnął publikację między renderem a wysłaniem" oraz
+ *                      żądania składane z pominięciem UI.
  *   server_error     → błąd nieoczekiwany / brak kontekstu tenanta
  */
 export type CheckoutResult =
@@ -207,6 +214,7 @@ export type CheckoutResult =
   | { status: "rate_limited" }
   | { status: "captcha_failed" }
   | { status: "payment_unavailable" }
+  | { status: "legal_documents_missing" }
   | { status: "server_error" };
 
 export type CheckoutStatus = CheckoutResult["status"];

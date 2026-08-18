@@ -49,6 +49,7 @@ import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { integrationEnv } from "./helpers/integration-env";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const REQUIRED_ENV = [
   "SUPABASE_LOCAL_URL",
@@ -243,6 +244,9 @@ async function seedAll(admin: SupabaseClient): Promise<Seed> {
   if (tenantError || !tenant) throw new Error(`Tenant: ${tenantError?.message}`);
   const tenantId = tenant.id as string;
   createdTenantIds.push(tenantId);
+  // Komplet dokumentów prawnych (0086/ADR-191) — bez nich checkout odmawia.
+  await publishLegalDocuments(admin, tenantId);
+
 
   const { data: product, error: productError } = await admin
     .from("products")

@@ -20,7 +20,9 @@ import type { SeedState } from "./seed-state";
  * rozwiązywania hosta (30 s) i limity checkoutu (30 zamówień/tenant/h)
  * nie przeciekają między przebiegami.
  */
-export async function seedTenant(): Promise<SeedState> {
+export async function seedTenant(
+  options: { withLegalDocuments?: boolean } = {},
+): Promise<SeedState> {
   const runId = randomBytes(4).toString("hex");
   const slug = `e2e-k1-${runId}`;
 
@@ -42,6 +44,7 @@ export async function seedTenant(): Promise<SeedState> {
     unitCount: 2,
     pickupLocationName: "Magazyn E2E",
     providerAccountId: `acct_e2e_${runId}`,
+    termsVersionId: "",
   };
 
   // 1. Tenant w statusie rozwiązującym się w storefroncie (tylko
@@ -145,6 +148,45 @@ export async function seedTenant(): Promise<SeedState> {
     position_published: 0,
     enabled_published: true,
   });
+
+  // 7a. Dokumenty prawne (0063/0086, ADR-191): checkout odmawia bez
+  //     opublikowanego regulaminu I polityki prywatności, więc tenant ścieżki
+  //     krytycznej dostaje komplet przy zasiewie. Scenariusz odmowy
+  //     (07-bramka-regulaminu) sieje własnego tenanta z `withLegalDocuments:
+  //     false`. Wiersz wersji wstawiamy wprost service_rolem (wzorzec
+  //     packages/db/test); sha256 nadpisze trigger stemplowy.
+  if (options.withLegalDocuments !== false) {
+    for (const kind of ["terms", "privacy"] as const) {
+      const documentId = await insertReturningId(admin, "legal_documents", {
+        tenant_id: state.tenantId,
+        kind,
+        title: kind === "terms" ? "Regulamin E2E" : "Polityka prywatności E2E",
+        body_draft: `Treść (${kind}) najemcy e2e — tekst, na który przystaje klient.`,
+        locale: "pl",
+      });
+      const versionId = await insertReturningId(admin, "legal_document_versions", {
+        tenant_id: state.tenantId,
+        document_id: documentId,
+        kind,
+        version_no: 1,
+        version_label: "v1",
+        title: kind === "terms" ? "Regulamin E2E" : "Polityka prywatności E2E",
+        body: `Treść (${kind}) najemcy e2e — tekst, na który przystaje klient.`,
+        sha256: "0".repeat(64),
+        locale: "pl",
+        published_by: created.data.user.id,
+      });
+      const { error: pointerError } = await admin
+        .from("legal_documents")
+        .update({ current_version_id: versionId })
+        .eq("tenant_id", state.tenantId)
+        .eq("id", documentId);
+      if (pointerError) {
+        throw new Error(`Seed: publikacja (${kind}) nie powiodła się: ${pointerError.message}`);
+      }
+      if (kind === "terms") state.termsVersionId = versionId;
+    }
+  }
 
   // 8. Konto płatności tenanta: identyfikator, po którym webhook znajduje
   //    konto Connect, a storefront pyta dostawcę o gotowość (odpowiada stub).

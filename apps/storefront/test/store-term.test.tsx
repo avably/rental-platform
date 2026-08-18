@@ -138,6 +138,10 @@ function checkoutForm() {
       copy={copy}
       paymentMethods={["transfer"] as never}
       customFields={[]}
+      // Komplet dokumentów opublikowany (ADR-191) — bez tego formularz
+      // renderuje blokadę zamiast checkboxa i submit nie wychodzi, a ta
+      // suita bada oś TERMINU, nie bramkę dokumentów.
+      terms={{ href: "/regulamin/w/1", versionLabel: "v1" }}
     />
   );
 }

@@ -78,6 +78,15 @@ function deps(overrides: Partial<CheckoutDeps> = {}): CheckoutDeps {
     // Domyślnie sklep BEZ płatności online — tor offline i tak działa
     // (ADR-066), więc istniejące przypadki tej suity nic nie tracą.
     readOnlineAvailability: vi.fn(async () => ({ stripeConfigured: false, chargesEnabled: false })),
+    // Domyślnie najemca ma opublikowane OBA dokumenty i deklaracja z wejścia
+    // ("1.0" w INPUT niżej) idzie trybem integracji — istniejące przypadki
+    // suity badają inne bramki i mają przez tę przechodzić. Bramkę ADR-191
+    // bada osobny describe, nadpisując te dwa porty.
+    readLegalDocuments: vi.fn(async () => [
+      { kind: "terms" as const, version_label: "v1" },
+      { kind: "privacy" as const, version_label: "v1" },
+    ]),
+    termsFromRegistry: false,
     rememberCheckout: vi.fn(async () => {}),
     // Domyślnie najemca BEZ pól własnych — istniejące przypadki tej suity
     // opisują checkout sprzed C6-A3 i mają się zachowywać identycznie.
@@ -195,6 +204,74 @@ describe("walidacja — mapa pole→błąd", () => {
   it("metoda dostawy spoza zbioru → invalid", async () => {
     const fields = await fieldsFor({ ...VALID_INPUT, deliveryMethod: "teleport", pickupLocationId: undefined });
     expect(fields.deliveryMethod).toBe("invalid");
+  });
+});
+
+describe("bramka dokumentów prawnych (H-COMP-01, ADR-191)", () => {
+  it("brak opublikowanego regulaminu → legal_documents_missing; RPC, captcha i pola własne NIE ruszane", async () => {
+    const d = deps({
+      readLegalDocuments: vi.fn(async () => [{ kind: "privacy" as const, version_label: "v1" }]),
+    });
+    const result = await submitCheckoutCore(VALID_INPUT, d);
+
+    expect(result).toEqual({ status: "legal_documents_missing" });
+    expect(d.callRpc, "odmowa dotarła do bazy").not.toHaveBeenCalled();
+    // Bramka stoi PRZED captchą (token jest jednorazowy — nie palimy go na
+    // żądaniu, które i tak odrzucimy) i PRZED odczytem definicji pól.
+    expect(d.verifyCaptcha).not.toHaveBeenCalled();
+    expect(d.readCustomFields).not.toHaveBeenCalled();
+  });
+
+  it("brak opublikowanej polityki prywatności → legal_documents_missing (komplet, nie sam regulamin)", async () => {
+    const d = deps({
+      readLegalDocuments: vi.fn(async () => [{ kind: "terms" as const, version_label: "v1" }]),
+    });
+    const result = await submitCheckoutCore(VALID_INPUT, d);
+    expect(result).toEqual({ status: "legal_documents_missing" });
+    expect(d.callRpc).not.toHaveBeenCalled();
+  });
+
+  it("pusty spis (fail-closed transportu w warstwie odczytu) → legal_documents_missing", async () => {
+    const d = deps({ readLegalDocuments: vi.fn(async () => []) });
+    const result = await submitCheckoutCore(VALID_INPUT, d);
+    expect(result).toEqual({ status: "legal_documents_missing" });
+    expect(d.callRpc).not.toHaveBeenCalled();
+  });
+
+  it("port RZUCAJĄCY to niewiedza, nie brak dokumentów → server_error (wzorzec readCustomFields)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const d = deps({
+      readLegalDocuments: vi.fn(async () => {
+        throw new Error("transport padł");
+      }),
+    });
+    const result = await submitCheckoutCore(VALID_INPUT, d);
+    expect(result).toEqual({ status: "server_error" });
+    expect(d.callRpc).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("tryb rejestru: deklaracja spoza żywej etykiety → rejected, RPC NIE wołane", async () => {
+    // Storefront i embed renderują zgodę z rejestru — ich deklaracja MUSI być
+    // etykietą żywej wersji. "1.0" (dawna stała) przestaje mieć jak przejść.
+    const d = deps({ termsFromRegistry: true });
+    const result = await submitCheckoutCore({ ...VALID_INPUT, termsVersion: "1.0" }, d);
+    expect(result).toEqual({ status: "rejected" });
+    expect(d.callRpc).not.toHaveBeenCalled();
+  });
+
+  it("tryb rejestru: deklaracja równa żywej etykiecie przechodzi do RPC (kontrola pozytywna)", async () => {
+    const d = deps({ termsFromRegistry: true });
+    const result = await submitCheckoutCore({ ...VALID_INPUT, termsVersion: "v1" }, d);
+    expect(result.status).toBe("success");
+    expect(d.callRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("tryb integracji: własna stała wersji przechodzi do RPC przy komplecie dokumentów (dług ADR-129d)", async () => {
+    const d = deps({ termsFromRegistry: false });
+    const result = await submitCheckoutCore({ ...VALID_INPUT, termsVersion: "1.0" }, d);
+    expect(result.status).toBe("success");
+    expect(d.callRpc).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -327,10 +404,11 @@ describe("kwoty liczy SERWER — wejście ich nie niesie", () => {
 });
 
 describe("mapowanie SQLSTATE na status", () => {
-  function rpcThrowing(code?: string) {
+  function rpcThrowing(code?: string, detail?: string) {
     return vi.fn(async () => {
       const err = new Error("db error dla klient@example.com") as CheckoutRpcError;
       if (code) err.code = code;
+      if (detail) err.detail = detail;
       throw err;
     });
   }
@@ -342,6 +420,26 @@ describe("mapowanie SQLSTATE na status", () => {
 
   it("22023 (odmowa walidacyjna serwera) → rejected", async () => {
     const result = await submitCheckoutCore(VALID_INPUT, deps({ callRpc: rpcThrowing("22023") }));
+    expect(result).toEqual({ status: "rejected" });
+  });
+
+  it("22023 + detail 'legal_documents_missing' → legal_documents_missing (wyścig cofnięcia publikacji)", async () => {
+    // Formularz wyrenderowany, najemca cofnął publikację, submit poszedł:
+    // warstwa akcji mogła jeszcze widzieć komplet, ale baza (0086) już nie.
+    // Znacznik z DETAIL (jedyny obok terms_outdated — ADR-181) daje klientowi
+    // zdanie o dokumentach zamiast ogólnej odmowy.
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc: rpcThrowing("22023", "legal_documents_missing") }),
+    );
+    expect(result).toEqual({ status: "legal_documents_missing" });
+  });
+
+  it("22023 z innym detail (np. terms_outdated) zostaje przy rejected", async () => {
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc: rpcThrowing("22023", "terms_outdated") }),
+    );
     expect(result).toEqual({ status: "rejected" });
   });
 

@@ -109,6 +109,13 @@ function reservationDeps(c: Counters, overrides: Partial<EmbedReservationDeps> =
     tenantId: TENANT_A,
     ip: "203.0.113.7",
     now: () => 1_000_000,
+    // Komplet opublikowanych dokumentów (ADR-191) — deklaracja formularza
+    // embedu w tej suicie brzmi "v1" i musi być etykietą żywej wersji
+    // (termsFromRegistry=true w handlerze). Odmowę bramki bada osobny case.
+    readLegalDocuments: async () => [
+      { kind: "terms" as const, version_label: "v1" },
+      { kind: "privacy" as const, version_label: "v1" },
+    ],
     // Bilet zaufanej granicy (0059) — atrapa znakująca tenanta: embed jest
     // TRZECIĄ powierzchnią na tym samym rdzeniu i też musi bilet wystawić.
     issueTicket: (tenantId) => ({
@@ -148,7 +155,9 @@ const VALID_RESERVATION = {
   paymentMethod: "transfer",
   items: [{ productId: PRODUCT_A, quantity: 1 }],
   termsAccepted: true,
-  termsVersion: "1.0",
+  // Etykieta ŻYWEJ wersji z portu readLegalDocuments (ADR-191): embed
+  // renderuje zgodę z rejestru, więc jego deklaracja musi się z nim zgadzać.
+  termsVersion: "v1",
 };
 
 function reservationReq(headers: Record<string, string> = {}, body: unknown = VALID_RESERVATION): Request {
@@ -290,6 +299,33 @@ describe("embed — bramka origin (CORS jako kontrakt)", () => {
 
     expect(response.status).toBe(201);
     expect(c.rpc).toBe(1);
+  });
+
+  it("ZAPIS u najemcy bez opublikowanych dokumentów → 422 legal_documents_missing, RPC nietknięte (ADR-191)", async () => {
+    const c = counters();
+    const response = await handleEmbedReservationRequest(
+      reservationReq({ origin: SAME_ORIGIN }),
+      reservationDeps(c, { readLegalDocuments: async () => [] }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: { code: "legal_documents_missing" } });
+    expect(c.rpc, "odmowa dotarła do bazy").toBe(0);
+  });
+
+  it("ZAPIS z deklaracją spoza żywej etykiety → 422 rejected (embed renderuje zgodę z rejestru)", async () => {
+    // Formularz embedu wysyła etykietę, którą dostał z serwera strony —
+    // każda inna (dawna stała "1.0", spreparowany payload) musi się odbić
+    // w rdzeniu, zanim baza w ogóle ją zobaczy (termsFromRegistry=true).
+    const c = counters();
+    const response = await handleEmbedReservationRequest(
+      reservationReq({ origin: SAME_ORIGIN }, { ...VALID_RESERVATION, termsVersion: "1.0" }),
+      reservationDeps(c),
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: { code: "rejected" } });
+    expect(c.rpc, "obca deklaracja dotarła do bazy").toBe(0);
   });
 
   it("ŻADNA trasa embedu nie wysyła Access-Control-Allow-Origin — ani '*', ani listy", async () => {

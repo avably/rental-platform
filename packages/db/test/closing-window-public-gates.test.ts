@@ -27,6 +27,7 @@ import WebSocket from "ws";
 
 import { integrationEnv } from "./helpers/integration-env";
 import { cleanupSeeded, createAdminClient, seedTwoTenants, type TenantCtx } from "./helpers/seed-tenants";
+import { publishLegalDocuments } from "./helpers/publish-legal-documents";
 
 const REQUIRED_ENV = [
   "SUPABASE_LOCAL_API_URL",
@@ -100,6 +101,8 @@ describe.skipIf(!hasEnv)("okno domykania NIE otwiera publicznych RPC (ADR-138, (
     anon = createAnonClient();
     const pair = await seedTwoTenants();
     shop = pair.a;
+    // Komplet dokumentów prawnych (0086/ADR-191) — bez nich checkout odmawia.
+    await publishLegalDocuments(admin, shop.tenantId);
 
     // Pełny sklep: produkt + egzemplarze + punkt odbioru + konto płatności
     // + pole własne + opublikowana strona.

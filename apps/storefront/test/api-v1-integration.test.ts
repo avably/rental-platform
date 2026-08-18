@@ -19,6 +19,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getPublicAvailability, getPublicCatalog } from "@/lib/checkout/catalog";
+import { getPublishedLegalDocuments } from "@/lib/legal/published";
 import type { CheckoutRpcError, CheckoutRpcResult } from "@/lib/checkout/core";
 import {
   handleAvailabilityRequest,
@@ -93,8 +94,60 @@ function liveReservationDeps(
       return [];
     },
     readOnlineAvailability: async () => ({ stripeConfigured: false, chargesEnabled: false }),
+    // PRAWDZIWY odczyt spisu dokumentów kluczem anon (0063) — ta sama ścieżka,
+    // którą buduje deps.ts. Bramka publikacji (ADR-191) ma tu działać po
+    // żywej bazie, nie po atrapie.
+    readLegalDocuments: async (tenantId) => getPublishedLegalDocuments(tenantId, anonClient()),
     ...overrides,
   };
+}
+
+/**
+ * Publikacja OBU dokumentów prawnych najemcy wprost service_rolem (szkic +
+ * wiersz wersji + wskaźnik żywej wersji) — od 0086 checkout odmawia bez
+ * kompletu publikacji (ADR-191), więc seed każdego najemcy, który ma COKOLWIEK
+ * sprzedać, musi ją mieć. sha256 nadpisze trigger stemplowy z 0063.
+ */
+async function publishLegalDocuments(admin: SupabaseClient, tenantId: string): Promise<void> {
+  for (const kind of ["terms", "privacy"] as const) {
+    const { data: doc, error } = await admin
+      .from("legal_documents")
+      .insert({
+        tenant_id: tenantId,
+        kind,
+        title: kind === "terms" ? "Regulamin" : "Polityka prywatności",
+        body_draft: `Treść dokumentu (${kind}) na potrzeby testów API v1.`,
+        locale: "pl",
+      })
+      .select("id")
+      .single();
+    if (error || !doc) throw new Error(`publishLegalDocuments(${kind}): ${error?.message}`);
+    const { data: version, error: versionError } = await admin
+      .from("legal_document_versions")
+      .insert({
+        tenant_id: tenantId,
+        document_id: doc.id,
+        kind,
+        version_no: 1,
+        version_label: "v1",
+        title: kind === "terms" ? "Regulamin" : "Polityka prywatności",
+        body: `Treść dokumentu (${kind}) na potrzeby testów API v1.`,
+        sha256: "0".repeat(64),
+        locale: "pl",
+        published_by: randomUUID(),
+      })
+      .select("id")
+      .single();
+    if (versionError || !version) {
+      throw new Error(`publishLegalDocuments(${kind}/wersja): ${versionError?.message}`);
+    }
+    const { error: pointerError } = await admin
+      .from("legal_documents")
+      .update({ current_version_id: version.id })
+      .eq("tenant_id", tenantId)
+      .eq("id", doc.id);
+    if (pointerError) throw new Error(`publishLegalDocuments(${kind}/wskaźnik): ${pointerError.message}`);
+  }
 }
 
 const createdTenantIds: string[] = [];
@@ -213,6 +266,10 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     admin = adminClient();
     tenantA = await seedTenant(admin, "a");
     tenantB = await seedTenant(admin, "b");
+    // Komplet dokumentów prawnych dla OBU — bez tego bramka 0086 odmówiłaby
+    // każdej rezerwacji tej suity, zanim doszłaby do badanych tu granic.
+    await publishLegalDocuments(admin, tenantA);
+    await publishLegalDocuments(admin, tenantB);
     productA = await seedProductWithUnit(admin, tenantA);
     productB = await seedProductWithUnit(admin, tenantB);
     rawKeyA = await seedApiKey(admin, tenantA);
