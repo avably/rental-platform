@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
-import type {
-  EmailLogEntry,
-  EmailLogRecorder,
-  EmailTransport,
-  OutgoingEmail,
-  TenantSettingRow,
+import {
+  PANEL_URL,
+  type EmailLogEntry,
+  type EmailLogRecorder,
+  type EmailTransport,
+  type OutgoingEmail,
+  type TenantSettingRow,
 } from "@avably/core";
 
 import { buildInvitationEmail, sendInvitationEmail } from "@/lib/email";
 
 const base = {
   to: "nowy@example.com",
-  acceptUrl: "https://www.avably.io/zaproszenie/abc123",
+  // Host PANELU wyprowadzony ze stałej, nie wklejony: strona akceptacji żyje
+  // w panelu. Poprzedni literał (kanon marketingowy) KODOWAŁ defekt ADR-190 —
+  // suita była zielona wobec linku prowadzącego w 404. Kontrakt na host pilnuje
+  // test invitation-accept-url-kontrakt.test.ts, na REALNYCH akcjach.
+  acceptUrl: `${PANEL_URL}/zaproszenie/abc123`,
   locale: "pl" as const,
   organizationName: "Wypożyczalnia Demo",
   role: "staff" as const,

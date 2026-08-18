@@ -58,7 +58,6 @@ import { createHmac } from "node:crypto";
 
 import {
   DEFAULT_LOCALE,
-  PANEL_URL,
   isLocale,
   platformFromAddress,
   PRODUCT_NAME,
@@ -71,6 +70,7 @@ import { emailMessages, renderEmailConfirmation, renderPasswordReset } from "@av
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { panelBaseUrl } from "@/lib/panel-url";
 import { verifyStandardWebhook } from "@/lib/standard-webhook";
 
 /** Nazwa zmiennej środowiskowej z sekretem hooka (sensitive, tylko server-side). */
@@ -146,9 +146,6 @@ export function accountEmailLocale(metadata: Record<string, unknown> | undefined
   return typeof raw === "string" && isLocale(raw) ? raw : DEFAULT_LOCALE;
 }
 
-/** Baza linku poza produkcją. Dev i testy muszą trafiać we własny serwer. */
-const LOCAL_CALLBACK_BASE = "http://127.0.0.1:3000";
-
 /**
  * Baza linku potwierdzającego pochodzi WYŁĄCZNIE z naszej konfiguracji:
  * `PANEL_URL` na produkcji, localhost poza nią. Payload jej nie dotyka.
@@ -165,10 +162,13 @@ const LOCAL_CALLBACK_BASE = "http://127.0.0.1:3000";
  * Host linku to nasza tożsamość produktu (brand.ts), nie parametr żądania.
  * Wartość z payloadu nadal CZYTAMY, ale wyłącznie po to, by wykryć rozjazd
  * konfiguracji — patrz `warnOnRedirectToMismatch`.
+ *
+ * SAMA FUNKCJA MIESZKA DZIŚ W lib/panel-url.ts JAKO `panelBaseUrl` (ADR-190):
+ * tę samą bazę składa też link akceptacji zaproszenia, a nazwa „callback"
+ * opisywała tylko jeden z dwóch przypadków. Stary eksport zostaje aliasem —
+ * wołający (password-changed-email.ts, testy) nie zmieniają zachowania.
  */
-export function callbackBaseUrl(): string {
-  return process.env.NODE_ENV === "production" ? PANEL_URL : LOCAL_CALLBACK_BASE;
-}
+export { panelBaseUrl as callbackBaseUrl } from "@/lib/panel-url";
 
 /** Znormalizowany origin albo `undefined`, gdy wartość nie jest adresem http(s). */
 function httpOrigin(value: string): string | undefined {
@@ -247,7 +247,7 @@ export async function buildAccountEmail(payload: HookPayload): Promise<OutgoingE
   const locale = accountEmailLocale(payload.user.user_metadata);
   // Jedna baza policzona RAZ: ta sama wartość idzie do porównania i do linku,
   // więc log nie może twierdzić czegoś innego, niż dostał użytkownik.
-  const baseUrl = callbackBaseUrl();
+  const baseUrl = panelBaseUrl();
   warnOnRedirectToMismatch(payload.email_data.redirect_to, baseUrl);
   const actionUrl = buildActionUrl({
     action,
