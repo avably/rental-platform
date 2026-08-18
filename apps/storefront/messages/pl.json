@@ -326,6 +326,12 @@
       "honestTitle": "Bez gwiazdek",
       "honest1": "Nie ma opłaty wdrożeniowej ani umowy na rok — nie ma też czego wdrażać: konto zakładasz e-mailem i klikasz sam. Karty nie zbieramy, więc po 14 dniach nic się samo nie naliczy; płatność abonamentu włączamy przed startem komercyjnym i uprzedzimy o tym mailem.",
       "honest2": "Listy Premium nie sprzedajemy, dopóki nie zacznie działać. Pokazujemy ją, żebyś wiedział, dokąd idzie produkt, i mógł nam powiedzieć, że kolejność jest zła. Dane Twojej wypożyczalni są przy tym oddzielone od cudzych w samej bazie danych, a nie na ekranie — sprawdza to test przy każdej zmianie systemu."
+    },
+    "notFoundPage": {
+      "eyebrow": "Błąd 404",
+      "title": "Ta strona nie istnieje",
+      "description": "Adres jest błędny albo strona została przeniesiona. Wszystko, co publikujemy, znajdziesz ze strony głównej.",
+      "cta": "Wróć na stronę główną"
     }
   },
   "landing": {
@@ -341,6 +347,10 @@
       "catalog": "Katalog",
       "cart": "Koszyk",
       "cartCount": "{count} szt."
+    },
+    "notFound": {
+      "title": "Nie znaleźliśmy takiej strony",
+      "description": "Adres mógł się zmienić albo pozycja nie jest już dostępna w tym sklepie."
     },
     "siteLabels": {
       "productsEmpty": "Katalog jest w przygotowaniu.",
@@ -538,6 +548,7 @@
         "items": "Koszyk jest pusty lub zawiera niedostępny produkt.",
         "terms": "Zaakceptuj regulamin, aby kontynuować.",
         "generic": "Sprawdź zaznaczone pola.",
+        "summary": "Formularz zawiera błędy do poprawienia: {count}.",
         "unavailable": "Termin zajęty — wybierz inny termin lub mniejszą ilość.",
         "rejected": "Nie udało się złożyć zamówienia. Sprawdź dane i spróbuj ponownie.",
         "rateLimited": "Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.",

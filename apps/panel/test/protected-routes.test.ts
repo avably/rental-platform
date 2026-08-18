@@ -97,6 +97,15 @@ const PUBLIC_ROUTES = new Map<string, string>([
   ["/reset", "prośba o reset hasła — użytkownik nie ma jak się zalogować"],
   ["/reset/confirm", "ustawienie nowego hasła z linku e-mail (sesja recovery)"],
   ["/design-system", "galeria komponentów @avably/ui — statyczna, zero danych tenanta"],
+  [
+    "/[...rest]",
+    "catch-all NIEDOPASOWANYCH adresów (L-UX-01, ADR-197) — rzuca notFound() " +
+      "bez czytania czegokolwiek, więc nie ma czego bronić: anonim pod " +
+      "nieznanym adresem dostaje 404 (tak jak przed tą trasą dostawał " +
+      "wbudowane 404 Nexta), a nie przekierowanie na logowanie, które " +
+      "sugerowałoby, że pod adresem coś jest. Trasy istniejące wygrywają " +
+      "z catch-allem w routerze, więc ich guardy pozostają nietknięte.",
+  ],
 ]);
 
 /**

@@ -30,7 +30,14 @@ export async function NotFoundScreen({
       className="border-border bg-card flex flex-col items-start gap-4 rounded-lg border p-8"
     >
       <p className="text-muted-foreground text-2xl font-semibold tabular-nums">{t("code")}</p>
-      <h1 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("title")}</h1>
+      {/*
+        h2, nie h1 (M-A11Y/L-UX-01, ADR-197): ten ekran renderuje się POD
+        BELKĄ SHELLA, a jedyny h1 ekranu niesie belka (ADR-060, wzorzec
+        pilnowany przez heading-hierarchy-contract). Drugi h1 psuł nawigację
+        czytnika po nagłówkach — 404 zamówienia miał to dobrze (h2) od ADR-057,
+        ten komponent nie.
+      */}
+      <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">{t("title")}</h2>
       <Button asChild>
         <Link href={back.href}>{back.label}</Link>
       </Button>

@@ -178,6 +178,9 @@
       "invoice": "Faktura"
     }
   },
+  "notFound": {
+    "backToDashboard": "Wróć do pulpitu"
+  },
   "nav": {
     "superadmin": "Superadmin",
     "superadminLink": "Panel superadmina",
