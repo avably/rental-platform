@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "zod": "^4.4.3",
-    "@supabase/supabase-js": "^2.110.5"
+    "@supabase/supabase-js": "^2.112.3"
   },
   "peerDependencies": {
     "react": "^19.0.0",

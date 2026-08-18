@@ -451,8 +451,8 @@ describe("bramka uwierzytelniania — 500 od GoTrue pod presją", () => {
 
 describe("diagnostyka przez PRAWDZIWE supabase-js — koniec z `{}`", () => {
   // Ten opis nie zakłada, jak auth-js buduje komunikat — sprawdza to na żywym
-  // kliencie. Bez tego doklejenie `msg` byłoby dowodem po pustym zbiorze:
-  // asercja na samym polu odpowiedzi nie mówi, czy TEST zobaczy prawdę.
+  // kliencie: asercja na samym kształcie odpowiedzi nie mówi, czy WOŁAJĄCY
+  // zobaczy prawdę o 5xx.
   function adminClient(fetchImpl: typeof fetch) {
     return createClient(GATEWAY, "service-role-key-atrapa", {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -461,16 +461,28 @@ describe("diagnostyka przez PRAWDZIWE supabase-js — koniec z `{}`", () => {
     });
   }
 
-  it("PRZESŁANKA: bez naszej warstwy auth-js gubi ciało 5xx i daje dosłownie `{}`", async () => {
+  it("bez warstwy: auth-js zachowuje treść ciała 5xx — `{}` to już historia", async () => {
+    // Do 2.112.0 auth-js gubił ciało 5xx i `error.message` było dosłownie
+    // „{}" — ta sygnatura kosztowała nas 3 dni losowych czerwieni `rls`;
+    // od 2.112.1 (supabase-js#2587) treść ciała jest zachowana i ten test
+    // pilnuje, że tak zostaje.
     const base = fetchQueue({ response: () => gotrueDbFailure() });
     const { error } = await adminClient(base as unknown as typeof fetch).auth.admin.createUser({
       email: "seed@test.local",
     });
 
-    expect(error?.message).toBe("{}");
+    expect(error?.message).not.toBe("{}");
+    expect(error?.message).toContain("Database error creating new user");
+    expect(error?.status).toBe(500);
   });
 
-  it("z warstwą: komunikat niesie status HTTP i treść odpowiedzi GoTrue", async () => {
+  it("z warstwą: po wyczerpaniu retry treść odpowiedzi GoTrue dociera nietknięta", async () => {
+    // Warstwa dokleja diagnostykę jako pole `msg` obiektu Response — do
+    // 2.112.0 była to JEDYNA droga, żeby prawda o 5xx dojechała do
+    // `error.message`. Od 2.112.1 auth-js buduje komunikat z CIAŁA
+    // odpowiedzi, więc doklejone pole nie jest już czytane — a ten test
+    // pilnuje, że warstwa przy tym NICZEGO nie zaciemnia: po czterech
+    // podejściach wołający widzi dokładnie to, co odpisał GoTrue.
     const base = fetchQueue(
       { response: () => gotrueDbFailure("Database error checking email") },
       { response: () => gotrueDbFailure("Database error checking email") },
@@ -483,8 +495,10 @@ describe("diagnostyka przez PRAWDZIWE supabase-js — koniec z `{}`", () => {
       email: "seed@test.local",
     });
 
+    // Licznik podejść: dowód, że błąd przeszedł PRZEZ warstwę retry,
+    // a nie obok niej.
+    expect(base).toHaveBeenCalledTimes(4);
     expect(error?.message).not.toBe("{}");
-    expect(error?.message).toContain("GoTrue 500");
     expect(error?.message).toContain("Database error checking email");
     expect(error?.status).toBe(500);
   });
