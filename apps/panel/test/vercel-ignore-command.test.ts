@@ -1,5 +1,5 @@
 /**
- * WARUNEK POMINIĘCIA BUILDU NA VERCELU (ADR-189) — kontrakt z zależnościami.
+ * WARUNEK POMINIĘCIA BUILDU NA VERCELU (ADR-192) — kontrakt z zależnościami.
  *
  * Limit Hobby to 100 deployów na dobę, a KAŻDY push budował oba projekty, także
  * gdy diff ich nie dotyczył. Reguła świeżej bazy wymusza rebase i push wszystkich
