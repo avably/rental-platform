@@ -22,6 +22,7 @@ import { StoreHeader } from "@/components/storefront/store-header";
 import {
   StoreCatalogAvailability,
   StoreTermBar,
+  StoreTermPill,
   StoreTermProvider,
   type StoreTermProduct,
 } from "@/components/storefront/store-term";
@@ -155,7 +156,19 @@ export function StoreChrome({
         jedna odpowiedź dla całej strony.
       */}
       <StoreTermProvider>
-        <StoreHeader copy={copy} storeName={storeName} logo={logo} />
+        {/*
+          PIGUŁKA TERMINU W BELCE (aneks ADR-194): na desktopie stoi między
+          znakiem a koszykiem (slot `center` nagłówka), na mobile tę samą
+          treść pokazuje wiersz w `StoreTermBar` niżej — media query pokazuje
+          dokładnie jedno wystąpienie. Trasy bez terminu (płatność, status,
+          dokumenty) nie dostają ani slotu, ani wiersza — jak przed aneksem.
+        */}
+        <StoreHeader
+          copy={copy}
+          storeName={storeName}
+          logo={logo}
+          center={term ? <StoreTermPill copy={copy} /> : undefined}
+        />
         {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}
         {/*
           LICZBY NA KAFLE KATALOGU (faza 5, ADR-180) — z tej samej, jednej
