@@ -189,6 +189,48 @@ describe("dwie powierzchnie: powłoka i strona sprzętu", () => {
   });
 });
 
+describe("widok kilku miesięcy (ADR-194)", () => {
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: modal zakresu prosi o dwa miesiące, a dostaje
+  // jeden (wybór „od piątku do wtorku za dwa tygodnie" znowu wymaga
+  // przewijania) — albo dostaje dwa z DWIEMA parami strzałek, czyli dwie
+  // konkurujące nawigacje jednego stanu.
+  it("months=2 maluje dni OBU miesięcy przy JEDNEJ parze strzałek", () => {
+    renderCalendar({ months: 2, maxDate: "2027-08-20" });
+
+    // Dzień z pierwszego i z drugiego miesiąca — oba w dokumencie.
+    expect(day("2027-05-20")).toBeTruthy();
+    expect(day("2027-06-10")).toBeTruthy();
+    // Nawigacja jest JEDNA: getByLabelText rzuciłby przy dwóch trafieniach.
+    expect(screen.getByLabelText("Następny miesiąc")).toBeTruthy();
+    expect(screen.getByLabelText("Poprzedni miesiąc")).toBeTruthy();
+  });
+
+  it("strzałka przesuwa KOTWICĘ o jeden miesiąc — miesiące pochodne jadą za nią", () => {
+    const { onMonthChange } = renderCalendar({ months: 2, maxDate: "2027-08-20" });
+    fireEvent.click(screen.getByLabelText("Następny miesiąc"));
+    expect(onMonthChange).toHaveBeenCalledWith("2027-06");
+  });
+
+  // Klik w dzień DRUGIEGO miesiąca przechodzi przez tę samą regułę zakresu,
+  // co pierwszy — dwie siatki, jedna mechanika.
+  it("klik w dzień drugiego miesiąca woła onSelect tą samą regułą zakresu", () => {
+    const { onSelect } = renderCalendar({
+      months: 2,
+      maxDate: "2027-08-20",
+      start: "2027-05-20",
+      end: null,
+    });
+    fireEvent.click(day("2027-06-03"));
+    expect(onSelect).toHaveBeenCalledWith({ start: "2027-05-20", end: "2027-06-03" });
+  });
+
+  // Domyślne months=1 to DOKŁADNIE dotychczasowy kształt — bez drugiej siatki.
+  it("bez months siatka ma jeden miesiąc (kontrola wsteczna)", () => {
+    renderCalendar();
+    expect(document.querySelector('[data-calendar-day="2027-06-10"]')).toBeNull();
+  });
+});
+
 describe("zaznaczenie zakresu", () => {
   it("krańce i środek zakresu są rozróżnialne, a dni poza nim nieoznaczone", () => {
     renderCalendar({ start: "2027-05-10", end: "2027-05-13" });

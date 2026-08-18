@@ -155,7 +155,7 @@ function dayFromToday(offset: number): string {
 
 /**
  * Klik w dzień, przewijając siatkę do jego miesiąca. Przewijanie jest częścią
- * scenariusza, a nie obejściem: kalendarz otwiera się na miesiącu terminu,
+ * scenariusza, a nie obejściem: okno wyboru otwiera się na miesiącu terminu,
  * który klient JUŻ ma, więc wybór terminu o miesiąc dalej naprawdę wymaga
  * kliknięcia „następny miesiąc" — i tę drogę też trzeba przejść.
  */
@@ -171,8 +171,17 @@ function clickDay(iso: string): void {
   throw new Error(`Brak dnia ${iso} w siatce po przewinięciu okna`);
 }
 
+/** Pigułka paska otwiera OKNO wyboru (ADR-194) — dawniej rozwijała siatkę w treści. */
 function openCalendar(): void {
   fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!);
+}
+
+/**
+ * JEDYNY ZAPIS TERMINU: przycisk „Zastosuj" w oknie wyboru (ADR-194). Wybór
+ * dni zmienia wyłącznie szkic okna — bez tego kliknięcia koszyk nie drgnie.
+ */
+function applyTerm(): void {
+  fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-apply]")!);
 }
 
 beforeEach(() => {
@@ -205,11 +214,65 @@ describe("wybór terminu w powłoce", () => {
     openCalendar();
     clickDay(start);
     clickDay(end);
+    applyTerm();
 
     await waitFor(() => {
       expect(readCart().startDate).toBe(start);
       expect(readCart().endDate).toBe(end);
     });
+  });
+
+  // BRAMKA ADR-194: ZASTOSUJ = JEDYNY ZAPIS. Wybór dni w oknie zmienia szkic
+  // okna, nie koszyk — zapis dzieje się dokładnie raz, na „Zastosuj".
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót zapisu na klik dnia (stara forma). Klient,
+  // który tylko OGLĄDA terminy, zmieniałby przy tym swój koszyk — a panel
+  // konfliktu wyskakiwałby w pół wyboru, o który nikt jeszcze nie prosił.
+  it("wybór dat w oknie BEZ „Zastosuj\" nie zmienia stanu koszyka", async () => {
+    render(shell());
+    const start = dayFromToday(3);
+    const end = dayFromToday(6);
+
+    openCalendar();
+    clickDay(start);
+    clickDay(end);
+
+    // Szkic wybrany (krańce zaznaczone w siatce), a koszyk nietknięty.
+    expect(document.querySelector(`[data-calendar-day="${start}"]`)!.getAttribute("aria-pressed")).toBe("true");
+    expect(readCart().startDate).toBeNull();
+    expect(readCart().endDate).toBeNull();
+
+    // Zamknięcie krzyżykiem też nie zapisuje.
+    fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-modal-close]")!);
+    expect(document.querySelector("[data-store-term-modal]")).toBeNull();
+    expect(readCart().startDate).toBeNull();
+
+    // KONTROLA POZYTYWNA: ta sama droga Z „Zastosuj" zapisuje — bez niej ten
+    // test przechodziłby także wtedy, gdyby okno nie zapisywało NIGDY.
+    openCalendar();
+    clickDay(start);
+    clickDay(end);
+    applyTerm();
+    await waitFor(() => expect(readCart().startDate).toBe(start));
+    expect(readCart().endDate).toBe(end);
+  });
+
+  // „WYCZYŚĆ" zeruje szkic, a wyzerowany termin dociera do koszyka tą samą,
+  // JEDYNĄ drogą zapisu — przez „Zastosuj" (ADR-194).
+  it("„Wyczyść\" + „Zastosuj\" zeruje termin w koszyku", async () => {
+    const start = dayFromToday(3);
+    const end = dayFromToday(6);
+    writeCart({ items: [], startDate: start, endDate: end });
+    render(shell());
+
+    openCalendar();
+    fireEvent.click(document.querySelector<HTMLButtonElement>("[data-store-term-clear]")!);
+    // Sam „Wyczyść" nie pisze — koszyk dalej trzyma termin.
+    expect(readCart().startDate).toBe(start);
+
+    applyTerm();
+    await waitFor(() => expect(readCart().startDate).toBeNull());
+    expect(readCart().endDate).toBeNull();
   });
 
   it("termin przy PUSTYM koszyku jest legalny — najpierw „kiedy\", potem „co\"", async () => {
@@ -218,6 +281,7 @@ describe("wybór terminu w powłoce", () => {
 
     openCalendar();
     clickDay(start);
+    applyTerm();
 
     await waitFor(() => expect(readCart().startDate).toBe(start));
     expect(readCart().items).toHaveLength(0);
@@ -243,6 +307,7 @@ describe("wybór terminu w powłoce", () => {
     openCalendar();
     clickDay(start);
     clickDay(end);
+    applyTerm();
 
     await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledWith(start, end));
     expect(readCart().items).toHaveLength(0);
@@ -263,11 +328,44 @@ describe("wybór terminu w powłoce", () => {
     openCalendar();
     clickDay(start);
     clickDay(end);
+    applyTerm();
     await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledTimes(1));
 
     writeCart({ items: [{ productId: ROWER, quantity: 1 }], startDate: start, endDate: end });
     await waitFor(() => expect(screen.getByText(/Rower górski/)).toBeTruthy());
     expect(checkCatalogAvailability).toHaveBeenCalledTimes(1);
+  });
+
+  // BRAMKA ADR-194: PIGUŁKA ODZWIERCIEDLA STAN KOSZYKA. Dwa stany tego samego
+  // widoku: bez terminu zachęta, z terminem zakres + akcja zmiany. Nie ma tu
+  // trzeciego stanu ani drugiego źródła — treść pigułki jest funkcją
+  // `CartState.startDate/endDate` (SSR maluje stan „bez terminu", bo koszyk
+  // mieszka w localStorage; hydratacja podmienia treść, nie obecność).
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: pigułka z własnym stanem (nie czyta koszyka) albo
+  // jednostanowa — klient z wybranym terminem nie widziałby GDZIE go zmienić,
+  // a klient bez terminu nie dostawałby zachęty.
+  it("pigułka odzwierciedla stan koszyka: zachęta bez terminu, zakres i zmiana z terminem", async () => {
+    render(shell());
+    const pill = document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!;
+    const start = dayFromToday(5);
+    const end = dayFromToday(8);
+
+    // STAN 1 — bez terminu: zachęta, bez akcji zmiany.
+    expect(pill.textContent).toContain(copy.term.choose);
+    expect(pill.textContent).not.toContain(copy.term.change);
+
+    // STAN 2 — termin w koszyku (zapisany skądkolwiek, np. z drugiej karty):
+    // pigułka pokazuje zakres i akcję zmiany, zachęta znika.
+    writeCart({ items: [], startDate: start, endDate: end });
+    await waitFor(() => {
+      expect(
+        document.querySelector("[data-store-term-summary]")!.textContent,
+        "pigułka nie pokazała zakresu z koszyka",
+      ).toContain(start);
+    });
+    expect(pill.textContent).toContain(copy.term.change);
+    expect(pill.textContent).not.toContain(copy.term.choose);
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ (R2): gdyby powłoka zaczęła malować dostępność,
@@ -287,21 +385,25 @@ describe("wybór terminu w powłoce", () => {
     render(shell());
     openCalendar();
     // Horyzont liczy się ze stałej rdzenia (AVAILABILITY_WINDOW_MAX_DAYS = 90),
-    // więc ostatni wybieralny dzień to dziś + 89.
-    fireEvent.click(screen.getByLabelText(copy.term.nextMonth));
-    fireEvent.click(screen.getByLabelText(copy.term.nextMonth));
-    fireEvent.click(screen.getByLabelText(copy.term.nextMonth));
+    // więc ostatni wybieralny dzień to dziś + 89. Nawigacja idzie DO KOŃCA
+    // okna (aż przycisk zgaśnie), a nie o sztywną liczbę miesięcy — liczba
+    // hopów zależy od dnia miesiąca i od tego, ile miesięcy maluje siatka.
+    for (let hop = 0; hop < 6; hop += 1) {
+      const next = screen.getByLabelText<HTMLButtonElement>(copy.term.nextMonth);
+      if (next.disabled) break;
+      fireEvent.click(next);
+    }
     const last = document.querySelector<HTMLButtonElement>(
       `[data-calendar-day="${dayFromToday(89)}"]`,
     );
     const beyond = document.querySelector<HTMLButtonElement>(
       `[data-calendar-day="${dayFromToday(90)}"]`,
     );
-    if (last !== null) expect(last.disabled).toBe(false);
+    // Na krańcu okna dzień 89 MUSI być w siatce (kotwica staje na miesiącu
+    // horyzontu) — bez tej nogi test przechodziłby nad pustką.
+    expect(last, "ostatni dzień okna nie doszedł do siatki").not.toBeNull();
+    expect(last!.disabled).toBe(false);
     if (beyond !== null) expect(beyond.disabled).toBe(true);
-    // Przynajmniej jedna z dwóch stron granicy musi być w siatce — inaczej test
-    // przechodziłby nad pustką (obie gałęzie warunkowe pominięte).
-    expect(last !== null || beyond !== null).toBe(true);
   });
 });
 
@@ -328,6 +430,7 @@ describe("konflikt terminu z koszykiem (R4)", () => {
     openCalendar();
     clickDay(start);
     clickDay(end);
+    applyTerm();
 
     await waitFor(() => expect(checkCatalogAvailability).toHaveBeenCalledWith(start, end));
   });
@@ -340,6 +443,7 @@ describe("konflikt terminu z koszykiem (R4)", () => {
     openCalendar();
     clickDay(dayFromToday(10));
     clickDay(dayFromToday(12));
+    applyTerm();
 
     await waitFor(() => {
       expect(document.querySelector(`[data-store-term-conflict-item="${ROWER}"]`)).not.toBeNull();
@@ -424,6 +528,7 @@ describe("konflikt terminu z koszykiem (R4)", () => {
     openCalendar();
     clickDay(dayFromToday(20));
     clickDay(dayFromToday(22));
+    applyTerm();
 
     await waitFor(() => {
       expect(document.querySelector("[data-store-term-revert]")).not.toBeNull();

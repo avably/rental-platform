@@ -73,6 +73,19 @@ export interface SiteDateRangeCalendarProps {
   /** Widoczny miesiąc `YYYY-MM`. Kontrolowany z zewnątrz — komponent go nie pamięta. */
   month: string;
   onMonthChange: (month: string) => void;
+  /**
+   * ILE KOLEJNYCH MIESIĘCY MALUJE SIATKA (ADR-194). Domyślnie jeden — dokładnie
+   * dotychczasowy kształt. Modal zakresu podaje dwa: wybór „od piątku do
+   * wtorku za dwa tygodnie" przestaje wymagać przewijania, bo oba krańce widać
+   * naraz. Nawigacja zostaje JEDNĄ parą strzałek i przesuwa KOTWICĘ
+   * (`month`); miesiące kolejne są pochodną, nie drugim stanem. Na wąskim
+   * oknie miesiące poza pierwszym CHOWAJĄ SIĘ stylem (`max-sm:hidden`) —
+   * media query, nie pomiar w skrypcie, bo pomiar wymagałby efektu i dawał
+   * błysk dwóch siatek na telefonie. Kotwica przy krańcu okna może pokazać
+   * drugi miesiąc w całości poza oknem (same dni nieklikalne) — to świadomy
+   * koszt: klamrowanie kotwicy zabierałoby wąskiemu oknu ostatni miesiąc.
+   */
+  months?: number;
   /** Wybrany zakres (ISO `YYYY-MM-DD`); `end` bez `start` jest nielegalny. */
   start: string | null;
   end: string | null;
@@ -184,9 +197,125 @@ function interpolate(template: string, vars: Record<string, string | number>): s
   );
 }
 
+/**
+ * Siatka JEDNEGO miesiąca — tabela dni bez nagłówka i bez nawigacji.
+ * Wydzielona, bo od ADR-194 kalendarz potrafi malować kilka miesięcy obok
+ * siebie, a reguły dnia (stan, etykieta, zaznaczenie) mają istnieć RAZ.
+ */
+function SiteCalendarMonthGrid({
+  month,
+  start,
+  end,
+  minDate,
+  maxDate,
+  dayUnits,
+  labels,
+  onDay,
+  className,
+}: {
+  month: string;
+  start: string | null;
+  end: string | null;
+  minDate: string;
+  maxDate: string;
+  dayUnits: Record<string, number> | null | undefined;
+  labels: SiteCalendarLabels;
+  onDay: (day: string) => void;
+  className?: string;
+}) {
+  const days = isSiteCalendarMonth(month) ? siteCalendarMonthDays(month) : [];
+  const leadingBlanks = days.length > 0 ? siteCalendarWeekdayIndex(days[0]!) : 0;
+
+  return (
+    <table className={cn("w-full table-fixed border-collapse", className)}>
+      <thead>
+        <tr>
+          {labels.weekdays.map((label) => (
+            <th
+              key={label}
+              scope="col"
+              className="site-text-muted pb-1 text-center text-xs font-normal"
+            >
+              {label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: Math.ceil((leadingBlanks + days.length) / 7) }, (_, week) => (
+          <tr key={week}>
+            {Array.from({ length: 7 }, (_, column) => {
+              const index = week * 7 + column - leadingBlanks;
+              const day = index >= 0 && index < days.length ? days[index]! : null;
+              if (day === null) {
+                return <td key={column} className="p-0.5" aria-hidden="true" />;
+              }
+
+              const state = siteCalendarDayState(day, minDate, maxDate, dayUnits);
+              const units = dayUnits ? dayUnits[day] : undefined;
+              const selectable = state === "available";
+              const isStart = day === start;
+              const isEnd = day === end;
+              const inRange = start !== null && end !== null && day > start && day < end;
+
+              const description =
+                state === "outOfRange"
+                  ? labels.dayOutOfRange
+                  : state === "unavailable"
+                    ? labels.dayUnavailable
+                    : units === undefined
+                      ? ""
+                      : interpolate(labels.dayAvailable, { units });
+
+              return (
+                <td key={column} className="p-0.5">
+                  <button
+                    type="button"
+                    data-calendar-day={day}
+                    data-calendar-day-state={state}
+                    data-calendar-day-selected={
+                      isStart || isEnd ? "edge" : inRange ? "middle" : undefined
+                    }
+                    disabled={!selectable}
+                    // Pełna data w etykiecie: sama liczba („14") nie mówi
+                    // czytnikowi ekranu, o który dzień chodzi, a to jedyna
+                    // treść, jaką niesie przycisk.
+                    aria-label={description === "" ? day : `${day} — ${description}`}
+                    aria-pressed={isStart || isEnd || inRange}
+                    onClick={() => onDay(day)}
+                    className={cn(
+                      "site-day flex w-full cursor-pointer flex-col items-center justify-center px-1 py-1.5 text-sm leading-tight",
+                      "disabled:cursor-not-allowed disabled:opacity-40",
+                      (isStart || isEnd) && "site-day-edge",
+                      inRange && "site-day-middle",
+                    )}
+                  >
+                    <span>{Number(day.slice(8, 10))}</span>
+                    {/*
+                      LICZBA WOLNYCH SZTUK POD DATĄ — wyłącznie tam, gdzie
+                      wołający ją podał. Kalendarz powłoki nie ma kontekstu
+                      sprzętu, więc nie ma czego tu napisać (ADR-179).
+                    */}
+                    {units !== undefined ? (
+                      <span className="site-text-muted text-[0.625rem]" aria-hidden="true">
+                        {units}
+                      </span>
+                    ) : null}
+                  </button>
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function SiteDateRangeCalendar({
   month,
   onMonthChange,
+  months = 1,
   start,
   end,
   onSelect,
@@ -197,21 +326,27 @@ export function SiteDateRangeCalendar({
   locale,
   className,
 }: SiteDateRangeCalendarProps) {
-  const days = isSiteCalendarMonth(month) ? siteCalendarMonthDays(month) : [];
-  const leadingBlanks = days.length > 0 ? siteCalendarWeekdayIndex(days[0]!) : 0;
+  // Kotwica + pochodne: `month` jest jedynym stanem widoku, miesiące kolejne
+  // liczą się z niej przy każdym renderze (ADR-194).
+  const shownMonths = Array.from({ length: Math.max(1, months) }, (_, index) =>
+    shiftSiteCalendarMonth(month, index),
+  );
 
   // Nawigacja gaśnie na krańcach OKNA, a nie na krańcach roku: miesiąc, w
   // którym nie ma ani jednego wybieralnego dnia, byłby pustą siatką udającą
   // ofertę. Porównanie po miesiącu, nie po dniu — `minDate` bywa w środku
-  // miesiąca i wtedy jego miesiąc wciąż ma dni do pokazania.
+  // miesiąca i wtedy jego miesiąc wciąż ma dni do pokazania. Granice liczy
+  // KOTWICA także przy kilku miesiącach — patrz `months` wyżej.
   const canGoBack = month > siteCalendarMonthOf(minDate);
   const canGoForward = month < siteCalendarMonthOf(maxDate);
 
-  const monthLabel = new Intl.DateTimeFormat(locale, {
+  const monthLabelFormat = new Intl.DateTimeFormat(locale, {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(new Date(`${days[0] ?? `${month}-01`}T00:00:00Z`));
+  });
+  const monthLabel = (value: string) =>
+    monthLabelFormat.format(new Date(`${value}-01T00:00:00Z`));
 
   function handleDay(day: string): void {
     onSelect(nextSiteDateRange({ start, end }, day));
@@ -232,11 +367,19 @@ export function SiteDateRangeCalendar({
         {/*
           `aria-live` na nagłówku, a nie na siatce: po przewinięciu miesiąca
           czytnik ma przeczytać JEDNO zdanie („czerwiec 2027"), a nie
-          trzydzieści przycisków, które właśnie się wymieniły.
+          trzydzieści przycisków, które właśnie się wymieniły. Przy kilku
+          miesiącach każdy grid ma własny nagłówek, chowany razem z nim.
         */}
-        <strong className="site-label text-sm" aria-live="polite">
-          {monthLabel}
-        </strong>
+        <div className="flex flex-1 items-center justify-around gap-2" aria-live="polite">
+          {shownMonths.map((shown, index) => (
+            <strong
+              key={shown}
+              className={cn("site-label text-sm", index > 0 && "max-sm:hidden")}
+            >
+              {monthLabel(shown)}
+            </strong>
+          ))}
+        </div>
         <button
           type="button"
           className="site-cta-secondary cursor-pointer px-3 py-1 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
@@ -248,89 +391,22 @@ export function SiteDateRangeCalendar({
         </button>
       </div>
 
-      <table className="w-full table-fixed border-collapse">
-        <thead>
-          <tr>
-            {labels.weekdays.map((label) => (
-              <th
-                key={label}
-                scope="col"
-                className="site-text-muted pb-1 text-center text-xs font-normal"
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: Math.ceil((leadingBlanks + days.length) / 7) }, (_, week) => (
-            <tr key={week}>
-              {Array.from({ length: 7 }, (_, column) => {
-                const index = week * 7 + column - leadingBlanks;
-                const day = index >= 0 && index < days.length ? days[index]! : null;
-                if (day === null) {
-                  return <td key={column} className="p-0.5" aria-hidden="true" />;
-                }
-
-                const state = siteCalendarDayState(day, minDate, maxDate, dayUnits);
-                const units = dayUnits ? dayUnits[day] : undefined;
-                const selectable = state === "available";
-                const isStart = day === start;
-                const isEnd = day === end;
-                const inRange =
-                  start !== null && end !== null && day > start && day < end;
-
-                const description =
-                  state === "outOfRange"
-                    ? labels.dayOutOfRange
-                    : state === "unavailable"
-                      ? labels.dayUnavailable
-                      : units === undefined
-                        ? ""
-                        : interpolate(labels.dayAvailable, { units });
-
-                return (
-                  <td key={column} className="p-0.5">
-                    <button
-                      type="button"
-                      data-calendar-day={day}
-                      data-calendar-day-state={state}
-                      data-calendar-day-selected={
-                        isStart || isEnd ? "edge" : inRange ? "middle" : undefined
-                      }
-                      disabled={!selectable}
-                      // Pełna data w etykiecie: sama liczba („14") nie mówi
-                      // czytnikowi ekranu, o który dzień chodzi, a to jedyna
-                      // treść, jaką niesie przycisk.
-                      aria-label={description === "" ? day : `${day} — ${description}`}
-                      aria-pressed={isStart || isEnd || inRange}
-                      onClick={() => handleDay(day)}
-                      className={cn(
-                        "site-day flex w-full cursor-pointer flex-col items-center justify-center px-1 py-1.5 text-sm leading-tight",
-                        "disabled:cursor-not-allowed disabled:opacity-40",
-                        (isStart || isEnd) && "site-day-edge",
-                        inRange && "site-day-middle",
-                      )}
-                    >
-                      <span>{Number(day.slice(8, 10))}</span>
-                      {/*
-                        LICZBA WOLNYCH SZTUK POD DATĄ — wyłącznie tam, gdzie
-                        wołający ją podał. Kalendarz powłoki nie ma kontekstu
-                        sprzętu, więc nie ma czego tu napisać (ADR-179).
-                      */}
-                      {units !== undefined ? (
-                        <span className="site-text-muted text-[0.625rem]" aria-hidden="true">
-                          {units}
-                        </span>
-                      ) : null}
-                    </button>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="flex items-start gap-4">
+        {shownMonths.map((shown, index) => (
+          <SiteCalendarMonthGrid
+            key={shown}
+            month={shown}
+            start={start}
+            end={end}
+            minDate={minDate}
+            maxDate={maxDate}
+            dayUnits={dayUnits}
+            labels={labels}
+            onDay={handleDay}
+            className={index > 0 ? "max-sm:hidden" : undefined}
+          />
+        ))}
+      </div>
     </div>
   );
 }

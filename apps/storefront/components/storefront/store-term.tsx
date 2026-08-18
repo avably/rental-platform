@@ -60,18 +60,8 @@
  * rozmyślne: to jest bufor cofnięcia, a nie drugi termin. Gdyby siedział
  * w koszyku, byłby dokładnie tym drugim źródłem prawdy, którego R1 zabrania.
  */
-import {
-  AVAILABILITY_WINDOW_MAX_DAYS,
-  availabilityWindowEnd,
-  bcp47,
-  rentalDaysInclusive,
-} from "@avably/core";
-import {
-  SiteDateRangeCalendar,
-  SiteProductAvailabilityProvider,
-  initialSiteCalendarMonth,
-  type SiteCalendarLabels,
-} from "@avably/ui";
+import { rentalDaysInclusive } from "@avably/core";
+import { SiteProductAvailabilityProvider, type SiteCalendarLabels } from "@avably/ui";
 import {
   createContext,
   useCallback,
@@ -82,6 +72,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { StoreTermModal } from "@/components/storefront/store-term-modal";
 import { checkCatalogAvailability } from "@/lib/actions/availability";
 import {
   cartConflicts,
@@ -153,11 +144,6 @@ const StoreTermContext = createContext<StoreTermValue>(INERT);
 
 export function useStoreTerm(): StoreTermValue {
   return useContext(StoreTermContext);
-}
-
-/** Dzisiaj jako ISO — dolna granica okna wyboru. */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 export function StoreTermProvider({ children }: { children: ReactNode }) {
@@ -363,9 +349,22 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
 }
 
 /**
- * PASEK TERMINU — widoczna część powłoki. Stoi POD nagłówkiem, czyli w tym
- * samym korzeniu motywu, co reszta sklepu (K6, ADR-092): pasek poza korzeniem
- * brałby paletę panelu.
+ * PIGUŁKA TERMINU — widoczna część powłoki (forma z ADR-194). Stoi POD
+ * nagłówkiem, czyli w tym samym korzeniu motywu, co reszta sklepu (K6,
+ * ADR-092): pasek poza korzeniem brałby paletę panelu.
+ *
+ * DWA STANY, JEDEN STAN KOSZYKA: bez terminu pigułka niesie zachętę, z
+ * terminem — wybrany zakres i akcję zmiany. Nie jest to nowy stan, tylko nowy
+ * WIDOK `CartState.startDate/endDate`; SSR maluje stan „bez terminu", bo
+ * koszyk mieszka w `localStorage` i serwer go nie zna — hydratacja podmienia
+ * treść pigułki, nie jej obecność. Klik (w dowolnym stanie) otwiera to samo
+ * okno wyboru, do którego prowadzi pole na stronie sprzętu — BEZ dostępności,
+ * bo w powłoce nie ma produktu bieżącego (R2 z ADR-179).
+ *
+ * Do ADR-194 pasek rozkładał siatkę miesiąca W TREŚCI strony; wzorzec
+ * właściciela (pigułka nad treścią + okno modalne) zdejmuje ten podatek
+ * z każdej strony handlowej. Znacznik `data-store-term` zostaje — to dalej
+ * ta sama powierzchnia powłoki, tylko w zwartej formie.
  */
 export function StoreTermBar({
   copy,
@@ -374,24 +373,11 @@ export function StoreTermBar({
 }: {
   copy: StorefrontCopy;
   products: StoreTermProduct[];
-  /** Język NAJEMCY — na kod `Intl` przeliczamy go tu, raz. */
+  /** Język NAJEMCY — do okna wyboru (nazwy miesięcy `Intl`). */
   locale: StorefrontLocale;
 }) {
   const term = useStoreTerm();
   const [open, setOpen] = useState(false);
-  const today = todayIso();
-  const horizon = availabilityWindowEnd(today);
-  const [month, setMonth] = useState(() =>
-    initialSiteCalendarMonth(term.startDate, today, today, horizon),
-  );
-
-  // Otwarcie kalendarza ustawia miesiąc na termin, który klient JUŻ ma. Bez
-  // tego wracający klient z terminem w lipcu otwiera siatkę na maju i musi
-  // przewijać do miejsca, w którym już był.
-  function openCalendar() {
-    setMonth(initialSiteCalendarMonth(term.startDate, today, today, horizon));
-    setOpen(true);
-  }
 
   const byId = new Map(products.map((product) => [product.id, product.name]));
   const complete =
@@ -402,23 +388,34 @@ export function StoreTermBar({
         end: term.endDate!,
         days: rentalDaysInclusive(term.startDate!, term.endDate!),
       })
-    : copy.term.noDates;
+    : copy.term.choose;
 
   return (
     <div className="site-rule-top" data-store-term>
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-3 px-6 py-3">
-        <span className="site-label text-sm">{copy.term.heading}</span>
-        <span className="site-text-muted text-sm" data-store-term-summary>
-          {summary}
-        </span>
+      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-center gap-3 px-6 py-2.5">
         <button
           type="button"
-          className="site-cta-secondary cursor-pointer px-3 py-1 text-sm font-semibold"
+          className="site-cta-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
+          aria-haspopup="dialog"
           aria-expanded={open}
           data-store-term-toggle
-          onClick={() => (open ? setOpen(false) : openCalendar())}
+          onClick={() => setOpen(true)}
         >
-          {open ? copy.term.close : complete ? copy.term.change : copy.term.choose}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4 shrink-0"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+          <span data-store-term-summary>{summary}</span>
+          {complete ? <span className="font-normal opacity-80">· {copy.term.change}</span> : null}
         </button>
         {term.checking ? (
           <span className="site-text-muted text-xs" role="status">
@@ -427,29 +424,12 @@ export function StoreTermBar({
         ) : null}
       </div>
 
+      {/*
+        OKNO WYBORU — bez `productId`, więc bez malowania dostępności (R2).
+        Zapis terminu wyłącznie przyciskiem „Zastosuj" w oknie (ADR-194).
+      */}
       {open ? (
-        <div className="mx-auto w-full max-w-5xl px-6 pb-4">
-          <SiteDateRangeCalendar
-            month={month}
-            onMonthChange={setMonth}
-            start={term.startDate}
-            end={term.endDate}
-            onSelect={(selection) => {
-              term.setTerm(selection.start, selection.end);
-              // Kalendarz zamyka się dopiero po DOMKNIĘCIU zakresu — zamknięcie
-              // po pierwszym kliknięciu zabierałoby drugie.
-              if (selection.end !== null) setOpen(false);
-            }}
-            minDate={today}
-            maxDate={horizon}
-            labels={calendarLabels(copy)}
-            locale={bcp47(locale)}
-            className="max-w-sm"
-          />
-          <p className="site-text-muted mt-2 text-xs">
-            {format(copy.term.windowNote, { days: AVAILABILITY_WINDOW_MAX_DAYS })}
-          </p>
-        </div>
+        <StoreTermModal copy={copy} locale={locale} onClose={() => setOpen(false)} />
       ) : null}
 
       {/*
