@@ -415,7 +415,13 @@
   },
   "invitationAccept": {
     "invalidLink": "Ten link zaproszenia jest uszkodzony. Otwórz link z wiadomości e-mail w całości albo poproś właściciela organizacji o nowe zaproszenie.",
-    "denied": "Nie udało się dołączyć do organizacji. Zaproszenie mogło zostać wykorzystane, odwołane albo wygasnąć — poproś właściciela o nowy link. Jeżeli zaproszenie przyszło na inny adres e-mail, zaloguj się tamtym adresem."
+    "denied": "Nie udało się dołączyć do organizacji. Zaproszenie mogło zostać wykorzystane, odwołane albo wygasnąć — poproś właściciela o nowy link. Jeżeli zaproszenie przyszło na inny adres e-mail, zaloguj się tamtym adresem.",
+    "stateNotFound": "To zaproszenie nie istnieje — link mógł zostać zastąpiony nowszym zaproszeniem. Otwórz najnowszą wiadomość z zaproszeniem albo poproś właściciela organizacji o nową.",
+    "stateUsed": "To zaproszenie zostało już wykorzystane i nie wpuści nikogo ponownie. Jeżeli nadal potrzebujesz dostępu, poproś właściciela organizacji o nowe zaproszenie.",
+    "stateRevoked": "To zaproszenie zostało odwołane przez właściciela organizacji. Jeżeli dostęp jest Ci nadal potrzebny, poproś o nowe zaproszenie.",
+    "stateExpired": "To zaproszenie wygasło. Poproś właściciela organizacji o wysłanie nowego linku.",
+    "stateEmailMismatch": "To zaproszenie zostało wystawione na inny adres e-mail niż Twoje obecne konto. Wyloguj się i zaloguj adresem, na który przyszła wiadomość z zaproszeniem.",
+    "stateOpen": "Zaproszenie wygląda na aktualne, ale dołączenie się nie powiodło. Spróbuj ponownie za chwilę — jeżeli problem wraca, poproś właściciela organizacji o nowy link."
   },
   "invitations": {
     "title": "Zaproszenia członków",

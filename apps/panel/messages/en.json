@@ -415,7 +415,13 @@
   },
   "invitationAccept": {
     "invalidLink": "This invitation link is damaged. Open the full link from the e-mail message or ask the organization owner for a new invitation.",
-    "denied": "Could not join the organization. The invitation may have been used, revoked or expired — ask the owner for a new link. If the invitation was sent to a different e-mail address, sign in with that address."
+    "denied": "Could not join the organization. The invitation may have been used, revoked or expired — ask the owner for a new link. If the invitation was sent to a different e-mail address, sign in with that address.",
+    "stateNotFound": "This invitation does not exist — the link may have been replaced by a newer invitation. Open the most recent invitation e-mail or ask the organization owner for a new one.",
+    "stateUsed": "This invitation has already been used and will not admit anyone again. If you still need access, ask the organization owner for a new invitation.",
+    "stateRevoked": "This invitation has been revoked by the organization owner. If you still need access, ask for a new invitation.",
+    "stateExpired": "This invitation has expired. Ask the organization owner to send a new link.",
+    "stateEmailMismatch": "This invitation was issued to a different e-mail address than your current account. Sign out and sign in with the address the invitation was sent to.",
+    "stateOpen": "The invitation looks valid, but joining failed. Try again in a moment — if the problem comes back, ask the organization owner for a new link."
   },
   "invitations": {
     "title": "Member invitations",
