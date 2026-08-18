@@ -61,6 +61,7 @@ export function SidebarNav({
   onNavigate,
   closing = false,
   onboarding = false,
+  isOwner = false,
 }: {
   onNavigate?: () => void;
   /**
@@ -77,6 +78,15 @@ export function SidebarNav({
    * organizacji. Jak przy `closing`: to filtr WIDOKU, bramką pozostaje guard.
    */
   onboarding?: boolean;
+  /**
+   * Rola sesji z layoutu (M-UX-02, ADR-193): pozycje `ownerOnly` (dziś
+   * „Zespół" → /zaproszenia) renderują się WYŁĄCZNIE ownerowi — staff widział
+   * link, który serwer i tak zawsze kończył odmową. Domyślna FAŁSZ (odmowa
+   * domyślna jak w guardach): zapomniane okablowanie CHOWA pozycję, zamiast
+   * pokazać ją wszystkim. Jak `closing`/`onboarding` — filtr WIDOKU, bramką
+   * pozostaje `requireMember("owner")` na ekranie i akcjach.
+   */
+  isOwner?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -85,14 +95,23 @@ export function SidebarNav({
   const PlaceholderIcon = NAV_ICONS[PANEL_NAV_PLACEHOLDER.id];
   const placeholderLabel = t(PANEL_NAV_PLACEHOLDER.labelKey);
 
+  // Filtr uprawnień idzie PRZED filtrem okna domykania: obie redukcje mają
+  // działać niezależnie, a grupy bez pozycji znikają po złożeniu obu.
+  const permitted: readonly PanelNavGroup[] = PANEL_NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !item.ownerOnly || isOwner),
+  })).filter((group) => group.items.length > 0);
+
   const groups: readonly PanelNavGroup[] = onboarding
     ? []
     : closing
-      ? PANEL_NAV_GROUPS.map((group) => ({
-          ...group,
-          items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
-        })).filter((group) => group.items.length > 0)
-      : PANEL_NAV_GROUPS;
+      ? permitted
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
+          }))
+          .filter((group) => group.items.length > 0)
+      : permitted;
 
   return (
     <nav

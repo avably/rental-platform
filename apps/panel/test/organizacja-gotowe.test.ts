@@ -52,6 +52,27 @@ let tenantRow: TenantRow | null = null;
 let memberMissing = false;
 let selectedColumns = "";
 
+/**
+ * Sygnały widoczności sklepu (M-UX-01, ADR-193) — zdanie pod adresem wynika
+ * ze STANU (produkty? strona główna opublikowana?), nie z frazy stałej.
+ * Mock oddaje TYLKO odczyt; mapowanie sygnałów na stan testujemy przez
+ * render strony (klucz zdania w drzewie), a czysta funkcja ma własne
+ * przypadki niżej.
+ */
+let storeSignals = { firstProductName: null as string | null, publishedAt: null as string | null };
+
+vi.mock("@/lib/dashboard/start-card", () => ({
+  fetchStartCardSignals: async () => ({
+    firstProductName: storeSignals.firstProductName,
+    unitCount: 0,
+    publishedAt: storeSignals.publishedAt,
+    hasContractDocument: false,
+    hasEmailSender: false,
+    chargesEnabled: false,
+    ordersCount: 0,
+  }),
+}));
+
 vi.mock("@/lib/member-page", () => ({
   requireMemberPage: async () => {
     if (memberMissing) throw new RedirectSignal("/pl/");
@@ -74,6 +95,7 @@ vi.mock("@/lib/member-page", () => ({
 const TenantCreatedPage = (
   await import("@/app/[locale]/(panel)/organizacja/nowa/gotowe/page")
 ).default;
+const { storeVisibilityState } = await import("@/lib/store-visibility");
 
 function walk(node: unknown, out: { texts: string[]; hrefs: string[] }): void {
   if (Array.isArray(node)) {
@@ -105,6 +127,8 @@ beforeEach(() => {
     slug: "wypozyczalnia-baltyk",
     trial_ends_at: "2026-08-26T12:00:00.000Z",
   };
+  // Stan świeżego konta — dokładnie ten, w którym stara fraza stała kłamała.
+  storeSignals = { firstProductName: null, publishedAt: null };
 });
 
 describe("ekran potwierdzenia mówi, co się właśnie stało", () => {
@@ -146,6 +170,63 @@ describe("ekran potwierdzenia mówi, co się właśnie stało", () => {
     expect(texts).toContain("bez-zegara.avably.io");
     expect(texts.some((text) => text.startsWith("trialValue:"))).toBe(false);
     expect(texts).not.toContain("trialLabel");
+  });
+});
+
+describe("storeVisibilityState — kolejność rozstrzygania (czysta funkcja)", () => {
+  it("publikacja strony głównej bije wszystko; potem produkty; na końcu stan zerowy", () => {
+    expect(
+      storeVisibilityState({ firstProductName: null, publishedAt: "2026-08-18T10:00:00Z" }),
+    ).toBe("published");
+    expect(
+      storeVisibilityState({ firstProductName: "Rower", publishedAt: "2026-08-18T10:00:00Z" }),
+    ).toBe("published");
+    expect(storeVisibilityState({ firstProductName: "Rower", publishedAt: null })).toBe(
+      "unpublished",
+    );
+    expect(storeVisibilityState({ firstProductName: null, publishedAt: null })).toBe(
+      "no-products",
+    );
+  });
+});
+
+describe("zdanie o widoczności sklepu wynika ze STANU, nie z frazy stałej (M-UX-01)", () => {
+  it("świeże konto (zero produktów): mowa o dodaniu produktu, ZERO „sklep jest publiczny”", async () => {
+    const { texts } = await renderPage();
+
+    expect(texts).toContain("storeStateNoProducts");
+    expect(texts).not.toContain("storeStatePublished");
+  });
+
+  it("produkty bez publikacji strony głównej: mowa o publikacji", async () => {
+    storeSignals = { firstProductName: "Rower górski", publishedAt: null };
+
+    const { texts } = await renderPage();
+
+    expect(texts).toContain("storeStateUnpublished");
+    expect(texts).not.toContain("storeStatePublished");
+  });
+
+  it("strona główna opublikowana: dopiero TERAZ wolno mówić „sklep jest publiczny”", async () => {
+    storeSignals = { firstProductName: "Rower górski", publishedAt: "2026-08-18T10:00:00Z" };
+
+    const { texts } = await renderPage();
+
+    expect(texts).toContain("storeStatePublished");
+    expect(texts).not.toContain("storeStateNoProducts");
+    expect(texts).not.toContain("storeStateUnpublished");
+  });
+
+  it("zdanie o możliwej zmianie adresu zostaje w KAŻDYM stanie (to fakt o adresie)", async () => {
+    for (const signals of [
+      { firstProductName: null, publishedAt: null },
+      { firstProductName: "Rower górski", publishedAt: null },
+      { firstProductName: "Rower górski", publishedAt: "2026-08-18T10:00:00Z" },
+    ]) {
+      storeSignals = signals;
+      const { texts } = await renderPage();
+      expect(texts).toContain("storeAddressNote");
+    }
   });
 });
 

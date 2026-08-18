@@ -58,6 +58,14 @@ export default async function PanelLayout({
   // sesji jak braku organizacji tylko zamazywałoby te dwa różne stany.
   const onboarding = Boolean(ctx) && !ctx?.tenantId;
 
+  // FILTR UPRAWNIEŃ NAWIGACJI (M-UX-02, ADR-193): pozycje `ownerOnly` (dziś
+  // „Zespół") widzi wyłącznie owner — staff dostawał link, który serwer
+  // zawsze kończył odmową. Rola z claimu wystarcza do decyzji „czego nie
+  // pokazywać" (jak `closing` wyżej); twardą bramką pozostaje
+  // requireMember("owner") na ekranie i akcjach — audyt 17.08 potwierdził,
+  // że egzekwuje.
+  const isOwner = ctx?.role === "owner";
+
   // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
   // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
   // — gasimy TREŚĆ, nie trasę (wzorzec ADR-133; zero redirectów = zero
@@ -147,11 +155,16 @@ export default async function PanelLayout({
             <SidebarToggle />
           </div>
         </div>
-        <SidebarNav closing={closing} onboarding={onboarding} />
+        <SidebarNav closing={closing} onboarding={onboarding} isOwner={isOwner} />
         <SuperadminEntry superadmin={Boolean(ctx?.superadmin)} label={t("superadminPanel")} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <PanelTopbar userEmail={ctx?.user.email ?? ""} closing={closing} onboarding={onboarding} />
+        <PanelTopbar
+          userEmail={ctx?.user.email ?? ""}
+          closing={closing}
+          onboarding={onboarding}
+          isOwner={isOwner}
+        />
         {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
             najemcę zostaje w panelu (zasada 3), sklep działa; w oknie
             domykania baner niesie licznik dni. Fail-silent, nie guard. */}

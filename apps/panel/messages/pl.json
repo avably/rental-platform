@@ -397,7 +397,10 @@
     "title": "{name} — gotowe",
     "body": "Organizacja jest założona, a Ty jesteś jej właścicielem. Dwie rzeczy zaczęły się w tej chwili:",
     "storeAddressLabel": "Adres Twojego sklepu",
-    "storeAddressNote": "Sklep jest już publiczny. Adres będzie można później zmienić — stary zostanie przekierowany na nowy.",
+    "storeStateNoProducts": "Sklep nie pokazuje jeszcze niczego — dodaj pierwszy produkt, a potem opublikuj stronę sklepu.",
+    "storeStateUnpublished": "Produkty już są — sklep stanie się widoczny, gdy opublikujesz stronę sklepu.",
+    "storeStatePublished": "Sklep jest już publiczny.",
+    "storeAddressNote": "Adres będzie można później zmienić — stary zostanie przekierowany na nowy.",
     "trialLabel": "Okres próbny",
     "trialValue": "Trwa do {date}",
     "trialNote": "{days} dni bez karty. Nic nie naliczy się samo.",
@@ -409,6 +412,10 @@
     "linkLabel": "Przeczytaj regulamin ({version})",
     "acceptCta": "Akceptuję regulamin ({version})",
     "acceptPending": "Zapisuję…"
+  },
+  "invitationAccept": {
+    "invalidLink": "Ten link zaproszenia jest uszkodzony. Otwórz link z wiadomości e-mail w całości albo poproś właściciela organizacji o nowe zaproszenie.",
+    "denied": "Nie udało się dołączyć do organizacji. Zaproszenie mogło zostać wykorzystane, odwołane albo wygasnąć — poproś właściciela o nowy link. Jeżeli zaproszenie przyszło na inny adres e-mail, zaloguj się tamtym adresem."
   },
   "invitations": {
     "title": "Zaproszenia członków",

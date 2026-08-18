@@ -397,7 +397,10 @@
     "title": "{name} — all set",
     "body": "Your organization is created and you are its owner. Two things started just now:",
     "storeAddressLabel": "Your store address",
-    "storeAddressNote": "The store is already public. You will be able to change this address later — the old one will redirect to the new one.",
+    "storeStateNoProducts": "Your store does not show anything yet — add your first product, then publish the store page.",
+    "storeStateUnpublished": "Your products are in — the store becomes visible once you publish the store page.",
+    "storeStatePublished": "The store is already public.",
+    "storeAddressNote": "You will be able to change this address later — the old one will redirect to the new one.",
     "trialLabel": "Trial period",
     "trialValue": "Runs until {date}",
     "trialNote": "{days} days, no card. Nothing will be charged automatically.",
@@ -409,6 +412,10 @@
     "linkLabel": "Read the terms ({version})",
     "acceptCta": "I accept the terms ({version})",
     "acceptPending": "Saving…"
+  },
+  "invitationAccept": {
+    "invalidLink": "This invitation link is damaged. Open the full link from the e-mail message or ask the organization owner for a new invitation.",
+    "denied": "Could not join the organization. The invitation may have been used, revoked or expired — ask the owner for a new link. If the invitation was sent to a different e-mail address, sign in with that address."
   },
   "invitations": {
     "title": "Member invitations",

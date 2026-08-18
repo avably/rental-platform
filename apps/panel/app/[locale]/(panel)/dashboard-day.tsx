@@ -110,9 +110,11 @@ export function DashboardDaySection({
 
   return (
     <section data-dashboard-section="day" className="flex flex-col gap-3">
-      <h3 className="text-base font-semibold tracking-[-0.01em]">
+      {/* h2 pod h1 belki shella (M-A11Y-01) — patrz komentarz w SectionCard
+          (dashboard-view.tsx); kafle niżej schodzą na h3. */}
+      <h2 className="text-base font-semibold tracking-[-0.01em]">
         {t("title", { date: dayLabel(today, locale) })}
-      </h3>
+      </h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {DAY_TILE_ROWS[0].map((kind) => (
           <DayTile key={kind} kind={kind} rows={byKind.get(kind) ?? []} today={today} locale={locale} />
@@ -152,14 +154,16 @@ function DayTile({
       className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4"
     >
       <div className="flex items-start justify-between gap-2">
-        <h4
+        {/* h3 pod h2 sekcji „Dzisiaj" (M-A11Y-01) — poprzednie h4 wisiało
+            o poziom za nisko po podniesieniu nagłówka sekcji. */}
+        <h3
           className={cn(
             "text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase",
             accent === "" ? "text-muted-foreground" : accent,
           )}
         >
           {t(TILE_TITLE_KEYS[kind])}
-        </h4>
+        </h3>
         <span
           data-day-counter
           className={cn(

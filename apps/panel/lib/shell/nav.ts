@@ -23,6 +23,15 @@ export type PanelNavItem = {
   /** Ścieżka BEZ prefiksu locale — prefiks dokłada `Link` z `@/i18n/navigation`. */
   href: string;
   labelKey: string;
+  /**
+   * Ekran wyłącznie dla OWNERA (M-UX-02, ADR-193): sidebar i szuflada
+   * ODZWIERCIEDLAJĄ uprawnienia i nie pokazują tej pozycji rolom bez dostępu
+   * — bez tooltipów „brak dostępu" (rozstrzygnięcie PM: nie pokazujemy drzwi,
+   * które są zamknięte, spójnie z filtrami `closing`/`onboarding`). Bramką
+   * dostępu POZOSTAJE serwer (`requireMember("owner")` na ekranie i akcjach)
+   * — flaga jest filtrem WIDOKU, nie zabezpieczeniem.
+   */
+  ownerOnly?: true;
 };
 
 export type PanelNavGroup = {
@@ -105,7 +114,9 @@ export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
     artifactLabel: "ORGANIZACJA",
     labelKey: "groupOrganization",
     items: [
-      { id: "team", href: "/zaproszenia", labelKey: "team" },
+      // `ownerOnly`: /zaproszenia stoi za requireMember("owner"), więc staff
+      // widział pozycję, która zawsze kończyła się odmową (M-UX-02).
+      { id: "team", href: "/zaproszenia", labelKey: "team", ownerOnly: true },
       // Dług P3 ZAMKNIĘTY w P6 (ADR-059): ekran organizacji istnieje, więc
       // pozycja celuje tam, gdzie zapowiadał brief. Identyfikator bez zmiany,
       // więc kontrakt struktury z artefaktem zostaje zielony.

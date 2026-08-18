@@ -64,7 +64,11 @@ function SectionCard({
       className="border-border bg-card flex flex-col gap-4 rounded-lg border p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-base font-semibold tracking-[-0.01em]">{title}</h3>
+        {/* h2, nie h3: jedyny h1 ekranu niesie belka shella (ADR-060), więc
+            tytuł sekcji jest DRUGIM poziomem konspektu. h3 przeskakiwało
+            poziom (M-A11Y-01, audyt 17.08); rozmiar wizualny niesie klasa,
+            nie ranga znacznika. Pilnuje heading-hierarchy-contract. */}
+        <h2 className="text-base font-semibold tracking-[-0.01em]">{title}</h2>
         {caption ? (
           <span className="text-muted-foreground text-xs">{caption}</span>
         ) : null}

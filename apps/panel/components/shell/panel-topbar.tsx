@@ -33,19 +33,22 @@ export function PanelTopbar({
   userEmail,
   closing = false,
   onboarding = false,
+  isOwner = false,
 }: {
   userEmail: string;
   /** Okno domykania (ADR-138) — schodzi do nawigacji mobilnej. */
   closing?: boolean;
   /** Sesja bez organizacji (ADR-153) — schodzi do nawigacji mobilnej. */
   onboarding?: boolean;
+  /** Rola sesji (M-UX-02, ADR-193) — schodzi do szuflady mobilnej. */
+  isOwner?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
 
   return (
     <header className="border-border bg-card flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
-      <MobileNav closing={closing} onboarding={onboarding} />
+      <MobileNav closing={closing} onboarding={onboarding} isOwner={isOwner} />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}
       </h1>

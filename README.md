@@ -19,8 +19,8 @@ packages/
 
 ## Wymagania
 
-- Node 20 (patrz `.nvmrc`)
-- pnpm 8.15.8 (patrz `packageManager` w `package.json`)
+- Node 22 (≥22.13 — patrz `.nvmrc` i `engines` w `package.json`; CI buduje na 22)
+- pnpm 11.13.1 (patrz `packageManager` w `package.json`)
 
 ## Instalacja
 
