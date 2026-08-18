@@ -384,6 +384,14 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
       );
       expect(markup, `${etykieta}: brak pola ilości`).toContain('id="booking-qty"');
       expect(markup, `${etykieta}: brak etykiety przycisku koszyka`).toContain("Dodaj do koszyka");
+      // HAK PULSU PRODUKCYJNEGO (aneks ADR-194): goły `data-store-term` ma być
+      // w SSR każdej gałęzi NIEZALEŻNIE od szerokości okna — sonda produkcyjna
+      // grepuje HTML, więc znacznik chowany media query wciąż ją karmi, ale
+      // znacznik ZDJĘTY z dokumentu zgasiłby ją bez żadnego innego alarmu.
+      // Dopisek `="true"`, bo substring bez niego łapałby też `-toggle`.
+      expect(markup, `${etykieta}: goły data-store-term (hak pulsu) zniknął z SSR`).toContain(
+        'data-store-term="true"',
+      );
     }
   }, BUDZET_RENDERU);
 
@@ -422,6 +430,38 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
         "data-store-term-modal",
       );
     }
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
+  // 3d. PIGUŁKA TERMINU W BELCE, WIERSZ POD BELKĄ TYLKO MOBILNY (aneks ADR-194)
+  // -------------------------------------------------------------------
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót wiersza terminu pod belką NA DESKTOPIE
+  // (forma sprzed aneksu — właściciel kazał ją zdjąć) albo zniknięcie pigułki
+  // z belki. Media query nie zostawia śladu w renderze statycznym, więc bramka
+  // mierzy DOKŁADNIE to, co media query czyta: klasy w SSR. Suita terminu
+  // montuje pasek sama i mierzy zachowanie — o MIEJSCU w dokumencie trasy nie
+  // mówi nic, dlatego ta bramka stoi tu, przy prawdziwym renderze trasy.
+  it("pigułka terminu stoi W BELCE, a wiersz pod belką niesie md:hidden", async () => {
+    const markup = await renderProductPage();
+
+    // Noga kontrolna: belka w ogóle jest — bez niej `slice` mierzyłby pustkę.
+    const koniecBelki = markup.indexOf("</header>");
+    expect(koniecBelki, "trasa nie wyrenderowała belki menu").toBeGreaterThanOrEqual(0);
+    expect(
+      markup.slice(0, koniecBelki),
+      "belka menu nie niesie pigułki terminu (desktop)",
+    ).toContain("data-store-term-toggle");
+
+    // Wiersz pod belką: PIERWSZE dziecko owijki `data-store-term`. Wolno mu
+    // istnieć wyłącznie jako forma mobilna — czyli z `md:hidden` w klasach.
+    const wiersz = markup.match(/data-store-term="true"><div class="([^"]*)"/)?.[1] ?? "";
+    expect(wiersz, "wiersza terminu pod belką nie ma w SSR (forma mobilna)").toContain(
+      "site-rule-top",
+    );
+    expect(wiersz, "wiersz terminu pod belką wrócił na desktop — zgubił md:hidden").toContain(
+      "md:hidden",
+    );
   }, BUDZET_RENDERU);
 
   it("stały blok i widget rezerwacji są DOKŁADNIE PO JEDNYM w każdej gałęzi", async () => {

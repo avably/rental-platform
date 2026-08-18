@@ -20,6 +20,7 @@
  */
 import { StoreShellHeader } from "@avably/ui";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { cartItemCount } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
@@ -30,6 +31,7 @@ export function StoreHeader({
   copy,
   storeName,
   logo,
+  center,
 }: {
   copy: StorefrontCopy;
   storeName: string;
@@ -41,6 +43,12 @@ export function StoreHeader({
    * dla czytnika ekranu powtórzeniem, a nie informacją.
    */
   logo: StoreLogo | null;
+  /**
+   * ŚRODEK BELKI (aneks ADR-194) — powłoka wstawia tu pigułkę terminu na
+   * trasach, które sprzedają. Przechodzi wprost do kształtu z pakietu UI;
+   * o widoczności rozstrzyga media query TAM, nie tutaj.
+   */
+  center?: ReactNode;
 }) {
   const { cart, hydrated } = useCart();
   const count = cartItemCount(cart);
@@ -50,6 +58,7 @@ export function StoreHeader({
       storeName={storeName}
       logo={logo}
       cartLabel={copy.nav.cart}
+      center={center}
       /*
         LICZNIK POJAWIA SIĘ PO HYDRATACJI (stan z `localStorage`), więc do tej
         chwili nie ma go w drzewie — inaczej serwer i klient rozjechałyby się

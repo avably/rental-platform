@@ -56,6 +56,7 @@ export function StoreShellHeader({
   logo,
   cartLabel,
   cartBadge,
+  center,
   linkComponent,
   interactive = true,
 }: {
@@ -71,6 +72,19 @@ export function StoreShellHeader({
   cartLabel: string;
   /** Licznik sztuk — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
   cartBadge?: ReactNode;
+  /**
+   * ŚRODEK BELKI (aneks ADR-194) — slot między znakiem a koszykiem. Sklep
+   * stawia tu pigułkę terminu; podgląd szkicu nie podaje nic i belka wygląda
+   * dokładnie jak przed aneksem. Pakiet nie wie, CO w slocie stoi — tak samo,
+   * jak nie zna licznika koszyka.
+   *
+   * Slot jest WIDOCZNY OD `md` W GÓRĘ: poniżej belka jest za wąska na trzy
+   * elementy i sklep pokazuje tę samą treść w wierszu POD belką. Rozjazd robi
+   * media query (obie formy stoją w SSR), nie pomiar skryptem — breakpoint
+   * musi zostać TEN SAM, co `md:hidden` na wierszu w `StoreTermBar`, inaczej
+   * w pasie szerokości między nimi pigułka jest podwójna albo znika.
+   */
+  center?: ReactNode;
   /**
    * Komponent odnośnika. Sklep podaje `next/link` (nawigacja bez przeładowania);
    * brak = zwykłe `<a>`. Przy `interactive={false}` nie jest używany wcale.
@@ -112,6 +126,16 @@ export function StoreShellHeader({
             {brand}
           </span>
         )}
+        {/*
+          `flex-1` + `justify-center` środkuje slot w WOLNYM pasie między
+          znakiem a koszykiem (skrajne elementy trzymają swoje szerokości),
+          `min-w-0` pozwala mu się zwęzić zamiast wypychać koszyk poza ekran.
+        */}
+        {center != null ? (
+          <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 md:flex">
+            {center}
+          </div>
+        ) : null}
         {interactive ? (
           <Anchor href={CART_HREF} className={cartClassName}>
             <span>{cartLabel}</span>

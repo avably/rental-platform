@@ -146,11 +146,32 @@ export function useStoreTerm(): StoreTermValue {
   return useContext(StoreTermContext);
 }
 
+/**
+ * OTWARTOŚĆ OKNA WYBORU — stan WYZWALACZY, nie mechaniki (aneks ADR-194).
+ *
+ * Pigułka terminu ma od aneksu DWA wystąpienia w dokumencie: w belce menu
+ * (desktop, slot `center` nagłówka) i w wierszu pod belką (mobile) — media
+ * query pokazuje dokładnie jedno. Okno wyboru jest przy tym JEDNO, więc stan
+ * „otwarte" nie może mieszkać w żadnej z pigułek; mieszka w prowiderze.
+ *
+ * OSOBNY kontekst, a nie pole w `StoreTermValue`: wartość terminu to kontrakt
+ * MECHANIKI (czytają ją kasa, koszyk i kafle), a otwartość okna jest sprawą
+ * wyzwalaczy — dopisanie jej do kontraktu przeliczałoby konsumentów mechaniki
+ * na każde otwarcie okna i mieszałoby dwa znaczenia w jednej wartości.
+ * Domyślna wartość jest bezczynna z tego samego powodu, co `INERT` wyżej.
+ */
+const StoreTermModalContext = createContext<{
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}>({ open: false, setOpen: () => {} });
+
 export function StoreTermProvider({ children }: { children: ReactNode }) {
   const { cart, hydrated, setDates, setQty } = useCart();
   const [previous, setPrevious] = useState<{ start: string | null; end: string | null } | null>(
     null,
   );
+  /** Okno wyboru terminu — wspólne dla obu wystąpień pigułki (aneks ADR-194). */
+  const [modalOpen, setModalOpen] = useState(false);
   /**
    * ODPOWIEDŹ RAZEM Z PYTANIEM, NA KTÓRE ODPOWIADA.
    *
@@ -285,7 +306,13 @@ export function StoreTermProvider({ children }: { children: ReactNode }) {
     [startDate, endDate, setTerm, revertTerm, previous, verdict, checking, dropConflicting, units],
   );
 
-  return <StoreTermContext.Provider value={value}>{children}</StoreTermContext.Provider>;
+  const modal = useMemo(() => ({ open: modalOpen, setOpen: setModalOpen }), [modalOpen]);
+
+  return (
+    <StoreTermContext.Provider value={value}>
+      <StoreTermModalContext.Provider value={modal}>{children}</StoreTermModalContext.Provider>
+    </StoreTermContext.Provider>
+  );
 }
 
 /**
@@ -349,9 +376,7 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
 }
 
 /**
- * PIGUŁKA TERMINU — widoczna część powłoki (forma z ADR-194). Stoi POD
- * nagłówkiem, czyli w tym samym korzeniu motywu, co reszta sklepu (K6,
- * ADR-092): pasek poza korzeniem brałby paletę panelu.
+ * PIGUŁKA TERMINU — wyzwalacz okna wyboru (forma z ADR-194, miejsce z aneksu).
  *
  * DWA STANY, JEDEN STAN KOSZYKA: bez terminu pigułka niesie zachętę, z
  * terminem — wybrany zakres i akcję zmiany. Nie jest to nowy stan, tylko nowy
@@ -361,10 +386,81 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
  * okno wyboru, do którego prowadzi pole na stronie sprzętu — BEZ dostępności,
  * bo w powłoce nie ma produktu bieżącego (R2 z ADR-179).
  *
- * Do ADR-194 pasek rozkładał siatkę miesiąca W TREŚCI strony; wzorzec
- * właściciela (pigułka nad treścią + okno modalne) zdejmuje ten podatek
- * z każdej strony handlowej. Znacznik `data-store-term` zostaje — to dalej
- * ta sama powierzchnia powłoki, tylko w zwartej formie.
+ * DWA WYSTĄPIENIA, JEDEN KOMPONENT (aneks ADR-194): pigułka stoi w belce menu
+ * (desktop, slot `center` nagłówka) i w wierszu pod belką (mobile). Element
+ * nie może stać w dwóch miejscach dokumentu naraz, więc wystąpienia są dwa —
+ * ale treść, stan `aria-expanded` i cel kliknięcia mają po JEDNYM źródle
+ * (koszyk i `StoreTermModalContext`), przez co nie mają jak się rozjechać.
+ * Widoczne jest zawsze dokładnie jedno wystąpienie — rozjazd robi media query
+ * (`md:`), nigdy skrypt.
+ */
+export function StoreTermPill({ copy }: { copy: StorefrontCopy }) {
+  const term = useStoreTerm();
+  const { open, setOpen } = useContext(StoreTermModalContext);
+
+  const complete =
+    term.startDate !== null && term.endDate !== null && term.endDate >= term.startDate;
+  const summary = complete
+    ? format(copy.term.rangeSummary, {
+        start: term.startDate!,
+        end: term.endDate!,
+        days: rentalDaysInclusive(term.startDate!, term.endDate!),
+      })
+    : copy.term.choose;
+
+  return (
+    <>
+      <button
+        type="button"
+        className="site-cta-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        data-store-term-toggle
+        onClick={() => setOpen(true)}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4 shrink-0"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+        <span data-store-term-summary>{summary}</span>
+        {complete ? <span className="font-normal opacity-80">· {copy.term.change}</span> : null}
+      </button>
+      {term.checking ? (
+        <span className="site-text-muted text-xs" role="status">
+          {copy.term.checking}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * POWIERZCHNIA TERMINU W POWŁOCE — wiersz mobilny, okno i panel konfliktu.
+ * Stoi POD nagłówkiem, czyli w tym samym korzeniu motywu, co reszta sklepu
+ * (K6, ADR-092): pasek poza korzeniem brałby paletę panelu.
+ *
+ * Do aneksu ADR-194 wiersz pod belką był JEDYNYM miejscem pigułki; właściciel
+ * przeniósł ją na desktopie DO belki (logo · pigułka · Koszyk — slot `center`
+ * nagłówka podaje ją `StoreChrome`), a wiersz pod belką został formą mobilną,
+ * bo tam belka jest za wąska na trzy elementy. Stąd `md:hidden` na wierszu —
+ * ten sam breakpoint, od którego slot belki jest widoczny; rozjazd innej pary
+ * klas zostawiałby pas szerokości z dwiema pigułkami albo z żadną.
+ *
+ * Goły znacznik `data-store-term` zostaje na OWIJCE, a nie na wierszu: wisi
+ * na nim puls produkcyjny, a owijka — w odróżnieniu od wiersza — jest w SSR
+ * każdej strony handlowej NIEZALEŻNIE od szerokości okna i od tego, którą
+ * formę pigułki pokazuje media query. Okno i panel konfliktu też mieszkają
+ * tu, POZA `md:hidden`: konflikt musi być widoczny na każdej szerokości,
+ * a okno jest `position: fixed`, więc miejsce w przepływie jest mu obojętne.
  */
 export function StoreTermBar({
   copy,
@@ -377,51 +473,16 @@ export function StoreTermBar({
   locale: StorefrontLocale;
 }) {
   const term = useStoreTerm();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useContext(StoreTermModalContext);
 
   const byId = new Map(products.map((product) => [product.id, product.name]));
-  const complete =
-    term.startDate !== null && term.endDate !== null && term.endDate >= term.startDate;
-  const summary = complete
-    ? format(copy.term.rangeSummary, {
-        start: term.startDate!,
-        end: term.endDate!,
-        days: rentalDaysInclusive(term.startDate!, term.endDate!),
-      })
-    : copy.term.choose;
 
   return (
-    <div className="site-rule-top" data-store-term>
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-center gap-3 px-6 py-2.5">
-        <button
-          type="button"
-          className="site-cta-secondary inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          data-store-term-toggle
-          onClick={() => setOpen(true)}
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 shrink-0"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
-          </svg>
-          <span data-store-term-summary>{summary}</span>
-          {complete ? <span className="font-normal opacity-80">· {copy.term.change}</span> : null}
-        </button>
-        {term.checking ? (
-          <span className="site-text-muted text-xs" role="status">
-            {copy.term.checking}
-          </span>
-        ) : null}
+    <div data-store-term>
+      <div className="site-rule-top md:hidden">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-center gap-3 px-6 py-2.5">
+          <StoreTermPill copy={copy} />
+        </div>
       </div>
 
       {/*
@@ -439,7 +500,7 @@ export function StoreTermBar({
         jego zmianę terminu, ale mówi o pozycjach, na które nie patrzył.
       */}
       {term.verdict.conflicts.length > 0 ? (
-        <div className="mx-auto w-full max-w-5xl px-6 pb-4">
+        <div className="mx-auto w-full max-w-5xl px-6 pb-4 md:pt-4">
           <div className="site-error-panel p-4 text-sm" role="alert" data-store-term-conflict>
             <p className="font-semibold">{copy.term.conflictHeading}</p>
             <ul className="mt-2 grid list-none gap-1 p-0">
