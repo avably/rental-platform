@@ -32,12 +32,13 @@ import { join, relative, resolve } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  EmailLogEntry,
-  EmailLogRecorder,
-  EmailTransport,
-  OutgoingEmail,
-  TenantSettingRow,
+import {
+  PANEL_URL,
+  type EmailLogEntry,
+  type EmailLogRecorder,
+  type EmailTransport,
+  type OutgoingEmail,
+  type TenantSettingRow,
 } from "@avably/core";
 
 import { sendInvitationEmail } from "@/lib/email";
@@ -209,7 +210,9 @@ const PATHS: readonly Path[] = [
     run: ({ transport, recorder }) =>
       sendInvitationEmail({
         to: "nowy@example.com",
-        acceptUrl: "https://www.avably.io/zaproszenie/abc123",
+        // Host panelu ze stałej (ADR-190) — poprzedni literał kodował kanon
+        // marketingowy, na którym trasa /zaproszenie/… nie istnieje.
+        acceptUrl: `${PANEL_URL}/zaproszenie/abc123`,
         locale: "pl",
         organizationName: "Wypożyczalnia Demo",
         role: "staff",

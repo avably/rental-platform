@@ -6,7 +6,6 @@ import {
   EMAIL_SENDER_KEY,
   emailAvailability,
   resendTransport,
-  siteUrl,
   type TenantSettingRow,
 } from "@avably/core";
 import { PANEL_AUTH_RATE_LIMIT_PREFIX, checkRateLimit } from "@avably/security/rate-limit";
@@ -17,6 +16,7 @@ import { AuthError } from "@/lib/auth";
 import { invitationLocale, sendInvitationEmail } from "@/lib/email";
 import { panelEmailLogRecorder } from "@/lib/email-log";
 import { invitationIsOpen, invitationStatus } from "@/lib/invitations";
+import { panelBaseUrl } from "@/lib/panel-url";
 import { requireMember } from "@/lib/supabase-server";
 import { inviteSchema, invitationIdSchema } from "@/lib/validation";
 
@@ -76,7 +76,14 @@ export async function inviteMemberAction(
     return { error: error.message };
   }
 
-  const acceptUrl = `${siteUrl()}/zaproszenie/${rawToken}`;
+  // Strona akceptacji żyje w PANELU, więc baza linku to `panelBaseUrl()`
+  // (ADR-190). Wcześniejsze `siteUrl()` składało adres na kanonie
+  // MARKETINGOWYM, gdzie trasa `/zaproszenie/…` nie istnieje — link z e-maila
+  // dawał 404, a w panelu zaproszenie wyglądało na wysłane (ta sama niema
+  // sygnatura co ADR-050). Adres celowo BEZ segmentu locale: middleware
+  // panelu (localePrefix: "always") dokłada go przekierowaniem z wykrycia,
+  // więc jest tu mniej do zepsucia niż przy zgadywaniu języka zaproszonego.
+  const acceptUrl = `${panelBaseUrl()}/zaproszenie/${rawToken}`;
 
   // Dane do wiadomości: nazwa+locale tenanta (From i treść) oraz nadawca
   // (reply_to). Jedna runda zapytań, bo są niezależne.
@@ -279,7 +286,9 @@ export async function resendInvitationAction(
     return { error: "Nie udało się ponowić zaproszenia — odśwież stronę i spróbuj ponownie." };
   }
 
-  const acceptUrl = `${siteUrl()}/zaproszenie/${rawToken}`;
+  // Host panelu, nie kanon marketingowy — to samo rozstrzygnięcie co przy
+  // tworzeniu zaproszenia (ADR-190).
+  const acceptUrl = `${panelBaseUrl()}/zaproszenie/${rawToken}`;
   const [tenantResult, settingsResult] = await Promise.all([
     ctx.supabase.from("tenants").select("name, locale").eq("id", ctx.tenantId).maybeSingle(),
     ctx.supabase
