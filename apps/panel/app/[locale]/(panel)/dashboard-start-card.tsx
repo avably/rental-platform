@@ -51,7 +51,9 @@ export function DashboardStartCard({
       className="border-border bg-card flex flex-col gap-4 rounded-lg border p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-base font-semibold tracking-[-0.01em]">{t("title")}</h3>
+        {/* h2 pod h1 belki shella (M-A11Y-01) — patrz komentarz w SectionCard
+            (dashboard-view.tsx). */}
+        <h2 className="text-base font-semibold tracking-[-0.01em]">{t("title")}</h2>
         <span className="text-muted-foreground text-xs">{t("caption")}</span>
       </div>
 

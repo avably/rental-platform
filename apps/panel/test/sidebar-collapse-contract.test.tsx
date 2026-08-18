@@ -60,7 +60,9 @@ function renderNav(path = "/zamowienia"): string {
   pathname.current = path;
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="pl" messages={messages}>
-      <SidebarNav />
+      {/* Widok OWNERA — komplet pozycji; od M-UX-02 (ADR-193) pozycje
+          `ownerOnly` znikają bez tej flagi (kontrakt: sidebar-uprawnienia). */}
+      <SidebarNav isOwner />
     </NextIntlClientProvider>,
   );
 }

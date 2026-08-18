@@ -47,8 +47,11 @@ export function ExportView({
         </p>
       ) : null}
 
+      {/* Tytuły kart to h2, nie h3: jedyny h1 ekranu niesie belka shella
+          (ADR-060), a h3 przeskakiwało poziom konspektu (M-A11Y-01, audyt
+          17.08). Rozmiar niesie klasa; pilnuje heading-hierarchy-contract. */}
       <section className="border-border rounded-lg border p-5" data-export-card="orders">
-        <h3 className="text-base font-semibold">{t("orders.title")}</h3>
+        <h2 className="text-base font-semibold">{t("orders.title")}</h2>
         <p className="text-muted-foreground mt-1 text-sm">{t("orders.description")}</p>
         <form method="post" action={action("zamowienia")} className="mt-4 flex flex-wrap items-end gap-3">
           <ExportOrdersRange />
@@ -59,7 +62,7 @@ export function ExportView({
       </section>
 
       <section className="border-border rounded-lg border p-5" data-export-card="customers">
-        <h3 className="text-base font-semibold">{t("customers.title")}</h3>
+        <h2 className="text-base font-semibold">{t("customers.title")}</h2>
         <p className="text-muted-foreground mt-1 text-sm">{t("customers.description")}</p>
         {isOwner ? (
           <form method="post" action={action("klienci")} className="mt-4">
@@ -75,7 +78,7 @@ export function ExportView({
       </section>
 
       <section className="border-border rounded-lg border p-5" data-export-card="catalog">
-        <h3 className="text-base font-semibold">{t("catalog.title")}</h3>
+        <h2 className="text-base font-semibold">{t("catalog.title")}</h2>
         <p className="text-muted-foreground mt-1 text-sm">{t("catalog.description")}</p>
         <form method="post" action={action("katalog")} className="mt-4">
           <Button type="submit" data-export-submit="catalog">

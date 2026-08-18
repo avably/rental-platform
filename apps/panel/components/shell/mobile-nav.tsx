@@ -42,6 +42,7 @@ const BOTTOM_ITEM_CLASS =
 export function MobileNav({
   closing = false,
   onboarding = false,
+  isOwner = false,
 }: {
   /** Okno domykania (ADR-138) — filtruje szufladę i dolny pasek (jak sidebar). */
   closing?: boolean;
@@ -51,6 +52,12 @@ export function MobileNav({
    * na telefonie, gdzie pasek dolny jest główną nawigacją.
    */
   onboarding?: boolean;
+  /**
+   * Rola sesji (M-UX-02, ADR-193) — filtruje pozycje `ownerOnly` w szufladzie
+   * tak samo jak sidebar (to ten sam `SidebarNav`). Dolny pasek nie ma takich
+   * pozycji, więc filtr dotyczy wyłącznie szuflady.
+   */
+  isOwner?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -90,7 +97,12 @@ export function MobileNav({
             czytników, bez dublowania nagłówka na ekranie. */}
         <SheetTitle className="sr-only">{t("panelNavigation")}</SheetTitle>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <SidebarNav onNavigate={() => setOpen(false)} closing={closing} onboarding={onboarding} />
+          <SidebarNav
+            onNavigate={() => setOpen(false)}
+            closing={closing}
+            onboarding={onboarding}
+            isOwner={isOwner}
+          />
         </div>
       </SheetContent>
 

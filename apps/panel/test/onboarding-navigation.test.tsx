@@ -40,7 +40,9 @@ function renderSidebar(props: { onboarding?: boolean; closing?: boolean } = {}):
   pathname.current = "/";
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
-      <SidebarNav {...props} />
+      {/* Widok OWNERA — kontrola pozytywna liczy KOMPLET pozycji; od M-UX-02
+          (ADR-193) pozycje `ownerOnly` znikają bez tej flagi. */}
+      <SidebarNav isOwner {...props} />
     </NextIntlClientProvider>,
   );
 }

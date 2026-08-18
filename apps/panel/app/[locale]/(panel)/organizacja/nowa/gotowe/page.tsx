@@ -4,7 +4,9 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { SAAS_TRIAL_DAYS, tenantSubdomainHost } from "@avably/core";
 
 import { Link } from "@/i18n/navigation";
+import { fetchStartCardSignals } from "@/lib/dashboard/start-card";
 import { requireMemberPage } from "@/lib/member-page";
+import { STORE_STATE_MESSAGE_KEYS, storeVisibilityState } from "@/lib/store-visibility";
 
 /**
  * Potwierdzenie założenia organizacji (ADR-153, N5c).
@@ -31,11 +33,15 @@ export const dynamic = "force-dynamic";
 export default async function TenantCreatedPage() {
   const ctx = await requireMemberPage("/organizacja/nowa/gotowe");
 
-  const { data: tenant } = await ctx.supabase
-    .from("tenants")
-    .select("name, slug, trial_ends_at")
-    .eq("id", ctx.tenantId)
-    .maybeSingle();
+  const [{ data: tenant }, signals] = await Promise.all([
+    ctx.supabase
+      .from("tenants")
+      .select("name, slug, trial_ends_at")
+      .eq("id", ctx.tenantId)
+      .maybeSingle(),
+    // memberPage gwarantuje tenantId — `!` odzwierciedla gwarancję guardu.
+    fetchStartCardSignals(ctx.supabase, ctx.tenantId!),
+  ]);
 
   // Guard wpuścił, ale RLS nic nie oddało — stan nie do wyświetlenia
   // (ten sam zabieg co na ekranie /organizacja).
@@ -45,6 +51,9 @@ export default async function TenantCreatedPage() {
   const locale = await getLocale();
 
   const storeHost = tenantSubdomainHost(tenant.slug);
+  // Zdanie pod adresem wynika ze STANU (produkty? strona opublikowana?), nie
+  // z frazy stałej (M-UX-01) — mapowanie sygnałów żyje w lib/store-visibility.
+  const storeState = storeVisibilityState(signals);
   // Data końca okresu próbnego pochodzi z BAZY (`tenants.trial_ends_at`,
   // 0066/ADR-135), nie z „dziś + 14": to jedno źródło prawdy dla zegara,
   // a ekran ma nie wymyślać własnej arytmetyki. Gdy kolumna jest pusta
@@ -81,6 +90,9 @@ export default async function TenantCreatedPage() {
             >
               {storeHost}
             </a>
+          </dd>
+          <dd data-store-state={storeState} className="text-muted-foreground text-sm">
+            {t(STORE_STATE_MESSAGE_KEYS[storeState])}
           </dd>
           <dd className="text-muted-foreground text-sm">{t("storeAddressNote")}</dd>
         </div>

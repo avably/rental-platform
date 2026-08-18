@@ -1,0 +1,158 @@
+/**
+ * Kontrakt „zero surowych kluczy i18n na ekranie” (M-I18N-01, audyt
+ * właściciela 17.08, ADR-193).
+ *
+ * DEFEKT KLASY: next-intl przy braku klucza NIE rzuca — renderuje pełną
+ * ścieżkę (`catalog.productForm.backToList`) jako tekst, więc literówka
+ * w przestrzeni nazw przechodzi typecheck, lint i suitę na zielono, a wadę
+ * widzi dopiero człowiek na ekranie. Dokładnie to stało się na
+ * `/katalog/nowy`: etykieta powrotu żyje w `catalog.record`, wołana była
+ * spod `catalog.productForm`.
+ *
+ * Bramka renderuje AUDYTOWANY ekran przez PRAWDZIWE słowniki (pl i en) —
+ * `getTranslations` jest podmienione na `createTranslator` nad realnymi
+ * `messages/*.json`, z DOMYŚLNYM fallbackiem next-intl (pełna ścieżka
+ * klucza), czyli zachowaniem produkcji co do znaku — i sprawdza, że ŻADEN
+ * widoczny fragment tekstu nie jest ścieżką klucza. Wykrywacz jest zawężony
+ * do ścieżek zaczynających się od ISTNIEJĄCEJ przestrzeni najwyższego
+ * poziomu słownika: to odróżnia zgubiony klucz od danych z kropkami
+ * (adresy `*.avably.io`, e-maile, wersje) i nie wymaga ręcznej listy
+ * wyjątków. Przemianowanie przestrzeni aktualizuje wykrywacz samo.
+ *
+ * Statyczny sweep całego panelu (460 plików, 2026-08-18) znalazł dokładnie
+ * JEDEN przypadek klasy — ten ekran; bramka trzyma go i każdy przyszły
+ * regres tej klasy na tym ekranie.
+ */
+import { createTranslator, NextIntlClientProvider } from "next-intl";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import plMessages from "../messages/pl.json";
+import enMessages from "../messages/en.json";
+
+const MESSAGES = { pl: plMessages, en: enMessages } as const;
+type Locale = keyof typeof MESSAGES;
+
+const activeLocale = vi.hoisted(() => ({ current: "pl" as "pl" | "en" }));
+
+vi.mock("@/i18n/navigation", () => ({
+  usePathname: () => "/katalog/nowy",
+  Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
+    createElement("a", { href, ...props }, children),
+}));
+
+// Warstwa I/O strony — bramka mierzy RENDER tłumaczeń, nie odczyty bazy.
+vi.mock("@/lib/member-page", () => ({
+  requireMemberPage: async () => ({
+    supabase: {},
+    tenantId: "00000000-0000-4000-8000-000000000001",
+  }),
+}));
+vi.mock("@/lib/tenant-currency", () => ({
+  getTenantCurrency: async () => "PLN",
+}));
+vi.mock("@/lib/custom-fields", () => ({
+  loadPanelCustomFields: async () => [],
+  customFieldName: (definition: { name?: string }) => definition?.name ?? "",
+}));
+vi.mock("@/lib/catalog/categories", () => ({
+  fetchCategories: async () => [],
+}));
+// Moduł akcji jest "use server" i ciągnie klienty Supabase — do renderu
+// wystarczy referencja funkcji.
+vi.mock("@/app/[locale]/(panel)/katalog/actions", () => ({
+  createProductAction: async () => ({}),
+}));
+
+// PRAWDZIWA rezolucja tłumaczeń: createTranslator nad realnym słownikiem,
+// z domyślnym fallbackiem (pełna ścieżka klucza) — zachowanie produkcji.
+// `onError` wyciszone, bo brak klucza ma być łapany ASERCJĄ, nie hałasem.
+vi.mock("next-intl/server", () => ({
+  getLocale: async () => activeLocale.current,
+  getTranslations: async (namespace?: string) =>
+    createTranslator({
+      locale: activeLocale.current,
+      messages: MESSAGES[activeLocale.current],
+      namespace: namespace as never,
+      onError: () => {},
+    }),
+}));
+
+const NewProductPage = (await import("@/app/[locale]/(panel)/katalog/nowy/page")).default;
+
+/** Widoczne fragmenty tekstu z HTML — między znacznikami, po trimie. */
+function textChunks(html: string): string[] {
+  return html
+    .replace(/<[^>]*>/g, "\u0000")
+    .split("\u0000")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Ścieżka klucza = przestrzeń najwyższego poziomu słownika + co najmniej
+ * jeden segment. Zakotwiczona na całym fragmencie tekstu: klucz renderuje
+ * się jako CAŁY węzeł tekstowy, a zdanie z kropką w środku nie pasuje.
+ */
+function rawKeyDetector(locale: Locale): RegExp {
+  const namespaces = Object.keys(MESSAGES[locale]).join("|");
+  return new RegExp(`^(?:${namespaces})(?:\\.[A-Za-z0-9_]+)+$`);
+}
+
+async function renderNewProduct(locale: Locale): Promise<string> {
+  activeLocale.current = locale;
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale={locale} messages={MESSAGES[locale]} onError={() => {}}>
+      {await NewProductPage()}
+    </NextIntlClientProvider>,
+  );
+}
+
+describe("ekran /katalog/nowy nie renderuje surowych kluczy i18n (M-I18N-01)", () => {
+  it.each(["pl", "en"] as const)("locale %s: zero ścieżek kluczy w widocznym tekście", async (locale) => {
+    const html = await renderNewProduct(locale);
+    const chunks = textChunks(html);
+    // Podłoga liczności: ekran naprawdę się wyrenderował (nagłówek, pola,
+    // przycisk zapisu) — bez niej pusty render przechodziłby na pusto.
+    expect(chunks.length).toBeGreaterThan(10);
+
+    const detector = rawKeyDetector(locale);
+    const leaked = chunks.filter((chunk) => detector.test(chunk));
+    expect(leaked, `surowe klucze i18n na ekranie: ${leaked.join(", ")}`).toEqual([]);
+  });
+
+  it("etykieta powrotu to tłumaczenie z catalog.record, nie ścieżka klucza", async () => {
+    const html = await renderNewProduct("pl");
+    expect(html).toContain(MESSAGES.pl.catalog.record.backToList);
+    expect(html).not.toContain("catalog.productForm.backToList");
+  });
+});
+
+describe("strażnik samego strażnika (kontrola pozytywna wykrywacza)", () => {
+  it("brakujący klucz NAPRAWDĘ wychodzi z next-intl jako pełna ścieżka i wykrywacz go łapie", () => {
+    // Dokładnie ta konfiguracja, która zawiodła na ekranie przed naprawą.
+    const t = createTranslator({
+      locale: "pl",
+      messages: plMessages,
+      namespace: "catalog.productForm" as never,
+      onError: () => {},
+    });
+    const rendered = t("backToList" as never);
+    expect(rendered).toBe("catalog.productForm.backToList");
+    expect(rawKeyDetector("pl").test(rendered)).toBe(true);
+  });
+
+  it("dane z kropkami nie są fałszywym trafieniem", () => {
+    const detector = rawKeyDetector("pl");
+    for (const benign of [
+      "wypozyczalnia-baltyk.avably.io",
+      "www.avably.io",
+      "security@avably.io",
+      "Zapisz zmiany.",
+      "od 3 do 39 znaków.",
+    ]) {
+      expect(detector.test(benign), `fałszywe trafienie: ${benign}`).toBe(false);
+    }
+  });
+});
