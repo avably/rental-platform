@@ -10,16 +10,17 @@ import { readSeedState } from "../lib/seed-state";
  *
  * OD ADR-180 ŚCIEŻKA WYGLĄDA INACZEJ: para pól `<input type="date">` i przycisk
  * „Sprawdź dostępność" zniknęły ze strony sprzętu razem z całą jej własną
- * obsługą terminu. Termin wybiera się w SIATCE kalendarza (jedno źródło prawdy
- * w stanie koszyka, ADR-179), a dostępność przychodzi SAMA z jednego wywołania
- * zbiorczego — bez klikania „sprawdź".
+ * obsługą terminu. OD ADR-194 siatka nie wisi już na stałe: karta rezerwacji
+ * niesie POLE terminu, kalendarz otwiera się w OKNIE wyboru, a zapis do stanu
+ * koszyka (jedno źródło prawdy, ADR-179) robi wyłącznie „Zastosuj". Dostępność
+ * przychodzi SAMA z jednego wywołania zbiorczego — bez klikania „sprawdź".
  */
 
 /**
  * Klik w dzień siatki, przewijając kalendarz do jego miesiąca.
  *
- * Przewijanie jest częścią scenariusza, a nie obejściem: kalendarz otwiera się
- * na miesiącu bieżącego terminu, więc termin za miesiąc naprawdę wymaga
+ * Przewijanie jest częścią scenariusza, a nie obejściem: okno wyboru otwiera
+ * się na miesiącu bieżącego terminu, więc termin za miesiąc naprawdę wymaga
  * kliknięcia „następny miesiąc" — i tę drogę klient też przechodzi.
  */
 async function klikDzien(page: Page, iso: string): Promise<void> {
@@ -53,10 +54,19 @@ test("klient wybiera termin, widzi dostępność i dodaje produkt do koszyka", a
   const widget = page.locator(`[data-product-booking="${seed.productId}"]`);
   await expect(widget).toBeVisible();
 
+  // FORMA ZWARTA (ADR-194): siatki nie ma, dopóki klient nie kliknie POLA
+  // terminu — dokładnie ten stan zastaje pierwsze wejście.
+  await expect(page.locator("[data-calendar-day]")).toHaveCount(0);
+  await widget.locator("[data-product-booking-field]").click();
+
   // Termin trzydniowy w przyszłości (zakresy są INCLUSIVE: start = end to
-  // najem jednodniowy). Dwa kliknięcia w siatkę — otwarcie i domknięcie zakresu.
+  // najem jednodniowy). Dwa kliknięcia w siatkę — otwarcie i domknięcie
+  // zakresu — a zapis do koszyka robi dopiero „Zastosuj" (jedyny zapis,
+  // ADR-194); okno zamyka się po nim samo.
   await klikDzien(page, dateISO(7));
   await klikDzien(page, dateISO(9));
+  await page.locator("[data-store-term-apply]").click();
+  await expect(page.locator("[data-store-term-modal]")).toHaveCount(0);
 
   // Oba zasiane egzemplarze wolne w tym terminie. Liczba przychodzi SAMA,
   // z tej samej odpowiedzi katalogowej, która maluje kafle.
