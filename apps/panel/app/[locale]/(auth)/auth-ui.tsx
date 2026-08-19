@@ -202,10 +202,18 @@ export function AuthSubmit({
  * pamiętam hasła" stykały się bez odstępu i czytały się jak jeden odnośnik.
  * Kolumna z odstępem nie ma jak się skleić przy żadnej szerokości ani przy
  * żadnej długości tłumaczenia.
+ *
+ * WYŚRODKOWANE względem kolumny formularza (ADR-208, trzykrotna uwaga
+ * właściciela): pola i przycisk stoją na osi kolumny, więc treści pod nimi
+ * mają stać na tej samej osi — `items-center` centruje elementy blokowe,
+ * `text-center` łamane wiersze w nich.
  */
 export function AuthLinks({ children }: { children: React.ReactNode }) {
   return (
-    <div data-auth-links className="text-muted-foreground flex flex-col gap-2 text-sm">
+    <div
+      data-auth-links
+      className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm"
+    >
       {children}
     </div>
   );

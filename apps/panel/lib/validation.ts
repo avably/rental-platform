@@ -27,7 +27,24 @@ export const emailSchema = z
   .min(1, "Podaj adres e-mail.")
   .email("Podaj poprawny adres e-mail.");
 
-export const passwordSchema = z.string().min(8, "Hasło musi mieć co najmniej 8 znaków.");
+/**
+ * Polityka hasła USTAWIANEGO (rejestracja, reset, zmiana hasła) — ADR-208:
+ * min 8 znaków ORAZ ≥1 cyfra ORAZ ≥1 znak specjalny (znak spoza [A-Za-z0-9],
+ * więc też spacja czy polskie znaki interpunkcyjne — celowo szeroko, żeby
+ * nie unieważniać menedżerów haseł z własnym alfabetem znaków).
+ *
+ * To jest TWARDY GATE PO STRONIE SERWERA — atrybuty pola (`minLength`,
+ * `pattern`) są wyłącznie UX-em i dają się ominąć jednym curlem. Schemat jest
+ * wspólny świadomie: polityka egzekwowana tylko przy rejestracji byłaby
+ * fikcją, bo słabe hasło dałoby się ustawić chwilę później przez reset.
+ * Logowanie i pole „obecne hasło" NIE używają tego schematu (tam walidacja
+ * długości zdradzałaby politykę z czasów założenia konta).
+ */
+export const passwordSchema = z
+  .string()
+  .min(8, "Hasło musi mieć co najmniej 8 znaków.")
+  .regex(/[0-9]/, "Hasło musi zawierać co najmniej jedną cyfrę.")
+  .regex(/[^A-Za-z0-9]/, "Hasło musi zawierać co najmniej jeden znak specjalny.");
 
 export const registerSchema = z.object({
   email: emailSchema,
