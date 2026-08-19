@@ -24,9 +24,22 @@
  * ścieżek jest jawny (`CODE_READ_DIRECTORIES`, `CODE_READ_FILES`), a jego
  * kompletności pilnuje skan repo w `apps/panel/test/ci-zakres-zmian.test.ts`.
  *
+ * WARSTWA PER-JOB (ADR-207). Obok globalnego `pomin` klasyfikator oddaje
+ * werdykty per-job: `pomin_wp_plugin`, `pomin_rls`, `pomin_e2e` — job, którego
+ * żadna zmieniona ścieżka NIE DOTYKA, jest pomijany także wtedy, gdy zmiana
+ * nie jest czysto dokumentacyjna. Konstrukcja jest tą samą białą listą
+ * STREF co wyżej, tylko o jedno piętro niżej: każda ścieżka dostaje zbiór
+ * jobów, które dotyka (`jobsAffectedByPath`), a ścieżka SPOZA znanych stref
+ * (skrypty, manifesty, lockfile, `.github/**`, nieznany katalog) dotyka
+ * WSZYSTKICH — czyli nieznana strefa znaczy pełne CI, nigdy pominięcie.
+ * Job `ci` świadomie NIE MA warstwy per-job (testy jednostkowe i bramki
+ * bezpieczeństwa biegną na każdej zmianie kodu), job `zakres` klasyfikuje,
+ * więc z definicji biegnie zawsze.
+ *
  * Użycie w workflow (bez `pnpm install` — same moduły wbudowane Node):
  *   git diff --name-only --no-renames -z BAZA...HEAD | node scripts/ci-zakres-zmian.mjs --zero
- * Werdykt trafia do `$GITHUB_OUTPUT` jako `pomin=true|false` (i na stdout).
+ * Werdykty trafiają do `$GITHUB_OUTPUT` jako `pomin=true|false`,
+ * `pomin_wp_plugin=…`, `pomin_rls=…`, `pomin_e2e=…` (i na stdout).
  */
 
 import { appendFileSync } from "node:fs";
@@ -103,6 +116,56 @@ export function isDocumentationOnlyPath(path) {
   return true;
 }
 
+/** Joby z pomijaniem per-job (ADR-207). `ci` świadomie poza listą — patrz nagłówek. */
+export const PER_JOB_SKIPPABLE = Object.freeze(["wp-plugin", "rls", "e2e"]);
+
+/** Strefa wtyczki WordPress — izolowana od aplikacji (PHP + paczka zip). */
+export const WP_PLUGIN_DIRECTORY = "integrations/wordpress/";
+
+/** Strefa pakietu bazy — RLS, migracje, polityki żyją wyłącznie tu. */
+export const DB_PACKAGE_DIRECTORY = "packages/db/";
+
+/**
+ * Czy ścieżka w `apps/panel` jest powierzchnią wtyczki WordPress: dowolny
+ * segment za `apps/panel/` zaczynający się od `wordpress` lub `wp-`
+ * (`lib/wordpress/**`, `test/wordpress-*.test.ts`, `test/wp-*.test.ts`,
+ * ekran `wordpress-guide.tsx`). Dopasowanie nadmiarowe jest bezpieczne —
+ * job co najwyżej pobiegnie niepotrzebnie.
+ */
+export function isWpAdjacentPanelPath(path) {
+  if (!path.startsWith("apps/panel/")) return false;
+  return path
+    .split("/")
+    .slice(2)
+    .some((segment) => segment.startsWith("wordpress") || segment.startsWith("wp-"));
+}
+
+/**
+ * Zbiór ciężkich jobów per-job, które dana ścieżka DOTYKA (ADR-207).
+ *
+ * FAIL-CLOSED per strefa: ścieżka spoza znanych stref dotyka WSZYSTKICH
+ * jobów — `.github/**` (workflow i skrypty izolacji Supabase, z których
+ * korzystają `rls`/`e2e`), `scripts/**` (audyty joba `ci`, kontrola paczki
+ * wtyczki, TEN klasyfikator), manifesty i lockfile (każdy job robi install
+ * albo checkout), nieznany katalog. Zmiana samego `ci.yml` czy klasyfikatora
+ * NIGDY nie kwalifikuje się do pominięcia — bramka nie zwalnia sama siebie.
+ *
+ * ŚWIADOMA GRANICA (decyzja PM w ADR-207): `rls` reaguje wyłącznie na
+ * `packages/db/**`. Job `rls` uruchamia też suity integracyjne panelu
+ * i storefrontu na żywym Supabase — dla PR-a czysto frontowego te suity nie
+ * pobiegną; pokrycie ścieżki krytycznej trzyma wtedy `e2e`, który na każdej
+ * zmianie `apps/**`/`packages/**` biegnie.
+ */
+export function jobsAffectedByPath(path) {
+  if (!isWellFormedPath(path)) return [...PER_JOB_SKIPPABLE];
+  if (isDocumentationOnlyPath(path)) return [];
+  if (path.startsWith(WP_PLUGIN_DIRECTORY)) return ["wp-plugin"];
+  if (path.startsWith(DB_PACKAGE_DIRECTORY)) return ["rls", "e2e"];
+  if (isWpAdjacentPanelPath(path)) return ["wp-plugin", "e2e"];
+  if (path.startsWith("apps/") || path.startsWith("packages/")) return ["e2e"];
+  return [...PER_JOB_SKIPPABLE];
+}
+
 /**
  * Werdykt dla całego zakresu zmian.
  *
@@ -110,11 +173,16 @@ export function isDocumentationOnlyPath(path) {
  * @returns {{ skipHeavyJobs: boolean, reason: string, blockingPaths: string[] }}
  */
 export function classifyChangedPaths(paths) {
+  // Fail-closed dla warstwy per-job: dopóki nie policzymy stref, żaden job
+  // nie jest pomijalny.
+  const noSkips = Object.fromEntries(PER_JOB_SKIPPABLE.map((job) => [job, false]));
+
   if (!Array.isArray(paths)) {
     return {
       skipHeavyJobs: false,
       reason: "nie udało się ustalić zakresu zmian (brak listy ścieżek)",
       blockingPaths: [],
+      skipJobs: noSkips,
     };
   }
 
@@ -124,8 +192,20 @@ export function classifyChangedPaths(paths) {
       skipHeavyJobs: false,
       reason: "pusty zakres zmian — pełne CI (brak wiedzy nie znaczy „pomiń”)",
       blockingPaths: [],
+      skipJobs: noSkips,
     };
   }
+
+  // Warstwa per-job (ADR-207): job jest pomijalny, gdy ŻADNA ścieżka go nie
+  // dotyka. Suma zbiorów po ścieżkach — nieznana strefa dotyka wszystkich,
+  // więc pojedynczy nieznany plik gasi wszystkie pominięcia.
+  const affectedJobs = new Set();
+  for (const path of cleaned) {
+    for (const job of jobsAffectedByPath(path)) affectedJobs.add(job);
+  }
+  const skipJobs = Object.fromEntries(
+    PER_JOB_SKIPPABLE.map((job) => [job, !affectedJobs.has(job)]),
+  );
 
   const blockingPaths = cleaned.filter((path) => !isDocumentationOnlyPath(path));
   if (blockingPaths.length > 0) {
@@ -133,6 +213,7 @@ export function classifyChangedPaths(paths) {
       skipHeavyJobs: false,
       reason: `zmiany poza dokumentacją: ${blockingPaths.length} z ${cleaned.length} ścieżek`,
       blockingPaths,
+      skipJobs,
     };
   }
 
@@ -140,6 +221,7 @@ export function classifyChangedPaths(paths) {
     skipHeavyJobs: true,
     reason: `wyłącznie dokumentacja (${cleaned.length} ścieżek)`,
     blockingPaths: [],
+    skipJobs,
   };
 }
 
@@ -175,10 +257,29 @@ async function main() {
   for (const path of verdict.blockingPaths.slice(0, 20)) {
     process.stderr.write(`  wymusza pełne CI: ${path}\n`);
   }
+  for (const job of PER_JOB_SKIPPABLE) {
+    process.stderr.write(
+      `per-job: ${job} — ${verdict.skipJobs[job] ? "POMINIĘTY (żadna ścieżka go nie dotyka)" : "biegnie"}\n`,
+    );
+  }
 
-  const line = `pomin=${verdict.skipHeavyJobs ? "true" : "false"}`;
-  process.stdout.write(`${line}\n`);
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`);
+  const lines = verdictOutputLines(verdict);
+  process.stdout.write(`${lines.join("\n")}\n`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join("\n")}\n`);
+}
+
+/**
+ * Linie werdyktu dla `$GITHUB_OUTPUT`/stdout. Nazwy jobów z myślnikiem
+ * mapują się na podkreślenia (`wp-plugin` → `pomin_wp_plugin`), bo nazwa
+ * outputu w Actions nie powinna liczyć na myślnik w wyrażeniach.
+ */
+export function verdictOutputLines(verdict) {
+  return [
+    `pomin=${verdict.skipHeavyJobs ? "true" : "false"}`,
+    ...PER_JOB_SKIPPABLE.map(
+      (job) => `pomin_${job.replaceAll("-", "_")}=${verdict.skipJobs[job] ? "true" : "false"}`,
+    ),
+  ];
 }
 
 // Uruchomienie jako CLI (import w teście tego nie odpala). Każdy błąd kończy
@@ -187,8 +288,11 @@ async function main() {
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
     process.stderr.write(`BŁĄD klasyfikatora — pełne CI: ${error?.message ?? error}\n`);
-    const line = "pomin=false";
-    process.stdout.write(`${line}\n`);
-    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`);
+    const lines = [
+      "pomin=false",
+      ...PER_JOB_SKIPPABLE.map((job) => `pomin_${job.replaceAll("-", "_")}=false`),
+    ];
+    process.stdout.write(`${lines.join("\n")}\n`);
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join("\n")}\n`);
   });
 }
