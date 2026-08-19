@@ -20,6 +20,12 @@
  * i bramka będzie zielona NA WSZYSTKIM. Dlatego zero bloków to porażka,
  * a nie „czysto".
  *
+ * WYJĄTKÓW NIE MA. Zastany duplikat ADR-007 (dwie różne decyzje pod jednym
+ * numerem, dopuszczony w pierwszej wersji bramki jawną mapą ZASTANE_DUPLIKATY
+ * — ADR-187 D4) został 2026-08-19 rozwiązany przenumerowaniem późniejszego
+ * bloku na ADR-201. Wyjątek zniknął razem ze swoim powodem, dokładnie tak, jak
+ * zapowiadał ADR-187: od tej chwili KAŻDY duplikat numeru pali bramkę.
+ *
  * Użycie (zero instalacji — same moduły wbudowane Node):
  *   node scripts/audit-adr-duplikaty.mjs [ścieżka/do/index.html]
  */
@@ -49,23 +55,6 @@ export const WZORZEC_BLOKU = /<div class="log"><p class="h"><b>(ADR-\d{3})<\/b>/
  */
 export const WZORZEC_LUZNY =
   /<div\s[^>]*class="log"[^>]*>\s*<p\s[^>]*class="h"[^>]*>\s*<b>\s*(ADR-\d{3})\s*<\/b>/g;
-
-/**
- * Zastane duplikaty — jawny wykaz z liczbą wystąpień, nie ogólna tolerancja.
- *
- * ADR-007 istnieje na `main` w DWÓCH egzemplarzach i są to dwie RÓŻNE decyzje:
- * „Kanoniczne tokeny @avably/ui po konsolidacji driftu" oraz „Custom claims
- * WYŁĄCZNIE z JWT (getClaims), nigdy z getUser()". To jest dokładnie ta wada,
- * którą bramka odtąd zatrzymuje — zastana, więc przepuszczona świadomie
- * i pod własną nazwą, zamiast wyciszona regułą „duplikaty bywają w porządku".
- * Przenumerowanie starego wpisu unieważniłoby odwołania do ADR-007 w kodzie,
- * commitach i dokumentacji, więc blizna zostaje widoczna, a nie zamalowana.
- *
- * Liczba jest częścią wyjątku: TRZECI egzemplarz ADR-007 pali bramkę tak samo
- * jak każdy inny duplikat, a zejście do jednego pali ją jako wyjątek martwy —
- * wyjątek, który przestał opisywać plik, musi zniknąć razem z powodem.
- */
-export const ZASTANE_DUPLIKATY = new Map([["ADR-007", 2]]);
 
 /** Numery ADR w kolejności wystąpienia, wyłuskane podanym wzorcem. */
 export function numeryAdr(tresc, wzorzec = WZORZEC_BLOKU) {
@@ -112,30 +101,11 @@ export function zbadaj(tresc) {
 
   const najwyzszy = [...licznik.keys()].sort().at(-1);
   for (const [numer, ile] of [...licznik].sort()) {
-    const dozwolone = ZASTANE_DUPLIKATY.get(numer) ?? 1;
-    if (ile === dozwolone) continue;
-    if (dozwolone > 1) {
-      problemy.push(
-        `${numer}: ${ile} wystąpień, a zastany wyjątek dopuszcza ${dozwolone}. ` +
-          (ile > dozwolone
-            ? "Nowy duplikat na numerze objętym wyjątkiem — nadaj mu wolny numer."
-            : "Wyjątek przestał opisywać plik — usuń go z ZASTANE_DUPLIKATY."),
-      );
-      continue;
-    }
+    if (ile === 1) continue;
     problemy.push(
       `${numer}: ${ile} bloki pod tym samym numerem — dwie prace dostały ten sam ` +
         `numer ADR. Nadaj nowszej pierwszy wolny (najwyższy zajęty: ${najwyzszy}) ` +
         "i przenumeruj jej wpisy w kodzie, dokumentacji i tytułach commitów.",
-    );
-  }
-
-  // Wyjątek, którego numeru w pliku w ogóle nie ma, też jest martwy.
-  for (const [numer, ile] of ZASTANE_DUPLIKATY) {
-    if (licznik.has(numer)) continue;
-    problemy.push(
-      `${numer}: wyjątek na ${ile} wystąpień, a w pliku nie ma ani jednego — ` +
-        "usuń martwy wyjątek z ZASTANE_DUPLIKATY.",
     );
   }
 
