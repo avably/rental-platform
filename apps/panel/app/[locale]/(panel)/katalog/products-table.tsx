@@ -34,6 +34,15 @@ import { ProductRowActions } from "./product-row-actions";
  * wierszami), stan wiersza i obrys focusu na elemencie TABOWALNYM — czyli na
  * linku z nazwą, nie na `<tr>` (lekcja ADR-057 D5).
  *
+ * DWA WARIANTY, JEDEN MODEL WIERSZA (ADR-205). Do progu `md` tabela ustępuje
+ * STOSOWI KART — wzorzec głównych list zamówień i klientów: pomiar ADR-204
+ * pokazał, że katalog był JEDYNĄ główną listą bez wariantu mobilnego i na
+ * telefonie (390 px) operator przewijał tabelę w bok przy każdym produkcie.
+ * Karta niesie KOMPLET kolumn tabeli (miniatura, nazwa, cena/doba, kaucja,
+ * egzemplarze, dziś w terenie, status, akcje) — nic nie chowa się za
+ * rozwinięciem ani przewijaniem; pilnuje tego `katalog-karta-kompletnosc`,
+ * a geometrię na telefonie `packages/e2e/tests/09-katalog-mobilny.spec.ts`.
+ *
  * DWIE OSIE, DWIE KOLUMNY. „Status" niesie flagę PUBLIKACJI
  * (`availability-chip.ts`), „Dziś w terenie" — obecność FIZYCZNĄ
  * (`deployed-today.ts`). Nazwy i atrybuty `data-catalog-axis` są rozdzielne,
@@ -60,6 +69,11 @@ const HEAD_CLASS =
   "h-auto px-3.5 py-3 text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase";
 
 const CELL_CLASS = "h-[52px] px-3.5 py-2.5";
+
+/** Micro-label pola karty mobilnej — typografia nagłówka tabeli bez jej
+ * paddingów, żeby oba warianty mówiły jednym głosem (sekcja 02 artefaktu). */
+const CARD_LABEL_CLASS =
+  "text-[11px] leading-[14px] font-semibold tracking-[0.06em] text-muted-foreground uppercase";
 
 export function ProductsTable({
   rows,
@@ -99,82 +113,125 @@ export function ProductsTable({
   );
 
   return (
-    <div className="border-border bg-card overflow-x-auto rounded-lg border">
-      <Table className="min-w-[860px] border-collapse">
-        <TableHeader>
-          <TableRow className="hover:border-b-border">
-            {/* Szerokość kolumny miniatury jest PRZYPIĘTA (w-14 = 56 px = 40 px
-                obrazu + padding). Bez tego auto-layout tabeli liczy minimalną
-                szerokość obrazu jako 0 (preflight daje `img { max-width: 100% }`),
-                kolumna zapada się do kilkunastu pikseli i miniatura wychodzi
-                paskiem — zmierzone w przeglądarce: komórka 28 px, obraz 13 px. */}
-            <TableHead className="h-auto w-14 px-3.5 py-3">
-              <span className="sr-only">{t("colThumbnail")}</span>
-            </TableHead>
-            {sortableHead(t("colName"), "nazwa")}
-            {sortableHead(t("colPricePerDay"), "cena", "right")}
-            <TableHead className={`${HEAD_CLASS} text-right`}>{t("colDeposit")}</TableHead>
-            {sortableHead(t("colUnits"), "egzemplarze", "right")}
-            {sortableHead(t("colDeployed"), "teren", "right")}
-            <TableHead className={HEAD_CLASS}>{t("colActive")}</TableHead>
-            <TableHead className="h-auto px-3.5 py-3">
-              <span className="sr-only">{t("colActions")}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id} data-product-row data-product-id={row.id}>
-              <TableCell data-cell="thumbnail" className="h-[52px] py-2.5 pr-0 pl-3.5">
+    <>
+      {/* Desktop: tabela. Ramka i przewijanie poziome jak dotąd — dopiero na
+          wąskim md schodzimy na karty niżej (wzorzec orders/customers). */}
+      <div className="border-border bg-card hidden overflow-x-auto rounded-lg border md:block">
+        <Table className="min-w-[860px] border-collapse">
+          <TableHeader>
+            <TableRow className="hover:border-b-border">
+              {/* Szerokość kolumny miniatury jest PRZYPIĘTA (w-14 = 56 px = 40 px
+                  obrazu + padding). Bez tego auto-layout tabeli liczy minimalną
+                  szerokość obrazu jako 0 (preflight daje `img { max-width: 100% }`),
+                  kolumna zapada się do kilkunastu pikseli i miniatura wychodzi
+                  paskiem — zmierzone w przeglądarce: komórka 28 px, obraz 13 px. */}
+              <TableHead className="h-auto w-14 px-3.5 py-3">
+                <span className="sr-only">{t("colThumbnail")}</span>
+              </TableHead>
+              {sortableHead(t("colName"), "nazwa")}
+              {sortableHead(t("colPricePerDay"), "cena", "right")}
+              <TableHead className={`${HEAD_CLASS} text-right`}>{t("colDeposit")}</TableHead>
+              {sortableHead(t("colUnits"), "egzemplarze", "right")}
+              {sortableHead(t("colDeployed"), "teren", "right")}
+              <TableHead className={HEAD_CLASS}>{t("colActive")}</TableHead>
+              <TableHead className="h-auto px-3.5 py-3">
+                <span className="sr-only">{t("colActions")}</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id} data-product-row data-product-id={row.id}>
+                <TableCell data-cell="thumbnail" className="h-[52px] py-2.5 pr-0 pl-3.5">
+                  <Thumbnail thumbnail={row.thumbnail} />
+                </TableCell>
+                <TableCell data-cell="name" className={CELL_CLASS}>
+                  <Link
+                    className="text-foreground rounded-sm font-medium no-underline outline-none hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+                    href={`/katalog/${row.id}`}
+                  >
+                    {row.name}
+                  </Link>
+                </TableCell>
+                <TableCell
+                  data-cell="price"
+                  className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
+                >
+                  {formatMoney(row.basePriceDayGrosze, currency, locale)}
+                </TableCell>
+                <TableCell
+                  data-cell="deposit"
+                  className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
+                >
+                  {formatMoney(row.depositGrosze, currency, locale)}
+                </TableCell>
+                <TableCell
+                  data-cell="units"
+                  className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
+                >
+                  {row.unitCount}
+                </TableCell>
+                <TableCell
+                  data-cell="deployed"
+                  className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
+                >
+                  <DeployedValue row={row} />
+                </TableCell>
+                <TableCell data-cell="availability" className={CELL_CLASS}>
+                  <AvailabilityBadge active={row.active} />
+                </TableCell>
+                <TableCell data-cell="actions" className={`${CELL_CLASS} text-right`}>
+                  <ProductRowActions
+                    productId={row.id}
+                    labels={{
+                      trigger: t("rowActions", { name: row.name }),
+                      edit: t("actionEdit"),
+                      units: t("unitsLink"),
+                      tiers: t("tiersLink"),
+                      images: t("imagesLink"),
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile: stos kart (ADR-205). Ta sama tablica `rows`, jeden
+          wiersz-model. Model klikalności wprost z tabeli: LINKIEM jest nazwa
+          (nie cała karta), a menu akcji stoi POZA kotwicą — kontrolka
+          w środku `<a>` byłaby i niepoprawnym HTML-em, i pułapką na klik
+          (lekcja kart zamówień). Komplet kolumn tabeli na wierzchu: zero
+          `hidden`/`<details>` chowających dane (ADR-188). */}
+      <ul className="flex flex-col gap-3 md:hidden">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            data-product-card
+            data-product-id={row.id}
+            className="border-border bg-card rounded-lg border p-4"
+          >
+            <div className="flex items-start gap-3">
+              <span data-card-field="thumbnail" className="shrink-0">
                 <Thumbnail thumbnail={row.thumbnail} />
-              </TableCell>
-              <TableCell data-cell="name" className={CELL_CLASS}>
+              </span>
+              <div className="min-w-0 flex-1">
+                {/* `break-words`: nazwa produktu to dana pierwszorzędna —
+                    zawija się w dół, nigdy nie rozpycha karty w bok i nigdy
+                    nie jest ucinana wielokropkiem. */}
                 <Link
-                  className="text-foreground rounded-sm font-medium no-underline outline-none hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+                  data-card-field="name"
                   href={`/katalog/${row.id}`}
+                  className="text-foreground rounded-sm font-medium break-words no-underline outline-none hover:underline hover:underline-offset-[3px] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
                 >
                   {row.name}
                 </Link>
-              </TableCell>
-              <TableCell
-                data-cell="price"
-                className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
-              >
-                {formatMoney(row.basePriceDayGrosze, currency, locale)}
-              </TableCell>
-              <TableCell
-                data-cell="deposit"
-                className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
-              >
-                {formatMoney(row.depositGrosze, currency, locale)}
-              </TableCell>
-              <TableCell
-                data-cell="units"
-                className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
-              >
-                {row.unitCount}
-              </TableCell>
-              <TableCell
-                data-cell="deployed"
-                className={`${CELL_CLASS} text-right tabular-nums tracking-[0.01em]`}
-              >
-                <span
-                  {...deploymentCellProps(row.deployedToday, row.unitCount)}
-                  className={cn(
-                    row.deployedToday > 0 ? "text-foreground font-medium" : "text-muted-foreground",
-                  )}
-                >
-                  {row.unitCount === 0 && row.deployedToday === 0
-                    ? t("deployedNone")
-                    : t("deployedOf", { deployed: row.deployedToday, total: row.unitCount })}
-                </span>
-              </TableCell>
-              <TableCell data-cell="availability" className={CELL_CLASS}>
-                <StatusBadge {...availabilityBadgeProps(row.active)}>
-                  {row.active ? t("activeYes") : t("activeNo")}
-                </StatusBadge>
-              </TableCell>
-              <TableCell data-cell="actions" className={`${CELL_CLASS} text-right`}>
+                <div data-card-field="availability" className="mt-1.5">
+                  <AvailabilityBadge active={row.active} />
+                </div>
+              </div>
+              <span data-card-field="actions" className="-mt-1 -mr-2 shrink-0">
                 <ProductRowActions
                   productId={row.id}
                   labels={{
@@ -185,12 +242,70 @@ export function ProductsTable({
                     images: t("imagesLink"),
                   }}
                 />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+              </span>
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+              <div data-card-field="price">
+                <dt className={CARD_LABEL_CLASS}>{t("colPricePerDay")}</dt>
+                <dd className="text-foreground mt-0.5 text-sm tabular-nums tracking-[0.01em]">
+                  {formatMoney(row.basePriceDayGrosze, currency, locale)}
+                </dd>
+              </div>
+              <div data-card-field="deposit">
+                <dt className={CARD_LABEL_CLASS}>{t("colDeposit")}</dt>
+                <dd className="text-foreground mt-0.5 text-sm tabular-nums tracking-[0.01em]">
+                  {formatMoney(row.depositGrosze, currency, locale)}
+                </dd>
+              </div>
+              <div data-card-field="units">
+                <dt className={CARD_LABEL_CLASS}>{t("colUnits")}</dt>
+                <dd className="text-foreground mt-0.5 text-sm tabular-nums tracking-[0.01em]">
+                  {row.unitCount}
+                </dd>
+              </div>
+              <div data-card-field="deployed">
+                <dt className={CARD_LABEL_CLASS}>{t("colDeployed")}</dt>
+                <dd className="mt-0.5 text-sm tabular-nums tracking-[0.01em]">
+                  <DeployedValue row={row} />
+                </dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * Wartość „dziś w terenie" — WSPÓLNA dla komórki tabeli i pola karty, żeby
+ * oba warianty nie rozjechały się przy pierwszej poprawce (ta sama oś
+ * `deployment`, ten sam zapis „x z y" i ten sam myślnik przy braku
+ * egzemplarzy).
+ */
+function DeployedValue({ row }: { row: ProductsTableRow }) {
+  const t = useTranslations("catalog.list");
+  return (
+    <span
+      {...deploymentCellProps(row.deployedToday, row.unitCount)}
+      className={cn(
+        row.deployedToday > 0 ? "text-foreground font-medium" : "text-muted-foreground",
+      )}
+    >
+      {row.unitCount === 0 && row.deployedToday === 0
+        ? t("deployedNone")
+        : t("deployedOf", { deployed: row.deployedToday, total: row.unitCount })}
+    </span>
+  );
+}
+
+/** Odznaka publikacji — wspólna dla obu wariantów z tego samego powodu. */
+function AvailabilityBadge({ active }: { active: boolean }) {
+  const t = useTranslations("catalog.list");
+  return (
+    <StatusBadge {...availabilityBadgeProps(active)}>
+      {active ? t("activeYes") : t("activeNo")}
+    </StatusBadge>
   );
 }
 

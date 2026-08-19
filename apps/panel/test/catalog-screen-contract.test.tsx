@@ -131,7 +131,9 @@ describe("kontrakt renderu ekranów katalogu", () => {
     const chips = [...tableHtml.matchAll(/<span[^>]*data-catalog-axis="availability"[^>]*>/g)].map(
       (match) => match[0],
     );
-    expect(chips).toHaveLength(rows.length);
+    // Od ADR-205 odznaka renderuje się w OBU wariantach (tabela + karta) —
+    // porządek: najpierw wiersze tabeli, potem karty, więc [0]/[1] to tabela.
+    expect(chips).toHaveLength(rows.length * 2);
     expect(chips[0]).toContain('data-catalog-value="active"');
     expect(chips[0]).toContain('data-tone="positive"');
     expect(chips[1]).toContain('data-catalog-value="inactive"');
@@ -154,7 +156,8 @@ describe("kontrakt renderu ekranów katalogu", () => {
     const deployed = [...tableHtml.matchAll(/<span[^>]*data-catalog-axis="deployment"[^>]*>/g)].map(
       (match) => match[0],
     );
-    expect(deployed, "brak komórek osi deployment").toHaveLength(rows.length);
+    // Dwa warianty renderu (ADR-205): tabela + karta, wiersze tabeli pierwsze.
+    expect(deployed, "brak komórek osi deployment").toHaveLength(rows.length * 2);
     // Produkt z 1 sztuką w terenie z 3 → „partial"; produkt bez wydań → „none".
     expect(deployed[0]).toContain('data-catalog-value="partial"');
     expect(deployed[1]).toContain('data-catalog-value="none"');
@@ -184,10 +187,11 @@ describe("kontrakt renderu ekranów katalogu", () => {
     // Goły URL publiczny, NIE transformacja zależna od planu hostingu (ADR-145).
     expect(image).not.toContain("/render/image/");
     // Produkt bez zdjęcia: kafelek zastępczy, nie dziura w kolumnie.
+    // Po jednym na wariant renderu (tabela + karta mobilna, ADR-205).
     const placeholders = [
       ...tableHtml.matchAll(/<span[^>]*data-product-thumbnail="placeholder"[^>]*>/g),
     ];
-    expect(placeholders).toHaveLength(1);
+    expect(placeholders).toHaveLength(2);
   });
 
   it("miniatura ma MINIMALNĄ szerokość — inaczej kolumna zapada się w pasek", () => {
