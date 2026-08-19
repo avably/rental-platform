@@ -96,12 +96,15 @@ describe("pole adresu sklepu — nazwa i podgląd na żywo", () => {
 });
 
 describe("ton ekranu: adres da się zmienić (decyzja właściciela)", () => {
-  it("nota obiecuje możliwość zmiany i przekierowanie starego adresu", () => {
+  it("nota obiecuje zmianę adresu, przekierowanie starego I własną domenę", () => {
     const { container } = renderForm();
 
     const note = container.textContent ?? "";
     expect(note).toContain(messages.newOrganization.slugEditableNote);
-    expect(note).toContain("przekierowany");
+    // Uwaga właściciela 2026-08-19: nota mówi OBIE rzeczy — przekierowanie
+    // starego adresu po zmianie oraz możliwość podpięcia własnej domeny.
+    expect(note).toContain("przekieruj");
+    expect(note).toContain("własną domenę");
   });
 
   it("ekran NIE straszy nieodwracalnością", () => {

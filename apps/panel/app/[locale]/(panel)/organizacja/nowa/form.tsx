@@ -65,6 +65,10 @@ export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | nul
         nie zmienisz" — ostrzeżenie nieodwracalnością byłoby dziś kłamstwem
         w drugą stronę i zatrzymywałoby ludzi na polu, na którym nie ma się
         nad czym zastanawiać. Samą edycję dowozi osobne zadanie.
+
+        UWAGA WŁAŚCICIELA (2026-08-19): nota mówi odtąd OBIE obietnice —
+        zmianę adresu w panelu (z przekierowaniem starego) ORAZ możliwość
+        podpięcia własnej domeny.
       */}
       <p id="tenant-slug-note" className="text-muted-foreground text-sm">
         {t("slugEditableNote")}

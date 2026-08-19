@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { SAAS_TRIAL_DAYS, tenantSubdomainHost } from "@avably/core";
 
+import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenSection } from "@/components/screens/screen-header";
 import { Link } from "@/i18n/navigation";
 import { fetchStartCardSignals } from "@/lib/dashboard/start-card";
 import { requireMemberPage } from "@/lib/member-page";
@@ -69,55 +71,58 @@ export default async function TenantCreatedPage() {
     : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-[-0.02em]">
-          {t("title", { name: tenant.name })}
-        </h2>
-        <p className="text-muted-foreground mt-3 text-sm">{t("body")}</p>
-      </div>
-
-      <dl className="border-border flex flex-col gap-4 rounded-md border p-4">
-        <div className="flex flex-col gap-1">
-          <dt className="text-muted-foreground text-sm">{t("storeAddressLabel")}</dt>
-          <dd className="text-sm font-medium">
-            <a
-              data-store-address
-              href={`https://${storeHost}`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-[3px]"
-            >
-              {storeHost}
-            </a>
-          </dd>
-          <dd data-store-state={storeState} className="text-muted-foreground text-sm">
-            {t(STORE_STATE_MESSAGE_KEYS[storeState])}
-          </dd>
-          <dd className="text-muted-foreground text-sm">{t("storeAddressNote")}</dd>
-        </div>
-        {trialEndsAt ? (
+    /*
+      KARTA PANELU (uwaga właściciela 2026-08-19, ta sama co /organizacja/nowa):
+      potwierdzenie stało na gołym tle, a blok faktów miał obrys bez białego
+      tła. Całość wchodzi w białą kartę (`ScreenSection` — tytuł i treść jak
+      na każdym innym ekranie panelu), blok faktów zostaje wewnętrznym blokiem
+      z obrysem NA białym (precedens: kafle pulpitu). Szerokość ze wspólnej
+      miary formularza — własne `max-w-*` zapala skan spójności (ADR-060).
+    */
+    <FormMeasure className="mx-auto">
+      <ScreenSection title={t("title", { name: tenant.name })} description={t("body")}>
+        <dl className="border-border flex flex-col gap-4 rounded-md border p-4">
           <div className="flex flex-col gap-1">
-            <dt className="text-muted-foreground text-sm">{t("trialLabel")}</dt>
-            <dd data-trial-ends-at className="text-sm font-medium">
-              {t("trialValue", { date: trialEndsAt })}
+            <dt className="text-muted-foreground text-sm">{t("storeAddressLabel")}</dt>
+            <dd className="text-sm font-medium">
+              <a
+                data-store-address
+                href={`https://${storeHost}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-[3px]"
+              >
+                {storeHost}
+              </a>
             </dd>
-            <dd className="text-muted-foreground text-sm">
-              {t("trialNote", { days: SAAS_TRIAL_DAYS })}
+            <dd data-store-state={storeState} className="text-muted-foreground text-sm">
+              {t(STORE_STATE_MESSAGE_KEYS[storeState])}
             </dd>
+            <dd className="text-muted-foreground text-sm">{t("storeAddressNote")}</dd>
           </div>
-        ) : null}
-      </dl>
+          {trialEndsAt ? (
+            <div className="flex flex-col gap-1">
+              <dt className="text-muted-foreground text-sm">{t("trialLabel")}</dt>
+              <dd data-trial-ends-at className="text-sm font-medium">
+                {t("trialValue", { date: trialEndsAt })}
+              </dd>
+              <dd className="text-muted-foreground text-sm">
+                {t("trialNote", { days: SAAS_TRIAL_DAYS })}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
 
-      <p>
-        <Link
-          href="/"
-          data-tenant-created-cta
-          className="bg-primary text-primary-foreground inline-flex cursor-pointer items-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
-        >
-          {t("cta")}
-        </Link>
-      </p>
-    </div>
+        <p>
+          <Link
+            href="/"
+            data-tenant-created-cta
+            className="bg-primary text-primary-foreground inline-flex cursor-pointer items-center rounded-md border border-transparent px-4 py-2 text-sm font-semibold outline-none transition-[color,background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+          >
+            {t("cta")}
+          </Link>
+        </p>
+      </ScreenSection>
+    </FormMeasure>
   );
 }

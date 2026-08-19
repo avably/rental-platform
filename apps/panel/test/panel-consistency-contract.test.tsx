@@ -73,7 +73,12 @@ const topbarOwnedTitleFiles = [
   "historia-emaili/page.tsx",
   "katalog/page.tsx",
   "organizacja/page.tsx",
-  "organizacja/nowa/page.tsx",
+  // `organizacja/nowa/page.tsx` WYPADŁO z listy (uwaga właściciela
+  // 2026-08-19): ekran onboardingu dostał WIDOCZNY nagłówek karty „Utwórz
+  // nową organizację" (`newOrganization.title`) — jak potwierdzenie
+  // `/organizacja/nowa/gotowe`, które nigdy na tej liście nie stało. Belka
+  // zostaje jedynym `h1` (tego pilnuje skan h1 wyżej), a tytuł karty jest
+  // `h2` z INNĄ treścią niż belka, więc duplikatu nie ma.
   "strona/page.tsx",
   "strona/site-pages.tsx",
   "ustawienia-domen/page.tsx",
@@ -240,8 +245,7 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
       expect(file, `brak ekranu w skanie: ${path}`).toBeDefined();
       return (
         /<h2\b[^>]*>\s*\{t\("title"\)\}\s*<\/h2>/.test(file!.code) ||
-        /<ScreenHeader\b[^>]*title=\{t\("title"\)\}/.test(file!.code) ||
-        (path === "organizacja/nowa/page.tsx" && file!.code.includes(">Załóż organizację</h2>"))
+        /<ScreenHeader\b[^>]*title=\{t\("title"\)\}/.test(file!.code)
       );
     });
 

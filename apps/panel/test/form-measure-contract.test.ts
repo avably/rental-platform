@@ -63,6 +63,11 @@ const SCREENS_UNDER_MEASURE = [
   "app/[locale]/(panel)/ustawienia-platnosci/page.tsx",
   "app/[locale]/(panel)/zaproszenia/page.tsx",
   "app/[locale]/(panel)/organizacja/page.tsx",
+  // Uwaga właściciela 2026-08-19: onboarding organizacji i jego potwierdzenie
+  // weszły w białą kartę panelu — szerokość karty niesie wspólna miara,
+  // dokładnie po to, żeby nie wracać do własnego `max-w-*` (ADR-060).
+  "app/[locale]/(panel)/organizacja/nowa/page.tsx",
+  "app/[locale]/(panel)/organizacja/nowa/gotowe/page.tsx",
   "app/[locale]/(panel)/bezpieczenstwo/page.tsx",
   "app/[locale]/(panel)/bezpieczenstwo/wyzwanie/page.tsx",
   // Formularze, które przed P8 miały WŁASNY wpis na whiteliście kontraktu
@@ -118,7 +123,7 @@ describe("kontrakt miary formularza — artefakt ↔ arkusz panelu", () => {
 
 describe("użycie wspólnej miary przez ekrany", () => {
   it("skan obejmuje realny zbiór ekranów", () => {
-    expect(SCREENS_UNDER_MEASURE.length).toBe(17);
+    expect(SCREENS_UNDER_MEASURE.length).toBe(19);
   });
 
   it.each(SCREENS_UNDER_MEASURE)("%s stoi pod wspólną miarą", (path) => {
