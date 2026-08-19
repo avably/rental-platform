@@ -35,6 +35,11 @@ const { productsFilterSchema } = await import("@/lib/catalog-validation");
  *
  * Każda asercja ma stronę PRZECIWNĄ (coś zostało / coś zniknęło) — sama
  * obecność dopasowania przeszłaby też przy filtrze, który nic nie robi.
+ *
+ * Od ADR-205 lista renderuje DWA warianty (tabela + karty mobilne), więc
+ * pozytywne dopasowania nazw idą przez `getAllByText` z jawną liczbą 2 —
+ * jednocześnie pilnując, że żaden wariant nie zgubił wiersza. Negatywne
+ * (`queryByText` → null) zostają: produkt odfiltrowany znika z OBU wariantów.
  */
 
 interface Row {
@@ -119,14 +124,14 @@ afterEach(() => cleanup());
 describe("lista katalogu — wyszukiwarka", () => {
   it("bez frazy pokazuje wszystkie produkty", () => {
     renderList({});
-    expect(screen.getByText("Rower górski 26")).toBeTruthy();
-    expect(screen.getByText("Kajak dwuosobowy")).toBeTruthy();
-    expect(screen.getByText("Namiot 4-osobowy")).toBeTruthy();
+    expect(screen.getAllByText("Rower górski 26")).toHaveLength(2);
+    expect(screen.getAllByText("Kajak dwuosobowy")).toHaveLength(2);
+    expect(screen.getAllByText("Namiot 4-osobowy")).toHaveLength(2);
   });
 
   it("fraza ZAWĘŻA listę do dopasowań (i gubi resztę)", () => {
     renderList({ q: "kajak" });
-    expect(screen.getByText("Kajak dwuosobowy")).toBeTruthy();
+    expect(screen.getAllByText("Kajak dwuosobowy")).toHaveLength(2);
     // Ta asercja pali przy wyszukiwarce ignorującej frazę.
     expect(screen.queryByText("Rower górski 26")).toBeNull();
     expect(screen.queryByText("Namiot 4-osobowy")).toBeNull();
@@ -134,7 +139,7 @@ describe("lista katalogu — wyszukiwarka", () => {
 
   it("dopasowanie jest częściowe i niewrażliwe na wielkość liter", () => {
     renderList({ q: "GÓRSKI" });
-    expect(screen.getByText("Rower górski 26")).toBeTruthy();
+    expect(screen.getAllByText("Rower górski 26")).toHaveLength(2);
     expect(screen.queryByText("Kajak dwuosobowy")).toBeNull();
   });
 
@@ -159,13 +164,13 @@ describe("lista katalogu — wyszukiwarka", () => {
 describe("lista katalogu — filtr publikacji", () => {
   it("chip „aktywne” zostawia aktywne i USUWA nieaktywne", () => {
     renderList({ status: "aktywne" });
-    expect(screen.getByText("Rower górski 26")).toBeTruthy();
+    expect(screen.getAllByText("Rower górski 26")).toHaveLength(2);
     expect(screen.queryByText("Kajak dwuosobowy")).toBeNull();
   });
 
   it("chip „nieaktywne” działa w drugą stronę", () => {
     renderList({ status: "nieaktywne" });
-    expect(screen.getByText("Kajak dwuosobowy")).toBeTruthy();
+    expect(screen.getAllByText("Kajak dwuosobowy")).toHaveLength(2);
     expect(screen.queryByText("Rower górski 26")).toBeNull();
   });
 
