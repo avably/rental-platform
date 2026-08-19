@@ -35,6 +35,24 @@ export interface EmailTenantLogo {
   alt: string;
 }
 
+/**
+ * ZNAK AVABLY W MAILACH PLATFORMOWYCH (ADR-210) - raster z kanonicznego
+ * znaku (apps/panel/components/shell/brand-mark.tsx, wariant full-lime),
+ * hostowany publicznie przez storefront. Adres ABSOLUTNY, bo klient poczty
+ * pobiera obraz sam, godziny po wysylce, spoza naszej sesji. Kapsula
+ * limonkowa ma tlo wpieczone w plik, wiec jeden asset czyta sie na jasnym
+ * motywie i przy inwersji dark-mode. Wymiary sa JAWNE (klienci poczty bez
+ * nich rozjezdzaja uklad): wyswietlanie 150x40 px, zrodlo 300x80 (retina 2x).
+ * Przy zablokowanych obrazach `alt={PRODUCT_NAME}` pokazuje tekst "Avably" -
+ * stan sprzed tej zmiany. Dotyczy WYLACZNIE maili platformowych: koresponden-
+ * cja najemcy z klientem (RentalEmailLayout ponizej) nosi marke najemcy.
+ */
+const PLATFORM_BRAND_LOGO = {
+  src: "https://www.avably.io/marketing/avably-logo-email.png",
+  width: 150,
+  height: 40,
+} as const;
+
 export interface EmailLayoutProps {
   children: ReactNode;
   cta: {
@@ -81,7 +99,13 @@ export function EmailLayout({
       <Body lang={lang} style={EMAIL_STYLES.body}>
         <Container style={EMAIL_STYLES.container}>
           <Section style={EMAIL_STYLES.card}>
-            <Text style={EMAIL_STYLES.brand}>{PRODUCT_NAME}</Text>
+            <Img
+              alt={PRODUCT_NAME}
+              height={PLATFORM_BRAND_LOGO.height}
+              src={PLATFORM_BRAND_LOGO.src}
+              style={EMAIL_STYLES.brandLogo}
+              width={PLATFORM_BRAND_LOGO.width}
+            />
             <Heading as="h1" style={EMAIL_STYLES.heading}>
               {heading}
             </Heading>
