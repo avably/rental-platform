@@ -14,18 +14,22 @@
 # w `apps/` startuje bez niej i nikt tego nie zauważy. Ten skrypt skanuje całe
 # drzewo, więc nowa aplikacja jest objęta od pierwszego commita.
 #
-# CO WOLNO (i tylko to) — inwariant po ADR-099/ADR-115: service_role TYLKO
-# W PANELU (plus fabryka w packages/db):
-#   packages/db/src/service.ts           — JEDYNA fabryka klienta service-role,
-#   apps/*/app/api/webhooks/**           — webhooki dostawców (ADR-054, ADR-067),
-#   apps/*/src/jobs/**                   — zadania uruchamiane poza żądaniem,
-#   apps/panel/app/api/review/ingest/**  — ingest uwag przeglądu (ADR-099/115):
-#                                          przyjmuje uwagi od relaya storefrontu
-#                                          za wspólnym sekretem (stałoczasowo,
-#                                          REVIEW_MODE bramkowany po stronie
-#                                          panelu); tabele 0033 są platformowe,
-#                                          bez tenant_id; znika na go-live razem
-#                                          z REVIEW_MODE.
+# CO WOLNO (i tylko to) — inwariant po ADR-099/ADR-115/ADR-206: service_role
+# TYLKO W PANELU (plus fabryka w packages/db):
+#   packages/db/src/service.ts             — JEDYNA fabryka klienta service-role,
+#   apps/*/app/api/webhooks/**             — webhooki dostawców (ADR-054, ADR-067),
+#   apps/*/src/jobs/**                     — zadania uruchamiane poza żądaniem,
+#   apps/panel/app/api/review/client.ts    — JEDYNY szew bramy review (ADR-206;
+#                                            węziej niż dawny katalog ingest/**):
+#                                            konsumują go trasy ingest (uwagi od
+#                                            relaya storefrontu za wspólnym
+#                                            sekretem, ADR-099/115) i publiczny
+#                                            zapis uwag z nakładki (POST/PATCH
+#                                            za REVIEW_MODE + rate limitem,
+#                                            ADR-206); tabele 0033 są platformowe,
+#                                            bez tenant_id; PRZEGLĄD uwag zostaje
+#                                            superadminowy; znika na go-live
+#                                            razem z REVIEW_MODE.
 #
 # Storefrontowi (aplikacja PUBLICZNA) nie wolno ODROSNĄĆ: jego trasy
 # app/api/review/** są relayem bez żadnego sekretu bazy — wystąpienie nazwy
@@ -47,7 +51,7 @@ set -euo pipefail
 # `supabase-key-env.test.ts` to test WŁASNY fabryki (ADR-142): dowodzi
 # fallbacku dwu-nazwowego i twardego błędu, więc musi nazywać sekret
 # i wołać createServiceClient — dopuszczony dokładnie ten jeden plik.
-ALLOWED='^(packages/db/src/service\.ts|packages/db/test/supabase-key-env\.test\.ts|apps/[^/]+/app/api/webhooks/|apps/panel/app/api/review/ingest/|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
+ALLOWED='^(packages/db/src/service\.ts|packages/db/test/supabase-key-env\.test\.ts|apps/[^/]+/app/api/webhooks/|apps/panel/app/api/review/client\.ts|apps/[^/]+/src/jobs/|apps/[^/]+/eslint\.config\.mjs)'
 
 # Wzorce, z których każdy oznacza „ta ścieżka może omijać RLS".
 # SUPABASE_SECRET_KEY = nazwa klucza sekretnego nowego typu (sb_secret_…,
@@ -67,8 +71,8 @@ HITS=$(
 
 if [ -n "$HITS" ]; then
   echo "Klient service-role omija RLS — dozwolony wyłącznie w packages/db/src/service.ts,"
-  echo "apps/*/app/api/webhooks/**, apps/*/src/jobs/** i apps/panel/app/api/review/ingest/**"
-  echo "(inwariant ADR-099: service_role tylko w panelu). Znaleziono poza tymi ścieżkami:"
+  echo "apps/*/app/api/webhooks/**, apps/*/src/jobs/** i apps/panel/app/api/review/client.ts"
+  echo "(inwariant ADR-099/ADR-206: service_role tylko w panelu). Znaleziono poza tymi ścieżkami:"
   echo "$HITS"
   exit 1
 fi

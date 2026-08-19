@@ -58,12 +58,15 @@ const restrictDbServiceImport = {
 };
 
 const allowDbServiceImport = {
-  // app/api/review/ingest/**: przyjmuje uwagi przeglądu od relaya storefrontu
-  // (ADR-099/ADR-115) — zapis service_rolem wykonuje się w panelu, jedynym
-  // runtime z kluczem; bramka w lib/review-ingest-guard.ts.
+  // app/api/review/client.ts: JEDYNY szew service_role bramy review
+  // (ADR-099/ADR-115/ADR-206) — konsumują go trasy ingest (uwagi od relaya
+  // storefrontu, bramka w lib/review-ingest-guard.ts) i publiczny zapis uwag
+  // z nakładki (bramka w lib/review-write-guard.ts). Zapis service_rolem
+  // wykonuje się w panelu, jedynym runtime z kluczem; wpis jest węższy niż
+  // dawny katalog ingest/** — trasy dotykają wyłącznie szwu, nie fabryki.
   files: [
     "app/api/webhooks/**/*.{ts,tsx}",
-    "app/api/review/ingest/**/*.{ts,tsx}",
+    "app/api/review/client.ts",
     "src/jobs/**/*.{ts,tsx}",
   ],
   rules: {

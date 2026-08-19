@@ -116,6 +116,14 @@ export function ReviewOverlay({ surface, apiBase }: ReviewOverlayProps) {
         `${apiBase}/comments?surface=${surface}&route=${encodeURIComponent(route)}`,
         { cache: "no-store" },
       );
+      // 404 to nie awaria, tylko brak dostępu do ODCZYTU (ADR-206): zapis
+      // uwag nie wymaga superadmina, ale przegląd zebranych — tak. Bez
+      // sesji superadmina nakładka startuje z pustą listą i pokazuje
+      // wyłącznie uwagi utworzone w tej sesji przeglądarki.
+      if (response.status === 404) {
+        setComments([]);
+        return;
+      }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = (await response.json()) as { comments: ReviewCommentDto[] };
       setComments(payload.comments);

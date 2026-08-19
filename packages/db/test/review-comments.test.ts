@@ -158,6 +158,30 @@ describe.runIf(hasEnv)("review_comments — publiczność/najemca vs superadmin 
     expect(error?.code, `anon wstawił uwagę: ${error?.message}`).toBe(PG_INSUFFICIENT_PRIVILEGE);
   });
 
+  it("service_role wstawia i czyta BEZ sesji — kontrola pozytywna bramy review (ADR-206)", async () => {
+    // Jedyna legalna droga zapisu bez sesji superadmina to kontrolowany
+    // endpoint panelu piszący service_rolem (REVIEW_MODE + rate limit,
+    // apps/panel/lib/review-write-guard.ts). Ten test przybija, że odmowa
+    // dla anon/najemcy wyżej NIE jest artefaktem świeżo zepsutej tabeli:
+    // ta sama operacja service_rolem przechodzi.
+    const { data: inserted, error } = await admin
+      .from("review_comments")
+      .insert(commentRow({ created_by: null }))
+      .select("id, created_by")
+      .single();
+    expect(error, `INSERT service_role: ${error?.message}`).toBeNull();
+    expect(inserted?.created_by, "snapshot aktora ma być NULL dla anonima").toBeNull();
+
+    const { data: readBack, error: readError } = await admin
+      .from("review_comments")
+      .select("id")
+      .eq("id", inserted!.id);
+    expect(readError, `SELECT service_role: ${readError?.message}`).toBeNull();
+    expect(readBack ?? []).toHaveLength(1);
+
+    await sql`delete from public.review_comments where id = ${inserted!.id}`;
+  });
+
   it("najemca (owner tenanta) nie widzi uwag — grant jest, polityka zatrzymuje", async () => {
     const { data, error } = await a.ownerClient.from("review_comments").select("*");
     expect(error, `SELECT jako owner: ${error?.message}`).toBeNull();

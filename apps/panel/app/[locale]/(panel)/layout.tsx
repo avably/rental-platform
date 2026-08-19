@@ -194,13 +194,14 @@ export default async function PanelLayout({
           </div>
         </main>
       </div>
-      {/* Nakładka przeglądu (ADR-071): renderowana WYŁĄCZNIE przy
-          REVIEW_MODE=1 w env deploymentu I sesji superadmina; trzeci warunek
+      {/* Nakładka przeglądu (ADR-071, od ADR-206 bez warunku superadmina):
+          renderowana przy REVIEW_MODE=1 w env deploymentu — kill-switch jest
+          JEDYNĄ bramką serwerową montażu, bo właściciel komentuje też jako
+          zwykły user (onboarding) i anonim (rejestracja). Drugi warunek
           (?review=1) domyka bramka kliencka — bez niego zero DOM/JS. Zapis
-          i tak pilnuje RLS 0033, więc warunek na ctx to higiena, nie guard. */}
-      {process.env.REVIEW_MODE === "1" && ctx?.superadmin ? (
-        <ReviewOverlayGate surface="panel" />
-      ) : null}
+          pilnuje bramka endpointu (REVIEW_MODE + rate limit), a PRZEGLĄD
+          uwag zostaje superadminowy (reviewGuard + RLS 0033). */}
+      {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="panel" /> : null}
     </div>
   );
 }
