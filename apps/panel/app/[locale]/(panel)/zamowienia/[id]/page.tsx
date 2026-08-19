@@ -1,12 +1,4 @@
-import {
-  Badge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@avably/ui";
+import { Badge } from "@avably/ui";
 import {
   ORDER_STATUSES,
   canTransition,
@@ -45,6 +37,7 @@ import {
 import { collectDepositAction, settleDepositAction } from "./deposit-actions";
 import { DeliverySection } from "./delivery-section";
 import { DepositForms } from "./deposit-forms";
+import { DepositLedger } from "./deposit-ledger";
 import { DetailField } from "./detail-field";
 import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
@@ -729,63 +722,18 @@ export default async function OrderDetailPage({
         {depositEvents.length === 0 ? (
           <p className="text-muted-foreground text-sm">{tDeposit("empty")}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:border-b-border">
-                  <TableHead className="text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
-                    {tDeposit("colDate")}
-                  </TableHead>
-                  <TableHead className="text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
-                    {tDeposit("colKind")}
-                  </TableHead>
-                  <TableHead className="text-muted-foreground px-3.5 text-right text-[11px] font-semibold tracking-[0.06em] uppercase">
-                    {tDeposit("colAmount")}
-                  </TableHead>
-                  <TableHead className="text-muted-foreground px-3.5 text-[11px] font-semibold tracking-[0.06em] uppercase">
-                    {tDeposit("colReason")}
-                  </TableHead>
-                  <TableHead className="text-muted-foreground px-3.5 text-right text-[11px] font-semibold tracking-[0.06em] uppercase">
-                    {tDeposit("colBalance")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {depositEvents.map((event, index) => (
-                  <TableRow key={event.id}>
-                    <TableCell className="px-3.5 py-3 tabular-nums">
-                      {depositTimestamp.format(new Date(event.created_at))}
-                    </TableCell>
-                    <TableCell className="px-3.5 py-3">
-                      {tDeposit(`kinds.${event.kind}`)}
-                      {/* Odnośnik u dostawcy jest DOWODEM tego wiersza —
-                          w sporze z klientem to po nim odnajduje się
-                          przelew. Pokazujemy go, zamiast trzymać wyłącznie
-                          w bazie. */}
-                      {event.provider === "stripe" ? (
-                        <span className="text-muted-foreground block text-xs">
-                          {tDeposit("providerOnline")}
-                          {event.provider_reference ? ` · ${event.provider_reference}` : null}
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="px-3.5 py-3 text-right tabular-nums tracking-[0.01em]">
-                      {event.kind === "collected" ? "+" : "−"}
-                      {formatMoney(event.amount_grosze, currency, locale)}
-                    </TableCell>
-                    <TableCell className="px-3.5 py-3">
-                      {event.reason_code ? tDeposit(`reasonCodes.${event.reason_code}`) : null}
-                      {event.reason_code && event.reason ? " — " : null}
-                      {event.reason ?? (event.reason_code ? null : "—")}
-                    </TableCell>
-                    <TableCell className="px-3.5 py-3 text-right tabular-nums tracking-[0.01em]">
-                      {formatMoney(balances[index]!, currency, locale)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          /* Karty zamiast tabeli (ADR-204, wzorzec ADR-188): tabela w
+             `overflow-x-auto` zamieniała „nie mieści się" w niewidoczne
+             przewijanie, a nieograniczony tekst operatora (powód potrącenia)
+             rozpychał ją ponad kolumnę treści. Uzasadnienie i mechanika —
+             nagłówek deposit-ledger.tsx. */
+          <DepositLedger
+            events={depositEvents}
+            balances={balances}
+            currency={currency}
+            locale={locale}
+            timestamp={depositTimestamp}
+          />
         )}
           </div>
         </details>
