@@ -490,3 +490,45 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
     transform: scale(0.4167); /* 480 / 1152 */
   }
 }
+
+/*
+ * PAN ZRZUTU W RAMCE LAPTOPA NA EKRANACH WEJŚCIA (ADR-211).
+ *
+ * Pas logowania (`/login`, `/reset`) niesie dosłowną ramkę laptopa z realnym
+ * zrzutem pulpitu (`auth-shell.tsx`, `BandLaptopMockup`). Obraz 2880×1920
+ * (3:2) jest o ~6,7% wyższy niż kadr 16:10 — pan powoli zjeżdża do dolnej
+ * krawędzi zrzutu i wraca, jak żywy podgląd panelu. Dystans -6% (z zapasem
+ * pod 6,25% policzone z proporcji) NIGDY nie odsłania tła kadru.
+ *
+ * JEDYNY świadomy wyjątek od zakazu `extra-loops` (pilnuje go
+ * `skeleton-parity-contract.test.tsx` — pętla wymaga wpisu tam): to dekoracja
+ * zamówiona przez właściciela na ekranie BEZ treści roboczej, a nie wskaźnik
+ * stanu. Cała animacja stoi POD bramką `prefers-reduced-motion:
+ * no-preference` — operator z reduced motion dostaje statyczną górę pulpitu
+ * (stan bazowy `translateY(0)` nie wymaga żadnej reguły). Do tego globalna
+ * reguła z `@avably/ui/styles.css` ścina pętle do jednego przebiegu 0,01 ms.
+ *
+ * Postoje w keyframes (0–8%, 46–54%, 92–100%) dają oku pauzę na krańcach —
+ * bez nich ruch zawraca od razu i zaczyna przyciągać wzrok, czyli robi
+ * dokładnie to, czego na ekranie logowania robić nie ma.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-auth-mockup-screen] > img {
+    animation: auth-laptop-pan 18s ease-in-out infinite;
+  }
+}
+
+@keyframes auth-laptop-pan {
+  0%,
+  8% {
+    transform: translateY(0);
+  }
+  46%,
+  54% {
+    transform: translateY(-6%);
+  }
+  92%,
+  100% {
+    transform: translateY(0);
+  }
+}

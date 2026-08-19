@@ -74,54 +74,60 @@ function BandSignals({ compact = false }: { compact?: boolean }) {
 }
 
 /**
- * Wizual pasa logowania — zabstrahowany podgląd panelu w ramce „okna
- * przeglądarki" (ADR-208, uwaga właściciela: w miejsce treści ma stanąć
- * „screen na mockupie"). ŚWIADOMIE markup + tokeny, nie plik graficzny:
- * zero nowych zasobów, zero rozjazdu z motywem ciemnym, a docelowy realny
- * zrzut ekranu (decyzja właściciela) podmieni wyłącznie ten komponent.
- * Całość jest dekoracją — `aria-hidden` zdejmuje ją czytnikom w całości.
+ * Wizual pasa logowania — DOSŁOWNA ramka laptopa z REALNYM zrzutem pulpitu
+ * (ADR-211, decyzja właściciela; zastępuje zabstrahowany `BandPanelPreview`
+ * z ADR-208, który był jawnie oznaczony jako tymczasowy do tej decyzji).
+ *
+ * ZRZUT JEST ŚWIEŻY, NIE Z ARCHIWUM PRODUKTOWEGO (uwaga właściciela przy
+ * ADR-211: zrzuty w `apps/storefront/public/produkt/` są sprzed zmian
+ * designu panelu). Plik `public/mockup-pulpit.webp` to pulpit BIEŻĄCEGO
+ * designu, złapany w 2× (2880×1920, viewport 1440×960) na zasianym demo
+ * z 12 miesiącami zamówień — populowany, bez skeletonów. Leży w `public/`
+ * PANELU, bo CSP panelu ma `img-src 'self'` — zero linkowania między
+ * aplikacjami.
+ *
+ * RAMKA JEST WŁASNA (markup + tokeny), nie ściągnięty mockup — licencje.
+ * Korpus stoi na tych samych tintach co poprzednik (`background/…` na
+ * jasnym pasie, `foreground/…` na ciemnym), więc czyta się w obu motywach.
+ *
+ * ANIMACJA: powolny pionowy pan zrzutu w „ekranie". Kadr trzyma 16:10,
+ * a obraz 3:2 jest o ~6,7% wyższy — jest czym panować. Keyframes
+ * `auth-laptop-pan` żyją w `globals.css` POD bramką
+ * `prefers-reduced-motion: no-preference`: operator z reduced motion widzi
+ * statyczną górę pulpitu (translateY(0) to stan bazowy). Czysty CSS, zero
+ * JS i zero losowości — SSR i klient rysują to samo.
+ *
+ * ZERO CLS: kadr ma `aspect-[16/10]`, `<img>` jawne wymiary — układ stoi,
+ * zanim plik dojedzie. Całość jest dekoracją — `aria-hidden` zdejmuje ją
+ * czytnikom w całości.
  */
-function BandPanelPreview() {
-  // Atrapa listy rezerwacji: szerokości pasków są stałe (nie losowe), żeby
-  // SSR i klient rysowały ten sam obraz — bez hydration mismatch.
-  const rows: Array<{ name: string; meta: string; pill: string }> = [
-    { name: "w-24", meta: "w-14", pill: "w-12" },
-    { name: "w-32", meta: "w-10", pill: "w-9" },
-    { name: "w-20", meta: "w-16", pill: "w-12" },
-    { name: "w-28", meta: "w-12", pill: "w-9" },
-  ];
-
+function BandLaptopMockup() {
   return (
-    <div
-      aria-hidden="true"
-      data-auth-band-visual
-      className="border-background/25 bg-background/5 dark:border-foreground/20 dark:bg-foreground/5 overflow-hidden rounded-lg border"
-    >
-      {/* Belka okna: trzy kropki + pigułka adresu. */}
-      <div className="border-background/15 dark:border-foreground/15 flex items-center gap-2.5 border-b px-3.5 py-2.5">
-        <span className="flex gap-1.5">
-          <span className="bg-background/30 dark:bg-foreground/25 size-2 rounded-full" />
-          <span className="bg-background/30 dark:bg-foreground/25 size-2 rounded-full" />
-          <span className="bg-background/30 dark:bg-foreground/25 size-2 rounded-full" />
-        </span>
-        <span className="bg-background/10 dark:bg-foreground/10 h-4 max-w-40 flex-1 rounded-full" />
-      </div>
-      {/* Treść: nagłówek listy + wiersze rezerwacji. */}
-      <div className="flex flex-col gap-3 px-3.5 py-4">
-        <div className="flex items-center justify-between">
-          <span className="bg-background/45 dark:bg-foreground/40 h-2.5 w-24 rounded-full" />
-          <span className="bg-background/20 dark:bg-foreground/20 h-2.5 w-14 rounded-full" />
+    <div aria-hidden="true" data-auth-band-visual className="select-none">
+      {/* Pokrywa: cienki beżel wokół ekranu, delikatnie grubsza „broda" u dołu. */}
+      <div className="border-background/30 bg-background/15 dark:border-foreground/25 dark:bg-foreground/15 mx-[3.5%] rounded-t-[0.875rem] border border-b-0 p-[2.25%] pb-[2.75%]">
+        <div
+          data-auth-mockup-screen
+          className="bg-background/10 dark:bg-foreground/10 aspect-[16/10] overflow-hidden rounded-[0.25rem]"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- statyczny plik dekoracyjny z /public tej aplikacji: optymalizator next/image nic tu nie wnosi (jeden webp 44 KB, stały kadr), a zjada limit transformacji Hobby. */}
+          <img
+            src="/mockup-pulpit.webp"
+            alt=""
+            width={2880}
+            height={1920}
+            loading="eager"
+            decoding="async"
+            draggable={false}
+            className="h-auto w-full"
+          />
         </div>
-        {rows.map((row) => (
-          <div key={`${row.name}-${row.meta}`} className="flex items-center gap-2.5">
-            <span className="bg-background/25 dark:bg-foreground/25 size-5 shrink-0 rounded-full" />
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className={`bg-background/35 dark:bg-foreground/30 h-2 rounded-full ${row.name}`} />
-              <span className={`bg-background/15 dark:bg-foreground/15 h-2 rounded-full ${row.meta}`} />
-            </span>
-            <span className={`bg-background/20 dark:bg-foreground/20 h-4 shrink-0 rounded-full ${row.pill}`} />
-          </div>
-        ))}
+      </div>
+      {/* Podstawa: szersza niż pokrywa, z wycięciem na kciuk pośrodku. */}
+      <div className="bg-background/25 dark:bg-foreground/20 relative h-[0.8125rem] rounded-t-[0.1875rem] rounded-b-[0.75rem]">
+        {/* Wycięcie = kolor pasa na wierzchu podstawy: czyta się jak otwór,
+            bez filtrów i bez drugiej palety w ciemnym motywie. */}
+        <div className="bg-foreground dark:bg-secondary absolute top-0 left-1/2 h-[45%] w-[13%] -translate-x-1/2 rounded-b-[0.5rem]" />
       </div>
     </div>
   );
@@ -192,7 +198,8 @@ export function AuthShell({
 
         <div className="hidden lg:block">
           {/* Pas logowania stracił roszczenie i pudełko bezpieczeństwa na
-              uwagę właściciela (ADR-208) — stoi tu wizual produktu. */}
+              uwagę właściciela (ADR-208) — stoi tu wizual produktu: od
+              ADR-211 dosłowny laptop z realnym zrzutem pulpitu. */}
           {band === "signup" ? (
             <>
               <p className="mb-5 max-w-[14ch] text-[1.625rem] leading-[1.14] font-medium tracking-[-0.02em]">
@@ -201,7 +208,7 @@ export function AuthShell({
               <BandSignals />
             </>
           ) : (
-            <BandPanelPreview />
+            <BandLaptopMockup />
           )}
         </div>
 

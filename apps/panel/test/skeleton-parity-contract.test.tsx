@@ -560,8 +560,20 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
     expect(css).toContain("skeleton-reveal");
     // Opóźnienie 200 ms — poniżej tego progu wskaźnik ładowania miga.
     expect(css).toMatch(/animation:\s*skeleton-reveal[^;]*200ms\s+both/);
-    // Zakaz `extra-loops`: żadnej nieskończonej animacji w panelu.
-    expect(css).not.toMatch(/animation:[^;]*infinite/);
+    // Zakaz `extra-loops`: nieskończona animacja w panelu wymaga świadomego
+    // wpisu TUTAJ. Jedyny wyjątek (ADR-211): pan zrzutu w ramce laptopa na
+    // ekranach wejścia — dekoracja zamówiona przez właściciela na ekranie bez
+    // treści roboczej, nie wskaźnik stanu. Lista jest RÓWNOŚCIĄ, nie filtrem:
+    // druga pętla (także skopiowana z tej) pali ten wiersz.
+    const loops = [...css.matchAll(/animation:[^;]*infinite/g)].map((match) => match[0]);
+    expect(loops).toEqual(["animation: auth-laptop-pan 18s ease-in-out infinite"]);
+    // Wyjątek obowiązuje wyłącznie POD bramką reduced-motion: pętla poza
+    // blokiem `no-preference` to regres dostępności, nie zmiana gustu.
+    const gatedBlocks = css.match(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}/g) ?? [];
+    expect(
+      gatedBlocks.some((block) => /animation:[^;]*auth-laptop-pan[^;]*infinite/.test(block)),
+      "pan laptopa wyszedł spod bramki prefers-reduced-motion: no-preference",
+    ).toBe(true);
   });
 
   it("komunikat stoi przy dolnej krawędzi OKNA i nad paskiem mobilnym", () => {
