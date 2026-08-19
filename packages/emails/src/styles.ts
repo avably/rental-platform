@@ -41,6 +41,17 @@ export const EMAIL_STYLES = {
     margin: "0 0 28px",
   },
   /**
+   * Znak Avably w mailach PLATFORMOWYCH (ADR-210) - raster z kanonicznego
+   * znaku. W odroznieniu od `logo` (znak najemcy o nieznanych proporcjach)
+   * proporcje WLASNEGO pliku znamy, wiec wymiary ida jawnymi atrybutami
+   * `width`/`height` w EmailLayout; styl trzyma wylacznie uklad naglowka -
+   * ten sam margines, ktory mial dotad napis marki.
+   */
+  brandLogo: {
+    display: "block",
+    margin: "0 0 28px",
+  },
+  /**
    * Znak najemcy w miejscu napisu z nazwą (ADR-175). Pudełko jest LUSTREM roli
    * `.site-logo` ze sklepu (ADR-160, decyzja 6): 36 px wysokości, 192 px
    * szerokości, proporcje zachowane. Plik 3000 × 200 zmieści się w tych samych

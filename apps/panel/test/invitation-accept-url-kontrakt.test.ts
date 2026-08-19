@@ -1,6 +1,9 @@
 /**
  * KONTRAKT (ADR-190): adres akceptacji w e-mailu zaproszenia ma host PANELU,
- * wyprowadzony z `PANEL_URL` — i NIE MA hosta kanonu marketingowego.
+ * wyprowadzony z `PANEL_URL` — i ŻADEN ODNOŚNIK nie prowadzi na kanon
+ * marketingowy. (Do ADR-210 zakaz obejmował bajty całej wiadomości; odkąd
+ * mail platformowy niesie logo Avably, kanon występuje w treści LEGALNIE
+ * jako `src` obrazu — nawigacja dalej nie ma tam czego szukać.)
  *
  * ================== DLACZEGO TEN TEST ISTNIEJE ==================
  *
@@ -179,6 +182,18 @@ function tokenFrom(html: string): string {
   return match![1]!;
 }
 
+/**
+ * Odnośniki (`href`) z treści — to JE klika zaproszony i to ONE dawały 404
+ * w H-FLOW-01. Od ADR-210 kanon marketingowy występuje w wiadomości legalnie
+ * jako `src` logo Avably (obraz, nie nawigacja), więc kontrola negatywna
+ * patrzy na odnośniki. Wersja TEKSTOWA obrazów nie niesie w ogóle
+ * (zmierzone: render tekstowy zaczyna się nagłówkiem, zero adresu logo),
+ * dlatego dla `text` zakaz zostaje na całości.
+ */
+function hrefy(html: string): string[] {
+  return Array.from(html.matchAll(/href="([^"]*)"/g)).map((m) => m[1] ?? "");
+}
+
 let consoleCapture: ReturnType<typeof captureConsole>;
 
 /**
@@ -226,9 +241,13 @@ describe("adres akceptacji zaproszenia — host panelu, nie kanon marketingowy (
     // Oczekiwanie ze STAŁEJ, nie z wklejonego napisu.
     expect(html).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
     expect(text).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
-    // Kontrola negatywna: host kanonu marketingowego NIE występuje NIGDZIE
-    // w treści — to na nim trasa /zaproszenie/… nie istnieje (404, H-FLOW-01).
-    expect(html).not.toContain(MARKETING_ORIGIN);
+    // Kontrola negatywna: ŻADEN odnośnik nie stoi na kanonie marketingowym —
+    // to na nim trasa /zaproszenie/… nie istnieje (404, H-FLOW-01). Kontrola
+    // pozytywna obok: link akceptacji naprawdę jest odnośnikiem, więc zakaz
+    // nie może być zielony przez pusty wynik `hrefy()`.
+    const linki = hrefy(html);
+    expect(linki).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
+    for (const link of linki) expect(link).not.toContain(MARKETING_ORIGIN);
     expect(text).not.toContain(MARKETING_ORIGIN);
   });
 
@@ -243,7 +262,9 @@ describe("adres akceptacji zaproszenia — host panelu, nie kanon marketingowy (
     const token = tokenFrom(html);
     expect(html).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
     expect(text).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
-    expect(html).not.toContain(MARKETING_ORIGIN);
+    const linki = hrefy(html);
+    expect(linki).toContain(`${PANEL_ORIGIN}/zaproszenie/${token}`);
+    for (const link of linki) expect(link).not.toContain(MARKETING_ORIGIN);
     expect(text).not.toContain(MARKETING_ORIGIN);
   });
 
@@ -274,8 +295,10 @@ describe("adres akceptacji zaproszenia — host panelu, nie kanon marketingowy (
     expect(state.error).toBeUndefined();
     expect(sent).toHaveLength(1);
     expect(sent[0]!.html).toContain("http://127.0.0.1:3000/zaproszenie/");
-    expect(sent[0]!.html).not.toContain(PANEL_ORIGIN);
-    expect(sent[0]!.html).not.toContain(MARKETING_ORIGIN);
+    for (const link of hrefy(sent[0]!.html)) {
+      expect(link).not.toContain(PANEL_ORIGIN);
+      expect(link).not.toContain(MARKETING_ORIGIN);
+    }
   });
 
   it("surowy token NIE wycieka do konsoli na żadnej z obu ścieżek", async () => {
