@@ -89,6 +89,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   TooltipProvider,
   type SiteMoney,
   type StorefrontProduct,
@@ -157,6 +162,8 @@ export function SiteBuilder({
   sections,
   products,
   pageRecord,
+  pageRecordPinned = false,
+  productTemplate = false,
   money,
   importSources,
 }: {
@@ -198,6 +205,21 @@ export function SiteBuilder({
    * czego pokazać ani do czego się wiązać.
    */
   pageRecord?: StorefrontProduct;
+  /**
+   * PODGLĄD PRZYPIĘTY DO PRODUKTU (faza B, ADR-200): `true` na WYJĄTKU
+   * (`sites.product_id` ustawione) — strona dotyczy jednej pozycji, więc
+   * przełącznika podglądu nie ma, a pasek mówi, KTÓREJ. Na matce (`false`)
+   * operator przełącza pozycję podglądu dropdownem: to sam PODGLĄD, zero
+   * zapisu — szablon nie ma prawa nieść w sobie uuid-a pozycji (ADR-178 D6).
+   */
+  pageRecordPinned?: boolean;
+  /**
+   * CZY TA STRONA JEST SZABLONEM STRONY PRODUKTU (rola `product`) — dla okna
+   * publikacji: zasięg matki to strona KAŻDEGO sprzętu, wyjątku — jednego,
+   * a zwykła strona staje pod adresem. Osobno od `pageRecord`, bo szablon
+   * z pustym katalogiem rekordu nie ma, a rolę ma dalej.
+   */
+  productTemplate?: boolean;
   /**
    * WPISY Z INNYCH MODUŁÓW PANELU do skopiowania w mini-CMS (E5, ADR-096) —
    * po nazwie źródła z rejestru typów. Trasa czyta je z bazy i mapuje na
@@ -288,6 +310,25 @@ export function SiteBuilder({
    * kończy sprawę sama.
    */
   const [galleryOpen, setGalleryOpen] = useState(sections.length === 0);
+  /**
+   * POZYCJA PODGLĄDU wybrana w pasku (faza B, ADR-200) — wyłącznie na MATCE.
+   * `null` = domyślna z trasy (pierwsza pozycja katalogu). Stan jest CZYSTO
+   * KLIENCKI i ulotny: przełącznik zmienia to, na czym operator OGLĄDA
+   * szablon, a nie cokolwiek w treści — dlatego nie ma go w żadnym zapisie.
+   */
+  const [previewRecordId, setPreviewRecordId] = useState<string | null>(null);
+  /*
+   * REKORD, KTÓRY WIDZI PŁÓTNO I SZUFLADA — jedna wartość dla obu (ta sama
+   * zasada, co przy `pageRecord` z trasy: dwie drogi rozjechałyby kontrolkę
+   * wiązania z podglądem). Na wyjątku wybór jest ignorowany z konstrukcji
+   * (przypięcie); wybór wskazujący pozycję, której już nie ma na liście,
+   * degraduje do domyślnej zamiast wycinać węzły.
+   */
+  const previewRecord = pageRecordPinned
+    ? pageRecord
+    : previewRecordId !== null
+      ? (products.find((product) => product.id === previewRecordId) ?? pageRecord)
+      : pageRecord;
 
   /**
    * Jedyna droga mutacji w kreatorze. Sukces odświeża RSC (`router.refresh`),
@@ -756,6 +797,53 @@ export function SiteBuilder({
           {siteName}
         </span>
 
+        {/*
+          PODGLĄD NA POZYCJI (faza B, ADR-200; §3 dokumentu architektury:
+          „projektuję szablon, widzę go na konkretnym rowerze"). Kontrolka jest
+          FIZYCZNIE osobna od nawigacji i mówi wprost, że zmienia sam podgląd.
+          Na MATCE — dropdown po pozycjach z listy płótna (te same dane, więc
+          pozycja wybrana tu na pewno się narysuje); na WYJĄTKU — zdanie
+          o przypięciu, bez wyboru: strona dotyczy jednej pozycji i podgląd na
+          innej byłby kłamstwem o niej. Bez rekordu (pusty katalog) kontrolki
+          nie ma — nie miałaby czego przełączać.
+        */}
+        {pageRecord ? (
+          pageRecordPinned ? (
+            <span
+              data-builder-record-pinned
+              className="text-muted-foreground truncate text-[13px] leading-[18px]"
+            >
+              {t("builder.recordPinned", { name: pageRecord.name })}
+            </span>
+          ) : (
+            <div
+              data-builder-record-switch
+              className="text-muted-foreground flex items-center gap-2 text-[13px] leading-[18px]"
+            >
+              <span>{t("builder.recordPreviewLabel")}</span>
+              <Select
+                value={previewRecord?.id ?? pageRecord.id}
+                onValueChange={setPreviewRecordId}
+              >
+                <SelectTrigger
+                  aria-label={t("builder.recordPreviewLabel")}
+                  data-builder-record-select
+                  className="h-8 max-w-56"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )
+        ) : null}
+
         <div
           role="group"
           aria-label={t("builder.viewportLegend")}
@@ -864,6 +952,21 @@ export function SiteBuilder({
           live={live}
           name={siteName}
           address={address}
+          /*
+            ZASIĘG PUBLIKACJI mówi prawdę o ROLI strony (ADR-200): matka
+            obowiązuje na stronie każdego sprzętu, wyjątek — jednego. Bez tego
+            okno obiecywałoby szablonowi adres `/`, pod którym nie stoi (ta
+            sama klasa kłamstwa, którą na liście stron zamknęło ADR-178).
+            Nazwa sprzętu z PRZYPIĘTEGO rekordu; wyjątek bez rekordu (stan
+            praktycznie niereprezentowalny — kaskada 0088) dostaje zdanie
+            z etykietą zastępczą zamiast zdania o cudzym zasięgu.
+          */
+          productTemplate={productTemplate}
+          exceptionProductName={
+            productTemplate && pageRecordPinned
+              ? (pageRecord?.name ?? t("pages.exceptionProductFallback"))
+              : null
+          }
           onConfirm={() =>
             run(() => publishSite(siteId), undefined, { blocking: true, announce: "published" })
           }
@@ -946,7 +1049,7 @@ export function SiteBuilder({
             style={style}
             sections={sections}
             products={products}
-            record={pageRecord}
+            record={previewRecord}
             viewport={viewport}
             busy={pending}
             dropSectionId={elementDropSectionId}
@@ -1022,7 +1125,7 @@ export function SiteBuilder({
         siteId={siteId}
         currency={money.currency}
         importSources={importSources}
-        pageRecord={pageRecord}
+        pageRecord={previewRecord}
         section={openSection}
         canvas={openSection ? editor.canvasOf(openSection.id) : undefined}
         structured={openSection ? editor.structuredOf(openSection.id) : undefined}

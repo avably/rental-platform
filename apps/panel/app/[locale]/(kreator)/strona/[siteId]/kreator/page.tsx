@@ -32,7 +32,7 @@ import {
   pickupLocationEntries,
   productFieldEntries,
 } from "@/lib/site-import-sources";
-import { previewProductsFor } from "@/lib/site-preview-data";
+import { previewProductRecordFor, previewProductsFor } from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantDraftStyle } from "@/lib/tenant-appearance";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -57,6 +57,35 @@ export default async function SiteBuilderPage({
   if (!data) notFound();
 
   const products = await previewProductsFor(ctx, ctx.tenantId!);
+
+  /*
+   * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178; przypięcie — faza B,
+   * ADR-200).
+   *
+   * Szablon-MATKA (`product_id` NULL) startuje z PIERWSZEJ pozycji katalogu —
+   * prawdziwa nazwa i cena mówią o układzie prawdę, której atrapa nie powie —
+   * a operator może ją PRZEŁĄCZYĆ w pasku kreatora (sam podgląd, zero zapisu:
+   * projektuję szablon, widzę go na konkretnym rowerze — §3 dokumentu
+   * architektury).
+   *
+   * WYJĄTEK (`product_id` ustawione) jest PRZYPIĘTY do swojego produktu, bez
+   * przełącznika: dotyczy jednej pozycji i podgląd na innej byłby kłamstwem
+   * o stronie. Rekord bierzemy z listy płótna, a gdy go tam nie ma (pozycja
+   * spoza sufitu 60 albo zdezaktywowana) — osobnym odczytem TEGO produktu.
+   *
+   * `undefined` w dwóch przypadkach, oba poprawne: strona NIE JEST szablonem
+   * (nie stoi na żadnej pozycji) albo nie ma czego podstawić (pusty katalog;
+   * wyjątek bez produktu jest niereprezentowalny — kaskada 0088).
+   */
+  const isTemplate = isProductTemplateKind(data.site.kind);
+  const pinnedProductId = data.site.product_id;
+  const pageRecord = !isTemplate
+    ? undefined
+    : pinnedProductId
+      ? (products.find((product) => product.id === pinnedProductId) ??
+        (await previewProductRecordFor(ctx, ctx.tenantId!, pinnedProductId)) ??
+        undefined)
+      : products[0];
 
   /*
    * WALUTA I ZAPIS KWOT NAJEMCY (E6, aneks ADR-094). Jedna wartość na dwa
@@ -147,21 +176,20 @@ export default async function SiteBuilderPage({
       sections={toEditorSections(data.sections)}
       products={products}
       /*
-       * POZYCJA, NA KTÓREJ STOI SZABLON (faza 5, ADR-178).
-       *
-       * Szablon strony produktu renderuje się raz na sprzęt, a w kreatorze
-       * trzeba go na CZYMŚ pokazać — inaczej każde wiązanie do rekordu strony
-       * wycina węzeł i operator projektuje stronę, patrząc na dziury po niej.
-       * Podstawiamy PIERWSZĄ pozycję katalogu, tę samą, którą płótno rysuje
-       * w kaflach: prawdziwa nazwa i prawdziwa cena mówią o układzie prawdę,
-       * której atrapa („Nazwa sprzętu", „99,00 zł") powiedzieć nie może.
-       *
-       * `undefined` w dwóch przypadkach, oba poprawne: strona NIE JEST
-       * szablonem (nie stoi na żadnej pozycji) albo katalog jest pusty (nie
-       * ma na czym jej postawić). Wtedy nie ma też wariantu wiązania — bo nie
-       * miałby czego pokazać.
+       * Rekord strony wyliczony wyżej (matka: pierwsza pozycja + przełącznik;
+       * wyjątek: przypięty produkt). `pageRecordPinned` gasi przełącznik
+       * podglądu na wyjątku — jego strona dotyczy jednej pozycji.
        */
-      pageRecord={isProductTemplateKind(data.site.kind) ? products[0] : undefined}
+      pageRecord={pageRecord}
+      pageRecordPinned={pinnedProductId !== null}
+      /*
+       * ROLA STRONY DLA OKNA PUBLIKACJI (ADR-200): matka obowiązuje na
+       * stronie każdego sprzętu, wyjątek — jednego, a zwykła strona staje pod
+       * adresem. Zdania niesie `PublishDialog`, ten sam co na liście stron;
+       * kreator podaje mu rolę, bo tylko trasa ją zna. Nazwę sprzętu wyjątku
+       * wyprowadza SiteBuilder z przypiętego rekordu.
+       */
+      productTemplate={isTemplate}
       money={money}
       /*
        * Nazwa źródła jest LUSTREM `itemsImport` / `itemsPick` z rejestru typów

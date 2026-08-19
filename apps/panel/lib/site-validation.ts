@@ -44,6 +44,15 @@ export const MAX_SECTIONS = 100;
 export const MAX_SITES = 10;
 
 /**
+ * Ile PRODUKTÓW może mieć własną stronę (wyjątek od szablonu-matki) — LUSTRO
+ * triggera `sites_product_exception_limit` z migracji 0088 (ADR-199), wyłącznie
+ * do ZDANIA w interfejsie („użyto X z 5"). Bramką jest BAZA: akcja forka nie
+ * liczy limitu przed wstawką, tylko łapie odmowę PT409 — drugie źródło prawdy
+ * o limicie w TS rozjechałoby się z triggerem przy pierwszej zmianie planu.
+ */
+export const MAX_PRODUCT_EXCEPTIONS = 5;
+
+/**
  * Nazwa wersji strony. Lustro CHECK-a `sites_name_length_check` (0048): 1–80
  * znaków po przycięciu. `trim` w schemacie, żeby „   " nie przechodziło jako
  * nazwa, którą baza i tak odrzuci.
@@ -181,6 +190,55 @@ export function hasProductTemplate(pages: readonly { kind: string }[]): boolean 
 
 /** Rola wiersza zastanego — wejście mapowań, w których kolumny brak. */
 export const DEFAULT_SITE_KIND = PAGE_SITE_KIND;
+
+/**
+ * Wejście akcji FORKA (faza B, ADR-200): własna strona wskazanego produktu.
+ * Sam identyfikator — treść przyjeżdża z KOPII szablonu-matki, a nazwa
+ * z katalogu (obie ze STANU BAZY, nigdy z wejścia): klient, który mógłby
+ * podać treść albo nazwę, mógłby też podać cudzą.
+ */
+export const forkProductPageInputSchema = z.object({
+  productId: uuidSchema,
+});
+export type ForkProductPageInput = z.infer<typeof forkProductPageInputSchema>;
+
+/**
+ * ILE PRODUKTÓW MA JUŻ WŁASNĄ STRONĘ — licznik „użyto X z 5" (ADR-200,
+ * zabezpieczenie §4.3 dokumentu architektury: wyjątek, którego nie da się
+ * policzyć, przestaje być wyjątkiem).
+ *
+ * Liczy PRODUKTY (zbiór `productId`), nie wiersze — dokładnie tak, jak trigger
+ * `sites_product_exception_limit` w bazie (count distinct product_id): drugi
+ * szkic tego samego produktu limitu nie zjada, więc licznik, który liczyłby
+ * wiersze, pokazywałby „3 z 5" najemcy, któremu baza odmówi dopiero przy 6.
+ * PRODUKCIE. Jedna definicja dla ekranu i testu.
+ */
+export function countProductExceptions(
+  pages: readonly { productId?: string | null }[],
+): number {
+  return new Set(
+    pages
+      .map((page) => page.productId)
+      .filter((productId): productId is string => typeof productId === "string"),
+  ).size;
+}
+
+/**
+ * CZY TA ODMOWA BAZY TO LIMIT WŁASNYCH STRON PRODUKTU (ADR-199/200).
+ *
+ * Trigger `sites_product_exception_limit` odmawia SQLSTATE `PT409` z hintem-
+ * -tokenem `sites_product_exception_limit` — dopasowanie idzie po KODZIE
+ * i HINCIE, nigdy po treści zdania (zdanie jest dla człowieka i ma prawo się
+ * zmienić). Dwa kanały świadomie: kod niesie klasę odmowy, hint jej źródło —
+ * wystarcza każdy z nich, żeby transportowa zguba drugiego nie zamieniła
+ * czytelnej odmowy w surowy komunikat.
+ */
+export function isProductExceptionLimitError(error: {
+  code?: string;
+  hint?: string | null;
+}): boolean {
+  return error.code === "PT409" || error.hint === "sites_product_exception_limit";
+}
 
 /**
  * CZY TEN KOMPLET STRON MA STRONĘ GŁÓWNĄ — jedna definicja dla akcji i dla

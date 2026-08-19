@@ -47,17 +47,22 @@ import { getTenantCurrency } from "./tenant-currency";
  */
 const CANVAS_PRODUCTS_LIMIT = 60;
 
-export async function previewProductsFor(
-  ctx: AuthContext,
-  tenantId: string,
-  /**
-   * Język ETYKIETY CENY („od {price} / doba" i zapis kwoty). Domyślnie locale
-   * PANELU — na płótnie kreatora cena mówi językiem operatora. PODGLĄD SZKICU
-   * podaje tu locale TENANTA (L6, ADR-102): odpowiada na pytanie „co zobaczy
-   * klient", a klient sklepu EN dostaje „from PLN … / day", nie „od … / doba".
-   */
-  labelLocale?: string,
-): Promise<StorefrontProduct[]> {
+/** Wiersz `products` w zakresie, którego potrzebuje podgląd. */
+interface PreviewProductRow {
+  id: string;
+  name: string;
+  description: string | null;
+  base_price_day_grosze: number;
+  custom_fields: unknown;
+}
+
+/**
+ * Wspólny kontekst mapowania wiersza katalogu na `StorefrontProduct` —
+ * wyliczany RAZ na wywołanie (tłumaczenia, waluta, definicje pól), bo odczyt
+ * listy i odczyt pojedynczej pozycji (ADR-200) muszą mapować IDENTYCZNIE:
+ * druga kopia mapowania rozjechałaby podgląd przypiętego rekordu z kaflami.
+ */
+async function previewMappingContext(ctx: AuthContext, tenantId: string, labelLocale?: string) {
   const [t, currency, locale, definitions] = await Promise.all([
     labelLocale
       ? getTranslations({ locale: labelLocale, namespace: "site" })
@@ -72,6 +77,25 @@ export async function previewProductsFor(
      */
     loadCustomFieldDefinitions(ctx.supabase, tenantId, "product"),
   ]);
+  return { t, currency, locale, definitions };
+}
+
+export async function previewProductsFor(
+  ctx: AuthContext,
+  tenantId: string,
+  /**
+   * Język ETYKIETY CENY („od {price} / doba" i zapis kwoty). Domyślnie locale
+   * PANELU — na płótnie kreatora cena mówi językiem operatora. PODGLĄD SZKICU
+   * podaje tu locale TENANTA (L6, ADR-102): odpowiada na pytanie „co zobaczy
+   * klient", a klient sklepu EN dostaje „from PLN … / day", nie „od … / doba".
+   */
+  labelLocale?: string,
+): Promise<StorefrontProduct[]> {
+  const { t, currency, locale, definitions } = await previewMappingContext(
+    ctx,
+    tenantId,
+    labelLocale,
+  );
 
   const { data: products, error: productsError } = await ctx.supabase
     .from("products")
@@ -83,9 +107,6 @@ export async function previewProductsFor(
 
   if (productsError)
     throw new Error(`Odczyt katalogu do podglądu nie powiódł się: ${productsError.message}`);
-
-  // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
-  const valueLocale = locale === "en" ? "en" : "pl";
 
   /*
    * ZDJĘCIA SPRZĘTU W PODGLĄDZIE (faza 3, ADR-163).
@@ -116,7 +137,84 @@ export async function previewProductsFor(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   );
 
-  return (products ?? []).map((product) => ({
+  return (products ?? []).map((product) =>
+    toStorefrontProduct(product as PreviewProductRow, thumbnails, {
+      t,
+      currency,
+      locale,
+      definitions,
+    }),
+  );
+}
+
+/**
+ * POJEDYNCZY REKORD DO PODGLĄDU PRZYPIĘTEGO (faza B, ADR-200).
+ *
+ * Wyjątek (`sites.product_id`) ma podgląd PRZYPIĘTY do swojego produktu, a ten
+ * nie zawsze jest na liście płótna: lista niesie najwyżej 60 pozycji AKTYWNYCH,
+ * a wyjątek może wskazywać pozycję spoza sufitu albo zdezaktywowaną. Odczyt
+ * celowo BEZ filtra `active`: strona zdezaktywowanego produktu jest w sklepie
+ * nieosiągalna (trasa filtruje `active` przed pytaniem o szablon), ale operator
+ * dalej ma prawo ją edytować — a podgląd na PRAWDZIWYM rekordzie mówi o niej
+ * prawdę, której pusta atrapa powiedzieć nie może.
+ *
+ * `null` = pozycji nie ma (usunięta — choć wtedy kaskada 0088 zabiera i wiersz
+ * strony — albo cudza: RLS tnie, wynik celowo nieodróżnialny).
+ */
+export async function previewProductRecordFor(
+  ctx: AuthContext,
+  tenantId: string,
+  productId: string,
+  labelLocale?: string,
+): Promise<StorefrontProduct | null> {
+  const { t, currency, locale, definitions } = await previewMappingContext(
+    ctx,
+    tenantId,
+    labelLocale,
+  );
+
+  const { data: product, error: productError } = await ctx.supabase
+    .from("products")
+    .select("id, name, description, base_price_day_grosze, custom_fields")
+    .eq("tenant_id", tenantId)
+    .eq("id", productId)
+    .maybeSingle();
+  if (productError)
+    throw new Error(`Odczyt pozycji do podglądu nie powiódł się: ${productError.message}`);
+  if (!product) return null;
+
+  const { data: images, error: imagesError } = await ctx.supabase
+    .from("product_images")
+    .select("product_id, storage_path, alt_text")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (imagesError)
+    throw new Error(`Odczyt zdjęć pozycji do podglądu nie powiódł się: ${imagesError.message}`);
+
+  const thumbnails = pickProductThumbnails(
+    images ?? [],
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+  );
+  return toStorefrontProduct(product as PreviewProductRow, thumbnails, {
+    t,
+    currency,
+    locale,
+    definitions,
+  });
+}
+
+/** JEDNO mapowanie wiersza katalogu na rekord podglądu — dla listy i pojedynczej pozycji. */
+function toStorefrontProduct(
+  product: PreviewProductRow,
+  thumbnails: ReturnType<typeof pickProductThumbnails>,
+  mapping: Awaited<ReturnType<typeof previewMappingContext>>,
+): StorefrontProduct {
+  const { t, currency, locale, definitions } = mapping;
+  // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
+  const valueLocale = locale === "en" ? "en" : "pl";
+  return {
     id: product.id,
     name: product.name,
     description: product.description,
@@ -144,5 +242,5 @@ export async function previewProductsFor(
       entity: "product",
       locale: valueLocale,
     }),
-  }));
+  };
 }
