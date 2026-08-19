@@ -872,10 +872,25 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
   //
   // Wersja rodzi się NIEŻYWA (bez `published_at`), więc dwa wywołania fabryki
   // dla tego samego tenanta nie mają jak trafić na unikat częściowy.
-  sites: async (_ctx, tenantId) => ({
+  //
+  // OD 0088 (ADR-199) wiersz macierzy jest WYJĄTKIEM strony produktu — czyli
+  // wierszem z KOMPLETEM tożsamości (kind='product' + product_id): macierz ma
+  // ćwiczyć RLS na najbogatszym reprezentowalnym wierszu, a zwykłe strony
+  // (`kind='page'`) mierzą suity site-model/site-page-slugs na własnych
+  // wierszach. Świeży produkt per wywołanie (createProduct) — FK jest ZŁOŻONY
+  // (tenant_id, product_id), więc rodzic z cudzego najemcy odbiłby się 23503
+  // zamiast oczekiwanego 42501 (pułapka opisana przy product_slug_history).
+  // Slug zostaje domyślny (''), bo rola `product` nie ma adresu (CHECK 0080).
+  // Trigger limitu (PT409) nie wchodzi macierzy w drogę Z KONSTRUKCJI:
+  // zasiew jedzie rolą serwisową (przepustka), a atak INSERT w cudzego
+  // najemcę zlicza pod RLS napastnika zero wyjątków ofiary — bramka milczy
+  // i odmowa zostaje przy RLS (42501).
+  sites: async (ctx, tenantId) => ({
     tenant_id: tenantId,
     template: "classic",
     name: `RLS test page ${randomUUID().slice(0, 8)}`,
+    kind: "product",
+    product_id: await createProduct(ctx, tenantId),
   }),
   site_sections: async (ctx, tenantId) => ({
     tenant_id: tenantId,

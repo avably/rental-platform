@@ -201,6 +201,28 @@ export interface Site {
    */
   kind: SiteKind;
   /**
+   * PRZYPISANIE strony do produktu (0088, ADR-199) — druga połowa tożsamości
+   * wiersza, obok `kind`:
+   *   • NULL — wiersz nie jest wyjątkiem: strona treściowa (`page`) albo
+   *     szablon-MATKA strony produktu (`product`);
+   *   • NOT NULL (dozwolone wyłącznie przy `kind='product'`, CHECK
+   *     `sites_product_exception_kind_check`) — WYJĄTEK: własna strona TEGO
+   *     produktu, która opublikowana wygrywa w sklepie z szablonem-matką.
+   *
+   * Przypisanie idzie po ID, nigdy po slugu (slug jest adresem, nie kluczem).
+   * Niezmienne po utworzeniu (trigger `sites_kind_guard`, 42501), bez
+   * bliźniaka `*_published`, do koperty odczytu publicznego nie wchodzi.
+   * FK złożony (tenant_id, product_id) → products z ON DELETE CASCADE:
+   * wyjątek cudzego produktu jest niereprezentowalny, a twarde usunięcie
+   * produktu zabiera jego stronę — także żywą (kaskada jedzie kontekstem
+   * właściciela tabeli, czyli przepustką serwisową
+   * `app.guard_live_site_delete`, jak kaskada z tenants). Limit 5 produktów
+   * z wyjątkiem na najemcę egzekwuje trigger
+   * `sites_product_exception_limit` (PT409 + hint
+   * `sites_product_exception_limit`).
+   */
+  product_id: string | null;
+  /**
    * ADRES SZKICU (0073, ADR-157): pusty string = strona główna (`/`), inaczej
    * `/{slug}`. Do 0072 wiersz `sites` był WERSJĄ jednej strony; od 0073 jest
    * STRONĄ i ma własny adres. Kształt pilnuje CHECK `sites_slug_shape`, listę

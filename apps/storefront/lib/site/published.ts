@@ -82,7 +82,19 @@ export async function getPublishedPage(
 }
 
 /**
- * OPUBLIKOWANY SZABLON STRONY PRODUKTU najemcy (faza 5, 0080, ADR-178).
+ * OPUBLIKOWANA STRONA SPRZĘTU najemcy (faza 5, 0080, ADR-178; wyjątek
+ * per produkt — faza 6A, 0088, ADR-199).
+ *
+ * ==================== DRABINA: WYJĄTEK > SZABLON-MATKA > WBUDOWANA ====================
+ *
+ * Od ADR-199 najemca może dać WYBRANEMU produktowi własną stronę — osobny
+ * wiersz `sites` przypięty po ID produktu (nigdy po slugu). Rozstrzyganie
+ * stoi W BAZIE (`app.get_published_product_template`, drugi argument
+ * `p_product_id`): żywy wyjątek wskazanego produktu wygrywa z żywym
+ * szablonem-matką; `null` dalej znaczy „oddaj stronę wbudowaną" i ta granica
+ * jest trzecim szczeblem drabiny — po stronie sklepu, nie bazy. Wołający
+ * podaje `productId` z pozycji spod adresu; pominięcie go (stare wywołania)
+ * jest legalne i oddaje matkę — dokładnie stan sprzed fazy 6A.
  *
  * ==================== `null` ZNACZY „ODDAJ WBUDOWANĄ STRONĘ" ====================
  *
@@ -119,13 +131,20 @@ export async function getPublishedPage(
  */
 export async function getPublishedProductTemplate(
   tenantId: string,
+  productId?: string,
   client?: SupabaseClient,
 ): Promise<PublishedSite | null> {
   const supabase = client ?? (await createSupabaseServerClient());
 
+  // `p_product_id` jedzie ZAWSZE (jawny null zamiast pominięcia): jeden
+  // kształt wywołania RPC, a null po stronie bazy znaczy to samo, co domyślka
+  // okna wdrożeniowego — szablon-matka, zbiór sprzed 0088.
   const { data, error } = await supabase
     .schema("app")
-    .rpc("get_published_product_template", { p_tenant_id: tenantId });
+    .rpc("get_published_product_template", {
+      p_tenant_id: tenantId,
+      p_product_id: productId ?? null,
+    });
 
   if (error || data == null) return null;
 
