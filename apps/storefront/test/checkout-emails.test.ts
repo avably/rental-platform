@@ -282,7 +282,13 @@ describe("znak najemcy w mailach checkoutu", () => {
     expect(sent).toHaveLength(2);
     const [doKlienta, doNajemcy] = sent;
     expect(adresyObrazow(doKlienta!.html)).toEqual([ZNAK.src]);
-    expect(adresyObrazow(doNajemcy!.html)).toEqual([]);
+    // Marka platformy jest od ADR-210 OBRAZEM znaku Avably — powiadomienie
+    // najemcy niesie dokładnie jego i NIC ponad niego: znak najemcy nie ma
+    // prawa wejść do wiadomości OD platformy (granica ADR-036 D2 bez zmian).
+    expect(adresyObrazow(doNajemcy!.html)).toEqual([
+      "https://www.avably.io/marketing/avably-logo-email.png",
+    ]);
+    expect(doNajemcy!.html).not.toContain(ZNAK.src);
   });
 
   // ── KONTROLA NEGATYWNA: bez znaku obie wiadomości wyglądają dokładnie tak,

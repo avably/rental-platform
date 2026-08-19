@@ -30,6 +30,18 @@ const bezKomentarzy = (html: string) => html.replace(/<!--[\s\S]*?-->/g, "");
 const marketingPages = readdirSync(path.join(root, "marketing")).filter((file) =>
   file.endsWith(".html"),
 );
+/**
+ * Maile TRANSAKCYJNE (packages/emails) to konsument zasobów storefrontu SPOZA
+ * tej aplikacji: klient poczty pobiera obraz sam, spoza naszej sesji, więc
+ * szablon wskazuje plik z `public/marketing/` ADRESEM ABSOLUTNYM kanonu
+ * (ADR-210: logo Avably w mailach platformowych). Obie bramki zasobów —
+ * sieroctwo i martwe odwołania — muszą znać to źródło, inaczej jedna uznaje
+ * znak za sierotę, a druga nie zauważy jego zniknięcia.
+ */
+const emailsSrcDir = path.resolve(root, "../../packages/emails/src");
+const zrodlaMaili = (readdirSync(emailsSrcDir, { recursive: true }) as string[])
+  .filter((entry) => entry.endsWith(".ts") || entry.endsWith(".tsx"))
+  .map((entry) => readFileSync(path.join(emailsSrcDir, entry), "utf8"));
 
 describe("treść zgodna z produktem i kompletne metadane", () => {
   it("nie obiecuje osobnej listy, której nie ma już na pulpicie", () => {
@@ -524,9 +536,13 @@ describe("spójność tras i zasobów", () => {
     const komponentyTsx = (readdirSync(path.join(root, "app"), { recursive: true }) as string[])
       .filter((entry) => entry.endsWith(".tsx"))
       .map((entry) => read(path.join("app", entry)));
+    // Czwarte źródło: szablony maili (packages/emails) — patrz komentarz przy
+    // `zrodlaMaili`. Adres absolutny kanonu ZAWIERA ścieżkę `/marketing/…`,
+    // więc zwykłe wyszukanie podłańcucha obejmuje też ten kształt odwołania.
     const uzyte = [
       ...marketingPages.map((file) => read(path.join("marketing", file))),
       ...komponentyTsx,
+      ...zrodlaMaili,
       JSON.stringify(pl),
       JSON.stringify(en),
     ].join("\n");
@@ -579,6 +595,18 @@ describe("spójność tras i zasobów", () => {
       for (const match of zrodlo.matchAll(wzorzec)) {
         if (!existsSync(path.join(root, "public", match[1].replace(/^\//, "")))) {
           brakujace.push(`app/${entry}: ${match[1]}`);
+        }
+      }
+    }
+
+    // Szablony maili wskazują zasoby adresem ABSOLUTNYM kanonu (ADR-210).
+    // Literówka w tym adresie nie rzuca błędu: odbiorca dostaje pustą ramkę
+    // z tekstem alternatywnym — dokładnie klasa defektu, którą ta bramka łapie.
+    for (const zrodlo of zrodlaMaili) {
+      const wzorzec = /https:\/\/www\.avably\.io(\/marketing\/[^"']+)/g;
+      for (const match of zrodlo.matchAll(wzorzec)) {
+        if (!existsSync(path.join(root, "public", match[1].replace(/^\//, "")))) {
+          brakujace.push(`packages/emails: ${match[1]}`);
         }
       }
     }
