@@ -650,7 +650,7 @@ describe.skipIf(!hasEnv)("szablon strony produktu — 0080 (ADR-178)", () => {
         się publikacji — a wyciek byłby pełny.
       */
       const [row] = await sql!<{ def: string }[]>`
-        select pg_get_functiondef('app.get_published_product_template(uuid)'::regprocedure) as def
+        select pg_get_functiondef('app.get_published_product_template(uuid,uuid)'::regprocedure) as def
       `;
       expect(row!.def.length, "pusta definicja — czujnik po pustym zbiorze").toBeGreaterThan(500);
 
@@ -701,7 +701,7 @@ describe.skipIf(!hasEnv)("szablon strony produktu — 0080 (ADR-178)", () => {
       // zdjęcie tego warunku byłoby wyciekiem, którego żadna polityka nie
       // zatrzyma. Asercja pilnuje OBU członów izolacji naraz.
       const [row] = await sql!<{ def: string }[]>`
-        select pg_get_functiondef('app.get_published_product_template(uuid)'::regprocedure) as def
+        select pg_get_functiondef('app.get_published_product_template(uuid,uuid)'::regprocedure) as def
       `;
       expect(row!.def).toContain("s.tenant_id = p_tenant_id");
       expect(row!.def).toContain("t.id = s.tenant_id");

@@ -229,7 +229,15 @@ export async function renderProductPage({
     />
   );
 
-  const template = await getPublishedProductTemplate(ctx.tenantId);
+  /*
+    ROZSTRZYGANIE SZABLONU JEST W BAZIE (faza 6A, ADR-199): identyfikator
+    pozycji spod adresu jedzie do funkcji odczytu, a ta oddaje żywy WYJĄTEK
+    tego produktu, gdy istnieje — inaczej szablon-matkę. `null` dalej znaczy
+    „strona wbudowana": trzeci szczebel drabiny zostaje tutaj, w rozgałęzieniu
+    poniżej, i żaden wynik nie zdejmuje stałego bloku góry strony (ADR-189),
+    bo ten stoi PRZED rozgałęzieniem.
+  */
+  const template = await getPublishedProductTemplate(ctx.tenantId, raw.id);
 
   if (template) {
     const revealNonce = (await headers()).get("x-nonce") ?? undefined;
