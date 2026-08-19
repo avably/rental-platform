@@ -60,12 +60,21 @@ export function EmbedCustomField({
   chooseLabel: string;
 }) {
   const name = `cf_${definition.id}`;
-  const message = error ? <em>{invalidLabel}</em> : null;
+  // Komunikat z identyfikatorem + `aria-describedby` WYŁĄCZNIE przy błędzie
+  // (WCAG 3.3.1, wzorzec ADR-197): stałe wiązanie kazałoby czytnikowi ogłaszać
+  // pusty węzeł przy każdym wejściu w pole. `aria-invalid` niesie tę samą
+  // prawdę, po której efekt fokusu (ADR-198) znajduje pierwsze błędne pole.
+  const errorId = `embed-${name}-error`;
+  const message = error ? <em id={errorId}>{invalidLabel}</em> : null;
+  const ariaProps = {
+    "aria-invalid": Boolean(error),
+    "aria-describedby": error ? errorId : undefined,
+  };
 
   if (definition.type === "checkbox") {
     return (
       <label className="avably-embed__terms">
-        <input type="checkbox" name={name} required={definition.required} />
+        <input type="checkbox" name={name} required={definition.required} {...ariaProps} />
         <span>{definition.label}</span>
         {message}
       </label>
@@ -76,9 +85,15 @@ export function EmbedCustomField({
     <label className="avably-embed__field">
       <span>{definition.label}</span>
       {definition.type === "textarea" ? (
-        <textarea name={name} required={definition.required} maxLength={CUSTOM_FIELD_LIMITS.textareaMax} rows={2} />
+        <textarea
+          name={name}
+          required={definition.required}
+          maxLength={CUSTOM_FIELD_LIMITS.textareaMax}
+          rows={2}
+          {...ariaProps}
+        />
       ) : definition.type === "select" ? (
-        <select name={name} required={definition.required} defaultValue="">
+        <select name={name} required={definition.required} defaultValue="" {...ariaProps}>
           <option value="">{chooseLabel}</option>
           {definition.options.map((option) => (
             <option key={option} value={option}>
@@ -96,6 +111,7 @@ export function EmbedCustomField({
           {...(definition.type === "number" ? { inputMode: "decimal" as const } : {})}
           {...(definition.type === "text" ? { maxLength: CUSTOM_FIELD_LIMITS.textMax } : {})}
           {...(definition.type === "phone" ? { maxLength: 30 } : {})}
+          {...ariaProps}
         />
       )}
       {definition.helpText ? <small>{definition.helpText}</small> : null}
@@ -169,6 +185,24 @@ function daysBetweenInclusive(from: string, to: string): number {
 }
 
 /**
+ * Ukrycie wizualne BEZ ukrycia przed czytnikiem (odpowiednik `sr-only`).
+ * Embed świadomie nie ma Tailwinda ani tokenów sklepu (patrz embed.css),
+ * a reguła jest potrzebna dokładnie jednemu węzłowi — regionowi ogłoszeń
+ * walidacji poza stanem błędu — więc żyje przy nim, nie w arkuszu.
+ */
+const SR_ONLY: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
+/**
  * Dyskretny podpis „Powered by Avably" (M3, ADR-120).
  *
  * Logo bierzemy z JEDYNEGO miejsca, w którym znak marki żyje w repo —
@@ -213,8 +247,17 @@ export function EmbedWidget(props: Props) {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  /**
+   * Nieudana walidacja SERWERA (ADR-198). Świeży obiekt na każdą nieudaną
+   * próbę — identyczność obiektu napędza efekt fokusu, więc fokus wraca do
+   * pierwszego błędu także przy drugiej wysyłce z tym samym zestawem błędów.
+   * `count` zasila region ogłoszeń (liczba pól do poprawienia).
+   */
+  const [validation, setValidation] = useState<{ count: number } | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const summaryRef = useRef<HTMLParagraphElement | null>(null);
   /** Klucze już pobierane — chroni przed drugim żądaniem na ten sam miesiąc. */
   const requested = useRef<Set<string>>(new Set());
   const today = isoToday();
@@ -242,6 +285,35 @@ export function EmbedWidget(props: Props) {
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  /**
+   * FOKUS NA PIERWSZY BŁĄD (ADR-198 — ten sam wzorzec, co checkout w ADR-197).
+   * Po nieudanej walidacji serwera fokus przenosi się do PIERWSZEGO pola
+   * z błędem W KOLEJNOŚCI DOKUMENTU — selektor czyta DOM formularza, nie
+   * kolejność kluczy mapy z serwera, której nikt nie obiecuje.
+   *
+   * KORZEŃ, względem którego liczymy „pierwszy element": widget żyje we
+   * WŁASNYM dokumencie ramki na naszym origin (app/embed/layout.tsx renderuje
+   * osobny `<html>`; loader gospodarza tworzy `<iframe>` — lib/embed/loader.ts),
+   * Shadow DOM nie występuje nigdzie w osi embedu. `formRef` wskazuje węzeł
+   * w drzewie TEGO dokumentu, więc `querySelector` i `focus()` działają w tym
+   * samym korzeniu, w którym stoi aktywny element po kliknięciu przycisku —
+   * do dokumentu gospodarza (cross-origin) celowo nie sięgamy.
+   *
+   * Radia (dostawa, płatność) nie niosą `aria-invalid` (ARIA nie wspiera go
+   * na roli radio — jsx-a11y/role-supports-aria-props); błędną grupę znaczy
+   * `data-embed-invalid`, a komunikat wiąże `aria-describedby` (globalne).
+   * Błąd bez kontrolki (startDate/endDate/items przychodzą z kalendarza, nie
+   * z pola) ląduje fokusem na regionie ogłoszeń (`tabIndex={-1}`) — klawiatura
+   * nie zostaje na przycisku, jakby nic się nie stało.
+   */
+  useEffect(() => {
+    if (validation === null) return;
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>(
+      '[aria-invalid="true"], [data-embed-invalid="true"]',
+    );
+    (firstInvalid ?? summaryRef.current)?.focus();
+  }, [validation]);
 
   const monthKey = productId === null ? null : `${productId}:${month}`;
 
@@ -322,6 +394,16 @@ export function EmbedWidget(props: Props) {
   const selectedProduct = products.find((product) => product.id === productId) ?? null;
   const rentalDays = from !== null && to !== null ? daysBetweenInclusive(from, to) : 0;
 
+  /**
+   * `aria-describedby` WYŁĄCZNIE gdy pole faktycznie ma komunikat (WCAG 3.3.1,
+   * wzorzec ADR-197): stałe wiązanie kazałoby czytnikowi ogłaszać pusty węzeł.
+   */
+  const describedBy = (field: string, errorId: string): string | undefined =>
+    fieldErrors[field] ? errorId : undefined;
+  /** Komunikat pod polem — identyfikator spina go z kontrolką. */
+  const fieldMessage = (field: string, errorId: string) =>
+    fieldErrors[field] ? <em id={errorId}>{t.invalidField}</em> : null;
+
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (productId === null || from === null || to === null || submitting) return;
@@ -333,6 +415,7 @@ export function EmbedWidget(props: Props) {
     setSubmitting(true);
     setFormError(null);
     setFieldErrors({});
+    setValidation(null);
 
     const data = new FormData(event.currentTarget);
     const body: Record<string, unknown> = {
@@ -390,7 +473,18 @@ export function EmbedWidget(props: Props) {
       }
 
       const code = "error" in result ? result.error.code : "server_error";
-      if ("error" in result && result.error.fields) setFieldErrors(result.error.fields);
+      const fields = "error" in result ? result.error.fields : undefined;
+      if (fields) setFieldErrors(fields);
+      if (code === "validation_failed" && fields && Object.keys(fields).length > 0) {
+        // Walidację z polami ogłasza region podsumowania (liczba błędów) +
+        // komunikaty pod polami — ogólne zdanie `errorValidation` byłoby
+        // DRUGIM alertem o tym samym (checkout w ADR-197 też go nie pokazuje).
+        // `validation_failed` BEZ pól (odpowiedzi 400 na zepsuty JSON) nie
+        // powstaje z tego formularza — gdyby jednak przyszła, spada niżej
+        // do ogólnego komunikatu jak każdy inny błąd.
+        setValidation({ count: Object.keys(fields).length });
+        return;
+      }
       setFormError(
         code === "conflict"
           ? t.errorConflict
@@ -539,25 +633,71 @@ export function EmbedWidget(props: Props) {
       </section>
 
       {from !== null && to !== null ? (
-        <form onSubmit={onSubmit} data-embed-form className="avably-embed__form">
+        <form ref={formRef} onSubmit={onSubmit} data-embed-form className="avably-embed__form">
+          {/*
+            REGION OGŁOSZEŃ WALIDACJI (ADR-198, wzorzec ADR-197). Węzeł
+            z `role="alert"` istnieje OD MONTAŻU formularza (czytniki
+            rejestrują regiony live przy pierwszym renderze — region wstawiony
+            razem z treścią bywa przemilczany), a treść — zdanie z LICZBĄ pól
+            do poprawienia — pojawia się dopiero po nieudanej walidacji.
+            `tabIndex={-1}` pozwala przenieść tu fokus, gdy żaden błąd nie ma
+            swojej kontrolki (daty i pozycje przychodzą z kalendarza). Poza
+            stanem walidacji region jest ukryty wizualnie (SR_ONLY), żeby nie
+            rezerwować pustego panelu.
+          */}
+          <p
+            ref={summaryRef}
+            tabIndex={-1}
+            role="alert"
+            data-embed-error-summary
+            className={validation !== null ? "avably-embed__error" : undefined}
+            style={validation === null ? SR_ONLY : undefined}
+          >
+            {validation !== null
+              ? format(copy.checkout.errors.summary, { count: validation.count })
+              : null}
+          </p>
+
           <h3>{t.contactHeading}</h3>
 
           <label className="avably-embed__field">
             <span>{t.fullName}</span>
-            <input name="fullName" required maxLength={200} autoComplete="name" />
-            {fieldErrors.fullName ? <em>{t.invalidField}</em> : null}
+            <input
+              name="fullName"
+              required
+              maxLength={200}
+              autoComplete="name"
+              aria-invalid={Boolean(fieldErrors.fullName)}
+              aria-describedby={describedBy("fullName", "embed-fullname-error")}
+            />
+            {fieldMessage("fullName", "embed-fullname-error")}
           </label>
 
           <label className="avably-embed__field">
             <span>{t.email}</span>
-            <input name="email" type="email" required maxLength={320} autoComplete="email" />
-            {fieldErrors.email ? <em>{t.invalidField}</em> : null}
+            <input
+              name="email"
+              type="email"
+              required
+              maxLength={320}
+              autoComplete="email"
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={describedBy("email", "embed-email-error")}
+            />
+            {fieldMessage("email", "embed-email-error")}
           </label>
 
           <label className="avably-embed__field">
             <span>{t.phone}</span>
-            <input name="phone" type="tel" maxLength={32} autoComplete="tel" />
-            {fieldErrors.phone ? <em>{t.invalidField}</em> : null}
+            <input
+              name="phone"
+              type="tel"
+              maxLength={32}
+              autoComplete="tel"
+              aria-invalid={Boolean(fieldErrors.phone)}
+              aria-describedby={describedBy("phone", "embed-phone-error")}
+            />
+            {fieldMessage("phone", "embed-phone-error")}
           </label>
 
           <h3>{t.deliveryHeading}</h3>
@@ -570,16 +710,30 @@ export function EmbedWidget(props: Props) {
                   value={method.method}
                   checked={deliveryMethod === method.method}
                   onChange={() => setDeliveryMethod(method.method)}
+                  // ARIA nie wspiera `aria-invalid` na roli radio — grupę
+                  // znaczy data-atrybut, komunikat wiąże `aria-describedby`.
+                  data-embed-invalid={fieldErrors.deliveryMethod ? "true" : undefined}
+                  aria-describedby={describedBy("deliveryMethod", "embed-delivery-error")}
                 />
                 <span>{method.method === "pickup" ? t.methodPickup : t.methodCourier}</span>
               </label>
             ))}
           </div>
+          {/* `avably-embed__field` daje regule `… em` czerwień i blok — bez nowej klasy. */}
+          {fieldErrors.deliveryMethod ? (
+            <div className="avably-embed__field">{fieldMessage("deliveryMethod", "embed-delivery-error")}</div>
+          ) : null}
 
           {deliveryMethod === "pickup" ? (
             <label className="avably-embed__field">
               <span>{t.pickupLocation}</span>
-              <select name="pickupLocationId" required defaultValue="">
+              <select
+                name="pickupLocationId"
+                required
+                defaultValue=""
+                aria-invalid={Boolean(fieldErrors.pickupLocationId)}
+                aria-describedby={describedBy("pickupLocationId", "embed-pickup-error")}
+              >
                 <option value="" disabled>
                   {t.choosePickup}
                 </option>
@@ -589,20 +743,45 @@ export function EmbedWidget(props: Props) {
                   </option>
                 ))}
               </select>
+              {fieldMessage("pickupLocationId", "embed-pickup-error")}
             </label>
           ) : (
             <>
               <label className="avably-embed__field">
                 <span>{t.addressStreet}</span>
-                <input name="addressStreet" required maxLength={200} autoComplete="street-address" />
+                <input
+                  name="addressStreet"
+                  required
+                  maxLength={200}
+                  autoComplete="street-address"
+                  aria-invalid={Boolean(fieldErrors.addressStreet)}
+                  aria-describedby={describedBy("addressStreet", "embed-street-error")}
+                />
+                {fieldMessage("addressStreet", "embed-street-error")}
               </label>
               <label className="avably-embed__field">
                 <span>{t.addressZip}</span>
-                <input name="addressZip" required maxLength={20} autoComplete="postal-code" />
+                <input
+                  name="addressZip"
+                  required
+                  maxLength={20}
+                  autoComplete="postal-code"
+                  aria-invalid={Boolean(fieldErrors.addressZip)}
+                  aria-describedby={describedBy("addressZip", "embed-zip-error")}
+                />
+                {fieldMessage("addressZip", "embed-zip-error")}
               </label>
               <label className="avably-embed__field">
                 <span>{t.addressCity}</span>
-                <input name="addressCity" required maxLength={120} autoComplete="address-level2" />
+                <input
+                  name="addressCity"
+                  required
+                  maxLength={120}
+                  autoComplete="address-level2"
+                  aria-invalid={Boolean(fieldErrors.addressCity)}
+                  aria-describedby={describedBy("addressCity", "embed-city-error")}
+                />
+                {fieldMessage("addressCity", "embed-city-error")}
               </label>
             </>
           )}
@@ -615,14 +794,30 @@ export function EmbedWidget(props: Props) {
               wewnątrz cudzej ramki jest wektorem, którego nie chcemy tu otwierać.
             */}
             <label>
-              <input type="radio" name="paymentMethod" value="transfer" defaultChecked />
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="transfer"
+                defaultChecked
+                data-embed-invalid={fieldErrors.paymentMethod ? "true" : undefined}
+                aria-describedby={describedBy("paymentMethod", "embed-payment-error")}
+              />
               <span>{t.paymentTransfer}</span>
             </label>
             <label>
-              <input type="radio" name="paymentMethod" value="cod" />
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="cod"
+                data-embed-invalid={fieldErrors.paymentMethod ? "true" : undefined}
+                aria-describedby={describedBy("paymentMethod", "embed-payment-error")}
+              />
               <span>{t.paymentCod}</span>
             </label>
           </div>
+          {fieldErrors.paymentMethod ? (
+            <div className="avably-embed__field">{fieldMessage("paymentMethod", "embed-payment-error")}</div>
+          ) : null}
 
           {customFields.length > 0 ? (
             <>
@@ -646,7 +841,13 @@ export function EmbedWidget(props: Props) {
 
           {terms ? (
             <label className="avably-embed__terms">
-              <input type="checkbox" name="termsAccepted" required />
+              <input
+                type="checkbox"
+                name="termsAccepted"
+                required
+                aria-invalid={Boolean(fieldErrors.terms)}
+                aria-describedby={describedBy("terms", "embed-terms-error")}
+              />
               {/*
                 Link otwiera się w NOWEJ karcie i celowo bez `opener`: ramka stoi
                 na cudzej stronie, więc nawigacja w miejscu zabrałaby klientowi
@@ -660,6 +861,7 @@ export function EmbedWidget(props: Props) {
                 </a>{" "}
                 ({terms.versionLabel})
               </span>
+              {fieldMessage("terms", "embed-terms-error")}
             </label>
           ) : (
             /*
