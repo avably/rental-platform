@@ -131,7 +131,9 @@ describe("powierzchnia kaucji — jeden przycisk, szczegóły w modalu (D7/N5)",
 
   it("rejestr zdarzeń zjechał do rozwijanych szczegółów, a ostrzeżenia NIE", () => {
     const details = pageSource.indexOf("<details");
-    const ledger = pageSource.indexOf('tDeposit("colBalance")');
+    // Od ADR-204 chronologię renderuje wydzielony komponent kart
+    // (deposit-ledger.tsx) — markerem rejestru jest jego montaż w stronie.
+    const ledger = pageSource.indexOf("<DepositLedger");
     const inFlight = pageSource.indexOf('tDeposit(`refundStatus.');
     const surface = pageSource.indexOf("<DepositForms");
 

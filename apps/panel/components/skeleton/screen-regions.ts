@@ -372,6 +372,8 @@ export const ORDER_DETAIL_SCREEN_PARTS: readonly string[] = [
 /** Lokalne komponenty szczegółu bez własnego regionu — każdy z powodem. */
 export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
   DepositForms: "karta salda i akcji WEWNĄTRZ sekcji kaucji (region section-deposit)",
+  DepositLedger:
+    "karty chronologii rejestru kaucji (ADR-204) WEWNĄTRZ rozwijanych „Szczegółów rozliczenia” sekcji kaucji (region section-deposit) — domyślnie zwinięte, więc szkielet nie ma czego rezerwować",
   DetailField: "para etykieta/wartość WEWNĄTRZ karty podsumowania (region summary)",
   OrderCustomFieldsSection:
     "karta pól własnych zamówienia (C6-A2, ADR-119) — WARUNKOWA: renderuje się tylko u najemcy, który założył pole własne zamówienia z widocznością „panel”, a u pozostałych nie ma jej wcale. Szkielet nie ma czego rezerwować, bo rezerwacja pokazywałaby miejsce po karcie, która nigdy nie przyjdzie (ta sama zasada co przy PaymentCheck)",
