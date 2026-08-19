@@ -582,6 +582,13 @@ export function CheckoutForm({
             {messageKey === "legal_documents_missing"
               ? copy.checkout.errors.legalDocumentsMissing
               : null}
+            {/* [0089/ADR-202] Zdanie z LICZBĄ minimum z odmowy bazy — jedyne
+                miejsce, w którym klient dowiaduje się o minimum (etykieta
+                proaktywna przy terminie to faza 2). Naprawą jest TERMIN,
+                nie dane — formularz zostaje wypełniony. */}
+            {view.kind === "min_rental_days"
+              ? format(copy.checkout.errors.minRentalDays, { count: view.minDays })
+              : null}
             {messageKey === "server" ? copy.checkout.errors.server : null}
           </div>
         ) : null}

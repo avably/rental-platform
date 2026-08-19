@@ -242,6 +242,13 @@ export async function handleReservationRequest(
     // że naprawą jest publikacja w panelu, a nie poprawka payloadu.
     case "legal_documents_missing":
       return apiV1Error(422, "legal_documents_missing");
+    // [0089] Minimum najmu → 422 z OGÓLNYM kodem `rejected` — ŚWIADOMIE.
+    // Kontrakt kodów v1 jest zamknięty i konsumowany przez integracje
+    // (wtyczka WordPress); dedykowany kod z liczbą minimum wejdzie fazą 2
+    // razem z etykietą proaktywną (osobny ADR), żeby kontrakt ruszyć raz,
+    // nie dwa razy. Bramka w bazie odmawia niezależnie od brzmienia kodu.
+    case "min_rental_days":
+      return apiV1Error(422, "rejected");
     // captcha_failed jest w tym torze niereprezentowalne (weryfikator zawsze
     // przepuszcza) — gdyby jednak wróciło, to błąd naszej konstrukcji.
     case "captcha_failed":

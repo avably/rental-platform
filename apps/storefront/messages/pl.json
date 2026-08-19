@@ -563,7 +563,8 @@
           "tooLong": "Wartość jest za długa.",
           "notAllowed": "Tego pola nie da się tu wypełnić."
         },
-        "legalDocumentsMissing": "Wypożyczalnia nie opublikowała jeszcze wymaganych dokumentów (regulaminu i polityki prywatności) — zamówienie nie mogło zostać przyjęte."
+        "legalDocumentsMissing": "Wypożyczalnia nie opublikowała jeszcze wymaganych dokumentów (regulaminu i polityki prywatności) — zamówienie nie mogło zostać przyjęte.",
+        "minRentalDays": "Wybrany termin jest za krótki — jedna z pozycji wynajmuje się na minimum {count} dni. Wydłuż termin i spróbuj ponownie."
       },
       "termsLabelLinked": "Akceptuję {link} wypożyczalni i zasady najmu.",
       "termsLinkText": "regulamin",

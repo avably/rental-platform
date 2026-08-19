@@ -25,6 +25,7 @@ describe("productSchema", () => {
     autoIncrementMultiplier: "1",
     bufferBeforeDays: "1",
     bufferAfterDays: "2",
+    minRentalDays: "1",
     active: "on",
   };
 
@@ -43,6 +44,24 @@ describe("productSchema", () => {
 
   it("checkbox nieobecny w FormData → false", () => {
     expect(productSchema.parse({ ...valid, active: undefined }).active).toBe(false);
+  });
+
+  // -------------------------------------------------------------------
+  // Minimalny okres najmu (0089, ADR-202) — lustro CHECK-a >= 1
+  // -------------------------------------------------------------------
+
+  it("minimalny okres najmu: >= 1 przechodzi, 0 i śmieć odpadają", () => {
+    // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie walidacji >= 1 (dowód mutacyjny c)
+    // — „0" przechodzi parser i pierwsza asercja pali. Bramką ostateczną
+    // zostaje CHECK products_min_rental_days_check w bazie; tu powstaje
+    // ZDANIE dla operatora, zanim tam trafi (wzorzec nagłówka pliku).
+    expect(productSchema.safeParse({ ...valid, minRentalDays: "0" }).success).toBe(false);
+    expect(productSchema.parse({ ...valid, minRentalDays: "3" }).minRentalDays).toBe(3);
+    expect(productSchema.parse({ ...valid, minRentalDays: "1" }).minRentalDays).toBe(1);
+    // Ułamek, tekst i puste pole nie są liczbą dni.
+    expect(productSchema.safeParse({ ...valid, minRentalDays: "2.5" }).success).toBe(false);
+    expect(productSchema.safeParse({ ...valid, minRentalDays: "tydzień" }).success).toBe(false);
+    expect(productSchema.safeParse({ ...valid, minRentalDays: "" }).success).toBe(false);
   });
 
   // -------------------------------------------------------------------

@@ -43,7 +43,7 @@ export default async function ProductDataPage({
   const { data: product } = await ctx.supabase
     .from("products")
     .select(
-      "id, name, slug, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, active, custom_fields",
+      "id, name, slug, description, base_price_day_grosze, deposit_grosze, auto_increment_multiplier, buffer_before_days, buffer_after_days, min_rental_days, active, custom_fields",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -96,6 +96,7 @@ export default async function ProductDataPage({
             autoIncrementMultiplier: String(product.auto_increment_multiplier),
             bufferBeforeDays: String(product.buffer_before_days),
             bufferAfterDays: String(product.buffer_after_days),
+            minRentalDays: String(product.min_rental_days),
             active: product.active,
           }}
         />

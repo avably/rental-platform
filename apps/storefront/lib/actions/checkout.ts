@@ -99,13 +99,15 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
       const { data, error } = await supabase.schema("app").rpc("public_checkout", args);
       if (error) {
         // Przenosimy SQLSTATE, żeby rdzeń zmapował go na status kontraktu
-        // (23P01 → unavailable, 22023 → rejected), oraz DETAIL — który w tym
-        // torze bywa wyłącznie znacznikiem kategorii odmowy
-        // ('legal_documents_missing', 'terms_outdated'; ADR-181), nigdy
-        // danymi. Treść zostaje w logu.
+        // (23P01 → unavailable, 22023 → rejected), DETAIL — który w tym
+        // torze bywa znacznikiem kategorii odmowy ('legal_documents_missing',
+        // 'terms_outdated'; ADR-181) albo liczbą minimum najmu (0089,
+        // ADR-202) — oraz HINT, znacznik kategorii odmów klasy PT
+        // ('min_rental_days'). Treść zostaje w logu.
         const wrapped = new Error(error.message) as CheckoutRpcError;
         wrapped.code = error.code;
         if (typeof error.details === "string") wrapped.detail = error.details;
+        if (typeof error.hint === "string") wrapped.hint = error.hint;
         throw wrapped;
       }
       return data as CheckoutRpcResult;

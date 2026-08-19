@@ -608,6 +608,8 @@
       "autoIncrementHint": "Każda doba ponad najwyższy próg cennika kosztuje cenę bazową × ten mnożnik. 1 = cena bazowa.",
       "bufferBefore": "Bufor serwisowy przed najmem (dni)",
       "bufferAfter": "Bufor serwisowy po najmie (dni)",
+      "minRentalDays": "Minimalny okres najmu (dni)",
+      "minRentalDaysHint": "Najkrótszy termin, na jaki klient może wynająć ten sprzęt w sklepie. 1 = bez ograniczenia. Dni liczą się z dniem zwrotu włącznie.",
       "active": "Produkt aktywny",
       "save": "Zapisz",
       "saved": "Zapisano zmiany.",

@@ -108,11 +108,27 @@ export interface CheckoutRpcResult {
  * Błąd RPC nosi standardowy SQLSTATE z PostgREST (patrz mapowanie niżej).
  * `detail` to DETAIL Postgresa — w publicznym checkoucie występuje wyłącznie
  * jako znacznik MASZYNOWY kategorii odmowy (dziś: 'terms_outdated' z 0063
- * i 'legal_documents_missing' z 0086), nigdy jako nośnik danych (ADR-181).
+ * i 'legal_documents_missing' z 0086) albo liczba minimum najmu przy odmowie
+ * 0089 (reguła oferty, nie identyfikator — ADR-181/202). `hint` to HINT
+ * Postgresa — znacznik kategorii odmów klasy PT (wzorzec PT409+hint z 0088;
+ * od 0089: 'min_rental_days').
  */
 export interface CheckoutRpcError extends Error {
   code?: string;
   detail?: string;
+  hint?: string;
+}
+
+/**
+ * Liczba minimum z DETAIL odmowy 0089. Baza wysyła SAMĄ liczbę ('3');
+ * wszystko inne (brak, śmieć, zero) to `null` — wtedy odmowa spada do
+ * ogólnego `rejected`, bo zdanie „minimum X dni" bez X byłoby zgadywaniem,
+ * a bramka w bazie i tak już odmówiła.
+ */
+export function parseMinRentalDaysDetail(detail: string | undefined): number | null {
+  if (detail === undefined || !/^\d{1,4}$/.test(detail)) return null;
+  const days = Number(detail);
+  return days >= 1 ? days : null;
 }
 
 /**
@@ -421,6 +437,7 @@ export async function submitCheckoutCore(
   } catch (error) {
     const code = (error as CheckoutRpcError).code;
     const detail = (error as CheckoutRpcError).detail;
+    const hint = (error as CheckoutRpcError).hint;
     // 23P01 = egzemplarz zajęty (wyścig / nieaktualny koszyk) → LP odświeża
     // dostępność. 22023 = odmowa walidacyjna serwera (tenant nieaktywny, zła
     // metoda dostawy, produkt zniknął). 23514 = naruszenie CHECK-a przy zapisie
@@ -444,6 +461,18 @@ export async function submitCheckoutCore(
     if (code === "23P01") return { status: "unavailable" };
     if (code === "22023" && detail === "legal_documents_missing") {
       return { status: "legal_documents_missing" };
+    }
+    // [0089] MINIMALNY OKRES NAJMU (ADR-202): klasa PT422 + hint, bo klient
+    // ma dostać zdanie „minimum X dni", a nie ogólną odmowę — checkout jest
+    // dziś JEDYNYM miejscem, w którym klient dowiaduje się o minimum
+    // (etykieta proaktywna w widgecie to faza 2, osobny ADR: koperty
+    // publicznych odczytów są .strict() i nie niosą jeszcze tego pola).
+    // DETAIL niesie samą liczbę; nieparsowalny spada do `rejected` — bramka
+    // w bazie już odmówiła, więc zdania bez liczby nie zmyślamy.
+    if (code === "PT422" && hint === "min_rental_days") {
+      const minDays = parseMinRentalDaysDetail(detail);
+      if (minDays !== null) return { status: "min_rental_days", minDays };
+      return { status: "rejected" };
     }
     if (code === "22023" || code === "23514") return { status: "rejected" };
     console.error("[checkout] RPC nie powiódł się", error);

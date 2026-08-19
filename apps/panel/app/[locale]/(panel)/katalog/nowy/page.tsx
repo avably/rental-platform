@@ -45,6 +45,8 @@ export default async function NewProductPage() {
           autoIncrementMultiplier: "1",
           bufferBeforeDays: "1",
           bufferAfterDays: "1",
+          // 1 = brak ograniczenia minimum najmu (0089) — default kolumny.
+          minRentalDays: "1",
           active: true,
         }}
       />

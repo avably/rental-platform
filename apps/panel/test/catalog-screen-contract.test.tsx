@@ -90,6 +90,7 @@ function renderFormWithError(fieldErrors: Record<string, string>): string {
           autoIncrementMultiplier: "1",
           bufferBeforeDays: "1",
           bufferAfterDays: "1",
+          minRentalDays: "1",
           active: true,
         }}
       />

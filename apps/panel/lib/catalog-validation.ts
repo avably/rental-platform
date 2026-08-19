@@ -136,6 +136,17 @@ export const productSchema = z.object({
   autoIncrementMultiplier: multiplierSchema,
   bufferBeforeDays: nonNegativeIntSchema("Bufor przed najmem: podaj liczbę dni (0 lub więcej)."),
   bufferAfterDays: nonNegativeIntSchema("Bufor po najmie: podaj liczbę dni (0 lub więcej)."),
+  /**
+   * Minimalny okres najmu (0089, ADR-202): >= 1, nie >= 0 — „minimum 0 dni"
+   * nie znaczy nic innego niż „minimum 1 dzień" (najem trwa co najmniej dobę,
+   * INCLUSIVE), a dwie reprezentacje jednego stanu to gotowy rozjazd. Lustro
+   * CHECK products_min_rental_days_check; 1 = brak ograniczenia.
+   */
+  minRentalDays: nonNegativeIntSchema(
+    "Minimalny okres najmu: podaj liczbę dni (1 lub więcej).",
+  ).refine((days) => days >= 1, {
+    message: "Minimalny okres najmu: podaj liczbę dni (1 lub więcej).",
+  }),
   active: checkboxSchema,
 });
 

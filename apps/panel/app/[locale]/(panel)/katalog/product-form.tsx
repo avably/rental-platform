@@ -32,6 +32,11 @@ export interface ProductFormValues {
   autoIncrementMultiplier: string;
   bufferBeforeDays: string;
   bufferAfterDays: string;
+  /**
+   * Minimalny okres najmu w dobach (0089, ADR-202). "1" = brak ograniczenia —
+   * neutralny default, ten sam, który kolumna nadała istniejącym produktom.
+   */
+  minRentalDays: string;
   active: boolean;
 }
 
@@ -244,6 +249,32 @@ export function ProductForm({
             message={state.fieldErrors?.bufferAfterDays}
           />
         </div>
+      </div>
+
+      {/* MINIMALNY OKRES NAJMU (0089, ADR-202). Egzekwuje baza w publicznym
+          checkoucie (odmowa PT422 z liczbą); klient sklepu dowiaduje się
+          o minimum z odmowy — etykieta proaktywna w widgecie to faza 2.
+          Pomoc kontekstowa mówi wprost, że 1 = brak ograniczenia, żeby
+          operator nie szukał osobnego wyłącznika. */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="product-min-rental-days">{t("minRentalDays")}</Label>
+        <Input
+          id="product-min-rental-days"
+          name="minRentalDays"
+          required
+          type="number"
+          min={1}
+          step={1}
+          className="tabular-nums"
+          defaultValue={defaults.minRentalDays}
+          aria-invalid={state.fieldErrors?.minRentalDays ? true : undefined}
+          aria-describedby={errorId("minRentalDays") ?? "product-min-rental-days-hint"}
+        />
+        <FieldHint id="product-min-rental-days-hint">{t("minRentalDaysHint")}</FieldHint>
+        <FieldError
+          id="product-minRentalDays-error"
+          message={state.fieldErrors?.minRentalDays}
+        />
       </div>
 
       <div className="flex items-center gap-2">

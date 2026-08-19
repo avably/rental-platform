@@ -199,6 +199,16 @@ export interface CheckoutOrderSummary {
  *                      serwerze strony); ten status łapie wyścig „najemca
  *                      cofnął publikację między renderem a wysłaniem" oraz
  *                      żądania składane z pominięciem UI.
+ *   min_rental_days  → najem krótszy niż minimalny okres najmu jednej z
+ *                      pozycji (0089, ADR-202; PT422 + hint z bazy).
+ *                      Zamówienie NIE POWSTAŁO. `minDays` to liczba minimum
+ *                      z DETAIL odmowy — reguła oferty najemcy, nie
+ *                      identyfikator (ADR-181); LP składa z niej zdanie
+ *                      „minimum X dni". To dziś JEDYNE miejsce, w którym
+ *                      klient dowiaduje się o minimum — etykieta proaktywna
+ *                      przy polu terminu to faza 2 (osobny ADR), bo koperty
+ *                      publicznych odczytów (.strict()) tego pola jeszcze
+ *                      nie niosą.
  *   server_error     → błąd nieoczekiwany / brak kontekstu tenanta
  */
 export type CheckoutResult =
@@ -215,6 +225,7 @@ export type CheckoutResult =
   | { status: "captcha_failed" }
   | { status: "payment_unavailable" }
   | { status: "legal_documents_missing" }
+  | { status: "min_rental_days"; minDays: number }
   | { status: "server_error" };
 
 export type CheckoutStatus = CheckoutResult["status"];

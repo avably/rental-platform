@@ -608,6 +608,8 @@
       "autoIncrementHint": "Each day beyond the highest pricing tier costs base price × this multiplier. 1 = base price.",
       "bufferBefore": "Service buffer before rental (days)",
       "bufferAfter": "Service buffer after rental (days)",
+      "minRentalDays": "Minimum rental period (days)",
+      "minRentalDaysHint": "The shortest period a customer can rent this item for in the store. 1 = no minimum. Days are counted inclusive of the return day.",
       "active": "Product active",
       "save": "Save",
       "saved": "Changes saved.",
