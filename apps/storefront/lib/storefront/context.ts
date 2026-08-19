@@ -44,6 +44,7 @@ import {
   type PublishedSite,
   type TenantAppearance,
 } from "@/lib/site/published";
+import { getPublicStoreFlags, type StoreFlags } from "@/lib/site/store-flags";
 import { getStorefrontCopy, type StorefrontCopy } from "@/lib/storefront/copy";
 import { normalizeStorefrontLocale, type StorefrontLocale } from "@/lib/storefront/locale";
 import { TENANT_ID_HEADER } from "@/lib/tenant/headers";
@@ -68,6 +69,16 @@ export interface StorefrontContext {
    * w ogóle.
    */
   appearance: TenantAppearance;
+  /**
+   * FLAGI POWŁOKI — przełączniki ZACHOWANIA (ADR-203, 0090), osobno od
+   * `appearance` (wyglądu), bo to dwa różne kontrakty o dwóch różnych
+   * odbiorcach: styl konsumuje render, flagi konsumują trasy. Na start:
+   * `termCalendarEnabled` — globalna pigułka terminu w pasku (ADR-194,
+   * faza B). Pole WYMAGANE jak reszta kontekstu: trasa, która by o nim
+   * zapomniała, ma dostać błąd typów, a nie pigułkę wbrew ustawieniu
+   * najemcy. Nieudany odczyt = domyślne `true` (fail-soft, zero regresu).
+   */
+  storeFlags: StoreFlags;
   /**
    * Pełna opublikowana STRONA GŁÓWNA (sekcje) — null gdy brak/nieopublikowana.
    * Po ADR-171 odpowiada wyłącznie za treść strony głównej i za sekcje POWŁOKI,
@@ -201,7 +212,7 @@ export type CatalogPageResolution =
 export const loadStorefrontContext = cache(_loadStorefrontContext);
 
 /**
- * Kontekst strony sprzętu: cztery odczyty równolegle, ani jeden O(N).
+ * Kontekst strony sprzętu: pięć odczytów równolegle, ani jeden O(N).
  *
  * `cache` per-żądanie z TEGO SAMEGO powodu, co wyżej — trasa woła to raz
  * z `generateMetadata` i raz z renderu, a Next liczy oba równolegle.
@@ -209,7 +220,7 @@ export const loadStorefrontContext = cache(_loadStorefrontContext);
 export const loadProductPageContext = cache(_loadProductPageContext);
 
 /**
- * Kontekst strony katalogu: cztery odczyty równolegle, ani jeden O(katalogu).
+ * Kontekst strony katalogu: pięć odczytów równolegle, ani jeden O(katalogu).
  *
  * `cache` per-żądanie z tego samego powodu, co wyżej — trasa woła to raz
  * z `generateMetadata` i raz z renderu. Argument WCHODZI do klucza memoizacji
@@ -234,11 +245,14 @@ async function _loadProductPageContext(
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
   if (!tenantId) return { kind: "none" };
 
-  const [envelope, appearance, site, legalDocuments] = await Promise.all([
+  // Flagi powłoki PIĄTYM członem (ADR-203) — równolegle, więc zero
+  // dodatkowych podróży w czasie odpowiedzi (ten sam rachunek, co ADR-171).
+  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
     getPublicProduct(tenantId, target),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
+    getPublicStoreFlags(tenantId),
   ]);
 
   // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
@@ -269,6 +283,7 @@ async function _loadProductPageContext(
       copy,
       style,
       appearance,
+      storeFlags,
       site,
       legalDocuments,
       productSlugs: {
@@ -284,11 +299,13 @@ async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolut
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
   if (!tenantId) return { kind: "none" };
 
-  const [envelope, appearance, site, legalDocuments] = await Promise.all([
+  // Flagi powłoki PIĄTYM członem (ADR-203) — patrz kontekst strony sprzętu.
+  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
     getPublicCatalogPage(tenantId, catalogPageOffset(page), CATALOG_PAGE_SIZE),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
+    getPublicStoreFlags(tenantId),
   ]);
 
   // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
@@ -327,6 +344,7 @@ async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolut
       copy,
       style,
       appearance,
+      storeFlags,
       site,
       legalDocuments,
       /*
@@ -354,7 +372,7 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     w czasie odpowiedzi. Cena za to, że znak i motyw przestają zależeć od tego,
     czy najemca zdążył opublikować akurat stronę główną.
   */
-  const [catalog, appearance, site, legalDocuments, productSlugs] = await Promise.all([
+  const [catalog, appearance, site, legalDocuments, productSlugs, storeFlags] = await Promise.all([
     /*
       KATALOG PRZEZ CACHE MIĘDZYŻĄDANIOWY (faza 4a, ADR-185). `cache` z Reacta
       na całej tej funkcji deduplikuje odczyty w obrębie JEDNEGO żądania;
@@ -371,6 +389,9 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
     getPublicProductSlugs(tenantId),
+    // Flagi powłoki SZÓSTYM członem (ADR-203) — równolegle, zero dodatkowych
+    // podróży; nieudany odczyt = domyślne `true` (pigułka jak przed 0090).
+    getPublicStoreFlags(tenantId),
   ]);
   if (!catalog) return null;
 
@@ -390,6 +411,7 @@ async function _loadStorefrontContext(): Promise<StorefrontContext | null> {
     copy,
     style,
     appearance,
+    storeFlags,
     site,
     legalDocuments,
     productSlugs,

@@ -41,6 +41,7 @@ import { heroText, pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { format } from "@/lib/storefront/copy";
 import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
+import { storeTermInput } from "@/lib/storefront/term-input";
 
 export const dynamic = "force-dynamic";
 
@@ -113,11 +114,13 @@ export default async function TenantContentPage({ params }: Params) {
       site={site}
       /*
         TERMIN NAJMU W POWŁOCE (faza 5, ADR-179) — ta trasa SPRZEDAJE, więc
-        pasek terminu na niej stoi. Katalog idzie do panelu konfliktu po nazwy
+        pasek terminu na niej stoi, chyba że najemca wyłączył pigułkę
+        (ADR-203): regułę trzyma `storeTermInput`, wspólny dla wszystkich
+        tras handlowych. Katalog idzie do panelu konfliktu po nazwy
         pozycji: lista „nie zmieści się w tym terminie" ma mówić o sprzęcie,
         a nie o identyfikatorach.
       */
-      term={{ products: catalog.products, locale }}
+      term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
       /* Prefiks zdjęć także dla stopki powłoki (ADR-172) — patrz `/store`. */
       siteImageBase={seam.siteImageBase}
       /*

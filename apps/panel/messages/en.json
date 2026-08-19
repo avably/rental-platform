@@ -1616,6 +1616,14 @@
       "pending": "The look is waiting to be published — customers still see the previous one. It goes live with the next publication of any page.",
       "live": "Customers see this look."
     },
+    "termPill": {
+      "title": "Date picker in the shop bar",
+      "label": "Show the date picker in the shop bar",
+      "help": "When turned off, customers pick their dates on the equipment page instead of the bar.",
+      "on": "Customers see the date picker in the bar on every shop page.",
+      "off": "Customers pick their dates on the equipment page. The bar shows no calendar.",
+      "error": "Could not save the setting. Please try again."
+    },
     "fields": {
       "heading": "Heading",
       "heroHeading": "Main heading",

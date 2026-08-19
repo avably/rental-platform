@@ -118,6 +118,7 @@ import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { storeLogo } from "@/lib/site/store-logo";
 import { format } from "@/lib/storefront/copy";
 import type { ProductPageContext } from "@/lib/storefront/context";
+import { storeTermInput } from "@/lib/storefront/term-input";
 
 /**
  * Tytuł = nazwa produktu + nazwa sklepu; opis = opis produktu z katalogu
@@ -263,8 +264,8 @@ export async function renderProductPage({
         /* Stopka ze strony GŁÓWNEJ (ADR-154) — patrz nagłówek pliku. */
         site={site}
         siteImageBase={seam.siteImageBase}
-        /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
-        term={{ products: catalog.products, locale }}
+        /* Ta trasa SPRZEDAJE (ADR-179) — pigułkę może wyłączyć najemca (ADR-203): regułę trzyma `storeTermInput`. */
+        term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
         /*
           Kotwice stopki prowadzą na stronę GŁÓWNĄ: strona sprzętu nie ma sekcji,
           do których stopka z presetu odsyła, więc czyste `#kontakt` nie robiłoby
@@ -330,8 +331,8 @@ export async function renderProductPage({
       site={site}
       logo={storeLogo(ctx)}
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
-      /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
-      term={{ products: catalog.products, locale }}
+      /* Ta trasa SPRZEDAJE (ADR-179) — pigułkę może wyłączyć najemca (ADR-203): regułę trzyma `storeTermInput`. */
+      term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
     >
       {productLd ? <JsonLd data={productLd} /> : null}
       <Link href="/store" className="site-link text-sm">

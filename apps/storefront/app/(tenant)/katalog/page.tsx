@@ -49,6 +49,7 @@ import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { format } from "@/lib/storefront/copy";
 import { loadCatalogPageContext } from "@/lib/storefront/context";
+import { storeTermInput } from "@/lib/storefront/term-input";
 
 export const dynamic = "force-dynamic";
 
@@ -150,12 +151,13 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
       footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
       /*
         TERMIN NAJMU W POWŁOCE (faza 5, ADR-179) — ta trasa SPRZEDAJE, więc
-        pasek terminu na niej stoi, a kafle dostają liczbę wolnych sztuk z tej
+        pasek terminu na niej stoi, chyba że najemca wyłączył pigułkę
+        (ADR-203: regułę trzyma `storeTermInput`), a kafle dostają liczbę wolnych sztuk z tej
         samej, JEDNEJ odpowiedzi o dostępność (ADR-180). Panel konfliktu nazywa
         po imieniu pozycje TEJ strony wyników — cena przyjęta świadomie, ta sama
         co na stronie sprzętu (ADR-185).
       */
-      term={{ products: catalog.products, locale }}
+      term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >

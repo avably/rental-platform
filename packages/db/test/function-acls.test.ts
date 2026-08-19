@@ -78,6 +78,13 @@ const ANON_EXECUTE_ALLOWLIST = [
   // jawnym zawężeniu tenant_id w ciele (SECURITY DEFINER) — pilnuje tego
   // product-slug.test.ts.
   "get_public_product_slugs",
+  // 0090 — flagi POWŁOKI sklepu (ADR-203). anon z tego samego powodu, co
+  // get_tenant_appearance: powłoka renderuje się dla anonimowego odwiedzającego,
+  // a flaga rozstrzyga, czy pasek niesie pigułkę terminu. Oddaje WYŁĄCZNIE
+  // przełączniki zachowania (na start term_calendar_enabled) i wyłącznie dla
+  // najemcy w oknie handlowym; izolacja stoi na jawnym zawężeniu tenant_id
+  // w ciele (SECURITY DEFINER) — pilnuje tego store-term-flag.test.ts.
+  "get_public_store_flags",
   "get_public_order_payment", // 0029 — status płatności zamówienia (bramka: checkout_token)
   "get_public_payment_account", // 0028 — publiczny identyfikator konta płatności
   "get_published_legal_document", // 0063 — żywa wersja dokumentu prawnego

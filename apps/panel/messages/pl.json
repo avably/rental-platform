@@ -1616,6 +1616,14 @@
       "pending": "Wygląd czeka na publikację — klienci widzą jeszcze poprzedni. Wyjdzie na żywo przy najbliższej publikacji dowolnej strony.",
       "live": "Ten wygląd widzą klienci."
     },
+    "termPill": {
+      "title": "Kalendarz terminu w pasku sklepu",
+      "label": "Pokazuj wybór terminu w pasku sklepu",
+      "help": "Gdy wyłączysz, klienci wybierają termin na stronie sprzętu, nie w pasku.",
+      "on": "Klienci widzą wybór terminu w pasku na każdej stronie sklepu.",
+      "off": "Klienci wybierają termin na stronie sprzętu. Pasek nie pokazuje kalendarza.",
+      "error": "Nie udało się zapisać ustawienia. Spróbuj ponownie."
+    },
     "fields": {
       "heading": "Nagłówek",
       "heroHeading": "Nagłówek główny",
