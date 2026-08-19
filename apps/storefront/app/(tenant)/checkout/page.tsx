@@ -24,6 +24,7 @@ import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
+import { storeTermInput } from "@/lib/storefront/term-input";
 
 export const dynamic = "force-dynamic";
 
@@ -83,8 +84,12 @@ export default async function TenantCheckoutPage() {
       site={site}
       logo={storeLogo(ctx)}
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
-      /* Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179). */
-      term={{ products: catalog.products, locale }}
+      /*
+        Ta trasa SPRZEDAJE — pasek terminu na niej stoi (faza 5, ADR-179),
+        chyba że najemca wyłączył pigułkę (ADR-203): regułę trzyma
+        `storeTermInput`, wspólny dla wszystkich tras handlowych.
+        */
+      term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
       <div className="mt-6">

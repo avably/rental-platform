@@ -29,6 +29,7 @@ import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
 import { StoreAppearanceCard } from "./store-appearance-card";
 import { StoreLogoCard } from "./store-logo-card";
+import { StoreTermPillCard } from "./store-term-pill-card";
 
 export default async function SitePage() {
   const ctx = await requireMemberPage("/strona");
@@ -56,7 +57,9 @@ export default async function SitePage() {
   */
   const tenantRow = await ctx.supabase
     .from("tenants")
-    .select("logo_draft, logo_published, template, template_published, style_draft, style_published")
+    .select(
+      "logo_draft, logo_published, template, template_published, style_draft, style_published, store_term_calendar_enabled",
+    )
     .eq("id", ctx.tenantId!)
     .maybeSingle();
 
@@ -214,6 +217,18 @@ export default async function SitePage() {
         )}
       />
       {appearance === null ? null : <StoreAppearanceCard pending={appearance} />}
+      {/*
+        KALENDARZ TERMINU W PASKU (ADR-203) — trzecia własność powłoki najemcy,
+        obok znaku i wyglądu. Ta sama reguła, co przy karcie wyglądu: nieudany
+        odczyt wiersza znaczy „nie wiadomo", więc karta znika, zamiast rysować
+        przełącznik na domyśle (zdanie o stanie sklepu z domysłu jest gorsze
+        od jego braku — kanon ADR-171).
+      */}
+      {tenantRow.data ? (
+        <StoreTermPillCard
+          initialEnabled={(tenantRow.data.store_term_calendar_enabled as boolean | null) ?? true}
+        />
+      ) : null}
       {/*
         ZASIĘG PUBLIKACJI JEDZIE DO OKNA (ADR-171). Okno potwierdzenia mówiło
         bezwarunkowo „Pozostałe strony sklepu zostają bez zmian", a `publishSite`

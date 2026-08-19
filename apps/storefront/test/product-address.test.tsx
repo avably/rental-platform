@@ -102,6 +102,11 @@ vi.mock("@/lib/site/published", () => ({
 }));
 
 vi.mock("@/lib/legal/published", () => ({ getPublishedLegalDocuments: async () => [] }));
+// Flagi powłoki (ADR-203) — atrapa jak reszta warstwy danych wyżej: ten plik
+// mierzy ADRESY, a domyślne `true` to stan każdego najemcy sprzed 0090.
+vi.mock("@/lib/site/store-flags", () => ({
+  getPublicStoreFlags: async () => ({ termCalendarEnabled: true }),
+}));
 vi.mock("@/lib/storefront/copy", () => ({
   getStorefrontCopy: async () => ({}),
   format: (s: string) => s,

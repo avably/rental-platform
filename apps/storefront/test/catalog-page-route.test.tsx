@@ -60,6 +60,8 @@ const stan = {
   total: POZYCJI,
   /** Czy najemca ma OPUBLIKOWANĄ stronę główną — od tego zależy `robots.txt`. */
   stronaGlowna: true,
+  /** Globalna pigułka terminu w pasku (ADR-203) — default true, jak w bazie. */
+  pigulka: true,
   wywolania: [] as unknown[],
 };
 
@@ -110,6 +112,9 @@ vi.mock("@/lib/supabase-server", () => ({
           };
         }
         if (fn === "get_tenant_appearance") return { data: null, error: null };
+        if (fn === "get_public_store_flags") {
+          return { data: { term_calendar_enabled: stan.pigulka }, error: null };
+        }
         if (fn === "get_published_page") {
           return { data: stan.stronaGlowna ? STRONA_GLOWNA : null, error: null };
         }
@@ -159,6 +164,7 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
   beforeEach(() => {
     stan.tenantId = TENANT;
     stan.total = POZYCJI;
+    stan.pigulka = true;
     stan.wywolania.length = 0;
     vi.resetModules();
   });
@@ -293,6 +299,35 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
       "kanon strony 2 wskazujący stronę 1 chowa przed wyszukiwarką resztę oferty",
     ).toBe("https://sklep.example.test/katalog?strona=2");
   });
+
+  // -------------------------------------------------------------------
+  // Pigułka terminu w pasku respektuje flagę najemcy (ADR-203)
+  // -------------------------------------------------------------------
+  //
+  // Dowód na PRAWDZIWYM renderze trasy /katalog i prawdziwym
+  // `loadCatalogPageContext` (atrapa siedzi dopiero na kliencie Supabase):
+  // flaga z odpowiedzi `get_public_store_flags` naprawdę przepływa przez
+  // kontekst do powłoki. Obie strony kontraktu w JEDNYM przypadku —
+  // „pigułka jest przy fladze on" bez drugiej połowy przechodziłoby też
+  // wtedy, gdyby flaga nie była czytana wcale.
+  it("pigułka w pasku: JEST przy fladze włączonej, ZNIKA po wyłączeniu przez najemcę", async () => {
+    const wlaczona = await renderKatalog({});
+    expect(wlaczona, "flaga on: marker paska zniknął z SSR").toContain('data-store-term="true"');
+    expect(wlaczona, "flaga on: pigułki nie ma w SSR").toContain("data-store-term-toggle");
+
+    stan.pigulka = false;
+    vi.resetModules();
+    const wylaczona = await renderKatalog({});
+    expect(wylaczona, "flaga off: marker paska stoi wbrew ustawieniu najemcy").not.toContain(
+      'data-store-term="true"',
+    );
+    expect(wylaczona, "flaga off: pigułka stoi wbrew ustawieniu najemcy").not.toContain(
+      "data-store-term-toggle",
+    );
+    // Katalog dalej SPRZEDAJE: siatka pozycji zostaje — flaga gasi wyłącznie
+    // globalny wyzwalacz terminu, nie treść strony.
+    expect(wylaczona, "flaga off zgasiła całą stronę katalogu").toContain(nazwa(1));
+  }, BUDZET_RENDERU);
 
   it("`?strona=1` ma ten sam kanon, co `/katalog` — dwa adresy, jedna treść", async () => {
     const jeden = await metadane({ strona: "1" });

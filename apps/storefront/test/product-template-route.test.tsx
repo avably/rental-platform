@@ -136,7 +136,7 @@ function katalogowySprzet(id: string, name: string) {
  * Mocki — stan sterowany z każdego przypadku
  * ---------------------------------------------------------------------- */
 
-const stan: { szablon: unknown } = { szablon: null };
+const stan: { szablon: unknown; pigulka: boolean } = { szablon: null, pigulka: true };
 
 vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers({ "x-nonce": "test-nonce" })),
@@ -208,6 +208,9 @@ vi.mock("@/lib/storefront/context", () => ({
         copy: await getStorefrontCopy("pl"),
         style: resolveSiteStyle({}, "classic"),
         appearance: { template: "classic", style: {}, logo: null },
+        // Flaga pigułki (ADR-203) sterowana z przypadku — default `true`,
+        // czyli stan każdego najemcy sprzed 0090.
+        storeFlags: { termCalendarEnabled: stan.pigulka },
         site: null,
         legalDocuments: [],
         // Rejestr adresów ma JEDEN wpis — adres tej pozycji (ADR-182/184).
@@ -266,6 +269,7 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
 
   beforeEach(() => {
     stan.szablon = null;
+    stan.pigulka = true;
     vi.resetModules();
   });
 
@@ -389,6 +393,10 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
       // grepuje HTML, więc znacznik chowany media query wciąż ją karmi, ale
       // znacznik ZDJĘTY z dokumentu zgasiłby ją bez żadnego innego alarmu.
       // Dopisek `="true"`, bo substring bez niego łapałby też `-toggle`.
+      // Od ADR-203 kontrakt jest DWUKIERUNKOWY: marker obecny ⟺ pigułka
+      // włączona. Ta pętla biegnie przy fladze WŁĄCZONEJ (stan domyślny,
+      // demo-najemca pulsu trzyma default true); kierunek „flaga off →
+      // markera NIE MA" mierzy przypadek 3e niżej.
       expect(markup, `${etykieta}: goły data-store-term (hak pulsu) zniknął z SSR`).toContain(
         'data-store-term="true"',
       );
@@ -462,6 +470,63 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     expect(wiersz, "wiersz terminu pod belką wrócił na desktop — zgubił md:hidden").toContain(
       "md:hidden",
     );
+  }, BUDZET_RENDERU);
+
+  // -------------------------------------------------------------------
+  // 3e. PIGUŁKA WYŁĄCZONA PRZEZ NAJEMCĘ (ADR-203) — widget zostaje sam
+  // -------------------------------------------------------------------
+  //
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: (1) trasa ignoruje flagę i pigułka stoi wbrew
+  // ustawieniu najemcy (wtedy pierwsza połowa czerwienieje); (2) wyłączenie
+  // pigułki zabiera RAZEM z nią widget rezerwacji — czyli jedyne pozostałe
+  // miejsce wyboru terminu (wtedy czerwienieje druga połowa: klient bez
+  // pigułki NIE MA JAK wybrać terminu globalnie, więc pole w karcie musi
+  // być w pełni samowystarczalne). Marker pulsu znika ŚWIADOMIE: nie ma
+  // paska = nie ma markera paska; puls produkcyjny sprawdza demo-najemcę,
+  // który trzyma default true.
+  it("FLAGA OFF: pigułki i paska NIE MA w żadnej gałęzi, a widget z polem terminu ZOSTAJE", async () => {
+    stan.pigulka = false;
+
+    const bezSzablonu = await renderProductPage();
+    stan.szablon = opublikowanySzablon(sekcjaSzablonu());
+    vi.resetModules();
+    const zeSzablonem = await renderProductPage();
+    stan.szablon = opublikowanySzablon([]);
+    vi.resetModules();
+    const pustySzablon = await renderProductPage();
+
+    for (const [etykieta, markup] of [
+      ["bez szablonu", bezSzablonu],
+      ["ze szablonem", zeSzablonem],
+      ["pusty szablon", pustySzablon],
+    ] as const) {
+      // Pasek i OBA wystąpienia pigułki (belka + wiersz mobilny) gasną razem
+      // z owijką `data-store-term` — jedną gałęzią `term=null` w powłoce,
+      // nie media query.
+      expect(markup, `${etykieta}: marker paska stoi wbrew wyłączonej fladze`).not.toContain(
+        'data-store-term="true"',
+      );
+      expect(markup, `${etykieta}: pigułka terminu stoi wbrew wyłączonej fladze`).not.toContain(
+        "data-store-term-toggle",
+      );
+
+      // SAMOWYSTARCZALNOŚĆ WIDGETU: pole terminu z zachętą jest w SSR, więc
+      // klient wchodzący na sprzęt BEZ wcześniej wybranego terminu ma gdzie
+      // go wybrać (własne okno widgetu — suita product-booking mierzy samą
+      // mechanikę wyboru od zera).
+      expect(markup, `${etykieta}: widget rezerwacji zniknął razem z pigułką`).toContain(
+        `data-product-booking="${SPRZET_ID}"`,
+      );
+      expect(markup, `${etykieta}: pole terminu widgetu zniknęło razem z pigułką`).toContain(
+        "data-product-booking-field",
+      );
+      expect(markup, `${etykieta}: pole terminu bez zachęty wyboru dat`).toContain(
+        "Kliknij, aby wybrać daty",
+      );
+      expect(markup, `${etykieta}: przycisk koszyka zniknął razem z pigułką`).toContain(
+        "data-product-booking-add",
+      );
+    }
   }, BUDZET_RENDERU);
 
   it("stały blok i widget rezerwacji są DOKŁADNIE PO JEDNYM w każdej gałęzi", async () => {
