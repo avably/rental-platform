@@ -66,6 +66,16 @@ export const STOREFRONT_API_RATE_LIMIT_PREFIX = "storefront-api-rl";
  * maszynowym, ani z formularzami storefrontu.
  */
 export const STOREFRONT_EMBED_RATE_LIMIT_PREFIX = "storefront-embed-rl";
+/**
+ * Publiczny zapis uwag przeglądu produktu (ADR-206) — czwarta, osobna
+ * przestrzeń. Po zdjęciu superadmina z ZAPISU uwag bramką anty-spamową
+ * endpointu jest właśnie ten limit (obok kill-switcha REVIEW_MODE), więc
+ * jego budżet nie może być współdzielony z formularzami auth panelu:
+ * seria komentarzy właściciela w trakcie przeglądu nie ma prawa zjeść
+ * budżetu logowania — ani odwrotnie. Narzędzie znika na go-live razem
+ * z REVIEW_MODE, a z nim ta przestrzeń.
+ */
+export const REVIEW_COMMENT_RATE_LIMIT_PREFIX = "review-comment-rl";
 
 export interface RateLimitResult {
   success: boolean;

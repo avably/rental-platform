@@ -16,7 +16,7 @@
  */
 import { handleCreateRequest, handleListRequest } from "@avably/review";
 
-import { reviewIngestClient } from "@/app/api/review/ingest/client";
+import { reviewServiceClient } from "@/app/api/review/client";
 import { reviewIngestGuard } from "@/lib/review-ingest-guard";
 
 export const runtime = "nodejs";
@@ -24,11 +24,11 @@ export const runtime = "nodejs";
 export async function GET(request: Request): Promise<Response> {
   const denied = reviewIngestGuard(request);
   if (denied) return denied;
-  return handleListRequest(reviewIngestClient(), request);
+  return handleListRequest(reviewServiceClient(), request);
 }
 
 export async function POST(request: Request): Promise<Response> {
   const denied = reviewIngestGuard(request);
   if (denied) return denied;
-  return handleCreateRequest(reviewIngestClient(), request, null);
+  return handleCreateRequest(reviewServiceClient(), request, null);
 }

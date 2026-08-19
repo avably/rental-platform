@@ -5,7 +5,7 @@
  */
 import { handlePatchRequest } from "@avably/review";
 
-import { reviewIngestClient } from "@/app/api/review/ingest/client";
+import { reviewServiceClient } from "@/app/api/review/client";
 import { reviewIngestGuard } from "@/lib/review-ingest-guard";
 
 export const runtime = "nodejs";
@@ -17,5 +17,5 @@ export async function PATCH(
   const denied = reviewIngestGuard(request);
   if (denied) return denied;
   const { id } = await params;
-  return handlePatchRequest(reviewIngestClient(), request, id);
+  return handlePatchRequest(reviewServiceClient(), request, id);
 }

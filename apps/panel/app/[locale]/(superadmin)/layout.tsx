@@ -85,11 +85,10 @@ export default async function SuperadminLayout({ children }: { children: React.R
         {children}
       </main>
       {/* Nakładka przeglądu (ADR-071) — oś admina to też ekrany przeglądu
-          (pozycja 39 listy). Warunki jak w (panel): REVIEW_MODE + superadmin
-          + ?review=1 po stronie klienta. */}
-      {process.env.REVIEW_MODE === "1" && ctx?.superadmin ? (
-        <ReviewOverlayGate surface="panel" />
-      ) : null}
+          (pozycja 39 listy). Warunki jak w (panel), od ADR-206 bez
+          superadmina: REVIEW_MODE + ?review=1 po stronie klienta (same
+          ekrany /admin i tak chroni requireSuperadminPage per strona). */}
+      {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="panel" /> : null}
     </div>
   );
 }

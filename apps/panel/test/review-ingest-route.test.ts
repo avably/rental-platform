@@ -15,8 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const work = vi.hoisted(() => ({ clients: 0, handlers: 0 }));
 
-vi.mock("@/app/api/review/ingest/client", () => ({
-  reviewIngestClient: () => {
+vi.mock("@/app/api/review/client", () => ({
+  reviewServiceClient: () => {
     work.clients += 1;
     return {};
   },

@@ -1,19 +1,17 @@
 import { ReviewOverlayGate } from "@avably/review/overlay";
 
-import { getAuthContext } from "@/lib/auth";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
-
 /**
  * Powłoka grupy `(kreator)` (naprawa pinezki 494d7445, ADR-083 + ADR-071).
  *
- * Grupa nie miała WŁASNEGO layoutu — nakładka przeglądu montuje się dziś
- * wyłącznie w layoucie `(panel)` (`surface="panel"`), więc na
+ * Grupa nie miała WŁASNEGO layoutu — nakładka przeglądu montuje się
+ * w layoucie `(panel)` (`surface="panel"`), więc na
  * `/strona/[siteId]/kreator` i `/strona/[siteId]/podglad` nie renderowała się w ogóle: trasy
  * stoją POZA `(panel)` świadomie (kreator jest pełnym ekranem, ADR-083).
  * Ten plik nie dokłada żadnej powłoki wizualnej — jedyne zadanie to
- * `{children}` plus TA SAMA potrójna bramka co w `(panel)`: env
- * `REVIEW_MODE=1`, `ctx.superadmin` po stronie serwera, kliencki `?review=1`
- * domyka resztę wewnątrz samej bramki.
+ * `{children}` plus TA SAMA bramka co w `(panel)`: env `REVIEW_MODE=1`
+ * (od ADR-206 bez warunku superadmina — kill-switch jest jedyną bramką
+ * serwerową montażu), kliencki `?review=1` domyka resztę wewnątrz samej
+ * bramki. Layout nie czyta już sesji: nie miała tu innych konsumentów.
  *
  * `surface="panel"` (nie osobna wartość) — `screenFor()` już klasyfikuje
  * `/strona/*` jako ekran „24 Strona sklepu" na powierzchni `panel`
@@ -24,14 +22,10 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 export default async function KreatorLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const ctx = await getAuthContext(await createSupabaseServerClient());
-
   return (
     <>
       {children}
-      {process.env.REVIEW_MODE === "1" && ctx?.superadmin ? (
-        <ReviewOverlayGate surface="panel" />
-      ) : null}
+      {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="panel" /> : null}
     </>
   );
 }

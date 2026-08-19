@@ -1,6 +1,6 @@
 /**
  * Powłoka grupy `(kreator)` — bramka nakładki przeglądu (naprawa pinezki
- * 494d7445, ADR-071 + ADR-083).
+ * 494d7445, ADR-071 + ADR-083; od ADR-206 bez warunku superadmina).
  *
  * Przyczyna, dla której widget nie renderował się na `/strona/kreator` i
  * `/strona/podglad`: `(kreator)` nie miała WŁASNEGO layoutu, więc trasa nie
@@ -9,36 +9,17 @@
  * skanuje źródła — bo string w pliku niczego nie gwarantuje o realnym
  * renderze (ten sam błąd, tylko przesunięty o jeden krok).
  *
- * Cztery warianty potrójnej bramki: brakujący którykolwiek z dwóch warunków
- * serwerowych (env, `ctx.superadmin`) ma dać drzewo BEZ widgetu; oba razem —
- * drzewo Z widgetem. Trzeci warunek (`?review=1`) jest kliencki i żyje
- * wewnątrz samej bramki (`ReviewOverlayGate`) — poza zasięgiem tego testu.
+ * Od ADR-206 jedyną bramką SERWEROWĄ montażu jest kill-switch
+ * `REVIEW_MODE=1` — właściciel komentuje też jako zwykły user i anonim,
+ * więc drzewo Z widgetem ma powstać bez żadnej sesji. Warunek kliencki
+ * (`?review=1`) żyje wewnątrz samej bramki (`ReviewOverlayGate`) — poza
+ * zasięgiem tego testu. Kill-switch pozostaje twardy: bez REVIEW_MODE=1
+ * widgetu nie ma NIGDY.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-let claims: Record<string, unknown> | null = null;
-
-vi.mock("@/lib/supabase-server", () => ({
-  createSupabaseServerClient: async () => ({
-    auth: {
-      getClaims: async () =>
-        claims ? { data: { claims }, error: null } : { data: null, error: null },
-    },
-  }),
-}));
-
 const { ReviewOverlayGate } = await import("@avably/review/overlay");
 const KreatorLayout = (await import("@/app/[locale]/(kreator)/layout")).default;
-
-/** Sesja z podanymi claimami app_metadata (kształt hooka 0003_auth.sql). */
-function session(appMetadata: Record<string, unknown>): Record<string, unknown> {
-  return {
-    sub: "00000000-0000-4000-8000-000000000001",
-    email: "operator@example.com",
-    aal: "aal1",
-    app_metadata: appMetadata,
-  };
-}
 
 /** Czy drzewo elementów zawiera węzeł DANEGO typu (identyczność referencji). */
 function containsType(node: unknown, type: unknown): boolean {
@@ -71,13 +52,11 @@ const MARKER = "PŁÓTNO_KREATORA_MARKER";
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  claims = null;
 });
 
 describe("(kreator)/layout — bramka nakładki przeglądu", () => {
-  it("REVIEW_MODE=1 + superadmin → widget JEST w drzewie", async () => {
+  it("REVIEW_MODE=1 → widget JEST w drzewie (bez żadnej sesji — ADR-206)", async () => {
     vi.stubEnv("REVIEW_MODE", "1");
-    claims = session({ superadmin: true });
 
     const tree = await KreatorLayout({ children: MARKER });
 
@@ -85,9 +64,8 @@ describe("(kreator)/layout — bramka nakładki przeglądu", () => {
     expect(collectStrings(tree)).toContain(MARKER);
   });
 
-  it("REVIEW_MODE wyłączony (superadmin OK) → widgetu NIE MA", async () => {
+  it("REVIEW_MODE wyłączony → widgetu NIE MA (kill-switch)", async () => {
     vi.stubEnv("REVIEW_MODE", "0");
-    claims = session({ superadmin: true });
 
     const tree = await KreatorLayout({ children: MARKER });
 
@@ -95,31 +73,12 @@ describe("(kreator)/layout — bramka nakładki przeglądu", () => {
     expect(collectStrings(tree)).toContain(MARKER);
   });
 
-  it("REVIEW_MODE niezdefiniowany (superadmin OK) → widgetu NIE MA", async () => {
+  it("REVIEW_MODE niezdefiniowany → widgetu NIE MA", async () => {
     vi.stubEnv("REVIEW_MODE", "");
-    claims = session({ superadmin: true });
-
-    const tree = await KreatorLayout({ children: MARKER });
-
-    expect(containsType(tree, ReviewOverlayGate)).toBe(false);
-  });
-
-  it("REVIEW_MODE=1, sesja BEZ superadmina → widgetu NIE MA", async () => {
-    vi.stubEnv("REVIEW_MODE", "1");
-    claims = session({ tenant_id: "00000000-0000-4000-8000-000000000009", role: "owner" });
 
     const tree = await KreatorLayout({ children: MARKER });
 
     expect(containsType(tree, ReviewOverlayGate)).toBe(false);
     expect(collectStrings(tree)).toContain(MARKER);
-  });
-
-  it("REVIEW_MODE=1, brak sesji (anonim) → widgetu NIE MA", async () => {
-    vi.stubEnv("REVIEW_MODE", "1");
-    claims = null;
-
-    const tree = await KreatorLayout({ children: MARKER });
-
-    expect(containsType(tree, ReviewOverlayGate)).toBe(false);
   });
 });

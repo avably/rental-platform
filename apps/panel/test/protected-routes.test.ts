@@ -268,17 +268,23 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
   ],
   [
     "/api/review/comments",
-    "Uwagi przeglądu produktu (ADR-071) — CHRONIONY SESJĄ SUPERADMINA: " +
-      "reviewGuard() wymaga REVIEW_MODE=1 w env ORAZ requireSuperadmin() " +
-      "(claim + aal2); każdy inny przypadek to 404, nie 403 — narzędzie " +
-      "wewnętrzne nie zdradza istnienia. Dane i Storage niezależnie domyka " +
-      "RLS 0033 (app.is_superadmin()), zero service_role na tej drodze.",
+    "Uwagi przeglądu produktu (ADR-071, rozdział ADR-206) — DWIE bramki: " +
+      "GET (przegląd zebranych uwag) zostaje CHRONIONY SESJĄ SUPERADMINA " +
+      "(reviewGuard: REVIEW_MODE=1 + claim + żywy odczyt app.superadmins, " +
+      "egzekucja w RLS 0033); POST (zapis uwagi) od ADR-206 świadomie BEZ " +
+      "sesji — właściciel komentuje też na rejestracji/onboardingu — za " +
+      "bramką zapisu: REVIEW_MODE=1 (kill-switch; poza trybem 404) + rate " +
+      "limit po IP, zapis service_rolem przez szew app/api/review/client.ts " +
+      "(RLS 0033 nietknięte — obrona w głąb na dostępie bezpośrednim). " +
+      "Negatywy dowiedzione BRAKIEM WYWOŁANIA warstwy zapisu " +
+      "(review-comments-route.test.ts).",
   ],
   [
     "/api/review/comments/[id]",
-    "Zmiana uwagi przeglądu (ADR-071) — ta sama bramka co /api/review/comments: " +
-      "REVIEW_MODE=1 + sesja superadmina (reviewGuard), egzekucja w RLS 0033; " +
-      "poza trybem przeglądu endpoint odpowiada 404.",
+    "Zmiana uwagi przeglądu (ADR-071/ADR-206) — PATCH to ZAPIS, więc ta sama " +
+      "bramka zapisu co POST /api/review/comments: REVIEW_MODE=1 + rate limit " +
+      "po IP, bez superadmina; zasięg praktyczny ogranicza wiedza o UUID uwagi " +
+      "(bez odczytu listy zna się wyłącznie własne). Poza trybem przeglądu 404.",
   ],
   [
     "/api/review/ingest/comments",
