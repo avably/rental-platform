@@ -51,13 +51,47 @@ const DLUGA_NAZWA =
 const NAZWA_NIEAKTYWNEGO = "Kurtyna świetlna LED 12 m — wycofana z oferty";
 
 /**
+ * WŁASNY operator tego speca — nie owner seeda. Logowanie panelu ma limit
+ * 5/min NA KONTO (login/actions.ts, ADR-106), a wcześniejsze ogniwa łańcucha
+ * (03, 04×2, 06, 08) logują ownera dokładnie 5 razy w oknie krótszym niż
+ * minuta: szóste logowanie tym samym e-mailem jest odcinane i test wisiałby
+ * na stronie logowania (dokładnie tak upadł pierwszy przebieg CI). Osobny
+ * e-mail zeruje wymiar kontowy; wymiar IP (10/min) mieści sześć logowań.
+ */
+async function dosiejOperatora(
+  tenantId: string,
+  znacznik: number,
+): Promise<{ email: string; password: string }> {
+  const admin = adminClient();
+  const email = `e2e-adr205-${znacznik}@example.com`;
+  const password = `Adr205!${znacznik}`;
+
+  const created = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    app_metadata: { tenant_id: tenantId, role: "owner" },
+  });
+  if (created.error || !created.data.user) {
+    throw new Error(`Nie dosiałem operatora: ${created.error?.message}`);
+  }
+  const { error } = await admin.from("members").insert({
+    tenant_id: tenantId,
+    user_id: created.data.user.id,
+    role: "owner",
+  });
+  if (error) throw new Error(`Nie dosiałem członkostwa operatora: ${error.message}`);
+
+  return { email, password };
+}
+
+/**
  * Dwa produkty W KSZTAŁCIE PRODUKCJI dosiane do tenanta seeda: seed K1 ma
  * jeden krótki produkt bez kaucji, a bramka ma obejrzeć także długą nazwę,
  * niezerową kaucję (szeroki zapis „1 200,00 zł") i wariant nieaktywny.
  */
-async function dosiejProdukty(tenantId: string): Promise<void> {
+async function dosiejProdukty(tenantId: string, znacznik: number): Promise<void> {
   const admin = adminClient();
-  const znacznik = Date.now();
 
   const { data: aktywny, error: bladAktywnego } = await admin
     .from("products")
@@ -183,9 +217,17 @@ test("katalog na telefonie to karty mieszczące się w oknie, na desktopie tabel
   page,
 }) => {
   const seed = readSeedState();
-  await dosiejProdukty(seed.tenantId);
+  const znacznik = Date.now();
+  const operator = await dosiejOperatora(seed.tenantId, znacznik);
+  await dosiejProdukty(seed.tenantId, znacznik);
 
-  await loginToPanel(page, PANEL_URL, seed);
+  // Logowanie WŁASNYM kontem — patrz `dosiejOperatora`: szóste logowanie
+  // e-mailem ownera wpada w limit 5/min na konto.
+  await loginToPanel(page, PANEL_URL, {
+    ...seed,
+    ownerEmail: operator.email,
+    ownerPassword: operator.password,
+  });
   await page.goto(`${PANEL_URL}/pl/katalog`);
   // Jawny, hojny budżet: lista robi kilka odczytów na żądanie, a runner bywa
   // dzielony z innymi przebiegami.
