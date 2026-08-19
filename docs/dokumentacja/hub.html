@@ -58,10 +58,10 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
   <p class="eyebrow">Centrum projektu · pojedynczy punkt wejścia</p>
   <h1>Avably — start tutaj</h1>
   <p class="lede">Wielotenantowy SaaS do zarządzania wynajmem, międzynarodowy od startu (EN+PL). Ta strona zbiera wszystko: dokumentację, plan, mapę kodu, narzędzia i prompt startowy dla nowej sesji w dowolnym LLM. Zaczynasz pracę? Zacznij od sekcji „Prompt startowy".</p>
-  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-17, PR #54):</b> <b>faza 2 — e-maile kont na wspólnym transporcie + formularz nadawcy</b> (ADR-036): zaproszenie przepięte z reliktu na transport 8b i szablon 8a (jawna niedostępność, fallback nadawcy na nazwę tenanta), ekran nadawcy <code>/ustawienia-emaili</code> ze stanem kompletności poczty; reset/potwierdzenie konta udokumentowane jako dług deployu prod (Supabase Auth), <code>new-order</code> czeka na storefront. Wcześniej: <b>faza 1 („rdzeń wynajmu") domknięta</b> — bramka <code>payment_status</code> (0015, ADR-035), przegląd adwersaryjny bez luk, skonsolidowana <a href="index.html#dlugi-fazy-2">lista długów fazy 2</a>; zamówienia + bramki (0010), kaucje (0011), przedłużenia, dostawy (0013), Turnstile, e-maile cyklu najmu (0014). Pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: <b>nazwa repo i folderu (<code>rental-platform</code>) celowo została stara</b> — transfer repo to osobny krok właściciela, kod i produkt to już Avably.</p>
+  <p class="lede" style="font-size:14px"><b>Ostatnia zmiana (2026-07-17, PR #54):</b> <b>faza 2 — e-maile kont na wspólnym transporcie + formularz nadawcy</b> (ADR-036): zaproszenie przepięte z reliktu na transport 8b i szablon 8a (jawna niedostępność, fallback nadawcy na nazwę tenanta), ekran nadawcy <code>/ustawienia-emaili</code> ze stanem kompletności poczty; reset/potwierdzenie konta udokumentowane jako dług deployu prod (Supabase Auth), <code>new-order</code> czeka na storefront. Wcześniej: <b>faza 1 („rdzeń wynajmu") domknięta</b> — bramka <code>payment_status</code> (0015, ADR-035), przegląd adwersaryjny bez luk, skonsolidowana <a href="index.html#dlugi-fazy-2">lista długów fazy 2</a>; zamówienia + bramki (0010), kaucje (0011), przedłużenia, dostawy (0013), Turnstile, e-maile cyklu najmu (0014). Pełny dziennik budowy w <a href="index.html#dziennik">dokumentacji</a>. Uwaga dla nowej sesji: repo mieszka pod <code>avably/rental-platform</code> (transfer organizacji dokonany); <b>nazwa repo i lokalnego folderu (<code>rental-platform</code>) celowo została stara</b>, kod i produkt to Avably.</p>
 </header>
 <nav class="toc">
-  <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
+  <a href="#prompt">Prompt startowy</a><a href="#dokumenty">Dokumenty</a><a href="#mapa">Mapa dokumentacji</a><a href="#kod">Mapa kodu</a><a href="#narzedzia">Superpowers i stack</a><a href="#materialy">Materiały</a><a href="#jak">Jak to rośnie</a>
 </nav>
 
 <section id="prompt">
@@ -73,9 +73,9 @@ footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-fa
 Produkt międzynarodowy: EN+PL od startu, kanon www.avably.io, GTM najpierw PL.
 
 REPOZYTORIA:
-- Kod: ~/rental-platform  (GitHub: starkit-rental/rental-platform) — monorepo
+- Kod: ~/rental-platform  (GitHub: avably/rental-platform) — monorepo
   pnpm + Turborepo, Next.js 16, Supabase, TypeScript strict.
-  Uwaga: folder i repo zachowują starą nazwę do czasu transferu — produkt to Avably.
+  Uwaga: folder i nazwa repo (rental-platform) celowo stare — organizacja i produkt to Avably.
 - Referencja (tylko odczyt): ~/starkit-system — działający system starkit,
   z którego portujemy sprawdzone moduły; migruje jako tenant #1 na końcu.
 
@@ -110,7 +110,7 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
   <div class="links">
     <a class="linkcard" href="https://claude.ai/code/artifact/134ec9b2-5a13-4a60-9736-1aa77c10de46"><p class="t">Dokumentacja architektury</p><p class="d">Moduły, model danych, RLS, decyzje, dziennik budowy. Źródło prawdy o systemie.</p><span class="s">artefakt HTML · repo: docs/dokumentacja/index.html</span></a>
     <a class="linkcard" href="https://claude.ai/code/artifact/71d2a3c5-a51f-44ba-b791-03cb1b09952c"><p class="t">Plan wdrożenia (5 faz)</p><p class="d">Fazy, kroki, milestone'y, rejestr ryzyk, bezpieczeństwo, budżet.</p><span class="s">artefakt HTML · repo starkit: docs/superpowers/plans/</span></a>
-    <a class="linkcard" href="https://github.com/starkit-rental/rental-platform/blob/main/docs/DOKUMENTACJA.md"><p class="t">Standard współpracy</p><p class="d">Pasy własności, zasady zero-kolizji, dokumentacja jako DoD.</p><span class="s">repo: docs/DOKUMENTACJA.md</span></a>
+    <a class="linkcard" href="https://github.com/avably/rental-platform/blob/main/docs/DOKUMENTACJA.md"><p class="t">Standard współpracy</p><p class="d">Pasy własności, zasady zero-kolizji, dokumentacja jako DoD.</p><span class="s">repo: docs/DOKUMENTACJA.md</span></a>
     <a class="linkcard" href="https://claude.ai/code/artifact/c583c7d5-4ee4-4478-acf0-9fafa26bf995"><p class="t">Galeria design systemu</p><p class="d">@avably/ui — tokeny oklch, prymitywy i oba motywy (przeglądalny artefakt). Żywa, interaktywna wersja: uruchom panel → /design-system.</p><span class="s">artefakt HTML · repo: packages/ui + /design-system</span></a>
     <a class="linkcard" href="../branding/2026-07-20-avably-faza-1-moodboard.html"><p class="t">Avably — moodboard brandingu, faza 1</p><p class="d">Trzy kierunki porównane w panelu, landing page i animowanych reklamach social media.</p><span class="s">offline HTML · logo, kolor, typografia, motion, UI, LP i social</span></a>
     <a class="linkcard" href="../branding/2026-07-20-avably-faza-2-system.html"><p class="t">Avably — system wdrożeniowy, faza 2</p><p class="d">Sygnał operacyjny przełożony na tokeny, znaki, statusy, ekrany panelu, sklep i motion.</p><span class="s">offline HTML · light/dark · SVG · shadcn tokens · kontrast · UI · LP i social</span></a>
@@ -118,9 +118,26 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
   <div class="callout">Pliki planistyczne (spec, plan programowy, plan zadaniowy fazy 0, audyt bazowy starkit) żyją w repo starkit: <code>~/starkit-system/docs/superpowers/</code> — <code>specs/</code>, <code>plans/</code>, <code>research/</code>.</div>
 </section>
 
+<section id="mapa">
+  <h2><span class="num">03</span>Mapa dokumentacji</h2>
+  <p class="sub">Żywa dokumentacja (<code>docs/dokumentacja/index.html</code>) to jeden duży plik — świadomie: rejestr ADR i dziennik budowy są append-only kontraktem bramek CI. Nie otwieraj go na ślepo — wskocz kotwicą prosto w sekcję, której szukasz.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Sekcja</th><th>Co tam jest</th></tr>
+    <tr><td class="mono"><a href="index.html#architektura">#architektura</a></td><td>Obraz całości: czym system jest, jak dzielą się aplikacje i pakiety monorepo.</td></tr>
+    <tr><td class="mono"><a href="index.html#pasy">#pasy</a></td><td>Podział pracy na pasy własności — kto (Claude/GPT) jest wyłącznym właścicielem którego katalogu.</td></tr>
+    <tr><td class="mono"><a href="index.html#moduly">#moduly</a></td><td>Stan i publiczny interfejs każdego modułu: eksportowane funkcje i typy, zależności, kluczowe pliki.</td></tr>
+    <tr><td class="mono"><a href="index.html#dane">#dane</a></td><td>Model danych: tabele, kolumny i to, co dołożyła każda kolejna migracja.</td></tr>
+    <tr><td class="mono"><a href="index.html#rls">#rls</a></td><td>Izolacja tenantów: polityki RLS i bramka testowa, która ich pilnuje.</td></tr>
+    <tr><td class="mono"><a href="index.html#bezpieczenstwo">#bezpieczenstwo</a></td><td>Bezpieczeństwo i CI: nagłówki, sekrety, joby i bramki wymagane przed merge.</td></tr>
+    <tr><td class="mono"><a href="index.html#decyzje">#decyzje</a></td><td>Dziennik decyzji (ADR): kontekst, rozstrzygnięcie i konsekwencje każdej nietrywialnej decyzji.</td></tr>
+    <tr><td class="mono"><a href="index.html#dlugi-fazy-2">#dlugi-fazy-2</a></td><td>Długi fazy 2 (i dalsze) — jedno miejsce z jawną listą prac odroczonych.</td></tr>
+    <tr><td class="mono"><a href="index.html#dziennik">#dziennik</a></td><td>Dziennik budowy: wpis per zadanie, najnowszy na górze — najszybsza droga do aktualnego stanu projektu.</td></tr>
+  </table></div>
+</section>
+
 <section id="kod">
-  <h2><span class="num">03</span>Mapa kodu</h2>
-  <p class="sub">Repo <a href="https://github.com/starkit-rental/rental-platform">starkit-rental/rental-platform</a> · monorepo. Najważniejsze ścieżki:</p>
+  <h2><span class="num">04</span>Mapa kodu</h2>
+  <p class="sub">Repo <a href="https://github.com/avably/rental-platform">avably/rental-platform</a> · monorepo. Najważniejsze ścieżki:</p>
   <div class="tablewrap"><table>
     <tr><th>Ścieżka</th><th>Właściciel</th><th>Co tam jest</th></tr>
     <tr><td class="mono">packages/db/supabase/migrations/</td><td><span class="owner claude">Claude</span></td><td>0001_core (schemat+RLS), 0002_hardening (search_path), 0003_auth (hook+RPC), 0004_superadmin (RPC superadmina, audyt)</td></tr>
@@ -139,7 +156,7 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
 </section>
 
 <section id="narzedzia">
-  <h2><span class="num">04</span>Superpowers i stack</h2>
+  <h2><span class="num">05</span>Superpowers i stack</h2>
   <h3 style="font-size:15px;margin:18px 0 6px">Skille Superpowers (metodyka pracy)</h3>
   <ul>
     <li><code>brainstorming</code> — pomysł → spec (użyte do specu platformy)</li>
@@ -165,11 +182,11 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
 </section>
 
 <section id="materialy">
-  <h2><span class="num">05</span>Materiały dodatkowe</h2>
+  <h2><span class="num">06</span>Materiały dodatkowe</h2>
   <p class="sub">Rosnąca lista nietymczasowych zasobów, z których korzystamy. Każdy nowy materiał (dashboard, dokument, ticket, referencja) dopisujemy tutaj.</p>
   <div class="tablewrap"><table>
     <tr><th>Materiał</th><th>Typ</th><th>Gdzie</th></tr>
-    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/starkit-rental/rental-platform <i>(nazwa sprzed rebrandu — transfer osobnym krokiem)</i></td></tr>
+    <tr><td>Repo kodu platformy</td><td>repozytorium</td><td class="mono">github.com/avably/rental-platform</td></tr>
     <tr><td>Domena kanoniczna</td><td>domena</td><td class="mono">www.avably.io · panel app.avably.io · storefronty *.avably.io</td></tr>
     <tr><td>Portfel domen</td><td>domeny</td><td class="mono">avably.io (kanon) · avably.pl, avably.app (redirect/marketing) · .com odłożony</td></tr>
     <tr><td>Repo referencyjne starkit</td><td>repozytorium (odczyt)</td><td class="mono">~/starkit-system</td></tr>
@@ -181,7 +198,7 @@ Powiedz, jak rozumiesz swój zakres i który pas obejmujesz, zanim napiszesz kod
 </section>
 
 <section id="jak">
-  <h2><span class="num">06</span>Jak ta strona rośnie</h2>
+  <h2><span class="num">07</span>Jak ta strona rośnie</h2>
   <ul>
     <li>Ta strona (<code>docs/dokumentacja/hub.html</code>) jest master-indeksem — każdy nowy, nietymczasowy materiał dopisujemy do sekcji „Materiały" albo „Dokumenty".</li>
     <li>Gdy powstaje nowy artefakt HTML (np. galeria design systemu), dodajemy do niego klikalny link i zmieniamy status z „wkrótce" na aktywny.</li>

@@ -60,7 +60,7 @@ miejscem, które zamienia element React na gotowe warianty HTML i plain text.
 
 ## Branding i kompatybilność
 
-Źródłem znaczenia kolorów jest jasny motyw `@avably/ui` opisany w ADR-007,
+Źródłem znaczenia kolorów jest jasny motyw `@avably/ui` opisany w ADR-201,
 ale pakiet nie importuje `@avably/ui`. W `src/styles.ts` żyją jawne odpowiedniki
 hex używane w stylach inline:
 

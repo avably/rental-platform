@@ -10,9 +10,10 @@
  *      `ci` jest pomijany dla zmian docs-only, czyli dokładnie tam, gdzie
  *      pilnowany plik bywa jedyną zmianą w PR-ze.
  *
- * Każda fikstura ma ADR-007 w DWÓCH egzemplarzach, bo taki jest zastany stan
- * `main` i taki opisuje wyjątek bramki — fikstura bez tego byłaby czerwona
- * z powodu martwego wyjątku, a nie z powodu badanej wady.
+ * Bramka nie ma ŻADNYCH wyjątków: zastany duplikat ADR-007 został 2026-08-19
+ * rozwiązany przenumerowaniem późniejszego bloku na ADR-201 (chronologia
+ * z git), więc fikstury są czyste, a kolizja na ADR-007 pali dokładnie tak
+ * samo jak każda inna.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -30,15 +31,9 @@ function blok(numer: string, tytul = "decyzja"): string {
   return `<div class="log"><p class="h"><b>${numer}</b> · ${tytul}</p><p>treść.</p></div>`;
 }
 
-/** Fikstura: zastany duplikat ADR-007 plus podane bloki. */
+/** Fikstura: dokument z podanymi blokami dziennika decyzji. */
 function fikstura(...bloki: string[]): string {
-  return [
-    "<html><body>",
-    blok("ADR-007", "Kanoniczne tokeny"),
-    blok("ADR-007", "Custom claims z JWT"),
-    ...bloki,
-    "</body></html>",
-  ].join("\n");
+  return ["<html><body>", ...bloki, "</body></html>"].join("\n");
 }
 
 /** Uruchomienie bramki na treści zapisanej do pliku tymczasowego. */
@@ -119,19 +114,22 @@ describe("bramka numeracji ADR — dowód behawioralny", () => {
     expect(stderr).toContain("wzorzec ścisły widzi");
   });
 
-  it("zastany ADR-007 jest wyjątkiem, ale wyłącznie na dwa egzemplarze", () => {
-    expect(uruchom(fikstura(blok("ADR-186"))).status).toBe(0);
-
-    const trzeci = uruchom(fikstura(blok("ADR-007", "trzeci"), blok("ADR-186")));
-    expect(trzeci.status).toBe(1);
-    expect(trzeci.stderr).toContain("Nowy duplikat na numerze objętym wyjątkiem");
+  it("ADR-007 nie jest już wyjątkiem — jego duplikat pali jak każdy inny (przenumerowanie na ADR-201)", () => {
+    // Do 2026-08-19 dwa egzemplarze ADR-007 były zastanym wyjątkiem bramki.
+    // Duplikat rozwiązano przenumerowaniem, więc wyjątek zszedł RAZEM z powodem
+    // — a ten przypadek pilnuje, żeby nie wrócił pod żadną nową postacią.
+    const { status, stderr } = uruchom(
+      fikstura(blok("ADR-007", "Custom claims z JWT"), blok("ADR-007", "powrót duplikatu")),
+    );
+    expect(status).toBe(1);
+    expect(stderr).toContain("ADR-007: 2 bloki pod tym samym numerem");
   });
 
-  it("wyjątek, który przestał opisywać plik, pali bramkę jako martwy", () => {
-    const jedenSiedem = ["<html>", blok("ADR-007"), blok("ADR-186"), "</html>"].join("\n");
-    const { status, stderr } = uruchom(jedenSiedem);
-    expect(status).toBe(1);
-    expect(stderr).toContain("usuń go z ZASTANE_DUPLIKATY");
+  it("pojedynczy ADR-007 przechodzi — logika martwego wyjątku wyszła w całości", () => {
+    // Przed zdjęciem wyjątku JEDEN egzemplarz ADR-007 palił bramkę jako wyjątek
+    // martwy. Gdyby ta gałąź przeżyła, każdy przebieg na żywym pliku byłby
+    // czerwony mimo czystej numeracji.
+    expect(uruchom(fikstura(blok("ADR-007"), blok("ADR-186"))).status).toBe(0);
   });
 
   it("brak pliku to porażka, nie cisza — bramka jest fail-closed", () => {
