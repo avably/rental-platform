@@ -25,7 +25,7 @@
  * natywny `<select>`, natywny checkbox) nie znika.
  */
 import { formatMoney, type CurrencyCode, type CustomFieldDefinition } from "@avably/core";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -50,7 +50,7 @@ import {
   shouldResetCaptcha,
   type CheckoutViewState,
 } from "@/lib/checkout-form-ui";
-import type { StorefrontCopy } from "@/lib/storefront/copy";
+import { format, type StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 import { CheckoutCustomFields } from "@/components/storefront/checkout-custom-fields";
 import { checkoutCustomFieldKey } from "@/lib/checkout/custom-fields";
@@ -287,6 +287,41 @@ export function CheckoutForm({
   const messageKey = getCheckoutMessageKey(view);
   const submitting = view.kind === "submitting";
 
+  /**
+   * FOKUS NA PIERWSZY BŁĄD (M-A11Y-03). Po nieudanej walidacji fokus przenosi
+   * się do PIERWSZEGO pola z błędem W KOLEJNOŚCI DOKUMENTU — nie w kolejności
+   * kluczy mapy z serwera, bo tej kolejności nikt nie obiecuje, a użytkownik
+   * klawiatury i czytnika porusza się po dokumencie. Selektor po
+   * `aria-invalid="true"` czyta tę samą prawdę, którą widzi czytnik ekranu:
+   * pole bez tego atrybutu nie jest oznaczone jako błędne, więc nie ma prawa
+   * dostać fokusu.
+   *
+   * Gdy błąd nie ma kontrolki (startDate/endDate/items przychodzą z koszyka,
+   * nie z pola), fokus ląduje na regionie podsumowania (`tabIndex={-1}`) —
+   * czytnik i tak ogłasza treść regionu, a klawiatura nie zostaje na
+   * przycisku, jakby nic się nie stało.
+   *
+   * Efekt zależy od `view`: każdy nieudany submit tworzy NOWY obiekt stanu,
+   * więc fokus wraca przy każdej kolejnej nieudanej próbie; edycja pola
+   * przełącza stan na `idle` i efekt nie kradnie fokusu podczas pisania.
+   * Bramka regulaminu (ADR-191) jest wcześniej: bez kompletu dokumentów
+   * submit w ogóle nie wychodzi, stan walidacji nie powstaje i ten efekt
+   * nie ma czego fokusować.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  const summaryRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (view.kind !== "validation") return;
+    // Radia NIE niosą `aria-invalid` (ARIA nie wspiera go na roli radio —
+    // jsx-a11y/role-supports-aria-props); błędną grupę oznacza
+    // `data-checkout-invalid`, a czytnik dostaje komunikat przez
+    // `aria-describedby`, które jest globalne.
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>(
+      '[aria-invalid="true"], [data-checkout-invalid="true"]',
+    );
+    (firstInvalid ?? summaryRef.current)?.focus();
+  }, [view]);
+
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((current) => ({ ...current, [key]: value }));
     if (view.kind === "validation") setView({ kind: "idle" });
@@ -508,8 +543,33 @@ export function CheckoutForm({
   const showPickup = values.deliveryMethod === "pickup";
 
   return (
-    <form className="grid gap-8 lg:grid-cols-[1fr_20rem]" noValidate onSubmit={handleSubmit}>
+    <form ref={formRef} className="grid gap-8 lg:grid-cols-[1fr_20rem]" noValidate onSubmit={handleSubmit}>
       <div className="grid gap-8">
+        {/*
+          REGION OGŁOSZEŃ WALIDACJI (M-A11Y-03). Węzeł z `role="alert"` istnieje
+          OD MONTAŻU (czytniki rejestrują regiony live przy pierwszym renderze —
+          region wstawiony razem z treścią bywa przemilczany), a treść pojawia
+          się dopiero po nieudanej walidacji: zdanie z LICZBĄ pól do poprawienia.
+          `tabIndex={-1}` pozwala przenieść tu fokus, gdy żaden błąd nie ma
+          swojej kontrolki (błędy koszyka). Poza stanem walidacji region jest
+          wizualnie schowany (`sr-only`), żeby nie rezerwować pustego panelu.
+        */}
+        <p
+          ref={summaryRef}
+          tabIndex={-1}
+          role="alert"
+          data-checkout-error-summary
+          className={
+            view.kind === "validation" ? "site-error-panel p-4 text-sm" : "sr-only"
+          }
+        >
+          {view.kind === "validation"
+            ? format(copy.checkout.errors.summary, {
+                count: Object.keys(view.fields).length,
+              })
+            : null}
+        </p>
+
         {/* Alert błędu (nie-walidacyjny) */}
         {messageKey ? (
           <div className="site-error-panel p-4 text-sm" role="alert">
@@ -585,14 +645,23 @@ export function CheckoutForm({
                 {copy.checkout.companyName}{" "}
                 <span className="site-text-muted">({copy.common.optional})</span>
               </label>
+              {/*
+                Pola opcjonalne TEŻ walidują się na serwerze (długość, format) —
+                do M-A11Y-03 ich błędy nie miały ani znacznika, ani komunikatu,
+                ani miejsca w kolejce fokusu: mapa z serwera wskazywała pole,
+                a na ekranie nie działo się nic.
+              */}
               <input
                 className="site-field h-9 w-full px-3 text-sm"
                 id="co-company"
                 autoComplete="organization"
+                aria-invalid={Boolean(fields.companyName)}
+                aria-describedby={describedBy("companyName", "co-company-error")}
                 value={values.companyName}
                 onChange={(event) => set("companyName", event.target.value)}
                 maxLength={200}
               />
+              <FieldError id="co-company-error" message={fieldMessage("companyName")} />
             </div>
             <div className="grid gap-1">
               <label className="site-label text-sm" htmlFor="co-nip">
@@ -601,10 +670,13 @@ export function CheckoutForm({
               <input
                 className="site-field h-9 w-full px-3 text-sm"
                 id="co-nip"
+                aria-invalid={Boolean(fields.nip)}
+                aria-describedby={describedBy("nip", "co-nip-error")}
                 value={values.nip}
                 onChange={(event) => set("nip", event.target.value)}
                 maxLength={32}
               />
+              <FieldError id="co-nip-error" message={fieldMessage("nip")} />
             </div>
           </div>
         </fieldset>
@@ -621,10 +693,13 @@ export function CheckoutForm({
               className="site-field h-9 w-full px-3 text-sm"
               id="co-street"
               autoComplete="street-address"
+              aria-invalid={Boolean(fields.addressStreet)}
+              aria-describedby={describedBy("addressStreet", "co-street-error")}
               value={values.addressStreet}
               onChange={(event) => set("addressStreet", event.target.value)}
               maxLength={200}
             />
+            <FieldError id="co-street-error" message={fieldMessage("addressStreet")} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1">
@@ -633,10 +708,13 @@ export function CheckoutForm({
                 className="site-field h-9 w-full px-3 text-sm"
                 id="co-zip"
                 autoComplete="postal-code"
+                aria-invalid={Boolean(fields.addressZip)}
+                aria-describedby={describedBy("addressZip", "co-zip-error")}
                 value={values.addressZip}
                 onChange={(event) => set("addressZip", event.target.value)}
                 maxLength={20}
               />
+              <FieldError id="co-zip-error" message={fieldMessage("addressZip")} />
             </div>
             <div className="grid gap-1">
               <label className="site-label text-sm" htmlFor="co-city">{copy.checkout.addressCity}</label>
@@ -644,10 +722,13 @@ export function CheckoutForm({
                 className="site-field h-9 w-full px-3 text-sm"
                 id="co-city"
                 autoComplete="address-level2"
+                aria-invalid={Boolean(fields.addressCity)}
+                aria-describedby={describedBy("addressCity", "co-city-error")}
                 value={values.addressCity}
                 onChange={(event) => set("addressCity", event.target.value)}
                 maxLength={120}
               />
+              <FieldError id="co-city-error" message={fieldMessage("addressCity")} />
             </div>
           </div>
         </fieldset>
@@ -669,6 +750,7 @@ export function CheckoutForm({
                       className="accent-[color:var(--site-accent)]"
                       name="deliveryMethod"
                       value={method.method}
+                      data-checkout-invalid={fields.deliveryMethod ? "true" : undefined}
                       aria-describedby={describedBy("deliveryMethod", "co-delivery-error")}
                       checked={values.deliveryMethod === method.method}
                       onChange={() => set("deliveryMethod", method.method)}
@@ -748,6 +830,7 @@ export function CheckoutForm({
                   name="paymentMethod"
                   className="mt-1 accent-[color:var(--site-accent)]"
                   value={method}
+                  data-checkout-invalid={fields.paymentMethod ? "true" : undefined}
                   aria-describedby={describedBy("paymentMethod", "co-payment-error")}
                   checked={values.paymentMethod === method}
                   onChange={() => set("paymentMethod", method)}

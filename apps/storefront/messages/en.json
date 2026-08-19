@@ -326,6 +326,12 @@
       "honestTitle": "No small print",
       "honest1": "There is no onboarding fee and no annual contract — and nothing to onboard: you open the account by email and click through it yourself. We never take a card, so nothing charges itself after 14 days; subscription payment goes live before the commercial launch, and we will tell you by email first.",
       "honest2": "We do not sell the Premium list until it works. We show it so you know where the product is going, and can tell us the order is wrong. And your data sits separated from every other business in the database itself, not on the screen — a test checks that on every change to the system."
+    },
+    "notFoundPage": {
+      "eyebrow": "Error 404",
+      "title": "This page does not exist",
+      "description": "The address is wrong or the page has moved. Everything we publish is reachable from the homepage.",
+      "cta": "Back to the homepage"
     }
   },
   "landing": {
@@ -341,6 +347,10 @@
       "catalog": "Catalog",
       "cart": "Cart",
       "cartCount": "{count} pcs"
+    },
+    "notFound": {
+      "title": "We could not find that page",
+      "description": "The address may have changed, or the item is no longer available in this store."
     },
     "siteLabels": {
       "productsEmpty": "The catalog is being prepared.",
@@ -538,6 +548,7 @@
         "items": "The cart is empty or contains an unavailable product.",
         "terms": "Accept the terms to continue.",
         "generic": "Please check the highlighted fields.",
+        "summary": "The form has errors to fix: {count}.",
         "unavailable": "Those dates are taken — pick another range or a smaller quantity.",
         "rejected": "We couldn't place the order. Check your details and try again.",
         "rateLimited": "Too many attempts — try again later or contact the rental store.",

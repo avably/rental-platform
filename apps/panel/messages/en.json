@@ -178,6 +178,9 @@
       "invoice": "Invoice"
     }
   },
+  "notFound": {
+    "backToDashboard": "Back to dashboard"
+  },
   "nav": {
     "superadmin": "Superadmin",
     "superadminLink": "Superadmin panel",
