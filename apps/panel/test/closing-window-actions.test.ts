@@ -289,6 +289,7 @@ describe("(e)1 DOMYŚLNA ODMOWA — akcje bez opt-in odmawiają w oknie i nie ty
         autoIncrementMultiplier: "1",
         bufferBeforeDays: "0",
         bufferAfterDays: "0",
+        minRentalDays: "1",
       }),
     );
     expect(state.formError).toMatch(/oknie domykania/);

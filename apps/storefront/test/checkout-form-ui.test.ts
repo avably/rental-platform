@@ -44,6 +44,7 @@ describe("mapCheckoutResult pokrywa KAŻDY status", () => {
     { result: { status: "rate_limited" }, expected: "rate_limited" },
     { result: { status: "captcha_failed" }, expected: "captcha_error" },
     { result: { status: "payment_unavailable" }, expected: "payment_unavailable" },
+    { result: { status: "min_rental_days", minDays: 3 }, expected: "min_rental_days" },
     { result: { status: "server_error" }, expected: "server_error" },
   ];
 
@@ -87,6 +88,17 @@ describe("mapCheckoutResult pokrywa KAŻDY status", () => {
   it("success przenosi emailIssues z serwera", () => {
     const view = mapCheckoutResult({ status: "success", order: ORDER, nextStep: "confirmation", emailIssues: ["brak nadawcy"] });
     expect(view.kind === "success" && view.emailIssues).toEqual(["brak nadawcy"]);
+  });
+
+  it("min_rental_days przenosi liczbę minimum i ma klucz komunikatu (0089, ADR-202)", () => {
+    // LICZBA jedzie do widoku — bez niej zdanie „minimum X dni" nie ma X,
+    // a to jedyne miejsce, w którym klient dowiaduje się o minimum
+    // (etykieta proaktywna to faza 2).
+    const view = mapCheckoutResult({ status: "min_rental_days", minDays: 3 });
+    expect(view).toEqual({ kind: "min_rental_days", minDays: 3 });
+    expect(getCheckoutMessageKey(view)).toBe("min_rental_days");
+    // RPC było wołane, token Turnstile zużyty → świeże wyzwanie.
+    expect(shouldResetCaptcha(view)).toBe(true);
   });
 });
 

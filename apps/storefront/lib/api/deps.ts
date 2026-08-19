@@ -90,10 +90,12 @@ export function reservationDeps(request: Request): ReservationDeps {
       if (error) {
         // SQLSTATE przechodzi do rdzenia (23P01 → conflict, 22023 → rejected)
         // — mapowanie siedzi w rdzeniu, jak przy Server Action. DETAIL to
-        // wyłącznie znacznik kategorii odmowy (ADR-181/191), nigdy dane.
+        // znacznik kategorii odmowy (ADR-181/191) albo liczba minimum najmu
+        // (0089, ADR-202); HINT — znacznik kategorii odmów klasy PT.
         const wrapped = new Error(error.message) as CheckoutRpcError;
         wrapped.code = error.code;
         if (typeof error.details === "string") wrapped.detail = error.details;
+        if (typeof error.hint === "string") wrapped.hint = error.hint;
         throw wrapped;
       }
       return data as CheckoutRpcResult;

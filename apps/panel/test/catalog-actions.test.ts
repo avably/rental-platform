@@ -115,6 +115,7 @@ const VALID = {
   autoIncrementMultiplier: "1,5",
   bufferBeforeDays: "0",
   bufferAfterDays: "0",
+  minRentalDays: "2",
   active: "on",
 };
 
@@ -152,5 +153,9 @@ describe("updateProductAction", () => {
     expect(calls.update).not.toBeNull();
     expect(calls.eqs).toContainEqual(["tenant_id", TENANT]);
     expect(calls.eqs).toContainEqual(["id", PRODUCT]);
+    // Minimum najmu (0089, ADR-202) jedzie do bazy jako LICZBA z pola
+    // formularza — bez tej pary klucz-wartość zapis panelu po cichu
+    // zostawiałby default kolumny i pole w UI byłoby dekoracją.
+    expect((calls.update as Record<string, unknown>).min_rental_days).toBe(2);
   });
 });

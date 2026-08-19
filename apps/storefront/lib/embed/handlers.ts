@@ -207,6 +207,12 @@ export async function handleEmbedReservationRequest(
     // ponad to, co każdy i tak widzi (ADR-191).
     case "legal_documents_missing":
       return embedError(422, "legal_documents_missing");
+    // [0089] Minimum najmu → ogólne `rejected` — ŚWIADOMIE, jak w API v1:
+    // kontrakt kodów embedu rusza się fazą 2 razem z etykietą proaktywną
+    // (osobny ADR), a klient w ramce dostaje wtedy zdanie z liczbą zamiast
+    // ogólnej odmowy. Bramka w bazie odmawia niezależnie od brzmienia kodu.
+    case "min_rental_days":
+      return embedError(422, "rejected");
     default:
       return embedError(500, "server_error");
   }

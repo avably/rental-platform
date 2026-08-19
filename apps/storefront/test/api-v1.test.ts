@@ -551,6 +551,28 @@ describe("api v1 — rezerwacje", () => {
     expect(rejected.status).toBe(422);
     expect(await rejected.json()).toEqual({ error: { code: "rejected" } });
 
+    // [0089/ADR-202] Minimum najmu: v1 oddaje 422 z OGÓLNYM kodem `rejected`
+    // — kontrakt kodów jest zamknięty; dedykowany kod z liczbą wejdzie fazą 2
+    // razem z etykietą proaktywną. Liczba minimum NIE wycieka do odpowiedzi.
+    const minRental = await handleReservationRequest(
+      reqPost(VALID_BODY),
+      makeReservationDeps(reservationCounters(), {
+        callRpc: async () => {
+          const error = new Error("odmowa bazy") as Error & {
+            code?: string;
+            detail?: string;
+            hint?: string;
+          };
+          error.code = "PT422";
+          error.detail = "3";
+          error.hint = "min_rental_days";
+          throw error;
+        },
+      }),
+    );
+    expect(minRental.status).toBe(422);
+    expect(await minRental.json()).toEqual({ error: { code: "rejected" } });
+
     // [ADR-191] Najemca bez opublikowanych dokumentów: osobny kod 422 —
     // naprawa leży w panelu (publikacja), nie w payloadzie integratora.
     // Bramka pali się w RDZENIU (port readLegalDocuments), zanim RPC ruszy.

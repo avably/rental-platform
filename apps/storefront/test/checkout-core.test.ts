@@ -404,11 +404,12 @@ describe("kwoty liczy SERWER — wejście ich nie niesie", () => {
 });
 
 describe("mapowanie SQLSTATE na status", () => {
-  function rpcThrowing(code?: string, detail?: string) {
+  function rpcThrowing(code?: string, detail?: string, hint?: string) {
     return vi.fn(async () => {
       const err = new Error("db error dla klient@example.com") as CheckoutRpcError;
       if (code) err.code = code;
       if (detail) err.detail = detail;
+      if (hint) err.hint = hint;
       throw err;
     });
   }
@@ -441,6 +442,37 @@ describe("mapowanie SQLSTATE na status", () => {
       deps({ callRpc: rpcThrowing("22023", "terms_outdated") }),
     );
     expect(result).toEqual({ status: "rejected" });
+  });
+
+  it("PT422 + hint 'min_rental_days' → min_rental_days z liczbą z DETAIL (0089, ADR-202)", async () => {
+    // Bramka minimum najmu w bazie: DETAIL niesie SAMĄ liczbę minimum,
+    // HINT — znacznik kategorii. Warstwa TS składa z liczby zdanie
+    // „minimum X dni" — bez parsowania komunikatu regexem.
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc: rpcThrowing("PT422", "3", "min_rental_days") }),
+    );
+    expect(result).toEqual({ status: "min_rental_days", minDays: 3 });
+  });
+
+  it("PT422 min_rental_days z nieparsowalnym DETAIL spada do rejected (bez zmyślania liczby)", async () => {
+    for (const detail of [undefined, "", "abc", "0", "-2", "3.5"]) {
+      const result = await submitCheckoutCore(
+        VALID_INPUT,
+        deps({ callRpc: rpcThrowing("PT422", detail, "min_rental_days") }),
+      );
+      expect(result, `detail=${JSON.stringify(detail)}`).toEqual({ status: "rejected" });
+    }
+  });
+
+  it("PT422 BEZ hintu min_rental_days → server_error (nieznana odmowa PT nie udaje minimum)", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await submitCheckoutCore(
+      VALID_INPUT,
+      deps({ callRpc: rpcThrowing("PT422", "3") }),
+    );
+    expect(result).toEqual({ status: "server_error" });
+    consoleError.mockRestore();
   });
 
   it("23514 (naruszenie CHECK-a pól własnych po scaleniu) → rejected, nie server_error (#7)", async () => {

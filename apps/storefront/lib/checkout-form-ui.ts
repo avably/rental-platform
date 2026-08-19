@@ -43,6 +43,13 @@ export type CheckoutViewState =
    * renderze; ten stan łapie wyścig cofnięcia publikacji i żądania spoza UI.
    */
   | { kind: "legal_documents_missing" }
+  /**
+   * Najem krótszy niż minimalny okres najmu jednej z pozycji (0089, ADR-202).
+   * Zamówienie NIE powstało; `minDays` z DETAIL odmowy — LP składa z niej
+   * zdanie „minimum X dni". Formularz zostaje wypełniony: klient poprawia
+   * TERMIN (w pasku terminu), nie dane.
+   */
+  | { kind: "min_rental_days"; minDays: number }
   | { kind: "server_error" };
 
 /**
@@ -58,6 +65,7 @@ export type CheckoutMessageKey =
   | "connection"
   | "payment_unavailable"
   | "legal_documents_missing"
+  | "min_rental_days"
   | "server";
 
 export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
@@ -83,6 +91,8 @@ export function mapCheckoutResult(result: CheckoutResult): CheckoutViewState {
       return { kind: "payment_unavailable" };
     case "legal_documents_missing":
       return { kind: "legal_documents_missing" };
+    case "min_rental_days":
+      return { kind: "min_rental_days", minDays: result.minDays };
     case "server_error":
       return { kind: "server_error" };
   }
@@ -104,6 +114,8 @@ export function getCheckoutMessageKey(view: CheckoutViewState): CheckoutMessageK
       return "payment_unavailable";
     case "legal_documents_missing":
       return "legal_documents_missing";
+    case "min_rental_days":
+      return "min_rental_days";
     case "server_error":
       return "server";
     case "idle":

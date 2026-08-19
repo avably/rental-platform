@@ -65,6 +65,7 @@ function productPayload(input: ReturnType<typeof productSchema.parse>) {
     auto_increment_multiplier: input.autoIncrementMultiplier,
     buffer_before_days: input.bufferBeforeDays,
     buffer_after_days: input.bufferAfterDays,
+    min_rental_days: input.minRentalDays,
     active: input.active,
   };
 }
@@ -92,6 +93,7 @@ function parseProductForm(formData: FormData) {
     autoIncrementMultiplier: formData.get("autoIncrementMultiplier"),
     bufferBeforeDays: formData.get("bufferBeforeDays"),
     bufferAfterDays: formData.get("bufferAfterDays"),
+    minRentalDays: formData.get("minRentalDays"),
     active: formData.get("active"),
   });
 }

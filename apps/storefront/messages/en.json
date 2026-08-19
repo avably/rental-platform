@@ -563,7 +563,8 @@
           "tooLong": "The value is too long.",
           "notAllowed": "This field cannot be filled in here."
         },
-        "legalDocumentsMissing": "The rental shop has not published its required documents yet (terms and privacy policy) — the order could not be accepted."
+        "legalDocumentsMissing": "The rental shop has not published its required documents yet (terms and privacy policy) — the order could not be accepted.",
+        "minRentalDays": "The selected dates are too short — one of the items rents for a minimum of {count} days. Extend the rental period and try again."
       },
       "termsLabelLinked": "I accept the rental {link} and rental conditions.",
       "termsLinkText": "terms and conditions",
