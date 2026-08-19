@@ -28,6 +28,7 @@ import {
   CODE_READ_FILES,
   classifyChangedPaths,
   isDocumentationOnlyPath,
+  jobsAffectedByPath,
 } from "../../../scripts/ci-zakres-zmian.mjs";
 
 const repositoryRoot = resolve(process.cwd(), "../..");
@@ -80,7 +81,14 @@ function docsPathsIn(file: string): Map<string, string> {
 }
 
 /** Ciężkie joby, które wolno pominąć — wymienione z nazwy, nie zgadywane. */
-const HEAVY_JOBS = ["ci", "rls", "e2e"] as const;
+const HEAVY_JOBS = ["ci", "wp-plugin", "rls", "e2e"] as const;
+
+/** Joby z warstwą per-job (ADR-207) i ich outputs w jobie `zakres`. */
+const PER_JOB_OUTPUTS = {
+  "wp-plugin": "pomin_wp_plugin",
+  rls: "pomin_rls",
+  e2e: "pomin_e2e",
+} as const;
 
 /** Blok YAML pojedynczego joba (od `  nazwa:` do następnego joba). */
 function jobBlock(name: string): string {
@@ -260,6 +268,136 @@ describe("dokumentacja czytana przez kod nie jest „tylko dokumentacją”", ()
   });
 });
 
+describe("klasyfikator per-job (ADR-207) — tabela decyzji", () => {
+  // Job jest pomijalny, gdy ŻADNA zmieniona ścieżka go nie dotyka. Strefy są
+  // białą listą: ścieżka spoza znanych stref dotyka WSZYSTKICH jobów.
+
+  it("scenariusz (a): zmiana tylko w apps/storefront → wp-plugin i rls pominięte, e2e biegnie", () => {
+    const { skipHeavyJobs, skipJobs } = classifyChangedPaths(["apps/storefront/app/page.tsx"]);
+    expect(skipHeavyJobs).toBe(false); // job `ci` biegnie (globalny pomin nie obowiązuje)
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+  });
+
+  it("scenariusz (b): zmiana w packages/db → rls i e2e biegną, wp-plugin pominięty", () => {
+    const { skipHeavyJobs, skipJobs } = classifyChangedPaths([
+      "packages/db/migrations/0060_nowa.sql",
+    ]);
+    expect(skipHeavyJobs).toBe(false);
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: false, e2e: false });
+  });
+
+  it("scenariusz (c): zmiana tylko we wtyczce WordPress → wp-plugin biegnie, rls i e2e pominięte", () => {
+    const { skipHeavyJobs, skipJobs } = classifyChangedPaths([
+      "integrations/wordpress/avably-booking/avably-booking.php",
+    ]);
+    expect(skipHeavyJobs).toBe(false); // `ci` biegnie
+    expect(skipJobs).toEqual({ "wp-plugin": false, rls: true, e2e: true });
+  });
+
+  it("scenariusz (d): zmiana tylko w docs → globalny pomin jak dotąd, per-job spójnie `true`", () => {
+    const { skipHeavyJobs, skipJobs } = classifyChangedPaths(["docs/dokumentacja/index.html"]);
+    expect(skipHeavyJobs).toBe(true);
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: true });
+  });
+
+  it("powierzchnia WordPress w panelu uruchamia wp-plugin (segment wordpress*/wp-*)", () => {
+    for (const path of [
+      "apps/panel/lib/wordpress/api-base-url.ts",
+      "apps/panel/test/wordpress-plugin-package.test.ts",
+      "apps/panel/test/wp-booking-field-errors.test.ts",
+      "apps/panel/app/[locale]/(panel)/ustawienia-api/wordpress-guide.tsx",
+    ]) {
+      const { skipJobs } = classifyChangedPaths([path]);
+      expect(skipJobs["wp-plugin"], path).toBe(false);
+      expect(skipJobs.e2e, path).toBe(false); // apps/** → e2e biegnie
+      expect(skipJobs.rls, path).toBe(true);
+    }
+  });
+
+  it("panel POZA powierzchnią WordPress nie uruchamia wp-plugin", () => {
+    const { skipJobs } = classifyChangedPaths(["apps/panel/lib/review-write-guard.ts"]);
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+  });
+
+  it("pakiety aplikacyjne (ui/core/emails/pdf/security/e2e) → e2e biegnie, wp-plugin i rls pominięte", () => {
+    for (const path of [
+      "packages/ui/src/tokens.ts",
+      "packages/core/src/pricing.ts",
+      "packages/emails/src/order.tsx",
+      "packages/pdf/src/umowa.ts",
+      "packages/security/src/rate-limit.ts",
+      "packages/e2e/tests/checkout.spec.ts",
+    ]) {
+      const { skipJobs } = classifyChangedPaths([path]);
+      expect(skipJobs, path).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+    }
+  });
+
+  it("STREFA NIEZNANA = pełne CI: workflow, skrypty, manifesty, lockfile, .github, nieznany katalog", () => {
+    // Kontrola pozytywna tego PR-a: zmiana `.github/workflows/ci.yml` lub
+    // samego klasyfikatora NIGDY nie kwalifikuje się do żadnego pominięcia —
+    // bramka nie zwalnia sama siebie.
+    for (const path of [
+      ".github/workflows/ci.yml",
+      ".github/scripts/supabase-ci-izolacja.sh",
+      "scripts/ci-zakres-zmian.mjs",
+      "scripts/build-wp-plugin-zip.mjs",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "turbo.json",
+      "nieznany-katalog/plik.ts",
+    ]) {
+      const { skipJobs } = classifyChangedPaths([path]);
+      expect(skipJobs, path).toEqual({ "wp-plugin": false, rls: false, e2e: false });
+    }
+  });
+
+  it("dokumentacja czytana przez kod nie kwalifikuje się do żadnego pominięcia", () => {
+    const { skipJobs } = classifyChangedPaths([
+      "docs/branding/2026-07-20-avably-faza-2-system.html",
+    ]);
+    expect(skipJobs).toEqual({ "wp-plugin": false, rls: false, e2e: false });
+  });
+
+  it("suma po ścieżkach: jeden plik spoza stref gasi WSZYSTKIE pominięcia", () => {
+    const { skipJobs } = classifyChangedPaths([
+      "apps/storefront/app/page.tsx",
+      "pnpm-lock.yaml",
+    ]);
+    expect(skipJobs).toEqual({ "wp-plugin": false, rls: false, e2e: false });
+  });
+
+  it("diff mieszany docs+kod: ścieżka dokumentacji nie gasi pominięć per-job", () => {
+    const { skipHeavyJobs, skipJobs } = classifyChangedPaths([
+      "docs/dokumentacja/index.html",
+      "apps/storefront/app/page.tsx",
+    ]);
+    expect(skipHeavyJobs).toBe(false);
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+  });
+
+  it("fail-closed: pusta lista, nie-tablica i ścieżka zdeformowana → zero pominięć per-job", () => {
+    for (const input of [[], null, undefined, 42, ["docs/../packages/db/x.sql"], ["", "  "]]) {
+      const { skipJobs } = classifyChangedPaths(input as never);
+      expect(skipJobs, JSON.stringify(input)).toEqual({
+        "wp-plugin": false,
+        rls: false,
+        e2e: false,
+      });
+    }
+  });
+
+  it("jobsAffectedByPath: ścieżka zdeformowana dotyka wszystkich jobów", () => {
+    expect(jobsAffectedByPath("docs/../packages/db/x.sql").sort()).toEqual([
+      "e2e",
+      "rls",
+      "wp-plugin",
+    ]);
+    expect(jobsAffectedByPath("README.md")).toEqual([]);
+  });
+});
+
 describe("kontrakt workflow — concurrency", () => {
   it("workflow deklaruje grupę współbieżności per workflow + ref", () => {
     expect(workflow).toMatch(/^concurrency:$/m);
@@ -294,6 +432,26 @@ describe("kontrakt workflow — pominięcie ciężkich jobów", () => {
     // Bez pełnej historii baza jest nieosiągalna i bramka nigdy nie oszczędza.
     expect(zakres).toContain("fetch-depth: 0");
     expect(zakres).toContain("pomin: ${{ steps.ocena.outputs.pomin }}");
+    // Warstwa per-job (ADR-207): outputs zadeklarowane w jobie `zakres` —
+    // bez deklaracji warunek per-job w ciężkim jobie czyta pustkę na zawsze.
+    for (const output of Object.values(PER_JOB_OUTPUTS)) {
+      expect(zakres).toContain(`${output}: \${{ steps.ocena.outputs.${output} }}`);
+    }
+    // Fail-safe bash: wczesne wyjście `pelne_ci` pisze też werdykty per-job,
+    // żeby log przebiegu nazywał stan wprost (pustka i tak znaczy „biegnie").
+    for (const output of Object.values(PER_JOB_OUTPUTS)) {
+      expect(zakres).toContain(`echo "${output}=false"`);
+    }
+  });
+
+  it("warstwa per-job (ADR-207): każdy job z własnym warunkiem, `ci` świadomie bez niego", () => {
+    for (const [job, output] of Object.entries(PER_JOB_OUTPUTS)) {
+      expect(jobBlock(job), job).toContain(`needs.zakres.outputs.${output} != 'true'`);
+    }
+    // `ci` biegnie na każdej zmianie kodu — testy jednostkowe i bramki
+    // bezpieczeństwa są tanie względem ryzyka pominięcia. Dopisanie mu
+    // warunku per-job to regresja decyzji ADR-207.
+    expect(jobBlock("ci")).not.toContain("pomin_");
   });
 
   it("każdy ciężki job jest podpięty pod `zakres` i przepuszcza przy pustym wyjściu", () => {
@@ -345,30 +503,52 @@ describe("CLI klasyfikatora — dowód behawioralny", () => {
     return { stdout, output: readFileSync(outputFile, "utf8") };
   }
 
-  it("dokumentacja: werdykt `pomin=true` trafia na stdout i do GITHUB_OUTPUT", () => {
+  /** Komplet czterech linii werdyktu — kolejność przypięta świadomie. */
+  function verdictLines(
+    pomin: boolean,
+    perJob: { wp: boolean; rls: boolean; e2e: boolean },
+  ): string {
+    return [
+      `pomin=${pomin}`,
+      `pomin_wp_plugin=${perJob.wp}`,
+      `pomin_rls=${perJob.rls}`,
+      `pomin_e2e=${perJob.e2e}`,
+    ].join("\n");
+  }
+
+  it("dokumentacja: komplet werdyktów trafia na stdout i do GITHUB_OUTPUT", () => {
     const { stdout, output } = runClassifier(["docs/dokumentacja/index.html"]);
-    expect(stdout.trim()).toBe("pomin=true");
-    expect(output.trim()).toBe("pomin=true");
+    const expected = verdictLines(true, { wp: true, rls: true, e2e: true });
+    expect(stdout.trim()).toBe(expected);
+    expect(output.trim()).toBe(expected);
   });
 
-  it("kod: werdykt `pomin=false`", () => {
+  it("kod bazy: globalny pomin=false, rls i e2e biegną, wp-plugin pominięty", () => {
     const { stdout, output } = runClassifier([
       "docs/dokumentacja/index.html",
       "packages/db/src/index.ts",
     ]);
-    expect(stdout.trim()).toBe("pomin=false");
-    expect(output.trim()).toBe("pomin=false");
+    const expected = verdictLines(false, { wp: true, rls: false, e2e: false });
+    expect(stdout.trim()).toBe(expected);
+    expect(output.trim()).toBe(expected);
   });
 
-  it("pusty diff: werdykt `pomin=false`", () => {
+  it("storefront-only: wp-plugin i rls pominięte także na poziomie CLI", () => {
+    const { stdout, output } = runClassifier(["apps/storefront/app/page.tsx"]);
+    const expected = verdictLines(false, { wp: true, rls: true, e2e: false });
+    expect(stdout.trim()).toBe(expected);
+    expect(output.trim()).toBe(expected);
+  });
+
+  it("pusty diff: pełne CI we wszystkich werdyktach", () => {
     const { stdout } = runClassifier([]);
-    expect(stdout.trim()).toBe("pomin=false");
+    expect(stdout.trim()).toBe(verdictLines(false, { wp: false, rls: false, e2e: false }));
   });
 
   it("nazwa pliku ze znakiem nowej linii nie przechodzi jako dokumentacja", () => {
     // Wejście -z trzyma taką nazwę w JEDNYM rekordzie (dlatego jest -z),
     // a klasyfikator odmawia jej zrozumienia i żąda pełnego CI.
     const { stdout } = runClassifier(["docs/a\nb.md"]);
-    expect(stdout.trim()).toBe("pomin=false");
+    expect(stdout.trim()).toBe(verdictLines(false, { wp: false, rls: false, e2e: false }));
   });
 });

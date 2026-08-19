@@ -53,6 +53,13 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     outputs:
       pomin: ${{ steps.ocena.outputs.pomin }}
+      # Warstwa per-job (ADR-207): job, którego żadna zmieniona ścieżka nie
+      # dotyka, jest pomijany także przy zmianie kodu. Puste wyjście (awaria
+      # kroku `ocena` przed zapisem) czyta się jak `!= 'true'` — czyli job
+      # BIEGNIE; fail-safe zawsze w stronę uruchomienia.
+      pomin_wp_plugin: ${{ steps.ocena.outputs.pomin_wp_plugin }}
+      pomin_rls: ${{ steps.ocena.outputs.pomin_rls }}
+      pomin_e2e: ${{ steps.ocena.outputs.pomin_e2e }}
     steps:
       # Pełna historia: bez bazy nie ma z czym porównać, a „nie wiem" musi
       # znaczyć pełne CI, nie pominięcie.
@@ -74,7 +81,12 @@ jobs:
           # czerwony przebieg. Bramka kosztowa nie może blokować odbioru PR-a.
           set -uo pipefail
           pelne_ci() {
-            echo "pomin=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "pomin=false"
+              echo "pomin_wp_plugin=false"
+              echo "pomin_rls=false"
+              echo "pomin_e2e=false"
+            } >> "$GITHUB_OUTPUT"
             echo "Pełne CI: $1"
             exit 0
           }
@@ -125,6 +137,10 @@ jobs:
     # zamiast domyślnego warunku: gdy job `zakres` PADNIE, wyjście jest puste,
     # więc `!= 'true'` przepuszcza pełne CI — awaria klasyfikatora kosztuje
     # minuty, nigdy bramkę.
+    #
+    # ŚWIADOMIE bez warstwy per-job (ADR-207): typecheck/lint/testy
+    # jednostkowe i bramki bezpieczeństwa biegną na KAŻDEJ zmianie kodu —
+    # są tanie względem ryzyka pominięcia.
     needs: zakres
     if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
     runs-on: [self-hosted, macOS, ARM64]
@@ -219,8 +235,14 @@ jobs:
     # źródeł wtyczki. Na własnym sprzęcie oszczędzamy nie minuty, a obciążenie
     # Maca PM-a. Merge-gate: na PR docs-only job ma stan `skipped` (patrz
     # komentarz przy jobie `zakres`).
+    #
+    # Per-job (ADR-207): wtyczka jest strefą izolowaną — job biegnie tylko,
+    # gdy zmiana dotyka `integrations/wordpress/**`, powierzchni WordPress
+    # w panelu (`apps/panel` z segmentem `wordpress*`/`wp-*`) albo strefy
+    # nieznanej klasyfikatorowi (skrypty, manifesty, `.github/**` — wtedy
+    # pełne CI). Werdykt liczy `scripts/ci-zakres-zmian.mjs`, nie YAML.
     needs: zakres
-    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' && needs.zakres.outputs.pomin_wp_plugin != 'true' }}
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
@@ -246,8 +268,15 @@ jobs:
     # działającego lokalnego Supabase (Postgres + Auth + PostgREST w
     # kontenerach), którego job `ci` nie uruchamia.
     # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
+    #
+    # Per-job (ADR-207): job biegnie, gdy zmiana dotyka `packages/db/**`
+    # (RLS, migracje, polityki żyją wyłącznie tam) albo strefy nieznanej
+    # klasyfikatorowi. ŚWIADOMA GRANICA (decyzja PM): dla PR-a czysto
+    # frontowego suity integracyjne panelu/storefrontu z tego joba nie
+    # pobiegną — pokrycie trzyma wtedy `e2e`, który na każdej zmianie
+    # `apps/**`/`packages/**` biegnie.
     needs: zakres
-    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' && needs.zakres.outputs.pomin_rls != 'true' }}
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
@@ -318,8 +347,13 @@ jobs:
     # Porty aplikacji (4300-4302) są poza zakresami używanymi na mac-pm
     # (dev-serwery 3000+, Supabase 543xx/563xx, WordPressy 8090/8099).
     # Pominięcie dla zmian wyłącznie dokumentacyjnych — patrz job `zakres`.
+    #
+    # Per-job (ADR-207): e2e ćwiczy ścieżkę krytyczną, więc pomijany jest
+    # TYLKO gdy zmiana leży w całości w strefach jawnie od niego odciętych
+    # (dokumentacja, `integrations/wordpress/**`); każda ścieżka w `apps/**`
+    # lub `packages/**` i każda strefa nieznana = job biegnie.
     needs: zakres
-    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' }}
+    if: ${{ !cancelled() && needs.zakres.outputs.pomin != 'true' && needs.zakres.outputs.pomin_e2e != 'true' }}
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
