@@ -62,6 +62,7 @@ export function PublishDialog({
   name,
   address,
   productTemplate = false,
+  exceptionProductName = null,
   appearancePending,
   onConfirm,
   trigger,
@@ -88,6 +89,17 @@ export function PublishDialog({
    * tyle stron, ile najemca ma pozycji w katalogu.
    */
   productTemplate?: boolean;
+  /**
+   * WYJĄTEK OD SZABLONU (faza B, ADR-200): własna strona JEDNEGO sprzętu.
+   *
+   * Zasięg publikacji jest wtedy jeszcze inny niż przy matce — i to jest cała
+   * różnica między „zmieni się strona każdego sprzętu" a „zmieni się strona
+   * TEGO sprzętu". Niepusta wartość (nazwa sprzętu z katalogu) przełącza
+   * zdanie na wariant wyjątku; `null` znaczy matkę albo zwykłą stronę.
+   * Znaczy coś wyłącznie razem z `productTemplate` — wyjątek jest rolą
+   * `product` z przypięciem, nie trzecią rolą.
+   */
+  exceptionProductName?: string | null;
   /**
    * CZY SZKIC WYGLĄDU RÓŻNI SIĘ OD OPUBLIKOWANEGO (ADR-171).
    *
@@ -120,11 +132,22 @@ export function PublishDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("pages.switchTitle", { name })}</DialogTitle>
-          <DialogDescription {...(productTemplate ? { "data-publish-template-scope": "" } : {})}>
+          <DialogDescription
+            {...(productTemplate
+              ? {
+                  "data-publish-template-scope":
+                    exceptionProductName !== null ? "exception" : "all",
+                }
+              : {})}
+          >
             {productTemplate
-              ? live
-                ? t("pages.switchBodyTemplateLive")
-                : t("pages.switchBodyTemplateNew")
+              ? exceptionProductName !== null
+                ? live
+                  ? t("pages.switchBodyExceptionLive", { name: exceptionProductName })
+                  : t("pages.switchBodyExceptionNew", { name: exceptionProductName })
+                : live
+                  ? t("pages.switchBodyTemplateLive")
+                  : t("pages.switchBodyTemplateNew")
               : live
                 ? t("pages.switchBodySelf")
                 : t("pages.switchBodyNew", { address })}

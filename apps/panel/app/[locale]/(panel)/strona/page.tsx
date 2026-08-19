@@ -16,6 +16,8 @@
  */
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { isProductTemplateKind } from "@avably/core/site";
+
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { footerMarkGaps } from "@/lib/footer-mark-reach";
 import { requireMemberPage } from "@/lib/member-page";
@@ -112,6 +114,58 @@ export default async function SitePage() {
     redirectsBySite.set(row.site_id as string, list);
   }
 
+  /*
+    NAZWY PRODUKTÓW DLA WIERSZY WYJĄTKÓW (faza B, ADR-200). Odznaka „własna
+    strona" ma wymieniać sprzęt Z NAZWY — sam `product_id` jest kluczem, nie
+    informacją. Odczyt po liście identyfikatorów, przez RLS; nieudany odczyt
+    gasi NAZWĘ przy odznace, a nie ekran (ta sama reguła, co przy karcie
+    wyglądu wyżej: lista stron jest ważniejsza niż podpis).
+  */
+  const exceptionProductIds = sites
+    .map((site) => site.product_id)
+    .filter((id): id is string => typeof id === "string");
+  const productNames = new Map<string, string>();
+  if (exceptionProductIds.length > 0) {
+    const namesRows = await ctx.supabase
+      .from("products")
+      .select("id, name")
+      .eq("tenant_id", ctx.tenantId!)
+      .in("id", exceptionProductIds);
+    for (const row of namesRows.data ?? []) {
+      productNames.set(row.id as string, row.name as string);
+    }
+  }
+
+  /*
+    SPRZĘT DO WYBORU W OKNIE „UTWÓRZ STRONĘ SPRZĘTU" (ADR-200, B1). Czytany
+    wyłącznie, gdy jest z czego forkować (szablon-matka istnieje): fork jest
+    KOPIĄ jej treści roboczej, więc bez niej czasownik nie ma przedmiotu.
+    Tylko pozycje AKTYWNE — strona produktu spoza katalogu publicznego nie ma
+    adresu, pod którym klient by ją zobaczył (trasa sklepu filtruje `active`
+    przed pytaniem o szablon). Produkty, które już mają wyjątek, odsiewa ekran
+    z tych samych wierszy, którymi rysuje odznaki.
+
+    Sufit odczytu jak przy płótnie kreatora (60 w `site-preview-data`): to jest
+    lista do WYBORU, nie katalog — a `null` po nieudanym odczycie gasi samo
+    okno forka, nie ekran.
+  */
+  const hasMotherTemplate = sites.some(
+    (site) => isProductTemplateKind(site.kind) && site.product_id === null,
+  );
+  let forkProducts: { id: string; name: string }[] | null = null;
+  if (hasMotherTemplate) {
+    const forkRows = await ctx.supabase
+      .from("products")
+      .select("id, name")
+      .eq("tenant_id", ctx.tenantId!)
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .limit(60);
+    forkProducts = forkRows.error
+      ? null
+      : (forkRows.data ?? []).map((row) => ({ id: row.id as string, name: row.name as string }));
+  }
+
   const format = await getFormatter();
   const stamp = (value: string | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
@@ -133,6 +187,11 @@ export default async function SitePage() {
     slugPublished: site.slug_published,
     redirectOldSlug: site.redirect_old_slug,
     redirectedFrom: redirectsBySite.get(site.id) ?? [],
+    // WYJĄTEK (0088, ADR-199/200): przypięcie do produktu i jego nazwa
+    // z katalogu. `productName` null przy nieudanym odczycie nazw — odznaka
+    // zostaje, podpis gaśnie (zdanie z domysłu byłoby gorsze od braku).
+    productId: site.product_id,
+    productName: site.product_id ? (productNames.get(site.product_id) ?? null) : null,
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
   }));
@@ -162,7 +221,7 @@ export default async function SitePage() {
         a warunek liczy się TUTAJ — z tego samego odczytu, z którego liczy się
         karta wyżej, żeby ekran i okno nie mogły powiedzieć czegoś innego.
       */}
-      <SitePages rows={rows} appearancePending={appearance} />
+      <SitePages rows={rows} appearancePending={appearance} forkProducts={forkProducts} />
     </div>
   );
 }

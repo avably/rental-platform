@@ -36,6 +36,11 @@ import {
   DialogTitle,
   DialogTrigger,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@avably/ui";
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -53,8 +58,19 @@ import {
 import { PublishDialog } from "@/components/publish-dialog";
 import { Link } from "@/i18n/navigation";
 import { createSite, deleteSite, publishSite, renameSite, unpublishSite } from "@/lib/actions/site";
+import {
+  forkProductPage,
+  restoreDefaultProductPage,
+} from "@/lib/actions/site-product-exception";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
-import { MAX_SITES, hasHomePage, hasProductTemplate, pageSlugIssue } from "@/lib/site-validation";
+import {
+  MAX_PRODUCT_EXCEPTIONS,
+  MAX_SITES,
+  countProductExceptions,
+  hasHomePage,
+  hasProductTemplate,
+  pageSlugIssue,
+} from "@/lib/site-validation";
 
 export interface SitePageRow {
   id: string;
@@ -80,6 +96,17 @@ export interface SitePageRow {
    * usłyszeć PRZED kliknięciem, a nie z reklamacji klienta.
    */
   redirectedFrom: string[];
+  /**
+   * PRZYPIĘCIE DO PRODUKTU (0088, ADR-199/200): niepuste ⇔ wiersz jest
+   * WYJĄTKIEM — własną stroną tego jednego sprzętu, która opublikowana wygrywa
+   * ze wspólnym szablonem. Pominięte/null = szablon-matka albo zwykła strona.
+   */
+  productId?: string | null;
+  /**
+   * NAZWA sprzętu z katalogu — dla odznaki. `null` przy wyjątku znaczy
+   * „nieudany odczyt nazwy": odznaka zostaje, podpis gaśnie.
+   */
+  productName?: string | null;
   publishedAtLabel: string | null;
   createdAtLabel: string | null;
 }
@@ -87,6 +114,7 @@ export interface SitePageRow {
 export function SitePages({
   rows,
   appearancePending = null,
+  forkProducts = null,
 }: {
   rows: SitePageRow[];
   /**
@@ -95,6 +123,13 @@ export function SitePages({
    * DOWOLNEJ strony wypuszcza wygląd całego sklepu.
    */
   appearancePending?: boolean | null;
+  /**
+   * SPRZĘT DO WYBORU w oknie „utwórz stronę sprzętu" (ADR-200) — aktywne
+   * pozycje katalogu; te z już istniejącym wyjątkiem odsiewa ten komponent
+   * z wierszy listy. `null` znaczy „nieudany odczyt katalogu" (przycisk
+   * gaśnie, licznik zostaje) — a `[]` to pusty katalog, z własnym zdaniem.
+   */
+  forkProducts?: { id: string; name: string }[] | null;
 }) {
   const t = useTranslations("site");
   const [pending, startTransition] = useTransition();
@@ -145,6 +180,21 @@ export function SitePages({
     i działa — to jest informacja, nie ostrzeżenie.
   */
   const templateMissing = !hasProductTemplate(rows);
+  /*
+    WŁASNE STRONY SPRZĘTU (faza B, ADR-200). Matka rozstrzyga, czy fork ma
+    przedmiot (kopiuje JEJ treść roboczą); licznik liczy PRODUKTY z własną
+    stroną — tą samą definicją, którą liczy trigger limitu w bazie
+    (`countProductExceptions`, count distinct). Blok jest widoczny także bez
+    matki, gdy wyjątki już są: licznik, którego nie widać, przestaje pilnować
+    (§4.3 dokumentu architektury).
+  */
+  const hasMother = rows.some(
+    (row) => isProductTemplateKind(row.kind) && (row.productId ?? null) === null,
+  );
+  const exceptionsUsed = countProductExceptions(rows);
+  const availableForkProducts = (forkProducts ?? []).filter(
+    (product) => !rows.some((row) => row.productId === product.id),
+  );
 
   return (
     <div className="flex flex-col gap-6" data-site-pages>
@@ -210,6 +260,36 @@ export function SitePages({
         </div>
       ) : null}
 
+      {/*
+        WŁASNA STRONA WYBRANEGO SPRZĘTU (faza B, ADR-200; §4 dokumentu
+        architektury). Blok niesie LICZNIK („użyto X z 5" — wyjątek, którego
+        nie da się policzyć, przestaje być wyjątkiem) i wejście do forka.
+        Przycisk NIE gaśnie przy 5 z 5: limitu pilnuje BAZA (PT409), a jej
+        odmowa dociera tu jako zdanie — wyłącznik w interfejsie byłby drugą,
+        słabszą wersją tej samej reguły.
+      */}
+      {hasMother || exceptionsUsed > 0 ? (
+        <div
+          data-site-exceptions
+          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+        >
+          <p className="text-sm font-medium">{t("pages.exceptionsTitle")}</p>
+          <p className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("pages.exceptionsBody")}
+          </p>
+          <p data-site-exceptions-counter className="text-[13px] leading-[18px]">
+            {t("pages.exceptionsCounter", { used: exceptionsUsed, max: MAX_PRODUCT_EXCEPTIONS })}
+          </p>
+          {hasMother && forkProducts !== null ? (
+            <NewExceptionDialog
+              disabled={pending || limitReached}
+              products={availableForkProducts}
+              onCreate={(productId) => run(() => forkProductPage({ productId }))}
+            />
+          ) : null}
+        </div>
+      ) : null}
+
       {homeNotLive ? (
         <p
           data-site-home-not-live
@@ -268,7 +348,29 @@ export function SitePages({
                 której nie rysuje (ADR-172). Zamiast ścieżki idzie zdanie
                 o tym, GDZIE ten szablon naprawdę się pokazuje.
               */}
-              {isProductTemplateKind(row.kind) ? (
+              {/*
+                WYJĄTEK PRZED MATKĄ (faza B, ADR-200): wiersz z `productId` jest
+                WŁASNĄ STRONĄ JEDNEGO sprzętu — odznaka wymienia go z nazwy, bo
+                „szablon strony produktu" byłoby o nim zdaniem prawdziwym
+                o innym wierszu (matka obowiązuje wszędzie, wyjątek w jednym
+                miejscu). Brak nazwy = nieudany odczyt katalogu: odznaka
+                zostaje, podpis mówi tylko tyle, ile wiadomo.
+              */}
+              {isProductTemplateKind(row.kind) && row.productId ? (
+                <p
+                  data-site-page-exception
+                  className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]"
+                >
+                  <span className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]">
+                    {t("pages.exceptionBadge")}
+                  </span>
+                  <span>
+                    {row.productName
+                      ? t("pages.exceptionAddress", { name: row.productName })
+                      : t("pages.exceptionAddressUnknown")}
+                  </span>
+                </p>
+              ) : isProductTemplateKind(row.kind) ? (
                 <p
                   data-site-page-template
                   className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px] leading-[18px]"
@@ -345,6 +447,16 @@ export function SitePages({
                   name={row.name}
                   address={pagePathFromSlug(row.slug)}
                   productTemplate={isProductTemplateKind(row.kind)}
+                  /*
+                    WYJĄTEK MA INNY ZASIĘG NIŻ MATKA (ADR-200): publikacja
+                    matki zmienia stronę KAŻDEGO sprzętu, wyjątku — JEDNEGO.
+                    Zdanie „szablon zacznie obowiązywać wszędzie" byłoby przy
+                    tym wierszu nieprawdą, a operator ma usłyszeć prawdziwy
+                    zasięg PRZED kliknięciem.
+                  */
+                  exceptionProductName={
+                    row.productId ? (row.productName ?? t("pages.exceptionProductFallback")) : null
+                  }
                   appearancePending={appearancePending}
                   onConfirm={() => run(() => publishSite(row.id))}
                 />
@@ -353,6 +465,7 @@ export function SitePages({
                   disabled={pending}
                   current={row.name}
                   kind={row.kind}
+                  exception={row.productId != null}
                   currentSlug={row.slug}
                   publishedSlug={row.slugPublished}
                   redirectOldSlug={row.redirectOldSlug}
@@ -391,13 +504,34 @@ export function SitePages({
                       dotyka w ogóle.
                     */
                     kind={row.kind}
+                    exceptionProductName={
+                      row.productId
+                        ? (row.productName ?? t("pages.exceptionProductFallback"))
+                        : null
+                    }
                     home={!isProductTemplateKind(row.kind) && row.slugPublished === HOME_PAGE_SLUG}
                     redirectedFrom={row.redirectedFrom}
                     onConfirm={() => run(() => unpublishSite(row.id))}
                   />
                 ) : null}
 
-                {row.live ? (
+                {/*
+                  „PRZYWRÓĆ SZABLON DOMYŚLNY" (ADR-200; §4.5 dokumentu
+                  architektury) zastępuje na wierszu WYJĄTKU parę
+                  usuń/„widoczna w sklepie": jest tym samym usunięciem,
+                  nazwanym skutkiem, który operator kupuje — produkt wraca pod
+                  wspólny szablon. Działa też na wierszu ŻYWYM (akcja najpierw
+                  zdejmuje go ze sklepu), bo wyjątek opublikowany przez pomyłkę
+                  z wyłączonym przyciskiem byłby pułapką bez wyjścia.
+                */}
+                {row.productId ? (
+                  <RestoreDefaultDialog
+                    disabled={pending}
+                    name={row.productName ?? t("pages.exceptionProductFallback")}
+                    live={row.live}
+                    onConfirm={() => run(() => restoreDefaultProductPage(row.id))}
+                  />
+                ) : row.live ? (
                   <Button type="button" size="sm" variant="ghost" disabled data-delete-site-blocked={row.id}>
                     {t("pages.deleteBlocked")}
                   </Button>
@@ -648,6 +782,7 @@ function RenameDialog({
   disabled,
   current,
   kind,
+  exception = false,
   currentSlug,
   publishedSlug,
   redirectOldSlug,
@@ -657,6 +792,13 @@ function RenameDialog({
   current: string;
   /** ROLA wiersza (ADR-178) — rozstrzyga zdanie przy wygaszonym polu adresu. */
   kind: SiteKind;
+  /**
+   * WYJĄTEK (ADR-200): własna strona jednego sprzętu. Pole adresu zachowuje
+   * się jak przy matce (wygaszone, adres nie jedzie w wywołaniu), ale POWÓD
+   * jest inny — strona pokazuje się pod adresem TEGO sprzętu, nie każdego —
+   * a powód jest tym, co operator czyta.
+   */
+  exception?: boolean;
   currentSlug: string;
   publishedSlug: string | null;
   redirectOldSlug: boolean;
@@ -721,7 +863,9 @@ function RenameDialog({
           disabled={addressless}
           hint={
             isTemplate
-              ? t("pages.slugTemplate")
+              ? exception
+                ? t("pages.slugException")
+                : t("pages.slugTemplate")
               : isHome
                 ? t("pages.slugHome")
                 : t("pages.slugChangeHint")
@@ -793,6 +937,7 @@ function UnpublishDialog({
   name,
   address,
   kind,
+  exceptionProductName = null,
   home,
   redirectedFrom,
   onConfirm,
@@ -802,12 +947,19 @@ function UnpublishDialog({
   address: string;
   /** ROLA wiersza (ADR-178) — rozstrzyga, o czym mówi zdanie o skutku. */
   kind: SiteKind;
+  /**
+   * WYJĄTEK (ADR-200): zdjęcie ze sklepu nie „przywraca układu wbudowanego"
+   * (zdanie prawdziwe o MATCE), tylko oddaje adres tego sprzętu z powrotem
+   * wspólnemu szablonowi — a wbudowanej dopiero, gdy szablonu nie ma żywego.
+   */
+  exceptionProductName?: string | null;
   home: boolean;
   redirectedFrom: string[];
   onConfirm: () => void;
 }) {
   const t = useTranslations("site");
   const isTemplate = isProductTemplateKind(kind);
+  const isException = isTemplate && exceptionProductName !== null;
 
   return (
     <Dialog>
@@ -820,13 +972,17 @@ function UnpublishDialog({
         <DialogHeader>
           <DialogTitle>{t("pages.unpublishTitle", { name })}</DialogTitle>
           <DialogDescription
-            data-unpublish-scope={isTemplate ? "template" : home ? "home" : "page"}
+            data-unpublish-scope={
+              isException ? "exception" : isTemplate ? "template" : home ? "home" : "page"
+            }
           >
-            {isTemplate
-              ? t("pages.unpublishBodyTemplate")
-              : home
-                ? t("pages.unpublishBodyHome")
-                : t("pages.unpublishBody", { address })}
+            {isException
+              ? t("pages.unpublishBodyException", { name: exceptionProductName })
+              : isTemplate
+                ? t("pages.unpublishBodyTemplate")
+                : home
+                  ? t("pages.unpublishBodyHome")
+                  : t("pages.unpublishBody", { address })}
           </DialogDescription>
         </DialogHeader>
         {redirectedFrom.length > 0 ? (
@@ -850,6 +1006,156 @@ function UnpublishDialog({
               onClick={onConfirm}
             >
               {t("pages.unpublishConfirm")}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * OKNO FORKA: „utwórz stronę sprzętu" (faza B, ADR-200 — B1).
+ *
+ * Operator podejmuje tu dokładnie JEDNĄ decyzję: KTÓREGO sprzętu dotyczy
+ * własna strona. Nazwy nie podaje (bierze ją z katalogu akcja — nazwa strony
+ * ma mówić, o który sprzęt chodzi), adresu nie podaje (strona pokazuje się pod
+ * adresem sprzętu), treści nie wybiera (przyjeżdża KOPIĄ szkicu wspólnego
+ * szablonu — ADR-199 R6: kopia, nie referencja).
+ *
+ * Lista niesie wyłącznie sprzęt BEZ własnej strony: drugi szkic tego samego
+ * produktu jest dla bazy legalny, ale dla operatora byłby dwiema stronami,
+ * z których żywa może być jedna — dokładnie ta klasa niejasności, którą przy
+ * matce zamyka `hasProductTemplate`.
+ */
+function NewExceptionDialog({
+  disabled,
+  products,
+  onCreate,
+}: {
+  disabled: boolean;
+  products: { id: string; name: string }[];
+  onCreate: (productId: string) => void;
+}) {
+  const t = useTranslations("site");
+  const [open, setOpen] = useState(false);
+  const [productId, setProductId] = useState("");
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) setProductId("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" disabled={disabled} data-new-product-exception>
+          <Plus className="size-4" aria-hidden />
+          {t("pages.newException")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("pages.newExceptionTitle")}</DialogTitle>
+          <DialogDescription>{t("pages.newExceptionBody")}</DialogDescription>
+        </DialogHeader>
+        {products.length === 0 ? (
+          <p data-exception-picker-empty className="text-muted-foreground text-[13px] leading-[18px]">
+            {t("pages.exceptionPickerEmpty")}
+          </p>
+        ) : (
+          <Select value={productId === "" ? undefined : productId} onValueChange={setProductId}>
+            <SelectTrigger
+              aria-label={t("pages.exceptionProductLabel")}
+              data-exception-product-select
+              className="w-full"
+            >
+              <SelectValue placeholder={t("pages.exceptionProductPlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {products.map((product) => (
+                <SelectItem key={product.id} value={product.id}>
+                  {product.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              {t("pages.cancel")}
+            </Button>
+          </DialogClose>
+          <Button
+            type="button"
+            data-new-product-exception-confirm
+            disabled={productId === ""}
+            onClick={() => {
+              onCreate(productId);
+              setOpen(false);
+            }}
+          >
+            {t("pages.newExceptionConfirm")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * „PRZYWRÓĆ SZABLON DOMYŚLNY" (faza B, ADR-200 — B3; §4.5 dokumentu
+ * architektury) — potwierdzenie usunięcia WYJĄTKU.
+ *
+ * Dwa zdania o skutku, rozstrzygane ŻYWOŚCIĄ wiersza, bo mówią o dwóch różnych
+ * rzeczywistościach: strona żywa ZNIKA KLIENTOM (adres sprzętu wraca pod
+ * wspólny szablon), strona robocza znika tylko z panelu — „w sklepie nic się
+ * nie zmieni" jest wtedy prawdą, a przy żywej byłoby kłamstwem.
+ */
+function RestoreDefaultDialog({
+  disabled,
+  name,
+  live,
+  onConfirm,
+}: {
+  disabled: boolean;
+  /** NAZWA SPRZĘTU (nie strony): skutek dotyczy adresu sprzętu. */
+  name: string;
+  live: boolean;
+  onConfirm: () => void;
+}) {
+  const t = useTranslations("site");
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="ghost" disabled={disabled} data-restore-default>
+          {t("pages.restoreDefault")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("pages.restoreDefaultTitle", { name })}</DialogTitle>
+          <DialogDescription data-restore-default-scope={live ? "live" : "draft"}>
+            {live ? t("pages.restoreDefaultBodyLive") : t("pages.restoreDefaultBodyDraft")}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              {t("pages.cancel")}
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="destructive"
+              data-restore-default-confirm
+              onClick={onConfirm}
+            >
+              {t("pages.restoreDefaultConfirm")}
             </Button>
           </DialogClose>
         </DialogFooter>
