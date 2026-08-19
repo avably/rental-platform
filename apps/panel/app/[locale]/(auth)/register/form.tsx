@@ -73,8 +73,14 @@ export function RegisterForm({ next }: { next?: string }) {
         pobierana przy zakładaniu organizacji i ma tam dowód z kluczem obcym.
         Wpisanie tu „zakładając konto akceptujesz…" byłoby zmianą momentu
         zawarcia umowy zrobioną w warstwie widoku.
+
+        To jest JEDYNY zestaw odnośników Regulamin/Polityka na tym ekranie
+        (ADR-208): duplikat ze stopki pasa zszedł (`bandLegalLinks=false` w
+        page.tsx), bo stopka jest `hidden lg:flex` i na mobile znikała — a ta
+        nota stoi w kolumnie formularza na każdej szerokości. Wyśrodkowana
+        jak reszta treści pod formularzem (uwaga właściciela).
       */}
-      <p className="border-border text-muted-foreground border-t pt-4 text-[0.8125rem]">
+      <p className="border-border text-muted-foreground border-t pt-4 text-center text-[0.8125rem]">
         <a
           href={`${CANONICAL_SITE_URL}/${locale}/privacy`}
           className="text-foreground font-medium underline underline-offset-[3px]"
@@ -90,6 +96,11 @@ export function RegisterForm({ next }: { next?: string }) {
         </a>
       </p>
 
+      {/* BEZ „Nie dostałeś maila potwierdzającego?" (ADR-208, uwaga
+          właściciela: „tu nie jest potrzebne") — pytanie ma sens PO wysłaniu
+          formularza, a tam człowieka prowadzi przekierowanie akcji na
+          `/register/sprawdz-skrzynke` (strona i resend zostają). Drogę ma też
+          odmowa logowania (ADR-153, N3). */}
       <AuthLinks>
         <span>
           {t("haveAccount")}{" "}
@@ -100,12 +111,6 @@ export function RegisterForm({ next }: { next?: string }) {
             {t("login")}
           </Link>
         </span>
-        <Link
-          href="/register/sprawdz-skrzynke"
-          className="text-foreground w-fit font-medium underline underline-offset-[3px]"
-        >
-          {t("noConfirmationMail")}
-        </Link>
       </AuthLinks>
     </>
   );

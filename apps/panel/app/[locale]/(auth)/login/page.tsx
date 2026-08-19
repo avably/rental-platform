@@ -35,7 +35,9 @@ export default async function LoginPage({
 
   return (
     <AuthShell band="signin">
-      <AuthHeading subtitle={t("subtitle")}>{t("title")}</AuthHeading>
+      {/* Bez podtytułu — dopisek pod „Zaloguj się" zdjęty na uwagę
+          właściciela (ADR-208). */}
+      <AuthHeading>{t("title")}</AuthHeading>
       {notice ? (
         <AuthNotice
           data-login-notice={notice.tone}

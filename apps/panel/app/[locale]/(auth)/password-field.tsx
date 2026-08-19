@@ -18,6 +18,15 @@ import { AuthField, AuthInput } from "./auth-ui";
  * i ta sama nazwa jedzie do akcji serwerowej. `autoComplete="new-password"`
  * zostaje bez zmian — przeglądarka dalej proponuje wygenerowanie hasła.
  */
+
+/**
+ * Odbicie polityki hasła z `passwordSchema` (lib/validation.ts, ADR-208) w
+ * atrybucie `pattern`: min 8 znaków, ≥1 cyfra, ≥1 znak spoza [A-Za-z0-9].
+ * To jest UX (przeglądarka odmawia wysyłki i mówi dlaczego), NIE bramka —
+ * źródłem prawdy jest walidacja serwerowa w akcjach; ominięcie atrybutu
+ * jednym curlem niczego nie otwiera.
+ */
+const PASSWORD_POLICY_PATTERN = "(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}";
 export function AuthPasswordField({
   id,
   label,
@@ -54,6 +63,10 @@ export function AuthPasswordField({
         name="password"
         required
         minLength={minLength}
+        pattern={PASSWORD_POLICY_PATTERN}
+        // Tekst, który przeglądarka dokleja do odmowy `pattern` — bez niego
+        // komunikat brzmi „dopasuj żądany format" i nie mówi jaki.
+        title={hint}
         autoComplete="new-password"
       />
     </AuthField>

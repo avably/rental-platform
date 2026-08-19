@@ -64,12 +64,18 @@ describe("parytet kluczy i18n EN↔PL", () => {
     }
   });
 
-  it("logowanie NIE ma odnośnika o mailu potwierdzającym (ADR-164)", () => {
+  it("odnośnik o mailu potwierdzającym zszedł z OBU ekranów (ADR-164 + ADR-208)", () => {
     for (const keys of [enKeys, plKeys]) {
       expect(keys.has("login.noConfirmationMail")).toBe(false);
-      // Ekran rejestracji ten sam odnośnik ma dalej — droga do „sprawdź
-      // skrzynkę" nie zniknęła, przeniósł się tylko punkt wejścia.
-      expect(keys.has("register.noConfirmationMail")).toBe(true);
+      // ADR-208 (uwaga właściciela) zdjął stały odnośnik także z rejestracji,
+      // więc klucz jest martwy i NIE MA go w słowniku. Droga do „sprawdź
+      // skrzynkę" nie zniknęła: przekierowanie akcji rejestracji + wyjście
+      // przy odmowie logowania (ADR-153, N3 — klucz niżej).
+      expect(keys.has("register.noConfirmationMail")).toBe(false);
+      // Kontrola pozytywna tej samej klasy: klucz wyjścia awaryjnego przy
+      // odmowie logowania ISTNIEJE — asercje wyżej nie są zielone przez
+      // literówkę w prefiksie.
+      expect(keys.has("login.resendConfirmation")).toBe(true);
     }
   });
 });

@@ -249,7 +249,7 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
     expect(links!.textContent).toContain(messages.login.register);
   });
 
-  it("logowanie: pytanie o mail potwierdzający zeszło ze STAŁYCH odnośników (ADR-164)", async () => {
+  it("stały odnośnik do skrzynki zszedł z OBU formularzy (ADR-164 + ADR-208)", async () => {
     vi.resetModules();
     const { LoginForm } = await import("@/app/[locale]/(auth)/login/form");
     const { container } = wrap(<LoginForm />);
@@ -261,8 +261,9 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
       "stały odnośnik do skrzynki wrócił na ekran logowania (decyzja właściciela, ADR-164)",
     ).not.toContain("/register/sprawdz-skrzynke");
 
-    // KONTROLA POZYTYWNA na tej samej powierzchni: rejestracja ten odnośnik
-    // ma dalej — czyli asercja wyżej mierzy decyzję, a nie martwy selektor.
+    // ADR-208 (uwaga właściciela): rejestracja też go już nie ma — człowiek
+    // trafia na /register/sprawdz-skrzynke przekierowaniem PO wysłaniu
+    // formularza, a nie stałym odnośnikiem przed nim.
     cleanup();
     vi.resetModules();
     const { RegisterForm } = await import("@/app/[locale]/(auth)/register/form");
@@ -270,7 +271,25 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
     const registerHrefs = [
       ...registerContainer.querySelector("[data-auth-links]")!.querySelectorAll("a"),
     ].map((a) => a.getAttribute("href"));
-    expect(registerHrefs).toContain("/register/sprawdz-skrzynke");
+    expect(registerHrefs).not.toContain("/register/sprawdz-skrzynke");
+
+    // KONTROLA POZYTYWNA — droga do skrzynki ISTNIEJE tam, gdzie została:
+    // w wyjściach odmowy logowania (ADR-153, N3). Bez tego asercje wyżej
+    // byłyby zielone także po zerwaniu ostatniej ścieżki do resendu.
+    cleanup();
+    loginResult = { error: messages.login.signInFailed };
+    vi.resetModules();
+    const { LoginForm: LoginFormWithError } = await import("@/app/[locale]/(auth)/login/form");
+    const { container: errorContainer } = wrap(<LoginFormWithError />);
+    const form = errorContainer.querySelector("form")!;
+    await act(async () => {
+      fireEvent.submit(form);
+      await Promise.resolve();
+    });
+    const errorHrefs = [
+      ...errorContainer.querySelectorAll("[data-login-error] a"),
+    ].map((a) => a.getAttribute("href"));
+    expect(errorHrefs).toContain("/register/sprawdz-skrzynke");
   });
 
   it("rejestracja: ten sam kontener, ta sama reguła", async () => {
@@ -280,6 +299,8 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
 
     const links = container.querySelector("[data-auth-links]")!;
     expect(links.className).toContain("flex-col");
-    expect(links.children.length).toBe(2);
+    // JEDNO stałe wyjście („Masz już konto?") — „Nie dostałeś maila…" zszedł
+    // w ADR-208 i ta liczba jest do świadomej zmiany, nie do dopasowania.
+    expect(links.children.length).toBe(1);
   });
 });

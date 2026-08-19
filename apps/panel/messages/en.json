@@ -296,20 +296,18 @@
     "resendConfirmation": "Send the confirmation link again",
     "signInFailed": "We could not sign you in. Check your email and password. If the account is new, confirm the address from the message we sent first.",
     "resetDone": "Your password has been changed. Sign in with the new one.",
-    "subtitle": "Rental panel — reservations, orders and your store.",
     "noAccount": "No account yet?"
   },
   "register": {
-    "title": "Launch your rental company",
+    "title": "Create your account in minutes!",
     "submit": "Create an account",
     "submitPending": "Signing up…",
     "haveAccount": "Already have an account?",
     "login": "Sign in",
     "captchaFailed": "CAPTCHA verification failed.",
-    "subtitle": "14 days free, no card. Nothing charges itself.",
-    "passwordHint": "At least 8 characters. We do not require digits or special characters.",
-    "afterCta": "You confirm the address by email, then you create the organization.",
-    "noConfirmationMail": "Confirmation email did not arrive?"
+    "subtitle": "14 days free, no hidden fees.",
+    "passwordHint": "At least 8 characters, including a digit and a special character.",
+    "afterCta": "You confirm the address by email, then you create the organization."
   },
   "checkInbox": {
     "title": "Check your inbox",
@@ -320,8 +318,6 @@
     "resendPending": "Sending…",
     "resendDone": "If this address needs confirmation, the message has been sent. Check your spam folder too.",
     "resendThrottled": "Too many attempts. Please try again in a moment.",
-    "factLinkLabel": "Confirmation link",
-    "factLinkValue": "Single-use — it stops working once clicked",
     "factMissingLabel": "Cannot see the message?",
     "factMissingValue": "Check your spam folder and the Promotions tab",
     "backToLogin": "Back to sign in"
@@ -345,7 +341,7 @@
     "requestNewLink": "Request a new link",
     "backToLogin": "Back to sign in",
     "subtitle": "Once saved, you sign in with the new password.",
-    "passwordHint": "At least 8 characters. We do not require digits or special characters."
+    "passwordHint": "At least 8 characters, including a digit and a special character."
   },
   "authError": {
     "emailRateLimit": "We have already sent the maximum number of messages to this address. Please try again in an hour.",
@@ -360,21 +356,12 @@
   "authShell": {
     "brandHome": "Avably website",
     "emailPlaceholder": "you@yourcompany.com",
-    "signupClaim": "Rental software for equipment hire.",
-    "signinClaim": "Your rental company's panel.",
-    "safetyTitle": "We never ask for your password",
-    "safetyBody": "by email or over the phone. Check that the address bar says {host}.",
+    "signupClaim": "Set up your rental business in just a few minutes!",
     "signals": {
-      "trialTitle": "14 days free — no card",
-      "trialNote": "Nothing charges itself.",
-      "noCommissionTitle": "No transaction commission",
-      "noCommissionNote": "You pay a subscription, not a percentage.",
-      "seatsTitle": "No user limit",
-      "seatsNote": "The whole team for the same price.",
-      "euDataTitle": "Data in the European Union",
-      "euDataNote": "Hosting and database in the EU region.",
-      "noLockInTitle": "No annual contract",
-      "noLockInNote": "No setup fee either."
+      "trialTitle": "14 days free - no card required",
+      "trialNote": "You can cancel with no hidden costs.",
+      "seatsTitle": "Your whole team - for one price.",
+      "noLockInTitle": "No hidden extra costs."
     },
     "terms": "Terms of service",
     "privacy": "Privacy policy",
@@ -484,7 +471,7 @@
     "currentPasswordLabel": "Current password",
     "newPasswordLabel": "New password",
     "confirmPasswordLabel": "Repeat new password",
-    "passwordRule": "At least 8 characters.",
+    "passwordRule": "At least 8 characters, including a digit and a special character.",
     "passwordSubmit": "Change password",
     "passwordSuccess": "Password changed. Your other devices have been signed out.",
     "passwordChangedRelogin": "Password changed. This session has expired — sign in with the new password.",

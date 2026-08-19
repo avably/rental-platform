@@ -294,22 +294,20 @@
     "register": "Załóż konto",
     "forgotPassword": "Nie pamiętam hasła",
     "resendConfirmation": "Wyślij link potwierdzający ponownie",
-    "signInFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło. Jeśli konto jest nowe — najpierw potwierdź adres z wiadomości, którą wysłaliśmy.",
+    "signInFailed": "Nie udało się zalogować. Sprawdź e-mail i hasło. Jeśli konto jest nowe - najpierw potwierdź adres z wiadomości, którą wysłaliśmy.",
     "resetDone": "Hasło zostało zmienione. Zaloguj się nowym hasłem.",
-    "subtitle": "Panel wypożyczalni — rezerwacje, zamówienia i sklep.",
     "noAccount": "Nie masz konta?"
   },
   "register": {
-    "title": "Uruchom swoją wypożyczalnię",
+    "title": "Załóż konto w kilka minut!",
     "submit": "Załóż konto",
     "submitPending": "Rejestruję…",
     "haveAccount": "Masz już konto?",
     "login": "Zaloguj się",
     "captchaFailed": "Weryfikacja CAPTCHA nie powiodła się.",
-    "subtitle": "14 dni za darmo, bez karty. Nic się samo nie naliczy.",
-    "passwordHint": "Co najmniej 8 znaków. Nie wymagamy cyfr ani znaków specjalnych.",
-    "afterCta": "Potwierdzisz adres e-mailem, potem założysz organizację.",
-    "noConfirmationMail": "Nie dostałeś maila potwierdzającego?"
+    "subtitle": "14 dni za darmo, bez ukrytych opłat.",
+    "passwordHint": "Co najmniej 8 znaków, w tym cyfra i znak specjalny.",
+    "afterCta": "Potwierdzisz adres e-mailem, potem założysz organizację."
   },
   "checkInbox": {
     "title": "Sprawdź skrzynkę",
@@ -320,8 +318,6 @@
     "resendPending": "Wysyłam…",
     "resendDone": "Jeśli ten adres wymaga potwierdzenia, wiadomość została wysłana. Sprawdź też folder ze spamem.",
     "resendThrottled": "Zbyt wiele prób. Spróbuj ponownie za chwilę.",
-    "factLinkLabel": "Link potwierdzający",
-    "factLinkValue": "Jednorazowy — po kliknięciu przestaje działać",
     "factMissingLabel": "Nie widzisz wiadomości?",
     "factMissingValue": "Zajrzyj do spamu i do zakładki Oferty",
     "backToLogin": "Wróć do logowania"
@@ -345,7 +341,7 @@
     "requestNewLink": "Poproś o nowy link",
     "backToLogin": "Wróć do logowania",
     "subtitle": "Po zapisaniu zalogujesz się nowym hasłem.",
-    "passwordHint": "Co najmniej 8 znaków. Nie wymagamy cyfr ani znaków specjalnych."
+    "passwordHint": "Co najmniej 8 znaków, w tym cyfra i znak specjalny."
   },
   "authError": {
     "emailRateLimit": "Wysłaliśmy już maksymalną liczbę wiadomości na ten adres. Spróbuj ponownie za godzinę.",
@@ -360,21 +356,12 @@
   "authShell": {
     "brandHome": "Strona Avably",
     "emailPlaceholder": "ty@twojafirma.pl",
-    "signupClaim": "Panel wynajmu dla wypożyczalni sprzętu.",
-    "signinClaim": "Panel Twojej wypożyczalni.",
-    "safetyTitle": "Nigdy nie prosimy o hasło",
-    "safetyBody": "mailem ani przez telefon. Sprawdź, czy w pasku adresu jest {host}.",
+    "signupClaim": "Załóż swoją wypożyczalnię w ciągu kilku minut!",
     "signals": {
-      "trialTitle": "14 dni za darmo — bez karty",
-      "trialNote": "Nic się samo nie naliczy.",
-      "noCommissionTitle": "Bez prowizji od transakcji",
-      "noCommissionNote": "Płacisz abonament, nie procent.",
-      "seatsTitle": "Bez limitu użytkowników",
-      "seatsNote": "Cały zespół w tej samej cenie.",
-      "euDataTitle": "Dane w Unii Europejskiej",
-      "euDataNote": "Hosting i baza w regionie EU.",
-      "noLockInTitle": "Bez umowy na rok",
-      "noLockInNote": "Nie ma też opłaty wdrożeniowej."
+      "trialTitle": "14 dni za darmo - bez podawania karty",
+      "trialNote": "Możesz zrezygnować bez ukrytych kosztów.",
+      "seatsTitle": "Cały zespół - w jednej cenie.",
+      "noLockInTitle": "Bez ukrytych dodatkowych kosztów."
     },
     "terms": "Regulamin",
     "privacy": "Polityka prywatności",
@@ -484,7 +471,7 @@
     "currentPasswordLabel": "Obecne hasło",
     "newPasswordLabel": "Nowe hasło",
     "confirmPasswordLabel": "Powtórz nowe hasło",
-    "passwordRule": "Co najmniej 8 znaków.",
+    "passwordRule": "Co najmniej 8 znaków, w tym cyfra i znak specjalny.",
     "passwordSubmit": "Zmień hasło",
     "passwordSuccess": "Hasło zmienione. Pozostałe urządzenia zostały wylogowane.",
     "passwordChangedRelogin": "Hasło zmienione. Ta sesja wygasła — zaloguj się nowym hasłem.",
