@@ -1,14 +1,27 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { Font } from "@react-pdf/renderer";
 
-// Roboto (Latin Extended) — pełna obsługa polskich znaków. Fonty leżą w pakiecie
-// (`assets/fonts/`) i są ROZWIĄZYWANE względem tego modułu, nie względem
-// `process.cwd()` — pakiet nie zakłada, z jakiego katalogu go uruchomiono.
-// Wbudowana Helvetica @react-pdf używa kodowania WinAnsi bez ł/ą/ę/ż/ś/ć/ń/ź,
-// więc bez własnego fontu polski tekst gubiłby glify (i psuł ekstrakcję tekstu).
-const fontsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "assets", "fonts");
+import {
+  ROBOTO_BOLD_TTF_BASE64,
+  ROBOTO_ITALIC_TTF_BASE64,
+  ROBOTO_REGULAR_TTF_BASE64,
+} from "./fonts-data";
+
+// Roboto (Latin Extended) — pełna obsługa polskich znaków. Wbudowana Helvetica
+// @react-pdf używa kodowania WinAnsi bez ł/ą/ę/ż/ś/ć/ń/ź, więc bez własnego
+// fontu polski tekst gubiłby glify (i psuł ekstrakcję tekstu).
+//
+// Bajty czcionek są OSADZONE w module (`fonts-data.ts`, base64) i podawane do
+// silnika jako data-URI — NIE jako ścieżka pliku. To świadoma decyzja z ADR-220:
+// na Vercelu (`next build` = Turbopack) tracer `@vercel/nft` nie wykrywał
+// dynamicznej ścieżki `fs`, więc `.ttf` nie trafiały do funkcji serverless i
+// render umowy padał na `ENOENT Roboto-Regular.ttf`. `@react-pdf/font@4.0.8` dla
+// `src` będącego data-URI dekoduje base64 przez `fontkit.create` — bez żadnego
+// odczytu z dysku, więc render jest niezależny od tracingu i układu bundla.
+//
+// Źródłem prawdy zostają pliki `packages/pdf/assets/fonts/*.ttf`; moduł
+// `fonts-data.ts` jest z nich GENEROWANY (`scripts/generate-pdf-fonts-data.mjs`)
+// i pilnowany testem `test/fonts-data.test.ts`.
+const dataUri = (base64: string): string => `data:font/ttf;base64,${base64}`;
 
 let registered = false;
 
@@ -22,9 +35,9 @@ export function registerFonts(): void {
   Font.register({
     family: "Roboto",
     fonts: [
-      { src: join(fontsDir, "Roboto-Regular.ttf"), fontWeight: 400 },
-      { src: join(fontsDir, "Roboto-Bold.ttf"), fontWeight: 700 },
-      { src: join(fontsDir, "Roboto-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: dataUri(ROBOTO_REGULAR_TTF_BASE64), fontWeight: 400 },
+      { src: dataUri(ROBOTO_BOLD_TTF_BASE64), fontWeight: 700 },
+      { src: dataUri(ROBOTO_ITALIC_TTF_BASE64), fontWeight: 400, fontStyle: "italic" },
     ],
   });
 
