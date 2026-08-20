@@ -33,13 +33,21 @@ interface MyOrganizationRow {
 export async function readMyOrganizations(
   supabase: SupabaseClient,
 ): Promise<PanelOrganization[]> {
-  const { data, error } = await supabase.schema("app").rpc("my_organizations");
-  if (error || !Array.isArray(data)) return [];
+  // FAIL-SILENT TWARDO: picker to chrome powłoki, nie bramka — żaden błąd tego
+  // odczytu (błąd transportu, wyjątek klienta) nie ma prawa wywrócić layoutu.
+  // try/catch obejmuje też rzuty (nie tylko `error` z PostgREST): pusta lista
+  // = picker ukryty, dokładnie jak przy 1 członkostwie.
+  try {
+    const { data, error } = await supabase.schema("app").rpc("my_organizations");
+    if (error || !Array.isArray(data)) return [];
 
-  return (data as MyOrganizationRow[]).map((row) => ({
-    tenantId: row.tenant_id,
-    name: row.name,
-    slug: row.slug,
-    role: row.role,
-  }));
+    return (data as MyOrganizationRow[]).map((row) => ({
+      tenantId: row.tenant_id,
+      name: row.name,
+      slug: row.slug,
+      role: row.role,
+    }));
+  } catch {
+    return [];
+  }
 }
