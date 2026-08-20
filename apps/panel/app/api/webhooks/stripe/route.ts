@@ -42,7 +42,12 @@
  * — dostawca ponowi, a my zobaczymy powód w logach zamiast cicho gubić
  * płatności.
  */
-import { readDepositRefund, readPaymentIntent, requireStripeWebhookSecret } from "@avably/core";
+import {
+  readDepositRefund,
+  readPaymentIntent,
+  requireStripeWebhookSecret,
+  syncConnectAccountSafely,
+} from "@avably/core";
 import { createServiceClient } from "@avably/db/service";
 
 import { handleStripeWebhook } from "@/lib/stripe-webhook";
@@ -90,6 +95,11 @@ export async function POST(request: Request): Promise<Response> {
     // a o tym, czy pieniądze wróciły do klienta, mówi dopiero odczyt.
     readRefund: (refundId, connectedAccountId) =>
       readDepositRefund(refundId, { connectedAccountId }),
+    // Cykl życia konta (ADR-213) — PULL prawdy o gotowości z GET /v1/accounts.
+    // Odczyt konta idzie na kluczu PLATFORMY (bez nagłówka Stripe-Account):
+    // to platforma retrieve'uje konta połączone. syncConnectAccountSafely
+    // NIGDY nie rzuca i redaguje sekret w porcie.
+    syncAccount: (providerAccountId) => syncConnectAccountSafely(providerAccountId),
     secret,
   });
 }

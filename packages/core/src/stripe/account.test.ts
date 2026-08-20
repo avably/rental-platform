@@ -102,6 +102,14 @@ describe("dwie osi gotowości pozostają rozdzielne", () => {
     expect(canAcceptCharges(restricted)).toBe(true);
   });
 
+  it("konto ZAWIESZONE (charges_enabled=false) NIE przyjmuje — bramka ADR-049 zamyka tor online", () => {
+    // Domknięcie osi ADR-213: gdy zdarzenie account.updated/deauthorized zbije
+    // `charges_enabled` na false, ta sama bramka, którą czyta checkout, ma
+    // zamknąć płatność online. `canAcceptCharges` jest jej jedynym orzekaniem.
+    const suspended: ConnectAccountState = { ...READY, chargesEnabled: false };
+    expect(canAcceptCharges(suspended)).toBe(false);
+  });
+
   it("ale nie jest gotowe — ma własny stan prezentacyjny", () => {
     expect(connectAccountStage(restricted)).toBe("payouts_blocked");
     expect(connectAccountStage(READY)).toBe("ready");

@@ -287,6 +287,9 @@ describe.skipIf(!hasEnv)("mail „płatność zaksięgowana” — ADR-139", () 
     readRefund: async (): Promise<never> => {
       throw new Error("Ta suita nie dotyka gałęzi zwrotów.");
     },
+    syncAccount: async (): Promise<never> => {
+      throw new Error("Ta suita nie dotyka gałęzi konta.");
+    },
     secret: SECRET,
     ...(paymentEmail ? { paymentEmail } : {}),
   });
