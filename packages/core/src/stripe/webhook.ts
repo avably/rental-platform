@@ -235,6 +235,21 @@ export interface StripeEventEnvelope {
   type: string;
   /** `data.object.id` — np. `pi_...`. JEDYNY nośnik treści z ciała. */
   objectId: string;
+  /**
+   * Górnopoziomowe `event.account` (`acct_...`) — na KTÓRYM koncie połączonym
+   * powstało zdarzenie. To NADAL identyfikator, nie stan: mówi WYŁĄCZNIE
+   * „którego konta dotyczy", tak jak `objectId` mówi „którego obiektu". Nie
+   * przechodzi tędy ani jedno pole gotowości — o to pyta się dostawcy
+   * odczytem (ADR-049).
+   *
+   * `null` dla zdarzeń PLATFORMY (płatności/refundy na koncie platformy nie
+   * niosą tego pola). Konieczne dla osi KONTA (ADR-213): przy
+   * `account.application.deauthorized` obiektem z ciała jest APLIKACJA
+   * (`ca_...`), więc identyfikator konta najemcy istnieje TYLKO tutaj, a nie
+   * w `objectId`. Tożsamość najemcy i tak wychodzi z NASZEJ bazy po tym
+   * identyfikatorze, nigdy z pól stanu payloadu.
+   */
+  account: string | null;
 }
 
 export type StripeEventParseResult =
@@ -275,6 +290,11 @@ export function parseStripeEvent(payload: string): StripeEventParseResult {
         ? ((object as Record<string, unknown>).id as string)
         : ""
       : "";
+  // Górnopoziomowe `account` — identyfikator konta połączonego, gdy jest.
+  // Pusty/brak = `null` (zdarzenie platformy).
+  const account = typeof record.account === "string" && record.account.length > 0
+    ? record.account
+    : null;
 
   if (!id || !type) {
     return { ok: false, message: "Zdarzenie nie ma identyfikatora albo typu." };
@@ -283,7 +303,7 @@ export function parseStripeEvent(payload: string): StripeEventParseResult {
     return { ok: false, message: "Zdarzenie nie wskazuje obiektu (data.object.id)." };
   }
 
-  return { ok: true, event: { id, type, objectId } };
+  return { ok: true, event: { id, type, objectId, account } };
 }
 
 /**

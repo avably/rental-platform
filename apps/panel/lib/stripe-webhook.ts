@@ -49,12 +49,14 @@
  */
 import {
   STRIPE_SIGNATURE_HEADER,
+  isObservedAccountEvent,
   isObservedIntentEvent,
   isObservedRefundEvent,
   parseStripeEvent,
   refundVerdict,
   settlementVerdict,
   verifyStripeSignature,
+  type ConnectAccountSync,
   type IntentRead,
   type RefundRead,
   type StripeEventEnvelope,
@@ -91,6 +93,16 @@ export interface StripeWebhookDeps {
    * pieniądze wróciły do klienta, mówi wyłącznie ten odczyt.
    */
   readRefund: (refundId: string, connectedAccountId: string) => Promise<RefundRead>;
+  /**
+   * PULL prawdy o KONCIE połączonym (ADR-213) — lustro `readIntent`/`readRefund`.
+   * Zdarzenie `account.updated` niesie sam `acct_...`; o gotowości konta mówi
+   * wyłącznie `GET /v1/accounts/{id}` (`syncConnectAccountSafely`). Funkcja
+   * NIGDY nie rzuca — porażka odczytu wraca jako `{ ok:false, state:null,
+   * error }`, więc handler zapisuje sam `last_error`, nie zerując gotowości.
+   * Komunikaty dostawcy przechodzą przez `redactSecretKey` już w porcie
+   * (`api.ts`), zanim tu dotrą.
+   */
+  syncAccount: (providerAccountId: string) => Promise<ConnectAccountSync>;
   /** Sekret podpisu. Wstrzykiwany, żeby test nie zależał od env procesu. */
   secret: string | undefined;
   /** Zegar do okna tolerancji podpisu. */
@@ -354,6 +366,163 @@ async function handleRefundEvent(
   });
 }
 
+/** Wiersz konta najemcy — punkt zaczepienia zdarzeń KONTA (0028). */
+interface PaymentAccountRow {
+  tenant_id: string;
+  provider_account_id: string;
+}
+
+/**
+ * Gałąź zdarzeń CYKLU ŻYCIA KONTA (ADR-213).
+ *
+ * Domyka najpoważniejszą lukę toru Connect (ADR-049): dziś stan konta w bazie
+ * odświeża się TYLKO wtedy, gdy najemca wejdzie do panelu albo checkout zrobi
+ * odczyt na żywo — więc zawieszenie konta przez dostawcę nie propaguje się
+ * do migawki, a panel/pulpit pokazują nieaktualną gotowość.
+ *
+ * ================== TRZY REGUŁY, KTÓRYCH TA GAŁĄŹ PILNUJE ==================
+ *
+ * 1. TOŻSAMOŚĆ NAJEMCY Z NASZEJ BAZY, NIGDY Z PAYLOADU. Z ciała bierzemy
+ *    wyłącznie IDENTYFIKATOR konta (`event.account`, `acct_...`) — którego
+ *    konta dotyczy zdarzenie. Po tym identyfikatorze odczytujemy wiersz
+ *    `payment_accounts`; to on mówi, czyj to najemca. Ani jedno pole stanu
+ *    z payloadu nie wchodzi do zapisu. Brak wiersza = konto nie jest nasze
+ *    (konto platformy, cudze konto): rejestrujemy zdarzenie i milczymy.
+ *
+ * 2. STAN Z ODCZYTU (`account.updated`). Zdarzenie mówi tylko „odśwież to
+ *    konto"; JAKI jest stan, mówi `GET /v1/accounts/{id}` (`syncAccount`).
+ *    FAIL-SAFE: porażka odczytu zapisuje SAM `last_error` i zostawia
+ *    kolumny gotowości nietknięte — awaria po naszej stronie nie ma prawa
+ *    wyglądać jak „konto przestało przyjmować płatności" (lustro
+ *    `cacheFromSync` z akcji panelu).
+ *
+ * 3. DEAUTORYZACJA ZAMYKA TOR ONLINE (`account.application.deauthorized`).
+ *    Najemca odłączył aplikację — platforma straciła dostęp do konta, więc
+ *    odczyt i tak by odmówił. Zamiast pytać o coś, czego już nie widzimy,
+ *    zerujemy migawkę gotowości (`charges_enabled=false`, `payouts_enabled=
+ *    false`) z powodem w `last_error`. To zamyka bramkę sprzedaży ADR-049
+ *    (`canAcceptCharges` czyta `charges_enabled`). WIĄZANIA NIE KASUJEMY:
+ *    usunięcie wiersza to świadoma akcja WŁAŚCICIELA (0028), nie skutek
+ *    uboczny zdarzenia; provider_account_id i historia zostają.
+ *
+ * `provider_account_id` NIE JEST tu pisany ANI RAZU — piszemy wyłącznie
+ * kolumny stanu. Nawet gdyby był: trigger niezmienności 0028 (BEFORE UPDATE
+ * → 23514) FIRE'uje także dla `service_role` (bypassrls nie omija triggerów),
+ * więc bramka konta stoi niezależnie od tej ścieżki.
+ */
+async function handleAccountEvent(
+  event: StripeEventEnvelope,
+  eventRowId: string,
+  deps: StripeWebhookDeps,
+): Promise<Response> {
+  // IDENTYFIKATOR z górnopoziomowego `event.account`, nie z `data.object`:
+  // przy `account.application.deauthorized` obiektem ciała jest APLIKACJA
+  // (`ca_...`), więc `acct_...` żyje wyłącznie w tym polu.
+  const accountId = event.account;
+  if (!accountId) {
+    await finish(
+      deps.db,
+      eventRowId,
+      "processed",
+      `Zdarzenie ${event.type} bez identyfikatora konta (event.account) — zarejestrowane bez zapisu stanu.`,
+    );
+    return json(200, { status: "unrelated", eventId: event.id });
+  }
+
+  // TOŻSAMOŚĆ NAJEMCY z NASZEJ bazy po identyfikatorze konta — nigdy z ciała.
+  const accountQuery = await deps.db
+    .from("payment_accounts")
+    .select("tenant_id, provider_account_id")
+    .eq("provider_account_id", accountId)
+    .maybeSingle();
+
+  if (accountQuery.error) {
+    // Nie wiemy, czyje to konto — więc nie wolno nam nic zapisać ani
+    // potwierdzić. Awaria przejściowa: zwalniamy dzierżawę, dostawca ponowi.
+    await release(deps.db, eventRowId);
+    return json(500, { error: `Odczyt konta najemcy nie powiódł się: ${accountQuery.error.message}` });
+  }
+
+  const account = accountQuery.data as PaymentAccountRow | null;
+  if (!account) {
+    // Konto nie jest nasze (konto platformy, cudze konto Connect). Rejestr
+    // niesie ślad, że przyszło, ale żaden stan nie jest naszym stanem.
+    await finish(
+      deps.db,
+      eventRowId,
+      "processed",
+      `Konto ${accountId} nie jest związane z żadnym najemcą — zarejestrowane bez zapisu stanu.`,
+    );
+    return json(200, { status: "unrelated", eventId: event.id });
+  }
+
+  // --- DEAUTORYZACJA: zamknięcie toru online bez odczytu (patrz reguła 3) ---
+  if (event.type === "account.application.deauthorized") {
+    const { error } = await deps.db
+      .from("payment_accounts")
+      .update({
+        charges_enabled: false,
+        payouts_enabled: false,
+        last_error:
+          "Najemca odłączył aplikację od konta płatności (account.application.deauthorized) — tor online zamknięty do ponownego onboardingu.",
+        last_synced_at: new Date().toISOString(),
+      })
+      // Filtr po tenant_id (PK) NA WIERZCHU — piszemy wyłącznie kolumny stanu,
+      // provider_account_id nietknięty (broni go i tak trigger 0028).
+      .eq("tenant_id", account.tenant_id);
+
+    if (error) {
+      await release(deps.db, eventRowId);
+      return json(500, { error: `Zapis stanu konta nie powiódł się: ${error.message}` });
+    }
+
+    await finish(deps.db, eventRowId, "processed", "Konto odłączone — tor online zamknięty.");
+    return json(200, { status: "deauthorized", eventId: event.id });
+  }
+
+  // --- account.updated: PULL prawdy i przepisanie migawki gotowości ---
+  //
+  // Odczyt idzie na `provider_account_id` z NASZEGO wiersza, nie na wartość
+  // z ciała — nawet gdyby ciało niosło inny `acct_...`, pytamy o konto, które
+  // znaleźliśmy po identyfikatorze zdarzenia.
+  const sync = await deps.syncAccount(account.provider_account_id);
+
+  // FAIL-SAFE: przy porażce odczytu (`state === null`) piszemy SAM `last_error`
+  // i zostawiamy kolumny gotowości nietknięte — lustro `cacheFromSync`.
+  const patch = sync.state
+    ? {
+        charges_enabled: sync.state.chargesEnabled,
+        payouts_enabled: sync.state.payoutsEnabled,
+        details_submitted: sync.state.detailsSubmitted,
+        requirements_due: sync.state.requirementsDue,
+        last_error: null,
+        last_synced_at: new Date().toISOString(),
+      }
+    : { last_error: sync.error };
+
+  const { error } = await deps.db
+    .from("payment_accounts")
+    .update(patch)
+    .eq("tenant_id", account.tenant_id);
+
+  if (error) {
+    await release(deps.db, eventRowId);
+    return json(500, { error: `Zapis stanu konta nie powiódł się: ${error.message}` });
+  }
+
+  // Odczyt się udał → wiersz odświeżony, `processed` bez powodu. Odczyt padł →
+  // stan poprzedni zostaje, a powód (już zredagowany w porcie) trafia do
+  // rejestru jako uzasadnienie PRZETWORZONEGO wiersza (wzorzec 8b/ADR-046):
+  // ponowienie przez dostawcę nie naprawi trwałej awarii konfiguracji, a stan
+  // najemcy i tak nie ucierpiał.
+  await finish(deps.db, eventRowId, "processed", sync.ok ? null : sync.error);
+  return json(200, {
+    status: "processed",
+    eventId: event.id,
+    accountSynced: sync.ok,
+  });
+}
+
 export async function handleStripeWebhook(
   request: Request,
   deps: StripeWebhookDeps,
@@ -416,6 +585,16 @@ export async function handleStripeWebhook(
   // i chybiałoby CICHO, jako „zdarzenie niepowiązane".
   if (isObservedRefundEvent(event.type)) {
     return handleRefundEvent(event, eventRowId, deps);
+  }
+
+  // --- Zdarzenia KONTA idą własną gałęzią (ADR-213) ---
+  //
+  // Rozgałęzienie stoi PRZED filtrem intentów, bo obiekt zdarzenia jest tu
+  // inny: `acct_...`/`ca_...`, nie `pi_...`. Gdyby account.updated przeszło
+  // do gałęzi intentów, filtr `isObservedIntentEvent` odłożyłby je jako
+  // „ignored" i stan konta nigdy by się nie odświeżył.
+  if (isObservedAccountEvent(event.type)) {
+    return handleAccountEvent(event, eventRowId, deps);
   }
 
   // --- Czy to zdarzenie w ogóle nas obchodzi ---

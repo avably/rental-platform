@@ -58,10 +58,12 @@ export {
 } from "./billing-state";
 
 export {
+  OBSERVED_ACCOUNT_EVENTS,
   canAcceptCharges,
   connectAccountStage,
   createConnectAccount,
   createOnboardingLink,
+  isObservedAccountEvent,
   readConnectAccount,
   syncConnectAccountSafely,
   type ConnectAccountDeps,

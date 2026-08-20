@@ -17,6 +17,7 @@ import { createHmac } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
+import { OBSERVED_ACCOUNT_EVENTS, isObservedAccountEvent } from "./account";
 import type { IntentRead } from "./types";
 import {
   OBSERVED_INTENT_EVENTS,
@@ -223,7 +224,7 @@ describe("verifyStripeSignature", () => {
 // -----------------------------------------------------------------------
 
 describe("parseStripeEvent", () => {
-  it("zwraca WYŁĄCZNIE id zdarzenia, typ i id obiektu", () => {
+  it("zwraca WYŁĄCZNIE identyfikatory: id zdarzenia, typ, id obiektu i konto", () => {
     const parsed = parseStripeEvent(eventBody());
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
@@ -232,11 +233,36 @@ describe("parseStripeEvent", () => {
       id: "evt_test_1",
       type: "payment_intent.succeeded",
       objectId: "pi_test_1",
+      // Płatność na koncie platformy nie niesie górnopoziomowego `account`.
+      account: null,
     });
     // Klucze koperty są WYLICZONE, nie sprawdzone „czy zawiera": dopisanie
     // `status` albo `amount` do zwracanego kształtu ma zapalić ten test,
-    // bo od tej chwili stan byłby dostępny wołającemu pod ręką.
-    expect(Object.keys(parsed.event).sort()).toEqual(["id", "objectId", "type"]);
+    // bo od tej chwili STAN byłby dostępny wołającemu pod ręką. `account`
+    // jest tu dopuszczony ŚWIADOMIE — to IDENTYFIKATOR konta (którego), nie
+    // pole gotowości (ADR-213), więc mieści się w regule „tylko identyfikatory".
+    expect(Object.keys(parsed.event).sort()).toEqual(["account", "id", "objectId", "type"]);
+  });
+
+  it("wyłuskuje górnopoziomowe event.account (konto połączone) jako IDENTYFIKATOR", () => {
+    // Zdarzenie KONTA (ADR-213): górnopoziomowe `account` niesie `acct_...`,
+    // a `data.object` może opisywać INNY obiekt (aplikację przy deautoryzacji).
+    const parsed = parseStripeEvent(
+      JSON.stringify({
+        id: "evt_acct_1",
+        type: "account.updated",
+        account: "acct_najemcy_1",
+        data: { object: { id: "acct_najemcy_1", charges_enabled: true } },
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    expect(parsed.event.account).toBe("acct_najemcy_1");
+    // Ani jedno pole STANU z ciała nie przeszło — `charges_enabled: true`
+    // z payloadu nie ma jak trafić do koperty.
+    expect(JSON.stringify(parsed.event)).not.toContain("charges_enabled");
+    expect(JSON.stringify(parsed.event)).not.toContain("true");
   });
 
   it("ignoruje status i kwotę z ciała, choćby były sprzeczne z rzeczywistością", () => {
@@ -256,6 +282,7 @@ describe("parseStripeEvent", () => {
       id: "evt_x",
       type: "payment_intent.processing",
       objectId: "pi_x",
+      account: null,
     });
     expect(JSON.stringify(parsed.event)).not.toContain("99999999");
     expect(JSON.stringify(parsed.event)).not.toContain("succeeded");
@@ -292,7 +319,11 @@ describe("isObservedIntentEvent", () => {
 
   it("nie obejmuje zdarzeń spoza cyklu płatności zamówienia", () => {
     expect(isObservedIntentEvent("customer.created")).toBe(false);
+    // account.updated NIE jest zdarzeniem INTENTU — obsługuje je własna gałąź
+    // konta (ADR-213), nie ta lista. Gdyby wjechało tu, handler wykonałby
+    // `readPaymentIntent` na `acct_...`, który intentem nie jest.
     expect(isObservedIntentEvent("account.updated")).toBe(false);
+    expect(isObservedIntentEvent("account.application.deauthorized")).toBe(false);
   });
 
   it("lista obserwowanych typów dotyczy WYŁĄCZNIE obiektu payment_intent", () => {
@@ -300,6 +331,35 @@ describe("isObservedIntentEvent", () => {
     // `readPaymentIntent` na identyfikatorze, który intentem nie jest.
     for (const type of OBSERVED_INTENT_EVENTS) {
       expect(type.startsWith("payment_intent.")).toBe(true);
+    }
+  });
+});
+
+describe("isObservedAccountEvent", () => {
+  /**
+   * ODWRÓCENIE STANU SPRZED ADR-213. Wcześniej `account.updated` było dla
+   * systemu zdarzeniem NIEOBSERWOWANYM — rejestrowanym i zostawianym bez
+   * reakcji. Od ADR-213 jest OBSERWOWANE własną gałęzią: to ono odświeża
+   * migawkę stanu konta ze zdarzenia zamiast czekać na wejście najemcy
+   * do panelu.
+   */
+  it("OBEJMUJE account.updated i account.application.deauthorized", () => {
+    expect(isObservedAccountEvent("account.updated")).toBe(true);
+    expect(isObservedAccountEvent("account.application.deauthorized")).toBe(true);
+  });
+
+  it("nie obejmuje zdarzeń intentu, zwrotu ani obcych typów", () => {
+    expect(isObservedAccountEvent("payment_intent.succeeded")).toBe(false);
+    expect(isObservedAccountEvent("charge.refund.updated")).toBe(false);
+    expect(isObservedAccountEvent("customer.created")).toBe(false);
+  });
+
+  it("lista obserwowanych typów dotyczy WYŁĄCZNIE obiektu account", () => {
+    // Lustro strażnika listy intentów: gdyby wjechał tu typ innego obiektu,
+    // handler konta odczytałby stan konta po identyfikatorze, który kontem
+    // nie jest.
+    for (const type of OBSERVED_ACCOUNT_EVENTS) {
+      expect(type.startsWith("account.")).toBe(true);
     }
   });
 });

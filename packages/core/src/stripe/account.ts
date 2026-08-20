@@ -125,3 +125,35 @@ export function connectAccountStage(
   if (!state.payoutsEnabled) return "payouts_blocked";
   return "ready";
 }
+
+/**
+ * Typy zdarzeń dostawcy dotyczących CYKLU ŻYCIA KONTA najemcy (ADR-213) —
+ * rozszerzenie listy obserwowanych z Z4 na oś Connect, lustro
+ * `OBSERVED_REFUND_EVENTS` i `OBSERVED_INTENT_EVENTS`.
+ *
+ * Ta lista NIE JEST mapą „typ → stan konta" — tak samo jak dwie pozostałe.
+ * Typ odpowiada wyłącznie na pytanie „czy warto teraz odświeżyć migawkę
+ * konta"; o to, JAKI jest stan, pyta się DOSTAWCY przez `GET /v1/accounts/{id}`
+ * (`syncConnectAccountSafely`). Ciało zdarzenia niesie tylko IDENTYFIKATOR
+ * konta (którego), nigdy jego stan — dokładnie ta sama reguła, na której
+ * stoi `webhook.ts` (ADR-049/067).
+ *
+ * DWA TYPY, DWA RÓŻNE ZNACZENIA:
+ *   - `account.updated` — dostawca zmienił coś w koncie (KYC przeszło,
+ *     konto zawieszone, doszły nowe wymagania). Reakcja: PULL prawdy
+ *     i przepisanie migawki gotowości.
+ *   - `account.application.deauthorized` — najemca odłączył naszą aplikację
+ *     od swojego konta. Od tej chwili konto NIE JEST już nasze: platforma
+ *     traci dostęp, `GET /v1/accounts/{id}` zaczyna odmawiać, a każda
+ *     płatność skierowana na to konto pada. Reakcja: zamknąć tor online
+ *     w migawce (`charges_enabled=false`), bez odczytu — bo nie ma już
+ *     czego odczytać.
+ */
+export const OBSERVED_ACCOUNT_EVENTS = [
+  "account.updated",
+  "account.application.deauthorized",
+] as const;
+
+export function isObservedAccountEvent(type: string): boolean {
+  return (OBSERVED_ACCOUNT_EVENTS as readonly string[]).includes(type);
+}

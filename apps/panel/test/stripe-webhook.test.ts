@@ -26,7 +26,13 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { signStripeWebhook, type IntentRead } from "@avably/core";
+import {
+  canAcceptCharges,
+  signStripeWebhook,
+  type ConnectAccountState,
+  type ConnectAccountSync,
+  type IntentRead,
+} from "@avably/core";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import { afterAll, describe, expect, it } from "vitest";
@@ -242,12 +248,20 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
   // w env (z kluczem suita wysyłałaby PRAWDZIWE maile, bez klucza rejestr
   // zdarzeń niósłby powód niewysłania zamiast NULL-a). Zachowanie samego
   // maila bada payment-confirmed-email.test.ts — tu ma być deterministyczne.
-  const deps = (readIntent: StripeReadIntent) => ({
+  const deps = (readIntent: StripeReadIntent, syncAccount?: StripeSyncAccount) => ({
     db: adminClient(),
     readIntent,
     readRefund: async (): Promise<never> => {
       throw new Error("Ta suita nie dotyka gałęzi zwrotów — patrz deposit-refund.test.ts");
     },
+    // Gałąź konta (ADR-213): domyślnie RZUCA — przypadki płatności jej nie
+    // dotykają, więc jej wywołanie ma być głośnym błędem. Testy konta niżej
+    // podstawiają własny odczyt.
+    syncAccount:
+      syncAccount ??
+      (async (): Promise<never> => {
+        throw new Error("Ten przypadek nie dotyka gałęzi konta");
+      }),
     secret: SECRET,
     paymentEmail: {
       transport: { send: async () => ({ id: "msg_test_z4" }) },
@@ -255,8 +269,15 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
     },
   });
   type StripeReadIntent = (intentId: string, connectedAccountId: string) => Promise<IntentRead>;
+  type StripeSyncAccount = (providerAccountId: string) => Promise<ConnectAccountSync>;
 
   const alwaysRead = (read: IntentRead): StripeReadIntent => async () => read;
+
+  // Odczyt intentu, którego przypadki KONTA nie dotykają — RZUCA, bo jego
+  // wywołanie znaczyłoby, że zdarzenie poszło nie tą gałęzią.
+  const noIntent: StripeReadIntent = async () => {
+    throw new Error("Przypadek konta nie dotyka gałęzi płatności");
+  };
 
   // -------------------------------------------------------------------
   // 1. Podpis — 400 i ZERO zapisu
@@ -684,6 +705,333 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       expect(retried.status).toBe(200);
       expect(await eventRows(eventId)).toHaveLength(1);
       expect(await paymentStatusOf(fixture.orderId)).toBe("paid");
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // 5. Cykl życia KONTA — account.updated / deauthorized (ADR-213)
+  // -------------------------------------------------------------------
+
+  describe("cykl życia konta — stan odświeża się ze zdarzenia, nie z payloadu", () => {
+    interface AccountFixture {
+      tenantId: string;
+      accountId: string;
+    }
+
+    /** Sklep z kontem u dostawcy o zadanej migawce gotowości (bez zamówienia). */
+    async function seedAccount(
+      snapshot: {
+        chargesEnabled?: boolean;
+        payoutsEnabled?: boolean;
+        detailsSubmitted?: boolean;
+      } = {},
+    ): Promise<AccountFixture> {
+      const { data: tenant, error: tenantError } = await admin
+        .from("tenants")
+        .insert({
+          slug: `z4a-${randomUUID().slice(0, 12)}`,
+          name: "Sklep konta",
+          status: "active",
+          locale: "pl",
+        })
+        .select("id")
+        .single();
+      if (tenantError || !tenant) throw new Error(`tenant: ${tenantError?.message}`);
+      const tenantId = tenant.id as string;
+      createdTenantIds.push(tenantId);
+
+      const accountId = `acct_${randomUUID().slice(0, 16)}`;
+      const { error: accountError } = await admin.from("payment_accounts").insert({
+        tenant_id: tenantId,
+        provider_account_id: accountId,
+        charges_enabled: snapshot.chargesEnabled ?? false,
+        payouts_enabled: snapshot.payoutsEnabled ?? false,
+        details_submitted: snapshot.detailsSubmitted ?? false,
+      });
+      if (accountError) throw new Error(`payment_accounts: ${accountError.message}`);
+
+      return { tenantId, accountId };
+    }
+
+    interface AccountSnapshotRow {
+      charges_enabled: boolean;
+      payouts_enabled: boolean;
+      details_submitted: boolean;
+      requirements_due: unknown;
+      last_error: string | null;
+      last_synced_at: string | null;
+      provider_account_id: string;
+    }
+
+    async function accountRow(tenantId: string): Promise<AccountSnapshotRow> {
+      const { data, error } = await admin
+        .from("payment_accounts")
+        .select(
+          "charges_enabled, payouts_enabled, details_submitted, requirements_due, last_error, last_synced_at, provider_account_id",
+        )
+        .eq("tenant_id", tenantId)
+        .single();
+      if (error) throw new Error(`odczyt konta: ${error.message}`);
+      return data as AccountSnapshotRow;
+    }
+
+    /**
+     * Ciało zdarzenia KONTA w kształcie dostawcy. `account` (górnopoziomowe)
+     * to identyfikator konta NAJEMCY; `data.object` może opisywać INNY obiekt
+     * (przy deautoryzacji — aplikację) i CELOWO niesie stan, którego handler
+     * NIE użyje.
+     */
+    function accountEventBody(input: {
+      eventId: string;
+      type: string;
+      account: string;
+      dataObjectId?: string;
+      /** Stan W CIELE — celowo sprzeczny z odczytem, ma NIE przejść. */
+      bodyChargesEnabled?: boolean;
+    }): string {
+      return JSON.stringify({
+        id: input.eventId,
+        type: input.type,
+        api_version: "2026-01-01",
+        account: input.account,
+        data: {
+          object: {
+            id: input.dataObjectId ?? input.account,
+            object: input.type.startsWith("account.application") ? "application" : "account",
+            charges_enabled: input.bodyChargesEnabled ?? true,
+            payouts_enabled: input.bodyChargesEnabled ?? true,
+          },
+        },
+      });
+    }
+
+    const state = (overrides: Partial<ConnectAccountState> = {}): ConnectAccountState => ({
+      providerAccountId: "acct_x",
+      chargesEnabled: true,
+      payoutsEnabled: true,
+      detailsSubmitted: true,
+      requirementsDue: [],
+      disabledReason: null,
+      ...overrides,
+    });
+
+    const syncOk =
+      (result: ConnectAccountState, calls?: string[]) =>
+      async (providerAccountId: string): Promise<ConnectAccountSync> => {
+        calls?.push(providerAccountId);
+        return { ok: true, state: { ...result, providerAccountId }, error: null };
+      };
+
+    const syncFail =
+      (error: string, calls?: string[]) =>
+      async (providerAccountId: string): Promise<ConnectAccountSync> => {
+        calls?.push(providerAccountId);
+        return { ok: false, state: null, error };
+      };
+
+    /**
+     * PULL PRAWDY: zdarzenie mówi tylko „odśwież"; gotowość bierze się
+     * z ODCZYTU, nie z ciała. Ciało niesie `charges_enabled:false`, a odczyt
+     * mówi `true` — do bazy ma trafić prawda z odczytu.
+     */
+    it("account.updated odświeża migawkę Z ODCZYTU, nie z payloadu", async () => {
+      const fixture = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const calls: string[] = [];
+
+      const response = await handleStripeWebhook(
+        signedRequest(
+          accountEventBody({
+            eventId,
+            type: "account.updated",
+            account: fixture.accountId,
+            bodyChargesEnabled: false,
+          }),
+        ),
+        deps(noIntent, syncOk(state({ requirementsDue: [] }), calls)),
+      );
+
+      expect(response.status).toBe(200);
+      // Odczyt wykonany na koncie z NASZEJ bazy — bez tego „gotowe" pochodziłoby
+      // z ciała zdarzenia.
+      expect(calls).toEqual([fixture.accountId]);
+
+      const row = await accountRow(fixture.tenantId);
+      expect(row.charges_enabled).toBe(true);
+      expect(row.payouts_enabled).toBe(true);
+      expect(row.details_submitted).toBe(true);
+      expect(row.last_error).toBeNull();
+      expect(row.last_synced_at).not.toBeNull();
+
+      const [event] = await eventRows(eventId);
+      expect(event?.status).toBe("processed");
+      expect(event?.error).toBeNull();
+    });
+
+    /**
+     * IZOLACJA TENANTÓW (KRYTYCZNE). Zdarzenie konta najemcy A niesie w ciele
+     * `data.object.id` konta najemcy B i stan `charges_enabled:true` — próba
+     * przemycenia cudzego konta i stanu z payloadu. Tożsamość wychodzi
+     * z górnopoziomowego `event.account` (=A) i NASZEJ bazy, więc mutować
+     * wolno WYŁĄCZNIE wiersz A; wiersz B zostaje nietknięty.
+     */
+    it("zdarzenie konta A nie mutuje wiersza konta B — tożsamość z event.account, nie z ciała", async () => {
+      const a = await seedAccount({ chargesEnabled: false });
+      const b = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const calls: string[] = [];
+
+      const response = await handleStripeWebhook(
+        signedRequest(
+          accountEventBody({
+            eventId,
+            type: "account.updated",
+            account: a.accountId,
+            // Ciało wskazuje CUDZE konto (B) i niesie stan „gotowe".
+            dataObjectId: b.accountId,
+            bodyChargesEnabled: true,
+          }),
+        ),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+
+      expect(response.status).toBe(200);
+      // Odczyt poszedł na konto A (z event.account), nigdy na B z ciała.
+      expect(calls).toEqual([a.accountId]);
+
+      const rowA = await accountRow(a.tenantId);
+      expect(rowA.charges_enabled).toBe(true);
+      expect(rowA.last_synced_at).not.toBeNull();
+
+      const rowB = await accountRow(b.tenantId);
+      expect(rowB.charges_enabled, "konto B nietknięte").toBe(false);
+      expect(rowB.last_synced_at, "konto B nigdy nie było synchronizowane").toBeNull();
+    });
+
+    /**
+     * NIEZMIENNOŚĆ POD SERVICE_ROLE. `service_role` ma bypassrls, więc to NIE
+     * RLS broni konta — broni go trigger 0028 (BEFORE UPDATE → 23514), który
+     * FIRE'uje także dla tej roli. Próba przepisania `provider_account_id`
+     * ścieżką webhooka (tym samym klientem) musi odbić się o 23514. To dowód,
+     * że bypassrls NIE otwiera furtki na przekierowanie cudzych pieniędzy.
+     */
+    it("service_role NIE przepisze provider_account_id — trigger 0028 rzuca 23514 mimo bypassrls", async () => {
+      const fixture = await seedAccount({ chargesEnabled: true });
+
+      const { error } = await admin
+        .from("payment_accounts")
+        .update({ provider_account_id: `acct_${randomUUID().slice(0, 16)}` })
+        .eq("tenant_id", fixture.tenantId);
+
+      expect(error).not.toBeNull();
+      expect(error?.code).toBe("23514");
+
+      // Konto wskazuje wciąż na to samo miejsce — pieniądze nie zostały
+      // przekierowane.
+      const row = await accountRow(fixture.tenantId);
+      expect(row.provider_account_id).toBe(fixture.accountId);
+    });
+
+    /**
+     * FAIL-SAFE. Porażka `GET /v1/accounts` NIE zeruje gotowości: zostaje
+     * poprzednia migawka + `last_error`. Awaria po naszej stronie nie ma prawa
+     * pokazać „konto przestało przyjmować płatności" ani zamknąć sprzedaży
+     * z powodu naszego timeoutu.
+     */
+    it("porażka odczytu przy account.updated zapisuje SAM last_error, gotowość nietknięta", async () => {
+      const fixture = await seedAccount({ chargesEnabled: true, payoutsEnabled: true });
+      const eventId = newEventId();
+
+      const response = await handleStripeWebhook(
+        signedRequest(
+          accountEventBody({ eventId, type: "account.updated", account: fixture.accountId }),
+        ),
+        deps(noIntent, syncFail("API płatności odpowiedziało 503")),
+      );
+
+      expect(response.status).toBe(200);
+      const row = await accountRow(fixture.tenantId);
+      // Gotowość zostaje TAKA, JAKA BYŁA — awaria odczytu jej nie zeruje.
+      expect(row.charges_enabled).toBe(true);
+      expect(row.payouts_enabled).toBe(true);
+      expect(row.last_error).toContain("503");
+
+      const [event] = await eventRows(eventId);
+      expect(event?.status).toBe("processed");
+      expect(event?.error).toContain("503");
+    });
+
+    /**
+     * DEAUTORYZACJA ZAMYKA TOR ONLINE. Najemca odłączył aplikację — konto
+     * przestaje być nasze, odczyt i tak by odmówił, więc gotowość zerujemy
+     * BEZ odczytu (syncAccount RZUCA — dowód, że nie jest wołany). Skutek:
+     * bramka sprzedaży ADR-049 (`canAcceptCharges` na `charges_enabled`)
+     * zamyka płatność online.
+     */
+    it("account.application.deauthorized zeruje charges_enabled i zamyka tor online — bez odczytu", async () => {
+      const fixture = await seedAccount({ chargesEnabled: true, payoutsEnabled: true });
+      const eventId = newEventId();
+
+      const response = await handleStripeWebhook(
+        signedRequest(
+          accountEventBody({
+            eventId,
+            type: "account.application.deauthorized",
+            account: fixture.accountId,
+            // Obiektem ciała jest APLIKACJA (ca_…), nie konto.
+            dataObjectId: "ca_aplikacja_1",
+          }),
+        ),
+        // syncAccount RZUCA: ścieżka deautoryzacji nie pyta dostawcy.
+        deps(noIntent),
+      );
+
+      expect(response.status).toBe(200);
+      const row = await accountRow(fixture.tenantId);
+      expect(row.charges_enabled).toBe(false);
+      expect(row.payouts_enabled).toBe(false);
+      expect(row.last_error).toContain("account.application.deauthorized");
+
+      // Bramka sprzedaży czyta dokładnie tę migawkę: tor online zamknięty.
+      expect(
+        canAcceptCharges(
+          state({ chargesEnabled: row.charges_enabled, payoutsEnabled: row.payouts_enabled }),
+        ),
+      ).toBe(false);
+
+      const [event] = await eventRows(eventId);
+      expect(event?.status).toBe("processed");
+    });
+
+    /**
+     * IDEMPOTENCJA. To samo `event_id` dostarczone dwa razy → jeden wiersz
+     * w rejestrze i JEDEN odczyt u dostawcy (unikat webhook_events + przejęcie
+     * przed przetwarzaniem).
+     */
+    it("dwie dostawy tego samego account.updated → jeden wiersz, jeden odczyt", async () => {
+      const fixture = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const payload = accountEventBody({
+        eventId,
+        type: "account.updated",
+        account: fixture.accountId,
+      });
+      const calls: string[] = [];
+
+      const first = await handleStripeWebhook(
+        signedRequest(payload),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+      const second = await handleStripeWebhook(
+        signedRequest(payload),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(await eventRows(eventId)).toHaveLength(1);
+      expect(calls, "odczyt u dostawcy wykonany raz").toEqual([fixture.accountId]);
+      expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
     });
   });
 });

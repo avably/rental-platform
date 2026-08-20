@@ -306,6 +306,11 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
       (async (): Promise<never> => {
         throw new Error("Ten test nie dotyka gałęzi zwrotów");
       }),
+    // Gałąź konta (ADR-213) nie jest tu badana — jej wywołanie ma być
+    // głośnym błędem, nie cichym zerem (lustro readRefund).
+    syncAccount: async (): Promise<never> => {
+      throw new Error("Ten test nie dotyka gałęzi konta");
+    },
     secret: SECRET,
   });
 
