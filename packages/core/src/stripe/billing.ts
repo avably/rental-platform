@@ -47,6 +47,30 @@ export const STRIPE_BILLING_API_BASE = "https://api.stripe.com";
  */
 export const STRIPE_BILLING_API_VERSION = "2024-06-20";
 
+/**
+ * Wersja API nałożona WYŁĄCZNIE na TWORZENIE SESJI (Checkout + Portal) — świadomie
+ * OSOBNA od bazowej `STRIPE_BILLING_API_VERSION`, a nie jej podniesienie.
+ *
+ * Nowe konto platformy ma włączone **Managed Payments**, które ODRZUCA tworzenie
+ * sesji Checkoutu na `2024-06-20`:
+ *   „Managed Payments is not supported on API version 2024-06-20. Update your API
+ *    version, or set the API Version of this request to 2025-03-31.basil or greater."
+ *
+ * DLACZEGO OSOBNA, a nie bump całej stałej: `2025-03-31.basil` przenosi
+ * `current_period_start/current_period_end` z KORZENIA subskrypcji do `items.data[]`.
+ * `readSaasSubscription` czyta je Z KORZENIA i RZUCA przy braku (bramka W8) — bump
+ * bazowej wywróciłby projekcję webhooka po checkoutcie. Wersja API kształtuje
+ * reprezentację odpowiedzi PER-ŻĄDANIE (`Stripe-Version`, kompat wsteczny), więc
+ * subskrypcja utworzona sesją basil, ODCZYTANA pod `2024-06-20`, dalej niesie
+ * `current_period_*` w korzeniu. Zero migracji pól odczytu.
+ *
+ * DLACZEGO TYLKO NA TWORZENIU SESJI: bramkuje je Managed Payments, a ich odpowiedź
+ * parsujemy wąsko (Checkout: `id`+`url`; Portal: sam `url`) — żadne pole kontraktu
+ * `current_period_*` z tych odpowiedzi nie wchodzi do projekcji, więc basil nie ma
+ * czego tu zepsuć. STABILNA (nie preview): `2025-03-31.basil`, nie `…preview`.
+ */
+export const STRIPE_BILLING_CHECKOUT_API_VERSION = "2025-03-31.basil";
+
 export const STRIPE_BILLING_WEBHOOK_SECRET_ENV = "AVABLY_STRIPE_BILLING_WEBHOOK_SECRET";
 
 export interface StripeBillingConfig {
@@ -243,9 +267,9 @@ export class StripeBillingClient {
    */
   private async request(
     path: string,
-    init: RequestInit & { idempotencyKey?: string } = {},
+    init: RequestInit & { idempotencyKey?: string; apiVersion?: string } = {},
   ): Promise<{ status: number; body: unknown }> {
-    const { idempotencyKey, ...rest } = init;
+    const { idempotencyKey, apiVersion, ...rest } = init;
     let response: Response;
     try {
       response = await this.fetchFn(`${STRIPE_BILLING_API_BASE}${path}`, {
@@ -253,7 +277,10 @@ export class StripeBillingClient {
         headers: {
           Authorization: `Bearer ${this.config.secretKey}`,
           "Content-Type": "application/x-www-form-urlencoded",
-          "Stripe-Version": STRIPE_BILLING_API_VERSION,
+          // Domyślnie bazowa wersja billingu; TWORZENIE SESJI (Checkout/Portal)
+          // nadpisuje ją wersją basil, bo tam bramkuje Managed Payments. Odczyty
+          // NIE podają `apiVersion` i zostają na bazowej — kontrakt W8 nietknięty.
+          "Stripe-Version": apiVersion ?? STRIPE_BILLING_API_VERSION,
           ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
           ...rest.headers,
         },
@@ -393,6 +420,10 @@ export class StripeBillingClient {
   ): Promise<{ sessionId: string; url: string }> {
     const { status, body } = await this.request("/v1/checkout/sessions", {
       method: "POST",
+      // Managed Payments odrzuca tworzenie sesji na 2024-06-20 — TYLKO ten POST
+      // (i Portal) dostają basil. Odpowiedź parsujemy wąsko (id+url), więc
+      // przeniesienie current_period_* do items.data[] nic tu nie psuje.
+      apiVersion: STRIPE_BILLING_CHECKOUT_API_VERSION,
       idempotencyKey: input.idempotencyKey,
       body: encodeStripeForm({
         mode: "subscription",
@@ -527,6 +558,11 @@ export class StripeBillingClient {
   }): Promise<{ url: string }> {
     const { status, body } = await this.request("/v1/billing_portal/sessions", {
       method: "POST",
+      // Ta sama klasa co Checkout: tworzenie sesji na koncie z Managed Payments.
+      // Basil nałożony SPÓJNIE (Portal zwraca wyłącznie `url`, więc wersja nie ma
+      // czego zepsuć), żeby jeden włączony przełącznik dostawcy nie wywracał części
+      // toru zarządzania abonamentem. UZASADNIENIE: ADR-219.
+      apiVersion: STRIPE_BILLING_CHECKOUT_API_VERSION,
       body: encodeStripeForm({
         customer: input.customerId,
         return_url: input.returnUrl,

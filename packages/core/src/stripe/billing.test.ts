@@ -20,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   STRIPE_BILLING_API_VERSION,
+  STRIPE_BILLING_CHECKOUT_API_VERSION,
   STRIPE_BILLING_WEBHOOK_SECRET_ENV,
   StripeBillingClient,
   requireStripeBillingWebhookSecret,
@@ -169,7 +170,16 @@ describe("StripeBillingClient — tor PLATFORMY", () => {
       expect(Object.keys(request.headers).map((h) => h.toLowerCase())).not.toContain(
         "stripe-account",
       );
-      expect(request.headers["Stripe-Version"]).toBe(STRIPE_BILLING_API_VERSION);
+      // Rozdzielone, nie poluzowane: TWORZENIE SESJI Checkoutu (POST na dokładnie
+      // /v1/checkout/sessions — nie listowanie z query) niesie basil, bo bramkuje
+      // je Managed Payments; wszystkie pozostałe żądania (odczyty, tworzenie
+      // klienta, listy) zostają na bazowej 2024-06-20.
+      const isCheckoutCreate =
+        request.method === "POST" &&
+        request.url === "https://api.stripe.com/v1/checkout/sessions";
+      expect(request.headers["Stripe-Version"]).toBe(
+        isCheckoutCreate ? STRIPE_BILLING_CHECKOUT_API_VERSION : STRIPE_BILLING_API_VERSION,
+      );
     }
   });
 
@@ -272,6 +282,84 @@ describe("StripeBillingClient — tor PLATFORMY", () => {
       { status: 400, body: { error: { message: `Invalid key ${SECRET_KEY} used` } } },
     ]);
     await expect(billing.findCustomerByTenant("t-1")).rejects.toThrowError(/\[usunięto\]/);
+  });
+});
+
+/**
+ * ADR-219 — wersja `2025-03-31.basil` WYŁĄCZNIE na tworzeniu sesji (Managed
+ * Payments), odczyty na `2024-06-20`. Asercje patrzą na nagłówek `Stripe-Version`
+ * per żądanie: to on decyduje o reprezentacji odpowiedzi u dostawcy.
+ */
+describe("StripeBillingClient — wersja basil tylko na tworzeniu sesji (ADR-219)", () => {
+  it("stała checkoutu to STABILNA basil, OSOBNA od bazowej (nie preview, nie bump bazowej)", () => {
+    expect(STRIPE_BILLING_CHECKOUT_API_VERSION).toBe("2025-03-31.basil");
+    // Osobność jest sednem: bazowa zostaje na 2024-06-20 (kontrakt W8 z korzenia).
+    expect(STRIPE_BILLING_CHECKOUT_API_VERSION).not.toBe(STRIPE_BILLING_API_VERSION);
+  });
+
+  it("createSubscriptionCheckoutSession NIESIE basil — odtwarza wymóg Managed Payments", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "cs_1", url: "https://checkout.stripe.com/c/pay/cs_1" } },
+    ]);
+    await billing.createSubscriptionCheckoutSession({
+      customerId: "cus_1",
+      priceId: "price_1",
+      tenantId: "t-1",
+      successUrl: "https://panel.test/organizacja?checkout=sukces",
+      cancelUrl: "https://panel.test/organizacja?checkout=anulowano",
+      idempotencyKey: "saas-checkout-t-1-standard-monthly",
+    });
+    // DOWÓD MUTACYJNY: usuń `apiVersion: STRIPE_BILLING_CHECKOUT_API_VERSION` z
+    // createSubscriptionCheckoutSession → nagłówek spada na 2024-06-20 i ten test
+    // RED (dokładnie żądanie, które Managed Payments odrzuca na produkcji).
+    expect(requests[0]!.url).toBe("https://api.stripe.com/v1/checkout/sessions");
+    expect(requests[0]!.headers["Stripe-Version"]).toBe(STRIPE_BILLING_CHECKOUT_API_VERSION);
+  });
+
+  it("createBillingPortalSession NIESIE basil — spójnie z checkoutem (parsujemy tylko url)", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "bps_1", url: "https://billing.stripe.com/p/session/x" } },
+    ]);
+    await billing.createBillingPortalSession({
+      customerId: "cus_1",
+      returnUrl: "https://panel.test/pl/organizacja?portal=powrot",
+    });
+    // DOWÓD MUTACYJNY: usuń override z createBillingPortalSession → 2024-06-20 → RED.
+    expect(requests[0]!.url).toBe("https://api.stripe.com/v1/billing_portal/sessions");
+    expect(requests[0]!.headers["Stripe-Version"]).toBe(STRIPE_BILLING_CHECKOUT_API_VERSION);
+  });
+
+  it("ODCZYTY subskrypcji/faktury/sesji ZOSTAJĄ na 2024-06-20 (kontrakt current_period z korzenia)", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: subscriptionBody() },
+      { status: 200, body: { id: "in_1", subscription: "sub_z_faktury" } },
+      { status: 200, body: { id: "cs_9", subscription: "sub_z_sesji" } },
+    ]);
+    await billing.readSaasSubscription("sub_test_1");
+    await billing.readInvoiceSubscriptionId("in_1");
+    await billing.readCheckoutSessionSubscriptionId("cs_9");
+    // DOWÓD MUTACYJNY: nałóż `apiVersion: STRIPE_BILLING_CHECKOUT_API_VERSION` na
+    // KTÓRYKOLWIEK z tych odczytów → basil zdejmuje current_period_* z korzenia,
+    // a nagłówek ≠ 2024-06-20 → test RED. Odczyt MUSI zostać na bazowej.
+    for (const request of requests) {
+      expect(request.headers["Stripe-Version"]).toBe(STRIPE_BILLING_API_VERSION);
+    }
+  });
+
+  it("ZAPISY STANU (zmiana planu, reaktywacja) zostają na 2024-06-20 — nie są tworzeniem sesji", async () => {
+    const { billing, requests } = client([
+      { status: 200, body: { id: "sub_test_1" } },
+      { status: 200, body: { id: "sub_test_1" } },
+    ]);
+    await billing.updateSubscriptionPrice({
+      subscriptionId: "sub_test_1",
+      itemId: "si_test_1",
+      priceId: "price_2",
+    });
+    await billing.resumeSubscription({ subscriptionId: "sub_test_1" });
+    for (const request of requests) {
+      expect(request.headers["Stripe-Version"]).toBe(STRIPE_BILLING_API_VERSION);
+    }
   });
 });
 
@@ -390,7 +478,13 @@ describe("StripeBillingClient — zarządzanie abonamentem (ADR-152)", () => {
     await billing.resumeSubscription({ subscriptionId: "sub_test_1" });
     for (const request of requests) {
       expect(Object.keys(request.headers)).not.toContain("Stripe-Account");
-      expect(request.headers["Stripe-Version"]).toBe(STRIPE_BILLING_API_VERSION);
+      // TWORZENIE SESJI Portalu niesie basil (spójnie z Checkoutem); reaktywacja
+      // to ZAPIS STANU DOCELOWEGO subskrypcji — zostaje na 2024-06-20, bo jej pola
+      // wchodzą do kontraktu odczytu.
+      const isPortalCreate = request.url === "https://api.stripe.com/v1/billing_portal/sessions";
+      expect(request.headers["Stripe-Version"]).toBe(
+        isPortalCreate ? STRIPE_BILLING_CHECKOUT_API_VERSION : STRIPE_BILLING_API_VERSION,
+      );
     }
   });
 });
