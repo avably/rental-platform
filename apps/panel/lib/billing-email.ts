@@ -22,9 +22,9 @@
  */
 import {
   DEFAULT_TENANT_LOCALE,
+  PANEL_URL,
   isLocale,
   platformFromAddress,
-  siteUrl,
   type EmailAvailability,
   type EmailTransport,
   type Locale,
@@ -42,7 +42,12 @@ export interface SaasPaymentFailedEmailDeps {
   transport: EmailTransport;
   /** Nadpisanie adresu platformy (test); domyślnie env/stała @avably/core. */
   fromEmail?: string;
-  /** Nadpisanie bazy URL panelu (test); domyślnie siteUrl(). */
+  /**
+   * Nadpisanie bazy URL panelu (test/loopback); domyślnie `PANEL_URL`
+   * (`app.avably.io`). Domyślną NIE jest `siteUrl()`: link prowadzi do PANELU,
+   * nie na LP, a ta ścieżka biegnie z webhooka/joba, gdzie `headers()` może nie
+   * być dostępne — stała jest zawsze poprawna w prod (ADR-221).
+   */
   panelBaseUrl?: string;
 }
 
@@ -93,7 +98,7 @@ export async function sendSaasPaymentFailedEmail(
   if (emails.length === 0) return "żaden właściciel nie ma adresu e-mail";
 
   const locale = saasLocale(tenant.locale);
-  const billingUrl = `${deps.panelBaseUrl ?? siteUrl()}/organizacja`;
+  const billingUrl = `${deps.panelBaseUrl ?? PANEL_URL}/organizacja`;
   const { html, text } = await renderSaasPaymentFailed({
     locale,
     organizationName: tenant.name,
