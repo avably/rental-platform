@@ -46,6 +46,7 @@ import {
   readDepositRefund,
   readPaymentIntent,
   requireStripeWebhookSecret,
+  stripeWebhookSecretThin,
   syncConnectAccountSafely,
 } from "@avably/core";
 import { createServiceClient } from "@avably/db/service";
@@ -69,6 +70,13 @@ export async function POST(request: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  // Sekret DRUGIEJ destynacji — „Thin" (v2, ADR-222). OPCJONALNY i NIE RZUCA:
+  // dopóki właściciel nie utworzy destynacji Thin w Stripe i nie poda jej
+  // sekretu, `undefined` sprawia, że v1 (Snapshot) działa bez zmian, a zdarzenia
+  // v2 „thin" są odrzucane (zły podpis → 400). Ten sam endpoint URL obsługuje
+  // obie destynacje; handler weryfikuje podpis przeciw OBU sekretom.
+  const secretThin = stripeWebhookSecretThin();
 
   let db;
   try {
@@ -101,5 +109,6 @@ export async function POST(request: Request): Promise<Response> {
     // NIGDY nie rzuca i redaguje sekret w porcie.
     syncAccount: (providerAccountId) => syncConnectAccountSafely(providerAccountId),
     secret,
+    secretThin,
   });
 }

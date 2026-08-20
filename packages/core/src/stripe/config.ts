@@ -33,6 +33,18 @@ import type { StripeAvailability, StripeConfig } from "./types";
 export const STRIPE_SECRET_KEY_ENV = "AVABLY_STRIPE_SECRET_KEY";
 export const STRIPE_PUBLISHABLE_KEY_ENV = "AVABLY_STRIPE_PUBLISHABLE_KEY";
 export const STRIPE_WEBHOOK_SECRET_ENV = "AVABLY_STRIPE_WEBHOOK_SECRET";
+/**
+ * Sekret podpisu DRUGIEJ destynacji zdarzeń — „Thin" (ADR-222).
+ *
+ * Zdarzenia v2 „thin" (`v2.core.account.updated`, ADR-218) NIE dają się dodać
+ * do istniejącej destynacji Snapshot — Stripe wymaga OSOBNEJ destynacji Thin,
+ * a każda destynacja ma WŁASNY sekret `whsec_…`. Ten sam endpoint URL obsługuje
+ * obie; route weryfikuje podpis przeciw OBU sekretom (patrz `stripe-webhook.ts`).
+ *
+ * Prefiks `AVABLY_` z tego samego powodu co reszta rodziny (ADR-049): przestrzeń
+ * `STRIPE_*` należy do integracji dostawcy i cudza wartość by nas przykryła.
+ */
+export const STRIPE_WEBHOOK_SECRET_THIN_ENV = "AVABLY_STRIPE_WEBHOOK_SECRET_THIN";
 
 /**
  * Przestrzeń nazw DOSTAWCY — wymieniona tu WYŁĄCZNIE po to, żeby test
@@ -194,4 +206,36 @@ export function requireStripeWebhookSecret(options: StripeConfigOptions = {}): s
   const config = resolveStripeConfig(options);
   if (!config.webhookSecret) throw new StripeConfigError([`brak ${STRIPE_WEBHOOK_SECRET_ENV}`]);
   return config.webhookSecret;
+}
+
+/** Jawna wartość sekretu Thin (test) albo odczyt z env procesu. */
+export interface StripeWebhookSecretThinOptions {
+  value?: string | null | undefined;
+}
+
+/**
+ * SEKRET DRUGIEJ DESTYNACJI (Thin) — LUSTRO `requireStripeWebhookSecret`, ale
+ * OPCJONALNE: NIE RZUCA. Brak zwraca `undefined`.
+ *
+ * To zamierzona różnica semantyki, nie niedopatrzenie. Sekret Snapshot jest
+ * WYMAGANY — bez niego endpoint nie ma czym weryfikować niczego i `route.ts`
+ * oddaje 500. Sekret Thin jest DODATKOWĄ destynacją, której właściciel może
+ * jeszcze nie utworzyć: dopóki go nie ma, v1 (Snapshot) działa bez zmian,
+ * a zdarzenia v2 „thin" są ODRZUCANE (zły podpis → 400), dokładnie jak dziś.
+ * Wymaganie tego sekretu zgasiłoby CAŁY webhook do czasu konfiguracji drugiej
+ * destynacji — czyli zepsułoby v1, żeby przygotować v2.
+ *
+ * Niezależny od `resolveStripeConfig` (nie przechodzi przez bramki kluczy):
+ * obecność sekretu Thin nie ma związku z poprawnością pary secret/publishable,
+ * a przepuszczenie go przez `resolveStripeConfig` znaczyłoby, że literówka
+ * w innym kluczu wywraca odczyt tego. Pusty string = brak (wzorzec `present`).
+ *
+ * `"value" in options` (jak `readConfig`): jawne `value: undefined` to DECYZJA
+ * wołającego (test wymuszający brak), nie może spaść na env procesu.
+ */
+export function stripeWebhookSecretThin(
+  options: StripeWebhookSecretThinOptions = {},
+): string | undefined {
+  if ("value" in options) return present(options.value);
+  return present(process.env[STRIPE_WEBHOOK_SECRET_THIN_ENV]);
 }
