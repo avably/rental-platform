@@ -278,30 +278,85 @@ export async function createShipmentAction(
     ...(parsed.data.saturdayDelivery ? { saturdayDelivery: true } : {}),
   });
 
+  // Idempotencja nadania (L5, ADR-223) — CLAIM-FIRST. Przed PŁATNYM
+  // createOrderBestPrice ATOMOWO „zaklepujemy" zamówienie: wstawiamy wiersz
+  // w stanie 'pending' (jeszcze bez provider_order_number). Unikat CZĘŚCIOWY
+  // courier_shipments_one_active_per_order_type (0091) — po
+  // (tenant_id, order_id, shipment_type) WHERE status <> 'cancelled' — sprawia,
+  // że DRUGIE żądanie (podwójny submit, retry, prawdziwy wyścig dwóch
+  // równoległych requestów) odbija się o 23505 TU, PRZED zapłatą. To, a nie
+  // SELECT-przed-INSERT (TOCTOU), jest bramką „opłać co najwyżej raz".
+  const { data: claim, error: claimError } = await ctx.supabase
+    .from("courier_shipments")
+    .insert({
+      tenant_id: ctx.tenantId,
+      order_id: row.id,
+      shipment_type: parsed.data.shipmentType,
+      status: "pending",
+      length_cm: parsed.data.lengthCm,
+      width_cm: parsed.data.widthCm,
+      height_cm: parsed.data.heightCm,
+      weight_kg: parsed.data.weightKg,
+      content: parsed.data.content,
+      created_by: ctx.user.id,
+    })
+    .select("id");
+  if (claimError) {
+    // 23505 = naruszenie unikatu częściowego: zamówienie ma już aktywną
+    // przesyłkę tego typu (albo trwa jej równoległe nadawanie). Odmowa PRZED
+    // płatnym wywołaniem — cała bramka podwójnej opłaty siedzi w tym `if`.
+    if (claimError.code === "23505") {
+      return {
+        formError:
+          "To zamówienie ma już aktywną przesyłkę tego typu (albo trwa jej nadawanie) — odśwież stronę.",
+      };
+    }
+    return { formError: `Nie udało się rozpocząć nadania przesyłki: ${claimError.message}` };
+  }
+  if (!claim || claim.length === 0) {
+    // Pusty wynik po INSERT ze `.select("id")` = RLS dosięgła zero wierszy;
+    // nie ruszamy płatnego dostawcy bez pewności, że zaklepanie się utrwaliło.
+    return { formError: "Nie udało się rozpocząć nadania przesyłki." };
+  }
+  const claimId = (claim[0] as { id: string }).id;
+
+  // Zwolnienie zaklepania to UPDATE status='cancelled', NIE delete: polityka
+  // tenant_delete na courier_shipments jest owner-only (0060), a nadanie robi
+  // też pracownik lady. 'cancelled' wypada spod unikatu częściowego, więc slot
+  // znów jest wolny i operator może ponowić; wiersz bez numeru jest ukryty w UI
+  // (listy filtrują `provider_order_number is not null`).
+  const releaseClaim = async () => {
+    await ctx.supabase
+      .from("courier_shipments")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", claimId);
+  };
+
   let created;
   try {
     created = await courier.api.createOrderBestPrice(request);
   } catch (err) {
+    await releaseClaim();
     if (err instanceof GlobKurierAPIError) {
       return { formError: `Nadanie przesyłki odrzucone przez GlobKurier: ${err.message}` };
     }
     throw err;
   }
   if (!created.number) {
+    await releaseClaim();
     return {
       formError:
         "GlobKurier nie zwrócił numeru zamówienia - przesyłka mogła nie zostać nadana, sprawdź panel dostawcy.",
     };
   }
 
-  // `.select("id")` po mutacji: RLS nie zgłasza odmowy, dosięga zero wierszy
-  // — pusty wynik musi być błędem, nie cichym sukcesem (wzorzec deposit-actions).
-  const { data: inserted, error: insertError } = await ctx.supabase
+  // Promocja zaklepania w potwierdzoną przesyłkę: TEN SAM wiersz, teraz
+  // z numerem i statusem dostawcy. `.select("id")` po mutacji — pusty wynik to
+  // błąd, nie cichy sukces (wzorzec deposit-actions).
+  const { data: promoted, error: promoteError } = await ctx.supabase
     .from("courier_shipments")
-    .insert({
-      tenant_id: ctx.tenantId,
-      order_id: row.id,
-      shipment_type: parsed.data.shipmentType,
+    .update({
       status: mapProviderStatus(created.status) ?? "created",
       provider_order_number: created.number,
       provider_order_hash: created.hash ?? null,
@@ -311,21 +366,19 @@ export async function createShipmentAction(
       price_grosze: Number.isFinite(created.pricing.priceGross)
         ? Math.round(created.pricing.priceGross * 100)
         : null,
-      length_cm: parsed.data.lengthCm,
-      width_cm: parsed.data.widthCm,
-      height_cm: parsed.data.heightCm,
-      weight_kg: parsed.data.weightKg,
-      content: parsed.data.content,
-      created_by: ctx.user.id,
+      updated_at: new Date().toISOString(),
     })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", claimId)
     .select("id");
-  if (insertError || !inserted || inserted.length === 0) {
-    // Przesyłka JEST nadana u dostawcy — komunikat niesie jej numer, żeby
-    // operator mógł ją odnaleźć, zamiast udawać pełną porażkę.
+  if (promoteError || !promoted || promoted.length === 0) {
+    // Przesyłka JEST nadana u dostawcy, ale nie zdążyliśmy dopisać numeru.
+    // NIE zwalniamy zaklepania: zwolnienie otworzyłoby slot na DRUGĄ opłatę.
+    // Wiersz zostaje 'pending' (blokuje ponowienie), operator notuje numer.
     return {
       formError:
         `Przesyłka nadana u dostawcy (${created.number}), ale zapis w systemie nie powiódł się` +
-        `${insertError ? `: ${insertError.message}` : ""}. Zanotuj numer i odśwież stronę.`,
+        `${promoteError ? `: ${promoteError.message}` : ""}. Zanotuj numer i odśwież stronę.`,
     };
   }
 
@@ -354,7 +407,7 @@ export async function refreshShipmentStatusAction(
 
   const { data: shipment } = await ctx.supabase
     .from("courier_shipments")
-    .select("id, order_id, provider_order_number")
+    .select("id, order_id, provider_order_number, tracking_number, tracking_url")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", parsed.data.shipmentId)
     .maybeSingle();
@@ -382,13 +435,19 @@ export async function refreshShipmentStatusAction(
   // Nieznany status dostawcy NIE zmienia wewnętrznego cyklu życia — surowy
   // ląduje w provider_status (ADR-031).
   const mapped = mapProviderStatus(remote.status);
+  // L5 (ADR-223): odświeżenie, przy którym dostawca NIE zwrócił numeru/URL-a
+  // trackingu, NIE MOŻE wyzerować już zapisanej wartości (utrata numeru
+  // przesyłki). Coalesce z BIEŻĄCEGO wiersza: nadpisujemy tylko gdy dostawca
+  // przysłał świeżą wartość. provider_status/status nadpisujemy zawsze — to
+  // sedno synchronizacji i dostawca zawsze zwraca status (getOrder mapuje na
+  // 'NEW_SHIPMENT' przy braku).
   const { data: updated, error: updateError } = await ctx.supabase
     .from("courier_shipments")
     .update({
       ...(mapped ? { status: mapped } : {}),
       provider_status: remote.status,
-      tracking_number: remote.trackingNumber ?? null,
-      tracking_url: remote.trackingUrl ?? null,
+      tracking_number: remote.trackingNumber ?? shipment.tracking_number ?? null,
+      tracking_url: remote.trackingUrl ?? shipment.tracking_url ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("tenant_id", ctx.tenantId)
@@ -527,11 +586,15 @@ export async function refreshOrderShipmentsAction(
     throw err;
   }
 
+  // `provider_order_number is not null`: pomija wiersze-zaklepania (L5,
+  // ADR-223) — przesyłki 'pending'/zwolnionej bez numeru nie da się (ani nie
+  // trzeba) synchronizować u dostawcy.
   const { data: shipments } = await ctx.supabase
     .from("courier_shipments")
-    .select("id, provider_order_number")
+    .select("id, provider_order_number, tracking_number, tracking_url")
     .eq("tenant_id", ctx.tenantId)
-    .eq("order_id", parsed.data.orderId);
+    .eq("order_id", parsed.data.orderId)
+    .not("provider_order_number", "is", null);
   if (!shipments || shipments.length === 0) {
     return { formError: "To zamówienie nie ma jeszcze przesyłek do odświeżenia." };
   }
@@ -545,13 +608,15 @@ export async function refreshOrderShipmentsAction(
     try {
       const remote = await courier.api.getOrder(shipment.provider_order_number as string);
       const mapped = mapProviderStatus(remote.status);
+      // L5 (ADR-223): coalesce trackingu z bieżącego wiersza — brak numeru
+      // w odpowiedzi dostawcy nie kasuje już zapisanego (jak w akcji pojedynczej).
       const { error: updateError } = await ctx.supabase
         .from("courier_shipments")
         .update({
           ...(mapped ? { status: mapped } : {}),
           provider_status: remote.status,
-          tracking_number: remote.trackingNumber ?? null,
-          tracking_url: remote.trackingUrl ?? null,
+          tracking_number: remote.trackingNumber ?? shipment.tracking_number ?? null,
+          tracking_url: remote.trackingUrl ?? shipment.tracking_url ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq("tenant_id", ctx.tenantId)

@@ -36,9 +36,10 @@ const hasEnv = integrationEnv([
   "SUPABASE_LOCAL_SERVICE_ROLE_KEY",
 ]);
 
-/** 23514 = check_violation, 23503 = foreign_key_violation. */
+/** 23514 = check_violation, 23503 = foreign_key_violation, 23505 = unique_violation. */
 const PG_CHECK_VIOLATION = "23514";
 const PG_FK_VIOLATION = "23503";
+const PG_UNIQUE_VIOLATION = "23505";
 
 /** Poprawne wartości bazowe — dane FIKCYJNE (zero realnych adresów w repo). */
 // Od 0024 (ADR-052) credentiale w tenant_settings to CZĘŚĆ JAWNA: hasło żyje
@@ -158,6 +159,111 @@ describe.skipIf(!hasEnv)("moduł dostaw — 0013_courier_shipments.sql", () => {
         .from("courier_shipments")
         .insert({ ...validShipment(tenantId, orderId), ...patch });
       expect(error?.code, `oczekiwano 23514: ${error?.message}`).toBe(PG_CHECK_VIOLATION);
+    });
+  });
+
+  // Idempotencja nadania (L5, ADR-223): claim-first opiera się o unikat CZĘŚCIOWY
+  // i CHECK obecności numeru z 0091. Te dowody trzymają SCHEMAT — bramkę, o którą
+  // odbija się drugie płatne wywołanie zanim zapłaci. Klucz service_role: jeśli
+  // trzyma jego (omija RLS), trzyma każdego.
+  describe("idempotencja nadania — 0091_courier_shipment_claim.sql (ADR-223)", () => {
+    let tenantId: string;
+
+    beforeAll(async () => {
+      tenantId = await createTenant("claim");
+    });
+
+    function claim(orderId: string): Record<string, unknown> {
+      return {
+        tenant_id: tenantId,
+        order_id: orderId,
+        shipment_type: "outbound",
+        status: "pending",
+        length_cm: 60,
+        width_cm: 40,
+        height_cm: 30,
+        weight_kg: 10,
+      };
+    }
+
+    it("zaklepanie: status='pending' bez numeru przechodzi (presence CHECK dopuszcza)", async () => {
+      const orderId = await createOrder(tenantId);
+      const { error } = await admin.from("courier_shipments").insert(claim(orderId));
+      expect(error, `INSERT zaklepania pending: ${error?.message}`).toBeNull();
+    });
+
+    it("presence CHECK: żywy status bez numeru → 23514", async () => {
+      const orderId = await createOrder(tenantId);
+      const { error } = await admin
+        .from("courier_shipments")
+        .insert({ ...claim(orderId), status: "created" });
+      expect(error?.code, `oczekiwano 23514: ${error?.message}`).toBe(PG_CHECK_VIOLATION);
+    });
+
+    it("presence CHECK: zwolnione zaklepanie (cancelled bez numeru) przechodzi", async () => {
+      const orderId = await createOrder(tenantId);
+      const { error } = await admin
+        .from("courier_shipments")
+        .insert({ ...claim(orderId), status: "cancelled" });
+      expect(error, `INSERT cancelled bez numeru: ${error?.message}`).toBeNull();
+    });
+
+    it("unikat częściowy: druga AKTYWNA przesyłka (ten sam order+typ) → 23505", async () => {
+      const orderId = await createOrder(tenantId);
+      const first = await admin
+        .from("courier_shipments")
+        .insert(validShipment(tenantId, orderId));
+      expect(first.error, `pierwsza przesyłka: ${first.error?.message}`).toBeNull();
+
+      const second = await admin
+        .from("courier_shipments")
+        .insert(validShipment(tenantId, orderId));
+      expect(second.error?.code, `oczekiwano 23505: ${second.error?.message}`).toBe(
+        PG_UNIQUE_VIOLATION,
+      );
+    });
+
+    it("unikat częściowy: 'pending' też zajmuje slot — drugie zaklepanie → 23505", async () => {
+      const orderId = await createOrder(tenantId);
+      const first = await admin.from("courier_shipments").insert(claim(orderId));
+      expect(first.error, `pierwsze zaklepanie: ${first.error?.message}`).toBeNull();
+      const second = await admin.from("courier_shipments").insert(claim(orderId));
+      expect(second.error?.code, `oczekiwano 23505: ${second.error?.message}`).toBe(
+        PG_UNIQUE_VIOLATION,
+      );
+    });
+
+    it("unikat częściowy: outbound i return TEGO SAMEGO zamówienia współistnieją", async () => {
+      const orderId = await createOrder(tenantId);
+      const out = await admin
+        .from("courier_shipments")
+        .insert({ ...validShipment(tenantId, orderId), shipment_type: "outbound" });
+      expect(out.error, `outbound: ${out.error?.message}`).toBeNull();
+      const ret = await admin
+        .from("courier_shipments")
+        .insert({ ...validShipment(tenantId, orderId), shipment_type: "return" });
+      expect(ret.error, `return obok outbound: ${ret.error?.message}`).toBeNull();
+    });
+
+    it("unikat częściowy: po anulowaniu pierwszej można nadać nową (WHERE status<>cancelled)", async () => {
+      const orderId = await createOrder(tenantId);
+      const { data: firstRow, error: firstErr } = await admin
+        .from("courier_shipments")
+        .insert(validShipment(tenantId, orderId))
+        .select("id")
+        .single();
+      expect(firstErr, `pierwsza przesyłka: ${firstErr?.message}`).toBeNull();
+
+      const { error: cancelErr } = await admin
+        .from("courier_shipments")
+        .update({ status: "cancelled" })
+        .eq("id", (firstRow as { id: string }).id);
+      expect(cancelErr, `anulowanie: ${cancelErr?.message}`).toBeNull();
+
+      const second = await admin
+        .from("courier_shipments")
+        .insert(validShipment(tenantId, orderId));
+      expect(second.error, `nowa po anulowaniu: ${second.error?.message}`).toBeNull();
     });
   });
 

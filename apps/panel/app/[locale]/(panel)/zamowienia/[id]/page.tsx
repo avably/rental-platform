@@ -198,6 +198,9 @@ export default async function OrderDetailPage({
     .select("status, tracking_number, provider_order_number, created_at")
     .eq("tenant_id", ctx.tenantId)
     .eq("order_id", row.id)
+    // Pomija przejściowe wiersze-zaklepania bez numeru (L5, ADR-223) — podsumowanie
+    // pokazuje status i numer WYŁĄCZNIE potwierdzonych przesyłek dostawcy.
+    .not("provider_order_number", "is", null)
     .order("created_at", { ascending: true });
   const shipments = (shipmentRows ?? []) as unknown as {
     status: ShipmentStatus;

@@ -77,6 +77,11 @@ export async function DeliverySection({
     .select(SHIPMENT_ROW_COLUMNS)
     .eq("tenant_id", ctx.tenantId)
     .eq("order_id", orderId)
+    // `provider_order_number is not null`: ukrywa PRZEJŚCIOWE wiersze-zaklepania
+    // (L5, ADR-223 — status 'pending' bez numeru, albo zwolnione 'cancelled'
+    // bez numeru). Potwierdzona przesyłka ZAWSZE ma numer, więc lista pokazuje
+    // wyłącznie realne przesyłki dostawcy.
+    .not("provider_order_number", "is", null)
     .order("created_at", { ascending: true });
   const shipments = (shipmentRows ?? []) as unknown as ShipmentRow[];
 
