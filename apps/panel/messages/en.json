@@ -2498,6 +2498,9 @@
     "createdAt": "Created on",
     "locale": "Storefront language",
     "readOnly": "This screen is read-only. Avably support applies changes to organization data.",
+    "localeHint": "The language of your storefront and customer emails. The panel language is set separately, via the URL (/pl, /en).",
+    "saveCta": "Save changes",
+    "savedOk": "Saved.",
     "billing": {
       "title": "Plan and billing",
       "description": "Current account state and subscription pricing - the same as on the Avably website.",

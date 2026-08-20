@@ -2498,6 +2498,9 @@
     "createdAt": "Data założenia",
     "locale": "Język sklepu",
     "readOnly": "Ten ekran jest tylko do odczytu. Zmiany danych organizacji wprowadza wsparcie Avably.",
+    "localeHint": "Język sklepu i e-maili do klientów. Język panelu wybierasz osobno, adresem strony (/pl, /en).",
+    "saveCta": "Zapisz zmiany",
+    "savedOk": "Zapisano.",
     "billing": {
       "title": "Plan i rozliczenia",
       "description": "Aktualny stan konta i cennik abonamentu - ten sam, co na stronie Avably.",

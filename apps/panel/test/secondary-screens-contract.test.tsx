@@ -109,6 +109,9 @@ const { MissingTermsWarning } = await import(
 );
 const { InviteMemberForm } = await import("@/app/[locale]/(panel)/zaproszenia/form");
 const { OrganizationCard } = await import("@/app/[locale]/(panel)/organizacja/organization-card");
+const { OrganizationEditForm } = await import(
+  "@/app/[locale]/(panel)/organizacja/organization-edit-form"
+);
 const { TotpEnrollForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/form");
 const { TotpChallengeForm } = await import("@/app/[locale]/(panel)/bezpieczenstwo/wyzwanie/form");
 const { SitePages } = await import("@/app/[locale]/(panel)/strona/site-pages");
@@ -629,6 +632,50 @@ describe("ekran organizacji — karta read-only bez atrap", () => {
     );
     expect(html).toMatch(/data-field="Utworzono"[\s\S]*?tabular-nums/);
     expect(html).not.toMatch(/data-field="Nazwa"[\s\S]*?tabular-nums[\s\S]*?Fikcyjna/);
+  });
+});
+
+// ===== 7b. Organizacja — karta WŁAŚCICIELA (U12, ADR-225) =====
+
+describe("ekran organizacji — karta właściciela edytuje nazwę i język", () => {
+  const rows = [
+    { label: "Identyfikator", value: "fikcyjna-wypozyczalnia" },
+    { label: "Utworzono", value: "15.06.2026", numeric: true },
+  ];
+
+  it("właściciel dostaje kontrolki edycji — to NIE jest karta read-only", () => {
+    const html = render(
+      <OrganizationEditForm
+        defaults={{ name: "Fikcyjna Wypożyczalnia", locale: "pl" }}
+        status="active"
+        rows={rows}
+      />,
+    );
+    // Tryb dostępu przełączony na edycję — odróżnia kartę ownera od staffowej.
+    expect(html).toContain("data-organization-details");
+    expect(html).toContain('data-access-mode="editable"');
+    // Pole nazwy i most Selecta języka jadą do FormData pod tymi nazwami.
+    expect(html).toContain('name="name"');
+    expect(html).toContain('name="locale"');
+    // Nazwa jedzie jako defaultValue pola (echo/stan bazy), nie tylko jako tytuł.
+    expect(html).toMatch(/name="name"[^>]*value="Fikcyjna Wypożyczalnia"/);
+    // Kontrolki są realne (przycisk zapisu) — w przeciwieństwie do karty staffa.
+    expect(html).toContain("<button");
+    expect(html).toContain(messages.organization.saveCta);
+  });
+
+  it("wiersze kontekstu (slug, data) zostają odczytowe pod formularzem", () => {
+    const html = render(
+      <OrganizationEditForm
+        defaults={{ name: "Fikcyjna Wypożyczalnia", locale: "en" }}
+        status="active"
+        rows={rows}
+      />,
+    );
+    expect(html).toMatch(/data-field="Identyfikator"/);
+    expect(html).toMatch(/data-field="Utworzono"[\s\S]*?tabular-nums/);
+    // Stan aktywnej org jest chipem przy tytule, jak w karcie staffowej.
+    expect(chips(html)).toEqual(["organization/active"]);
   });
 });
 

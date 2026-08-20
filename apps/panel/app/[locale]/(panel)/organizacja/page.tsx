@@ -11,25 +11,28 @@ import { requireMemberPage } from "@/lib/member-page";
 
 import { SaasCheckoutCta } from "./checkout-cta";
 import { OrganizationCard } from "./organization-card";
+import { OrganizationEditForm } from "./organization-edit-form";
 import { PlanBillingSection } from "./plan-billing-section";
 
 /**
- * Ekran organizacji (ADR-059) — TYLKO DO ODCZYTU.
+ * Ekran organizacji (ADR-059; edycja właściciela U12/ADR-225).
  *
  * ADR-056 odnotował odstępstwo: pozycja „Organizacja" w nawigacji celowała w
  * `/organizacja/nowa`, bo ekranu organizacji NIE BYŁO. Ten plik zamyka tamten
  * dług — `nav.ts` wraca na `/organizacja`, a identyfikator pozycji zostaje
  * nietknięty, więc kontrakt struktury z artefaktem jest dalej zielony.
  *
- * ZERO MUTACJI, ZERO ATRAP EDYCJI. Zmiana nazwy czy sluga tenanta pociąga za
- * sobą decyzje, których produkt jeszcze nie podjął (slug siedzi w adresie
- * sklepu i w subdomenie — patrz moduł domen), a przycisk „Zapisz", który
- * niczego nie zapisuje, łamałby tę samą regułę, przez którą dashboard jest
- * uczciwym placeholderem. Ekran mówi wprost, że jest do odczytu.
+ * WŁAŚCICIEL edytuje NAZWĘ i JĘZYK (U12): karta `OrganizationEditForm` woła RPC
+ * `app.update_organization` (0093) — jedyną, wąską ścieżkę zapisu do `tenants`,
+ * bramkowaną właścicielem i ograniczoną do dwóch kolumn. Slug/plan/status
+ * zostają ODCZYTOWE (slug siedzi w adresie sklepu — jego zmiana to osobny
+ * moduł domen; status i plan są własnością platformy). STAFF widzi kartę
+ * `OrganizationCard` — tę samą co dotąd, bez ani jednej kontrolki.
  *
  * ODCZYT idzie ISTNIEJĄCYM wzorcem: klient z sesją członka i RLS jako bramka
  * (`tenants` — polityka `id = app.tenant_id()`; `subscriptions` — `tenant_id =
- * app.tenant_id()`). Żadnych nowych uprawnień, żadnego service-role.
+ * app.tenant_id()`). Zapis idzie RPC — nie service-role i nie szeroka polityka
+ * UPDATE (ta oddałaby ownerowi status/plan/slug).
  */
 export default async function OrganizationPage() {
   // Opt-in okna domykania (ADR-138): /organizacja jest i tak read-only,
@@ -73,20 +76,41 @@ export default async function OrganizationPage() {
     return t.has(path) ? t(path) : value;
   };
 
-  const rows: { label: string; value: string; numeric?: boolean }[] = [
-    { label: t("name"), value: tenant.name },
+  // Wiersze, których właściciel NIE zmienia tą ścieżką (slug/plan/status/data)
+  // — kontekst konta wspólny dla obu wariantów karty.
+  const contextRows: { label: string; value: string; numeric?: boolean }[] = [
     { label: t("slug"), value: tenant.slug },
     // Brak wiersza subscriptions = TRIAL (stan pierwszej klasy, nie brak
     // danych — ADR-135); szczegóły z datą pokazuje sekcja „Plan i rozliczenia".
     { label: t("plan"), value: subscription?.plan_id ?? t("statusValue.trialing") },
     { label: t("status"), value: label("statusValue", tenant.status) },
     { label: t("createdAt"), value: createdAt, numeric: true },
-    { label: t("locale"), value: label("localeValue", tenant.locale) },
   ];
+
+  // Owner edytuje name+locale (RPC 0093); staff dostaje kartę odczytową z
+  // KOMPLETEM wierszy (name/locale wracają jako odczyt, nie pole).
+  const organizationCard =
+    ctx.role === "owner" ? (
+      <OrganizationEditForm
+        defaults={{ name: tenant.name, locale: tenant.locale }}
+        status={tenant.status}
+        rows={contextRows}
+      />
+    ) : (
+      <OrganizationCard
+        name={tenant.name}
+        status={tenant.status}
+        rows={[
+          { label: t("name"), value: tenant.name },
+          ...contextRows,
+          { label: t("locale"), value: label("localeValue", tenant.locale) },
+        ]}
+      />
+    );
 
   return (
     <FormMeasure className="flex flex-col gap-4">
-      <OrganizationCard name={tenant.name} status={tenant.status} rows={rows} />
+      {organizationCard}
 
       {/* Plan i rozliczenia (J2 faza 1: ADR-135; CTA checkoutu: faza 2a,
           ADR-136) — stan konta + cennik ze stałej @avably/core. CTA
