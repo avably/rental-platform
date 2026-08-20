@@ -35,7 +35,7 @@ const PG_CHECK_VIOLATION = "23514";
 const NOT_OWNER = "Polami własnymi zarządza właściciel organizacji.";
 const DUPLICATE_LABEL = "Pole o tej nazwie już istnieje dla tego rodzaju danych.";
 const TYPE_FROZEN =
-  "Tego pola nie da się już przebudować — ma zapisane wartości. Zarchiwizuj je i załóż nowe.";
+  "Tego pola nie da się już przebudować - ma zapisane wartości. Zarchiwizuj je i załóż nowe.";
 const NOT_FOUND = "Nie znaleziono pola własnego.";
 
 function databaseError(code: string | undefined, message: string): FormState {

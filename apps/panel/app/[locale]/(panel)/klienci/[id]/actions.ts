@@ -37,7 +37,7 @@ const NOT_FOUND_CODES = new Set(["23503", "23502"]);
 
 /** Wiersz nieosiągalny (błąd odczytu, brak wiersza, cudzy tenant) — jeden komunikat. */
 const CUSTOMER_NOT_FOUND =
-  "Nie udało się zapisać zmian — klient nie istnieje albo nie masz do niego dostępu.";
+  "Nie udało się zapisać zmian - klient nie istnieje albo nie masz do niego dostępu.";
 
 export async function updateCustomerAction(
   customerId: string,
@@ -59,7 +59,7 @@ export async function updateCustomerAction(
   }
   const tenantId = ctx.tenantId;
   if (!tenantId) {
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   const { email, fullName, phone, companyName, nip, addressStreet, addressZip, addressCity } =
@@ -165,7 +165,7 @@ export async function setCustomerBanAction(
   }
   const tenantId = ctx.tenantId;
   if (!tenantId) {
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   if (ban) {
@@ -185,14 +185,14 @@ export async function setCustomerBanAction(
       // FK/NOT NULL: klient spoza tego tenanta albo nieistniejący.
       if (error.code && NOT_FOUND_CODES.has(error.code)) {
         return {
-          formError: "Nie udało się zablokować — klient nie istnieje albo nie masz do niego dostępu.",
+          formError: "Nie udało się zablokować - klient nie istnieje albo nie masz do niego dostępu.",
         };
       }
       return { formError: error.message };
     }
     if (!data || data.length === 0) {
       return {
-        formError: "Nie udało się zablokować — klient nie istnieje albo nie masz do niego dostępu.",
+        formError: "Nie udało się zablokować - klient nie istnieje albo nie masz do niego dostępu.",
       };
     }
     revalidatePath("/", "layout");
@@ -253,7 +253,7 @@ export async function eraseCustomerAction(
   }
   const tenantId = ctx.tenantId;
   if (!tenantId) {
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   const { data: customer } = await ctx.supabase

@@ -401,7 +401,7 @@ export function ElementFrame({
         aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Control+ArrowUp Control+ArrowDown Control+ArrowLeft Control+ArrowRight"
         aria-label={
           detached
-            ? `${t(`elementKinds.${element.kind}`)} — ${t("elements.detached")}`
+            ? `${t(`elementKinds.${element.kind}`)} - ${t("elements.detached")}`
             : t(`elementKinds.${element.kind}`)
         }
         /*

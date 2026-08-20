@@ -45,7 +45,7 @@ export function RentalLifecycleEmailTemplate({
   const message = t[template];
   const details = [
     [t.fields.orderNumber, orderNumber],
-    [t.fields.rentalPeriod, `${startDate}–${endDate}`],
+    [t.fields.rentalPeriod, `${startDate}-${endDate}`],
     [t.fields.totalRental, totalRentalFormatted],
     ...(pickupLocationName
       ? ([[t.fields.pickupLocation, pickupLocationName]] as const)

@@ -54,7 +54,7 @@ function refusalState(code: string | undefined, message: string): FormState {
   if (code === PG_CHECK_VIOLATION) {
     return {
       formError:
-        "Wartości odrzucone przez walidację bazy — sprawdź kompletność pól i spróbuj ponownie.",
+        "Wartości odrzucone przez walidację bazy - sprawdź kompletność pól i spróbuj ponownie.",
     };
   }
   return { formError: message };
@@ -126,7 +126,7 @@ async function upsertSecret(key: string, plaintext: string): Promise<FormState> 
       // dokładnie tym długiem, który ta zmiana zamyka.
       return {
         formError:
-          "Szyfrowanie sekretów nie jest skonfigurowane na tym środowisku — " +
+          "Szyfrowanie sekretów nie jest skonfigurowane na tym środowisku - " +
           "hasło nie zostało zapisane. Skontaktuj się z obsługą.",
       };
     }

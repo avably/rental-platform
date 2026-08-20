@@ -78,7 +78,7 @@ export const createTenantSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{2,38}$/, "Slug: 3–39 znaków, małe litery/cyfry/myślnik, bez spacji."),
+    .regex(/^[a-z0-9][a-z0-9-]{2,38}$/, "Slug: 3-39 znaków, małe litery/cyfry/myślnik, bez spacji."),
   name: z.string().trim().min(2, "Nazwa organizacji jest za krótka.").max(200),
 });
 

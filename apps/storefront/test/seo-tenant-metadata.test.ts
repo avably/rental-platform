@@ -114,7 +114,7 @@ describe("pageTitle", () => {
 
   it("podstrona = '{strona} — {sklep}'", () => {
     expect(pageTitle("Wypożyczalnia Kwiatowa", "Wiertarka")).toBe(
-      "Wiertarka — Wypożyczalnia Kwiatowa",
+      "Wiertarka - Wypożyczalnia Kwiatowa",
     );
   });
 });

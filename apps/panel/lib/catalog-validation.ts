@@ -180,7 +180,7 @@ const unitFieldsSchema = z.object({
 type ServiceWindow = { unavailableFrom: string | null; unavailableTo: string | null };
 
 const WINDOW_COMPLETE_MESSAGE =
-  "Okno serwisowe wymaga OBU dat (od i do) albo żadnej — samo „od” lub samo „do” nie określa okna.";
+  "Okno serwisowe wymaga OBU dat (od i do) albo żadnej - samo „od” lub samo „do” nie określa okna.";
 const WINDOW_ORDERED_MESSAGE = "Koniec okna serwisowego nie może być wcześniejszy niż początek.";
 
 // Lustro CHECK-a product_units_unavailable_range_complete (0007): okno
@@ -248,7 +248,7 @@ export const unitsSchema = jsonFieldSchema("Nieprawidłowe dane egzemplarzy.")
     },
     {
       message:
-        "Dwa egzemplarze mają ten sam numer seryjny — numer musi być unikalny w obrębie produktu.",
+        "Dwa egzemplarze mają ten sam numer seryjny - numer musi być unikalny w obrębie produktu.",
     },
   );
 
@@ -300,7 +300,7 @@ export const tiersSchema = z
   .pipe(z.array(tierRowSchema).max(100, "Zbyt wiele progów (maksymalnie 100)."))
   .refine(
     (rows) => new Set(rows.map((row) => row.tierDays)).size === rows.length,
-    { message: "Dwa progi mają tę samą liczbę dni — wycena byłaby niejednoznaczna." },
+    { message: "Dwa progi mają tę samą liczbę dni - wycena byłaby niejednoznaczna." },
   );
 
 export type TiersInput = z.infer<typeof tiersSchema>;
@@ -351,7 +351,7 @@ export const categorySchema = categoryFieldsSchema.transform((input, ctx) => {
   if (slug === "") {
     // Nazwa złożona wyłącznie ze znaków, których adres nie uniesie (np. same
     // emoji). Wtedy podpowiedź nie ma z czego powstać i adres musi paść ręcznie.
-    return reject("Podaj adres kategorii — z tej nazwy nie da się go wyprowadzić.");
+    return reject("Podaj adres kategorii - z tej nazwy nie da się go wyprowadzić.");
   }
   if (slug.length > CATEGORY_SLUG_MAX_LENGTH) {
     return reject(`Adres może mieć najwyżej ${CATEGORY_SLUG_MAX_LENGTH} znaków.`);
@@ -362,7 +362,7 @@ export const categorySchema = categoryFieldsSchema.transform((input, ctx) => {
     );
   }
   if (isReservedCategorySlug(slug)) {
-    return reject(`Adres „${slug}” jest zarezerwowany przez sklep — wybierz inny.`);
+    return reject(`Adres „${slug}” jest zarezerwowany przez sklep - wybierz inny.`);
   }
 
   return { ...input, slug };

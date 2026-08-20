@@ -83,9 +83,9 @@ const optionalAmountSchema = z.string().transform((raw, ctx) => {
 const declaredBalanceSchema = z
   .string()
   .trim()
-  .regex(/^\d+$/, "Ekran nie podał salda kaucji — odśwież stronę i spróbuj ponownie.")
+  .regex(/^\d+$/, "Ekran nie podał salda kaucji - odśwież stronę i spróbuj ponownie.")
   .transform((raw) => Number.parseInt(raw, 10))
-  .refine(Number.isSafeInteger, "Saldo kaucji poza zakresem — odśwież stronę.");
+  .refine(Number.isSafeInteger, "Saldo kaucji poza zakresem - odśwież stronę.");
 
 /** Puste → null (lustro optionalTextSchema z order-validation.ts). */
 const optionalReasonSchema = z
@@ -118,7 +118,7 @@ export const depositSettleSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["refundAmount"],
-        message: "Podaj kwotę zwrotu albo potrącenia — inaczej nie ma czego rozliczać.",
+        message: "Podaj kwotę zwrotu albo potrącenia - inaczej nie ma czego rozliczać.",
       });
       return;
     }

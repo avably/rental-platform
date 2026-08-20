@@ -70,13 +70,13 @@ function resolveRecipient(
     // Powód z core jest od U1 neutralny; fallback trzyma to samo brzmienie.
     return (
       availability.reason ??
-      "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — pracujemy nad przywróceniem."
+      "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy - pracujemy nad przywróceniem."
     );
   }
 
   const email = customer?.email;
   if (!email) {
-    return "Zamówienie nie ma adresu e-mail klienta — wiadomość nie została wysłana.";
+    return "Zamówienie nie ma adresu e-mail klienta - wiadomość nie została wysłana.";
   }
 
   let sender: EmailSender;

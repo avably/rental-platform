@@ -77,16 +77,16 @@ export type BillingSubscriptionOutcome = { ok: true } | { error: string };
 export const MANAGEABLE_TENANT_STATUSES: readonly TenantStatus[] = ["trialing", "active"];
 
 export const NO_SUBSCRIPTION =
-  "Ta organizacja nie ma jeszcze abonamentu — wybierz plan, żeby go uruchomić.";
+  "Ta organizacja nie ma jeszcze abonamentu - wybierz plan, żeby go uruchomić.";
 export const SUBSCRIPTION_NOT_MANAGEABLE =
-  "Abonament czeka na uregulowanie płatności — najpierw opłać zaległą fakturę w zarządzaniu płatnościami.";
+  "Abonament czeka na uregulowanie płatności - najpierw opłać zaległą fakturę w zarządzaniu płatnościami.";
 export const FOREIGN_SUBSCRIPTION =
   "Nie udało się potwierdzić abonamentu tej organizacji. Skontaktuj się ze wsparciem Avably.";
 export const PLAN_ALREADY_ACTIVE = "Ten plan i okres rozliczeniowy są już aktywne.";
 export const PLAN_ITEM_MISSING =
   "Nie udało się odczytać pozycji abonamentu u dostawcy płatności. Spróbuj ponownie za chwilę.";
 export const NOTHING_TO_RESUME =
-  "Abonament nie jest anulowany — nie ma czego wznawiać.";
+  "Abonament nie jest anulowany - nie ma czego wznawiać.";
 
 /** Wynik wspólnej części obu ścieżek: własna, zarządzalna subskrypcja z ODCZYTU. */
 type Resolved = { read: SaasSubscriptionRead } | { error: string };

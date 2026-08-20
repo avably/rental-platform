@@ -151,7 +151,7 @@ export async function createSite(
       return {
         ok: false,
         error:
-          "Sklep ma już szablon strony produktu — obowiązuje jeden dla całego sklepu. Otwórz go w kreatorze.",
+          "Sklep ma już szablon strony produktu - obowiązuje jeden dla całego sklepu. Otwórz go w kreatorze.",
       };
     }
   }
@@ -192,7 +192,7 @@ export async function createSite(
       return {
         ok: false,
         error:
-          "Sklep ma już stronę główną — pod adresem „/” może stać tylko jedna. Otwórz ją w kreatorze albo utwórz stronę pod własnym adresem.",
+          "Sklep ma już stronę główną - pod adresem „/” może stać tylko jedna. Otwórz ją w kreatorze albo utwórz stronę pod własnym adresem.",
       };
     }
   }
@@ -354,7 +354,7 @@ export async function upsertSection(
     if (readError) return { ok: false, error: readError.message };
     if (!existing) return { ok: false, error: "Nie znaleziono sekcji." };
     if (existing.type !== type) {
-      return { ok: false, error: "Typ sekcji jest niezmienny — usuń sekcję i dodaj nową." };
+      return { ok: false, error: "Typ sekcji jest niezmienny - usuń sekcję i dodaj nową." };
     }
 
     const { error } = await ctx.supabase
@@ -562,7 +562,7 @@ export async function reorderSections(
   }
   const knownIds = new Set(known.map((row) => row.id));
   if (parsed.data.orderedIds.some((id) => !knownIds.has(id))) {
-    return { ok: false, error: "Kolejność obejmuje sekcje spoza tej strony — odśwież edytor." };
+    return { ok: false, error: "Kolejność obejmuje sekcje spoza tej strony - odśwież edytor." };
   }
 
   const plan = reorderPlan(
@@ -1062,7 +1062,7 @@ export async function publishSite(
     return {
       ok: false,
       error:
-        "Strona została opublikowana, ale wygląd sklepu nie — opublikuj jeszcze raz.",
+        "Strona została opublikowana, ale wygląd sklepu nie - opublikuj jeszcze raz.",
     };
   }
 

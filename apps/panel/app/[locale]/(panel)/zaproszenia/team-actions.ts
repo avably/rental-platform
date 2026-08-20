@@ -79,7 +79,7 @@ export async function removeMemberAction(
   }
   // Pusty wynik to nie sukces: albo wiersza nie ma, albo RLS go nie dosięgła.
   if (!removed || removed.length === 0) {
-    return { error: "Nie znaleziono tej osoby w zespole — odśwież stronę." };
+    return { error: "Nie znaleziono tej osoby w zespole - odśwież stronę." };
   }
 
   const selfRemoved = parsed.data.userId === ctx.user.id;

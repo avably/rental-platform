@@ -203,7 +203,7 @@ describe("druga strona główna dalej niemożliwa z panelu (zawężenie, nie zdj
     await user.type(within(dialog).getByLabelText(plMessages.site.pages.nameLabel), "???");
 
     expect(
-      within(dialog).getByText("Podaj adres strony — z tej nazwy nie da się go wyprowadzić."),
+      within(dialog).getByText("Podaj adres strony - z tej nazwy nie da się go wyprowadzić."),
       "zakaz pustego adresu zniknął razem z poprawką",
     ).toBeTruthy();
     expect(

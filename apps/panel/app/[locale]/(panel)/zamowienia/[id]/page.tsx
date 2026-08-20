@@ -419,7 +419,7 @@ export default async function OrderDetailPage({
             )}
             <DetailField label={t("deliveryLabel")}>
               {tDelivery(row.delivery_method)}
-              {row.pickup_locations ? ` — ${row.pickup_locations.name}` : null}
+              {row.pickup_locations ? ` - ${row.pickup_locations.name}` : null}
             </DetailField>
             {/* Adres/punkt dostarczenia TEGO zamówienia (U3, audyt 2.5):
                 karta klienta pokazuje adres z kartoteki, ale zamówienie mogło

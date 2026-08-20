@@ -211,7 +211,7 @@ const pl: EmailMessages = {
     changed:
       "Hasło do Twojego konta zostało właśnie zmienione, a pozostałe sesje wylogowane.",
     notYou:
-      "Jeśli to nie Ty, natychmiast poproś o reset hasła przyciskiem poniżej — ustawienie nowego hasła odetnie osobę, która zna obecne.",
+      "Jeśli to nie Ty, natychmiast poproś o reset hasła przyciskiem poniżej - ustawienie nowego hasła odetnie osobę, która zna obecne.",
   },
   organizationInvitation: {
     heading: "Zaproszenie do organizacji",
@@ -254,12 +254,12 @@ const pl: EmailMessages = {
     },
     pickedUp: {
       heading: "Sprzęt został wydany",
-      preview: (orderNumber) => `Potwierdzenie wydania sprzętu — ${orderNumber}.`,
+      preview: (orderNumber) => `Potwierdzenie wydania sprzętu - ${orderNumber}.`,
       body: "Potwierdzamy wydanie sprzętu.",
     },
     returned: {
       heading: "Sprzęt został zwrócony",
-      preview: (orderNumber) => `Potwierdzenie zwrotu sprzętu — ${orderNumber}.`,
+      preview: (orderNumber) => `Potwierdzenie zwrotu sprzętu - ${orderNumber}.`,
       body: "Potwierdzamy zwrot sprzętu. Dziękujemy.",
     },
     cancelled: {
@@ -272,7 +272,7 @@ const pl: EmailMessages = {
     heading: "Etykieta zwrotna do Twojego wynajmu",
     preview: (orderNumber) => `Etykieta zwrotna do zamówienia ${orderNumber}.`,
     body: (endDate) =>
-      `Twój najem kończy się ${endDate}. W załączniku znajdziesz etykietę zwrotną — wydrukuj ją, naklej na paczkę i nadaj przesyłkę.`,
+      `Twój najem kończy się ${endDate}. W załączniku znajdziesz etykietę zwrotną - wydrukuj ją, naklej na paczkę i nadaj przesyłkę.`,
     attachmentHint: "Etykieta zwrotna (PDF) jest załączona do tej wiadomości.",
     fields: {
       orderNumber: "Numer zamówienia",
@@ -282,7 +282,7 @@ const pl: EmailMessages = {
   },
   pickupReturnReminder: {
     heading: "Przypomnienie o zwrocie sprzętu",
-    preview: (orderNumber) => `Przypomnienie o zwrocie sprzętu — zamówienie ${orderNumber}.`,
+    preview: (orderNumber) => `Przypomnienie o zwrocie sprzętu - zamówienie ${orderNumber}.`,
     body: (endDate) => `Twój najem kończy się ${endDate}. Zwróć sprzęt w punkcie:`,
     fields: {
       orderNumber: "Numer zamówienia",
@@ -303,7 +303,7 @@ const pl: EmailMessages = {
     heading: "Wiadomość ze strony",
     preview: (senderName) => `Nowa wiadomość od ${senderName} ze strony sklepu.`,
     intro: "Ktoś napisał do Was przez formularz kontaktowy na stronie.",
-    footer: "Wiadomość wysłana przez formularz kontaktowy na Waszej stronie. Odpowiedz na nią zwykłym „Odpowiedz” — trafi wprost do nadawcy.",
+    footer: "Wiadomość wysłana przez formularz kontaktowy na Waszej stronie. Odpowiedz na nią zwykłym „Odpowiedz” - trafi wprost do nadawcy.",
     subject: (senderName) => `Wiadomość ze strony: ${senderName}`,
     fields: { name: "Imię", email: "E-mail", phone: "Telefon" },
   },
@@ -317,7 +317,7 @@ const pl: EmailMessages = {
     retry:
       "Dostawca płatności ponowi próbę automatycznie. Najczęstszy powód to wygasła albo zablokowana karta.",
     action:
-      "Sprawdź metodę płatności w sekcji „Plan i rozliczenia” w panelu — po udanej płatności konto wraca do pełnej sprawności od razu.",
+      "Sprawdź metodę płatności w sekcji „Plan i rozliczenia” w panelu - po udanej płatności konto wraca do pełnej sprawności od razu.",
   },
   paymentConfirmed: {
     heading: "Płatność zaksięgowana",
@@ -356,7 +356,7 @@ const en: EmailMessages = {
     preview: "The password for your Avably account was just changed.",
     changed: "The password for your account was just changed and your other sessions were signed out.",
     notYou:
-      "If this was not you, request a password reset immediately using the button below — setting a new password will cut off whoever knows the current one.",
+      "If this was not you, request a password reset immediately using the button below - setting a new password will cut off whoever knows the current one.",
   },
   organizationInvitation: {
     heading: "Invitation to an organization",
@@ -399,12 +399,12 @@ const en: EmailMessages = {
     },
     pickedUp: {
       heading: "Equipment picked up",
-      preview: (orderNumber) => `Equipment pickup confirmed — ${orderNumber}.`,
+      preview: (orderNumber) => `Equipment pickup confirmed - ${orderNumber}.`,
       body: "We've recorded the equipment pickup.",
     },
     returned: {
       heading: "Equipment returned",
-      preview: (orderNumber) => `Equipment return confirmed — ${orderNumber}.`,
+      preview: (orderNumber) => `Equipment return confirmed - ${orderNumber}.`,
       body: "We've recorded the equipment return. Thank you.",
     },
     cancelled: {
@@ -417,7 +417,7 @@ const en: EmailMessages = {
     heading: "Return label for your rental",
     preview: (orderNumber) => `Return label for order ${orderNumber}.`,
     body: (endDate) =>
-      `Your rental ends on ${endDate}. The return label is attached — print it, stick it on the parcel and ship it back.`,
+      `Your rental ends on ${endDate}. The return label is attached - print it, stick it on the parcel and ship it back.`,
     attachmentHint: "The return label (PDF) is attached to this message.",
     fields: {
       orderNumber: "Order number",
@@ -427,7 +427,7 @@ const en: EmailMessages = {
   },
   pickupReturnReminder: {
     heading: "Equipment return reminder",
-    preview: (orderNumber) => `Equipment return reminder — order ${orderNumber}.`,
+    preview: (orderNumber) => `Equipment return reminder - order ${orderNumber}.`,
     body: (endDate) => `Your rental ends on ${endDate}. Please return the equipment at:`,
     fields: {
       orderNumber: "Order number",
@@ -448,7 +448,7 @@ const en: EmailMessages = {
     heading: "Message from your website",
     preview: (senderName) => `New message from ${senderName} via your storefront.`,
     intro: "Someone wrote to you through the contact form on your website.",
-    footer: "Sent through the contact form on your website. Just hit Reply — it goes straight to the sender.",
+    footer: "Sent through the contact form on your website. Just hit Reply - it goes straight to the sender.",
     subject: (senderName) => `Website message: ${senderName}`,
     fields: { name: "Name", email: "Email", phone: "Phone" },
   },
@@ -462,7 +462,7 @@ const en: EmailMessages = {
     retry:
       "The payment provider will retry automatically. The most common cause is an expired or blocked card.",
     action:
-      "Check your payment method in the “Plan & billing” section of the panel — once a payment succeeds, your account is fully restored right away.",
+      "Check your payment method in the “Plan & billing” section of the panel - once a payment succeeds, your account is fully restored right away.",
   },
   paymentConfirmed: {
     heading: "Payment confirmed",

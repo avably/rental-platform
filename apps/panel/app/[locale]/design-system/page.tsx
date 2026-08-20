@@ -196,7 +196,7 @@ export default function DesignSystemGallery() {
             <div className="rounded-md border bg-popover p-5">
               <p className="font-medium">Nakładka</p>
               <p className="text-xs text-muted-foreground">
-                Rozdział powierzchni robi obrys, nie cień — elewacji w systemie
+                Rozdział powierzchni robi obrys, nie cień - elewacji w systemie
                 nie ma.
               </p>
             </div>
@@ -214,7 +214,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="typography"
           title="Typografia"
-          description="Geist Sans w całym panelu — mono zakazane, identyfikatory przez tabular-nums."
+          description="Geist Sans w całym panelu - mono zakazane, identyfikatory przez tabular-nums."
         >
           <Card>
             <CardContent className="space-y-4 pt-6">
@@ -307,14 +307,14 @@ export default function DesignSystemGallery() {
               <Label htmlFor="states-valid">Nazwa produktu</Label>
               <Input id="states-valid" defaultValue="✓ Nagrzewnica 20 kW" />
               <p className="text-xs text-muted-foreground">
-                Pole poprawne zostaje przy obrysie border — potwierdza znak, nie
+                Pole poprawne zostaje przy obrysie border - potwierdza znak, nie
                 kolor.
               </p>
             </div>
           </div>
           <div className="space-y-3 rounded-md border bg-card p-5">
             <p className="text-sm font-medium">
-              Wzorzec loading — szyna i komunikat
+              Wzorzec loading - szyna i komunikat
             </p>
             <div className="relative rounded-md border border-border p-4">
               <LoadingRail className="absolute inset-x-4 top-0" />
@@ -340,7 +340,7 @@ export default function DesignSystemGallery() {
               górnej krawędzi (rysowaną RAZ, bez pętli i bez udawanego procentu)
               oraz komunikat w roli status przy dolnej krawędzi okna. Układ
               ekranu zostaje pod spodem jako rezerwa o wysokości docelowych
-              linii tekstu — stoi pod visibility hidden, więc trzyma miejsce co
+              linii tekstu - stoi pod visibility hidden, więc trzyma miejsce co
               do piksela i nie maluje niczego, a wejście treści nie rusza
               układu.
             </p>
@@ -350,7 +350,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="file-upload"
           title="Pole wgrywania pliku"
-          description="Ukryty, ale fokusowalny input pod ostylowaną strefą — klik i przeciągnięcie kończą się w tym samym natywnym inpucie (źródło prawdy dla FormData). Stany: pusty, błąd, wyłączone poniżej; wybrany i drag-over wypróbujesz interakcją."
+          description="Ukryty, ale fokusowalny input pod ostylowaną strefą - klik i przeciągnięcie kończą się w tym samym natywnym inpucie (źródło prawdy dla FormData). Stany: pusty, błąd, wyłączone poniżej; wybrany i drag-over wypróbujesz interakcją."
         >
           <div className="grid gap-5 md:grid-cols-3">
             <div className="space-y-2">
@@ -529,7 +529,7 @@ export default function DesignSystemGallery() {
         <GallerySection
           id="overlays"
           title="Select, menu i nakładki"
-          description="Interakcje klawiaturowe i portale. Nakładki rozdziela obrys border — bez cieni."
+          description="Interakcje klawiaturowe i portale. Nakładki rozdziela obrys border - bez cieni."
         >
           <div className="flex flex-wrap items-center gap-3">
             <Select defaultValue="active">
@@ -555,7 +555,7 @@ export default function DesignSystemGallery() {
                 <SheetHeader>
                   <SheetTitle>Nawigacja</SheetTitle>
                   <SheetDescription>
-                    Nakładka wysuwana z krawędzi — shell panelu chowa w niej
+                    Nakładka wysuwana z krawędzi - shell panelu chowa w niej
                     sidebar na wąskim ekranie. Rozdziela obrys, nie cień.
                   </SheetDescription>
                 </SheetHeader>

@@ -92,7 +92,7 @@ export async function addCustomDomainAction(
       return { formError: "Ta domena jest już w systemie." };
     }
     if (error.code === PG_CHECK_VIOLATION) {
-      return { formError: "Baza odrzuciła tę domenę — sprawdź, czy to poprawny host." };
+      return { formError: "Baza odrzuciła tę domenę - sprawdź, czy to poprawny host." };
     }
     return { formError: error.message };
   }
@@ -184,7 +184,7 @@ export async function retrySubdomainAction(
         // slug). Sami tego nie rozstrzygniemy — zmiana cudzego wiersza byłaby
         // przejęciem hosta. To jedyny przypadek, w którym kontakt z nami jest
         // uczciwą odpowiedzią, a nie zbyciem najemcy.
-        return { formError: "Ten adres jest już zajęty w systemie — napisz do nas." };
+        return { formError: "Ten adres jest już zajęty w systemie - napisz do nas." };
       }
       if (insertError.code === PG_CHECK_VIOLATION) {
         return { formError: "Baza odrzuciła adres zbudowany z nazwy organizacji." };

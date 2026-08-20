@@ -110,7 +110,7 @@ export async function startPaymentOnboardingAction(
     // zmiennych to sprawa platformy, nie ekran najemcy.
     return {
       formError:
-        "Płatności online są chwilowo niedostępne po stronie platformy — spróbuj ponownie później.",
+        "Płatności online są chwilowo niedostępne po stronie platformy - spróbuj ponownie później.",
     };
   }
 

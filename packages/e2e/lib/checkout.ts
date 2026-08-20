@@ -55,7 +55,7 @@ export async function fillAndSubmitCheckout(
   if (customer.phone) await page.locator("#co-phone").fill(customer.phone);
 
   await page.locator('input[name="deliveryMethod"][value="pickup"]').check();
-  await page.locator("#co-pickup").selectOption({ label: `${seed.pickupLocationName} — Warszawa` });
+  await page.locator("#co-pickup").selectOption({ label: `${seed.pickupLocationName} - Warszawa` });
 
   await page.locator(`input[name="paymentMethod"][value="${paymentMethod}"]`).check();
 

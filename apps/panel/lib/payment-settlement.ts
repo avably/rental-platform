@@ -141,7 +141,7 @@ export async function applySettlement(
       ok: true,
       changed: false,
       paymentStatus: targetStatus,
-      reason: `Zamówienie jest już w statusie ${targetStatus} — bez zapisu.`,
+      reason: `Zamówienie jest już w statusie ${targetStatus} - bez zapisu.`,
     };
   }
 

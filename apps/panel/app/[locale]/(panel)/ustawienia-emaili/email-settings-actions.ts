@@ -57,7 +57,7 @@ export async function saveEmailSenderAction(
     if (error.code === PG_CHECK_VIOLATION) {
       return {
         formError:
-          "Wartości odrzucone przez walidację bazy — sprawdź nazwę nadawcy i adres odpowiedzi.",
+          "Wartości odrzucone przez walidację bazy - sprawdź nazwę nadawcy i adres odpowiedzi.",
       };
     }
     return { formError: error.message };

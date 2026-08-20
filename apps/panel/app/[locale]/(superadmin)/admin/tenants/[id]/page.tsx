@@ -126,7 +126,7 @@ export default async function TenantDetailPage({
               </option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name} — {formatMoney(plan.price_grosze, plan.currency, locale)}
+                  {plan.name} - {formatMoney(plan.price_grosze, plan.currency, locale)}
                 </option>
               ))}
             </select>

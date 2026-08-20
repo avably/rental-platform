@@ -37,7 +37,7 @@ export async function generateMetadata({
         ? copy.faqPage
         : copy.contactPage;
   return {
-    title: `${pageCopy.title} — Avably`,
+    title: `${pageCopy.title} - Avably`,
     description: pageCopy.metadataDescription,
     alternates: { canonical: `${CANONICAL_SITE_URL}/${locale}/${resolved}` },
   };

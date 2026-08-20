@@ -212,7 +212,7 @@ export async function requestDepositRefund(
     return {
       status: "failed",
       deductionGrosze: 0,
-      reason: "Zwrot bez kwoty nie jest zwrotem — podaj kwotę albo rozlicz kaucję samym potrąceniem.",
+      reason: "Zwrot bez kwoty nie jest zwrotem - podaj kwotę albo rozlicz kaucję samym potrąceniem.",
     };
   }
 
@@ -240,7 +240,7 @@ export async function requestDepositRefund(
     return {
       status: "failed",
       deductionGrosze: 0,
-      reason: "To zamówienie nie ma płatności online — zwrotu nie da się zlecić u dostawcy.",
+      reason: "To zamówienie nie ma płatności online - zwrotu nie da się zlecić u dostawcy.",
     };
   }
 
@@ -270,7 +270,7 @@ export async function requestDepositRefund(
       status: "pending",
       deductionGrosze: 0,
       reason:
-        "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy — poczekaj na potwierdzenie zamiast zlecać drugi.",
+        "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy - poczekaj na potwierdzenie zamiast zlecać drugi.",
     };
   }
 
@@ -287,7 +287,7 @@ export async function requestDepositRefund(
     return {
       status: "failed",
       deductionGrosze: 0,
-      reason: "Najemca nie ma konta u dostawcy płatności — zwrotu nie da się zlecić.",
+      reason: "Najemca nie ma konta u dostawcy płatności - zwrotu nie da się zlecić.",
     };
   }
 
@@ -315,7 +315,7 @@ export async function requestDepositRefund(
         status: "pending",
         deductionGrosze: 0,
         reason:
-          "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy — poczekaj na potwierdzenie zamiast zlecać drugi.",
+          "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy - poczekaj na potwierdzenie zamiast zlecać drugi.",
       };
     }
     return {
@@ -370,8 +370,8 @@ export async function requestDepositRefund(
       const reason = staleBalance
         ? deducted.error!.message
         : deducted.error
-          ? `Potrącenie odrzucone przez rejestr kaucji — zwrotu nie zlecono: ${deducted.error.message}`
-          : "Potrącenia nie udało się zapisać — zwrotu nie zlecono.";
+          ? `Potrącenie odrzucone przez rejestr kaucji - zwrotu nie zlecono: ${deducted.error.message}`
+          : "Potrącenia nie udało się zapisać - zwrotu nie zlecono.";
       await mark(deps.db, requestId, "failed", reason);
       return { status: "failed", deductionGrosze: 0, reason, staleBalance };
     }

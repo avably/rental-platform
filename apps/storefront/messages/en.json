@@ -21,27 +21,27 @@
       {
         "heading": "2. What this policy covers",
         "body": [
-          "This policy covers only the avably.io website and waitlist sign-ups. Avably has not yet launched as a service — when it does, we will publish a separate policy for the product."
+          "This policy covers only the avably.io website and waitlist sign-ups. Avably has not yet launched as a service - when it does, we will publish a separate policy for the product."
         ]
       },
       {
         "heading": "3. What data we collect",
         "body": [
-          "When you join the waitlist, we collect:\n- your email address (required),\n- the type of equipment you rent, the size of your inventory, and how you currently manage bookings — that is, your answers in the form,\n- details about the equipment — only if you choose “other”,\n- whether you want to take part in the pilot,\n- your phone number — only if you apply for the pilot. Without that application, the form will not accept a phone number at all,\n- the time when you give consent,\n- the language in which you view the website,\n- campaign identifiers (the utm_source and utm_campaign parameters in the address), if you reached us through a campaign link.",
+          "When you join the waitlist, we collect:\n- your email address (required),\n- the type of equipment you rent, the size of your inventory, and how you currently manage bookings - that is, your answers in the form,\n- details about the equipment - only if you choose “other”,\n- whether you want to take part in the pilot,\n- your phone number - only if you apply for the pilot. Without that application, the form will not accept a phone number at all,\n- the time when you give consent,\n- the language in which you view the website,\n- campaign identifiers (the utm_source and utm_campaign parameters in the address), if you reached us through a campaign link.",
           "We do not save your IP address with your submission. We use it only temporarily to limit the number of submissions from one address and protect the form against abuse. The key expires automatically."
         ]
       },
       {
         "heading": "4. Why we use the data and on what legal basis",
         "body": [
-          "- Adding you to the waitlist and sending information about the development and launch of Avably — based on your consent (Article 6(1)(a) GDPR).\n- Contacting you about the pilot — based on your consent, if you express such an interest.\n- Protecting the form against abuse — based on our legitimate interest (Article 6(1)(f) GDPR).",
+          "- Adding you to the waitlist and sending information about the development and launch of Avably - based on your consent (Article 6(1)(a) GDPR).\n- Contacting you about the pilot - based on your consent, if you express such an interest.\n- Protecting the form against abuse - based on our legitimate interest (Article 6(1)(f) GDPR).",
           "We use answers about equipment type and inventory only to understand who we are building the product for. We do not make any automated decisions based on them and we do not profile you."
         ]
       },
       {
         "heading": "5. Who processes data on our behalf",
         "body": [
-          "We use providers that process data on our behalf:\n- Supabase — submission database — European Union (Frankfurt)\n- Vercel — website hosting — European Union (Frankfurt)\n- Upstash — protection of the form against abuse — European Union (Frankfurt)\n- Cloudflare — DNS and website protection — global network\n- Resend — sending messages to you — European Union",
+          "We use providers that process data on our behalf:\n- Supabase - submission database - European Union (Frankfurt)\n- Vercel - website hosting - European Union (Frankfurt)\n- Upstash - protection of the form against abuse - European Union (Frankfurt)\n- Cloudflare - DNS and website protection - global network\n- Resend - sending messages to you - European Union",
           "We store data in the European Union. Some of these companies are based in the United States, so technical support may involve transferring data outside the European Economic Area. This takes place on the basis of standard contractual clauses approved by the European Commission.",
           "We do not sell your data or share it with anyone for marketing purposes."
         ]
@@ -172,9 +172,9 @@
       "item3Title": "Plan the day around available units",
       "item3Body": "The calendar counts individual units and includes live rentals, buffers and servicing. You can see what goes out today, what should return and what needs preparing for tomorrow. If two people choose the last free unit, only one booking can go through.",
       "item4Title": "Hand it over or ship it",
-      "item4Body": "Pickup and delivery stay on the same order. For a courier shipment, create the parcel, download the PDF label and keep the tracking number next to the equipment and dates — not in a separate inbox.",
+      "item4Body": "Pickup and delivery stay on the same order. For a courier shipment, create the parcel, download the PDF label and keep the tracking number next to the equipment and dates - not in a separate inbox.",
       "item5Title": "Take the return and settle the deposit",
-      "item5Body": "The register records PLN 950 collected, PLN 57 deducted for cleaning, the remainder refunded and a zero balance — each with its date and reason. After a card payment, one action sends the refund back to the card; for cash or bank transfer, you record the settlement yourself. If the customer asks about PLN 57, the answer sits on the order."
+      "item5Body": "The register records PLN 950 collected, PLN 57 deducted for cleaning, the remainder refunded and a zero balance - each with its date and reason. After a card payment, one action sends the refund back to the card; for cash or bank transfer, you record the settlement yourself. If the customer asks about PLN 57, the answer sits on the order."
     },
     "video": {
       "quote": "I run a rental business myself. Avably grew out of the days when two people arrived for the same piece of equipment and the deposit trail lived somewhere in the phone.",
@@ -217,11 +217,11 @@
       "card1Title": "The database itself separates rental data",
       "card1Body": "The wall between two businesses sits in the database itself (Row Level Security), not in the screens above it. A test guards it on every change to the system: it deliberately reaches for another business's rows and has to be refused, or the change does not ship.",
       "card2Title": "We never hold a card number",
-      "card2Body": "Payments run through Stripe — card numbers never touch our servers and are never stored here. We do not collect national ID numbers or scans of identity documents either. A name, an email, a phone, an address and a tax number for the invoice is all we keep.",
+      "card2Body": "Payments run through Stripe - card numbers never touch our servers and are never stored here. We do not collect national ID numbers or scans of identity documents either. A name, an email, a phone, an address and a tax number for the invoice is all we keep.",
       "card3Title": "Servers inside the European Union",
       "card3Body": "The database, the hosting and the mail all run in EU regions. Courier integration keys are encrypted separately for each business, and the key we encrypt them with does not live in the database.",
       "card4Title": "We cannot get into the platform without a code",
-      "card4Body": "Our own administrative access needs a second factor (TOTP) — a password alone gets none of us in. Store and back-office pages ship a Content-Security-Policy computed separately for each request, plus HSTS and the rest of the security headers.",
+      "card4Body": "Our own administrative access needs a second factor (TOTP) - a password alone gets none of us in. Store and back-office pages ship a Content-Security-Policy computed separately for each request, plus HSTS and the rest of the security headers.",
       "card5Title": "An address for reporting holes, and the GDPR paperwork",
       "card5Body": "We publish security.txt (RFC 9116) with an address for vulnerability reports. We do not yet have a data processing agreement or self-service deletion of a customer's data; both are being written before the paid plans start.",
       "note": "We hold no external certifications and we do not imply otherwise. Everything above can be checked in the running system."
@@ -231,28 +231,28 @@
       "eyebrowBottom": "questions",
       "q1": "Can a customer book and pay on my site?",
       "a1Lead": "Yes, by card.",
-      "a1": "The customer picks the equipment and the days, sees live availability and pays by card — the deposit comes off with the order. Our server works out the amount; the customer's browser never touches it. Anyone who prefers the old way pays by transfer or on pickup. BLIK and Przelewy24 are being built — we are not giving dates.",
+      "a1": "The customer picks the equipment and the days, sees live availability and pays by card - the deposit comes off with the order. Our server works out the amount; the customer's browser never touches it. Anyone who prefers the old way pays by transfer or on pickup. BLIK and Przelewy24 are being built - we are not giving dates.",
       "q2": "What do I pay, and do you take a cut of each booking?",
       "a2Lead": "PLN 199 net a month, and no cut.",
       "a2": "That price covers the back office, the store website and online payments. We do not count users or orders. A year up front costs the same as ten months. We take nothing from the transaction: the money goes straight to your own account with the payment provider, and you sign that contract yourself, so their rates come from them, not through us. Premium at PLN 399 net is on the page, but we are not selling it yet.",
       "q3": "What happens after the 14 days?",
       "a3Lead": "Nothing on its own.",
-      "a3": "You sign up without a card, so there is nothing for us to charge — after fourteen days nothing happens by itself. The prices are set: Standard at PLN 199 net a month, Premium at PLN 399 net, a year for the price of ten months, no annual contract and no onboarding fee. Subscription payment goes live before the commercial launch — we will email you before anything starts costing money. Catalogue, orders and customers export to CSV whenever you want.",
+      "a3": "You sign up without a card, so there is nothing for us to charge - after fourteen days nothing happens by itself. The prices are set: Standard at PLN 199 net a month, Premium at PLN 399 net, a year for the price of ten months, no annual contract and no onboarding fee. Subscription payment goes live before the commercial launch - we will email you before anything starts costing money. Catalogue, orders and customers export to CSV whenever you want.",
       "q4": "My bookings live in a notebook and a spreadsheet. How do I move them?",
       "a4Lead": "The catalogue goes in as a CSV.",
-      "a4": "The file uses our column layout, so the simplest way is to export the empty one and fill it in. Before anything is saved you get a preview: how many items will be added, how many overwritten, and which row has an error. Photos, units and pickup points you add in the back office, because the CSV does not carry them. The import covers the catalogue, not bookings — open dates you enter by hand. Export works the other way round, so your data is not locked in here.",
+      "a4": "The file uses our column layout, so the simplest way is to export the empty one and fill it in. Before anything is saved you get a preview: how many items will be added, how many overwritten, and which row has an error. Photos, units and pickup points you add in the back office, because the CSV does not carry them. The import covers the catalogue, not bookings - open dates you enter by hand. Export works the other way round, so your data is not locked in here.",
       "q5": "Can the store run on my own domain?",
       "a5Lead": "Yes, with one CNAME record.",
       "a5": "The moment your organisation exists, the store already answers at yourname.avably.io, so you have something to show customers on day one. Your own domain goes on whenever you want: the back office spells out the record (type, name, value), you paste it at your registrar and press “Check verification”. DNS is sometimes ready in minutes, sometimes hours. No developer needed.",
       "q6": "Who is Avably a bad fit for?",
       "a6Lead": "For hourly rental.",
-      "a6": "We price rentals in days, off tiered day rates — hours are simply not something we count. We do not run retail either: tills, receipts and stock to sell belong in a different program. Flats and premises are outside this entirely. And there is nobody here who will load your catalogue for you — you sign up and click through it yourself, and we answer email, usually the same business day.",
+      "a6": "We price rentals in days, off tiered day rates - hours are simply not something we count. We do not run retail either: tills, receipts and stock to sell belong in a different program. Flats and premises are outside this entirely. And there is nobody here who will load your catalogue for you - you sign up and click through it yourself, and we answer email, usually the same business day.",
       "q7": "Can another rental business see my data?",
       "a7Lead": "No, the database stops it.",
       "a7": "The boundary sits in the database, not in what the screen draws. On every change to the code a test deliberately reaches for another business's rows and tries to change them. It has to be refused, or the change does not ship. Admin access to the platform itself takes a second factor. We never see card numbers at all, because Stripe holds them.",
       "q8": "Where does my data sit, and what about GDPR?",
       "a8Lead": "In the European Union.",
-      "a8": "The database, the hosting and the email run with providers whose servers are in the EU. We keep ordinary contact details of your customers: name, email, phone, address, tax number for the invoice. We do not collect national ID numbers or scans of ID documents. You are the controller of that data; we process it on your instruction. The data processing agreement and self-service deletion of a customer record do not exist yet — both land before the paid plans start."
+      "a8": "The database, the hosting and the email run with providers whose servers are in the EU. We keep ordinary contact details of your customers: name, email, phone, address, tax number for the invoice. We do not collect national ID numbers or scans of ID documents. You are the controller of that data; we process it on your instruction. The data processing agreement and self-service deletion of a customer record do not exist yet - both land before the paid plans start."
     },
     "faqPage": {
       "metadataDescription": "Answers about payments, pricing, the trial, catalogue imports, your own domain, security and GDPR.",
@@ -263,15 +263,15 @@
       "eyebrow": "Start today",
       "title": "Try Avably on one real rental",
       "cta": "Open your rental store",
-      "ctaSecondary": "Start your 14-day trial — no card"
+      "ctaSecondary": "Start your 14-day trial - no card"
     },
     "footer": {
       "description": "Avably connects the rental website to the back office where the team runs an order from booking to settled return.",
       "columnProduct": "Product",
       "columnCompany": "Company",
       "trialLead": "Prefer to try it first?",
-      "trialCta": "Create an account — 14 days, no card",
-      "trialNote": "You sign up without a card, so nothing gets charged by itself. Subscription payment goes live before the commercial launch — we will email you first.",
+      "trialCta": "Create an account - 14 days, no card",
+      "trialNote": "You sign up without a card, so nothing gets charged by itself. Subscription payment goes live before the commercial launch - we will email you first.",
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
       "copyright": "© Avably 2026. All rights reserved."
@@ -289,7 +289,7 @@
     "contactPage": {
       "metadataDescription": "Contact Avably about the product, the pilot, GDPR or security. We usually reply on the same business day.",
       "title": "Write to one address",
-      "intro": "Product questions, GDPR, the pilot and security reports all land in one inbox. We usually answer the same business day. There is no phone line. Tell us up front what you rent and how many units you keep, and the first reply will be about your equipment rather than a request for details. You do not need us to open an account either: you do that yourself — email, password, one confirmation link.",
+      "intro": "Product questions, GDPR, the pilot and security reports all land in one inbox. We usually answer the same business day. There is no phone line. Tell us up front what you rent and how many units you keep, and the first reply will be about your equipment rather than a request for details. You do not need us to open an account either: you do that yourself - email, password, one confirmation link.",
       "emailLabel": "Email",
       "email": "admin@avably.io",
       "addressLabel": "Company details",
@@ -310,7 +310,7 @@
       "s4": "You send and take back shipments by courier, print the PDF label from the back office, and price delivery from your own rate card",
       "s5": "A store site with the editor and your own domain, or the widget and WordPress plugin on the site you already run (there: bank transfer and payment on pickup for now)",
       "s6": "A PDF rental agreement, and on every order you can see which customer email went out and which did not",
-      "s7": "No cap on users, orders or products — the whole crew costs the same",
+      "s7": "No cap on users, orders or products - the whole crew costs the same",
       "premiumLabel": "Premium",
       "premiumBadge": "Coming soon",
       "premiumPrice": "PLN 399 net / month",
@@ -324,8 +324,8 @@
       "p6": "Customer emails go out from your domain instead of ours",
       "p7": "Higher public API limits; your tickets go to the front of the queue",
       "honestTitle": "No small print",
-      "honest1": "There is no onboarding fee and no annual contract — and nothing to onboard: you open the account by email and click through it yourself. We never take a card, so nothing charges itself after 14 days; subscription payment goes live before the commercial launch, and we will tell you by email first.",
-      "honest2": "We do not sell the Premium list until it works. We show it so you know where the product is going, and can tell us the order is wrong. And your data sits separated from every other business in the database itself, not on the screen — a test checks that on every change to the system."
+      "honest1": "There is no onboarding fee and no annual contract - and nothing to onboard: you open the account by email and click through it yourself. We never take a card, so nothing charges itself after 14 days; subscription payment goes live before the commercial launch, and we will tell you by email first.",
+      "honest2": "We do not sell the Premium list until it works. We show it so you know where the product is going, and can tell us the order is wrong. And your data sits separated from every other business in the database itself, not on the screen - a test checks that on every change to the system."
     },
     "notFoundPage": {
       "eyebrow": "Error 404",
@@ -336,9 +336,9 @@
   },
   "landing": {
     "metadata": {
-      "title": "Avably — software for equipment rental businesses",
+      "title": "Avably - software for equipment rental businesses",
       "description": "A rental back office, online payments with deposits and your own store website with booking. We take no cut of transactions. Standard PLN 199 net a month, 14-day trial, no card.",
-      "ogTitle": "Avably — run your rental business in one system",
+      "ogTitle": "Avably - run your rental business in one system",
       "ogDescription": "Bookings, deposits, courier, online payments and your own store website in one subscription. We take no cut of transactions, 14-day trial, no card."
     }
   },
@@ -393,7 +393,7 @@
         "message": "Message",
         "submit": "Send message",
         "sending": "Sending…",
-        "success": "Thank you — your message came through. We will reply to the address you gave us.",
+        "success": "Thank you - your message came through. We will reply to the address you gave us.",
         "privacyNote": "We will use these details only to reply to this message.",
         "privacyLink": "Privacy policy",
         "errors": {
@@ -417,7 +417,7 @@
       "prev": "Previous page",
       "next": "Next page",
       "goToPage": "Page {page}",
-      "description": "The full list of equipment for hire — {store}. Check daily rates and availability for your dates."
+      "description": "The full list of equipment for hire - {store}. Check daily rates and availability for your dates."
     },
     "common": {
       "from": "from",
@@ -425,7 +425,7 @@
       "backToCatalog": "Back to catalog",
       "continueShopping": "Continue shopping",
       "days": "days",
-      "estimateNote": "Estimated amount — the final total is confirmed when you place the order.",
+      "estimateNote": "Estimated amount - the final total is confirmed when you place the order.",
       "optional": "optional",
       "required": "required"
     },
@@ -452,8 +452,8 @@
       "dayUnavailable": "no units available",
       "dayOutOfRange": "outside the selection window",
       "conflictHeading": "These dates do not fit your whole cart",
-      "conflictLine": "{name} — in cart: {requested}, available for these dates: {available}",
-      "conflictBlocksCheckout": "You cannot go to checkout until this is resolved — remove these items or go back to the previous dates.",
+      "conflictLine": "{name} - in cart: {requested}, available for these dates: {available}",
+      "conflictBlocksCheckout": "You cannot go to checkout until this is resolved - remove these items or go back to the previous dates.",
       "conflictRemove": "Remove these items from the cart",
       "conflictRevert": "Back to the previous dates",
       "unitsFree": "available for these dates: {units} pcs",
@@ -462,7 +462,7 @@
       "bookingSubtitle": "Pick your dates and check the rental price",
       "fieldLabel": "Rental dates",
       "fieldPrompt": "Click to select dates",
-      "bookingUnknown": "We could not check availability — you can add to cart and we will confirm free units when the order is placed."
+      "bookingUnknown": "We could not check availability - you can add to cart and we will confirm free units when the order is placed."
     },
     "product": {
       "galleryAlt": "Photo of {name}",
@@ -470,7 +470,7 @@
       "specsHeading": "Specification",
       "depositLabel": "Deposit",
       "perDayPrice": "{price} / day",
-      "unavailable": "No units available for the selected dates — please pick another range.",
+      "unavailable": "No units available for the selected dates - please pick another range.",
       "dateRequired": "Choose rental dates to add to cart.",
       "quantity": "Quantity",
       "addToCart": "Add to cart",
@@ -484,7 +484,7 @@
       "emptyCta": "Browse the catalog",
       "rentalPeriod": "Rental period",
       "noDates": "No dates selected",
-      "editInProduct": "Set the dates in the bar at the top of the page — they apply to the whole order.",
+      "editInProduct": "Set the dates in the bar at the top of the page - they apply to the whole order.",
       "quantity": "Quantity",
       "remove": "Remove",
       "lineRental": "Rental",
@@ -497,7 +497,7 @@
     },
     "checkout": {
       "title": "Order details",
-      "cartEmpty": "Your cart is empty — add products before placing an order.",
+      "cartEmpty": "Your cart is empty - add products before placing an order.",
       "contactHeading": "Contact details",
       "fullName": "Full name",
       "email": "Email address",
@@ -519,7 +519,7 @@
       "choosePickup": "Choose a pickup point",
       "paymentHeading": "Payment method",
       "paymentOnline": "Pay online",
-      "paymentOnlineHint": "BLIK, Przelewy24 or card — your booking is paid right away.",
+      "paymentOnlineHint": "BLIK, Przelewy24 or card - your booking is paid right away.",
       "paymentTransfer": "Bank transfer",
       "paymentTransferHint": "We'll send the transfer details along with your order confirmation.",
       "paymentCod": "Pay on collection",
@@ -549,13 +549,13 @@
         "terms": "Accept the terms to continue.",
         "generic": "Please check the highlighted fields.",
         "summary": "The form has errors to fix: {count}.",
-        "unavailable": "Those dates are taken — pick another range or a smaller quantity.",
+        "unavailable": "Those dates are taken - pick another range or a smaller quantity.",
         "rejected": "We couldn't place the order. Check your details and try again.",
-        "rateLimited": "Too many attempts — try again later or contact the rental store.",
+        "rateLimited": "Too many attempts - try again later or contact the rental store.",
         "captcha": "Anti-spam verification failed. Please try again.",
         "connection": "Connection problem. Please try again.",
         "paymentMethod": "Choose a payment method.",
-        "paymentUnavailable": "Online payment isn't available in this rental store right now. Choose a bank transfer or payment on collection — the booking is exactly the same.",
+        "paymentUnavailable": "Online payment isn't available in this rental store right now. Choose a bank transfer or payment on collection - the booking is exactly the same.",
         "server": "Something went wrong. Please try again in a moment.",
         "customField": {
           "required": "This field is required.",
@@ -563,19 +563,19 @@
           "tooLong": "The value is too long.",
           "notAllowed": "This field cannot be filled in here."
         },
-        "legalDocumentsMissing": "The rental shop has not published its required documents yet (terms and privacy policy) — the order could not be accepted.",
-        "minRentalDays": "The selected dates are too short — one of the items rents for a minimum of {count} days. Extend the rental period and try again."
+        "legalDocumentsMissing": "The rental shop has not published its required documents yet (terms and privacy policy) - the order could not be accepted.",
+        "minRentalDays": "The selected dates are too short - one of the items rents for a minimum of {count} days. Extend the rental period and try again."
       },
       "termsLabelLinked": "I accept the rental {link} and rental conditions.",
       "termsLinkText": "terms and conditions",
-      "conflictBlocked": "The selected dates do not fit your whole cart. Resolve it in the dates bar — otherwise the order will be rejected on submit.",
-      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet — orders cannot be placed. Please contact the rental shop."
+      "conflictBlocked": "The selected dates do not fit your whole cart. Resolve it in the dates bar - otherwise the order will be rejected on submit.",
+      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet - orders cannot be placed. Please contact the rental shop."
     },
     "legal": {
       "version": "Version {version}",
       "publishedAt": "published {date}",
       "checksum": "Checksum",
-      "archivedNotice": "You are viewing an archived version of this document — the one in force when it was accepted.",
+      "archivedNotice": "You are viewing an archived version of this document - the one in force when it was accepted.",
       "currentVersionLink": "View the version currently in force"
     },
     "payment": {
@@ -592,17 +592,17 @@
       "checkStatus": "Check payment status",
       "retry": "Try paying again",
       "statusTitle": "Payment status",
-      "statusChecking": "We're checking your payment. Confirmation from the payment provider can take a few minutes to reach us — we'll email you as soon as it does.",
+      "statusChecking": "We're checking your payment. Confirmation from the payment provider can take a few minutes to reach us - we'll email you as soon as it does.",
       "statusProviderConfirmed": "The payment provider confirms the funds went through. We're waiting for them to be recorded against your order.",
       "statusPaid": "Payment recorded. Your booking is paid.",
-      "statusFailed": "The payment didn't go through. Your order is waiting — you can try again or settle with the rental store.",
-      "statusOffline": "You settle this order with the rental store — by bank transfer or on collection.",
+      "statusFailed": "The payment didn't go through. Your order is waiting - you can try again or settle with the rental store.",
+      "statusOffline": "You settle this order with the rental store - by bank transfer or on collection.",
       "statusClosed": "This order is already closed."
     },
     "confirmation": {
       "title": "Thank you for your order!",
       "orderNumber": "Order number",
-      "paymentNote": "You'll settle payment with the rental store on pickup or by bank transfer — we'll be in touch with the details.",
+      "paymentNote": "You'll settle payment with the rental store on pickup or by bank transfer - we'll be in touch with the details.",
       "rentalPeriod": "Rental period",
       "deliveryMethod": "Collection method",
       "summaryRental": "Rental",
@@ -614,8 +614,8 @@
       "backToStore": "Back to the store"
     },
     "seo": {
-      "catalogDescription": "{store} rentals — browse the offer, check availability and book online.",
-      "productDescription": "{product} — rent from {store}. Check the daily rate and availability for your dates."
+      "catalogDescription": "{store} rentals - browse the offer, check availability and book online.",
+      "productDescription": "{product} - rent from {store}. Check the daily rate and availability for your dates."
     },
     "embed": {
       "heading": "Book online",
@@ -628,9 +628,9 @@
       "legendFree": "Available",
       "legendBusy": "Booked",
       "legendUnknown": "Checking availability",
-      "partialNote": "Some days could not be checked right now — refresh in a moment.",
+      "partialNote": "Some days could not be checked right now - refresh in a moment.",
       "rangeHint": "Click the first day, then the last one.",
-      "selectedRange": "Dates: {from} — {to}",
+      "selectedRange": "Dates: {from} - {to}",
       "clearRange": "Clear dates",
       "daysLabel": "Days: {days}",
       "contactHeading": "Booking details",
@@ -673,7 +673,7 @@
       "weekdayFri": "Fri",
       "weekdaySat": "Sat",
       "weekdaySun": "Sun",
-      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet — online booking is paused."
+      "termsMissingNotice": "The rental shop has not published its terms and privacy policy yet - online booking is paused."
     }
   }
 }

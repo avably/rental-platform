@@ -22,7 +22,7 @@ import { type FormState } from "@/lib/form-state";
 import { uuidSchema } from "@/lib/order-validation";
 import { requireMember } from "@/lib/supabase-server";
 
-const NOT_FOUND = "Nie udało się zapisać — zamówienie nie istnieje albo nie masz do niego dostępu.";
+const NOT_FOUND = "Nie udało się zapisać - zamówienie nie istnieje albo nie masz do niego dostępu.";
 
 export async function updateOrderCustomFieldsAction(
   orderId: string,
@@ -40,7 +40,7 @@ export async function updateOrderCustomFieldsAction(
     throw err;
   }
   const tenantId = ctx.tenantId;
-  if (!tenantId) return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+  if (!tenantId) return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
 
   // Stan sprzed edycji jest częścią zapisu — kolumna idzie do bazy w całości,
   // a ta sekcja pokazuje wyłącznie pola z flagą „panel".

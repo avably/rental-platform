@@ -801,7 +801,7 @@ export function CheckoutForm({
                   {pickupLocations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
-                      {location.address_city ? ` — ${location.address_city}` : ""}
+                      {location.address_city ? ` - ${location.address_city}` : ""}
                     </option>
                   ))}
                 </select>

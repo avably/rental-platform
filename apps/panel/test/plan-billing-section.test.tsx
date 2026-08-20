@@ -93,7 +93,7 @@ describe("parytet cen ekran ↔ stała SAAS_PLAN_PRICING", () => {
   it("komunikat aktywacji płatności jest spójny z FAQ LP (przed startem komercyjnym, mailem)", () => {
     const html = render();
     expect(html).toContain(
-      "Płatność abonamentu włączymy przed startem komercyjnym — odezwiemy się mailem, zanim cokolwiek zacznie kosztować.",
+      "Płatność abonamentu włączymy przed startem komercyjnym - odezwiemy się mailem, zanim cokolwiek zacznie kosztować.",
     );
   });
 });
@@ -101,13 +101,13 @@ describe("parytet cen ekran ↔ stała SAAS_PLAN_PRICING", () => {
 describe("trial jako stan pierwszej klasy (brak wiersza subscriptions)", () => {
   it("trial w toku: stan (trwa do) z datą w strefie Europe/Warsaw", () => {
     const html = render({ trialEndsAt: FUTURE });
-    expect(html).toContain("Okres próbny — trwa do 20.08.2026.");
+    expect(html).toContain("Okres próbny - trwa do 20.08.2026.");
     expect(html).not.toContain("minął");
   });
 
   it("trial miniony: stan (minął) z datą — i obietnica, że nic się samo nie zdarza", () => {
     const html = render({ trialEndsAt: PAST });
-    expect(html).toContain("Okres próbny — minął 01.07.2026.");
+    expect(html).toContain("Okres próbny - minął 01.07.2026.");
     expect(html).toContain("nic się samo nie zdarzy");
   });
 
@@ -121,7 +121,7 @@ describe("trial jako stan pierwszej klasy (brak wiersza subscriptions)", () => {
       subscription: { planId: "pro", status: "active" },
       trialEndsAt: PAST,
     });
-    expect(html).toContain("Plan pro — Aktywny");
+    expect(html).toContain("Plan pro - Aktywny");
     expect(html).not.toContain("minął");
   });
 });

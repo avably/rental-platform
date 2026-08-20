@@ -40,7 +40,7 @@ const PRODUCT_NOT_FOUND = "Nie znaleziono produktu.";
 function slugFieldError(error: { code?: string; message: string }): FormState | null {
   if (error.code === "23505" && error.message.includes("products_slug_unique_idx")) {
     return {
-      fieldErrors: { slug: "Ten adres jest już zajęty przez inny sprzęt — wybierz inny." },
+      fieldErrors: { slug: "Ten adres jest już zajęty przez inny sprzęt - wybierz inny." },
     };
   }
   if (error.code === "22023" && error.message.includes("przekierowuje")) {

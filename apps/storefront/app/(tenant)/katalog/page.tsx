@@ -88,7 +88,7 @@ export async function generateMetadata({ searchParams }: Params): Promise<Metada
     */
     title:
       ctx.page > 1
-        ? pageTitle(storeName, `${ctx.copy.catalog.title} — ${format(ctx.copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`)
+        ? pageTitle(storeName, `${ctx.copy.catalog.title} - ${format(ctx.copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`)
         : pageTitle(storeName, ctx.copy.catalog.title),
     description: opis,
     storeName,

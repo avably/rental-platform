@@ -26,7 +26,7 @@ export async function acceptPlatformTermsAction(
 ): Promise<AcceptPlatformTermsState> {
   const parsed = inputSchema.safeParse({ versionId: formData.get("versionId") });
   if (!parsed.success) {
-    return { error: "Nieprawidłowe wskazanie wersji regulaminu — odśwież stronę." };
+    return { error: "Nieprawidłowe wskazanie wersji regulaminu - odśwież stronę." };
   }
 
   const supabase = await createSupabaseServerClient();

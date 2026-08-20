@@ -28,7 +28,7 @@ import {
 
 const str = (value: FormDataEntryValue | null) => (typeof value === "string" ? value : "");
 
-const NO_TENANT = "Sesja nie wskazuje najemcy — zaloguj się ponownie.";
+const NO_TENANT = "Sesja nie wskazuje najemcy - zaloguj się ponownie.";
 
 /**
  * Predykat zamrożonego zbioru dla akcji PO IDENTYFIKATORZE NOTATKI (edycja,

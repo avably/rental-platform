@@ -69,7 +69,7 @@ export interface StartSaasCheckoutInput {
 export type StartSaasCheckoutOutcome = { url: string } | { error: string };
 
 const ALREADY_SUBSCRIBED =
-  "Organizacja ma już aktywną subskrypcję — zmiana planu to osobna ścieżka.";
+  "Organizacja ma już aktywną subskrypcję - zmiana planu to osobna ścieżka.";
 
 export async function startSaasCheckout(
   deps: StartSaasCheckoutDeps,
