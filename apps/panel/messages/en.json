@@ -1,4 +1,10 @@
 {
+  "orgSwitcher": {
+    "label": "Organization",
+    "heading": "Switch organization",
+    "switchDenied": "You no longer have access to that organization.",
+    "switchError": "Could not switch organization. Please try again."
+  },
   "app": {
     "panelTitle": "Panel",
     "panelDescription": "Admin panel"
