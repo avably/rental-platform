@@ -14,6 +14,7 @@ import { SuperadminEntry } from "@/components/shell/superadmin-entry";
 import { Link } from "@/i18n/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { readTenantBillingState } from "@/lib/closing";
+import { readMyOrganizations } from "@/lib/organizations";
 import { readPlatformTermsGate } from "@/lib/platform-terms";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
@@ -49,6 +50,12 @@ export default async function PanelLayout({
   // twardą bramką pozostaje requireMember na każdym ekranie i akcji.
   const billing = ctx?.tenantId ? await readTenantBillingState(supabase, ctx.tenantId) : null;
   const closing = billing?.status === "suspended" && isClosingWindowOpen(billing.suspendedAt);
+
+  // PICKER ORGANIZACJI (L7, ADR-224). Lista wszystkich org zalogowanego
+  // użytkownika (RPC members-gated) — belka pokaże przełącznik dopiero przy
+  // >1 członkostwie. Fail-silent i NIE guard, jak odczyt rozliczeń wyżej:
+  // twardą bramką zostaje hook (claim tenant_id) i requireMember na ekranach.
+  const organizations = ctx ? await readMyOrganizations(supabase) : [];
 
   // ONBOARDING (ADR-153, N4): zalogowana sesja BEZ organizacji. Nawigacja
   // zwija się wtedy do samego pulpitu — każda inna pozycja prowadzi na trasę
@@ -164,6 +171,8 @@ export default async function PanelLayout({
           closing={closing}
           onboarding={onboarding}
           isOwner={isOwner}
+          organizations={organizations}
+          currentTenantId={ctx?.tenantId ?? null}
         />
         {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
             najemcę zostaje w panelu (zasada 3), sklep działa; w oknie

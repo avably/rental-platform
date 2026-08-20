@@ -74,6 +74,50 @@ async function signIn(email: string): Promise<{ client: SupabaseClient; accessTo
   return { client, accessToken: data.session.access_token };
 }
 
+/** app_metadata z JWT wystawionego przy świeżym logowaniu (przeliczonego przez hook). */
+async function appMetadataAfterLogin(email: string): Promise<Record<string, unknown>> {
+  const { accessToken } = await signIn(email);
+  return decodeJwtPayload(accessToken).app_metadata as Record<string, unknown>;
+}
+
+/** Świeży tenant (service-role, bez create_tenant) — kontrolujemy skład członkostw sami. */
+async function seedTenant(admin: SupabaseClient, label: string): Promise<string> {
+  const slug = `l7-${label}-${randomUUID()}`.slice(0, 39).toLowerCase();
+  const { data, error } = await admin
+    .from("tenants")
+    .insert({ slug, name: `L7 ${label}` })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`seedTenant(${label}) failed: ${error?.message}`);
+  return data.id as string;
+}
+
+/**
+ * Członkostwo z JAWNYM created_at — sterujemy „najstarsze/najnowsze" wprost,
+ * niezależnie od zegara (default now() dawałby wiersze nie do odróżnienia).
+ */
+async function seedMembership(
+  admin: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  role: "owner" | "staff",
+  createdAtIso: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("members")
+    .insert({ tenant_id: tenantId, user_id: userId, role, created_at: createdAtIso });
+  if (error) throw new Error(`seedMembership(${role}) failed: ${error.message}`);
+}
+
+/** Preferencja aktywnej org — seedowana service-rolem (omija bramkę członkostwa, jak stała preferencja). */
+async function setPreference(admin: SupabaseClient, userId: string, tenantId: string): Promise<void> {
+  const { error } = await admin
+    .schema("app")
+    .from("user_active_tenant")
+    .upsert({ user_id: userId, tenant_id: tenantId }, { onConflict: "user_id" });
+  if (error) throw new Error(`setPreference failed: ${error.message}`);
+}
+
 describe.skipIf(!hasEnv)("custom access token hook + RPC onboardingowe (0003_auth.sql)", () => {
   const admin = hasEnv ? createAdminClient() : (null as unknown as SupabaseClient);
 
@@ -227,5 +271,136 @@ describe.skipIf(!hasEnv)("custom access token hook + RPC onboardingowe (0003_aut
       .schema("app")
       .rpc("accept_invitation", { p_token: rawToken });
     expect(secondAcceptError, "powtórny akcept tego samego tokenu powinien zostać odrzucony").not.toBeNull();
+  });
+
+  // -------------------------------------------------------------------
+  // L7 — aktywna organizacja użytkownika wielotenantowego (0092, ADR-224)
+  // -------------------------------------------------------------------
+
+  it("dwa członkostwa bez preferencji → claim = NAJNOWSZE (nie najstarsze)", async () => {
+    const user = await createConfirmedUser(admin, "multi-default");
+    const older = await seedTenant(admin, "older");
+    const newer = await seedTenant(admin, "newer");
+    await seedMembership(admin, older, user.id, "staff", "2020-01-01T00:00:00Z");
+    await seedMembership(admin, newer, user.id, "owner", "2024-01-01T00:00:00Z");
+
+    const appMetadata = await appMetadataAfterLogin(user.email);
+    // DEFAULT = najnowsze członkostwo (created_at desc). To jest oś naprawy L7:
+    // przed nią hook wybierał „najstarsze" i więził usera na older (cudzej org).
+    expect(appMetadata.tenant_id, "domyślnie ląduje na najnowszym członkostwie").toBe(newer);
+    expect(appMetadata.tenant_id).not.toBe(older);
+    expect(appMetadata.role).toBe("owner");
+  });
+
+  it("preferencja aktywnej org wygrywa nad domyślnym najnowszym", async () => {
+    const user = await createConfirmedUser(admin, "multi-pref");
+    const older = await seedTenant(admin, "pref-older");
+    const newer = await seedTenant(admin, "pref-newer");
+    await seedMembership(admin, older, user.id, "staff", "2020-01-01T00:00:00Z");
+    await seedMembership(admin, newer, user.id, "owner", "2024-01-01T00:00:00Z");
+
+    // Preferencja wskazuje STARSZĄ org — hook ma ją uszanować mimo że default
+    // to najnowsza. Rola idzie z wiersza members preferowanej org.
+    await setPreference(admin, user.id, older);
+    const appMetadata = await appMetadataAfterLogin(user.email);
+    expect(appMetadata.tenant_id, "preferencja wygrywa nad default").toBe(older);
+    expect(appMetadata.role).toBe("staff");
+  });
+
+  it("NIEZMIENNIK IZOLACJI: preferencja na org NIECZŁONKOWSKĄ jest ignorowana (fallback, claim NIE niesie C)", async () => {
+    const user = await createConfirmedUser(admin, "iso");
+    const memberOrg = await seedTenant(admin, "iso-member");
+    const foreignOrg = await seedTenant(admin, "iso-foreign"); // org C — user NIE jest tu członkiem
+    await seedMembership(admin, memberOrg, user.id, "owner", "2022-01-01T00:00:00Z");
+
+    // Preferencja wskazuje org C, w której user NIE ma członkostwa (stała po
+    // odebraniu członkostwa albo spreparowana). Hook MUSI ją zignorować i
+    // wpaść na członkowską — org C NIGDY nie może trafić do claimu.
+    await setPreference(admin, user.id, foreignOrg);
+    const appMetadata = await appMetadataAfterLogin(user.email);
+    expect(appMetadata.tenant_id, "claim wraca na org członkowską").toBe(memberOrg);
+    expect(
+      appMetadata.tenant_id,
+      "OŚ IZOLACJI: preferencja na org nieczłonkowską NIGDY nie wpada do claimu (cross-tenant)",
+    ).not.toBe(foreignOrg);
+    expect(appMetadata.role).toBe("owner");
+  });
+
+  it("stała preferencja bez ŻADNEGO żywego członkostwa → tenant_id null (GoTrue nie crashuje)", async () => {
+    const user = await createConfirmedUser(admin, "pref-no-member");
+    const ghostOrg = await seedTenant(admin, "ghost");
+    // Preferencja istnieje, ale user nie jest członkiem nigdzie — JOIN gasi
+    // preferencję, fallback nie ma czego wybrać, coalesce'y chronią GoTrue.
+    await setPreference(admin, user.id, ghostOrg);
+    const appMetadata = await appMetadataAfterLogin(user.email);
+    expect(appMetadata.tenant_id).toBeNull();
+    expect(appMetadata.role).toBeNull();
+    expect(appMetadata.superadmin).toBe(false);
+  });
+
+  it("przełącznik member-verified: org członkowska OK + nowy claim; org nieczłonkowska ODMOWA, preferencja niezmieniona", async () => {
+    const user = await createConfirmedUser(admin, "switch");
+    const orgA = await seedTenant(admin, "switch-a");
+    const orgB = await seedTenant(admin, "switch-b");
+    const orgForeign = await seedTenant(admin, "switch-foreign");
+    await seedMembership(admin, orgA, user.id, "owner", "2021-01-01T00:00:00Z");
+    await seedMembership(admin, orgB, user.id, "staff", "2023-01-01T00:00:00Z");
+
+    const { client } = await signIn(user.email);
+
+    // Przełączenie na org członkowską B → sukces, zwraca B.
+    const { data: switched, error: switchError } = await client
+      .schema("app")
+      .rpc("set_active_tenant", { p_tenant_id: orgB });
+    expect(switchError, `set_active_tenant(member) powinno się powieść: ${switchError?.message}`).toBeNull();
+    expect(switched).toBe(orgB);
+    expect((await appMetadataAfterLogin(user.email)).tenant_id, "po przełączeniu claim = B").toBe(orgB);
+
+    // Przełączenie na org NIECZŁONKOWSKĄ → odmowa u źródła (bramka członkostwa
+    // w set_active_tenant), preferencja zostaje na B (input nigdy nie ustawia
+    // org nieczłonkowskiej).
+    const { data: denied, error: denyError } = await client
+      .schema("app")
+      .rpc("set_active_tenant", { p_tenant_id: orgForeign });
+    expect(denyError, "przełączenie na org nieczłonkowską musi zostać odrzucone").not.toBeNull();
+    expect(denied, "odmowa nie zwraca tenant_id").toBeNull();
+    expect(
+      (await appMetadataAfterLogin(user.email)).tenant_id,
+      "odmowa nie zmienia preferencji — claim nadal B",
+    ).toBe(orgB);
+  });
+
+  it("regresja single-membership: jedna org → claim = ta org", async () => {
+    const user = await createConfirmedUser(admin, "single");
+    const only = await seedTenant(admin, "single-only");
+    await seedMembership(admin, only, user.id, "owner", "2022-01-01T00:00:00Z");
+    const appMetadata = await appMetadataAfterLogin(user.email);
+    expect(appMetadata.tenant_id).toBe(only);
+    expect(appMetadata.role).toBe("owner");
+  });
+
+  it("create_tenant ustawia świeżo założoną org jako AKTYWNĄ preferencję (nie starą)", async () => {
+    const user = await createConfirmedUser(admin, "create-pref");
+
+    // Pierwsza org — create_tenant ustawia preferencję = A.
+    const { client: clientA } = await signIn(user.email);
+    const { data: tenantA, error: errorA } = await rpcCreateTenant(clientA, {
+      p_slug: `l7a-${randomUUID()}`.slice(0, 39),
+      p_name: "L7 create A",
+    });
+    expect(errorA, `create_tenant A: ${errorA?.message}`).toBeNull();
+    expect((await appMetadataAfterLogin(user.email)).tenant_id, "po założeniu A preferencja = A").toBe(tenantA);
+
+    // Druga org — gdyby create_tenant NIE ustawiał preferencji, zostałaby na A
+    // (członkowskiej), więc hook wybrałby A. Claim = B dowodzi, że create_tenant
+    // przełączył preferencję na świeżo założoną org.
+    const { client: clientB } = await signIn(user.email);
+    const { data: tenantB, error: errorB } = await rpcCreateTenant(clientB, {
+      p_slug: `l7b-${randomUUID()}`.slice(0, 39),
+      p_name: "L7 create B",
+    });
+    expect(errorB, `create_tenant B: ${errorB?.message}`).toBeNull();
+    expect(tenantB).not.toBe(tenantA);
+    expect((await appMetadataAfterLogin(user.email)).tenant_id, "twórca ląduje na świeżej org B").toBe(tenantB);
   });
 });

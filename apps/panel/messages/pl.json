@@ -1,4 +1,10 @@
 {
+  "orgSwitcher": {
+    "label": "Organizacja",
+    "heading": "Przełącz organizację",
+    "switchDenied": "Nie masz już dostępu do tej organizacji.",
+    "switchError": "Nie udało się przełączyć organizacji. Spróbuj ponownie."
+  },
   "app": {
     "panelTitle": "Panel",
     "panelDescription": "Panel administracyjny"
