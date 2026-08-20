@@ -191,6 +191,119 @@ async function mark(
 }
 
 /**
+ * Zależności DOMKNIĘCIA — świadomie WĘŻSZE niż `DepositRefundDeps`: jest tu
+ * `readRefund` (GET /v1/refunds/{id}), a NIE MA `createRefund` (POST
+ * /v1/refunds). To nie jest oszczędność, tylko bariera w kształcie typu:
+ * ścieżka domykająca żądanie zwrotu NIE MA CZYM zainicjować drugiego zwrotu.
+ * Tor rekoncyliacji (siatka na zgubiony webhook) buduje deps właśnie tak —
+ * bez `createRefund` — więc podwojenie zwrotu jest tam niereprezentowalne.
+ */
+export type CloseDepositRefundDeps = Pick<DepositRefundDeps, "db" | "readRefund">;
+
+export interface CloseDepositRefundInput {
+  tenantId: string;
+  orderId: string;
+  /** Wiersz `deposit_refunds`, który domykamy (jego `id`). */
+  requestId: string;
+  /** Odnośnik dostawcy JUŻ ZNANY (`re_...`, `deposit_refunds.provider_reference`). */
+  refundId: string;
+  connectedAccountId: string;
+  /** Autor zapisu w `deposit_events.created_by`; NULL dla toru automatycznego. */
+  actorId?: string | null;
+  /** Opis operatora dopisywany do wiersza ZWROTU — best-effort (patrz niżej). */
+  refundNote?: string | null;
+  /** Potrącenie zaksięgowane wcześniej TĄ SAMĄ decyzją — przenoszone do wyniku. */
+  deductionGrosze?: number;
+}
+
+/**
+ * Domknięcie żądania zwrotu WYŁĄCZNIE Z ODCZYTU — kroki 7-9 sekwencji
+ * `requestDepositRefund`, wydzielone, bo wykonują je DWIE ścieżki:
+ *
+ *   - `requestDepositRefund` tuż PO `POST /v1/refunds` (mamy świeży `re_...`),
+ *   - `reconcile-deposit-refunds` (src/jobs) — SIATKA BEZPIECZEŃSTWA na
+ *     zgubiony webhook `charge.refund.updated`: wiersz `deposit_refunds`
+ *     utknął w `pending`, `re_...` jest już w `provider_reference`, a webhook,
+ *     który miał go domknąć, nie dojechał.
+ *
+ * JEDNA ŚCIEŻKA DOMKNIĘCIA, NIE DWIE KOPIE. Różnica między kopiami byłaby
+ * różnicą w KSIĘGOWANIU PIENIĘDZY (ten sam argument, co w `deposit-booking.ts`):
+ * werdykt z odczytu, kolejność „rejestr → payment_status", idempotencja przez
+ * unikat odnośnika — muszą być identyczne dla obu wywołujących.
+ *
+ * ⚠ TA FUNKCJA NIGDY NIE INICJUJE ZWROTU. Przyjmuje `refundId` jako ustalony
+ * FAKT i tylko go ODCZYTUJE. Podwojenie zwrotu jest tu niemożliwe z kształtu
+ * `CloseDepositRefundDeps` (brak `createRefund`) — a dowód mutacyjny w suicie
+ * joba pilnuje, żeby żaden `POST /v1/refunds` nie wszedł tą drogą.
+ */
+export async function closeDepositRefundFromRead(
+  deps: CloseDepositRefundDeps,
+  input: CloseDepositRefundInput,
+): Promise<DepositRefundOutcome> {
+  const deductionGrosze = input.deductionGrosze ?? 0;
+
+  // --- 7. ODCZYT: jedyna podstawa twierdzenia o zwrocie ---
+  let read: RefundRead;
+  try {
+    read = await deps.readRefund(input.refundId, input.connectedAccountId);
+  } catch (error) {
+    // Żądanie POSZŁO — pieniądze mogą być w drodze. „Nie udało się" byłoby
+    // tu kłamstwem zapraszającym do ponowienia. Zostaje `pending`, a
+    // dokończy to następny przebieg rekoncyliacji albo webhook.
+    const reason = `Zwrot zlecony, ale nie udało się potwierdzić go odczytem: ${errorMessage(error)}`;
+    await mark(deps.db, input.requestId, "pending", reason);
+    return { status: "pending", reason, deductionGrosze };
+  }
+
+  const verdict = refundVerdict(read);
+
+  if (verdict.outcome === "failed") {
+    await mark(deps.db, input.requestId, "failed", verdict.reason);
+    return { status: "failed", reason: verdict.reason, deductionGrosze };
+  }
+
+  if (verdict.outcome === "pending") {
+    await mark(deps.db, input.requestId, "pending", verdict.reason);
+    return { status: "pending", reason: verdict.reason, deductionGrosze };
+  }
+
+  // --- 8. Rejestr kaucji: dopiero TERAZ i dopiero z kwotą Z ODCZYTU ---
+  const booked = await bookDepositEvent(deps.db, {
+    tenantId: input.tenantId,
+    orderId: input.orderId,
+    kind: "refunded",
+    amountGrosze: verdict.amountGrosze,
+    providerReference: read.refundId,
+    createdBy: input.actorId ?? null,
+    reason: input.refundNote ?? null,
+  });
+
+  if (!booked.ok) {
+    await mark(deps.db, input.requestId, "failed", booked.reason);
+    return { status: "failed", reason: booked.reason, deductionGrosze };
+  }
+
+  await mark(deps.db, input.requestId, "succeeded", null);
+
+  // --- 9. I dopiero PO potwierdzonym zapisie: oś payment_status ---
+  const settlement = await settleDepositIfComplete(deps.db, input.tenantId, input.orderId);
+  if (!settlement.ok) {
+    return {
+      status: "failed",
+      deductionGrosze,
+      reason: `Zwrot zaksięgowany u dostawcy i w rejestrze, ale rozliczenie kaucji nie przeszło: ${settlement.reason}`,
+    };
+  }
+
+  return {
+    status: "settled",
+    amountGrosze: verdict.amountGrosze,
+    depositSettled: settlement.settled,
+    deductionGrosze,
+  };
+}
+
+/**
  * Zleca zwrot kaucji u dostawcy i księguje go WYŁĄCZNIE po potwierdzeniu.
  *
  * Zwraca wynik jako WARTOŚĆ, nie wyjątek (wzorzec `DomainRegistrationResult`
@@ -402,63 +515,23 @@ export async function requestDepositRefund(
   // --- 6. Odnośnik zapisany; TO NADAL NIE JEST ZWROT ---
   await mark(deps.db, requestId, "pending", null, refundId);
 
-  // --- 7. ODCZYT: jedyna podstawa twierdzenia o zwrocie ---
-  let read: RefundRead;
-  try {
-    read = await deps.readRefund(refundId, connectedAccountId);
-  } catch (error) {
-    // Żądanie POSZŁO — pieniądze mogą być w drodze. „Nie udało się" byłoby
-    // tu kłamstwem zapraszającym do ponowienia. Zostaje `pending`, a
-    // dokończy to webhook `charge.refund.updated`.
-    const reason = `Zwrot zlecony, ale nie udało się potwierdzić go odczytem: ${errorMessage(error)}`;
-    await mark(deps.db, requestId, "pending", reason);
-    return { status: "pending", reason, deductionGrosze };
-  }
-
-  const verdict = refundVerdict(read);
-
-  if (verdict.outcome === "failed") {
-    await mark(deps.db, requestId, "failed", verdict.reason);
-    return { status: "failed", reason: verdict.reason, deductionGrosze };
-  }
-
-  if (verdict.outcome === "pending") {
-    await mark(deps.db, requestId, "pending", verdict.reason);
-    return { status: "pending", reason: verdict.reason, deductionGrosze };
-  }
-
-  // --- 8. Rejestr kaucji: dopiero TERAZ i dopiero z kwotą Z ODCZYTU ---
-  const booked = await bookDepositEvent(deps.db, {
-    tenantId: input.tenantId,
-    orderId: input.orderId,
-    kind: "refunded",
-    amountGrosze: verdict.amountGrosze,
-    providerReference: read.refundId,
-    createdBy: input.actorId,
-    reason: input.refundNote ?? null,
-  });
-
-  if (!booked.ok) {
-    await mark(deps.db, requestId, "failed", booked.reason);
-    return { status: "failed", reason: booked.reason, deductionGrosze };
-  }
-
-  await mark(deps.db, requestId, "succeeded", null);
-
-  // --- 9. I dopiero PO potwierdzonym zapisie: oś payment_status ---
-  const settlement = await settleDepositIfComplete(deps.db, input.tenantId, input.orderId);
-  if (!settlement.ok) {
-    return {
-      status: "failed",
+  // --- 7-9. Domknięcie WYŁĄCZNIE Z ODCZYTU ---
+  //
+  // Wspólna ścieżka z torem rekoncyliacji (`reconcile-deposit-refunds`).
+  // `createRefund` wydarzył się w kroku 5; stąd w dół nie ma prawa paść ani
+  // jeden `POST /v1/refunds` — dlatego przekazujemy WĘŻSZE deps (bez
+  // `createRefund`): kolejny zwrot jest tu niereprezentowalny.
+  return closeDepositRefundFromRead(
+    { db: deps.db, readRefund: deps.readRefund },
+    {
+      tenantId: input.tenantId,
+      orderId: input.orderId,
+      requestId,
+      refundId,
+      connectedAccountId,
+      actorId: input.actorId,
+      refundNote: input.refundNote,
       deductionGrosze,
-      reason: `Zwrot zaksięgowany u dostawcy i w rejestrze, ale rozliczenie kaucji nie przeszło: ${settlement.reason}`,
-    };
-  }
-
-  return {
-    status: "settled",
-    amountGrosze: verdict.amountGrosze,
-    depositSettled: settlement.settled,
-    deductionGrosze,
-  };
+    },
+  );
 }

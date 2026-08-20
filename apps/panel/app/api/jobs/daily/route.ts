@@ -1,10 +1,10 @@
 /**
- * Trasa serii dziennej — JEDEN wpis crona, cztery zadania (ADR-130).
+ * Trasa serii dziennej — JEDEN wpis crona, cała seria zadań (ADR-130).
  *
  * Bramka wejścia jest 1:1 z trasami pojedynczymi: `Bearer $CRON_SECRET`
  * porównany w CZASIE STAŁYM, brak sekretu w środowisku to 503, a nie
  * przepustka. Drugiego mechanizmu tu nie ma z rozmysłu — ta trasa uruchamia
- * WSZYSTKIE cztery zadania naraz, więc jest najbardziej łakomym celem
+ * WSZYSTKIE zadania serii naraz, więc jest najbardziej łakomym celem
  * w całym `app/api/jobs/`, a nie miejscem na wyjątek.
  *
  * ODMOWA JEST JEDNOLITA: brak nagłówka, zły sekret, sekret o innej długości
@@ -12,8 +12,8 @@
  * diagnostycznego. Żadna odpowiedź nie mówi, KTÓRA część była błędna —
  * inaczej trasa stałaby się wyrocznią do zgadywania sekretu.
  *
- * KOD ODPOWIEDZI NIESIE STAN SERII. 200 wyłącznie wtedy, gdy wszystkie cztery
- * zadania skończyły się `ok`; w każdym innym razie 500. To celowe: lista
+ * KOD ODPOWIEDZI NIESIE STAN SERII. 200 wyłącznie wtedy, gdy wszystkie zadania
+ * serii skończyły się `ok`; w każdym innym razie 500. To celowe: lista
  * wywołań crona w panelu hostingu pokazuje właśnie kod odpowiedzi, więc
  * przebieg, w którym rekoncyliacja padła, NIE MOŻE świecić na zielono.
  * Ciało odpowiedzi w obu przypadkach niesie wynik każdego zadania z osobna.
