@@ -24,7 +24,6 @@ import {
   StripeApiError,
   StripeBillingClient,
   StripeConfigError,
-  siteUrl,
   stripeBillingAvailability,
   type SaasBillingInterval,
   type SaasPlanId,
@@ -35,6 +34,7 @@ import { AuthError } from "@/lib/auth";
 import { startSaasCheckout } from "@/lib/billing-checkout";
 import { requireBillingOwner } from "@/lib/billing-guard";
 import { localePath } from "@/lib/navigation";
+import { panelBaseUrlFromRequest } from "@/lib/panel-url";
 
 export interface StartSaasCheckoutResult {
   url?: string;
@@ -72,7 +72,10 @@ export async function startSaasCheckoutAction(input: {
 
   const locale = await getLocale();
   const organizationPath = await localePath("/organizacja");
-  const base = siteUrl();
+  // ORIGIN PANELU (`app.avably.io`), nie kanon marketingowy (`avably.io`):
+  // powrót po Checkoutcie celuje w ekran organizacji, który żyje w panelu —
+  // `siteUrl()` odsyłał na LP i kończył się 404 (ADR-221).
+  const base = await panelBaseUrlFromRequest();
 
   try {
     return await startSaasCheckout(

@@ -25,7 +25,6 @@ import {
   StripeApiError,
   StripeBillingClient,
   StripeConfigError,
-  siteUrl,
   stripeBillingAvailability,
   type SaasBillingInterval,
   type SaasPlanId,
@@ -37,6 +36,7 @@ import { openBillingPortal } from "@/lib/billing-portal";
 import { requireBillingOwner } from "@/lib/billing-guard";
 import { changeSaasPlan, reactivateSaasSubscription } from "@/lib/billing-subscription";
 import { localePath } from "@/lib/navigation";
+import { panelBaseUrlFromRequest } from "@/lib/panel-url";
 
 export interface BillingPortalActionResult {
   url?: string;
@@ -83,6 +83,10 @@ export async function openBillingPortalAction(): Promise<BillingPortalActionResu
 
   const locale = await getLocale();
   const organizationPath = await localePath("/organizacja");
+  // ORIGIN PANELU (`app.avably.io`), nie kanon marketingowy (`avably.io`):
+  // powrót z Portalu wraca na ekran organizacji w panelu — `siteUrl()`
+  // odsyłał na LP i kończył się 404, ta sama klasa co Checkout (ADR-221).
+  const base = await panelBaseUrlFromRequest();
 
   try {
     return await openBillingPortal(
@@ -90,7 +94,7 @@ export async function openBillingPortalAction(): Promise<BillingPortalActionResu
       {
         tenantId: ctx.tenantId!,
         locale,
-        returnUrl: `${siteUrl()}${organizationPath}?portal=powrot`,
+        returnUrl: `${base}${organizationPath}?portal=powrot`,
       },
     );
   } catch (error) {

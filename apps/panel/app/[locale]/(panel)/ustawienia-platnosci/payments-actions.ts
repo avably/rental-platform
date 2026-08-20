@@ -33,6 +33,7 @@ import {
 
 import { AuthError } from "@/lib/auth";
 import type { FormState } from "@/lib/form-state";
+import { panelBaseUrlFromRequest } from "@/lib/panel-url";
 import { requireMember } from "@/lib/supabase-server";
 
 import { ONBOARDING_NONCE_FIELD } from "./onboarding-nonce";
@@ -40,7 +41,6 @@ import {
   CONNECT_ACCOUNT_COUNTRY,
   PAYMENT_RETURN_PATH,
   PAYMENT_SETTINGS_PATH,
-  panelBaseUrl,
 } from "./payments-config";
 
 const PG_INSUFFICIENT_PRIVILEGE = "42501";
@@ -191,7 +191,7 @@ export async function startPaymentOnboardingAction(
     if (insertError) return { formError: writeError(insertError) };
   }
 
-  const base = await panelBaseUrl();
+  const base = await panelBaseUrlFromRequest();
   let url: string;
   try {
     const link = await createOnboardingLink(providerAccountId, {
