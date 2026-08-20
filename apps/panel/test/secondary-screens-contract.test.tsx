@@ -58,6 +58,7 @@ vi.mock("@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions", () => ({
   startPaymentOnboardingAction: noopAction,
   refreshPaymentAccountAction: noopAction,
   disconnectPaymentAccountAction: noopAction,
+  openExpressDashboardAction: noopAction,
 }));
 vi.mock("@/app/[locale]/(panel)/bezpieczenstwo/actions", () => ({
   enrollTotpAction: noopAction,
@@ -1126,5 +1127,68 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
 
     expect(chips(html)).toContain("payment-account/ready");
     expect(html).not.toContain("data-payment-onboarding");
+  });
+
+  it("konto gotowe pokazuje przycisk „Zarządzaj w Stripe” (Express Dashboard, ADR-217)", () => {
+    const html = render(
+      <PaymentsPanel
+        account={{ ...restrictedAccount, payoutsEnabled: true, requirementsDue: [] }}
+        stage="ready"
+        isOwner
+        configAvailable
+        onboardingNonce="nonce-testowy"
+      />,
+    );
+
+    expect(html).toContain("data-payment-dashboard");
+    expect(html).toContain(messages.paymentSettings.manageCta);
+    // Nie miesza się z onboardingiem: dla gotowego konta zaproszenia do
+    // weryfikacji nie ma, jest wejście do panelu dostawcy.
+    expect(html).not.toContain("data-payment-onboarding");
+  });
+
+  it("przycisk panelu Stripe pokazuje się TYLKO dla konta gotowego", () => {
+    // Kontrola po pełnym zbiorze stanów: żaden inny stan nie ma prawa go pokazać.
+    const cases = [
+      { account: null, stage: "missing" as const },
+      {
+        account: { ...restrictedAccount, chargesEnabled: false, payoutsEnabled: false },
+        stage: "pending" as const,
+      },
+      { account: restrictedAccount, stage: "payouts_blocked" as const },
+    ];
+    for (const { account, stage } of cases) {
+      const html = render(
+        <PaymentsPanel
+          account={account}
+          stage={stage}
+          isOwner
+          configAvailable
+          onboardingNonce="nonce-testowy"
+        />,
+      );
+      expect(html, `stan ${stage} pokazał przycisk panelu Stripe`).not.toContain(
+        "data-payment-dashboard",
+      );
+    }
+  });
+
+  it("pracownik na gotowym koncie widzi przycisk panelu wyłączony Z POWODEM", () => {
+    const html = render(
+      <PaymentsPanel
+        account={{ ...restrictedAccount, payoutsEnabled: true, requirementsDue: [] }}
+        stage="ready"
+        isOwner={false}
+        configAvailable
+        onboardingNonce="nonce-testowy"
+      />,
+    );
+
+    expect(html).toContain("data-payment-dashboard");
+    expect(html).toContain('data-payment-blocked="dashboard-role"');
+    expect(html).toContain(messages.paymentSettings.manageOwnerOnly);
+    // Cicho nieklikalna kontrolka jest gorsza od jej braku — przycisk jest
+    // wyłączony i mówi dlaczego.
+    expect(html).toMatch(/<button[^>]*disabled/);
   });
 });

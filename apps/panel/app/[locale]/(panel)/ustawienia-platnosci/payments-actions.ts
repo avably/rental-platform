@@ -26,6 +26,7 @@ import {
   StripeConfigError,
   createConnectAccount,
   createOnboardingLink,
+  expressDashboardLink,
   stripeAvailability,
   syncConnectAccountSafely,
 } from "@avably/core";
@@ -245,6 +246,77 @@ export async function refreshPaymentAccountAction(
   return sync.ok
     ? { success: account.provider_account_id as string }
     : { formError: sync.error ?? "Nie udało się odczytać stanu konta." };
+}
+
+/**
+ * Otwiera Express Dashboard najemcy — okno „Zarządzaj w Stripe" (ADR-217).
+ *
+ * IZOLACJA (money-adjacent). `provider_account_id` bierzemy WYŁĄCZNIE z odczytu
+ * `payment_accounts` po `ctx.tenantId` (RLS `tenant_select` + jawny `.eq` na
+ * wierzchu, pas i szelki), NIGDY z formularza. Identyfikator konta nie przychodzi
+ * z inputu w ogóle, więc najemca A nie ma jak wskazać konta najemcy B — a gdyby
+ * spróbował podać cokolwiek w ciele, i tak czytamy tylko swój wiersz. Klient jest
+ * SESYJNY (`ctx.supabase`), nie `service_role`: to akcja operatora w panelu, nie
+ * webhook ani job, więc granica `service_role` się nie rusza.
+ *
+ * ROLA — tylko WŁAŚCICIEL. Express Dashboard pozwala zmienić konto bankowe wypłat
+ * i pokazuje saldo: ta sama klasa wrażliwości, co podpięcie/odłączenie konta
+ * (`owner_insert`/`owner_delete`, 0028). Gate jest APLIKACYJNY, bo `login_links`
+ * to wywołanie platformy u dostawcy, a nie zapis do bazy — RLS nie ma tu czego
+ * bronić i NIE JEST rozluźniany (zostaje jak był). Rola liczona z ŻYWEJ bazy
+ * (`ctx.role` z wiersza `members`, nie z claimu) zamyka cichy downgrade owner→staff.
+ *
+ * Link jest JEDNORAZOWY i krótkożyjący: powstaje TU, przy kliknięciu, i od razu
+ * idzie w `redirect` — nigdzie go nie zapisujemy (zapisany link to link nieaktualny).
+ */
+export async function openExpressDashboardAction(
+  _prevState: FormState,
+  _formData: FormData,
+): Promise<FormState> {
+  const availability = stripeAvailability();
+  if (!availability.available) {
+    // Neutralnie i bez powodu z serwera (U1, audyt W3), jak w onboardingu.
+    return {
+      formError:
+        "Płatności online są chwilowo niedostępne po stronie platformy - spróbuj ponownie później.",
+    };
+  }
+
+  const ctx = await member();
+  if (isFormState(ctx)) return ctx;
+
+  if (ctx.role !== "owner") {
+    return { formError: "Panel Stripe może otworzyć wyłącznie właściciel organizacji." };
+  }
+
+  const { data: account, error: readError } = await ctx.supabase
+    .from("payment_accounts")
+    .select("provider_account_id")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (readError) return { formError: readError.message };
+  if (!account) return { formError: "Nie masz jeszcze konta płatności." };
+
+  let url: string;
+  try {
+    // id KONTA z BAZY po tenant_id — nigdy z inputu. Klient sesji, nie service_role.
+    const link = await expressDashboardLink(account.provider_account_id as string);
+    url = link.url;
+  } catch (error) {
+    // Sekret wycięty już w porcie (`redactSecretKey` w `fail`), więc message jest
+    // bezpieczny na ekran. Odmowa dostawcy (np. konto niekwalifikujące się) staje
+    // się czytelnym powodem, nie cichym sukcesem.
+    return {
+      formError:
+        error instanceof Error
+          ? `Nie udało się otworzyć panelu Stripe: ${error.message}`
+          : "Nie udało się otworzyć panelu Stripe.",
+    };
+  }
+
+  // POZA try/catch: `redirect` działa przez wyjątek sterujący, a złapanie go
+  // zamieniłoby przekierowanie w błąd. Bez `revalidatePath` — nic nie mutujemy.
+  redirect(url);
 }
 
 /**

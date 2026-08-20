@@ -9,7 +9,12 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { canAcceptCharges, connectAccountStage, syncConnectAccountSafely } from "./account";
+import {
+  canAcceptCharges,
+  connectAccountStage,
+  expressDashboardLink,
+  syncConnectAccountSafely,
+} from "./account";
 import { StripeApiError } from "./api";
 import type { ConnectAccountState } from "./types";
 
@@ -27,6 +32,7 @@ function clientReturning(state: ConnectAccountState) {
     createAccount: async () => state.providerAccountId,
     readAccount: async () => state,
     createOnboardingLink: async () => ({ url: "https://x.invalid", expiresAt: 0 }),
+    createDashboardLoginLink: async () => ({ url: "https://dashboard.invalid" }),
   };
 }
 
@@ -39,6 +45,9 @@ function clientThrowing(error: unknown) {
       throw error;
     },
     createOnboardingLink: async () => {
+      throw error;
+    },
+    createDashboardLoginLink: async () => {
       throw error;
     },
   };
@@ -85,6 +94,36 @@ describe("syncConnectAccountSafely — uczciwa częściowa porażka", () => {
     });
 
     expect(result.error).toHaveLength(500);
+  });
+});
+
+describe("expressDashboardLink — czasownik domeny nad login_links", () => {
+  it("oddaje adres, który zwrócił klient", async () => {
+    const link = await expressDashboardLink("acct_1", { client: clientReturning(READY) });
+    expect(link).toEqual({ url: "https://dashboard.invalid" });
+  });
+
+  it("przekazuje klientowi DOKŁADNIE to id konta, które dostał", async () => {
+    const seen: string[] = [];
+    const link = await expressDashboardLink("acct_konkretne", {
+      client: {
+        ...clientReturning(READY),
+        createDashboardLoginLink: async (id: string) => {
+          seen.push(id);
+          return { url: `https://dashboard.invalid/${id}` };
+        },
+      },
+    });
+    expect(seen).toEqual(["acct_konkretne"]);
+    expect(link.url).toContain("acct_konkretne");
+  });
+
+  it("RZUCA przy odmowie dostawcy — nie połyka błędu (konto niekwalifikujące się)", async () => {
+    await expect(
+      expressDashboardLink("acct_1", {
+        client: clientThrowing(new StripeApiError("konto niekwalifikujące się", 400)),
+      }),
+    ).rejects.toThrow(StripeApiError);
   });
 });
 

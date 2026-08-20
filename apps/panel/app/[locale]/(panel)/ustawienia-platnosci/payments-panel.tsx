@@ -28,6 +28,7 @@ import { SecondaryStatusChip } from "@/lib/secondary-status";
 import { ONBOARDING_NONCE_FIELD } from "./onboarding-nonce";
 import {
   disconnectPaymentAccountAction,
+  openExpressDashboardAction,
   refreshPaymentAccountAction,
   startPaymentOnboardingAction,
 } from "./payments-actions";
@@ -90,6 +91,43 @@ function OnboardingButton({
       {available && !isOwner && (
         <p role="status" className="text-status-attention-fg" data-payment-blocked="role">
           {t("ownerOnly")}
+        </p>
+      )}
+      {state.formError && (
+        <p role="alert" className="text-destructive">
+          {state.formError}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Przycisk „Zarządzaj w Stripe" — otwiera Express Dashboard najemcy (ADR-217).
+ *
+ * Renderowany przez `PaymentsPanel` WYŁĄCZNIE dla konta gotowego
+ * (`stage === "ready"`); dla missing/pending obowiązuje onboarding, nie ten
+ * przycisk. Owner-only spójnie z granicą podpięcia/odłączenia konta: Express
+ * Dashboard zmienia konto bankowe wypłat i pokazuje saldo. Pracownik widzi
+ * przycisk wyłączony Z POWODEM (cicho nieklikalna kontrolka jest gorsza od jej
+ * braku) — a i tak sama akcja odrzuca nie-właściciela (pas i szelki).
+ */
+function ManageInStripeButton({ isOwner }: { isOwner: boolean }) {
+  const t = useTranslations("paymentSettings");
+  const [state, formAction, pending] = useActionState(openExpressDashboardAction, initialState);
+  const disabled = pending || !isOwner;
+
+  return (
+    <div className="flex flex-col gap-2 text-sm" data-payment-dashboard>
+      <form action={formAction}>
+        <Button type="submit" variant="secondary" loading={pending} disabled={disabled}>
+          {t("manageCta")}
+        </Button>
+      </form>
+
+      {!isOwner && (
+        <p role="status" className="text-status-attention-fg" data-payment-blocked="dashboard-role">
+          {t("manageOwnerOnly")}
         </p>
       )}
       {state.formError && (
@@ -230,7 +268,12 @@ export function PaymentsPanel({
 
           <AccountActions isOwner={isOwner} />
 
-          {stage !== "ready" && (
+          {/* Konto gotowe → wejście do Express Dashboardu (ADR-217); konto
+              missing/pending → wznowienie onboardingu. Rozłącznie, bo to dwa
+              różne pytania najemcy („zarządzaj" vs „dokończ konfigurację"). */}
+          {stage === "ready" ? (
+            <ManageInStripeButton isOwner={isOwner} />
+          ) : (
             <OnboardingButton
               available={configAvailable}
               isOwner={isOwner}

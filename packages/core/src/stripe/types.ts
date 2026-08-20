@@ -70,6 +70,23 @@ export interface OnboardingLink {
   expiresAt: number;
 }
 
+/**
+ * Link logowania do Express Dashboardu najemcy — okno „Zarządzaj w Stripe".
+ *
+ * JEDNORAZOWY I KRÓTKOŻYJĄCY z decyzji dostawcy (`POST /v1/accounts/{id}/login_links`),
+ * dokładnie jak `OnboardingLink`: powstaje przy kliknięciu, jest użyty od razu
+ * przez `redirect` i NIGDY nie trafia do bazy — zapisany link to link nieaktualny,
+ * a przy tym cudze poświadczenie leżące w naszym magazynie.
+ *
+ * Odpowiedź dostawcy niesie `created`, nie `expires_at` — więc, inaczej niż
+ * onboarding, nie ma tu czego zwracać poza adresem. Typ mieści WYŁĄCZNIE `url`
+ * właśnie po to, żeby nic więcej nie kusiło do zapisania (ta sama bariera
+ * w kształcie typu, co przy `createAccount` zwracającym sam identyfikator).
+ */
+export interface DashboardLoginLink {
+  url: string;
+}
+
 /** Adresy powrotu przekazywane dostawcy przy tworzeniu linku onboardingu. */
 export interface OnboardingUrls {
   /** Link wygasł albo został użyty ponownie — wracamy po nowy. */
