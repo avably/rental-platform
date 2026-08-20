@@ -141,7 +141,8 @@ export function isWpAdjacentPanelPath(path) {
 }
 
 /**
- * Zbiór ciężkich jobów per-job, które dana ścieżka DOTYKA (ADR-207).
+ * Zbiór ciężkich jobów per-job, które dana ścieżka DOTYKA (ADR-207,
+ * KOREKTA ADR-214).
  *
  * FAIL-CLOSED per strefa: ścieżka spoza znanych stref dotyka WSZYSTKICH
  * jobów — `.github/**` (workflow i skrypty izolacji Supabase, z których
@@ -150,19 +151,28 @@ export function isWpAdjacentPanelPath(path) {
  * albo checkout), nieznany katalog. Zmiana samego `ci.yml` czy klasyfikatora
  * NIGDY nie kwalifikuje się do pominięcia — bramka nie zwalnia sama siebie.
  *
- * ŚWIADOMA GRANICA (decyzja PM w ADR-207): `rls` reaguje wyłącznie na
- * `packages/db/**`. Job `rls` uruchamia też suity integracyjne panelu
- * i storefrontu na żywym Supabase — dla PR-a czysto frontowego te suity nie
- * pobiegną; pokrycie ścieżki krytycznej trzyma wtedy `e2e`, który na każdej
- * zmianie `apps/**`/`packages/**` biegnie.
+ * STREFA `rls` = KAŻDY `apps/**` i `packages/**` (KOREKTA ADR-214). Job `rls`
+ * jest JEDYNYM miejscem, gdzie na żywym Supabase biegną suity integracyjne
+ * trzech filtrów — `pnpm --filter @avably/db test`, `pnpm --filter panel test`
+ * ORAZ `pnpm --filter storefront test` (ci.yml, kroki w kroku `rls`). Panel
+ * i storefront importują pakiety współdzielone (`core`, `ui`, `security`,
+ * `emails`, `pdf`…), więc zmiana DOWOLNEGO pakietu jest pokrywana przez ich
+ * integracyjne — właśnie tędy przeszedł money-critical #360 (ruszył
+ * `packages/core/src/stripe`, a pokrywają go PANELOWE integracyjne), a przy
+ * mapowaniu „`rls` tylko dla `packages/db/**`" jego live-DB dowody NIE biegły
+ * w CI. Dlatego `rls` jest teraz pomijalny TYLKO tam, gdzie te suity go nie
+ * dotykają: czysta dokumentacja (globalny pomin) oraz zmiany wyłącznie we
+ * wtyczce WordPress (`integrations/wordpress/**`). `packages/db/**` zostaje
+ * jawnym przypadkiem (RLS, migracje, polityki żyją wyłącznie tam), choć jego
+ * werdykt `rls`+`e2e` jest dziś taki sam jak każdego innego pakietu.
  */
 export function jobsAffectedByPath(path) {
   if (!isWellFormedPath(path)) return [...PER_JOB_SKIPPABLE];
   if (isDocumentationOnlyPath(path)) return [];
   if (path.startsWith(WP_PLUGIN_DIRECTORY)) return ["wp-plugin"];
   if (path.startsWith(DB_PACKAGE_DIRECTORY)) return ["rls", "e2e"];
-  if (isWpAdjacentPanelPath(path)) return ["wp-plugin", "e2e"];
-  if (path.startsWith("apps/") || path.startsWith("packages/")) return ["e2e"];
+  if (isWpAdjacentPanelPath(path)) return ["wp-plugin", "rls", "e2e"];
+  if (path.startsWith("apps/") || path.startsWith("packages/")) return ["rls", "e2e"];
   return [...PER_JOB_SKIPPABLE];
 }
 
