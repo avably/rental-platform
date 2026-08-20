@@ -1052,6 +1052,7 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="payouts_blocked"
         isOwner
         configAvailable
+        onboardingNonce="nonce-testowy"
       />,
     );
 
@@ -1069,6 +1070,7 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="payouts_blocked"
         isOwner
         configAvailable
+        onboardingNonce="nonce-testowy"
       />,
     );
 
@@ -1078,7 +1080,13 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
 
   it("bez konfiguracji przycisk onboardingu jest wyłączony Z POWODEM", () => {
     const html = render(
-      <PaymentsPanel account={null} stage="missing" isOwner configAvailable={false} />,
+      <PaymentsPanel
+        account={null}
+        stage="missing"
+        isOwner
+        configAvailable={false}
+        onboardingNonce="nonce-testowy"
+      />,
     );
 
     expect(chips(html)).toContain("payment-account/missing");
@@ -1097,6 +1105,7 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="missing"
         isOwner={false}
         configAvailable
+        onboardingNonce="nonce-testowy"
       />,
     );
 
@@ -1111,6 +1120,7 @@ describe("ekran płatności — dwie osi gotowości nie zwijają się w jedną",
         stage="ready"
         isOwner
         configAvailable
+        onboardingNonce="nonce-testowy"
       />,
     );
 

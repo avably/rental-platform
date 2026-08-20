@@ -34,6 +34,7 @@ import { AuthError } from "@/lib/auth";
 import type { FormState } from "@/lib/form-state";
 import { requireMember } from "@/lib/supabase-server";
 
+import { ONBOARDING_NONCE_FIELD } from "./onboarding-nonce";
 import {
   CONNECT_ACCOUNT_COUNTRY,
   PAYMENT_RETURN_PATH,
@@ -57,6 +58,35 @@ async function member(): Promise<MemberContext | FormState> {
 
 function isFormState(value: MemberContext | FormState): value is FormState {
   return !("supabase" in value);
+}
+
+/**
+ * Klucz idempotencji zakładania konta Connect (ADR-216).
+ *
+ * NONCE PER RENDER, nie stały per najemca. Stały klucz (`...:{tenantId}`) miał
+ * jedną wadę, która zablokowała właściciela po włączeniu Accounts v1: dostawca
+ * pamięta odpowiedź spod klucza ~24h — także BŁĄD (patrz `CreateConnectAccountInput`
+ * w porcie). Pierwsza nieudana próba (np. „Accounts v1 not enabled" sprzed
+ * przełączenia toggle'a) odtwarzała się więc przy KAŻDYM ponowieniu przez dobę,
+ * mimo że przyczynę już naprawiono. Przy porażce wiersz `payment_accounts` NIE
+ * powstaje (kolejność konto→wiersz), więc ponowienie jest GENUINE nową próbą —
+ * ale trafiało w stary, zatruty klucz.
+ *
+ * Formularz wnosi świeży nonce per render (ukryte pole, `page.tsx`), więc:
+ *   - PODWÓJNY SUBMIT tego samego renderu → ten sam nonce → ten sam klucz →
+ *     dostawca zwraca to samo konto (dedup, żadnej sieroty w oknie wyścigu
+ *     przed powstaniem wiersza),
+ *   - PONOWIENIE po porażce (nowy render) → nowy nonce → świeży klucz →
+ *     omija zacache'owany błąd.
+ *
+ * Brak nonce (żądanie spoza naszego formularza) NIE osłabia dedupu: spada do
+ * klucza stałego per najemca — najgorszy przypadek to zachowanie sprzed tej
+ * zmiany, nigdy dwa konta.
+ */
+function connectAccountIdempotencyKey(tenantId: string | null, formData: FormData): string {
+  const nonce = formData.get(ONBOARDING_NONCE_FIELD);
+  const base = `avably-connect-account:${tenantId}`;
+  return typeof nonce === "string" && nonce.length > 0 ? `${base}:${nonce}` : base;
 }
 
 /** Odmowa polityki 0028 przetłumaczona na zdanie, nie na kod SQLSTATE. */
@@ -97,12 +127,13 @@ function cacheFromSync(sync: Awaited<ReturnType<typeof syncConnectAccountSafely>
  *
  * KOLEJNOŚĆ: konto u dostawcy → wiersz w bazie → link. Odwrotna zostawiałaby
  * wiersz wskazujący konto, którego nie ma. Dwuklik przed pierwszym zapisem
- * łapie klucz idempotencji dostawcy (ten sam najemca = ta sama odpowiedź),
- * więc sierota u dostawcy nie powstaje.
+ * łapie klucz idempotencji dostawcy (ten sam render = ten sam nonce = ta sama
+ * odpowiedź, ADR-216), więc sierota u dostawcy nie powstaje; ponowienie po
+ * porażce to nowy render z nowym kluczem, więc naprawiona konfiguracja działa.
  */
 export async function startPaymentOnboardingAction(
   _prevState: FormState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<FormState> {
   const availability = stripeAvailability();
   if (!availability.available) {
@@ -131,10 +162,13 @@ export async function startPaymentOnboardingAction(
       providerAccountId = await createConnectAccount({
         country: CONNECT_ACCOUNT_COUNTRY,
         ...(ctx.user.email ? { email: ctx.user.email } : {}),
-        // Klucz stały per najemca: dwa kliknięcia „załóż konto" mają dać
-        // JEDNO konto u dostawcy, a nie dwa (drugie byłoby sierotą — wiersz
-        // jest jeden, bo PK to tenant_id).
-        idempotencyKey: `avably-connect-account:${ctx.tenantId}`,
+        // Klucz z nonce per render (ADR-216, patrz `connectAccountIdempotencyKey`):
+        // dwuklik jednego renderu dedupuje do JEDNEGO konta, a ponowienie po
+        // porażce to nowy render → świeży klucz → omija błąd zacache'owany
+        // przez dostawcę na 24h. Sprawdzenie istniejącego wiersza WYŻEJ i tak
+        // odcina zwykłe ponowienia; klucz broni wyłącznie okna wyścigu przed
+        // powstaniem wiersza.
+        idempotencyKey: connectAccountIdempotencyKey(ctx.tenantId, formData),
       });
     } catch (error) {
       if (error instanceof StripeConfigError) return { formError: error.message };

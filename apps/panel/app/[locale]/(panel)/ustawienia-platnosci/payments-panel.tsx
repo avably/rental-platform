@@ -25,6 +25,7 @@ import { ScreenSection } from "@/components/screens/screen-header";
 import type { FormState } from "@/lib/form-state";
 import { SecondaryStatusChip } from "@/lib/secondary-status";
 
+import { ONBOARDING_NONCE_FIELD } from "./onboarding-nonce";
 import {
   disconnectPaymentAccountAction,
   refreshPaymentAccountAction,
@@ -56,10 +57,12 @@ function OnboardingButton({
   available,
   isOwner,
   resume,
+  onboardingNonce,
 }: {
   available: boolean;
   isOwner: boolean;
   resume: boolean;
+  onboardingNonce: string;
 }) {
   const t = useTranslations("paymentSettings");
   const [state, formAction, pending] = useActionState(startPaymentOnboardingAction, initialState);
@@ -68,6 +71,10 @@ function OnboardingButton({
   return (
     <div className="flex flex-col gap-2 text-sm" data-payment-onboarding>
       <form action={formAction}>
+        {/* Nonce per render (ADR-216): dwuklik TEGO renderu dzieli klucz
+            idempotencji → jedno konto; ponowienie po porażce to nowy render →
+            nowy nonce → świeży klucz omijający błąd zacache'owany na 24h. */}
+        <input type="hidden" name={ONBOARDING_NONCE_FIELD} value={onboardingNonce} />
         <Button type="submit" loading={pending} disabled={disabled}>
           {resume ? t("resumeCta") : t("startCta")}
         </Button>
@@ -143,11 +150,13 @@ export function PaymentsPanel({
   stage,
   isOwner,
   configAvailable,
+  onboardingNonce,
 }: {
   account: PaymentAccountView | null;
   stage: PaymentAccountStage;
   isOwner: boolean;
   configAvailable: boolean;
+  onboardingNonce: string;
 }) {
   const t = useTranslations("paymentSettings");
   const format = useFormatter();
@@ -222,11 +231,21 @@ export function PaymentsPanel({
           <AccountActions isOwner={isOwner} />
 
           {stage !== "ready" && (
-            <OnboardingButton available={configAvailable} isOwner={isOwner} resume />
+            <OnboardingButton
+              available={configAvailable}
+              isOwner={isOwner}
+              resume
+              onboardingNonce={onboardingNonce}
+            />
           )}
         </>
       ) : (
-        <OnboardingButton available={configAvailable} isOwner={isOwner} resume={false} />
+        <OnboardingButton
+          available={configAvailable}
+          isOwner={isOwner}
+          resume={false}
+          onboardingNonce={onboardingNonce}
+        />
       )}
     </ScreenSection>
   );
