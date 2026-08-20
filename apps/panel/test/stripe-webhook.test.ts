@@ -805,6 +805,35 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       });
     }
 
+    /**
+     * Ciało zdarzenia KONTA v2 „thin" (Accounts v2, ADR-218) w kształcie
+     * dostawcy: BEZ `data.object`, identyfikator konta (`acct_…`) w
+     * `related_object.id`. Konta/webhooki na wersjach 2026 emitują właśnie
+     * to zamiast v1 `account.updated`. Struktura z dokumentacji Stripe
+     * (https://docs.stripe.com/event-destinations#thin-events).
+     */
+    function accountEventBodyV2(input: {
+      eventId: string;
+      type?: string;
+      /** `acct_…` w `related_object.id` — jedyny nośnik tożsamości konta. */
+      relatedId: string;
+    }): string {
+      return JSON.stringify({
+        id: input.eventId,
+        object: "v2.core.event",
+        type: input.type ?? "v2.core.account.updated",
+        livemode: false,
+        created: new Date().toISOString(),
+        reason: { type: "request", request: { id: "req_test", idempotency_key: "ik_test" } },
+        // ŚWIADOMIE bez `data` — thin event go nie ma; identyfikator tylko tu.
+        related_object: {
+          id: input.relatedId,
+          type: "v2.core.account",
+          url: `/v2/core/accounts/${input.relatedId}`,
+        },
+      });
+    }
+
     const state = (overrides: Partial<ConnectAccountState> = {}): ConnectAccountState => ({
       providerAccountId: "acct_x",
       chargesEnabled: true,
@@ -1031,6 +1060,155 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       expect(second.status).toBe(200);
       expect(await eventRows(eventId)).toHaveLength(1);
       expect(calls, "odczyt u dostawcy wykonany raz").toEqual([fixture.accountId]);
+      expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
+    });
+
+    // -----------------------------------------------------------------
+    // Accounts v2 (thin events) — v2.core.account.updated (ADR-218)
+    // -----------------------------------------------------------------
+    //
+    // Nowe konta Stripe mają webhooki wyłącznie na wersjach 2026: emitują
+    // `v2.core.account.updated` (thin: identyfikator w `related_object.id`,
+    // BEZ `data.object`) zamiast v1 `account.updated`. Bez obsługi tego typu
+    // Faza A nie odświeżałaby ich stanu. Obieg jest IDENTYCZNY jak v1: PULL
+    // prawdy (GET /v1/accounts, interop) i przepisanie migawki — różni się
+    // tylko kształt zdarzenia, o który dba parser.
+
+    /**
+     * v2 → OBSERWOWANE → PULL → MIGAWKA PRZEPISANA. Zdarzenie v2 thin niesie
+     * `acct_…` wyłącznie w `related_object.id`; handler musi po nim odczytać
+     * wiersz i przepisać gotowość z ODCZYTU. Mutacja parsera „czytaj
+     * data.object.id zamiast related_object" → zdarzenie v2 nierozpoznane
+     * (400 albo brak PULL) → RED (dowód jednostkowy w core/webhook.test.ts).
+     */
+    it("v2.core.account.updated (thin) odświeża migawkę Z ODCZYTU — id z related_object.id", async () => {
+      const fixture = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const calls: string[] = [];
+
+      const response = await handleStripeWebhook(
+        signedRequest(accountEventBodyV2({ eventId, relatedId: fixture.accountId })),
+        deps(noIntent, syncOk(state({ requirementsDue: [] }), calls)),
+      );
+
+      expect(response.status).toBe(200);
+      // Odczyt poszedł na konto z NASZEJ bazy, odnalezione po related_object.id.
+      expect(calls).toEqual([fixture.accountId]);
+
+      const row = await accountRow(fixture.tenantId);
+      expect(row.charges_enabled).toBe(true);
+      expect(row.payouts_enabled).toBe(true);
+      expect(row.details_submitted).toBe(true);
+      expect(row.last_error).toBeNull();
+      expect(row.last_synced_at).not.toBeNull();
+
+      const [event] = await eventRows(eventId);
+      expect(event?.status).toBe("processed");
+      expect(event?.event_type).toBe("v2.core.account.updated");
+      expect(event?.error).toBeNull();
+    });
+
+    /**
+     * IZOLACJA (v2). Zdarzenie v2 konta A (related_object.id = A) mutuje
+     * WYŁĄCZNIE wiersz A; konto B nietknięte. Tożsamość i odczyt idą po id
+     * z NASZEJ bazy, nigdy z pola stanu w ciele (thin event stanu nie niesie).
+     */
+    it("v2: zdarzenie konta A nie mutuje wiersza konta B — tożsamość z related_object.id", async () => {
+      const a = await seedAccount({ chargesEnabled: false });
+      const b = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const calls: string[] = [];
+
+      const response = await handleStripeWebhook(
+        signedRequest(accountEventBodyV2({ eventId, relatedId: a.accountId })),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+
+      expect(response.status).toBe(200);
+      expect(calls).toEqual([a.accountId]);
+
+      const rowA = await accountRow(a.tenantId);
+      expect(rowA.charges_enabled).toBe(true);
+      expect(rowA.last_synced_at).not.toBeNull();
+
+      const rowB = await accountRow(b.tenantId);
+      expect(rowB.charges_enabled, "konto B nietknięte").toBe(false);
+      expect(rowB.last_synced_at, "konto B nigdy nie było synchronizowane").toBeNull();
+    });
+
+    /**
+     * FAIL-SAFE (v2, MONEY-ADJACENT). Porażka `GET /v1/accounts` przy zdarzeniu
+     * v2 zapisuje SAM `last_error` i ZOSTAWIA gotowość nietkniętą — dokładnie
+     * jak w Fazie A. Awaria po naszej stronie nie ma prawa wyglądać jak
+     * „konto przestało przyjmować płatności".
+     */
+    it("v2: porażka odczytu zapisuje SAM last_error, gotowość nietknięta", async () => {
+      const fixture = await seedAccount({ chargesEnabled: true, payoutsEnabled: true });
+      const eventId = newEventId();
+
+      const response = await handleStripeWebhook(
+        signedRequest(accountEventBodyV2({ eventId, relatedId: fixture.accountId })),
+        deps(noIntent, syncFail("API płatności odpowiedziało 503")),
+      );
+
+      expect(response.status).toBe(200);
+      const row = await accountRow(fixture.tenantId);
+      expect(row.charges_enabled).toBe(true);
+      expect(row.payouts_enabled).toBe(true);
+      expect(row.last_error).toContain("503");
+
+      const [event] = await eventRows(eventId);
+      expect(event?.status).toBe("processed");
+      expect(event?.error).toContain("503");
+    });
+
+    /**
+     * IDEMPOTENCJA (v2). To samo `event_id` v2 dostarczone dwa razy → jeden
+     * wiersz rejestru i JEDEN odczyt (unikat `webhook_events` reużyty — id
+     * zdarzenia v2 też jest unikalne).
+     */
+    it("v2: dwie dostawy tego samego v2.core.account.updated → jeden wiersz, jeden odczyt", async () => {
+      const fixture = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const payload = accountEventBodyV2({ eventId, relatedId: fixture.accountId });
+      const calls: string[] = [];
+
+      const first = await handleStripeWebhook(
+        signedRequest(payload),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+      const second = await handleStripeWebhook(
+        signedRequest(payload),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(await eventRows(eventId)).toHaveLength(1);
+      expect(calls, "odczyt u dostawcy wykonany raz").toEqual([fixture.accountId]);
+      expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
+    });
+
+    /**
+     * v1 DALEJ DZIAŁA (regresja obok v2). Ten sam handler obsługuje oba
+     * formaty: v1 `account.updated` (identyfikator w górnopoziomowym
+     * `event.account`) przechodzi tą samą ścieżką co v2. Reszta osi v1
+     * (deauthorized, izolacja, fail-safe) jest pokryta przypadkami wyżej.
+     */
+    it("v1 account.updated nadal odświeża migawkę obok v2 — jeden handler, dwa formaty", async () => {
+      const fixture = await seedAccount({ chargesEnabled: false });
+      const eventId = newEventId();
+      const calls: string[] = [];
+
+      const response = await handleStripeWebhook(
+        signedRequest(
+          accountEventBody({ eventId, type: "account.updated", account: fixture.accountId }),
+        ),
+        deps(noIntent, syncOk(state(), calls)),
+      );
+
+      expect(response.status).toBe(200);
+      expect(calls).toEqual([fixture.accountId]);
       expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
     });
   });

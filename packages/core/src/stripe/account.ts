@@ -155,7 +155,7 @@ export function connectAccountStage(
  * konta (którego), nigdy jego stan — dokładnie ta sama reguła, na której
  * stoi `webhook.ts` (ADR-049/067).
  *
- * DWA TYPY, DWA RÓŻNE ZNACZENIA:
+ * DWA TYPY v1, DWA RÓŻNE ZNACZENIA:
  *   - `account.updated` — dostawca zmienił coś w koncie (KYC przeszło,
  *     konto zawieszone, doszły nowe wymagania). Reakcja: PULL prawdy
  *     i przepisanie migawki gotowości.
@@ -165,10 +165,49 @@ export function connectAccountStage(
  *     płatność skierowana na to konto pada. Reakcja: zamknąć tor online
  *     w migawce (`charges_enabled=false`), bez odczytu — bo nie ma już
  *     czego odczytać.
+ *
+ * ================== ROZSZERZENIE v2 (Accounts v2 / thin events) ==================
+ *
+ * `v2.core.account.updated` — SEMANTYCZNY ODPOWIEDNIK v1 `account.updated`,
+ * tyle że EMITOWANY przez konta/webhooki na wersjach 2026 (Accounts v2). Nowe
+ * konta Stripe dostają webhooki wyłącznie w tym formacie, więc bez tej pozycji
+ * Faza A (ADR-213) nie odświeżałaby ich stanu w czasie rzeczywistym.
+ *
+ * Reakcja jest DOKŁADNIE TA SAMA co dla v1 `account.updated`: PULL prawdy
+ * i przepisanie migawki. Różnica jest wyłącznie w KSZTAŁCIE ZDARZENIA, nie
+ * w obiegu:
+ *   - „thin event" NIE niesie `data.object`; identyfikator konta (`acct_…`)
+ *     leży w `related_object.id` (parser czyta go stamtąd — patrz
+ *     `parseStripeEvent` w `webhook.ts`),
+ *   - `related_object.type` to `v2.core.account` (NIE „account"), a
+ *     `related_object.url` wskazuje ścieżkę v2 — ale IDENTYFIKATOR pozostaje
+ *     `acct_…`, więc PULL zostaje na `GET /v1/accounts/{id}`
+ *     (`syncConnectAccountSafely`), który działa też dla kont v2 (interop).
+ *     ZOSTAJEMY na Accounts v1 dla tworzenia/odczytu — to jest TYLKO
+ *     rozszerzenie webhooka o nazwę v2.
+ * Weryfikacja struktury (przed implementacją, nie zgadywana):
+ * https://docs.stripe.com/event-destinations#thin-events — sekcja
+ * „Example thin event notification payload" dla `v2.core.account.updated`.
+ *
+ * DEZAUTORYZACJA v2 CELOWO POZA LISTĄ: OAuth łączy się dziś na v1, więc
+ * odłączenie aplikacji nadal przychodzi jako v1 `account.application.deauthorized`
+ * (zostaje na liście, działa). Nie ma stabilnego odpowiednika v2 tej semantyki
+ * do zaadresowania — gdy się pojawi, dołożymy go osobno.
+ *
+ * `v2.core.account[configuration.merchant].capability_status_updated` CELOWO
+ * POMINIĘTE: to zdarzenie mówi o zmianie POJEDYNCZEJ zdolności, ale gotowość,
+ * którą bramkuje sprzedaż (ADR-049 czyta `charges_enabled`), i tak wychodzi
+ * z PEŁNEGO odczytu `GET /v1/accounts`, który `v2.core.account.updated` już
+ * wyzwala. Dokładanie go dziś rozszerzyłoby listę o zdarzenie wywołujące
+ * IDENTYCZNY PULL, mnożąc subskrypcje w Dashboardzie bez nowej informacji —
+ * a rekoncyliacja (ADR-215) i tak jest siatką na zdarzenie, które się zgubi.
  */
 export const OBSERVED_ACCOUNT_EVENTS = [
   "account.updated",
   "account.application.deauthorized",
+  // Accounts v2 (thin event) — semantyczny odpowiednik v1 `account.updated`
+  // dla kont/webhooków na wersjach 2026; identyfikator z `related_object.id`.
+  "v2.core.account.updated",
 ] as const;
 
 export function isObservedAccountEvent(type: string): boolean {

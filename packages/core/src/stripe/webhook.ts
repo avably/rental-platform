@@ -233,7 +233,14 @@ export interface StripeEventEnvelope {
   id: string;
   /** np. `payment_intent.succeeded` — decyduje, czy zdarzenie nas obchodzi. */
   type: string;
-  /** `data.object.id` — np. `pi_...`. JEDYNY nośnik treści z ciała. */
+  /**
+   * IDENTYFIKATOR obiektu, którego zdarzenie dotyczy — JEDYNY nośnik treści
+   * z ciała. Dla zdarzeń v1 (snapshot) to `data.object.id` (np. `pi_…`). Dla
+   * zdarzeń v2 „thin" (Accounts v2, wersje 2026) ciało NIE MA `data.object` —
+   * identyfikator leży w `related_object.id` (`acct_…`) i parser bierze go
+   * stamtąd. W obu wypadkach to nadal wyłącznie identyfikator: mówi, O CO
+   * ZAPYTAĆ dostawcę, nigdy jaki jest stan.
+   */
   objectId: string;
   /**
    * Górnopoziomowe `event.account` (`acct_...`) — na KTÓRYM koncie połączonym
@@ -248,6 +255,12 @@ export interface StripeEventEnvelope {
    * (`ca_...`), więc identyfikator konta najemcy istnieje TYLKO tutaj, a nie
    * w `objectId`. Tożsamość najemcy i tak wychodzi z NASZEJ bazy po tym
    * identyfikatorze, nigdy z pól stanu payloadu.
+   *
+   * Dla zdarzeń v2 „thin" (Accounts v2, ADR-218) górnopoziomowego `account`
+   * NIE MA — identyfikator konta niesie `related_object.id`, więc parser bierze
+   * `account` STAMTĄD. Dzięki temu istniejąca gałąź konta (`handleAccountEvent`)
+   * dostaje `acct_…` tym samym polem co w v1 i nie musi wiedzieć, którą wersją
+   * przyszło zdarzenie. To nadal identyfikator: „którego konta", nie jego stan.
    */
   account: string | null;
 }
@@ -284,23 +297,51 @@ export function parseStripeEvent(payload: string): StripeEventParseResult {
     typeof data === "object" && data !== null
       ? (data as Record<string, unknown>).object
       : undefined;
-  const objectId =
+  const dataObjectId =
     typeof object === "object" && object !== null
       ? typeof (object as Record<string, unknown>).id === "string"
         ? ((object as Record<string, unknown>).id as string)
         : ""
       : "";
-  // Górnopoziomowe `account` — identyfikator konta połączonego, gdy jest.
-  // Pusty/brak = `null` (zdarzenie platformy).
-  const account = typeof record.account === "string" && record.account.length > 0
-    ? record.account
-    : null;
+
+  // Zdarzenia v2 „thin" (Accounts v2, wersje 2026) NIE niosą `data.object` —
+  // identyfikator obiektu leży w `related_object.id` (dla `v2.core.account.*`
+  // jest to `acct_…`). Rozpoznajemy je po prefiksie `v2.` w typie ALBO po
+  // obecności `related_object`. Struktura zweryfikowana z dokumentacji, nie
+  // zgadywana: https://docs.stripe.com/event-destinations#thin-events
+  // (sekcja „Example thin event notification payload").
+  const related = record.related_object;
+  const relatedIsObject = typeof related === "object" && related !== null;
+  const relatedId =
+    relatedIsObject && typeof (related as Record<string, unknown>).id === "string"
+      ? ((related as Record<string, unknown>).id as string)
+      : "";
+  const isThinEvent = type.startsWith("v2.") || relatedIsObject;
+
+  // Dla v1 (snapshot) identyfikator bierzemy z `data.object.id`; dla zdarzeń
+  // thin — z `related_object.id`. Brak `data.object.id` przy zdarzeniu thin
+  // NIE jest błędem (patrz warunek `!objectId` niżej) — bo tam go z definicji
+  // nie ma, a identyfikator i tak jest w `related_object`.
+  const objectId = dataObjectId || (isThinEvent ? relatedId : "");
+
+  // Górnopoziomowe `account` — identyfikator konta połączonego, gdy jest (v1).
+  // Zdarzenia thin konta NIE mają pola `account`: identyfikator konta niesie
+  // `related_object.id`, więc bierzemy go stamtąd, żeby gałąź konta dostała
+  // `acct_…` tym samym polem co w v1 i nie musiała rozróżniać wersji. Pusty/brak
+  // w obu wypadkach = `null` (zdarzenie platformy). To NADAL identyfikator,
+  // nie stan — ani jedno pole gotowości tędy nie przechodzi.
+  const topLevelAccount =
+    typeof record.account === "string" && record.account.length > 0 ? record.account : null;
+  const account = topLevelAccount ?? (isThinEvent && relatedId ? relatedId : null);
 
   if (!id || !type) {
     return { ok: false, message: "Zdarzenie nie ma identyfikatora albo typu." };
   }
   if (!objectId) {
-    return { ok: false, message: "Zdarzenie nie wskazuje obiektu (data.object.id)." };
+    return {
+      ok: false,
+      message: "Zdarzenie nie wskazuje obiektu (brak data.object.id ani related_object.id).",
+    };
   }
 
   return { ok: true, event: { id, type, objectId, account } };
