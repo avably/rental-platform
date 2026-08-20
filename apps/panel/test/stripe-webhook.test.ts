@@ -49,6 +49,12 @@ const REQUIRED_ENV = [
 const hasEnv = integrationEnv(REQUIRED_ENV);
 
 const SECRET = "whsec_test_sekret_webhooka_z4";
+/**
+ * Sekret DRUGIEJ destynacji — „Thin" (v2, ADR-222). Osobny od `SECRET`:
+ * dowodzi, że zdarzenie podpisane sekretem Thin przechodzi WYŁĄCZNIE dzięki
+ * próbie tego sekretu, a nie dlatego, że przypadkiem zgadza się ze Snapshotem.
+ */
+const THIN_SECRET = "whsec_test_sekret_destynacji_thin";
 const AMOUNT_GROSZE = 12_345;
 
 const realtimeTransport = {
@@ -1210,6 +1216,154 @@ describe.skipIf(!hasEnv)("handler webhooka płatności — Z4", () => {
       expect(response.status).toBe(200);
       expect(calls).toEqual([fixture.accountId]);
       expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
+    });
+
+    // -----------------------------------------------------------------
+    // DOSTAWA z DRUGIEJ destynacji (Thin) — weryfikacja przeciw obu sekretom
+    // (ADR-222)
+    // -----------------------------------------------------------------
+    //
+    // ADR-218 dodał PARSOWANIE zdarzeń v2 „thin", ale nie DOSTAWĘ: zdarzenia v2
+    // przychodzą z OSOBNEJ destynacji Stripe (Thin) z WŁASNYM sekretem `whsec_…`
+    // na tym samym endpoincie URL. Route weryfikuje podpis przeciw OBU sekretom
+    // (Snapshot wymagany + Thin opcjonalny) i akceptuje przy dopasowaniu do
+    // KTÓREGOKOLWIEK. Schemat podpisu jest identyczny (HMAC-SHA256, `v1=`,
+    // `timestamp.payload` — docs.stripe.com/webhooks#verify-manually, potwierdzone
+    // dla thin w docs.stripe.com/event-destinations), więc weryfikator się nie
+    // zmienia; zmienia się tylko sekret, którym próbujemy.
+    //
+    // Oś jest osobna od parsera (webhook.test.ts) i osobna od Fazy A/B (v2 wyżej):
+    // tam podpis liczony był SEKRETEM SNAPSHOT, tu liczymy go SEKRETEM THIN
+    // i przechodzimy PEŁNĄ ścieżką weryfikacji z drugim sekretem.
+
+    describe("dwie destynacje, dwa sekrety — akceptacja przy dopasowaniu do KTÓREGOKOLWIEK", () => {
+      /**
+       * DOWÓD DOSTAWY v2. Zdarzenie v2 thin podpisane sekretem THIN, destynacja
+       * Thin skonfigurowana (`secretThin`) → podpis zweryfikowany dzięki DRUGIEMU
+       * sekretowi → PULL prawdy (GET /v1/accounts) → migawka przepisana z odczytu.
+       *
+       * MUTACJA (dowód izolacji): w handlerze zawęź próbę do
+       * `secrets: [deps.secret]` (usuń `deps.secretThin`) → ten przypadek RED
+       * (400: podpis THIN nie zgadza się ze Snapshotem), a v1 niżej zostaje
+       * zielone. Przywróć `[deps.secret, deps.secretThin]` → komplet zielony.
+       */
+      it("v2 thin PODPISANY sekretem THIN + destynacja Thin skonfigurowana → zweryfikowany → PULL → migawka", async () => {
+        const fixture = await seedAccount({ chargesEnabled: false });
+        const eventId = newEventId();
+        const calls: string[] = [];
+
+        const response = await handleStripeWebhook(
+          signedRequest(accountEventBodyV2({ eventId, relatedId: fixture.accountId }), THIN_SECRET),
+          { ...deps(noIntent, syncOk(state({ requirementsDue: [] }), calls)), secretThin: THIN_SECRET },
+        );
+
+        expect(response.status).toBe(200);
+        // Odczyt wykonany — dowód, że podpis THIN PRZESZEDŁ i handler dotarł do PULL.
+        expect(calls).toEqual([fixture.accountId]);
+
+        const row = await accountRow(fixture.tenantId);
+        expect(row.charges_enabled).toBe(true);
+        expect(row.payouts_enabled).toBe(true);
+        expect(row.details_submitted).toBe(true);
+        expect(row.last_error).toBeNull();
+        expect(row.last_synced_at).not.toBeNull();
+
+        const [event] = await eventRows(eventId);
+        expect(event?.status).toBe("processed");
+        expect(event?.event_type).toBe("v2.core.account.updated");
+        expect(event?.error).toBeNull();
+      });
+
+      /**
+       * BRAK SEKRETU THIN = v2 ODRZUCONE CZYTELNIE. Dokładnie stan produkcji
+       * DZIŚ, przed konfiguracją drugiej destynacji: `secretThin` jest undefined
+       * (domyślne `deps()`), zdarzenie v2 podpisane sekretem THIN nie ma się do
+       * czego dopasować → 400, ZERO wiersza w rejestrze, gotowość konta nietknięta.
+       * Nie 500, nie ciche przyjęcie.
+       */
+      it("BRAK sekretu Thin: v2 thin (podpisany THIN) → 400, zero zapisu, konto nietknięte", async () => {
+        const fixture = await seedAccount({ chargesEnabled: false });
+        const eventId = newEventId();
+
+        const response = await handleStripeWebhook(
+          signedRequest(accountEventBodyV2({ eventId, relatedId: fixture.accountId }), THIN_SECRET),
+          // deps() domyślnie BEZ secretThin — destynacja Thin jeszcze nieutworzona.
+          deps(noIntent, syncOk(state())),
+        );
+
+        expect(response.status).toBe(400);
+        expect(await eventRows(eventId)).toHaveLength(0);
+        const row = await accountRow(fixture.tenantId);
+        expect(row.last_synced_at, "brak PULL — podpis odrzucony przed przetwarzaniem").toBeNull();
+        expect(row.charges_enabled).toBe(false);
+      });
+
+      /**
+       * ZŁY PODPIS mimo OBU skonfigurowanych. Zdarzenie v2 podpisane sekretem,
+       * który NIE jest ani Snapshotem, ani Thinem → 400. Akceptacja
+       * „któregokolwiek" nie oznacza akceptacji CZEGOKOLWIEK: napastnik bez
+       * żadnego z naszych sekretów nie przejdzie.
+       */
+      it("ZŁY sekret (ani Snapshot, ani Thin) przy OBU skonfigurowanych → 400, zero zapisu", async () => {
+        const fixture = await seedAccount({ chargesEnabled: false });
+        const eventId = newEventId();
+
+        const response = await handleStripeWebhook(
+          signedRequest(
+            accountEventBodyV2({ eventId, relatedId: fixture.accountId }),
+            "whsec_obcy_nikt_nie_zna",
+          ),
+          { ...deps(noIntent, syncOk(state())), secretThin: THIN_SECRET },
+        );
+
+        expect(response.status).toBe(400);
+        expect(await eventRows(eventId)).toHaveLength(0);
+        expect((await accountRow(fixture.tenantId)).last_synced_at).toBeNull();
+      });
+
+      /**
+       * REGRESJA v1 (konto). Ten sam handler z OBOMA sekretami: zdarzenie v1
+       * `account.updated` podpisane sekretem SNAPSHOT dalej przechodzi. Dodanie
+       * drugiej destynacji nie osłabia ani nie psuje toru v1. Pozostaje zielone
+       * także pod mutacją „weryfikuj tylko Snapshot".
+       */
+      it("REGRESJA v1: account.updated (Snapshot) działa, gdy destynacja Thin też skonfigurowana", async () => {
+        const fixture = await seedAccount({ chargesEnabled: false });
+        const eventId = newEventId();
+        const calls: string[] = [];
+
+        const response = await handleStripeWebhook(
+          signedRequest(
+            accountEventBody({ eventId, type: "account.updated", account: fixture.accountId }),
+          ),
+          { ...deps(noIntent, syncOk(state(), calls)), secretThin: THIN_SECRET },
+        );
+
+        expect(response.status).toBe(200);
+        expect(calls).toEqual([fixture.accountId]);
+        expect((await accountRow(fixture.tenantId)).charges_enabled).toBe(true);
+      });
+
+      /**
+       * REGRESJA v1 (PIENIĄDZE). Tor płatności — najgroźniejszy — z OBOMA
+       * sekretami: `payment_intent.succeeded` podpisany Snapshotem dalej przenosi
+       * zamówienie w `paid` Z ODCZYTU. Druga destynacja nie dotyka osi rozliczeń.
+       */
+      it("REGRESJA v1: payment_intent.succeeded (Snapshot) → paid, gdy Thin też skonfigurowany", async () => {
+        const fixture = await seedOrder();
+        const eventId = newEventId();
+
+        const response = await handleStripeWebhook(
+          signedRequest(eventBody({ eventId, intentId: fixture.intentId })),
+          {
+            ...deps(alwaysRead(intentRead({ intentId: fixture.intentId }))),
+            secretThin: THIN_SECRET,
+          },
+        );
+
+        expect(response.status).toBe(200);
+        expect(await paymentStatusOf(fixture.orderId)).toBe("paid");
+      });
     });
   });
 });

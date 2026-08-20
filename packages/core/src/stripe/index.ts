@@ -15,11 +15,14 @@ export {
   STRIPE_PUBLISHABLE_KEY_ENV,
   STRIPE_SECRET_KEY_ENV,
   STRIPE_WEBHOOK_SECRET_ENV,
+  STRIPE_WEBHOOK_SECRET_THIN_ENV,
   StripeConfigError,
   requireStripeWebhookSecret,
   resolveStripeConfig,
   stripeAvailability,
+  stripeWebhookSecretThin,
   type StripeConfigOptions,
+  type StripeWebhookSecretThinOptions,
 } from "./config";
 
 export {

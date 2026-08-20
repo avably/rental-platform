@@ -60,6 +60,7 @@ import {
   type IntentRead,
   type RefundRead,
   type StripeEventEnvelope,
+  type StripeSignatureResult,
 } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -103,8 +104,27 @@ export interface StripeWebhookDeps {
    * (`api.ts`), zanim tu dotrą.
    */
   syncAccount: (providerAccountId: string) => Promise<ConnectAccountSync>;
-  /** Sekret podpisu. Wstrzykiwany, żeby test nie zależał od env procesu. */
+  /**
+   * Sekret podpisu destynacji SNAPSHOT (v1). WYMAGANY w produkcji — bez niego
+   * `route.ts` nie woła handlera (500). Wstrzykiwany, żeby test nie zależał
+   * od env procesu.
+   */
   secret: string | undefined;
+  /**
+   * Sekret podpisu DRUGIEJ destynacji — „Thin" (v2, ADR-222) — OPCJONALNY.
+   *
+   * Zdarzenia v2 „thin" (`v2.core.account.updated`, ADR-218) przychodzą z
+   * OSOBNEJ destynacji Stripe z WŁASNYM sekretem `whsec_…` na TYM SAMYM
+   * endpoincie URL. Podpis liczony jest tym samym schematem co Snapshot
+   * (HMAC-SHA256, `v1=`, `timestamp.payload` —
+   * https://docs.stripe.com/webhooks#verify-manually, potwierdzone dla thin
+   * w https://docs.stripe.com/event-destinations), więc weryfikator się nie
+   * zmienia — zmienia się tylko sekret, którym próbujemy.
+   *
+   * `undefined` = destynacja Thin jeszcze nieskonfigurowana: v1 działa bez
+   * zmian, a v2 są odrzucane (zły podpis → 400), jak dziś. NIE osłabia v1.
+   */
+  secretThin?: string | undefined;
   /** Zegar do okna tolerancji podpisu. */
   now?: Date;
   /**
@@ -527,6 +547,56 @@ async function handleAccountEvent(
   });
 }
 
+/**
+ * Weryfikacja podpisu przeciw OBU sekretom destynacji (Snapshot + Thin, ADR-222).
+ *
+ * Ten sam endpoint URL obsługuje DWIE destynacje Stripe — Snapshot (v1)
+ * i Thin (v2 „thin", ADR-218) — a KAŻDA ma WŁASNY sekret `whsec_…`. Zdarzenie
+ * jest AUTENTYCZNE, gdy pasuje do KTÓREGOKOLWIEK z NASZYCH sekretów: oba są
+ * naszymi tajemnicami, więc dopasowanie do dowolnego dowodzi autorstwa dostawcy.
+ * Napastnik bez żadnego z sekretów nie sfałszuje podpisu pasującego do choćby
+ * jednego — akceptacja „któregokolwiek" NIE osłabia bezpieczeństwa.
+ *
+ * KOLEJNOŚĆ I BRAK OSŁABIENIA v1: Snapshot próbowany jest ZAWSZE (pierwszy).
+ * Sekret Thin jest opcjonalny (`undefined` pomijamy) — jego brak nie zmienia
+ * werdyktu dla v1 ani o jotę. Wszystkie bramki poza samym HMAC (obecność
+ * nagłówka, format, okno tolerancji) dają ten sam wynik dla każdego sekretu,
+ * więc „ostatnia porażka" jest tak samo czytelna niezależnie od kolejności:
+ * zwracamy ją, żeby 400 niosło konkretny powód (np. `signature_mismatch`), a nie
+ * generyczny „coś nie tak".
+ */
+function verifySignatureAgainstSecrets(input: {
+  secrets: ReadonlyArray<string | undefined>;
+  header: string | null | undefined;
+  payload: string;
+  now?: Date;
+}): StripeSignatureResult {
+  let lastFailure: StripeSignatureResult | null = null;
+  for (const secret of input.secrets) {
+    if (!secret) continue;
+    const result = verifyStripeSignature({
+      secret,
+      header: input.header,
+      payload: input.payload,
+      now: input.now,
+    });
+    if (result.ok) return result;
+    lastFailure = result;
+  }
+  // Żaden sekret nie był skonfigurowany (w produkcji niemożliwe — Snapshot jest
+  // wymagany przez route). Kanoniczny komunikat „brak konfiguracji" bierzemy
+  // z samego weryfikatora, wołając go z pustym sekretem — bez powielania tekstu.
+  return (
+    lastFailure ??
+    verifyStripeSignature({
+      secret: undefined,
+      header: input.header,
+      payload: input.payload,
+      now: input.now,
+    })
+  );
+}
+
 export async function handleStripeWebhook(
   request: Request,
   deps: StripeWebhookDeps,
@@ -534,8 +604,10 @@ export async function handleStripeWebhook(
   // SUROWE ciało, przed jakimkolwiek parsowaniem: podpis liczy się z bajtów.
   const payload = await request.text();
 
-  const verified = verifyStripeSignature({
-    secret: deps.secret,
+  // Dwie destynacje, dwa sekrety, jeden endpoint (ADR-222): akceptujemy podpis
+  // pasujący do KTÓREGOKOLWIEK z naszych sekretów. Thin jest opcjonalny.
+  const verified = verifySignatureAgainstSecrets({
+    secrets: [deps.secret, deps.secretThin],
     header: request.headers.get(STRIPE_SIGNATURE_HEADER),
     payload,
     now: deps.now,
