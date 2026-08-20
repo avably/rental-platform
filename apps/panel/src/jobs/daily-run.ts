@@ -16,10 +16,10 @@
  *
  * ================== DLACZEGO SZEREGOWO, A NIE RÓWNOLEGLE ==================
  *
- * Wszystkie cztery zadania chodzą klientem `service_role` z pominięciem RLS
+ * Wszystkie zadania serii chodzą klientem `service_role` z pominięciem RLS
  * i biją w tę samą bazę. Szeregowo znaczy: w danej chwili dokładnie jedno
  * z nich obciąża bazę i Storage. `Promise.all` skróciłby przebieg, ale
- * zamieniłby przewidywalny profil obciążenia w cztery równoległe skoki
+ * zamieniłby przewidywalny profil obciążenia w tyleż równoległych skoków
  * w oknie, w którym nikt tego nie ogląda.
  *
  * ================== ODPORNOŚĆ: AWARIA JEDNEGO NIE UBIJA RESZTY ==============
@@ -32,18 +32,19 @@
  * ================== BUDŻET CZASU ==================
  *
  * Funkcja na planie Hobby ma 300 s (domyślne i maksymalne — patrz ADR-130).
- * Cztery zadania pod rząd mogą ten budżet przekroczyć, a przekroczenie
- * bez planu to `FUNCTION_INVOCATION_TIMEOUT`: praca ucięta w losowym miejscu
- * i BRAK ODPOWIEDZI, czyli brak jakiegokolwiek raportu. Dlatego:
+ * Zadania pod rząd mogą ten budżet przekroczyć, a przekroczenie bez planu to
+ * `FUNCTION_INVOCATION_TIMEOUT`: praca ucięta w losowym miejscu i BRAK
+ * ODPOWIEDZI, czyli brak jakiegokolwiek raportu. Dlatego:
  *
- *   1. KOLEJNOŚĆ OD NAJTAŃSZYCH. Trzy tanie zadania (kilka round-tripów każde)
- *      idą przodem i domykają się na pewno; rekoncyliacja — jedyna, która
- *      wykonuje do stu wywołań sieciowych u dostawcy — idzie OSTATNIA, bo jest
- *      też najbardziej wznawialna (patrz niżej).
+ *   1. KOLEJNOŚĆ OD NAJTAŃSZYCH. Tanie zadania (garść round-tripów każde) idą
+ *      przodem i domykają się na pewno; najdroższa rekoncyliacja płatności —
+ *      do stu wywołań sieciowych u dostawcy — idzie OSTATNIA, bo jest też
+ *      najbardziej wznawialna (patrz niżej). Siatki Fazy B (zwroty kaucji,
+ *      konta Connect) są tanie i wznawialne, więc siadają wśród przednich.
  *   2. TWARDY BUDŻET PER ZADANIE, a ich suma NIE PRZEKRACZA budżetu przebiegu
  *      (pilnuje tego test). Dzięki temu żadne zadanie nie może zjeść cudzego
- *      przydziału: nawet gdy trzy pierwsze wykorzystają swoje limity co do
- *      milisekundy, rekoncyliacja dostanie swoje.
+ *      przydziału: nawet gdy zadania przednie wykorzystają swoje limity co do
+ *      milisekundy, rekoncyliacja płatności dostanie swoje.
  *   3. NIE ZACZYNAMY TEGO, CZEGO NIE SKOŃCZYMY. Przed każdym zadaniem liczymy
  *      pozostały czas; gdy go nie ma, zadanie dostaje status `skipped`
  *      Z POWODEM zamiast wystartować i zostać zabite w połowie.
@@ -69,6 +70,8 @@ import { cleanupProductImageUploads } from "@/src/jobs/cleanup-product-image-upl
 import { cleanupSiteImageUploads } from "@/src/jobs/cleanup-site-image-uploads";
 import { purgeEmailLogBodies } from "@/src/jobs/purge-email-log-bodies";
 import { reconcileBilling } from "@/src/jobs/reconcile-billing";
+import { reconcileConnectAccounts } from "@/src/jobs/reconcile-connect-accounts";
+import { reconcileDepositRefunds } from "@/src/jobs/reconcile-deposit-refunds";
 import { reconcilePayments } from "@/src/jobs/reconcile-payments";
 
 /**
@@ -135,20 +138,43 @@ export interface DailyRunReport {
  */
 export const DAILY_JOBS: readonly DailyJob[] = [
   {
-    // Jedno wywołanie funkcji bazy (`app.purge_email_log_bodies`) — najtańsze.
+    // Zwroty kaucji utknięte w `pending` (Faza B) — siatka na zgubiony webhook
+    // `charge.refund.updated`. Wierszy zwykle ZERO (utyka tylko przy zgubionym
+    // zdarzeniu), a każdy to jeden odczyt u dostawcy; ucięcie budżetu zostawia
+    // resztę w `pending` (stanie, w którym była). Najtańszy → pierwszy.
+    name: "reconcile-deposit-refunds",
+    path: "/api/jobs/reconcile-deposit-refunds",
+    budgetMs: 15_000,
+    run: () => reconcileDepositRefunds(),
+  },
+  {
+    // Pull stanu kont Connect (Faza B) — siatka na zgubiony `account.updated`.
+    // Do stu kont × jeden odczyt u dostawcy, ale kolejność `last_synced_at asc`
+    // odświeża najstarsze najpierw, więc ucięcie zostawia w zaległości konta
+    // ŚWIEŻO odświeżone. Odczyty biegną szeregowo (throttling z konstrukcji).
+    name: "reconcile-connect-accounts",
+    path: "/api/jobs/reconcile-connect-accounts",
+    budgetMs: 15_000,
+    run: () => reconcileConnectAccounts(),
+  },
+  {
+    // Jedno wywołanie funkcji bazy (`app.purge_email_log_bodies`) — najtańsze
+    // co do pracy. Budżet zszedł z 30 s na 15 s, żeby dwie nowe siatki Fazy B
+    // zmieściły się w budżecie przebiegu (suma limitów ≤ DAILY_RUN_BUDGET_MS —
+    // pilnuje test): jeden round-trip do bazy mieści się z ogromnym zapasem.
     name: "email-log-retention",
     path: "/api/jobs/email-log-retention",
-    budgetMs: 30_000,
+    budgetMs: 15_000,
     run: () => purgeEmailLogBodies(),
   },
   {
     // Rekoncyliacja subskrypcji SaaS (ADR-136) — siatka bezpieczeństwa na
     // zgubiony webhook billingu, nie drugi zegar (zasada 1 dunningu).
-    // Garść tenantów z subskrypcją × jeden odczyt u dostawcy — tania;
-    // budżet wykrojony z rekoncyliacji płatności (patrz komentarz tam).
+    // Garść tenantów z subskrypcją × jeden odczyt u dostawcy — tania; budżet
+    // zszedł z 30 s na 15 s z tego samego powodu co retencja maili wyżej.
     name: "billing-reconciliation",
     path: "/api/jobs/billing-reconciliation",
-    budgetMs: 30_000,
+    budgetMs: 15_000,
     run: () => reconcileBilling(),
   },
   {

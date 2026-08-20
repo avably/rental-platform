@@ -217,6 +217,29 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "u dostawcy na koncie PLATFORMY, przez app.apply_saas_subscription_state.",
   ],
   [
+    "/api/jobs/reconcile-connect-accounts",
+    "Rekoncyliacja stanu kont Connect (Faza B, ADR-215) — siatka na zgubiony " +
+      "webhook account.updated (ADR-213). Endpoint nie używa sesji operatora, " +
+      "bo wywołuje go seria dzienna (ADR-130); chroni go Authorization: Bearer " +
+      "porównywany stałoczasowo z CRON_SECRET (brak sekretu → 503, zły/brak " +
+      "nagłówka → 401). Klient service_role pozostaje wyłącznie w src/jobs/**; " +
+      "pull GET /v1/accounts przepisuje WYŁĄCZNIE kolumny stanu payment_accounts " +
+      "(nigdy provider_account_id), fail-safe zostawia gotowość nietkniętą przy " +
+      "porażce odczytu.",
+  ],
+  [
+    "/api/jobs/reconcile-deposit-refunds",
+    "Rekoncyliacja zwrotów kaucji utkniętych w pending (Faza B, ADR-215) — " +
+      "siatka na zgubiony webhook charge.refund.updated. Endpoint nie używa " +
+      "sesji operatora, bo wywołuje go seria dzienna (ADR-130); chroni go " +
+      "Authorization: Bearer porównywany stałoczasowo z CRON_SECRET (brak " +
+      "sekretu → 503, zły/brak nagłówka → 401). Klient service_role pozostaje " +
+      "wyłącznie w src/jobs/**; ⚠ domyka WYŁĄCZNIE z odczytu GET /v1/refunds/{id} " +
+      "istniejącą ścieżką (closeDepositRefundFromRead bez createRefund w deps), " +
+      "NIGDY drugi POST /v1/refunds — reużyte unikat one-in-flight i serializacja " +
+      "salda dają idempotencję.",
+  ],
+  [
     "/api/webhooks/supabase-email",
     "Send Email Hook Supabase Auth (ADR-048) — woła go GoTrue, nie zalogowany " +
       "operator, więc guard sesji nie ma tu zastosowania. Chroni PODPIS " +

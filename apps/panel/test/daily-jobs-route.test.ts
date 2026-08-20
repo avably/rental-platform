@@ -31,6 +31,8 @@ const cores = vi.hoisted(() => ({
   cleanupProductImageUploads: vi.fn(),
   reconcilePayments: vi.fn(),
   reconcileBilling: vi.fn(),
+  reconcileConnectAccounts: vi.fn(),
+  reconcileDepositRefunds: vi.fn(),
 }));
 
 vi.mock("@/src/jobs/purge-email-log-bodies", () => ({
@@ -38,6 +40,12 @@ vi.mock("@/src/jobs/purge-email-log-bodies", () => ({
 }));
 vi.mock("@/src/jobs/reconcile-billing", () => ({
   reconcileBilling: cores.reconcileBilling,
+}));
+vi.mock("@/src/jobs/reconcile-connect-accounts", () => ({
+  reconcileConnectAccounts: cores.reconcileConnectAccounts,
+}));
+vi.mock("@/src/jobs/reconcile-deposit-refunds", () => ({
+  reconcileDepositRefunds: cores.reconcileDepositRefunds,
 }));
 vi.mock("@/src/jobs/cleanup-site-image-uploads", () => ({
   cleanupSiteImageUploads: cores.cleanupSiteImageUploads,
