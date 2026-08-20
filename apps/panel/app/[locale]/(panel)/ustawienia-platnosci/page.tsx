@@ -18,6 +18,8 @@
  * Dostęp dla każdego członka (RLS 0028 daje odczyt całemu tenantowi); bramka
  * właściciela dotyczy podpięcia i odłączenia konta i siedzi w bazie.
  */
+import { randomUUID } from "node:crypto";
+
 import { connectAccountStage, stripeAvailability } from "@avably/core";
 import { getTranslations } from "next-intl/server";
 
@@ -73,6 +75,13 @@ export default async function PaymentSettingsPage() {
   // wyłącznie POWÓD (nazwy brakujących zmiennych).
   const availability = stripeAvailability();
 
+  // Nonce per render (ADR-216) do klucza idempotencji zakładania konta. Świeży
+  // na KAŻDE wejście na stronę (trasa jest dynamiczna — czyta cookie), więc
+  // ponowienie po nieudanej próbie (nowy render) omija błąd, który dostawca
+  // cache'uje na 24h. Ten sam wyrenderowany formularz niesie ten sam nonce, więc
+  // przypadkowy dwuklik dalej dedupuje do jednego konta.
+  const onboardingNonce = randomUUID();
+
   return (
     <FormMeasure className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={`← ${t("backLink")}`} />
@@ -83,6 +92,7 @@ export default async function PaymentSettingsPage() {
         stage={stage}
         isOwner={ctx.role === "owner"}
         configAvailable={availability.available}
+        onboardingNonce={onboardingNonce}
       />
     </FormMeasure>
   );

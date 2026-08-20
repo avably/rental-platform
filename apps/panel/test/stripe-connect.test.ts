@@ -19,6 +19,8 @@
 import { STRIPE_PUBLISHABLE_KEY_ENV, STRIPE_SECRET_KEY_ENV } from "@avably/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ONBOARDING_NONCE_FIELD } from "@/app/[locale]/(panel)/ustawienia-platnosci/onboarding-nonce";
+
 const TENANT_A = "00000000-0000-4000-8000-0000000000aa";
 const TENANT_B = "00000000-0000-4000-8000-0000000000bb";
 const SECRET_KEY = "sk_test_klucz_wlasciciela_atrapa";
@@ -220,6 +222,87 @@ async function startOnboarding() {
     "@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions"
   );
   return startPaymentOnboardingAction({}, new FormData());
+}
+
+/** Formularz z nonce onboardingu — imituje jeden wyrenderowany formularz. */
+function formWithNonce(nonce: string): FormData {
+  const form = new FormData();
+  form.set(ONBOARDING_NONCE_FIELD, nonce);
+  return form;
+}
+
+async function startOnboardingWithNonce(nonce: string) {
+  const { startPaymentOnboardingAction } = await import(
+    "@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions"
+  );
+  return startPaymentOnboardingAction({}, formWithNonce(nonce));
+}
+
+/** Klucze idempotencji z żądań POST /v1/accounts, w kolejności wystąpienia. */
+function createIdempotencyKeys(spy: ReturnType<typeof stubProvider>): string[] {
+  return spy.mock.calls
+    .filter(
+      ([url, init]) =>
+        String(url).endsWith("/v1/accounts") &&
+        (init as RequestInit | undefined)?.method === "POST",
+    )
+    .map(
+      ([, init]) =>
+        ((init as RequestInit).headers as Record<string, string>)["Idempotency-Key"],
+    );
+}
+
+/**
+ * Dostawca modelujący idempotencję Stripe przy zakładaniu konta: ten sam
+ * `Idempotency-Key` zwraca to SAMO konto (odtworzenie — ZERO nowych kont u
+ * dostawcy), inny klucz — NOWE konto. `distinctAccounts()` liczy konta
+ * FAKTYCZNIE utworzone: sierota po rozjechanym kluczu jest tu widoczna, choć
+ * w bazie zostaje jeden wiersz (PK po tenant_id chwyta drugi insert na 23505).
+ *
+ * BARIERA na POST wymusza WYŚCIG: wstrzymuje każde żądanie, aż dotrą OBA — a że
+ * odczyt wiersza jest PRZED wywołaniem create, po zwolnieniu oba wywołania
+ * przeczytały już „brak wiersza". Dopiero wtedy klucz idempotencji jest jedyną
+ * barierą przed drugim kontem; sekwencyjnie dedupowałoby samo sprawdzenie
+ * wiersza i klucza nikt by nie zbadał.
+ */
+function stubIdempotentCreate(arrivalsToRelease = 2) {
+  const accountByKey = new Map<string, string>();
+  let sequence = 0;
+  let arrived = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  const spy = stubProvider(async (url, init) => {
+    if (url.endsWith("/v1/accounts") && init?.method === "POST") {
+      arrived += 1;
+      if (arrived >= arrivalsToRelease) release();
+      await gate;
+
+      const key = (init.headers as Record<string, string> | undefined)?.["Idempotency-Key"];
+      let id: string;
+      if (key && accountByKey.has(key)) {
+        id = accountByKey.get(key)!;
+      } else {
+        sequence += 1;
+        id = `acct_wyscig_${sequence}`;
+        if (key) accountByKey.set(key, id);
+      }
+      return json({
+        id,
+        charges_enabled: false,
+        payouts_enabled: false,
+        details_submitted: false,
+        requirements: { currently_due: [], past_due: [] },
+      });
+    }
+    if (url.includes("/v1/accounts/")) return json(READ_RESPONSE_PENDING);
+    if (url.endsWith("/v1/account_links")) return json(LINK_RESPONSE);
+    throw new Error(`Nieoczekiwane żądanie: ${url}`);
+  });
+
+  return { spy, distinctAccounts: () => new Set(accountByKey.values()) };
 }
 
 async function refresh() {
@@ -540,6 +623,80 @@ describe("konto płatności najemcy (Z2, ADR-065)", () => {
 
       expect(state.formError).toContain("konta płatności");
       expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Klucz idempotencji z nonce per render (ADR-216): świeży przy ponowieniu,
+  // dedup zachowany dla podwójnego submitu jednego renderu.
+  // -------------------------------------------------------------------
+
+  describe("klucz idempotencji z nonce per render (ADR-216)", () => {
+    it("ponowienie po nieudanej próbie (nowy render) używa INNEGO klucza", async () => {
+      // Pierwsza próba pada u dostawcy (np. „Accounts v1 not enabled" sprzed
+      // przełączenia toggle'a). Wiersz NIE powstaje (kolejność konto→wiersz),
+      // więc ponowienie jest GENUINE nową próbą — a dostawca cache'uje odpowiedź
+      // (także błąd) pod kluczem na ~24h, więc bez ŚWIEŻEGO klucza właściciel
+      // odtwarzałby ten sam błąd mimo naprawionej konfiguracji.
+      const failing = stubProvider(async (url, init) => {
+        if (url.endsWith("/v1/accounts") && init?.method === "POST") {
+          return json({ error: { message: "Accounts v1 not enabled" } }, 400);
+        }
+        throw new Error(`Nieoczekiwane żądanie: ${url}`);
+      });
+
+      const state1 = await startOnboardingWithNonce("render-1");
+      expect(state1.formError, "porażka create powinna dać formError").toBeTruthy();
+      expect(accountOf(TENANT_A), "porażka create zostawiła wiersz").toBeUndefined();
+      const [key1] = createIdempotencyKeys(failing);
+      expect(key1, "pierwsza próba nie niosła klucza").toBeTruthy();
+
+      // Konfiguracja naprawiona: dostawca działa. NOWY render → NOWY nonce.
+      const healthy = stubHonestProvider();
+      await expectRedirect(() => startOnboardingWithNonce("render-2"));
+      const [key2] = createIdempotencyKeys(healthy);
+
+      // Sedno odblokowania: klucz jest INNY, więc dostawca nie odtworzy błędu.
+      expect(key2, "ponowienie użyło TEGO SAMEGO klucza — błąd byłby odtworzony").not.toBe(key1);
+      // Izolacja per najemca nie zniknęła przy zmianie schematu klucza.
+      expect(key1).toContain(TENANT_A);
+      expect(key2).toContain(TENANT_A);
+    });
+
+    it("dwa równoległe submity TEGO SAMEGO renderu → JEDNO konto (dedup)", async () => {
+      // Ten sam wyrenderowany formularz (ten sam nonce) submitowany dwa razy w
+      // WYŚCIGU: bariera dostawcy trzyma oba POST-y, aż dotrą oba — a odczyt
+      // wiersza jest PRZED create, więc po zwolnieniu oba przeczytały „brak
+      // wiersza" i klucz idempotencji jest jedyną barierą przed drugim kontem.
+      const nonce = "render-wspoldzielony";
+      const { spy, distinctAccounts } = stubIdempotentCreate();
+      const { startPaymentOnboardingAction } = await import(
+        "@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions"
+      );
+
+      await Promise.allSettled([
+        startPaymentOnboardingAction({}, formWithNonce(nonce)),
+        startPaymentOnboardingAction({}, formWithNonce(nonce)),
+      ]);
+
+      // Dowód dedupu: mimo dwóch wywołań u dostawcy powstało JEDNO konto (drugi
+      // POST to odtworzenie spod tego samego klucza), a w bazie jeden wiersz.
+      expect(distinctAccounts().size, "ten sam render założył dwa konta u dostawcy").toBe(1);
+      expect(accounts.filter((row) => row.tenant_id === TENANT_A)).toHaveLength(1);
+
+      // Mechanizm: oba żądania niosły dokładnie TEN SAM klucz idempotencji.
+      const keys = createIdempotencyKeys(spy);
+      expect(keys).toHaveLength(2);
+      expect(new Set(keys).size, "ten sam render dał dwa różne klucze").toBe(1);
+    });
+
+    it("klucz z nonce niesie i najemcę, i nonce", async () => {
+      const fetchSpy = stubHonestProvider();
+      await expectRedirect(() => startOnboardingWithNonce("nonce-konkretny"));
+
+      const [key] = createIdempotencyKeys(fetchSpy);
+      expect(key).toContain(TENANT_A);
+      expect(key).toContain("nonce-konkretny");
     });
   });
 });
