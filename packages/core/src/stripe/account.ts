@@ -17,6 +17,7 @@ import { StripeConnectClient, type StripeConnectClientOptions, type CreateConnec
 import type {
   ConnectAccountState,
   ConnectAccountSync,
+  DashboardLoginLink,
   OnboardingLink,
   OnboardingUrls,
 } from "./types";
@@ -28,7 +29,10 @@ import type {
  * bo atrapa klienta sprawdzałaby atrapę.
  */
 export interface ConnectAccountDeps extends StripeConnectClientOptions {
-  client?: Pick<StripeConnectClient, "createAccount" | "readAccount" | "createOnboardingLink">;
+  client?: Pick<
+    StripeConnectClient,
+    "createAccount" | "readAccount" | "createOnboardingLink" | "createDashboardLoginLink"
+  >;
 }
 
 function resolveClient(deps: ConnectAccountDeps): ConnectAccountDeps["client"] & object {
@@ -60,6 +64,19 @@ export async function createOnboardingLink(
   deps: ConnectAccountDeps = {},
 ): Promise<OnboardingLink> {
   return resolveClient(deps).createOnboardingLink(providerAccountId, urls);
+}
+
+/**
+ * Link do Express Dashboardu najemcy (okno „Zarządzaj w Stripe"). Czasownik
+ * domeny nad `createDashboardLoginLink` — panel woła TO, nie buduje klienta
+ * z konfiguracją. Rzuca przy odmowie dostawcy (np. konto niekwalifikujące się);
+ * wołający zamienia wyjątek na komunikat z sekretem wyciętym i robi `redirect`.
+ */
+export async function expressDashboardLink(
+  providerAccountId: string,
+  deps: ConnectAccountDeps = {},
+): Promise<DashboardLoginLink> {
+  return resolveClient(deps).createDashboardLoginLink(providerAccountId);
 }
 
 /**

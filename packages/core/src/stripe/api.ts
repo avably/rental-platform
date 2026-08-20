@@ -27,6 +27,7 @@ import type {
   ConnectAccountState,
   CreateIntentParams,
   CreateRefundParams,
+  DashboardLoginLink,
   IntentHandle,
   IntentRead,
   OnboardingLink,
@@ -93,6 +94,15 @@ interface StripeAccountBody {
 interface StripeAccountLinkBody {
   url?: string;
   expires_at?: number;
+}
+
+/**
+ * Wycinek odpowiedzi login-linku Express (`{ object, created, url }`). `url`
+ * jest jedynym polem, którego używamy — `created` świadomie ignorujemy, bo
+ * poświadczenie i tak jest jednorazowe i nie ma być przechowywane.
+ */
+interface StripeLoginLinkBody {
+  url?: string;
 }
 
 /**
@@ -362,6 +372,35 @@ export class StripeConnectClient {
     const link = (body ?? {}) as StripeAccountLinkBody;
     if (!link.url) throw new StripeApiError("API płatności nie zwróciło adresu onboardingu.");
     return { url: link.url, expiresAt: link.expires_at ?? 0 };
+  }
+
+  /**
+   * Link logowania do Express Dashboardu najemcy — okno „Zarządzaj w Stripe".
+   *
+   * `POST /v1/accounts/{id}/login_links` na kluczu PLATFORMY i BEZ nagłówka
+   * `Stripe-Account`: to platforma wystawia jednorazowe poświadczenie na konto
+   * POŁĄCZONE, które wskazuje ścieżka (lustro `createOnboardingLink`, gdzie
+   * konto też jedzie w ciele/ścieżce, a nie w nagłówku). Nagłówek `Stripe-Account`
+   * skierowałby żądanie tak, jakby to KONTO NAJEMCY prosiło o link do samego
+   * siebie — a login_links jest operacją platformy nad kontem Express.
+   *
+   * Link jest jednorazowy i krótkożyjący z decyzji dostawcy; wołający robi nim
+   * `redirect` od razu i NIGDY go nie zapisuje (zapisany = nieaktualny). Konto,
+   * które nie ukończyło onboardingu, dostaje od dostawcy ODMOWĘ — to błąd do
+   * POKAZANIA (sekret już wycięty przez `fail`), nie cichy sukces; przycisk
+   * w panelu i tak zapala się dopiero dla konta gotowego.
+   */
+  async createDashboardLoginLink(providerAccountId: string): Promise<DashboardLoginLink> {
+    const { status, body } = await this.request(
+      `/v1/accounts/${encodeURIComponent(providerAccountId)}/login_links`,
+      { method: "POST", body: "" },
+    );
+
+    if (status < 200 || status >= 300) throw this.fail(status, body);
+
+    const link = (body ?? {}) as StripeLoginLinkBody;
+    if (!link.url) throw new StripeApiError("API płatności nie zwróciło adresu panelu.");
+    return { url: link.url };
   }
 
   /**

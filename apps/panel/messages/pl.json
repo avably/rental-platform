@@ -2638,6 +2638,8 @@
     "refreshOk": "Stan konta odczytany u dostawcy.",
     "refreshFailed": "Nie udało się odczytać stanu konta:",
     "disconnectCta": "Odłącz konto",
+    "manageCta": "Zarządzaj w Stripe",
+    "manageOwnerOnly": "Panel Stripe może otworzyć wyłącznie właściciel organizacji.",
     "unavailable": "Płatności online są chwilowo niedostępne po stronie platformy. Pracujemy nad tym - nie musisz nic robić.",
     "ownerOnly": "Konto płatności może podpiąć wyłącznie właściciel organizacji.",
     "chargesLabel": "Przyjmowanie płatności",

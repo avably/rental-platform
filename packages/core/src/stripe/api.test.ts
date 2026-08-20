@@ -307,6 +307,77 @@ describe("createOnboardingLink", () => {
   });
 });
 
+describe("createDashboardLoginLink — link do Express Dashboardu", () => {
+  it("woła login_links konta i zwraca SAM adres", async () => {
+    const { calls, fetchFn } = transport([
+      {
+        status: 200,
+        body: { object: "login_link", created: 1_800_000_000, url: "https://connect.example.invalid/express/xyz" },
+      },
+    ]);
+
+    const link = await client(fetchFn).createDashboardLoginLink("acct_1");
+
+    // Zwraca WYŁĄCZNIE url — `created` świadomie odrzucone, poświadczenie nie
+    // ma być przechowywane (lustro createAccount oddającego sam identyfikator).
+    expect(link).toEqual({ url: "https://connect.example.invalid/express/xyz" });
+    expect(calls[0]!.url).toBe(`${STRIPE_API_BASE}/v1/accounts/acct_1/login_links`);
+    expect(calls[0]!.init.method).toBe("POST");
+  });
+
+  it("jedzie na kluczu PLATFORMY, BEZ nagłówka Stripe-Account", async () => {
+    // login_links to operacja platformy nad kontem POŁĄCZONYM (konto wskazuje
+    // ścieżka). Nagłówek Stripe-Account skierowałby żądanie tak, jakby konto
+    // prosiło o link do samego siebie — to inny, błędny tryb wywołania.
+    const { calls, fetchFn } = transport([
+      { status: 200, body: { url: "https://connect.example.invalid/express/xyz" } },
+    ]);
+    await client(fetchFn).createDashboardLoginLink("acct_1");
+
+    expect(header(calls[0]!, "Authorization")).toBe(`Bearer ${SECRET_A}`);
+    expect(header(calls[0]!, "Stripe-Account")).toBeUndefined();
+    expect(header(calls[0]!, "Stripe-Version")).toBe(STRIPE_API_VERSION);
+  });
+
+  it("identyfikator konta jest URL-enkodowany w ścieżce", async () => {
+    const { calls, fetchFn } = transport([
+      { status: 200, body: { url: "https://connect.example.invalid/express/xyz" } },
+    ]);
+    await client(fetchFn).createDashboardLoginLink("acct/../inny");
+    expect(calls[0]!.url).toContain(encodeURIComponent("acct/../inny"));
+    expect(calls[0]!.url).not.toContain("acct/../inny/login_links");
+  });
+
+  it("2xx bez adresu to porażka, nie sukces bez url", async () => {
+    const { fetchFn } = transport([{ status: 200, body: { object: "login_link" } }]);
+    await expect(client(fetchFn).createDashboardLoginLink("acct_1")).rejects.toThrow(StripeApiError);
+  });
+
+  it("odmowa dostawcy (konto niekwalifikujące się) niesie status i kod, sekret wycięty", async () => {
+    const { fetchFn } = transport([
+      {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request_error",
+            code: "account_invalid",
+            message: `Cannot create a login link, key ${SECRET_A}`,
+          },
+        },
+      },
+    ]);
+
+    const error = await client(fetchFn)
+      .createDashboardLoginLink("acct_1")
+      .catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(StripeApiError);
+    expect((error as StripeApiError).statusCode).toBe(400);
+    expect((error as StripeApiError).code).toBe("account_invalid");
+    expect(String((error as Error).message)).not.toContain(SECRET_A);
+    expect(String((error as Error).message)).toContain("[usunięto]");
+  });
+});
+
 describe("sekret nie ma ścieżki na zewnątrz", () => {
   it("komunikat błędu dostawcy przechodzi przez redakcję", async () => {
     const { fetchFn } = transport([

@@ -2638,6 +2638,8 @@
     "refreshOk": "Account state read from the provider.",
     "refreshFailed": "Could not read the account state:",
     "disconnectCta": "Disconnect account",
+    "manageCta": "Manage in Stripe",
+    "manageOwnerOnly": "Only the organisation owner can open the Stripe dashboard.",
     "unavailable": "Online payments are temporarily unavailable on the platform side. We are working on it - no action is needed from you.",
     "ownerOnly": "Only the organisation owner can connect a payment account.",
     "chargesLabel": "Accepting payments",

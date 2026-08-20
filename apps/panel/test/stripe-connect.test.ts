@@ -40,6 +40,7 @@ interface PaymentAccountRecord extends Record<string, unknown> {
 
 let accounts: PaymentAccountRecord[] = [];
 let sessionTenantId: string | null = TENANT_A;
+let sessionRole: "owner" | "staff" = "owner";
 
 type Row = Record<string, unknown>;
 
@@ -155,7 +156,7 @@ vi.mock("@/lib/supabase-server", () => ({
     return {
       supabase,
       tenantId: sessionTenantId,
-      role: "owner",
+      role: sessionRole,
       user: { id: "user-1", email: "wlasciciel@example.invalid" },
     };
   },
@@ -312,6 +313,32 @@ async function refresh() {
   return refreshPaymentAccountAction({}, new FormData());
 }
 
+/**
+ * Dostawca dla `login_links`: odpowiada linkiem, w którym ŚCIEŻKA niesie id
+ * konta z żądania. Dzięki temu adres przekierowania mówi wprost, KTÓREGO konta
+ * link dotyczy — a to jedyny sposób udowodnić izolację (A nie dostaje linku B).
+ */
+function stubDashboardProvider() {
+  return stubProvider(async (url, init) => {
+    const match = String(url).match(/\/v1\/accounts\/([^/]+)\/login_links$/);
+    if (match && init?.method === "POST") {
+      return json({
+        object: "login_link",
+        created: 1_800_000_000,
+        url: `https://connect.example.invalid/express/${match[1]}`,
+      });
+    }
+    throw new Error(`Nieoczekiwane żądanie: ${url}`);
+  });
+}
+
+async function openDashboard(formData: FormData = new FormData()) {
+  const { openExpressDashboardAction } = await import(
+    "@/app/[locale]/(panel)/ustawienia-platnosci/payments-actions"
+  );
+  return openExpressDashboardAction({}, formData);
+}
+
 async function returnFromOnboarding() {
   const { GET } = await import("@/app/[locale]/(panel)/ustawienia-platnosci/powrot/route");
   return GET();
@@ -350,6 +377,7 @@ describe("konto płatności najemcy (Z2, ADR-065)", () => {
       },
     ];
     sessionTenantId = TENANT_A;
+    sessionRole = "owner";
     process.env[STRIPE_SECRET_KEY_ENV] = SECRET_KEY;
     process.env[STRIPE_PUBLISHABLE_KEY_ENV] = PUBLISHABLE_KEY;
     vi.resetModules();
@@ -697,6 +725,125 @@ describe("konto płatności najemcy (Z2, ADR-065)", () => {
       const [key] = createIdempotencyKeys(fetchSpy);
       expect(key).toContain(TENANT_A);
       expect(key).toContain("nonce-konkretny");
+    });
+  });
+
+  // -------------------------------------------------------------------
+  // Express Dashboard — „Zarządzaj w Stripe" (ADR-217). MONEY-ADJACENT:
+  // id konta z BAZY po tenant_id (nigdy z inputu), owner-only, link
+  // jednorazowy, klient sesji (nie service_role).
+  // -------------------------------------------------------------------
+
+  describe("Express Dashboard — „Zarządzaj w Stripe” (ADR-217)", () => {
+    /** Gotowe konto NAJEMCY Z SESJI (TENANT_A). Dokładamy je obok konta B z beforeEach. */
+    const READY_A: PaymentAccountRecord = {
+      tenant_id: TENANT_A,
+      provider: "stripe",
+      provider_account_id: "acct_gotowe_a",
+      charges_enabled: true,
+      payouts_enabled: true,
+      details_submitted: true,
+      requirements_due: [],
+      last_error: null,
+      last_synced_at: "2026-07-01T10:00:00.000Z",
+    };
+
+    it("generuje link dla WŁASNEGO konta (id z bazy) i przekierowuje tam", async () => {
+      accounts.push({ ...READY_A });
+      const fetchSpy = stubDashboardProvider();
+
+      const url = await expectRedirect(() => openDashboard());
+
+      // Link dotyczy konta z WIERSZA najemcy — i to jest cel przekierowania.
+      expect(url).toBe("https://connect.example.invalid/express/acct_gotowe_a");
+      const loginCalls = fetchSpy.mock.calls.filter(
+        ([callUrl, init]) =>
+          String(callUrl).endsWith("/login_links") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(loginCalls, "login_links wołane inną liczbę razy niż raz").toHaveLength(1);
+      expect(String(loginCalls[0]![0])).toContain("acct_gotowe_a");
+    });
+
+    it("IZOLACJA: najemca A nie wygeneruje linku dla konta B", async () => {
+      // W bazie SĄ oba konta: B (acct_obcego_najemcy z beforeEach) i A. Sesja to A.
+      accounts.push({ ...READY_A });
+      const fetchSpy = stubDashboardProvider();
+
+      const url = await expectRedirect(() => openDashboard());
+
+      expect(url).toContain("acct_gotowe_a");
+      expect(url, "przekierowanie na konto CUDZEGO najemcy").not.toContain("acct_obcego_najemcy");
+      // Konto B nie pojawia się w ŻADNYM żądaniu do dostawcy.
+      for (const [callUrl] of fetchSpy.mock.calls) {
+        expect(String(callUrl)).not.toContain("acct_obcego_najemcy");
+      }
+    });
+
+    it("id konta idzie z BAZY, nie z formularza — podłożone cudze id jest ignorowane", async () => {
+      accounts.push({ ...READY_A });
+      const fetchSpy = stubDashboardProvider();
+
+      // Napastnik wkłada cudze id konta do ciała żądania. Akcja czyta WYŁĄCZNIE
+      // swój wiersz po tenant_id z sesji, więc input nie ma jak zmienić celu.
+      const form = new FormData();
+      form.set("provider_account_id", "acct_obcego_najemcy");
+      const url = await expectRedirect(() => openDashboard(form));
+
+      expect(url).toContain("acct_gotowe_a");
+      for (const [callUrl] of fetchSpy.mock.calls) {
+        expect(String(callUrl)).not.toContain("acct_obcego_najemcy");
+      }
+    });
+
+    it("tylko WŁAŚCICIEL — pracownik dostaje odmowę i dostawca NIE jest wołany", async () => {
+      accounts.push({ ...READY_A });
+      sessionRole = "staff";
+      const fetchSpy = stubDashboardProvider();
+
+      const state = await openDashboard();
+
+      expect(state.formError).toContain("właściciel organizacji");
+      expect(fetchSpy, "dostawca wołany mimo braku roli właściciela").not.toHaveBeenCalled();
+    });
+
+    it("brak konta → mówi, że konta nie ma, bez pytania dostawcy", async () => {
+      // accounts ma tylko konto B; sesja to A → brak wiersza A.
+      const fetchSpy = stubDashboardProvider();
+
+      const state = await openDashboard();
+
+      expect(state.formError).toContain("konta płatności");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("odmowa dostawcy (konto niekwalifikujące się) → czytelny powód, sekret wycięty", async () => {
+      accounts.push({ ...READY_A });
+      stubProvider(async (url, init) => {
+        if (String(url).endsWith("/login_links") && init?.method === "POST") {
+          return json({ error: { message: `Cannot create login link (key ${SECRET_KEY})` } }, 400);
+        }
+        throw new Error(`Nieoczekiwane żądanie: ${url}`);
+      });
+
+      const state = await openDashboard();
+
+      expect(state.formError).toContain("Nie udało się otworzyć panelu Stripe");
+      expect(state.formError, "sekret wyciekł do formError").not.toContain(SECRET_KEY);
+      expect(state.formError).toContain("[usunięto]");
+    });
+
+    it("brak konfiguracji platformy → neutralna niedostępność, bez dotykania sieci", async () => {
+      accounts.push({ ...READY_A });
+      delete process.env[STRIPE_SECRET_KEY_ENV];
+      const fetchSpy = stubDashboardProvider();
+
+      const state = await openDashboard();
+
+      // U1 (audyt W3): powód neutralny, bez nazwy brakującej zmiennej.
+      expect(state.formError).toContain("niedostępne po stronie platformy");
+      expect(state.formError).not.toContain(STRIPE_SECRET_KEY_ENV);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });
