@@ -272,10 +272,12 @@ describe("klasyfikator per-job (ADR-207) — tabela decyzji", () => {
   // Job jest pomijalny, gdy ŻADNA zmieniona ścieżka go nie dotyka. Strefy są
   // białą listą: ścieżka spoza znanych stref dotyka WSZYSTKICH jobów.
 
-  it("scenariusz (a): zmiana tylko w apps/storefront → wp-plugin i rls pominięte, e2e biegnie", () => {
+  it("scenariusz (a): zmiana tylko w apps/storefront → wp-plugin pominięty, rls i e2e biegną", () => {
+    // KOREKTA ADR-214: job `rls` odpala `pnpm --filter storefront test` na żywym
+    // Supabase, więc zmiana storefrontu MUSI go uruchomić (dawniej pomijany).
     const { skipHeavyJobs, skipJobs } = classifyChangedPaths(["apps/storefront/app/page.tsx"]);
     expect(skipHeavyJobs).toBe(false); // job `ci` biegnie (globalny pomin nie obowiązuje)
-    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: false, e2e: false });
   });
 
   it("scenariusz (b): zmiana w packages/db → rls i e2e biegną, wp-plugin pominięty", () => {
@@ -310,16 +312,20 @@ describe("klasyfikator per-job (ADR-207) — tabela decyzji", () => {
       const { skipJobs } = classifyChangedPaths([path]);
       expect(skipJobs["wp-plugin"], path).toBe(false);
       expect(skipJobs.e2e, path).toBe(false); // apps/** → e2e biegnie
-      expect(skipJobs.rls, path).toBe(true);
+      // KOREKTA ADR-214: `pnpm --filter panel test` (job `rls`) odpala CAŁĄ
+      // suitę panelu, w tym testy wp-*, więc rls MUSI biegnąć także tutaj.
+      expect(skipJobs.rls, path).toBe(false);
     }
   });
 
-  it("panel POZA powierzchnią WordPress nie uruchamia wp-plugin", () => {
+  it("panel POZA powierzchnią WordPress → rls i e2e biegną, wp-plugin pominięty", () => {
     const { skipJobs } = classifyChangedPaths(["apps/panel/lib/review-write-guard.ts"]);
-    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: false, e2e: false });
   });
 
-  it("pakiety aplikacyjne (ui/core/emails/pdf/security/e2e) → e2e biegnie, wp-plugin i rls pominięte", () => {
+  it("pakiety aplikacyjne (ui/core/emails/pdf/security/e2e) → rls i e2e biegną, wp-plugin pominięty", () => {
+    // KOREKTA ADR-214: panel/storefront/@avably/db (suity w jobie `rls`)
+    // importują pakiety współdzielone, więc zmiana DOWOLNEGO pakietu je pokrywa.
     for (const path of [
       "packages/ui/src/tokens.ts",
       "packages/core/src/pricing.ts",
@@ -329,7 +335,22 @@ describe("klasyfikator per-job (ADR-207) — tabela decyzji", () => {
       "packages/e2e/tests/checkout.spec.ts",
     ]) {
       const { skipJobs } = classifyChangedPaths([path]);
-      expect(skipJobs, path).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+      expect(skipJobs, path).toEqual({ "wp-plugin": true, rls: false, e2e: false });
+    }
+  });
+
+  it("regresja #360: packages/core/** (bez packages/db) → rls BIEGNIE (sedno defektu ADR-214)", () => {
+    // Money-critical #360 (Stripe account.updated) ruszył packages/core/src/stripe;
+    // jego dowody live-DB pokrywają PANELOWE integracyjne (job `rls`), a przy
+    // mapowaniu „rls tylko dla packages/db/**" job był pomijany i NIE biegły w CI.
+    for (const path of [
+      "packages/core/src/stripe/connect.ts",
+      "packages/core/src/webhooks/account-updated.ts",
+    ]) {
+      const { skipHeavyJobs, skipJobs } = classifyChangedPaths([path]);
+      expect(skipHeavyJobs, path).toBe(false);
+      expect(skipJobs.rls, path).toBe(false); // rls biegnie — pokrycie money-critical
+      expect(skipJobs, path).toEqual({ "wp-plugin": true, rls: false, e2e: false });
     }
   });
 
@@ -374,7 +395,8 @@ describe("klasyfikator per-job (ADR-207) — tabela decyzji", () => {
       "apps/storefront/app/page.tsx",
     ]);
     expect(skipHeavyJobs).toBe(false);
-    expect(skipJobs).toEqual({ "wp-plugin": true, rls: true, e2e: false });
+    // KOREKTA ADR-214: storefront dotyka `rls`; docs niczego nie gasi.
+    expect(skipJobs).toEqual({ "wp-plugin": true, rls: false, e2e: false });
   });
 
   it("fail-closed: pusta lista, nie-tablica i ścieżka zdeformowana → zero pominięć per-job", () => {
@@ -533,9 +555,10 @@ describe("CLI klasyfikatora — dowód behawioralny", () => {
     expect(output.trim()).toBe(expected);
   });
 
-  it("storefront-only: wp-plugin i rls pominięte także na poziomie CLI", () => {
+  it("storefront-only: wp-plugin pominięty, rls i e2e biegną także na poziomie CLI", () => {
+    // KOREKTA ADR-214: dowód behawioralny na CLI, że storefront uruchamia `rls`.
     const { stdout, output } = runClassifier(["apps/storefront/app/page.tsx"]);
-    const expected = verdictLines(false, { wp: true, rls: true, e2e: false });
+    const expected = verdictLines(false, { wp: true, rls: false, e2e: false });
     expect(stdout.trim()).toBe(expected);
     expect(output.trim()).toBe(expected);
   });
