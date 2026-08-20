@@ -53,6 +53,13 @@ const OKNA = [390, 1024, 1280, 1440, 1920] as const;
  * Wartości w KSZTAŁCIE PRODUKCJI — to one rozpychają układ. Numery przesyłek
  * i śledzenia u przewoźników krajowych mają kilkanaście–dwadzieścia kilka
  * znaków, a surowy status dostawcy potrafi być zdaniem.
+ *
+ * NIEZMIENNIK IDEMPOTENCJI (ADR-223, unikat częściowy z 0091): co najwyżej
+ * JEDNA aktywna (NIE-anulowana) przesyłka na (order, typ). Dlatego trzy wiersze
+ * to realna historia: aktywny outbound + aktywny return + WCZEŚNIEJSZY outbound
+ * ANULOWANY (pierwsza próba wycofana, nadano ponownie). Anulowana zachowuje
+ * numer, więc nadal renderuje się w kolumnie — geometrii to nie zmienia, a seed
+ * przestaje łamać unikat (dwa aktywne outbound jednego zamówienia).
  */
 const PRZESYLKI = [
   {
@@ -77,9 +84,9 @@ const PRZESYLKI = [
   },
   {
     shipment_type: "outbound",
-    status: "delivered",
+    status: "cancelled",
     provider_order_number: "GK-2026-07-0000139004",
-    provider_status: "DORECZONA_ODBIOR_OSOBISTY_PUNKT_PARTNERSKI",
+    provider_status: "ANULOWANA_PRZEZ_NADAWCE_PRZED_PRZEKAZANIEM_KURIEROWI",
     tracking_number: "00259776543209988776655",
     tracking_url:
       "https://sledzenie.przewoznik.example/pl/przesylka?numer=00259776543209988776655&nadawca=wypozyczalnia",
