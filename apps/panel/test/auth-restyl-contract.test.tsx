@@ -27,6 +27,9 @@
  * że slot jest kontenerem centrującym, a host widżetu jego jedynym dzieckiem
  * biorącym udział w układzie.
  */
+import { statSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -302,5 +305,65 @@ describe("odnośniki pod formularzem stoją w KOLUMNIE (zgłoszenie właściciel
     // JEDNO stałe wyjście („Masz już konto?") — „Nie dostałeś maila…" zszedł
     // w ADR-208 i ta liczba jest do świadomej zmiany, nie do dopasowania.
     expect(links.children.length).toBe(1);
+  });
+});
+
+/**
+ * PAS LOGOWANIA PO ADR-211: dosłowna ramka laptopa z REALNYM zrzutem pulpitu.
+ *
+ * Placeholder z ADR-208 (atrapa listy) zszedł — pas signin niesie teraz obraz
+ * `/mockup-pulpit.webp` (świeży zrzut pulpitu bieżącego designu, 2× — w
+ * `public/` PANELU: same-origin pod CSP `img-src 'self'`). Testowane są trzy
+ * rzeczy, których
+ * nie widzi żaden inny test: że wizual dalej jest dekoracją (aria-hidden +
+ * marker `data-auth-band-visual`), że obraz stoi W KADRZE z hakiem animacji
+ * (selektor CSS celuje w `[data-auth-mockup-screen] > img` — przemianowanie
+ * atrybutu odpina pan bez żadnej czerwieni) i że plik NAPRAWDĘ leży w
+ * `public/` (marker bez pliku = pusty kadr 404 na produkcji). Sama pętla
+ * i jej bramka reduced-motion są pilnowane w `skeleton-parity-contract`
+ * (wyjątek od zakazu `extra-loops` jest tam RÓWNOŚCIĄ listy pętli).
+ */
+describe("pas logowania: ramka laptopa z realnym zrzutem pulpitu (ADR-211)", () => {
+  async function renderBand(band: "signin" | "signup") {
+    vi.resetModules();
+    const { AuthShell } = await import("@/app/[locale]/(auth)/auth-shell");
+    return wrap(
+      <AuthShell band={band}>
+        <div />
+      </AuthShell>,
+    );
+  }
+
+  it("wizual jest dekoracją i niesie realny zrzut w kadrze z hakiem animacji", async () => {
+    const { container } = await renderBand("signin");
+
+    const visual = container.querySelector("[data-auth-band-visual]");
+    expect(visual, "pas signin stracił wizual produktu").not.toBeNull();
+    expect(visual!.getAttribute("aria-hidden")).toBe("true");
+
+    const frame = visual!.querySelector("[data-auth-mockup-screen]");
+    expect(frame, "kadr ekranu laptopa zniknął — selektor pan-u nie ma celu").not.toBeNull();
+    const img = frame!.querySelector("img");
+    expect(img, "w kadrze nie ma obrazu — pan nie ma czego przesuwać").not.toBeNull();
+    expect(img!.getAttribute("src")).toBe("/mockup-pulpit.webp");
+    // Jawne wymiary + kadr o stałej proporcji = zero CLS, zanim plik dojedzie.
+    expect(img!.getAttribute("width")).toBe("2880");
+    expect(img!.getAttribute("height")).toBe("1920");
+    expect(frame!.className).toContain("aspect-[16/10]");
+    expect(frame!.className).toContain("overflow-hidden");
+    // Dekoracja nie ma nic do powiedzenia czytnikowi.
+    expect(img!.getAttribute("alt")).toBe("");
+  });
+
+  it("plik zrzutu NAPRAWDĘ leży w public/ panelu (marker bez pliku = pusty kadr)", () => {
+    const asset = statSync(resolve(process.cwd(), "public/mockup-pulpit.webp"));
+    expect(asset.size).toBeGreaterThan(10_000);
+  });
+
+  it("KONTROLA POZYTYWNA: pas rejestracji dalej niesie roszczenie i sygnały, nie laptopa", async () => {
+    const { container } = await renderBand("signup");
+
+    expect(container.querySelector("[data-auth-mockup-screen]")).toBeNull();
+    expect(container.textContent).toContain(messages.authShell.signupClaim);
   });
 });
