@@ -51,9 +51,9 @@ export type DeleteOrderNoteInput = z.infer<typeof deleteOrderNoteSchema>;
 export type NoteResult = { ok: true } | { ok: false; formError: string };
 
 const NOTE_ADD_DENIED =
-  "Nie udało się dodać notatki — zamówienie nie istnieje albo nie masz do niego dostępu.";
+  "Nie udało się dodać notatki - zamówienie nie istnieje albo nie masz do niego dostępu.";
 const NOTE_MISSING =
-  "Nie udało się zapisać zmiany — notatka nie istnieje albo nie masz do niej dostępu.";
+  "Nie udało się zapisać zmiany - notatka nie istnieje albo nie masz do niej dostępu.";
 
 /** Jeden wiersz listy notatek — kształt odczytu w szczególe zamówienia. */
 export interface OrderNoteRow {

@@ -205,7 +205,7 @@ export async function sendRentalEmailForTransition(
 
   const email = input.order.customers?.email;
   if (!email) {
-    return "Zamówienie nie ma adresu e-mail klienta — wiadomość nie została wysłana.";
+    return "Zamówienie nie ma adresu e-mail klienta - wiadomość nie została wysłana.";
   }
 
   let sender: EmailSender;

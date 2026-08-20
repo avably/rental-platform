@@ -83,7 +83,7 @@ export async function extendOrderAction(
     return { formError: "Przedłużenie jest możliwe tylko dla aktywnego zamówienia." };
   }
   if (order.end_date !== input.expectedEndDate) {
-    return { formError: "Termin zamówienia został w międzyczasie zmieniony — odśwież stronę." };
+    return { formError: "Termin zamówienia został w międzyczasie zmieniony - odśwież stronę." };
   }
 
   // Wycena WYŁĄCZNIE silnikiem, po AKTUALNYM cenniku (ADR-029): dopłata liczy
@@ -105,7 +105,7 @@ export async function extendOrderAction(
 
   const newTotalRentalGrosze = order.total_rental_grosze + quote.additionalRentalGrosze;
   if (newTotalRentalGrosze < 0) {
-    return { formError: "Wycena po przedłużeniu byłaby ujemna — sprawdź progi cennika produktu." };
+    return { formError: "Wycena po przedłużeniu byłaby ujemna - sprawdź progi cennika produktu." };
   }
 
   // Absolutne nowe kwoty pozycji (bieżący najem + dopłata silnika tej pozycji).
@@ -120,7 +120,7 @@ export async function extendOrderAction(
   if (hasNegative) {
     return {
       formError:
-        "Przedłużenie obniżyłoby najem którejś pozycji poniżej zera — skoryguj kwoty pozycji ręcznie przed przedłużeniem.",
+        "Przedłużenie obniżyłoby najem którejś pozycji poniżej zera - skoryguj kwoty pozycji ręcznie przed przedłużeniem.",
     };
   }
 
@@ -143,13 +143,13 @@ export async function extendOrderAction(
       // być nośnikiem danych operacyjnych wypożyczalni.
       return {
         formError:
-          "Egzemplarz z tego zamówienia jest już zajęty w nowym terminie — wybierz wcześniejszą datę.",
+          "Egzemplarz z tego zamówienia jest już zajęty w nowym terminie - wybierz wcześniejszą datę.",
       };
     }
     return { formError: error.message };
   }
   if (!data || data.length === 0) {
-    return { formError: "Termin lub status zamówienia zmienił się w międzyczasie — odśwież stronę." };
+    return { formError: "Termin lub status zamówienia zmienił się w międzyczasie - odśwież stronę." };
   }
 
   // Dopłata NA POZYCJE — osobny krok od UPDATE zamówienia (PostgREST nie daje
@@ -166,7 +166,7 @@ export async function extendOrderAction(
   );
   if (itemsError) {
     return {
-      formError: `Termin przedłużony, ale kwoty pozycji nie zostały zaktualizowane (${itemsError.error}) — odśwież stronę i sprawdź sumy pozycji.`,
+      formError: `Termin przedłużony, ale kwoty pozycji nie zostały zaktualizowane (${itemsError.error}) - odśwież stronę i sprawdź sumy pozycji.`,
     };
   }
 

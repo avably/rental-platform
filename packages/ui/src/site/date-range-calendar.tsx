@@ -280,7 +280,7 @@ function SiteCalendarMonthGrid({
                     // Pełna data w etykiecie: sama liczba („14") nie mówi
                     // czytnikowi ekranu, o który dzień chodzi, a to jedyna
                     // treść, jaką niesie przycisk.
-                    aria-label={description === "" ? day : `${day} — ${description}`}
+                    aria-label={description === "" ? day : `${day} - ${description}`}
                     aria-pressed={isStart || isEnd || inRange}
                     onClick={() => onDay(day)}
                     className={cn(

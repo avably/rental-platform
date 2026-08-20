@@ -38,7 +38,7 @@ export function NewOrderNotification({
     [t.fields.number, orderNumber],
     [t.fields.customer, customerName],
     [t.fields.amount, totalAmount],
-    [t.fields.rentalPeriod, `${rentalStartDate}–${rentalEndDate}`],
+    [t.fields.rentalPeriod, `${rentalStartDate}-${rentalEndDate}`],
   ] as const;
 
   return (

@@ -144,14 +144,14 @@ async function loadCourierPassword(
     if (err instanceof SecretsConfigError) {
       return {
         configError:
-          "Szyfrowanie sekretów nie jest skonfigurowane na tym środowisku — " +
+          "Szyfrowanie sekretów nie jest skonfigurowane na tym środowisku - " +
           "nadanie przesyłki jest niedostępne.",
       };
     }
     if (err instanceof SecretEnvelopeError) {
       return {
         configError:
-          "Zapisane hasło dostawcy jest nieczytelne — zapisz je ponownie w ustawieniach dostaw.",
+          "Zapisane hasło dostawcy jest nieczytelne - zapisz je ponownie w ustawieniach dostaw.",
       };
     }
     throw err;

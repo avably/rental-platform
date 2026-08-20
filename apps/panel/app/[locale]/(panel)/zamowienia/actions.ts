@@ -148,7 +148,7 @@ export async function createOrderAction(
       if (error.code === PG_UNIQUE_VIOLATION) {
         return {
           fieldErrors: {
-            newCustomerEmail: "Klient z tym adresem e-mail już istnieje — wybierz go z listy.",
+            newCustomerEmail: "Klient z tym adresem e-mail już istnieje - wybierz go z listy.",
           },
         };
       }
@@ -175,7 +175,7 @@ export async function createOrderAction(
 
   const products = (productRows ?? []) as unknown as AuthoritativeProductRow[];
   if (products.length !== uniqueProductIds.length) {
-    return { formError: "Któryś z produktów nie istnieje albo został wygaszony — odśwież stronę." };
+    return { formError: "Któryś z produktów nie istnieje albo został wygaszony - odśwież stronę." };
   }
 
   const allUnitIds = products.flatMap((product) => product.product_units.map((unit) => unit.id));
@@ -302,7 +302,7 @@ export async function createOrderAction(
     if (createError.code === PG_UNIT_CONFLICT) {
       return {
         formError:
-          "Wybrany termin został właśnie zajęty przez inne zamówienie — odśwież kalendarz i spróbuj ponownie.",
+          "Wybrany termin został właśnie zajęty przez inne zamówienie - odśwież kalendarz i spróbuj ponownie.",
       };
     }
     // Bramka płatności online (0044): tenant bez konta rozliczeniowego nie ma
@@ -380,7 +380,7 @@ export async function changeOrderStatusAction(
   if (ctx.closing && !isClosingForwardTransition(expectedFrom as OrderStatus, to as OrderStatus)) {
     return {
       formError:
-        "W oknie domykania statusy idą wyłącznie do przodu (wydanie i zwrot) — cofnięcia i anulowanie są niedostępne.",
+        "W oknie domykania statusy idą wyłącznie do przodu (wydanie i zwrot) - cofnięcia i anulowanie są niedostępne.",
     };
   }
 
@@ -399,7 +399,7 @@ export async function changeOrderStatusAction(
     if (error.code === PG_CANCEL_BLOCKED) {
       return {
         formError:
-          "Nie można anulować zamówienia z nierozliczoną płatnością — najpierw zarejestruj zwrot.",
+          "Nie można anulować zamówienia z nierozliczoną płatnością - najpierw zarejestruj zwrot.",
       };
     }
     if (error.code === PG_BAD_TRANSITION) {
@@ -412,7 +412,7 @@ export async function changeOrderStatusAction(
   }
   if (!data || data.length === 0) {
     return {
-      formError: "Status zamówienia został w międzyczasie zmieniony — odśwież stronę.",
+      formError: "Status zamówienia został w międzyczasie zmieniony - odśwież stronę.",
     };
   }
 
@@ -510,13 +510,13 @@ export async function sendTransitionEmailAction(input: {
   if (!order || !tenant) {
     return {
       problem:
-        "Nie udało się odczytać danych do wiadomości — klient nie dostał powiadomienia.",
+        "Nie udało się odczytać danych do wiadomości - klient nie dostał powiadomienia.",
     };
   }
   if (order.order_status !== status) {
     return {
       problem:
-        "Status zamówienia zmienił się w międzyczasie — wiadomość NIE została wysłana, żeby nie opisywała nieaktualnego stanu.",
+        "Status zamówienia zmienił się w międzyczasie - wiadomość NIE została wysłana, żeby nie opisywała nieaktualnego stanu.",
     };
   }
 

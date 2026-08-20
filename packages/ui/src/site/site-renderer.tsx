@@ -83,7 +83,7 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
     message: "Wiadomość",
     submit: "Wyślij wiadomość",
     sending: "Wysyłanie…",
-    success: "Dziękujemy — wiadomość dotarła. Odpowiemy na podany adres.",
+    success: "Dziękujemy - wiadomość dotarła. Odpowiemy na podany adres.",
     privacyNote:
       "Podane dane wykorzystamy wyłącznie do odpowiedzi na tę wiadomość.",
     privacyLink: "Polityka prywatności",

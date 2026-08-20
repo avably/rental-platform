@@ -21,27 +21,27 @@
       {
         "heading": "2. Czego dotyczy ta polityka",
         "body": [
-          "Ta polityka opisuje wyłącznie stronę avably.io i zapisy na listę oczekujących. Avably nie jest jeszcze uruchomione jako usługa — gdy to nastąpi, opublikujemy osobną politykę dla produktu."
+          "Ta polityka opisuje wyłącznie stronę avably.io i zapisy na listę oczekujących. Avably nie jest jeszcze uruchomione jako usługa - gdy to nastąpi, opublikujemy osobną politykę dla produktu."
         ]
       },
       {
         "heading": "3. Jakie dane zbieramy",
         "body": [
-          "Gdy zapisujesz się na listę oczekujących, zbieramy:\n- adres e-mail (wymagany),\n- typ wynajmowanego sprzętu, wielkość inwentarza i sposób, w jaki dziś obsługujesz rezerwacje — czyli Twoje odpowiedzi z formularza,\n- doprecyzowanie sprzętu — tylko jeśli wybierzesz „inny”,\n- informację, czy chcesz wziąć udział w pilotażu,\n- numer telefonu — wyłącznie jeśli zgłosisz się do pilotażu. Bez tego zgłoszenia formularz w ogóle nie przyjmie numeru,\n- moment wyrażenia zgody,\n- język, w którym oglądasz stronę,\n- oznaczenie kampanii (parametry utm_source i utm_campaign z adresu), jeśli trafiłeś do nas z linku kampanijnego.",
+          "Gdy zapisujesz się na listę oczekujących, zbieramy:\n- adres e-mail (wymagany),\n- typ wynajmowanego sprzętu, wielkość inwentarza i sposób, w jaki dziś obsługujesz rezerwacje - czyli Twoje odpowiedzi z formularza,\n- doprecyzowanie sprzętu - tylko jeśli wybierzesz „inny”,\n- informację, czy chcesz wziąć udział w pilotażu,\n- numer telefonu - wyłącznie jeśli zgłosisz się do pilotażu. Bez tego zgłoszenia formularz w ogóle nie przyjmie numeru,\n- moment wyrażenia zgody,\n- język, w którym oglądasz stronę,\n- oznaczenie kampanii (parametry utm_source i utm_campaign z adresu), jeśli trafiłeś do nas z linku kampanijnego.",
           "Twojego adresu IP nie zapisujemy w zgłoszeniu. Używamy go wyłącznie przejściowo, żeby ograniczyć liczbę zgłoszeń z jednego adresu i chronić formularz przed nadużyciami. Klucz wygasa automatycznie."
         ]
       },
       {
         "heading": "4. Po co i na jakiej podstawie",
         "body": [
-          "- Zapis na listę oczekujących i wysyłanie informacji o budowie i uruchomieniu Avably — na podstawie Twojej zgody (art. 6 ust. 1 lit. a RODO).\n- Kontakt w sprawie pilotażu — na podstawie Twojej zgody, jeśli zgłosisz taką chęć.\n- Ochrona formularza przed nadużyciami — na podstawie naszego prawnie uzasadnionego interesu (art. 6 ust. 1 lit. f RODO).",
+          "- Zapis na listę oczekujących i wysyłanie informacji o budowie i uruchomieniu Avably - na podstawie Twojej zgody (art. 6 ust. 1 lit. a RODO).\n- Kontakt w sprawie pilotażu - na podstawie Twojej zgody, jeśli zgłosisz taką chęć.\n- Ochrona formularza przed nadużyciami - na podstawie naszego prawnie uzasadnionego interesu (art. 6 ust. 1 lit. f RODO).",
           "Odpowiedzi o typie sprzętu i inwentarzu służą nam wyłącznie do zrozumienia, dla kogo budujemy produkt. Nie podejmujemy na ich podstawie żadnych zautomatyzowanych decyzji i nie profilujemy Cię."
         ]
       },
       {
         "heading": "5. Komu powierzamy dane",
         "body": [
-          "Korzystamy z dostawców, którzy przetwarzają dane w naszym imieniu:\n- Supabase — baza danych zgłoszeń — Unia Europejska (Frankfurt)\n- Vercel — hosting strony — Unia Europejska (Frankfurt)\n- Upstash — ochrona formularza przed nadużyciami — Unia Europejska (Frankfurt)\n- Cloudflare — DNS i ochrona strony — sieć globalna\n- Resend — wysyłka wiadomości do Ciebie — Unia Europejska",
+          "Korzystamy z dostawców, którzy przetwarzają dane w naszym imieniu:\n- Supabase - baza danych zgłoszeń - Unia Europejska (Frankfurt)\n- Vercel - hosting strony - Unia Europejska (Frankfurt)\n- Upstash - ochrona formularza przed nadużyciami - Unia Europejska (Frankfurt)\n- Cloudflare - DNS i ochrona strony - sieć globalna\n- Resend - wysyłka wiadomości do Ciebie - Unia Europejska",
           "Dane przechowujemy w Unii Europejskiej. Część z tych firm ma siedzibę w Stanach Zjednoczonych, więc przy obsłudze technicznej może dojść do przekazania danych poza Europejski Obszar Gospodarczy. Odbywa się to na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską.",
           "Nie sprzedajemy Twoich danych i nie udostępniamy ich nikomu w celach marketingowych."
         ]
@@ -172,9 +172,9 @@
       "item3Title": "Zaplanuj dzień na dostępnych egzemplarzach",
       "item3Body": "Kalendarz liczy konkretne sztuki i uwzględnia trwające najmy, bufory oraz serwis. Widzisz, co wydać dzisiaj, co ma wrócić i co przygotować na jutro. Jeśli dwie osoby wybiorą ostatni wolny egzemplarz, przejdzie tylko jedna rezerwacja.",
       "item4Title": "Wydaj na miejscu albo wyślij kurierem",
-      "item4Body": "Odbiór osobisty i dostawa są częścią tego samego zamówienia. Dla kuriera tworzysz przesyłkę, pobierasz etykietę PDF i trzymasz numer śledzenia obok sprzętu oraz terminu — nie w osobnej skrzynce pocztowej.",
+      "item4Body": "Odbiór osobisty i dostawa są częścią tego samego zamówienia. Dla kuriera tworzysz przesyłkę, pobierasz etykietę PDF i trzymasz numer śledzenia obok sprzętu oraz terminu - nie w osobnej skrzynce pocztowej.",
       "item5Title": "Przyjmij zwrot i rozlicz kaucję",
-      "item5Body": "Rejestr zapisuje pobranie 950 zł, potrącenie 57 zł za mycie, zwrot reszty i saldo zero — z datą oraz powodem. Po płatności kartą zwrot wraca na kartę jednym działaniem; przy gotówce lub przelewie zapisujesz rozliczenie ręcznie. Gdy klient pyta o 57 zł, odpowiedź jest przy zamówieniu."
+      "item5Body": "Rejestr zapisuje pobranie 950 zł, potrącenie 57 zł za mycie, zwrot reszty i saldo zero - z datą oraz powodem. Po płatności kartą zwrot wraca na kartę jednym działaniem; przy gotówce lub przelewie zapisujesz rozliczenie ręcznie. Gdy klient pyta o 57 zł, odpowiedź jest przy zamówieniu."
     },
     "video": {
       "quote": "Sam prowadzę wypożyczalnię. Avably powstało z dni, w których dwie osoby przyjeżdżały po ten sam sprzęt, a informacji o kaucji trzeba było szukać w telefonie.",
@@ -188,7 +188,7 @@
       "card1Title": "Cenniki progowe i przedłużenia bez kalkulatora",
       "card1Body": "Ustalasz cenę dla doby, tygodnia lub dłuższego najmu. Zmiana dat przelicza całe zamówienie, a przedłużenie dopisuje różnicę bez ręcznego liczenia pozycji.",
       "card2Title": "Płatności online bez prowizji Avably",
-      "card2Body": "Klient płaci kartą na Twojej stronie, a pieniądze trafiają na Twoje konto u operatora. Avably pobiera abonament, nie procent od rezerwacji. BLIK i Przelewy24 są w budowie — bez obietnicy daty.",
+      "card2Body": "Klient płaci kartą na Twojej stronie, a pieniądze trafiają na Twoje konto u operatora. Avably pobiera abonament, nie procent od rezerwacji. BLIK i Przelewy24 są w budowie - bez obietnicy daty.",
       "card3Title": "Klient, historia i ustalenia przy zamówieniu",
       "card3Body": "Karta klienta zbiera zamówienia i dane do faktury. Notatki mają autora oraz datę, więc zespół widzi ustalenia. Osobę, której nie chcesz ponownie obsługiwać, blokujesz po e-mailu i numerze telefonu.",
       "card4Title": "Umowa, wiadomości i faktura w jednym śladzie",
@@ -198,7 +198,7 @@
     },
     "cta": {
       "title": "Zacznij od tego, co dzieje się dzisiaj",
-      "body": "Pulpit otwiera dzień pięcioma stałymi kaflami: wydania, zwroty, opóźnienia, przygotowanie na jutro i alarmy pieniężne. Każda sprawa prowadzi do konkretnego zamówienia. Niżej zostają przychód, trend i wykorzystanie sprzętu — kontekst do decyzji, nie kolejna lista do pilnowania.",
+      "body": "Pulpit otwiera dzień pięcioma stałymi kaflami: wydania, zwroty, opóźnienia, przygotowanie na jutro i alarmy pieniężne. Każda sprawa prowadzi do konkretnego zamówienia. Niżej zostają przychód, trend i wykorzystanie sprzętu - kontekst do decyzji, nie kolejna lista do pilnowania.",
       "cta": "Otwórz wypożyczalnię"
     },
     "momentum": {
@@ -207,7 +207,7 @@
       "card1Title": "Załóż konto i nazwij sklep",
       "card1Body": "Potwierdzasz e-mail, tworzysz organizację i wybierasz adres sklepu. Bez instalacji, rozmowy handlowej i karty. Panel od razu pokazuje krótką listę rzeczy potrzebnych do startu.",
       "card2Title": "Wprowadź prawdziwy katalog",
-      "card2Body": "Produkty i cenniki progowe wczytasz z CSV. Egzemplarze, punkty odbioru i zdjęcia uzupełniasz w panelu. Przy większym magazynie zajmie to realny czas — dlatego możesz pracować etapami i publikować gotową część oferty.",
+      "card2Body": "Produkty i cenniki progowe wczytasz z CSV. Egzemplarze, punkty odbioru i zdjęcia uzupełniasz w panelu. Przy większym magazynie zajmie to realny czas - dlatego możesz pracować etapami i publikować gotową część oferty.",
       "card3Title": "Opublikuj i obsłuż pierwszy wynajem",
       "card3Body": "Klient rezerwuje na stronie, a zamówienie pojawia się na liście. Od tego momentu prowadzisz je przez przygotowanie, wydanie, zwrot i kaucję. Kolejne osoby z zespołu zapraszasz e-mailem."
     },
@@ -217,11 +217,11 @@
       "card1Title": "Dane wypożyczalni rozdziela sama baza",
       "card1Body": "Dane dwóch wypożyczalni rozdziela sama baza danych (Row Level Security), a nie ekran nad nią. Pilnuje tego test, który chodzi przy każdej zmianie systemu: celowo sięga po cudze wiersze i musi dostać odmowę, inaczej zmiana nie wchodzi.",
       "card2Title": "Numeru Twojej karty u nas nie ma",
-      "card2Body": "Płatności obsługuje Stripe — numer karty nie przechodzi przez nasze serwery i nie zostaje u nas zapisany. Nie zbieramy też numerów PESEL ani skanów dowodów. Wystarczy nam imię, e-mail, telefon, adres i NIP do faktury.",
+      "card2Body": "Płatności obsługuje Stripe - numer karty nie przechodzi przez nasze serwery i nie zostaje u nas zapisany. Nie zbieramy też numerów PESEL ani skanów dowodów. Wystarczy nam imię, e-mail, telefon, adres i NIP do faktury.",
       "card3Title": "Serwery w Unii Europejskiej",
       "card3Body": "Baza, hosting i poczta stoją u dostawców w regionach UE. Klucze do integracji kurierskich każda wypożyczalnia ma zaszyfrowane osobno, a klucz, którym je szyfrujemy, nie leży w bazie danych.",
       "card4Title": "Do panelu platformy nie wejdziemy bez kodu",
-      "card4Body": "Nasz własny dostęp administracyjny wymaga drugiego składnika logowania (TOTP) — samo hasło nie wystarczy nikomu z nas. Strony sklepu i panelu wychodzą z polityką Content-Security-Policy liczoną osobno dla każdego żądania, z HSTS i kompletem nagłówków bezpieczeństwa.",
+      "card4Body": "Nasz własny dostęp administracyjny wymaga drugiego składnika logowania (TOTP) - samo hasło nie wystarczy nikomu z nas. Strony sklepu i panelu wychodzą z polityką Content-Security-Policy liczoną osobno dla każdego żądania, z HSTS i kompletem nagłówków bezpieczeństwa.",
       "card5Title": "Adres do zgłaszania dziur i papiery RODO",
       "card5Body": "Publikujemy security.txt (RFC 9116) z adresem do zgłaszania podatności. Umowy powierzenia danych i samoobsługowego usuwania danych klienta jeszcze nie mamy; robimy je przed startem płatnych planów.",
       "note": "Nie mamy zewnętrznych certyfikacji i nie sugerujemy inaczej. Wszystko powyżej da się sprawdzić w działającym systemie."
@@ -231,28 +231,28 @@
       "eyebrowBottom": "pytania",
       "q1": "Czy klient zarezerwuje i zapłaci u mnie online?",
       "a1Lead": "Tak, kartą.",
-      "a1": "Klient wybiera sprzęt i doby, widzi dostępność na żywo i płaci kartą — kaucja schodzi razem z zamówieniem. Kwotę liczy nasz serwer, nie przeglądarka klienta. Kto woli po staremu, zapłaci przelewem albo przy odbiorze. BLIK i Przelewy24 są w budowie — dat nie podajemy.",
+      "a1": "Klient wybiera sprzęt i doby, widzi dostępność na żywo i płaci kartą - kaucja schodzi razem z zamówieniem. Kwotę liczy nasz serwer, nie przeglądarka klienta. Kto woli po staremu, zapłaci przelewem albo przy odbiorze. BLIK i Przelewy24 są w budowie - dat nie podajemy.",
       "q2": "Ile płacę i czy dochodzi prowizja od rezerwacji?",
       "a2Lead": "199 zł netto miesięcznie, zero prowizji.",
       "a2": "W tej cenie jest panel, strona sklepu i płatności online. Nie liczymy użytkowników ani zamówień. Rok z góry kosztuje tyle, co dziesięć miesięcy. Od transakcji nie bierzemy nic: pieniądze z płatności idą wprost na Twoje konto u operatora, a umowę podpisujesz z nim sam, więc jego stawki znasz od niego, nie od nas. Premium za 399 zł netto pokazujemy, ale jeszcze go nie sprzedajemy.",
       "q3": "Co się dzieje po 14 dniach triala?",
       "a3Lead": "Nic samo z siebie.",
-      "a3": "Konto zakładasz bez karty, więc nie mamy czym obciążyć — po czternastu dniach nic się samo nie zdarzy. Cennik jest ustalony: Standard 199 zł netto miesięcznie, Premium 399 zł netto, rok w cenie dziesięciu miesięcy, bez umowy na rok i bez opłaty wdrożeniowej. Płatność abonamentu włączamy przed startem komercyjnym — odezwiemy się mailem, zanim cokolwiek zacznie kosztować. Katalog, zamówienia i klientów wyeksportujesz do CSV, kiedy zechcesz.",
+      "a3": "Konto zakładasz bez karty, więc nie mamy czym obciążyć - po czternastu dniach nic się samo nie zdarzy. Cennik jest ustalony: Standard 199 zł netto miesięcznie, Premium 399 zł netto, rok w cenie dziesięciu miesięcy, bez umowy na rok i bez opłaty wdrożeniowej. Płatność abonamentu włączamy przed startem komercyjnym - odezwiemy się mailem, zanim cokolwiek zacznie kosztować. Katalog, zamówienia i klientów wyeksportujesz do CSV, kiedy zechcesz.",
       "q4": "Rezerwacje mam w zeszycie i arkuszu. Jak je przeniosę?",
       "a4Lead": "Katalog wgrywasz plikiem CSV.",
-      "a4": "Plik ma nasz układ kolumn, więc najprościej wyeksportować pusty i wypełnić go swoimi danymi. Przed zapisem widzisz podgląd: ile pozycji dojdzie, ile się nadpisze i w którym wierszu jest błąd. Zdjęcia, egzemplarze i punkty odbioru dopisujesz w panelu, bo CSV ich nie niesie. Import obejmuje katalog, nie rezerwacje — otwarte terminy wpisujesz ręcznie. Eksport działa w drugą stronę, więc dane nie są u nas zamknięte.",
+      "a4": "Plik ma nasz układ kolumn, więc najprościej wyeksportować pusty i wypełnić go swoimi danymi. Przed zapisem widzisz podgląd: ile pozycji dojdzie, ile się nadpisze i w którym wierszu jest błąd. Zdjęcia, egzemplarze i punkty odbioru dopisujesz w panelu, bo CSV ich nie niesie. Import obejmuje katalog, nie rezerwacje - otwarte terminy wpisujesz ręcznie. Eksport działa w drugą stronę, więc dane nie są u nas zamknięte.",
       "q5": "Czy sklep pójdzie pod moją domeną?",
       "a5Lead": "Tak, jednym rekordem CNAME.",
       "a5": "Zaraz po założeniu organizacji sklep stoi pod twojanazwa.avably.io, więc masz co pokazać klientom pierwszego dnia. Własną domenę podpinasz, kiedy chcesz: panel wypisuje gotowy rekord (typ, nazwa, wartość), Ty wklejasz go u swojego rejestratora i klikasz „Sprawdź weryfikację”. DNS bywa gotowy po kilku minutach, czasem po kilku godzinach. Informatyk niepotrzebny.",
       "q6": "Dla kogo Avably się nie nadaje?",
       "a6Lead": "Dla najmu na godziny.",
-      "a6": "Najem wyceniamy w dobach, według cenników progowych — godzin po prostu nie liczymy. Sprzedaży towaru też nie prowadzimy: kasa, paragony i stan pod sprzedaż to robota dla innego programu. Mieszkań i lokali nie obsługujemy w ogóle. Nie mamy też wdrożeniowca, który wprowadzi za Ciebie katalog — konto zakładasz i klikasz sam, a my odpowiadamy na maile, zwykle tego samego dnia roboczego.",
+      "a6": "Najem wyceniamy w dobach, według cenników progowych - godzin po prostu nie liczymy. Sprzedaży towaru też nie prowadzimy: kasa, paragony i stan pod sprzedaż to robota dla innego programu. Mieszkań i lokali nie obsługujemy w ogóle. Nie mamy też wdrożeniowca, który wprowadzi za Ciebie katalog - konto zakładasz i klikasz sam, a my odpowiadamy na maile, zwykle tego samego dnia roboczego.",
       "q7": "Czy inna wypożyczalnia zobaczy moje dane?",
       "a7Lead": "Nie, pilnuje tego baza.",
       "a7": "Granica jest w bazie danych, nie w tym, co rysuje ekran. Przy każdej zmianie kodu odpala się test, który celowo sięga po cudze wiersze i próbuje je zmienić. Musi dostać odmowę, inaczej zmiana nie wchodzi. Do panelu administracyjnego platformy wchodzimy z drugim składnikiem logowania. Numerów kart nie widzimy w ogóle, bo trzyma je Stripe.",
       "q8": "Gdzie leżą moje dane i co z RODO?",
       "a8Lead": "W Unii Europejskiej.",
-      "a8": "Baza, hosting i poczta stoją u dostawców z serwerami w UE. Trzymamy zwykłe dane kontaktowe Twoich klientów: imię, e-mail, telefon, adres, NIP do faktury. Nie zbieramy PESEL-i ani skanów dowodów. Administratorem tych danych jesteś Ty, my przetwarzamy je na Twoje zlecenie. Umowy powierzenia ani samoobsługowego usuwania danych klienta jeszcze nie ma — jedno i drugie wchodzi przed startem płatnych planów."
+      "a8": "Baza, hosting i poczta stoją u dostawców z serwerami w UE. Trzymamy zwykłe dane kontaktowe Twoich klientów: imię, e-mail, telefon, adres, NIP do faktury. Nie zbieramy PESEL-i ani skanów dowodów. Administratorem tych danych jesteś Ty, my przetwarzamy je na Twoje zlecenie. Umowy powierzenia ani samoobsługowego usuwania danych klienta jeszcze nie ma - jedno i drugie wchodzi przed startem płatnych planów."
     },
     "faqPage": {
       "metadataDescription": "Odpowiedzi o płatnościach, cenie, trialu, imporcie katalogu, własnej domenie, bezpieczeństwie i RODO.",
@@ -270,8 +270,8 @@
       "columnProduct": "Produkt",
       "columnCompany": "Firma",
       "trialLead": "Wolisz najpierw sprawdzić?",
-      "trialCta": "Załóż konto — 14 dni bez karty",
-      "trialNote": "Konto zakładasz bez karty, więc nic się samo nie nalicza. Płatność abonamentu włączamy przed startem komercyjnym — uprzedzimy mailem.",
+      "trialCta": "Załóż konto - 14 dni bez karty",
+      "trialNote": "Konto zakładasz bez karty, więc nic się samo nie nalicza. Płatność abonamentu włączamy przed startem komercyjnym - uprzedzimy mailem.",
       "privacy": "Polityka prywatności",
       "terms": "Regulamin",
       "copyright": "© Avably 2026. Wszystkie prawa zastrzeżone."
@@ -289,7 +289,7 @@
     "contactPage": {
       "metadataDescription": "Napisz do Avably w sprawie produktu, pilotażu, RODO albo bezpieczeństwa. Zwykle odpowiadamy tego samego dnia roboczego.",
       "title": "Napisz na jeden adres",
-      "intro": "Pytania o produkt, RODO, pilotaż i zgłoszenia bezpieczeństwa trafiają do jednej skrzynki. Odpowiadamy zwykle tego samego dnia roboczego. Infolinii nie mamy. Napisz od razu, co wynajmujesz i ile masz egzemplarzy — pierwsza odpowiedź będzie wtedy o Twoim sprzęcie, a nie prośbą o dane. Konta i tak nie musisz z nami umawiać: zakładasz je sam — e-mail, hasło, link potwierdzający ze skrzynki.",
+      "intro": "Pytania o produkt, RODO, pilotaż i zgłoszenia bezpieczeństwa trafiają do jednej skrzynki. Odpowiadamy zwykle tego samego dnia roboczego. Infolinii nie mamy. Napisz od razu, co wynajmujesz i ile masz egzemplarzy - pierwsza odpowiedź będzie wtedy o Twoim sprzęcie, a nie prośbą o dane. Konta i tak nie musisz z nami umawiać: zakładasz je sam - e-mail, hasło, link potwierdzający ze skrzynki.",
       "emailLabel": "E-mail",
       "email": "admin@avably.io",
       "addressLabel": "Dane firmy",
@@ -310,7 +310,7 @@
       "s4": "Nadajesz i przyjmujesz zwroty kurierem, etykietę PDF drukujesz z panelu, a dostawę wycenia Twój cennik",
       "s5": "Strona sklepu z kreatorem i własną domeną albo widget i wtyczka WordPress na stronie, którą już masz (tam na razie przelew i płatność przy odbiorze)",
       "s6": "Umowa najmu w PDF, a przy zamówieniu widać, który e-mail do klienta wyszedł, a który nie",
-      "s7": "Bez limitu użytkowników, zamówień i produktów — cała obsługa w tej samej cenie",
+      "s7": "Bez limitu użytkowników, zamówień i produktów - cała obsługa w tej samej cenie",
       "premiumLabel": "Premium",
       "premiumBadge": "Wkrótce",
       "premiumPrice": "399 zł netto/mies.",
@@ -324,8 +324,8 @@
       "p6": "E-maile do klientów wychodzą z Twojej domeny, nie z naszej",
       "p7": "Wyższe limity publicznego API; Twoje zgłoszenia idą na początek kolejki",
       "honestTitle": "Bez gwiazdek",
-      "honest1": "Nie ma opłaty wdrożeniowej ani umowy na rok — nie ma też czego wdrażać: konto zakładasz e-mailem i klikasz sam. Karty nie zbieramy, więc po 14 dniach nic się samo nie naliczy; płatność abonamentu włączamy przed startem komercyjnym i uprzedzimy o tym mailem.",
-      "honest2": "Listy Premium nie sprzedajemy, dopóki nie zacznie działać. Pokazujemy ją, żebyś wiedział, dokąd idzie produkt, i mógł nam powiedzieć, że kolejność jest zła. Dane Twojej wypożyczalni są przy tym oddzielone od cudzych w samej bazie danych, a nie na ekranie — sprawdza to test przy każdej zmianie systemu."
+      "honest1": "Nie ma opłaty wdrożeniowej ani umowy na rok - nie ma też czego wdrażać: konto zakładasz e-mailem i klikasz sam. Karty nie zbieramy, więc po 14 dniach nic się samo nie naliczy; płatność abonamentu włączamy przed startem komercyjnym i uprzedzimy o tym mailem.",
+      "honest2": "Listy Premium nie sprzedajemy, dopóki nie zacznie działać. Pokazujemy ją, żebyś wiedział, dokąd idzie produkt, i mógł nam powiedzieć, że kolejność jest zła. Dane Twojej wypożyczalni są przy tym oddzielone od cudzych w samej bazie danych, a nie na ekranie - sprawdza to test przy każdej zmianie systemu."
     },
     "notFoundPage": {
       "eyebrow": "Błąd 404",
@@ -336,9 +336,9 @@
   },
   "landing": {
     "metadata": {
-      "title": "Avably — system dla wypożyczalni sprzętu",
+      "title": "Avably - system dla wypożyczalni sprzętu",
       "description": "Panel wynajmu, płatności online z kaucją i własna strona sklepu z rezerwacją. Prowizji od transakcji u nas nie ma. Standard 199 zł netto/mies., trial 14 dni bez karty.",
-      "ogTitle": "Avably — prowadź wypożyczalnię w jednym systemie",
+      "ogTitle": "Avably - prowadź wypożyczalnię w jednym systemie",
       "ogDescription": "Rezerwacje, kaucje, kurier, płatności online i własna strona sklepu w jednym abonamencie. My nie bierzemy prowizji od transakcji, trial 14 dni bez karty."
     }
   },
@@ -393,7 +393,7 @@
         "message": "Wiadomość",
         "submit": "Wyślij wiadomość",
         "sending": "Wysyłanie…",
-        "success": "Dziękujemy — wiadomość dotarła. Odpowiemy na podany adres.",
+        "success": "Dziękujemy - wiadomość dotarła. Odpowiemy na podany adres.",
         "privacyNote": "Podane dane wykorzystamy wyłącznie do odpowiedzi na tę wiadomość.",
         "privacyLink": "Polityka prywatności",
         "errors": {
@@ -417,7 +417,7 @@
       "prev": "Poprzednia strona",
       "next": "Następna strona",
       "goToPage": "Strona {page}",
-      "description": "Pełna lista sprzętu do wynajęcia — {store}. Sprawdź ceny za dobę i dostępność w swoim terminie."
+      "description": "Pełna lista sprzętu do wynajęcia - {store}. Sprawdź ceny za dobę i dostępność w swoim terminie."
     },
     "common": {
       "from": "od",
@@ -425,7 +425,7 @@
       "backToCatalog": "Wróć do katalogu",
       "continueShopping": "Kontynuuj zakupy",
       "days": "dni",
-      "estimateNote": "Kwota szacunkowa — ostateczną wartość potwierdzamy przy złożeniu zamówienia.",
+      "estimateNote": "Kwota szacunkowa - ostateczną wartość potwierdzamy przy złożeniu zamówienia.",
       "optional": "opcjonalnie",
       "required": "wymagane"
     },
@@ -452,8 +452,8 @@
       "dayUnavailable": "brak wolnych sztuk",
       "dayOutOfRange": "poza oknem wyboru",
       "conflictHeading": "W tym terminie nie zmieści się cały koszyk",
-      "conflictLine": "{name} — w koszyku: {requested}, wolne w tym terminie: {available}",
-      "conflictBlocksCheckout": "Dopóki to trwa, nie przejdziesz do kasy — usuń te pozycje albo wróć do poprzedniego terminu.",
+      "conflictLine": "{name} - w koszyku: {requested}, wolne w tym terminie: {available}",
+      "conflictBlocksCheckout": "Dopóki to trwa, nie przejdziesz do kasy - usuń te pozycje albo wróć do poprzedniego terminu.",
       "conflictRemove": "Usuń te pozycje z koszyka",
       "conflictRevert": "Wróć do poprzedniego terminu",
       "unitsFree": "wolne w tym terminie: {units} szt.",
@@ -462,7 +462,7 @@
       "bookingSubtitle": "Wybierz daty i sprawdź cenę wynajmu",
       "fieldLabel": "Termin najmu",
       "fieldPrompt": "Kliknij, aby wybrać daty",
-      "bookingUnknown": "Dostępności nie udało się sprawdzić — możesz dodać do koszyka, wolne sztuki potwierdzimy przy składaniu zamówienia."
+      "bookingUnknown": "Dostępności nie udało się sprawdzić - możesz dodać do koszyka, wolne sztuki potwierdzimy przy składaniu zamówienia."
     },
     "product": {
       "galleryAlt": "Zdjęcie produktu {name}",
@@ -470,7 +470,7 @@
       "specsHeading": "Specyfikacja techniczna",
       "depositLabel": "Kaucja",
       "perDayPrice": "{price} / doba",
-      "unavailable": "Brak wolnych sztuk w wybranym terminie — wybierz inny.",
+      "unavailable": "Brak wolnych sztuk w wybranym terminie - wybierz inny.",
       "dateRequired": "Wybierz termin najmu, aby dodać do koszyka.",
       "quantity": "Ilość",
       "addToCart": "Dodaj do koszyka",
@@ -484,7 +484,7 @@
       "emptyCta": "Przeglądaj katalog",
       "rentalPeriod": "Termin najmu",
       "noDates": "Termin nie wybrany",
-      "editInProduct": "Termin ustawiasz w pasku na górze strony — jest wspólny dla całego zamówienia.",
+      "editInProduct": "Termin ustawiasz w pasku na górze strony - jest wspólny dla całego zamówienia.",
       "quantity": "Ilość",
       "remove": "Usuń",
       "lineRental": "Najem",
@@ -497,7 +497,7 @@
     },
     "checkout": {
       "title": "Dane zamówienia",
-      "cartEmpty": "Koszyk jest pusty — dodaj produkty, zanim złożysz zamówienie.",
+      "cartEmpty": "Koszyk jest pusty - dodaj produkty, zanim złożysz zamówienie.",
       "contactHeading": "Dane kontaktowe",
       "fullName": "Imię i nazwisko",
       "email": "Adres e-mail",
@@ -519,7 +519,7 @@
       "choosePickup": "Wybierz punkt odbioru",
       "paymentHeading": "Sposób płatności",
       "paymentOnline": "Zapłać online",
-      "paymentOnlineHint": "BLIK, Przelewy24 lub karta — rezerwację opłacisz od razu.",
+      "paymentOnlineHint": "BLIK, Przelewy24 lub karta - rezerwację opłacisz od razu.",
       "paymentTransfer": "Przelew",
       "paymentTransferHint": "Dane do przelewu wyślemy razem z potwierdzeniem zamówienia.",
       "paymentCod": "Płatność przy odbiorze",
@@ -549,13 +549,13 @@
         "terms": "Zaakceptuj regulamin, aby kontynuować.",
         "generic": "Sprawdź zaznaczone pola.",
         "summary": "Formularz zawiera błędy do poprawienia: {count}.",
-        "unavailable": "Termin zajęty — wybierz inny termin lub mniejszą ilość.",
+        "unavailable": "Termin zajęty - wybierz inny termin lub mniejszą ilość.",
         "rejected": "Nie udało się złożyć zamówienia. Sprawdź dane i spróbuj ponownie.",
-        "rateLimited": "Zbyt wiele prób — spróbuj później lub skontaktuj się z wypożyczalnią.",
+        "rateLimited": "Zbyt wiele prób - spróbuj później lub skontaktuj się z wypożyczalnią.",
         "captcha": "Weryfikacja antyspamowa nie powiodła się. Spróbuj ponownie.",
         "connection": "Problem z połączeniem. Spróbuj ponownie.",
         "paymentMethod": "Wybierz sposób płatności.",
-        "paymentUnavailable": "Płatność online jest teraz niedostępna w tej wypożyczalni. Wybierz przelew albo płatność przy odbiorze — rezerwacja będzie taka sama.",
+        "paymentUnavailable": "Płatność online jest teraz niedostępna w tej wypożyczalni. Wybierz przelew albo płatność przy odbiorze - rezerwacja będzie taka sama.",
         "server": "Coś poszło nie tak. Spróbuj ponownie za chwilę.",
         "customField": {
           "required": "To pole jest wymagane.",
@@ -563,19 +563,19 @@
           "tooLong": "Wartość jest za długa.",
           "notAllowed": "Tego pola nie da się tu wypełnić."
         },
-        "legalDocumentsMissing": "Wypożyczalnia nie opublikowała jeszcze wymaganych dokumentów (regulaminu i polityki prywatności) — zamówienie nie mogło zostać przyjęte.",
-        "minRentalDays": "Wybrany termin jest za krótki — jedna z pozycji wynajmuje się na minimum {count} dni. Wydłuż termin i spróbuj ponownie."
+        "legalDocumentsMissing": "Wypożyczalnia nie opublikowała jeszcze wymaganych dokumentów (regulaminu i polityki prywatności) - zamówienie nie mogło zostać przyjęte.",
+        "minRentalDays": "Wybrany termin jest za krótki - jedna z pozycji wynajmuje się na minimum {count} dni. Wydłuż termin i spróbuj ponownie."
       },
       "termsLabelLinked": "Akceptuję {link} wypożyczalni i zasady najmu.",
       "termsLinkText": "regulamin",
-      "conflictBlocked": "Wybrany termin nie mieści całego koszyka. Rozstrzygnij to w pasku terminu — inaczej zamówienie zostanie odrzucone przy zapisie.",
-      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności — zamówienie nie może zostać złożone. Skontaktuj się z wypożyczalnią."
+      "conflictBlocked": "Wybrany termin nie mieści całego koszyka. Rozstrzygnij to w pasku terminu - inaczej zamówienie zostanie odrzucone przy zapisie.",
+      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności - zamówienie nie może zostać złożone. Skontaktuj się z wypożyczalnią."
     },
     "legal": {
       "version": "Wersja {version}",
       "publishedAt": "opublikowano {date}",
       "checksum": "Suma kontrolna",
-      "archivedNotice": "Oglądasz archiwalną wersję tego dokumentu — obowiązywała w chwili, gdy została zaakceptowana.",
+      "archivedNotice": "Oglądasz archiwalną wersję tego dokumentu - obowiązywała w chwili, gdy została zaakceptowana.",
       "currentVersionLink": "Zobacz wersję obowiązującą"
     },
     "payment": {
@@ -592,17 +592,17 @@
       "checkStatus": "Sprawdź stan płatności",
       "retry": "Spróbuj zapłacić ponownie",
       "statusTitle": "Stan płatności",
-      "statusChecking": "Sprawdzamy płatność. Potwierdzenie od operatora płatności potrafi dotrzeć z kilkuminutowym opóźnieniem — gdy tylko trafi do nas, wyślemy Ci e-mail.",
+      "statusChecking": "Sprawdzamy płatność. Potwierdzenie od operatora płatności potrafi dotrzeć z kilkuminutowym opóźnieniem - gdy tylko trafi do nas, wyślemy Ci e-mail.",
       "statusProviderConfirmed": "Operator płatności potwierdza wpłynięcie środków. Czekamy na zaksięgowanie ich przy Twoim zamówieniu.",
       "statusPaid": "Płatność zaksięgowana. Rezerwacja jest opłacona.",
-      "statusFailed": "Płatność nie doszła do skutku. Zamówienie czeka — możesz spróbować ponownie albo rozliczyć się z wypożyczalnią.",
-      "statusOffline": "To zamówienie rozliczasz z wypożyczalnią — przelewem albo przy odbiorze.",
+      "statusFailed": "Płatność nie doszła do skutku. Zamówienie czeka - możesz spróbować ponownie albo rozliczyć się z wypożyczalnią.",
+      "statusOffline": "To zamówienie rozliczasz z wypożyczalnią - przelewem albo przy odbiorze.",
       "statusClosed": "To zamówienie jest już zamknięte."
     },
     "confirmation": {
       "title": "Dziękujemy za zamówienie!",
       "orderNumber": "Numer zamówienia",
-      "paymentNote": "Płatność rozliczysz z wypożyczalnią przy odbiorze lub przelewem — skontaktujemy się z Tobą w sprawie szczegółów.",
+      "paymentNote": "Płatność rozliczysz z wypożyczalnią przy odbiorze lub przelewem - skontaktujemy się z Tobą w sprawie szczegółów.",
       "rentalPeriod": "Termin najmu",
       "deliveryMethod": "Sposób odbioru",
       "summaryRental": "Najem",
@@ -614,8 +614,8 @@
       "backToStore": "Wróć do sklepu"
     },
     "seo": {
-      "catalogDescription": "Wypożyczalnia {store} — sprawdź ofertę, dostępność i zarezerwuj online.",
-      "productDescription": "{product} — wynajem w {store}. Sprawdź cenę za dobę i dostępność w Twoim terminie."
+      "catalogDescription": "Wypożyczalnia {store} - sprawdź ofertę, dostępność i zarezerwuj online.",
+      "productDescription": "{product} - wynajem w {store}. Sprawdź cenę za dobę i dostępność w Twoim terminie."
     },
     "embed": {
       "heading": "Rezerwacja online",
@@ -628,9 +628,9 @@
       "legendFree": "Wolne",
       "legendBusy": "Zajęte",
       "legendUnknown": "Sprawdzanie dostępności",
-      "partialNote": "Części dni nie udało się teraz sprawdzić — odśwież za chwilę.",
+      "partialNote": "Części dni nie udało się teraz sprawdzić - odśwież za chwilę.",
       "rangeHint": "Kliknij dzień początkowy, potem końcowy.",
-      "selectedRange": "Termin: {from} — {to}",
+      "selectedRange": "Termin: {from} - {to}",
       "clearRange": "Wyczyść termin",
       "daysLabel": "Liczba dób: {days}",
       "contactHeading": "Dane do rezerwacji",
@@ -673,7 +673,7 @@
       "weekdayFri": "pt",
       "weekdaySat": "so",
       "weekdaySun": "nd",
-      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności — rezerwacja online jest wstrzymana."
+      "termsMissingNotice": "Wypożyczalnia nie opublikowała jeszcze regulaminu i polityki prywatności - rezerwacja online jest wstrzymana."
     }
   }
 }

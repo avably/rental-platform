@@ -156,7 +156,7 @@ export async function sendCheckoutEmails(
   // skonfigurować (wzorzec uczciwej częściowej porażki 8b).
   if (!ctx.notify_email) {
     issues.push(
-      "Powiadomienie najemcy nie zostało wysłane — skonfiguruj nadawcę (adres odpowiedzi) w /ustawienia-emaili.",
+      "Powiadomienie najemcy nie zostało wysłane - skonfiguruj nadawcę (adres odpowiedzi) w /ustawienia-emaili.",
     );
   } else {
     try {

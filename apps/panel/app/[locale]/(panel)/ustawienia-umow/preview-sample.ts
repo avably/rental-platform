@@ -48,22 +48,22 @@ const SAMPLE_TEXT: Record<Locale, {
   serialNumber: string;
 }> = {
   pl: {
-    customerName: "PRZYKŁAD — Anna Przykładowa",
+    customerName: "PRZYKŁAD - Anna Przykładowa",
     street: "ul. Przykładowa 1/2",
     zip: "00-001",
     city: "Miasto Przykładowe",
     email: "klient@example.com",
-    itemMain: "Przykładowy sprzęt — pozycja główna",
+    itemMain: "Przykładowy sprzęt - pozycja główna",
     itemExtra: "Przykładowe wyposażenie dodatkowe",
     serialNumber: "PRZYKŁAD-0001",
   },
   en: {
-    customerName: "SAMPLE — Jane Sample",
+    customerName: "SAMPLE - Jane Sample",
     street: "1 Sample Street, apt. 2",
     zip: "00-001",
     city: "Sample City",
     email: "customer@example.com",
-    itemMain: "Sample equipment — main item",
+    itemMain: "Sample equipment - main item",
     itemExtra: "Sample additional gear",
     serialNumber: "SAMPLE-0001",
   },

@@ -100,7 +100,7 @@ export default async function ReviewCommentsPage({
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Przegląd — uwagi</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Przegląd - uwagi</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Uwagi właściciela z panelu, WWW i sklepu klienta. Otwarte:{" "}
             <strong className="text-foreground">{open.length}</strong> · rozwiązane:{" "}

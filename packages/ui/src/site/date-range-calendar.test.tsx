@@ -177,12 +177,12 @@ describe("dwie powierzchnie: powłoka i strona sprzętu", () => {
 
     const free = day("2027-05-10");
     expect(free.textContent).toBe("103");
-    expect(free.getAttribute("aria-label")).toBe("2027-05-10 — wolne sztuki: 3");
+    expect(free.getAttribute("aria-label")).toBe("2027-05-10 - wolne sztuki: 3");
 
     const busy = day("2027-05-11");
     expect(busy.dataset.calendarDayState).toBe("unavailable");
     expect(busy.disabled).toBe(true);
-    expect(busy.getAttribute("aria-label")).toBe("2027-05-11 — brak wolnych sztuk");
+    expect(busy.getAttribute("aria-label")).toBe("2027-05-11 - brak wolnych sztuk");
 
     fireEvent.click(busy);
     expect(onSelect).not.toHaveBeenCalled();

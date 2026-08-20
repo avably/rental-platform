@@ -73,7 +73,7 @@ function mapDbError(error: { code?: string; message: string }): string {
     return "Egzemplarz z tym numerem seryjnym już istnieje dla tego produktu.";
   }
   if (error.code === "23503") {
-    return "Egzemplarz jest przypisany do zamówienia — najpierw zdejmij go z tego zamówienia.";
+    return "Egzemplarz jest przypisany do zamówienia - najpierw zdejmij go z tego zamówienia.";
   }
   return error.message;
 }
@@ -188,7 +188,7 @@ export async function saveUnitsAction(
     if (!data || data.length === 0) {
       revalidatePath("/", "layout");
       return {
-        formError: `Nie zapisano zmian dla ${unitLabel(row.serialNumber, index + 1)} — egzemplarz już nie istnieje.`,
+        formError: `Nie zapisano zmian dla ${unitLabel(row.serialNumber, index + 1)} - egzemplarz już nie istnieje.`,
       };
     }
   }
@@ -214,7 +214,7 @@ export async function saveUnitsAction(
       // właściciela) albo egzemplarz, którego już nie ma. Panel nie zna
       // różnicy — i nie udaje, że zna.
       refusals.push(
-        `${label}: nie usunięto — usuwanie egzemplarzy wymaga roli właściciela albo egzemplarz już nie istnieje.`,
+        `${label}: nie usunięto - usuwanie egzemplarzy wymaga roli właściciela albo egzemplarz już nie istnieje.`,
       );
     }
   }

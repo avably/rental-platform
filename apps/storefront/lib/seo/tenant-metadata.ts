@@ -77,7 +77,7 @@ export function clampDescription(text: string, max = 160): string {
 
 /** Tytuł podstrony: „{strona} — {sklep}”; sam sklep, gdy to jego strona główna. */
 export function pageTitle(storeName: string, pageName?: string): string {
-  return pageName ? `${pageName} — ${storeName}` : storeName;
+  return pageName ? `${pageName} - ${storeName}` : storeName;
 }
 
 export interface TenantMetadataInput {

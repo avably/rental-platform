@@ -290,7 +290,7 @@ export async function createShipmentAction(
   if (!created.number) {
     return {
       formError:
-        "GlobKurier nie zwrócił numeru zamówienia — przesyłka mogła nie zostać nadana, sprawdź panel dostawcy.",
+        "GlobKurier nie zwrócił numeru zamówienia - przesyłka mogła nie zostać nadana, sprawdź panel dostawcy.",
     };
   }
 
@@ -461,7 +461,7 @@ export async function cancelShipmentAction(
   if (!isShipmentCancellable(shipment.status as ShipmentStatus)) {
     return {
       formError:
-        "Tej przesyłki nie da się już anulować — anulowanie jest możliwe, dopóki przewoźnik " +
+        "Tej przesyłki nie da się już anulować - anulowanie jest możliwe, dopóki przewoźnik " +
         "jej nie odebrał. Obecny status: " + String(shipment.status) + ".",
     };
   }
@@ -570,11 +570,11 @@ export async function refreshOrderShipmentsAction(
 
   revalidatePath("/", "layout");
   if (refreshed === 0) {
-    return { formError: "Nie udało się odświeżyć statusów przesyłek — spróbuj ponownie." };
+    return { formError: "Nie udało się odświeżyć statusów przesyłek - spróbuj ponownie." };
   }
   if (failed > 0) {
     return {
-      notice: `Odświeżono ${refreshed} z ${refreshed + failed} przesyłek — dla ${failed} dostawca nie zwrócił statusu.`,
+      notice: `Odświeżono ${refreshed} z ${refreshed + failed} przesyłek - dla ${failed} dostawca nie zwrócił statusu.`,
     };
   }
   return { success: "refreshedAll" };
@@ -654,7 +654,7 @@ async function loadReturnEmailContext(
     | { name: string; locale: string | null; logo_published?: unknown }
     | null;
   if (!order || !tenant) {
-    return { error: "Nie udało się odczytać danych zamówienia — wiadomość nie została wysłana." };
+    return { error: "Nie udało się odczytać danych zamówienia - wiadomość nie została wysłana." };
   }
 
   return {
@@ -701,7 +701,7 @@ export async function sendReturnLabelEmailAction(
     // Neutralnie i bez powodu z serwera (U1, audyt W3): to sprawa platformy.
     return {
       formError:
-        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — spróbuj ponownie później.",
+        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy - spróbuj ponownie później.",
     };
   }
 
@@ -788,7 +788,7 @@ export async function sendPickupReturnReminderAction(
     // Neutralnie i bez powodu z serwera (U1, audyt W3): to sprawa platformy.
     return {
       formError:
-        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy — spróbuj ponownie później.",
+        "Wysyłka e-maili jest chwilowo niedostępna po stronie platformy - spróbuj ponownie później.",
     };
   }
 

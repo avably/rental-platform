@@ -144,7 +144,7 @@ function ItemEditPanel({
     { value: "", label: t("unitNone") },
     ...item.units.map((unit) => ({
       value: unit.id,
-      label: `${unit.label} — ${unit.free ? t("unitFree") : t("unitBusy")}`,
+      label: `${unit.label} - ${unit.free ? t("unitFree") : t("unitBusy")}`,
     })),
   ];
 
@@ -302,7 +302,7 @@ function AddItemForm({
     { value: "", label: t("unitNone") },
     ...(selected?.units ?? []).map((unit) => ({
       value: unit.id,
-      label: `${unit.label} — ${unit.free ? t("unitFree") : t("unitBusy")}`,
+      label: `${unit.label} - ${unit.free ? t("unitFree") : t("unitBusy")}`,
     })),
   ];
 

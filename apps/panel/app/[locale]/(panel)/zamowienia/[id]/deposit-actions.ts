@@ -85,7 +85,7 @@ interface DepositEventInput {
 /** Komunikat odmowy bazy → zdanie, które operator ma po co przeczytać. */
 function gateMessage(code: string | undefined, fallback: string): string {
   if (code === PG_DEPOSIT_GATE) {
-    return "Rozliczenie przekracza dostępne saldo kaucji — odśwież stronę i spróbuj ponownie.";
+    return "Rozliczenie przekracza dostępne saldo kaucji - odśwież stronę i spróbuj ponownie.";
   }
   if (code === PG_ORDER_MISSING) return "Zamówienie nie istnieje albo zostało usunięte.";
   return fallback;
@@ -138,7 +138,7 @@ async function insertDepositEvents(
   }
   const tenantId = ctx.tenantId;
   if (!tenantId) {
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   if (options?.refuseCancelledOrder) {
@@ -153,7 +153,7 @@ async function insertDepositEvents(
     }
     if ((statusRow as { order_status: string }).order_status === "cancelled") {
       return {
-        formError: "Zamówienie jest anulowane — pobranie kaucji nie jest już możliwe.",
+        formError: "Zamówienie jest anulowane - pobranie kaucji nie jest już możliwe.",
       };
     }
   }
@@ -287,7 +287,7 @@ export async function settleDepositAction(
   if (!tenantId) {
     // Sesja bez tenanta nie ma czyjej kaucji zwracać. Jawna odmowa zamiast
     // `!` — na ścieżce ruszającej pieniądze zgadywanie typu jest zbyt tanie.
-    return { formError: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { formError: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   const { data: order, error } = await ctx.supabase

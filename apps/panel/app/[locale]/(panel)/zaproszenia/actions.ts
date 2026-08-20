@@ -166,7 +166,7 @@ async function loadOpenInvitation(
   if (status === "accepted") {
     return {
       error:
-        "To zaproszenie zostało już wykorzystane — żeby odebrać dostęp, usuń osobę z sekcji „Zespół”.",
+        "To zaproszenie zostało już wykorzystane - żeby odebrać dostęp, usuń osobę z sekcji „Zespół”.",
     };
   }
   if (!invitationIsOpen(status)) {
@@ -214,7 +214,7 @@ export async function revokeInvitationAction(
     .select("id");
   if (error) return { error: `Nie udało się odwołać zaproszenia: ${error.message}` };
   if (!updated || updated.length === 0) {
-    return { error: "Nie udało się odwołać zaproszenia — odśwież stronę i spróbuj ponownie." };
+    return { error: "Nie udało się odwołać zaproszenia - odśwież stronę i spróbuj ponownie." };
   }
 
   revalidatePath("/", "layout");
@@ -283,7 +283,7 @@ export async function resendInvitationAction(
     return { error: `Nie udało się ponowić zaproszenia: ${rotateError.message}` };
   }
   if (!rotated || rotated.length === 0) {
-    return { error: "Nie udało się ponowić zaproszenia — odśwież stronę i spróbuj ponownie." };
+    return { error: "Nie udało się ponowić zaproszenia - odśwież stronę i spróbuj ponownie." };
   }
 
   // Host panelu, nie kanon marketingowy — to samo rozstrzygnięcie co przy

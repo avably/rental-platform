@@ -62,7 +62,7 @@ export async function loadEmailBodyAction(input: {
   }
   const tenantId = ctx.tenantId;
   if (!tenantId) {
-    return { status: "error", message: "Sesja nie wskazuje najemcy — zaloguj się ponownie." };
+    return { status: "error", message: "Sesja nie wskazuje najemcy - zaloguj się ponownie." };
   }
 
   const { data, error } = await ctx.supabase

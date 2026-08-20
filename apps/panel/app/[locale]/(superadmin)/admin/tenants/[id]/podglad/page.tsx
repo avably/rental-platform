@@ -54,7 +54,7 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-status-attention-border bg-status-attention-bg px-4 py-3">
         <p className="text-sm text-status-attention-fg">
-          Działasz jako <b>{tenant.name}</b> — podgląd tylko do odczytu. Wejście zostało zapisane w
+          Działasz jako <b>{tenant.name}</b> - podgląd tylko do odczytu. Wejście zostało zapisane w
           dzienniku zdarzeń.
         </p>
         <form action={endTenantViewAction}>
@@ -70,7 +70,7 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
         <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
           {((members ?? []) as Member[]).map((member) => (
             <li key={member.user_id} className="tabular-nums text-xs">
-              {member.user_id} — {member.role}
+              {member.user_id} - {member.role}
             </li>
           ))}
           {(members?.length ?? 0) === 0 && <li className="text-muted-foreground">Brak członków.</li>}
@@ -82,7 +82,7 @@ export default async function TenantViewPage({ params }: { params: Promise<{ id:
         <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
           {((invitations ?? []) as Invitation[]).map((invitation) => (
             <li key={invitation.id}>
-              {invitation.email} — {invitation.role} —{" "}
+              {invitation.email} - {invitation.role} -{" "}
               {invitation.accepted_at ? "przyjęte" : "oczekuje"}
             </li>
           ))}

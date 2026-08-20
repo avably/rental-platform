@@ -379,7 +379,7 @@ export function OrderTimeline({
           <div className="flex min-w-0 flex-col items-center gap-0.5">
             <span className="text-foreground text-[13px] leading-tight font-semibold">
               {t(`steps.${step.key}` as Parameters<typeof t>[0])}
-              <span className="sr-only"> — {t(`states.${step.state}` as Parameters<typeof t>[0])}</span>
+              <span className="sr-only"> - {t(`states.${step.state}` as Parameters<typeof t>[0])}</span>
             </span>
             <span className="text-muted-foreground text-xs leading-tight tabular-nums">
               {renderCaption(step.caption)}

@@ -103,7 +103,7 @@ export const pageSlugSchema = z
     if (isReservedPageSlug(slug)) {
       ctx.addIssue({
         code: "custom",
-        message: `Adres „${slug}" jest zarezerwowany przez sklep — wybierz inny.`,
+        message: `Adres „${slug}" jest zarezerwowany przez sklep - wybierz inny.`,
       });
     }
   });
@@ -120,7 +120,7 @@ const contentPageSlugSchema = pageSlugSchema.superRefine((slug, ctx) => {
   if (slug === HOME_PAGE_SLUG) {
     ctx.addIssue({
       code: "custom",
-      message: "Podaj adres strony — z tej nazwy nie da się go wyprowadzić.",
+      message: "Podaj adres strony - z tej nazwy nie da się go wyprowadzić.",
     });
   }
 });
@@ -170,7 +170,7 @@ export function productTemplateSlugIssue(input: {
 }): string | null {
   if (input.kind !== PRODUCT_TEMPLATE_SITE_KIND) return null;
   if (input.slug === undefined) return null;
-  return "Szablon strony produktu nie ma własnego adresu — pokazuje się pod adresem każdego sprzętu.";
+  return "Szablon strony produktu nie ma własnego adresu - pokazuje się pod adresem każdego sprzętu.";
 }
 
 /**
@@ -406,7 +406,7 @@ export function reorderPlan(
   if (orderedIds.length !== current.size || orderedIds.some((id) => !current.has(id))) {
     return {
       ok: false,
-      error: "Kolejność nie obejmuje dokładnie wszystkich sekcji strony — odśwież edytor.",
+      error: "Kolejność nie obejmuje dokładnie wszystkich sekcji strony - odśwież edytor.",
     };
   }
   return { ok: true, updates: orderedIds.map((id, index) => ({ id, position: index })) };

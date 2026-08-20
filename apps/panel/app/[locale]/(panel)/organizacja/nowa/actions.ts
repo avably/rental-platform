@@ -83,7 +83,7 @@ export async function createTenantAction(
     termsVersionId: formData.get("termsVersionId"),
   });
   if (!termsFields.success) {
-    return { error: "Nieprawidłowe wskazanie wersji regulaminu — odśwież stronę." };
+    return { error: "Nieprawidłowe wskazanie wersji regulaminu - odśwież stronę." };
   }
 
   const supabase = await createSupabaseServerClient();

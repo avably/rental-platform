@@ -144,7 +144,7 @@ export async function sendPaymentConfirmedEmail(
       | null;
     if (orderResult.error || tenantResult.error || !order || !tenant) {
       return (
-        "Nie udało się odczytać danych do potwierdzenia płatności — " +
+        "Nie udało się odczytać danych do potwierdzenia płatności - " +
         "klient nie dostał wiadomości: " +
         (orderResult.error?.message ?? tenantResult.error?.message ?? "brak wiersza.")
       );
@@ -152,7 +152,7 @@ export async function sendPaymentConfirmedEmail(
 
     const customerEmail = order.customers?.email;
     if (!customerEmail) {
-      return "Zamówienie nie ma adresu e-mail klienta — potwierdzenie płatności nie zostało wysłane.";
+      return "Zamówienie nie ma adresu e-mail klienta - potwierdzenie płatności nie zostało wysłane.";
     }
 
     // reply_to z email_sender: BRAK wiersza jest legalny (fallback ADR-036 D2,

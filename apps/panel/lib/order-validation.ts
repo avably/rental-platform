@@ -233,7 +233,7 @@ export const orderFormSchema = z
   .refine(
     (form) => !methodUsesDeliveryAddress(form.deliveryMethod) || form.deliveryAddressSource !== "",
     {
-      message: "Wskaż adres dostarczenia — z danych klienta albo inny.",
+      message: "Wskaż adres dostarczenia - z danych klienta albo inny.",
       path: ["deliveryAddressSource"],
     },
   )
@@ -271,7 +271,7 @@ export const orderFormSchema = z
         form.deliveryAddressCity === null &&
         form.deliveryAddressPhone === null),
     {
-      message: "Adres z danych klienta czytamy z kartoteki — nie kopiujemy go do zamówienia.",
+      message: "Adres z danych klienta czytamy z kartoteki - nie kopiujemy go do zamówienia.",
       path: ["deliveryAddressStreet"],
     },
   )
@@ -283,12 +283,12 @@ export const orderFormSchema = z
     path: ["deliveryPrice"],
   })
   .refine((form) => form.deliveryPriceSource === "manual" || form.deliveryPrice.trim() === "", {
-    message: "Cena dostawy jest liczona z cennika — wyczyść kwotę albo wybierz cenę własną.",
+    message: "Cena dostawy jest liczona z cennika - wyczyść kwotę albo wybierz cenę własną.",
     path: ["deliveryPrice"],
   })
   // Lustro reguły silnika: pickup jest bezpłatny z definicji (ADR-030).
   .refine((form) => form.deliveryMethod !== "pickup" || form.deliveryPriceSource !== "manual", {
-    message: "Odbiór osobisty jest bezpłatny — nie można ustalić dla niego ceny.",
+    message: "Odbiór osobisty jest bezpłatny - nie można ustalić dla niego ceny.",
     path: ["deliveryPrice"],
   })
   .superRefine((form, ctx) => {

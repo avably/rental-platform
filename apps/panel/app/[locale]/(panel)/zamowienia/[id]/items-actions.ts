@@ -126,8 +126,8 @@ async function loadEditableOrder(
     return {
       denial: {
         formError: AVAILABILITY_BLOCKING_ORDER_STATUSES.includes(order.order_status)
-          ? "Sprzęt jest już wydany — pozycji wydanego zamówienia nie edytujemy. Doposażenie w trakcie najmu zakładamy jako osobne zamówienie."
-          : "Zamówienie jest zamknięte (zwrócone albo anulowane) — pozycji nie można już zmieniać.",
+          ? "Sprzęt jest już wydany - pozycji wydanego zamówienia nie edytujemy. Doposażenie w trakcie najmu zakładamy jako osobne zamówienie."
+          : "Zamówienie jest zamknięte (zwrócone albo anulowane) - pozycji nie można już zmieniać.",
       },
     };
   }
@@ -164,7 +164,7 @@ async function recalcOrderTotals(ctx: AuthContext, orderId: string): Promise<For
     .eq("id", orderId);
   if (updateError) {
     return {
-      formError: `Pozycja zapisana, ale sumy zamówienia nie zostały odświeżone (${updateError.message}) — odśwież stronę i powtórz operację.`,
+      formError: `Pozycja zapisana, ale sumy zamówienia nie zostały odświeżone (${updateError.message}) - odśwież stronę i powtórz operację.`,
     };
   }
 
@@ -246,7 +246,7 @@ export async function addOrderItemAction(
     .maybeSingle();
   if (productError) return { formError: productError.message };
   if (!productRow) {
-    return { formError: "Produkt nie istnieje albo został wygaszony — odśwież stronę." };
+    return { formError: "Produkt nie istnieje albo został wygaszony - odśwież stronę." };
   }
   const product = productRow as unknown as AddProductRow;
 
@@ -300,7 +300,7 @@ export async function addOrderItemAction(
     unitId = null;
   } else {
     if (!product.product_units.some((unit) => unit.id === input.unitId)) {
-      return { formError: "Ten egzemplarz należy do innego produktu — wybierz sztukę produktu z tej pozycji." };
+      return { formError: "Ten egzemplarz należy do innego produktu - wybierz sztukę produktu z tej pozycji." };
     }
     unitId = input.unitId;
   }
@@ -347,7 +347,7 @@ export async function addOrderItemAction(
   // brak przypisania mimo wolnych sztuk" — inny komunikat, żaden nie kłamie.
   if (unitId === null) {
     return availability.availableUnitIds.length === 0
-      ? { notice: `Dodano „${product.name}" BEZ przypisanego egzemplarza — w tym terminie nie ma wolnej sztuki.` }
+      ? { notice: `Dodano „${product.name}" BEZ przypisanego egzemplarza - w tym terminie nie ma wolnej sztuki.` }
       : { notice: `Dodano „${product.name}" bez przypisanego egzemplarza.` };
   }
   return { success: "item-added" };
@@ -395,7 +395,7 @@ export async function updateOrderItemAction(
     .eq("id", input.itemId)
     .maybeSingle();
   if (itemError) return { formError: itemError.message };
-  if (!itemRow) return { formError: "Pozycja nie istnieje albo została usunięta — odśwież stronę." };
+  if (!itemRow) return { formError: "Pozycja nie istnieje albo została usunięta - odśwież stronę." };
 
   // Egzemplarz MUSI należeć do produktu pozycji. Baza tego nie pilnuje:
   // `order_items_unit_fk` sprawdza wyłącznie parę (tenant, unit), więc bez
@@ -410,9 +410,9 @@ export async function updateOrderItemAction(
       .eq("id", input.unitId)
       .maybeSingle();
     if (unitError) return { formError: unitError.message };
-    if (!unitRow) return { formError: "Egzemplarz nie istnieje — odśwież stronę." };
+    if (!unitRow) return { formError: "Egzemplarz nie istnieje - odśwież stronę." };
     if ((unitRow as { product_id: string }).product_id !== (itemRow as { product_id: string }).product_id) {
-      return { formError: "Ten egzemplarz należy do innego produktu — wybierz sztukę produktu z tej pozycji." };
+      return { formError: "Ten egzemplarz należy do innego produktu - wybierz sztukę produktu z tej pozycji." };
     }
   }
 
@@ -434,7 +434,7 @@ export async function updateOrderItemAction(
     return { formError: error.message };
   }
   if (!data || data.length === 0) {
-    return { formError: "Pozycja zmieniła się w międzyczasie — odśwież stronę." };
+    return { formError: "Pozycja zmieniła się w międzyczasie - odśwież stronę." };
   }
 
   const totalsError = await recalcOrderTotals(ctx, input.orderId);
@@ -477,7 +477,7 @@ export async function removeOrderItemAction(
     .select("id");
   if (error) return { formError: error.message };
   if (!data || data.length === 0) {
-    return { formError: "Pozycja nie istnieje albo została już usunięta — odśwież stronę." };
+    return { formError: "Pozycja nie istnieje albo została już usunięta - odśwież stronę." };
   }
 
   const totalsError = await recalcOrderTotals(ctx, input.orderId);

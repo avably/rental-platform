@@ -217,8 +217,8 @@ export function DateRangeField({
 
   const label = isoToDate(from)
     ? isoToDate(to)
-      ? `${format(from)} — ${format(to)}`
-      : `${format(from)} —`
+      ? `${format(from)} - ${format(to)}`
+      : `${format(from)} -`
     : t("rangePlaceholder");
 
   return (

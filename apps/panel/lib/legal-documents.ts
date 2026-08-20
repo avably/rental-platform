@@ -65,7 +65,7 @@ export function legalDocumentDraftInputFromFormData(formData: FormData) {
  */
 export const LEGAL_DOCUMENT_MESSAGES = {
   ownerOnly: "Tylko właściciel organizacji może zmieniać i publikować dokumenty prawne.",
-  notFound: "Najpierw zapisz szkic dokumentu — dopiero potem da się go opublikować.",
+  notFound: "Najpierw zapisz szkic dokumentu - dopiero potem da się go opublikować.",
   rejected: "Dokument został odrzucony przez walidację bazy.",
   saveFailed: "Nie udało się zapisać szkicu dokumentu.",
   publishFailed: "Nie udało się opublikować dokumentu.",
@@ -76,7 +76,7 @@ export const LEGAL_DOCUMENT_MESSAGES = {
    * kazałoby operatorowi zapisywać drugi raz bez powodu.
    */
   mirrorFailed:
-    "Szkic zapisany, ale nie udało się przepisać treści do ustawień umów — PDF umowy nadal używa poprzedniego tekstu.",
+    "Szkic zapisany, ale nie udało się przepisać treści do ustawień umów - PDF umowy nadal używa poprzedniego tekstu.",
 } as const;
 
 export type LegalPublishResult =
