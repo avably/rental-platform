@@ -417,7 +417,11 @@ async function handleAccountEvent(
 ): Promise<Response> {
   // IDENTYFIKATOR z górnopoziomowego `event.account`, nie z `data.object`:
   // przy `account.application.deauthorized` obiektem ciała jest APLIKACJA
-  // (`ca_...`), więc `acct_...` żyje wyłącznie w tym polu.
+  // (`ca_...`), więc `acct_...` żyje wyłącznie w tym polu. Dla zdarzeń v2
+  // „thin" (`v2.core.account.updated`, ADR-218) ciało w ogóle nie ma
+  // `data.object` — parser wstawia tu `related_object.id` (`acct_…`), więc
+  // ta gałąź dostaje identyfikator tym samym polem i NIE MUSI wiedzieć, którą
+  // wersją przyszło zdarzenie. Tożsamość i tak wychodzi z NASZEJ bazy po id.
   const accountId = event.account;
   if (!accountId) {
     await finish(
@@ -587,12 +591,14 @@ export async function handleStripeWebhook(
     return handleRefundEvent(event, eventRowId, deps);
   }
 
-  // --- Zdarzenia KONTA idą własną gałęzią (ADR-213) ---
+  // --- Zdarzenia KONTA idą własną gałęzią (ADR-213, v2: ADR-218) ---
   //
   // Rozgałęzienie stoi PRZED filtrem intentów, bo obiekt zdarzenia jest tu
-  // inny: `acct_...`/`ca_...`, nie `pi_...`. Gdyby account.updated przeszło
-  // do gałęzi intentów, filtr `isObservedIntentEvent` odłożyłby je jako
-  // „ignored" i stan konta nigdy by się nie odświeżył.
+  // inny: `acct_...`/`ca_...`, nie `pi_...`. Obejmuje v1 (`account.updated`,
+  // `account.application.deauthorized`) ORAZ v2 „thin" (`v2.core.account.updated`,
+  // gdzie `acct_…` przyszło z `related_object.id`). Gdyby któreś przeszło do
+  // gałęzi intentów, filtr `isObservedIntentEvent` odłożyłby je jako „ignored"
+  // i stan konta nigdy by się nie odświeżył.
   if (isObservedAccountEvent(event.type)) {
     return handleAccountEvent(event, eventRowId, deps);
   }

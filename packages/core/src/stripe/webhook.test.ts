@@ -308,6 +308,84 @@ describe("parseStripeEvent", () => {
       false,
     );
   });
+
+  /**
+   * ZDARZENIE v2 „THIN" (Accounts v2, ADR-218). Konta/webhooki na wersjach
+   * 2026 emitują `v2.core.account.updated` BEZ `data.object` — identyfikator
+   * konta (`acct_…`) leży w `related_object.id`. Parser MUSI go stamtąd wziąć:
+   * dla gałęzi konta to `account` niesie tożsamość, a `handleAccountEvent`
+   * czyta ją tym samym polem co w v1.
+   *
+   * Struktura z dokumentacji (zweryfikowana, nie zgadywana):
+   * https://docs.stripe.com/event-destinations#thin-events — „Example thin
+   * event notification payload":
+   *   { id, object:"v2.core.event", type:"v2.core.account.updated",
+   *     related_object:{ id:"acct_…", type:"v2.core.account", url:"/v2/…" } }
+   */
+  it("zdarzenie v2 thin: identyfikator konta z related_object.id, NIE z data.object", () => {
+    const parsed = parseStripeEvent(
+      JSON.stringify({
+        id: "evt_v2_1",
+        object: "v2.core.event",
+        type: "v2.core.account.updated",
+        livemode: false,
+        created: "2026-03-09T13:00:28.435Z",
+        reason: { type: "request", request: { id: "req_tajne", idempotency_key: "ik_tajne" } },
+        related_object: {
+          id: "acct_v2_najemcy",
+          type: "v2.core.account",
+          url: "/v2/core/accounts/acct_v2_najemcy",
+        },
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    // MUTACJA „czytaj data.object.id zamiast related_object": zdarzenie thin
+    // NIE ma data.object, więc pod mutacją objectId/account byłyby puste,
+    // a zdarzenie zostałoby ODRZUCONE (ok:false) — RED.
+    expect(parsed.event.account).toBe("acct_v2_najemcy");
+    expect(parsed.event.objectId).toBe("acct_v2_najemcy");
+    expect(parsed.event.type).toBe("v2.core.account.updated");
+
+    // Koperta wciąż ma DOKŁADNIE cztery pola-identyfikatory — thin nie
+    // przemyca ani stanu, ani nowego klucza.
+    expect(Object.keys(parsed.event).sort()).toEqual(["account", "id", "objectId", "type"]);
+    // Reszta ciała (reason, request id, klucz idempotencji) NIE przechodzi.
+    expect(JSON.stringify(parsed.event)).not.toContain("req_tajne");
+    expect(JSON.stringify(parsed.event)).not.toContain("idempotency_key");
+  });
+
+  /**
+   * BRAK `data.object` DLA ZDARZENIA v2 NIE JEST BŁĘDEM (ADR-218). Dotąd parser
+   * odrzucał każde zdarzenie bez `data.object.id` — to zamykałoby całą oś
+   * Accounts v2. Zdarzenie thin z samym `related_object` przechodzi.
+   */
+  it("brak data.object dla zdarzenia v2 NIE jest błędem parsera", () => {
+    const parsed = parseStripeEvent(
+      JSON.stringify({
+        id: "evt_v2_2",
+        type: "v2.core.account.updated",
+        related_object: { id: "acct_v2_x", type: "v2.core.account" },
+      }),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.event.account).toBe("acct_v2_x");
+  });
+
+  /**
+   * ...ale zdarzenie v2 BEZ jakiegokolwiek identyfikatora (ani `data.object`,
+   * ani `related_object.id`) nadal jest odrzucane — nie ma czego odczytać.
+   * Domyślna odmowa: rozszerzenie nie otwiera furtki na zdarzenie bez celu.
+   */
+  it("zdarzenie v2 bez related_object.id nadal jest odrzucane — brak identyfikatora", () => {
+    const result = parseStripeEvent(
+      JSON.stringify({ id: "evt_v2_3", type: "v2.core.account.updated", related_object: {} }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.message).toContain("related_object.id");
+  });
 });
 
 describe("isObservedIntentEvent", () => {
@@ -354,12 +432,29 @@ describe("isObservedAccountEvent", () => {
     expect(isObservedAccountEvent("customer.created")).toBe(false);
   });
 
-  it("lista obserwowanych typów dotyczy WYŁĄCZNIE obiektu account", () => {
+  it("OBEJMUJE też v2.core.account.updated (Accounts v2 / thin events, ADR-218)", () => {
+    // Konta/webhooki na wersjach 2026 emitują v2.core.account.* zamiast v1
+    // account.updated. Bez tej pozycji Faza A (ADR-213) nie odświeżałaby ich
+    // stanu w czasie rzeczywistym.
+    expect(isObservedAccountEvent("v2.core.account.updated")).toBe(true);
+  });
+
+  it("NIE obejmuje v2.core.account.*.capability_status_updated (świadomie odłożone, ADR-218)", () => {
+    // Pełny PULL z v2.core.account.updated i tak przelicza gotowość
+    // (GET /v1/accounts) — osobne zdarzenie zdolności wywołałoby identyczny
+    // PULL bez nowej informacji, mnożąc subskrypcje w Dashboardzie.
+    expect(
+      isObservedAccountEvent("v2.core.account[configuration.merchant].capability_status_updated"),
+    ).toBe(false);
+  });
+
+  it("lista obserwowanych typów dotyczy WYŁĄCZNIE obiektu account (v1 i v2)", () => {
     // Lustro strażnika listy intentów: gdyby wjechał tu typ innego obiektu,
     // handler konta odczytałby stan konta po identyfikatorze, który kontem
-    // nie jest.
+    // nie jest. Dopuszczamy DWIE rodziny nazw tego samego obiektu: v1
+    // `account.*` oraz v2 (Accounts v2 / thin) `v2.core.account.*`.
     for (const type of OBSERVED_ACCOUNT_EVENTS) {
-      expect(type.startsWith("account.")).toBe(true);
+      expect(type.startsWith("account.") || type.startsWith("v2.core.account.")).toBe(true);
     }
   });
 });
