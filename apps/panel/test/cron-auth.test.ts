@@ -139,6 +139,8 @@ describe("bramka sekretu harmonogramu — kontrakt źródła", () => {
       "email-log-retention": import("@/app/api/jobs/email-log-retention/route"),
       "payment-reconciliation": import("@/app/api/jobs/payment-reconciliation/route"),
       "product-image-uploads": import("@/app/api/jobs/product-image-uploads/route"),
+      "reconcile-connect-accounts": import("@/app/api/jobs/reconcile-connect-accounts/route"),
+      "reconcile-deposit-refunds": import("@/app/api/jobs/reconcile-deposit-refunds/route"),
       "site-image-uploads": import("@/app/api/jobs/site-image-uploads/route"),
     };
     const routes = readdirSync(jobsDir, { withFileTypes: true })
