@@ -1,7 +1,7 @@
 import type { IsoDate } from "@avably/core";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenBackLink } from "@/components/screens/screen-header";
 import { loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -28,11 +28,7 @@ export default async function NewOrderPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-end gap-3">
-        <Link className="text-sm underline" href="/zamowienia">
-          {t("backToList")}
-        </Link>
-      </header>
+      <ScreenBackLink href="/zamowienia" label={t("backToList")} />
 
       {data.products.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("noProducts")}</p>

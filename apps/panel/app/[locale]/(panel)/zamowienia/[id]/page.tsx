@@ -14,7 +14,7 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Link } from "@/i18n/navigation";
+import { ScreenBackLink } from "@/components/screens/screen-header";
 import { isOrderInFrozenSet } from "@/lib/closing";
 import { customFieldValuesFromRow, loadPanelCustomFields } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
@@ -325,25 +325,28 @@ export default async function OrderDetailPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
-            {t("orderKicker")}
-          </p>
-          {/* Stan zamówienia stoi SŁOWEM przy numerze (U3, audyt W4): ta sama
-              etykieta i ton co na liście (StatusChip/statusSemantics) —
-              operator z linku nie wraca na listę, żeby przeczytać status. */}
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em] tabular-nums">
-              {row.order_number}
-            </h2>
-            <StatusChip axis="order" value={row.order_status} />
+      {/* Link powrotu OSOBNY od tytułu i NAD nim, w górnym-lewym rogu — jak
+          reszta panelu (ScreenBackLink, ADR-058): nawigacja w górę hierarchii,
+          nie akcja ekranu. */}
+      <div className="flex flex-col gap-3">
+        <ScreenBackLink href="/zamowienia" label={t("backToList")} />
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <p className="text-muted-foreground text-[11px] leading-[14px] font-semibold tracking-[0.08em] uppercase">
+              {t("orderKicker")}
+            </p>
+            {/* Stan zamówienia stoi SŁOWEM przy numerze (U3, audyt W4): ta sama
+                etykieta i ton co na liście (StatusChip/statusSemantics) —
+                operator z linku nie wraca na listę, żeby przeczytać status. */}
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl leading-[30px] font-semibold tracking-[-0.02em] tabular-nums">
+                {row.order_number}
+              </h2>
+              <StatusChip axis="order" value={row.order_status} />
+            </div>
           </div>
-        </div>
-        <Link className="text-sm underline underline-offset-[3px]" href="/zamowienia">
-          {t("backToList")}
-        </Link>
-      </header>
+        </header>
+      </div>
 
       {/* Oś czasu zamówienia (uwaga przeglądu D5) — zastępuje rząd chipów
           statusu. Stany kroków wyliczone wyłącznie z danych, które ekran i tak

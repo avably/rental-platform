@@ -53,7 +53,7 @@ export function StoreTermPillCard({ initialEnabled }: { initialEnabled: boolean 
     <section
       data-store-term-pill
       data-store-term-pill-state={enabled ? "on" : "off"}
-      className="border-border flex flex-col gap-1 rounded-lg border p-4"
+      className="border-border bg-card flex flex-col gap-1 rounded-lg border p-4"
     >
       <p className="text-sm font-medium">{t("title")}</p>
       <p className="text-muted-foreground text-[13px] leading-[18px]">{t("help")}</p>

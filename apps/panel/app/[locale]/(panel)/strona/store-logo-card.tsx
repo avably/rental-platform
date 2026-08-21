@@ -20,7 +20,7 @@
  */
 import { Button, Checkbox, FileField, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import type { FooterMarkGap } from "@/lib/footer-mark-reach";
 import { siteImagePublicBase } from "@/lib/site-image-base";
@@ -70,6 +70,11 @@ export function StoreLogoCard({
   const [pending, startTransition] = useTransition();
   const fieldId = useId();
   const altId = useId();
+  // Wejście wyboru pliku dla KOMPAKTOWEJ akcji „zmień" (gdy znak już jest):
+  // strefa upuszczania stoi wyłącznie w stanie pustym, więc zamianę obsługuje
+  // ukryty natywny input wołany z przycisku — walidacja i tak jedzie przez
+  // `handleFile` → `runTenantLogoUpload`, jak przy strefie.
+  const changeInputRef = useRef<HTMLInputElement>(null);
 
   const dirty = !sameLogo(draft, published);
   const busy = pending || uploading;
@@ -114,13 +119,20 @@ export function StoreLogoCard({
     <section
       data-store-logo
       data-store-logo-state={draft ? (dirty ? "pending" : "live") : "empty"}
-      className="border-border flex flex-col gap-4 rounded-lg border p-4"
+      className="border-border bg-card flex flex-col gap-4 rounded-lg border p-4"
     >
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">{t("title")}</p>
         <p className="text-muted-foreground text-[13px] leading-[18px]">{t("subtitle")}</p>
       </div>
 
+      {/*
+        DWA WIDOKI KONTROLKI (uwaga przeglądu C2). Gdy znak JEST — kompaktowy
+        rząd: miniatura i małe akcje „zmień"/„usuń", bez pełnej strefy
+        upuszczania (właściciel: plansza była za duża, zwłaszcza po dodaniu
+        logo). Gdy znaku NIE MA — pojedyncza strefa `FileField` z systemu
+        (drag&drop, walidacja, dostępność), bez dublującej jej miniatury.
+      */}
       {draft ? (
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element -- miniatura z publicznego Storage, jak zdjęcie sekcji */}
@@ -130,29 +142,57 @@ export function StoreLogoCard({
             alt=""
             className="border-border size-16 shrink-0 rounded-md border object-contain p-1"
           />
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => changeInputRef.current?.click()}
+            >
+              {uploading ? t("uploading") : t("replace")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => save(null)}
+            >
+              {t("remove")}
+            </Button>
+          </div>
+          {/* Ukryty nośnik pliku dla akcji „zmień" — natywny input zostaje
+              źródłem prawdy o pliku, dokładnie jak w FileField; po wyborze
+              czyścimy wartość, żeby ponowny wybór TEGO SAMEGO pliku też odpalił
+              onChange. */}
+          <input
+            ref={changeInputRef}
+            id={fieldId}
+            type="file"
+            className="sr-only"
+            accept="image/jpeg,image/png,image/webp,image/avif"
             disabled={busy}
-            onClick={() => save(null)}
-          >
-            {t("remove")}
-          </Button>
+            aria-label={t("replace")}
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0] ?? null;
+              e.currentTarget.value = "";
+              void handleFile(file);
+            }}
+          />
         </div>
-      ) : null}
-
-      <FileField
-        key={draft?.path ?? "empty"}
-        id={fieldId}
-        prompt={uploading ? t("uploading") : draft ? t("replace") : t("prompt")}
-        hint={t("hint")}
-        removeLabel={t("fieldRemove")}
-        accept="image/jpeg,image/png,image/webp,image/avif"
-        disabled={busy}
-        error={error ?? undefined}
-        onChange={(e) => void handleFile(e.currentTarget.files?.[0] ?? null)}
-      />
+      ) : (
+        <FileField
+          id={fieldId}
+          prompt={uploading ? t("uploading") : t("prompt")}
+          hint={t("hint")}
+          removeLabel={t("fieldRemove")}
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          disabled={busy}
+          error={error ?? undefined}
+          onChange={(e) => void handleFile(e.currentTarget.files?.[0] ?? null)}
+        />
+      )}
 
       {draft ? (
         <div className="flex flex-col gap-3">
