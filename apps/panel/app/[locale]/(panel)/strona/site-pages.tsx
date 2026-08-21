@@ -196,6 +196,39 @@ export function SitePages({
     (product) => !rows.some((row) => row.productId === product.id),
   );
 
+  /*
+    PODZIAŁ PŁASKIEJ LISTY NA SEKCJE (C6, ADR-230) — z DANYCH wiersza, bez
+    migracji. Trzy grupy rozłączne i wyczerpujące:
+
+      • STRONA GŁÓWNA  = strona (nie szablon) pod korzeniem sklepu. Reguła jest
+        ta sama, którą `hasHomePage` (site-validation) uznaje wiersz za główny:
+        pusty adres w SZKICU albo w bliźniaku opublikowanym — bo strona
+        z przeniesionym szkicem dalej stoi pod `/`, dopóki nie opublikuje nowego
+        adresu. Sam `slug` gubiłby ten stan.
+      • STRONY PRODUKTÓW = szablon-matka (`productId === null`) i wyjątki
+        (`productId != null`) — jedna rodzina roli `product`.
+      • STRONY DODATKOWE = pozostałe strony (adres niepusty).
+
+    Nagłówek grupy pokazuje się TYLKO dla grupy niepustej — pusta sekcja
+    z samym tytułem byłaby obietnicą wiersza, którego nie ma.
+  */
+  const isHomeRow = (row: SitePageRow) =>
+    !isProductTemplateKind(row.kind) &&
+    (row.slug === HOME_PAGE_SLUG || row.slugPublished === HOME_PAGE_SLUG);
+  const pageGroups = [
+    { key: "home", label: t("pages.groupHome"), rows: rows.filter((row) => isHomeRow(row)) },
+    {
+      key: "product",
+      label: t("pages.groupProducts"),
+      rows: rows.filter((row) => isProductTemplateKind(row.kind)),
+    },
+    {
+      key: "additional",
+      label: t("pages.groupAdditional"),
+      rows: rows.filter((row) => !isProductTemplateKind(row.kind) && !isHomeRow(row)),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6" data-site-pages>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -305,11 +338,25 @@ export function SitePages({
           <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.emptyBody")}</p>
         </div>
       ) : (
-        <ul className="flex list-none flex-col gap-3 p-0">
-          {rows.map((row) => (
-            <li
-              key={row.id}
-              data-site-page={row.id}
+        <div className="flex flex-col gap-6" data-site-pages-groups>
+          {pageGroups.map((group) =>
+            group.rows.length === 0 ? null : (
+              <section
+                key={group.key}
+                data-site-page-group={group.key}
+                className="flex flex-col gap-3"
+              >
+                <h2 className="text-muted-foreground flex items-center gap-2 text-[13px] leading-[18px] font-semibold tracking-wide uppercase">
+                  {group.label}
+                  <span className="text-muted-foreground/70 font-mono text-[11px] leading-[16px] font-medium">
+                    {group.rows.length}
+                  </span>
+                </h2>
+                <ul className="flex list-none flex-col gap-3 p-0">
+                  {group.rows.map((row) => (
+                    <li
+                      key={row.id}
+                      data-site-page={row.id}
               data-site-page-live={row.live ? "on" : "off"}
               /*
                * Kotwica z mockupu fazy 2 (`data-publish-status`) PRZENOSI SIĘ
@@ -542,10 +589,14 @@ export function SitePages({
                     onConfirm={() => run(() => deleteSite(row.id))}
                   />
                 )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ),
+          )}
+        </div>
       )}
 
       {error ? (

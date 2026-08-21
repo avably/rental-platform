@@ -23,23 +23,16 @@
  * tego świata — akcent z palety motywu i para krojów. Obie zmiany idą do
  * SZKICU stylu i wchodzą na żywą stronę dopiero publikacją.
  */
-import {
-  FONT_PAIRS,
-  SELECTABLE_FONT_PAIRS,
-  accentsOf,
-  themeTokens,
-  type PaletteElementKind,
-  type ResolvedSiteStyle,
-  type SiteFontPair,
-} from "@avably/core/site";
+import { type PaletteElementKind, type ResolvedSiteStyle } from "@avably/core/site";
 import { Button } from "@avably/ui";
 import { PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
-import { PanelSelect } from "@/components/fields/panel-select";
-
 import { ElementPalette } from "./element-palette";
+// STYL STRONY (akcent + para krojów) mieszka w osobnym liściu (ADR-230), bo
+// reużywa go też ekran „Wygląd sklepu"; tu jest wpięty w stopkę palety.
+import { StylePanel } from "./builder-style-panel";
 
 type PaletteTab = "sections" | "elements";
 
@@ -161,91 +154,6 @@ export function BuilderPalette({
   );
 }
 
-
-/**
- * PANEL „STYL STRONY" (K5, ADR-090) — personalizacja W RAMACH motywu.
- *
- * Operator nie wybiera tu koloru, tylko AKCENT Z PALETY SWOJEGO MOTYWU. Zbiór
- * jest zamknięty i należy do motywu, bo tylko wtedy da się UDOWODNIĆ, że każdy
- * wybór daje czytelną stronę — dowodem jest wyczerpująca bramka kontrastu
- * w @avably/core/site, która chodzi po tym samym rejestrze, z którego pochodzą
- * próbki niżej. Dowolny hex byłby obietnicą bez pokrycia: szesnastu milionów
- * kombinacji nikt nie policzy.
- *
- * Para krojów jest wspólna dla wszystkich motywów, więc wybiera się ją z pełnej
- * listy — motyw wnosi tu tylko wartość domyślną.
- */
-function StylePanel({
-  disabled,
-  style,
-  locale,
-  idPrefix,
-  onSave,
-}: {
-  disabled: boolean;
-  style: ResolvedSiteStyle;
-  locale: string;
-  idPrefix: string;
-  onSave: (style: ResolvedSiteStyle) => void;
-}) {
-  const t = useTranslations("site");
-  const theme = themeTokens(style.theme);
-  const language = locale === "en" ? "en" : "pl";
-
-  return (
-    <div data-builder-style className="border-border mt-auto flex flex-col gap-3 border-t pt-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">{t("style.legend")}</h3>
-        {/* Opis dyrekcji jest DANYMI motywu — panel go tylko pokazuje. */}
-        <p className="text-muted-foreground text-[13px] leading-[18px]">{theme.mood[language]}</p>
-      </div>
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className="pb-1 text-[13px] font-medium">{t("style.accent")}</legend>
-        <div className="flex flex-wrap gap-2">
-          {accentsOf(style.theme).map((accent) => {
-            const wariant = theme.bands.default.accent;
-            const swatch = theme.accents[accent]![wariant]!.fill;
-            const active = accent === style.accent;
-            return (
-              <button
-                key={accent}
-                type="button"
-                data-style-accent={accent}
-                aria-pressed={active}
-                aria-label={accent}
-                disabled={disabled}
-                onClick={() => onSave({ ...style, accent })}
-                className={`size-7 cursor-pointer rounded-full border-2 transition-transform [transition-duration:var(--motion-fast)] disabled:cursor-not-allowed ${
-                  active ? "border-foreground scale-110" : "border-border hover:scale-105"
-                }`}
-                style={{ background: swatch }}
-              />
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <div className="flex flex-col gap-1" data-style-font-pair>
-        <label htmlFor={`${idPrefix}-font-pair`} className="text-[13px] font-medium">
-          {t("style.fontPair")}
-        </label>
-        {/* Kontrolka panelu, nie natywny `select` — kontrakt powłoki (ADR-063)
-            pilnuje jednego wyglądu pól w całej aplikacji. */}
-        <PanelSelect
-          id={`${idPrefix}-font-pair`}
-          value={style.fontPair}
-          disabled={disabled}
-          onValueChange={(value) => onSave({ ...style, fontPair: value as SiteFontPair })}
-          options={SELECTABLE_FONT_PAIRS.map((pair) => ({
-            value: pair,
-            label: FONT_PAIRS[pair].label[language],
-          }))}
-        />
-      </div>
-    </div>
-  );
-}
 
 function PaletteToggle({ open, onToggle, label }: { open: boolean; onToggle: () => void; label: string }) {
   const Icon = open ? PanelLeftClose : PanelLeftOpen;

@@ -18,8 +18,18 @@
  * karta wypowiada. Osobny czasownik „opublikuj wygląd" byłby drugą drogą do
  * tej samej operacji — i pierwszą okazją, żeby oba miejsca zaczęły mówić
  * o zasięgu co innego.
+ *
+ * REALNA EDYCJA ŻYJE GDZIE INDZIEJ (C4, ADR-230). Do tej poprawki karta tylko
+ * MÓWIŁA o stanie, a motyw/akcent/kroje zmieniało się wyłącznie z kreatora
+ * konkretnej strony. Odtąd karta jest WEJŚCIEM: prowadzi na dedykowany ekran
+ * „Wygląd sklepu" (`/strona/wyglad`), gdzie te kontrolki mieszkają na poziomie
+ * sklepu. Stan zostaje — to samo zdanie, którym karta zawsze odpowiadała na
+ * pytanie „czy klienci już to widzą".
  */
+import { Button } from "@avably/ui";
 import { useTranslations } from "next-intl";
+
+import { Link } from "@/i18n/navigation";
 
 export function StoreAppearanceCard({ pending }: { pending: boolean }) {
   const t = useTranslations("site.appearance");
@@ -28,7 +38,7 @@ export function StoreAppearanceCard({ pending }: { pending: boolean }) {
     <section
       data-store-appearance
       data-store-appearance-state={pending ? "pending" : "live"}
-      className="border-border bg-card flex flex-col gap-1 rounded-lg border p-4"
+      className="border-border bg-card flex flex-col items-start gap-1 rounded-lg border p-4"
     >
       <p className="text-sm font-medium">{t("title")}</p>
       <p className="text-muted-foreground text-[13px] leading-[18px]">{t("scope")}</p>
@@ -41,6 +51,11 @@ export function StoreAppearanceCard({ pending }: { pending: boolean }) {
           {t("live")}
         </p>
       )}
+      <Button asChild size="sm" className="mt-3">
+        <Link href="/strona/wyglad" data-store-appearance-edit>
+          {t("editLink")}
+        </Link>
+      </Button>
     </section>
   );
 }

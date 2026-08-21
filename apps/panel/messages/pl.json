@@ -1722,7 +1722,8 @@
       "title": "Wygląd sklepu",
       "scope": "Motyw, kolor akcentu i kroje pisma. Dotyczą wszystkich stron sklepu naraz.",
       "pending": "Wygląd czeka na publikację - klienci widzą jeszcze poprzedni. Wyjdzie na żywo przy najbliższej publikacji dowolnej strony.",
-      "live": "Ten wygląd widzą klienci."
+      "live": "Ten wygląd widzą klienci.",
+      "editLink": "Edytuj wygląd →"
     },
     "termPill": {
       "title": "Kalendarz terminu w pasku sklepu",
@@ -2080,6 +2081,9 @@
       "redirectOld": "Przekieruj stary adres {old} na nowy",
       "redirectOldHint": "Klienci z zapisanym linkiem i wyniki w wyszukiwarce trafią pod nowy adres zamiast na stronę błędu.",
       "homeBadge": "Strona główna",
+      "groupHome": "Strona główna",
+      "groupProducts": "Strony produktów",
+      "groupAdditional": "Strony dodatkowe",
       "homeMissingTitle": "Sklep nie ma strony głównej",
       "homeMissingBody": "Pod adresem „/” klienci nie zobaczą żadnej z Twoich stron - każda pozostała stoi pod własnym adresem. Utwórz stronę główną i opublikuj ją.",
       "newHome": "Utwórz stronę główną",
@@ -2898,6 +2902,39 @@
       "number": "Podaj liczbę.",
       "range": "Liczba jest spoza dopuszczalnego zakresu.",
       "tooLarge": "Pola własne zajmują razem za dużo miejsca - skróć wpisy."
+    }
+  },
+  "storeAppearance": {
+    "title": "Wygląd sklepu",
+    "back": "Strona sklepu",
+    "intro": "Motyw, kolor akcentu i kroje pisma dotyczą wszystkich stron sklepu naraz. Zmiany wchodzą na żywo dopiero po publikacji.",
+    "pending": "Szkic wyglądu czeka na publikację - klienci widzą jeszcze poprzedni.",
+    "live": "Ten wygląd widzą klienci.",
+    "publish": "Opublikuj wygląd",
+    "theme": {
+      "title": "Motyw",
+      "description": "Świat wizualny sklepu: palety, kroje i kształty."
+    },
+    "themes": {
+      "industrial-noir": "Industrialny",
+      "velocity": "Dynamiczny",
+      "confetti": "Radosny",
+      "noir-lux": "Elegancki",
+      "atelier": "Rzemieślniczy",
+      "gridline": "Uporządkowany"
+    },
+    "preview": {
+      "title": "Podgląd na żywo",
+      "description": "Tak zobaczy Twój sklep klient.",
+      "eyebrow": "Twoja wypożyczalnia",
+      "heading": "Sprzęt gotowy na Twój projekt",
+      "body": "Rezerwuj online, odbierz na miejscu albo zamów kuriera.",
+      "cta": "Zobacz ofertę",
+      "fontsLabel": "Kroje pisma: {pair}"
+    },
+    "errors": {
+      "denied": "Nie masz dostępu do tej operacji.",
+      "publish": "Nie udało się opublikować wyglądu. Spróbuj ponownie."
     }
   }
 }
