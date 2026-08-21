@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link } from "@/i18n/navigation";
@@ -28,9 +29,24 @@ export default function CheckInboxPage() {
       </ul>
       <hr className="border-border/55" />
       {/* Wyjście ze ślepego zaułka: bez tego formularza kto zgubił wiadomość,
-          ten miał konto, którego nie da się potwierdzić (L4, ADR-105). */}
-      <p className="text-muted-foreground text-sm">{t("resendIntro")}</p>
-      <ResendConfirmationForm />
+          ten miał konto, którego nie da się potwierdzić (L4, ADR-105).
+          A7 (ADR-226): schowane pod rozwijaczem i DOMYŚLNIE ZWINIĘTE, żeby pole
+          e-mail nie kusiło do wpisania adresu ZAMIAST sprawdzenia skrzynki.
+          Natywny <details>: działa bez JS i bez hydracji, <summary> jest
+          fokusowalny i ogłaszany czytnikowi jako przełącznik rozwijania. */}
+      <details className="group border-border/55 rounded-md border">
+        <summary className="text-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3.5 py-3 text-sm font-medium outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
+          {t("resendToggle")}
+          <ChevronDown
+            aria-hidden="true"
+            className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="flex flex-col gap-4 px-3.5 pt-1 pb-3.5">
+          <p className="text-muted-foreground text-sm">{t("resendIntro")}</p>
+          <ResendConfirmationForm />
+        </div>
+      </details>
       {/* Wyśrodkowane jak inne treści pod formularzem (ADR-208, uwaga B). */}
       <p className="text-center text-sm">
         <Link

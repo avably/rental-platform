@@ -318,7 +318,8 @@
   "checkInbox": {
     "title": "Sprawdź skrzynkę",
     "body": "Wysłaliśmy e-mail z linkiem potwierdzającym adres. Kliknij go, aby dokończyć rejestrację i móc założyć organizację.",
-    "resendIntro": "Wiadomość nie dotarła? Podaj adres, na który zakładasz konto, a wyślemy link jeszcze raz.",
+    "resendToggle": "Wiadomość nie dotarła?",
+    "resendIntro": "Podaj adres, na który zakładasz konto, a wyślemy link jeszcze raz.",
     "resendEmailLabel": "Adres e-mail",
     "resendCta": "Wyślij ponownie",
     "resendPending": "Wysyłam…",
@@ -372,7 +373,14 @@
     "terms": "Regulamin",
     "privacy": "Polityka prywatności",
     "passwordShow": "Pokaż",
-    "passwordHide": "Ukryj"
+    "passwordHide": "Ukryj",
+    "passwordReq": {
+      "length": "co najmniej 8 znaków",
+      "digit": "co najmniej 1 cyfra",
+      "special": "co najmniej 1 znak specjalny",
+      "met": "spełnione",
+      "unmet": "niespełnione"
+    }
   },
   "newOrganization": {
     "title": "Utwórz nową organizację",
