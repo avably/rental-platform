@@ -318,7 +318,8 @@
   "checkInbox": {
     "title": "Check your inbox",
     "body": "We sent you an email with a confirmation link. Click it to finish signing up and create your organization.",
-    "resendIntro": "Message did not arrive? Enter the address you are signing up with and we will send the link again.",
+    "resendToggle": "Didn't get the email?",
+    "resendIntro": "Enter the address you are signing up with and we will send the link again.",
     "resendEmailLabel": "Email address",
     "resendCta": "Send again",
     "resendPending": "Sending…",
@@ -372,7 +373,14 @@
     "terms": "Terms of service",
     "privacy": "Privacy policy",
     "passwordShow": "Show",
-    "passwordHide": "Hide"
+    "passwordHide": "Hide",
+    "passwordReq": {
+      "length": "at least 8 characters",
+      "digit": "at least 1 digit",
+      "special": "at least 1 special character",
+      "met": "met",
+      "unmet": "not met"
+    }
   },
   "newOrganization": {
     "title": "Create a new organization",
