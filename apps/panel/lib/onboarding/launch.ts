@@ -325,21 +325,53 @@ export async function fetchLaunchSignals(
 }
 
 /**
- * Stan pozycji nawigacji „Uruchomienie" (badge postępu) — FAIL-SILENT.
+ * Stan CIĄGŁEGO PRZEWODNIKA uruchomienia (ADR-229) — jedno źródło prawdy dla
+ * WSZYSTKICH powierzchni onboardingu shella: badge nawigacji, sticky pasek
+ * przewodnika i karta pulpitu.
  *
- * Woła go shell na KAŻDYM ekranie panelu, więc błąd odczytu nie może wywrócić
- * layoutu: przy jakiejkolwiek awarii pozycja po prostu się nie pokazuje
- * (spójnie z resztą fail-silent odczytów shella — rozliczenia, organizacje).
- * `null` = pozycji nie ma: onboarding ukończony ALBO odczyt się nie udał.
+ * Wszystko WYPROWADZONE z JEDNEGO odczytu `fetchLaunchSignals` (ten sam, który
+ * badge robił już dziś), więc pasek NIE dokłada ani jednego zapytania ponad
+ * istniejący koszt — postęp, następny krok i braki liczą się z już policzonych
+ * `launchSteps` / `firstOpenRequiredKey` / `publishGateBlockers`.
  */
-export async function readLaunchNavState(
+export interface LaunchGuideState {
+  /** Postęp WYMAGANYCH kroków — pierścień paska, badge i karta pokazują ten sam. */
+  progress: LaunchProgress;
+  /**
+   * Pierwszy otwarty krok WYMAGANY — cel deep-linku „Dokończ krok". `null`, gdy
+   * wszystkie wymagane zrobione poza tymi, które domyka publikacja (skrajny
+   * przypadek; pasek pokazuje wtedy sam postęp bez wyróżnionego CTA). Etykietę
+   * kroku odczytuje komponent z i18n (`launch.steps.<key>.title`) — moduł
+   * danych nie zna tłumaczeń.
+   */
+  nextStep: { key: LaunchStepKey; href: string } | null;
+  /** Braki minimum sprzedażowego (regulamin/produkt/dostawa) — chipy overlaya i karty. */
+  blockers: PublishBlocker[];
+}
+
+/**
+ * JEDEN fail-silent odczyt shella na KAŻDYM ekranie panelu (ADR-228 badge,
+ * rozszerzony w ADR-229 o pasek przewodnika i karcie pulpitu).
+ *
+ * Błąd odczytu nie może wywrócić layoutu — jak reszta fail-silent odczytów
+ * shella (rozliczenia, organizacje) przy jakiejkolwiek awarii zwraca `null`
+ * i wszystkie powierzchnie po prostu się nie pokazują. `null` = onboarding
+ * ukończony ALBO odczyt się nie udał: pasek i badge gasną RAZEM (jedno źródło).
+ */
+export async function readLaunchGuideState(
   supabase: SupabaseClient,
   tenantId: string,
-): Promise<LaunchProgress | null> {
+): Promise<LaunchGuideState | null> {
   try {
-    const steps = launchSteps(await fetchLaunchSignals(supabase, tenantId));
+    const signals = await fetchLaunchSignals(supabase, tenantId);
+    const steps = launchSteps(signals);
     if (isLaunchComplete(steps)) return null;
-    return launchProgress(steps);
+    const nextKey = firstOpenRequiredKey(steps);
+    return {
+      progress: launchProgress(steps),
+      nextStep: nextKey ? { key: nextKey, href: LAUNCH_STEP_HREFS[nextKey] } : null,
+      blockers: publishGateBlockers(publishGateSignals(signals)),
+    };
   } catch {
     return null;
   }

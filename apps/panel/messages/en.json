@@ -136,6 +136,15 @@
       "progress": "{done} of {total} required steps done",
       "cta": "Finish →"
     },
+    "guide": {
+      "regionLabel": "Launch guide",
+      "nextStep": "Next step:",
+      "finishStep": "Finish step →",
+      "seeAll": "See all",
+      "collapse": "Collapse",
+      "expand": "Expand launch guide",
+      "openHub": "Open guide"
+    },
     "phases": {
       "1": {
         "title": "Company & compliance"

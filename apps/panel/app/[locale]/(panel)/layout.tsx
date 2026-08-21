@@ -1,10 +1,11 @@
 import { ReviewOverlayGate } from "@avably/review/overlay";
 import { isClosingWindowOpen } from "@avably/core";
 import { getTranslations } from "next-intl/server";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { BillingStatusBanner } from "@/components/shell/billing-banner";
 import { BrandLogo, BrandSymbol } from "@/components/shell/brand-mark";
+import { LaunchGuideBar } from "@/components/shell/launch-guide-bar";
 import { PanelTopbar } from "@/components/shell/panel-topbar";
 import { PlatformTermsOverlay } from "@/components/shell/platform-terms-overlay";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -14,9 +15,13 @@ import { SuperadminEntry } from "@/components/shell/superadmin-entry";
 import { Link } from "@/i18n/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { readTenantBillingState } from "@/lib/closing";
-import { readLaunchNavState } from "@/lib/onboarding/launch";
+import { readLaunchGuideState } from "@/lib/onboarding/launch";
 import { readMyOrganizations } from "@/lib/organizations";
 import { readPlatformTermsGate } from "@/lib/platform-terms";
+import {
+  LAUNCH_GUIDE_COOKIE,
+  launchGuideCollapseFrom,
+} from "@/lib/shell/launch-guide-collapse";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -74,16 +79,24 @@ export default async function PanelLayout({
   // że egzekwuje.
   const isOwner = ctx?.role === "owner";
 
-  // POZYCJA WARUNKOWA „URUCHOMIENIE" (config-first hub, ADR-228): badge postępu
-  // WYMAGANYCH kroków, dopóki onboarding nieukończony. FAIL-SILENT i NIE guard,
-  // jak odczyty rozliczeń/organizacji wyżej — przy komplecie kroków albo błędzie
-  // odczytu zwraca `null` i pozycja znika. Poza oknem domykania i sesją bez
-  // organizacji (tam nawigacja zwija się do samego pulpitu — nie ma czego
-  // uruchamiać przez menu).
-  const launchNav =
+  // CIĄGŁY PRZEWODNIK URUCHOMIENIA (ADR-228 badge → ADR-229 pasek): JEDEN
+  // fail-silent odczyt shella karmi trzy powierzchnie naraz — badge nawigacji,
+  // sticky pasek przewodnika i (na pulpicie) kartę. Zero DRUGIEGO zapytania:
+  // postęp, następny krok i braki są wyprowadzone z tego samego odczytu, który
+  // badge robił już dziś. NIE guard, jak odczyty rozliczeń/organizacji wyżej —
+  // przy komplecie kroków albo błędzie odczytu `null` i wszystkie powierzchnie
+  // gasną razem. Poza oknem domykania i sesją bez organizacji (tam nawigacja
+  // zwija się do samego pulpitu — nie ma czego uruchamiać przez menu).
+  const launchGuide =
     ctx?.tenantId && !closing && !onboarding
-      ? await readLaunchNavState(supabase, ctx.tenantId)
+      ? await readLaunchGuideState(supabase, ctx.tenantId)
       : null;
+  // Badge nawigacji bierze postęp z tego samego stanu — jedno źródło prawdy.
+  const launchNav = launchGuide ? launchGuide.progress : null;
+  // Stan zwinięcia paska z ciasteczka (SSR-spójny) — zero flash-a rozwiniętego
+  // paska przy każdej nawigacji (ADR-229).
+  const launchGuideCollapsed =
+    launchGuideCollapseFrom((await cookies()).get(LAUNCH_GUIDE_COOKIE)?.value) === "collapsed";
 
   // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
   // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
@@ -187,6 +200,15 @@ export default async function PanelLayout({
           currentTenantId={ctx?.tenantId ?? null}
           launch={launchNav}
         />
+        {/* CIĄGŁY PRZEWODNIK URUCHOMIENIA (ADR-229): sticky pasek pod topbarem,
+            w kolumnie treści (nie nad sidebarem). Rezerwuje własną wysokość
+            (treść zaczyna się pod nim), rozwinięcie „Zobacz wszystko" jest
+            overlayem NAD treścią. Na ROOT pulpicie komponent sam zwraca `null`
+            — tam kartę przejmuje `DashboardLaunchBanner`. `null` z odczytu =
+            onboarding ukończony/błąd → pasek się nie montuje. */}
+        {launchGuide ? (
+          <LaunchGuideBar state={launchGuide} initialCollapsed={launchGuideCollapsed} />
+        ) : null}
         {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
             najemcę zostaje w panelu (zasada 3), sklep działa; w oknie
             domykania baner niesie licznik dni. Fail-silent, nie guard. */}
