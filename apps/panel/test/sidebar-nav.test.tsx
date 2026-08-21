@@ -36,7 +36,20 @@ vi.mock("@/i18n/navigation", () => ({
 
 const { SidebarNav } = await import("@/components/shell/sidebar-nav");
 const { NAV_ICON_STROKE_WIDTH } = await import("@/components/shell/nav-icons");
-const { PANEL_NAV_ITEMS } = await import("@/lib/shell/nav");
+const { PANEL_NAV_ITEMS, PANEL_NAV_TREE } = await import("@/lib/shell/nav");
+
+/**
+ * Ile ikon `<svg>` maluje sidebar OWNERA (ADR-231): dashboard + każdy wiersz
+ * (top-level liść, rodzic gałęzi, każde dziecko) + chevron na każdą gałąź.
+ */
+const BRANCH_COUNT = PANEL_NAV_TREE.filter((node) => node.kind === "branch").length;
+const ROW_COUNT =
+  1 +
+  PANEL_NAV_TREE.reduce(
+    (acc, node) => (node.kind === "item" ? acc + 1 : acc + 1 + node.branch.children.length),
+    0,
+  );
+const EXPECTED_ICONS = ROW_COUNT + BRANCH_COUNT;
 
 function renderNav(path: string): string {
   pathname.current = path;
@@ -114,7 +127,8 @@ describe("sidebar panelu", () => {
     const icons = [...html.matchAll(/<svg[^>]*>/g)].map((match) => match[0]);
 
     // Podłoga liczności: bez niej pusta lista przechodziłaby pętlę niżej.
-    expect(icons).toHaveLength(PANEL_NAV_ITEMS.length + 1); // + zapowiedź
+    // Drzewo (ADR-231) dokłada ikony rodziców gałęzi i chevrony.
+    expect(icons).toHaveLength(EXPECTED_ICONS);
     for (const icon of icons) {
       expect(icon).toContain('aria-hidden="true"');
       expect(icon).toContain(`stroke-width="${NAV_ICON_STROKE_WIDTH}"`);

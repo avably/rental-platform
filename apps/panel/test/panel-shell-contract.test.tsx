@@ -186,7 +186,9 @@ describe("kontrakt shella — skok do treści", () => {
     // oddaje -1 dla nieznalezionego, więc porównanie „-1 < cokolwiek" byłoby
     // zielone także wtedy, gdy skok do treści zniknąłby z layoutu.
     const skipAt = layout.indexOf("<SkipLink ");
-    const navAt = layout.indexOf("<SidebarNav ");
+    // `<SidebarNav` bez wymuszonego odstępu — od ADR-231 element ma propsy
+    // w wielu liniach (`expanded`), więc po nazwie stoi nowa linia, nie spacja.
+    const navAt = layout.indexOf("<SidebarNav");
     expect(skipAt).toBeGreaterThan(-1);
     expect(navAt).toBeGreaterThan(-1);
     expect(skipAt).toBeLessThan(navAt);

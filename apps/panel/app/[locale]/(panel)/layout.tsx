@@ -22,6 +22,7 @@ import {
   LAUNCH_GUIDE_COOKIE,
   launchGuideCollapseFrom,
 } from "@/lib/shell/launch-guide-collapse";
+import { NAV_TREE_COOKIE, expandedBranchesFrom } from "@/lib/shell/nav-tree-collapse";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -95,8 +96,13 @@ export default async function PanelLayout({
   const launchNav = launchGuide ? launchGuide.progress : null;
   // Stan zwinięcia paska z ciasteczka (SSR-spójny) — zero flash-a rozwiniętego
   // paska przy każdej nawigacji (ADR-229).
+  const cookieStore = await cookies();
   const launchGuideCollapsed =
-    launchGuideCollapseFrom((await cookies()).get(LAUNCH_GUIDE_COOKIE)?.value) === "collapsed";
+    launchGuideCollapseFrom(cookieStore.get(LAUNCH_GUIDE_COOKIE)?.value) === "collapsed";
+  // Rozwinięte gałęzie drzewa nawigacji z ciasteczka (SSR-spójne, ADR-231) —
+  // sidebar oddaje od razu poprawny akordeon, gałąź z trasą aktywną i tak
+  // rozwija się sama. Zero flash-a przy każdej nawigacji.
+  const navExpanded = [...expandedBranchesFrom(cookieStore.get(NAV_TREE_COOKIE)?.value)];
 
   // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
   // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
@@ -187,7 +193,13 @@ export default async function PanelLayout({
             <SidebarToggle />
           </div>
         </div>
-        <SidebarNav closing={closing} onboarding={onboarding} isOwner={isOwner} launch={launchNav} />
+        <SidebarNav
+          closing={closing}
+          onboarding={onboarding}
+          isOwner={isOwner}
+          launch={launchNav}
+          expanded={navExpanded}
+        />
         <SuperadminEntry superadmin={Boolean(ctx?.superadmin)} label={t("superadminPanel")} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -199,6 +211,7 @@ export default async function PanelLayout({
           organizations={organizations}
           currentTenantId={ctx?.tenantId ?? null}
           launch={launchNav}
+          navExpanded={navExpanded}
         />
         {/* CIĄGŁY PRZEWODNIK URUCHOMIENIA (ADR-229): sticky pasek pod topbarem,
             w kolumnie treści (nie nad sidebarem). Rezerwuje własną wysokość

@@ -3,14 +3,17 @@ import {
   Building2,
   Download,
   CreditCard,
+  Files,
   Globe,
   LayoutDashboard,
   Mail,
   type LucideIcon,
   Package,
+  Palette,
   ReceiptText,
   Scale,
   ScrollText,
+  Settings,
   ShieldCheck,
   Store,
   Truck,
@@ -40,7 +43,15 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   // Klient = pojedyncza osoba (UserRound), świadomie inna niż zespół (Users).
   customers: UserRound,
   catalog: Package,
-  store: Store,
+  // GAŁĘZIE rozwijane (ADR-231). „Strona sklepu" = witryna (Store); „Ustawienia"
+  // = zębatka (Settings); „Organizacja" bierze ikonę z własnego liścia niżej
+  // (Building2), bo jej wiersz-rodzic JEST pozycją matchNavItem.
+  storeSection: Store,
+  settings: Settings,
+  // „Strony" (lista wersji strony, /strona) = plik(i), świadomie inne niż
+  // witryna rodzica (Store); „Wygląd" (/strona/wyglad) = paleta.
+  store: Files,
+  storeAppearance: Palette,
   domains: Globe,
   emails: Mail,
   delivery: Truck,

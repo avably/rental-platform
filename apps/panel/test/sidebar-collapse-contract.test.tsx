@@ -44,7 +44,22 @@ const { SidebarNav, PANEL_NAV_ID } = await import("@/components/shell/sidebar-na
 const { SidebarToggle } = await import("@/components/shell/sidebar-toggle");
 const { SuperadminEntry } = await import("@/components/shell/superadmin-entry");
 const { NAV_ICON_STROKE_WIDTH } = await import("@/components/shell/nav-icons");
-const { PANEL_NAV_ITEMS, PANEL_NAV_GROUPS } = await import("@/lib/shell/nav");
+const { PANEL_NAV_ITEMS, PANEL_NAV_TREE } = await import("@/lib/shell/nav");
+
+/**
+ * Liczności renderu OWNERA po przebudowie na DRZEWO (ADR-231). Każdy wiersz
+ * (dashboard + top-level liść + rodzic gałęzi + dziecko) niesie etykietę
+ * `data-nav-label`, dymek `data-nav-tooltip` i ikonę; każda gałąź dokłada
+ * chevron (kolejna ikona `<svg>`).
+ */
+const BRANCH_COUNT = PANEL_NAV_TREE.filter((node) => node.kind === "branch").length;
+const ROW_COUNT =
+  1 +
+  PANEL_NAV_TREE.reduce(
+    (acc, node) => (node.kind === "item" ? acc + 1 : acc + 1 + node.branch.children.length),
+    0,
+  );
+const EXPECTED_ICONS = ROW_COUNT + BRANCH_COUNT;
 
 function source(relative: string): string {
   return readFileSync(resolve(process.cwd(), relative), "utf8");
@@ -106,36 +121,32 @@ function classesOf(tag: string): string[] {
 describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
   const html = renderNav();
 
-  it("markup niesie OBA warianty naraz: etykiety i dymki, nagłówki grup i separatory", () => {
+  it("markup niesie OBA warianty naraz: etykiety i dymki na każdym wierszu drzewa", () => {
     expect(PANEL_NAV_ITEMS.length).toBeGreaterThan(5); // podłoga: pusta lista nie chroni pętli
     for (const item of PANEL_NAV_ITEMS) {
       anchorFor(html, item.id);
     }
-    // Wariant rozwinięty. (+1 = pozycja dashboardu poza grupami; badge
-    // „Wkrótce" zdjęty w UX1/ADR-140 — dashboard jest zwykłym linkiem.)
-    expect(tagsWith(html, "data-nav-label")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
-    expect(tagsWith(html, "data-nav-group-label")).toHaveLength(PANEL_NAV_GROUPS.length);
+    // Wariant rozwinięty: etykieta na każdym wierszu (dashboard + top-level +
+    // rodzice gałęzi + dzieci). Grupy-nagłówki zastąpiło DRZEWO (ADR-231), więc
+    // `data-nav-group-label`/`data-nav-separator` już nie ma.
+    expect(tagsWith(html, "data-nav-label")).toHaveLength(ROW_COUNT);
+    expect(tagsWith(html, "data-nav-group-label")).toHaveLength(0);
+    expect(tagsWith(html, "data-nav-separator")).toHaveLength(0);
     expect(tagsWith(html, "data-nav-badge")).toHaveLength(0);
-    expect(html).toContain(messages.nav.groupSales);
-    // Wariant zwinięty — W TYM SAMYM renderze.
-    expect(tagsWith(html, "data-nav-tooltip")).toHaveLength(PANEL_NAV_ITEMS.length + 1);
-    expect(tagsWith(html, "data-nav-separator")).toHaveLength(PANEL_NAV_GROUPS.length - 1);
+    // Gałąź akordeonu: przełącznik z `aria-expanded` + kontener dzieci `role=group`.
+    expect(tagsWith(html, "data-nav-branch-toggle")).toHaveLength(BRANCH_COUNT);
+    expect(html).toContain('aria-expanded=');
+    expect(html).toContain('role="group"');
+    // Wariant zwinięty — W TYM SAMYM renderze: dymek na każdym wierszu.
+    expect(tagsWith(html, "data-nav-tooltip")).toHaveLength(ROW_COUNT);
     expect(html).toContain('role="tooltip"');
     expect(html).not.toContain('title="');
   });
 
   it("każdy element zależny od zwinięcia przełącza się wariantem CSS, nie renderem", () => {
-    for (const tag of [
-      ...tagsWith(html, "data-nav-label"),
-      ...tagsWith(html, "data-nav-group-label"),
-    ]) {
+    for (const tag of tagsWith(html, "data-nav-label")) {
       expect(tag, `element bez wariantu zwinięcia: ${tag}`).toContain(
         "rail-collapsed:hidden",
-      );
-    }
-    for (const tag of tagsWith(html, "data-nav-separator")) {
-      expect(tag, `separator bez wariantu zwinięcia: ${tag}`).toContain(
-        "rail-collapsed:block",
       );
     }
     // Dymek nie ma własnej klasy widoczności — całość należy do arkusza,
@@ -157,9 +168,9 @@ describe("kontrakt sidebara — JEDEN render na oba stany (M2)", () => {
     expect(html).toContain(`aria-label="${messages.nav.dashboard}"`);
   });
 
-  it("ikony pozostają dekoracyjne, po jednej na pozycję i zapowiedź", () => {
+  it("ikony pozostają dekoracyjne — po jednej na wiersz plus chevron gałęzi", () => {
     const icons = [...html.matchAll(/<svg[^>]*>/g)].map((m) => m[0]);
-    expect(icons).toHaveLength(PANEL_NAV_ITEMS.length + 1);
+    expect(icons).toHaveLength(EXPECTED_ICONS);
     for (const icon of icons) {
       expect(icon).toContain('aria-hidden="true"');
       expect(icon).toContain(`stroke-width="${NAV_ICON_STROKE_WIDTH}"`);

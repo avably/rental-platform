@@ -40,6 +40,7 @@ export function PanelTopbar({
   organizations = [],
   currentTenantId = null,
   launch = null,
+  navExpanded = [],
 }: {
   userEmail: string;
   /** Okno domykania (ADR-138) — schodzi do nawigacji mobilnej. */
@@ -54,6 +55,8 @@ export function PanelTopbar({
   currentTenantId?: string | null;
   /** Pozycja warunkowa „Uruchomienie" (ADR-228) — schodzi do szuflady mobilnej. */
   launch?: LaunchNavState;
+  /** Rozwinięte gałęzie drzewa nawigacji (ADR-231) — schodzą do szuflady mobilnej. */
+  navExpanded?: readonly string[];
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -64,7 +67,13 @@ export function PanelTopbar({
 
   return (
     <header className="border-border bg-card flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
-      <MobileNav closing={closing} onboarding={onboarding} isOwner={isOwner} launch={launch} />
+      <MobileNav
+        closing={closing}
+        onboarding={onboarding}
+        isOwner={isOwner}
+        launch={launch}
+        navExpanded={navExpanded}
+      />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}
       </h1>

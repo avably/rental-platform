@@ -1,12 +1,22 @@
 /**
- * Definicja nawigacji panelu (ADR-056).
+ * Definicja nawigacji panelu (ADR-056, przebudowa na DRZEWO w ADR-231).
  *
- * To JEDYNE źródło, z którego renderuje się sidebar i szuflada mobilna —
- * struktura (kolejność grup, kolejność i identyfikatory pozycji, flaga
- * `future`) jest kontraktem z artefaktem handoffu Fazy 2, sekcja 04.
- * `test/panel-nav-contract.test.ts` parsuje `<nav data-panel-nav="true">`
- * wprost z artefaktu i porównuje go z tą stałą, więc pozycja dopisana tutaj
- * albo usunięta z artefaktu wywraca suitę.
+ * To JEDYNE źródło, z którego renderuje się sidebar i szuflada mobilna. Od
+ * ADR-231 struktura jest DRZEWEM (`PANEL_NAV_TREE`): pozycje najwyższego
+ * poziomu (klikalne liście) oraz GAŁĘZIE rozwijane (akordeon) z dziećmi. Płaskie
+ * grupy sprzed ADR-231 (3 grupy / 15 pozycji) puchły — grupa KANAŁY sięgała
+ * siedmiu pozycji „podłącz raz". Właściciel: „za długie i bez zagłębień".
+ * Decyzja: drzewo zagnieżdżone (wariant C).
+ *
+ * Kontrakt struktury (`test/panel-nav-contract.test.ts`) parsuje
+ * `<nav data-panel-nav="true">` wprost z ARTEFAKTU Fazy 2 i porównuje z tą
+ * definicją. ADR-231 ŚWIADOMIE przepisał oba — artefakt i kontrakt — na drzewo;
+ * to jedyne zadanie w projekcie, które ten kontrakt rusza.
+ *
+ * `PANEL_NAV_ITEMS` (płaska lista liści) POZOSTAJE: `matchNavItem` dopasowuje
+ * po niej trasę aktywną prefiksowo, dokładnie jak przed przebudową. Drzewo
+ * niesie WYŁĄCZNIE strukturę renderu; dopasowanie i podświetlenie liczą się
+ * z płaskiej listy.
  *
  * Plik jest CELOWO bez Reacta i bez ikon: kontrakt ma się dać zaimportować
  * w środowisku node, a mapowanie id → ikona żyje w komponencie sidebara.
@@ -15,9 +25,7 @@
  * dwujęzyczny. Trzymamy wyłącznie klucze.
  */
 
-export type PanelNavGroupId = "sales" | "channels" | "organization";
-
-/** Pozycja klikalna — prowadzi do istniejącego ekranu panelu. */
+/** Pozycja klikalna — prowadzi do istniejącego ekranu panelu (liść drzewa). */
 export type PanelNavItem = {
   id: string;
   /** Ścieżka BEZ prefiksu locale — prefiks dokłada `Link` z `@/i18n/navigation`. */
@@ -34,26 +42,41 @@ export type PanelNavItem = {
   ownerOnly?: true;
 };
 
-export type PanelNavGroup = {
-  id: PanelNavGroupId;
-  /**
-   * Tekst grupy DOKŁADNIE tak, jak stoi w artefakcie. To kotwica kontraktu,
-   * nie etykieta interfejsu (ta idzie z `nav.group*`) — artefakt nie nadaje
-   * grupom `data-*`, więc porównanie musi się zaczepić o treść.
-   */
-  artifactLabel: string;
+/**
+ * Gałąź rozwijana (akordeon, ADR-231). Dwa rodzaje, po obecności `href`:
+ *  • NAWIGOWALNA (`href` obecny — „Strona sklepu" → `/strona`, „Organizacja" →
+ *    `/organizacja`): wiersz-etykieta jest LINKIEM (klik NAWIGUJE), a osobny
+ *    chevron rozwija dzieci — klik w chevron NIE zjada nawigacji.
+ *  • GRUPA-TOGGLE (`href` nieobecny — „Ustawienia"): sama gałąź nie ma ekranu,
+ *    więc cały wiersz jest przełącznikiem rozwijającym dzieci.
+ *
+ * `id` gałęzi jest identyfikatorem STRUKTURY (stan rozwinięcia w ciasteczku,
+ * `aria-controls`, ikona). Dla gałęzi, której własna trasa NIE jest pokryta
+ * żadnym dzieckiem (Organizacja → `/organizacja`), `id` pokrywa się z liściem
+ * w `PANEL_NAV_ITEMS` — wtedy wiersz-link NIESIE `data-nav-item` i wchodzi do
+ * `matchNavItem`. Dla gałęzi, której trasa jest już pokryta dzieckiem (Strona
+ * sklepu → `/strona`, dziecko „Strony"), `id` jest wyłącznie strukturalny.
+ */
+export type PanelNavBranch = {
+  id: string;
   labelKey: string;
-  items: PanelNavItem[];
+  /** Trasa wiersza-linku; brak = gałąź-grupa (sam przełącznik, bez ekranu). */
+  href?: string;
+  children: readonly PanelNavItem[];
 };
 
+/** Węzeł najwyższego poziomu drzewa: klikalny liść albo gałąź rozwijana. */
+export type PanelNavNode =
+  | { readonly kind: "item"; readonly item: PanelNavItem }
+  | { readonly kind: "branch"; readonly branch: PanelNavBranch };
+
 /**
- * Pozycja dashboardu — poza grupami, na samej górze (artefakt trzyma ją jako
+ * Pozycja dashboardu — poza drzewem, na samej górze (artefakt trzyma ją jako
  * osobny wpis). Od UX1 (ADR-140) ekran ISTNIEJE i jest stroną startową,
- * więc pozycja jest klikalnym linkiem do `/` BEZ badge „Wkrótce" (zgodna
- * edycja artefaktu Fazy 2 — zdjęte `data-future` i `<span>` zapowiedzi).
- * Celowo NIE wchodzi do PANEL_NAV_GROUPS/PANEL_NAV_ITEMS: artefakt trzyma ją
- * poza grupami, a `matchNavItem` (dopasowanie prefiksowe) na `/` łapałby
- * każdą trasę.
+ * więc pozycja jest klikalnym linkiem do `/` BEZ badge „Wkrótce". Celowo NIE
+ * wchodzi do `PANEL_NAV_TREE`/`PANEL_NAV_ITEMS`: artefakt trzyma ją poza
+ * strukturą, a `matchNavItem` (dopasowanie prefiksowe) na `/` łapałby każdą
+ * trasę.
  */
 export type PanelNavPlaceholder = {
   id: string;
@@ -68,14 +91,14 @@ export const PANEL_NAV_PLACEHOLDER: PanelNavPlaceholder = {
 /**
  * Pozycja WARUNKOWA „Uruchomienie" (config-first hub, ADR-228).
  *
- * CELOWO POZA `PANEL_NAV_GROUPS`/`PANEL_NAV_ITEMS`: kontrakt struktury
- * (`panel-nav-contract.test.ts`) porównuje grupy 1:1 z artefaktem Fazy 2, a
+ * CELOWO POZA `PANEL_NAV_TREE`/`PANEL_NAV_ITEMS`: kontrakt struktury
+ * (`panel-nav-contract.test.ts`) porównuje drzewo 1:1 z artefaktem Fazy 2, a
  * artefakt tej pozycji nie zna. To pozycja stanu konta, nie stała struktura —
- * shell renderuje ją na górze grupy SPRZEDAŻ z badge postępu (np. „4/7”)
- * WYŁĄCZNIE dopóki onboarding nieukończony (sygnał liczony z danych), i chowa
- * po komplecie wymaganych kroków. Jak `PANEL_NAV_PLACEHOLDER`: stan aktywny to
- * RÓWNOŚĆ ścieżki (nie jest w `matchNavItem`), a tytuł belki bierze się z
- * override'u tytułu niżej.
+ * shell renderuje ją na górze drzewa z badge postępu (np. „4/7”) WYŁĄCZNIE
+ * dopóki onboarding nieukończony (sygnał liczony z danych), i chowa po
+ * komplecie wymaganych kroków. Jak `PANEL_NAV_PLACEHOLDER`: stan aktywny to
+ * RÓWNOŚĆ ścieżki (nie jest w `matchNavItem`), a tytuł belki bierze się
+ * z override'u tytułu niżej.
  */
 export const PANEL_NAV_LAUNCH: PanelNavItem = {
   id: "launch",
@@ -83,80 +106,124 @@ export const PANEL_NAV_LAUNCH: PanelNavItem = {
   labelKey: "launch",
 };
 
-export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
+// Liście — definiowane raz, wchodzą i do drzewa, i do płaskiej listy.
+const ORDERS: PanelNavItem = { id: "orders", href: "/zamowienia", labelKey: "orders" };
+const CUSTOMERS: PanelNavItem = { id: "customers", href: "/klienci", labelKey: "customers" };
+const CATALOG: PanelNavItem = { id: "catalog", href: "/katalog", labelKey: "catalog" };
+
+// „Strona sklepu" (gałąź nawigowalna → /strona). Dziecko „Strony" to LISTA
+// wersji strony (ekran /strona, 0048/ADR-093) — dostaje własną etykietę
+// `storePages`, żeby w rozwiniętej gałęzi nie dublować nazwy rodzica; id
+// `store` i trasa /strona ZOSTAJĄ (matchNavItem bez zmian). „Wygląd" to ekran
+// designu (/strona/wyglad, ADR-230) — do ADR-231 był podtrasą bez pozycji,
+// teraz jest jawnym dzieckiem (screen istnieje, id nowy: storeAppearance).
+const STORE_PAGES: PanelNavItem = { id: "store", href: "/strona", labelKey: "storePages" };
+const STORE_APPEARANCE: PanelNavItem = {
+  id: "storeAppearance",
+  href: "/strona/wyglad",
+  labelKey: "storeAppearance",
+};
+
+// „Ustawienia" (gałąź-grupa, bez ekranu) — dawna grupa KANAŁY + Płatności.
+// Kolejność: od tego, co najczęściej podłącza operator, po sprawy formalne.
+const PAYMENTS: PanelNavItem = { id: "payments", href: "/ustawienia-platnosci", labelKey: "payments" };
+const DELIVERY: PanelNavItem = { id: "delivery", href: "/ustawienia-dostaw", labelKey: "delivery" };
+const DOMAINS: PanelNavItem = { id: "domains", href: "/ustawienia-domen", labelKey: "domains" };
+const EMAILS: PanelNavItem = { id: "emails", href: "/ustawienia-emaili", labelKey: "emails" };
+const CONTRACTS: PanelNavItem = { id: "contracts", href: "/ustawienia-umow", labelKey: "contracts" };
+const LEGAL: PanelNavItem = { id: "legal", href: "/dokumenty-prawne", labelKey: "legal" };
+const INTEGRATIONS: PanelNavItem = { id: "integrations", href: "/ustawienia-api", labelKey: "integrations" };
+
+// „Organizacja" (gałąź nawigowalna → /organizacja). Wiersz-link JEST liściem
+// `organization` (trasy /organizacja nie pokrywa żadne dziecko), więc niesie
+// `data-nav-item` i wchodzi do matchNavItem. Bezpieczeństwo ZOSTAJE tu (konto,
+// nie sklep — decyzja właściciela).
+const ORGANIZATION: PanelNavItem = { id: "organization", href: "/organizacja", labelKey: "organization" };
+const TEAM: PanelNavItem = { id: "team", href: "/zaproszenia", labelKey: "team", ownerOnly: true };
+const DATA_EXPORT: PanelNavItem = { id: "dataExport", href: "/eksport-danych", labelKey: "dataExport" };
+const SECURITY: PanelNavItem = { id: "security", href: "/bezpieczenstwo", labelKey: "security" };
+
+/** Identyfikatory gałęzi rozwijanych — kotwice stanu rozwinięcia (ADR-231). */
+export const STORE_BRANCH_ID = "storeSection";
+export const SETTINGS_BRANCH_ID = "settings";
+export const ORGANIZATION_BRANCH_ID = "organization";
+
+/**
+ * DRZEWO nawigacji (ADR-231) — jedyne źródło struktury renderu.
+ *
+ * Kolejność najwyższego poziomu: dwie listy operacyjne lady (Zamówienia,
+ * Klienci), katalog (offer), potem gałęzie: sklep, ustawienia, organizacja.
+ */
+export const PANEL_NAV_TREE: readonly PanelNavNode[] = [
+  { kind: "item", item: ORDERS },
+  { kind: "item", item: CUSTOMERS },
+  { kind: "item", item: CATALOG },
   {
-    id: "sales",
-    artifactLabel: "SPRZEDAŻ",
-    labelKey: "groupSales",
-    items: [
-      { id: "orders", href: "/zamowienia", labelKey: "orders" },
-      // Klienci tuż za zamówieniami: to dwie podstawowe listy operacyjne, na
-      // których pracuje lada (demand), przed katalogiem i stroną (offer).
-      { id: "customers", href: "/klienci", labelKey: "customers" },
-      { id: "catalog", href: "/katalog", labelKey: "catalog" },
-      { id: "store", href: "/strona", labelKey: "store" },
-    ],
+    kind: "branch",
+    branch: {
+      id: STORE_BRANCH_ID,
+      labelKey: "store",
+      href: "/strona",
+      children: [STORE_PAGES, STORE_APPEARANCE],
+    },
   },
   {
-    id: "channels",
-    artifactLabel: "KANAŁY",
-    labelKey: "groupChannels",
-    items: [
-      { id: "domains", href: "/ustawienia-domen", labelKey: "domains" },
-      { id: "emails", href: "/ustawienia-emaili", labelKey: "emails" },
-      { id: "delivery", href: "/ustawienia-dostaw", labelKey: "delivery" },
-      { id: "contracts", href: "/ustawienia-umow", labelKey: "contracts" },
-      // Dokumenty prawne (B4, ADR-129) w KANAŁACH, tuż za Umowami — bo to ta
-      // sama rodzina spraw: tekst, na który przystaje klient. Umowy dotyczą
-      // PDF-a podpisywanego przy wydaniu sprzętu, dokumenty prawne — stron
-      // /regulamin i /prywatnosc w sklepie. Sąsiedztwo jest celowe: dopóki
-      // PDF czyta własną kopię treści (dług nazwany w ADR-129), operator musi
-      // widzieć oba miejsca obok siebie.
-      { id: "legal", href: "/dokumenty-prawne", labelKey: "legal" },
-      // Płatności są KANAŁEM, nie sprzedażą: to konfiguracja drogi, którą
-      // pieniądze wchodzą do najemcy — obok domen, poczty, dostaw i umów.
-      // W grupie SPRZEDAŻ stałyby wśród ekranów, na których się PRACUJE
-      // (zamówienia, katalog), a tu się nie pracuje, tylko podłącza raz.
-      { id: "payments", href: "/ustawienia-platnosci", labelKey: "payments" },
-      // Integracje (M2, ADR-110) — wejście do kluczy API i instrukcji
-      // podłączenia WordPressa. Grupa KANAŁY, bo to kolejna DROGA, którą
-      // przychodzi zamówienie: obok własnego sklepu (domeny) i poczty stoi
-      // cudza strona najemcy. Nazwa rodzajowa, nie „WordPress i API":
-      // ekran obejmuje klucze dla dowolnego konsumenta maszynowego, a embed
-      // (M3) dołoży tu kolejne wejście bez zmiany etykiety.
-      { id: "integrations", href: "/ustawienia-api", labelKey: "integrations" },
-    ],
+    kind: "branch",
+    branch: {
+      id: SETTINGS_BRANCH_ID,
+      labelKey: "settings",
+      children: [PAYMENTS, DELIVERY, DOMAINS, EMAILS, CONTRACTS, LEGAL, INTEGRATIONS],
+    },
   },
   {
-    id: "organization",
-    artifactLabel: "ORGANIZACJA",
-    labelKey: "groupOrganization",
-    items: [
-      // `ownerOnly`: /zaproszenia stoi za requireMember("owner"), więc staff
-      // widział pozycję, która zawsze kończyła się odmową (M-UX-02).
-      { id: "team", href: "/zaproszenia", labelKey: "team", ownerOnly: true },
-      // Dług P3 ZAMKNIĘTY w P6 (ADR-059): ekran organizacji istnieje, więc
-      // pozycja celuje tam, gdzie zapowiadał brief. Identyfikator bez zmiany,
-      // więc kontrakt struktury z artefaktem zostaje zielony.
-      // `/organizacja/nowa` (onboarding) pozostaje osiągalna własnym adresem.
-      { id: "organization", href: "/organizacja", labelKey: "organization" },
-      // Eksport danych (C2, ADR-111) w ORGANIZACJI, nie w SPRZEDAŻY ani
-      // KANAŁACH — rozstrzygnięcie spisane w ADR-110 (decyzja 14), żeby
-      // pozycja nie wędrowała między grupami przy każdej sesji: SPRZEDAŻ to
-      // ekrany, na których się PRACUJE codziennie; KANAŁY to drogi
-      // podłączane RAZ; ORGANIZACJA to sprawy firmy i konta — „zabierz
-      // swoje dane" należy tam (a eksport klientów jest owner-only, jak
-      // reszta tej grupy).
-      { id: "dataExport", href: "/eksport-danych", labelKey: "dataExport" },
-      { id: "security", href: "/bezpieczenstwo", labelKey: "security" },
-    ],
+    kind: "branch",
+    branch: {
+      id: ORGANIZATION_BRANCH_ID,
+      labelKey: "organization",
+      href: "/organizacja",
+      children: [TEAM, DATA_EXPORT, SECURITY],
+    },
   },
 ] as const;
 
-/** Płaska lista pozycji klikalnych — do dopasowania trasy aktywnej. */
-export const PANEL_NAV_ITEMS: readonly PanelNavItem[] = PANEL_NAV_GROUPS.flatMap(
-  (group) => group.items,
-);
+/**
+ * Płaska lista pozycji klikalnych — do dopasowania trasy aktywnej. Zawiera
+ * WSZYSTKIE liście plus własną trasę gałęzi nawigowalnej, której nie pokrywa
+ * żadne dziecko (Organizacja → /organizacja). Każda trasa raz — bez duplikatu:
+ * /strona pokrywa dziecko `store` („Strony"), więc gałąź „Strona sklepu"
+ * własnego wpisu nie dokłada.
+ */
+export const PANEL_NAV_ITEMS: readonly PanelNavItem[] = [
+  ORDERS,
+  CUSTOMERS,
+  CATALOG,
+  STORE_PAGES,
+  STORE_APPEARANCE,
+  PAYMENTS,
+  DELIVERY,
+  DOMAINS,
+  EMAILS,
+  CONTRACTS,
+  LEGAL,
+  INTEGRATIONS,
+  ORGANIZATION,
+  TEAM,
+  DATA_EXPORT,
+  SECURITY,
+];
+
+/**
+ * Czy wiersz-link gałęzi jest zarazem pozycją `matchNavItem` (niesie
+ * `data-nav-item`). Prawda dla gałęzi, której trasy nie pokrywa żadne dziecko
+ * (Organizacja). Fałsz dla „Strona sklepu" — tam trasę /strona reprezentuje
+ * dziecko „Strony", a wiersz-rodzic jest tylko nagłówkiem sekcji z linkiem.
+ */
+export function branchSelfItem(branch: PanelNavBranch): PanelNavItem | undefined {
+  if (!branch.href) return undefined;
+  const covered = branch.children.some((child) => child.href === branch.href);
+  if (covered) return undefined;
+  return PANEL_NAV_ITEMS.find((item) => item.id === branch.id && item.href === branch.href);
+}
 
 export function resolvePanelNavItem(id: string): PanelNavItem {
   const item = PANEL_NAV_ITEMS.find((candidate) => candidate.id === id);
@@ -188,7 +255,7 @@ export const CLOSING_NAV_HREFS: readonly string[] = [
  * 2026-07-22).
  *
  * NIE przechodzi przez `resolvePanelNavItem`, bo dashboard nie jest pozycją
- * GRUP nawigacji: artefakt trzyma go poza grupami (od UX1/ADR-140 jako
+ * drzewa nawigacji: artefakt trzyma go poza strukturą (od UX1/ADR-140 jako
  * klikalny link, wcześniej jako zapowiedź). Na wąskim ekranie nie ma znaku
  * marki, który na desktopie prowadzi do `/`, więc pasek jest jedynym
  * miejscem, z którego wraca się na stronę główną jednym kciukiem. Etykieta
@@ -201,16 +268,16 @@ export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
 };
 
 const PANEL_ROUTE_TITLE_OVERRIDES = [
-  // Hub „Uruchomienie" (ADR-228) stoi poza grupami nawigacji (pozycja
+  // Hub „Uruchomienie" (ADR-228) stoi poza drzewem nawigacji (pozycja
   // warunkowa), więc `matchNavItem` go nie zna — tytuł belki bierze się stąd.
   { path: "/uruchomienie", labelKey: "launch" },
   { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
-  // „Wygląd sklepu" (ADR-230) jest PODTRASĄ `/strona`, nie pozycją nawigacji:
-  // `matchNavItem` (prefiks) świadomie ZOSTAWIAMY na „store", żeby podświetlało
-  // „Strona sklepu". Ale ekran ma własny H1 „Wygląd sklepu", więc belka nie może
-  // pokazywać „Strona sklepu" — override daje jej właściwy tytuł BEZ ruszania
-  // podświetlenia i BEZ nowej pozycji w kontrakcie 15 pozycji.
+  // „Wygląd sklepu" (ADR-230) od ADR-231 ma WŁASNĄ pozycję drzewa
+  // (`storeAppearance`, /strona/wyglad), więc `matchNavItem` sam daje jej klucz
+  // „storeAppearance" i belka pokazuje „Wygląd sklepu". Override zostawiony jako
+  // jawna kotwica tytułu (i podtras `/strona/wyglad/…`, gdyby powstały) — jest
+  // spójny z pozycją, nie przeciw niej.
   { path: "/strona/wyglad", labelKey: "storeAppearance" },
   // PRZED `/organizacja/nowa` — `panelTitleKey` bierze PIERWSZE dopasowanie,
   // a dopasowanie jest prefiksowe, więc wpis ogólniejszy przykryłby ten.
@@ -218,10 +285,10 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/organizacja/nowa", labelKey: "newOrganization" },
   { path: "/bezpieczenstwo/wyzwanie", labelKey: "securityChallenge" },
   // /ustawienia-api NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma
-  // własną pozycję w grupie KANAŁY, więc tytuł bierze się z niej przez
+  // własną pozycję (grupa „Ustawienia"), więc tytuł bierze się z niej przez
   // matchNavItem — jedna nazwa w menu i w nagłówku, zero rozjazdu.
   // /eksport-danych NIE MA już override'u tytułu: od M2 (ADR-110) ekran ma
-  // własną pozycję w grupie ORGANIZACJA, więc tytuł bierze się z niej przez
+  // własną pozycję (grupa „Organizacja"), więc tytuł bierze się z niej przez
   // matchNavItem — jak /ustawienia-api.
 ] as const;
 
@@ -244,6 +311,18 @@ export function matchNavItem(pathname: string): PanelNavItem | undefined {
     if (!best || item.href.length > best.href.length) best = item;
   }
   return best;
+}
+
+/**
+ * Czy gałąź ZAWIERA trasę aktywną — do domyślnego rozwinięcia i oznaczenia
+ * rodzica (ADR-231). Prawda, gdy aktywny jest wiersz-link gałęzi (jej własna
+ * trasa) albo którekolwiek dziecko.
+ */
+export function branchContainsPath(branch: PanelNavBranch, pathname: string): boolean {
+  const active = matchNavItem(pathname);
+  if (!active) return false;
+  if (branch.href && active.href === branch.href) return true;
+  return branch.children.some((child) => child.id === active.id);
 }
 
 /** Klucz jedynego H1 shella, także dla tras spoza głównej nawigacji. */
