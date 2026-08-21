@@ -206,6 +206,12 @@ const PANEL_ROUTE_TITLE_OVERRIDES = [
   { path: "/uruchomienie", labelKey: "launch" },
   { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
+  // „Wygląd sklepu" (ADR-230) jest PODTRASĄ `/strona`, nie pozycją nawigacji:
+  // `matchNavItem` (prefiks) świadomie ZOSTAWIAMY na „store", żeby podświetlało
+  // „Strona sklepu". Ale ekran ma własny H1 „Wygląd sklepu", więc belka nie może
+  // pokazywać „Strona sklepu" — override daje jej właściwy tytuł BEZ ruszania
+  // podświetlenia i BEZ nowej pozycji w kontrakcie 15 pozycji.
+  { path: "/strona/wyglad", labelKey: "storeAppearance" },
   // PRZED `/organizacja/nowa` — `panelTitleKey` bierze PIERWSZE dopasowanie,
   // a dopasowanie jest prefiksowe, więc wpis ogólniejszy przykryłby ten.
   { path: "/organizacja/nowa/gotowe", labelKey: "organizationCreated" },
