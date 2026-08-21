@@ -88,12 +88,15 @@ describe("sidebar: sesja bez organizacji widzi sam pulpit", () => {
     expect(html).toContain(messages.nav.dashboard);
   });
 
-  it("nagłówki grup też znikają — pusta sekcja „SPRZEDAŻ” byłaby gorsza niż jej brak", () => {
+  it("gałęzie drzewa też znikają — pusta sekcja „Strona sklepu” byłaby gorsza niż jej brak", () => {
     const html = renderSidebar({ onboarding: true });
 
-    expect(html).not.toContain(messages.nav.groupSales);
-    expect(html).not.toContain(messages.nav.groupChannels);
-    expect(html).not.toContain(messages.nav.groupOrganization);
+    // Od ADR-231 nawigacja to DRZEWO: „nagłówki" to wiersze-rodzice gałęzi
+    // (Strona sklepu, Ustawienia, Organizacja). Przy onboardingu drzewo jest
+    // puste, więc żadna z tych sekcji się nie pojawia.
+    expect(html).not.toContain(messages.nav.store);
+    expect(html).not.toContain(messages.nav.settings);
+    expect(html).not.toContain(messages.nav.organization);
   });
 });
 

@@ -865,25 +865,32 @@ color-scheme: light dark;
         <h2>Ekran rozstrzygający.</h2>
         <div class="panel-shell">
           <nav class="sidebar-nav" data-panel-nav="true" aria-label="Nawigacja panelu">
+  <!-- DRZEWO nawigacji (ADR-231): pozycje najwyzszego poziomu + galezie
+       rozwijane (akordeon). Struktura FLAT-ANOTOWANA: kazdy lisc stoi jako
+       bezposredni link z atrybutem data-nav-item, a przynaleznosc do galezi
+       niesie data-nav-parent; naglowki galezi maja data-nav-branch
+       (+data-nav-branch-kind: link=nawigowalna, toggle=grupa bez ekranu).
+       Kontrakt panel-nav-contract.test.ts rekonstruuje z tego drzewo 1:1
+       z PANEL_NAV_TREE. -->
   <a data-nav-placeholder="dashboard" href="#dashboard">Dashboard</a>
-  <p class="nav-group">SPRZEDAŻ</p>
   <a data-nav-item="orders" aria-current="page" data-lime-use="active-nav-marker" data-lime-carrier="ink-text" href="#orders-light">Zamówienia</a>
   <a data-nav-item="customers" href="#">Klienci</a>
   <a data-nav-item="catalog" href="#product-form">Katalog</a>
-  <a data-nav-item="store" href="#storefront">Strona sklepu</a>
-  <p class="nav-group">KANAŁY</p>
-  <a data-nav-item="domains" href="#">Domeny</a>
-  <a data-nav-item="emails" href="#">E-maile</a>
-  <a data-nav-item="delivery" href="#">Dostawy</a>
-  <a data-nav-item="contracts" href="#">Umowy</a>
-  <a data-nav-item="legal" href="#">Dokumenty prawne</a>
-  <a data-nav-item="payments" href="#">Płatności</a>
-  <a data-nav-item="integrations" href="#">Integracje</a>
-  <p class="nav-group">ORGANIZACJA</p>
-  <a data-nav-item="team" href="#">Zespół</a>
-  <a data-nav-item="organization" href="#">Organizacja</a>
-  <a data-nav-item="dataExport" href="#">Eksport danych</a>
-  <a data-nav-item="security" href="#">Bezpieczeństwo</a>
+  <a data-nav-branch="storeSection" data-nav-branch-kind="link" href="#storefront">Strona sklepu</a>
+  <a data-nav-item="store" data-nav-parent="storeSection" href="#">Strony</a>
+  <a data-nav-item="storeAppearance" data-nav-parent="storeSection" href="#">Wygląd sklepu</a>
+  <button type="button" data-nav-branch="settings" data-nav-branch-kind="toggle" aria-expanded="false">Ustawienia</button>
+  <a data-nav-item="payments" data-nav-parent="settings" href="#">Płatności</a>
+  <a data-nav-item="delivery" data-nav-parent="settings" href="#">Dostawy</a>
+  <a data-nav-item="domains" data-nav-parent="settings" href="#">Domeny</a>
+  <a data-nav-item="emails" data-nav-parent="settings" href="#">E-maile</a>
+  <a data-nav-item="contracts" data-nav-parent="settings" href="#">Umowy</a>
+  <a data-nav-item="legal" data-nav-parent="settings" href="#">Dokumenty prawne</a>
+  <a data-nav-item="integrations" data-nav-parent="settings" href="#">Integracje</a>
+  <a data-nav-branch="organization" data-nav-branch-kind="link" data-nav-item="organization" data-nav-parent-self="true" href="#">Organizacja</a>
+  <a data-nav-item="team" data-nav-parent="organization" href="#">Zespół</a>
+  <a data-nav-item="dataExport" data-nav-parent="organization" href="#">Eksport danych</a>
+  <a data-nav-item="security" data-nav-parent="organization" href="#">Bezpieczeństwo</a>
 </nav>
           <article class="panel-main product-ui" data-screen="orders-light" data-font-scope="product">
             <p class="panel-title">Zamówienia</p>
@@ -1378,25 +1385,27 @@ color-scheme: light dark;
         <h2>Ten sam system w trybie ciemnym.</h2>
         <div class="panel-shell">
           <nav class="sidebar-nav" data-panel-nav="true" aria-label="Nawigacja panelu">
+  <!-- Kopia ciemna: ta sama struktura drzewa (ADR-231), nośnik limonki
+       `dark-surface`. Kontrakt pilnuje, by obie kopie shella miały identyczne menu. -->
   <a data-nav-placeholder="dashboard" href="#dashboard">Dashboard</a>
-  <p class="nav-group">SPRZEDAŻ</p>
   <a data-nav-item="orders" aria-current="page" data-lime-use="active-nav-marker" data-lime-carrier="dark-surface" href="#orders-light">Zamówienia</a>
   <a data-nav-item="customers" href="#">Klienci</a>
   <a data-nav-item="catalog" href="#product-form">Katalog</a>
-  <a data-nav-item="store" href="#storefront">Strona sklepu</a>
-  <p class="nav-group">KANAŁY</p>
-  <a data-nav-item="domains" href="#">Domeny</a>
-  <a data-nav-item="emails" href="#">E-maile</a>
-  <a data-nav-item="delivery" href="#">Dostawy</a>
-  <a data-nav-item="contracts" href="#">Umowy</a>
-  <a data-nav-item="legal" href="#">Dokumenty prawne</a>
-  <a data-nav-item="payments" href="#">Płatności</a>
-  <a data-nav-item="integrations" href="#">Integracje</a>
-  <p class="nav-group">ORGANIZACJA</p>
-  <a data-nav-item="team" href="#">Zespół</a>
-  <a data-nav-item="organization" href="#">Organizacja</a>
-  <a data-nav-item="dataExport" href="#">Eksport danych</a>
-  <a data-nav-item="security" href="#">Bezpieczeństwo</a>
+  <a data-nav-branch="storeSection" data-nav-branch-kind="link" href="#storefront">Strona sklepu</a>
+  <a data-nav-item="store" data-nav-parent="storeSection" href="#">Strony</a>
+  <a data-nav-item="storeAppearance" data-nav-parent="storeSection" href="#">Wygląd sklepu</a>
+  <button type="button" data-nav-branch="settings" data-nav-branch-kind="toggle" aria-expanded="false">Ustawienia</button>
+  <a data-nav-item="payments" data-nav-parent="settings" href="#">Płatności</a>
+  <a data-nav-item="delivery" data-nav-parent="settings" href="#">Dostawy</a>
+  <a data-nav-item="domains" data-nav-parent="settings" href="#">Domeny</a>
+  <a data-nav-item="emails" data-nav-parent="settings" href="#">E-maile</a>
+  <a data-nav-item="contracts" data-nav-parent="settings" href="#">Umowy</a>
+  <a data-nav-item="legal" data-nav-parent="settings" href="#">Dokumenty prawne</a>
+  <a data-nav-item="integrations" data-nav-parent="settings" href="#">Integracje</a>
+  <a data-nav-branch="organization" data-nav-branch-kind="link" data-nav-item="organization" data-nav-parent-self="true" href="#">Organizacja</a>
+  <a data-nav-item="team" data-nav-parent="organization" href="#">Zespół</a>
+  <a data-nav-item="dataExport" data-nav-parent="organization" href="#">Eksport danych</a>
+  <a data-nav-item="security" data-nav-parent="organization" href="#">Bezpieczeństwo</a>
 </nav>
           <article class="panel-main product-ui" data-screen="orders-dark" data-font-scope="product" data-contrast-ref="dark-foreground-on-background">
             <p class="panel-title">Zamówienia</p>

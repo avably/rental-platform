@@ -29,7 +29,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { SidebarNav } = await import("@/components/shell/sidebar-nav");
-const { PANEL_NAV_GROUPS } = await import("@/lib/shell/nav");
+const { PANEL_NAV_TREE } = await import("@/lib/shell/nav");
 
 function renderNav(props: Partial<Parameters<typeof SidebarNav>[0]> = {}): string {
   return renderToStaticMarkup(
@@ -60,21 +60,27 @@ describe("pozycja „Zespół” odzwierciedla uprawnienia (M-UX-02)", () => {
     expect(html).toContain(TEAM_LABEL);
   });
 
-  it("filtr jest chirurgiczny: staff dalej widzi resztę grupy ORGANIZACJA", () => {
+  it("filtr jest chirurgiczny: staff dalej widzi resztę gałęzi Organizacja", () => {
     const html = renderNav({ isOwner: false });
-    const organization = PANEL_NAV_GROUPS.find((group) => group.id === "organization");
+    // Od ADR-231 „Organizacja" to GAŁĄŹ akordeonu, nie płaska grupa; jej dzieci
+    // to Zespół (ownerOnly), Eksport danych, Bezpieczeństwo.
+    const organization = PANEL_NAV_TREE.find(
+      (node) => node.kind === "branch" && node.branch.id === "organization",
+    );
     expect(organization).toBeDefined();
+    if (!organization || organization.kind !== "branch") return;
 
-    const remaining = organization!.items.filter((item) => !item.ownerOnly);
-    // Podłoga liczności: gdyby grupa zmalała do zera, pętla niżej byłaby pusta.
-    expect(remaining.length).toBeGreaterThanOrEqual(3);
+    const remaining = organization.branch.children.filter((item) => !item.ownerOnly);
+    // Podłoga liczności: gdyby gałąź zmalała do zera, pętla niżej byłaby pusta.
+    expect(remaining.length).toBeGreaterThanOrEqual(2);
     for (const item of remaining) {
       expect(html, `staff stracił pozycję ${item.id}`).toContain(
         `data-nav-item="${item.id}"`,
       );
     }
-    // Nagłówek grupy zostaje — filtr zdejmuje pozycję, nie grupę.
-    expect(html).toContain(messages.nav.groupOrganization);
+    // Nagłówek gałęzi (wiersz-rodzic „Organizacja") zostaje — filtr zdejmuje
+    // pozycję, nie gałąź.
+    expect(html).toContain(messages.nav.organization);
   });
 
   it("brak jawnego prop = zachowanie STAFF (odmowa domyślna, jak w guardach)", () => {

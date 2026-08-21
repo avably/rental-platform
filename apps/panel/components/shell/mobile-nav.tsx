@@ -44,6 +44,7 @@ export function MobileNav({
   onboarding = false,
   isOwner = false,
   launch = null,
+  navExpanded = [],
 }: {
   /** Okno domykania (ADR-138) — filtruje szufladę i dolny pasek (jak sidebar). */
   closing?: boolean;
@@ -64,6 +65,11 @@ export function MobileNav({
    * `SidebarNav`). Dolny pasek jej nie niesie (ma stały skład kciukowy).
    */
   launch?: LaunchNavState;
+  /**
+   * Rozwinięte gałęzie drzewa nawigacji (ADR-231) — schodzą do szuflady (ten
+   * sam `SidebarNav`). Dolny pasek jest płaski, więc go nie dotyczą.
+   */
+  navExpanded?: readonly string[];
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -109,6 +115,7 @@ export function MobileNav({
             onboarding={onboarding}
             isOwner={isOwner}
             launch={launch}
+            expanded={navExpanded}
           />
         </div>
       </SheetContent>

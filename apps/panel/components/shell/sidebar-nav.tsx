@@ -1,17 +1,23 @@
 "use client";
 
-import { RocketIcon } from "lucide-react";
+import { ChevronDown, RocketIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import {
+  branchContainsPath,
+  branchSelfItem,
   CLOSING_NAV_HREFS,
-  PANEL_NAV_GROUPS,
+  matchNavItem,
   PANEL_NAV_LAUNCH,
   PANEL_NAV_PLACEHOLDER,
-  matchNavItem,
-  type PanelNavGroup,
+  PANEL_NAV_TREE,
+  type PanelNavBranch,
+  type PanelNavItem,
+  type PanelNavNode,
 } from "@/lib/shell/nav";
+import { persistExpandedBranches } from "@/lib/shell/nav-tree-collapse";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
 
@@ -21,46 +27,58 @@ export type LaunchNavState = { done: number; total: number } | null;
 /** Id nawigacji — kotwica dla `aria-controls` przełącznika zwijania. */
 export const PANEL_NAV_ID = "panel-nav";
 
+/** Id kontenera dzieci gałęzi — kotwica `aria-controls` przełącznika akordeonu. */
+function branchChildrenId(branchId: string): string {
+  return `${PANEL_NAV_ID}-${branchId}`;
+}
+
+// Wspólne klasy wiersza (link/przycisk) — jeden wygląd pozycji i gałęzi.
+const ROW_BASE =
+  "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 py-2.5 text-sm font-medium rail-collapsed:justify-center text-sidebar-foreground border-transparent outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:underline hover:underline-offset-[3px] focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring";
+const ROW_PAD_TOP = "px-3";
+// Dziecko akordeonu jest WCIĘTE (pl-9 ≈ ikona rodzica + odstęp); w zwiniętym
+// pasku wcięcie znika (rail-collapsed:px-3), bo tam wiersz to sama ikona.
+const ROW_PAD_CHILD = "pr-3 pl-9 rail-collapsed:px-3";
+const ROW_ACTIVE =
+  "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground";
+
+function rowClass(active: boolean, child: boolean): string {
+  return [ROW_BASE, child ? ROW_PAD_CHILD : ROW_PAD_TOP, active ? ROW_ACTIVE : ""].join(" ");
+}
+
 /**
- * Nawigacja panelu — malowanie wg artefaktu Fazy 2, sekcja 04 (ADR-056),
- * rozszerzona o stan ZWINIĘTY (uwaga przeglądu 2026-07-23).
+ * Nawigacja panelu — DRZEWO zagnieżdżone (akordeon, ADR-231; wcześniej trzy
+ * płaskie grupy z ADR-056). Malowanie wg przepisanego artefaktu Fazy 2,
+ * sekcja 04.
  *
- * Klient, bo `aria-current` musi wynikać z bieżącej ścieżki. `usePathname`
- * z `@/i18n/navigation` zwraca ścieżkę BEZ prefiksu locale, więc porównanie
- * z `href` z definicji jest wprost (patrz `matchNavItem`).
+ * Klient, bo `aria-current` i stan rozwinięcia gałęzi zależą od bieżącej
+ * ścieżki. `usePathname` z `@/i18n/navigation` zwraca ścieżkę BEZ prefiksu
+ * locale, więc porównanie z `href` z definicji jest wprost (patrz `matchNavItem`).
  *
- * DWA STANY (uwaga przeglądu 2026-07-23):
- *  • ROZWINIĘTY — ikona + etykieta tekstowa (`data-nav-label`), nagłówki grup.
- *  • ZWINIĘTY — sam pasek ikon. Etykieta znika z przepływu, ale NIE
- *    z dostępności: nazwę niesie `aria-label` linku (stały, niezależny od
- *    stanu) oraz wizualny tooltip (`role="tooltip"`, `data-nav-tooltip`)
- *    pokazywany na hover i focus. Świadomie NIE `title=""` — natywny dymek nie
- *    odpala z klawiatury i bywa niewidoczny dla czytnika.
- * W OBU stanach aktywna pozycja niesie `aria-current="page"`. Od ADR-177
- * jasny panel pokazuje ją neutralną powierzchnią i małą limonkową kropką —
- * limonka nazywa kontekst, ale nie zalewa całego wiersza. W dark zostaje
- * dotychczasowe wypełnienie `bg-accent`, bo tam daje właściwy kontrast.
+ * AKORDEON (ADR-231):
+ *  • Gałąź NAWIGOWALNA (Strona sklepu → /strona, Organizacja → /organizacja):
+ *    wiersz-etykieta jest LINKIEM (klik NAWIGUJE), a osobny chevron rozwija
+ *    dzieci — klik w chevron NIE zjada nawigacji (to dwa rodzeństwa, nie
+ *    przycisk w linku).
+ *  • Gałąź-GRUPA (Ustawienia — bez ekranu): cały wiersz jest przyciskiem
+ *    rozwijającym dzieci.
+ *  • Stan rozwinięcia jest SSR-SPÓJNY: layout czyta ciasteczko i podaje
+ *    `expanded`, a gałąź z trasą aktywną rozwija się ZAWSZE (operator widzi,
+ *    gdzie stoi) — render serwera od razu poprawny, zero flash-a. Klik zapisuje
+ *    ciasteczko, więc następna nawigacja oddaje ten sam stan.
  *
- * JEDEN RENDER NA OBA STANY (naprawa M2, uwaga przeglądu 2026-07-24).
- * Poprzednio nagłówki grup, separatory, badge i tooltipy wybierała GAŁĄŹ
- * REACTA po `collapsed` z `localStorage`. Serwer tej wartości nie zna, więc
- * SSR rysował zawsze wariant rozwinięty — a skrypt startowy zdążył już zwęzić
- * pasek do 72 px. Efekt: nagłówki grup i badge malowały się wciśnięte w wąski
- * pasek i znikały dopiero po hydracji. To był SKOK przy ładowaniu.
+ * DWA STANY PASKA (uwaga przeglądu 2026-07-23, zachowane w ADR-231):
+ *  • ROZWINIĘTY — ikona + etykieta (`data-nav-label`), akordeon działa.
+ *  • ZWINIĘTY (rail 72 px) — sam pasek ikon. Etykiety chowa `rail-collapsed:`,
+ *    nazwę niesie `aria-label` linku i dymek (`data-nav-tooltip`). W railu
+ *    akordeon jest SPŁASZCZONY: chevrony znikają, a dzieci są zawsze widoczne
+ *    jako ikony (kontener dzieci `rail-collapsed:flex`), więc pasek ikon zachowuje
+ *    pełny zasięg — z railu da się dojść wszędzie bez rozwijania paska.
  *
- * Dlatego markup jest TEN SAM w obu stanach, a o widoczności decyduje wariant
- * `rail-collapsed:` (`html[data-sidebar="collapsed"] [data-sidebar-rail] &`),
- * ustawiany przed pierwszym malowaniem. Komponent NIE czyta już stanu
- * zwinięcia — nie ma czego rozjechać między serwerem a klientem.
- *
- * Wariant jest zakotwiczony w pasku, nie w `<html>`, bo ta sama nawigacja
- * renderuje się w szufladzie mobilnej — a ta jest zawsze pełnej szerokości.
- *
- * Stany interakcji: hover to WYŁĄCZNIE podkreślenie (żadnego koloru ani tła),
- * focus to obrys limonki. Aktywna pozycja nadal nie dostaje krawędzi (decyzja
- * właściciela 2026-07-21), `border-l-2 border-transparent` ZOSTAJE na
- * wszystkich pozycjach dla stałej geometrii. Zakazu krawędzi i nowego
- * znacznika pilnuje `sidebar-active-contract.test.tsx`.
+ * JEDEN RENDER NA OBA STANY (naprawa M2): markup jest TEN SAM, o widoczności
+ * decyduje wariant `rail-collapsed:` ustawiony przed pierwszym malowaniem.
+ * Komponent NIE czyta stanu zwinięcia PASKA — nie ma czego rozjechać między
+ * serwerem a klientem (stan AKORDEONU to osobna rzecz, SSR-spójna z ciasteczka).
  */
 export function SidebarNav({
   onNavigate,
@@ -68,64 +86,79 @@ export function SidebarNav({
   onboarding = false,
   isOwner = false,
   launch = null,
+  expanded = [],
 }: {
   onNavigate?: () => void;
   /**
    * Pozycja warunkowa „Uruchomienie" (ADR-228): postęp huba z shella, gdy
-   * onboarding nieukończony. `null` (domyślnie) = pozycji nie ma — po komplecie
-   * wymaganych kroków, w oknie domykania i dla sesji bez organizacji. Jak
-   * `closing`/`onboarding`: to filtr WIDOKU, nie bramka — trasa `/uruchomienie`
-   * i tak trzyma własny `requireMemberPage`.
+   * onboarding nieukończony. `null` (domyślnie) = pozycji nie ma. Filtr WIDOKU,
+   * nie bramka — trasa `/uruchomienie` trzyma własny `requireMemberPage`.
    */
   launch?: LaunchNavState;
   /**
    * Okno domykania (ADR-138): true = pokazujemy WYŁĄCZNIE pozycje
    * z CLOSING_NAV_HREFS. Bramką dostępu pozostaje guard (odmowa domyślna) —
-   * filtr nie pokazuje drzwi, które są zamknięte. Grupy bez pozycji znikają.
+   * filtr nie pokazuje drzwi, które są zamknięte. Gałęzie bez dzieci znikają.
    */
   closing?: boolean;
   /**
-   * Sesja BEZ organizacji (ADR-153, N4): KAŻDA pozycja grup prowadzi na
-   * trasę tenancką, a `requireMemberPage` odsyła taką sesję z powrotem na
-   * pulpit — czyli pełne menu było listą dziesięciu linków robiących to samo
-   * kółko. Zostaje sam pulpit, bo tylko on niesie wejście do zakładania
-   * organizacji. Jak przy `closing`: to filtr WIDOKU, bramką pozostaje guard.
+   * Sesja BEZ organizacji (ADR-153, N4): KAŻDA pozycja drzewa prowadzi na
+   * trasę tenancką, z której `requireMemberPage` zawraca na pulpit. Zostaje sam
+   * pulpit — jedyne wejście do zakładania organizacji. Filtr WIDOKU, bramką
+   * pozostaje guard.
    */
   onboarding?: boolean;
   /**
    * Rola sesji z layoutu (M-UX-02, ADR-193): pozycje `ownerOnly` (dziś
-   * „Zespół" → /zaproszenia) renderują się WYŁĄCZNIE ownerowi — staff widział
-   * link, który serwer i tak zawsze kończył odmową. Domyślna FAŁSZ (odmowa
-   * domyślna jak w guardach): zapomniane okablowanie CHOWA pozycję, zamiast
-   * pokazać ją wszystkim. Jak `closing`/`onboarding` — filtr WIDOKU, bramką
-   * pozostaje `requireMember("owner")` na ekranie i akcjach.
+   * „Zespół" → /zaproszenia) renderują się WYŁĄCZNIE ownerowi. Domyślna FAŁSZ
+   * (odmowa domyślna jak w guardach). Filtr WIDOKU, bramką pozostaje
+   * `requireMember("owner")`.
    */
   isOwner?: boolean;
+  /**
+   * Gałęzie rozwinięte z ciasteczka (ADR-231), SSR-spójnie z layoutu. Gałąź
+   * z trasą aktywną rozwija się mimo braku na tej liście.
+   */
+  expanded?: readonly string[];
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const active = matchNavItem(pathname);
 
+  const initialExpanded = new Set(expanded);
+  // Nadpisania użytkownika (klik chevronu). Przed pierwszym klikiem `undefined`
+  // → stan = ciasteczko LUB gałąź zawiera trasę aktywną (SSR-spójne). Po kliku
+  // wybór użytkownika wygrywa, więc chevron zawsze reaguje.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
   const PlaceholderIcon = NAV_ICONS[PANEL_NAV_PLACEHOLDER.id];
   const placeholderLabel = t(PANEL_NAV_PLACEHOLDER.labelKey);
 
-  // Filtr uprawnień idzie PRZED filtrem okna domykania: obie redukcje mają
-  // działać niezależnie, a grupy bez pozycji znikają po złożeniu obu.
-  const permitted: readonly PanelNavGroup[] = PANEL_NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => !item.ownerOnly || isOwner),
-  })).filter((group) => group.items.length > 0);
+  const nodes = filterTree(PANEL_NAV_TREE, { onboarding, closing, isOwner });
+  const branchesShown = nodes.flatMap((node) => (node.kind === "branch" ? [node.branch] : []));
 
-  const groups: readonly PanelNavGroup[] = onboarding
-    ? []
-    : closing
-      ? permitted
-          .map((group) => ({
-            ...group,
-            items: group.items.filter((item) => CLOSING_NAV_HREFS.includes(item.href)),
-          }))
-          .filter((group) => group.items.length > 0)
-      : permitted;
+  function isOpen(branch: PanelNavBranch): boolean {
+    const override = overrides[branch.id];
+    if (override !== undefined) return override;
+    return initialExpanded.has(branch.id) || branchContainsPath(branch, pathname);
+  }
+
+  function toggleBranch(branch: PanelNavBranch) {
+    const next = !isOpen(branch);
+    const nextOverrides = { ...overrides, [branch.id]: next };
+    setOverrides(nextOverrides);
+    // Zapisz zbiór gałęzi OTWARTYCH po zmianie — layout czyta go przy renderze
+    // serwera, więc następna nawigacja oddaje od razu ten sam stan (zero flash-a).
+    const openIds = branchesShown
+      .filter((candidate) =>
+        candidate.id === branch.id
+          ? next
+          : nextOverrides[candidate.id] ??
+            (initialExpanded.has(candidate.id) || branchContainsPath(candidate, pathname)),
+      )
+      .map((candidate) => candidate.id);
+    persistExpandedBranches(openIds);
+  }
 
   return (
     <nav
@@ -134,124 +167,240 @@ export function SidebarNav({
       aria-label={t("panelNavigation")}
       className="flex flex-col gap-0.5 p-3"
     >
-      {/* Dashboard ISTNIEJE i jest stroną startową (UX1, ADR-140) — pozycja
-          jest linkiem do `/`, bez badge „Wkrótce". Stoi poza grupami (jak w
-          artefakcie po zgodnej edycji) i poza matchNavItem: dopasowanie
-          prefiksowe na `/` łapałoby każdą trasę, więc stan aktywny to
-          RÓWNOŚĆ ścieżki. W oknie domykania pozycja ZOSTAJE — spójnie z
-          dolnym paskiem mobilnym (PANEL_BOTTOM_NAV_HOME w trybie closing):
-          trasa `/` istnieje i pokazuje wejście do huba domykania. */}
+      {/* Dashboard ISTNIEJE i jest stroną startową (UX1, ADR-140) — link do `/`,
+          bez badge „Wkrótce". Stoi poza drzewem (jak w artefakcie) i poza
+          matchNavItem: dopasowanie prefiksowe na `/` łapałoby każdą trasę, więc
+          stan aktywny to RÓWNOŚĆ ścieżki. W oknie domykania pozycja ZOSTAJE. */}
       <Link
         href="/"
         data-nav-placeholder={PANEL_NAV_PLACEHOLDER.id}
         aria-current={pathname === "/" ? "page" : undefined}
         aria-label={placeholderLabel}
         onClick={onNavigate}
-        className={[
-          "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm font-medium",
-          "rail-collapsed:justify-center",
-          "text-sidebar-foreground border-transparent",
-          "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
-          "hover:underline hover:underline-offset-[3px]",
-          "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-          pathname === "/"
-            ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
-            : "",
-        ].join(" ")}
+        className={rowClass(pathname === "/", false)}
       >
-        <PlaceholderIcon
-          aria-hidden="true"
-          className="size-4 shrink-0"
-          strokeWidth={NAV_ICON_STROKE_WIDTH}
-        />
+        <PlaceholderIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
         <span data-nav-label className="rail-collapsed:hidden">
           {placeholderLabel}
         </span>
         <NavTooltip label={placeholderLabel} />
       </Link>
 
-      {groups.map((group, index) => (
-        <div key={group.id} className="contents">
-          {/* Zwinięty pasek nie ma miejsca na nagłówek grupy — grupowanie
-              niesie wtedy cienka linia (poza pierwszą grupą, nad którą jest
-              już zapowiedź). Dekoracyjna, więc `aria-hidden`. Oba warianty
-              stoją w DOM, przełącza je atrybut paska. */}
-          {index > 0 ? (
-            <div
-              role="separator"
-              aria-hidden="true"
-              data-nav-separator
-              className="border-border mx-2 my-2 hidden border-t rail-collapsed:block"
-            />
-          ) : null}
-          <p
-            data-nav-group-label
-            className="text-muted-foreground mt-4 mb-1 px-3 text-[11px] leading-[14px] font-semibold tracking-[0.08em] rail-collapsed:hidden"
-          >
-            {t(group.labelKey)}
-          </p>
-          {/* Pozycja warunkowa „Uruchomienie" na GÓRZE grupy SPRZEDAŻ (ADR-228)
-              — wchodzi tylko, gdy shell poda postęp (onboarding nieukończony). */}
-          {group.id === "sales" && launch ? (
-            <LaunchNavLink
-              launch={launch}
-              active={pathname === PANEL_NAV_LAUNCH.href}
-              label={t(PANEL_NAV_LAUNCH.labelKey)}
-              onNavigate={onNavigate}
-            />
-          ) : null}
-          {group.items.map((item) => {
-            const Icon = NAV_ICONS[item.id];
-            const isActive = active?.id === item.id;
-            const label = t(item.labelKey);
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                data-nav-item={item.id}
-                aria-current={isActive ? "page" : undefined}
-                // Nazwa dostępna STAŁA, niezależna od zwinięcia: w stanie
-                // zwiniętym etykieta znika przez `display:none`, więc bez
-                // `aria-label` link zostałby bez nazwy — i to już od
-                // pierwszego malowania, na długo przed hydracją.
-                aria-label={label}
-                onClick={onNavigate}
-                className={[
-                  "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm font-medium",
-                  "rail-collapsed:justify-center",
-                  "text-sidebar-foreground border-transparent",
-                  "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
-                  "hover:underline hover:underline-offset-[3px]",
-                  "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-                  isActive
-                    ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
-                    : "",
-                ].join(" ")}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className="size-4 shrink-0"
-                  strokeWidth={NAV_ICON_STROKE_WIDTH}
-                />
-                <span data-nav-label className="rail-collapsed:hidden">
-                  {label}
-                </span>
-                <NavTooltip label={label} />
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+      {/* Pozycja warunkowa „Uruchomienie" (ADR-228) na GÓRZE drzewa — wchodzi
+          tylko, gdy shell poda postęp (onboarding nieukończony). */}
+      {launch ? (
+        <LaunchNavLink
+          launch={launch}
+          active={pathname === PANEL_NAV_LAUNCH.href}
+          label={t(PANEL_NAV_LAUNCH.labelKey)}
+          onNavigate={onNavigate}
+        />
+      ) : null}
+
+      {nodes.map((node) =>
+        node.kind === "item" ? (
+          <NavLeaf
+            key={node.item.id}
+            item={node.item}
+            active={active?.id === node.item.id}
+            label={t(node.item.labelKey)}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <NavBranch
+            key={node.branch.id}
+            branch={node.branch}
+            open={isOpen(node.branch)}
+            active={active}
+            onToggle={() => toggleBranch(node.branch)}
+            onNavigate={onNavigate}
+            t={t}
+          />
+        ),
+      )}
     </nav>
+  );
+}
+
+/** Filtr uprawnień/okna domykania/onboardingu na DRZEWIE (ADR-231). */
+function filterTree(
+  nodes: readonly PanelNavNode[],
+  { onboarding, closing, isOwner }: { onboarding: boolean; closing: boolean; isOwner: boolean },
+): PanelNavNode[] {
+  if (onboarding) return [];
+  return nodes.flatMap((node): PanelNavNode[] => {
+    if (node.kind === "item") {
+      if (closing && !CLOSING_NAV_HREFS.includes(node.item.href)) return [];
+      return [node];
+    }
+    const branch = node.branch;
+    let children = branch.children.filter((child) => !child.ownerOnly || isOwner);
+    if (closing) children = children.filter((child) => CLOSING_NAV_HREFS.includes(child.href));
+    const branchNavigableInClosing = branch.href ? CLOSING_NAV_HREFS.includes(branch.href) : false;
+    const keep = children.length > 0 || (Boolean(branch.href) && (!closing || branchNavigableInClosing));
+    if (!keep) return [];
+    return [{ kind: "branch", branch: { ...branch, children } }];
+  });
+}
+
+/** Liść drzewa (pozycja klikalna) — top-level albo dziecko akordeonu. */
+function NavLeaf({
+  item,
+  active,
+  label,
+  onNavigate,
+  child = false,
+}: {
+  item: PanelNavItem;
+  active: boolean;
+  label: string;
+  onNavigate?: () => void;
+  child?: boolean;
+}) {
+  const Icon = NAV_ICONS[item.id];
+  return (
+    <Link
+      href={item.href}
+      data-nav-item={item.id}
+      aria-current={active ? "page" : undefined}
+      // Nazwa dostępna STAŁA, niezależna od zwinięcia paska: w railu etykieta
+      // znika przez `display:none`, więc bez `aria-label` link zostałby bez nazwy.
+      aria-label={label}
+      onClick={onNavigate}
+      className={rowClass(active, child)}
+    >
+      {Icon ? (
+        <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+      ) : null}
+      <span data-nav-label className="rail-collapsed:hidden">
+        {label}
+      </span>
+      <NavTooltip label={label} />
+    </Link>
+  );
+}
+
+/**
+ * Gałąź akordeonu (ADR-231). Nawigowalna → wiersz-link + osobny chevron;
+ * grupa-toggle → cały wiersz to przycisk. Dzieci w `role="group"`. W railu
+ * chevron znika, a dzieci są zawsze widoczne jako ikony.
+ */
+function NavBranch({
+  branch,
+  open,
+  active,
+  onToggle,
+  onNavigate,
+  t,
+}: {
+  branch: PanelNavBranch;
+  open: boolean;
+  active: PanelNavItem | undefined;
+  onToggle: () => void;
+  onNavigate?: () => void;
+  t: (key: string, values?: Record<string, string>) => string;
+}) {
+  const ParentIcon = NAV_ICONS[branch.id];
+  const label = t(branch.labelKey);
+  const childrenId = branchChildrenId(branch.id);
+  const selfItem = branchSelfItem(branch);
+  const selfActive = selfItem ? active?.id === selfItem.id : false;
+  const containsActive =
+    selfActive || branch.children.some((child) => active?.id === child.id);
+
+  const chevron = (
+    <ChevronDown
+      aria-hidden="true"
+      className={`size-4 shrink-0 transition-transform [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] rail-collapsed:hidden ${open ? "" : "-rotate-90"}`}
+      strokeWidth={NAV_ICON_STROKE_WIDTH}
+    />
+  );
+
+  return (
+    <div data-nav-branch={branch.id} className="contents">
+      {branch.href ? (
+        // NAWIGOWALNA: link (nawiguje) + osobny chevron (toggluje). Dwa
+        // rodzeństwa, nie przycisk w linku — klik w chevron nie zjada nawigacji.
+        <div className="relative flex items-center">
+          <Link
+            href={branch.href}
+            data-nav-item={selfItem?.id}
+            data-nav-branch-link={branch.id}
+            aria-current={selfActive ? "page" : undefined}
+            aria-label={label}
+            onClick={onNavigate}
+            className={`${rowClass(containsActive, false)} min-w-0 flex-1 pr-9`}
+          >
+            {ParentIcon ? (
+              <ParentIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+            ) : null}
+            <span data-nav-label className="truncate rail-collapsed:hidden">
+              {label}
+            </span>
+            <NavTooltip label={label} />
+          </Link>
+          <button
+            type="button"
+            data-nav-branch-toggle={branch.id}
+            aria-expanded={open}
+            aria-controls={childrenId}
+            aria-label={t(open ? "collapseSection" : "expandSection", { section: label })}
+            onClick={onToggle}
+            className="absolute right-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-muted/60 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent rail-collapsed:hidden dark:focus-visible:outline-ring"
+          >
+            {chevron}
+          </button>
+        </div>
+      ) : (
+        // GRUPA-TOGGLE (bez ekranu): cały wiersz przełącza rozwinięcie.
+        <button
+          type="button"
+          data-nav-branch-toggle={branch.id}
+          aria-expanded={open}
+          aria-controls={childrenId}
+          aria-label={label}
+          onClick={onToggle}
+          className={`${rowClass(containsActive, false)} w-full cursor-pointer text-left`}
+        >
+          {ParentIcon ? (
+            <ParentIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
+          ) : null}
+          <span data-nav-label className="rail-collapsed:hidden">
+            {label}
+          </span>
+          <span className="ml-auto rail-collapsed:hidden">{chevron}</span>
+          <NavTooltip label={label} />
+        </button>
+      )}
+
+      {/* Dzieci: ukryte przy zwiniętej gałęzi (SSR-spójnie), ale ZAWSZE widoczne
+          w railu (`rail-collapsed:flex`), gdzie akordeon jest spłaszczony do ikon. */}
+      <div
+        id={childrenId}
+        role="group"
+        aria-label={label}
+        data-nav-branch-children={branch.id}
+        className={`flex flex-col gap-0.5 ${open ? "" : "hidden"} rail-collapsed:flex`}
+      >
+        {branch.children.map((child) => (
+          <NavLeaf
+            key={child.id}
+            item={child}
+            active={active?.id === child.id}
+            label={t(child.labelKey)}
+            onNavigate={onNavigate}
+            child
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
 /**
  * Pozycja „Uruchomienie" z badge postępu (ADR-228). Ma WŁASNY atrybut
  * `data-nav-launch` (nie `data-nav-item`), bo nie jest pozycją kontraktu
- * struktury — skanery `data-nav-item` (np. kontrola kompletu pozycji grup)
- * nie mają jej liczyć. Badge chowa się w stanie zwiniętym razem z etykietą;
- * nazwę i tak niesie `aria-label`, a dymek `NavTooltip`.
+ * struktury — skanery `data-nav-item` nie mają jej liczyć.
  */
 function LaunchNavLink({
   launch,
@@ -271,23 +420,9 @@ function LaunchNavLink({
       aria-current={active ? "page" : undefined}
       aria-label={label}
       onClick={onNavigate}
-      className={[
-        "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm font-medium",
-        "rail-collapsed:justify-center",
-        "text-sidebar-foreground border-transparent",
-        "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
-        "hover:underline hover:underline-offset-[3px]",
-        "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
-        active
-          ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
-          : "",
-      ].join(" ")}
+      className={rowClass(active, false)}
     >
-      <RocketIcon
-        aria-hidden="true"
-        className="size-4 shrink-0"
-        strokeWidth={NAV_ICON_STROKE_WIDTH}
-      />
+      <RocketIcon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
       <span data-nav-label className="rail-collapsed:hidden">
         {label}
       </span>
@@ -303,14 +438,12 @@ function LaunchNavLink({
 }
 
 /**
- * Wizualny dymek etykiety dla stanu zwiniętego.
+ * Wizualny dymek etykiety dla stanu zwiniętego paska.
  *
- * `aria-hidden`, bo nazwę dostępną niesie już `aria-label` na linku — dwa
- * źródła nazwy podwoiłyby komunikat czytnika. Widoczność w całości należy do
- * arkusza (`[data-nav-tooltip]` w `globals.css`): domyślnie `display:none`,
- * a pokazuje go zwinięty pasek pod kursorem lub fokusem. Dlatego dymek może
- * stać w DOM ZAWSZE — również w szufladzie mobilnej, gdzie nigdy się nie
- * pokaże. `pointer-events-none`, żeby nie łapał myszy nad sąsiadem.
+ * `aria-hidden`, bo nazwę dostępną niesie już `aria-label` na linku. Widoczność
+ * należy do arkusza (`[data-nav-tooltip]` w `globals.css`): domyślnie
+ * `display:none`, pokazuje go zwinięty pasek pod kursorem lub fokusem. Dlatego
+ * dymek może stać w DOM ZAWSZE. `pointer-events-none`, żeby nie łapał myszy.
  */
 function NavTooltip({ label }: { label: string }) {
   return (
