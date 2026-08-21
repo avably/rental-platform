@@ -337,7 +337,11 @@
     "sidebarCollapse": "Collapse menu",
     "sidebarExpand": "Expand menu",
     "apiKeys": "API keys",
-    "dataExport": "Data export"
+    "dataExport": "Data export",
+    "favoritesBar": "Favorite screens",
+    "pinScreen": "Pin {screen}",
+    "unpinScreen": "Unpin {screen}",
+    "reorderFavorite": "Reorder {screen}"
   },
   "contractSettings": {
     "title": "Agreement settings",

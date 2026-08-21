@@ -231,6 +231,39 @@ export function resolvePanelNavItem(id: string): PanelNavItem {
   return item;
 }
 
+/**
+ * Pozycja `PANEL_NAV_ITEMS` po id albo `undefined` — miękkie wyszukanie dla
+ * ULUBIONYCH (ADR-232). Ulubione trzymają NIEPRZEZROCZYSTE id (baza jest
+ * agnostyczna wobec treści), więc rozwiązanie id → pozycja musi znosić id
+ * NIEZNANE (usunięty/zmieniony ekran) bez rzutu — inaczej niż `resolvePanelNavItem`.
+ */
+export function findNavItem(id: string): PanelNavItem | undefined {
+  return PANEL_NAV_ITEMS.find((item) => item.id === id);
+}
+
+/**
+ * Filtr surowej listy ulubionych do ZNANYCH pozycji nav (ADR-232) — zachowuje
+ * kolejność, usuwa duplikaty i id spoza `PANEL_NAV_ITEMS`. Odporność na usunięty
+ * ekran: stale/nieznane id po prostu znika z paska i z gwiazdek, a baza zostaje
+ * nietknięta do najbliższego zapisu (który zapisze już oczyszczoną listę).
+ */
+export function knownFavoriteIds(ids: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const known: string[] = [];
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    if (!findNavItem(id)) continue;
+    seen.add(id);
+    known.push(id);
+  }
+  return known;
+}
+
+/** Pozycje nav dla listy id ulubionych (ZNANE, w kolejności) — render paska. */
+export function favoriteNavItems(ids: readonly string[]): PanelNavItem[] {
+  return knownFavoriteIds(ids).map((id) => findNavItem(id) as PanelNavItem);
+}
+
 export const PANEL_BOTTOM_NAV_ITEMS = [
   resolvePanelNavItem("orders"),
   resolvePanelNavItem("catalog"),
