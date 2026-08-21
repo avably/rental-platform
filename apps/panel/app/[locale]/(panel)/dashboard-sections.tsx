@@ -7,6 +7,8 @@ import {
   isLaunchComplete,
   launchProgress,
   launchSteps,
+  publishGateBlockers,
+  publishGateSignals,
 } from "@/lib/onboarding/launch";
 import { buildRevenueSummaries } from "@/lib/dashboard/revenue-model";
 import { warsawToday } from "@/lib/orders/order-dates";
@@ -61,6 +63,9 @@ export async function DashboardSections({
   ]);
   const steps = launchSteps(signals);
   const progress = launchProgress(steps);
+  // Braki minimum sprzedażowego z TEGO SAMEGO odczytu sygnałów — karta pulpitu
+  // i overlay paska przewodnika mówią to samo (ADR-229), bez nowego zapytania.
+  const launchBlockers = publishGateBlockers(publishGateSignals(signals));
   const revenueSummaries = buildRevenueSummaries(
     data.revenue,
     today,
@@ -70,7 +75,11 @@ export async function DashboardSections({
   return (
     <div className="flex flex-col gap-4" data-dashboard="true">
       {isLaunchComplete(steps) ? null : (
-        <DashboardLaunchBanner done={progress.done} total={progress.total} />
+        <DashboardLaunchBanner
+          done={progress.done}
+          total={progress.total}
+          blockers={launchBlockers}
+        />
       )}
       {signals.ordersCount > 0 ? (
         <DashboardDaySection rows={data.day} today={today} locale={locale} />

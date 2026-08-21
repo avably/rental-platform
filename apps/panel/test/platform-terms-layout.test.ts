@@ -48,6 +48,9 @@ vi.mock("next-intl/server", () => ({
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
+  // Layout czyta ciasteczko zwinięcia paska przewodnika (ADR-229); tu tenant
+  // ma pełny dostęp bez tego stanu, więc mock oddaje puste ciasteczka.
+  cookies: async () => ({ get: () => undefined, set: () => undefined }),
 }));
 
 const { PlatformTermsOverlay } = await import("@/components/shell/platform-terms-overlay");

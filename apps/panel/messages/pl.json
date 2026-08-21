@@ -136,6 +136,15 @@
       "progress": "{done} z {total} wymaganych kroków gotowych",
       "cta": "Dokończ →"
     },
+    "guide": {
+      "regionLabel": "Przewodnik uruchomienia",
+      "nextStep": "Następny krok:",
+      "finishStep": "Dokończ krok →",
+      "seeAll": "Zobacz wszystko",
+      "collapse": "Zwiń",
+      "expand": "Rozwiń przewodnik uruchomienia",
+      "openHub": "Otwórz przewodnik"
+    },
     "phases": {
       "1": {
         "title": "Firma i zgodność"
