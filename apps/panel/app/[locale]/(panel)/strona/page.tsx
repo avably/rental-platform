@@ -19,17 +19,13 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { isProductTemplateKind } from "@avably/core/site";
 
 import { ScreenBackLink } from "@/components/screens/screen-header";
-import { footerMarkGaps } from "@/lib/footer-mark-reach";
 import { requireMemberPage } from "@/lib/member-page";
 import { listSites } from "@/lib/site-queries";
-import { tenantLogo } from "@/lib/tenant-logo-render";
 
 import { appearancePending } from "./appearance-state";
 import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
 import { StoreAppearanceCard } from "./store-appearance-card";
-import { StoreLogoCard } from "./store-logo-card";
-import { StoreTermPillCard } from "./store-term-pill-card";
 
 export default async function SitePage() {
   const ctx = await requireMemberPage("/strona");
@@ -45,10 +41,12 @@ export default async function SitePage() {
   }
 
   /*
-    ZNAK FIRMY (ADR-160) I WYGLĄD SKLEPU (ADR-161) — obie własności NAJEMCY,
-    więc czytane z `tenants`, a nie z którejkolwiek ze stron, i JEDNYM
-    zapytaniem: to ten sam wiersz i ta sama publikacja. Nieudany odczyt NIE gasi
-    ekranu: lista stron jest tu ważniejsza niż obie karty, a `own_select` i tak
+    WYGLĄD SKLEPU (ADR-161) do KARTY STANU — własność NAJEMCY, więc czytana
+    z `tenants`, a nie z którejkolwiek ze stron. Karta odpowiada wyłącznie na
+    pytanie „czy klienci już to widzą" i prowadzi na ekran designu
+    (`/strona/wyglad`, ADR-230); ZNAK i pigułka terminu przeniosły się tam wraz
+    z realną edycją, więc ten ekran ich kolumn już nie czyta. Nieudany odczyt
+    NIE gasi ekranu: lista stron jest ważniejsza niż karta, a `own_select` i tak
     oddaje wyłącznie własny wiersz najemcy.
 
     Kolumny wyglądu doszły przy ADR-171: do tej poprawki `style_published`
@@ -57,9 +55,7 @@ export default async function SitePage() {
   */
   const tenantRow = await ctx.supabase
     .from("tenants")
-    .select(
-      "logo_draft, logo_published, template, template_published, style_draft, style_published, store_term_calendar_enabled",
-    )
+    .select("template, template_published, style_draft, style_published")
     .eq("id", ctx.tenantId!)
     .maybeSingle();
 
@@ -77,21 +73,6 @@ export default async function SitePage() {
         style_published: tenantRow.data.style_published,
       })
     : null;
-
-  /*
-    GDZIE ZNAK DO STOPKI NIE DOTRZE (ADR-167). Odczyt jest tu, a nie w karcie,
-    bo karta jest komponentem KLIENCKIM — i dotyczy stanu OPUBLIKOWANEGO,
-    czyli tego samego zbioru sekcji, który wypuszcza `app.get_published_page`.
-    Nieudany odczyt gasi samo zdanie, a nie ekran: brak ostrzeżenia jest gorszy
-    od ostrzeżenia, ale pusta lista stron byłaby gorsza od obu.
-  */
-  const footerRows = await ctx.supabase
-    .from("site_sections")
-    .select("site_id, content_published")
-    .eq("tenant_id", ctx.tenantId!)
-    .eq("type", "footer")
-    .eq("enabled_published", true)
-    .not("content_published", "is", null);
 
   /*
     STARE ADRESY PROWADZĄCE DO STRON (0075, ADR-159) — potrzebne oknu zdjęcia
@@ -202,33 +183,13 @@ export default async function SitePage() {
   return (
     <div className="flex flex-col gap-4">
       <ScreenBackLink href="/" label={t("backHome")} />
-      <StoreLogoCard
-        state={{
-          draft: tenantLogo(tenantRow.data?.logo_draft),
-          published: tenantLogo(tenantRow.data?.logo_published),
-        }}
-        footerGaps={footerMarkGaps(
-          sites.map((site) => ({
-            id: site.id,
-            name: site.name,
-            live: site.published_at !== null,
-          })),
-          footerRows.data ?? [],
-        )}
-      />
-      {appearance === null ? null : <StoreAppearanceCard pending={appearance} />}
       {/*
-        KALENDARZ TERMINU W PASKU (ADR-203) — trzecia własność powłoki najemcy,
-        obok znaku i wyglądu. Ta sama reguła, co przy karcie wyglądu: nieudany
-        odczyt wiersza znaczy „nie wiadomo", więc karta znika, zamiast rysować
-        przełącznik na domyśle (zdanie o stanie sklepu z domysłu jest gorsze
-        od jego braku — kanon ADR-171).
+        KARTA WYGLĄDU (ADR-171) — teraz WEJŚCIE na ekran designu (C4, ADR-230):
+        status plus „Edytuj wygląd →" prowadzące na `/strona/wyglad`. Znak firmy
+        i pigułka terminu przeniosły się na tamten ekran wraz z realną edycją,
+        więc na liście stron zostaje samo wejście z wyglądem.
       */}
-      {tenantRow.data ? (
-        <StoreTermPillCard
-          initialEnabled={(tenantRow.data.store_term_calendar_enabled as boolean | null) ?? true}
-        />
-      ) : null}
+      {appearance === null ? null : <StoreAppearanceCard pending={appearance} />}
       {/*
         ZASIĘG PUBLIKACJI JEDZIE DO OKNA (ADR-171). Okno potwierdzenia mówiło
         bezwarunkowo „Pozostałe strony sklepu zostają bez zmian", a `publishSite`

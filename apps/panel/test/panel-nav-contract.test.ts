@@ -221,6 +221,19 @@ describe("dopasowanie trasy aktywnej", () => {
     expect(matchNavItem("/ustawienia-dostaw/punkty-odbioru/nowy")?.id).toBe("delivery");
   });
 
+  it("podtrasa /strona/wyglad podświetla „Strona sklepu” prefiksem (ADR-230)", () => {
+    // Ekran „Wygląd sklepu" jest PODTRASĄ, nie pozycją nawigacji: dopasowanie
+    // prefiksowe daje mu podświetlenie „store" BEZ dopisywania czegokolwiek do
+    // `nav.ts`, więc kontrakt struktury (15 pozycji z artefaktu) zostaje
+    // nietknięty — i to jest właśnie asercja. Tytuł belki bierze się z tej samej
+    // pozycji (brak override'u w `PANEL_ROUTE_TITLE_OVERRIDES`).
+    expect(matchNavItem("/strona")?.id).toBe("store");
+    expect(matchNavItem("/strona/wyglad")?.id).toBe("store");
+    expect(panelTitleKey("/strona/wyglad")).toBe("store");
+    // Kontrakt struktury nietknięty: „store" prowadzi dalej pod `/strona`.
+    expect(PANEL_NAV_ITEMS.find((item) => item.id === "store")?.href).toBe("/strona");
+  });
+
   it("trasa spoza nawigacji nie podświetla niczego", () => {
     expect(matchNavItem("/historia-emaili")).toBeUndefined();
     expect(matchNavItem("/design-system")).toBeUndefined();

@@ -1722,7 +1722,8 @@
       "title": "Shop look",
       "scope": "Theme, accent colour and typefaces. They apply to every page of your shop at once.",
       "pending": "The look is waiting to be published - customers still see the previous one. It goes live with the next publication of any page.",
-      "live": "Customers see this look."
+      "live": "Customers see this look.",
+      "editLink": "Edit appearance →"
     },
     "termPill": {
       "title": "Date picker in the shop bar",
@@ -2080,6 +2081,9 @@
       "redirectOld": "Redirect the old address {old} to the new one",
       "redirectOldHint": "Customers with a saved link and search results will land on the new address instead of an error page.",
       "homeBadge": "Home page",
+      "groupHome": "Home page",
+      "groupProducts": "Product pages",
+      "groupAdditional": "Additional pages",
       "homeMissingTitle": "Your shop has no home page",
       "homeMissingBody": "At “/” customers will see none of your pages - every other one lives at its own address. Create the home page and publish it.",
       "newHome": "Create home page",
@@ -2898,6 +2902,39 @@
       "number": "Enter a number.",
       "range": "The number is outside the allowed range.",
       "tooLarge": "The custom fields together take up too much space - shorten the entries."
+    }
+  },
+  "storeAppearance": {
+    "title": "Shop look",
+    "back": "Shop page",
+    "intro": "The theme, accent colour and typefaces apply to every page of your shop at once. Changes go live only after you publish.",
+    "pending": "The look draft is waiting to be published - customers still see the previous one.",
+    "live": "Customers see this look.",
+    "publish": "Publish look",
+    "theme": {
+      "title": "Theme",
+      "description": "The shop's visual world: palettes, typefaces and shapes."
+    },
+    "themes": {
+      "industrial-noir": "Industrial",
+      "velocity": "Dynamic",
+      "confetti": "Playful",
+      "noir-lux": "Elegant",
+      "atelier": "Artisan",
+      "gridline": "Structured"
+    },
+    "preview": {
+      "title": "Live preview",
+      "description": "This is how customers will see your shop.",
+      "eyebrow": "Your rental shop",
+      "heading": "Gear ready for your project",
+      "body": "Book online, pick up on site or order a courier.",
+      "cta": "See the offer",
+      "fontsLabel": "Typefaces: {pair}"
+    },
+    "errors": {
+      "denied": "You do not have access to this operation.",
+      "publish": "Could not publish the look. Try again."
     }
   }
 }
