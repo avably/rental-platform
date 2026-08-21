@@ -1,6 +1,7 @@
 "use client";
 
 import { CANONICAL_SITE_URL, tenantSubdomainHost } from "@avably/core";
+import { Button, Input } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
@@ -35,12 +36,12 @@ export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | nul
     <form action={formAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm">
         {t("name")}
-        <input type="text" name="name" required maxLength={200} className="rounded border px-3 py-2" />
+        <Input type="text" name="name" required maxLength={200} />
       </label>
       <label className="flex flex-col gap-1 text-sm" htmlFor="tenant-slug">
         {t("slug")}
       </label>
-      <input
+      <Input
         id="tenant-slug"
         type="text"
         name="slug"
@@ -52,7 +53,6 @@ export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | nul
         value={slug}
         onChange={(event) => setSlug(event.target.value)}
         aria-describedby="tenant-slug-preview tenant-slug-note"
-        className="rounded border px-3 py-2"
       />
       <p id="tenant-slug-preview" data-slug-preview className="text-muted-foreground text-sm">
         {previewSlug
@@ -103,14 +103,9 @@ export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | nul
           {state.error}
         </p>
       ) : null}
-      <button
-        type="submit"
-        aria-busy={pending || undefined}
-        disabled={pending}
-        className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
-      >
+      <Button type="submit" loading={pending} disabled={pending}>
         {pending ? t("submitPending") : t("submit")}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -28,7 +28,7 @@ export function StoreAppearanceCard({ pending }: { pending: boolean }) {
     <section
       data-store-appearance
       data-store-appearance-state={pending ? "pending" : "live"}
-      className="border-border flex flex-col gap-1 rounded-lg border p-4"
+      className="border-border bg-card flex flex-col gap-1 rounded-lg border p-4"
     >
       <p className="text-sm font-medium">{t("title")}</p>
       <p className="text-muted-foreground text-[13px] leading-[18px]">{t("scope")}</p>

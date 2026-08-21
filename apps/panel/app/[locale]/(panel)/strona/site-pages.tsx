@@ -215,7 +215,7 @@ export function SitePages({
       {homeMissing ? (
         <div
           data-site-home-missing
-          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+          className="border-border bg-card flex flex-col items-start gap-3 rounded-lg border p-4"
         >
           <p className="text-sm font-medium">{t("pages.homeMissingTitle")}</p>
           <p className="text-muted-foreground text-[13px] leading-[18px]">
@@ -239,7 +239,7 @@ export function SitePages({
       {templateMissing ? (
         <div
           data-site-template-missing
-          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+          className="border-border bg-card flex flex-col items-start gap-3 rounded-lg border p-4"
         >
           <p className="text-sm font-medium">{t("pages.templateMissingTitle")}</p>
           <p className="text-muted-foreground text-[13px] leading-[18px]">
@@ -271,7 +271,7 @@ export function SitePages({
       {hasMother || exceptionsUsed > 0 ? (
         <div
           data-site-exceptions
-          className="border-border flex flex-col items-start gap-3 rounded-lg border p-4"
+          className="border-border bg-card flex flex-col items-start gap-3 rounded-lg border p-4"
         >
           <p className="text-sm font-medium">{t("pages.exceptionsTitle")}</p>
           <p className="text-muted-foreground text-[13px] leading-[18px]">
@@ -293,14 +293,14 @@ export function SitePages({
       {homeNotLive ? (
         <p
           data-site-home-not-live
-          className="border-border text-muted-foreground rounded-lg border p-4 text-[13px] leading-[18px]"
+          className="border-border bg-card text-muted-foreground rounded-lg border p-4 text-[13px] leading-[18px]"
         >
           {t("pages.homeNotLive")}
         </p>
       ) : null}
 
       {rows.length === 0 ? (
-        <div data-site-pages-empty className="border-border flex flex-col items-start gap-3 rounded-lg border p-6">
+        <div data-site-pages-empty className="border-border bg-card flex flex-col items-start gap-3 rounded-lg border p-6">
           <p className="text-sm font-medium">{t("pages.emptyTitle")}</p>
           <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.emptyBody")}</p>
         </div>
@@ -318,7 +318,7 @@ export function SitePages({
                * Kontrakt spójności ekranów dalej ją znajduje.
                */
               data-publish-status
-              className="border-border flex flex-col gap-3 rounded-lg border p-4"
+              className="border-border bg-card flex flex-col gap-3 rounded-lg border p-4"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">{row.name}</span>
