@@ -131,11 +131,18 @@ describe("StoreAppearanceEditor — zmiana motywu jest NIEDESTRUKCYJNA", () => {
 
     fireEvent.click(container.querySelector<HTMLElement>('[data-appearance-theme="confetti"]')!);
 
-    const publishBtn = await waitFor(() =>
-      container.querySelector<HTMLElement>("[data-appearance-publish]"),
-    );
-    expect(publishBtn, "brak wejścia publikacji po zmianie wyglądu").not.toBeNull();
-    fireEvent.click(publishBtn!);
+    // Przycisk publikacji POJAWIA się przy zmianie, ale jest ZABLOKOWANY na czas
+    // tranzycji zapisu (`loading`/`disabled` przez pending). Klik w zablokowany
+    // przycisk NIE odpala akcji — dlatego czekamy, aż zapis się domknie i
+    // przycisk odblokuje. Lokalnie tranzycja mija natychmiast; na wolnym CI
+    // klik wyprzedzał jej koniec (izolacja/async, nie wada produktu).
+    const publishBtn = await waitFor(() => {
+      const btn = container.querySelector<HTMLButtonElement>("[data-appearance-publish]");
+      expect(btn, "brak wejścia publikacji po zmianie wyglądu").not.toBeNull();
+      expect(btn!.disabled, "przycisk publikacji jeszcze w tranzycji zapisu").toBe(false);
+      return btn!;
+    });
+    fireEvent.click(publishBtn);
     await waitFor(() => expect(publish).toHaveBeenCalledTimes(1));
   });
 });

@@ -308,6 +308,13 @@ const BUILDER_LAYER_SOURCES = [
   "app/[locale]/(kreator)/strona/[siteId]/kreator/structured-section-form.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/site-builder.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-palette.tsx",
+  // Panel „Styl strony" (akcent + para krojów) wyodrębniony z palety kreatora
+  // (ADR-230), bo reużywa go też ekran „Wygląd sklepu". Znaczniki tej warstwy
+  // (`data-builder-style`, `data-style-accent`, `data-style-font-pair`)
+  // przeniosły się TU, więc rejestr musi skanować ten plik — inaczej uznaje je
+  // za MARTWE. Reużycie w panelu (`/strona/wyglad`) nie zmienia kontraktu: to
+  // ten sam `SiteRenderer` po stronie sklepu ma nie nieść warstwy edycyjnej.
+  "app/[locale]/(kreator)/strona/[siteId]/kreator/builder-style-panel.tsx",
   "app/[locale]/(kreator)/strona/[siteId]/kreator/template-gallery.tsx",
   // Picker sekcji (E2) — okno wyboru typu z PODGLĄDAMI. Podgląd montuje ten sam
   // `SiteRenderer`, co sklep, więc jego znaczniki muszą być pilnowane tak samo
