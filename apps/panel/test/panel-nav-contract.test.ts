@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   PANEL_NAV_GROUPS,
   PANEL_NAV_ITEMS,
+  PANEL_NAV_LAUNCH,
   PANEL_NAV_PLACEHOLDER,
   matchNavItem,
+  panelTitleKey,
 } from "@/lib/shell/nav";
 
 /**
@@ -174,6 +176,32 @@ describe("kontrakt struktury nawigacji panelu — artefakt Fazy 2 sekcja 04", ()
       expect(item.href.startsWith("/")).toBe(true);
       expect(item.href).not.toMatch(/^\/(pl|en)(\/|$)/);
     }
+  });
+});
+
+describe("pozycja WARUNKOWA Uruchomienie (config-first hub, ADR-228)", () => {
+  /*
+   * „Uruchomienie" NIE jest pozycją kontraktu struktury: artefakt Fazy 2 jej
+   * nie zna, a kontrakt wyżej pilnuje DOKŁADNIE 15 pozycji grup. To pozycja
+   * STANU KONTA — shell renderuje ją warunkowo (badge postępu) na górze grupy
+   * SPRZEDAŻ, dopóki onboarding nieukończony, i chowa po komplecie wymaganych
+   * kroków. Dlatego stoi POZA `PANEL_NAV_GROUPS`/`PANEL_NAV_ITEMS`, a jej
+   * obecność w kodzie nie może ruszyć liczności kontraktu.
+   */
+  it("stoi poza kontraktem grup — nie wchodzi do PANEL_NAV_ITEMS", () => {
+    expect(PANEL_NAV_ITEMS.map((item) => item.id)).not.toContain(PANEL_NAV_LAUNCH.id);
+    expect(PANEL_NAV_ITEMS).toHaveLength(15); // kontrakt struktury bez zmian
+    expect(PANEL_NAV_LAUNCH.href).toBe("/uruchomienie");
+  });
+
+  it("nie kradnie podświetlenia — matchNavItem nie zna jej trasy", () => {
+    // Stan aktywny liczy shell z RÓWNOŚCI ścieżki (jak dla pozycji dashboardu),
+    // nie przez `matchNavItem` (dopasowanie prefiksowe).
+    expect(matchNavItem(PANEL_NAV_LAUNCH.href)).toBeUndefined();
+  });
+
+  it("tytuł belki dla /uruchomienie bierze się z override'u (poza grupami)", () => {
+    expect(panelTitleKey("/uruchomienie")).toBe(PANEL_NAV_LAUNCH.labelKey);
   });
 });
 

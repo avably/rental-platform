@@ -9,6 +9,7 @@ import { panelTitleKey } from "@/lib/shell/nav";
 import { AccountMenu } from "./account-menu";
 import { MobileNav } from "./mobile-nav";
 import { OrganizationSwitcher } from "./organization-switcher";
+import type { LaunchNavState } from "./sidebar-nav";
 
 /**
  * Górna belka shella (ADR-056).
@@ -38,6 +39,7 @@ export function PanelTopbar({
   isOwner = false,
   organizations = [],
   currentTenantId = null,
+  launch = null,
 }: {
   userEmail: string;
   /** Okno domykania (ADR-138) — schodzi do nawigacji mobilnej. */
@@ -50,6 +52,8 @@ export function PanelTopbar({
   organizations?: PanelOrganization[];
   /** Aktywna organizacja z claimu — zaznaczona w pickerze. */
   currentTenantId?: string | null;
+  /** Pozycja warunkowa „Uruchomienie" (ADR-228) — schodzi do szuflady mobilnej. */
+  launch?: LaunchNavState;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -60,7 +64,7 @@ export function PanelTopbar({
 
   return (
     <header className="border-border bg-card flex min-h-14 items-center gap-3 border-b px-4 md:px-6">
-      <MobileNav closing={closing} onboarding={onboarding} isOwner={isOwner} />
+      <MobileNav closing={closing} onboarding={onboarding} isOwner={isOwner} launch={launch} />
       <h1 className="min-w-0 truncate text-sm font-semibold md:text-base">
         {t(panelTitleKey(pathname))}
       </h1>

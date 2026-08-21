@@ -14,6 +14,7 @@ import { SuperadminEntry } from "@/components/shell/superadmin-entry";
 import { Link } from "@/i18n/navigation";
 import { getAuthContext } from "@/lib/auth";
 import { readTenantBillingState } from "@/lib/closing";
+import { readLaunchNavState } from "@/lib/onboarding/launch";
 import { readMyOrganizations } from "@/lib/organizations";
 import { readPlatformTermsGate } from "@/lib/platform-terms";
 import { SIDEBAR_BOOTSTRAP_SCRIPT } from "@/lib/shell/sidebar-collapse";
@@ -72,6 +73,17 @@ export default async function PanelLayout({
   // requireMember("owner") na ekranie i akcjach — audyt 17.08 potwierdził,
   // że egzekwuje.
   const isOwner = ctx?.role === "owner";
+
+  // POZYCJA WARUNKOWA „URUCHOMIENIE" (config-first hub, ADR-228): badge postępu
+  // WYMAGANYCH kroków, dopóki onboarding nieukończony. FAIL-SILENT i NIE guard,
+  // jak odczyty rozliczeń/organizacji wyżej — przy komplecie kroków albo błędzie
+  // odczytu zwraca `null` i pozycja znika. Poza oknem domykania i sesją bez
+  // organizacji (tam nawigacja zwija się do samego pulpitu — nie ma czego
+  // uruchamiać przez menu).
+  const launchNav =
+    ctx?.tenantId && !closing && !onboarding
+      ? await readLaunchNavState(supabase, ctx.tenantId)
+      : null;
 
   // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
   // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
@@ -162,7 +174,7 @@ export default async function PanelLayout({
             <SidebarToggle />
           </div>
         </div>
-        <SidebarNav closing={closing} onboarding={onboarding} isOwner={isOwner} />
+        <SidebarNav closing={closing} onboarding={onboarding} isOwner={isOwner} launch={launchNav} />
         <SuperadminEntry superadmin={Boolean(ctx?.superadmin)} label={t("superadminPanel")} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -173,6 +185,7 @@ export default async function PanelLayout({
           isOwner={isOwner}
           organizations={organizations}
           currentTenantId={ctx?.tenantId ?? null}
+          launch={launchNav}
         />
         {/* Baner rozliczeń (ADR-136/138): past_due/suspended — presja na
             najemcę zostaje w panelu (zasada 3), sklep działa; w oknie

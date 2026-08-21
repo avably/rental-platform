@@ -123,6 +123,102 @@
       }
     }
   },
+  "launch": {
+    "hub": {
+      "title": "Your store is almost ready",
+      "progress": "{done} of {total} required steps done",
+      "blockersLabel": "To start selling you still need:",
+      "sellable": "Your store has everything it needs to sell — you can publish",
+      "previewLink": "Preview store"
+    },
+    "banner": {
+      "title": "Finish setting up your store",
+      "progress": "{done} of {total} required steps done",
+      "cta": "Finish →"
+    },
+    "phases": {
+      "1": {
+        "title": "Company & compliance"
+      },
+      "2": {
+        "title": "Logistics & payments"
+      },
+      "3": {
+        "title": "Offer"
+      },
+      "4": {
+        "title": "Appearance & launch"
+      }
+    },
+    "state": {
+      "done": "Done",
+      "todo": "To do",
+      "gate": "Sales gate",
+      "optional": "Optional"
+    },
+    "cta": {
+      "edit": "Edit",
+      "configure": "Set up →"
+    },
+    "steps": {
+      "organization": {
+        "title": "Organization details",
+        "why": "The store name and language your customers see.",
+        "cta": "Review details"
+      },
+      "legal": {
+        "title": "Terms & privacy policy",
+        "why": "Without terms and a privacy policy the store can't take orders.",
+        "cta": "Add documents"
+      },
+      "contract": {
+        "title": "Company details for contracts",
+        "why": "Without them we can't generate the rental contract for an order.",
+        "cta": "Fill in details"
+      },
+      "emails": {
+        "title": "Email sender",
+        "why": "Until you set a sender, rental-cycle emails won't go out.",
+        "cta": "Set sender"
+      },
+      "delivery": {
+        "title": "Delivery & pickup points",
+        "why": "Without a delivery method the customer can't receive the gear.",
+        "cta": "Set up delivery"
+      },
+      "payments": {
+        "title": "Online payments",
+        "why": "Online payments speed up bookings — transfer and cash on delivery always work.",
+        "cta": "Connect payments"
+      },
+      "domain": {
+        "title": "Custom domain",
+        "why": "The store works right away on a subdomain — connect your own address later.",
+        "cta": "Connect domain"
+      },
+      "product": {
+        "title": "First product and unit",
+        "why": "The catalog is the foundation — without it we can't compute availability or price.",
+        "cta": "Add product"
+      },
+      "appearance": {
+        "title": "Store appearance & publishing",
+        "why": "A ready template with your catalog — publish and customers book online.",
+        "cta": "Open builder"
+      }
+    },
+    "publish": {
+      "title": "Launch your store",
+      "why": "Publish your home page — customers will start booking online.",
+      "cta": "Publish store",
+      "missingLabel": "Available once you add:",
+      "blocker": {
+        "legal": "terms and privacy",
+        "product": "your first product",
+        "delivery": "delivery"
+      }
+    }
+  },
   "emailSettings": {
     "title": "Email settings",
     "intro": "The sender of messages to customers and invitees, plus delivery status. The sending address is shared across the platform - you personalize the display name and reply-to address.",
@@ -203,6 +299,7 @@
     "organizationCreated": "Organization ready",
     "securityChallenge": "Two-factor verification",
     "dashboard": "Dashboard",
+    "launch": "Launch",
     "groupSales": "SALES",
     "groupChannels": "CHANNELS",
     "groupOrganization": "ORGANIZATION",

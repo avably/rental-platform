@@ -10,8 +10,7 @@
  * KSZTAŁT zapytań kontra realne liczby wierszy w bazie.
  *
  *   1. tenant z ZEREM wierszy `sites` (świeże konto — provisioning strony
- *      nie zasiewa) → odczyt przechodzi, krok sklepu otwarty, karta się
- *      renderuje;
+ *      nie zasiewa) → odczyt przechodzi, krok sklepu otwarty;
  *   2. tenant z DWIEMA wersjami roboczymi (przypadek z incydentu) → odczyt
  *      przechodzi, sklep nadal nieopublikowany;
  *   3. dwie wersje, jedna ŻYWA (app.publish_site) → krok sklepu zrobiony,
@@ -36,13 +35,9 @@ import { randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NextIntlClientProvider } from "next-intl";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
-
-import messages from "../messages/pl.json";
 
 import { integrationEnv } from "./helpers/integration-env";
 
@@ -113,15 +108,6 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 const { fetchStartCardSignals, startSteps } = await import("@/lib/dashboard/start-card");
-const { DashboardStartCard } = await import("@/app/[locale]/(panel)/dashboard-start-card");
-
-function renderCard(steps: ReturnType<typeof startSteps>): string {
-  return renderToStaticMarkup(
-    <NextIntlClientProvider locale="pl" messages={messages}>
-      <DashboardStartCard steps={steps} />
-    </NextIntlClientProvider>,
-  );
-}
 
 function storeStep(steps: ReturnType<typeof startSteps>) {
   const step = steps.find((candidate) => candidate.key === "store");
@@ -166,10 +152,6 @@ describe.skipIf(!hasEnv)("sygnały karty startowej (kształt odczytów, żywy Su
 
     const steps = startSteps(signals);
     expect(storeStep(steps).done).toBe(false);
-
-    const html = renderCard(steps);
-    expect(html).toContain("Zacznij tutaj");
-    expect(html).toContain("0 z 6 zrobione");
   });
 
   it("DWIE wersje robocze (incydent prod: >1 wierszy sites): odczyt przechodzi, sklep nadal nieopublikowany", async () => {
@@ -186,7 +168,6 @@ describe.skipIf(!hasEnv)("sygnały karty startowej (kształt odczytów, żywy Su
     expect(signals.publishedAt).toBeNull();
     const steps = startSteps(signals);
     expect(storeStep(steps).done).toBe(false);
-    expect(renderCard(steps)).toContain("0 z 6 zrobione");
   });
 
   it("dwie wersje, jedna ŻYWA: krok sklepu zrobiony, publishedAt = moment publikacji żywej", async () => {
@@ -220,7 +201,6 @@ describe.skipIf(!hasEnv)("sygnały karty startowej (kształt odczytów, żywy Su
 
     const steps = startSteps(signals);
     expect(storeStep(steps).done).toBe(true);
-    expect(renderCard(steps)).toContain("1 z 6 zrobione");
   });
 
   it("krok sklepu pyta o KORZEŃ sklepu, a nie o dowolną stronę (ADR-168)", async () => {

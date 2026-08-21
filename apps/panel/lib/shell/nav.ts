@@ -65,6 +65,24 @@ export const PANEL_NAV_PLACEHOLDER: PanelNavPlaceholder = {
   labelKey: "dashboard",
 };
 
+/**
+ * Pozycja WARUNKOWA „Uruchomienie" (config-first hub, ADR-228).
+ *
+ * CELOWO POZA `PANEL_NAV_GROUPS`/`PANEL_NAV_ITEMS`: kontrakt struktury
+ * (`panel-nav-contract.test.ts`) porównuje grupy 1:1 z artefaktem Fazy 2, a
+ * artefakt tej pozycji nie zna. To pozycja stanu konta, nie stała struktura —
+ * shell renderuje ją na górze grupy SPRZEDAŻ z badge postępu (np. „4/7”)
+ * WYŁĄCZNIE dopóki onboarding nieukończony (sygnał liczony z danych), i chowa
+ * po komplecie wymaganych kroków. Jak `PANEL_NAV_PLACEHOLDER`: stan aktywny to
+ * RÓWNOŚĆ ścieżki (nie jest w `matchNavItem`), a tytuł belki bierze się z
+ * override'u tytułu niżej.
+ */
+export const PANEL_NAV_LAUNCH: PanelNavItem = {
+  id: "launch",
+  href: "/uruchomienie",
+  labelKey: "launch",
+};
+
 export const PANEL_NAV_GROUPS: readonly PanelNavGroup[] = [
   {
     id: "sales",
@@ -183,6 +201,9 @@ export const PANEL_BOTTOM_NAV_HOME: PanelNavItem = {
 };
 
 const PANEL_ROUTE_TITLE_OVERRIDES = [
+  // Hub „Uruchomienie" (ADR-228) stoi poza grupami nawigacji (pozycja
+  // warunkowa), więc `matchNavItem` go nie zna — tytuł belki bierze się stąd.
+  { path: "/uruchomienie", labelKey: "launch" },
   { path: "/zamowienia/nowe", labelKey: "newOrder" },
   { path: "/historia-emaili", labelKey: "emailHistory" },
   // PRZED `/organizacja/nowa` — `panelTitleKey` bierze PIERWSZE dopasowanie,
