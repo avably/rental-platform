@@ -1,17 +1,22 @@
 "use client";
 
+import { RocketIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import {
   CLOSING_NAV_HREFS,
   PANEL_NAV_GROUPS,
+  PANEL_NAV_LAUNCH,
   PANEL_NAV_PLACEHOLDER,
   matchNavItem,
   type PanelNavGroup,
 } from "@/lib/shell/nav";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
+
+/** Postęp huba „Uruchomienie" dla badge (np. 4/7) — `null` = pozycji nie ma. */
+export type LaunchNavState = { done: number; total: number } | null;
 
 /** Id nawigacji — kotwica dla `aria-controls` przełącznika zwijania. */
 export const PANEL_NAV_ID = "panel-nav";
@@ -62,8 +67,17 @@ export function SidebarNav({
   closing = false,
   onboarding = false,
   isOwner = false,
+  launch = null,
 }: {
   onNavigate?: () => void;
+  /**
+   * Pozycja warunkowa „Uruchomienie" (ADR-228): postęp huba z shella, gdy
+   * onboarding nieukończony. `null` (domyślnie) = pozycji nie ma — po komplecie
+   * wymaganych kroków, w oknie domykania i dla sesji bez organizacji. Jak
+   * `closing`/`onboarding`: to filtr WIDOKU, nie bramka — trasa `/uruchomienie`
+   * i tak trzyma własny `requireMemberPage`.
+   */
+  launch?: LaunchNavState;
   /**
    * Okno domykania (ADR-138): true = pokazujemy WYŁĄCZNIE pozycje
    * z CLOSING_NAV_HREFS. Bramką dostępu pozostaje guard (odmowa domyślna) —
@@ -176,6 +190,16 @@ export function SidebarNav({
           >
             {t(group.labelKey)}
           </p>
+          {/* Pozycja warunkowa „Uruchomienie" na GÓRZE grupy SPRZEDAŻ (ADR-228)
+              — wchodzi tylko, gdy shell poda postęp (onboarding nieukończony). */}
+          {group.id === "sales" && launch ? (
+            <LaunchNavLink
+              launch={launch}
+              active={pathname === PANEL_NAV_LAUNCH.href}
+              label={t(PANEL_NAV_LAUNCH.labelKey)}
+              onNavigate={onNavigate}
+            />
+          ) : null}
           {group.items.map((item) => {
             const Icon = NAV_ICONS[item.id];
             const isActive = active?.id === item.id;
@@ -219,6 +243,62 @@ export function SidebarNav({
         </div>
       ))}
     </nav>
+  );
+}
+
+/**
+ * Pozycja „Uruchomienie" z badge postępu (ADR-228). Ma WŁASNY atrybut
+ * `data-nav-launch` (nie `data-nav-item`), bo nie jest pozycją kontraktu
+ * struktury — skanery `data-nav-item` (np. kontrola kompletu pozycji grup)
+ * nie mają jej liczyć. Badge chowa się w stanie zwiniętym razem z etykietą;
+ * nazwę i tak niesie `aria-label`, a dymek `NavTooltip`.
+ */
+function LaunchNavLink({
+  launch,
+  active,
+  label,
+  onNavigate,
+}: {
+  launch: { done: number; total: number };
+  active: boolean;
+  label: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={PANEL_NAV_LAUNCH.href}
+      data-nav-launch="true"
+      aria-current={active ? "page" : undefined}
+      aria-label={label}
+      onClick={onNavigate}
+      className={[
+        "group relative flex min-h-10 items-center gap-2.5 rounded-md border-l-2 px-3 py-2.5 text-sm font-medium",
+        "rail-collapsed:justify-center",
+        "text-sidebar-foreground border-transparent",
+        "outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)]",
+        "hover:underline hover:underline-offset-[3px]",
+        "focus-visible:border-foreground focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring",
+        active
+          ? "bg-muted/60 text-foreground before:absolute before:left-1.5 before:size-1.5 before:rounded-full before:bg-accent before:content-[''] rail-collapsed:before:hidden dark:bg-accent dark:text-accent-foreground dark:before:bg-accent-foreground"
+          : "",
+      ].join(" ")}
+    >
+      <RocketIcon
+        aria-hidden="true"
+        className="size-4 shrink-0"
+        strokeWidth={NAV_ICON_STROKE_WIDTH}
+      />
+      <span data-nav-label className="rail-collapsed:hidden">
+        {label}
+      </span>
+      <span
+        data-nav-launch-badge
+        className="bg-primary text-primary-foreground ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums rail-collapsed:hidden"
+      >
+        {launch.done}/{launch.total}
+      </span>
+      <NavTooltip label={label} />
+    </Link>
   );
 }
 

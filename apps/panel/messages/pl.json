@@ -123,6 +123,102 @@
       }
     }
   },
+  "launch": {
+    "hub": {
+      "title": "Twój sklep jest prawie gotowy",
+      "progress": "{done} z {total} wymaganych kroków gotowych",
+      "blockersLabel": "Do sprzedaży brakuje:",
+      "sellable": "Sklep ma komplet do sprzedaży — możesz publikować",
+      "previewLink": "Podgląd sklepu"
+    },
+    "banner": {
+      "title": "Dokończ uruchomienie sklepu",
+      "progress": "{done} z {total} wymaganych kroków gotowych",
+      "cta": "Dokończ →"
+    },
+    "phases": {
+      "1": {
+        "title": "Firma i zgodność"
+      },
+      "2": {
+        "title": "Logistyka i płatności"
+      },
+      "3": {
+        "title": "Oferta"
+      },
+      "4": {
+        "title": "Wygląd i uruchomienie"
+      }
+    },
+    "state": {
+      "done": "Zrobione",
+      "todo": "Do zrobienia",
+      "gate": "Bramka sprzedaży",
+      "optional": "Opcjonalne"
+    },
+    "cta": {
+      "edit": "Edytuj",
+      "configure": "Skonfiguruj →"
+    },
+    "steps": {
+      "organization": {
+        "title": "Dane organizacji",
+        "why": "Nazwa i język sklepu, które widzą klienci.",
+        "cta": "Sprawdź dane"
+      },
+      "legal": {
+        "title": "Regulamin i polityka prywatności",
+        "why": "Bez regulaminu i polityki sklep nie przyjmie zamówienia.",
+        "cta": "Dodaj dokumenty"
+      },
+      "contract": {
+        "title": "Dane firmy do umów",
+        "why": "Bez nich nie wygenerujemy umowy najmu do zamówienia.",
+        "cta": "Uzupełnij dane"
+      },
+      "emails": {
+        "title": "Nadawca e-maili",
+        "why": "Do czasu ustawienia nadawcy wiadomości cyklu najmu nie wyjdą.",
+        "cta": "Ustaw nadawcę"
+      },
+      "delivery": {
+        "title": "Dostawa i punkty odbioru",
+        "why": "Bez metody dostawy klient nie odbierze sprzętu.",
+        "cta": "Skonfiguruj dostawę"
+      },
+      "payments": {
+        "title": "Płatności online",
+        "why": "Płatności online przyspieszają rezerwacje — przelew i pobranie działają zawsze.",
+        "cta": "Podłącz płatności"
+      },
+      "domain": {
+        "title": "Własna domena",
+        "why": "Sklep działa od razu na subdomenie — własny adres podłączysz później.",
+        "cta": "Podłącz domenę"
+      },
+      "product": {
+        "title": "Pierwszy produkt i egzemplarz",
+        "why": "Katalog to podstawa — bez niego nie policzymy dostępności ani ceny.",
+        "cta": "Dodaj produkt"
+      },
+      "appearance": {
+        "title": "Wygląd i publikacja strony",
+        "why": "Gotowy szablon z Twoim katalogiem — opublikuj, a klienci rezerwują online.",
+        "cta": "Otwórz kreator"
+      }
+    },
+    "publish": {
+      "title": "Uruchom sklep",
+      "why": "Opublikuj stronę główną — klienci zaczną rezerwować online.",
+      "cta": "Opublikuj sklep",
+      "missingLabel": "Aktywne, gdy uzupełnisz:",
+      "blocker": {
+        "legal": "regulamin i politykę",
+        "product": "pierwszy produkt",
+        "delivery": "dostawę"
+      }
+    }
+  },
   "emailSettings": {
     "title": "Ustawienia e-maili",
     "intro": "Nadawca wiadomości wysyłanych do klientów i zaproszonych oraz stan wysyłki. Adres wysyłki jest wspólny dla platformy - Ty personalizujesz nazwę i adres odpowiedzi.",
@@ -203,6 +299,7 @@
     "organizationCreated": "Organizacja gotowa",
     "securityChallenge": "Weryfikacja dwuetapowa",
     "dashboard": "Dashboard",
+    "launch": "Uruchomienie",
     "groupSales": "SPRZEDAŻ",
     "groupChannels": "KANAŁY",
     "groupOrganization": "ORGANIZACJA",

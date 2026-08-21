@@ -1,17 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale } from "next-intl/server";
 
 import { DASHBOARD_WINDOWS, fetchDashboardData } from "@/lib/dashboard/queries";
 import {
-  fetchStartCardSignals,
-  isStartComplete,
-  startSteps,
-} from "@/lib/dashboard/start-card";
+  fetchLaunchSignals,
+  isLaunchComplete,
+  launchProgress,
+  launchSteps,
+} from "@/lib/onboarding/launch";
 import { buildRevenueSummaries } from "@/lib/dashboard/revenue-model";
 import { warsawToday } from "@/lib/orders/order-dates";
 
 import { DashboardDaySection } from "./dashboard-day";
-import { DashboardStartCard } from "./dashboard-start-card";
+import { DashboardLaunchBanner } from "./dashboard-launch-banner";
 import {
   DashboardCustomersSection,
   DashboardRevenueSection,
@@ -27,9 +28,11 @@ import {
  * niczego nie dolicza. „Dziś" = warsawToday() (okna tak, jak widzi je
  * operator, nie UTC).
  *
- * HIERARCHIA TREŚCI (spec UX1):
- *  1. karta „Zacznij tutaj" — dopóki kroki nie są skompletowane
- *     (`isStartComplete`); stan liczony z danych, zero odhaczania ręcznie;
+ * HIERARCHIA TREŚCI (spec UX1; onboarding config-first: ADR-228):
+ *  1. kompaktowy baner „Dokończ uruchomienie" → hub `/uruchomienie` — dopóki
+ *     WYMAGANE kroki nie są skompletowane (`isLaunchComplete`); stan liczony
+ *     z danych, zero odhaczania ręcznie. Pełna checklista przeniosła się do
+ *     dedykowanego huba, na pulpicie zostaje samo zaproszenie z postępem;
  *  2. sekcja „Dzisiaj" (pięć kafli z `app.dashboard_day`) — WYŁĄCZNIE gdy
  *     tenant ma jakiekolwiek zamówienie: przy zerze zamówień każdy kafel
  *     byłby zerowy, a miejsce siatki zajmuje karta startowa (te dwa stany
@@ -51,13 +54,13 @@ export async function DashboardSections({
   tenantId: string;
 }) {
   const locale = await getLocale();
-  const t = await getTranslations("home.dashboard.start");
   const today = warsawToday();
   const [data, signals] = await Promise.all([
     fetchDashboardData(supabase),
-    fetchStartCardSignals(supabase, tenantId),
+    fetchLaunchSignals(supabase, tenantId),
   ]);
-  const steps = startSteps(signals);
+  const steps = launchSteps(signals);
+  const progress = launchProgress(steps);
   const revenueSummaries = buildRevenueSummaries(
     data.revenue,
     today,
@@ -66,18 +69,8 @@ export async function DashboardSections({
 
   return (
     <div className="flex flex-col gap-4" data-dashboard="true">
-      {isStartComplete(steps) ? null : (
-        <DashboardStartCard
-          steps={steps}
-          productDetail={
-            steps[0].done && signals.firstProductName
-              ? t("productDetail", {
-                  name: signals.firstProductName,
-                  count: signals.unitCount,
-                })
-              : undefined
-          }
-        />
+      {isLaunchComplete(steps) ? null : (
+        <DashboardLaunchBanner done={progress.done} total={progress.total} />
       )}
       {signals.ordersCount > 0 ? (
         <DashboardDaySection rows={data.day} today={today} locale={locale} />

@@ -23,7 +23,6 @@ import { describe, expect, it, vi } from "vitest";
 import messages from "../messages/pl.json";
 
 import type { DashboardDayRow } from "@/lib/dashboard/queries";
-import type { StartCardSignals } from "@/lib/dashboard/start-card";
 
 vi.mock("@/i18n/navigation", () => ({
   usePathname: () => "/",
@@ -31,7 +30,9 @@ vi.mock("@/i18n/navigation", () => ({
     createElement("a", { href, ...props }, children),
 }));
 
-const { DashboardStartCard } = await import("@/app/[locale]/(panel)/dashboard-start-card");
+const { DashboardLaunchBanner } = await import(
+  "@/app/[locale]/(panel)/dashboard-launch-banner"
+);
 const { DashboardDaySection } = await import("@/app/[locale]/(panel)/dashboard-day");
 const {
   DashboardCustomersSection,
@@ -39,7 +40,6 @@ const {
   DashboardUtilizationSection,
 } = await import("@/app/[locale]/(panel)/dashboard-view");
 const { ExportView } = await import("@/app/[locale]/(panel)/eksport-danych/export-view");
-const { startSteps } = await import("@/lib/dashboard/start-card");
 const { buildRevenueSummaries } = await import("@/lib/dashboard/revenue-model");
 
 function renderPl(node: React.ReactNode): string {
@@ -75,17 +75,6 @@ function expectSaneOutline(levels: number[]): void {
   }
 }
 
-/** Sygnały świeżego tenanta — karta startowa w pełnym składzie kroków. */
-const freshSignals: StartCardSignals = {
-  firstProductName: null,
-  unitCount: 0,
-  publishedAt: null,
-  hasContractDocument: false,
-  hasEmailSender: false,
-  chargesEnabled: false,
-  ordersCount: 0,
-};
-
 function dayRow(overrides: Partial<DashboardDayRow>): DashboardDayRow {
   return {
     kind: "pickup_today",
@@ -107,11 +96,11 @@ function dayRow(overrides: Partial<DashboardDayRow>): DashboardDayRow {
 
 describe("hierarchia nagłówków — dashboard (M-A11Y-01)", () => {
   it("pełny układ pulpitu schodzi h2 → h3 bez przeskoków pod h1 belki", () => {
-    // Ten sam skład i KOLEJNOŚĆ co DashboardSections: karta startowa,
-    // „Dzisiaj" (kafle stoją zawsze), przychód, wykorzystanie, klienci.
+    // Ten sam skład i KOLEJNOŚĆ co DashboardSections: baner uruchomienia
+    // (ADR-228), „Dzisiaj" (kafle stoją zawsze), przychód, wykorzystanie, klienci.
     const html = renderPl(
       <div>
-        <DashboardStartCard steps={startSteps(freshSignals)} />
+        <DashboardLaunchBanner done={0} total={7} />
         <DashboardDaySection
           rows={[dayRow({})]}
           today="2026-08-18"

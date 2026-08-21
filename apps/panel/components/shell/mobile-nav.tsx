@@ -9,7 +9,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS, matchNavItem } from "@/lib/shell/nav";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
-import { SidebarNav } from "./sidebar-nav";
+import { SidebarNav, type LaunchNavState } from "./sidebar-nav";
 
 /**
  * Nawigacja na wąskim ekranie (ADR-056): sidebar chowa się w szufladzie.
@@ -43,6 +43,7 @@ export function MobileNav({
   closing = false,
   onboarding = false,
   isOwner = false,
+  launch = null,
 }: {
   /** Okno domykania (ADR-138) — filtruje szufladę i dolny pasek (jak sidebar). */
   closing?: boolean;
@@ -58,6 +59,11 @@ export function MobileNav({
    * pozycji, więc filtr dotyczy wyłącznie szuflady.
    */
   isOwner?: boolean;
+  /**
+   * Pozycja warunkowa „Uruchomienie" (ADR-228) — schodzi do szuflady (ten sam
+   * `SidebarNav`). Dolny pasek jej nie niesie (ma stały skład kciukowy).
+   */
+  launch?: LaunchNavState;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -102,6 +108,7 @@ export function MobileNav({
             closing={closing}
             onboarding={onboarding}
             isOwner={isOwner}
+            launch={launch}
           />
         </div>
       </SheetContent>
