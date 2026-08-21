@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, RocketIcon } from "lucide-react";
+import { ChevronDown, RocketIcon, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -20,6 +20,7 @@ import {
 import { persistExpandedBranches } from "@/lib/shell/nav-tree-collapse";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
+import { useNavFavorites } from "./nav-favorites-provider";
 
 /** Postęp huba „Uruchomienie" dla badge (np. 4/7) — `null` = pozycji nie ma. */
 export type LaunchNavState = { done: number; total: number } | null;
@@ -258,7 +259,14 @@ function NavLeaf({
   child?: boolean;
 }) {
   const Icon = NAV_ICONS[item.id];
-  return (
+  const t = useTranslations("nav");
+  // Gwiazdka ULUBIONYCH (ADR-232) tylko GDY jest provider. Poza nim (kontrakty
+  // powłoki bez ulubionych) `favorites` = null i liść renderuje się DOKŁADNIE
+  // jak przed ADR-232 — bez gwiazdki, bez owijki — więc liczba ikon w tamtych
+  // suitach się nie zmienia.
+  const favorites = useNavFavorites();
+
+  const link = (
     <Link
       href={item.href}
       data-nav-item={item.id}
@@ -267,7 +275,10 @@ function NavLeaf({
       // znika przez `display:none`, więc bez `aria-label` link zostałby bez nazwy.
       aria-label={label}
       onClick={onNavigate}
-      className={rowClass(active, child)}
+      // Rezerwa na gwiazdkę (styl inline, deterministycznie ponad klasą pr-*):
+      // gwiazdka stoi absolutnie po prawej, więc etykieta nie może pod nią wejść.
+      style={favorites ? { paddingInlineEnd: "2.25rem" } : undefined}
+      className={`${rowClass(active, child)}${favorites ? " min-w-0 flex-1" : ""}`}
     >
       {Icon ? (
         <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
@@ -277,6 +288,32 @@ function NavLeaf({
       </span>
       <NavTooltip label={label} />
     </Link>
+  );
+
+  if (!favorites) return link;
+
+  const pinned = favorites.isFavorite(item.id);
+  return (
+    <div data-nav-leaf={item.id} className="group/leaf relative flex items-center">
+      {link}
+      <button
+        type="button"
+        data-nav-favorite-toggle={item.id}
+        aria-pressed={pinned}
+        aria-label={t(pinned ? "unpinScreen" : "pinScreen", { screen: label })}
+        onClick={() => favorites.toggle(item.id)}
+        // Widoczna: zawsze na wąskim ekranie (szuflada — brak hovera), na
+        // desktopie pod kursorem/fokusem wiersza LUB gdy przypięta. W railu 72px
+        // znika (wiersz to sama ikona), jak etykiety.
+        className="text-muted-foreground absolute right-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md opacity-100 outline-none transition-[color,background-color,opacity,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent md:opacity-0 md:group-hover/leaf:opacity-100 md:group-focus-within/leaf:opacity-100 md:aria-pressed:opacity-100 rail-collapsed:hidden dark:focus-visible:outline-ring"
+      >
+        <Star
+          aria-hidden="true"
+          className={`size-3.5 ${pinned ? "fill-current text-foreground" : ""}`}
+          strokeWidth={NAV_ICON_STROKE_WIDTH}
+        />
+      </button>
+    </div>
   );
 }
 

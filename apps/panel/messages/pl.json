@@ -337,7 +337,11 @@
     "sidebarCollapse": "Zwiń menu",
     "sidebarExpand": "Rozwiń menu",
     "apiKeys": "Klucze API",
-    "dataExport": "Eksport danych"
+    "dataExport": "Eksport danych",
+    "favoritesBar": "Ulubione ekrany",
+    "pinScreen": "Przypnij: {screen}",
+    "unpinScreen": "Odepnij: {screen}",
+    "reorderFavorite": "Zmień kolejność: {screen}"
   },
   "contractSettings": {
     "title": "Ustawienia umów",
