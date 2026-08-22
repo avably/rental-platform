@@ -53,8 +53,8 @@ function toggleTag(html: string, branchId: string): string | undefined {
 describe("akordeon drzewa nawigacji (ADR-231)", () => {
   it("domyślnie (brak trasy aktywnej w gałęzi, puste ciasteczko) gałęzie są ZWINIĘTE", () => {
     const html = render("/");
-    // Kontener dzieci niesie `hidden`, gdy gałąź zwinięta; `rail-collapsed:flex`
-    // odsłania je dopiero w wąskim pasku.
+    // Kontener dzieci niesie `hidden`, gdy gałąź zwinięta (rozwinięty pasek /
+    // szuflada). W railu to ten sam kontener staje się flyoutem (ADR-233).
     for (const branch of ["storeSection", "settings", "organization"]) {
       const cls = childrenContainerClass(html, branch);
       expect(cls, `brak kontenera dzieci gałęzi ${branch}`).toBeDefined();
@@ -123,10 +123,24 @@ describe("akordeon drzewa nawigacji (ADR-231)", () => {
     expect(html).toMatch(/<div[^>]*id="panel-nav-settings"[^>]*role="group"/);
   });
 
-  it("kontenery dzieci odsłaniają się w wąskim pasku (rail-collapsed:flex)", () => {
+  it("w wąskim pasku kontener dzieci jest FLYOUTEM przy ikonie-rodzicu, nie rzędem ikon (ADR-233)", () => {
     const html = render("/");
+    // Uwaga właściciela: „zwinięte menu ma być zminimalizowane jak na pełnej
+    // wersji". Rail NIE spłaszcza już dzieci do ikon — kontener nie niesie
+    // `rail-collapsed:flex`, tylko marker `data-nav-flyout`, a popover buduje
+    // arkusz (globals.css: pozycja + odsłona hover/focus rodzica).
     for (const branch of ["storeSection", "settings", "organization"]) {
-      expect(childrenContainerClass(html, branch)).toContain("rail-collapsed:flex");
+      const cls = childrenContainerClass(html, branch);
+      expect(cls, `brak kontenera dzieci gałęzi ${branch}`).toBeDefined();
+      expect(cls, `gałąź ${branch} nie może już spłaszczać dzieci w railu`).not.toContain(
+        "rail-collapsed:flex",
+      );
+      const container = html.match(
+        new RegExp(`<div[^>]*data-nav-branch-children="${branch}"[^>]*>`),
+      )?.[0];
+      expect(container, `kontener dzieci ${branch} musi być znakowany jako flyout`).toContain(
+        `data-nav-flyout="${branch}"`,
+      );
     }
   });
 });

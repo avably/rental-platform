@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { PANEL_BOTTOM_NAV_HOME, PANEL_BOTTOM_NAV_ITEMS, matchNavItem } from "@/lib/shell/nav";
 
+import { BrandLogo } from "./brand-mark";
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
 import { SidebarNav, type LaunchNavState } from "./sidebar-nav";
 
@@ -108,6 +109,21 @@ export function MobileNav({
         {/* Radix wymaga tytułu dla nakładki dialogowej — trzymamy go dla
             czytników, bez dublowania nagłówka na ekranie. */}
         <SheetTitle className="sr-only">{t("panelNavigation")}</SheetTitle>
+        {/* Znak Avably w nagłówku szuflady mobilnej (ADR-233) — spójnie z pełną
+            wersją (pełne logo na górze sidebara desktopu). Link do pulpitu,
+            szuflada zamyka się po nawigacji jak przy pozycjach menu. Na wąskim
+            ekranie belka panelu nie niesie znaku, więc dopiero tu operator widzi
+            markę wewnątrz aplikacji. */}
+        <div className="flex items-center px-3 pb-3">
+          <Link
+            href="/"
+            aria-label="Avably"
+            onClick={() => setOpen(false)}
+            className="inline-flex rounded-md outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
+          >
+            <BrandLogo className="h-auto w-[120px]" />
+          </Link>
+        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <SidebarNav
             onNavigate={() => setOpen(false)}
