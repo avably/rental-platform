@@ -5,9 +5,7 @@ import { cookies, headers } from "next/headers";
 
 import { BillingStatusBanner } from "@/components/shell/billing-banner";
 import { BrandLogo, BrandSymbol } from "@/components/shell/brand-mark";
-import { FavoritesBar } from "@/components/shell/favorites-bar";
 import { LaunchGuideBar } from "@/components/shell/launch-guide-bar";
-import { NavFavoritesProvider } from "@/components/shell/nav-favorites-provider";
 import { PanelTopbar } from "@/components/shell/panel-topbar";
 import { PlatformTermsOverlay } from "@/components/shell/platform-terms-overlay";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -19,7 +17,6 @@ import { getAuthContext } from "@/lib/auth";
 import { readTenantBillingState } from "@/lib/closing";
 import { readLaunchGuideState } from "@/lib/onboarding/launch";
 import { readMyOrganizations } from "@/lib/organizations";
-import { readNavFavorites } from "@/lib/shell/nav-favorites";
 import { readPlatformTermsGate } from "@/lib/platform-terms";
 import {
   LAUNCH_GUIDE_COOKIE,
@@ -66,12 +63,6 @@ export default async function PanelLayout({
   // >1 członkostwie. Fail-silent i NIE guard, jak odczyt rozliczeń wyżej:
   // twardą bramką zostaje hook (claim tenant_id) i requireMember na ekranach.
   const organizations = ctx ? await readMyOrganizations(supabase) : [];
-
-  // ULUBIONE nawigacji (ADR-232). JEDEN fail-silent odczyt shella (RLS SELECT
-  // własnego wiersza) — karmi pasek ulubionych i gwiazdki w drzewie. Pusta
-  // lista przy braku sesji/błędzie: pasek schowany, gwiazdki wygaszone. NIE
-  // guard, jak odczyty rozliczeń/organizacji/przewodnika wyżej.
-  const favorites = ctx ? await readNavFavorites(supabase) : [];
 
   // ONBOARDING (ADR-153, N4): zalogowana sesja BEZ organizacji. Nawigacja
   // zwija się wtedy do samego pulpitu — każda inna pozycja prowadzi na trasę
@@ -128,8 +119,7 @@ export default async function PanelLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <NavFavoritesProvider initialFavorites={favorites}>
-      <div className="flex min-h-screen flex-1">
+    <div className="flex min-h-screen flex-1">
       {/*
         Skrypt startowy zwijania: ustawia `html[data-sidebar]` z `localStorage`
         PRZED pierwszym malowaniem, żeby zwinięty pasek nie mrugnął pełną
@@ -223,12 +213,6 @@ export default async function PanelLayout({
           launch={launchNav}
           navExpanded={navExpanded}
         />
-        {/* PASEK ULUBIONYCH (ADR-232): skróty do przypiętych ekranów, PIERWSZY
-            pod topbarem. Schowany gdy pusto (komponent zwraca null). Stoi WYŻEJ
-            niż przewodnik uruchomienia (ADR-229) świadomie: ulubione są TRWAŁE,
-            przewodnik ZNIKA po 7/7 — trwały element trzymamy wyżej, żeby jego
-            pozycja nie skakała, gdy przewodnik gaśnie. */}
-        <FavoritesBar />
         {/* CIĄGŁY PRZEWODNIK URUCHOMIENIA (ADR-229): sticky pasek pod topbarem,
             w kolumnie treści (nie nad sidebarem). Rezerwuje własną wysokość
             (treść zaczyna się pod nim), rozwinięcie „Zobacz wszystko" jest
@@ -275,7 +259,6 @@ export default async function PanelLayout({
           pilnuje bramka endpointu (REVIEW_MODE + rate limit), a PRZEGLĄD
           uwag zostaje superadminowy (reviewGuard + RLS 0033). */}
       {process.env.REVIEW_MODE === "1" ? <ReviewOverlayGate surface="panel" /> : null}
-      </div>
-    </NavFavoritesProvider>
+    </div>
   );
 }

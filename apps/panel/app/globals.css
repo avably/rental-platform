@@ -65,6 +65,82 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] {
 }
 
 /*
+  Flyout dzieci gałęzi w ZWINIĘTYM pasku (ADR-233).
+
+  Uwaga właściciela: „zwinięte menu pokazuje wszystkie opcje z dropdownów —
+  powinno być zminimalizowane jak na pełnej wersji". Do ADR-233 rail SPŁASZCZAŁ
+  dzieci gałęzi do rzędu ikon (`rail-collapsed:flex` na kontenerze dzieci), więc
+  zwinięty pasek pokazywał WSZYSTKIE liście — nie był zminimalizowany. Nowa
+  reguła: w railu widać TYLKO top-level + ikony-rodzice gałęzi, a dzieci chowają
+  się w POPOVERZE przy ikonie-rodzicu (wzorzec zwiniętego sidebara).
+
+  Element jest w DOM ZAWSZE (jeden render na oba stany), jak dymek etykiety
+  wyżej — dopiero rail czyni z niego popover. Zapisane JAWNIE (nie stosem
+  wariantów Tailwinda), z tego samego powodu co dymek: selektor musi być
+  osiągalny niezależnie od kolejności klas generowanej przez Tailwind, a reguły
+  odsłony (hover/focus rodzica) nie da się wyrazić pojedynczym wariantem.
+
+  A11y: flyout otwiera `:focus-within` (fokus na ikonie-rodzicu lub dziecku),
+  więc jest osiągalny z klawiatury (Tab wchodzi w dzieci); Esc zdejmuje fokus
+  i zamyka (handler w `sidebar-nav.tsx`). Grupę nazywa `aria-label` kontenera
+  (`role="group"`), a nazwę sekcji niesie widoczny nagłówek
+  `[data-nav-flyout-heading]`.
+*/
+
+/* Ikona-rodzic gałęzi jest w railu KOTWICĄ popovera; w rozwiniętym pasku gałąź
+   zostaje `display:contents` (dzieci to zwykłe wiersze kolumny). */
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-branch] {
+  position: relative;
+  display: block;
+}
+
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  z-index: 20;
+  /* `display:none` NADRZĘDNE wobec `hidden`/`flex` z klas kontenera — w railu
+     flyout jest domyślnie schowany niezależnie od stanu akordeonu. */
+  display: none;
+  min-width: 12rem;
+  margin-left: 0.5rem;
+  padding: 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-popover);
+  color: var(--color-popover-foreground);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.12),
+    0 4px 6px -4px rgb(0 0 0 / 0.12);
+}
+
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-branch]:hover > [data-nav-flyout],
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-branch]:focus-within > [data-nav-flyout] {
+  display: flex;
+}
+
+/* We flyoucie dzieci NIOSĄ etykiety (to menu, nie rząd ikon) — odwracamy
+   `rail-collapsed:hidden` z liścia, żeby nazwa wróciła obok ikony. */
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] [data-nav-label] {
+  display: revert;
+}
+
+/* Nagłówek sekcji widoczny WYŁĄCZNIE we flyoucie railu. */
+[data-nav-flyout-heading] {
+  display: none;
+}
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout-heading] {
+  display: block;
+}
+
+/* Dymek etykiety jest we flyoucie zbędny (nazwa już widoczna) — gasimy go, żeby
+   nie dublował etykiety pod kursorem dziecka. Reguła stoi PO regule odsłony
+   dymka wyżej, więc przy równej wadze wygrywa źródłowo. */
+html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] [data-nav-tooltip] {
+  display: none;
+}
+
+/*
   Miara wiersza formularza (P8, artefakt Fazy 2 — `data-form-measure-contract`).
 
   JEDNO miejsce w całym panelu, w którym mieszka szerokość formularza. Wersja

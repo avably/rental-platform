@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDown, RocketIcon, Star } from "lucide-react";
+import { ChevronDown, RocketIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 
 import { Link, usePathname } from "@/i18n/navigation";
 import {
@@ -20,7 +20,6 @@ import {
 import { persistExpandedBranches } from "@/lib/shell/nav-tree-collapse";
 
 import { NAV_ICONS, NAV_ICON_STROKE_WIDTH } from "./nav-icons";
-import { useNavFavorites } from "./nav-favorites-provider";
 
 /** Postęp huba „Uruchomienie" dla badge (np. 4/7) — `null` = pozycji nie ma. */
 export type LaunchNavState = { done: number; total: number } | null;
@@ -68,13 +67,17 @@ function rowClass(active: boolean, child: boolean): string {
  *    gdzie stoi) — render serwera od razu poprawny, zero flash-a. Klik zapisuje
  *    ciasteczko, więc następna nawigacja oddaje ten sam stan.
  *
- * DWA STANY PASKA (uwaga przeglądu 2026-07-23, zachowane w ADR-231):
+ * DWA STANY PASKA (uwaga przeglądu 2026-07-23; rail zmieniony w ADR-233):
  *  • ROZWINIĘTY — ikona + etykieta (`data-nav-label`), akordeon działa.
  *  • ZWINIĘTY (rail 72 px) — sam pasek ikon. Etykiety chowa `rail-collapsed:`,
- *    nazwę niesie `aria-label` linku i dymek (`data-nav-tooltip`). W railu
- *    akordeon jest SPŁASZCZONY: chevrony znikają, a dzieci są zawsze widoczne
- *    jako ikony (kontener dzieci `rail-collapsed:flex`), więc pasek ikon zachowuje
- *    pełny zasięg — z railu da się dojść wszędzie bez rozwijania paska.
+ *    nazwę niesie `aria-label` linku i dymek (`data-nav-tooltip`). W railu widać
+ *    TYLKO pozycje top-level i IKONY-RODZICE gałęzi — jak w pełnej wersji ze
+ *    zwiniętą gałęzią (ADR-233, uwaga właściciela: „zwinięte menu ma być
+ *    zminimalizowane jak na pełnej wersji"). Dzieci gałęzi są w railu UKRYTE,
+ *    a wychodzą FLYOUTEM (popover przy ikonie-rodzicu) pod kursorem/fokusem —
+ *    wzorzec zwiniętego sidebara i dymka etykiety. Mechanikę flyoutu (pozycja,
+ *    odsłona) niesie arkusz (`[data-nav-flyout]` w `globals.css`), więc render
+ *    jest JEDEN na oba stany i komponent NIE czyta stanu zwinięcia paska.
  *
  * JEDEN RENDER NA OBA STANY (naprawa M2): markup jest TEN SAM, o widoczności
  * decyduje wariant `rail-collapsed:` ustawiony przed pierwszym malowaniem.
@@ -161,11 +164,22 @@ export function SidebarNav({
     persistExpandedBranches(openIds);
   }
 
+  // Esc zamyka flyout railu (ADR-233): flyout otwiera `:focus-within` (CSS),
+  // więc zdjęcie fokusu z bieżącego elementu go zamyka i wraca do paska ikon.
+  // Rail-agnostyczne (w rozwiniętym pasku i szufladzie nieszkodliwe) i NIE czyta
+  // stanu zwinięcia — spójne z regułą „jeden render na oba stany".
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== "Escape") return;
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement) activeElement.blur();
+  }
+
   return (
     <nav
       id={PANEL_NAV_ID}
       data-panel-nav="true"
       aria-label={t("panelNavigation")}
+      onKeyDown={handleKeyDown}
       className="flex flex-col gap-0.5 p-3"
     >
       {/* Dashboard ISTNIEJE i jest stroną startową (UX1, ADR-140) — link do `/`,
@@ -244,7 +258,7 @@ function filterTree(
   });
 }
 
-/** Liść drzewa (pozycja klikalna) — top-level albo dziecko akordeonu. */
+/** Liść drzewa (pozycja klikalna) — top-level albo dziecko akordeonu/flyoutu. */
 function NavLeaf({
   item,
   active,
@@ -259,14 +273,8 @@ function NavLeaf({
   child?: boolean;
 }) {
   const Icon = NAV_ICONS[item.id];
-  const t = useTranslations("nav");
-  // Gwiazdka ULUBIONYCH (ADR-232) tylko GDY jest provider. Poza nim (kontrakty
-  // powłoki bez ulubionych) `favorites` = null i liść renderuje się DOKŁADNIE
-  // jak przed ADR-232 — bez gwiazdki, bez owijki — więc liczba ikon w tamtych
-  // suitach się nie zmienia.
-  const favorites = useNavFavorites();
 
-  const link = (
+  return (
     <Link
       href={item.href}
       data-nav-item={item.id}
@@ -275,10 +283,7 @@ function NavLeaf({
       // znika przez `display:none`, więc bez `aria-label` link zostałby bez nazwy.
       aria-label={label}
       onClick={onNavigate}
-      // Rezerwa na gwiazdkę (styl inline, deterministycznie ponad klasą pr-*):
-      // gwiazdka stoi absolutnie po prawej, więc etykieta nie może pod nią wejść.
-      style={favorites ? { paddingInlineEnd: "2.25rem" } : undefined}
-      className={`${rowClass(active, child)}${favorites ? " min-w-0 flex-1" : ""}`}
+      className={rowClass(active, child)}
     >
       {Icon ? (
         <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={NAV_ICON_STROKE_WIDTH} />
@@ -289,38 +294,17 @@ function NavLeaf({
       <NavTooltip label={label} />
     </Link>
   );
-
-  if (!favorites) return link;
-
-  const pinned = favorites.isFavorite(item.id);
-  return (
-    <div data-nav-leaf={item.id} className="group/leaf relative flex items-center">
-      {link}
-      <button
-        type="button"
-        data-nav-favorite-toggle={item.id}
-        aria-pressed={pinned}
-        aria-label={t(pinned ? "unpinScreen" : "pinScreen", { screen: label })}
-        onClick={() => favorites.toggle(item.id)}
-        // Widoczna: zawsze na wąskim ekranie (szuflada — brak hovera), na
-        // desktopie pod kursorem/fokusem wiersza LUB gdy przypięta. W railu 72px
-        // znika (wiersz to sama ikona), jak etykiety.
-        className="text-muted-foreground absolute right-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md opacity-100 outline-none transition-[color,background-color,opacity,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-accent md:opacity-0 md:group-hover/leaf:opacity-100 md:group-focus-within/leaf:opacity-100 md:aria-pressed:opacity-100 rail-collapsed:hidden dark:focus-visible:outline-ring"
-      >
-        <Star
-          aria-hidden="true"
-          className={`size-3.5 ${pinned ? "fill-current text-foreground" : ""}`}
-          strokeWidth={NAV_ICON_STROKE_WIDTH}
-        />
-      </button>
-    </div>
-  );
 }
 
 /**
- * Gałąź akordeonu (ADR-231). Nawigowalna → wiersz-link + osobny chevron;
- * grupa-toggle → cały wiersz to przycisk. Dzieci w `role="group"`. W railu
- * chevron znika, a dzieci są zawsze widoczne jako ikony.
+ * Gałąź akordeonu (ADR-231, rail przerobiony w ADR-233). Nawigowalna →
+ * wiersz-link + osobny chevron; grupa-toggle → cały wiersz to przycisk. Dzieci
+ * w `role="group"`. W ROZWINIĘTYM pasku i w szufladzie dzieci stoją kolumną pod
+ * rodzicem (akordeon). W RAILU (72 px) chevron znika, a dzieci NIE stoją już
+ * w kolumnie — kontener dzieci (`data-nav-flyout`) staje się popoverem przy
+ * ikonie-rodzicu, odsłanianym pod kursorem/fokusem (mechanika w `globals.css`,
+ * wzorzec dymka etykiety). Ikona-rodzic gałęzi z aktywną trasą jest podświetlona
+ * (powierzchnia `containsActive`), więc w railu widać, w której sekcji stoisz.
  */
 function NavBranch({
   branch,
@@ -410,15 +394,29 @@ function NavBranch({
         </button>
       )}
 
-      {/* Dzieci: ukryte przy zwiniętej gałęzi (SSR-spójnie), ale ZAWSZE widoczne
-          w railu (`rail-collapsed:flex`), gdzie akordeon jest spłaszczony do ikon. */}
+      {/* Dzieci: w rozwiniętym pasku / szufladzie kolumna pod rodzicem, chowana
+          przy zwiniętej gałęzi (SSR-spójnie, `hidden`). W RAILU ten sam kontener
+          staje się FLYOUTEM (popover) przy ikonie-rodzicu — pozycję i odsłonę
+          (hover/focus) niesie arkusz przez `[data-nav-flyout]` (ADR-233), więc
+          markup jest JEDEN na oba stany i komponent nie czyta stanu zwinięcia. */}
       <div
         id={childrenId}
         role="group"
         aria-label={label}
         data-nav-branch-children={branch.id}
-        className={`flex flex-col gap-0.5 ${open ? "" : "hidden"} rail-collapsed:flex`}
+        data-nav-flyout={branch.id}
+        className={`flex flex-col gap-0.5 ${open ? "" : "hidden"}`}
       >
+        {/* Nagłówek sekcji — WYŁĄCZNIE we flyoucie railu (CSS), żeby popover
+            niósł nazwę gałęzi; `aria-hidden`, bo grupę nazywa już `aria-label`.
+            Marker CELOWO bez „title" (kontrakt zakazuje natywnego `title="`). */}
+        <span
+          data-nav-flyout-heading
+          aria-hidden="true"
+          className="text-muted-foreground px-3 pb-1 text-xs font-semibold"
+        >
+          {label}
+        </span>
         {branch.children.map((child) => (
           <NavLeaf
             key={child.id}

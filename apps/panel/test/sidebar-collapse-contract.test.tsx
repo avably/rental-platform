@@ -234,6 +234,19 @@ describe("kontrakt sidebara — źródła nie wracają do gałęzi Reacta (M2)",
       /html\[data-sidebar="collapsed"\] \[data-sidebar-rail\] :hover > \[data-nav-tooltip\]/,
     );
   });
+
+  it("rail chowa dzieci gałęzi we FLYOUCIE, nie spłaszcza ich do ikon (ADR-233)", () => {
+    // Nowa reguła zwiniętego paska (uwaga właściciela): dzieci gałęzi nie stoją
+    // rzędem ikon — kontener (`data-nav-flyout`) staje się popoverem przy
+    // ikonie-rodzicu, odsłanianym hoverem/fokusem. Skan pilnuje, żeby nikt nie
+    // przywrócił spłaszczenia (`rail-collapsed:flex`) na kontenerze dzieci.
+    expect(NAV_SOURCE).toContain("data-nav-flyout");
+    expect(NAV_SOURCE).not.toContain("rail-collapsed:flex");
+    // Flyout jest osiągalny z klawiatury: odsłania go `:focus-within` rodzica.
+    expect(CSS_SOURCE).toMatch(
+      /\[data-sidebar-rail\] \[data-nav-branch\]:focus-within > \[data-nav-flyout\]/,
+    );
+  });
 });
 
 describe("kontrakt sidebara — kontekst układania dymka (M1)", () => {
