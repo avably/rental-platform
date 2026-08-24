@@ -42,7 +42,12 @@ export default async function EmailSettingsPage() {
 
   // Dostępność transportu liczona na SERWERZE (klucz nie schodzi do klienta).
   const availability = emailAvailability();
-  const senderConfigured = defaults !== null && defaults.name.length > 0;
+  // Kompletność nadawcy wymaga OBU: nazwy (pole From) i adresu odpowiedzi
+  // (ADR-241). Bez adresu odpowiedzi odpowiedzi klientów wracają na ogólny
+  // adres platformy i mogą ginąć — dlatego karta czyta się jako niegotowa
+  // (chip `missing`), dopóki oba pola nie są ustawione.
+  const senderConfigured =
+    defaults !== null && defaults.name.length > 0 && defaults.replyTo.length > 0;
 
   // Układ P8 (artefakt, `secondary-email-settings`): stan transportu NAD
   // formularzem nadawcy. Wysyłka niedostępna zmienia znaczenie tego, co
@@ -70,7 +75,11 @@ export default async function EmailSettingsPage() {
         }
       />
 
-      <EmailSenderForm defaults={defaults} configured={senderConfigured} />
+      <EmailSenderForm
+        defaults={defaults}
+        configured={senderConfigured}
+        accountEmail={ctx.user.email}
+      />
     </FormMeasure>
   );
 }

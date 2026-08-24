@@ -39,24 +39,43 @@ function FormMessages({ state, successText }: { state: FormState; successText: s
 }
 
 /**
- * Formularz nadawcy e-maili. Nazwa wymagana (pole From), reply_to opcjonalne.
- * Bramką ostateczną jest CHECK 0014 (kod 23514 mapowany w akcji); klient nie
- * udaje walidacji, której nie ma baza.
+ * Formularz nadawcy e-maili. Nazwa (pole From) i adres odpowiedzi WYMAGANE
+ * przy zapisie z panelu (ADR-241): bez adresu odpowiedzi wiadomości od klientów
+ * wracają na ogólny adres platformy i mogą ginąć. Bramką ostateczną w bazie
+ * pozostaje CHECK 0014 (kod 23514 mapowany w akcji), gdzie reply_to jest wciąż
+ * technicznie opcjonalny — panel jest tu ŚWIADOMIE surowszy niż baza.
  *
  * Kompletność konfiguracji nadawcy jest STANEM karty (oś `email-sender`), nie
  * osobnym zdaniem gdzieś nad formularzem: mockup P8 stawia chip w tytule tej
  * samej karty, którą operator zaraz edytuje — brak konfiguracji i miejsce jej
- * uzupełnienia są wtedy jedną rzeczą, a nie dwiema.
+ * uzupełnienia są wtedy jedną rzeczą, a nie dwiema. Gdy adres odpowiedzi nie
+ * jest jeszcze ustawiony, ta sama karta niesie WYRAŹNY bloker przy polu i
+ * PODPOWIADA adres z konta operatora (prefill, edytowalny).
  */
 export function EmailSenderForm({
   defaults,
   configured,
+  accountEmail,
 }: {
   defaults: EmailSenderDefaults | null;
   configured: boolean;
+  /**
+   * Adres z konta operatora (z sesji, self-scope) do PODPOWIEDZI w polu adresu
+   * odpowiedzi, gdy nic jeszcze nie zapisano. Opcjonalny: sesja bez e-maila
+   * (rzadkie) zostawia pole puste, a bramka wymaga wpisania adresu ręcznie.
+   */
+  accountEmail?: string | null;
 }) {
   const t = useTranslations("emailSettings");
   const [state, formAction, pending] = useActionState(saveEmailSenderAction, initialState);
+
+  const replyToSaved = defaults?.replyTo ?? "";
+  const replyToSet = replyToSaved.length > 0;
+  // Prefill TYLKO gdy brak zapisanego adresu: nie nadpisujemy świadomego wyboru
+  // operatora adresem z konta. Wartość zostaje edytowalna.
+  const prefill = accountEmail?.trim() ?? "";
+  const replyToDefault = replyToSet ? replyToSaved : prefill;
+  const showPrefillNote = !replyToSet && prefill.length > 0;
 
   return (
     <ScreenSection
@@ -76,15 +95,40 @@ export function EmailSenderForm({
           disabled={pending}
         />
 
-        <Label htmlFor="email-sender-reply-to">{t("replyToLabel")}</Label>
+        {replyToSet ? null : (
+          <div
+            data-reply-to-blocker
+            role="note"
+            className="border-status-attention-border bg-status-attention-bg mt-2 rounded-lg border px-4 py-3"
+          >
+            <p className="text-status-attention-fg text-sm font-medium">
+              {t("replyToBlockerHeading")}
+            </p>
+            <p className="text-status-attention-fg/90 mt-1 text-[13px] leading-[18px]">
+              {t("replyToBlockerBody")}
+            </p>
+          </div>
+        )}
+
+        <Label htmlFor="email-sender-reply-to" className="mt-2">
+          {t("replyToLabel")}
+        </Label>
         <Input
           id="email-sender-reply-to"
           name="replyTo"
           type="email"
-          defaultValue={defaults?.replyTo ?? ""}
+          defaultValue={replyToDefault}
           disabled={pending}
+          aria-describedby="email-sender-reply-to-hint"
         />
-        <p className="text-muted-foreground">{t("replyToHint")}</p>
+        <p id="email-sender-reply-to-hint" className="text-muted-foreground">
+          {t("replyToHint")}
+        </p>
+        {showPrefillNote ? (
+          <p data-reply-to-prefill-note className="text-muted-foreground">
+            {t("replyToPrefillNote")}
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button type="submit" loading={pending} disabled={pending}>
