@@ -62,12 +62,22 @@ function pokazaneNazwy(): string[] {
 }
 
 describe("kafel kategorii: baner albo płyta zastępcza, zawsze z linkiem", () => {
-  it("kafel Z banerem rysuje <img> z adresem banera", () => {
-    narysuj(tresc({ source: "catalog" }), [
+  it("kafel Z banerem rysuje <img> z adresem banera i DEKORACYJNYM alt (nazwa widoczna obok)", () => {
+    const { container } = narysuj(tresc({ source: "catalog" }), [
       { id: "kat-1", name: "Rowery", imageUrl: "https://cdn.example/rowery.jpg", href: "/kategoria/rowery" },
     ]);
-    const obraz = screen.getByRole("img", { name: "Rowery" });
+    const obraz = container.querySelector("img");
+    expect(obraz).not.toBeNull();
     expect(obraz).toHaveAttribute("src", "https://cdn.example/rowery.jpg");
+    // BANER JEST DEKORACYJNY: `alt=""`, bo nazwa kategorii stoi już w widocznym
+    // `<span>` w tym samym linku — inaczej czytnik przeczytałby ją dwa razy
+    // (a11y, audyt przedlaunchowy, ADR-265).
+    expect(obraz).toHaveAttribute("alt", "");
+    // Baner z pustym alt WYPADA z drzewa dostępności (rola prezentacyjna), więc
+    // nie jest ogłaszany jako obraz…
+    expect(screen.queryByRole("img")).toBeNull();
+    // …a nazwa „Rowery" pada DOKŁADNIE raz — z widocznego `<span>`, nie z alt.
+    expect(screen.getAllByText("Rowery")).toHaveLength(1);
   });
 
   it("kafel BEZ banera rysuje neutralną płytę zastępczą, nie <img>", () => {

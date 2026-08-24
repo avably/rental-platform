@@ -81,9 +81,16 @@ export function CategoryTile({
       {category.imageUrl ? (
         // Pakiet UI nie zależy od `next/image`; banery idą z publicznego
         // Storage, więc zwykły `<img>` (ta sama zasada, co w sekcji sprzętu).
+        //
+        // BANER DEKORACYJNY (`alt=""`): nazwa kategorii stoi już w widocznym
+        // `<span data-categories-name>` W TYM SAMYM linku, więc alt z nazwą
+        // kazałby czytnikowi przeczytać ją dwa razy w jednym celu kliknięcia
+        // (a11y, audyt przedlaunchowy, ADR-265). Baner nie niesie treści poza
+        // nazwą, którą już widać, więc znika z drzewa dostępności — tak samo
+        // jak dekoracyjna miniatura banera w panelu (category-form.tsx).
         <img
           src={category.imageUrl}
-          alt={category.name}
+          alt=""
           className="aspect-[4/3] w-full object-cover"
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : undefined}
