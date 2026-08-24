@@ -336,7 +336,7 @@ export default function DesignSystemGallery() {
               Compact pojawia się tylko przy dłuższych operacjach blokujących.
             </p>
             <p className="rounded-md border p-4">
-              Próg 200 ms zapobiega migotaniu. Przy <code>prefers-reduced-motion</code>
+              Próg 200 ms zapobiega migotaniu. Przy <code className="font-sans">prefers-reduced-motion</code>
               {" "}pozostaje statyczny stan końcowy bez pętli.
             </p>
           </div>
