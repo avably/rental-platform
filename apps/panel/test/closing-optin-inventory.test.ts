@@ -57,8 +57,11 @@ const APPROVED_OPT_INS: Record<string, number> = {
   // Eksport danych: ekran + wspólny handler trzech route'ów.
   "app/[locale]/(panel)/eksport-danych/page.tsx": 1,
   "lib/export/route-handler.ts": 1,
-  // Organizacja (read-only; sekcja rozliczeń = droga zapłaty).
+  // Organizacja: hub (punkt wejścia zawieszonego tenanta) + podstrona planu,
+  // na którą przeniósł się billing — jedyna droga zapłaty przywracającej
+  // dostęp (ADR-238 przeniósł ją z ekranu organizacji, opt-in poszedł za nią).
   "app/[locale]/(panel)/organizacja/page.tsx": 1,
+  "app/[locale]/(panel)/organizacja/plan/page.tsx": 1,
 };
 
 function scanFiles(dir: string, out: string[]): void {
@@ -96,8 +99,10 @@ describe("inwentarz-snapshot wywołań z { closing: true } (ADR-138)", () => {
     expect(bait.match(OPT_IN_PATTERN)?.length).toBe(1);
   });
 
-  it("suma wywołań z opt-in zgadza się z raportowaną w ADR-138", () => {
+  it("suma wywołań z opt-in zgadza się z raportowaną w ADR-138 (+1: ADR-238)", () => {
+    // ADR-138 raportował 33; ADR-238 dołożył podstronę `/organizacja/plan`
+    // (przeniesiony billing) do allowlisty okna — świadome rozszerzenie o 1.
     const total = Object.values(APPROVED_OPT_INS).reduce((sum, count) => sum + count, 0);
-    expect(total).toBe(33);
+    expect(total).toBe(34);
   });
 });

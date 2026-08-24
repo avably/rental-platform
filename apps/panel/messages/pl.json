@@ -2765,7 +2765,17 @@
     "dataExportLink": "Eksport danych (CSV) →",
     "customFieldsTitle": "Pola własne",
     "customFieldsDescription": "Dodatkowe dane na kliencie, zamówieniu i produkcie - te, których nie ma w standardowym formularzu.",
-    "customFieldsLink": "Ustaw pola własne →"
+    "customFieldsLink": "Ustaw pola własne →",
+    "backToHub": "← Organizacja",
+    "hub": {
+      "description": "Konto i dane Twojej firmy w jednym miejscu — wybierz sekcję.",
+      "dataTitle": "Dane organizacji",
+      "dataDescription": "Nazwa, język sklepu i dane konta widoczne na dokumentach.",
+      "teamTitle": "Zespół",
+      "teamDescription": "Zaproszenia i role członków organizacji.",
+      "securityTitle": "Bezpieczeństwo",
+      "securityDescription": "Weryfikacja dwuetapowa i wylogowanie innych urządzeń."
+    }
   },
   "secondaryStatus": {
     "domain": {

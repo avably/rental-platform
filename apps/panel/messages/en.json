@@ -2765,7 +2765,17 @@
     "dataExportLink": "Data export (CSV) →",
     "customFieldsTitle": "Custom fields",
     "customFieldsDescription": "Extra data on customers, orders and products - the fields the standard form does not cover.",
-    "customFieldsLink": "Set up custom fields →"
+    "customFieldsLink": "Set up custom fields →",
+    "backToHub": "← Organization",
+    "hub": {
+      "description": "Your company account and details in one place — pick a section.",
+      "dataTitle": "Organization data",
+      "dataDescription": "Name, storefront language and account details shown on documents.",
+      "teamTitle": "Team",
+      "teamDescription": "Invitations and roles of your organization's members.",
+      "securityTitle": "Security",
+      "securityDescription": "Two-factor verification and signing out other devices."
+    }
   },
   "secondaryStatus": {
     "domain": {
