@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 
 import { requireMemberPage } from "@/lib/member-page";
 
-import { updateImageAction } from "./actions";
-import { ImageRowForm, UploadImageForm } from "./photo-forms";
+import { reorderProductImagesAction, updateImageAction } from "./actions";
+import { MultiUploadImageForm, PhotoGrid } from "./photo-forms";
 import {
   finalizeProductImageUploadAction,
   prepareProductImageUploadAction,
@@ -61,9 +61,9 @@ export default async function ProductImagesPage({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Formularz wgrywania niesie WŁASNĄ kartę i własny nagłówek — drugie
-          opakowanie dałoby ramkę w ramce. */}
-      <UploadImageForm
+      {/* Wielo-upload niesie WŁASNĄ kartę i własny nagłówek — drugie opakowanie
+          dałoby ramkę w ramce (uwaga właściciela #1). */}
+      <MultiUploadImageForm
         prepare={prepareProductImageUploadAction.bind(null, product.id)}
         finalize={finalizeProductImageUploadAction}
       />
@@ -75,13 +75,11 @@ export default async function ProductImagesPage({
         {rows.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : (
-          rows.map((image) => (
-            <ImageRowForm
-              key={image.id}
-              action={updateImageAction.bind(null, product.id)}
-              image={image}
-            />
-          ))
+          <PhotoGrid
+            images={rows}
+            reorder={reorderProductImagesAction.bind(null, product.id)}
+            remove={updateImageAction.bind(null, product.id)}
+          />
         )}
       </section>
     </div>

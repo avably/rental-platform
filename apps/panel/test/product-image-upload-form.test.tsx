@@ -22,40 +22,52 @@ vi.mock("@/app/[locale]/(panel)/katalog/[id]/zdjecia/upload-flow", async (import
   };
 });
 
-const { UploadImageForm } = await import(
+// `useRouter` z i18n woła `refresh` po zakończeniu wysyłki — w jsdom nie ma
+// routera Next, więc podstawiamy atrapę, żeby komponent się nie wywrócił.
+const refreshMock = vi.hoisted(() => vi.fn());
+vi.mock("@/i18n/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/i18n/navigation")>();
+  return { ...actual, useRouter: () => ({ refresh: refreshMock, push: vi.fn(), replace: vi.fn() }) };
+});
+
+const { MultiUploadImageForm } = await import(
   "@/app/[locale]/(panel)/katalog/[id]/zdjecia/photo-forms"
 );
 
-function file(): File {
-  return new File([PNG], "photo.png", { type: "image/png" });
+const images = messages.catalog.images;
+
+function file(name = "photo.png"): File {
+  return new File([PNG], name, { type: "image/png" });
 }
 
-function mount(
-  prepare: (input: { mime: string; size: number }) => Promise<
-    | {
-        ok: true;
-        upload: { uploadId: string; path: string; token: string };
-      }
-    | { ok: false; error: string }
-  >,
-  finalize: (uploadId: string) => Promise<{ success?: string; formError?: string }>,
-) {
+type Prepare = (input: { mime: string; size: number }) => Promise<
+  { ok: true; upload: { uploadId: string; path: string; token: string } } | { ok: false; error: string }
+>;
+type Finalize = (uploadId: string) => Promise<{ success?: string; formError?: string }>;
+
+function mount(prepare: Prepare, finalize: Finalize) {
   return render(
     <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
-      <UploadImageForm prepare={prepare} finalize={finalize} />
+      <MultiUploadImageForm prepare={prepare} finalize={finalize} />
     </NextIntlClientProvider>,
   );
 }
 
-function selectFile(selected: File): HTMLInputElement {
-  const input = screen.getByLabelText(messages.catalog.images.file) as HTMLInputElement;
-  fireEvent.change(input, { target: { files: [selected] } });
+function selectFiles(selected: File[]): HTMLInputElement {
+  const input = screen.getByLabelText(images.multiPrompt) as HTMLInputElement;
+  fireEvent.change(input, { target: { files: selected } });
   return input;
 }
+
+const okPrepare: Prepare = async () => ({
+  ok: true as const,
+  upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
+});
 
 beforeEach(() => {
   uploadMock.mockReset();
   uploadMock.mockResolvedValue({ error: null });
+  refreshMock.mockReset();
 });
 
 afterEach(() => {
@@ -63,102 +75,87 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("UploadImageForm", () => {
-  it("podwójny submit podczas oczekiwania rozpoczyna tylko jedno prepare", async () => {
-    let resolvePrepare!: (value: {
-      ok: true;
-      upload: { uploadId: string; path: string; token: string };
-    }) => void;
-    const prepare = vi.fn(
-      () =>
-        new Promise<{
-          ok: true;
-          upload: { uploadId: string; path: string; token: string };
-        }>((resolve) => {
-          resolvePrepare = resolve;
-        }),
-    );
+describe("MultiUploadImageForm — wielo-upload (uwaga właściciela #1)", () => {
+  it("wybór wielu plików naraz kolejkuje każdy z nich", () => {
+    mount(okPrepare, async () => ({ success: "added" }));
+    selectFiles([file("a.png"), file("b.png"), file("c.png")]);
+
+    const queue = screen.getByRole("list");
+    expect(queue.querySelectorAll("li")).toHaveLength(3);
+    expect(screen.getByText("a.png")).toBeTruthy();
+    expect(screen.getByText("c.png")).toBeTruthy();
+  });
+
+  it("wgrywa WSZYSTKIE zakolejkowane pliki jednym kliknięciem", async () => {
+    const prepare = vi.fn(okPrepare);
     const finalize = vi.fn(async () => ({ success: "added" }));
     mount(prepare, finalize);
-    selectFile(file());
+    selectFiles([file("a.png"), file("b.png")]);
 
-    const form = screen.getByRole("button", { name: messages.catalog.images.add }).closest("form")!;
     await act(async () => {
-      fireEvent.submit(form);
-      fireEvent.submit(form);
-      await Promise.resolve();
+      fireEvent.click(screen.getByRole("button", { name: images.uploadSelected }));
     });
 
-    expect(prepare).toHaveBeenCalledTimes(1);
-    // Po wybraniu pliku FileField renderuje też przycisk „usuń wybór", więc
-    // celujemy w przycisk wysyłki po nazwie (nie osłabia asercji — zaostrza).
-    expect(
-      screen.getByRole("button", {
-        name: new RegExp(messages.catalog.images.uploading),
-      }).textContent,
-    ).toContain(messages.catalog.images.uploading);
+    await waitFor(() => {
+      expect(prepare).toHaveBeenCalledTimes(2);
+      expect(finalize).toHaveBeenCalledTimes(2);
+    });
+    // Podsumowanie „Wgrano 2 z 2" pojawia się po zakończeniu obu wysyłek.
+    await waitFor(() => {
+      expect(screen.getByRole("status").textContent).toContain("2");
+    });
+    expect(refreshMock).toHaveBeenCalled();
+  });
 
-    await act(async () => {
-      resolvePrepare({
+  it("plik z odmową zostaje w błędzie i da się go ponowić razem z kolejnymi", async () => {
+    // Pierwszy plik odrzucony na etapie biletu, drugi przyjęty.
+    const prepare = vi
+      .fn<Prepare>()
+      .mockResolvedValueOnce({ ok: false, error: "Odmowa." })
+      .mockResolvedValue({
         ok: true,
         upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
       });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-  });
-
-  it("sukces czyści wybrany plik", async () => {
-    const prepare = vi.fn(async () => ({
-      ok: true as const,
-      upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
-    }));
     const finalize = vi.fn(async () => ({ success: "added" }));
     mount(prepare, finalize);
-    const input = selectFile(file());
+    selectFiles([file("zly.png"), file("dobry.png")]);
 
-    fireEvent.click(screen.getByRole("button", { name: messages.catalog.images.add }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("status").textContent).toContain(messages.catalog.images.added);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: images.uploadSelected }));
     });
-    const resetInput = screen.getByLabelText(
-      messages.catalog.images.file,
-    ) as HTMLInputElement;
-    expect(resetInput).not.toBe(input);
-    expect(resetInput.files).toHaveLength(0);
-  });
-
-  it("błąd zachowuje wybrany plik do ponowienia", async () => {
-    const prepare = vi.fn(async () => ({ ok: false as const, error: "Odmowa." }));
-    const finalize = vi.fn(async () => ({ success: "added" }));
-    mount(prepare, finalize);
-    const selected = file();
-    const input = selectFile(selected);
-
-    fireEvent.click(screen.getByRole("button", { name: messages.catalog.images.add }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toContain("Odmowa.");
     });
-    expect(input.files?.[0]).toBe(selected);
-    expect(finalize).not.toHaveBeenCalled();
+    // Drugi plik przeszedł — finalize dotknął tylko jego.
+    expect(finalize).toHaveBeenCalledTimes(1);
+
+    // Ponowienie: przycisk znów aktywny (jest jeszcze plik w stanie błędu),
+    // kolejne kliknięcie próbuje wysłać zaległy plik raz jeszcze.
+    prepare.mockResolvedValue({
+      ok: true,
+      upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: images.uploadSelected }));
+    });
+    await waitFor(() => {
+      expect(finalize).toHaveBeenCalledTimes(2);
+    });
   });
 
-  it("nieoczekiwany wyjątek podczas wysyłki (np. brak env klienta przeglądarki) pokazuje błąd", async () => {
-    const prepare = vi.fn(async () => ({
-      ok: true as const,
-      upload: { uploadId: UPLOAD_ID, path: PATH, token: "signed-token" },
-    }));
+  it("nieoczekiwany wyjątek wysyłki pokazuje błąd pliku, nie wywraca formularza", async () => {
+    uploadMock.mockRejectedValue(new Error("Brak zmiennej NEXT_PUBLIC_SUPABASE_URL"));
     const finalize = vi.fn(async () => ({ success: "added" }));
-    uploadMock.mockRejectedValue(new Error("Brak zmiennej środowiskowej NEXT_PUBLIC_SUPABASE_URL"));
-    mount(prepare, finalize);
-    selectFile(file());
+    mount(okPrepare, finalize);
+    selectFiles([file("a.png")]);
 
-    fireEvent.click(screen.getByRole("button", { name: messages.catalog.images.add }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: images.uploadSelected }));
+    });
 
     await waitFor(() => {
-      expect(screen.getByRole("alert").textContent).toContain(messages.catalog.images.errors.upload);
+      expect(screen.getByRole("alert").textContent).toContain(images.errors.upload);
     });
     expect(finalize).not.toHaveBeenCalled();
   });

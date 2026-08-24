@@ -379,6 +379,16 @@ const API_ROUTE_PROTECTION = new Map<string, string>([
       "bez wiersza w contract_documents, bez pliku w koszyku, bez numeracji " +
       "(contract-preview.test.ts).",
   ],
+  [
+    "/katalog/import/szablon",
+    "Pusty szablon CSV importu katalogu (uwaga właściciela #7, ADR-237) — " +
+      "CHRONIONY SESJĄ: requireMember() PRZED złożeniem odpowiedzi (anonim " +
+      "dostaje status z AuthError i zero bajtów). Plik to same NAGŁÓWKI kolumn " +
+      "(CATALOG_CSV_HEADER + kolumna categories), identyczne dla każdego " +
+      "najemcy — NIE dane tenanta: bramka sesji jest tu higieną panelu (zero " +
+      "anonimowych pobrań z hostingu), nie granicą izolacji, więc handler nie " +
+      "potrzebuje roli ani filtra tenant_id.",
+  ],
 ]);
 
 const routeHandlerModules = import.meta.glob<unknown>("../app/**/route.ts");

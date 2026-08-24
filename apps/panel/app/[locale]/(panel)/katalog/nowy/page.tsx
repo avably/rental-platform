@@ -7,6 +7,7 @@ import { requireMemberPage } from "@/lib/member-page";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { createProductAction } from "../actions";
+import { createCategoryInlineAction } from "../kategorie/actions";
 import { ProductForm } from "../product-form";
 
 export default async function NewProductPage() {
@@ -31,6 +32,7 @@ export default async function NewProductPage() {
       <ProductForm
         action={createProductAction}
         categories={categories}
+        createCategory={createCategoryInlineAction}
         currencyCode={currency}
         customFields={customFields}
         defaults={{

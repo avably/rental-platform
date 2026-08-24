@@ -120,6 +120,74 @@ export async function createCategoryAction(
   redirect(await localePath(LIST_PATH));
 }
 
+/** Wynik szybkiego tworzenia kategorii z formularza produktu (uwaga właściciela). */
+export type InlineCategoryResult =
+  | { ok: true; category: { id: string; name: string } }
+  | { ok: false; error: string };
+
+/**
+ * SZYBKIE UTWORZENIE KATEGORII BEZ OPUSZCZANIA FORMULARZA PRODUKTU (ADR-237).
+ *
+ * Formularz produktu wybiera kategorie zaznaczeniami, a operator zakładający
+ * pierwszy sprzęt nie ma jeszcze żadnej — kazać mu wychodzić do osobnego ekranu
+ * i wracać to zgubiony wpis w formularzu. Ta akcja tworzy kategorię z samej
+ * NAZWY (adres nadaje `categorySchema` przez `suggestCategorySlug`, dokładnie
+ * jak pełny formularz) i ODDAJE jej identyfikator, żeby klient dopisał ją do
+ * listy zaznaczeń — bez przeładowania i bez `redirect`.
+ *
+ * Bramką pozostaje baza (RLS + trigger slugów zarezerwowanych): akcja tłumaczy
+ * jej odmowy tym samym `databaseError`, którym tłumaczy je pełny formularz.
+ */
+export async function createCategoryInlineAction(name: string): Promise<InlineCategoryResult> {
+  const parsed = categorySchema.safeParse({ name, slug: "", description: "" });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]!.message };
+  }
+
+  const ctx = await member();
+  if (isFormState(ctx)) {
+    return { ok: false, error: ctx.formError ?? ctx.fieldErrors?.name ?? DUPLICATE };
+  }
+
+  // Nowa kategoria NA KOŃCU listy — jak w pełnym formularzu (createCategoryAction);
+  // błąd odczytu nie jest pomijalny, bo pusty wynik dałby pozycję 0 (górę).
+  const { data: siblings, error: siblingsError } = await ctx.supabase
+    .from("catalog_categories")
+    .select("position")
+    .eq("tenant_id", ctx.tenantId);
+  if (siblingsError) {
+    const state = databaseError(siblingsError.code, siblingsError.message);
+    return { ok: false, error: state.formError ?? state.fieldErrors?.slug ?? siblingsError.message };
+  }
+  const position = Math.min(
+    9999,
+    (siblings ?? []).reduce((max, row) => Math.max(max, (row.position as number) + 1), 0),
+  );
+
+  const { data, error } = await ctx.supabase
+    .from("catalog_categories")
+    .insert({
+      tenant_id: ctx.tenantId,
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      description: parsed.data.description,
+      position,
+    })
+    .select("id, name")
+    .single();
+  if (error) {
+    const state = databaseError(error.code, error.message);
+    return { ok: false, error: state.formError ?? state.fieldErrors?.slug ?? error.message };
+  }
+  if (!data) return { ok: false, error: NOT_FOUND };
+
+  revalidatePath("/", "layout");
+  // Cache katalogu w SKLEPIE (ADR-185) — nowa kategoria wchodzi do filtrów
+  // publicznego katalogu. Patrz lib/catalog-cache.ts.
+  await invalidateStorefrontCatalog(ctx.tenantId!);
+  return { ok: true, category: { id: data.id as string, name: data.name as string } };
+}
+
 export async function updateCategoryAction(
   categoryId: string,
   _prevState: FormState,
