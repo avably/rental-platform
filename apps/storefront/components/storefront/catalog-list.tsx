@@ -26,7 +26,18 @@ import type { ProductsStructuredContent } from "@avably/core/site";
 import type { SiteRenderLabels, StorefrontProduct, TemplateStyles } from "@avably/ui";
 
 import { catalogPagerItems } from "@/lib/catalog/catalog-pager";
+import { catalogSearchPath } from "@/lib/catalog/catalog-search";
 import { format, type StorefrontCopy } from "@/lib/storefront/copy";
+
+/**
+ * ADRES STRONY WYNIKÓW. Bez aktywnego wyszukiwania to zwykły adres katalogu
+ * (`/katalog?strona=N`, ADR-186); z aktywnym — adres niesie też `?q=`, żeby
+ * przejście między stronami NIE gubiło zapytania (ADR-263). Jedno wyrażenie dla
+ * całej nawigacji, więc „poprzednia", „następna" i numery idą tą samą regułą.
+ */
+function pageHref(page: number, searchQuery: string): string {
+  return searchQuery.length > 0 ? catalogSearchPath(page, searchQuery) : catalogPagePath(page);
+}
 
 export function CatalogList({
   products,
@@ -36,6 +47,7 @@ export function CatalogList({
   copy,
   page,
   pageCount,
+  searchQuery = "",
 }: {
   products: StorefrontProduct[];
   /** Ustawienia KAFLA (podtytuł, cechy, przycisk) — patrz lib/catalog/catalog-tiles.ts. */
@@ -45,6 +57,13 @@ export function CatalogList({
   copy: StorefrontCopy;
   page: number;
   pageCount: number;
+  /**
+   * Aktywne zapytanie wyszukiwania (`?q=`) albo pusty łańcuch (ADR-263). Gdy
+   * niepuste, nawigacja stron zachowuje je w adresach; stan pusty listy przy
+   * aktywnym wyszukiwaniu rozstrzyga TRASA (komunikat „brak wyników"), nie ten
+   * komponent — tu pusta lista wraca do neutralnego `ProductsEmpty`.
+   */
+  searchQuery?: string;
 }) {
   if (products.length === 0) return <ProductsEmpty labels={labels} />;
 
@@ -67,7 +86,7 @@ export function CatalogList({
           />
         ))}
       </ul>
-      <CatalogPager copy={copy} page={page} pageCount={pageCount} />
+      <CatalogPager copy={copy} page={page} pageCount={pageCount} searchQuery={searchQuery} />
     </>
   );
 }
@@ -80,10 +99,13 @@ export function CatalogPager({
   copy,
   page,
   pageCount,
+  searchQuery = "",
 }: {
   copy: StorefrontCopy;
   page: number;
   pageCount: number;
+  /** Aktywne `?q=` (ADR-263) — gdy niepuste, adresy stron je zachowują. */
+  searchQuery?: string;
 }) {
   if (pageCount <= 1) return null;
 
@@ -95,7 +117,7 @@ export function CatalogPager({
       <ul className="flex list-none flex-wrap items-center justify-center gap-1 p-0">
         {page > 1 ? (
           <li>
-            <a data-catalog-prev href={catalogPagePath(page - 1)} rel="prev" className={linkClass}>
+            <a data-catalog-prev href={pageHref(page - 1, searchQuery)} rel="prev" className={linkClass}>
               {copy.catalog.prev}
             </a>
           </li>
@@ -126,7 +148,7 @@ export function CatalogPager({
                   {item}
                 </span>
               ) : (
-                <a data-catalog-page={item} href={catalogPagePath(item)} className={linkClass}>
+                <a data-catalog-page={item} href={pageHref(item, searchQuery)} className={linkClass}>
                   <span className="sr-only">{format(copy.catalog.goToPage, { page: item })}</span>
                   <span aria-hidden="true">{item}</span>
                 </a>
@@ -137,7 +159,7 @@ export function CatalogPager({
 
         {page < pageCount ? (
           <li>
-            <a data-catalog-next href={catalogPagePath(page + 1)} rel="next" className={linkClass}>
+            <a data-catalog-next href={pageHref(page + 1, searchQuery)} rel="next" className={linkClass}>
               {copy.catalog.next}
             </a>
           </li>

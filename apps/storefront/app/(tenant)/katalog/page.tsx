@@ -41,8 +41,10 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { CatalogList } from "@/components/storefront/catalog-list";
+import { CatalogSearch } from "@/components/storefront/catalog-search";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { catalogTileContent } from "@/lib/catalog/catalog-tiles";
+import { parseCatalogSearchQuery } from "@/lib/catalog/catalog-search";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { storeLogo } from "@/lib/site/store-logo";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -69,15 +71,38 @@ async function zadanaStrona(searchParams: Params["searchParams"]): Promise<numbe
   return parseCatalogPageParam(params[CATALOG_PAGE_PARAM]);
 }
 
+/** Znormalizowane zapytanie z `?q=` albo pusty łańcuch, gdy wyszukiwania nie ma (ADR-263). */
+async function zadaneZapytanie(searchParams: Params["searchParams"]): Promise<string> {
+  const params = await searchParams;
+  return parseCatalogSearchQuery(params.q);
+}
+
 export async function generateMetadata({ searchParams }: Params): Promise<Metadata> {
   const page = await zadanaStrona(searchParams);
   if (page === null) return { robots: { index: false, follow: false } };
 
-  const resolution = await loadCatalogPageContext(page);
+  const query = await zadaneZapytanie(searchParams);
+  const resolution = await loadCatalogPageContext(page, query);
   if (resolution.kind !== "page") return { robots: { index: false, follow: false } };
 
   const { ctx } = resolution;
   const storeName = ctx.catalog.tenant.name;
+
+  /*
+    WIDOK WYNIKÓW WYSZUKIWANIA = NOINDEX (ADR-263). `?q=` to widok FILTROWANY —
+    jak `?strona=` spoza zakresu i strony transakcyjne, nie ma go po co
+    indeksować (nieograniczony zbiór zapytań = nieograniczony zbiór adresów
+    cienkiej treści). Tytuł niesie frazę, żeby karta przeglądarki i historia
+    rozróżniały wyniki; kanonu świadomie brak — strona noindex go nie potrzebuje,
+    a wystawienie indeksowalnego alternatu przeczyłoby noindex.
+  */
+  if (ctx.query.length > 0) {
+    return {
+      title: pageTitle(storeName, format(ctx.copy.catalog.searchTitle, { query: ctx.query })),
+      robots: { index: false, follow: false },
+    };
+  }
+
   const opis = format(ctx.copy.catalog.description, { store: storeName });
 
   return tenantMetadata({
@@ -121,10 +146,11 @@ export async function generateMetadata({ searchParams }: Params): Promise<Metada
 
 export default async function TenantCatalogPage({ searchParams }: Params) {
   const page = await zadanaStrona(searchParams);
+  const query = await zadaneZapytanie(searchParams);
   const revealNonce = (await headers()).get("x-nonce") ?? undefined;
   if (page === null) notFound();
 
-  const resolution = await loadCatalogPageContext(page);
+  const resolution = await loadCatalogPageContext(page, query);
   if (resolution.kind !== "page") notFound();
 
   const { ctx } = resolution;
@@ -165,21 +191,43 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
         <div className={styles.container}>
           {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
           <h1 className={`text-3xl ${SITE_HEADING}`}>{copy.catalog.heading}</h1>
-          <p className="site-text-muted mt-2">
-            {format(copy.catalog.total, { total: ctx.total })}
-            {ctx.pageCount > 1
-              ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
-              : ""}
-          </p>
-          <CatalogList
-            products={seam.products}
-            content={catalogTileContent(site?.sections)}
-            styles={styles}
-            labels={seam.labels}
-            copy={copy}
-            page={ctx.page}
-            pageCount={ctx.pageCount}
-          />
+
+          {/* Pole wyszukiwania (ADR-263) — form GET → `?q=`, stan w adresie. */}
+          <CatalogSearch copy={copy} query={ctx.query} />
+
+          {ctx.query.length > 0 && ctx.total === 0 ? (
+            /*
+              STAN PUSTY WYSZUKIWANIA — inny komunikat niż katalog pusty: tu
+              oferta ISTNIEJE, tylko nic nie pasuje do frazy. Pole wyżej zostaje,
+              żeby klient mógł zawęzić inaczej albo wyczyścić.
+            */
+            <p data-catalog-search-empty className="site-text-muted mt-6">
+              {format(copy.catalog.searchEmpty, { query: ctx.query })}
+            </p>
+          ) : (
+            <>
+              <p className="site-text-muted mt-4">
+                {ctx.query.length > 0
+                  ? format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })
+                  : format(copy.catalog.total, { total: ctx.total })}
+                {ctx.pageCount > 1
+                  ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
+                  : ""}
+              </p>
+              <div className="mt-8">
+                <CatalogList
+                  products={seam.products}
+                  content={catalogTileContent(site?.sections)}
+                  styles={styles}
+                  labels={seam.labels}
+                  copy={copy}
+                  page={ctx.page}
+                  pageCount={ctx.pageCount}
+                  searchQuery={ctx.query}
+                />
+              </div>
+            </>
+          )}
         </div>
       </main>
     </StoreChrome>

@@ -196,8 +196,19 @@ export interface CatalogPageContext extends Omit<StorefrontContext, "catalog"> {
   page: number;
   /** Ile stron ma katalog przy bieżącym rozmiarze strony; zawsze ≥ 1. */
   pageCount: number;
-  /** Liczba WSZYSTKICH pozycji katalogu — nagłówek mówi klientowi, ile jest oferty. */
+  /**
+   * Liczba pozycji: całego katalogu, a przy aktywnym wyszukiwaniu (`query`
+   * niepuste) — pozycji PASUJĄCYCH do zapytania (0107, ADR-263). Nagłówek mówi
+   * z niej klientowi, ile jest oferty / ile znaleziono.
+   */
   total: number;
+  /**
+   * NORMALIZOWANE zapytanie wyszukiwania (`?q=`) albo pusty łańcuch, gdy
+   * wyszukiwania nie ma (ADR-263). Trasa czyta je do wartości pola, licznika
+   * wyników, stanu pustego i adresów nawigacji stron; przy pustym — katalog
+   * zachowuje się jak przed wyszukiwarką.
+   */
+  query: string;
 }
 
 /**
@@ -362,13 +373,18 @@ async function _loadProductPageContext(
   };
 }
 
-async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolution> {
+async function _loadCatalogPageContext(
+  page: number,
+  query = "",
+): Promise<CatalogPageResolution> {
   const tenantId = (await headers()).get(TENANT_ID_HEADER);
   if (!tenantId) return { kind: "none" };
 
   // Flagi powłoki PIĄTYM członem (ADR-203) — patrz kontekst strony sprzętu.
+  // [0107] `query` PIĄTYM argumentem odczytu katalogu (ADR-263): puste = pełny
+  // katalog jak przed wyszukiwarką; niepuste zawęża okno i `total` w bazie.
   const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
-    getPublicCatalogPage(tenantId, catalogPageOffset(page), CATALOG_PAGE_SIZE),
+    getPublicCatalogPage(tenantId, catalogPageOffset(page), CATALOG_PAGE_SIZE, query),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
@@ -406,6 +422,7 @@ async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolut
       page,
       pageCount,
       total: envelope.total,
+      query,
       locale,
       currency: envelope.tenant.currency,
       copy,

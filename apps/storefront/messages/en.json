@@ -420,7 +420,14 @@
       "prev": "Previous page",
       "next": "Next page",
       "goToPage": "Page {page}",
-      "description": "The full list of equipment for hire - {store}. Check daily rates and availability for your dates."
+      "description": "The full list of equipment for hire - {store}. Check daily rates and availability for your dates.",
+      "searchLabel": "Search the catalog",
+      "searchPlaceholder": "Search equipment…",
+      "searchSubmit": "Search",
+      "searchClear": "Clear",
+      "searchResults": "Results for “{query}”: {total}",
+      "searchEmpty": "No results for “{query}”. Try a different phrase.",
+      "searchTitle": "Search: {query}"
     },
     "category": {
       "breadcrumbHome": "Home",
