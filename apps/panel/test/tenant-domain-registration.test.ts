@@ -75,6 +75,10 @@ function formData(): FormData {
   const fd = new FormData();
   fd.set("slug", "acme-2-6");
   fd.set("name", "Wypożyczalnia Acme");
+  // ADR-234: NIP wymagany od walidacji Zod — RPC jest tu w pełni zamockowane
+  // (zwraca TENANT_ID niezależnie od argumentów), więc suma kontrolna
+  // wystarcza, żeby dojść do redirectu bez ruszania weryfikacji rejestrowej.
+  fd.set("nip", "7740001454");
   return fd;
 }
 

@@ -409,3 +409,5 @@ export {
   type ProductSlugRegistry,
   type ProductSlugResolution,
 } from "./catalog/product-slug";
+
+export { isValidNipChecksum, normalizeNip } from "./registry/nip";

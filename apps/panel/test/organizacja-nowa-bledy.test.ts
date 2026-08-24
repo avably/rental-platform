@@ -86,6 +86,11 @@ function form(): FormData {
   const data = new FormData();
   data.set("slug", "moja-wypozyczalnia");
   data.set("name", "Moja wypożyczalnia");
+  // ADR-234: NIP wymagany od walidacji Zod — RPC jest tu w pełni zamockowane
+  // (rpcError sterowany per przypadek), więc suma kontrolna wystarcza, żeby
+  // dojść do wywołania RPC (realną weryfikację w cache'u ma własna suita:
+  // packages/db/test/nip-lookup-cache.test.ts).
+  data.set("nip", "7740001454");
   return data;
 }
 

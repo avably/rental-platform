@@ -21,7 +21,12 @@ export interface CreateTenantState {
  *   P0001 — adres e-mail niezweryfikowany,
  *   P0002 — limit 2 organizacji na użytkownika,
  *   P0003 — brak akceptacji obowiązującego regulaminu,
- *   22023 — slug zarezerwowany albo wersja regulaminu inna niż obowiązująca.
+ *   22023 — slug zarezerwowany, wersja regulaminu inna niż obowiązująca, ZŁA
+ *           SUMA KONTROLNA NIP albo NIP BEZ DOWODU WERYFIKACJI w
+ *           app.nip_lookup_cache (0098, ADR-234) — świadomie ta sama klasa
+ *           co reszta walidacji tej funkcji, nie osobny kod (patrz komentarz
+ *           w migracji 0098_create_tenant_nip.sql: PostgREST maskuje custom
+ *           SQLSTATE spoza P0001 jako 500 bez treści).
  * Te idą na ekran wprost. Wszystko poza tą listą to komunikat DOSTAWCY —
  * i tam była dziura N5a: kolizja sluga (23505) wracała surowym angielskim
  * „duplicate key value violates unique constraint …", jako jedyne miejsce
@@ -73,6 +78,7 @@ export async function createTenantAction(
   const parsed = createTenantSchema.safeParse({
     slug: formData.get("slug"),
     name: formData.get("name"),
+    nip: formData.get("nip"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
@@ -102,6 +108,13 @@ export async function createTenantAction(
     return { error: "Do założenia organizacji wymagana jest akceptacja regulaminu." };
   }
 
+  // ADR-234: p_nip idzie ZAWSZE — schemat wymaga go od momentu, w którym NIP
+  // stał się wymaganym krokiem onboardingu. `app.create_tenant` (0098)
+  // odrzuci go, jeśli suma kontrolna jest zła ALBO brak dowodu weryfikacji
+  // w app.nip_lookup_cache (czyli user nie kliknął „Pobierz dane" — albo
+  // zmienił NIP PO kliknięciu, patrz form.tsx: pole resetuje stan weryfikacji
+  // przy każdej zmianie). Legal_name/regon NIE są przesyłane — RPC bierze je
+  // WYŁĄCZNIE z cache'a, klient nie ma jak ich wstrzyknąć.
   const { error } = await supabase.schema("app").rpc(
     "create_tenant",
     currentTerms && termsFields.data.termsVersionId
@@ -112,8 +125,9 @@ export async function createTenantAction(
           // „aktualna w chwili submitu": jeśli między renderem a submitem
           // weszła nowa wersja, baza odmówi 22023 i user przeczyta nową.
           p_terms_version_id: termsFields.data.termsVersionId,
+          p_nip: parsed.data.nip,
         }
-      : { p_slug: parsed.data.slug, p_name: parsed.data.name },
+      : { p_slug: parsed.data.slug, p_name: parsed.data.name, p_nip: parsed.data.nip },
   );
   if (error) {
     // NIE „error.message wprost" (stan sprzed ADR-153): wprost idą wyłącznie

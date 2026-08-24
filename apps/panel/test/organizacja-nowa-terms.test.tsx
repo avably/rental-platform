@@ -134,7 +134,7 @@ describe("createTenantAction — walidacja serwerowa akceptacji (0070)", () => {
 
     const state = await createTenantAction(
       {},
-      formData({ slug: "moja-firma", name: "Moja firma" }),
+      formData({ slug: "moja-firma", name: "Moja firma", nip: "7740001454" }),
     );
 
     expect(state.error).toBe("Do założenia organizacji wymagana jest akceptacja regulaminu.");
@@ -152,6 +152,7 @@ describe("createTenantAction — walidacja serwerowa akceptacji (0070)", () => {
       formData({
         slug: "moja-firma",
         name: "Moja firma",
+        nip: "7740001454",
         termsAccepted: "on",
         termsVersionId: VERSION_ID,
       }),
@@ -163,17 +164,21 @@ describe("createTenantAction — walidacja serwerowa akceptacji (0070)", () => {
       p_slug: "moja-firma",
       p_name: "Moja firma",
       p_terms_version_id: VERSION_ID,
+      p_nip: "7740001454",
     });
   });
 
-  it("bez obowiązującej wersji → create_tenant wołany BEZ parametru wersji (zachowanie sprzed 0070)", async () => {
+  it("bez obowiązującej wersji → create_tenant wołany BEZ parametru wersji, ale Z p_nip (zachowanie sprzed 0070 + ADR-234)", async () => {
     currentTerms = null;
 
-    await createTenantAction({}, formData({ slug: "moja-firma", name: "Moja firma" }));
+    await createTenantAction(
+      {},
+      formData({ slug: "moja-firma", name: "Moja firma", nip: "7740001454" }),
+    );
 
     const calls = rpcLog.filter((c) => c.fn === "create_tenant");
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.args).toEqual({ p_slug: "moja-firma", p_name: "Moja firma" });
+    expect(calls[0]!.args).toEqual({ p_slug: "moja-firma", p_name: "Moja firma", p_nip: "7740001454" });
   });
 
   it("payload z niepoprawnym uuid wersji → błąd walidacji bez dotykania RPC", async () => {
@@ -184,6 +189,7 @@ describe("createTenantAction — walidacja serwerowa akceptacji (0070)", () => {
       formData({
         slug: "moja-firma",
         name: "Moja firma",
+        nip: "7740001454",
         termsAccepted: "on",
         termsVersionId: "nie-uuid",
       }),

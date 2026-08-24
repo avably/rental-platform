@@ -1,9 +1,12 @@
 "use client";
 
-import { CANONICAL_SITE_URL, tenantSubdomainHost } from "@avably/core";
+import { CANONICAL_SITE_URL, isValidNipChecksum, tenantSubdomainHost } from "@avably/core";
 import { Button, Input } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
+
+import { lookupCompanyByNipAction } from "@/lib/registry/lookup-action";
+import type { CompanyLookupResult } from "@/lib/registry/types";
 
 import { createTenantAction, type CreateTenantState } from "./actions";
 
@@ -15,25 +18,119 @@ export interface CreateTenantFormTerms {
   versionLabel: string;
 }
 
+/**
+ * NIP: WYMAGANY i WERYFIKOWANY przy zakładaniu organizacji (ADR-234, decyzja
+ * właściciela — brief SPEC decyzja #2). Flow: wpisz NIP → suma kontrolna
+ * (klient, natychmiast) → klik „Pobierz dane" → spinner → serwer sprawdza
+ * MF Białą listę / GUS BIR1.1 i zapisuje dowód w app.nip_lookup_cache →
+ * pokazujemy ZNALEZIONĄ firmę → „Załóż organizację" ODBLOKOWANE.
+ *
+ * TWARDY GATE: `verified` jest jedynym źródłem prawdy o tym, czy submit
+ * wolno wcisnąć. Każda zmiana pola NIP PO udanej weryfikacji cofa `verified`
+ * na `false` — inaczej user mógłby zweryfikować NIP A, potem wpisać NIP B
+ * i wysłać formularz z „zieloną" etykietą, która nie dotyczy tego, co
+ * faktycznie poszło do bazy. Serwer i tak re-weryfikuje przez cache
+ * (app.create_tenant, 0098) — to pole jest o UX, nie o bezpieczeństwie
+ * (bezpieczeństwo stoi w RPC, patrz actions.ts).
+ */
+type NipLookupFailureReason = Extract<CompanyLookupResult, { ok: false }>["reason"];
+
+type NipLookupState =
+  | { status: "idle" }
+  | { status: "pending" }
+  | { status: "found"; legalName: string; address: string }
+  | { status: "error"; reason: NipLookupFailureReason };
+
 export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | null }) {
   const [state, formAction, pending] = useActionState(createTenantAction, initialState);
   const t = useTranslations("newOrganization");
   const locale = useLocale();
 
-  /**
-   * PODGLĄD ADRESU NA ŻYWO (ADR-153, N5b). Pole nazywało się „Slug (adres,
-   * np. moja-firma)" i było jedynym miejscem w panelu, gdzie operator musiał
-   * znać żargon — a wpisuje tu adres, pod którym od pierwszej sekundy stanie
-   * jego publiczny sklep. Podgląd pokazuje DOKŁADNIE tę wartość, którą
-   * zbuduje serwer: `tenantSubdomainHost` to ta sama funkcja, z której
-   * korzysta akcja przy rejestracji domeny, więc normalizacja (małe litery)
-   * jest widoczna, zanim ktokolwiek kliknie przycisk.
-   */
   const [slug, setSlug] = useState("");
   const previewSlug = slug.trim();
 
+  const [nip, setNip] = useState("");
+  const [nipLookup, setNipLookup] = useState<NipLookupState>({ status: "idle" });
+  const [isLookupPending, startLookupTransition] = useTransition();
+  const nipChecksumOk = isValidNipChecksum(nip);
+  const verified = nipLookup.status === "found";
+
+  function handleNipChange(value: string) {
+    setNip(value);
+    // Każda zmiana NIP-u PO weryfikacji unieważnia ją — patrz docblock typu.
+    if (nipLookup.status !== "idle") setNipLookup({ status: "idle" });
+  }
+
+  function handleLookupClick() {
+    if (!nipChecksumOk || isLookupPending) return;
+    startLookupTransition(async () => {
+      setNipLookup({ status: "pending" });
+      const result = await lookupCompanyByNipAction(nip);
+      if (result.ok) {
+        const address = [result.address.street, [result.address.zip, result.address.city].filter(Boolean).join(" ")]
+          .filter(Boolean)
+          .join(", ");
+        setNipLookup({ status: "found", legalName: result.legalName, address });
+      } else {
+        setNipLookup({ status: "error", reason: result.reason });
+      }
+    });
+  }
+
+  const nipErrorKey =
+    nipLookup.status === "error"
+      ? nipLookup.reason === "invalid_checksum"
+        ? "nipErrorInvalidChecksum"
+        : nipLookup.reason === "not_found"
+          ? "nipErrorNotFound"
+          : "nipErrorUnavailable"
+      : null;
+
   return (
     <form action={formAction} className="flex flex-col gap-3">
+      <label className="flex flex-col gap-1 text-sm" htmlFor="tenant-nip">
+        {t("nip")}
+      </label>
+      <div className="flex flex-wrap items-start gap-2">
+        <Input
+          id="tenant-nip"
+          type="text"
+          name="nip"
+          required
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={20}
+          value={nip}
+          onChange={(event) => handleNipChange(event.target.value)}
+          aria-describedby="tenant-nip-hint tenant-nip-result"
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!nipChecksumOk || isLookupPending}
+          loading={isLookupPending}
+          data-nip-lookup-button
+          onClick={handleLookupClick}
+        >
+          {isLookupPending ? t("nipLookupPending") : t("nipLookupButton")}
+        </Button>
+      </div>
+      <p id="tenant-nip-hint" className="text-muted-foreground text-sm">
+        {t("nipHint")}
+      </p>
+      <div id="tenant-nip-result" aria-live="polite">
+        {nipLookup.status === "found" ? (
+          <p data-nip-lookup-found className="text-status-positive-fg text-sm">
+            {t("nipLookupFound", { legalName: nipLookup.legalName, address: nipLookup.address })}
+          </p>
+        ) : null}
+        {nipErrorKey ? (
+          <p role="alert" data-nip-lookup-error className="text-destructive text-sm">
+            {t(nipErrorKey)}
+          </p>
+        ) : null}
+      </div>
       <label className="flex flex-col gap-1 text-sm">
         {t("name")}
         <Input type="text" name="name" required maxLength={200} />
@@ -103,9 +200,18 @@ export function CreateTenantForm({ terms }: { terms: CreateTenantFormTerms | nul
           {state.error}
         </p>
       ) : null}
-      <Button type="submit" loading={pending} disabled={pending}>
+      {/*
+        GATE TWARDY (ADR-234): bez udanej weryfikacji rejestrowej submit jest
+        NIEAKTYWNY — brief SPEC D: „Bez udanej weryfikacji rejestrowej NIE
+        przepuszczaj". `verified` pochodzi WYŁĄCZNIE z udanego
+        `lookupCompanyByNipAction` i cofa się przy każdej zmianie pola NIP.
+      */}
+      <Button type="submit" loading={pending} disabled={pending || !verified} data-submit-create-tenant>
         {pending ? t("submitPending") : t("submit")}
       </Button>
+      {!verified ? (
+        <p className="text-muted-foreground text-sm">{t("submitNeedsNipNote")}</p>
+      ) : null}
     </form>
   );
 }

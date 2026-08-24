@@ -4,6 +4,8 @@
  */
 import { z } from "zod";
 
+import { isValidNipChecksum, normalizeNip } from "@avably/core";
+
 /**
  * Sanityzacja parametru `next` (docelowa ścieżka po zalogowaniu, np. z linku
  * zaproszenia dla niezalogowanego). Chroni przed open-redirect: przyjmuje
@@ -80,6 +82,20 @@ export const createTenantSchema = z.object({
     .toLowerCase()
     .regex(/^[a-z0-9][a-z0-9-]{2,38}$/, "Slug: 3-39 znaków, małe litery/cyfry/myślnik, bez spacji."),
   name: z.string().trim().min(2, "Nazwa organizacji jest za krótka.").max(200),
+  /**
+   * ADR-234: NIP WYMAGANY przy zakładaniu organizacji (decyzja właściciela).
+   * Walidacja tu to TYLKO suma kontrolna (`isValidNipChecksum`, formalna
+   * poprawność) — „istnieje realnie w rejestrze" nie da się sprawdzić w Zod,
+   * to bramuje `app.create_tenant` przez `app.nip_lookup_cache` (0097/0098):
+   * bez udanego kliknięcia „Pobierz dane" RPC odmawia niezależnie od tego,
+   * co przejdzie tu. Ten schemat jest pierwszą linią (czytelny błąd zanim
+   * cokolwiek poleci do bazy), nie jedyną.
+   */
+  nip: z
+    .string()
+    .trim()
+    .transform((value) => normalizeNip(value))
+    .refine((value) => isValidNipChecksum(value), "Nieprawidłowy NIP."),
 });
 
 /**

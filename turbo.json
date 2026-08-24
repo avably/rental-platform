@@ -28,7 +28,13 @@
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/branding/**"],
-      "env": ["SUPABASE_LOCAL_*", "ALLOW_INTEGRATION_SKIP"]
+      // REGISTRY_CACHE_WRITE_SECRET (ADR-234/0099): sekret zapisu
+      // app.nip_lookup_cache, wymagany przez packages/db/test/
+      // nip-lookup-cache.test.ts. Bez wpisu tutaj strict env mode odcina go
+      // TAK SAMO jak odcinał SUPABASE_LOCAL_* przed komentarzem wyżej —
+      // `turbo run test` pomijałby suitę po cichu mimo kompletu zmiennych
+      // w powłoce (empirycznie odtworzone przy pisaniu 0099).
+      "env": ["SUPABASE_LOCAL_*", "ALLOW_INTEGRATION_SKIP", "REGISTRY_CACHE_WRITE_SECRET"]
     },
     "lint": {},
     "typecheck": { "dependsOn": ["^build"] }
