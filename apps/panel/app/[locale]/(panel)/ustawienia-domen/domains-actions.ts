@@ -29,6 +29,7 @@ import {
 
 import { AuthError } from "@/lib/auth";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 import { customDomainInputFromFormData, customDomainSchema } from "./domains-validation";
@@ -244,6 +245,9 @@ export async function checkDomainAction(
   if (!data || data.length === 0) return { formError: "Nie znaleziono tej domeny." };
 
   revalidatePath("/", "layout");
+  // Werdykt dostawcy przestawił `verified` (w górę lub w dół) — a od tego zależy
+  // opcjonalny sygnał uruchomienia „domena własna" (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
   return result.verified ? { success: host } : { formError: result.error ?? "pending" };
 }
 
@@ -306,5 +310,8 @@ export async function removeCustomDomainAction(
   if (error) return { formError: error.message };
 
   revalidatePath("/", "layout");
+  // Usunięcie własnej domeny mogło zdjąć zweryfikowany host — cofa sygnał
+  // „domena własna" (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
   return { success: host };
 }

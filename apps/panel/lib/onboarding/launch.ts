@@ -44,6 +44,7 @@
  */
 import { deliveryPricingFromSettings } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { revalidateTag, unstable_cache } from "next/cache";
 
 import {
   fetchStartCardSignals,
@@ -324,6 +325,76 @@ export async function fetchLaunchSignals(
   return { ...base, ...extra };
 }
 
+// ================== CACHE SYGNAŁÓW (per-tenant, ADR-261) ==================
+
+/**
+ * TAG CACHE SYGNAŁÓW URUCHOMIENIA — JEDEN format po obu stronach kontraktu:
+ * `readCachedLaunchSignals` taguje nim wpis, a mutacje zmieniające sygnały
+ * emitują `revalidateTag(launchCacheTag(id))`. Tag NIESIE `tenantId`, bo to
+ * BRAMKA IZOLACJI, nie kosmetyka: wpis jednego najemcy nie może unieważnić ani
+ * — co gorsza — nakarmić drugiego. Tag globalny („launch") wymieszałby sygnały
+ * między najemcami i jest tu ZAKAZANY.
+ *
+ * Osobny od `tenantCacheTag` (`tenant:<id>`) świadomie: tamten unieważnia CAŁĄ
+ * powłokę/sklep na wielu mutacjach, a ten jest CIENKI — inwaliduje się TYLKO,
+ * gdy realnie zmienia się któryś z jedenastu sygnałów uruchomienia.
+ */
+export function launchCacheTag(tenantId: string): string {
+  return `launch:${tenantId}`;
+}
+
+/**
+ * Okno świeżości cache sygnałów (sekundy). Dwa sygnały zmieniają się POZA
+ * panelem i nie mają jak zawołać `revalidateTag`: `chargesEnabled` (webhook
+ * Stripe) i `ordersCount` (checkout sklepu). TTL jest ich jedyną siecią
+ * bezpieczeństwa — reszta sygnałów inwaliduje się precyzyjnie tagiem przy
+ * mutacji panelu, więc to okno domyka wyłącznie te dwa krańce, nie tłumiąc
+ * świeżości kroków sterowanych z panelu.
+ */
+export const LAUNCH_SIGNALS_CACHE_SECONDS = 300;
+
+/**
+ * Sygnały uruchomienia SPOZA cache'u trafionego per-tenant (`unstable_cache`,
+ * ADR-261). Ukończony najemca (7/7) NIE odpala jedenastu zapytań na każdym
+ * renderze layoutu — trafia w gotowy wpis; świeże zapytania idą dopiero po
+ * `revalidateTag(launchCacheTag(id))` z mutacji zmieniającej sygnał (albo po
+ * wygaśnięciu TTL).
+ *
+ * Klucz i tag NIOSĄ `tenantId` — izolacja per-tenant jest twarda: dwaj
+ * najemcy mają rozłączne wpisy, więc sygnały A nie mogą wyciec do B. Sam
+ * ODCZYT jest niezmieniony (klient z sesji operatora + jawny filtr tenant_id +
+ * RLS): cache nie rozluźnia zakresu, tylko oszczędza powtórzony koszt.
+ *
+ * Domknięcie przechwytuje `supabase` żądania: przy TRAFIENIU w cache w ogóle
+ * się nie wykonuje (zero zapytań), a przy pudle działa klientem bieżącego
+ * żądania — wynik jest identyczny dla każdego członka tego samego najemcy, bo
+ * sygnały są własnością najemcy, nie użytkownika.
+ */
+export async function readCachedLaunchSignals(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<LaunchSignals> {
+  const load = unstable_cache(
+    () => fetchLaunchSignals(supabase, tenantId),
+    ["launch-signals", tenantId],
+    { tags: [launchCacheTag(tenantId)], revalidate: LAUNCH_SIGNALS_CACHE_SECONDS },
+  );
+  return load();
+}
+
+/**
+ * Unieważnia cache sygnałów uruchomienia TEGO najemcy. Wołane WYŁĄCZNIE
+ * z akcji serwerowych zmieniających któryś z sygnałów (pierwszy produkt,
+ * publikacja legaliów, cennik/punkt dostawy, publikacja sklepu, umowy, nadawca
+ * e-maili, egzemplarze, weryfikacja domeny). `tenantId` pochodzi z kontekstu
+ * członkostwa (`requireMember`), nigdy z wejścia akcji — inaczej członek
+ * jednego najemcy zrzucałby cache drugiemu. Profil `"max"` spójnie z resztą
+ * panelu (`revalidateTag(tenantCacheTag(...), "max")`).
+ */
+export function revalidateLaunchSignals(tenantId: string): void {
+  revalidateTag(launchCacheTag(tenantId), "max");
+}
+
 /**
  * Stan CIĄGŁEGO PRZEWODNIKA uruchomienia (ADR-229) — jedno źródło prawdy dla
  * WSZYSTKICH powierzchni onboardingu shella: badge nawigacji, sticky pasek
@@ -351,7 +422,14 @@ export interface LaunchGuideState {
 
 /**
  * JEDEN fail-silent odczyt shella na KAŻDYM ekranie panelu (ADR-228 badge,
- * rozszerzony w ADR-229 o pasek przewodnika i karcie pulpitu).
+ * rozszerzony w ADR-229 o pasek przewodnika i karcie pulpitu; buforowany
+ * per-tenant w ADR-261).
+ *
+ * Od ADR-261 sygnały idą przez `readCachedLaunchSignals` — ukończony najemca
+ * NIE płaci jedenastu zapytań na każdym renderze layoutu, tylko trafia w cache
+ * (świeżość pilnuje `revalidateTag` z mutacji + TTL). Odczyt pozostaje
+ * tenant-scope (RLS + jawny filtr), a klucz/tag niosą `tenantId` — zero wycieku
+ * między najemcami.
  *
  * Błąd odczytu nie może wywrócić layoutu — jak reszta fail-silent odczytów
  * shella (rozliczenia, organizacje) przy jakiejkolwiek awarii zwraca `null`
@@ -363,7 +441,7 @@ export async function readLaunchGuideState(
   tenantId: string,
 ): Promise<LaunchGuideState | null> {
   try {
-    const signals = await fetchLaunchSignals(supabase, tenantId);
+    const signals = await readCachedLaunchSignals(supabase, tenantId);
     const steps = launchSteps(signals);
     if (isLaunchComplete(steps)) return null;
     const nextKey = firstOpenRequiredKey(steps);

@@ -10,6 +10,7 @@ import {
   contractDocumentSettingsSchema,
 } from "@/lib/contract-settings";
 import { AuthError } from "@/lib/auth";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 export async function saveContractSettingsAction(
@@ -54,5 +55,8 @@ export async function saveContractSettingsAction(
   if (!data?.length) return { formError: "Nie udało się zapisać ustawień umów." };
 
   revalidatePath("/ustawienia-umow");
+  // Pojawienie się wiersza `contract_document` zapala sygnał uruchomienia
+  // „umowy" — unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(context.tenantId!);
   return { success: CONTRACT_DOCUMENT_SETTINGS_KEY };
 }

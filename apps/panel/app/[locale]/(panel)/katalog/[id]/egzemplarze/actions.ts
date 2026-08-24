@@ -47,6 +47,7 @@ import type { z } from "zod";
 import { AuthError } from "@/lib/auth";
 import { unitIdsSchema, unitsSchema, uuidSchema } from "@/lib/catalog-validation";
 import type { FormState } from "@/lib/form-state";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 /** Wiersz egzemplarza po walidacji — kształt wspólny dla insertu i update'u. */
@@ -220,6 +221,10 @@ export async function saveUnitsAction(
   }
 
   revalidatePath("/", "layout");
+  // Liczba egzemplarzy zmieniła się (wstawienie/usunięcie), a od niej zależy
+  // sygnał uruchomienia „produkt" (produkt liczy się z ≥1 egzemplarzem) —
+  // unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
 
   if (refusals.length > 0) {
     return {

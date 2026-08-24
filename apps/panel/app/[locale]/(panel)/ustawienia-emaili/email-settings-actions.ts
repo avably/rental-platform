@@ -20,6 +20,7 @@ import { EMAIL_SENDER_KEY } from "@avably/core";
 
 import { AuthError } from "@/lib/auth";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 import { emailSenderInputFromFormData, emailSenderSchema } from "./email-settings-validation";
@@ -67,5 +68,8 @@ export async function saveEmailSenderAction(
   }
 
   revalidatePath("/", "layout");
+  // Pojawienie się wiersza `email_sender` zapala sygnał uruchomienia
+  // „nadawca e-maili" — unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
   return { success: EMAIL_SENDER_KEY };
 }
