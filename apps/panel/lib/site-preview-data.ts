@@ -22,12 +22,13 @@
  * Rzuca WYŁĄCZNIE `error`.
  */
 import { customFieldDisplayRows, customFieldValuesFromColumn, formatMoney } from "@avably/core";
-import type { StorefrontProduct } from "@avably/ui";
+import type { StorefrontCategory, StorefrontProduct } from "@avably/ui";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import type { AuthContext } from "./auth";
 import { pickProductThumbnails } from "./catalog/product-thumbnail";
 import { loadCustomFieldDefinitions } from "./custom-fields";
+import { siteImagePublicBase } from "./site-image-base";
 import { getTenantCurrency } from "./tenant-currency";
 
 /**
@@ -137,12 +138,79 @@ export async function previewProductsFor(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   );
 
+  /*
+   * PRZYPISANIA KATEGORII (ADR-254, domknięcie Fazy C) — bez nich podgląd
+   * projektował produkty BEZ `category_ids`, więc sekcja sprzętu ze źródłem
+   * „kategoria" i sekcja kategorii pokazywały pustkę tam, gdzie sklep pokazuje
+   * kafle. Odczyt tenant-scoped przez RLS, po całej tabeli przypisań najemcy;
+   * grupowanie per produkt robimy tutaj, bo to własność ODCZYTU, a filtr sekcji
+   * czyta `categoryIds` z gotowego `StorefrontProduct` (jak sklep z koperty).
+   */
+  const { data: assignments, error: assignmentsError } = await ctx.supabase
+    .from("product_categories")
+    .select("product_id, category_id")
+    .eq("tenant_id", tenantId);
+  if (assignmentsError)
+    throw new Error(`Odczyt przypisań kategorii do podglądu nie powiódł się: ${assignmentsError.message}`);
+
+  const categoryIdsByProduct = new Map<string, string[]>();
+  for (const row of (assignments ?? []) as { product_id: string; category_id: string }[]) {
+    const list = categoryIdsByProduct.get(row.product_id) ?? [];
+    list.push(row.category_id);
+    categoryIdsByProduct.set(row.product_id, list);
+  }
+
   return (products ?? []).map((product) =>
-    toStorefrontProduct(product as PreviewProductRow, thumbnails, {
-      t,
-      currency,
-      locale,
-      definitions,
+    toStorefrontProduct(
+      product as PreviewProductRow,
+      thumbnails,
+      {
+        t,
+        currency,
+        locale,
+        definitions,
+      },
+      categoryIdsByProduct.get((product as PreviewProductRow).id) ?? [],
+    ),
+  );
+}
+
+/**
+ * KATEGORIE NAJEMCY NA PŁÓTNO KREATORA (Faza 7, ADR-259) — bliźniak
+ * {@link previewProductsFor} dla sekcji „kategorie": płótno pokazuje realne
+ * kafle kategorii (baner + nazwa), a nie atrapy, więc operator układa stronę
+ * wokół tego, co naprawdę ma w Katalogu.
+ *
+ * Odczyt tenant-scoped przez RLS, w kolejności KATALOGU (pozycja, potem nazwa) —
+ * tej samej, którą pokazuje sklep (`app.get_public_catalog`). Baner składamy
+ * z `image_path` (Faza D) tym samym prefiksem bucketa `site-images`, co znak
+ * firmy i zdjęcia sekcji. HREF-a podgląd NIE podaje: kafel zostaje statyczny
+ * (edytor nie nawiguje do publicznej strony kategorii), dokładnie jak kafel
+ * sprzętu. Nieudany odczyt RZUCA (ADR-174) — pusty stan (najemca bez kategorii)
+ * zostaje cichym `data: []`, które sekcja nazywa po swojemu.
+ */
+export async function previewCategoriesFor(
+  ctx: AuthContext,
+  tenantId: string,
+): Promise<StorefrontCategory[]> {
+  const { data: categories, error } = await ctx.supabase
+    .from("catalog_categories")
+    .select("id, name, image_path")
+    .eq("tenant_id", tenantId)
+    .order("position", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error)
+    throw new Error(`Odczyt kategorii do podglądu nie powiódł się: ${error.message}`);
+
+  const base = siteImagePublicBase();
+  return ((categories ?? []) as { id: string; name: string; image_path: string | null }[]).map(
+    (category) => ({
+      id: category.id,
+      name: category.name,
+      imageUrl: category.image_path
+        ? `${base}/${category.image_path.replace(/^\/+/, "")}`
+        : null,
     }),
   );
 }
@@ -210,6 +278,12 @@ function toStorefrontProduct(
   product: PreviewProductRow,
   thumbnails: ReturnType<typeof pickProductThumbnails>,
   mapping: Awaited<ReturnType<typeof previewMappingContext>>,
+  /**
+   * PRZYPISANIA KATEGORII tej pozycji (ADR-254) — z tabeli `product_categories`.
+   * Domyślnie puste: podgląd pojedynczego rekordu (strona sprzętu) filtra
+   * kategoryjnego nie potrzebuje, a lista wypełnia je z jednego odczytu.
+   */
+  categoryIds: readonly string[] = [],
 ): StorefrontProduct {
   const { t, currency, locale, definitions } = mapping;
   // Język ZAPISU wartości (data, liczba) — ten sam, co etykieta ceny obok.
@@ -221,6 +295,7 @@ function toStorefrontProduct(
     priceLabel: t("preview.priceFrom", {
       price: formatMoney(product.base_price_day_grosze, currency, locale),
     }),
+    categoryIds,
     imageUrl: thumbnails.get(product.id)?.url ?? null,
     /*
       Opis alternatywny PUSTY znaczy zdjęcie dekoracyjne (tak stanowi

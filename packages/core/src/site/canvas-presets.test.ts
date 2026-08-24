@@ -64,12 +64,13 @@ function stringsIn(value: unknown): string[] {
   return [];
 }
 
-describe("konwersja: kontrakt wspólny dla wszystkich trzynastu typów", () => {
+describe("konwersja: kontrakt wspólny dla wszystkich czternastu typów", () => {
   it("lista typów nie jest pusta (kontrola po pustym zbiorze)", () => {
     // Bez tego wszystkie `it.each` niżej przelatywałyby po zerowej liście.
     // Liczba jest WPISANA celowo: nowy typ sekcji ma zapalić ten test i zmusić
-    // do przejścia listy miejsc, które trzeba było dotknąć (K6: 13 z 0047).
-    expect(SECTION_TYPES.length).toBe(13);
+    // do przejścia listy miejsc, które trzeba było dotknąć (Faza 7: 14 z 0105 —
+    // `categories`; poprzednio 13 z 0047).
+    expect(SECTION_TYPES.length).toBe(14);
   });
 
   it.each(SECTION_TYPES)("%s: wynik jest ROZPOZNAWANY jako płótno v2", (type) => {

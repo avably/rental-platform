@@ -1569,6 +1569,73 @@ export type ProductsStructuredItem = ProductsStructuredContent["items"][number];
 /** Adres katalogu — ten sam, do którego odsyła cennik (jedna trasa, jedna stała). */
 export const PRODUCTS_CATALOG_HREF = PRICING_CATALOG_HREF;
 
+// -----------------------------------------------------------------------
+// KATEGORIE (Faza 7, ADR-259) — kafle kategorii linkujące do /kategoria/{slug}
+// -----------------------------------------------------------------------
+//
+// Sekcja kategorii jest bliźniakiem sekcji sprzętu, tyle że jej encją jest
+// KATEGORIA, a nie pozycja: kafel niesie baner (`image_path`, Faza D) i nazwę,
+// a klik prowadzi na stronę kategorii (Faza C, `/kategoria/{slug}`). Ten sam
+// wzorzec „treść niesie WSKAZANIE, dane mieszkają w katalogu": nazwa, slug
+// i baner kategorii czytają się na bieżąco, więc zmiana w Katalogu nie wymaga
+// republikacji strony.
+
+/**
+ * JEDEN UKŁAD — SIATKA KAFLI. Kategoria jest kaflem ze zdjęciem i nazwą, więc
+ * druga forma (lista bez zdjęć) nie niosłaby banera, który jest w tej sekcji
+ * argumentem nawigacyjnym. Zbiór zostaje jednoelementowy, ale JEST zbiorem:
+ * dopisanie układu jest wtedy wpisem, a nie zmianą kształtu.
+ */
+export const CATEGORIES_LAYOUTS = ["grid"] as const;
+export type CategoriesLayout = (typeof CATEGORIES_LAYOUTS)[number];
+
+/**
+ * SKĄD SEKCJA BIERZE KATEGORIE — dwie osie, jak przy sprzęcie (ADR-254), minus
+ * „kategoria": tu encją SĄ kategorie, więc filtr po jednej z nich nie miałby
+ * sensu.
+ *
+ *   • `catalog` — WSZYSTKIE kategorie katalogu w kolejności najemcy (pozycja).
+ *     Stan domyślny i jedyny możliwy dla presetu oraz konwersji: żadne nie ma
+ *     skąd wziąć identyfikatorów kategorii, które dopiero powstaną;
+ *   • `picked` — RĘCZNY WYBÓR kategorii w kolejności wskazania. Treść niesie
+ *     ich identyfikatory, a nazwa/slug/baner czytają się z katalogu.
+ *
+ * Osie są WYKLUCZAJĄCE: `picked` czyta `items`, `catalog` żadnego pola. Wybór
+ * jest SŁOWNIKIEM, nie flagą — dopisanie osi („polecane"?) będzie wpisem.
+ */
+export const CATEGORIES_SOURCES = ["catalog", "picked"] as const;
+export type CategoriesSource = (typeof CATEGORIES_SOURCES)[number];
+
+/** Górna granica wskazanych kategorii — lustro `maxItems` w rejestrze. */
+const CATEGORIES_MAX_ITEMS = 24;
+
+export const categoriesStructuredSchema = z
+  .object({
+    v: z.literal(STRUCTURED_SECTION_VERSION),
+    type: z.literal("categories"),
+    layout: z.enum(CATEGORIES_LAYOUTS),
+    background: z.enum(SECTION_BACKGROUNDS).default("default"),
+    heading: heading.optional(),
+    source: z.enum(CATEGORIES_SOURCES).default("catalog"),
+    /**
+     * WSKAZANE KATEGORIE — identyfikatory kategorii katalogu najemcy.
+     *
+     * PUSTA LISTA JEST LEGALNA, jak przy sprzęcie: treścią sekcji jest KATALOG
+     * kategorii, więc przy `source: "catalog"` sekcja z pustą listą pokazuje
+     * wszystkie kategorie. Sam identyfikator, bez kopii nazwy/sluga/banera —
+     * kategoria usunięta z katalogu po prostu WYPADA (render pomija
+     * nierozpoznane identyfikatory), zamiast prowadzić kafel donikąd.
+     */
+    items: z
+      .array(z.object({ categoryId: z.string().uuid() }).strict())
+      .max(CATEGORIES_MAX_ITEMS)
+      .default([]),
+  })
+  .strict();
+
+export type CategoriesStructuredContent = z.infer<typeof categoriesStructuredSchema>;
+export type CategoriesStructuredItem = CategoriesStructuredContent["items"][number];
+
 /**
  * PEŁNE RZĘDY: ile kafli zostaje po ucięciu W DÓŁ do ostatniego pełnego rzędu.
  *
@@ -3090,6 +3157,69 @@ export const STRUCTURED_SECTIONS = {
         items: [],
         limit: 8,
         featureFields: [],
+      };
+    },
+  },
+
+  categories: {
+    schema: categoriesStructuredSchema,
+    layouts: CATEGORIES_LAYOUTS,
+    defaultLayout: "grid",
+    // Jedno pole na wpis i nie jest nim napis: wpis WSKAZUJE kategorię katalogu
+    // (tak jak wpis sprzętu wskazuje pozycję), a nazwa i baner mieszkają w niej.
+    itemFields: [{ key: "categoryId", kind: "reference" }],
+    toggles: [],
+    // Jedyne ustawienie o zamkniętym zbiorze: źródło kategorii. Układu nie ma
+    // w `choices`, bo jest jeden — przełącznik z jedną opcją byłby ozdobą.
+    choices: [{ key: "source", values: CATEGORIES_SOURCES }],
+    // Wybór kategorii i wygląd sekcji to dwie różne prace — jak przy sprzęcie.
+    editor: "split",
+    // PODŁOGA ZERO: treścią tej sekcji jest KATALOG kategorii. Przy źródle
+    // „katalog" pusta lista pokazuje wszystkie kategorie, więc pustego nagłówka
+    // nie ma jak z niej zrobić (kontrast z FAQ — patrz `items` schematu sprzętu).
+    minItems: 0,
+    maxItems: CATEGORIES_MAX_ITEMS,
+    itemsPick: "catalogCategories",
+    itemsWhen: { key: "source", value: "picked" },
+    // Render maluje TRZY role: nazwę kategorii (ink), obrys kafla (border,
+    // `site-card`) i zdanie stanu pustego (inkMuted, `site-text-muted`). Baner
+    // jest zdjęciem, a płyta zastępcza pod jego brak — pasem neutralnym: żadne
+    // z dwojga nie jest rolą motywu, więc do macierzy wchodzą tylko te trzy.
+    themeRoles: ["ink", "inkMuted", "border"],
+    preset: {
+      pl: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "categories",
+        layout: "grid",
+        background: "default",
+        heading: "Przeglądaj kategorie",
+        source: "catalog",
+        items: [],
+      },
+      en: {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "categories",
+        layout: "grid",
+        background: "default",
+        heading: "Browse categories",
+        source: "catalog",
+        items: [],
+      },
+    },
+    // Bez `newItem` ŚWIADOMIE: wpis rodzi się WYBOREM kategorii z katalogu, a nie
+    // przyciskiem „dodaj" — świeży wpis niósłby wymyślony identyfikator, którego
+    // schemat nie przyjmie (ta sama zasada, co przy sekcji sprzętu).
+    fromLegacy: (content: unknown) => {
+      const legacyHeading = productsHeadingFromLegacy(content);
+      if (!legacyHeading) return null;
+      return {
+        v: STRUCTURED_SECTION_VERSION,
+        type: "categories",
+        layout: "grid",
+        background: "default",
+        heading: legacyHeading,
+        source: "catalog",
+        items: [],
       };
     },
   },

@@ -9,10 +9,12 @@
  * (kontrakt StorefrontProduct: `priceLabel` jest gotowe).
  */
 import { formatMoney, type CurrencyCode, type PriceParams } from "@avably/core";
-import type { StorefrontProduct, StorefrontProductField } from "@avably/ui";
+import type { StorefrontCategory, StorefrontProduct, StorefrontProductField } from "@avably/ui";
 
-import type { PublicCatalogProduct, PublicCustomField } from "@/lib/checkout/contract";
+import type { PublicCatalogProduct, PublicCategory, PublicCustomField } from "@/lib/checkout/contract";
+import { categoryBasePath } from "@/lib/catalog/category-path";
 import { productFieldRows, type ProductFieldLocale } from "@/lib/catalog/product-fields";
+import { siteImageBaseUrl } from "@/lib/site/image-base";
 
 /** Bucket zdjęć produktów — lustro apps/panel (.../zdjecia). */
 const PRODUCT_IMAGES_BUCKET = "product-images";
@@ -147,6 +149,30 @@ export function toProductDetail(
     */
     specs: productFieldRows(product, options.customFields ?? [], options.fieldLocale ?? "pl"),
   };
+}
+
+/**
+ * Mapuje kategorie katalogu na kafle sekcji „kategorie" (@avably/ui, Faza 7).
+ *
+ * Ten sam kontrakt, co `toStorefrontProducts`: warstwa odczytu podaje GOTOWY
+ * adres banera i GOTOWY link, żeby pakiet UI nie sklejał URL-a Storage ani
+ * ścieżki `/kategoria/{slug}`. Baner idzie z bucketa `site-images` (jak hero
+ * i sekcje), a nie `product-images` — to OSOBNY bucket, więc URL składa
+ * `siteImageBaseUrl`, nie `storagePublicUrl`. Kategoria bez `image_path` daje
+ * kafel z płytą zastępczą (render), więc `imageUrl: null` jest tu stanem, nie
+ * błędem. Kolejność zostaje z koperty (najemca ustawił ją pozycją).
+ */
+export function toStorefrontCategories(
+  categories: readonly PublicCategory[],
+  options: { supabaseUrl: string },
+): StorefrontCategory[] {
+  const base = siteImageBaseUrl(options.supabaseUrl);
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    imageUrl: category.image_path ? `${base}/${category.image_path.replace(/^\/+/, "")}` : null,
+    href: categoryBasePath(category.slug),
+  }));
 }
 
 /** Mapuje produkty katalogu na modele karty sekcji products (@avably/ui). */

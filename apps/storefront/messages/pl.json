@@ -355,6 +355,7 @@
     },
     "siteLabels": {
       "productsEmpty": "Katalog jest w przygotowaniu.",
+      "categoriesEmpty": "Kategorie są w przygotowaniu.",
       "productsCatalog": "Zobacz cały sprzęt",
       "productsCta": "Sprawdź dostępność",
       "contactEmail": "E-mail:",

@@ -355,6 +355,7 @@
     },
     "siteLabels": {
       "productsEmpty": "The catalog is being prepared.",
+      "categoriesEmpty": "Categories are being prepared.",
       "productsCatalog": "See all equipment",
       "productsCta": "Check availability",
       "contactEmail": "Email:",

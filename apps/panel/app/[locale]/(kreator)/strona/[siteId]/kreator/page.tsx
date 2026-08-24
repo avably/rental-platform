@@ -34,7 +34,11 @@ import {
   pickupLocationEntries,
   productFieldEntries,
 } from "@/lib/site-import-sources";
-import { previewProductRecordFor, previewProductsFor } from "@/lib/site-preview-data";
+import {
+  previewCategoriesFor,
+  previewProductRecordFor,
+  previewProductsFor,
+} from "@/lib/site-preview-data";
 import { getSiteWithSections } from "@/lib/site-queries";
 import { getTenantDraftStyle } from "@/lib/tenant-appearance";
 import { getTenantCurrency } from "@/lib/tenant-currency";
@@ -59,6 +63,8 @@ export default async function SiteBuilderPage({
   if (!data) notFound();
 
   const products = await previewProductsFor(ctx, ctx.tenantId!);
+  // Kategorie na płótno (Faza 7) — realne kafle sekcji „kategorie", jak sprzęt.
+  const categories = await previewCategoriesFor(ctx, ctx.tenantId!);
 
   /*
    * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178; przypięcie — faza B,
@@ -193,6 +199,7 @@ export default async function SiteBuilderPage({
       style={await getTenantDraftStyle(ctx.supabase, ctx.tenantId!)}
       sections={toEditorSections(data.sections)}
       products={products}
+      categories={categories}
       /*
        * Rekord strony wyliczony wyżej (matka: pierwsza pozycja + przełącznik;
        * wyjątek: przypięty produkt). `pageRecordPinned` gasi przełącznik

@@ -1793,6 +1793,7 @@
     "sectionTypes": {
       "hero": "Hero banner",
       "products": "Equipment",
+      "categories": "Categories",
       "pricing": "Pricing",
       "faq": "FAQ",
       "contact": "Contact",
@@ -1808,6 +1809,7 @@
     "sectionTypeDescriptions": {
       "hero": "Large welcome banner with a heading and button.",
       "products": "A grid of equipment from your catalog.",
+      "categories": "Category tiles with banners, linking to category pages.",
       "pricing": "A short note about how pricing works.",
       "faq": "Frequently asked questions and answers.",
       "contact": "Contact details and a map link.",
@@ -2537,6 +2539,44 @@
           "missing": "This item is gone from the catalog - it will not appear on the page."
         }
       },
+      "categories": {
+        "itemsTitle": "Selected categories",
+        "itemsIdle": "The section shows every category from your catalog. Switch “Where categories come from” to “Selected categories” to pick specific ones.",
+        "removeBody": "This category disappears from the section. The category itself stays in the catalog.",
+        "canvasEmpty": {
+          "title": "This section will show nothing - not a single category is selected.",
+          "action": "Select the first category",
+          "elsewhere": "You have no categories yet, so the section has nothing to show. Create them in Catalog → Categories - they will appear here on their own."
+        },
+        "fields": {
+          "categoryId": "Category"
+        },
+        "choices": {
+          "source": "Where categories come from"
+        },
+        "choiceValues": {
+          "source": {
+            "catalog": "All categories",
+            "picked": "Selected categories"
+          }
+        },
+        "layouts": {
+          "grid": "Tiles"
+        },
+        "tabs": {
+          "items": "Categories",
+          "appearance": "Appearance"
+        },
+        "pick": {
+          "label": "Categories from the catalog",
+          "placeholder": "Pick a category",
+          "action": "Add the selected category",
+          "empty": "You have no categories yet. Create them in Catalog → Categories.",
+          "nothingNew": "Every catalog category is already selected.",
+          "full": "The section is full. Remove a category to select another.",
+          "missing": "This category is gone from the catalog - it will not appear on the page."
+        }
+      },
       "usp": {
         "itemsTitle": "Selling points",
         "addItem": "Add a selling point",
@@ -2612,6 +2652,7 @@
     },
     "renderLabels": {
       "productsEmpty": "The catalog is being prepared.",
+      "categoriesEmpty": "Categories are being prepared.",
       "productsCatalog": "See all equipment",
       "productsCta": "Check availability",
       "contactEmail": "Email:",

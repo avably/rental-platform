@@ -5,7 +5,14 @@ import type {
 } from "@avably/core/site";
 
 import type { TemplateStyles } from "../template";
-import type { ContactFormBinding, SiteMoney, SiteRenderLabels, StorefrontProduct } from "../types";
+import type {
+  ContactFormBinding,
+  SiteMoney,
+  SiteRenderLabels,
+  StorefrontCategory,
+  StorefrontProduct,
+} from "../types";
+import { StructuredCategoriesGrid } from "./categories-grid";
 import { StructuredContactSplit } from "./contact-split";
 import { StructuredContactStacked } from "./contact-stacked";
 import { StructuredCtaBanner } from "./cta-banner";
@@ -97,6 +104,15 @@ export interface StructuredSectionProps<
    * pokazuje stan pusty zamiast pęknąć.
    */
   products?: StorefrontProduct[];
+  /**
+   * KATEGORIE NAJEMCY (Faza 7, ADR-259) — bliźniak `products`, wnoszony tą samą
+   * drogą: sklep czyta je publicznym katalogiem, a kreator uwierzytelnionym
+   * odczytem przez RLS. Sekcja kategorii jest, obok sekcji sprzętu, drugim
+   * typem, którego treścią nie jest jej własna lista — lista niesie WSKAZANIA,
+   * a nazwa, slug i baner mieszkają w katalogu. Brak = pusta tablica: typ bez
+   * kategorii ją ignoruje, a sekcja kategorii pokazuje sam nagłówek.
+   */
+  categories?: StorefrontCategory[];
 }
 
 export type StructuredSectionComponent<
@@ -142,6 +158,9 @@ export const STRUCTURED_RENDERERS: StructuredRendererRegistry = {
   products: {
     grid: StructuredProductsGrid,
     list: StructuredProductsList,
+  },
+  categories: {
+    grid: StructuredCategoriesGrid,
   },
   usp: {
     cards: StructuredUspCards,

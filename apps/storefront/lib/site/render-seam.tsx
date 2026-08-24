@@ -16,7 +16,8 @@ import type { SiteRenderLabels } from "@avably/ui";
 
 import { ContactCaptchaField } from "@/components/storefront/contact-captcha";
 import { submitContactMessage } from "@/lib/actions/contact";
-import { toStorefrontProducts } from "@/lib/catalog/present";
+import type { PublicCategory } from "@/lib/checkout/contract";
+import { toStorefrontCategories, toStorefrontProducts } from "@/lib/catalog/present";
 import { issueContactTicket } from "@/lib/contact/ticket";
 import { productPath } from "@/lib/catalog/product-path";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
@@ -26,6 +27,7 @@ import type { StorefrontContext } from "@/lib/storefront/context";
 export function siteRenderLabels(copy: StorefrontContext["copy"]): SiteRenderLabels {
   return {
     productsEmpty: copy.siteLabels.productsEmpty,
+    categoriesEmpty: copy.siteLabels.categoriesEmpty,
     productsCatalog: copy.siteLabels.productsCatalog,
     productsCta: copy.siteLabels.productsCta,
     contactEmail: copy.siteLabels.contactEmail,
@@ -59,6 +61,7 @@ export function siteRenderLabels(copy: StorefrontContext["copy"]): SiteRenderLab
 export interface SiteRenderSeam {
   labels: SiteRenderLabels;
   products: ReturnType<typeof toStorefrontProducts>;
+  categories: ReturnType<typeof toStorefrontCategories>;
   siteImageBase: string;
   contactForm: {
     ticket: ReturnType<typeof issueContactTicket>;
@@ -85,7 +88,14 @@ export type SiteRenderSeamInput = Pick<
   StorefrontContext,
   "copy" | "locale" | "currency" | "supabaseUrl" | "productSlugs"
 > & {
-  catalog: Pick<StorefrontContext["catalog"], "custom_fields" | "products">;
+  catalog: Pick<StorefrontContext["catalog"], "custom_fields" | "products"> & {
+    /**
+     * KATEGORIE — OPCJONALNE, bo węższe konteksty ich nie mają (strona sprzętu
+     * niesie jedną pozycję, nie katalog). Trasa katalogu (`/store`) podaje pełną
+     * listę; podstrona bez niej daje sekcję kategorii pokazującą sam nagłówek.
+     */
+    categories?: readonly PublicCategory[];
+  };
 };
 
 export function buildSiteRenderSeam(ctx: SiteRenderSeamInput): SiteRenderSeam {
@@ -104,6 +114,9 @@ export function buildSiteRenderSeam(ctx: SiteRenderSeamInput): SiteRenderSeam {
       customFields: catalog.custom_fields,
       fieldLocale: locale,
     }),
+    // Kategorie do sekcji „kategorie" (Faza 7). Węższy kontekst (strona sprzętu)
+    // kategorii nie niesie — pusta lista daje sekcję z samym nagłówkiem.
+    categories: toStorefrontCategories(catalog.categories ?? [], { supabaseUrl }),
     // Prefiks publicznego URL-a zdjęć sekcji (bucket site-images, 0043).
     // Wyrażenie mieszka w `./image-base`, bo tego samego prefiksu potrzebuje
     // znak firmy najemcy (ADR-160) — patrz nagłówek tamtego pliku.

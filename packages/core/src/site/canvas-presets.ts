@@ -261,6 +261,21 @@ function productsCanvas(content: { heading?: string }): SectionCanvas {
   return finish(built);
 }
 
+/**
+ * KATEGORIE (Faza 7) → płótno. Sekcja kategorii jest STRUKTURALNA (v3), więc
+ * w kreatorze rysuje ją rejestr renderu, a nie to płótno — konwersja istnieje
+ * dla wyczerpania `sectionCanvasFrom` i kontraktu, który parsuje wynik KAŻDEGO
+ * typu. Kafli kategorii płótno nie zna (element `catalog` oddaje SPRZĘT), więc
+ * pod nagłówkiem staje neutralna płyta zastępcza — tyle, żeby płótno nie było
+ * puste i niosło nagłówek z treści v1.
+ */
+function categoriesCanvas(content: { heading?: string }): SectionCanvas {
+  const built = draft("categories");
+  const y = addSectionHeading(built, content.heading, TOP);
+  built.add({ kind: "shape", shape: "box", fill: "paper", geometry: geometry(CONTENT_X, y, CONTENT_W, 80) });
+  return finish(built);
+}
+
 function pricingCanvas(content: PricingContent): SectionCanvas {
   const built = draft("pricing");
   const y = addSectionHeading(built, content.heading, TOP);
@@ -657,6 +672,8 @@ export function sectionCanvasFrom(type: SectionType, content: SectionContent): S
       return heroCanvas(content as HeroContent);
     case "products":
       return productsCanvas(content as { heading?: string });
+    case "categories":
+      return categoriesCanvas(content as { heading?: string });
     case "pricing":
       return pricingCanvas(content as PricingContent);
     case "faq":
