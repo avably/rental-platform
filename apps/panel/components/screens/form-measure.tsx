@@ -9,8 +9,9 @@
  * tym, że nie ma czego lokalnie „podkręcić".
  *
  * Czego NIE obejmuje: tabele, listy danych i podgląd sklepu zostają na pełnej
- * szerokości kontenera `max-w-6xl` z layoutu. Miara dotyczy wiersza tekstu do
- * czytania i pola do wypełnienia, nie danych, które chcą kolumn.
+ * szerokości wspólnego kontenera panelu (`max-w-5xl`, ADR-243) z layoutu. Miara
+ * dotyczy wiersza tekstu do czytania i pola do wypełnienia, nie danych, które
+ * chcą kolumn.
  *
  * Formularz, który sam w sobie jest całym blokiem miary, może nieść atrybut
  * bezpośrednio (`<form data-form-line-measure>`) — tak jak w artefakcie.

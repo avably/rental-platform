@@ -18,8 +18,8 @@
  * Stąd te same dwa wnioski co w ADR-188:
  *
  * 1. Progi `md:`/`lg:` są bezużyteczne — reagują na szerokość OKNA, a
- *    problemem jest szerokość KOLUMNY treści (sufit ~752 px niezależnie od
- *    okna). Siatka liczy liczbę torów z faktycznej szerokości rodzica
+ *    problemem jest szerokość KOLUMNY treści (sufit ~624 px niezależnie od
+ *    okna; kontener panelu `max-w-5xl`, ADR-243). Siatka liczy liczbę torów z faktycznej szerokości rodzica
  *    (`repeat(auto-fit, minmax(min(16rem,100%), 1fr))`).
  * 2. Wiersz zdarzenia kaucji jest KARTĄ: zdarzenie i kwota w nagłówku,
  *    pola (data, saldo) w siatce, powód potrącenia w polu na CAŁĄ

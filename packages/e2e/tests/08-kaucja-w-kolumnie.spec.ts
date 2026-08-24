@@ -16,8 +16,8 @@ import { readSeedState } from "../lib/seed-state";
  * tu NIEOGRANICZONY tekst operatora (powód potrącenia — kolumna `reason`
  * bez limitu długości) oraz odnośnik dowodowy u dostawcy płatności
  * (`provider_reference`). Kolumna treści szczegółu zamówienia ma sufit
- * ~752 px niezależnie od okna (`max-w-6xl` minus 320 px kolumny bocznej),
- * więc to nie jest defekt wąskiego ekranu — patrz ADR-188.
+ * ~624 px niezależnie od okna (`max-w-5xl` minus 320 px kolumny bocznej,
+ * ADR-243), więc to nie jest defekt wąskiego ekranu — patrz ADR-188.
  *
  * Bramka mierzy SKUTEK po renderze w prawdziwej przeglądarce: szerokość
  * własną rejestru wobec szerokości dostępnej w kolumnie, przy pięciu

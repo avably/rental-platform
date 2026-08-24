@@ -4,11 +4,11 @@
  * ================== DLACZEGO TO NIE JEST TABELA ==================
  *
  * Tabela ośmiu kolumn (typ, status, numer u dostawcy, śledzenie, koszt, data,
- * etykieta, akcje) miała szerokość WŁASNĄ 1952 px przy 752 px, które
+ * etykieta, akcje) miała szerokość WŁASNĄ 1952 px przy 624 px, które
  * kolumna treści szczegółu zamówienia oferuje w NAJSZERSZYM oknie. Sufit
- * bierze się z systemu, nie z tego ekranu: kontener panelu ma `max-w-6xl`,
- * a 320 px zabiera kolumna boczna — więc kolumna główna NIE ROŚNIE wraz
- * z oknem i tabela nie mieściła się przy ŻADNEJ szerokości ekranu.
+ * bierze się z systemu, nie z tego ekranu: kontener panelu ma `max-w-5xl`
+ * (ADR-243), a 320 px zabiera kolumna boczna — więc kolumna główna NIE
+ * ROŚNIE wraz z oknem i tabela nie mieściła się przy ŻADNEJ szerokości ekranu.
  *
  * Stąd dwa wnioski, które ukształtowały ten plik:
  *
@@ -120,8 +120,8 @@ export async function ShipmentsList({
             Siatka SAMOROZKŁADAJĄCA SIĘ, bez ani jednego progu `md:`/`lg:`.
             `auto-fit` liczy liczbę kolumn z FAKTYCZNEJ szerokości karty, więc
             reaguje na to, co tu naprawdę się zmienia (szerokość kolumny
-            treści), a nie na szerokość okna — przy 752 px stają dwie kolumny
-            po ~364 px (czytelna macierz 2×2), przy telefonie jedna.
+            treści), a nie na szerokość okna — przy 624 px stają dwie kolumny
+            (czytelna macierz 2×2), przy telefonie jedna.
             `min(16rem, 100%)` zamiast samego `16rem` domyka konstrukcję: przy
             karcie węższej niż 16 rem tor zwęża się do jej szerokości zamiast
             wystawać — układ nie ma DOLNEJ granicy, poniżej której się psuje.
