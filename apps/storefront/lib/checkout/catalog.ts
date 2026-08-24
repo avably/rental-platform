@@ -145,11 +145,17 @@ export async function getPublicProduct(
  *
  * FAIL-CLOSED jak katalog: błąd transportu / najemca poza oknem handlowym →
  * `null`, czyli dla trasy to samo, co „nie ma czego pokazać".
+ *
+ * [0107] `query` OPCJONALNE (ADR-263): gdy niepuste, baza filtruje okno po
+ * name/description i liczy `total` po przefiltrowanym zbiorze; puste/pominięte =
+ * pełny katalog (zachowanie 0085 co do bajtu). `p_query = null` znaczy dla bazy
+ * dokładnie to samo, co brak argumentu, więc pusty łańcuch schodzi do NULL.
  */
 export async function getPublicCatalogPage(
   tenantId: string,
   offset: number,
   limit: number,
+  query?: string,
   client?: SupabaseClient,
 ): Promise<PublicCatalogPage | null> {
   const supabase = client ?? (await createSupabaseServerClient());
@@ -157,6 +163,7 @@ export async function getPublicCatalogPage(
     p_tenant_id: tenantId,
     p_offset: offset,
     p_limit: limit,
+    p_query: query && query.length > 0 ? query : null,
   });
 
   if (error || data == null) return null;

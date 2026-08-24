@@ -420,7 +420,14 @@
       "prev": "Poprzednia strona",
       "next": "Następna strona",
       "goToPage": "Strona {page}",
-      "description": "Pełna lista sprzętu do wynajęcia - {store}. Sprawdź ceny za dobę i dostępność w swoim terminie."
+      "description": "Pełna lista sprzętu do wynajęcia - {store}. Sprawdź ceny za dobę i dostępność w swoim terminie.",
+      "searchLabel": "Szukaj w katalogu",
+      "searchPlaceholder": "Szukaj sprzętu…",
+      "searchSubmit": "Szukaj",
+      "searchClear": "Wyczyść",
+      "searchResults": "Wyniki dla „{query}”: {total}",
+      "searchEmpty": "Brak wyników dla „{query}”. Spróbuj innej frazy.",
+      "searchTitle": "Wyszukiwanie: {query}"
     },
     "category": {
       "breadcrumbHome": "Sklep",
