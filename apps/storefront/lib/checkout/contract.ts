@@ -390,6 +390,54 @@ export interface PublicCatalogPage {
   slugs: { id: string; slug: string }[];
 }
 
+/**
+ * META KATEGORII w kopercie strony kategorii (0101, ADR-244) — węższa od
+ * `PublicCategory` z katalogu: NIESIE `image_path` (baner hero na stronie
+ * kategorii), a NIE niesie `position` (kolejność w menu jest sprawą katalogu,
+ * nie tej jednej strony). `image_path` = ścieżka w publicznym buckecie zdjęć
+ * sklepu albo `null` (brak banera — stan normalny).
+ */
+export interface PublicCategoryMeta {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_path: string | null;
+}
+
+/**
+ * KOPERTA JEDNEJ STRONY KATEGORII (0101, ADR-244) — kształt lustrzany do
+ * `app.get_public_category_page`.
+ *
+ * TRZY STANY NIESIE OBECNOŚĆ `category`, nie pusta lista `products`
+ * (ADR-244, rozstrzygnięcie 2): cała koperta `null` znaczy „najemca poza oknem
+ * handlowym" (trasa woła to jako brak i daje 404); `category === null` znaczy
+ * „slug nieznany u tego najemcy" (trasa: 404); `category = {meta}` z pustym
+ * `products` i `total === 0` znaczy „kategoria istnieje, ale pusta" (trasa:
+ * pusty widok, NIE 404). Pusta lista pozycji sama w sobie NIE rozstrzyga 404 —
+ * jest wspólna dla dwóch ostatnich stanów.
+ *
+ * PROJEKCJA POZYCJI JEST LUSTREM KATALOGU co do klucza (pilnuje tego test na
+ * żywej bazie `packages/db/test/category-page.test.ts`), więc `products` i
+ * `slugs` konsumuje ta sama warstwa prezentacji, co strona `/katalog`.
+ */
+export interface PublicCategoryPage {
+  /** `null` = slug nieznany u tego najemcy (trasa: 404). Inaczej meta kategorii. */
+  category: PublicCategoryMeta | null;
+  tenant: { name: string; locale: "pl" | "en"; currency: CheckoutCurrency };
+  /** Numer strony po zacisku bazy (>= 1). */
+  page: number;
+  /** Rozmiar strony po zacisku bazy ([1, 48]). */
+  page_size: number;
+  /** Liczba WSZYSTKICH aktywnych pozycji kategorii, nie tylko tej strony. */
+  total: number;
+  /** Definicje pól własnych — te same, co w kopercie katalogu. */
+  custom_fields: PublicCustomField[];
+  products: PublicCatalogProduct[];
+  /** Adresy pozycji TEJ strony (0083, ADR-182), w kolejności okna. */
+  slugs: { id: string; slug: string }[];
+}
+
 /** Kształt dostępności: WYŁĄCZNIE liczby — bez numerów seryjnych / cudzych zamówień. */
 export interface PublicAvailability {
   available_units: number;

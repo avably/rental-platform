@@ -420,6 +420,17 @@
       "goToPage": "Page {page}",
       "description": "The full list of equipment for hire - {store}. Check daily rates and availability for your dates."
     },
+    "category": {
+      "breadcrumbHome": "Home",
+      "total": "Items in this category: {total}",
+      "empty": "There are no products in this category yet.",
+      "pagerLabel": "Category pages",
+      "sortLabel": "Sort",
+      "sortName": "Name (A-Z)",
+      "sortPriceAsc": "Price: low to high",
+      "sortPriceDesc": "Price: high to low",
+      "sortNewest": "Newest"
+    },
     "common": {
       "from": "from",
       "perDay": "day",
@@ -619,7 +630,8 @@
     },
     "seo": {
       "catalogDescription": "{store} rentals - browse the offer, check availability and book online.",
-      "productDescription": "{product} - rent from {store}. Check the daily rate and availability for your dates."
+      "productDescription": "{product} - rent from {store}. Check the daily rate and availability for your dates.",
+      "categoryDescription": "{category} - rent from {store}. Check daily rates and availability for your dates."
     },
     "embed": {
       "heading": "Book online",
