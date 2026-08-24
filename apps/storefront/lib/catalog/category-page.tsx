@@ -201,6 +201,7 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           <div className="mt-8">
             <CategoryList
               products={seam.products}
+              labels={seam.labels}
               content={catalogTileContent(site?.sections)}
               styles={styles}
               copy={copy}

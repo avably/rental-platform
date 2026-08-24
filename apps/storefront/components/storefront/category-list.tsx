@@ -21,7 +21,7 @@
  */
 import { ProductTile } from "@avably/ui";
 import type { ProductsStructuredContent } from "@avably/core/site";
-import type { StorefrontProduct, TemplateStyles } from "@avably/ui";
+import type { SiteRenderLabels, StorefrontProduct, TemplateStyles } from "@avably/ui";
 
 import { catalogPagerItems } from "@/lib/catalog/catalog-pager";
 import { categoryPagePath, type CategorySort } from "@/lib/catalog/category-path";
@@ -36,6 +36,7 @@ export function CategoryList({
   page,
   pageCount,
   sort,
+  labels,
 }: {
   products: StorefrontProduct[];
   /** Ustawienia KAFLA (podtytuł, cechy, przycisk) — z sekcji sprzętu najemcy. */
@@ -46,6 +47,7 @@ export function CategoryList({
   page: number;
   pageCount: number;
   sort: CategorySort;
+  labels: SiteRenderLabels;
 }) {
   /*
     KATEGORIA PUSTA MÓWI WŁASNYM ZDANIEM, nie „katalog w przygotowaniu". To NIE
@@ -68,6 +70,7 @@ export function CategoryList({
             key={product.id}
             content={content}
             product={product}
+            labels={labels}
             // Pierwszy kafel ładuje się łapczywie — siatka stoi tuż pod
             // nagłówkiem, więc jej pierwsze zdjęcie jest elementem LCP.
             eager={index === 0}
