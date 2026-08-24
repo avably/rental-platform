@@ -59,4 +59,48 @@ describe("kontrakt kierunku wizualnego panelu — ADR-177", () => {
       expect(source).not.toMatch(/\btone=/);
     }
   });
+
+  it("pasek uruchomienia nie wnosi twardych hexów marki — kolory żyją w tokenach (ADR-257)", () => {
+    const bar = readFileSync(
+      resolve(process.cwd(), "components/shell/launch-guide-bar.tsx"),
+      "utf8",
+    );
+
+    // Cała paleta paska przeniesiona do nazwanych tokenów `--launch-bar-*`.
+    // Powrót któregokolwiek z tych literałów = powrót długu z noty ADR-229.
+    const brandHexes = [
+      "#d7ff5f",
+      "#c7f542",
+      "#151a12",
+      "#e8f3d6",
+      "#c8d6b6",
+      "#15201c",
+      "#0c1310",
+      "#26382e",
+      "#16241d",
+    ];
+    for (const hex of brandHexes) {
+      expect(bar, `pasek uruchomienia zawiera twardy hex ${hex}`).not.toContain(
+        hex,
+      );
+    }
+    // Sieć ogólna: żaden 6-znakowy literał hex w komponencie.
+    expect(bar).not.toMatch(/#[0-9a-fA-F]{6}\b/);
+    // Kolory wskazują na tokeny paska.
+    expect(bar).toContain("var(--launch-bar-accent)");
+
+    // JEDNO źródło prawdy w globals.css — wartości 1:1 (parytet pikselowy).
+    expect(panelCss).toContain("--launch-bar-fg: #e8f3d6");
+    expect(panelCss).toContain("--launch-bar-muted: #c8d6b6");
+    expect(panelCss).toContain("--launch-bar-accent: #d7ff5f");
+    expect(panelCss).toContain("--launch-bar-accent-hover: #c7f542");
+    expect(panelCss).toContain("--launch-bar-accent-foreground: #151a12");
+    expect(panelCss).toContain("--launch-bar-bg: #15201c");
+    expect(panelCss).toContain("--launch-bar-border: #26382e");
+    // Wariant ciemny zachowuje dotychczasowe wartości strukturalne paska.
+    expect(panelCss).toContain("--launch-bar-bg: #0c1310");
+    expect(panelCss).toContain("--launch-bar-border: #16241d");
+    // Dług i decyzja opisane pod numerem ADR-257.
+    expect(panelCss).toContain("ADR-257");
+  });
 });

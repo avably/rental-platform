@@ -224,6 +224,51 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] [data-nav-t
   --radius-xl: 0.375rem;
 }
 
+/*
+  PASEK URUCHOMIENIA — PALETA W TOKENACH (ADR-257, dług z noty ADR-229).
+
+  `launch-guide-bar.tsx` nosił ~25 twardych literałów hex (46 wystąpień, 9
+  wartości) rozsypanych po klasach Tailwinda i atrybutach SVG. To była JEDNA
+  paleta bez nazwy — powielona, nie do wyszukania, łatwa do rozjechania przy
+  najbliższej korekcie. Tu jest jej JEDYNE źródło prawdy; komponent widzi już
+  tylko `var(--launch-bar-*)`, a `panel-visual-direction-contract` pilnuje, by
+  żaden z tych hexów nie wrócił do pliku komponentu.
+
+  PARYTET, NIE NOWY KIERUNEK: wartości są kopią 1:1 poprzednich literałów, więc
+  pasek maluje się co do piksela tak samo. Podział na dwie grupy powtarza
+  DOTYCHCZASOWE zachowanie komponentu:
+
+  • STRUKTURALNE (tło, obrys) miały w klasach wariant `dark:` — więc token ma
+    wartość jasną tutaj i ciemną na `.dark` niżej. Dzięki temu komponent traci
+    wariant `dark:` (jeden `var()` przełącza się sam), a wygląd obu motywów
+    zostaje bez zmian.
+  • AKCENT i TEKST NIE miały wariantu `dark:` (ta sama limonka i ten sam jasny
+    tekst na ciemnym pasku w obu motywach) — więc są między motywami niezmienne
+    (definicja tylko tutaj, brak nadpisania na `.dark`).
+
+  Akcent to marka `#d7ff5f`. Świadomie NIE routujemy go przez `--primary`: w
+  panelu `--primary` jest limonką TYLKO w jasnym motywie (`:root:not(.dark)`),
+  a na `.dark` przyjmuje z `@avably/ui` wartość `#EAFFA4` — użycie `--primary`
+  zmieniłoby więc kolor CTA/pierścienia paska w ciemnym motywie i złamało
+  parytet. Pasek potrzebuje limonki NIEZALEŻNEJ od motywu, stąd własny token.
+*/
+:root {
+  /* niezmienne między motywami */
+  --launch-bar-fg: #e8f3d6;
+  --launch-bar-muted: #c8d6b6;
+  --launch-bar-accent: #d7ff5f;
+  --launch-bar-accent-hover: #c7f542;
+  --launch-bar-accent-foreground: #151a12;
+  /* strukturalne — domyślnie jasny motyw */
+  --launch-bar-bg: #15201c;
+  --launch-bar-border: #26382e;
+}
+
+.dark {
+  --launch-bar-bg: #0c1310;
+  --launch-bar-border: #16241d;
+}
+
 [data-form-line-measure] {
   width: 100%;
   max-width: var(--form-line-measure);
