@@ -118,9 +118,13 @@ Zdejmuje węzeł `Sort` i daje wczesne zatrzymanie po `offset+limit` — dowód
 behawioralny, że rekomendowany indeks działa i jest additywny (zbudował się
 i został użyty przez planer).
 
-## Rekomendacja indeksu — DRAFT `0103` (NIE wdrożony)
+## Rekomendacja indeksu — FOLLOW-UP (NIE wdrożony, plik NIE zacommitowany)
 
-**Plik:** `packages/db/supabase/migrations/0103_catalog_page_order_index.sql`
+Rekomendacja jest UDOKUMENTOWANA tutaj, ale migracji NIE dołączono do tego PR:
+numer `0103` zajęła równoległa migracja `catalog_category_image_path` (image_path
+w kopercie katalogu, ADR-251), a niewdrożona migracja w `main` = dryf względem
+prod. Indeks zostaje jako follow-up do wykonania OSOBNĄ, dedykowaną migracją
+(CONCURRENTLY, poza transakcją) gdy `products` urośnie i zysk będzie realny.
 
 ```sql
 create index if not exists products_tenant_name_active_idx
@@ -128,22 +132,13 @@ create index if not exists products_tenant_name_active_idx
   where active;
 ```
 
-- **md5 pełnego pliku:** `2ccf49961a575c64a9aebb0a7e3b2e84`
-- **md5 ciała `BEGIN..END PROD MIGRATION`:** `abec3af6bebdec6a3cebd8570638f235`
-- **Status:** DRAFT, **NIE zastosowany** na żadnej bazie (ani lokalnej,
-  ani prod). Additywny, tenant-agnostyczny, **zero zmian RLS/grantów/kolumn**.
-- **Idempotentny** (`if not exists`).
-- **Budowa in-transaction vs CONCURRENTLY:** wariant w pliku to zwykłe
-  `create index` (spójne z repo — brak precedensu CONCURRENTLY, migracje jadą
-  w transakcji). Na dzisiejszej skali budowa jest podsekundowa, SHARE-lock
-  pomijalny. Gdy `products` urośnie, PM może wykonać z pliku **poza**
-  transakcją migracyjną:
+- **Zysk dziś mały** (Sort ~0,33 ms na 800 produktach), rośnie z wolumenem;
+  additywny, tenant-agnostyczny, **zero zmian RLS/grantów/kolumn**, idempotentny.
+- **Budowa:** na małej `products` zwykłe `create index` jest podsekundowe. Przy
+  większej tabeli — wariant CONCURRENTLY (poza transakcją migracyjną):
   `create index concurrently if not exists products_tenant_name_active_idx on public.products (tenant_id, name, id) where active;`
-  (CONCURRENTLY nie blokuje zapisów katalogu, ale nie może biec w transakcji).
-- **Decyzja PM przy wdrożeniu:** sprawdzić wolny numer na `origin/main` +
-  otwarte PR (w chwili audytu najwyższa migracja to `0102`, więc `0103` wolny;
-  brak otwartych PR), zastosować z pliku PRZED merge (auto-deploy), puścić
-  pełną suitę `@avably/db`.
+- **Wdrożenie (gdy PM zdecyduje):** wziąć następny WOLNY numer migracji na
+  `origin/main`, zastosować z pliku PRZED merge, puścić pełną suitę `@avably/db`.
 
 > Dlaczego audyt nie odpalił pełnej suity `@avably/db`: indeks **nie jest
 > zastosowany** (żaden test go nie oczekuje — `schema.test.ts` pokrywa wyłącznie
