@@ -25,9 +25,11 @@ import { getLocale } from "next-intl/server";
 import { isProductTemplateKind, pagePathFromSlug } from "@avably/core/site";
 
 import { toEditorSections } from "@/app/[locale]/(panel)/strona/content";
+import { fetchCategories } from "@/lib/catalog/categories";
 import { loadCustomFieldDefinitions } from "@/lib/custom-fields";
 import { requireMemberPage } from "@/lib/member-page";
 import {
+  catalogCategoryEntries,
   catalogProductEntries,
   pickupLocationEntries,
   productFieldEntries,
@@ -141,6 +143,22 @@ export default async function SiteBuilderPage({
     await loadCustomFieldDefinitions(ctx.supabase, ctx.tenantId!, "product"),
   );
 
+  /*
+   * KATEGORIE KATALOGU DO WSKAZANIA JAKO ŹRÓDŁO SEKCJI SPRZĘTU (ADR-254).
+   *
+   * Odczyt idzie KANONICZNYM `fetchCategories` (`lib/catalog/categories.ts`) —
+   * jedynym miejscem z zapytaniami o `catalog_categories`/`product_categories`
+   * — a o tym, które wiersze stają się wpisami selektora, rozstrzyga czysta
+   * `catalogCategoryEntries` (odsiew kategorii bez nazwy). Kolejność zostaje
+   * z odczytu (pozycja, potem nazwa), czyli tak, jak operator widzi kategorie
+   * w module Katalog. `fetchCategories` RZUCA przy błędzie odczytu — pusty stan
+   * (najemca bez kategorii) zostaje cichym i poprawnym „nie masz jeszcze czego
+   * wskazać", które szuflada nazywa po swojemu (`fieldEmpty.categoryId`).
+   */
+  const catalogCategories = catalogCategoryEntries(
+    await fetchCategories(ctx.supabase, ctx.tenantId!),
+  );
+
   return (
     <SiteBuilder
       siteId={data.site.id}
@@ -205,6 +223,7 @@ export default async function SiteBuilderPage({
       importSources={{
         pickupLocations: pickupEntries,
         catalogProducts: catalogProductEntries(products),
+        catalogCategories,
         productFields,
       }}
     />

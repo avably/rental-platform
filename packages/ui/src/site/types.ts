@@ -176,6 +176,18 @@ export interface StorefrontProduct {
    */
   fields?: readonly StorefrontProductField[];
   /**
+   * KATEGORIE POZYCJI (ADR-254) — identyfikatory kategorii katalogu, po których
+   * filtruje sekcja sprzętu ze źródłem „kategoria" (`visibleProductsFor`). Same
+   * identyfikatory, bo pełne obiekty kategorii mieszkają w kopercie katalogu
+   * (`PublicCatalog.categories`), a sekcja potrzebuje wyłącznie DOPASOWANIA.
+   *
+   * OPCJONALNE: warstwa danych, która przypisań nie podaje (podgląd kreatora
+   * sprzed spięcia kategorii), znaczy dla filtra tyle, co pusta lista — pozycja
+   * bez kategorii nie trafia do żadnej sekcji kategoryjnej, zamiast wywracać
+   * render. Storefront podaje je z koperty (`toStorefrontProducts`).
+   */
+  categoryIds?: readonly string[];
+  /**
    * Link do podstrony produktu (storefront publiczny 2.4b). Gdy podany, karta
    * jest klikalna. Podgląd w panelu go NIE podaje — karta zostaje statyczna
    * (edytor nie nawiguje do publicznej podstrony). Seam bez zmiany reszty

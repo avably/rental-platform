@@ -118,6 +118,42 @@ export function catalogProductEntries(
 }
 
 // -----------------------------------------------------------------------
+// Kategorie katalogu do WSKAZANIA jako źródło sekcji sprzętu (ADR-254)
+// -----------------------------------------------------------------------
+
+/**
+ * Wiersz kategorii w kształcie, w jakim czyta go trasa kreatora. Świadomie
+ * WĄSKI, jak {@link CatalogProductRow}: selektor potrzebuje identyfikatora
+ * i nazwy, a slug, opis czy baner są sprawą sklepu i strony kategorii.
+ */
+export interface CatalogCategoryRow {
+  id: string;
+  name: string;
+}
+
+/**
+ * KATEGORIE DO WSKAZANIA JAKO ŹRÓDŁO (ADR-254) — WSKAZANIE, NIE KOPIA, dokładnie
+ * jak przy pozycjach katalogu wyżej. W treści sekcji zostaje `value`
+ * (identyfikator kategorii), a `label` żyje wyłącznie w szufladzie i znika razem
+ * z nią: nazwa kategorii mieszka w katalogu i zmienia się bez publikacji strony,
+ * więc jej kopia byłaby drugim źródłem prawdy o taksonomii.
+ *
+ * KATEGORIA BEZ NAZWY WYPADA: schemat katalogu nazwy wymaga, ale gdyby pusta
+ * przeszła (import, migracja), operator dostałby na liście wyboru bezimienny
+ * wiersz i nie miałby jak zgadnąć, co wskazuje.
+ *
+ * Kolejność zostaje z wejścia — trasa czyta kategorie w kolejności prezentacji
+ * (pozycja, potem nazwa), czyli tak, jak operator widzi je w module Katalog.
+ */
+export function catalogCategoryEntries(
+  rows: readonly CatalogCategoryRow[],
+): { value: string; label: string }[] {
+  return rows
+    .map((row) => ({ value: row.id, label: row.name.trim() }))
+    .filter((entry) => entry.value.length > 0 && entry.label.length > 0);
+}
+
+// -----------------------------------------------------------------------
 // Pola własne sprzętu do WSKAZANIA na kaflu (faza 1b, ADR-154)
 // -----------------------------------------------------------------------
 

@@ -1394,35 +1394,42 @@ export const PRODUCTS_LAYOUTS = ["grid", "list"] as const;
 export type ProductsLayout = (typeof PRODUCTS_LAYOUTS)[number];
 
 /**
- * SKĄD SEKCJA BIERZE POZYCJE — i dlaczego to NIE JEST „najnowsze / kategoria".
+ * SKĄD SEKCJA BIERZE POZYCJE — słownik trzech źródeł (ADR-254 dokłada „kategoria").
  *
- * ==================== ZAŁOŻENIE, KTÓRE NIE ISTNIEJE ====================
- *
- * Brief E7 przewidywał dwie osie źródła: „najnowsze" i „kategoria z katalogu
- * tenanta". Żadnej z nich nie da się dziś policzyć, i nie jest to kwestia
- * nakładu pracy:
- *   • KATEGORII NIE MA w modelu — ani tabeli, ani kolumny na `products`.
- *     Sekcja strony nie jest miejscem, w którym powstaje taksonomia katalogu;
- *   • NAJNOWSZE nie przechodzi granicą danych: `app.get_public_catalog` (0020)
- *     nie wypuszcza `created_at`, a panel czyta tabelę wprost. Sortowanie po
- *     dacie znaczyłoby więc INNĄ kolejność w podglądzie kreatora niż w sklepie
- *     — czyli podgląd, który kłamie o tym, co zobaczy klient (a to jest cała
- *     stawka wspólnego renderera, ADR-083).
- *
- * ==================== CO STOI W ICH MIEJSCU (decyzja właściciela) ====================
+ * ==================== TRZY OSIE, JEDNO WYJŚCIE ====================
  *
  *   • `catalog` — pierwsze `limit` pozycji katalogu w jego własnej kolejności.
  *     Stan DOMYŚLNY i jedyny możliwy dla presetu oraz konwersji: ani jedno, ani
  *     drugie nie ma skąd wziąć identyfikatorów sprzętu, który dopiero powstanie;
  *   • `picked` — RĘCZNY WYBÓR pozycji (decyzja właściciela, 2026-08-05). Operator
- *     wskazuje konkretny sprzęt w szufladzie, a treść niesie jego identyfikatory.
+ *     wskazuje konkretny sprzęt w szufladzie, a treść niesie jego identyfikatory;
+ *   • `category` — POZYCJE JEDNEJ KATEGORII KATALOGU (ADR-254). Treść niesie
+ *     `categoryId`, a render oddaje sprzęt przypisany do tej kategorii, przycięty
+ *     do `limit`. To źródło stoi na taksonomii, której w E7 jeszcze NIE BYŁO:
+ *     kategorie (`catalog_categories`, `product_categories`) i przypisania per
+ *     pozycja (`category_ids` w kopercie katalogu 0072) są dziś w modelu, więc
+ *     ani tabeli, ani migracji ta oś już nie potrzebuje.
+ *
+ * ==================== OSIE ROZŁĄCZNE, NIE NADPISUJĄCE ====================
+ *
+ * Trzy źródła są WYKLUCZAJĄCE się nawzajem, a nie warstwami: `category` czyta
+ * `categoryId` i NIE tyka ręcznej listy `items`, a `picked` czyta `items` i nie
+ * zna `categoryId`. Przełączenie źródła zmienia więc, KTÓRE pole treści liczy
+ * się przy renderze — a nie kasuje pracy zrobionej pod innym źródłem: ręcznie
+ * wskazane pozycje przeżywają wycieczkę do „kategorii" i z powrotem.
+ *
+ * ==================== CZEGO WCIĄŻ NIE MA ====================
+ *
+ * „NAJNOWSZE" dalej nie przechodzi granicą danych: `app.get_public_catalog`
+ * (0020) nie wypuszcza `created_at`, a panel czyta tabelę wprost. Sortowanie po
+ * dacie znaczyłoby INNĄ kolejność w podglądzie kreatora niż w sklepie — czyli
+ * podgląd, który kłamie o tym, co zobaczy klient (stawka wspólnego renderera,
+ * ADR-083). Zostaje więc czwartym punktem skali, dopisywalnym wpisem do słownika.
  *
  * Wybór jest SŁOWNIKIEM, a nie flagą logiczną, z tego samego powodu, co tryb
- * ceny w cenniku (E6): „katalog" i „ręcznie" to dwa punkty skali, na której są
- * jeszcze „kategoria" i „najnowsze" — dopisanie ich będzie wpisem do słownika,
- * a nie zmianą znaczenia pola.
+ * ceny w cenniku (E6): dopisanie kolejnej osi jest wpisem, a nie zmianą znaczenia.
  */
-export const PRODUCTS_SOURCES = ["catalog", "picked"] as const;
+export const PRODUCTS_SOURCES = ["catalog", "picked", "category"] as const;
 export type ProductsSource = (typeof PRODUCTS_SOURCES)[number];
 
 /** Górna granica wskazanych pozycji — lustro `maxItems` w rejestrze. */
@@ -1468,6 +1475,20 @@ export const productsStructuredSchema = z
     background: z.enum(SECTION_BACKGROUNDS).default("default"),
     heading: heading.optional(),
     source: z.enum(PRODUCTS_SOURCES).default("catalog"),
+    /**
+     * KATEGORIA-ŹRÓDŁO (ADR-254) — identyfikator kategorii katalogu, liczony
+     * WYŁĄCZNIE przy `source: "category"`. Opcjonalny, bo dwa pozostałe źródła
+     * go nie znają, a operator, który dopiero przełączył się na „kategorię",
+     * jeszcze żadnej nie wskazał — brak kategorii jest wtedy STANEM (sekcja nic
+     * nie pokazuje), a nie błędem treści.
+     *
+     * SAM IDENTYFIKATOR, bez kopii nazwy: nazwa kategorii mieszka w katalogu
+     * i zmienia się bez publikacji strony — kopia byłaby drugim źródłem prawdy.
+     * Kategoria usunięta z katalogu przestaje mieć dopasowane pozycje, więc
+     * sekcja po prostu pustoszeje (render nie zna nierozpoznanej kategorii),
+     * zamiast pokazywać sprzęt spoza oferty.
+     */
+    categoryId: z.string().uuid().optional(),
     /**
      * WSKAZANE POZYCJE — identyfikatory sprzętu z katalogu najemcy.
      *
@@ -2242,6 +2263,18 @@ export interface StructuredFieldSpec {
   source?: string;
   /** Sufit liczby wskazań dla `pickMany`. */
   max?: number;
+  /**
+   * KIEDY POLE SEKCJI W OGÓLE MA SENS (ADR-254) — para „klucz ustawienia,
+   * wartość". Brak = zawsze (wszystkie pola do fazy 7C).
+   *
+   * Bliźniak {@link StructuredSectionSpec.itemsWhen} dla pola sekcji: kategoria
+   * jest źródłem POZYCJI, więc jej selektor ma skutek WYŁĄCZNIE przy
+   * `source: "category"`. Pokazywanie go przy pozostałych źródłach uczyłoby
+   * operatora, że ustawienia sekcji bywają ozdobą (ta sama zasada, którą
+   * `choice.layouts` stosuje do ustawień wyglądu). Framework szuflady czyta to
+   * z DANYCH, a nie z `if`-a po nazwie typu.
+   */
+  when?: { key: string; value: string };
 }
 
 /** Przełącznik logiczny w ustawieniach sekcji (np. „pozwól otworzyć wiele naraz"). */
@@ -2967,6 +3000,21 @@ export const STRUCTURED_SECTIONS = {
      * nie może wskazać wartości, której sklep i tak nie dostaje.
      */
     fields: [
+      /*
+       * KATEGORIA-ŹRÓDŁO (ADR-254) — selektor jednej kategorii katalogu, widoczny
+       * WYŁĄCZNIE przy `source: "category"` (`when` niżej). Źródłem encji jest
+       * `catalogCategories`, tym samym kanałem co `productFields` — host szuflady
+       * (trasa kreatora) podaje pary „identyfikator, nazwa", rdzeń nie zna bazy.
+       * `empty: "unset"` — puste znaczy „bez wskazanej kategorii", czyli zdjęcie
+       * klucza, nie pusty napis.
+       */
+      {
+        key: "categoryId",
+        kind: "pick",
+        source: "catalogCategories",
+        empty: "unset",
+        when: { key: "source", value: "category" },
+      },
       { key: "subtitleField", kind: "pick", source: "productFields", empty: "unset" },
       {
         key: "featureFields",

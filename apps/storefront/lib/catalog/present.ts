@@ -165,6 +165,13 @@ export function toStorefrontProducts(
     imageAlt: product.images[0]?.alt_text ?? product.name,
     href: options.productHref(product.id),
     /*
+      KATEGORIE POZYCJI (ADR-254) — z koperty katalogu (0072) wprost, bez kopii
+      nazw: sekcja sprzętu ze źródłem „kategoria" dopasowuje po tych
+      identyfikatorach (`visibleProductsFor`). Pełne obiekty kategorii stoją raz,
+      w `PublicCatalog.categories`; tu jedzie samo dopasowanie.
+    */
+    categoryIds: product.category_ids,
+    /*
       POLA WŁASNE JADĄ Z POZYCJĄ, a nie obok niej (faza 1b, ADR-154). Sekcja
       wskazuje w treści identyfikator DEFINICJI, a wartość musi pochodzić od
       TEGO sprzętu — gdyby render dostał jedną wspólną mapę wartości, wskazanie

@@ -301,7 +301,20 @@ export function StructuredSectionForm({
         Pustka znaczy to, co deklaruje rejestr (`empty`) — ta sama reguła, co
         w polach wpisu, i ta sama funkcja, która ją stosuje.
       */}
-      {(spec.fields ?? []).map((field) => {
+      {(spec.fields ?? [])
+        /*
+          POLE SEKCJI WIDOCZNE WARUNKOWO (ADR-254, `when` w rejestrze) — selektor
+          kategorii ma skutek WYŁĄCZNIE przy źródle „kategoria", więc przy innych
+          źródłach znika, zamiast stać jako kontrolka bez działania. Warunek
+          czyta DANE treści, nie nazwę pola: kolejne pole z `when` dostanie to
+          samo bez ani jednej linii tutaj (bliźniak `itemsWhen` listy wpisów).
+        */
+        .filter(
+          (field) =>
+            !field.when ||
+            (content as unknown as Record<string, unknown>)[field.when.key] === field.when.value,
+        )
+        .map((field) => {
         /*
           POLE WSKAZUJĄCE ENCJĘ (faza 1b, ADR-154) — inna kontrolka, ta sama
           droga zapisu. Rozgałęzienie idzie po RODZAJU z rejestru, nie po
