@@ -63,6 +63,7 @@ export function CatalogList({
             */
             eager={index === 0}
             styles={styles}
+            labels={labels}
           />
         ))}
       </ul>

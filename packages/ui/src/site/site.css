@@ -408,6 +408,56 @@
 }
 
 /*
+ * BADGE DOSTĘPNOŚCI W TERMINIE (ADR-245, faza B) — kształt NEUTRALNY.
+ *
+ * Sama pastylka nie sięga po żadną zmienną roli: niesie WYŁĄCZNIE geometrię
+ * (pastylka, rozstaw znaku i etykiety, waga). Kolor — a więc jedyna rola —
+ * przychodzi z reguł stanu niżej, spiętych na `data-products-availability-state`,
+ * a nie na klasie. Dzięki temu `.site-availability` zostaje klasą NEUTRALNĄ
+ * w `role-classes.ts`, a wybór barwy nie ucieka spod macierzy kontrastu jako
+ * „rola poza skanem". Stan czyta się bez koloru — z etykiety i z glifu.
+ */
+.site-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  border: var(--site-border-width) solid transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.site-availability > svg {
+  flex: none;
+}
+
+/*
+ * STANY — kolor tekstu i przygaszone tło z tej samej zmiennej roli, co tekst
+ * (ta sama technika, co `.site-error-panel`: rola przy niskiej alfa jako tło).
+ * Zmienne są policzone na kontrast NA KAŻDYM pasie każdego motywu, a kafel
+ * stoi na pasie karty — więc badge dziedziczy gwarancję kontrastu karty.
+ */
+.site-availability[data-products-availability-state="available"] {
+  color: var(--site-ink);
+  background: color-mix(in srgb, var(--site-ink) 8%, transparent);
+}
+
+.site-availability[data-products-availability-state="low"] {
+  color: var(--site-accent-text);
+  background: color-mix(in srgb, var(--site-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--site-accent) 30%, transparent);
+}
+
+.site-availability[data-products-availability-state="unavailable"] {
+  color: var(--site-danger-text);
+  background: color-mix(in srgb, var(--site-danger) 10%, transparent);
+}
+
+/*
  * POLE FORMULARZA. Powierzchnia KARTY, a nie pasa: pole na pasie przygaszonym
  * musi się od niego odciąć, inaczej kasa wygląda jak lista napisów.
  */

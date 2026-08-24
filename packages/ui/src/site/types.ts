@@ -264,6 +264,13 @@ export interface SiteRenderLabels {
    * obiema byłaby w jednym z tych miejsc zdaniem nie na temat.
    */
   productsCatalog: string;
+  /**
+   * ETYKIETA PRZYCISKU KAFLA — domyślna, gdy operator swojej nie wpisał
+   * (ADR-245, faza B). Chrome renderu, nie treść najemcy: „Sprawdź dostępność"
+   * mówi językiem STRONY. Pokazuje się WYŁĄCZNIE na kaflu-odnośniku (storefront),
+   * nigdy w podglądzie kreatora — regułę trzyma `productCtaLabel` w rdzeniu kafla.
+   */
+  productsCta: string;
   contactEmail: string;
   contactPhone: string;
   contactAddress: string;

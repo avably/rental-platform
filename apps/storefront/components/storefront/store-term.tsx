@@ -341,8 +341,16 @@ export function StoreCatalogAvailability({
     () =>
       units === null
         ? null
-        : { units, available: copy.term.unitsFree, unavailable: copy.term.unitsNone },
-    [units, copy.term.unitsFree, copy.term.unitsNone],
+        : {
+            units,
+            // Trzy stany badge'a kafla (ADR-245): „Dostępny" / „Zostały N szt." /
+            // „Zajęty w tym terminie". Widget rezerwacji (product-booking) niesie
+            // dalej gołą liczbę (`unitsFree`) — inny kontekst, inne pytanie.
+            available: copy.term.statusAvailable,
+            low: copy.term.statusLow,
+            unavailable: copy.term.statusBusy,
+          },
+    [units, copy.term.statusAvailable, copy.term.statusLow, copy.term.statusBusy],
   );
 
   return <SiteProductAvailabilityProvider value={value}>{children}</SiteProductAvailabilityProvider>;

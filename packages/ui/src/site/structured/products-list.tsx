@@ -8,6 +8,7 @@ import {
   ProductSubtitle,
   ProductsCatalogLink,
   ProductsEmpty,
+  productCtaLabel,
   productFeaturesOf,
   productFieldOf,
   visibleProductsFor,
@@ -61,6 +62,7 @@ export function StructuredProductsList({
             */
             const subtitle = productFieldOf(product, content.subtitleField);
             const features = productFeaturesOf(product, content.featureFields);
+            const ctaLabel = productCtaLabel(content, product, labels);
             const body = (
               <>
                 {product.imageUrl ? (
@@ -84,7 +86,7 @@ export function StructuredProductsList({
                     <span className="site-text-muted line-clamp-2 text-sm">{product.description}</span>
                   ) : null}
                   <ProductFeatures features={features} />
-                  {content.ctaLabel ? <ProductCta label={content.ctaLabel} styles={styles} /> : null}
+                  {ctaLabel ? <ProductCta label={ctaLabel} styles={styles} /> : null}
                 </span>
                 <span
                   data-products-price

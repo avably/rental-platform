@@ -99,12 +99,27 @@ function katalog() {
   );
 }
 
-/** Liczba wolnych sztuk narysowana na kaflu TEJ pozycji (albo `null`). */
-function naKaflu(productId: string): string | null {
+/** Badge dostępności TEJ pozycji (albo `null`, gdy kafel milczy). */
+function znacznikKafla(productId: string): Element | null {
   const kafel = document.querySelector(`[data-products-item="${productId}"]`);
   if (kafel === null) throw new Error(`Brak kafla pozycji ${productId}`);
-  const znacznik = kafel.querySelector("[data-products-availability]");
+  return kafel.querySelector("[data-products-availability]");
+}
+
+/** Etykieta narysowana na badge'u TEJ pozycji (albo `null`). */
+function naKaflu(productId: string): string | null {
+  const znacznik = znacznikKafla(productId);
   return znacznik === null ? null : (znacznik.textContent ?? "");
+}
+
+/** Stan handlowy badge'a (`available`/`low`/`unavailable`) albo `null`. */
+function stanKafla(productId: string): string | null {
+  return znacznikKafla(productId)?.getAttribute("data-products-availability-state") ?? null;
+}
+
+/** Liczba wolnych sztuk zapisana na badge'u — niezależnie od pokazanej etykiety. */
+function sztukiKafla(productId: string): string | null {
+  return znacznikKafla(productId)?.getAttribute("data-products-availability-units") ?? null;
 }
 
 function odpowiedz(units: Record<string, number>): PublicCatalogAvailability {
@@ -127,22 +142,50 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-describe("kafel katalogu mówi, ile jest wolne w wybranym terminie", () => {
+describe("kafel katalogu streszcza dostępność do stanu handlowego (ADR-245)", () => {
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: zerwanie mostu między odpowiedzią o dostępność
   // a rendererem sekcji (albo pominięcie znacznika w którymś układzie kafla).
   // NIC INNEGO TEGO NIE PRZYKRYWA: renderer sam z siebie nie wie, że istnieje
   // termin, a bramka akcji serwera nie wie, że istnieje kafel.
-  it("każdy kafel niesie SWOJĄ liczbę, a pozycja bez sztuk mówi to słowami", async () => {
+  //
+  // Trzy stany, trzy fikstury: NAMIOT=7 (>próg → „Dostępny", bez liczby),
+  // ROWER=2 (1..próg → „Zostały 2 szt.", z liczbą), KAJAK=0 („Zajęty").
+  it("każdy kafel dostaje SWÓJ stan, a niedobór pokazuje dokładną liczbę", async () => {
     render(katalog());
 
     await waitFor(() => expect(naKaflu(ROWER)).not.toBeNull());
+
+    // NADMIAR: stan „dostępny" bez liczby — licznik przy nadmiarze rozprasza.
+    expect(stanKafla(NAMIOT)).toBe("available");
+    expect(naKaflu(NAMIOT)).toBe(copy.term.statusAvailable);
+    expect(naKaflu(NAMIOT)).not.toContain("7");
+
+    // NIEDOBÓR: stan „low" z DOKŁADNĄ liczbą — bo niedobór jest bodźcem.
+    expect(stanKafla(ROWER)).toBe("low");
     expect(naKaflu(ROWER)).toContain("2");
-    expect(naKaflu(NAMIOT)).toContain("7");
-    // Zero NIE jest „wolne: 0 szt." — to jest zdanie, którego klient nie
-    // czyta jako braku, tylko jako usterki cennika.
-    expect(naKaflu(KAJAK)).toBe(copy.term.unitsNone);
-    // ...i liczby nie pomyliły kafli.
-    expect(naKaflu(ROWER)).not.toContain("7");
+
+    // ZERO: osobny stan, słowami, nie „0 szt." (to czyta się jak usterka).
+    expect(stanKafla(KAJAK)).toBe("unavailable");
+    expect(naKaflu(KAJAK)).toBe(copy.term.statusBusy);
+
+    // Liczba wolnych sztuk zostaje na badge'u KAŻDEGO stanu (atrybut, nie
+    // etykieta) — dowód, że stany nie pomyliły kafli.
+    expect(sztukiKafla(NAMIOT)).toBe("7");
+    expect(sztukiKafla(ROWER)).toBe("2");
+    expect(sztukiKafla(KAJAK)).toBe("0");
+  });
+
+  // GRANICA PROGU: dokładnie na progu to jeszcze „low", o jeden wyżej — „dostępny".
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ: `<` zamiast `<=` (albo przesunięcie progu) —
+  // wada niewidoczna poza tą jedną wartością.
+  it("granica progu mało-sztuk: 3 to jeszcze stan low, 4 to już dostepny", async () => {
+    checkCatalogAvailability.mockResolvedValue(odpowiedz({ [ROWER]: 3, [NAMIOT]: 4 }));
+    render(katalog());
+
+    await waitFor(() => expect(stanKafla(ROWER)).not.toBeNull());
+    expect(stanKafla(ROWER)).toBe("low");
+    expect(naKaflu(ROWER)).toContain("3");
+    expect(stanKafla(NAMIOT)).toBe("available");
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: zapytanie PER KAFEL zamiast jednego zbiorczego —
@@ -178,7 +221,7 @@ describe("kafel katalogu mówi, ile jest wolne w wybranym terminie", () => {
 
     await waitFor(() => expect(naKaflu(ROWER)).not.toBeNull());
     expect(naKaflu(KAJAK)).toBeNull();
-    expect(naKaflu(NAMIOT)).toContain("7");
+    expect(stanKafla(NAMIOT)).toBe("available");
   });
 
   // KAFEL RYSUJE SIĘ W DWÓCH POKOLENIACH TREŚCI, nie w jednym: sekcja
@@ -212,7 +255,7 @@ describe("kafel katalogu mówi, ile jest wolne w wybranym terminie", () => {
     ).toContain("2");
     expect(
       document.querySelector(`[data-products-availability="${KAJAK}"]`)!.textContent,
-    ).toBe(copy.term.unitsNone);
+    ).toBe(copy.term.statusBusy);
   });
 
   // Odmowa bazy (najemca poza oknem handlowym, awaria transportu) gasi liczby
