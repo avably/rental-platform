@@ -11,6 +11,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 import { FormMeasure } from "@/components/screens/form-measure";
+import { ScreenSection } from "@/components/screens/screen-header";
 import { AuthError } from "@/lib/auth";
 import { invitationIsOpen, invitationStatus } from "@/lib/invitations";
 import { localePath } from "@/lib/navigation";
@@ -42,6 +43,14 @@ import { loadTeamMembers } from "./team";
  * zaproszeń to dwa etapy jednej sprawy (kto ma dostęp i kto go dopiero
  * dostanie) — rozbite na dwa ekrany kazałyby operatora przełączać, żeby
  * odpowiedzieć na jedno pytanie.
+ *
+ * Obie listy siedzą w `ScreenSection` — białej karcie panelu (`bg-card` +
+ * obrys, ADR-053 D5), tej samej, w której stoi już formularz zaproszenia
+ * (patrz `form.tsx`). Wcześniej tabele wisiały gołe na tle ekranu, więc górna
+ * połowa strony była kartą, a dolna nie — ta sama strona wyglądała jak dwa
+ * różne ekrany. Karta jest komponentem współdzielonym, nie stylem ad-hoc:
+ * tytuł sekcji jedzie jej propem `title`, a szerokość zostaje przy layoucie
+ * (żadnego własnego `max-w-*`, ADR-060).
  */
 export default async function InvitationsPage() {
   let ctx;
@@ -82,10 +91,7 @@ export default async function InvitationsPage() {
         <InviteMemberForm emailUnavailable={!emailAvailability().available} />
       </FormMeasure>
 
-      <section data-team-list className="flex flex-col gap-3">
-        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-          {t("team.heading")}
-        </h2>
+      <ScreenSection data-team-list title={t("team.heading")}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -120,12 +126,9 @@ export default async function InvitationsPage() {
             ))}
           </TableBody>
         </Table>
-      </section>
+      </ScreenSection>
 
-      <section data-invitations-list className="flex flex-col gap-3">
-        <h2 className="text-xl leading-[26px] font-semibold tracking-[-0.01em]">
-          {t("sentHeading")}
-        </h2>
+      <ScreenSection data-invitations-list title={t("sentHeading")}>
         {rows.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : (
@@ -179,7 +182,7 @@ export default async function InvitationsPage() {
             </TableBody>
           </Table>
         )}
-      </section>
+      </ScreenSection>
     </div>
   );
 }
