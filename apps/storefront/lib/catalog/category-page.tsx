@@ -154,7 +154,7 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
             (BreadcrumbList wyżej). „Sklep" prowadzi na stronę główną, bieżąca
             kategoria jest ostatnia i NIE jest odnośnikiem do samej siebie.
           */}
-          <nav data-category-breadcrumbs aria-label={copy.category.breadcrumbHome} className="text-sm">
+          <nav data-category-breadcrumbs aria-label={copy.category.breadcrumbLabel} className="text-sm">
             <ol className="site-text-muted flex list-none flex-wrap items-center gap-2 p-0">
               <li>
                 <a href={pagePathFromSlug(HOME_PAGE_SLUG)} className="site-link underline">
@@ -169,10 +169,13 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
           </nav>
 
           {bannerUrl ? (
+            // Baner jest DEKORACYJNY: nazwę kategorii niesie już h1 poniżej, więc
+            // `alt` = nazwa dublowałby tę samą treść w drzewie dostępności. Pusty
+            // `alt` wyłącza baner z odczytu (WCAG 1.1.1 — obraz nadmiarowy).
             <img
               data-category-banner
               src={bannerUrl}
-              alt={category.name}
+              alt=""
               className="mt-4 h-auto w-full rounded-lg object-cover"
             />
           ) : null}
