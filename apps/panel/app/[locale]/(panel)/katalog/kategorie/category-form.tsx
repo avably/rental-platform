@@ -300,13 +300,12 @@ function CategoryBannerField({
         />
       )}
 
-      {/* W stanie pustym błąd niesie FileField; przy ustawionym banerze pokazujemy
-          go tu, bo miniatura nie ma na to miejsca. */}
-      {error && path ? (
-        <p data-category-banner-error className="text-destructive text-[13px] leading-[18px]">
-          {error}
-        </p>
-      ) : null}
+      {/* W stanie pustym błąd niesie FileField (który renderuje go w
+          `role="alert"`); przy ustawionym banerze miniatura nie ma na to
+          miejsca, więc pokazujemy go tu — tą samą drogą co błędy pól
+          (`FieldError`, ADR-057), żeby czytnik ekranu OGŁOSIŁ nieudany upload
+          także w stanie „baner ustawiony" (a11y, audyt przedlaunchowy, ADR-265). */}
+      {error && path ? <FieldError id="category-banner-error" message={error} /> : null}
     </section>
   );
 }
