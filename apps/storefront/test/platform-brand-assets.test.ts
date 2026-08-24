@@ -63,6 +63,23 @@ describe("platformowe zasoby marki Avably", () => {
     }
   });
 
+  it("pełne logo LP zachowuje proporcje kapsuły i minimalną szerokość", () => {
+    const css = readFileSync(
+      path.join(storefrontRoot, "public/forerunner/css/avably-marketing.css"),
+      "utf8",
+    );
+    const marker = css.indexOf("AVABLY BRAND: proporcje pełnego logo");
+    expect(marker, "brak trwałej delty rozmiaru pełnego logo").toBeGreaterThanOrEqual(0);
+    const brandSizing = css.slice(marker);
+
+    expect(brandSizing.replace(/\s+/g, " ")).toMatch(
+      /\.nav-brand\s*\{[^}]*width:\s*120px/,
+    );
+    expect(brandSizing.replace(/\s+/g, " ")).toMatch(
+      /\.footer-icon\s*\{[^}]*width:\s*120px[^}]*height:\s*auto/,
+    );
+  });
+
   it("panel i storefront mają identyczne wielorozmiarowe favicony", () => {
     const panel = read("apps/panel/app/favicon.ico");
     const storefront = read("apps/storefront/app/favicon.ico");

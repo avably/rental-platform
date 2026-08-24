@@ -185,7 +185,7 @@ export function AuthShell({
             aria-label={t("brandHome")}
             className="inline-flex rounded-sm outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-accent dark:focus-visible:outline-ring"
           >
-            <BrandLogo className="h-auto w-[7.375rem] lg:w-[8.625rem]" />
+            <BrandLogo className="h-auto w-[7.5rem] lg:w-[8.625rem]" />
           </a>
           <a
             href={CANONICAL_SITE_URL}

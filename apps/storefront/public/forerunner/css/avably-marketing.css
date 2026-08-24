@@ -392,3 +392,20 @@ select.text-field {
 .body-legal a {
   text-decoration: underline;
 }
+
+/* ══════════ AVABLY BRAND: proporcje pełnego logo ══════════
+ *
+ * Eksport Forerunner przewidywał w stopce kwadratowy sygnet (64 × 64 px),
+ * a w nawigacji logotyp szeroki na 118 px. Platformowy znak Avably jest pełną
+ * kapsułą 348:93, dlatego kwadratowe wymiary zniekształcały wordmark. Delta
+ * jest po arkuszu szablonu i utrzymuje zatwierdzone proporcje oraz minimalną
+ * szerokość 120 px na każdym progu responsywnym.
+ */
+.nav-brand {
+  width: 120px;
+}
+
+.footer-icon {
+  width: 120px;
+  height: auto;
+}
