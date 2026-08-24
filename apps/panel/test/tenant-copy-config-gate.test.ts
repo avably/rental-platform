@@ -73,6 +73,9 @@ const ENV_NAME_PATTERN = new RegExp(
  * Skróty domenowe (tak je nazywa świat najemcy):
  *   - CNAME — typ rekordu DNS; instrukcja u rejestratora musi go nazwać.
  *   - CAPTCHA — nazwa mechanizmu, którą zna człowiek przy formularzu.
+ *   - REGON — numer z rejestru statystycznego; przedsiębiorca zna go z każdej
+ *     faktury i dokumentu firmowego. To treść dla człowieka (dane firmowe na
+ *     ekranie ustawień umów), nie nazwa zmiennej ani klucza ustawienia.
  *   - DOCTYPE — znacznik `<!DOCTYPE html>` w szablonie e-maila (niewidoczny
  *     dla czytelnika, ale jest literałem szablonu, nie konfiguracją).
  *   - POZ08M — PRZYKŁADOWY kod punktu odbioru w placeholderze pola.
@@ -93,6 +96,7 @@ const ENV_NAME_PATTERN = new RegExp(
 const ALLOWED_UPPERCASE_TOKENS = new Set([
   "CNAME",
   "CAPTCHA",
+  "REGON",
   "DOCTYPE",
   "POZ08M",
   "PRZYKŁAD",

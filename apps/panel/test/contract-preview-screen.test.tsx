@@ -39,6 +39,9 @@ const { ContractSettingsForm } = await import(
 const { ContractPreviewCard } = await import(
   "@/app/[locale]/(panel)/ustawienia-umow/contract-preview-card"
 );
+const { CompanyIdentityCard } = await import(
+  "@/app/[locale]/(panel)/ustawienia-umow/company-identity-card"
+);
 
 const messages = { contractSettings: plMessages.contractSettings };
 const t = plMessages.contractSettings;
@@ -136,12 +139,38 @@ describe("karta podglądu umowy", () => {
     expect(html).not.toContain("/pl/ustawienia-umow/podglad");
   });
 
-  it("mówi, skąd bierze się nazwa firmy, której na tym ekranie nie ma", () => {
-    // Audyt 6.3: formularz nie zawiera nazwy firmy, a umowa jej potrzebuje.
-    // Do czasu samoobsługi organizacji (U12) ekran ma przynajmniej wskazać
-    // miejsce — bez tego operator szuka pola, którego tu nie ma.
-    const html = markup(<ContractPreviewCard available />);
+});
+
+describe("karta danych firmowych (uwagi właściciela #1 i #3)", () => {
+  const identity = {
+    name: "Wypożyczalnia Pod Lasem",
+    legalName: "WYPOŻYCZALNIA POD LASEM SP. Z O.O.",
+    nip: "7740001454",
+    regon: "610188201",
+  };
+
+  it("pokazuje nazwę firmy, NIP i REGON z rejestru", () => {
+    const html = markup(<CompanyIdentityCard identity={identity} />);
+    expect(html).toContain('data-company-identity="present"');
+    expect(html).toContain(identity.legalName);
+    expect(html).toContain(identity.nip);
+    expect(html).toContain(identity.regon);
+  });
+
+  it("mówi, skąd te dane pochodzą i gdzie się je zmienia (uwaga #3)", () => {
+    // Uwaga #3: „napisać, że są do zmiany — gdzie, i link". Nazwa firmy w umowie
+    // pochodzi z organizacji; link prowadzi tam, gdzie się ją zmienia.
+    const html = markup(<CompanyIdentityCard identity={identity} />);
+    expect(html).toContain(t.companyDataNote);
     expect(html).toContain(t.companyNameSource);
     expect(html).toContain('href="/organizacja"');
+  });
+
+  it("organizacja bez danych z rejestru dostaje wyjaśnienie, nie puste myślniki", () => {
+    const html = markup(
+      <CompanyIdentityCard identity={{ name: "Nowa", legalName: null, nip: null, regon: null }} />,
+    );
+    expect(html).toContain('data-company-identity="empty"');
+    expect(html).toContain(t.companyDataEmpty);
   });
 });

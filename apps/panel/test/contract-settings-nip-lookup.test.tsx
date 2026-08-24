@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
 /**
- * BONUS (ADR-234, brief SPEC D): przycisk „Pobierz dane" przy polu NIP w
- * ustawieniach umów — sama akcja co w onboardingu, ale TU nic nie jest
- * zablokowane (NIP w contract_document zostaje opcjonalny, CHECK 0026
- * niezmieniony). Przycisk to wygoda: prefill adresu po udanej weryfikacji.
+ * „Pobierz z GUS" przy adresie firmy (uwagi właściciela #1) — ta sama akcja
+ * serwerowa co w onboardingu (ADR-234), ale TU nic nie jest zablokowane: NIP
+ * w contract_document zostaje opcjonalny (CHECK 0026 niezmieniony), a przycisk
+ * to wygoda — prefill ROZBITEGO adresu (ulica / kod / miasto). Adres kanoniczny
+ * idzie ukrytym polem `address` złożonym z tych trzech pól.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -36,10 +37,10 @@ const { ContractSettingsForm } = await import(
 const messages = { contractSettings: plMessages.contractSettings };
 const VALID_NIP = "7740001454";
 
-function renderForm() {
+function renderForm(props: Parameters<typeof ContractSettingsForm>[0] = { defaults: null }) {
   return render(
     <NextIntlClientProvider locale="pl" messages={messages} timeZone="Europe/Warsaw">
-      <ContractSettingsForm defaults={null} />
+      <ContractSettingsForm {...props} />
     </NextIntlClientProvider>,
   );
 }
@@ -47,63 +48,108 @@ function renderForm() {
 function nipInput(): HTMLInputElement {
   return document.querySelector<HTMLInputElement>("input[name='nip']")!;
 }
-function addressField(): HTMLTextAreaElement {
-  return document.querySelector<HTMLTextAreaElement>("textarea[name='address']")!;
+function streetInput(): HTMLInputElement {
+  return document.querySelector<HTMLInputElement>("#contract-address-street")!;
+}
+function zipInput(): HTMLInputElement {
+  return document.querySelector<HTMLInputElement>("#contract-address-zip")!;
+}
+function cityInput(): HTMLInputElement {
+  return document.querySelector<HTMLInputElement>("#contract-address-city")!;
+}
+/** Ukryte pole kanoniczne, które faktycznie trafia do server action. */
+function addressHidden(): HTMLInputElement {
+  return document.querySelector<HTMLInputElement>("input[type='hidden'][name='address']")!;
 }
 function lookupButton(): HTMLButtonElement {
   return document.querySelector<HTMLButtonElement>("[data-nip-lookup-button]")!;
 }
 
+const ORLEN = {
+  ok: true as const,
+  nip: VALID_NIP,
+  legalName: "ORLEN SA",
+  regon: "610188201",
+  krs: null,
+  address: { street: "Chemików 7", zip: "09-411", city: "Płock" },
+  statusVat: "Czynny",
+  source: "mf" as const,
+  fetchedAt: "2026-08-24T00:00:00Z",
+  requestId: "abc",
+};
+
 afterEach(cleanup);
 beforeEach(() => lookupMock.mockReset());
 
-describe("ustawienia-umow — bonus „Pobierz dane” przy NIP", () => {
-  it("przycisk nieaktywny bez poprawnej sumy kontrolnej, NIP zostaje opcjonalny (formularz da się zapisać bez niego)", () => {
+describe("ustawienia-umow — „Pobierz z GUS” przy adresie", () => {
+  it("przycisk nieaktywny bez poprawnego NIP; pole NIP zostaje opcjonalne", () => {
     renderForm();
     expect(lookupButton().disabled).toBe(true);
     // Pole NIP i tak NIE jest `required` — bonus nie zmienia CHECK-u 0026.
     expect(nipInput().required).toBe(false);
   });
 
-  it("udana weryfikacja PREFILLUJE adres, zostawiając go edytowalnym", async () => {
-    lookupMock.mockResolvedValue({
-      ok: true,
-      nip: VALID_NIP,
-      legalName: "ORLEN SA",
-      regon: "610188201",
-      krs: null,
-      address: { street: "Chemików 7", zip: "09-411", city: "Płock" },
-      statusVat: "Czynny",
-      source: "mf",
-      fetchedAt: "2026-08-24T00:00:00Z",
-      requestId: "abc",
-    });
+  it("zweryfikowany NIP organizacji (companyNip) włącza przycisk bez wpisywania NIP-u", () => {
+    renderForm({ defaults: null, companyNip: VALID_NIP });
+    expect(lookupButton().disabled).toBe(false);
+  });
+
+  it("udana weryfikacja ROZBIJA adres na pola i składa go w ukrytym polu", async () => {
+    lookupMock.mockResolvedValue(ORLEN);
 
     renderForm();
     fireEvent.change(nipInput(), { target: { value: VALID_NIP } });
     fireEvent.click(lookupButton());
 
     await waitFor(() => {
-      expect(addressField().value).toBe("Chemików 7, 09-411 Płock");
+      expect(streetInput().value).toBe("Chemików 7");
     });
+    expect(zipInput().value).toBe("09-411");
+    expect(cityInput().value).toBe("Płock");
+    // Kanoniczny łańcuch złożony z trzech pól — to on idzie do bazy.
+    expect(addressHidden().value).toBe("Chemików 7, 09-411 Płock");
     expect(screen.getByText(/Znaleziono: ORLEN SA/)).toBeTruthy();
 
-    // Edytowalny — bonus nie zamyka pola na sztywno.
-    fireEvent.change(addressField(), { target: { value: "Inny adres 5" } });
-    expect(addressField().value).toBe("Inny adres 5");
+    // Edytowalne — bonus nie zamyka pól na sztywno.
+    fireEvent.change(streetInput(), { target: { value: "Inna 5" } });
+    expect(streetInput().value).toBe("Inna 5");
+    expect(addressHidden().value).toBe("Inna 5, 09-411 Płock");
+  });
+
+  it("companyNip ma pierwszeństwo nad NIP-em wpisanym w polu", async () => {
+    lookupMock.mockResolvedValue(ORLEN);
+    renderForm({ defaults: null, companyNip: VALID_NIP });
+    // Pole NIP puste, ale przycisk pyta o zweryfikowany NIP organizacji.
+    fireEvent.click(lookupButton());
+    await waitFor(() => expect(lookupMock).toHaveBeenCalledWith(VALID_NIP));
   });
 
   it("błąd rejestru pokazuje komunikat i NIE rusza adresu", async () => {
     lookupMock.mockResolvedValue({ ok: false, reason: "not_found", message: "x" });
 
     renderForm();
-    fireEvent.change(addressField(), { target: { value: "Adres wpisany ręcznie" } });
+    fireEvent.change(streetInput(), { target: { value: "Adres wpisany ręcznie" } });
     fireEvent.change(nipInput(), { target: { value: VALID_NIP } });
     fireEvent.click(lookupButton());
 
     await waitFor(() => {
       expect(screen.getByText(messages.contractSettings.nipErrorNotFound)).toBeTruthy();
     });
-    expect(addressField().value).toBe("Adres wpisany ręcznie");
+    expect(streetInput().value).toBe("Adres wpisany ręcznie");
+  });
+
+  it("wchodzi z zapisanym adresem rozbitym na pola", () => {
+    renderForm({
+      defaults: {
+        address: "Chemików 7, 09-411 Płock",
+        nip: null,
+        email: "a@b.pl",
+        terms_version: "2026-07",
+        terms_body: "Treść.",
+      },
+    });
+    expect(streetInput().value).toBe("Chemików 7");
+    expect(zipInput().value).toBe("09-411");
+    expect(cityInput().value).toBe("Płock");
   });
 });

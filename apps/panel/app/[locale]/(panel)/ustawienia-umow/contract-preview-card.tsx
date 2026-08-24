@@ -2,7 +2,6 @@ import { Button } from "@avably/ui";
 import { useLocale, useTranslations } from "next-intl";
 
 import { ScreenSection } from "@/components/screens/screen-header";
-import { Link } from "@/i18n/navigation";
 
 /**
  * Karta podglądu umowy (U10, ADR-151) — odpowiedź na „operator zapisuje
@@ -16,8 +15,10 @@ import { Link } from "@/i18n/navigation";
  *
  * Karta mówi wprost trzy rzeczy, których operator nie ma skąd wiedzieć:
  *   1. podgląd pokazuje ZAPISANE ustawienia (a nie to, co właśnie wpisano),
- *   2. niczego nie zapisuje — nie ma po nim dokumentu w historii zamówienia,
- *   3. skąd bierze się nazwa firmy, której na tym ekranie nie ma (audyt 6.3).
+ *   2. niczego nie zapisuje — nie ma po nim dokumentu w historii zamówienia.
+ *
+ * Nazwę firmy (i skąd pochodzi) niesie teraz karta danych firmowych na
+ * SZCZYCIE ekranu (uwaga właściciela #3), więc nie powtarzamy jej tutaj.
  */
 export function ContractPreviewCard({ available }: { available: boolean }) {
   const t = useTranslations("contractSettings");
@@ -58,17 +59,6 @@ export function ContractPreviewCard({ available }: { available: boolean }) {
       ) : (
         <p className="text-sm">{t("previewMissing")}</p>
       )}
-
-      <p className="text-muted-foreground text-[13px] leading-[18px]">
-        {t("companyNameSource")}{" "}
-        <Link
-          href="/organizacja"
-          className="underline underline-offset-[3px] hover:no-underline"
-          data-contract-company-link
-        >
-          {t("companyNameLink")}
-        </Link>
-      </p>
     </ScreenSection>
   );
 }
