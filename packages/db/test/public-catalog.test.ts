@@ -142,7 +142,10 @@ describe.skipIf(!hasEnv)("baner kategorii w kopercie katalogu — 0103 (ADR-251)
     }, 60_000);
 
     it("kategoria z image_path NIESIE tę ścieżkę; kategoria bez banera niesie null", async () => {
-      const bannerPath = `banners/${randomUUID()}.webp`;
+      // Ścieżka zgodna z CHECK-iem catalog_categories_image_path_tenant_scope
+      // (0108/ADR-264): {tenant}/category/{uuid}.{ext}. Sam bezpośredni insert
+      // arbitralnej ścieżki jest od 0108 niereprezentowalny na poziomie tabeli.
+      const bannerPath = `${tenantId}/category/${randomUUID()}.webp`;
       const withBanner = await seedCategory(admin, tenantId, {
         name: "Z_BANEREM",
         slug: `z-banerem-${randomUUID().slice(0, 8)}`,
@@ -208,8 +211,11 @@ describe.skipIf(!hasEnv)("baner kategorii w kopercie katalogu — 0103 (ADR-251)
       if (!hasEnv) return;
       tenantA = await seedTenant(admin, "a");
       tenantB = await seedTenant(admin, "b");
-      bannerA = `banners/A-${randomUUID()}.webp`;
-      bannerB = `banners/B-${randomUUID()}.webp`;
+      // Ścieżki zgodne z CHECK-iem (0108/ADR-264): każdy baner pod prefiksem
+      // WŁASNEGO tenanta — co dodatkowo zaostrza dowód izolacji (baner B niesie
+      // wprost identyfikator tenanta B, którego koperta A nie ma prawa nieść).
+      bannerA = `${tenantA}/category/${randomUUID()}.webp`;
+      bannerB = `${tenantB}/category/${randomUUID()}.webp`;
       await seedCategory(admin, tenantA, {
         name: "KATEGORIA_A",
         slug: `kategoria-a-${randomUUID().slice(0, 8)}`,

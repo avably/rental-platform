@@ -63,6 +63,26 @@ const SECRET_ENVELOPE_PATTERN =
 const SECRET_ENVELOPE_FORMAT = "v1:<wersja>:<iv>:<tag>:<ct>";
 
 /**
+ * Allowlista kolumn tabeli `tenant_secrets` (u źródła: migracja 0024) — JEDYNE
+ * kolumny, które mają prawo opuścić bazę w zrzucie. Fail-closed (lustro
+ * assertKnownStorageColumns dla ścieżek plików): kolumna spoza tej listy — np.
+ * przyszła kolumna dołożona migracją — ZATRZYMUJE eksport, zamiast wyjść
+ * nieopatrzona. `ciphertext` niesie kopertę (kształt waliduje buildSecretsEntry);
+ * reszta to metadane rotacji (key_version), klucz wiersza (tenant_id, key) oraz
+ * znaczniki czasu. Żadna nie jest dziś plaintextem, ale nowa kolumna mogłaby nim
+ * być — dlatego lista jest ZAMKNIĘTA, a jej rozszerzenie to świadoma decyzja
+ * (przejrzyj, czy wartość jest bezpieczna w zrzucie, i dopiero wtedy dopisz).
+ */
+export const SECRET_COLUMNS: ReadonlySet<string> = new Set([
+  "tenant_id",
+  "key",
+  "ciphertext",
+  "key_version",
+  "created_at",
+  "updated_at",
+]);
+
+/**
  * Zmienne środowiskowe wymagane do ODSZYFROWANIA sekretów przy odtworzeniu
  * (resolveSecretsKeyring, packages/core/src/secrets/keyring.ts). `_CURRENT`
  * wskazuje wersję szyfrującą; `_V<n>` niesie materiał każdej wersji obecnej
@@ -242,11 +262,40 @@ function assertKnownStorageColumns(payload: ExportPayload): void {
 }
 
 /**
- * Buduje wpis sekretów: waliduje kształt koperty KAŻDEGO wiersza (fail-closed),
+ * Strażnik „nieoczekiwana kolumna w tenant_secrets" (fail-closed) — lustro
+ * assertKnownStorageColumns. Każdy klucz KAŻDEGO wiersza sekretów MUSI należeć
+ * do SECRET_COLUMNS; kolumna spoza allowlisty (przyszła kolumna dołożona
+ * migracją, być może niosąca materiał wrażliwy) ZATRZYMUJE eksport, zamiast
+ * wyjść nieopatrzona. Głośna odmowa zamiast cichej luki. Sprawdzamy WSZYSTKIE
+ * wiersze, nie sam pierwszy: kolumna dołożona z defaultem NULL potrafi być
+ * pusta w jednym wierszu, a niepusta w innym.
+ *
+ * @throws TenantExportIsolationError gdy pojawi się kolumna spoza SECRET_COLUMNS.
+ */
+export function assertKnownSecretColumns(rows: ReadonlyArray<Record<string, unknown>>): void {
+  for (const row of rows) {
+    for (const column of Object.keys(row)) {
+      if (!SECRET_COLUMNS.has(column)) {
+        throw new TenantExportIsolationError(
+          `nieoczekiwana kolumna ${SECRETS_TABLE}.${column} spoza allowlisty ` +
+            `SECRET_COLUMNS — oceń, czy jest bezpieczna w zrzucie, i dopiero wtedy ` +
+            `dodaj ją do listy (albo wyklucz z RPC ${EXPORT_RPC})`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Buduje wpis sekretów: fail-closed na nieoczekiwaną kolumnę (allowlista
+ * SECRET_COLUMNS), potem waliduje kształt koperty KAŻDEGO wiersza (fail-closed),
  * zbiera wersje kluczy i wymagane zmienne środowiskowe. Wołający dostaje też
  * plik JSONL z kopertami verbatim (bez odszyfrowania).
  */
 function buildSecretsEntry(rows: Row[]): TenantExportSecretsEntry {
+  // Zanim cokolwiek zbudujemy: żadna kolumna spoza allowlisty nie ma prawa
+  // przejść (drift schematu tenant_secrets nie wycieka po cichu).
+  assertKnownSecretColumns(rows);
   const keyVersions = new Set<number>();
   for (const row of rows) {
     const ciphertext = row.ciphertext;
