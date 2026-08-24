@@ -1,6 +1,7 @@
 import type { StructuredSectionContent } from "@avably/core/site";
 
-import type { StorefrontProduct } from "../types";
+import type { StorefrontCategory, StorefrontProduct } from "../types";
+import { visibleCategoriesFor } from "./categories-shared";
 import { visibleProductsFor } from "./products-shared";
 
 /**
@@ -16,24 +17,30 @@ import { visibleProductsFor } from "./products-shared";
  *
  * ==================== DLACZEGO NIE ZAWSZE `items.length` ====================
  *
- * Sekcja sprzętu (E7) jest jedynym typem, którego treścią nie jest jej własna
- * lista: przy źródle „katalog" lista wskazań jest pusta Z ZAŁOŻENIA, a sekcja
- * pokazuje początek katalogu; przy źródle „wybrane pozycje" wskazanie na
- * pozycję usuniętą z katalogu po prostu wypada (patrz `visibleProductsFor`).
- * Obie drogi dają liczbę, której w treści nie ma. Stąd JEDEN wyjątek i tyle
- * samo miejsc, w których trzeba o nim pamiętać.
+ * DWA typy mają treść, która nie jest ich własną listą, i oba z tego samego
+ * powodu — ich treścią jest KATALOG:
+ *   • sekcja sprzętu (E7) przy źródle „katalog" ma listę wskazań pustą Z
+ *     ZAŁOŻENIA, a pokazuje początek katalogu; przy „wybranych" wskazanie na
+ *     pozycję usuniętą po prostu wypada (patrz `visibleProductsFor`);
+ *   • sekcja kategorii (Faza 7) zachowuje się tak samo względem kategorii
+ *     (patrz `visibleCategoriesFor`): „katalog" pokazuje wszystkie, a wybór
+ *     wskazujący same usunięte kategorie daje sekcję pustą.
+ * Obie drogi dają liczbę, której w treści nie ma. Stąd DWA wyjątki i tyle samo
+ * miejsc, w których trzeba o nich pamiętać.
  *
  * Pozostałe typy odpowiadają długością własnej listy — i to jest gałąź
  * DOMYŚLNA, więc kolejny typ strukturalny wchodzi tu bez zmiany ani jednej
  * linii, dopóki jego wpisy mieszkają w treści.
  *
  * Brak katalogu = pusta tablica, tak samo jak w rendererze: liczba jest wtedy
- * zerem i sekcja sprzętu mówi o tym wprost, zamiast udawać, że coś pokaże.
+ * zerem i sekcja mówi o tym wprost, zamiast udawać, że coś pokaże.
  */
 export function structuredEntryCount(
   content: StructuredSectionContent,
   products: readonly StorefrontProduct[] = [],
+  categories: readonly StorefrontCategory[] = [],
 ): number {
   if (content.type === "products") return visibleProductsFor(content, products).length;
+  if (content.type === "categories") return visibleCategoriesFor(content, categories).length;
   return (content as unknown as { items: unknown[] }).items.length;
 }

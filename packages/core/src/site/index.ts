@@ -86,6 +86,7 @@ export { SITE_TEMPLATES, siteTemplateSchema, type SiteTemplate } from "./templat
 export const SECTION_TYPES = [
   "hero",
   "products",
+  "categories",
   "pricing",
   "faq",
   "contact",
@@ -264,6 +265,19 @@ export const heroContentSchema = z
 
 /** Lista produktów: pozycje idą z katalogu (render pobiera je osobno) — sekcja niesie tylko nagłówek. */
 export const productsContentSchema = z
+  .object({
+    heading: heading.optional(),
+  })
+  .strict();
+
+/**
+ * Kafle kategorii (Faza 7): kategorie idą z katalogu tenanta (render pobiera je
+ * osobno, tak jak sprzęt), więc treść v1 niesie WYŁĄCZNIE nagłówek. Sekcja jest
+ * strukturalna (v3) i to wariant strukturalny niesie wybór kategorii i układ —
+ * ten schemat istnieje jak `productsContentSchema`, żeby granica typów miała
+ * jeden kształt na wszystkie generacje treści.
+ */
+export const categoriesContentSchema = z
   .object({
     heading: heading.optional(),
   })
@@ -493,6 +507,7 @@ function contentUnionFor<T extends SectionType, S extends z.ZodTypeAny>(type: T,
 export const SECTION_CONTENT_SCHEMAS = {
   hero: heroContentSchema,
   products: productsContentSchema,
+  categories: categoriesContentSchema,
   pricing: pricingContentSchema,
   faq: faqContentSchema,
   contact: contactContentSchema,
@@ -525,6 +540,7 @@ export const SECTION_CONTENT_SCHEMAS = {
 export const SECTION_DRAFT_SCHEMAS = {
   hero: contentUnionFor("hero", heroContentSchema),
   products: contentUnionFor("products", productsContentSchema),
+  categories: contentUnionFor("categories", categoriesContentSchema),
   pricing: contentUnionFor("pricing", pricingContentSchema),
   faq: contentUnionFor("faq", faqContentSchema),
   contact: contentUnionFor("contact", contactContentSchema),
@@ -540,6 +556,7 @@ export const SECTION_DRAFT_SCHEMAS = {
 
 export type HeroContent = z.infer<typeof heroContentSchema>;
 export type ProductsContent = z.infer<typeof productsContentSchema>;
+export type CategoriesContent = z.infer<typeof categoriesContentSchema>;
 export type PricingContent = z.infer<typeof pricingContentSchema>;
 export type FaqContent = z.infer<typeof faqContentSchema>;
 export type ContactContent = z.infer<typeof contactContentSchema>;
@@ -556,6 +573,7 @@ export type FooterContent = z.infer<typeof footerContentSchema>;
 export type LegacySectionContent =
   | HeroContent
   | ProductsContent
+  | CategoriesContent
   | PricingContent
   | FaqContent
   | ContactContent
@@ -579,6 +597,7 @@ export type SectionContent = LegacySectionContent | SectionCanvas | StructuredSe
 export const sectionInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("hero"), content: contentUnionFor("hero", heroContentSchema) }),
   z.object({ type: z.literal("products"), content: contentUnionFor("products", productsContentSchema) }),
+  z.object({ type: z.literal("categories"), content: contentUnionFor("categories", categoriesContentSchema) }),
   z.object({ type: z.literal("pricing"), content: contentUnionFor("pricing", pricingContentSchema) }),
   z.object({ type: z.literal("faq"), content: contentUnionFor("faq", faqContentSchema) }),
   z.object({ type: z.literal("contact"), content: contentUnionFor("contact", contactContentSchema) }),
@@ -603,6 +622,7 @@ export type SectionInput = z.infer<typeof sectionInputSchema>;
 export const publishedSectionSchema = z.discriminatedUnion("type", [
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("hero"), content: contentUnionFor("hero", heroContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("products"), content: contentUnionFor("products", productsContentSchema) }),
+  z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("categories"), content: contentUnionFor("categories", categoriesContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("pricing"), content: contentUnionFor("pricing", pricingContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("faq"), content: contentUnionFor("faq", faqContentSchema) }),
   z.object({ id: z.string().uuid(), position: z.number().int(), type: z.literal("contact"), content: contentUnionFor("contact", contactContentSchema) }),
@@ -980,6 +1000,9 @@ export {
   PRODUCTS_LIMITS,
   PRODUCTS_MAX_FEATURES,
   PRODUCTS_SOURCES,
+  categoriesStructuredSchema,
+  CATEGORIES_LAYOUTS,
+  CATEGORIES_SOURCES,
   removeStructuredItem,
   structuredFromLegacy,
   structuredItemsMatter,
@@ -1032,6 +1055,10 @@ export {
   type ProductsSource,
   type ProductsStructuredContent,
   type ProductsStructuredItem,
+  type CategoriesLayout,
+  type CategoriesSource,
+  type CategoriesStructuredContent,
+  type CategoriesStructuredItem,
   type StructuredChoiceSpec,
   type StructuredContentOf,
   type StructuredEditorShape,

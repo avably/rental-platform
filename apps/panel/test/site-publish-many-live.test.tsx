@@ -138,7 +138,10 @@ vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "pl"),
 }));
 
-vi.mock("@/lib/site-preview-data", () => ({ previewProductsFor: vi.fn(async () => []) }));
+vi.mock("@/lib/site-preview-data", () => ({
+  previewProductsFor: vi.fn(async () => []),
+  previewCategoriesFor: vi.fn(async () => []),
+}));
 vi.mock("@/lib/tenant-currency", () => ({ getTenantCurrency: vi.fn(async () => "PLN") }));
 vi.mock("@/lib/tenant-appearance", () => ({
   getTenantDraftStyle: vi.fn(async () => DEFAULT_SITE_STYLE),

@@ -146,6 +146,7 @@ export default async function TenantContentPage({ params }: Params) {
             style={style}
             asRoot={false}
             products={seam.products}
+            categories={seam.categories}
             labels={seam.labels}
             money={{ currency, locale }}
             siteImageBase={seam.siteImageBase}

@@ -69,6 +69,7 @@ export function siteRenderLabels(locale: TenantSiteLocale): SiteRenderLabels {
   const source = RENDER_LABELS[locale];
   return {
     productsEmpty: source.productsEmpty,
+    categoriesEmpty: source.categoriesEmpty,
     productsCatalog: source.productsCatalog,
     productsCta: source.productsCta,
     contactEmail: source.contactEmail,

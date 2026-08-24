@@ -14,6 +14,7 @@ import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { SectionCanvasRenderer } from "./element-canvas";
 import {
+  CategoriesSection,
   ContactSection,
   CtaSection,
   DeliverySection,
@@ -38,12 +39,14 @@ import type {
   SiteLogoRender,
   SiteMoney,
   SiteRenderLabels,
+  StorefrontCategory,
   StorefrontProduct,
 } from "./types";
 
 /** Domyślne etykiety chrome (PL — domyślny język tenanta). Nadpisywalne propsem. */
 export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   productsEmpty: "Katalog jest w przygotowaniu.",
+  categoriesEmpty: "Kategorie są w przygotowaniu.",
   productsCatalog: "Zobacz cały sprzęt",
   productsCta: "Sprawdź dostępność",
   contactEmail: "E-mail:",
@@ -122,6 +125,7 @@ export const DEFAULT_SITE_MONEY: SiteMoney = { currency: "PLN", locale: "pl" };
 function SectionSwitch({
   section,
   products,
+  categories,
   record,
   labels,
   money,
@@ -133,6 +137,7 @@ function SectionSwitch({
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
+  categories: StorefrontCategory[];
   record?: StorefrontProduct;
   labels: SiteRenderLabels;
   money: SiteMoney;
@@ -170,6 +175,7 @@ function SectionSwitch({
         labels={labels}
         money={money}
         products={products}
+        categories={categories}
         sectionId={section.id}
         contactForm={contactForm}
         mapEmbed={mapEmbed}
@@ -224,6 +230,8 @@ function SectionSwitch({
       return (
         <ProductsSection content={legacy.content} products={products} labels={labels} styles={styles} />
       );
+    case "categories":
+      return <CategoriesSection content={legacy.content} styles={styles} />;
     case "pricing":
       return <PricingSection content={legacy.content} styles={styles} />;
     case "faq":
@@ -359,6 +367,7 @@ export function SiteRenderer({
   sections,
   style = DEFAULT_SITE_STYLE,
   products = [],
+  categories = [],
   record,
   labels = DEFAULT_SITE_LABELS,
   money = DEFAULT_SITE_MONEY,
@@ -393,6 +402,12 @@ export function SiteRenderer({
    */
   style?: ResolvedSiteStyle;
   products?: StorefrontProduct[];
+  /**
+   * KATEGORIE NAJEMCY (Faza 7, ADR-259) — dla sekcji „kategorie", tym samym
+   * szwem, co `products`. Brak = pusta tablica: sekcja kategorii pokazuje
+   * wtedy sam nagłówek, a sekcje bez kategorii ją ignorują.
+   */
+  categories?: StorefrontCategory[];
   /**
    * KONTEKST REKORDU (faza 3, ADR-163) — pozycja, NA KTÓREJ STOI ta strona.
    *
@@ -544,6 +559,7 @@ export function SiteRenderer({
       <SectionSwitch
         section={section}
         products={products}
+        categories={categories}
         record={record}
         labels={labels}
         money={money}

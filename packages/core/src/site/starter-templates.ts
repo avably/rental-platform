@@ -158,6 +158,9 @@ export const STARTER_CONTENT_MINIMUMS = {
   directions: 2,
   cta: 1,
   products: 0,
+  // Kategorie, jak sprzęt, biorą treść z KATALOGU — szablon nie deklaruje ich
+  // wpisów (przy źródle „katalog" lista jest pusta z założenia), więc próg zero.
+  categories: 0,
 } as const satisfies Record<StructuredSectionType, number>;
 
 /**
@@ -1955,6 +1958,11 @@ const STARTER_SECTIONS: StarterTable = {
         content: { layout: "grid", heading: "Sprzęt do wynajęcia", source: "catalog", items: [], limit: 8, featureFields: [] },
       },
       {
+        type: "categories",
+        background: "muted",
+        content: { layout: "grid", heading: "Wybierz kategorię", source: "catalog", items: [] },
+      },
+      {
         type: "freeform",
         background: "muted",
         content: {
@@ -2051,6 +2059,11 @@ const STARTER_SECTIONS: StarterTable = {
         type: "products",
         background: "default",
         content: { layout: "grid", heading: "Equipment for hire", source: "catalog", items: [], limit: 8, featureFields: [] },
+      },
+      {
+        type: "categories",
+        background: "muted",
+        content: { layout: "grid", heading: "Browse by category", source: "catalog", items: [] },
       },
       {
         type: "freeform",

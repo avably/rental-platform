@@ -96,6 +96,7 @@ import {
   SelectValue,
   TooltipProvider,
   type SiteMoney,
+  type StorefrontCategory,
   type StorefrontProduct,
 } from "@avably/ui";
 import { AlertTriangle, ArrowLeft, Monitor, Redo2, Smartphone, Undo2 } from "lucide-react";
@@ -161,6 +162,7 @@ export function SiteBuilder({
   style,
   sections,
   products,
+  categories = [],
   pageRecord,
   pageRecordPinned = false,
   productTemplate = false,
@@ -186,6 +188,12 @@ export function SiteBuilder({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /**
+   * Kategorie do podglądu sekcji „kategorie" (Faza 7) — jak `products`, ale
+   * OPCJONALNE: brak = pusta lista, czyli sekcja z samym nagłówkiem. Trasa
+   * kreatora podaje je zawsze; testy powierzchni bez kategorii ich nie muszą.
+   */
+  categories?: StorefrontCategory[];
   /**
    * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178) — `undefined` na
    * każdej powierzchni, która rekordu strony nie ma (strona główna, treściowa).
@@ -1049,6 +1057,7 @@ export function SiteBuilder({
             style={style}
             sections={sections}
             products={products}
+            categories={categories}
             record={previewRecord}
             viewport={viewport}
             busy={pending}
@@ -1090,6 +1099,7 @@ export function SiteBuilder({
         target={insertTarget}
         style={style}
         products={products}
+        categories={categories}
         disabled={pending}
         unavailableTypes={unavailableTypes}
         onAdd={addSection}

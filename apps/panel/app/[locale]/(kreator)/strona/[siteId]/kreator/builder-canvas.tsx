@@ -117,6 +117,7 @@ import {
   structuredEntryCount,
   type RenderSection,
   type SiteMoney,
+  type StorefrontCategory,
   type StorefrontProduct,
 } from "@avably/ui";
 import {
@@ -210,6 +211,7 @@ export function BuilderCanvas({
   style,
   sections,
   products,
+  categories = [],
   record,
   money,
   viewport,
@@ -234,6 +236,8 @@ export function BuilderCanvas({
   style: ResolvedSiteStyle;
   sections: EditorSection[];
   products: StorefrontProduct[];
+  /** Kategorie do podglądu sekcji „kategorie" (Faza 7) — jak `products`; brak = pusta lista. */
+  categories?: StorefrontCategory[];
   /**
    * POZYCJA, NA KTÓREJ STOI TA STRONA (faza 5, ADR-178) — wypełniona wyłącznie
    * na SZABLONIE STRONY PRODUKTU.
@@ -506,6 +510,7 @@ export function BuilderCanvas({
                  */
                 motion="off"
                 products={products}
+                categories={categories}
                 record={record}
                 money={money}
                 siteImageBase={siteImagePublicBase()}
@@ -549,7 +554,7 @@ export function BuilderCanvas({
                       empty={
                         structuredContent &&
                         !editorSection.deletedInDraft &&
-                        structuredEntryCount(structuredContent, products) === 0
+                        structuredEntryCount(structuredContent, products, categories) === 0
                           ? {
                               type: structuredContent.type,
                               inDrawer: structuredItemsMatter(structuredContent),

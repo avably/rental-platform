@@ -310,6 +310,7 @@ export async function renderProductPage({
             style={style}
             asRoot={false}
             products={seam.products}
+            categories={seam.categories}
             record={record}
             labels={seam.labels}
             money={{ currency, locale }}

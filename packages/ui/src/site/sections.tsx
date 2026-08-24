@@ -13,6 +13,7 @@ import { siteIconComponent } from "./site-icons";
 import { SafeRichText } from "./rich-text";
 import type { TemplateStyles } from "./template";
 import type {
+  CategoriesContent,
   ContactContent,
   CtaContent,
   DeliveryContent,
@@ -219,6 +220,30 @@ export function ProductCards({
         </ul>
       )}
     </>
+  );
+}
+
+/**
+ * KATEGORIE — GENERACJA v1 (Faza 7, ADR-259).
+ *
+ * Sekcja kategorii rodzi się WYŁĄCZNIE jako strukturalna (v3) albo płótno (v2),
+ * bo to nowy typ bez historii — kształtu v1 nie zapisze żaden zapis. Ten
+ * komponent istnieje dla wyczerpania unii `SectionType` w rendererze (każdy typ
+ * ma gałąź) i renderuje SAM nagłówek: kafle kategorii niesie render
+ * strukturalny (`categories-grid`), a nie ta droga. Treść v1 nie zna kategorii,
+ * więc nie ma tu skąd wziąć kafli — i nie udaje, że ma.
+ */
+export function CategoriesSection({
+  content,
+  styles,
+}: {
+  content: CategoriesContent;
+  styles: TemplateStyles;
+}) {
+  return (
+    <SectionShell styles={styles}>
+      <SectionHeading heading={content.heading} styles={styles} />
+    </SectionShell>
   );
 }
 

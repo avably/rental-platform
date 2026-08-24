@@ -70,6 +70,7 @@ import type { SectionType } from "./index";
 export const SECTION_ANCHORS: Record<SectionType, string> = {
   hero: "start",
   products: "produkty",
+  categories: "kategorie",
   pricing: "cennik",
   faq: "pytania",
   contact: "kontakt",

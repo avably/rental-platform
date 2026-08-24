@@ -36,6 +36,9 @@ const PRESETS: PresetTable = {
     products: {
       heading: "Nasz sprzęt",
     },
+    categories: {
+      heading: "Przeglądaj kategorie",
+    },
     pricing: {
       heading: "Jak rozliczamy najem",
       note: "Ceny za dobę. Dłuższy najem — niższa stawka. Kaucję zwracamy po sprawdzeniu sprzętu.",
@@ -156,6 +159,9 @@ const PRESETS: PresetTable = {
     },
     products: {
       heading: "Our equipment",
+    },
+    categories: {
+      heading: "Browse categories",
     },
     pricing: {
       heading: "How rental pricing works",

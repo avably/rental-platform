@@ -16,6 +16,7 @@ import type {
   ContactContent,
   ContactSubmitInput,
   ContactSubmitResult,
+  CategoriesContent,
   CtaContent,
   CurrencyCode,
   DeliveryContent,
@@ -37,6 +38,8 @@ import type {
 
 export type {
   CanvasElement,
+  CategoriesContent,
+  CategoriesStructuredContent,
   Geometry,
   SectionCanvas,
   ContactContent,
@@ -79,6 +82,7 @@ export type {
 type SectionContentByType = {
   hero: HeroContent;
   products: ProductsContent;
+  categories: CategoriesContent;
   pricing: PricingContent;
   faq: FaqContent;
   contact: ContactContent;
@@ -197,6 +201,32 @@ export interface StorefrontProduct {
 }
 
 /**
+ * KATEGORIA KATALOGU W WERSJI PUBLICZNEJ (Faza 7, ADR-259) — kafel sekcji
+ * „kategorie". Ten sam kontrakt, co `StorefrontProduct`: warstwa danych podaje
+ * GOTOWY adres banera i GOTOWY link, żeby pakiet UI nie sklejał URL-a Storage
+ * ani ścieżki `/kategoria/{slug}`. Nazwa, slug i baner mieszkają w katalogu
+ * (`catalog_categories`), więc render dostaje ich wynik, a nie źródła.
+ */
+export interface StorefrontCategory {
+  id: string;
+  name: string;
+  /**
+   * Publiczny URL banera kategorii (`image_path` z Fazy D) albo `null` — kafel
+   * bez banera rysuje wtedy neutralną płytę zastępczą, tak jak kafel sprzętu
+   * bez zdjęcia. Warstwa danych składa adres (bucket publiczny), bo to ona zna
+   * prefiks Storage.
+   */
+  imageUrl: string | null;
+  /**
+   * Adres strony kategorii (`/kategoria/{slug}`, trasa Fazy C). Gdy podany,
+   * kafel jest klikalny. Podgląd w panelu go NIE podaje — kafel zostaje
+   * statyczny (edytor nie nawiguje do publicznej podstrony), dokładnie jak
+   * kafel sprzętu.
+   */
+  href?: string;
+}
+
+/**
  * ETYKIETY FORMULARZA KONTAKTU (E4, ADR-095).
  *
  * Formularz jest CHROME renderu, nie treścią najemcy: „Imię", „Wiadomość"
@@ -268,6 +298,13 @@ export interface ContactFormBinding {
 export interface SiteRenderLabels {
   /** Fallback sekcji produktów, gdy katalog pusty / niedostępny publicznie. */
   productsEmpty: string;
+  /**
+   * KATEGORIE STRUKTURALNE (Faza 7, ADR-259). Zdanie pod nagłówkiem, gdy sekcja
+   * nie ma czego pokazać: najemca bez kategorii albo wybór wskazujący same
+   * usunięte. Osobne od `productsEmpty` ŚWIADOMIE — „katalog w przygotowaniu"
+   * przy braku KATEGORII byłoby zdaniem nie na temat.
+   */
+  categoriesEmpty: string;
   /**
    * SPRZĘT STRUKTURALNY (E7, aneks ADR-094). Odnośnik pod sekcją prowadzący do
    * pełnego katalogu. Osobny od `pricingCatalog` ŚWIADOMIE: pod cennikiem

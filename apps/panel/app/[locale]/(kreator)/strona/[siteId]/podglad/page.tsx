@@ -67,7 +67,7 @@ import { notFound } from "next/navigation";
 import { previewShellSections } from "./shell-sections";
 import { Link } from "@/i18n/navigation";
 import { requireMemberPage } from "@/lib/member-page";
-import { previewProductsFor } from "@/lib/site-preview-data";
+import { previewCategoriesFor, previewProductsFor } from "@/lib/site-preview-data";
 import { siteImagePublicBase } from "@/lib/site-image-base";
 import { getTenantDraftStyle } from "@/lib/tenant-appearance";
 import { tenantLogo, tenantLogoRender } from "@/lib/tenant-logo-render";
@@ -107,6 +107,8 @@ export default async function SiteDraftPreviewPage({
   const tenantLocale = await getTenantSiteLocale(ctx.supabase, ctx.tenantId!);
   const labels = siteRenderLabels(tenantLocale);
   const products = await previewProductsFor(ctx, ctx.tenantId!, tenantLocale);
+  // Kategorie do podglądu szkicu (Faza 7) — sekcja „kategorie" jak w sklepie.
+  const categories = await previewCategoriesFor(ctx, ctx.tenantId!);
   // Waluta i zapis kwot (E6) — podgląd szkicu pokazuje cennik tak, jak sklep.
   const money = {
     currency: await getTenantCurrency(ctx.supabase, ctx.tenantId!),
@@ -288,6 +290,7 @@ export default async function SiteDraftPreviewPage({
               */
               anchors
               products={products}
+              categories={categories}
               /*
                 POZYCJA, NA KTÓREJ STOI SZABLON (faza 5, ADR-178) — lustro
                 kreatora i lustro sklepu. Bez niej podgląd szablonu pokazywałby

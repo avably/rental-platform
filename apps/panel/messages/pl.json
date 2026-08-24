@@ -1793,6 +1793,7 @@
     "sectionTypes": {
       "hero": "Baner (hero)",
       "products": "Sprzęt",
+      "categories": "Kategorie",
       "pricing": "Cennik",
       "faq": "FAQ",
       "contact": "Kontakt",
@@ -1808,6 +1809,7 @@
     "sectionTypeDescriptions": {
       "hero": "Duży baner powitalny z nagłówkiem i przyciskiem.",
       "products": "Siatka sprzętu z Twojego katalogu.",
+      "categories": "Kafle kategorii z banerem, prowadzące do stron kategorii.",
       "pricing": "Krótka informacja o zasadach rozliczeń.",
       "faq": "Najczęstsze pytania i odpowiedzi.",
       "contact": "Dane kontaktowe i link do mapy.",
@@ -2537,6 +2539,44 @@
           "missing": "Ta pozycja zniknęła z katalogu - nie pokaże się na stronie."
         }
       },
+      "categories": {
+        "itemsTitle": "Wskazane kategorie",
+        "itemsIdle": "Sekcja pokazuje wszystkie kategorie z katalogu. Przełącz „Skąd brać kategorie” na „Wybrane kategorie”, żeby wskazać konkretne.",
+        "removeBody": "Ta kategoria zniknie z sekcji. Sama kategoria zostaje w katalogu.",
+        "canvasEmpty": {
+          "title": "Ta sekcja nie pokaże nic - nie wskazano ani jednej kategorii.",
+          "action": "Wskaż pierwszą kategorię",
+          "elsewhere": "Nie masz jeszcze kategorii, więc sekcja nie ma czego pokazać. Załóż je w module Katalog → Kategorie - pojawią się tutaj same."
+        },
+        "fields": {
+          "categoryId": "Kategoria"
+        },
+        "choices": {
+          "source": "Skąd brać kategorie"
+        },
+        "choiceValues": {
+          "source": {
+            "catalog": "Wszystkie kategorie",
+            "picked": "Wybrane kategorie"
+          }
+        },
+        "layouts": {
+          "grid": "Kafle"
+        },
+        "tabs": {
+          "items": "Kategorie",
+          "appearance": "Wygląd"
+        },
+        "pick": {
+          "label": "Kategorie z katalogu",
+          "placeholder": "Wybierz kategorię",
+          "action": "Dodaj wskazaną kategorię",
+          "empty": "Nie masz jeszcze kategorii. Załóż je w module Katalog → Kategorie.",
+          "nothingNew": "Wszystkie kategorie z katalogu są już wskazane.",
+          "full": "Sekcja jest pełna. Usuń kategorię, żeby wskazać inną.",
+          "missing": "Ta kategoria zniknęła z katalogu - nie pokaże się na stronie."
+        }
+      },
       "usp": {
         "itemsTitle": "Atuty",
         "addItem": "Dodaj atut",
@@ -2612,6 +2652,7 @@
     },
     "renderLabels": {
       "productsEmpty": "Katalog jest w przygotowaniu.",
+      "categoriesEmpty": "Kategorie są w przygotowaniu.",
       "productsCatalog": "Zobacz cały sprzęt",
       "productsCta": "Sprawdź dostępność",
       "contactEmail": "E-mail:",

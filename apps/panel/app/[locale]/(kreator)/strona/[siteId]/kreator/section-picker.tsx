@@ -54,6 +54,7 @@ import {
   DialogTitle,
   SiteRenderer,
   type RenderSection,
+  type StorefrontCategory,
   type StorefrontProduct,
 } from "@avably/ui";
 import {
@@ -69,6 +70,7 @@ import {
   PanelBottom,
   Plus,
   Quote,
+  Shapes,
   Sparkles,
   Tag,
   Truck,
@@ -82,6 +84,7 @@ import { siteImagePublicBase } from "@/lib/site-image-base";
 const SECTION_TYPE_ICONS: Record<SectionType, LucideIcon> = {
   hero: Megaphone,
   products: LayoutGrid,
+  categories: Shapes,
   pricing: Tag,
   faq: HelpCircle,
   contact: Mail,
@@ -126,6 +129,7 @@ export function SectionPicker({
   target,
   style,
   products,
+  categories = [],
   disabled,
   unavailableTypes,
   onAdd,
@@ -138,6 +142,8 @@ export function SectionPicker({
   style: ResolvedSiteStyle;
   /** Katalog do podglądu sekcji produktów — inaczej pokazywałaby pustkę. */
   products: StorefrontProduct[];
+  /** Kategorie do podglądu sekcji „kategorie" — brak = pusta lista (sam nagłówek). */
+  categories?: StorefrontCategory[];
   disabled: boolean;
   /** Typy, których strona nie przyjmie drugi raz (dziś: stopka) — ADR-092. */
   unavailableTypes: readonly SectionType[];
@@ -312,6 +318,7 @@ export function SectionPicker({
                         style={style}
                         motion="off"
                         products={products}
+                        categories={categories}
                         siteImageBase={siteImagePublicBase()}
                       />
                     </span>
