@@ -400,6 +400,24 @@
   color: var(--site-accent-text);
 }
 
+/*
+ * MENU KATEGORII (ADR-247) — wyzwalacz i wiersze rozwijanej listy w nagłówku.
+ * Odróżnia się od `.site-nav-link` BRAKIEM podkreślenia: to nie jest odnośnik
+ * w zdaniu, tylko element sterujący (wyzwalacz) i wiersz listy w karcie. Klasa
+ * stoi w tym arkuszu, a nie w narzędziach Tailwinda, ŚWIADOMIE — arkusz sklepu
+ * jest bez warstwy `@layer`, więc wygrywa z `no-underline` z warstwy narzędzi
+ * (ta sama reguła pierwszeństwa, przez którą `.site-nav-link` maluje kolor
+ * mimo klas przygaszających). Kolor z pasa, akcent pod kursorem/fokusem.
+ */
+.site-menu-link {
+  color: var(--site-ink);
+  text-decoration: none;
+}
+
+.site-menu-link:hover {
+  color: var(--site-accent-text);
+}
+
 /* Licznik pozycji w koszyku — akcent z policzonym kontrastem etykiety. */
 .site-badge {
   background: var(--site-accent);

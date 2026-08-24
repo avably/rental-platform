@@ -346,7 +346,8 @@
     "nav": {
       "catalog": "Catalog",
       "cart": "Cart",
-      "cartCount": "{count} pcs"
+      "cartCount": "{count} pcs",
+      "categories": "Categories"
     },
     "notFound": {
       "title": "We could not find that page",

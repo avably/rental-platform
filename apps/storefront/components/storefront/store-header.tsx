@@ -31,6 +31,7 @@ export function StoreHeader({
   copy,
   storeName,
   logo,
+  nav,
   center,
 }: {
   copy: StorefrontCopy;
@@ -43,6 +44,11 @@ export function StoreHeader({
    * dla czytnika ekranu powtórzeniem, a nie informacją.
    */
   logo: StoreLogo | null;
+  /**
+   * MENU KATEGORII (ADR-247) — powłoka wstawia tu rozwijaną listę wejść do
+   * stron kategorii. Przechodzi wprost do slotu obok znaku w pakiecie UI.
+   */
+  nav?: ReactNode;
   /**
    * ŚRODEK BELKI (aneks ADR-194) — powłoka wstawia tu pigułkę terminu na
    * trasach, które sprzedają. Przechodzi wprost do kształtu z pakietu UI;
@@ -58,6 +64,7 @@ export function StoreHeader({
       storeName={storeName}
       logo={logo}
       cartLabel={copy.nav.cart}
+      nav={nav}
       center={center}
       /*
         LICZNIK POJAWIA SIĘ PO HYDRATACJI (stan z `localStorage`), więc do tej

@@ -18,6 +18,8 @@ import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
 import { SiteChrome, StoreShellFooter } from "@avably/ui";
 import type { ReactNode } from "react";
 
+import type { CategoryNavItem } from "@/lib/catalog/category-nav";
+import { StoreCategoryMenu } from "@/components/storefront/store-category-menu";
 import { StoreHeader } from "@/components/storefront/store-header";
 import {
   StoreCatalogAvailability,
@@ -66,6 +68,7 @@ export function StoreChrome({
   logo,
   siteImageBase,
   term,
+  categoryNav,
   footerAnchorBase,
   revealNonce,
   className,
@@ -125,6 +128,14 @@ export function StoreChrome({
    */
   term: StoreTermInput | null;
   /**
+   * MENU KATEGORII (ADR-247) — gotowe pozycje wejść do stron kategorii,
+   * odfiltrowane z pustych (`categoryNavItems`). Podaje je trasa, która ma
+   * w ręku katalog najemcy; trasy bez katalogu (dokumenty, status płatności)
+   * pomijają props i nagłówek nie pokazuje menu — jak przed ADR-247. Pusta lub
+   * pominięta = brak wyzwalacza (nie rysujemy „Kategorie" bez ani jednej półki).
+   */
+  categoryNav?: readonly CategoryNavItem[];
+  /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
    * których `#kontakt` nie ma celu. Trasa katalogu go NIE podaje, bo cele
@@ -138,6 +149,13 @@ export function StoreChrome({
 }) {
   const footer = shellSections(site);
   const shellFooter = footerAnchorBase ? withAnchorBase(footer, footerAnchorBase) : footer;
+
+  // Menu kategorii jest CHROME wyprowadzonym z katalogu, nie treścią sekcji —
+  // dlatego składa je powłoka z gotowych pozycji, a nie renderer strony.
+  const categoryMenu =
+    categoryNav && categoryNav.length > 0 ? (
+      <StoreCategoryMenu items={categoryNav} label={copy.nav.categories} />
+    ) : undefined;
 
   return (
     // `min-h-screen` na KORZENIU, a nie na treści: powierzchnia motywu ma
@@ -167,6 +185,7 @@ export function StoreChrome({
           copy={copy}
           storeName={storeName}
           logo={logo}
+          nav={categoryMenu}
           center={term ? <StoreTermPill copy={copy} /> : undefined}
         />
         {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}

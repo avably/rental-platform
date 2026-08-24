@@ -346,7 +346,8 @@
     "nav": {
       "catalog": "Katalog",
       "cart": "Koszyk",
-      "cartCount": "{count} szt."
+      "cartCount": "{count} szt.",
+      "categories": "Kategorie"
     },
     "notFound": {
       "title": "Nie znaleźliśmy takiej strony",
