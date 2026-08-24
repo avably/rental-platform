@@ -48,19 +48,24 @@ export function BrandWordmark({
       data-brand-loader-wordmark={pathClassName ? true : undefined}
     >
       <g fill={BRAND_COLORS.ink}>
-        {BRAND_WORDMARK_PATHS.map((path, index) => (
-          <path
-            key={path}
-            d={path}
-            className={pathClassName}
-            data-brand-loader-letter={pathClassName ? index : undefined}
-            style={
-              pathClassName
-                ? ({ "--brand-letter-index": index } as CSSProperties)
-                : undefined
-            }
-          />
-        ))}
+        {BRAND_WORDMARK_PATHS.map((path, index) => {
+          // Artefakt zapisuje ścieżki od prawej (`y`) do lewej (`a`). Delay
+          // odwracamy, żeby pojawianie czytało się naturalnie a→v→a→b→l→y.
+          const letterIndex = BRAND_WORDMARK_PATHS.length - 1 - index;
+          return (
+            <path
+              key={path}
+              d={path}
+              className={pathClassName}
+              data-brand-loader-letter={pathClassName ? letterIndex : undefined}
+              style={
+                pathClassName
+                  ? ({ "--brand-letter-index": letterIndex } as CSSProperties)
+                  : undefined
+              }
+            />
+          );
+        })}
       </g>
     </g>
   );

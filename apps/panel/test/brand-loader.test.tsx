@@ -24,6 +24,11 @@ describe("BrandLoader", () => {
     expect(loader).toContain("data-brand-loader-dot-position");
     expect(loader).toContain("data-brand-loader-wordmark");
     expect(loader.match(/data-brand-loader-letter=/g)).toHaveLength(6);
+    expect(
+      [...loader.matchAll(/data-brand-loader-letter="(\d)"/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual(["5", "4", "3", "2", "1", "0"]);
     expect(pathsOf(loader)).toEqual(pathsOf(logo));
     expect(loader.match(/role="status"/g)).toHaveLength(1);
     expect(loader.match(/Ładowanie zamówień…/g)).toHaveLength(1);
@@ -47,7 +52,7 @@ describe("BrandLoader", () => {
   it("CSS ma próg 200 ms, jednorazowe intro i jedną markową pętlę kropki", () => {
     const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
 
-    expect(css).toMatch(/\[data-brand-loader\][^{]*\{[^}]*brand-loader-reveal[^;]*200ms[^;]*both/s);
+    expect(css).toMatch(/\[data-brand-loader\][^{]*\{[^}]*brand-loader-reveal[^;]*200ms[^;]*both/);
     expect(css).toMatch(/brand-loader-capsule-intro 2200ms[^;]*200ms[^;]*both/);
     expect(css).toMatch(/brand-loader-dot-breathe 3600ms[^;]*2400ms[^;]*infinite/);
     expect(css).toContain("@media (prefers-reduced-motion: no-preference)");
