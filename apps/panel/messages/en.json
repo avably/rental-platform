@@ -2460,14 +2460,17 @@
         },
         "fields": {
           "productId": "Catalog item",
+          "categoryId": "Category",
           "subtitleField": "Tile subtitle",
           "featureFields": "Tile highlights",
           "ctaLabel": "Button text"
         },
         "fieldNone": {
+          "categoryId": "Pick a category",
           "subtitleField": "No subtitle"
         },
         "fieldEmpty": {
+          "categoryId": "You have no categories yet. Create them in Catalog → Categories.",
           "subtitleField": "The subtitle comes from an equipment custom field. Create one in Organisation → Custom fields and tick “ordering”.",
           "featureFields": "Highlights come from equipment custom fields. Create them in Organisation → Custom fields and tick “ordering”."
         },
@@ -2481,7 +2484,8 @@
         "choiceValues": {
           "source": {
             "catalog": "Start of the catalog",
-            "picked": "Selected items"
+            "picked": "Selected items",
+            "category": "Catalog category"
           },
           "limit": {
             "2": "2",

@@ -25,12 +25,28 @@ import type { SiteRenderLabels, StorefrontProduct, StorefrontProductField } from
 /**
  * POZYCJE, KTÓRE SEKCJA ODDAJE DO DOKUMENTU.
  *
- * ==================== DWA ŹRÓDŁA, JEDNO WYJŚCIE ====================
+ * ==================== TRZY ŹRÓDŁA, JEDNO WYJŚCIE ====================
  *
  *   • `catalog` — pierwsze `limit` pozycji katalogu w jego własnej kolejności;
  *   • `picked` — WYŁĄCZNIE wskazane pozycje, w kolejności wskazania (a nie
  *     w kolejności katalogu: skoro operator ustawił je w szufladzie, to jest
- *     jego decyzja, a nie przypadek alfabetu).
+ *     jego decyzja, a nie przypadek alfabetu);
+ *   • `category` (ADR-254) — pozycje przypisane do JEDNEJ kategorii
+ *     (`content.categoryId`), w kolejności katalogu. Filtr czyta `categoryIds`
+ *     POZYCJI, więc dopasowanie idzie z tej samej koperty, którą rysuje sklep.
+ *
+ * ==================== ŹRÓDŁA ROZŁĄCZNE ====================
+ *
+ * Każde źródło czyta INNE pole treści: `picked` bierze `items`, `category`
+ * bierze `categoryId`, `catalog` żadnego. Gałęzie nie mieszają się — kategoria
+ * NIE nadpisuje ręcznej listy, a jedynie decyduje, że w tym stanie liczy się
+ * `categoryId`. Ręcznie wskazane pozycje przeżywają więc przełączenie na
+ * „kategorię" i z powrotem, bo nikt ich nie tyka.
+ *
+ * KATEGORIA BEZ WSKAZANIA (albo pozycja bez `categoryIds`) nie pasuje do
+ * niczego → sekcja pustoszeje. To ten sam uczciwy stan, co pusty katalog:
+ * render pokazuje „w przygotowaniu", zamiast zgadywać, którą kategorię chciał
+ * operator.
  *
  * ==================== POZYCJA, KTÓREJ JUŻ NIE MA ====================
  *
@@ -44,12 +60,19 @@ export function visibleProductsFor(
   content: ProductsStructuredContent,
   products: readonly StorefrontProduct[],
 ): StorefrontProduct[] {
-  const chosen =
-    content.source === "picked"
-      ? content.items
-          .map((item) => products.find((product) => product.id === item.productId))
-          .filter((product): product is StorefrontProduct => product !== undefined)
-      : [...products];
+  let chosen: StorefrontProduct[];
+  if (content.source === "picked") {
+    chosen = content.items
+      .map((item) => products.find((product) => product.id === item.productId))
+      .filter((product): product is StorefrontProduct => product !== undefined);
+  } else if (content.source === "category") {
+    const categoryId = content.categoryId;
+    chosen = categoryId
+      ? products.filter((product) => (product.categoryIds ?? []).includes(categoryId))
+      : [];
+  } else {
+    chosen = [...products];
+  }
   return chosen.slice(0, content.limit);
 }
 

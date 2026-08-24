@@ -46,6 +46,17 @@ function katalog(ile: number): StorefrontProduct[] {
   }));
 }
 
+/**
+ * Katalog z PRZYPISANIEM kategorii (ADR-254) — pozycje nieparzyste do „kat-a",
+ * parzyste do „kat-b", żeby „pokazano kat-a" znaczyło TE pozycje, a nie „coś".
+ */
+function katalogZKategoriami(): StorefrontProduct[] {
+  return katalog(6).map((product, index) => ({
+    ...product,
+    categoryIds: index % 2 === 0 ? ["kat-a"] : ["kat-b"],
+  }));
+}
+
 function tresc(patch: Partial<ProductsStructuredContent> = {}): ProductsStructuredContent {
   return {
     ...(structuredPresetFor("products", "pl") as ProductsStructuredContent),
@@ -118,6 +129,48 @@ describe("źródło treści: katalog kontra wybór ręczny", () => {
   it("pusty katalog daje stan pusty także przy źródle „katalog”", () => {
     narysuj(tresc({ source: "catalog" }), []);
     expect(screen.getByText(L.productsEmpty)).toBeTruthy();
+  });
+});
+
+describe("źródło treści: kategoria katalogu (ADR-254)", () => {
+  it("„kategoria” + categoryId pokazuje TYLKO pozycje tej kategorii", () => {
+    narysuj(tresc({ source: "category", categoryId: "kat-a", limit: 8 }), katalogZKategoriami());
+    expect(pokazaneNazwy()).toEqual(["Sprzęt 1", "Sprzęt 3", "Sprzęt 5"]);
+  });
+
+  it("limit tnie DOPIERO po odsianiu kategorii (slice po filtrze)", () => {
+    narysuj(tresc({ source: "category", categoryId: "kat-a", limit: 2 }), katalogZKategoriami());
+    // kat-a to Sprzęt 1, 3, 5; limit 2 zostawia dwa PIERWSZE Z KATEGORII,
+    // a nie dwie pierwsze pozycje katalogu (te są kat-a i kat-b na przemian).
+    expect(pokazaneNazwy()).toEqual(["Sprzęt 1", "Sprzęt 3"]);
+  });
+
+  it("„kategoria” bez wskazania daje stan pusty, a nie cały katalog", () => {
+    narysuj(tresc({ source: "category", limit: 8 }), katalogZKategoriami());
+    expect(screen.getByText(L.productsEmpty)).toBeTruthy();
+    expect(screen.queryAllByText(/^Sprzęt \d+$/)).toHaveLength(0);
+  });
+
+  it("kategoria niedopasowana do żadnej pozycji daje stan pusty", () => {
+    narysuj(tresc({ source: "category", categoryId: "kat-nieznana", limit: 8 }), katalogZKategoriami());
+    expect(screen.getByText(L.productsEmpty)).toBeTruthy();
+  });
+
+  it("źródła ROZŁĄCZNE: „kategoria” czyta categoryId i NIE tyka ręcznej listy", () => {
+    const produkty = katalogZKategoriami();
+    // Jedna treść niosąca OBA pola — categoryId (kat-b) i ręczną listę (prod-1).
+    const wspolna = tresc({ categoryId: "kat-b", items: [{ productId: "prod-1" }], limit: 8 });
+
+    // Przy „kategorii” liczy się WYŁĄCZNIE categoryId: pokazują się pozycje
+    // kat-b, a prod-1 (kat-a) się NIE pojawia — ręczna lista jest ignorowana.
+    const { unmount } = narysuj({ ...wspolna, source: "category" }, produkty);
+    expect(pokazaneNazwy()).toEqual(["Sprzęt 2", "Sprzęt 4", "Sprzęt 6"]);
+    unmount();
+
+    // Ta SAMA treść przełączona na „ręcznie” pokazuje prod-1: lista przeżyła
+    // wycieczkę do kategorii nietknięta, a categoryId jest teraz bez skutku.
+    narysuj({ ...wspolna, source: "picked" }, produkty);
+    expect(pokazaneNazwy()).toEqual(["Sprzęt 1"]);
   });
 });
 
