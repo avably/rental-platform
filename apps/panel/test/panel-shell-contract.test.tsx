@@ -96,18 +96,28 @@ describe("kontrakt shella — znak marki", () => {
   const logo = renderToStaticMarkup(<BrandLogo />);
   const symbol = renderToStaticMarkup(<BrandSymbol />);
 
-  it("znak w shellu jest KOPIĄ wariantów z artefaktu, nie rysunkiem od nowa", () => {
+  it("pełne logo zachowuje sześć zamrożonych ścieżek wordmarku", () => {
     // Znak jest zamrożony (sekcja 02). Podłoga liczności najpierw: gdyby
     // parser przestał cokolwiek wyciągać, porównania byłyby zielone na pustych
     // tablicach.
     const logoPaths = paths(logo);
-    const symbolPaths = paths(symbol);
     expect(logoPaths).toHaveLength(6);
-    expect(symbolPaths).toHaveLength(1);
 
-    for (const d of [...logoPaths, ...symbolPaths]) {
+    for (const d of logoPaths) {
       expect(artifact, `ścieżka znaku spoza artefaktu: ${d.slice(0, 40)}…`).toContain(d);
     }
+  });
+
+  it("sygnet jest wyłącznie wyśrodkowaną kropką na ciemnym polu", () => {
+    expect(symbol).toContain('viewBox="0 0 96 96"');
+    expect(symbol).toContain(
+      '<rect width="96" height="96" rx="25" fill="#0B1017"></rect>',
+    );
+    expect(symbol).toContain(
+      '<circle data-brand-dot="true" cx="48" cy="48" r="25" fill="#A8C743"></circle>',
+    );
+    expect(paths(symbol)).toEqual([]);
+    expect(symbol).not.toContain("translate(");
   });
 
   it("znak nie schodzi poniżej podłóg rozmiaru z sekcji 02", () => {

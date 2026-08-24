@@ -11,7 +11,7 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "verify:branding": "node scripts/verify-branding-moodboard.mjs && node scripts/verify-branding-phase2.mjs"
+    "verify:branding": "node scripts/verify-branding-moodboard.mjs && node scripts/verify-branding-phase2.mjs && node scripts/verify-avably-logo-kit.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

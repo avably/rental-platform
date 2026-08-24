@@ -334,6 +334,14 @@ describe("pas logowania: ramka laptopa z realnym zrzutem pulpitu (ADR-211)", () 
     );
   }
 
+  it("pełne logo nie schodzi poniżej platformowego minimum 120 px", async () => {
+    const { container } = await renderBand("signin");
+    const logo = container.querySelector('[data-brand-mark="full-lime"]');
+
+    expect(logo, "ekran wejścia stracił pełny znak Avably").not.toBeNull();
+    expect(logo!.getAttribute("class")).toContain("w-[7.5rem]");
+  });
+
   it("wizual jest dekoracją i niesie realny zrzut w kadrze z hakiem animacji", async () => {
     const { container } = await renderBand("signin");
 
