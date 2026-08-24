@@ -276,6 +276,164 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] [data-nav-t
 }
 
 /*
+ * LOADER MARKI AVABLY.
+ *
+ * Stan bazowy jest kompletnym, nieruchomym znakiem. Ruch dokładamy wyłącznie
+ * dla osób bez preferencji ograniczenia ruchu; dzięki temu reduced motion nie
+ * musi „naprawiać" animacji i od razu widzi poprawną klatkę końcową.
+ *
+ * Kapsuła zmienia geometrię SVG (`x` + `width`) przy stałym `rx=46.5`, więc
+ * start jest idealnym kołem, a końce nigdy nie deformują się w skalowany
+ * prostokąt. Jedyną pętlą jest oddech kropki po zakończeniu wejścia.
+ */
+[data-brand-loader-capsule],
+[data-brand-loader-compact-circle],
+[data-brand-loader-dot] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-brand-loader] {
+    animation: brand-loader-reveal 1ms linear 200ms both;
+  }
+
+  [data-brand-loader-variant="full"] [data-brand-loader-capsule] {
+    animation: brand-loader-capsule-intro 2200ms var(--ease-out) 200ms both;
+  }
+
+  [data-brand-loader-variant="compact"] [data-brand-loader-compact-circle] {
+    animation: brand-loader-compact-circle-intro 2200ms var(--ease-out) 200ms both;
+  }
+
+  [data-brand-loader-variant="full"] [data-brand-loader-dot-position] {
+    animation: brand-loader-dot-position 2200ms var(--ease-standard) 200ms both;
+  }
+
+  [data-brand-loader-dot] {
+    animation:
+      brand-loader-dot-intro 2200ms var(--ease-standard) 200ms both,
+      brand-loader-dot-breathe 3600ms var(--ease-standard) 2400ms infinite;
+  }
+
+  [data-brand-loader-letter] {
+    animation: brand-loader-letter-intro 420ms var(--ease-out)
+      calc(1580ms + var(--brand-letter-index) * 70ms) both;
+  }
+}
+
+@keyframes brand-loader-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes brand-loader-capsule-intro {
+  0% {
+    x: 127.5px;
+    width: 93px;
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  18%,
+  52% {
+    x: 127.5px;
+    width: 93px;
+    opacity: 1;
+    transform: scale(1);
+  }
+  78%,
+  100% {
+    x: 0;
+    width: 348px;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes brand-loader-compact-circle-intro {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  18%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes brand-loader-dot-position {
+  0%,
+  52% {
+    transform: translateX(116.5px);
+  }
+  78%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes brand-loader-dot-intro {
+  0%,
+  17% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  23%,
+  29% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  34% {
+    opacity: 0.74;
+    transform: scale(0.78);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  46% {
+    opacity: 0.74;
+    transform: scale(0.78);
+  }
+  52%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes brand-loader-letter-intro {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes brand-loader-dot-breathe {
+  0%,
+  7%,
+  14%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  3.5%,
+  10.5% {
+    opacity: 0.82;
+    transform: scale(0.88);
+  }
+}
+
+/*
   KOMUNIKAT ŁADOWANIA PRZY DOLNEJ KRAWĘDZI OKNA (delta v3, pinezka właściciela
   z 2026-08-05: „chcę widzieć TYLKO pasek u góry i informację na dole").
 
