@@ -1,10 +1,10 @@
 /**
  * Znak Avably w shellu panelu (ADR-059).
  *
- * ŚCIEŻKI SĄ KOPIĄ powierzchni `svg-set` artefaktu Fazy 2 (warianty
- * `full-lime` i `symbol-color`), nie rysunkiem od nowa — znak jest ZAMROŻONY
- * (sekcja 02). Kontrakt `brand-mark-contract.test.ts` porównuje ścieżki
- * z artefaktem, więc poprawka „przy okazji" pali suitę.
+ * ŚCIEŻKI WORDMARKU SĄ KOPIĄ powierzchni `svg-set` artefaktu Fazy 2
+ * (`full-lime`), nie rysunkiem od nowa — pełne logo jest ZAMROŻONE. Sygnet
+ * `symbol-color` jest zatwierdzonym wariantem dot-only: jedna wyśrodkowana
+ * kropka na ciemnym polu, bez litery.
  *
  * Wszystkie cztery warianty `full-*` handoffu mają IDENTYCZNE źródło SVG —
  * artefakt rozróżnia je otoczeniem (CSS `data-brand-mark`), nie rysunkiem.
@@ -52,14 +52,8 @@ export function BrandSymbol({ className }: { className?: string }) {
       data-brand-mark="symbol-color"
       className={className}
     >
-      <rect width="96" height="96" rx="28" fill="#EAFFA4" />
-      <circle data-brand-dot cx="24" cy="48" r="10" fill="#A8C743" />
-      <g
-        transform="translate(40 24) scale(.96) translate(-100.8 -20.2656)"
-        fill="#0B1017"
-      >
-        <path d="M100.8 69.8588L116.599 20.2656H130.556L146.355 69.8588H138.774L135.303 58.8775H111.781L108.31 69.8588H100.8ZM113.907 52.0053H133.177L123.542 21.3992L113.907 52.0053Z" />
-      </g>
+      <rect width="96" height="96" rx="25" fill="#0B1017" />
+      <circle data-brand-dot cx="48" cy="48" r="25" fill="#A8C743" />
     </svg>
   );
 }
