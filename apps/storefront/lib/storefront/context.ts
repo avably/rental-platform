@@ -29,10 +29,16 @@ import {
 import {
   getPublicCatalog,
   getPublicCatalogPage,
+  getPublicCategoryPage,
   getPublicProduct,
   getPublicProductSlugs,
 } from "@/lib/checkout/catalog";
-import type { PublicCatalog, PublicCatalogProduct } from "@/lib/checkout/contract";
+import type {
+  PublicCatalog,
+  PublicCatalogProduct,
+  PublicCategoryMeta,
+} from "@/lib/checkout/contract";
+import { categorySortToDb, type CategorySort } from "@/lib/catalog/category-path";
 import {
   getPublishedLegalDocuments,
   type PublishedLegalDocumentSummary,
@@ -205,6 +211,57 @@ export type CatalogPageResolution =
   | { kind: "none" };
 
 /**
+ * KATALOG STRONY `/kategoria/{slug}` — JEDNA STRONA jednej kategorii (faza C,
+ * ADR-247). Ten sam wzorzec, co `CatalogPageCatalog`, i z tego samego powodu:
+ * własny typ o TRZECH kluczach zamienia przyszły odczyt
+ * `ctx.catalog.pickup_locations` na tej trasie w błąd kompilacji, a nie w cichą
+ * pustą listę na ekranie.
+ */
+export interface CategoryPageCatalog {
+  tenant: PublicCatalog["tenant"];
+  custom_fields: PublicCatalog["custom_fields"];
+  /** Pozycje TEJ strony wyników kategorii — nie „katalog najemcy". */
+  products: PublicCatalogProduct[];
+}
+
+/**
+ * KONTEKST STRONY KATEGORII (faza C, ADR-247) — powłoka najemcy plus JEDNA
+ * strona wyników kategorii, jej rachunek i META kategorii.
+ *
+ * `category` jest NIE-NULLowalny z konstrukcji: kontekst powstaje WYŁĄCZNIE gdy
+ * kategoria istnieje (slug znany). Stan „slug nieznany" nie ma kontekstu —
+ * rozstrzyga go `CategoryPageResolution` przed renderem (trasa: 404).
+ *
+ * Cena przyjęta świadomie jest ta sama, co na `/katalog` (ADR-186): pasek
+ * terminu dostaje pozycje TEJ STRONY, więc panel konfliktu koszyka nazywa po
+ * imieniu pozycje widoczne, a pozostałe identyfikatorem.
+ */
+export interface CategoryPageContext extends Omit<StorefrontContext, "catalog"> {
+  catalog: CategoryPageCatalog;
+  /** META kategorii spod adresu (id, nazwa, slug, opis, baner). */
+  category: PublicCategoryMeta;
+  /** Numer strony wyników (1-based) — ten, który stoi w adresie. */
+  page: number;
+  /** Ile stron ma kategoria przy bieżącym rozmiarze strony; zawsze >= 1. */
+  pageCount: number;
+  /** Liczba WSZYSTKICH aktywnych pozycji kategorii — nagłówek mówi, ile jest oferty. */
+  total: number;
+  /** Wybrany porządek — do zaznaczenia w przełączniku i do budowy adresów stron. */
+  sort: CategorySort;
+}
+
+/**
+ * Wynik rozstrzygnięcia adresu strony kategorii. Rozdzielony od kontekstu jak
+ * przy katalogu: trasa musi odróżnić „najemca poza oknem / slug nieznany /
+ * numer strony spoza zakresu" (wszystkie → 404) od „renderuj" ZANIM cokolwiek
+ * wyrenderuje. Trzy powody 404 schodzą do jednego `none`, bo trasa reaguje na
+ * nie identycznie (`notFound`); różnicę uzasadnień niesie funkcja bazy.
+ */
+export type CategoryPageResolution =
+  | { kind: "page"; ctx: CategoryPageContext }
+  | { kind: "none" };
+
+/**
  * `cache` (per-żądanie): layout czyta z tego locale na `<html lang>`, a strona
  * ten sam kontekst na treść — bez dublowania odpytań katalogu/site w jednym
  * żądaniu.
@@ -228,6 +285,16 @@ export const loadProductPageContext = cache(_loadProductPageContext);
  * nieosiągalny w trasie, ale osiągalny w teście) nie zjadłyby sobie wyniku.
  */
 export const loadCatalogPageContext = cache(_loadCatalogPageContext);
+
+/**
+ * Kontekst strony kategorii: pięć odczytów równolegle, ani jeden O(katalogu).
+ *
+ * `cache` per-żądanie z tego samego powodu, co wyżej — trasa woła to raz
+ * z `generateMetadata` i raz z renderu. Argumenty (slug, strona, sort) WCHODZĄ
+ * do klucza memoizacji `cache` Reacta, więc dwa różne wywołania w jednym
+ * żądaniu nie zjadłyby sobie wyniku.
+ */
+export const loadCategoryPageContext = cache(_loadCategoryPageContext);
 
 /**
  * Wynik rozstrzygnięcia adresu sprzętu. Rozdzielony od kontekstu, bo trasa
@@ -355,6 +422,77 @@ async function _loadCatalogPageContext(page: number): Promise<CatalogPageResolut
         z konstrukcji: kafel buduje link do adresu BIEŻĄCEGO, a przekierowania
         rozstrzyga trasa sprzętu.
       */
+      productSlugs: { products: envelope.slugs, redirects: [] },
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    },
+  };
+}
+
+async function _loadCategoryPageContext(
+  slug: string,
+  page: number,
+  sort: CategorySort,
+): Promise<CategoryPageResolution> {
+  const tenantId = (await headers()).get(TENANT_ID_HEADER);
+  if (!tenantId) return { kind: "none" };
+
+  // Flagi powłoki PIĄTYM członem (ADR-203) — jak przy stronie katalogu.
+  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
+    getPublicCategoryPage(tenantId, slug, page, CATALOG_PAGE_SIZE, categorySortToDb(sort)),
+    getTenantAppearance(tenantId),
+    getPublishedSite(tenantId),
+    getPublishedLegalDocuments(tenantId),
+    getPublicStoreFlags(tenantId),
+  ]);
+
+  // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
+  if (!envelope) return { kind: "none" };
+
+  /*
+    SLUG NIEZNANY TO 404, NIE PUSTY WIDOK (ADR-244, rozstrzygnięcie 2). Obecność
+    obiektu `category` — a NIE pusta lista pozycji — rozstrzyga różnicę między
+    „nie ma takiej kategorii" (404) a „kategoria istnieje, lecz pusta" (pusty
+    widok pod istniejącym adresem).
+  */
+  if (!envelope.category) return { kind: "none" };
+
+  /*
+    NUMER STRONY SPOZA ZAKRESU TO 404 (jak `/katalog`, ADR-186). Wyjątkiem jest
+    strona PIERWSZA: kategoria pusta ma stronę pierwszą i pokazuje na niej
+    „w tej kategorii nie ma jeszcze produktów" — treść pod adresem, do którego
+    prowadzą linki, a nie 404.
+  */
+  const pageCount = catalogPageCount(envelope.total, CATALOG_PAGE_SIZE);
+  if (page > pageCount) return { kind: "none" };
+
+  const locale = normalizeStorefrontLocale(envelope.tenant.locale);
+  const copy = await getStorefrontCopy(locale);
+  const style = tenantAppearanceStyle(appearance);
+
+  return {
+    kind: "page",
+    ctx: {
+      tenantId,
+      catalog: {
+        tenant: envelope.tenant,
+        custom_fields: envelope.custom_fields,
+        products: envelope.products,
+      },
+      category: envelope.category,
+      page,
+      pageCount,
+      total: envelope.total,
+      sort,
+      locale,
+      currency: envelope.tenant.currency,
+      copy,
+      style,
+      appearance,
+      storeFlags,
+      site,
+      legalDocuments,
+      // Rejestr adresów niesie WPISY TEJ STRONY (jak katalog): kafel buduje link
+      // do adresu bieżącego, a przekierowania rozstrzyga trasa sprzętu.
       productSlugs: { products: envelope.slugs, redirects: [] },
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
     },

@@ -420,6 +420,17 @@
       "goToPage": "Strona {page}",
       "description": "Pełna lista sprzętu do wynajęcia - {store}. Sprawdź ceny za dobę i dostępność w swoim terminie."
     },
+    "category": {
+      "breadcrumbHome": "Sklep",
+      "total": "Pozycji w kategorii: {total}",
+      "empty": "W tej kategorii nie ma jeszcze produktów.",
+      "pagerLabel": "Strony kategorii",
+      "sortLabel": "Sortuj",
+      "sortName": "Nazwa (A-Z)",
+      "sortPriceAsc": "Cena rosnąco",
+      "sortPriceDesc": "Cena malejąco",
+      "sortNewest": "Najnowsze"
+    },
     "common": {
       "from": "od",
       "perDay": "doba",
@@ -619,7 +630,8 @@
     },
     "seo": {
       "catalogDescription": "Wypożyczalnia {store} - sprawdź ofertę, dostępność i zarezerwuj online.",
-      "productDescription": "{product} - wynajem w {store}. Sprawdź cenę za dobę i dostępność w Twoim terminie."
+      "productDescription": "{product} - wynajem w {store}. Sprawdź cenę za dobę i dostępność w Twoim terminie.",
+      "categoryDescription": "{category} - wynajem w {store}. Sprawdź ceny za dobę i dostępność w Twoim terminie."
     },
     "embed": {
       "heading": "Rezerwacja online",

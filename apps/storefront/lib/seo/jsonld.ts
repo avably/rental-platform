@@ -80,6 +80,35 @@ export function localBusinessJsonLd(input: LocalBusinessInput): Record<string, u
   return node;
 }
 
+export interface BreadcrumbItem {
+  /** Etykieta okruszka (nazwa sklepu, nazwa kategorii) — tekst od najemcy. */
+  name: string;
+  /** Absolutny adres celu okruszka. */
+  url: string;
+}
+
+/**
+ * BreadcrumbList (schema.org) — ścieżka „Sklep > Kategoria" na stronie
+ * kategorii (faza C, ADR-247). `position` jest 1-based i idzie w kolejności
+ * tablicy, więc wołający podaje okruszki OD KORZENIA do bieżącej strony.
+ *
+ * Treść (nazwa kategorii) pochodzi od najemcy i przechodzi przez
+ * `serializeJsonLd` tak samo jak Product/LocalBusiness — `</script>` w nazwie
+ * kategorii nie wychodzi z kontekstu skryptu (patrz docblock modułu).
+ */
+export function breadcrumbListJsonLd(items: BreadcrumbItem[]): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
 export interface ProductJsonLdInput {
   name: string;
   description?: string | null;

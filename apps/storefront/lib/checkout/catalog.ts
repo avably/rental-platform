@@ -23,6 +23,7 @@ import type {
   PublicCatalog,
   PublicCatalogAvailability,
   PublicCatalogPage,
+  PublicCategoryPage,
   PublicCustomField,
   PublicProductEnvelope,
 } from "./contract";
@@ -160,6 +161,47 @@ export async function getPublicCatalogPage(
 
   if (error || data == null) return null;
   return data as PublicCatalogPage;
+}
+
+/**
+ * JEDNA STRONA JEDNEJ KATEGORII dla trasy `/kategoria/{slug}` (0101, ADR-244).
+ *
+ * ==================== DLACZEGO OSOBNY ODCZYT, A NIE FILTR KATALOGU ====================
+ *
+ * Odfiltrowanie kategorii z pełnego katalogu w pamięci procesu wraca do kosztu
+ * O(katalogu) na odsłonę — dokładnie tego, który stronicowanie katalogu zdjęło
+ * (ADR-186). Baza tnie okno wyników PO stronie i sortowaniu, więc koszt jest
+ * O(strony kategorii), a nie rośnie z ofertą najemcy.
+ *
+ * TRZY STANY NIESIE KOPERTA, nie ta funkcja (patrz `PublicCategoryPage`):
+ * `null` = najemca poza oknem handlowym / błąd transportu (trasa: 404, jak
+ * katalog); `data.category === null` = slug nieznany (trasa: 404);
+ * `data.category = {meta}` = kategoria istnieje (trasa renderuje, także pustą).
+ * Rozstrzygnięcie „404 vs pusty widok" należy do trasy — tu przenosimy kopertę
+ * co do znaku.
+ *
+ * FAIL-CLOSED jak reszta warstwy: błąd transportu → `null`, czyli dla trasy to
+ * samo, co „nie ma czego pokazać".
+ */
+export async function getPublicCategoryPage(
+  tenantId: string,
+  slug: string,
+  page: number,
+  pageSize: number,
+  sort: string,
+  client?: SupabaseClient,
+): Promise<PublicCategoryPage | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase.schema("app").rpc("get_public_category_page", {
+    p_tenant_id: tenantId,
+    p_slug: slug,
+    p_page: page,
+    p_page_size: pageSize,
+    p_sort: sort,
+  });
+
+  if (error || data == null) return null;
+  return data as PublicCategoryPage;
 }
 
 export async function getPublicAvailability(
