@@ -12,9 +12,9 @@ import { readSeedState } from "../lib/seed-state";
  *
  * Defekt, który tu pilnujemy, jest niewidoczny w statycznym HTML-u i nie
  * daje się złapać obecnością klasy: tabela przesyłek miała szerokość WŁASNĄ
- * 1119 px przy 752 px dostępnych w kolumnie treści szczegółu zamówienia.
- * Kontener panelu ma sufit (`max-w-6xl` minus padding), a 320 px zabiera
- * kolumna boczna — więc kolumna główna NIE ROŚNIE wraz z oknem i przy
+ * 1119 px przy 624 px dostępnych w kolumnie treści szczegółu zamówienia.
+ * Kontener panelu ma sufit (`max-w-5xl` minus padding, ADR-243), a 320 px
+ * zabiera kolumna boczna — więc kolumna główna NIE ROŚNIE wraz z oknem i przy
  * ŻADNEJ szerokości ekranu tabela się nie mieściła.
  *
  * Bramka mierzy więc SKUTEK po renderze w prawdziwej przeglądarce:

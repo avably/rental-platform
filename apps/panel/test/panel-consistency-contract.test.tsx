@@ -208,9 +208,18 @@ describe("kontrakt spójności ekranów panelu — ADR-060", () => {
     ).toEqual([]);
   });
 
-  it("layout jest jedynym właścicielem standardu max-w-6xl i paddingu", () => {
+  it("layout jest jedynym właścicielem standardu szerokości treści i paddingu", () => {
+    // DELTA ADR-243 (decyzja właściciela „spójna, czytelna szerokość na każdym
+    // ekranie — jak formularze, nie 100%"): standard zszedł z `max-w-6xl` na
+    // `max-w-5xl`. Kontener treści dalej ma być JEDYNYM właścicielem tej
+    // szerokości — asercja pilnuje, że wartość mieszka W LAYOUCIE, a nie
+    // rozsypuje się po ekranach (ADR-060). Zmiana liczby po którejś stronie
+    // wywraca ten test świadomie.
     expect(layout).toContain('data-panel-container="true"');
-    expect(layout).toContain("max-w-6xl");
+    expect(layout).toContain("max-w-5xl");
+    // Poprzedni standard NIE może zostać na kontenerze — inaczej „zwężenie"
+    // byłoby pozorne, a ekrany dziedziczyłyby dawną, zbyt szeroką kolumnę.
+    expect(layout).not.toContain('max-w-6xl px-4');
     expect(layout).toContain("px-4");
     expect(layout).toContain("md:px-6");
   });

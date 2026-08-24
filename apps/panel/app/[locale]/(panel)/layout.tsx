@@ -235,9 +235,25 @@ export default async function PanelLayout({
           tabIndex={-1}
           className="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
         >
+          {/*
+            SPÓJNA SZEROKOŚĆ TREŚCI WSZYSTKICH EKRANÓW (ADR-243, decyzja
+            właściciela). Ten JEDEN kontener jest jedynym źródłem prawdy o
+            maksymalnej szerokości treści panelu — każdy ekran ją dziedziczy,
+            więc lista/tabela/treść i formularz czytają się jako ta sama,
+            czytelna kolumna, a nie „raz 2/3, raz 100%". Wartość zeszła z
+            `max-w-6xl` (72rem, przy 1440 px niemal od krawędzi do krawędzi) na
+            `max-w-5xl` (64rem = 1024px): wyraźnie węższa („nie 100%"), a przy
+            tym najwęższa skala, która wciąż mieści NAJSZERSZE tabele panelu
+            (zamówienia `min-w-4xl` = 896px, katalog `min-w-[860px]`) w polu po
+            odjęciu paddingu (976px) BEZ nowego poziomego paska na desktopie.
+            Węższa treść czytelnego wiersza zostaje przy formularzach —
+            `--form-line-measure` (42rem) owija je WEWNĄTRZ tego kontenera i się
+            z nim nie licytuje. Standard idzie STĄD, nie z ekranów: ADR-060 dalej
+            zakazuje ad-hoc `max-w-*` na ekranach (skan `panel-consistency-contract`).
+          */}
           <div
             data-panel-container="true"
-            className="mx-auto w-full max-w-6xl px-4 py-4 md:px-6 md:py-6"
+            className="mx-auto w-full max-w-5xl px-4 py-4 md:px-6 md:py-6"
           >
             {termsGate ? (
               <PlatformTermsOverlay

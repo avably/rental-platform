@@ -167,9 +167,9 @@ export async function DeliverySection({
             />
           </div>
           {/* Karty zamiast tabeli ośmiu kolumn (ADR-188): kolumna treści ma
-              sufit 752 px i NIE ROŚNIE z oknem, więc układ musi być płynny
-              z konstrukcji, a nie dostrajany progami. Uzasadnienie i pomiar —
-              `shipments-list.tsx`. */}
+              sufit ~624 px (kontener panelu `max-w-5xl`, ADR-243) i NIE ROŚNIE
+              z oknem, więc układ musi być płynny z konstrukcji, a nie dostrajany
+              progami. Uzasadnienie i pomiar — `shipments-list.tsx`. */}
           <ShipmentsList
             shipments={shipments}
             orderId={orderId}
