@@ -1,41 +1,19 @@
-import { LoadingRail, cn } from "@avably/ui";
+import { cn } from "@avably/ui";
 import type { ReactNode } from "react";
 
+import { BrandLoader } from "@/components/shell/brand-loader";
+
 /**
- * Prymitywy ekranu ładowania panelu (uwaga przeglądu N1, delta v3 2026-08-05).
+ * Prymitywy ekranu ładowania panelu.
  *
- * ZASADA NACZELNA: ekran ładowania REZERWUJE układ ekranu, którego dotyczy —
- * te same regiony, ta sama geometria, ten sam podział na kolumny. Dlatego pliki
- * szkieletów NIE malują „jakichś pasków", tylko składają regiony z tych samych
- * klas kontenerów co ekran, a w miejsce tekstu wstawiają PUDEŁKO o wysokości
- * LINE BOXA, który ten tekst zajmie. Podmiana treści nie rusza wtedy układu.
+ * Ekran ładowania rezerwuje dokładną geometrię docelowego ekranu: te same
+ * regiony, wysokości linii i podział na kolumny. Rezerwa stoi pod
+ * `visibility: hidden`, więc nie maluje ramek ani fikcyjnej treści, ale nadal
+ * zajmuje identyczne miejsce i zapobiega skokowi po wejściu danych.
  *
- * CZEGO WIDAĆ Z TEJ REZERWY: NIC. Pinezka właściciela z 2026-08-05 („chcę
- * widzieć TYLKO pasek u góry i informację na dole — ładowanie") zamyka drogę,
- * którą delta z 2026-08-04 przeszła w połowie. Wtedy pudełka przestały malować
- * POWIERZCHNIĘ, ale na ekranie zostały jeszcze ramki kafli, obrys tabeli i
- * kreski jej wierszy — pusty rysunek techniczny strony, której nie ma. Dziś
- * cała geometria stoi pod `visibility: hidden` (klasa `invisible`), więc nie
- * maluje ani obrysu, ani tła, ani tekstu — a mimo to zajmuje CO DO PIKSELA to
- * samo miejsce co treść, bo `visibility` nie zdejmuje pudełka z układu.
- *
- * Dlaczego niewidoczność, a nie wycięcie klas malujących: obrys to 1 px z
- * KAŻDEJ strony i wchodzi do wysokości. Zdjęcie `border` przesunęłoby wszystko
- * niżej i wróciłby skok przy podmianie na treść — czyli dokładnie ta wada,
- * przez którą kontrakt odpowiedniości w ogóle powstał. Rezerwa zostaje więc
- * DOKŁADNĄ KOPIĄ ekranu, tylko przestaje być widoczna. Widoczne zostają dwie
- * rzeczy i nic poza nimi: szyna `LoadingRail` u góry i komunikat
- * `role="status"` przy DOLNEJ krawędzi okna.
- *
- * Trzy powody, dla których prymitywy siedzą tutaj, a nie w `@avably/ui`:
- *  1. wysokości linii są kopią stylów typograficznych PANELU (kafle, belki,
- *     tabele), nie kontraktem design systemu;
- *  2. `packages/ui` jest cudzym pasem własności (docs/DOKUMENTACJA.md §2) —
- *     szynę bierzemy stamtąd, kompozycję trzymamy u siebie;
- *  3. kontrakt spójności ekranów (`panel-consistency-contract.test.tsx`)
- *     skanuje katalog `(panel)` na własne szerokości; ekran ładowania
- *     potrzebuje geometrii KOPIOWANEJ z ekranu (np. `min-w-[880px]` tabeli),
- *     więc jego kod mieszka poza skanem, a w `loading.tsx` zostaje kompozycja.
+ * Jedyną widoczną warstwą jest centralny `BrandLoader`. Prymitywy pozostają w
+ * panelu, ponieważ kopiują jego geometrię, a nie publiczny kontrakt
+ * `@avably/ui`; testy parytetu wiążą je z konkretnymi ekranami.
  */
 
 /**
@@ -111,34 +89,10 @@ export function SkeletonRegion({
 }
 
 /**
- * Korzeń ekranu ładowania: rama (szyna + komunikat) i pod nią NIEWIDOCZNA
- * rezerwa geometrii.
- *
- * `className` to KOPIA klasy korzenia realnego ekranu (ten sam kierunek osi i
- * ta sama przerwa), bo od niej zależy pozycja każdego regionu niżej.
- *
- * DOSTĘPNOŚĆ. Rezerwa i szyna są DEKORACJĄ, więc idą pod `aria-hidden`; jedyną
- * treścią zostaje komunikat `role="status"` stojący POZA tym poddrzewem (rola
- * `status` to `aria-live="polite"` + `aria-atomic`, czyli czytnik ogłasza go
- * bez przerywania). Komunikat jest WIDOCZNY — wcześniej stał `sr-only`, a od
- * pinezki właściciela z 2026-08-04 to on mówi wprost, co się ładuje. Jeden
- * węzeł obsługuje oba odbiory: nie ma drugiego, ukrytego tekstu, więc czytnik
- * nie ogłasza stanu dwa razy. `visibility: hidden` na rezerwie dokłada do tego
- * drugi zamek: jej treść nie jest renderowana ani dla oka, ani dla czytnika.
- *
- * UKŁAD (delta v3). Szyna stoi ABSOLUTNIE względem ramy, komunikat — STAŁE
- * względem okna, więc żadne z nich nie dokłada ani piksela wysokości i wejście
- * treści nie przesuwa niczego (kontrakt braku skoku z pinezki N1).
- *
- * Dlaczego komunikat jest przy dolnej krawędzi OKNA, a nie na dole rezerwy:
- * rezerwa jest niewidoczna, więc jej dół nie jest żadną widoczną krawędzią, a
- * na dodatek ma inną wysokość na każdym ekranie (lista 638 px, szczegół ponad
- * dwa razy tyle). Komunikat wędrowałby wtedy po ekranie zależnie od trasy, a na
- * szczególe wypadał POD ZGIĘCIE — znikałby dokładnie wtedy, kiedy ładowanie
- * trwa długo i jest najbardziej potrzebny. Okno jest jedynym odniesieniem
- * wspólnym dla wszystkich tras: szyna trzyma górną krawędź, komunikat dolną.
- * Pozycję poziomą (kolumna treści, nie środek okna) ustawia `globals.css` —
- * tam siedzi też odsunięcie od dolnego paska nawigacji mobilnej.
+ * Korzeń ekranu ładowania: absolutny loader i niewidoczna rezerwa geometrii.
+ * `className` pozostaje kopią klasy korzenia realnego ekranu. SVG loadera jest
+ * dekoracją, a pojedyncza etykieta `role="status"` przekazuje stan czytnikowi i
+ * jest widoczna. Absolutne pozycjonowanie nie zmienia wysokości rezerwy.
  */
 export function SkeletonScreen({
   label,
@@ -152,17 +106,12 @@ export function SkeletonScreen({
 }) {
   return (
     <div data-skeleton-frame className="relative">
-      <LoadingRail className="pointer-events-none absolute inset-x-0 -top-1" />
-      {/* Goły tekst, bez płytki. Płytka (obrys + tło) była z 2026-08-04 łatką
-          na to, że komunikat siadał na kresce siatki tabeli — kreski nie ma,
-          bo rezerwa nic nie maluje, więc łatka razem z nią wypada. */}
-      <p
-        role="status"
-        data-skeleton-status
-        className="text-muted-foreground text-center text-sm"
-      >
-        {label}
-      </p>
+      <BrandLoader
+        label={label}
+        variant="full"
+        showLabel
+        className="pointer-events-none absolute inset-x-0 top-[clamp(7rem,25vh,14rem)] z-10"
+      />
       <div
         data-skeleton-screen
         data-screen="loading"

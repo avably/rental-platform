@@ -275,11 +275,9 @@ describe("kontrakt szkieletu karty klienta ↔ ekran karty", () => {
 
 /* ── Dostępność ────────────────────────────────────────────────────────── */
 
-// Delta v3 2026-08-05: z ekranu ładowania znika WSZYSTKO poza szyną u góry i
-// komunikatem na dole — rezerwa geometrii stoi pod `visibility: hidden`
-// (pinezka właściciela). Ekrany klientów jadą tymi samymi prymitywami co
-// zamówienia, więc reguły są te same i mierzymy je tak samo. Zejście z tej pary
-// ekranów pod inny prymityw pali ten blok razem z blokiem zamówień.
+// Z ekranu ładowania znika WSZYSTKO poza loaderem marki — rezerwa geometrii
+// stoi pod `visibility: hidden`. Ekrany klientów jadą tymi samymi prymitywami
+// co zamówienia, więc reguły są te same i mierzymy je tak samo.
 describe("kontrakt ekranów ładowania klientów: co widać i dostępność", () => {
   it.each([
     ["lista", listSkeleton, messages.customers.list.loading],
@@ -289,9 +287,10 @@ describe("kontrakt ekranów ładowania klientów: co widać i dostępność", ()
     expect(rootTag, "brak korzenia rezerwy").toBeDefined();
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
-    const statusTag = html.match(/<p[^>]*role="status"[^>]*>/)?.[0];
+    const statusTag = html.match(/<div[^>]*role="status"[^>]*>/)?.[0];
     expect(statusTag, "brak komunikatu role=status").toBeDefined();
-    expect(statusTag).toContain("data-skeleton-status");
+    expect(statusTag).toContain("data-brand-loader");
+    expect(statusTag).toContain('data-brand-loader-variant="full"');
     expect(statusTag).not.toContain("sr-only");
     expect(html).toContain(label);
   });
@@ -299,7 +298,7 @@ describe("kontrakt ekranów ładowania klientów: co widać i dostępność", ()
   it.each([
     ["lista", listSkeleton],
     ["karta", detailSkeleton],
-  ])("ekran %s nie maluje NIC poza szyną i komunikatem", (_name, html) => {
+  ])("ekran %s nie maluje NIC poza loaderem marki", (_name, html) => {
     expect(tagsOutsideReserve(html)).toEqual([...PAINTED_TAGS]);
     // Kontrola pozytywna: wycięcie faktycznie coś zabrało (rezerwa nie jest pusta).
     expect([...html.matchAll(/<([a-z]+)[^>]*>/g)].length).toBeGreaterThan(50);
@@ -328,12 +327,13 @@ describe("kontrakt ekranów ładowania klientów: co widać i dostępność", ()
   it.each([
     ["lista", listSkeleton],
     ["karta", detailSkeleton],
-  ])("ekran %s: puste pudełka geometrii i szyna z design systemu", (_name, html) => {
+  ])("ekran %s: puste pudełka geometrii i pełny loader marki", (_name, html) => {
     const boxes = [...html.matchAll(/<div[^>]*data-slot="skeleton-box"[^>]*>/g)].map(
       (match) => match[0],
     );
     expect(boxes.length, "brak pudełek geometrii — asercja mierzyłaby pustkę").toBeGreaterThan(10);
     expect(boxes.filter((box) => /class="[^"]*\bbg-/.test(box))).toEqual([]);
-    expect(html).toContain('data-slot="loading-rail"');
+    expect(html).toContain('data-brand-loader-variant="full"');
+    expect(html).not.toContain('data-slot="loading-rail"');
   });
 });

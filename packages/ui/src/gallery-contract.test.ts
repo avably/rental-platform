@@ -33,10 +33,13 @@ describe("integracja design systemu", () => {
     expect(source).toContain('id="status-badges"');
     expect(source).toContain("<StatusBadge");
     expect(source).toContain("<FilterChip");
-    // Delta 2026-08-04: wzorzec loading to dziś szyna + widoczny komunikat,
-    // nie ściana pasków zastępczych — galeria pokazuje nową parę.
-    expect(source).toContain("<LoadingRail");
-    expect(source).toContain('role="status"');
+    // Delta 2026-08-24 (loader marki): wzorzec loading to dziś animowany
+    // BrandLoader (kapsuła/sygnet) z widocznym komunikatem — galeria pokazuje
+    // oba warianty (full + compact) zamiast szyny zastępczej.
+    expect(source).toContain("<BrandLoader");
+    // role="status" niesie teraz sam komponent BrandLoader (dowód:
+    // brand-loader.test.tsx — dokładnie jeden status na wariant), więc grep
+    // źródła galerii pod tym kątem jest zbędny po zejściu z hand-rolled szyny.
     expect(source).toContain("statusSemantics");
     // Lekcja P1 (opis „Inter dla interfejsu" wisiał po zmianie na Geist):
     // opisy nie mogą obiecywać elewacji cieniem ani malować nakładek klasami

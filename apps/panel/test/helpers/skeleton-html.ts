@@ -95,7 +95,24 @@ export function visibilityOverridesInsideReserve(html: string): string[] {
 }
 
 /**
- * Komplet elementów, jakie ekran ładowania ma prawo malować: rama, szyna
- * (`div` + `span` wypełnienia) i komunikat. Cztery znaczniki, ani jeden więcej.
+ * Komplet elementów, jakie ekran ładowania ma prawo malować: rama i pełny
+ * BrandLoader (SVG kapsuły, kropki, sześć ścieżek oraz jeden komunikat).
+ * Rezerwa geometrii jest wycinana przez helper wyżej.
  */
-export const PAINTED_TAGS = ["div", "div", "span", "p"] as const;
+export const PAINTED_TAGS = [
+  "div",
+  "div",
+  "svg",
+  "rect",
+  "g",
+  "circle",
+  "g",
+  "g",
+  "path",
+  "path",
+  "path",
+  "path",
+  "path",
+  "path",
+  "span",
+] as const;
