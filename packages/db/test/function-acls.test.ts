@@ -62,6 +62,14 @@ const ANON_EXECUTE_ALLOWLIST = [
   // DEFINER), a rozmiar odczytu na zacisku p_limit — pilnuje tego
   // catalog-page.test.ts.
   "get_public_catalog_page",
+  // 0101 — JEDNA STRONA jednej kategorii publicznej dla trasy /kategoria/{slug}
+  // (ADR-244). anon z dokładnie tego samego powodu, co get_public_catalog_page,
+  // i o WĘŻSZYM zakresie: te same pozycje i te same kolumny, które katalog
+  // publiczny pokazuje anonimowemu odwiedzającemu, tylko zawężone do jednej
+  // kategorii i do okna strony. Izolacja stoi na jawnym zawężeniu tenant_id
+  // w każdym podzapytaniu (SECURITY DEFINER), a rozmiar odczytu na zacisku
+  // p_page_size — pilnuje tego category-page.test.ts.
+  "get_public_category_page",
   "get_public_custom_fields", // 0058 — publiczne definicje pól checkoutu
   // 0084 — wąski odczyt JEDNEJ pozycji dla strony sprzętu (ADR-185). anon
   // z dokładnie tego samego powodu, co get_public_catalog, i o WĘŻSZYM
