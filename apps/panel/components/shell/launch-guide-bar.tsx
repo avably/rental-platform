@@ -30,7 +30,11 @@ import {
  * KOLOR: czarny + limonka (traktowanie 2) — ciemny zielono-czarny pasek,
  * akcenty limonką marki (pierścień, „następny krok", CTA). Świadomie INNY od
  * limonkowego TINTU aktywnej nawigacji (`bg-accent`), żeby „gdzie stoję" się
- * nie rozmyło. Theme-aware (`dark:` warianty).
+ * nie rozmyło. Cała paleta paska mieszka w nazwanych tokenach `--launch-bar-*`
+ * (globals.css, ADR-257): strukturalne tło/obrys mają wariant jasny i ciemny
+ * na `.dark`, akcent i tekst są między motywami niezmienne (jak dotąd) —
+ * dlatego komponent nie potrzebuje już wariantów `dark:`. Zero literałów hex:
+ * pilnuje tego `panel-visual-direction-contract`.
  *
  * ZASIĘG: wszędzie, GDZIE layout liczy badge, Z WYJĄTKIEM ROOT PULPITU `/` —
  * tam mocniejsza KARTA solid-limonka (`DashboardLaunchBanner`) przejmuje rolę,
@@ -85,7 +89,7 @@ export function LaunchGuideBar({
       data-launch-guide-bar
       data-launch-guide-collapsed={expanded ? "false" : "true"}
       aria-label={t("guide.regionLabel")}
-      className="sticky top-0 z-30 border-b border-[#26382e] bg-[#15201c] text-[#e8f3d6] dark:border-[#16241d] dark:bg-[#0c1310]"
+      className="sticky top-0 z-30 border-b border-[var(--launch-bar-border)] bg-[var(--launch-bar-bg)] text-[var(--launch-bar-fg)]"
     >
       {/* ===== DESKTOP / TABLET (rail obecny) ===== */}
       <div className="relative hidden sm:block">
@@ -101,9 +105,9 @@ export function LaunchGuideBar({
                 {progressText}
               </span>
               {nextStepLabel ? (
-                <span className="text-[13px] text-[#c8d6b6]">
+                <span className="text-[13px] text-[var(--launch-bar-muted)]">
                   {t("guide.nextStep")}{" "}
-                  <span className="font-semibold text-[#d7ff5f]">{nextStepLabel}</span>
+                  <span className="font-semibold text-[var(--launch-bar-accent)]">{nextStepLabel}</span>
                 </span>
               ) : null}
             </div>
@@ -111,7 +115,7 @@ export function LaunchGuideBar({
               <Link
                 href={nextStep.href}
                 data-launch-guide-cta
-                className="inline-flex shrink-0 cursor-pointer items-center rounded-md bg-[#d7ff5f] px-3.5 py-1.5 text-[13px] leading-none font-semibold text-[#151a12] transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-[#c7f542] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]"
+                className="inline-flex shrink-0 cursor-pointer items-center rounded-md bg-[var(--launch-bar-accent)] px-3.5 py-1.5 text-[13px] leading-none font-semibold text-[var(--launch-bar-accent-foreground)] transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-[var(--launch-bar-accent-hover)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]"
               >
                 {t("guide.finishStep")}
               </Link>
@@ -132,7 +136,7 @@ export function LaunchGuideBar({
               data-launch-guide-collapse
               aria-label={t("guide.collapse")}
               onClick={() => collapse(true)}
-              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-[#c8d6b6] outline-none transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-white/10 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]"
+              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-[var(--launch-bar-muted)] outline-none transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-white/10 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]"
             >
               <MinusGlyph />
             </button>
@@ -153,9 +157,9 @@ export function LaunchGuideBar({
           <div
             id={overlayId}
             data-launch-guide-overlay
-            className="absolute inset-x-0 top-full border-b border-[#26382e] bg-[#15201c] px-4 py-3 shadow-lg md:px-6 dark:border-[#16241d] dark:bg-[#0c1310]"
+            className="absolute inset-x-0 top-full border-b border-[var(--launch-bar-border)] bg-[var(--launch-bar-bg)] px-4 py-3 shadow-lg md:px-6"
           >
-            <p className="text-xs font-medium text-[#c8d6b6]">
+            <p className="text-xs font-medium text-[var(--launch-bar-muted)]">
               {blockers.length > 0 ? t("hub.blockersLabel") : t("hub.sellable")}
             </p>
             {blockers.length > 0 ? (
@@ -164,7 +168,7 @@ export function LaunchGuideBar({
                   <span
                     key={blocker}
                     data-launch-guide-blocker={blocker}
-                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-[#e8f3d6]"
+                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-[var(--launch-bar-fg)]"
                   >
                     {t(`publish.blocker.${blocker}`)}
                   </span>
@@ -175,7 +179,7 @@ export function LaunchGuideBar({
               <Link
                 href="/uruchomienie"
                 data-launch-guide-hub
-                className="text-[13px] font-medium text-[#d7ff5f] underline underline-offset-[3px] outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]"
+                className="text-[13px] font-medium text-[var(--launch-bar-accent)] underline underline-offset-[3px] outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]"
               >
                 {t("guide.openHub")}
               </Link>
@@ -199,9 +203,9 @@ export function LaunchGuideBar({
           <SheetTrigger
             data-launch-guide-mobile-trigger
             aria-label={t("guide.expand")}
-            className="flex w-full cursor-pointer flex-col gap-1 px-4 py-1.5 outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[#d7ff5f]"
+            className="flex w-full cursor-pointer flex-col gap-1 px-4 py-1.5 outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--launch-bar-accent)]"
           >
-            <span className="flex items-center justify-between text-[11px] font-medium text-[#c8d6b6]">
+            <span className="flex items-center justify-between text-[11px] font-medium text-[var(--launch-bar-muted)]">
               <span className="truncate">{t("banner.title")}</span>
               <span className="shrink-0 tabular-nums" data-launch-guide-progress={`${progress.done}/${progress.total}`}>
                 {progress.done}/{progress.total}
@@ -212,16 +216,16 @@ export function LaunchGuideBar({
           <SheetContent
             side="bottom"
             data-launch-guide-sheet
-            className="gap-3 border-t border-[#26382e] bg-[#15201c] pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-[#e8f3d6] dark:border-[#16241d] dark:bg-[#0c1310]"
+            className="gap-3 border-t border-[var(--launch-bar-border)] bg-[var(--launch-bar-bg)] pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-[var(--launch-bar-fg)]"
           >
-            <SheetTitle className="text-[#e8f3d6]">{t("banner.title")}</SheetTitle>
-            <SheetDescription className="text-[#c8d6b6]">{progressText}</SheetDescription>
+            <SheetTitle className="text-[var(--launch-bar-fg)]">{t("banner.title")}</SheetTitle>
+            <SheetDescription className="text-[var(--launch-bar-muted)]">{progressText}</SheetDescription>
             <div className="flex items-center gap-3">
               <ProgressRing done={progress.done} total={progress.total} />
               {nextStepLabel ? (
-                <span className="text-sm text-[#c8d6b6]">
+                <span className="text-sm text-[var(--launch-bar-muted)]">
                   {t("guide.nextStep")}{" "}
-                  <span className="font-semibold text-[#d7ff5f]">{nextStepLabel}</span>
+                  <span className="font-semibold text-[var(--launch-bar-accent)]">{nextStepLabel}</span>
                 </span>
               ) : null}
             </div>
@@ -231,7 +235,7 @@ export function LaunchGuideBar({
                   <span
                     key={blocker}
                     data-launch-guide-blocker={blocker}
-                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-[#e8f3d6]"
+                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-2.5 py-0.5 text-xs font-medium text-[var(--launch-bar-fg)]"
                   >
                     {t(`publish.blocker.${blocker}`)}
                   </span>
@@ -243,7 +247,7 @@ export function LaunchGuideBar({
                 href={nextStep.href}
                 data-launch-guide-cta
                 onClick={() => setSheetOpen(false)}
-                className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-[#d7ff5f] px-4 py-2.5 text-sm font-semibold text-[#151a12] transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-[#c7f542] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]"
+                className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-[var(--launch-bar-accent)] px-4 py-2.5 text-sm font-semibold text-[var(--launch-bar-accent-foreground)] transition-[background-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-[var(--launch-bar-accent-hover)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]"
               >
                 {t("guide.finishStep")}
               </Link>
@@ -252,7 +256,7 @@ export function LaunchGuideBar({
               href="/uruchomienie"
               data-launch-guide-hub
               onClick={() => setSheetOpen(false)}
-              className="text-center text-[13px] font-medium text-[#d7ff5f] underline underline-offset-[3px] outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]"
+              className="text-center text-[13px] font-medium text-[var(--launch-bar-accent)] underline underline-offset-[3px] outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]"
             >
               {t("guide.openHub")}
             </Link>
@@ -264,7 +268,7 @@ export function LaunchGuideBar({
 }
 
 const secondaryButtonClass =
-  "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[13px] font-medium text-[#e8f3d6] outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-white/10 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#d7ff5f]";
+  "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md border border-white/15 px-2.5 py-1.5 text-[13px] font-medium text-[var(--launch-bar-fg)] outline-none transition-[background-color,border-color,outline-color] [transition-duration:var(--motion-fast)] [transition-timing-function:var(--ease-standard)] hover:bg-white/10 focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--launch-bar-accent)]";
 
 /** Hairline zwiniętego paska (desktop): cienki pasek postępu z „N/M". Klikalny. */
 function HairlineButton({
@@ -284,10 +288,10 @@ function HairlineButton({
       data-launch-guide-hairline
       aria-label={label}
       onClick={onExpand}
-      className="flex w-full cursor-pointer items-center gap-2 px-4 py-1 outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[#d7ff5f] md:px-6"
+      className="flex w-full cursor-pointer items-center gap-2 px-4 py-1 outline-none focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--launch-bar-accent)] md:px-6"
     >
       <HairlineTrack done={done} total={total} />
-      <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[#c8d6b6]">
+      <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[var(--launch-bar-muted)]">
         {done}/{total}
       </span>
     </button>
@@ -300,7 +304,7 @@ function HairlineTrack({ done, total }: { done: number; total: number }) {
   return (
     <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/12">
       <span
-        className="block h-full rounded-full bg-[#d7ff5f]"
+        className="block h-full rounded-full bg-[var(--launch-bar-accent)]"
         style={{ width: `${Math.round(ratio * 100)}%` }}
       />
     </span>
@@ -332,9 +336,12 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
         fill="none"
         strokeWidth="3.5"
         strokeLinecap="round"
-        stroke="#d7ff5f"
         transform="rotate(-90 16 16)"
-        style={{ strokeDasharray: circumference, strokeDashoffset: circumference * (1 - ratio) }}
+        style={{
+          stroke: "var(--launch-bar-accent)",
+          strokeDasharray: circumference,
+          strokeDashoffset: circumference * (1 - ratio),
+        }}
       />
       <text
         x="16"
@@ -342,7 +349,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
         textAnchor="middle"
         dominantBaseline="central"
         className="text-[10px] font-semibold tabular-nums"
-        fill="#e8f3d6"
+        style={{ fill: "var(--launch-bar-fg)" }}
       >
         {done}/{total}
       </text>
