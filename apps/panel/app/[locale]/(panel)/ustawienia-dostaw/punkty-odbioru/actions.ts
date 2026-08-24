@@ -12,6 +12,7 @@ import { AuthError } from "@/lib/auth";
 import { pickupLocationSchema, uuidSchema } from "@/lib/catalog-validation";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 function parseLocationForm(formData: FormData) {
@@ -54,6 +55,10 @@ export async function createLocationAction(
     .insert({ tenant_id: ctx.tenantId, ...locationPayload(parsed.data) });
   if (error) return { formError: error.message };
 
+  // Nowy punkt (domyślnie aktywny) może właśnie otworzyć sygnał „dostawa"
+  // (aktywny punkt odbioru LUB płatna metoda) — unieważnij cache huba (ADR-261).
+  // PRZED `redirect` (rzuca), inaczej nie wykonałby się.
+  revalidateLaunchSignals(ctx.tenantId!);
   redirect(await localePath("/ustawienia-dostaw/punkty-odbioru"));
 }
 
@@ -89,6 +94,9 @@ export async function updateLocationAction(
   // edycja i przełącznik aktywności piszą do tej samej tabeli, ale tylko
   // przełącznik unieważniał cache trasy.
   revalidatePath("/", "layout");
+  // Edycja może przełączyć `active` punktu — a to zmienia sygnał „dostawa"
+  // (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
   return { success: "saved" };
 }
 
@@ -120,5 +128,8 @@ export async function toggleLocationAction(
   if (!data || data.length === 0) return { formError: "Nie znaleziono punktu odbioru." };
 
   revalidatePath("/", "layout");
+  // Wygaszenie/przywrócenie punktu zmienia liczbę AKTYWNYCH punktów odbioru —
+  // wprost sygnał „dostawa" (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
   return { success: "toggled" };
 }

@@ -26,6 +26,7 @@ import type { z } from "zod";
 
 import { AuthError } from "@/lib/auth";
 import { withFormEcho, zodErrorToState, type FormState } from "@/lib/form-state";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 import {
@@ -60,7 +61,14 @@ function refusalState(code: string | undefined, message: string): FormState {
   return { formError: message };
 }
 
-async function upsertSetting(key: string, value: unknown): Promise<FormState> {
+async function upsertSetting(
+  key: string,
+  value: unknown,
+  // Tylko CENNIK dostaw zmienia sygnał uruchomienia „dostawa" (hasDelivery);
+  // nadawca/paczka/dane logowania kuriera to ustawienia niezwiązane z hubem,
+  // więc NIE inwalidują jego cache (ADR-261) — inwalidacja jest precyzyjna.
+  opts: { invalidatesLaunch?: boolean } = {},
+): Promise<FormState> {
   let ctx;
   try {
     ctx = await requireMember();
@@ -93,6 +101,7 @@ async function upsertSetting(key: string, value: unknown): Promise<FormState> {
   }
 
   revalidatePath("/", "layout");
+  if (opts.invalidatesLaunch) revalidateLaunchSignals(ctx.tenantId!);
   return { success: key };
 }
 
@@ -248,5 +257,8 @@ export async function saveDeliveryPricingAction(
   };
   const result = parseWith(deliverySettingsPricingSchema, input);
   if ("state" in result) return withFormEcho(result.state, input);
-  return withFormEcho(await upsertSetting("delivery_pricing", result.value), input);
+  return withFormEcho(
+    await upsertSetting("delivery_pricing", result.value, { invalidatesLaunch: true }),
+    input,
+  );
 }

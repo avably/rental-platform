@@ -19,6 +19,7 @@ import {
 } from "@/lib/custom-fields-server";
 import { zodErrorToState, type FormState } from "@/lib/form-state";
 import { localePath } from "@/lib/navigation";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 /** Produkt nieosiągalny (błąd odczytu, brak wiersza, cudzy tenant) — jeden komunikat. */
@@ -149,6 +150,10 @@ export async function createProductAction(
     unieważniać, bo sklep czytał katalog świeżo na każdą odsłonę.
   */
   await invalidateStorefrontCatalog(ctx.tenantId!);
+  // Sygnał uruchomienia „produkt" zmienił się (pierwszy wiersz / produkt
+  // aktywny) — cache huba TEGO najemcy jest nieaktualny (ADR-261). Stoi PRZED
+  // `redirect` (rzuca), inaczej nie wykonałby się nigdy — jak wyżej.
+  revalidateLaunchSignals(ctx.tenantId!);
 
   // Wiersz bez identyfikatora nie jest błędem zapisu (produkt POWSTAŁ), więc
   // nie udajemy porażki — wracamy na listę, jak przed U8b.
@@ -245,6 +250,9 @@ export async function updateProductAction(
   // Cache katalogu w SKLEPIE (ADR-185) — nazwa, cena, kaucja, bufory, pola
   // własne i `active` tej pozycji zmieniły się w kopercie publicznej.
   await invalidateStorefrontCatalog(ctx.tenantId!);
+  // `active` mogło się przełączyć (produkt sprzedawalny ⇄ ukryty), a to zmienia
+  // sygnał uruchomienia „produkt" — unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(ctx.tenantId!);
 
   return { success: "saved" };
 }

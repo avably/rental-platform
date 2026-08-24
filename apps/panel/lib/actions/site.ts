@@ -59,6 +59,7 @@ import {
   type UpsertSectionInput,
 } from "@/lib/site-validation";
 import { uuidSchema } from "@/lib/catalog-validation";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import { requireMember } from "@/lib/supabase-server";
 
 type Ctx = Awaited<ReturnType<typeof requireMember>>;
@@ -1057,6 +1058,9 @@ export async function publishSite(
   // Tag leci TAKŻE przy nieudanym wyglądzie — treść strony weszła na żywo,
   // więc cache sklepu jest nieaktualny niezależnie od drugiego wywołania.
   revalidateTag(tenantCacheTag(auth.tenantId), "max");
+  // Publikacja strony głównej zapala sygnał uruchomienia „wygląd/uruchomienie"
+  // (publishedAt) — unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(auth.tenantId);
 
   if (appearanceError) {
     return {
@@ -1112,5 +1116,8 @@ export async function unpublishSite(siteId: string): Promise<SiteActionResult> {
 
   revalidatePath("/", "layout");
   revalidateTag(tenantCacheTag(auth.tenantId), "max");
+  // Zdjęcie strony ze sklepu może zgasić sygnał „wygląd/uruchomienie"
+  // (publishedAt korzenia) — unieważnij cache huba TEGO najemcy (ADR-261).
+  revalidateLaunchSignals(auth.tenantId);
   return { ok: true };
 }

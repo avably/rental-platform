@@ -49,7 +49,10 @@ function makeSupabase(result: { data: unknown; error: unknown }) {
 const requireMember = vi.fn();
 const revalidatePath = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
-vi.mock("next/cache", () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
+vi.mock("next/cache", () => ({
+  revalidatePath: (...args: unknown[]) => revalidatePath(...args),
+  revalidateTag: () => undefined,
+}));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new Error(`REDIRECT:${path}`);

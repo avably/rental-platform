@@ -110,7 +110,7 @@ const supabase = {
 
 class FakeAuthError extends Error {}
 
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 vi.mock("@/lib/auth", () => ({ AuthError: FakeAuthError }));
 

@@ -49,20 +49,35 @@ export default async function PanelLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createSupabaseServerClient();
   const ctx = await getAuthContext(supabase);
-  const t = await getTranslations("nav");
 
-  // JEDEN fail-silent odczyt stanu rozliczeń na żądanie shella (ADR-138):
-  // karmi baner (licznik dni okna) i filtr nawigacji. Layout dalej NIE jest
-  // guardem — `closing` tu to wyłącznie decyzja „czego nie pokazywać";
-  // twardą bramką pozostaje requireMember na każdym ekranie i akcji.
-  const billing = ctx?.tenantId ? await readTenantBillingState(supabase, ctx.tenantId) : null;
+  // ODCZYTY SHELLA RÓWNOLEGLE (ADR-261). Tłumaczenia nawigacji, stan rozliczeń,
+  // lista organizacji, bramka regulaminu platformy oraz dwa odczyty żądania
+  // (cookies/headers) są od siebie NIEZALEŻNE — jeden `Promise.all` zdejmuje ich
+  // koszt z szeregowego łańcucha `await`, w którym stały dotąd jeden za drugim.
+  // `launchGuide` NIE wchodzi do tej rundy: zależy od `closing` (poniżej,
+  // z rozliczeń), więc liczy się dopiero, gdy ta runda się rozwiąże.
+  //
+  //   • billing — JEDEN fail-silent odczyt stanu rozliczeń (ADR-138): karmi
+  //     baner (licznik dni okna) i filtr nawigacji. Layout dalej NIE jest
+  //     guardem — `closing` to wyłącznie decyzja „czego nie pokazywać";
+  //     twardą bramką pozostaje requireMember na każdym ekranie i akcji.
+  //   • organizations — PICKER ORGANIZACJI (L7, ADR-224): lista wszystkich org
+  //     zalogowanego (RPC members-gated), belka pokaże przełącznik dopiero przy
+  //     >1 członkostwie. Fail-silent i NIE guard, jak odczyt rozliczeń.
+  //   • termsGate — PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez
+  //     ŻYWEJ akceptacji dostaje ZAMIAST treści ekran akceptacji — gasimy TREŚĆ,
+  //     nie trasę (ADR-133; zero redirectów = zero ryzyka pętli onboardingu).
+  //     Dopóki żadna wersja nie obowiązuje, kosztuje tylko jeden odczyt RPC.
+  const [t, billing, organizations, termsGate, cookieStore, headerList] = await Promise.all([
+    getTranslations("nav"),
+    ctx?.tenantId ? readTenantBillingState(supabase, ctx.tenantId) : Promise.resolve(null),
+    ctx ? readMyOrganizations(supabase) : Promise.resolve([]),
+    readPlatformTermsGate(supabase, ctx),
+    cookies(),
+    headers(),
+  ]);
+
   const closing = billing?.status === "suspended" && isClosingWindowOpen(billing.suspendedAt);
-
-  // PICKER ORGANIZACJI (L7, ADR-224). Lista wszystkich org zalogowanego
-  // użytkownika (RPC members-gated) — belka pokaże przełącznik dopiero przy
-  // >1 członkostwie. Fail-silent i NIE guard, jak odczyt rozliczeń wyżej:
-  // twardą bramką zostaje hook (claim tenant_id) i requireMember na ekranach.
-  const organizations = ctx ? await readMyOrganizations(supabase) : [];
 
   // ONBOARDING (ADR-153, N4): zalogowana sesja BEZ organizacji. Nawigacja
   // zwija się wtedy do samego pulpitu — każda inna pozycja prowadzi na trasę
@@ -95,8 +110,7 @@ export default async function PanelLayout({
   // Badge nawigacji bierze postęp z tego samego stanu — jedno źródło prawdy.
   const launchNav = launchGuide ? launchGuide.progress : null;
   // Stan zwinięcia paska z ciasteczka (SSR-spójny) — zero flash-a rozwiniętego
-  // paska przy każdej nawigacji (ADR-229).
-  const cookieStore = await cookies();
+  // paska przy każdej nawigacji (ADR-229). `cookieStore` z rundy równoległej.
   const launchGuideCollapsed =
     launchGuideCollapseFrom(cookieStore.get(LAUNCH_GUIDE_COOKIE)?.value) === "collapsed";
   // Rozwinięte gałęzie drzewa nawigacji z ciasteczka (SSR-spójne, ADR-231) —
@@ -104,19 +118,10 @@ export default async function PanelLayout({
   // rozwija się sama. Zero flash-a przy każdej nawigacji.
   const navExpanded = [...expandedBranchesFrom(cookieStore.get(NAV_TREE_COOKIE)?.value)];
 
-  // PRZESŁONA REGULAMINU PLATFORMY (0070, ADR-141): owner bez ŻYWEJ
-  // akceptacji obowiązującej wersji dostaje ZAMIAST treści ekran akceptacji
-  // — gasimy TREŚĆ, nie trasę (wzorzec ADR-133; zero redirectów = zero
-  // ryzyka pętli onboardingu: sesja bez organizacji i personel przechodzą
-  // bez pytania, decyzja w readPlatformTermsGate). Layout dalej NIE jest
-  // guardem: dopóki żadna wersja nie obowiązuje (stan przed treścią od
-  // prawnika), bramka nie kosztuje nic poza jednym odczytem RPC.
-  const termsGate = await readPlatformTermsGate(supabase, ctx);
-
   // Nonce żądania (ADR-012) — bez niego CSP `strict-dynamic` odmówi wykonania
   // skryptu startowego sidebara i pasek wracałby do rozwiniętego przy każdym
-  // wejściu (ta sama mechanika co skrypt motywu).
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // wejściu (ta sama mechanika co skrypt motywu). `headerList` z rundy równoległej.
+  const nonce = headerList.get("x-nonce") ?? undefined;
 
   return (
     <div className="flex min-h-screen flex-1">

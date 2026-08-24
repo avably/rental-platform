@@ -50,7 +50,7 @@ vi.mock("@/lib/supabase-server", () => ({
     return authContext.current;
   },
 }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 
 const { saveUnitsAction } = await import(
   "@/app/[locale]/(panel)/katalog/[id]/egzemplarze/actions"

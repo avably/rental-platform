@@ -92,7 +92,7 @@ function makeSupabase(
 
 const requireMember = vi.fn();
 vi.mock("@/lib/supabase-server", () => ({ requireMember: () => requireMember() }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/navigation", () => ({ localePath: async (p: string) => p }));
 // Odmowy pól własnych: poza żądaniem oddajemy sam klucz — pytamy o TREŚĆ

@@ -23,6 +23,7 @@ import { revalidatePath } from "next/cache";
 
 import { AuthError } from "@/lib/auth";
 import { CONTRACT_DOCUMENT_SETTINGS_KEY } from "@/lib/contract-settings";
+import { revalidateLaunchSignals } from "@/lib/onboarding/launch";
 import type { FormState } from "@/lib/form-state";
 import { zodErrorToState } from "@/lib/form-state";
 import {
@@ -161,6 +162,11 @@ export async function publishLegalDocumentAction(kind: string): Promise<LegalPub
   }
 
   revalidatePath("/dokumenty-prawne");
+  // Publikacja ustawia `current_version_id` — sygnał uruchomienia „legalia"
+  // (bramka sprzedaży) mógł się właśnie zapalić; unieważnij cache huba TEGO
+  // najemcy (ADR-261). Zapis SZKICU tego NIE robi (żywej wersji nie rusza),
+  // więc `saveLegalDocumentDraftAction` świadomie nie inwaliduje.
+  revalidateLaunchSignals(context.tenantId!);
 
   // `created:false` to POPRAWNY wynik, nie błąd: treść jest identyczna z żywą
   // wersją, więc rejestr nie dostał kolejnego wpisu o tej samej treści.
