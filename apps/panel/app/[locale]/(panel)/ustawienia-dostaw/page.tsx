@@ -1,7 +1,10 @@
 /**
- * Ustawienia dostaw (Zadanie 7, ADR-030/031): credentiale dostawcy, nadawca
- * przesyłek, domyślna paczka i cennik dostaw — klucze tenant_settings
- * z CHECK-ami 0013/0024.
+ * Ustawienia dostaw = HUB DOSTAW (Zadanie 7, ADR-030/031; przebudowa UX
+ * ADR-236). Kafelki ze stanem: punkty odbioru, integracja z kurierami, dane
+ * nadawcy, domyślna paczka i cennik — klucze tenant_settings z CHECK-ami
+ * 0013/0024. Edycja każdej sekcji przenosi się do modalu (patrz
+ * `delivery-hub.tsx`); strona niesie stan i skróty, nie stos surowych
+ * formularzy.
  *
  * HASŁO NIE JEST TU CZYTANE W OGÓLE (ADR-052). Strona pyta bazę wyłącznie
  * o to, CZY sekret istnieje (app.tenant_secret_is_set → boolean) i pokazuje
@@ -16,7 +19,8 @@
  * Od 2026-08-04 ekran jest też RODZICEM punktów odbioru
  * (`/ustawienia-dostaw/punkty-odbioru`, decyzja właściciela): odbiór osobisty
  * to metoda dostawy, więc mieszka przy kurierze i paczkomacie, a nie przy
- * katalogu produktów, gdzie stał wcześniej.
+ * katalogu produktów, gdzie stał wcześniej. Od ADR-236 dodane punkty są
+ * POKAZANE na hubie (kafelki), nie tylko linkowane.
  */
 import {
   COURIER_CONFIG_KEYS,
@@ -27,12 +31,10 @@ import {
   GLOBKURIER_PASSWORD_SECRET_KEY,
   deliveryPricingFromSettings,
 } from "@avably/core";
-import { Button } from "@avably/ui";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { FormMeasure } from "@/components/screens/form-measure";
-import { ScreenBackLink, ScreenSection } from "@/components/screens/screen-header";
-import { Link } from "@/i18n/navigation";
+import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
 
 import {
@@ -42,14 +44,17 @@ import {
   saveDeliveryPricingAction,
 } from "./delivery-settings-actions";
 import {
-  CredentialsForm,
-  ParcelForm,
-  PricingForm,
-  SenderForm,
-  type PricingDefaults,
-  type SenderDefaults,
-} from "./delivery-settings-forms";
+  IntegrationSection,
+  ParcelCard,
+  PricingCard,
+  SenderCard,
+} from "./delivery-hub";
+import { type PricingDefaults, type SenderDefaults } from "./delivery-settings-forms";
 import { deliverySectionStates } from "./delivery-settings-status";
+import {
+  PickupLocationsSummary,
+  type PickupLocationSummaryRow,
+} from "./pickup-locations-summary";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -64,7 +69,6 @@ export default async function DeliverySettingsPage() {
   const ctx = await requireMemberPage("/ustawienia-dostaw");
   const t = await getTranslations("orders.delivery.settings");
   const tSection = await getTranslations("orders.delivery.section");
-  const tLocations = await getTranslations("orders.delivery.locations");
 
   const { data: rows } = await ctx.supabase
     .from("tenant_settings")
@@ -73,6 +77,23 @@ export default async function DeliverySettingsPage() {
     .in("key", [...COURIER_CONFIG_KEYS, DELIVERY_PRICING_KEY]);
   const settings = rows ?? [];
   const byKey = new Map(settings.map((row) => [row.key as string, row.value as unknown]));
+
+  // Punkty odbioru POKAZANE na hubie (ADR-236), nie tylko linkowane. Odczyt
+  // przez RLS tak jak na podstronie — ekran nie zna cudzych punktów.
+  const { data: locations } = await ctx.supabase
+    .from("pickup_locations")
+    .select("id, name, address_street, address_zip, address_city, active")
+    .eq("tenant_id", ctx.tenantId)
+    .order("name", { ascending: true });
+  const locationRows: PickupLocationSummaryRow[] = (locations ?? []).map((location) => ({
+    id: location.id,
+    name: location.name,
+    address:
+      [location.address_street, location.address_zip, location.address_city]
+        .filter(Boolean)
+        .join(", ") || "—",
+    active: location.active,
+  }));
 
   const credentials = asRecord(byKey.get(GLOBKURIER_CREDENTIALS_KEY));
 
@@ -164,10 +185,9 @@ export default async function DeliverySettingsPage() {
       <ScreenBackLink href="/zamowienia" label={`← ${tSection("title")}`} />
       {/*
         Wstęp niesie fakt CAŁEGO EKRANU („zespół widzi, właściciel zapisuje"),
-        bo dotyczy wszystkich czterech kart naraz. Fakt operacyjny — „tu nie ma
-        przycisku, bo nie jesteś właścicielem" — stoi niżej, przy każdej stopce
-        zapisu. Wcześniej oba mieszkały w jednej karcie na górze i żaden nie
-        stał tam, gdzie był potrzebny.
+        bo dotyczy wszystkich kart naraz. Fakt operacyjny — „tu nie ma
+        przycisku, bo nie jesteś właścicielem" — stoi niżej, w modalu każdej
+        sekcji, przy stopce zapisu.
       */}
       <p
         className="text-muted-foreground text-sm"
@@ -178,27 +198,15 @@ export default async function DeliverySettingsPage() {
       </p>
 
       {/*
-        Wejście w punkty odbioru stoi NAD kartą reguły dostępu i nad czterema
-        formularzami, a nie pod nimi — z dwóch powodów. Po pierwsze karta reguły
-        mówi o zapisie USTAWIEŃ (właściciel, RLS 0024), a punkty odbioru
-        prowadzi każdy członek zespołu; zamknięta pod nią wyglądałaby na objętą
-        tym samym ograniczeniem. Po drugie to nawigacja, nie ustawienie: gdyby
-        stała na końcu, trzeba by przewinąć dwadzieścia jeden pól konfiguracji
-        kuriera, żeby dojść do ekranu, na którym pracuje się na co dzień.
+        Kolejność huba: najpierw to, na czym operator pracuje na co dzień
+        (punkty odbioru — prowadzi je każdy członek zespołu), potem konfiguracja
+        wysyłki kurierem (integracja → nadawca → paczka → cennik). Punkty stoją
+        na górze także dlatego, że nie są objęte regułą właściciela (RLS 0024),
+        więc nie powinny wyglądać na zamknięte tym samym ograniczeniem.
       */}
-      <ScreenSection
-        data-delivery-locations-entry="true"
-        title={tLocations("title")}
-        description={tLocations("cardDescription")}
-      >
-        <div>
-          <Button asChild variant="secondary">
-            <Link href="/ustawienia-dostaw/punkty-odbioru">{tLocations("cardCta")}</Link>
-          </Button>
-        </div>
-      </ScreenSection>
+      <PickupLocationsSummary rows={locationRows} />
 
-      <CredentialsForm
+      <IntegrationSection
         action={saveCourierCredentialsAction}
         configured={passwordSet === true}
         canWrite={canWrite}
@@ -209,19 +217,19 @@ export default async function DeliverySettingsPage() {
             : null
         }
       />
-      <SenderForm
+      <SenderCard
         action={saveCourierSenderAction}
         canWrite={canWrite}
         status={sectionStatus(COURIER_SENDER_KEY, sectionStates.sender)}
         defaults={senderDefaults}
       />
-      <ParcelForm
+      <ParcelCard
         action={saveCourierParcelAction}
         canWrite={canWrite}
         status={sectionStatus(COURIER_PARCEL_KEY, sectionStates.parcel)}
         defaults={parcelDefaults}
       />
-      <PricingForm
+      <PricingCard
         action={saveDeliveryPricingAction}
         canWrite={canWrite}
         status={sectionStatus(DELIVERY_PRICING_KEY, sectionStates.pricing)}

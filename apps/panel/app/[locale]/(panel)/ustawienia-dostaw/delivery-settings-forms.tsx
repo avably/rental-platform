@@ -28,7 +28,7 @@
  */
 import { Button, Input, Label } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { PanelSelect } from "@/components/fields/panel-select";
 import { ScreenSection } from "@/components/screens/screen-header";
@@ -41,6 +41,23 @@ import type { DeliverySectionState } from "./delivery-settings-status";
 const initialState: FormState = {};
 
 type SettingsAction = (prevState: FormState, formData: FormData) => Promise<FormState>;
+
+/**
+ * `useActionState` z jednym dodatkiem: po POTWIERDZONYM sukcesie akcji woła
+ * `onSuccess` (hub dostaw zamyka nim modal, ADR-236). Kontrakt zapisu i echo
+ * (U9) zostają nietknięte — owijka nie zmienia ani stanu, ani `formAction`,
+ * tylko dokłada efekt uboczny na `result.success`. Bez `onSuccess` zachowuje
+ * się dokładnie jak goły `useActionState`, więc karta renderowana wprost
+ * (kontrakty `secondary-screens` / `delivery-settings-render-echo`) działa jak
+ * dotąd.
+ */
+function useSettingsForm(action: SettingsAction, onSuccess?: () => void) {
+  return useActionState<FormState, FormData>(async (prev, formData) => {
+    const result = await action(prev, formData);
+    if (result.success && onSuccess) onSuccess();
+    return result;
+  }, initialState);
+}
 
 /** Wspólne dla czterech kart: stan gotowości + data ostatniego zapisu. */
 export interface SectionStatus {
@@ -204,15 +221,17 @@ export function CredentialsForm({
   canWrite,
   defaults,
   status,
+  onSuccess,
 }: {
   action: SettingsAction;
   configured: boolean;
   canWrite: boolean;
   defaults: { email: string; environment: string } | null;
   status: SectionStatus;
+  onSuccess?: () => void;
 }) {
   const t = useTranslations("orders.delivery.settings");
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useSettingsForm(action, onSuccess);
   const field = fieldBinding("cred", state);
 
   const email = field("email", defaults?.email ?? "");
@@ -306,14 +325,16 @@ export function SenderForm({
   canWrite,
   defaults,
   status,
+  onSuccess,
 }: {
   action: SettingsAction;
   canWrite: boolean;
   defaults: SenderDefaults | null;
   status: SectionStatus;
+  onSuccess?: () => void;
 }) {
   const t = useTranslations("orders.delivery.settings");
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useSettingsForm(action, onSuccess);
   const field = fieldBinding("sender", state);
 
   // Opcjonalność idzie ZA SCHEMATEM (`delivery-settings-validation.ts`):
@@ -368,14 +389,16 @@ export function ParcelForm({
   canWrite,
   defaults,
   status,
+  onSuccess,
 }: {
   action: SettingsAction;
   canWrite: boolean;
   defaults: { lengthCm: number; widthCm: number; heightCm: number; weightKg: number } | null;
   status: SectionStatus;
+  onSuccess?: () => void;
 }) {
   const t = useTranslations("orders.delivery.settings");
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useSettingsForm(action, onSuccess);
   const field = fieldBinding("parcel", state);
 
   const fields = [
@@ -431,26 +454,80 @@ export interface PricingDefaults {
   own_delivery?: { priceGrosze: number; freeAboveGrosze?: number };
 }
 
+/**
+ * Metody cennika i nazwy ich pól w FormData. Kolejność = kolejność w cenniku
+ * i na liście „dodaj metodę". `own_delivery` to metoda WŁASNA operatora
+ * (własny kurier/umowa, nadanie ręczne poza integracją) — stąd osobna
+ * podpowiedź przy jej wierszu.
+ */
+const PRICING_METHOD_DEFS = [
+  {
+    method: "courier",
+    label: "methodCourier",
+    priceName: "courierPrice",
+    freeAboveName: "courierFreeAbove",
+  },
+  {
+    method: "parcel_locker",
+    label: "methodParcelLocker",
+    priceName: "parcelLockerPrice",
+    freeAboveName: "parcelLockerFreeAbove",
+  },
+  {
+    method: "own_delivery",
+    label: "methodOwnDelivery",
+    priceName: "ownDeliveryPrice",
+    freeAboveName: "ownDeliveryFreeAbove",
+  },
+] as const;
+
+type PricingMethod = (typeof PRICING_METHOD_DEFS)[number]["method"];
+
 export function PricingForm({
   action,
   canWrite,
   defaults,
   status,
+  onSuccess,
 }: {
   action: SettingsAction;
   canWrite: boolean;
   defaults: PricingDefaults | null;
   status: SectionStatus;
+  onSuccess?: () => void;
 }) {
   const t = useTranslations("orders.delivery.settings");
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [state, formAction, pending] = useSettingsForm(action, onSuccess);
   const field = fieldBinding("pricing", state);
 
-  const methods = [
-    ["courier", "methodCourier", "courierPrice", "courierFreeAbove"],
-    ["parcel_locker", "methodParcelLocker", "parcelLockerPrice", "parcelLockerFreeAbove"],
-    ["own_delivery", "methodOwnDelivery", "ownDeliveryPrice", "ownDeliveryFreeAbove"],
-  ] as const;
+  /*
+    Które metody mają WIERSZ cennika. Punkt wyjścia to suma: metody zapisane
+    (`defaults`) oraz te, które wróciły echem po nieudanym zapisie (U9). Dzięki
+    temu PIERWSZY render — także bez hydracji — niesie dokładnie te pola, które
+    operator widział, więc kontrakt renderu echa zostaje spełniony. Metodę
+    spoza tego zbioru operator DODAJE przyciskiem, a każdą z listy USUWA:
+    usunięty wiersz znika z formularza, jego cena nie trafia do FormData i akcja
+    pomija metodę w jsonb (kontrakt „pusta cena = metoda bez cennika", 0013).
+  */
+  const initiallyActive = PRICING_METHOD_DEFS.filter(
+    (m) =>
+      Boolean(defaults?.[m.method]) ||
+      state.values?.[m.priceName] !== undefined ||
+      state.values?.[m.freeAboveName] !== undefined,
+  ).map((m) => m.method);
+  const [active, setActive] = useState<PricingMethod[]>(initiallyActive);
+
+  const activeDefs = PRICING_METHOD_DEFS.filter((m) => active.includes(m.method));
+  const inactiveDefs = PRICING_METHOD_DEFS.filter((m) => !active.includes(m.method));
+
+  const addMethod = (method: PricingMethod) =>
+    setActive((prev) =>
+      PRICING_METHOD_DEFS.filter((m) => prev.includes(m.method) || m.method === method).map(
+        (m) => m.method,
+      ),
+    );
+  const removeMethod = (method: PricingMethod) =>
+    setActive((prev) => prev.filter((m) => m !== method));
 
   return (
     <ScreenSection
@@ -465,46 +542,97 @@ export function PricingForm({
       }
     >
       <form action={formAction} className="flex flex-col gap-4 text-sm">
-        {methods.map(([method, methodLabel, priceName, freeAboveName]) => {
-          const entry = defaults?.[method];
-          const price = field(priceName, entry ? groszeToInputValue(entry.priceGrosze) : "");
-          const freeAbove = field(
-            freeAboveName,
-            entry?.freeAboveGrosze !== undefined ? groszeToInputValue(entry.freeAboveGrosze) : "",
-          );
-          return (
-            <div key={method} className="flex flex-col gap-2" data-pricing-method={method}>
-              <p className="font-medium">{t(methodLabel)}</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <FieldLabel htmlFor={price.input.id} optional>
-                    {t("priceLabel")}
-                  </FieldLabel>
-                  <Input
-                    {...price.input}
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    className="tabular-nums"
-                    disabled={pending || !canWrite}
-                  />
-                  <FieldError id={price.errorId} message={price.message} />
+        {activeDefs.length === 0 ? (
+          <p data-pricing-empty className="text-muted-foreground">
+            {t("pricingEmpty")}
+          </p>
+        ) : (
+          activeDefs.map(({ method, label, priceName, freeAboveName }) => {
+            const entry = defaults?.[method];
+            const price = field(priceName, entry ? groszeToInputValue(entry.priceGrosze) : "");
+            const freeAbove = field(
+              freeAboveName,
+              entry?.freeAboveGrosze !== undefined ? groszeToInputValue(entry.freeAboveGrosze) : "",
+            );
+            return (
+              <div
+                key={method}
+                data-pricing-method={method}
+                className="border-border flex flex-col gap-2 rounded-md border p-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium">{t(label)}</p>
+                  {canWrite ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeMethod(method)}
+                      disabled={pending}
+                      data-pricing-remove-method={method}
+                    >
+                      {t("pricingRemoveMethod")}
+                    </Button>
+                  ) : null}
                 </div>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <FieldLabel htmlFor={freeAbove.input.id} optional>
-                    {t("freeAboveLabel")}
-                  </FieldLabel>
-                  <Input
-                    {...freeAbove.input}
-                    inputMode="decimal"
-                    className="tabular-nums"
-                    disabled={pending || !canWrite}
-                  />
-                  <FieldError id={freeAbove.errorId} message={freeAbove.message} />
+                {method === "own_delivery" ? (
+                  <p className="text-muted-foreground text-[13px] leading-[18px]">
+                    {t("pricingOwnDeliveryHint")}
+                  </p>
+                ) : null}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <FieldLabel htmlFor={price.input.id} optional>
+                      {t("priceLabel")}
+                    </FieldLabel>
+                    <Input
+                      {...price.input}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      className="tabular-nums"
+                      disabled={pending || !canWrite}
+                    />
+                    <FieldError id={price.errorId} message={price.message} />
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <FieldLabel htmlFor={freeAbove.input.id} optional>
+                      {t("freeAboveLabel")}
+                    </FieldLabel>
+                    <Input
+                      {...freeAbove.input}
+                      inputMode="decimal"
+                      className="tabular-nums"
+                      disabled={pending || !canWrite}
+                    />
+                    <FieldError id={freeAbove.errorId} message={freeAbove.message} />
+                  </div>
                 </div>
               </div>
+            );
+          })
+        )}
+
+        {canWrite && inactiveDefs.length > 0 ? (
+          <div data-pricing-add className="flex flex-col gap-2">
+            <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pricingAddHint")}</p>
+            <div className="flex flex-wrap gap-2">
+              {inactiveDefs.map(({ method, label }) => (
+                <Button
+                  key={method}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => addMethod(method)}
+                  disabled={pending}
+                  data-pricing-add-method={method}
+                >
+                  {t("pricingAddMethod", { method: t(label) })}
+                </Button>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ) : null}
+
         <SaveRow
           canWrite={canWrite}
           pending={pending}
