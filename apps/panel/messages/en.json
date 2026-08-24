@@ -721,6 +721,27 @@
         "save": "Save",
         "saved": "Saved."
       },
+      "banner": {
+        "title": "Category banner",
+        "subtitle": "The image on the category tile in your store. You can leave it empty.",
+        "prompt": "Drag a banner here or choose a file",
+        "hint": "JPEG, PNG, WebP or AVIF, up to 5 MB. A wide crop works best.",
+        "uploading": "Uploading…",
+        "replace": "Replace",
+        "remove": "Remove",
+        "fieldRemove": "Remove the selected file",
+        "errors": {
+          "missing": "Choose a banner file to upload.",
+          "empty": "The selected file is empty.",
+          "size": "The banner can be at most 5 MB.",
+          "type": "Allowed formats: JPEG, PNG, WebP, AVIF.",
+          "denied": "You are not allowed to make this change.",
+          "upload": "Could not upload the banner.",
+          "content": "The file is not a valid image in the chosen format.",
+          "finalize": "Could not add the banner. Please try again.",
+          "save": "Could not save the category banner."
+        }
+      },
       "table": {
         "name": "Name",
         "slug": "Address",

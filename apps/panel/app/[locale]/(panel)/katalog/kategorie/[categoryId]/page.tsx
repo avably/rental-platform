@@ -24,7 +24,7 @@ export default async function EditCategoryPage({
 
   const { data: category } = await ctx.supabase
     .from("catalog_categories")
-    .select("id, name, slug, description")
+    .select("id, name, slug, description, image_path")
     .eq("tenant_id", ctx.tenantId)
     .eq("id", categoryId)
     .maybeSingle();
@@ -48,6 +48,8 @@ export default async function EditCategoryPage({
         }}
         isNew={false}
         submitLabel={t("form.save")}
+        categoryId={category.id as string}
+        bannerPath={(category.image_path as string | null) ?? null}
       />
     </div>
   );
