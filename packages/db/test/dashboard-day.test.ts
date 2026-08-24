@@ -18,6 +18,10 @@
  *      rozłączność gałęzi alarmów (payment_failed + kaucja = JEDEN wiersz).
  *   4. IZOLACJA I DOSTĘP — wynik A bez ani grosza B (sonda cross-tenant wg
  *      wzorca sióstr); anon 42501; service_role bez claimu tenanta pusto.
+ *   5. ARCHIWUM (ADR-246) — zarchiwizowane zamówienia (archived_at is not
+ *      null) NIE wchodzą do ŻADNEGO rodzaju; bliźniak zasiany w każdej
+ *      gałęzi nie rusza kind_total (widok dnia jest lustrem aktywnej listy,
+ *      która archiwum chowa — domknięcie follow-upu ADR-242).
  */
 import { randomUUID } from "node:crypto";
 
@@ -249,6 +253,24 @@ async function addDepositEvent(
   if (error) throw new Error(`Rejestr kaucji (${kind}): ${error.message}`);
 }
 
+/**
+ * Archiwizuje zamówienie (trzecia oś widoczności, ADR-242): ustawia
+ * archived_at znacznikiem czasu. UPDATE samego archived_at przechodzi bramkę
+ * orders_write_gate (nie rusza osi status/płatność/waluta/daty).
+ */
+async function archiveOrder(
+  admin: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+): Promise<void> {
+  const { error } = await admin
+    .from("orders")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .eq("id", orderId);
+  if (error) throw new Error(`Archiwizacja zamówienia: ${error.message}`);
+}
+
 interface DayRow {
   kind: string;
   kind_total: number;
@@ -293,6 +315,13 @@ describe.skipIf(!hasEnv)("widok dnia pulpitu (0069, ADR-140)", () => {
   let failedUpcoming: string;
   let failedReturned: string;
   let depositOpen: string;
+  // Zarchiwizowane bliźniaki (ADR-246) — po jednym pasującym do definicji
+  // każdego rodzaju; archived_at is not null wyklucza je z widoku dnia.
+  let archivedPickup: string;
+  let archivedReturn: string;
+  let archivedOverdue: string;
+  let archivedPrepare: string;
+  let archivedMoney: string;
   let bPickup: string;
 
   beforeAll(async () => {
@@ -490,6 +519,67 @@ describe.skipIf(!hasEnv)("widok dnia pulpitu (0069, ADR-140)", () => {
       paymentStatus: "paid",
       orderStatus: "reserved",
     });
+
+    // ----- ZARCHIWIZOWANE BLIŹNIAKI TENANTA A (ADR-246) -----
+    // Każdy pasuje do definicji swojego rodzaju (status + daty), ale po
+    // archiwizacji archived_at is not null WYKLUCZA go z widoku dnia. Sam ich
+    // byt jest dowodem regresji: gdyby dashboard_day nie znał archiwum,
+    // liczniki kind_total rodzajów by wzrosły i istniejące asercje pękłyby.
+    archivedPickup = await createOrder(admin, {
+      tenantId: a.tenantId,
+      customerId: anna,
+      start: TODAY,
+      end: TOMORROW,
+      rental: 50_000,
+      paymentStatus: "paid",
+      orderStatus: "reserved",
+      productId: prodA.productId,
+    });
+    await archiveOrder(admin, a.tenantId, archivedPickup);
+
+    archivedReturn = await createOrder(admin, {
+      tenantId: a.tenantId,
+      customerId: anna,
+      start: "2031-03-04",
+      end: TODAY,
+      rental: 51_000,
+      paymentStatus: "paid",
+      orderStatus: "picked_up",
+    });
+    await archiveOrder(admin, a.tenantId, archivedReturn);
+
+    archivedOverdue = await createOrder(admin, {
+      tenantId: a.tenantId,
+      customerId: anna,
+      start: "2031-03-02",
+      end: "2031-03-08",
+      rental: 52_000,
+      paymentStatus: "paid",
+      orderStatus: "picked_up",
+    });
+    await archiveOrder(admin, a.tenantId, archivedOverdue);
+
+    archivedPrepare = await createOrder(admin, {
+      tenantId: a.tenantId,
+      customerId: anna,
+      start: TOMORROW,
+      end: "2031-03-16",
+      rental: 53_000,
+      paymentStatus: "unpaid",
+      orderStatus: "reserved",
+    });
+    await archiveOrder(admin, a.tenantId, archivedPrepare);
+
+    archivedMoney = await createOrder(admin, {
+      tenantId: a.tenantId,
+      customerId: anna,
+      start: "2031-03-21",
+      end: "2031-03-23",
+      rental: 54_000,
+      provider: "stripe",
+      paymentStatus: "payment_failed",
+    });
+    await archiveOrder(admin, a.tenantId, archivedMoney);
   }, 120_000);
 
   afterAll(async () => {
@@ -589,6 +679,38 @@ describe.skipIf(!hasEnv)("widok dnia pulpitu (0069, ADR-140)", () => {
     ]);
     // Trzy SPRAWY, nie cztery — failedReturned nie dubluje się w gałęzi kaucji.
     expect(rows[0].kind_total).toBe(3);
+  });
+
+  it("zarchiwizowane zamówienia (archived_at is not null) NIE wchodzą do ŻADNEGO rodzaju, a kind_total każdej gałęzi zostaje nietknięty (ADR-246, follow-up ADR-242)", async () => {
+    const rows = await day(a, { p_today: TODAY, p_limit: 20 });
+    const ids = new Set(rows.map((row) => row.order_id));
+
+    // Żaden zarchiwizowany bliźniak nie pojawia się w wyniku — w każdej z
+    // pięciu gałęzi (wydanie / zwrot / po terminie / jutro / alarm pieniężny).
+    expect(ids.has(archivedPickup)).toBe(false);
+    expect(ids.has(archivedReturn)).toBe(false);
+    expect(ids.has(archivedOverdue)).toBe(false);
+    expect(ids.has(archivedPrepare)).toBe(false);
+    expect(ids.has(archivedMoney)).toBe(false);
+
+    // Kwoty-sygnatury bliźniaków (50 000..54 000) nie wyciekają żadnym polem.
+    const serialized = JSON.stringify(rows);
+    for (const signature of ["50000", "51000", "52000", "53000", "54000"]) {
+      expect(serialized).not.toContain(signature);
+    }
+
+    // Mimo bliźniaka pasującego do KAŻDEJ definicji liczniki kind_total są
+    // takie same jak bez archiwum — dowód, że wykluczenie działa wszędzie,
+    // nie tylko w jednej gałęzi.
+    const total = (kind: string): number => {
+      const kindRows = byKind(rows, kind);
+      return kindRows.length > 0 ? kindRows[0].kind_total : 0;
+    };
+    expect(total("pickup_today")).toBe(4);
+    expect(total("return_today")).toBe(2);
+    expect(total("overdue")).toBe(2);
+    expect(total("prepare_tomorrow")).toBe(1);
+    expect(total("money_alert")).toBe(3);
   });
 
   it("rodzaje bez pozycji nie zwracają wierszy (stan zerowy renderuje panel), a pozycje spoza definicji nie istnieją w żadnym rodzaju", async () => {
