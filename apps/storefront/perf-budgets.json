@@ -1,0 +1,144 @@
+{
+  "app": "storefront",
+  "unit": "bytes (gzip)",
+  "metric": "JS pierwszego ładowania per trasa (wspólny runtime + wszystkie chunki modułów klienckich drzewa trasy), rozmiar transferu gzip",
+  "source": "next build (Turbopack): .next/build-manifest.json (rootMainFiles+polyfillFiles) + .next/server/app/**/page_client-reference-manifest.js (clientModules)",
+  "method": "budget = baseline × (1 + margines), zaokrąglony w górę do 1 KiB; trasy krytyczne mają ciaśniejszy margines. Regeneracja: node scripts/perf-budget-check.mjs --update",
+  "followUp": "Runtime LCP/CLS/INP odłożone — wymagają Lighthouse/stagingu z przeglądarką (osobna bramka).",
+  "margins": {
+    "critical": 0.1,
+    "default": 0.15,
+    "shared": 0.12
+  },
+  "shared": {
+    "baselineBytes": 171819,
+    "budgetBytes": 192512
+  },
+  "routes": {
+    "/[locale]": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/[locale]/[...rest]": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/[locale]/[page]": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/[locale]/privacy": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/[locale]/terms": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/[locale]/terms/w/[wersja]": {
+      "critical": false,
+      "baselineBytes": 268052,
+      "budgetBytes": 309248
+    },
+    "/_global-error": {
+      "critical": false,
+      "baselineBytes": 186147,
+      "budgetBytes": 215040
+    },
+    "/_not-found": {
+      "critical": false,
+      "baselineBytes": 186147,
+      "budgetBytes": 215040
+    },
+    "/cart": {
+      "critical": false,
+      "baselineBytes": 507711,
+      "budgetBytes": 584704
+    },
+    "/checkout": {
+      "critical": false,
+      "baselineBytes": 512149,
+      "budgetBytes": 589824
+    },
+    "/checkout/platnosc": {
+      "critical": false,
+      "baselineBytes": 507832,
+      "budgetBytes": 584704
+    },
+    "/checkout/platnosc/status": {
+      "critical": false,
+      "baselineBytes": 505762,
+      "budgetBytes": 581632
+    },
+    "/embed/widget": {
+      "critical": false,
+      "baselineBytes": 321960,
+      "budgetBytes": 370688
+    },
+    "/katalog": {
+      "critical": true,
+      "baselineBytes": 506094,
+      "budgetBytes": 557056
+    },
+    "/kategoria/[slug]": {
+      "critical": true,
+      "baselineBytes": 506094,
+      "budgetBytes": 557056
+    },
+    "/privacy": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    },
+    "/product/[id]": {
+      "critical": false,
+      "baselineBytes": 508693,
+      "budgetBytes": 585728
+    },
+    "/produkt/[slug]": {
+      "critical": true,
+      "baselineBytes": 508693,
+      "budgetBytes": 560128
+    },
+    "/prywatnosc": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    },
+    "/prywatnosc/w/[wersja]": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    },
+    "/regulamin": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    },
+    "/regulamin/w/[wersja]": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    },
+    "/store": {
+      "critical": true,
+      "baselineBytes": 506094,
+      "budgetBytes": 557056
+    },
+    "/store/[slug]": {
+      "critical": false,
+      "baselineBytes": 506094,
+      "budgetBytes": 582656
+    },
+    "/terms": {
+      "critical": false,
+      "baselineBytes": 505604,
+      "budgetBytes": 581632
+    }
+  }
+}

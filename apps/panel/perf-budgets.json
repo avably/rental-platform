@@ -1,0 +1,339 @@
+{
+  "app": "panel",
+  "unit": "bytes (gzip)",
+  "metric": "JS pierwszego ładowania per trasa (wspólny runtime + wszystkie chunki modułów klienckich drzewa trasy), rozmiar transferu gzip",
+  "source": "next build (Turbopack): .next/build-manifest.json (rootMainFiles+polyfillFiles) + .next/server/app/**/page_client-reference-manifest.js (clientModules)",
+  "method": "budget = baseline × (1 + margines), zaokrąglony w górę do 1 KiB; trasy krytyczne mają ciaśniejszy margines. Regeneracja: node scripts/perf-budget-check.mjs --update",
+  "followUp": "Runtime LCP/CLS/INP odłożone — wymagają Lighthouse/stagingu z przeglądarką (osobna bramka).",
+  "margins": {
+    "critical": 0.1,
+    "default": 0.15,
+    "shared": 0.12
+  },
+  "shared": {
+    "baselineBytes": 171536,
+    "budgetBytes": 192512
+  },
+  "routes": {
+    "/[locale]": {
+      "critical": true,
+      "baselineBytes": 566798,
+      "budgetBytes": 623616
+    },
+    "/[locale]/[...rest]": {
+      "critical": false,
+      "baselineBytes": 532621,
+      "budgetBytes": 613376
+    },
+    "/[locale]/admin": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/admin/audit": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/admin/przeglad-uwagi": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/admin/tenants": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/admin/tenants/[id]": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/admin/tenants/[id]/podglad": {
+      "critical": false,
+      "baselineBytes": 680762,
+      "budgetBytes": 783360
+    },
+    "/[locale]/bezpieczenstwo": {
+      "critical": false,
+      "baselineBytes": 569344,
+      "budgetBytes": 655360
+    },
+    "/[locale]/bezpieczenstwo/haslo": {
+      "critical": false,
+      "baselineBytes": 568081,
+      "budgetBytes": 653312
+    },
+    "/[locale]/bezpieczenstwo/usun-konto": {
+      "critical": false,
+      "baselineBytes": 567793,
+      "budgetBytes": 653312
+    },
+    "/[locale]/bezpieczenstwo/wyzwanie": {
+      "critical": false,
+      "baselineBytes": 568466,
+      "budgetBytes": 654336
+    },
+    "/[locale]/design-system": {
+      "critical": false,
+      "baselineBytes": 690883,
+      "budgetBytes": 794624
+    },
+    "/[locale]/dokumenty-prawne": {
+      "critical": false,
+      "baselineBytes": 569608,
+      "budgetBytes": 655360
+    },
+    "/[locale]/dostep-cofniety": {
+      "critical": false,
+      "baselineBytes": 537779,
+      "budgetBytes": 618496
+    },
+    "/[locale]/eksport-danych": {
+      "critical": false,
+      "baselineBytes": 571562,
+      "budgetBytes": 657408
+    },
+    "/[locale]/historia-emaili": {
+      "critical": false,
+      "baselineBytes": 567493,
+      "budgetBytes": 653312
+    },
+    "/[locale]/katalog": {
+      "critical": false,
+      "baselineBytes": 567430,
+      "budgetBytes": 653312
+    },
+    "/[locale]/katalog/[id]": {
+      "critical": false,
+      "baselineBytes": 649616,
+      "budgetBytes": 747520
+    },
+    "/[locale]/katalog/[id]/egzemplarze": {
+      "critical": false,
+      "baselineBytes": 573443,
+      "budgetBytes": 660480
+    },
+    "/[locale]/katalog/[id]/progi": {
+      "critical": false,
+      "baselineBytes": 570184,
+      "budgetBytes": 656384
+    },
+    "/[locale]/katalog/[id]/zdjecia": {
+      "critical": false,
+      "baselineBytes": 646629,
+      "budgetBytes": 744448
+    },
+    "/[locale]/katalog/import": {
+      "critical": false,
+      "baselineBytes": 568342,
+      "budgetBytes": 654336
+    },
+    "/[locale]/katalog/kategorie": {
+      "critical": false,
+      "baselineBytes": 567215,
+      "budgetBytes": 653312
+    },
+    "/[locale]/katalog/kategorie/[categoryId]": {
+      "critical": false,
+      "baselineBytes": 628974,
+      "budgetBytes": 723968
+    },
+    "/[locale]/katalog/kategorie/nowa": {
+      "critical": false,
+      "baselineBytes": 628974,
+      "budgetBytes": 723968
+    },
+    "/[locale]/katalog/nowy": {
+      "critical": false,
+      "baselineBytes": 570355,
+      "budgetBytes": 656384
+    },
+    "/[locale]/klienci": {
+      "critical": false,
+      "baselineBytes": 566798,
+      "budgetBytes": 652288
+    },
+    "/[locale]/klienci/[id]": {
+      "critical": false,
+      "baselineBytes": 570185,
+      "budgetBytes": 656384
+    },
+    "/[locale]/login": {
+      "critical": false,
+      "baselineBytes": 562548,
+      "budgetBytes": 647168
+    },
+    "/[locale]/organizacja": {
+      "critical": false,
+      "baselineBytes": 566798,
+      "budgetBytes": 652288
+    },
+    "/[locale]/organizacja-zawieszona": {
+      "critical": false,
+      "baselineBytes": 820554,
+      "budgetBytes": 944128
+    },
+    "/[locale]/organizacja/dane": {
+      "critical": false,
+      "baselineBytes": 569301,
+      "budgetBytes": 655360
+    },
+    "/[locale]/organizacja/nowa": {
+      "critical": false,
+      "baselineBytes": 568785,
+      "budgetBytes": 654336
+    },
+    "/[locale]/organizacja/nowa/gotowe": {
+      "critical": false,
+      "baselineBytes": 566798,
+      "budgetBytes": 652288
+    },
+    "/[locale]/organizacja/plan": {
+      "critical": false,
+      "baselineBytes": 569206,
+      "budgetBytes": 655360
+    },
+    "/[locale]/organizacja/pola-wlasne": {
+      "critical": false,
+      "baselineBytes": 567216,
+      "budgetBytes": 653312
+    },
+    "/[locale]/organizacja/pola-wlasne/[definitionId]": {
+      "critical": false,
+      "baselineBytes": 568748,
+      "budgetBytes": 654336
+    },
+    "/[locale]/organizacja/pola-wlasne/nowe": {
+      "critical": false,
+      "baselineBytes": 568748,
+      "budgetBytes": 654336
+    },
+    "/[locale]/register": {
+      "critical": false,
+      "baselineBytes": 563724,
+      "budgetBytes": 649216
+    },
+    "/[locale]/register/sprawdz-skrzynke": {
+      "critical": false,
+      "baselineBytes": 555583,
+      "budgetBytes": 638976
+    },
+    "/[locale]/reset": {
+      "critical": false,
+      "baselineBytes": 829967,
+      "budgetBytes": 955392
+    },
+    "/[locale]/reset/confirm": {
+      "critical": false,
+      "baselineBytes": 557032,
+      "budgetBytes": 641024
+    },
+    "/[locale]/strona": {
+      "critical": false,
+      "baselineBytes": 575292,
+      "budgetBytes": 662528
+    },
+    "/[locale]/strona/[siteId]/kreator": {
+      "critical": false,
+      "baselineBytes": 803021,
+      "budgetBytes": 923648
+    },
+    "/[locale]/strona/[siteId]/podglad": {
+      "critical": false,
+      "baselineBytes": 539434,
+      "budgetBytes": 620544
+    },
+    "/[locale]/strona/wyglad": {
+      "critical": false,
+      "baselineBytes": 631494,
+      "budgetBytes": 727040
+    },
+    "/[locale]/uruchomienie": {
+      "critical": false,
+      "baselineBytes": 566798,
+      "budgetBytes": 652288
+    },
+    "/[locale]/ustawienia-api": {
+      "critical": false,
+      "baselineBytes": 569696,
+      "budgetBytes": 655360
+    },
+    "/[locale]/ustawienia-domen": {
+      "critical": false,
+      "baselineBytes": 570085,
+      "budgetBytes": 656384
+    },
+    "/[locale]/ustawienia-dostaw": {
+      "critical": false,
+      "baselineBytes": 572388,
+      "budgetBytes": 658432
+    },
+    "/[locale]/ustawienia-dostaw/punkty-odbioru": {
+      "critical": false,
+      "baselineBytes": 567280,
+      "budgetBytes": 653312
+    },
+    "/[locale]/ustawienia-dostaw/punkty-odbioru/[locationId]": {
+      "critical": false,
+      "baselineBytes": 567756,
+      "budgetBytes": 653312
+    },
+    "/[locale]/ustawienia-dostaw/punkty-odbioru/nowy": {
+      "critical": false,
+      "baselineBytes": 567756,
+      "budgetBytes": 653312
+    },
+    "/[locale]/ustawienia-emaili": {
+      "critical": false,
+      "baselineBytes": 568756,
+      "budgetBytes": 654336
+    },
+    "/[locale]/ustawienia-platnosci": {
+      "critical": false,
+      "baselineBytes": 569445,
+      "budgetBytes": 655360
+    },
+    "/[locale]/ustawienia-umow": {
+      "critical": false,
+      "baselineBytes": 569281,
+      "budgetBytes": 655360
+    },
+    "/[locale]/zamowienia": {
+      "critical": false,
+      "baselineBytes": 576968,
+      "budgetBytes": 663552
+    },
+    "/[locale]/zamowienia/[id]": {
+      "critical": false,
+      "baselineBytes": 696773,
+      "budgetBytes": 801792
+    },
+    "/[locale]/zamowienia/nowe": {
+      "critical": false,
+      "baselineBytes": 582733,
+      "budgetBytes": 670720
+    },
+    "/[locale]/zaproszenia": {
+      "critical": false,
+      "baselineBytes": 569075,
+      "budgetBytes": 655360
+    },
+    "/[locale]/zaproszenie/[token]": {
+      "critical": false,
+      "baselineBytes": 538230,
+      "budgetBytes": 619520
+    },
+    "/_global-error": {
+      "critical": false,
+      "baselineBytes": 185922,
+      "budgetBytes": 214016
+    },
+    "/_not-found": {
+      "critical": false,
+      "baselineBytes": 185922,
+      "budgetBytes": 214016
+    }
+  }
+}
