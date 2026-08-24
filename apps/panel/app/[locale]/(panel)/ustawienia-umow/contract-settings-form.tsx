@@ -3,7 +3,7 @@
 import { isValidNipChecksum } from "@avably/core";
 import { Button, Input, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { ScreenSection } from "@/components/screens/screen-header";
 import type { ContractDocumentSettings } from "@/lib/contract-settings";
@@ -11,6 +11,7 @@ import type { FormState } from "@/lib/form-state";
 import { lookupCompanyByNipAction } from "@/lib/registry/lookup-action";
 
 import { saveContractSettingsAction } from "./actions";
+import { composeAddress, parseAddress } from "./address-fields";
 
 function Feedback({ state }: { state: FormState }) {
   const t = useTranslations("contractSettings");
@@ -56,7 +57,8 @@ function todayIsoDate(): string {
  * Formularz ustawień umów w widoku właściciela (mockup P8:
  * `data-contract-mode="owner"`). Treść regulaminu dostaje pole o wysokości
  * długiego tekstu — to jedyne pole na tym ekranie, które ktoś naprawdę czyta
- * w całości przed zapisem.
+ * w całości przed zapisem, i miejsce, gdzie operator WKLEJA gotowy, już
+ * opublikowany regulamin (uwaga właściciela #2).
  *
  * Wersja warunków jest polem STEROWANYM, żeby przycisk mógł WPISAĆ propozycję
  * (dzisiejszą datę) zamiast ją narzucić: wartość zostaje edytowalna, a najemca
@@ -64,22 +66,32 @@ function todayIsoDate(): string {
  * dopiero w obsłudze kliknięcia — policzona w trakcie renderu rozjechałaby się
  * między serwerem a przeglądarką na granicy doby i wywróciła hydrację.
  */
-export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentSettings | null }) {
+export function ContractSettingsForm({
+  defaults,
+  companyNip,
+}: {
+  defaults: ContractDocumentSettings | null;
+  /** NIP z rejestru (tenants.nip, ADR-234) — domyślne źródło „Pobierz z GUS". */
+  companyNip?: string | null;
+}) {
   const t = useTranslations("contractSettings");
   const [state, action, pending] = useActionState(saveContractSettingsAction, {});
   const [termsVersion, setTermsVersion] = useState(defaults?.terms_version ?? "");
 
   /**
-   * BONUS (ADR-234, brief SPEC D) — sam przycisk „Pobierz dane" co w
-   * onboardingu, reużywa TĘ SAMĄ akcję serwerową (hybryda MF/GUS + cache).
-   * Różnica wobec onboardingu: TU nic nie jest zablokowane — NIP w
-   * `contract_document` jest i zostaje OPCJONALNY (CHECK 0026 niezmieniony),
-   * więc przycisk to WYŁĄCZNIE wygoda (prefill adresu), nie bramka. Adres
-   * staje się polem STEROWANYM z tego samego powodu co `termsVersion` niżej —
-   * przycisk musi móc WPISAĆ wynik, a najemca z ręcznie wpisanym adresem
-   * nic nie traci (pole zostaje edytowalne).
+   * Adres jako TRZY pola (uwaga właściciela #1: „rozbite na pola, a nie
+   * ogólnie adres"). Kanonem w bazie zostaje pojedynczy `address` (CHECK 0026
+   * niezmieniony) — pola składamy w jedną linię do UKRYTEGO inputa `address`
+   * przy zapisie i rozbijamy z zapisanego łańcucha przy wejściu. Pola są
+   * STEROWANE, bo przycisk „Pobierz z GUS" musi móc je WPISAĆ, a ręcznie
+   * wpisany adres i tak nic nie traci (zostają edytowalne).
    */
-  const [address, setAddress] = useState(defaults?.address ?? "");
+  const initialAddress = useMemo(() => parseAddress(defaults?.address ?? ""), [defaults?.address]);
+  const [street, setStreet] = useState(initialAddress.street);
+  const [zip, setZip] = useState(initialAddress.zip);
+  const [city, setCity] = useState(initialAddress.city);
+  const composedAddress = composeAddress({ street, zip, city });
+
   const [nip, setNip] = useState(defaults?.nip ?? "");
   const [nipLookup, setNipLookup] = useState<
     | { status: "idle" }
@@ -87,7 +99,18 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
     | { status: "error"; message: string }
   >({ status: "idle" });
   const [isLookupPending, startLookupTransition] = useTransition();
-  const nipChecksumOk = isValidNipChecksum(nip);
+
+  /**
+   * BONUS (ADR-234) — „Pobierz z GUS" reużywa TĘ SAMĄ akcję serwerową co
+   * onboarding (hybryda MF/GUS + cache, auth + rate-limit w środku). Domyślnie
+   * pyta o zweryfikowany NIP organizacji (`companyNip`); gdy go brak
+   * (organizacja sprzed ADR-234), spada na NIP wpisany w polu obok. TU nic nie
+   * jest zablokowane — NIP w `contract_document` zostaje OPCJONALNY, przycisk
+   * to wyłącznie wygoda (prefill rozbitego adresu).
+   */
+  const companyNipValid = typeof companyNip === "string" && isValidNipChecksum(companyNip);
+  const effectiveNip = companyNipValid ? (companyNip as string) : nip.trim();
+  const effectiveNipValid = isValidNipChecksum(effectiveNip);
 
   function handleNipChange(value: string) {
     setNip(value);
@@ -95,17 +118,13 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
   }
 
   function handleLookupClick() {
-    if (!nipChecksumOk || isLookupPending) return;
+    if (!effectiveNipValid || isLookupPending) return;
     startLookupTransition(async () => {
-      const result = await lookupCompanyByNipAction(nip);
+      const result = await lookupCompanyByNipAction(effectiveNip);
       if (result.ok) {
-        const formatted = [
-          result.address.street,
-          [result.address.zip, result.address.city].filter(Boolean).join(" "),
-        ]
-          .filter(Boolean)
-          .join(", ");
-        if (formatted) setAddress(formatted);
+        setStreet(result.address.street ?? "");
+        setZip(result.address.zip ?? "");
+        setCity(result.address.city ?? "");
         setNipLookup({ status: "found", legalName: result.legalName });
       } else {
         const key =
@@ -122,36 +141,28 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
   return (
     <ScreenSection data-contract-mode="owner">
       <form action={action} className="flex flex-col gap-2 text-sm">
-        <Label htmlFor="contract-address">{t("address")}</Label>
-        <Textarea
-          id="contract-address"
-          name="address"
-          required
-          maxLength={500}
-          value={address}
-          onChange={(event) => setAddress(event.target.value)}
-          disabled={pending}
-          aria-describedby="contract-address-hint"
-          className="min-h-20"
-        />
-        <FieldHint id="contract-address-hint">{t("addressHint")}</FieldHint>
+        {/*
+          Adres kanoniczny idzie UKRYTYM polem złożonym z trzech widocznych
+          pól — server action i CHECK 0026 dostają ten sam pojedynczy `address`
+          co dotąd, bez zmiany schematu.
+        */}
+        <input type="hidden" name="address" value={composedAddress} />
 
-        <Label htmlFor="contract-nip">{t("nip")}</Label>
+        <Label htmlFor="contract-address-street">{t("addressStreet")}</Label>
         <div className="flex flex-wrap items-start gap-2">
           <Input
-            id="contract-nip"
-            name="nip"
-            maxLength={30}
-            value={nip}
-            onChange={(event) => handleNipChange(event.target.value)}
+            id="contract-address-street"
+            value={street}
+            onChange={(event) => setStreet(event.target.value)}
             disabled={pending}
-            aria-describedby="contract-nip-hint"
+            maxLength={400}
+            aria-describedby="contract-address-hint"
             className="flex-1"
           />
           <Button
             type="button"
             variant="outline"
-            disabled={!nipChecksumOk || isLookupPending}
+            disabled={!effectiveNipValid || isLookupPending}
             loading={isLookupPending}
             data-nip-lookup-button
             onClick={handleLookupClick}
@@ -159,7 +170,40 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
             {isLookupPending ? t("nipLookupPending") : t("nipLookupButton")}
           </Button>
         </div>
-        <FieldHint id="contract-nip-hint">{t("nipHint")}</FieldHint>
+
+        {/*
+          Kod obok miejscowości od sm w górę (kod wąski, miasto rozciągliwe),
+          a na wąskim ekranie jedno pod drugim. Szerokość niesie szablon siatki
+          (`grid-cols-[…]`, wzorem `ReadList`), NIE `w-[…]`/`min-w-[…]` — bramka
+          spójności (ADR-060) pilnuje jednego zapisu szerokości ekranu.
+        */}
+        <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="contract-address-zip">{t("addressZip")}</Label>
+            <Input
+              id="contract-address-zip"
+              value={zip}
+              onChange={(event) => setZip(event.target.value)}
+              disabled={pending}
+              maxLength={20}
+              inputMode="numeric"
+              autoComplete="postal-code"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="contract-address-city">{t("addressCity")}</Label>
+            <Input
+              id="contract-address-city"
+              value={city}
+              onChange={(event) => setCity(event.target.value)}
+              disabled={pending}
+              maxLength={200}
+              autoComplete="address-level2"
+            />
+          </div>
+        </div>
+
+        <FieldHint id="contract-address-hint">{t("addressHint")}</FieldHint>
         <div id="contract-nip-result" aria-live="polite">
           {nipLookup.status === "found" ? (
             <p data-nip-lookup-found className="text-status-positive-fg text-sm">
@@ -172,6 +216,18 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
             </p>
           ) : null}
         </div>
+
+        <Label htmlFor="contract-nip">{t("nip")}</Label>
+        <Input
+          id="contract-nip"
+          name="nip"
+          maxLength={30}
+          value={nip}
+          onChange={(event) => handleNipChange(event.target.value)}
+          disabled={pending}
+          aria-describedby="contract-nip-hint"
+        />
+        <FieldHint id="contract-nip-hint">{t("nipHint")}</FieldHint>
 
         <Label htmlFor="contract-email">{t("email")}</Label>
         <Input
