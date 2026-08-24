@@ -45,7 +45,7 @@ import type { LegalDocumentView } from "./types";
 
 type PublishFeedback =
   | { kind: "created"; version: string }
-  | { kind: "unchanged" }
+  | { kind: "unchanged"; version: string }
   | { kind: "error"; message: string };
 
 function SaveFeedback({ state }: { state: FormState }) {
@@ -88,6 +88,17 @@ export function LegalDocumentForm({
   // `legal_document_not_found`, więc przycisk mówi to samo, zanim padnie klik.
   const publishable = document != null;
 
+  // KOMUNIKAT PUBLIKACJI OPISUJE OSTATNIĄ PUBLIKACJĘ AKTUALNEJ TREŚCI, NIE
+  // PRZESZŁĄ. `publishFeedback` żyje w kliencie i przeżywa zarówno edycję pól,
+  // jak i re-render po zapisie (revalidatePath odświeża propsy, ale instancja
+  // komponentu zostaje). Bez czyszczenia amber „bez zmian" z jednej publikacji
+  // wisiałby nad treścią, którą operator już zmienił — i czytałby się jak
+  // „nie da się zapisać/opublikować". Zdejmujemy go SYNCHRONICZNIE, w zdarzeniach
+  // zmieniających albo utrwalających szkic: `onInput` (tytuł, treść),
+  // `onValueChange` języka i `onSubmit` (zapis). Żaden `useEffect` — czyszczenie
+  // jest reakcją na akcję operatora, nie synchronizacją z systemem zewnętrznym.
+  const clearPublishFeedback = () => setPublishFeedback(null);
+
   function publish() {
     setPublishFeedback(null);
     startPublishing(async () => {
@@ -97,12 +108,22 @@ export function LegalDocumentForm({
         return;
       }
       setPublishFeedback(
-        result.created ? { kind: "created", version: result.versionLabel } : { kind: "unchanged" },
+        result.created
+          ? { kind: "created", version: result.versionLabel }
+          : { kind: "unchanged", version: result.versionLabel },
       );
     });
   }
 
   const busy = saving || publishing;
+  // Amber „identyczna z opublikowaną" jest zdaniem O ŻYWEJ WERSJI. Gdy żadnej
+  // nie ma, to zdanie nie ma podmiotu i może być tylko nieaktualnym stanem —
+  // nie renderujemy go (obrona w głąb nad RPC, który przy `current_version_id
+  // is null` i tak zawsze zwraca `created:true`).
+  const feedbackToShow =
+    publishFeedback && !(publishFeedback.kind === "unchanged" && currentVersion == null)
+      ? publishFeedback
+      : null;
 
   return (
     <ScreenSection
@@ -116,7 +137,12 @@ export function LegalDocumentForm({
           : t("statusUnpublished")}
       </p>
 
-      <form action={formAction} className="flex flex-col gap-2 text-sm">
+      <form
+        action={formAction}
+        onInput={clearPublishFeedback}
+        onSubmit={clearPublishFeedback}
+        className="flex flex-col gap-2 text-sm"
+      >
         <input type="hidden" name="kind" value={kind} />
 
         <Label htmlFor={`legal-title-${kind}`}>{t("documentTitle")}</Label>
@@ -135,6 +161,10 @@ export function LegalDocumentForm({
           name="locale"
           defaultValue={document?.locale ?? "pl"}
           disabled={busy}
+          // Zmiana języka to zmiana szkicu — most `PanelSelect` do FormData
+          // ustawia wartość programowo i NIE emituje bąbelkującego `input`,
+          // więc czyścimy komunikat publikacji tędy, nie przez `onInput`.
+          onValueChange={clearPublishFeedback}
           options={[
             { value: "pl", label: t("localePl") },
             { value: "en", label: t("localeEn") },
@@ -170,7 +200,18 @@ export function LegalDocumentForm({
           <p className="text-muted-foreground text-[13px] leading-[18px]">{t("publishNeedsDraft")}</p>
         )}
 
-        {publishFeedback ? <PublishFeedbackLine feedback={publishFeedback} /> : null}
+        {/* Szkic jest, ale nigdy nie opublikowany: ekran ma PROWADZIĆ do v1, a
+            nie tylko meldować „nieopublikowany". */}
+        {publishable && currentVersion == null ? (
+          <p
+            data-legal-first-publish-hint
+            className="text-muted-foreground text-[13px] leading-[18px]"
+          >
+            {t("firstPublishHint")}
+          </p>
+        ) : null}
+
+        {feedbackToShow ? <PublishFeedbackLine feedback={feedbackToShow} /> : null}
       </form>
 
       <LegalVersionHistory versions={document?.versions ?? []} />
@@ -189,12 +230,13 @@ function PublishFeedbackLine({ feedback }: { feedback: PublishFeedback }) {
     );
 
   // Publikacja treści identycznej z żywą wersją NIE tworzy nowego wpisu
-  // (0063). To jest POPRAWNY wynik i musi się tak czytać — komunikat błędu
-  // kazałby najemcy szukać usterki tam, gdzie zadziałała reguła.
+  // (0063). To jest POPRAWNY wynik i musi się tak czytać — komunikat nazywa
+  // ŻYWĄ wersję, żeby nie brzmiał jak porażka zapisu, i nie krzyczy
+  // (`role="alert"` byłby tu kłamstwem o awarii).
   if (feedback.kind === "unchanged")
     return (
       <p data-legal-publish-unchanged className="text-status-attention-fg text-sm">
-        {t("publishUnchanged")}
+        {t("publishUnchanged", { version: feedback.version })}
       </p>
     );
 
