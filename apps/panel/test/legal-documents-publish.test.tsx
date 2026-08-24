@@ -152,8 +152,9 @@ describe("wynik publikacji", () => {
     });
     await confirm();
 
-    const line = await screen.findByText(copy.publishUnchanged);
+    const line = await screen.findByText(copy.publishUnchanged.replace("{version}", "v2"));
     expect(line).toBeTruthy();
+    expect(line.textContent, "komunikat „bez zmian” nie nazywa żywej wersji").toContain("v2");
     expect(line.getAttribute("role"), "brak nowej wersji udaje awarię").not.toBe("alert");
     expect(document.querySelector("[data-legal-publish-unchanged]")).toBeTruthy();
     expect(document.querySelector("[data-legal-publish-created]")).toBeNull();
@@ -169,6 +170,97 @@ describe("wynik publikacji", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Tylko właściciel organizacji");
     expect(document.querySelector("[data-legal-publish-created]")).toBeNull();
+  });
+});
+
+describe("stale publishFeedback nie może przeżyć edycji ani zapisu", () => {
+  async function publishUnchanged() {
+    actions.publishLegalDocumentAction.mockResolvedValue({
+      ok: true,
+      created: false,
+      versionLabel: "v2",
+    });
+    const view = renderForm();
+    fireEvent.click(document.querySelector<HTMLElement>("[data-legal-publish]")!);
+    fireEvent.click(
+      await screen.findByText(copy.publish, { selector: "[data-legal-publish-confirm]" }),
+    );
+    await screen.findByText(copy.publishUnchanged.replace("{version}", "v2"));
+    expect(document.querySelector("[data-legal-publish-unchanged]")).toBeTruthy();
+    return view;
+  }
+
+  it("edycja treści szkicu ZDEJMUJE komunikat „bez zmian”", async () => {
+    const { container } = await publishUnchanged();
+
+    fireEvent.input(container.querySelector('textarea[name="body_draft"]')!, {
+      target: { value: "Zmieniona treść regulaminu." },
+    });
+
+    expect(
+      document.querySelector("[data-legal-publish-unchanged]"),
+      "komunikat o publikacji wisi nad zmienioną treścią",
+    ).toBeNull();
+  });
+
+  it("edycja tytułu też ZDEJMUJE komunikat „bez zmian”", async () => {
+    const { container } = await publishUnchanged();
+
+    fireEvent.input(container.querySelector('input[name="title"]')!, {
+      target: { value: "Regulamin sklepu 2026" },
+    });
+
+    expect(document.querySelector("[data-legal-publish-unchanged]")).toBeNull();
+  });
+
+  it("zapis szkicu ZDEJMUJE komunikat „bez zmian”", async () => {
+    const { container } = await publishUnchanged();
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() =>
+      expect(document.querySelector("[data-legal-publish-unchanged]")).toBeNull(),
+    );
+  });
+});
+
+describe("pierwsza publikacja dokumentu bez żywej wersji", () => {
+  async function confirmFirst() {
+    renderForm({ ...terms, currentVersionLabel: null, currentPublishedAtLabel: "—", versions: [] });
+    fireEvent.click(document.querySelector<HTMLElement>("[data-legal-publish]")!);
+    fireEvent.click(
+      await screen.findByText(copy.publish, { selector: "[data-legal-publish-confirm]" }),
+    );
+  }
+
+  it("tworzy v1 (created:true) i melduje SUKCES, nie „bez zmian”", async () => {
+    actions.publishLegalDocumentAction.mockResolvedValue({
+      ok: true,
+      created: true,
+      versionLabel: "v1",
+    });
+    await confirmFirst();
+
+    await screen.findByText(copy.publishCreated.replace("{version}", "v1"));
+    expect(document.querySelector("[data-legal-publish-created]")).toBeTruthy();
+    expect(document.querySelector("[data-legal-publish-unchanged]")).toBeNull();
+  });
+
+  it("amber „bez zmian” NIE MA prawa się pokazać, gdy nic nie jest opublikowane", async () => {
+    // Nawet gdyby akcja skłamała created:false (RPC tego nie robi przy braku
+    // żywej wersji), ekran bez opublikowanej wersji nie może twierdzić, że
+    // treść jest „identyczna z opublikowaną”.
+    actions.publishLegalDocumentAction.mockResolvedValue({
+      ok: true,
+      created: false,
+      versionLabel: "",
+    });
+    await confirmFirst();
+
+    await waitFor(() =>
+      expect(actions.publishLegalDocumentAction).toHaveBeenCalled(),
+    );
+    expect(document.querySelector("[data-legal-publish-unchanged]")).toBeNull();
   });
 });
 
