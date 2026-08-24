@@ -721,6 +721,27 @@
         "save": "Zapisz",
         "saved": "Zapisano."
       },
+      "banner": {
+        "title": "Baner kategorii",
+        "subtitle": "Grafika na kaflu kategorii w sklepie. Możesz ją zostawić pustą.",
+        "prompt": "Przeciągnij baner albo wybierz plik",
+        "hint": "JPEG, PNG, WebP lub AVIF, najwyżej 5 MB. Najlepiej szeroki kadr.",
+        "uploading": "Wgrywanie…",
+        "replace": "Zmień",
+        "remove": "Usuń",
+        "fieldRemove": "Usuń wybrany plik",
+        "errors": {
+          "missing": "Wybierz plik banera do wgrania.",
+          "empty": "Wybrany plik jest pusty.",
+          "size": "Baner może mieć najwyżej 5 MB.",
+          "type": "Dozwolone formaty: JPEG, PNG, WebP, AVIF.",
+          "denied": "Nie masz uprawnień do tej zmiany.",
+          "upload": "Nie udało się przesłać banera.",
+          "content": "Plik nie jest prawidłowym obrazem w wybranym formacie.",
+          "finalize": "Nie udało się dodać banera. Spróbuj ponownie.",
+          "save": "Nie udało się zapisać banera kategorii."
+        }
+      },
       "table": {
         "name": "Nazwa",
         "slug": "Adres",

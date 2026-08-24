@@ -139,6 +139,10 @@ describe("unieważnianie cache katalogu w sklepie (ADR-185)", () => {
         "deleteCategoryAction",
         "moveCategoryAction",
       ],
+      // Baner kategorii (0106/ADR-260): zapis image_path zmienia blok kategorii
+      // w publicznej kopercie (app.get_public_catalog, 0103), więc MUSI kasować
+      // cache sklepu — tak samo jak reszta akcji kategorii.
+      "kategorie/category-image-actions.ts": ["setCategoryImageAction"],
       "import/actions.ts": ["catalogImportAction"],
     };
 
@@ -174,7 +178,15 @@ describe("unieważnianie cache katalogu w sklepie (ADR-185)", () => {
     //     przez cache i nie ma prawa przejść (ADR-185);
     //   • `prepareProductImageUploadAction` — wydaje bilet uploadu, nie dotyka
     //     ani jednego wiersza koperty publicznej.
-    const POZA_ZBIOREM = ["saveUnitsAction", "prepareProductImageUploadAction"];
+    //   • `prepareCategoryImageUploadAction` / `finalizeCategoryImageUploadAction`
+    //     (0106/ADR-260) — wydają i domykają bilet banera; kolumnę image_path
+    //     zapisuje dopiero `setCategoryImageAction` (w zbiorze wyżej).
+    const POZA_ZBIOREM = [
+      "saveUnitsAction",
+      "prepareProductImageUploadAction",
+      "prepareCategoryImageUploadAction",
+      "finalizeCategoryImageUploadAction",
+    ];
     const znalezione: string[] = [];
     const obejdz = (dir: string) => {
       for (const wpis of readdirSync(dir, { withFileTypes: true })) {
