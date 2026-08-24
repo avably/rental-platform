@@ -446,9 +446,10 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
     expect(rootTag).toContain('aria-hidden="true"');
     expect(rootTag).toContain('aria-busy="true"');
     // …a treścią jest WIDOCZNY komunikat stojący POZA tym poddrzewem.
-    const statusTag = html.match(/<p[^>]*role="status"[^>]*>/)?.[0];
+    const statusTag = html.match(/<div[^>]*role="status"[^>]*>/)?.[0];
     expect(statusTag, "brak komunikatu role=status").toBeDefined();
-    expect(statusTag).toContain("data-skeleton-status");
+    expect(statusTag).toContain("data-brand-loader");
+    expect(statusTag).toContain('data-brand-loader-variant="full"');
     expect(html).toContain(label);
     expect(html.indexOf('role="status"')).toBeLessThan(html.indexOf("data-skeleton-screen"));
     // Widoczny znaczy widoczny: `sr-only` schowałoby go z powrotem, a drugi
@@ -460,7 +461,7 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
   it.each([
     ["lista", listSkeleton],
     ["szczegół", detailSkeleton],
-  ])("ekran %s nie maluje NIC poza szyną i komunikatem", (_name, html) => {
+  ])("ekran %s nie maluje NIC poza loaderem marki", (_name, html) => {
     // Sedno pinezki v3. Rezerwa nie maluje z definicji (`visibility: hidden`),
     // więc pytanie brzmi: co stoi POZA nią? Odpowiedź ma być zawsze ta sama —
     // rama, szyna z wypełnieniem i komunikat. Dołożenie czegokolwiek obok
@@ -548,8 +549,9 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
   it.each([
     ["lista", listSkeleton],
     ["szczegół", detailSkeleton],
-  ])("ekran %s niesie szynę ładowania z design systemu", (_name, html) => {
-    expect(html).toContain('data-slot="loading-rail"');
+  ])("ekran %s niesie pełny loader marki bez starej szyny", (_name, html) => {
+    expect(html).toContain('data-brand-loader-variant="full"');
+    expect(html).not.toContain('data-slot="loading-rail"');
   });
 
   it("próg antymigotania siedzi w CSS panelu i nie jest pętlą", () => {
@@ -566,7 +568,9 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
     // treści roboczej, nie wskaźnik stanu. Lista jest RÓWNOŚCIĄ, nie filtrem:
     // druga pętla (także skopiowana z tej) pali ten wiersz.
     const loops = [...css.matchAll(/animation:[^;]*infinite/g)].map((match) => match[0]);
-    expect(loops).toEqual(["animation: auth-laptop-pan 18s ease-in-out infinite"]);
+    expect(loops).toHaveLength(2);
+    expect(loops[0]).toContain("brand-loader-dot-breathe 3600ms");
+    expect(loops[1]).toBe("animation: auth-laptop-pan 18s ease-in-out infinite");
     // Wyjątek obowiązuje wyłącznie POD bramką reduced-motion: pętla poza
     // blokiem `no-preference` to regres dostępności, nie zmiana gustu.
     const gatedBlocks = css.match(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}/g) ?? [];
@@ -576,38 +580,12 @@ describe("kontrakt ekranów ładowania: co widać, dostępność i próg", () =>
     ).toBe(true);
   });
 
-  it("komunikat stoi przy dolnej krawędzi OKNA i nad paskiem mobilnym", () => {
-    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-    const rule = css.match(/\[data-skeleton-status\]\s*\{([^}]*)\}/)?.[1];
-    expect(rule, "brak reguły pozycji komunikatu").toBeTypeOf("string");
-    // `fixed` — bo dół niewidocznej rezerwy nie jest żadną krawędzią, a na
-    // szczególe wypadałby pod zgięcie.
-    expect(rule).toMatch(/position:\s*fixed/);
-    // Poniżej `md` dół okna zajmuje `mobile-nav`; komunikat siada NAD rezerwą,
-    // którą `main` trzyma pod ten pasek (ta sama liczba co w layoucie powłoki).
-    const layout = readFileSync(
-      resolve(process.cwd(), "app/[locale]/(panel)/layout.tsx"),
-      "utf8",
-    );
-    expect(layout).toContain("pb-[calc(5.5rem+env(safe-area-inset-bottom))]");
-    expect(rule).toMatch(/bottom:\s*calc\(5\.5rem \+ env\(safe-area-inset-bottom\)\)/);
-  });
-
-  it("komunikat jest wyśrodkowany na KOLUMNIE TREŚCI, nie na oknie", () => {
-    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-    const layout = readFileSync(
-      resolve(process.cwd(), "app/[locale]/(panel)/layout.tsx"),
-      "utf8",
-    );
-    // Odsunięcie od lewej MUSI być kopią szerokości paska bocznego — inaczej
-    // jedyne dwie rzeczy na ekranie (szyna i komunikat) rozjeżdżają się
-    // względem siebie o pół sidebara. Rozjazd ma palić test, a nie czekać na
-    // oko właściciela na zrzucie.
-    expect(layout).toContain("w-[236px]");
-    expect(layout).toContain("sidebar-collapsed:w-[72px]");
-    expect(css).toMatch(/\[data-skeleton-status\]\s*\{[^}]*left:\s*236px/);
-    expect(css).toMatch(
-      /html\[data-sidebar="collapsed"\]\s*\[data-skeleton-status\]\s*\{[^}]*left:\s*72px/,
-    );
+  it("loader jest wyśrodkowany w ramie i nie zmienia geometrii rezerwy", () => {
+    for (const html of [listSkeleton, detailSkeleton]) {
+      const loaderTag = html.match(/<div[^>]*data-brand-loader[^>]*>/)?.[0] ?? "";
+      expect(loaderTag).toContain("items-center");
+      expect(loaderTag).toContain("justify-center");
+      expect(html.indexOf("data-brand-loader")).toBeLessThan(html.indexOf("data-skeleton-screen"));
+    }
   });
 });

@@ -20,6 +20,7 @@
     "accountMenu": "Account menu",
     "language": "Language",
     "theme": "Theme",
+    "loading": "Loading panel…",
     "dateField": {
       "placeholder": "Pick a date",
       "rangePlaceholder": "Pick a range"

@@ -20,6 +20,7 @@
     "accountMenu": "Menu konta",
     "language": "Język",
     "theme": "Motyw",
+    "loading": "Ładowanie panelu…",
     "dateField": {
       "placeholder": "Wybierz datę",
       "rangePlaceholder": "Wybierz zakres"
