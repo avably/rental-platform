@@ -16,6 +16,7 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 
+import { BrandLoader } from "@/components/shell/brand-loader";
 import { openBillingPortalAction } from "@/lib/actions/billing-management";
 
 const BUTTON_CLASS =
@@ -45,6 +46,7 @@ export function BillingPortalButton() {
         <button
           type="button"
           disabled={pending}
+          aria-busy={pending}
           onClick={open}
           className={BUTTON_CLASS}
           data-billing-portal-cta
@@ -53,9 +55,12 @@ export function BillingPortalButton() {
         </button>
       </div>
       {pending ? (
-        <p className="text-muted-foreground text-[13px] leading-[18px]" role="status">
-          {t("portalRedirecting")}
-        </p>
+        <BrandLoader
+          label={t("portalRedirecting")}
+          variant="compact"
+          showLabel
+          className="flex-row justify-start gap-2 [&_[data-brand-loader-label]]:text-[13px] [&_[data-brand-loader-label]]:leading-[18px]"
+        />
       ) : null}
       {error ? (
         <p className="text-destructive text-[13px] leading-[18px]" role="alert" data-billing-portal-error>
