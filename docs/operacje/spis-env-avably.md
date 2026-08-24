@@ -48,6 +48,8 @@ panel, **S** = storefront.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Legacy klucz anon — fallback dla publishable | oba (`packages/core`) | P + S | BT | opcjonalna (fallback) | nie | Zostawić do migracji na publishable; potem kandydat do usunięcia. |
 | `SUPABASE_SECRET_KEY` | Sekretny klucz Supabase (`sb_secret_…`), serwer — omija RLS | oba (`packages/db`) | P + S | RT | tak (albo legacy service role) | **tak** | Nowy format. Wygrywa nad service role, gdy są obie. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Legacy service role — fallback dla secret key | oba (`packages/db`) | P + S | RT | opcjonalna (fallback) | **tak** | Kandydat do usunięcia po migracji na `SUPABASE_SECRET_KEY`. |
+| `AVABLY_SECRETS_KEY_CURRENT` | Numer wersji klucza, którym SZYFRUJEMY nowe/nadpisywane sekrety najemców (ADR-052) | panel (`packages/core`/secrets) | P | RT | tak (sekrety najemców) | nie | Odczyt pośredni (`resolveSecretsKeyring`). Liczba całkowita ≥ 1, nie materiał klucza. **KRYTYCZNE dla DR** — wskazuje `…_V<n>` do użycia. |
+| `AVABLY_SECRETS_KEY_V1..N` | Materiał klucza AES-256 (base64, 32 B) per wersja — odszyfrowuje koperty sekretów najemców (`v1:<wersja>:…`, ADR-052) | panel (`packages/core`/secrets) | P | RT | tak (sekrety najemców) | **tak** | Odczyt pośredni (prefiks `AVABLY_SECRETS_KEY_V`). **KRYTYCZNE dla DR** — bez klucza danej wersji koperty są NIEODWRACALNIE nieczytelne; przedmiot depozytu klucza (I5.4). Rotacja: dołóż `_V<n+1>` i przestaw `_CURRENT`. |
 | `AVABLY_STRIPE_SECRET_KEY` | Sekretny klucz platformowego konta Stripe | oba (`packages/core`) | P + S | RT | tak (płatności) | **tak** | Odczyt pośredni. Kolizja: NIE `STRIPE_SECRET_KEY`. |
 | `AVABLY_STRIPE_PUBLISHABLE_KEY` | Klucz publikowalny Stripe (wydawany z serwera na checkout) | oba (`packages/core`) | P + S | RT | tak (płatności) | nie | Odczyt pośredni. Kolizja: NIE `STRIPE_PUBLISHABLE_KEY`. Świadomie serwerowy, nie `NEXT_PUBLIC_`. |
 | `AVABLY_STRIPE_WEBHOOK_SECRET` | Sekret podpisu webhooka Stripe (Connect / direct charge) | panel (`webhooks/stripe`) | P | RT | tak (webhooki) | **tak** | Odczyt pośredni. Kolizja: NIE `STRIPE_WEBHOOK_SECRET`. |
@@ -122,3 +124,9 @@ i do środowiska CI, **nigdy do projektów Vercela**.
   7 lokalnych/CI. Rozjazd względem briefu:
   grep kontrolny (dostęp kropkowy) undercountuje o odczyty pośrednie `process.env[STALA]`
   (Stripe `AVABLY_*`, bilety, Vercel domeny, email-hook) — rozwiązane ręcznie po stałych.
+- **2026-08-24** — domknięcie luki zgłoszonej przez runbook DR (ADR-256): dopisano
+  `AVABLY_SECRETS_KEY_CURRENT` i `AVABLY_SECRETS_KEY_V1..N` (klucze szyfrujące sekrety
+  najemców, ADR-052, czytane przez `resolveSecretsKeyring` w panelu). Pierwotny skan
+  kropkowy je pominął — odczyt idzie prefiksem/stałą, nie literałem. Bez nich sekrety
+  najemców są nieodwracalne; oznaczone **KRYTYCZNE dla DR** (przedmiot depozytu klucza,
+  I5.4). Domknięte w ramach I5.6 (pełny eksport najemcy, ADR-258).
