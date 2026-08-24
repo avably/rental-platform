@@ -20,6 +20,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface CreateTenantArgs {
   p_slug: string;
   p_name: string;
+  /** ADR-234 (0098) — OPCJONALNY, lustro packages/db/test/helpers/create-tenant.ts. */
+  p_nip?: string;
 }
 
 export async function rpcCreateTenant(

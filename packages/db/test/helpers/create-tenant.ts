@@ -20,6 +20,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface CreateTenantArgs {
   p_slug: string;
   p_name: string;
+  /**
+   * ADR-234 (0098) — OPCJONALNY. Większość wywołań tego helpera zakłada
+   * tenanta jako fixture dla funkcji niezwiązanych z onboardingiem, więc
+   * domyślnie NIC się nie zmienia (p_nip pominięty = zachowanie sprzed
+   * 0098). Testy SAME weryfikujące ścieżkę NIP (packages/db/test/
+   * nip-lookup-cache.test.ts) podają go jawnie.
+   */
+  p_nip?: string;
 }
 
 export async function rpcCreateTenant(

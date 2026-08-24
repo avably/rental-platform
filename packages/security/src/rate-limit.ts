@@ -76,6 +76,16 @@ export const STOREFRONT_EMBED_RATE_LIMIT_PREFIX = "storefront-embed-rl";
  * z REVIEW_MODE, a z nim ta przestrzeń.
  */
 export const REVIEW_COMMENT_RATE_LIMIT_PREFIX = "review-comment-rl";
+/**
+ * Wyszukiwanie firmy po NIP w MF Białej liście / GUS BIR1.1 (ADR-234) —
+ * piąta, osobna przestrzeń. MF ogranicza wyszukiwania do 100/dobę
+ * (globalnie, po stronie dostawcy) — limit per-user tutaj chroni TEN budżet
+ * przed jednym rozklikanym formularzem, niezależnie od limitu logowania
+ * panelu (onboarding jest PRZED założeniem organizacji, więc dzieli
+ * przestrzeń z panel-auth tylko przypadkiem klucza `p_key`, nie budżetu —
+ * osobny prefiks eliminuje kolizję).
+ */
+export const NIP_LOOKUP_RATE_LIMIT_PREFIX = "nip-lookup-rl";
 
 export interface RateLimitResult {
   success: boolean;

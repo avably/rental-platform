@@ -1,12 +1,14 @@
 "use client";
 
+import { isValidNipChecksum } from "@avably/core";
 import { Button, Input, Label, Textarea } from "@avably/ui";
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 
 import { ScreenSection } from "@/components/screens/screen-header";
 import type { ContractDocumentSettings } from "@/lib/contract-settings";
 import type { FormState } from "@/lib/form-state";
+import { lookupCompanyByNipAction } from "@/lib/registry/lookup-action";
 
 import { saveContractSettingsAction } from "./actions";
 
@@ -67,6 +69,56 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
   const [state, action, pending] = useActionState(saveContractSettingsAction, {});
   const [termsVersion, setTermsVersion] = useState(defaults?.terms_version ?? "");
 
+  /**
+   * BONUS (ADR-234, brief SPEC D) — sam przycisk „Pobierz dane" co w
+   * onboardingu, reużywa TĘ SAMĄ akcję serwerową (hybryda MF/GUS + cache).
+   * Różnica wobec onboardingu: TU nic nie jest zablokowane — NIP w
+   * `contract_document` jest i zostaje OPCJONALNY (CHECK 0026 niezmieniony),
+   * więc przycisk to WYŁĄCZNIE wygoda (prefill adresu), nie bramka. Adres
+   * staje się polem STEROWANYM z tego samego powodu co `termsVersion` niżej —
+   * przycisk musi móc WPISAĆ wynik, a najemca z ręcznie wpisanym adresem
+   * nic nie traci (pole zostaje edytowalne).
+   */
+  const [address, setAddress] = useState(defaults?.address ?? "");
+  const [nip, setNip] = useState(defaults?.nip ?? "");
+  const [nipLookup, setNipLookup] = useState<
+    | { status: "idle" }
+    | { status: "found"; legalName: string }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+  const [isLookupPending, startLookupTransition] = useTransition();
+  const nipChecksumOk = isValidNipChecksum(nip);
+
+  function handleNipChange(value: string) {
+    setNip(value);
+    if (nipLookup.status !== "idle") setNipLookup({ status: "idle" });
+  }
+
+  function handleLookupClick() {
+    if (!nipChecksumOk || isLookupPending) return;
+    startLookupTransition(async () => {
+      const result = await lookupCompanyByNipAction(nip);
+      if (result.ok) {
+        const formatted = [
+          result.address.street,
+          [result.address.zip, result.address.city].filter(Boolean).join(" "),
+        ]
+          .filter(Boolean)
+          .join(", ");
+        if (formatted) setAddress(formatted);
+        setNipLookup({ status: "found", legalName: result.legalName });
+      } else {
+        const key =
+          result.reason === "invalid_checksum"
+            ? "nipErrorInvalidChecksum"
+            : result.reason === "not_found"
+              ? "nipErrorNotFound"
+              : "nipErrorUnavailable";
+        setNipLookup({ status: "error", message: t(key) });
+      }
+    });
+  }
+
   return (
     <ScreenSection data-contract-mode="owner">
       <form action={action} className="flex flex-col gap-2 text-sm">
@@ -76,7 +128,8 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
           name="address"
           required
           maxLength={500}
-          defaultValue={defaults?.address ?? ""}
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
           disabled={pending}
           aria-describedby="contract-address-hint"
           className="min-h-20"
@@ -84,15 +137,41 @@ export function ContractSettingsForm({ defaults }: { defaults: ContractDocumentS
         <FieldHint id="contract-address-hint">{t("addressHint")}</FieldHint>
 
         <Label htmlFor="contract-nip">{t("nip")}</Label>
-        <Input
-          id="contract-nip"
-          name="nip"
-          maxLength={30}
-          defaultValue={defaults?.nip ?? ""}
-          disabled={pending}
-          aria-describedby="contract-nip-hint"
-        />
+        <div className="flex flex-wrap items-start gap-2">
+          <Input
+            id="contract-nip"
+            name="nip"
+            maxLength={30}
+            value={nip}
+            onChange={(event) => handleNipChange(event.target.value)}
+            disabled={pending}
+            aria-describedby="contract-nip-hint"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!nipChecksumOk || isLookupPending}
+            loading={isLookupPending}
+            data-nip-lookup-button
+            onClick={handleLookupClick}
+          >
+            {isLookupPending ? t("nipLookupPending") : t("nipLookupButton")}
+          </Button>
+        </div>
         <FieldHint id="contract-nip-hint">{t("nipHint")}</FieldHint>
+        <div id="contract-nip-result" aria-live="polite">
+          {nipLookup.status === "found" ? (
+            <p data-nip-lookup-found className="text-status-positive-fg text-sm">
+              {t("nipLookupFound", { legalName: nipLookup.legalName })}
+            </p>
+          ) : null}
+          {nipLookup.status === "error" ? (
+            <p role="alert" data-nip-lookup-error className="text-destructive text-sm">
+              {nipLookup.message}
+            </p>
+          ) : null}
+        </div>
 
         <Label htmlFor="contract-email">{t("email")}</Label>
         <Input
