@@ -6,17 +6,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublicCategory } from "@/lib/checkout/contract";
-import { categoryNavItems, categoryPagePath } from "@/lib/catalog/category-nav";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 
 function category(id: string, slug: string, position: number): PublicCategory {
   return { id, name: slug.toUpperCase(), slug, description: null, position };
 }
-
-describe("categoryPagePath", () => {
-  it("buduje adres strony kategorii z segmentu /kategoria", () => {
-    expect(categoryPagePath("namioty")).toBe("/kategoria/namioty");
-  });
-});
 
 describe("categoryNavItems — pozycje menu z katalogu", () => {
   it("zachowuje kolejność najemcy i liczy pozycje z category_ids", () => {

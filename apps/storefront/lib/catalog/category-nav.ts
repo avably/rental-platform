@@ -21,28 +21,16 @@
  * samego pola, którym katalog wiąże sprzęt z taksonomią (0072) — więc menu nie
  * potrzebuje ani jednego dodatkowego odczytu.
  *
- * ==================== ADRES JEST TU, NIE W RDZENIU ====================
+ * ==================== ADRES POCHODZI Z FAZY C ====================
  *
- * Segment `/kategoria` i budowa adresu żyją na razie tutaj, bo trasa kategorii
- * (Faza C) jeszcze nie wylądowała na `main`. Gdy wyląduje, kanoniczny helper
- * zamieszka obok trasy (jak `catalogPagePath` przy `/katalog`) i ten plik go
- * zaimportuje — segment jest już zarezerwowany w rdzeniu
- * (`RESERVED_CATEGORY_SLUGS`), więc druga kopia nazwy nie ma jak się rozjechać
- * po cichu z pierwszą.
+ * Segment `/kategoria` i budowa adresu żyją przy trasie kategorii
+ * (`category-path.ts`, Faza C, ADR-247) — importujemy stamtąd `categoryBasePath`,
+ * żeby druga kopia nazwy segmentu nie rozjechała się po cichu z pierwszą. Segment
+ * jest zarezerwowany w rdzeniu (`RESERVED_CATEGORY_SLUGS`), a link menu prowadzi
+ * do CZYSTEJ strony kategorii (bez numeru strony i sortu).
  */
+import { categoryBasePath } from "@/lib/catalog/category-path";
 import type { PublicCategory } from "@/lib/checkout/contract";
-
-/**
- * Pierwszy segment adresu strony kategorii — LUSTRO `RESERVED_CATEGORY_SLUGS`
- * w rdzeniu (`packages/core/src/catalog/categories.ts`), gdzie slug `kategoria`
- * jest zarezerwowany właśnie po to, żeby nie przejął tego segmentu.
- */
-export const CATEGORY_PATH_SEGMENT = "kategoria";
-
-/** Adres publiczny strony kategorii (`/kategoria/{slug}`). */
-export function categoryPagePath(slug: string): string {
-  return `/${CATEGORY_PATH_SEGMENT}/${slug}`;
-}
 
 /** Pozycja menu kategorii — gotowa do wyrenderowania, bez wiedzy o katalogu. */
 export interface CategoryNavItem {
@@ -88,7 +76,7 @@ export function categoryNavItems(catalog: CategoryNavInput): CategoryNavItem[] {
       id: category.id,
       name: category.name,
       slug: category.slug,
-      href: categoryPagePath(category.slug),
+      href: categoryBasePath(category.slug),
       count,
     });
   }
