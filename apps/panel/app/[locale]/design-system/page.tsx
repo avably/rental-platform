@@ -31,7 +31,6 @@ import {
   FilterChip,
   Input,
   Label,
-  LoadingRail,
   Popover,
   PopoverContent,
   PopoverDescription,
@@ -71,6 +70,8 @@ import {
 } from "@avably/ui";
 import { useLocale } from "next-intl";
 import { useState, type ReactNode } from "react";
+
+import { BrandLoader } from "@/components/shell/brand-loader";
 
 // Etykiety PL statusów zamówienia jak w sekcji 04 artefaktu — sam rodzaj
 // semantyczny pochodzi WYŁĄCZNIE z mapy statusSemantics (jedno źródło prawdy).
@@ -312,37 +313,31 @@ export default function DesignSystemGallery() {
               </p>
             </div>
           </div>
-          <div className="space-y-3 rounded-md border bg-card p-5">
-            <p className="text-sm font-medium">
-              Wzorzec loading - szyna i komunikat
-            </p>
-            <div className="relative rounded-md border border-border p-4">
-              <LoadingRail className="absolute inset-x-4 top-0" />
-              {/* Rezerwa układu: te same pudełka co na ekranie, ale pod
-                  `invisible` — zajmują miejsce, nie malują ani piksela.
-                  Obrysy niżej są w podglądzie CELOWO: gdyby cokolwiek z tej
-                  rezerwy było widać, byłyby pierwszą rzeczą, którą widać. */}
-              <div
-                aria-hidden="true"
-                className="invisible grid grid-cols-6 items-center gap-3 py-8"
-              >
-                <div className="col-span-6 h-5 rounded-md border" />
-                <div className="col-span-2 h-5 rounded-md border" />
-                <div className="col-span-3 h-5 rounded-md border" />
-                <div className="h-5 rounded-md border" />
-              </div>
-              <p role="status" className="text-muted-foreground text-center text-sm">
-                Ładowanie zamówień…
-              </p>
+        </GallerySection>
+
+        <GallerySection
+          id="brand-loader"
+          title="Loader marki Avably"
+          description="Rozpoznawalny wskaźnik wyłącznie dla rzeczywistego oczekiwania — nie dla pustych wyników ani braku danych."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex min-h-56 items-center justify-center rounded-md border bg-card p-6">
+              <BrandLoader label="Ładowanie panelu…" variant="full" showLabel />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Ekran ładowania pokazuje DWIE rzeczy i nic poza nimi: szynę przy
-              górnej krawędzi (rysowaną RAZ, bez pętli i bez udawanego procentu)
-              oraz komunikat w roli status przy dolnej krawędzi okna. Układ
-              ekranu zostaje pod spodem jako rezerwa o wysokości docelowych
-              linii tekstu - stoi pod visibility hidden, więc trzyma miejsce co
-              do piksela i nie maluje niczego, a wejście treści nie rusza
-              układu.
+            <div className="flex min-h-56 items-center justify-center rounded-md border bg-card p-6">
+              <BrandLoader label="Przekierowujemy…" variant="compact" showLabel />
+            </div>
+          </div>
+          <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
+            <p className="rounded-md border p-4">
+              Pełny wariant służy do ładowania tras i dużych regionów panelu.
+            </p>
+            <p className="rounded-md border p-4">
+              Compact pojawia się tylko przy dłuższych operacjach blokujących.
+            </p>
+            <p className="rounded-md border p-4">
+              Próg 200 ms zapobiega migotaniu. Przy <code>prefers-reduced-motion</code>
+              {" "}pozostaje statyczny stan końcowy bez pętli.
             </p>
           </div>
         </GallerySection>
