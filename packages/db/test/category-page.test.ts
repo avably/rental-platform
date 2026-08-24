@@ -236,7 +236,9 @@ describe.skipIf(!hasEnv)("strona kategorii — 0101 (ADR-244)", () => {
   // -------------------------------------------------------------------
   it("koperta niesie META kategorii — z banerem, gdy jest ustawiony", async () => {
     const tenantId = await seedTenant("meta");
-    const banner = `${tenantId}/kategoria/${randomUUID()}.webp`;
+    // Segment `category` (nie `kategoria`) i prefiks własnego tenanta — wzorzec
+    // wymagany przez CHECK catalog_categories_image_path_tenant_scope (0108/ADR-264).
+    const banner = `${tenantId}/category/${randomUUID()}.webp`;
     const cat = await seedCategory(tenantId, {
       description: "Opis kategorii",
       image_path: banner,
