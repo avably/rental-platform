@@ -1,8 +1,10 @@
 # Synchronizacja znaków Avably — specyfikacja
 
-**Data:** 2026-08-24  
-**Status:** kierunek zatwierdzony w rozmowie; specyfikacja do przeglądu użytkownika  
-**Zakres:** platformowy branding Avably w LP, panelu, ikonach przeglądarki, generatorze marketingowym, dokumentacji marki i paczce handoff  
+**Data:** 2026-08-24
+
+**Status:** kierunek zatwierdzony w rozmowie; specyfikacja do przeglądu użytkownika
+
+**Zakres:** platformowy branding Avably w LP, panelu, ikonach przeglądarki, generatorze marketingowym, dokumentacji marki i paczce handoff
 **Poza zakresem:** Starkit, znaki wgrywane przez tenantów, branding sklepów klientów, ich e-maile i PDF-y, redesign interfejsu, wdrożenie i merge
 
 ## 1. Cel
