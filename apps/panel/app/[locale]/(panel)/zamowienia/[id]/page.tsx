@@ -47,6 +47,8 @@ import { CustomerCard } from "./customer-card";
 import { OrderNotes, type OrderNoteEntry } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
 import { addOrderNoteAction, editOrderNoteAction, deleteOrderNoteAction } from "./notes-actions";
+import { archiveOrderAction, restoreOrderAction } from "../actions";
+import { OrderArchiveToggle } from "./order-archive-toggle";
 import { checkPaymentStatusAction } from "./payment-actions";
 import { PaymentCheck } from "./payment-check";
 import { StatusSelect } from "./status-select";
@@ -80,6 +82,8 @@ interface OrderDetailRow {
   /** Waluta UTRWALONA na zamówieniu (0049, ADR-103) — wszystkie kwoty ekranu. */
   currency: string;
   created_at: string;
+  /** Archiwizacja SOFT (0100, ADR-242): NULL = aktywne, wartość = zarchiwizowane. */
+  archived_at: string | null;
   customers: {
     id: string;
     full_name: string | null;
@@ -134,7 +138,7 @@ export default async function OrderDetailPage({
   const { data: order } = await ctx.supabase
     .from("orders")
     .select(
-      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, delivery_point_provider, delivery_point_code, delivery_point_address, delivery_address_source, delivery_address_name, delivery_address_street, delivery_address_zip, delivery_address_city, delivery_address_phone, total_rental_grosze, total_deposit_grosze, currency, created_at, custom_fields, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
+      "id, order_number, start_date, end_date, order_status, payment_status, payment_provider, delivery_method, delivery_grosze, delivery_price_source, delivery_point_provider, delivery_point_code, delivery_point_address, delivery_address_source, delivery_address_name, delivery_address_street, delivery_address_zip, delivery_address_city, delivery_address_phone, total_rental_grosze, total_deposit_grosze, currency, created_at, archived_at, custom_fields, customers(id, full_name, email, phone, address_street, address_zip, address_city, company_name, nip), pickup_locations(name)",
     )
     .eq("tenant_id", ctx.tenantId)
     .eq("id", id)
@@ -343,6 +347,14 @@ export default async function OrderDetailPage({
                 {row.order_number}
               </h2>
               <StatusChip axis="order" value={row.order_status} />
+              {/* Zarchiwizowane mówi to WPROST przy numerze (ADR-242) — inaczej
+                  operator otwiera zamówienie z archiwum bez śladu, że jest poza
+                  aktywną listą. */}
+              {row.archived_at ? (
+                <Badge variant="outline" data-order-archived-badge>
+                  {t("archivedBadge")}
+                </Badge>
+              ) : null}
             </div>
           </div>
         </header>
@@ -541,6 +553,20 @@ export default async function OrderDetailPage({
               i tak go czyta — drugi odczyt tego samego pola po to, żeby
               sekcja była „samowystarczalna", byłby zapytaniem dla zasady. */}
           <InvoiceSection orderId={row.id} customerEmail={row.customers?.email ?? null} />
+
+          {/* Archiwizacja SOFT (ADR-242) — karta cyklu życia w panelu bocznym,
+              wzorzec przełącznika bana klienta. Odwracalna (Przywróć), więc nie
+              „strefa krytyczna": znika z aktywnej listy, zostaje w bazie.
+              W oknie domykania jej NIE MA — okno domyka aktywne zobowiązania,
+              nie porządkuje archiwum. */}
+          {closing ? null : (
+            <OrderArchiveToggle
+              orderId={row.id}
+              archived={row.archived_at !== null}
+              archiveAction={archiveOrderAction}
+              restoreAction={restoreOrderAction}
+            />
+          )}
         </aside>
 
         <div className="flex min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1">

@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  orderArchiveFromFormData,
+  orderArchiveSchema,
   orderFormSchema,
   ordersFilterSchema,
   statusChangeFromFormData,
@@ -519,5 +521,34 @@ describe("ordersFilterSchema — filtry listy (błędne wartości są IGNOROWANE
 
   it("nadmiarowo długie q jest ignorowane, nie wywraca strony", () => {
     expect(ordersFilterSchema.parse({ q: "x".repeat(500) }).q).toBeUndefined();
+  });
+
+  it("archiwum='1' włącza widok archiwum, inne wartości spadają na undefined (ADR-242)", () => {
+    expect(ordersFilterSchema.parse({ archiwum: "1" }).archiwum).toBe("1");
+    // Cokolwiek innego niż "1" nie jest widokiem archiwum — brak, nie błąd.
+    expect(ordersFilterSchema.parse({ archiwum: "true" }).archiwum).toBeUndefined();
+    expect(ordersFilterSchema.parse({ archiwum: "0" }).archiwum).toBeUndefined();
+    expect(ordersFilterSchema.parse({}).archiwum).toBeUndefined();
+  });
+});
+
+describe("orderArchiveSchema + orderArchiveFromFormData (ADR-242)", () => {
+  const ORDER = "00000000-0000-4000-8000-000000000009";
+
+  it("czyta orderId z FormData i akceptuje poprawny uuid", () => {
+    const fd = new FormData();
+    fd.set("orderId", ORDER);
+    const parsed = orderArchiveSchema.safeParse(orderArchiveFromFormData(fd));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.orderId).toBe(ORDER);
+  });
+
+  it("odrzuca brak/śmieciowy orderId (nie przepuszcza pustego żądania do bazy)", () => {
+    const empty = orderArchiveSchema.safeParse(orderArchiveFromFormData(new FormData()));
+    expect(empty.success).toBe(false);
+
+    const junk = new FormData();
+    junk.set("orderId", "nie-uuid");
+    expect(orderArchiveSchema.safeParse(orderArchiveFromFormData(junk)).success).toBe(false);
   });
 });

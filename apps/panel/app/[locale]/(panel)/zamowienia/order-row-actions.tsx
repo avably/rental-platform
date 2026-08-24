@@ -4,24 +4,36 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@avably/ui";
 
 import { Link } from "@/i18n/navigation";
 
+import { OrderRowArchiveItem } from "./order-row-archive-item";
+import type { OrderArchiveAction } from "./orders-table";
+
 /**
  * Kolumna „Akcje" wiersza listy (sekcja 04 artefaktu: trigger `•••`).
  *
  * Menu prowadzi WYŁĄCZNIE tam, gdzie produkt naprawdę coś ma: szczegół
- * zamówienia i jego sekcja statusu. Żadnej pozycji-atrapy — ta sama reguła,
- * przez którą belka P3 nie dostała udawanej wyszukiwarki.
+ * zamówienia, jego sekcja statusu oraz — od ADR-242 — archiwizacja albo
+ * przywrócenie (zależnie od WIDOKU listy). Żadnej pozycji-atrapy — ta sama
+ * reguła, przez którą belka P3 nie dostała udawanej wyszukiwarki.
+ *
+ * `archive` przychodzi WYŁĄCZNIE poza oknem domykania (i nie w kontrakcie
+ * renderu bez Supabase) — gdy go brak, menu ma tylko szczegół i status, bez
+ * pustej pozycji archiwum.
  */
 export function OrderRowActions({
   orderId,
   labels,
+  archive,
 }: {
   orderId: string;
-  labels: { trigger: string; details: string; status: string };
+  labels: { trigger: string; details: string; status: string; archive: string; restore: string };
+  /** Archiwizacja/przywracanie wiersza (ADR-242); brak = bez pozycji archiwum. */
+  archive?: { archived: boolean; action: OrderArchiveAction };
 }) {
   return (
     <DropdownMenu>
@@ -40,6 +52,16 @@ export function OrderRowActions({
         <DropdownMenuItem asChild>
           <Link href={`/zamowienia/${orderId}#status`}>{labels.status}</Link>
         </DropdownMenuItem>
+        {archive ? (
+          <>
+            <DropdownMenuSeparator />
+            <OrderRowArchiveItem
+              orderId={orderId}
+              action={archive.action}
+              label={archive.archived ? labels.restore : labels.archive}
+            />
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

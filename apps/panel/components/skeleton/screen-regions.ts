@@ -371,6 +371,8 @@ export const ORDER_DETAIL_SCREEN_PARTS: readonly string[] = [
 
 /** Lokalne komponenty szczegółu bez własnego regionu — każdy z powodem. */
 export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>> = {
+  OrderArchiveToggle:
+    "karta archiwizacji SOFT (ADR-242) w panelu bocznym — WARUNKOWA: nie renderuje się w oknie domykania, a poza nim to akcja cyklu życia (jak przełącznik bana klienta), nie treść ładowanego ekranu; szkielet nie rezerwuje miejsca na akcję, której na wejściu nie ma co pokazać (ta sama zasada co przy PaymentCheck / OrderCustomFieldsSection)",
   DepositForms: "karta salda i akcji WEWNĄTRZ sekcji kaucji (region section-deposit)",
   DepositLedger:
     "karty chronologii rejestru kaucji (ADR-204) WEWNĄTRZ rozwijanych „Szczegółów rozliczenia” sekcji kaucji (region section-deposit) — domyślnie zwinięte, więc szkielet nie ma czego rezerwować",

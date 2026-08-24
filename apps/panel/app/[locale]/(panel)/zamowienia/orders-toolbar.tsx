@@ -53,16 +53,26 @@ type CommittedParams = {
   dzien?: string;
   sort?: string;
   dir?: string;
+  archiwum?: string;
 };
 
 export function OrdersToolbar({
   filter,
   customers,
   resultCount,
+  archived = false,
+  archivedCount = 0,
+  showArchiveToggle = false,
 }: {
   filter: OrdersFilter;
   customers: { id: string; email: string; full_name: string | null }[];
   resultCount: number;
+  /** Czy lista jest w WIDOKU archiwum (ADR-242). */
+  archived?: boolean;
+  /** Ile jest zarchiwizowanych — etykieta przełącznika. */
+  archivedCount?: number;
+  /** Przełącznik archiwum jest ukryty w oknie domykania (ADR-138/242). */
+  showArchiveToggle?: boolean;
 }) {
   const t = useTranslations("orders.list");
   const tStatus = useTranslations("orders.statusLabels.order");
@@ -77,6 +87,9 @@ export function OrdersToolbar({
     dzien: filter.dzien,
     sort: filter.sort,
     dir: filter.dir,
+    // Widok archiwum jedzie ze WSZYSTKIMI linkami/formularzami belki (ADR-242),
+    // żeby zmiana filtra nie wyrzucała operatora z powrotem na aktywne.
+    archiwum: filter.archiwum,
   };
 
   // Link zachowujący pozostałe parametry — `patch: undefined` usuwa parametr.
@@ -130,6 +143,32 @@ export function OrdersToolbar({
           {t("results", { count: resultCount })}
         </span>
       </form>
+
+      {/* PRZEŁĄCZNIK WIDOKU (ADR-242): aktywne vs archiwum. To NIE chip filtra —
+          zmienia zbiór, na którym działają pozostałe filtry, więc stoi osobno,
+          nad wierszem sterowania. Linki (GET, stan w URL) zachowują pozostałe
+          parametry, a licznik przy „Zarchiwizowane" mówi, ile ich jest. Ukryty
+          w oknie domykania — archiwum tam nie istnieje. */}
+      {showArchiveToggle ? (
+        <div data-orders-archive-toggle role="group" aria-label={t("viewToggleLabel")} className="flex flex-wrap gap-2">
+          <Link
+            href={hrefFor({ archiwum: undefined })}
+            aria-pressed={!archived}
+            data-orders-view="active"
+            className={chipClass}
+          >
+            {t("viewActive")}
+          </Link>
+          <Link
+            href={hrefFor({ archiwum: "1" })}
+            aria-pressed={archived}
+            data-orders-view="archived"
+            className={chipClass}
+          >
+            {t("viewArchived", { count: archivedCount })}
+          </Link>
+        </div>
+      ) : null}
 
       {/* JEDEN wiersz: szybkie zakresy z lewej, „Kolumny" i „Filtry
           zaawansowane" z prawej (uwaga przeglądu N2). Zaawansowane były

@@ -40,6 +40,8 @@ import { readCustomFieldsForCreate } from "@/lib/custom-fields-server";
 import {
   bulkStatusChangeFromFormData,
   bulkStatusChangeSchema,
+  orderArchiveFromFormData,
+  orderArchiveSchema,
   orderFormSchema,
   statusChangeFromFormData,
   statusChangeSchema,
@@ -662,5 +664,77 @@ export async function changeOrderStatusBulkAction(
   if (report.changed.length > 0) revalidatePath("/", "layout");
 
   return { report };
+}
+
+/**
+ * ARCHIWIZACJA (SOFT) i PRZYWRACANIE zamówienia (ADR-242).
+ *
+ * Archiwum to TRZECIA, niezależna oś: `orders.archived_at` (NULL = aktywne,
+ * wartość = zarchiwizowane). NIE zmienia order_status/payment_status, NIE
+ * dotyka faktur/kaucji/historii — to wyłącznie flaga widoczności. Operacja
+ * jest ODWRACALNA (restore zeruje flagę), więc obie akcje dzielą jeden
+ * rdzeń różniący się WYŁĄCZNIE wartością wpisywaną do `archived_at`.
+ *
+ * BEZPIECZEŃSTWO/IZOLACJA (warunek zamknięcia zadania). requireMember (obie
+ * role — jak reszta akcji zamówień, obsługa zamówień to praca lady), a bramką
+ * jest RLS `tenant_update` (0007): UPDATE zawężony `tenant_id` z SESJI (nie
+ * z żądania) + `id`, a `.select("id")` po mutacji zamienia „zero wierszy"
+ * w czytelną ODMOWĘ. Tenant A nie zarchiwizuje ani nie przywróci zamówienia
+ * tenanta B — obcy/nieistniejący wiersz dosięga zero rekordów (RLS), nie
+ * zwraca id, więc akcja mówi „nie znaleziono", zamiast cicho udać sukces.
+ * Świadomie BEZ predykatu na `archived_at` w WHERE: gdyby archiwizacja
+ * filtrowała `archived_at is null`, ponowna archiwizacja już zarchiwizowanego
+ * wiersza dawała zero wierszy i myliłaby operatora „odmową"; bez tego
+ * predykatu zero wierszy znaczy WYŁĄCZNIE brak dostępu/istnienia.
+ */
+async function setOrderArchived(
+  formData: FormData,
+  archivedAt: string | null,
+): Promise<FormState> {
+  const parsed = orderArchiveSchema.safeParse(orderArchiveFromFormData(formData));
+  if (!parsed.success) return { formError: parsed.error.issues[0]?.message ?? "Nieprawidłowe dane." };
+  const { orderId } = parsed.data;
+
+  let ctx;
+  try {
+    ctx = await requireMember();
+  } catch (err) {
+    if (err instanceof AuthError) return { formError: err.message };
+    throw err;
+  }
+
+  const { data, error } = await ctx.supabase
+    .from("orders")
+    .update({ archived_at: archivedAt })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("id", orderId)
+    .select("id");
+  if (error) return { formError: error.message };
+  if (!data || data.length === 0) {
+    return {
+      formError: "Nie udało się zmienić stanu zamówienia - nie istnieje albo nie masz do niego dostępu.",
+    };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: archivedAt === null ? "restored" : "archived" };
+}
+
+/** Archiwizacja zamówienia — znika z aktywnej listy, zostaje w bazie (ADR-242). */
+export async function archiveOrderAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  // Znacznik chwili archiwizacji zegarem SERWERA (nie danymi z przeglądarki) —
+  // spójny z indeksem partial sortującym archiwum malejąco po czasie.
+  return setOrderArchived(formData, new Date().toISOString());
+}
+
+/** Przywrócenie zamówienia z archiwum — wraca na aktywną listę (ADR-242). */
+export async function restoreOrderAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  return setOrderArchived(formData, null);
 }
 

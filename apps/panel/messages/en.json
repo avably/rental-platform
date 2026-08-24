@@ -1098,7 +1098,14 @@
       "dayZwrotyDzis": "Returns today",
       "dayPoTerminie": "Overdue",
       "dayJutro": "Prepare for tomorrow",
-      "dayAlarmy": "Money alerts"
+      "dayAlarmy": "Money alerts",
+      "archivedSubtitle": "Archived orders - off the active list, still in the database. Restore to bring one back to the active list.",
+      "archivedEmpty": "No archived orders.",
+      "viewToggleLabel": "Orders view",
+      "viewActive": "Active",
+      "viewArchived": "Archived ({count})",
+      "actionArchive": "Archive",
+      "actionRestore": "Restore"
     },
     "emptyState": {
       "title": "Suspiciously quiet. Add your first order.",
@@ -1454,7 +1461,26 @@
       "timelineCreated": "Order created",
       "timelineShipment": "Shipment dispatched ({number})",
       "orderKicker": "Order",
-      "summary": "Summary"
+      "summary": "Summary",
+      "archivedBadge": "Archived",
+      "archive": {
+        "heading": "Archive",
+        "statusActive": "Active",
+        "statusArchived": "Archived",
+        "descriptionActive": "This order is on the active list. Archiving takes it off the list but keeps it in the database - invoices, deposit and history stay unchanged.",
+        "descriptionArchived": "This order is archived - off the active list, still in the database. Restore to bring it back to the active list.",
+        "archiveCta": "Archive",
+        "restoreCta": "Restore",
+        "confirmArchiveTitle": "Archive this order?",
+        "confirmArchiveBody": "It disappears from the active list but stays in the database. You can restore it at any time. Invoices, deposit and payment history stay unchanged.",
+        "confirmRestoreTitle": "Restore this order?",
+        "confirmRestoreBody": "It returns to the active orders list.",
+        "cancel": "Cancel",
+        "confirmArchive": "Archive order",
+        "confirmRestore": "Restore order",
+        "archivedNotice": "Order archived.",
+        "restoredNotice": "Order restored."
+      }
     },
     "items": {
       "colActions": "Actions",
