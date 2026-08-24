@@ -56,6 +56,7 @@ export function StoreShellHeader({
   logo,
   cartLabel,
   cartBadge,
+  nav,
   center,
   linkComponent,
   interactive = true,
@@ -72,6 +73,13 @@ export function StoreShellHeader({
   cartLabel: string;
   /** Licznik sztuk — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
   cartBadge?: ReactNode;
+  /**
+   * MENU KATEGORII (ADR-247) — slot obok znaku firmy. Wnosi go WYŁĄCZNIE sklep
+   * (podgląd szkicu w panelu nie ma katalogu i nie podaje nic), tak samo jak
+   * licznik koszyka i pigułkę terminu. Pakiet nie wie, CO w slocie stoi — dostaje
+   * gotowy węzeł albo `undefined` i wtedy belka wygląda jak przed ADR-247.
+   */
+  nav?: ReactNode;
   /**
    * ŚRODEK BELKI (aneks ADR-194) — slot między znakiem a koszykiem. Sklep
    * stawia tu pigułkę terminu; podgląd szkicu nie podaje nic i belka wygląda
@@ -117,15 +125,24 @@ export function StoreShellHeader({
   return (
     <header className="site-header" data-store-header>
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
-        {interactive ? (
-          <Anchor href={HOME_HREF} className={brandClassName}>
-            {brand}
-          </Anchor>
-        ) : (
-          <span className={brandClassName} data-shell-inert>
-            {brand}
-          </span>
-        )}
+        {/*
+          ZNAK I MENU KATEGORII stoją razem na lewej krawędzi (`shrink-0`, żeby
+          slot środkowy zwężał się pierwszy). Menu podaje WYŁĄCZNIE sklep — przy
+          `interactive={false}` (podgląd) go nie ma, bo trasa panelu nie zna ani
+          katalogu, ani adresu kategorii.
+        */}
+        <div className="flex shrink-0 items-center gap-4">
+          {interactive ? (
+            <Anchor href={HOME_HREF} className={brandClassName}>
+              {brand}
+            </Anchor>
+          ) : (
+            <span className={brandClassName} data-shell-inert>
+              {brand}
+            </span>
+          )}
+          {interactive && nav != null ? nav : null}
+        </div>
         {/*
           `flex-1` + `justify-center` środkuje slot w WOLNYM pasie między
           znakiem a koszykiem (skrajne elementy trzymają swoje szerokości),

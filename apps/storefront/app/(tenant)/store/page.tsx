@@ -19,6 +19,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { pageSections } from "@/lib/site/page-sections";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { localBusinessJsonLd } from "@/lib/seo/jsonld";
@@ -154,6 +155,12 @@ export default async function TenantStorePage() {
         a nie o identyfikatorach.
       */
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /*
+        MENU KATEGORII (ADR-247) — wejścia do stron kategorii zbudowane
+        z taksonomii katalogu, z pominięciem kategorii bez ani jednej pozycji
+        (guard pustych). Powłoka pokazuje je w nagłówku obok znaku firmy.
+      */
+      categoryNav={categoryNavItems(catalog)}
       /*
         PREFIKS ZDJĘĆ TAKŻE DLA POWŁOKI (ADR-172). Ten sam szew, którym niżej
         jadą zdjęcia sekcji strony — bo stopkę rysuje ten sam renderer, a jego
