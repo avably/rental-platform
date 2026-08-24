@@ -130,10 +130,11 @@ describe("unieważnianie cache katalogu w sklepie (ADR-185)", () => {
     const wymagane: Record<string, string[]> = {
       "actions.ts": ["createProductAction", "updateProductAction"],
       "[id]/progi/actions.ts": ["saveTiersAction"],
-      "[id]/zdjecia/actions.ts": ["updateImageAction"],
+      "[id]/zdjecia/actions.ts": ["updateImageAction", "reorderProductImagesAction"],
       "[id]/zdjecia/upload-actions.ts": ["finalizeProductImageUploadAction"],
       "kategorie/actions.ts": [
         "createCategoryAction",
+        "createCategoryInlineAction",
         "updateCategoryAction",
         "deleteCategoryAction",
         "moveCategoryAction",

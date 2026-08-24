@@ -11,8 +11,14 @@ import { warsawToday } from "@/lib/orders/order-dates";
 import { getTenantCurrency } from "@/lib/tenant-currency";
 
 import { updateProductAction } from "../actions";
+import { createCategoryInlineAction } from "../kategorie/actions";
 import { ProductForm } from "../product-form";
 import { ProductHistory, ProductOverview } from "./product-overview";
+import { MultiUploadImageForm } from "./zdjecia/photo-forms";
+import {
+  finalizeProductImageUploadAction,
+  prepareProductImageUploadAction,
+} from "./zdjecia/upload-actions";
 
 /**
  * KARTA PRODUKTU — zakładka „Dane" (U8b, ADR-146).
@@ -77,12 +83,20 @@ export default async function ProductDataPage({
         revenue={card.revenue}
         thumbnail={card.thumbnail}
         unitCount={card.unitCount}
+        photoUploader={
+          <MultiUploadImageForm
+            variant="inline"
+            prepare={prepareProductImageUploadAction.bind(null, product.id)}
+            finalize={finalizeProductImageUploadAction}
+          />
+        }
       />
 
       <ScreenSection title={t("dataHeading")} description={t("dataHint")}>
         <ProductForm
           action={updateProductAction.bind(null, product.id)}
           categories={categories}
+          createCategory={createCategoryInlineAction}
           selectedCategoryIds={selectedCategoryIds}
           currencyCode={currency}
           customFields={customFields}

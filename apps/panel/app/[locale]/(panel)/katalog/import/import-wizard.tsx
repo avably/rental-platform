@@ -12,6 +12,7 @@
  */
 import { useActionState, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { Download } from "lucide-react";
 
 import { Button, FileField } from "@avably/ui";
 
@@ -93,6 +94,20 @@ export function ImportWizard() {
 
   return (
     <section className="flex flex-col gap-4">
+      {/* SZABLON CSV DO POBRANIA (uwaga właściciela #7). Pusty plik z kolumnami
+          zgodnymi z importem — pobranie to zwykły GET z Content-Disposition,
+          więc wystarczy odnośnik z atrybutem `download` (locale w ścieżce, bo
+          route handler żyje pod segmentem [locale]). */}
+      <div className="border-border bg-card flex flex-col gap-2 rounded-md border p-4">
+        <Button asChild variant="secondary" size="sm" className="self-start">
+          <a href={`/${locale}/katalog/import/szablon`} download>
+            <Download className="size-4" aria-hidden />
+            {t("templateButton")}
+          </a>
+        </Button>
+        <p className="text-muted-foreground text-[13px] leading-[18px]">{t("templateHint")}</p>
+      </div>
+
       <FileField
         id="catalog-import-file"
         name="file"

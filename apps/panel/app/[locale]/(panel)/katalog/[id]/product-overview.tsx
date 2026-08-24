@@ -110,6 +110,7 @@ export function ProductOverview({
   capped,
   locale,
   productId,
+  photoUploader,
 }: {
   thumbnail: ProductThumbnail | null;
   deployedToday: number;
@@ -119,13 +120,23 @@ export function ProductOverview({
   capped: boolean;
   locale: string;
   productId: string;
+  /**
+   * Afordancja dodania zdjęć WPROST z karty (uwaga właściciela #3) — slot na
+   * wielo-upload osadzony przy miniaturze, żeby zdjęcia dało się dodać bez
+   * wchodzenia w osobną zakładkę. Komponent zostaje prezentacyjny: I/O uploadu
+   * niesie strona (`[id]/page.tsx`), tu jest tylko miejsce na gotowy węzeł.
+   */
+  photoUploader?: ReactNode;
 }) {
   const t = useTranslations("catalog.card");
 
   return (
     <ScreenSection data-product-overview title={t("overviewHeading")}>
       <div className="flex flex-wrap items-start gap-6">
-        <ProductPhoto thumbnail={thumbnail} href={`/katalog/${productId}/zdjecia`} />
+        <div className="flex flex-col gap-3">
+          <ProductPhoto thumbnail={thumbnail} href={`/katalog/${productId}/zdjecia`} />
+          {photoUploader ? <div data-product-photo-uploader>{photoUploader}</div> : null}
+        </div>
 
         <dl className="grid min-w-0 flex-1 grid-cols-1 gap-5 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
