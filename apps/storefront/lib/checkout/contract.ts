@@ -279,12 +279,20 @@ export type PublicCustomFieldValues = Record<string, string | number | boolean>;
  * `position` wychodzi mimo posortowanej tablicy ŚWIADOMIE: konsument API
  * (wtyczka, integrator) scala kategorie z własnym menu i potrzebuje wagi, a
  * nie tylko kolejności w tej jednej odpowiedzi.
+ *
+ * `image_path` = baner kategorii (0103/ADR-251) pod kafel kategorii na home i
+ * przyszłą sekcję „kategorie"; `null` = brak banera (stan normalny). To ta sama
+ * ścieżka w publicznym buckecie zdjęć sklepu, co niesie `PublicCategoryMeta` na
+ * stronie kategorii. OPCJONALNE w typie, bo migracja jedzie PRZED kodem: czytnik
+ * z okna wdrożeniowego (koperta sprzed 0103) tego klucza nie zobaczy, a po
+ * wdrożeniu funkcja projektuje go zawsze (wartość `string | null`).
  */
 export interface PublicCategory {
   id: string;
   name: string;
   slug: string;
   description: string | null;
+  image_path?: string | null;
   position: number;
 }
 
