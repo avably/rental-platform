@@ -45,6 +45,7 @@ import type {
 export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   productsEmpty: "Katalog jest w przygotowaniu.",
   productsCatalog: "Zobacz cały sprzęt",
+  productsCta: "Sprawdź dostępność",
   contactEmail: "E-mail:",
   contactPhone: "Telefon:",
   contactAddress: "Adres:",

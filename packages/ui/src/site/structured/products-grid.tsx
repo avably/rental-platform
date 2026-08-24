@@ -50,6 +50,7 @@ export function StructuredProductsGrid({
               product={product}
               eager={index === 0}
               styles={styles}
+              labels={labels}
             />
           ))}
         </ul>

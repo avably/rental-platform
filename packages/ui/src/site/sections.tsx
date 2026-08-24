@@ -192,7 +192,7 @@ export function ProductCards({
                   */}
                   <SiteProductAvailabilityMark
                     productId={product.id}
-                    className="site-text-muted text-sm"
+                    className="site-availability mt-1"
                   />
                   {product.description ? (
                     <p className="mt-2 line-clamp-3 text-sm site-text-muted">

@@ -38,6 +38,27 @@
  * ani na kiedy, ani które egzemplarze — te pytania nie mają w tej warstwie
  * odpowiedzi, bo nie ma ich już w odpowiedzi bazy.
  *
+ * ==================== BADGE ZAMIAST GOŁEJ LICZBY (ADR-245, faza B) ====================
+ *
+ * Liczba sama w sobie („wolne: 7 szt.") jest DANĄ, a nie ODPOWIEDZIĄ na pytanie,
+ * które klient naprawdę zadaje przy kafelku: „czy wezmę to w tym terminie?".
+ * Znacznik streszcza więc liczbę do TRZECH stanów handlowych:
+ *   • `unavailable` — zero wolnych: „Zajęty w tym terminie";
+ *   • `low` — od jednej do {@link LOW_STOCK_THRESHOLD} sztuk: „Zostały N szt."
+ *     (liczba WRACA, bo niedobór jest bodźcem — pokazujemy dokładnie ile);
+ *   • `available` — powyżej progu: „Dostępny" (liczba znika, bo „jest dużo"
+ *     nie potrzebuje licznika, a licznik przy nadmiarze tylko rozprasza).
+ * Ten sam próg i te same stany obsłuży strona kategorii (faza C) — kafel jest
+ * jednym komponentem dla obu list.
+ *
+ * ==================== STAN NIE SAMYM KOLOREM (WCAG 1.4.1) ====================
+ *
+ * Stan niesie TEKST (trzy różne etykiety) i GLIF (trzy różne kształty:
+ * „✓", „!", „×"). Kolor jest wyłącznie WZMOCNIENIEM — ktoś, kto go nie
+ * rozróżnia, czyta stan z etykiety i z kształtu znaku. Znak jest `aria-hidden`,
+ * bo jego treść niesie już etykieta obok; czytnik ekranu nie ma go czytać drugi
+ * raz. To jest twardy warunek 1.4.1, nie ozdoba.
+ *
  * ==================== ZERO KLAS W TYM PLIKU ====================
  *
  * Klasę podaje WOŁAJĄCY (props `className`), a nie ten moduł, i to jest
@@ -47,14 +68,29 @@
  * czyli dokładnie tą dziurą, przed którą tamten kontrakt broni. Ta sama
  * zasada, co przy `../links`, `../image-url` i `../site-icons`.
  *
- * ==================== BRAK SZTUK MÓWI SŁOWAMI, NIE KOLOREM ====================
+ * ==================== KOLOR STANU MIESZKA W ARKUSZU, NIE W KLASIE ====================
  *
- * Zero i liczba dodatnia dostają tę SAMĄ rolę tekstu, a różnią się treścią.
- * Kolor sygnału błędu byłby na kaflu nową rolą motywu (`dangerText`), której
- * sekcja sprzętu nie deklaruje — a przy okazji jedynym nośnikiem informacji
- * dla kogoś, kto go nie rozróżnia (WCAG 1.4.1).
+ * Trzy stany różnią się też kolorem, ale kaflowi (który podaje `className`) nie
+ * sposób go przekazać: stan wylicza dopiero TEN komponent z liczby, więc wołający
+ * go nie zna. Kolor bierze więc arkusz — regułami spiętymi na atrybucie
+ * `data-products-availability-state`, a nie klasą roli. Dzięki temu wybór barwy
+ * nie staje się „rolą poza skanem" macierzy kontrastu (patrz akapit wyżej),
+ * a jednocześnie stan pozostaje czytelny bez koloru: niosą go etykieta i glif.
  */
 import { createContext, useContext } from "react";
+
+/**
+ * PRÓG „MAŁO SZTUK" — granica między stanem `low` a `available` (ADR-245).
+ *
+ * Wydzielony jako stała, żeby dostrojenie było zmianą JEDNEJ liczby, a nie
+ * poszukiwaniem warunku po kodzie. `units <= LOW_STOCK_THRESHOLD` (i > 0) to
+ * „Zostały N szt."; powyżej — „Dostępny". Zero jest osobnym stanem przed tym
+ * porównaniem, więc próg go nie dotyczy.
+ */
+export const LOW_STOCK_THRESHOLD = 3;
+
+/** Trzy stany handlowe kafla — patrz nagłówek pliku (ADR-245). */
+export type SiteProductAvailabilityState = "available" | "low" | "unavailable";
 
 /** Etykiety i liczby dla kafli — komplet, którego pakiet nie ma skąd wziąć sam. */
 export interface SiteProductAvailability {
@@ -63,9 +99,11 @@ export interface SiteProductAvailability {
    * nieobecna = brak informacji o niej (kafel milczy), a nie zero.
    */
   units: Readonly<Record<string, number>>;
-  /** Etykieta liczby dodatniej; interpolacja `{units}`. */
+  /** Etykieta stanu `available` (powyżej progu) — bez liczby, np. „Dostępny". */
   available: string;
-  /** Etykieta zera — osobna, bo „wolne: 0 szt." czyta się jak usterka. */
+  /** Etykieta stanu `low` (1..próg) — z liczbą; interpolacja `{units}`. */
+  low: string;
+  /** Etykieta stanu `unavailable` (zero) — osobna, bo „wolne: 0 szt." to usterka. */
   unavailable: string;
 }
 
@@ -95,8 +133,50 @@ function interpolate(template: string, vars: Record<string, string | number>): s
   );
 }
 
+/** Liczba wolnych sztuk → stan handlowy (jedno miejsce reguły progu, ADR-245). */
+export function availabilityStateOf(units: number): SiteProductAvailabilityState {
+  if (units === 0) return "unavailable";
+  if (units <= LOW_STOCK_THRESHOLD) return "low";
+  return "available";
+}
+
 /**
- * ZNACZNIK DOSTĘPNOŚCI POZYCJI — jedna linia na kaflu albo NIC.
+ * GLIF STANU — sam kształt, `aria-hidden`, bo treść niesie już etykieta obok.
+ *
+ * Trzy WYRAŹNIE różne kształty (ptaszek / wykrzyknik / krzyżyk), żeby stan dało
+ * się odczytać bez koloru (WCAG 1.4.1). `focusable="false"` — w części
+ * przeglądarek `<svg>` bez tego łapie tabulację i dokłada pusty przystanek.
+ */
+function AvailabilityGlyph({ state }: { state: SiteProductAvailabilityState }) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="14"
+      height="14"
+    >
+      {state === "available" ? (
+        <path d="M20 6 9 17l-5-5" />
+      ) : state === "low" ? (
+        <>
+          <path d="M12 8v5" />
+          <path d="M12 16.5h.01" />
+        </>
+      ) : (
+        <path d="M18 6 6 18M6 6l12 12" />
+      )}
+    </svg>
+  );
+}
+
+/**
+ * ZNACZNIK DOSTĘPNOŚCI POZYCJI — badge stanu na kaflu albo NIC.
  *
  * Stoi w każdym układzie kafla, żeby dostępność nie zależała od tego, który
  * układ sekcji operator wybrał: klient, który przełączy sekcję z siatki na
@@ -107,7 +187,7 @@ export function SiteProductAvailabilityMark({
   className,
 }: {
   productId: string;
-  /** Klasa roli podana przez kafel — patrz „ZERO KLAS" w nagłówku pliku. */
+  /** Klasa kształtu podana przez kafel — patrz „ZERO KLAS" w nagłówku pliku. */
   className?: string;
 }) {
   const availability = useContext(SiteProductAvailabilityContext);
@@ -116,13 +196,23 @@ export function SiteProductAvailabilityMark({
   const units = availability.units[productId];
   if (units === undefined) return null;
 
+  const state = availabilityStateOf(units);
+  const label =
+    state === "unavailable"
+      ? availability.unavailable
+      : state === "low"
+        ? interpolate(availability.low, { units })
+        : availability.available;
+
   return (
     <span
       data-products-availability={productId}
       data-products-availability-units={units}
+      data-products-availability-state={state}
       className={className}
     >
-      {units === 0 ? availability.unavailable : interpolate(availability.available, { units })}
+      <AvailabilityGlyph state={state} />
+      {label}
     </span>
   );
 }

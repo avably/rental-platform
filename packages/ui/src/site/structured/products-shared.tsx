@@ -180,6 +180,33 @@ export function ProductFeatures({ features }: { features: readonly StorefrontPro
 }
 
 /**
+ * ETYKIETA PRZYCISKU KAFLA — operatorska albo domyślna CHROME (ADR-245, faza B).
+ *
+ * ==================== SKĄD SIĘ BIERZE FALLBACK ====================
+ *
+ * Do fazy B przycisk pojawiał się WYŁĄCZNIE, gdy operator wpisał `ctaLabel`;
+ * bez niego kafel prowadził do podstrony pozycji, ale bez ani jednej afordancji,
+ * że tam prowadzi. Fallback („Sprawdź dostępność"/„Wypożycz") daje tę afordancję
+ * ZAWSZE, gdy jest dokąd prowadzić.
+ *
+ * ==================== DLACZEGO POD WARUNKIEM `href` ====================
+ *
+ * Przycisk „Sprawdź dostępność" bez celu jest kłamstwem, a nie zachętą. `href`
+ * podaje WYŁĄCZNIE storefront publiczny (warstwa danych, patrz `StorefrontProduct`).
+ * Podgląd kreatora i miniatura szablonu `href` nie mają — więc fallback się tam
+ * NIE pokazuje, a podgląd zostaje bajt w bajt taki, jak przed fazą B. Operatorska
+ * etykieta działa jak dotąd w OBU miejscach (ją operator wpisał świadomie).
+ */
+export function productCtaLabel(
+  content: ProductsStructuredContent,
+  product: StorefrontProduct,
+  labels: SiteRenderLabels,
+): string | undefined {
+  if (content.ctaLabel) return content.ctaLabel;
+  return product.href ? labels.productsCta : undefined;
+}
+
+/**
  * WŁASNY PRZYCISK KAFLA — `span`, nie `a`, i to jest decyzja, nie skrót.
  *
  * Kafel JEST już odnośnikiem do podstrony pozycji (patrz {@link ProductTile}).
@@ -214,6 +241,7 @@ export function ProductTile({
   product,
   eager,
   styles,
+  labels,
   className,
 }: {
   /**
@@ -226,10 +254,16 @@ export function ProductTile({
   product: StorefrontProduct;
   eager: boolean;
   styles: TemplateStyles;
+  /**
+   * ETYKIETY CHROME RENDERU — kaflowi potrzebna z nich JEDNA: domyślna etykieta
+   * przycisku, gdy operator swojej nie wpisał (ADR-245). Patrz {@link productCtaLabel}.
+   */
+  labels: SiteRenderLabels;
   className?: string;
 }) {
   const subtitle = productFieldOf(product, content.subtitleField);
   const features = productFeaturesOf(product, content.featureFields);
+  const ctaLabel = productCtaLabel(content, product, labels);
 
   const body = (
     <>
@@ -262,12 +296,12 @@ export function ProductTile({
           KLASA STOI TUTAJ, nie w znaczniku: rolę motywu ma widzieć skan źródeł
           komponentów sekcji, a on nie wychodzi poza ten katalog.
         */}
-        <SiteProductAvailabilityMark productId={product.id} className="site-text-muted text-sm" />
+        <SiteProductAvailabilityMark productId={product.id} className="site-availability mt-1" />
         {product.description ? (
           <span className="site-text-muted mt-2 line-clamp-3 text-sm">{product.description}</span>
         ) : null}
         <ProductFeatures features={features} />
-        {content.ctaLabel ? <ProductCta label={content.ctaLabel} styles={styles} /> : null}
+        {ctaLabel ? <ProductCta label={ctaLabel} styles={styles} /> : null}
       </div>
     </>
   );

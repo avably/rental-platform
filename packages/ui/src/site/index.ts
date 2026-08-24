@@ -52,7 +52,10 @@ export {
 export {
   SiteProductAvailabilityMark,
   SiteProductAvailabilityProvider,
+  availabilityStateOf,
+  LOW_STOCK_THRESHOLD,
   type SiteProductAvailability,
+  type SiteProductAvailabilityState,
 } from "./product-availability";
 /*
  * KAFEL SPRZĘTU I STAN PUSTY — wychodzą z pakietu od ADR-186.

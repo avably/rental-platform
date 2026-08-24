@@ -27,6 +27,7 @@ export function siteRenderLabels(copy: StorefrontContext["copy"]): SiteRenderLab
   return {
     productsEmpty: copy.siteLabels.productsEmpty,
     productsCatalog: copy.siteLabels.productsCatalog,
+    productsCta: copy.siteLabels.productsCta,
     contactEmail: copy.siteLabels.contactEmail,
     contactPhone: copy.siteLabels.contactPhone,
     contactAddress: copy.siteLabels.contactAddress,

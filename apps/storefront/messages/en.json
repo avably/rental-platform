@@ -355,6 +355,7 @@
     "siteLabels": {
       "productsEmpty": "The catalog is being prepared.",
       "productsCatalog": "See all equipment",
+      "productsCta": "Check availability",
       "contactEmail": "Email:",
       "contactPhone": "Phone:",
       "contactAddress": "Address:",
@@ -458,6 +459,9 @@
       "conflictRevert": "Back to the previous dates",
       "unitsFree": "available for these dates: {units} pcs",
       "unitsNone": "unavailable for these dates",
+      "statusAvailable": "Available",
+      "statusLow": "{units} left",
+      "statusBusy": "Unavailable for these dates",
       "bookingHeading": "Book your dates",
       "bookingSubtitle": "Pick your dates and check the rental price",
       "fieldLabel": "Rental dates",

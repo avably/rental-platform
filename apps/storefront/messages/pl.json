@@ -355,6 +355,7 @@
     "siteLabels": {
       "productsEmpty": "Katalog jest w przygotowaniu.",
       "productsCatalog": "Zobacz cały sprzęt",
+      "productsCta": "Sprawdź dostępność",
       "contactEmail": "E-mail:",
       "contactPhone": "Telefon:",
       "contactAddress": "Adres:",
@@ -458,6 +459,9 @@
       "conflictRevert": "Wróć do poprzedniego terminu",
       "unitsFree": "wolne w tym terminie: {units} szt.",
       "unitsNone": "brak w tym terminie",
+      "statusAvailable": "Dostępny",
+      "statusLow": "Zostały {units} szt.",
+      "statusBusy": "Zajęty w tym terminie",
       "bookingHeading": "Zarezerwuj termin",
       "bookingSubtitle": "Wybierz daty i sprawdź cenę wynajmu",
       "fieldLabel": "Termin najmu",

@@ -111,6 +111,14 @@ export const NEUTRAL_CLASSES: readonly string[] = [
   // cyfr, żeby kolumna cen nie „tańczyła". Zero zmiennych motywu (E9).
   "site-numeric",
   /*
+   * BADGE DOSTĘPNOŚCI (ADR-245, faza B). Sama pastylka niesie WYŁĄCZNIE
+   * geometrię (pastylka, rozstaw, waga). Kolor stanu maluje arkusz regułami
+   * na `data-products-availability-state`, a nie ta klasa — dlatego stoi tu
+   * jako neutralna, dokładnie jak `.site-day` (geometria dnia, kolor stanu
+   * osobno).
+   */
+  "site-availability",
+  /*
    * KOMÓRKA DNIA KALENDARZA (faza 5, ADR-179). Niesie WYŁĄCZNIE geometrię
    * (promień, przezroczysty obrys, przejście) — kolor dnia zwykłego jest
    * dziedziczonym atramentem karty, a stany wybrane malują `site-day-edge`

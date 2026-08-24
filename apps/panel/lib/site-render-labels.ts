@@ -70,6 +70,7 @@ export function siteRenderLabels(locale: TenantSiteLocale): SiteRenderLabels {
   return {
     productsEmpty: source.productsEmpty,
     productsCatalog: source.productsCatalog,
+    productsCta: source.productsCta,
     contactEmail: source.contactEmail,
     contactPhone: source.contactPhone,
     contactAddress: source.contactAddress,

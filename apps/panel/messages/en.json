@@ -2587,6 +2587,7 @@
     "renderLabels": {
       "productsEmpty": "The catalog is being prepared.",
       "productsCatalog": "See all equipment",
+      "productsCta": "Check availability",
       "contactEmail": "Email:",
       "contactPhone": "Phone:",
       "contactAddress": "Address:",

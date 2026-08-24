@@ -180,9 +180,28 @@ describe("własny przycisk kafla", () => {
     expect(within(kafel("prod-2")).getByText("Sprawdź dostępność")).toBeTruthy();
   });
 
-  it("bez etykiety kafel NIE MA przycisku", () => {
+  it("bez etykiety i bez odnośnika (podgląd kreatora) kafel NIE MA przycisku", () => {
+    // `katalog()` nie podaje `href` — dokładnie jak podgląd kreatora i miniatura
+    // szablonu. Fallback etykiety (ADR-245) tam się NIE pokazuje, bo nie ma dokąd
+    // prowadzić — podgląd zostaje bez zmian.
     narysuj(tresc({ source: "catalog" }), katalog());
     expect(kafel("prod-1").querySelector("[data-products-cta]")).toBeNull();
+  });
+
+  it("kafel-odnośnik bez etykiety operatora dostaje domyślną etykietę chrome (ADR-245)", () => {
+    // `href` podaje WYŁĄCZNIE storefront publiczny — tam każdy kafel ma prowadzić
+    // do podstrony pozycji, więc dostaje afordancję nawet bez etykiety operatora.
+    const products = katalog().map((product) => ({ ...product, href: `/product/${product.id}` }));
+    narysuj(tresc({ source: "catalog" }), products);
+    expect(within(kafel("prod-1")).getByText(L.productsCta)).toBeTruthy();
+    expect(within(kafel("prod-2")).getByText(L.productsCta)).toBeTruthy();
+  });
+
+  it("etykieta operatora WYGRYWA z domyślną, także na kaflu-odnośniku", () => {
+    const products = katalog().map((product) => ({ ...product, href: `/product/${product.id}` }));
+    narysuj(tresc({ source: "catalog", ctaLabel: "Wypożycz teraz" }), products);
+    expect(within(kafel("prod-1")).getByText("Wypożycz teraz")).toBeTruthy();
+    expect(kafel("prod-1").textContent).not.toContain(L.productsCta);
   });
 
   it("przycisk NIE JEST odnośnikiem w odnośniku", () => {
