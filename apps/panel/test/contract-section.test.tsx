@@ -68,6 +68,11 @@ describe("ContractSection", () => {
     expect(html).toContain(`SHA-256: ${"a".repeat(64)}`);
     expect(html).toContain("2026-07");
     expect(html).toContain('href="/zamowienia/order-1/contract/doc-1"');
+    // Link „podgląd" otwiera nową kartę (target=_blank) — musi nieść jawny
+    // rel, żeby nowe okno nie dostało uchwytu window.opener ani nagłówka Referer.
+    expect(html, "link podglądu umowy otwiera kartę bez rel=noopener").toMatch(
+      /<a[^>]*target="_blank"[^>]*rel="noopener noreferrer"/,
+    );
     expect(html).toContain("RETRY");
     expect(html).toContain("resend down");
   });

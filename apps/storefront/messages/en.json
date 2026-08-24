@@ -423,6 +423,7 @@
     },
     "category": {
       "breadcrumbHome": "Home",
+      "breadcrumbLabel": "Breadcrumb",
       "total": "Items in this category: {total}",
       "empty": "There are no products in this category yet.",
       "pagerLabel": "Category pages",

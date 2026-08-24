@@ -423,6 +423,7 @@
     },
     "category": {
       "breadcrumbHome": "Sklep",
+      "breadcrumbLabel": "Ścieżka nawigacji",
       "total": "Pozycji w kategorii: {total}",
       "empty": "W tej kategorii nie ma jeszcze produktów.",
       "pagerLabel": "Strony kategorii",

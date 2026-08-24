@@ -22,6 +22,15 @@ function flattenKeys(obj: Json, prefix = ""): string[] {
   );
 }
 
+/** Liście słownika jako pary [ścieżka, wartość] — do kontroli wartości, nie tylko kluczy. */
+function flattenEntries(obj: Json, prefix = ""): [string, string][] {
+  return Object.entries(obj).flatMap(([key, value]) =>
+    typeof value === "object" && value !== null
+      ? flattenEntries(value, `${prefix}${key}.`)
+      : ([[`${prefix}${key}`, value as string]] as [string, string][]),
+  );
+}
+
 describe("parytet kluczy i18n EN↔PL", () => {
   const enKeys = new Set(flattenKeys(en as Json));
   const plKeys = new Set(flattenKeys(pl as Json));
@@ -34,6 +43,26 @@ describe("parytet kluczy i18n EN↔PL", () => {
   it("PL nie ma kluczy, których brak w EN", () => {
     const onlyPl = [...plKeys].filter((key) => !enKeys.has(key));
     expect(onlyPl, `klucze tylko w PL: ${onlyPl.join(", ")}`).toEqual([]);
+  });
+
+  /**
+   * ŻADEN LIŚĆ NIE JEST PUSTY po `trim()` — parytet KLUCZY nie łapie stringa,
+   * który JEST w obu locale, ale w jednym jest pusty: `t()` zwraca wtedy pusty
+   * węzeł zamiast błędu, a brakująca treść ujawnia się dopiero w przeglądarce.
+   * Panel nie ma dziś ani jednego pustego liścia, więc bramka jest zielona bez
+   * allowlisty — a pierwszy celowo pusty klucz będzie musiał ją tu rozszerzyć,
+   * co wymusi jawną decyzję zamiast cichego pustego napisu.
+   */
+  it("żaden liść EN/PL nie jest pustym stringiem", () => {
+    for (const [locale, messages] of [
+      ["en", en],
+      ["pl", pl],
+    ] as const) {
+      const empty = flattenEntries(messages as Json)
+        .filter(([, value]) => value.trim() === "")
+        .map(([key]) => key);
+      expect(empty, `puste liście w ${locale}.json: ${empty.join(", ")}`).toEqual([]);
+    }
   });
 
   /**

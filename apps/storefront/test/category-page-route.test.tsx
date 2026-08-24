@@ -342,6 +342,18 @@ describe("strona kategorii (ADR-247)", () => {
     expect(html).toContain("BreadcrumbList");
   }, BUDZET_RENDERU);
 
+  it("landmark okruszków ma ODRĘBNĄ etykietę nawigacji, nie nazwę pozycji „Sklep”", async () => {
+    const html = await renderKategoria(SLUG);
+    // Nawigacja okruszków (tenant PL) nazwana rolą, nie pierwszą pozycją:
+    // „Ścieżka nawigacji”, a NIE „Sklep” (to tylko tekst odnośnika w środku).
+    expect(html, "okruszki nie dostały etykiety landmarka").toMatch(
+      /<nav[^>]*data-category-breadcrumbs[^>]*aria-label="Ścieżka nawigacji"/,
+    );
+    expect(html, "etykieta landmarka nadal dubluje nazwę pozycji „Sklep”").not.toMatch(
+      /<nav[^>]*data-category-breadcrumbs[^>]*aria-label="Sklep"/,
+    );
+  }, BUDZET_RENDERU);
+
   it("baner renderuje się TYLKO gdy kategoria ma image_path", async () => {
     const bez = await renderKategoria(SLUG);
     expect(bez, "baner pojawił się mimo braku image_path").not.toContain("data-category-banner");
@@ -352,6 +364,11 @@ describe("strona kategorii (ADR-247)", () => {
     expect(zBanerem).toContain("data-category-banner");
     expect(zBanerem, "URL banera nie wskazał publicznego bucketa sklepu").toContain(
       "/storage/v1/object/public/site-images/kategorie/rowery/hero.jpg",
+    );
+    // Baner jest DEKORACYJNY — nazwę niesie h1, więc `alt` jest pusty (nie
+    // dubluje nagłówka w drzewie dostępności).
+    expect(zBanerem, "baner powiela nazwę kategorii z h1 w alt zamiast być pusty").toMatch(
+      /<img[^>]*data-category-banner[^>]*alt=""/,
     );
   }, BUDZET_RENDERU);
 

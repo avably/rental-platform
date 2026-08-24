@@ -108,7 +108,12 @@ export async function ContractSection({ orderId }: { orderId: string }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <Link className="underline underline-offset-2" href={href} target="_blank">
+                  <Link
+                    className="underline underline-offset-2"
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     {t("preview")}
                   </Link>
                   <Link className="underline underline-offset-2" href={href}>

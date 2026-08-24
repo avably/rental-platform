@@ -23,6 +23,26 @@ function flattenKeys(obj: Json, prefix = ""): string[] {
   );
 }
 
+/** Liście słownika jako pary [ścieżka, wartość] — do kontroli wartości, nie tylko kluczy. */
+function flattenEntries(obj: Json, prefix = ""): [string, string][] {
+  return Object.entries(obj).flatMap(([key, value]) =>
+    value !== null && typeof value === "object"
+      ? flattenEntries(value as Json, `${prefix}${key}.`)
+      : ([[`${prefix}${key}`, value as string]] as [string, string][]),
+  );
+}
+
+/**
+ * KLUCZE, KTÓRE MOGĄ BYĆ LEGALNIE PUSTE — z powodem.
+ *
+ * `terms.bindingNote` jest pusty W PL celowo: nota „wiążąca jest wersja polska"
+ * ma sens tylko przy TŁUMACZENIU, więc renderuje się WYŁĄCZNIE dla EN
+ * (components/marketing/terms-content.tsx: `locale === "en" ? <p>…</p> : null`).
+ * W PL nie ma czego nią opatrzeć — pusty string jest tu treścią, nie brakiem.
+ * Każdy inny pusty klucz to regres i pali poniżej.
+ */
+const PUSTE_DOZWOLONE = new Set(["terms.bindingNote"]);
+
 describe("parytet kluczy i18n EN↔PL (storefront)", () => {
   const enKeys = new Set(flattenKeys(en as unknown as Json));
   const plKeys = new Set(flattenKeys(pl as unknown as Json));
@@ -35,6 +55,23 @@ describe("parytet kluczy i18n EN↔PL (storefront)", () => {
   it("PL nie ma kluczy, których brak w EN", () => {
     const onlyPl = [...plKeys].filter((key) => !enKeys.has(key));
     expect(onlyPl, `klucze tylko w PL: ${onlyPl.join(", ")}`).toEqual([]);
+  });
+
+  /**
+   * ŻADEN LIŚĆ NIE JEST PUSTY po `trim()` — poza jawną allowlistą wyżej.
+   * Parytet KLUCZY nie łapie stringa obecnego w obu locale, ale pustego
+   * w jednym: copy schodzi wtedy do przeglądarki jako pusty węzeł, nie błąd.
+   */
+  it("żaden liść EN/PL nie jest pustym stringiem (poza allowlistą)", () => {
+    for (const [locale, messages] of [
+      ["en", en],
+      ["pl", pl],
+    ] as const) {
+      const empty = flattenEntries(messages as unknown as Json)
+        .filter(([key, value]) => value.trim() === "" && !PUSTE_DOZWOLONE.has(key))
+        .map(([key]) => key);
+      expect(empty, `puste liście w ${locale}.json: ${empty.join(", ")}`).toEqual([]);
+    }
   });
 
   it("namespace `storefront` istnieje w obu locale z kompletem podsekcji", () => {
