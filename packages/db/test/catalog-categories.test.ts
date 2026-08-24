@@ -440,6 +440,7 @@ describe.skipIf(!hasEnv)("taksonomia katalogu — 0072 (ADR-155)", () => {
       expect(Object.keys(own).sort()).toEqual([
         "description",
         "id",
+        "image_path",
         "name",
         "position",
         "slug",
