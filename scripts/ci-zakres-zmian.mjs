@@ -72,6 +72,10 @@ export const CODE_READ_FILES = [
   "docs/dokumentacja/hub.html",
   "docs/konwencje-migracji.md",
   "docs/audyty/2026-08-10-audyt-env-rate-limit.md",
+  // Szkielet DR (scripts/dr/restore-tenant.mjs) wypisuje ścieżkę runbooka jako
+  // wskazówkę operatora — skan repo widzi wzmiankę, więc fail-closed: zmiana
+  // runbooka wymusza pełne CI (ADR-256/I5.7).
+  "docs/operacje/runbook-dr-avably.md",
 ];
 
 /**
