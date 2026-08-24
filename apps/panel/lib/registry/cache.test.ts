@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCachedLookup, isFreshEnough, putCachedLookup } from "./cache";
 import type { CompanyLookupFound, NipLookupCacheData } from "./types";
@@ -47,7 +47,17 @@ describe("isFreshEnough", () => {
 });
 
 describe("putCachedLookup", () => {
-  it("woła RPC z rozpakowanymi danymi (bez ok/nip w p_data)", async () => {
+  const ORIGINAL_SECRET = process.env.REGISTRY_CACHE_WRITE_SECRET;
+
+  beforeEach(() => {
+    process.env.REGISTRY_CACHE_WRITE_SECRET = "test-write-secret";
+  });
+  afterEach(() => {
+    if (ORIGINAL_SECRET === undefined) delete process.env.REGISTRY_CACHE_WRITE_SECRET;
+    else process.env.REGISTRY_CACHE_WRITE_SECRET = ORIGINAL_SECRET;
+  });
+
+  it("woła RPC z rozpakowanymi danymi + p_write_secret (bez ok/nip w p_data) — luka z recenzji, 0099", async () => {
     const rpcImpl = vi.fn(async () => ({ data: null, error: null }));
     const supabase = fakeSupabase(rpcImpl);
     const result: CompanyLookupFound = {
@@ -79,6 +89,7 @@ describe("putCachedLookup", () => {
       },
       p_source: "mf",
       p_request_id: "abc",
+      p_write_secret: "test-write-secret",
     });
   });
 
@@ -97,5 +108,34 @@ describe("putCachedLookup", () => {
       requestId: null,
     };
     await expect(putCachedLookup(supabase, result)).resolves.toBeUndefined();
+  });
+
+  it("brak REGISTRY_CACHE_WRITE_SECRET → RPC i tak wołane (best-effort, prefill nietknięty), ale bez sekretu + ostrzeżenie w logu", async () => {
+    delete process.env.REGISTRY_CACHE_WRITE_SECRET;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const rpcImpl = vi.fn(async (_fn: string, _args: unknown) => ({
+      data: null,
+      error: { message: "brak uprawnień do zapisu w rejestrze", code: "42501" },
+    }));
+    const supabase = fakeSupabase(rpcImpl);
+    const result: CompanyLookupFound = {
+      ok: true,
+      nip: "7740001454",
+      legalName: "ORLEN SA",
+      regon: null,
+      krs: null,
+      address: { street: "", zip: "", city: "" },
+      statusVat: null,
+      source: "mf",
+      fetchedAt: "2026-08-24T00:00:00Z",
+      requestId: null,
+    };
+
+    await putCachedLookup(supabase, result);
+
+    const call = rpcImpl.mock.calls[0]![1] as { p_write_secret?: string };
+    expect(call?.p_write_secret).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("REGISTRY_CACHE_WRITE_SECRET"));
+    warn.mockRestore();
   });
 });

@@ -321,6 +321,10 @@ jobs:
             echo "SUPABASE_LOCAL_API_URL=$API_URL"
             echo "SUPABASE_LOCAL_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            # ADR-234/0099: musi być IDENTYCZNY z sekretem zaszytym w
+            # packages/db/supabase/seed.sql — wartość testowa, bezpieczna do
+            # trzymania w repo (nie chroni niczego realnego na CI/lokalnie).
+            echo "REGISTRY_CACHE_WRITE_SECRET=local-ci-test-registry-secret-nigdy-na-prod"
           } >> "$GITHUB_ENV"
       - run: pnpm --filter @avably/db test
       - run: pnpm --filter panel test
@@ -383,6 +387,10 @@ jobs:
             echo "SUPABASE_LOCAL_API_URL=$API_URL"
             echo "SUPABASE_LOCAL_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_LOCAL_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            # ADR-234/0099: musi być IDENTYCZNY z sekretem zaszytym w
+            # packages/db/supabase/seed.sql — wartość testowa, bezpieczna do
+            # trzymania w repo (nie chroni niczego realnego na CI/lokalnie).
+            echo "REGISTRY_CACHE_WRITE_SECRET=local-ci-test-registry-secret-nigdy-na-prod"
           } >> "$GITHUB_ENV"
       # Bez `--with-deps` (to apt-get na Linuksie; macOS nie ma zależności
       # systemowych do doinstalowania) i bez `actions/cache`: przeglądarki

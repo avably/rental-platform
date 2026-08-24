@@ -11,12 +11,47 @@
  * „brak" dla DECYZJI o ponownym strzale do MF/GUS, ale NIE jest usuwany —
  * nadal jest ważnym dowodem „NIP kiedyś zweryfikowany" dla `app.create_tenant`
  * (0098), które nie sprawdza świeżości, tylko obecność wiersza.
+ *
+ * SEKRET ZAPISU (0099, LUKA Z RECENZJI PRZED MERGE). Schemat `app` jest
+ * wystawiony przez PostgREST, więc `nip_lookup_cache_put` bez dodatkowej
+ * bramki byłoby osiągalne WPROST z konsoli przeglądarki byle jakim ważnym
+ * JWT-em `authenticated` — user mógłby sam sobie „zweryfikować" dowolny NIP
+ * fabrykując `legalName`/`regon`. `REGISTRY_CACHE_WRITE_SECRET` (serwerowy,
+ * NIGDY `NEXT_PUBLIC_`) jest jedynym dowodem dla bazy, że wołający to NASZ
+ * serwer, nie przeglądarka usera — baza porównuje SHA-256 tej wartości
+ * z hashem w `app.registry_config` (0099). Brak env → `putCachedLookup`
+ * i tak wywoła RPC (best-effort, patrz niżej) i dostanie 42501 — zapis nie
+ * powstanie, ale PREFILL dla usera nadal zadziała (dane z MF/GUS, nie z
+ * cache'a); zablokowane jest wyłącznie ZAŁOŻENIE ORGANIZACJI (fail-closed
+ * w `create_tenant`, 0098), nie samo wyszukiwanie.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { CompanyLookupFound, NipLookupCacheData } from "./types";
 
 const CACHE_TTL_MS = 72 * 60 * 60 * 1000;
+
+let warnedNoWriteSecret = false;
+
+/**
+ * Czytany per wywołanie (nie w stałej modułu) — ten sam powód co
+ * `firstNonEmptyEnv` w `@avably/security/rate-limit`: testy zmieniają env
+ * w trakcie procesu. Ostrzeżenie leci RAZ na proces, nie per żądanie
+ * (gorąca ścieżka „Pobierz dane"), żeby nie zalać logów.
+ */
+function registryCacheWriteSecret(): string | undefined {
+  const secret = process.env.REGISTRY_CACHE_WRITE_SECRET;
+  if (secret) return secret;
+  if (!warnedNoWriteSecret) {
+    console.warn(
+      "[registry:cache] brak REGISTRY_CACHE_WRITE_SECRET — zapis do app.nip_lookup_cache będzie odrzucany " +
+        "(42501), więc app.create_tenant nigdy nie znajdzie dowodu weryfikacji NIP. Prefill dla użytkownika " +
+        "nadal działa, zakładanie organizacji przez NIP nie.",
+    );
+    warnedNoWriteSecret = true;
+  }
+  return undefined;
+}
 
 interface CacheRow {
   data: NipLookupCacheData;
@@ -54,6 +89,7 @@ export async function putCachedLookup(supabase: SupabaseClient, result: CompanyL
     p_data: data,
     p_source: result.source,
     p_request_id: result.requestId,
+    p_write_secret: registryCacheWriteSecret(),
   });
   if (error) console.error("[registry:cache] nip_lookup_cache_put", error);
 }
