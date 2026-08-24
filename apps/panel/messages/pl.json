@@ -1098,7 +1098,14 @@
       "dayZwrotyDzis": "Zwroty dziś",
       "dayPoTerminie": "Po terminie",
       "dayJutro": "Jutro do przygotowania",
-      "dayAlarmy": "Alarmy pieniężne"
+      "dayAlarmy": "Alarmy pieniężne",
+      "archivedSubtitle": "Zarchiwizowane zamówienia - poza aktywną listą, wciąż w bazie. Przywróć, żeby wróciło na aktywną listę.",
+      "archivedEmpty": "Brak zarchiwizowanych zamówień.",
+      "viewToggleLabel": "Widok zamówień",
+      "viewActive": "Aktywne",
+      "viewArchived": "Zarchiwizowane ({count})",
+      "actionArchive": "Archiwizuj",
+      "actionRestore": "Przywróć"
     },
     "emptyState": {
       "title": "Podejrzanie spokojnie. Dodaj pierwsze zamówienie.",
@@ -1454,7 +1461,26 @@
       "timelineCreated": "Zamówienie utworzone",
       "timelineShipment": "Przesyłka nadana ({number})",
       "orderKicker": "Zamówienie",
-      "summary": "Podsumowanie"
+      "summary": "Podsumowanie",
+      "archivedBadge": "Zarchiwizowane",
+      "archive": {
+        "heading": "Archiwum",
+        "statusActive": "Aktywne",
+        "statusArchived": "Zarchiwizowane",
+        "descriptionActive": "Zamówienie jest na aktywnej liście. Archiwizacja zdejmuje je z listy, ale zostawia w bazie - faktury, kaucja i historia bez zmian.",
+        "descriptionArchived": "Zamówienie jest w archiwum - poza aktywną listą, wciąż w bazie. Przywróć, żeby wróciło na aktywną listę.",
+        "archiveCta": "Archiwizuj",
+        "restoreCta": "Przywróć",
+        "confirmArchiveTitle": "Zarchiwizować to zamówienie?",
+        "confirmArchiveBody": "Zniknie z aktywnej listy, ale zostanie w bazie. W każdej chwili możesz je przywrócić. Faktury, kaucja i historia płatności pozostają bez zmian.",
+        "confirmRestoreTitle": "Przywrócić to zamówienie?",
+        "confirmRestoreBody": "Wróci na aktywną listę zamówień.",
+        "cancel": "Anuluj",
+        "confirmArchive": "Archiwizuj zamówienie",
+        "confirmRestore": "Przywróć zamówienie",
+        "archivedNotice": "Zamówienie zarchiwizowane.",
+        "restoredNotice": "Zamówienie przywrócone."
+      }
     },
     "items": {
       "colActions": "Akcje",

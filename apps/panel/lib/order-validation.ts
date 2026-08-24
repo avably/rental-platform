@@ -397,6 +397,24 @@ export const statusChangeSchema = z.object({
 export type StatusChangeInput = z.infer<typeof statusChangeSchema>;
 
 /**
+ * Archiwizacja / przywracanie zamówienia (ADR-242).
+ *
+ * Wejściem jest sam identyfikator — archiwum jest FLAGĄ WIDOCZNOŚCI, nie
+ * niesie żadnego dodatkowego stanu do walidacji. `orderId` z ukrytego pola
+ * formularza (wzorzec statusChangeFromFormData): akcja czyta go z FormData,
+ * bo formularz stoi w wierszu listy i na szczególe, a bazowa reguła
+ * bezpieczeństwa (tenant-scope + `.select()` po UPDATE) jest ta sama
+ * niezależnie od miejsca wywołania.
+ */
+export const orderArchiveSchema = z.object({ orderId: uuidSchema });
+
+/** FormData → wejście orderArchiveSchema (wzorzec statusChangeFromFormData). */
+export function orderArchiveFromFormData(formData: FormData): unknown {
+  const orderId = formData.get("orderId");
+  return { orderId: typeof orderId === "string" ? orderId : "" };
+}
+
+/**
  * FormData → wejście statusChangeSchema.
  *
  * Wydzielone z akcji, bo to sklejka, w której łatwo o cichy błąd: pole
@@ -512,6 +530,10 @@ export const ordersFilterSchema = z.object({
     )
     .optional()
     .catch(undefined),
+  // Widok archiwum (ADR-242): brak = lista AKTYWNYCH (archived_at is null),
+  // "1" = lista ZARCHIWIZOWANYCH (archived_at is not null). Jedna wartość
+  // (przełącznik dwustanowy) — śmieć spada na undefined jak reszta filtrów.
+  archiwum: z.literal("1").optional().catch(undefined),
 });
 
 export type OrdersFilter = z.infer<typeof ordersFilterSchema>;

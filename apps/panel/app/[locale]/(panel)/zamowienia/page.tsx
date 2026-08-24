@@ -22,6 +22,7 @@ import { computeOrderStats, type OrderStatRow } from "@/lib/orders/order-stats";
 import { filterBySearch, type OrderSearchable } from "@/lib/orders/order-search";
 import { ORDER_SORT_COLUMNS, resolveOrderSort } from "@/lib/orders/order-sort";
 
+import { archiveOrderAction, restoreOrderAction } from "./actions";
 import { OrdersEmptyState } from "./orders-empty-state";
 import { OrdersList } from "./orders-list";
 import { OrdersStats } from "./orders-stats";
@@ -53,6 +54,10 @@ export default async function OrdersPage({
   const closing = ctx.closing;
 
   const params = await searchParams;
+  // Widok archiwum (ADR-242): aktywne (domyślnie) vs zarchiwizowane. W OKNIE
+  // DOMYKANIA (ADR-138) archiwum jest wyłączone — okno operuje zamrożonym
+  // zbiorem aktywnych zobowiązań, więc `archiwum` ignorujemy i zostajemy przy
+  // aktywnych (archived_at is null, predykat niżej).
   const single = (value: string | string[] | undefined) =>
     typeof value === "string" ? value : undefined;
   // Błędny filtr jest ignorowany (catch → undefined), nie błędem strony.
@@ -66,7 +71,11 @@ export default async function OrdersPage({
     dir: single(params.dir),
     preset: single(params.preset),
     dzien: single(params.dzien),
+    archiwum: single(params.archiwum),
   });
+
+  // Archiwum niedostępne w oknie domykania (patrz wyżej).
+  const archived = !closing && filter.archiwum === "1";
 
   const today = warsawToday();
   // Preset (szybki chip) wygrywa nad surowym od/do i wyklucza się z nim: gdy
@@ -88,9 +97,12 @@ export default async function OrdersPage({
   const [{ data: statOrders }, tableResult, { data: customers }] = await Promise.all([
     closing
       ? Promise.resolve({ data: [] as never[] })
-      : ctx.supabase
+      : // `archived_at` dochodzi (ADR-242): kafle liczą się z AKTYWNYCH (filtr
+        // niżej), a obecność zarchiwizowanych mówi, czy pokazać przełącznik
+        // archiwum nawet gdy aktywnych już nie ma.
+        ctx.supabase
           .from("orders")
-          .select("start_date, order_status, payment_status, total_rental_grosze")
+          .select("start_date, order_status, payment_status, total_rental_grosze, archived_at")
           .eq("tenant_id", ctx.tenantId),
     (() => {
       let query = ctx.supabase
@@ -99,6 +111,14 @@ export default async function OrdersPage({
           "id, order_number, start_date, end_date, order_status, payment_status, total_rental_grosze, currency, customers(full_name, email), order_items(products(name))",
         )
         .eq("tenant_id", ctx.tenantId);
+      // OŚ ARCHIWUM (ADR-242): domyślnie tylko AKTYWNE (archived_at is null);
+      // widok archiwum pokazuje WYŁĄCZNIE zarchiwizowane. Okno domykania nigdy
+      // nie pokazuje archiwum — zamrożony zbiór to aktywne zobowiązania.
+      if (archived) {
+        query = query.not("archived_at", "is", null);
+      } else {
+        query = query.is("archived_at", null);
+      }
       // ZAMROŻONY ZBIÓR (ADR-138): trzy warunki predykatu schodzą do bazy;
       // czwarty (saldo kaucji przy `returned`) dofiltrowuje się niżej,
       // po odczycie rejestru — baza nie trzyma salda w kolumnie.
@@ -174,19 +194,26 @@ export default async function OrdersPage({
   const tOrderStatus = await getTranslations("orders.statusLabels.order");
   const tPaymentStatus = await getTranslations("orders.statusLabels.payment");
 
-  const statRows: OrderStatRow[] = (
-    (statOrders ?? []) as {
-      start_date: string;
-      order_status: OrderStatus;
-      payment_status: PaymentStatus;
-      total_rental_grosze: number;
-    }[]
-  ).map((order) => ({
-    startDate: order.start_date,
-    orderStatus: order.order_status,
-    paymentStatus: order.payment_status,
-    totalRentalGrosze: order.total_rental_grosze,
-  }));
+  // Kafle liczą się z AKTYWNYCH (ADR-242): zarchiwizowane NIE zasilają
+  // statystyk operacyjnych. `archivedCount` (z tego samego odczytu) mówi, ile
+  // jest zarchiwizowanych — dla etykiety przełącznika i dla decyzji, czy w
+  // ogóle pokazać belkę, gdy aktywnych już nie ma.
+  const allStatOrders = (statOrders ?? []) as {
+    start_date: string;
+    order_status: OrderStatus;
+    payment_status: PaymentStatus;
+    total_rental_grosze: number;
+    archived_at: string | null;
+  }[];
+  const archivedCount = allStatOrders.filter((order) => order.archived_at !== null).length;
+  const statRows: OrderStatRow[] = allStatOrders
+    .filter((order) => order.archived_at === null)
+    .map((order) => ({
+      startDate: order.start_date,
+      orderStatus: order.order_status,
+      paymentStatus: order.payment_status,
+      totalRentalGrosze: order.total_rental_grosze,
+    }));
   const stats = computeOrderStats(statRows, today);
 
   let orders = (tableResult.data ?? []) as unknown as OrderRow[];
@@ -307,13 +334,20 @@ export default async function OrdersPage({
     dzien: filter.dzien,
     sort: filter.sort,
     dir: filter.dir,
+    // Widok archiwum przenosi się przez sortowanie i inne linki (ADR-242).
+    archiwum: archived ? "1" : undefined,
   };
 
   // W oknie domykania kafli nie ma, więc „czy są zamówienia" mówi zamrożony
   // zbiór — a pusty zbiór NIE pokazuje zaproszenia do tworzenia (tworzenie
   // jest OFF), tylko komunikat okna. Wyjścia po pustym zbiorze NIE MA —
   // okno kończy wyłącznie zegar (spec (d): perwersyjny bodziec).
-  const hasAnyOrders = closing ? orders.length > 0 : stats.all.count > 0;
+  //
+  // Poza oknem: belka (z przełącznikiem archiwum) należy się każdemu, kto ma
+  // JAKIEKOLWIEK zamówienia — także gdy wszystkie są zarchiwizowane, inaczej
+  // droga do archiwum znikałaby razem z ostatnim aktywnym (ADR-242). Dopiero
+  // brak zamówień W OGÓLE pokazuje zaproszenie do utworzenia pierwszego.
+  const hasAnyOrders = closing ? orders.length > 0 : allStatOrders.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -323,7 +357,7 @@ export default async function OrdersPage({
           bez akcji: nowe zamówienie to nowe zobowiązanie, nie domykanie). */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
-          {closing ? t("closingSubtitle") : t("subtitle")}
+          {closing ? t("closingSubtitle") : archived ? t("archivedSubtitle") : t("subtitle")}
         </p>
         {closing ? null : (
           <Button asChild>
@@ -336,15 +370,39 @@ export default async function OrdersPage({
           i pustą belkę filtrów — nie ma czego liczyć ani filtrować. */}
       {hasAnyOrders ? (
         <>
-          {closing ? null : <OrdersStats stats={stats} currency={currency} locale={locale} />}
-          <OrdersToolbar filter={filter} customers={customers ?? []} resultCount={visibleRows.length} />
+          {/* Kafle statystyk TYLKO w widoku aktywnych: w archiwum opisywałyby
+              stan operacyjny, którego archiwum nie dotyczy (ADR-242). */}
+          {closing || archived ? null : (
+            <OrdersStats stats={stats} currency={currency} locale={locale} />
+          )}
+          <OrdersToolbar
+            filter={filter}
+            customers={customers ?? []}
+            resultCount={visibleRows.length}
+            archived={archived}
+            archivedCount={archivedCount}
+            showArchiveToggle={!closing}
+          />
           {visibleRows.length === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("empty")}</p>
+            <p className="text-muted-foreground text-sm">
+              {archived ? t("archivedEmpty") : t("empty")}
+            </p>
           ) : (
             /* Lista jest interaktywna od U4/U5 (zaznaczanie, wybór kolumn),
                więc opakowuje ją klient — sam odczyt i filtrowanie zostają na
-               serwerze. */
-            <OrdersList rows={visibleRows} locale={locale} sort={sort} baseParams={baseParams} />
+               serwerze. W oknie domykania archiwizacja jest OFF, więc akcje
+               wiersza nie schodzą (ADR-242). */
+            <OrdersList
+              rows={visibleRows}
+              locale={locale}
+              sort={sort}
+              baseParams={baseParams}
+              archiveControls={
+                closing
+                  ? undefined
+                  : { archived, archiveAction: archiveOrderAction, restoreAction: restoreOrderAction }
+              }
+            />
           )}
         </>
       ) : closing ? (

@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { ResolvedSort } from "@/lib/orders/order-sort";
 
 import { OrdersBulkActions } from "./orders-bulk-actions";
-import { OrdersTable, type OrdersTableRow } from "./orders-table";
+import { OrdersTable, type OrdersArchiveControls, type OrdersTableRow } from "./orders-table";
 import { useHiddenOrderColumns } from "./use-order-columns";
 
 /**
@@ -29,11 +29,14 @@ export function OrdersList({
   locale,
   sort,
   baseParams,
+  archiveControls,
 }: {
   rows: OrdersTableRow[];
   locale: string;
   sort: ResolvedSort;
   baseParams: Record<string, string | undefined>;
+  /** Archiwizacja/przywracanie z menu wiersza (ADR-242); brak = bez akcji. */
+  archiveControls?: OrdersArchiveControls;
 }) {
   const hiddenColumns = useHiddenOrderColumns();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -82,6 +85,7 @@ export function OrdersList({
         selectedIds={selectedOnPage}
         onToggleRow={toggleRow}
         onToggleAll={toggleAll}
+        archiveControls={archiveControls}
       />
       <OrdersBulkActions
         selectedIds={[...selectedOnPage]}

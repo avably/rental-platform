@@ -13,12 +13,32 @@ import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode } from "react";
 
 import { Link } from "@/i18n/navigation";
+import type { FormState } from "@/lib/form-state";
 import { StatusChip } from "@/lib/orders/status-chip";
 import { ariaSortFor, orderSortHref, type ResolvedSort } from "@/lib/orders/order-sort";
 import { type OrderColumnKey } from "@/lib/orders/order-columns";
 import { type OrderSortKey } from "@/lib/order-validation";
 
 import { OrderRowActions } from "./order-row-actions";
+
+/** Akcja archiwizacji/przywracania — sygnatura useActionState (ADR-242). */
+export type OrderArchiveAction = (
+  prevState: FormState,
+  formData: FormData,
+) => Promise<FormState>;
+
+/**
+ * Sterowanie archiwum listy (ADR-242) — przekazane z RSC `page.tsx` przez
+ * warstwę kliencką aż do menu wiersza. `archived` mówi, w którym WIDOKU jest
+ * lista (aktywne vs archiwum), więc menu wiersza pokazuje „Archiwizuj" albo
+ * „Przywróć". Nieobecne (undefined) = akcje archiwum się nie renderują (okno
+ * domykania, kontrakt renderu bez Supabase) — tabela zostaje prezentacyjna.
+ */
+export interface OrdersArchiveControls {
+  archived: boolean;
+  archiveAction: OrderArchiveAction;
+  restoreAction: OrderArchiveAction;
+}
 
 /**
  * Tabela listy zamówień (sekcja 04 artefaktu Fazy 2, ADR-057; przegląd U2–U5).
@@ -176,6 +196,7 @@ export function OrdersTable({
   selectedIds,
   onToggleRow,
   onToggleAll,
+  archiveControls,
 }: {
   rows: OrdersTableRow[];
   locale: string;
@@ -189,6 +210,8 @@ export function OrdersTable({
   selectedIds: ReadonlySet<string>;
   onToggleRow: (id: string, selected: boolean) => void;
   onToggleAll: (selected: boolean) => void;
+  /** Archiwizacja/przywracanie z menu wiersza (ADR-242); brak = bez akcji. */
+  archiveControls?: OrdersArchiveControls;
 }) {
   const t = useTranslations("orders.list");
 
@@ -346,7 +369,19 @@ export function OrdersTable({
                       trigger: t("rowActions", { number: row.orderNumber }),
                       details: t("actionDetails"),
                       status: t("actionStatus"),
+                      archive: t("actionArchive"),
+                      restore: t("actionRestore"),
                     }}
+                    archive={
+                      archiveControls
+                        ? {
+                            archived: archiveControls.archived,
+                            action: archiveControls.archived
+                              ? archiveControls.restoreAction
+                              : archiveControls.archiveAction,
+                          }
+                        : undefined
+                    }
                   />
                 </TableCell>
               </TableRow>

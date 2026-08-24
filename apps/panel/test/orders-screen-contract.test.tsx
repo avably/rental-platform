@@ -480,3 +480,65 @@ describe("kontrakt belki: wybór kolumn (U5) i układ filtrów (N2)", () => {
     expect(toolbarHtml).toContain("sm:absolute");
   });
 });
+
+/* ── Belka: przełącznik widoku archiwum (ADR-242) ──────────────────────── */
+
+function renderToolbar(props: {
+  archived?: boolean;
+  archivedCount?: number;
+  showArchiveToggle?: boolean;
+}): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="pl" messages={messages}>
+      <OrdersToolbar
+        filter={{ archiwum: props.archived ? "1" : undefined }}
+        customers={[]}
+        resultCount={5}
+        archived={props.archived}
+        archivedCount={props.archivedCount}
+        showArchiveToggle={props.showArchiveToggle}
+      />
+    </NextIntlClientProvider>,
+  );
+}
+
+describe("kontrakt belki: przełącznik widoku archiwum (ADR-242)", () => {
+  it("pokazuje przełącznik aktywne/archiwum z licznikiem, gdy włączony", () => {
+    const html = renderToolbar({ archived: false, archivedCount: 3, showArchiveToggle: true });
+    expect(html).toContain("data-orders-archive-toggle");
+    expect(html).toContain('data-orders-view="active"');
+    expect(html).toContain('data-orders-view="archived"');
+    // Licznik zarchiwizowanych wchodzi do etykiety (ICU {count}).
+    expect(html).toContain("Zarchiwizowane (3)");
+    expect(html).toContain(messages.orders.list.viewActive);
+  });
+
+  it("w widoku AKTYWNYCH wciśnięty jest chip „Aktywne”", () => {
+    const html = renderToolbar({ archived: false, archivedCount: 3, showArchiveToggle: true });
+    const active = html.match(/<a[^>]*data-orders-view="active"[^>]*>/)![0];
+    const archived = html.match(/<a[^>]*data-orders-view="archived"[^>]*>/)![0];
+    expect(active).toContain('aria-pressed="true"');
+    expect(archived).toContain('aria-pressed="false"');
+    // Chip archiwum niesie parametr archiwum=1, aktywne go zdejmuje.
+    expect(archived).toMatch(/href="[^"]*archiwum=1[^"]*"/);
+    expect(active).not.toMatch(/href="[^"]*archiwum=1[^"]*"/);
+  });
+
+  it("w widoku ARCHIWUM wciśnięty jest chip „Zarchiwizowane”", () => {
+    const html = renderToolbar({ archived: true, archivedCount: 2, showArchiveToggle: true });
+    const active = html.match(/<a[^>]*data-orders-view="active"[^>]*>/)![0];
+    const archived = html.match(/<a[^>]*data-orders-view="archived"[^>]*>/)![0];
+    expect(active).toContain('aria-pressed="false"');
+    expect(archived).toContain('aria-pressed="true"');
+  });
+
+  it("bez włączonego przełącznika (okno domykania) go nie ma", () => {
+    const html = renderToolbar({ archived: false, archivedCount: 0, showArchiveToggle: false });
+    expect(html).not.toContain("data-orders-archive-toggle");
+  });
+});
+
+// Uwaga: akcja archiwizuj/przywróć w MENU wiersza żyje w Radix DropdownMenu,
+// którego treść renderuje się dopiero po otwarciu (portal) — poza zasięgiem
+// renderToStaticMarkup. Jej kontrakt (etykieta wg widoku, submit, wołanie
+// akcji) pilnuje test w jsdom: `order-archive-row-action.test.tsx`.
