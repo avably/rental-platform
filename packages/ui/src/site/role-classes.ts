@@ -155,4 +155,12 @@ export const NEUTRAL_CLASSES: readonly string[] = [
    * dzielą też siatki BEZ reguły pełnych rzędów (kategorie, katalog).
    */
   "site-product-columns",
+  /*
+   * KARTA LISTINGU W JEDNEJ KOLUMNIE (F9). Klasa-zasięg na siatkach katalogu
+   * i strony kategorii: w paśmie < 28 rem przełącza kafel na układ poziomy
+   * (float miniatury + clear ceny/CTA) — SAMA geometria i typografia, ani
+   * jednej zmiennej roli; kolory dalej niosą klasy kafla (`site-card`,
+   * `site-text-accent`), które stoją w macierzy kontrastu.
+   */
+  "site-listing-cards",
 ];

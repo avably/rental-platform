@@ -44,6 +44,7 @@ import { headers } from "next/headers";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import { siteStyles } from "@avably/ui";
 
+import { CatalogSearch } from "@/components/storefront/catalog-search";
 import { CategoryList } from "@/components/storefront/category-list";
 import { CategorySort } from "@/components/storefront/category-sort";
 import { JsonLd } from "@/components/storefront/json-ld";
@@ -56,7 +57,7 @@ import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { storeLogo } from "@/lib/site/store-logo";
-import { format } from "@/lib/storefront/copy";
+import { format, pluralCount } from "@/lib/storefront/copy";
 import type { CategoryPageContext } from "@/lib/storefront/context";
 import { storeTermInput } from "@/lib/storefront/term-input";
 
@@ -182,38 +183,72 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
             </ol>
           </nav>
 
-          {bannerUrl ? (
-            // Baner jest DEKORACYJNY: nazwę kategorii niesie już h1 poniżej, więc
-            // `alt` = nazwa dublowałby tę samą treść w drzewie dostępności. Pusty
-            // `alt` wyłącza baner z odczytu (WCAG 1.1.1 — obraz nadmiarowy).
-            <img
-              data-category-banner
-              src={bannerUrl}
-              alt=""
-              className="mt-4 h-auto w-full rounded-lg object-cover"
-            />
-          ) : null}
+          {/*
+            NAGŁÓWEK KOMPAKTOWY (F9, mandat właściciela: „wielki baner tylko
+            przeszkadza"). Baner z kreatora ŻYJE dalej — jako MINIATURA obok
+            tytułu (88 px na szerokim kontenerze, 64 px nad tytułem na wąskim),
+            a nie hero na pół ekranu przed ofertą. Licznik pozycji stoi w JEDNYM
+            wierszu z h1 (wzorzec listingu elektromarketów: „Nazwa · N pozycji"),
+            zamiast osobnego akapitu — nagłówek kończy się przed ofertą po
+            ~3 wierszach, nie po ekranie.
 
-          {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
-          <h1 className={`mt-4 text-3xl ${SITE_HEADING}`}>{category.name}</h1>
-          <p className="site-text-muted mt-2">
-            {format(copy.category.total, { total: ctx.total })}
-            {ctx.pageCount > 1
-              ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
-              : ""}
-          </p>
-
-          {category.description ? (
-            <p data-category-description className="site-text-muted mt-4 max-w-2xl">
-              {category.description}
-            </p>
-          ) : null}
+            KOLEJNOŚĆ DOM: miniatura PIERWSZA (na wąskim kontenerze kolumna
+            stawia ją nad tytułem), na szerokim `order-last` przenosi ją na
+            prawo od tytułu. Obraz jest dekoracyjny (alt="" — nazwę niesie h1).
+          */}
+          <header
+            data-category-header
+            className="mt-5 flex flex-col gap-4 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-6"
+          >
+            {bannerUrl ? (
+              <img
+                data-category-banner
+                src={bannerUrl}
+                alt=""
+                className="site-media h-16 w-full object-cover @min-[40rem]/site:order-last @min-[40rem]/site:h-22 @min-[40rem]/site:w-44 @min-[40rem]/site:shrink-0"
+              />
+            ) : null}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {/* Strona MUSI mieć dokładnie jeden h1 (WCAG 1.3.1 / 2.4.6). */}
+                <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
+                  {category.name}
+                </h1>
+                <p data-category-count className="site-text-muted text-sm">
+                  {"· "}
+                  {pluralCount(ctx.total, locale, {
+                    one: copy.catalog.countOne,
+                    few: copy.catalog.countFew,
+                    many: copy.catalog.countMany,
+                  })}
+                  {ctx.pageCount > 1
+                    ? ` · ${format(copy.catalog.pageOf, { page: ctx.page, pages: ctx.pageCount })}`
+                    : ""}
+                </p>
+              </div>
+              {category.description ? (
+                <p data-category-description className="site-text-muted mt-2 max-w-prose text-sm">
+                  {category.description}
+                </p>
+              ) : null}
+            </div>
+          </header>
 
           {/*
-            SORT tylko gdy jest co sortować — na pustej kategorii przełącznik
-            czterech porządków tej samej pustki jest szumem, nie funkcją.
+            TOOLBAR LISTINGU (F9): jeden rząd — szukaj po lewej, „Sortuj:" po
+            prawej; na wąskim kontenerze kolumna (pole nad selectem). SORT tylko
+            gdy jest co sortować — na pustej kategorii przełącznik czterech
+            porządków tej samej pustki jest szumem, nie funkcją. Pole szukania
+            stoi ZAWSZE (mandat: „search widoczny") i celuje w katalog globalnie
+            — uzasadnienie w catalog-search.tsx.
           */}
-          {ctx.total > 0 ? <CategorySort copy={copy} slug={category.slug} active={sort} /> : null}
+          <div
+            data-listing-toolbar
+            className="mt-6 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center @min-[40rem]/site:justify-between @min-[40rem]/site:gap-4"
+          >
+            <CatalogSearch copy={copy} query="" placeholder={copy.category.searchPlaceholder} />
+            {ctx.total > 0 ? <CategorySort copy={copy} slug={category.slug} active={sort} /> : null}
+          </div>
 
           <div className="mt-8">
             <CategoryList
