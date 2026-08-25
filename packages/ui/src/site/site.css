@@ -1180,11 +1180,55 @@
 
 /*
  * =====================================================================
+ * LISTING MIERZY WŁASNY PAS TREŚCI (F11, aneks do ADR-085 i ADR-275)
+ * =====================================================================
+ *
+ * Progi wyżej mierzą kontener `site`, czyli CAŁĄ stronę — i to była prawda
+ * tylko dopóki listing zajmował ją w całości. ADR-275 postawił obok siatki
+ * kolumnę kategorii (15 rem od 64 rem), więc przy oknie 1440 px arkusz dawał
+ * TRZY kolumny na pasie o szerokości 688 px: karta 213 px, tytuł na dwie
+ * linie, „Zobacz szczegóły" na dwie (zmierzone na produkcji).
+ *
+ * Pas treści listingu jest odtąd WŁASNYM kontenerem (`listing`, klasa
+ * `site-listing-band` na kolumnie treści w trasach katalogu i kategorii),
+ * a siatka listingu liczy kolumny względem niego. Progi niesie
+ * LISTING_GRID_STEPS (structured/product-grid.ts), zgodność obu stron pilnuje
+ * kontrakt artefaktu — dokładnie tak, jak przy pasmach `site` wyżej.
+ *
+ * PODŁOGA JEDNEJ KOLUMNY stoi bez zapytania i ma specyficzność DWÓCH KLAS:
+ * siatka listingu nosi obie klasy naraz, więc bez niej reguły `site` wyżej
+ * dalej by w niej obowiązywały. Sekcje stron najemcy zostają przy `site` —
+ * tam siatka zajmuje cały pas treści i nowy kontener nie zmieniłby ani jednej
+ * liczby.
+ */
+.site-listing-band {
+  container-type: inline-size;
+  container-name: listing;
+}
+
+.site-listing-cards.site-product-columns {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@container listing (width >= 28rem) {
+  .site-listing-cards.site-product-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container listing (width >= 54rem) {
+  .site-listing-cards.site-product-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/*
+ * =====================================================================
  * KARTA LISTINGU W JEDNEJ KOLUMNIE — UKŁAD POZIOMY (F9, spec przebudowy
  * ścieżki storefrontu 2026-08-25)
  * =====================================================================
  *
- * Poniżej progu jednej kolumny (28 rem — TEN SAM próg, co `site-product-columns`
+ * Poniżej progu jednej kolumny (28 rem — TEN SAM próg, co kolumny listingu
  * wyżej; żadnego nowego progu układu) karta PIONOWA marnuje ekran telefonu:
  * zdjęcie 4:3 na pełnej szerokości spycha cenę i przycisk poza widok, więc
  * klient porównuje pozycje scrollem po jednej. Układ POZIOMY — miniatura
@@ -1210,8 +1254,14 @@
  * Reguły stoją POZA warstwami Tailwinda (jak cały ten arkusz), więc wygrywają
  * z klasami utility kafla (`mt-1`, `text-sm`, `mt-auto`) bez `!important`.
  * Zero zmiennych ról — geometria i typografia; kolory zostają z klas kafla.
+ *
+ * MIARĄ JEST PAS LISTINGU (F11), nie strona — ta sama zmiana, co przy kolumnach
+ * wyżej i z tego samego powodu. Gdyby układ karty został przy `site`, a kolumny
+ * przeszły na pas, powstałoby okno szerokości (pas poniżej 28 rem przy stronie
+ * powyżej), w którym jedna kolumna dostawałaby kartę PIONOWĄ ze zdjęciem 4:3 na
+ * całą szerokość. Jeden kontener na obie decyzje wyklucza to z konstrukcji.
  */
-@container site (width < 28rem) {
+@container listing (width < 28rem) {
   .site-listing-cards > li > a {
     display: block;
     padding: 0.75rem;
@@ -1277,6 +1327,57 @@
     width: 100%;
     margin-top: 0.75rem;
     text-align: center;
+  }
+}
+
+/*
+ * =====================================================================
+ * SEPARATOR LICZNIKA TYLKO W UKŁADZIE INLINE (F11)
+ * =====================================================================
+ *
+ * Nagłówek listingu to wiersz „Tytuł · N pozycji" (F9), a wiersz jest siatką
+ * zawijaną: przy dłuższym liczniku (fraza wyszukiwania na telefonie) licznik
+ * schodzi POD tytuł. Kropka stała w treści bezwarunkowo, więc zaczynała wtedy
+ * nowy wiersz — sierocy separator, który nic już nie rozdziela.
+ *
+ * Warunkowa emisja jest tu niemożliwa: o zawinięciu rozstrzyga układ, a render
+ * biegnie na serwerze i szerokości nie zna. Rysuje ją więc arkusz, i to od
+ * progu, przy którym licznik mieści się obok tytułu — poniżej niego wiersz
+ * licznika stoi osobno i separatora nie potrzebuje. Próg jest TEN SAM, co
+ * jedna kolumna kart (28 rem pasa): żadnej nowej liczby.
+ *
+ * Separatory WEWNĄTRZ licznika („· Wyczyść", „· Strona 2 z 3") zostają
+ * w treści — one rozdzielają elementy tego samego wiersza i nie mają jak
+ * zawisnąć na jego początku.
+ */
+@container listing (width >= 28rem) {
+  .site-listing-band [data-catalog-count]::before,
+  .site-listing-band [data-category-count]::before {
+    content: "· ";
+  }
+}
+
+/*
+ * =====================================================================
+ * TRZECIA LINIA TYTUŁU NA NAJWĘŻSZYM PASIE (F11)
+ * =====================================================================
+ *
+ * Klamp dwóch linii wyżej gubił na 360 px WYRÓŻNIK nazwy: „Agregat
+ * prądotwórczy 8 kVA" kończył się na „8…", czyli dokładnie na tej części,
+ * która odróżnia pozycję od sąsiedniej. Zmierzone na produkcji: pas 300 px,
+ * kolumna tytułu 166 px, nazwa potrzebuje TRZECH linii; przy 390 px kolumna
+ * ma 191 px i mieści się w dwóch (dlatego próg stoi wyżej niż zmierzony
+ * przypadek — ma zostawić miejsce nazwom dłuższym, nie tylko tej jednej).
+ *
+ * DLACZEGO LINIA, A NIE MNIEJSZY STOPIEŃ. Zejście tytułu do 16 px też mieści
+ * tę nazwę w dwóch liniach (zmierzone), ale mieści JĄ — a nie każdą: wynik
+ * zależy wtedy od metryki kroju, a krój jest wyborem najemcy i zmienia się
+ * z szablonem. Trzecia linia nie zależy od niczego i kosztuje 28 px tylko tam,
+ * gdzie tytuł naprawdę jej potrzebuje (nazwy krótkie zostają jednoliniowe).
+ */
+@container listing (width < 23rem) {
+  .site-listing-cards [data-products-name] {
+    -webkit-line-clamp: 3;
   }
 }
 

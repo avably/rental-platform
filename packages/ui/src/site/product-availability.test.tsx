@@ -30,12 +30,20 @@ const PID = "prod-1";
 
 const LABELS = {
   available: "Dostępny",
-  low: "Zostały {units} szt.",
+  /** Trzy formy liczebnika — lustro słownika najemcy (F11). */
+  low: {
+    one: "Została {units} szt.",
+    few: "Zostały {units} szt.",
+    many: "Zostało {units} szt.",
+  },
   unavailable: "Zajęty w tym terminie",
 } as const;
 
-function dostepnosc(units: Record<string, number>): SiteProductAvailability {
-  return { units, ...LABELS };
+function dostepnosc(
+  units: Record<string, number>,
+  locale: "pl" | "en" = "pl",
+): SiteProductAvailability {
+  return { units, ...LABELS, locale };
 }
 
 /** Renderuje badge dla JEDNEJ pozycji w podanym kontekście dostępności. */
@@ -81,6 +89,43 @@ describe("badge streszcza dostępność do trzech stanów", () => {
     expect(el.getAttribute("data-products-availability-state")).toBe("low");
     expect(el.textContent).toContain("2");
     expect(el.getAttribute("data-products-availability-units")).toBe("2");
+  });
+
+  /*
+   * ODMIANA LICZEBNIKA (F11). Chip mówił „Zostały 1 szt." — jedna forma
+   * wystarcza po angielsku i nie wystarcza po polsku. Sprawdzamy WSZYSTKIE
+   * liczby, które stan `low` może w ogóle przyjąć (1..próg), bo to jest cały
+   * zbiór wejść tej reguły.
+   */
+  it.each([
+    [1, "Została 1 szt."],
+    [2, "Zostały 2 szt."],
+    [3, "Zostały 3 szt."],
+  ])("po polsku %i sztuk(a/i) czyta się „%s”", (units, oczekiwane) => {
+    narysuj(dostepnosc({ [PID]: units }));
+    expect(badge()!.textContent).toBe(oczekiwane);
+  });
+
+  it("po polsku próg 5+ wziąłby formę „Zostało” (kontrola reguły, nie progu)", () => {
+    // Stan `low` kończy się na progu, ale reguła ma być regułą języka, a nie
+    // trzema `if`-ami dopasowanymi do dzisiejszej wartości LOW_STOCK_THRESHOLD.
+    narysuj(dostepnosc({ [PID]: 5 }, "pl"));
+    // 5 sztuk to już `available` — etykieta bez liczby; sam wybór formy
+    // sprawdzamy tam, gdzie żyje (rdzeń), a tu pilnujemy, że stan się zgadza.
+    expect(badge()!.getAttribute("data-products-availability-state")).toBe("available");
+  });
+
+  it("po angielsku jedna sztuka czyta się „1 left” (dwie formy, nie trzy)", () => {
+    narysuj(
+      {
+        units: { [PID]: 1 },
+        available: "Available",
+        low: { one: "{units} left", few: "{units} left", many: "{units} left" },
+        unavailable: "Unavailable for these dates",
+        locale: "en",
+      },
+    );
+    expect(badge()!.textContent).toBe("1 left");
   });
 
   it("zero: „Zajęty w tym terminie” słowami, stan unavailable", () => {

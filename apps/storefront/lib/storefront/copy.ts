@@ -8,6 +8,8 @@
  * Parytet kluczy EN↔PL pilnuje test messages-parity — brak stringa w jednym
  * locale pada w CI, nie w przeglądarce klienta.
  */
+import { pluralFormOf, type PluralForms } from "@avably/core/locale";
+
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 import plMessages from "../../messages/pl.json";
 
@@ -44,13 +46,15 @@ export function format(template: string, vars: Record<string, string | number>):
  * szablony; angielski ma form dwie, więc `few` powtarza `many` w pliku
  * messages (parytet kluczy pilnowany testem), a `other` CLDR schodzi na
  * `many` — dla obu języków to jest właściwa forma domyślna.
+ *
+ * Sam WYBÓR formy mieszka od F11 w rdzeniu (`pluralFormOf`), bo pyta o niego
+ * także renderer kafla z pakietu UI — chip niedoboru mówił „Zostały 1 szt.".
+ * Tu zostaje wyłącznie token: licznik pozycji wstawia `{total}`, chip `{units}`.
  */
 export function pluralCount(
   total: number,
   locale: StorefrontLocale,
-  forms: { one: string; few: string; many: string },
+  forms: PluralForms,
 ): string {
-  const rule = new Intl.PluralRules(locale).select(total);
-  const template = rule === "one" ? forms.one : rule === "few" ? forms.few : forms.many;
-  return format(template, { total });
+  return format(pluralFormOf(total, locale, forms), { total });
 }

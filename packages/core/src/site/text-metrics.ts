@@ -241,6 +241,48 @@ export function iconPxAt(canvasWidthPx = CANVAS_DESIGN_WIDTH_PX): number {
   );
 }
 
+/**
+ * WYSOKOŚĆ TREŚCI ELEMENTU W JEDNOSTKACH SIATKI przy zadanej szerokości płótna
+ * — miara CIĄGŁA (do proporcji, nie do pudełka) i jedno miejsce prawdy o tym,
+ * KTÓRA treść przestaje maleć razem z płótnem (ADR-274, aneks F11).
+ *
+ * Płótno jest proporcją: zwężone o połowę ma o połowę mniejsze jednostki, więc
+ * wszystko, co mierzy się w jednostkach, kurczy się razem z nim. Nie kurczy się
+ * jednak ani font (zacisk `clamp` ma dolny koniec), ani kafelek ikony (ten sam
+ * zacisk), ani przycisk (rozstaw w `rem`, wysokość praktycznie stała). Ta trójka
+ * — i tylko ona — potrafi przy zwężeniu wyjść poza miejsce, które dla niej
+ * zarezerwowano: pod sąsiada albo poza dolną krawędź sekcji, którą płótno
+ * przycina.
+ *
+ * `null` znaczy „ta treść jest procentem płótna i kurczy się razem z nim"
+ * (zdjęcie, kształt, katalog) — takiemu elementowi rozciągnięcie się nie należy,
+ * bo nic mu nie dolega.
+ *
+ * ROZMIAR PUDEŁKA NIE MA TU ZNACZENIA. Do F11 liczyły się wyłącznie napisy
+ * o wysokości JAWNEJ, bo pudełko obejmujące treść (`hug`) renderuje się jako
+ * `max-content` i „samo się nie przycina". To prawda o pudełku i nieprawda
+ * o SEKCJI: `max-content` rośnie w dół, a dół sekcji jest twardą krawędzią.
+ * Dokładnie tak zniknął kafelek ikony i dolna połowa przycisku na `/audyt-c`
+ * przy 768 px (re-sweep audytu UX 2026-08-25).
+ */
+export function contentHeightUnitsAt(
+  element: CanvasElement,
+  columns: number,
+  canvasWidthPx: number,
+): number | null {
+  switch (element.kind) {
+    case "heading":
+    case "text":
+      return textHeightUnitsAt(element.text, scaleOfElement(element), columns, canvasWidthPx);
+    case "button":
+      return BUTTON_HEIGHT_PX / unitPxAt(canvasWidthPx);
+    case "icon":
+      return iconPxAt(canvasWidthPx) / unitPxAt(canvasWidthPx);
+    default:
+      return null;
+  }
+}
+
 /** Skala tekstu, którą element rysuje — jedno miejsce prawdy dla estymatorów. */
 export function scaleOfElement(element: CanvasElement): TextScale {
   switch (element.kind) {

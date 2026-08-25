@@ -76,6 +76,14 @@
  * nie staje się „rolą poza skanem" macierzy kontrastu (patrz akapit wyżej),
  * a jednocześnie stan pozostaje czytelny bez koloru: niosą go etykieta i glif.
  */
+/*
+ * WEJŚCIE PUNKTOWE, NIE BARYŁKA (`@avably/core/locale`). Ten plik jest
+ * KOMPONENTEM KLIENCKIM, a korzeń rdzenia re-eksportuje wszystko — Stripe,
+ * kuriera, pocztę, rozliczenia. Import z korzenia dokładał je do paczki
+ * klienckiej kreatora i systemu projektowego (zmierzone: +15 KB i +30 KB
+ * gzip pierwszego ładowania, ponad budżet ADR-262).
+ */
+import { pluralFormOf, type Locale, type PluralForms } from "@avably/core/locale";
 import { createContext, useContext } from "react";
 
 /**
@@ -100,10 +108,23 @@ export interface SiteProductAvailability {
   units: Readonly<Record<string, number>>;
   /** Etykieta stanu `available` (powyżej progu) — bez liczby, np. „Dostępny". */
   available: string;
-  /** Etykieta stanu `low` (1..próg) — z liczbą; interpolacja `{units}`. */
-  low: string;
+  /**
+   * Etykieta stanu `low` (1..próg) — z liczbą, interpolacja `{units}`, w TRZECH
+   * FORMACH LICZEBNIKA (F11).
+   *
+   * Jedna forma wystarczała po angielsku („2 left") i kłuła po polsku: przy
+   * jednej sztuce chip mówił „Zostały 1 szt.". Formę wybiera `pluralFormOf`
+   * z rdzenia, czyli ta sama reguła, którą liczy się pozycje katalogu.
+   */
+  low: PluralForms;
   /** Etykieta stanu `unavailable` (zero) — osobna, bo „wolne: 0 szt." to usterka. */
   unavailable: string;
+  /**
+   * Język NAJEMCY (oś tenancka) — bez niego nie ma jak wybrać formy. Pakiet UI
+   * nie zna słownika i nie ma go skąd wziąć sam; podaje go ten sam most, co
+   * etykiety.
+   */
+  locale: Locale;
 }
 
 /**
@@ -210,7 +231,7 @@ export function SiteProductAvailabilityMark({
     state === "unavailable"
       ? availability.unavailable
       : state === "low"
-        ? interpolate(availability.low, { units })
+        ? interpolate(pluralFormOf(units, availability.locale, availability.low), { units })
         : availability.available;
 
   return (

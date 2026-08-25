@@ -337,9 +337,12 @@ export function StoreTermProvider({ children }: { children: ReactNode }) {
  */
 export function StoreCatalogAvailability({
   copy,
+  locale,
   children,
 }: {
   copy: StorefrontCopy;
+  /** Język NAJEMCY — rozstrzyga formę liczebnika na chipie niedoboru (F11). */
+  locale: StorefrontLocale;
   children: ReactNode;
 }) {
   const { units } = useStoreTerm();
@@ -353,10 +356,29 @@ export function StoreCatalogAvailability({
             // „Zajęty w tym terminie". Widget rezerwacji (product-booking) niesie
             // dalej gołą liczbę (`unitsFree`) — inny kontekst, inne pytanie.
             available: copy.term.statusAvailable,
-            low: copy.term.statusLow,
+            /*
+             * TRZY FORMY LICZEBNIKA (F11). Chip mówił „Zostały 1 szt." — jedna
+             * forma wystarcza po angielsku i nie wystarcza po polsku. Wybór
+             * formy robi `pluralFormOf` w kaflu (tam jest liczba), a tu jedzie
+             * komplet szablonów i język najemcy.
+             */
+            low: {
+              one: copy.term.statusLowOne,
+              few: copy.term.statusLowFew,
+              many: copy.term.statusLowMany,
+            },
             unavailable: copy.term.statusBusy,
+            locale,
           },
-    [units, copy.term.statusAvailable, copy.term.statusLow, copy.term.statusBusy],
+    [
+      units,
+      locale,
+      copy.term.statusAvailable,
+      copy.term.statusLowOne,
+      copy.term.statusLowFew,
+      copy.term.statusLowMany,
+      copy.term.statusBusy,
+    ],
   );
 
   return <SiteProductAvailabilityProvider value={value}>{children}</SiteProductAvailabilityProvider>;

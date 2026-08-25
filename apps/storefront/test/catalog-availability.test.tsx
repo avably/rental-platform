@@ -88,7 +88,7 @@ function sekcjaSprzetu(): RenderSection {
 function katalog() {
   return (
     <StoreTermProvider>
-      <StoreCatalogAvailability copy={copy}>
+      <StoreCatalogAvailability copy={copy} locale="pl">
         <SiteRenderer
           sections={[sekcjaSprzetu()]}
           products={KATALOG}
@@ -241,7 +241,7 @@ describe("kafel katalogu streszcza dostępność do stanu handlowego (ADR-245)",
 
     render(
       <StoreTermProvider>
-        <StoreCatalogAvailability copy={copy}>
+        <StoreCatalogAvailability copy={copy} locale="pl">
           <SiteRenderer sections={[sekcjaV1]} products={KATALOG} labels={DEFAULT_SITE_LABELS} />
         </StoreCatalogAvailability>
       </StoreTermProvider>,

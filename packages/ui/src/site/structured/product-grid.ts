@@ -64,6 +64,18 @@ export const PRODUCT_GRID_STEPS = [
 export type ProductGridStep = (typeof PRODUCT_GRID_STEPS)[number];
 
 /**
+ * PASMO SIATKI w postaci OGÓLNEJ — kształt wiersza tabeli pasm, nie konkretne
+ * literały jednej z nich. Generatory bloków przyjmują ten typ, bo tabel jest
+ * od F11 dwie (siatka sekcji na kontenerze `site`, siatka listingu na własnym
+ * pasie), a próg trzech kolumn jest w każdej z nich INNY.
+ */
+export interface GridStep {
+  columns: number;
+  from: string | null;
+  until: string | null;
+}
+
+/**
  * BLOK KOLUMN dla pasma — `@container` z regułą `grid-template-columns`.
  * `repeat(N, minmax(0, 1fr))` to dokładnie siatka, którą dawały klasy
  * `grid-cols-N` Tailwinda — zero zmiany wyglądu, zmienia się wyłącznie
@@ -73,7 +85,7 @@ export type ProductGridStep = (typeof PRODUCT_GRID_STEPS)[number];
  * pasma wyższe stoją w arkuszu PÓŹNIEJ i wygrywają kaskadą tam, gdzie oba
  * zapytania są prawdziwe naraz. Dla pasma od zera bloku nie ma (patrz tabela).
  */
-export function columnsBlockFor(step: ProductGridStep): string | null {
+export function columnsBlockFor(step: GridStep): string | null {
   if (step.from === null) return null;
   return `@container site (width >= ${step.from}) {\n  .${PRODUCT_COLUMNS_CLASS} {\n    grid-template-columns: repeat(${step.columns}, minmax(0, 1fr));\n  }\n}`;
 }
@@ -104,13 +116,88 @@ export function orphanRuleFor(columns: number): string {
  * ta wada, którą domknięcie pasma wyklucza. Pasmo jednej kolumny bloku nie ma
  * (`fullRowCount(n, 1) === n`, kontrakt w rdzeniu).
  */
-export function orphanBlockFor(step: ProductGridStep): string | null {
+export function orphanBlockFor(step: GridStep): string | null {
   if (step.columns <= 1) return null;
   const rule = orphanRuleFor(step.columns);
   if (step.until === null) {
     return `@container site (width >= ${step.from}) {\n  ${rule}\n}`;
   }
   return `@container site (width >= ${step.from}) {\n  @container site (width < ${step.until}) {\n    ${rule}\n  }\n}`;
+}
+
+// -----------------------------------------------------------------------
+// LISTING MIERZY WŁASNY PAS TREŚCI (F11, aneks do ADR-085 i ADR-275)
+// -----------------------------------------------------------------------
+
+/**
+ * NAZWA KONTENERA PASA LISTINGU.
+ *
+ * ==================== CO BYŁO ZEPSUTE ====================
+ *
+ * Progi kolumn wyżej mierzą kontener `site`, czyli CAŁĄ stronę. Dopóki listing
+ * zajmował ją w całości, było to tą samą liczbą. ADR-275 postawił obok siatki
+ * kolumnę kategorii (15 rem od progu 64 rem) i te dwie liczby się rozjechały:
+ * przy oknie 1440 px strona ma 1440 px, więc arkusz dawał TRZY kolumny — a pas
+ * treści listingu miał wtedy 688 px i karta wychodziła 213 px. Tytuł łamał się
+ * na dwie linie, „Zobacz szczegóły" na dwie (zmierzone na produkcji przed
+ * poprawką: karta 213 px, przycisk 74 px wysokości zamiast 37).
+ *
+ * ==================== ODPOWIEDŹ ====================
+ *
+ * Pas treści listingu jest WŁASNYM kontenerem, a progi kolumn listingu liczą
+ * się względem niego. To jest dokładnie duch ADR-085 („miarą jest kontener,
+ * nie okno") zastosowany o jeden poziom głębiej: siatka ma mierzyć to miejsce,
+ * które NAPRAWDĘ dostała, a nie to, które dostała strona.
+ *
+ * Sekcje stron najemcy zostają przy `site` — tam siatka dalej zajmuje cały pas
+ * treści i nowy kontener nie zmieniłby ani jednej liczby.
+ */
+export const LISTING_CONTAINER_NAME = "listing";
+
+/** Klasa pasa treści listingu — na niej stoi kontener {@link LISTING_CONTAINER_NAME}. */
+export const LISTING_BAND_CLASS = "site-listing-band";
+
+/** Klasa siatki listingu (katalog i strona kategorii) — nadają ją trasy sklepu. */
+export const LISTING_GRID_CLASS = "site-listing-cards";
+
+/**
+ * PASMA SIATKI LISTINGU — progi liczone od PASA, nie od strony.
+ *
+ * Dwa pierwsze progi zostają te same, co przy `site` (28 rem to ten sam „próg
+ * telefonu" z ADR-085). Trzeci jest NOWY i policzony, a nie odziedziczony:
+ *
+ *   • karta ma zmieścić najdłuższy tytuł katalogu w JEDNEJ linii (zmierzone na
+ *     produkcji: 240 px przy 18 px kroju) i „Zobacz szczegóły" w jednej
+ *     (137 px przy 16 px) — z rozstawem karty (2 × 17 px) daje to ~17 rem;
+ *   • trzy takie karty z dwiema przerwami po 1,5 rem to 3 × 17 + 2 × 1,5 =
+ *     54 rem.
+ *
+ * Poniżej tej szerokości pas dostaje DWIE kolumny — i to jest cała treść
+ * poprawki: „trzy kolumny wtedy, gdy jest na nie miejsce".
+ */
+export const LISTING_GRID_STEPS = [
+  { columns: 1, from: null, until: "28rem" },
+  { columns: 2, from: "28rem", until: "54rem" },
+  { columns: 3, from: "54rem", until: null },
+] as const satisfies readonly GridStep[];
+
+/**
+ * PODŁOGA JEDNEJ KOLUMNY dla listingu — reguła bez zapytania, o SPECYFICZNOŚCI
+ * DWÓCH KLAS.
+ *
+ * Bez niej progi `site` z bloków wyżej dalej obowiązywałyby wewnątrz pasa
+ * (siatka listingu nosi obie klasy naraz), a reguła z kontenera `listing`
+ * musiałaby je pokonywać przy KAŻDEJ szerokości. Podłoga zeruje tamtą kaskadę
+ * raz: dwie klasy biją jedną, a dalej rządzą już wyłącznie progi pasa.
+ */
+export function listingBaselineBlock(): string {
+  return `.${LISTING_GRID_CLASS}.${PRODUCT_COLUMNS_CLASS} {\n  grid-template-columns: repeat(1, minmax(0, 1fr));\n}`;
+}
+
+/** BLOK KOLUMN pasma listingu — jak {@link columnsBlockFor}, ale na kontenerze pasa. */
+export function listingColumnsBlockFor(step: GridStep): string | null {
+  if (step.from === null) return null;
+  return `@container ${LISTING_CONTAINER_NAME} (width >= ${step.from}) {\n  .${LISTING_GRID_CLASS}.${PRODUCT_COLUMNS_CLASS} {\n    grid-template-columns: repeat(${step.columns}, minmax(0, 1fr));\n  }\n}`;
 }
 
 /**

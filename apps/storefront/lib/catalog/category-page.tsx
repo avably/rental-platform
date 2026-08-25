@@ -42,7 +42,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
-import { siteStyles } from "@avably/ui";
+import { LISTING_BAND_CLASS, siteStyles } from "@avably/ui";
 
 import { CategoryList } from "@/components/storefront/category-list";
 import { CategorySort } from "@/components/storefront/category-sort";
@@ -207,7 +207,13 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
               allCategoriesLabel={copy.nav.allCategories}
               currentPath={categoryBasePath(category.slug)}
             />
-            <div className="min-w-0">
+            {/*
+              PAS TREŚCI LISTINGU JEST WŁASNYM KONTENEREM (F11, `LISTING_BAND_CLASS`).
+              Progi kolumn kart mierzą odtąd TO miejsce, a nie całą stronę:
+              z kolumną kategorii obok pas ma przy oknie 1440 px 688 px, więc
+              trzy kolumny dawały karty po 213 px z łamanym tytułem i CTA.
+            */}
+            <div className={`min-w-0 ${LISTING_BAND_CLASS}`}>
               {/*
                 NAGŁÓWEK KOMPAKTOWY (F9 + F9b). Licznik pozycji stoi w JEDNYM
                 wierszu z h1 (wzorzec listingu elektromarketów: „Nazwa · N
@@ -227,8 +233,14 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
                     <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
                       {category.name}
                     </h1>
+                    {/*
+                      SEPARATOR TYLKO W UKŁADZIE INLINE (F11). Kropka stała
+                      w treści BEZWARUNKOWO, więc gdy licznik zawijał się pod
+                      h1 (fraza wyszukiwania na telefonie), wiersz zaczynał się
+                      od wiszącego „·". Rysuje ją teraz arkusz — od tego progu
+                      pasa, na którym licznik mieści się obok tytułu.
+                    */}
                     <p data-category-count className="site-text-muted text-sm">
-                      {"· "}
                       {pluralCount(ctx.total, locale, {
                         one: copy.catalog.countOne,
                         few: copy.catalog.countFew,

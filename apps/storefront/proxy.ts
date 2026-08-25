@@ -188,14 +188,41 @@ export function neutralNotFoundLocale(acceptLanguage: string | null): string {
 }
 
 /**
- * Treść neutralnej odmowy w obu językach. Świadomie BEZ nazwy platformy,
- * bez nazwy najemcy, bez odnośnika dokądkolwiek: dokument stoi pod adresem,
- * który do nas nie należy (obca domena, cudza subdomena), a każdy odnośnik
- * byłby reklamą pod cudzym adresem — dokładnie tym, co ADR-131 zamyka.
+ * Treść neutralnej odmowy w obu językach. Świadomie BEZ nazwy platformy
+ * i BEZ nazwy najemcy — dokument stoi pod adresem, który do nas nie należy
+ * (obca domena, cudza subdomena), więc każdy nasz znak byłby reklamą pod
+ * cudzym adresem, a każda nazwa — wyrocznią o stanie tenanta (ADR-131).
+ *
+ * ==================== DROGA POWROTU: JEDNO ŁĄCZE WZGLĘDNE (F11) ====================
+ *
+ * Do F11 dokument nie miał odnośnika DOKĄDKOLWIEK, i to było o jeden krok za
+ * daleko. Rozumowanie „każdy odnośnik jest reklamą" dotyczy odnośnika DO NAS:
+ * adresu Avably, znaku, nazwy platformy. Odnośnik WZGLĘDNY (`/`) nie prowadzi
+ * do nas — prowadzi do korzenia tego samego adresu, pod który odwiedzający już
+ * wszedł, i nie niesie ani jednego bajtu, którego by nie znał.
+ *
+ * NIEROZRÓŻNIALNOŚĆ ZOSTAJE NIETKNIĘTA: łącze jest DOKŁADNIE TAKIE SAMO dla
+ * hosta nieznanego, tenanta zawieszonego, usuniętego i dla literówki w ścieżce
+ * u najemcy działającego — bo powstaje z samego znaku „/", a nie z niczyjego
+ * stanu. To, że pod korzeniem raz stoi sklep, a raz ta sama odmowa, jest
+ * własnością ADRESU, którą odwiedzający sprawdzi wpisaniem „/" z palca;
+ * odnośnik nie dokłada tu żadnej wyroczni, której by wcześniej nie było.
+ *
+ * Etykieta idzie ZA JĘZYKIEM DOKUMENTU (`<html lang>`), czyli za tym samym
+ * `Accept-Language`, co tytuł — dokument, który mówi „Nie znaleziono strony"
+ * i „Back to home" naraz, jest dokumentem w dwóch językach.
  */
-const NOT_FOUND_COPY: Record<string, { title: string; lead: string }> = {
-  pl: { title: "Nie znaleziono strony", lead: "Sprawdź adres i spróbuj ponownie." },
-  en: { title: "Page not found", lead: "Check the address and try again." },
+const NOT_FOUND_COPY: Record<string, { title: string; lead: string; home: string }> = {
+  pl: {
+    title: "Nie znaleziono strony",
+    lead: "Sprawdź adres i spróbuj ponownie.",
+    home: "Wróć na stronę główną",
+  },
+  en: {
+    title: "Page not found",
+    lead: "Check the address and try again.",
+    home: "Back to home",
+  },
 };
 
 /**
@@ -252,6 +279,7 @@ main { max-width: 28rem; }
 p.code { margin: 0 0 .5rem; font-size: 1.5rem; font-weight: 600; opacity: .55; font-variant-numeric: tabular-nums; }
 h1 { margin: 0 0 .5rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em; }
 p.lead { margin: 0; opacity: .7; }
+a.home { display: inline-block; margin-top: 1.25rem; color: inherit; }
 </style>
 </head>
 <body>
@@ -259,6 +287,7 @@ p.lead { margin: 0; opacity: .7; }
 <p class="code">404</p>
 <h1>${copy.title}</h1>
 <p class="lead">${copy.lead}</p>
+<a class="home" href="/">${copy.home}</a>
 </main>
 </body>
 </html>

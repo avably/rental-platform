@@ -82,6 +82,15 @@ export {
  * wyglądu), a siatka wokół niego — inna.
  */
 export { ProductTile, ProductsEmpty } from "./structured/products-shared";
+/*
+ * PAS TREŚCI LISTINGU (F11) — klasa nadająca mu WŁASNY kontener zapytań.
+ *
+ * Wychodzi z pakietu, bo nadają ją TRASY sklepu (katalog i strona kategorii),
+ * a progi kolumn, które ten kontener obsługuje, mieszkają w arkuszu pakietu.
+ * Literał w storefroncie rozjechałby się z arkuszem po cichu — siatka wróciłaby
+ * do mierzenia całej strony i nikt by tego nie zauważył poza zrzutem.
+ */
+export { LISTING_BAND_CLASS, LISTING_GRID_CLASS } from "./structured/product-grid";
 // Auto-układ listy wpisów (E6, aneks ADR-094) — liczba kolumn z LICZBY wpisów.
 export { AUTO_LAYOUT_MAX_COLUMNS, autoColumns } from "./structured/auto-layout";
 // `rel` linków wychodzących — jedna reguła na cały render (E1, ADR-094).

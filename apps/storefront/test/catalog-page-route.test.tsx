@@ -28,6 +28,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOG_PAGE_SIZE, catalogPagePath } from "@avably/core";
+import { LISTING_BAND_CLASS } from "@avably/ui";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 
@@ -246,6 +247,39 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     );
     expect(html, "siatka katalogu bez klasy karty poziomej").toMatch(
       /<ul(?=[^>]*data-catalog-grid)(?=[^>]*site-listing-cards)[^>]*>/,
+    );
+  }, BUDZET_RENDERU);
+
+  it("licznik NIE zaczyna się od separatora — kropkę rysuje arkusz (F11)", async () => {
+    /*
+     * SIEROCY SEPARATOR. Wiersz nagłówka zawija się (`flex-wrap`), a kropka
+     * stała w TREŚCI bezwarunkowo — więc licznik, który zszedł pod h1 (fraza
+     * wyszukiwania na telefonie), zaczynał wiersz od wiszącego „·". Rysuje ją
+     * teraz arkusz i tylko w paśmie, w którym licznik stoi obok tytułu.
+     */
+    const html = await renderKatalog({ q: "agregat" });
+    const licznik = /<p[^>]*data-catalog-count[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
+
+    // Kontrola przyrządu: licznik NAPRAWDĘ się wyrenderował.
+    expect(licznik.length, "nie ma czego badać — licznik nie wszedł do dokumentu").toBeGreaterThan(0);
+    expect(
+      licznik.replace(/<[^>]*>/g, "").trimStart().startsWith("·"),
+      "licznik dalej niesie kropkę w treści — na telefonie zawiśnie na początku wiersza",
+    ).toBe(false);
+    // Separatory WEWNĄTRZ wiersza zostają: one rozdzielają jego własne części.
+    expect(licznik, 'zniknął separator przed „Wyczyść"').toContain("·");
+  }, BUDZET_RENDERU);
+
+  it("pas treści listingu jest własnym kontenerem zapytań (F11)", async () => {
+    /*
+     * Progi kolumn kart mają mierzyć pas, który siatka NAPRAWDĘ dostała —
+     * obok stoi kolumna kategorii (ADR-275), więc szerokość strony i szerokość
+     * pasa to od tamtej pory dwie różne liczby. Bez tej klasy arkusz wraca do
+     * mierzenia strony i przy 1440 px stają trzy kolumny po 213 px.
+     */
+    const html = await renderKatalog({});
+    expect(html, "pas listingu bez kontenera — kolumny znów mierzą całą stronę").toContain(
+      LISTING_BAND_CLASS,
     );
   }, BUDZET_RENDERU);
 

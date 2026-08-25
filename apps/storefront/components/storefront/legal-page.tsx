@@ -28,6 +28,7 @@ import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { storeLogo } from "@/lib/site/store-logo";
 import { loadStorefrontContext } from "@/lib/storefront/context";
+import { storeTermInput } from "@/lib/storefront/term-input";
 
 /**
  * Metadane wspólne dla żywej wersji i permalinku.
@@ -89,10 +90,16 @@ export async function LegalDocumentPage({ kind }: { kind: LegalDocumentKind }) {
       logo={storeLogo(ctx)}
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
       /*
-        TERMIN: `null` — dokument prawny NIE SPRZEDAJE (faza 5, ADR-179).
-        Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
+        TERMIN: JEST — belka jest JEDNA na wszystkich trasach (decyzja PM, F11).
+        Do F11 dokument prawny dostawał `null` z rozumowania „ta trasa nie
+        sprzedaje" (faza 5, ADR-179). F7b zniosło tryby nagłówka i ta sama
+        decyzja objęła kasę: klient ma widzieć TĘ SAMĄ belkę wszędzie, bo belka
+        znikająco-zmienna czyta się jak inna strona, a nie jak inny kontekst.
+        Pigułka nie jest tu kalendarzem „nad zamówieniem" — jest wyborem, który
+        klient niesie ze sobą i do którego wraca z regulaminu jednym tapnięciem.
+        Regułę „najemca wyłączył pigułkę" (ADR-203) trzyma dalej `storeTermInput`.
       */
-      term={null}
+      term={storeTermInput(ctx.storeFlags, ctx.catalog.products, ctx.locale)}
       /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
       categoryNav={categoryNavItems(ctx.catalog)}
       /*
@@ -145,10 +152,16 @@ export async function LegalDocumentVersionPage({
       logo={storeLogo(ctx)}
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
       /*
-        TERMIN: `null` — dokument prawny NIE SPRZEDAJE (faza 5, ADR-179).
-        Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
+        TERMIN: JEST — belka jest JEDNA na wszystkich trasach (decyzja PM, F11).
+        Do F11 dokument prawny dostawał `null` z rozumowania „ta trasa nie
+        sprzedaje" (faza 5, ADR-179). F7b zniosło tryby nagłówka i ta sama
+        decyzja objęła kasę: klient ma widzieć TĘ SAMĄ belkę wszędzie, bo belka
+        znikająco-zmienna czyta się jak inna strona, a nie jak inny kontekst.
+        Pigułka nie jest tu kalendarzem „nad zamówieniem" — jest wyborem, który
+        klient niesie ze sobą i do którego wraca z regulaminu jednym tapnięciem.
+        Regułę „najemca wyłączył pigułkę" (ADR-203) trzyma dalej `storeTermInput`.
       */
-      term={null}
+      term={storeTermInput(ctx.storeFlags, ctx.catalog.products, ctx.locale)}
       /* Menu kategorii (S-30) — jak w żywej wersji wyżej. */
       categoryNav={categoryNavItems(ctx.catalog)}
     >
