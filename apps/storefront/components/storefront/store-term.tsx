@@ -60,7 +60,7 @@
  * rozmyślne: to jest bufor cofnięcia, a nie drugi termin. Gdyby siedział
  * w koszyku, byłby dokładnie tym drugim źródłem prawdy, którego R1 zabrania.
  */
-import { rentalDaysInclusive } from "@avably/core";
+import { formatRentalRange } from "@avably/core";
 import { cn, SITE_CONTAINER, SiteProductAvailabilityProvider, type SiteCalendarLabels } from "@avably/ui";
 import {
   createContext,
@@ -405,18 +405,27 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
  * Widoczne jest zawsze dokładnie jedno wystąpienie — rozjazd robi media query
  * (`md:`), nigdy skrypt.
  */
-export function StoreTermPill({ copy }: { copy: StorefrontCopy }) {
+export function StoreTermPill({
+  copy,
+  locale = "pl",
+}: {
+  copy: StorefrontCopy;
+  /**
+   * Język NAJEMCY — do frazy terminu (`formatRentalRange`, F8/S-10: „26–28
+   * sie 2026 · 3 dni" zamiast ISO). Opcjonalny z domyślnym rynkiem startowym,
+   * żeby nie łamać istniejących wywołań; powłoka podaje locale jawnie.
+   */
+  locale?: StorefrontLocale;
+}) {
   const term = useStoreTerm();
   const { open, setOpen } = useContext(StoreTermModalContext);
 
   const complete =
     term.startDate !== null && term.endDate !== null && term.endDate >= term.startDate;
+  // Fraza jest ATOMOWA (NBSP w środku tokenów) — data nie łamie się w środku
+  // na wąskiej pigułce (audyt S-10: „2026-08-/28").
   const summary = complete
-    ? format(copy.term.rangeSummary, {
-        start: term.startDate!,
-        end: term.endDate!,
-        days: rentalDaysInclusive(term.startDate!, term.endDate!),
-      })
+    ? formatRentalRange(term.startDate!, term.endDate!, locale)
     : copy.term.choose;
 
   return (
@@ -493,7 +502,7 @@ export function StoreTermBar({
       <div className="site-rule-top md:hidden">
         {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
         <div className={cn(SITE_CONTAINER, "flex flex-wrap items-center justify-center gap-3 py-2.5")}>
-          <StoreTermPill copy={copy} />
+          <StoreTermPill copy={copy} locale={locale} />
         </div>
       </div>
 

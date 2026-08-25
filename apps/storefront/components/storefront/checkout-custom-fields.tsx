@@ -29,6 +29,8 @@ export interface CheckoutCustomFieldsProps {
   /** Komunikat pod polem — klucz to ID definicji. */
   errors: Record<string, string | undefined>;
   heading: string;
+  /** 1-zdaniowy opis pod nagłówkiem sekcji-karty (F8). */
+  description: string;
   requiredLabel: string;
   optionalLabel: string;
   choosePlaceholder: string;
@@ -45,6 +47,7 @@ export function CheckoutCustomFields({
   onChange,
   errors,
   heading,
+  description,
   requiredLabel,
   optionalLabel,
   choosePlaceholder,
@@ -55,8 +58,13 @@ export function CheckoutCustomFields({
   if (definitions.length === 0) return null;
 
   return (
-    <fieldset className="grid gap-4" disabled={disabled}>
-      <legend className={`text-lg ${SITE_HEADING}`}>{heading}</legend>
+    // Karta sekcji jak reszta formularza (F8): `grid-cols-1` = minmax(0,1fr) —
+    // tor siatki nie dziedziczy szerokości po najszerszym dziecku (patrz
+    // naprawa S-15 w checkout-form.tsx); `float-left` zdejmuje z <legend>
+    // renderowanie „w szczelinie ramki".
+    <fieldset className="site-card grid grid-cols-1 gap-4 p-5 sm:p-6" disabled={disabled}>
+      <legend className={`float-left w-full text-[17px] ${SITE_HEADING}`}>{heading}</legend>
+      <p className="site-text-muted text-sm">{description}</p>
       {definitions.map((definition) => {
         const id = fieldId(definition.id);
         const errorId = `${id}-error`;
@@ -74,7 +82,7 @@ export function CheckoutCustomFields({
         // część treści zgody, a nie jak metadana pola.
         if (definition.type === "checkbox") {
           return (
-            <div className="grid gap-1" key={definition.id}>
+            <div className="grid max-w-lg gap-1" key={definition.id}>
               <div className="flex items-start gap-3">
                 <input
                   {...common}
@@ -98,7 +106,7 @@ export function CheckoutCustomFields({
         }
 
         return (
-          <div className="grid gap-1" key={definition.id}>
+          <div className="grid max-w-lg gap-1" key={definition.id}>
             <label className="site-label text-sm" htmlFor={id}>
               {definition.label}{" "}
               <span className="site-text-muted">

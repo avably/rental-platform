@@ -13,6 +13,7 @@
  * Tutaj badamy SZEW: czy powłoka pyta o właściwy termin i czy z odpowiedzi
  * wyciąga właściwy wniosek.
  */
+import { formatRentalRange } from "@avably/core";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -357,12 +358,16 @@ describe("wybór terminu w powłoce", () => {
 
     // STAN 2 — termin w koszyku (zapisany skądkolwiek, np. z drugiej karty):
     // pigułka pokazuje zakres i akcję zmiany, zachęta znika.
+    // [F8] Asercja zmieniona z ISO (`toContain(start)`) na frazę
+    // `formatRentalRange` — intencja bez zmian (pigułka odzwierciedla zakres
+    // z koszyka), zmienił się WYŁĄCZNIE format prezentacji (S-10: daty po
+    // ludzku, fraza atomowa).
     writeCart({ items: [], startDate: start, endDate: end });
     await waitFor(() => {
       expect(
         document.querySelector("[data-store-term-summary]")!.textContent,
         "pigułka nie pokazała zakresu z koszyka",
-      ).toContain(start);
+      ).toContain(formatRentalRange(start, end, "pl"));
     });
     expect(pill.textContent).toContain(copy.term.change);
     expect(pill.textContent).not.toContain(copy.term.choose);

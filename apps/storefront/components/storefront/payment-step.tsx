@@ -41,6 +41,7 @@ import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js"
 import Link from "next/link";
 
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
+import { SummaryList } from "@/components/storefront/summary-list";
 import type { OnlinePaymentPreparation } from "@/lib/checkout/online-payment";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
@@ -201,8 +202,14 @@ function PaymentFields({
   }
 
   return (
-    <form className="grid gap-6 lg:grid-cols-[1fr_20rem]" onSubmit={handleSubmit}>
-      <div className="grid gap-4">
+    // Tory siatek `minmax(0,1fr)` + kolumna 22 rem — ta sama geometria i ta
+    // sama naprawa S-15, co w checkout-form.tsx (tor nie dziedziczy szerokości
+    // po najszerszym dziecku; wiersze kwot przez SummaryList).
+    <form
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"
+      onSubmit={handleSubmit}
+    >
+      <div className="grid grid-cols-1 gap-4">
         {error ? (
           <div
             className="site-error-panel p-4 text-sm"
@@ -218,19 +225,16 @@ function PaymentFields({
         </div>
       </div>
 
-      <aside className="site-card grid h-fit gap-4 p-5 lg:sticky lg:top-6">
-        <h2 className={`text-lg ${SITE_HEADING}`}>{copy.payment.summaryHeading}</h2>
-        <dl className="grid gap-2 text-sm">
-          <div className="flex justify-between">
-            <dt className="site-text-muted">{copy.confirmation.orderNumber}</dt>
-            <dd className="tabular-nums">{orderNumber}</dd>
-          </div>
-          <div className="site-rule-top flex justify-between pt-2 text-base font-semibold">
-            <dt>{copy.payment.amountDue}</dt>
-            <dd>{formatMoney(amountGrosze, currency, locale)}</dd>
-          </div>
-        </dl>
-        <p className="site-text-muted text-xs">{copy.payment.depositNote}</p>
+      <aside className="site-card grid h-fit grid-cols-1 gap-4 p-5 lg:sticky lg:top-24">
+        <h2 className={`text-[17px] ${SITE_HEADING}`}>{copy.payment.summaryHeading}</h2>
+        <SummaryList
+          rows={[{ label: copy.confirmation.orderNumber, value: orderNumber }]}
+          total={{
+            label: copy.payment.amountDue,
+            value: formatMoney(amountGrosze, currency, locale),
+          }}
+        />
+        <p className="site-text-muted text-[13px]">{copy.payment.depositNote}</p>
 
         <button
           type="submit"
