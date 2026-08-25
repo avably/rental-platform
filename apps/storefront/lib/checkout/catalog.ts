@@ -23,6 +23,7 @@ import type {
   PublicCatalog,
   PublicCatalogAvailability,
   PublicCatalogPage,
+  PublicCategoryNavEntry,
   PublicCategoryPage,
   PublicCustomField,
   PublicProductEnvelope,
@@ -82,6 +83,35 @@ export async function getPublicCatalog(
 
   if (error || data == null) return null;
   return data as PublicCatalog;
+}
+
+/**
+ * MENU KATEGORII dla `/katalog` i `/kategoria` (0109, ADR-266) — WĄSKI odczyt
+ * „kategorie z licznikiem".
+ *
+ * ==================== DLACZEGO OSOBNA FUNKCJA, A NIE FILTR KATALOGU ====================
+ *
+ * Menu potrzebuje wszystkich kategorii najemcy i liczby pozycji per kategoria po
+ * CAŁYM katalogu. Doczytanie pełnego katalogu (`get_public_catalog`) na tych
+ * trasach ciągnęłoby do procesu pozycje spoza strony wyników — czyli koszt
+ * O(katalogu), który stronicowanie zdjęło (ADR-186, bramka
+ * `koszt-odslony.integration`). Ta funkcja liczy pozycje PO STRONIE BAZY i oddaje
+ * WYŁĄCZNIE kategorie niepuste z samą liczbą — ani jednej nazwy pozycji w ruchu.
+ *
+ * FAIL-CLOSED jak reszta warstwy: błąd transportu / najemca poza oknem →
+ * `null`, czyli dla powłoki „brak menu" (fail-soft, jak guard pustych).
+ */
+export async function getPublicCategoryNav(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<PublicCategoryNavEntry[] | null> {
+  const supabase = client ?? (await createSupabaseServerClient());
+  const { data, error } = await supabase
+    .schema("app")
+    .rpc("get_public_category_nav", { p_tenant_id: tenantId });
+
+  if (error || data == null) return null;
+  return data as PublicCategoryNavEntry[];
 }
 
 /**

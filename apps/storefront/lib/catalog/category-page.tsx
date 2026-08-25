@@ -29,12 +29,14 @@
  *
  * ==================== SEO ====================
  *
- * KANON CELUJE W CZYSTĄ STRONĘ KATEGORII (`/kategoria/{slug}`) niezależnie od
- * sortu i numeru strony: warianty `?sort=`/`?strona=` konsolidują się do niej,
- * więc nie stają się osobno indeksowanymi adresami tej samej półki. `noindex`
- * dostaje kategoria PUSTA (treść cienka) i sklep bez opublikowanej strony
- * głównej (spójnie z `robots.txt`, jak katalog). BreadcrumbList (JSON-LD)
- * niesie ścieżkę „Sklep > Kategoria".
+ * KANON JEST SELF-CANONICAL PER STRONA (lustro `/katalog`, ADR-186): strona
+ * kategorii wskazuje kanonem SAMĄ SIEBIE (`categoryPagePath(slug, page)`), więc
+ * oferta z dalszych stron nie jest chowana przed indeksem. Sort DOMYŚLNY i
+ * strona pierwsza nie noszą parametrów, więc `?sort=` i `?strona=1` dalej
+ * konsolidują się do adresu czystego — cztery porządki tej samej półki nie
+ * stają się czterema adresami. `noindex` dostaje kategoria PUSTA (treść cienka)
+ * i sklep bez opublikowanej strony głównej (spójnie z `robots.txt`, jak
+ * katalog). BreadcrumbList (JSON-LD) niesie ścieżkę „Sklep > Kategoria".
  */
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -46,7 +48,7 @@ import { CategoryList } from "@/components/storefront/category-list";
 import { CategorySort } from "@/components/storefront/category-sort";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
-import { categoryBasePath } from "@/lib/catalog/category-path";
+import { categoryBasePath, categoryPagePath } from "@/lib/catalog/category-path";
 import { catalogTileContent } from "@/lib/catalog/catalog-tiles";
 import { breadcrumbListJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -100,10 +102,15 @@ export async function categoryPageMetadata(ctx: CategoryPageContext): Promise<Me
     published: ctx.site !== null && ctx.total > 0,
     origin: await tenantOrigin(),
     /*
-      KANON = CZYSTA STRONA KATEGORII. Numer strony i sort idą przez query i NIE
-      są indeksowane osobno — kanon konsoliduje je do jednego adresu półki.
+      KANON = SAMA TA STRONA WYNIKÓW (self-canonical per strona), lustro
+      `/katalog` (`catalogPagePath(ctx.page)`, ADR-186). Strona pierwsza nie nosi
+      parametru, więc `?strona=1` i czysty adres schodzą się w jednym kanonie;
+      strona 2+ jest kanonem samej siebie, żeby oferty z dalszych stron nie
+      chować przed indeksem. Sort DOMYŚLNY też nie nosi parametru
+      (`categoryPagePath`), więc `?sort=` dalej konsoliduje się do adresu bez
+      sortu — cztery porządki tej samej półki nie stają się czterema adresami.
     */
-    pathname: categoryBasePath(category.slug),
+    pathname: categoryPagePath(category.slug, ctx.page),
     locale: ctx.locale,
   });
 }
@@ -143,6 +150,13 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
       // wyłączył pigułkę (ADR-203) — regułę trzyma `storeTermInput`. Kafle
       // dostają liczbę wolnych sztuk z tej samej, JEDNEJ odpowiedzi (ADR-180).
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /*
+        MENU KATEGORII (ADR-247/266) — te same wejścia, co na stronie głównej
+        i katalogu; klient przeglądający JEDNĄ półkę nie traci drogi do
+        pozostałych. Liczone po PEŁNYM katalogu, z guardem pustych — patrz
+        `loadCategoryNav`.
+      */
+      categoryNav={ctx.categoryNav}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >

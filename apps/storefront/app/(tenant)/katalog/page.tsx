@@ -184,6 +184,13 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
         co na stronie sprzętu (ADR-185).
       */
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /*
+        MENU KATEGORII (ADR-247/266) — te same wejścia, co na stronie głównej,
+        żeby nawigacja między półkami nie znikała, gdy klient zaczyna przeglądać
+        katalog. Liczone po PEŁNYM katalogu (nie po tej stronie wyników) i
+        z guardem pustych — patrz `loadCategoryNav`.
+      */
+      categoryNav={ctx.categoryNav}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >

@@ -62,6 +62,8 @@ const stan = {
   stronaGlowna: true,
   /** Globalna pigułka terminu w pasku (ADR-203) — default true, jak w bazie. */
   pigulka: true,
+  /** Czy `app.get_public_catalog` (reużyty pod menu kategorii, ADR-266) coś niesie. */
+  menu: false,
   wywolania: [] as unknown[],
 };
 
@@ -71,6 +73,22 @@ const STRONA_GLOWNA = {
   template: "classic",
   sections: [],
 };
+
+/** Kategoria niepusta i pusta — do menu kategorii powłoki (ADR-266). */
+const CAT_NIEPUSTA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const CAT_PUSTA = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+/**
+ * Koperta WĄSKIEGO odczytu menu kategorii (`app.get_public_category_nav`,
+ * 0109/ADR-266) — kategorie z licznikiem, BEZ ani jednej pozycji katalogu, więc
+ * menu na `/katalog` nie ciągnie oferty spoza strony wyników. Funkcja bazy
+ * filtruje puste po swojej stronie; wpis `count: 0` stoi tu, żeby sprawdzić, że
+ * `navItemsFromCounts` trzyma ten sam guard także w warstwie prezentacji.
+ */
+const NAV_ENTRIES = [
+  { id: CAT_NIEPUSTA, name: "Kajaki", slug: "kajaki", count: 3 },
+  { id: CAT_PUSTA, name: "Puste", slug: "puste", count: 0 },
+];
 
 vi.mock("next/headers", () => ({
   headers: () =>
@@ -119,6 +137,11 @@ vi.mock("@/lib/supabase-server", () => ({
           return { data: stan.stronaGlowna ? STRONA_GLOWNA : null, error: null };
         }
         if (fn === "get_published_legal_documents") return { data: [], error: null };
+        // [ADR-266] Wąski odczyt menu kategorii — `null` znaczy „nieudany odczyt":
+        // menu ma wtedy zniknąć (fail-soft), nie wywrócić trasy.
+        if (fn === "get_public_category_nav") {
+          return { data: stan.menu ? NAV_ENTRIES : null, error: null };
+        }
         return { data: null, error: null };
       },
     }),
@@ -165,6 +188,7 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     stan.tenantId = TENANT;
     stan.total = POZYCJI;
     stan.pigulka = true;
+    stan.menu = false;
     stan.wywolania.length = 0;
     vi.resetModules();
   });
@@ -365,4 +389,34 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     const meta = await metadane({});
     expect(meta.robots).toMatchObject({ index: false });
   });
+
+  // -------------------------------------------------------------------
+  // Menu kategorii powłoki na /katalog (ADR-266) — wayfinding nie znika,
+  // gdy klient zaczyna przeglądać ofertę.
+  // -------------------------------------------------------------------
+  it("menu kategorii renderuje się na /katalog, z guardem pustych", async () => {
+    stan.menu = true;
+    const html = await renderKatalog({});
+    expect(html, "menu kategorii nie stanęło w nagłówku katalogu").toContain(
+      "data-store-category-menu",
+    );
+    // Kategoria z pozycjami wchodzi do menu jako odnośnik do czystej strony kategorii.
+    expect(html, "kategoria z pozycjami nie weszła do menu").toContain('href="/kategoria/kajaki"');
+    // Kategoria PUSTA jest zdejmowana guardem — pozycja menu obiecywałaby półkę
+    // bez sprzętu (patrz `categoryNavItems`).
+    expect(html, "kategoria PUSTA weszła do menu wbrew guardowi").not.toContain(
+      'href="/kategoria/puste"',
+    );
+  }, BUDZET_RENDERU);
+
+  it("nieudany odczyt katalogu (fail-soft) nie gasi trasy ani nie rysuje menu", async () => {
+    stan.menu = false;
+    const html = await renderKatalog({});
+    // Trasa dalej pokazuje siatkę — brak menu nie ma prawa wywrócić katalogu.
+    expect(html, "brak menu zgasił całą stronę katalogu").toContain("data-products-item=");
+    // Puste menu NIE rysuje wyzwalacza „Kategorie" — obietnicy listy, której nie ma.
+    expect(html, "puste menu narysowało wyzwalacz mimo braku kategorii").not.toContain(
+      "data-store-category-menu",
+    );
+  }, BUDZET_RENDERU);
 });

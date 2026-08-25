@@ -347,7 +347,18 @@ describe.skipIf(!hasEnv)("publiczne API v1 na żywym Supabase (M1, ADR-108)", ()
     // pustej liście, czyli przy kategoriach, które w ogóle nie wyszły.
     const own = body.categories.find((c) => c.id === categoryA);
     expect(own, "kategoria najemcy A nie doszła do koperty").toBeDefined();
-    expect(Object.keys(own!).sort()).toEqual(["description", "id", "name", "position", "slug"]);
+    // [0103/ADR-251] Blok kategorii w kopercie katalogu niesie `image_path`
+    // (baner) — API v1 oddaje kopertę katalogu co do klucza (`Response.json`),
+    // więc kontrakt ma go NIEŚĆ. Sześć kluczy, spójnie z projekcją
+    // `app.get_public_catalog` i z `packages/db/test/catalog-categories.test.ts`.
+    expect(Object.keys(own!).sort()).toEqual([
+      "description",
+      "id",
+      "image_path",
+      "name",
+      "position",
+      "slug",
+    ]);
     expect(own!.position).toBe(5);
 
     expect(body.categories.map((c) => c.id)).not.toContain(categoryB);
