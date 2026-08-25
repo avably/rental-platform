@@ -47,13 +47,33 @@
  * publicznej strony ani nie wszedł w sąsiednią sekcję; drugie — żeby warstwa
  * `z` elementu (0…999, treść tenanta) nie mogła przebić się nad interfejs
  * kreatora ani nad dialogi panelu.
+ *
+ * ================== TREŚĆ NIGDY NIE ZNIKA (ADR-274) ==================
+ *
+ * Powyższe przycięcie ma cenę, którą audyt UX 2026-08-25 zebrał jako S-11,
+ * S-25, S-26 i S-50: pudełko tekstu ma wysokość w JEDNOSTKACH płótna, a sam
+ * tekst w pikselach zaciśniętych `clamp()`, więc poniżej pewnej szerokości
+ * akapit przestaje się w nim mieścić i albo wchodzi pod sąsiada, albo wypada
+ * poza kadr. Do tego warstwa `z` jest liczbą z treści, więc zdjęcie
+ * przeciągnięte na nagłówek po prostu go zasłania.
+ *
+ * Odpowiedź jest w RDZENIU (`@avably/core/site/canvas-render.ts`), bo pyta
+ * o nią także płótno kreatora, a ten plik jest miejscem, w którym staje się
+ * CSS-em: warstwa idzie z {@link renderLayerZ} (pasmo treści nad pasmem
+ * dekoracji), a proporcja płótna z {@link canvasStretchAt} — per pasmo
+ * szerokości, bo `calc()` nie umie policzyć łamania tekstu. Geometria zapisana
+ * przez najemcę jest przy tym NIETKNIĘTA: obie liczby powstają przy renderze.
  */
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
+  MOBILE_DESIGN_WIDTH_PX,
+  canvasStretchAt,
+  isPublishableElement,
   mobileLayoutOf,
   normalizeImageSource,
   paintOrder,
+  renderLayerZ,
   sizeOf,
   type CanvasElement,
   type ElementColor,
@@ -210,6 +230,15 @@ export function boxVariables(
   rows: number,
   size: ElementSize,
   breakpoint: "desktop" | "mobile",
+  /**
+   * WARSTWA RENDERU (ADR-274) — liczba z {@link renderLayerZ}, a nie `box.z`.
+   *
+   * Zapisane `z` zostaje w danych i dalej rozstrzyga kolejność WEWNĄTRZ pasma;
+   * o tym, czy element maluje się nad napisem, decyduje jego ROLA. Domyślka
+   * (`box.z`) jest dla wołających spoza renderu strony — kreator podstawia tu
+   * własną warstwę edycyjną i geometrii używa wyłącznie do pudełka.
+   */
+  layer: number = box.z,
 ): Record<string, string> {
   const safeRows = rows > 0 ? rows : 1;
   const prefix = breakpoint === "mobile" ? "--el-m" : "--el-";
@@ -220,8 +249,60 @@ export function boxVariables(
     [`${prefix}w`]: size.w === "hug" ? "max-content" : `${(box.w / CANVAS_COLUMNS) * 100}%`,
     [`${prefix}h`]: size.h === "hug" ? "max-content" : `${(box.h / safeRows) * 100}%`,
     [`${prefix}maxw`]: `${100 - left}%`,
-    [`${prefix}z`]: String(box.z),
+    [`${prefix}z`]: String(layer),
   };
+}
+
+/**
+ * PASMA WIDTHOWE ROZCIĄGNIĘCIA PŁÓTNA (ADR-274).
+ *
+ * Rozciągnięcie zależy od SZEROKOŚCI płótna, a CSS nie umie policzyć „ile
+ * wierszy złamie się przy tej szerokości" — potrzebny byłby iloraz przez
+ * długość, którego `calc()` nie zna. Liczy je więc serwer, dla kilku ustalonych
+ * szerokości, a zapytanie kontenera wybiera właściwą wartość.
+ *
+ * Każde pasmo liczy się przy swoim WĘŻSZYM końcu, bo to tam tekst potrzebuje
+ * najwięcej miejsca; wewnątrz pasma sekcja bywa więc o kilka procent wyższa,
+ * niż musi. Progi MUSZĄ zgadzać się z regułami `@container` w `site.css` —
+ * pilnuje ich kontrakt kontenerowy.
+ */
+export const CANVAS_STRETCH_BANDS = [
+  { token: "72", widthPx: 1024 },
+  { token: "64", widthPx: 896 },
+  { token: "56", widthPx: 768 },
+  { token: "48", widthPx: 640 },
+] as const;
+
+/** Pasma płótna MOBILNEGO — telefony węższe od projektowych 390 px. */
+export const CANVAS_MOBILE_STRETCH_BANDS = [
+  { token: "m24", widthPx: 352 },
+  { token: "m22", widthPx: 320 },
+] as const;
+
+/**
+ * Proporcje płótna dla wszystkich pasm — wyłącznie te, w których treść naprawdę
+ * potrzebuje więcej miejsca. Pasmo bez rozciągnięcia NIE dostaje właściwości,
+ * więc arkusz spada na proporcję projektową i strona zdrowa wygląda dokładnie
+ * tak, jak wyglądała (co do bajtu wyjścia).
+ */
+function stretchVariables(
+  elements: readonly CanvasElement[],
+  boxOf: (element: CanvasElement) => Geometry,
+  rows: number,
+  designWidthPx: number,
+  bands: readonly { token: string; widthPx: number }[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const band of bands) {
+    const stretch = canvasStretchAt(elements, boxOf, rows, band.widthPx, designWidthPx);
+    if (stretch <= 1) continue;
+    // Zaokrąglenie W GÓRĘ, tak samo jak sam współczynnik: dwie setne jednostki
+    // to nic, ale odejmowanie ich od miary, która ma coś zmieścić, to zła
+    // strona zaokrąglenia.
+    out[`--canvas-ratio-${band.token}`] =
+      `${CANVAS_COLUMNS} / ${Math.ceil(rows * stretch * 100) / 100}`;
+  }
+  return out;
 }
 
 /**
@@ -546,11 +627,25 @@ export function canvasBoxVariables(
   element: CanvasElement,
   rows: number,
   mobile: { rows: number; boxes: Record<string, Geometry> },
+  /** Warstwy renderu per breakpoint — patrz {@link boxVariables}. */
+  layers?: { desktop: Record<string, number>; mobile: Record<string, number> },
 ): Record<string, string> {
   const size = sizeOf(element);
   return {
-    ...boxVariables(element.layout.desktop, rows, size, "desktop"),
-    ...boxVariables(mobile.boxes[element.id] ?? element.layout.desktop, mobile.rows, size, "mobile"),
+    ...boxVariables(
+      element.layout.desktop,
+      rows,
+      size,
+      "desktop",
+      layers?.desktop[element.id] ?? element.layout.desktop.z,
+    ),
+    ...boxVariables(
+      mobile.boxes[element.id] ?? element.layout.desktop,
+      mobile.rows,
+      size,
+      "mobile",
+      layers?.mobile[element.id] ?? element.layout.desktop.z,
+    ),
   };
 }
 
@@ -562,7 +657,7 @@ export function SectionCanvasRenderer({
   labels,
   siteImageBase,
   elementWrapper,
-  mobile = mobileLayoutOf(canvas),
+  mobile: providedMobile,
   as = "section",
   mark = null,
   currentPath,
@@ -646,8 +741,72 @@ export function SectionCanvasRenderer({
   const bindingsOf = (element: CanvasElement): ElementBindingResult =>
     bound.get(element.id) ?? { cut: false, values: {} };
 
+  /*
+   * RUSZTOWANIE KREATORA NIE JEDZIE DO KLIENTA (S-50 audytu 2026-08-25).
+   *
+   * Kafel zdjęcia bez zdjęcia i element, który został przy treści startowej
+   * z palety („Kliknij, żeby napisać własny tekst."), są narzędziem EDYCJI:
+   * bez nich nie dałoby się elementu ani zaznaczyć, ani wypełnić. Klient
+   * dostawał je jednak tak samo, jak treść — szary prostokąt w hero i zdanie
+   * z instrukcji obsługi na opublikowanej stronie.
+   *
+   * Rozstrzyga OWIJKA ELEMENTU: podaje ją wyłącznie kreator (ADR-083), więc
+   * jej brak znaczy „to jest strona, nie edytor". Świadomie NIE idzie to drogą
+   * `cut`: węzeł wycięty wiązaniem znika w kreatorze z pudełka i zostaje samą
+   * ramką, a rusztowanie ma w kreatorze pozostać WIDOCZNE — inaczej operator
+   * traci kafel, w który miał wstawić zdjęcie.
+   */
+  const editing = Boolean(elementWrapper);
+  const isScaffolding = (element: CanvasElement): boolean =>
+    !editing && !isPublishableElement(element);
+
+  /*
+   * AUTO-UKŁAD MOBILNY LICZY SIĘ Z TREŚCI, KTÓRA NAPRAWDĘ WYJDZIE.
+   *
+   * Rusztowanie zdjęte z rendera zostawiałoby po sobie DZIURĘ: kolumna
+   * telefonu jest ciągiem pudełek jedno pod drugim, więc miejsce zarezerwowane
+   * dla kafla, którego nikt nie zobaczy, jest po prostu pustką w środku sekcji.
+   * Kreator dostaje układ PEŁNY (podaje własną instancję albo owijkę), bo tam
+   * rusztowanie stoi i ma stać dokładnie tam, gdzie stanie treść.
+   */
+  const mobile =
+    providedMobile ??
+    mobileLayoutOf(
+      editing
+        ? canvas
+        : { ...canvas, elements: canvas.elements.filter((element) => !isScaffolding(element)) },
+    );
+
+  /*
+   * WARSTWY RENDERU (ADR-274) — pasmo treści nad pasmem dekoracji, osobno dla
+   * każdego breakpointu. Telefon dokłada zatopienie kształtów, którym rolę
+   * podkładu wyznaczył AUTOMAT: ich mobilne pudełko obejmuje całą grupę, więc
+   * zapisane `z` przestaje o nich cokolwiek mówić.
+   */
+  /*
+   * ZATOPIENIE OMIJA ELEMENTY PEŁNOEKRANOWE — i to nie jest wyjątek, tylko ta
+   * sama zasada widziana z drugiej strony.
+   *
+   * Element rozciągnięty do obu krawędzi renderuje się w WARSTWIE TŁA (aneks do
+   * ADR-088), która jako całość leży pod siatką treści — nie ma jak niczego
+   * zasłonić. Sensem zatopienia jest podkład, który auto-układ rozciągnął na
+   * całą grupę W SIATCE; welon pełnoekranowy nad zdjęciem pełnoekranowym
+   * (hero każdego szablonu startowego) jest projektem, a nie kolizją, i
+   * zatopiony przestałby przygaszać kadr, na którym stoi.
+   */
+  const sunkOnMobile = new Set(
+    canvas.elements
+      .filter((element) => mobile.backdrops.has(element.id) && !bleedsToEdges(element))
+      .map((element) => element.id),
+  );
+
+  const layers = {
+    desktop: renderLayerZ(canvas.elements),
+    mobile: renderLayerZ(canvas.elements, sunkOnMobile),
+  };
+
   const bleeding = paintOrder(canvas.elements).filter(
-    (element) => bleedsToEdges(element) && !isCut(element),
+    (element) => bleedsToEdges(element) && !isCut(element) && !isScaffolding(element),
   );
 
   /*
@@ -659,7 +818,7 @@ export function SectionCanvasRenderer({
    */
   const priorityElementId = imagePriority
     ? (paintOrder(canvas.elements).find(
-        (element) => element.kind === "image" && !isCut(element),
+        (element) => element.kind === "image" && !isCut(element) && !isScaffolding(element),
       )?.id ?? null)
     : null;
 
@@ -697,7 +856,7 @@ export function SectionCanvasRenderer({
               data-element-id={element.id}
               data-element-kind={element.kind}
               className="canvas-box canvas-bleed"
-              style={canvasBoxVariables(element, canvas.rows, mobile) as CSSProperties}
+              style={canvasBoxVariables(element, canvas.rows, mobile, layers) as CSSProperties}
             >
               <ElementBody
                 element={element}
@@ -750,6 +909,31 @@ export function SectionCanvasRenderer({
             maxWidth: CANVAS_DESIGN_WIDTH_PX,
             "--canvas-ratio": `${CANVAS_COLUMNS} / ${canvas.rows}`,
             "--canvas-ratio-mobile": `${CANVAS_COLUMNS} / ${mobile.rows}`,
+            /*
+             * WYSOKOŚĆ SEKCJI ROŚNIE Z TREŚCIĄ (ADR-274). Poniżej szerokości,
+             * przy której skala typografii dobija do dolnego końca zacisku,
+             * pudełko dalej maleje razem z płótnem, a tekst już nie — akapit
+             * przestaje mieścić się w swoim prostokącie i wchodzi pod element
+             * niżej albo wypada poza dolną krawędź (płótno przycina). Proporcja
+             * płótna jest więc PER PASMO: rozciągnięcie mnoży wysokość, a
+             * ponieważ WSZYSTKIE pudełka są jej procentem, układ zostaje
+             * proporcjonalny. Przy szerokości projektowej rozciągnięcia nie ma
+             * z konstrukcji, więc desktop nie zmienia się ani o piksel.
+             */
+            ...stretchVariables(
+              canvas.elements,
+              (element) => element.layout.desktop,
+              canvas.rows,
+              CANVAS_DESIGN_WIDTH_PX,
+              CANVAS_STRETCH_BANDS,
+            ),
+            ...stretchVariables(
+              canvas.elements,
+              (element) => mobile.boxes[element.id] ?? element.layout.desktop,
+              mobile.rows,
+              MOBILE_DESIGN_WIDTH_PX,
+              CANVAS_MOBILE_STRETCH_BANDS,
+            ),
           } as CSSProperties
         }
       >
@@ -785,23 +969,17 @@ export function SectionCanvasRenderer({
            */
           const cut = isCut(element);
           const bleeds = bleedsToEdges(element);
+          // Rusztowanie kreatora znika ZE STRONY, a nie z edytora — patrz
+          // `isScaffolding` wyżej. Predykat jest fałszywy, gdy owijka jest,
+          // więc ta linia nie może zabrać niczego kreatorowi.
+          if (isScaffolding(element)) return null;
           if ((bleeds || cut) && !elementWrapper) return null;
           const body = bleeds || cut ? null : (
             <div
               data-element-id={element.id}
               data-element-kind={element.kind}
               className="canvas-box"
-              style={
-                {
-                  ...boxVariables(element.layout.desktop, canvas.rows, size, "desktop"),
-                  ...boxVariables(
-                    mobile.boxes[element.id] ?? element.layout.desktop,
-                    mobile.rows,
-                    size,
-                    "mobile",
-                  ),
-                } as CSSProperties
-              }
+              style={canvasBoxVariables(element, canvas.rows, mobile, layers) as CSSProperties}
             >
               <ElementBody
                 element={element}

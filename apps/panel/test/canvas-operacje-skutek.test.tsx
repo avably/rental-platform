@@ -233,10 +233,14 @@ describe("W4 — element rozciągnięty do krawędzi daje się wyprowadzić na w
   const TLO = "tlo";
   const NAPIS = "napis";
 
+  /** Kafel dekoracyjny — punkt odniesienia dla „na wierzch" (patrz niżej). */
+  const KAFEL = "kafel";
+
   /** Stan, W KTÓRY OPERATOR WPADA: zdjęcie rozciągnięte do obu krawędzi. */
   function hero() {
     return sekcja([
       zdjecie(TLO, { x: 0, y: 0, w: KOLUMNY, h: 12, z: 0 }),
+      ksztalt(KAFEL, { x: 12, y: 2, w: 40, h: 8, z: 2 }),
       naglowek(NAPIS, { x: 12, y: 4, w: 60, h: 6, z: 1 }),
     ]);
   }
@@ -266,10 +270,23 @@ describe("W4 — element rozciągnięty do krawędzi daje się wyprowadzić na w
     expect(box, "zdjęcie nie weszło do siatki treści").not.toBeNull();
     expect(box!.getAttribute("data-element-kind")).toBe("image");
 
-    // …i leży NAD tekstem, czyli po to, po co operator kliknął.
+    /*
+     * …i leży NAD DEKORACJĄ, czyli tak wysoko, jak zdjęcie leżeć może.
+     *
+     * ZMIANA WOBEC W4 (ADR-274). Do tej poprawki nogą była nierówność
+     * „zdjęcie nad NAPISEM" — i to jest dokładnie ta arytmetyka, którą audyt
+     * UX 2026-08-25 zastał na produkcji jako zdjęcie zasłaniające h1, lead
+     * i CTA (`/audyt-c`). Od ADR-274 render ma dwa pasma: dekoracja maluje się
+     * POD treścią czytelną niezależnie od zapisanego `z`, więc „na wierzch"
+     * wynosi zdjęcie na szczyt DEKORACJI. Sens akcji zostaje ten sam i to on
+     * jest tu mierzony: element wychodzi z warstwy tła i przestaje być pod
+     * wszystkim, co na nim leży.
+     */
     const zTla = Number(box!.style.getPropertyValue("--el-z"));
+    const zKafla = Number(boxNode(container, KAFEL)!.style.getPropertyValue("--el-z"));
     const zNapisu = Number(boxNode(container, NAPIS)!.style.getPropertyValue("--el-z"));
-    expect(zTla).toBeGreaterThan(zNapisu);
+    expect(zTla, "zdjęcie nie wyszło na szczyt dekoracji").toBeGreaterThan(zKafla);
+    expect(zNapisu, "dekoracja przykryła napis — patrz ADR-274").toBeGreaterThan(zTla);
 
     // SKUTEK W MODELU: element wchodzi w pas treści, pion zostaje nietknięty.
     await flushAutosave();
@@ -293,15 +310,22 @@ describe("W4 — element rozciągnięty do krawędzi daje się wyprowadzić na w
     expect(zapisany.layout.desktop.w).toBe(60);
   });
 
-  it("akcja NA SPÓD po wyprowadzeniu odkłada zdjęcie z powrotem pod tekst", () => {
+  it("akcja NA SPÓD po wyprowadzeniu odkłada zdjęcie z powrotem pod kafel", () => {
+    // Odniesieniem jest DEKORACJA, nie napis: pod napisem zdjęcie leży od
+    // ADR-274 zawsze, więc porównanie z nim przechodziłoby także wtedy, gdyby
+    // „na spód" nie robiło nic (test pilnujący własnej awarii).
     const { container } = renderBuilder([hero()]);
     zaznacz(container, TLO);
     fireEvent.click(container.querySelector<HTMLElement>('[data-toolbar-action="element-front"]')!);
-    fireEvent.click(container.querySelector<HTMLElement>('[data-toolbar-action="element-back"]')!);
+    const poWierzchu = Number(boxNode(container, TLO)!.style.getPropertyValue("--el-z"));
+    expect(poWierzchu).toBeGreaterThan(
+      Number(boxNode(container, KAFEL)!.style.getPropertyValue("--el-z")),
+    );
 
+    fireEvent.click(container.querySelector<HTMLElement>('[data-toolbar-action="element-back"]')!);
     const zTla = Number(boxNode(container, TLO)!.style.getPropertyValue("--el-z"));
-    const zNapisu = Number(boxNode(container, NAPIS)!.style.getPropertyValue("--el-z"));
-    expect(zTla).toBeLessThan(zNapisu);
+    expect(zTla).toBeLessThan(Number(boxNode(container, KAFEL)!.style.getPropertyValue("--el-z")));
+    expect(zTla).toBeLessThan(Number(boxNode(container, NAPIS)!.style.getPropertyValue("--el-z")));
   });
 });
 
