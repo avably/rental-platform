@@ -64,14 +64,16 @@ import {
   clampGeometry,
   createElement,
   defaultSizeOf,
-  freeSpotFor,
   isPinnedLastType,
+  isSectionCanvas,
+  isStructuredSection,
   isStructuredType,
   presetContentFor,
   sectionCanvasFrom,
   structuredFromLegacy,
   structuredPresetFor,
   withStructuredLayout,
+  type Geometry,
   type PaletteElementKind,
   type SectionContent,
   type SectionType,
@@ -81,6 +83,7 @@ import {
 } from "@avably/core/site";
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogClose,
   DialogContent,
@@ -89,6 +92,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -131,7 +135,8 @@ import { ImagePicker } from "./image-picker";
 import { SectionPicker, type InsertLayout, type InsertTarget } from "./section-picker";
 import { SectionSettingsDrawer } from "./section-settings-drawer";
 import type { StructuredFormTab } from "./structured-section-form";
-import { newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
+import { appendSpotBelow, newElementId, replaceElement, useCanvasEditor } from "./use-canvas-editor";
+import { publishWarnings } from "@/lib/publish-warnings";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 /**
@@ -153,6 +158,18 @@ type RunOptions = {
  * konkurencyjny stan zaznaczenia.
  */
 const FLASH_MS = 700;
+
+/**
+ * Element czekający na wstawienie — z geometrią (upuszczenie wskazało miejsce)
+ * albo bez niej (klik kafla: „pod dotychczasową treścią"). Ten sam kształt
+ * niesie pytanie o konwersję sekcji zastanej (K-12), żeby potwierdzenie
+ * wstawiało DOKŁADNIE to, o co operator poprosił, a nie „coś podobnego".
+ */
+type PendingElement = {
+  kind: PaletteElementKind;
+  sectionId: string;
+  geometry?: Geometry;
+};
 
 export function SiteBuilder({
   siteId,
@@ -294,6 +311,25 @@ export function SiteBuilder({
   /** Sekcja, która przyjmie przeciągany właśnie ELEMENT (K6, ADR-092). */
   const [elementDropSectionId, setElementDropSectionId] = useState<string | null>(null);
   /**
+   * PYTANIE O KONWERSJĘ SEKCJI ZASTANEJ NA PŁÓTNO (K-12, audyt UX 2026-08-25) —
+   * element czekający na zgodę albo `null`. Zgoda „nie pytaj ponownie" żyje
+   * TYLE, CO OTWARTY KREATOR (`skipConvertPrompt`): jest odpowiedzią na
+   * uciążliwość jednej sesji pracy, a nie deklaracją operatora o wszystkich
+   * przyszłych stronach — trwałe „nie pytaj" byłoby stanem, który trzeba by
+   * gdzieś zapisać i którego nie da się cofnąć bez osobnego ekranu.
+   */
+  const [convertPrompt, setConvertPrompt] = useState<PendingElement | null>(null);
+  const [convertRemember, setConvertRemember] = useState(false);
+  const [skipConvertPrompt, setSkipConvertPrompt] = useState(false);
+  /**
+   * Sekcje, które ta sesja już przepisała na płótno. Propsy o tym nie wiedzą:
+   * autozapis geometrii idzie kanałem `quiet`, czyli BEZ odświeżenia RSC, więc
+   * `section.content` zostaje w starej generacji aż do następnego odczytu trasy.
+   * Bez tego zbioru drugi element w tej samej sekcji pytałby o konwersję, która
+   * już się wydarzyła.
+   */
+  const convertedRef = useRef(new Set<string>());
+  /**
    * MIEJSCE, w którym otwarto picker (E2), albo `null` przy zamkniętym oknie.
    * Skorupa trzyma to sama, bo to ona zna WSZYSTKIE trzy wejścia: „+" na
    * płótnie, paletę („na końcu strony") i konwersję z szuflady.
@@ -316,8 +352,29 @@ export function SiteBuilder({
    * operator już wybrał"), czyli stan publiczny w rozumieniu ADR-091 — bliźniak,
    * wpis u strażnika i test za jedno kliknięcie mniej. Pierwsza wstawiona sekcja
    * kończy sprawę sama.
+   *
+   * ================== CO ZMIENIŁ K-20 (audyt UX 2026-08-25) ==================
+   *
+   * WARUNEK JEST WYLICZANY, A NIE ZAPAMIĘTANY W CHWILI MONTAŻU. Stało tu
+   * `useState(sections.length === 0)`, czyli odpowiedź policzona RAZ — przy
+   * pierwszym renderze TEJ INSTANCJI komponentu. Nawigacja klienta między
+   * kreatorami dwóch stron nie montuje kreatora od nowa (ten sam komponent w tym
+   * samym miejscu drzewa), więc inicjalizator się nie wykonywał: wejście z
+   * gotowej strony na świeżą, pustą zostawiało galerię ZAMKNIĘTĄ, a wejście
+   * odwrotne potrafiło ją pokazać nad stroną, która sekcje ma. Galeria
+   * „pojawiała się losowo" dokładnie dlatego.
+   *
+   * Odtąd stan trzyma WYŁĄCZNIE wolę operatora (`auto` = jeszcze jej nie
+   * wyraził), a widoczność liczy się z niej i z liczby sekcji przy każdym
+   * renderze. Zmiana strony resetuje wolę — to jest inna strona i inne pytanie.
    */
-  const [galleryOpen, setGalleryOpen] = useState(sections.length === 0);
+  const [galleryChoice, setGalleryChoice] = useState<"auto" | "open" | "closed">("auto");
+  const [galleryFor, setGalleryFor] = useState(siteId);
+  if (galleryFor !== siteId) {
+    setGalleryFor(siteId);
+    setGalleryChoice("auto");
+  }
+  const galleryOpen = galleryChoice === "open" || (galleryChoice === "auto" && sections.length === 0);
   /**
    * POZYCJA PODGLĄDU wybrana w pasku (faza B, ADR-200) — wyłącznie na MATCE.
    * `null` = domyślna z trasy (pierwsza pozycja katalogu). Stan jest CZYSTO
@@ -674,6 +731,107 @@ export function SiteBuilder({
     : [];
 
   /**
+   * SEKCJE, KTÓRE MOGĄ PRZYJĄĆ ELEMENT (K-09). Sekcja usunięta w szkicu nie
+   * może (K5a, ADR-091): zniknie przy najbliższej publikacji, więc byłby to
+   * zapis do kosza. Pusta lista znaczy „paleta elementów nie ma dokąd
+   * dokładać" — i wtedy jej kafle są wygaszone, zamiast milczeć po kliknięciu.
+   */
+  const editableSections = sections.filter((section) => !section.deletedInDraft);
+
+  /**
+   * OSTRZEŻENIA PRZED PUBLIKACJĄ (K-13/K-14, audyt UX 2026-08-25) — liczone ze
+   * SZKICU W EDYTORZE, a nie z propsów: operator ma zobaczyć stan, który za
+   * chwilę wypuści, razem z tym, co zmienił w ciągu ostatnich 700 ms.
+   *
+   * Ostrzeżenia NIE BLOKUJĄ: przycisk w oknie zostaje aktywny i mówi
+   * „Opublikuj mimo to". Sekcja z treścią przykładową i obraz bez źródła są
+   * stanami legalnymi — bywają etapem pracy — ale wypuszczone do klientów po
+   * cichu są wpadką, o której najemca dowiaduje się od nich.
+   */
+  const warnings = publishWarnings(
+    editableSections.map((section) => ({
+      type: section.type,
+      enabled: section.enabled,
+      content: editor.contentOf(section.id) ?? section.content,
+    })),
+  );
+
+  /**
+   * WSTAWIENIE ELEMENTU — JEDNA DROGA DLA KLIKU I DLA UPUSZCZENIA (K-11/K-12).
+   *
+   * Brak geometrii znaczy „dołóż POD treścią" (`appendSpotBelow`, patrz tam):
+   * pozycja jest zawsze niżej niż najniższy element, a sekcja rośnie, jeśli nie
+   * ma dla niej miejsca. Podana geometria pochodzi z upuszczenia i idzie
+   * nietknięta — tam operator wskazał miejsce sam.
+   */
+  function insertElement({ kind, sectionId, geometry }: PendingElement) {
+    if (!editor.canvasOf(sectionId)) return;
+    const id = newElementId();
+    // Sekcja jest już płótnem od tej chwili — nie pytamy o tę samą konwersję
+    // drugi raz. Propsy przyniosą nową generację dopiero po odświeżeniu RSC,
+    // a autozapis płótna go świadomie nie robi (`quiet`).
+    convertedRef.current.add(sectionId);
+    editor.mutate(sectionId, (current) => {
+      const spot = geometry
+        ? { geometry, rows: current.rows }
+        : appendSpotBelow(defaultSizeOf(kind, locale), current);
+      return {
+        ...current,
+        rows: spot.rows,
+        elements: [...current.elements, createElement(kind, id, spot.geometry, locale)],
+      };
+    });
+    setSelection({ sectionId, elementId: id });
+  }
+
+  /**
+   * BRAMKA PRZED WSTAWIENIEM (K-09/K-12, audyt UX 2026-08-25).
+   *
+   * Trzy stany, które do tej poprawki kończyły się MILCZENIEM:
+   *
+   *   • sekcji nie ma albo jest usunięta w szkicu — kafel nie robił nic
+   *     (K5a). Paleta jest odtąd wygaszona, gdy nie ma ani jednej sekcji, więc
+   *     tu zostaje wyłącznie zabezpieczenie drogi wywołanej inaczej;
+   *   • sekcja jest STRUKTURALNA (v3) — nie ma w niej pudełek i mieć nie
+   *     będzie, bo jej treść edytuje się w szufladzie. Klik kafla nie miał
+   *     żadnego skutku i żadnego komunikatu;
+   *   • sekcja jest ZASTANA (v1) — pierwszy element PRZEPISUJE ją na swobodne
+   *     płótno i układ przestaje być automatyczny. To jest zmiana nieodwracalna
+   *     w skutkach dla treści (od tej pory pilnuje jej operator, nie renderer),
+   *     a zdarzała się bez jednego słowa.
+   *
+   * Odpowiedź `true` znaczy „przyjęte" — także wtedy, gdy zamiast wstawienia
+   * otwiera się pytanie o konwersję: wołający (gest upuszczenia) pyta o to, czy
+   * kafel wylądował, a nie o to, czy element jest już na płótnie.
+   */
+  function requestElement(pending: PendingElement): boolean {
+    const section = sections.find((item) => item.id === pending.sectionId);
+    if (!section || section.deletedInDraft) return false;
+    if (editor.structuredOf(pending.sectionId)) {
+      setError(t("builder.elementsStructured"));
+      return false;
+    }
+    if (!editor.canvasOf(pending.sectionId)) return false;
+    if (!skipConvertPrompt && convertsSection(section)) {
+      setConvertPrompt(pending);
+      return true;
+    }
+    insertElement(pending);
+    return true;
+  }
+
+  /**
+   * Czy dołożenie elementu PRZEPISZE tę sekcję na płótno. Pytamy o treść
+   * z PROPSÓW (stan serwera), a nie o szkic: szkic sekcji v1 jest konwertowany
+   * do płótna w locie przy samym otwarciu kreatora (`draftOfSection`), więc
+   * odpowiadałby „to już płótno" o sekcji, która w bazie jest dalej v1.
+   */
+  function convertsSection(section: EditorSection): boolean {
+    if (convertedRef.current.has(section.id)) return false;
+    return !isSectionCanvas(section.content) && !isStructuredSection(section.content);
+  }
+
+  /**
    * Dodanie elementu KLIKNIĘCIEM kafla palety (K3). Trafia do sekcji, w której
    * operator ostatnio coś zaznaczył — a gdy nic nie zaznaczył, do PIERWSZEJ
    * sekcji strony. Zgadywanie „gdzieś" byłoby gorsze niż jedna przewidywalna
@@ -682,20 +840,9 @@ export function SiteBuilder({
   function addElement(kind: PaletteElementKind) {
     // Sekcja usunięta w szkicu nie przyjmuje elementów (K5a, ADR-091) — zniknie
     // przy najbliższej publikacji, więc byłby to zapis do kosza.
-    const editable = sections.filter((section) => !section.deletedInDraft);
-    const target = selection?.sectionId ?? editable[0]?.id;
-    if (!target || editable.every((section) => section.id !== target)) return;
-    const canvas = editor.canvasOf(target);
-    if (!canvas) return;
-    const id = newElementId();
-    editor.mutate(target, (current) => ({
-      ...current,
-      elements: [
-        ...current.elements,
-        createElement(kind, id, freeSpotFor(kind, current.elements, current.rows, locale), locale),
-      ],
-    }));
-    setSelection({ sectionId: target, elementId: id });
+    const target = selection?.sectionId ?? editableSections[0]?.id;
+    if (!target) return;
+    requestElement({ kind, sectionId: target });
   }
 
   /**
@@ -728,16 +875,7 @@ export function SiteBuilder({
      * kliknięciu kafla, i od razu widać go na obu breakpointach.
      */
     if (viewport === "mobile") {
-      const id = newElementId();
-      editor.mutate(sectionId, (current) => ({
-        ...current,
-        elements: [
-          ...current.elements,
-          createElement(kind, id, freeSpotFor(kind, current.elements, current.rows, locale), locale),
-        ],
-      }));
-      setSelection({ sectionId, elementId: id });
-      return true;
+      return requestElement({ kind, sectionId });
     }
 
     const box = grid.getBoundingClientRect();
@@ -759,13 +897,7 @@ export function SiteBuilder({
       snap: true,
     });
 
-    const id = newElementId();
-    editor.mutate(sectionId, (current) => ({
-      ...current,
-      elements: [...current.elements, createElement(kind, id, snapped.geometry, locale)],
-    }));
-    setSelection({ sectionId, elementId: id });
-    return true;
+    return requestElement({ kind, sectionId, geometry: snapped.geometry });
   }
 
   const openSection = sections.find((section) => section.id === settingsId) ?? null;
@@ -945,7 +1077,7 @@ export function SiteBuilder({
         <StartOverButton
           disabled={pending}
           hasSections={sections.length > 0}
-          onConfirm={() => setGalleryOpen(true)}
+          onConfirm={() => setGalleryChoice("open")}
         />
 
         {/*
@@ -975,6 +1107,7 @@ export function SiteBuilder({
               ? (pageRecord?.name ?? t("pages.exceptionProductFallback"))
               : null
           }
+          warnings={warnings}
           onConfirm={() =>
             run(() => publishSite(siteId), undefined, { blocking: true, announce: "published" })
           }
@@ -1004,7 +1137,7 @@ export function SiteBuilder({
             // operator ma zostać tam, gdzie kliknął, i zobaczyć komunikat.
             run(() =>
               applyStarterTemplate({ siteId, starterId, locale }).then((result: ActionResult) => {
-                if (result.ok) setGalleryOpen(false);
+                if (result.ok) setGalleryChoice("closed");
                 return result;
               }),
             )
@@ -1018,11 +1151,11 @@ export function SiteBuilder({
             i „+", czyli dokładnie te same drogi wstawienia sekcji, co strona
             z treścią.
           */
-          onEmpty={() => setGalleryOpen(false)}
+          onEmpty={() => setGalleryChoice("closed")}
           // Zamknięcie BEZ wyboru zostaje przy stronie, która treść już ma:
           // tam „wróć do kreatora" znaczy „zostaw wszystko, jak było", i to
           // jest inna obietnica niż „zacznij od pustej".
-          onDismiss={sections.length > 0 ? () => setGalleryOpen(false) : undefined}
+          onDismiss={sections.length > 0 ? () => setGalleryChoice("closed") : undefined}
         />
       ) : null}
 
@@ -1040,6 +1173,12 @@ export function SiteBuilder({
             znaczyłaby dwa miejsca, w których operator wybiera to samo.
           */
           onAddSection={() => setInsertTarget({})}
+          /*
+            KAFLE ELEMENTÓW GASNĄ NA PUSTEJ STRONIE (K-09). Element dokłada się
+            DO SEKCJI — bez sekcji nie ma dokąd, więc do tej poprawki klik kafla
+            był cichym no-opem: nic się nie działo i nic tego nie tłumaczyło.
+          */
+          elementsTarget={editableSections.length > 0}
           onAddElement={addElement}
           onDropElement={dropElementAt}
           onDragElementOver={(pointer) => setElementDropSectionId(elementDropTargetAt(pointer))}
@@ -1070,6 +1209,15 @@ export function SiteBuilder({
             deleteAction={(sectionId) => deleteSection(sectionId)}
             restoreAction={(sectionId) => restoreSection(sectionId)}
             onInsert={setInsertTarget}
+            /*
+              DROGA POWROTNA DO SZABLONÓW Z PUSTEGO PŁÓTNA (K-20). Galeria
+              zamknięta wyborem „pusta strona" była do tej poprawki drogą
+              w JEDNĄ stronę: „Zacznij od nowa" w pasku pokazuje się wyłącznie
+              przy stronie, która sekcje ma (nie ma czego zastępować), a poza
+              nim nie było ani jednego wejścia do szablonów. Operator, który
+              kliknął „pustą" i zmienił zdanie, musiał przeładować trasę.
+            */
+            onOpenTemplates={() => setGalleryChoice("open")}
             /*
               Otwarcie szuflady NIESIE ZE SOBĄ ZAKŁADKĘ (E8): „ustawienia
               sekcji" z paska narzędzi jej nie wskazują, a przycisk pustego
@@ -1105,6 +1253,53 @@ export function SiteBuilder({
         onAdd={addSection}
         onClose={() => setInsertTarget(null)}
       />
+
+      {/*
+        KONWERSJA SEKCJI ZASTANEJ NA SWOBODNE PŁÓTNO MA POTWIERDZENIE (K-12).
+        Okno mówi o SKUTKU, nie o generacji treści: „układ przestanie być
+        automatyczny" jest zdaniem, na które operator umie odpowiedzieć, a
+        „sekcja v1 zostanie zapisana jako v2" — nie jest.
+      */}
+      <Dialog
+        open={convertPrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) setConvertPrompt(null);
+        }}
+      >
+        <DialogContent data-builder-convert-dialog>
+          <DialogHeader>
+            <DialogTitle>{t("builder.convertTitle")}</DialogTitle>
+            <DialogDescription data-builder-convert-scope="canvas">
+              {t("builder.convertBody")}
+            </DialogDescription>
+          </DialogHeader>
+          <Label className="flex items-center gap-2 text-sm font-normal">
+            <Checkbox
+              checked={convertRemember}
+              data-builder-convert-remember
+              onCheckedChange={(value) => setConvertRemember(value === true)}
+            />
+            {t("builder.convertRemember")}
+          </Label>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setConvertPrompt(null)}>
+              {t("builder.convertCancel")}
+            </Button>
+            <Button
+              type="button"
+              data-builder-convert-confirm
+              onClick={() => {
+                const pending = convertPrompt;
+                if (convertRemember) setSkipConvertPrompt(true);
+                setConvertPrompt(null);
+                if (pending) insertElement(pending);
+              }}
+            >
+              {t("builder.convertConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ImagePicker
         siteId={siteId}

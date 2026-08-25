@@ -42,6 +42,7 @@ export function BuilderPalette({
   disabled,
   style,
   onAddSection,
+  elementsTarget = true,
   onAddElement,
   onDropElement,
   onDragElementOver,
@@ -54,6 +55,12 @@ export function BuilderPalette({
   style: ResolvedSiteStyle;
   /** Otwarcie pickera z kontekstem „na końcu strony" (E2). */
   onAddSection: () => void;
+  /**
+   * CZY JEST DOKĄD DOKŁADAĆ ELEMENTY (K-09, audyt UX 2026-08-25) — `false` na
+   * stronie bez ani jednej sekcji zdatnej do edycji. Kafle są wtedy wygaszone
+   * i mówią, co zrobić najpierw, zamiast milczeć po kliknięciu.
+   */
+  elementsTarget?: boolean;
   /** Dodanie ELEMENTU kliknięciem kafla (K3) — ląduje pod treścią sekcji. */
   onAddElement: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM (K3). */
@@ -140,6 +147,7 @@ export function BuilderPalette({
         >
           <ElementPalette
             disabled={disabled}
+            noTarget={!elementsTarget}
             onAdd={onAddElement}
             onDrop={onDropElement}
             onDragOver={onDragElementOver}

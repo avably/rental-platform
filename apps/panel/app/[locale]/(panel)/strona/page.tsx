@@ -20,9 +20,15 @@ import { isProductTemplateKind } from "@avably/core/site";
 
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
+import {
+  publishWarnings,
+  type PublishWarning,
+  type PublishWarningSection,
+} from "@/lib/publish-warnings";
 import { listSites } from "@/lib/site-queries";
 
 import { appearancePending } from "./appearance-state";
+import { draftPending, type DraftSectionColumns } from "./draft-state";
 import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
 import { StoreAppearanceCard } from "./store-appearance-card";
@@ -150,6 +156,66 @@ export default async function SitePage() {
       : (forkRows.data ?? []).map((row) => ({ id: row.id as string, name: row.name as string }));
   }
 
+  /*
+    NIEDOPUBLIKOWANE ZMIANY SZKICU (K-05, audyt UX 2026-08-25) i OSTRZEŻENIA
+    PUBLIKACJI (K-13) — jeden odczyt na oba pytania, i to jest cała optymalizacja
+    tego bloku.
+
+    Czytamy sekcje WYŁĄCZNIE stron ŻYWYCH. Dla strony roboczej pytanie „czym
+    szkic różni się od żywego" nie ma przedmiotu (bliźniaka nie ma), a lista
+    mówi o niej „wersja robocza" — zdanie prawdziwe i wystarczające. To zawęża
+    najdroższą część odczytu (dwie kolumny jsonb na sekcję) do jednej, najwyżej
+    kilku stron zamiast do wszystkich.
+
+    Nieudany odczyt gasi ODZNAKĘ i listę ostrzeżeń, a nie ekran: „nie wiadomo"
+    i „bez zmian" to dwa różne zdania (kanon ADR-171), a lista stron jest
+    ważniejsza niż którekolwiek z nich.
+  */
+  const liveSiteIds = sites.filter((site) => site.published_at !== null).map((site) => site.id);
+  const draftPendingBySite = new Map<string, boolean>();
+  const warningsBySite = new Map<string, PublishWarning[]>();
+  if (liveSiteIds.length > 0) {
+    const sectionRows = await ctx.supabase
+      .from("site_sections")
+      .select(
+        "site_id, type, content_draft, content_published, position, position_published, enabled, enabled_published, deleted_in_draft",
+      )
+      .eq("tenant_id", ctx.tenantId!)
+      .in("site_id", liveSiteIds);
+    if (!sectionRows.error) {
+      const bySite = new Map<string, DraftSectionColumns[]>();
+      const contentBySite = new Map<string, PublishWarningSection[]>();
+      for (const row of sectionRows.data ?? []) {
+        const siteId = row.site_id as string;
+        const list = bySite.get(siteId) ?? [];
+        list.push(row as unknown as DraftSectionColumns);
+        bySite.set(siteId, list);
+
+        // Ostrzeżenia opisują to, co publikacja WYPUŚCI — sekcja skasowana
+        // w szkicu zniknie, więc jej treść nikogo już nie obchodzi.
+        if (row.deleted_in_draft) continue;
+        const contents = contentBySite.get(siteId) ?? [];
+        contents.push({
+          type: row.type as PublishWarningSection["type"],
+          enabled: row.enabled as boolean,
+          content: row.content_draft,
+        });
+        contentBySite.set(siteId, contents);
+      }
+      for (const site of sites) {
+        if (site.published_at === null) continue;
+        draftPendingBySite.set(
+          site.id,
+          draftPending(
+            { slug: site.slug, slug_published: site.slug_published },
+            bySite.get(site.id) ?? [],
+          ),
+        );
+        warningsBySite.set(site.id, publishWarnings(contentBySite.get(site.id) ?? []));
+      }
+    }
+  }
+
   const format = await getFormatter();
   const stamp = (value: string | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
@@ -178,6 +244,10 @@ export default async function SitePage() {
     productName: site.product_id ? (productNames.get(site.product_id) ?? null) : null,
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
+    // `null` = nie wiadomo (nieudany odczyt sekcji albo strona robocza, dla
+    // której pytanie nie ma przedmiotu) — odznaka się wtedy nie rysuje.
+    draftPending: draftPendingBySite.get(site.id) ?? null,
+    warnings: warningsBySite.get(site.id) ?? [],
   }));
 
   return (

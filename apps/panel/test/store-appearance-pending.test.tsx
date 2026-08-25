@@ -100,6 +100,9 @@ function table(name: string) {
   const chain = {
     select: () => chain,
     eq: () => chain,
+    // `in` doszło z odczytem sekcji stron ŻYWYCH (K-05): łańcuch jest tu
+    // przezroczysty, liczy się wyłącznie tabela, na której się kończy.
+    in: () => chain,
     not: () => chain,
     order: () => Promise.resolve({ data: [], error: null }),
     maybeSingle: () =>
@@ -164,6 +167,10 @@ vi.mock("@/i18n/navigation", () => ({
       {children}
     </a>
   ),
+  // Od K-02 (audyt UX 2026-08-25) utworzenie strony NAWIGUJE do kreatora, więc
+  // ekran woła `useRouter`. Atrapa jest niema z premedytacją: te pliki mierzą,
+  // czy akcja poszła z właściwymi argumentami, a nie dokąd operator wylądował.
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 const actions = vi.hoisted(() => ({

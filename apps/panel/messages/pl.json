@@ -719,7 +719,9 @@
         "descriptionHint": "Krótkie zdanie dla klienta. Możesz je zostawić puste.",
         "create": "Załóż kategorię",
         "save": "Zapisz",
-        "saved": "Zapisano."
+        "saved": "Zapisano.",
+        "bannerLater": "Baner dodasz zaraz po założeniu kategorii — w edycji.",
+        "nameRequired": "Podaj nazwę kategorii."
       },
       "banner": {
         "title": "Baner kategorii",
@@ -1891,7 +1893,8 @@
         "finalize": "Nie udało się zakończyć uploadu.",
         "shape": "Nie udało się zapisać logo — plik ma nieoczekiwaną ścieżkę.",
         "save": "Nie udało się zapisać logo.",
-        "publish": "Nie udało się opublikować logo."
+        "publish": "Nie udało się opublikować logo.",
+        "resize": "Nie udało się zmniejszyć pliku. Wgraj mniejszy obraz."
       }
     },
     "appearance": {
@@ -1982,7 +1985,14 @@
       "publishedAt": "Opublikowano {date}.",
       "publish": "Opublikuj stronę",
       "publishing": "Publikowanie…",
-      "published": "Opublikowano."
+      "published": "Opublikowano.",
+      "publishAnyway": "Opublikuj mimo to",
+      "warningsTitle": "Zanim opublikujesz — sprawdź:",
+      "warnings": {
+        "sampleSection": "{count, plural, one {# sekcja stoi na treści przykładowej} few {# sekcje stoją na treści przykładowej} many {# sekcji stoi na treści przykładowej} other {# sekcji stoi na treści przykładowej}} z szablonu.",
+        "emptyImage": "{count, plural, one {# element zdjęcia nie ma wybranego zdjęcia} few {# elementy zdjęcia nie mają wybranego zdjęcia} many {# elementów zdjęcia nie ma wybranego zdjęcia} other {# elementów zdjęcia nie ma wybranego zdjęcia}} — klient zobaczy pusty kafel.",
+        "placeholderElement": "{count, plural, one {# element został przy treści startowej} few {# elementy zostały przy treści startowej} many {# elementów zostało przy treści startowej} other {# elementów zostało przy treści startowej}} (np. „Nowy nagłówek”)."
+      }
     },
     "builder": {
       "title": "Kreator strony",
@@ -2022,7 +2032,14 @@
       "retry": "Spróbuj ponownie",
       "unsaved": "Nie zapisano",
       "unsavedBody": "Ta zmiana została odrzucona i NIE jest na serwerze. Widzisz ją na płótnie, ale sklep jej nie dostanie. Popraw przyczynę i zapisz ponownie.",
-      "saveAgain": "Zapisz ponownie"
+      "saveAgain": "Zapisz ponownie",
+      "tabElementsNoTarget": "Najpierw dodaj sekcję — elementy dokładają się do sekcji.",
+      "elementsStructured": "Ta sekcja ma własny edytor treści — elementów nie da się do niej dołożyć. Otwórz jej ustawienia, żeby zmienić treść.",
+      "convertTitle": "Przełączyć sekcję na swobodne płótno?",
+      "convertBody": "Ta sekcja przejdzie w tryb swobodnego płótna — układ przestanie być automatyczny. Od tej chwili to Ty ustawiasz położenie i wielkość każdego elementu, także na telefonie. Kontynuować?",
+      "convertRemember": "Nie pytaj ponownie w tej sesji",
+      "convertCancel": "Anuluj",
+      "convertConfirm": "Przełącz i dodaj element"
     },
     "elementKinds": {
       "heading": "Nagłówek",
@@ -2040,7 +2057,8 @@
       "duplicate": "Kopiuj element",
       "remove": "Usuń element",
       "autoMobile": "Wróć do układu automatycznego",
-      "detached": "Układ mobilny ustawiony ręcznie"
+      "detached": "Układ mobilny ustawiony ręcznie",
+      "editHint": "Kliknij dwa razy, żeby edytować treść"
     },
     "resizeHandles": {
       "nw": "Zmień rozmiar — lewy górny róg",
@@ -2208,7 +2226,8 @@
         "catalog-first": "Katalog na start"
       },
       "emptyName": "Pusta strona",
-      "emptyMood": "Zaczynasz od czystego płótna i sam dokładasz sekcje."
+      "emptyMood": "Zaczynasz od czystego płótna i sam dokładasz sekcje.",
+      "startFromTemplate": "Zacznij od szablonu"
     },
     "pages": {
       "subtitle": "Sklep pokazuje każdą opublikowaną stronę pod jej własnym adresem. Nieopublikowane czekają w panelu — publikacja jednej strony nie rusza pozostałych.",
@@ -2305,7 +2324,9 @@
       "slugException": "Własna strona sprzętu nie ma osobnego adresu — pokazuje się pod adresem swojego sprzętu.",
       "switchBodyExceptionNew": "Strona pojawi się w sklepie pod adresem sprzętu: {name}. Obowiązuje tylko tam — zastąpi wspólny szablon strony sprzętu.",
       "switchBodyExceptionLive": "Sklep pokaże pod adresem sprzętu: {name} aktualną wersję tej strony — razem ze zmianami, które w niej zrobiłeś. Pozostałe sprzęty zostają przy wspólnym szablonie.",
-      "unpublishBodyException": "Strona zniknie z adresu sprzętu: {name}. Klienci zobaczą tam wspólny szablon strony sprzętu — a gdy nie jest opublikowany, układ wbudowany. Treść zostaje w panelu; możesz opublikować ją ponownie."
+      "unpublishBodyException": "Strona zniknie z adresu sprzętu: {name}. Klienci zobaczą tam wspólny szablon strony sprzętu — a gdy nie jest opublikowany, układ wbudowany. Treść zostaje w panelu; możesz opublikować ją ponownie.",
+      "draftPendingBadge": "Niedopublikowane zmiany",
+      "draftPendingBody": "Klienci widzą poprzednią wersję tej strony. Opublikuj ją, żeby wypuścić zmiany ze szkicu."
     },
     "structured": {
       "drawerDescription": "Treść tej sekcji to lista wpisów. Układ zmienisz bez ruszania treści.",

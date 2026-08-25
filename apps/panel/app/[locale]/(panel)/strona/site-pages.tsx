@@ -56,7 +56,8 @@ import {
 } from "@avably/core/site";
 
 import { PublishDialog } from "@/components/publish-dialog";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import type { PublishWarning } from "@/lib/publish-warnings";
 import { createSite, deleteSite, publishSite, renameSite, unpublishSite } from "@/lib/actions/site";
 import {
   forkProductPage,
@@ -109,6 +110,20 @@ export interface SitePageRow {
   productName?: string | null;
   publishedAtLabel: string | null;
   createdAtLabel: string | null;
+  /**
+   * SZKIC MA COŚ, CZEGO KLIENCI NIE MAJĄ (K-05, audyt UX 2026-08-25).
+   * `null` = pytanie bez odpowiedzi: strona robocza (nie ma bliźniaka, z którym
+   * można by porównywać) albo nieudany odczyt sekcji. Odznaka rysuje się
+   * WYŁĄCZNIE przy `true` — „nie wiadomo" nie ma prawa wyglądać jak „nic nie
+   * czeka" ani jak „czeka" (kanon ADR-171).
+   */
+  draftPending?: boolean | null;
+  /**
+   * OSTRZEŻENIA PRZED PUBLIKACJĄ TEJ strony (K-13/K-14) — liczone serwerowo tą
+   * samą funkcją, którą kreator liczy je ze szkicu w pamięci. Pusta lista =
+   * „nie mam nic do powiedzenia"; okno jej wtedy nie rysuje.
+   */
+  warnings?: readonly PublishWarning[];
 }
 
 export function SitePages({
@@ -132,6 +147,7 @@ export function SitePages({
   forkProducts?: { id: string; name: string }[] | null;
 }) {
   const t = useTranslations("site");
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -140,6 +156,30 @@ export function SitePages({
     startTransition(async () => {
       const result = await action();
       if (!result.ok) setError(result.error);
+    });
+  }
+
+  /**
+   * UTWORZENIE STRONY PROWADZI DO KREATORA (K-02, audyt UX 2026-08-25).
+   *
+   * Do tej poprawki „Utwórz stronę" zostawiało operatora NA LIŚCIE, z pustym
+   * wierszem, do którego trzeba było kliknąć osobno — a strona bez ani jednej
+   * sekcji nie jest niczym, na co warto patrzeć z listy. Czasownik obiecuje
+   * stronę, więc kończy się tam, gdzie się ją robi.
+   *
+   * Nawigacja idzie WYŁĄCZNIE po sukcesie i wyłącznie z identyfikatorem
+   * z akcji: porażka (limit stron, zajęty adres, odmowa RLS) zostawia operatora
+   * na liście z komunikatem, bo tam jest formularz, w którym może poprawić.
+   */
+  function createAndOpen(action: () => Promise<{ ok: true; siteId: string } | { ok: false; error: string }>) {
+    setError(null);
+    startTransition(async () => {
+      const result = await action();
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push(`/strona/${result.siteId}/kreator`);
     });
   }
 
@@ -235,7 +275,7 @@ export function SitePages({
         <p className="text-muted-foreground text-sm">{t("pages.subtitle")}</p>
         <NewPageDialog
           disabled={pending || limitReached}
-          onCreate={(name, slug) => run(() => createSite({ name, slug }))}
+          onCreate={(name, slug) => createAndOpen(() => createSite({ name, slug }))}
         />
       </div>
 
@@ -264,7 +304,7 @@ export function SitePages({
           <NewPageDialog
             variant="home"
             disabled={pending || limitReached}
-            onCreate={(name) => run(() => createSite({ name }))}
+            onCreate={(name) => createAndOpen(() => createSite({ name }))}
           />
         </div>
       ) : null}
@@ -288,7 +328,9 @@ export function SitePages({
           <NewPageDialog
             variant="template"
             disabled={pending || limitReached}
-            onCreate={(name) => run(() => createSite({ name, kind: PRODUCT_TEMPLATE_SITE_KIND }))}
+            onCreate={(name) =>
+              createAndOpen(() => createSite({ name, kind: PRODUCT_TEMPLATE_SITE_KIND }))
+            }
           />
         </div>
       ) : null}
@@ -376,7 +418,28 @@ export function SitePages({
                     {t("pages.statusDraft")}
                   </span>
                 )}
+                {/*
+                  DRUGA ODZNAKA, A NIE PODMIANA PIERWSZEJ (K-05). Oba zdania są
+                  prawdziwe naraz i oba są operatorowi potrzebne: strona JEST
+                  w sklepie (chip osi `site-publish` — ta sama mapa statusów, co
+                  wszędzie) i JEDNOCZEŚNIE to, co klienci widzą, jest starsze niż
+                  to, co operator ma w kreatorze. Zamiana chipa na „szkic"
+                  kłamałaby o pierwszym, żeby powiedzieć drugie.
+                */}
+                {row.live && row.draftPending === true ? (
+                  <span
+                    data-site-page-draft-pending
+                    className="border-border text-foreground rounded-full border px-2 py-0.5 text-[12px] leading-[16px]"
+                  >
+                    {t("pages.draftPendingBadge")}
+                  </span>
+                ) : null}
               </div>
+              {row.live && row.draftPending === true ? (
+                <p className="text-muted-foreground text-[13px] leading-[18px]">
+                  {t("pages.draftPendingBody")}
+                </p>
+              ) : null}
 
               {/*
                 STRONA GŁÓWNA JEST PODPISANA (ADR-161). Sam adres `/` jest
@@ -492,6 +555,15 @@ export function SitePages({
                   disabled={pending}
                   live={row.live}
                   name={row.name}
+                  /*
+                    ZMIANY CZEKAJĄCE W SZKICU CZYNIĄ PUBLIKACJĘ CZYNNOŚCIĄ
+                    GŁÓWNĄ tego wiersza (K-05): to jedyny przycisk, który
+                    cokolwiek z tym stanem robi. Przy stronie wypuszczonej co do
+                    przecinka zostaje drugorzędny — inaczej lista krzyczałaby
+                    „opublikuj" nad każdą stroną, która niczego nie potrzebuje.
+                  */
+                  emphasize={row.draftPending === true}
+                  warnings={row.warnings ?? []}
                   address={pagePathFromSlug(row.slug)}
                   productTemplate={isProductTemplateKind(row.kind)}
                   /*

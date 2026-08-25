@@ -39,6 +39,10 @@ vi.mock("@/i18n/navigation", () => ({
       {children}
     </a>
   ),
+  // Od K-02 (audyt UX 2026-08-25) utworzenie strony NAWIGUJE do kreatora, więc
+  // ekran woła `useRouter`. Atrapa jest niema z premedytacją: te pliki mierzą,
+  // czy akcja poszła z właściwymi argumentami, a nie dokąd operator wylądował.
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 const { SitePages } = await import("@/app/[locale]/(panel)/strona/site-pages");
