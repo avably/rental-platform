@@ -1540,6 +1540,15 @@
       "lockedPickedUp": "Sprzęt jest wydany klientowi - pozycji wydanego zamówienia nie edytujemy. Doposażenie w trakcie najmu zakładamy jako osobne zamówienie.",
       "lockedClosed": "Zamówienie jest zamknięte (zwrócone albo anulowane) - pozycji nie można już zmieniać."
     },
+    "returns": {
+      "title": "Zwrot sprzętu",
+      "progress": "{returned} z {total} zwrócone",
+      "hint": "Zaznacz pozycje, które wróciły. Egzemplarz od razu wraca do puli dostępności - resztę zwracasz, gdy dojedzie.",
+      "markLabel": "Oznacz jako zwrócone: {product}",
+      "statusReturned": "Zwrócone",
+      "statusOut": "U klienta",
+      "allReturnedHint": "Wszystkie pozycje wróciły. Zmień status zamówienia na „Zwrócone”, aby rozliczyć kaucję."
+    },
     "timeline": {
       "ariaLabel": "Oś czasu zamówienia",
       "steps": {
