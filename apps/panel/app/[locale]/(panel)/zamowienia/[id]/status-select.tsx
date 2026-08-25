@@ -65,6 +65,24 @@ import { TEMPLATE_FOR_STATUS } from "./rental-email";
 /** Okno na cofnięcie. Sekundy są widoczne, więc liczba jest też treścią. */
 const UNDO_SECONDS = 10;
 
+/**
+ * Przejście NIEODWRACALNE = docelowy status jest TERMINALNY: nie ma z niego
+ * ŻADNEGO wyjścia w mapie przejść @avably/core (returned, cancelled). To NIE
+ * jest druga, ręcznie utrzymywana lista statusów — predykat czyta tę samą
+ * maszynę stanów, którą karmi dropdown (canTransition), więc gdy mapa się
+ * zmieni, zbiór potwierdzanych przejść podąża za nią bez cichego dryfu.
+ *
+ * Dlaczego akurat te wymagają JAWNEGO potwierdzenia PRZED zapisem: mis-klik
+ * w dropdownie utrwala tranzycję OD RAZU (applyStatus), a z terminalnego
+ * stanu nie ma powrotu w panelu — `returned` dodatkowo zwalnia egzemplarz
+ * do dostępności (bramka 0010), więc pomyłkowy zwrot to miękkie
+ * double-allocation. Potwierdzenie BRAMKUJE zapis; przejścia odwracalne
+ * (korekta o krok, pending↔reserved) idą bez tarcia jak dotąd.
+ */
+function isIrreversibleTransition(to: OrderStatus): boolean {
+  return ORDER_STATUSES.every((next) => !canTransition(to, next));
+}
+
 type Outcome = { tone: "ok" | "warn"; text: string };
 
 export function StatusSelect({
@@ -93,6 +111,10 @@ export function StatusSelect({
 
   const [pending, startTransition] = useTransition();
   const [transitionError, setTransitionError] = useState<string>();
+  // Cel przejścia NIEODWRACALNEGO czekający na jawne potwierdzenie. Dopóki
+  // nie null, zapis się NIE wydarzył — to bramka PRZED changeStatus, odrębna
+  // od prompta maila (ten pyta dopiero PO utrwaleniu, o pocztę).
+  const [confirm, setConfirm] = useState<OrderStatus | null>(null);
   const [ask, setAsk] = useState<OrderStatus | null>(null);
   const [countdown, setCountdown] = useState<{ target: OrderStatus; secondsLeft: number } | null>(
     null,
@@ -156,6 +178,23 @@ export function StatusSelect({
     if (target === "" || target === currentStatus) return;
     const to = target as OrderStatus;
 
+    // BRAMKA przejść nieodwracalnych (returned, cancelled): najpierw jawne
+    // potwierdzenie, dopiero po nim zapis. Otwarcie okna NIE dotyka jeszcze
+    // niczego — trwające odliczanie maila, błąd ani wynik nie znikają, bo
+    // decyzja o zmianie dopiero zapada; anulowanie zostawia stan bez śladu.
+    if (isIrreversibleTransition(to)) {
+      setConfirm(to);
+      return;
+    }
+
+    commitStatus(to);
+  }
+
+  /**
+   * Utrwala tranzycję (i pyta o mail). Dla przejść odwracalnych wołane wprost
+   * z dropdownu; dla nieodwracalnych — dopiero po potwierdzeniu w oknie.
+   */
+  function commitStatus(to: OrderStatus) {
     // Nowa decyzja zaczyna od czystego ekranu — ale NIE zdejmuje trwającego
     // odliczania po cichu: gdyby jakieś trwało, jest ono anulowane jawnie,
     // bo wiadomość o poprzednim statusie przestała być prawdziwa.
@@ -302,6 +341,44 @@ export function StatusSelect({
           {outcome.text}
         </p>
       ) : null}
+
+      <Dialog
+        open={confirm !== null}
+        onOpenChange={(next) => {
+          // Zamknięcie okna (Esc, tło, „Anuluj") NIE zapisuje niczego:
+          // tranzycja terminalna jeszcze się nie wydarzyła, więc nie ma czego
+          // cofać ani zapowiadać. Select wraca do stanu bieżącego sam
+          // (sterowany `value={currentStatus}`).
+          if (!next) setConfirm(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("confirmTerminalTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("confirmTerminalBody", {
+                status: confirm === null ? "" : tStatus(confirm),
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirm(null)}>
+              {t("confirmTerminalCancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                const to = confirm;
+                setConfirm(null);
+                if (to !== null) commitStatus(to);
+              }}
+            >
+              {t("confirmTerminalConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={askTarget !== null}
