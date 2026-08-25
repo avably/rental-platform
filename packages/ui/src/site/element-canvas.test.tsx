@@ -563,3 +563,68 @@ describe("płótno dostaje proporcję per pasmo szerokości", () => {
     }
   });
 });
+
+/**
+ * WELON NAD ZDJĘCIEM PRZEŻYWA TELEFON (ADR-274).
+ *
+ * Hero każdego szablonu startowego to zdjęcie pełnoekranowe plus welon
+ * pełnoekranowy nad nim — to on daje napisom policzalny kontrast (ADR-090).
+ * Auto-układ mobilny uznaje ten welon za PODKŁAD (obejmuje treść hero), a
+ * podkłady render zatapia pod treścią. Gdyby zatopienie objęło także elementy
+ * pełnoekranowe, welon spadłby pod zdjęcie i przestał robić jedyną rzecz, do
+ * której istnieje. Warstwa tła jako CAŁOŚĆ leży pod siatką treści, więc nie ma
+ * czego zasłonić — zatopienie jej nie dotyczy.
+ */
+describe("welon pełnoekranowy zostaje nad zdjęciem pełnoekranowym", () => {
+  const heroZWelonem: SectionCanvas = {
+    version: 2,
+    rows: 96,
+    background: "inverted",
+    elements: [
+      {
+        id: "kadr",
+        kind: "image",
+        alt: "Namioty eventowe o zmierzchu",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant/hero.jpg" },
+        layout: { desktop: { x: 0, y: 0, w: 144, h: 96, z: 0 } },
+      },
+      {
+        id: "welon",
+        kind: "shape",
+        shape: "box",
+        fill: "scrim",
+        layout: { desktop: { x: 0, y: 0, w: 144, h: 96, z: 1 } },
+      },
+      {
+        id: "tytul",
+        kind: "heading",
+        text: "Wesela, urodziny, firmowe imprezy — sprzęt na cały dzień",
+        level: 1,
+        align: "left",
+        layout: { desktop: { x: 12, y: 28, w: 120, h: 30, z: 2 } },
+      },
+    ],
+  } as SectionCanvas;
+
+  it("welon maluje się NAD kadrem na obu breakpointach", () => {
+    const sections = [
+      { id: "s1", position: 0, type: "hero", content: heroZWelonem },
+    ] as RenderSection[];
+    const { container } = render(
+      <SiteRenderer sections={sections} siteImageBase="https://storage.example/site-images" />,
+    );
+    const z = (id: string, name: string) =>
+      Number(
+        container
+          .querySelector<HTMLElement>(`[data-canvas-bleed] [data-element-id="${id}"]`)!
+          .style.getPropertyValue(name),
+      );
+    // Kontrola pozytywna: oba naprawdę siedzą w warstwie tła.
+    expect(container.querySelectorAll("[data-canvas-bleed] [data-element-id]")).toHaveLength(2);
+    expect(z("welon", "--el-z")).toBeGreaterThan(z("kadr", "--el-z"));
+    expect(z("welon", "--el-mz"), "welon spadł pod kadr na telefonie").toBeGreaterThan(
+      z("kadr", "--el-mz"),
+    );
+  });
+});

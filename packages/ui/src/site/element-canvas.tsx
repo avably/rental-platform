@@ -783,9 +783,26 @@ export function SectionCanvasRenderer({
    * podkładu wyznaczył AUTOMAT: ich mobilne pudełko obejmuje całą grupę, więc
    * zapisane `z` przestaje o nich cokolwiek mówić.
    */
+  /*
+   * ZATOPIENIE OMIJA ELEMENTY PEŁNOEKRANOWE — i to nie jest wyjątek, tylko ta
+   * sama zasada widziana z drugiej strony.
+   *
+   * Element rozciągnięty do obu krawędzi renderuje się w WARSTWIE TŁA (aneks do
+   * ADR-088), która jako całość leży pod siatką treści — nie ma jak niczego
+   * zasłonić. Sensem zatopienia jest podkład, który auto-układ rozciągnął na
+   * całą grupę W SIATCE; welon pełnoekranowy nad zdjęciem pełnoekranowym
+   * (hero każdego szablonu startowego) jest projektem, a nie kolizją, i
+   * zatopiony przestałby przygaszać kadr, na którym stoi.
+   */
+  const sunkOnMobile = new Set(
+    canvas.elements
+      .filter((element) => mobile.backdrops.has(element.id) && !bleedsToEdges(element))
+      .map((element) => element.id),
+  );
+
   const layers = {
     desktop: renderLayerZ(canvas.elements),
-    mobile: renderLayerZ(canvas.elements, mobile.backdrops),
+    mobile: renderLayerZ(canvas.elements, sunkOnMobile),
   };
 
   const bleeding = paintOrder(canvas.elements).filter(
