@@ -158,30 +158,38 @@ export default async function SitePage() {
 
   /*
     NIEDOPUBLIKOWANE ZMIANY SZKICU (K-05, audyt UX 2026-08-25) i OSTRZEŻENIA
-    PUBLIKACJI (K-13) — jeden odczyt na oba pytania, i to jest cała optymalizacja
-    tego bloku.
+    PUBLIKACJI (K-13) — jeden odczyt na oba pytania.
 
-    Czytamy sekcje WYŁĄCZNIE stron ŻYWYCH. Dla strony roboczej pytanie „czym
-    szkic różni się od żywego" nie ma przedmiotu (bliźniaka nie ma), a lista
-    mówi o niej „wersja robocza" — zdanie prawdziwe i wystarczające. To zawęża
-    najdroższą część odczytu (dwie kolumny jsonb na sekcję) do jednej, najwyżej
-    kilku stron zamiast do wszystkich.
+    Sekcje czytamy dla WSZYSTKICH stron, nie tylko żywych, i to jest decyzja,
+    a nie brak zawężenia. Ostrzeżenia dotyczą tego, co publikacja WYPUŚCI —
+    a najważniejszym ich adresatem jest strona ROBOCZA, świeżo złożona
+    z szablonu i publikowana PIERWSZY raz: to wtedy „sekcja stoi na treści
+    przykładowej" ratuje najemcę przed sklepem z cudzym copy. Zawężenie do
+    stron żywych milczałoby dokładnie w tym momencie. Sufit odczytu jest
+    z natury niski (`MAX_SITES` = 10 stron na najemcę), więc cena jest znana
+    z góry.
+
+    Sam `draftPending` liczymy dalej WYŁĄCZNIE dla stron żywych — dla roboczej
+    pytanie „czym szkic różni się od żywego" nie ma przedmiotu (bliźniaka nie
+    ma), a lista mówi o niej „wersja robocza".
 
     Nieudany odczyt gasi ODZNAKĘ i listę ostrzeżeń, a nie ekran: „nie wiadomo"
     i „bez zmian" to dwa różne zdania (kanon ADR-171), a lista stron jest
     ważniejsza niż którekolwiek z nich.
   */
-  const liveSiteIds = sites.filter((site) => site.published_at !== null).map((site) => site.id);
   const draftPendingBySite = new Map<string, boolean>();
   const warningsBySite = new Map<string, PublishWarning[]>();
-  if (liveSiteIds.length > 0) {
+  if (sites.length > 0) {
     const sectionRows = await ctx.supabase
       .from("site_sections")
       .select(
         "site_id, type, content_draft, content_published, position, position_published, enabled, enabled_published, deleted_in_draft",
       )
       .eq("tenant_id", ctx.tenantId!)
-      .in("site_id", liveSiteIds);
+      .in(
+        "site_id",
+        sites.map((site) => site.id),
+      );
     if (!sectionRows.error) {
       const bySite = new Map<string, DraftSectionColumns[]>();
       const contentBySite = new Map<string, PublishWarningSection[]>();
@@ -203,6 +211,7 @@ export default async function SitePage() {
         contentBySite.set(siteId, contents);
       }
       for (const site of sites) {
+        warningsBySite.set(site.id, publishWarnings(contentBySite.get(site.id) ?? []));
         if (site.published_at === null) continue;
         draftPendingBySite.set(
           site.id,
@@ -211,7 +220,6 @@ export default async function SitePage() {
             bySite.get(site.id) ?? [],
           ),
         );
-        warningsBySite.set(site.id, publishWarnings(contentBySite.get(site.id) ?? []));
       }
     }
   }
