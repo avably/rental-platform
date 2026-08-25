@@ -84,17 +84,27 @@ export function visibleProductsFor(
  * samego sklepu, a nie uruchamia operacji. Wypełniony akcentem konkurowałby
  * z przyciskiem rezerwacji w katalogu, do którego ma dopiero doprowadzić — ta
  * sama zasada, co przy odnośniku pod cennikiem (E6).
+ *
+ * `mayClip` (decyzja właściciela K2, 2026-08-25; audyt S-21): siatka z regułą
+ * pełnych rzędów potrafi UKRYĆ część pozycji oddanych do dokumentu (desktop
+ * widział trzy z czterech bez śladu, że czwarta istnieje). Odnośnik musi więc
+ * stać także wtedy, gdy katalog nie jest większy od sekcji, ale KTÓREKOLWIEK
+ * pasmo szerokości ucina rząd — inaczej ucięta pozycja nie ma żadnej ścieżki
+ * odkrycia. Flagę liczy układ SIATKI (`productGridMayClip`); lista nigdy nie
+ * ucina (`fullRowCount(n, 1) === n`), więc jej nie podaje.
  */
 export function ProductsCatalogLink({
   shown,
   catalogSize,
   labels,
+  mayClip = false,
 }: {
   shown: number;
   catalogSize: number;
   labels: SiteRenderLabels;
+  mayClip?: boolean;
 }) {
-  if (!productsCatalogLinkVisible(shown, catalogSize)) return null;
+  if (!productsCatalogLinkVisible(shown, catalogSize) && !mayClip) return null;
   return (
     <p className="mt-6">
       <a data-products-catalog href={PRODUCTS_CATALOG_HREF} className="site-link underline">
@@ -238,10 +248,22 @@ export function productCtaLabel(
  * tego w żadnym teście renderu. Przycisk jest więc AFORDANCJĄ w środku
  * jednego celu kliknięcia: wygląda jak przycisk, prowadzi tam, gdzie cały
  * kafel, i nie dokłada drugiego przystanku dla klawiatury.
+ *
+ * `className` nadpisuje domyślny margines: kafel SIATKI dobija przycisk do
+ * dolnej krawędzi (`mt-auto`, S-19), a wiersz LISTY zostaje przy stałym
+ * odstępie — tam wysokości wierszy i tak niesie treść, nie rząd kafli.
  */
-export function ProductCta({ label, styles }: { label: string; styles: TemplateStyles }) {
+export function ProductCta({
+  label,
+  styles,
+  className,
+}: {
+  label: string;
+  styles: TemplateStyles;
+  className?: string;
+}) {
   return (
-    <span data-products-cta className={cn(styles.cta, "mt-4 self-start")}>
+    <span data-products-cta className={cn(styles.cta, "mt-4 self-start", className)}>
       {label}
     </span>
   );
@@ -332,7 +354,13 @@ export function ProductTile({
       ) : (
         <div className="site-placeholder aspect-[4/3] w-full" aria-hidden="true" />
       )}
-      <div className="flex flex-col gap-1 p-3 @min-[40rem]/site:p-4">
+      {/*
+        `flex-1` — pole treści ROŚNIE do dolnej krawędzi kafla. Kafle w rzędzie
+        siatki mają wyrównaną wysokość (grid rozciąga elementy), więc bez tego
+        przycisk z `mt-auto` nie miałby czego dopełnić i dalej wisiałby na
+        wysokości zależnej od długości tytułu (S-19, audyt UX 2026-08-25).
+      */}
+      <div className="flex flex-1 flex-col gap-1 p-3 @min-[40rem]/site:p-4">
         <span data-products-name className={styles.cardTitle}>
           {product.name}
         </span>
@@ -353,7 +381,13 @@ export function ProductTile({
           <span className="site-text-muted mt-2 line-clamp-3 text-sm">{product.description}</span>
         ) : null}
         <ProductFeatures features={features} />
-        {ctaLabel ? <ProductCta label={ctaLabel} styles={styles} /> : null}
+        {/*
+          `mt-auto` zamiast stałego `mt-4`: przy różnej długości tytułów kafle
+          w tym samym rzędzie miały przyciski na różnych wysokościach (zmierzone
+          32–55 px różnicy — S-19). Auto-margines dobija przycisk do dołu pola
+          treści, które rośnie do dolnej krawędzi kafla (patrz `flex-1` wyżej).
+        */}
+        {ctaLabel ? <ProductCta label={ctaLabel} styles={styles} className="mt-auto" /> : null}
       </div>
     </>
   );

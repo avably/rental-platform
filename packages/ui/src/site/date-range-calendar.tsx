@@ -62,6 +62,14 @@ export interface SiteCalendarLabels {
   dayUnavailable: string;
   /** Etykieta dnia poza oknem wyboru (przeszłość albo za horyzontem). */
   dayOutOfRange: string;
+  /**
+   * LEGENDA LICZNIKA DOSTĘPNOŚCI (S-22, audyt UX 2026-08-25) — jedno zdanie
+   * pod siatką tłumaczące, czym jest gołe „2” pod datą (sztuki? rezerwacje?
+   * cena? — znaczenie żyło dotąd wyłącznie w aria-label). Opcjonalna, bo
+   * rysuje się tylko razem z licznikami (`dayUnits`), a kalendarz powłoki
+   * liczników nie ma i legendy nie potrzebuje.
+   */
+  unitsLegend?: string;
 }
 
 export interface SiteDateRangeSelection {
@@ -295,9 +303,24 @@ function SiteCalendarMonthGrid({
                       LICZBA WOLNYCH SZTUK POD DATĄ — wyłącznie tam, gdzie
                       wołający ją podał. Kalendarz powłoki nie ma kontekstu
                       sprzętu, więc nie ma czego tu napisać (ADR-179).
+
+                      NA DNIU ZAZNACZONYM licznik DZIEDZICZY kolor przycisku
+                      (S-22): `site-text-muted` na wypełnieniu akcentu dawał
+                      kontrast 1,07:1 (WCAG 1.4.3) — tekst 10 px praktycznie
+                      znikał. Kraniec zakresu maluje etykietę parą
+                      `accent`/`accent-contrast` (ta sama, co `.site-cta`,
+                      z policzonym kontrastem w macierzy), środek — atramentem
+                      pasa; licznik bierze te kolory dziedziczeniem, a klasę
+                      przygaszenia nosi TYLKO na dniu niezaznaczonym.
                     */}
                     {units !== undefined ? (
-                      <span className="site-text-muted text-[0.625rem]" aria-hidden="true">
+                      <span
+                        className={cn(
+                          "text-[0.625rem]",
+                          !(isStart || isEnd || inRange) && "site-text-muted",
+                        )}
+                        aria-hidden="true"
+                      >
                         {units}
                       </span>
                     ) : null}
@@ -407,6 +430,19 @@ export function SiteDateRangeCalendar({
           />
         ))}
       </div>
+
+      {/*
+        LEGENDA LICZNIKA (S-22) — rysuje się WYŁĄCZNIE razem z licznikami:
+        kalendarz powłoki (`dayUnits` = null) nie ma czego tłumaczyć, a puste
+        zdanie pod siatką byłoby szumem. `aria-hidden` NIE stoi tu celowo —
+        legenda tłumaczy WIDZĄCEMU to, co czytnik ekranu dostaje w aria-label
+        każdego dnia („wolne sztuki: 2”).
+      */}
+      {dayUnits && labels.unitsLegend ? (
+        <p data-calendar-legend className="site-text-muted mt-3 text-xs">
+          {labels.unitsLegend}
+        </p>
+      ) : null}
     </div>
   );
 }

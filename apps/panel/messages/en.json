@@ -2666,7 +2666,7 @@
     "renderLabels": {
       "productsEmpty": "The catalog is being prepared.",
       "categoriesEmpty": "Categories are being prepared.",
-      "productsCatalog": "See all equipment",
+      "productsCatalog": "See the full catalog →",
       "productsCta": "Check availability",
       "contactEmail": "Email:",
       "contactPhone": "Phone:",

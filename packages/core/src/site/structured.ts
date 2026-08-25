@@ -1124,6 +1124,14 @@ export interface PricingPriceWords {
  * jedyny formatter pieniędzy w systemie. Dzielenia przez sto w tym pliku nie
  * ma i mieć nie może: separator dziesiętny, pozycja symbolu i odstęp tysięcy
  * są własnością locale, a nie naszej arytmetyki.
+ *
+ * TOKEN „kwota / jednostka” JEST ATOMOWY (S-40, audyt UX 2026-08-25): ukośnik
+ * wiąże się z sąsiadami TWARDĄ spacją (U+00A0), więc fraza „920,00 zł / doba”
+ * nigdy nie łamie się w środku („…zł /” + „doba” w drugiej linii czyta się jak
+ * błąd renderu, a cena przestaje być skanowalna jednym rzutem oka). Kwota sama
+ * w sobie jest atomowa z locale (Intl wstawia twarde spacje). Przedrostek „od”
+ * zostaje po ZWYKŁEJ spacji — wiersz MOŻE się złamać przed frazą, bo inaczej
+ * cała etykieta rozpychałaby wąskie kontenery (dokładnie wada S-12).
  */
 export function pricingPriceLabel(
   item: PricingStructuredItem,
@@ -1132,8 +1140,8 @@ export function pricingPriceLabel(
   words: PricingPriceWords,
 ): string {
   const money = formatMoney(item.price_grosze, currency, locale);
-  const amount = item.mode === "from" ? `${words.from} ${money}` : money;
-  return `${amount} / ${words.unit}`;
+  const token = `${money}\u00A0/\u00A0${words.unit}`;
+  return item.mode === "from" ? `${words.from} ${token}` : token;
 }
 
 /**

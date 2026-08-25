@@ -148,4 +148,11 @@ export const NEUTRAL_CLASSES: readonly string[] = [
    * `site-text-accent`) i to one wchodzą do macierzy kontrastu.
    */
   "site-product-grid",
+  /*
+   * KOLUMNY SIATKI SPRZĘTU (przygotowanie K1, audyt UX 2026-08-25). Niesie
+   * WYŁĄCZNIE `grid-template-columns` per próg kontenera — geometrię rzędu,
+   * ani jednej zmiennej roli. Osobno od `site-product-grid`, bo kolumny
+   * dzielą też siatki BEZ reguły pełnych rzędów (kategorie, katalog).
+   */
+  "site-product-columns",
 ];

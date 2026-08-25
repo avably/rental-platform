@@ -309,8 +309,9 @@ export interface SiteRenderLabels {
    * SPRZĘT STRUKTURALNY (E7, aneks ADR-094). Odnośnik pod sekcją prowadzący do
    * pełnego katalogu. Osobny od `pricingCatalog` ŚWIADOMIE: pod cennikiem
    * zaprasza do obejrzenia sprzętu („Zobacz pełny katalog"), a pod sekcją
-   * sprzętu mówi, że widać WYCINEK („Zobacz cały sprzęt"). Jedna etykieta pod
-   * obiema byłaby w jednym z tych miejsc zdaniem nie na temat.
+   * sprzętu mówi, że widać WYCINEK („Zobacz cały katalog →", K2 2026-08-25).
+   * Jedna etykieta pod obiema byłaby w jednym z tych miejsc zdaniem nie na
+   * temat.
    */
   productsCatalog: string;
   /**

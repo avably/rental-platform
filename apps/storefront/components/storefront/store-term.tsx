@@ -380,6 +380,9 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
     dayAvailable: copy.term.dayAvailable,
     dayUnavailable: copy.term.dayUnavailable,
     dayOutOfRange: copy.term.dayOutOfRange,
+    // Legenda licznika dostępności (S-22) — kalendarz rysuje ją tylko wtedy,
+    // gdy dostał `dayUnits`, więc powłoka bez liczników nie zobaczy jej nigdy.
+    unitsLegend: copy.term.unitsLegend,
   };
 }
 

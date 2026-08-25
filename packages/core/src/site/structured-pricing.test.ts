@@ -253,3 +253,38 @@ describe("SCHEMAT CENNIKA broni kwoty przed kształtem, którego nie da się zap
     ).toBe(false);
   });
 });
+
+describe("ATOMOWOŚĆ FRAZY CENY — token „kwota / jednostka” bez łamania (S-40)", () => {
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ (audyt UX 2026-08-25): przy 360 px fraza łamała
+  // się na „od 920,00 zł /” + „doba” (wiszący ukośnik, samotna jednostka),
+  // w cenniku na TRZY linie — cena przestawała być skanowalna jednym rzutem.
+  const pozycja = { name: "Namiot", price_grosze: 92_000, unit: "day" as const, mode: "from" as const };
+
+  it("ukośnik wiąże się z kwotą i jednostką TWARDĄ spacją (U+00A0)", () => {
+    const etykieta = pricingPriceLabel(pozycja, "PLN", "pl", { from: "od", unit: "doba" });
+    expect(etykieta).toContain("\u00A0/\u00A0doba");
+    // Kontrola negatywna: łamliwy zapis „ / ” (zwykłe spacje) nie ma prawa
+    // wrócić — to dokładnie miejsce, w którym fraza pękała.
+    expect(etykieta, "zwykła spacja przy ukośniku — fraza znowu pęknie w środku").not.toMatch(/ \/|\/ /);
+  });
+
+  it("po przedrostku „od” zostaje ZWYKŁA spacja — wiersz może się złamać PRZED frazą", () => {
+    /*
+     * Pełna atomowość całej etykiety to druga strona tej samej wady (S-12):
+     * nierozrywalny pasek „od 920,00 zł / doba” rozpycha wąskie kontenery
+     * i wypycha stronę poziomo. Twardy jest TOKEN, nie cała etykieta.
+     */
+    const etykieta = pricingPriceLabel(pozycja, "PLN", "pl", { from: "od", unit: "doba" });
+    expect(etykieta.startsWith("od ")).toBe(true);
+    expect(etykieta.charAt(2)).toBe(" ");
+  });
+
+  it("cena dokładna: sam token, wciąż atomowy", () => {
+    const etykieta = pricingPriceLabel({ ...pozycja, mode: "exact" }, "EUR", "en", {
+      from: "from",
+      unit: "day",
+    });
+    expect(etykieta).toContain("\u00A0/\u00A0day");
+    expect(etykieta.startsWith("from")).toBe(false);
+  });
+});

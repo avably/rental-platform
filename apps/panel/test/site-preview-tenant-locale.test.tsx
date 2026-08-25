@@ -216,8 +216,8 @@ describe("słownik etykiet renderu wybiera język po osi tenanckiej", () => {
       "@/lib/site-render-labels"
     );
 
-    expect(siteRenderLabels("en").productsCatalog).toBe("See all equipment");
-    expect(siteRenderLabels("pl").productsCatalog).toBe("Zobacz cały sprzęt");
+    expect(siteRenderLabels("en").productsCatalog).toBe("See the full catalog →");
+    expect(siteRenderLabels("pl").productsCatalog).toBe("Zobacz cały katalog →");
     // Normalizacja jak `normalizeStorefrontLocale`: nieznane i puste → pl.
     expect(normalizeTenantSiteLocale("en")).toBe("en");
     expect(normalizeTenantSiteLocale("pl")).toBe("pl");

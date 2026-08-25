@@ -103,19 +103,37 @@ const DOZWOLONE_WARIANTY = [
    */
   "@container site (width < 40rem)",
   /*
-   * PEŁNE RZĘDY SIATKI SPRZĘTU (E7, aneks ADR-094) — para zapytań wokół progu,
-   * który siatka produktów miała już wcześniej (`grid-cols-2` do 64 rem,
-   * `grid-cols-3` powyżej — `productGrid` w template.ts). ŻADNEGO nowego progu
-   * układu tu nie ma: to ta sama liczba, pytana z obu stron, bo reguła ucinająca
-   * ostatni niepełny rząd musi znać liczbę kolumn, a ta jest inna po każdej
-   * stronie progu. Jedno zapytanie nie wystarczy: reguła dla trzech kolumn
-   * obowiązywałaby wtedy także tam, gdzie siatka ma dwie, i ucinałaby rzędy,
-   * które są pełne.
+   * PEŁNE RZĘDY SIATKI SPRZĘTU (E7, aneks ADR-094) — para zapytań wokół progu
+   * trzeciej kolumny. Od K1 (2026-08-25) dolna strona żyje ZAGNIEŻDŻONA
+   * w pasmie dwóch kolumn (`width >= 28rem` → `width < 64rem`), bo reguła
+   * ucinająca ostatni niepełny rząd obowiązuje wyłącznie w pasmie SWOJEJ
+   * liczby kolumn — przy jednej kolumnie `2n + 1` ukrywałby pełne rzędy.
    */
   "@container site (width < 64rem)",
   "@container site (width >= 64rem)",
+  /*
+   * PRÓG „TELEFONU" 28 rem (audyt UX 2026-08-25: S-16 + K1/S-17; aneks do
+   * ADR-085). Jedna liczba, dwie strony pytania: poniżej niej wpisy
+   * auto-układu i kafle sprzętu idą w JEDNĄ kolumnę (karty po ~130–165 px
+   * łamały tekst co jedno-dwa słowa), od niej w górę siatka sprzętu wraca do
+   * dwóch kolumn. Świadoma decyzja właściciela (K1), nie trzeci przypadkowy
+   * breakpoint — sekcje NAD progiem układają się co do piksela jak przedtem.
+   */
+  "@container site (width < 28rem)",
+  "@container site (width >= 28rem)",
 ] as const;
 const DOZWOLONE_PROGI = ["40rem", "64rem"] as const;
+
+/*
+ * PROGI ARKUSZA — nadzbiór progów wariantów Tailwinda. 28 rem istnieje
+ * WYŁĄCZNIE jako zapytanie napisane wprost w arkuszu (i wariant w źródłach
+ * strukturalnych, poza skanem SECTION_SOURCES) — nie ma pary viewportowej,
+ * bo nigdy nie było breakpointu okna, z którym miałby się zgadzać: to nowy
+ * próg układu z audytu UX, a liczba stoi w zapytaniu LITERALNIE, więc nie ma
+ * kompilacji, która mogłaby ją po cichu podmienić (tamten dowód jest o
+ * breakpointach z motywu Tailwinda).
+ */
+const PROGI_ARKUSZA = [...DOZWOLONE_PROGI, "28rem"] as const;
 
 describe("skan źródeł: sekcje nie mierzą okna", () => {
   it.each(SECTION_SOURCES)("%s ma warianty KONTENEROWE (kontrola pozytywna skanu)", (path) => {
@@ -210,7 +228,7 @@ describe("skan źródeł: sekcje nie mierzą okna", () => {
       expect(rozbior, `zapytanie „${zapytanie}" bez nazwy kontenera albo z progiem spoza rem`).not.toBeNull();
       expect(rozbior?.[1], "zapytanie nie celuje w kontener `site`").toBe("site");
       expect(
-        DOZWOLONE_PROGI as readonly string[],
+        PROGI_ARKUSZA as readonly string[],
         `próg ${rozbior?.[2]} spoza uzgodnionego zbioru — nowy próg to decyzja PM`,
       ).toContain(rozbior?.[2]);
     }
