@@ -404,23 +404,102 @@ describe("wybór terminu w powłoce", () => {
     expect(document.querySelectorAll("[data-store-term-summary]")).toHaveLength(1);
   });
 
-  // [F7b] „NIE ZA SZEROKA" (dyspozycja właściciela): fraza terminu ma sufit
-  // szerokości i ścina się wielokropkiem, zamiast rozpychać belkę.
-  //
-  // CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie `max-w`/`truncate` — długa fraza („26 sie
-  // – 2 wrz 2027 · 8 dni") wypycha koszyk poza ekran na telefonie.
-  it("fraza terminu ma sufit szerokości i ścina się, a nie rozpycha belki", () => {
+  /*
+    [F12] PRIORYTET TREŚCI ZAMIAST WIELOKROPKA — asercja ODWRÓCONA względem F7b.
+
+    F7b trzymało szerokość sufitem `max-w-[9rem]` i `truncate` na frazie, a test
+    w tym miejscu pilnował, żeby fraza SIĘ ŚCINAŁA. Właściciel zobaczył skutek
+    na własnym telefonie: „23.09–25.09 · …" — wielokropek zjadł treść w środku
+    informacji, a pigułka i tak zajmowała większą część belki niż znak firmy.
+    Test kodował więc przekonanie, które okazało się fałszywe u źródła: ścięta
+    data nie jest „gorsza od pełnej, ale lepsza od rozjechanej belki" — jest
+    bezużyteczna, bo klient nie ma jak się dowiedzieć, czego nie widzi.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ, żeby ten test zgasł: powrót `max-w`/`truncate`
+    (wielokropek w dacie wraca), zdjęcie `whitespace-nowrap` (fraza bez
+    `truncate` zawija się i belka rośnie w drugi wiersz) albo zdjęcie progów
+    zwijania (na telefonie wraca komplet członów i pigułka znów wypycha znak
+    firmy do wielokropka).
+  */
+  it("pigułka NIE ścina frazy: bez sufitu i bez truncate, za to bez zawijania", () => {
     render(shell());
     const pill = document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!;
-    expect(pill.className, "pigułka bez sufitu szerokości").toContain("max-w-[9rem]");
+    for (const klasa of pill.className.split(/\s+/)) {
+      expect(
+        /(^|:)max-w-/.test(klasa),
+        `sufit szerokości „${klasa}" wrócił — z nim wraca wielokropek w dacie`,
+      ).toBe(false);
+    }
+    const summary = document.querySelector("[data-store-term-summary]")!;
+    expect(summary.className, "truncate wrócił na frazę terminu").not.toContain("truncate");
     expect(
       pill.className,
-      "sufit nie rośnie z kontenerem — na desktopie fraza ścinałaby się bez powodu",
-    ).toContain("@min-[40rem]/site:max-w-[10.5rem]");
+      "bez `whitespace-nowrap` fraza zawinie się i belka przestanie być jednorzędowa",
+    ).toContain("whitespace-nowrap");
+  });
+
+  /*
+    [F12] KOLEJNOŚĆ POŚWIĘCEŃ: najpierw „· N dni", potem znak kalendarza,
+    a ZAKRES nigdy. Progi są kontenerowe (ADR-085), bo pomiar tekstu w JS
+    wymagałby drugiego renderu i rozjeżdżałby się z SSR.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: zamiana kolejności (znika data, zostają doby),
+    zdjęcie progu z dób (na 360 px wraca komplet) albo dopisanie klasy
+    chowającej sam zakres.
+  */
+  it("przy ciasnym pasie znikają doby, potem kalendarz — zakres NIGDY", async () => {
+    render(shell());
+    const start = dayFromToday(5);
+    const end = dayFromToday(8);
+    writeCart({ items: [], startDate: start, endDate: end });
+    await waitFor(() => {
+      expect(document.querySelector("[data-store-term-range]")).not.toBeNull();
+    });
+
+    const zakres = document.querySelector("[data-store-term-range]")!;
+    const doby = document.querySelector("[data-store-term-days]")!;
+    const kalendarz = document.querySelector("[data-store-term-toggle] svg")!;
+
+    // ZAKRES: ani jednej klasy chowającej i ani jednego progu — stoi zawsze.
+    for (const klasa of (zakres.getAttribute("class") ?? "").split(/\s+/).filter(Boolean)) {
+      expect(/hidden|@min-/.test(klasa), `zakres dostał klasę warunkową „${klasa}"`).toBe(false);
+    }
+    // DOBY: schowane domyślnie, wracają na progu SZERSZYM niż kalendarz.
+    expect(doby.className, "doby stoją bezwarunkowo — pigułka znów rozpycha belkę").toContain(
+      "hidden",
+    );
+    expect(doby.className).toContain("@min-[34rem]/site:inline");
+    // KALENDARZ: schowany domyślnie, wraca na progu WĘŻSZYM niż doby.
+    const klasyZnaku = kalendarz.getAttribute("class") ?? "";
+    expect(klasyZnaku, "znak kalendarza stoi bezwarunkowo").toContain("hidden");
+    expect(klasyZnaku).toContain("@min-[28rem]/site:block");
+    // Kolejność poświęceń: kalendarz wraca WCZEŚNIEJ (28 rem) niż doby (34 rem).
+    const prog = (klasa: string) => Number(/@min-\[(\d+(?:\.\d+)?)rem\]/.exec(klasa)![1]);
     expect(
-      document.querySelector("[data-store-term-summary]")!.className,
-      "fraza bez truncate — pigułka rośnie z długością daty",
-    ).toContain("truncate");
+      prog(klasyZnaku),
+      "kolejność odwrócona: doby wracałyby przed kalendarzem",
+    ).toBeLessThan(prog(doby.className));
+  });
+
+  /*
+    [F12] SEPARATOR JEDZIE Z DOBAMI. Gdyby „·" stało w zakresie albo osobno,
+    po zdjęciu dób została by w belce wisząca kropka bez prawej strony.
+    Druga noga: `textContent` owijki ma dalej być PEŁNĄ frazą — tą samą, którą
+    składa `formatRentalRange` dla koszyka i kasy (jedno źródło separatora).
+  */
+  it("separator „·” mieszka w członie dób, a cała owijka czyta się pełną frazą", async () => {
+    render(shell());
+    const start = dayFromToday(5);
+    const end = dayFromToday(8);
+    writeCart({ items: [], startDate: start, endDate: end });
+    await waitFor(() => {
+      expect(document.querySelector("[data-store-term-days]")).not.toBeNull();
+    });
+    expect(document.querySelector("[data-store-term-range]")!.textContent).not.toContain("·");
+    expect(document.querySelector("[data-store-term-days]")!.textContent).toContain("·");
+    expect(document.querySelector("[data-store-term-summary]")!.textContent).toBe(
+      formatRentalRange(start, end, "pl", { short: true }),
+    );
   });
 
   // CO MUSIAŁOBY SIĘ ZEPSUĆ (R2): gdyby powłoka zaczęła malować dostępność,

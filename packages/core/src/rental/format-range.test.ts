@@ -7,9 +7,9 @@
  * czyli fraza ma dokładnie jeden legalny punkt łamania, nigdy w środku daty
  * (audyt S-10: „2026-08-/28").
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { formatRentalRange } from "./format-range";
+import { formatRentalRange, formatRentalRangeParts } from "./format-range";
 
 const NBSP = "\u00a0";
 const readable = (value: string) => value.replaceAll(NBSP, " ");
@@ -151,5 +151,120 @@ describe("formatRentalRange — wariant KRÓTKI (F7b, pigułka terminu)", () => 
     expect(() =>
       formatRentalRange("2026-08-26", "2026-08-28", "pl", { short: true, today: "2026-13-01" }),
     ).toThrow(RangeError);
+  });
+});
+
+/* ================================ F12 ================================ */
+
+describe("formatRentalRange — MIESIĄC ZAWSZE SŁOWNY (F12)", () => {
+  /*
+    CO BYŁO ZEPSUTE: fraza szła przez `Intl.DateTimeFormat.prototype.formatRange`,
+    który nie formatuje dwóch dat naszym żądaniem, tylko oddaje sterowanie
+    wzorcowi interwału z danych silnika. V8 składał „23–25 wrz", a
+    JavaScriptCore (Safari, iOS — czyli telefon właściciela) „23.09–25.09".
+    Klient dostawał zapis numeryczny dokładnie tam, gdzie F8 go zdjęło, i nie
+    było jak tego zobaczyć testując w Chromie.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ, żeby te testy zgasły: powrót `formatRange`
+    w składzie zakresu (dowód behawioralny niżej łapie to WPROST, bez patrzenia
+    w źródło) albo zmiana żądania na `month: "numeric"`.
+  */
+  it.each([
+    ["pl", "2026-09-23", "2026-09-25", "23–25 wrz"],
+    ["pl", "2026-09-28", "2026-10-02", "28 wrz – 2 paź"],
+    ["en", "2026-09-23", "2026-09-25", "Sep 23–25"],
+    ["en", "2026-09-28", "2026-10-02", "Sep 28 – Oct 2"],
+  ] as const)("%s %s–%s → „%s” (wariant krótki)", (locale, start, end, oczekiwany) => {
+    const { range } = formatRentalRangeParts(start, end, locale, {
+      short: true,
+      today: "2026-08-25",
+    });
+    expect(readable(range)).toBe(oczekiwany);
+  });
+
+  /*
+    ZAPIS NUMERYCZNY NIE MA PRAWA POJAWIĆ SIĘ W ŻADNYM WARIANCIE — także
+    w pełnym (na Safari „26–28 sie 2026" schodziło do „26–28.08.2026", więc ISO
+    wracało też do koszyka, kasy i potwierdzenia). Wzorzec łapie każdą postać
+    miesiąca zapisanego cyframi: „23.09", „09.2026", „09/23".
+  */
+  it.each([
+    ["pl", "2026-09-23", "2026-09-25"],
+    ["pl", "2026-09-28", "2026-10-02"],
+    ["pl", "2026-12-30", "2027-01-02"],
+    ["en", "2026-09-28", "2026-10-02"],
+  ] as const)("%s %s–%s nie niesie miesiąca cyframi (pełny i krótki)", (locale, start, end) => {
+    for (const options of [{}, { short: true, today: "2026-08-25" as const }]) {
+      const fraza = formatRentalRange(start, end, locale, options);
+      expect(fraza, `zapis numeryczny w „${fraza}”`).not.toMatch(/\d\s*[./]\s*\d/u);
+    }
+  });
+
+  /*
+    DOWÓD BEHAWIORALNY „NIE DELEGUJEMY DO SILNIKA". Podmieniamy `formatRange`
+    na funkcję zwracającą oczywistą sieczkę: gdyby formatter dalej z niej
+    korzystał, fraza byłaby sieczką. Test jest ODPORNY na przeniesienie literału
+    w źródle (bramka regexowa po pliku by tego nie złapała) i mówi dokładnie to,
+    co ma być prawdą na telefonie właściciela.
+  */
+  describe("zakres nie przechodzi przez Intl.formatRange", () => {
+    const oryginal = Intl.DateTimeFormat.prototype.formatRange;
+
+    afterEach(() => {
+      Intl.DateTimeFormat.prototype.formatRange = oryginal;
+    });
+
+    it("podmieniony `formatRange` nie zmienia ANI JEDNEJ frazy", () => {
+      const przed = [
+        formatRentalRange("2026-09-23", "2026-09-25", "pl", { short: true, today: "2026-08-25" }),
+        formatRentalRange("2026-09-28", "2026-10-02", "pl"),
+        formatRentalRange("2026-12-28", "2027-01-03", "en"),
+      ];
+      Intl.DateTimeFormat.prototype.formatRange = () => "SILNIK-ZŁOŻYŁ-TO-SAM";
+      // Kontrola przyrządu: podmiana naprawdę weszła w życie.
+      expect(new Intl.DateTimeFormat("pl").formatRange(new Date(0), new Date(1))).toBe(
+        "SILNIK-ZŁOŻYŁ-TO-SAM",
+      );
+      const po = [
+        formatRentalRange("2026-09-23", "2026-09-25", "pl", { short: true, today: "2026-08-25" }),
+        formatRentalRange("2026-09-28", "2026-10-02", "pl"),
+        formatRentalRange("2026-12-28", "2027-01-03", "en"),
+      ];
+      expect(po).toEqual(przed);
+    });
+  });
+});
+
+describe("formatRentalRangeParts — człony osobno (F12, priorytet w pigułce)", () => {
+  /*
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: rozjazd między członami a pełną frazą. Pigułka
+    belki składa napis z `range` + `days`, a koszyk i kasa biorą gotowe
+    `formatRentalRange` — gdyby separator albo odstęp różniły się o znak, ten
+    sam termin czytałby się w belce inaczej niż dwa kliknięcia dalej.
+  */
+  it.each([
+    ["pl", "2026-08-26", "2026-08-28", {}],
+    ["pl", "2026-08-26", "2026-09-02", {}],
+    ["en", "2026-12-28", "2027-01-03", {}],
+    ["pl", "2026-09-23", "2026-09-25", { short: true, today: "2026-08-25" as const }],
+  ] as const)("%s %s–%s: człony sklejają się w DOKŁADNIE pełną frazę", (locale, start, end, opcje) => {
+    const { range, days } = formatRentalRangeParts(start, end, locale, opcje);
+    expect(`${range} ·${NBSP}${days}`).toBe(formatRentalRange(start, end, locale, opcje));
+  });
+
+  it("człony są ATOMOWE osobno — ani w zakresie, ani w dobach nie ma zwykłej spacji", () => {
+    const { range, days } = formatRentalRangeParts("2026-08-26", "2026-09-02", "pl");
+    expect(range, "zakres złamie się w środku daty na wąskiej pigułce").not.toContain(" ");
+    expect(days, "„8 dni” złamie się między liczbą a słowem").not.toContain(" ");
+  });
+
+  it("doby niosą SAMĄ długość, bez separatora „·” (ten dokłada wołający)", () => {
+    expect(formatRentalRangeParts("2026-08-26", "2026-08-26", "pl").days).toBe(`1${NBSP}dzień`);
+    expect(formatRentalRangeParts("2026-08-26", "2026-08-28", "en").days).toBe(`3${NBSP}days`);
+  });
+
+  it("kontrakt błędów jest ten sam, co pełnej frazy (jedna funkcja, jedno wejście)", () => {
+    expect(() => formatRentalRangeParts("2026-08-28", "2026-08-26", "pl")).toThrow(RangeError);
+    expect(() => formatRentalRangeParts("2026-02-31", "2026-03-02", "pl")).toThrow(RangeError);
   });
 });

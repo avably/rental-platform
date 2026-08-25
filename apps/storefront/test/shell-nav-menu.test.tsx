@@ -188,6 +188,35 @@ describe("F7b — kategorie jako ikona z rozwijaną listą", () => {
     expect(summary.querySelector("svg")!.getAttribute("aria-hidden")).toBe("true");
   });
 
+  /*
+    [F12] NAGŁÓWEK PANELU — DRUGA POŁOWA ZMIANY ZNAKU. Belka nosi od F12 trzy
+    kreski, czyli konwencję czytaną jako „menu"; odcień „to są PÓŁKI oferty"
+    dopowiada pierwsza rzecz widziana po tapnięciu.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: zdjęcie nagłówka (znak wraca do bycia zagadką),
+    wpisanie mu WŁASNEGO napisu zamiast `label` (dwa źródła jednej nazwy —
+    oko i czytnik ekranu dostają różne odpowiedzi) albo zdjęcie `aria-hidden`
+    (czytnik czyta „Kategorie" dwa razy: z `summary` i z nagłówka).
+  */
+  it("panel otwiera się nagłówkiem „Kategorie” — tym samym napisem, co nazwa wyzwalacza", () => {
+    const { container } = render(<StoreCategoryMenu items={POZYCJE} {...ETYKIETY} />);
+    const naglowek = container.querySelector("[data-store-category-heading]");
+    expect(naglowek, "panel bez nagłówka — po tapnięciu nie wiadomo, co się otworzyło").not.toBeNull();
+    expect(naglowek!.textContent).toBe(ETYKIETY.label);
+    expect(naglowek!.getAttribute("aria-label"), "nagłówek dorobił sobie drugą nazwę").toBeNull();
+    expect(
+      naglowek!.getAttribute("aria-hidden"),
+      "nagłówek czytany na głos powtarza nazwę widgetu z `summary`",
+    ).toBe("true");
+    // Stoi PRZED listą półek, nie pod nią — inaczej nie zdąży niczego wyjaśnić.
+    const panel = container.querySelector("div.site-card")!;
+    expect(panel.firstElementChild, "nagłówek nie jest pierwszy w panelu").toBe(naglowek);
+    // Wyzwalacz i nagłówek biorą napis z JEDNEGO propsa.
+    expect(container.querySelector("summary")!.getAttribute("aria-label")).toBe(
+      naglowek!.textContent,
+    );
+  });
+
   it("form z F7 NIE MA: ani listwy, ani chipsów, ani wyzwalacza „Więcej”", () => {
     const { container } = render(<StoreCategoryMenu items={DZIEWIEC} {...ETYKIETY} />);
     for (const znacznik of [

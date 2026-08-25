@@ -115,6 +115,29 @@ export function StoreCategoryMenu({
           nie może wyjechać poza okno), poziomo — patrz docblock pliku.
         */}
         <div className="site-card absolute left-0 right-0 top-full z-40 mt-2 hidden max-h-[60vh] overflow-auto p-1 group-open:block @min-[64rem]/site:left-auto @min-[64rem]/site:right-0 @min-[64rem]/site:w-64">
+          {/*
+            NAGŁÓWEK PANELU (F12) — DRUGA POŁOWA ZMIANY ZNAKU.
+
+            Belka od F12 nosi trzy kreski, czyli konwencję czytaną jako „menu",
+            a nie jako „półki oferty" (patrz `store-glyphs.tsx`). Utracony
+            odcień znaczenia wraca TUTAJ: pierwszą rzeczą po tapnięciu jest
+            słowo „Kategorie" nad listą, więc odwiedzający dowiaduje się, co
+            otworzył, zanim zdąży przeczytać pierwszą pozycję.
+
+            Napis jest ten sam, co nazwa dostępna wyzwalacza (`label`) — jedno
+            źródło, więc czytnik ekranu i oko nie mogą dostać dwóch różnych
+            odpowiedzi na pytanie „co to jest". `aria-hidden`, bo dla czytnika
+            ekranu to jest POWTÓRZENIE nazwy widgetu, którą właśnie przeczytał
+            z `<summary>`; dokładnie ta sama zasada, co przy badge'u licznika
+            koszyka w belce.
+          */}
+          <p
+            aria-hidden="true"
+            data-store-category-heading
+            className="px-3 pb-2 pt-3 text-xs font-semibold uppercase tracking-wide opacity-70"
+          >
+            {label}
+          </p>
           <ul className="flex list-none flex-col p-0">
             {items.map((item) => (
               <li key={item.id}>

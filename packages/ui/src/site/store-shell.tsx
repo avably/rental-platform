@@ -252,12 +252,32 @@ export function StoreShellHeader({
         {/*
           ZNAK NA LEWEJ KRAWĘDZI — i to ON oddaje szerokość, gdy belki brakuje
           (F7b). Do belki ikonowej znak był `shrink-0`, bo zwężało się pole
-          wyszukiwania obok; pola nie ma, a trzy ikony i pigułka mają twarde
-          sufity, więc jedynym elastycznym elementem został znak. Zmierzone
-          przy oknie 360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do
-          rozdania jest 174 — bez zwężenia belka wyjeżdżała poza dokument.
-          `truncate` ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
+          wyszukiwania obok; pola nie ma, a trzy ikony mają twardy wymiar, więc
+          jedynym elastycznym elementem został znak. Zmierzone przy oknie
+          360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do rozdania
+          jest 174 — bez zwężenia belka wyjeżdżała poza dokument. `truncate`
+          ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
           (`.site-logo` ma `max-width: min(12rem, 100%)`).
+
+          ==================== DLACZEGO ZNAK BYŁ MALUTKI (F12) ====================
+
+          Właściciel zobaczył na telefonie znak firmy „mały w pizdu" i to NIE
+          była zmiana w samym znaku: `.site-logo` ma wysokość 2,25 rem od
+          ADR-160 i nikt jej nie ruszał. Zmieniło się otoczenie. Znak jest
+          `object-fit: contain` w pudełku o stałej wysokości i szerokości
+          ODDANEJ przez flexa — więc gdy plik jest szeroki (typowy znak
+          wypożyczalni ma proporcje 3:1 i szersze), o wysokości RYSOWANIA
+          decyduje szerokość slotu, nie deklarowane 36 px. Slot zaś kurczył
+          się z każdą kontrolką dokładaną do belki: po F7b pigułka terminu
+          brała twarde 9 rem (144 px) NA KAŻDEJ szerokości, więc przy oknie
+          390 px na znak zostawało ~80 px — czyli 20 px wysokości przy
+          proporcji 4:1.
+
+          Naprawa nie leży tutaj i celowo: pudełko znaku jest w porządku,
+          niedobre było rozdanie pasa. F12 zdejmuje pigułce sufit i uczy ją
+          zwijać człony (patrz `StoreTermPill`), a odzyskane piksele trafiają
+          w to miejsce SAME — bo to jest jedyny element wiersza, który rośnie
+          z wolnego miejsca.
         */}
         <div className="flex min-w-0 shrink items-center gap-4">
           {interactive ? (
