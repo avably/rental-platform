@@ -691,11 +691,28 @@ const SAMPLE_ROW_FACTORIES: Record<string, SampleRowFactory> = {
   // Rejestr ŻĄDAŃ zwrotu (0031). Bez `provider_reference`: wiersz w stanie
   // `requested` z definicji go nie ma — odpowiedzi dostawcy jeszcze nie
   // znamy, a partial unique index po tej kolumnie i tak pomija NULL-e.
-  deposit_refunds: async (ctx, tenantId) => ({
-    tenant_id: tenantId,
-    order_id: await createOrder(ctx, tenantId),
-    amount_grosze: 10_000,
-  }),
+  //
+  // Bramka salda 0111 (ADR-269) odrzuca żądanie zwrotu ponad saldo kaucji na
+  // INSERT, więc próbka MUSI mieć pokrycie: najpierw pobranie w rejestrze
+  // zdarzeń, potem żądanie zwrotu mieszczące się w tym saldzie. Bez tego seed
+  // padłby 23514 („saldo 0 gr, żądanie 10000 gr”).
+  deposit_refunds: async (ctx, tenantId) => {
+    const orderId = await createOrder(ctx, tenantId);
+    const { error } = await ctx.admin.from("deposit_events").insert({
+      tenant_id: tenantId,
+      order_id: orderId,
+      kind: "collected",
+      amount_grosze: 20_000,
+    });
+    if (error) {
+      throw new Error(`seed deposit_refunds/collected (pokrycie salda 0111): ${error.message}`);
+    }
+    return {
+      tenant_id: tenantId,
+      order_id: orderId,
+      amount_grosze: 10_000,
+    };
+  },
   // Wpis notatki zamówienia (0039). order_id z createOrder: FK ZŁOŻONY
   // (tenant_id, order_id) wymaga zamówienia TEGO SAMEGO tenanta. created_by
   // pominięty (null = wpis historyczny) — macierz bada RLS, nie autorstwo.

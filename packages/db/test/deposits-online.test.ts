@@ -308,6 +308,17 @@ describe.skipIf(!hasEnv)("kaucja online — 0031_deposit_provider_link.sql", () 
     // zamówieniu — inaczej drugi INSERT rozbija się o ten unikat.
     beforeEach(async () => {
       orderId = await createOrder(tenantId);
+      // Pokrycie salda pod bramkę 0111 (ADR-269): te testy sprawdzają
+      // OGRANICZENIA tabeli deposit_refunds (status, kwota, unikat, FK, RLS),
+      // nie saldo — więc świeże zamówienie dostaje pobranie z zapasem, żeby
+      // poprawne żądanie zwrotu nie odbiło się najpierw o bramkę salda.
+      // (Testy odmowy — status/kwota/unikat/FK/RLS — odpadają na swoich
+      // ograniczeniach PRZED bramką AFTER INSERT, więc pobranie im nie szkodzi.)
+      const seeded = await insertEvent(tenantId, orderId, {
+        kind: "collected",
+        amount_grosze: 500_00,
+      });
+      if (seeded.errorMessage) throw new Error(`seed collected (0111): ${seeded.errorMessage}`);
     });
 
     it("nowy wiersz rodzi się jako `requested` bez odnośnika", async () => {

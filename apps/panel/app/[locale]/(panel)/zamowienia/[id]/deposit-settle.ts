@@ -122,6 +122,29 @@ export const depositSettleSchema = z
       });
       return;
     }
+
+    // PIERWSZA LINIA CLAMPU SALDA (HIGH, ADR-269). Kwota zwrotu jest polem
+    // EDYTOWALNYM (zwrot w ratach jest legalny) — więc operator może wpisać
+    // w nie WIĘCEJ, niż zostaje po potrąceniu. Bez tej odmowy nadmiarowy zwrot
+    // szedł do dostawcy, a bramka salda 0011 odrzucała go dopiero PRZY
+    // KSIĘGOWANIU, czyli PO wyjściu pieniędzy. Liczymy wobec salda z ekranu
+    // (przesłanka decyzji, 0034) — że to saldo NADAL obowiązuje, pilnuje bramka
+    // 0034 przy zapisie potrącenia, a autorytatywny clamp wobec ŻYWEGO rejestru
+    // stoi w requestDepositRefund i w bramce 0111. Tu bronimy warstwy, która ma
+    // zdążyć PIERWSZA: pole nadpisane ponad saldo nie opuści przeglądarki po cichu.
+    //
+    // Warunkowane `refundAmount > 0`: nadmiarowe SAMO potrącenie (bez zwrotu)
+    // zostaje domeną bramki 0011/0034 przy zapisie (patrz refundAfterDeduction),
+    // a ten refinement dotyczy BEZPIECZEŃSTWA ZWROTU.
+    if (form.refundAmount > 0 && form.refundAmount + form.deductAmount > form.balanceGrosze) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["refundAmount"],
+        message: "Zwrot i potrącenie nie mogą przekroczyć salda kaucji - odśwież ekran i sprawdź kwoty.",
+      });
+      return;
+    }
+
     if (form.deductAmount === 0) return;
 
     if (!(DEDUCTION_REASON_CODES as readonly string[]).includes(form.deductReasonCode)) {
