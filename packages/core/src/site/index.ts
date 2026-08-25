@@ -1116,6 +1116,23 @@ export {
   type MobileLayout,
 } from "./mobile-layout";
 
+/*
+ * Reguły renderu płótna: pasmo treści nad pasmem dekoracji, rozciągnięcie
+ * wysokości sekcji pod treść i higiena publikacji (ADR-274). Mieszkają w
+ * rdzeniu, bo pyta o nie i renderer sklepu, i płótno kreatora — a odpowiedź
+ * musi być jedna.
+ */
+export {
+  CANVAS_CONTENT_KINDS,
+  CANVAS_MAX_STRETCH,
+  canvasStretchAt,
+  isContentElement,
+  isEmptyImageElement,
+  isPublishableElement,
+  isStarterCopyElement,
+  renderLayerZ,
+} from "./canvas-render";
+
 // Nowy element z palety — treść startowa i rozmiar domyślny (K3, ADR-086).
 export { createElement, defaultSizeOf, freeSpotFor } from "./element-factory";
 

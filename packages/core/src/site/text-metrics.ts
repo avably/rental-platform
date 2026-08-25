@@ -75,9 +75,27 @@ export function unitPxAt(canvasWidthPx: number): number {
   return width / CANVAS_COLUMNS;
 }
 
+/**
+ * ZAOKRĄGLENIE W GÓRĘ ODPORNE NA SZUM ZMIENNOPRZECINKOWY.
+ *
+ * `Math.ceil` na ilorazie liczb, które MATEMATYCZNIE dają całkowitą wartość,
+ * potrafi oddać o jeden za dużo: `3 × (1152/1024) × (14.222…/16)` to w IEEE
+ * 3.0000000000000004, więc sufit daje 4 zamiast 3. Estymator wyższy o jeden
+ * wiersz nie brzmi groźnie, dopóki nie policzy się z niego ROZCIĄGNIĘCIE
+ * sekcji: 4/3 to trzydzieści trzy procent wysokości domalowane stopce, której
+ * nic nie dolegało (złapane w weryfikacji ADR-274 przy 1024 px). Epsilon jest
+ * o rzędy wielkości mniejszy od jednostki siatki, więc nie potrafi zjeść
+ * prawdziwego ułamka wiersza.
+ */
+const CEIL_EPSILON = 1e-9;
+
+export function ceilUnits(value: number): number {
+  return Math.ceil(value - CEIL_EPSILON);
+}
+
 /** Piksele → jednostki siatki, w GÓRĘ (pudełko ma mieścić, nie ciąć). */
 export function unitsForPx(px: number, canvasWidthPx: number): number {
-  return Math.max(1, Math.ceil(px / unitPxAt(canvasWidthPx)));
+  return Math.max(1, ceilUnits(px / unitPxAt(canvasWidthPx)));
 }
 
 /**
@@ -97,17 +115,72 @@ export function charsPerLineAt(
   return Math.max(8, Math.round(spec.charsPerLine * widthRatio * canvasRatio * fontRatio));
 }
 
-/** Wysokość JEDNEGO wiersza w jednostkach siatki przy zadanej szerokości płótna. */
-export function rowsPerLineAt(scale: TextScale, canvasWidthPx: number): number {
+/**
+ * Wysokość JEDNEGO wiersza w jednostkach siatki — BEZ zaokrąglenia.
+ *
+ * Sufit z {@link rowsPerLineAt} jest właściwy dla PUDEŁKA (ma mieścić, nie
+ * ciąć) i szkodliwy wszędzie tam, gdzie liczy się PROPORCJA: przy 1024 px
+ * drobny tekst rośnie o cztery procent, a po zaokrągleniu do jednostki — o
+ * trzydzieści trzy. Rozciągnięcie sekcji (ADR-274) pyta więc o liczbę ciągłą,
+ * bo wysokość płótna nie jest siatką i nie musi trafiać w jednostkę.
+ */
+export function lineHeightUnitsAt(scale: TextScale, canvasWidthPx: number): number {
   const spec = TEXT_SCALES[scale];
   const width = canvasWidthPx > 0 ? canvasWidthPx : CANVAS_DESIGN_WIDTH_PX;
   const fontRatio = fontPxAt(scale, canvasWidthPx) / spec.designPx;
-  return Math.max(1, Math.ceil(spec.rowsPerLine * (CANVAS_DESIGN_WIDTH_PX / width) * fontRatio));
+  return spec.rowsPerLine * (CANVAS_DESIGN_WIDTH_PX / width) * fontRatio;
+}
+
+/** Wysokość JEDNEGO wiersza w jednostkach siatki przy zadanej szerokości płótna. */
+export function rowsPerLineAt(scale: TextScale, canvasWidthPx: number): number {
+  return Math.max(1, ceilUnits(lineHeightUnitsAt(scale, canvasWidthPx)));
+}
+
+/**
+ * Ile WIERSZY złamie się z napisu w pudełku o `columns` kolumnach — z
+ * uwzględnieniem łamań jawnych (patrz {@link textRowsAt}).
+ */
+export function linesAt(
+  text: string,
+  scale: TextScale,
+  columns: number,
+  canvasWidthPx: number,
+): number {
+  const perLine = charsPerLineAt(scale, columns, canvasWidthPx);
+  return Math.max(
+    1,
+    text
+      .trim()
+      .split(/\r?\n/)
+      .reduce((total, line) => total + Math.max(1, ceilUnits(line.trim().length / perLine)), 0),
+  );
+}
+
+/**
+ * Wysokość napisu w jednostkach siatki BEZ zaokrąglenia do jednostki — miara
+ * dla proporcji, nie dla pudełka (patrz {@link lineHeightUnitsAt}).
+ */
+export function textHeightUnitsAt(
+  text: string,
+  scale: TextScale,
+  columns: number,
+  canvasWidthPx: number,
+): number {
+  return linesAt(text, scale, columns, canvasWidthPx) * lineHeightUnitsAt(scale, canvasWidthPx);
 }
 
 /**
  * Wysokość pudełka tekstowego w jednostkach siatki przy zadanej szerokości
  * płótna. Uogólnienie estymatora z K2 — patrz {@link textRows}.
+ *
+ * ŁAMANIE JAWNE LICZY SIĘ OSOBNO (ADR-274). Render akapitu stoi na
+ * `whitespace-pre-line`, więc znak nowej linii jest ZŁAMANIEM WIERSZA, a pusty
+ * wiersz między akapitami — pustym wierszem na stronie. Estymator dzielił do
+ * tej pory CAŁĄ długość napisu przez gęstość wiersza, czyli sklejał trzy kroki
+ * instrukcji w jeden ciąg i oddawał pudełko o połowę za niskie (sekcja „Jak
+ * działa rezerwacja" ze strony głównej: zdjęcie pod spodem wchodziło na
+ * ostatni krok). Każdy wiersz źródła mierzy się więc z osobna i ma co najmniej
+ * jeden wiersz wysokości.
  */
 export function textRowsAt(
   text: string,
@@ -116,10 +189,8 @@ export function textRowsAt(
   canvasWidthPx: number,
   minRows = 0,
 ): number {
-  const perLine = charsPerLineAt(scale, columns, canvasWidthPx);
-  const lines = Math.max(1, Math.ceil(text.trim().length / perLine));
   const rows = rowsPerLineAt(scale, canvasWidthPx);
-  return Math.max(minRows, rows, lines * rows);
+  return Math.max(minRows, rows, linesAt(text, scale, columns, canvasWidthPx) * rows);
 }
 
 /**
@@ -189,7 +260,7 @@ function columnsForChars(length: number, scale: TextScale, canvasWidthPx: number
   const perLine = charsPerLineAt(scale, CANVAS_CONTENT_COLUMNS, canvasWidthPx);
   return Math.min(
     CANVAS_COLUMNS,
-    Math.max(1, Math.ceil((length * CANVAS_CONTENT_COLUMNS) / perLine)),
+    Math.max(1, ceilUnits((length * CANVAS_CONTENT_COLUMNS) / perLine)),
   );
 }
 

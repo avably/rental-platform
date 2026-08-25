@@ -113,12 +113,91 @@ describe("warstwy decydują o KOLEJNOŚCI malowania", () => {
   });
 
   it("warstwa trafia do `z-index`, a nie tylko do kolejności w DOM", () => {
+    /*
+     * Od ADR-274 `--el-z` niesie POZYCJĘ W PORZĄDKU MALOWANIA, a nie liczbę
+     * z treści: zapisane `z` rozstrzyga kolejność wewnątrz pasma, a o samym
+     * paśmie decyduje rola elementu. Dowodem jest więc RÓŻNICA warstw, a nie
+     * konkretna liczba — porównanie z literałem kodowałoby tu przekonanie
+     * o wewnętrznej numeracji, która nie jest niczyją obietnicą.
+     */
     const { container } = renderCanvas(layered);
     const top = container.querySelector<HTMLElement>('[data-element-id="gora"]');
-    expect(top!.style.getPropertyValue("--el-z")).toBe("5");
+    const bottom = container.querySelector<HTMLElement>('[data-element-id="dol"]');
+    const z = (node: HTMLElement | null, name: string) =>
+      Number(node!.style.getPropertyValue(name));
+    expect(z(top, "--el-z")).toBeGreaterThan(z(bottom, "--el-z"));
     // Warstwa jest ta sama na obu breakpointach — „na wierzch" znaczy to samo
     // na telefonie, co na desktopie (K4, ADR-088).
-    expect(top!.style.getPropertyValue("--el-mz")).toBe("5");
+    expect(z(top, "--el-mz")).toBeGreaterThan(z(bottom, "--el-mz"));
+  });
+
+  /**
+   * PASMO TREŚCI NAD PASMEM DEKORACJI (ADR-274).
+   *
+   * Wada, którą ta noga zamyka, siedziała na produkcji (`/audyt-c`): zdjęcie
+   * i kształt z wyższą warstwą leżały NAD nagłówkiem, akapitem i przyciskiem,
+   * bo `z` jest liczbą z treści, a nie rolą. Napis zasłonięty w połowie
+   * przestaje istnieć — więc dekoracja maluje się pod treścią NIEZALEŻNIE od
+   * tego, co zapisano.
+   */
+  const przykryta: SectionCanvas = {
+    version: 2,
+    rows: 40,
+    background: "default",
+    elements: [
+      {
+        id: "napis",
+        kind: "heading",
+        text: "Wypożycz sprzęt bez papierologii",
+        level: 1,
+        align: "left",
+        layout: { desktop: { x: 0, y: 0, w: 40, h: 10, z: 0 } },
+      },
+      {
+        id: "zdjecie",
+        kind: "image",
+        alt: "Kadr z placu budowy",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant/hero.jpg" },
+        layout: { desktop: { x: 0, y: 0, w: 40, h: 10, z: 5 } },
+      },
+      {
+        id: "ksztalt",
+        kind: "shape",
+        shape: "box",
+        fill: "paper",
+        layout: { desktop: { x: 0, y: 0, w: 40, h: 10, z: 9 } },
+      },
+    ],
+  };
+
+  it("dekoracja o WYŻSZYM zapisanym `z` i tak maluje się POD napisem", () => {
+    const { container } = renderCanvas(przykryta);
+    const z = (id: string, name: string) =>
+      Number(
+        container
+          .querySelector<HTMLElement>(`[data-element-id="${id}"]`)!
+          .style.getPropertyValue(name),
+      );
+    for (const breakpoint of ["--el-z", "--el-mz"]) {
+      expect(z("napis", breakpoint), `${breakpoint}: napis pod zdjęciem`).toBeGreaterThan(
+        z("zdjecie", breakpoint),
+      );
+      expect(z("napis", breakpoint), `${breakpoint}: napis pod kształtem`).toBeGreaterThan(
+        z("ksztalt", breakpoint),
+      );
+    }
+  });
+
+  it("kolejność WEWNĄTRZ dekoracji zostaje ta, którą zapisał operator", () => {
+    // Welon nad zdjęciem i karta nad tłem mają działać jak działały — reguła
+    // przestawia PASMA, a nie zawartość pasma.
+    const { container } = renderCanvas(przykryta);
+    const z = (id: string) =>
+      Number(
+        container.querySelector<HTMLElement>(`[data-element-id="${id}"]`)!.style.getPropertyValue("--el-z"),
+      );
+    expect(z("ksztalt")).toBeGreaterThan(z("zdjecie"));
   });
 });
 
@@ -243,10 +322,36 @@ describe("zdjęcie: skąd render bierze adres", () => {
     expect(credit?.querySelector("a")?.getAttribute("href")).toContain("utm_source=avably");
   });
 
-  it("element bez źródła zostaje kafelkiem zastępczym, nie znika z układu", () => {
+  it("element bez źródła NIE JEDZIE do klienta (S-50)", () => {
+    /*
+     * ZMIANA WOBEC K3 (ADR-274). Kafel zastępczy powstał po to, żeby element
+     * istniał w układzie ZANIM wejdzie zdjęcie — i to jest prawda o KREATORZE.
+     * Klient dostawał przez to szary prostokąt bez treści, zajmujący miejsce
+     * w hero (audyt UX 2026-08-25, S-50): rusztowanie edycji pokazywane jako
+     * strona. Na sklepie element znika w całości; że w kreatorze zostaje,
+     * dowodzi noga niżej — inaczej ta poprawka odbierałaby dostęp do kafla.
+     */
     const { container } = renderImage(imageCanvas({}));
     expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector('[data-element-id="img1"]')).toBeNull();
+    expect(container.querySelector(".site-placeholder")).toBeNull();
+  });
+
+  it("...ale W KREATORZE kafel zostaje — inaczej nie dałoby się go wypełnić", () => {
+    const sections = [
+      { id: "s1", position: 0, type: "hero", content: imageCanvas({}) },
+    ] as RenderSection[];
+    const { container } = render(
+      <SiteRenderer
+        sections={sections}
+        siteImageBase={BASE}
+        // Owijka elementu jest JEDYNYM znacznikiem kreatora w rendererze —
+        // sklep jej nie podaje (patrz `SectionCanvasRenderer`).
+        elementWrapper={(_section, _element, children) => children}
+      />,
+    );
     expect(container.querySelector('[data-element-id="img1"]')).not.toBeNull();
+    expect(container.querySelector(".site-placeholder")).not.toBeNull();
   });
 });
 
@@ -382,5 +487,79 @@ describe("układ mobilny wychodzi z treści desktopowej", () => {
     expect(box.style.getPropertyValue("--el-x")).toBe(
       `${(target.layout.desktop.x / 144) * 100}%`,
     );
+  });
+});
+
+/**
+ * WYSOKOŚĆ SEKCJI ROŚNIE Z TREŚCIĄ (ADR-274).
+ *
+ * Renderer wystawia proporcję płótna PER PASMO SZEROKOŚCI; arkusz wybiera
+ * właściwą zapytaniem kontenera. Kontrakt pyta o to, czego jsdom nie policzy
+ * sam: czy właściwość w ogóle powstaje, czy powstaje TYLKO wtedy, gdy jest
+ * potrzebna, i czy rośnie w stronę węższego ekranu.
+ */
+describe("płótno dostaje proporcję per pasmo szerokości", () => {
+  /** Akapit w pudełku dokładnie na swoją miarę przy szerokości projektowej. */
+  const ciasnyAkapit: SectionCanvas = {
+    version: 2,
+    rows: 40,
+    background: "default",
+    elements: [
+      {
+        id: "akapit",
+        kind: "text",
+        variant: "body",
+        align: "left",
+        text: "Wypożyczamy sprzęt budowlany na dobę, tydzień albo cały etap budowy — z dowozem na plac, przeglądem po każdym zwrocie i fakturą VAT tego samego dnia.",
+        layout: { desktop: { x: 12, y: 4, w: 120, h: 6, z: 0 } },
+      },
+      {
+        id: "pod-spodem",
+        kind: "image",
+        alt: "Kadr z placu budowy",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant/hero.jpg" },
+        layout: { desktop: { x: 12, y: 12, w: 120, h: 24, z: 1 } },
+      },
+    ],
+  } as SectionCanvas;
+
+  const gridOf = (canvas: SectionCanvas) => {
+    const sections = [{ id: "s1", position: 0, type: "hero", content: canvas }] as RenderSection[];
+    const { container } = render(<SiteRenderer sections={sections} />);
+    return container.querySelector<HTMLElement>("[data-canvas-grid]")!;
+  };
+
+  it("proporcja projektowa jest zawsze — pasma tylko przy potrzebie", () => {
+    const grid = gridOf(ciasnyAkapit);
+    expect(grid.style.getPropertyValue("--canvas-ratio")).toBe("144 / 40");
+    expect(grid.style.getPropertyValue("--canvas-ratio-48")).not.toBe("");
+  });
+
+  it("rozciągnięcie rośnie w stronę węższego pasma", () => {
+    const grid = gridOf(ciasnyAkapit);
+    const rows = (token: string) => {
+      const value = grid.style.getPropertyValue(`--canvas-ratio-${token}`);
+      return value ? Number(value.split("/")[1]!.trim()) : 40;
+    };
+    expect(rows("48")).toBeGreaterThan(rows("56"));
+    expect(rows("56")).toBeGreaterThanOrEqual(rows("64"));
+    expect(rows("64")).toBeGreaterThanOrEqual(rows("72"));
+    expect(rows("72")).toBeGreaterThanOrEqual(40);
+  });
+
+  it("sekcja BEZ tekstu o jawnej wysokości nie dostaje ani jednego pasma", () => {
+    // Kontrola negatywna: strona zdrowa ma wychodzić bajtowo taka, jak dotąd.
+    const samoZdjecie = {
+      ...ciasnyAkapit,
+      elements: ciasnyAkapit.elements.filter((element) => element.kind === "image"),
+    } as SectionCanvas;
+    const grid = gridOf(samoZdjecie);
+    for (const token of ["72", "64", "56", "48", "m24", "m22"]) {
+      expect(
+        grid.style.getPropertyValue(`--canvas-ratio-${token}`),
+        `pasmo ${token} powstało bez powodu`,
+      ).toBe("");
+    }
   });
 });

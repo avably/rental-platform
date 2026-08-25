@@ -46,7 +46,6 @@ import {
   CANVAS_PAD_COLUMNS,
   GRID_UNIT_PX,
   MOBILE_DESIGN_WIDTH_PX,
-  SECTION_MAX_ROWS_MOBILE,
   SECTION_MIN_ROWS,
   sizeOf,
   type CanvasElement,
@@ -57,17 +56,34 @@ import { hugBox, scaleOfElement, textRowsAt, unitsForPx } from "./text-metrics";
 
 /** Odstęp od górnej i dolnej krawędzi sekcji (px → jednostki płótna mobilnego). */
 const EDGE_PAD_PX = 32;
-/** Odstęp MIĘDZY grupami w kolumnie. */
+/** Odstęp MIĘDZY grupami, których na desktopie NIE dzieliła przerwa w pionie. */
 const GROUP_GAP_PX = 24;
 /** Odstęp między elementami WEWNĄTRZ grupy — ciaśniejszy, bo to jedna całość. */
 const INNER_GAP_PX = 12;
 /** Wewnętrzny rozstaw karty (kształt-podkład wokół swojej treści). */
 const CARD_PAD_PX = 24;
+/**
+ * WIDEŁKI ODSTĘPU MIĘDZY GRUPAMI (ADR-274) — rytm projektu przeżywa zwijanie.
+ *
+ * Do tej poprawki każda przerwa w kolumnie miała tę samą szerokość ({@link
+ * GROUP_GAP_PX}) niezależnie od tego, co dzieliło elementy na desktopie. Cztery
+ * linie kontaktu w stopce stoją tam 8 px od siebie, a na telefonie dostawały
+ * 24 px plus zapas estymatora — stopka rozjeżdżała się na dziury po 45–80 px
+ * i bywała trzy razy wyższa niż jej własna treść (audyt UX 2026-08-25).
+ *
+ * Odstęp bierze się więc z PRZERWY W PROJEKCIE, przeliczonej na rozmiar
+ * fizyczny, a widełki pilnują dwóch skrajności: linie sklejone w projekcie mają
+ * na telefonie oddychać, a przerwa na pół ekranu nie ma się przenosić w całości.
+ */
+const MIN_GAP_PX = 8;
+const MAX_GAP_PX = 32;
 
 const EDGE_PAD = unitsForPx(EDGE_PAD_PX, MOBILE_DESIGN_WIDTH_PX);
 const GROUP_GAP = unitsForPx(GROUP_GAP_PX, MOBILE_DESIGN_WIDTH_PX);
 const INNER_GAP = unitsForPx(INNER_GAP_PX, MOBILE_DESIGN_WIDTH_PX);
 const CARD_PAD = unitsForPx(CARD_PAD_PX, MOBILE_DESIGN_WIDTH_PX);
+const MIN_GAP = unitsForPx(MIN_GAP_PX, MOBILE_DESIGN_WIDTH_PX);
+const MAX_GAP = unitsForPx(MAX_GAP_PX, MOBILE_DESIGN_WIDTH_PX);
 
 /**
  * Rodzaje, które na telefonie BIORĄ CAŁĄ SZEROKOŚĆ pasa treści, gdy ich wymiar
@@ -90,6 +106,16 @@ export interface MobileLayout {
   boxes: Record<string, Geometry>;
   /** Identyfikatory elementów ODPIĘTYCH od automatu (mają własną poprawkę). */
   detached: ReadonlySet<string>;
+  /**
+   * Kształty, którym AUTOMAT wyznaczył rolę podkładu karty (ADR-274).
+   *
+   * Ich pudełko mobilne jest wynalazkiem tej funkcji — obejmuje CAŁĄ grupę,
+   * a nie prostokąt z projektu — więc zapisane `z` przestaje o nich cokolwiek
+   * mówić. Render musi je zatopić pod treścią, którą podkładają; bez tego karta
+   * z wysoką warstwą zasłania własną zawartość i sekcja na telefonie jest pusta
+   * (produkcyjne `/audyt-c` przy 390 px).
+   */
+  backdrops: ReadonlySet<string>;
 }
 
 /** Czy element ma RĘCZNĄ poprawkę mobilną — jedno pytanie na cały system. */
@@ -97,9 +123,24 @@ export function isDetachedOnMobile(element: CanvasElement): boolean {
   return element.layout.mobile !== undefined;
 }
 
-/** Czy dwa pudełka nachodzą na siebie (styk krawędziami NIE jest nachodzeniem). */
-function intersects(a: Geometry, b: Geometry): boolean {
-  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+/**
+ * Czy pudełko `outer` OBEJMUJE `inner` w całości (styk krawędziami liczy się
+ * jako objęcie).
+ *
+ * To jest test na PODKŁAD, a nie na dotknięcie (ADR-274). Do tej poprawki
+ * wystarczyło zwykłe nachodzenie i reguła łapała przypadki, o które nikt nie
+ * prosił: kształt dekoracyjny leżący obok akapitu i zahaczający o niego rogiem
+ * zostawał uznany za tło CAŁEJ nierozdzielnej grupy, dostawał jej wysokość
+ * i — z wyższą warstwą — zasłaniał komplet treści sekcji. Tłem jest ten
+ * kształt, w którym treść LEŻY, czyli kafel opinii i baner CTA.
+ */
+function contains(outer: Geometry, inner: Geometry): boolean {
+  return (
+    outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.w >= inner.x + inner.w &&
+    outer.y + outer.h >= inner.y + inner.h
+  );
 }
 
 /** Element z pozycją w tablicy — indeks rozstrzyga remisy, więc cięcie jest stabilne. */
@@ -190,6 +231,21 @@ function samePhysicalSize(units: number): number {
 }
 
 /**
+ * ODSTĘP MIĘDZY DWIEMA GRUPAMI W KOLUMNIE — z rytmu projektu (ADR-274).
+ *
+ * `previousBottom` i `nextTop` to krawędzie grup NA DESKTOPIE. Przerwa dodatnia
+ * znaczy, że projekt sam je rozdzielił: przenosimy ją co do rozmiaru fizycznego
+ * i zaciskamy widełkami. Przerwa zerowa albo ujemna znaczy, że grupy stały
+ * OBOK SIEBIE (cięcie pionowe) — kolumna musi je czymś rozdzielić, więc dostają
+ * odstęp domyślny.
+ */
+function gapAfter(previousBottom: number, nextTop: number): number {
+  const design = nextTop - previousBottom;
+  if (design <= 0) return GROUP_GAP;
+  return Math.min(MAX_GAP, Math.max(MIN_GAP, samePhysicalSize(design)));
+}
+
+/**
  * Rozmiar elementu na telefonie w pasie o szerokości `band`. Trzy tryby, w tej
  * kolejności: pudełko obejmujące treść (hug) → pas na całą szerokość (rodzaje
  * „rozciągliwe") → rozmiar fizyczny jak na desktopie.
@@ -232,13 +288,20 @@ function layoutGroup(
   group: readonly CanvasElement[],
   top: number,
   boxes: Record<string, Geometry>,
+  sunk: Set<string>,
 ): number {
   const backdrops = group.filter(
     (element) =>
       element.kind === "shape" &&
       element.shape === "box" &&
-      group.some((other) => other !== element && other.kind !== "shape" && intersects(element.layout.desktop, other.layout.desktop)),
+      group.some(
+        (other) =>
+          other !== element &&
+          other.kind !== "shape" &&
+          contains(element.layout.desktop, other.layout.desktop),
+      ),
   );
+  for (const backdrop of backdrops) sunk.add(backdrop.id);
   const content = group.filter((element) => !backdrops.includes(element));
   const pad = backdrops.length > 0 ? CARD_PAD : 0;
   const band = CANVAS_CONTENT_COLUMNS - 2 * pad;
@@ -278,27 +341,43 @@ function layoutGroup(
  */
 export function mobileLayoutOf(canvas: SectionCanvas): MobileLayout {
   const boxes: Record<string, Geometry> = {};
+  const backdrops = new Set<string>();
   let cursor = EDGE_PAD;
+  let previousBottom: number | null = null;
 
   for (const group of readingGroups(canvas.elements)) {
-    cursor += layoutGroup(group, cursor, boxes) + GROUP_GAP;
+    const top = Math.min(...group.map((element) => element.layout.desktop.y));
+    const bottom = Math.max(
+      ...group.map((element) => element.layout.desktop.y + element.layout.desktop.h),
+    );
+    if (previousBottom !== null) cursor += gapAfter(previousBottom, top);
+    cursor += layoutGroup(group, cursor, boxes, backdrops);
+    previousBottom = bottom;
   }
-  if (canvas.elements.length > 0) cursor -= GROUP_GAP;
 
   const detached = new Set<string>();
   for (const element of canvas.elements) {
     const manual = element.layout.mobile;
     if (!manual) continue;
     detached.add(element.id);
+    // Ręczna poprawka zdejmuje element spod automatu W CAŁOŚCI — także rolę
+    // podkładu, którą automat mu wyznaczył. Pudełko jest znów decyzją
+    // operatora, więc jego warstwa znów znaczy dokładnie to, co zapisał.
+    backdrops.delete(element.id);
     boxes[element.id] = manual;
     cursor = Math.max(cursor, manual.y + manual.h);
   }
 
-  const rows = Math.min(
-    SECTION_MAX_ROWS_MOBILE,
-    Math.max(SECTION_MIN_ROWS, cursor + EDGE_PAD),
-  );
-  return { rows, boxes, detached };
+  /*
+   * SUFIT ZDJĘTY (ADR-274). Do tej poprawki wysokość płótna mobilnego wracała
+   * przez `Math.min(SECTION_MAX_ROWS_MOBILE, …)` — a ponieważ elementy stoją na
+   * współrzędnych procentowych, a płótno PRZYCINA zawartość, przycięcie sufitem
+   * nie „ściskało" sekcji, tylko WYRZUCAŁO poza kadr wszystko, co leżało niżej.
+   * Sufit chroniący przed zbyt wysoką sekcją nie ma prawa robić tego kosztem
+   * treści; wysoka sekcja jest widoczna, a treść usunięta z kadru nie jest.
+   */
+  const rows = Math.max(SECTION_MIN_ROWS, cursor + EDGE_PAD);
+  return { rows, boxes, detached, backdrops };
 }
 
 /**

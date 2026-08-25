@@ -853,6 +853,57 @@
   max-width: none;
 }
 
+/*
+ * WYSOKOŚĆ SEKCJI ROŚNIE Z TREŚCIĄ — PASMA SZEROKOŚCI (ADR-274).
+ *
+ * WADA, KTÓRĄ TE REGUŁY ZAMYKAJĄ. Pudełko elementu ma wysokość w JEDNOSTKACH
+ * płótna (procent jego wysokości), a tekst — w pikselach zaciśniętych `clamp()`
+ * wyżej. Powyżej pewnej szerokości oba maleją tak samo i układ trzyma się co do
+ * piksela; poniżej niej pudełko dalej maleje, a font już NIE, bo dobił do
+ * rozmiaru czytelnego. Przy 768 px akapit potrzebuje wtedy dwa razy więcej
+ * wierszy, niż dla niego zarezerwowano: wchodzi pod element niżej albo wypada
+ * poza dolną krawędź sekcji, którą płótno przycina (audyt UX 2026-08-25 —
+ * sekcja „Jak działa rezerwacja": zdjęcie zasłania krok 3 i ucina krok 2).
+ *
+ * DLACZEGO PASMA, A NIE JEDEN WZÓR. Potrzebna wysokość jest wprost proporcjonalna
+ * do KWADRATU rozmiaru fontu i odwrotnie — do szerokości płótna, więc wzór
+ * wymagałby dzielenia przez długość, czego `calc()` nie umie. Liczy go zatem
+ * renderer, dla węższego końca każdego pasma, i wystawia gotową proporcję;
+ * pasmo bez rozciągnięcia nie dostaje właściwości i reguła spada na proporcję
+ * projektową — strona zdrowa wygląda dokładnie tak, jak wyglądała.
+ *
+ * Progi MUSZĄ zgadzać się z `CANVAS_STRETCH_BANDS` w `element-canvas.tsx`
+ * (pilnuje ich kontrakt kontenerowy). Łańcuch domyślek w `var()` jest po to,
+ * żeby pasmo bez własnej wartości brało wartość pasma SZERSZEGO, a nie
+ * projektową — rozciągnięcie nie maleje wraz z szerokością.
+ */
+@container site (width < 72rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-72, var(--canvas-ratio));
+  }
+}
+
+@container site (width < 64rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-64, var(--canvas-ratio-72, var(--canvas-ratio)));
+  }
+}
+
+@container site (width < 56rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-56, var(--canvas-ratio-64, var(--canvas-ratio-72, var(--canvas-ratio))));
+  }
+}
+
+@container site (width < 48rem) {
+  .canvas-grid {
+    aspect-ratio: var(
+      --canvas-ratio-48,
+      var(--canvas-ratio-56, var(--canvas-ratio-64, var(--canvas-ratio-72, var(--canvas-ratio))))
+    );
+  }
+}
+
 @container site (width < 40rem) {
   .canvas-grid {
     aspect-ratio: var(--canvas-ratio-mobile);
@@ -878,6 +929,28 @@
     left: 0;
     width: 100%;
     max-width: none;
+  }
+}
+
+/*
+ * PASMA PŁÓTNA MOBILNEGO (ADR-274) — telefon węższy od projektowych 390 px.
+ *
+ * Auto-układ liczy pudełka przy JEDNEJ szerokości projektowej (ADR-088), bo
+ * inaczej ta sama treść dawałaby inny układ na 360 i na 430 px. Font przy tych
+ * szerokościach siedzi już na dolnym końcu zacisku i nie maleje — więc na 360 px
+ * wiersz mieści mniej znaków, a pudełko jest MNIEJSZE niż projektowe. Te dwa
+ * pasma oddają tę różnicę wysokością płótna; stoją PO regule mobilnej, bo ją
+ * nadpisują.
+ */
+@container site (width < 24rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-m24, var(--canvas-ratio-mobile));
+  }
+}
+
+@container site (width < 22rem) {
+  .canvas-grid {
+    aspect-ratio: var(--canvas-ratio-m22, var(--canvas-ratio-m24, var(--canvas-ratio-mobile)));
   }
 }
 

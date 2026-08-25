@@ -22,10 +22,12 @@ import { describe, expect, it } from "vitest";
 
 import { sectionCanvasFrom } from "./canvas-presets";
 import { createElement } from "./element-factory";
+import { isContentElement, renderLayerZ } from "./canvas-render";
 import {
   CANVAS_COLUMNS,
   CANVAS_CONTENT_COLUMNS,
   CANVAS_PAD_COLUMNS,
+  MOBILE_DESIGN_WIDTH_PX,
   PALETTE_ELEMENT_KINDS,
   SECTION_MAX_ROWS_MOBILE,
   SECTION_MIN_ROWS,
@@ -286,5 +288,247 @@ describe("ręczna poprawka wygrywa z automatem", () => {
     expect(zPoprawka.elements.map((element) => element.layout.desktop)).toEqual(
       canvas.elements.map((element) => element.layout.desktop),
     );
+  });
+});
+
+/**
+ * TREŚĆ NIE ZNIKA NA TELEFONIE (ADR-274, audyt UX 2026-08-25).
+ *
+ * Na produkcji (`/audyt-c`) sekcja hero przy 390 px była PUSTA: widać było
+ * wyłącznie biały prostokąt. Przyczyną nie było zgubienie elementów — każdy
+ * z nich miał swoje pudełko, a kontrakt „KAŻDY element ma miejsce" świecił na
+ * zielono. Przyczyną było to, że kształt DOTYKAJĄCY rogiem akapitu został
+ * uznany za podkład CAŁEJ nierozdzielnej grupy, dostał jej wysokość i — mając
+ * najwyższe zapisane `z` — przykrył komplet treści.
+ *
+ * Stąd dwie nogi: reguła podkładu wymaga OBJĘCIA, a nie dotknięcia, a to, co
+ * automat uzna za podkład, render zatapia pod treścią.
+ */
+describe("kształt nie zasłania treści, którą tylko musnął", () => {
+  const musnietyLead: SectionCanvas = {
+    version: 2,
+    rows: 65,
+    background: "default",
+    elements: [
+      {
+        id: "naglowek",
+        kind: "heading",
+        level: 1,
+        align: "left",
+        text: "Wypożycz sprzęt bez papierologii",
+        layout: { desktop: { x: 12, y: 14, w: 120, h: 20, z: 0 } },
+      },
+      {
+        id: "lead",
+        kind: "text",
+        variant: "lead",
+        align: "left",
+        text: "Rezerwacja online, odbiór na miejscu albo z dostawą — wszystko w jednym miejscu.",
+        layout: { desktop: { x: 12, y: 37, w: 120, h: 8, z: 0 } },
+      },
+      {
+        id: "zdjecie",
+        kind: "image",
+        alt: "Kadr z placu budowy",
+        fit: "cover",
+        source: { kind: "storage", path: "tenant/hero.jpg" },
+        layout: { desktop: { x: 12, y: 29, w: 48, h: 36, z: 5 } },
+      },
+      {
+        id: "ksztalt",
+        kind: "shape",
+        shape: "box",
+        fill: "paper",
+        // Zahacza o lead prawym końcem — i NIC poza tym.
+        layout: { desktop: { x: 80, y: 39, w: 40, h: 12, z: 7 } },
+      },
+    ],
+  } as SectionCanvas;
+
+  it("kształt, który tylko NACHODZI, nie zostaje podkładem", () => {
+    const layout = mobileLayoutOf(musnietyLead);
+    expect(layout.backdrops.has("ksztalt"), "muśnięcie wystarczyło za objęcie").toBe(false);
+  });
+
+  it("…więc nie rozciąga się na całą sekcję", () => {
+    // Kontrola ILOŚCIOWA: podkład dostawał wysokość CAŁEJ grupy, czyli prawie
+    // całe płótno. Zwykły element bierze tyle, ile ma na desktopie.
+    const layout = mobileLayoutOf(musnietyLead);
+    expect(layout.boxes["ksztalt"]!.h).toBeLessThan(layout.rows / 2);
+  });
+
+  it("kształt, który OBEJMUJE treść, podkładem zostaje (kontrola pozytywna)", () => {
+    const karta = {
+      ...musnietyLead,
+      elements: musnietyLead.elements.map((element) =>
+        element.id === "ksztalt"
+          ? ({
+              ...element,
+              layout: { desktop: { x: 8, y: 10, w: 128, h: 40, z: 7 } },
+            } as CanvasElement)
+          : element,
+      ),
+    } as SectionCanvas;
+    const layout = mobileLayoutOf(karta);
+    expect(layout.backdrops.has("ksztalt")).toBe(true);
+  });
+
+  it("ręczna poprawka odbiera rolę podkładu — pudełko wraca do operatora", () => {
+    const karta = {
+      ...musnietyLead,
+      elements: musnietyLead.elements.map((element) =>
+        element.id === "ksztalt"
+          ? ({
+              ...element,
+              layout: {
+                desktop: { x: 8, y: 10, w: 128, h: 40, z: 7 },
+                mobile: { x: 12, y: 4, w: 60, h: 20, z: 7 },
+              },
+            } as CanvasElement)
+          : element,
+      ),
+    } as SectionCanvas;
+    const layout = mobileLayoutOf(karta);
+    expect(layout.backdrops.has("ksztalt")).toBe(false);
+    expect(layout.detached.has("ksztalt")).toBe(true);
+  });
+
+  it.each(CASES)("%s: nic z dekoracji nie stoi NAD treścią na telefonie", (_name, canvas) => {
+    /*
+     * Niezmiennik całego modelu: po nałożeniu warstw renderu (z zatopieniem
+     * podkładów) żaden element przecinający pudełko TREŚCI nie ma od niej
+     * wyższej warstwy. Sprawdzamy w geometrii MOBILNEJ, bo to ona jest tu
+     * wynalazkiem automatu.
+     */
+    const layout = mobileLayoutOf(canvas);
+    const warstwy = renderLayerZ(canvas.elements, layout.backdrops);
+    const nad: string[] = [];
+    for (const element of canvas.elements) {
+      if (!isContentElement(element)) continue;
+      const box = layout.boxes[element.id]!;
+      for (const inny of canvas.elements) {
+        if (inny.id === element.id) continue;
+        const other = layout.boxes[inny.id]!;
+        const przecina =
+          box.x < other.x + other.w &&
+          other.x < box.x + box.w &&
+          box.y < other.y + other.h &&
+          other.y < box.y + box.h;
+        if (przecina && warstwy[inny.id]! > warstwy[element.id]!) {
+          nad.push(`${inny.id} przykrywa ${element.id}`);
+        }
+      }
+    }
+    expect(nad).toEqual([]);
+  });
+});
+
+/**
+ * RYTM KOLUMNY MOBILNEJ (ADR-274) — odstęp z projektu, nie ze stałej.
+ *
+ * Cztery linie kontaktu w stopce stoją na desktopie 8 px od siebie; auto-układ
+ * dawał każdej parze 24 px plus zapas estymatora i stopka rozjeżdżała się na
+ * dziury po 45–80 px (audyt UX 2026-08-25). Odstęp bierze się teraz z przerwy
+ * W PROJEKCIE, przeliczonej na rozmiar fizyczny i zaciśniętej widełkami.
+ */
+describe("kolumna mobilna trzyma rytm projektu", () => {
+  /*
+   * Górne widełki odstępu w pikselach płótna projektowego. 32 px to wartość
+   * z modułu; przerwa jest liczona w CAŁYCH jednostkach siatki, więc próg to
+   * pierwsza jednostka, która 32 px obejmuje (na 390 px: 12 × 2,708 = 32,5 px).
+   */
+  const UNIT = MOBILE_DESIGN_WIDTH_PX / CANVAS_COLUMNS;
+  const PROG = Math.ceil(32 / UNIT) * UNIT + 1e-6;
+
+  /**
+   * PUSTKI W KOLUMNIE, w pikselach płótna projektowego (390 px).
+   *
+   * Liczymy przerwy między ZLANYMI zakresami pionowymi, a nie między kolejnymi
+   * pudełkami. Różnica jest istotna dla karty: jej podkład obejmuje własny
+   * rozstaw wewnętrzny, więc odległość od ostatniego zdania w kafelku do
+   * pierwszego w następnym NIE jest dziurą — dziurą jest dopiero odstęp między
+   * kafelkami. Liczenie „pudełko po pudełku" oskarżałoby układ o pustkę, którą
+   * widać jako tło karty.
+   */
+  function przerwy(canvas: SectionCanvas): number[] {
+    const layout = mobileLayoutOf(canvas);
+    const unit = MOBILE_DESIGN_WIDTH_PX / CANVAS_COLUMNS;
+    const zakresy = canvas.elements
+      .map((element) => layout.boxes[element.id]!)
+      .map((box) => [box.y, box.y + box.h] as [number, number])
+      .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const zlane: [number, number][] = [];
+    for (const zakres of zakresy) {
+      const ostatni = zlane[zlane.length - 1];
+      if (ostatni && zakres[0] <= ostatni[1]) ostatni[1] = Math.max(ostatni[1], zakres[1]);
+      else zlane.push([...zakres]);
+    }
+    const out: number[] = [];
+    for (let index = 1; index < zlane.length; index += 1) {
+      out.push((zlane[index]![0] - zlane[index - 1]![1]) * unit);
+    }
+    return out;
+  }
+
+  it("stopka: ŻADNA przerwa nie przekracza górnych widełek", () => {
+    const gaps = przerwy(canvasFor("footer"));
+    expect(gaps.length, "stopka bez par do porównania").toBeGreaterThan(4);
+    const zaSzerokie = gaps.filter((gap) => gap > PROG);
+    expect(zaSzerokie, `dziury w stopce: ${gaps.map((g) => g.toFixed(0)).join(", ")}`).toEqual([]);
+  });
+
+  it("stopka: linie kontaktu stoją CIAŚNIEJ niż domyślny odstęp grup", () => {
+    // Kontrola kierunku: gdyby reguła oddawała stałą, ta noga byłaby czerwona.
+    const gaps = przerwy(canvasFor("footer"));
+    expect(Math.min(...gaps)).toBeLessThan(24);
+  });
+
+  it.each(CASES)("%s: przerwy w kolumnie mieszczą się w widełkach", (_name, canvas) => {
+    for (const gap of przerwy(canvas)) {
+      expect(gap).toBeGreaterThanOrEqual(0);
+      expect(gap).toBeLessThanOrEqual(PROG);
+    }
+  });
+});
+
+/**
+ * SUFIT WYSOKOŚCI NIE WYRZUCA TREŚCI POZA KADR (ADR-274).
+ *
+ * `Math.min(SECTION_MAX_ROWS_MOBILE, …)` nie ściskał sekcji — obcinał płótno,
+ * a elementy stojące na współrzędnych procentowych wypadały poza nie i ginęły
+ * pod `overflow: hidden`. Sekcja wysoka jest widoczna; treść usunięta z kadru
+ * nie jest.
+ */
+describe("wysokie płótno mobilne nie gubi dolnych elementów", () => {
+  const wysokie: SectionCanvas = {
+    version: 2,
+    rows: 240,
+    background: "default",
+    elements: Array.from({ length: 60 }, (_, index) =>
+      createElement(
+        "text",
+        `akapit-${index}`,
+        { x: 12, y: index * 4, w: 120, h: 3, z: index },
+        "pl",
+      ),
+    ).map((element) => ({
+      ...element,
+      size: { w: "fixed", h: "fixed" },
+      text:
+        "Wypożyczamy sprzęt budowlany na dobę, tydzień albo cały etap budowy — z dowozem na plac, " +
+        "przeglądem po każdym zwrocie i fakturą VAT wystawianą tego samego dnia, bez papierologii.",
+    })) as SectionCanvas["elements"],
+  };
+
+  it("automat przekracza dawny sufit (kontrola pozytywna wejścia)", () => {
+    expect(mobileLayoutOf(wysokie).rows).toBeGreaterThan(SECTION_MAX_ROWS_MOBILE);
+  });
+
+  it("…i mimo to KAŻDE pudełko mieści się w płótnie", () => {
+    const layout = mobileLayoutOf(wysokie);
+    const poza = Object.entries(layout.boxes)
+      .filter(([, box]) => box.y + box.h > layout.rows)
+      .map(([id]) => id);
+    expect(poza, "elementy wypchnięte poza kadr sufitem wysokości").toEqual([]);
   });
 });

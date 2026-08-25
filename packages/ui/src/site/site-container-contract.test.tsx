@@ -42,7 +42,11 @@ import {
   type TextScale,
 } from "@avably/core/site";
 
-import { bleedsToEdges } from "./element-canvas";
+import {
+  CANVAS_MOBILE_STRETCH_BANDS,
+  CANVAS_STRETCH_BANDS,
+  bleedsToEdges,
+} from "./element-canvas";
 import { SiteRenderer } from "./site-renderer";
 import type { RenderSection } from "./types";
 
@@ -121,6 +125,25 @@ const DOZWOLONE_WARIANTY = [
    */
   "@container site (width < 28rem)",
   "@container site (width >= 28rem)",
+  /*
+   * PASMA ROZCIĄGNIĘCIA PŁÓTNA (ADR-274) — pięć progów, które NIE są progami
+   * układu i dlatego wolno ich mieć więcej niż dwa.
+   *
+   * Różnica jest zasadnicza i trzeba ją tu zapisać, bo asercja niżej mówi
+   * „nowy próg zmienia szerokości, przy których sklep się przełamuje". Te nie
+   * zmieniają: żaden z nich nie przestawia ani jednego elementu z rzędu do
+   * kolumny ani nie podmienia zestawu współrzędnych (tym rządzi nadal 40 rem).
+   * Zmieniają WYŁĄCZNIE proporcję płótna, czyli wysokość sekcji — po to, żeby
+   * akapit, którego font przestał maleć razem z pudełkiem, dostał miejsce
+   * zamiast wchodzić pod sąsiada albo wypadać poza kadr. Wartości liczy
+   * renderer per sekcja i wystawia właściwością; brak właściwości znaczy „nic
+   * do rozciągania", więc reguła jest wtedy bezczynna co do bajtu.
+   */
+  "@container site (width < 72rem)",
+  "@container site (width < 56rem)",
+  "@container site (width < 48rem)",
+  "@container site (width < 24rem)",
+  "@container site (width < 22rem)",
 ] as const;
 const DOZWOLONE_PROGI = ["40rem", "64rem"] as const;
 
@@ -133,7 +156,18 @@ const DOZWOLONE_PROGI = ["40rem", "64rem"] as const;
  * kompilacji, która mogłaby ją po cichu podmienić (tamten dowód jest o
  * breakpointach z motywu Tailwinda).
  */
-const PROGI_ARKUSZA = [...DOZWOLONE_PROGI, "28rem"] as const;
+const PROGI_ARKUSZA = [
+  ...DOZWOLONE_PROGI,
+  "28rem",
+  // Pasma rozciągnięcia płótna (ADR-274) — patrz komentarz w DOZWOLONE_WARIANTY.
+  // Zgodność tej listy z tabelą pasm w `element-canvas.tsx` sprawdza osobna noga
+  // niżej: rozjazd znaczyłby właściwość liczoną na próżno albo regułę bez wartości.
+  "72rem",
+  "56rem",
+  "48rem",
+  "24rem",
+  "22rem",
+] as const;
 
 describe("skan źródeł: sekcje nie mierzą okna", () => {
   it.each(SECTION_SOURCES)("%s ma warianty KONTENEROWE (kontrola pozytywna skanu)", (path) => {
@@ -232,6 +266,58 @@ describe("skan źródeł: sekcje nie mierzą okna", () => {
         `próg ${rozbior?.[2]} spoza uzgodnionego zbioru — nowy próg to decyzja PM`,
       ).toContain(rozbior?.[2]);
     }
+  });
+
+  it("pasma rozciągnięcia płótna: arkusz i tabela renderera mówią to samo", () => {
+    /*
+     * Dwa źródła jednej prawdy pilnowane z obu stron (ADR-274). Renderer liczy
+     * proporcję dla WĘŻSZEGO końca pasma i wystawia ją właściwością
+     * `--canvas-ratio-<token>`; arkusz sięga po nią w zapytaniu o próg tego
+     * pasma. Rozjazd nie wywraca niczego głośno: albo powstaje właściwość,
+     * której nikt nie czyta (sekcja dalej przycina tekst), albo reguła bez
+     * wartości (fallback na proporcję projektową). Obie awarie są NIEME —
+     * dlatego stoją tu, a nie w komentarzu.
+     */
+    const css = stripComments(read(SHARED_SHEET));
+    const REM_PX = 16;
+
+    // Kontrola pozytywna: pusta tabela pasm broniłaby niczego.
+    expect(CANVAS_STRETCH_BANDS.length).toBeGreaterThan(0);
+    expect(CANVAS_MOBILE_STRETCH_BANDS.length).toBeGreaterThan(0);
+
+    for (const band of [...CANVAS_STRETCH_BANDS, ...CANVAS_MOBILE_STRETCH_BANDS]) {
+      const rem = band.token.replace(/^m/, "");
+      const rule = new RegExp(
+        `@container site \\(width < ${rem}rem\\)\\s*\\{[^}]*--canvas-ratio-${band.token}\\b`,
+      );
+      expect(css, `pasmo ${band.token}: brak reguły arkusza sięgającej po jego proporcję`).toMatch(
+        rule,
+      );
+    }
+
+    /*
+     * SZEROKOŚĆ LICZENIA = WĘŻSZY KONIEC PASMA. Pasmo `< 72rem` obowiązuje
+     * dopiero od miejsca, w którym przestaje je nadpisywać `< 64rem`, więc jego
+     * najgorszym przypadkiem jest 64 rem. Policzenie go przy 72 rem dałoby
+     * rozciągnięcie za małe dokładnie tam, gdzie jest potrzebne.
+     */
+    const desktopProgi = CANVAS_STRETCH_BANDS.map((band) => Number(band.token));
+    CANVAS_STRETCH_BANDS.forEach((band, index) => {
+      const nizej = desktopProgi[index + 1] ?? 40; // pod 40 rem rządzi układ mobilny
+      expect(band.widthPx, `pasmo ${band.token}: liczone przy złej szerokości`).toBe(
+        nizej * REM_PX,
+      );
+    });
+
+    const mobileProgi = CANVAS_MOBILE_STRETCH_BANDS.map((band) =>
+      Number(band.token.replace(/^m/, "")),
+    );
+    CANVAS_MOBILE_STRETCH_BANDS.forEach((band, index) => {
+      const nizej = mobileProgi[index + 1] ?? 20; // 320 px — najwęższy telefon w obsłudze
+      expect(band.widthPx, `pasmo ${band.token}: liczone przy złej szerokości`).toBe(
+        nizej * REM_PX,
+      );
+    });
   });
 
   it("wspólny arkusz naprawdę niesie skale sekcji w jednostkach kontenera", () => {
