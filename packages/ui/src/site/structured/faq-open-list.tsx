@@ -3,6 +3,7 @@ import type { FaqStructuredContent } from "@avably/core/site";
 import { SafeRichText } from "../rich-text";
 import type { TemplateStyles } from "../template";
 import { StructuredSectionShell } from "./shell";
+import { bindOrphans } from "../orphans";
 
 /**
  * FAQ — UKŁAD „LISTA OTWARTA” (E1, ADR-094).
@@ -40,7 +41,7 @@ export function StructuredFaqOpenList({
           <div key={index} className={styles.faqItem}>
             <dt>
               <h3 aria-level={3} className={styles.faqQuestion}>
-                {item.q}
+                {bindOrphans(item.q)}
               </h3>
             </dt>
             <dd data-faq-panel={index} className="site-text-muted mt-3 ml-0">

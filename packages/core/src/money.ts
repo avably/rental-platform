@@ -30,13 +30,32 @@ const MINOR_UNITS_PER_MAJOR: Record<CurrencyCode, number> = {
 };
 
 /**
+ * GRUPOWANIE TYSIĘCY WYMUSZONE, nie „domyślne z locale" (S-48a, audyt UX
+ * 2026-08-25). CLDR dla `pl` ma `minimumGroupingDigits=2`, więc `Intl` bez tej
+ * opcji grupuje dopiero OD PIĘCIU cyfr: „10 000,00 zł", ale „1000,00 zł" —
+ * a polska typografia cen grupuje od czterech („1 000,00 zł"). Wartość
+ * `"always"` (Intl.NumberFormat v3, ES2023) znosi próg CLDR i grupuje zawsze,
+ * separatorem właściwym dla locale — w `pl` jest nim TWARDA spacja U+00A0,
+ * więc kwota zostaje frazą atomową i nie łamie się na końcu wiersza (ta sama
+ * lekcja, co S-40/F2). Locale bez progu (en: „1,000.00") nie zmienia zapisu.
+ *
+ * Rzut typu: lib TS repo to ES2022, w którym `useGrouping` zna tylko boolean;
+ * środowiska uruchomieniowe (Node 22, przeglądarki) wartość znają.
+ */
+const GROUPING_ALWAYS = "always" as unknown as Intl.NumberFormatOptions["useGrouping"];
+
+/**
  * Kwota do wyświetlenia w danym locale. Locale steruje ZAPISEM (separatory,
  * pozycja symbolu), waluta — symbolem: "1 299,00 zł" w `pl`, "PLN 1,299.00"
  * w `en`. To dwie niezależne osie i nie wolno ich sklejać.
  */
 export function formatMoney(amountMinor: number, currency: CurrencyCode, locale: string): string {
   const divisor = MINOR_UNITS_PER_MAJOR[currency];
-  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amountMinor / divisor);
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    useGrouping: GROUPING_ALWAYS,
+  }).format(amountMinor / divisor);
 }
 
 // -----------------------------------------------------------------------

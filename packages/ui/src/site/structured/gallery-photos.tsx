@@ -148,7 +148,12 @@ export function GalleryPhotos({
       >
         {content.items.map((item, index) => (
           <li key={index} data-gallery-item={index} className={itemClassName}>
-            <GalleryTile item={item} siteImageBase={siteImageBase} imageClassName={imageClassName}>
+            <GalleryTile
+              item={item}
+              siteImageBase={siteImageBase}
+              imageClassName={imageClassName}
+              creditLabel={labels.galleryCredit}
+            >
               {(image) =>
                 item.link ? (
                   <GalleryTileLink href={item.link}>{image}</GalleryTileLink>

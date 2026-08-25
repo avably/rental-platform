@@ -364,6 +364,12 @@ export interface SiteRenderLabels {
   /** Wzorzec licznika w powiększeniu — `{current}` i `{total}` podmienia render. */
   galleryPosition: string;
   /**
+   * Przedrostek atrybucji autora zdjęcia („Fot.:" / „Photo:", S-34). Chrome
+   * renderu, nie treść najemcy: bez niego nazwisko fotografa sklejało się
+   * z podpisem kafla i czytało jak jego ciąg dalszy.
+   */
+  galleryCredit: string;
+  /**
    * KONTAKT STRUKTURALNY (E4, ADR-095). Etykieta godzin otwarcia jest nowa —
    * sekcja v1 nie znała tego rodzaju danych. Pozostałe rodzaje wpisów mówią
    * etykietami, które sekcja kontaktu miała od 2.3b (`contactEmail`,

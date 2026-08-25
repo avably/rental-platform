@@ -3,6 +3,7 @@ import { deliveryPriceLabel, type DeliveryStructuredContent } from "@avably/core
 import type { TemplateStyles } from "../template";
 import type { SiteMoney } from "../types";
 import { StructuredSectionShell } from "./shell";
+import { bindOrphans } from "../orphans";
 
 /**
  * DOSTAWA — UKŁAD „LISTA" (E7, aneks ADR-094).
@@ -35,7 +36,7 @@ export function StructuredDeliveryList({
     >
       {content.intro ? (
         <p data-delivery-intro className={styles.lead}>
-          {content.intro}
+          {bindOrphans(content.intro)}
         </p>
       ) : null}
 
@@ -52,10 +53,10 @@ export function StructuredDeliveryList({
                   ponad szerokość kontenera zamiast się złamać. */}
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <h3 data-delivery-title className={styles.cardTitle}>
-                  {item.title}
+                  {bindOrphans(item.title)}
                 </h3>
                 <span data-delivery-text className="site-text-muted text-sm">
-                  {item.text}
+                  {bindOrphans(item.text)}
                 </span>
               </span>
               {price ? (

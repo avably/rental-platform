@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "../../lib/cn";
 import { sectionBandClass } from "../bands";
+import { bindOrphans } from "../orphans";
 import type { TemplateStyles } from "../template";
 
 /**
@@ -55,7 +56,9 @@ export function StructuredSectionShell({
        * jako całość.
        */}
       <div data-section-reveal={heading ? "stagger" : "block"} className={styles.container}>
-        {heading ? <h2 className={styles.sectionHeading}>{heading}</h2> : null}
+        {/* `bindOrphans` — sieroty (S-47): jednoliterowy spójnik nie wisi na
+            końcu wiersza. Warstwa RENDERU — treść najemcy zostaje nietknięta. */}
+        {heading ? <h2 className={styles.sectionHeading}>{bindOrphans(heading)}</h2> : null}
         {children}
       </div>
     </section>

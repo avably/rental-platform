@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { cn } from "../../lib/cn";
 import { siteImageUrl } from "../image-url";
 import { externalLinkRel } from "../links";
+import { bindOrphans } from "../orphans";
 
 /**
  * WSPÓLNE CZĘŚCI TRZECH UKŁADÓW GALERII (E3, aneks ADR-094).
@@ -113,16 +114,26 @@ export function GalleryImage({
  * nieprawidłowe drzewo dokumentu, w którym przeglądarka sama rozstrzyga, co
  * właściwie kliknięto. Atrybucja jest WARUNKIEM LICENCJI, więc nie może zależeć
  * od takiego rozstrzygnięcia.
+ *
+ * ATRYBUCJA W OSOBNEJ LINII, mniejszym stopniem i z przedrostkiem „Fot.:"
+ * (S-34, audyt UX 2026-08-25). Doklejona spacją do podpisu czytała się jak
+ * jego ciąg dalszy — „…stoły i nakrycia CHUTTERSNAP" — czyli nazwisko
+ * fotografa udawało treść najemcy. Osobny wiersz + przedrostek z języka
+ * strony mówią wprost, CO to za napis; podpis autorstwa to chrome renderu,
+ * więc słowo przychodzi etykietą (`creditLabel`), nie stałą w komponencie.
  */
 export function GalleryTile({
   item,
   siteImageBase,
   imageClassName,
+  creditLabel,
   children,
 }: {
   item: GalleryStructuredItem;
   siteImageBase?: string;
   imageClassName: string;
+  /** Przedrostek atrybucji z języka strony („Fot.:" / „Photo:"). */
+  creditLabel: string;
   /** Obszar klikalny wokół obrazu (przycisk powiększenia albo odnośnik). */
   children?: (image: ReactNode) => ReactNode;
 }) {
@@ -134,10 +145,14 @@ export function GalleryTile({
       {children ? children(image) : image}
       {item.caption || credit ? (
         <figcaption className="site-text-muted px-3 py-2 text-sm">
-          {item.caption ? <span data-gallery-caption>{item.caption}</span> : null}
+          {item.caption ? (
+            <span data-gallery-caption className="block">
+              {bindOrphans(item.caption)}
+            </span>
+          ) : null}
           {credit ? (
-            <>
-              {item.caption ? " " : null}
+            <span data-gallery-credit-line className="block text-xs">
+              {creditLabel}{" "}
               <a
                 data-gallery-credit
                 href={credit.authorUrl}
@@ -146,7 +161,7 @@ export function GalleryTile({
               >
                 {credit.authorName}
               </a>
-            </>
+            </span>
           ) : null}
         </figcaption>
       ) : null}

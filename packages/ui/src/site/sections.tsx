@@ -9,6 +9,7 @@ import * as React from "react";
 import { cn } from "../lib/cn";
 import { siteImageUrl } from "./image-url";
 import { externalLinkRel } from "./links";
+import { bindOrphans } from "./orphans";
 import { SiteProductAvailabilityMark } from "./product-availability";
 import { siteIconComponent } from "./site-icons";
 import { SafeRichText } from "./rich-text";
@@ -79,7 +80,8 @@ function SectionShell({
  */
 function SectionHeading({ heading, styles }: { heading?: string; styles: TemplateStyles }) {
   if (!heading) return null;
-  return <h2 className={styles.sectionHeading}>{heading}</h2>;
+  // `bindOrphans` — sieroty (S-47): warstwa renderu, treść najemcy nietknięta.
+  return <h2 className={styles.sectionHeading}>{bindOrphans(heading)}</h2>;
 }
 
 export function HeroSection({
@@ -94,8 +96,10 @@ export function HeroSection({
   return (
     <section className={styles.heroSection}>
       <div data-section-reveal="stagger" className={styles.container}>
-        <h1 className={styles.heroHeading}>{content.heading}</h1>
-        {content.subheading ? <p className={styles.heroSubheading}>{content.subheading}</p> : null}
+        <h1 className={styles.heroHeading}>{bindOrphans(content.heading)}</h1>
+        {content.subheading ? (
+          <p className={styles.heroSubheading}>{bindOrphans(content.subheading)}</p>
+        ) : null}
         {content.ctaText && content.ctaHref ? (
           <a href={content.ctaHref} rel={externalLinkRel(content.ctaHref)} className={styles.cta}>
             {content.ctaText}
@@ -272,7 +276,7 @@ export function FaqSection({ content, styles }: { content: FaqContent; styles: T
         <div className="mt-8 flex flex-col gap-3">
           {items.map((item, index) => (
             <details key={index} className={styles.faqItem}>
-              <summary className={styles.faqQuestion}>{item.q}</summary>
+              <summary className={styles.faqQuestion}>{bindOrphans(item.q)}</summary>
               <div className="mt-3 site-text-muted">
                 <SafeRichText body={item.a} />
               </div>
@@ -372,7 +376,7 @@ export function TestimonialsSection({
         <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 @min-[40rem]/site:grid-cols-2">
           {items.map((item, index) => (
             <li key={index} className={styles.subtleCard}>
-              <blockquote className="text-lg">{item.quote}</blockquote>
+              <blockquote className="text-lg">{bindOrphans(item.quote)}</blockquote>
               <p className="mt-4 text-sm font-medium">{item.author}</p>
               {item.role ? <p className="site-text-muted text-sm">{item.role}</p> : null}
             </li>
@@ -432,8 +436,8 @@ export function UspSection({ content, styles }: { content: UspContent; styles: T
                 <span className={styles.iconTile}>
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
-                <h3 className={styles.cardTitle}>{item.title}</h3>
-                <p className="site-text-muted text-sm">{item.text}</p>
+                <h3 className={styles.cardTitle}>{bindOrphans(item.title)}</h3>
+                <p className="site-text-muted text-sm">{bindOrphans(item.text)}</p>
               </li>
             );
           })}
@@ -448,9 +452,9 @@ export function CtaSection({ content, styles }: { content: CtaContent; styles: T
     <SectionShell styles={styles}>
       <div className={styles.ctaBanner}>
         <h2 className="text-2xl font-bold tracking-tight break-words @min-[40rem]/site:text-3xl">
-          {content.heading}
+          {bindOrphans(content.heading)}
         </h2>
-        {content.text ? <p className="mt-3 max-w-2xl opacity-80">{content.text}</p> : null}
+        {content.text ? <p className="mt-3 max-w-2xl opacity-80">{bindOrphans(content.text)}</p> : null}
         <a href={content.buttonHref} rel={externalLinkRel(content.buttonHref)} className={styles.cta}>
           {content.buttonLabel}
         </a>
@@ -715,13 +719,13 @@ export function DeliverySection({
   return (
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
-      <p className={styles.lead}>{content.text}</p>
+      <p className={styles.lead}>{bindOrphans(content.text)}</p>
       {items.length > 0 ? (
         <ul className="mt-8 grid list-none grid-cols-1 gap-6 p-0 @min-[40rem]/site:grid-cols-2">
           {items.map((item, index) => (
             <li key={index} className={styles.subtleCard}>
-              <h3 className={styles.cardTitle}>{item.title}</h3>
-              <p className="site-text-muted mt-2 text-sm">{item.text}</p>
+              <h3 className={styles.cardTitle}>{bindOrphans(item.title)}</h3>
+              <p className="site-text-muted mt-2 text-sm">{bindOrphans(item.text)}</p>
             </li>
           ))}
         </ul>

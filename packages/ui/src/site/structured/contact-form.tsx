@@ -7,7 +7,7 @@ import {
   type ContactStructuredContent,
   type ContactSubmitResult,
 } from "@avably/core/site";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import type { ContactFormBinding, ContactFormLabels, SiteRenderLabels } from "../types";
 
@@ -105,6 +105,25 @@ export function StructuredContactForm({
    */
   const [attempt, setAttempt] = useState(0);
 
+  /**
+   * FOKUS NA PIERWSZY BŁĄD (audyt UX 2026-08-25) — wzorzec checkoutu
+   * (M-A11Y-03): po nieudanej walidacji fokus idzie do PIERWSZEGO pola
+   * z błędem W KOLEJNOŚCI DOKUMENTU, czytanej selektorem po
+   * `aria-invalid="true"` — tej samej prawdzie, którą słyszy czytnik ekranu.
+   * Kolejność kluczy mapy błędów z parsera/serwera nie niesie tu żadnej
+   * obietnicy.
+   *
+   * Efekt zależy od `fields`: każdy nieudany submit tworzy NOWY obiekt stanu,
+   * więc fokus wraca przy każdej kolejnej nieudanej próbie. Pusta mapa
+   * (sukces parsera, świeży formularz) wychodzi bez ruchu — efekt nie ma
+   * prawa kraść fokusu, gdy błędów nie ma.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!Object.values(fields).some(Boolean)) return;
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [fields]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!binding || pending) return;
@@ -163,6 +182,7 @@ export function StructuredContactForm({
 
   return (
     <form
+      ref={formRef}
       data-contact-form={binding ? "live" : "preview"}
       /*
        * PODGLĄD JEST INERTNY, nie wyłączony polami: `disabled` na każdym polu

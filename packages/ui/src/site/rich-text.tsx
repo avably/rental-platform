@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "../lib/cn";
+import { bindOrphans } from "./orphans";
 
 /**
  * Bezpieczny render tekstu tenanta (sekcja freeform).
@@ -55,9 +56,16 @@ export function parseParagraphs(body: string): string[][] {
 }
 
 function InlineText({ line }: { line: string }) {
+  /*
+   * Sieroty (S-47) wiązane PRZED parsowaniem pogrubień: `bindOrphans` widzi
+   * całą linię (razem ze znacznikami `**`, które jego lista znaków otwierających
+   * pomija), więc spójnik tuż przed pogrubieniem też dostaje twardą spację —
+   * a podział na przebiegi niczego już nie rozcina, bo dzieli po `**`,
+   * nie po spacjach.
+   */
   return (
     <>
-      {parseInlineBold(line).map((run, index) =>
+      {parseInlineBold(bindOrphans(line)).map((run, index) =>
         run.bold ? <strong key={index}>{run.text}</strong> : <React.Fragment key={index}>{run.text}</React.Fragment>,
       )}
     </>

@@ -48,6 +48,7 @@ export function siteRenderLabels(copy: StorefrontContext["copy"]): SiteRenderLab
     galleryPrev: copy.siteLabels.galleryPrev,
     galleryNext: copy.siteLabels.galleryNext,
     galleryPosition: copy.siteLabels.galleryPosition,
+    galleryCredit: copy.siteLabels.galleryCredit,
     contactHours: copy.siteLabels.contactHours,
     contactForm: copy.siteLabels.contactForm,
     pricingFrom: copy.siteLabels.pricingFrom,
