@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { dateISO } from "./dates";
@@ -54,10 +55,19 @@ export async function fillAndSubmitCheckout(
   await page.locator("#co-email").fill(customer.email);
   if (customer.phone) await page.locator("#co-phone").fill(customer.phone);
 
-  await page.locator('input[name="deliveryMethod"][value="pickup"]').check();
+  // [F8] Odbiór i płatność to KARTY WYBORU: radio jest `sr-only`, klika się
+  // ETYKIETĘ-kartę (dokładnie to, co robi użytkownik). Asercja `toBeChecked`
+  // pilnuje, żeby klik w kartę nadal zaznaczał ukryte radio.
+  await page
+    .locator('[data-checkout-choice="delivery"]:has(input[value="pickup"])')
+    .click();
+  await expect(page.locator('input[name="deliveryMethod"][value="pickup"]')).toBeChecked();
   await page.locator("#co-pickup").selectOption({ label: `${seed.pickupLocationName} - Warszawa` });
 
-  await page.locator(`input[name="paymentMethod"][value="${paymentMethod}"]`).check();
+  await page
+    .locator(`[data-checkout-choice="payment"]:has(input[value="${paymentMethod}"])`)
+    .click();
+  await expect(page.locator(`input[name="paymentMethod"][value="${paymentMethod}"]`)).toBeChecked();
 
   await page.locator("#co-terms").check();
   await page.getByRole("button", { name: "Złóż zamówienie" }).click();

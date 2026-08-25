@@ -79,7 +79,7 @@ export function PaymentStep({
         <p className="site-text-muted mt-3 leading-7">{message}</p>
         <p className="mt-4 text-sm">
           {copy.confirmation.orderNumber}:{" "}
-          <strong className="tabular-nums">{orderNumber}</strong>
+          <strong className="site-numeric">{orderNumber}</strong>
         </p>
         <Link
           href="/checkout/platnosc/status"
