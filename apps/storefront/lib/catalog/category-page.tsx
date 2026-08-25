@@ -154,6 +154,10 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
         `loadCategoryNav`.
       */
       categoryNav={ctx.categoryNav}
+      /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
+      headerMode="catalog"
+      /* Bieżąca półka (S-52/F7): jej odnośnik w listwie dostaje aria-current. */
+      currentPath={categoryBasePath(category.slug)}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >

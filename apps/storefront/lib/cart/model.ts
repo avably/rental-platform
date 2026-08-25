@@ -123,9 +123,19 @@ export function clearCart(): CartState {
   return { ...EMPTY_CART, items: [] };
 }
 
-/** Łączna liczba sztuk (badge w nagłówku). */
+/** Łączna liczba sztuk (suma ilości wszystkich linii). */
 export function cartItemCount(state: CartState): number {
   return normalizeCart(state).items.reduce((sum, line) => sum + line.quantity, 0);
+}
+
+/**
+ * LICZBA POZYCJI koszyka — badge w nagłówku (F7). Osobno od `cartItemCount`,
+ * bo to są DWA różne pytania: „ile rzeczy mam na liście" (badge, spec F7:
+ * „Koszyk, 2 pozycje") vs „ile egzemplarzy" (suma ilości). Do F7 badge mówił
+ * sztukami — 1 agregat × 5 szt. wyglądał jak pięć zakupów.
+ */
+export function cartPositionCount(state: CartState): number {
+  return normalizeCart(state).items.length;
 }
 
 export function isCartEmpty(state: CartState): boolean {

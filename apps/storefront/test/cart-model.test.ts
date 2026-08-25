@@ -13,6 +13,7 @@ import {
   MAX_QUANTITY_PER_PRODUCT,
   addToCart,
   cartItemCount,
+  cartPositionCount,
   hasValidDateRange,
   isCheckoutReady,
   normalizeCart,
@@ -94,6 +95,14 @@ describe("ilości i limity", () => {
     let cart = addToCart(EMPTY_CART, A, 2);
     cart = addToCart(cart, B, 3);
     expect(cartItemCount(cart)).toBe(5);
+  });
+
+  it("cartPositionCount liczy POZYCJE, nie sztuki (badge nagłówka, F7)", () => {
+    let cart = addToCart(EMPTY_CART, A, 2);
+    cart = addToCart(cart, B, 3);
+    // Ten sam koszyk: 5 sztuk, ale DWIE pozycje — rozjazd jest treścią dowodu.
+    expect(cartPositionCount(cart)).toBe(2);
+    expect(cartPositionCount(EMPTY_CART)).toBe(0);
   });
 
   it("odrzuca śmieciowe ilości (ujemne, ułamki, NaN)", () => {

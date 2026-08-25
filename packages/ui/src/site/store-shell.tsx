@@ -74,10 +74,13 @@ export function StoreShellHeader({
   storeName,
   logo,
   cartLabel,
+  cartAriaLabel,
   cartBadge,
   cartCurrent = false,
-  nav,
+  search,
+  subnav,
   center,
+  sticky = false,
   linkComponent,
   interactive = true,
 }: {
@@ -91,7 +94,14 @@ export function StoreShellHeader({
   logo: SiteLogoRender | null;
   /** Napis przycisku koszyka w języku SKLEPU (oś tenancka), nie panelu. */
   cartLabel: string;
-  /** Licznik sztuk — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
+  /**
+   * PEŁNA NAZWA DOSTĘPNA odnośnika koszyka (F7) — „Koszyk, 2 pozycje" zamiast
+   * gołego „Koszyk", gdy sklep zna licznik. Wnosi ją WOŁAJĄCY razem z badge'em,
+   * bo odmiana liczebnika jest sprawą copy sklepu, nie pakietu. Brak = nazwa
+   * z widocznego napisu (podgląd szkicu, koszyk pusty).
+   */
+  cartAriaLabel?: string;
+  /** Licznik pozycji — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
   cartBadge?: ReactNode;
   /**
    * CZY ODWIEDZAJĄCY STOI NA `/cart` (S-52 audytu 2026-08-25, WCAG 2.4.8).
@@ -103,25 +113,45 @@ export function StoreShellHeader({
    */
   cartCurrent?: boolean;
   /**
-   * MENU KATEGORII (ADR-247) — slot obok znaku firmy. Wnosi go WYŁĄCZNIE sklep
-   * (podgląd szkicu w panelu nie ma katalogu i nie podaje nic), tak samo jak
-   * licznik koszyka i pigułkę terminu. Pakiet nie wie, CO w slocie stoi — dostaje
-   * gotowy węzeł albo `undefined` i wtedy belka wygląda jak przed ADR-247.
+   * WYSZUKIWANIE W BELCE (F7) — slot między znakiem a pigułką terminu. Wnosi
+   * go WYŁĄCZNIE sklep (podgląd szkicu nie ma trasy `/katalog`, więc nie podaje
+   * nic — i belka wygląda jak przed F7). Pakiet nie wie, CO w slocie stoi:
+   * o formie (pełne pole vs ikona) rozstrzyga wołający per trasa.
    */
-  nav?: ReactNode;
+  search?: ReactNode;
   /**
-   * ŚRODEK BELKI (aneks ADR-194) — slot między znakiem a koszykiem. Sklep
-   * stawia tu pigułkę terminu; podgląd szkicu nie podaje nic i belka wygląda
-   * dokładnie jak przed aneksem. Pakiet nie wie, CO w slocie stoi — tak samo,
-   * jak nie zna licznika koszyka.
+   * DRUGI RZĄD NAGŁÓWKA (F7) — listwa kategorii pod belką: poziome odnośniki
+   * na szerokim kontenerze, przewijane chipsy na wąskim. Wnosi go WYŁĄCZNIE
+   * sklep i tylko na trasach, które listwę mają (poza kasą i koszykiem).
+   * Rząd stoi WEWNĄTRZ `<header>`, żeby kleił się razem z belką (sticky).
+   */
+  subnav?: ReactNode;
+  /**
+   * ŚRODEK BELKI (aneks ADR-194) — slot między wyszukiwaniem a koszykiem.
+   * Sklep stawia tu pigułkę terminu; podgląd szkicu nie podaje nic i belka
+   * wygląda dokładnie jak przed aneksem. Pakiet nie wie, CO w slocie stoi —
+   * tak samo, jak nie zna licznika koszyka.
    *
-   * Slot jest WIDOCZNY OD `md` W GÓRĘ: poniżej belka jest za wąska na trzy
-   * elementy i sklep pokazuje tę samą treść w wierszu POD belką. Rozjazd robi
-   * media query (obie formy stoją w SSR), nie pomiar skryptem — breakpoint
-   * musi zostać TEN SAM, co `md:hidden` na wierszu w `StoreTermBar`, inaczej
-   * w pasie szerokości między nimi pigułka jest podwójna albo znika.
+   * Slot jest WIDOCZNY OD 48 rem KONTENERA `site` W GÓRĘ (F7 przeniosło próg
+   * z viewportowego `md:` na kontenerowy — ADR-085: podgląd w panelu mierzy
+   * SWOJĄ szerokość, nie okna). Poniżej belka jest za wąska na cztery elementy
+   * i sklep pokazuje tę samą treść w wierszu POD belką. Rozjazd robi zapytanie
+   * kontenerowe (obie formy stoją w SSR), nie pomiar skryptem — próg musi
+   * zostać TEN SAM, co `@min-[48rem]/site:hidden` na wierszu w `StoreTermBar`,
+   * inaczej w pasie szerokości między nimi pigułka jest podwójna albo znika.
    */
   center?: ReactNode;
+  /**
+   * PRZYKLEJENIE NAGŁÓWKA (F7) — `sticky top-0 z-40`, tło pasa default,
+   * a linia `--site-border` u dołu dopiero PO przewinięciu (atrybut
+   * `data-store-header-scrolled` stawia sonda sklepu; reguła w site.css).
+   *
+   * Domyślnie WYŁĄCZONE, bo podgląd szkicu w panelu ma nad sobą WŁASNY
+   * przyklejony pasek (`data-preview-bar`, z-50) — drugi sticky pod nim
+   * wsuwałby belkę sklepu POD pasek panelu i chował ją przy przewijaniu.
+   * Sklep włącza jawnie; podgląd nie podaje nic i wygląda jak dotąd.
+   */
+  sticky?: boolean;
   /**
    * Komponent odnośnika. Sklep podaje `next/link` (nawigacja bez przeładowania);
    * brak = zwykłe `<a>`. Przy `interactive={false}` nie jest używany wcale.
@@ -160,20 +190,20 @@ export function StoreShellHeader({
   );
 
   return (
-    <header className="site-header" data-store-header>
+    <header
+      className={cn("site-header", sticky && "sticky top-0 z-40")}
+      data-store-header
+      {...(sticky ? { "data-store-header-sticky": "" } : {})}
+    >
       {/*
-        `relative` jest KOTWICĄ panelu menu kategorii na wąskim kontenerze
-        (S-01 audytu 2026-08-25): poniżej 40 rem panel rozpina się na
-        szerokość TEGO wiersza (`left-0 right-0`), zamiast wystawać poza
-        okno z pudełka wyzwalacza. Patrz `StoreCategoryMenu` w storefront.
+        `relative` jest KOTWICĄ paneli belki na wąskim kontenerze (S-01 audytu
+        2026-08-25, ta sama technika w F7 dla panelu wyszukiwania): panel
+        rozpina się na szerokość TEGO wiersza (`left-0 right-0`), zamiast
+        wystawać poza okno z pudełka wyzwalacza. Patrz `StoreHeaderSearch`
+        w storefront.
       */}
-      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-4 py-4")}>
-        {/*
-          ZNAK I MENU KATEGORII stoją razem na lewej krawędzi (`shrink-0`, żeby
-          slot środkowy zwężał się pierwszy). Menu podaje WYŁĄCZNIE sklep — przy
-          `interactive={false}` (podgląd) go nie ma, bo trasa panelu nie zna ani
-          katalogu, ani adresu kategorii.
-        */}
+      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-3 py-3")}>
+        {/* ZNAK na lewej krawędzi (`shrink-0` — slot wyszukiwania zwęża się pierwszy). */}
         <div className="flex shrink-0 items-center gap-4">
           {interactive ? (
             <Anchor href={HOME_HREF} className={brandClassName}>
@@ -184,22 +214,26 @@ export function StoreShellHeader({
               {brand}
             </span>
           )}
-          {interactive && nav != null ? nav : null}
         </div>
         {/*
-          `flex-1` + `justify-center` środkuje slot w WOLNYM pasie między
-          znakiem a koszykiem (skrajne elementy trzymają swoje szerokości),
-          `min-w-0` pozwala mu się zwęzić zamiast wypychać koszyk poza ekran.
+          WYSZUKIWANIE DOMINUJE ŚRODEK BELKI (F7): slot dostaje CAŁY wolny pas
+          (`flex-1`), a `min-w-0` pozwala mu się zwęzić zamiast wypychać koszyk
+          poza ekran. O formie (pełne pole vs ikona) rozstrzyga treść slotu.
+        */}
+        {search != null ? <div className="flex min-w-0 flex-1 items-center">{search}</div> : null}
+        {/*
+          Pigułka terminu trzyma swoją szerokość (`shrink-0`) — przy ciasnym
+          pasie zwęża się POLE wyszukiwania, nie fraza terminu (fraza jest
+          atomowa, S-10, i ścięta wyglądałaby jak inna data).
         */}
         {center != null ? (
-          <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 md:flex">
-            {center}
-          </div>
+          <div className="hidden shrink-0 items-center gap-3 @min-[48rem]/site:flex">{center}</div>
         ) : null}
         {interactive ? (
           <Anchor
             href={CART_HREF}
             className={cartClassName}
+            aria-label={cartAriaLabel}
             aria-current={cartCurrent ? "page" : undefined}
           >
             <span>{cartLabel}</span>
@@ -212,6 +246,11 @@ export function StoreShellHeader({
           </span>
         )}
       </div>
+      {/*
+        DRUGI RZĄD (F7): listwa kategorii. WEWNĄTRZ nagłówka, żeby kleiła się
+        razem z belką i żeby linia po przewinięciu stała POD nią, nie nad nią.
+      */}
+      {subnav != null ? subnav : null}
     </header>
   );
 }

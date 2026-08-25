@@ -346,8 +346,12 @@
     "nav": {
       "catalog": "Catalog",
       "cart": "Cart",
-      "cartCount": "{count} pcs",
-      "categories": "Categories"
+      "cartCountOne": "Cart, {total} item",
+      "cartCountFew": "Cart, {total} items",
+      "cartCountMany": "Cart, {total} items",
+      "categories": "Categories",
+      "allCatalog": "Full catalog",
+      "more": "More"
     },
     "notFound": {
       "title": "We could not find that page",

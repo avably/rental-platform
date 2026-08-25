@@ -449,11 +449,13 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   //
   // CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót wiersza terminu pod belką NA DESKTOPIE
   // (forma sprzed aneksu — właściciel kazał ją zdjąć) albo zniknięcie pigułki
-  // z belki. Media query nie zostawia śladu w renderze statycznym, więc bramka
-  // mierzy DOKŁADNIE to, co media query czyta: klasy w SSR. Suita terminu
-  // montuje pasek sama i mierzy zachowanie — o MIEJSCU w dokumencie trasy nie
-  // mówi nic, dlatego ta bramka stoi tu, przy prawdziwym renderze trasy.
-  it("pigułka terminu stoi W BELCE, a wiersz pod belką niesie md:hidden", async () => {
+  // z belki. Zapytanie kontenerowe nie zostawia śladu w renderze statycznym,
+  // więc bramka mierzy DOKŁADNIE to, co ono czyta: klasy w SSR. Od F7 próg
+  // jest KONTENEROWY (`@min-[48rem]/site:hidden`, ADR-085) — ta sama para,
+  // którą belka pokazuje slot pigułki (`@min-[48rem]/site:flex`). Suita
+  // terminu montuje pasek sama i mierzy zachowanie — o MIEJSCU w dokumencie
+  // trasy nie mówi nic, dlatego ta bramka stoi tu, przy prawdziwym renderze.
+  it("pigułka terminu stoi W BELCE, a wiersz pod belką jest formą wąską (48rem kontenera)", async () => {
     const markup = await renderProductPage();
 
     // Noga kontrolna: belka w ogóle jest — bez niej `slice` mierzyłby pustkę.
@@ -465,14 +467,15 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
     ).toContain("data-store-term-toggle");
 
     // Wiersz pod belką: PIERWSZE dziecko owijki `data-store-term`. Wolno mu
-    // istnieć wyłącznie jako forma mobilna — czyli z `md:hidden` w klasach.
+    // istnieć wyłącznie jako forma wąska — czyli ukryta od 48 rem KONTENERA.
     const wiersz = markup.match(/data-store-term="true"><div class="([^"]*)"/)?.[1] ?? "";
-    expect(wiersz, "wiersza terminu pod belką nie ma w SSR (forma mobilna)").toContain(
+    expect(wiersz, "wiersza terminu pod belką nie ma w SSR (forma wąska)").toContain(
       "site-rule-top",
     );
-    expect(wiersz, "wiersz terminu pod belką wrócił na desktop — zgubił md:hidden").toContain(
-      "md:hidden",
-    );
+    expect(
+      wiersz,
+      "wiersz terminu pod belką wrócił na desktop — zgubił @min-[48rem]/site:hidden",
+    ).toContain("@min-[48rem]/site:hidden");
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------

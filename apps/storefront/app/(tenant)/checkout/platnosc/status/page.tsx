@@ -140,6 +140,11 @@ export default async function TenantPaymentStatusPage() {
       term={null}
       /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
       categoryNav={categoryNavItems(catalog)}
+      /*
+        TRYB KASOWY (F7 pkt 4) — status płatności domyka ścieżkę `/checkout/*`;
+        klient czeka na werdykt, nagłówek nie ma go rozpraszać listwą i polem.
+      */
+      headerMode="checkout"
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
       <div className="site-card mt-6 p-6" role="status">

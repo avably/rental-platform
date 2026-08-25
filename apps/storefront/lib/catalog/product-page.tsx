@@ -280,6 +280,8 @@ export async function renderProductPage({
           logo. Pozycje z wąskiego odczytu w kontekście strony (ADR-266).
         */
         categoryNav={ctx.categoryNav}
+        /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
+        headerMode="catalog"
         revealNonce={revealNonce}
       >
         {productLd ? <JsonLd data={productLd} /> : null}
@@ -299,7 +301,7 @@ export async function renderProductPage({
             zawsze, także przy szablonie opublikowanym pustym.
           */}
           {/* Wspólna siatka strony najemcy (S-58) — te same klasy, co `PageShell`. */}
-          <div className={cn(SITE_CONTAINER, "py-10")}>
+          <div className={cn(SITE_CONTAINER, "pt-5 pb-10 @min-[40rem]/site:pt-6")}>
             <ProductDetail product={product} copy={copy} booking={booking} />
           </div>
           {/*
@@ -343,6 +345,8 @@ export async function renderProductPage({
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
       /* Menu kategorii (S-30) — jak w gałęzi szablonu wyżej. */
       categoryNav={ctx.categoryNav}
+      /* Trasa KATALOGOWA (F7) — jak w gałęzi szablonu wyżej. */
+      headerMode="catalog"
     >
       {productLd ? <JsonLd data={productLd} /> : null}
       {/* Kanon strony głównej, nie trasa wewnętrzna `/store` (S-45/M-14). */}

@@ -21,6 +21,7 @@ import type { ReactNode } from "react";
 import type { CategoryNavItem } from "@/lib/catalog/category-nav";
 import { StoreCategoryMenu } from "@/components/storefront/store-category-menu";
 import { StoreHeader } from "@/components/storefront/store-header";
+import { StoreHeaderSearch } from "@/components/storefront/store-header-search";
 import {
   StoreCatalogAvailability,
   StoreTermBar,
@@ -60,6 +61,24 @@ export interface StoreTermInput {
  */
 export { SITE_HEADING } from "@avably/ui";
 
+/**
+ * TRYB NAGŁÓWKA PER TRASA (F7) — trzy formy jednego nagłówka:
+ *
+ *   • `catalog`  — trasy katalogowe (strona główna, /katalog, kategoria,
+ *     strona sprzętu): pełne pole wyszukiwania od 48 rem, listwa kategorii,
+ *     a na wąskim kontenerze rząd przewijanych chipsów;
+ *   • `content`  — strony treściowe (podstrony kreatora, dokumenty prawne,
+ *     płatność): jak `catalog`, ale BEZ chipsów na telefonie — kategorie nie
+ *     są tam głównym zadaniem (spec F7 pkt 3 mówi o „trasach katalogowych");
+ *   • `checkout` — koszyk i kasa (`/cart`, `/checkout/*`): bez listwy,
+ *     wyszukiwanie zwinięte do ikony — redukcja dystrakcji (spec F7 pkt 4).
+ *
+ * DOMYŚLNIE `content`, bo to forma bezpieczna dla trasy, która o F7 nic nie
+ * wie: pełny nagłówek bez dodatkowego rzędu mobilnego. Trasy katalogowe
+ * i kasowe deklarują tryb JAWNIE.
+ */
+export type StoreHeaderMode = "catalog" | "content" | "checkout";
+
 export function StoreChrome({
   style,
   copy,
@@ -69,6 +88,7 @@ export function StoreChrome({
   siteImageBase,
   term,
   categoryNav,
+  headerMode = "content",
   footerAnchorBase,
   currentPath,
   revealNonce,
@@ -141,6 +161,8 @@ export function StoreChrome({
    * wyzwalacza (nie rysujemy „Kategorie" bez ani jednej półki).
    */
   categoryNav?: readonly CategoryNavItem[];
+  /** Tryb nagłówka (F7) — patrz `StoreHeaderMode` wyżej. */
+  headerMode?: StoreHeaderMode;
   /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
@@ -168,12 +190,37 @@ export function StoreChrome({
   const footer = withFooterContactTarget(shellSections(site), site);
   const shellFooter = footerAnchorBase ? withAnchorBase(footer, footerAnchorBase) : footer;
 
-  // Menu kategorii jest CHROME wyprowadzonym z katalogu, nie treścią sekcji —
-  // dlatego składa je powłoka z gotowych pozycji, a nie renderer strony.
-  const categoryMenu =
-    categoryNav && categoryNav.length > 0 ? (
-      <StoreCategoryMenu items={categoryNav} label={copy.nav.categories} />
+  // Listwa kategorii jest CHROME wyprowadzonym z katalogu, nie treścią sekcji —
+  // dlatego składa ją powłoka z gotowych pozycji, a nie renderer strony.
+  // Na kasie i w koszyku listwy NIE MA (spec F7 pkt 4 — redukcja dystrakcji);
+  // chipsy mobilne dostają wyłącznie trasy katalogowe (pkt 3).
+  const categoryBar =
+    headerMode !== "checkout" && categoryNav && categoryNav.length > 0 ? (
+      <StoreCategoryMenu
+        items={categoryNav}
+        label={copy.nav.categories}
+        allCatalogLabel={copy.nav.allCatalog}
+        moreLabel={copy.nav.more}
+        currentPath={currentPath}
+        chips={headerMode === "catalog"}
+      />
     ) : undefined;
+
+  /*
+    WYSZUKIWANIE NA KAŻDEJ TRASIE (F7): pełne pole poza kasą, na kasie ikona.
+    Napisy z copy KATALOGU — nagłówek i toolbar listingu mówią o tym samym
+    wyszukiwaniu (globalnym, ADR-263) i mają mówić tymi samymi słowami.
+  */
+  const headerSearch = (
+    <StoreHeaderSearch
+      labels={{
+        label: copy.catalog.searchLabel,
+        placeholder: copy.catalog.searchPlaceholder,
+        submit: copy.catalog.searchSubmit,
+      }}
+      variant={headerMode === "checkout" ? "icon" : "full"}
+    />
+  );
 
   // `min-h-screen` na KORZENIU, a nie na treści: powierzchnia motywu ma
   // sięgać dołu okna, inaczej pod krótką stroną (pusty koszyk) prześwituje
@@ -201,17 +248,20 @@ export function StoreChrome({
       */}
       <StoreTermProvider>
         {/*
-          PIGUŁKA TERMINU W BELCE (aneks ADR-194): na desktopie stoi między
-          znakiem a koszykiem (slot `center` nagłówka), na mobile tę samą
-          treść pokazuje wiersz w `StoreTermBar` niżej — media query pokazuje
-          dokładnie jedno wystąpienie. Trasy bez terminu (płatność, status,
-          dokumenty) nie dostają ani slotu, ani wiersza — jak przed aneksem.
+          PIGUŁKA TERMINU W BELCE (aneks ADR-194): na szerokim kontenerze stoi
+          między wyszukiwaniem a koszykiem (slot `center` nagłówka), na wąskim
+          tę samą treść pokazuje wiersz w `StoreTermBar` niżej — zapytanie
+          kontenerowe 48 rem (od F7; wcześniej `md:`) pokazuje dokładnie jedno
+          wystąpienie. Trasy bez terminu (płatność, status, dokumenty) nie
+          dostają ani slotu, ani wiersza — jak przed aneksem.
         */}
         <StoreHeader
           copy={copy}
+          {...(term ? { locale: term.locale } : {})}
           storeName={storeName}
           logo={logo}
-          nav={categoryMenu}
+          search={headerSearch}
+          subnav={categoryBar}
           center={term ? <StoreTermPill copy={copy} locale={term.locale} /> : undefined}
         />
         {term ? <StoreTermBar copy={copy} products={term.products} locale={term.locale} /> : null}

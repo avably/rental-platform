@@ -366,6 +366,42 @@
 }
 
 /*
+ * NAGŁÓWEK PRZYKLEJONY (F7): linia u dołu dopiero PO PRZEWINIĘCIU.
+ *
+ * U szczytu strony przyklejona belka stoi na tym samym pasie, co treść —
+ * kreska oddzielałaby coś, co się jeszcze nie rozjechało. Rozjazd zaczyna się
+ * z pierwszym przewiniętym pikselem i wtedy atrybut `data-store-header-scrolled`
+ * (stawia go sonda IntersectionObserver w sklepie — `StoreHeader`) przywraca
+ * kreskę. Kolor przez `border-color`, nie przez zdjęcie border-width: szerokość
+ * ramki jest stała, więc przełączenie NIE przesuwa układu o piksel (bez CLS).
+ *
+ * Bez JavaScriptu atrybut nie stanie nigdy — belka bez kreski to świadoma,
+ * czysto kosmetyczna degradacja (żaden element nie przestaje działać).
+ * Nagłówek NIE-sticky (podgląd szkicu w panelu) nie niesie
+ * `data-store-header-sticky` i trzyma kreskę na stałe, jak dotąd.
+ */
+.site-header[data-store-header-sticky] {
+  border-bottom-color: transparent;
+}
+
+.site-header[data-store-header-sticky][data-store-header-scrolled] {
+  border-bottom-color: var(--site-border);
+}
+
+/*
+ * KOTWICE POD PRZYKLEJONYM NAGŁÓWKIEM (F7). Skok do `#kontakt`/`#produkty`
+ * ustawiał cel przy samej górze okna — od F7 górę okna zasłania belka, więc
+ * bez marginesu przewijania pierwsze wiersze celu wjeżdżałyby POD nagłówek.
+ * `:where()` trzyma specyficzność na zerze (żaden świadomy margines sekcji
+ * nie musi z tą regułą walczyć). Wartość kryje belkę z listwą kategorii
+ * (~7.25 rem) z oddechem; na trasach z niższym nagłówkiem nadmiar jest tylko
+ * większym odstępem po skoku — nie wadą.
+ */
+.site-root :where([id]) {
+  scroll-margin-top: 8.5rem;
+}
+
+/*
  * ZNAK FIRMY NAJEMCY (ADR-160) — PUDEŁKO O STAŁEJ WYSOKOŚCI.
  *
  * Wysokość jest ustalona, a szerokość ograniczona z góry, więc plik o dowolnych
