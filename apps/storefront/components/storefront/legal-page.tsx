@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { LegalDocumentView } from "@/components/storefront/legal-document-view";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { PageShell } from "@/components/storefront/page-shell";
 import {
   getLegalDocumentVersion,
@@ -92,6 +93,13 @@ export async function LegalDocumentPage({ kind }: { kind: LegalDocumentKind }) {
         Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
       */
       term={null}
+      /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
+      categoryNav={categoryNavItems(ctx.catalog)}
+      /*
+        Self-linki stopki (S-52): „Regulamin" w stopce na /regulaminie dostaje
+        `aria-current="page"` zamiast udawać nawigację.
+      */
+      currentPath={LEGAL_DOCUMENT_PATHS[kind]}
     >
       <LegalDocumentView
         title={document.title}
@@ -141,6 +149,8 @@ export async function LegalDocumentVersionPage({
         Kalendarz nad regulaminem byłby wyborem bez czego wybierać.
       */
       term={null}
+      /* Menu kategorii (S-30) — jak w żywej wersji wyżej. */
+      categoryNav={categoryNavItems(ctx.catalog)}
     >
       <LegalDocumentView
         title={document.title}

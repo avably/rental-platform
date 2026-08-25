@@ -289,10 +289,29 @@ export async function runProxy(request: NextRequest, deps: ProxyDeps): Promise<N
      * `app/(tenant)/[slug]` nie da się dodać obok `app/[locale]`. Wejście
      * wprost pod adres wewnętrzny dałoby tę samą treść pod drugim adresem —
      * duplikat kanoniczny, którego najemca nigdy sam nie zauważy.
+     *
+     * GOŁE `/store` TEŻ (S-45/M-14 audytu 2026-08-25): do tej poprawki
+     * przechodziło i oddawało 200 z treścią identyczną ze stroną główną —
+     * czyli dokładnie ten duplikat kanoniczny, przed którym broni reszta tej
+     * gałęzi ("Adres wewnętrzny nigdy nie jest adresem publicznym",
+     * `page-slug.ts`). Zamiast 404 jest 308 NA KANON `/`: adres krąży w
+     * linkach wewnętrznych sprzed tej poprawki (koszyk, potwierdzenia) i w
+     * zakładkach klientów, więc twarda odmowa gasiłaby działające wejścia.
+     * Parametry zapytania zostają — jak przy 308 z historii adresów niżej.
+     * Rewrite'owi `/` → `/store` z gałęzi (1) nic tu nie grozi: rewrite nie
+     * wraca do middleware'u, więc ta gałąź widzi wyłącznie żądania z zewnątrz.
+     *
+     * `/store/og` zostaje osiągalne: to trasa OBRAZU OG, po którą roboty
+     * przychodzą bezpośrednim żądaniem — nie ma kanonu, na który można by ją
+     * przekierować.
      */
     if (first === INTERNAL_PAGE_PREFIX.slice(1)) {
-      const wewnetrzne = pathname !== TENANT_STORE_PATHNAME && pathname !== "/store/og";
-      return wewnetrzne ? neutralNotFound(nonce, csp) : passThrough();
+      if (pathname === TENANT_STORE_PATHNAME) {
+        const target = request.nextUrl.clone();
+        target.pathname = "/";
+        return applySecurityHeaders(NextResponse.redirect(target, 308), nonce, csp);
+      }
+      return pathname === "/store/og" ? passThrough() : neutralNotFound(nonce, csp);
     }
 
     // (4) Pozostałe trasy sklepu (koszyk, kasa, produkt, dokumenty, embed)

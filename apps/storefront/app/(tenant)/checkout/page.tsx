@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { checkoutCustomFields } from "@avably/core";
@@ -90,6 +91,14 @@ export default async function TenantCheckoutPage() {
         `storeTermInput`, wspólny dla wszystkich tras handlowych.
         */
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /*
+        MENU KATEGORII TAKŻE W KASIE (S-30). Dotychczasowy brak nie był
+        decyzją o redukcji dystrakcji, tylko historią przepływu danych (trasa
+        nie miała pozycji pod ręką) — a nagłówek i tak niesie logo i koszyk,
+        więc menu nie otwiera tu żadnej nowej drogi ucieczki.
+      */
+      categoryNav={categoryNavItems(catalog)}
+      currentPath="/checkout"
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.checkout.title}</h1>
       <div className="mt-6">

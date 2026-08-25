@@ -15,11 +15,12 @@
  * nagłówek pod motywem, nie ma już czego zrobić źle — dostaje go z powłoki.
  */
 import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
-import { cn } from "@avably/ui";
+import { cn, SITE_CONTAINER } from "@avably/ui";
 import type { ReactNode } from "react";
 
 import { StoreChrome, type StoreTermInput } from "@/components/storefront/store-chrome";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
+import type { CategoryNavItem } from "@/lib/catalog/category-nav";
 import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 
@@ -31,6 +32,8 @@ export function PageShell({
   logo,
   siteImageBase,
   term,
+  categoryNav,
+  currentPath,
   children,
   className,
 }: {
@@ -62,6 +65,20 @@ export function PageShell({
    * `null` na trasach, które NIE SPRZEDAJĄ: płatność, jej status, dokumenty.
    */
   term: StoreTermInput | null;
+  /**
+   * MENU KATEGORII (S-30 audytu 2026-08-25, na bazie ADR-247/266) — te same
+   * pozycje wejść do stron kategorii, które nagłówek pokazuje na stronie
+   * głównej i katalogu. Do S-30 podstrony nie podawały nic i poza katalogiem
+   * nagłówek nie miał ŻADNEJ nawigacji do oferty (samo logo i koszyk).
+   * Podaje je trasa: z pełnego katalogu (`categoryNavItems`) albo z wąskiego
+   * odczytu (`loadCategoryNav`, ADR-266).
+   */
+  categoryNav?: readonly CategoryNavItem[];
+  /**
+   * Publiczna ścieżka bieżącej strony (S-52) — do oznaczenia self-linków
+   * stopki (`aria-current="page"`); patrz `StoreChrome`.
+   */
+  currentPath?: string;
   children: ReactNode;
   className?: string;
 }) {
@@ -74,6 +91,8 @@ export function PageShell({
       logo={logo}
       siteImageBase={siteImageBase}
       term={term}
+      categoryNav={categoryNav}
+      currentPath={currentPath}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ GŁÓWNĄ (faza 0; poprawione w ADR-186).
         Użytkownicy tej powłoki to z definicji PODSTRONY — nie ma na nich sekcji,
@@ -87,7 +106,8 @@ export function PageShell({
       */
       footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
     >
-      <main className={cn("mx-auto w-full max-w-5xl px-6 py-10", className)}>{children}</main>
+      {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
+      <main className={cn(SITE_CONTAINER, "py-10", className)}>{children}</main>
     </StoreChrome>
   );
 }

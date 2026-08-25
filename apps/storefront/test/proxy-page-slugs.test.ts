@@ -167,11 +167,24 @@ describe("adres wewnętrzny nie jest adresem publicznym", () => {
     expect(response.status).toBe(404);
   });
 
-  it("`/store` i `/store/og` zostają osiągalne", async () => {
-    for (const path of ["/store", "/store/og"]) {
-      const response = await runProxy(request(`https://alfa.avably.io${path}`), deps);
-      expect(response.status, `trasa ${path} przestała działać`).toBe(200);
-    }
+  it("`/store/og` zostaje osiągalne — trasa obrazu OG nie ma kanonu do przekierowania", async () => {
+    const response = await runProxy(request("https://alfa.avably.io/store/og"), deps);
+    expect(response.status, "trasa /store/og przestała działać").toBe(200);
+  });
+
+  it("gołe `/store` dostaje 308 na kanon `/`, Z PARAMETRAMI zapytania (S-45/M-14)", async () => {
+    /*
+      Do audytu 2026-08-25 `/store` przechodziło i oddawało 200 z treścią
+      IDENTYCZNĄ ze stroną główną — duplikat kanoniczny, a znak firmy w
+      nagłówku wprost do niego linkował. 308 zamiast 404, bo adres krąży
+      w linkach wewnętrznych sprzed poprawki i w zakładkach klientów.
+    */
+    const response = await runProxy(request("https://alfa.avably.io/store?fbclid=xyz"), deps);
+    expect(response.status).toBe(308);
+    expect(rewrittenTo(response), "duplikat: /store dalej renderuje stronę").toBeNull();
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.pathname).toBe("/");
+    expect(location.searchParams.get("fbclid")).toBe("xyz");
   });
 });
 

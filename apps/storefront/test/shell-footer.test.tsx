@@ -31,7 +31,12 @@ import { describe, expect, it } from "vitest";
 
 import { PageShell } from "../components/storefront/page-shell";
 import { StoreChrome } from "../components/storefront/store-chrome";
-import { pageSections, shellSections, withAnchorBase } from "../lib/site/page-sections";
+import {
+  pageSections,
+  shellSections,
+  withAnchorBase,
+  withFooterContactTarget,
+} from "../lib/site/page-sections";
 import { getStorefrontCopy } from "../lib/storefront/copy";
 
 const NAZWA_FIRMY = "Wypożyczalnia Kontrolna sp. z o.o.";
@@ -226,6 +231,105 @@ describe("kotwice stopki poza stroną z sekcjami", () => {
     expect(JSON.stringify(sekcje)).toBe(przed);
   });
 
+  /**
+   * „KONTAKT" NIGDY DO SEKCJI CTA (S-38 audytu UX 2026-08-25). Preset stopki
+   * szablonów startowych linkuje „Kontakt" do `#rezerwacja` — marketingowego
+   * pasma wezwania bez żadnych danych kontaktowych — bo skład szablonu nie ma
+   * sekcji kontaktu. Powłoka przepisuje cel przy renderze (treść w bazie bez
+   * zmian): sekcja kontaktu, gdy strona główna ją ma; inaczej `mailto:`
+   * z e-maila stopki.
+   */
+  describe("cel odnośnika Kontakt w stopce (S-38)", () => {
+    function stopkaZRezerwacja(email: string | null): PublishedSection {
+      return {
+        id: "s-footer",
+        position: 2,
+        type: "footer",
+        content: {
+          businessName: NAZWA_FIRMY,
+          ...(email ? { email } : {}),
+          legal: "© Kontrolna.",
+          links: [
+            { label: "Regulamin", href: "/regulamin" },
+            { label: "Kontakt", href: "#rezerwacja" },
+          ],
+        },
+      } as unknown as PublishedSection;
+    }
+
+    function siteZ(sections: PublishedSection[]): PublishedSite {
+      return { ...strona(), sections } as PublishedSite;
+    }
+
+    it("strona główna MA sekcję kontaktu → cel staje się `#kontakt`", () => {
+      const kontakt = {
+        id: "s-contact",
+        position: 1,
+        type: "contact",
+        content: { heading: "Kontakt" },
+      } as unknown as PublishedSection;
+      const stopka = stopkaZRezerwacja("kontakt@kontrolna.pl");
+      const site = siteZ([sekcja("s-hero", "hero"), kontakt, stopka]);
+      const [wynik] = withFooterContactTarget([stopka], site);
+      const links = (wynik!.content as { links: { href: string }[] }).links;
+      expect(links.map((link) => link.href)).toEqual(["/regulamin", "#kontakt"]);
+    });
+
+    it("bez sekcji kontaktu, z e-mailem w stopce → `mailto:`", () => {
+      const stopka = stopkaZRezerwacja("kontakt@kontrolna.pl");
+      const site = siteZ([sekcja("s-hero", "hero"), stopka]);
+      const [wynik] = withFooterContactTarget([stopka], site);
+      const links = (wynik!.content as { links: { href: string }[] }).links;
+      expect(links.map((link) => link.href)).toEqual([
+        "/regulamin",
+        "mailto:kontakt@kontrolna.pl",
+      ]);
+    });
+
+    it("bez sekcji kontaktu i bez e-maila lepszego celu nie ma — odnośnik zostaje", () => {
+      const stopka = stopkaZRezerwacja(null);
+      const site = siteZ([sekcja("s-hero", "hero"), stopka]);
+      const [wynik] = withFooterContactTarget([stopka], site);
+      const links = (wynik!.content as { links: { href: string }[] }).links;
+      expect(links.map((link) => link.href)).toEqual(["/regulamin", "#rezerwacja"]);
+    });
+
+    it("przekształcenie jest CZYSTE — treść z bazy zostaje bez zmian", () => {
+      const stopka = stopkaZRezerwacja("kontakt@kontrolna.pl");
+      const site = siteZ([sekcja("s-hero", "hero"), stopka]);
+      const przed = JSON.stringify(stopka);
+      withFooterContactTarget([stopka], site);
+      expect(JSON.stringify(stopka)).toBe(przed);
+    });
+
+    it("POWŁOKA woła przepisanie: render nie niesie już celu `#rezerwacja`", async () => {
+      /*
+        Bez tej nogi zdjęcie `withFooterContactTarget` z `StoreChrome`
+        zostawiłoby testy jednostkowe wyżej zielone, a klient dalej lądowałby
+        w CTA. Render podstrony: cel po przepisaniu i rebazie kotwic.
+      */
+      const copy = await getStorefrontCopy("pl");
+      const stopka = stopkaZRezerwacja("kontakt@kontrolna.pl");
+      const site = siteZ([sekcja("s-hero", "hero"), stopka]);
+      const html = renderToStaticMarkup(
+        <PageShell
+          style={DEFAULT_SITE_STYLE}
+          copy={copy}
+          storeName="Sklep"
+          site={site}
+          logo={null}
+          siteImageBase={BAZA_ZDJEC}
+          term={null}
+        >
+          <p>treść podstrony</p>
+        </PageShell>,
+      );
+      expect(html, "kontrola przyrządu: stopka się nie wyrenderowała").toContain(NAZWA_FIRMY);
+      expect(html).toContain('href="mailto:kontakt@kontrolna.pl"');
+      expect(html, "odnośnik Kontakt dalej prowadzi do sekcji CTA").not.toContain("rezerwacja");
+    });
+  });
+
   it("na stronie katalogu kotwice zostają kotwicami", async () => {
     const copy = await getStorefrontCopy("pl");
     // Trasa katalogu woła powłokę BEZ `footerAnchorBase` — cele kotwic stoją
@@ -248,5 +352,32 @@ describe("kotwice stopki poza stroną z sekcjami", () => {
       'href="#',
     );
     expect(html).not.toContain('href="/store#');
+  });
+});
+
+/**
+ * STOPKA DOPCHNIĘTA DO DOŁU OKNA (S-27 audytu UX 2026-08-25).
+ *
+ * `min-h-screen` rozciągał POWIERZCHNIĘ motywu, ale nie treść — na krótkich
+ * stronach (pusty koszyk, kasa, regulamin) stopka kończyła się w 2/3 ekranu,
+ * a niżej stała pustka. Mechanika: korzeń powłoki jest kolumną flex, a owijka
+ * stopki niesie `mt-auto` — jsdom nie liczy layoutu, więc dowodem są obie
+ * połowy mechanizmu naraz (sama klasa `mt-auto` bez kolumny flex nie robi nic
+ * i odwrotnie).
+ */
+describe("stopka dopchnięta do dołu okna (S-27)", () => {
+  it("korzeń powłoki jest kolumną flex o pełnej wysokości, a stopka niesie mt-auto", async () => {
+    const html = await renderPodstrony(strona());
+    const korzen = /<div class="([^"]*site-root[^"]*)"/.exec(html)?.[1];
+    expect(korzen, "render bez korzenia site-root").toBeTruthy();
+    for (const klasa of ["flex", "min-h-screen", "flex-col"]) {
+      expect(korzen!, `korzeń powłoki stracił ${klasa} — stopka przestaje być dopychana`).toContain(
+        klasa,
+      );
+    }
+    expect(
+      html,
+      "owijka stopki straciła mt-auto — na krótkiej stronie stopka staje w 2/3 ekranu",
+    ).toContain('<div class="mt-auto"><div data-section-id="s-footer"');
   });
 });

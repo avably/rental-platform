@@ -16,6 +16,10 @@ export {
   ProductsSection,
   TestimonialsSection,
   UspSection,
+  // Kontakt stopki jako akcja (S-29): jeden sąd „co jest telefonem/e-mailem"
+  // dla renderu stopki i dla celu „Kontakt" w powłoce sklepu (S-38).
+  linkifyFooterContact,
+  siteContactHref,
 } from "./sections";
 // Sklejanie publicznego URL-a obiektu bucketa `site-images` — jedna zasada dla
 // zdjęć sekcji i dla logo najemcy (ADR-160), więc wychodzi z pakietu.
@@ -29,6 +33,9 @@ export {
 } from "./site-renderer";
 // Powłoka sklepu jako JEDEN kształt dla sklepu i podglądu szkicu (ADR-172).
 export { SITE_HEADING, StoreShellFooter, StoreShellHeader } from "./store-shell";
+// SITE_CONTAINER — wspólna siatka strony najemcy (S-58): treść podstron
+// i pasek terminu w storefroncie mierzą ten sam pas, co płótno sekcji.
+export { SITE_CONTAINER } from "./template";
 // Kalendarz zakresu (faza 5, ADR-179) — jedna siatka dla powłoki sklepu
 // (sam wybór terminu) i dla strony sprzętu (z liczbą wolnych sztuk per dzień).
 export {

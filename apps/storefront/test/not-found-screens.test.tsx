@@ -45,6 +45,9 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  // Nagłówek sklepu czyta ścieżkę pod aria-current koszyka (S-52);
+  // poza routerem Nexta hook oddaje null — jak w renderToStaticMarkup.
+  usePathname: () => null,
 }));
 
 /** Kontekst jak w product-template-route: realne copy, realny styl. */
@@ -57,6 +60,9 @@ vi.mock("@/lib/storefront/context", () => ({
       catalog: {
         tenant: { name: "Wypożyczalnia Testowa", locale: stan.locale, currency: "PLN" },
         products: [],
+        // Menu kategorii powłoki (S-30) liczy pozycje z tych pól — realny
+        // PublicCatalog zawsze je niesie, fikstura też musi.
+        categories: [],
         delivery_methods: [],
         pickup_locations: [],
         custom_fields: [],

@@ -98,7 +98,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
-import { SiteRenderer } from "@avably/ui";
+import { cn, SITE_CONTAINER, SiteRenderer } from "@avably/ui";
 
 import { JsonLd } from "@/components/storefront/json-ld";
 import { ProductBooking } from "@/components/storefront/product-booking";
@@ -274,6 +274,12 @@ export async function renderProductPage({
           a nie stałą adresu katalogu, która od fazy 4b prowadzi gdzie indziej.
         */
         footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
+        /*
+          MENU KATEGORII (S-30 audytu 2026-08-25): klient wchodzący na sprzęt
+          z linku zewnętrznego traci bez niego każdą nawigację do oferty poza
+          logo. Pozycje z wąskiego odczytu w kontekście strony (ADR-266).
+        */
+        categoryNav={ctx.categoryNav}
         revealNonce={revealNonce}
       >
         {productLd ? <JsonLd data={productLd} /> : null}
@@ -292,7 +298,8 @@ export async function renderProductPage({
             szablon nie miał hero, straciła sens i ZNIKA — dokument ma tytuł
             zawsze, także przy szablonie opublikowanym pustym.
           */}
-          <div className="mx-auto w-full max-w-5xl px-6 py-10">
+          {/* Wspólna siatka strony najemcy (S-58) — te same klasy, co `PageShell`. */}
+          <div className={cn(SITE_CONTAINER, "py-10")}>
             <ProductDetail product={product} copy={copy} booking={booking} />
           </div>
           {/*
@@ -334,9 +341,12 @@ export async function renderProductPage({
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
       /* Ta trasa SPRZEDAJE (ADR-179) — pigułkę może wyłączyć najemca (ADR-203): regułę trzyma `storeTermInput`. */
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /* Menu kategorii (S-30) — jak w gałęzi szablonu wyżej. */
+      categoryNav={ctx.categoryNav}
     >
       {productLd ? <JsonLd data={productLd} /> : null}
-      <Link href="/store" className="site-link text-sm">
+      {/* Kanon strony głównej, nie trasa wewnętrzna `/store` (S-45/M-14). */}
+      <Link href="/" className="site-link text-sm">
         {copy.common.backToCatalog}
       </Link>
       <div className="mt-6">

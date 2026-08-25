@@ -34,9 +34,11 @@
 import {
   isSectionCanvas,
   isPinnedLastType,
+  sectionAnchorHref,
   type PublishedSection,
   type PublishedSite,
 } from "@avably/core/site";
+import { siteContactHref } from "@avably/ui";
 
 /**
  * Sekcje należące do STRONY — wszystko poza przypiętymi do końca dokumentu.
@@ -88,6 +90,106 @@ export function withAnchorBase(sections: PublishedSection[], base: string): Publ
   return sections.map(
     (section) => ({ ...section, content: rebaseAnchors(section.content, base) }) as PublishedSection,
   );
+}
+
+/**
+ * „KONTAKT" W STOPCE PROWADZI DO KONTAKTU, NIGDY DO SEKCJI CTA
+ * (S-38 audytu 2026-08-25).
+ *
+ * ==================== CO BYŁO ZEPSUTE ====================
+ *
+ * Preset stopki linkuje „Kontakt" do kotwicy pasma wezwania (`#rezerwacja`),
+ * bo skład szablonu nie ma sekcji kontaktu, a kotwica własnej stopki nie
+ * przewija (pomiar w `starter-templates.ts`). Skutek na sklepie: klient
+ * szukający kontaktu ląduje w marketingowym CTA („Otwórz katalog") — etykieta
+ * obiecuje co innego niż cel. Treść szablonów należy do pasa E9, więc naprawa
+ * NIE zmienia zapisanej treści — jest przekształceniem renderu powłoki, jak
+ * `withAnchorBase` wyżej (i naprawia też stopki JUŻ opublikowane).
+ *
+ * ==================== REGUŁA ====================
+ *
+ *   1. Strona główna MA sekcję kontaktu → cel staje się `#kontakt`
+ *      (a `withAnchorBase` przepisze go na podstronach na `/#kontakt`).
+ *   2. Nie ma sekcji kontaktu, ale stopka niesie e-mail → `mailto:` z tego
+ *      e-maila — kontakt w jednym tapnięciu zamiast skoku do CTA.
+ *   3. Nie ma ani sekcji, ani e-maila (stan bez realnych danych) → odnośnik
+ *      zostaje, bo lepszego celu nie istnieje skąd wziąć.
+ *
+ * Zasięg: WYŁĄCZNIE wartości `href` równe kotwicy CTA — to jedyny przypadek,
+ * w którym cel kłamie etykiecie. Odnośniki do innych kotwic i adresów zostają.
+ */
+export function withFooterContactTarget(
+  footer: PublishedSection[],
+  site: PublishedSite | null,
+): PublishedSection[] {
+  const ctaHref = sectionAnchorHref("cta");
+  if (!footer.some((section) => hasHrefValue(section.content, ctaHref))) return footer;
+
+  const homeHasContact = pageSections(site).some((section) => section.type === "contact");
+  const target = homeHasContact ? sectionAnchorHref("contact") : footerMailto(footer);
+  if (!target) return footer;
+
+  return footer.map(
+    (section) =>
+      ({ ...section, content: rewriteHrefs(section.content, ctaHref, target) }) as PublishedSection,
+  );
+}
+
+/** Czy treść niesie GDZIEKOLWIEK `href` o dokładnie tej wartości. */
+function hasHrefValue(node: unknown, href: string): boolean {
+  if (Array.isArray(node)) return node.some((item) => hasHrefValue(item, href));
+  if (typeof node !== "object" || node === null) return false;
+  return Object.entries(node as Record<string, unknown>).some(([key, value]) =>
+    key === "href" && typeof value === "string" ? value === href : hasHrefValue(value, href),
+  );
+}
+
+/** Rekurencyjne przepisanie `href === from` na `to` — czyste, jak {@link rebaseAnchors}. */
+function rewriteHrefs(node: unknown, from: string, to: string): unknown {
+  if (Array.isArray(node)) return node.map((item) => rewriteHrefs(item, from, to));
+  if (typeof node !== "object" || node === null) return node;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    out[key] =
+      key === "href" && typeof value === "string" && value === from
+        ? to
+        : rewriteHrefs(value, from, to);
+  }
+  return out;
+}
+
+/**
+ * Pierwszy e-mail z treści stopki jako `mailto:` — rozpoznanie CAŁEJ wartości
+ * tekstowej tym samym sądem, którym render stopki linkuje kontakt (S-29),
+ * więc obie naprawy nie mają jak rozjechać się o definicję „e-maila".
+ */
+function footerMailto(footer: PublishedSection[]): string | null {
+  for (const section of footer) {
+    const found = findMailto(section.content);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findMailto(node: unknown): string | null {
+  if (typeof node === "string") {
+    const href = siteContactHref(node);
+    return href?.startsWith("mailto:") ? href : null;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findMailto(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof node !== "object" || node === null) return null;
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    const found = findMailto(value);
+    if (found) return found;
+  }
+  return null;
 }
 
 /** Rekurencyjne przejście po treści sekcji — patrz {@link withAnchorBase}. */

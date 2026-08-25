@@ -106,6 +106,9 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("notFound");
   },
+  // Nagłówek sklepu czyta ścieżkę pod aria-current koszyka (S-52);
+  // poza routerem Nexta hook oddaje null — jak w renderToStaticMarkup.
+  usePathname: () => null,
 }));
 
 vi.mock("@/lib/supabase-server", () => ({

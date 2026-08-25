@@ -25,6 +25,7 @@ import {
   readPaymentIntent,
 } from "@avably/core";
 
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { PageShell } from "@/components/storefront/page-shell";
 import { PaymentStatusRefresh } from "@/components/storefront/payment-status-refresh";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
@@ -90,7 +91,8 @@ export default async function TenantPaymentStatusPage() {
   const { catalog, copy, locale, style, site, tenantId } = ctx;
 
   const order = await loadCheckoutOrder();
-  if (!order) redirect("/store");
+  // Kanon strony głównej, nie trasa wewnętrzna `/store` (S-45/M-14).
+  if (!order) redirect("/");
 
   // Waluta ZAMÓWIENIA (orders.currency przez get_public_order_payment,
   // 0049/ADR-103) — nie waluta z kontekstu sklepu: po zmianie ustawienia
@@ -136,6 +138,8 @@ export default async function TenantPaymentStatusPage() {
         którego tu nie ma, a zmiana koszyka nie miałaby na nie żadnego wpływu.
       */
       term={null}
+      /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
+      categoryNav={categoryNavItems(catalog)}
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.statusTitle}</h1>
       <div className="site-card mt-6 p-6" role="status">
@@ -167,7 +171,7 @@ export default async function TenantPaymentStatusPage() {
             {copy.payment.retry}
           </Link>
         ) : (
-          <Link href="/store" className="site-link mt-6 inline-block font-medium">
+          <Link href="/" className="site-link mt-6 inline-block font-medium">
             {copy.confirmation.backToStore}
           </Link>
         )}
