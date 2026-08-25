@@ -386,6 +386,25 @@ describe("K-20: galeria punktów wyjścia jest deterministyczna i ma drogę powr
     ).not.toBeNull();
   });
 
+  it("WOLA OPERATORA nie przenosi się na inną stronę", async () => {
+    // Operator zamknął galerię na stronie, która treść MA („wróć do kreatora").
+    // Ta odpowiedź dotyczy TAMTEJ strony — świeża, pusta zadaje pytanie od nowa.
+    const { container, rerender } = renderBuilder([pelnaSekcja().section], SITE_ID);
+    fireEvent.click(container.querySelector<HTMLElement>("[data-builder-start-over]")!);
+    fireEvent.click(document.querySelector<HTMLElement>("[data-start-over-confirm]")!);
+    await waitFor(() =>
+      expect(container.querySelector("[data-template-gallery]")).not.toBeNull(),
+    );
+    fireEvent.click(container.querySelector<HTMLElement>("[data-template-gallery-dismiss]")!);
+    expect(container.querySelector("[data-template-gallery]")).toBeNull();
+
+    przeladuj(rerender, [], INNY_SITE_ID);
+    expect(
+      container.querySelector("[data-template-gallery]"),
+      "zamknięcie galerii na jednej stronie zgasiło ją na innej",
+    ).not.toBeNull();
+  });
+
   it("z pustego płótna prowadzi droga POWROTNA do szablonów", async () => {
     const { container } = renderBuilder([]);
     // „Pusta strona” zamyka galerię — od tej chwili operator stoi na pustym płótnie.
