@@ -1,8 +1,15 @@
 /**
  * Wysyłka e-maili po utworzeniu zamówienia (wzorzec 8b — NIGDY nie blokują
- * utworzenia). Dwie wiadomości na WSPÓLNYM transporcie (ADR-033):
- *   1. rental-confirmed → KLIENT (w jego locale, ADR-037),
- *   2. new-order-notification → NAJEMCA (w locale tenanta).
+ * utworzenia). Do DWÓCH wiadomości na WSPÓLNYM transporcie (ADR-033):
+ *   1. rental-confirmed → KLIENT (w jego locale, ADR-037) — TYLKO tor offline,
+ *   2. new-order-notification → NAJEMCA (w locale tenanta) — zawsze.
+ *
+ * TOR ONLINE (payment_provider='stripe') NIE dostaje potwierdzenia klienta
+ * TUTAJ (ADR-271): przy checkoucie płatność jeszcze nie zaszła, więc
+ * „Rezerwacja potwierdzona" byłaby fałszem. Klient dostaje potwierdzenie
+ * dopiero po zapłacie — mailem „płatność zaksięgowana" ze ścieżki sukcesu
+ * płatności (`sendPaymentConfirmedEmail`, ADR-139). Powiadomienie NAJEMCY
+ * idzie dla obu torów: najemca ma prawo wiedzieć o zamówieniu `pending`.
  *
  * Ta funkcja NIE RZUCA — zwraca listę powodów niewysłania (pustą przy sukcesie).
  * Zamówienie jest w tym momencie już utrwalone; żaden problem z pocztą nie może
@@ -114,38 +121,60 @@ export async function sendCheckoutEmails(
   // jest wspólny, ale ścieżka (publiczna, anonowa) i diagnoza przy awarii —
   // inne. Sklejenie ich kosztowałoby dokładnie tę informację, po którą
   // operator otwiera historię (0021).
-  try {
-    const { html, text } = await renderRentalConfirmed({
-      locale: customerLocale,
-      tenantName: ctx.tenant.name,
-      orderNumber: ctx.order_number,
-      customerName,
-      startDate: formatDate(ctx.start_date, customerLocale),
-      endDate: formatDate(ctx.end_date, customerLocale),
-      totalRentalFormatted: formatMoney(ctx.total_rental_grosze, currency, customerLocale),
-      ...(deps.tenantLogo ? { logo: deps.tenantLogo } : {}),
-    });
-    const { sendError, logIssue } = await sendAndLog({
-      transport: deps.transport,
-      recorder: deps.recorder,
-      kind: "checkout_confirmation",
-      email: {
-        from: platformFromAddress(ctx.tenant.name, fromOptions),
-        to: ctx.customer.email,
-        subject: emailMessages(customerLocale).rentalLifecycle.confirmed.heading,
-        html,
-        text,
-        ...(replyTo ? { replyTo } : {}),
-      },
-    });
-    if (sendError) {
-      issues.push(
-        `Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(sendError)}`,
-      );
+  //
+  // TYLKO TOR OFFLINE (payment_provider !== "stripe") — ADR-271.
+  //
+  // „Rezerwacja potwierdzona" stwierdza fakt dokonany. Dla toru online
+  // (`stripe`) w momencie checkoutu ten fakt JESZCZE nie zaszedł: zamówienie
+  // jest `pending`/`unpaid`, a płatność następuje na kroku PO tym miejscu
+  // (`nextStep: "payment"` w core.ts). Wysłanie potwierdzenia tutaj mówiłoby
+  // klientowi „masz rezerwację", zanim zapłacił — mógłby uznać, że nie musi
+  // kończyć płatności. Dlatego dla `stripe` potwierdzenie klienta NIE wychodzi
+  // przy checkoucie; wychodzi ZE ŚCIEŻKI SUKCESU PŁATNOŚCI jako mail
+  // „płatność zaksięgowana" (`sendPaymentConfirmedEmail`, ADR-139), wołany
+  // z webhooka/pętli rekoncyliacji/przycisku operatora dokładnie raz na
+  // przejście w `paid` (compare-and-set `changed: true`). Reużywamy tamtą
+  // wysyłkę zamiast dublować rental-confirmed: to samo zdarzenie biznesowe
+  // (klient dostaje potwierdzenie po zapłacie), jedna idempotentna ścieżka.
+  //
+  // Warunek patrzy na `payment_provider` z WIERSZA (utrwalone przez serwer),
+  // nie na deklarację klienta — lustro bramki `nextStep` w core.ts. Tor
+  // offline (przelew/gotówka, `manual`) zachowuje zastane: tam checkout JEST
+  // przyjęciem rezerwacji, bo płatność dzieje się poza systemem.
+  if (ctx.payment_provider !== "stripe") {
+    try {
+      const { html, text } = await renderRentalConfirmed({
+        locale: customerLocale,
+        tenantName: ctx.tenant.name,
+        orderNumber: ctx.order_number,
+        customerName,
+        startDate: formatDate(ctx.start_date, customerLocale),
+        endDate: formatDate(ctx.end_date, customerLocale),
+        totalRentalFormatted: formatMoney(ctx.total_rental_grosze, currency, customerLocale),
+        ...(deps.tenantLogo ? { logo: deps.tenantLogo } : {}),
+      });
+      const { sendError, logIssue } = await sendAndLog({
+        transport: deps.transport,
+        recorder: deps.recorder,
+        kind: "checkout_confirmation",
+        email: {
+          from: platformFromAddress(ctx.tenant.name, fromOptions),
+          to: ctx.customer.email,
+          subject: emailMessages(customerLocale).rentalLifecycle.confirmed.heading,
+          html,
+          text,
+          ...(replyTo ? { replyTo } : {}),
+        },
+      });
+      if (sendError) {
+        issues.push(
+          `Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(sendError)}`,
+        );
+      }
+      if (logIssue) issues.push(logIssue);
+    } catch (err) {
+      issues.push(`Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(err)}`);
     }
-    if (logIssue) issues.push(logIssue);
-  } catch (err) {
-    issues.push(`Zamówienie złożone, ale potwierdzenie dla klienta nie wyszło: ${reason(err)}`);
   }
 
   // --- 2. Powiadomienie najemcy (new-order-notification) ---
