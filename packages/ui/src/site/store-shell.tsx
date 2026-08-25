@@ -71,7 +71,8 @@ const CART_HREF = "/cart";
  * wokół tekstu. Ta sama klasa stoi pod wyzwalaczem kategorii i wyszukiwania
  * w storefroncie: trzy sąsiadujące ikony muszą mieć jeden rytm.
  */
-const ICON_HIT_AREA = "inline-flex h-11 w-11 items-center justify-center rounded";
+const ICON_HIT_AREA =
+  "inline-flex h-11 w-10 shrink-0 items-center justify-center rounded @min-[40rem]/site:w-11";
 
 export function StoreShellHeader({
   storeName,
@@ -193,7 +194,15 @@ export function StoreShellHeader({
   ) : (
     storeName
   );
-  const brandClassName = logo ? "flex items-center" : `text-lg tracking-tight ${SITE_HEADING}`;
+  /*
+    Nazwa najemcy o STOPIEŃ MNIEJSZA na wąskim kontenerze (F7b): w belce
+    ikonowej znak dzieli pas z trzema ikonami i pigułką, więc przy 16 px
+    w tym samym miejscu mieści się o dwa–trzy znaki więcej niż przy 18 px.
+    Od 40 rem kontenera wraca skala poprzednia — tam pasa nie brakuje.
+  */
+  const brandClassName = logo
+    ? "flex items-center"
+    : `text-base tracking-tight @min-[40rem]/site:text-lg ${SITE_HEADING}`;
   const cartClassName = cn(
     /*
       `.site-menu-link`, a nie `.site-nav-link` (F7b): odnośnik-IKONA nie jest
@@ -239,15 +248,31 @@ export function StoreShellHeader({
         wystawać poza okno z pudełka wyzwalacza. Patrz `StoreHeaderSearch`
         w storefront.
       */}
-      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-3 py-3")}>
-        {/* ZNAK na lewej krawędzi (`shrink-0` — slot wyszukiwania zwęża się pierwszy). */}
-        <div className="flex shrink-0 items-center gap-4">
+      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-2 py-3")}>
+        {/*
+          ZNAK NA LEWEJ KRAWĘDZI — i to ON oddaje szerokość, gdy belki brakuje
+          (F7b). Do belki ikonowej znak był `shrink-0`, bo zwężało się pole
+          wyszukiwania obok; pola nie ma, a trzy ikony i pigułka mają twarde
+          sufity, więc jedynym elastycznym elementem został znak. Zmierzone
+          przy oknie 360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do
+          rozdania jest 174 — bez zwężenia belka wyjeżdżała poza dokument.
+          `truncate` ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
+          (`.site-logo` ma `max-width: min(12rem, 100%)`).
+        */}
+        <div className="flex min-w-0 shrink items-center gap-4">
           {interactive ? (
-            <Anchor href={HOME_HREF} className={brandClassName}>
+            /*
+              `min-w-0` NA SAMYM ODNOŚNIKU, nie tylko na jego pudełku: element
+              flex ma domyślnie `min-width: auto`, więc bez tego `truncate`
+              nie ma jak zadziałać — nazwa najemcy trzyma swoją pełną szerokość
+              i to BELKA wyjeżdża poza dokument (zmierzone: 396 px przy oknie
+              360). Ta sama pułapka, co przy polach formularza w kasie.
+            */
+            <Anchor href={HOME_HREF} className={cn(brandClassName, "min-w-0 truncate")}>
               {brand}
             </Anchor>
           ) : (
-            <span className={brandClassName} data-shell-inert>
+            <span className={cn(brandClassName, "min-w-0 truncate")} data-shell-inert>
               {brand}
             </span>
           )}
@@ -261,10 +286,21 @@ export function StoreShellHeader({
           ciasnym pasie (ma `max-w` i truncate — patrz `StoreTermPill`), a nie
           ikony, które są kwadratami 44 px.
         */}
-        <div className="ml-auto flex min-w-0 items-center gap-1">
-          {nav}
-          {search}
-          {center}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 @min-[40rem]/site:gap-1">
+          {/*
+            KAŻDY SLOT W SWOIM PUDEŁKU — nie dla wyglądu, tylko dla granicy
+            serwer→klient. Sloty tworzy `StoreChrome` (komponent SERWEROWY),
+            a rysuje je ta belka, która jest już w pakiecie klienta; elementy
+            wstawione WPROST obok siebie React widzi wtedy jako listę bez
+            kluczy i wypisuje ostrzeżenie w konsoli sklepu przy każdym wejściu
+            (zmierzone: „Each child in a list should have a unique key" na
+            każdej trasie). Własne pudełko robi z każdego slotu POJEDYNCZE
+            dziecko utworzone TUTAJ — ostrzeżenie znika, a układ zostaje ten
+            sam: pudełka są `flex` o zerowej własnej geometrii.
+          */}
+          {nav != null ? <div className="flex shrink-0 items-center">{nav}</div> : null}
+          {search != null ? <div className="flex shrink-0 items-center">{search}</div> : null}
+          {center != null ? <div className="flex shrink-0 items-center">{center}</div> : null}
           {interactive ? (
             <Anchor
               href={CART_HREF}

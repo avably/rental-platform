@@ -98,7 +98,7 @@ export function StoreHeaderSearch({
       Korzeń wypełnia slot belki: wyzwalacz jest kwadratem 44 px w rzędzie
       pozostałych ikon (kategorie ← szukaj → termin → koszyk).
     */
-    <div data-store-header-search className="flex items-center">
+    <div data-store-header-search className="flex shrink-0 items-center">
       <details
         ref={detailsRef}
         data-store-header-search-toggle
@@ -113,7 +113,7 @@ export function StoreHeaderSearch({
         {/* Wyzwalacz 44×44 px (S-15) — sama lupa, z etykietą dostępną. */}
         <summary
           aria-label={labels.label}
-          className="site-menu-link flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded [&::-webkit-details-marker]:hidden"
+          className="site-menu-link flex h-11 w-10 cursor-pointer list-none items-center justify-center rounded @min-[40rem]/site:w-11 [&::-webkit-details-marker]:hidden"
         >
           <StoreGlyph name="search" className="h-5 w-5" />
         </summary>

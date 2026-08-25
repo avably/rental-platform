@@ -442,13 +442,36 @@ export function StoreTermPill({
   // rok bieżący; rok z przyszłości zostaje, bo bez niego byłaby to inna data.
   const summary = complete
     ? formatRentalRange(term.startDate!, term.endDate!, locale, { short: true })
-    : copy.term.choose;
+    : null;
 
   return (
     <>
+      {/*
+        SZEROKOŚĆ PIGUŁKI JEST OGRANICZONA Z GÓRY NA KAŻDYM PROGU, a nie
+        „elastyczna" — i to jest cała mechanika, która trzyma belkę w pasie
+        strony (dyspozycja właściciela: „nie za szeroka"). Sufity są POLICZONE
+        z pomiaru, nie dobrane na oko; mierzone krojem sklepu w przeglądarce:
+        fraza terminu („26–28 sie · 3 dni") ma 94 px przy 12 px i 110 px przy
+        14 px, zachęta („Wybierz termin") — 88 i 102 px. Do tego kalendarz
+        (16 px), odstęp i padding: stąd 9 rem na wąskim kontenerze i 10,5 rem
+        od 40 rem (próg układu z ADR-085). Sufit jest tak dobrany, żeby DATA nigdy się nie ścinała —
+        bo to ona jest treścią, po którą klient patrzy na pigułkę.
+
+        RESZTĘ PASA ODDAJE ZNAK FIRMY (`truncate` w `StoreShellHeader`), i to
+        jest świadomy podział: przy oknie 360 px pas treści ma 300 px, trzy
+        ikony 120, pigułka 136 — na nazwę najemcy zostaje ~36 px, czyli
+        wielokropek. Odwrotny wybór (pełna nazwa, ścięta data) dawałby belkę
+        ładniejszą i bezużyteczną. Bez sufitów belka po prostu wyjeżdżała poza
+        dokument — zmierzone: 491 px przy oknie 360.
+      */}
       <button
         type="button"
-        className="site-cta-secondary inline-flex h-11 max-w-[11rem] cursor-pointer items-center gap-2 rounded-full px-3 text-sm font-semibold @min-[30rem]/site:max-w-[16rem] @min-[30rem]/site:px-4"
+        className={
+          "site-cta-secondary inline-flex h-11 min-w-0 shrink-0 cursor-pointer items-center gap-1.5 " +
+          "max-w-[9rem] rounded-full text-xs font-semibold " +
+          "@min-[40rem]/site:max-w-[10.5rem] @min-[40rem]/site:gap-2 @min-[40rem]/site:text-sm " +
+          "@min-[48rem]/site:max-w-[16rem]"
+        }
         aria-haspopup="dialog"
         aria-expanded={open}
         data-store-term-toggle
@@ -461,9 +484,15 @@ export function StoreTermPill({
           wielokropkiem jest gorsza od pełnej — ale nieskończenie lepsza od
           belki, która rozjeżdża się poza ekran (S-10 broni ŁAMANIA w środku
           daty, nie szerokości pigułki).
+
+          ZACHĘTA JEST KRÓTKA („Wybierz termin", nie „Wybierz termin najmu"):
+          w belce ikonowej to jedyny napis, a każde zbędne słowo zabiera piksele
+          nazwie najemcy obok. Dłuższa forma nie mieściła się w sufitach wyżej
+          na żadnym telefonie — a ścięte „Wybierz termin na…" byłoby gorsze od
+          krótszego zdania.
         */}
         <span data-store-term-summary className="truncate">
-          {summary}
+          {summary ?? copy.term.choose}
         </span>
       </button>
       {/*

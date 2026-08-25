@@ -200,7 +200,7 @@ export async function renderCategoryPage({ ctx }: { ctx: CategoryPageContext }) 
             `minmax(0,1fr)` na kolumnie treści: bez tego siatka wyników
             z długim tytułem rozpycha kolumnę ponad pas strony.
           */}
-          <div className="mt-2 grid gap-x-8 gap-y-4 @min-[64rem]/site:grid-cols-[15rem_minmax(0,1fr)]">
+          <div className="mt-4 grid gap-x-8 gap-y-4 @min-[64rem]/site:grid-cols-[15rem_minmax(0,1fr)]">
             <ListingCategoryColumn
               items={ctx.categoryNav}
               heading={copy.nav.categories}

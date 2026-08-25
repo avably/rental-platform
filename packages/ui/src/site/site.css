@@ -341,6 +341,24 @@
 }
 
 /*
+ * PIGUŁKA TERMINU W BELCE — PADDING CHROME, NIE SEKCJI (F7b).
+ *
+ * Pigułka nosi rolę `.site-cta-secondary` (ten sam obrys i ta sama para
+ * kolorów, co przyciski drugorzędne strony), ale jej padding sekcyjny
+ * (2 × 24 px) zjadał w belce ikonowej połowę pasa telefonu — przy oknie 360 px
+ * pas treści ma 300 px, a sama fraza terminu potrzebuje 94. Zwężenie musi stać
+ * TUTAJ, nie w klasie narzędziowej: arkusz sklepu jest bez `@layer`, więc
+ * wygrywa z `px-*` Tailwinda (ta sama reguła pierwszeństwa, przez którą
+ * `.site-nav-link` maluje kolor mimo klas przygaszających — patrz docblock
+ * `.site-menu-link`). Selektor spięty na znaczniku wyzwalacza, jak stany
+ * `.site-availability[data-products-availability-state]` niżej: dotyczy
+ * DOKŁADNIE tej jednej powierzchni, a nie wszystkich przycisków drugorzędnych.
+ */
+.site-cta-secondary[data-store-term-toggle] {
+  padding: 0 0.75rem;
+}
+
+/*
  * =====================================================================
  * CHROME SKLEPU CZERPIE Z MOTYWU (K6, ADR-092)
  * =====================================================================
@@ -418,7 +436,15 @@
   display: block;
   height: 2.25rem;
   width: auto;
-  max-width: 12rem;
+  /*
+   * SUFIT SZEROKOŚCI JEST MNIEJSZĄ Z DWÓCH LICZB (F7b): 12 rem to sufit
+   * PROJEKTOWY (znak nie rozpycha belki), a 100% to sufit SLOTU — od belki
+   * ikonowej znak dzieli wiersz z trzema ikonami i pigułką terminu, więc na
+   * telefonie jego slot bywa węższy niż 12 rem. Bez drugiego członu plik
+   * o proporcjach 3000 × 200 wyjeżdżał poza pas strony razem z belką
+   * (zmierzone przy oknie 360 px).
+   */
+  max-width: min(12rem, 100%);
   object-fit: contain;
   object-position: left center;
 }

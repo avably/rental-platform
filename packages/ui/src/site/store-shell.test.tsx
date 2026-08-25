@@ -84,7 +84,16 @@ describe("S-15 — cel dotykowy odnośnika koszyka", () => {
     const { container } = naglowek();
     const cart = container.querySelector('a[href="/cart"]');
     expect(cart).not.toBeNull();
-    for (const klasa of ["h-11", "w-11", "inline-flex", "items-center", "justify-center"]) {
+    for (const klasa of [
+      "h-11",
+      // 40 px na wąskim kontenerze, 44 od 26 rem — trzy ikony i pigułka nie
+      // mieszczą się przy 44 px w pasie telefonu (pomiar w docblocku pigułki).
+      "w-10",
+      "@min-[40rem]/site:w-11",
+      "inline-flex",
+      "items-center",
+      "justify-center",
+    ]) {
       expect(cart!.className, `cel dotykowy stracił ${klasa}`).toContain(klasa);
     }
   });
@@ -167,10 +176,20 @@ describe("F7/F7b — nagłówek: sticky i sloty belki ikonowej", () => {
     for (const znacznik of ["[data-test-nav]", "[data-test-search]", "[data-test-center]"]) {
       expect(header.querySelector(znacznik), `slot ${znacznik} wypadł z belki`).not.toBeNull();
     }
-    const grupa = header.querySelector("[data-test-nav]")!.parentElement!;
-    // Kolejność: nawigacja → szukaj → termin → koszyk (od przeglądania do zakupu).
+    /*
+      Kolejność: nawigacja → szukaj → termin → koszyk (od przeglądania do
+      zakupu). Sloty stoją w WŁASNYCH pudełkach (granica serwer→klient — patrz
+      komentarz w komponencie), więc czytamy je przez zawartość pudełek.
+    */
+    const grupa = header.querySelector("[data-test-nav]")!.parentElement!.parentElement!;
     const kolejnosc = [...grupa.children].map((el) =>
-      el.tagName === "A" ? "cart" : (el.getAttribute("data-test-nav") !== null ? "nav" : el.getAttribute("data-test-search") !== null ? "search" : "center"),
+      el.tagName === "A" || el.hasAttribute("data-shell-inert")
+        ? "cart"
+        : el.querySelector("[data-test-nav]")
+          ? "nav"
+          : el.querySelector("[data-test-search]")
+            ? "search"
+            : "center",
     );
     expect(kolejnosc).toEqual(["nav", "search", "center", "cart"]);
   });

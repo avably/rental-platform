@@ -412,7 +412,11 @@ describe("wybór terminu w powłoce", () => {
   it("fraza terminu ma sufit szerokości i ścina się, a nie rozpycha belki", () => {
     render(shell());
     const pill = document.querySelector<HTMLButtonElement>("[data-store-term-toggle]")!;
-    expect(pill.className, "pigułka bez sufitu szerokości").toContain("max-w-[11rem]");
+    expect(pill.className, "pigułka bez sufitu szerokości").toContain("max-w-[9rem]");
+    expect(
+      pill.className,
+      "sufit nie rośnie z kontenerem — na desktopie fraza ścinałaby się bez powodu",
+    ).toContain("@min-[40rem]/site:max-w-[10.5rem]");
     expect(
       document.querySelector("[data-store-term-summary]")!.className,
       "fraza bez truncate — pigułka rośnie z długością daty",

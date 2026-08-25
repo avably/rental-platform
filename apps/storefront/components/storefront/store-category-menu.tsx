@@ -93,12 +93,12 @@ export function StoreCategoryMenu({
       nie do rozróżnienia po nazwie. Wyzwalacz `<details>` jest widgetem
       rozwijanym i nazwę niesie sam (`aria-label` na `<summary>`).
     */
-    <div data-store-category-menu>
+    <div data-store-category-menu className="shrink-0">
       <details data-store-category-dropdown className="group static @min-[64rem]/site:relative">
         {/* Wyzwalacz 44 × 44 px (S-15) — sam znak, z nazwą dostępną. */}
         <summary
           aria-label={label}
-          className="site-menu-link flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded [&::-webkit-details-marker]:hidden"
+          className="site-menu-link flex h-11 w-10 cursor-pointer list-none items-center justify-center rounded @min-[40rem]/site:w-11 [&::-webkit-details-marker]:hidden"
         >
           <StoreGlyph name="categories" className="h-5 w-5" />
         </summary>

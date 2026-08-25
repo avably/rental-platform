@@ -172,7 +172,8 @@ describe("F7 — wyszukiwanie w belce", () => {
     const summary = toggle.querySelector("summary")!;
     expect(summary.getAttribute("aria-label")).toBe("Szukaj w katalogu");
     expect(summary.className).toContain("h-11");
-    expect(summary.className).toContain("w-11");
+    expect(summary.className).toContain("w-10");
+    expect(summary.className).toContain("@min-[40rem]/site:w-11");
     expect(summary.querySelector("svg")!.getAttribute("aria-hidden")).toBe("true");
   });
 
@@ -232,7 +233,7 @@ describe("F7b — belka ikonowa: koszyk jako znak z licznikiem w narożniku", ()
     expect(nazwa, "koszyk bez nazwy dostępnej — ikona sama nic nie mówi").not.toBeNull();
     expect(nazwa!.textContent).toBe("Koszyk");
     // Cel dotykowy jest KWADRATEM, nie paddingiem wokół tekstu (F7b).
-    for (const klasa of ["h-11", "w-11"]) {
+    for (const klasa of ["h-11", "w-10", "@min-[40rem]/site:w-11"]) {
       expect(cart.className, `koszyk stracił ${klasa}`).toContain(klasa);
     }
   });
