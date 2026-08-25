@@ -89,6 +89,7 @@ export function StoreChrome({
   term,
   categoryNav,
   headerMode = "content",
+  searchQuery,
   footerAnchorBase,
   currentPath,
   revealNonce,
@@ -164,6 +165,12 @@ export function StoreChrome({
   /** Tryb nagłówka (F7) — patrz `StoreHeaderMode` wyżej. */
   headerMode?: StoreHeaderMode;
   /**
+   * BIEŻĄCA FRAZA WYNIKÓW dla pola w belce (F9c) — podaje ją wyłącznie trasa
+   * `/katalog?q=…`; belka jest jedynym polem wyszukiwania (toolbar listingu
+   * przestał je dublować), więc to ona niesie i pozwala poprawić frazę.
+   */
+  searchQuery?: string;
+  /**
    * PREFIKS KOTWIC STOPKI dla tras BEZ sekcji strony (patrz `withAnchorBase`).
    * Podaje go `PageShell` — jego użytkownicy to z definicji podstrony, na
    * których `#kontakt` nie ma celu. Trasa katalogu go NIE podaje, bo cele
@@ -219,6 +226,7 @@ export function StoreChrome({
         submit: copy.catalog.searchSubmit,
       }}
       variant={headerMode === "checkout" ? "icon" : "full"}
+      defaultQuery={searchQuery}
     />
   );
 

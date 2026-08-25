@@ -68,6 +68,7 @@ function SearchGlyph({ className }: { className: string }) {
 export function StoreHeaderSearch({
   labels,
   variant,
+  defaultQuery,
 }: {
   labels: StoreHeaderSearchLabels;
   /**
@@ -75,6 +76,12 @@ export function StoreHeaderSearch({
    * i treściowe); `icon` — ikona na każdej szerokości (kasa i koszyk, F7 pkt 4).
    */
   variant: "full" | "icon";
+  /**
+   * BIEŻĄCA FRAZA WYNIKÓW (F9c) — na `/katalog?q=…` belka jest JEDYNYM polem
+   * wyszukiwania (toolbar listingu przestał go dublować), więc to ona pokazuje
+   * i pozwala poprawić frazę. Podaje ją wyłącznie trasa katalogu.
+   */
+  defaultQuery?: string;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +150,7 @@ export function StoreHeaderSearch({
             id="store-header-search-q"
             type="search"
             name={CATALOG_SEARCH_PARAM}
+            defaultValue={defaultQuery}
             placeholder={labels.placeholder}
             autoComplete="off"
             className="site-field h-11 w-full min-w-0 px-3 text-sm"
@@ -201,6 +209,7 @@ export function StoreHeaderSearch({
               ref={inputRef}
               type="search"
               name={CATALOG_SEARCH_PARAM}
+              defaultValue={defaultQuery}
               placeholder={labels.placeholder}
               autoComplete="off"
               className="site-field h-11 w-full min-w-0 px-3 text-sm"
