@@ -31,6 +31,8 @@ import type { ElementType, ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { SiteRenderer } from "./site-renderer";
+// Znaki belki ikonowej (F7b) — jeden zestaw dla sklepu i podglądu szkicu.
+import { StoreGlyph } from "./store-glyphs";
 // Wspólna siatka strony najemcy (S-58) — nagłówek mierzy TEN SAM pas, co
 // kontener sekcji i pas treści płótna; patrz docblock przy stałej.
 import { SITE_CONTAINER } from "./template";
@@ -61,14 +63,16 @@ const HOME_HREF = "/";
 const CART_HREF = "/cart";
 
 /**
- * CEL DOTYKOWY BEZ ZMIANY UKŁADU (S-15 audytu 2026-08-25, WCAG 2.5.8).
+ * CEL DOTYKOWY IKONY BELKI (S-15 audytu 2026-08-25, WCAG 2.5.8; F7b).
  *
- * Odnośniki belki są gołym tekstem ~20 px wysokości — poniżej minimum 24 px
- * i daleko od zalecanych 44 px, a belka ma ~63 px zapasu. Padding powiększa
- * obszar klikalny do 44 px, ujemne marginesy oddają dokładnie tę samą
- * przestrzeń w układzie — belka nie zmienia ani piksela wyglądu.
+ * Do F7b odnośnik koszyka był NAPISEM ~20 px wysokości, a 44 px robił mu
+ * padding z ujemnymi marginesami. Od F7b belka jest ikonowa i kontrolka jest
+ * KWADRATEM 44 × 44 — cel dotykowy jest tu wymiarem pudełka, nie protezą
+ * wokół tekstu. Ta sama klasa stoi pod wyzwalaczem kategorii i wyszukiwania
+ * w storefroncie: trzy sąsiadujące ikony muszą mieć jeden rytm.
  */
-const NAV_HIT_AREA = "-mx-2 -my-3 px-2 py-3";
+const ICON_HIT_AREA =
+  "inline-flex h-11 w-10 shrink-0 items-center justify-center rounded @min-[40rem]/site:w-11";
 
 export function StoreShellHeader({
   storeName,
@@ -78,7 +82,7 @@ export function StoreShellHeader({
   cartBadge,
   cartCurrent = false,
   search,
-  subnav,
+  nav,
   center,
   sticky = false,
   linkComponent,
@@ -92,13 +96,21 @@ export function StoreShellHeader({
    * obrazkiem, raz napisem — byłaby dla czytnika ekranu powtórzeniem.
    */
   logo: SiteLogoRender | null;
-  /** Napis przycisku koszyka w języku SKLEPU (oś tenancka), nie panelu. */
+  /**
+   * NAZWA KOSZYKA w języku SKLEPU (oś tenancka), nie panelu.
+   *
+   * Od F7b koszyk jest IKONĄ, więc ten napis nie jest już etykietą obok znaku
+   * — jest jedyną nazwą kontrolki. Stoi w drzewie jako tekst `sr-only`, a nie
+   * jako `aria-label`: tekst zostaje w dokumencie także wtedy, gdy czytnik
+   * ekranu nie wspiera `aria-label` na tym elemencie (podgląd szkicu rysuje
+   * koszyk jako `span`, nie odnośnik).
+   */
   cartLabel: string;
   /**
    * PEŁNA NAZWA DOSTĘPNA odnośnika koszyka (F7) — „Koszyk, 2 pozycje" zamiast
    * gołego „Koszyk", gdy sklep zna licznik. Wnosi ją WOŁAJĄCY razem z badge'em,
    * bo odmiana liczebnika jest sprawą copy sklepu, nie pakietu. Brak = nazwa
-   * z widocznego napisu (podgląd szkicu, koszyk pusty).
+   * z tekstu `sr-only` (podgląd szkicu, koszyk pusty).
    */
   cartAriaLabel?: string;
   /** Licznik pozycji — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
@@ -113,32 +125,36 @@ export function StoreShellHeader({
    */
   cartCurrent?: boolean;
   /**
-   * WYSZUKIWANIE W BELCE (F7) — slot między znakiem a pigułką terminu. Wnosi
-   * go WYŁĄCZNIE sklep (podgląd szkicu nie ma trasy `/katalog`, więc nie podaje
-   * nic — i belka wygląda jak przed F7). Pakiet nie wie, CO w slocie stoi:
-   * o formie (pełne pole vs ikona) rozstrzyga wołający per trasa.
+   * WYSZUKIWANIE W BELCE (F7; od F7b WYŁĄCZNIE ikona) — slot w prawej grupie
+   * kontrolek. Wnosi go WYŁĄCZNIE sklep (podgląd szkicu nie ma trasy
+   * `/katalog`, więc nie podaje nic — i belka wygląda jak przed F7). Pakiet
+   * nie wie, CO w slocie stoi: pełnoszerokie pole rozwija się POD belką
+   * z wyzwalacza, a kotwicą tego panelu jest `relative` na wierszu niżej.
    */
   search?: ReactNode;
   /**
-   * DRUGI RZĄD NAGŁÓWKA (F7) — listwa kategorii pod belką: poziome odnośniki
-   * na szerokim kontenerze, przewijane chipsy na wąskim. Wnosi go WYŁĄCZNIE
-   * sklep i tylko na trasach, które listwę mają (poza kasą i koszykiem).
-   * Rząd stoi WEWNĄTRZ `<header>`, żeby kleił się razem z belką (sticky).
-   */
-  subnav?: ReactNode;
-  /**
-   * ŚRODEK BELKI (aneks ADR-194) — slot między wyszukiwaniem a koszykiem.
-   * Sklep stawia tu pigułkę terminu; podgląd szkicu nie podaje nic i belka
-   * wygląda dokładnie jak przed aneksem. Pakiet nie wie, CO w slocie stoi —
-   * tak samo, jak nie zna licznika koszyka.
+   * NAWIGACJA KATEGORII (F7b) — wyzwalacz rozwijanej listy półek, PIERWSZY
+   * w prawej grupie kontrolek.
    *
-   * Slot jest WIDOCZNY OD 48 rem KONTENERA `site` W GÓRĘ (F7 przeniosło próg
-   * z viewportowego `md:` na kontenerowy — ADR-085: podgląd w panelu mierzy
-   * SWOJĄ szerokość, nie okna). Poniżej belka jest za wąska na cztery elementy
-   * i sklep pokazuje tę samą treść w wierszu POD belką. Rozjazd robi zapytanie
-   * kontenerowe (obie formy stoją w SSR), nie pomiar skryptem — próg musi
-   * zostać TEN SAM, co `@min-[48rem]/site:hidden` na wierszu w `StoreTermBar`,
-   * inaczej w pasie szerokości między nimi pigułka jest podwójna albo znika.
+   * Do F7b był to DRUGI RZĄD belki (`subnav`): pozioma listwa odnośników plus
+   * przewijane chipsy na telefonie. Właściciel po obejrzeniu F7 na produkcji
+   * zdjął obie formy („w belce tylko ikony") — listwa i chipsy przeniosły się
+   * do TREŚCI listingu (kolumna kategorii na `/katalog` i `/kategoria/*`),
+   * gdzie mają miejsce i kontekst. Stąd zmiana nazwy slotu: nie ma już drugiego
+   * rzędu, jest jedna kontrolka w belce.
+   */
+  nav?: ReactNode;
+  /**
+   * PIGUŁKA TERMINU (aneks ADR-194; od F7b JEDYNY tekst belki) — slot między
+   * wyszukiwaniem a koszykiem. Sklep stawia tu pigułkę; podgląd szkicu nie
+   * podaje nic i belka wygląda dokładnie jak przed aneksem. Pakiet nie wie,
+   * CO w slocie stoi — tak samo, jak nie zna licznika koszyka.
+   *
+   * Slot jest WIDOCZNY NA KAŻDEJ SZEROKOŚCI (F7b). Do F7b pokazywał go dopiero
+   * kontener 48 rem, a poniżej tę samą treść niósł osobny wiersz POD belką —
+   * dwa wystąpienia jednej pigułki i dwa progi, które musiały się zgadzać co do
+   * jednostki. Belka ikonowa ma miejsce na cztery kontrolki także na telefonie
+   * (3 × 44 px ikony + pigułka z `max-w`), więc wiersz zniknął razem z progiem.
    */
   center?: ReactNode;
   /**
@@ -178,15 +194,45 @@ export function StoreShellHeader({
   ) : (
     storeName
   );
-  const brandClassName = logo ? "flex items-center" : `text-lg tracking-tight ${SITE_HEADING}`;
+  /*
+    Nazwa najemcy o STOPIEŃ MNIEJSZA na wąskim kontenerze (F7b): w belce
+    ikonowej znak dzieli pas z trzema ikonami i pigułką, więc przy 16 px
+    w tym samym miejscu mieści się o dwa–trzy znaki więcej niż przy 18 px.
+    Od 40 rem kontenera wraca skala poprzednia — tam pasa nie brakuje.
+  */
+  const brandClassName = logo
+    ? "flex items-center"
+    : `text-base tracking-tight @min-[40rem]/site:text-lg ${SITE_HEADING}`;
   const cartClassName = cn(
-    "site-nav-link inline-flex items-center gap-2 text-sm font-medium",
-    NAV_HIT_AREA,
-    // Wyróżnienie self-linku (S-52) — rysuje się WYŁĄCZNIE przy
-    // `aria-current="page"`, więc klasa może stać na stałe. Waga, nie
-    // podkreślenie: `.site-nav-link` jest podkreślony ZAWSZE (site.css),
-    // więc dodatkowe podkreślenie niczego by nie wyróżniło.
-    "aria-[current=page]:font-semibold",
+    /*
+      `.site-menu-link`, a nie `.site-nav-link` (F7b): odnośnik-IKONA nie jest
+      odnośnikiem w zdaniu, więc podkreślenie z `.site-nav-link` rysowałoby
+      kreskę pod znakiem koszyka. Ta sama rola, co pozostałe kontrolki belki.
+    */
+    "site-menu-link relative",
+    ICON_HIT_AREA,
+    /*
+      Wyróżnienie self-linku (S-52) — rysuje się WYŁĄCZNIE przy
+      `aria-current="page"`, więc klasa może stać na stałe. Od F7b nośnikiem
+      jest KOLOR AKCENTU, nie waga: pod ikoną nie ma tekstu, który mógłby
+      zgrubieć. (Kolor nie jest tu jedynym nośnikiem stanu — niesie go też
+      `aria-current` dla czytnika ekranu; WCAG 1.4.1 dotyczy INFORMACJI, a ta
+      jest w drzewie dostępności.)
+    */
+    "aria-[current=page]:text-[color:var(--site-accent-text)]",
+  );
+  /*
+    NAZWA KOSZYKA BEZ WIDOCZNEGO NAPISU (F7b). `sr-only` zostaje w drzewie
+    zawsze; `aria-label` DOKŁADA licznik, gdy sklep go zna („Koszyk, 2
+    pozycje"). Kolejność jest rozmyślna: bez licznika nazwa pochodzi z tekstu,
+    czyli z tego samego źródła, co w podglądzie szkicu.
+  */
+  const cartBody = (
+    <>
+      <StoreGlyph name="cart" className="h-5 w-5" />
+      <span className="sr-only">{cartLabel}</span>
+      {cartBadge}
+    </>
   );
 
   return (
@@ -202,55 +248,75 @@ export function StoreShellHeader({
         wystawać poza okno z pudełka wyzwalacza. Patrz `StoreHeaderSearch`
         w storefront.
       */}
-      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-3 py-3")}>
-        {/* ZNAK na lewej krawędzi (`shrink-0` — slot wyszukiwania zwęża się pierwszy). */}
-        <div className="flex shrink-0 items-center gap-4">
+      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-2 py-3")}>
+        {/*
+          ZNAK NA LEWEJ KRAWĘDZI — i to ON oddaje szerokość, gdy belki brakuje
+          (F7b). Do belki ikonowej znak był `shrink-0`, bo zwężało się pole
+          wyszukiwania obok; pola nie ma, a trzy ikony i pigułka mają twarde
+          sufity, więc jedynym elastycznym elementem został znak. Zmierzone
+          przy oknie 360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do
+          rozdania jest 174 — bez zwężenia belka wyjeżdżała poza dokument.
+          `truncate` ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
+          (`.site-logo` ma `max-width: min(12rem, 100%)`).
+        */}
+        <div className="flex min-w-0 shrink items-center gap-4">
           {interactive ? (
-            <Anchor href={HOME_HREF} className={brandClassName}>
+            /*
+              `min-w-0` NA SAMYM ODNOŚNIKU, nie tylko na jego pudełku: element
+              flex ma domyślnie `min-width: auto`, więc bez tego `truncate`
+              nie ma jak zadziałać — nazwa najemcy trzyma swoją pełną szerokość
+              i to BELKA wyjeżdża poza dokument (zmierzone: 396 px przy oknie
+              360). Ta sama pułapka, co przy polach formularza w kasie.
+            */
+            <Anchor href={HOME_HREF} className={cn(brandClassName, "min-w-0 truncate")}>
               {brand}
             </Anchor>
           ) : (
-            <span className={brandClassName} data-shell-inert>
+            <span className={cn(brandClassName, "min-w-0 truncate")} data-shell-inert>
               {brand}
             </span>
           )}
         </div>
         {/*
-          WYSZUKIWANIE DOMINUJE ŚRODEK BELKI (F7): slot dostaje CAŁY wolny pas
-          (`flex-1`), a `min-w-0` pozwala mu się zwęzić zamiast wypychać koszyk
-          poza ekran. O formie (pełne pole vs ikona) rozstrzyga treść slotu.
+          PRAWA GRUPA KONTROLEK (F7b): kategorie, szukaj, termin, koszyk —
+          w tej kolejności, od nawigacji po zamówienie. Grupa jest jedna na
+          KAŻDEJ szerokości (koniec wariantów „desktop/mobile" z F7).
+
+          `min-w-0` na grupie i `ml-auto`: to pigułka terminu zwęża się przy
+          ciasnym pasie (ma `max-w` i truncate — patrz `StoreTermPill`), a nie
+          ikony, które są kwadratami 44 px.
         */}
-        {search != null ? <div className="flex min-w-0 flex-1 items-center">{search}</div> : null}
-        {/*
-          Pigułka terminu trzyma swoją szerokość (`shrink-0`) — przy ciasnym
-          pasie zwęża się POLE wyszukiwania, nie fraza terminu (fraza jest
-          atomowa, S-10, i ścięta wyglądałaby jak inna data).
-        */}
-        {center != null ? (
-          <div className="hidden shrink-0 items-center gap-3 @min-[48rem]/site:flex">{center}</div>
-        ) : null}
-        {interactive ? (
-          <Anchor
-            href={CART_HREF}
-            className={cartClassName}
-            aria-label={cartAriaLabel}
-            aria-current={cartCurrent ? "page" : undefined}
-          >
-            <span>{cartLabel}</span>
-            {cartBadge}
-          </Anchor>
-        ) : (
-          <span className={cartClassName} data-shell-inert aria-disabled="true">
-            <span>{cartLabel}</span>
-            {cartBadge}
-          </span>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 @min-[40rem]/site:gap-1">
+          {/*
+            KAŻDY SLOT W SWOIM PUDEŁKU — nie dla wyglądu, tylko dla granicy
+            serwer→klient. Sloty tworzy `StoreChrome` (komponent SERWEROWY),
+            a rysuje je ta belka, która jest już w pakiecie klienta; elementy
+            wstawione WPROST obok siebie React widzi wtedy jako listę bez
+            kluczy i wypisuje ostrzeżenie w konsoli sklepu przy każdym wejściu
+            (zmierzone: „Each child in a list should have a unique key" na
+            każdej trasie). Własne pudełko robi z każdego slotu POJEDYNCZE
+            dziecko utworzone TUTAJ — ostrzeżenie znika, a układ zostaje ten
+            sam: pudełka są `flex` o zerowej własnej geometrii.
+          */}
+          {nav != null ? <div className="flex shrink-0 items-center">{nav}</div> : null}
+          {search != null ? <div className="flex shrink-0 items-center">{search}</div> : null}
+          {center != null ? <div className="flex shrink-0 items-center">{center}</div> : null}
+          {interactive ? (
+            <Anchor
+              href={CART_HREF}
+              className={cartClassName}
+              aria-label={cartAriaLabel}
+              aria-current={cartCurrent ? "page" : undefined}
+            >
+              {cartBody}
+            </Anchor>
+          ) : (
+            <span className={cartClassName} data-shell-inert aria-disabled="true">
+              {cartBody}
+            </span>
+          )}
+        </div>
       </div>
-      {/*
-        DRUGI RZĄD (F7): listwa kategorii. WEWNĄTRZ nagłówka, żeby kleiła się
-        razem z belką i żeby linia po przewinięciu stała POD nią, nie nad nią.
-      */}
-      {subnav != null ? subnav : null}
     </header>
   );
 }

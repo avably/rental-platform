@@ -33,6 +33,13 @@ export {
 } from "./site-renderer";
 // Powłoka sklepu jako JEDEN kształt dla sklepu i podglądu szkicu (ADR-172).
 export { SITE_HEADING, StoreShellFooter, StoreShellHeader } from "./store-shell";
+/*
+  ZNAKI CHROME SKLEPU (F7b) — belka ikonowa składa się w DWÓCH aplikacjach
+  (powłoka w pakiecie, wyzwalacze kategorii/wyszukiwania i pigułka terminu
+  w storefroncie), więc zestaw musi być publiczny; inaczej „ten sam język
+  formy" byłby postanowieniem, a nie właściwością kodu.
+*/
+export { StoreGlyph, type StoreGlyphName } from "./store-glyphs";
 // SITE_CONTAINER — wspólna siatka strony najemcy (S-58): treść podstron
 // i pasek terminu w storefroncie mierzą ten sam pas, co płótno sekcji.
 export { SITE_CONTAINER } from "./template";

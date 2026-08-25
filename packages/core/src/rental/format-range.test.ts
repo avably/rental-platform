@@ -96,3 +96,60 @@ describe("formatRentalRange — kontrakt błędów (dates.ts)", () => {
     expect(() => formatRentalRange("26.08.2026", "2026-08-28", "pl")).toThrow(RangeError);
   });
 });
+
+describe("formatRentalRange — wariant KRÓTKI (F7b, pigułka terminu)", () => {
+  /*
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: rok znikający ZAWSZE. „2 sty · 3 dni" w pigułce
+    klienta, który rezerwuje na styczeń przyszłego roku, jest po prostu inną
+    datą — a wada byłaby niewidoczna przez jedenaście miesięcy w roku.
+    Dlatego „dziś" jest wstrzykiwane: test nie może zależeć od kalendarza
+    maszyny, która go uruchamia.
+  */
+  it("rok BIEŻĄCY znika (a fraza dalej niesie zakres i liczbę dób)", () => {
+    const krotko = formatRentalRange("2026-08-26", "2026-08-28", "pl", {
+      short: true,
+      today: "2026-08-25",
+    });
+    expect(krotko).not.toContain("2026");
+    expect(krotko).toContain("26");
+    expect(krotko).toContain("28");
+    expect(krotko).toContain("3");
+  });
+
+  it("rok PRZYSZŁY zostaje — bez niego byłaby to inna data", () => {
+    expect(
+      formatRentalRange("2027-01-02", "2027-01-04", "pl", { short: true, today: "2026-08-25" }),
+    ).toContain("2027");
+  });
+
+  it("zakres PRZEZ SYLWESTRA zostaje z rokiem, choć zaczyna się w roku bieżącym", () => {
+    const fraza = formatRentalRange("2026-12-30", "2027-01-02", "pl", {
+      short: true,
+      today: "2026-08-25",
+    });
+    expect(fraza).toContain("2026");
+    expect(fraza).toContain("2027");
+  });
+
+  it("BEZ opcji nic się nie zmienia — wariant pełny zostaje domyślny", () => {
+    const pelny = formatRentalRange("2026-08-26", "2026-08-28", "pl");
+    expect(pelny).toContain("2026");
+    expect(formatRentalRange("2026-08-26", "2026-08-28", "pl", { today: "2026-08-25" })).toBe(pelny);
+  });
+
+  it("wariant krótki trzyma frazę ATOMOWĄ (jedna zwykła spacja, przed separatorem)", () => {
+    const czesci = formatRentalRange("2026-08-26", "2026-09-02", "pl", {
+      short: true,
+      today: "2026-08-25",
+    }).split(" ");
+    expect(czesci).toHaveLength(2);
+    expect(czesci[1]!.startsWith("·")).toBe(true);
+    expect(czesci[0]).not.toContain(" ");
+  });
+
+  it("„dziś” spoza kalendarza rzuca RangeError (kontrakt dates.ts, bez trzeciej odpowiedzi)", () => {
+    expect(() =>
+      formatRentalRange("2026-08-26", "2026-08-28", "pl", { short: true, today: "2026-13-01" }),
+    ).toThrow(RangeError);
+  });
+});

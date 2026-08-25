@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Nagłówek sklepu tenanta (od F7: „pro" — sticky, search na wierzchu, listwa
- * kategorii, koszyk z badge'em licznika POZYCJI).
+ * Nagłówek sklepu tenanta (od F7 „pro": sticky; od F7b IKONOWY — kategorie,
+ * szukaj i koszyk jako znaki 44 px, pigułka terminu jako jedyny tekst).
  *
  * KOLOR NIE JEST TU DECYZJĄ (K6, ADR-092). Nagłówek nosi wyłącznie ROLE
  * (`site-header`, `site-title`, `site-nav-link`, `site-badge`), a wartości
@@ -68,7 +68,7 @@ export function StoreHeader({
   storeName,
   logo,
   search,
-  subnav,
+  nav,
   center,
 }: {
   copy: StorefrontCopy;
@@ -88,21 +88,18 @@ export function StoreHeader({
    */
   logo: StoreLogo | null;
   /**
-   * WYSZUKIWANIE W BELCE (F7) — powłoka wstawia tu `StoreHeaderSearch`
-   * we właściwym wariancie (pełne pole vs ikona na kasie). Przechodzi wprost
-   * do slotu w pakiecie UI.
+   * WYSZUKIWANIE W BELCE (F7; od F7b ikona) — powłoka wstawia tu
+   * `StoreHeaderSearch`. Przechodzi wprost do slotu w pakiecie UI.
    */
   search?: ReactNode;
   /**
-   * LISTWA KATEGORII (F7, poprzednio menu ADR-247) — drugi rząd nagłówka.
-   * Przechodzi wprost do slotu w pakiecie UI; o chipsach mobilnych i braku
-   * listwy na kasie rozstrzyga powłoka.
+   * KATEGORIE W BELCE (F7b, poprzednio listwa F7 / menu ADR-247) — wyzwalacz
+   * rozwijanej listy półek. Przechodzi wprost do slotu w pakiecie UI.
    */
-  subnav?: ReactNode;
+  nav?: ReactNode;
   /**
-   * ŚRODEK BELKI (aneks ADR-194) — powłoka wstawia tu pigułkę terminu na
-   * trasach, które sprzedają. Przechodzi wprost do kształtu z pakietu UI;
-   * o widoczności rozstrzyga zapytanie kontenerowe TAM, nie tutaj.
+   * PIGUŁKA TERMINU (aneks ADR-194) — powłoka wstawia ją na trasach, które
+   * sprzedają. Przechodzi wprost do kształtu z pakietu UI.
    */
   center?: ReactNode;
 }) {
@@ -125,8 +122,8 @@ export function StoreHeader({
     LICZNIK POJAWIA SIĘ PO HYDRATACJI (stan z `localStorage`), więc do tej
     chwili nie ma go w drzewie — inaczej serwer i klient rozjechałyby się
     na pierwszym renderze. Nazwa dostępna odnośnika idzie tym samym progiem:
-    SSR mówi „Koszyk", po hydratacji „Koszyk, 2 pozycje" (WCAG: nazwa spójna
-    z widoczną etykietą — zaczyna się od niej).
+    SSR mówi „Koszyk" (tekst `sr-only` w pakiecie), po hydratacji „Koszyk,
+    2 pozycje" — nazwa rozszerzona zaczyna się od tej samej nazwy.
   */
   const counted = hydrated && count > 0;
 
@@ -148,7 +145,7 @@ export function StoreHeader({
         }
         cartCurrent={cartCurrent}
         search={search}
-        subnav={subnav}
+        nav={nav}
         center={center}
         sticky
         cartBadge={
@@ -158,10 +155,16 @@ export function StoreHeader({
               odnośnika — dla czytnika ekranu byłby przeczytany drugi raz,
               stąd `aria-hidden`. `tabular-nums`: cyfry o stałej szerokości,
               badge nie faluje przy zmianie 9 → 10 (spec F7).
+
+              POZYCJA W NAROŻNIKU IKONY (F7b): koszyk jest kwadratem 44 px, więc
+              licznik nie stoi już OBOK napisu — siada na znaku, jak w każdym
+              sklepie. `absolute` względem odnośnika (`relative` w pakiecie);
+              `pointer-events-none`, żeby badge nie zjadał kliknięcia w róg
+              celu dotykowego.
             */
             <span
               aria-hidden="true"
-              className="site-badge inline-flex min-w-6 items-center justify-center px-2 text-xs font-semibold tabular-nums"
+              className="site-badge pointer-events-none absolute right-0.5 top-1 inline-flex min-w-5 items-center justify-center px-1.5 text-[0.6875rem] font-semibold leading-5 tabular-nums"
             >
               {count}
             </span>

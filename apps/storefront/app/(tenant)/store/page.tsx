@@ -168,8 +168,6 @@ export default async function TenantStorePage() {
         (guard pustych). Powłoka pokazuje je w nagłówku obok znaku firmy.
       */
       categoryNav={categoryNavItems(catalog)}
-      /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
-      headerMode="catalog"
       /*
         PREFIKS ZDJĘĆ TAKŻE DLA POWŁOKI (ADR-172). Ten sam szew, którym niżej
         jadą zdjęcia sekcji strony — bo stopkę rysuje ten sam renderer, a jego

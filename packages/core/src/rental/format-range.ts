@@ -14,6 +14,12 @@
  * Zapis dat robi `Intl` w locale NAJEMCY — formatter nie zna żadnego języka
  * z osobna, więc trzeci rynek nie dopisze tu gałęzi dat.
  *
+ * WARIANT KRÓTKI (F7b): „26–28 sie · 3 dni" — bez roku, ale WYŁĄCZNIE gdy oba
+ * końce zakresu są w roku bieżącym (patrz `RentalRangeOptions`). Używa go
+ * pigułka terminu w belce ikonowej, gdzie o szerokość walczy się o piksele;
+ * koszyk, kasa i potwierdzenie zostają przy formie pełnej, bo tam data bywa
+ * czytana po tygodniach i rok jest jej częścią.
+ *
  * ==================== FRAZA ATOMOWA (S-10) ====================
  *
  * Wszystkie odstępy WEWNĄTRZ tokenów to NBSP — data i liczba dni nie łamią
@@ -52,7 +58,41 @@ function daysPhrase(days: number, locale: string): string {
 }
 
 /**
- * Zakres najmu po ludzku: „26–28 sie 2026 · 3 dni".
+ * WARIANT KRÓTKI — opcje frazy (F7b, korekta właściciela 2026-08-25).
+ *
+ * Pigułka terminu w belce ikonowej jest JEDYNYM tekstem nagłówka i ma być
+ * „nie za szeroka" (dyspozycja właściciela). Rok BIEŻĄCY jest w niej czystym
+ * balastem: klient, który wybiera termin dziś, wie, w którym roku żyje —
+ * a „2026" zjada w pigułce ~40 px, przez które fraza dobija do `max-w`
+ * i ścina się wielokropkiem.
+ *
+ * Rok znika WYŁĄCZNIE wtedy, gdy OBA końce zakresu są w roku bieżącym.
+ * Najem przechodzący przez sylwestra albo zaplanowany na przyszły rok
+ * zostaje z rokiem — bez niego „2 sty" byłoby datą dwuznaczną, a to jest
+ * dokładnie ta klasa wady, którą F8 zamknął zdejmując ISO z ekranu.
+ */
+export interface RentalRangeOptions {
+  /** `true` = wariant krótki (rok bieżący pomijany) — patrz docblock wyżej. */
+  short?: boolean;
+  /**
+   * DZIŚ jako `YYYY-MM-DD` — wyłącznie po to, żeby wariant krótki dał się
+   * przetestować bez zegara systemu (test „w grudniu 2026" nie może zależeć
+   * od tego, kiedy się go uruchamia). Brak = zegar systemu.
+   */
+  today?: IsoDate;
+}
+
+/** Rok bieżący jako `YYYY` — z podanego „dziś" albo z zegara systemu. */
+function currentYear(today: IsoDate | undefined): string {
+  if (today !== undefined) {
+    assertIsoDate(today, "today");
+    return today.slice(0, 4);
+  }
+  return String(new Date().getUTCFullYear());
+}
+
+/**
+ * Zakres najmu po ludzku: „26–28 sie 2026 · 3 dni" (krótko: „26–28 sie · 3 dni").
  *
  * Odstępy wokół półpauzy są ZNORMALIZOWANE po naszej regule, nie po ICU:
  * wspólny miesiąc i rok → zwarcie („26–28"), różne miesiące/lata → półpauza
@@ -63,15 +103,30 @@ function daysPhrase(days: number, locale: string): string {
  * i data spoza kalendarza rzucają `RangeError` z `dates.ts` — formatter nie
  * wymyśla własnej, trzeciej odpowiedzi na złe wejście.
  */
-export function formatRentalRange(start: IsoDate, end: IsoDate, locale: string): string {
+export function formatRentalRange(
+  start: IsoDate,
+  end: IsoDate,
+  locale: string,
+  options: RentalRangeOptions = {},
+): string {
   assertIsoDate(start, "start");
   assertIsoDate(end, "end");
   const days = rentalDaysInclusive(start, end);
 
+  /*
+    ROK ZNIKA TYLKO W WARIANCIE KRÓTKIM I TYLKO DLA ROKU BIEŻĄCEGO — jedno
+    miejsce tej decyzji, żeby „krótko" nie znaczyło gdzie indziej „bez roku
+    zawsze" (data z przyszłego roku bez roku jest po prostu inną datą).
+  */
+  const rokBiezacy =
+    options.short === true &&
+    start.slice(0, 4) === end.slice(0, 4) &&
+    start.slice(0, 4) === currentYear(options.today);
+
   const formatter = new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
-    year: "numeric",
+    ...(rokBiezacy ? {} : { year: "numeric" as const }),
     timeZone: "UTC",
   });
   const startDate = new Date(`${start}T00:00:00Z`);

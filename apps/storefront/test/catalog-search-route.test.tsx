@@ -185,8 +185,10 @@ describe("wyszukiwarka katalogu na trasie /katalog (ADR-263)", () => {
   it("pole to formularz GET celujący w /katalog z parametrem `q` (linkowalny, bez JS)", async () => {
     // [F9c] Pole wyszukiwania mieszka w BELCE (F7) — toolbar listingu przestał
     // je dublować; kontrakt GET → /katalog?q= przenosi się na formę belki.
+    // [F7b] Forma belki jest JEDNA: ikona + panel pod belką (pełne pole
+    // z F7 wypadło), więc dowód GET stoi na formularzu PANELU.
     const html = await renderKatalog({});
-    expect(html, "brak pola wyszukiwania w belce").toContain("data-store-header-search-inline");
+    expect(html, "brak pola wyszukiwania w belce").toContain("data-store-header-search-panel");
     expect(html).toContain('method="get"');
     expect(html).toContain('action="/katalog"');
     expect(html).toContain('name="q"');
@@ -241,8 +243,12 @@ describe("wyszukiwarka katalogu na trasie /katalog (ADR-263)", () => {
     );
     const kafle = html.match(/data-products-item=/g) ?? [];
     expect(kafle.length, "pusty wynik mimo to narysował kafle").toBe(0);
-    // Pole zostaje, żeby klient mógł zawęzić inaczej albo wyczyścić.
-    expect(html, "pole wyszukiwania zniknęło przy pustym wyniku").toContain("data-catalog-search");
+    // Pole zostaje (w belce), żeby klient mógł zawęzić inaczej albo wyczyścić.
+    // [F7b] Znacznik doprecyzowany: `data-catalog-search` łapało też
+    // `data-catalog-search-empty` z asercji wyżej, więc dowód był pozorny.
+    expect(html, "pole wyszukiwania zniknęło przy pustym wyniku").toContain(
+      "data-store-header-search-panel",
+    );
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------

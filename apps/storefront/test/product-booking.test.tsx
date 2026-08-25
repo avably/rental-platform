@@ -240,6 +240,68 @@ describe("liczba wolnych sztuk w wybranym terminie", () => {
     expect(checkCatalogAvailability).toHaveBeenCalledWith(dayFromToday(3), dayFromToday(5));
   });
 
+  /*
+    [F7b] AUTO-DOSTĘPNOŚĆ NA STRONIE SPRZĘTU (dyspozycja właściciela:
+    „dostępność sama się sprawdza bez kliknięcia, jeśli daty już mamy").
+
+    Termin jest USTAWIONY PRZED wejściem na stronę — w koszyku, czyli tam, gdzie
+    zapisuje go pigułka belki, okno wyboru na innej karcie albo poprzednia
+    sesja. Klient otwiera stronę sprzętu i ma odpowiedź OD RAZU: bez otwierania
+    okna, bez „Zastosuj", bez ani jednego przycisku „sprawdź".
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: gdyby odczyt dostępności wisiał na interakcji
+    (np. na otwarciu okna wyboru albo na osobnym przycisku), ten test byłby
+    czerwony na PIERWSZEJ asercji — bo w scenariuszu nie ma ani jednego
+    zdarzenia wejściowego. Testy wyżej tego nie przykrywają: one WYBIERAJĄ
+    termin klikaniem, więc przeszłyby także w wariancie „sprawdzam po kliknięciu".
+  */
+  it("termin ustawiony WCZEŚNIEJ: liczba wolnych sztuk stoi bez ani jednej interakcji", async () => {
+    checkCatalogAvailability.mockResolvedValue(catalog(2));
+    writeCart({ items: [], startDate: dayFromToday(3), endDate: dayFromToday(5) });
+
+    render(widget());
+
+    await waitFor(() => {
+      expect(
+        document.querySelector('[data-product-booking-units="2"]'),
+        "karta nie policzyła dostępności dla terminu, który już był w koszyku",
+      ).not.toBeNull();
+    });
+    expect(screen.getByText(/wolne w tym terminie: 2/)).toBeTruthy();
+    expect(checkCatalogAvailability).toHaveBeenCalledWith(dayFromToday(3), dayFromToday(5));
+    // Kontrola przyrządu: okno wyboru NIE jest otwarte — nikt w nic nie kliknął.
+    expect(document.querySelector("[data-store-term-apply]")).toBeNull();
+  });
+
+  /*
+    [F7b] I AKTUALIZUJE SIĘ SAMA. Zmiana terminu przychodzi SPOZA karty (z
+    pigułki belki albo z drugiej karty przeglądarki — koszyk jest wspólny), a
+    liczba na karcie ma za nią nadążyć bez dotykania czegokolwiek na PDP.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: odpowiedź trzymana bez klucza pytania (wtedy
+    zostałaby stara liczba) albo odczyt odpalany raz na montaż (wtedy nowego
+    wywołania by nie było).
+  */
+  it("zmiana terminu spoza karty odświeża liczbę bez interakcji na stronie", async () => {
+    checkCatalogAvailability.mockResolvedValue(catalog(2));
+    writeCart({ items: [], startDate: dayFromToday(3), endDate: dayFromToday(5) });
+    render(widget());
+    await waitFor(() => {
+      expect(document.querySelector('[data-product-booking-units="2"]')).not.toBeNull();
+    });
+
+    checkCatalogAvailability.mockResolvedValue(catalog(1));
+    writeCart({ items: [], startDate: dayFromToday(10), endDate: dayFromToday(12) });
+
+    await waitFor(() => {
+      expect(
+        document.querySelector('[data-product-booking-units="1"]'),
+        "karta została przy liczbie dla POPRZEDNIEGO terminu",
+      ).not.toBeNull();
+    });
+    expect(checkCatalogAvailability).toHaveBeenLastCalledWith(dayFromToday(10), dayFromToday(12));
+  });
+
   it("bez kompletnego terminu widget prosi o termin, zamiast zmyślać dostępność", async () => {
     render(widget());
 

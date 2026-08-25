@@ -455,27 +455,33 @@ describe("strona sprzętu: szablon albo strona wbudowana (ADR-178)", () => {
   // którą belka pokazuje slot pigułki (`@min-[48rem]/site:flex`). Suita
   // terminu montuje pasek sama i mierzy zachowanie — o MIEJSCU w dokumencie
   // trasy nie mówi nic, dlatego ta bramka stoi tu, przy prawdziwym renderze.
-  it("pigułka terminu stoi W BELCE, a wiersz pod belką jest formą wąską (48rem kontenera)", async () => {
+  /*
+    [F7b] Asercja przepisana. Do F7b pigułka miała DWA wystąpienia: w belce
+    (od 48 rem kontenera) i w wierszu pod belką poniżej progu — test pilnował
+    obu form i progu, który je rozdzielał. Belka ikonowa mieści pigułkę na
+    każdej szerokości, więc wystąpienie jest JEDNO, a wiersz pod belką zniknął.
+    Zdanie kontraktu jest dziś mocniejsze: pigułka stoi w belce i nigdzie poza
+    nią (druga noga łapie powrót wiersza, czyli podwójny kalendarz na telefonie).
+  */
+  it("pigułka terminu stoi W BELCE i ma dokładnie jedno wystąpienie (F7b)", async () => {
     const markup = await renderProductPage();
 
     // Noga kontrolna: belka w ogóle jest — bez niej `slice` mierzyłby pustkę.
     const koniecBelki = markup.indexOf("</header>");
     expect(koniecBelki, "trasa nie wyrenderowała belki menu").toBeGreaterThanOrEqual(0);
-    expect(
-      markup.slice(0, koniecBelki),
-      "belka menu nie niesie pigułki terminu (desktop)",
-    ).toContain("data-store-term-toggle");
-
-    // Wiersz pod belką: PIERWSZE dziecko owijki `data-store-term`. Wolno mu
-    // istnieć wyłącznie jako forma wąska — czyli ukryta od 48 rem KONTENERA.
-    const wiersz = markup.match(/data-store-term="true"><div class="([^"]*)"/)?.[1] ?? "";
-    expect(wiersz, "wiersza terminu pod belką nie ma w SSR (forma wąska)").toContain(
-      "site-rule-top",
+    expect(markup.slice(0, koniecBelki), "belka nie niesie pigułki terminu").toContain(
+      "data-store-term-toggle",
     );
+
     expect(
-      wiersz,
-      "wiersz terminu pod belką wrócił na desktop — zgubił @min-[48rem]/site:hidden",
-    ).toContain("@min-[48rem]/site:hidden");
+      (markup.match(/data-store-term-toggle/g) ?? []).length,
+      "pigułka terminu zdublowała się — wiersz pod belką wrócił",
+    ).toBe(1);
+    // Owijka paska ZOSTAJE (wisi na niej puls produkcyjny), ale nie niesie już
+    // wiersza z drugą pigułką — dowodem jest licznik wyżej.
+    expect(markup, "owijka paska terminu zniknęła — puls produkcyjny straciłby marker").toContain(
+      'data-store-term="true"',
+    );
   }, BUDZET_RENDERU);
 
   // -------------------------------------------------------------------

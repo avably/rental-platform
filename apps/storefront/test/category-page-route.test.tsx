@@ -441,16 +441,36 @@ describe("strona kategorii (ADR-247)", () => {
     expect(sheet).toMatch(/\.site-listing-cards \[data-products-cta\][\s\S]{0,200}?clear: both/);
   }, BUDZET_RENDERU);
 
-  it("landmark okruszków ma ODRĘBNĄ etykietę nawigacji, nie nazwę pozycji „Sklep”", async () => {
+  it("landmark okruszków ma ODRĘBNĄ etykietę nawigacji, nie nazwę pierwszej pozycji", async () => {
     const html = await renderKategoria(SLUG);
     // Nawigacja okruszków (tenant PL) nazwana rolą, nie pierwszą pozycją:
-    // „Ścieżka nawigacji”, a NIE „Sklep” (to tylko tekst odnośnika w środku).
+    // „Ścieżka nawigacji”, a NIE nazwą odnośnika w środku.
     expect(html, "okruszki nie dostały etykiety landmarka").toMatch(
       /<nav[^>]*data-category-breadcrumbs[^>]*aria-label="Ścieżka nawigacji"/,
     );
-    expect(html, "etykieta landmarka nadal dubluje nazwę pozycji „Sklep”").not.toMatch(
-      /<nav[^>]*data-category-breadcrumbs[^>]*aria-label="Sklep"/,
+    expect(html, "etykieta landmarka dubluje nazwę pierwszej pozycji").not.toMatch(
+      /<nav[^>]*data-category-breadcrumbs[^>]*aria-label="Strona główna"/,
     );
+  }, BUDZET_RENDERU);
+
+  /*
+    [F7b, dyspozycja właściciela] W WARSTWIE KLIENTA STRONA GŁÓWNA NIE NAZYWA
+    SIĘ „SKLEP". To jest wypożyczalnia — a okruszek „Sklep › Kategoria" mówił
+    klientowi o sklepie internetowym, w którym niczego nie kupuje na własność.
+    Pierwsza pozycja okruszków (i jej odpowiednik w BreadcrumbList) brzmi
+    „Strona główna".
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: powrót starego napisu w copy — a widać go
+    WYŁĄCZNIE na renderze, bo klucz i adres pozostają te same.
+  */
+  it("okruszek strony głównej brzmi „Strona główna”, nie „Sklep” (F7b)", async () => {
+    const html = await renderKategoria(SLUG);
+    const okruszki = html.slice(
+      html.indexOf("data-category-breadcrumbs"),
+      html.indexOf("data-category-header"),
+    );
+    expect(okruszki, "okruszek wrócił do nazywania strony głównej sklepem").not.toContain("Sklep");
+    expect(okruszki, "okruszek zgubił wejście na stronę główną").toContain("Strona główna");
   }, BUDZET_RENDERU);
 
   it("nagłówek kategorii NIE renderuje banera — nawet gdy kategoria go ma (F9b)", async () => {
@@ -559,6 +579,37 @@ describe("strona kategorii (ADR-247)", () => {
     );
     expect(html, "kategoria z pozycjami nie weszła do menu").toContain('href="/kategoria/kajaki"');
     expect(html, "kategoria PUSTA weszła do menu wbrew guardowi").not.toContain(
+      'href="/kategoria/puste"',
+    );
+  }, BUDZET_RENDERU);
+
+  /*
+    [F7b, aneks właściciela] DRZEWO KATEGORII W TREŚCI LISTINGU. Ikona w belce
+    daje wejście do półek z każdej trasy; kolumna w treści daje PRZEŁĄCZENIE
+    półki jednym klikiem — o to prosił właściciel po benchmarku. Trasa musi
+    podać komponentom TE SAME pozycje, które niesie nagłówek.
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: kolumna wpięta tylko na `/katalog` (klient w
+    kategorii dalej klika trzy razy) albo wpięta bez `currentPath` (kolumna
+    nie mówi, na której półce stoi).
+  */
+  it("listing niesie kolumnę i rząd kategorii, z zaznaczoną bieżącą półką (F7b)", async () => {
+    stan.menu = true;
+    const html = await renderKategoria(SLUG);
+    expect(html, "kolumna kategorii nie weszła na stronę kategorii").toContain(
+      "data-listing-categories-column",
+    );
+    expect(html, "rząd kategorii nie wszedł na stronę kategorii").toContain(
+      "data-listing-categories-row",
+    );
+    // Obie formy niosą TE SAME półki, co menu belki (jedno źródło pozycji).
+    expect(
+      (html.match(/href="\/kategoria\/kajaki"/g) ?? []).length,
+      "półka z menu nie doszła do kolumny i rzędu listingu",
+    ).toBeGreaterThanOrEqual(3); // menu belki + kolumna + rząd
+    expect(html, "listing bez wejścia do pełnego katalogu").toContain('href="/katalog"');
+    // Guard pustych obowiązuje w treści tak samo, jak w belce.
+    expect(html, "pusta półka weszła do kolumny listingu").not.toContain(
       'href="/kategoria/puste"',
     );
   }, BUDZET_RENDERU);

@@ -50,7 +50,7 @@ export const DEFAULT_SITE_LABELS: SiteRenderLabels = {
   productsEmpty: "Katalog jest w przygotowaniu.",
   categoriesEmpty: "Kategorie są w przygotowaniu.",
   productsCatalog: "Zobacz cały katalog →",
-  productsCta: "Sprawdź dostępność",
+  productsCta: "Zobacz szczegóły",
   contactEmail: "E-mail:",
   contactPhone: "Telefon:",
   contactAddress: "Adres:",

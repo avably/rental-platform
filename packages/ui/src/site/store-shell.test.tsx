@@ -55,8 +55,13 @@ describe("S-52 — self-link koszyka", () => {
     const cart = container.querySelector('a[href="/cart"]');
     expect(cart, "nagłówek bez odnośnika koszyka").not.toBeNull();
     expect(cart!.getAttribute("aria-current")).toBe("page");
+    /*
+      [F7b] Wyróżnieniem jest KOLOR AKCENTU, nie waga: pod ikoną nie ma tekstu,
+      który mógłby zgrubieć (zamiana świadoma, informacja o stanie zostaje
+      w `aria-current` — patrz docblock przy `cartClassName`).
+    */
     expect(cart!.className, "brak klasy wyróżnienia — aria-current byłby niewidzialny").toContain(
-      "aria-[current=page]:font-semibold",
+      "aria-[current=page]:text-[color:var(--site-accent-text)]",
     );
   });
 
@@ -69,13 +74,26 @@ describe("S-52 — self-link koszyka", () => {
 });
 
 describe("S-15 — cel dotykowy odnośnika koszyka", () => {
-  it("padding powiększa obszar klikalny, ujemne marginesy oddają go w układzie", () => {
+  /*
+    [F7b] Do belki ikonowej cel dotykowy robił PADDING wokół napisu („py-3
+    -my-3 px-2 -mx-2" — 20 px tekstu + 2 × 12 px). Koszyk jest teraz znakiem
+    bez napisu, więc 44 px jest WYMIAREM pudełka, a nie protezą wokół tekstu.
+    Zdanie kontraktu bez zmian: kontrolka ma co najmniej 44 × 44 (WCAG 2.5.8).
+  */
+  it("odnośnik koszyka jest kwadratem 44 × 44 px", () => {
     const { container } = naglowek();
     const cart = container.querySelector('a[href="/cart"]');
     expect(cart).not.toBeNull();
-    // 20 px tekstu + 2 × 12 px paddingu = 44 px (zalecenie WCAG 2.5.8);
-    // -my-3 zdejmuje dokładnie tyle, ile py-3 dodało — belka bez zmian.
-    for (const klasa of ["py-3", "-my-3", "px-2", "-mx-2"]) {
+    for (const klasa of [
+      "h-11",
+      // 40 px na wąskim kontenerze, 44 od 26 rem — trzy ikony i pigułka nie
+      // mieszczą się przy 44 px w pasie telefonu (pomiar w docblocku pigułki).
+      "w-10",
+      "@min-[40rem]/site:w-11",
+      "inline-flex",
+      "items-center",
+      "justify-center",
+    ]) {
       expect(cart!.className, `cel dotykowy stracił ${klasa}`).toContain(klasa);
     }
   });
@@ -120,7 +138,7 @@ describe("S-58 — wspólna siatka chrome mówi liczbami rdzenia", () => {
 
 /* ================================ F7 ================================ */
 
-describe("F7 — nagłówek pro: sticky, sloty wyszukiwania i listwy", () => {
+describe("F7/F7b — nagłówek: sticky i sloty belki ikonowej", () => {
   it("`sticky` dokłada przyklejenie (top-0 z-40) i atrybut reguły linii z site.css", () => {
     const { container } = naglowek({ sticky: true });
     const header = container.querySelector("[data-store-header]")!;
@@ -142,16 +160,38 @@ describe("F7 — nagłówek pro: sticky, sloty wyszukiwania i listwy", () => {
     expect(header.hasAttribute("data-store-header-sticky")).toBe(false);
   });
 
-  it("slot `search` staje w belce, slot `subnav` jako drugi rząd WEWNĄTRZ <header>", () => {
+  /*
+    [F7b] Slot `subnav` (drugi rząd z listwą kategorii) zniknął razem z listwą,
+    którą właściciel zdjął z produkcji. Zastąpił go `nav` — wyzwalacz kategorii
+    w PRAWEJ GRUPIE kontrolek, obok wyszukiwania, pigułki terminu i koszyka.
+    Kontrakt zdania: sloty belki lądują w belce, w zadanej kolejności.
+  */
+  it("sloty `nav`, `search` i `center` stają w prawej grupie, przed koszykiem", () => {
     const { container } = naglowek({
+      nav: <div data-test-nav />,
       search: <div data-test-search />,
-      subnav: <nav data-test-subnav />,
+      center: <div data-test-center />,
     });
     const header = container.querySelector("[data-store-header]")!;
-    expect(header.querySelector("[data-test-search]"), "slot wyszukiwania wypadł z belki").not.toBeNull();
-    // Drugi rząd MUSI być w <header>: przykleja się razem z belką, a linia
-    // po przewinięciu rysuje się POD nim, nie między rzędami.
-    expect(header.querySelector("[data-test-subnav]"), "listwa wypadła poza <header>").not.toBeNull();
+    for (const znacznik of ["[data-test-nav]", "[data-test-search]", "[data-test-center]"]) {
+      expect(header.querySelector(znacznik), `slot ${znacznik} wypadł z belki`).not.toBeNull();
+    }
+    /*
+      Kolejność: nawigacja → szukaj → termin → koszyk (od przeglądania do
+      zakupu). Sloty stoją w WŁASNYCH pudełkach (granica serwer→klient — patrz
+      komentarz w komponencie), więc czytamy je przez zawartość pudełek.
+    */
+    const grupa = header.querySelector("[data-test-nav]")!.parentElement!.parentElement!;
+    const kolejnosc = [...grupa.children].map((el) =>
+      el.tagName === "A" || el.hasAttribute("data-shell-inert")
+        ? "cart"
+        : el.querySelector("[data-test-nav]")
+          ? "nav"
+          : el.querySelector("[data-test-search]")
+            ? "search"
+            : "center",
+    );
+    expect(kolejnosc).toEqual(["nav", "search", "center", "cart"]);
   });
 
   it("bez slotów belka wygląda jak dotąd (podgląd szkicu nie podaje nic)", () => {
@@ -168,8 +208,24 @@ describe("F7 — nagłówek pro: sticky, sloty wyszukiwania i listwy", () => {
     );
   });
 
-  it("bez `cartAriaLabel` odnośnik mówi widocznym napisem (podgląd, koszyk pusty)", () => {
+  /*
+    [F7b] Asercja przepisana: do belki ikonowej nazwą był WIDOCZNY napis
+    „Koszyk", więc brak `aria-label` był stanem poprawnym i pełnym. Teraz napis
+    jest `sr-only` — nazwa dalej pochodzi z treści (nie z atrybutu), ale musi
+    tam BYĆ. Ikona bez nazwy to odnośnik, którego czytnik ekranu nie umie
+    przeczytać, a takiego stanu poprzednia asercja by nie złapała.
+  */
+  it("bez `cartAriaLabel` nazwą jest tekst `sr-only` w środku kontrolki", () => {
     const { container } = naglowek();
-    expect(container.querySelector('a[href="/cart"]')!.hasAttribute("aria-label")).toBe(false);
+    const cart = container.querySelector('a[href="/cart"]')!;
+    expect(cart.hasAttribute("aria-label")).toBe(false);
+    expect(cart.querySelector(".sr-only")!.textContent).toBe("Koszyk");
+  });
+
+  it("podgląd szkicu (bez odnośników) też niesie nazwę koszyka", () => {
+    const { container } = naglowek({ interactive: false });
+    const inert = container.querySelectorAll("[data-shell-inert]")[1]!;
+    expect(inert.querySelector(".sr-only")!.textContent).toBe("Koszyk");
+    expect(inert.querySelector("svg"), "podgląd stracił znak koszyka").not.toBeNull();
   });
 });

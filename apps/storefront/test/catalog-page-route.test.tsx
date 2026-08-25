@@ -231,7 +231,19 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     // a katalog nie ma sortu (RPC bez porządku) — pusty toolbar byłby ramką
     // po niczym.
     expect(html, "toolbar-widmo wrócił na katalog").not.toContain("data-listing-toolbar");
-    expect(html, "pole szukania zniknęło z belki").toContain("data-store-header-search-inline");
+    /*
+      [F7b] Asercja przepisana z `data-store-header-search-inline` (pełne pole
+      w belce od 48 rem) na wyzwalacz + panel: właściciel zdjął pełne pole
+      („search jako tylko ikonka"), więc znacznik, którego pilnowała
+      poprzednia wersja, nie istnieje. Zdanie kontraktu bez zmian: wejście do
+      wyszukiwania stoi w belce także na listingu.
+    */
+    expect(html, "wyzwalacz szukania zniknął z belki").toContain(
+      "data-store-header-search-toggle",
+    );
+    expect(html, "panel wyszukiwania zniknął z belki").toContain(
+      "data-store-header-search-panel",
+    );
     expect(html, "siatka katalogu bez klasy karty poziomej").toMatch(
       /<ul(?=[^>]*data-catalog-grid)(?=[^>]*site-listing-cards)[^>]*>/,
     );
@@ -428,6 +440,34 @@ describe("strona katalogu ze stronicowaniem (ADR-186)", () => {
     // Kategoria PUSTA jest zdejmowana guardem — pozycja menu obiecywałaby półkę
     // bez sprzętu (patrz `categoryNavItems`).
     expect(html, "kategoria PUSTA weszła do menu wbrew guardowi").not.toContain(
+      'href="/kategoria/puste"',
+    );
+  }, BUDZET_RENDERU);
+
+  /*
+    [F7b, aneks właściciela] KOLUMNA I RZĄD KATEGORII W TREŚCI `/katalog`.
+    Bieżącą „półką" jest tu sam katalog, więc to pozycja „Wszystkie kategorie"
+    dostaje `aria-current="page"` — w obu formach naraz (jedna jest widoczna,
+    ale obie stoją w SSR i obie muszą mówić prawdę).
+
+    CO MUSIAŁOBY SIĘ ZEPSUĆ: kolumna bez `currentPath` (klient nie wie, gdzie
+    stoi) albo wpięta tylko na stronie kategorii.
+  */
+  it("listing niesie kolumnę i rząd kategorii, a bieżący jest katalog (F7b)", async () => {
+    stan.menu = true;
+    const html = await renderKatalog({});
+    expect(html, "kolumna kategorii nie weszła na /katalog").toContain(
+      "data-listing-categories-column",
+    );
+    expect(html, "rząd kategorii nie wszedł na /katalog").toContain("data-listing-categories-row");
+    // Kolejność atrybutów w markupie nie jest kontraktem — dopuszczamy obie.
+    const biezacy = /aria-current="page" href="\/katalog"|href="\/katalog" aria-current="page"/g;
+    expect(
+      (html.match(biezacy) ?? []).length,
+      "„Wszystkie kategorie” bez aria-current w kolumnie i rzędzie",
+    ).toBeGreaterThanOrEqual(2);
+    // Guard pustych obowiązuje w treści tak samo, jak w belce.
+    expect(html, "pusta półka weszła do kolumny listingu").not.toContain(
       'href="/kategoria/puste"',
     );
   }, BUDZET_RENDERU);
