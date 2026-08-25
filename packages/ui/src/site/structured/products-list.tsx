@@ -11,6 +11,7 @@ import {
   productCtaLabel,
   productFeaturesOf,
   productFieldOf,
+  productImageAlt,
   visibleProductsFor,
 } from "./products-shared";
 import { StructuredSectionShell } from "./shell";
@@ -68,7 +69,7 @@ export function StructuredProductsList({
                 {product.imageUrl ? (
                   <img
                     src={product.imageUrl}
-                    alt={product.imageAlt}
+                    alt={productImageAlt(product)}
                     className="size-20 shrink-0 rounded-md object-cover"
                     loading={index === 0 ? "eager" : "lazy"}
                   />
