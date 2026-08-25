@@ -29,6 +29,7 @@ import {
   readConnectAccount,
 } from "@avably/core";
 
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { PaymentStep } from "@/components/storefront/payment-step";
@@ -75,7 +76,8 @@ export default async function TenantPaymentPage() {
   const order = await loadCheckoutOrder();
   // Brak uchwytu to stan NORMALNY (wygasłe ciasteczko, wejście z zakładki),
   // a nie awaria — wracamy do sklepu bez straszenia klienta komunikatem.
-  if (!order) redirect("/store");
+  // Kanon strony głównej, nie trasa wewnętrzna `/store` (S-45/M-14).
+  if (!order) redirect("/");
   // Zamówienie przelewowe nie ma tu czego szukać; jego ścieżka skończyła się
   // na ekranie potwierdzenia.
   if (order.paymentProvider !== "stripe") redirect("/checkout/platnosc/status");
@@ -119,6 +121,8 @@ export default async function TenantPaymentPage() {
         którego tu nie ma, a zmiana koszyka nie miałaby na nie żadnego wpływu.
       */
       term={null}
+      /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
+      categoryNav={categoryNavItems(catalog)}
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.payment.title}</h1>
       <div className="mt-6">

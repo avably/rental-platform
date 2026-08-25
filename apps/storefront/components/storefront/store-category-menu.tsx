@@ -43,9 +43,29 @@ export function StoreCategoryMenu({
   if (items.length === 0) return null;
 
   return (
-    <details className="site-category-menu group relative" data-store-category-menu>
+    /*
+      KOTWICA PANELU ZALEŻY OD SZEROKOŚCI KONTENERA (S-01 audytu 2026-08-25).
+
+      Panel `w-56` zakotwiczony w pudełku wyzwalacza (`relative` na <details>)
+      wystawał ~14 px poza okno przy 360 px — wyzwalacz stoi za znakiem firmy,
+      więc lewa krawędź panelu startuje zbyt głęboko. Poniżej 40 rem <details>
+      jest więc `static`, a panel (`left-0 right-0` niżej) rozpina się na
+      szerokość NAJBLIŻSZEGO pozycjonowanego przodka — wiersza belki nagłówka
+      (`relative` w `StoreShellHeader`): pełna szerokość, zero wystawania,
+      niezależnie od długości nazw. Od 40 rem wraca kotwica w wyzwalaczu
+      i panel `w-56` jak dotąd. Warianty KONTENEROWE (`@min-[40rem]/site:`),
+      nie viewportowe — ta sama zasada, co w sekcjach (ADR-085).
+    */
+    <details
+      className="site-category-menu group static @min-[40rem]/site:relative"
+      data-store-category-menu
+    >
+      {/*
+        Cel dotykowy wyzwalacza (S-15, WCAG 2.5.8): padding do 44 px wysokości,
+        ujemne marginesy oddają tę samą przestrzeń — belka nie zmienia wyglądu.
+      */}
       <summary
-        className="site-menu-link inline-flex cursor-pointer list-none items-center gap-1 text-sm font-medium [&::-webkit-details-marker]:hidden"
+        className="site-menu-link -mx-2 -my-3 inline-flex cursor-pointer list-none items-center gap-1 px-2 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden"
         aria-label={label}
       >
         <span>{label}</span>
@@ -63,13 +83,19 @@ export function StoreCategoryMenu({
           />
         </svg>
       </summary>
-      <div className="site-card absolute left-0 top-full z-30 mt-2 max-h-[70vh] w-56 max-w-[80vw] overflow-auto p-1">
+      {/*
+        `left-0 right-0` na wąskim kontenerze = pełna szerokość wiersza belki
+        (kotwica — patrz docblock <details> wyżej); od 40 rem `right-auto w-56`
+        przywraca panel przy wyzwalaczu. Pozycje mają 44 px wysokości (py-3,
+        S-15) — cel dotykowy zamiast 36 px linijki.
+      */}
+      <div className="site-card absolute left-0 right-0 top-full z-30 mt-2 max-h-[70vh] overflow-auto p-1 @min-[40rem]/site:right-auto @min-[40rem]/site:w-56">
         <ul className="flex list-none flex-col">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={item.href}
-                className="site-menu-link block rounded px-3 py-2 text-sm"
+                className="site-menu-link block rounded px-3 py-3 text-sm"
               >
                 {item.name}
               </Link>

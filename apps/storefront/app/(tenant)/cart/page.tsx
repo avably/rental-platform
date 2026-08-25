@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CartView } from "@/components/storefront/cart-view";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { productPaths } from "@/lib/catalog/product-path";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
@@ -58,6 +59,10 @@ export default async function TenantCartPage() {
         `storeTermInput`, wspólny dla wszystkich tras handlowych.
       */
       term={storeTermInput(ctx.storeFlags, catalog.products, locale)}
+      /* Menu kategorii (S-30) — nagłówek prowadzi do oferty z każdej trasy. */
+      categoryNav={categoryNavItems(catalog)}
+      /* Self-linki (S-52): „Koszyk" w nagłówku dostaje aria-current na tej trasie. */
+      currentPath="/cart"
     >
       <h1 className={`text-2xl tracking-tight ${SITE_HEADING}`}>{copy.cart.title}</h1>
       <div className="mt-6">

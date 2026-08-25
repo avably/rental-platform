@@ -95,6 +95,34 @@ export interface TemplateStyles {
 }
 
 /**
+ * WSPÓLNA SIATKA STRONY NAJEMCY (S-58 audytu 2026-08-25).
+ *
+ * Płótno sekcji (v2) układa treść w pasie o suficie `CANVAS_DESIGN_WIDTH_PX`
+ * (1152 px = `max-w-6xl`) i marginesie `CANVAS_PAD_COLUMNS / CANVAS_COLUMNS`
+ * (12/144 = 8,333 % szerokości pasa) — i to jest siatka, na której stoi KAŻDA
+ * opublikowana strona, ze stopką włącznie (kreator zapisuje każdą sekcję jako
+ * płótno). Kontener sekcji v1 i chrome sklepu (nagłówek, pasek terminu, treść
+ * podstron) mierzyły dotąd `max-w-5xl px-6`, więc lewa krawędź stopki stała
+ * ~6–9 px na prawo od treści — stały „schodek" na każdej podstronie.
+ * Geometrii płótna nie wolno ruszyć (jest treścią najemcy i prawdą kreatora),
+ * więc to kontener przyjmuje siatkę płótna, nie odwrotnie.
+ *
+ * KOLUMNA SZEROKOŚCIĄ, NIE PADDINGIEM — i to nie jest kosmetyka zapisu.
+ * Procentowy padding rozwiązuje się względem BLOKU ZAWIERAJĄCEGO, więc
+ * `max-w-6xl px-[8.333%]` na pełnoekranowym rodzicu liczyłby margines od okna
+ * (przy 1440 px: 120 zamiast 96) i kolumna stawała ~24 px na prawo od pasa
+ * płótna — dokładnie pułapka opisana przy `FooterMark` (ADR-167), złapana
+ * pomiarem pikseli, nie drzewem. Szerokość procentowa liczy się od tego samego
+ * bloku, co pas treści płótna (pełna szerokość kontenera `site`), więc:
+ *   • poniżej sufitu: kolumna = 120/144 = 83,333 % szerokości — jak płótno;
+ *   • od sufitu: kolumna = 1152 − 2×96 = 960 px (`max-w-[60rem]`), centrowana.
+ *
+ * Literały są parą stałych rdzenia — zgodność liczb pilnuje test
+ * (`store-shell.test.tsx`), bo klasa Tailwinda nie umie ich policzyć sama.
+ */
+export const SITE_CONTAINER = "mx-auto w-[83.333%] max-w-[60rem]";
+
+/**
  * KLASA PRZYCISKU PIERWSZORZĘDNEGO. Wypełnienie (`solid`/`outline`) jest
  * decyzją MOTYWU, a motyw jest danymi — więc przełącznikiem nie może być kod
  * komponentu. Rozstrzyga arkusz przez atrybut `data-site-button` na korzeniu
@@ -104,7 +132,7 @@ const STYLES: TemplateStyles = {
   page: "site-surface",
   section: "py-16 @min-[40rem]/site:py-20",
   sectionInverted: "py-16 @min-[40rem]/site:py-20 site-band-inverted",
-  container: "mx-auto w-full max-w-5xl px-6",
+  container: SITE_CONTAINER,
   eyebrow: "site-eyebrow site-text-muted",
   sectionHeading: "landing-heading mt-3 break-words",
   lead: "mt-4 max-w-2xl text-lg site-text-muted",

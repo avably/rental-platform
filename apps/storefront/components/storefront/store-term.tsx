@@ -61,7 +61,7 @@
  * w koszyku, byłby dokładnie tym drugim źródłem prawdy, którego R1 zabrania.
  */
 import { rentalDaysInclusive } from "@avably/core";
-import { SiteProductAvailabilityProvider, type SiteCalendarLabels } from "@avably/ui";
+import { cn, SITE_CONTAINER, SiteProductAvailabilityProvider, type SiteCalendarLabels } from "@avably/ui";
 import {
   createContext,
   useCallback,
@@ -488,7 +488,8 @@ export function StoreTermBar({
   return (
     <div data-store-term>
       <div className="site-rule-top md:hidden">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-center gap-3 px-6 py-2.5">
+        {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
+        <div className={cn(SITE_CONTAINER, "flex flex-wrap items-center justify-center gap-3 py-2.5")}>
           <StoreTermPill copy={copy} />
         </div>
       </div>
@@ -508,7 +509,7 @@ export function StoreTermBar({
         jego zmianę terminu, ale mówi o pozycjach, na które nie patrzył.
       */}
       {term.verdict.conflicts.length > 0 ? (
-        <div className="mx-auto w-full max-w-5xl px-6 pb-4 md:pt-4">
+        <div className={cn(SITE_CONTAINER, "pb-4 md:pt-4")}>
           <div className="site-error-panel p-4 text-sm" role="alert" data-store-term-conflict>
             <p className="font-semibold">{copy.term.conflictHeading}</p>
             <ul className="mt-2 grid list-none gap-1 p-0">

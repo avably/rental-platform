@@ -162,6 +162,16 @@ export interface ProductPageCatalog {
  */
 export interface ProductPageContext extends Omit<StorefrontContext, "catalog"> {
   catalog: ProductPageCatalog;
+  /**
+   * MENU KATEGORII POWŁOKI (S-30 audytu 2026-08-25, mechanika ADR-266) — jak
+   * w `CatalogPageContext`: strona sprzętu nie ma pełnego katalogu (i nie
+   * wolno jej go doczytać — bramka `koszt-odslony.integration`), więc pozycje
+   * jadą wąskim odczytem `loadCategoryNav` (O(kategorii), bez ani jednej nazwy
+   * pozycji w ruchu). Do S-30 nagłówek PDP nie miał żadnej nawigacji do oferty
+   * poza logo. Pusta tablica = brak wyzwalacza (także fail-soft po nieudanym
+   * odczycie).
+   */
+  categoryNav: readonly CategoryNavItem[];
 }
 
 /**
@@ -346,12 +356,15 @@ async function _loadProductPageContext(
 
   // Flagi powłoki PIĄTYM członem (ADR-203) — równolegle, więc zero
   // dodatkowych podróży w czasie odpowiedzi (ten sam rachunek, co ADR-171).
-  const [envelope, appearance, site, legalDocuments, storeFlags] = await Promise.all([
+  // [S-30] Menu kategorii SZÓSTYM członem (mechanika ADR-266) — wąski odczyt
+  // O(kategorii), równolegle; patrz `loadCategoryNav`.
+  const [envelope, appearance, site, legalDocuments, storeFlags, categoryNav] = await Promise.all([
     getPublicProduct(tenantId, target),
     getTenantAppearance(tenantId),
     getPublishedSite(tenantId),
     getPublishedLegalDocuments(tenantId),
     getPublicStoreFlags(tenantId),
+    loadCategoryNav(tenantId),
   ]);
 
   // Najemca poza oknem handlowym / błąd odczytu — fail-closed jak katalog.
@@ -377,6 +390,7 @@ async function _loadProductPageContext(
         custom_fields: envelope.custom_fields,
         products: [envelope.product],
       },
+      categoryNav,
       locale,
       currency: envelope.tenant.currency,
       copy,

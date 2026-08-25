@@ -29,7 +29,11 @@
 import type { ResolvedSiteStyle } from "@avably/core/site";
 import type { ElementType, ReactNode } from "react";
 
+import { cn } from "../lib/cn";
 import { SiteRenderer } from "./site-renderer";
+// Wspólna siatka strony najemcy (S-58) — nagłówek mierzy TEN SAM pas, co
+// kontener sekcji i pas treści płótna; patrz docblock przy stałej.
+import { SITE_CONTAINER } from "./template";
 import type { RenderSection, SiteLogoRender } from "./types";
 
 /**
@@ -47,15 +51,31 @@ import type { RenderSection, SiteLogoRender } from "./types";
  */
 export const SITE_HEADING = "site-title font-[family-name:var(--site-font-heading)]";
 
-/** Adres katalogu i koszyka — te same, do których prowadzi nagłówek sklepu. */
-const HOME_HREF = "/store";
+/**
+ * Adres strony głównej i koszyka — te same, do których prowadzi nagłówek
+ * sklepu. Znak firmy celuje w KANON (`/`), nie w trasę wewnętrzną `/store`
+ * (S-45 audytu 2026-08-25): `/store` jest celem rewrite'u proxy, a jego
+ * publiczna odsłona była duplikatem kanonicznym strony głównej.
+ */
+const HOME_HREF = "/";
 const CART_HREF = "/cart";
+
+/**
+ * CEL DOTYKOWY BEZ ZMIANY UKŁADU (S-15 audytu 2026-08-25, WCAG 2.5.8).
+ *
+ * Odnośniki belki są gołym tekstem ~20 px wysokości — poniżej minimum 24 px
+ * i daleko od zalecanych 44 px, a belka ma ~63 px zapasu. Padding powiększa
+ * obszar klikalny do 44 px, ujemne marginesy oddają dokładnie tę samą
+ * przestrzeń w układzie — belka nie zmienia ani piksela wyglądu.
+ */
+const NAV_HIT_AREA = "-mx-2 -my-3 px-2 py-3";
 
 export function StoreShellHeader({
   storeName,
   logo,
   cartLabel,
   cartBadge,
+  cartCurrent = false,
   nav,
   center,
   linkComponent,
@@ -73,6 +93,15 @@ export function StoreShellHeader({
   cartLabel: string;
   /** Licznik sztuk — wnosi go WYŁĄCZNIE sklep, bo tylko on ma koszyk. */
   cartBadge?: ReactNode;
+  /**
+   * CZY ODWIEDZAJĄCY STOI NA `/cart` (S-52 audytu 2026-08-25, WCAG 2.4.8).
+   *
+   * Self-link bez oznaczenia to klik, który przeładowuje tę samą stronę.
+   * `true` znaczy `aria-current="page"` i wyróżnienie (podkreślenie z klasy
+   * `aria-[current=page]:`). Rozstrzyga WOŁAJĄCY (sklep zna ścieżkę żądania,
+   * pakiet nie) — podgląd szkicu nie podaje nic i belka wygląda jak dotąd.
+   */
+  cartCurrent?: boolean;
   /**
    * MENU KATEGORII (ADR-247) — slot obok znaku firmy. Wnosi go WYŁĄCZNIE sklep
    * (podgląd szkicu w panelu nie ma katalogu i nie podaje nic), tak samo jak
@@ -120,11 +149,25 @@ export function StoreShellHeader({
     storeName
   );
   const brandClassName = logo ? "flex items-center" : `text-lg tracking-tight ${SITE_HEADING}`;
-  const cartClassName = "site-nav-link inline-flex items-center gap-2 text-sm font-medium";
+  const cartClassName = cn(
+    "site-nav-link inline-flex items-center gap-2 text-sm font-medium",
+    NAV_HIT_AREA,
+    // Wyróżnienie self-linku (S-52) — rysuje się WYŁĄCZNIE przy
+    // `aria-current="page"`, więc klasa może stać na stałe. Waga, nie
+    // podkreślenie: `.site-nav-link` jest podkreślony ZAWSZE (site.css),
+    // więc dodatkowe podkreślenie niczego by nie wyróżniło.
+    "aria-[current=page]:font-semibold",
+  );
 
   return (
     <header className="site-header" data-store-header>
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
+      {/*
+        `relative` jest KOTWICĄ panelu menu kategorii na wąskim kontenerze
+        (S-01 audytu 2026-08-25): poniżej 40 rem panel rozpina się na
+        szerokość TEGO wiersza (`left-0 right-0`), zamiast wystawać poza
+        okno z pudełka wyzwalacza. Patrz `StoreCategoryMenu` w storefront.
+      */}
+      <div className={cn(SITE_CONTAINER, "relative flex items-center justify-between gap-4 py-4")}>
         {/*
           ZNAK I MENU KATEGORII stoją razem na lewej krawędzi (`shrink-0`, żeby
           slot środkowy zwężał się pierwszy). Menu podaje WYŁĄCZNIE sklep — przy
@@ -154,7 +197,11 @@ export function StoreShellHeader({
           </div>
         ) : null}
         {interactive ? (
-          <Anchor href={CART_HREF} className={cartClassName}>
+          <Anchor
+            href={CART_HREF}
+            className={cartClassName}
+            aria-current={cartCurrent ? "page" : undefined}
+          >
             <span>{cartLabel}</span>
             {cartBadge}
           </Anchor>
@@ -176,6 +223,7 @@ export function StoreShellFooter({
   siteImageBase,
   labels,
   money,
+  currentPath,
 }: {
   /**
    * Sekcje POWŁOKI (przypięte do końca dokumentu, dziś stopka) — wybrane przez
@@ -202,6 +250,13 @@ export function StoreShellFooter({
   siteImageBase: string;
   labels?: Parameters<typeof SiteRenderer>[0]["labels"];
   money?: Parameters<typeof SiteRenderer>[0]["money"];
+  /**
+   * PUBLICZNA ŚCIEŻKA BIEŻĄCEJ STRONY (S-52 audytu 2026-08-25) — do oznaczenia
+   * self-linków stopki (`aria-current="page"` na odnośniku, którego adres jest
+   * tą stroną: „Regulamin" na /regulaminie). Podaje ją trasa, bo tylko ona zna
+   * swój adres; brak = stopka bez oznaczeń, jak w podglądzie szkicu.
+   */
+  currentPath?: string;
 }) {
   if (sections.length === 0) return null;
 
@@ -227,6 +282,7 @@ export function StoreShellFooter({
       siteImageBase={siteImageBase}
       {...(labels ? { labels } : {})}
       {...(money ? { money } : {})}
+      {...(currentPath ? { currentPath } : {})}
     />
   );
 }

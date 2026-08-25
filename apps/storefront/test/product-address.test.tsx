@@ -83,9 +83,14 @@ vi.mock("next/navigation", () => ({
   permanentRedirect: (to: string) => {
     throw new Error(`308:${to}`);
   },
+  // Nagłówek sklepu czyta ścieżkę pod aria-current koszyka (S-52);
+  // poza routerem Nexta hook oddaje null — jak w renderToStaticMarkup.
+  usePathname: () => null,
 }));
 
 vi.mock("@/lib/checkout/catalog", () => ({
+  // Menu kategorii powłoki (S-30) — nie przedmiot testu adresów: puste menu.
+  getPublicCategoryNav: async () => [],
   getPublicProduct: async (
     _tenantId: string,
     target: { slug: string } | { productId: string },

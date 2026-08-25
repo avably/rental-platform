@@ -151,6 +151,9 @@ vi.mock("next/navigation", () => ({
   permanentRedirect: (to: string) => {
     throw new Error(`permanentRedirect:${to}`);
   },
+  // Nagłówek sklepu czyta ścieżkę pod aria-current koszyka (S-52);
+  // poza routerem Nexta hook oddaje null — jak w renderToStaticMarkup.
+  usePathname: () => null,
 }));
 
 vi.mock("@/lib/seo/request-origin", () => ({

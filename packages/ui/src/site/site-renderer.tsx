@@ -24,6 +24,7 @@ import {
   FreeformSection,
   GallerySection,
   HeroSection,
+  linkifyFooterContact,
   PricingSection,
   ProductsSection,
   TestimonialsSection,
@@ -134,6 +135,7 @@ function SectionSwitch({
   contactForm,
   mapEmbed,
   elementWrapper,
+  currentPath,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
@@ -146,6 +148,7 @@ function SectionSwitch({
   contactForm?: ContactFormBinding;
   mapEmbed?: boolean;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
+  currentPath?: string;
 }) {
   const styles = siteStyles();
 
@@ -201,10 +204,18 @@ function SectionSwitch({
       section.type === "footer" && footerLogo && footerAcceptsMark(section.content)
         ? footerLogo
         : null;
+    /*
+      TELEFON I E-MAIL STOPKI JAKO AKCJE (S-29 audytu 2026-08-25) — treść
+      stopki dostaje runy z `tel:`/`mailto:` PRZED renderem (przekształcenie
+      czyste, patrz `linkifyFooterContact`). Wyłącznie sekcja o typie `footer`:
+      tekst w hero czy sekcji dowolnej jest zdaniem operatora, nie wizytówką.
+    */
+    const canvas =
+      section.type === "footer" ? linkifyFooterContact(section.content) : section.content;
     // Płótno v2 (K2, ADR-084) — geometria absolutna zamiast układu z typu sekcji.
     return (
       <SectionCanvasRenderer
-        canvas={section.content}
+        canvas={canvas}
         // Stopka jest ROLĄ dokumentu w OBU generacjach treści (K6, ADR-092).
         // Bez tego landmark istniałby wyłącznie dla sekcji zapisanych przed K2,
         // czyli w praktyce dla żadnej.
@@ -216,6 +227,7 @@ function SectionSwitch({
         labels={labels}
         siteImageBase={siteImageBase}
         elementWrapper={elementWrapper}
+        currentPath={currentPath}
       />
     );
   }
@@ -253,7 +265,14 @@ function SectionSwitch({
     case "delivery":
       return <DeliverySection content={legacy.content} styles={styles} />;
     case "footer":
-      return <FooterSection content={legacy.content} styles={styles} logo={footerLogo} />;
+      return (
+        <FooterSection
+          content={legacy.content}
+          styles={styles}
+          logo={footerLogo}
+          currentPath={currentPath}
+        />
+      );
     default: {
       // Wyczerpanie unii — nowy typ sekcji bez gałęzi zapali się w typecheck.
       const _exhaustive: never = legacy;
@@ -382,6 +401,7 @@ export function SiteRenderer({
   motion = "auto",
   revealNonce,
   anchors = false,
+  currentPath,
 }: {
   sections: RenderSection[];
   /**
@@ -544,6 +564,13 @@ export function SiteRenderer({
    * `anchors` + własna owijka jest więc bez skutku, a nie po cichu połowiczna.
    */
   anchors?: boolean;
+  /**
+   * PUBLICZNA ŚCIEŻKA BIEŻĄCEJ STRONY (S-52 audytu 2026-08-25) — odnośnik
+   * o dokładnie tym adresie dostaje `aria-current="page"` i wyróżnienie wagą.
+   * Podaje ją WYŁĄCZNIE sklep (trasa zna swój adres); powierzchnie podglądu
+   * i płótno kreatora nie podają nic — tam „bieżąca strona" nie istnieje.
+   */
+  currentPath?: string;
 }) {
   /*
    * Mapa liczona RAZ na render, nie per sekcja: „pierwsza sekcja tego typu"
@@ -567,6 +594,7 @@ export function SiteRenderer({
         footerLogo={footerLogo}
         contactForm={contactForm}
         mapEmbed={mapEmbed}
+        currentPath={currentPath}
         elementWrapper={
           elementWrapper
             ? (element, children) => elementWrapper(section, element, children)

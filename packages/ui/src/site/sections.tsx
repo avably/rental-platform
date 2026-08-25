@@ -2,6 +2,7 @@ import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
   CANVAS_PAD_COLUMNS,
+  type SectionCanvas,
 } from "@avably/core/site";
 import * as React from "react";
 
@@ -494,6 +495,60 @@ export function DirectionsSection({
 }
 
 /**
+ * TELEFON I E-MAIL STOPKI JAKO AKCJE, NIE NAPISY (S-29 audytu 2026-08-25).
+ *
+ * Stopka jest na większości tras JEDYNYM miejscem z danymi kontaktowymi,
+ * a telefon — głównym kanałem domykania rezerwacji w tym biznesie. Napis,
+ * którego nie da się tapnąć, każe klientowi przepisywać numer ręcznie.
+ *
+ * Funkcja rozpoznaje CAŁY napis (po przycięciu), nie fragmenty zdania:
+ * treść stopki niesie te dane jako OSOBNE linie/elementy (v1: pola `phone`
+ * i `email`; płótno v2: osobne elementy tekstu z konwersji `footerCanvas`),
+ * więc dopasowanie całości nie ma jak trafić w „ul. Betonowa 21" ani w notę
+ * „© …". Numer normalizujemy do `tel:` bez spacji i interpunkcji (RFC 3966),
+ * z zachowanym wiodącym `+`.
+ */
+const CONTACT_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CONTACT_PHONE = /^\+?[0-9(][0-9\s()-]{5,}$/;
+
+export function siteContactHref(text: string): string | null {
+  const value = text.trim();
+  if (CONTACT_EMAIL.test(value)) return `mailto:${value}`;
+  if (!CONTACT_PHONE.test(value)) return null;
+  const normalized = value.replace(/[^\d+]/g, "");
+  const digits = normalized.replace(/\D/g, "").length;
+  // Poniżej 7 cyfr to nie jest numer, do którego da się zadzwonić (np. kod
+  // pocztowy w osobnej linii); powyżej 15 łamie E.164 — zostaje napisem.
+  if (digits < 7 || digits > 15) return null;
+  return `tel:${normalized}`;
+}
+
+/**
+ * TA SAMA NAPRAWA DLA STOPKI NA PŁÓTNIE (S-29) — a to jest stopka, którą
+ * najemcy MAJĄ: kreator zapisuje każdą sekcję jako płótno v2 (lekcja
+ * z `footer-mark.test.tsx`), a `footerCanvas` kładzie telefon i e-mail jako
+ * OSOBNE elementy tekstu. Zamiast uczyć render płótna telefonów, treść dostaje
+ * RUN Z ADRESEM — dokładnie ten kształt, którym operator sam robi link w tekście
+ * (`FormattedText` w element-canvas) — więc render zostaje jeden i głupi.
+ *
+ * Przekształcenie jest CZYSTE i RENDER-TIME (treść w bazie bez zmian) oraz
+ * ZACHOWAWCZE: element z własnymi runami operatora zostaje nietknięty — jego
+ * pogrubienia i linki są jego decyzją, nie naszą.
+ */
+export function linkifyFooterContact(canvas: SectionCanvas): SectionCanvas {
+  let changed = false;
+  const elements = canvas.elements.map((element) => {
+    if (element.kind !== "text") return element;
+    if (element.runs && element.runs.length > 0) return element;
+    const href = siteContactHref(element.text);
+    if (!href) return element;
+    changed = true;
+    return { ...element, runs: [{ text: element.text, href }] };
+  });
+  return changed ? { ...canvas, elements } : canvas;
+}
+
+/**
  * STOPKA (K6, ADR-092). Znacznik `<footer>`, a nie `<section>` — to nie jest
  * kolejna sekcja treści, tylko ROLA w dokumencie, i czytnik ekranu ma prawo
  * o tym wiedzieć. Stąd własna powłoka zamiast `SectionShell`.
@@ -506,6 +561,7 @@ export function FooterSection({
   content,
   styles,
   logo,
+  currentPath,
 }: {
   content: FooterContent;
   styles: TemplateStyles;
@@ -521,10 +577,21 @@ export function FooterSection({
    * wyglądała. Placeholdera „tu wstaw logo" na żywym sklepie nie ma.
    */
   logo?: SiteLogoRender | null;
+  /**
+   * PUBLICZNA ŚCIEŻKA BIEŻĄCEJ STRONY (S-52 audytu 2026-08-25) — odnośnik
+   * stopki o tym adresie dostaje `aria-current="page"` i wagę zamiast być
+   * klikiem, który przeładowuje tę samą stronę. Brak = bez oznaczeń
+   * (powierzchnie podglądu nie mają „bieżącej strony").
+   */
+  currentPath?: string;
 }) {
-  const details = [content.address, content.phone, content.email, content.hours].filter(
-    (line): line is string => Boolean(line),
-  );
+  /*
+    Telefon i e-mail jadą z ADRESEM AKCJI (S-29): `tel:` po normalizacji,
+    `mailto:` wprost. Adres i godziny zostają napisami — patrz `siteContactHref`.
+  */
+  const details = [content.address, content.phone, content.email, content.hours]
+    .filter((line): line is string => Boolean(line))
+    .map((line) => ({ line, href: siteContactHref(line) }));
   const links = content.links ?? [];
   return (
     <footer className={styles.footer}>
@@ -544,8 +611,19 @@ export function FooterSection({
               <p className={styles.footerName}>{content.businessName}</p>
               {details.length > 0 ? (
                 <ul className="site-text-muted mt-3 list-none space-y-1 p-0 text-sm">
-                  {details.map((line, index) => (
-                    <li key={index}>{line}</li>
+                  {details.map((item, index) => (
+                    <li key={index}>
+                      {item.href ? (
+                        // Kolor dziedziczy z wiersza (przygaszony jak dotąd),
+                        // podkreślenie niesie afordancję — wzorzec sekcji
+                        // kontaktu wyżej w tym pliku.
+                        <a className="underline underline-offset-2" href={item.href}>
+                          {item.line}
+                        </a>
+                      ) : (
+                        item.line
+                      )}
+                    </li>
                   ))}
                 </ul>
               ) : null}
@@ -555,7 +633,16 @@ export function FooterSection({
                 <ul className="list-none space-y-2 p-0 text-sm @min-[40rem]/site:text-right">
                   {links.map((link, index) => (
                     <li key={index}>
-                      <a className={styles.footerLink} href={link.href} rel={externalLinkRel(link.href)}>
+                      <a
+                        /*
+                          Self-link (S-52): waga zamiast podkreślenia, bo
+                          `.site-link` jest podkreślony zawsze (site.css).
+                        */
+                        className={cn(styles.footerLink, "aria-[current=page]:font-semibold")}
+                        href={link.href}
+                        rel={externalLinkRel(link.href)}
+                        aria-current={currentPath && link.href === currentPath ? "page" : undefined}
+                      >
                         {link.label}
                       </a>
                     </li>
@@ -589,10 +676,17 @@ export function FooterSection({
  * Pas dzieli z płótnem SUFIT SZEROKOŚCI i PAS TREŚCI, i bierze obie liczby
  * z tych samych stałych rdzenia, z których liczy je siatka — znak wyrównany
  * „na oko" rozjeżdżałby się z kolumną stopki przy każdej zmianie marginesu.
+ *
+ * `-mt-6` DOMYKA PAS DO TREŚCI STOPKI (S-44 audytu 2026-08-25). Płótno kończy
+ * się marginesem `BOTTOM` (10 wierszy siatki, ~80 px przy pasie projektowym),
+ * więc znak stawał tak daleko pod notą „© …", że czytał się jako OSOBNY,
+ * osierocony pas — a jest podpisem TEJ stopki. Ujemny margines wciąga go
+ * w pusty margines płótna (mniejszy niż `BOTTOM` z zapasem, więc nie ma jak
+ * najechać na treść siatki) i stopka domyka się jednym rytmem.
  */
 export function FooterMark({ logo }: { logo: SiteLogoRender }) {
   return (
-    <div data-footer-mark className="mx-auto w-full pb-10" style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX }}>
+    <div data-footer-mark className="mx-auto -mt-6 w-full pb-10" style={{ maxWidth: CANVAS_DESIGN_WIDTH_PX }}>
       {/*
         DWA POZIOMY, A NIE JEDEN — i to jest warunek wyrównania, nie zdobienie.
         Procentowy odstęp rozwiązuje się względem SZEROKOŚCI BLOKU ZAWIERAJĄCEGO,

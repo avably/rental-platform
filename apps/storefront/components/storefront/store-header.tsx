@@ -20,6 +20,7 @@
  */
 import { StoreShellHeader } from "@avably/ui";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { cartItemCount } from "@/lib/cart/model";
@@ -58,12 +59,20 @@ export function StoreHeader({
 }) {
   const { cart, hydrated } = useCart();
   const count = cartItemCount(cart);
+  /*
+    SELF-LINK KOSZYKA (S-52 audytu 2026-08-25): na `/cart` odnośnik „Koszyk"
+    dostaje `aria-current="page"` i wagę. Ścieżka z routera klienta — trasa
+    koszyka nie jest rewrite'owana, więc to jest jej adres publiczny; komponent
+    i tak jest kliencki (licznik z localStorage), więc hook niczego nie dokłada.
+  */
+  const cartCurrent = usePathname() === "/cart";
 
   return (
     <StoreShellHeader
       storeName={storeName}
       logo={logo}
       cartLabel={copy.nav.cart}
+      cartCurrent={cartCurrent}
       nav={nav}
       center={center}
       /*

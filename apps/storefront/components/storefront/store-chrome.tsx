@@ -28,7 +28,7 @@ import {
   StoreTermProvider,
   type StoreTermProduct,
 } from "@/components/storefront/store-term";
-import { shellSections, withAnchorBase } from "@/lib/site/page-sections";
+import { shellSections, withAnchorBase, withFooterContactTarget } from "@/lib/site/page-sections";
 import type { StoreLogo } from "@/lib/site/store-logo";
 import type { StorefrontCopy } from "@/lib/storefront/copy";
 import type { StorefrontLocale } from "@/lib/storefront/locale";
@@ -70,6 +70,7 @@ export function StoreChrome({
   term,
   categoryNav,
   footerAnchorBase,
+  currentPath,
   revealNonce,
   className,
   children,
@@ -129,10 +130,15 @@ export function StoreChrome({
   term: StoreTermInput | null;
   /**
    * MENU KATEGORII (ADR-247) — gotowe pozycje wejść do stron kategorii,
-   * odfiltrowane z pustych (`categoryNavItems`). Podaje je trasa, która ma
-   * w ręku katalog najemcy; trasy bez katalogu (dokumenty, status płatności)
-   * pomijają props i nagłówek nie pokazuje menu — jak przed ADR-247. Pusta lub
-   * pominięta = brak wyzwalacza (nie rysujemy „Kategorie" bez ani jednej półki).
+   * odfiltrowane z pustych (`categoryNavItems` / `navItemsFromCounts`).
+   *
+   * Od S-30 (audyt 2026-08-25) podaje je KAŻDA trasa sklepu, nie tylko
+   * katalogowe: poza stroną główną nagłówek nie miał ŻADNEJ nawigacji do
+   * oferty (PDP, koszyk, kasa, dokumenty — samo logo i koszyk), a warunek
+   * „tylko trasy z katalogiem w ręku" był historią przepływu danych, nie
+   * decyzją projektową. Trasy bez pełnego katalogu biorą pozycje z wąskiego
+   * odczytu `loadCategoryNav` (ADR-266). Pusta lub pominięta = brak
+   * wyzwalacza (nie rysujemy „Kategorie" bez ani jednej półki).
    */
   categoryNav?: readonly CategoryNavItem[];
   /**
@@ -142,12 +148,24 @@ export function StoreChrome({
    * kotwic stoją na niej.
    */
   footerAnchorBase?: string;
+  /**
+   * PUBLICZNA ŚCIEŻKA BIEŻĄCEJ STRONY (S-52 audytu 2026-08-25) — odnośnik
+   * stopki o tym adresie dostaje `aria-current="page"` („Regulamin" na
+   * /regulaminie przestaje udawać nawigację). Podaje ją trasa, bo tylko ona
+   * zna swój adres; brak = stopka bez oznaczeń.
+   */
+  currentPath?: string;
   /** Nonce CSP pod skrypt uzbrajający wejście sekcji (ADR-097). */
   revealNonce?: string;
   className?: string;
   children: ReactNode;
 }) {
-  const footer = shellSections(site);
+  /*
+    „Kontakt" w stopce NIGDY do sekcji CTA (S-38) — cel przepisany PRZED
+    rebasem kotwic, żeby `#kontakt` dostał na podstronach prefiks strony
+    głównej dokładnie tą samą drogą, co pozostałe kotwice stopki.
+  */
+  const footer = withFooterContactTarget(shellSections(site), site);
   const shellFooter = footerAnchorBase ? withAnchorBase(footer, footerAnchorBase) : footer;
 
   // Menu kategorii jest CHROME wyprowadzonym z katalogu, nie treścią sekcji —
@@ -157,14 +175,22 @@ export function StoreChrome({
       <StoreCategoryMenu items={categoryNav} label={copy.nav.categories} />
     ) : undefined;
 
+  // `min-h-screen` na KORZENIU, a nie na treści: powierzchnia motywu ma
+  // sięgać dołu okna, inaczej pod krótką stroną (pusty koszyk) prześwituje
+  // tło aplikacji i sklep kończy się w połowie ekranu.
+  //
+  // `flex flex-col` DOMYKA STOPKĘ DO DOŁU OKNA (S-27 audytu 2026-08-25):
+  // sam `min-h-screen` rozciągał POWIERZCHNIĘ, ale nie treść, więc na
+  // krótkich stronach (pusty koszyk, kasa, regulamin) stopka kończyła się
+  // w 2/3 ekranu, a niżej stała pustka w kolorze motywu. Kolumna flex +
+  // `mt-auto` na owijce stopki (niżej) spychają ją na dół BEZ rozciągania
+  // sekcji — na stronach dłuższych niż okno nic się nie zmienia.
+  const shell = "flex min-h-screen flex-col";
   return (
-    // `min-h-screen` na KORZENIU, a nie na treści: powierzchnia motywu ma
-    // sięgać dołu okna, inaczej pod krótką stroną (pusty koszyk) prześwituje
-    // tło aplikacji i sklep kończy się w połowie ekranu.
     <SiteChrome
       style={style}
       revealNonce={revealNonce}
-      className={className ? `min-h-screen ${className}` : "min-h-screen"}
+      className={className ? `${shell} ${className}` : shell}
     >
       {/*
         PROVIDER OBEJMUJE NAGŁÓWEK, PASEK I TREŚĆ (ADR-179). Pasek terminu
@@ -204,12 +230,18 @@ export function StoreChrome({
         znak także w stopce" (ADR-160 — drugiego wgrania pod stopkę nie ma)
         i PREFIKS ZDJĘĆ, bez którego obraz w stopce byłby szarym kaflem.
       */}
-      <StoreShellFooter
-        sections={shellFooter}
-        style={style}
-        logo={logo?.inFooter ? logo : null}
-        siteImageBase={siteImageBase}
-      />
+      {/* `mt-auto` — druga połowa domknięcia stopki (S-27), patrz `shell` wyżej. */}
+      {shellFooter.length > 0 ? (
+        <div className="mt-auto">
+          <StoreShellFooter
+            sections={shellFooter}
+            style={style}
+            logo={logo?.inFooter ? logo : null}
+            siteImageBase={siteImageBase}
+            currentPath={currentPath}
+          />
+        </div>
+      ) : null}
     </SiteChrome>
   );
 }

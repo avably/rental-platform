@@ -288,6 +288,7 @@ function ElementBody({
   labels,
   siteImageBase,
   bindings,
+  currentPath,
 }: {
   element: CanvasElement;
   size: ElementSize;
@@ -297,6 +298,8 @@ function ElementBody({
   siteImageBase?: string;
   /** Wiązania rozwiązane PRZED zbudowaniem węzła — patrz `SectionCanvasRenderer`. */
   bindings: ElementBindingResult;
+  /** Publiczna ścieżka bieżącej strony (S-52) — patrz `SectionCanvasRenderer`. */
+  currentPath?: string;
 }) {
   const fill = fillClass(size);
   const type = typeClass(element);
@@ -347,11 +350,18 @@ function ElementBody({
           // `rel` oddawałby obcemu hostowi `window.opener` karty klienta
           // (audyt E1, ADR-094). Kotwice i ścieżki własne zostają bez atrybutu.
           rel={externalLinkRel(element.href)}
+          /*
+            SELF-LINK (S-52 audytu 2026-08-25): przycisk, którego adres JEST
+            bieżącą stroną („Regulamin" w stopce na /regulaminie), dostaje
+            `aria-current="page"` i wagę z klasy `aria-[current=page]:` —
+            zamiast być klikiem, który przeładowuje tę samą stronę.
+          */
+          aria-current={currentPath && element.href === currentPath ? "page" : undefined}
           className={boxed(
             element.variant === "solid"
               ? styles.cta
               : "site-cta-secondary inline-flex items-center font-medium",
-            type,
+            cn(type, "aria-[current=page]:font-semibold"),
           )}
         >
           {boundText(bindings, "label", { text: element.label }).text}
@@ -531,6 +541,7 @@ export function SectionCanvasRenderer({
   mobile = mobileLayoutOf(canvas),
   as = "section",
   mark = null,
+  currentPath,
 }: {
   canvas: SectionCanvas;
   styles: TemplateStyles;
@@ -577,6 +588,12 @@ export function SectionCanvasRenderer({
    * rozdzielił `footerLogo`: pakiet UI dostaje decyzję, a nie dane do decyzji.
    */
   mark?: SiteLogoRender | null;
+  /**
+   * PUBLICZNA ŚCIEŻKA BIEŻĄCEJ STRONY (S-52 audytu 2026-08-25) — przycisk
+   * płótna o dokładnie tym adresie dostaje `aria-current="page"`. Podaje ją
+   * wyłącznie sklep; płótno kreatora i podgląd nie podają nic.
+   */
+  currentPath?: string;
 }) {
   /*
    * WIĄZANIA ROZWIĄZANE RAZ, PRZED ZBUDOWANIEM DRZEWA (faza 3, ADR-163).
@@ -642,6 +659,7 @@ export function SectionCanvasRenderer({
                 labels={labels}
                 siteImageBase={siteImageBase}
                 bindings={bindingsOf(element)}
+                currentPath={currentPath}
               />
             </div>
           ))}
@@ -744,6 +762,7 @@ export function SectionCanvasRenderer({
                 labels={labels}
                 siteImageBase={siteImageBase}
                 bindings={bindingsOf(element)}
+                currentPath={currentPath}
               />
             </div>
           );

@@ -33,6 +33,7 @@ import { notFound } from "next/navigation";
 
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { pageSections } from "@/lib/site/page-sections";
 import { getPublishedPage } from "@/lib/site/published";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
@@ -130,6 +131,15 @@ export default async function TenantContentPage({ params }: Params) {
         znaczenia mieściły się w jednej wartości przypadkiem.
       */
       footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
+      /*
+        MENU KATEGORII (S-30 audytu 2026-08-25): strona treściowa („o nas",
+        „kontakt") bywa wejściem z linku zewnętrznego — bez menu nagłówek nie
+        prowadził do oferty niczym poza logo. Pozycje z pełnego katalogu,
+        jak na stronie głównej.
+      */
+      categoryNav={categoryNavItems(catalog)}
+      /* Self-linki stopki (S-52): ta strona MA publiczny adres ze sluga. */
+      currentPath={pagePathFromSlug(slug)}
       revealNonce={revealNonce}
     >
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}

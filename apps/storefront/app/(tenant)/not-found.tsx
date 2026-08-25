@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { categoryNavItems } from "@/lib/catalog/category-nav";
 import { PageShell } from "@/components/storefront/page-shell";
 import { SITE_HEADING } from "@/components/storefront/store-chrome";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
@@ -60,6 +61,8 @@ export default async function TenantNotFound() {
       logo={storeLogo(ctx)}
       siteImageBase={siteImageBaseUrl(ctx.supabaseUrl)}
       term={null}
+      /* Menu kategorii (S-30) — 404 to wejście z martwego linku; menu jest wyjściem. */
+      categoryNav={categoryNavItems(catalog)}
     >
       <div data-store-not-found className="max-w-xl">
         <p className="site-text-muted text-2xl font-semibold tabular-nums">404</p>
