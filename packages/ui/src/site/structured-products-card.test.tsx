@@ -279,3 +279,58 @@ describe("SONDA BEZPIECZEŃSTWA: sekcja nie wynosi cudzych pozycji", () => {
     );
   });
 });
+
+describe("alt zdjęcia kafla: dekoracyjny, gdy powtarza widoczną nazwę (a11y, ADR-267)", () => {
+  /**
+   * Kafel ZE ZDJĘCIEM I ODNOŚNIKIEM — jak w sklepie publicznym (fikstury wyżej
+   * mają `imageUrl: null`, więc `<img>` w nich nie powstaje). `imageAlt` sterujemy
+   * wprost, bo to jedyne wejście renderu: projekcje sklepu i panelu składają go
+   * z `alt_text ?? product.name` (fallback = ta sama nazwa, którą kafel rysuje).
+   */
+  function zeZdjeciem(name: string, imageAlt: string): StorefrontProduct {
+    return {
+      id: "prod-img",
+      name,
+      description: null,
+      priceLabel: `${name} — cena`,
+      imageUrl: "https://cdn.example/zdjecie.jpg",
+      imageAlt,
+      href: "/product/prod-img",
+      fields: [],
+    };
+  }
+
+  it.each(["grid", "list"] as const)(
+    "%s: brak alt_text (alt zjechał na nazwę) → zdjęcie DEKORACYJNE, nazwa pada raz",
+    (layout) => {
+      // Operator NIE podał alt_text → projekcja zjechała na nazwę (`imageAlt === name`).
+      narysuj(tresc({ layout, source: "catalog" }), [
+        zeZdjeciem("Terminal satelitarny", "Terminal satelitarny"),
+      ]);
+      const obraz = kafel("prod-img").querySelector("img");
+      expect(obraz, "kafel ze zdjęciem nie zamontował <img>").not.toBeNull();
+      expect(obraz).toHaveAttribute("src", "https://cdn.example/zdjecie.jpg");
+      // Zdjęcie powtarzało widoczną nazwę → `alt=""` (rola prezentacyjna).
+      expect(obraz).toHaveAttribute("alt", "");
+      // Puste alt WYPADA z drzewa dostępności — nie ma czego ogłaszać jako obraz…
+      expect(screen.queryByRole("img")).toBeNull();
+      // …a nazwa pada DOKŁADNIE raz — z widocznego `<span>`, nie z alt.
+      expect(screen.getAllByText("Terminal satelitarny")).toHaveLength(1);
+    },
+  );
+
+  it.each(["grid", "list"] as const)(
+    "%s: operator podał alt_text INNY niż nazwa → alt ZOSTAJE (niesie informację)",
+    (layout) => {
+      narysuj(tresc({ layout, source: "catalog" }), [
+        zeZdjeciem("Terminal satelitarny", "Terminal na trójnogu na plaży"),
+      ]);
+      const obraz = kafel("prod-img").querySelector("img");
+      expect(obraz).toHaveAttribute("alt", "Terminal na trójnogu na plaży");
+      // Alt niesie treść inną niż nazwa → zdjęcie JEST obrazem w drzewie a11y.
+      expect(screen.getByRole("img")).toBe(obraz);
+      // Nazwa nadal widoczna raz (z `<span>`), niezależnie od opisu alternatywnego.
+      expect(screen.getAllByText("Terminal satelitarny")).toHaveLength(1);
+    },
+  );
+});

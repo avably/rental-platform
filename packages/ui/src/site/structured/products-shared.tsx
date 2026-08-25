@@ -248,6 +248,35 @@ export function ProductCta({ label, styles }: { label: string; styles: TemplateS
 }
 
 /**
+ * ALT ZDJĘCIA KAFLA — DEKORACYJNY, gdy powtarza widoczną nazwę (a11y, ADR-267).
+ *
+ * ==================== SKĄD SIĘ BIERZE `imageAlt` ====================
+ *
+ * `StorefrontProduct.imageAlt` to opis alternatywny operatora (`images[].alt_text`)
+ * z FALLBACKIEM na nazwę pozycji — a fallback składa się TĄ SAMĄ nazwą, którą
+ * kafel rysuje widocznie w `<span data-products-name>` (projekcje sklepu i panelu:
+ * `alt_text ?? product.name` oraz `alt || product.name`). Kontrakt niesie sam
+ * napis, więc kafel nie wie, czy dostał opis operatora, czy zjazd na nazwę —
+ * ale a11y i tak pyta o co innego: czy alt POWTARZA widoczny obok tekst.
+ *
+ * ==================== DLACZEGO PORÓWNANIE Z NAZWĄ ====================
+ *
+ * Gdy `imageAlt` równa się widocznej nazwie (fallback albo operator wpisał samą
+ * nazwę), czytnik ogłasza ją DWA RAZY w jednym celu kliknięcia — dokładnie ta
+ * sama wada, co dekoracyjny baner kategorii przed ADR-265. Zdjęcie nie niesie
+ * wtedy treści poza nazwą, którą już widać, więc znika z drzewa dostępności:
+ * `alt=""`. Gdy operator podał opis INNY niż nazwa, alt niesie informację
+ * (np. „terminal na trójnogu na plaży") i ZOSTAJE bez zmian.
+ *
+ * Porównanie stoi tu, w renderze kafla, a nie w projekcji: to warstwa, która
+ * WIDZI naraz alt i widoczną nazwę w jednym linku — i tylko ona może orzec
+ * o powtórzeniu. Kontrakt danych zostaje bajt w bajt (bez migracji, bez flagi).
+ */
+export function productImageAlt(product: StorefrontProduct): string {
+  return product.imageAlt === product.name ? "" : product.imageAlt;
+}
+
+/**
  * KAFEL POZYCJI — zdjęcie, nazwa, cena, opis.
  *
  * Cena przychodzi GOTOWA (`StorefrontProduct.priceLabel`), bo pochodzi
@@ -295,7 +324,7 @@ export function ProductTile({
         // Storage, więc zwykły `<img>` (ta sama zasada, co w sekcji v1).
         <img
           src={product.imageUrl}
-          alt={product.imageAlt}
+          alt={productImageAlt(product)}
           className="aspect-[4/3] w-full object-cover"
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : undefined}
