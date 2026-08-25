@@ -719,7 +719,9 @@
         "descriptionHint": "A short sentence for your customers. You can leave it empty.",
         "create": "Create category",
         "save": "Save",
-        "saved": "Saved."
+        "saved": "Saved.",
+        "bannerLater": "You'll add the banner right after creating the category — in its edit screen.",
+        "nameRequired": "Enter a category name."
       },
       "banner": {
         "title": "Category banner",
@@ -1891,7 +1893,8 @@
         "finalize": "Could not finish the upload.",
         "shape": "Could not save the logo — the file has an unexpected path.",
         "save": "Could not save the logo.",
-        "publish": "Could not publish the logo."
+        "publish": "Could not publish the logo.",
+        "resize": "Could not shrink the file. Upload a smaller image."
       }
     },
     "appearance": {
@@ -1982,7 +1985,14 @@
       "publishedAt": "Published {date}.",
       "publish": "Publish page",
       "publishing": "Publishing…",
-      "published": "Published."
+      "published": "Published.",
+      "publishAnyway": "Publish anyway",
+      "warningsTitle": "Before you publish — check:",
+      "warnings": {
+        "sampleSection": "{count, plural, one {# section still holds the template's sample content} other {# sections still hold the template's sample content}}.",
+        "emptyImage": "{count, plural, one {# image element has no picture selected} other {# image elements have no picture selected}} — customers will see an empty tile.",
+        "placeholderElement": "{count, plural, one {# element still holds its starting text} other {# elements still hold their starting text}} (e.g. “New heading”)."
+      }
     },
     "builder": {
       "title": "Site builder",
@@ -2022,7 +2032,14 @@
       "retry": "Try again",
       "unsaved": "Not saved",
       "unsavedBody": "This change was rejected and is NOT on the server. You see it on the canvas, but the shop will not get it. Fix the cause and save again.",
-      "saveAgain": "Save again"
+      "saveAgain": "Save again",
+      "tabElementsNoTarget": "Add a section first — elements go inside sections.",
+      "elementsStructured": "This section has its own content editor — elements cannot be added to it. Open its settings to change the content.",
+      "convertTitle": "Switch this section to a free canvas?",
+      "convertBody": "This section will switch to free canvas mode — the layout will stop being automatic. From now on you set the position and size of every element yourself, on mobile too. Continue?",
+      "convertRemember": "Don't ask again in this session",
+      "convertCancel": "Cancel",
+      "convertConfirm": "Switch and add element"
     },
     "elementKinds": {
       "heading": "Heading",
@@ -2040,7 +2057,8 @@
       "duplicate": "Duplicate element",
       "remove": "Delete element",
       "autoMobile": "Back to automatic layout",
-      "detached": "Mobile layout set manually"
+      "detached": "Mobile layout set manually",
+      "editHint": "Double-click to edit the content"
     },
     "resizeHandles": {
       "nw": "Resize — top left corner",
@@ -2208,7 +2226,8 @@
         "catalog-first": "Catalogue first"
       },
       "emptyName": "Empty page",
-      "emptyMood": "Start from a blank canvas and add sections yourself."
+      "emptyMood": "Start from a blank canvas and add sections yourself.",
+      "startFromTemplate": "Start from a template"
     },
     "pages": {
       "subtitle": "Your shop shows every published page at its own address. Unpublished ones wait in the panel — publishing one page leaves the others untouched.",
@@ -2305,7 +2324,9 @@
       "slugException": "An equipment’s own page has no separate address — it is shown at its equipment’s address.",
       "switchBodyExceptionNew": "The page appears in the shop at this equipment’s address: {name}. It applies only there — it replaces the shared product page template.",
       "switchBodyExceptionLive": "The shop will show the current version of this page at the equipment’s address: {name} — including the changes you made. Other equipment keeps the shared template.",
-      "unpublishBodyException": "The page disappears from the equipment’s address: {name}. Customers will see the shared product page template there — or the built-in layout when it is not published. Its content stays in the panel; you can publish it again."
+      "unpublishBodyException": "The page disappears from the equipment’s address: {name}. Customers will see the shared product page template there — or the built-in layout when it is not published. Its content stays in the panel; you can publish it again.",
+      "draftPendingBadge": "Unpublished changes",
+      "draftPendingBody": "Customers see the previous version of this page. Publish it to release the draft changes."
     },
     "structured": {
       "drawerDescription": "This section's content is a list of entries. Switching the layout leaves the content untouched.",

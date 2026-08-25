@@ -229,9 +229,30 @@ test("katalog na telefonie to karty mieszczące się w oknie, na desktopie tabel
     ownerPassword: operator.password,
   });
   await page.goto(`${PANEL_URL}/pl/katalog`);
-  // Jawny, hojny budżet: lista robi kilka odczytów na żądanie, a runner bywa
-  // dzielony z innymi przebiegami.
-  await expect(page.locator("[data-product-card]").first()).toBeAttached({ timeout: 30_000 });
+  /*
+   * BRAMKĄ JEST ODSŁONA, NIE OBECNOŚĆ W DOKUMENCIE.
+   *
+   * Stała tu asercja `toBeAttached` na karcie produktu — i była fałszywie
+   * zielona. Trasa katalogu strumieniuje treść pod granicą Suspense: zanim
+   * React ją odsłoni, wyrenderowany serwerowo listing leży w `<template>`
+   * (`<template id="B:0">`), a w kontenerze panelu stoi stan ładowania
+   * (`data-panel-route-loading`). Karta W TEMPLATE JEST PRZYCZEPIONA DO
+   * DOKUMENTU — `toBeAttached` przechodzi — ale nie ma jej w drzewie
+   * renderowanym: zerowa geometria, `offsetParent === null`, `textContent`
+   * kontenera bez ani jednej nazwy produktu.
+   *
+   * Sonda ruszała więc natychmiast po odpowiedzi serwera i mierzyła SAM
+   * LOADER: szesnaście węzłów, zero kart, zero wierszy — a raport mówił
+   * „mieści się", bo pusty kontener mieści się zawsze. Kontrola przyrządu
+   * (`widziTresc`) złapała to poprawnie i o niej jest ta czerwień.
+   *
+   * Odtąd czekamy na dwa fakty naraz: stan ładowania ZNIKA i pierwszy wiersz
+   * tabeli jest WIDOCZNY (domyślne okno projektu to 1280 px, więc na tej
+   * szerokości listing rysuje tabelę, nie karty). Dopiero wtedy w kontenerze
+   * jest cokolwiek do zmierzenia.
+   */
+  await expect(page.locator("[data-panel-route-loading]")).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.locator("[data-product-row]").first()).toBeVisible({ timeout: 30_000 });
 
   const nazwy = [seed.productName, DLUGA_NAZWA, NAZWA_NIEAKTYWNEGO];
   const telefon = await zmierz(page, 390, nazwy);

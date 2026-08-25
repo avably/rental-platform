@@ -57,10 +57,12 @@
  */
 import {
   CANVAS_COLUMNS,
+  SECTION_MAX_ROWS,
   isSectionCanvas,
   isStructuredSection,
   sectionCanvasFrom,
   type CanvasElement,
+  type Geometry,
   type SectionCanvas,
   type SectionContent,
   type StructuredSectionContent,
@@ -441,4 +443,55 @@ export function duplicateElement(canvas: SectionCanvas, elementId: string): Sect
 export function removeElement(canvas: SectionCanvas, elementId: string): SectionCanvas {
   const elements = canvas.elements.filter((element) => element.id !== elementId);
   return elements.length === canvas.elements.length ? canvas : { ...canvas, elements };
+}
+
+/**
+ * Odstęp między dotychczasową treścią sekcji a elementem dokładanym KLIKNIĘCIEM
+ * (jednostki siatki). Ta sama liczba, którą do tej pory stosował `freeSpotFor`
+ * z rdzenia — zmienia się nie odstęp, tylko to, co robi płótno, gdy odstęp
+ * przestaje się mieścić.
+ */
+export const APPEND_GAP_ROWS = 2;
+
+/**
+ * MIEJSCE NA ELEMENT DOKŁADANY KLIKNIĘCIEM — POD TREŚCIĄ, A SEKCJA ROŚNIE
+ * (K-11, audyt UX 2026-08-25).
+ *
+ * Rdzeniowy `freeSpotFor` liczył `y = min(najniższy + 2, rows - h)`, czyli
+ * PRZYCINAŁ pozycję do wysokości sekcji. Dopóki sekcja miała zapas, wynik był
+ * poprawny; gdy zapasu zabrakło — a to jest stan każdej gotowej sekcji
+ * szablonu, bo jej wysokość jest dobrana do treści — nowy element lądował NA
+ * istniejącej treści. Operator dostawał nagłówek dokładnie na zdjęciu hero i
+ * musiał go najpierw znaleźć, potem odsunąć.
+ *
+ * Odtąd sekcja USTĘPUJE: pozycja jest zawsze pod najniższym elementem, a
+ * wysokość płótna rośnie do `y + h`, jeśli trzeba. To zachowawcza poprawka
+ * geometrii, nie przebudowa silnika układu — element dalej jest pudełkiem
+ * o współrzędnych absolutnych i dalej można go przesunąć gestem.
+ *
+ * SUFIT `SECTION_MAX_ROWS` (schemat 2.3a) zostaje ostatnim słowem: sekcja
+ * napełniona pod korek nie urośnie i wtedy — dopiero wtedy — element wraca do
+ * przycięcia. To NIE jest cicha porażka: taka sekcja jest pełna także dla
+ * zapisu, a zapis odrzucający geometrię spoza płótna zostawiłby operatora
+ * z komunikatem zamiast z elementem.
+ */
+export function appendSpotBelow(
+  size: { w: number; h: number },
+  canvas: { rows: number; elements: readonly CanvasElement[] },
+): { geometry: Geometry; rows: number } {
+  const bottom = canvas.elements.reduce(
+    (lowest, element) => Math.max(lowest, element.layout.desktop.y + element.layout.desktop.h),
+    0,
+  );
+  const x = Math.max(0, Math.min(12, CANVAS_COLUMNS - size.w));
+  const wanted = bottom + APPEND_GAP_ROWS;
+  // Sufit dotyczy DOLNEJ krawędzi, nie samego `y`: element wysoki na 10
+  // jednostek postawiony na 235 wystawałby poza płótno, którego nie da się już
+  // powiększyć.
+  const y = Math.max(0, Math.min(wanted, SECTION_MAX_ROWS - size.h));
+  const rows = Math.min(SECTION_MAX_ROWS, Math.max(canvas.rows, y + size.h));
+  return {
+    geometry: { x, y, w: size.w, h: size.h, z: canvas.elements.length },
+    rows,
+  };
 }

@@ -173,6 +173,23 @@ const BUILDER_LAYER_MARKERS = [
    * jego miejsce na tej liście i osobna oś dowodu mutacyjnego w E8.
    */
   "data-canvas-empty",
+  /*
+   * DROGA POWROTNA DO SZABLONÓW Z PUSTEGO PŁÓTNA (K-20, audyt UX 2026-08-25).
+   * Przycisk stoi w pustym stanie płótna KREATORA — sklep pustej strony nie
+   * rysuje w ogóle, więc ten znacznik nie ma tam po co istnieć.
+   */
+  "data-canvas-start-from-template",
+  /*
+   * AFORDANCJA EDYCJI TREŚCI (K-15) i podpowiedź palety elementów (K-09).
+   * Oba mówią OPERATOROWI, co zrobić z warstwą edycyjną — pierwszy siedzi
+   * w ramce elementu (obok `data-element-frame`), drugi w palecie. Prefiksy
+   * `data-element-frame`/`data-element-tile` ich NIE obejmują: rejestr jest
+   * listą wyliczoną, a nie rodziną `data-element-*`, bo w tej rodzinie są też
+   * kotwice TREŚCI (`data-element-id`, `data-element-kind`), które do sklepu
+   * wychodzą i wychodzić mają.
+   */
+  "data-element-edit-hint",
+  "data-element-palette-hint",
 ] as const;
 
 /** Płótno v2 (K2) — ta sama treść co sekcja hero v1, tylko w elementach. */

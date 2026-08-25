@@ -82,31 +82,64 @@ export function CategoryForm({
   const [state, formAction, pending] = useActionState(action, initialState);
   const t = useTranslations("catalog.categories.form");
 
+  const nameRef = useRef<HTMLInputElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
   const [slugTouched, setSlugTouched] = useState(!isNew || defaults.slug !== "");
+  /**
+   * PUSTA NAZWA ODMAWIANA STYLEM PANELU, A NIE DYMKIEM PRZEGLĄDARKI (K-24,
+   * audyt UX 2026-08-25). Do tej poprawki pole miało `required`, więc pustą
+   * nazwę zatrzymywał natywny dymek: inna typografia, inny język (silnika, nie
+   * panelu) i miejsce, którego nie da się przewinąć ani ogłosić czytnikiem tak,
+   * jak reszta błędów formularza (ADR-057).
+   *
+   * ATRYBUT ZNIKA, BRAMKA ZOSTAJE — i to w DWÓCH miejscach: tu (natychmiast,
+   * bez obiegu) i w Zodzie akcji (`Podaj nazwę kategorii.`), który jest jedyną
+   * bramką dla formularza wysłanego bez JS. Komunikat jest ten sam z jednego
+   * źródła: `catalog.categories.form.nameRequired` w obu locale odpowiada
+   * zdaniu schematu.
+   */
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const value = (field: keyof CategoryFormValues) => state.values?.[field] ?? defaults[field];
   const errorId = (field: string) =>
     state.fieldErrors?.[field] ? `category-${field}-error` : undefined;
+  const nameMessage = nameError ?? state.fieldErrors?.name;
 
   const form = (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form
+      action={formAction}
+      className="flex flex-col gap-5"
+      onSubmit={(event) => {
+        const name = nameRef.current?.value ?? "";
+        if (name.trim().length > 0) {
+          setNameError(null);
+          return;
+        }
+        // Wysyłka NIE rusza: bez tego akcja poszłaby po odpowiedź, którą
+        // przeglądarka zna już teraz, a operator patrzyłby na kręcący się
+        // przycisk zamiast na zdanie pod polem.
+        event.preventDefault();
+        setNameError(t("nameRequired"));
+        nameRef.current?.focus();
+      }}
+    >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="category-name">{t("name")}</Label>
         <Input
           id="category-name"
           name="name"
-          required
+          ref={nameRef}
           maxLength={80}
           defaultValue={value("name")}
-          aria-invalid={state.fieldErrors?.name ? true : undefined}
-          aria-describedby={errorId("name")}
+          aria-invalid={nameMessage ? true : undefined}
+          aria-describedby={nameMessage ? "category-name-error" : undefined}
           onChange={(event) => {
+            if (nameError && event.target.value.trim().length > 0) setNameError(null);
             if (slugTouched || !slugRef.current) return;
             slugRef.current.value = suggestCategorySlug(event.target.value);
           }}
         />
-        <FieldError id="category-name-error" message={state.fieldErrors?.name} />
+        <FieldError id="category-name-error" message={nameMessage} />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -139,6 +172,21 @@ export function CategoryForm({
         <FieldHint id="category-description-hint">{t("descriptionHint")}</FieldHint>
         <FieldError id="category-description-error" message={state.fieldErrors?.description} />
       </div>
+
+      {/*
+        BANER MA SWOJE ZDANIE JUŻ TU (K-16, audyt UX 2026-08-25). Formularz
+        tworzenia nie ma pola banera i mieć go nie może — bilet uploadu wołany
+        jest z `p_category_id`, a kategoria jeszcze nie istnieje. Do tej
+        poprawki formularz o tym MILCZAŁ: operator, który przyszedł tu po to,
+        żeby dodać grafikę kafla, nie widział ani pola, ani wyjaśnienia i
+        wychodził z przekonaniem, że banera się nie da wgrać. Zdanie stoi przy
+        przycisku, bo tam pada pytanie „to gdzie ten baner?".
+      */}
+      {!categoryId ? (
+        <p data-category-banner-later className="text-muted-foreground text-[13px] leading-[18px]">
+          {t("bannerLater")}
+        </p>
+      ) : null}
 
       {state.formError ? (
         <p role="alert" className="text-destructive text-sm">

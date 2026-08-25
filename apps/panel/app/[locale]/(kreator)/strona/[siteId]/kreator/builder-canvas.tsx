@@ -225,6 +225,7 @@ export function BuilderCanvas({
   deleteAction,
   restoreAction,
   onInsert,
+  onOpenTemplates,
   onOpenSettings,
   onChanged,
   editor,
@@ -279,6 +280,14 @@ export function BuilderCanvas({
   restoreAction: (sectionId: string) => Promise<ActionResult>;
   /** Otwarcie pickera na WSKAZANYM miejscu — „+" nie zna typów sekcji (E2). */
   onInsert: (target: InsertTarget) => void;
+  /**
+   * POWRÓT DO GALERII PUNKTÓW WYJŚCIA (K-20, audyt UX 2026-08-25) — wejście
+   * stoi w PUSTYM stanie płótna, bo tam pada pytanie „od czego zacząć", a
+   * „Zacznij od nowa" z paska jest wtedy niewidoczne (nie ma czego zastępować).
+   * Opcjonalne: powierzchnie testowe, które galerii nie mają, nie muszą go
+   * podawać — przycisk po prostu się nie rysuje.
+   */
+  onOpenTemplates?: () => void;
   /**
    * Otwarcie szuflady sekcji. Od E8 wołający MOŻE wskazać zakładkę mini-CMS-u:
    * przycisk pustego stanu obiecuje „dodaj pierwszy wpis", więc musi wylądować
@@ -482,19 +491,37 @@ export function BuilderCanvas({
             <p className="text-muted-foreground text-[13px] leading-[18px]">
               {t("builder.emptyBody")}
             </p>
-            {/* Pusta strona ma dokładnie jedno miejsce — koniec, czyli brak
-                kotwicy. To ta sama droga, co „+" i kafel palety. */}
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              data-insert-at="0"
-              loading={locked}
-              disabled={locked}
-              onClick={() => onInsert({})}
-            >
-              {t("sections.add")}
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {/* Pusta strona ma dokładnie jedno miejsce — koniec, czyli brak
+                  kotwicy. To ta sama droga, co „+" i kafel palety. */}
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                data-insert-at="0"
+                loading={locked}
+                disabled={locked}
+                onClick={() => onInsert({})}
+              >
+                {t("sections.add")}
+              </Button>
+              {/* DRUGIE WYJŚCIE Z PUSTEJ STRONY (K-20): gotowa strona zamiast
+                  składania jej sekcja po sekcji. Bez tego przycisku wybór
+                  „pusta strona" w galerii był drogą w jedną stronę — a to jest
+                  wybór, który operator robi ZANIM zobaczy, ile pracy oznacza. */}
+              {onOpenTemplates ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  data-canvas-start-from-template
+                  disabled={locked}
+                  onClick={onOpenTemplates}
+                >
+                  {t("starter.startFromTemplate")}
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

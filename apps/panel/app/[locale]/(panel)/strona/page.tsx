@@ -20,9 +20,15 @@ import { isProductTemplateKind } from "@avably/core/site";
 
 import { ScreenBackLink } from "@/components/screens/screen-header";
 import { requireMemberPage } from "@/lib/member-page";
+import {
+  publishWarnings,
+  type PublishWarning,
+  type PublishWarningSection,
+} from "@/lib/publish-warnings";
 import { listSites } from "@/lib/site-queries";
 
 import { appearancePending } from "./appearance-state";
+import { draftPending, type DraftSectionColumns } from "./draft-state";
 import { SitePages, type SitePageRow } from "./site-pages";
 import { SiteLoadError } from "./site-load-error";
 import { StoreAppearanceCard } from "./store-appearance-card";
@@ -150,6 +156,74 @@ export default async function SitePage() {
       : (forkRows.data ?? []).map((row) => ({ id: row.id as string, name: row.name as string }));
   }
 
+  /*
+    NIEDOPUBLIKOWANE ZMIANY SZKICU (K-05, audyt UX 2026-08-25) i OSTRZEŻENIA
+    PUBLIKACJI (K-13) — jeden odczyt na oba pytania.
+
+    Sekcje czytamy dla WSZYSTKICH stron, nie tylko żywych, i to jest decyzja,
+    a nie brak zawężenia. Ostrzeżenia dotyczą tego, co publikacja WYPUŚCI —
+    a najważniejszym ich adresatem jest strona ROBOCZA, świeżo złożona
+    z szablonu i publikowana PIERWSZY raz: to wtedy „sekcja stoi na treści
+    przykładowej" ratuje najemcę przed sklepem z cudzym copy. Zawężenie do
+    stron żywych milczałoby dokładnie w tym momencie. Sufit odczytu jest
+    z natury niski (`MAX_SITES` = 10 stron na najemcę), więc cena jest znana
+    z góry.
+
+    Sam `draftPending` liczymy dalej WYŁĄCZNIE dla stron żywych — dla roboczej
+    pytanie „czym szkic różni się od żywego" nie ma przedmiotu (bliźniaka nie
+    ma), a lista mówi o niej „wersja robocza".
+
+    Nieudany odczyt gasi ODZNAKĘ i listę ostrzeżeń, a nie ekran: „nie wiadomo"
+    i „bez zmian" to dwa różne zdania (kanon ADR-171), a lista stron jest
+    ważniejsza niż którekolwiek z nich.
+  */
+  const draftPendingBySite = new Map<string, boolean>();
+  const warningsBySite = new Map<string, PublishWarning[]>();
+  if (sites.length > 0) {
+    const sectionRows = await ctx.supabase
+      .from("site_sections")
+      .select(
+        "site_id, type, content_draft, content_published, position, position_published, enabled, enabled_published, deleted_in_draft",
+      )
+      .eq("tenant_id", ctx.tenantId!)
+      .in(
+        "site_id",
+        sites.map((site) => site.id),
+      );
+    if (!sectionRows.error) {
+      const bySite = new Map<string, DraftSectionColumns[]>();
+      const contentBySite = new Map<string, PublishWarningSection[]>();
+      for (const row of sectionRows.data ?? []) {
+        const siteId = row.site_id as string;
+        const list = bySite.get(siteId) ?? [];
+        list.push(row as unknown as DraftSectionColumns);
+        bySite.set(siteId, list);
+
+        // Ostrzeżenia opisują to, co publikacja WYPUŚCI — sekcja skasowana
+        // w szkicu zniknie, więc jej treść nikogo już nie obchodzi.
+        if (row.deleted_in_draft) continue;
+        const contents = contentBySite.get(siteId) ?? [];
+        contents.push({
+          type: row.type as PublishWarningSection["type"],
+          enabled: row.enabled as boolean,
+          content: row.content_draft,
+        });
+        contentBySite.set(siteId, contents);
+      }
+      for (const site of sites) {
+        warningsBySite.set(site.id, publishWarnings(contentBySite.get(site.id) ?? []));
+        if (site.published_at === null) continue;
+        draftPendingBySite.set(
+          site.id,
+          draftPending(
+            { slug: site.slug, slug_published: site.slug_published },
+            bySite.get(site.id) ?? [],
+          ),
+        );
+      }
+    }
+  }
+
   const format = await getFormatter();
   const stamp = (value: string | null) =>
     value ? format.dateTime(new Date(value), { dateStyle: "short", timeStyle: "short" }) : null;
@@ -178,6 +252,10 @@ export default async function SitePage() {
     productName: site.product_id ? (productNames.get(site.product_id) ?? null) : null,
     publishedAtLabel: stamp(site.published_at),
     createdAtLabel: stamp(site.created_at),
+    // `null` = nie wiadomo (nieudany odczyt sekcji albo strona robocza, dla
+    // której pytanie nie ma przedmiotu) — odznaka się wtedy nie rysuje.
+    draftPending: draftPendingBySite.get(site.id) ?? null,
+    warnings: warningsBySite.get(site.id) ?? [],
   }));
 
   return (

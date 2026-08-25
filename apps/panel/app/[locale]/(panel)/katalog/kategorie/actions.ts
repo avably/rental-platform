@@ -104,20 +104,37 @@ export async function createCategoryAction(
     (siblings ?? []).reduce((max, row) => Math.max(max, (row.position as number) + 1), 0),
   );
 
-  const { error } = await ctx.supabase.from("catalog_categories").insert({
-    tenant_id: ctx.tenantId,
-    name: parsed.data.name,
-    slug: parsed.data.slug,
-    description: parsed.data.description,
-    position,
-  });
+  /*
+   * ŚWIEŻA KATEGORIA ODDAJE SWÓJ IDENTYFIKATOR, bo operator jedzie PROSTO DO
+   * NIEJ (K-16/K-17, audyt UX 2026-08-25). Do tej poprawki zakładanie kończyło
+   * się powrotem na LISTĘ — a baner kategorii mieszka wyłącznie w EDYCJI (pole
+   * wymaga istniejącego wiersza: bilet i zapis wołają `p_category_id`). Operator
+   * zakładał kategorię, chciał wgrać grafikę, wracał na listę bez jednego zdania
+   * o tym, gdzie jej szukać, i uznawał, że banera się nie da wgrać. Na tym
+   * właśnie rozbił się właściciel.
+   *
+   * `.single()` NIE jest tu „na wszelki wypadek": bez identyfikatora nie ma
+   * dokąd przekierować, a cichy powrót na listę przywróciłby dokładnie tę wadę.
+   */
+  const { data: created, error } = await ctx.supabase
+    .from("catalog_categories")
+    .insert({
+      tenant_id: ctx.tenantId,
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      description: parsed.data.description,
+      position,
+    })
+    .select("id")
+    .single();
   if (error) return withFormEcho(databaseError(error.code, error.message), echo);
+  if (!created) return withFormEcho({ formError: NOT_FOUND }, echo);
 
   revalidatePath("/", "layout");
   // Cache katalogu w SKLEPIE (ADR-185) — panelowy `revalidatePath` go nie
   // dosięga: to osobna aplikacja Next. Patrz lib/catalog-cache.ts.
   await invalidateStorefrontCatalog(ctx.tenantId!);
-  redirect(await localePath(LIST_PATH));
+  redirect(await localePath(`${LIST_PATH}/${created.id as string}`));
 }
 
 /** Wynik szybkiego tworzenia kategorii z formularza produktu (uwaga właściciela). */

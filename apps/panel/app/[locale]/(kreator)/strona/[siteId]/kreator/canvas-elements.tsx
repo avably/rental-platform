@@ -43,6 +43,7 @@ import {
   type ResizeHandle,
 } from "@avably/core/site";
 import { geometryStyle } from "@avably/ui";
+import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   useEffect,
@@ -441,6 +442,25 @@ export function ElementFrame({
           onEdit();
         }}
       >
+        {/*
+          AFORDANCJA EDYCJI TREŚCI (K-15, audyt UX 2026-08-25). Element, pod
+          którego dwuklikiem coś się otwiera, nie mówił o tym NICZYM: obrys
+          najechania jest ten sam dla nagłówka hero (edytowalny w miejscu) i dla
+          kształtu (nieedytowalny), więc operator nie miał skąd wiedzieć, że
+          w tekst sekcji zastanej można po prostu wejść i pisać. Ołówek
+          pojawia się na najechaniu i na fokusie — mechaniki nie zmienia ani
+          o krok, bo klik w niego przechodzi do ramki pod spodem
+          (`pointer-events-none`).
+        */}
+        {onEdit && !locked ? (
+          <span
+            data-element-edit-hint
+            title={t("elements.editHint")}
+            className="bg-card text-muted-foreground pointer-events-none absolute top-1 left-1 flex size-4 items-center justify-center rounded-sm"
+          >
+            <Pencil className="size-3" aria-hidden />
+          </span>
+        ) : null}
         {/* MARKER ODPIĘCIA (K4, ADR-088) — element z ręczną poprawką mobilną
             ma to mówić SAM, bez klikania i bez zaglądania do szuflady. Kropka
             stoi w rogu ramki, żeby nie zasłaniać treści, i niesie własną

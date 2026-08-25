@@ -584,6 +584,41 @@ html[data-sidebar="collapsed"] [data-sidebar-rail] [data-nav-flyout] [data-nav-t
   box-shadow: 0 0 0 1px var(--builder-selection-halo);
 }
 
+/*
+ * OŁÓWEK PRZY TREŚCI, KTÓRĄ DA SIĘ EDYTOWAĆ (K-15, audyt UX 2026-08-25).
+ *
+ * Obrys najechania mówi „tu jest kursor" i mówi to NAD KAŻDYM elementem —
+ * także nad kształtem, w który nie ma po co wchodzić. Ołówek odpowiada na inne
+ * pytanie: „czy w to można wejść i pisać". Dostają go wyłącznie elementy z
+ * czynnością pod dwuklikiem (`onEdit`), więc jego obecność jest informacją,
+ * a nie ozdobą.
+ *
+ * Domyślnie NIEWIDOCZNY: stały ołówek na każdym nagłówku byłby drugą warstwą
+ * ikon na podglądzie strony, czyli szumem, przez który nie widać treści.
+ * Widoczność wisi na najechaniu I na fokusie ramki — klawiatura ma dostać ten
+ * sam sygnał co mysz. `visibility` obok `opacity`, bo sam `opacity: 0` zostawia
+ * węzeł w drzewie malowania na starszych silnikach.
+ */
+[data-element-edit-hint] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+[data-element-frame]:hover [data-element-edit-hint],
+[data-element-frame]:focus-visible [data-element-edit-hint],
+[data-element-frame][data-element-selected="on"] [data-element-edit-hint] {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-element-edit-hint] {
+    transition:
+      opacity var(--motion-fast) var(--ease-out),
+      visibility var(--motion-fast) var(--ease-out);
+  }
+}
+
 [data-element-frame][data-element-detached="on"] {
   outline-style: dashed;
 }

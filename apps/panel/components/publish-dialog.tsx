@@ -56,6 +56,8 @@ import {
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { PublishWarning } from "@/lib/publish-warnings";
+
 export function PublishDialog({
   disabled,
   live,
@@ -64,6 +66,8 @@ export function PublishDialog({
   productTemplate = false,
   exceptionProductName = null,
   appearancePending,
+  warnings = [],
+  emphasize = false,
   onConfirm,
   trigger,
 }: {
@@ -109,6 +113,26 @@ export function PublishDialog({
    * odpowiedzi na to samo pytanie w odległości jednego kliknięcia.
    */
   appearancePending?: boolean | null;
+  /**
+   * CO DOKŁADNIE WYJEDZIE DO KLIENTÓW (K-13/K-14, audyt UX 2026-08-25) — lista
+   * NIEBLOKUJĄCYCH zastrzeżeń policzona przez `publishWarnings`. Pusta (albo
+   * pominięta) znaczy „nie mam nic do powiedzenia": okno nie rysuje wtedy ani
+   * nagłówka, ani listy, bo nagłówek nad pustką jest gorszy niż jego brak.
+   *
+   * Powierzchnia, która treści sekcji NIE ZNA, po prostu nie podaje tego pola —
+   * dokładnie tak, jak `appearancePending` milczy tam, gdzie nie ma odczytu.
+   * Milczenie jest tu uczciwe: „brak ostrzeżeń" i „nie sprawdzałem" to dwa
+   * różne zdania, a listy nie da się odróżnić od pustej po samym wyglądzie.
+   */
+  warnings?: readonly PublishWarning[];
+  /**
+   * PUBLIKACJA JEST TU CZYNNOŚCIĄ GŁÓWNĄ (K-05, audyt UX 2026-08-25) — wiersz
+   * strony ŻYWEJ, w której szkicu czekają niedopublikowane zmiany. Wygląd
+   * domyślnego wejścia przestaje być wtedy drugorzędny, bo to jedyna czynność,
+   * która robi cokolwiek z tym stanem. Nie dotyczy własnego `trigger`: tam
+   * o wyglądzie decyduje wołający.
+   */
+  emphasize?: boolean;
   onConfirm: () => void;
   /**
    * Własny przycisk otwierający (asChild) — kreator podaje swój primary z
@@ -124,7 +148,14 @@ export function PublishDialog({
     <Dialog>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button type="button" size="sm" variant="secondary" disabled={disabled} data-publish-site>
+          <Button
+            type="button"
+            size="sm"
+            variant={emphasize ? "default" : "secondary"}
+            disabled={disabled}
+            data-publish-site
+            data-publish-site-emphasis={emphasize ? "on" : "off"}
+          >
             {t("publish.publish")}
           </Button>
         )}
@@ -167,6 +198,27 @@ export function PublishDialog({
               : t("pages.switchAppearanceUnchanged")}
           </p>
         )}
+        {/*
+          OSTRZEŻENIA STOJĄ NAD PRZYCISKIEM, a nie pod nagłówkiem: operator
+          czyta okno w drodze do „Opublikuj", więc lista musi leżeć na tej
+          drodze. Każda pozycja niesie LICZBĘ — „jedna sekcja z przykładem"
+          i „sześć" to inna decyzja, a zdanie bez liczby każe jej szukać na
+          płótnie.
+        */}
+        {warnings.length > 0 ? (
+          <div data-publish-warnings={warnings.length} className="flex flex-col gap-1.5">
+            <p className="text-foreground text-[13px] leading-[18px] font-medium">
+              {t("publish.warningsTitle")}
+            </p>
+            <ul className="text-muted-foreground list-disc space-y-0.5 pl-5 text-[13px] leading-[18px]">
+              {warnings.map((warning) => (
+                <li key={warning.code} data-publish-warning={warning.code}>
+                  {t(`publish.warnings.${warning.code}`, { count: warning.count })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <p className="text-muted-foreground text-[13px] leading-[18px]">{t("pages.switchDraftNote")}</p>
         <DialogFooter>
           <DialogClose asChild>
@@ -175,8 +227,14 @@ export function PublishDialog({
             </Button>
           </DialogClose>
           <DialogClose asChild>
+            {/*
+              PRZYCISK NIE GAŚNIE OD OSTRZEŻEŃ — zmienia się jego NAPIS.
+              Ostrzeżenia opisują stany legalne (szkielet strony wypuszczony
+              świadomie), więc zakaz byłby regułą, którą operator musiałby
+              obchodzić; „Opublikuj mimo to" nazywa dokładnie to, co robi.
+            */}
             <Button type="button" data-publish-site-confirm onClick={onConfirm}>
-              {t("publish.publish")}
+              {warnings.length > 0 ? t("publish.publishAnyway") : t("publish.publish")}
             </Button>
           </DialogClose>
         </DialogFooter>

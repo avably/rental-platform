@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 /**
  * Próg, po którym wciśnięcie kafla staje się PRZECIĄGNIĘCIEM. Ta sama liczba,
@@ -49,12 +49,20 @@ const TILE_ICONS: Record<PaletteElementKind, LucideIcon> = {
 
 export function ElementPalette({
   disabled,
+  noTarget = false,
   onAdd,
   onDrop,
   onDragOver,
   onDragEnd,
 }: {
   disabled: boolean;
+  /**
+   * NIE MA DOKĄD DOKŁADAĆ (K-09, audyt UX 2026-08-25): strona nie ma ani jednej
+   * sekcji zdatnej do edycji. Osobno od `disabled` (zapis w toku), bo to są dwa
+   * różne zdania: „poczekaj chwilę" i „najpierw dodaj sekcję". Pierwsze mija
+   * samo, drugie wymaga czynności — i tylko drugie da się wyjaśnić zdaniem.
+   */
+  noTarget?: boolean;
   /** Kliknięcie kafla — element ląduje pod treścią wybranej sekcji. */
   onAdd: (kind: PaletteElementKind) => void;
   /** Upuszczenie kafla na płótno — element ląduje POD KURSOREM. */
@@ -69,16 +77,26 @@ export function ElementPalette({
   onDragEnd: () => void;
 }) {
   const t = useTranslations("site");
+  const hintId = useId();
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground text-[13px] leading-[18px]">{t("builder.tabElementsHint")}</p>
+      {/*
+        JEDNO ZDANIE POD JEDNYM IDENTYFIKATOREM: albo instrukcja obsługi kafla,
+        albo powód, dla którego kafel nie działa. Oba jadą do `aria-describedby`
+        kafli, więc czytnik ekranu dostaje tę samą odpowiedź, co oko — a
+        wygaszony przycisk BEZ powodu jest ślepą uliczką w obu kanałach.
+      */}
+      <p id={hintId} data-element-palette-hint={noTarget ? "blocked" : "ready"} className="text-muted-foreground text-[13px] leading-[18px]">
+        {noTarget ? t("builder.tabElementsNoTarget") : t("builder.tabElementsHint")}
+      </p>
       <ul className="grid list-none grid-cols-2 gap-2 p-0">
         {PALETTE_ELEMENT_KINDS.map((kind) => (
           <li key={kind}>
             <PaletteTile
               kind={kind}
-              disabled={disabled}
+              disabled={disabled || noTarget}
+              hintId={hintId}
               onAdd={() => onAdd(kind)}
               onDrop={onDrop}
               onDragOver={onDragOver}
@@ -94,6 +112,7 @@ export function ElementPalette({
 function PaletteTile({
   kind,
   disabled,
+  hintId,
   onAdd,
   onDrop,
   onDragOver,
@@ -101,6 +120,8 @@ function PaletteTile({
 }: {
   kind: PaletteElementKind;
   disabled: boolean;
+  /** Zdanie wyjaśniające kafel (instrukcja albo powód wygaszenia). */
+  hintId: string;
   onAdd: () => void;
   onDrop: (kind: PaletteElementKind, pointer: { x: number; y: number }) => boolean;
   onDragOver: (pointer: { x: number; y: number }) => void;
@@ -159,6 +180,15 @@ function PaletteTile({
       data-element-tile={kind}
       aria-label={label}
       disabled={disabled}
+      /*
+        `aria-disabled` OBOK `disabled`, nie zamiast: atrybut natywny wyłącza
+        zdarzenia (czego chcemy — kafel bez celu nie ma prawa nic zrobić), ale
+        wynosi przycisk z tab-orderu, więc czytnik ekranu przechodzi obok niego
+        w milczeniu. Para z `aria-describedby` mówi wprost, że kafel JEST i
+        DLACZEGO nie działa (audyt UX 2026-08-25, K-09).
+      */
+      aria-disabled={disabled || undefined}
+      aria-describedby={hintId}
       className={`border-border hover:border-accent focus-visible:border-foreground focus-visible:outline-accent dark:focus-visible:outline-ring flex w-full cursor-grab touch-none flex-col items-center gap-1.5 rounded-lg border p-3 text-center outline-none transition-colors [transition-duration:var(--motion-fast)] focus-visible:outline-solid focus-visible:outline-[3px] focus-visible:outline-offset-2 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 ${
         dragging ? "opacity-50" : ""
       }`}
