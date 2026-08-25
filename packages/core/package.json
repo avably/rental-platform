@@ -14,6 +14,10 @@
       "types": "./src/site/index.ts",
       "default": "./src/site/index.ts"
     },
+    "./locale": {
+      "types": "./src/locale.ts",
+      "default": "./src/locale.ts"
+    },
     "./supabase-env": {
       "types": "./src/supabase-env.ts",
       "default": "./src/supabase-env.ts"

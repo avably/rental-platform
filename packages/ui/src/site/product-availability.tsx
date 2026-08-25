@@ -76,7 +76,14 @@
  * nie staje się „rolą poza skanem" macierzy kontrastu (patrz akapit wyżej),
  * a jednocześnie stan pozostaje czytelny bez koloru: niosą go etykieta i glif.
  */
-import { pluralFormOf, type Locale, type PluralForms } from "@avably/core";
+/*
+ * WEJŚCIE PUNKTOWE, NIE BARYŁKA (`@avably/core/locale`). Ten plik jest
+ * KOMPONENTEM KLIENCKIM, a korzeń rdzenia re-eksportuje wszystko — Stripe,
+ * kuriera, pocztę, rozliczenia. Import z korzenia dokładał je do paczki
+ * klienckiej kreatora i systemu projektowego (zmierzone: +15 KB i +30 KB
+ * gzip pierwszego ładowania, ponad budżet ADR-262).
+ */
+import { pluralFormOf, type Locale, type PluralForms } from "@avably/core/locale";
 import { createContext, useContext } from "react";
 
 /**

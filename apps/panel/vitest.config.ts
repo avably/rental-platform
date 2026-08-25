@@ -71,6 +71,9 @@ export default defineConfig({
       ),
       "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
       "@avably/core/site": path.resolve(__dirname, "../../packages/core/src/site/index.ts"),
+      // Wejście punktowe reguły liczebnika (F11) — komponent kliencki nie ma
+      // prawa ciągnąć baryłki rdzenia do paczki przeglądarki (budżety ADR-262).
+      "@avably/core/locale": path.resolve(__dirname, "../../packages/core/src/locale.ts"),
       "@avably/core/supabase-env": path.resolve(
         __dirname,
         "../../packages/core/src/supabase-env.ts",

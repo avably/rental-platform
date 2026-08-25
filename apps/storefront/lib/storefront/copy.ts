@@ -8,7 +8,7 @@
  * Parytet kluczy EN↔PL pilnuje test messages-parity — brak stringa w jednym
  * locale pada w CI, nie w przeglądarce klienta.
  */
-import { pluralFormOf, type PluralForms } from "@avably/core";
+import { pluralFormOf, type PluralForms } from "@avably/core/locale";
 
 import type { StorefrontLocale } from "@/lib/storefront/locale";
 import plMessages from "../../messages/pl.json";
