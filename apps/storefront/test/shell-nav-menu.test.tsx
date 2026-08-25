@@ -179,7 +179,7 @@ describe("F7b — kategorie jako ikona z rozwijaną listą", () => {
     expect(details, "wyzwalacza kategorii nie ma w dokumencie").not.toBeNull();
     const summary = details!.querySelector("summary")!;
     expect(summary.getAttribute("aria-label")).toBe("Kategorie");
-    for (const klasa of ["h-11", "w-10", "@min-[40rem]/site:w-11"]) {
+    for (const klasa of ["h-11", "w-9", "@min-[28rem]/site:w-10", "@min-[40rem]/site:w-11"]) {
       expect(summary.className, `wyzwalacz stracił ${klasa} — cel dotykowy poniżej minimum`).toContain(
         klasa,
       );

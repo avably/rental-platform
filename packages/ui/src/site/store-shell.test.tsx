@@ -90,10 +90,13 @@ describe("S-15 — cel dotykowy odnośnika koszyka", () => {
     const cart = container.querySelector('a[href="/cart"]');
     expect(cart).not.toBeNull();
     for (const klasa of [
+      // WYSOKOŚĆ jest stała (44 px); zmienia się sama SZEROKOŚĆ pudełka:
+      // 36 px na telefonie, 40 od 28 rem, 44 od 40 rem (F12 — trzy ikony po
+      // 40 px brały w pasie 390 px więcej niż pigułka i znak firmy razem).
+      // Cel 36 × 44 zostaje daleko nad minimum WCAG 2.5.8 AA (24 × 24).
       "h-11",
-      // 40 px na wąskim kontenerze, 44 od 26 rem — trzy ikony i pigułka nie
-      // mieszczą się przy 44 px w pasie telefonu (pomiar w docblocku pigułki).
-      "w-10",
+      "w-9",
+      "@min-[28rem]/site:w-10",
       "@min-[40rem]/site:w-11",
       "inline-flex",
       "items-center",

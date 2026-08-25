@@ -98,7 +98,7 @@ export function StoreCategoryMenu({
         {/* Wyzwalacz 44 × 44 px (S-15) — sam znak, z nazwą dostępną. */}
         <summary
           aria-label={label}
-          className="site-menu-link flex h-11 w-10 cursor-pointer list-none items-center justify-center rounded @min-[40rem]/site:w-11 [&::-webkit-details-marker]:hidden"
+          className="site-menu-link flex h-11 w-9 cursor-pointer list-none items-center justify-center rounded @min-[28rem]/site:w-10 @min-[40rem]/site:w-11 [&::-webkit-details-marker]:hidden"
         >
           <StoreGlyph name="categories" className="h-5 w-5" />
         </summary>

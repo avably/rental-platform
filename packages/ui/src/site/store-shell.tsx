@@ -63,16 +63,29 @@ const HOME_HREF = "/";
 const CART_HREF = "/cart";
 
 /**
- * CEL DOTYKOWY IKONY BELKI (S-15 audytu 2026-08-25, WCAG 2.5.8; F7b).
+ * CEL DOTYKOWY IKONY BELKI (S-15 audytu 2026-08-25, WCAG 2.5.8; F7b, F12).
  *
  * Do F7b odnośnik koszyka był NAPISEM ~20 px wysokości, a 44 px robił mu
- * padding z ujemnymi marginesami. Od F7b belka jest ikonowa i kontrolka jest
- * KWADRATEM 44 × 44 — cel dotykowy jest tu wymiarem pudełka, nie protezą
- * wokół tekstu. Ta sama klasa stoi pod wyzwalaczem kategorii i wyszukiwania
- * w storefroncie: trzy sąsiadujące ikony muszą mieć jeden rytm.
+ * padding z ujemnymi marginesami. Od F7b belka jest ikonowa i cel dotykowy
+ * jest WYMIAREM pudełka, nie protezą wokół tekstu. Ta sama klasa stoi pod
+ * wyzwalaczem kategorii i wyszukiwania w storefroncie: trzy sąsiadujące ikony
+ * muszą mieć jeden rytm — i muszą zmieniać się RAZEM, jednym literałem.
+ *
+ * WYSOKOŚĆ 44 px JEST STAŁA (`h-11`) na każdej szerokości; zmienia się sama
+ * szerokość pudełka: 36 px na telefonie, 40 px od 28 rem kontenera, 44 od
+ * 40 rem. Powód jest arytmetyczny i pochodzi z F12: trzy ikony po 40 px brały
+ * w pasie telefonu (325 px przy oknie 390) 126 px z odstępami — więcej niż
+ * pigułka i znak firmy razem. Cel 36 × 44 zostaje z ogromnym zapasem nad
+ * minimum WCAG 2.5.8 AA (24 × 24 CSS px), a odzyskane 12 px idzie do znaku
+ * firmy — jedynego elementu wiersza, który rośnie z wolnego miejsca.
+ *
+ * Próg 28 rem jest TEN SAM, na którym pigułka odzyskuje znak kalendarza
+ * i szerszy padding: belka gęstnieje i rzednie w jednym miejscu, a nie na
+ * trzech progach, które trzeba trzymać w zgodzie.
  */
 const ICON_HIT_AREA =
-  "inline-flex h-11 w-10 shrink-0 items-center justify-center rounded @min-[40rem]/site:w-11";
+  "inline-flex h-11 w-9 shrink-0 items-center justify-center rounded " +
+  "@min-[28rem]/site:w-10 @min-[40rem]/site:w-11";
 
 export function StoreShellHeader({
   storeName,
