@@ -47,6 +47,22 @@
  * publicznej strony ani nie wszedł w sąsiednią sekcję; drugie — żeby warstwa
  * `z` elementu (0…999, treść tenanta) nie mogła przebić się nad interfejs
  * kreatora ani nad dialogi panelu.
+ *
+ * ================== TREŚĆ NIGDY NIE ZNIKA (ADR-274) ==================
+ *
+ * Powyższe przycięcie ma cenę, którą audyt UX 2026-08-25 zebrał jako S-11,
+ * S-25, S-26 i S-50: pudełko tekstu ma wysokość w JEDNOSTKACH płótna, a sam
+ * tekst w pikselach zaciśniętych `clamp()`, więc poniżej pewnej szerokości
+ * akapit przestaje się w nim mieścić i albo wchodzi pod sąsiada, albo wypada
+ * poza kadr. Do tego warstwa `z` jest liczbą z treści, więc zdjęcie
+ * przeciągnięte na nagłówek po prostu go zasłania.
+ *
+ * Odpowiedź jest w RDZENIU (`@avably/core/site/canvas-render.ts`), bo pyta
+ * o nią także płótno kreatora, a ten plik jest miejscem, w którym staje się
+ * CSS-em: warstwa idzie z {@link renderLayerZ} (pasmo treści nad pasmem
+ * dekoracji), a proporcja płótna z {@link canvasStretchAt} — per pasmo
+ * szerokości, bo `calc()` nie umie policzyć łamania tekstu. Geometria zapisana
+ * przez najemcę jest przy tym NIETKNIĘTA: obie liczby powstają przy renderze.
  */
 import {
   CANVAS_COLUMNS,
@@ -280,8 +296,11 @@ function stretchVariables(
   for (const band of bands) {
     const stretch = canvasStretchAt(elements, boxOf, rows, band.widthPx, designWidthPx);
     if (stretch <= 1) continue;
+    // Zaokrąglenie W GÓRĘ, tak samo jak sam współczynnik: dwie setne jednostki
+    // to nic, ale odejmowanie ich od miary, która ma coś zmieścić, to zła
+    // strona zaokrąglenia.
     out[`--canvas-ratio-${band.token}`] =
-      `${CANVAS_COLUMNS} / ${Math.round(rows * stretch * 100) / 100}`;
+      `${CANVAS_COLUMNS} / ${Math.ceil(rows * stretch * 100) / 100}`;
   }
   return out;
 }

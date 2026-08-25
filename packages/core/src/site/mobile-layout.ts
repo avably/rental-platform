@@ -40,6 +40,21 @@
  * WYGRYWA z automatem, a reszta układa się tak, jakby poprawki nie było —
  * dzięki temu „wróć do auto" (skasowanie pola) przywraca dokładnie to miejsce,
  * z którego element wyszedł.
+ *
+ * ================== CO ZMIENIŁ ADR-274 ==================
+ *
+ * Audyt UX 2026-08-25 pokazał, że zasada 3 miała za szeroki test i za sztywny
+ * rytm, a wynik miał sufit, który zamiast ściskać — obcinał:
+ *
+ *   • PODKŁADEM jest kształt, który treść OBEJMUJE, a nie ten, który ją musnął
+ *     rogiem. Poprzednia reguła zamieniała przypadkową dekorację w tło CAŁEJ
+ *     nierozdzielnej grupy: kształt dostawał jej wysokość i — z wysokim `z` —
+ *     zasłaniał komplet treści (produkcyjne `/audyt-c` przy 390 px było PUSTE).
+ *   • ODSTĘP MIĘDZY GRUPAMI idzie z rytmu PROJEKTU, a nie ze stałej: linie
+ *     kontaktu stojące 8 px od siebie nie mają dostawać na telefonie 24 px.
+ *   • SUFIT wysokości zdjęty — patrz {@link mobileLayoutOf}.
+ *   • Kto jest podkładem, mówi teraz wynik ({@link MobileLayout.backdrops}), bo
+ *     render musi go zatopić pod treścią, którą podkłada.
  */
 import {
   CANVAS_CONTENT_COLUMNS,
