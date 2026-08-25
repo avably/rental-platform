@@ -125,8 +125,8 @@ const heroPoAudycie: SectionCanvas = {
     {
       id: "ikona",
       kind: "icon",
-      name: "check",
-      color: "accent",
+      name: "badge-check",
+      tone: "accent",
       size: { w: "hug", h: "hug" },
       layout: { desktop: { x: 12, y: 59, w: 6, h: 6, z: 0 } },
     },
