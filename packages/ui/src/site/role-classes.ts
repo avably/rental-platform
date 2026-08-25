@@ -163,4 +163,12 @@ export const NEUTRAL_CLASSES: readonly string[] = [
    * `site-text-accent`), które stoją w macierzy kontrastu.
    */
   "site-listing-cards",
+  /*
+   * PAS TREŚCI LISTINGU (F11). Zakłada kontener zapytań (`container-type`,
+   * `container-name`) i NIC POZA TYM — ani jednego koloru, ani jednej
+   * zmiennej roli. Istnieje po to, żeby progi kolumn kart mierzyły miejsce,
+   * które siatka naprawdę dostała, a nie szerokość całej strony (obok stoi
+   * kolumna kategorii z ADR-275).
+   */
+  "site-listing-band",
 ];

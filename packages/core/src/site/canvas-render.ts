@@ -34,12 +34,22 @@
  *     wchodzi nad napis.
  *
  *   • {@link canvasStretchAt} — WYSOKOŚĆ SEKCJI ROŚNIE Z TREŚCIĄ. Dla zadanej
- *     szerokości płótna liczymy, ile jednostek potrzebuje najbardziej ściśnięty
- *     akapit, i oddajemy współczynnik, o który płótno ma się wydłużyć. Ponieważ
- *     WSZYSTKIE pudełka są procentem tej samej wysokości, rozciągnięcie płótna
- *     rozciąga je razem — układ zostaje proporcjonalny, a tekst dostaje miejsce.
- *     Przy szerokości projektowej współczynnik jest RÓWNY JEDEN z konstrukcji
- *     (patrz `base` niżej), więc desktop nie zmienia się ani o piksel.
+ *     szerokości płótna liczymy, ile jednostek potrzebuje najbardziej ściśnięta
+ *     treść o wysokości W PIKSELACH, i oddajemy współczynnik, o który płótno ma
+ *     się wydłużyć. Ponieważ WSZYSTKIE pudełka są procentem tej samej wysokości,
+ *     rozciągnięcie płótna rozciąga je razem — układ zostaje proporcjonalny,
+ *     a treść dostaje miejsce. Przy szerokości projektowej współczynnik jest
+ *     RÓWNY JEDEN przez TOŻSAMOŚĆ (patrz bramka niżej), więc desktop nie zmienia
+ *     się ani o piksel.
+ *
+ *     ANEKS F11 (re-sweep audytu 2026-08-25). Reguła znała tylko AKAPIT, a
+ *     w pikselach stoją także kafelek ikony i przycisk — i to one wypadały poza
+ *     dolną krawędź sekcji na `/audyt-c` (przy 768 px z przycisku zostawała
+ *     połowa, ikona nie istniała wcale). Do tego mianownik brał `max(miejsce,
+ *     szacunek przy projektowej)`, więc pesymizm estymatora zjadał sam siebie
+ *     i sekcja rosła o jedną trzecią tego, czego brakowało. Obie wady zamyka
+ *     jedno przeformułowanie: bramka na treści, która przestała maleć razem
+ *     z płótnem, i mianownik równy MIEJSCU.
  *
  *   • {@link isPublishableElement} — HIGIENA PUBLIKACJI (S-50). Kafel zdjęcia
  *     bez zdjęcia i element, który został przy treści startowej z palety, są
@@ -50,13 +60,12 @@ import { createElement } from "./element-factory";
 import {
   PALETTE_ELEMENT_KINDS,
   normalizeImageSource,
-  sizeOf,
   type CanvasElement,
   type CanvasElementKind,
   type Geometry,
 } from "./elements";
 import { PRESET_LOCALES } from "./presets";
-import { scaleOfElement, textHeightUnitsAt } from "./text-metrics";
+import { contentHeightUnitsAt } from "./text-metrics";
 
 // -----------------------------------------------------------------------
 // Pasma malowania — rola, nie liczba
@@ -131,16 +140,16 @@ export function renderLayerZ(
  */
 export const CANVAS_MAX_STRETCH = 3;
 
-/** Element, którego wysokość WYNIKA Z ŁAMANIA TEKSTU — tylko takie liczymy. */
-function reflows(element: CanvasElement): element is CanvasElement & { text: string } {
-  if (element.kind !== "heading" && element.kind !== "text") return false;
-  // Pudełko obejmujące treść (`hug`) renderuje się jako `max-content`, więc
-  // nie przycina niczego i nie ma czego rozciągać — jego wysokość JEST treścią.
-  return sizeOf(element).h === "fixed";
-}
+/**
+ * SZUM ZMIENNOPRZECINKOWY przy porównaniu „czy treść urosła". Obie strony
+ * porównania liczą się tym samym wzorem z ilorazów szerokości, więc równość
+ * matematyczna bywa nierównością w IEEE — a od tego porównania zależy, czy
+ * sekcja zdrowa dostanie rozciągnięcie, którego nie potrzebuje.
+ */
+const STRETCH_EPSILON = 1e-9;
 
 /**
- * MIEJSCE, KTÓRE TEKST MA DO DYSPOZYCJI — własne pudełko PLUS wolna przestrzeń
+ * MIEJSCE, KTÓRE TREŚĆ MA DO DYSPOZYCJI — własne pudełko PLUS wolna przestrzeń
  * pod nim, aż do najbliższego elementu W TEJ SAMEJ KOLUMNIE.
  *
  * To nie jest poluzowanie reguły, tylko jej właściwe sformułowanie. Napis nie
@@ -174,11 +183,34 @@ function roomBelow(box: Geometry, others: readonly Geometry[], rows: number): nu
  *
  * `boxOf` oddaje pudełko elementu na TYM breakpoincie (desktop bierze geometrię
  * z treści, telefon — z auto-układu), a `designWidthPx` jest szerokością, przy
- * której to pudełko powstało. Mianownik to `max(miejsce pod tekstem, potrzeba
- * przy projektowej)` i to on daje gwarancję „desktop bez zmian": przy
- * szerokości projektowej licznik nie przekracza mianownika, więc wynik to
- * dokładnie 1 — także dla pudełka, które operator sam sobie zwęził (jego układ
- * zostaje jego układem).
+ * której to pudełko powstało.
+ *
+ * ================== BRAMKA: TYLKO TREŚĆ, KTÓRA PRZESTAŁA MALEĆ (F11) ==========
+ *
+ * Płótno jest PROPORCJĄ, więc wszystko, co mierzy się w jednostkach siatki,
+ * kurczy się razem z nim i nigdy nie zaczyna nie mieścić się bardziej niż przy
+ * projektowej. Rozciągnięcie należy się WYŁĄCZNIE treści, której wysokość stoi
+ * w pikselach: napisowi po dobiciu zacisku `clamp()`, kafelkowi ikony po dobiciu
+ * jego zacisku i przyciskowi, którego rozstaw jest w `rem` i nie maleje wcale.
+ * Bramka mówi to jednym zdaniem — `potrzeba przy TEJ szerokości > potrzeba przy
+ * PROJEKTOWEJ` — i to ona, a nie mianownik, daje gwarancję „desktop bez zmian":
+ * przy szerokości projektowej obie strony są tą samą liczbą, więc wynik jest
+ * równy jeden przez TOŻSAMOŚĆ, a nie przez nierówność.
+ *
+ * ================== MIANOWNIK: MIEJSCE, A NIE SZACUNEK (F11) ==================
+ *
+ * Do F11 mianownik brał `max(miejsce, potrzeba przy projektowej)`, żeby wymusić
+ * jedynkę na desktopie. Skutek uboczny był cichy i kosztowny: estymator jest
+ * CELOWO pesymistyczny (gęstość wiersza z zapasem), więc dla napisu, któremu
+ * przy projektowej „zabrakło miejsca" tylko w szacunku, w mianowniku lądował
+ * SZACUNEK. Współczynnik degenerował się wtedy do ilorazu dwóch szacunków, czyli
+ * do samego wzrostu wiersza — a nie do tego, ile miejsca napis naprawdę
+ * potrzebuje. Tak przetrwał audyt kroków „Jak działa rezerwacja": sekcja rosła
+ * o 31 %, gdy brakowało jej 75 % (re-sweep 2026-08-25).
+ *
+ * Po bramce mianownik może być tym, czym powinien być od początku: MIEJSCEM.
+ * Współczynnik jest wtedy dokładnie tym, o co chodzi — „ile razy trzeba
+ * rozciągnąć płótno, żeby ta treść zmieściła się tam, gdzie leży".
  */
 export function canvasStretchAt(
   elements: readonly CanvasElement[],
@@ -190,9 +222,7 @@ export function canvasStretchAt(
   const boxes = elements.map(boxOf);
   let stretch = 1;
   for (const [index, element] of elements.entries()) {
-    if (!reflows(element)) continue;
     const box = boxes[index]!;
-    const scale = scaleOfElement(element);
     /*
      * Miara CIĄGŁA, nie zaokrąglona do jednostki siatki. Sufit jest właściwy
      * dla pudełka („ma mieścić"), a tu liczy się proporcja: przy 1024 px
@@ -200,10 +230,11 @@ export function canvasStretchAt(
      * o trzydzieści trzy, czyli sekcja bez wady dostawałaby jedną trzecią
      * wysokości w prezencie (złapane w weryfikacji ADR-274).
      */
-    const design = textHeightUnitsAt(element.text, scale, box.w, designWidthPx);
-    const base = Math.max(1, roomBelow(box, boxes, rows), design);
-    const need = textHeightUnitsAt(element.text, scale, box.w, canvasWidthPx);
-    stretch = Math.max(stretch, need / base);
+    const need = contentHeightUnitsAt(element, box.w, canvasWidthPx);
+    if (need === null) continue;
+    const design = contentHeightUnitsAt(element, box.w, designWidthPx)!;
+    if (need <= design + STRETCH_EPSILON) continue;
+    stretch = Math.max(stretch, need / Math.max(1, roomBelow(box, boxes, rows)));
   }
   /*
    * Trzy miejsca po przecinku: wynik jedzie do CSS jako proporcja, a chwiejna

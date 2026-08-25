@@ -32,12 +32,17 @@ import {
   CANVAS_DESIGN_WIDTH_PX,
   MOBILE_DESIGN_WIDTH_PX,
   canvasElementSchema,
-  sizeOf,
   type CanvasElement,
   type SectionCanvas,
 } from "./elements";
 import { SECTION_TYPES, presetContentFor, type SectionType } from "./index";
-import { scaleOfElement, textHeightUnitsAt } from "./text-metrics";
+import {
+  contentHeightUnitsAt,
+  iconPxAt,
+  scaleOfElement,
+  textHeightUnitsAt,
+  unitPxAt,
+} from "./text-metrics";
 
 const PRESETY: [string, SectionCanvas][] = SECTION_TYPES.map((type) => [
   type,
@@ -90,6 +95,84 @@ const zaslonieteHero: SectionCanvas = {
       shape: "box",
       fill: "paper",
       layout: { desktop: { x: 80, y: 39, w: 40, h: 12, z: 7 } },
+    },
+  ],
+} as SectionCanvas;
+
+/**
+ * TO SAMO PŁÓTNO PO RĘCE OPERATORA (re-sweep 2026-08-25, F11).
+ *
+ * Właściciel dołożył na `/audyt-c` drugi przycisk i kafelek ikony PRZY DOLNEJ
+ * KRAWĘDZI hero (`rows = 65`, przycisk na 58, ikona na 59). Oba mają wysokość
+ * w PIKSELACH, więc przy zwężonym płótnie przestają mieścić się w wierszach,
+ * które im zostawiono: przy 768 px z przycisku zostawała połowa, a ikony nie
+ * było widać wcale. Geometria niżej jest zdjęta z produkcji co do jednostki.
+ */
+const heroPoAudycie: SectionCanvas = {
+  ...zaslonieteHero,
+  elements: [
+    ...zaslonieteHero.elements,
+    {
+      id: "cta-2",
+      kind: "button",
+      label: "Przycisk",
+      href: "/",
+      variant: "solid",
+      align: "left",
+      size: { w: "hug", h: "hug" },
+      layout: { desktop: { x: 12, y: 58, w: 30, h: 7, z: 0 } },
+    },
+    {
+      id: "ikona",
+      kind: "icon",
+      name: "check",
+      color: "accent",
+      size: { w: "hug", h: "hug" },
+      layout: { desktop: { x: 12, y: 59, w: 6, h: 6, z: 0 } },
+    },
+  ],
+} as SectionCanvas;
+
+/**
+ * KROKI „JAK DZIAŁA REZERWACJA" ze strony głównej — reszta S-11 z re-sweepu.
+ *
+ * Trzy kroki rozdzielone PUSTYM WIERSZEM w pudełku o wysokości 12 jednostek,
+ * a pod nimi zdjęcie na 39. Przy 1152 px każdy krok mieści się w jednym
+ * wierszu (zmierzone na produkcji: 120 px treści w 144 px miejsca), przy
+ * 768 px każdy łamie się na dwa (168 px treści w 126 px miejsca) — i to
+ * właśnie tam zdjęcie wchodziło na krok trzeci.
+ */
+const KROKI_TEKST =
+  "1. WYBIERASZ — sprzęt i termin w katalogu; system od razu pokazuje, czy egzemplarz jest wolny.\n\n2. POTWIERDZAMY — mailem, razem z adresem odbioru i wysokością kaucji. Zwykle w kilka minut.\n\n3. ZMIENIASZ, JEŚLI TRZEBA — termin przesuniesz do 24 godzin przed odbiorem, bez dopłat i bez tłumaczeń.";
+
+const jakDzialaRezerwacja: SectionCanvas = {
+  version: 2,
+  rows: 105,
+  background: "default",
+  elements: [
+    {
+      id: "naglowek",
+      kind: "heading",
+      level: 2,
+      align: "left",
+      text: "Jak działa rezerwacja",
+      layout: { desktop: { x: 12, y: 10, w: 120, h: 7, z: 0 } },
+    },
+    {
+      id: "kroki",
+      kind: "text",
+      variant: "body",
+      align: "left",
+      text: KROKI_TEKST,
+      layout: { desktop: { x: 12, y: 21, w: 120, h: 12, z: 0 } },
+    },
+    {
+      id: "zdjecie",
+      kind: "image",
+      alt: "Kadr z wypożyczalni",
+      fit: "cover",
+      source: { kind: "storage", path: "tenant/kroki.jpg" },
+      layout: { desktop: { x: 12, y: 39, w: 120, h: 56, z: 0 } },
     },
   ],
 } as SectionCanvas;
@@ -167,10 +250,29 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
     },
   );
 
+  it.each([
+    ["hero po ręce operatora", heroPoAudycie],
+    ['kroki „Jak działa rezerwacja"', jakDzialaRezerwacja],
+  ] as const)(
+    "%s: przy szerokości PROJEKTOWEJ rozciągnięcia nie ma",
+    (_nazwa, canvas) => {
+      expect(
+        canvasStretchAt(
+          canvas.elements,
+          desktopBox,
+          canvas.rows,
+          CANVAS_DESIGN_WIDTH_PX,
+          CANVAS_DESIGN_WIDTH_PX,
+        ),
+      ).toBe(1);
+    },
+  );
+
   it("pudełko ZWĘŻONE przez operatora też nie rozciąga desktopu", () => {
-    // Mianownik bierze `max(h, potrzeba przy projektowej)`, więc układ, który
-    // operator sam sobie ścisnął, zostaje jego układem — poprawiamy patologie
-    // wąskiego ekranu, a nie cudze decyzje.
+    // Bramka pyta „czy treść potrzebuje WIĘCEJ niż przy projektowej", a przy
+    // projektowej obie strony są tą samą liczbą — więc układ, który operator
+    // sam sobie ścisnął, zostaje jego układem. Poprawiamy patologie wąskiego
+    // ekranu, a nie cudze decyzje.
     const ciasne = {
       ...zaslonieteHero,
       elements: zaslonieteHero.elements.map((element) =>
@@ -210,14 +312,27 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
   });
 
   it.each([1024, 896, 768, 640])(
-    "przy %i px KAŻDY tekst mieści się w swoim miejscu po rozciągnięciu",
+    "przy %i px KAŻDA treść o wysokości w pikselach mieści się w swoim miejscu",
     (width) => {
       /*
-       * Sedno obietnicy, sprawdzone na płótnie z audytu I na wszystkich
-       * presetach: po pomnożeniu wysokości płótna przez współczynnik żaden
-       * napis nie wchodzi na to, co pod nim.
+       * Sedno obietnicy, sprawdzone na płótnach z audytu I na wszystkich
+       * presetach: po pomnożeniu wysokości płótna przez współczynnik żadna
+       * treść, która przestała maleć razem z płótnem — napis po dobiciu
+       * zacisku, kafelek ikony, przycisk — nie wchodzi na to, co pod nią, ani
+       * nie wypada poza dolną krawędź sekcji.
+       *
+       * Zbiór rodzajów NIE jest tu przepisany ręcznie: pyta o niego ta sama
+       * funkcja, którą pyta reguła (`contentHeightUnitsAt`). Kopia listy
+       * rozjechałaby się przy pierwszym nowym rodzaju elementu, a test
+       * świeciłby wtedy na zielono, nie sprawdzając go wcale.
        */
-      for (const canvas of [zaslonieteHero, ...PRESETY.map(([, c]) => c)]) {
+      let sprawdzone = 0;
+      for (const canvas of [
+        zaslonieteHero,
+        heroPoAudycie,
+        jakDzialaRezerwacja,
+        ...PRESETY.map(([, c]) => c),
+      ]) {
         const stretch = canvasStretchAt(
           canvas.elements,
           desktopBox,
@@ -226,25 +341,122 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
           CANVAS_DESIGN_WIDTH_PX,
         );
         for (const element of canvas.elements) {
-          if (element.kind !== "text" && element.kind !== "heading") continue;
-          if (sizeOf(element).h !== "fixed") continue;
           const box = element.layout.desktop;
-          const scale = scaleOfElement(element);
-          const potrzeba = textHeightUnitsAt(element.text, scale, box.w, width);
-          // Miejsce ciaśniejsze od potrzeby JUŻ przy projektowej jest decyzją
-          // operatora — rozciągnięcie ma dowieźć tę samą proporcję, nie lepszą.
-          const podstawa = Math.max(
-            miejsce(canvas, element),
-            textHeightUnitsAt(element.text, scale, box.w, CANVAS_DESIGN_WIDTH_PX),
+          const potrzeba = contentHeightUnitsAt(element, box.w, width);
+          if (potrzeba === null) continue;
+          /*
+           * Treść, która DALEJ maleje razem z płótnem, ma tu dokładnie tę samą
+           * proporcję co przy projektowej — jej mieszczenie się jest sprawą
+           * desktopu, nie tego pasma, i sekcja nie ma po co rosnąć (to jest ta
+           * jedna trzecia wysokości „w prezencie" z weryfikacji ADR-274).
+           */
+          if (potrzeba <= contentHeightUnitsAt(element, box.w, CANVAS_DESIGN_WIDTH_PX)! + 1e-9) {
+            continue;
+          }
+          const zada = Math.min(
+            potrzeba / Math.max(1, miejsce(canvas, element)),
+            CANVAS_MAX_STRETCH,
           );
+          sprawdzone += 1;
           expect(
-            podstawa * stretch + 1e-9,
-            `${element.id} @${width}px: tekst wchodzi na element pod sobą`,
-          ).toBeGreaterThanOrEqual(potrzeba);
+            stretch + 1e-9,
+            `${element.id} @${width}px: treść wchodzi na element pod sobą albo poza krawędź`,
+          ).toBeGreaterThanOrEqual(zada);
         }
       }
+      // Kontrola po pustym zbiorze: bramka ma coś przepuszczać. Bez tej liczby
+      // reguła, która nigdy nie uznaje treści za „rosnącą", świeciłaby na
+      // zielono, nie sprawdzając ani jednego elementu.
+      expect(sprawdzone, `@${width}px: bramka nie przepuściła NICZEGO`).toBeGreaterThan(0);
     },
   );
+
+  it.each([1024, 896, 768, 640])(
+    "przy %i px hero z `/audyt-c` nie ucina ani przycisku, ani ikony (F11)",
+    (width) => {
+      /*
+       * Ta sama obietnica przeliczona NA PIKSELE, bo wada była pikselowa:
+       * dolna krawędź sekcji to `rows × s × jednostka`, a element o wysokości
+       * w pikselach zaczyna się na `y × s × jednostka` i tej wysokości nie
+       * oddaje. Zrzut z produkcji (768 px): przycisk wychodził o 8,2 px poza
+       * kadr, a kafelek ikony chował się pod nim w całości.
+       */
+      const stretch = canvasStretchAt(
+        heroPoAudycie.elements,
+        desktopBox,
+        heroPoAudycie.rows,
+        width,
+        CANVAS_DESIGN_WIDTH_PX,
+      );
+      const jednostka = unitPxAt(width);
+      const dol = heroPoAudycie.rows * stretch * jednostka;
+      for (const id of ["cta", "cta-2", "ikona"]) {
+        const element = heroPoAudycie.elements.find((e) => e.id === id)!;
+        const box = element.layout.desktop;
+        const wysokosc = contentHeightUnitsAt(element, box.w, width)! * jednostka;
+        expect(
+          dol + 1e-9,
+          `${id} @${width}px: dolna krawędź sekcji przycina element`,
+        ).toBeGreaterThanOrEqual(box.y * stretch * jednostka + wysokosc);
+      }
+      // Kontrola pozytywna: kafelek ikony NAPRAWDĘ stoi przy dolnej krawędzi,
+      // więc asercja wyżej ma co przycinać (bez tego przeszłaby dla dowolnej
+      // geometrii z zapasem).
+      expect(59 + 6).toBe(heroPoAudycie.rows);
+      expect(iconPxAt(width)).toBeGreaterThanOrEqual(32);
+    },
+  );
+
+  it('kroki „Jak działa rezerwacja" mieszczą się NAD zdjęciem w każdym paśmie (S-11)', () => {
+    /*
+     * Reszta S-11 z re-sweepu: przy 768 px zdjęcie nachodziło na krok trzeci.
+     * Miejsce kroków to 18 jednostek (od 21 do 39), a potrzeba przy 768 px —
+     * 31,5 jednostki. Mianownik brał wcześniej `max(miejsce, szacunek przy
+     * projektowej) = 24`, więc sekcja rosła o 31 % zamiast o 75 %.
+     */
+    const kroki = jakDzialaRezerwacja.elements.find((e) => e.id === "kroki")! as CanvasElement & {
+      text: string;
+    };
+    const box = kroki.layout.desktop;
+    const przy = (width: number) =>
+      canvasStretchAt(
+        jakDzialaRezerwacja.elements,
+        desktopBox,
+        jakDzialaRezerwacja.rows,
+        width,
+        CANVAS_DESIGN_WIDTH_PX,
+      );
+    /*
+     * PASMA, W KTÓRYCH FONT JUŻ DOBIŁ ZACISKU. Akapit ma dolny koniec 14 px
+     * i sięga go poniżej ~1008 px płótna; dopiero tam kroki potrzebują więcej
+     * miejsca, niż dostały przy projektowej.
+     */
+    for (const width of [896, 768, 640]) {
+      const miejscePx = miejsce(jakDzialaRezerwacja, kroki) * przy(width) * unitPxAt(width);
+      const potrzebaPx = contentHeightUnitsAt(kroki, box.w, width)! * unitPxAt(width);
+      expect(miejscePx + 1e-9, `@${width}px: zdjęcie wchodzi na kroki`).toBeGreaterThanOrEqual(
+        potrzebaPx,
+      );
+    }
+    /*
+     * DRUGA POŁOWA TEJ SAMEJ POPRAWKI: przy 1024 px font jeszcze maleje razem
+     * z płótnem, więc sekcja NIE MA po co rosnąć. Zmierzone na produkcji:
+     * kroki zajmują tam 106 px w 128 px miejsca. Bez tej asercji „naprawa"
+     * mogłaby polegać na rozciąganiu wszystkiego wszędzie.
+     */
+    expect(przy(1024), "sekcja zdrowa dostała wysokość w prezencie").toBe(1);
+    // Kontrola pozytywna: dokładnie ta konfiguracja przed poprawką NIE mieściła
+    // się przy 768 px — mianownik ze starym składnikiem dowozi za mało.
+    const stary =
+      contentHeightUnitsAt(kroki, box.w, 768)! /
+      Math.max(
+        miejsce(jakDzialaRezerwacja, kroki),
+        textHeightUnitsAt(kroki.text, scaleOfElement(kroki), box.w, CANVAS_DESIGN_WIDTH_PX),
+      );
+    expect(miejsce(jakDzialaRezerwacja, kroki) * stary).toBeLessThan(
+      contentHeightUnitsAt(kroki, box.w, 768)!,
+    );
+  });
 
   it("rozciągnięcie rośnie MONOTONICZNIE, gdy płótno się zwęża", () => {
     const przy = (width: number) =>
@@ -269,7 +481,7 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
     const box = lead.layout.desktop;
     const bez =
       textHeightUnitsAt(lead.text, scaleOfElement(lead), box.w, 300) /
-      Math.max(box.h, textHeightUnitsAt(lead.text, scaleOfElement(lead), box.w, CANVAS_DESIGN_WIDTH_PX));
+      miejsce(zaslonieteHero, lead);
     expect(bez).toBeGreaterThan(CANVAS_MAX_STRETCH);
   });
 
@@ -289,9 +501,11 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
     ).toBe(1);
   });
 
-  it("płótno bez tekstu o jawnej wysokości nie rozciąga się nigdy", () => {
-    // Kontrola negatywna: gdyby rozciągnięcie liczyło się z czegokolwiek innego
-    // niż łamanie tekstu, ta sekcja też by urosła.
+  it("płótno z samej dekoracji nie rozciąga się nigdy", () => {
+    // Kontrola negatywna: zdjęcie i kształt są PROCENTEM płótna, więc kurczą
+    // się razem z nim i nigdy nie zaczynają nie mieścić się bardziej niż przy
+    // projektowej. Gdyby reguła liczyła cokolwiek poza treścią o wysokości
+    // w pikselach, ta sekcja też by urosła.
     const same = {
       ...zaslonieteHero,
       elements: zaslonieteHero.elements.filter(
@@ -299,6 +513,20 @@ describe("wysokość sekcji rośnie z treścią, ale nie na desktopie", () => {
       ),
     } as SectionCanvas;
     expect(canvasStretchAt(same.elements, desktopBox, same.rows, 640, CANVAS_DESIGN_WIDTH_PX)).toBe(1);
+
+    // Kontrola pozytywna do tej samej granicy: DOŁÓŻ do tej dekoracji jeden
+    // przycisk przy dolnej krawędzi i sekcja urośnie. Bez tej pary asercja
+    // wyżej świeciłaby na zielono także dla reguły, która nie liczy nic.
+    const zPrzyciskiem = {
+      ...same,
+      elements: [
+        ...same.elements,
+        heroPoAudycie.elements.find((element) => element.id === "cta-2")!,
+      ],
+    } as SectionCanvas;
+    expect(
+      canvasStretchAt(zPrzyciskiem.elements, desktopBox, zPrzyciskiem.rows, 640, CANVAS_DESIGN_WIDTH_PX),
+    ).toBeGreaterThan(1);
   });
 });
 

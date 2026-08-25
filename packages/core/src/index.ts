@@ -63,7 +63,9 @@ export {
   DEFAULT_TENANT_LOCALE,
   isLocale,
   bcp47,
+  pluralFormOf,
   type Locale,
+  type PluralForms,
 } from "./locale";
 
 export {

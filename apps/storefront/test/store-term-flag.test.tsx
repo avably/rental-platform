@@ -166,4 +166,27 @@ describe("kontrakt źródła: term w trasach wyłącznie przez storeTermInput al
       ).toBe(true);
     }
   });
+
+  /**
+   * BELKA JEST JEDNA NA WSZYSTKICH TRASACH (decyzja PM, F11).
+   *
+   * ADR-179 dał dokumentom prawnym `term={null}` z rozumowania „ta trasa nie
+   * sprzedaje". F7b zniosło tryby nagłówka i ta sama decyzja objęła kasę,
+   * a F11 domknął ją na dokumentach: klient ma widzieć TĘ SAMĄ belkę wszędzie,
+   * bo belka zmieniająca skład czyta się jak inna strona, a nie jak inny
+   * kontekst. Flaga najemcy (ADR-203) rządzi tu dokładnie tak, jak na trasach
+   * handlowych — bo rządzi nią ten sam helper.
+   */
+  it("dokumenty prawne dostają pigułkę TĄ SAMĄ drogą, co trasy handlowe", () => {
+    const source = readFileSync(
+      join(APP_ROOT, "components", "storefront", "legal-page.tsx"),
+      "utf8",
+    );
+    const przez = [...source.matchAll(/term=\{storeTermInput\(/g)].length;
+    // Dwie trasy dokumentowe: żywa wersja i permalink wersji.
+    expect(przez, "dokument prawny wrócił do belki bez pigułki").toBe(2);
+    expect(source, "gdziekolwiek został jawny null — belka rozjeżdża się między trasami").not.toContain(
+      "term={null}",
+    );
+  });
 });

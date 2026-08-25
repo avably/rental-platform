@@ -40,7 +40,7 @@ import {
   parseCatalogPageParam,
 } from "@avably/core";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
-import { siteStyles } from "@avably/ui";
+import { LISTING_BAND_CLASS, siteStyles } from "@avably/ui";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -230,7 +230,13 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
               allCategoriesLabel={copy.nav.allCategories}
               currentPath={`/${CATALOG_PATH_SEGMENT}`}
             />
-            <div className="min-w-0">
+            {/*
+              PAS TREŚCI LISTINGU JEST WŁASNYM KONTENEREM (F11, `LISTING_BAND_CLASS`).
+              Progi kolumn kart mierzą odtąd TO miejsce, a nie całą stronę:
+              z kolumną kategorii obok pas ma przy oknie 1440 px 688 px, więc
+              trzy kolumny dawały karty po 213 px z łamanym tytułem i CTA.
+            */}
+            <div className={`min-w-0 ${LISTING_BAND_CLASS}`}>
               {/*
                 NAGŁÓWEK KOMPAKTOWY (F9) — licznik pozycji w JEDNYM wierszu z h1
                 (lustro strony kategorii), zamiast osobnego akapitu nad siatką.
@@ -243,9 +249,15 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
                 <h1 className={`text-2xl @min-[40rem]/site:text-3xl ${SITE_HEADING}`}>
                   {copy.catalog.heading}
                 </h1>
+                {/*
+                  SEPARATOR TYLKO W UKŁADZIE INLINE (F11). Kropka stała
+                  w treści BEZWARUNKOWO, więc gdy licznik zawijał się pod h1
+                  (fraza wyszukiwania na telefonie), wiersz zaczynał się od
+                  wiszącego „·". Rysuje ją teraz arkusz — od tego progu pasa,
+                  na którym licznik mieści się obok tytułu.
+                */}
                 {ctx.query.length > 0 && ctx.total === 0 ? null : (
                   <p data-catalog-count className="site-text-muted text-sm">
-                    {"· "}
                     {ctx.query.length > 0 ? (
                       <>
                         {format(copy.catalog.searchResults, { total: ctx.total, query: ctx.query })}

@@ -28,6 +28,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CATALOG_PAGE_SIZE } from "@avably/core";
+import { LISTING_BAND_CLASS } from "@avably/ui";
 
 import { categoryPagePath } from "@/lib/catalog/category-path";
 
@@ -439,6 +440,26 @@ describe("strona kategorii (ADR-247)", () => {
     expect(sheet).toMatch(/\.site-listing-cards > li > a > img[\s\S]{0,200}?float: left/);
     expect(sheet).toMatch(/\.site-listing-cards \[data-products-price\][\s\S]{0,200}?clear: both/);
     expect(sheet).toMatch(/\.site-listing-cards \[data-products-cta\][\s\S]{0,200}?clear: both/);
+  }, BUDZET_RENDERU);
+
+  it("licznik NIE zaczyna się od separatora, a pas listingu jest kontenerem (F11)", async () => {
+    /*
+     * Dwie połowy tej samej poprawki, obie na stronie kategorii — lustrze
+     * katalogu. Kropka stała w treści bezwarunkowo (przy zawinięciu wiersza
+     * zaczynała nowy wiersz), a progi kolumn mierzyły całą stronę, choć obok
+     * siatki stoi kolumna kategorii (ADR-275).
+     */
+    const html = await renderKategoria(SLUG);
+    const licznik = /<p[^>]*data-category-count[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? "";
+
+    expect(licznik.length, "nie ma czego badać — licznik nie wszedł do dokumentu").toBeGreaterThan(0);
+    expect(
+      licznik.replace(/<[^>]*>/g, "").trimStart().startsWith("·"),
+      "licznik dalej niesie kropkę w treści — na telefonie zawiśnie na początku wiersza",
+    ).toBe(false);
+    expect(html, "pas listingu bez kontenera — kolumny znów mierzą całą stronę").toContain(
+      LISTING_BAND_CLASS,
+    );
   }, BUDZET_RENDERU);
 
   it("landmark okruszków ma ODRĘBNĄ etykietę nawigacji, nie nazwę pierwszej pozycji", async () => {

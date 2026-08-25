@@ -703,6 +703,48 @@ describe("proxy storefrontu — nierozwiązany host obcy (ADR-131)", () => {
     expect(body).toContain(`<html lang="${expected}">`);
   });
 
+  /**
+   * DROGA POWROTU (F11) — jedno łącze WZGLĘDNE, w języku dokumentu.
+   *
+   * CO MUSIAŁOBY SIĘ ZEPSUĆ: odmowa nie miała odnośnika dokądkolwiek, więc
+   * człowiek, który trafił tu ze starego linku, zostawał z komunikatem
+   * i paskiem adresu. Wolno tu DOKŁADNIE jedno łącze i dokładnie względne:
+   * adres bezwzględny do Avably byłby reklamą pod cudzym adresem, a łącze
+   * zależne od stanu tenanta — wyrocznią (ADR-131).
+   */
+  it.each([
+    ["pl-PL,pl;q=0.9", "pl", "Wróć na stronę główną"],
+    ["en-GB,en;q=0.9", "en", "Back to home"],
+  ])("Accept-Language %s → droga powrotu w %s", async (accept, lang, etykieta) => {
+    const body = await (
+      await runProxy(
+        new NextRequest("https://ghost.avably.io/nie-ma-takiej", {
+          headers: { "accept-language": accept },
+        }),
+        fakeDeps,
+      )
+    ).text();
+
+    expect(body).toContain(`<html lang="${lang}">`);
+    expect(body, "odmowa bez drogi powrotu").toContain('href="/"');
+    expect(body, "etykieta w innym języku niż dokument").toContain(etykieta);
+  });
+
+  it("droga powrotu jest WZGLĘDNA i JEDYNA — zero adresów wychodzących", async () => {
+    const body = await (
+      await runProxy(new NextRequest("https://nigdy-nie-nasz.example/"), fakeDeps)
+    ).text();
+
+    const linki = [...body.matchAll(/href="([^"]*)"/g)].map((m) => m[1]!);
+    // Kontrola przyrządu: skan MA co znaleźć.
+    expect(linki.length, "dokument nie ma ani jednego łącza — skan niżej broni pustego zbioru").toBe(
+      1,
+    );
+    expect(linki[0], "łącze prowadzi POZA bieżący adres — reklama pod cudzym adresem").toBe("/");
+    expect(body).not.toMatch(/https?:\/\//);
+    expect(body.toLowerCase()).not.toContain("avably");
+  });
+
   it("JĘZYK NIE JEST WYROCZNIĄ: cztery stany dają ten sam dokument przy tym samym Accept-Language", async () => {
     const dokumenty = await Promise.all(
       STANY_NIEROZWIAZANE.map(async ([, url]) =>

@@ -32,10 +32,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  LISTING_BAND_CLASS,
+  LISTING_CONTAINER_NAME,
+  LISTING_GRID_CLASS,
+  LISTING_GRID_STEPS,
   PRODUCT_COLUMNS_CLASS,
   PRODUCT_GRID_CLASS,
   PRODUCT_GRID_STEPS,
   columnsBlockFor,
+  listingBaselineBlock,
+  listingColumnsBlockFor,
   orphanBlockFor,
   orphanRuleFor,
   productGridMayClip,
@@ -84,7 +90,22 @@ describe("kolumny i reguła pełnych rzędów STOJĄ W ARKUSZU", () => {
          * Kontrola negatywna: martwa reguła `repeat(1, …)` w arkuszu
          * znaczyłaby, że decyzję przeglądarki ktoś przepisał na zapas.
          */
-        expect(zbite(ARKUSZ)).not.toContain("repeat(1, minmax(0, 1fr))");
+        expect(zbite(ARKUSZ)).not.toContain(
+          zbite(`@container site (width >= ${step.until}) {
+  .${PRODUCT_COLUMNS_CLASS} {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}`),
+        );
+        /*
+         * ZAWĘŻENIE ASERCJI (F11). Do tej zmiany brzmiała ona „w arkuszu NIE MA
+         * napisu `repeat(1, …)" i była wtedy tożsama z pytaniem wyżej, bo
+         * jedynym kandydatem byłaby martwa reguła pasma od zera. Od F11 taki
+         * napis w arkuszu JEST i jest decyzją: podłoga jednej kolumny listingu
+         * (`listingBaselineBlock`) zeruje kaskadę progów `site` wewnątrz pasa
+         * treści, żeby kolumny liczyły się wyłącznie od niego. Pytamy więc
+         * o to, o co szło od początku — o brak reguły kolumn W PAŚMIE OD ZERA.
+         */
         return;
       }
       expect(
@@ -93,6 +114,102 @@ describe("kolumny i reguła pełnych rzędów STOJĄ W ARKUSZU", () => {
       ).toContain(zbite(blok));
     },
   );
+
+  /*
+   * ==================== LISTING MIERZY WŁASNY PAS (F11) ====================
+   *
+   * Ta sama konstrukcja, co przy pasmach `site` wyżej, i z tego samego powodu:
+   * progi mieszkają w tabeli, wykonanie w arkuszu, a między nimi nie ma nikogo,
+   * kto zauważyłby rozjazd. Wada, którą to zamyka, była NIEMA: kolumna
+   * kategorii (ADR-275) odebrała siatce 15 rem, a arkusz dalej pytał o
+   * szerokość CAŁEJ strony, więc przy 1440 px stały trzy kolumny po 213 px.
+   */
+  it("pas treści listingu jest WŁASNYM kontenerem zapytań", () => {
+    expect(zbite(ARKUSZ), "pas listingu nie zakłada kontenera — progi niżej pytają o stronę").toContain(
+      zbite(`.${LISTING_BAND_CLASS} {
+  container-type: inline-size;
+  container-name: ${LISTING_CONTAINER_NAME};
+}`),
+    );
+  });
+
+  it("podłoga jednej kolumny listingu bije kaskadę progów `site`", () => {
+    /*
+     * Siatka listingu nosi OBIE klasy naraz, więc bez podłogi o specyficzności
+     * dwóch klas reguły `site` z bloków wyżej dalej by w niej obowiązywały —
+     * i przy stronie szerszej od 64 rem dawałyby trzy kolumny niezależnie od
+     * tego, ile miejsca pas naprawdę ma.
+     */
+    expect(zbite(ARKUSZ)).toContain(zbite(listingBaselineBlock()));
+    const podloga = zbite(ARKUSZ).indexOf(zbite(listingBaselineBlock()));
+    const trzyNaStronie = zbite(ARKUSZ).indexOf(zbite(columnsBlockFor(PRODUCT_GRID_STEPS[2])!));
+    expect(trzyNaStronie).toBeGreaterThan(-1);
+    expect(podloga, "podłoga stoi PRZED regułami `site`, więc kaskada je przywraca").toBeGreaterThan(
+      trzyNaStronie,
+    );
+  });
+
+  it.each(LISTING_GRID_STEPS)(
+    "pasmo $columns kolumn listingu: blok arkusza zgadza się z tabelą",
+    (step) => {
+      const blok = listingColumnsBlockFor(step);
+      if (blok === null) {
+        // Pasmo od zera realizuje PODŁOGA (asercja wyżej), nie zapytanie.
+        expect(step.columns).toBe(1);
+        return;
+      }
+      expect(
+        zbite(ARKUSZ),
+        `brak bloku kolumn listingu dla ${step.columns} kolumn — siatka wraca do mierzenia strony`,
+      ).toContain(zbite(blok));
+    },
+  );
+
+  it("kaskada listingu: blok trzech kolumn stoi PO bloku dwóch", () => {
+    const dwie = zbite(ARKUSZ).indexOf(zbite(listingColumnsBlockFor(LISTING_GRID_STEPS[1])!));
+    const trzy = zbite(ARKUSZ).indexOf(zbite(listingColumnsBlockFor(LISTING_GRID_STEPS[2])!));
+    expect(dwie).toBeGreaterThan(-1);
+    expect(trzy).toBeGreaterThan(dwie);
+  });
+
+  it("układ poziomy karty listingu pyta o TEN SAM kontener, co jej kolumny", () => {
+    /*
+     * Gdyby układ karty został przy `site`, a kolumny przeszły na pas, powstałoby
+     * okno szerokości, w którym JEDNA kolumna dostaje kartę PIONOWĄ ze zdjęciem
+     * 4:3 na całą szerokość — czyli dokładnie to, przed czym broni F9.
+     */
+    expect(zbite(ARKUSZ)).toContain(
+      zbite(`@container ${LISTING_CONTAINER_NAME} (width < 28rem) {
+  .${LISTING_GRID_CLASS} > li > a {`),
+    );
+    // Kontrola negatywna: stara wersja pytała o stronę.
+    expect(zbite(ARKUSZ)).not.toContain(
+      zbite(`@container site (width < 28rem) {
+  .${LISTING_GRID_CLASS} > li > a {`),
+    );
+  });
+
+  it("tytuł karty dostaje TRZECIĄ linię na najwęższym pasie (F11)", () => {
+    /*
+     * Klamp dwóch linii gubił na 360 px wyróżnik nazwy („Agregat prądotwórczy
+     * 8…"). Reguła musi stać PO bloku układu poziomego, bo to on ustawia klamp
+     * na dwie — odwrócona kolejność zostawiłaby dwie linie i nikt by tego nie
+     * zobaczył poza zrzutem z telefonu.
+     */
+    const trzy = zbite(ARKUSZ).indexOf(
+      zbite(`@container ${LISTING_CONTAINER_NAME} (width < 23rem) {
+  .${LISTING_GRID_CLASS} [data-products-name] {
+    -webkit-line-clamp: 3;
+  }
+}`),
+    );
+    expect(trzy, "brak reguły trzeciej linii tytułu — nazwa gubi wyróżnik na 360 px").toBeGreaterThan(
+      -1,
+    );
+    const dwie = zbite(ARKUSZ).indexOf(zbite(`.${LISTING_GRID_CLASS} [data-products-name] { display: -webkit-box;`));
+    expect(dwie, "brak klampu dwóch linii — kontrola pozytywna kolejności").toBeGreaterThan(-1);
+    expect(trzy).toBeGreaterThan(dwie);
+  });
 
   it("kaskada pasm: blok trzech kolumn stoi PO bloku dwóch (mobile-first)", () => {
     /*

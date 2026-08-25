@@ -272,7 +272,18 @@ export function StoreChrome({
           stoi w powłoce, bo sekcja sprzętu rysuje się na każdej stronie
           najemcy, a nie tylko na katalogu.
         */}
-        <StoreCatalogAvailability copy={copy}>{children}</StoreCatalogAvailability>
+        <StoreCatalogAvailability
+          /*
+           * Język NAJEMCY dla formy liczebnika na chipie niedoboru (F11).
+           * Zapasowe „pl" nie jest domyślką języka sklepu, tylko martwą
+           * gałęzią: bez terminu most oddaje `null` i chip nie renderuje się
+           * w ogóle, więc nie ma czego odmieniać.
+           */
+          locale={term?.locale ?? "pl"}
+          copy={copy}
+        >
+          {children}
+        </StoreCatalogAvailability>
       </StoreTermProvider>
       {/*
         STOPKA POWŁOKI (faza 0, ADR-154) — od ADR-172 składa ją pakiet UI, ten

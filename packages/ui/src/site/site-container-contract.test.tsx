@@ -144,7 +144,37 @@ const DOZWOLONE_WARIANTY = [
   "@container site (width < 48rem)",
   "@container site (width < 24rem)",
   "@container site (width < 22rem)",
+  /*
+   * PAS TREŚCI LISTINGU (F11, aneks do ADR-085 i ADR-275) — TRZY zapytania na
+   * WŁASNYM kontenerze `listing`, a nie na `site`.
+   *
+   * To nie jest „drugi zestaw progów układu", tylko ta sama para progów pytana
+   * o INNE MIEJSCE. ADR-275 postawił obok siatki katalogu kolumnę kategorii
+   * (15 rem od 64 rem strony), więc od tamtej pory strona i pas treści listingu
+   * to dwie różne szerokości: przy oknie 1440 px strona ma 1440 px, a pas —
+   * 688 px. Siatka pytana o stronę dawała tam trzy kolumny po 213 px z tytułem
+   * i przyciskiem łamanymi na dwie linie.
+   *
+   * Próg 54 rem jest NOWY i policzony, a nie odziedziczony: najdłuższy tytuł
+   * katalogu ma przy 18 px kroju 240 px, „Zobacz szczegóły" przy 16 px — 137 px,
+   * co z rozstawem karty daje ~17 rem na kolumnę; trzy takie kolumny z dwiema
+   * przerwami po 1,5 rem to 54 rem. Decyzja PM (F11), nie skutek uboczny.
+   */
+  "@container listing (width < 28rem)",
+  "@container listing (width >= 28rem)",
+  "@container listing (width >= 54rem)",
+  /*
+   * TRZECIA LINIA TYTUŁU KARTY (F11) — najwęższy pas listingu. Klamp dwóch
+   * linii gubił na 360 px wyróżnik nazwy („Agregat prądotwórczy 8…"), a to
+   * właśnie on odróżnia pozycję od sąsiedniej. Próg dotyczy WYŁĄCZNIE liczby
+   * linii tytułu: nie przestawia ani jednego elementu i nie zmienia szerokości,
+   * przy których sklep się przełamuje.
+   */
+  "@container listing (width < 23rem)",
 ] as const;
+
+/** Kontenery, w które wolno celować zapytaniom arkusza — patrz wyżej. */
+const DOZWOLONE_KONTENERY = ["site", "listing"] as const;
 const DOZWOLONE_PROGI = ["40rem", "64rem"] as const;
 
 /*
@@ -167,6 +197,10 @@ const PROGI_ARKUSZA = [
   "48rem",
   "24rem",
   "22rem",
+  // Trzy kolumny listingu na jego WŁASNYM pasie (F11) — patrz DOZWOLONE_WARIANTY.
+  "54rem",
+  // Trzecia linia tytułu karty na najwęższym pasie (F11) — jw.
+  "23rem",
 ] as const;
 
 describe("skan źródeł: sekcje nie mierzą okna", () => {
@@ -260,7 +294,10 @@ describe("skan źródeł: sekcje nie mierzą okna", () => {
     for (const zapytanie of zapytania) {
       const rozbior = /^([a-z][a-z0-9-]*)\s+\((?:width\s*[<>=]{1,2}\s*)([\d.]+rem)\)$/.exec(zapytanie);
       expect(rozbior, `zapytanie „${zapytanie}" bez nazwy kontenera albo z progiem spoza rem`).not.toBeNull();
-      expect(rozbior?.[1], "zapytanie nie celuje w kontener `site`").toBe("site");
+      expect(
+        DOZWOLONE_KONTENERY as readonly string[],
+        `zapytanie celuje w kontener „${rozbior?.[1]}" spoza uzgodnionego zbioru`,
+      ).toContain(rozbior?.[1]);
       expect(
         PROGI_ARKUSZA as readonly string[],
         `próg ${rozbior?.[2]} spoza uzgodnionego zbioru — nowy próg to decyzja PM`,

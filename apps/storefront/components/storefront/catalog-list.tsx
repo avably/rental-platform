@@ -21,7 +21,7 @@
  * dla wyszukiwarki, którą ta strona ma obsłużyć na równi z klientem.
  */
 import { catalogPagePath } from "@avably/core";
-import { ProductTile, ProductsEmpty } from "@avably/ui";
+import { LISTING_GRID_CLASS, ProductTile, ProductsEmpty } from "@avably/ui";
 import type { ProductsStructuredContent } from "@avably/core/site";
 import type { SiteRenderLabels, StorefrontProduct, TemplateStyles } from "@avably/ui";
 
@@ -69,8 +69,12 @@ export function CatalogList({
 
   return (
     <>
-      {/* `site-listing-cards`: karta pozioma w 1-kolumnie (F9) — patrz site.css. */}
-      <ul data-catalog-grid className={`${styles.productGrid} site-listing-cards list-none p-0`}>
+      {/*
+        `site-listing-cards`: karta pozioma w 1-kolumnie (F9) i — od F11 —
+        kolumny liczone od PASA listingu, a nie od całej strony (patrz
+        `LISTING_BAND_CLASS` w trasie i site.css).
+      */}
+      <ul data-catalog-grid className={`${styles.productGrid} ${LISTING_GRID_CLASS} list-none p-0`}>
         {products.map((product, index) => (
           <ProductTile
             key={product.id}
