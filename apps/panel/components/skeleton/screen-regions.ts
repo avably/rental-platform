@@ -382,6 +382,8 @@ export const ORDER_DETAIL_PARTS_WITHOUT_REGION: Readonly<Record<string, string>>
   OrderNotes: "formularz notatki WEWNĄTRZ karty notatek (region notes) — sam `<section>` stoi w page.tsx",
   PaymentCheck:
     "przycisk sprawdzenia statusu płatności (L11, ADR-104) WEWNĄTRZ sekcji statusu (region section-status) — warunkowy: wchodzi tylko przy obiegu online z płatnością oczekującą, więc szkielet nie ma go co rezerwować",
+  ReturnsSection:
+    "sekcja zwrotu częściowego (ADR-272) — WARUNKOWA: renderuje się wyłącznie przy `order_status === \"picked_up\"` (page.tsx), a na wejściu ekranu nie wiadomo, czy zamówienie jest wydane; szkielet nie rezerwuje miejsca na sekcję, której u większości zamówień nie ma wcale (ta sama zasada co przy PaymentCheck / OrderCustomFieldsSection)",
   StatusSelect:
     "dropdown przejść, pytanie o wiadomość i baner odliczania WEWNĄTRZ sekcji statusu (region section-status) — sam `<section>` stoi w page.tsx",
 };
