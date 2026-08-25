@@ -28,6 +28,14 @@
  *    („should NOT be longer than 256 characters"), więc produkcja stała na
  *    ostatnim dobrym buildzie. Dlatego warunek mieszka w skrypcie, a nie
  *    w literale.
+ *
+ * 4. `HEAD^..HEAD` GUBI ZMIANY PRZY NAPRZEMIENNYCH MERGE'ACH. Porównanie tylko
+ *    z rodzicem widzi jeden commit. Gdy do main lecą szybko merge'y raz jednej,
+ *    raz drugiej aplikacji, build dotykający aplikacji bywa auto-anulowany przez
+ *    kolejny commit, a build tego kolejnego pomija aplikację (bo JEGO HEAD^..HEAD
+ *    jej nie tyka) — produkcja stoi na starym kodzie bez sygnału (incydent
+ *    2026-08-25). Dlatego warunek porównuje z OSTATNIM WDROŻONYM commitem
+ *    (`VERCEL_GIT_PREVIOUS_SHA`), a przy jego braku/niedostępności buduje.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -74,7 +82,9 @@ describe("ignoreCommand: warunek pominięcia buildu", () => {
         expect(komenda.length).toBeGreaterThan(0);
         expect(warunek.length).toBeGreaterThan(0);
         expect(pakiety.length).toBeGreaterThan(0);
-        expect(warunek).toContain("git diff --quiet HEAD^ HEAD");
+        expect(warunek).toContain("git diff --quiet");
+        // Porównanie z OSTATNIM WDROŻONYM commitem, nie z HEAD^ (patrz pułapka 4).
+        expect(warunek).toContain("VERCEL_GIT_PREVIOUS_SHA");
       });
 
       it("ignoreCommand w vercel.json mieści się w limicie schematu Vercela (patrz pułapka 3)", () => {
@@ -119,11 +129,14 @@ describe("ignoreCommand: warunek pominięcia buildu", () => {
         }
       });
 
-      it("brak rodzica commita buduje, zamiast pomijać", () => {
-        // Płytki klon albo pierwszy build: lepiej zbudować niepotrzebnie niż
-        // pominąć potrzebne.
-        expect(warunek).toContain("git rev-parse HEAD^");
-        expect(warunek.indexOf("git rev-parse HEAD^")).toBeLessThan(warunek.indexOf("git diff"));
+      it("brak sha ostatniego wdrożenia buduje, zamiast pomijać", () => {
+        // Płytki klon / pierwszy deploy / niedostępny sha: lepiej zbudować
+        // niepotrzebnie niż pominąć potrzebne. Warunek porównuje z OSTATNIM
+        // WDROŻONYM commitem (VERCEL_GIT_PREVIOUS_SHA); gdy go brak albo nie ma
+        // w płytkim klonie — exit 1 (buduj) PRZED jakimkolwiek diffem.
+        expect(warunek).toContain("VERCEL_GIT_PREVIOUS_SHA");
+        expect(warunek).toContain("exit 1");
+        expect(warunek.indexOf("exit 1")).toBeLessThan(warunek.indexOf("git diff"));
       });
     });
   }
