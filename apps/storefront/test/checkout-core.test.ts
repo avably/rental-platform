@@ -16,7 +16,8 @@ import {
   type CheckoutRpcError,
   type CheckoutRpcResult,
 } from "@/lib/checkout/core";
-import { checkoutSchema, toCheckoutFieldErrors } from "@/lib/checkout/validation";
+import { MAX_RENTAL_DAYS, checkoutSchema, toCheckoutFieldErrors } from "@/lib/checkout/validation";
+import { addDays } from "@avably/core";
 
 import en from "../messages/en.json";
 import pl from "../messages/pl.json";
@@ -184,6 +185,48 @@ describe("walidacja — mapa pole→błąd", () => {
   it("zakres dat odwrócony → endDate invalid", async () => {
     const fields = await fieldsFor({ ...VALID_INPUT, startDate: "2026-10-07", endDate: "2026-10-01" });
     expect(fields.endDate).toBe("invalid");
+  });
+
+  it("data o dobrym kształcie, ale niekalendarzowa (rollover) → invalid (finding audytu #3)", async () => {
+    // Do fixa isoDate walidował SAM regex kształtu, więc `2026-02-31`
+    // i `2026-13-01` przechodziły, a `Date.UTC` przewijał je na inny dzień
+    // (najem policzyłby się o kilka dób za krótko). Refinement kalendarzowy
+    // (assertIsoDate z @avably/core) je odrzuca.
+    expect((await fieldsFor({ ...VALID_INPUT, startDate: "2026-02-31" })).startDate).toBe("invalid");
+    expect((await fieldsFor({ ...VALID_INPUT, startDate: "2026-13-01" })).startDate).toBe("invalid");
+    expect((await fieldsFor({ ...VALID_INPUT, endDate: "2026-02-31" })).endDate).toBe("invalid");
+    // KONTROLA POZYTYWNA: daty istniejące w kalendarzu (2026 nieprzestępny —
+    // 28 lutego istnieje) przechodzą, więc odmowa wyżej mierzy rollover,
+    // a nie „każda data z lutego".
+    const ok = checkoutSchema.safeParse({
+      ...VALID_INPUT,
+      startDate: "2026-02-28",
+      endDate: "2026-03-01",
+    });
+    expect(ok.success, "poprawna data kalendarzowa odrzucona").toBe(true);
+  });
+
+  it(`najem dłuższy niż sufit anti-abuse (${MAX_RENTAL_DAYS} dób) → endDate invalid; równy sufitowi przechodzi (finding audytu #2, warstwa UX)`, async () => {
+    // Sufit z ADR-268 egzekwuje NIEOBEJŚCIOWO app.public_checkout (0110);
+    // schemat dokłada wcześniejszy, czytelny błąd UX na polu endDate.
+    // addDays liczy końce względem sufitu, więc test nie rozjedzie się, gdy
+    // właściciel zawęzi MAX_RENTAL_DAYS.
+    const start = "2026-01-01";
+    const zaDlugi = await fieldsFor({
+      ...VALID_INPUT,
+      startDate: start,
+      endDate: addDays(start, MAX_RENTAL_DAYS), // MAX+1 dób INCLUSIVE
+    });
+    expect(zaDlugi.endDate).toBe("invalid");
+
+    // GRANICA: najem RÓWNY sufitowi (INCLUSIVE) MA przejść — liczenie tą samą
+    // arytmetyką co RPC (rentalDaysInclusive), zero rozjazdu z bazą.
+    const rowny = checkoutSchema.safeParse({
+      ...VALID_INPUT,
+      startDate: start,
+      endDate: addDays(start, MAX_RENTAL_DAYS - 1), // dokładnie MAX dób INCLUSIVE
+    });
+    expect(rowny.success, "najem RÓWNY sufitowi odrzucony przez schemat").toBe(true);
   });
 
   it("odbiór osobisty bez punktu → pickupLocationId required", async () => {

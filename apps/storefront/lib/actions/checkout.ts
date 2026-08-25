@@ -16,6 +16,7 @@
 import { cookies, headers } from "next/headers";
 
 import { PANEL_URL, emailAvailability, resendTransport } from "@avably/core";
+import { clientIpFromHeaders } from "@avably/security/client-ip";
 import {
   STOREFRONT_PUBLIC_RATE_LIMIT_PREFIX,
   checkRateLimit,
@@ -53,7 +54,15 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutResu
   const tenantId = h.get(TENANT_ID_HEADER);
   if (!tenantId) return { status: "server_error" };
 
-  const ip = h.get("x-forwarded-for") ?? "unknown";
+  // Klucz rate-limitu (10/h per IP) MUSI wychodzić z modelu zaufania ADR-106,
+  // nie z surowego `x-forwarded-for`: gołe XFF jest w całości sterowalne przez
+  // klienta, więc rotacja prefiksu dawałaby świeży kubełek na każde żądanie
+  // i limit przestawałby istnieć. `clientIpFromHeaders` preferuje `x-real-ip`
+  // (na Vercelu stawiany na brzegu), inaczej bierze OSTATNI hop XFF (adres
+  // najbliższego zaufanego proxy) — podrobiony prefiks nie zmienia klucza.
+  // Ten sam helper zasila api/deps.ts i embed/deps.ts. ReadonlyHeaders
+  // z next/headers spełnia interfejs HeaderReader (metoda `get`).
+  const ip = clientIpFromHeaders(h);
 
   return submitCheckoutCore(input, {
     tenantId,
