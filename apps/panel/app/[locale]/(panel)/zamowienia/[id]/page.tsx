@@ -43,6 +43,7 @@ import { EmailLogSection } from "./email-log-section";
 import { ExtensionSection } from "./extension-section";
 import { InvoiceSection } from "./invoice-section";
 import { ItemsSection } from "./items-section";
+import { ReturnsSection } from "./returns-section";
 import { CustomerCard } from "./customer-card";
 import { OrderNotes, type OrderNoteEntry } from "./order-notes";
 import { OrderTimeline } from "./order-timeline";
@@ -662,6 +663,13 @@ export default async function OrderDetailPage({
           }}
         />
       )}
+
+      {/* Zwrot CZĘŚCIOWY (ADR-272): odznaczanie zwróconych pozycji zwalnia
+          egzemplarz do dostępności PER-POZYCJA. Widoczny wyłącznie dla
+          zamówienia wydanego — przed wydaniem nie ma czego zwracać, po zwrocie
+          całości stan jest terminalny. Skrót „zwrot całości" (przejście →
+          returned) zostaje w sekcji statusu i backfilluje returned_at. */}
+      {row.order_status === "picked_up" ? <ReturnsSection orderId={row.id} /> : null}
 
       <section id="kaucja" className="flex scroll-mt-6 flex-col gap-3">
         <SectionHeading>{tDeposit("title")}</SectionHeading>

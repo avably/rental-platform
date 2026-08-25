@@ -1540,6 +1540,15 @@
       "lockedPickedUp": "The equipment is already handed over - items of a picked-up order are not edited. Adding equipment mid-rental goes on a separate order.",
       "lockedClosed": "The order is closed (returned or cancelled) - its items can no longer be changed."
     },
+    "returns": {
+      "title": "Equipment return",
+      "progress": "{returned} of {total} returned",
+      "hint": "Check the items that came back. Each unit returns to the availability pool right away - mark the rest as they arrive.",
+      "markLabel": "Mark as returned: {product}",
+      "statusReturned": "Returned",
+      "statusOut": "With customer",
+      "allReturnedHint": "All items are back. Change the order status to \"Returned\" to settle the deposit."
+    },
     "timeline": {
       "ariaLabel": "Order timeline",
       "steps": {
