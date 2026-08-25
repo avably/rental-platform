@@ -60,7 +60,7 @@
  * rozmyślne: to jest bufor cofnięcia, a nie drugi termin. Gdyby siedział
  * w koszyku, byłby dokładnie tym drugim źródłem prawdy, którego R1 zabrania.
  */
-import { formatRentalRange } from "@avably/core";
+import { formatRentalRangeParts } from "@avably/core";
 import {
   cn,
   SITE_CONTAINER,
@@ -436,11 +436,43 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
  * ==================== „NIE ZA SZEROKA" (dyspozycja właściciela) ====================
  *
  * Trzy rzeczy trzymają szerokość: WARIANT KRÓTKI frazy (bez roku bieżącego —
- * `formatRentalRange({ short: true })`), `max-w` z `truncate` na frazie
- * (zamiast rozpychania belki) i BRAK dopisku „· Zmień" — do F7b pigułka
- * z terminem niosła go obok zakresu, czyli najdłuższy napis belki był
- * instrukcją, a nie treścią. Afordancję zmiany niesie sama pigułka: jest
- * przyciskiem otwierającym okno wyboru (`aria-haspopup="dialog"`).
+ * `formatRentalRange({ short: true })`), PRIORYTET TREŚCI przy braku miejsca
+ * (F12, niżej) i BRAK dopisku „· Zmień" — do F7b pigułka z terminem niosła go
+ * obok zakresu, czyli najdłuższy napis belki był instrukcją, a nie treścią.
+ * Afordancję zmiany niesie sama pigułka: jest przyciskiem otwierającym okno
+ * wyboru (`aria-haspopup="dialog"`).
+ *
+ * ==================== PRIORYTET TREŚCI, NIE WIELOKROPEK (F12) ====================
+ *
+ * Do F12 szerokość trzymał `max-w` z `truncate`. Właściciel zobaczył skutek na
+ * własnym telefonie: „23.09–25.09 · …" — pigułka dobiła do sufitu i wielokropek
+ * zjadł treść W ŚRODKU INFORMACJI, a przy tym zajęła większą część belki niż
+ * znak firmy. Wielokropek na frazie terminu jest wadą innego rodzaju niż na
+ * nazwie sklepu: nazwę ściętą klient rozpozna po pierwszych literach, a datę
+ * ściętą po prostu przestaje znać — i nie ma jak się dowiedzieć, że przestał.
+ *
+ * Od F12 pigułka nie ścina niczego. Przy ciasnym pasie ZDEJMUJE człony
+ * w kolejności rosnącego znaczenia, regułą kontenerową (nie pomiarem tekstu
+ * w JS — ten wymagałby drugiego renderu i rozjeżdżałby się z SSR):
+ *
+ *   1. poniżej 34 rem kontenera znika „· N dni" — długość najmu klient zna,
+ *      bo sam ją przed chwilą wybrał, a w koszyku i kasie stoi ona w formie
+ *      pełnej (te powierzchnie zostają przy `formatRentalRange`);
+ *   2. poniżej 28 rem znika ZNAK KALENDARZA — na telefonie jest ozdobą pojęcia,
+ *      które napis obok nazywa wprost;
+ *   3. ZAKRES nie znika nigdy i nigdy się nie ścina (`whitespace-nowrap` bez
+ *      `truncate`, bez `max-w`) — to jest treść, po którą klient patrzy.
+ *
+ * Człony przychodzą z rdzenia OSOBNO (`formatRentalRangeParts`), a nie z cięcia
+ * gotowej frazy w komponencie: separator „·" ma jedno miejsce definicji, więc
+ * belka i koszyk nie mogą powiedzieć tego samego dwiema składniami.
+ *
+ * PAS ODDANY ZNAKOWI FIRMY. Zdjęcie sufitu nie rozpycha belki — pigułka zwężyła
+ * się z 9 rem (144 px, sufit F7b, do którego fraza dobijała ZAWSZE) do
+ * szerokości własnej treści; przy oknie 390 px to ~76–84 px zamiast 144.
+ * Odzyskane ~60 px idą w całości do znaku firmy, bo to on jest jedynym
+ * elastycznym elementem wiersza (patrz `StoreShellHeader`) — i to jest
+ * odpowiedź na drugą uwagę właściciela („logo małe").
  */
 export function StoreTermPill({
   copy,
@@ -459,62 +491,84 @@ export function StoreTermPill({
 
   const complete =
     term.startDate !== null && term.endDate !== null && term.endDate >= term.startDate;
-  // Fraza jest ATOMOWA (NBSP w środku tokenów) — data nie łamie się w środku
-  // na wąskiej pigułce (audyt S-10: „2026-08-/28"). Wariant KRÓTKI (F7b) zdejmuje
-  // rok bieżący; rok z przyszłości zostaje, bo bez niego byłaby to inna data.
-  const summary = complete
-    ? formatRentalRange(term.startDate!, term.endDate!, locale, { short: true })
+  /*
+    CZŁONY OSOBNO (F12), bo pigułka zdejmuje je pojedynczo — patrz nagłówek
+    komponentu. Fraza jest ATOMOWA (NBSP w środku tokenów), więc data nie łamie
+    się w środku na wąskiej pigułce (audyt S-10: „2026-08-/28"), a miesiąc jest
+    SŁOWNY w każdym silniku (F12: Safari składał „23.09–25.09"). Wariant KRÓTKI
+    (F7b) zdejmuje rok bieżący; rok z przyszłości zostaje, bo bez niego byłaby
+    to inna data.
+  */
+  const parts = complete
+    ? formatRentalRangeParts(term.startDate!, term.endDate!, locale, { short: true })
     : null;
 
   return (
     <>
       {/*
-        SZEROKOŚĆ PIGUŁKI JEST OGRANICZONA Z GÓRY NA KAŻDYM PROGU, a nie
-        „elastyczna" — i to jest cała mechanika, która trzyma belkę w pasie
-        strony (dyspozycja właściciela: „nie za szeroka"). Sufity są POLICZONE
-        z pomiaru, nie dobrane na oko; mierzone krojem sklepu w przeglądarce:
-        fraza terminu („26–28 sie · 3 dni") ma 94 px przy 12 px i 110 px przy
-        14 px, zachęta („Wybierz termin") — 88 i 102 px. Do tego kalendarz
-        (16 px), odstęp i padding: stąd 9 rem na wąskim kontenerze i 10,5 rem
-        od 40 rem (próg układu z ADR-085). Sufit jest tak dobrany, żeby DATA nigdy się nie ścinała —
-        bo to ona jest treścią, po którą klient patrzy na pigułkę.
+        PIGUŁKA MA SZEROKOŚĆ SWOJEJ TREŚCI — bez `max-w`, bez `truncate` (F12).
+        Trzyma ją w ryzach nie sufit, tylko to, ILE członów wchodzi na danym
+        progu kontenera (patrz nagłówek komponentu). `whitespace-nowrap` jest
+        tu WARUNKIEM, nie ozdobą: bez `truncate` (które niosło je w pakiecie)
+        fraza mogłaby się ZAWINĄĆ i rozepchnąć belkę w drugi wiersz — a belka
+        ma zostać jednorzędowa na każdej szerokości.
 
-        RESZTĘ PASA ODDAJE ZNAK FIRMY (`truncate` w `StoreShellHeader`), i to
-        jest świadomy podział: przy oknie 360 px pas treści ma 300 px, trzy
-        ikony 120, pigułka 136 — na nazwę najemcy zostaje ~36 px, czyli
-        wielokropek. Odwrotny wybór (pełna nazwa, ścięta data) dawałby belkę
-        ładniejszą i bezużyteczną. Bez sufitów belka po prostu wyjeżdżała poza
-        dokument — zmierzone: 491 px przy oknie 360.
+        Progi 28/34 rem policzone z pasa strony (`SITE_CONTAINER` = 83,333%
+        szerokości kontenera): przy oknie 390 px pas ma 325 px, trzy ikony
+        biorą 120, odstępy 14, więc na pigułkę i znak firmy zostaje 191 —
+        sam zakres („28 wrz – 2 paź", przypadek najszerszy) mieści się w tym
+        z zapasem na znak, komplet z dobami już nie.
       */}
       <button
         type="button"
         className={
-          "site-cta-secondary inline-flex h-11 min-w-0 shrink-0 cursor-pointer items-center gap-1.5 " +
-          "max-w-[9rem] rounded-full text-xs font-semibold " +
-          "@min-[40rem]/site:max-w-[10.5rem] @min-[40rem]/site:gap-2 @min-[40rem]/site:text-sm " +
-          "@min-[48rem]/site:max-w-[16rem]"
+          "site-cta-secondary inline-flex h-11 shrink-0 cursor-pointer items-center gap-1.5 " +
+          "whitespace-nowrap rounded-full text-xs font-semibold " +
+          "@min-[40rem]/site:gap-2 @min-[40rem]/site:text-sm"
         }
         aria-haspopup="dialog"
         aria-expanded={open}
         data-store-term-toggle
         onClick={() => setOpen(true)}
       >
-        <StoreGlyph name="calendar" className="h-4 w-4 shrink-0" />
         {/*
-          `truncate` na FRAZIE, nie na przycisku: ścina się tekst, a kalendarz
-          i cel dotykowy (44 px wysokości) zostają nietknięte. Fraza ścięta
-          wielokropkiem jest gorsza od pełnej — ale nieskończenie lepsza od
-          belki, która rozjeżdża się poza ekran (S-10 broni ŁAMANIA w środku
-          daty, nie szerokości pigułki).
-
+          ZNAK KALENDARZA ZNIKA PIERWSZY PO DOBACH (F12). `hidden` (czyli
+          `display: none`), a nie `opacity`/`invisible`: znak ma oddać PAS,
+          nie tylko przestać być widoczny. Dla czytnika ekranu nie zmienia się
+          nic — znak jest `aria-hidden` na każdej szerokości, a nazwę kontrolki
+          niesie tekst frazy.
+        */}
+        <StoreGlyph name="calendar" className="hidden h-4 w-4 shrink-0 @min-[28rem]/site:block" />
+        {/*
           ZACHĘTA JEST KRÓTKA („Wybierz termin", nie „Wybierz termin najmu"):
           w belce ikonowej to jedyny napis, a każde zbędne słowo zabiera piksele
-          nazwie najemcy obok. Dłuższa forma nie mieściła się w sufitach wyżej
-          na żadnym telefonie — a ścięte „Wybierz termin na…" byłoby gorsze od
-          krótszego zdania.
+          nazwie najemcy obok. Dłuższa forma nie mieściła się na żadnym
+          telefonie — a ścięte „Wybierz termin na…" byłoby gorsze od krótszego
+          zdania.
+
+          Znacznik `data-store-term-summary` zostaje na OWIJCE obu członów:
+          wisi na nim kontrakt „pigułka odzwierciedla zakres z koszyka", a jego
+          `textContent` ma dalej być pełną frazą — tą samą, którą składa
+          `formatRentalRange` dla koszyka i kasy.
         */}
-        <span data-store-term-summary className="truncate">
-          {summary ?? copy.term.choose}
+        <span data-store-term-summary>
+          {parts !== null ? (
+            <>
+              <span data-store-term-range>{parts.range}</span>
+              {/*
+                DOBY ZNIKAJĄ PIERWSZE. Separator „·" mieszka RAZEM z nimi
+                w jednym elemencie — inaczej po zdjęciu członu został by
+                w belce wiszący środkowy kropkowy znak bez prawej strony.
+                Spacja przed „·" jest zwykła (jedyny legalny punkt łamania
+                frazy, S-10), reszta odstępów to NBSP z rdzenia.
+              */}
+              <span data-store-term-days className="hidden @min-[34rem]/site:inline">
+                {` ·\u00a0${parts.days}`}
+              </span>
+            </>
+          ) : (
+            copy.term.choose
+          )}
         </span>
       </button>
       {/*

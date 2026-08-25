@@ -63,16 +63,29 @@ const HOME_HREF = "/";
 const CART_HREF = "/cart";
 
 /**
- * CEL DOTYKOWY IKONY BELKI (S-15 audytu 2026-08-25, WCAG 2.5.8; F7b).
+ * CEL DOTYKOWY IKONY BELKI (S-15 audytu 2026-08-25, WCAG 2.5.8; F7b, F12).
  *
  * Do F7b odnośnik koszyka był NAPISEM ~20 px wysokości, a 44 px robił mu
- * padding z ujemnymi marginesami. Od F7b belka jest ikonowa i kontrolka jest
- * KWADRATEM 44 × 44 — cel dotykowy jest tu wymiarem pudełka, nie protezą
- * wokół tekstu. Ta sama klasa stoi pod wyzwalaczem kategorii i wyszukiwania
- * w storefroncie: trzy sąsiadujące ikony muszą mieć jeden rytm.
+ * padding z ujemnymi marginesami. Od F7b belka jest ikonowa i cel dotykowy
+ * jest WYMIAREM pudełka, nie protezą wokół tekstu. Ta sama klasa stoi pod
+ * wyzwalaczem kategorii i wyszukiwania w storefroncie: trzy sąsiadujące ikony
+ * muszą mieć jeden rytm — i muszą zmieniać się RAZEM, jednym literałem.
+ *
+ * WYSOKOŚĆ 44 px JEST STAŁA (`h-11`) na każdej szerokości; zmienia się sama
+ * szerokość pudełka: 36 px na telefonie, 40 px od 28 rem kontenera, 44 od
+ * 40 rem. Powód jest arytmetyczny i pochodzi z F12: trzy ikony po 40 px brały
+ * w pasie telefonu (325 px przy oknie 390) 126 px z odstępami — więcej niż
+ * pigułka i znak firmy razem. Cel 36 × 44 zostaje z ogromnym zapasem nad
+ * minimum WCAG 2.5.8 AA (24 × 24 CSS px), a odzyskane 12 px idzie do znaku
+ * firmy — jedynego elementu wiersza, który rośnie z wolnego miejsca.
+ *
+ * Próg 28 rem jest TEN SAM, na którym pigułka odzyskuje znak kalendarza
+ * i szerszy padding: belka gęstnieje i rzednie w jednym miejscu, a nie na
+ * trzech progach, które trzeba trzymać w zgodzie.
  */
 const ICON_HIT_AREA =
-  "inline-flex h-11 w-10 shrink-0 items-center justify-center rounded @min-[40rem]/site:w-11";
+  "inline-flex h-11 w-9 shrink-0 items-center justify-center rounded " +
+  "@min-[28rem]/site:w-10 @min-[40rem]/site:w-11";
 
 export function StoreShellHeader({
   storeName,
@@ -252,12 +265,32 @@ export function StoreShellHeader({
         {/*
           ZNAK NA LEWEJ KRAWĘDZI — i to ON oddaje szerokość, gdy belki brakuje
           (F7b). Do belki ikonowej znak był `shrink-0`, bo zwężało się pole
-          wyszukiwania obok; pola nie ma, a trzy ikony i pigułka mają twarde
-          sufity, więc jedynym elastycznym elementem został znak. Zmierzone
-          przy oknie 360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do
-          rozdania jest 174 — bez zwężenia belka wyjeżdżała poza dokument.
-          `truncate` ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
+          wyszukiwania obok; pola nie ma, a trzy ikony mają twardy wymiar, więc
+          jedynym elastycznym elementem został znak. Zmierzone przy oknie
+          360 px: nazwa najemcy „Wypożyczalnia …" chce 153 px, a do rozdania
+          jest 174 — bez zwężenia belka wyjeżdżała poza dokument. `truncate`
+          ścina nazwę wielokropkiem; znak graficzny trzyma proporcje
           (`.site-logo` ma `max-width: min(12rem, 100%)`).
+
+          ==================== DLACZEGO ZNAK BYŁ MALUTKI (F12) ====================
+
+          Właściciel zobaczył na telefonie znak firmy „mały w pizdu" i to NIE
+          była zmiana w samym znaku: `.site-logo` ma wysokość 2,25 rem od
+          ADR-160 i nikt jej nie ruszał. Zmieniło się otoczenie. Znak jest
+          `object-fit: contain` w pudełku o stałej wysokości i szerokości
+          ODDANEJ przez flexa — więc gdy plik jest szeroki (typowy znak
+          wypożyczalni ma proporcje 3:1 i szersze), o wysokości RYSOWANIA
+          decyduje szerokość slotu, nie deklarowane 36 px. Slot zaś kurczył
+          się z każdą kontrolką dokładaną do belki: po F7b pigułka terminu
+          brała twarde 9 rem (144 px) NA KAŻDEJ szerokości, więc przy oknie
+          390 px na znak zostawało ~80 px — czyli 20 px wysokości przy
+          proporcji 4:1.
+
+          Naprawa nie leży tutaj i celowo: pudełko znaku jest w porządku,
+          niedobre było rozdanie pasa. F12 zdejmuje pigułce sufit i uczy ją
+          zwijać człony (patrz `StoreTermPill`), a odzyskane piksele trafiają
+          w to miejsce SAME — bo to jest jedyny element wiersza, który rośnie
+          z wolnego miejsca.
         */}
         <div className="flex min-w-0 shrink items-center gap-4">
           {interactive ? (

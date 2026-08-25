@@ -53,16 +53,28 @@ const PATHS: Record<StoreGlyphName, React.ReactNode> = {
     </>
   ),
   /*
-    Kategorie: CZTERY KAFLE, a nie „hamburger". Trzy kreski znaczą w każdym
-    interfejsie „menu strony"; tutaj wyzwalacz otwiera PÓŁKI oferty, a siatka
-    kafli mówi o zbiorze rzeczy do przeglądania, nie o nawigacji dokumentu.
+    Kategorie: TRZY KRESKI (F12), a nie siatka czterech kafli.
+
+    F7b wybrało kafle rozumowaniem o ZNACZENIU: wyzwalacz otwiera półki oferty,
+    a siatka kafli mówi o zbiorze rzeczy do przeglądania, nie o nawigacji
+    dokumentu. Rozumowanie było poprawne i nieistotne — właściciel obejrzał
+    belkę na telefonie i orzekł wprost: „ikonka kategorii nic nie mówi".
+
+    Bo znak w belce nie jest ilustracją pojęcia, tylko UMOWĄ Z ODWIEDZAJĄCYM:
+    działa wyłącznie ta, którą odwiedzający już zna. Trzy kreski są jedyną
+    konwencją odczytywaną bez uczenia się — „tu jest reszta". Siatka kafli
+    znaczy w cudzych interfejsach kilka różnych rzeczy naraz (przełącznik
+    widoku, ekran aplikacji, panel narzędzi), więc w 20 px nie znaczy żadnej.
+
+    Cenę tego wyboru — utratę odcienia „półki, nie strony" — płacimy
+    NAGŁÓWKIEM PANELU („Kategorie" nad listą, patrz `StoreCategoryMenu`):
+    znaczenie dopowiada się w pół sekundy po tapnięciu, zamiast być zagadką
+    przed nim. Kreski są na tej samej siatce 24 i tą samą kreską 2, co reszta
+    zestawu; symetryczne wcięcie 4/20 daje znak wyważony w kwadracie 44 px.
   */
   categories: (
     <>
-      <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
-      <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
-      <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
-      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
+      <path d="M4 7h16M4 12h16M4 17h16" />
     </>
   ),
   // Koszyk sklepowy (kosz + dwa kółka) — czytelny w 20 px, bez wypełnień.

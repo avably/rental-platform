@@ -355,7 +355,24 @@
  * DOKŁADNIE tej jednej powierzchni, a nie wszystkich przycisków drugorzędnych.
  */
 .site-cta-secondary[data-store-term-toggle] {
-  padding: 0 0.75rem;
+  /*
+   * TELEFON DOSTAJE PADDING WĘŻSZY (F12). Od F12 pigułka nie ma sufitu
+   * szerokości — jest dokładnie tak szeroka, jak jej treść — więc każdy piksel
+   * paddingu to piksel zabrany znakowi firmy obok (uwaga właściciela: „logo
+   * małe"). 2 × 8 px zamiast 2 × 12 px oddaje 8 px i nie rusza celu dotykowego,
+   * bo ten jest WYSOKOŚCIĄ pudełka (44 px, `h-11` w komponencie).
+   *
+   * Podniesienie do 12 px wraca od 28 rem kontenera — tam, gdzie wraca też znak
+   * kalendarza w pigułce, więc oba zdjęcia i oba powroty dzieją się na JEDNYM
+   * progu, a nie na dwóch, które trzeba trzymać w zgodzie.
+   */
+  padding: 0 0.5rem;
+}
+
+@container site (width >= 28rem) {
+  .site-cta-secondary[data-store-term-toggle] {
+    padding: 0 0.75rem;
+  }
 }
 
 /*

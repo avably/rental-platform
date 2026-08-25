@@ -15,6 +15,9 @@
  *      i margines `CANVAS_PAD_COLUMNS / CANVAS_COLUMNS`. Klasa Tailwinda nie
  *      umie policzyć stałych rdzenia, więc literał pilnowany jest tutaj.
  */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import {
   CANVAS_COLUMNS,
   CANVAS_DESIGN_WIDTH_PX,
@@ -25,6 +28,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { StoreShellHeader } from "./store-shell";
 import { SITE_CONTAINER } from "./template";
+
+const ARKUSZ = readFileSync(resolve(__dirname, "site.css"), "utf8");
 
 // jsdom: bez sprzątania `querySelector` w drugim teście patrzy na drzewo
 // z pierwszego (lekcja: jsdom-id-selector-needs-cleanup).
@@ -85,10 +90,13 @@ describe("S-15 — cel dotykowy odnośnika koszyka", () => {
     const cart = container.querySelector('a[href="/cart"]');
     expect(cart).not.toBeNull();
     for (const klasa of [
+      // WYSOKOŚĆ jest stała (44 px); zmienia się sama SZEROKOŚĆ pudełka:
+      // 36 px na telefonie, 40 od 28 rem, 44 od 40 rem (F12 — trzy ikony po
+      // 40 px brały w pasie 390 px więcej niż pigułka i znak firmy razem).
+      // Cel 36 × 44 zostaje daleko nad minimum WCAG 2.5.8 AA (24 × 24).
       "h-11",
-      // 40 px na wąskim kontenerze, 44 od 26 rem — trzy ikony i pigułka nie
-      // mieszczą się przy 44 px w pasie telefonu (pomiar w docblocku pigułki).
-      "w-10",
+      "w-9",
+      "@min-[28rem]/site:w-10",
       "@min-[40rem]/site:w-11",
       "inline-flex",
       "items-center",
@@ -227,5 +235,73 @@ describe("F7/F7b — nagłówek: sticky i sloty belki ikonowej", () => {
     const inert = container.querySelectorAll("[data-shell-inert]")[1]!;
     expect(inert.querySelector(".sr-only")!.textContent).toBe("Koszyk");
     expect(inert.querySelector("svg"), "podgląd stracił znak koszyka").not.toBeNull();
+  });
+});
+
+/* ================================ F12 ================================ */
+
+describe("F12 — znak firmy dostaje pas, którego nie bierze nikt inny", () => {
+  /*
+    CO BYŁO ZEPSUTE: właściciel zobaczył na telefonie znak firmy „mały
+    w pizdu". Pudełko znaku było i jest w porządku (2,25 rem wysokości od
+    ADR-160) — rozjechało się ROZDANIE PASA: znak jest `object-fit: contain`
+    o szerokości oddanej przez flexa, więc dla pliku szerszego niż wysoki
+    o rysowanej wysokości decyduje szerokość slotu. Po F7b pigułka terminu
+    brała twarde 9 rem NA KAŻDEJ szerokości i na znak zostawało ~80 px przy
+    oknie 390 — czyli 20 px wysokości przy proporcji 4:1.
+
+    Naprawa siedzi w pigułce (F12 zdejmuje jej sufit i uczy zwijać człony),
+    ale MECHANIZM, którym odzyskane piksele trafiają do znaku, jest tutaj:
+    znak to jedyny element wiersza, który rośnie z wolnego miejsca. Te asercje
+    pilnują właśnie mechanizmu — bez niego zwężenie pigułki oddałoby piksele
+    pustce po prawej i uwaga właściciela wróciłaby przy następnej ikonie.
+  */
+  it("znak jest JEDYNYM elastycznym elementem wiersza (prawa grupa nie rośnie)", () => {
+    const { container } = naglowek({ nav: <div data-test-nav /> });
+    const brand = container.querySelector('a[href="/"]')!;
+    const pudelko = brand.parentElement!;
+    const grupa = container.querySelector("[data-test-nav]")!.parentElement!.parentElement!;
+
+    expect(pudelko.className, "pudełko znaku przestało oddawać szerokość").toContain("shrink");
+    expect(
+      pudelko.className.split(/\s+/),
+      "pudełko znaku dostało shrink-0 — przy ciasnym pasie belka wyjedzie poza dokument",
+    ).not.toContain("shrink-0");
+    /*
+      `min-w-0` NA SAMYM ODNOŚNIKU: element flex ma domyślnie `min-width: auto`,
+      więc bez tego znak trzyma pełną szerokość własną i to BELKA wyjeżdża.
+    */
+    expect(brand.className, "odnośnik znaku stracił min-w-0").toContain("min-w-0");
+    /*
+      Druga noga: prawa grupa NIE rośnie. Gdyby rosła, piksele odzyskane
+      z pigułki poszłyby w odstęp między ikonami, a nie do znaku.
+    */
+    expect(grupa.className, "prawa grupa kontrolek zaczęła się rozciągać").toContain("shrink-0");
+    for (const klasa of grupa.className.split(/\s+/)) {
+      expect(/^(grow|flex-1)$/.test(klasa), `prawa grupa dostała „${klasa}"`).toBe(false);
+    }
+  });
+
+  /*
+    WYSOKOŚĆ PUDEŁKA ZNAKU JEST CELEM, NIE SKUTKIEM. Gdyby ktoś „naprawiał"
+    małe logo zmniejszając deklarowaną wysokość (żeby mieściło się w wąskim
+    slocie), znak stałby się mały NA STAŁE, także na desktopie — a wąskiego
+    slotu i tak by to nie naprawiło. 2,25 rem = 36 px, powyżej celu z dyspozycji
+    (28–32 px na telefonie).
+  */
+  it("pudełko znaku trzyma 2,25 rem wysokości i proporcje pliku", () => {
+    const regula = /\.site-logo \{([^}]*)\}/.exec(ARKUSZ);
+    expect(regula, "reguła `.site-logo` zniknęła z arkusza").not.toBeNull();
+    const cialo = regula![1]!;
+    expect(cialo, "wysokość znaku zjechała poniżej celu 28–32 px").toContain("height: 2.25rem");
+    expect(cialo, "bez `contain` szeroki plik zostaje spłaszczony zamiast wpisany").toContain(
+      "object-fit: contain",
+    );
+    /*
+      Sufit szerokości jest MNIEJSZĄ z dwóch liczb: 12 rem to sufit projektowy,
+      100% — sufit slotu. Bez drugiego członu plik 3000 × 200 wyjeżdża poza pas
+      strony razem z belką (zmierzone przy oknie 360 px).
+    */
+    expect(cialo).toContain("max-width: min(12rem, 100%)");
   });
 });
