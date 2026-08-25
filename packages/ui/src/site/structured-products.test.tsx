@@ -174,10 +174,12 @@ describe("źródło treści: kategoria katalogu (ADR-254)", () => {
   });
 });
 
-describe("odnośnik „Zobacz cały sprzęt” — próg zmierzony po OBU stronach", () => {
-  it("katalog RÓWNY temu, co widać → odnośnika NIE MA", () => {
-    narysuj(tresc({ source: "catalog", limit: 8 }), katalog(8));
-    expect(pokazaneNazwy()).toHaveLength(8);
+describe("odnośnik do katalogu — próg zmierzony po OBU stronach", () => {
+  it("katalog RÓWNY temu, co widać, bez ucięcia w żadnym pasmie → odnośnika NIE MA", () => {
+    // Sześć pozycji dzieli się i przez 2, i przez 3 kolumny — żadne pasmo
+    // szerokości nie chowa rzędu, więc odwiedzający naprawdę widzi całość.
+    narysuj(tresc({ source: "catalog", limit: 6 }), katalog(6));
+    expect(pokazaneNazwy()).toHaveLength(6);
     expect(
       screen.queryByRole("link", { name: L.productsCatalog }),
       "odnośnik do katalogu przy pełnej ofercie odsyła tam, gdzie odwiedzający już jest",
@@ -211,6 +213,40 @@ describe("odnośnik „Zobacz cały sprzęt” — próg zmierzony po OBU strona
   });
 });
 
+describe("odnośnik przy CHOWANIU niepełnego rzędu (K2, audyt S-21)", () => {
+  it("siatka 4/4: pasmo trzech kolumn chowa czwartą pozycję → odnośnik JEST", () => {
+    /*
+     * Dokładnie przypadek z audytu: katalog ma 4 pozycje, sekcja oddaje
+     * wszystkie 4 do dokumentu — ale przy ≥64 rem reguła pełnych rzędów
+     * chowa czwartą i desktop widzi trzy BEZ śladu, że czwarta istnieje.
+     * Warunek „katalog > pokazane” tego nie łapał (4 > 4 jest fałszem).
+     */
+    narysuj(tresc({ layout: "grid", source: "catalog", limit: 8 }), katalog(4));
+    expect(pokazaneNazwy()).toHaveLength(4);
+    expect(
+      screen.getByRole("link", { name: L.productsCatalog }),
+      "ucięta pozycja nie ma żadnej ścieżki odkrycia — sekcja musi odesłać do katalogu",
+    ).toBeTruthy();
+  });
+
+  it("LISTA 4/4: jedna kolumna nigdy nie ucina → odnośnika NIE MA", () => {
+    // Ta sama treść i ten sam katalog, inny układ: lista ma każdy rząd pełny
+    // z konstrukcji (`fullRowCount(n, 1) === n`), więc nie ma czego odsyłać.
+    narysuj(tresc({ layout: "list", source: "catalog", limit: 8 }), katalog(4));
+    expect(pokazaneNazwy()).toHaveLength(4);
+    expect(screen.queryByRole("link", { name: L.productsCatalog })).toBeNull();
+  });
+
+  it("siatka 2/2: jedyny niepełny rząd NIE jest ucięciem (podłoga reguły)", () => {
+    // Dwie pozycje w siatce trzykolumnowej zostają dwiema pozycjami —
+    // `:not(:first-child)` w arkuszu, `count <= columns` w rdzeniu. Odnośnik
+    // przy pełnym, dwuelementowym katalogu odsyłałby do listy, którą
+    // odwiedzający właśnie w całości widzi.
+    narysuj(tresc({ layout: "grid", source: "catalog", limit: 8 }), katalog(2));
+    expect(screen.queryByRole("link", { name: L.productsCatalog })).toBeNull();
+  });
+});
+
 describe("oba układy czytają tę samą treść", () => {
   it.each(["grid", "list"] as const)("%s: limit tnie listę, a odnośnik liczy się tak samo", (layout) => {
     narysuj(tresc({ layout, source: "catalog", limit: 3 }), katalog(9));
@@ -234,5 +270,89 @@ describe("oba układy czytają tę samą treść", () => {
     narysuj(tresc({ source: "picked", items: [{ productId: "prod-3" }] }), katalog(4));
     const kafel = screen.getByText("Sprzęt 3").closest("li")!;
     expect(within(kafel).getByText("30,00 zł / doba")).toBeTruthy();
+  });
+});
+
+describe("lista na wąskim kontenerze nie przewija strony poziomo (S-12)", () => {
+  /*
+   * Audyt UX 2026-08-25: cena `whitespace-nowrap shrink-0` w wierszu flex
+   * wypychała stronę poza viewport na 360/390 px (scrollWidth 423 przy 360)
+   * i cięła kwotę na krawędzi ekranu („od 100,00 z…”). Naprawa ma dwie nogi
+   * i test mierzy OBIE, bo każda z osobna nie wystarcza: wiersz musi umieć
+   * się ZAWINĄĆ (`flex-wrap`), a cena mieć dokąd zejść (`basis-full` poniżej
+   * 28 rem; od 28 rem `basis-auto` przywraca prawą flankę co do piksela).
+   * jsdom nie liczy zapytań kontenera, więc kontraktem są klasy — prawdę
+   * wizualną domykają zrzuty 360/375/390 w raporcie zadania.
+   */
+  /** Katalog SKLEPU (z `href`) — wiersz-odnośnik to wariant z prawdziwej listy. */
+  function katalogSklepu(ile: number): StorefrontProduct[] {
+    return katalog(ile).map((product) => ({ ...product, href: `/produkt/${product.id}` }));
+  }
+
+  function klasyListy() {
+    const { container } = narysuj(
+      tresc({ layout: "list", source: "catalog", limit: 3 }),
+      katalogSklepu(3),
+    );
+    const wiersz = container.querySelector("[data-products-item]")!;
+    const odnosnik = wiersz.querySelector("a")!;
+    const cena = container.querySelector("[data-products-price]")!;
+    return { wiersz, odnosnik, cena };
+  }
+
+  it("wiersz pozycji (i jego odnośnik) zawija się zamiast rozpychać", () => {
+    const { wiersz, odnosnik } = klasyListy();
+    expect(wiersz.className.split(/\s+/)).toContain("flex-wrap");
+    // Przy pozycji z `href` realnym wierszem flex jest ODNOŚNIK — bez wrapu
+    // na nim cena z basis-full nie ma się gdzie zawinąć i wada wraca.
+    expect(odnosnik.className.split(/\s+/)).toContain("flex-wrap");
+  });
+
+  it("cena: pełny wiersz poniżej 28 rem, prawa flanka od 28 rem, ZERO nowrap", () => {
+    const { cena } = klasyListy();
+    const klasy = cena.className.split(/\s+/);
+    expect(klasy).toContain("basis-full");
+    expect(klasy).toContain("@min-[28rem]/site:basis-auto");
+    expect(klasy).toContain("@min-[28rem]/site:text-right");
+    // Atomowość frazy niesie twarda spacja W ETYKIECIE (S-40), a nie nowrap
+    // na całym pasku — nowrap na cenie to dokładnie mechanizm wady S-12.
+    expect(klasy, "nowrap na cenie wrócił — scrollWidth 423 przy 360 px").not.toContain(
+      "whitespace-nowrap",
+    );
+  });
+});
+
+describe("przycisk kafla SIATKI dobity do dolnej krawędzi (S-19)", () => {
+  it("kafel siatki: pole treści rośnie (`flex-1`), przycisk ma `mt-auto`", () => {
+    /*
+     * Audyt UX 2026-08-25: stały `mt-4` zostawiał przyciski w jednym rzędzie
+     * na różnych wysokościach (32–55 px różnicy zależnie od długości tytułu).
+     * `mt-auto` działa TYLKO w parze z polem treści rozciągniętym do dołu
+     * kafla — bez `flex-1` auto-margines nie ma czego dopełnić, więc test
+     * mierzy obie klasy naraz.
+     */
+    const { container } = narysuj(
+      tresc({ layout: "grid", source: "catalog", limit: 3 }),
+      katalog(3).map((product) => ({ ...product, href: `/produkt/${product.id}` })),
+    );
+    const cta = container.querySelector("[data-products-cta]");
+    expect(cta, "kafel sklepu bez przycisku — fallback ADR-245 zniknął").not.toBeNull();
+    const klasyCta = (cta as HTMLElement).className.split(/\s+/);
+    expect(klasyCta).toContain("mt-auto");
+    expect(klasyCta, "mt-4 wygrał z mt-auto po tailwind-merge").not.toContain("mt-4");
+
+    const poleTresci = cta!.parentElement!;
+    expect(poleTresci.className.split(/\s+/)).toContain("flex-1");
+  });
+
+  it("wiersz LISTY zostaje przy stałym odstępie przycisku (mt-4)", () => {
+    // W liście wysokość wiersza niesie treść, nie rząd kafli — auto-margines
+    // nie ma tam czego wyrównywać, a stały odstęp trzyma rytm wiersza.
+    const { container } = narysuj(
+      tresc({ layout: "list", source: "catalog", limit: 3 }),
+      katalog(3).map((product) => ({ ...product, href: `/produkt/${product.id}` })),
+    );
+    const cta = container.querySelector("[data-products-cta]")!;
+    expect(cta.className.split(/\s+/)).toContain("mt-4");
   });
 });

@@ -242,3 +242,61 @@ describe("zaznaczenie zakresu", () => {
     expect(day("2027-05-14").getAttribute("aria-pressed")).toBe("false");
   });
 });
+
+describe("licznik dostępności: kontrast na zaznaczeniu i legenda (S-22)", () => {
+  // CO MUSIAŁOBY SIĘ ZEPSUĆ (audyt UX 2026-08-25): licznik z `site-text-muted`
+  // na wypełnieniu akcentu krańca dawał kontrast 1,07:1 (WCAG 1.4.3) — liczba
+  // 10 px praktycznie znikała dokładnie na dniach, które klient właśnie wybrał.
+  /** Licznik (span z liczbą) wewnątrz przycisku dnia. */
+  function licznik(iso: string): HTMLElement {
+    const node = day(iso).querySelector<HTMLElement>("span[aria-hidden]");
+    if (node === null) throw new Error(`Brak licznika pod dniem ${iso}`);
+    return node;
+  }
+
+  it("dzień NIEZAZNACZONY: licznik przygaszony (site-text-muted)", () => {
+    renderCalendar({ dayUnits: { "2027-05-10": 2 } });
+    expect(licznik("2027-05-10").className.split(/\s+/)).toContain("site-text-muted");
+  });
+
+  it("KRANIEC i ŚRODEK zakresu: licznik dziedziczy kolor stanu, bez przygaszenia", () => {
+    renderCalendar({
+      start: "2027-05-10",
+      end: "2027-05-12",
+      dayUnits: { "2027-05-10": 2, "2027-05-11": 2, "2027-05-12": 2 },
+    });
+    /*
+     * Kraniec maluje etykietę parą `accent`/`accent-contrast` (ta sama, co
+     * `.site-cta`, z kontrastem policzonym w macierzy ról), środek — atramentem
+     * pasa. Licznik BEZ klasy przygaszenia dziedziczy te kolory z przycisku;
+     * powrót `site-text-muted` na dniu zaznaczonym to powrót kontrastu 1,07:1.
+     */
+    expect(licznik("2027-05-10").className.split(/\s+/)).not.toContain("site-text-muted");
+    expect(licznik("2027-05-11").className.split(/\s+/)).not.toContain("site-text-muted");
+    expect(licznik("2027-05-12").className.split(/\s+/)).not.toContain("site-text-muted");
+  });
+
+  it("legenda tłumaczy liczbę TYLKO tam, gdzie liczby są (dayUnits + copy)", () => {
+    // Gołe „2” pod datą nie mówi, czy to sztuki, rezerwacje czy cena —
+    // znaczenie żyło wyłącznie w aria-label, niedostępnym dla widzącego.
+    renderCalendar({
+      dayUnits: { "2027-05-10": 2 },
+      labels: { ...LABELS, unitsLegend: "Liczba pod dniem to wolne sztuki (szt.)." },
+    });
+    const legenda = document.querySelector("[data-calendar-legend]");
+    expect(legenda).not.toBeNull();
+    expect(legenda!.textContent).toBe("Liczba pod dniem to wolne sztuki (szt.).");
+  });
+
+  it("kalendarz POWŁOKI (bez dayUnits) nie rysuje legendy mimo copy", () => {
+    // Powłoka nie ma liczników, więc zdanie o nich byłoby szumem — i sygnałem
+    // „tu gdzieś są liczby", którego nie da się spełnić.
+    renderCalendar({ labels: { ...LABELS, unitsLegend: "Liczba pod dniem to wolne sztuki (szt.)." } });
+    expect(document.querySelector("[data-calendar-legend]")).toBeNull();
+  });
+
+  it("brak copy legendy = brak legendy (stare wołania bez zmian)", () => {
+    renderCalendar({ dayUnits: { "2027-05-10": 2 } });
+    expect(document.querySelector("[data-calendar-legend]")).toBeNull();
+  });
+});

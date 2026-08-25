@@ -181,3 +181,16 @@ describe("previewTotals (tylko podgląd — nie kwota wiążąca)", () => {
     expect(totals.totalGrosze).toBe(0);
   });
 });
+
+describe("productPriceLabel: atomowość frazy ceny (S-40)", () => {
+  // Lustro reguły z pricingPriceLabel (@avably/core): token „kwota / doba”
+  // spięty twardymi spacjami, żeby karta na 360 px nie łamała ceny w środku —
+  // a po „od” zwykła spacja, żeby cała etykieta nie rozpychała wiersza (S-12).
+  it("token „kwota / doba” spięty twardą spacją, przedrostek po zwykłej", () => {
+    const label = productPriceLabel(product(), "PLN", "pl", WORDS);
+    expect(label).toContain("\u00A0/\u00A0doba");
+    expect(label, "zwykła spacja przy ukośniku — cena znowu pęknie w środku").not.toMatch(/ \/|\/ /);
+    expect(label.startsWith("od ")).toBe(true);
+    expect(label.charAt(2)).toBe(" ");
+  });
+});

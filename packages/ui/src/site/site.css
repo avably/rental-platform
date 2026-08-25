@@ -961,6 +961,22 @@
   }
 }
 
+@container site (width < 28rem) {
+  /*
+   * JEDNA KOLUMNA NA TELEFONIE (S-16 + S-49, audyt UX 2026-08-25; próg
+   * dopisany do ADR-085). Dwie kolumny po ~130–160 px łamały tekst kart co
+   * jedno-dwa słowa, przy 360 px pękały wyrazy bez dywizu, a nieparzysta
+   * karta raz stała na pełnej szerokości, raz na połówce — siatka wyglądała
+   * przypadkowo. Poniżej 28 rem kontenera KAŻDY wpis dostaje pełny wiersz,
+   * więc sierota przestaje istnieć z konstrukcji. `flex-basis: 100%` wygrywa
+   * z regułą sufitu wyżej tą samą specyficznością, bo stoi PÓŹNIEJ w arkuszu
+   * i oba zapytania są prawdziwe naraz.
+   */
+  .site-auto-grid > * {
+    flex-basis: 100%;
+  }
+}
+
 /* =======================================================================
  * PEŁNE RZĘDY SIATKI SPRZĘTU (E7, aneks ADR-094)
  * =======================================================================
@@ -987,10 +1003,53 @@
  * ukrycie dałoby sekcję pustą.
  */
 
-@container site (width < 64rem) {
-  .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1),
-  .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1) ~ li {
-    display: none;
+/*
+ * KOLUMNY SIATKI SPRZĘTU — JEDNO MIEJSCE ZAMIAST KLAS W template.ts
+ * (decyzja właściciela K1, 2026-08-25; audyt UX S-17). Do tej zmiany liczba
+ * kolumn stała w utility (`grid-cols-2` + wariant 64 rem) w `productGrid`,
+ * a jej lustro w PRODUCT_GRID_STEPS — zmiana progu wymagała edycji w dwóch
+ * plikach naraz. Teraz kolumny niesie TEN blok, progi niesie
+ * PRODUCT_GRID_STEPS (product-grid.ts), a zgodność obu stron pilnuje kontrakt
+ * artefaktu (`product-grid.test.ts`). Klasa jest OSOBNA od
+ * `site-product-grid`, bo kolumny dzielą też siatki BEZ reguły pełnych rzędów
+ * (kategorie, katalog ze stronicowaniem).
+ *
+ * PASMA (mobile-first): poniżej 28 rem siatka NIE dostaje reguły kolumn —
+ * `display: grid` bez szablonu daje JEDNĄ kolumnę, czyli kafel na pełnej
+ * szerokości telefonu (K1: dwie kolumny po ~145–165 px łamały tytuły na trzy
+ * linie, przycisk na dwie i ceny w środku frazy). Od 28 rem dwie kolumny,
+ * od 64 rem trzy — kaskada, w której blok trzech kolumn stoi PÓŹNIEJ, więc
+ * wygrywa tam, gdzie oba zapytania są prawdziwe naraz. Próg 28 rem to ten sam
+ * próg, co jedna kolumna auto-układu wyżej (dopisany do ADR-085): przy oknie
+ * 360–447 px kafel jest pełną szerokością, przy 768 px stoją dwie kolumny.
+ */
+@container site (width >= 28rem) {
+  .site-product-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container site (width >= 64rem) {
+  .site-product-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/*
+ * PEŁNE RZĘDY: reguła ucinająca ostatni, niepełny rząd obowiązuje WYŁĄCZNIE
+ * w pasmie swojej liczby kolumn. Pasmo dwóch kolumn jest domknięte z obu
+ * stron ZAGNIEŻDŻONYM zapytaniem (28 rem ≤ szerokość < 64 rem) — oba warunki
+ * celują w ten sam kontener `site`, a ich koniunkcja to dokładnie pasmo,
+ * w którym siatka ma dwie kolumny. Poniżej 28 rem reguły NIE MA: przy jednej
+ * kolumnie każdy rząd jest pełny z konstrukcji (`fullRowCount(n, 1) === n`),
+ * a reguła `2n + 1` ukrywałaby tam ostatnią NIEPARZYSTĄ pozycję pełnego rzędu.
+ */
+@container site (width >= 28rem) {
+  @container site (width < 64rem) {
+    .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1),
+    .site-product-grid > li:nth-child(2n + 1):not(:first-child):nth-last-child(-n + 1) ~ li {
+      display: none;
+    }
   }
 }
 

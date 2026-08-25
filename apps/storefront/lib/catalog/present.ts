@@ -50,7 +50,16 @@ export interface PriceLabelWords {
   perDay: string;
 }
 
-/** Etykieta ceny karty: „od 120,00 zł / doba”. Cena wyjściowa = base/dobę. */
+/**
+ * Etykieta ceny karty: „od 120,00 zł / doba”. Cena wyjściowa = base/dobę.
+ *
+ * TOKEN „kwota / jednostka” jest ATOMOWY (S-40): twarde spacje wokół ukośnika
+ * nie pozwalają złamać frazy w środku („…zł /” + „doba” czyta się jak błąd
+ * renderu). Po „od” zostaje ZWYKŁA spacja — wiersz może się złamać PRZED
+ * frazą, więc etykieta nie rozpycha wąskich kontenerów (wada S-12). Ta sama
+ * reguła co w `pricingPriceLabel` (@avably/core) — cennik i karty mówią
+ * jednym zapisem.
+ */
 export function productPriceLabel(
   product: PublicCatalogProduct,
   currency: CurrencyCode,
@@ -58,7 +67,7 @@ export function productPriceLabel(
   words: PriceLabelWords,
 ): string {
   const money = formatMoney(product.base_price_day_grosze, currency, locale);
-  return `${words.from} ${money} / ${words.perDay}`;
+  return `${words.from} ${money}\u00A0/\u00A0${words.perDay}`;
 }
 
 export interface PresentProductsOptions {

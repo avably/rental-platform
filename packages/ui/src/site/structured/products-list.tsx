@@ -89,22 +89,39 @@ export function StructuredProductsList({
                   <ProductFeatures features={features} />
                   {ctaLabel ? <ProductCta label={ctaLabel} styles={styles} /> : null}
                 </span>
+                {/*
+                  CENA NIE MOŻE ROZPYCHAĆ WIERSZA (S-12, audyt UX 2026-08-25).
+                  `whitespace-nowrap shrink-0` w wierszu flex wypychało stronę
+                  poza viewport na 360/390 px (scrollWidth 423 przy 360) i cięło
+                  kwotę na krawędzi ekranu („od 100,00 z…”). Poniżej 28 rem
+                  kontenera cena schodzi POD treść jako pełny wiersz
+                  (`basis-full` + `flex-wrap` na wierszu pozycji); od 28 rem
+                  wraca na prawą flankę — dokładnie dzisiejszy wygląd.
+                  Atomowość samej frazy („100,00 zł / doba”) niesie twarda
+                  spacja w etykiecie (S-40), nie nowrap na całym pasku.
+                */}
                 <span
                   data-products-price
-                  className="site-text-accent shrink-0 text-right text-base whitespace-nowrap"
+                  className="site-text-accent shrink-0 basis-full text-base @min-[28rem]/site:basis-auto @min-[28rem]/site:text-right"
                 >
                   {product.priceLabel}
                 </span>
               </>
             );
             return (
+              /*
+                `flex-wrap` na OBU wariantach wiersza (z odnośnikiem i bez):
+                bez niego cena z `basis-full` nie ma dokąd zejść i wiersz
+                znowu przelewa się poza kontener (S-12). Przy ≥28 rem cena ma
+                `basis-auto`, więc nic się nie zawija i układ zostaje jak był.
+              */
               <li
                 key={product.id}
                 data-products-item={product.id}
-                className="site-rule-top flex items-center gap-4 py-4"
+                className="site-rule-top flex flex-wrap items-center gap-4 py-4"
               >
                 {product.href ? (
-                  <a href={product.href} className="flex flex-1 items-center gap-4">
+                  <a href={product.href} className="flex flex-1 flex-wrap items-center gap-4">
                     {body}
                   </a>
                 ) : (

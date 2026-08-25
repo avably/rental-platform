@@ -115,7 +115,11 @@ const STYLES: TemplateStyles = {
   card: "site-card flex flex-col overflow-hidden",
   cardTitle: "site-title text-lg tracking-tight",
   cardPrice: "mt-1 text-sm site-text-accent site-numeric",
-  productGrid: "mt-10 grid grid-cols-2 gap-4 @min-[40rem]/site:gap-6 @min-[64rem]/site:grid-cols-3",
+  // LICZBĘ KOLUMN niesie arkusz (`.site-product-columns` w site.css), nie
+  // utility: progi stoją w JEDNYM miejscu (PRODUCT_GRID_STEPS, lustro pilnowane
+  // przez product-grid.test.ts), więc decyzja K1 o kolumnie na telefonie będzie
+  // jedną zmianą, a nie polowaniem na `grid-cols-2` po plikach.
+  productGrid: "mt-10 grid site-product-columns gap-4 @min-[40rem]/site:gap-6",
   faqItem: "site-rule py-4",
   faqQuestion: "site-title cursor-pointer list-none text-lg",
   subtleCard: "site-card flex flex-col p-6",

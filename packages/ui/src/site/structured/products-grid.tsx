@@ -3,7 +3,7 @@ import type { ProductsStructuredContent } from "@avably/core/site";
 import { cn } from "../../lib/cn";
 import type { TemplateStyles } from "../template";
 import type { SiteRenderLabels, StorefrontProduct } from "../types";
-import { PRODUCT_GRID_CLASS } from "./product-grid";
+import { PRODUCT_GRID_CLASS, productGridMayClip } from "./product-grid";
 import { ProductTile, ProductsCatalogLink, ProductsEmpty, visibleProductsFor } from "./products-shared";
 import { StructuredSectionShell } from "./shell";
 
@@ -61,9 +61,17 @@ export function StructuredProductsGrid({
         arkusza. Warunek odnośnika ma jedną odpowiedź niezależną od szerokości
         okna: „katalog ma więcej, niż ta sekcja pokazuje" jest wtedy zdaniem
         o TREŚCI, a nie o bieżącym rozmiarze przeglądarki. Ucięcie do pełnych
-        rzędów może tę różnicę tylko powiększyć, nigdy odwrócić.
+        rzędów wchodzi do warunku TAK SAMO niezależnie od szerokości (K2,
+        2026-08-25): `productGridMayClip` pyta o WSZYSTKIE pasma naraz, więc
+        odnośnik stoi zawsze, gdy jakakolwiek szerokość chowa pozycję — a nie
+        miga w zależności od okna, którego render nie zna.
       */}
-      <ProductsCatalogLink shown={visible.length} catalogSize={products.length} labels={labels} />
+      <ProductsCatalogLink
+        shown={visible.length}
+        catalogSize={products.length}
+        labels={labels}
+        mayClip={productGridMayClip(visible.length)}
+      />
     </StructuredSectionShell>
   );
 }
