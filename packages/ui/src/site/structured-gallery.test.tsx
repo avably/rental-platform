@@ -225,6 +225,42 @@ describe("ODNOŚNIK WYGRYWA Z POWIĘKSZENIEM", () => {
     );
   });
 
+  it("atrybucja stoi w OSOBNEJ linii z przedrostkiem — nie skleja się z podpisem (S-34)", () => {
+    // Audyt 2026-08-25: „…stoły i nakrycia CHUTTERSNAP" — nazwisko fotografa
+    // czytało się jak ciąg dalszy podpisu najemcy. Kontrakt: podpis i
+    // atrybucja to DWA osobne pudełka blokowe, a atrybucję otwiera etykieta
+    // z języka strony („Fot.:"), więc napis mówi, czym jest.
+    const { container } = pokaz(galeria());
+    const kafel = container.querySelector("[data-gallery-tile]")!;
+    const podpis = kafel.querySelector<HTMLElement>("[data-gallery-caption]")!;
+    const linia = kafel.querySelector<HTMLElement>("[data-gallery-credit-line]")!;
+    const kredyt = linia.querySelector<HTMLAnchorElement>("[data-gallery-credit]")!;
+
+    // Osobny węzeł, nie wspólny przebieg tekstu: autor NIE siedzi w podpisie.
+    expect(podpis.contains(kredyt)).toBe(false);
+    expect(podpis.textContent).not.toContain(kredyt.textContent);
+
+    // Przedrostek i18n otwiera linię atrybucji.
+    expect(linia.textContent!.startsWith(L.galleryCredit)).toBe(true);
+
+    // Linia bloku, mniejszy stopień — atrybucja nie dokleja się w tym samym
+    // wierszu ani tym samym rozmiarem, co podpis.
+    expect(linia.className).toContain("block");
+    expect(linia.className).toContain("text-xs");
+    expect(podpis.className).toContain("block");
+  });
+
+  it("kafel BEZ podpisu nadal niesie atrybucję z przedrostkiem (warunek licencji)", () => {
+    const [a] = galeria().items;
+    const { container } = pokaz(
+      galeria({ items: [{ ...a!, caption: undefined }] as GalleryStructuredContent["items"] }),
+    );
+    expect(container.querySelector("[data-gallery-caption]")).toBeNull();
+    const linia = container.querySelector<HTMLElement>("[data-gallery-credit-line]")!;
+    expect(linia.textContent!.startsWith(L.galleryCredit)).toBe(true);
+    expect(linia.querySelector("[data-gallery-credit]")).not.toBeNull();
+  });
+
   it("wyłączone powiększenie zdejmuje przyciski i całe okno", () => {
     const { container } = pokaz(galeria({ lightbox: false }));
     expect(screen.queryByRole("button", { name: L.galleryZoom })).toBeNull();

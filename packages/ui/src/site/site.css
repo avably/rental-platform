@@ -478,11 +478,19 @@
 /*
  * POLE FORMULARZA. Powierzchnia KARTY, a nie pasa: pole na pasie przygaszonym
  * musi się od niego odciąć, inaczej kasa wygląda jak lista napisów.
+ *
+ * OBRYS Z TUSZU KARTY, NIE Z `--site-border` (S-32, audyt UX 2026-08-25).
+ * Dekoracyjna kreska pasa ma na jasnych motywach kontrast ~1,2:1 wobec bieli —
+ * dla GRANICY KOMPONENTU interaktywnego WCAG 1.4.11 żąda 3:1. Mieszanka
+ * 55% tuszu karty z jej powierzchnią dziedziczy gwarancję kontrastu pary
+ * tusz↔powierzchnia (tusz przechodzi 4,5:1 z macierzy ról), więc obrys trzyma
+ * próg W KAŻDYM motywie — jasnym i ciemnym — bez osobnej roli do pilnowania.
  */
 .site-field {
   background: var(--site-band-card-surface);
   color: var(--site-band-card-ink);
-  border: var(--site-border-width) solid var(--site-border);
+  border: var(--site-border-width) solid
+    color-mix(in srgb, var(--site-band-card-ink) 55%, var(--site-band-card-surface));
   border-radius: var(--site-radius);
 }
 

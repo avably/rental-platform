@@ -231,7 +231,16 @@ export function StructuredContactForm({
 
       <Honeypot id={`${id}-trap`} />
 
-      {binding?.captcha ? <div key={`captcha-${attempt}`}>{binding.captcha}</div> : null}
+      {/*
+        `contents`: owijka remontująca widget (klucz per próba) nie jest
+        PUDEŁKIEM w kolumnie formularza — pusta robiła z `gap-4` podwójny
+        odstęp (S-33), a wysokość i widoczność należą do samego widgetu.
+      */}
+      {binding?.captcha ? (
+        <div key={`captcha-${attempt}`} className="contents">
+          {binding.captcha}
+        </div>
+      ) : null}
 
       {generalKey ? (
         <p data-contact-error role="alert" className="site-error m-0 text-sm">

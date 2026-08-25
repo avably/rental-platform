@@ -75,6 +75,12 @@ const ALLOWED_FOREIGN_IMPORTS = [
   "../links",
   "../types",
   /*
+   * S-47 (sieroty typograficzne, audyt 2026-08-25) — czysta funkcja
+   * tekst→tekst wiążąca jednoliterowe spójniki twardą spacją w warstwie
+   * renderu. Zero klas, zero JSX — ten sam warunek, co `../links`.
+   */
+  "../orphans",
+  /*
    * ADR-180 (dostępność na kaflu) — znacznik liczby wolnych sztuk. Wpuszczony
    * na tę listę pod tym samym warunkiem, co `../links` i `../image-url`: plik
    * NIE MA ANI JEDNEJ KLASY. Rolę tekstu podaje kafel przez props `className`,
@@ -273,6 +279,18 @@ describe("źródła klas są zamknięte", () => {
    */
   it("znacznik dostępności NIE MALUJE — klasę podaje kafel (ADR-180)", () => {
     const source = readFileSync(join(DIR, "..", "product-availability.tsx"), "utf8");
+    const bezKomentarzy = source
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const klasy = [...bezKomentarzy.matchAll(/"([^"]*\bsite-[a-z-]+[^"]*)"/g)].map((m) => m[1]);
+    expect(
+      klasy,
+      "moduł z allowlisty zaczął produkować klasy — rola wyjdzie spod skanu ról",
+    ).toEqual([]);
+  });
+
+  it("moduł sierot (S-47) też NIE MALUJE — to funkcja tekstowa, nie producent klas", () => {
+    const source = readFileSync(join(DIR, "..", "orphans.ts"), "utf8");
     const bezKomentarzy = source
       .replace(/\/\*[\s\S]*?\*\//g, " ")
       .replace(/(^|[^:])\/\/.*$/gm, "$1");

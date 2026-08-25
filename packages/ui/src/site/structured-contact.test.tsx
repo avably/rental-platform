@@ -212,6 +212,39 @@ describe("wysłanie mierzone WYWOŁANIEM akcji", () => {
     expect(document.getElementById(opis!)).toHaveTextContent(F.errors.required);
   });
 
+  it("FOKUS idzie na PIERWSZE błędne pole w kolejności dokumentu (audyt 2026-08-25)", async () => {
+    const user = userEvent.setup();
+    const { binding } = wiazanie();
+    pokaz(kontakt(), binding);
+
+    // Wypełniony jest tylko e-mail — błędne są imię ORAZ wiadomość, a fokus
+    // ma trafić na PIERWSZE z nich w dokumencie (imię), nie na losowy klucz
+    // mapy błędów.
+    await user.type(screen.getByRole("textbox", { name: F.email }), "anna@przyklad.test");
+    await user.click(screen.getByRole("button", { name: F.submit }));
+
+    const imie = screen.getByRole("textbox", { name: F.name });
+    await waitFor(() => expect(document.activeElement).toBe(imie));
+  });
+
+  it("fokus wraca na błąd także przy odmowie WALIDACJI SERWERA", async () => {
+    const user = userEvent.setup();
+    const { binding } = wiazanie({ status: "validation_error", fields: { email: "invalid" } });
+    pokaz(kontakt(), binding);
+
+    await wypelnij(user);
+    await user.click(screen.getByRole("button", { name: F.submit }));
+
+    const email = screen.getByRole("textbox", { name: F.email });
+    await waitFor(() => expect(document.activeElement).toBe(email));
+  });
+
+  it("bez błędów fokus NIE jest ruszany — świeży formularz nikogo nie łapie za klawiaturę", () => {
+    const { binding } = wiazanie();
+    pokaz(kontakt(), binding);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("NIEPOPRAWNY adres e-mail zatrzymuje wysyłkę tą samą regułą, co serwer", async () => {
     const user = userEvent.setup();
     const { binding, submit } = wiazanie();

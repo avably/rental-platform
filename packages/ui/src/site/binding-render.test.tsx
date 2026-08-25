@@ -227,7 +227,8 @@ describe("warunek WYCINA węzeł, a nie ukrywa go stylem", () => {
       [napisZwiazany("description", { whenEmpty: "fallback", fallback: "Opis w przygotowaniu" })],
       [sprzet({ description: null })],
     );
-    expect(html).toContain("Opis w przygotowaniu");
+    // S-47: render wiąże spójnik twardą spacją — HTML niesie U+00A0, nie spację.
+    expect(html).toContain("Opis w\u00A0przygotowaniu");
     expect(html).toContain('data-element-id="napis"');
   });
 
