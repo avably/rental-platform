@@ -511,27 +511,49 @@ describe("dodawanie nie przekracza dostępności (S-51)", () => {
     await waitFor(() => expect(addButton().disabled).toBe(false));
   });
 
-  it("kliknięcie dodaje NAJWYŻEJ tyle, ile zostało — także gdy pole ominięto", async () => {
+  /*
+    CLAMP MUSI STAĆ TAKŻE PRZY KLIKNIĘCIU, nie tylko na polu ilości — a to
+    znaczy, że test musi POLE OMINĄĆ. Wpisanie za dużej liczby go nie omija:
+    `onChange` clampuje ją w locie, więc taki scenariusz przechodzi także
+    z widgetem BEZ clampu przy kliknięciu (mutant przeżył pierwszą wersję tego
+    testu).
+
+    Prawdziwe ominięcie jest jedno i występuje na produkcji: DRUGA KARTA
+    przeglądarki dokłada sztuki do koszyka PO tym, jak klient wpisał tu swoją
+    liczbę. Sufit spada, wpisana liczba zostaje — i tylko clamp w `onAdd`
+    stoi między nią a koszykiem ponad dostępność.
+  */
+  it("kliknięcie dodaje NAJWYŻEJ tyle, ile zostało — gdy koszyk urósł w DRUGIEJ karcie", async () => {
     checkCatalogAvailability.mockResolvedValue(catalog(3));
-    writeCart({
-      ...EMPTY_CART,
-      items: [{ productId: ROWER, quantity: 1 }],
-      startDate: dayFromToday(3),
-      endDate: dayFromToday(6),
-    });
     render(widget());
+    pickRange(dayFromToday(3), dayFromToday(6));
 
     await waitFor(() => expect(addButton().disabled).toBe(false));
 
-    // Pole samo clampuje do 2 — ale liczba, która trafia do koszyka, musi
-    // przejść przez sufit JESZCZE RAZ, w chwili kliknięcia.
-    setQuantity("9");
+    // Klient wpisuje 3 przy pustym koszyku — liczba całkowicie legalna.
+    setQuantity("3");
+    expect(document.querySelector<HTMLInputElement>("#booking-qty")!.value).toBe("3");
+
+    // DRUGA KARTA dokłada jedną sztukę. Sufit tej karty schodzi do 2,
+    // ale wpisana wcześniej trójka zostaje w polu.
+    writeCart({
+      ...readCart(),
+      items: [{ productId: ROWER, quantity: 1 }],
+    });
+    await waitFor(() =>
+      expect(document.querySelector<HTMLInputElement>("#booking-qty")!.max).toBe("2"),
+    );
+    expect(
+      document.querySelector<HTMLInputElement>("#booking-qty")!.value,
+      "pole samo się poprawiło — test nie omija pola i nie mierzy clampu przy kliknięciu",
+    ).toBe("3");
+
     fireEvent.click(addButton());
 
     await waitFor(() =>
       expect(
         readCart().items.find((line) => line.productId === ROWER)?.quantity,
-        "koszyk przekroczył dostępność",
+        "koszyk przekroczył dostępność — clamp przy kliknięciu nie zadziałał",
       ).toBe(3),
     );
   });

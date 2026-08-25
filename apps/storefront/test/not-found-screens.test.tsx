@@ -20,6 +20,27 @@
  * Harness: wzorzec product-template-route.test.tsx — kontekst z PRAWDZIWYM
  * słownikiem (`getStorefrontCopy`) i PRAWDZIWYM stylem (`resolveSiteStyle`),
  * bo atrapa kontraktu o dziesiątkach kluczy mierzy kształt atrapy.
+ *
+ * ==================== CZEGO TEN PLIK NIE MIERZY (F6, 2026-08-25) ====================
+ *
+ * Mierzy KOMPONENTY, nie ich OSIĄGALNOŚĆ — woła je wprost, z pominięciem
+ * routera. To rozróżnienie przestało być teoretyczne: weryfikacja F6 na
+ * ZBUDOWANEJ aplikacji (`next start`) pokazała, że ŻADEN z tych dwóch ekranów
+ * nie renderuje się na produkcji. `notFound()` z tras sklepu (zdjęta pozycja,
+ * zły permalink, strona spoza rejestru) i z catch-alla marketingu kończy we
+ * WBUDOWANYM ekranie Nexta (`<html id="__next_error__">`), czyli dokładnie tam,
+ * skąd ADR-197 miał je zabrać.
+ *
+ * PRZYCZYNA (potwierdzona sondą): storefront ma DWA rooty (`app/[locale]`
+ * i `app/(tenant)`, każdy z własnym `<html>`), a przy takim układzie granicą
+ * `notFound()` jest `app/not-found.tsx` W KORZENIU — którego w repo nie ma.
+ * Sonda z tymczasowym plikiem korzenia potwierdziła, że jest on podnoszony
+ * przez OBIE osie. Naprawa wymaga jednak powłoki dokumentu dla obu osi
+ * (fonty i `globals.css` sklepu; arkusze i skrypty szablonu marketingu), więc
+ * jest osobnym zadaniem — F6 zgłasza ją PM-owi, a nie robi po drodze.
+ *
+ * Tytuł dokumentu dodany tu przez F6 (S-57) jest poprawny i zacznie działać
+ * w tej samej chwili, w której granica zostanie podpięta.
  */
 import { resolveSiteStyle } from "@avably/core/site";
 import { renderToStaticMarkup } from "react-dom/server";
