@@ -32,6 +32,10 @@ export default defineConfig({
         __dirname,
         "../../packages/security/src/turnstile.ts",
       ),
+      "@avably/security/client-ip": path.resolve(
+        __dirname,
+        "../../packages/security/src/client-ip.ts",
+      ),
       "@avably/security": path.resolve(__dirname, "../../packages/security/src/index.ts"),
       "@avably/core/site": path.resolve(__dirname, "../../packages/core/src/site/index.ts"),
       "@avably/core/supabase-env": path.resolve(

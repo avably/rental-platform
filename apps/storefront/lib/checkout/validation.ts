@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 
-import { LOCALES } from "@avably/core";
+import { LOCALES, assertIsoDate, rentalDaysInclusive } from "@avably/core";
 
 import {
   CHECKOUT_DELIVERY_METHODS,
@@ -37,10 +37,43 @@ function issue(ctx: z.RefinementCtx, path: CheckoutField, error: CheckoutFieldEr
 // (app.public_checkout + unikalny indeks customers po lower(email)).
 const emailSchema = z.string().trim().min(1).max(320).email();
 
+/**
+ * SUFIT ANTYNADUŻYCIOWY długości najmu (finding audytu rdzenia, ADR-268).
+ *
+ * To NIE jest reguła biznesowa najemcy — minimum najmu to
+ * `products.min_rental_days` (0089) — tylko hojny pułap PLATFORMY chroniący
+ * przed wyczerpaniem zasobów: anon z ważnym biletem mógłby inaczej zamówić
+ * najem start=2026-01-01…end=9999-12-31, zdejmując egzemplarze z dostępności
+ * „na zawsze" (inventory DoS) i grożąc przepełnieniem
+ * `base_price_day_grosze * v_days`. 365 dób pokrywa każdy realny najem
+ * z zapasem. OWNER-ADJUSTABLE: właściciel platformy może pułap ZAWĘZIĆ —
+ * wartość MUSI zostać zgodna z sufitem w NIEOBEJŚCIOWEJ warstwie
+ * `app.public_checkout` (migracja 0110); rozjazd znaczyłby, że jedna warstwa
+ * odrzuca najmy, które druga przyjmuje.
+ */
+export const MAX_RENTAL_DAYS = 365;
+
+// Poprawność KALENDARZOWA, nie tylko kształt: sam regex przepuszcza
+// `2026-02-31` czy `2026-13-01` — zapisy o dobrym KSZTAŁCIE, których
+// w kalendarzu nie ma (`Date.UTC` przewinąłby je na inny dzień, a najem
+// policzyłby się o kilka dób za krótko). `assertIsoDate` (@avably/core)
+// reparsuje datę przez `Date.UTC` i odrzuca ją, gdy round-trip nie wraca tym
+// samym zapisem. Cała arytmetyka dat mieszka w rdzeniu (dates.ts) — walidacja
+// bierze ją stąd zamiast powielać „+1 dnia" po warstwach.
+const isCalendarDate = (value: string): boolean => {
+  try {
+    assertIsoDate(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const isoDate = z
   .string()
   .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "invalid");
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "invalid")
+  .refine(isCalendarDate, "invalid");
 
 const optionalText = (max: number) =>
   z
@@ -111,6 +144,17 @@ export const checkoutSchema = z
     // Zakres dat INCLUSIVE — odwrócony jest błędem endDate (LP podświetla koniec).
     if (value.endDate < value.startDate) {
       issue(ctx, "endDate", "invalid");
+    } else if (isCalendarDate(value.startDate) && isCalendarDate(value.endDate)) {
+      // SUFIT ANTYNADUŻYCIOWY (ADR-268): najem dłuższy niż MAX_RENTAL_DAYS to
+      // wcześniejszy, czytelny błąd UX na polu endDate. Warstwą NIEOBEJŚCIOWĄ
+      // jest i tak `app.public_checkout` (0110) — schemat da się ominąć surowym
+      // RPC. `rentalDaysInclusive` liczy doby TAK SAMO jak `v_days` w SQL
+      // (INCLUSIVE), więc granica UX ≡ granica bazy. Guard na kalendarzowości
+      // obu dat: bez niego niekalendarzowa data (złapana wyżej na polu)
+      // wywróciłaby `rentalDaysInclusive` wyjątkiem zamiast zostać błędem pola.
+      if (rentalDaysInclusive(value.startDate, value.endDate) > MAX_RENTAL_DAYS) {
+        issue(ctx, "endDate", "invalid");
+      }
     }
     // Odbiór osobisty wymaga punktu; przy dostawie punkt nie ma prawa wystąpić.
     if (value.deliveryMethod === "pickup" && value.pickupLocationId === undefined) {
