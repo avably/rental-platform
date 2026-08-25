@@ -88,10 +88,13 @@ export function HeroSection({
   content,
   styles,
   siteImageBase,
+  imagePriority = false,
 }: {
   content: HeroContent;
   styles: TemplateStyles;
   siteImageBase?: string;
+  /** Czy to JEST pierwszy obraz strony (S-39) — patrz `./image-priority`. */
+  imagePriority?: boolean;
 }) {
   return (
     <section className={styles.heroSection}>
@@ -106,15 +109,17 @@ export function HeroSection({
           </a>
         ) : null}
         {content.imagePath && siteImageBase ? (
-          // Zdjęcie hero jest DEKORACYJNE (nagłówek niesie treść) — alt puste,
-          // eager (element bywa LCP wysoko na stronie). Placeholder gdy brak
-          // bazy URL (podgląd bez Storage) — render nie zależy od Storage.
+          // Zdjęcie hero jest DEKORACYJNE (nagłówek niesie treść) — alt puste.
+          // Priorytet z MIEJSCA na stronie, nie z rodzaju sekcji (S-39): hero
+          // stojące pierwsze jest elementem LCP i ładuje się łapczywie, hero
+          // przesunięte niżej — leniwie, jak każdy obraz pod zgięciem.
+          // Placeholder gdy brak bazy URL (podgląd bez Storage).
           <img
             src={siteImageUrl(siteImageBase, content.imagePath)}
             alt=""
             className="mt-10 aspect-[16/9] w-full rounded-lg object-cover"
-            loading="eager"
-            fetchPriority="high"
+            loading={imagePriority ? "eager" : "lazy"}
+            fetchPriority={imagePriority ? "high" : undefined}
           />
         ) : null}
       </div>
@@ -127,16 +132,24 @@ export function ProductsSection({
   products,
   labels,
   styles,
+  imagePriority = false,
 }: {
   content: ProductsContent;
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   styles: TemplateStyles;
+  /** Czy to JEST pierwszy obraz strony (S-39) — patrz `./image-priority`. */
+  imagePriority?: boolean;
 }) {
   return (
     <SectionShell styles={styles}>
       <SectionHeading heading={content.heading} styles={styles} />
-      <ProductCards products={products} labels={labels} styles={styles} />
+      <ProductCards
+        products={products}
+        labels={labels}
+        styles={styles}
+        imagePriority={imagePriority}
+      />
     </SectionShell>
   );
 }
@@ -151,10 +164,13 @@ export function ProductCards({
   products,
   labels,
   styles,
+  imagePriority = false,
 }: {
   products: StorefrontProduct[];
   labels: SiteRenderLabels;
   styles: TemplateStyles;
+  /** Czy to JEST pierwszy obraz strony (S-39) — patrz `./image-priority`. */
+  imagePriority?: boolean;
 }) {
   return (
     <>
@@ -163,12 +179,13 @@ export function ProductCards({
       ) : (
         <ul className={cn(styles.productGrid, "list-none p-0")}>
           {products.map((product, index) => {
-            // PIERWSZA karta ładuje się ŁAPCZYWIE (Zadanie 2.7). W szablonie
-            // `bold` sekcja produktów wchodzi wysoko, więc to jej zdjęcie bywa
-            // elementem LCP — a `loading="lazy"` odkłada je za pierwsze
-            // malowanie i psuje pomiar. Pozostałe karty zostają leniwe: leżą
-            // pod zgięciem i ich wczesne pobranie tylko zabierałoby pasmo.
-            const eager = index === 0;
+            // PIERWSZA karta ładuje się łapczywie — ale WYŁĄCZNIE, gdy ta
+            // sekcja niesie pierwszy obraz strony (S-39 audytu 2026-08-25).
+            // Do tej poprawki warunkiem był sam `index === 0`, więc karta
+            // stojąca 1200 px pod hero dostawała `fetchPriority="high"`
+            // i zabierała pasmo obrazowi, który był NA EKRANIE. Pozostałe
+            // karty zostają leniwe: leżą pod zgięciem zawsze.
+            const eager = imagePriority && index === 0;
             const body = (
               <>
                 {product.imageUrl ? (

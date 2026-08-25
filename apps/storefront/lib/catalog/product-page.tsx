@@ -97,6 +97,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 
+import { catalogPagePath } from "@avably/core";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import { cn, SITE_CONTAINER, SiteRenderer } from "@avably/ui";
 
@@ -111,7 +112,11 @@ import type { PublicCatalogProduct } from "@/lib/checkout/contract";
 import { productJsonLd } from "@/lib/seo/jsonld";
 import { tenantOrigin } from "@/lib/seo/request-origin";
 import { pageTitle, tenantMetadata } from "@/lib/seo/tenant-metadata";
-import { pageSections, withDemotedHeadings } from "@/lib/site/page-sections";
+import {
+  pageSections,
+  withCatalogFallbackAnchors,
+  withDemotedHeadings,
+} from "@/lib/site/page-sections";
 import { getPublishedProductTemplate } from "@/lib/site/published";
 import { siteImageBaseUrl } from "@/lib/site/image-base";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
@@ -243,7 +248,12 @@ export async function renderProductPage({
   if (template) {
     const revealNonce = (await headers()).get("x-nonce") ?? undefined;
     const seam = buildSiteRenderSeam(ctx);
-    const bodySections = pageSections(template);
+    /*
+      KOTWICA BEZ CELU → KATALOG (S-10). Na stronie sprzętu jest to WARUNEK
+      działania, a nie kosmetyka: szablon sprzętu prawie nigdy nie ma sekcji
+      sprzętu, więc `#produkty` z presetu byłoby tu martwe zawsze.
+    */
+    const bodySections = withCatalogFallbackAnchors(pageSections(template), catalogPagePath());
     /*
       REKORD STRONY — pozycja Z TEJ SAMEJ listy, z której rysują się kafle
       katalogu. Wyszukanie nie ma jak spudłować (`raw` pochodzi z tego samego

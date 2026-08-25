@@ -13,6 +13,7 @@ import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import { SectionCanvasRenderer } from "./element-canvas";
+import { priorityImageSectionId } from "./image-priority";
 import {
   CategoriesSection,
   ContactSection,
@@ -137,6 +138,7 @@ function SectionSwitch({
   mapEmbed,
   elementWrapper,
   currentPath,
+  imagePriority,
 }: {
   section: RenderSection;
   products: StorefrontProduct[];
@@ -150,6 +152,8 @@ function SectionSwitch({
   mapEmbed?: boolean;
   elementWrapper?: (element: CanvasElement, children: ReactNode) => ReactNode;
   currentPath?: string;
+  /** Czy TA sekcja niesie pierwszy obraz strony — patrz `./image-priority`. */
+  imagePriority?: boolean;
 }) {
   const styles = siteStyles();
 
@@ -183,6 +187,7 @@ function SectionSwitch({
         sectionId={section.id}
         contactForm={contactForm}
         mapEmbed={mapEmbed}
+        imagePriority={imagePriority}
       />
     );
   }
@@ -229,6 +234,7 @@ function SectionSwitch({
         siteImageBase={siteImageBase}
         elementWrapper={elementWrapper}
         currentPath={currentPath}
+        imagePriority={imagePriority}
       />
     );
   }
@@ -238,10 +244,23 @@ function SectionSwitch({
   const legacy = section as LegacyRenderSection;
   switch (legacy.type) {
     case "hero":
-      return <HeroSection content={legacy.content} styles={styles} siteImageBase={siteImageBase} />;
+      return (
+        <HeroSection
+          content={legacy.content}
+          styles={styles}
+          siteImageBase={siteImageBase}
+          imagePriority={imagePriority}
+        />
+      );
     case "products":
       return (
-        <ProductsSection content={legacy.content} products={products} labels={labels} styles={styles} />
+        <ProductsSection
+          content={legacy.content}
+          products={products}
+          labels={labels}
+          styles={styles}
+          imagePriority={imagePriority}
+        />
       );
     case "categories":
       return <CategoriesSection content={legacy.content} styles={styles} />;
@@ -582,6 +601,15 @@ export function SiteRenderer({
    */
   const anchorById = anchors ? sectionAnchorIds(sections) : null;
 
+  /*
+   * PIERWSZY OBRAZ STRONY (S-39 audytu 2026-08-25) — liczony RAZ, jak mapa
+   * kotwic wyżej i z tego samego powodu: „która sekcja jest pierwsza" jest
+   * własnością CAŁEJ listy. To jedyna warstwa, która widzi sekcje razem
+   * z danymi katalogu, więc tylko tutaj da się odpowiedzieć, czy sekcja
+   * sprzętu w ogóle namaluje zdjęcie. Reguła i jej granice: `./image-priority`.
+   */
+  const priorityId = priorityImageSectionId(sections, { products, categories, siteImageBase });
+
   const body = sections.map((section) => {
     const content = (
       <SectionSwitch
@@ -596,6 +624,7 @@ export function SiteRenderer({
         contactForm={contactForm}
         mapEmbed={mapEmbed}
         currentPath={currentPath}
+        imagePriority={section.id === priorityId}
         elementWrapper={
           elementWrapper
             ? (element, children) => elementWrapper(section, element, children)

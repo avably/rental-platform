@@ -35,6 +35,7 @@ import {
   isSectionCanvas,
   isPinnedLastType,
   sectionAnchorHref,
+  sectionAnchorIds,
   type PublishedSection,
   type PublishedSite,
 } from "@avably/core/site";
@@ -133,6 +134,78 @@ export function withFooterContactTarget(
     (section) =>
       ({ ...section, content: rewriteHrefs(section.content, ctaHref, target) }) as PublishedSection,
   );
+}
+
+/**
+ * KOTWICA BEZ CELU PROWADZI DO KATALOGU (S-10 audytu 2026-08-25).
+ *
+ * ==================== CO BYŁO ZEPSUTE ====================
+ *
+ * Presety i szablony startowe wpisują w przycisk hero adres `#produkty`
+ * (`starter-templates.ts`, `presets.ts`) — a kotwica `produkty` powstaje
+ * WYŁĄCZNIE tam, gdzie na stronie stoi sekcja sprzętu. Najemca, który zbudował
+ * stronę bez tej sekcji (albo postawił hero na podstronie treściowej), dostaje
+ * przycisk, który po kliknięciu NIE ROBI NIC: przeglądarka nie ma czego
+ * znaleźć, adres się nie zmienia, konsola milczy. To ta sama klasa cichej
+ * awarii, którą zamknął rejestr kotwic (`section-anchors.ts`) — tyle że od
+ * drugiej strony: tam brakowało `id` w dokumencie, tu brakuje SEKCJI.
+ *
+ * ==================== DLACZEGO W RENDERZE, A NIE W DANYCH ====================
+ *
+ * Treść najemcy zostaje nietknięta — i to jest wymóg, nie wygoda. Sekcja
+ * sprzętu bywa dodana jutro (operator buduje stronę etapami), a przepisany
+ * w bazie `ctaHref` już by nie wrócił do `#produkty`: naprawa danych zamroziłaby
+ * stan z chwili, w której akurat patrzyliśmy. Przekształcenie renderu liczy się
+ * PRZY KAŻDEJ ODSŁONIE, więc dodanie sekcji samo przywraca kotwicę.
+ *
+ * To jest ta sama droga, którą idą `withAnchorBase` i `withFooterContactTarget`
+ * wyżej: czysta funkcja nad listą sekcji, wołana przez trasę tuż przed
+ * rendererem.
+ *
+ * ==================== ZASIĘG ====================
+ *
+ * WYŁĄCZNIE gołe kotwice (`#coś`) — adres bezwzględny, względny, pełny URL,
+ * `tel:` i `mailto:` wiedzą, dokąd prowadzą. Kotwica, której cel NA TEJ STRONIE
+ * stoi, zostaje bez zmian; dopiero brak celu zamienia ją na katalog, bo katalog
+ * jest jedynym miejscem, o którym wiemy, że na pewno istnieje i że odpowiada na
+ * intencję „pokaż mi ofertę".
+ *
+ * Klucz `href` jest jedyną nazwą celu we WSZYSTKICH trzech generacjach treści
+ * (v1 `ctaHref` ma własną nazwę, więc dochodzi osobno — patrz `ANCHOR_KEYS`).
+ */
+const ANCHOR_KEYS = new Set(["href", "ctaHref", "buttonHref", "mapsUrl"]);
+
+export function withCatalogFallbackAnchors(
+  sections: PublishedSection[],
+  fallback: string,
+): PublishedSection[] {
+  // Kotwice, które NA TEJ STRONIE naprawdę powstaną — ta sama funkcja, której
+  // renderer używa do wystawienia `id` w dokumencie. Drugie, „prawie takie
+  // samo" wyliczenie rozjechałoby się z rendererem przy pierwszej zmianie
+  // reguły „pierwsza sekcja typu wygrywa".
+  const live = new Set(sectionAnchorIds(sections).values());
+
+  return sections.map(
+    (section) =>
+      ({ ...section, content: rewriteDeadAnchors(section.content, live, fallback) }) as PublishedSection,
+  );
+}
+
+/** Rekurencyjne przepisanie martwych kotwic — czyste, jak {@link rebaseAnchors}. */
+function rewriteDeadAnchors(node: unknown, live: Set<string>, fallback: string): unknown {
+  if (Array.isArray(node)) return node.map((item) => rewriteDeadAnchors(item, live, fallback));
+  if (typeof node !== "object" || node === null) return node;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    out[key] =
+      ANCHOR_KEYS.has(key) && typeof value === "string" && value.startsWith("#")
+        ? live.has(value.slice(1))
+          ? value
+          : fallback
+        : rewriteDeadAnchors(value, live, fallback);
+  }
+  return out;
 }
 
 /** Czy treść niesie GDZIEKOLWIEK `href` o dokładnie tej wartości. */

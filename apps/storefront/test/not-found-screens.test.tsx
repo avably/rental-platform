@@ -133,6 +133,40 @@ describe("404 sklepu najemcy — pełna powłoka, język najemcy, wyjście do ka
     expect(headings(html, 1)).toEqual([pl.storefront.notFound.title]);
     expect(html).toContain('href="/katalog"');
   });
+
+  /* ---------------------------------------------------------------------
+   * TYTUŁ DOKUMENTU (S-57 audytu 2026-08-25)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * CO MUSIAŁOBY SIĘ ZEPSUĆ: ten ekran nie miał `<title>` w ogóle, bo
+   * `generateMetadata` trasy oddaje `{}` przy `notFound()`, a konwencja
+   * `not-found.tsx` własnych metadanych nie wystawia. Karta przeglądarki,
+   * historia i zakładka pokazywały goły adres (WCAG 2.4.2).
+   *
+   * Asercja pyta o TREŚĆ elementu, nie o jego obecność: sam `<title>` z pustym
+   * wnętrzem albo z drugim językiem przechodziłby test „ma tytuł".
+   */
+  function documentTitles(html: string): string[] {
+    return [...html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/g)].map((match) =>
+      match[1].replace(/<[^>]+>/g, "").trim(),
+    );
+  }
+
+  it.each(["pl", "en"] as const)("locale %s: dokument ma tytuł z nazwą sklepu", async (locale) => {
+    const html = await renderTenantNotFound(locale);
+    const titles = documentTitles(html);
+
+    expect(titles, "404 sklepu bez <title> (WCAG 2.4.2) albo z dwoma tytułami").toHaveLength(1);
+    expect(titles[0]).toContain(MESSAGES[locale].storefront.notFound.title);
+    expect(titles[0], "tytuł nie mówi, czyj sklep odmówił").toContain("Wypożyczalnia Testowa");
+  });
+
+  it("bez kontekstu tytuł też jest — i jest w PL, jak reszta tego ekranu", async () => {
+    const titles = documentTitles(await renderTenantNotFound("en", false));
+
+    expect(titles).toEqual([pl.storefront.notFound.title]);
+  });
 });
 
 async function renderMarketingNotFound(locale: TestLocale): Promise<string> {

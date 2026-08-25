@@ -113,6 +113,19 @@ export interface StructuredSectionProps<
    * kategorii ją ignoruje, a sekcja kategorii pokazuje sam nagłówek.
    */
   categories?: StorefrontCategory[];
+  /**
+   * CZY TA SEKCJA NIESIE PIERWSZY OBRAZ STRONY (S-39 audytu 2026-08-25).
+   *
+   * Rozstrzyga RENDERER, bo „pierwsza" jest własnością całej listy sekcji, a nie
+   * pojedynczego komponentu (patrz `../image-priority`). Typ bez obrazów tę
+   * flagę ignoruje; typ z obrazami daje `loading="eager"` + `fetchPriority`
+   * PIERWSZEMU kaflowi i tylko wtedy, gdy flaga jest podniesiona.
+   *
+   * Brak = `false`, czyli „ta sekcja nie jest nad zgięciem" — bezpieczna
+   * strona domyślna: wysoki priorytet pod zgięciem szkodzi, niski nad
+   * zgięciem tylko nie pomaga.
+   */
+  imagePriority?: boolean;
 }
 
 export type StructuredSectionComponent<

@@ -52,7 +52,7 @@
 import {
   calculatePrice,
   formatMoney,
-  rentalDaysInclusive,
+  formatRentalRange,
   type CurrencyCode,
   type PriceParams,
 } from "@avably/core";
@@ -61,6 +61,7 @@ import { useMemo, useState } from "react";
 
 import { useStoreTerm } from "@/components/storefront/store-term";
 import { StoreTermModal } from "@/components/storefront/store-term-modal";
+import { productBenefits } from "@/lib/catalog/product-benefits";
 import { MAX_QUANTITY_PER_PRODUCT } from "@/lib/cart/model";
 import { useCart } from "@/lib/cart/use-cart";
 import { format, type StorefrontCopy } from "@/lib/storefront/copy";
@@ -89,7 +90,7 @@ export function ProductBooking({
   currency: CurrencyCode;
 }) {
   const term = useStoreTerm();
-  const { add } = useCart();
+  const { cart, add } = useCart();
 
   const [open, setOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -115,17 +116,51 @@ export function ProductBooking({
   /** `undefined` = nie wiem (brak terminu, odpowiedź w drodze, odmowa bazy). */
   const units = complete ? term.units?.[productId] : undefined;
 
-  const maxQuantity = Math.min(units ?? MAX_QUANTITY_PER_PRODUCT, MAX_QUANTITY_PER_PRODUCT);
+  /*
+    ILE TEJ POZYCJI JUŻ LEŻY W KOSZYKU (S-51 audytu 2026-08-25).
+
+    Do tej poprawki karta oferowała PEŁNĄ dostępność niezależnie od koszyka:
+    przy trzech wolnych sztukach klient mógł dodać trzy, wrócić i dodać kolejne
+    trzy — a prawda wychodziła dopiero w koszyku, banerem naprawczym nad
+    gotowym zamówieniem. Sufit liczy się więc od WOLNYCH MINUS JUŻ WZIĘTE:
+    naprawa w miejscu, w którym powstaje błąd, a nie po fakcie.
+
+    Koszyk jest jeden na cały sklep i trzyma jeden termin (R1, ADR-179), więc
+    „już wzięte" nie ma jak dotyczyć innego okna niż to, o które właśnie pytamy.
+  */
+  const inCart = cart.items.find((line) => line.productId === productId)?.quantity ?? 0;
+
+  /*
+    SUFIT ILOŚCI. Przy „nie wiem" (brak odpowiedzi o dostępność) zostaje limit
+    modelu — patrz decyzja o `canAdd` niżej. Przy znanej liczbie wolnych sztuk
+    sufit schodzi o to, co już leży w koszyku, i nigdy nie schodzi poniżej zera.
+  */
+  const remaining = units === undefined ? MAX_QUANTITY_PER_PRODUCT : Math.max(0, units - inCart);
+  const maxQuantity = Math.max(1, Math.min(remaining, MAX_QUANTITY_PER_PRODUCT));
+
+  /** Cała dostępność jest już w koszyku — pozycja istnieje, ale nie ma czego dobrać. */
+  const exhaustedByCart = units !== undefined && units > 0 && remaining === 0;
   /*
     DODANIE JEST MOŻLIWE TAKŻE PRZY „NIE WIEM" — i to jest ta sama decyzja, co
     przy bramce kasy w ADR-179: nieudany odczyt dostępności nie może zabierać
     najemcy sprzedaży, bo WIĄŻĄCA bramka i tak stoi na serwerze (przypisanie
     egzemplarza pod advisory lockiem w `app.public_checkout`). Gaśnie wyłącznie
-    to, co WIEMY, że jest niemożliwe: termin niekompletny i zero wolnych sztuk.
-    Na czas samego sprawdzania przycisk też gaśnie — odpowiedź jest o sekundę,
-    a przycisk czynny w trakcie zachęca do kliknięcia w ciemno.
+    to, co WIEMY, że jest niemożliwe: termin niekompletny, zero wolnych sztuk
+    i komplet wolnych sztuk JUŻ w koszyku (S-51). Na czas samego sprawdzania
+    przycisk też gaśnie — odpowiedź jest o sekundę, a przycisk czynny w trakcie
+    zachęca do kliknięcia w ciemno.
   */
-  const canAdd = complete && !term.checking && units !== 0;
+  const canAdd = complete && !term.checking && units !== 0 && !exhaustedByCart;
+
+  /*
+    KORZYŚCI Z DANYCH POZYCJI (benchmark pkt 5). Liczone z `priceParams`, czyli
+    z tego samego obiektu, z którego liczy się podgląd kwoty — nie ma tu ani
+    jednego odczytu w nadmiarze i ani jednego napisu spoza danych najemcy.
+  */
+  const benefits = useMemo(
+    () => productBenefits({ priceParams, copy, currency, locale }),
+    [priceParams, copy, currency, locale],
+  );
 
   const preview = useMemo(() => {
     if (!complete) return null;
@@ -138,9 +173,17 @@ export function ProductBooking({
 
   function onAdd() {
     if (!canAdd) return;
+    /*
+      CLAMP PRZY DODAWANIU (S-51), a nie tylko na polu ilości. Pole można
+      ominąć: strzałki klawiatury, wklejenie wartości, druga karta, która
+      dołożyła sztuki do koszyka po ostatnim renderze tej. Liczba, która
+      NAPRAWDĘ trafia do koszyka, przechodzi więc przez sufit jeszcze raz,
+      w chwili kliknięcia — bo to jest jedyny moment, w którym coś się zmienia.
+    */
+    const requested = Math.max(1, Math.min(quantity, maxQuantity));
     // Termin jest JUŻ w koszyku — zapisało go okno wyboru („Zastosuj"). Drugi
     // zapis tutaj byłby miejscem, w którym widget mógłby zapisać COŚ INNEGO.
-    add(productId, quantity);
+    add(productId, requested);
     setAdded(true);
   }
 
@@ -181,13 +224,14 @@ export function ProductBooking({
             <path d="M16 2v4M8 2v4M3 10h18" />
           </svg>
           {complete ? (
-            <span>
-              {format(copy.term.rangeSummary, {
-                start: term.startDate!,
-                end: term.endDate!,
-                days: rentalDaysInclusive(term.startDate!, term.endDate!),
-              })}
-            </span>
+            /*
+              TERMIN PO LUDZKU (F8): „26–28 sie 2026 · 3 dni" tym SAMYM
+              formatterem, którym mówi pasek powłoki, koszyk i kasa. Do F8 stało
+              tu ISO z szablonu copy („2026-08-26 → 2026-08-28"), czyli klient
+              czytał w widgecie rezerwacji inny zapis daty niż dwa kliknięcia
+              dalej w koszyku.
+            */
+            <span>{formatRentalRange(term.startDate!, term.endDate!, locale)}</span>
           ) : (
             <span className="site-text-muted">{copy.term.fieldPrompt}</span>
           )}
@@ -205,6 +249,15 @@ export function ProductBooking({
           ) : units === 0 ? (
             <span className="site-error" data-product-booking-units="0">
               {copy.product.unavailable}
+            </span>
+          ) : exhaustedByCart ? (
+            /*
+              CAŁA DOSTĘPNOŚĆ JUŻ W KOSZYKU (S-51). Komunikat mówi OBIE liczby
+              — ile klient ma i z ilu — bo bez nich „nie możesz dodać" wygląda
+              jak awaria sklepu, a nie jak stan jego własnego koszyka.
+            */
+            <span data-product-booking-in-cart={inCart}>
+              {format(copy.product.cartAlready, { inCart, available: units })}
             </span>
           ) : (
             <span data-product-booking-units={units}>
@@ -260,6 +313,39 @@ export function ProductBooking({
             </span>
           ) : null}
         </div>
+
+        {/*
+          LISTA KORZYŚCI POD CTA (spec 2026-08-25, benchmark pkt 5). Stoi POD
+          przyciskiem, nie nad nim: to nie jest zachęta do kliknięcia, tylko
+          odpowiedź na „co właściwie biorę", której klient szuka już po decyzji.
+          Pozycje wyłącznie z danych pozycji katalogu — patrz `productBenefits`;
+          sprzęt bez kaucji i bez progów nie dostaje tu NICZEGO.
+        */}
+        {benefits.length > 0 ? (
+          <ul
+            data-product-benefits={benefits.length}
+            aria-label={copy.product.benefitsLabel}
+            className="site-rule-top m-0 flex list-none flex-col gap-1.5 p-0 pt-3 text-sm"
+          >
+            {benefits.map((benefit) => (
+              <li key={benefit.kind} data-product-benefit={benefit.kind} className="flex gap-2">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--site-accent)]"
+                >
+                  <path d="M4 10.5 8 14.5 16 6" />
+                </svg>
+                <span>{benefit.label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       {/*

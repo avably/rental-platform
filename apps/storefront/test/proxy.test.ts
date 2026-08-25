@@ -624,12 +624,25 @@ describe("proxy storefrontu — nierozwiązany host obcy (ADR-131)", () => {
     return `${response.status}\n${naglowki}\n\n${await response.text()}`;
   }
 
-  it.each(STANY_NIEROZWIAZANE)("%s → 404 text/plain bez brandingu", async (_stan, url) => {
+  /*
+    ZMIANA ŚWIADOMA (S-14 audytu 2026-08-25): odmowa jest odtąd DOKUMENTEM HTML,
+    nie dziewięcioma bajtami `text/plain`. Asercja nie osłabła — pyta o to samo
+    co przedtem (jedna odpowiedź, zero brandingu), tyle że o dokument: `<title>`
+    i `<meta name="viewport">` są całą treścią tej poprawki, bo bez nich ekran
+    na telefonie był mikrodrukiem bez tytułu karty (WCAG 2.4.2). Reszta suity
+    — nierozróżnialność co do bajtu, brak śladu marketingu, komplet nagłówków
+    bezpieczeństwa — obowiązuje bez zmian i to ONA pilnuje ADR-131.
+  */
+  it.each(STANY_NIEROZWIAZANE)("%s → 404 HTML bez brandingu", async (_stan, url) => {
     const response = await runProxy(new NextRequest(`${url}/`), fakeDeps);
+    const body = await response.text();
 
     expect(response.status).toBe(404);
-    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
-    expect(await response.text()).toBe("Not Found");
+    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(body, "odmowa bez viewportu = mikrodruk na telefonie").toContain(
+      '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    );
+    expect(body, "odmowa bez tytułu karty (WCAG 2.4.2)").toMatch(/<title>[^<]+<\/title>/);
   });
 
   it.each(STANY_NIEROZWIAZANE)("%s nie dostaje ŚLADU gałęzi marketingowej", async (_stan, url) => {
@@ -647,6 +660,65 @@ describe("proxy storefrontu — nierozwiązany host obcy (ADR-131)", () => {
     for (const zakazane of ["avably", "wypożyczaln", "rental", new URL(url).hostname]) {
       expect(tresc, `odmowa zdradza „${zakazane}"`).not.toContain(zakazane.toLowerCase());
     }
+  });
+
+  /* ---------------------------------------------------------------------
+   * NEUTRALNE 404 JAKO DOKUMENT (S-14 audytu 2026-08-25)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * CO MUSIAŁOBY SIĘ ZEPSUĆ: odmowa była `text/plain` bez `<meta viewport>`,
+   * więc telefon renderował ją w skali strony desktopowej — jedno zdanie
+   * mikrodrukiem, bez tytułu karty. Dokument nie może przy tym przestać być
+   * neutralny, i tego pilnuje reszta tej suity (odciski, brak marketingu).
+   */
+  it("dokument odmowy jest kompletny: doctype, lang, viewport, tytuł, noindex", async () => {
+    const body = await (
+      await runProxy(new NextRequest("https://ghost.avably.io/"), fakeDeps)
+    ).text();
+
+    expect(body.startsWith("<!doctype html>"), "odmowa nie jest dokumentem HTML").toBe(true);
+    expect(body).toMatch(/<html lang="(pl|en)">/);
+    expect(body).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    expect(body).toMatch(/<title>[^<]+<\/title>/);
+    expect(body, "odmowa wpuszczona do indeksu").toContain('<meta name="robots"');
+    expect(body, "odmowa niesie skrypt — polityka i tak by go ucięła").not.toContain("<script");
+  });
+
+  /**
+   * JĘZYK Z PRZEGLĄDARKI, NIE Z TENANTA. To jedyna zmienna tego dokumentu —
+   * i jedyna, która NICZEGO nie zdradza, bo przynosi ją sam odwiedzający.
+   */
+  it.each([
+    ["pl-PL,pl;q=0.9,en;q=0.8", "pl"],
+    ["en-GB,en;q=0.9", "en"],
+    ["de-DE,de;q=0.9", "en"],
+    ["", "en"],
+  ])("Accept-Language %s → dokument w %s", async (accept, expected) => {
+    const request = new NextRequest("https://ghost.avably.io/", {
+      headers: accept ? { "accept-language": accept } : {},
+    });
+    const body = await (await runProxy(request, fakeDeps)).text();
+
+    expect(body).toContain(`<html lang="${expected}">`);
+  });
+
+  it("JĘZYK NIE JEST WYROCZNIĄ: cztery stany dają ten sam dokument przy tym samym Accept-Language", async () => {
+    const dokumenty = await Promise.all(
+      STANY_NIEROZWIAZANE.map(async ([, url]) =>
+        (
+          await runProxy(
+            new NextRequest(`${url}/`, { headers: { "accept-language": "pl-PL,pl;q=0.9" } }),
+            fakeDeps,
+          )
+        ).text(),
+      ),
+    );
+
+    // Kontrola przyrządu: negocjacja NAPRAWDĘ zadziałała, więc porównanie niżej
+    // nie jest porównaniem czterech dokumentów domyślnych.
+    expect(dokumenty[0]).toContain('<html lang="pl">');
+    for (const inny of dokumenty.slice(1)) expect(inny).toBe(dokumenty[0]);
   });
 
   it("CZTERY STANY SĄ NIEROZRÓŻNIALNE co do bajtu (poza nonce)", async () => {

@@ -25,6 +25,7 @@
  * STOPKA — ze strony GŁÓWNEJ (`ctx.site`), bo jest warstwą ponad stronami
  * (faza 0, ADR-154) i jej własnością pozostaje strona główna.
  */
+import { catalogPagePath } from "@avably/core";
 import { HOME_PAGE_SLUG, faqPageJsonLd, pagePathFromSlug } from "@avably/core/site";
 import { SiteRenderer } from "@avably/ui";
 import type { Metadata } from "next";
@@ -34,7 +35,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/storefront/json-ld";
 import { SITE_HEADING, StoreChrome } from "@/components/storefront/store-chrome";
 import { categoryNavItems } from "@/lib/catalog/category-nav";
-import { pageSections } from "@/lib/site/page-sections";
+import { pageSections, withCatalogFallbackAnchors } from "@/lib/site/page-sections";
 import { getPublishedPage } from "@/lib/site/published";
 import { buildSiteRenderSeam } from "@/lib/site/render-seam";
 import { tenantOrigin } from "@/lib/seo/request-origin";
@@ -93,7 +94,8 @@ export default async function TenantContentPage({ params }: Params) {
 
   const { catalog, copy, currency, locale, style, site } = ctx;
   const seam = buildSiteRenderSeam(ctx);
-  const bodySections = pageSections(page);
+  /* Kotwica bez celu → katalog (S-10) — jak na stronie głównej. */
+  const bodySections = withCatalogFallbackAnchors(pageSections(page), catalogPagePath());
   const hasHero = bodySections.some((section) => section.type === "hero");
   const faqJsonLd = faqPageJsonLd(page.sections);
 

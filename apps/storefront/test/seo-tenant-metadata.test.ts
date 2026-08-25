@@ -112,10 +112,22 @@ describe("pageTitle", () => {
     expect(pageTitle("Wypożyczalnia Kwiatowa")).toBe("Wypożyczalnia Kwiatowa");
   });
 
-  it("podstrona = '{strona} — {sklep}'", () => {
+  /*
+    ZMIANA ŚWIADOMA (S-31 audytu 2026-08-25): separator to kropka środkowa, nie
+    dywiz — ten sam znak, którym ścieżka sklepu rozdziela człony wszędzie indziej
+    po F5. Tożsamość w tytule była i jest brana z `tenants.name` (patrz docblock
+    `pageTitle`), więc ta asercja pilnuje wyłącznie zapisu.
+  */
+  it("podstrona = '{strona} · {sklep}'", () => {
     expect(pageTitle("Wypożyczalnia Kwiatowa", "Wiertarka")).toBe(
-      "Wiertarka - Wypożyczalnia Kwiatowa",
+      "Wiertarka · Wypożyczalnia Kwiatowa",
     );
+  });
+
+  it("separator nie jest dywizem — nazwa własna z dywizem zostaje czytelna", () => {
+    const title = pageTitle("Sprzęt Bud-Mar", "Wiertarka");
+    expect(title).toBe("Wiertarka · Sprzęt Bud-Mar");
+    expect(title.split(" - "), "dywiz wrócił jako separator członów").toHaveLength(1);
   });
 });
 

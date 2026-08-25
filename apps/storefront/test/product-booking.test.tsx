@@ -23,6 +23,7 @@
  * `availability-actions.test.ts` (najemca z nagłówka) i suity bazy na żywym
  * Supabase. Tutaj badamy SZEW — o co widget pyta i co z odpowiedzi wnioskuje.
  */
+import { formatRentalRange } from "@avably/core";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -195,8 +196,19 @@ describe("forma zwarta karty (ADR-194)", () => {
       expect(
         document.querySelector("[data-product-booking-field]")!.textContent,
         "pole nie pokazało zakresu z koszyka",
-      ).toContain(start);
+      ).toContain(formatRentalRange(start, end, "pl"));
     });
+
+    /*
+      ZMIANA ŚWIADOMA (F8, TODO z briefu F6): pole pokazuje termin frazą
+      `formatRentalRange` („26–28 sie 2026 · 3 dni"), a nie ISO z szablonu copy.
+      Asercja negatywna jest tu istotna: bez niej `toContain` na frazie
+      przeszedłby także wtedy, gdyby obok frazy stało jeszcze stare ISO.
+    */
+    expect(
+      document.querySelector("[data-product-booking-field]")!.textContent,
+      "pole nadal pokazuje surowe ISO",
+    ).not.toContain(start);
   });
 });
 
@@ -293,7 +305,7 @@ describe("siatka dni w oknie wyboru maluje dostępność TEGO sprzętu", () => {
     await waitFor(() => {
       expect(
         document.querySelector("[data-product-booking-field]")!.textContent,
-      ).toContain(zaDwaMiesiace);
+      ).toContain(formatRentalRange(zaDwaMiesiace, dayFromToday(62), "pl"));
     });
 
     openField();
@@ -419,5 +431,160 @@ describe("dodanie do koszyka", () => {
 
     await waitFor(() => expect(addButton().disabled).toBe(false));
     expect(screen.getByText(copy.term.bookingUnknown)).toBeTruthy();
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * CLAMP DO DOSTĘPNOŚCI PRZY DODAWANIU (S-51 audytu 2026-08-25)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * CO BYŁO ZEPSUTE: karta oferowała PEŁNĄ dostępność niezależnie od tego, co już
+ * leży w koszyku. Przy trzech wolnych sztukach klient mógł dodać trzy, wrócić
+ * na tę samą stronę i dodać kolejne trzy — a prawda wychodziła dopiero
+ * w koszyku, banerem naprawczym nad gotowym zamówieniem.
+ *
+ * MUTACJE, KTÓRE MAJĄ TU SPŁONĄĆ: zdjęcie odejmowania koszyka od sufitu
+ * (test 1 i 2), clamp WYŁĄCZNIE na polu ilości bez clampu przy kliknięciu
+ * (test 3 — pole omija się strzałkami, drugą kartą i wklejeniem), zgaszenie
+ * przycisku ZAWSZE zamiast tylko przy wyczerpaniu (kontrola pozytywna w
+ * teście 2).
+ */
+describe("dodawanie nie przekracza dostępności (S-51)", () => {
+  function setQuantity(value: string): void {
+    const input = document.querySelector<HTMLInputElement>("#booking-qty")!;
+    fireEvent.change(input, { target: { value } });
+  }
+
+  it("sufit ilości schodzi o to, co JUŻ jest w koszyku", async () => {
+    checkCatalogAvailability.mockResolvedValue(catalog(3));
+    render(widget());
+    pickRange(dayFromToday(3), dayFromToday(6));
+
+    await waitFor(() => expect(addButton().disabled).toBe(false));
+
+    // Kontrola wyjściowa: pusty koszyk → sufit to pełne trzy sztuki.
+    expect(document.querySelector<HTMLInputElement>("#booking-qty")!.max).toBe("3");
+
+    fireEvent.click(addButton());
+    await waitFor(() => expect(readCart().items[0]?.quantity).toBe(1));
+
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLInputElement>("#booking-qty")!.max,
+        "sufit nie odjął sztuki, która już leży w koszyku",
+      ).toBe("2"),
+    );
+  });
+
+  it("cała dostępność w koszyku: przycisk gaśnie, a komunikat mówi ILE z ILU", async () => {
+    checkCatalogAvailability.mockResolvedValue(catalog(2));
+    writeCart({
+      ...EMPTY_CART,
+      items: [{ productId: ROWER, quantity: 2 }],
+      startDate: dayFromToday(3),
+      endDate: dayFromToday(6),
+    });
+    render(widget());
+
+    await waitFor(() =>
+      expect(document.querySelector("[data-product-booking-in-cart]")).not.toBeNull(),
+    );
+    expect(addButton().disabled, "przycisk czynny mimo wyczerpanej dostępności").toBe(true);
+
+    const komunikat = document.querySelector("[data-product-booking-in-cart]")!.textContent ?? "";
+    expect(komunikat, "komunikat nie mówi, ile klient już ma").toContain("2");
+    expect(komunikat).toBe(
+      copy.product.cartAlready.replace("{inCart}", "2").replace("{available}", "2"),
+    );
+
+    // KONTROLA POZYTYWNA: przy JEDNEJ sztuce w koszyku i dwóch wolnych ten sam
+    // przycisk jest czynny — czyli gasi go wyczerpanie, a nie sam fakt koszyka.
+    cleanup();
+    writeCart({
+      ...EMPTY_CART,
+      items: [{ productId: ROWER, quantity: 1 }],
+      startDate: dayFromToday(3),
+      endDate: dayFromToday(6),
+    });
+    render(widget());
+    await waitFor(() => expect(addButton().disabled).toBe(false));
+  });
+
+  it("kliknięcie dodaje NAJWYŻEJ tyle, ile zostało — także gdy pole ominięto", async () => {
+    checkCatalogAvailability.mockResolvedValue(catalog(3));
+    writeCart({
+      ...EMPTY_CART,
+      items: [{ productId: ROWER, quantity: 1 }],
+      startDate: dayFromToday(3),
+      endDate: dayFromToday(6),
+    });
+    render(widget());
+
+    await waitFor(() => expect(addButton().disabled).toBe(false));
+
+    // Pole samo clampuje do 2 — ale liczba, która trafia do koszyka, musi
+    // przejść przez sufit JESZCZE RAZ, w chwili kliknięcia.
+    setQuantity("9");
+    fireEvent.click(addButton());
+
+    await waitFor(() =>
+      expect(
+        readCart().items.find((line) => line.productId === ROWER)?.quantity,
+        "koszyk przekroczył dostępność",
+      ).toBe(3),
+    );
+  });
+});
+
+/* -------------------------------------------------------------------------
+ * LISTA KORZYŚCI POD CTA (benchmark pkt 5)
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Lista jest wyłącznie ODCZYTEM z danych pozycji katalogu — kaucja i próg
+ * cenowy. Mutacja, która ma tu spłonąć: wstawienie stałej obietnicy („darmowa
+ * dostawa"), czyli listy, która NIE znika, gdy najemca nie ma danych.
+ */
+describe("lista korzyści karty rezerwacji", () => {
+  it("kaucja i próg cenowy z danych pozycji stają pod przyciskiem", () => {
+    render(
+      <StoreTermProvider>
+        <ProductBooking
+          productId={ROWER}
+          priceParams={{ ...CENA, tiers: [{ tierDays: 3, multiplier: 0.9 }] }}
+          copy={copy}
+          locale="pl"
+          currency="PLN"
+        />
+      </StoreTermProvider>,
+    );
+
+    expect(document.querySelector("[data-product-benefits]")).not.toBeNull();
+    expect(document.querySelector('[data-product-benefit="deposit"]')!.textContent).toContain(
+      "400,00",
+    );
+    const tier = document.querySelector('[data-product-benefit="tier"]')!.textContent ?? "";
+    expect(tier).toContain("3");
+    expect(tier, "próg bez wielkości upustu nie jest korzyścią").toContain("10");
+  });
+
+  it("sprzęt BEZ kaucji i BEZ progów nie dostaje listy w ogóle", () => {
+    render(
+      <StoreTermProvider>
+        <ProductBooking
+          productId={ROWER}
+          priceParams={{ ...CENA, depositGrosze: 0, tiers: [] }}
+          copy={copy}
+          locale="pl"
+          currency="PLN"
+        />
+      </StoreTermProvider>,
+    );
+
+    expect(
+      document.querySelector("[data-product-benefits]"),
+      "lista stoi mimo braku danych — czyli niesie obietnicę spoza danych najemcy",
+    ).toBeNull();
   });
 });
