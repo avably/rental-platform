@@ -393,6 +393,58 @@ describe("kształt nie zasłania treści, którą tylko musnął", () => {
     expect(layout.detached.has("ksztalt")).toBe(true);
   });
 
+  it("podkład NIE przykrywa zdjęcia, które leży w tej samej karcie", () => {
+    /*
+     * Osobna noga, bo ogólny niezmiennik niżej pyta o TREŚĆ CZYTELNĄ, a ta jest
+     * nad dekoracją z definicji pasma. Zatopienie podkładu rozstrzyga kolizję
+     * WEWNĄTRZ dekoracji: kafel z wysokim `z` obejmuje na telefonie CAŁĄ grupę,
+     * więc bez zatopienia zasłania zdjęcie, które podkłada — a zdjęcie w karcie
+     * opinii jest tam całą treścią wizualną.
+     */
+    const karta: SectionCanvas = {
+      version: 2,
+      rows: 60,
+      background: "default",
+      elements: [
+        {
+          id: "kafel",
+          kind: "shape",
+          shape: "box",
+          fill: "paper",
+          layout: { desktop: { x: 8, y: 8, w: 128, h: 44, z: 9 } },
+        },
+        {
+          id: "portret",
+          kind: "image",
+          alt: "Klient przy odbiorze sprzętu",
+          fit: "cover",
+          source: { kind: "storage", path: "tenant/opinia.jpg" },
+          layout: { desktop: { x: 12, y: 12, w: 40, h: 30, z: 1 } },
+        },
+        {
+          id: "opinia",
+          kind: "text",
+          variant: "body",
+          align: "left",
+          text: "Sprzęt przyjechał na budowę o siódmej rano, dokładnie jak umówiliśmy.",
+          layout: { desktop: { x: 56, y: 12, w: 72, h: 12, z: 2 } },
+        },
+      ],
+    } as SectionCanvas;
+
+    const layout = mobileLayoutOf(karta);
+    expect(layout.backdrops.has("kafel"), "kafel nie został uznany za podkład").toBe(true);
+    const warstwy = renderLayerZ(karta.elements, layout.backdrops);
+    expect(
+      warstwy["portret"]!,
+      "podkład karty maluje się nad zdjęciem, które podkłada",
+    ).toBeGreaterThan(warstwy["kafel"]!);
+
+    // Kontrola negatywna: BEZ zatopienia ten sam kafel jest na wierzchu.
+    const bez = renderLayerZ(karta.elements);
+    expect(bez["portret"]!).toBeLessThan(bez["kafel"]!);
+  });
+
   it.each(CASES)("%s: nic z dekoracji nie stoi NAD treścią na telefonie", (_name, canvas) => {
     /*
      * Niezmiennik całego modelu: po nałożeniu warstw renderu (z zatopieniem
