@@ -33,7 +33,12 @@
  * → notFound(). Odczyt `headers()` czyni render dynamicznym per żądanie
  * (konieczne pod CSP z nonce).
  */
-import { CATALOG_PAGE_PARAM, catalogPagePath, parseCatalogPageParam } from "@avably/core";
+import {
+  CATALOG_PAGE_PARAM,
+  CATALOG_PATH_SEGMENT,
+  catalogPagePath,
+  parseCatalogPageParam,
+} from "@avably/core";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import { siteStyles } from "@avably/ui";
 import type { Metadata } from "next";
@@ -191,10 +196,22 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
         z guardem pustych — patrz `loadCategoryNav`.
       */
       categoryNav={ctx.categoryNav}
+      /* Trasa KATALOGOWA (F7): pełne pole szukania, listwa + chipsy mobilne. */
+      headerMode="catalog"
+      /* Bieżąca strona (S-52/F7): „Cały katalog" w listwie dostaje aria-current. */
+      currentPath={`/${CATALOG_PATH_SEGMENT}`}
       siteImageBase={seam.siteImageBase}
       revealNonce={revealNonce}
     >
-      <main className={styles.section}>
+      {/*
+        RYTM LISTINGU ≠ RYTM SEKCJI (F9b/F7, uwaga właściciela 2026-08-25:
+        „przestrzeń między menu a produktami — tragiczna"). `styles.section`
+        (py-16/20) jest skalą SEKCJI MARKETINGOWYCH strony najemcy; listing to
+        narzędzie — pod przyklejoną belką z listwą kategorii (F7) tytuł ma
+        stać tuż pod chrome, nie za ekranem pustki. Lustro strony kategorii
+        (tam pomiar i wzorzec — patrz `category-page.tsx`).
+      */}
+      <main className="pt-5 pb-16 @min-[40rem]/site:pt-6 @min-[40rem]/site:pb-20">
         <div className={styles.container}>
           {/*
             NAGŁÓWEK KOMPAKTOWY (F9) — licznik pozycji w JEDNYM wierszu z h1
@@ -231,7 +248,8 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
             sortowania, bo `get_public_catalog_page` nie przyjmuje porządku —
             select bez skutku byłby kontrolką-atrapą (stan odnotowany w F9).
           */}
-          <div data-listing-toolbar className="mt-6 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center">
+          {/* `mt-4` — zwarty rytm listingu (F9b), lustro strony kategorii. */}
+          <div data-listing-toolbar className="mt-4 flex flex-col gap-3 @min-[40rem]/site:flex-row @min-[40rem]/site:items-center">
             <CatalogSearch copy={copy} query={ctx.query} />
           </div>
 
@@ -246,7 +264,8 @@ export default async function TenantCatalogPage({ searchParams }: Params) {
             </p>
           ) : (
             <>
-              <div className="mt-8">
+              {/* `mt-6` — zwarty rytm listingu (F9b), lustro strony kategorii. */}
+              <div className="mt-6">
                 <CatalogList
                   products={seam.products}
                   content={catalogTileContent(site?.sections)}

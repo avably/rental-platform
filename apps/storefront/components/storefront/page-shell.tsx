@@ -18,7 +18,11 @@ import type { PublishedSite, ResolvedSiteStyle } from "@avably/core/site";
 import { cn, SITE_CONTAINER } from "@avably/ui";
 import type { ReactNode } from "react";
 
-import { StoreChrome, type StoreTermInput } from "@/components/storefront/store-chrome";
+import {
+  StoreChrome,
+  type StoreHeaderMode,
+  type StoreTermInput,
+} from "@/components/storefront/store-chrome";
 import { HOME_PAGE_SLUG, pagePathFromSlug } from "@avably/core/site";
 import type { CategoryNavItem } from "@/lib/catalog/category-nav";
 import type { StoreLogo } from "@/lib/site/store-logo";
@@ -33,6 +37,7 @@ export function PageShell({
   siteImageBase,
   term,
   categoryNav,
+  headerMode,
   currentPath,
   children,
   className,
@@ -75,6 +80,13 @@ export function PageShell({
    */
   categoryNav?: readonly CategoryNavItem[];
   /**
+   * TRYB NAGŁÓWKA (F7) — patrz `StoreHeaderMode` w `StoreChrome`. Koszyk
+   * i kasa podają `"checkout"` (bez listwy kategorii, search jako ikona —
+   * redukcja dystrakcji); podstrony treściowe nie podają nic i dostają
+   * bezpieczny tryb `"content"`.
+   */
+  headerMode?: StoreHeaderMode;
+  /**
    * Publiczna ścieżka bieżącej strony (S-52) — do oznaczenia self-linków
    * stopki (`aria-current="page"`); patrz `StoreChrome`.
    */
@@ -92,6 +104,7 @@ export function PageShell({
       siteImageBase={siteImageBase}
       term={term}
       categoryNav={categoryNav}
+      {...(headerMode ? { headerMode } : {})}
       currentPath={currentPath}
       /*
         KOTWICE STOPKI PROWADZĄ NA STRONĘ GŁÓWNĄ (faza 0; poprawione w ADR-186).
@@ -107,7 +120,16 @@ export function PageShell({
       footerAnchorBase={pagePathFromSlug(HOME_PAGE_SLUG)}
     >
       {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
-      <main className={cn(SITE_CONTAINER, "py-10", className)}>{children}</main>
+      {/*
+        `pt-5/6`, nie `py-10` (F7, uwaga właściciela o „tragicznej" pustce pod
+        chrome): pod PRZYKLEJONĄ belką treść narzędziowa (koszyk, kasa, PDP,
+        dokumenty) zaczyna się 20–24 px pod nagłówkiem — jak listing (F9b).
+        Dół zostaje przy 40 px: oddech przed stopką to inna decyzja niż luka
+        pod belką i nikt się na nią nie skarżył.
+      */}
+      <main className={cn(SITE_CONTAINER, "pt-5 pb-10 @min-[40rem]/site:pt-6", className)}>
+        {children}
+      </main>
     </StoreChrome>
   );
 }

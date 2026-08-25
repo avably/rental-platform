@@ -402,8 +402,8 @@ export function calendarLabels(copy: StorefrontCopy): SiteCalendarLabels {
  * nie może stać w dwóch miejscach dokumentu naraz, więc wystąpienia są dwa —
  * ale treść, stan `aria-expanded` i cel kliknięcia mają po JEDNYM źródle
  * (koszyk i `StoreTermModalContext`), przez co nie mają jak się rozjechać.
- * Widoczne jest zawsze dokładnie jedno wystąpienie — rozjazd robi media query
- * (`md:`), nigdy skrypt.
+ * Widoczne jest zawsze dokładnie jedno wystąpienie — rozjazd robi zapytanie
+ * kontenerowe (`@min-[48rem]/site:`, od F7), nigdy skrypt.
  */
 export function StoreTermPill({
   copy,
@@ -469,11 +469,13 @@ export function StoreTermPill({
  * (K6, ADR-092): pasek poza korzeniem brałby paletę panelu.
  *
  * Do aneksu ADR-194 wiersz pod belką był JEDYNYM miejscem pigułki; właściciel
- * przeniósł ją na desktopie DO belki (logo · pigułka · Koszyk — slot `center`
- * nagłówka podaje ją `StoreChrome`), a wiersz pod belką został formą mobilną,
- * bo tam belka jest za wąska na trzy elementy. Stąd `md:hidden` na wierszu —
- * ten sam breakpoint, od którego slot belki jest widoczny; rozjazd innej pary
- * klas zostawiałby pas szerokości z dwiema pigułkami albo z żadną.
+ * przeniósł ją na desktopie DO belki (slot `center` nagłówka podaje ją
+ * `StoreChrome`), a wiersz pod belką został formą wąską, bo tam belka jest za
+ * ciasna na cztery elementy. Stąd `@min-[48rem]/site:hidden` na wierszu (F7
+ * przeniosło próg z viewportowego `md:` na KONTENEROWY — ADR-085: podgląd
+ * mierzy własną szerokość, nie okna) — ten sam próg, od którego slot belki
+ * jest widoczny; rozjazd innej pary klas zostawiałby pas szerokości z dwiema
+ * pigułkami albo z żadną.
  *
  * Goły znacznik `data-store-term` zostaje na OWIJCE, a nie na wierszu: wisi
  * na nim puls produkcyjny, a owijka — w odróżnieniu od wiersza — jest w SSR
@@ -499,7 +501,7 @@ export function StoreTermBar({
 
   return (
     <div data-store-term>
-      <div className="site-rule-top md:hidden">
+      <div className="site-rule-top @min-[48rem]/site:hidden">
         {/* Wspólna siatka strony najemcy (S-58) — patrz `SITE_CONTAINER`. */}
         <div className={cn(SITE_CONTAINER, "flex flex-wrap items-center justify-center gap-3 py-2.5")}>
           <StoreTermPill copy={copy} locale={locale} />

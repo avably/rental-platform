@@ -103,17 +103,73 @@ describe("S-58 — wspólna siatka chrome mówi liczbami rdzenia", () => {
     expect(SITE_CONTAINER).toContain("max-w-[60rem]");
   });
 
-  it("wiersz nagłówka mierzy wspólną siatką i jest kotwicą panelu menu (S-01)", () => {
+  it("wiersz nagłówka mierzy wspólną siatką i jest kotwicą paneli belki (S-01)", () => {
     const { container } = naglowek();
     const wiersz = container.querySelector("[data-store-header] > div");
     expect(wiersz).not.toBeNull();
     for (const klasa of SITE_CONTAINER.split(" ")) {
       expect(wiersz!.className, `wiersz belki stracił ${klasa} wspólnej siatki`).toContain(klasa);
     }
-    // `relative` jest kotwicą pełnej szerokości dla panelu menu kategorii
-    // poniżej 40 rem — patrz `StoreCategoryMenu` w storefront (S-01).
-    expect(wiersz!.className, "wiersz belki przestał być kotwicą panelu menu").toContain(
+    // `relative` jest kotwicą pełnej szerokości dla panelu wyszukiwania
+    // (F7, technika S-01) — patrz `StoreHeaderSearch` w storefront.
+    expect(wiersz!.className, "wiersz belki przestał być kotwicą paneli").toContain(
       "relative",
     );
+  });
+});
+
+/* ================================ F7 ================================ */
+
+describe("F7 — nagłówek pro: sticky, sloty wyszukiwania i listwy", () => {
+  it("`sticky` dokłada przyklejenie (top-0 z-40) i atrybut reguły linii z site.css", () => {
+    const { container } = naglowek({ sticky: true });
+    const header = container.querySelector("[data-store-header]")!;
+    for (const klasa of ["sticky", "top-0", "z-40"]) {
+      expect(header.className, `belka straciła ${klasa}`).toContain(klasa);
+    }
+    expect(
+      header.hasAttribute("data-store-header-sticky"),
+      "bez atrybutu linia po przewinięciu nie ma na czym wisieć",
+    ).toBe(true);
+  });
+
+  it("DOMYŚLNIE nagłówek NIE przykleja — kontrakt podglądu szkicu (własny pasek z-50)", () => {
+    const { container } = naglowek();
+    const header = container.querySelector("[data-store-header]")!;
+    expect(header.className.split(/\s+/), "podgląd dostał sticky pod cudzym paskiem").not.toContain(
+      "sticky",
+    );
+    expect(header.hasAttribute("data-store-header-sticky")).toBe(false);
+  });
+
+  it("slot `search` staje w belce, slot `subnav` jako drugi rząd WEWNĄTRZ <header>", () => {
+    const { container } = naglowek({
+      search: <div data-test-search />,
+      subnav: <nav data-test-subnav />,
+    });
+    const header = container.querySelector("[data-store-header]")!;
+    expect(header.querySelector("[data-test-search]"), "slot wyszukiwania wypadł z belki").not.toBeNull();
+    // Drugi rząd MUSI być w <header>: przykleja się razem z belką, a linia
+    // po przewinięciu rysuje się POD nim, nie między rzędami.
+    expect(header.querySelector("[data-test-subnav]"), "listwa wypadła poza <header>").not.toBeNull();
+  });
+
+  it("bez slotów belka wygląda jak dotąd (podgląd szkicu nie podaje nic)", () => {
+    const { container } = naglowek({ interactive: false });
+    const header = container.querySelector("[data-store-header]")!;
+    expect(header.querySelectorAll("a")).toHaveLength(0);
+    expect(header.querySelectorAll("[data-shell-inert]")).toHaveLength(2);
+  });
+
+  it("`cartAriaLabel` nadaje odnośnikowi koszyka pełną nazwę dostępną", () => {
+    const { container } = naglowek({ cartAriaLabel: "Koszyk, 2 pozycje" });
+    expect(container.querySelector('a[href="/cart"]')!.getAttribute("aria-label")).toBe(
+      "Koszyk, 2 pozycje",
+    );
+  });
+
+  it("bez `cartAriaLabel` odnośnik mówi widocznym napisem (podgląd, koszyk pusty)", () => {
+    const { container } = naglowek();
+    expect(container.querySelector('a[href="/cart"]')!.hasAttribute("aria-label")).toBe(false);
   });
 });

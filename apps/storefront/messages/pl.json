@@ -346,8 +346,12 @@
     "nav": {
       "catalog": "Katalog",
       "cart": "Koszyk",
-      "cartCount": "{count} szt.",
-      "categories": "Kategorie"
+      "cartCountOne": "Koszyk, {total} pozycja",
+      "cartCountFew": "Koszyk, {total} pozycje",
+      "cartCountMany": "Koszyk, {total} pozycji",
+      "categories": "Kategorie",
+      "allCatalog": "Cały katalog",
+      "more": "Więcej"
     },
     "notFound": {
       "title": "Nie znaleźliśmy takiej strony",
