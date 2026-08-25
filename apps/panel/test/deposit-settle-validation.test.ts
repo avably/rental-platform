@@ -59,8 +59,10 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
   });
 
   it("zwrot z potrąceniem niesie kwotę, kod i doprecyzowanie", () => {
+    // Suma zwrotu i potrącenia mieści się w saldzie (349,50 + 150,50 = 500,00
+    // przy saldzie 500,00) — inaczej odbija ją clamp salda (ADR-269) niżej.
     const parsed = settle({
-      refundAmount: "350",
+      refundAmount: "349,50",
       deductAmount: "150,50",
       deductReasonCode: "damage",
       deductReason: "rysa na obudowie",
@@ -70,7 +72,7 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
     expect(parsed.success && parsed.data).toEqual({
       orderId: ORDER_ID,
       balanceGrosze: 50_000,
-      refundGrosze: 35_000,
+      refundGrosze: 34_950,
       deduction: { amountGrosze: 15_050, reasonCode: "damage", reason: "rysa na obudowie" },
       refundNote: "sprzęt kompletny",
     });
@@ -137,7 +139,13 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
     expect(settle({ balanceGrosze: "50 000", refundAmount: "100" }).success).toBe(false);
     expect(settle({ balanceGrosze: "500,00", refundAmount: "100" }).success).toBe(false);
     expect(settle({ balanceGrosze: "-1", refundAmount: "100" }).success).toBe(false);
-    expect(settle({ balanceGrosze: "0", refundAmount: "100" }).success).toBe(true);
+    // Zero jest legalną DEKLARACJĄ salda (kaucja już rozliczona) — odrzucany jest
+    // BRAK, nie wartość zerowa. Przy saldzie 0 zwrot ponad zero odbija clamp
+    // salda (ADR-269), więc „0 jest legalne” dowodzimy rozliczeniem, które w to
+    // saldo się mieści: samo potrącenie (nadmiar zostaje domeną bramki 0011).
+    expect(
+      settle({ balanceGrosze: "0", deductAmount: "100", deductReasonCode: "damage" }).success,
+    ).toBe(true);
   });
 
   it("odmowa salda jest wiązana z POLEM salda, nie ze zbiorczą linią", () => {
@@ -152,6 +160,66 @@ describe("depositSettleSchema — jedna decyzja, dwa wiersze rejestru", () => {
     expect(settle({ refundAmount: "sto" }).success).toBe(false);
     // Trzecie miejsce po przecinku to ODRZUCENIE, nie zaokrąglenie.
     expect(settle({ refundAmount: "10,505" }).success).toBe(false);
+  });
+
+  // -------------------------------------------------------------------
+  // Clamp salda — pierwsza linia (HIGH, Finding 1, ADR-269)
+  // -------------------------------------------------------------------
+  //
+  // Pole zwrotu jest EDYTOWALNE. Bez tego refinementu operator nadpisujący je
+  // ponad saldo wysyłał do dostawcy zwrot większy niż kaucja (część najmu!),
+  // a bramka salda 0011 odrzucała go dopiero PRZY KSIĘGOWANIU — po wyjściu
+  // pieniędzy. Ten refinement to najwcześniejsza z trzech warstw clampu (dalej:
+  // serwerowy odczyt żywego salda w requestDepositRefund i bramka 0111 na bazie).
+
+  describe("clamp salda: zwrot + potrącenie nie może przekroczyć salda z ekranu", () => {
+    it("sam zwrot ponad saldo jest odrzucany przy POLU kwoty zwrotu", () => {
+      // Saldo 500,00, zwrot 500,01 — jeden grosz ponad. Dowód nie ma się
+      // opierać na wielkości nadmiaru.
+      const parsed = settle({ refundAmount: "500,01" });
+      expect(parsed.success).toBe(false);
+      expect(parsed.success === false && parsed.error.issues[0]!.path).toEqual(["refundAmount"]);
+    });
+
+    it("zwrot RÓWNY saldu przechodzi — granica jest legalna", () => {
+      const parsed = settle({ refundAmount: "500,00" });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.refundGrosze).toBe(50_000);
+    });
+
+    it("zwrot plus potrącenie ponad saldo jest odrzucany, choć każde z osobna się mieści", () => {
+      // DOWÓD MUTACYJNY CLAMPU: 400,00 zwrotu + 150,00 potrącenia = 550,00 przy
+      // saldzie 500,00. Zwrot SAM (400) mieści się, potrącenie SAMO (150) też —
+      // odbija je dopiero suma. Usunięcie refinementu → parsed.success === true.
+      const parsed = settle({
+        refundAmount: "400,00",
+        deductAmount: "150,00",
+        deductReasonCode: "damage",
+      });
+      expect(parsed.success).toBe(false);
+      expect(parsed.success === false && parsed.error.issues[0]!.path).toEqual(["refundAmount"]);
+    });
+
+    it("zwrot plus potrącenie DOKŁADNIE równe saldu przechodzi", () => {
+      const parsed = settle({
+        refundAmount: "350,00",
+        deductAmount: "150,00",
+        deductReasonCode: "damage",
+      });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.refundGrosze).toBe(35_000);
+      expect(parsed.success && parsed.data.deduction?.amountGrosze).toBe(15_000);
+    });
+
+    it("samo NADMIAROWE potrącenie (bez zwrotu) nie jest tu blokowane — to domena bramki 0011", () => {
+      // refundAfterDeduction ścina podgląd do zera, a autorytatywną odmowę
+      // nadmiarowego potrącenia niesie bramka 0011 przy zapisie. Ten refinement
+      // dotyczy BEZPIECZEŃSTWA ZWROTU, więc przy zwrocie zerowym milczy.
+      const parsed = settle({ deductAmount: "900", deductReasonCode: "damage" });
+      expect(parsed.success).toBe(true);
+      expect(parsed.success && parsed.data.refundGrosze).toBe(0);
+      expect(parsed.success && parsed.data.deduction?.amountGrosze).toBe(90_000);
+    });
   });
 });
 

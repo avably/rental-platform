@@ -51,6 +51,8 @@
 import { StripeApiError, refundVerdict, type RefundRead } from "@avably/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { depositTotals, type DepositEventRow } from "@/app/[locale]/(panel)/zamowienia/[id]/deposit";
+
 import { bookDepositEvent, settleDepositIfComplete } from "./deposit-booking";
 
 /** Statusy `deposit_refunds` oznaczające żądanie NIEDOMKNIĘTE (0031). */
@@ -68,6 +70,14 @@ const PG_UNIQUE_VIOLATION = "23505";
  * POTRĄCENIA, czyli PRZED `createRefund` — żaden przelew tędy nie wychodzi.
  */
 const PG_STALE_BALANCE = "23P01";
+
+/**
+ * 23514 — bramka salda 0111 (ADR-269) na INSERT `deposit_refunds`: żądany zwrot
+ * przekracza saldo kaucji. Odmowa pada na wierszu ŻĄDANIA, czyli PRZED
+ * `createRefund` — żaden przelew tędy nie wychodzi. Łapie wyścig, w którym saldo
+ * spadło między odczytem clampu a wstawieniem wiersza żądania.
+ */
+const PG_DEPOSIT_BALANCE_GATE = "23514";
 
 export interface DepositRefundDeps {
   db: SupabaseClient;
@@ -149,6 +159,19 @@ export type DepositRefundOutcome =
   /** Żądanie przyjęte, pieniędzy u klienta JESZCZE NIE MA. Rejestr pusty. */
   | { status: "pending"; reason: string; deductionGrosze: number }
   /**
+   * NIEOKREŚLONA awaria zlecenia zwrotu (Finding 2, ADR-269): transport padł
+   * (`StripeApiError` bez `statusCode`) albo dostawca przyjął żądanie, ale nie
+   * oddał identyfikatora. Refund MÓGŁ się wykonać u dostawcy, a my nie wiemy.
+   *
+   * To NIE jest `failed`: `failed` jest ponawialny (nie blokuje kolejnego
+   * żądania), a ponowienie utworzyłoby świeży wiersz z NOWYM kluczem
+   * idempotencji i oddało kaucję drugi raz. Wiersz żądania zostaje `requested`
+   * („wysłane, nie znamy odpowiedzi” — 0031), czyli „w locie” (0032): kolejny
+   * zwrot jest zablokowany do czasu ręcznego uzgodnienia z dostawcą. Wołający
+   * ma pokazać to jako stan wymagający weryfikacji, nie zapraszać do ponowienia.
+   */
+  | { status: "indeterminate"; reason: string; deductionGrosze: number }
+  /**
    * Nie będzie zwrotu — rejestr pusty, powód zapisany i pokazany.
    *
    * `staleBalance` wyróżnia JEDEN powód odmowy: bramka 0034 zastała w rejestrze
@@ -168,11 +191,20 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Zapis wyniku w rejestrze ŻĄDAŃ — nigdy w rejestrze zdarzeń kaucji. */
+/**
+ * Zapis wyniku w rejestrze ŻĄDAŃ — nigdy w rejestrze zdarzeń kaucji.
+ *
+ * `requested` jest tu STANEM KOŃCOWYM dla nieokreślonej awarii (ADR-269,
+ * Finding 2): wiersz rodzi się `requested` (default 0031), a przy transporcie,
+ * który mógł oddać pieniądze mimo braku odpowiedzi, ZOSTAJE `requested` —
+ * z dopisanym `last_error`. Ten status jest „w locie” (0032), więc blokuje
+ * kolejne żądanie do czasu ręcznego uzgodnienia z dostawcą; NIE jest `failed`,
+ * którego ponowienie oddałoby kaucję drugi raz.
+ */
 async function mark(
   db: SupabaseClient,
   requestId: string,
-  status: "pending" | "succeeded" | "failed",
+  status: "requested" | "pending" | "succeeded" | "failed",
   lastError: string | null,
   providerReference?: string,
 ): Promise<void> {
@@ -404,6 +436,49 @@ export async function requestDepositRefund(
     };
   }
 
+  // --- 3b. CLAMP SALDEM PRZED ŻĄDANIEM U DOSTAWCY (HIGH, Finding 1, ADR-269) ---
+  //
+  // Autorytatywne saldo kaucji liczone z ŻYWEGO rejestru (pobrania minus zwroty
+  // i potrącenia tego zamówienia), nie z pola formularza. Zwrot większy niż
+  // saldo — sam albo w sumie z potrąceniem z TEGO SAMEGO modalu (jeszcze
+  // niezaksięgowanym) — jest ODRZUCANY ZANIM cokolwiek wyjdzie do dostawcy.
+  //
+  // DLACZEGO TU, A NIE TYLKO W UI/schemacie. Pole zwrotu jest EDYTOWALNE (zwrot
+  // w ratach jest legalny), a limit intentu u dostawcy obejmuje najem + kaucję,
+  // więc nadmiarowy zwrot mieści się w nim i dostawca go WYKONUJE — a 23514
+  // z bramki 0011 pada dopiero PRZY KSIĘGOWANIU, po wyjściu pieniędzy. Ten clamp
+  // przesuwa odmowę PRZED przelew. Serializację wyścigu (saldo spadło między tym
+  // odczytem a wstawieniem wiersza) domyka bramka 0111 na INSERT `deposit_refunds`
+  // pod tym samym advisory lockiem — clamp bez locka daje czytelną, wczesną
+  // odmowę, bramka bazy jest ostatnią linią.
+  const ledger = await deps.db
+    .from("deposit_events")
+    .select("kind, amount_grosze")
+    .eq("tenant_id", input.tenantId)
+    .eq("order_id", input.orderId);
+  if (ledger.error) {
+    return {
+      status: "failed",
+      deductionGrosze: 0,
+      reason: `Nie udało się odczytać salda kaucji: ${ledger.error.message}`,
+    };
+  }
+  const { balanceGrosze } = depositTotals(
+    (ledger.data ?? []) as Pick<DepositEventRow, "kind" | "amount_grosze">[],
+  );
+  const plannedDeductionGrosze =
+    input.deduction && input.deduction.amountGrosze > 0 ? input.deduction.amountGrosze : 0;
+  if (input.amountGrosze + plannedDeductionGrosze > balanceGrosze) {
+    // ZERO żądania do dostawcy, zero wierszy w rejestrze. Kwota była za duża
+    // wobec salda, którym realnie dysponujemy — operator ma poprawić kwoty
+    // albo odświeżyć ekran, a nie dowiedzieć się o tym po wyjściu przelewu.
+    return {
+      status: "failed",
+      deductionGrosze: 0,
+      reason: "Zwrot przekracza dostępne saldo kaucji - odśwież stronę i sprawdź kwoty.",
+    };
+  }
+
   // --- 4. Wiersz żądania PRZED żądaniem: jego id jest kluczem idempotencji ---
   const created = await deps.db
     .from("deposit_refunds")
@@ -429,6 +504,17 @@ export async function requestDepositRefund(
         deductionGrosze: 0,
         reason:
           "Zwrot kaucji dla tego zamówienia jest już w toku u dostawcy - poczekaj na potwierdzenie zamiast zlecać drugi.",
+      };
+    }
+    if (created.error.code === PG_DEPOSIT_BALANCE_GATE) {
+      // Bramka salda 0111 (ADR-269): saldo spadło między odczytem clampu wyżej
+      // a wstawieniem tego wiersza (wyścig z potrąceniem/zwrotem drugiej sesji).
+      // Odmowa pada na INSERT żądania, czyli PRZED `createRefund` — żaden przelew
+      // tędy nie wyszedł. Operator odświeża ekran i decyduje wobec nowego salda.
+      return {
+        status: "failed",
+        deductionGrosze: 0,
+        reason: "Zwrot przekracza dostępne saldo kaucji - odśwież stronę i sprawdź kwoty.",
       };
     }
     return {
@@ -503,11 +589,32 @@ export async function requestDepositRefund(
       refundRequestId: requestId,
     });
   } catch (error) {
-    // ODMOWA DOSTAWCY = ZERO WIERSZA W REJESTRZE KAUCJI I POWÓD NA EKRANIE.
-    // To pierwsza z dwóch warstw broniących przed zwrotem większym niż
-    // pobranie; druga (bramka 0011) stoi niżej i działa nawet wtedy, gdy
-    // dostawca żądanie przyjmie.
     const reason = errorMessage(error);
+
+    // NIEOKREŚLONA AWARIA (Finding 2, ADR-269). `StripeApiError` bez `statusCode`
+    // ma DWA źródła w porcie (@avably/core, stripe/api.ts), oba znaczące to samo:
+    //   - awaria transportu (DNS/timeout) — żądanie mogło dojść i zostać
+    //     wykonane, a odpowiedzi nie zobaczyliśmy,
+    //   - dostawca zwrócił 2xx, ale bez identyfikatora zwrotu — refund POWSTAŁ
+    //     (2xx), tylko nie mamy jak go odczytać.
+    // W obu wypadkach PRZELEW MÓGŁ WYJŚĆ. Oznaczenie `failed` byłoby tu kłamstwem
+    // z najgorszym skutkiem: `failed` nie jest „w locie” (0032), więc operator
+    // zleciłby zwrot PONOWNIE — świeży wiersz, NOWY klucz idempotencji, kaucja
+    // oddana DRUGI raz. Zostawiamy wiersz `requested` = „wysłane, nie znamy
+    // odpowiedzi; wymaga uzgodnienia z dostawcą” (0031). Ten status JEST w locie,
+    // więc blokuje kolejne żądanie do czasu rekoncyliacji u dostawcy (ręcznej albo
+    // po odnalezieniu refundu po kluczu idempotencji = id tego wiersza).
+    if (error instanceof StripeApiError && error.statusCode === undefined) {
+      const indeterminateReason = `Zlecenie zwrotu nie zostało jednoznacznie potwierdzone - przelew mógł wyjść u dostawcy. Sprawdź stan u dostawcy przed ponowieniem, nie zlecaj drugiego zwrotu. Szczegóły: ${reason}`;
+      await mark(deps.db, requestId, "requested", indeterminateReason);
+      return { status: "indeterminate", reason: indeterminateReason, deductionGrosze };
+    }
+
+    // ODMOWA DETERMINISTYCZNA (4xx/5xx z kodem, błąd konfiguracji) = ZERO WIERSZA
+    // W REJESTRZE KAUCJI I POWÓD NA EKRANIE. Żaden przelew nie wyszedł, więc
+    // `failed` (ponawialny) jest bezpieczny. To pierwsza z warstw broniących przed
+    // zwrotem większym niż pobranie; clamp wyżej i bramka 0111 stoją PRZED nią,
+    // a bramka 0011 — niżej, przy księgowaniu.
     await mark(deps.db, requestId, "failed", reason);
     return { status: "failed", reason, deductionGrosze };
   }

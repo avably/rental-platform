@@ -378,6 +378,12 @@ export async function settleDepositAction(
   // `notice`, nie `formError`: zwrot w toku nie jest porażką i nie wolno
   // zapraszać operatora do ponowienia (patrz FormState.notice).
   if (outcome.status === "pending") return { notice: `${kept}${outcome.reason}` };
+  // NIEOKREŚLONA awaria (ADR-269, Finding 2): przelew MÓGŁ wyjść. `notice`, nie
+  // `formError` — bo `formError` zaprasza do poprawienia i ponowienia, a tu
+  // ponowienie oddałoby kaucję drugi raz. Wiersz żądania został `requested`
+  // („w locie”), więc kolejny zwrot i tak odbije się od unikatu 0032 do czasu
+  // ręcznego uzgodnienia z dostawcą.
+  if (outcome.status === "indeterminate") return { notice: `${kept}${outcome.reason}` };
   // Odmowa bramki 0034 wraca przy POLU salda — tak samo jak na torze rejestru.
   // Żaden przelew tą ścieżką nie wyszedł: potrącenie stoi PRZED `createRefund`,
   // a `kept` jest wtedy z definicji puste.

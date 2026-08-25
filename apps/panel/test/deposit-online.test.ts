@@ -690,22 +690,224 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
   }, 30_000);
 
   // -------------------------------------------------------------------
-  // 5. Zwrot większy niż pobranie — DWIE warstwy, każda samodzielnie
+  // 5. Zwrot większy niż saldo — ODRZUCONY PRZED TRANSFEREM (Finding 1, ADR-269)
   // -------------------------------------------------------------------
+  //
+  // Money-critical: zanim ten fix powstał, nadmiarowy zwrot WYCHODZIŁ do dostawcy
+  // (limit intentu obejmuje najem + kaucję), a bramka salda 0011 odrzucała go
+  // dopiero PRZY KSIĘGOWANIU — po wyjściu pieniędzy. Teraz clamp w
+  // requestDepositRefund (i bramka 0111 na INSERT żądania) odrzucają go ZANIM
+  // `createRefund` cokolwiek wyśle. Dowodem jest LICZBA wyjść do dostawcy.
+  //
+  // Bramka 0011 zostaje ostatnią linią przy KSIĘGOWANIU (zwrot z panelu dostawcy
+  // poza naszym obiegiem, webhook) — dowiedziona bezpośrednio w deposit-gates.test.ts
+  // (0011) i deposit-refund-balance-gate.test.ts (0111).
 
-  it("nadmiarowy zwrot odrzuca dostawca (warstwa pierwsza)", async () => {
+  it("nadmiarowy zwrot (bez potrącenia) odrzucony PRZED transferem — dostawca NIE wołany", async () => {
     const fixture = await paidOrderWithDeposit();
 
+    let providerCalls = 0;
     const outcome = await requestDepositRefund(
       {
         db: member.client,
         createRefund: async () => {
-          throw new StripeApiError(
-            "Refund amount ... is greater than unrefunded amount on charge.",
-            400,
-            "amount_too_large",
-            "invalid_request_error",
-          );
+          providerCalls += 1;
+          return "re_nigdy_nadmiar";
+        },
+        readRefund: async (): Promise<never> => {
+          throw new Error("Odczyt nie powinien się wydarzyć — żądanie nie przeszło");
+        },
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        // Dwukrotność salda — nadpisane edytowalne pole zwrotu.
+        amountGrosze: DEPOSIT_GROSZE * 2,
+        actorId: member.userId,
+      },
+    );
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.reason).toContain("przekracza dostępne saldo kaucji");
+    }
+    // Kaucja NIE wyszła: żadnego wyjścia do dostawcy, żadnego wiersza żądania,
+    // rejestr zdarzeń nietknięty poza pobraniem.
+    expect(providerCalls, "nadmiarowy zwrot dotarł do dostawcy").toBe(0);
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(0);
+    expect((await depositEventsOf(fixture.orderId)).map((e) => e.kind)).toEqual(["collected"]);
+    expect(await paymentStatusOf(fixture.orderId)).toBe("paid");
+  }, 30_000);
+
+  it("zwrot + potrącenie ponad saldo (zwrot SAM się mieści) odrzucony PRZED transferem — dowód mutacyjny clampu", async () => {
+    // DOWÓD MUTACYJNY CLAMPU. Zwrot 40 000 mieści się w saldzie 50 000 SAM
+    // (więc bramka 0111 na INSERT żądania go NIE odrzuca), ale RAZEM z
+    // potrąceniem 15 000 przekracza saldo (55 000 > 50 000). Odrzuca go
+    // wyłącznie clamp w requestDepositRefund. Usunięcie clampu → `createRefund`
+    // zostaje wywołany (providerCalls === 1), a nadmiar rozbija się o 0011
+    // dopiero PO wyjściu pieniędzy. Deklaracja salda zgodna (0034 nie maskuje).
+    const fixture = await paidOrderWithDeposit();
+
+    let providerCalls = 0;
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          return "re_nigdy_kombo";
+        },
+        readRefund: async (): Promise<never> => {
+          throw new Error("Odczyt nie powinien się wydarzyć — żądanie nie przeszło");
+        },
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: 40_000,
+        actorId: member.userId,
+        deduction: { amountGrosze: 15_000, reasonCode: "damage", reason: null },
+        expectedBalanceGrosze: DEPOSIT_GROSZE,
+      },
+    );
+
+    expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.reason).toContain("przekracza dostępne saldo kaucji");
+    }
+    expect(providerCalls, "zwrot ponad saldo (z potrąceniem) dotarł do dostawcy").toBe(0);
+    // Ani żądania, ani potrącenia — clamp stoi PRZED oboma.
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(0);
+    expect((await depositEventsOf(fixture.orderId)).map((e) => e.kind)).toEqual(["collected"]);
+  }, 30_000);
+
+  it("wyścig: potrącenie sesji B obniża saldo, zwrot sesji A od starego salda odrzucony PRZED transferem", async () => {
+    // Wariant Finding 1 bez błędu operatora. Sesja B księguje potrącenie i saldo
+    // spada, a sesja A — decydując od salda SPRZED potrącenia — zleca zwrot
+    // całości. Bez clampu kwota A mieści się w limicie intentu i dostawca ją
+    // wykonuje; 23514 z 0011 pada dopiero przy księgowaniu, po przelewie.
+    const fixture = await paidOrderWithDeposit();
+
+    // Sesja B: potrącenie 40 000 → saldo 10 000.
+    const { error: deductError } = await member.client.from("deposit_events").insert({
+      tenant_id: member.tenantId,
+      order_id: fixture.orderId,
+      kind: "deducted",
+      amount_grosze: 40_000,
+      reason_code: "damage",
+      created_by: member.userId,
+    });
+    expect(deductError).toBeNull();
+
+    // Sesja A: zwrot całej STAREJ kaucji (50 000), nieświadoma potrącenia B.
+    let providerCalls = 0;
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          return "re_nigdy_wyscig";
+        },
+        readRefund: async (): Promise<never> => {
+          throw new Error("Odczyt nie powinien się wydarzyć — żądanie nie przeszło");
+        },
+      },
+      {
+        tenantId: member.tenantId,
+        orderId: fixture.orderId,
+        amountGrosze: DEPOSIT_GROSZE,
+        actorId: member.userId,
+      },
+    );
+
+    expect(outcome.status).toBe("failed");
+    expect(providerCalls, "zwrot od nieaktualnego salda dotarł do dostawcy").toBe(0);
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(0);
+    // Rejestr: pobranie + potrącenie B, ANI JEDNEGO zwrotu.
+    expect((await depositEventsOf(fixture.orderId)).map((e) => e.kind)).toEqual([
+      "collected",
+      "deducted",
+    ]);
+  }, 30_000);
+
+  // -------------------------------------------------------------------
+  // 5b. Nieokreślona awaria zlecenia zwrotu (Finding 2, ADR-269)
+  // -------------------------------------------------------------------
+  //
+  // `createRefund` padło tak, że NIE WIEMY, czy przelew wyszedł: transport
+  // (StripeApiError bez statusCode) albo dostawca przyjął, ale nie oddał id.
+  // Oznaczenie `failed` (ponawialne) zaprosiłoby operatora do drugiego zlecenia
+  // — świeży wiersz, NOWY klucz idempotencji, kaucja oddana DWA razy. Zamiast
+  // tego wiersz zostaje `requested` (w locie): ponowienie odbija się o unikat
+  // 0032 do czasu uzgodnienia z dostawcą.
+
+  it("awaria transportu (StripeApiError bez statusCode) → indeterminate, NIE failed; ponowienie NIE wysyła drugiego zwrotu", async () => {
+    const fixture = await paidOrderWithDeposit();
+    const input = {
+      tenantId: member.tenantId,
+      orderId: fixture.orderId,
+      amountGrosze: DEPOSIT_GROSZE,
+      actorId: member.userId,
+    };
+
+    let providerCalls = 0;
+    const outcome1 = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          // Kształt z portu (@avably/core, stripe/api.ts) przy awarii transportu:
+          // StripeApiError z samym komunikatem, statusCode undefined.
+          throw new StripeApiError("Połączenie z API płatności nie powiodło się: ECONNRESET");
+        },
+        readRefund: async (): Promise<never> => {
+          throw new Error("Odczyt nie powinien się wydarzyć");
+        },
+      },
+      input,
+    );
+
+    // NIE `failed`: przelew MÓGŁ wyjść.
+    expect(outcome1.status).toBe("indeterminate");
+    expect(providerCalls).toBe(1);
+
+    // Wiersz żądania zostaje `requested` (w locie) z powodem — nie `failed`.
+    const afterFirst = await refundRequestsOf(fixture.orderId);
+    expect(afterFirst).toHaveLength(1);
+    expect(afterFirst[0]!.status).toBe("requested");
+    expect(afterFirst[0]!.last_error).toBeTruthy();
+    // Rejestr zdarzeń pusty poza pobraniem — nic nie zaksięgowano.
+    expect((await depositEventsOf(fixture.orderId)).map((e) => e.kind)).toEqual(["collected"]);
+
+    // PONOWIENIE: drugi transfer NIE wychodzi. Wiersz `requested` jest w locie,
+    // więc bramka in-flight odbija żądanie PRZED `createRefund`.
+    const outcome2 = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          return "re_drugi_transfer";
+        },
+        readRefund: async () => refundRead({ refundId: "re_drugi_transfer", status: "succeeded" }),
+      },
+      input,
+    );
+
+    expect(providerCalls, "ponowienie po indeterminate wysłało DRUGI zwrot").toBe(1);
+    expect(outcome2.status).toBe("pending");
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(1);
+  }, 30_000);
+
+  it("dostawca przyjął, ale nie oddał identyfikatora (StripeApiError bez statusCode) → indeterminate", async () => {
+    const fixture = await paidOrderWithDeposit();
+
+    let providerCalls = 0;
+    const outcome = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => {
+          providerCalls += 1;
+          // Drugi kształt indeterminate: 2xx bez id (@avably/core, stripe/api.ts).
+          throw new StripeApiError("API płatności nie zwróciło identyfikatora zwrotu.");
         },
         readRefund: async (): Promise<never> => {
           throw new Error("Odczyt nie powinien się wydarzyć");
@@ -714,48 +916,65 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
       {
         tenantId: member.tenantId,
         orderId: fixture.orderId,
-        amountGrosze: DEPOSIT_GROSZE * 2,
+        amountGrosze: DEPOSIT_GROSZE,
         actorId: member.userId,
       },
     );
 
-    expect(outcome.status).toBe("failed");
-    expect(await depositEventsOf(fixture.orderId)).toHaveLength(1);
+    expect(outcome.status).toBe("indeterminate");
+    expect(providerCalls).toBe(1);
+    const requests = await refundRequestsOf(fixture.orderId);
+    expect(requests[0]!.status).toBe("requested");
+    expect(requests[0]!.provider_reference).toBeNull();
   }, 30_000);
 
-  it("nadmiarowy zwrot odrzuca BAZA, nawet gdy dostawca go przyjmie", async () => {
+  it("odmowa DETERMINISTYCZNA (4xx z kodem) zostaje `failed` i JEST ponawialna", async () => {
+    // Kontrola negatywna dla Findingu 2: błąd Z kodem statusu to odmowa, przy
+    // której żaden przelew NIE wyszedł — `failed` (ponawialny) jest poprawny,
+    // a ponowienie ma prawo utworzyć świeże żądanie.
     const fixture = await paidOrderWithDeposit();
+    const input = {
+      tenantId: member.tenantId,
+      orderId: fixture.orderId,
+      amountGrosze: DEPOSIT_GROSZE,
+      actorId: member.userId,
+    };
 
-    // Dostawca zgadza się na wszystko — druga warstwa musi bronić sama.
-    // To nie jest hipoteza: konto połączone bywa zasilane też spoza tego
-    // systemu, a wtedy u dostawcy jest z czego zwracać, choć w NASZYM
-    // rejestrze kaucji nie ma.
-    const outcome = await requestDepositRefund(
+    const outcome1 = await requestDepositRefund(
       {
         db: member.client,
-        createRefund: async () => "re_za_duzo",
-        readRefund: async () =>
-          refundRead({
-            refundId: "re_za_duzo",
-            status: "succeeded",
-            amountGrosze: DEPOSIT_GROSZE * 2,
-          }),
+        createRefund: async () => {
+          throw new StripeApiError(
+            "Nie można zwrócić tej płatności (charge_already_refunded).",
+            400,
+            "charge_already_refunded",
+            "invalid_request_error",
+          );
+        },
+        readRefund: async (): Promise<never> => {
+          throw new Error("Odczyt nie powinien się wydarzyć");
+        },
       },
-      {
-        tenantId: member.tenantId,
-        orderId: fixture.orderId,
-        amountGrosze: DEPOSIT_GROSZE * 2,
-        actorId: member.userId,
-      },
+      input,
     );
-
-    expect(outcome.status).toBe("failed");
-    if (outcome.status === "failed") {
-      // Komunikat bramki 0011 — dowód, że odmówiła BAZA, a nie nasz kod.
-      expect(outcome.reason).toContain("Rozliczenie kaucji przekracza pobraną kwotę");
-    }
-    expect(await depositEventsOf(fixture.orderId)).toHaveLength(1);
+    expect(outcome1.status).toBe("failed");
     expect((await refundRequestsOf(fixture.orderId))[0]!.status).toBe("failed");
+
+    // Ponowienie NIE odbija się o unikat (failed wychodzi z indeksu 0032):
+    // tym razem dostawca przyjmuje i zwrot się domyka.
+    const outcome2 = await requestDepositRefund(
+      {
+        db: member.client,
+        createRefund: async () => "re_po_odmowie",
+        readRefund: async () => refundRead({ refundId: "re_po_odmowie", status: "succeeded" }),
+      },
+      input,
+    );
+    expect(outcome2.status).toBe("settled");
+    expect((await depositEventsOf(fixture.orderId)).map((e) => e.kind)).toEqual([
+      "collected",
+      "refunded",
+    ]);
   }, 30_000);
 
   // -------------------------------------------------------------------
@@ -1101,11 +1320,12 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     expect(await paymentStatusOf(fixture.orderId)).toBe("deposit_refunded");
   }, 30_000);
 
-  it("odrzucone potrącenie nie wypuszcza żądania do dostawcy", async () => {
-    // Potrącenie większe niż pobranie odrzuca bramka 0011 (23514). Zwrot
-    // policzony w przeglądarce jako „saldo minus potrącenie" byłby wtedy
-    // zwrotem ZA MAŁYM — więc nie wychodzi w ogóle, a wiersz żądania
-    // zamyka się jako `failed`, żeby nie blokować kolejnej próby.
+  it("nadmiarowe potrącenie z modalu (ponad saldo) odrzucone PRZED transferem przez clamp", async () => {
+    // Potrącenie 50 001 przekracza saldo 50 000 SAMO, a razem ze zwrotem tym
+    // bardziej — clamp odrzuca CAŁE rozliczenie ZANIM powstanie wiersz żądania
+    // i zanim cokolwiek wyjdzie do dostawcy. (Domknięcie wiersza żądania po
+    // odmowie bramki na wierszu POTRĄCENIA — gdy odmowa pada już PO insercie
+    // żądania, np. wyścig 0034 — dowodzi test staleBalance niżej.)
     const fixture = await paidOrderWithDeposit();
 
     let providerCalls = 0;
@@ -1132,16 +1352,16 @@ describe.skipIf(!hasEnv)("kaucja online — pobranie i zwrot (Z5)", () => {
     );
 
     expect(outcome.status).toBe("failed");
+    if (outcome.status === "failed") {
+      expect(outcome.reason).toContain("przekracza dostępne saldo kaucji");
+    }
     expect(outcome.deductionGrosze).toBe(0);
     expect(providerCalls).toBe(0);
     expect((await depositEventsOf(fixture.orderId)).map((event) => event.kind)).toEqual([
       "collected",
     ]);
-    // Wiersz żądania jest DOMKNIĘTY — kolejna próba nie odbije się od unikatu.
-    const requests = await refundRequestsOf(fixture.orderId);
-    expect(requests).toHaveLength(1);
-    expect(requests[0]!.status).toBe("failed");
-    expect(requests[0]!.last_error).toContain("Potrącenie odrzucone");
+    // Clamp stoi PRZED insertem żądania — żaden wiersz nie powstał.
+    expect(await refundRequestsOf(fixture.orderId)).toHaveLength(0);
   }, 30_000);
 
   it("rozliczenie wobec NIEAKTUALNEGO salda odpada przed dostawcą (0034/ADR-072)", async () => {
