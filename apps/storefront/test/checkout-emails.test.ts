@@ -160,6 +160,67 @@ describe("sendCheckoutEmails", () => {
 });
 
 /**
+ * TOR ONLINE NIE POTWIERDZA REZERWACJI PRZY CHECKOUCIE (ADR-271).
+ *
+ * Dla `payment_provider='stripe'` płatność jeszcze nie zaszła w momencie
+ * checkoutu, więc „Rezerwacja potwierdzona" byłaby fałszem — klient dostaje
+ * potwierdzenie dopiero po zapłacie (mail „płatność zaksięgowana", ADR-139,
+ * ze ścieżki webhooka). Powiadomienie NAJEMCY idzie dla obu torów.
+ *
+ * To jest DOWÓD MUTACYJNY na warunku `payment_provider`: para testów przypina
+ * warunek z obu stron. Zdjęcie bramki (wysyłka klientowi zawsze) wywraca test
+ * `stripe`; jej odwrócenie (pominięcie dla `manual`) wywraca test `offline`
+ * oraz wcześniejsze testy „wysyła DWA e-maile" (domyślny rpcResult jest
+ * `manual`).
+ */
+describe("sendCheckoutEmails — bramka toru płatności (ADR-271)", () => {
+  it("stripe: BRAK potwierdzenia klienta przy checkoucie; powiadomienie najemcy WYCHODZI", async () => {
+    const { transport, sent } = capturingTransport();
+    const issues = await sendCheckoutEmails(rpcResult({ payment_provider: "stripe" }), {
+      transport,
+      availability: AVAILABLE,
+      ...DEPS_BASE,
+    });
+
+    // Klient NIE dostaje maila przy checkoucie — dostanie go po zapłacie.
+    expect(sent).toHaveLength(1);
+    expect(sent.find((e) => e.to === "klient@example.com"), "klient dostał potwierdzenie mimo braku płatności").toBeUndefined();
+    // Najemca wie o zamówieniu pending — powiadomienie idzie jak dotąd.
+    const toTenant = sent.find((e) => e.to === "biuro@najemca.example");
+    expect(toTenant, "brak powiadomienia dla najemcy").toBeDefined();
+    expect(toTenant!.replyTo).toBe("klient@example.com");
+    // Pominięcie potwierdzenia to zamierzone zachowanie, nie awaria — zero powodów.
+    expect(issues).toEqual([]);
+  });
+
+  it("stripe: dziennik zapisuje TYLKO powiadomienie najemcy, bez checkout_confirmation", async () => {
+    const { transport } = capturingTransport();
+    const { recorder, entries } = capturingRecorder();
+
+    await sendCheckoutEmails(rpcResult({ payment_provider: "stripe" }), {
+      transport,
+      availability: AVAILABLE,
+      recorder,
+      ...DEPS_BASE,
+    });
+
+    expect(entries.map((e) => e.kind)).toEqual(["new_order_notification"]);
+  });
+
+  it("offline (manual): kontrola pozytywna — potwierdzenie klienta WYCHODZI przy checkoucie", async () => {
+    const { transport, sent } = capturingTransport();
+    await sendCheckoutEmails(rpcResult({ payment_provider: "manual" }), {
+      transport,
+      availability: AVAILABLE,
+      ...DEPS_BASE,
+    });
+
+    expect(sent).toHaveLength(2);
+    expect(sent.find((e) => e.to === "klient@example.com"), "offline musi potwierdzać przy checkoucie").toBeDefined();
+  });
+});
+
+/**
  * Historia wysyłek (Zadanie 2.8, ADR-045) — ścieżka checkoutu.
  *
  * Kontrola pozytywna (udana wysyłka → wpis 'sent' z identyfikatorem dostawcy;
