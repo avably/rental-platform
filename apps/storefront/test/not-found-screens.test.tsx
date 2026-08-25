@@ -21,26 +21,52 @@
  * słownikiem (`getStorefrontCopy`) i PRAWDZIWYM stylem (`resolveSiteStyle`),
  * bo atrapa kontraktu o dziesiątkach kluczy mierzy kształt atrapy.
  *
- * ==================== CZEGO TEN PLIK NIE MIERZY (F6, 2026-08-25) ====================
+ * ==================== CZEGO TEN PLIK NIE MIERZY (F10, ADR-273) ====================
  *
  * Mierzy KOMPONENTY, nie ich OSIĄGALNOŚĆ — woła je wprost, z pominięciem
- * routera. To rozróżnienie przestało być teoretyczne: weryfikacja F6 na
- * ZBUDOWANEJ aplikacji (`next start`) pokazała, że ŻADEN z tych dwóch ekranów
- * nie renderuje się na produkcji. `notFound()` z tras sklepu (zdjęta pozycja,
- * zły permalink, strona spoza rejestru) i z catch-alla marketingu kończy we
- * WBUDOWANYM ekranie Nexta (`<html id="__next_error__">`), czyli dokładnie tam,
- * skąd ADR-197 miał je zabrać.
+ * routera. To rozróżnienie nie jest teoretyczne: na ZBUDOWANEJ aplikacji
+ * (`next build` + `next start`) treść obu tych ekranów NIE WCHODZI do HTML-a
+ * odpowiedzi. Serwer oddaje status 404 i pusty dokument
+ * `<html id="__next_error__">`; ekran pojawia się dopiero po HYDRACJI, bo
+ * jedzie payloadem RSC. Przeglądarka z JS pokazuje więc właściwy 404 (pomiar:
+ * `document.title` i `h1` zgodne z asercjami niżej), a klient bez JS i surowy
+ * HTML nie dostają nic.
  *
- * PRZYCZYNA (potwierdzona sondą): storefront ma DWA rooty (`app/[locale]`
- * i `app/(tenant)`, każdy z własnym `<html>`), a przy takim układzie granicą
- * `notFound()` jest `app/not-found.tsx` W KORZENIU — którego w repo nie ma.
- * Sonda z tymczasowym plikiem korzenia potwierdziła, że jest on podnoszony
- * przez OBIE osie. Naprawa wymaga jednak powłoki dokumentu dla obu osi
- * (fonty i `globals.css` sklepu; arkusze i skrypty szablonu marketingu), więc
- * jest osobnym zadaniem — F6 zgłasza ją PM-owi, a nie robi po drodze.
+ * ==================== PRZYCZYNA — SPROSTOWANIE ====================
  *
- * Tytuł dokumentu dodany tu przez F6 (S-57) jest poprawny i zacznie działać
- * w tej samej chwili, w której granica zostanie podpięta.
+ * Nota F6 wskazywała DWA ROOTY routera (`app/[locale]` i `app/(tenant)`) i brak
+ * korzeniowego `app/not-found.tsx`. To NIEPRAWDA i zostało obalone pomiarem:
+ * dołożenie `app/not-found.tsx` (z własnym `<html>/<body>`), dołożenie
+ * `not-found.tsx` w segmencie głębszym, `app/global-not-found.tsx` z
+ * `experimental.globalNotFound`, a nawet sprowadzenie aplikacji do JEDNEGO root
+ * layoutu — nie zmieniają ani jednego bajtu odpowiedzi. Ta sama awaria
+ * odtwarza się w WANILIOWEJ aplikacji Next (jeden root layout, gołe
+ * `not-found.tsx`) na 16.2.11 i 16.3.3, w `dev` i w buildzie produkcyjnym.
+ *
+ * PRAWDZIWY MECHANIZM (Next 16, źródła frameworka):
+ *   1. bez `loading.tsx` `LoadingBoundary` NIE zakłada `<Suspense>` wokół
+ *      `HTTPAccessFallbackBoundary` (`layout-router.js`), więc granica stoi
+ *      w shellu Fizza;
+ *   2. `NEXT_HTTP_ERROR_FALLBACK;404` wywraca shell, render HTML odrzuca,
+ *      a `app-render.js` buduje awaryjny payload, którego seed to dosłownie
+ *      `createElement('html', { id: '__next_error__' }, head, body)` — stąd
+ *      status 404 przy pustym dokumencie.
+ *
+ * DLACZEGO NIE `loading.tsx`. Sonda F10 sprawdziła i ten wariant: shell wtedy
+ * przeżywa, ale status zmienia się na **200** (miękkie 404 — gorzej dla SEO niż
+ * stan dzisiejszy), a w HTML-u i tak nie ma ani `<title>`, ani `<h1>` —
+ * React wypisuje sam znacznik błędu granicy
+ * (`<template data-dgst="NEXT_HTTP_ERROR_FALLBACK;404">`) i zostawia render
+ * klientowi. Odrzucone.
+ *
+ * STAN PRZYJĘTY (ADR-273): status 404 jest poprawny, ekran renderuje się po
+ * hydracji. Konstrukcja dająca 404 RAZEM z treścią w HTML istnieje w Next 16
+ * dokładnie jedna (`experimental.cacheComponents`) i kosztuje migrację całej
+ * aplikacji — zakolejkowana jako decyzja właścicielska.
+ *
+ * Asercje niżej opisują więc KONTRAKT TREŚCI obu ekranów — i to jest ich
+ * pełna, uczciwa rola. Bramka „czy 404 w ogóle dojeżdża" nie da się postawić
+ * w tym pliku: wymaga zbudowanej aplikacji i żywego serwera.
  */
 import { resolveSiteStyle } from "@avably/core/site";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -118,6 +144,17 @@ function headings(html: string, level: number): string[] {
   );
 }
 
+/**
+ * Tytuły dokumentu — obie osie pytają o TREŚĆ elementu, nie o jego obecność:
+ * sam `<title>` z pustym wnętrzem albo z drugim językiem przechodziłby test
+ * „ma tytuł". Liczność łapie drugi tytuł, który wygrałby albo przegrał losowo.
+ */
+function documentTitles(html: string): string[] {
+  return [...html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/g)].map((match) =>
+    match[1].replace(/<[^>]+>/g, "").trim(),
+  );
+}
+
 async function renderTenantNotFound(locale: TestLocale, ctx = true): Promise<string> {
   stan.locale = locale;
   stan.ctx = ctx;
@@ -165,15 +202,8 @@ describe("404 sklepu najemcy — pełna powłoka, język najemcy, wyjście do ka
    * `not-found.tsx` własnych metadanych nie wystawia. Karta przeglądarki,
    * historia i zakładka pokazywały goły adres (WCAG 2.4.2).
    *
-   * Asercja pyta o TREŚĆ elementu, nie o jego obecność: sam `<title>` z pustym
-   * wnętrzem albo z drugim językiem przechodziłby test „ma tytuł".
+   * Asercja pyta o TREŚĆ elementu, nie o jego obecność (patrz `documentTitles`).
    */
-  function documentTitles(html: string): string[] {
-    return [...html.matchAll(/<title[^>]*>([\s\S]*?)<\/title>/g)].map((match) =>
-      match[1].replace(/<[^>]+>/g, "").trim(),
-    );
-  }
-
   it.each(["pl", "en"] as const)("locale %s: dokument ma tytuł z nazwą sklepu", async (locale) => {
     const html = await renderTenantNotFound(locale);
     const titles = documentTitles(html);
@@ -235,5 +265,41 @@ describe("404 osi marketingowej — szablon, język trasy, wyjście na stronę g
   it("catch-all rzuca notFound() — głębsze niedopasowane adresy kończą się ekranem 404", () => {
     expect(TenantStorefrontCatchAll).toBeNull();
     expect(() => MarketingCatchAll()).toThrowError("NEXT_NOT_FOUND");
+  });
+
+  /* ---------------------------------------------------------------------
+   * TYTUŁ DOKUMENTU (ADR-273)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * CO SIĘ ZEPSUŁO: oś tenancka dostała tytuł przy S-57, marketingowa została
+   * pominięta — pomiar w przeglądarce na zbudowanej aplikacji dał na
+   * `/pl/nie-ma` `document.title === ""`. Braku nie łata `generateMetadata`
+   * trasy: `[page]` woła `notFound()` już w metadanych (przez `resolvePage`),
+   * a `[...rest]` metadanych nie ma wcale.
+   *
+   * Szablon jest TEN SAM co na pozostałych stronach osi (`[page]/page.tsx`),
+   * więc asercja porównuje z literałem `- Avably`, a nie z samym tytułem: 404
+   * bez sufiksu wyglądałby w karcie przeglądarki jak strona z innego serwisu.
+   */
+  it.each(["pl", "en"] as const)(
+    "locale %s: dokument ma tytuł w szablonie osi marketingowej",
+    async (locale) => {
+      const titles = documentTitles(await renderMarketingNotFound(locale));
+
+      expect(titles, "404 marketingu bez <title> (WCAG 2.4.2) albo z dwoma tytułami").toHaveLength(
+        1,
+      );
+      expect(titles[0]).toBe(`${MESSAGES[locale].marketing.notFoundPage.title} - Avably`);
+    },
+  );
+
+  it("tytuł nie miesza języków: pl bez tytułu en i odwrotnie", async () => {
+    expect(documentTitles(await renderMarketingNotFound("pl"))[0]).not.toContain(
+      en.marketing.notFoundPage.title,
+    );
+    expect(documentTitles(await renderMarketingNotFound("en"))[0]).not.toContain(
+      pl.marketing.notFoundPage.title,
+    );
   });
 });

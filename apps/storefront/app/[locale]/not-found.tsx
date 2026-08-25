@@ -24,6 +24,26 @@ type AppMessages = typeof enMessages;
  * w ogóle tu nie dociera (layout odrzuca je wyżej). Przełącznik języka
  * prowadzi na STRONĘ GŁÓWNĄ drugiego locale, nie na lustrzany 404 — celem
  * odwiedzającego jest treść w drugim języku, a nie ten sam brak.
+ *
+ * ==================== TYTUŁ DOKUMENTU (ADR-273) ====================
+ *
+ * Ten ekran nie miał `<title>` W OGÓLE — pomiar w przeglądarce na zbudowanej
+ * aplikacji dał `document.title === ""` na `/pl/nie-ma`. Oś tenancka dostała
+ * tytuł przy S-57, marketingowa została pominięta; karta przeglądarki,
+ * historia i zakładka pokazują goły adres (WCAG 2.4.2 „Page Titled").
+ *
+ * Braku nie da się załatać metadanymi TRASY, i to z budowy, nie z przeoczenia:
+ * `[page]/page.tsx` woła `notFound()` już w `generateMetadata` (przez
+ * `resolvePage`), a catch-all `[...rest]` własnych metadanych nie ma wcale —
+ * konwencja `not-found.tsx` też ich nie wystawia. Dlatego tytuł jedzie
+ * ELEMENTEM `<title>` w drzewie: React wynosi go do `<head>`, a wyspa jest
+ * prawdziwym węzłem Reacta (nie `dangerouslySetInnerHTML`), więc wyniesienie
+ * naprawdę działa. Konkurenta nie ma — na tej ścieżce żadne inne `<title>`
+ * nie powstaje.
+ *
+ * Szablon tytułu jest TEN SAM co na pozostałych stronach osi
+ * (`[page]/page.tsx`: `„{tytuł} - Avably"`), żeby 404 nie wyglądał w karcie
+ * przeglądarki jak strona z innego serwisu.
  */
 export default async function MarketingNotFound() {
   const locale = (await getLocale()) as Locale;
@@ -40,6 +60,7 @@ export default async function MarketingNotFound() {
       island={
         <section className="section legal-body-section">
           <div className="w-layout-blockcontainer main-container w-container">
+            <title>{`${copy.notFoundPage.title} - Avably`}</title>
             <div className="body-legal w-richtext" data-marketing-not-found>
               <p>{copy.notFoundPage.description}</p>
             </div>
